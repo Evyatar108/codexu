@@ -93,6 +93,28 @@ docs/competition/opencode/traces/
 # with node_modules and would balloon the git history immediately.
 .ralph/**/worktree/
 .ralph/overview-config.local.json
+# Per-process runtime lease — written by the ralph-overview watcher
+# supervisor (sync-ralph-state.mjs) to claim per-repo ownership. Never tracked.
+.ralph/overview-watcher.owner
+
+# Crews coordination plugin state — per-session mailboxes, manifests, locks.
+# Direct writes are forbidden by the PreToolUse guard; tracking would also
+# cause merge conflicts on every lead/member tick.
+.crews/
+
+# Per-machine git worktrees used by Ralph / parallel jobs. Multi-GB; same
+# rationale as .ralph/**/worktree/.
+.worktrees/
+
+# Per-machine symlink/junction dir (e.g. bin/ralph-overview.mjs); user-local.
+/bin/
+
+# One-off backup tarballs (ad-hoc snapshots; not part of the source tree).
+*.tgz
+
+# Ralph-overview append-only activity log (rotated at 1000 lines by the
+# watcher — high-churn audit trail, not a checkable artifact).
+plans/overview-activity.jsonl
 
 # happy-server runtime log directory (rich pino logs from the running service).
 # Contents are time-stamped per-process; not source-controlled.
