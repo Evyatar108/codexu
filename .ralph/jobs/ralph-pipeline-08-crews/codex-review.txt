@@ -1,0 +1,21 @@
+### Completeness
+
+[High] `crewsRoot` is not worktree-safe for all required paths. `resolveCrewsRoot()` only resolves the default literal `.crews` against the git common repo root; custom relative values still resolve against the worktree at [scripts/lib/resolve-config.mjs:149](D:/harness-efforts/codexu/.ralph/jobs/ralph-pipeline-08-crews/worktree/scripts/lib/resolve-config.mjs:149). `normalizeConfigPaths()` also always resolves `.crews` against `repoRoot` at [scripts/lib/sync-core.mjs:851](D:/harness-efforts/codexu/.ralph/jobs/ralph-pipeline-08-crews/worktree/scripts/lib/sync-core.mjs:851). This violates the plan’s linked-worktree acceptance criteria and can make direct sync-core callers or relative config overrides read a worktree-local `.crews/` instead of the main repo’s shared crew state.
+
+### Correctness
+
+[Medium] Manifest polling exits as soon as either `sessionId` or `transcriptPath` is present at [scripts/lib/work-on-via-crew.mjs:79](D:/harness-efforts/codexu/.ralph/jobs/ralph-pipeline-08-crews/worktree/scripts/lib/work-on-via-crew.mjs:79). The plan requires polling up to 10s for both fields because they race in after spawn; returning on the first field can unnecessarily persist a partial explicit ref and delay transcript availability until a later heuristic tick.
+
+[High] Crew mailbox/outbox ignore patterns do not work when `.crews` is outside the worktree repo root. The watcher passes absolute `.crews` paths to `matchesIgnored(filePath, absoluteRepoRoot, ...)` at [scripts/lib/watch-ralph-state.mjs:235](D:/harness-efforts/codexu/.ralph/jobs/ralph-pipeline-08-crews/worktree/scripts/lib/watch-ralph-state.mjs:235), but `matchesIgnored()` relativizes against `repoRoot` at [scripts/lib/path-utils.mjs:26](D:/harness-efforts/codexu/.ralph/jobs/ralph-pipeline-08-crews/worktree/scripts/lib/path-utils.mjs:26). In the required linked-worktree mode, main `.crews` files become `../../.../.crews/...`, so patterns like `.crews/crews/*/members/*/mailbox.json` will not match, violating the mailbox/outbox exclusion acceptance criterion.
+
+### Quality
+
+[High] `parse-spawn-launcher.test.mjs` depends on mutable, non-branch workspace state via an absolute path to `D:/harness-efforts/codexu/.crews/spawn-launchers/alice-1778830606020.ps1` at [scripts/lib/parse-spawn-launcher.test.mjs:19](D:/harness-efforts/codexu/.ralph/jobs/ralph-pipeline-08-crews/worktree/scripts/lib/parse-spawn-launcher.test.mjs:19). `.crews/` is explicitly shared runtime state, not committed branch state, so the test suite can fail in a clean checkout or after that launcher is removed/changed.
+
+### Security
+
+No issues found.
+
+### Overall Assessment
+
+Needs more work before use. The core feature shape is present, but the linked-worktree `.crews` resolution and watcher ignore behavior are acceptance-critical for this plan’s operating model.

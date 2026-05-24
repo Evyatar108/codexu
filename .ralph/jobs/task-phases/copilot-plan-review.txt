@@ -1,0 +1,28 @@
+I’m opening the provided file to see the task and any constraints, then I’ll carry it through end-to-end.
+
+I’ve got the review prompt. Next I’m verifying the referenced files and implementation assumptions against the actual codebase so the findings are grounded.
+
+### Feasibility
+
+- [High] The migration is not actually implementable autonomously as written because the committed phase values for many rows are left to operator judgment. `plans/task-phases.md:141-145` explicitly says the migrator must ask which tasks are `plan-review` and which should start at `brainstorm-ready`, and the plan repeats that dependency for the 49-row migration and smoke-test targets. Without a pinned mapping table in the plan, an autonomous agent cannot know the correct persisted phase for rows like `agent-comms`, `3c-hooks`, or other plan-only/research tasks.
+
+- [High] The plan mixes an HTML-only rollout with acceptance criteria that belong to the future JSON schema. `plans/task-phases.md:184-185` says plan #1 must stay HTML-only, and `plans/overview-data-split.md:45-57` is where `planOnly`, `planSource`, `brainstormJobId`, `planJobId`, `planReviewIterations`, `implementJobId`, and `mergeCommit` are modeled as `null`-defaulted persisted fields. In this plan, those values are instead proposed as optional `data-*` attributes omitted when absent. That means the scope item “standardize all optional fields as `null` in persisted JSON” cannot be satisfied by the listed files.
+
+### Completeness
+
+- [High] The documentation update for `.agents/skills/roadmap-and-overview/SKILL.md` is under-scoped. The plan calls out only a couple of legacy-status references, but the operational procedure is status-model-specific throughout the file: `SKILL.md:131-136`, `146-147`, `195-229`, `242-247`, `308`, and `315-316` all instruct agents to flip `b-ready`/`b-blocked`/`b-closed`, update a single status-table cell, and reason from badge classes. If only the cited line ranges are edited, the repo will still contain authoritative bookkeeping instructions for the old model.
+
+- [Medium] The kanban ID refactor does not cover all of the existing title-matching logic. `plans/overview.html:3293-3307` matches titles to assign `data-workstream`, but `plans/overview.html:3334-3355` separately matches titles again to inject the `→ command` link. The plan replaces the first brittle path with `data-task-id` lookup, but leaves the second one untouched, so the page still depends on card-title text for cross-linking.
+
+### Ordering
+
+No issues found.
+
+### Simplicity
+
+- [Medium] The plan keeps two sources of truth per row: manual `data-task-phase` / `data-task-status` attributes plus a hand-maintained `.cmd-badge.b-<phase>` and hand-added modifier pill. Given that the page already runs JS transforms on load (`plans/overview.html:2677-2695`, `2842-2851`, `3204-3308`, `3415-3450`), a simpler design would be to make the attributes authoritative and render the phase/status pills from them at load time. That would remove the 49-row dual-write burden and the dedicated “badge class must match attribute” drift checks.
+
+### Acceptance Criteria Quality
+
+- [High] Several acceptance criteria are not specific enough for an autonomous coding agent to verify without human clarification. The smoke-test criteria depend on “pick a fuzzy task,” “pick a small task,” and “operator suggestion needed,” and the migration criteria depend on unspecified operator confirmation for `plan-review` and `brainstorm-ready`. The plan should name the exact rows to use for each path and state whether the smoke is performed via temporary local edits or committed fixture rows; otherwise the agent cannot know what constitutes a correct, reviewable verification path.
+

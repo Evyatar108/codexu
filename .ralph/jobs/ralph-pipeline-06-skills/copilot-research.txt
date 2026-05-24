@@ -1,0 +1,55 @@
+I’ll inspect the provided temp path to determine the requested work.
+
+I’ll map the relevant project files and existing Ralph helpers before summarizing the implementation guidance.
+
+I found the overview/Ralph modules; I’ll inspect the snapshot emitters and existing test/skill conventions to make the research report concrete.
+
+### Codebase Architecture
+
+This is a pnpm monorepo with root Node ESM scripts under `scripts\lib\` and a Vite/React/TypeScript dashboard package under `tools\overview-viewer\`. The Ralph overview pipeline is mostly script-side `.mjs` modules that emit sidecars into `plans\`, while the UI consumes `window.OVERVIEW_DATA` and `window.OVERVIEW_RALPH_STATE`.
+
+Key tools: `pnpm`, Vitest, TypeScript, Vite, React 19. Root tests currently live adjacent to modules as `scripts\lib\*.test.mjs`, not under `scripts\lib\__tests__\`.
+
+### Feature-Relevant Code
+
+- `scripts\lib\derive-ralph-stage.mjs` is the direct model for the new pure predicate module. It exports the canonical stage derivation and already includes all 10 stage values, including `replan-pending`.
+- `scripts\lib\sync-core.mjs` constructs `RalphPipelineState` in `toPipelineState()`, including `stage`, `artifacts`, `jobSlug`, `groupSlug`, `isParallel`, `reviewOpenCount`, `terminalReason`, and `lastUpdatedAt`.
+- `scripts\lib\path-utils.mjs` normalizes stored artifact paths to POSIX-style relative paths, e.g. `.ralph/jobs/foo`, even on Windows.
+- `tools\overview-viewer\src\types.ts` defines `OverviewTask`, `RalphStage`, `RalphArtifacts`, `RalphPipelineState`, `Recommendation`, and `Snapshot`. This is the right place to add `NextCommand`.
+- `tools\overview-viewer\src\utils\ralphStages.ts` is the UI-side canonical stage ordering.
+- `scripts\lib\score-recommendations.mjs` and `scripts\lib\emit-derived-artifacts.mjs` produce the `{ taskId, score, stage, reasons }` recommendation data consumed by `/triage`.
+- `scripts\lib\emit-snapshot.mjs` merges `overviewData.tasks[]` with `ralphState.byTaskId` into `plans\overview-snapshot.json`; skills should treat this as the primary state file.
+- `scripts\lib\default-config.mjs` defines output paths, including `plans\overview-snapshot.json`, `plans\overview-recommendations.json`, and `.ralph\overview-sync.lock`.
+- `scripts\lib\sync-lock.mjs` defines lock metadata and stale-lock behavior relevant to the `/work-on` stale snapshot warning.
+- `.claude\skills\*\SKILL.md` shows existing repo-local skill frontmatter conventions.
+- Optional UI integration belongs in `tools\overview-viewer\src\components\TaskCommand.tsx`; quick actions already use `copyTextWithToast(...)`.
+
+### Technical Constraints
+
+- The plan’s edits must happen in `D:\harness-efforts\codexu\.ralph\jobs\ralph-pipeline-06-skills\worktree\`, not directly on main.
+- `derive-next-command.mjs` should stay pure and filesystem-free, like `derive-ralph-stage.mjs`.
+- Stored artifact paths are relative and slash-normalized. The plan asks for an absolute `groupDir` in the parallel `--run-only --job` command, but the proposed function signature lacks `repoRoot`; implementation must either accept relative paths or add a small wrapper/options layer where absolute paths are required.
+- If TypeScript UI code imports the root `.mjs` module, add an adjacent `.d.mts` declaration per `tools\overview-viewer\CLAUDE.md`. A script-side `.test.mjs` avoids this.
+- `plans\overview-snapshot.json` schema allows future Ralph fields via `additionalProperties`, but current typed fields do not include Plan 07 blocker details yet.
+- The skill files are instructions, not executable modules. They should call the shared predicate through Node instead of duplicating the stage table.
+
+### Implementation Suggestions
+
+Create `scripts\lib\derive-next-command.mjs` with the required version-pin comment and a single exported `deriveNextCommand(ralphPipelineState, task)`. Use small helpers for `jobSlug`, `groupSlug`, `jobDir`, `groupDir`, `planFile`, and `brainstormDir`, falling back to `task.id` only where safe.
+
+Prefer an adjacent test file, `scripts\lib\derive-next-command.test.mjs`, matching current repo convention. Cover each stage in `RalphStage`, including the `replan-pending` command `/plan-with-ralph --improve <jobDir>/plan.md`.
+
+Add this type to `tools\overview-viewer\src\types.ts`:
+
+```ts
+export interface NextCommand {
+    label: string
+    command: string
+    icon?: string
+}
+```
+
+For the skills, keep `.claude\skills\work-on\SKILL.md`, `.claude\skills\triage\SKILL.md`, and `.claude\skills\blocker-report\SKILL.md` concise but operational. The most important rule is: resolve from `plans\overview-snapshot.json`, then delegate command derivation to `scripts\lib\derive-next-command.mjs`; do not repeat the predicate table in markdown.
+
+Defer the `TaskCommand.tsx` “Copy next command” UI unless the implementation has time to handle the `.mjs` TypeScript declaration and regenerate `plans\overview.html`.
+

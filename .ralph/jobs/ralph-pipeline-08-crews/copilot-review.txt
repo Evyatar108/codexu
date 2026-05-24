@@ -1,0 +1,32 @@
+I’ll inspect the referenced temp path to determine what work it contains.
+
+The file is large, so I’m reading targeted sections first to identify its format and instructions.
+
+I’ve identified this as a code-review bundle. I’m reading the implementation hotspots now: crew discovery, merge/persistence, watcher wiring, subcommands, and UI rendering.
+
+I’m checking the actual worktree line numbers for candidate review findings so the report can point at files precisely.
+
+### Completeness
+
+No issues found.
+
+### Correctness
+
+[High] `scripts/lib/sync-core.mjs:851-858` re-resolves `crewsRoot` with `resolveMaybeAbsolute(repoRoot, ...)` instead of the worktree-aware `resolveCrewsRoot()` logic from `resolve-config.mjs`. Any sync-core caller passing the default config object or another relative `crewsRoot` from the linked worktree will scan `worktree/.crews` instead of the main repo `.crews`, violating the plan’s explicit shared-workspace requirement.
+
+[Medium] `scripts/sync-ralph-state.mjs:70-87` only dedupes `--update-crew-session` within the requested stage bucket. If the same `sessionId` or `(crewName, memberName)` already exists under another recorded stage, the subcommand creates a duplicate instead of updating the existing entry in place, which conflicts with the cross-stage identity/preservation rules.
+
+[Medium] `scripts/sync-ralph-state.mjs:333-340` silently creates a new `byTaskId[taskId]` for unknown task IDs. Because snapshots are built only from `overviewData.tasks`, a typo can appear to succeed while producing no visible crew row. The subcommand should fail when the task is absent from the sidecar.
+
+### Quality
+
+No issues found.
+
+### Security
+
+No issues found.
+
+### Overall Assessment
+
+Not ready yet. The main implementation is broad, but the worktree `.crews` resolution bug risks making crew discovery miss all real sessions in the Plan 08 worktree, and the explicit subcommand path needs tighter identity/task validation.
+

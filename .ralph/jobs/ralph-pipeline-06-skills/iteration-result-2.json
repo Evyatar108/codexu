@@ -1,0 +1,44 @@
+{
+  "storyId": "US-002",
+  "verifiedEvidence": [
+    {
+      "criterion": "scripts/lib/derive-next-command-cli.mjs exists. Reading plans/overview-snapshot.json, looking up --task <id>, resolving repoRoot via git rev-parse --show-toplevel, and writing NextCommand | null as JSON to stdout.",
+      "command": "test -f scripts/lib/derive-next-command-cli.mjs && grep -nE 'plans.*overview-snapshot|--task|rev-parse|JSON.stringify' scripts/lib/derive-next-command-cli.mjs",
+      "result": "File exists; grep found default plans/overview-snapshot.json resolution, --task parsing, git rev-parse --show-toplevel repoRoot resolution, and JSON.stringify stdout output.",
+      "evidenceKind": "command-output"
+    },
+    {
+      "criterion": "Optional --snapshot <path> overrides the snapshot location.",
+      "command": "grep -n -- '--snapshot' scripts/lib/derive-next-command-cli.mjs && pnpm test scripts/lib/derive-next-command-cli.test.mjs",
+      "result": "--snapshot parser branch found at lines 41-42; vitest custom snapshot override case passed.",
+      "evidenceKind": "command-output"
+    },
+    {
+      "criterion": "On no-match, exits non-zero with a stderr message naming the missing task id.",
+      "command": "node scripts/lib/derive-next-command-cli.mjs --task MISSING-TASK --snapshot scripts/lib/fixtures/derive-next-command-snapshot.json",
+      "result": "Exit 1; stderr named missing task id MISSING-TASK and the fixture snapshot path.",
+      "evidenceKind": "command-output"
+    },
+    {
+      "criterion": "CLI smoke: node scripts/lib/derive-next-command-cli.mjs --task <known-task-id> --snapshot <fixture-snapshot.json> exits 0 and stdout JSON-parses to an object with string fields label and command; running with --task <missing-id> exits non-zero.",
+      "command": "node scripts/lib/derive-next-command-cli.mjs --task TASK-CLI --snapshot scripts/lib/fixtures/derive-next-command-snapshot.json | node -e 'const fs = require(\"fs\"); const o = JSON.parse(fs.readFileSync(0, \"utf8\")); console.log(typeof o.label + \":\" + o.label); console.log(typeof o.command + \":\" + o.command);'",
+      "result": "Known TASK-CLI exited 0 and parsed to label string 'Resume implementation' and command string '/implement-with-ralph resume fixture-cli-job'; missing MISSING-TASK exited 1.",
+      "evidenceKind": "command-output"
+    },
+    {
+      "criterion": "Vitest at scripts/lib/derive-next-command-cli.test.mjs covers at least 3 cases: happy-path --task on a fixture snapshot returns expected command; --snapshot override resolves to a custom file; --task missing exits non-zero with the task id in stderr. pnpm test scripts/lib/derive-next-command-cli.test.mjs passes.",
+      "command": "pnpm test scripts/lib/derive-next-command-cli.test.mjs",
+      "result": "Exit 0; 1 test file passed, 4 tests passed, covering fixture happy path, custom --snapshot override, repoRoot parallel group, and missing task stderr.",
+      "evidenceKind": "command-output"
+    },
+    {
+      "criterion": "Typecheck passes.",
+      "command": "pnpm --filter @codexu/overview-viewer typecheck > .test-output/overview-viewer.typecheck.log 2>&1; tail -30 .test-output/overview-viewer.typecheck.log",
+      "result": "Exit 0; tsc --noEmit completed with no errors.",
+      "evidenceKind": "command-output"
+    }
+  ],
+  "skippedReasons": [],
+  "notTested": [],
+  "iterationSHA": "96ad79098a7a57afa627794e01c1b12860a9faf0"
+}

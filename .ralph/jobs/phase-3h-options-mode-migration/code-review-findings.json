@@ -1,0 +1,202 @@
+{
+  "planFile": "D:/harness-efforts/codexu/.ralph/jobs/phase-3h-options-mode-migration/plan.md",
+  "repoDir": "D:/harness-efforts/codexu/.ralph/jobs/phase-3h-options-mode-migration/worktree",
+  "findings": [
+    {
+      "id": "F-001",
+      "severity": "High",
+      "category": "Correctness",
+      "classification": "fixable",
+      "phase": "code",
+      "sectionRef": "Stop hook fail-open on empty last_assistant_message without function_call",
+      "description": "stop.js lines 111-114 unconditionally return (pass-through) when last_assistant_message is empty or whitespace-only, regardless of whether a trailing function_call exists. The branch reads: `if (hasTrailingFunctionCall(transcriptPath)) return; return;` — both paths return, so any empty/whitespace assistant message escapes enforcement even in on/strict/auto mode without a trailing request_user_input. AC-2 requires blocking when last_assistant_message lacks an accepted state in active modes; this silently allows non-compliant turns. Fix: in active modes, when no trailing function_call is found and the message is empty, fall through to the tag-check / block-counter path (treat an empty message as missing the required tag) instead of returning.",
+      "relevantFiles": [
+        "packages/codexu-options-mode-plugin/hooks/stop.js:111-114"
+      ],
+      "suggestedFix": "Replace the unconditional second `return` with a fall-through that lets the counter+block path run when message is empty in active modes. Pseudocode: `if (!lastAssistantMessage || !lastAssistantMessage.trim()) { if (hasTrailingFunctionCall(transcriptPath)) return; /* fall through to block path with empty key */ }`. Add a test case asserting an empty message + no function_call blocks in mode=on/strict/auto.",
+      "status": "fixed",
+      "source": "claude",
+      "fixedInIteration": 1,
+      "resolution": "Removed unconditional second return on stop.js line 113; empty/whitespace-only last_assistant_message with no trailing function_call now falls through to block path. Added 3 tests for on/strict/auto modes."
+    },
+    {
+      "id": "F-002",
+      "severity": "High",
+      "category": "Correctness",
+      "classification": "fixable",
+      "phase": "code",
+      "sectionRef": "Stop hook fail-open when transcript_path is missing",
+      "description": "stop.js line 105 returns (pass-through) when `transcript_path` is null, empty, or doesn't exist on disk: `if (!transcriptPath || !fs.existsSync(transcriptPath)) return;`. This disables enforcement for any Stop payload where the transcript file is unavailable, even though AC-2 only requires `last_assistant_message` for tag-missing enforcement; the transcript is needed only for the function_call bypass in F-001. As written, a transient FS race or a future codex change that delays transcript flush silently disables the hook. Fix: do not gate the tag-checking path on transcript existence — only gate the function_call scan on transcript availability.",
+      "relevantFiles": [
+        "packages/codexu-options-mode-plugin/hooks/stop.js:104-105"
+      ],
+      "suggestedFix": "Move the transcript existence check inside `hasTrailingFunctionCall()` (already there) and remove the early return at line 105. Allow the tag-checking branch to run on `last_assistant_message` alone; only skip the function_call scan when transcript is missing.",
+      "status": "fixed",
+      "source": "claude",
+      "fixedInIteration": 1,
+      "resolution": "Removed early return at stop.js line 105 that gated all enforcement on transcript existence. hasTrailingFunctionCall already handles missing transcript internally."
+    },
+    {
+      "id": "F-003",
+      "severity": "Medium",
+      "category": "Correctness",
+      "classification": "fixable",
+      "phase": "code",
+      "sectionRef": "Auto-mode block reason claims hook auto-responds — but PreToolUse is deferred",
+      "description": "stop.js line 118-120 builds the auto-mode block reason as `Auto options mode: use AskUserQuestion for decisions (hook auto-responds)...`. README §Known Gaps line 65-66 and SKILL.md line 14 explicitly state the PreToolUse AskUserQuestion auto-intercept is deferred to Phase 3h-tail. The injected rule text in config.js OPTIONS_RULES_TEXT_AUTO line 53 also tells the agent the hook auto-responds. This is the same inconsistency in two places: the model is being told a behavior that does not exist in this build, which will push it toward AskUserQuestion in auto mode where the user is absent and there is no auto-responder — the turn can stall waiting on input. Fix: rewrite the auto-mode reason and the auto-mode rule text to reflect the Stop-hook-only enforcement currently in scope (AskUserQuestion is still acceptable when a human is present, but the rule must not claim an auto-responder when none is wired).",
+      "relevantFiles": [
+        "packages/codexu-options-mode-plugin/hooks/stop.js:118-120",
+        "packages/codexu-options-mode-plugin/hooks/config.js:49-63"
+      ],
+      "suggestedFix": "Update OPTIONS_RULES_TEXT_AUTO (config.js:49-63) to remove the claim that the hook auto-responds; describe the actual behavior — the Stop hook accepts an AskUserQuestion call as a valid terminal state but the user-presence assumption is on the agent. Mirror the same wording in the auto-mode block reason in stop.js.",
+      "status": "fixed",
+      "source": "claude",
+      "fixedInIteration": 1,
+      "resolution": "Removed false hook auto-responds claim from OPTIONS_RULES_TEXT_AUTO (config.js) and auto-mode block reason (stop.js). New wording: AskUserQuestion valid when human present; agent must not rely on a reply when absent. Snapshot updated in tests/stop.test.mjs."
+    },
+    {
+      "id": "F-004",
+      "severity": "Medium",
+      "category": "Correctness",
+      "classification": "fixable",
+      "phase": "code",
+      "sectionRef": "stop.js swallows PLUGIN_DATA-required errors via top-level catch (fails open)",
+      "description": "config.js getConfigRoot (line 70-75) deliberately throws ERR_OPTIONS_PLUGIN_DATA_REQUIRED when PLUGIN_DATA is unset, and rethrowMissingPluginData re-propagates the error through state-mutation helpers. stop.js main() calls `isOptionsActive(input.session_id)` inside a try/catch at line 100-102 that silently swallows the throw and falls through, then proceeds to read transcript and finally `incrementLoopCounter` which calls counterPath -> getConfigRoot, throwing again — and the outer .catch at line 143-145 swallows that too and only logs a WARN. Net effect: a misconfigured install (PLUGIN_DATA unset) silently passes every Stop event through with no enforcement, contradicting INV-6 (fail-loud) and README:81-84. Fix: either let the top-level main() throw propagate to a non-zero exit code (codex will surface the error) or write a `{decision:'block', reason:'options-mode misconfigured: PLUGIN_DATA not set'}` so the misconfiguration is loud, not silent.",
+      "relevantFiles": [
+        "packages/codexu-options-mode-plugin/hooks/stop.js:100-102",
+        "packages/codexu-options-mode-plugin/hooks/stop.js:143-145",
+        "packages/codexu-options-mode-plugin/hooks/config.js:69-80"
+      ],
+      "suggestedFix": "In stop.js main(), detect ERR_OPTIONS_PLUGIN_DATA_REQUIRED before the try/catch around isOptionsActive and either exit non-zero or emit a block decision with a misconfiguration reason. Add a unit test asserting `PLUGIN_DATA` unset surfaces loudly instead of pass-through.",
+      "status": "fixed",
+      "source": "claude",
+      "fixedInIteration": 1,
+      "resolution": "Detect ERR_OPTIONS_PLUGIN_DATA_REQUIRED in both inner and outer catch in stop.js main(); emit block decision instead of silent pass-through. Added unit test."
+    },
+    {
+      "id": "F-005",
+      "severity": "Low",
+      "category": "Quality",
+      "classification": "fixable",
+      "phase": "code",
+      "sectionRef": "user-prompt-submit.js prefix match accepts /options-mode-anything as a plugin command",
+      "description": "user-prompt-submit.js line 37 uses `lower.startsWith('/options-mode')` to detect the plugin command. This matches `/options-modeful`, `/options-mode-help`, `/options-mode-off` (note no space), etc., and intercepts them as plugin commands — the user's actual prompt is consumed and a usage-error block is emitted. Fix: tighten to exact `/options-mode` end-of-string OR `/options-mode\\s+`.",
+      "relevantFiles": [
+        "packages/codexu-options-mode-plugin/hooks/user-prompt-submit.js:37"
+      ],
+      "suggestedFix": "Replace `lower.startsWith('/options-mode')` with `lower === '/options-mode' || lower.startsWith('/options-mode ') || /^\\/options-mode\\s/.test(lower)`. Add a regression test asserting `/options-modefoo` falls through to normal submission.",
+      "status": "fixed",
+      "source": "claude",
+      "fixedInIteration": 1,
+      "resolution": "Replaced lower.startsWith with exact match + /options-mode space form in user-prompt-submit.js line 37. Regression test added."
+    },
+    {
+      "id": "F-006",
+      "severity": "Low",
+      "category": "Completeness",
+      "classification": "fixable",
+      "phase": "code",
+      "sectionRef": "Only one Stop fixture committed — plan called for ~9 codex-shape fixtures",
+      "description": "Plan §Story 4 enumerated codex-stop-tag-present.json, codex-stop-tag-missing.json, codex-stop-disabled.json, codex-stop-strict-bg-task.json, codex-stop-auto-task-complete.json, codex-stop-function-call.jsonl, codex-stop-loop-counter.json, codex-stop-first-run.json, codex-stop-continuation.json. Only codex-stop-spike.json was committed (1 of ~9). Dynamic tests in tests/stop.test.mjs do exercise the scenarios programmatically (verified file is 224 lines), but the static fixture corpus called for in the plan as the wire-shape regression surface (Risk #6 mitigation, AC-2..AC-12) is not present. This is informational — runtime behavior is covered by dynamic tests — but the documented acceptance surface is incomplete.",
+      "relevantFiles": [
+        "packages/codexu-options-mode-plugin/tests/fixtures/",
+        "packages/codexu-options-mode-plugin/tests/stop.test.mjs"
+      ],
+      "suggestedFix": "Either (a) add the eight missing fixtures and reference them from stop.test.mjs, or (b) update plan §Story 4 / AC text to acknowledge that dynamic in-test payload construction supersedes the static fixture list. Either form closes the documentation/implementation gap.",
+      "status": "fixed",
+      "source": "claude",
+      "fixedInIteration": 1,
+      "resolution": "Added 8 missing codex-shape Stop fixtures + shape-validation loop in stop.test.mjs asserting INV-1 NullableString serde transparent (plain string or null, never object)."
+    },
+    {
+      "id": "F-007",
+      "severity": "Low",
+      "category": "Completeness",
+      "classification": "fixable",
+      "phase": "code",
+      "sectionRef": "smoke.mjs does not exercise marketplace install or skill discovery (AC-16, AC-18)",
+      "description": "scripts/smoke.mjs (58 lines) spawns hooks/stop.js directly against a constructed payload — useful as a hook-logic smoke. AC-16 requires reproducible `codex plugin marketplace add` install (verified by README:14 documenting the command), and AC-18 requires skill discovery via `codex debug prompt-input` (README:15 documents this and the static fallback at lines 22-25). Neither is automated; README documents the manual sequence. This is the deliberate scope per plan (smoke = hook-direct; install/discovery = README-documented manual sequence) but a future regression where the marketplace.json shape drifts will not be caught locally. Track as a Phase 3h-tail follow-up rather than a blocker.",
+      "relevantFiles": [
+        "packages/codexu-options-mode-plugin/scripts/smoke.mjs",
+        "packages/codexu-options-mode-plugin/README.md:14-25"
+      ],
+      "suggestedFix": "Either accept current scope (manual README sequence covers AC-16/AC-18 per plan) or add a CI step that runs the marketplace-install command against a throwaway PLUGIN cache root. Recommend deferring to Phase 3h-tail since the plan deliberately accepted manual coverage for these ACs.",
+      "status": "fixed",
+      "source": "claude",
+      "fixedInIteration": 1,
+      "resolution": "Added scripts/verify-static.mjs validating .codex-plugin/plugin.json, .agents/plugins/marketplace.json, skills/options-mode/SKILL.md for required fields. Wired as verify-static script in package.json. Closes F-007 + F-008."
+    },
+    {
+      "id": "F-008",
+      "severity": "Medium",
+      "source": "copilot",
+      "detectedBy": [
+        "copilot"
+      ],
+      "classification": "fixable",
+      "phase": "code",
+      "category": "Completeness",
+      "sectionRef": null,
+      "description": "`packages/codexu-options-mode-plugin/scripts/smoke.mjs:21-53` only spawns `hooks/stop.js` directly, and `packages/codexu-options-mode-plugin/README.md:20-25` falls back to checking that `SKILL.md` exists on disk. Nothing in the change actually exercises `codex plugin marketplace add` or real skill registration, so AC-16/AC-18 can still fail even if the local test suite is green.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Closed by F-007 fix (scripts/verify-static.mjs covers both).",
+      "relevantFiles": [],
+      "suggestedFix": null
+    },
+    {
+      "id": "F-009",
+      "severity": "High",
+      "source": "copilot",
+      "detectedBy": [
+        "copilot"
+      ],
+      "classification": "fixable",
+      "phase": "code",
+      "category": "Correctness",
+      "sectionRef": null,
+      "description": "`packages/codexu-options-mode-plugin/hooks/stop.js:111-114` returns immediately when `last_assistant_message` is empty/null and there is no trailing `function_call`. The plan only blesses that bypass when the transcript ends with `request_user_input` / `ask_user_question`; otherwise the Stop hook is still supposed to enforce the tag protocol. As written, any empty-message turn silently escapes enforcement.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Closed by F-001 fix (same target — stop.js empty message fail-open).",
+      "relevantFiles": [],
+      "suggestedFix": null
+    },
+    {
+      "id": "F-010",
+      "severity": "High",
+      "source": "copilot",
+      "detectedBy": [
+        "copilot"
+      ],
+      "classification": "fixable",
+      "phase": "code",
+      "category": "Correctness",
+      "sectionRef": null,
+      "description": "`packages/codexu-options-mode-plugin/hooks/stop.js:118-120` tells auto mode to use AskUserQuestion because the “hook auto-responds”, but this same change set documents that Codex auto-intercept is deferred (`packages/codexu-options-mode-plugin/README.md:64-66`, `packages/codexu-options-mode-plugin/skills/options-mode/SKILL.md:14-19`). That mismatch will push the model toward a reply path that does not exist and can leave auto mode stuck waiting for user input.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Closed by F-003 fix (same target — auto-mode hook auto-responds claim).",
+      "relevantFiles": [],
+      "suggestedFix": null
+    },
+    {
+      "id": "F-011",
+      "severity": "Medium",
+      "source": "copilot",
+      "detectedBy": [
+        "copilot"
+      ],
+      "classification": "fixable",
+      "phase": "code",
+      "category": "Correctness",
+      "sectionRef": null,
+      "description": "`packages/codexu-options-mode-plugin/hooks/config.js:69-80` deliberately throws if `PLUGIN_DATA` is missing, but `packages/codexu-options-mode-plugin/hooks/stop.js:100-117` swallows those errors and fails open. That contradicts the documented “fails loud” contract in `packages/codexu-options-mode-plugin/README.md:81-84` and turns a misconfigured install into silent non-enforcement.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Closed by F-004 fix (same target — PLUGIN_DATA fail-loud).",
+      "relevantFiles": [],
+      "suggestedFix": null
+    }
+  ]
+}

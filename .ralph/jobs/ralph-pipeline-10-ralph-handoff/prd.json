@@ -1,0 +1,159 @@
+{
+  "project": "Ralph plugin handoff doc (overviewTaskId field)",
+  "description": "Write plans/ralph-overview-task-id.md — a single markdown handoff doc that fully specifies the ralph-orchestration plugin patches needed to add an optional overviewTaskId field across PRD, group, and brainstorm artifacts, so a future /plan-with-ralph --improve cycle in the Ralph plugin source tree can pick it up and ship the patches without re-deriving requirements.",
+  "deslop": true,
+  "iterationEngine": "codex",
+  "jobDir": "D:/harness-efforts/codexu/.ralph/jobs/ralph-pipeline-10-ralph-handoff",
+  "repoDir": "D:/harness-efforts/codexu",
+  "branch": {
+    "name": "ralph-pipeline-10-ralph-handoff",
+    "created": true
+  },
+  "worktree": {
+    "path": "D:/harness-efforts/codexu/.ralph/jobs/ralph-pipeline-10-ralph-handoff/worktree",
+    "branch": "ralph-pipeline-10-ralph-handoff"
+  },
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Write plans/ralph-overview-task-id.md handoff doc",
+      "description": "As the codexu workspace owner, I want a single markdown handoff doc at plans/ralph-overview-task-id.md that fully specifies the ralph-orchestration plugin patches needed to add an optional overviewTaskId field across PRD, group, and brainstorm artifacts, so that a future /plan-with-ralph --improve cycle (run from the Ralph plugin source tree) can pick it up and ship the patches without re-deriving requirements.",
+      "acceptanceCriteria": [
+        "plans/ralph-overview-task-id.md exists in the worktree at D:/harness-efforts/codexu/.ralph/jobs/ralph-pipeline-10-ralph-handoff/worktree/plans/ralph-overview-task-id.md.",
+        "The doc contains all 10 top-level sections in this order: 1. Context, 2. Ralph internals checked, 3. Patches required (with subsections 3.1-3.4 for the 4 skills), 4. Back-compat, 5. Out of scope, 6. Critical compatibility gotchas, 7. Suggested landing order, 8. Acceptance criteria, 9. Tests, 10. How to pick this up.",
+        "All 4 Ralph skill patches are documented (convert-to-ralph-prd, decompose-plan, brainstorm-with-ralph, plan-with-ralph). Each has a CLI flag (or prompt), a write location, and — where applicable — a schema-or-artifact-example update directive (prd-schema.json for convert-to-ralph-prd; group-schema.json for decompose-plan; SKILL.md inline JSON example for brainstorm-with-ralph; no schema change for plan-with-ralph).",
+        "The doc pins ralph-orchestration v5.32.0 (cached) and notes source-tree v5.35.0 with a drift-reconciliation directive.",
+        "The doc references plans/ralph-pipeline-01-foundation.md and the comprehensive plan at C:/Users/evmitran/.claude/plans/glistening-wondering-llama.md for context.",
+        "The doc explicitly names the field overviewTaskId (camelCase), confirms no existing schema property collision, and explicitly states the field is OPTIONAL everywhere (not in any `required` array).",
+        "§3.2 (decompose-plan) precedence order lists, top first: (1) explicit --overview-task-id CLI flag, (2) parent plan metadata, (3) parent prd.json.",
+        "§3.1 (convert-to-ralph-prd) treats --overview-task-id as canonical, free-form prompt as the default, and any consumer-config-driven lookup (e.g. plans/overview-data.js) as opt-in with explicit fallback when the config is absent or unreadable. Lookup MUST NOT block PRD creation.",
+        "§6.1 documents the implement-with-ralph Phase 0 first-line-check gotcha and both valid resolutions: (A) patch Phase 0 to skip leading YAML front-matter; (B) use a non-front-matter metadata block.",
+        "§6.2 calls out tests/test-no-prohibited-changes.sh as needing whitelisting of the new schema field.",
+        "§6.3 calls out the cache-vs-source dance (edit source at D:/ai-developer-toolkit/plugins/ralph/, invalidate ~/.claude/plugins/cache/... before integration testing).",
+        "§10 includes the verbatim handoff command pointed at the doc, runnable from the Ralph plugin source tree, using Windows-style backslash paths: /plan-with-ralph --improve D:\\harness-efforts\\codexu\\plans\\ralph-overview-task-id.md.",
+        "§3 includes a conditional §3.5 naming skills/implement-with-ralph/SKILL.md Phase 0 as the conditional 5th patch site (only required if §6.1 resolution A is selected), cross-referencing §6.1.",
+        "§3.4 / §6 reference YAML parsing in a tool-agnostic way (e.g. 'any shell-portable YAML front-matter parser — yq if added to plugin prerequisites; otherwise a sed/awk extractor over the front-matter block. The future Ralph patch cycle decides.').",
+        "§7 prepends a prerequisite note: the §6.1 metadata-format decision MUST be settled before any of the 4 skill patches land, because it determines the contract that decompose-plan and plan-with-ralph both write/read.",
+        "plans/ralph-pipeline-INDEX.md audited; refreshed only if it references this plan's output filename, the schema field name overviewTaskId, or the plugin version pin AND any of those diverged. Otherwise unchanged.",
+        "Typecheck passes"
+      ],
+      "priority": 1,
+      "passes": true,
+      "notes": "",
+      "verifiedEvidence": [
+        {
+          "criterion": "Doc file exists at required worktree path",
+          "command": "test -f plans/ralph-overview-task-id.md",
+          "result": "PASS: file exists at worktree/plans/ralph-overview-task-id.md"
+        },
+        {
+          "criterion": "Doc contains all 10 top-level sections in required order",
+          "command": "awk '/^## [0-9]+[.] /{print}' plans/ralph-overview-task-id.md",
+          "result": "PASS: 1 Context; 2 Ralph internals checked; 3 Patches required; 4 Back-compat; 5 Out of scope; 6 Critical compatibility gotchas; 7 Suggested landing order; 8 Acceptance criteria; 9 Tests; 10 How to pick this up"
+        },
+        {
+          "criterion": "All 4 Ralph skill patches documented with CLI/prompt, write location, and schema or artifact directive",
+          "command": "awk '/^### 3[.]/{print}' plans/ralph-overview-task-id.md",
+          "result": "PASS: 3.1 convert-to-ralph-prd; 3.2 decompose-plan; 3.3 brainstorm-with-ralph; 3.4 plan-with-ralph; each section includes the required behavior and directive"
+        },
+        {
+          "criterion": "Doc pins cached v5.32.0 and source-tree v5.35.0 with drift directive",
+          "command": "grep -nE 'v5[.]32[.]0|v5[.]35[.]0|drift' plans/ralph-overview-task-id.md",
+          "result": "PASS: lines 3-4 pin cached v5.32.0, source v5.35.0, and require drift reconciliation"
+        },
+        {
+          "criterion": "Doc references foundation plan and comprehensive plan",
+          "command": "grep -nE 'ralph-pipeline-01-foundation|glistening-wondering-llama' plans/ralph-overview-task-id.md",
+          "result": "PASS: lines 14-15 reference plans/ralph-pipeline-01-foundation.md and C:/Users/evmitran/.claude/plans/glistening-wondering-llama.md"
+        },
+        {
+          "criterion": "Doc names overviewTaskId, confirms no collision, and states optional/not required",
+          "command": "grep -nE 'Name: `overviewTaskId`|Optional everywhere|No existing|Neither schema|Do not add `overviewTaskId` to `required`' plans/ralph-overview-task-id.md",
+          "result": "PASS: lines 20, 23-24, 33, 70, 98, and 160 cover name, no collision, and optional/not required"
+        },
+        {
+          "criterion": "Section 3.2 precedence is CLI flag, parent plan metadata, parent prd.json",
+          "command": "grep -n 'Explicit `--overview-task-id`' -A4 plans/ralph-overview-task-id.md",
+          "result": "PASS: lines 78-80 list explicit CLI flag first, then parent plan metadata, then parent prd.json"
+        },
+        {
+          "criterion": "Section 3.1 canonical flag, free-form default, opt-in lookup with fallback",
+          "command": "grep -nE 'canonical|free-form|consumer-config-driven|Lookup must not block' plans/ralph-overview-task-id.md",
+          "result": "PASS: lines 50-54 make --overview-task-id canonical, free-form default, config lookup opt-in, and lookup non-blocking"
+        },
+        {
+          "criterion": "Section 6.1 Phase 0 first-line gotcha and both resolutions",
+          "command": "sed -n '179,188p' plans/ralph-overview-task-id.md",
+          "result": "PASS: documents Phase 0 header check, resolution A to skip YAML front-matter, and resolution B non-front-matter metadata"
+        },
+        {
+          "criterion": "Section 6.2 calls out test-no-prohibited-changes whitelist",
+          "command": "sed -n '190,193p' plans/ralph-overview-task-id.md",
+          "result": "PASS: names tests/test-no-prohibited-changes.sh and says to whitelist overviewTaskId"
+        },
+        {
+          "criterion": "Section 6.3 cache-vs-source dance",
+          "command": "sed -n '194,198p' plans/ralph-overview-task-id.md && sed -n '248p' plans/ralph-overview-task-id.md",
+          "result": "PASS: says edit D:/ai-developer-toolkit/plugins/ralph/ and invalidate ~/.claude/plugins/cache before integration testing"
+        },
+        {
+          "criterion": "Section 10 verbatim Windows handoff command",
+          "command": "sed -n '238,247p' plans/ralph-overview-task-id.md",
+          "result": "PASS: includes cd D:[.]i-developer-toolkit[.]lugins[.]alph and /plan-with-ralph --improve D:[.]arness-efforts[.]odexu[.]lans[.]alph-overview-task-id.md"
+        },
+        {
+          "criterion": "Section 3 includes conditional 3.5 implement-with-ralph Phase 0 patch site",
+          "command": "sed -n '148,155p' plans/ralph-overview-task-id.md",
+          "result": "PASS: 3.5 names skills/implement-with-ralph/SKILL.md Phase 0 and makes it conditional on Section 6.1 resolution A"
+        },
+        {
+          "criterion": "Sections 3.4 and 6 reference tool-agnostic YAML parsing",
+          "command": "grep -nE 'shell-portable YAML front-matter parser|yq|sed`/`awk|future Ralph patch cycle decides' plans/ralph-overview-task-id.md",
+          "result": "PASS: lines 145 and 185 specify shell-portable parsing, optional yq, sed/awk fallback, and future-cycle decision"
+        },
+        {
+          "criterion": "Section 7 prerequisite metadata-format decision before four skill patches",
+          "command": "sed -n '198,201p' plans/ralph-overview-task-id.md",
+          "result": "PASS: Section 7 starts with the Section 6.1 metadata-format prerequisite"
+        },
+        {
+          "criterion": "plans/ralph-pipeline-INDEX.md audited and left unchanged if not divergent",
+          "command": "grep -nE 'ralph-overview-task-id[.]md|overviewTaskId|v5[.]32[.]0|v5[.]35[.]0|v5[.]30[.]0' plans/ralph-pipeline-INDEX.md || true",
+          "result": "PASS: only line 127 overviewTaskId reference found and it is correct; no stale filename or version pin found, so INDEX unchanged"
+        },
+        {
+          "criterion": "Typecheck passes",
+          "command": "pnpm --filter @codexu/overview-viewer typecheck",
+          "result": "PASS: tsc --noEmit exited 0; meta recorded exitCode 0, durationSec 11, timestamp 2026-05-19T08:24:15Z"
+        }
+      ],
+      "dependencies": [],
+      "failureClassification": "",
+      "partialProgress": null
+    }
+  ],
+  "planReviewContext": [
+    {
+      "id": "F-001",
+      "severity": "High",
+      "description": "decompose-plan precedence order puts the explicit --overview-task-id CLI flag LAST after parent plan metadata and parent prd.json. Both Copilot and Codex flag this: a CLI override must win over discovered metadata, otherwise users cannot intentionally override stale embedded values. The doc inside the plan (§3.2 of the doc template) must reorder precedence so the flag is first.",
+      "source": "consensus",
+      "category": "Ordering",
+      "relevantFiles": [
+        "D:/harness-efforts/codexu/.ralph/jobs/.staging/20260519-004403/draft-plan.md"
+      ],
+      "suggestedFix": "Reorder the precedence list in the doc template's §3.2 to: (1) explicit --overview-task-id flag, (2) parent plan metadata block, (3) parent prd.json's overviewTaskId. Update both the doc template inside draft-plan.md and any acceptance criterion that depends on the order."
+    },
+    {
+      "id": "F-002",
+      "severity": "High",
+      "description": "The doc tells convert-to-ralph-prd to read valid IDs from <repo_root>/plans/overview-data.js, but Ralph is a project-agnostic plugin and the same doc says elsewhere that 'the Ralph plugin doesn't know about overview-data.js'. Hardcoding a codexu-specific path conflicts with the plugin's design and will fail / misbehave in repos without that file. Make the lookup optional and config-driven, or fall back to a free-form prompt when the file is absent.",
+      "source": "codex",
+      "category": "Feasibility",
+      "relevantFiles": [
+        "D:/harness-efforts/codexu/.ralph/jobs/.staging/20260519-004403/draft-plan.md"
+      ],
+      "suggestedFix": "In the doc template's §3.1, reword the interactive prompt: 'If the repo has an overview-data file at a path discoverable via .ralph/overview-config.json (or any consumer-defined config), offer those IDs as a prompt convenience; otherwise prompt for a free-form string. Always allow skip / null.' Add a back-compat note that the prompt-list lookup is opt-in and the flag/free-form prompt is the canonical path."
+    }
+  ]
+}

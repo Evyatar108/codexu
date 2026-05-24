@@ -1,0 +1,168 @@
+{
+  "project": "codexu",
+  "description": "phase-tree-port (overview-data-split Phase 3): port the entire phase tree section (plans/overview.html lines 1920-2009) into OVERVIEW_DATA.phaseTree[] with a rich node schema that handles both task-linked bullets (task-ref) and structural bullets with no task id (raw, for 1b.1, 4a-4m, etc.). Implement renderPhaseTree() to data-drive #phase-tree, including state classes (open|deferred|donefade|closed), inline styles via raw nodes, nested <details class=\"phase-subdetails\"> collapsibles (phases 4 and 5), and <span class=\"ptag\"> rich-header content. Delete the original authored HTML only after pixel-identical verification. Runs parallel with full-task-port (US-003) and docs-sweep (US-005a) — skeleton-ownership invariant (touch only phaseTree[] body and the renderPhaseTree marker) is load-bearing for merge safety.",
+  "deslop": true,
+  "iterationEngine": "codex",
+  "jobDir": "D:/harness-efforts/codexu/.ralph/job-groups/overview-data-split/phase-tree-port",
+  "repoDir": "D:/harness-efforts/codexu",
+  "branch": {
+    "name": "ralph/overview-data-split/phase-tree-port",
+    "created": true
+  },
+  "worktree": {
+    "path": "D:/harness-efforts/codexu/.ralph/job-groups/overview-data-split/phase-tree-port/worktree",
+    "branch": "ralph/overview-data-split/phase-tree-port",
+    "startPoint": "main",
+    "external": true
+  },
+  "group": {
+    "name": "overview-data-split",
+    "groupDir": "D:/harness-efforts/codexu/.ralph/job-groups/overview-data-split"
+  },
+  "userStories": [
+    {
+      "id": "US-004",
+      "title": "Port phase tree into phaseTree[] with rich node schema + implement renderPhaseTree()",
+      "description": "As a bookkeeper, I want OVERVIEW_DATA.phaseTree to hold the entire phase tree (including non-task structural bullets like 1b.1 and 4a-4m) and renderPhaseTree() to data-drive #phase-tree, so that the section becomes maintainable from one file.",
+      "acceptanceCriteria": [
+        "OVERVIEW_DATA.phaseTree[] in plans/overview-data.js is populated. Each phase node carries {id, title, headerHtml?: string|null, collapsible?: boolean, collapsibleSummary?: string|null, nodes: [{kind: 'task-ref'|'raw'|'sub-phase', taskId?, state?: 'open'|'deferred'|'donefade'|'closed', html?, trailingHtml?, id?, title?, headerHtml?, collapsible?, collapsibleSummary?, nodes?}, ...]}. Sub-phase nodes recurse.",
+        "task-ref nodes carry taskId (must match an entry in OVERVIEW_DATA.tasks[]) plus optional state (open|deferred|donefade|closed) for the .item-name class, plus optional trailingHtml for the post-span trailing text.",
+        "raw nodes carry trusted full <li> inner HTML for structural bullets with no task id (e.g. 1b.1, 4a-4m), entries with inline style=\"color: var(--warn);\", and composite lines mixing multiple .item-name spans.",
+        "Phase nodes capture headerHtml when the .phase-head contains <span class=\"ptag\">…</span>; otherwise headerHtml is null/absent and title is used as plain text. Phases 4 and 5 (whose items live inside <details class=\"phase-subdetails\">) carry collapsible: true and a non-empty collapsibleSummary.",
+        "renderPhaseTree() body lives inside the // ===== renderPhaseTree() ===== section marker that US-002 (representative-port) emitted. The function fills #phase-tree by emitting <div class=\"phase-grid\"> as the wrapper, then for each phase node a <div class=\"phase\"> containing <div class=\"phase-head\"> (use headerHtml via innerHTML when set, else title as text). When collapsible: true, wrap items in <details class=\"phase-subdetails\"><summary>${collapsibleSummary}</summary><ul>…</ul></details>; otherwise emit a plain <ul>…</ul>.",
+        "task-ref render: <li><span class=\"item-name ${state}\">${task.title || visibleText}</span>${trailingHtml || ''}</li>. raw render: inject html via innerHTML on the <li> (trusted). sub-phase render: recurse, emitting as a nested <div class=\"phase\"> if needed.",
+        "Skeleton-ownership invariant respected (load-bearing for parallel exec with US-003 / full-task-port): this story mutates ONLY the phaseTree[] array body that US-001 stubbed in plans/overview-data.js. It does NOT touch tasks[], does NOT add or reorder other top-level fields (runs, periodic, cadence, lastTouched, generatedAt, generatedFromCommit, etc.), and does NOT re-format the surrounding OVERVIEW_DATA object literal braces or key order.",
+        "Section-marker invariant respected: renderPhaseTree() body lives inside the // ===== renderPhaseTree() ===== marker block. The // ===== renderTasks() ===== marker block (owned by US-003 in this phase) is NOT touched.",
+        "plans/overview.html no longer contains the authored phase tree section at lines 1920-2009 (the original .phase-grid > .phase > .phase-head > <ul> / <details class=\"phase-subdetails\"> markup). The empty #phase-tree container remains for renderPhaseTree() to fill.",
+        "Drift handling: any task-ref whose taskId is not present in OVERVIEW_DATA.tasks[] at the time of authoring is dropped at port time (not carried as a dead reference). Dropped ids are logged in the commit message. Note: US-003 / full-task-port runs in parallel; until it merges, only the 3 representative tasks (perf-WS3, 1b-multidev, polish-Fs) are present, so most task-refs will be dropped from this story's diff and re-added once US-003 lands — that is expected.",
+        "renderPhaseTree() calls getRoadmapData() (rewired by foundation/US-001 to return window.OVERVIEW_DATA) rather than reading the global directly, to stay consistent with renderTasks() and other IIFEs.",
+        "Identical-render verification on file://: open plans/overview.html in the browser. The #phase-tree section renders with the same phase headers (including rich ptag spans on the relevant phases), the same bullets in the same order, the same .item-name state classes (open|deferred|donefade|closed) producing identical strike-through/color, the same nested <details class=\"phase-subdetails\"> collapsibles open/closed by default state for phases 4 and 5, and the same inline styles on warn-colored bullets.",
+        "Existing renderPhaseBadges() IIFE continues to function against the freshly-emitted phase tree DOM (it walks DOM by class/data-attribute post-render). Phase pills above the kanban / command rows still highlight as before.",
+        "No console errors on page load on file://.",
+        "Typecheck passes.",
+        "Verify in browser using agent-browser skill: open plans/overview.html on file://, confirm the phase tree section renders identically to a pre-refactor snapshot (compare against main branch HEAD on the same browser), expand the phase 4 and phase 5 collapsibles, and confirm renderPhaseBadges() pills still appear above kanban / command rows."
+      ],
+      "priority": 1,
+      "passes": true,
+      "notes": "",
+      "verifiedEvidence": [
+        {
+          "criterion": "phaseTree[] populated with rich node schema and recursive sub-phase support",
+          "command": "node - <<'NODE' ... vm.runInNewContext(plans/overview-data.js); walk(data.phaseTree) ... NODE",
+          "result": "PASS: phaseTree has 7 phases; renderer supports kind raw, task-ref, and sub-phase recursion. Phase 4/5 include collapsible true and non-empty summaries."
+        },
+        {
+          "criterion": "task-ref nodes carry taskId, optional state, and trailingHtml",
+          "command": "node - <<'NODE' ... collect task-ref nodes from OVERVIEW_DATA.phaseTree ... NODE",
+          "result": "PASS: taskRefs=[1b-multidev,1b-multidev,1b-multidev,perf-WS3,polish-Fs], all with visibleText/state/trailingHtml where needed."
+        },
+        {
+          "criterion": "raw nodes carry trusted li inner HTML for structural/composite/inline-style bullets",
+          "command": "node - <<'NODE' ... inspect raw nodes in OVERVIEW_DATA.phaseTree ... NODE",
+          "result": "PASS: raw nodes preserve structural 1b.1/4a-4m/5a-5f bullets, warn inline style on 3a, and composite F-013/F-015/F-017 line."
+        },
+        {
+          "criterion": "rich phase headers and collapsible phases captured",
+          "command": "grep -o 'class=\"ptag\"' .test-output/overview.current.dom.html | wc -l; grep -o 'class=\"phase-subdetails\"' .test-output/overview.current.dom.html | wc -l",
+          "result": "PASS: current headless Chrome DOM has ptag count 5 and phase-subdetails count 2, matching main snapshot."
+        },
+        {
+          "criterion": "renderPhaseTree() lives in the marker and emits #phase-tree > .phase-grid > .phase",
+          "command": "grep -n \"renderPhaseTree|renderTasks\" plans/overview.html; grep -o 'class=\"phase-grid\"' .test-output/overview.current.dom.html | wc -l",
+          "result": "PASS: renderPhaseTree marker at overview.html:2099; current browser DOM has exactly one phase-grid wrapper under the mount."
+        },
+        {
+          "criterion": "task-ref, raw, and sub-phase render behavior",
+          "command": "node --check plans/overview-data.js && node --check .test-output-overview-inline.js; headless Chrome DOM ordered-text check",
+          "result": "PASS: task-ref nodes render item-name spans with state classes/trailing HTML, raw nodes inject trusted HTML, and sub-phase recursion path is implemented."
+        },
+        {
+          "criterion": "Skeleton-ownership invariant respected",
+          "command": "git diff --stat HEAD~1..HEAD && git show --stat --oneline --name-only HEAD",
+          "result": "PASS: commit 3f6d260d changes only plans/overview-data.js and plans/overview.html; tasks[] and other top-level data fields were not edited."
+        },
+        {
+          "criterion": "Section-marker invariant respected",
+          "command": "git diff HEAD~1..HEAD -- plans/overview.html | sed -n '100,230p'",
+          "result": "PASS: renderPhaseTree() body was filled inside its marker; renderTasks() marker/body was not edited."
+        },
+        {
+          "criterion": "authored phase tree markup removed and empty #phase-tree mount remains",
+          "command": "grep -q '<div class=\"phase-grid\" id=\"phase-tree\">' plans/overview.html || grep -n '<div id=\"phase-tree\"></div>' plans/overview.html",
+          "result": "PASS: old authored phase-grid with id phase-tree is absent; empty mount remains at overview.html:1840."
+        },
+        {
+          "criterion": "Drift handling for absent task-ref ids",
+          "command": "node - <<'NODE' ... refs.filter(id => !taskIds.has(id)) ... NODE",
+          "result": "PASS: missing=[]; task-ref ids are limited to existing tasks. Dead refs were rejected in commit body; raw nodes preserve visual parity until US-003 lands."
+        },
+        {
+          "criterion": "renderPhaseTree() calls getRoadmapData()",
+          "command": "grep -n \"function renderPhaseTree|getRoadmapData\" plans/overview.html | sed -n '1,12p'",
+          "result": "PASS: renderPhaseTree() starts with var data = getRoadmapData(); and does not read window.OVERVIEW_DATA directly."
+        },
+        {
+          "criterion": "file:// render parity against main snapshot",
+          "command": "headless Chrome --dump-dom for main and current; ordered-marker Node check; grep class counts",
+          "result": "PASS: main/current both have 7 phase heads, 2 subdetails, 1 phase-grid, 5 ptag spans; ordered phase text check passed for 44 markers; state counts match open=9 deferred=14 donefade=7 closed=1."
+        },
+        {
+          "criterion": "renderPhaseBadges() continues to function",
+          "command": "grep -o 'class=\"cmd-badge' .test-output/overview.current.dom.html | wc -l",
+          "result": "PASS: headless Chrome DOM has 83 cmd-badge nodes after renderTasks/renderPhaseTree/renderPhaseBadges flow; stderr was empty."
+        },
+        {
+          "criterion": "No console errors on page load on file://",
+          "command": "'/c/Program Files/Google/Chrome/Application/chrome.exe' --headless=new --dump-dom file:///D:/.../plans/overview.html 2> .test-output/overview.current.stderr.log; sed -n '1,20p' .test-output/overview.current.stderr.log",
+          "result": "PASS: headless Chrome stderr log was empty for current file:// page load."
+        },
+        {
+          "criterion": "Typecheck passes",
+          "command": "pnpm -r --if-present typecheck > .test-output/monorepo.typecheck.log 2>&1",
+          "result": "PASS: exit=0 in 67s. happy-wire, codexu-options-mode-plugin, codium, happy-agent, happy-app, happy-server, and happy-cli typechecks completed."
+        },
+        {
+          "criterion": "Verify in browser using agent-browser skill",
+          "command": "headless Chrome file:// fallback plus temporary click-expansion copy",
+          "result": "SKIPPED: agent-browser skill/MCP was unavailable in this session; fallback headless Chrome verified main/current DOM parity, empty stderr, and programmatic expansion of both phase 4 and phase 5 details (open count 2, 4m and 5f present)."
+        }
+      ],
+      "dependencies": [],
+      "failureClassification": "",
+      "partialProgress": null
+    }
+  ],
+  "planReviewContext": [
+    {
+      "id": "F-005",
+      "severity": "High",
+      "source": "codex",
+      "category": "Completeness",
+      "description": "phaseTree[] tagged union ({kind: 'task-ref'|'bullet'|'sub-phase'}) is insufficient for identical rendering. plans/overview.html lines 1920-2009 use .phase-grid, .phase, .phase-head, .item-name with state classes 'open|deferred|donefade|closed', nested <details class=\"phase-subdetails\">, and inline styling. Tagged union can preserve structure but not the state classes or arbitrary inline content.",
+      "relevantFiles": [
+        "plans/overview.html"
+      ],
+      "suggestedFix": "Use a richer node schema. Each phase: {id, title, headerHtml?, nodes: [{kind:'task-ref'|'raw', taskId?, state?: 'open'|'deferred'|'donefade'|'closed', html?}, ...], subPhases: recursive}. 'raw' carries trusted inner HTML; 'task-ref' carries taskId + state. Render emits the appropriate class names on .item-name."
+    },
+    {
+      "id": "F-002",
+      "severity": "High",
+      "source": "codex",
+      "category": "Feasibility",
+      "description": "Inline JSON / inline JS line ranges in plans/overview.html: <script type=\"application/json\" id=\"roadmap-data\"> spans 2180-2612 (closing </script> at 2612); main inline <script> runs 2614-3767. Phase tree authored HTML is 1920-2009. Use these verified ranges when deleting / inserting.",
+      "relevantFiles": [
+        "plans/overview.html"
+      ]
+    },
+    {
+      "id": "F-003",
+      "severity": "High",
+      "source": "codex",
+      "category": "Feasibility",
+      "description": "generatedAt and generatedFromCommit are top-level fields on OVERVIEW_DATA (NOT wrapped under meta:{}). The consumer at plans/overview.html line 3540 reads data.generatedFromCommit at top level. Do not move these fields when populating phaseTree[].",
+      "relevantFiles": [
+        "plans/overview.html"
+      ]
+    }
+  ]
+}

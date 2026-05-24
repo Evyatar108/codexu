@@ -1,0 +1,33 @@
+I’ll inspect the provided temp file to determine the requested work.
+
+The file is just over the direct-read limit, so I’ll read it in focused sections.
+
+I found a plan-review prompt. I’ll inspect the rest of the plan and verify the referenced code paths before producing the review.
+
+I’ll check the remaining referenced definitions that could make or break the plan’s feasibility.
+
+### Feasibility
+
+- [High] `runDurations` cannot be “not persisted” with the proposed mutation. `scripts/lib/sync-core.mjs:358` serializes the entire `state` object for `overview-ralph-state.json/js`, so mutating `state.runDurations` before that will persist it despite not adding it to `OverviewRalphState`. Fix the plan to pass `runDurations` separately into `emitAgentArtifacts` or strip it before sidecar serialization.
+- [High] The PRD carrier shape is insufficient for the scoring and graph requirements. The plan extracts only `{ id, dependencies }`, but dependency scoring needs `passes`, and the graph fallback needs PRD-level dependency fields. Existing PRDs include `userStories[].passes` in `.ralph/jobs/ralph-pipeline-05-agent-exports/prd.json`.
+- [High] The plan’s `.ralph/job-groups/*/prd.json` walk misses actual group member PRDs, which are under `.ralph/job-groups/<group>/<member>/prd.json` such as `.ralph/job-groups/overview-data-split/foundation/prd.json`. This would drop dependencies for grouped work.
+
+### Completeness
+
+- [High] `emitAgentArtifacts` currently reads `plans/overview-recommendations.json` and `plans/overview-dependency-graph.json` via hardcoded constants in `scripts/lib/sync-core.mjs:38-39,381-382`. The plan adds configurable `outputs.recommendationsJson` / `outputs.dependencyGraphJson` but does not explicitly require updating `emitAgentArtifacts` to read those resolved config paths. Config overrides would emit one file and snapshot-read another.
+- [Medium] The scoring rubric references `OverviewTask.priority`, but `tools/overview-viewer/src/types.ts:24-34` has no `priority` field and `plans/overview-data.js` appears not to use one. Either add `priority?: number` to `OverviewTask` and document the data-file field, or make the priority dimension explicitly default-only/inert.
+- [Medium] `Toolbar.tsx` keeps the canonical Ralph stage order in a private `FILTER_GROUPS` constant. `PipelineOverview` is told to use the same order but no shared export is planned, inviting drift. Extract/export a shared stage list or explicitly duplicate with a test that compares against toolbar chips.
+
+### Ordering
+
+No issues found. The foundation → pure helpers → wiring/UI → cascade ordering is coherent.
+
+### Simplicity
+
+- [Medium] Mutating `state` to smuggle snapshot-only data is more fragile than passing a local `runDurations` value through `emitDerivedArtifacts` → `emitAgentArtifacts` / `buildSnapshot`. This also fixes the sidecar-persistence contradiction without special stripping logic.
+
+### Acceptance Criteria Quality
+
+- [Medium] “Malformed JSON” behavior for `load-prds-by-task-id.mjs` is not specified. The AC says tests cover malformed JSON, but not whether the helper throws, logs and skips, or returns diagnostics. Since this runs inside `writeSidecar`, the expected failure mode must be explicit.
+- [Medium] “PRD-level deps fallback” is underspecified. The plan does not name the PRD field(s) to read when `userStories` is absent, so an autonomous implementer cannot verify the fallback without guessing.
+

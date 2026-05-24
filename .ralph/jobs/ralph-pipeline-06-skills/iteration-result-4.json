@@ -1,0 +1,44 @@
+{
+  "storyId": "US-004",
+  "verifiedEvidence": [
+    {
+      "criterion": ".claude/skills/triage/SKILL.md exists with frontmatter and body.",
+      "command": "test -f .claude/skills/triage/SKILL.md && grep -nE '^name: triage|^description:' .claude/skills/triage/SKILL.md",
+      "result": "Exit 0; file exists with frontmatter name at line 2 and description at line 3, followed by the triage skill body.",
+      "evidenceKind": "command-output"
+    },
+    {
+      "criterion": "Reads snapshot.recommendations primarily; falls back to plans/overview-recommendations.json wrapper only when snapshot is missing (not when snapshot is present-but-empty).",
+      "command": "grep -nF 'snapshot.recommendations' .claude/skills/triage/SKILL.md && grep -nF 'overview-recommendations' .claude/skills/triage/SKILL.md && grep -nF 'Do not fall back' .claude/skills/triage/SKILL.md && grep -nF 'present snapshot' .claude/skills/triage/SKILL.md",
+      "result": "Exit 0; skill body names snapshot.recommendations as primary, documents wrapper fallback only when plans/overview-snapshot.json is missing, and explicitly says not to fall back when a present snapshot has an empty recommendation list.",
+      "evidenceKind": "command-output"
+    },
+    {
+      "criterion": "Renders numbered list with taskId, stage, score, reasons; prompts for picker; selecting a number invokes /work-on <id>.",
+      "command": "grep -nE 'numbered list|taskId, stage, score, and|Reasons:|Prompt the user|Skill[(]\"work-on\"|picker-to-/work-on' .claude/skills/triage/SKILL.md",
+      "result": "Exit 0; render section includes numbered list format with taskId/stage/score/reasons and /work-on taskId line; picker section prompts for 1..N and invokes Skill(\"work-on\", args=\"<selected-task-id>\").",
+      "evidenceKind": "command-output"
+    },
+    {
+      "criterion": "--limit N and --filter stage=<stage> flags supported.",
+      "command": "grep -nE -- '--limit N|--filter stage=<stage>' .claude/skills/triage/SKILL.md",
+      "result": "Exit 0; frontmatter and Arguments/Filtering sections document --limit N defaulting to 5 and exact --filter stage=<stage> filtering.",
+      "evidenceKind": "command-output"
+    },
+    {
+      "criterion": "Behavior verified deterministically: skill body contains the documented snapshot-vs-wrapper fallback rule, the no-recommendations message string \"no recommendations available\", and the picker-to-/work-on chain instruction. Verified via grep against `.claude/skills/triage/SKILL.md`: `grep -q \"snapshot.recommendations\"`, `grep -q \"no recommendations available\"`, `grep -q -- \"--limit\"`, `grep -q \"--filter stage=\"` all return exit 0.",
+      "command": "grep -q 'snapshot.recommendations' .claude/skills/triage/SKILL.md && grep -q 'no recommendations available' .claude/skills/triage/SKILL.md && grep -q -- '--limit' .claude/skills/triage/SKILL.md && grep -q -- '--filter stage=' .claude/skills/triage/SKILL.md && echo 'triage content greps passed'",
+      "result": "Exit 0; triage content greps passed. Used grep -q -- for the --filter stage= pattern so GNU grep treats the leading dashes as data.",
+      "evidenceKind": "command-output"
+    },
+    {
+      "criterion": "Typecheck passes.",
+      "command": "pnpm --filter @codexu/overview-viewer typecheck > .test-output/overview-viewer.typecheck.log 2>&1; tail -30 .test-output/overview-viewer.typecheck.log",
+      "result": "Exit 0; tsc --noEmit completed with no errors. Tail showed @codexu/overview-viewer typecheck running tsc --noEmit.",
+      "evidenceKind": "typecheck"
+    }
+  ],
+  "skippedReasons": [],
+  "notTested": [],
+  "iterationSHA": "98c52715ff3381bc167a99d1f9857e21e23f5acb"
+}

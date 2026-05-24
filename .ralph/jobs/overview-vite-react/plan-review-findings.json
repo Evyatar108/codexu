@@ -1,0 +1,136 @@
+{
+  "planFile": "D:/harness-efforts/codexu/.ralph/jobs/.staging/20260517-145924/draft-plan.md",
+  "repoDir": "D:/harness-efforts/codexu",
+  "findings": [
+    {
+      "id": "F-001",
+      "severity": "High",
+      "category": "Feasibility",
+      "section": "Approach > Implementation Strategy (Stage 7-8) & Files to Create > index.html",
+      "source": "consensus",
+      "status": "fixed",
+      "description": "Static data-loading path is incompatible with the file:// + single-file build goal. Plan proposes <script src=\"/overview-data.js\"> (absolute path in index.html) but current viewer loads relatively via <script src=\"overview-data.js\"> in plans/overview.html:1284. Under file://, absolute /overview-data.js resolves to filesystem root and fails. vite-plugin-singlefile does NOT automatically inline an external sidecar referenced by an external <script src> tag. The plan needs an explicit dev/build strategy: dev mode serves the sidecar via the custom Vite plugin; build mode injects the file contents into the emitted HTML (e.g. via a custom transformIndexHtml plugin that reads plans/overview-data.js and inlines it as an inline <script> block, then singleFile bundles the rest).",
+      "fixedInIteration": 1,
+      "resolution": "Corrected index.html script tag to relative path (./overview-data.js), specified that the custom Vite plugin implements both configureServer (dev middleware + HMR watcher) and transformIndexHtml with enforce:'pre' (build-time inlining of plans/overview-data.js before vite-plugin-singlefile runs), added two risk areas and a build-mode acceptance criterion verifying the data is inlined."
+    },
+    {
+      "id": "F-002",
+      "severity": "High",
+      "category": "Feasibility",
+      "section": "Approach > Implementation Strategy (Stage 7-8) & Files to Create > vite.config.ts",
+      "source": "consensus",
+      "status": "fixed",
+      "description": "Artifact naming for stages 7-8 is not implementable as described. Plan defines tools/overview-viewer/index.html as the Vite entry plus outDir:'../../plans', which emits plans/index.html — NOT plans/overview.html or plans/overview.html.next. The safe-name review flow (stage 7 -> overview.html.next; stage 8 -> overview.html) requires either: (a) renaming the entry HTML to overview.html in tools/overview-viewer/, (b) a post-build rename step, or (c) a build-mode option that toggles the output filename. The plan must pick one and write it into the vite.config.ts file list and the stages 7/8 wording.",
+      "fixedInIteration": 2,
+      "resolution": "Renamed Vite entry to overview.html so natural build emits plans/overview.html (stage 8); added closeBundle rename hook gated on OVERVIEW_BUILD_SAFE_NAME=1 plus a new overview:build:preview root script that emits plans/overview.html.next for stage 7's safe-name review; updated vite.config.ts file entry, stages 7/8 wording, and static-build ACs accordingly."
+    },
+    {
+      "id": "F-003",
+      "severity": "High",
+      "category": "Completeness",
+      "section": "Approach > Architecture & Files to Create > src/components",
+      "source": "consensus",
+      "status": "fixed",
+      "description": "Plan drops multiple existing UI surfaces despite headline requirement 'same UI as plans/overview.html does today'. Missing from the component list and ACs: sticky toolbar with filter chips (plans/overview.html:983-1056, 2125-2185), bulk-copy button (currently surfaced near checkboxes), keyboard-help affordance, freshness hint, 'what changed since last visit' banner (plans/overview.html:2403-2417 / 2544-2653), Parallelism section, Dependencies section, and footer/source notes (plans/overview.html:1068). An autonomous implementer following the plan as written would ship visual regressions. Either: (a) explicitly mark these surfaces out of scope for v1, or (b) add the corresponding components/hooks to the file list and a parity AC per surface.",
+      "fixedInIteration": 3,
+      "resolution": "Added missing UI surfaces (Toolbar with FilterChips, BulkCopyButton, KeyboardHelp, FreshnessHint, WhatsNewBanner, ParallelismSection, DependenciesSection, Footnote) plus supporting hooks (useMultiAxisFilter, useKeyboardShortcuts, useWhatsNewSinceLastVisit) to the component/hook file list, updated App.tsx layout description, and added 8 explicit parity ACs in the Dev mode section with `plans/overview.html` line refs."
+    },
+    {
+      "id": "F-004",
+      "severity": "High",
+      "category": "Completeness",
+      "section": "Files to Create > package.json",
+      "source": "consensus",
+      "status": "fixed",
+      "description": "Unit tests are listed as ACs (kanbanOrdering.test.ts, phaseTreeDerivation.test.ts, urlFilter.test.ts, copyPreamble.test.ts) but the proposed package.json only declares scripts dev/build/typecheck and deps react/react-dom/vite/@vitejs/plugin-react/vite-plugin-singlefile/typescript/@types/react/@types/react-dom. Vitest is not in the dep list and there is no 'test' script. Repo precedent uses vitest (tools/vitest.config.ts, packages/codium/vitest.config.ts, packages/happy-wire/package.json:54,68). The plan must add: 'vitest' (and '@vitest/coverage-*' if needed) to devDependencies, a vitest.config.ts file under tools/overview-viewer/, and a 'test' script to package.json.",
+      "fixedInIteration": 4,
+      "resolution": "Added vitest devDep, test script, and vitest.config.ts to the Files to Create list; tightened the unit-tests AC to invoke pnpm --filter ... test."
+    },
+    {
+      "id": "F-005",
+      "severity": "High",
+      "category": "Feasibility",
+      "section": "Approach > Architecture > Data flow & vite.config.ts",
+      "source": "codex",
+      "status": "fixed",
+      "description": "Dev HMR mechanism is underspecified. Watching plans/overview-data.js via server.watcher.add() does NOT update window.OVERVIEW_DATA by itself — that file assigns to the window global as a side effect of <script> execution; a file change without re-evaluation leaves the previous global in place. The custom plugin must explicitly do one of: (a) on change, push the new file contents to the client via ws.send and have a tiny client-side eval re-run the assignment (data file is operator-trusted, so eval is acceptable on the same boundary as dangerouslySetInnerHTML); (b) treat the file as a virtual module and emit a hot update that re-imports it; (c) re-fetch the file URL and re-execute it as text. The plan must pick (a)/(b)/(c) and document it in the vite.config.ts plugin pseudo-code AND the useOverviewData hook description.",
+      "fixedInIteration": 5,
+      "resolution": "Picked option (c) (fetch-and-re-execute via new Function(text)()) and documented the HMR mechanism in three places: §Data flow > Dev mode bullet (with rejection notes for options a/b), the vite.config.ts plugin pseudo-code (server.watcher.on('change') -> server.ws.send custom event), and the useOverviewData hook description (import.meta.hot.on listener + cache-busted refetch + notify)."
+    },
+    {
+      "id": "F-006",
+      "severity": "High",
+      "category": "Criteria Quality",
+      "section": "Acceptance Criteria > Dev mode",
+      "source": "codex",
+      "status": "fixed",
+      "description": "'React diff updates only the changed task within ~200ms' is not autonomously verifiable as written. Either: (a) add a measurable test — e.g. a Playwright assertion that times the wall-clock between file edit and DOM mutation, OR a unit test that instruments TaskCommand renders and asserts only one mounts on phase change; or (b) relax wording to 'updates without full page reload while preserving expanded <details>, scroll position, and search filter state' and drop the 200ms number. The current wording leaves an implementer with no test target.",
+      "fixedInIteration": 7,
+      "resolution": "Relaxed the dev-mode wording in the Overview section from 'React diff updates only the changed task within ~200 ms' to 'React diff updates without a full page reload' (option b from the finding), dropping the unverifiable 200ms timing claim while keeping the verifiable state-preservation guarantees. The Acceptance Criteria already used the relaxed wording."
+    },
+    {
+      "id": "F-007",
+      "severity": "High",
+      "category": "Criteria Quality",
+      "section": "Implementation Strategy > Stage 6 vs Research Findings",
+      "source": "copilot",
+      "status": "fixed",
+      "description": "Plan is internally inconsistent about TodayPanel buckets. Research summary describes current TodayPanel as 'running / blocked / paused / recently-shipped' (this matches the feature request) BUT inspection of plans/overview.html:988-995, 1851-1910 actually shows the buckets are 'running / ready / hold / recently-shipped' per Copilot research. Stage 6 wording mirrors the feature request (running/blocked/paused/recently-shipped). Plan must reconcile: either confirm the four buckets are 'running/ready/hold/recently-shipped' and parity is the goal, OR explicitly declare a redesign with new bucket semantics (and update the visual-parity AC to call out this deviation alongside the deferred-class change).",
+      "fixedInIteration": 8,
+      "resolution": "Corrected Stage 6's TodayPanel description from the inaccurate 'running/blocked/paused/recently-shipped' to the actual buckets in plans/overview.html:988-995 (Running / Ready / On hold + Recently shipped 7d footer), confirming parity is the goal."
+    },
+    {
+      "id": "F-008",
+      "severity": "Medium",
+      "category": "Ordering",
+      "section": "Implementation Strategy > Stage ordering",
+      "source": "codex",
+      "status": "fixed",
+      "description": "Docs sweep is in stage 9 (after the destructive swap), but the operator approval gate at stage 8 expects reviewers to understand the deliberate phase-tree deviation and how to run the safe artifact. tools/overview-viewer/README.md should land in or before stage 7 so reviewers have written context when they approve the destructive swap. SKILL.md and root README.md additions can stay in stage 9 — those describe the post-swap end state.",
+      "fixedInIteration": 1,
+      "resolution": "Moved tools/overview-viewer/README.md creation from stage 9 to stage 7 so the stage-8 approval reviewer has written context for the deliberate phase-tree deviation and safe-name build flow; SKILL.md and root README updates remain in stage 9; updated stage descriptions, US-007/US-009 story entries, and cluster file-overlap evidence accordingly."
+    },
+    {
+      "id": "F-009",
+      "severity": "Medium",
+      "category": "Criteria Quality",
+      "section": "Acceptance Criteria > Dev mode > 'First-load render matches plans/overview.html at commit 9f81c1f8'",
+      "source": "codex",
+      "status": "fixed",
+      "description": "'Visual parity vs 9f81c1f8' is too broad for autonomous verification once the omitted surfaces (toolbar filters, keyboard help, freshness banner, what's-new, parallelism, dependencies) are reckoned with. Replace the single sweeping criterion with a per-surface check list: 'Render contains: (1) sticky toolbar with chips X/Y/Z; (2) kanban columns ready/soon/blocked each populated; (3) phase tree with N nodes; (4) command list with X rows; (5) Today panel with bucket headings ...; (6) runs log section; (7) freshness banner; (8) what's-new banner; (9) legend; (10) URL-filter banner.' Each item becomes an independently checkable AC the implementer can target.",
+      "fixedInIteration": 2,
+      "resolution": "Decomposed the single 'visual parity vs 9f81c1f8' AC in Dev mode into a per-surface nested checklist (toolbar, kanban columns/card count, phase tree blocks, command-list row count, Today panel buckets, runs log count, FreshnessHint, WhatsNewBanner, legend, URL-filter banner, Parallelism/Dependencies sections, Footnote, dark+light themes) so each surface is independently verifiable."
+    },
+    {
+      "id": "F-010",
+      "severity": "Medium",
+      "category": "Completeness",
+      "section": "Overview & Risk Areas",
+      "source": "codex",
+      "status": "fixed",
+      "description": "Plan describes 'all 13 enrichment behaviors' as the React port scope, but important behaviors live OUTSIDE applyEnrichments() (plans/overview.html:2524-2539): the 'what changed since last visit' diff (plans/overview.html:2549+), the freshness-hint logic, the keyboard-help modal, the multi-axis filter toolbar wiring. The plan needs an explicit amendment that calls out 'enrichments + these top-level behaviors' so an implementer doesn't stop after porting the 13 named passes.",
+      "fixedInIteration": 3,
+      "resolution": "Expanded the 'All 13 enrichment behaviors' In Scope bullet into two bullets: (1) the 13 named applyEnrichments passes with explicit names, and (2) the top-level behaviors that live outside applyEnrichments — whats-new diff, freshness hint, keyboard-help modal, multi-axis filter toolbar wiring, URL/hash routing, and the static Parallelism/Dependencies/Footnote sections — each linked to its overview.html line range and target component/hook."
+    },
+    {
+      "id": "F-011",
+      "severity": "Medium",
+      "category": "Simplicity",
+      "section": "Approach > Architecture > State preservation",
+      "source": "copilot",
+      "status": "fixed",
+      "description": "Adding ?q= URL-backed search state is unnecessary scope. Current viewer preserves search through normal interaction with React state/refs alone; URL semantics today are limited to ?tasks= filter and #cmd-* hash nav. The plan adds ?q= purely as an HMR-preservation aid (which a stable React state already gives you). Recommend: drop ?q= from the plan and rely on React state across HMR (stable component tree + stable keys keeps the controlled input mounted; HMR data update doesn't unmount it). Reduces surface area, no AC depends on ?q=.",
+      "fixedInIteration": 4,
+      "resolution": "Dropped ?q= URL-backed search state from the State preservation bullet; now relies on React useState since the controlled input stays mounted across HMR data updates."
+    },
+    {
+      "id": "F-012",
+      "severity": "Medium",
+      "category": "Simplicity",
+      "section": "Implementation Strategy > Stage ordering",
+      "source": "codex",
+      "status": "open",
+      "description": "Plan could be lower-risk by isolating pure-logic utilities (task classification, kanban ordering, Today bucket derivation, copy text generation, URL filter parsing) into src/utils/ and src/data/ in a dedicated early stage (between current stages 2 and 3) with vitest coverage BEFORE building the UI components in stages 3-6. This is not required for correctness but materially de-risks stages 3-6 by letting the implementer test against real plans/overview-data.js fixtures with no React in the picture. Optional refinement; can be deferred as a 'how the implementer might structure stages 3-6' note."
+    }
+  ]
+}

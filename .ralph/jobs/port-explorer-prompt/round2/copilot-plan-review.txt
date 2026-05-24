@@ -1,0 +1,32 @@
+I’m opening the attached file first to see the task and relevant context.
+
+I’ve got the plan; now I’m checking the referenced repo files to verify the plan’s claims and look for any remaining gaps.
+
+I found one likely path issue already; I’m checking the actual repo layout and a few more source files before writing the review.
+
+I’ve identified a likely rules-gap around upstream-canonical patch markers; I’m checking a couple more files to confirm whether that’s real and whether there are any other concrete misses.
+
+I found a more substantive risk: the launcher injects `project_doc_fallback_filenames=["CLAUDE.md"]` as a CLI override, so I’m checking the config-layer precedence to see whether the planned `[]` in `explorer.toml` can actually win.
+
+Previous-round **High** findings look resolved in this draft. I found 3 new issues.
+
+### Feasibility
+
+- [High] The plan still omits the mandatory `// SANDBOX PATCH:` markers for the upstream-canonical edits it proposes in `codex/external/repos/codex-patched/codex-rs/core/src/agent/builtins/explorer.toml` and `codex/external/repos/codex-patched/codex-rs/core/src/agent/role_tests.rs`. `codex/CLAUDE.md` says **every** upstream-canonical edit must carry that marker on the edited line(s), plus the patch-surface entry and rebase note. The draft only plans the patch-surface update. That leaves the implementation non-compliant with repo rules, and it also creates a small internal contradiction: AC requires the attribution comment on line 1 of `explorer.toml`, but the plan never explains where the required patch marker will go.
+
+### Completeness
+
+- [Medium] The plan does not add any assertion that applying the `explorer` role actually clears `project_doc_fallback_filenames`. That behavior is one of the main intended adaptations from `plans/native-agent-parity.md:74-79`, but the proposed tests only check that `explorer.toml` resolves, parses, and has non-blank `developer_instructions`. Given the subtle doc-loading behavior in `codex/external/repos/codex-patched/codex-rs/core/src/agents_md.rs:305-318` and the launcher’s `project_doc_fallback_filenames=["CLAUDE.md"]` injection in `codex/codex-rs-overlay/codex-copilot-launcher/src/config.rs:99`, this should be guarded explicitly with a role-application test (for example, assert `config.project_doc_fallback_filenames.is_empty()` after `apply_role_to_config(..., Some("explorer"))`).
+
+### Ordering
+
+No issues found.
+
+### Simplicity
+
+- [Medium] The draft chooses an upstream-canonical edit path without recording the seam-analysis metadata that `codex/CLAUDE.md` requires for this kind of change: seams considered, chosen option, edit-budget estimate, and re-conflict probability. It says this is the “smallest possible delta,” but it never documents why the change could not live in a lower-conflict seam first (for example, overlay-side support or a smaller call-site seam). Since this plan is explicitly for an upstream-canonical edit under `external/repos/codex-patched/codex-rs/`, that justification is part of the required planning deliverable, not optional commentary.
+
+### Acceptance Criteria Quality
+
+No issues found.
+

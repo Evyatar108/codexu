@@ -1,0 +1,94 @@
+I’ve got enough context to finish the research report, but I’m pulling a few precise seam references from the codex/plugin implementation first so the findings point to real files and contracts.
+
+## Codebase Architecture
+
+This repo is a **pnpm TypeScript monorepo** wrapped around a **Rust codex engine submodule**.
+
+- **Monorepo root**: `package.json` lists `packages/happy-{cli,app,server,agent,wire,app-logs}`, `packages/codium`, and the current plugin scaffold `packages/codexu-plugin/`.
+- **Codex engine**: `codex/` is a submodule; the actual Rust workspace lives under `codex\external\repos\codex-patched\codex-rs\`.
+- **Existing plugin surface**: `packages\codexu-plugin\` currently contains only a scaffold: `.codex-plugin\plugin.json`, `skills\`, `.agents\plugins\marketplace.json`, and `README.md`.
+- **CLI integration point**: `packages\happy-cli\src\codex\` contains the TypeScript client for `codex app-server`, with integration tests in `packages\happy-cli\src\codex\codex.integration.test.ts`.
+
+**Languages / frameworks / build tools**
+- **TypeScript + Node.js** for the monorepo and Happy CLI.
+- **Vitest** for TS tests (`packages\happy-cli\src\codex\codex.integration.test.ts`).
+- **Rust** for codex plugin/hook runtime and TUI.
+- **pnpm** at the repo root; **cargo/just** inside `codex-rs`.
+
+## Feature-Relevant Code
+
+1. **Plugin scaffold / packaging**
+   - `packages\codexu-plugin\.codex-plugin\plugin.json`
+   - `packages\codexu-plugin\.agents\plugins\marketplace.json`
+   - `packages\codexu-plugin\README.md`
+
+2. **Codex plugin manifest schema**
+   - `codex\external\repos\codex-patched\codex-rs\core-plugins\src\manifest.rs`
+   - `RawPluginManifest` supports `skills`, `mcpServers`, `apps`, and **`hooks`**.
+   - `hooks` can be a **string path, string array, inline object, or inline object array** (`RawPluginManifestHooks`, `resolve_manifest_hooks()`).
+
+3. **Hook kinds supported**
+   - `codex\external\repos\codex-patched\codex-rs\config\src\hook_config.rs`
+   - `HookEventsToml` includes **`SessionStart`**, **`UserPromptSubmit`**, and **`Stop`**.
+
+4. **Hook input contracts**
+   - `codex\external\repos\codex-patched\codex-rs\hooks\src\schema.rs`
+   - `SessionStartCommandInput`
+   - `UserPromptSubmitCommandInput`
+   - `StopCommandInput` includes:
+     - `transcript_path`
+     - `stop_hook_active`
+     - **`last_assistant_message`**
+
+5. **Runtime behavior for those hooks**
+   - `codex\external\repos\codex-patched\codex-rs\core\src\hook_runtime.rs`
+   - `run_pending_session_start_hooks()`
+   - `run_user_prompt_submit_hooks()`
+
+6. **Stop-hook block/continue loop**
+   - `codex\external\repos\codex-patched\codex-rs\core\src\session\turn.rs`
+   - Around `StopRequest` creation and `hooks.run_stop(stop_request)`: if `should_block`, codex records continuation prompt fragments and loops the turn.
+
+7. **Plugin env compatibility for porting Node hooks**
+   - `codex\external\repos\codex-patched\codex-rs\hooks\src\engine\discovery.rs`
+   - Codex sets both:
+     - `PLUGIN_ROOT` / `PLUGIN_DATA`
+     - **`CLAUDE_PLUGIN_ROOT` / `CLAUDE_PLUGIN_DATA`**
+   - That materially lowers porting risk for the current Node scripts.
+
+8. **Statusline reality**
+   - `codex\external\repos\codex-patched\codex-rs\tui\src\bottom_pane\status_line_setup.rs`
+   - Status line is a built-in `StatusLineItem` enum; there is **no plugin hook/script slot** for external statusline scripts.
+
+9. **Codex transcript / message shape references**
+   - `codex\external\repos\codex-patched\codex-rs\app-server\README.md`
+   - Assistant messages are `message` items whose content blocks are `output_text`.
+   - `request_user_input` is documented as a separate tool/request flow, not inline in assistant text.
+
+## Technical Constraints
+
+- **Do not parse codex assistant text from Claude-style JSONL.** Codex already passes `last_assistant_message` in `StopCommandInput` (`hooks\src\schema.rs`), and `core\src\session\turn.rs` populates it directly. That should replace the Claude plugin’s JSONL walk for assistant-text extraction.
+- **Tool-call detection still needs transcript inspection.** Codex tool calls are separate `response_item` records, so “did the agent ask a structured choice?” cannot rely on inline `tool_use` blocks.
+- **Exact slash-command parity is uncertain.** Codex native slash commands are built-in; plugin `commands\*.toml` is not the registration path here. A plugin-only `/options-mode ...` flow depends on whether unknown slash text reaches `UserPromptSubmit` unchanged.
+- **Exact statusline parity is not available in plugin-only form.** The old `.ps1` / `.sh` statusline scripts do not map to codex’s TUI architecture.
+- **New package work is not zero-cost.** `packages\codexu-plugin\` currently has no `package.json` or test harness, so a new plugin package (or making the existing scaffold executable/testable) will require workspace/package wiring.
+- **External source access gap:** I could not read `C:\ai-developer-toolkit\plugins\options-mode\CLAUDE.md` from this environment, so source-plugin behavior beyond the roadmap summary is not directly verified here.
+
+## Implementation Suggestions
+
+**Recommended shape:** create a **separate plugin package** such as `packages\codexu-options-mode-plugin\` rather than folding this into `packages\codexu-plugin\`. It matches the roadmap, keeps the private/personal plugin separate, and makes marketplace/catalog surfacing cleaner.
+
+**Port strategy**
+1. **Keep the hooks in Node.js.** Codex can exec arbitrary scripts; no Rust rewrite is needed.
+2. **Reuse the existing state/config pattern** from the Claude plugin, but change config-root resolution to prefer `CODEX_HOME` / `~\.codex`.
+3. **SessionStart**: inject the rules text through hook-added context, not through codex-core changes.
+4. **UserPromptSubmit**: first verify whether unknown `/options-mode ...` text reaches the hook. If yes, keep parity there. If not, the realistic fallback is a skill or a codex-core patch; a pure plugin cannot add a native slash command by itself.
+5. **Stop**:
+   - Use **`input.last_assistant_message`** for byte-identical tag enforcement on `<options-mode>continue</options-mode>`.
+   - Use `transcript_path` only for the “structured choice” exemption by scanning for the latest relevant tool call (`request_user_input` now, `ask_user_question` later).
+6. **Statusline**: treat this as a **separate decision**, not part of the core hook port. Plugin-only parity is not there today.
+
+**Best integration-test seam**
+- Use the existing codex integration style in `packages\happy-cli\src\codex\codex.integration.test.ts` as the repo precedent for real codex session testing.
+- Add deterministic fixture-based tests for Stop-hook payloads/transcript variants in the new plugin package, because transcript-shape handling is the highest-risk logic.
+

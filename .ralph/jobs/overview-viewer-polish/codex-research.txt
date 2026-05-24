@@ -1,0 +1,61 @@
+**Codebase Architecture**
+
+The overview viewer is a dedicated pnpm workspace package at `tools/overview-viewer`, registered in both `pnpm-workspace.yaml` and root `package.json`. It uses React 19.2, TypeScript strict mode, Vite 8, `@vitejs/plugin-react`, `vite-plugin-singlefile`, and Vitest in `node` mode.
+
+Key structure:
+
+- `tools/overview-viewer/src/App.tsx` composes the full dashboard and owns the inline HMR reload for `plans/overview-data.js`.
+- `src/components/` contains the major surfaces: `Toolbar`, `Kanban`, `CommandList`, `TaskCommand`, `PhaseTree`, `TodayPanel`, `TopLevelSurfaces`, static sections.
+- `src/hooks/` owns state behavior: persistent expanded rows, hash nav, keyboard shortcuts, filters, bulk selection, URL filters, what’s-new tracking.
+- `src/utils/` owns pure logic: filtering, task classification, kanban ordering, copy preambles, command navigation, freshness, warning-linking.
+- `src/styles.css` is the load-bearing ported stylesheet; no CSS modules/Tailwind/CSS-in-JS.
+- `plans/overview-data.js` is the hand-edited data contract: `window.OVERVIEW_DATA = { ... }`.
+- `plans/overview.html` is generated only. Current size is `447483` bytes and must be regenerated with `pnpm overview:build`.
+
+The build entry is `tools/overview-viewer/overview.html`, not `index.html`; the Vite plugin inlines `plans/overview-data.js` during build and serves/re-executes it during dev.
+
+**Feature-Relevant Code**
+
+Most Phase A/B/D/E work integrates through:
+
+- `tools/overview-viewer/src/App.tsx`: top-level composition, `Toolbar`, `TodayPanel`, `WhatsNewBanner`, section order, HMR, `activateWorkstream`, expand/collapse-all.
+- `tools/overview-viewer/src/components/CommandList.tsx`: currently renders a single sorted stream via `sortTasksByLastTouchedAsc`; computes `childrenByParent`.
+- `tools/overview-viewer/src/components/TaskCommand.tsx`: command row summary/body, copy buttons, scope/status/workstream/spawn pills, warnings, runs log, `.cmd-actions`.
+- `tools/overview-viewer/src/components/Toolbar.tsx`: search input, `<details className="toolbar-filters">`, filter chips, bulk copy.
+- `tools/overview-viewer/src/components/TopLevelSurfaces.tsx`: `FreshnessHint`, `WhatsNewBanner`, `KeyboardHelp`, `Legend`, `Layout`.
+- `tools/overview-viewer/src/components/TodayPanel.tsx`: ready/running/on-hold buckets and recent shipped runs.
+- `tools/overview-viewer/src/components/Kanban.tsx`: card counts, legend placement, jump-to-command behavior.
+- `tools/overview-viewer/src/hooks/usePersistentExpanded.ts`: existing `codexu-overview-details-state-v2` localStorage key.
+- `tools/overview-viewer/src/hooks/useHashNav.ts` and `src/utils/commandNavigation.ts`: `#cmd-*` expansion and smooth scroll already exist, but use `block: 'start'` and no flash class.
+- `tools/overview-viewer/src/utils/filters.ts`: search haystack and `filterBucketForTask` integration.
+- `tools/overview-viewer/src/utils/taskClassification.ts`: phase/status bucket mappings.
+- `tools/overview-viewer/src/utils/clipboard.ts`: `writeClipboard()` already returns `boolean`; callers discard it.
+- `tools/overview-viewer/src/styles.css`: `.search-match` and `.copy-btn.copied` already exist; current CSS has sticky toolbar shadow always on, CSS `order` rules for command buckets, and no global reduced-motion block.
+
+**Technical Constraints**
+
+The viewer must remain `file://` compatible and self-contained. Do not introduce service workers, external CSS, CDN fonts, or async-only data loading. Any dependency, including Radix, must bundle through Vite singlefile.
+
+`plans/overview.html` is generated. Renderer changes go under `tools/overview-viewer/src/`, then `pnpm overview:build` regenerates the artifact.
+
+`plans/overview-data.js` is read-only from the viewer. Features should derive from `OverviewData`; do not mutate the data file from UI actions.
+
+The data uses trusted HTML fragments. `TaskCommand` currently renders `command.descriptionHtml` with `dangerouslySetInnerHTML`; search highlighting inside `.cmd-desc` must preserve HTML and skip `<code>` nodes. Avoid naive regex replacement over HTML.
+
+Tests currently run in a Node SSR style. DOM-only helpers such as `DOMParser`, `document.body.classList`, timers, and Radix interactions either need isolated pure helpers or a deliberate jsdom test addition.
+
+The three intentional deviations are already documented and tested: phase-tree deferred class, blocked/paused command rows to tail, and oldest `lastTouchedAt` first. Bucket restructuring must preserve them in data/order logic rather than relying on the soon-to-be-removed CSS `order` rules.
+
+**Implementation Suggestions**
+
+For Phase A, add the global `prefers-reduced-motion` block first. Use existing `.cmd-body` for command-row details animation; top-level sections will need lightweight body wrappers if the animation is meant to cover every `<details>`. Emit search highlights by passing `query` from `App` → `CommandList` → `TaskCommand`; highlight `cmd-name` as React text and transform `descriptionHtml` with an HTML-aware helper that skips `<code>`. Extend `navigateToCommand()` for center scroll plus temporary `.cmd-flash`.
+
+For Phase B, centralize copy feedback. A small `useCopyFeedback` or App-level toast state can serve `CopyCommandButton`, `CopyNameButton`, quick actions, URL copy, and bulk copy. Apply `.copied` only when `writeClipboard()` resolves true. Add quick actions inside the existing `.cmd-actions` cluster; `childrenByParent`, `data.spawnedFrom`, and `task.kanbanCards` already provide all conditional visibility.
+
+For density, use a new `codexu-overview-density-v1` key and a body class side effect in `App`. Keep compact mode CSS scoped to `body.compact .cmd`, `.cmd-desc`, and related padding.
+
+For Phase C, add Radix packages only to `tools/overview-viewer/package.json`, then verify artifact size before/after. Start with `Tooltip.Provider` and one `WorkstreamPill` conversion, then `KeyboardHelp` dialog. `FilterChips` is the natural Popover/ToggleGroup target. Checkbox rollout requires extending `useBulkSelection` for “select all visible in bucket” and indeterminate state.
+
+For Phase D, replace CSS-order bucketing with explicit grouping in `CommandList.tsx`. Prefer grouping by actual `task.phase` for IA clarity, with a stable phase order from `PHASE_TO_BADGE_TEXT`; within each bucket, split actionable vs blocked/paused, then apply `sortTasksByLastTouchedAsc`. Extend `usePersistentExpanded` with bucket keys such as `bucket-plan-ready`.
+
+For Phase E, create `LeftRail.tsx` and move existing derived surfaces rather than duplicating logic: `TodayPanel`, `WhatsNewBanner`, `Legend`, recent shipped, and periodic due-soon. `Layout` should become an app shell with rail/main regions and a `max-width: 900px` collapse rule.

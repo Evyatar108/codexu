@@ -1,0 +1,14 @@
+{
+  "id": "F-003",
+  "severity": "Medium",
+  "source": "docs",
+  "classification": "fixable",
+  "phase": "docs",
+  "category": "Stale Documentation",
+  "description": "plugins/ralph-overview/CLAUDE.md:20 added in this diff overstates the scope of the first-run probe: it says `Consumer-reading tools report { ok: false, code: 'consumer-not-initialized', ... } until required overview artifacts and MCP registration are present`. In the diff, only `listTasks` in `tools/overview-mcp/src/tools/read-only.ts` and `dev-server-status.ts` actually invoke `checkConsumerInitialized` (see read-only.ts:45-48 and dev-server-status.ts:37-40). Other consumer-reading tools in the same file — `getTask`, `nextCommand`, `listRecommendations`, `listBlockers` — still return `missing snapshot` rather than `consumer-not-initialized`. The generalised wording in the new CLAUDE.md section misdescribes the implementation the same diff shipped.",
+  "status": "open",
+  "relevantFiles": [
+    "plugins/ralph-overview/CLAUDE.md"
+  ],
+  "suggestedFix": "Narrow the v1.1.0 behavioral additions bullet on CLAUDE.md:20 to name the actually-gated tools, e.g. `overview.list_tasks and overview.dev_server.status report { ok: false, code: 'consumer-not-initialized', suggestedTool: 'overview.init', missing } when required overview artifacts and MCP registration are absent; other consumer-reading tools continue to surface a 'missing snapshot' error.`"
+}

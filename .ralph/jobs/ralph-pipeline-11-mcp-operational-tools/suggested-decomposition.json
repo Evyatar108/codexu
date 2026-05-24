@@ -1,0 +1,51 @@
+{
+  "clusters": [
+    {
+      "name": "mcp-ops-foundation",
+      "stories": ["US-001", "US-002", "US-003"],
+      "phase": 1,
+      "dependsOn": [],
+      "fileOverlapEvidence": {
+        "sharedFiles": [],
+        "exclusiveFiles": [
+          "tools/overview-mcp/src/process-manager.ts",
+          "tools/overview-mcp/src/__tests__/process-manager.test.ts",
+          "scripts/lib/sync-lock.mjs",
+          "scripts/sync-ralph-state.mjs"
+        ],
+        "risk": "low"
+      },
+      "executionModeRationale": "These three stories edit disjoint files (ProcessManager class, lock helper export, sync summary line) and are theoretically parallelizable, but serial execution is simpler and adds less than 5 minutes to total runtime while keeping the plan-review feedback loop linear."
+    },
+    {
+      "name": "mcp-ops-tools",
+      "stories": ["US-004", "US-005", "US-006", "US-007"],
+      "phase": 2,
+      "dependsOn": ["mcp-ops-foundation"],
+      "fileOverlapEvidence": {
+        "sharedFiles": [
+          "tools/overview-mcp/src/server.ts",
+          "tools/overview-mcp/src/context.ts",
+          "tools/overview-mcp/src/schemas.ts",
+          "tools/overview-mcp/src/__tests__/stdio-tools-list.test.ts",
+          "tools/overview-mcp/README.md"
+        ],
+        "exclusiveFiles": [
+          "tools/overview-mcp/src/tools/dev-server-start.ts",
+          "tools/overview-mcp/src/tools/dev-server-stop.ts",
+          "tools/overview-mcp/src/tools/dev-server-status.ts",
+          "tools/overview-mcp/src/tools/dev-server-logs.ts",
+          "tools/overview-mcp/src/tools/build.ts",
+          "tools/overview-mcp/src/tools/sync-now.ts",
+          "tools/overview-mcp/src/tools/sync-watch-status.ts",
+          "tools/overview-mcp/src/__tests__/dev-server.test.ts",
+          "tools/overview-mcp/src/__tests__/build.test.ts",
+          "tools/overview-mcp/src/__tests__/sync-watch-status.test.ts",
+          "tools/overview-mcp/src/__tests__/shutdown.test.ts"
+        ],
+        "risk": "high"
+      },
+      "executionModeRationale": "All four stories edit the same registration site (server.ts), the same ServerContext (context.ts), the same schemas file, the same smoke-test count assertion, and the same README. Parallelizing them would produce merge conflicts on every shared file. Run strictly serially."
+    }
+  ]
+}

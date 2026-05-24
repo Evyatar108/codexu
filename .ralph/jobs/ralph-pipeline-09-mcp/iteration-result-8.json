@@ -1,0 +1,50 @@
+{
+  "storyId": "US-008",
+  "verifiedEvidence": [
+    {
+      "criterion": "Default mode calls deriveNextCommand() and returns top-level command plus invocationGuidance",
+      "command": "grep -nE \"INVOCATION_GUIDANCE|deriveNextCommand|command \\?|overview.invoke_next\" tools/overview-mcp/src/tools/invoke-next.ts tools/overview-mcp/src/server.ts; pnpm --filter @codexu/overview-mcp test",
+      "result": "invoke-next.ts imports and calls deriveNextCommand(), returns { ok: true, command, invocationGuidance } with the exact Skill guidance string, and server.ts registers overview.invoke_next. Vitest passed 5 files and 33 tests, including the default-mode happy path.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Null command case returns no-next-command guidance",
+      "command": "grep -nE \"NO_NEXT_COMMAND_GUIDANCE|command: null|no next command\" tools/overview-mcp/src/tools/invoke-next.ts tools/overview-mcp/src/__tests__/read-only-tools.test.ts; pnpm --filter @codexu/overview-mcp test",
+      "result": "NO_NEXT_COMMAND_GUIDANCE is \"no next command - task is complete or has no actionable next step\"; Vitest shipped-task case returned { ok: true, command: null, invocationGuidance: ... }.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "viaCrewMember delegates to runWorkOnViaCrew with stdout: process.stderr and returns sessionRef",
+      "command": "grep -nE \"runWorkOnViaCrew|stdout: process.stderr|sessionRef\" tools/overview-mcp/src/tools/invoke-next.ts tools/overview-mcp/src/__tests__/read-only-tools.test.ts; pnpm --filter @codexu/overview-mcp test",
+      "result": "viaCrewMember path calls mod.runWorkOnViaCrew({ repoRoot, config, taskId, stage, crewName, memberName, stdout: process.stderr }) and returns { ok: true, sessionRef }. Vitest validated the exact call args and sessionRef result.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Dynamic import fallback for Plan 08 and no top-level static import of work-on-via-crew.mjs",
+      "command": "grep -n \"import('../../../../scripts/lib/work-on-via-crew.mjs').catch(() => null)\" tools/overview-mcp/src/tools/invoke-next.ts; ! grep -RIn \"^import .*work-on-via-crew\\.mjs\" tools/overview-mcp/src && echo \"no top-level static import of work-on-via-crew.mjs\"; pnpm --filter @codexu/overview-mcp test",
+      "result": "loadWorkOnViaCrewModule dynamically imports ../../../../scripts/lib/work-on-via-crew.mjs and returns null on failure; grep confirmed no top-level static import. Vitest Plan-08-missing test returned { ok: false, error: \"requires plan 08\" }.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Tests with mocks cover default, null command, viaCrewMember stdout, and Plan-08-missing fallback",
+      "command": "grep -nE \"default invocation guidance|null command|delegates viaCrewMember|requires plan 08\" tools/overview-mcp/src/__tests__/read-only-tools.test.ts; pnpm --filter @codexu/overview-mcp test",
+      "result": "read-only-tools.test.ts contains US-008 cases for default guidance, no-next-command, mocked viaCrewMember stdout redirection, and dynamic-import fallback. Test run exit 0: 5 test files passed, 33 tests passed.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Typecheck passes",
+      "command": "pnpm --filter @codexu/overview-mcp typecheck",
+      "result": "Exit 0; tsc --noEmit -p tsconfig.json completed without errors. Full log: .test-output/overview-mcp.typecheck.log.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Tests pass",
+      "command": "pnpm --filter @codexu/overview-mcp test",
+      "result": "Exit 0; Vitest reported 5 test files passed and 33 tests passed. Full log: .test-output/overview-mcp.test.log.",
+      "evidenceKind": "passed"
+    }
+  ],
+  "skippedReasons": [],
+  "notTested": [],
+  "iterationSHA": "2b2acc756493019112e75d0ff02e040ae18fbd19"
+}

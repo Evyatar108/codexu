@@ -1,0 +1,105 @@
+{
+  "storyId": "US-009",
+  "verifiedEvidence": [
+    {
+      "criterion": "Toolbar.tsx has a density toggle button (two states: Comfortable / Compact)",
+      "command": "grep -RInE \"DensityToggleButton|density-toggle|Comfortable|Compact\" tools/overview-viewer/src/components/Toolbar.tsx tools/overview-viewer/src/__tests__/density.test.ts",
+      "result": "PASS: Toolbar renders DensityToggleButton with Comfortable and Compact labels, aria-pressed state, and density.test.ts asserts both rendered states.",
+      "evidenceKind": "test"
+    },
+    {
+      "criterion": "On toggle, <body> gets/loses class compact; persisted to localStorage under key codexu-overview-density-v1",
+      "command": "grep -RInE \"DENSITY_STORAGE_KEY|codexu-overview-density-v1|applyBodyDensityClass|toggleDensity|writeDensityPreference\" tools/overview-viewer/src/hooks/useDensity.ts tools/overview-viewer/src/App.tsx tools/overview-viewer/src/components/Toolbar.tsx tools/overview-viewer/src/__tests__/density.test.ts && pnpm --filter @codexu/overview-viewer test",
+      "result": "PASS: App owns useDensity and passes toggleDensity to Toolbar; useDensity persists codexu-overview-density-v1 and applies body.classList.toggle('compact', ...). density.test.ts verifies storage round-trip and compact class add/remove; suite passed 14 files / 60 tests.",
+      "evidenceKind": "test"
+    },
+    {
+      "criterion": "CSS rule body.compact .cmd { padding: 4px 8px; } body.compact .cmd-desc, body.compact .sub { display: none; } (or equivalent — compact mode reduces row vertical padding by ≥ 30% versus comfortable)",
+      "command": "grep -n 'body.compact' -A2 tools/overview-viewer/src/styles.css",
+      "result": "PASS: styles.css defines body.compact .cmd { padding: 4px 8px; } and hides body.compact .cmd-desc plus body.compact .sub, reducing vertical row padding by 50% versus 8px 12px comfortable rows.",
+      "evidenceKind": "inspection"
+    },
+    {
+      "criterion": "Reads localStorage on mount; sensible default (comfortable) when no value stored",
+      "command": "grep -RInE \"useState<Density>|readDensityPreference|getLocalStorage|comfortable\" tools/overview-viewer/src/hooks/useDensity.ts tools/overview-viewer/src/__tests__/density.test.ts",
+      "result": "PASS: useDensity initializes from readDensityPreference(getLocalStorage()); readDensityPreference returns comfortable when storage is absent or unset, and density.test.ts verifies the default.",
+      "evidenceKind": "test"
+    },
+    {
+      "criterion": "New test file tools/overview-viewer/src/__tests__/density.test.ts covers: localStorage round-trip, default value, key-versioning collision",
+      "command": "grep -RInE \"round-trips compact mode|defaults to comfortable|ignores older density keys|codexu-overview-density\" tools/overview-viewer/src/__tests__/density.test.ts",
+      "result": "PASS: density.test.ts exists and covers localStorage round-trip, default comfortable value, and ignoring older/unversioned density keys plus malformed values.",
+      "evidenceKind": "inspection"
+    },
+    {
+      "criterion": "Typecheck passes (pnpm --filter @codexu/overview-viewer typecheck)",
+      "command": "pnpm --filter @codexu/overview-viewer typecheck > .test-output/overview-viewer.typecheck.log 2>&1",
+      "result": "PASS: tsc --noEmit completed with exit 0 after the final test-file rename.",
+      "evidenceKind": "typecheck"
+    },
+    {
+      "criterion": "Tests pass (pnpm --filter @codexu/overview-viewer test)",
+      "command": "pnpm --filter @codexu/overview-viewer test > .test-output/overview-viewer.test.log 2>&1",
+      "result": "PASS: Vitest reported 14 test files passed, 60 tests passed after the final test-file rename.",
+      "evidenceKind": "test"
+    },
+    {
+      "criterion": "pnpm overview dev server starts and renders without console errors",
+      "command": "curl -fsS http://127.0.0.1:5173/overview.html > /tmp/overview.html.smoke && curl -fsS http://127.0.0.1:5173/overview-data.js > /tmp/overview-data.js.smoke && grep -q '<div id=\"root\"></div>' /tmp/overview.html.smoke && grep -q 'window.OVERVIEW_DATA' /tmp/overview-data.js.smoke",
+      "result": "HTTP smoke PASS: existing dev server served overview.html with root node and overview-data.js with window.OVERVIEW_DATA. SKIPPED: browser console verification unavailable because browser automation is not installed.",
+      "evidenceKind": "skipped"
+    },
+    {
+      "criterion": "pnpm overview:build succeeds; regenerated plans/overview.html opens cleanly under file://",
+      "command": "pnpm overview:build > .test-output/overview-viewer.build.log 2>&1; grep -nE '<script[^>]+src=|<link[^>]+href=' plans/overview.html || true; grep -n '<div id=\"root\"></div>' plans/overview.html",
+      "result": "Build PASS: Vite regenerated plans/overview.html successfully; static artifact has root node and no external script/link refs. SKIPPED: live file:// browser open unavailable without browser automation.",
+      "evidenceKind": "build"
+    },
+    {
+      "criterion": "Bundle size of plans/overview.html stays under 500 KB",
+      "command": "stat -c%s plans/overview.html",
+      "result": "457004 bytes (< 500000).",
+      "evidenceKind": "command"
+    },
+    {
+      "criterion": "Three existing intentional deviations from 9f81c1f8 (deferred class, blocked/paused → tail of phase bucket, lastTouchedAt-asc) still hold",
+      "command": "grep -RInE \"deferred|data-cmd-status|lastTouchedAt|sortTasksByLastTouchedAsc\" tools/overview-viewer/src/components/PhaseTree.tsx tools/overview-viewer/src/components/CommandList.tsx tools/overview-viewer/src/styles.css",
+      "result": "PASS: PhaseTree still maps blocked/paused to deferred; styles.css still contains blocked/paused tail ordering; CommandList still exports and uses sortTasksByLastTouchedAsc.",
+      "evidenceKind": "inspection"
+    },
+    {
+      "criterion": "prefers-reduced-motion: reduce disables any animation added by the story",
+      "command": "grep -n '@media (prefers-reduced-motion: reduce)' -A5 tools/overview-viewer/src/styles.css; grep -n 'density-toggle' -A12 tools/overview-viewer/src/styles.css",
+      "result": "PASS: this story adds no animation; the existing global reduced-motion guard remains in place and disables all animations/transitions with !important.",
+      "evidenceKind": "inspection"
+    },
+    {
+      "criterion": "If tools/overview-viewer/package.json changes, workspace-root pnpm-lock.yaml is regenerated and committed in the same commit; pnpm install --frozen-lockfile from repo root must succeed",
+      "command": "git show --name-only --format= HEAD | grep -E 'tools/overview-viewer/package.json|pnpm-lock.yaml' || true; pnpm install --frozen-lockfile --offline > .test-output/pnpm-install-frozen.log 2>&1",
+      "result": "PASS: package.json and pnpm-lock.yaml were unchanged for this story; frozen offline install completed successfully. Postinstall happy-wire side-effect files were restored and not committed.",
+      "evidenceKind": "command"
+    },
+    {
+      "criterion": "Commit message references the story ID and lists affected files",
+      "command": "git log -1 --format=%H%n%s%n%b --name-only",
+      "result": "PASS: commit 3e75b0d9534f08fd7fb326f6b115457b2de6ef54 subject references US-009; body lists affected files and includes the node-only harness constraint plus not-tested trailer.",
+      "evidenceKind": "command"
+    }
+  ],
+  "skippedReasons": [
+    {
+      "reason": "tool_unavailable",
+      "criterion": "pnpm overview dev server starts and renders without console errors",
+      "detail": "Browser console verification unavailable; HTTP smoke fallback used."
+    },
+    {
+      "reason": "tool_unavailable",
+      "criterion": "pnpm overview:build succeeds; regenerated plans/overview.html opens cleanly under file://",
+      "detail": "Live file:// browser open unavailable; static artifact fallback used."
+    }
+  ],
+  "notTested": [
+    "live browser console and file:// double-click unavailable; HTTP/static fallback used"
+  ],
+  "iterationSHA": "3e75b0d9534f08fd7fb326f6b115457b2de6ef54"
+}

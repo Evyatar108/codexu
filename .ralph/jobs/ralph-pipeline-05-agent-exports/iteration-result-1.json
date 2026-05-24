@@ -1,0 +1,44 @@
+{
+  "storyId": "US-006",
+  "verifiedEvidence": [
+    {
+      "criterion": "tools/overview-viewer/src/types.ts appends Snapshot, SnapshotTask, ActivityEvent exports at file end (additive only).",
+      "command": "nl -ba tools/overview-viewer/src/types.ts | tail -55",
+      "result": "Lines 157-193 show Recommendation, DependencyGraph, SnapshotTask, Snapshot, and ActivityEvent appended after the existing OverviewData interface at the end of the file.",
+      "evidenceKind": "file-inspection"
+    },
+    {
+      "criterion": "Adds minimal v1 stubs for Recommendation ({ taskId?, score?, rationale? }) and DependencyGraph ({ nodes: { id }[], edges: { from, to }[] }).",
+      "command": "nl -ba tools/overview-viewer/src/types.ts | sed -n '157,166p'",
+      "result": "Recommendation has optional taskId, score, rationale fields; DependencyGraph has nodes: Array<{ id: string }> and edges: Array<{ from: string; to: string }>.",
+      "evidenceKind": "file-inspection"
+    },
+    {
+      "criterion": "OverviewRalphState and RalphPipelineState are unchanged (no runDurations migration -- Plan 04 owns that).",
+      "command": "grep -En 'runDurations|export interface OverviewRalphState|export interface RalphPipelineState' tools/overview-viewer/src/types.ts",
+      "result": "RalphPipelineState remains at line 59 and OverviewRalphState at line 75; runDurations appears only in Snapshot at line 180.",
+      "evidenceKind": "absent-verified"
+    },
+    {
+      "criterion": "Does NOT touch tools/overview-viewer/src/utils/filters.ts (Plan 03's surface).",
+      "command": "git diff --name-only HEAD^ HEAD | grep 'tools/overview-viewer/src/utils/filters.ts' || true",
+      "result": "No output; the commit did not modify tools/overview-viewer/src/utils/filters.ts.",
+      "evidenceKind": "absent-verified"
+    },
+    {
+      "criterion": "Typecheck passes.",
+      "command": "pnpm --filter @codexu/overview-viewer typecheck > .test-output/overview-viewer.typecheck.log 2>&1",
+      "result": "PASS exit=0 duration=17s; tsc --noEmit completed with no errors.",
+      "evidenceKind": "command-output"
+    },
+    {
+      "criterion": "Package tests pass after dependency install and mtime fixture stabilization.",
+      "command": "pnpm --filter @codexu/overview-viewer test > .test-output/overview-viewer.test.log 2>&1",
+      "result": "PASS exit=0 duration=19s; 27 test files passed, 151 tests passed.",
+      "evidenceKind": "command-output"
+    }
+  ],
+  "skippedReasons": [],
+  "notTested": [],
+  "iterationSHA": "5214701557c33e16c5c6d0cbe9305cc9553bca35"
+}

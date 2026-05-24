@@ -1,0 +1,38 @@
+I’ll inspect the referenced temp file to determine the requested work, then apply it in the repo.
+
+I found the referenced file is a plan-review prompt for `plugins\ralph-overview`; I’ll verify the plan against the current code before giving findings.
+
+Reviewed against the current `plugins\ralph-overview` code. The plan needs revision before implementation.
+
+### Feasibility
+
+[High] New MCP TS files importing new `scripts/*.mjs` modules will likely fail `tsc` unless matching `.d.mts` declaration files are added. Existing TS imports from `scripts/lib/*.mjs` rely on paired declarations like `atomic-write.d.mts` and `sync-core.d.mts`; the plan creates `init-consumer.mjs`, `upsert-task-edit.mjs`, and `check-initialized.mjs` without declarations.
+
+[High] Copilot mirror regeneration is not actionable as written. The plan requires `dist/copilot/` parity and a generator, but the plugin currently has no obvious `ralph-meta`, `dist/copilot`, or generator path under `plugins\ralph-overview`; the plan leaves this as an open question while still making it acceptance-critical.
+
+[Medium] `syncNow(context)` is mischaracterized as in-process. `tools\overview-mcp\src\tools\sync-now.ts` currently spawns `node bin\ralph-overview.mjs sync`; either the plan should accept subprocess sync or add a lower-level in-process sync API.
+
+### Completeness
+
+[High] The `overview.upsert_task` byte-identity requirement conflicts with editing task metadata that lives outside `tasks[]`. `workstream` is a top-level taskId map (`read-only.ts` filters via `overviewData.workstream[task.id]`, and the template confirms this shape). If the mutator only changes the target task `ObjectExpression` and keeps everything outside byte-identical, it cannot correctly add/update `workstream`, `sizeBucket`, `risk`, etc.
+
+[High] Test updates are incomplete. Adding two MCP tools will break exact-list tests in `src\__tests__\read-only-tools.test.ts` and `src\__tests__\stdio-tools-list.test.ts`; the plan only calls out `install-server.test.ts` and `dev-server.test.ts`. `build.test.ts` is also stale, expecting `pnpm overview:build` while `build.ts` now uses the dispatcher.
+
+[High] `--force` semantics are internally inconsistent. AC #3 says force “regenerates all four files,” but AC #4/#5 require preserving existing `.mcp.json` servers and append-only `.claude/settings.json:enabledMcpjsonServers`. The plan must define force as “overwrite scaffold templates, but still safe-merge registration files,” or it risks deleting other MCP servers like `paper`.
+
+[Medium] The first-run probe is only planned for `overview.list_tasks` and `overview.dev_server.status`. Since the feature also promises agent-driven dashboard startup, `overview.dev_server.start`, `overview.build`, and `overview.sync.now` should either use the same structured `consumer-not-initialized` signal or the plan should explicitly justify why only status/list are gated.
+
+### Ordering
+
+[Medium] The release step is ambiguous: it both says to manually bump `plugin.json`/marketplace files and to use `/release-plugin`, which itself owns version/index/changelog updates. Pick one path to avoid double-bumps or conflicting changelog/index edits.
+
+### Simplicity
+
+No major simplicity issues found; the shared engine + thin surfaces are appropriate, but the plan should reduce ambiguity around force behavior and CLI output.
+
+### Acceptance Criteria Quality
+
+[High] `overview.upsert_task.fields` is not specified enough for an autonomous implementer. The open question proposes strict whitelist plus `extras`, but the acceptance criteria never define the whitelist, nested-field behavior, or whether top-level task maps may be edited.
+
+[Medium] AC #9 says all three init surfaces produce identical dry-run output, while the CLI strategy says it prints a human-readable summary. Add a `--json` mode or redefine the parity check to compare the engine result before formatting.
+

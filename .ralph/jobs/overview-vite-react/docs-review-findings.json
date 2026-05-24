@@ -1,0 +1,150 @@
+{
+  "planFile": "D:/harness-efforts/codexu/.ralph/jobs/overview-vite-react/plan.md",
+  "repoDir": "D:/harness-efforts/codexu/.worktrees/overview-vite-react",
+  "findings": [
+    {
+      "id": "F-001",
+      "source": "docs",
+      "severity": "High",
+      "category": "Stale Documentation",
+      "classification": "fixable",
+      "phase": "docs",
+      "status": "fixed",
+      "description": "Procedure F in .agents/skills/roadmap-and-overview/SKILL.md (line 327) tells the bookkeeper to add new workstream filter chips by editing plans/overview.html: 'In plans/overview.html, add a filter chip under the workstream filter group and add a display label to the injectWorkstreamPills labels map.' After US-008 (commit 12339259), plans/overview.html is a generated React-Vite build artifact, not a hand-edited renderer. Filter chips and the injectWorkstreamPills labels map no longer live in plans/overview.html; the renderer is the React app under tools/overview-viewer/src/. Following the procedure as written will either fail to find the filter group block or get overwritten on the next pnpm overview:build. Line 332's framing ('one of the few normal procedures that touches both the data file and the HTML shell, because filter labels are renderer UI') is stale for the same reason.",
+      "relevantFiles": [
+        ".agents/skills/roadmap-and-overview/SKILL.md"
+      ],
+      "suggestedFix": "Rewrite Procedure F step 2 to direct the operator at the React renderer source, e.g. 'In tools/overview-viewer/src/, add the new workstream key to the workstream filter chip set and to the workstream-pill label map (see Toolbar.tsx and the workstream-label helper). Run pnpm overview to verify, then pnpm overview:build to regenerate plans/overview.html.' Update line 332 to say the procedure touches the data file plus the React renderer source under tools/overview-viewer/src/, not the HTML shell.",
+      "fixedInIteration": 1,
+      "resolution": "Rewrote Procedure F to point at FILTER_GROUPS in Toolbar.tsx + WORKSTREAM_LABELS in TaskCommand.tsx; added pnpm overview:build step."
+    },
+    {
+      "id": "F-002",
+      "source": "docs",
+      "severity": "High",
+      "category": "Stale Documentation",
+      "classification": "fixable",
+      "phase": "docs",
+      "status": "fixed",
+      "description": "Procedure G in .agents/skills/roadmap-and-overview/SKILL.md (lines 334-348, especially line 337-338) instructs that 'renderer/UI changes go into plans/overview.html.' After US-008 plans/overview.html is a generated artifact; renderer/UI changes belong in tools/overview-viewer/src/ (TSX components, hooks, utils, and styles.css). Authoring a 'visualization feature' against plans/overview.html will be overwritten by the next pnpm overview:build and bypasses the test suite under tools/overview-viewer/src/__tests__/. The Source Files bullet at line 39 ('plans/overview.html - static renderer. Edit only for procedure G or renderer/storage-key changes') is stale by the same reasoning.",
+      "relevantFiles": [
+        ".agents/skills/roadmap-and-overview/SKILL.md"
+      ],
+      "suggestedFix": "In Procedure G step 1, change 'renderer/UI changes go into plans/overview.html' to 'renderer/UI changes go into tools/overview-viewer/src/ (components, hooks, utils, styles.css), then rebuild via pnpm overview:build to regenerate plans/overview.html.' Update the Source Files bullet for plans/overview.html (line 39) to describe it as a generated build artifact produced by pnpm overview:build from tools/overview-viewer/, and direct authoring edits to tools/overview-viewer/src/ instead. Consider adding tools/overview-viewer/ to the Source Files list explicitly.",
+      "fixedInIteration": 1,
+      "resolution": "Reframed plans/overview.html as a generated artifact; added tools/overview-viewer/src/ to Source Files; Procedure G step 1 now directs renderer/UI edits to tools/overview-viewer/src/."
+    },
+    {
+      "id": "F-003",
+      "source": "docs",
+      "severity": "High",
+      "category": "Stale Documentation",
+      "classification": "fixable",
+      "phase": "docs",
+      "status": "fixed",
+      "description": "plans/codexu-roadmap.md references 'plans/overview.html filter axis' as the place to add new workstream values at lines 467 ('New workstream value agent-arch in plans/overview.html filter axis'), 470 ('plans/overview.html + plans/parallel-assignments.md'), 479 ('New workstream value tooling in plans/overview.html filter axis'), and 488 ('Tracked on the visualization (plans/overview.html) with a 🔄 cadence indicator + new \"Upstream sync\" workstream + new \"Cadence\" filter axis'). After US-008 the filter axis UI lives in tools/overview-viewer/src/ (Toolbar.tsx and friends), and plans/overview.html is a build artifact. Operators following these notes will look in the wrong file when wiring up the agent-arch, tooling, or Cadence axes.",
+      "relevantFiles": [
+        "plans/codexu-roadmap.md"
+      ],
+      "suggestedFix": "Update the four roadmap notes to point at tools/overview-viewer/src/ for filter-axis wiring instead of plans/overview.html. Recommended wording: 'New workstream value <key> in the overview viewer filter axis (tools/overview-viewer/src/ Toolbar plus the workstream label map); rebuild with pnpm overview:build to regenerate plans/overview.html.' Keep the workstream-key insertion into plans/overview-data.js unchanged.",
+      "fixedInIteration": 1,
+      "resolution": "Updated four roadmap notes in codexu-roadmap.md to point at tools/overview-viewer/src/components/Toolbar.tsx + TaskCommand.tsx for filter-axis wiring; added pnpm overview:build rebuild reminder."
+    },
+    {
+      "id": "F-004",
+      "source": "docs",
+      "severity": "Medium",
+      "category": "Stale Documentation",
+      "classification": "fixable",
+      "phase": "docs",
+      "status": "fixed",
+      "description": ".agents/skills/roadmap-and-overview/SKILL.md line 26 says 'plans/overview.html - renderer and UI shell. Do not edit it for normal task status changes.' This understates the post-US-008 reality: plans/overview.html is a generated artifact and should not be hand-edited for ANY reason during normal bookkeeping. Practical bookkeeping advice still steers correctly (do not touch the file), but the framing as 'renderer and UI shell' is stale and conflicts with the new Viewing section (lines 47-60) and with Source Files line 39. A fresh bookkeeping agent reading line 26 first may still try Procedure G edits against the HTML.",
+      "relevantFiles": [
+        ".agents/skills/roadmap-and-overview/SKILL.md"
+      ],
+      "suggestedFix": "Reword line 26 to: 'plans/overview.html - generated build artifact produced by pnpm overview:build from tools/overview-viewer/. Do not hand-edit; renderer/UI changes go to tools/overview-viewer/src/ (see procedures F and G).' Optionally add a fourth Fresh-agent-orientation bullet pointing at tools/overview-viewer/README.md for renderer context.",
+      "fixedInIteration": 1,
+      "resolution": "Reworded Fresh-agent orientation line 26 to describe plans/overview.html as a generated build artifact; added fourth orientation bullet for tools/overview-viewer/."
+    },
+    {
+      "id": "F-005",
+      "source": "docs",
+      "severity": "Medium",
+      "category": "Stale Documentation",
+      "classification": "fixable",
+      "phase": "docs",
+      "status": "fixed",
+      "description": ".agents/skills/roadmap-and-overview/SKILL.md Pitfalls bullet at line 370-372 says 'overview-data.js must load before the main script. The HTML relies on synchronous script loading so getRoadmapData() can return window.OVERVIEW_DATA during initial render.' The underlying load-ordering invariant for the built file://-openable artifact is still true, but the cited mechanism is stale: there is no getRoadmapData() helper in the React build (it ships an inlined OVERVIEW_DATA sidecar and a React renderer), and 'initial render' is React mount rather than the legacy static-renderer entry point. A reader debugging a build issue will look for getRoadmapData() and not find it.",
+      "relevantFiles": [
+        ".agents/skills/roadmap-and-overview/SKILL.md"
+      ],
+      "suggestedFix": "Rewrite the pitfall to: 'overview-data.js must load before the React bundle. The built plans/overview.html inlines the sidecar via the build pipeline; in dev (pnpm overview), the custom Vite plugin serves plans/overview-data.js at /overview-data.js so window.OVERVIEW_DATA is populated before useOverviewData reads it. Do not switch the sidecar to async/module loading or fetch-only data delivery.' Drop the getRoadmapData() reference (function no longer exists).",
+      "fixedInIteration": 1,
+      "resolution": "Rewrote overview-data.js load-order pitfall to drop getRoadmapData() reference; documented inlined sidecar + custom Vite plugin mechanism."
+    },
+    {
+      "id": "F-006",
+      "source": "docs",
+      "severity": "Medium",
+      "category": "Stale Documentation",
+      "classification": "fixable",
+      "phase": "docs",
+      "status": "fixed",
+      "description": ".agents/skills/roadmap-and-overview/SKILL.md 'When NOT to use this skill' bullet at line 435-437 advises that anyone trying to regenerate the dashboard should 'stop and read plans/overview.html and plans/overview-data.js end-to-end first.' Post-US-008, plans/overview.html is a minified React build output (inlined CSS, bundled JS) and reading it end-to-end yields no actionable understanding of the renderer. The correct end-to-end study target is tools/overview-viewer/src/ (App.tsx, components, hooks, utils) plus plans/overview-data.js.",
+      "relevantFiles": [
+        ".agents/skills/roadmap-and-overview/SKILL.md"
+      ],
+      "suggestedFix": "Change the bullet to: 'If you are trying to regenerate the whole dashboard from scratch, stop and read tools/overview-viewer/src/ (App.tsx + components + hooks) and plans/overview-data.js end-to-end first; plans/overview.html is a generated artifact and is not a useful study target. Keep normal bookkeeping patch-based.'",
+      "fixedInIteration": 1,
+      "resolution": "Updated When NOT to use bullet to direct dashboard-regeneration readers at tools/overview-viewer/src/ + plans/overview-data.js; noted plans/overview.html is a generated artifact."
+    },
+    {
+      "id": "F-007",
+      "source": "docs",
+      "severity": "Medium",
+      "category": "Stale Documentation",
+      "classification": "fixable",
+      "phase": "docs",
+      "status": "fixed",
+      "description": ".agents/skills/roadmap-and-overview/SKILL.md File map at lines 418-429 lists only plans/{codexu-roadmap.md, parallel-assignments.md, realtime-sync-perf.md, overview.html, overview-data.js} plus .agents/skills/roadmap-and-overview/SKILL.md. After US-007/US-008 the renderer lives in tools/overview-viewer/, which is a load-bearing source location for procedures F, G, and any renderer/storage-key change. Omitting it from the File map makes the renderer source invisible to a fresh agent.",
+      "relevantFiles": [
+        ".agents/skills/roadmap-and-overview/SKILL.md"
+      ],
+      "suggestedFix": "Extend the File map block to include the renderer package, e.g. add a 'tools/overview-viewer/' branch listing README.md, overview.html (Vite entry), package.json, vite.config.ts, and src/ (App.tsx, components/, hooks/, utils/, styles.css). Add a one-line caption that plans/overview.html is generated from this package via pnpm overview:build.",
+      "fixedInIteration": 1,
+      "resolution": "Extended File map to include tools/overview-viewer/ subtree with caption noting plans/overview.html is generated via pnpm overview:build."
+    },
+    {
+      "id": "F-008",
+      "source": "docs",
+      "severity": "High",
+      "category": "Stale Documentation",
+      "classification": "fixable",
+      "phase": "docs",
+      "status": "fixed",
+      "description": ".agents/skills/roadmap-and-overview/SKILL.md frontmatter description (lines 3-10) still says 'edit the data file first and touch the HTML only when the renderer or UI shell changes.' This directly contradicts the post-US-008 body of the same skill (Source Files line 44, Procedure G step 1, Pitfalls line 391, and File map line 447), all of which say plans/overview.html is a generated build artifact that must NEVER be hand-edited; renderer/UI changes go to tools/overview-viewer/src/. The fixes for F-001/F-002/F-004 corrected the body but missed the frontmatter description that operators (and tools surfacing skill metadata) read first. A bookkeeping agent reading the description block will get the legacy 'touch the HTML only when ...' guidance and try Procedure G edits against the generated artifact, which round-trips lost on the next pnpm overview:build.",
+      "relevantFiles": [
+        ".agents/skills/roadmap-and-overview/SKILL.md"
+      ],
+      "suggestedFix": "Update the frontmatter description (lines 3-10) so the 'touch the HTML' clause is replaced with the new architecture, e.g. 'The dashboard renders from window.OVERVIEW_DATA; edit the data file for normal bookkeeping, and for renderer/UI changes edit tools/overview-viewer/src/ and rebuild via pnpm overview:build. Do not hand-edit plans/overview.html; it is a generated build artifact.'",
+      "fixedInIteration": 2,
+      "resolution": "Rewrote SKILL.md frontmatter description lines 3-13 to align with post-US-008 architecture: data file for bookkeeping, tools/overview-viewer/src/ + pnpm overview:build for renderer changes, never hand-edit plans/overview.html."
+    },
+    {
+      "id": "F-009",
+      "source": "docs",
+      "severity": "Medium",
+      "category": "Stale Documentation",
+      "classification": "fixable",
+      "phase": "docs",
+      "status": "fixed",
+      "description": "plans/crews-integration.md line 85 says 'Save plans/overview-data.js; plans/overview.html will reflect the changes on reload.' Post-US-008, plans/overview.html is a static build artifact that does NOT auto-reflect data-file changes on reload — only the dev viewer (pnpm overview, HMR via the custom Vite plugin's fetch-and-re-execute) picks up overview-data.js edits live; the file:// artifact only updates after pnpm overview:build. The practical guidance at line 87 ('The data plane is plans/overview-data.js; do not hand-edit the HTML directly') is still substantively correct, so this is staleness of mechanism rather than direction. A lead following the crews workflow may save overview-data.js, refresh plans/overview.html in the browser, and see no change — leading to the wrong debugging path.",
+      "relevantFiles": [
+        "plans/crews-integration.md"
+      ],
+      "suggestedFix": "Rewrite line 85 to: 'Save plans/overview-data.js; the dev viewer (pnpm overview) will reflect the changes on reload via the custom Vite HMR plugin. To update the static plans/overview.html artifact, run pnpm overview:build.' Leave line 87 unchanged.",
+      "fixedInIteration": 2,
+      "resolution": "Rewrote plans/crews-integration.md line 85: dev viewer (pnpm overview) HMR-reloads on overview-data.js edits; static plans/overview.html artifact regenerates via pnpm overview:build."
+    }
+  ]
+}

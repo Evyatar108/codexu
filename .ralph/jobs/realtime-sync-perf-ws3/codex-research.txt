@@ -1,0 +1,52 @@
+**Codebase Architecture**
+
+`codexu` is a pnpm TypeScript monorepo. Relevant packages are:
+
+- `packages/happy-server`: Node 20, Fastify 5, Socket.IO 4.8, Prisma, Vitest. App code is under `sources/app`, storage under `sources/storage`.
+- `packages/happy-app`: Expo React Native, Socket.IO client, Zustand state, MMKV persistence, Vitest with RN stubs. Sync code is concentrated in `sources/sync`.
+- `packages/happy-wire`: shared wire schemas used by both app/server.
+
+The app sync invariant in `packages/happy-app/CLAUDE.md` is load-bearing: `updateData.seq` is account-global socket ordering only, while `session.seq` is session-local message pagination. Do not write update seqs into sessions.
+
+**Feature-Relevant Code**
+
+Server:
+
+- `packages/happy-server/sources/app/events/eventRouter.ts`: `EventRouterSink.emitUpdate`, `publish`, `emitToLocalSink`, room filtering, `UpdatePayload`.
+- `packages/happy-server/sources/app/api/socket.ts`: Socket.IO server setup, auth middleware, connection creation, `eventRouter.addConnection`.
+- `packages/happy-server/sources/storage/seq.ts`: `allocateUserSeq`; currently module-global in-memory monotonic counter.
+- Emit producers: `sessionUpdateHandler.ts`, `machineUpdateHandler.ts`, `sessionRoutes.ts`, `v3SessionRoutes.ts`, `sessionDelete.ts`, `usernameUpdate.ts`.
+- Tests: `packages/happy-server/sources/app/events/eventRouter.test.ts`, `packages/happy-server/sources/app/api/socket.spec.ts`.
+
+Client:
+
+- `packages/happy-app/sources/sync/storage.ts`: Zustand store, no whole-store persistence wrapper; persistence is via helper functions.
+- `packages/happy-app/sources/sync/persistence.ts`: MMKV helper functions.
+- `packages/happy-app/sources/sync/socketOptions.ts`: builds Socket.IO `auth`.
+- `packages/happy-app/sources/sync/apiSocket.ts`: creates one socket per machine, disables Socket.IO auto-reconnection, manually reconnects with fresh options.
+- `packages/happy-app/sources/sync/sync.ts`: `subscribeToUpdates`, `handleUpdate`, existing reconnect fallback via `sessionsSync.invalidate()`.
+- Tests: `socketOptions.test.ts`, `apiSocket.test.ts`, `storage.spec.ts`, `sync.test.ts`.
+
+**Technical Constraints**
+
+Current reconnect handling in `sync.ts` always invalidates sessions/machines/send queues on `apiSocket.onReconnected`. If Workstream 3 wants “replay unless overflow”, this unconditional HTTP fallback must be gated or revised.
+
+The app supports multiple machine sockets. A single global `lastSeenUpdateSeq` can conflate independent server-local sequence counters. Safer shape is `lastSeenUpdateSeqByMachineId` or by endpoint. A singular value is only safe under a strict single-server assumption.
+
+The requested buffer retention rule is ambiguous: “1024 or 60s, whichever is larger” conflicts with “emit 2000 events and overflow” if interpreted as retaining all events from the last 60 seconds. The overflow test should either fake time/age or the implementation should use cap-only pruning.
+
+`socketOptions.ts` should not read storage directly if avoidable. `apiSocket.ts` already imports `storage`, so pass the current last-seen seq into `buildTunnelSocketOptions`.
+
+**Implementation Suggestions**
+
+Add replay state inside `EventRouterSink`: per-user buffered update records `{ seq, payload, recipientFilter, createdAt }`, plus latest seq. Append inside `emitUpdate` before publishing. Expose a method such as `replayUpdates(connection, lastSeenSeq)` on `EventRouter`.
+
+In `socket.ts`, after building/adding the connection, parse `socket.handshake.auth.lastSeenSeq` as a finite integer. For replayable user-scoped reconnects, emit buffered `update` payloads directly to that socket in ascending seq order. If `lastSeenSeq + 1` is older than the first retained update, emit an explicit event like `replay-overflow` with `{ replayOverflow: true, currentSeq }`.
+
+On the app, persist last seen only after a validated update is handled. Add persistence helpers in `persistence.ts`, state plus setter in `storage.ts`, and call it from `sync.handleUpdate(update, ..., sourceMachineId)`. For multi-machine correctness, key by `sourceMachineId`.
+
+Add `lastSeenSeq` to `buildTunnelSocketOptions(...).auth`, supplied by `apiSocket.connect()` from storage.
+
+Add `apiSocket.onMessage('replay-overflow', ...)` in `sync.ts`; use `sessionsSync.invalidateAndAwait()` and only advance stored seq to `currentSeq` after fallback succeeds. Also revisit the unconditional `onReconnected` invalidation or replay will still pay the HTTP cost.
+
+Document the replay buffer as in-memory, per-process, and not Redis/shared-cluster safe, likely in `eventRouter.ts` plus the existing plan/doc touched by this work.

@@ -1,0 +1,83 @@
+I found a research-mode plan prompt. I’m pulling the sync-path files and the app-specific guidance so I can map the real integration points instead of guessing.
+
+I’ve got the app guidance now. One more pass on the actual call chain and server claim lifetime will tell me whether the plan’s suggested hook is accurate or whether there’s drift between the plan and current code.
+
+I found one likely hidden constraint: the skip only helps if callers are reusing an updated `tunnelClaim`, so I’m checking whether refreshes are persisted/cached or whether the function currently just returns a fresh string to the immediate caller.
+
+I found the big implementation caveat: `refreshTunnelClaim` is only called from `getMachineAuthHeaders`, and the fresh claim doesn’t appear to be persisted anywhere yet. I’m confirming the request/socket callers really do reuse stale in-memory credentials, because that changes whether WS1 is truly “one-file + one-test” work.
+
+That caveat is real for token persistence. I’m checking the core sync class too, because some call sites pass `this.credentials` directly rather than re-reading `TokenStorage`, which affects how much WS1 buys without a companion persistence update.
+
+There’s visible drift between the current refresh implementation and the current spec/tests, so I’m checking the targeted test file once. That will tell me whether “existing tests stay green” is a real constraint or already broken before WS1 starts.
+
+**Codebase architecture**
+
+This is a **pnpm workspace monorepo** (`package.json`, `pnpm-workspace.yaml`) with app/server/shared packages under `packages/`, notably `happy-app`, `happy-server`, `happy-cli`, `happy-agent`, and `happy-wire`. The feature is app-heavy but crosses the app/server contract.
+
+`packages/happy-app` is a **TypeScript Expo / React Native** app (`packages/happy-app/package.json`) using Socket.IO, Vitest, and the shared wire package. Its important layout is the one documented in `packages/happy-app/CLAUDE.md`: `sources/auth/` for pairing/credentials, `sources/sync/` for tunnel HTTP + sockets, `sources/app/` for screens, and `sources/utils/` for helpers. `packages/happy-server` is a **TypeScript Fastify** service; for this work the relevant part is the pair route that mints tunnel claims.
+
+**Feature-relevant code**
+
+- `packages/happy-app/sources/sync/refreshClaim.ts`  
+  Current implementation of `refreshTunnelClaim`, with:
+  - `MIN_REFRESH_INTERVAL_MS`
+  - per-machine queueing (`queues`)
+  - last-refresh throttling (`lastRefreshAt`)
+  - `validateFreshClaim(...)`
+  - actual POST to `\`/pair/complete\`` inside `refreshTunnelClaimOnce(...)`
+
+- `packages/happy-app/sources/auth/pairing.ts`  
+  Already exports `parseTunnelClaimPayload(...)`, which decodes the claim envelope/payload and exposes `exp`, `iat`, `jti`, `accountId`.
+
+- `packages/happy-app/sources/auth/machineAuth.ts`  
+  Main call chain:
+  - `ensureFreshConnectToken(...)`
+  - `refreshTunnelClaim(...)`
+  - returns headers for tunneled HTTP:
+    - `X-Tunnel-Authorization`
+    - `X-Codexu-Authorization`
+
+- `packages/happy-app/sources/sync/socketOptions.ts`  
+  Socket handshake also flows through `getMachineAuthHeaders(...)`, so the same claim-refresh logic affects reconnects.
+
+- `packages/happy-app/sources/sync/apiSocket.ts`  
+  `_requestForMachine(...)` re-reads machine credentials from `TokenStorage` before calling `tunnelFetch(...)`.
+
+- `packages/happy-app/sources/sync/sync.ts`  
+  Several fetch paths (`fetchSessions`, `fetchMachines`, settings/profile sync) call `tunnelFetch(...)` with long-lived in-memory `credentialsList` / `this.credentials`.
+
+- `packages/happy-app/sources/auth/tokenStorage.ts`  
+  `AuthCredentials` includes `tunnelClaim`, `connectToken`, expiries, `tunnelId`.
+
+- `packages/happy-server/sources/app/api/routes/pairRoutes.ts`  
+  `buildTunnelClaimPayload(...)` sets `exp: iat + 3600`, so claims currently last **1 hour**. That makes the optimization worthwhile.
+
+- Tests/docs directly tied to the work:
+  - `packages/happy-app/sources/sync/refreshClaim.test.ts`
+  - `plans/realtime-sync-perf.md`
+  - `docs/validation/devtunnels-boox-result.md`
+
+**Technical constraints**
+
+- The app guidance is explicit that **session/machine-scoped network calls must use the `apiSocket` scope builders**, but **WS1 does not need any `apiSocket` changes**. The natural edit point is still `refreshClaim.ts`.
+- `parseTunnelClaimPayload(...)` returns fields as `unknown`, so the skip logic must explicitly guard `typeof payload.exp === 'number'`.
+- `MIN_REFRESH_INTERVAL_MS` is already load-bearing throttling and should stay on the **network-refresh path**.
+- `validateFreshClaim(...)` currently validates only freshly fetched claims. For the skip path, the safest pattern is: **only skip when the cached claim is clearly usable; otherwise fall through to existing refresh behavior**.
+- Important hidden constraint: **fresh claims are not currently persisted back anywhere obvious**. `refreshTunnelClaim(...)` returns the new string, but `machineAuth.ts` does not write it back, and `sync.ts` often reuses in-memory credentials. That means a pure “check `credentials.tunnelClaim` and skip” change helps while the originally stored claim is still fresh, but may stop helping after the first true refresh unless the updated claim is also stored or mutated in-memory.
+- There is apparent branch drift around tests: `refreshClaim.test.ts` still references the old `/pair/status` / `X-Tunnel-Connect` flow, while current implementation and server docs use `/pair/complete` and `X-Tunnel-Authorization` / `X-Codexu-Authorization`. A fresh agent should sanity-check that before assuming the baseline tests are already aligned.
+
+**Implementation suggestions**
+
+The natural integration point is **at the top of `refreshTunnelClaimOnce(...)` in `packages/happy-app/sources/sync/refreshClaim.ts`**:
+
+1. Parse `credentials.tunnelClaim` with `parseTunnelClaimPayload(...)`.
+2. Compute `nowS = Math.floor(Date.now() / 1000)`.
+3. If `exp - nowS > SAFETY_WINDOW_S`, return the cached claim immediately.
+4. Otherwise, continue the existing throttled `/pair/complete` refresh path unchanged.
+
+A local constant like `SAFETY_WINDOW_S = 90` in `refreshClaim.ts` fits the existing style and is easy to test.
+
+If the goal is the full steady-state perf win described in the plan, I’d also account for the persistence gap: after a successful network refresh, update the active cached claim (storage and/or live in-memory credentials) so future calls can benefit from the skip path beyond the very first hour after pairing.
+
+For tests, the right new assertion is exactly the one the plan describes: construct a claim whose `exp` is comfortably ahead of `now + SAFETY_WINDOW_S`, call `refreshTunnelClaim(...)`, and assert it returns the cached claim with **no `fetch` call**.
+

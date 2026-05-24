@@ -1,0 +1,50 @@
+{
+  "storyId": "US-001",
+  "verifiedEvidence": [
+    {
+      "criterion": "tools/overview-viewer/src/types.ts exports RalphStage (10 values: brainstorming, brainstorm-ready, planning, plan-ready, implementing, reviewing, review-fix, replan-pending, shipped, blocked), RalphEntryPath, RalphArtifacts, RalphPipelineState, OverviewRalphState, and a getOverviewRalphState(): OverviewRalphState helper",
+      "evidenceKind": "passed",
+      "command": "grep -nE \"export type RalphStage|brainstorming|brainstorm-ready|planning|plan-ready|implementing|reviewing|review-fix|replan-pending|shipped|blocked|export type RalphEntryPath|export interface RalphArtifacts|export interface RalphPipelineState|export interface OverviewRalphState|export function getOverviewRalphState\" tools/overview-viewer/src/types.ts",
+      "result": "Found RalphStage and all 10 stage literals at types.ts:36-46, RalphEntryPath at :48, RalphArtifacts at :50, RalphPipelineState at :59, OverviewRalphState at :75, and getOverviewRalphState(): OverviewRalphState at :83."
+    },
+    {
+      "criterion": "OverviewData interface is extended with ralphOverrides?: Record<string, string> (slug -> taskId, hand-edited)",
+      "evidenceKind": "passed",
+      "command": "grep -n \"ralphOverrides\" tools/overview-viewer/src/types.ts",
+      "result": "types.ts:144 contains ralphOverrides?: Record<string, string>."
+    },
+    {
+      "criterion": "tools/overview-viewer/src/overviewData.ts declares Window.OVERVIEW_RALPH_STATE?: OverviewRalphState alongside the existing OVERVIEW_DATA global in the declare global block",
+      "evidenceKind": "passed",
+      "command": "grep -nE \"OVERVIEW_DATA|OVERVIEW_RALPH_STATE|OverviewRalphState\" tools/overview-viewer/src/overviewData.ts",
+      "result": "overviewData.ts imports OverviewRalphState at :1 and declares OVERVIEW_DATA at :5 plus OVERVIEW_RALPH_STATE?: OverviewRalphState at :6."
+    },
+    {
+      "criterion": "getOverviewRalphState() typechecks without `as` casts (relies on the ambient Window declaration)",
+      "evidenceKind": "absent-verified",
+      "command": "sed -n '/export function getOverviewRalphState/,/}/p' tools/overview-viewer/src/types.ts | grep -n \" as \" || true; pnpm --filter @codexu/overview-viewer typecheck",
+      "result": "grep produced no matches for ` as ` in getOverviewRalphState(); typecheck exited 0."
+    },
+    {
+      "criterion": "OverviewTask does NOT carry a ralph field; separation is preserved; lookup is ralphState.byTaskId[task.id]",
+      "evidenceKind": "absent-verified",
+      "command": "sed -n '/export interface OverviewTask/,/^}/p' tools/overview-viewer/src/types.ts",
+      "result": "OverviewTask block contains id, scope, phase, status, lastTouchedAt, planOnly, mergeCommit, kanbanCards, command; no ralph field."
+    },
+    {
+      "criterion": "pnpm --filter @codexu/overview-viewer typecheck exits 0",
+      "evidenceKind": "passed",
+      "command": "pnpm --filter @codexu/overview-viewer typecheck > .test-output/overview-viewer.typecheck.log 2>&1",
+      "result": "Exit 0; tsc --noEmit completed with no diagnostics. Log: .test-output/overview-viewer.typecheck.log."
+    },
+    {
+      "criterion": "Typecheck passes",
+      "evidenceKind": "passed",
+      "command": "tail -10 .test-output/overview-viewer.typecheck.log",
+      "result": "Log shows @codexu/overview-viewer typecheck running `tsc --noEmit` with no errors; cached run exit=0 in .test-output/all.summary.log."
+    }
+  ],
+  "skippedReasons": [],
+  "notTested": [],
+  "iterationSHA": "2706a9886d0528c47fe241ae6637c0090801b091"
+}

@@ -1,0 +1,123 @@
+{
+  "storyId": "US-007",
+  "verifiedEvidence": [
+    {
+      "criterion": "CopyToast component rendered at App as a single bottom-right role=status surface",
+      "command": "grep CopyToast/App/styles",
+      "result": "PASS: CopyToast.tsx exports a role=\"status\" .copy-toast; App.tsx mounts one <CopyToast text={toast.currentToast} />; CSS fixes it bottom-right.",
+      "evidenceKind": "inspection"
+    },
+    {
+      "criterion": "useToast exposes showToast/currentToast and copy buttons dispatch through it",
+      "command": "grep useToast/showToast threading",
+      "result": "PASS: useToast returns { currentToast, showToast }; App owns one instance and passes showToast to Toolbar and CommandList; CopyName, CopyCommand, and BulkCopy call copyTextWithToast with that callback.",
+      "evidenceKind": "inspection"
+    },
+    {
+      "criterion": "Successful copy shows Copied `<task-id>` (N KB), auto-dismisses after 1.2s, and button gets .copied briefly",
+      "command": "grep copyFeedback/useToast/useCopiedFeedback plus pnpm --filter @codexu/overview-viewer test",
+      "result": "PASS: formatCopiedToast emits Copied `<label>` (N KB); fake-timer test verifies 1200ms auto-dismiss; useCopiedFeedback applies temporary .copied; suite passed 13 files / 52 tests.",
+      "evidenceKind": "test"
+    },
+    {
+      "criterion": "Clipboard failure renders no toast",
+      "command": "pnpm --filter @codexu/overview-viewer test",
+      "result": "PASS: copyToast.test.tsx mocks write=false and asserts showToast is not called; suite passed 13 files / 52 tests.",
+      "evidenceKind": "test"
+    },
+    {
+      "criterion": "utils/clipboard.ts boolean return is propagated to TaskCommand caller",
+      "command": "grep copyTextWithToast TaskCommand.tsx",
+      "result": "PASS: copyTextWithToast awaits writeClipboard's boolean and returns it; TaskCommand awaits the result before calling markCopied.",
+      "evidenceKind": "inspection"
+    },
+    {
+      "criterion": "Toast slide-in keyframe respects prefers-reduced-motion",
+      "command": "grep prefers-reduced-motion and copy-toast-slide-in styles.css",
+      "result": "PASS: .copy-toast uses copy-toast-slide-in; the global reduced-motion guard disables all animation/transition declarations with !important.",
+      "evidenceKind": "inspection"
+    },
+    {
+      "criterion": "copyToast.test.tsx covers render, auto-dismiss fake timers, dispatch, and failure",
+      "command": "grep tests and pnpm --filter @codexu/overview-viewer test",
+      "result": "PASS: test names cover render with text, fake-timer auto-dismiss via the useToast dispatcher, successful dispatch, and no toast on failure; suite passed 13 files / 52 tests.",
+      "evidenceKind": "test"
+    },
+    {
+      "criterion": "App.tsx modified and mounts CopyToast singleton",
+      "command": "git log -1 --name-only; grep <CopyToast App.tsx",
+      "result": "PASS: commit includes tools/overview-viewer/src/App.tsx and App mounts <CopyToast text={toast.currentToast} /> once.",
+      "evidenceKind": "inspection"
+    },
+    {
+      "criterion": "Typecheck passes (pnpm --filter @codexu/overview-viewer typecheck)",
+      "command": "pnpm --filter @codexu/overview-viewer typecheck > .test-output/overview-viewer.typecheck.log 2>&1",
+      "result": "PASS: tsc --noEmit completed with exit 0.",
+      "evidenceKind": "typecheck"
+    },
+    {
+      "criterion": "Tests pass (pnpm --filter @codexu/overview-viewer test)",
+      "command": "pnpm --filter @codexu/overview-viewer test > .test-output/overview-viewer.test.log 2>&1",
+      "result": "PASS: Vitest reported 13 test files passed, 52 tests passed.",
+      "evidenceKind": "test"
+    },
+    {
+      "criterion": "pnpm overview dev server starts and renders without console errors",
+      "command": "curl -fsS http://127.0.0.1:5173/overview.html; curl -fsS http://127.0.0.1:5173/overview-data.js",
+      "result": "HTTP smoke PASS: existing dev server served root HTML and window.OVERVIEW_DATA. SKIPPED: browser console verification unavailable because browser automation is not installed.",
+      "evidenceKind": "skipped"
+    },
+    {
+      "criterion": "pnpm overview:build succeeds and regenerated plans/overview.html opens cleanly under file://",
+      "command": "pnpm overview:build > .test-output/overview-viewer.build.log 2>&1; grep root/external refs plans/overview.html",
+      "result": "Build PASS: Vite built plans/overview.html; static artifact has root node and no external script/link refs. SKIPPED: live file:// browser open unavailable without browser automation.",
+      "evidenceKind": "build"
+    },
+    {
+      "criterion": "Bundle size stays under 500 KB",
+      "command": "stat -c%s plans/overview.html",
+      "result": "452906 bytes (< 500000).",
+      "evidenceKind": "command"
+    },
+    {
+      "criterion": "Three intentional deviations still hold",
+      "command": "grep deferred/data-cmd-status/lastTouchedAt/sortTasksByLastTouchedAsc",
+      "result": "PASS: PhaseTree still maps blocked/paused to deferred; CSS still contains blocked/paused tail ordering; CommandList still sorts by lastTouchedAt ascending.",
+      "evidenceKind": "inspection"
+    },
+    {
+      "criterion": "prefers-reduced-motion disables animation added by the story",
+      "command": "grep prefers-reduced-motion and copy-toast-slide-in styles.css",
+      "result": "PASS: this story adds copy-toast-slide-in; the global reduced-motion guard disables all animations with !important.",
+      "evidenceKind": "inspection"
+    },
+    {
+      "criterion": "package/lockfile handling and frozen install",
+      "command": "git show --name-only --format= HEAD | grep package/lock || true; pnpm install --frozen-lockfile --offline",
+      "result": "PASS: package.json and pnpm-lock.yaml were unchanged; frozen offline install completed. Postinstall happy-wire side-effect files were restored and not committed.",
+      "evidenceKind": "command"
+    },
+    {
+      "criterion": "Commit message references story ID and lists affected files",
+      "command": "git log -1 --format=%H%n%s%n%b --name-only",
+      "result": "PASS: commit 754bf7a69ea939cfef1b6c6bc54442fc8d8f3b76 subject references US-007; body lists affected files and includes relevant trailers.",
+      "evidenceKind": "command"
+    }
+  ],
+  "skippedReasons": [
+    {
+      "reason": "browser_automation_unavailable",
+      "criterion": "pnpm overview dev server starts and renders without console errors",
+      "detail": "Browser console verification unavailable; HTTP smoke used."
+    },
+    {
+      "reason": "browser_automation_unavailable",
+      "criterion": "pnpm overview:build succeeds and regenerated plans/overview.html opens cleanly under file://",
+      "detail": "Live file:// browser open unavailable; static artifact checks used."
+    }
+  ],
+  "notTested": [
+    "live browser console and file:// double-click unavailable."
+  ],
+  "iterationSHA": "754bf7a69ea939cfef1b6c6bc54442fc8d8f3b76"
+}

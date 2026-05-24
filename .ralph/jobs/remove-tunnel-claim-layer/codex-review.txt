@@ -1,0 +1,25 @@
+### Completeness
+
+[Medium] `packages/happy-app/scripts/check-sprint-a-gate.mjs:119` and `packages/happy-app/scripts/verify-refresh-supported.mjs:93` still encode the old tunnel-claim contract and reference deleted files/fields. The plan’s grep acceptance covers `packages/`, and these scripts will keep producing `tunnelClaim`, `verifyTunnelClaim`, and deleted-file hits unless updated or removed.
+
+[Medium] `packages/happy-app/sources/auth/tokenStorage.ts:72` accepts old machine objects with extra `tunnelClaim`, but it does not strip that field before returning/storing them; later `updateMachineCredentials` spreads the whole machine object back out. That violates the plan’s “no NEW writes include the field” requirement for stale stored credentials.
+
+[Medium] `packages/happy-agent/src/auth.ts:170-208` similarly spreads machine objects returned by pairing/status into persisted credentials. If an old endpoint or stored response includes `tunnelClaim`/`accountId`, the new code writes those removed fields back to `credentials.json` despite the type change.
+
+### Correctness
+
+No issues found in the core server/client auth path shown in the diff. The claim header is removed from HTTP and socket callers, and loopback capability enforcement is still present on the loopback branch.
+
+### Quality
+
+[Low] `packages/happy-app/sources/components/AgentInput.activeRegression.test.tsx:169` changes the active-mode voice mic regression expectation from present to absent. That is unrelated to removing the tunnel-claim layer and weakens coverage without a corresponding product-code change in this diff.
+
+[Low] `packages/happy-app/sources/sync/profile.test.ts:23` flips the profile parser test to accept an old local profile shape. This is also unrelated to the auth-layer removal and looks like opportunistic baseline churn.
+
+### Security
+
+No issues found.
+
+### Overall Assessment
+
+The main auth-layer removal is directionally implemented, but the cleanup is not complete: stale package scripts and unsanitized credential persistence can keep the retired `tunnelClaim` contract alive. I would not call this ready until those residual references and write paths are cleaned up.

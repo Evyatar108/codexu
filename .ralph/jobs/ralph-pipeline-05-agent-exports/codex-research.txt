@@ -1,0 +1,105 @@
+**Codebase Architecture**
+The relevant system is a pnpm monorepo, but Plan 05 is mostly in the overview tooling layer:
+
+- `scripts/sync-ralph-state.mjs`: Node ESM CLI for one-shot sync and `--watch`.
+- `scripts/lib/*.mjs`: sync core, watcher, config, lock, stage derivation.
+- `tools/overview-viewer/`: Vite + React + TypeScript dashboard package.
+- `plans/overview-data.js`: hand-curated source data, exposed as `window.OVERVIEW_DATA`.
+- `plans/overview-ralph-state.{js,json}`: generated Ralph state sidecar, exposed as `window.OVERVIEW_RALPH_STATE`.
+- `.ralph/overview-config.json`: config for Ralph dirs, output paths, watcher ignores, and lock path.
+
+Tests for this layer live mainly under `tools/overview-viewer/src/__tests__/`, with `.d.mts` declarations beside root ESM scripts and extra ambient declarations in `tools/overview-viewer/src/__tests__/scripts.d.ts`.
+
+Current branch is `main`; Plan 05 must still be implemented only in `.ralph/jobs/ralph-pipeline-05-agent-exports/worktree/` on branch `ralph-pipeline-05-agent-exports`.
+
+**Feature-Relevant Code**
+The key Plan 02 contract is already merged:
+
+- `scripts/lib/sync-core.mjs`
+  Exports `readBundleForSlug`, `assembleStateFromBundles`, `deriveAffectedTaskUpdate`, `mergeAndWrite`, `walkRalphState`, `writeSidecar`.
+  `deriveAffectedTaskUpdate` returns `action`, `kind`, `slug`, `taskId?`, `byTaskId?`, `newPipelineState?`, `touched`, and `unmatchedFragment`. This is enough for stage/story diffs when compared against the watcher’s prior `currentState`.
+
+- `scripts/lib/watch-ralph-state.mjs`
+  Owns the chokidar watcher, debounce buffer, `currentState`, cold-start write, and `mergeAndWrite` call. This is the natural place to compute activity events from `currentState` plus derived updates. Do not add a new polling loop.
+
+- `scripts/lib/sync-lock.mjs`
+  Shared long-lived lock with `acquireLock`, `releaseLock`, and `touchLock`.
+
+- `scripts/lib/resolve-config.mjs`, `scripts/lib/default-config.mjs`, `.ralph/overview-config.schema.json`
+  Current output config only knows `sidecarJs` and `sidecarJson`. Unknown `outputs.*` keys pass through unresolved, so Plan 05 cannot rely on unknown output paths unless it resolves them itself or extends config properly.
+
+- `tools/overview-viewer/src/types.ts`
+  Defines `OverviewTask`, `RunRecord`, `RalphPipelineState`, `OverviewRalphState`. `runDurations` is not present on current `main`.
+
+- `tools/overview-viewer/src/utils/filters.ts`
+  `FilterAxis` lives here, not in `types.ts`. On branch `ralph-pipeline-03-ui-chip`, Plan 03 adds `'ralphStage'` in this file and does not modify `types.ts`.
+
+- `tools/overview-viewer/vite.config.ts`
+  Already auto-starts `watch-ralph-state.mjs` and emits `overview-ralph-state:update`.
+
+Stale file references in the current plan:
+
+- `scripts/lib/score-recommendations.mjs` and `scripts/lib/derive-dependency-graph.mjs` do not exist on current `main`; they are Plan 04 artifacts.
+- No root `CLAUDE.md` is tracked. The repo uses `AGENTS.md`; root-level `CLAUDE.md` is intentionally personal/gitignored per the repo instructions.
+- No root `schemas/` directory exists.
+- Existing `tasks/` has only historical files, no `tasks/INDEX.md`.
+
+**Technical Constraints**
+Plan 05 should depend on Plan 02 now, not only Plan 01. The watcher API is the current integration point.
+
+Atomic generated writes should reuse or extract the existing `atomicWriteFile` behavior from `sync-core.mjs`: same-directory temp file, fsync, rename retry, and `</script` escaping for JS globals.
+
+If Plan 05 adds configurable outputs, update all of these together:
+
+- `scripts/lib/default-config.mjs`
+- `scripts/lib/default-config.d.mts`
+- `scripts/lib/resolve-config.mjs`
+- `.ralph/overview-config.schema.json`
+- `tools/overview-viewer/src/__tests__/config.test.ts`
+- `tools/overview-viewer/src/__tests__/scripts.d.ts`
+
+Activity events are mostly derivable from current code by comparing prior and new `RalphPipelineState`:
+
+- stage transitions: compare `prev.stage` to `next.stage`
+- story progress: compare `storyCompletion`
+- deletions: `newStage: null`
+- parse retains: probably no activity event unless explicitly wanted
+
+Run start/finish is only approximate today unless Plan 05 or Plan 04 exposes run timestamps from `job-state.json`. Current `RalphPipelineState` does not carry `createdAt` / `completedAt`, so exact run events are not fully derivable from `deriveAffectedTaskUpdate` alone.
+
+`npx ajv validate` is not currently a stable local dependency. Ajv appears transitively in the lockfile, but Plan 05 should either add a direct dev dependency/CLI or verify schema with a small local Node test.
+
+**Implementation Suggestions**
+Refine Plan 05 around these integration points:
+
+1. Add `Snapshot`, `SnapshotTask`, and `ActivityEvent` to `tools/overview-viewer/src/types.ts`. Do not touch `FilterAxis`; Plan 03 owns `tools/overview-viewer/src/utils/filters.ts`.
+
+2. Add emitters:
+   - `scripts/lib/emit-snapshot.mjs`
+   - `scripts/lib/emit-activity.mjs`
+   - `scripts/lib/emit-tasks-index.mjs`
+   - `scripts/lib/emit-snapshot-schema.mjs`
+
+3. Add output config keys or hard-code documented defaults consistently:
+   - `plans/overview-data.json`
+   - `plans/overview-snapshot.json`
+   - `plans/overview-activity.jsonl`
+   - `plans/overview-activity.1.jsonl`
+   - `plans/overview-snapshot.schema.json` or `schemas/agent-export.schema.json`
+   - `tasks/INDEX.md`
+
+4. Keep `snapshot` derived, never authoritative. This matters for Plan 08: its current “merge into snapshot” wording is stale and must be changed to write a source/overlay that sync then folds into the snapshot.
+
+5. Compute activity payloads before mutating `currentState`, but append them only after a successful state write unless the design intentionally allows phantom log entries. The important part is capturing `prevStage` from watcher `currentState`, not the physical append order.
+
+6. Generate `overview-data.json` from the same `new Function('window', ...)` parse pattern used by `sync-core.mjs`’s private `loadOverviewData`.
+
+7. Treat `tasks/INDEX.md` as human-readable. If agents are expected to consume the index itself, add a JSON twin such as `tasks/INDEX.json`; otherwise state that `plans/overview-snapshot.json` is the machine-readable twin.
+
+Cascade updates needed after implementation:
+
+- Plan 06: confirm whether `/triage` reads `snapshot.recommendations` or still reads `overview-recommendations.json`.
+- Plan 07: align journal/activity ordering and how the React app fetches `overview-activity.jsonl`.
+- Plan 08: remove direct snapshot mutation language.
+- Plan 09: fix “import JSON Schema as TypeScript” wording; use generated TS types or JSON schema separately.
+- `plans/ralph-pipeline-INDEX.md`: update DAG, source-of-truth table, and Plan 05 artifacts.

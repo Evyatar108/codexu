@@ -1,0 +1,62 @@
+{
+  "storyId": "US-002",
+  "verifiedEvidence": [
+    {
+      "criterion": ".ralph/overview-config.schema.json admits the new keys (preserve additionalProperties: false): outputs.recommendationsJson, outputs.dependencyGraphJson, recommendations.topN, recommendations.weights.{stageUrgency,dependencyState,freshness,priority}.",
+      "command": "jq '{outputs: .properties.outputs.properties, recommendations: .properties.recommendations.properties}' .ralph/overview-config.schema.json",
+      "result": "Exit 0; output shows outputs.recommendationsJson and outputs.dependencyGraphJson plus recommendations.topN and weights stageUrgency/dependencyState/freshness/priority with additionalProperties: false on nested objects.",
+      "evidenceKind": "command-output"
+    },
+    {
+      "criterion": "scripts/lib/default-config.mjs and scripts/lib/default-config.d.mts declare defaults: outputs.recommendationsJson = \"plans/overview-recommendations.json\", outputs.dependencyGraphJson = \"plans/overview-dependency-graph.json\", recommendations.topN = 20, weights = { stageUrgency: 40, dependencyState: 30, freshness: 20, priority: 10 }.",
+      "command": "node --input-type=module -e \"import { codexuDefaultConfig } from './scripts/lib/default-config.mjs'; console.log(JSON.stringify({ outputs: codexuDefaultConfig.outputs, recommendations: codexuDefaultConfig.recommendations }, null, 2))\"",
+      "result": "Exit 0; output shows the two new output path defaults, topN 20, and weights { stageUrgency: 40, dependencyState: 30, freshness: 20, priority: 10 }. Type declarations updated in scripts/lib/default-config.d.mts and verified by typecheck.",
+      "evidenceKind": "command-output"
+    },
+    {
+      "criterion": "scripts/lib/resolve-config.mjs resolves the two new output paths to absolute paths under repoRoot.",
+      "command": "node --input-type=module -e \"import { mkdtempSync, mkdirSync } from 'node:fs'; import { tmpdir } from 'node:os'; import path from 'node:path'; import { loadConfig } from './scripts/lib/resolve-config.mjs'; const repoRoot = mkdtempSync(path.join(tmpdir(), 'codexu-resolve-evidence-')); mkdirSync(path.join(repoRoot, '.ralph', 'jobs'), { recursive: true }); mkdirSync(path.join(repoRoot, '.ralph', 'job-groups'), { recursive: true }); mkdirSync(path.join(repoRoot, '.ralph', 'brainstorms'), { recursive: true }); const config = loadConfig({ repoRoot }); console.log(JSON.stringify({ recommendationsJson: config.outputs.recommendationsJson, dependencyGraphJson: config.outputs.dependencyGraphJson, underRepoRoot: config.outputs.recommendationsJson.startsWith(repoRoot) && config.outputs.dependencyGraphJson.startsWith(repoRoot) }, null, 2));\"",
+      "result": "Exit 0; output shows absolute recommendationsJson and dependencyGraphJson paths under the temporary repoRoot with underRepoRoot: true.",
+      "evidenceKind": "command-output"
+    },
+    {
+      "criterion": ".ralph/overview-config.json (the committed file) is updated in place to add the recommendations block — do NOT recreate the file (per F-009).",
+      "command": "git diff --name-status -- .ralph/overview-config.json && jq '{outputs, recommendations}' .ralph/overview-config.json",
+      "result": "Exit 0 before commit; git reported M .ralph/overview-config.json and jq output showed the existing config with new outputs.recommendationsJson, outputs.dependencyGraphJson, and the recommendations block.",
+      "evidenceKind": "command-output"
+    },
+    {
+      "criterion": "Existing tools/overview-viewer/src/__tests__/config.test.ts still passes; extend it (or add scripts/lib/resolve-config.test.mjs) to assert the resolved absolute paths and default weights (per F-010).",
+      "command": "pnpm --filter @codexu/overview-viewer exec vitest run src/__tests__/config.test.ts",
+      "result": "Exit 0; 1 test file passed, 6 tests passed. Extended assertions cover frozen default recommendations, default weights, and resolved absolute recommendations/dependency graph output paths.",
+      "evidenceKind": "command-output"
+    },
+    {
+      "criterion": "Schema is documentation only — do NOT add an ajv runtime validator (per F-011).",
+      "command": "git grep -n \"ajv\" -- .ralph/overview-config.schema.json .ralph/overview-config.json scripts/lib/default-config.mjs scripts/lib/default-config.d.mts scripts/lib/resolve-config.mjs tools/overview-viewer/src/__tests__/config.test.ts tools/overview-viewer/src/__tests__/syncCore.test.ts tools/overview-viewer/src/__tests__/syncLock.test.ts tools/overview-viewer/CLAUDE.md || true",
+      "result": "Exit 0 with no matches in the touched config/runtime/test files; no ajv runtime validator was added.",
+      "evidenceKind": "absent-verified"
+    },
+    {
+      "criterion": "Before opening PR: run `git fetch origin main && git rebase origin/main`; if Plan 05 has merged, follow the plan's Risk Areas guidance.",
+      "command": "git fetch origin main && git rebase origin/main",
+      "result": "Exit 0; current branch ralph-pipeline-04-pipeline-overview was already up to date with origin/main.",
+      "evidenceKind": "command-output"
+    },
+    {
+      "criterion": "Typecheck passes.",
+      "command": "pnpm --filter @codexu/overview-viewer typecheck",
+      "result": "Exit 0; tsc --noEmit completed with no errors.",
+      "evidenceKind": "command-output"
+    },
+    {
+      "criterion": "Tests pass.",
+      "command": "pnpm --filter @codexu/overview-viewer test",
+      "result": "Exit 0; vitest reported 27 test files passed and 151 tests passed.",
+      "evidenceKind": "command-output"
+    }
+  ],
+  "skippedReasons": [],
+  "notTested": [],
+  "iterationSHA": "20f24387ff1cb14c5d85f31d92bd26f6502b5311"
+}

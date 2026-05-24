@@ -1,0 +1,76 @@
+[
+  {
+    "finding_id": "F-003",
+    "duration_s": 122,
+    "status": "fixed",
+    "summary": "Amended the watcher plan to detect .crews roots before Ralph root parsing and route crew events through a dedicated rescanCrewSessionsAndWrite helper instead of deriveAffectedTaskUpdate."
+  },
+  {
+    "finding_id": "F-005",
+    "duration_s": 137,
+    "status": "fixed",
+    "summary": "Updated Story 2 and its acceptance criterion to require a top-level schema properties.crewsRoot string entry and validation of configs that set crewsRoot."
+  },
+  {
+    "finding_id": "F-006",
+    "duration_s": 129,
+    "status": "fixed",
+    "summary": "Story 2 now explicitly requires resolve-config.mjs to destructure and return crewsRoot, plus a resolver test that verifies crewsRoot overrides resolve to absolute paths."
+  },
+  {
+    "finding_id": "F-001",
+    "duration_s": 118,
+    "status": "fixed",
+    "summary": "Updated Story 7 and matching acceptance criteria to use the Ralph sidecar write path and clarify that writeSidecar regenerates the derived snapshot."
+  },
+  {
+    "finding_id": "F-002",
+    "duration_s": 193,
+    "status": "fixed",
+    "summary": "Amended the plan to use fallback (crewName, memberName) identity for partial crew-session entries, upgrade them in place when heuristic data later supplies sessionId/transcriptPath, and require test coverage for that race."
+  },
+  {
+    "finding_id": "F-004",
+    "duration_s": 116,
+    "status": "fixed",
+    "summary": "Amended the plan to derive heuristic crew-session stage from ralphState.byTaskId[taskId].stage, preserve recorded stage buckets across later task advancement, and require tests for the implementing-to-reviewing case."
+  },
+  {
+    "finding_id": "F-007",
+    "duration_s": 79,
+    "status": "fixed",
+    "summary": "Amended Story 2 to explicitly require adding top-level crewsRoot: string to the RalphOverviewConfig interface in scripts/lib/default-config.d.mts."
+  },
+  {
+    "finding_id": "F-009",
+    "duration_s": 128,
+    "status": "fixed",
+    "summary": "Updated the cwd-filter contract and test expectations so manifests at the repo root are accepted while prefix-attack paths remain rejected."
+  },
+  {
+    "finding_id": "F-010",
+    "duration_s": 195,
+    "status": "fixed",
+    "summary": "Updated the plan so default crewsRoot resolves to the main repo .crews when repoRoot is a linked worktree, with resolver and acceptance-test requirements."
+  },
+  {
+    "finding_id": "F-011",
+    "duration_s": 136,
+    "status": "fixed",
+    "summary": "Added explicit cascade-audit requirements to update emit-snapshot-schema.test.mjs with positive crewSessions validation and malformed CrewSessionRef rejection coverage."
+  },
+  {
+    "finding_id": "F-012",
+    "duration_s": 147,
+    "status": "fixed",
+    "summary": "Amended the draft plan tmp file to specify the exact .crews mailbox, outbox, and inbox-history chokidar ignore patterns in the watcher/config sections."
+  },
+  {
+    "phase": "soft-cap",
+    "iteration": 12,
+    "openCount": 10,
+    "severities": {
+      "Medium": 10
+    }
+  }
+]

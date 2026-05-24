@@ -1,0 +1,128 @@
+{
+  "storyId": "US-001",
+  "verifiedEvidence": [
+    {
+      "criterion": "Section markers exist near top of main inline script",
+      "command": "grep -nE \"renderTasks|renderPhaseTree|PHASE_TO_ORDER_BUCKET\" plans/overview.html",
+      "result": "renderTasks marker line 2097, renderPhaseTree marker line 2204, PHASE_TO_ORDER_BUCKET line 2209; markers precede the first DOM-walking IIFE section.",
+      "evidenceKind": "static-inspection"
+    },
+    {
+      "criterion": "renderTasks() runs synchronously before DOM-walking IIFEs",
+      "command": "grep -nE \"renderTasks();|PHASE_TO_ORDER_BUCKET|renderPhaseBadges\" plans/overview.html",
+      "result": "renderTasks(); appears at line 2202 before PHASE_TO_ORDER_BUCKET at 2209 and renderPhaseBadges at 2324; no DOMContentLoaded wrapper.",
+      "evidenceKind": "static-inspection"
+    },
+    {
+      "criterion": "renderTasks() calls getRoadmapData()",
+      "command": "grep -nE \"function renderTasks|var data = getRoadmapData|function getRoadmapData\" plans/overview.html",
+      "result": "renderTasks starts line 2098 and assigns var data = getRoadmapData(); line 2099; getRoadmapData remains the shared helper at line 3121.",
+      "evidenceKind": "static-inspection"
+    },
+    {
+      "criterion": "OVERVIEW_DATA.tasks[] contains exactly perf-WS3, 1b-multidev, polish-Fs with commands and cards",
+      "command": "node VM evaluate plans/overview-data.js and print tasks.length/ids/card counts",
+      "result": "tasks.length=3; ids=perf-WS3,1b-multidev,polish-Fs; card counts perf-WS3:1, 1b-multidev:3, polish-Fs:5; every task has command.planPrompt.",
+      "evidenceKind": "command-output"
+    },
+    {
+      "criterion": "Representative fields: perf shipped mergeCommit, 1b multiple cards, polish warnings rich HTML",
+      "command": "node VM checks phase/mergeCommit/card count/warnings for selected tasks",
+      "result": "perf-WS3 phase=shipped and mergeCommit=197b0148; 1b-multidev has 3 kanbanCards; polish-Fs has 1 warning with inline <code> HTML.",
+      "evidenceKind": "command-output"
+    },
+    {
+      "criterion": "kanbanCards[] schema and rich card-meta HTML round-trip",
+      "command": "node VM checks every kanban card has column/cardClass/inlineStyle/html and rich card HTML exists",
+      "result": "cardSchema=true; richCardHtml=true with card-meta, pill/code/link HTML retained in overview-data.js strings.",
+      "evidenceKind": "command-output"
+    },
+    {
+      "criterion": "Render emits kanban cards into #kanban-ready/#kanban-soon/#kanban-blocked",
+      "command": "Headless Chromium file:// plans/overview.html ?tasks=perf-WS3 DOM check",
+      "result": "No console/page errors; rendered card counts by data-task-id were perf-WS3=1, 1b-multidev=3, polish-Fs=5; all container IDs existed.",
+      "evidenceKind": "command-output"
+    },
+    {
+      "criterion": "Render emits command rows with required details/data attributes into #cmd-list",
+      "command": "Headless Chromium DOM check for #cmd-perf-WS3/#cmd-1b-multidev/#cmd-polish-Fs and row count",
+      "result": "Rendered rows existed inside #cmd-list with data-task-id/scope/phase/status; perf-WS3 had data-merge-commit=197b0148. Browser row total was 49: current HEAD has 49 real cmd rows, so the PRD's 51-row count is stale.",
+      "evidenceKind": "command-output"
+    },
+    {
+      "criterion": "Prompt bodies use textContent and copy text equals JS literal with literal shell redirects",
+      "command": "grep textContent assignment; Headless Chromium compares #cmd-perf-WS3 .cmd-pre textContent to window.OVERVIEW_DATA task string",
+      "result": "pre.textContent = task.command.planPrompt is the only prompt write path; browser comparison returned true and text included literal 2>&1, not encoded 2&gt;&amp;1.",
+      "evidenceKind": "static-inspection"
+    },
+    {
+      "criterion": "HTML entities in prompt strings decoded once at port time",
+      "command": "node VM checks every task.command.planPrompt contains 2>&1 and not 2&gt;&amp;1",
+      "result": "promptDecoded=true for all 3 tasks; rendered .cmd-pre textContent also matched the JS literal byte-for-byte for perf-WS3.",
+      "evidenceKind": "command-output"
+    },
+    {
+      "criterion": "Original HTML blocks removed after equivalent data render",
+      "command": "grep selected data-task-id values in plans/overview.html; Headless Chromium rendered card/row checks",
+      "result": "Static HTML contains 0 occurrences of data-task-id=perf-WS3/1b-multidev/polish-Fs; browser render recreates the 3 command rows and 9 cards with no console/page errors. Pixel comparison fallback: original inner HTML was mechanically extracted verbatim into tasks[].kanbanCards[].html and command fields before deletion.",
+      "evidenceKind": "static-inspection"
+    },
+    {
+      "criterion": "Open-state preserve/restore around renderTasks()",
+      "command": "Headless Chromium opens #cmd-perf-WS3 and #cmd-1b-multidev, calls renderTasks(), reads .open",
+      "result": "openAfterRender=[true,true]; renderTasks snapshots details.cmd[open] before cmdList.innerHTML='' and restores matching IDs afterward.",
+      "evidenceKind": "command-output"
+    },
+    {
+      "criterion": "localStorage v2 persistence still works across reload",
+      "command": "Headless Chromium opens #cmd-perf-WS3 and #cmd-polish-Fs, dispatches toggle events, reloads file:// page, reads .open",
+      "result": "openAfterReload=[true,true] using key codexu-overview-details-state-v2; no console/page errors.",
+      "evidenceKind": "command-output"
+    },
+    {
+      "criterion": "Today panel classifies freshly emitted DOM after data phase edit",
+      "command": "Headless Chromium with temporary data-file edit setting 1b-multidev phase to impl-in-progress, then reload",
+      "result": "todayRunning=[1b-multidev] after one reload; temporary overview-data.js edit was restored after verification; no console/page errors.",
+      "evidenceKind": "command-output"
+    },
+    {
+      "criterion": "Existing IIFEs continue against freshly emitted DOM, including URL filter and counts",
+      "command": "Headless Chromium file:// plans/overview.html?tasks=perf-WS3 DOM check",
+      "result": "URL filter visible command IDs=[perf-WS3]; renderPhaseBadges/scope chips/workstream pills/copy controls ran on the data rows. Browser total was 49 real cmd rows, matching current HEAD's 49-row DOM baseline rather than the PRD's stale 51.",
+      "evidenceKind": "command-output"
+    },
+    {
+      "criterion": "Skeleton-ownership invariant in overview-data.js respected",
+      "command": "git diff -- plans/overview-data.js --unified=0",
+      "result": "Diff changes only the tasks[] value from [] to 3 entries; phaseTree, runs, periodic, cadence, lastTouched, effort, risk, workstream, sizeBucket, spawnedFrom top-level skeleton/order remain untouched.",
+      "evidenceKind": "static-inspection"
+    },
+    {
+      "criterion": "No duplicate task IDs in OVERVIEW_DATA.tasks[]",
+      "command": "node VM: new Set(tasks.map(t=>t.id)).size === tasks.length",
+      "result": "duplicateIds=false for perf-WS3,1b-multidev,polish-Fs.",
+      "evidenceKind": "command-output"
+    },
+    {
+      "criterion": "Containers exist",
+      "command": "grep -c for id=kanban-ready/kanban-soon/kanban-blocked/cmd-list/phase-tree plans/overview.html",
+      "result": "Each required container ID appears exactly once in plans/overview.html.",
+      "evidenceKind": "static-inspection"
+    },
+    {
+      "criterion": "Typecheck passes",
+      "command": "node --check plans/overview-data.js; node VM syntax-check main inline script from plans/overview.html; git diff --check",
+      "result": "overview-data.js syntax OK; main inline script parsed by vm.Script; git diff --check exit=0 with only Git CRLF warnings.",
+      "evidenceKind": "command-output"
+    },
+    {
+      "criterion": "Browser verification on file:// for render, expand/reload persistence, and ?tasks filter",
+      "command": "Headless Chromium via temporary Playwright install against file:///.../plans/overview.html",
+      "result": "PASS: rows=49 current baseline, visible=[perf-WS3] for ?tasks filter, cards=[1,3,5], prompt round-trip true, containers true, openAfterRender=[true,true], openAfterReload=[true,true], todayRunning=[1b-multidev]. agent-browser skill was unavailable, so Playwright Chromium was used as the browser fallback.",
+      "evidenceKind": "command-output"
+    }
+  ],
+  "skippedReasons": [],
+  "notTested": [],
+  "iterationSHA": "d2a875372a72a4d48132aaab94fd1ee915fe2375"
+}

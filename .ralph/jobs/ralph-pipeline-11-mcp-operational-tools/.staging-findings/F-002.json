@@ -1,0 +1,18 @@
+{
+  "id": "F-002",
+  "severity": "High",
+  "source": "claude",
+  "classification": "fixable",
+  "phase": "code",
+  "category": "Completeness",
+  "sectionRef": "Acceptance Criteria — dev_server.status lastLogTail size",
+  "description": "dev_server.status returns the last 30 lines per stream rather than the last 10 required by the plan AC ('includes lastLogTail of last 10 lines per stream'). README also documents 30, which is the wrong value. The 30-line tail is correct for the failure path of dev_server.start, but not for status.",
+  "status": "open",
+  "fixedInIteration": null,
+  "resolution": null,
+  "relevantFiles": [
+    "tools/overview-mcp/src/tools/dev-server-status.ts:51-53",
+    "tools/overview-mcp/README.md:108-112"
+  ],
+  "suggestedFix": "Change tailLogs in dev-server-status.ts to slice(-10) and update the README sentence 'last 30 lines' to 'last 10 lines'. Keep the 30-line tail in dev-server-start.ts failure paths."
+}

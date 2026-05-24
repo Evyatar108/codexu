@@ -1,0 +1,294 @@
+{
+  "planFile": "D:/harness-efforts/codexu/.ralph/jobs/ralph-pipeline-11-mcp-operational-tools/plan.md",
+  "repoDir": "D:/harness-efforts/codexu/.ralph/jobs/ralph-pipeline-11-mcp-operational-tools/worktree",
+  "reviewCycle": 0,
+  "findings": [
+    {
+      "id": "F-001",
+      "severity": "High",
+      "source": "claude",
+      "classification": "fixable",
+      "phase": "code",
+      "category": "Completeness",
+      "sectionRef": "Acceptance Criteria — dev_server.stop idempotent",
+      "description": "dev_server.stop is not idempotent. Plan AC: 'When called and no child exists, returns { ok: true, stoppedAt: <iso> } (idempotent).' Current implementation returns { ok: false, error: 'dev server is not running' } when no tracked process is found. This violates the documented contract.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Changed null-process branch in devServerStop to return { ok: true, stoppedAt: new Date() } making the tool idempotent per AC. README updated.",
+      "relevantFiles": [
+        "tools/overview-mcp/src/tools/dev-server-stop.ts:22-27"
+      ],
+      "suggestedFix": "When ProcessManager.stop returns null (no tracked process), return { ok: true, stoppedAt: new Date() } instead of { ok: false, error: 'dev server is not running' }. Update the README accordingly."
+    },
+    {
+      "id": "F-002",
+      "severity": "High",
+      "source": "claude",
+      "classification": "fixable",
+      "phase": "code",
+      "category": "Completeness",
+      "sectionRef": "Acceptance Criteria — dev_server.status lastLogTail size",
+      "description": "dev_server.status returns the last 30 lines per stream rather than the last 10 required by the plan AC ('includes lastLogTail of last 10 lines per stream'). README also documents 30, which is the wrong value. The 30-line tail is correct for the failure path of dev_server.start, but not for status.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Changed slice from -30 to -10 in dev-server-status.ts; added test asserting lastLogTail length <= 10.",
+      "relevantFiles": [
+        "tools/overview-mcp/src/tools/dev-server-status.ts:51-53",
+        "tools/overview-mcp/README.md:108-112"
+      ],
+      "suggestedFix": "Change tailLogs in dev-server-status.ts to slice(-10) and update the README sentence 'last 30 lines' to 'last 10 lines'. Keep the 30-line tail in dev-server-start.ts failure paths."
+    },
+    {
+      "id": "F-003",
+      "severity": "High",
+      "source": "claude",
+      "classification": "fixable",
+      "phase": "code",
+      "category": "Completeness",
+      "sectionRef": "Acceptance Criteria — sync.now concurrent error contract",
+      "description": "sync.now returns 'sync already in progress' for concurrent calls, but the plan AC and README inconsistency require 'another sync in progress' (and the sync-lock diagnostic prose throughout the codebase already uses that exact wording). The current string also diverges from the matching build.ts contract which correctly returns 'another build in progress'.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Replaced \"sync already in progress\" with \"another sync in progress\" in sync-now.ts; updated test assertion.",
+      "relevantFiles": [
+        "tools/overview-mcp/src/tools/sync-now.ts:63",
+        "tools/overview-mcp/src/__tests__/sync-now.test.ts:87",
+        "tools/overview-mcp/README.md:142"
+      ],
+      "suggestedFix": "Change the AlreadyRunningError branch in sync-now.ts to return { ok: false, error: 'another sync in progress' }; update the assertion in sync-now.test.ts and the README sentence to match."
+    },
+    {
+      "id": "F-004",
+      "severity": "High",
+      "source": "claude",
+      "classification": "fixable",
+      "phase": "code",
+      "category": "Correctness",
+      "sectionRef": "ProcessManager design — stop flow",
+      "description": "ProcessManager.stop removes the entry from the Map by default (options.remove !== false). The plan specifies the opposite default: 'No-op if absent or already exited unless remove is true, in which case the Map entry is deleted'. Default-removal silently drops dev-server logs/status history after dev_server.stop, breaking the post-stop status/logs read path the long-lived dev-server design depends on. It also makes dev-server-start.ts's recovery path work only accidentally; the contract is inverted from the plan.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Changed default remove behavior in ProcessManager.stop()/stopAll() from opt-out to opt-in. Manager entries persist as exited so status()/logs() remain readable post-stop. Transient oneShot entries auto-remove via exit handler.",
+      "relevantFiles": [
+        "tools/overview-mcp/src/process-manager.ts:306-316"
+      ],
+      "suggestedFix": "Flip the default: only delete when options.remove === true. Update dev-server-start.ts failure cleanup to pass { remove: true } explicitly. Update the dev-server.test.ts 'clears a failed startup handle' assertion to reflect the explicit remove flag. Consider keeping a separate cleanup pass in shutdown if log retention after dev_server.stop is desired."
+    },
+    {
+      "id": "F-005",
+      "severity": "High",
+      "source": "claude",
+      "classification": "fixable",
+      "phase": "code",
+      "category": "Correctness",
+      "sectionRef": "ProcessManager design — stopAll uses Promise.allSettled",
+      "description": "ProcessManager.stopAll uses Promise.all instead of Promise.allSettled. The plan explicitly requires allSettled 'so one hang does not block others'. With Promise.all, a single stop rejection (e.g., a tree-kill failure on Windows that is not the ESRCH wildcard) propagates out of stopAll, is caught by index.ts shutdown, logs the error, and proceeds to server.close() and process.exit(0) — but the remaining managed children never get killed because their stop promises were not awaited. This breaks the no-orphan acceptance criterion under partial failure.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Replaced Promise.all with Promise.allSettled in stopAll. Rejected stops logged via console.error and yield current snapshot. Added mixed-outcome test.",
+      "relevantFiles": [
+        "tools/overview-mcp/src/process-manager.ts:329-343"
+      ],
+      "suggestedFix": "Replace Promise.all with Promise.allSettled in stopAll; collect rejections into a returned errors array or write them to stderr inside the helper so the caller can still log them without short-circuiting the rest of the shutdown sweep."
+    },
+    {
+      "id": "F-006",
+      "severity": "High",
+      "source": "claude",
+      "classification": "fixable",
+      "phase": "code",
+      "category": "Correctness",
+      "sectionRef": "ProcessManager design — stop flow SIGKILL escalation verification",
+      "description": "stopManagedProcess does not verify the process actually exited after the SIGKILL escalation. killAndWait races the exit event against a timeout and returns silently when the timeout wins. The plan requires: 'If still alive after that, throw StopFailed (rare; expected when the OS itself is stuck)'. Without that check, dev_server.stop and stopAll can report success while the child is still alive, leaving an orphan and breaking the no-orphan AC.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Added StopFailedError class and post-SIGKILL exit check in stopManagedProcess. Throws StopFailedError when process did not exit after SIGKILL timeout. Added hung-child test.",
+      "relevantFiles": [
+        "tools/overview-mcp/src/process-manager.ts:358-392"
+      ],
+      "suggestedFix": "After the SIGKILL killAndWait race, check managed.status (or use process.kill(pid, 0) to probe liveness); if not exited, throw a new StopFailed error class. Update stopAll to swallow/log StopFailed without short-circuiting the sweep (combined with the allSettled fix in F-005)."
+    },
+    {
+      "id": "F-007",
+      "severity": "Medium",
+      "source": "claude",
+      "classification": "fixable",
+      "phase": "code",
+      "category": "Quality",
+      "sectionRef": "Build script — fragile cross-package output flattening",
+      "description": "tools/overview-mcp/package.json build script uses 'tsc -p tsconfig.json && node -e \\\"...cpSync(\\'dist/overview-mcp/src\\', \\'dist\\', { recursive: true })\\\"'. The nested dist/overview-mcp/src/ directory only appears because the package imports ../../../scripts/lib/sync-lock.mjs and ../../../scripts/lib/resolve-config.mjs across the package boundary, which forces tsc to relocate rootDir to the repo root. There is no rootDir or compose path constraint that documents this. A future refactor that removes the cross-package imports (or adds an explicit rootDir) would silently change the build output layout and break the fix-up step. The plan did not call for this approach — it expected a plain tsc build.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Added postbuild npm script asserting dist/index.js exists after cpSync flattening. Documented implicit cross-package import dependency in README Build layout note.",
+      "relevantFiles": [
+        "tools/overview-mcp/package.json:9",
+        "tools/overview-mcp/tsconfig.json"
+      ],
+      "suggestedFix": "Either (a) set rootDir explicitly in tsconfig.json to the package src/ and use 'composite' / TS project references to consume scripts/lib types without re-emitting, or (b) wrap the cross-package imports through a generated .d.ts shim under tools/overview-mcp/src/ so tsc only emits src files. Document the build-output expectation in README."
+    },
+    {
+      "id": "F-008",
+      "severity": "Medium",
+      "source": "claude",
+      "classification": "fixable",
+      "phase": "code",
+      "category": "Quality",
+      "sectionRef": "build.ts and sync-now.ts — child exit handling via once",
+      "description": "build.ts (once(managed.child!, 'exit')) and sync-now.ts use 'once(managed.child!, \\'exit\\')' to wait for child exit. Because ProcessManager.spawn also registers an exit listener that flips status to 'exited' AND deletes oneShot Map entries, the order between the tool's once-await and the manager's listeners is non-deterministic across Node versions. Today it happens to work because managed.logs() and the returned snapshot are owned by the handle, not the Map. A future change to ManagedProcess.logs() that reads through the Map would silently regress.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Added ExitEvent + exitPromise on ManagedProcess, resolved by manager exit handler after cleanup. build.ts and sync-now.ts await managed.exitPromise instead of once(child, exit).",
+      "relevantFiles": [
+        "tools/overview-mcp/src/tools/build.ts:57-71",
+        "tools/overview-mcp/src/tools/sync-now.ts:68-97"
+      ],
+      "suggestedFix": "Expose ManagedProcess.exitPromise (resolved when the manager has fully reconciled state — status='exited', exitCode/signal captured) and await it instead of once(child, 'exit'). The promise should resolve to { code, signal } so callers do not parse the tuple themselves."
+    },
+    {
+      "id": "F-009",
+      "severity": "High",
+      "source": "consensus",
+      "detectedBy": [
+        "codex",
+        "copilot"
+      ],
+      "classification": "fixable",
+      "phase": "code",
+      "category": "Completeness",
+      "sectionRef": null,
+      "description": "`overview.dev_server.stop` is not idempotent as required. The AC says no child should return `{ ok: true, stoppedAt }`, but [tools/overview-mcp/src/tools/dev-server-stop.ts:22](D:/harness-efforts/codexu/.ralph/jobs/ralph-pipeline-11-mcp-operational-tools/worktree/tools/overview-mcp/src/tools/dev-server-stop.ts:22) returns `{ ok: false, error: 'dev server is not running' }` when no process is tracked.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Resolved by F-001 fix (dev_server.stop idempotent in tools/overview-mcp/src/tools/dev-server-stop.ts).",
+      "relevantFiles": [],
+      "suggestedFix": null
+    },
+    {
+      "id": "F-010",
+      "severity": "High",
+      "source": "codex",
+      "detectedBy": [
+        "codex"
+      ],
+      "classification": "fixable",
+      "phase": "code",
+      "category": "Correctness",
+      "sectionRef": null,
+      "description": "`ProcessManager.stop()` deletes tracked processes by default, which breaks the plan’s long-lived dev-server retention for status/log reads. [tools/overview-mcp/src/process-manager.ts:306](D:/harness-efforts/codexu/.ralph/jobs/ralph-pipeline-11-mcp-operational-tools/worktree/tools/overview-mcp/src/process-manager.ts:306) deletes unless `remove === false`; the plan specified deletion only when `remove` is true. After `dev_server.stop`, logs/status history are lost.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Resolved by F-004 fix (ProcessManager.stop no longer deletes entries by default).",
+      "relevantFiles": [],
+      "suggestedFix": null
+    },
+    {
+      "id": "F-011",
+      "severity": "High",
+      "source": "codex",
+      "detectedBy": [
+        "codex"
+      ],
+      "classification": "fixable",
+      "phase": "code",
+      "category": "Correctness",
+      "sectionRef": null,
+      "description": "`stopAll()` uses `Promise.all` instead of `Promise.allSettled`, so one kill failure rejects the whole shutdown path instead of collecting failures and continuing cleanup. See [tools/overview-mcp/src/process-manager.ts:329](D:/harness-efforts/codexu/.ralph/jobs/ralph-pipeline-11-mcp-operational-tools/worktree/tools/overview-mcp/src/process-manager.ts:329). This violates the shutdown/no-orphan acceptance criteria.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Resolved by F-005 fix (Promise.allSettled in stopAll).",
+      "relevantFiles": [],
+      "suggestedFix": null
+    },
+    {
+      "id": "F-012",
+      "severity": "High",
+      "source": "consensus",
+      "detectedBy": [
+        "codex",
+        "copilot"
+      ],
+      "classification": "fixable",
+      "phase": "code",
+      "category": "Correctness",
+      "sectionRef": null,
+      "description": "`stopManagedProcess()` can return after SIGKILL timeout without confirming exit or throwing `StopFailed`. [tools/overview-mcp/src/process-manager.ts:370](D:/harness-efforts/codexu/.ralph/jobs/ralph-pipeline-11-mcp-operational-tools/worktree/tools/overview-mcp/src/process-manager.ts:370) races kill against a timeout, but [line 372](D:/harness-efforts/codexu/.ralph/jobs/ralph-pipeline-11-mcp-operational-tools/worktree/tools/overview-mcp/src/process-manager.ts:372) does not verify the process exited after escalation. Callers can report success and remove the process from the map while it is still alive.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Resolved by F-006 fix (StopFailedError after SIGKILL).",
+      "relevantFiles": [],
+      "suggestedFix": null
+    },
+    {
+      "id": "F-013",
+      "severity": "High",
+      "source": "copilot",
+      "detectedBy": [
+        "copilot"
+      ],
+      "classification": "fixable",
+      "phase": "code",
+      "category": "Completeness",
+      "sectionRef": null,
+      "description": "`tools/overview-mcp/src/tools/dev-server-status.ts:52` returns the last 30 log lines, while the acceptance criterion requires the last 10 lines per stream.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Resolved by F-002 fix (lastLogTail slice changed to -10).",
+      "relevantFiles": [],
+      "suggestedFix": null
+    },
+    {
+      "id": "F-014",
+      "severity": "High",
+      "source": "copilot",
+      "detectedBy": [
+        "copilot"
+      ],
+      "classification": "fixable",
+      "phase": "code",
+      "category": "Completeness",
+      "sectionRef": null,
+      "description": "`tools/overview-mcp/src/tools/sync-now.ts:64` returns `sync already in progress` for concurrent calls, but the plan’s contract requires `another sync in progress`.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Resolved by F-003 fix (concurrent error string corrected).",
+      "relevantFiles": [],
+      "suggestedFix": null
+    },
+    {
+      "id": "F-015",
+      "severity": "High",
+      "source": "copilot",
+      "detectedBy": [
+        "copilot"
+      ],
+      "classification": "fixable",
+      "phase": "code",
+      "category": "Correctness",
+      "sectionRef": null,
+      "description": "`tools/overview-mcp/package.json:9` changes the build script to copy `dist/overview-mcp/src` after `tsc`. With this package’s `tsconfig.json` including only `src/**/*.ts`, `tsc` emits into `dist/`, not `dist/overview-mcp/src`, so `pnpm overview-mcp:build` will fail with a missing source path.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Resolved by F-007 fix (postbuild guard + README documentation of build layout).",
+      "relevantFiles": [],
+      "suggestedFix": null
+    },
+    {
+      "id": "F-016",
+      "severity": "High",
+      "source": "copilot",
+      "detectedBy": [
+        "copilot"
+      ],
+      "classification": "fixable",
+      "phase": "code",
+      "category": "Correctness",
+      "sectionRef": null,
+      "description": "`tools/overview-mcp/src/process-manager.ts:330-343` uses `Promise.all` in `stopAll()`. If one stop rejects, `index.ts` catches the rejection and exits, potentially before other child-stop promises settle, violating the no-orphan shutdown criterion. The plan explicitly required `Promise.allSettled`.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Resolved by F-005 fix (Promise.allSettled in stopAll).",
+      "relevantFiles": [],
+      "suggestedFix": null
+    }
+  ]
+}

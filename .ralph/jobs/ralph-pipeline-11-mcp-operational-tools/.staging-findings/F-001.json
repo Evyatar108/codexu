@@ -1,0 +1,17 @@
+{
+  "id": "F-001",
+  "severity": "High",
+  "source": "claude",
+  "classification": "fixable",
+  "phase": "code",
+  "category": "Completeness",
+  "sectionRef": "Acceptance Criteria — dev_server.stop idempotent",
+  "description": "dev_server.stop is not idempotent. Plan AC: 'When called and no child exists, returns { ok: true, stoppedAt: <iso> } (idempotent).' Current implementation returns { ok: false, error: 'dev server is not running' } when no tracked process is found. This violates the documented contract.",
+  "status": "open",
+  "fixedInIteration": null,
+  "resolution": null,
+  "relevantFiles": [
+    "tools/overview-mcp/src/tools/dev-server-stop.ts:22-27"
+  ],
+  "suggestedFix": "When ProcessManager.stop returns null (no tracked process), return { ok: true, stoppedAt: new Date() } instead of { ok: false, error: 'dev server is not running' }. Update the README accordingly."
+}

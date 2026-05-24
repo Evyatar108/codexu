@@ -1,0 +1,218 @@
+{
+  "planFile": "D:/harness-efforts/codexu/.ralph/jobs/ralph-pipeline-09-mcp/plan.md",
+  "repoDir": "D:/harness-efforts/codexu/.ralph/jobs/ralph-pipeline-09-mcp/worktree",
+  "findings": [
+    {
+      "id": "F-001",
+      "severity": "High",
+      "category": "Correctness",
+      "classification": "fixable",
+      "phase": "code",
+      "source": "claude",
+      "sectionRef": "US-003 acceptance — assertSafeTaskId in get_task",
+      "description": "tools/overview-mcp/src/tools/read-only.ts:56-69 (getTask) does not call assertSafeTaskId(input.taskId) before resolving tasks/<taskId>/journal.md. The US-003 acceptance criterion explicitly states `validates taskId with assertSafeTaskId from scripts/lib/append-journal.mjs before reading tasks/<taskId>/journal.md; invalid ids return { ok: false, error } and perform no filesystem read`. The current code does a case-insensitive snapshot lookup (which incidentally avoids traversal because task.id is used downstream), then returns `unknown task` for unsafe input, so the protection exists but the AC contract — explicit envelope plus no FS read for unsafe ids — is not met as written.",
+      "relevantFiles": [
+        "tools/overview-mcp/src/tools/read-only.ts:56",
+        "tools/overview-mcp/src/tools/read-only.ts:168"
+      ],
+      "suggestedFix": "At the top of getTask(), wrap assertSafeTaskId(input.taskId) in try/catch and return { ok: false, error: ... } before any snapshot or filesystem work; mirror the pattern already used in add-journal-entry.ts and set-override.ts.",
+      "status": "fixed",
+      "resolution": "Added assertSafeTaskId(input.taskId) guard in try/catch at the top of getTask() before any snapshot or filesystem work; invalid ids now return { ok: false, error } immediately. Updated the adjacent test to expect the assertSafeTaskId error message for unsafe inputs."
+    },
+    {
+      "id": "F-002",
+      "severity": "High",
+      "category": "Completeness",
+      "classification": "fixable",
+      "phase": "code",
+      "source": "claude",
+      "sectionRef": "Cross-cutting AC — one .test.ts per tool",
+      "description": "Plan cross-cutting acceptance criterion `pnpm --filter @codexu/overview-mcp test passes (one .test.ts per tool + utilities)` is not met. tools/overview-mcp/src/__tests__/ contains read-only-tools.test.ts which bundles list_tasks, get_task, next_command, list_recommendations, list_blockers, invoke_next, and add_journal_entry. The plan called for per-tool files (e.g., list-tasks.test.ts, get-task.test.ts, invoke-next.test.ts, add-journal-entry.test.ts). Coverage is present, but the AC for file decomposition is unmet.",
+      "relevantFiles": [
+        "tools/overview-mcp/src/__tests__/read-only-tools.test.ts:43",
+        "tools/overview-mcp/src/__tests__/"
+      ],
+      "suggestedFix": "Split read-only-tools.test.ts into list-tasks.test.ts, get-task.test.ts, next-command.test.ts, list-recommendations.test.ts, list-blockers.test.ts, invoke-next.test.ts, and add-journal-entry.test.ts. Keep shared fixtures in a __tests__/helpers.ts file to avoid duplication.",
+      "status": "fixed",
+      "resolution": "Split read-only-tools.test.ts into seven per-tool files (list-tasks.test.ts, get-task.test.ts, next-command.test.ts, list-recommendations.test.ts, list-blockers.test.ts, invoke-next.test.ts, add-journal-entry.test.ts) plus a shared helpers.ts with fixtures, context factory, and utilities. read-only-tools.test.ts now contains only the server tool-registration test. All 41 tests pass across 14 test files."
+    },
+    {
+      "id": "F-003",
+      "severity": "High",
+      "category": "Correctness",
+      "classification": "fixable",
+      "phase": "code",
+      "source": "claude",
+      "sectionRef": "get_transcript / list_crew_sessions transcriptPath propagation",
+      "description": "tools/overview-mcp/src/tools/list-crew-sessions.ts:99-107 spreads the discovered entry first and then the live manifest fields (only lastHeartbeatAt, lastSummary, lastTurnAt, listenerState, actorState). If discoverCrewSessions() returns an entry without transcriptPath (because the snapshot's cached crewSessions ref pre-dates the manifest gaining the field), the live manifest's transcriptPath is silently dropped — so get_transcript reports `session not found` even though a valid transcript exists on disk. The plan's per-tool AC for list_crew_sessions includes re-reading manifests to merge live fields into the response, and get_transcript depends on the merged result.",
+      "relevantFiles": [
+        "tools/overview-mcp/src/tools/list-crew-sessions.ts:99",
+        "tools/overview-mcp/src/tools/list-crew-sessions.ts:147",
+        "tools/overview-mcp/src/tools/get-transcript.ts:14"
+      ],
+      "suggestedFix": "In liveFields() (or flattenDiscoveredSessions), include transcriptPath from the manifest read, preferring the manifest value over the discovered entry when both are present. Add a regression test that emits a snapshot-cached ref without transcriptPath, writes the manifest with transcriptPath, and asserts get_transcript can find the session.",
+      "status": "fixed",
+      "resolution": "Added transcriptPath extraction to liveFields() so the fresh manifest re-read in readLiveManifest() can supply a transcriptPath that was absent from the snapshot-cached discovery entry. Added a regression test in get-transcript.test.ts that emits a sidecar crewSessions entry without transcriptPath, writes the manifest with transcriptPath, and asserts get_transcript resolves successfully."
+    },
+    {
+      "id": "F-004",
+      "severity": "Medium",
+      "category": "Correctness",
+      "classification": "fixable",
+      "phase": "code",
+      "source": "claude",
+      "sectionRef": "SnapshotReader torn-write retry budget",
+      "description": "tools/overview-mcp/src/snapshot-reader.ts:109-139 (readWithRetry) attempts a single 100ms retry after the first parse failure, then falls back to cached/null. The plan's Risk Areas section calls for `wrap parse in try/catch; on parse failure, schedule a 100 ms retry and re-read; if still failing after 3 retries, return cached value or null`. Under bursty atomic-write windows (snapshot watcher writes ~every few seconds) the current single-retry budget can drop valid reads as null until the next chokidar event invalidates the cache.",
+      "relevantFiles": [
+        "tools/overview-mcp/src/snapshot-reader.ts:109",
+        "tools/overview-mcp/src/snapshot-reader.ts:131"
+      ],
+      "suggestedFix": "Convert readWithRetry to a loop over `retries = 3` with a fixed 100ms delay; log only after all retries are exhausted. Add a test that fails on the first two reads and succeeds on the third.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Converted readWithRetry into a loop over maxRetries=3 with 100ms inter-retry delay; logs only after exhaustion. Added a test mocking JSON.parse to fail twice then succeed."
+    },
+    {
+      "id": "F-005",
+      "severity": "Medium",
+      "category": "Correctness",
+      "classification": "fixable",
+      "phase": "code",
+      "source": "claude",
+      "sectionRef": "get_transcript error envelope when transcript file is missing",
+      "description": "tools/overview-mcp/src/utils/transcript-tail.ts:27 calls fs.openSync(transcriptPath, 'r') synchronously without surrounding try/catch in the get_transcript tool wrapper (tools/overview-mcp/src/tools/get-transcript.ts:24). A missing or unreadable transcript file (e.g., session ended and transcript was rotated, Windows path mismatch) throws ENOENT out of the MCP tool handler instead of returning { ok: false, error } per the project's tool-envelope convention. Other read errors (EACCES, EISDIR) have the same exit path.",
+      "relevantFiles": [
+        "tools/overview-mcp/src/utils/transcript-tail.ts:27",
+        "tools/overview-mcp/src/tools/get-transcript.ts:24"
+      ],
+      "suggestedFix": "Wrap the tailTranscript call in try/catch inside get-transcript.ts and return { ok: false, error: `failed to read transcript: ${message}` } for ENOENT / read failures. Alternatively, move the try/catch into transcript-tail.ts and return [] only for empty files, propagating other errors as a typed Result.",
+      "status": "fixed",
+      "resolution": "Wrapped tailTranscript call in try/catch inside getTranscript(); ENOENT and all other read failures now return { ok: false, error: 'failed to read transcript: ...' } instead of throwing. Added a test case covering the missing-file (ENOENT) path."
+    },
+    {
+      "id": "F-006",
+      "severity": "Medium",
+      "category": "Quality",
+      "classification": "fixable",
+      "phase": "code",
+      "source": "claude",
+      "sectionRef": "types.ts duplication vs type-only imports",
+      "description": "tools/overview-mcp/src/types.ts re-declares Snapshot, SnapshotTask, OverviewTask, RalphPipelineState, RalphStage, CrewSessionRef, Recommendation, NextCommand, OverviewData, and OverviewRalphState locally. The plan's Codebase Context section explicitly allows type-only imports from tools/overview-viewer/src/types.ts (`MCP server may use type-only imports from this file (zero runtime dependency, erased at compile time)`). Maintaining two copies invites silent drift on the exact shared contract this server is meant to mirror.",
+      "relevantFiles": [
+        "tools/overview-mcp/src/types.ts:1",
+        "tools/overview-viewer/src/types.ts"
+      ],
+      "suggestedFix": "Replace the local definitions with `import type { Snapshot, SnapshotTask, ... } from '../../overview-viewer/src/types.js'` (verify the relative path; type-only so no runtime coupling). Keep MCP-package-local additions (e.g., LiveCrewSession) in this file but stop re-declaring the shared shapes.",
+      "status": "fixed",
+      "resolution": "Replaced all nine local type re-declarations with `export type { ... }` re-exports from tools/overview-viewer/src/types.ts. Removed rootDir from the MCP tsconfig (outDir alone preserves output structure). Co-located the Window.OVERVIEW_RALPH_STATE declare global in viewer/src/types.ts alongside the function that uses it so the augmentation is in scope when that file is imported standalone. Updated three test fixtures in read-only-tools.test.ts to include the required descriptionHtml field from the stricter OverviewCommand type."
+    },
+    {
+      "id": "F-007",
+      "severity": "Medium",
+      "category": "Quality",
+      "classification": "fixable",
+      "phase": "code",
+      "source": "claude",
+      "sectionRef": "schemas.ts uses zod/v3 import path with zod@^4 dependency",
+      "description": "tools/overview-mcp/src/schemas.ts:1 imports from `zod/v3`, but tools/overview-mcp/package.json declares `\"zod\": \"^4.1.13\"`. server.ts uses `@modelcontextprotocol/sdk/server/zod-compat.js` to bridge raw zod shape objects to the SDK. The combination compiles and runs because zod v4 ships a v3 compatibility namespace, but it makes the dependency intent ambiguous and complicates future SDK upgrades that may drop the v3 surface.",
+      "relevantFiles": [
+        "tools/overview-mcp/src/schemas.ts:1",
+        "tools/overview-mcp/package.json:17",
+        "tools/overview-mcp/src/server.ts:2"
+      ],
+      "suggestedFix": "Either pin `\"zod\": \"^3\"` in package.json to match the import path, or migrate schemas.ts to the canonical `import { z } from 'zod'` v4 surface and update server.ts to pass schemas in the shape the SDK currently expects without the compat shim. Document the decision in a short comment.",
+      "status": "fixed",
+      "resolution": "Migrated schemas.ts to canonical `import { z } from 'zod'` (v4). The zod-compat import in server.ts is retained solely for the ZodRawShapeCompat type annotation on asSdkInputSchema; a comment documents why the cast is still needed (SDK's internal z4.$ZodType from zod/v4/core is structurally distinct from the public zod v4 API). The zod/v3 compatibility namespace is no longer used."
+    },
+    {
+      "id": "F-008",
+      "severity": "Medium",
+      "category": "Completeness",
+      "classification": "fixable",
+      "phase": "code",
+      "source": "claude",
+      "sectionRef": "Manual stdio tools/list smoke test",
+      "description": "Plan cross-cutting AC `All 10 tools registered and callable via stdio. Manual smoke test: launch the server, send a tools/list request, verify 10 tools returned` is undocumented in README and unverifiable from the diff. The build artifact tests don't exercise the full stdio JSON-RPC handshake; per-tool unit tests assert registration but not the over-the-wire `tools/list` envelope.",
+      "relevantFiles": [
+        "tools/overview-mcp/README.md:37",
+        "tools/overview-mcp/src/__tests__/read-only-tools.test.ts:43"
+      ],
+      "suggestedFix": "Add a PowerShell snippet to README.md under `## Verify` that spawns `node dist/index.js`, pipes a `{ \"jsonrpc\": \"2.0\", \"id\": 1, \"method\": \"tools/list\" }` request, and asserts the response contains 10 entries with names beginning `overview.`. Alternatively, add an integration test that launches the server with a child process and exchanges the same JSON-RPC pair.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Added stdio integration test (tools/overview-mcp/src/__tests__/stdio-tools-list.test.ts) spawning dist/index.js, sending tools/list, asserting 10 overview.* tools."
+    },
+    {
+      "id": "F-009",
+      "severity": "High",
+      "source": "copilot",
+      "detectedBy": [
+        "copilot"
+      ],
+      "classification": "fixable",
+      "phase": "code",
+      "category": "Completeness",
+      "sectionRef": null,
+      "description": "`overview.get_task` does not meet US-003’s explicit `assertSafeTaskId` requirement. `tools/overview-mcp/src/tools/read-only.ts:56-67` looks up the task first and `readRecentJournal()` silently returns `[]` for unsafe paths instead of rejecting invalid `taskId`s with `{ ok: false, error }`.",
+      "status": "fixed",
+      "fixedInIteration": null,
+      "resolution": "Duplicate of F-001. Fixed together: assertSafeTaskId(input.taskId) guard added at the top of getTask() before any snapshot or filesystem work; invalid ids return { ok: false, error } immediately.",
+      "relevantFiles": [],
+      "suggestedFix": null
+    },
+    {
+      "id": "F-010",
+      "severity": "High",
+      "source": "copilot",
+      "detectedBy": [
+        "copilot"
+      ],
+      "classification": "fixable",
+      "phase": "code",
+      "category": "Correctness",
+      "sectionRef": null,
+      "description": "`overview.add_journal_entry` exposes an out-of-contract `ts` input and writes it unescaped. `tools/overview-mcp/src/schemas.ts:63-67` plus `tools/overview-mcp/src/tools/add-journal-entry.ts:21-23` allow a caller to pass `ts` containing newlines, which can inject forged journal rows before `note:`. The public contract only includes `{ taskId, note }`.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Removed ts from addJournalEntryInputSchema; handler now unconditionally uses new Date().toISOString(); test uses vi.useFakeTimers().",
+      "relevantFiles": [],
+      "suggestedFix": null
+    },
+    {
+      "id": "F-011",
+      "severity": "Medium",
+      "source": "copilot",
+      "detectedBy": [
+        "copilot"
+      ],
+      "classification": "fixable",
+      "phase": "code",
+      "category": "Correctness",
+      "sectionRef": null,
+      "description": "`overview.get_transcript` can throw instead of returning the documented JSON error envelope when a manifest points at a missing/unreadable transcript. `tools/overview-mcp/src/tools/get-transcript.ts:25-31` calls `tailTranscript()`, and `tools/overview-mcp/src/utils/transcript-tail.ts:27` uses `fs.openSync()` without a wrapper.",
+      "status": "fixed",
+      "fixedInIteration": null,
+      "resolution": "Duplicate of F-005. Fixed together: wrapped tailTranscript call in try/catch inside getTranscript(); all fs errors (ENOENT, EACCES, etc.) now return { ok: false, error: 'failed to read transcript: ...' }.",
+      "relevantFiles": [],
+      "suggestedFix": null
+    },
+    {
+      "id": "F-012",
+      "severity": "Medium",
+      "source": "copilot",
+      "detectedBy": [
+        "copilot"
+      ],
+      "classification": "fixable",
+      "phase": "code",
+      "category": "Quality",
+      "sectionRef": null,
+      "description": "`tools/overview-mcp/src/types.ts:1-106` duplicates overview/snapshot types instead of type-only importing the existing `tools/overview-viewer/src/types.ts` source noted in the plan. This works now but creates schema drift risk for the agent-facing MCP contract.",
+      "status": "fixed",
+      "fixedInIteration": null,
+      "resolution": "Duplicate of F-006. Fixed together: replaced all nine local type re-declarations with export type re-exports from tools/overview-viewer/src/types.ts (zero runtime coupling).",
+      "relevantFiles": [],
+      "suggestedFix": null
+    }
+  ]
+}

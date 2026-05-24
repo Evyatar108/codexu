@@ -1,0 +1,50 @@
+{
+  "storyId": "US-003",
+  "verifiedEvidence": [
+    {
+      "criterion": "Inside runOneShot(), after the sidecar write but before lock release, a single parseable summary line is printed to stdout while other diagnostics remain stderr.",
+      "command": "nl -ba scripts/sync-ralph-state.mjs | sed -n '143,166p'; grep -nE \"console[.](log|error)|runWatchMode|runOneShot\" scripts/sync-ralph-state.mjs",
+      "result": "PASS: lines 143-147 write the sidecar then emit console.log summary; lines 162-163 release the lock afterward. Other diagnostics remain console.error.",
+      "evidenceKind": "inspection"
+    },
+    {
+      "criterion": "The matched and unmatched counts are derived from the actual local state object names that exist in runOneShot.",
+      "command": "nl -ba scripts/sync-ralph-state.mjs | sed -n '131,147p'",
+      "result": "PASS: matched uses Object.keys(state.byTaskId ?? {}).length; unmatched uses (state.unmatched ?? []).length.",
+      "evidenceKind": "inspection"
+    },
+    {
+      "criterion": "startTime is captured at the top of runOneShot and durationMs is Date.now() - startTime at emission time.",
+      "command": "nl -ba scripts/sync-ralph-state.mjs | sed -n '131,147p'",
+      "result": "PASS: startTime is captured at line 132; durationMs is computed from it at line 146.",
+      "evidenceKind": "inspection"
+    },
+    {
+      "criterion": "A unit test in tools/overview-mcp/src/__tests__/sync-now.test.ts spawns the real script with a tmp repo and asserts stdout contains the parseable summary line.",
+      "command": "pnpm --filter @codexu/overview-mcp exec vitest run src/__tests__/sync-now.test.ts --passWithNoTests --reporter=verbose",
+      "result": "PASS: 1 test file passed, 1 test passed.",
+      "evidenceKind": "test"
+    },
+    {
+      "criterion": "Existing watcher mode behavior is unchanged; the summary line is one-shot only.",
+      "command": "grep -nE \"console[.](log|error)|runWatchMode|runOneShot\" scripts/sync-ralph-state.mjs; pnpm --filter @codexu/overview-mcp test",
+      "result": "PASS: only runOneShot contains the summary console.log; full overview MCP tests passed 16 files, 52 tests.",
+      "evidenceKind": "test"
+    },
+    {
+      "criterion": "Typecheck passes for @codexu/overview-mcp.",
+      "command": "pnpm --filter @codexu/overview-mcp typecheck",
+      "result": "PASS: tsc --noEmit exited 0.",
+      "evidenceKind": "typecheck"
+    },
+    {
+      "criterion": "pnpm --filter @codexu/overview-mcp test passes.",
+      "command": "pnpm --filter @codexu/overview-mcp test",
+      "result": "PASS: 16 test files passed, 52 tests passed.",
+      "evidenceKind": "test"
+    }
+  ],
+  "skippedReasons": [],
+  "notTested": [],
+  "iterationSHA": "5cef0cf3d97eb9b6e4ffc6926781600f0e125cfb"
+}

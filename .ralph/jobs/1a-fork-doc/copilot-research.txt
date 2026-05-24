@@ -1,0 +1,96 @@
+I’m opening the attached task file to see what needs to be done, then I’ll make the requested change directly.
+
+I’ve got the task. Next I’m reading the fork-strategy docs and the current architecture/patch-surface files to ground the analysis in the actual repo layout.
+
+I hit a policy restriction on the consumer-side codexu files, so I’m continuing from the codex repo itself and checking the exact sections and files the plan wants to touch.
+
+**Note:** the mandatory consumer-side file `D:\harness-efforts\codexu\docs\plans\codex-fork-extension-strategy.md` and the codexu roadmap were blocked by content-exclusion policy in this session, so the analysis below is grounded in the `codex` repo itself and flags that limitation where it matters.
+
+### Codebase Architecture
+
+This repo is a **Rust/Cargo monorepo wrapper around an upstream Codex subtree** with fork-only overlay crates and docs/scripts at the top level.
+
+- **Top-level layout:** `docs/`, `plans/`, `scripts/`, `.claude/commands/`, `external/repos/codex-patched/`, `codex-rs-overlay/`, `CLAUDE.md`.
+- **Primary codebase:** `external/repos/codex-patched/codex-rs/Cargo.toml` defines the main Rust workspace with many crates (`core`, `cli`, `model-provider`, `app-server`, `tui`, etc.).
+- **Fork-only additive code:** `codex-rs-overlay/` currently contains exactly `codex-copilot/`, `codex-copilot-launcher/`, and `codex-invariant-tests/`.
+- **Build/release tooling:** Cargo for Rust builds, Bash/PowerShell scripts for audits and maintenance, GitHub Actions in `.github/workflows/`, npm/GitHub Release packaging for distribution.
+- **Current fork remote:** `git remote -v` shows `origin` as `https://github.com/gim-home/codex.git`.
+
+The repo already documents the core split clearly:
+- `docs/README.md` describes `external/repos/codex-patched/` as the patched fork and `codex-rs-overlay/` as sibling crates kept outside the subtree.
+- `CLAUDE.md` and `.claude/commands/sync-upstream.md` explicitly say `external/repos/codex-patched/` is a **git subtree, not a submodule**.
+
+### Feature-Relevant Code
+
+Most relevant files are documentation/workflow files, not Rust code:
+
+- `docs/implementation/architecture.md`  
+  Current architecture overview. It explains transport and release layout, but does **not** yet have an explicit “Fork strategy” section. Natural place for the new strategy writeup.
+- `docs/implementation/patch-surface.md`  
+  Authoritative inventory of fork deltas. Especially relevant:
+  - §7 “Workspace / Cargo changes”
+  - §14 “Invariant-to-test mapping”
+  - §15 “Subtree lag check”
+  - §16 plugin placeholder substitution
+- `CLAUDE.md`  
+  Already contains the “Consumer: codexu” pointer and the “Minimize upstream-canonical conflict surface” tenet. The requested change should likely **promote/reframe** this, not invent a second policy.
+- `external/repos/codex-patched/codex-rs/Cargo.toml`  
+  Concrete proof that overlay crates are workspace-referenced from the subtree via:
+  - `../../../../codex-rs-overlay/codex-copilot`
+  - `../../../../codex-rs-overlay/codex-copilot-launcher`
+  - `../../../../codex-rs-overlay/codex-invariant-tests`
+- `scripts/check_subtree_lag.sh`  
+  Encodes the subtree workflow: stable upstream tag discovery (`latest_stable_tag`) and `git-subtree-split` tracking (`latest_subtree_split`).
+- `.claude/commands/sync-upstream.md` and `.claude/commands/rebase-upstream.md`  
+  Show the maintained workflow is still subtree-based (`git subtree pull --prefix=external/repos/codex-patched ... --squash`).
+- `plans/codex-source-patching.md`  
+  Historical doc that says the fork is `Evyatar108/codex-patched` on `sandbox-patches`, included as a git subtree at `external/repos/codex-patched/`.
+- `docs/plans/reduce-conflict-surface.md`  
+  Important because it contains a **future** W-5 proposal to convert `external/repos/codex-patched/` from subtree to submodule. That is not current reality and must not be accidentally documented as current.
+- `docs/implementation/regression-history.md`  
+  Recent rebase entries reinforce the fork-mediated + subtree-pull workflow.
+
+I found **no exact current references** in accessible codex docs to:
+- `plugin scoping`
+- `AskUserQuestion`
+- `Claude-via-Copilot adapter`
+
+So any patch-surface mention for those will be roadmap-facing, not tied to existing implemented seams.
+
+### Technical Constraints
+
+1. **Do not blur two different relationships.**
+   - The requested plan says **`codex/` is a submodule in codexu**.
+   - This repo’s own docs say **`external/repos/codex-patched/` is a subtree inside codex**.
+   Those must be documented as separate layers.
+
+2. **`patch-surface.md` is framed as “the authoritative reference for every change we carry.”**  
+   Planned future work should be labeled as **planned/upcoming**, not mixed into the live patch inventory as if already shipped.
+
+3. **Overlay-first is already established policy.**  
+   `CLAUDE.md` explicitly prefers new fork-exclusive work in `codex-rs-overlay/` to minimize rebase conflict surface. The requested future items should align to that rule.
+
+4. **Current docs already contain partial target content.**  
+   `CLAUDE.md` already points to codexu and already states the minimize-conflict-surface tenet. Minimal edits are safer than duplicating policy text in multiple places.
+
+5. **There is an active future-plan document for a different strategy.**  
+   `docs/plans/reduce-conflict-surface.md` W-5 proposes making `external/repos/codex-patched/` a submodule later. Any new “Fork strategy” doc text must explicitly say it is documenting the **current assumed strategy**, not closing that future RFC by accident.
+
+### Implementation Suggestions
+
+- **`docs/implementation/architecture.md`**  
+  Add a top-level **“Fork strategy”** section near the front (and TOC) that says, in repo-accurate language:
+  - when consumed by codexu, `codex/` is expected to be a git submodule tracking `gim-home/codex`;
+  - inside this repo, `external/repos/codex-patched/` is the upstream mirror layer maintained as a git subtree;
+  - fork-exclusive additive work belongs in `codex-rs-overlay/`;
+  - overlay crates workspace-reference the subtree root via relative Cargo paths.  
+  Reuse wording from `docs/README.md`, `CLAUDE.md`, and `patch-surface.md §15`.
+
+- **`docs/implementation/patch-surface.md`**  
+  Add a small, clearly labeled subsection such as **“Upcoming roadmap-owned seams”** or **“Planned fork extensions”** rather than inserting these into the shipped patch tables. Note the three roadmap items as **future overlay-first candidates**.
+
+- **`CLAUDE.md`**  
+  Make a **small top-of-file pointer**, not a rewrite: e.g. immediately after the overview, add one short paragraph linking codexu consumption of this repo and the minimize-conflict-surface rule.
+
+The safest wording pattern is **“When codexu consumes this repository...”** rather than stating unconditionally that this repo *is* a submodule, because this checkout is also used standalone and its own docs currently assume that.
+

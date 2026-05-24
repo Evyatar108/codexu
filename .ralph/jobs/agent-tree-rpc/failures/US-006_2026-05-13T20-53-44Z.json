@@ -1,0 +1,109 @@
+{
+  "story_id": "US-006",
+  "timestamp": "2026-05-13T20:53:44Z",
+  "iteration": 6,
+  "prd_state": {
+    "story": {
+      "id": "US-006",
+      "title": "End-to-end acceptance test using the real codex CLI",
+      "description": "As the project, I want a primary acceptance test in codex.integration.test.ts that uses the real codex CLI to spawn 2 sub-agents and proves the live tree reaches the CLI's delta stream and snapshot RPC. Per packages/happy-cli/agents.md, mocked tests do not count as primary acceptance.",
+      "acceptanceCriteria": [
+        "packages/happy-cli/src/codex/codex.integration.test.ts gains a new long-form test, guarded by RUN_CODEX_INTEGRATION === '1', that boots a real codex app-server through the existing test rig and asks the agent to spawn 2 sub-agents (child B nested under child A under root)",
+        "The test mounts an in-test bridge: constructs the production AgentTreeState reducer, hands the real CodexAppServerClient.setEventHandler callback through the same dispatch the production runCodex.ts uses, and captures emitted deltas through a fake sendAgentTreeUpdate sink",
+        "Captured deltas contain the ordered subsequence pending-spawn-started(A) → node-added(A) → pending-spawn-started(B) → node-added(B) (additional interleaved node-status-changed deltas are tolerated; model nondeterminism is bounded by a per-spawn timeout ≤120s)",
+        "seq values are strictly increasing across the captured stream",
+        "state.snapshot() returns a topology with nodes containing exactly A and B (root is excluded per AgentRegistry.live_agents() semantics) and edges [{parent: rootThreadId, child: A.threadId}, {parent: A.threadId, child: B.threadId}]",
+        "Test invocation on Windows / Git Bash: RUN_CODEX_INTEGRATION=1 npm_config_script_shell=bash pnpm --filter happy exec vitest run src/codex/codex.integration.test.ts. Requires OPENAI_API_KEY (or equivalent codex auth) in environment",
+        "Prompts are deterministic (e.g., 'spawn one explorer named A and instruct A to spawn one explorer named B')",
+        "Typecheck passes",
+        "Tests pass"
+      ],
+      "priority": 6,
+      "passes": false,
+      "notes": "",
+      "verifiedEvidence": [],
+      "dependencies": [
+        "US-001",
+        "US-002",
+        "US-003",
+        "US-004",
+        "US-005"
+      ],
+      "failureClassification": "design_flaw",
+      "failureCount": 1,
+      "partialProgress": {
+        "branch": "partial/US-006",
+        "filesCreated": [],
+        "filesModified": [
+          "environments/environments.ts",
+          "packages/happy-cli/src/codex/codex.integration.test.ts"
+        ],
+        "completedSteps": [
+          "Added a RUN_CODEX_INTEGRATION-gated real Codex app-server agent-tree test scaffold",
+          "Mounted production createAgentTreeState reducer dispatch in the integration test and captured fake sendAgentTreeUpdate deltas",
+          "Fixed the Windows integration environment runner to invoke pnpm through its CJS entrypoint for native child_process spawn",
+          "Verified happy-cli typecheck passes"
+        ],
+        "remainingSteps": [
+          "Resolve or revise the nested-agent acceptance requirement because real spawned Codex child agents report that spawn_agent and wait_agent are unavailable",
+          "Once nested spawning is possible, rerun the gated real Codex integration and full relevant checks"
+        ],
+        "testStatus": "happy-cli typecheck passes; focused RUN_CODEX_INTEGRATION test fails because child A cannot spawn/wait for child B; full codex integration also has a pre-existing ws open timeout in one case"
+      }
+    },
+    "total_passed": 5,
+    "total_blocked": 0,
+    "total_remaining": 2
+  },
+  "progress_tail": "- Time: 530000ms\n---\n\n## 2026-05-13 13:30:19 PDT - US-005\n- Implemented server-side `agent-tree-update` handling in `sessionUpdateHandler`, validating inbound `{ delta }` with `AgentTreeDeltaSchema`, rejecting non-session-scoped sockets, and trusting `connection.sessionId` instead of any client payload session id.\n- Added `EventRouter.emitAgentTreeUpdate(...)` and widened routed socket event typing so the server emits outbound `{ sessionId, delta }` frames to session-scoped and user-scoped subscribers without writing to replay.\n- Added focused server coverage for EventRouter fan-out and sessionUpdateHandler authorization/validation, and updated existing typed EventRouter test doubles.\n- Verified `pnpm --filter \"{packages/happy-server}\" typecheck` passes; log is in `.test-output/happy-server.typecheck.log`.\n- Verified `pnpm --filter \"{packages/happy-server}\" test` passes 17/17 test files and 88/88 tests; log is in `.test-output/happy-server.test.log`.\n- Verified the codex submodule read-only invariant: `git diff --name-only -- codex/external/repos/codex-patched` and `git diff --submodule=diff -- codex` both returned empty output.\n- Committed as `b2826f89 feat: US-005 - Server-side authorization, validation, and fan-out`.\n- Files changed: `packages/happy-server/sources/app/api/socket/sessionUpdateHandler.ts`, `packages/happy-server/sources/app/api/socket/sessionUpdateHandler.test.ts`, `packages/happy-server/sources/app/events/eventRouter.ts`, `packages/happy-server/sources/app/events/eventRouter.test.ts`, `packages/happy-server/sources/app/api/routes/v3SessionRoutes.test.ts`, `packages/happy-server/sources/app/api/socket.spec.ts`.\n- **Learnings for future iterations:**\n  - `agent-tree-update` is deliberately not replayable server state; it is a live routed socket frame whose `sessionId` is added by the server for user-scoped demux.\n  - When the `EventRouter` interface gains a method, server tests with typed router doubles must be updated even if the specific test does not call the new method.\n---\n\n## Iteration 5 — US-005 (pass)\n- Time: 353000ms\n---",
+  "git_status": "",
+  "git_diff_stat": "",
+  "last_error": "Focused RUN_CODEX_INTEGRATION test captured root spawning A, but child A replied it does not have spawn_agent or wait_agent, so required nested B topology never materialized within 120s.",
+  "acceptance_criteria_status": [
+    {
+      "criterion": "codex.integration.test.ts gains RUN_CODEX_INTEGRATION long-form test spawning A nested B",
+      "status": "failed",
+      "detail": "Partial test added, but real Codex child A reported spawn_agent/wait_agent unavailable, so nested B cannot be produced."
+    },
+    {
+      "criterion": "In-test bridge constructs production AgentTreeState and captures sendAgentTreeUpdate deltas",
+      "status": "implemented",
+      "detail": null
+    },
+    {
+      "criterion": "Captured deltas contain pending A -> added A -> pending B -> added B subsequence",
+      "status": "failed",
+      "detail": "Captured A begin/end and wait status only; no B spawn events."
+    },
+    {
+      "criterion": "seq values strictly increase",
+      "status": "implemented",
+      "detail": "Reducer deltas observed with monotonic seq before topology failure; full stream cannot pass without B."
+    },
+    {
+      "criterion": "snapshot returns exactly A and B nodes plus root->A and A->B edges",
+      "status": "failed",
+      "detail": "Snapshot reached only A under root; B absent."
+    },
+    {
+      "criterion": "Windows/Git Bash RUN_CODEX_INTEGRATION invocation",
+      "status": "failed",
+      "detail": "Invocation ran; focused test failed on nested-agent capability, full file also exposed one ws transport timeout."
+    },
+    {
+      "criterion": "Prompts are deterministic",
+      "status": "implemented",
+      "detail": "Partial test uses fixed A/B marker prompt."
+    },
+    {
+      "criterion": "Typecheck passes",
+      "status": "implemented",
+      "detail": "pnpm --filter {packages/happy-cli} typecheck exit 0."
+    },
+    {
+      "criterion": "Tests pass",
+      "status": "failed",
+      "detail": "Focused real-Codex integration test failed."
+    }
+  ]
+}

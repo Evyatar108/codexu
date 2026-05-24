@@ -1,0 +1,108 @@
+{
+  "storyId": "US-006",
+  "verifiedEvidence": [
+    {
+      "criterion": "Hook fetches cache-busted activity JSONL and parses line-by-line",
+      "command": "grep -nE \"overview-activity.jsonl|Date.now|parseActivityJsonl|JSON.parse\" tools/overview-viewer/src/hooks/useActivityEvents.ts && pnpm --filter @codexu/overview-viewer exec vitest run src/__tests__/interactions/useActivityEvents.test.tsx",
+      "result": "PASS: fetch uses ./overview-activity.jsonl?t=${Date.now()}; parseActivityJsonl parses each JSONL line; hook tests passed 5/5.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "LAST-line JSON.parse failure is skipped silently",
+      "command": "pnpm --filter @codexu/overview-viewer exec vitest run src/__tests__/interactions/useActivityEvents.test.tsx",
+      "result": "PASS: torn final non-empty line fixture passed and asserted console.warn was not called.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "INTERIOR-line JSON.parse failure warns and skips",
+      "command": "pnpm --filter @codexu/overview-viewer exec vitest run src/__tests__/interactions/useActivityEvents.test.tsx",
+      "result": "PASS: malformed interior fixture passed and asserted console.warn while retaining valid surrounding events.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "HMR subscribe/unsubscribe on overview-ralph-state:update",
+      "command": "grep -nE \"import.meta.hot|overview-ralph-state:update|off?.\" tools/overview-viewer/src/hooks/useActivityEvents.ts && pnpm --filter @codexu/overview-viewer typecheck",
+      "result": "PASS: source registers import.meta.hot.on and cleanup calls import.meta.hot?.off?. with the same refetch callback; typecheck passed.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Returns ActivityEvent[] newest-first",
+      "command": "grep -n \"events.reverse\" tools/overview-viewer/src/hooks/useActivityEvents.ts && pnpm --filter @codexu/overview-viewer exec vitest run src/__tests__/interactions/useActivityEvents.test.tsx",
+      "result": "PASS: parser reverses events; test asserts newest-first task order [new, old].",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Missing activity file returns []",
+      "command": "pnpm --filter @codexu/overview-viewer exec vitest run src/__tests__/interactions/useActivityEvents.test.tsx",
+      "result": "PASS: non-ok fetch fixture returned an empty array without crashing.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "file:// fetch throws returns []",
+      "command": "pnpm --filter @codexu/overview-viewer exec vitest run src/__tests__/interactions/useActivityEvents.test.tsx",
+      "result": "PASS: fetch TypeError fixture returned an empty array without crashing.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "overviewActivityPlugin exists with enforce pre",
+      "command": "grep -nE \"overviewActivityPlugin|enforce: .pre.\" tools/overview-viewer/vite.config.ts tools/overview-viewer/src/__tests__/viteActivityPlugin.test.ts",
+      "result": "PASS: overviewActivityPlugin is exported, has enforce pre, and plugin test asserts that ordering contract.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Plugin middleware serves /overview-activity.jsonl from plans/overview-activity.jsonl",
+      "command": "grep -nE \"overviewActivityPath|server.middlewares.use(./overview-activity.jsonl\" tools/overview-viewer/vite.config.ts && pnpm --filter @codexu/overview-viewer exec vitest run src/__tests__/viteActivityPlugin.test.ts",
+      "result": "PASS: source resolves ../../plans/overview-activity.jsonl and registers /overview-activity.jsonl middleware; plugin tests passed 3/3.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "ENOENT returns 200 empty body, not 404",
+      "command": "grep -nE \"ENOENT|statusCode = 200|res.end(.)\" tools/overview-viewer/vite.config.ts && pnpm --filter @codexu/overview-viewer exec vitest run src/__tests__/viteActivityPlugin.test.ts",
+      "result": "PASS: ENOENT branch sets statusCode 200 and empty body; plugin test asserted 200 with body \"\".",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Plugin registered before SPA fallback; curl endpoint is JSONL/empty, not HTML",
+      "command": "pnpm --dir tools/overview-viewer exec vite --host 127.0.0.1 --port 5187 + curl http://127.0.0.1:5187/overview-activity.jsonl",
+      "result": "PASS: curl returned HTTP 200, Content-Type application/x-ndjson, Content-Length 0, body size 0, and no SPA HTML.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "scripts.d.ts updated for parser, PR-links, journal helpers",
+      "command": "grep -nE \"parse-notepad|derive-pr-links|append-journal|notepadText\" tools/overview-viewer/src/__tests__/scripts.d.ts",
+      "result": "PASS: scripts.d.ts declares parse-notepad, derive-pr-links, append-journal, and notepadText.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Vitest hook coverage for multi-line JSONL, torn-last-line, interior warn, ENOENT, fetch throws",
+      "command": "grep -nE \"cache-busted|newest-first|torn final|malformed interior|missing|fetch throws\" tools/overview-viewer/src/__tests__/interactions/useActivityEvents.test.tsx && pnpm --filter @codexu/overview-viewer exec vitest run src/__tests__/interactions/useActivityEvents.test.tsx",
+      "result": "PASS: required hook case labels are present and hook test file passed 5/5 tests.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Typecheck passes",
+      "command": "pnpm --filter @codexu/overview-viewer typecheck",
+      "result": "PASS: tsc --noEmit completed with exit=0; log captured at .test-output/overview-viewer.typecheck.log.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "US-006:AC-015 browser HMR verification",
+      "command": "N/A",
+      "result": "SKIPPED: US-006:AC-015 browser automation unavailable; HMR refetch verification requires manual browser pass.",
+      "evidenceKind": "manual-skip"
+    },
+    {
+      "criterion": "Full test commands pass",
+      "command": "pnpm test && pnpm --filter @codexu/overview-viewer test",
+      "result": "PASS: pnpm test reported 16 files / 93 tests passed; overview-viewer test reported 31 files / 167 tests passed.",
+      "evidenceKind": "passed"
+    }
+  ],
+  "skippedReasons": [
+    "browser_automation_unavailable"
+  ],
+  "notTested": [
+    "Browser HMR verification; no browser automation tool available"
+  ],
+  "iterationSHA": "11b1df70ebb5f8ffaacf9f61257847ff6934c1c1"
+}

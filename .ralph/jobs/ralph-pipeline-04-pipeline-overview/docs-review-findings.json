@@ -1,0 +1,103 @@
+{
+  "planFile": "D:/harness-efforts/codexu/.ralph/jobs/ralph-pipeline-04-pipeline-overview/plan.md",
+  "repoDir": "D:/harness-efforts/codexu/.ralph/jobs/ralph-pipeline-04-pipeline-overview/worktree",
+  "reviewCycle": 2,
+  "findings": [
+    {
+      "id": "F-001",
+      "severity": "Medium",
+      "source": "docs",
+      "classification": "fixable",
+      "phase": "docs",
+      "category": "Stale Documentation",
+      "description": "plans/ralph-pipeline-04-pipeline-overview.md line 31 documents `scoreRecommendations(byTaskId, overviewData) -> Recommendation[]` as a positional-argument function, but the shipped implementation in scripts/lib/score-recommendations.mjs:25 exports `scoreRecommendations({ byTaskId, overviewData, prdsByTaskId, config } = {})` — a single options object with a required `prdsByTaskId` carrier and an optional `config`. plans/ralph-pipeline-INDEX.md line 200 already documents the correct shape, so the plan is the only outlier and will mislead any future reader who tries to call the function from the plan signature.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Refreshed plans/ralph-pipeline-04-pipeline-overview.md to match as-built code (commit 896872c3)",
+      "relevantFiles": [
+        "plans/ralph-pipeline-04-pipeline-overview.md"
+      ],
+      "suggestedFix": "Update plans/ralph-pipeline-04-pipeline-overview.md line 31 (and the matching `Inputs:` line ~48) to: `pure function scoreRecommendations({ byTaskId, overviewData, prdsByTaskId, config? }) -> Recommendation[]`. Mention that `prdsByTaskId` is required and is carried as a non-enumerable property on the state object via `getPrdsByTaskId(state)`."
+    },
+    {
+      "id": "F-002",
+      "severity": "Medium",
+      "source": "docs",
+      "classification": "fixable",
+      "phase": "docs",
+      "category": "Stale Documentation",
+      "description": "plans/ralph-pipeline-04-pipeline-overview.md line 56 documents `deriveDependencyGraph(overviewData)` as a single-positional-arg call, but the shipped implementation in scripts/lib/derive-dependency-graph.mjs:1 exports `deriveDependencyGraph({ generatedAt, generatedFromCommit, overviewData, byTaskId, prdsByTaskId } = {})`. The plan signature is missing `generatedAt`, `generatedFromCommit`, `byTaskId`, and `prdsByTaskId`. INDEX line 201 already documents the correct shape.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Refreshed plans/ralph-pipeline-04-pipeline-overview.md to match as-built code (commit 896872c3)",
+      "relevantFiles": [
+        "plans/ralph-pipeline-04-pipeline-overview.md"
+      ],
+      "suggestedFix": "Replace line 56 with: `Call deriveDependencyGraph({ generatedAt, generatedFromCommit, overviewData, byTaskId, prdsByTaskId }) → write plans/overview-dependency-graph.json atomically.` Note in the surrounding text that story node IDs are namespaced as `${taskId}:${storyId}` and edges use `source`/`target` rather than `from`/`to`."
+    },
+    {
+      "id": "F-003",
+      "severity": "Medium",
+      "source": "docs",
+      "classification": "fixable",
+      "phase": "docs",
+      "category": "Stale Documentation",
+      "description": "plans/ralph-pipeline-04-pipeline-overview.md lines 54-57 describe sidecar emission happening `after mergeAndWrite produces the new sidecar state`, but the shipped implementation in scripts/lib/sync-core.mjs:320-348 calls `emitDerivedArtifacts(...)` from inside `writeSidecar({ repoRoot, config, state })` (line 348), which is reached by BOTH the one-shot CLI path and the watcher cold-start path. The job CLAUDE.md explicitly warns that `Hooking only mergeAndWrite silently breaks the one-shot path` — the plan text contradicts the as-built emission contract and could regress future refactors.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Refreshed plans/ralph-pipeline-04-pipeline-overview.md to match as-built code (commit 896872c3)",
+      "relevantFiles": [
+        "plans/ralph-pipeline-04-pipeline-overview.md"
+      ],
+      "suggestedFix": "Rewrite the bullets under `To modify > scripts/lib/sync-core.mjs` to say: `writeSidecar({ repoRoot, config, state }) emits plans/overview-recommendations.json and plans/overview-dependency-graph.json via emitDerivedArtifacts({ repoRoot, config, recommendations, dependencyGraph }) after the sidecar .js/.json writes are durable. mergeAndWrite reaches the same emission by calling writeSidecar; the one-shot CLI path and watcher cold-start both call writeSidecar directly and therefore also fire emitDerivedArtifacts.` Also call out that `atomicWriteFile` is exported from sync-core.mjs for reuse."
+    },
+    {
+      "id": "F-004",
+      "severity": "Medium",
+      "source": "docs",
+      "classification": "fixable",
+      "phase": "docs",
+      "category": "Stale Documentation",
+      "description": "plans/ralph-pipeline-04-pipeline-overview.md line 118 (Verification step C) instructs the reviewer to run `cat plans/overview-recommendations.json | jq '.recommendations[0:5]'`, but the shipped artifact is a bare `Recommendation[]` array (confirmed: the file starts with `[` and contains no top-level `recommendations` key). The verification command will return `null` against the real artifact and falsely fail the AC. plans/ralph-pipeline-04-refresh-changelog.md line 8 already documents this exact normalization for Plan 06.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Refreshed plans/ralph-pipeline-04-pipeline-overview.md to match as-built code (commit 896872c3)",
+      "relevantFiles": [
+        "plans/ralph-pipeline-04-pipeline-overview.md"
+      ],
+      "suggestedFix": "Change line 118 to: `cat plans/overview-recommendations.json | jq '.[0:5]'` and add a note that the file is a bare ranked `Recommendation[]` array (not a wrapper object), matching INDEX line 200 and the Plan 05 / Plan 06 / Plan 09 consumers."
+    },
+    {
+      "id": "F-005",
+      "severity": "Medium",
+      "source": "docs",
+      "classification": "fixable",
+      "phase": "docs",
+      "category": "Stale Documentation",
+      "description": "plans/ralph-pipeline-04-pipeline-overview.md line 47 specifies the `PipelineOverview` empty state should render literally `No Ralph state tracked yet — run pnpm sync-ralph-state or check unmatched in stderr`, but the shipped component at tools/overview-viewer/src/components/PipelineOverview.tsx:29 renders `No Ralph stage data` and the interaction test at tools/overview-viewer/src/__tests__/interactions/pipelineOverview.test.tsx:94,97 asserts that exact shorter string. A reader following the plan will misimplement the empty state and the existing test will fail.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Refreshed plans/ralph-pipeline-04-pipeline-overview.md to match as-built code (commit 896872c3)",
+      "relevantFiles": [
+        "plans/ralph-pipeline-04-pipeline-overview.md"
+      ],
+      "suggestedFix": "Update line 47 to reflect the as-built empty-state copy: `Empty state: when ralphState is null OR total count is 0, render <div className=\"pipeline-overview-empty\">No Ralph stage data</div>.` Optionally add a one-line note explaining why the shorter copy was chosen (asserted verbatim by the interactions test) so a future refactor doesn't reintroduce the longer string and break the test."
+    },
+    {
+      "id": "F-006",
+      "severity": "Low",
+      "source": "docs",
+      "classification": "fixable",
+      "phase": "docs",
+      "category": "Stale Documentation",
+      "description": "plans/ralph-pipeline-04-pipeline-overview.md line 33 says `Scoring weights override lives in the main .ralph/overview-config.json under a recommendations.weights key (default 40/30/20/10 from the comprehensive plan)`. The shipped config schema (`.ralph/overview-config.schema.json`) and defaults add a full `recommendations` block (`topN` + `weights`) AND new `outputs.recommendationsJson` and `outputs.dependencyGraphJson` path keys, both of which the job CLAUDE.md (lines 17-18) lists as mandatory closed-schema additions. The plan never mentions `topN` or the new output paths, leaving the schema surface under-documented.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Refreshed plans/ralph-pipeline-04-pipeline-overview.md to match as-built code (commit 896872c3)",
+      "relevantFiles": [
+        "plans/ralph-pipeline-04-pipeline-overview.md"
+      ],
+      "suggestedFix": "Extend line 33 to enumerate the four new closed-schema keys: `outputs.recommendationsJson`, `outputs.dependencyGraphJson`, `recommendations.topN`, and `recommendations.weights` (with the 40/30/20/10 defaults). Note that the schema is closed (additionalProperties: false) and additions must touch `.ralph/overview-config.schema.json`, `scripts/lib/default-config.mjs`, `scripts/lib/default-config.d.mts`, and `scripts/lib/resolve-config.mjs` in lockstep."
+    }
+  ]
+}

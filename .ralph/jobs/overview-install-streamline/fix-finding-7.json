@@ -1,0 +1,20 @@
+{
+  "id": "F-008",
+  "severity": "High",
+  "source": "copilot",
+  "category": "Correctness",
+  "classification": "fixable",
+  "phase": "code",
+  "sectionRef": "bin/ralph-overview.mjs cli subcommand",
+  "description": "bin/ralph-overview.mjs:50-52 routes the 'cli' subcommand unconditionally to scripts/sync-ralph-state.mjs, passing the remainder of argv (e.g. 'derive-next-command --task <id>') as arguments to the sync script. sync-ralph-state.mjs has no 'derive-next-command' subcommand and throws 'unknown argument: derive-next-command' on parse. This breaks the existing /work-on, /triage, and /blocker-report skills which all reference `ralph-overview cli derive-next-command` in their SKILL.md files (skills/work-on/SKILL.md:80,135; skills/triage/SKILL.md:90; skills/blocker-report/SKILL.md:102) and the regenerated Copilot mirrors under dist/copilot/. The v1.0.0 CHANGELOG describes the cli subcommand as a generic lib-CLI dispatcher; there is in fact a scripts/lib/derive-next-command-cli.mjs file that should be the target. Verified by Copilot review.",
+  "relevantFiles": [
+    "plugins/ralph-overview/bin/ralph-overview.mjs:50-53",
+    "plugins/ralph-overview/scripts/lib/derive-next-command-cli.mjs",
+    "plugins/ralph-overview/skills/work-on/SKILL.md:80",
+    "plugins/ralph-overview/skills/work-on/SKILL.md:135",
+    "plugins/ralph-overview/skills/triage/SKILL.md:90",
+    "plugins/ralph-overview/skills/blocker-report/SKILL.md:102"
+  ],
+  "suggestedFix": "Change the 'cli' branch to dispatch by subcommand name into scripts/lib/<name>-cli.mjs (e.g., when args.rest[0] === 'derive-next-command', spawn scripts/lib/derive-next-command-cli.mjs with the remaining args). Add a smoke test that invokes `node bin/ralph-overview.mjs cli derive-next-command --task TASK-1` against a fixture repo and asserts exit 0 + a JSON payload on stdout.",
+  "status": "open"
+}

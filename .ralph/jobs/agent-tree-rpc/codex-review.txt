@@ -1,0 +1,25 @@
+### Completeness
+
+[High] `packages/happy-cli/src/codex/codex.integration.test.ts` is not updated, and `plans/codexu-roadmap.md:190` explicitly says the real-Codex nested-child acceptance remains blocked. This misses AC4, the plan’s primary acceptance test.
+
+[Medium] `packages/happy-wire/src/agentTree.ts:1` defines node/snapshot/delta schemas, but not the shared RPC request/response or Socket.IO payload schemas required by the plan. `packages/happy-server/sources/app/api/socket/sessionUpdateHandler.ts:11` recreates the inbound payload schema locally instead.
+
+### Correctness
+
+[Medium] `packages/happy-cli/src/codex/codexAppServerClient.ts:395` emits `closeAgent` events for both `item/started` and `item/completed`, and `packages/happy-cli/src/codex/agentTreeState.ts:288` removes the subtree immediately. A failed or still-pending close can incorrectly delete live nodes from the tree.
+
+[Medium] Legacy metadata recovery likely does not work with the real Codex payload. The plan says legacy spawn-end carries `new_agent_nickname` / `new_agent_role`, but `packages/happy-cli/src/codex/agentTreeState.ts:119` only reads `agentRole`, `agent_role`, or `role`, and node creation at `packages/happy-cli/src/codex/agentTreeState.ts:245` only reads `nickname`. Real legacy events can leave role as `"agent"` and nickname as `null`.
+
+### Quality
+
+[Low] The generated `packages/happy-wire/dist/index.d.cts:16` and `packages/happy-wire/dist/index.d.mts:16` diffs include broad property-order churn unrelated to agent-tree. That makes the actual contract change harder to audit.
+
+[Low] The docs mark the work delivered while also noting acceptance is blocked: `plans/codexu-roadmap.md:186` marks delivered, but `plans/codexu-roadmap.md:190` says the real-Codex nested-child acceptance remains blocked. That status is misleading for downstream work.
+
+### Security
+
+No issues found.
+
+### Overall Assessment
+
+Not ready as-is. The main bridge is present, but the primary real-Codex acceptance test is missing, and the reducer/parser can publish incorrect tree state for close-agent and real legacy metadata cases.

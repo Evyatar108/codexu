@@ -1,0 +1,18 @@
+{
+  "id": "F-008",
+  "severity": "Medium",
+  "source": "claude",
+  "classification": "fixable",
+  "phase": "code",
+  "category": "Quality",
+  "sectionRef": "build.ts and sync-now.ts — child exit handling via once",
+  "description": "build.ts (once(managed.child!, 'exit')) and sync-now.ts use 'once(managed.child!, \\'exit\\')' to wait for child exit. Because ProcessManager.spawn also registers an exit listener that flips status to 'exited' AND deletes oneShot Map entries, the order between the tool's once-await and the manager's listeners is non-deterministic across Node versions. Today it happens to work because managed.logs() and the returned snapshot are owned by the handle, not the Map. A future change to ManagedProcess.logs() that reads through the Map would silently regress.",
+  "status": "open",
+  "fixedInIteration": null,
+  "resolution": null,
+  "relevantFiles": [
+    "tools/overview-mcp/src/tools/build.ts:57-71",
+    "tools/overview-mcp/src/tools/sync-now.ts:68-97"
+  ],
+  "suggestedFix": "Expose ManagedProcess.exitPromise (resolved when the manager has fully reconciled state — status='exited', exitCode/signal captured) and await it instead of once(child, 'exit'). The promise should resolve to { code, signal } so callers do not parse the tuple themselves."
+}

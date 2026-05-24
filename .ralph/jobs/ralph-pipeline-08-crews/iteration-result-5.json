@@ -1,0 +1,62 @@
+{
+  "storyId": "US-005",
+  "verifiedEvidence": [
+    {
+      "criterion": "walkRalphState reads config.outputs.sidecarJson if it exists and threads priorCrewSessions into assembleStateFromBundles.",
+      "evidenceKind": "passed",
+      "command": "grep -En \"readPriorCrewSessions|assembleStateFromBundles|priorCrewSessions\" scripts/lib/sync-core.mjs",
+      "result": "PASS: walkRalphState reads prior crew sessions from the sidecar and passes priorCrewSessions into assembleStateFromBundles."
+    },
+    {
+      "criterion": "assembleStateFromBundles and mergeAndWrite invoke discoverCrewSessions AFTER per-slug Ralph derivation, passing priorCrewSessions for the explicit-preservation merge.",
+      "evidenceKind": "passed",
+      "command": "grep -En \"discoverCrewSessions|mergeDiscoveredCrewSessions|priorCrewSessions\" scripts/lib/sync-core.mjs",
+      "result": "PASS: both paths derive Ralph state first, then call mergeDiscoveredCrewSessions with prior crew sessions."
+    },
+    {
+      "criterion": "Merge identity: prefer sessionId; fall back to (crewName, memberName). Entries with _isExplicit: true survive intact (endedAt, outcome, summary preserved).",
+      "evidenceKind": "passed",
+      "command": "grep -En \"function sameCrewSession|function mergeCrewSessionEntry|preserves explicit\" scripts/lib/sync-core.mjs scripts/lib/sync-core.test.mjs",
+      "result": "PASS: identity and explicit preservation are implemented and covered by Vitest."
+    },
+    {
+      "criterion": "Partial explicit entries (no sessionId) get upgraded in place when heuristic discovery later supplies sessionId/transcriptPath; no duplicate entry is created.",
+      "evidenceKind": "passed",
+      "command": "grep -En \"partial explicit|sessionId: 'session-a'|toHaveLength\" scripts/lib/sync-core.test.mjs",
+      "result": "PASS: the partial explicit upgrade test asserts one upgraded entry with sessionId and transcriptPath."
+    },
+    {
+      "criterion": "Existing entries are matched across all RalphStage buckets and remain in their recorded bucket; a session first recorded under 'implementing' is not migrated or duplicated when the task later advances to 'reviewing'.",
+      "evidenceKind": "passed",
+      "command": "grep -En \"recorded stage|not.toHaveProperty\" scripts/lib/sync-core.test.mjs",
+      "result": "PASS: the stage-stickiness test keeps the session under implementing after the task advances to reviewing."
+    },
+    {
+      "criterion": "scripts/lib/sync-core.mjs exports rescanCrewSessionsAndWrite({ currentState, config, repoRoot, overviewData }) that re-runs discoverCrewSessions, merges into currentState.byTaskId[*].crewSessions, updates only crew-session data + generatedAt, calls writeSidecar() without re-reading or re-deriving Ralph bundles.",
+      "evidenceKind": "passed",
+      "command": "grep -En \"export async function rescanCrewSessionsAndWrite|non-crew Ralph\" scripts/lib/sync-core.mjs scripts/lib/sync-core.test.mjs",
+      "result": "PASS: rescanCrewSessionsAndWrite is exported and the non-crew-field preservation test passed."
+    },
+    {
+      "criterion": "Vitest covers: heuristic adds new entries, explicit prior entries survive, partial entry upgrade in place, stage stickiness on task advancement, stale idempotency, crew-only rescan leaves non-crew Ralph fields unchanged.",
+      "evidenceKind": "passed",
+      "command": "grep -En \"heuristic crew sessions|preserves explicit|partial explicit|recorded stage|stale stopped|non-crew Ralph\" scripts/lib/sync-core.test.mjs && grep -n \"sync-core.test.mjs\" .test-output/root.test.log | tail -3",
+      "result": "PASS: all six named tests are present; root test log reports scripts/lib/sync-core.test.mjs (29 tests) passed."
+    },
+    {
+      "criterion": "Typecheck passes.",
+      "evidenceKind": "passed",
+      "command": "pnpm --filter @codexu/overview-viewer typecheck",
+      "result": "PASS: tsc --noEmit completed with exit 0 in 7s; output saved to .test-output/overview-viewer.typecheck.log."
+    },
+    {
+      "criterion": "Tests pass.",
+      "evidenceKind": "passed",
+      "command": "pnpm test",
+      "result": "PASS: 21 test files passed, 137 tests passed; output saved to .test-output/root.test.log."
+    }
+  ],
+  "skippedReasons": [],
+  "notTested": [],
+  "iterationSHA": "f6eda0473d188503c57e2e4953b742293271717b"
+}

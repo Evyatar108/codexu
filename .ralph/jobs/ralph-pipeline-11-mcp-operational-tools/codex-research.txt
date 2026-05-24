@@ -1,0 +1,63 @@
+**Codebase Architecture**
+
+This is a pnpm monorepo. The relevant packages are:
+
+- [tools/overview-viewer](D:/harness-efforts/codexu/tools/overview-viewer): React 19 + Vite 8 dashboard. Root scripts map to it: `pnpm overview` runs the dev server, `pnpm overview:build` emits `plans/overview.html`.
+- [tools/overview-mcp](D:/harness-efforts/codexu/tools/overview-mcp): TypeScript ESM MCP server using `@modelcontextprotocol/sdk`, zod, Vitest, and NodeNext.
+- [scripts/lib](D:/harness-efforts/codexu/scripts/lib): shared Ralph state/sync/config modules consumed by both viewer and MCP.
+
+MCP structure is:
+
+- [context.ts](D:/harness-efforts/codexu/tools/overview-mcp/src/context.ts:8): builds `ServerContext` with `repoRoot`, resolved Ralph config, and `SnapshotReader`.
+- [server.ts](D:/harness-efforts/codexu/tools/overview-mcp/src/server.ts:42): registers the existing 10 tools. New tools should be registered here, not primarily in `index.ts`.
+- [index.ts](D:/harness-efforts/codexu/tools/overview-mcp/src/index.ts:15): stdio entrypoint and shutdown handling.
+- [schemas.ts](D:/harness-efforts/codexu/tools/overview-mcp/src/schemas.ts:16): zod input schema shapes and inferred TS types.
+- [tools/read-only.ts](D:/harness-efforts/codexu/tools/overview-mcp/src/tools/read-only.ts:127): `toToolResult()` wraps JSON as MCP text content.
+
+Tests currently live under `tools/overview-mcp/src/__tests__`. The Vitest config only includes `src/__tests__/**/*.test.ts`, so Plan 11’s proposed `tools/overview-mcp/tests/*.test.ts` path would not run unless config changes.
+
+**Feature-Relevant Code**
+
+Key files and contracts:
+
+- [package.json](D:/harness-efforts/codexu/package.json:10): root scripts:
+  - `overview` → `pnpm --filter @codexu/overview-viewer dev`
+  - `overview:build` → `pnpm --filter @codexu/overview-viewer build`
+  - `sync-ralph-state` → `node scripts/sync-ralph-state.mjs`
+  - `sync-ralph-state:watch` → watcher mode
+- [tools/overview-viewer/package.json](D:/harness-efforts/codexu/tools/overview-viewer/package.json:6): Vite dev command pins `--host 127.0.0.1 --port 5173`.
+- [vite.config.ts](D:/harness-efforts/codexu/tools/overview-viewer/vite.config.ts:171): `ralphStateWatcherPlugin()` starts `watch-ralph-state.mjs` with `processLabel: 'vite-plugin'` when `pnpm overview` runs.
+- [vite.config.ts](D:/harness-efforts/codexu/tools/overview-viewer/vite.config.ts:208): build output is `../../plans`; `overview.html` is the static artifact to stat after `overview.build`.
+- [scripts/lib/sync-lock.mjs](D:/harness-efforts/codexu/scripts/lib/sync-lock.mjs:4): lock stale threshold is private `60_000`; JSON metadata is `{ pid, process, startedAt }`.
+- [scripts/lib/sync-lock.mjs](D:/harness-efforts/codexu/scripts/lib/sync-lock.mjs:127): PID liveness uses `process.kill(pid, 0)`, treating `EPERM` as alive and only `ESRCH` as dead.
+- [scripts/sync-ralph-state.mjs](D:/harness-efforts/codexu/scripts/sync-ralph-state.mjs:131): one-shot sync uses lock label `standalone-oneshot`, writes unmatched diagnostics to stderr, but does not currently emit the requested parseable stdout summary.
+- [scripts/sync-ralph-state.mjs](D:/harness-efforts/codexu/scripts/sync-ralph-state.mjs:175): watch mode starts with lock label `standalone`.
+
+**Technical Constraints**
+
+The MCP server stdout must remain reserved for JSON-RPC; all diagnostics must go to stderr. Tool subprocess logs must be captured in memory and returned via MCP, not inherited to stdout.
+
+`index.ts` shutdown is async for `SIGINT`/`SIGTERM`, but Node `exit` handlers cannot await async cleanup. Use `SIGINT`/`SIGTERM` for reliable `ProcessManager.stopAll()`. Do not rely on `process.on('exit', async ...)`.
+
+The codebase uses strict TypeScript and ESM. If `ProcessManager` imports `child_process.spawn`, design it with an injectable spawn implementation for tests, because dev-server tests should not launch a real long-running Vite process.
+
+For lock inspection, prefer extending `scripts/lib/sync-lock.mjs` with an exported status/parse helper rather than duplicating its private stale/PID logic in MCP. Otherwise `overview.sync.watch_status` can drift from the actual lock owner semantics.
+
+On Windows, `spawn('pnpm', args, { shell: true })` is right, but killing a shell-spawned process may leave pnpm/Vite grandchildren. The plan’s tree-kill fallback is realistic; add `tree-kill` only if verification shows orphans.
+
+Vite output may include ANSI sequences and CRLF. The ready parser should normalize CRLF and either strip ANSI or make the `Local:` regex tolerant.
+
+**Implementation Suggestions**
+
+Add `ProcessManager` to `ServerContext` in `context.ts`, instantiated once per MCP server lifetime. Register the 7 tools in `server.ts`, using new zod shapes in `schemas.ts` and wrapping all responses with `toToolResult()`.
+
+Keep tests in `tools/overview-mcp/src/__tests__` or update `vitest.config.ts`. Also update the stdio smoke test expected count from 10 to 17.
+
+For operational tools:
+
+- `dev_server.start/status/stop/logs`: thin wrappers around `context.processManager`.
+- `overview.build`: separate one-shot helper with a module-level in-progress guard; run `pnpm overview:build`, capture stdout/stderr, then stat `path.join(context.repoRoot, 'plans', 'overview.html')`.
+- `overview.sync.now`: run `node scripts/sync-ralph-state.mjs --repo <repoRoot>` or use `cwd: repoRoot`; parse the new summary line.
+- `overview.sync.watch_status`: read `context.config.lockFile`; reuse/export sync-lock parse + liveness behavior.
+
+Also note: the Plan 11 worktree path exists as a job directory, but I did not find the `worktree/` child yet. All observations above are from the current repository state.

@@ -1,0 +1,80 @@
+{
+  "storyId": "US-002",
+  "verifiedEvidence": [
+    {
+      "criterion": "scripts/lib/default-config.mjs exports a frozen codexu-default config object with Plan-01 fields only: dataFile, ralphRoot, ralphSubdirs.{jobs, jobGroups, brainstorms}, outputs.{sidecarJs, sidecarJson}, lockFile, watcher.ignored",
+      "evidenceKind": "passed",
+      "command": "grep -nE \"export const codexuDefaultConfig|dataFile|ralphRoot|jobs:|jobGroups:|brainstorms:|outputs|sidecarJs|sidecarJson|lockFile|watcher|Object.freeze\" scripts/lib/default-config.mjs; pnpm --filter @codexu/overview-viewer test src/__tests__/config.test.ts",
+      "result": "default-config.mjs lines 1-35 define codexuDefaultConfig with only the Plan-01 keys and recursive Object.freeze; config.test.ts verified Object.isFrozen for the default object and nested outputs/ralphSubdirs/watcher. Targeted test passed: 1 file, 5 tests."
+    },
+    {
+      "criterion": "scripts/lib/resolve-config.mjs exports loadConfig({ repoRoot, configPath? }) enforcing canonical precedence: merge order defaults < committed < .local.json overlay; committed-path lookup default <repoRoot>/.ralph/overview-config.json < OVERVIEW_CONFIG_PATH env var < configPath argument; .local.json overlay always sits next to the selected committed file",
+      "evidenceKind": "passed",
+      "command": "grep -nE \"export function loadConfig|defaultConfigPath|OVERVIEW_CONFIG_PATH|configPath|localOverlayPath\" scripts/lib/resolve-config.mjs; pnpm --filter @codexu/overview-viewer test src/__tests__/config.test.ts",
+      "result": "resolve-config.mjs lines 8-38 implement loadConfig, default path, env override, configPath override, and selected-file local overlay. config.test.ts lines 41-82 verify overlay over redirected committed config and configPath overriding OVERVIEW_CONFIG_PATH. Targeted test passed: 1 file, 5 tests."
+    },
+    {
+      "criterion": "loadConfig resolves all paths to absolute paths against repoRoot",
+      "evidenceKind": "passed",
+      "command": "node - <<'NODE'\nimport path from 'node:path'\nimport { loadConfig } from './scripts/lib/resolve-config.mjs'\nconst warn = console.warn; console.warn = () => {}\nconst config = loadConfig({ repoRoot: process.cwd() }); console.warn = warn\nconsole.log([config.dataFile, config.ralphRoot, config.ralphSubdirs.jobs, config.ralphSubdirs.jobGroups, config.ralphSubdirs.brainstorms, config.outputs.sidecarJs, config.outputs.sidecarJson, config.lockFile].every((value) => path.isAbsolute(value)))\nNODE",
+      "result": "Command printed true; config.test.ts also asserts resolved absolute fixture paths for dataFile, outputs, ralphRoot, and ralphSubdirs.jobs."
+    },
+    {
+      "criterion": "loadConfig returns the resolved object deep-frozen (recursive Object.freeze on outputs, ralphSubdirs, watcher) per F-012",
+      "evidenceKind": "passed",
+      "command": "node - <<'NODE'\nimport { loadConfig } from './scripts/lib/resolve-config.mjs'\nconst warn = console.warn; console.warn = () => {}\nconst config = loadConfig({ repoRoot: process.cwd() }); console.warn = warn\nconsole.log(JSON.stringify({ config: Object.isFrozen(config), outputs: Object.isFrozen(config.outputs), ralphSubdirs: Object.isFrozen(config.ralphSubdirs), watcher: Object.isFrozen(config.watcher) }))\nNODE",
+      "result": "Command printed all true; config.test.ts lines 65-68 verifies the returned object and nested outputs, ralphSubdirs, and watcher are frozen."
+    },
+    {
+      "criterion": "loadConfig warns to stderr (does not throw) when a configured ralphSubdirs.* directory is missing; empty .ralph/ remains valid",
+      "evidenceKind": "passed",
+      "command": "pnpm --filter @codexu/overview-viewer test src/__tests__/config.test.ts",
+      "result": "config.test.ts lines 86-95 creates an empty .ralph fixture, asserts loadConfig does not throw, and verifies warnings for jobs, jobGroups, and brainstorms. Targeted test passed: 1 file, 5 tests."
+    },
+    {
+      "criterion": ".ralph/overview-config.json exists as pure JSON (no comments, no trailing commas), validated by node -e \"JSON.parse(require('fs').readFileSync('.ralph/overview-config.json'))\"",
+      "evidenceKind": "passed",
+      "command": "node -e \"JSON.parse(require('fs').readFileSync('.ralph/overview-config.json')); console.log('overview-config.json parse ok')\"",
+      "result": "overview-config.json parse ok"
+    },
+    {
+      "criterion": ".ralph/overview-config.schema.json exists as pure JSON Schema, referenced by $schema from the committed config",
+      "evidenceKind": "passed",
+      "command": "node - <<'NODE'\nconst fs = require('fs')\nconst config = JSON.parse(fs.readFileSync('.ralph/overview-config.json', 'utf8'))\nconst schema = JSON.parse(fs.readFileSync('.ralph/overview-config.schema.json', 'utf8'))\nconsole.log(`${config.$schema}; ${schema.$schema}`)\nNODE",
+      "result": "Printed ./overview-config.schema.json; https://json-schema.org/draft/2020-12/schema."
+    },
+    {
+      "criterion": ".gitignore contains `.ralph/overview-config.local.json`; verifiable via grep -F '.ralph/overview-config.local.json' .gitignore",
+      "evidenceKind": "passed",
+      "command": "grep -nF '.ralph/overview-config.local.json' .gitignore",
+      "result": "Line 95 contains .ralph/overview-config.local.json."
+    },
+    {
+      "criterion": "Config-layering unit test passes both sub-assertions: (a) overlay wins over redirected committed config; (b) configPath arg overrides OVERVIEW_CONFIG_PATH env var",
+      "evidenceKind": "passed",
+      "command": "pnpm --filter @codexu/overview-viewer test src/__tests__/config.test.ts > .test-output/overview-viewer.config.test.log 2>&1",
+      "result": "Exit 0. Log shows Test Files 1 passed and Tests 5 passed; the two precedence tests are config.test.ts lines 41-82."
+    },
+    {
+      "criterion": "pnpm --filter @codexu/overview-viewer typecheck passes",
+      "evidenceKind": "passed",
+      "command": "pnpm --filter @codexu/overview-viewer typecheck > .test-output/overview-viewer.typecheck.log 2>&1",
+      "result": "Exit 0; tsc --noEmit completed with no diagnostics."
+    },
+    {
+      "criterion": "Tests pass",
+      "evidenceKind": "passed",
+      "command": "pnpm --filter @codexu/overview-viewer test > .test-output/overview-viewer.test.log 2>&1",
+      "result": "Exit 0. Log shows Test Files 17 passed and Tests 68 passed."
+    },
+    {
+      "criterion": "Typecheck passes",
+      "evidenceKind": "passed",
+      "command": "tail -20 .test-output/overview-viewer.typecheck.log",
+      "result": "Log shows @codexu/overview-viewer typecheck running tsc --noEmit with no diagnostics."
+    }
+  ],
+  "skippedReasons": [],
+  "notTested": [],
+  "iterationSHA": "7b803c9acc59e16baa1e02d5a9c8540cd155a704"
+}

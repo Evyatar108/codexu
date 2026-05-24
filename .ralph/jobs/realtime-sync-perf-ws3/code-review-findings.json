@@ -1,0 +1,193 @@
+{
+  "planFile": "D:/harness-efforts/codexu/.ralph/jobs/realtime-sync-perf-ws3/plan.md",
+  "repoDir": "D:/harness-efforts/codexu",
+  "reviewCycle": 3,
+  "findings": [
+    {
+      "id": "F-001",
+      "severity": "High",
+      "source": "claude",
+      "classification": "fixable",
+      "phase": "code",
+      "category": "Correctness",
+      "sectionRef": "Files-to-Modify > apiSocket.ts replay-overflow handler / storage.ts setLastSeenUpdateSeq",
+      "description": "Daemon-restart overflow recovery is broken. After a daemon restart, allocateUserSeq resets to 0 (packages/happy-server/sources/storage/seq.ts:6,12-15), so a replay-overflow envelope carries currentSeq=7 while the client has stored lastSeenSeq=500. The replay-overflow handler at packages/happy-app/sources/sync/sync.ts:1645-1648 calls setLastSeenUpdateSeq(machineId, data.currentSeq), but storage.ts:1050-1063 makes the setter strictly monotonic (Math.max(existing, seq) then no-op if not advanced). The stored seq stays at 500, so on the next reconnect the handshake again sends lastSeenSeq=500, the server again computes lastSeenSeq > currentSeq → overflow, and the client gets stuck in a permanent overflow loop until the new daemon catches up past 500. The HTTP fallback fetches sessions but never resets the cursor. This directly contradicts the plan's Risk #7 mitigation, which explicitly requires the daemon-restart path to recover.",
+      "relevantFiles": [
+        "packages/happy-app/sources/sync/sync.ts:1645-1652",
+        "packages/happy-app/sources/sync/storage.ts:1050-1063",
+        "packages/happy-server/sources/storage/seq.ts:6-15"
+      ],
+      "suggestedFix": "Either (a) make setLastSeenUpdateSeq accept a forced-reset path for replay-overflow (e.g. add a second setter setLastSeenUpdateSeqReset(machineId, seq) that always writes, and call it from the replay-overflow handler only), or (b) have the replay-overflow handler delete the stored entry from lastSeenUpdateSeqByMachineId so the next handshake omits auth.lastSeenSeq and the server short-circuits to a no-op replay. Add a regression test in sync.test.ts: seed storage with seq=500, dispatch replay-overflow with currentSeq=7, await invalidate resolution, assert stored seq is now 7 (or undefined) — not 500.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Added resetLastSeenUpdateSeq(machineId, seq) non-monotonic setter in storage.ts; replay-overflow handler now uses reset (not setLastSeenUpdateSeq) to recover from daemon-restart seq reset. Regression test added in sync.test.ts."
+    },
+    {
+      "id": "F-002",
+      "severity": "High",
+      "source": "claude",
+      "classification": "fixable",
+      "phase": "code",
+      "category": "Correctness",
+      "sectionRef": "Files-to-Modify > sync.ts handleUpdate new-message missing-session path",
+      "description": "The missing-session new-message path at packages/happy-app/sources/sync/sync.ts:1721-1729 persists lastSeenUpdateSeqByMachineId inside .finally(), which runs on BOTH resolve and reject of invalidateAndAwait(), AND runs even when the replayed pending messages will hit the explicit drop path at sync.ts:1712-1714 ('Session ... still missing after sessions refetch; dropping new-message event'). The plan's Risk #8 mitigation explicitly required persisting only after the deferred fetch's effects committed successfully. As coded, the cursor advances past updates that were never applied — the next reconnect handshake sends lastSeenSeq >= dropped-seq, the server has no newer events to replay, and the missing new-session/new-message is permanently lost. The plan ACs (Client AC 'invoke Sync.handleUpdate with a new-session event ... resolve the promise, assert the seq has been persisted') only test the happy path; the failure path is uncovered.",
+      "relevantFiles": [
+        "packages/happy-app/sources/sync/sync.ts:1711-1731"
+      ],
+      "suggestedFix": "Switch .finally() to .then() so the persist only runs on successful invalidate resolution. Additionally, gate the persist on whether the replayed pending events actually applied — either await the inner handleUpdate calls (changing them from void this.handleUpdate(...) to await), or move the persist inside the loop and only call it when handleUpdate did not hit the still-missing drop path. Add tests: (a) invalidateAndAwait() rejects → setter NOT called; (b) replayed pending event hits still-missing drop → setter NOT called.",
+      "status": "fixed",
+      "fixedInIteration": 2,
+      "resolution": "Round 2: Gated persistLastSeenUpdateSeq in invalidateAndAwait .then() on post-refetch session existence. Dropped new-message events (session still missing after refetch) no longer advance the cursor. Added 2 regression tests (still-missing → no persist; present → persist)."
+    },
+    {
+      "id": "F-003",
+      "severity": "High",
+      "source": "claude",
+      "classification": "fixable",
+      "phase": "code",
+      "category": "Correctness",
+      "sectionRef": "Files-to-Modify > socket.ts connection handler",
+      "description": "addConnection-before-replay race in packages/happy-server/sources/app/api/socket.ts:193-205. The handler calls eventRouter.addConnection(userId, connection) at line 193, which immediately joins the live rooms (eventRouter.ts:273-287 calls socket.join on user:<userId>:* rooms). Replay is read at line 197 and emitted at lines 201-203. Between line 193 and line 203, any emitUpdate() running on the same daemon process broadcasts to the joined rooms and reaches THIS socket live. That same payload then gets re-emitted by the replay loop because appendToReplayBuffer (eventRouter.ts:332/360-366) ran inside emitUpdate before publish (line 332 is reached before line 334 publish). Result: the client receives the same update twice on reconnect (live + replayed), or replayed events arrive AFTER a live event with a higher seq — both violate the 'silent resume' contract that downstream handleUpdate dedup does not guard. Node's single-threaded event loop guarantees no two callbacks interleave WITHIN a microtask, but the await in socket.io's connect handler (auth middleware) and the fact that emitUpdate runs synchronously from any event-loop turn between line 193 and the for-loop at line 201 means the race is real, not theoretical.",
+      "relevantFiles": [
+        "packages/happy-server/sources/app/api/socket.ts:193-205",
+        "packages/happy-server/sources/app/events/eventRouter.ts:273-287",
+        "packages/happy-server/sources/app/events/eventRouter.ts:323-341"
+      ],
+      "suggestedFix": "Capture replay BEFORE addConnection: snapshot const replay = (typeof lastSeenSeq === 'number' && Number.isFinite(lastSeenSeq)) ? eventRouter.getReplayForConnection(lastSeenSeq, connection) : null; THEN call eventRouter.addConnection(...). Emit replay events after addConnection so the client is in rooms before any post-replay live event can arrive. This makes the snapshot deterministic relative to the join boundary. Add a test in socket.spec.ts: spy on getReplayForConnection AND addConnection, assert getReplayForConnection is called before addConnection.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Reordered socket.ts handshake: getReplayForConnection snapshot taken BEFORE addConnection, but events still emitted after addConnection. Eliminates live-vs-replay race at the join boundary. Added call-order assertion test in socket.spec.ts."
+    },
+    {
+      "id": "F-004",
+      "severity": "Medium",
+      "source": "claude",
+      "classification": "fixable",
+      "phase": "code",
+      "category": "Quality",
+      "sectionRef": "Files-to-Modify > sync.ts handleUpdate tail",
+      "description": "Unhandled promise rejection from deferred-invalidate tail at packages/happy-app/sources/sync/sync.ts:1964-1966. The code is `void deferredInvalidate.then(() => this.persistLastSeenUpdateSeq(...))` with no .catch(). If sessionsSync.invalidateAndAwait() rejects (network failure, server 5xx), this triggers an unhandled promise rejection on the socket-update path — which on React Native can crash the JS engine in strict modes, and on web is at minimum a console error spam. The replay-overflow handler at sync.ts:1645-1652 correctly uses .catch(...) so the pattern is inconsistent.",
+      "relevantFiles": [
+        "packages/happy-app/sources/sync/sync.ts:1964-1966"
+      ],
+      "suggestedFix": "Add `.catch((err) => log.warn('Deferred invalidate failed for update', err))` (or equivalent) after the .then(). Mirror the structure already used by the replay-overflow handler at sync.ts:1650-1652.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Added .catch(err => console.error(...)) after .then() on deferredInvalidate at sync.ts:1971. Matches replay-overflow handler pattern."
+    },
+    {
+      "id": "F-005",
+      "severity": "Medium",
+      "source": "claude",
+      "classification": "fixable",
+      "phase": "code",
+      "category": "Quality",
+      "sectionRef": "Commit scope",
+      "description": "The single WS3 commit (197b0148) includes several files outside the plan's touched-file list: packages/happy-app/sources/sync/refreshClaim.ts (source fix, not just test), packages/happy-app/sources/sync/profile.test.ts, packages/happy-app/sources/sync/refreshClaim.test.ts, packages/happy-app/sources/sync/socketOptions.test.ts (auth-header expectations rewrite), packages/happy-app/sources/components/AgentInput.activeRegression.test.tsx, packages/happy-app/sources/components/SettingsView.test.tsx, packages/happy-app/sources/app/(app)/notAuthenticated.test.tsx, packages/happy-app/sources/auth/machineAuth.test.ts, packages/happy-server/sources/app/api/routes/v3SessionRoutes.test.ts. The progress.txt documents these as stale-baseline test fixes needed to unblock the combined Vitest run, but bundling them in the WS3 commit makes the replay-buffer change harder to bisect/revert and violates the plan's 'lands as a single commit on main' scope. The refreshClaim.ts source change (switching to /pair/complete + new auth-header split) is particularly out-of-scope for WS3.",
+      "relevantFiles": [
+        "packages/happy-app/sources/sync/refreshClaim.ts",
+        "packages/happy-app/sources/sync/profile.test.ts",
+        "packages/happy-app/sources/sync/refreshClaim.test.ts",
+        "packages/happy-app/sources/sync/socketOptions.test.ts",
+        "packages/happy-app/sources/components/AgentInput.activeRegression.test.tsx",
+        "packages/happy-app/sources/components/SettingsView.test.tsx",
+        "packages/happy-app/sources/app/(app)/notAuthenticated.test.tsx",
+        "packages/happy-app/sources/auth/machineAuth.test.ts",
+        "packages/happy-server/sources/app/api/routes/v3SessionRoutes.test.ts"
+      ],
+      "suggestedFix": "Either (a) split the unrelated test/source fixes into a precursor commit on main with message refactor(devtunnels): align test baselines with /pair/complete + new auth-header split, and rebase the WS3 commit on top so each commit is independently buildable; or (b) document the bundling decision in the WS3 commit body with a 'Also includes:' section enumerating each unrelated change and why it had to land together (combined Vitest run requirement).",
+      "status": "wont_fix",
+      "fixedInIteration": 1,
+      "resolution": "Commit 197b0148 already landed; bundling is fixed history. Per user directive 2026-05-13, review fixes for F-001..F-004 + F-006 will land in a separate new commit (corrects the bundling pattern going forward). The bundled baseline-test fixes in 197b0148 remain documented in progress.txt (iter 7)."
+    },
+    {
+      "id": "F-006",
+      "severity": "Low",
+      "source": "claude",
+      "classification": "fixable",
+      "phase": "code",
+      "category": "Documentation Staleness",
+      "sectionRef": "plans/realtime-sync-perf.md WS3 status footer",
+      "description": "plans/realtime-sync-perf.md WS3 status footer records `commit pending-US-007-single-WS3-commit` as a placeholder where the actual commit SHA 197b0148 should live. The plan's acceptance criteria specifically require the footer to cross-reference the landing commit. (Informational-only per code-reviewer rules; this finding is included in the structured output but the canonical doc fix belongs in Phase 5b docs review.)",
+      "relevantFiles": [
+        "plans/realtime-sync-perf.md:164"
+      ],
+      "suggestedFix": "Replace the placeholder with the actual short SHA: `Status: implemented 2026-05-13 in commit 197b0148.`",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Replaced placeholder pending-US-007-single-WS3-commit with actual SHA 197b0148 in plans/realtime-sync-perf.md:164."
+    },
+    {
+      "id": "F-007",
+      "severity": "High",
+      "source": "copilot",
+      "detectedBy": [
+        "copilot"
+      ],
+      "classification": "fixable",
+      "phase": "code",
+      "category": "Correctness",
+      "sectionRef": null,
+      "description": "`packages/happy-app/sources/sync/sync.ts:1721-1728` advances `lastSeenUpdateSeq` **before** the queued replayed `new-message` handlers have actually succeeded. In the missing-session path you now `void this.handleUpdate(evt, true, sourceMachineId)` for each queued event and immediately call `this.persistLastSeenUpdateSeq(...)`. If any replayed handler then hits the explicit drop path at `sync.ts:1712-1714` (`Session ... still missing after sessions refetch; dropping new-message event`) or otherwise fails, the cursor has already moved past that seq, so the server will stop replaying it on the next reconnect and the message is lost permanently. The plan explicitly required persisting only after the update had been successfully applied.",
+      "status": "fixed",
+      "fixedInIteration": 2,
+      "resolution": "Duplicate of F-002 round-2 fix.",
+      "relevantFiles": [],
+      "suggestedFix": null
+    },
+    {
+      "id": "F-008",
+      "severity": "High",
+      "source": "copilot",
+      "detectedBy": [
+        "copilot"
+      ],
+      "classification": "fixable",
+      "phase": "code",
+      "category": "Correctness",
+      "sectionRef": null,
+      "description": "`packages/happy-server/sources/app/api/socket.ts:193-205` registers the socket with `eventRouter.addConnection(...)` before replaying buffered updates, and `packages/happy-server/sources/app/events/eventRouter.ts:273-287` joins the live rooms immediately. That creates a handshake race: any live publish that lands between `addConnection()` and the replay loop can reach the socket live, then get replayed again (or arrive before older replayed events). The reconnect path therefore is not ordered or deduplicated under load.",
+      "status": "wont_fix",
+      "fixedInIteration": 1,
+      "resolution": "Duplicate of F-003 (Copilot-flagged variant of addConnection-before-replay race). Tracked under F-003.",
+      "relevantFiles": [],
+      "suggestedFix": null
+    },
+    {
+      "id": "F-009",
+      "severity": "Low",
+      "source": "copilot",
+      "detectedBy": [
+        "copilot"
+      ],
+      "classification": "fixable",
+      "phase": "code",
+      "category": "Correctness",
+      "sectionRef": null,
+      "description": "`packages/happy-app/sources/sync/sync.ts:1785`, `1819`, and `1964-1966` changed `new-session` / `delete-session` handling to `invalidateAndAwait()` and then fire `void deferredInvalidate.then(...)` with no rejection handler. A failed invalidate no longer just skips cursor persistence; it also becomes an unhandled promise rejection on the socket-update path.",
+      "status": "wont_fix",
+      "fixedInIteration": 1,
+      "resolution": "Duplicate of F-004 (Copilot-flagged variant of unhandled rejection on deferredInvalidate, severity Low vs Medium). Tracked under F-004.",
+      "relevantFiles": [],
+      "suggestedFix": null
+    },
+    {
+      "id": "F-010",
+      "severity": "Low",
+      "source": "copilot",
+      "detectedBy": [
+        "copilot"
+      ],
+      "classification": "fixable",
+      "phase": "code",
+      "category": "Quality",
+      "sectionRef": null,
+      "description": "This workstream is no longer self-contained. The diff also includes unrelated changes in `packages/happy-app/sources/sync/refreshClaim.ts:72-76`, `packages/happy-app/sources/sync/profile.test.ts:515-520`, `packages/happy-app/sources/components/AgentInput.activeRegression.test.tsx:165-180`, and `packages/happy-app/sources/components/SettingsView.test.tsx:372-376`. None of those files are part of the WS3 plan's touched-file list, so bundling them here makes the replay-buffer change harder to review, bisect, and revert.",
+      "status": "wont_fix",
+      "fixedInIteration": 1,
+      "resolution": "Duplicate of F-005 (Copilot-flagged variant of commit-scope concern, severity Low vs Medium). Same wont_fix rationale as F-005.",
+      "relevantFiles": [],
+      "suggestedFix": null
+    }
+  ]
+}

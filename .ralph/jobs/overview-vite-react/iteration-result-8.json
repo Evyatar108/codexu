@@ -1,0 +1,69 @@
+{
+  "storyId": "US-008",
+  "verifiedEvidence": [
+    {
+      "criterion": "Operator approval recorded for destructive US-008 swap",
+      "command": "grep -n \"US-008 destructive gate APPROVED\" D:/harness-efforts/codexu/.ralph/jobs/overview-vite-react/notepad.md",
+      "result": "Notepad PERMANENT records operator approval after file:// review of plans/overview.html.next and authorizes delete, emit live artifact, and commit.",
+      "evidenceKind": "command-output"
+    },
+    {
+      "criterion": "Existing plans/overview.html is deleted",
+      "command": "rm plans/overview.html; test ! -e plans/overview.html; pnpm overview:build",
+      "result": "Deleted the legacy file before build; previous SHA was bb71a1053ba1c5dd4d62d7f9ec22c986b1a9df1a547c26ff88499ba07efed922.",
+      "evidenceKind": "command-output"
+    },
+    {
+      "criterion": "pnpm overview:build emits live inlined artifact",
+      "command": "pnpm overview:build > .test-output/overview-viewer.live-build.log 2>&1",
+      "result": "Exited 0; Vite emitted ../../plans/overview.html at 446.14 kB and reported built in 764ms.",
+      "evidenceKind": "command-output"
+    },
+    {
+      "criterion": "Live artifact matches approved preview",
+      "command": "sha256sum plans/overview.html plans/overview.html.next; cmp -s plans/overview.html plans/overview.html.next",
+      "result": "Both files have SHA e081871ddd78d4bdd5fe57b27e81a44175a63059583291d02aefe6307565a93e; cmp_exit=0.",
+      "evidenceKind": "command-output"
+    },
+    {
+      "criterion": "US-008:AC-004 visual parity fallback",
+      "command": "Operator approval in notepad plus byte comparison against approved .next",
+      "result": "US-008:AC-004 fallback: visual diff unavailable; relied on recorded operator approval, then verified live artifact byte-identical to approved preview.",
+      "evidenceKind": "command-output"
+    },
+    {
+      "criterion": "Other plans/*.md files are untouched",
+      "command": "git diff --name-only -- plans/*.md",
+      "result": "No output; no plans/*.md files changed.",
+      "evidenceKind": "command-output"
+    },
+    {
+      "criterion": "Cross-package typecheck stays green",
+      "command": "package typechecks persisted under .test-output/*.typecheck.log",
+      "result": "All exited 0: codium, happy-app, happy-wire, happy-server, happy-cli, happy-agent, codexu-options-mode-plugin, and overview-viewer.",
+      "evidenceKind": "command-output"
+    },
+    {
+      "criterion": "pnpm --filter @codexu/overview-viewer test exits 0",
+      "command": "pnpm --filter @codexu/overview-viewer test > .test-output/overview-viewer.test.log 2>&1",
+      "result": "Exited 0 in 8s; Vitest reported 9 test files passed and 19 tests passed.",
+      "evidenceKind": "command-output"
+    },
+    {
+      "criterion": "US-008:AC-008 dev-browser live artifact verification",
+      "command": "N/A",
+      "result": "SKIPPED: dev-browser skill unavailable in this session; live plans/overview.html artifact must be opened manually by the operator after destructive swap.",
+      "evidenceKind": "skipped"
+    }
+  ],
+  "skippedReasons": [
+    {
+      "criterion": "US-008:AC-008",
+      "reason": "browser_unavailable"
+    }
+  ],
+  "notTested": [
+    "Browser file:// live artifact pass; dev-browser unavailable."
+  ],
+  "iterationSHA": "123392596730e5bd936e8813b58a76bab29d3814"
+}

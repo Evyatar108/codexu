@@ -1,0 +1,37 @@
+Used `roadmap-and-overview` for the local workflow constraints.
+
+### Feasibility
+
+[High] US-002’s file list is insufficient. Search query state lives in `App.tsx` via `useMultiAxisFilter`, but `CommandList` receives only `visibleTaskIds`, and `TaskCommand` has no query prop. Highlighting cannot be implemented cleanly with only `utils/searchHighlighting.ts`, `utils/filters.ts`, and `components/TaskCommand.tsx`; the plan must include `tools/overview-viewer/src/App.tsx` and `tools/overview-viewer/src/components/CommandList.tsx`.
+
+[High] The Radix rollout may not fit the hard 500 KB artifact ceiling. Current `plans/overview.html` is already 447,483 bytes, and `tools/overview-viewer/package.json` has no Radix deps today. Adding Tooltip, Dialog, Popover, ToggleGroup, and Checkbox as separate packages has no fallback plan if C2-C5 push the single-file artifact over 500 KB.
+
+[Medium] US-015’s “phase bucket” language is ambiguous against current ordering. `CommandList.tsx` sorts by `lastTouchedAt`, while `styles.css` orders rows by `data-cmd-status`, which comes from `PHASE_TO_ORDER_BUCKET` in `utils/taskClassification.ts`, not raw `task.phase`. The plan should define whether buckets are raw phases or existing order buckets.
+
+### Completeness
+
+[High] `pnpm-lock.yaml` is missing from the modified-file list. Any Radix dependency addition in `tools/overview-viewer/package.json` must update the root lockfile, or reproducible installs and frozen-lockfile CI will fail.
+
+[High] US-015 misses top-level integration in `App.tsx`. `App.tsx` currently calls `useHashNav(expandedControls.setTaskExpanded)` and `setAllDetails()` only knows task IDs. Bucket persistence and hash-nav bucket opening require passing bucket controls and task/bucket data through the top level.
+
+[Medium] US-002 does not specify safe highlighting across trusted HTML boundaries. `TaskCommand.tsx` renders `descriptionHtml` and warnings with `dangerouslySetInnerHTML`; a highlighter must avoid rewriting inside tags/attributes and must escape the search query before regex use.
+
+[Medium] US-007’s toast ownership is under-specified. A `CopyToast.tsx` component plus `TaskCommand.tsx` changes do not define whether copy feedback is row-local, app-level, or shared by bulk/name/link copy paths.
+
+### Ordering
+
+[High] US-006 must precede or be folded into animation stories. The global AC says every story’s added animation must degrade under `prefers-reduced-motion: reduce`, but US-001, US-003, and US-004 add animation before US-006 installs the global guard.
+
+### Simplicity
+
+[Medium] The full Radix rollout is heavier than the current static viewer architecture requires. Given the 52 KB remaining budget, native/lightweight implementations for keyboard help and filter popover should be an explicit fallback, not just an open question.
+
+### Acceptance Criteria Quality
+
+[Medium] “`pnpm overview` dev server starts and renders the page without console errors” and “`plans/overview.html` opens cleanly under `file://`” are not directly verifiable as written. Specify manual evidence or add a browser automation command.
+
+[Medium] Radix dependencies are not named or versioned in story AC. The plan should list exact packages, e.g. `@radix-ui/react-tooltip`, `@radix-ui/react-dialog`, etc., and expected lockfile update.
+
+[Low] The “New files (10)” heading is wrong; the list contains 12 files. Not blocking, but it weakens file ownership clarity.
+
+No prior review-cycle amendments were described, so there are no amendment fixes or regressions to assess.

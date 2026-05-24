@@ -1,0 +1,119 @@
+{
+  "planFile": "D:/harness-efforts/codexu/.ralph/jobs/ralph-pipeline-05-agent-exports/plan.md",
+  "repoDir": "D:/harness-efforts/codexu/.ralph/jobs/ralph-pipeline-05-agent-exports/worktree",
+  "reviewCycle": 1,
+  "findings": [
+    {
+      "id": "F-001",
+      "severity": "High",
+      "source": "claude",
+      "classification": "fixable",
+      "phase": "code",
+      "category": "ConstraintDivergence",
+      "sectionRef": "Snapshot schema — ActivityEvent",
+      "description": "ActivityEvent is missing the plan-required `kind: 'job' | 'group' | 'brainstorm'` discriminator. The plan's Snapshot schema section (plan.md lines 228-237) names `kind` as a required ActivityEvent field, but tools/overview-viewer/src/types.ts:185-193 omits it and scripts/lib/sync-core.mjs:298-308 (deriveActivityEvents) never sets it on emitted events. Downstream agents cannot tell job/group/brainstorm slugs apart from the activity log. Plan job CLAUDE.md echoes this contract under 'Reuse Plan 02 APIs / mergeAndWrite signature' constraints.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Added `kind: job | group | brainstorm` to ActivityEvent (types.ts) and an activityKind() resolver in sync-core.mjs that inspects jobSlug/groupSlug/artifacts.brainstormDir. Three new unit tests in sync-core.test.mjs (one per kind).",
+      "relevantFiles": [
+        "tools/overview-viewer/src/types.ts:185",
+        "scripts/lib/sync-core.mjs:281",
+        "scripts/lib/sync-core.mjs:318"
+      ],
+      "suggestedFix": "Add `kind: 'job' | 'group' | 'brainstorm'` to the ActivityEvent interface (types.ts) and resolve it inside deriveActivityEvents by inspecting the surviving (or prior) RalphPipelineState: `next?.jobSlug` -> 'job', `next?.groupSlug` -> 'group', otherwise `brainstorm` when `next?.artifacts?.brainstormDir` is present. Add a unit test in sync-core.test.mjs covering all three kinds."
+    },
+    {
+      "id": "F-002",
+      "severity": "Medium",
+      "source": "claude",
+      "classification": "fixable",
+      "phase": "code",
+      "category": "Completeness",
+      "sectionRef": "Implementation Strategy Phase C/F — one-shot CLI",
+      "description": "One-shot `pnpm sync-ralph-state` never invokes mergeAndWrite, so it cannot emit activity events from a prev-vs-new diff. scripts/sync-ralph-state.mjs:34-48 calls walkRalphState() + writeSidecar() directly, bypassing the activity-event derivation that lives only in mergeAndWrite (scripts/lib/sync-core.mjs:276). The plan F-011 open finding said the one-shot path 'may still emit first-observation events from the cold-start diff'; the current implementation makes that impossible. The plan05-acceptance test (plan05-acceptance.test.mjs:37) even asserts the activity file is empty after one-shot, locking in the wrong contract.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Exported deriveActivityEvents from sync-core.mjs. Reworked runOneShot in scripts/sync-ralph-state.mjs to read prior sidecar byTaskId, diff against walked state via deriveActivityEvents, and appendActivity on the returned events. plan05-acceptance.test.mjs first-run assertion now checks for first-observation events.",
+      "relevantFiles": [
+        "scripts/sync-ralph-state.mjs:34",
+        "scripts/lib/sync-core.mjs:238",
+        "scripts/lib/plan05-acceptance.test.mjs:37"
+      ],
+      "suggestedFix": "Rework runOneShot to: (1) read prior sidecar into a `currentState`, (2) call mergeAndWrite with synthetic upsert/retain updates derived from walkRalphState's bundles (or add a helper that calls deriveActivityEvents over the prior sidecar's byTaskId vs the freshly assembled state), (3) append the returned activityEvents via appendActivity. Then either drop the size==0 assertion in plan05-acceptance.test.mjs or change it to assert events on a re-run when prior state existed."
+    },
+    {
+      "id": "F-003",
+      "severity": "Medium",
+      "source": "claude",
+      "classification": "fixable",
+      "phase": "code",
+      "category": "Correctness",
+      "sectionRef": "Activity log rotation",
+      "description": "rotateActivity (scripts/lib/emit-activity.mjs:36-44) is not best-effort. fs.renameSync may throw EBUSY/EACCES/EPERM on Windows (the very transient errors the sync-core renameWithRetry helper already handles for sidecar writes). When that happens, appendActivity (line 19-20) propagates the throw before the append, so a transient rotation failure drops the new event entirely. Plan.md lines 247-249 say rotation is best-effort: 'A crash mid-rotation yields at most a slightly-too-large primary file or a missing backup — both tolerable since activity is supplementary.'",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Wrapped rmSync/renameSync in rotateActivity inside try/catch — transient Windows EBUSY/EACCES/EPERM now writes a stderr warning and lets the append proceed against the slightly-too-large primary file, matching the plans best-effort contract.",
+      "relevantFiles": [
+        "scripts/lib/emit-activity.mjs:36",
+        "scripts/lib/emit-activity.mjs:19",
+        "scripts/lib/sync-core.mjs:425"
+      ],
+      "suggestedFix": "Wrap the rmSync/renameSync pair in try/catch and write a stderr warning on failure instead of throwing; let the append proceed against the (now slightly-too-large) primary file. Optionally reuse the existing renameWithRetry helper from sync-core for the rotate-rename step."
+    },
+    {
+      "id": "F-004",
+      "severity": "Medium",
+      "source": "claude",
+      "classification": "fixable",
+      "phase": "code",
+      "category": "Quality",
+      "sectionRef": "Acceptance Criteria — `pnpm test` green",
+      "description": "The new scripts/lib/*.test.mjs vitest files (emit-snapshot.test.mjs, emit-activity.test.mjs, emit-tasks-index.test.mjs, emit-snapshot-schema.test.mjs, plan05-acceptance.test.mjs, watch-ralph-state.test.mjs, sync-core.test.mjs additions) are not included by any vitest config. The only vitest.config.ts in the repo is tools/overview-viewer/vitest.config.ts which restricts to `src/__tests__/**/*.test.{ts,tsx}`. There is no root vitest config and root package.json has no `test` script. The plan-review-known F-006 finding called this out (plan.md:363); implementation did not address it. The verifiedEvidence in prd.json refers to `.test-output/overview-viewer.test.log` (151 tests) which means scripts/lib tests were never actually run by the existing pipeline.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Added root vitest.config.ts (node environment project for scripts/lib/**/*.test.mjs) and a root `test` script in package.json. All 7 test files (44 tests) pass under `npx vitest run` from repo root.",
+      "relevantFiles": [
+        "tools/overview-viewer/vitest.config.ts:10",
+        "package.json",
+        "scripts/lib/sync-core.test.mjs",
+        "scripts/lib/plan05-acceptance.test.mjs"
+      ],
+      "suggestedFix": "Add a root vitest.config.ts (or extend overview-viewer's) with a third project that includes `scripts/lib/**/*.test.mjs` running in node environment, and add a root `test` script in package.json. Then re-run the suite end-to-end so the verifiedEvidence reflects scripts/lib coverage."
+    },
+    {
+      "id": "F-005",
+      "severity": "Medium",
+      "source": "claude",
+      "classification": "fixable",
+      "phase": "code",
+      "category": "Correctness",
+      "sectionRef": "Plan 04 conditional inputs",
+      "description": "scripts/lib/sync-core.mjs:362-363 assigns the entire JSON.parse of plans/overview-recommendations.json directly to Snapshot.recommendations. Plan 04 is not shipped, so the actual on-disk shape is unspecified, but the cascaded plans/ralph-pipeline-04-pipeline-overview.md edits in this PR still imply Plan 04 emits a wrapper object (the AC text mentions `jq '.recommendations | length'`). If Plan 04 lands later with `{ recommendations: [...] }`, snapshot validation against the schema (which requires `recommendations: array`) will fail silently. Same risk applies to dependencyGraph but is mitigated because emit-snapshot's default `{ nodes: [], edges: [] }` does at least match the schema if the read returns undefined.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Added unwrapRecommendations and unwrapDependencyGraph helpers that accept both raw-array and wrapper-object shapes. Five sync-core.test.mjs tests cover absent file, raw array, and wrapper object cases.",
+      "relevantFiles": [
+        "scripts/lib/sync-core.mjs:362",
+        "plans/ralph-pipeline-04-pipeline-overview.md"
+      ],
+      "suggestedFix": "Defensively unwrap: `const recs = raw && typeof raw === 'object' && Array.isArray(raw.recommendations) ? raw.recommendations : Array.isArray(raw) ? raw : []`. Apply the same pattern to dependencyGraph. Add a sync-core unit test that asserts both shapes (raw array vs wrapper) produce a schema-valid snapshot."
+    },
+    {
+      "id": "F-006",
+      "severity": "Low",
+      "source": "claude",
+      "classification": "fixable",
+      "phase": "code",
+      "category": "Quality",
+      "sectionRef": "Implementation Strategy Phase B",
+      "description": "scripts/lib/emit-snapshot-schema.mjs:213-220 exports a writeSnapshotSchema helper that uses fs.writeFileSync directly (non-atomic), but no production call site uses it — emitAgentArtifacts (scripts/lib/sync-core.mjs:367) writes the schema through atomicWriteFile. The helper is dead and inconsistent with the rest of the emitter contract; if a future caller imports it they would silently bypass the atomicity contract documented in plan.md lines 65, 87-89.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Removed the dead writeSnapshotSchema helper, its .d.mts entry, and the ambient declaration. SNAPSHOT_SCHEMA remains exported. All 43 tests pass.",
+      "relevantFiles": [
+        "scripts/lib/emit-snapshot-schema.mjs:213"
+      ],
+      "suggestedFix": "Either remove writeSnapshotSchema and its .d.mts entry (preferred — dead code), or make it await atomicWriteFile so the contract is preserved if anyone imports it."
+    }
+  ]
+}

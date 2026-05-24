@@ -1,0 +1,44 @@
+I’ll inspect the referenced temp file to see what task details it contains.
+
+The file is a code-review prompt with the plan and implementation diff. I’m narrowing to the diff and changed files now.
+
+### Completeness
+
+[High] `scripts/sync-ralph-state.mjs:34-45` still runs one-shot sync via `walkRalphState()` + `writeSidecar()` only, so it never consumes `mergeAndWrite().activityEvents` or calls `appendActivity()`. The plan explicitly scopes activity appends to watcher **and one-shot CLI**, including first-observation/diff events, so `pnpm sync-ralph-state` silently misses activity-log events.
+
+[High] `scripts/lib/sync-core.mjs:301-309` and `tools/overview-viewer/src/types.ts:185-193` omit the required `ActivityEvent.kind` field. The plan requires resolving `slug`/`kind` from the pipeline state and exposes `kind: 'job' | 'group' | 'brainstorm'`; without it, downstream agents cannot distinguish event source type.
+
+### Correctness
+
+No issues found.
+
+### Quality
+
+No issues found.
+
+### Security
+
+No issues found.
+
+### Overall Assessment
+
+Not ready yet. The durable artifacts mostly exist, but the activity-event contract is incomplete: one-shot sync does not write events, and emitted events are missing a required discriminator.
+
+al transitions.
+
+### Correctness
+
+No additional issues found.
+
+### Quality
+
+No issues found.
+
+### Security
+
+No issues found.
+
+### Overall Assessment
+
+Not ready yet. The durable snapshot path is mostly wired, but the activity event contract is incomplete and standalone syncs silently drop the transition history the plan requires.
+

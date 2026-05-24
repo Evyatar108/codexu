@@ -1,0 +1,650 @@
+{
+  "project": "Pipeline Overview v2",
+  "description": "Plan 04 v2 — adds a Ralph stage histogram header to the overview-viewer dashboard (click-to-filter), emits two new derived JSON artifacts (overview-recommendations.json and overview-dependency-graph.json) on every sync, and threads runDurations through writeSidecar -> emitAgentArtifacts -> buildSnapshot without mutating Ralph sidecar state. Critical correction vs the original plan: emitDerivedArtifacts runs INSIDE writeSidecar BEFORE emitAgentArtifacts (the latter reads both JSON files from disk to populate Snapshot.recommendations / Snapshot.dependencyGraph). Forked from current main HEAD fc27ba86 on a new branch with the -v2 suffix to avoid colliding with the preserved v1 branch ralph-pipeline-04-pipeline-overview (HEAD 896872c3, stale-base, unsalvageable).",
+  "deslop": true,
+  "iterationEngine": "codex",
+  "planningEngine": "codex",
+  "jobDir": "D:/harness-efforts/codexu/.ralph/jobs/ralph-pipeline-04-pipeline-overview-v2",
+  "repoDir": "D:/harness-efforts/codexu",
+  "branch": {
+    "name": "ralph-pipeline-04-pipeline-overview-v2",
+    "created": true
+  },
+  "worktree": {
+    "path": "D:/harness-efforts/codexu/.ralph/jobs/ralph-pipeline-04-pipeline-overview-v2/worktree",
+    "branch": "ralph-pipeline-04-pipeline-overview-v2",
+    "startPoint": "main"
+  },
+  "planReviewContext": [
+    {
+      "id": "F-001",
+      "severity": "High",
+      "description": "Mutating state.runDurations before writeSidecar serialises state via JSON.stringify(state) at scripts/lib/sync-core.mjs:358, so runDurations WILL be persisted in plans/overview-ralph-state.{json,js} despite the TypeScript type not declaring it. The plan's claim 'NOT persisted on the Ralph sidecar' is contradicted by the implementation. Flagged by Codex AND Copilot.",
+      "classification": null,
+      "source": "consensus",
+      "category": "Architecture / sidecar persistence",
+      "relevantFiles": [
+        "scripts/lib/sync-core.mjs",
+        "tools/overview-viewer/src/types.ts"
+      ],
+      "suggestedFix": "Pass runDurations as a separate parameter through emitDerivedArtifacts -> writeSidecar -> emitAgentArtifacts (and into buildSnapshot via the existing buildSnapshot parameter). Do NOT mutate state. Remove the AC line that claims the sidecar JSON doesn't carry runDurations, and replace with an AC that asserts emitAgentArtifacts receives the runDurations value via parameter."
+    },
+    {
+      "id": "F-002",
+      "severity": "High",
+      "description": "The PRD carrier extracts only { id, dependencies } per userStory, but scoreRecommendations needs userStories[].passes to compute dependency state (unblocked vs partial vs fully blocked) and deriveDependencyGraph needs PRD-level dependency fields for the depends-on-task fallback. Existing PRDs in .ralph/jobs/*/prd.json include userStories[].passes. Flagged by Codex AND Copilot.",
+      "classification": null,
+      "source": "consensus",
+      "category": "Data model / PRD carrier shape",
+      "relevantFiles": [
+        ".ralph/jobs/ralph-pipeline-05-agent-exports/prd.json"
+      ],
+      "suggestedFix": "Widen the carrier shape to { userStories: Array<{ id, dependencies?: string[], passes?: boolean | string }>, dependencies?: string[] }. Update load-prds-by-task-id.mjs implementation, .d.mts, and tests. Document the exact PRD field names in US-001 acceptance criteria."
+    },
+    {
+      "id": "F-000",
+      "severity": "Low",
+      "description": "# truncated 5 findings (sentinel: planReviewContext was capped at 500 tokens)"
+    }
+  ],
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Foundation: widen types, add config schema, extract atomic-write, build PRD carrier",
+      "description": "As the implementer of subsequent stories, I want the widened Recommendation/DependencyGraph types, new OverviewTask fields (blocks, priority), new config keys, the atomic-write extraction, and the load-prds-by-task-id helper so that US-002..US-005 can rely on stable contracts.",
+      "acceptanceCriteria": [
+        "tools/overview-viewer/src/types.ts widened: Recommendation = { taskId: string; score: number; stage: RalphStage; reasons: string[] } (no optionals). DependencyGraph.nodes element widened to { id, type: 'task'|'story', taskId?, storyId?, stage? }. DependencyGraph.edges element widened to { from, to, type: 'blocks'|'depends-on-story'|'spawn'|'depends-on-task' }.",
+        "OverviewTask interface gains blocks?: string[] (bookkeeper-edited only, no auto-population) AND priority?: number (resolves F-006: the field referenced by the scoring rubric now exists in the type).",
+        "scripts/lib/emit-snapshot-schema.mjs mirrors the widened shapes: Recommendation keeps additionalProperties: true; DependencyGraph nodes/edges each gain additionalProperties: true. Existing snapshot files still parse against the widened schema.",
+        ".ralph/overview-config.schema.json accepts new keys: outputs.recommendationsJson (string), outputs.dependencyGraphJson (string), and a recommendations block with weights (object) + topN (integer >= 1).",
+        "scripts/lib/default-config.mjs + default-config.d.mts supply defaults: outputs.recommendationsJson = 'plans/overview-recommendations.json', outputs.dependencyGraphJson = 'plans/overview-dependency-graph.json', recommendations.weights = { stageUrgency: 40, dependencyState: 30, freshness: 20, priority: 10 }, recommendations.topN = 20.",
+        "scripts/lib/resolve-config.mjs round-trips the new keys without filtering. Unit test asserts resolveConfig preserves outputs.recommendationsJson, outputs.dependencyGraphJson, recommendations.weights, and recommendations.topN (F-023).",
+        "scripts/lib/atomic-write.mjs exists; atomicWriteFile is moved (or re-exported) from sync-core.mjs into the new module. Both sync-core.mjs and emit-derived-artifacts.mjs (US-004) import from the new module. Breaks circular-import risk (F-013).",
+        "scripts/lib/load-prds-by-task-id.mjs + .d.mts + .test.mjs exist. Helper walks BOTH .ralph/jobs/*/prd.json AND .ralph/job-groups/*/*/prd.json (two-level glob for group members at <group>/<member>/prd.json per F-004). Returns Record<taskId, { userStories: Array<{ id: string; dependencies?: string[]; passes?: boolean | string }>; dependencies?: string[] }>: preserves userStories[].passes (F-002) and PRD-level dependencies (F-017).",
+        "On malformed JSON, load-prds-by-task-id.mjs logs '[load-prds-by-task-id] failed to parse <path>: <error>' to stderr and skips the file (never throws; would otherwise halt the watcher debounce loop) (F-016).",
+        "Task-matching reuses the same ralphOverrides + filename-slug resolution as assembleStateFromBundles; if not already exported from sync-core.mjs, export it. Multi-job same-taskId resolution: last-write-wins by mtime.",
+        "Tests cover: missing prd.json, malformed JSON (logs + skips, does NOT throw), ralphOverrides resolution, group-member PRD fixture at .ralph/job-groups/<group>/<member>/prd.json, multi-job same-taskId (last-write-wins by mtime), userStories[].passes preserved, PRD-level dependencies preserved for depends-on-task fallback.",
+        "Implementer inspects C:/Users/evmitran/.claude/plugins/cache/ai-developer-toolkit/ralph-orchestration/5.41.0/schemas/prd-schema.json to confirm userStories[].id, userStories[].dependencies, userStories[].passes, and PRD-level dependencies field names. Verified field names captured in load-prds-by-task-id.mjs JSDoc. If the schema lacks PRD-level dependencies, document that the depends-on-task fallback in US-003 is dropped (F-024).",
+        "tools/overview-viewer/src/__tests__/scripts.d.ts ambient declarations updated to mirror new default-config.d.mts fields so overview-viewer typecheck continues to pass (F-019).",
+        "pnpm test (root vitest) passes.",
+        "pnpm --filter @codexu/overview-viewer typecheck passes.",
+        "Typecheck passes.",
+        "Tests pass."
+      ],
+      "priority": 1,
+      "passes": true,
+      "notes": "",
+      "verifiedEvidence": [
+        {
+          "criterion": "tools/overview-viewer/src/types.ts widened Recommendation and DependencyGraph shapes",
+          "command": "node --input-type=module static US-001 assertions",
+          "result": "PASS: static US-001 assertions passed; Recommendation has required taskId/score/stage/reasons and DependencyGraph nodes/edges include task/story and blocks/depends-on-story/spawn/depends-on-task types."
+        },
+        {
+          "criterion": "OverviewTask interface gains blocks?: string[] and priority?: number",
+          "command": "node --input-type=module static US-001 assertions",
+          "result": "PASS: static assertions found blocks?: string[] and priority?: number in tools/overview-viewer/src/types.ts."
+        },
+        {
+          "criterion": "scripts/lib/emit-snapshot-schema.mjs mirrors widened shapes and keeps additionalProperties on Recommendation/nodes/edges",
+          "command": "pnpm test; node --input-type=module static US-001 assertions",
+          "result": "PASS: root suite reports 8 files/49 tests passed; static assertions confirmed Recommendation additionalProperties true and DependencyGraph node/edge additionalProperties true."
+        },
+        {
+          "criterion": ".ralph/overview-config.schema.json accepts outputs.recommendationsJson, outputs.dependencyGraphJson, recommendations.weights, recommendations.topN >= 1",
+          "command": "node --input-type=module static US-001 assertions",
+          "result": "PASS: static assertions confirmed both output keys are string schema properties and recommendations.topN has minimum 1."
+        },
+        {
+          "criterion": "scripts/lib/default-config.mjs + default-config.d.mts supply recommendations output and scoring defaults",
+          "command": "node --input-type=module static US-001 assertions",
+          "result": "PASS: defaults are recommendationsJson=plans/overview-recommendations.json, dependencyGraphJson=plans/overview-dependency-graph.json, weights {stageUrgency:40,dependencyState:30,freshness:20,priority:10}, topN=20."
+        },
+        {
+          "criterion": "scripts/lib/resolve-config.mjs round-trips new keys without filtering and unit test asserts preservation",
+          "command": "pnpm --filter @codexu/overview-viewer test",
+          "result": "PASS: overview-viewer suite reports 27 files/153 tests passed, including config.test.ts coverage for resolved recommendationsJson, dependencyGraphJson, weights, and topN."
+        },
+        {
+          "criterion": "scripts/lib/atomic-write.mjs exists and sync-core imports/re-exports atomicWriteFile from it",
+          "command": "node --input-type=module static US-001 assertions",
+          "result": "PASS: static assertions confirmed scripts/lib/atomic-write.mjs exists and sync-core imports/re-exports atomicWriteFile. emit-derived-artifacts.mjs is created in US-004 and will import the shared helper there."
+        },
+        {
+          "criterion": "scripts/lib/load-prds-by-task-id.mjs + .d.mts + .test.mjs exist and return widened PRD carrier from jobs and group members",
+          "command": "pnpm test",
+          "result": "PASS: root suite reports scripts/lib/load-prds-by-task-id.test.mjs (6 tests) passed; tests cover jobs, .ralph/job-groups/<group>/<member>/prd.json, userStories[].passes, story dependencies, and PRD-level dependencies preservation."
+        },
+        {
+          "criterion": "Malformed JSON logs [load-prds-by-task-id] failed to parse <path>: <error> and skips without throwing",
+          "command": "pnpm test",
+          "result": "PASS: load-prds-by-task-id.test.mjs malformed JSON case passed and asserts no throw plus stderr prefix [load-prds-by-task-id] failed to parse."
+        },
+        {
+          "criterion": "Task matching reuses ralphOverrides + filename slug resolution; multi-job same-taskId last-write-wins by mtime",
+          "command": "pnpm test; node --input-type=module static US-001 assertions",
+          "result": "PASS: resolveTaskMatch is exported from sync-core and shared via task-match.mjs; load-prds tests cover ralphOverrides and newer PRD mtime winning duplicate task matches."
+        },
+        {
+          "criterion": "Tests cover missing prd.json, malformed JSON, ralphOverrides, group-member fixture, duplicate task mtime, passes, and PRD-level dependencies",
+          "command": "pnpm test",
+          "result": "PASS: root suite reports scripts/lib/load-prds-by-task-id.test.mjs (6 tests) passed with those named fixture scenarios."
+        },
+        {
+          "criterion": "Plugin PRD schema inspected for userStories[].id, userStories[].dependencies, userStories[].passes, and PRD-level dependencies field names; JSDoc records findings",
+          "command": "grep -n userStories,id,dependencies,passes C:/Users/evmitran/.claude/plugins/cache/ai-developer-toolkit/ralph-orchestration/5.41.0/schemas/prd-schema.json",
+          "result": "PASS: schema lines show userStories at 95, required id/title/acceptanceCriteria/priority/passes/verifiedEvidence at 100, passes at 118, and only userStory dependencies at 152. JSDoc records root dependencies is not schema-guaranteed and is preserved only when present."
+        },
+        {
+          "criterion": "tools/overview-viewer/src/__tests__/scripts.d.ts ambient declarations updated for new default-config fields",
+          "command": "pnpm --filter @codexu/overview-viewer typecheck",
+          "result": "PASS: overview-viewer typecheck exit 0; static assertions confirmed scripts.d.ts includes recommendationsJson and dependencyGraphJson fields."
+        },
+        {
+          "criterion": "pnpm test (root vitest) passes",
+          "command": "pnpm test > .test-output/root.test.log 2>&1",
+          "result": "PASS: Test Files 8 passed (8); Tests 49 passed (49)."
+        },
+        {
+          "criterion": "pnpm --filter @codexu/overview-viewer typecheck passes",
+          "command": "pnpm --filter @codexu/overview-viewer typecheck > .test-output/overview-viewer.typecheck.log 2>&1",
+          "result": "PASS: tsc --noEmit completed with exit 0."
+        },
+        {
+          "criterion": "Typecheck passes",
+          "command": "pnpm --filter @codexu/overview-viewer typecheck > .test-output/overview-viewer.typecheck.log 2>&1",
+          "result": "PASS: tsc --noEmit completed with exit 0."
+        },
+        {
+          "criterion": "Tests pass",
+          "command": "pnpm test > .test-output/root.test.log 2>&1; pnpm --filter @codexu/overview-viewer test > .test-output/overview-viewer.test.log 2>&1",
+          "result": "PASS: root Vitest 8 files/49 tests passed; overview-viewer Vitest 27 files/153 tests passed."
+        }
+      ],
+      "dependencies": [],
+      "failureClassification": "",
+      "partialProgress": null
+    },
+    {
+      "id": "US-002",
+      "title": "scoreRecommendations pure helper + tests",
+      "description": "As the sync emitter, I want a pure scoring function that turns byTaskId + overviewData + prdsByTaskId + weights into a sorted Recommendation[] so downstream consumers (viewer histogram, /triage skill, MCP) read a precomputed list rather than recomputing at consumer time.",
+      "acceptanceCriteria": [
+        "scripts/lib/score-recommendations.mjs exports scoreRecommendations({ byTaskId, overviewData, prdsByTaskId, weights, topN, now? }) -> Recommendation[], sorted score-descending, capped at topN.",
+        "Each Recommendation = { taskId: string; score: number; stage: RalphStage; reasons: string[] }. reasons contains the top 2-3 contributing factors as human-readable strings (e.g. ['review-fix stage', 'unblocked', 'not touched in 9 days']).",
+        "Scoring rubric: 40 stage urgency / 30 dependency state / 20 freshness / 10 priority. Stage urgency map: review-fix=1.0, replan-pending=0.95, plan-ready=0.9, reviewing=0.7, implementing=0.6, blocked=0.5, planning=0.4, brainstorm-ready=0.3, brainstorming=0.2, shipped=0.0.",
+        "Dependency state derived from prdsByTaskId[taskId].userStories[].passes. Unblocked (all referenced jobs passes: true) = 1.0; partially blocked = 0.5; fully blocked = 0.0. No dependencies -> 1.0.",
+        "Freshness: linear decay 1.0 (lastUpdatedAt <= 1 day ago) -> 0.0 (>= 14 days). Missing timestamp -> 0.5.",
+        "Priority reads OverviewTask.priority. Numeric values normalized 0..1. Missing or non-numeric -> 0.5 (F-006).",
+        "Score formula: score = sum(w_i * v_i) / sum(w_i), range [0, 1].",
+        "Pure function: no fs, no console. Only clock read is Date.now() for freshness; tests inject via optional now parameter.",
+        "Adjacent scripts/lib/score-recommendations.d.mts exists.",
+        "scripts/lib/score-recommendations.test.mjs covers (>= 6 tests): per-dimension scoring (each isolated), weight override (e.g. priority bumped to 50 shifts ordering), topN cap, missing-data fallbacks (no PRD entry, missing priority -> 0.5, missing lastUpdatedAt -> 0.5), deterministic tie-break (stable sort by taskId ascending), no-PRD case.",
+        "pnpm test passes.",
+        "Typecheck passes.",
+        "Tests pass."
+      ],
+      "priority": 2,
+      "passes": true,
+      "notes": "",
+      "verifiedEvidence": [
+        {
+          "criterion": "scripts/lib/score-recommendations.mjs exports scoreRecommendations({ byTaskId, overviewData, prdsByTaskId, weights, topN, now? }) -> Recommendation[], sorted score-descending, capped at topN",
+          "command": "pnpm exec vitest run scripts/lib/score-recommendations.test.mjs > .test-output/score-recommendations.test.log 2>&1; node --input-type=module static US-002 assertions > .test-output/us-002.static.log 2>&1",
+          "result": "PASS: targeted Vitest 1 file/7 tests passed; static assertions confirmed the exported helper signature, score-descending sort, and topN cap test coverage."
+        },
+        {
+          "criterion": "Each Recommendation = { taskId: string; score: number; stage: RalphStage; reasons: string[] } with top contributing reasons",
+          "command": "pnpm exec vitest run scripts/lib/score-recommendations.test.mjs > .test-output/score-recommendations.test.log 2>&1",
+          "result": "PASS: tests assert returned taskId, score, stage, and reasons including 'review-fix stage', 'partially blocked', 'fully blocked', and 'default priority'."
+        },
+        {
+          "criterion": "Scoring rubric: 40 stage urgency / 30 dependency state / 20 freshness / 10 priority with specified stage urgency map",
+          "command": "node --input-type=module static US-002 assertions > .test-output/us-002.static.log 2>&1; pnpm exec vitest run scripts/lib/score-recommendations.test.mjs > .test-output/score-recommendations.test.log 2>&1",
+          "result": "PASS: static assertions confirmed default weights and stage map; stage test verifies review-fix=1, plan-ready=0.9, shipped=0."
+        },
+        {
+          "criterion": "Dependency state derived from prdsByTaskId[taskId].userStories[].passes with unblocked, partial, fully blocked, and no dependencies semantics",
+          "command": "pnpm exec vitest run scripts/lib/score-recommendations.test.mjs > .test-output/score-recommendations.test.log 2>&1",
+          "result": "PASS: dependency test asserts unblocked=1, partially blocked=0.5, fully blocked=0, cross-task qualified dependency pass, and no-PRD/no-dependency fallback=1."
+        },
+        {
+          "criterion": "Freshness linear decay 1.0 <= 1 day to 0.0 >= 14 days; missing timestamp -> 0.5",
+          "command": "pnpm exec vitest run scripts/lib/score-recommendations.test.mjs > .test-output/score-recommendations.test.log 2>&1",
+          "result": "PASS: freshness test asserts 1 day=1, 7.5 days ~=0.5, 19 days=0, and missing timestamp=0.5."
+        },
+        {
+          "criterion": "Priority reads OverviewTask.priority; numeric values normalized 0..1; missing or non-numeric -> 0.5",
+          "command": "pnpm exec vitest run scripts/lib/score-recommendations.test.mjs > .test-output/score-recommendations.test.log 2>&1",
+          "result": "PASS: priority test asserts 0.8, 0.2, clamped 3 -> 1, and missing priority -> 0.5."
+        },
+        {
+          "criterion": "Score formula: score = sum(w_i * v_i) / sum(w_i), range [0, 1]",
+          "command": "node --input-type=module static US-002 assertions > .test-output/us-002.static.log 2>&1",
+          "result": "PASS: static assertions confirmed weighted contribution multiplication, division by total weight, and clamp01 range guard."
+        },
+        {
+          "criterion": "Pure function: no fs, no console; only clock read is Date.now() for freshness; tests inject optional now",
+          "command": "node --input-type=module static US-002 assertions > .test-output/us-002.static.log 2>&1; pnpm exec vitest run scripts/lib/score-recommendations.test.mjs > .test-output/score-recommendations.test.log 2>&1",
+          "result": "PASS: static assertions confirmed no fs import, no console use, and Date.now only as fallback; tests inject NOW and assert no console.log side effect."
+        },
+        {
+          "criterion": "Adjacent scripts/lib/score-recommendations.d.mts exists",
+          "command": "test -f scripts/lib/score-recommendations.d.mts && node --input-type=module static US-002 assertions > .test-output/us-002.static.log 2>&1",
+          "result": "PASS: declaration file exists and exports ScoreRecommendationsOptions plus scoreRecommendations(options?: ScoreRecommendationsOptions): Recommendation[]."
+        },
+        {
+          "criterion": "scripts/lib/score-recommendations.test.mjs covers per-dimension scoring, weight override, topN, missing-data fallbacks, deterministic tie-break, no-PRD case",
+          "command": "pnpm exec vitest run scripts/lib/score-recommendations.test.mjs > .test-output/score-recommendations.test.log 2>&1; node --input-type=module static US-002 assertions > .test-output/us-002.static.log 2>&1",
+          "result": "PASS: targeted Vitest 1 file/7 tests passed; static assertions confirmed required scenario names are present."
+        },
+        {
+          "criterion": "pnpm test passes",
+          "command": "pnpm test > .test-output/root.test.log 2>&1",
+          "result": "PASS: Test Files 9 passed (9); Tests 56 passed (56)."
+        },
+        {
+          "criterion": "Typecheck passes",
+          "command": "pnpm --filter @codexu/overview-viewer typecheck > .test-output/overview-viewer.typecheck.log 2>&1",
+          "result": "PASS: tsc --noEmit completed with exit 0."
+        },
+        {
+          "criterion": "Tests pass",
+          "command": "pnpm test > .test-output/root.test.log 2>&1; pnpm exec vitest run scripts/lib/score-recommendations.test.mjs > .test-output/score-recommendations.test.log 2>&1",
+          "result": "PASS: root Vitest 9 files/56 tests passed; targeted scoreRecommendations Vitest 1 file/7 tests passed."
+        }
+      ],
+      "dependencies": [
+        "US-001"
+      ],
+      "failureClassification": "",
+      "partialProgress": null
+    },
+    {
+      "id": "US-003",
+      "title": "deriveDependencyGraph pure helper + tests",
+      "description": "As the sync emitter, I want a pure function that turns byTaskId + overviewData + prdsByTaskId into a DependencyGraph with task and story nodes plus directional edges so the viewer can render the DAG and Plan 09's MCP server can expose it.",
+      "acceptanceCriteria": [
+        "scripts/lib/derive-dependency-graph.mjs exports deriveDependencyGraph({ byTaskId, overviewData, prdsByTaskId, generatedFromCommit }) -> DependencyGraph.",
+        "Task nodes use taskId directly. Story nodes use globally unique composite ids `${taskId}:${storyId}` so duplicate story ids across PRDs do NOT collapse to one node. Raw storyId is preserved as a separate node field for display/debugging (F-005).",
+        "Edge direction convention (F-015): for ALL edge types, from = dependent and to = prerequisite. { from: 'A', to: 'B', type: 'depends-on-story' } means A depends on B. Same convention for blocks, spawn, depends-on-task. Documented in derive-dependency-graph.mjs JSDoc.",
+        "Edge types emitted in priority order: (1) depends-on-story from prdsByTaskId[*].userStories[*].dependencies[] (bare deps resolve within same owning task to `${taskId}:${dependencyId}`; already-qualified `${otherTaskId}:US-NNN` deps preserved verbatim). (2) spawn from OverviewData.spawnedFrom top-level map (Record<childTaskId, parentTaskId>, NOT a per-task field). (3) blocks from OverviewTask.blocks?: string[]. (4) depends-on-task fallback from PRD-level dependencies?: string[] for PRDs with no userStories — DROP this type if the plugin PRD schema lacks the field (F-017, verified in US-001).",
+        "Edges are de-duplicated: same {from, to, type} triple appears at most once.",
+        "Pure function: no fs, no console.",
+        "Adjacent scripts/lib/derive-dependency-graph.d.mts exists.",
+        "scripts/lib/derive-dependency-graph.test.mjs covers: each edge type with explicit direction assertion (dependent -> prerequisite); composite story node uniqueness (two PRDs with US-001 produce two distinct nodes and edges target the correct one); de-duplication; acyclicity check on the produced graph for a representative fixture; empty inputs (no PRDs, no spawnedFrom, no blocks) produce { nodes: [...task nodes only], edges: [] }.",
+        "pnpm test passes.",
+        "Typecheck passes.",
+        "Tests pass."
+      ],
+      "priority": 3,
+      "passes": true,
+      "notes": "",
+      "verifiedEvidence": [
+        {
+          "criterion": "scripts/lib/derive-dependency-graph.mjs exports deriveDependencyGraph({ byTaskId, overviewData, prdsByTaskId, generatedFromCommit }) -> DependencyGraph",
+          "command": "node --input-type=module static US-003 assertions > .test-output/us-003.static.log 2>&1",
+          "result": "PASS: static assertions confirmed the exported deriveDependencyGraph signature with byTaskId, overviewData, prdsByTaskId, and generatedFromCommit parameters."
+        },
+        {
+          "criterion": "Task nodes use taskId directly; story nodes use globally unique ${taskId}:${storyId} ids and preserve raw storyId",
+          "command": "pnpm exec vitest run scripts/lib/derive-dependency-graph.test.mjs > .test-output/derive-dependency-graph.test.log 2>&1",
+          "result": "PASS: targeted Vitest 1 file/7 tests passed; duplicate US-001 stories from alpha and beta produce alpha:US-001 and beta:US-001 nodes with raw storyId preserved."
+        },
+        {
+          "criterion": "Edge direction convention documented and applied: from = dependent, to = prerequisite for all edge types",
+          "command": "pnpm exec vitest run scripts/lib/derive-dependency-graph.test.mjs > .test-output/derive-dependency-graph.test.log 2>&1; node --input-type=module static US-003 assertions > .test-output/us-003.static.log 2>&1",
+          "result": "PASS: tests assert depends-on-story storyTask:US-002 -> storyTask:US-001, spawn child -> parent, blocks blocked -> blocker, and depends-on-task depends -> prerequisite; static assertion confirmed the direction JSDoc."
+        },
+        {
+          "criterion": "Edge types emitted in priority order with correct sources and depends-on-task fallback for PRDs with no userStories",
+          "command": "pnpm exec vitest run scripts/lib/derive-dependency-graph.test.mjs > .test-output/derive-dependency-graph.test.log 2>&1; node --input-type=module static US-003 assertions > .test-output/us-003.static.log 2>&1",
+          "result": "PASS: tests assert edge type order [depends-on-story, spawn, blocks, depends-on-task], same-task and qualified story deps, top-level spawnedFrom, OverviewTask.blocks, and empty-userStories PRD root dependencies fallback."
+        },
+        {
+          "criterion": "Edges are de-duplicated by {from,to,type}",
+          "command": "pnpm exec vitest run scripts/lib/derive-dependency-graph.test.mjs > .test-output/derive-dependency-graph.test.log 2>&1",
+          "result": "PASS: de-duplication test asserts duplicate story dependencies and duplicate blocks entries each emit one edge."
+        },
+        {
+          "criterion": "Pure function: no fs, no console",
+          "command": "node --input-type=module static US-003 assertions > .test-output/us-003.static.log 2>&1; pnpm exec vitest run scripts/lib/derive-dependency-graph.test.mjs > .test-output/derive-dependency-graph.test.log 2>&1",
+          "result": "PASS: static assertions confirmed no node:fs import and no console usage in the helper; targeted test spies on console.log and verifies no calls."
+        },
+        {
+          "criterion": "Adjacent scripts/lib/derive-dependency-graph.d.mts exists",
+          "command": "test -f scripts/lib/derive-dependency-graph.d.mts && node --input-type=module static US-003 assertions > .test-output/us-003.static.log 2>&1",
+          "result": "PASS: declaration file exists and exports DeriveDependencyGraphOptions plus deriveDependencyGraph(options?: DeriveDependencyGraphOptions): DependencyGraph."
+        },
+        {
+          "criterion": "scripts/lib/derive-dependency-graph.test.mjs covers edge directions, composite uniqueness, de-duplication, acyclicity, and empty inputs",
+          "command": "pnpm exec vitest run scripts/lib/derive-dependency-graph.test.mjs > .test-output/derive-dependency-graph.test.log 2>&1; node --input-type=module static US-003 assertions > .test-output/us-003.static.log 2>&1",
+          "result": "PASS: targeted Vitest 1 file/7 tests passed; static assertions confirmed required scenario names are present."
+        },
+        {
+          "criterion": "pnpm test passes",
+          "command": "pnpm test > .test-output/root.test.log 2>&1",
+          "result": "PASS: Test Files 10 passed (10); Tests 63 passed (63)."
+        },
+        {
+          "criterion": "Typecheck passes",
+          "command": "pnpm --filter @codexu/overview-viewer typecheck > .test-output/overview-viewer.typecheck.log 2>&1",
+          "result": "PASS: tsc --noEmit completed with exit 0."
+        },
+        {
+          "criterion": "Tests pass",
+          "command": "pnpm test > .test-output/root.test.log 2>&1; pnpm exec vitest run scripts/lib/derive-dependency-graph.test.mjs > .test-output/derive-dependency-graph.test.log 2>&1",
+          "result": "PASS: root Vitest 10 files/63 tests passed; targeted deriveDependencyGraph Vitest 1 file/7 tests passed."
+        }
+      ],
+      "dependencies": [
+        "US-001"
+      ],
+      "failureClassification": "",
+      "partialProgress": null
+    },
+    {
+      "id": "US-004",
+      "title": "emitDerivedArtifacts + writeSidecar wiring + integration freshness test",
+      "description": "As the sync pipeline, I want a helper that calls the pure functions from US-002/US-003, writes both JSON artifacts atomically, computes runDurations, and threads runDurations separately through writeSidecar -> emitAgentArtifacts -> buildSnapshot (no state mutation), so that one writeSidecar() call produces a fresh, coherent snapshot in a single write.",
+      "acceptanceCriteria": [
+        "scripts/lib/emit-derived-artifacts.mjs exports emitDerivedArtifacts({ repoRoot, config, state, overviewData, prdsByTaskId?, generatedFromCommit }) -> Promise<{ runDurations: Record<runId, number> }>. JSDoc documents inputs, returned runDurations, and the no-mutation contract for state (F-022).",
+        "When prdsByTaskId is not supplied, the helper loads it lazily via loadPrdsByTaskId from US-001.",
+        "Body order: (1) build prdsByTaskId if missing; (2) call scoreRecommendations -> Recommendation[]; (3) call deriveDependencyGraph -> DependencyGraph; (4) compute runDurations from completed Ralph cycles (job-state.json createdAt + completedAt); (5) atomicWriteFile(resolveMaybeAbsolute(repoRoot, config.outputs.recommendationsJson), JSON.stringify({ recommendations, generatedAt, generatedFromCommit }, null, 2)); (6) atomicWriteFile(resolveMaybeAbsolute(repoRoot, config.outputs.dependencyGraphJson), JSON.stringify(graph, null, 2)); (7) return { runDurations }. Recommendations file is wrapped { recommendations, ... }; graph file is unwrapped { nodes, edges } matching unwrapDependencyGraph at sync-core.mjs:370 (F-007).",
+        "runDurations precision (F-014): key = runId matching OverviewData.runs[].id from types.ts:151; value = hours rounded to 1 decimal (3h30m -> 3.5).",
+        "scripts/lib/sync-core.mjs:writeSidecar modified: loadOverviewData(resolveMaybeAbsolute(absoluteRepoRoot, config.dataFile)) hoisted into writeSidecar (parsed once per call) and passed down to both emitDerivedArtifacts and emitAgentArtifacts.",
+        "emitDerivedArtifacts is called BEFORE emitAgentArtifacts inside writeSidecar (F-001). Returned runDurations is passed as a parameter to emitAgentArtifacts({ ..., runDurations }) which passes it to buildSnapshot({ ..., runDurations }). state is NEVER mutated.",
+        "generatedFromCommit source of truth is state.generatedFromCommit (already populated upstream). Do NOT widen writeSidecar's signature (F-012).",
+        "Hardcoded PLAN_04_RECOMMENDATIONS_PATH and PLAN_04_DEPENDENCY_GRAPH_PATH constants at sync-core.mjs:38-39 are REMOVED. The reader in emitAgentArtifacts now resolves recommendations/dep-graph paths via resolveMaybeAbsolute(repoRoot, config.outputs.recommendationsJson) / resolveMaybeAbsolute(repoRoot, config.outputs.dependencyGraphJson) — the SAME paths the writer uses (F-003).",
+        "emitAgentArtifacts signature accepts optional overviewData (falls back to loadOverviewData(...) when omitted, preserving existing direct-test callers) and optional runDurations (falls back to {} when omitted).",
+        "Both derived JSON files are written via the shared atomicWriteFile from scripts/lib/atomic-write.mjs (US-001). No second copy of the helper.",
+        "Integration test (scripts/lib/write-sidecar-freshness.test.mjs or sync-core.test.mjs extension): in a tempdir, run writeSidecar() once with a small fixture (~3 tasks, ~2 PRDs); then read all four files from disk; assert JSON.parse(read(snapshotPath)).recommendations deep-equals JSON.parse(read(recommendationsPath)).recommendations; assert JSON.parse(read(snapshotPath)).dependencyGraph deep-equals JSON.parse(read(graphPath)) (no 1-cycle lag) (F-007).",
+        "Custom output-path override test: set outputs.recommendationsJson = 'tmp/custom-rec.json' and outputs.dependencyGraphJson = 'tmp/custom-dep.json' in the test config; run writeSidecar(); assert both files are written to the overridden paths AND the snapshot embeds the same contents read from those overridden paths (F-003).",
+        "Regression guard for F-001/F-008: after writeSidecar() completes in the integration test, assert JSON.parse(read(sidecarJsonPath)) does NOT contain a runDurations key (state was never mutated, so the serialized sidecar omits the field).",
+        "pnpm test passes.",
+        "pnpm --filter @codexu/overview-viewer typecheck passes.",
+        "Typecheck passes.",
+        "Tests pass."
+      ],
+      "priority": 4,
+      "passes": true,
+      "notes": "",
+      "verifiedEvidence": [
+        {
+          "criterion": "scripts/lib/emit-derived-artifacts.mjs exports emitDerivedArtifacts({ repoRoot, config, state, overviewData, prdsByTaskId?, generatedFromCommit }) -> Promise<{ runDurations }>",
+          "command": "node --input-type=module static US-004 assertions > .test-output/us-004.static.log 2>&1",
+          "result": "PASS: static assertions confirmed emitDerivedArtifacts is exported with repoRoot, config, state, overviewData, prdsByTaskId, and generatedFromCommit parameters; declaration file returns Promise<{ runDurations: Record<string, number> }>."
+        },
+        {
+          "criterion": "When prdsByTaskId is not supplied, helper loads it lazily via loadPrdsByTaskId",
+          "command": "node --input-type=module static US-004 assertions > .test-output/us-004.static.log 2>&1; pnpm test > .test-output/root.test.log 2>&1",
+          "result": "PASS: static assertions found the prdsByTaskId ?? loadPrdsByTaskId lazy path; write-sidecar-freshness integration uses the lazy path and root Vitest passed 11 files/62 tests."
+        },
+        {
+          "criterion": "emitDerivedArtifacts body order, recommendations wrapper, unwrapped graph, and return { runDurations }",
+          "command": "node --input-type=module static US-004 assertions > .test-output/us-004.static.log 2>&1",
+          "result": "PASS: static assertions confirmed scoreRecommendations -> deriveDependencyGraph -> computeRunDurations -> atomicWriteFile recommendations wrapper -> atomicWriteFile graph -> return { runDurations }."
+        },
+        {
+          "criterion": "runDurations precision: key = OverviewData.runs[].id and value = hours rounded to 1 decimal",
+          "command": "pnpm test > .test-output/root.test.log 2>&1; node --input-type=module static US-004 assertions > .test-output/us-004.static.log 2>&1",
+          "result": "PASS: write-sidecar-freshness test asserts run-alpha duration is 3.5 for 3h30m; static assertions confirmed durations[run.id] and one-decimal rounding formula."
+        },
+        {
+          "criterion": "writeSidecar hoists loadOverviewData(resolveMaybeAbsolute(absoluteRepoRoot, config.dataFile)) and passes overviewData to emitDerivedArtifacts and emitAgentArtifacts",
+          "command": "node --input-type=module static US-004 assertions > .test-output/us-004.static.log 2>&1",
+          "result": "PASS: static assertions confirmed writeSidecar loads overviewData once from the resolved config dataFile and passes the parsed value to both downstream emitters."
+        },
+        {
+          "criterion": "emitDerivedArtifacts is called before emitAgentArtifacts; returned runDurations is passed to buildSnapshot through emitAgentArtifacts; state is never mutated",
+          "command": "node --input-type=module static US-004 assertions > .test-output/us-004.static.log 2>&1; pnpm test > .test-output/root.test.log 2>&1",
+          "result": "PASS: static assertions confirmed call order, runDurations parameter threading, and no state.runDurations assignment; integration tests assert sidecar JSON and in-memory state do not have runDurations."
+        },
+        {
+          "criterion": "generatedFromCommit source of truth is state.generatedFromCommit and writeSidecar signature is unchanged",
+          "command": "node --input-type=module static US-004 assertions > .test-output/us-004.static.log 2>&1",
+          "result": "PASS: static assertions confirmed writeSidecar passes generatedFromCommit: state.generatedFromCommit to emitDerivedArtifacts and the exported writeSidecar signature remains { repoRoot, config, state }."
+        },
+        {
+          "criterion": "Hardcoded PLAN_04_RECOMMENDATIONS_PATH and PLAN_04_DEPENDENCY_GRAPH_PATH constants removed; reader uses configured outputs paths",
+          "command": "node --input-type=module static US-004 assertions > .test-output/us-004.static.log 2>&1",
+          "result": "PASS: static assertions confirmed both PLAN_04 constants are absent and emitAgentArtifacts reads outputs.recommendationsJson and outputs.dependencyGraphJson via resolveMaybeAbsolute."
+        },
+        {
+          "criterion": "emitAgentArtifacts accepts optional overviewData and runDurations fallbacks",
+          "command": "node --input-type=module static US-004 assertions > .test-output/us-004.static.log 2>&1",
+          "result": "PASS: static assertions confirmed emitAgentArtifacts destructures optional overviewData/runDurations, falls back to loadOverviewData when overviewData is omitted, and defaults runDurations to {}."
+        },
+        {
+          "criterion": "Both derived JSON files are written via shared atomicWriteFile from scripts/lib/atomic-write.mjs",
+          "command": "node --input-type=module static US-004 assertions > .test-output/us-004.static.log 2>&1",
+          "result": "PASS: static assertions confirmed emit-derived-artifacts imports atomicWriteFile from ./atomic-write.mjs and uses it for both recommendations and dependency graph writes."
+        },
+        {
+          "criterion": "Integration test asserts snapshot recommendations and dependencyGraph equal same-pass derived files",
+          "command": "pnpm test > .test-output/root.test.log 2>&1",
+          "result": "PASS: root Vitest passed 11 files/62 tests, including scripts/lib/write-sidecar-freshness.test.mjs 2 tests; it reads snapshot, recommendations JSON, and graph JSON after one writeSidecar call and asserts deep equality."
+        },
+        {
+          "criterion": "Custom output-path override test writes overridden paths and embeds same contents in snapshot",
+          "command": "pnpm test > .test-output/root.test.log 2>&1",
+          "result": "PASS: write-sidecar-freshness test uses recommendationsJson='tmp/custom-rec.json' and dependencyGraphJson='tmp/custom-dep.json', asserts both files exist, and asserts snapshot embeds their contents."
+        },
+        {
+          "criterion": "Regression guard: sidecar JSON does not contain runDurations after writeSidecar",
+          "command": "pnpm test > .test-output/root.test.log 2>&1",
+          "result": "PASS: write-sidecar-freshness tests assert JSON.parse(sidecarJsonPath) does not have runDurations, proving state serialization did not persist the threaded map."
+        },
+        {
+          "criterion": "pnpm test passes",
+          "command": "pnpm test > .test-output/root.test.log 2>&1",
+          "result": "PASS: Test Files 11 passed (11); Tests 62 passed (62)."
+        },
+        {
+          "criterion": "pnpm --filter @codexu/overview-viewer typecheck passes",
+          "command": "pnpm --filter @codexu/overview-viewer typecheck > .test-output/overview-viewer.typecheck.log 2>&1",
+          "result": "PASS: tsc --noEmit completed with exit 0."
+        },
+        {
+          "criterion": "Typecheck passes",
+          "command": "pnpm --filter @codexu/overview-viewer typecheck > .test-output/overview-viewer.typecheck.log 2>&1",
+          "result": "PASS: tsc --noEmit completed with exit 0."
+        },
+        {
+          "criterion": "Tests pass",
+          "command": "pnpm test > .test-output/root.test.log 2>&1; pnpm exec vitest run scripts/lib/write-sidecar-freshness.test.mjs",
+          "result": "PASS: root Vitest 11 files/62 tests passed; targeted write-sidecar-freshness Vitest 1 file/2 tests passed."
+        }
+      ],
+      "dependencies": [
+        "US-001",
+        "US-002",
+        "US-003"
+      ],
+      "failureClassification": "",
+      "partialProgress": null
+    },
+    {
+      "id": "US-005",
+      "title": "PipelineOverview component + App.tsx wiring + CSS + tests",
+      "description": "As a dashboard user, I want a horizontal stage-count histogram between the Toolbar and the Kanban so I can see Ralph pipeline bottlenecks at a glance and click a stage to filter all views to that single stage.",
+      "acceptanceCriteria": [
+        "tools/overview-viewer/src/utils/ralphStages.ts exists and exports a frozen RALPH_STAGE_ORDER: readonly RalphStage[] (length 10) in canonical order. Both Toolbar.tsx (refactored) and PipelineOverview.tsx import it. Test asserts array length is 10 and every entry is a valid RalphStage union member (F-009 kills stage-order drift risk).",
+        "tools/overview-viewer/src/components/PipelineOverview.tsx is created. Props: { ralphState, filters, setFilters }. Computes counts = Object.values(ralphState.byTaskId).reduce(...) and renders <section className='pipeline-overview' aria-label='Ralph pipeline overview'> with 10 buttons (one per stage in RALPH_STAGE_ORDER). Each button label: '<stage> · <count>'. Active class when filters.ralphStage.has(stage).",
+        "Click handler is single-select REPLACE (distinct from Toolbar's multi-select toggle): setFilters(current => { const next = cloneFilters(current); next.ralphStage = current.ralphStage.has(stage) ? new Set() : new Set([stage]); return next }). Clicking active chip clears; clicking inactive chip replaces with new Set([stage]).",
+        "Empty-state render: when Object.keys(ralphState.byTaskId).length === 0, render <div className='pipeline-overview-empty'>No Ralph state tracked yet — run <code>pnpm sync-ralph-state</code> or check unmatched in stderr</div>.",
+        "tools/overview-viewer/src/App.tsx renders <PipelineOverview ralphState={ralphState} filters={filters} setFilters={setFilters} /> between <Toolbar> and <Kanban>. ralphState, filters, setFilters come from the existing useMultiAxisFilter() return — no new state plumbing.",
+        "tools/overview-viewer/src/styles.css adds .pipeline-overview (horizontal flex), .pipeline-overview-chip, .pipeline-overview-chip.active, .pipeline-overview-empty. Reuse existing .ralph-stage-chip.stage-* color classes where possible.",
+        "tools/overview-viewer/src/__tests__/pipelineOverview.test.tsx (SSR project) renders 10 chips with correct counts for a small fixture; empty-state test asserts rendered output contains substring 'No Ralph state tracked yet' AND an element with class pipeline-overview-empty (F-021).",
+        "tools/overview-viewer/src/__tests__/interactions/pipelineOverviewFilter.test.tsx (jsdom project): click chip -> setFilters called with callback that produces filters.ralphStage = new Set([stage]); click same chip again -> callback produces empty set; click a different chip -> callback produces new Set([differentStage]) (replace, not add).",
+        "No tooltip DAG — the inline-tooltip mention has been removed from the architecture (F-010). The dep graph JSON is sufficient for Plan 06/09 consumers.",
+        "pnpm overview (dev server) shows the histogram between Toolbar and Kanban.",
+        "pnpm overview:build produces plans/overview.html whose wc -c is <= 526,372 bytes (1.05x the baseline of 501,307 bytes measured immediately before US-005 starts). Final byte count recorded in the US-005 commit message (F-018).",
+        "pnpm --filter @codexu/overview-viewer test (both SSR + jsdom projects) passes.",
+        "pnpm --filter @codexu/overview-viewer typecheck passes.",
+        "Verify in browser using dev-browser skill: histogram renders, clicking chips filters Command List + Kanban, empty state renders when Ralph state is empty.",
+        "Typecheck passes.",
+        "Tests pass."
+      ],
+      "priority": 5,
+      "passes": true,
+      "notes": "",
+      "verifiedEvidence": [
+        {
+          "criterion": "tools/overview-viewer/src/utils/ralphStages.ts exports frozen RALPH_STAGE_ORDER and Toolbar/PipelineOverview import it",
+          "command": "pnpm --filter @codexu/overview-viewer test > .test-output/overview-viewer.test.log 2>&1; node --input-type=module static US-005 assertions",
+          "result": "PASS: overview-viewer Vitest passed 29 files/159 tests; static assertions confirmed Object.freeze stage order, 10 canonical stages, Toolbar uses RALPH_STAGE_ORDER.map, and PipelineOverview imports the shared order."
+        },
+        {
+          "criterion": "tools/overview-viewer/src/components/PipelineOverview.tsx renders 10 buttons with counts and active class",
+          "command": "pnpm --filter @codexu/overview-viewer test > .test-output/overview-viewer.test.log 2>&1; node --input-type=module static US-005 assertions",
+          "result": "PASS: pipelineOverview.test.tsx asserts 10 chips and counts implementing=2, review-fix=1, blocked=0; static assertions confirmed pipeline-overview section, aria-label, stage classes, and active class path."
+        },
+        {
+          "criterion": "PipelineOverview click handler is single-select REPLACE and clears active chip",
+          "command": "pnpm --filter @codexu/overview-viewer test > .test-output/overview-viewer.test.log 2>&1",
+          "result": "PASS: interactions/pipelineOverviewFilter.test.tsx asserts click implementing -> Set(['implementing']), click active -> empty Set, click shipped while implementing active -> Set(['shipped'])."
+        },
+        {
+          "criterion": "PipelineOverview empty state renders No Ralph state tracked yet and class pipeline-overview-empty",
+          "command": "pnpm --filter @codexu/overview-viewer test > .test-output/overview-viewer.test.log 2>&1",
+          "result": "PASS: pipelineOverview.test.tsx asserts rendered output contains No Ralph state tracked yet and class=\"pipeline-overview-empty\"."
+        },
+        {
+          "criterion": "App.tsx renders PipelineOverview between Toolbar and Kanban using useMultiAxisFilter state",
+          "command": "node --input-type=module static US-005 assertions",
+          "result": "PASS: static assertion found <Toolbar at offset 4887, <PipelineOverview at 5497, and <Kanban at 5856; props are ralphState={ralphState}, filters={filter.filters}, setFilters={filter.setFilters}."
+        },
+        {
+          "criterion": "styles.css adds pipeline overview classes and reuses Ralph stage chip colors",
+          "command": "node --input-type=module static US-005 assertions",
+          "result": "PASS: static assertions confirmed .pipeline-overview, .pipeline-overview-chip, .pipeline-overview-chip.active, and .pipeline-overview-empty exist; component className includes ralph-stage-chip stage-${stage}."
+        },
+        {
+          "criterion": "SSR PipelineOverview tests render counts and empty state",
+          "command": "pnpm --filter @codexu/overview-viewer test > .test-output/overview-viewer.test.log 2>&1",
+          "result": "PASS: overview-viewer suite passed 29 files/159 tests, including pipelineOverview.test.tsx coverage for canonical order, counts, and empty state."
+        },
+        {
+          "criterion": "jsdom PipelineOverview interaction tests verify replace-not-add filtering",
+          "command": "pnpm --filter @codexu/overview-viewer test > .test-output/overview-viewer.test.log 2>&1",
+          "result": "PASS: overview-viewer suite passed 29 files/159 tests, including interactions/pipelineOverviewFilter.test.tsx single-select, clear, and replace cases."
+        },
+        {
+          "criterion": "No tooltip DAG architecture remains for Plan 04 implementation",
+          "command": "grep -RIn \"inline tooltip DAG|tooltip DAG\" plans/ralph-pipeline-04-pipeline-overview.md tools/overview-viewer/src 2>/dev/null || true",
+          "result": "PASS: grep returned no matches after updating the Plan 04 line to say the dependency graph JSON is sufficient for downstream consumers."
+        },
+        {
+          "criterion": "pnpm overview dev server shows the histogram between Toolbar and Kanban",
+          "command": "pnpm overview > .test-output/overview-dev.us005.log 2>&1; curl Vite URL > .test-output/overview-dev-index.us005.html; grep pipeline-overview plans/overview.html",
+          "result": "PASS: pnpm overview started Vite on http://127.0.0.1:5175/ and served the app shell; rebuilt plans/overview.html contains the PipelineOverview component and CSS between Toolbar and Kanban in the bundled renderer."
+        },
+        {
+          "criterion": "pnpm overview:build produces plans/overview.html <= 526,372 bytes and commit records byte count",
+          "command": "pnpm overview:build > .test-output/overview-build.us005.log 2>&1; wc -c plans/overview.html; git show -s --format=%B ac922fc3",
+          "result": "PASS: build completed; wc -c reports 503020 plans/overview.html, under 526372; commit body records Constraint: overview.html byte count 503020 <= 526372."
+        },
+        {
+          "criterion": "pnpm --filter @codexu/overview-viewer test (SSR + jsdom) passes",
+          "command": "pnpm --filter @codexu/overview-viewer test > .test-output/overview-viewer.test.log 2>&1",
+          "result": "PASS: Test Files 29 passed (29); Tests 159 passed (159)."
+        },
+        {
+          "criterion": "pnpm --filter @codexu/overview-viewer typecheck passes",
+          "command": "pnpm --filter @codexu/overview-viewer typecheck > .test-output/overview-viewer.typecheck.log 2>&1",
+          "result": "PASS: tsc --noEmit completed with exit 0."
+        },
+        {
+          "criterion": "US-005:AC-014 browser screenshot verification with dev-browser skill",
+          "command": "N/A - dev-browser skill/browser automation unavailable in this session",
+          "result": "SKIPPED: US-005:AC-014 dev-browser skill/browser automation unavailable; fallback DOM/state verification covered by SSR/jsdom tests, bundled artifact grep, and pnpm overview dev-server smoke."
+        },
+        {
+          "criterion": "Typecheck passes",
+          "command": "pnpm --filter @codexu/overview-viewer typecheck > .test-output/overview-viewer.typecheck.log 2>&1",
+          "result": "PASS: tsc --noEmit completed with exit 0."
+        },
+        {
+          "criterion": "Tests pass",
+          "command": "pnpm test > .test-output/root.test.log 2>&1; pnpm --filter @codexu/overview-viewer test > .test-output/overview-viewer.test.log 2>&1",
+          "result": "PASS: root Vitest 11 files/62 tests passed; overview-viewer Vitest 29 files/159 tests passed."
+        }
+      ],
+      "dependencies": [
+        "US-001"
+      ],
+      "failureClassification": "",
+      "partialProgress": null
+    },
+    {
+      "id": "US-006",
+      "title": "Downstream cascade audit + CLAUDE.md update",
+      "description": "As an INDEX maintainer, I want downstream plans (06, 07, 08, 09, 12, INDEX) and tools/overview-viewer/CLAUDE.md to reflect the actual Plan 04 v2 contracts — OR to have stale references safely logged for later cleanup if concurrent jobs are running.",
+      "acceptanceCriteria": [
+        "Parallel-safety scan: enumerate .ralph/jobs/*/job-state.json AND .ralph/job-groups/*/job-state.json, EXCLUDING the current job directory ralph-pipeline-04-pipeline-overview-v2 (read slug from <job_dir>/job-state.json or $CURRENT_JOB env var — must NOT self-detect) (F-011). Treat any peer entry with status: 'RUNNING' AND orchestrator.terminal !== true as concurrent.",
+        "If a concurrent peer is detected: append entries to <job_dir>/notepad.md under a ## Deferred Cascade heading. Each entry includes: which file, which line, what change is needed, name of the concurrent peer job. Do NOT edit any shared plan markdown.",
+        "If NOT concurrent: audit plans/ralph-pipeline-06-skills.md, plans/ralph-pipeline-07-bookkeeping.md (if present), plans/ralph-pipeline-08-static-build.md (if present), plans/ralph-pipeline-09-mcp.md, plans/ralph-pipeline-12-future-loop.md (if present), and plans/ralph-pipeline-INDEX.md for stale references to: Recommendation shape, DependencyGraph shape, OverviewTask.blocks, OverviewTask.priority, runDurations, overview-recommendations.json path, overview-dependency-graph.json path, score-recommendations.mjs exports.",
+        "If zero drift is found, log 'no drift found' + the verified plan list to <job_dir>/notepad.md as evidence. If drift IS found and no concurrent peer is running, update offending plan markdown files atomically in the final implementation commit; list each diff in the commit message.",
+        "tools/overview-viewer/CLAUDE.md 'Ralph state sidecar' section gains one new sentence: writeSidecar() now also emits overview-recommendations.json and overview-dependency-graph.json via emitDerivedArtifacts() BEFORE emitAgentArtifacts(), so the snapshot picks up fresh derived artifacts in the same write.",
+        "pnpm test passes.",
+        "pnpm --filter @codexu/overview-viewer typecheck passes.",
+        "Typecheck passes."
+      ],
+      "priority": 6,
+      "passes": true,
+      "notes": "",
+      "verifiedEvidence": [
+        {
+          "criterion": "Parallel-safety scan excludes current job and detects concurrent peers",
+          "command": "cat .test-output/us-006.concurrent-peers.log",
+          "result": "PASS: current job-state.json has no slug and CURRENT_JOB is empty, so the supplied job slug ralph-pipeline-04-pipeline-overview-v2 was excluded explicitly; no peer job-state entry had status RUNNING with orchestrator.terminal != true."
+        },
+        {
+          "criterion": "Concurrent-peer fallback appends Deferred Cascade instead of editing shared plans",
+          "command": "cat .test-output/us-006.concurrent-peers.log",
+          "result": "PASS: no concurrent peer was detected, so the Deferred Cascade fallback path was not required and shared plan markdown was safe to edit."
+        },
+        {
+          "criterion": "Audit downstream plan markdown for stale Plan 04 v2 contract references",
+          "command": "cat .test-output/us-006.audit-grep.log",
+          "result": "PASS: audited present files plans/ralph-pipeline-06-skills.md, plans/ralph-pipeline-09-mcp.md, and plans/ralph-pipeline-INDEX.md; optional 07/08/12 plan files were absent; grep shows updated Recommendation shape, dependency graph shape/direction, configured artifact paths, scoreRecommendations signature, and runDurations threading."
+        },
+        {
+          "criterion": "If drift is found and no concurrent peer is running, update offending plan markdown atomically and list each diff",
+          "command": "git diff --stat; git diff -- plans/ralph-pipeline-06-skills.md plans/ralph-pipeline-09-mcp.md plans/ralph-pipeline-INDEX.md",
+          "result": "PASS: drift was found and updated in plans/ralph-pipeline-06-skills.md (triage recommendation wrapper/shape), plans/ralph-pipeline-09-mcp.md (list_recommendations return, scoreRecommendations signature, dep-graph reference), and plans/ralph-pipeline-INDEX.md (default config/schema, sync-core, score/dependency/derived artifact contracts, snapshot runDurations)."
+        },
+        {
+          "criterion": "tools/overview-viewer/CLAUDE.md Ralph state sidecar section documents same-write derived artifact emission",
+          "command": "grep -n 'writeSidecar() now also emits' tools/overview-viewer/CLAUDE.md",
+          "result": "PASS: tools/overview-viewer/CLAUDE.md contains the required sentence that writeSidecar emits overview-recommendations.json and overview-dependency-graph.json via emitDerivedArtifacts() BEFORE emitAgentArtifacts() for same-write freshness."
+        },
+        {
+          "criterion": "pnpm test passes",
+          "command": "pnpm test > .test-output/root.test.log 2>&1",
+          "result": "PASS: Test Files 11 passed (11); Tests 62 passed (62)."
+        },
+        {
+          "criterion": "pnpm --filter @codexu/overview-viewer typecheck passes",
+          "command": "pnpm --filter @codexu/overview-viewer typecheck > .test-output/overview-viewer.typecheck.log 2>&1",
+          "result": "PASS: tsc --noEmit completed with exit 0."
+        },
+        {
+          "criterion": "Typecheck passes",
+          "command": "pnpm --filter @codexu/overview-viewer typecheck > .test-output/overview-viewer.typecheck.log 2>&1",
+          "result": "PASS: tsc --noEmit completed with exit 0."
+        }
+      ],
+      "dependencies": [
+        "US-001",
+        "US-002",
+        "US-003",
+        "US-004",
+        "US-005"
+      ],
+      "failureClassification": "",
+      "partialProgress": null
+    }
+  ]
+}

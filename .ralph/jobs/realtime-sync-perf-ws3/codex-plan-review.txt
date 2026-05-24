@@ -1,0 +1,43 @@
+### Feasibility
+
+[High] `packages/happy-server/sources/app/events/eventRouter.ts` cannot implement recipient-safe replay with the planned `Map<userId, UpdatePayload[]>`. The current routing filter lives beside the payload in `emitUpdate`, and replay must store `{ payload, recipientFilter }`. Otherwise `recipientFilter` cannot be re-evaluated and private/session/machine-scoped updates may be leaked or incorrectly omitted.
+
+[High] The plan references `recipientFilterFromConnection`, but no such abstraction exists. The router currently converts a `RecipientFilter` into Socket.IO rooms via private `getRoomsForFilter()`. Replay needs a new helper like `doesFilterMatchConnection(filter, connection)` in `eventRouter.ts`, not a filter derived from the reconnecting socket.
+
+[High] The daemon-restart mitigation is only partially reflected. `lastSeenSeq > currentSeq -> replay-overflow` requires tracking `currentSeq` per user even when the replay buffer is empty or age-evicted. A plain buffer-only map cannot reliably compute this.
+
+[Medium] The plan’s server tests put handshake behavior in `eventRouter.test.ts`, but handshakes are parsed in `packages/happy-server/sources/app/api/socket.ts`. `eventRouter.test.ts` can test replay selection, but at least one `socket.spec.ts` or integration test should prove `auth.lastSeenSeq` is parsed and triggers `socket.emit('replay-overflow' | 'update')`.
+
+### Completeness
+
+[High] Client update handling is async and currently not serialized: `apiSocket.onMessage('update', ...)` calls `this.handleUpdate(...)` without awaiting in `packages/happy-app/sources/sync/sync.ts`. A replay burst of seq 6..10 can complete out of order, so a setter that blindly writes `seq` can regress `lastSeenUpdateSeqByMachineId`. The setter should be monotonic (`max(existing, seq)`) at minimum.
+
+[High] Persisting last-seen “after apply sinks” is underspecified for update types that trigger HTTP invalidation instead of applying local state. `new-session` currently calls `this.sessionsSync.invalidate()` in `sync.ts`, not `invalidateAndAwait()`. Advancing `lastSeenSeq` before the fetch succeeds can permanently skip the update after a reconnect.
+
+[Medium] The plan says “last 1024 emitted update events” but also adds opportunistic 60s age eviction. That changes the feature semantics and can force HTTP fallback for ordinary app background periods. If age eviction remains, acceptance criteria and docs must explicitly cover it; otherwise remove it.
+
+[Medium] Overflow recovery only calls `sessionsSync.invalidateAndAwait()` in `sync.ts`. Existing reconnect handling also calls `machinesSync.invalidate()`, and `update-machine` / `delete-machine` can be among missed events. The plan keeps `machinesSync.invalidate()` in `onReconnected`, which may cover normal reconnects, but the overflow handler itself should be explicit about relying on that ordering or should refresh machines too.
+
+[Low] Stale `lastSeenUpdateSeqByMachineId` entries are not cleaned up when a machine is removed. Probably acceptable, but the plan should call it out as harmless persisted metadata or include cleanup in `storage.deleteMachine`.
+
+### Ordering
+
+[Medium] Client persistence should be implemented before `apiSocket.ts` reads from `storage.getState().lastSeenUpdateSeqByMachineId`; the listed order does that, but tests for `apiSocket.ts` will also need the existing `./storage` mock in `packages/happy-app/sources/sync/apiSocket.test.ts` updated to expose the new field.
+
+[Medium] The replay-overflow handler and reconnect gating should land together. Removing unconditional `sessionsSync.invalidate()` before overflow handling and first-no-seq fallback exists creates a state-loss window.
+
+### Simplicity
+
+[Medium] A separate `getReplayForUser(userId, lastSeenSeq, recipientFilter)` API is awkward because replay filtering is connection-based. Simpler: expose `replayUpdatesForConnection(userId, connection, lastSeenSeq): { overflow, currentSeq }` or `selectReplayEvents(userId, connection, lastSeenSeq)`, with filter matching internal to `eventRouter.ts`.
+
+[Low] The 60s eviction adds complexity and test flakiness without being required by the stated 1024-event ring-buffer feature.
+
+### Acceptance Criteria Quality
+
+[High] The server criteria do not require testing the actual `socket.ts` handshake path. Add a criterion that a socket connecting with `auth.lastSeenSeq` receives replay/overflow, and a socket without it does not.
+
+[High] The client criteria do not test out-of-order async completion or monotonic last-seen persistence. Add a test that writing seq 10 then seq 6 leaves the stored value at 10.
+
+[Medium] The “handleUpdate 3 times” criterion should specify update types. Use at least one locally-applied event and one fetch-backed event such as `new-session`, because their safe persistence points differ.
+
+[Medium] The plan’s amendment for daemon seq reset is directionally adequate, but acceptance should include both non-empty and empty-buffer restart cases: `lastSeenSeq > currentSeq` with no buffered events must still emit `replay-overflow`.

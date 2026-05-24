@@ -1,0 +1,37 @@
+### Feasibility
+
+[Medium] The sync normalization needs a defensive shape guard. `sync.ts` parses metadata with `parsePlainJson(...)`, not `MetadataSchema.parse(...)`, so `toCompositeSession()` and the `update-session` path can receive arbitrary objects. The plan should require `typeof parentSessionId === 'string'` and `Array.isArray(spawnedChildren)` before promoting refs, or one malformed metadata blob can break session fetch/update handling.
+
+[Medium] The `update-session` handler at `packages/happy-app/sources/sync/sync.ts:1816` does not have a local `machineId` variable. The plan says “use `compositeSessionId(machineId, ...)`” but should specify the source: prefer `sourceMachineId`, then `session.metadata?.machineId`, then parse from the composite `sessionId`.
+
+[Low] CLI mirroring must include nullability, not only optionality. App schema `parentSessionId: z.string().nullish()` implies `parentSessionId?: string | null`; `packages/happy-cli/src/api/types.ts` should match that exactly.
+
+### Completeness
+
+[High] The plan omits the existing fork/spawn writer path, so the new fields will not be populated by real user flows. The app already calls `machineForkSession(...)` from `packages/happy-app/sources/app/(app)/session/[id]/fork-composer.tsx`, which strips the composite id in `packages/happy-app/sources/sync/ops.ts`, then CLI passes `HAPPY_FORKED_FROM_SESSION_ID` through `packages/happy-cli/src/daemon/forkSession.ts`, and `packages/happy-cli/src/codex/runCodex.ts` only emits a boundary. If this task is “metadata tracking,” it should wire child `parentSessionId` into `createSessionMetadata(...)` or `runCodex.ts`, and ideally update the parent’s `spawnedChildren`.
+
+[High] The `applySessions` merge semantics are internally inconsistent. The plan says `undefined = absent / not tracked yet`, but also proposes preserving an existing local `spawnedChildren: ['m1:def']` when incoming metadata lacks the field. Since metadata is server-authoritative, preserving old local children can resurrect removed links or mask older producer writes. Either make metadata replacement authoritative, or explicitly define `spawnedChildren` as a local overlay with version/conflict rules.
+
+[Medium] Status docs are incomplete. If marking `session-parent-link` complete, update at least `plans/overview.html` where it is currently `b-inflight`, and likely `plans/parallel-assignments.md` / roadmap tracking per the repo’s roadmap maintenance pattern. Updating only `plans/agent-view-research.md` leaves task state inconsistent.
+
+### Ordering
+
+[Medium] Add a shared normalization helper before editing both `toCompositeSession()` and the `update-session` handler. Otherwise the two paths can drift. Tests should cover both HTTP `/v1/sessions` fetch and socket `update-session`.
+
+[Low] If the writer path is added, type/schema updates should land before `createSessionMetadata(...)` / `runCodex.ts` changes so CLI typecheck stays clean.
+
+### Simplicity
+
+[Medium] The simplest safe reducer behavior is to avoid special `applySessions` metadata merge logic unless there is a real local metadata overlay. With no schema default for `spawnedChildren`, current full replacement will not backfill `[]`. Special preservation is more complex and risks stale parent/child data.
+
+[Low] Given parent CAS updates can race, `getSessionChildren(sid)` could use explicit `spawnedChildren` when present and fall back to reverse-scanning `metadata.parentSessionId === sid` when absent. The plan considered this but defaults to explicit-only; that makes the first UI consumer brittle if only child metadata gets written.
+
+### Acceptance Criteria Quality
+
+[High] Acceptance criteria do not require real fork flow verification. Add a test around `HAPPY_FORKED_FROM_SESSION_ID` / `createSessionMetadata(...)` or `runCodex.ts` showing a forked child session gets `parentSessionId`.
+
+[Medium] Add an explicit criterion for malformed metadata tolerance: non-string `parentSessionId` and non-array `spawnedChildren` must not crash sync.
+
+[Medium] Add a criterion for cross-machine refs. The plan says cross-machine refs are out of scope, but acceptance does not say whether `m2:child` in an `m1` session is rejected, ignored, or preserved.
+
+[Low] “parentSessionId: null semantics” is vague. Specify that helpers treat `null`, `undefined`, and missing parent session as `null`, while preserving an explicit `null` if the server sends it.

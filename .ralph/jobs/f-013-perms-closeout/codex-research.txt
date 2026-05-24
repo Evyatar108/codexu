@@ -1,0 +1,68 @@
+**Codebase Architecture**
+This is a pnpm workspace monorepo with TypeScript across the relevant packages: `packages/happy-cli`, `packages/happy-app`, `packages/happy-server`, and `packages/happy-wire`. The relevant package is `packages/happy-cli`, a Node/ESM CLI using strict TypeScript, Vitest, `@/*` path aliases, and `@anthropic-ai/claude-agent-sdk`.
+
+Claude execution is organized as:
+
+- `packages/happy-cli/src/claude/runClaude.ts`: creates API session, tracks current permission/model/thinking state, queues user messages.
+- `packages/happy-cli/src/claude/loop.ts`: switches between local and remote Claude modes.
+- `packages/happy-cli/src/claude/claudeRemoteLauncher.ts`: owns remote SDK lifecycle, `PermissionHandler`, and session allowlist rehydration.
+- `packages/happy-cli/src/claude/claudeRemote.ts`: wraps SDK `query()` and maps Happy modes into SDK options.
+- `packages/happy-cli/src/claude/utils/*`: permission-mode mapping, permission handler, session allowlist, SDK metadata utilities.
+
+The referenced `.ralph/jobs/devtunnels-E-cleanup/notepad.md` is absent in this worktree, so F-013 has to be scoped from code.
+
+**Feature-Relevant Code**
+The key invariant is in `packages/happy-cli/CLAUDE.md`: Happy has a 7-mode wire enum, Claude SDK only accepts 4 modes, and Claude-specific mapping must happen through `mapToClaudeMode`.
+
+Relevant files:
+
+- `packages/happy-cli/src/claude/utils/permissionMode.ts`
+  - `mapToClaudeMode(mode)` maps `yolo -> bypassPermissions`, `safe-yolo -> default`, `read-only -> default`.
+  - Also contains `resolveInitialClaudePermissionMode()` and `applySandboxPermissionPolicy()`.
+
+- `packages/happy-cli/src/claude/utils/permissionHandler.ts`
+  - `PermissionResponse.mode` is currently typed as `ClaudeSdkPermissionMode` at line 20.
+  - `handleModeChange()` correctly maps via `mapToClaudeMode()` at line 64.
+  - `handlePermissionResponse()` directly assigns `this.permissionMode = response.mode` at lines 86-89. This is the likely latent override bug: an RPC response carrying a 7-mode wire value bypasses the mapper.
+  - `handleToolCall()` compares the stored mode against only Claude-native SDK values at lines 164-174.
+
+- `packages/happy-cli/src/claude/utils/sessionAllowlist.ts`
+  - Persists session-scoped approvals, especially `acceptEdits` and `allowTools`.
+  - It accepts `mode?: string`, but only treats `acceptEdits` specially. This is probably secondary, not the main F-013 fix.
+
+- `packages/happy-cli/src/claude/claudeRemote.ts`
+  - Initial SDK option uses `permissionMode: mapToClaudeMode(initial.mode.permissionMode)`.
+
+- `packages/happy-cli/src/claude/claudeRemoteLauncher.ts`
+  - Calls `permissionHandler.handleModeChange(...)` before dispatching queued messages.
+  - Rehydrates `session.permissionAllowlist` from `agentState.completedRequests`.
+
+- `packages/happy-app/sources/sync/ops.ts`
+  - Current production app permission RPC helpers only allow Claude’s 4 response modes, which matches the “latent/non-production-reachable” context.
+  - Other schemas/logs already tolerate 7 modes, so the CLI handler should be defensive.
+
+Tests to extend:
+
+- `packages/happy-cli/src/claude/utils/permissionHandler.test.ts`
+- `packages/happy-cli/src/claude/utils/permissionMode.test.ts`
+- Existing related coverage: `sessionAllowlist.test.ts`, `runClaudePublishMode.test.ts`, `setupOfflineReconnection.permissionMode.test.ts`.
+
+**Technical Constraints**
+Claude SDK `QueryOptions.permissionMode` is only `'default' | 'acceptEdits' | 'bypassPermissions' | 'plan'`. Happy’s shared `PermissionMode` is 7 values: `default`, `acceptEdits`, `bypassPermissions`, `plan`, `read-only`, `safe-yolo`, `yolo`.
+
+`publishPermissionModeIfChanged()` mutates runner-local metadata before awaiting server update; do not disturb that behavior.
+
+The handler’s internal `permissionMode` must always be a Claude SDK mode. Today the comment says that, but `handlePermissionResponse()` violates it at runtime if a non-Claude wire mode arrives.
+
+**Implementation Suggestions**
+Fix the narrow path in `packages/happy-cli/src/claude/utils/permissionHandler.ts`:
+
+1. Widen `PermissionResponse.mode` from `ClaudeSdkPermissionMode` to the shared `PermissionMode`.
+2. In `handlePermissionResponse()`, compute `const claudeMode = response.mode ? mapToClaudeMode(response.mode) : undefined`.
+3. Assign `this.permissionMode = claudeMode`, not the raw response mode.
+4. In the `ExitPlanMode` branch, use the mapped Claude mode when deciding `newMode`.
+5. If TypeScript requires it, widen `PermissionsField.mode` in `claudeRemoteLauncher.ts` to the shared `PermissionMode` so logs can preserve the raw wire mode.
+
+Add one regression test in `permissionHandler.test.ts`: create a pending permission, resolve it with `mode: 'yolo'` via the RPC handler, then assert a subsequent dangerous tool call is auto-allowed because `yolo` was mapped to `bypassPermissions`. The test may need the local test response type widened from the 4-mode enum to `PermissionMode`.
+
+Verification target from the request: `pnpm --filter '{packages/happy-cli}' exec vitest run 2>&1 | tee /tmp/codexu-f013.log`, plus cross-package typecheck such as `pnpm -r --if-present run typecheck`.

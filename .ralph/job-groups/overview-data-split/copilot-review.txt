@@ -1,0 +1,21 @@
+I’m opening the attached task file to see what needs to be done, then I’ll make the requested change end to end.
+
+I’ve got the plan and diff scope; next I’m inspecting the changed files and current diff to verify whether the implementation actually matches the contract.
+
+### Completeness
+- [High] `plans/overview-data.js:23-1049` only contains **49** task objects, but the plan explicitly requires **51** task entries. That means the refactor ships an incomplete dashboard dataset and fails the primary acceptance check for the new sidecar file.
+- [High] The repo-wide stale-instruction sweep is incomplete. Even after moving the source of truth to `plans/overview-data.js`, several surviving prompts still tell future agents to update `plans/overview.html` or its removed JSON block: `plans/overview-data.js:505`, `:518`, `:531`, `:658`; `plans/parallel-assignments.md:133`, `:445`; `plans/crews-integration.md:3`. That directly violates the planned “grep for stale `edit plans/overview.html` instructions” cleanup and will send future work back to the derived view.
+
+### Correctness
+- [High] `plans/overview.html:1421-1428` renders phase-tree task refs from static `node.state` / `visibleText`, and those states are hardcoded in `plans/overview-data.js:1060-1062,1142,1149`. So flipping a task’s `phase` in `tasks[]` updates the command row, but **does not update the corresponding phase-tree entry** without a second manual edit in `phaseTree[]`. That breaks the promised one-entry “bookkeeper workflow” acceptance criterion.
+- [Medium] `plans/overview.html:1288-1396` rebuilds the kanban and command DOM, but all of the enrichers that make the page fully functional are one-shot IIFEs later in the file (`:1588-1674`, `:1692-1705`, `:1943-1955`, `:2196-2310`, `:2338-2353`). A console `renderTasks()` rerender preserves open `<details>` state, but it drops scope chips, workstream pills, copy-name buttons, kanban → command links, and leaves counts / Today-panel state stale. That makes the exposed rerender path unsafe for the manual refresh/debugging workflow the plan calls out.
+
+### Quality
+No issues found.
+
+### Security
+No issues found.
+
+### Overall Assessment
+Needs more work. The refactor is close, but it misses required task coverage and leaves the new single-source-of-truth workflow inconsistent enough that operators can still be pointed at the wrong file.
+

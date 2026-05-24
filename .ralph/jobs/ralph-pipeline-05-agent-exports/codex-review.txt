@@ -1,0 +1,27 @@
+### Completeness
+
+[High] The generated deliverables are absent from the diff: `plans/overview-snapshot.json`, `plans/overview-data.json`, `plans/overview-activity.jsonl`, `plans/overview-snapshot.schema.json`, and `tasks/INDEX.md`. The plan explicitly lists these as files to create, and the main goal is that a cold agent can read `plans/overview-snapshot.json` immediately.
+
+[High] One-shot sync still does not append activity events. `scripts/sync-ralph-state.mjs:35` builds state via `walkRalphState()` and calls `writeSidecar()` directly, with no prior-state diff and no `appendActivity()` call. This misses the plan’s “watcher / one-shot CLI” activity contract.
+
+### Correctness
+
+[High] `ActivityEvent` is missing the required `kind` field. The plan’s schema requires `kind: 'job' | 'group' | 'brainstorm'`, but `tools/overview-viewer/src/types.ts:183` omits it and `scripts/lib/sync-core.mjs:297` creates events without it. Downstream readers cannot distinguish job/group/brainstorm slugs.
+
+[High] Plan 04 recommendation ingestion likely uses the wrong JSON shape. `scripts/lib/sync-core.mjs:370` assigns the entire `overview-recommendations.json` value to `Snapshot.recommendations`, but the updated Plan 04 still documents `jq '.recommendations | length'`, implying an object wrapper. If Plan 04 emits `{ recommendations: [...] }`, the snapshot will violate its own schema.
+
+[Medium] `scripts/lib/emit-activity.mjs:37` makes rotation blocking, not best-effort. `fs.rmSync()` / `fs.renameSync()` errors will throw and prevent the append, despite the plan saying rollover failures should be tolerable because activity is supplementary.
+
+### Quality
+
+[Medium] `scripts/lib/emit-snapshot-schema.mjs:213` writes with `fs.writeFileSync()` instead of the shared atomic writer. Production `writeSidecar()` uses `atomicWriteFile`, but the exported helper violates the plan’s atomicity contract if used directly.
+
+[Medium] The new `scripts/lib/*.test.mjs` tests are not included by `tools/overview-viewer/vitest.config.ts:10`, which only includes `src/__tests__/**/*.test.{ts,tsx}`. That leaves the new emitter and acceptance tests outside the normal package test command unless another runner is added.
+
+### Security
+
+No issues found.
+
+### Overall Assessment
+
+Needs more work before use. The core artifact emission is present, but the activity event contract and one-shot behavior are incomplete, and the committed generated files are missing from the diff.

@@ -1,0 +1,27 @@
+### Completeness
+
+- [High] `overview.dev_server.stop` is not idempotent as required. The AC says no child should return `{ ok: true, stoppedAt }`, but [tools/overview-mcp/src/tools/dev-server-stop.ts:22](D:/harness-efforts/codexu/.ralph/jobs/ralph-pipeline-11-mcp-operational-tools/worktree/tools/overview-mcp/src/tools/dev-server-stop.ts:22) returns `{ ok: false, error: 'dev server is not running' }` when no process is tracked.
+
+- [High] `dev_server.status` returns the last 30 log lines instead of the required last 10. [tools/overview-mcp/src/tools/dev-server-status.ts:51](D:/harness-efforts/codexu/.ralph/jobs/ralph-pipeline-11-mcp-operational-tools/worktree/tools/overview-mcp/src/tools/dev-server-status.ts:51) slices `-30`, invalidating the status AC.
+
+- [High] Concurrent `overview.sync.now` returns the wrong contract string. The AC requires `{ ok: false, error: 'another sync in progress' }`, but [tools/overview-mcp/src/tools/sync-now.ts:62](D:/harness-efforts/codexu/.ralph/jobs/ralph-pipeline-11-mcp-operational-tools/worktree/tools/overview-mcp/src/tools/sync-now.ts:62) returns `'sync already in progress'`.
+
+### Correctness
+
+- [High] `ProcessManager.stop()` deletes tracked processes by default, which breaks the plan’s long-lived dev-server retention for status/log reads. [tools/overview-mcp/src/process-manager.ts:306](D:/harness-efforts/codexu/.ralph/jobs/ralph-pipeline-11-mcp-operational-tools/worktree/tools/overview-mcp/src/process-manager.ts:306) deletes unless `remove === false`; the plan specified deletion only when `remove` is true. After `dev_server.stop`, logs/status history are lost.
+
+- [High] `stopAll()` uses `Promise.all` instead of `Promise.allSettled`, so one kill failure rejects the whole shutdown path instead of collecting failures and continuing cleanup. See [tools/overview-mcp/src/process-manager.ts:329](D:/harness-efforts/codexu/.ralph/jobs/ralph-pipeline-11-mcp-operational-tools/worktree/tools/overview-mcp/src/process-manager.ts:329). This violates the shutdown/no-orphan acceptance criteria.
+
+- [High] `stopManagedProcess()` can return after SIGKILL timeout without confirming exit or throwing `StopFailed`. [tools/overview-mcp/src/process-manager.ts:370](D:/harness-efforts/codexu/.ralph/jobs/ralph-pipeline-11-mcp-operational-tools/worktree/tools/overview-mcp/src/process-manager.ts:370) races kill against a timeout, but [line 372](D:/harness-efforts/codexu/.ralph/jobs/ralph-pipeline-11-mcp-operational-tools/worktree/tools/overview-mcp/src/process-manager.ts:372) does not verify the process exited after escalation. Callers can report success and remove the process from the map while it is still alive.
+
+### Quality
+
+No issues found beyond the correctness items above.
+
+### Security
+
+No issues found.
+
+### Overall Assessment
+
+Not ready. `pnpm --filter @codexu/overview-mcp typecheck`, `test`, and `build` pass, but several acceptance criteria around process lifecycle, idempotent stop behavior, exact tool contracts, and shutdown cleanup are not met.

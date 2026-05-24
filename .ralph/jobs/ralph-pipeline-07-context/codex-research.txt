@@ -1,0 +1,55 @@
+**Codebase Architecture**
+This repo is a pnpm workspace. The feature-relevant parts are:
+
+- `scripts/lib/*.mjs`: Node ESM sync/export pipeline for Ralph state.
+- `scripts/sync-ralph-state.mjs`: one-shot CLI and watch entrypoint.
+- `scripts/lib/watch-ralph-state.mjs`: chokidar watcher, shared `.ralph/overview-sync.lock`, debounce, activity append.
+- `tools/overview-viewer/`: React 19 + Vite 8 + TypeScript dashboard, tested with Vitest node/jsdom projects.
+- `plans/overview-data.js`: hand-authored dashboard source.
+- `plans/overview-ralph-state.{js,json}`, `plans/overview-snapshot.json`, `plans/overview-activity.jsonl`, `tasks/INDEX.md`: generated Ralph artifacts from Plan 05.
+- `.ralph/jobs/<slug>/`: job state (`job-state.json`), PRD (`prd.json`), notepad (`notepad.md`), worktree metadata.
+- `.ralph/job-groups/<slug>/`: group-level parallel job state (`group.json`, `job-state.json`), with nested member jobs intentionally not walked as top-level entries.
+
+**Feature-Relevant Code**
+Key integration points:
+
+- `scripts/lib/sync-core.mjs`
+  - `readJobLikeBundles(...)`: reads job/group directories and builds bundle objects.
+  - `toPipelineState(bundle)`: natural place to add `deferredQuestionsCount`, `branchName`, `prUrl`, etc.
+  - `mergeAndWrite(...)`: diffs previous vs next `byTaskId` and returns `activityEvents`.
+  - `deriveActivityEvents(...)`: emits stage/storyCompletion events.
+  - `writeSidecar(...)` / `emitAgentArtifacts(...)`: writes sidecar, snapshot, data twin, schema, tasks index.
+- `scripts/lib/emit-activity.mjs`: append-only JSONL writer with rotation and torn-line reader expectations in tests.
+- `scripts/lib/watch-ralph-state.mjs`: appends `result.activityEvents` after successful `mergeAndWrite` and before lock touch.
+- `scripts/sync-ralph-state.mjs`: one-shot mode also appends activity events after `writeSidecar`.
+- `tools/overview-viewer/src/types.ts`: defines `RalphPipelineState`, `ActivityEvent`, `Snapshot`.
+- `tools/overview-viewer/src/components/RalphStageChip.tsx`: already has `tooltipExtras?: ReactNode`.
+- `tools/overview-viewer/src/components/TaskCommand.tsx`: row-level composition point; already owns quick copy/nav patterns and `showToast`.
+- `tools/overview-viewer/src/utils/commandNavigation.ts`: `navigateToCommand(taskId, expandTask)`.
+- `tools/overview-viewer/src/App.tsx`: owns HMR subscriptions, density state, `expandedControls`.
+- `tools/overview-viewer/vite.config.ts`: serves/inlines `overview-data.js` and `overview-ralph-state.js`; activity JSONL needs similar dev serving if fetched by the viewer.
+- `tools/overview-viewer/src/styles.css`: chip, tooltip, compact-mode, and fixed/sidebar styling live here.
+
+**Technical Constraints**
+- Implement in the Plan 07 worktree when it exists: `.ralph/jobs/ralph-pipeline-07-context/worktree/`, not `main`.
+- `mergeAndWrite()` returns activity events but does not append them. Journal writes must be wired in both `watch-ralph-state.mjs` and `sync-ralph-state.mjs`, or through a shared helper called by both.
+- Activity readers must tolerate a torn final JSONL line.
+- `plans/overview-activity.jsonl` may be absent until sync runs; RecentActivity should render empty/error-soft.
+- Vite dev root is `tools/overview-viewer`; fetching `./overview-activity.jsonl` will not automatically map to `plans/overview-activity.jsonl`. Add a Vite middleware route or use an explicit served path.
+- Static `plans/overview.html` is designed to open via `file://`; browser `fetch()` of adjacent JSONL may fail there. RecentActivity should degrade gracefully.
+- Root `.mjs` helpers need adjacent `.d.mts` declarations when imported from TypeScript tests. `tools/overview-viewer/src/__tests__/scripts.d.ts` also mirrors some declarations.
+- `SNAPSHOT_SCHEMA` currently allows extra Ralph fields, but adding explicit properties in `scripts/lib/emit-snapshot-schema.mjs` is better for the generated contract.
+- Appendix B confirms the deferred table header: `| # | Question | Story ID | Iter Asked | Answer | Iter Answered | Auto-Resolved |`.
+
+**Implementation Suggestions**
+Add pure helpers first:
+
+- `parse-notepad.mjs`: extract `## Deferred Questions` until next `##`, parse the exact table, count rows with empty `Answer`, preview first unanswered question ≤120 chars. Best-effort warn to stderr on malformed tables. Count Story Doctor interventions by data rows in `## Story Doctor Log`.
+- `derive-pr-links.mjs`: prefer `bundle.groupJson.prUrl`; fallback to `git -C repoRoot log --format=%H%n%s%n%b -n 5 --end-of-options <branchName>`. Use `execFileSync`, never shell strings. Parse direct GitHub PR URLs and `Closes #N`; derive repo URL from `git remote get-url origin` when needed.
+- `append-journal.mjs`: use `fs.openSync(..., 'a')`, single `writeSync`, `fsyncSync`, create `tasks/<taskId>/journal.md`. Validate the resolved path stays under `tasks/`.
+
+For sync wiring, enrich bundles in `readJobLikeBundles` with notepad/PR metadata or call helpers inside `toPipelineState(bundle)` using `bundle.dir`, `bundle.prd?.branch?.name`, and `bundle.groupJson`. Append journals only for activity events with `changedFields.includes('stage')`.
+
+For UI, add `useActivityEvents.ts`, `RecentActivity.tsx`, and a Vite middleware for `/overview-activity.jsonl`. In `TaskCommand.tsx`, build `tooltipExtras` from `ralphState.byTaskId[task.id]`, use existing `copyTextWithToast`, and pass it to `RalphStageChip`.
+
+Tests should cover root helpers plus viewer integration. Because `pnpm --filter @codexu/overview-viewer test` only includes `tools/overview-viewer/src/__tests__`, add TypeScript wrapper tests there for parser/hook/UI behavior or adjust test coverage deliberately.

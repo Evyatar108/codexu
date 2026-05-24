@@ -1,0 +1,36 @@
+I’ll inspect the referenced temp file to determine the requested work.
+
+The temp file is readable but needs ranged reads, so I’ll load it in sections.
+
+I found a plan-review prompt in the temp file. I’ll verify the plan against the repository before producing findings.
+
+I’ll fold the overview-viewer package constraints into the review and check the remaining config/type details.
+
+### Feasibility
+
+[High] `runDurations` wiring is internally contradictory. The plan says `emitDerivedArtifacts` is called from `writeSidecar` after the sidecar is durable, but also says it attaches `state.runDurations` before `writeSidecar` writes. If implemented literally, `plans/overview-ralph-state.json` will miss `runDurations`, failing AC #7. Move duration computation before `JSON.stringify(state)` inside `writeSidecar`, or compute it during `assembleStateFromBundles`/`mergeAndWrite`.
+
+[High] The plan conflicts on whether recommendations/dependency graph are standalone files or embedded in `OverviewRalphState`. It says they “travel inside `overview-ralph-state.json`” and adds `recommendations?`/`dependencyGraph?` to `OverviewRalphState`, but the architecture emits `plans/overview-recommendations.json` and `plans/overview-dependency-graph.json` separately. Pick one contract and align types, emission, Vite/static serving expectations, and downstream Plan 06/09 references.
+
+### Completeness
+
+[High] The dependency/recommendation modules need access to PRDs by task ID, but no concrete data path is specified. `assembleStateFromBundles` currently discards `bundle.prd` after `toPipelineState`, and `writeSidecar({ repoRoot, config, state })` cannot derive `prdsByTaskId` without re-reading or carrying matched bundles. The plan should explicitly add a `prdsByTaskId` assembly step or persist enough artifact paths for a helper to read PRDs deterministically.
+
+[Medium] The planned component test location conflicts with package guidance. `tools/overview-viewer/src/__tests__/pipelineOverview.test.tsx` runs in the node SSR project, but click behavior requires `@testing-library/react`/`userEvent` and jsdom. Put interaction tests under `src/__tests__/interactions/` or split SSR render tests from click tests.
+
+[Medium] Config validation is mentioned via schema/defaults/resolver, but this repo’s `loadConfig` does not currently validate against `.ralph/overview-config.schema.json`; it only merges and resolves. If schema acceptance is an AC, the plan should specify the actual validation path/tool, or limit the AC to schema documentation plus resolver behavior.
+
+### Ordering
+
+[High] Story 5 cannot be completed as written before deciding the data-flow for PRDs and `runDurations`. It depends not only on Stories 3/4, but also on a prior sync-core state-shape change that preserves matched bundle metadata or PRD maps through `writeSidecar`.
+
+### Simplicity
+
+[Medium] `aggregateStages` does not need to be added to `OverviewRalphState` if the accepted design is client-side derivation. Adding unused forward-compatible fields increases type/API ambiguity, especially while Plan 05 is already expected to reshape snapshot state.
+
+### Acceptance Criteria Quality
+
+[High] AC #12 requires the final commit message to list each downstream-plan diff. That is not verifiable from code/tests and may be lost if Ralph squashes or rebases. Make the verifiable artifact the updated plan files themselves, or require a committed changelog note in the plan refresh story.
+
+[Medium] “Both watcher path emit” is underspecified for automated verification. The plan should define whether this is covered by a unit test around `start()` cold-start/flush or a manual `pnpm overview` touch test, because the current watcher path includes lock/HMR behavior that is otherwise easy to skip.
+

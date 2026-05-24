@@ -1,0 +1,38 @@
+{
+  "storyId": "US-011",
+  "verifiedEvidence": [
+    {
+      "criterion": "Test 1: write explicit entry via --update-crew-session subcommand (_isExplicit: true). Trigger a heuristic walk that would also discover the same sessionId. Assert the explicit summary / outcome / endedAt survive intact.",
+      "evidenceKind": "passed",
+      "command": "nl -ba scripts/lib/sync-core.test.mjs | sed -n '605,657p' && pnpm vitest run scripts/lib/sync-core.test.mjs --reporter=verbose",
+      "result": "PASS: sync-core.test.mjs lines 605-657 write an explicit entry through runUpdateCrewSession, add a matching heuristic manifest with the same sessionId, rescan crew sessions, assert one entry, and preserve explicit summary/outcome/endedAt plus _isExplicit. Focused Vitest passed: 1 file, 31 tests."
+    },
+    {
+      "criterion": "Test 2: write a partial explicit entry (no sessionId, only crewName + memberName). Heuristic walk later discovers the same member with a populated sessionId. Assert the entry is upgraded in place (single entry, not duplicated; _isExplicit preserved).",
+      "evidenceKind": "passed",
+      "command": "nl -ba scripts/lib/sync-core.test.mjs | sed -n '660,701p' && pnpm vitest run scripts/lib/sync-core.test.mjs --reporter=verbose",
+      "result": "PASS: sync-core.test.mjs lines 660-701 write a partial explicit entry through runUpdateCrewSession, add a heuristic manifest with sessionId/transcriptPath, rescan, assert exactly one entry, and preserve _isExplicit while adding sessionId/transcriptPath. Focused Vitest passed: 1 file, 31 tests."
+    },
+    {
+      "criterion": "Tests added to a sync-core or crews-cross-walk vitest spec.",
+      "evidenceKind": "passed",
+      "command": "grep -n \"explicit subcommand entry survives\\|partial explicit subcommand entry upgrades\" scripts/lib/sync-core.test.mjs && grep -n \"sync-core.test.mjs\" .test-output/root.test.log | tail -5",
+      "result": "PASS: both regression tests are in scripts/lib/sync-core.test.mjs; root test log reports scripts/lib/sync-core.test.mjs (31 tests) passed."
+    },
+    {
+      "criterion": "Typecheck passes.",
+      "evidenceKind": "passed",
+      "command": "pnpm --filter @codexu/overview-viewer typecheck",
+      "result": "PASS: tsc --noEmit completed with exit 0 in 7s; output saved to .test-output/overview-viewer.typecheck.log."
+    },
+    {
+      "criterion": "Tests pass.",
+      "evidenceKind": "passed",
+      "command": "pnpm test",
+      "result": "PASS: root Vitest completed with exit 0; 22 test files passed, 151 tests passed; output saved to .test-output/root.test.log."
+    }
+  ],
+  "skippedReasons": [],
+  "notTested": [],
+  "iterationSHA": "66a6db28d0f1ca5d6c56dfad5615c5f50fdf2736"
+}

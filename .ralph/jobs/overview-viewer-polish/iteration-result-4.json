@@ -1,0 +1,84 @@
+{
+  "storyId": "US-003",
+  "verifiedEvidence": [
+    {
+      "criterion": "tools/overview-viewer/src/hooks/useHashNav.ts calls element.scrollIntoView({ behavior: 'smooth', block: 'center' }) after expanding the target",
+      "command": "grep -RInE 'scrollIntoView|flashCommandElement|cmd-flash' tools/overview-viewer/src/hooks/useHashNav.ts tools/overview-viewer/src/utils/commandNavigation.ts tools/overview-viewer/src/__tests__/kanbanInteraction.test.ts",
+      "result": "PASS: useHashNav expands the target task, fetches document.getElementById(`cmd-${taskId}`), calls scrollIntoView({ behavior: 'smooth', block: 'center' }), then applies the shared cmd-flash class.",
+      "evidenceKind": "inspection"
+    },
+    {
+      "criterion": "A .cmd-flash class is applied for 1.5s on hash-nav arrival; the class triggers a CSS keyframe pulsing the accent ring (box-shadow: 0 0 0 2px var(--accent) -> 6px and back)",
+      "command": "grep -nE 'cmd-flash|@keyframes cmd-flash-pulse|box-shadow: 0 0 0 (2px|6px)' tools/overview-viewer/src/styles.css && pnpm --filter @codexu/overview-viewer test",
+      "result": "PASS: styles.css defines .cmd.cmd-flash with animation: cmd-flash-pulse 1.5s ease-out and keyframes pulsing 2px -> 6px -> 2px. Vitest covers class add/remove after COMMAND_FLASH_DURATION_MS; suite passed 12 files / 44 tests.",
+      "evidenceKind": "test"
+    },
+    {
+      "criterion": "Under prefers-reduced-motion the keyframe degrades to a static ring for 1.5s (US-006 guard handles this)",
+      "command": "grep -n '@media (prefers-reduced-motion: reduce)' -A5 tools/overview-viewer/src/styles.css && grep -n 'cmd-flash-pulse' -A4 -B2 tools/overview-viewer/src/styles.css",
+      "result": "PASS: global reduced-motion guard sets animation: none !important while .cmd.cmd-flash still applies the static 2px accent ring; the JS timer keeps the class for 1.5s.",
+      "evidenceKind": "inspection"
+    },
+    {
+      "criterion": "Typecheck passes (pnpm --filter @codexu/overview-viewer typecheck)",
+      "command": "pnpm --filter @codexu/overview-viewer typecheck > .test-output/overview-viewer.typecheck.log 2>&1",
+      "result": "PASS: tsc --noEmit completed with exit 0.",
+      "evidenceKind": "typecheck"
+    },
+    {
+      "criterion": "Tests pass (pnpm --filter @codexu/overview-viewer test)",
+      "command": "pnpm --filter @codexu/overview-viewer test > .test-output/overview-viewer.test.log 2>&1",
+      "result": "PASS: Vitest reported 12 test files passed, 44 tests passed.",
+      "evidenceKind": "test"
+    },
+    {
+      "criterion": "pnpm overview dev server starts and renders without console errors",
+      "command": "curl -fsS http://127.0.0.1:5173/overview.html > /tmp/overview.html.smoke && curl -fsS http://127.0.0.1:5173/overview-data.js > /tmp/overview-data.js.smoke && grep -q '<div id=\"root\"></div>' /tmp/overview.html.smoke && grep -q 'window.OVERVIEW_DATA' /tmp/overview-data.js.smoke",
+      "result": "HTTP smoke PASS: existing dev server served overview.html with root node and overview-data.js with window.OVERVIEW_DATA. SKIPPED: browser console verification unavailable because browser automation is not installed.",
+      "evidenceKind": "skipped"
+    },
+    {
+      "criterion": "pnpm overview:build succeeds; regenerated plans/overview.html opens cleanly under file://",
+      "command": "pnpm overview:build > .test-output/overview-viewer.build.log 2>&1; grep -nE '<script[^>]+src=|<link[^>]+href=' plans/overview.html || true; grep -n '<div id=\"root\"></div>' plans/overview.html",
+      "result": "Build PASS: Vite built plans/overview.html successfully; static artifact has root node and no external script/link refs. SKIPPED: live file:// browser open unavailable without browser automation.",
+      "evidenceKind": "build"
+    },
+    {
+      "criterion": "Bundle size of plans/overview.html stays under 500 KB",
+      "command": "stat -c%s plans/overview.html",
+      "result": "449318 bytes (< 500000).",
+      "evidenceKind": "command"
+    },
+    {
+      "criterion": "Three existing intentional deviations from 9f81c1f8 (deferred class, blocked/paused -> tail of phase bucket, lastTouchedAt-asc) still hold",
+      "command": "grep -RInE 'deferred|data-cmd-status|lastTouchedAt|sortTasksByLastTouchedAsc' tools/overview-viewer/src/components/PhaseTree.tsx tools/overview-viewer/src/components/CommandList.tsx tools/overview-viewer/src/styles.css",
+      "result": "PASS: PhaseTree still maps blocked/paused to deferred; styles.css still contains blocked/paused order tail rules; CommandList still exports and uses sortTasksByLastTouchedAsc.",
+      "evidenceKind": "inspection"
+    },
+    {
+      "criterion": "prefers-reduced-motion: reduce disables any animation added by the story",
+      "command": "grep -n '@media (prefers-reduced-motion: reduce)' -A5 tools/overview-viewer/src/styles.css && grep -n 'cmd-flash-pulse' -A4 -B2 tools/overview-viewer/src/styles.css",
+      "result": "PASS: this story adds cmd-flash-pulse animation; the existing global reduced-motion guard disables all animations with !important.",
+      "evidenceKind": "inspection"
+    },
+    {
+      "criterion": "If tools/overview-viewer/package.json changes, workspace-root pnpm-lock.yaml is regenerated and committed in the same commit; pnpm install --frozen-lockfile from repo root must succeed",
+      "command": "git diff --name-only HEAD^ HEAD | grep -E 'tools/overview-viewer/package.json|pnpm-lock.yaml' || true; pnpm install --frozen-lockfile --offline > .test-output/pnpm-install-frozen.log 2>&1",
+      "result": "PASS: package.json and pnpm-lock.yaml were unchanged for this story; frozen offline install completed successfully. Postinstall happy-wire side-effect files were restored and not committed.",
+      "evidenceKind": "command"
+    },
+    {
+      "criterion": "Commit message references the story ID and lists affected files",
+      "command": "git log -1 --format=%H%n%s%n%b",
+      "result": "Commit 33277a0b38162141c9dcdde52bdb0187b326ad80 subject references US-003; body lists affected files and the browser-automation constraint.",
+      "evidenceKind": "command"
+    }
+  ],
+  "skippedReasons": [
+    "tool_unavailable"
+  ],
+  "notTested": [
+    "Live browser console and file:// double-click validation were not run because browser automation is unavailable."
+  ],
+  "iterationSHA": "33277a0b38162141c9dcdde52bdb0187b326ad80"
+}

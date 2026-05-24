@@ -1,0 +1,16 @@
+{
+  "id": "F-010",
+  "severity": "Medium",
+  "source": "copilot",
+  "category": "Quality",
+  "classification": "fixable",
+  "phase": "code",
+  "sectionRef": "Technical Constraints > CRLF preservation",
+  "description": "scripts/lib/upsert-task-edit.mjs:172-219 (formatArrayInsertion, planObjectEntryInsertion, formatObjectLiteral, formatJsonValue) hardcodes inserted structural newlines as '\\n'. The Technical Constraints section of plan.md says the mutator must preserve the source's existing newline style verbatim outside the target task, including Windows '\\r\\n'. Creating tasks or appending top-level map entries against a CRLF-style overview-data.js (which is what real consumer codexu repos use) will introduce LF-only lines among the surrounding CRLF, breaking the byte-identity claim outside the inserted region in a subtle way (the inserted region itself uses LF, but adjacent CRLF surrounding lines remain CRLF). The test fixture overview-data.rich.js uses LF endings, so this is not caught by existing tests.",
+  "relevantFiles": [
+    "plugins/ralph-overview/scripts/lib/upsert-task-edit.mjs:204-260",
+    "plugins/ralph-overview/test-fixtures/overview-data.rich.js"
+  ],
+  "suggestedFix": "Detect the source's dominant newline style at parse time (sniff for '\\r\\n' presence and use it as the literal newline elsewhere). Pass that style into formatArrayInsertion / planObjectEntryInsertion / formatObjectLiteral. Add a CRLF fixture variant and a test asserting both creation and update preserve '\\r\\n' in inserted regions.",
+  "status": "open"
+}

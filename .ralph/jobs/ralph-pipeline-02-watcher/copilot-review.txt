@@ -1,0 +1,26 @@
+I’ll inspect the referenced temp file to find the actual task.
+
+I found this is a code-review packet with a plan and diff. I’ll extract the changed-file sections and inspect the actual worktree where needed before writing findings.
+
+### Completeness
+
+- [High] `scripts/lib/watch-ralph-state.mjs:35-48` and `scripts/lib/watch-ralph-state.d.mts:15-19`: the watcher does not export the planned `status()` API or the required `{ running, pendingSlugs, queueDepth, lastTickAt }` shape. It exposes a `status` object with different fields, so the debug/future-MCP acceptance criterion is not met.
+- [High] `scripts/lib/sync-core.mjs:158-163`: `deriveAffectedTaskUpdate` calls `readAllBundles(...)` on every file change. The plan explicitly requires per-slug derivation that reads only touched/cross-kind candidate bundles; this implementation degenerates to a full Ralph walk per debounce tick.
+
+### Correctness
+
+- [High] `scripts/lib/sync-core.mjs:220-234` and `scripts/lib/watch-ralph-state.mjs:77-94`: `retain` updates are discarded before unmatched refresh, so malformed changed bundles never update `unmatched` / `unmatchedSummary` with `parse-error`. This violates the merge invariant requiring parse-error unmatched slices to match the fresh derivation while preserving prior `byTaskId`.
+- [High] `scripts/lib/watch-ralph-state.mjs:179-187`: brainstorm directory deletions are ignored unless the event path is exactly `<slug>/brainstorm.json`. A chokidar `unlinkDir` for `.ralph/brainstorms/<slug>` will not enqueue removal, leaving stale brainstorm-derived task state despite the plan’s deletion/removal criterion.
+
+### Quality
+
+No issues found beyond the above requirement/behavior gaps.
+
+### Security
+
+No issues found.
+
+### Overall Assessment
+
+Not ready for use. The implementation has the main watcher skeleton, but it misses a required public status contract, is not truly incremental, and has stale-state cases around parse errors and brainstorm deletion.
+

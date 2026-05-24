@@ -1,0 +1,21 @@
+I’m opening the task file and pulling the relevant sections before making changes.
+
+I’ve got the review prompt; now I’m checking the referenced code paths and contracts against the plan.
+
+### Feasibility
+No issues found.
+
+### Completeness
+- [Medium] The plan says nickname/role can fall back to `thread/read` when only v2 `collabAgentToolCall` items are available, but the implementation steps never actually add that capability. `packages/happy-cli/src/codex/codexAppServerTypes.ts` currently has no `ThreadReadParams` / `ThreadReadResponse`, and `packages/happy-cli/src/codex/codexAppServerClient.ts` only exposes `thread/start` and `thread/resume`. The fields you’d need do exist in `codex/external/repos/codex-patched/codex-rs/app-server-protocol/src/protocol/v2/thread_data.rs` (`agent_nickname`, `agent_role`). Either add an explicit step/test for a `thread/read` helper or narrow the plan to “legacy-event best effort; otherwise null” so the written design matches the actual work.
+
+### Ordering
+No issues found.
+
+### Simplicity
+No issues found.
+
+### Acceptance Criteria Quality
+- [High] AC5’s “no edits under `codex/external/repos/codex-patched/`” verification command is not reliable in this repo layout. `plans/codexu-roadmap.md` identifies `codex/` as a real git submodule, so running `git diff --name-only -- codex/external/repos/codex-patched` from the parent repo will not reliably detect nested dirty files inside that submodule. That means the acceptance gate can pass even if forbidden codex-side edits were made. AC5 should use a submodule-aware check such as `git -C codex diff --name-only -- external/repos/codex-patched` (optionally paired with `git diff --submodule=diff -- codex`).
+
+**Conclusion:** there are **no Critical findings**, but there is still **1 High** remaining, so this plan is **not yet at “zero High/Critical”**.
+

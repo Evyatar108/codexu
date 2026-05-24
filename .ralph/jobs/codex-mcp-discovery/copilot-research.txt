@@ -1,0 +1,81 @@
+I’ve got the plan and the repo guidance; next I’m pulling the specific Codex/thread and test code paths to assess feasibility and gaps.
+
+### Codebase Architecture
+
+This is a pnpm monorepo. The relevant package is `packages/happy-cli`, a TypeScript/Node ESM CLI built with Ink for UI, Zod for validation, Vitest for tests, and `pkgroll` + `tsc` for build/typecheck (`packages/happy-cli/package.json:60-66`, `:104-120`).
+
+Within `happy-cli`, the feature sits mostly in:
+
+- `packages/happy-cli/src/codex/` — Codex runner, transport, and tests
+- `packages/happy-cli/src/claude/` — closest parity reference for MCP handling conventions
+- `packages/happy-cli/src/ui/` — shared logger
+- `packages/happy-cli/src/daemon/CLAUDE.md` and `packages/happy-cli/CLAUDE.md` — transport/lifecycle constraints and fork-specific Codex guidance
+
+The main Codex entrypoint is `packages/happy-cli/src/codex/runCodex.ts`, which creates the Happy session, starts the Happy MCP bridge, connects `CodexAppServerClient`, resumes or starts a thread, and then loops over queued user messages.
+
+### Feature-Relevant Code
+
+- **`packages/happy-cli/src/codex/runCodex.ts:693-705`**  
+  This is the gap. It builds `mcpServers` with only the internal `happy` bridge:
+  - `happy` uses `node <projectPath()>\bin\happy-mcp.mjs --url <happyServer.url>`
+  - no project `.mcp.json` is read here
+
+- **`packages/happy-cli/src/codex/runCodex.ts:718-726`**  
+  Resume path: `resumeExistingThread({ ..., cwd: process.cwd(), mcpServers })`
+
+- **`packages/happy-cli/src/codex/runCodex.ts:788-795`**  
+  First-turn start path: `client.startThread({ ..., cwd: process.cwd(), mcpServers })`
+
+- **`packages/happy-cli/src/codex/resumeExistingThread.ts:20-49`**  
+  Already forwards `mcpServers` through to `client.resumeThread(...)`. No extra transport work is needed there unless you want targeted tests.
+
+- **`packages/happy-cli/src/codex/codexAppServerClient.ts:1098-1188`**  
+  Confirms the transport contract:
+  - `buildThreadConfig()` maps `mcpServers` to `{ mcp_servers: ... }`
+  - both `startThread()` and `resumeThread()` accept `mcpServers`
+  - `rememberThreadDefaults()` persists `mcpServers` for later reconnect/resume  
+  This means the happy-cli-side merge is the correct fix point.
+
+- **`packages/happy-cli/src/ui/logger.ts:143-146`**  
+  `logger.warn(message, ...args)` supports structured extra payloads, so warnings like `logger.warn('...', { path, serverName, issues })` fit existing patterns.
+
+- **Existing test harnesses**
+  - `packages/happy-cli/src/codex/runCodex.fork.test.ts`
+  - `packages/happy-cli/src/codex/runCodexPublishMode.test.ts`
+  - `packages/happy-cli/src/codex/runCodex.attachmentsIgnore.test.ts`  
+  These already mock `CodexAppServerClient`, `startHappyServer`, `projectPath`, logging, and the message queue. They are the natural place for support tests around `mcpServers`.
+
+- **Primary acceptance policy**
+  - `packages/happy-cli/agents.md` says the primary Codex acceptance file is `packages/happy-cli/src/codex/codex.integration.test.ts`, and mocked tests are support checks, not the main proof.
+
+- **Roadmap**
+  - `plans/codexu-roadmap.md:472-489` already documents this exact gap and says the fix belongs in `happy-cli`, not the codex submodule.
+
+### Technical Constraints
+
+- `zod` is already available in `packages/happy-cli`; no dependency change is needed.
+- The requested schema is feasible, but **per-entry validation matters**: a single `z.record(...).safeParse(...)` on the whole `mcpServers` object would reject all servers at once. The requirement says invalid entries must be skipped individually.
+- `CodexAppServerClient` already preserves `mcpServers` across reconnects once a thread has been started/resumed, so you do **not** need to modify reconnect logic separately.
+- `runCodex.test.ts` does **not** exist. The repo uses multiple sibling `runCodex.*.test.ts` files instead.
+- The provided test command is Unix/Git-Bash-shaped (`tee /tmp/...`). On this repo’s Windows guidance, the safer package-local command is `pnpm --filter happy exec vitest run <paths>`.
+- One subtle edge case is not spelled out in the plan: if project `.mcp.json` defines a server named `happy`, a naive merge could override the internal bridge. The bridge should stay reserved.
+
+### Implementation Suggestions
+
+The natural integration point is **right before** `const mcpServers = { happy: ... }` in `runCodex.ts`. Capture `const cwd = process.cwd()` once, load `<cwd>/.mcp.json`, validate it, then build the merged `mcpServers` object used by both the resume and start paths.
+
+Recommended shape:
+
+1. Add a small helper in `packages/happy-cli/src/codex/` (or local helper in `runCodex.ts`) to load project MCP config.
+2. Read `<cwd>/.mcp.json`; silently ignore `ENOENT`.
+3. Parse top-level JSON; on broken JSON, `logger.warn(...)` and return `{}`.
+4. Validate top-level `{ mcpServers }`, then validate each entry individually with Zod.
+5. Merge validated project servers with the internal `happy` bridge, keeping `happy` reserved.
+6. Pass the merged object to both:
+   - `resumeExistingThread(...)`
+   - `client.startThread(...)`
+
+For tests, reuse the existing `runCodex.*.test.ts` mock pattern. The requested three support tests are straightforward there. I would also add a fourth support test for “one invalid entry + one valid entry keeps the valid one,” because that behavior is required by the spec but not covered by the three listed cases.
+
+Overall, the plan is technically sound and fits the existing architecture. The only real gaps are test placement/acceptance wording and the need to define reserved-name merge behavior for the `happy` MCP server.
+

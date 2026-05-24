@@ -1,0 +1,45 @@
+I’ll inspect the referenced temp file to understand the task.
+
+The file is accessible; I’m reading it in chunks now.
+
+I’ll map the relevant overview/Ralph modules and skill files, then summarize implementation guidance.
+
+I found the central sync and viewer files; I’m checking the watcher merge path and schema/tests so the research report is grounded in actual integration points.
+
+I need one more pass over tests/config and the existing work-on skill location before giving the research findings.
+
+Research complete.
+
+### Codebase Architecture
+
+This is a pnpm monorepo with a React/Vite roadmap dashboard under `tools\overview-viewer` and Node ESM sync scripts under `scripts\lib`. Ralph state is generated into `plans\overview-ralph-state.{js,json}` plus agent artifacts like `plans\overview-snapshot.json`.
+
+### Feature-Relevant Code
+
+- `scripts\lib\sync-core.mjs`: central state derivation. `walkRalphState()` reads `.ralph` bundles, `assembleStateFromBundles()` maps them to `byTaskId`, `mergeAndWrite()` merges watcher updates, `writeSidecar()` emits all durable artifacts.
+- `scripts\lib\watch-ralph-state.mjs`: chokidar watcher. Currently watches only `.ralph\jobs`, `.ralph\job-groups`, `.ralph\brainstorms`; `parseWatchedPath()` only emits `job|group|brainstorm` slug changes.
+- `scripts\sync-ralph-state.mjs`: CLI entrypoint. Currently supports one-shot and `--watch`; subcommands should plug in before `runOneShot()`.
+- `scripts\lib\sync-lock.mjs`: existing lock helper already emits the required canonical `another sync in progress...` diagnostic.
+- `scripts\lib\default-config.mjs`: already ignores `.crews\logs` and `.crews\spawn-launchers`, but has no configured `.crews` root.
+- `tools\overview-viewer\src\types.ts`: add `CrewSessionRef` and `RalphPipelineState.crewSessions`.
+- `scripts\lib\emit-snapshot-schema.mjs`: must formalize the new schema despite `additionalProperties: true`.
+- `tools\overview-viewer\src\components\TaskCommand.tsx`: `RalphTooltipExtras` is the right place to append crew rows.
+- `.claude\skills\work-on\SKILL.md`: already has a Plan 06 placeholder for `--via-crew`; replace it with the Plan 08 flow.
+- Relevant tests already exist around `sync-core`, watcher, schema, CLI, and tooltip extras.
+
+### Technical Constraints
+
+The watcher is currently slug-oriented; `.crews` manifest changes do not naturally map to a Ralph bundle slug. Crew events likely need a full recompute path or a new “crew-state changed” update mode rather than forcing them through `deriveAffectedTaskUpdate()`.
+
+Explicit-vs-heuristic conflict resolution needs persistence: `walkRalphState()` currently rebuilds from `.ralph` only and does not receive prior sidecar state, so explicit crew entries must be read from the prior snapshot/sidecar and merged after heuristic discovery.
+
+I could not inspect `D:\ai-developer-toolkit\plugins\crews\...` due permission denial, so the exact `/spawn-member` runtime contract should be verified during implementation.
+
+### Implementation Suggestions
+
+Add `scripts\lib\parse-spawn-launcher.mjs` and `scripts\lib\crews-cross-walk.mjs` as planned, but wire them into `assembleStateFromBundles()` or immediately after it so every full sync has crew data. For watcher crew events, add `.crews\crews` and `.crews\sessions-configs` roots and route those events to a full `walkRalphState()` + `writeSidecar()` pass.
+
+For subcommands, parse `--update-crew-session` / `--finalize-crew-session` in `scripts\sync-ralph-state.mjs`, acquire `sync-lock.mjs`, read current sidecar state, update `byTaskId[taskId].crewSessions[stage]`, then call `writeSidecar()`.
+
+Add tests for parser extraction, heuristic match/cwd filter/stale detection, explicit-over-heuristic merge, CLI lock behavior, and tooltip rendering.
+

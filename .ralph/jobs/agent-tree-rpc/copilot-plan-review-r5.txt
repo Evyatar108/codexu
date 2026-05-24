@@ -1,0 +1,23 @@
+I’m opening the task file and pulling the relevant sections.
+
+I’ve got the plan; now I’m verifying the cited files and contracts against the repo.
+
+I found one area where the plan’s security rationale may still be overstated, so I’m checking the actual socket-auth path before I finalize the review.
+
+The plan is **implementable**, and I did **not** find any remaining **High/Critical** blockers. Two lower-severity issues remain.
+
+### Feasibility
+- **[Medium]** The spoofing-prevention claim in `packages/happy-server\sources\app\api\socket.ts:71-90` is overstated. `clientType` and `sessionId` are taken directly from client-supplied Socket.IO auth and copied into `socket.data`, so Step 8 / AC4b do **not** actually prove that only the CLI can obtain a `session-scoped` connection. As written, the plan only blocks emissions from sockets that are *already connected* as `user-scoped`/`machine-scoped`; it does not prevent another authenticated client from connecting as `session-scoped` in the first place. The plan should either weaken the security claim or add a stronger provenance check.
+
+### Completeness
+No issues found.
+
+### Ordering
+- **[Low]** In `packages/happy-cli\src\codex\runCodex.ts:465-498`, the teardown order matters more than the plan currently says. If `sessionGetAgentTree` is unregistered **after** `session.close()` or socket shutdown, the explicit `rpc-unregister` emission can be skipped and cleanup becomes disconnect-side-effect-driven only. The plan should say to unregister the RPC and clear `AgentTreeState` **before** `session.close()` / transport shutdown.
+
+### Simplicity
+No issues found.
+
+### Acceptance Criteria Quality
+- **[Low]** AC4’s real-model assertion for `packages/happy-cli\src\codex\codex.integration.test.ts` is still a bit brittle because it requires the final snapshot to contain **exactly** A and B. The ordered-subsequence check is good, but the exact-node-count part could flap if Codex emits an incidental extra subagent. A safer acceptance shape is: assert the required nodes/edges are present in the real integration test, and keep strict “no extras” enforcement in `agentTreeState.test.ts` / parser-level synthetic tests.
+

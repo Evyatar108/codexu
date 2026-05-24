@@ -1,0 +1,39 @@
+{
+  "planFile": "D:/harness-efforts/codexu/.ralph/jobs/session-role-pill/plan.md",
+  "repoDir": "D:/harness-efforts/codexu/.worktrees/session-role-pill",
+  "reviewCycle": 1,
+  "findings": [
+    {
+      "id": "F-001",
+      "severity": "High",
+      "source": "docs",
+      "classification": "fixable",
+      "phase": "docs",
+      "category": "Stale Documentation",
+      "description": "plans/agent-view-research.md (line 141) claims that metadata.flavor, currentModelCode, and currentPermissionModeCode are 'only displayed inside SessionContextDrawer, never in the list row'. This diff implements exactly that surfacing in the SessionItem memo (new pill row with flavor icon, model code, and permission-mode pill in packages/happy-app/sources/components/SessionsList.tsx), and the research doc's bucket-(b) `session-role-pill` task is marked done in plans/parallel-assignments.md. The 'never in the list row' assertion is now factually incorrect.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Plan-research doc updated: line 141 rewritten to past-tense the gap and note session-role-pill landing; lines 136/176 swapped to symbol-name refs (SessionsList function, SessionItem memo). Committed as d8a3989d.",
+      "relevantFiles": [
+        "plans/agent-view-research.md"
+      ],
+      "suggestedFix": "Update plans/agent-view-research.md line 141 to reflect that metadata.flavor + currentModelCode + currentPermissionModeCode are now surfaced inline in the session list row via the SessionItem role-pill row (landed via the `session-role-pill` follow-up task). Either past-tense the gap statement (e.g., 'As of session-role-pill landing, flavor/model/permission are shown inline in the row; previously they lived only in SessionContextDrawer.') or move the sentence into a 'Historical gap' note so future readers don't believe it's still true."
+    },
+    {
+      "id": "F-002",
+      "severity": "Medium",
+      "source": "docs",
+      "classification": "fixable",
+      "phase": "docs",
+      "category": "Stale Documentation",
+      "description": "plans/agent-view-research.md cites file:line anchors that this diff invalidates. Line 136 says 'packages/happy-app/sources/components/SessionsList.tsx:193-333' for the flat list, and line 176 says ':193-333' (FlatList) and ':342-463' (SessionItem memo). After this diff SessionsList.tsx is 578 lines long, the SessionsList function starts at line 264, and the SessionItem memo starts at line 413 (extends to ~578). The cited ranges no longer point to the structures described.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Plan-research doc updated: line 141 rewritten to past-tense the gap and note session-role-pill landing; lines 136/176 swapped to symbol-name refs (SessionsList function, SessionItem memo). Committed as d8a3989d.",
+      "relevantFiles": [
+        "plans/agent-view-research.md"
+      ],
+      "suggestedFix": "Refresh the file:line anchors in plans/agent-view-research.md (lines 136 and 176) against the post-diff SessionsList.tsx: replace 'SessionsList.tsx:193-333' with the new SessionsList function range (approximately :264-411) and 'SessionsList.tsx:342-463' with the new SessionItem memo range (approximately :413-578). Alternatively, drop the line numbers in favor of symbol-name references (e.g., 'SessionsList' / 'SessionItem memo') since this file churns frequently."
+    }
+  ]
+}

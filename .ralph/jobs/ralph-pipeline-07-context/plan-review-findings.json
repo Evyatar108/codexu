@@ -1,0 +1,188 @@
+{
+  "planFile": "D:/harness-efforts/codexu/.ralph/jobs/.staging/20260520-071041/draft-plan.md",
+  "repoDir": "D:/harness-efforts/codexu",
+  "reviewCycle": 0,
+  "findings": [
+    {
+      "id": "F-001",
+      "severity": "High",
+      "source": "consensus",
+      "category": "Feasibility",
+      "sectionRef": "Files to Create/Modify > Modify > scripts/lib/sync-core.mjs",
+      "description": "Plan instructs `toPipelineState(bundle)` to call `derivePRLinks({ groupState, repoRoot, branchName })`, but `toPipelineState` currently receives only `bundle` and the bundle does not carry `repoRoot`. The signature change is not specified. Either modify `toPipelineState(bundle, repoRoot)` or attach `repoRoot` onto the bundle during `readJobLikeBundles`. Without this, AC-2/AC-6 cannot be implemented as written.",
+      "status": "fixed",
+      "relevantFiles": [
+        "scripts/lib/sync-core.mjs"
+      ],
+      "suggestedFix": "Specify in the Modify section that the implementation passes `repoRoot` to `toPipelineState` (either as a second positional arg or by attaching `bundle.repoRoot` during bundle assembly). Update the call site in `assembleStateFromBundles`.",
+      "fixedInIteration": 1,
+      "resolution": "Specified that sync-core threads the resolved repo root from assembleStateFromBundles into toPipelineState before derivePRLinks is called."
+    },
+    {
+      "id": "F-002",
+      "severity": "High",
+      "source": "consensus",
+      "category": "Feasibility",
+      "sectionRef": "Files to Create/Modify > Create > scripts/lib/derive-pr-links.mjs",
+      "description": "`mergeCommit` derivation is underspecified. The helper signature has no `stage`, but the plan says `mergeCommit` is only for `stage === 'shipped'`. The suggestion `git rev-parse --short HEAD <branchName>` is also ambiguous — it can emit multiple revisions and does not establish the merge commit for the shipped task. Caller contract and source of truth must be precise.",
+      "status": "fixed",
+      "relevantFiles": [
+        "scripts/lib/derive-pr-links.mjs"
+      ],
+      "suggestedFix": "Either (a) pass `stage` into `derivePRLinks` and only resolve `mergeCommit` when stage==='shipped' via `git rev-parse <branchName>` (single ref, full SHA, shortened in JS), or (b) defer `mergeCommit` from this plan into Plan 08 and remove it from RalphPipelineState additions until the source of truth is decided.",
+      "fixedInIteration": 3,
+      "resolution": "Clarified that derivePRLinks receives the stage derived by toPipelineState and uses it to gate mergeCommit resolution via a single-ref rev-parse."
+    },
+    {
+      "id": "F-003",
+      "severity": "High",
+      "source": "consensus",
+      "category": "Feasibility",
+      "sectionRef": "Files to Create/Modify > Create > scripts/lib/derive-pr-links.mjs / Acceptance Criteria > AC-2",
+      "description": "`derive-pr-links.mjs` lacks an explicit graceful-failure contract for missing/stale branches. Example: `.ralph/jobs/codex-mcp-discovery/prd.json` references `feat/codex-mcp-discovery`, which `git rev-parse --verify` fails on in this repo. If `git log -n 5 <branchName>` throws and the helper does not catch it, one stale Ralph job breaks all sync output. AC-2 also does not require git-failure tolerance, so the implementer could ship a fragile version that still claims AC-2 passed.",
+      "status": "fixed",
+      "relevantFiles": [
+        "scripts/lib/derive-pr-links.mjs"
+      ],
+      "suggestedFix": "Add to derive-pr-links.mjs spec: wrap all `execFileSync` calls in try/catch; on failure return `{ branchName, prUrl: undefined, mergeCommit: undefined }`. Add AC sub-bullet: 'Handles missing/deleted branches and origin-resolution failures by returning undefined fields rather than throwing.' Add tests for: branch does not exist, `git remote get-url origin` fails, `git log` empty output.",
+      "fixedInIteration": 4,
+      "resolution": "Added an explicit derive-pr-links graceful-failure contract for missing branches, empty git log output, and origin lookup failures, with matching acceptance and test expectations."
+    },
+    {
+      "id": "F-004",
+      "severity": "High",
+      "source": "codex",
+      "category": "Completeness",
+      "sectionRef": "Files to Create/Modify > Create > RecentActivity.tsx and Modify > App.tsx",
+      "description": "RecentActivity props are inconsistent between sections. The 'Create' section defines props as `{ activityEvents: ActivityEvent[]; setFocusedTaskId: (id: string) => void }`, but the App.tsx modify section says `<RecentActivity events={useActivityEvents()} setFocusedTaskId={...}/>`. Following the plan literally produces a TypeScript failure.",
+      "status": "fixed",
+      "relevantFiles": [
+        "tools/overview-viewer/src/components/RecentActivity.tsx",
+        "tools/overview-viewer/src/App.tsx"
+      ],
+      "suggestedFix": "Pick one prop name (`activityEvents` is more explicit) and use it consistently in both sections. Update App.tsx integration snippet to match.",
+      "fixedInIteration": 5,
+      "resolution": "Updated the RecentActivity integration snippets to pass activityEvents, matching the planned component props."
+    },
+    {
+      "id": "F-005",
+      "severity": "Medium",
+      "source": "claude",
+      "category": "Completeness",
+      "sectionRef": "Files to Create/Modify > Modify > tools/overview-viewer/vite.config.ts",
+      "description": "Plan instructs adding middleware to serve `plans/overview-activity.jsonl` at `/overview-activity.jsonl` with `ENOENT → 200 ''` but does not pin its placement within configureServer or whether it belongs in a new Vite plugin (mirroring the existing `overviewRalphStatePlugin` at enforce='pre'). Implementer ambiguity could cause the middleware to be shadowed by the SPA fallback or built-in static serving.",
+      "status": "open",
+      "relevantFiles": [
+        "tools/overview-viewer/vite.config.ts"
+      ],
+      "suggestedFix": "Specify: 'Add a new `overviewActivityPlugin()` modelled on `overviewRalphStatePlugin()` (enforce=\"pre\"), with a configureServer hook that registers middleware for GET `/overview-activity.jsonl`. The plugin must be registered in `plugins:` before the SPA fallback. On ENOENT, respond with `res.statusCode = 200; res.end('')`.'"
+    },
+    {
+      "id": "F-006",
+      "severity": "Medium",
+      "source": "consensus",
+      "category": "Criteria Quality",
+      "sectionRef": "Acceptance Criteria > AC-15",
+      "description": "AC-15 defers cascade if Plan 06 is 'still RUNNING at terminal time' but doesn't define the verb/mechanism for detecting Plan 06's terminal state. The plan mentions checking `.ralph/jobs/ralph-pipeline-06-skills/` progress but not the exact file/key.",
+      "status": "open",
+      "relevantFiles": [
+        ".ralph/jobs/ralph-pipeline-06-skills/",
+        "plans/ralph-pipeline-INDEX.md"
+      ],
+      "suggestedFix": "Define: 'Read `.ralph/jobs/ralph-pipeline-06-skills/progress.json`. Plan 06 is terminal if `progress.terminal === true` OR the directory contains only `plan.md` (not yet started). If `progress.json` exists with `terminal !== true`, defer cascade.' Add to AC-15 verification a concrete command for this check."
+    },
+    {
+      "id": "F-007",
+      "severity": "Medium",
+      "source": "consensus",
+      "category": "Criteria Quality",
+      "sectionRef": "Acceptance Criteria > AC-6",
+      "description": "AC-6 is vague: 'any task whose Ralph job has a notepad / PR / branch' mixes three independent enrichments. Cannot be precisely verified, especially `mergeCommit`. Synthetic-job fixture shape is not specified.",
+      "status": "open",
+      "relevantFiles": [],
+      "suggestedFix": "Split AC-6 into AC-6a (notepad fields populated from a 3-question fixture), AC-6b (branchName populated from `prd.branch.name`), AC-6c (prUrl populated from a mocked commit with `Closes #N` + resolvable origin), AC-6d (mergeCommit populated only when stage='shipped'), AC-6e (no sync failure when branch is absent in the working repo)."
+    },
+    {
+      "id": "F-008",
+      "severity": "Medium",
+      "source": "copilot",
+      "category": "Completeness",
+      "sectionRef": "Files to Create/Modify > Create > scripts/lib/append-journal.mjs",
+      "description": "Helper signature accepts a pre-formatted `line`, but AC-3 mandates a specific format `- <ISO ts>  stage: <prev> → <new>  (job: <slug>)`. Either the helper should format internally given semantic inputs, or the spec must explicitly state callers construct the line.",
+      "status": "open",
+      "relevantFiles": [
+        "scripts/lib/append-journal.mjs"
+      ],
+      "suggestedFix": "Change signature to `appendJournalEntry({ repoRoot, taskId, ts, prevStage, newStage, slug })` and format internally. Helper exports `formatJournalLine({ ts, prevStage, newStage, slug })` for test introspection. Update callers in sync-core.mjs/watch-ralph-state.mjs accordingly."
+    },
+    {
+      "id": "F-009",
+      "severity": "Medium",
+      "source": "copilot",
+      "category": "Completeness",
+      "sectionRef": "Files to Create/Modify > Create > RecentActivity.tsx",
+      "description": "Props omit collapsed state and toggle handlers, but the spec says 'collapsible (controlled by parent)' and 'collapsed by default in compact density mode'. Without explicit props the parent cannot control collapse.",
+      "status": "open",
+      "relevantFiles": [
+        "tools/overview-viewer/src/components/RecentActivity.tsx"
+      ],
+      "suggestedFix": "Add `{ collapsed: boolean; onToggle: () => void }` to RecentActivity props, OR move collapse ownership into the component (use a local useState seeded by `density` prop), and reflect the chosen design in App.tsx integration snippet + verification step E."
+    },
+    {
+      "id": "F-010",
+      "severity": "Medium",
+      "source": "codex",
+      "category": "Completeness",
+      "sectionRef": "Files to Create/Modify > Create > RecentActivity.tsx",
+      "description": "Rendering `<taskId> → <newStage>` does not handle removal events where `ActivityEvent.newStage` is `null` (deriveActivityEvents emits these for previous-only entries). The label will show 'null' or empty.",
+      "status": "open",
+      "relevantFiles": [
+        "tools/overview-viewer/src/components/RecentActivity.tsx",
+        "scripts/lib/sync-core.mjs"
+      ],
+      "suggestedFix": "Specify render contract: when newStage is null, show `<taskId> removed` (or similar) rather than `<taskId> → null`. Add fixture-based render test."
+    },
+    {
+      "id": "F-011",
+      "severity": "Medium",
+      "source": "consensus",
+      "category": "Simplicity",
+      "sectionRef": "Files to Create/Modify > Create > scripts/lib/derive-pr-links.mjs",
+      "description": "Calling git from PR-link derivation per bundle on every sync pass can become expensive. Plan should cache `origin` parsing and git-log results within a sync pass, or at least restrict calls to bundles with a branch AND no `groupState.prUrl`.",
+      "status": "open",
+      "relevantFiles": [
+        "scripts/lib/derive-pr-links.mjs",
+        "scripts/lib/sync-core.mjs"
+      ],
+      "suggestedFix": "Specify: 'Skip git invocations entirely when `branchName` is falsy. Memoize `git remote get-url origin` per sync pass at the assembly layer (pass the resolved origin URL into derivePRLinks). Always wrap git in try/catch — never throw from this helper.'"
+    },
+    {
+      "id": "F-012",
+      "severity": "Medium",
+      "source": "codex",
+      "category": "Completeness",
+      "sectionRef": "Acceptance Criteria > AC-7",
+      "description": "AC-7 requires journal entries in both watcher and one-shot modes but verification is described only manually (edit a job-state.json, tail journal.md). Add unit tests around the two call sites mocking appendJournalEntry, mirroring existing appendActivity test patterns.",
+      "status": "open",
+      "relevantFiles": [
+        "scripts/lib/watch-ralph-state.mjs",
+        "scripts/sync-ralph-state.mjs"
+      ],
+      "suggestedFix": "Add an AC-7 sub-bullet: 'Unit tests in `scripts/lib/watch-ralph-state.test.mjs` and `scripts/sync-ralph-state.test.mjs` mock `appendJournalEntry` and verify it is invoked exactly once per stage-changed activity event, with the expected `{repoRoot, taskId, …}` arguments.'"
+    },
+    {
+      "id": "F-013",
+      "severity": "Medium",
+      "source": "copilot",
+      "category": "Completeness",
+      "sectionRef": "Files to Create/Modify",
+      "description": "Plan mentions updating `tools/overview-viewer/src/__tests__/scripts.d.ts` but not the adjacent root declaration `scripts/lib/sync-core.d.mts`. If tests or callers assert the newly enriched bundle shape (notepadText etc.), typecheck can drift from runtime.",
+      "status": "open",
+      "relevantFiles": [
+        "scripts/lib/sync-core.d.mts",
+        "tools/overview-viewer/src/__tests__/scripts.d.ts"
+      ],
+      "suggestedFix": "Add `scripts/lib/sync-core.d.mts` to the Modify list with a note: 'Extend the bundle shape declaration to include the optional `notepadText` field if a typed shape is exported.' Verify by typechecking after the modification."
+    }
+  ]
+}

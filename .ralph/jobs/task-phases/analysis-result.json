@@ -1,0 +1,30 @@
+{
+  "recommendation": "CONTINUE",
+  "passCount": 5,
+  "storiesCompleted": [
+    { "id": "US-001", "sha": "41ffa876", "evidence": "VALID" },
+    { "id": "US-002", "sha": "1290ac50", "evidence": "VALID" },
+    { "id": "US-003", "sha": "c885967a", "evidence": "VALID" },
+    { "id": "US-004", "sha": "db2f68f7", "evidence": "VALID" },
+    { "id": "US-005", "sha": "5a369d6f", "evidence": "VALID" }
+  ],
+  "storiesBlocked": [],
+  "storiesRemaining": [],
+  "deferredQuestions": [],
+  "storyDoctorActions": [],
+  "qualityGateResult": "pass",
+  "rollbackFailures": [],
+  "manifestVerifier": {
+    "mode": "advisory",
+    "batchRange": { "start": 4, "end": 5 },
+    "iterations": [
+      { "n": 4, "result": "all-agree", "warnings": [] },
+      { "n": 5, "result": "all-agree", "warnings": ["manifest-nottested-shape: notTested[0] is bare string rather than {criterion,detail} object — advisory"] }
+    ]
+  },
+  "refactoringPass": "deferred (cumulative=5 hit refactorInterval=5 boundary, but no Agent dispatcher available in this harness session; single production-surface diff curated from pinned Migration Mapping table — no obvious cross-file refactor candidates)",
+  "velocity": "2 stories in 2 iterations this batch (1.0 stories/iter); 5 stories in 5 iterations cumulative",
+  "batch": { "start": 4, "end": 5, "size": 2 },
+  "cumulativeCompleted": 5,
+  "notes": "All 5 stories pass with VALID evidence. Job-state already COMPLETED. Ready for Phase 5 review-fix loops."
+}

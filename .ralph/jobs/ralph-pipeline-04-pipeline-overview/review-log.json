@@ -1,0 +1,58 @@
+[
+  {
+    "finding_id": "F-001",
+    "duration_s": 235,
+    "status": "fixed",
+    "summary": "Amended the plan so derived data is computed before writeSidecar in assemble/merge paths, while writeSidecar only emits precomputed state artifacts."
+  },
+  {
+    "finding_id": "F-002",
+    "duration_s": 218,
+    "status": "fixed",
+    "summary": "Removed the contradictory state-side recommendations/dependencyGraph contract and updated architecture, files-to-modify, and acceptance criteria to emit those as separate JSON artifacts."
+  },
+  {
+    "finding_id": "F-003",
+    "duration_s": 212,
+    "status": "fixed",
+    "summary": "Updated the plan so prdsByTaskId is built from matched bundles and passed into scoreRecommendations as well as deriveDependencyGraph."
+  },
+  {
+    "finding_id": "F-004",
+    "duration_s": 179,
+    "status": "fixed",
+    "summary": "Reordered sync-integration so US-005 performs state enrichment and incremental propagation before US-006 wires derived artifact emission, and updated the decomposition rationale to require that serial order."
+  },
+  {
+    "finding_id": "F-005",
+    "duration_s": 129,
+    "status": "fixed",
+    "summary": "Updated the dependency graph and artifact emission plan so generatedAt/generatedFromCommit come from the Ralph sidecar state instead of overviewData."
+  },
+  {
+    "finding_id": "F-006",
+    "duration_s": 143,
+    "status": "fixed",
+    "summary": "Updated the toolbar test reference and PipelineOverview interaction test paths to use src/__tests__/interactions/."
+  },
+  {
+    "finding_id": "F-007",
+    "duration_s": 92,
+    "status": "fixed",
+    "summary": "Changed the build-size acceptance criterion to under 512000 bytes and added plans/overview.html as a generated artifact to regenerate via pnpm overview:build and commit."
+  },
+  {
+    "finding_id": "F-008",
+    "duration_s": 128,
+    "status": "fixed",
+    "summary": "Replaced commit-message-based downstream diff verification with an in-repo refresh changelog artifact included alongside the updated plan files."
+  },
+  {
+    "phase": "soft-cap",
+    "iteration": 9,
+    "openCount": 8,
+    "severities": {
+      "Medium": 8
+    }
+  }
+]

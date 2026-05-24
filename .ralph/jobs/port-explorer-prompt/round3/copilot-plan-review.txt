@@ -1,0 +1,25 @@
+I’m opening the attached task file first, then I’ll inspect the relevant code and make the change end to end.
+
+I have the review prompt; now I’m checking the referenced files and constraints so I can validate the plan against the actual codebase.
+
+I found the core wiring; I’m checking the remaining reference docs and a few implementation details that could make the plan inaccurate or incomplete.
+
+I found one workflow detail that may depend on the repo’s current dirty state, so I’m verifying the superproject status before I finalize the review.
+
+R1/R2 fixes around path views, scoped stashing, mandatory `patch-surface.md` updates, seam analysis, and the documented `AGENTS.md` limitation look adequately incorporated. I found one new **High** issue and two smaller follow-ups.
+
+### Feasibility
+- [High] **US-006’s smoke can pass without ever exercising the changed `explorer` role.** `D:\harness-efforts\codexu\codex\external\repos\codex-patched\codex-rs\core\src\agent\role.rs:420-425` embeds `builtins\explorer.toml` with `include_str!`, so the new prompt exists only in binaries/tests compiled from the worktree. But the plan’s smoke (`US-006`, AC 189-190) runs plain `codex exec` against `D:/harness-efforts/codexu/codex/scripts/` or `.../codex/docs/workflows/` and never says to run a binary built from `D:/harness-efforts/codexu/.ralph/jobs/<job_dir>/codex-worktree/`. That means the smoke can hit the already-installed Codex on PATH and give false confidence while the new built-in prompt is unused. The plan needs an explicit “run the worktree-built binary” step, or it should drop this smoke as a validation gate.
+
+### Completeness
+- [Medium] **The plan removes coverage for the “role adds a SessionFlags layer” behavior.** `D:\harness-efforts\codexu\codex\external\repos\codex-patched\codex-rs\core\src\agent\role_tests.rs:78-89` and `:586-614` show that when a role has a real config layer, `session_flags_layer_count(&config)` should increase. After `explorer.toml` stops being empty, that transition is part of the behavior change. But US-003 / AC 184 only keep assertions for “model preserved” and “reasoning effort becomes low,” and explicitly leave the ignored layer-count test out of scope. A regression that stops recording the explorer layer would slip through.
+
+### Ordering
+No issues found.
+
+### Simplicity
+No issues found.
+
+### Acceptance Criteria Quality
+- [Low] **There is still one stale contradiction in the operator-facing defaults.** AC 189 and US-006 correctly rescind `packages/codium/` as the smoke target, but Open Questions 6 still says “plan suggests `packages/codium/`.” That is minor, but it leaves the fallback target ambiguous in the one place the operator is supposed to confirm it.
+

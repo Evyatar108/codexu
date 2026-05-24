@@ -1,0 +1,29 @@
+### Feasibility
+
+[High] The parallel `implementing` command requires an absolute `groupDir`, but `deriveNextCommand(state, task)` has no repo root input. Current Ralph artifacts are stored relative to the repo in `scripts/lib/sync-core.mjs` (`relativePath(repoRoot, dir)` for `groupDir` / `jobDir`). The AC says parallel-group `implementing` must return `/implement-with-ralph --run-only --job <absolute_groupDir>`, which is not derivable from only `(state, task)` without using `process.cwd()` or adding `repoRoot`.
+
+[High] The `brainstorming` command `/brainstorm-with-ralph` is not enough to resume a specific brainstorm. In the installed Ralph skill, `brainstorm-with-ralph` derives `brainstorm_name` from `$ARGUMENTS` before checking `.brainstorm-handoff-<name>.json`; with no argument it cannot select the snapshot task’s `brainstormDir`. The predicate should include the brainstorm slug or return `null` with a missing-data hint.
+
+[Medium] The plan references `.../ralph-orchestration/5.40.0/...`, but this checkout has `5.41.0` installed, not `5.40.0`. The command syntax still appears compatible, but the reference paths are stale and would fail if followed literally.
+
+### Completeness
+
+[High] The plan does not resolve the relative-vs-absolute path contract for all commands. `sync-core.mjs` emits `artifacts.jobDir`, `groupDir`, and `brainstormDir` as repo-relative paths, while Ralph resume docs accept absolute/relative paths in some places but the plan explicitly requires absolute for group resumes. Add `repoRoot` to the predicate input, or define that the skill absolutizes before calling the predicate.
+
+[Medium] Add `scripts/lib/derive-next-command.d.mts`. Existing `scripts/lib/*.mjs` modules generally have `.d.mts` declarations, and Plan 09’s TypeScript MCP server is supposed to import this module directly.
+
+[Medium] `/blocker-report` says it surfaces “Critical/High findings,” but `reviewOpenCount` in `scripts/lib/sync-core.mjs` counts open Medium+ findings via `MEDIUM_PLUS`. Either change the wording to “Medium+” or add richer severity counts before filtering Critical/High.
+
+### Ordering
+
+No issues found. The predicate/type work correctly comes before the markdown skills, and cascade refresh is correctly last.
+
+### Simplicity
+
+[Medium] A tiny CLI wrapper around `deriveNextCommand` would be simpler and less fragile than embedding `node -e` instructions in three skills. For example, `node scripts/derive-next-command.mjs --snapshot plans/overview-snapshot.json --task <id>` could own temp-file/quoting/path resolution once.
+
+### Acceptance Criteria Quality
+
+[Medium] The ambiguity smoke test says “for a task-id prefix that matches multiple tasks,” but the `/work-on` parsing rules only say case-insensitive match, not prefix match. Specify exact vs prefix matching.
+
+[Medium] The “`/work-on <task-id> --dry-run` prints the right command for each stage” criterion depends on manual mutation of generated snapshot state and does not define expected output for missing artifacts. The unit tests cover the predicate, but the skill behavior itself remains weakly specified.

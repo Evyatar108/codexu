@@ -1,0 +1,68 @@
+{
+  "storyId": "US-003",
+  "verifiedEvidence": [
+    {
+      "criterion": "All five tools registered in src/server.ts with zod input schemas in src/schemas.ts",
+      "command": "grep -nE 'registerTool|overview[.]list_tasks|overview[.]get_task|overview[.]next_command|overview[.]list_recommendations|overview[.]list_blockers' tools/overview-mcp/src/server.ts; grep -nE 'export const .*InputSchema|ralphStageSchema' tools/overview-mcp/src/schemas.ts",
+      "result": "server.ts registers overview.list_tasks, overview.get_task, overview.next_command, overview.list_recommendations, and overview.list_blockers at lines 28-65. schemas.ts defines ralphStageSchema and all five exported input schemas at lines 3-41.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "list_tasks filters supported: stage, scope, workstream, hasDeferredQuestions, hasOpenFindings; F-002 predicate; title fallback",
+      "command": "grep -nE 'workstream|hasDeferredQuestions|hasOpenReviewFindings|descriptionHtml|command[?][.]name|Object[.]values' tools/overview-mcp/src/tools/read-only.ts; pnpm --filter @codexu/overview-mcp test",
+      "result": "read-only.ts implements workstream lookup through OverviewData.workstream, deferred-question and open-finding filters, Object.values(ralph?.reviewOpenCount ?? {}).some((n) => (n ?? 0) > 0), and title fallback from command?.descriptionHtml plaintext to command?.name. Vitest 'overview.list_tasks' passed, including combined filters and plaintext title fallback.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "get_task validates/resolves taskId before filesystem read and returns unknown task for unknown ids",
+      "command": "grep -nE 'findTask|readRecentJournal' tools/overview-mcp/src/tools/read-only.ts; pnpm --filter @codexu/overview-mcp test",
+      "result": "getTask calls findTask before readRecentJournal; unknown '../TASK-1' returns { ok: false, error: 'unknown task' } in Vitest before any journal path is read.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "get_task returns merged SnapshotTask + recentJournal last 3 lines",
+      "command": "pnpm --filter @codexu/overview-mcp test",
+      "result": "Vitest 'overview.get_task' passed: a journal with four lines returned recentJournal ['- two', '- three', '- four'] merged with the TASK-1 snapshot task.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "next_command calls deriveNextCommand() directly; result matches derive-next-command-cli",
+      "command": "grep -n 'deriveNextCommand' tools/overview-mcp/src/tools/read-only.ts; pnpm --filter @codexu/overview-mcp test",
+      "result": "read-only.ts imports and calls deriveNextCommand directly. Vitest 'overview.next_command' passed by comparing handler output to node scripts/lib/derive-next-command-cli.mjs --task TASK-1 --snapshot <fixture>.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "list_recommendations reads snapshot.recommendations; falls back to plans/overview-recommendations.json; missing both errors; supports limit and stageFilter",
+      "command": "grep -nE 'readRecommendationFallback|recommendations|stageFilter|limit' tools/overview-mcp/src/tools/read-only.ts; pnpm --filter @codexu/overview-mcp test",
+      "result": "listRecommendations prefers snapshot.recommendations, falls back through readRecommendationFallback(config.outputs.recommendationsJson), returns { ok: false, error: 'no recommendations available' } when both are missing, and applies stageFilter plus limit. Vitest covered all of these paths.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "list_blockers returns tasks blocked by stage/open findings/deferred questions",
+      "command": "grep -nE 'isBlocker|hasOpenReviewFindings|deferredQuestionsCount' tools/overview-mcp/src/tools/read-only.ts; pnpm --filter @codexu/overview-mcp test",
+      "result": "isBlocker returns true for ralph.stage === 'blocked', open review findings via Object.values(...).some((n) => (n ?? 0) > 0), or deferredQuestionsCount > 0. Vitest returned TASK-1, TASK-2, and TASK-3 for those three blocker causes.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "One vitest test per tool covering happy path + at least one error case",
+      "command": "pnpm --filter @codexu/overview-mcp test",
+      "result": "Exit 0; Vitest reported 2 test files passed and 11 tests passed. read-only-tools.test.ts has one describe block per tool; missing snapshot and unknown task error paths are covered. Full log: .test-output/overview-mcp.test.log.",
+      "evidenceKind": "test"
+    },
+    {
+      "criterion": "Typecheck passes",
+      "command": "pnpm --filter @codexu/overview-mcp typecheck",
+      "result": "Exit 0; tsc --noEmit -p tsconfig.json completed without errors in 6s. Full log: .test-output/overview-mcp.typecheck.log.",
+      "evidenceKind": "typecheck"
+    },
+    {
+      "criterion": "Tests pass",
+      "command": "pnpm --filter @codexu/overview-mcp test",
+      "result": "Exit 0; Vitest reported 2 test files passed and 11 tests passed in 2.35s. Full log: .test-output/overview-mcp.test.log.",
+      "evidenceKind": "test"
+    }
+  ],
+  "skippedReasons": [],
+  "notTested": [],
+  "iterationSHA": "c8e5314f6a7c46cd5a4cd48acaafda5374ef15f6"
+}

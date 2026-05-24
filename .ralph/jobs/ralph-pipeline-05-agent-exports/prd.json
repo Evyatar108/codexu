@@ -1,0 +1,911 @@
+{
+  "project": "Plan 05 — Agent-readable exports",
+  "description": "Generate machine-readable pipeline artifacts (overview-snapshot.json, overview-data.json, overview-activity.jsonl, overview-snapshot.schema.json, tasks/INDEX.md) so an AI agent can read pipeline state from one file. Piggybacks on Plan 02's watcher and lock window; derives activity events inside mergeAndWrite by diffing currentState.byTaskId vs the new state.byTaskId. All work lands on branch ralph-pipeline-05-agent-exports inside the job worktree; nothing merges to main.",
+  "deslop": true,
+  "iterationEngine": "codex",
+  "jobDir": "D:/harness-efforts/codexu/.ralph/jobs/ralph-pipeline-05-agent-exports",
+  "repoDir": "D:/harness-efforts/codexu",
+  "branch": {
+    "name": "ralph-pipeline-05-agent-exports",
+    "created": true
+  },
+  "worktree": {
+    "path": "D:/harness-efforts/codexu/.ralph/jobs/ralph-pipeline-05-agent-exports/worktree",
+    "branch": "ralph-pipeline-05-agent-exports",
+    "startPoint": "main"
+  },
+  "userStories": [
+    {
+      "id": "US-006",
+      "title": "Add Snapshot, SnapshotTask, ActivityEvent types (plus v1 stubs)",
+      "description": "As a TypeScript consumer, I want the Snapshot shape declared so that emitters and downstream code can type-check.",
+      "acceptanceCriteria": [
+        "tools/overview-viewer/src/types.ts appends Snapshot, SnapshotTask, ActivityEvent exports at file end (additive only).",
+        "Adds minimal v1 stubs for Recommendation ({ taskId?, score?, rationale? }) and DependencyGraph ({ nodes: { id }[], edges: { from, to }[] }).",
+        "OverviewRalphState and RalphPipelineState are unchanged (no runDurations migration — Plan 04 owns that).",
+        "Does NOT touch tools/overview-viewer/src/utils/filters.ts (Plan 03's surface).",
+        "Typecheck passes."
+      ],
+      "priority": 1,
+      "passes": true,
+      "notes": "Foundation for emitters and config wiring. Plan 03 has merged into main; verify the post-Plan-03 types.ts still has no FilterAxis (it should live in utils/filters.ts). Appending only — no edits to existing exports.",
+      "verifiedEvidence": [
+        {
+          "criterion": "tools/overview-viewer/src/types.ts appends Snapshot, SnapshotTask, ActivityEvent exports at file end (additive only).",
+          "command": "nl -ba tools/overview-viewer/src/types.ts | tail -55",
+          "result": "Lines 157-193 show Recommendation, DependencyGraph, SnapshotTask, Snapshot, and ActivityEvent appended after the existing OverviewData interface at the end of the file."
+        },
+        {
+          "criterion": "Adds minimal v1 stubs for Recommendation ({ taskId?, score?, rationale? }) and DependencyGraph ({ nodes: { id }[], edges: { from, to }[] }).",
+          "command": "nl -ba tools/overview-viewer/src/types.ts | sed -n '157,166p'",
+          "result": "Recommendation has optional taskId, score, rationale fields; DependencyGraph has nodes: Array<{ id: string }> and edges: Array<{ from: string; to: string }>."
+        },
+        {
+          "criterion": "OverviewRalphState and RalphPipelineState are unchanged (no runDurations migration -- Plan 04 owns that).",
+          "command": "grep -En 'runDurations|export interface OverviewRalphState|export interface RalphPipelineState' tools/overview-viewer/src/types.ts",
+          "result": "RalphPipelineState remains at line 59 and OverviewRalphState at line 75; runDurations appears only in Snapshot at line 180."
+        },
+        {
+          "criterion": "Does NOT touch tools/overview-viewer/src/utils/filters.ts (Plan 03's surface).",
+          "command": "git diff --name-only HEAD^ HEAD | grep 'tools/overview-viewer/src/utils/filters.ts' || true",
+          "result": "No output; the commit did not modify tools/overview-viewer/src/utils/filters.ts."
+        },
+        {
+          "criterion": "Typecheck passes.",
+          "command": "pnpm --filter @codexu/overview-viewer typecheck > .test-output/overview-viewer.typecheck.log 2>&1",
+          "result": "PASS exit=0 duration=17s; tsc --noEmit completed with no errors."
+        },
+        {
+          "criterion": "Package tests pass after dependency install and mtime fixture stabilization.",
+          "command": "pnpm --filter @codexu/overview-viewer test > .test-output/overview-viewer.test.log 2>&1",
+          "result": "PASS exit=0 duration=19s; 27 test files passed, 151 tests passed."
+        }
+      ],
+      "dependencies": [],
+      "failureClassification": "",
+      "partialProgress": null
+    },
+    {
+      "id": "US-007",
+      "title": "Wire seven new output config keys across all five config files",
+      "description": "As an operator, I want every artifact path resolvable through loadConfig({ repoRoot }) so that Plan 05 outputs land in the right place.",
+      "acceptanceCriteria": [
+        "scripts/lib/default-config.mjs and scripts/lib/default-config.d.mts declare six scalar paths (outputs.snapshot, outputs.activity, outputs.activityBackup, outputs.dataJson, outputs.snapshotSchema, outputs.tasksIndex) plus outputs.activityMaxLines (integer, default 1000).",
+        "scripts/lib/resolve-config.mjs resolves the six new paths via resolvePath alongside sidecarJs/sidecarJson and reads activityMaxLines as a plain integer.",
+        ".ralph/overview-config.json populates the seven new keys.",
+        ".ralph/overview-config.schema.json extends properties.outputs with the seven new property definitions (six string paths, plus integer with minimum 1, default 1000).",
+        "tools/overview-viewer/src/__tests__/config.test.ts asserts the resolved shape — paths are strings, activityMaxLines is an integer.",
+        "Typecheck passes."
+      ],
+      "priority": 2,
+      "passes": true,
+      "notes": "Atomic five-file update. Sticking with seven scalar keys (six paths + one integer) instead of a nested object under outputs.activity to keep resolve-config.mjs's scalar-path logic intact (F-002 fix).",
+      "verifiedEvidence": [
+        {
+          "criterion": "scripts/lib/default-config.mjs and scripts/lib/default-config.d.mts declare six scalar paths (outputs.snapshot, outputs.activity, outputs.activityBackup, outputs.dataJson, outputs.snapshotSchema, outputs.tasksIndex) plus outputs.activityMaxLines (integer, default 1000).",
+          "command": "nl -ba scripts/lib/default-config.mjs | sed -n '1,35p'; nl -ba scripts/lib/default-config.d.mts | sed -n '1,28p'",
+          "result": "default-config.mjs lines 12-18 define snapshot, activity, activityBackup, dataJson, snapshotSchema, tasksIndex, and activityMaxLines: 1000; default-config.d.mts lines 12-18 declare the six strings plus activityMaxLines: number."
+        },
+        {
+          "criterion": "scripts/lib/resolve-config.mjs resolves the six new paths via resolvePath alongside sidecarJs/sidecarJson and reads activityMaxLines as a plain integer.",
+          "command": "nl -ba scripts/lib/resolve-config.mjs | sed -n '77,116p'",
+          "result": "resolve-config.mjs lines 103-113 resolves sidecarJs, sidecarJson, snapshot, activity, activityBackup, dataJson, snapshotSchema, and tasksIndex with resolvePath; activityMaxLines is returned directly from config.outputs.activityMaxLines."
+        },
+        {
+          "criterion": ".ralph/overview-config.json populates the seven new keys.",
+          "command": "jq '.outputs' .ralph/overview-config.json",
+          "result": "outputs includes snapshot=plans/overview-snapshot.json, activity=plans/overview-activity.jsonl, activityBackup=plans/overview-activity.1.jsonl, dataJson=plans/overview-data.json, snapshotSchema=plans/overview-snapshot.schema.json, tasksIndex=tasks/INDEX.md, activityMaxLines=1000."
+        },
+        {
+          "criterion": ".ralph/overview-config.schema.json extends properties.outputs with the seven new property definitions (six string paths, plus integer with minimum 1, default 1000).",
+          "command": "jq '.properties.outputs.properties' .ralph/overview-config.schema.json",
+          "result": "outputs schema includes six new string properties and activityMaxLines with type integer, minimum 1, default 1000."
+        },
+        {
+          "criterion": "tools/overview-viewer/src/__tests__/config.test.ts asserts the resolved shape -- paths are strings, activityMaxLines is an integer.",
+          "command": "nl -ba tools/overview-viewer/src/__tests__/config.test.ts | sed -n '40,82p'; nl -ba tools/overview-viewer/src/__tests__/config.test.ts | sed -n '132,152p'",
+          "result": "config.test.ts lines 67-77 assert resolved path strings and Number.isInteger(activityMaxLines); lines 136-149 assert committed config/schema values for the seven Plan 05 keys. Focused config test also passed: 1 file, 7 tests."
+        },
+        {
+          "criterion": "Typecheck passes.",
+          "command": "pnpm --filter @codexu/overview-viewer typecheck > .test-output/overview-viewer.typecheck.log 2>&1",
+          "result": "PASS exit=0 duration=17s; tsc --noEmit completed with no errors. Package tests also passed: 27 files, 152 tests."
+        }
+      ],
+      "dependencies": [],
+      "failureClassification": "",
+      "partialProgress": null
+    },
+    {
+      "id": "US-008",
+      "title": "Add ambient declarations for new emitter modules",
+      "description": "As a TypeScript consumer of the scripts/ layer, I want the new emitter modules typed so that import statements compile.",
+      "acceptanceCriteria": [
+        "scripts/lib/emit-snapshot.d.mts, emit-activity.d.mts, emit-tasks-index.d.mts, emit-snapshot-schema.d.mts created with accurate signatures.",
+        "tools/overview-viewer/src/__tests__/scripts.d.ts adds ambient module declarations for the four new modules.",
+        "Typecheck passes."
+      ],
+      "priority": 3,
+      "passes": true,
+      "notes": "References the Snapshot / ActivityEvent types added in US-006.",
+      "verifiedEvidence": [
+        {
+          "criterion": "scripts/lib/emit-snapshot.d.mts, emit-activity.d.mts, emit-tasks-index.d.mts, emit-snapshot-schema.d.mts created with accurate signatures.",
+          "command": "grep -R -nE \"buildSnapshot|appendActivity|rotateActivity|buildTasksIndex|SNAPSHOT_SCHEMA|writeSnapshotSchema|ActivityEvent|Snapshot\" scripts/lib/emit-*.d.mts",
+          "result": "emit-snapshot declares BuildSnapshotOptions and buildSnapshot(...): Snapshot; emit-activity imports ActivityEvent and declares appendActivity plus rotateActivity; emit-tasks-index declares buildTasksIndex(snapshot: Snapshot): string; emit-snapshot-schema declares SNAPSHOT_SCHEMA and writeSnapshotSchema(schemaPath)."
+        },
+        {
+          "criterion": "tools/overview-viewer/src/__tests__/scripts.d.ts adds ambient module declarations for the four new modules.",
+          "command": "grep -n \"declare module '../../../../scripts/lib/emit-\" tools/overview-viewer/src/__tests__/scripts.d.ts",
+          "result": "Lines 32, 47, 60, and 66 declare ambient modules for emit-snapshot.mjs, emit-activity.mjs, emit-tasks-index.mjs, and emit-snapshot-schema.mjs."
+        },
+        {
+          "criterion": "Typecheck passes.",
+          "command": "pnpm --filter @codexu/overview-viewer typecheck > .test-output/overview-viewer.typecheck.log 2>&1",
+          "result": "PASS exit=0 duration=10s; tsc --noEmit completed with no errors. Package tests also passed: 27 files, 152 tests."
+        }
+      ],
+      "dependencies": [
+        "US-006"
+      ],
+      "failureClassification": "",
+      "partialProgress": null
+    },
+    {
+      "id": "US-001",
+      "title": "Build emit-snapshot.mjs pure function",
+      "description": "As an agent consuming pipeline state, I want a single Snapshot JSON to read so that I have everything (tasks + pipeline state + optional recommendations/dependencyGraph/runDurations) in one file.",
+      "acceptanceCriteria": [
+        "scripts/lib/emit-snapshot.mjs exports buildSnapshot({ ralphState, overviewData, recommendations, dependencyGraph, generatedFromCommit }) returning a Snapshot.",
+        "When recommendations / dependencyGraph / runDurations inputs are absent, Snapshot.recommendations === [], Snapshot.dependencyGraph === { nodes: [], edges: [] }, Snapshot.runDurations === {}.",
+        "Snapshot.schemaVersion === 1 (integer).",
+        "Snapshot.tasks[i] merges OverviewTask + (optional) RalphPipelineState under ralph.",
+        "Typecheck passes.",
+        "Unit tests pass: `pnpm vitest run scripts/lib/emit-snapshot.test.mjs` — absent-fixture defaults and fixture-with-files cases green."
+      ],
+      "priority": 4,
+      "passes": true,
+      "notes": "Pure function; no IO. Per F-009, both the absent-fixture-defaults case and the fixture-with-files case must be covered by US-005's unit test (creates plans/overview-recommendations.json + plans/overview-dependency-graph.json fixtures).",
+      "verifiedEvidence": [
+        {
+          "criterion": "scripts/lib/emit-snapshot.mjs exports buildSnapshot({ ralphState, overviewData, recommendations, dependencyGraph, generatedFromCommit }) returning a Snapshot.",
+          "command": "nl -ba scripts/lib/emit-snapshot.mjs",
+          "result": "Lines 1-8 export buildSnapshot with ralphState, overviewData, recommendations, dependencyGraph, runDurations, and generatedFromCommit options; lines 19-30 return the Snapshot-shaped object."
+        },
+        {
+          "criterion": "When recommendations / dependencyGraph / runDurations inputs are absent, Snapshot.recommendations === [], Snapshot.dependencyGraph === { nodes: [], edges: [] }, Snapshot.runDurations === {}.",
+          "command": "nl -ba scripts/lib/emit-snapshot.mjs | sed -n '1,7p'; nl -ba scripts/lib/emit-snapshot.test.mjs | sed -n '15,28p'",
+          "result": "emit-snapshot.mjs lines 4-6 default recommendations to [], dependencyGraph to { nodes: [], edges: [] }, and runDurations to {}; emit-snapshot.test.mjs lines 15-28 assert those defaults."
+        },
+        {
+          "criterion": "Snapshot.schemaVersion === 1 (integer).",
+          "command": "nl -ba scripts/lib/emit-snapshot.mjs | sed -n '19,23p'; nl -ba scripts/lib/emit-snapshot.test.mjs | sed -n '21,24p'",
+          "result": "emit-snapshot.mjs line 22 sets schemaVersion: 1; the absent-defaults test asserts snapshot.schemaVersion is 1."
+        },
+        {
+          "criterion": "Snapshot.tasks[i] merges OverviewTask + (optional) RalphPipelineState under ralph.",
+          "command": "nl -ba scripts/lib/emit-snapshot.mjs | sed -n '13,17p'; nl -ba scripts/lib/emit-snapshot.test.mjs | sed -n '58,65p'",
+          "result": "emit-snapshot.mjs lines 13-17 look up byTaskId[task.id] and add ralph only when present; the fixture-with-files test asserts TASK-001 has ralph and TASK-002 remains plain."
+        },
+        {
+          "criterion": "Typecheck passes.",
+          "command": "pnpm --filter @codexu/overview-viewer typecheck > .test-output/overview-viewer.typecheck.log 2>&1",
+          "result": "PASS exit=0 duration=7s; tsc --noEmit completed with no errors."
+        },
+        {
+          "criterion": "Unit tests pass: `pnpm vitest run scripts/lib/emit-snapshot.test.mjs` -- absent-fixture defaults and fixture-with-files cases green.",
+          "command": "pnpm vitest run scripts/lib/emit-snapshot.test.mjs > .test-output/emit-snapshot.test.log 2>&1",
+          "result": "PASS exit=0 duration=1.18s; 1 test file passed, 2 tests passed, covering absent Plan 04 defaults and fixture-with-files recommendations/dependencyGraph inputs."
+        },
+        {
+          "criterion": "Package regression tests pass.",
+          "command": "pnpm --filter @codexu/overview-viewer test > .test-output/overview-viewer.test.log 2>&1",
+          "result": "PASS exit=0 duration=45s; 27 test files passed, 152 tests passed."
+        }
+      ],
+      "dependencies": [
+        "US-006"
+      ],
+      "failureClassification": "",
+      "partialProgress": null
+    },
+    {
+      "id": "US-002",
+      "title": "Build emit-activity.mjs append + rotate",
+      "description": "As an operator, I want a tail-able append-only log of stage / progress events so that I can answer 'what just changed?' without reparsing the whole snapshot.",
+      "acceptanceCriteria": [
+        "scripts/lib/emit-activity.mjs exports appendActivity(repoRoot, event, { activityPath, activityBackupPath, maxLines = 1000 }) and rotateActivity(activityPath, activityBackupPath).",
+        "Append opens the file in append mode, writes a single writeSync(JSON.stringify(event) + '\\n'), calls fsyncSync, then closes the handle.",
+        "Before append, rotation: if the file has >= maxLines, rename to activityBackupPath (overwriting any prior backup), then start fresh.",
+        "Lines fit within a single 4KB write.",
+        "Typecheck passes.",
+        "Unit tests pass: `pnpm vitest run scripts/lib/emit-activity.test.mjs` — append, rotation at maxLines, retain-emits-zero, storyCompletion change, removal (newStage: null), and first-observation (prevStage: null) all green."
+      ],
+      "priority": 5,
+      "passes": true,
+      "notes": "F-012: test cases for storyCompletion change, removal (newStage: null), first-observation (prevStage: null), retain emits zero events, and reader tolerating a torn final line all live in US-005's emit-activity.test.mjs.",
+      "verifiedEvidence": [
+        {
+          "criterion": "scripts/lib/emit-activity.mjs exports appendActivity(repoRoot, event, { activityPath, activityBackupPath, maxLines = 1000 }) and rotateActivity(activityPath, activityBackupPath).",
+          "command": "nl -ba scripts/lib/emit-activity.mjs | sed -n '1,60p'",
+          "result": "Lines 4-7 define default maxLines=1000 and export appendActivity(repoRoot, event, options); lines 36-43 export rotateActivity(activityPath, activityBackupPath)."
+        },
+        {
+          "criterion": "Append opens the file in append mode, writes a single writeSync(JSON.stringify(event) + n), calls fsyncSync, then closes the handle.",
+          "command": "nl -ba scripts/lib/emit-activity.mjs | sed -n '14,33p'; nl -ba scripts/lib/emit-activity.test.mjs | sed -n '58,69p'",
+          "result": "emit-activity.mjs lines 14 and 26-31 build the JSONL line, open with mode a, call one writeSync, fsyncSync, and close; the test asserts writeSync and fsyncSync are each called once and the event is appended."
+        },
+        {
+          "criterion": "Before append, rotation: if the file has >= maxLines, rename to activityBackupPath (overwriting any prior backup), then start fresh.",
+          "command": "nl -ba scripts/lib/emit-activity.mjs | sed -n '19,43p'; nl -ba scripts/lib/emit-activity.test.mjs | sed -n '71,81p'",
+          "result": "Lines 19-20 rotate before append when countLines(activityPath) >= maxLines; rotateActivity removes the previous backup and renameSyncs the activity file. The rotation test passes with maxLines=2 and verifies the new activity file contains only the new event while backup contains the old two events."
+        },
+        {
+          "criterion": "Lines fit within a single 4KB write.",
+          "command": "nl -ba scripts/lib/emit-activity.mjs | sed -n '4,17p'; nl -ba scripts/lib/emit-activity.test.mjs | sed -n '83,88p'",
+          "result": "Lines 5 and 15-17 enforce MAX_ACTIVITY_LINE_BYTES=4096 before writing; the test rejects an oversized event and verifies no activity file is created."
+        },
+        {
+          "criterion": "Typecheck passes.",
+          "command": "pnpm --filter @codexu/overview-viewer typecheck > .test-output/overview-viewer.typecheck.log 2>&1",
+          "result": "PASS exit=0 duration=14s; tsc --noEmit completed with no errors."
+        },
+        {
+          "criterion": "Unit tests pass: `pnpm vitest run scripts/lib/emit-activity.test.mjs` — append, rotation at maxLines, retain-emits-zero, storyCompletion change, removal (newStage: null), and first-observation (prevStage: null) all green.",
+          "command": "pnpm vitest run scripts/lib/emit-activity.test.mjs > .test-output/emit-activity.test.log 2>&1",
+          "result": "PASS exit=0 duration=1.33s; 1 test file passed, 7 tests passed, covering append, rotation, 4KB rejection, retain zero writes, storyCompletion/removal/first-observation event shapes, torn final line tolerance, and direct rotateActivity backup overwrite. Package tests also passed: 27 files, 152 tests."
+        }
+      ],
+      "dependencies": [
+        "US-006"
+      ],
+      "failureClassification": "",
+      "partialProgress": null
+    },
+    {
+      "id": "US-003",
+      "title": "Build emit-tasks-index.mjs markdown renderer",
+      "description": "As a human navigating the repo, I want tasks/INDEX.md to give me one section per task with stage, jobDir, last activity, and a deep link to the dashboard chip.",
+      "acceptanceCriteria": [
+        "scripts/lib/emit-tasks-index.mjs exports buildTasksIndex(snapshot) -> string.",
+        "Output starts with <!-- GENERATED by scripts/sync-ralph-state.mjs — do NOT edit by hand -->.",
+        "One ## section per task, listing stage, jobDir, last activity (from snapshot lookup), and a deep link.",
+        "Typecheck passes.",
+        "Unit tests pass: `pnpm vitest run scripts/lib/emit-tasks-index.test.mjs` — rendered markdown matches a checked-in fixture; output starts with `<!-- GENERATED by scripts/sync-ralph-state.mjs — do NOT edit by hand -->`."
+      ],
+      "priority": 6,
+      "passes": true,
+      "notes": "Snapshotted markdown rendering verified against a fixture in US-005.",
+      "verifiedEvidence": [
+        {
+          "criterion": "scripts/lib/emit-tasks-index.mjs exports buildTasksIndex(snapshot) -> string.",
+          "command": "nl -ba scripts/lib/emit-tasks-index.mjs | sed -n '1,70p'",
+          "result": "Lines 3-30 export buildTasksIndex(snapshot), validate snapshot.tasks, render markdown lines, and return a string with a trailing newline."
+        },
+        {
+          "criterion": "Output starts with <!-- GENERATED by scripts/sync-ralph-state.mjs — do NOT edit by hand -->.",
+          "command": "head -1 scripts/lib/fixtures/emit-tasks-index.md",
+          "result": "First line is exactly <!-- GENERATED by scripts/sync-ralph-state.mjs — do NOT edit by hand -->."
+        },
+        {
+          "criterion": "One ## section per task, listing stage, jobDir, last activity (from snapshot lookup), and a deep link.",
+          "command": "grep -nE \"^## |Stage:|jobDir:|Last activity:|Dashboard:\" scripts/lib/fixtures/emit-tasks-index.md",
+          "result": "Fixture contains three ## task sections. Each section lists Stage, jobDir, Last activity, and Dashboard link; TASK-001 last activity is selected from the newest snapshot.runs entry and links to ../plans/overview.html#cmd-TASK-001."
+        },
+        {
+          "criterion": "Typecheck passes.",
+          "command": "pnpm --filter @codexu/overview-viewer typecheck > .test-output/overview-viewer.typecheck.log 2>&1",
+          "result": "PASS exit=0 duration=12s; tsc --noEmit completed with no errors."
+        },
+        {
+          "criterion": "Unit tests pass: `pnpm vitest run scripts/lib/emit-tasks-index.test.mjs` — rendered markdown matches a checked-in fixture; output starts with `<!-- GENERATED by scripts/sync-ralph-state.mjs — do NOT edit by hand -->`.",
+          "command": "pnpm vitest run scripts/lib/emit-tasks-index.test.mjs > .test-output/emit-tasks-index.test.log 2>&1",
+          "result": "PASS exit=0 duration=7s; 1 test file passed, 1 test passed; buildTasksIndex output matched scripts/lib/fixtures/emit-tasks-index.md. Package tests also passed: 27 files, 152 tests."
+        }
+      ],
+      "dependencies": [
+        "US-006"
+      ],
+      "failureClassification": "",
+      "partialProgress": null
+    },
+    {
+      "id": "US-004",
+      "title": "Build emit-snapshot-schema.mjs hand-written JSON Schema",
+      "description": "As a downstream consumer, I want a JSON Schema so that I can validate overview-snapshot.json and generate types.",
+      "acceptanceCriteria": [
+        "scripts/lib/emit-snapshot-schema.mjs exports SNAPSHOT_SCHEMA (constant) and writeSnapshotSchema(path).",
+        "Schema matches the Snapshot TS interface (v1).",
+        "Schema allows additionalProperties: true on RalphPipelineState so Plans 07/08 can extend without breaking.",
+        "Schema validates itself (meta-schema check via ajv imported programmatically — not via ajv-cli).",
+        "Typecheck passes.",
+        "Unit tests pass: `pnpm vitest run scripts/lib/emit-snapshot-schema.test.mjs` — ajv.compile(SNAPSHOT_SCHEMA) succeeds, ajv validates a sample Snapshot instance, and `SNAPSHOT_SCHEMA.properties.schemaVersion.const === 1`."
+      ],
+      "priority": 7,
+      "passes": true,
+      "notes": "F-008: use ajv programmatically, not ajv-cli. Add ajv (optionally ajv-formats) to devDependencies only if not already available transitively via direct import.",
+      "verifiedEvidence": [
+        {
+          "criterion": "scripts/lib/emit-snapshot-schema.mjs exports SNAPSHOT_SCHEMA (constant) and writeSnapshotSchema(path).",
+          "command": "nl -ba scripts/lib/emit-snapshot-schema.mjs | sed -n '1,220p'",
+          "result": "Lines 4-211 export SNAPSHOT_SCHEMA; lines 213-220 export writeSnapshotSchema(schemaPath), create the destination directory, and write pretty JSON with a trailing newline."
+        },
+        {
+          "criterion": "Schema matches the Snapshot TS interface (v1).",
+          "command": "nl -ba scripts/lib/emit-snapshot-schema.mjs | sed -n '10,32p'; nl -ba scripts/lib/emit-snapshot-schema.mjs | sed -n '139,199p'",
+          "result": "Snapshot required fields match the v1 Snapshot interface: generatedAt, generatedFromCommit, schemaVersion const 1, tasks, runs, recommendations, dependencyGraph, runDurations, unmatched, and unmatchedSummary; SnapshotTask, RunRecord, Recommendation, and DependencyGraph definitions mirror the TypeScript shapes."
+        },
+        {
+          "criterion": "Schema allows additionalProperties: true on RalphPipelineState so Plans 07/08 can extend without breaking.",
+          "command": "nl -ba scripts/lib/emit-snapshot-schema.mjs | sed -n '107,110p'; nl -ba scripts/lib/emit-snapshot-schema.test.mjs | sed -n '24,42p'",
+          "result": "RalphPipelineState is defined with additionalProperties: true at lines 107-110; the test validates a sample ralph object carrying a future crewSessions extension and asserts the flag remains true."
+        },
+        {
+          "criterion": "Schema validates itself (meta-schema check via ajv imported programmatically -- not via ajv-cli).",
+          "command": "nl -ba scripts/lib/emit-snapshot-schema.test.mjs | sed -n '5,43p'; pnpm vitest run scripts/lib/emit-snapshot-schema.test.mjs > .test-output/emit-snapshot-schema.test.log 2>&1",
+          "result": "Test imports Ajv directly, calls ajv.compile(SNAPSHOT_SCHEMA), and validates a sample Snapshot. PASS exit=0 duration=7s; 1 test file passed, 2 tests passed."
+        },
+        {
+          "criterion": "Typecheck passes.",
+          "command": "pnpm --filter @codexu/overview-viewer typecheck > .test-output/overview-viewer.typecheck.log 2>&1",
+          "result": "PASS exit=0 duration=14s; tsc --noEmit completed with no errors."
+        },
+        {
+          "criterion": "Unit tests pass: `pnpm vitest run scripts/lib/emit-snapshot-schema.test.mjs` -- ajv.compile(SNAPSHOT_SCHEMA) succeeds, ajv validates a sample Snapshot instance, and `SNAPSHOT_SCHEMA.properties.schemaVersion.const === 1`.",
+          "command": "pnpm vitest run scripts/lib/emit-snapshot-schema.test.mjs > .test-output/emit-snapshot-schema.test.log 2>&1",
+          "result": "PASS exit=0 duration=7s; 1 test file passed, 2 tests passed; assertions cover schemaVersion.const === 1, Ajv compile/sample validation, additionalProperties on RalphPipelineState, and writeSnapshotSchema output. Package tests also passed: 27 files, 152 tests."
+        }
+      ],
+      "dependencies": [
+        "US-006"
+      ],
+      "failureClassification": "",
+      "partialProgress": null
+    },
+    {
+      "id": "US-005",
+      "title": "vitest unit tests for the four emitters",
+      "description": "As a future maintainer, I want unit tests for each emitter so that regressions are caught.",
+      "acceptanceCriteria": [
+        "scripts/lib/emit-snapshot.test.mjs exercises both Plan-04-absent defaults and a fixture-with-files case (creates plans/overview-recommendations.json + plans/overview-dependency-graph.json fixtures and asserts the merged shape).",
+        "scripts/lib/emit-activity.test.mjs covers append, rotation at maxLines, partial-write tolerance, no-event on retain, storyCompletion change, removal (newStage: null), first-observation (prevStage: null).",
+        "scripts/lib/emit-tasks-index.test.mjs snapshots the rendered markdown against a fixture.",
+        "scripts/lib/emit-snapshot-schema.test.mjs validates the schema against the JSON Schema meta-schema using ajv programmatically; validates a sample Snapshot instance.",
+        "All tests pass."
+      ],
+      "priority": 8,
+      "passes": true,
+      "notes": "F-009 split coverage: both absent-fixture and fixture-with-files cases. F-012: four extra activity cases. F-008: use ajv programmatic API. Helpers patterned after scripts/lib/sync-core.test.mjs (makeTempDir, writeJson, buildConfig).",
+      "verifiedEvidence": [
+        {
+          "criterion": "scripts/lib/emit-snapshot.test.mjs exercises both Plan-04-absent defaults and a fixture-with-files case (creates plans/overview-recommendations.json + plans/overview-dependency-graph.json fixtures and asserts the merged shape).",
+          "command": "nl -ba scripts/lib/emit-snapshot.test.mjs | sed -n '18,94p'",
+          "result": "Lines 19-31 assert absent Plan 04 defaults for recommendations, dependencyGraph, runDurations, runs, unmatched, and unmatchedSummary; lines 34-90 create overview-recommendations.json and overview-dependency-graph.json fixtures, parse them, and assert the merged snapshot shape."
+        },
+        {
+          "criterion": "scripts/lib/emit-activity.test.mjs covers append, rotation at maxLines, partial-write tolerance, no-event on retain, storyCompletion change, removal (newStage: null), first-observation (prevStage: null).",
+          "command": "nl -ba scripts/lib/emit-activity.test.mjs | sed -n '58,129p'",
+          "result": "Lines 59-68 cover append/writeSync/fsync; lines 71-80 cover rotation at maxLines; lines 90-96 cover retain zero writes; lines 99-120 separately cover storyCompletion, removal newStage null, and first-observation prevStage null; lines 123-128 cover torn final line tolerance."
+        },
+        {
+          "criterion": "scripts/lib/emit-tasks-index.test.mjs snapshots the rendered markdown against a fixture.",
+          "command": "nl -ba scripts/lib/emit-tasks-index.test.mjs | sed -n '11,62p' && nl -ba scripts/lib/fixtures/emit-tasks-index.md | sed -n '1,24p'",
+          "result": "The test builds a representative Snapshot and asserts buildTasksIndex(snapshot) equals the checked-in fixture; fixture lines 1-24 include the generated header, task sections, stage/jobDir/last activity, and dashboard links."
+        },
+        {
+          "criterion": "scripts/lib/emit-snapshot-schema.test.mjs validates the schema against the JSON Schema meta-schema using ajv programmatically; validates a sample Snapshot instance.",
+          "command": "nl -ba scripts/lib/emit-snapshot-schema.test.mjs | sed -n '1,57p'",
+          "result": "Lines 5 and 12-13 import Ajv and compile SNAPSHOT_SCHEMA programmatically; lines 15-42 validate a sample Snapshot and assert schemaVersion const 1 plus RalphPipelineState extensibility; lines 45-56 cover writeSnapshotSchema output."
+        },
+        {
+          "criterion": "All tests pass.",
+          "command": "pnpm vitest run scripts/lib/emit-snapshot.test.mjs scripts/lib/emit-activity.test.mjs scripts/lib/emit-tasks-index.test.mjs scripts/lib/emit-snapshot-schema.test.mjs > .test-output/emitters.test.log 2>&1",
+          "result": "PASS exit=0 duration=8s; 4 test files passed, 14 tests passed."
+        },
+        {
+          "criterion": "Typecheck passes.",
+          "command": "pnpm --filter @codexu/overview-viewer typecheck > .test-output/overview-viewer.typecheck.log 2>&1",
+          "result": "PASS exit=0 duration=14s; tsc --noEmit completed with no errors. Package regression tests also passed: 27 files, 152 tests."
+        }
+      ],
+      "dependencies": [
+        "US-001",
+        "US-002",
+        "US-003",
+        "US-004",
+        "US-006"
+      ],
+      "failureClassification": "",
+      "partialProgress": null
+    },
+    {
+      "id": "US-009",
+      "title": "Export loadOverviewData from sync-core",
+      "description": "As the data-twin emitter, I want a shared parser for plans/overview-data.js so that the JSON twin matches what the dashboard sees.",
+      "acceptanceCriteria": [
+        "The private loadOverviewData() in scripts/lib/sync-core.mjs is exported (renamed if necessary).",
+        "scripts/lib/sync-core.d.mts declares the export.",
+        "No behavior change in existing callers.",
+        "Typecheck passes."
+      ],
+      "priority": 9,
+      "passes": true,
+      "notes": "Reuse the existing implementation. Note: loadOverviewData currently parses overview-data.js via 'new Function' — do not widen the input surface (the file is repo-local and trusted).",
+      "verifiedEvidence": [
+        {
+          "criterion": "The private loadOverviewData() in scripts/lib/sync-core.mjs is exported (renamed if necessary).",
+          "command": "nl -ba scripts/lib/sync-core.mjs | sed -n '566,577p'",
+          "result": "Line 571 now exports loadOverviewData(dataFile); the implementation body is unchanged and still returns {} for missing files or windowValue.OVERVIEW_DATA from the trusted sidecar."
+        },
+        {
+          "criterion": "scripts/lib/sync-core.d.mts declares the export.",
+          "command": "nl -ba scripts/lib/sync-core.d.mts | sed -n '1,78p'",
+          "result": "Line 1 imports OverviewData and line 73 declares export function loadOverviewData(dataFile: string): OverviewData."
+        },
+        {
+          "criterion": "No behavior change in existing callers.",
+          "command": "pnpm vitest run tools/overview-viewer/src/__tests__/syncCore.test.ts > .test-output/sync-core.test.log 2>&1",
+          "result": "PASS exit=0 duration=10s; 1 test file passed, 15 tests passed, including existing walk/merge/writeSidecar callers and a new exported parser assertion."
+        },
+        {
+          "criterion": "Typecheck passes.",
+          "command": "pnpm --filter @codexu/overview-viewer typecheck > .test-output/overview-viewer.typecheck.log 2>&1",
+          "result": "PASS exit=0 duration=14s; tsc --noEmit completed with no errors. Package tests also passed: 27 files, 153 tests."
+        }
+      ],
+      "dependencies": [],
+      "failureClassification": "",
+      "partialProgress": null
+    },
+    {
+      "id": "US-010",
+      "title": "Derive activityEvents inside mergeAndWrite",
+      "description": "As a downstream activity consumer, I want stage and progress transitions captured without watcher-side prevStateMap plumbing.",
+      "acceptanceCriteria": [
+        "mergeAndWrite signature unchanged (same repoRoot, config, currentState, updates, generatedFromCommit).",
+        "Return value gains activityEvents: ActivityEvent[] alongside the existing state, writtenAt, changedTaskIds.",
+        "Events derived by diffing currentState.byTaskId against the new state.byTaskId by taskId: emits for stage change, storyCompletion change (count or fraction), task removal (newStage: null), task first-observation (prevStage: null).",
+        "Retain (no diff) emits zero events.",
+        "Existing callers continue to work without modification.",
+        "vitest cases in scripts/lib/sync-core.test.mjs cover all four diff dimensions.",
+        "Typecheck passes."
+      ],
+      "priority": 10,
+      "passes": true,
+      "notes": "F-005: enumerate all four diff dimensions explicitly. F-007: this is one half of the single integration point — mergeAndWrite computes the events; writeSidecar emits artifacts; watcher consumes the events. Do not duplicate the diff outside mergeAndWrite.",
+      "verifiedEvidence": [
+        {
+          "criterion": "mergeAndWrite signature unchanged (same repoRoot, config, currentState, updates, generatedFromCommit).",
+          "command": "nl -ba scripts/lib/sync-core.mjs | sed -n '232,272p'",
+          "result": "Lines 232-272 keep mergeAndWrite destructuring the same repoRoot, config, currentState, updates, and generatedFromCommit inputs; only the returned object gains activityEvents."
+        },
+        {
+          "criterion": "Return value gains activityEvents: ActivityEvent[] alongside the existing state, writtenAt, changedTaskIds.",
+          "command": "nl -ba scripts/lib/sync-core.mjs | sed -n '267,272p'; nl -ba scripts/lib/sync-core.d.mts | sed -n '1,90p'",
+          "result": "sync-core.mjs line 270 derives activityEvents and line 272 returns it with state, writtenAt, and changedTaskIds; sync-core.d.mts imports ActivityEvent and declares activityEvents: ActivityEvent[] on the mergeAndWrite return type."
+        },
+        {
+          "criterion": "Events derived by diffing currentState.byTaskId against the new state.byTaskId by taskId: emits for stage change, storyCompletion change (count or fraction), task removal (newStage: null), task first-observation (prevStage: null).",
+          "command": "nl -ba scripts/lib/sync-core.mjs | sed -n '270,319p'; nl -ba scripts/lib/sync-core.test.mjs | sed -n '247,355p'",
+          "result": "deriveActivityEvents compares currentState.byTaskId to state.byTaskId over the task-id union, emits stage and storyCompletion changedFields, and fills prevStage/newStage with null for first-observation/removal; tests cover stage change, storyCompletion, removal, and first-observation."
+        },
+        {
+          "criterion": "Retain (no diff) emits zero events.",
+          "command": "nl -ba scripts/lib/sync-core.test.mjs | sed -n '357,371p'",
+          "result": "The retain test calls mergeAndWrite with action=retain and unchanged byTaskId, then asserts result.activityEvents is exactly []."
+        },
+        {
+          "criterion": "Existing callers continue to work without modification.",
+          "command": "pnpm --filter @codexu/overview-viewer test > .test-output/overview-viewer.test.log 2>&1",
+          "result": "PASS exit=0 duration=9.21s; overview-viewer package suite passed with 27 test files and 153 tests, including existing watcher and sync-core callers."
+        },
+        {
+          "criterion": "vitest cases in scripts/lib/sync-core.test.mjs cover all four diff dimensions.",
+          "command": "pnpm vitest run scripts/lib/sync-core.test.mjs > .test-output/sync-core-root.test.log 2>&1",
+          "result": "PASS exit=0 duration=2.01s; scripts/lib/sync-core.test.mjs passed with 1 file and 15 tests, including stage change, storyCompletion change, removal, first-observation, and retain/no-diff cases."
+        },
+        {
+          "criterion": "Typecheck passes.",
+          "command": "pnpm --filter @codexu/overview-viewer typecheck > .test-output/overview-viewer.typecheck.log 2>&1",
+          "result": "PASS exit=0 duration=11.3s; tsc --noEmit completed with no errors."
+        }
+      ],
+      "dependencies": [
+        "US-006"
+      ],
+      "failureClassification": "",
+      "partialProgress": null
+    },
+    {
+      "id": "US-011",
+      "title": "Extend writeSidecar to emit all durable agent artifacts atomically",
+      "description": "As a one-shot sync caller, I want a single integration point that emits every Plan 05 artifact.",
+      "acceptanceCriteria": [
+        "writeSidecar (or a new emitAgentArtifacts helper called from inside writeSidecar) invokes, in order: schema → snapshot → data-twin → tasks-index. All use atomicWriteFile.",
+        "On first run with no plans/overview-activity.jsonl file, the file is created empty (size 0).",
+        "The watcher does NOT call emitters directly; emission happens once per flush via the same mergeAndWrite → writeSidecar path.",
+        "All writes happen inside the existing lock window.",
+        "No double-emit.",
+        "Typecheck passes.",
+        "Integration test passes: `pnpm vitest run scripts/lib/sync-core.test.mjs -t writeSidecar` — after one writeSidecar call on a temp repo, all four artifacts (overview-snapshot.schema.json, overview-snapshot.json, overview-data.json, tasks/INDEX.md) exist on disk and overview-activity.jsonl exists; no double-emit (spy on atomicWriteFile records four calls in order: schema, snapshot, data-twin, tasks-index)."
+      ],
+      "priority": 11,
+      "passes": true,
+      "notes": "F-007: single integration point is writeSidecar (the watcher only appends activity events). F-011: writeSidecar ensures plans/overview-activity.jsonl exists (creates empty if absent) on every run; activity events are appended ONLY by the watcher post-merge.",
+      "verifiedEvidence": [
+        {
+          "criterion": "writeSidecar (or a new emitAgentArtifacts helper called from inside writeSidecar) invokes, in order: schema → snapshot → data-twin → tasks-index. All use atomicWriteFile.",
+          "command": "nl -ba scripts/lib/sync-core.mjs | sed -n '341,370p'; nl -ba scripts/lib/sync-core.test.mjs | sed -n '391,410p'",
+          "result": "sync-core.mjs lines 347 and 355-370 call emitAgentArtifacts from writeSidecar and then atomicWriteFile in order for snapshotSchema, snapshot, dataJson, and tasksIndex. The test records those four final artifact targets and asserts exact order plus Set size 4."
+        },
+        {
+          "criterion": "On first run with no plans/overview-activity.jsonl file, the file is created empty (size 0).",
+          "command": "nl -ba scripts/lib/sync-core.mjs | sed -n '366,378p'; nl -ba scripts/lib/sync-core.test.mjs | sed -n '414,416p'",
+          "result": "emitAgentArtifacts calls ensureEmptyFile for outputs.activity after artifact writes; ensureEmptyFile creates the missing file. The integration test asserts the activity file exists and statSync(...).size is 0."
+        },
+        {
+          "criterion": "The watcher does NOT call emitters directly; emission happens once per flush via the same mergeAndWrite → writeSidecar path.",
+          "command": "grep -R -E \"emit-snapshot|emit-activity|emit-tasks-index|emit-snapshot-schema\" -n scripts/lib/watch-ralph-state.mjs scripts/sync-ralph-state.mjs scripts/lib/sync-core.mjs",
+          "result": "Only scripts/lib/sync-core.mjs imports emit-snapshot, emit-snapshot-schema, and emit-tasks-index; watcher and one-shot script have no direct emitter imports. mergeAndWrite calls writeSidecar at sync-core.mjs line 276."
+        },
+        {
+          "criterion": "All writes happen inside the existing lock window.",
+          "command": "nl -ba scripts/sync-ralph-state.mjs | sed -n '35,47p'; nl -ba scripts/lib/watch-ralph-state.mjs | sed -n '28,147p'; nl -ba scripts/lib/sync-core.mjs | sed -n '267,277p'",
+          "result": "One-shot sync acquires the lock before walkRalphState/writeSidecar and releases in finally; watcher acquires one lock at startup and flushPending calls mergeAndWrite before touching/releasing it; mergeAndWrite calls writeSidecar before returning."
+        },
+        {
+          "criterion": "No double-emit.",
+          "command": "nl -ba scripts/lib/sync-core.test.mjs | sed -n '391,410p'; grep -E \"Test Files|Tests|Duration\" .test-output/sync-core-writeSidecar.test.log",
+          "result": "The focused writeSidecar test records exactly four agent artifact rename targets in the required order and asserts Set size 4. PASS: 1 test file passed, 1 test passed, 15 skipped, duration 1.32s."
+        },
+        {
+          "criterion": "Typecheck passes.",
+          "command": "pnpm --filter @codexu/overview-viewer typecheck > .test-output/overview-viewer.typecheck.log 2>&1",
+          "result": "PASS exit=0 duration=8s; tsc --noEmit completed with no errors."
+        },
+        {
+          "criterion": "Integration test passes: `pnpm vitest run scripts/lib/sync-core.test.mjs -t writeSidecar` — after one writeSidecar call on a temp repo, all four artifacts (overview-snapshot.schema.json, overview-snapshot.json, overview-data.json, tasks/INDEX.md) exist on disk and overview-activity.jsonl exists; no double-emit (spy on atomicWriteFile records four calls in order: schema, snapshot, data-twin, tasks-index).",
+          "command": "pnpm vitest run scripts/lib/sync-core.test.mjs -t writeSidecar > .test-output/sync-core-writeSidecar.test.log 2>&1",
+          "result": "PASS exit=0 duration=1.32s; 1 test file passed, 1 test passed, 15 skipped. The test verifies four artifact paths exist, overview-activity.jsonl exists with size 0, snapshot/data JSON content, tasks index content, and exactly four agent artifact writes in schema/snapshot/data-twin/tasks-index order."
+        },
+        {
+          "criterion": "Regression tests pass.",
+          "command": "pnpm vitest run scripts/lib/sync-core.test.mjs > .test-output/sync-core-root.test.log 2>&1; pnpm --filter @codexu/overview-viewer test > .test-output/overview-viewer.test.log 2>&1",
+          "result": "PASS; scripts/lib/sync-core.test.mjs passed with 1 file and 16 tests. overview-viewer package tests passed with 27 files and 153 tests."
+        }
+      ],
+      "dependencies": [
+        "US-001",
+        "US-002",
+        "US-003",
+        "US-004",
+        "US-005",
+        "US-007",
+        "US-009",
+        "US-010"
+      ],
+      "failureClassification": "",
+      "partialProgress": null
+    },
+    {
+      "id": "US-012",
+      "title": "Consume result.activityEvents in watcher",
+      "description": "As a watcher consumer, I want to react to per-tick activity events without re-parsing state.",
+      "acceptanceCriteria": [
+        "After mergeAndWrite returns successfully in flushPending, the watcher iterates result.activityEvents.",
+        "No additional state plumbing is added to the watcher's debounce buffer (still { kind, slug } keyed via changeKey).",
+        "Typecheck passes.",
+        "Unit test passes: `pnpm vitest run scripts/lib/watch-ralph-state.test.mjs -t \"iterates activityEvents\"` — stubbed mergeAndWrite returns 2 events; flushPending calls appendActivity exactly 2 times in order; debounce buffer remains `{ kind, slug }`."
+      ],
+      "priority": 12,
+      "passes": true,
+      "notes": "F-004: no prevStateMap plumbing in the watcher; mergeAndWrite returns the events.",
+      "verifiedEvidence": [
+        {
+          "criterion": "After mergeAndWrite returns successfully in flushPending, the watcher iterates result.activityEvents.",
+          "command": "nl -ba scripts/lib/watch-ralph-state.mjs | sed -n '135,148p'",
+          "result": "Lines 135-148 call mergeAndWrite, then iterate result.activityEvents and call appendActivity for each event with configured activity paths and maxLines."
+        },
+        {
+          "criterion": "No additional state plumbing is added to the watcher debounce buffer (still { kind, slug } keyed via changeKey).",
+          "command": "grep -n \"pendingChanges.set\" scripts/lib/watch-ralph-state.mjs; grep -n \"return { kind, slug }\" scripts/lib/watch-ralph-state.mjs; nl -ba scripts/lib/watch-ralph-state.test.mjs | sed -n '79,99p'",
+          "result": "watch-ralph-state.mjs still stores parsed watcher changes with pendingChanges.set(changeKey(change.kind, change.slug), change) and parseWatchedPath returns only { kind, slug }; the focused test asserts pendingChanges is [{ kind: job, slug: task }] before flush and [] after flush."
+        },
+        {
+          "criterion": "Typecheck passes.",
+          "command": "pnpm --filter @codexu/overview-viewer typecheck > .test-output/overview-viewer.typecheck.log 2>&1",
+          "result": "PASS exit=0 duration=13s; tsc --noEmit completed with no errors."
+        },
+        {
+          "criterion": "Unit test passes: `pnpm vitest run scripts/lib/watch-ralph-state.test.mjs -t \"iterates activityEvents\"` -- stubbed mergeAndWrite returns 2 events; flushPending calls appendActivity exactly 2 times in order; debounce buffer remains `{ kind, slug }`.",
+          "command": "pnpm vitest run scripts/lib/watch-ralph-state.test.mjs -t \"iterates activityEvents\" > .test-output/watch-ralph-state-activityEvents.test.log 2>&1",
+          "result": "PASS exit=0 duration=7s; 1 test file passed, 1 test passed. The test stubs mergeAndWrite with 2 activityEvents, asserts appendActivity is called exactly twice in order, and verifies pendingChanges uses only { kind, slug }."
+        },
+        {
+          "criterion": "Package regression tests pass.",
+          "command": "pnpm --filter @codexu/overview-viewer test > .test-output/overview-viewer.test.log 2>&1",
+          "result": "PASS exit=0 duration=14s; 27 test files passed, 153 tests passed."
+        }
+      ],
+      "dependencies": [
+        "US-010"
+      ],
+      "failureClassification": "",
+      "partialProgress": null
+    },
+    {
+      "id": "US-013",
+      "title": "Append each activity event inside the lock window",
+      "description": "As an operator, I want activity log appends to happen atomically under the same lock as the state write so that readers never see torn ordering.",
+      "acceptanceCriteria": [
+        "The watcher calls appendActivity(repoRoot, event, { activityPath, activityBackupPath, maxLines }) per event from result.activityEvents BEFORE releasing the flush-time lock.",
+        "If mergeAndWrite throws, no appends happen (no phantom events).",
+        "A vitest case in scripts/lib/watch-ralph-state.test.mjs (file created if absent) verifies lock-hold ordering.",
+        "Typecheck passes."
+      ],
+      "priority": 13,
+      "passes": true,
+      "notes": "Reuses Plan 02's lock semantics from sync-lock.mjs (acquireLock / touchLock / releaseLock). Do not release the lock between mergeAndWrite and the appends.",
+      "verifiedEvidence": [
+        {
+          "criterion": "The watcher calls appendActivity(repoRoot, event, { activityPath, activityBackupPath, maxLines }) per event from result.activityEvents BEFORE releasing the flush-time lock.",
+          "command": "nl -ba scripts/lib/watch-ralph-state.mjs | sed -n '128,153p'; nl -ba scripts/lib/watch-ralph-state.test.mjs | sed -n '100,168p'",
+          "result": "watch-ralph-state.mjs lines 135-148 call mergeAndWrite and append each result.activityEvents entry with activityPath, activityBackupPath, and maxLines before state update/touch. The lock-order test records mergeAndWrite, two append calls, touch, then release in that exact order."
+        },
+        {
+          "criterion": "If mergeAndWrite throws, no appends happen (no phantom events).",
+          "command": "nl -ba scripts/lib/watch-ralph-state.test.mjs | sed -n '171,194p'",
+          "result": "The failure-path test stubs mergeAndWrite to throw, waits for onError, verifies mergeAndWrite was called, and asserts appendActivity was not called."
+        },
+        {
+          "criterion": "A vitest case in scripts/lib/watch-ralph-state.test.mjs (file created if absent) verifies lock-hold ordering.",
+          "command": "pnpm vitest run scripts/lib/watch-ralph-state.test.mjs > .test-output/watch-ralph-state-lock-order.test.log 2>&1",
+          "result": "PASS exit=0 duration=6s; 1 test file passed, 3 tests passed, including appends activityEvents before touching and releasing the lock."
+        },
+        {
+          "criterion": "Typecheck passes.",
+          "command": "pnpm --filter @codexu/overview-viewer typecheck > .test-output/overview-viewer.typecheck.log 2>&1",
+          "result": "PASS exit=0 duration=13s; tsc --noEmit completed with no errors."
+        },
+        {
+          "criterion": "Package regression tests pass.",
+          "command": "pnpm --filter @codexu/overview-viewer test > .test-output/overview-viewer.test.log 2>&1",
+          "result": "PASS exit=0 duration=14s; 27 test files passed, 153 tests passed."
+        }
+      ],
+      "dependencies": [
+        "US-002",
+        "US-012"
+      ],
+      "failureClassification": "",
+      "partialProgress": null
+    },
+    {
+      "id": "US-014",
+      "title": "Update AGENTS.md and tools/overview-viewer/CLAUDE.md",
+      "description": "As an agent loading this project cold, I want a discoverable pointer to overview-snapshot.json so that I can find pipeline state in one read.",
+      "acceptanceCriteria": [
+        "AGENTS.md (root) gains an agent-pointer line referencing plans/overview-snapshot.json and plans/overview-activity.jsonl and noting they are generated by scripts/sync-ralph-state.mjs --watch (auto-started by pnpm overview).",
+        "AGENTS.md notes that activity-log readers MUST tolerate a final torn line (skip last line if JSON.parse throws).",
+        "tools/overview-viewer/CLAUDE.md gains a ## Ralph state sidecar section pointing at the artifacts and reminding readers they regenerate automatically.",
+        "grep 'overview-snapshot.json' AGENTS.md returns at least one line.",
+        "Typecheck passes (no code touched, but verify the workspace still typechecks after the doc edits)."
+      ],
+      "priority": 14,
+      "passes": true,
+      "notes": "F-012: the AGENTS.md torn-line note is the documented reader contract.",
+      "verifiedEvidence": [
+        {
+          "criterion": "AGENTS.md (root) gains an agent-pointer line referencing plans/overview-snapshot.json and plans/overview-activity.jsonl and noting they are generated by scripts/sync-ralph-state.mjs --watch (auto-started by pnpm overview).",
+          "command": "nl -ba AGENTS.md | sed -n '12,20p'",
+          "result": "AGENTS.md lines 16-18 point agents at plans/overview-snapshot.json and plans/overview-activity.jsonl, state they are generated by scripts/sync-ralph-state.mjs --watch, and note pnpm overview auto-starts the watcher."
+        },
+        {
+          "criterion": "AGENTS.md notes that activity-log readers MUST tolerate a final torn line (skip last line if JSON.parse throws).",
+          "command": "grep -n -E 'final torn line|JSON.parse' AGENTS.md",
+          "result": "Line 18 says activity-log readers MUST tolerate a final torn line and skip the last line if JSON.parse fails."
+        },
+        {
+          "criterion": "tools/overview-viewer/CLAUDE.md gains a ## Ralph state sidecar section pointing at the artifacts and reminding readers they regenerate automatically.",
+          "command": "nl -ba tools/overview-viewer/CLAUDE.md | sed -n '55,60p'",
+          "result": "Lines 57-59 add ## Ralph state sidecar and list overview-snapshot.json, overview-data.json, overview-snapshot.schema.json, overview-activity.jsonl, and tasks/INDEX.md, with the reminder that they regenerate automatically through scripts/sync-ralph-state.mjs --watch started by pnpm overview."
+        },
+        {
+          "criterion": "grep 'overview-snapshot.json' AGENTS.md returns at least one line.",
+          "command": "grep -n 'overview-snapshot.json' AGENTS.md",
+          "result": "Line 16 contains overview-snapshot.json in the agent-readable Ralph pipeline state pointer."
+        },
+        {
+          "criterion": "Typecheck passes (no code touched, but verify the workspace still typechecks after the doc edits).",
+          "command": "pnpm --filter @codexu/overview-viewer typecheck > .test-output/overview-viewer.typecheck.log 2>&1",
+          "result": "PASS exit=0 duration=6s; tsc --noEmit completed with no errors."
+        }
+      ],
+      "dependencies": [
+        "US-011",
+        "US-013"
+      ],
+      "failureClassification": "",
+      "partialProgress": null
+    },
+    {
+      "id": "US-015",
+      "title": "Cascade audit — Plans 04 and 06–12",
+      "description": "As a downstream-plan maintainer, I want Plan 05's cascade reflected in every plan that depends on it.",
+      "acceptanceCriteria": [
+        "plans/ralph-pipeline-04-pipeline-overview.md — runDurations type-home moved from OverviewRalphState into Snapshot; Plan 04 still emits two sibling JSON artifacts (overview-recommendations.json, overview-dependency-graph.json); 'transient home' wording corrected.",
+        "plans/ralph-pipeline-06-skills.md — snapshot consumption path confirmed; stale references refreshed.",
+        "plans/ralph-pipeline-07-context.md — activity.jsonl ordering matches 'append after successful write.'",
+        "plans/ralph-pipeline-08-crews.md — 'merge into snapshot' wording rewritten to 'extend RalphPipelineState.crewSessions.'",
+        "plans/ralph-pipeline-09-mcp.md — TS-types vs JSON-schema consumption clarified; 'import JSON Schema as TypeScript' wording removed.",
+        "plans/ralph-pipeline-10-ralph-handoff.md, plans/ralph-pipeline-11-mcp-operational-tools.md, plans/ralph-pipeline-12-package-as-plugin.md — scanned and stale Plan 05 references refreshed.",
+        "Each edited file listed in the implementation commit message with a line range and a one-line description."
+      ],
+      "priority": 15,
+      "passes": true,
+      "notes": "F-003 was already addressed in the plan but the cascade edits to ralph-pipeline-04-pipeline-overview.md still need to land. Be conservative: scan each downstream plan for stale Plan 05 references rather than rewriting wholesale.",
+      "verifiedEvidence": [
+        {
+          "criterion": "plans/ralph-pipeline-04-pipeline-overview.md — runDurations type-home moved from OverviewRalphState into Snapshot; Plan 04 still emits two sibling JSON artifacts (overview-recommendations.json, overview-dependency-graph.json); transient home wording corrected.",
+          "command": "nl -ba plans/ralph-pipeline-04-pipeline-overview.md | sed -n '31,60p;84,91p;102,106p;120,132p;136,140p'; grep -nF 'OverviewRalphState.runDurations' plans/ralph-pipeline-04-pipeline-overview.md || true; grep -nF 'transient home' plans/ralph-pipeline-04-pipeline-overview.md || true",
+          "result": "Lines 34, 57, 59, 86, 90, 105, 122, 131, and 138 place runDurations on Snapshot/overview-snapshot.json, keep Plan 04 outputs as overview-recommendations.json and overview-dependency-graph.json, and remove the transient-home wording; stale exact sidecar/type-home greps returned no output."
+        },
+        {
+          "criterion": "plans/ralph-pipeline-06-skills.md — snapshot consumption path confirmed; stale references refreshed.",
+          "command": "nl -ba plans/ralph-pipeline-06-skills.md | sed -n '1,18p;115,118p;156,163p;178,180p'",
+          "result": "Lines 5 and 15 make Plan 05 snapshot the required dependency; lines 117, 162, and 178-180 make /triage snapshot-first with overview-recommendations.json as a compatibility fallback."
+        },
+        {
+          "criterion": "plans/ralph-pipeline-07-context.md — activity.jsonl ordering matches append after successful write.",
+          "command": "nl -ba plans/ralph-pipeline-07-context.md | sed -n '16,19p;56,60p;121,128p'",
+          "result": "Lines 18 and 59 state activity/journal appends happen after successful mergeAndWrite/state-artifact write and before lock touch/release; line 127 adds torn-final-line JSONL reader tolerance."
+        },
+        {
+          "criterion": "plans/ralph-pipeline-08-crews.md — merge into snapshot wording rewritten to extend RalphPipelineState.crewSessions.",
+          "command": "nl -ba plans/ralph-pipeline-08-crews.md | sed -n '33,43p;114,119p'; grep -nF 'snapshot update' plans/ralph-pipeline-08-crews.md || true; grep -nF 'updates the snapshot' plans/ralph-pipeline-08-crews.md || true",
+          "result": "Lines 37, 42, and 118 describe updates as extending RalphPipelineState.crewSessions; stale merge/update snapshot wording greps returned no output."
+        },
+        {
+          "criterion": "plans/ralph-pipeline-09-mcp.md — TS-types vs JSON-schema consumption clarified; import JSON Schema as TypeScript wording removed.",
+          "command": "nl -ba plans/ralph-pipeline-09-mcp.md | sed -n '39,47p;56,60p;73,79p;186,190p'",
+          "result": "Lines 45, 59, 76-78, and 189 define snapshot recommendations/types as primary, snapshot schema as runtime validation, and explicitly separate TypeScript shapes from JSON Schema usage."
+        },
+        {
+          "criterion": "plans/ralph-pipeline-10-ralph-handoff.md, plans/ralph-pipeline-11-mcp-operational-tools.md, plans/ralph-pipeline-12-package-as-plugin.md — scanned and stale Plan 05 references refreshed.",
+          "command": "nl -ba plans/ralph-pipeline-10-ralph-handoff.md | sed -n '1,20p;168,176p;195,197p'; nl -ba plans/ralph-pipeline-11-mcp-operational-tools.md | sed -n '1,20p;232,240p'; nl -ba plans/ralph-pipeline-12-package-as-plugin.md | sed -n '21,29p;107,111p;188,193p'",
+          "result": "Plans 10 and 11 were scanned and did not contain stale Plan 05 artifact contracts; Plan 12 lines 24, 110, and 190 refresh the Plan 05 artifact list to include snapshot, activity JSONL, snapshot schema, data JSON twin, tasks index, and legacy sidecar outputs."
+        },
+        {
+          "criterion": "Each edited file listed in the implementation commit message with a line range and a one-line description.",
+          "command": "git log -1 --pretty=full",
+          "result": "Commit a6c74b146cb5cd4579bdd7ae0f2d5f902ab137c5 lists all six edited files with line ranges and one-line descriptions in the body."
+        },
+        {
+          "criterion": "Quality check: overview-viewer typecheck passes.",
+          "command": "pnpm --filter @codexu/overview-viewer typecheck > .test-output/overview-viewer.typecheck.log 2>&1",
+          "result": "PASS exit=0 duration=5s; tsc --noEmit completed with no errors."
+        }
+      ],
+      "dependencies": [
+        "US-014"
+      ],
+      "failureClassification": "",
+      "partialProgress": null
+    },
+    {
+      "id": "US-016",
+      "title": "Update plans/ralph-pipeline-INDEX.md",
+      "description": "As a navigator of the plan DAG, I want the INDEX to reflect Plan 05's new artifacts and dependencies.",
+      "acceptanceCriteria": [
+        "Source-of-truth modules table extended with new Plan 05 artifacts (overview-snapshot.json, overview-activity.jsonl, overview-snapshot.schema.json, overview-data.json, tasks/INDEX.md).",
+        "DAG diagram updated so 05 → depends on 02 (was: independent).",
+        "Plan 04 outputs marked as conditional inputs to the snapshot.",
+        "Typecheck passes (no code touched)."
+      ],
+      "priority": 16,
+      "passes": true,
+      "notes": "Doc-only edit.",
+      "verifiedEvidence": [
+        {
+          "criterion": "Source-of-truth modules table extended with new Plan 05 artifacts (overview-snapshot.json, overview-activity.jsonl, overview-snapshot.schema.json, overview-data.json, tasks/INDEX.md).",
+          "command": "nl -ba plans/ralph-pipeline-INDEX.md | sed -n '185,208p'",
+          "result": "Lines 204-208 add the Plan 05 artifact rows for overview-snapshot.json, overview-activity.jsonl, overview-snapshot.schema.json, overview-data.json, and tasks/INDEX.md; lines 190, 192, and 203 refresh related config/sync-core/watcher contracts."
+        },
+        {
+          "criterion": "DAG diagram updated so 05 → depends on 02 (was: independent).",
+          "command": "nl -ba plans/ralph-pipeline-INDEX.md | sed -n '43,50p;132,143p'",
+          "result": "Line 46 now labels 05-agent-exports as depends on 02; lines 134-143 update the parallel-safe groupings so Plan 05 runs after Plan 02 and downstream Plans 06/07 run after Plan 05."
+        },
+        {
+          "criterion": "Plan 04 outputs marked as conditional inputs to the snapshot.",
+          "command": "grep -nE 'overview-recommendations.json|overview-dependency-graph.json|Conditional input|Snapshot.recommendations|Snapshot.dependencyGraph' plans/ralph-pipeline-INDEX.md",
+          "result": "Lines 201-202 mark overview-recommendations.json and overview-dependency-graph.json as conditional inputs to overview-snapshot.json, with empty Snapshot defaults when the Plan 04 files are absent."
+        },
+        {
+          "criterion": "Typecheck passes (no code touched).",
+          "command": "pnpm --filter @codexu/overview-viewer typecheck > .test-output/overview-viewer.typecheck.log 2>&1",
+          "result": "PASS exit=0 duration=15s; tsc --noEmit completed with no errors."
+        }
+      ],
+      "dependencies": [
+        "US-015"
+      ],
+      "failureClassification": "",
+      "partialProgress": null
+    },
+    {
+      "id": "US-017",
+      "title": "End-to-end acceptance run",
+      "description": "As the reviewer of Plan 05, I want a single command to produce every artifact and a verifiable post-state.",
+      "acceptanceCriteria": [
+        "The one-shot sync command (verify exact name during implementation; expected pnpm sync-ralph-state) produces plans/overview-snapshot.json, plans/overview-data.json, plans/overview-activity.jsonl (empty on first run), plans/overview-snapshot.schema.json, tasks/INDEX.md on a fresh checkout.",
+        "Schema validation passes via a vitest test that imports ajv programmatically and validates plans/overview-snapshot.json against plans/overview-snapshot.schema.json.",
+        "A simulated stage-flip on a fixture job-state.json produces a new line in activity.jsonl within one watcher debounce, with prevStage !== newStage.",
+        "Inflating activity.jsonl past 1000 lines and rerunning sync rotates to plans/overview-activity.1.jsonl.",
+        "pnpm --filter @codexu/overview-viewer typecheck passes.",
+        "pnpm --filter @codexu/overview-viewer test passes.",
+        "The scripts/lib vitest command (exact form verified during implementation) passes."
+      ],
+      "priority": 17,
+      "passes": true,
+      "notes": "F-006: confirm and use the explicit pnpm commands. F-008: vitest+programmatic ajv replaces the ajv-cli criterion. F-011: activity.jsonl exists empty after first sync on a fresh checkout.",
+      "verifiedEvidence": [
+        {
+          "criterion": "The one-shot sync command (verify exact name during implementation; expected pnpm sync-ralph-state) produces plans/overview-snapshot.json, plans/overview-data.json, plans/overview-activity.jsonl (empty on first run), plans/overview-snapshot.schema.json, tasks/INDEX.md on a fresh checkout.",
+          "command": "pnpm vitest run scripts/lib/plan05-acceptance.test.mjs > .test-output/plan05-acceptance.test.log 2>&1; nl -ba scripts/lib/plan05-acceptance.test.mjs | sed -n '26,37p;100,105p'",
+          "result": "PASS exit=0 duration=4.76s; 1 test file passed, 3 tests passed. Test lines 29-37 call runOneShotSync and assert snapshot, data JSON, empty activity JSONL, snapshot schema, and tasks/INDEX.md exist; lines 100-105 show the exact command path is pnpm sync-ralph-state --repo <fixture>."
+        },
+        {
+          "criterion": "Schema validation passes via a vitest test that imports ajv programmatically and validates plans/overview-snapshot.json against plans/overview-snapshot.schema.json.",
+          "command": "nl -ba scripts/lib/plan05-acceptance.test.mjs | sed -n '39,44p'; pnpm vitest run scripts/lib/plan05-acceptance.test.mjs > .test-output/plan05-acceptance.test.log 2>&1",
+          "result": "PASS exit=0 duration=4.76s; lines 39-43 read generated overview-snapshot.schema.json and overview-snapshot.json, compile the schema with new Ajv(), validate the generated snapshot, and assert validate.errors is null."
+        },
+        {
+          "criterion": "A simulated stage-flip on a fixture job-state.json produces a new line in activity.jsonl within one watcher debounce, with prevStage !== newStage.",
+          "command": "nl -ba scripts/lib/plan05-acceptance.test.mjs | sed -n '47,59p'; pnpm vitest run scripts/lib/plan05-acceptance.test.mjs > .test-output/plan05-acceptance.test.log 2>&1",
+          "result": "PASS exit=0 duration=4.76s; lines 47-59 start the watcher with debounceMs 25, rewrite fixture job-state.json from phase 1 to phase 5a, then wait for exactly one activity event whose changedFields is [stage] and whose prevStage differs from newStage."
+        },
+        {
+          "criterion": "Inflating activity.jsonl past 1000 lines and rerunning sync rotates to plans/overview-activity.1.jsonl.",
+          "command": "nl -ba scripts/lib/sync-core.mjs | sed -n '367,386p'; nl -ba scripts/lib/plan05-acceptance.test.mjs | sed -n '62,76p'; pnpm vitest run scripts/lib/plan05-acceptance.test.mjs > .test-output/plan05-acceptance.test.log 2>&1",
+          "result": "PASS exit=0 duration=4.76s; sync-core lines 371-386 rotate activity when countLines(activityPath) >= activityMaxLines and recreate an empty file. Test lines 62-76 inflate activity JSONL to 1001 lines, rerun one-shot sync, assert overview-activity.1.jsonl has 1001 lines, and assert overview-activity.jsonl exists with size 0."
+        },
+        {
+          "criterion": "pnpm --filter @codexu/overview-viewer typecheck passes.",
+          "command": "pnpm --filter @codexu/overview-viewer typecheck > .test-output/overview-viewer.typecheck.log 2>&1",
+          "result": "PASS exit=0 duration=20s; tsc --noEmit completed with no errors."
+        },
+        {
+          "criterion": "pnpm --filter @codexu/overview-viewer test passes.",
+          "command": "pnpm --filter @codexu/overview-viewer test > .test-output/overview-viewer.test.log 2>&1",
+          "result": "PASS exit=0 duration=45s; 27 test files passed, 153 tests passed."
+        },
+        {
+          "criterion": "The scripts/lib vitest command (exact form verified during implementation) passes.",
+          "command": "pnpm vitest run scripts/lib/*.test.mjs > .test-output/scripts-lib.test.log 2>&1",
+          "result": "PASS exit=0 duration=12s; 7 test files passed, 36 tests passed, including plan05-acceptance.test.mjs."
+        }
+      ],
+      "dependencies": [
+        "US-001",
+        "US-002",
+        "US-003",
+        "US-004",
+        "US-005",
+        "US-006",
+        "US-007",
+        "US-008",
+        "US-009",
+        "US-010",
+        "US-011",
+        "US-012",
+        "US-013",
+        "US-014",
+        "US-015",
+        "US-016"
+      ],
+      "failureClassification": "",
+      "partialProgress": null
+    }
+  ]
+}

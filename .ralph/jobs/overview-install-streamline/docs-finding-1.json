@@ -1,0 +1,14 @@
+{
+  "id": "F-002",
+  "severity": "Medium",
+  "source": "docs",
+  "classification": "fixable",
+  "phase": "docs",
+  "category": "Stale Documentation",
+  "description": "plugins/ralph-overview/tools/overview-mcp/README.md Tool Contracts table (line 71) and the `overview.dev_server.status` section (lines 106-114) do not document the new `consumer-not-initialized` return path that was added in this diff. Per AC11 of plan.md and the v1.1.0 behavioral additions in plugin CLAUDE.md, both `overview.list_tasks` and `overview.dev_server.status` now check `checkConsumerInitialized(context.repoRoot)` before reading the snapshot (see worktree `tools/overview-mcp/src/tools/read-only.ts:45-48` and `dev-server-status.ts:37-40`) and return `{ ok: false, code: 'consumer-not-initialized', suggestedTool: 'overview.init', missing }` instead of the legacy `missing snapshot` error. The README still lists only `missing snapshot` for `overview.list_tasks` and shows no failure shape at all for `overview.dev_server.status`.",
+  "status": "open",
+  "relevantFiles": [
+    "plugins/ralph-overview/tools/overview-mcp/README.md"
+  ],
+  "suggestedFix": "Update the `overview.list_tasks` row's Errors column on line 71 to read `consumer-not-initialized, missing snapshot`. In the `overview.dev_server.status` section starting at line 106, add a bullet documenting the `{ ok: false, code: 'consumer-not-initialized', suggestedTool: 'overview.init', missing: string[] }` return shape when the consumer is not initialized."
+}

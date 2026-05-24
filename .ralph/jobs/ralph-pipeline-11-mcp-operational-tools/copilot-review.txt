@@ -1,0 +1,28 @@
+I’ll inspect the referenced temp file to determine what needs to be done.
+
+The file is a review prompt with a plan plus implementation diff; I’m locating the diff and changed files now.
+
+### Completeness
+
+- [High] `tools/overview-mcp/src/tools/dev-server-stop.ts:24-26` violates the idempotent stop acceptance criterion. When no dev server is tracked it returns `{ ok: false, error: 'dev server is not running' }`, but the plan requires `{ ok: true, stoppedAt: <iso> }`.
+- [High] `tools/overview-mcp/src/tools/dev-server-status.ts:52` returns the last 30 log lines, while the acceptance criterion requires the last 10 lines per stream.
+- [High] `tools/overview-mcp/src/tools/sync-now.ts:64` returns `sync already in progress` for concurrent calls, but the plan’s contract requires `another sync in progress`.
+
+### Correctness
+
+- [High] `tools/overview-mcp/package.json:9` changes the build script to copy `dist/overview-mcp/src` after `tsc`. With this package’s `tsconfig.json` including only `src/**/*.ts`, `tsc` emits into `dist/`, not `dist/overview-mcp/src`, so `pnpm overview-mcp:build` will fail with a missing source path.
+- [High] `tools/overview-mcp/src/process-manager.ts:330-343` uses `Promise.all` in `stopAll()`. If one stop rejects, `index.ts` catches the rejection and exits, potentially before other child-stop promises settle, violating the no-orphan shutdown criterion. The plan explicitly required `Promise.allSettled`.
+- [High] `tools/overview-mcp/src/process-manager.ts:371-374` does not verify that the process exited after SIGKILL timeout and never throws `StopFailed`. `dev_server.stop` can therefore report success while the child is still alive.
+
+### Quality
+
+No issues found beyond the correctness/completeness blockers above.
+
+### Security
+
+No issues found.
+
+### Overall Assessment
+
+Not ready for use. Several acceptance-criteria contracts are broken, and the package build/shutdown paths can fail in ways that block the operational MCP tools or leave child processes behind.
+

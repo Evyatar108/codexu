@@ -1,0 +1,46 @@
+[
+  {
+    "finding_id": "F-001",
+    "duration_s": 71,
+    "status": "fixed",
+    "summary": "Updated the invoke_next plan sections to require passing stdout: process.stderr when calling runWorkOnViaCrew so helper output cannot corrupt MCP stdout."
+  },
+  {
+    "finding_id": "F-002",
+    "duration_s": 65,
+    "status": "fixed",
+    "summary": "Updated both list_blockers predicates to use Object.values(reviewOpenCount ?? {}).some((n) => (n ?? 0) > 0) and wrote the amended plan to the requested .tmp file."
+  },
+  {
+    "finding_id": "F-003",
+    "duration_s": 106,
+    "status": "fixed",
+    "summary": "Added get_task taskId validation before journal reads, required exporting assertSafeTaskId for reuse, and documented the path-traversal guard rule."
+  },
+  {
+    "finding_id": "F-004",
+    "duration_s": 74,
+    "status": "fixed",
+    "summary": "Added pnpm-lock.yaml to the plan's modify list and added frozen-lockfile verification to the acceptance criteria and verification section."
+  },
+  {
+    "finding_id": "F-005",
+    "duration_s": 67,
+    "status": "fixed",
+    "summary": "Updated US-010 references from plans/ralph-pipeline-10-handoff.md to the verified plans/ralph-pipeline-10-ralph-handoff.md path."
+  },
+  {
+    "finding_id": "F-006",
+    "duration_s": 75,
+    "status": "fixed",
+    "summary": "Amended the plan so list_crew_sessions defines a local LiveCrewSession response and re-reads matching manifests to merge live heartbeat and state fields while leaving shared CrewSessionRef unchanged."
+  },
+  {
+    "phase": "soft-cap",
+    "iteration": 7,
+    "openCount": 8,
+    "severities": {
+      "Medium": 8
+    }
+  }
+]

@@ -1,0 +1,74 @@
+{
+  "storyId": "US-003",
+  "verifiedEvidence": [
+    {
+      "criterion": "scripts/lib/score-recommendations.mjs exports scoreRecommendations({ byTaskId, overviewData, prdsByTaskId, config? }).",
+      "command": "grep -n \"export function scoreRecommendations\" scripts/lib/score-recommendations.mjs scripts/lib/score-recommendations.d.mts",
+      "result": "Exit 0; score-recommendations.mjs line 25 exports scoreRecommendations({ byTaskId, overviewData, prdsByTaskId, config } = {}), and the declaration file line 11 declares the export.",
+      "evidenceKind": "source-inspection"
+    },
+    {
+      "criterion": "Implements scoring rubric — stageUrgency map: review-fix=1.0, replan-pending=0.95, plan-ready=0.9, reviewing=0.7, implementing=0.6, blocked=0.5, planning=0.4, brainstorm-ready=0.3, brainstorming=0.2, shipped=0.0.",
+      "command": "sed -n '1,22p' scripts/lib/score-recommendations.mjs && pnpm exec vitest run scripts/lib/score-recommendations.test.mjs --root .",
+      "result": "Exit 0; source snippet shows the exact STAGE_URGENCY map, and focused Vitest reported 1 test file passed / 6 tests passed including exact stage-weight score assertions for all listed stages.",
+      "evidenceKind": "test-output"
+    },
+    {
+      "criterion": "dependencyState dimension uses prdsByTaskId[taskId].userStories[].dependencies[] + passes: unblocked=1.0, partial=0.5, blocked=0.0, missing-PRD=0.0 with a low-confidence reason.",
+      "command": "pnpm exec vitest run scripts/lib/score-recommendations.test.mjs --root .",
+      "result": "Exit 0; focused Vitest reported 6 tests passed, including the dependency-state test for unblocked, partial, blocked, and missing-PRD with the low-confidence reason.",
+      "evidenceKind": "test-output"
+    },
+    {
+      "criterion": "freshness dimension: linear decay from 1.0 (touched today) to 0.0 (touched ≥14 days ago) using RalphPipelineState.lastUpdatedAt.",
+      "command": "pnpm exec vitest run scripts/lib/score-recommendations.test.mjs --root .",
+      "result": "Exit 0; focused Vitest reported 6 tests passed, including freshness assertions for today, 7 days, and 14 days with the 14-day score equal to 0.",
+      "evidenceKind": "test-output"
+    },
+    {
+      "criterion": "priority dimension: OverviewTask.priority clamped to 0..1, or 0.5 fallback when missing.",
+      "command": "pnpm exec vitest run scripts/lib/score-recommendations.test.mjs --root .",
+      "result": "Exit 0; focused Vitest reported 6 tests passed, including priority clamp assertions for 2 -> 1, missing -> 0.5, and -1 -> 0.",
+      "evidenceKind": "test-output"
+    },
+    {
+      "criterion": "Final score = sum(weight_i * value_i) / sum(weight_i) in [0,1]; sort descending; default top 20 (configurable via config.topN).",
+      "command": "node --input-type=module -e \"import { scoreRecommendations } from './scripts/lib/score-recommendations.mjs'; const out = scoreRecommendations({ byTaskId: { task: { stage: 'review-fix', lastUpdatedAt: new Date().toISOString() } }, overviewData: { tasks: [{ id: 'task', priority: 0.8 }] }, prdsByTaskId: { task: { userStories: [{ id: 'US-001', passes: false, dependencies: [] }] } } }); console.log(JSON.stringify(out[0], null, 2)); console.log('scoreInRange=' + (out[0].score >= 0 && out[0].score <= 1)); console.log('reasonCount=' + out[0].reasons.length);\"; pnpm exec vitest run scripts/lib/score-recommendations.test.mjs --root .",
+      "result": "Exit 0; node sample printed scoreInRange=true and reasonCount=3; focused Vitest reported 6 tests passed including descending sort, weight override ranking shift, and topN truncation.",
+      "evidenceKind": "test-output"
+    },
+    {
+      "criterion": "Each Recommendation: { taskId, score, stage, reasons: string[] } with 2–3 strongest contributing factors as human-readable strings.",
+      "command": "node --input-type=module -e \"import { scoreRecommendations } from './scripts/lib/score-recommendations.mjs'; const out = scoreRecommendations({ byTaskId: { task: { stage: 'review-fix', lastUpdatedAt: new Date().toISOString() } }, overviewData: { tasks: [{ id: 'task', priority: 0.8 }] }, prdsByTaskId: { task: { userStories: [{ id: 'US-001', passes: false, dependencies: [] }] } } }); console.log(JSON.stringify(out[0], null, 2)); console.log('reasonCount=' + out[0].reasons.length);\"",
+      "result": "Exit 0; output showed taskId, score, stage, and three human-readable reasons: stage urgency, dependency-unblocked, and touched today.",
+      "evidenceKind": "source-inspection"
+    },
+    {
+      "criterion": "scripts/lib/score-recommendations.d.mts declares the export.",
+      "command": "grep -n \"export function scoreRecommendations\" scripts/lib/score-recommendations.d.mts",
+      "result": "Exit 0; declaration file line 11 declares export function scoreRecommendations(options: RecommendationScoringOptions): Recommendation[].",
+      "evidenceKind": "source-inspection"
+    },
+    {
+      "criterion": "scripts/lib/score-recommendations.test.mjs (vitest) covers: stage urgency mapping, dependency state (unblocked / partial / blocked / missing-PRD), freshness decay, priority fallback, weight overrides (including weights.priority = 50 deterministic ranking shift per F-015), top-N truncation.",
+      "command": "pnpm exec vitest run scripts/lib/score-recommendations.test.mjs --root .",
+      "result": "Exit 0; Vitest reported 1 test file passed and 6 tests passed, covering the listed scorer cases.",
+      "evidenceKind": "test-output"
+    },
+    {
+      "criterion": "Typecheck passes.",
+      "command": "pnpm --filter @codexu/overview-viewer typecheck > .test-output/overview-viewer.typecheck.log 2>&1",
+      "result": "Exit 0; tsc --noEmit completed with no errors. Output captured in .test-output/overview-viewer.typecheck.log.",
+      "evidenceKind": "typecheck"
+    },
+    {
+      "criterion": "Tests pass.",
+      "command": "pnpm --filter @codexu/overview-viewer test > .test-output/overview-viewer.test.log 2>&1; pnpm exec vitest run scripts/lib/score-recommendations.test.mjs --root .",
+      "result": "Exit 0; overview-viewer Vitest reported 27 test files passed and 151 tests passed; focused scorer Vitest reported 1 test file passed and 6 tests passed.",
+      "evidenceKind": "test-output"
+    }
+  ],
+  "skippedReasons": [],
+  "notTested": [],
+  "iterationSHA": "9154a111895c3404d289b8d6a16e31fa022c25fb"
+}

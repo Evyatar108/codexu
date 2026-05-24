@@ -1,0 +1,41 @@
+### Feasibility
+
+[Critical] The Stop hook input shape is wrong. `NullableString` in `codex/external/repos/codex-patched/codex-rs/hooks/src/schema.rs` is `#[serde(transparent)]`, so `transcript_path` and `last_assistant_message` serialize as `"path"`/`"text"` strings or `null`, not `{ "path": ... }` / `{ "text": ... }`. The proposed `.path`/`.text` unwrapping and AC fixtures would fail against real codex.
+
+[Critical] `stop_hook_active` semantics are reversed in the plan. `codex/external/repos/codex-patched/codex-rs/core/src/session/turn.rs` initializes it to `false` before the first Stop hook run and sets it to `true` only after a Stop hook blocks and injects a continuation prompt. Upstream’s `if (input.stop_hook_active === true) return;` is compatible with codex. The plan’s suggested inversion would skip first-pass enforcement.
+
+[High] The PreToolUse auto-mode intercept is not implementable by copying `hooks/hooks.json`. Codex’s `request_user_input` handler in `codex/external/repos/codex-patched/codex-rs/core/src/tools/handlers/request_user_input.rs` does not override `pre_tool_use_payload()`, and `core/src/tools/registry.rs` only runs PreToolUse when that payload exists. Also, `AskUserQuestion` is not a matcher alias for `request_user_input`.
+
+[High] The skill-based toggle is underspecified and likely not executable as described. Codex skills are prompt instructions, not command handlers with automatic args. Upstream `hooks/user-prompt-submit.js` has no `--cmd` flag, and a skill body does not automatically get `CLAUDE_PLUGIN_ROOT`.
+
+### Completeness
+
+[High] If AC-14 remains, the plan needs a codex engine change to expose PreToolUse for `request_user_input`, or it must drop PreToolUse auto-intercept and rely on Stop-hook transcript detection only.
+
+[Medium] Workspace registration is incomplete. The repo keeps package lists in both `pnpm-workspace.yaml` and root `package.json`; the plan only updates `pnpm-workspace.yaml`.
+
+[Medium] Marketplace installation is left ambiguous. Existing catalog is `packages/codexu-plugin/.agents/plugins/marketplace.json` with `"path": "."`; a new sibling plugin needs its own catalog or a repo-level catalog with correct relative paths.
+
+[Medium] The plan should include tests for actual real codex stdin serialization: string/null `transcript_path`, string/null `last_assistant_message`, and first-run `stop_hook_active:false`.
+
+### Ordering
+
+[Medium] The wire-contract spike must happen before writing fixtures or porting `stop.js`; otherwise the test suite will encode the wrong object-shaped input and inverted `stop_hook_active` behavior.
+
+[Low] Manifest and workspace scaffolding can happen first, but hook wiring should wait until the Stop and PreToolUse feasibility decisions are corrected.
+
+### Simplicity
+
+[Medium] Avoid inventing a pseudo slash-command skill with `--cmd` unless codex has a real command surface for it. A simpler initial path is a small documented Node toggle script plus a skill that tells the agent exactly which command to run.
+
+[Low] Snapshot tests against the live upstream cache path under `C:/Users/.../.claude/plugins/cache/...` are brittle. Vendor fixed fixtures/constants into `packages/codexu-options-mode-plugin/tests/fixtures/`.
+
+### Acceptance Criteria Quality
+
+[Critical] AC-2, AC-3, and AC-9 use invalid Stop inputs. They should use `stop_hook_active:false`, `transcript_path:"..."`, and `last_assistant_message:"..."` or `null`.
+
+[High] AC-14 is not currently achievable without codex engine changes.
+
+[High] AC-15 is vague. Specify the exact verification command and expected plugin/skill name, for example `codex debug prompt-input "test"` contains `options-mode-toggle`.
+
+[Medium] AC-16 depends on plugin installation and hook enablement but does not state the exact install/config steps. It needs a reproducible command sequence.

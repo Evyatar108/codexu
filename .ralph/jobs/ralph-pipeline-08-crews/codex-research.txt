@@ -1,0 +1,81 @@
+**Codebase Architecture**
+
+This is a pnpm monorepo with the Ralph overview feature split between Node ESM scripts and a React/Vite viewer.
+
+Key areas:
+
+- `scripts/lib/*.mjs`: Node ESM sync pipeline, watcher, artifact emitters, lock helpers, pure derivation utilities. Tests are Vitest under `scripts/lib/*.test.mjs`.
+- `scripts/sync-ralph-state.mjs`: CLI entry point for one-shot sync and `--watch`.
+- `tools/overview-viewer/`: React 19 + Vite 8 dashboard. Uses Radix Tooltip/Dialog, Vitest + Testing Library. Types live in `tools/overview-viewer/src/types.ts`.
+- `plans/overview-data.js`: hand-curated overview source loaded by `sync-core`.
+- `plans/overview-ralph-state.{json,js}` and `plans/overview-snapshot.json`: generated sidecars. In the current checkout `overview-snapshot.json` is absent, so `pnpm sync-ralph-state` must generate it before `/work-on` can rely on it.
+- `.claude/skills/work-on/SKILL.md`: repo-local skill added by Plan 06. It already contains a placeholder `--via-crew` branch that currently stops with “crews delegation not yet implemented”.
+
+Current data flow:
+
+`plans/overview-data.js` + `.ralph/jobs|job-groups|brainstorms` → `scripts/lib/sync-core.mjs` → `plans/overview-ralph-state.*` + durable agent artifacts via `writeSidecar()` → React viewer consumes `window.OVERVIEW_RALPH_STATE`.
+
+**Feature-Relevant Code**
+
+Core sync integration points:
+
+- `scripts/lib/sync-core.mjs`
+  - `walkRalphState()` normalizes config and builds full state.
+  - `assembleStateFromBundles()` derives `byTaskId`.
+  - `mergeAndWrite()` applies watcher updates.
+  - `writeSidecar()` emits state, snapshot, schema, data twin, tasks index.
+  - `loadOverviewData()` evaluates `plans/overview-data.js`.
+- `scripts/lib/watch-ralph-state.mjs`
+  - `getWatchRoots()` currently only watches Ralph roots.
+  - `parseWatchedPath()` only understands `job`, `group`, `brainstorm`.
+  - Pending changes are keyed by `(kind, slug)`, so `.crews` changes need either a new pending-change path or a separate “crew rescan” flag.
+- `scripts/lib/sync-lock.mjs`
+  - Existing lock helper already emits the required diagnostic: `another sync in progress (pid <N>, process <label>, started <ts>)`.
+- `scripts/sync-ralph-state.mjs`
+  - `parseArgs()` currently supports only `--repo`, `--config`, `--watch`, `--debounce-ms`.
+  - `runOneShot()` owns the lock, calls `walkRalphState()`, then `writeSidecar()`.
+
+Types/schema/UI:
+
+- `tools/overview-viewer/src/types.ts`: add `CrewSessionRef` and `RalphPipelineState.crewSessions`.
+- `scripts/lib/emit-snapshot-schema.mjs`: `RalphPipelineState.additionalProperties` is already true, but adding explicit `crewSessions` schema would make the new contract visible.
+- `tools/overview-viewer/src/components/TaskCommand.tsx`: `RalphTooltipExtras()` is the natural place to render crew session rows.
+- `tools/overview-viewer/src/components/RalphStageChip.tsx`: already generic and has `tooltipExtras`; likely no change needed.
+- `tools/overview-viewer/src/styles.css`: existing `.tooltip-extras-*` styles can be reused.
+- Existing tests: `tools/overview-viewer/src/__tests__/interactions/taskCommandTooltipExtras.test.tsx`, `scripts/lib/sync-core.test.mjs`, `scripts/lib/watch-ralph-state.test.mjs`, `tools/overview-viewer/src/__tests__/syncRalphStateCli.test.ts`.
+
+Crews plugin reference:
+
+- `D:/ai-developer-toolkit/plugins/crews/skills/spawn-member/SKILL.md` explicitly says invoking it via Skill tool does not run the hook.
+- The CLI mirror exists at `D:/ai-developer-toolkit/plugins/crews/tools/spawn-member.js`.
+- Generated launchers are written by `hooks/actors.js::spawnMember()`. Current `.ps1` format does not contain a literal `--`; the prompt is the final single-quoted argument on the `claude ... '<prompt>'` line.
+- Real manifests exist under `.crews/crews/*/members/*/manifest.json`; fields include `crew`, `name`, `cwd`, `startedAt`, `lastSessionStartAt`, `sessionId`, `transcriptPath`, `lastHeartbeatAt`, `lastSummary`.
+
+**Technical Constraints**
+
+- All implementation edits should happen in `D:\harness-efforts\codexu\.ralph\jobs\ralph-pipeline-08-crews\worktree\`, not on `main`. I inspected the current checkout; the target worktree was not present.
+- `.crews/` is shared workspace state. Do not resolve it relative to the implementation worktree. Use main repo root or an explicit config field.
+- Current config schema has `additionalProperties: false` in `.ralph/overview-config.schema.json`. If adding `crewsRoot`, update `scripts/lib/default-config.mjs`, `scripts/lib/resolve-config.mjs`, `scripts/lib/default-config.d.mts`, and the schema.
+- The watcher holds the sync lock for its whole lifetime. Subcommand writes must fail fast while Vite/standalone watcher owns the lock unless a queue/IPC path is added.
+- `path.startsWith()` is unsafe for the cwd filter: `D:\repo2` starts with `D:\repo`. Use `path.relative()` plus case-normalization on Windows.
+- Manifest `sessionId`/`transcriptPath` may not exist immediately after spawn; `spawnMember()` creates the actor dir before Claude SessionStart fills canonical session fields. `/work-on --via-crew` should poll manifest with a timeout.
+- Explicit-vs-heuristic conflict resolution needs care because `_source` is not serialized. Once a snapshot is written, source is lost across processes. Treat existing snapshot entries as authoritative and let heuristic discovery append/fill missing entries, while `--finalize-crew-session` always overwrites outcome fields.
+
+**Implementation Suggestions**
+
+Create `scripts/lib/parse-spawn-launcher.mjs` as a pure parser that supports the actual generated PowerShell format: parse the `claude` command line, handle PowerShell single-quote escaping (`''`), and return the final prompt argument. Supporting a future `-- <prompt>` form is fine, but tests should cover current `.crews/spawn-launchers/*.ps1`.
+
+Create `scripts/lib/crews-cross-walk.mjs` as a pure-ish filesystem walker:
+
+- Inputs: `{ repoRoot, ralphState, overviewData, crewsRoot = path.join(repoRoot, '.crews'), now = new Date(), logger = process.stderr }`.
+- Walk `.crews/crews/*/members/*/manifest.json`.
+- Filter by `manifest.cwd` inside `repoRoot`.
+- Match task IDs from `overviewData.tasks[].id` in `lastSummary`, then launcher prompt fallback.
+- Stage comes from `ralphState.byTaskId[taskId].stage`; skip if no current Ralph state.
+- Return sparse `Map<taskId, Record<RalphStage, CrewSessionRef[]>>`.
+- Dedupe by `sessionId`; sort deterministically by `startedAt` then member name.
+- Mark stale entries when `lastHeartbeatAt` is older than 60 minutes.
+
+In `sync-core.mjs`, apply crew sessions after Ralph derivation in both full walk and incremental merge. For watcher-only `.crews` events, add a separate pending crew rescan path so a manifest change can write sidecars even when no Ralph slug changed.
+
+For `/work-on --via-crew`, prefer a tiny script wrapper over prose-only SKILL logic: derive command, spawn via the crews CLI mirror, poll the member manifest, then call `sync-ralph-state --update-crew-session`. The raw `/spawn-member` Skill cannot trigger the hook side effect when called by another skill.

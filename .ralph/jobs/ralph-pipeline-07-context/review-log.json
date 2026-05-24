@@ -1,0 +1,40 @@
+[
+  {
+    "finding_id": "F-001",
+    "duration_s": 84,
+    "status": "fixed",
+    "summary": "Specified that sync-core threads the resolved repo root from assembleStateFromBundles into toPipelineState before derivePRLinks is called."
+  },
+  {
+    "finding_id": "F-002",
+    "duration_s": 117,
+    "status": "unknown",
+    "summary": "No review-meta output"
+  },
+  {
+    "finding_id": "F-002",
+    "duration_s": 110,
+    "status": "fixed",
+    "summary": "Clarified that derivePRLinks receives the stage derived by toPipelineState and uses it to gate mergeCommit resolution via a single-ref rev-parse."
+  },
+  {
+    "finding_id": "F-003",
+    "duration_s": 235,
+    "status": "fixed",
+    "summary": "Added an explicit derive-pr-links graceful-failure contract for missing branches, empty git log output, and origin lookup failures, with matching acceptance and test expectations."
+  },
+  {
+    "finding_id": "F-004",
+    "duration_s": 98,
+    "status": "fixed",
+    "summary": "Updated the RecentActivity integration snippets to pass activityEvents, matching the planned component props."
+  },
+  {
+    "phase": "soft-cap",
+    "iteration": 6,
+    "openCount": 9,
+    "severities": {
+      "Medium": 9
+    }
+  }
+]

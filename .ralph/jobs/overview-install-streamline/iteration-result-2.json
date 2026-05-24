@@ -1,0 +1,79 @@
+{
+  "storyId": "US-002",
+  "verifiedEvidence": [
+    {
+      "criterion": "Return shape",
+      "command": "npx vitest run src/__tests__/upsert-task-edit.test.ts",
+      "result": "1 test file passed, 6 tests passed; assertions cover source, changed, action and editedRanges return shape for update/create/noop.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Task-object whitelist",
+      "command": "npx vitest run src/__tests__/upsert-task-edit.test.ts",
+      "result": "1 test file passed, 6 tests passed; allowed task fields are accepted and taskObjectFields.ui is rejected with Zod Unrecognized key.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Top-level-map whitelist",
+      "command": "npx vitest run src/__tests__/upsert-task-edit.test.ts",
+      "result": "1 test file passed, 6 tests passed; all seven allowed maps are populated and topLevelMapFields.ui is rejected with Zod Unrecognized key.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Strict Zod schema with no extras",
+      "command": "npx vitest run src/__tests__/upsert-task-edit.test.ts",
+      "result": "1 test file passed, 6 tests passed; unknown task-object and map fields throw Zod strict-object errors.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Source bytes outside editedRanges are byte-identical",
+      "command": "npx vitest run src/__tests__/upsert-task-edit.test.ts",
+      "result": "1 test file passed, 6 tests passed; rich fixture update compares Buffer slices before and after the single edited range.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Refuses comments inside task ObjectExpression",
+      "command": "npx vitest run src/__tests__/upsert-task-edit.test.ts",
+      "result": "1 test file passed, 6 tests passed; inline-comment fixture throws refusing to mutate task TASK-1: task object contains comments.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Idempotent rerun",
+      "command": "npx vitest run src/__tests__/upsert-task-edit.test.ts",
+      "result": "1 test file passed, 6 tests passed; rerunning the same create payload returns action noop, changed false, editedRanges [], and byte-identical source.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Preserves CRLF line endings inside string literals",
+      "command": "npx vitest run src/__tests__/upsert-task-edit.test.ts",
+      "result": "1 test file passed, 6 tests passed; notes payload containing CRLF is emitted as a string literal with escaped \r\n.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Paired .d.mts declaration file exists",
+      "command": "test -f plugins/ralph-overview/scripts/lib/upsert-task-edit.mjs && test -f plugins/ralph-overview/scripts/lib/upsert-task-edit.d.mts && printf present",
+      "result": "present",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Required tests cover update/create/refusals/comments/byte identity",
+      "command": "npx vitest run src/__tests__/upsert-task-edit.test.ts",
+      "result": "1 test file passed, 6 tests passed, covering update existing task, create with map population and idempotency, ui.* rejection, inline comment refusal, and byte identity outside edited range.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Typecheck passes",
+      "command": "npx tsc -p tools/overview-mcp/tsconfig.json",
+      "result": "Exit code 0 with no TypeScript diagnostics.",
+      "evidenceKind": "passed"
+    }
+  ],
+  "skippedReasons": [],
+  "notTested": [
+    {
+      "criterion": "Full overview-mcp suite",
+      "detail": "Not run; existing stale tests are explicitly scoped to US-003."
+    }
+  ],
+  "iterationSHA": "2dec5c107f0d666814cc30f51c5e422c213d1b85"
+}

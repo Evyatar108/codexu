@@ -1,0 +1,56 @@
+{
+  "storyId": "US-012",
+  "verifiedEvidence": [
+    {
+      "criterion": "plans/ralph-pipeline-INDEX.md: Source-of-truth modules table adds rows for crews-cross-walk.mjs, parse-spawn-launcher.mjs, rescanCrewSessionsAndWrite, and CrewSessionRef / crewSessions. DAG dependency for downstream plans (Plan 09) updated.",
+      "evidenceKind": "passed",
+      "command": "nl -ba plans/ralph-pipeline-INDEX.md | sed -n '74,82p;190,217p'",
+      "result": "PASS: lines 76-80 keep Plan 09 dependent on 05/06/08 and label its crew tools; lines 194-196 add rescanCrewSessionsAndWrite, crews-cross-walk.mjs, and parse-spawn-launcher.mjs rows; line 215 adds CrewSessionRef / RalphPipelineState.crewSessions and line 216 updates RalphPipelineState to include Plan 08 crewSessions."
+    },
+    {
+      "criterion": "tools/overview-viewer/README.md: if it lists RalphPipelineState fields, crewSessions is added.",
+      "evidenceKind": "absent-verified",
+      "command": "grep -n \"RalphPipelineState\" tools/overview-viewer/README.md || true",
+      "result": "PASS: grep returned no matches, so the README does not list RalphPipelineState fields and no crewSessions README edit is required."
+    },
+    {
+      "criterion": "pnpm test passes.",
+      "evidenceKind": "passed",
+      "command": "pnpm test",
+      "result": "PASS: root Vitest completed with exit 0 in 10s; 22 test files passed and 151 tests passed. Full output saved to .test-output/root.test.log."
+    },
+    {
+      "criterion": "pnpm --filter @codexu/overview-viewer test passes.",
+      "evidenceKind": "passed",
+      "command": "pnpm --filter @codexu/overview-viewer test",
+      "result": "PASS: overview-viewer Vitest completed with exit 0 in 47s; 33 test files passed and 181 tests passed. Full output saved to .test-output/overview-viewer.test.log."
+    },
+    {
+      "criterion": "pnpm --filter @codexu/overview-viewer typecheck passes.",
+      "evidenceKind": "passed",
+      "command": "pnpm --filter @codexu/overview-viewer typecheck",
+      "result": "PASS: tsc --noEmit completed with exit 0 in 6s. Full output saved to .test-output/overview-viewer.typecheck.log."
+    },
+    {
+      "criterion": "pnpm -r --if-present typecheck passes.",
+      "evidenceKind": "passed",
+      "command": "pnpm -r --if-present typecheck",
+      "result": "PASS: recursive workspace typecheck completed with exit 0 in 111s; codexu-options-mode-plugin, codium, happy-wire, overview-viewer, happy-agent, happy-app, happy-server, and happy-cli all reported Done. Full output saved to .test-output/workspace.typecheck.log."
+    },
+    {
+      "criterion": "Commit message lists each cascade diff (file + lines + change summary) so reviewers can verify.",
+      "evidenceKind": "passed",
+      "command": "git log -1 --format=%B",
+      "result": "PASS: commit 996765f5 has subject feat: US-012 - Cascade audit and INDEX refresh and body entries for plans/ralph-pipeline-INDEX.md:76-80, plans/ralph-pipeline-INDEX.md:193-216, and plans/ralph-pipeline-09-mcp.md:17,80-82,93,109,188-194 with change summaries."
+    },
+    {
+      "criterion": "Typecheck passes.",
+      "evidenceKind": "passed",
+      "command": "pnpm --filter @codexu/overview-viewer typecheck && pnpm -r --if-present typecheck",
+      "result": "PASS: overview-viewer typecheck exited 0 in 6s and recursive workspace typecheck exited 0 in 111s; logs saved to .test-output/overview-viewer.typecheck.log and .test-output/workspace.typecheck.log."
+    }
+  ],
+  "skippedReasons": [],
+  "notTested": [],
+  "iterationSHA": "996765f5e5b7c18a820421dff6d4b8f982dfe4a4"
+}

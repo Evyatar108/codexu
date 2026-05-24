@@ -1,0 +1,17 @@
+{
+  "id": "F-005",
+  "severity": "High",
+  "source": "claude",
+  "classification": "fixable",
+  "phase": "code",
+  "category": "Correctness",
+  "sectionRef": "ProcessManager design — stopAll uses Promise.allSettled",
+  "description": "ProcessManager.stopAll uses Promise.all instead of Promise.allSettled. The plan explicitly requires allSettled 'so one hang does not block others'. With Promise.all, a single stop rejection (e.g., a tree-kill failure on Windows that is not the ESRCH wildcard) propagates out of stopAll, is caught by index.ts shutdown, logs the error, and proceeds to server.close() and process.exit(0) — but the remaining managed children never get killed because their stop promises were not awaited. This breaks the no-orphan acceptance criterion under partial failure.",
+  "status": "open",
+  "fixedInIteration": null,
+  "resolution": null,
+  "relevantFiles": [
+    "tools/overview-mcp/src/process-manager.ts:329-343"
+  ],
+  "suggestedFix": "Replace Promise.all with Promise.allSettled in stopAll; collect rejections into a returned errors array or write them to stderr inside the helper so the caller can still log them without short-circuiting the rest of the shutdown sweep."
+}

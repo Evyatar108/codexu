@@ -1,0 +1,72 @@
+**Codebase Architecture**
+
+This is a pnpm monorepo with packages under `packages/`: `happy-cli`, `happy-app`, `happy-server`, `happy-wire`, `happy-agent`, `happy-app-logs`, `codium`, and `codexu-plugin`. The requested change is isolated to `packages/happy-cli`.
+
+`happy-cli` is TypeScript ESM, strict TS, `@/` path alias, built with `tsc` + `pkgroll`, tested with Vitest. Relevant package config: `packages/happy-cli/package.json`, `packages/happy-cli/tsconfig.json`, `packages/happy-cli/vitest.config.ts`.
+
+Key `happy-cli/src` areas:
+- `codex/`: Codex app-server transport, runner, thread start/resume, tests.
+- `claude/`: Claude runner and MCP patterns.
+- `daemon/`: daemon-spawned session lifecycle.
+- `api/`: encrypted session/WebSocket clients.
+- `ui/logger.ts`: required logger for warnings.
+- `utils/`: shared queueing, metadata publishing, env names.
+
+**Feature-Relevant Code**
+
+Primary integration point is [runCodex.ts](<D:/harness-efforts/codexu/packages/happy-cli/src/codex/runCodex.ts:700>). It currently builds:
+
+```ts
+const mcpServers = {
+  happy: { command: process.execPath, args: [...] }
+} as const;
+```
+
+That object is passed to:
+- `resumeExistingThread({ ..., mcpServers })` around `runCodex.ts:719-725`
+- `client.startThread({ ..., mcpServers })` around `runCodex.ts:789-794`
+
+[resumeExistingThread.ts](<D:/harness-efforts/codexu/packages/happy-cli/src/codex/resumeExistingThread.ts:20>) simply forwards `mcpServers` to `client.resumeThread`.
+
+[codexAppServerClient.ts](<D:/harness-efforts/codexu/packages/happy-cli/src/codex/codexAppServerClient.ts:1098>) converts Happy’s object to Codex app-server config as `{ mcp_servers: mcpServers }` for both `startThread` and `resumeThread`. It also remembers thread defaults, so the first supplied MCP config becomes reconnect defaults.
+
+Existing test patterns:
+- `packages/happy-cli/src/codex/runCodex.fork.test.ts`
+- `packages/happy-cli/src/codex/runCodexPublishMode.test.ts`
+- `packages/happy-cli/src/codex/runCodex.attachmentsIgnore.test.ts`
+- `packages/happy-cli/src/codex/resumeExistingThread.test.ts`
+
+Roadmap/doc touch points:
+- `plans/codexu-roadmap.md` has the open “Codex agent project-.mcp.json parity” bullet.
+- `plans/parallel-assignments.md` has `mcp-discovery`.
+- `plans/overview.html` also tracks `mcp-discovery`; repo procedure requires keeping this in sync when status changes.
+
+**Technical Constraints**
+
+Use top-level imports only; no mid-code imports. Zod is available as `zod@3.25.76`. Logging should use `logger.warn` from `@/ui/logger`; it accepts a string plus structured args.
+
+Missing `.mcp.json` must be silent. Broken JSON, invalid root shape, and invalid entries must not abort Codex startup.
+
+Important Codex-side constraint: the Codex Rust `McpServerConfig` raw shape accepts `command/args/env/cwd` for stdio and `url` for streamable HTTP, but it does not accept a literal `type` field. The Codex plugin loader strips Claude-style `type` before deserializing. Happy should likely validate `type?: 'stdio' | 'http'` for Claude compatibility, then omit `type` from the object passed to app-server.
+
+Also protect the `happy` MCP bridge. If project `.mcp.json` defines a `happy` server, the implementation should keep Happy’s bridge authoritative, ideally warn and skip that project entry.
+
+**Implementation Suggestions**
+
+Add a small helper, preferably `packages/happy-cli/src/codex/projectMcpConfig.ts`, returning `Promise<Record<string, unknown>>`. It should read `join(cwd, '.mcp.json')`, `JSON.parse`, validate with Zod, log structured warnings, and return only valid normalized entries.
+
+Natural runner change in `runCodex.ts`:
+
+```ts
+const projectMcpServers = await loadProjectMcpServers(process.cwd());
+const mcpServers: Record<string, unknown> = {
+  ...projectMcpServers,
+  happy: happyBridge,
+};
+```
+
+This single object then naturally covers both `startThread` and `resumeExistingThread`.
+
+Tests can live in a sibling like `runCodex.projectMcp.test.ts`. Use `mkdtemp`, `writeFile`, `process.chdir`, and existing Vitest mocking style. Ensure one test actually exercises the resume path or add a fourth test, because the stated three acceptance tests only explicitly verify `startThread`, while the requested behavior also requires `resumeExistingThread`.
+
+For docs completion, mark the roadmap bullet delivered and update `plans/overview.html` plus `plans/parallel-assignments.md` status/run metadata per `.agents/skills/roadmap-and-overview/SKILL.md`.

@@ -1,0 +1,112 @@
+{
+  "project": "codexu",
+  "description": "skill-rewrite (overview-data-split Phase 4): rewrite .agents/skills/roadmap-and-overview/SKILL.md procedures A-G around the finalized data-file schema. Include a working example task entry copied from plans/overview-data.js. Call out the lastTouched dual-update invariant in Procedures B and D. Fix the codexu-overview-details-state-v1 -> v2 localStorage key drift. Add Pitfalls entries for JS string escaping, lastTouched dual-update, and skeleton-ownership. Sole owner of SKILL.md; zero file overlap with any other cluster.",
+  "deslop": true,
+  "iterationEngine": "codex",
+  "jobDir": "D:/harness-efforts/codexu/.ralph/job-groups/overview-data-split/skill-rewrite",
+  "repoDir": "D:/harness-efforts/codexu",
+  "branch": {
+    "name": "ralph/overview-data-split/skill-rewrite",
+    "created": true
+  },
+  "worktree": {
+    "path": "D:/harness-efforts/codexu/.ralph/job-groups/overview-data-split/skill-rewrite/worktree",
+    "branch": "ralph/overview-data-split/skill-rewrite",
+    "external": true
+  },
+  "group": {
+    "name": "overview-data-split",
+    "groupDir": "D:/harness-efforts/codexu/.ralph/job-groups/overview-data-split"
+  },
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Rewrite SKILL.md procedures around final schema",
+      "description": "As an autonomous bookkeeper agent, I want .agents/skills/roadmap-and-overview/SKILL.md rewritten with procedures A-G describing data-file edits (single JS entry append/edit) AND with a working example task entry that references the finalized kanbanCards[] / phaseTree schema and the lastTouched dual-update invariant, so that future bookkeepers have a copy-paste template that matches the actual data file.",
+      "acceptanceCriteria": [
+        ".agents/skills/roadmap-and-overview/SKILL.md Procedures A-G describe data-file edits (single JS entry append/edit) instead of multi-file HTML edits.",
+        "Procedure A ('Adding a new ralph task') includes a complete, working example task entry copied from plans/overview-data.js after full-task-port lands. The example includes id, title, scope, phase, status, command: {summaryHtml, descriptionHtml, warnings: [], planPrompt}, kanbanCards: [{column, cardClass, inlineStyle, html}], lastTouchedAt, and OVERVIEW_DATA.lastTouched[id] matching lastTouchedAt.",
+        "Procedure B ('Marking a task as shipped') explicitly calls out the lastTouched dual-update invariant: 'When you set tasks[x].lastTouchedAt = <new ISO>, also set OVERVIEW_DATA.lastTouched[<id>] = <new ISO> in the same edit. The data file is invalid if these drift; the page freshness hint and ordering will be wrong until corrected.'",
+        "Procedure D ('Marking a task paused / blocked') includes the same dual-update reminder.",
+        "Procedure for phase-tree edits references the final phaseTree[] node schema ({kind: 'task-ref'|'raw', taskId?, state?, html?}) and shows a worked example of adding/removing a task-ref plus updating a state class.",
+        "The codexu-overview-details-state-v1 -> v2 localStorage key drift in SKILL.md is fixed (verified against plans/overview.html line 3106 — keep in sync with whatever is current).",
+        "SKILL.md Pitfalls section adds entries for: (1) JS string-escaping guidance (HTML-entity one-shot decode, single-quoted string literals with backslash-quote escapes, never re-encode entities in render); (2) the lastTouched dual-update invariant (with a 'common mistake' example); (3) the skeleton-ownership invariant — each story PRD mutates only its own array body, never re-formats the top-level object.",
+        "Does NOT modify any file other than .agents/skills/roadmap-and-overview/SKILL.md (the docs sweep landed in US-005a).",
+        "Typecheck passes (root pnpm workspace installs/builds successfully)."
+      ],
+      "priority": 1,
+      "passes": true,
+      "notes": "",
+      "verifiedEvidence": [
+        {
+          "criterion": ".agents/skills/roadmap-and-overview/SKILL.md Procedures A-G describe data-file edits (single JS entry append/edit) instead of multi-file HTML edits.",
+          "command": "grep -n '### A\\. Adding a new ralph task\\|### B\\. Marking a task as shipped\\|### C\\. Recording a periodic task run\\|### D\\. Marking a task paused / blocked\\|### E\\. Editing the phase tree\\|### F\\. Adding a new workstream\\|### G\\. Adding a visualization feature' .agents/skills/roadmap-and-overview/SKILL.md && grep -n 'primary file for procedures A-F\\|single top-level assignment\\|Do not edit it for normal' .agents/skills/roadmap-and-overview/SKILL.md",
+          "result": "Lines 122, 196, 237, 249, 266, 314, and 325 define Procedures A-G. Lines 26, 37, and 38 say overview.html is not edited for normal status changes and overview-data.js is the primary single-assignment data file."
+        },
+        {
+          "criterion": "Procedure A ('Adding a new ralph task') includes a complete, working example task entry copied from plans/overview-data.js after full-task-port lands. The example includes id, title, scope, phase, status, command: {summaryHtml, descriptionHtml, warnings: [], planPrompt}, kanbanCards: [{column, cardClass, inlineStyle, html}], lastTouchedAt, and OVERVIEW_DATA.lastTouched[id] matching lastTouchedAt.",
+          "command": "grep -n '\"id\": \"1b-multidev\"\\|\"summaryHtml\"\\|\"descriptionHtml\"\\|\"warnings\"\\|\"planPrompt\"\\|\"kanbanCards\"\\|\"lastTouchedAt\"\\|OVERVIEW_DATA.lastTouched\\[\"1b-multidev\"\\]' .agents/skills/roadmap-and-overview/SKILL.md",
+          "result": "Procedure A example uses 1b-multidev from overview-data.js. Evidence lines: id 146, kanbanCards 151, summaryHtml 179, descriptionHtml 180, warnings 181, planPrompt 187, lastTouchedAt 189, matching OVERVIEW_DATA.lastTouched line 193. The example also includes title/scope/phase/status at lines 147-150."
+        },
+        {
+          "criterion": "Procedure B ('Marking a task as shipped') explicitly calls out the lastTouched dual-update invariant.",
+          "command": "grep -n 'When you set `tasks\\[x\\]\\.lastTouchedAt = <new ISO>`\\|The data file is invalid if these drift' .agents/skills/roadmap-and-overview/SKILL.md",
+          "result": "Procedure B lines 224-226 state: when setting tasks[x].lastTouchedAt, also set OVERVIEW_DATA.lastTouched[<id>] to the same ISO; drift invalidates freshness/order."
+        },
+        {
+          "criterion": "Procedure D ('Marking a task paused / blocked') includes the same dual-update reminder.",
+          "command": "grep -n 'When you set `tasks\\[x\\]\\.lastTouchedAt = <new ISO>`\\|The data file is invalid if these drift' .agents/skills/roadmap-and-overview/SKILL.md",
+          "result": "Procedure D lines 260-262 repeat the same dual-update invariant and explain drift breaks freshness/order."
+        },
+        {
+          "criterion": "Procedure for phase-tree edits references the final phaseTree[] node schema ({kind: 'task-ref'|'raw', taskId?, state?, html?}) and shows a worked example of adding/removing a task-ref plus updating a state class.",
+          "command": "grep -n 'final node schema\\|Worked edit example\\|\"state\": \"donefade\"' .agents/skills/roadmap-and-overview/SKILL.md",
+          "result": "Procedure E lines 268-270 reference the final node schema. Lines 289-309 show a before/after worked edit that removes a raw node, keeps a task-ref, and changes state to donefade."
+        },
+        {
+          "criterion": "The codexu-overview-details-state-v1 -> v2 localStorage key drift in SKILL.md is fixed (verified against plans/overview.html line 3106 — keep in sync with whatever is current).",
+          "command": "grep -n 'codexu-overview-details-state' .agents/skills/roadmap-and-overview/SKILL.md plans/overview.html",
+          "result": "SKILL.md line 336 documents codexu-overview-details-state-v2, and overview.html line 1965 currently uses var KEY = 'codexu-overview-details-state-v2'. SKILL.md line 339 only mentions v1 as the old key not to resurrect."
+        },
+        {
+          "criterion": "SKILL.md Pitfalls section adds entries for: (1) JS string-escaping guidance (HTML-entity one-shot decode, single-quoted string literals with backslash-quote escapes, never re-encode entities in render); (2) the lastTouched dual-update invariant (with a 'common mistake' example); (3) the skeleton-ownership invariant — each story PRD mutates only its own array body, never re-formats the top-level object.",
+          "command": "grep -n 'JS string escaping in `overview-data.js`\\|lastTouched dual-update invariant\\|Skeleton-ownership invariant' .agents/skills/roadmap-and-overview/SKILL.md",
+          "result": "Pitfalls include JS string escaping at line 340, lastTouched dual-update at line 347, and Skeleton-ownership at line 352, including the common stale-lastTouched mistake and top-level skeleton ownership rule."
+        },
+        {
+          "criterion": "Does NOT modify any file other than .agents/skills/roadmap-and-overview/SKILL.md (the docs sweep landed in US-005a).",
+          "command": "git diff --name-only HEAD~1..HEAD",
+          "result": "Only .agents/skills/roadmap-and-overview/SKILL.md changed in commit 9b1e1076. Final working tree had no tracked diffs outside job bookkeeping files."
+        },
+        {
+          "criterion": "Typecheck passes (root pnpm workspace installs/builds successfully).",
+          "command": "pnpm install --frozen-lockfile > .test-output/root.install.log 2>&1; pnpm -r --if-present typecheck > .test-output/root.typecheck.log 2>&1",
+          "result": "Install/postinstall passed in 215s using pnpm v10.11.0, including happy-wire build, happy-app postinstall, happy-server Prisma generation, and happy-cli tool unpack. Typecheck passed in 27s across 8 workspace projects: codexu-options-mode-plugin, codium, happy-wire, happy-agent, happy-app, happy-server, and happy-cli all completed successfully."
+        }
+      ],
+      "dependencies": [],
+      "failureClassification": "",
+      "partialProgress": null
+    }
+  ],
+  "planReviewContext": [
+    {
+      "id": "F-013",
+      "severity": "Medium",
+      "source": "synthesis",
+      "category": "Ordering",
+      "description": "Original US-005 mixed schema-shape-independent doc edits with the SKILL rewrite (which depends on the finalized schema). Split resolved: US-005a (docs-sweep, Phase 3, parallel-safe) and US-005b (this story, Phase 4, depends on full-task-port + phase-tree-port). The SKILL example must reference the final schema kanbanCards/phaseTree structure.",
+      "relevantFiles": [".agents/skills/roadmap-and-overview/SKILL.md", "plans/overview-data.js"],
+      "suggestedFix": "Run this story only after full-task-port and phase-tree-port have merged. Read plans/overview-data.js in the worktree and copy a representative task entry as the SKILL example."
+    },
+    {
+      "id": "F-014",
+      "severity": "Medium",
+      "source": "synthesis",
+      "category": "Schema",
+      "description": "Skeleton-ownership invariant is the parallel-execution guarantee that lets US-003/US-004 share a phase. SKILL.md Pitfalls must document this so future bookkeepers don't break the invariant when working solo on the data file.",
+      "relevantFiles": [".agents/skills/roadmap-and-overview/SKILL.md"],
+      "suggestedFix": "Add a Pitfalls entry titled 'Skeleton-ownership invariant' explaining that the top-level OVERVIEW_DATA object (braces, key order, comma layout) is owned by foundation/US-001 and must not be re-formatted by subsequent edits."
+    }
+  ]
+}

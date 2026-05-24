@@ -1,0 +1,29 @@
+### Feasibility
+
+[High] `convert-to-ralph-prd` is told to read valid IDs from `<repo_root>/plans/overview-data.js`, but the same doc says the Ralph plugin “doesn't know about `overview-data.js`.” That hardcoded codexu path conflicts with the project-agnostic Ralph plugin design in `plans/ralph-pipeline-INDEX.md` and will fail or behave poorly in repos without that file. Make this optional/config-driven, or use a free-form prompt.
+
+[Medium] The “both schemas use `additionalProperties: true`” claim is inaccurate. `schemas/prd-schema.json` has it, but `D:/ai-developer-toolkit/plugins/ralph/schemas/group-schema.json` and the cached `5.32.0` group schema omit it. JSON Schema defaults to permissive, so this is not a blocker, but the handoff doc should state the precise fact.
+
+[Medium] The doc suggests `yq eval` for YAML front matter parsing, but Ralph’s current prerequisite path only requires `jq` (`ralph.sh`, AGENTS notes). If `yq` is acceptable, the future patch must update preflight/docs; otherwise require a shell-portable parser.
+
+### Completeness
+
+[Medium] §6.1 says one valid resolution is patching `skills/implement-with-ralph/SKILL.md`, but the plan repeatedly frames the future plugin work as only four skill patches. If option A is preferred, `implement-with-ralph` is a conditional fifth patch and should be named in “Patches required.”
+
+[Medium] The hardcoded prompt-list behavior should specify fallback behavior when `plans/overview-data.js` or `.ralph/overview-config.json` is absent. Without that, the future implementation may accidentally make an optional metadata field block normal PRD creation.
+
+### Ordering
+
+[Medium] `decompose-plan` says to read `overviewTaskId` from plan metadata, then parent `prd.json`, then explicit `--overview-task-id <id>` “override.” Explicit CLI overrides should come first, or the doc should say the flag wins over discovered metadata. As written, stale metadata could override the user’s explicit value.
+
+### Simplicity
+
+[Medium] The prompt-list requirement is more coupled than necessary. A simpler Ralph-native contract is: accept `--overview-task-id`, prompt for an optional free-form value, and only use overview-data lookup when a consumer repo explicitly exposes a config/data file.
+
+### Acceptance Criteria Quality
+
+[Medium] The prior “6 sections” mismatch was not fully fixed. The new AC says “all 7 top-level sections” but lists 10: Context, Ralph internals checked, Patches required, Back-compat, Out of scope, Critical compatibility gotchas, Suggested landing order, Acceptance criteria, Tests, How to pick this up. Make the count and names consistent.
+
+[Medium] The AC says all 4 skill patch descriptions must include “a schema-update directive,” but `brainstorm-with-ralph` has no `brainstorm-schema.json`, and `plan-with-ralph` has no schema update. Reword to “schema or artifact-example update where applicable.”
+
+No Critical findings found.

@@ -1,0 +1,56 @@
+{
+  "storyId": "US-006",
+  "verifiedEvidence": [
+    {
+      "criterion": "getWatchRoots() in scripts/lib/watch-ralph-state.mjs returns <crewsRoot>/crews/ and <crewsRoot>/sessions-configs/ in addition to existing Ralph roots.",
+      "evidenceKind": "passed",
+      "command": "nl -ba scripts/lib/watch-ralph-state.mjs | sed -n '290,297p'",
+      "result": "PASS: getWatchRoots returns the three Ralph roots plus path.join(config.crewsRoot, 'crews') and path.join(config.crewsRoot, 'sessions-configs') on lines 290-297."
+    },
+    {
+      "criterion": "parseWatchedPath() detects paths under those .crews/ roots BEFORE the Ralph rootEntries loop; returns { kind: 'crews' } (no slug).",
+      "evidenceKind": "passed",
+      "command": "nl -ba scripts/lib/watch-ralph-state.mjs | sed -n '300,317p'",
+      "result": "PASS: parseWatchedPath checks roots[3]/roots[4] on lines 302-312 and returns { kind: 'crews' } before rootEntries is declared on lines 313-317."
+    },
+    {
+      "criterion": "flushPending() branches on kind === 'crews' BEFORE calling deriveAffectedTaskUpdate(). Crew events route to rescanCrewSessionsAndWrite({ currentState, config, repoRoot, overviewData }).",
+      "evidenceKind": "passed",
+      "command": "nl -ba scripts/lib/watch-ralph-state.mjs | sed -n '104,168p'",
+      "result": "PASS: flushPending filters out kind === 'crews' before deriveAffectedTaskUpdate on lines 107-110, then routes crew batches to rescanCrewSessionsAndWrite with currentState/config/repoRoot/overviewData on lines 162-168."
+    },
+    {
+      "criterion": "rescanCrewSessionsAndWrite re-runs discoverCrewSessions, merges into currentState.byTaskId[*].crewSessions (preserving _isExplicit + stage buckets), updates only crew-session data + generatedAt, calls writeSidecar() without re-reading or re-deriving Ralph bundles.",
+      "evidenceKind": "passed",
+      "command": "nl -ba scripts/lib/sync-core.mjs | sed -n '300,314p'",
+      "result": "PASS: rescanCrewSessionsAndWrite updates generatedAt, calls mergeDiscoveredCrewSessions, and writes sidecar on lines 300-314; sync-core tests cover explicit preservation, recorded-stage stickiness, and non-crew Ralph field preservation."
+    },
+    {
+      "criterion": "Mixed-batch flushes apply Ralph mergeAndWrite first, then crew rescan.",
+      "evidenceKind": "passed",
+      "command": "nl -ba scripts/lib/watch-ralph-state.test.mjs | sed -n '279,320p' && grep -n \"watch-ralph-state.test.mjs\" .test-output/root.test.log | tail -3",
+      "result": "PASS: mixed-batch test emits a Ralph job change and crew manifest change, asserts the rescan sees the merged reviewing state, and verifies order ['merge', 'rescan']; root test log reports scripts/lib/watch-ralph-state.test.mjs (7 tests) passed."
+    },
+    {
+      "criterion": "Vitest covers: mailbox file change is ignored; manifest change triggers crew-only flush; debounce coalesces multiple .crews/ events; mixed batch ordering applies Ralph merge first then crew rescan; crew-only flush does not call deriveAffectedTaskUpdate.",
+      "evidenceKind": "passed",
+      "command": "nl -ba scripts/lib/watch-ralph-state.test.mjs | sed -n '216,320p' && grep -E \"Test Files|Tests\" .test-output/root.test.log",
+      "result": "PASS: watch-ralph-state crew-event tests cover mailbox ignore, manifest crew-only flush, no deriveAffectedTaskUpdate call, crew debounce coalescing, and mixed merge-before-rescan ordering; pnpm test reports 21 files passed / 141 tests passed."
+    },
+    {
+      "criterion": "Typecheck passes.",
+      "evidenceKind": "passed",
+      "command": "pnpm --filter @codexu/overview-viewer typecheck",
+      "result": "PASS: tsc --noEmit completed with exit 0; output saved to .test-output/overview-viewer.typecheck.log."
+    },
+    {
+      "criterion": "Tests pass.",
+      "evidenceKind": "passed",
+      "command": "pnpm test",
+      "result": "PASS: 21 test files passed, 141 tests passed; output saved to .test-output/root.test.log. Also ran pnpm --filter @codexu/overview-viewer test earlier: 33 files passed, 178 tests passed."
+    }
+  ],
+  "skippedReasons": [],
+  "notTested": [],
+  "iterationSHA": "cdc4778703e4d02ae41ea7c0bdb363f84f07935b"
+}

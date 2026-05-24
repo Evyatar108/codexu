@@ -1,0 +1,25 @@
+**Feasibility**
+- [High] The stale-lock design is not feasible as written. If the watcher writes `config.lockFile` once and "stale" means mtime older than 60s, every healthy watcher becomes stale after 60s and a second watcher can overwrite the lock. Add a heartbeat/mtime refresh or PID-liveness check before treating the lock as stale.
+- [High] The parse-error resilience contract cannot be represented by `deriveAffectedTaskUpdate() -> { taskId, newPipelineState | null }`. Current `sync-core` records parse failures as `parseError` bundles, not thrown errors, so `null` is ambiguous between "delete this task" and "keep prior state because JSON is malformed". Add an explicit result variant like `keepExisting`/`error`.
+- [Medium] `start()` omits a `generatedFromCommit` input, but `walkRalphState()` requires it in [scripts/lib/sync-core.mjs](D:/harness-efforts/codexu/scripts/lib/sync-core.mjs:34). The watcher must either resolve HEAD internally or accept the value from callers.
+- [Medium] The Vite sample starts the watcher directly in `configureServer()` with no lock-contention fallback. If a standalone watcher is already running, `pnpm overview` may fail instead of serving the app. Catch "another watcher holds lock" and continue with a warning.
+
+**Completeness**
+- [High] The ordered steps do not add lock handling to the one-shot path in [scripts/sync-ralph-state.mjs](D:/harness-efforts/codexu/scripts/sync-ralph-state.mjs:10). The acceptance criterion requiring `pnpm sync-ralph-state` to fail while the watcher is running will not be met unless one-shot also acquires/checks the shared lock before `writeSidecar()`.
+- [High] `mergeAndWrite()` only describes applying `byTaskId` deltas. Current `walkRalphState()` also emits `unmatched` and `unmatchedSummary` for parse errors, duplicate resolution, no match, and cross-kind shadowing in [scripts/lib/sync-core.mjs](D:/harness-efforts/codexu/scripts/lib/sync-core.mjs:69). Incremental writes will leave those fields stale unless the affected unmatched entries are also recomputed.
+- [High] Adding `chokidar` to root `devDependencies` also requires updating [pnpm-lock.yaml](D:/harness-efforts/codexu/pnpm-lock.yaml:14). The plan’s file list omits it, which can break frozen-lock installs.
+- [Medium] Tests may need the test-local declaration file updated. `tools/overview-viewer/src/__tests__/scripts.d.ts` declares `sync-core.mjs` exports separately from `scripts/lib/sync-core.d.mts`; if new tests import the new exports, stale declarations can make `typecheck` fail.
+
+**Ordering**
+- [Medium] The watcher order "cold-start full walk, then chokidar.watch" can miss writes that occur during startup. Subscribe/buffer first, or rescan once after the watcher is ready.
+- [Medium] Deferring all watcher tests until after CLI and Vite wiring makes the risky `sync-core` refactor harder to isolate. Add core tests immediately after US-001/US-002, then CLI/Vite integration tests.
+
+**Simplicity**
+- [Medium] The plan invents a narrow `taskUpdates` merge API but still needs full-walk-equivalent behavior for `unmatched`, duplicates, shadowing, and parse errors. A simpler shape is to refactor `assembleStateFromBundles()` so both full walk and affected-task recomputation return the same state fragments, then merge those fragments.
+
+**Acceptance Criteria Quality**
+- [Medium] "`.ralph/brainstorms/*/selected-direction.md` is NOT in the watched-paths set" is not precise if chokidar watches directories. Make it testable as: touching `selected-direction.md` does not enqueue a slug, call `onWrite`, or change sidecar mtime.
+- [Medium] "diff shows only that task's section changed plus `generatedAt`" ignores `unmatched`/`unmatchedSummary`. Replace with "incremental output equals a full `walkRalphState()` output after normalizing `generatedAt`."
+- [Medium] "exactly one cold-start write before chokidar emits any event" conflicts with avoiding the startup race. Specify whether startup events are buffered, ignored, or handled by a post-ready rescan.
+
+Amendment note: the improved plan correctly updates stale research around no existing chokidar usage and moves watcher tests into a new `ralphWatcher.test.ts`; the remaining blockers are the lock semantics and incremental-state contract.

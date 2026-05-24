@@ -1,0 +1,98 @@
+{
+  "storyId": "US-007",
+  "verifiedEvidence": [
+    {
+      "criterion": "vite-plugin-singlefile added to deps; base './'; overview input confirmed",
+      "command": "grep package/config/lockfile for vite-plugin-singlefile, base, and overview input",
+      "result": "vite-plugin-singlefile is present in package.json and pnpm-lock.yaml; vite.config.ts has base './' and rollupOptions.input.overview: resolve(__dirname, 'overview.html').",
+      "evidenceKind": "command-output"
+    },
+    {
+      "criterion": "Custom overviewDataPlugin configureServer hook",
+      "command": "grep -nE 'Content-Type|server.watcher.add|overview-data:update' tools/overview-viewer/vite.config.ts",
+      "result": "configureServer serves /overview-data.js with Content-Type application/javascript, adds overviewDataPath to the watcher, and sends custom event overview-data:update on matching file changes.",
+      "evidenceKind": "command-output"
+    },
+    {
+      "criterion": "Custom overviewDataPlugin transformIndexHtml hook",
+      "command": "grep transformIndexHtml/pre/sidecar in tools/overview-viewer/vite.config.ts",
+      "result": "Plugin runs pre, returns unchanged HTML for dev, reads plans/overview-data.js during build, and replaces the relative sidecar script tag with inline script contents before vite-plugin-singlefile runs.",
+      "evidenceKind": "command-output"
+    },
+    {
+      "criterion": "Custom overviewDataPlugin closeBundle safe-name rename",
+      "command": "grep closeBundle/OVERVIEW_BUILD_SAFE_NAME/rename/writeFile in tools/overview-viewer/vite.config.ts",
+      "result": "closeBundle only runs when OVERVIEW_BUILD_SAFE_NAME === '1', renames emitted plans/overview.html to plans/overview.html.next, and restores captured live overview.html bytes.",
+      "evidenceKind": "command-output"
+    },
+    {
+      "criterion": "pnpm overview:build:preview emits .next and leaves live overview untouched",
+      "command": "pnpm overview:build:preview > .test-output/overview-viewer.build-preview.log 2>&1 with before/after sha256",
+      "result": "Exited 0 in 5s; live overview.html SHA stayed bb71a1053ba1c5dd4d62d7f9ec22c986b1a9df1a547c26ff88499ba07efed922; overview.html.next SHA is e081871ddd78d4bdd5fe57b27e81a44175a63059583291d02aefe6307565a93e.",
+      "evidenceKind": "command-output"
+    },
+    {
+      "criterion": "US-007:AC-006 file:// parity",
+      "command": "N/A",
+      "result": "SKIPPED: browser automation unavailable; file:// parity must be confirmed by operator manual open of plans/overview.html.next before US-008 approval.",
+      "evidenceKind": "skipped"
+    },
+    {
+      "criterion": "US-007:AC-007 no external references",
+      "command": "grep static refs in plans/overview.html.next",
+      "result": "Browser DevTools unavailable; static grep found script_src_count=0 and link_href_count=0 in plans/overview.html.next.",
+      "evidenceKind": "command-output"
+    },
+    {
+      "criterion": "window.OVERVIEW_DATA inlined and no overview-data.js script src remains",
+      "command": "grep -c window.OVERVIEW_DATA and grep overview-data.js script src in plans/overview.html.next",
+      "result": "window_count=2; overview_data_src_count=0.",
+      "evidenceKind": "command-output"
+    },
+    {
+      "criterion": "US-007:AC-009 static URL/hash behavior",
+      "command": "pnpm --filter @codexu/overview-viewer test > .test-output/overview-viewer.test.log 2>&1",
+      "result": "Browser automation unavailable; Vitest exited 0 with 9 files and 19 tests passed, including urlFilter.test.ts and kanbanInteraction.test.ts for the same URL/hash hooks used by the inlined static artifact.",
+      "evidenceKind": "command-output"
+    },
+    {
+      "criterion": "tools/overview-viewer/README.md authored",
+      "command": "grep required topics in tools/overview-viewer/README.md",
+      "result": "README covers file layout, pnpm overview, safe preview build, destructive live build, OVERVIEW_BUILD_SAFE_NAME, plans/overview.html.next, and the phase-tree deferred class deviation.",
+      "evidenceKind": "command-output"
+    },
+    {
+      "criterion": "Typecheck passes",
+      "command": "pnpm --filter @codexu/overview-viewer typecheck > .test-output/overview-viewer.typecheck.log 2>&1",
+      "result": "Exited 0 in 6s; tsc --noEmit completed with no errors.",
+      "evidenceKind": "command-output"
+    },
+    {
+      "criterion": "pnpm --filter @codexu/overview-viewer build exits 0",
+      "command": "pnpm overview:build:preview > .test-output/overview-viewer.build-preview.log 2>&1",
+      "result": "Exited 0 in 5s; preview command invoked pnpm --filter @codexu/overview-viewer build and Vite reported built in 630ms. The no-env live build was not run in US-007 because it is the destructive US-008 path.",
+      "evidenceKind": "command-output"
+    },
+    {
+      "criterion": "US-007:AC-012 dev-browser safe-name verification",
+      "command": "N/A",
+      "result": "SKIPPED: dev-browser skill unavailable in this session; file:// safe-name preview must be opened manually by the operator before US-008 approval.",
+      "evidenceKind": "skipped"
+    }
+  ],
+  "skippedReasons": [
+    {
+      "criterion": "US-007:AC-006",
+      "reason": "browser_unavailable"
+    },
+    {
+      "criterion": "US-007:AC-012",
+      "reason": "browser_unavailable"
+    }
+  ],
+  "notTested": [
+    "Browser file:// visual parity; dev-browser unavailable, operator must review .next.",
+    "No-env live build; destructive path is gated to US-008."
+  ],
+  "iterationSHA": "fa58e6d8432f80acf58754bfd76f1ef8e5727565"
+}

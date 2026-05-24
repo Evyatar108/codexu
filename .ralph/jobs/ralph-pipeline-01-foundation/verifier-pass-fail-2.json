@@ -1,0 +1,68 @@
+{
+  "manifestPath": "D:/harness-efforts/codexu/.ralph/jobs/ralph-pipeline-01-foundation/iteration-result-2.json",
+  "iterationSHA": "7b803c9acc59e16baa1e02d5a9c8540cd155a704",
+  "storyId": "US-002",
+  "verdicts": [
+    {
+      "criterion": "scripts/lib/default-config.mjs exports a frozen codexu-default config object with Plan-01 fields only: dataFile, ralphRoot, ralphSubdirs.{jobs, jobGroups, brainstorms}, outputs.{sidecarJs, sidecarJson}, lockFile, watcher.ignored",
+      "verdict": "agree",
+      "reason": "Diff adds scripts/lib/default-config.mjs exporting codexuDefaultConfig wrapped in a recursive deepFreeze with exactly the Plan-01 keys (dataFile, ralphRoot, ralphSubdirs.{jobs,jobGroups,brainstorms}, outputs.{sidecarJs,sidecarJson}, lockFile, watcher.ignored)."
+    },
+    {
+      "criterion": "scripts/lib/resolve-config.mjs exports loadConfig({ repoRoot, configPath? }) enforcing canonical precedence: merge order defaults < committed < .local.json overlay; committed-path lookup default <repoRoot>/.ralph/overview-config.json < OVERVIEW_CONFIG_PATH env var < configPath argument; .local.json overlay always sits next to the selected committed file",
+      "verdict": "agree",
+      "reason": "loadConfig calls mergeConfig(codexuDefaultConfig, committedConfig, localConfig) so the merge order is defaults < committed < local. selectConfigPath uses configPath || process.env.OVERVIEW_CONFIG_PATH || defaultConfigPath(repoRoot), giving configPath > env > default. localOverlayPath is computed from the selected committed path."
+    },
+    {
+      "criterion": "loadConfig resolves all paths to absolute paths against repoRoot",
+      "verdict": "agree",
+      "reason": "resolveConfigPaths calls path.resolve from repoRoot (and ralphRoot for subdirs) for dataFile, ralphRoot, ralphSubdirs.*, outputs.*, and lockFile. Manifest cites a Node one-liner showing path.isAbsolute returns true for every resolved field."
+    },
+    {
+      "criterion": "loadConfig returns the resolved object deep-frozen (recursive Object.freeze on outputs, ralphSubdirs, watcher) per F-012",
+      "verdict": "agree",
+      "reason": "loadConfig returns deepFreeze(resolvedConfig) and the local deepFreeze helper recurses through Object.values, so nested outputs/ralphSubdirs/watcher are frozen. Manifest cites a Node check printing Object.isFrozen=true for all of them."
+    },
+    {
+      "criterion": "loadConfig warns to stderr (does not throw) when a configured ralphSubdirs.* directory is missing; empty .ralph/ remains valid",
+      "verdict": "agree",
+      "reason": "warnForMissingRalphSubdirs uses console.warn (no throw) for each missing ralphSubdirs entry. Test 'warns instead of throwing when configured Ralph subdirectories are missing' asserts no throw and warn called for jobs, jobGroups, brainstorms with an empty .ralph fixture."
+    },
+    {
+      "criterion": ".ralph/overview-config.json exists as pure JSON (no comments, no trailing commas), validated by node -e \"JSON.parse(require('fs').readFileSync('.ralph/overview-config.json'))\"",
+      "verdict": "agree",
+      "reason": "Diff adds .ralph/overview-config.json as standard JSON with no comments or trailing commas. Manifest cites the Node JSON.parse one-liner printing 'overview-config.json parse ok'."
+    },
+    {
+      "criterion": ".ralph/overview-config.schema.json exists as pure JSON Schema, referenced by $schema from the committed config",
+      "verdict": "agree",
+      "reason": "Diff adds .ralph/overview-config.schema.json with $schema=https://json-schema.org/draft/2020-12/schema, and overview-config.json sets $schema to ./overview-config.schema.json. Manifest evidence prints both schema URIs."
+    },
+    {
+      "criterion": ".gitignore contains `.ralph/overview-config.local.json`; verifiable via grep -F '.ralph/overview-config.local.json' .gitignore",
+      "verdict": "agree",
+      "reason": "Diff adds the literal line '.ralph/overview-config.local.json' to .gitignore. Manifest grep result confirms line 95 contains the entry."
+    },
+    {
+      "criterion": "Config-layering unit test passes both sub-assertions: (a) overlay wins over redirected committed config; (b) configPath arg overrides OVERVIEW_CONFIG_PATH env var",
+      "verdict": "agree",
+      "reason": "config.test.ts adds the 'loads committed config with local overlay' test (overlay sets sidecarJson and watcher.ignored, winning over committed) and 'lets configPath override OVERVIEW_CONFIG_PATH' test (env=env.json with dataFile=env-data.js, arg=arg.json with arg-data.js, asserts arg-data.js wins). Manifest cites both as part of the 5 passing tests."
+    },
+    {
+      "criterion": "pnpm --filter @codexu/overview-viewer typecheck passes",
+      "verdict": "agree",
+      "reason": "Manifest cites cached typecheck log with exit 0. Diff scope (config helpers + adjacent .d.mts declarations + scripts.d.ts ambient module declarations) is consistent with a clean tsc --noEmit."
+    },
+    {
+      "criterion": "Tests pass",
+      "verdict": "agree",
+      "reason": "Manifest cites pnpm --filter @codexu/overview-viewer test exit 0 with 17 test files and 68 tests passing, log persisted to .test-output/overview-viewer.test.log."
+    },
+    {
+      "criterion": "Typecheck passes",
+      "verdict": "agree",
+      "reason": "Duplicate criterion; same evidence as 'pnpm --filter @codexu/overview-viewer typecheck passes' — cached log shows tsc --noEmit exit 0 with no diagnostics."
+    }
+  ],
+  "warnings": []
+}

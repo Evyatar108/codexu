@@ -1,0 +1,197 @@
+{
+  "planFile": "D:/harness-efforts/codexu/.ralph/jobs/.staging/20260519-004352/draft-plan.md",
+  "repoDir": "D:/harness-efforts/codexu",
+  "reviewCycle": 0,
+  "findings": [
+    {
+      "id": "F-001",
+      "severity": "High",
+      "source": "consensus",
+      "category": "Feasibility",
+      "sectionRef": "Approach > Architecture",
+      "description": "deriveAffectedTaskUpdate return type { taskId, newPipelineState | null } conflates 'remove task' with 'keep prior state because JSON parse failed'. The plan elsewhere requires malformed JSON to retain prior entry, but the contract has no variant for that case.",
+      "status": "fixed",
+      "suggestedFix": "Add an explicit result variant. Example: { action: 'upsert' | 'remove' | 'retain', taskId, newPipelineState?, error? }. 'retain' is emitted on parse failure; 'remove' is emitted when no candidates remain on disk.",
+      "fixedInIteration": 1,
+      "resolution": "Changed deriveAffectedTaskUpdate return type to a discriminated union with action: 'upsert' | 'remove' | 'retain', so parse-failure (retain) is distinct from no-candidates (remove); updated mergeAndWrite input shape and the watcher's debounce-fire + consecutive-failure handling to match."
+    },
+    {
+      "id": "F-002",
+      "severity": "High",
+      "source": "consensus",
+      "category": "Completeness",
+      "sectionRef": "Approach > Architecture; Acceptance Criteria",
+      "description": "mergeAndWrite only describes applying byTaskId deltas, but OverviewRalphState also carries unmatched and unmatchedSummary (parse errors, duplicate-resolution, no-match, cross-kind shadowing). Incremental writes will leave those fields stale.",
+      "status": "fixed",
+      "suggestedFix": "Specify that mergeAndWrite recomputes the unmatched + unmatchedSummary slices for the affected taskId(s) before writing, or replaces them with a fresh fragment from assembleStateFromBundles for the touched kind/slug set. Update Acceptance Criterion C to read 'incremental output equals walkRalphState output after normalizing generatedAt' (covers unmatched + unmatchedSummary).",
+      "fixedInIteration": 2,
+      "resolution": "Extended deriveAffectedTaskUpdate with touched + unmatchedFragment fields, specified that mergeAndWrite drops touched (kind, slug) entries from unmatched and appends fresh fragments before re-sorting/re-summarizing, added a Functional acceptance criterion asserting unmatched + unmatchedSummary parity with walkRalphState, and rewrote verification case C as 'incremental output equals walkRalphState output after normalizing generatedAt' covering byTaskId, unmatched, and unmatchedSummary."
+    },
+    {
+      "id": "F-003",
+      "severity": "High",
+      "source": "consensus",
+      "category": "Completeness",
+      "sectionRef": "Implementation Strategy; Acceptance Criteria",
+      "description": "The acceptance criterion 'one-shot pnpm sync-ralph-state fails fast when a fresh watcher lock exists' is asserted but the ordered steps do not add lock handling to scripts/sync-ralph-state.mjs's one-shot path. As written, one-shot calls walkRalphState then writeSidecar with no lock check.",
+      "status": "fixed",
+      "suggestedFix": "Add a shared lock helper (e.g. scripts/lib/sync-lock.mjs) and a new step in Implementation Strategy: 'Wrap the one-shot path in sync-ralph-state.mjs with the shared lock helper so one-shot also acquires the lock before writeSidecar and fails fast on contention with the same diagnostic message.' Add the shared lock helper to Files to Create.",
+      "fixedInIteration": 3,
+      "resolution": "Added a shared scripts/lib/sync-lock.mjs helper, a new Step 2 creating it, wired the one-shot path in scripts/sync-ralph-state.mjs to wrap walk/write with acquireLock/releaseLock, added the file to Files to Create, added a US-002 story, and added acceptance bullets asserting both code paths consume the shared helper."
+    },
+    {
+      "id": "F-004",
+      "severity": "High",
+      "source": "consensus",
+      "category": "Completeness",
+      "sectionRef": "Files to Create/Modify",
+      "description": "pnpm-lock.yaml is not in the Files to Modify list, but adding chokidar to root devDependencies will require a lockfile update. Without it, frozen-lock installs break.",
+      "status": "fixed",
+      "suggestedFix": "Add 'pnpm-lock.yaml' to the Modify list with a note: 'updated by pnpm install -D chokidar; verify resolved version stays pinned to the current transitive 5.x'.",
+      "fixedInIteration": 4,
+      "resolution": "Added pnpm-lock.yaml to Files to Modify with a note about staying pinned to the existing 5.x resolution; mirrored the constraint in Step 5, Scope, Risk #9, and an acceptance criterion for frozen-lockfile install."
+    },
+    {
+      "id": "F-005",
+      "severity": "High",
+      "source": "codex",
+      "category": "Feasibility",
+      "sectionRef": "Approach > Architecture; Acceptance Criteria",
+      "description": "Stale-lock policy 'mtime > 60s' makes every healthy watcher become 'stale' after 60s, allowing a second watcher to overwrite the lock and run concurrently. The 60s mtime check alone is not safe.",
+      "status": "fixed",
+      "suggestedFix": "Either (a) refresh lock file mtime on every debounce tick (or via a 30s heartbeat timer) AND/OR (b) on detected stale lock, parse the JSON, attempt a PID-liveness check (process.kill(pid, 0) catch ESRCH => stale) before overwriting. Document the chosen mechanism in Architecture + Acceptance Criteria + Test G.",
+      "fixedInIteration": 5,
+      "resolution": "Replaced the bare 60s-mtime stale-lock rule with a layered design: 30s heartbeat (LockHandle.touch via fs.utimes, .unref()-ed interval, cleared in stop()) refreshes the watcher's mtime; mtime-aged locks now require a process.kill(pid, 0) liveness probe — only ESRCH/unparseable JSON authorizes overwrite, EPERM/alive yields the canonical fresh-lock diagnostic. Updated Architecture, Implementation Strategy steps 2–3, two acceptance criteria, Risk Area 2, and added verification tests G2 (heartbeat) and G3 (PID-liveness gate)."
+    },
+    {
+      "id": "F-006",
+      "severity": "High",
+      "source": "copilot",
+      "category": "Feasibility",
+      "sectionRef": "Approach > Architecture; Implementation Strategy",
+      "description": "Watcher root description hardcodes config.ralphRoot/jobs, /job-groups, /brainstorms. config.ralphSubdirs supports overrides via scripts/lib/resolve-config.mjs; the watcher must resolve those subdir paths rather than hardcode the names.",
+      "status": "open",
+      "suggestedFix": "Replace 'config.ralphRoot/jobs' / '/job-groups' / '/brainstorms' references with the resolved paths from config.ralphSubdirs.jobs / .jobGroups / .brainstorms (joined under config.ralphRoot). Document this in Architecture + Implementation Strategy step 2."
+    },
+    {
+      "id": "F-007",
+      "severity": "Medium",
+      "source": "codex",
+      "category": "Feasibility",
+      "sectionRef": "Implementation Strategy; Risk Areas",
+      "description": "start() omits generatedFromCommit, but walkRalphState requires it. Plan must either resolve HEAD internally inside start() or take it from callers.",
+      "status": "open",
+      "suggestedFix": "Document start()'s ownership: it resolves generatedFromCommit internally (git rev-parse HEAD or equivalent fallback) using the same helper sync-ralph-state.mjs uses today, so CLI / Vite plugin do not need to plumb it."
+    },
+    {
+      "id": "F-008",
+      "severity": "Medium",
+      "source": "codex",
+      "category": "Feasibility",
+      "sectionRef": "Implementation Strategy; Vite plugin step",
+      "description": "Vite plugin sample starts the watcher in configureServer with no fallback when another watcher already holds the lock; pnpm overview would fail instead of serving the app.",
+      "status": "open",
+      "suggestedFix": "In the Vite plugin auto-start step, wrap watcher.start in a try/catch. On 'another watcher holds lock', log a warning via server.config.logger.warn and skip the auto-start (dev server still functions; HMR event simply won't fire until the user stops the standalone watcher)."
+    },
+    {
+      "id": "F-009",
+      "severity": "Medium",
+      "source": "codex",
+      "category": "Completeness",
+      "sectionRef": "Acceptance Criteria",
+      "description": "tools/overview-viewer/src/__tests__/scripts.d.ts declares sync-core.mjs exports separately from scripts/lib/sync-core.d.mts. If new exports are imported from tests, the test-local declaration may go stale and typecheck fails.",
+      "status": "open",
+      "suggestedFix": "Add tools/overview-viewer/src/__tests__/scripts.d.ts to Files to Modify (or document it as a possible follow-up if the test imports route through the existing barrel). Add an acceptance criterion: 'After US-001 lands, tools/overview-viewer/src/__tests__/scripts.d.ts and scripts/lib/sync-core.d.mts both expose the new exports; pnpm --filter @codexu/overview-viewer typecheck passes.'"
+    },
+    {
+      "id": "F-010",
+      "severity": "Medium",
+      "source": "codex",
+      "category": "Ordering",
+      "sectionRef": "Implementation Strategy; Acceptance Criteria",
+      "description": "Order 'cold-start full walk, then chokidar.watch' can miss writes occurring during startup. The current plan acceptance also says 'exactly one cold-start write before chokidar emits any event', which conflicts with race-avoidance.",
+      "status": "open",
+      "suggestedFix": "Adopt one of two explicit strategies and document it: (A) Subscribe-then-cold-start: open chokidar with ignoreInitial:true, buffer events into pendingChanges, then run cold-start walk, then enable debounced processing. (B) Cold-start-then-subscribe-then-rescan: run cold-start, open chokidar, then immediately enqueue ALL slugs into pendingChanges so the first debounced tick reconciles any writes that landed during startup. Update Acceptance Criterion 'exactly one cold-start write' to 'exactly one cold-start write at startup; any writes that occurred during cold-start are reconciled by the first debounce tick'."
+    },
+    {
+      "id": "F-011",
+      "severity": "Medium",
+      "source": "codex+copilot",
+      "category": "Ordering",
+      "sectionRef": "Preliminary Story Decomposition; Implementation Strategy",
+      "description": "Tests are deferred to US-005 (after CLI + Vite wiring). The most fragile contract is the incremental-merge + error-state API in US-001/US-002, so tests on that contract should land alongside US-001 and US-002.",
+      "status": "open",
+      "suggestedFix": "Split US-005 into two slices: 'US-005a — core merge + watcher unit tests' (lands with US-001/US-002), 'US-005b — integration tests for CLI + Vite plugin' (lands with US-003/US-004). Update story decomposition + cluster doc."
+    },
+    {
+      "id": "F-012",
+      "severity": "Medium",
+      "source": "codex",
+      "category": "Simplicity",
+      "sectionRef": "Approach > Architecture",
+      "description": "The mergeAndWrite + deriveAffectedTaskUpdate API is bespoke; full-walk-equivalent behavior for unmatched/duplicates/shadowing/parse-errors still has to be recomputed inside it. A simpler refactor exposes assembleStateFromBundles(bundles) so both full walk and affected-task recompute return state fragments that compose via merge.",
+      "status": "open",
+      "suggestedFix": "Mention assembleStateFromBundles as the shared internal primitive in the Architecture section. mergeAndWrite then becomes: feed (currentState - removed-fragments + new-fragments) through assembleStateFromBundles' tail (cross-kind precedence + unmatched aggregation) and writeSidecar. Document the helper without forcing a specific name."
+    },
+    {
+      "id": "F-013",
+      "severity": "Medium",
+      "source": "consensus",
+      "category": "Criteria Quality",
+      "sectionRef": "Acceptance Criteria > Verification C",
+      "description": "Test C says 'diff shows only that task's section changed plus generatedAt' — but the sidecar also carries unmatched + unmatchedSummary, which can legitimately also change. The criterion as written would fail on legitimate updates.",
+      "status": "open",
+      "suggestedFix": "Replace Test C body with: 'After modifying one job-state.json field, the incremental sidecar output equals what a fresh walkRalphState() would produce, after normalizing generatedAt (deep-equal comparison on byTaskId, unmatched, unmatchedSummary).'"
+    },
+    {
+      "id": "F-014",
+      "severity": "Medium",
+      "source": "consensus",
+      "category": "Criteria Quality",
+      "sectionRef": "Acceptance Criteria; Scope",
+      "description": "'.ralph/brainstorms/*/selected-direction.md is NOT in the watched-paths set' is imprecise: chokidar watches the brainstorm directory, so it will observe events for that file. The criterion is testable only as 'touching selected-direction.md does not enqueue a slug or fire onWrite'.",
+      "status": "open",
+      "suggestedFix": "Rewrite the criterion to: 'Touching .ralph/brainstorms/<slug>/selected-direction.md does not enqueue a pending change, does not call deriveAffectedTaskUpdate, and does not fire onWrite (verified via Test K: spy on onWrite and pendingChanges).' Add Test K to the verification list."
+    },
+    {
+      "id": "F-015",
+      "severity": "Medium",
+      "source": "copilot",
+      "category": "Ordering",
+      "sectionRef": "Implementation Strategy",
+      "description": "chokidar dependency is added in Implementation Strategy step 4, AFTER the watcher module is created in step 2. If commits land per step, the intermediate commit imports chokidar without it being in package.json/pnpm-lock.yaml.",
+      "status": "open",
+      "suggestedFix": "Reorder: install chokidar (and update pnpm-lock.yaml) BEFORE creating watch-ralph-state.mjs. Make this step 1.5 between the sync-core refactor and the new watcher module; document the explicit order in Implementation Strategy."
+    },
+    {
+      "id": "F-016",
+      "severity": "Medium",
+      "source": "copilot",
+      "category": "Simplicity",
+      "sectionRef": "Approach > Architecture; Implementation Strategy",
+      "description": "A small shared sync-lock module would simplify both watcher and one-shot. Without one, lock parsing + staleness formatting are duplicated in two places and will drift.",
+      "status": "open",
+      "suggestedFix": "Document a small new module scripts/lib/sync-lock.mjs exporting acquire/release/inspect helpers (writes JSON metadata, checks mtime+PID, formats the 'another sync in progress (pid <N>, process <label>, started <ts>)' diagnostic). Both watch-ralph-state.mjs and sync-ralph-state.mjs one-shot path import it. Add to Files to Create."
+    },
+    {
+      "id": "F-017",
+      "severity": "Medium",
+      "source": "copilot",
+      "category": "Criteria Quality",
+      "sectionRef": "Acceptance Criteria",
+      "description": "Several criteria are timing-based ('within ~5s', 'within ~1s', 'exactly once'). Add automated coverage with vitest fake timers for debounce, lock contention, stale lock, malformed JSON, and promotion to make criteria deterministic in CI.",
+      "status": "open",
+      "suggestedFix": "Add an Acceptance Criterion explicitly requiring vitest fake-timer tests for: debounce coalescing (Test B), lock contention message format (Test D), stale lock recovery (Test G first half), malformed JSON recovery counter (Test G second half), and cross-kind promotion (Test H part 3). Document in Test list as the corresponding cases."
+    },
+    {
+      "id": "F-018",
+      "severity": "Medium",
+      "source": "copilot",
+      "category": "Criteria Quality",
+      "sectionRef": "Acceptance Criteria > Verification J",
+      "description": "Criterion J says 'final commit shows downstream cascade edits' but other strategy steps may also be commits. Conflicts with whether earlier commits may modify plan files.",
+      "status": "open",
+      "suggestedFix": "Clarify: the downstream cascade (US-006) MUST land as the final commit on the worktree branch; earlier story commits MUST NOT touch plans/ralph-pipeline-{INDEX,03..12}*.md. Update Criterion J text accordingly."
+    }
+  ]
+}

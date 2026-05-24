@@ -1,0 +1,19 @@
+### Completeness
+
+- [Low] [packages/happy-app/sources/sync/sync.test.ts:845](D:/harness-efforts/codexu/packages/happy-app/sources/sync/sync.test.ts:845) covers initial-fetch promotion/idempotency, but not the plan’s required malformed-shape coverage for the initial-fetch path. The malformed case is only tested for live `update-session` at line 803.
+
+### Correctness
+
+- [Medium] [packages/happy-app/sources/sync/sync.ts:1861](D:/harness-efforts/codexu/packages/happy-app/sources/sync/sync.ts:1861) parses metadata, normalizes it, casts it to `Session['metadata']`, and applies it without validation. The test at [sync.test.ts:826](D:/harness-efforts/codexu/packages/happy-app/sources/sync/sync.test.ts:826) explicitly asserts invalid known fields (`parentSessionId: 42`, `spawnedChildren: 'not-an-array'`) are stored. `MetadataSchema` would not “drop” those fields; Zod strips unknown keys, but invalid known keys throw. This violates the defensive acceptance criterion and can leave helpers operating on invalid metadata.
+
+### Quality
+
+- [Low] [plans/overview.html:2002](D:/harness-efforts/codexu/plans/overview.html:2002) rolls `generatedAt` / `generatedFromCommit` backward while many `lastTouched` entries remain on 2026-05-14, and the new run has `"commits": []` at [plans/overview.html:2062](D:/harness-efforts/codexu/plans/overview.html:2062). The roadmap JSON is now internally stale/ambiguous; it should keep current generated metadata and record the actual commit when closed.
+
+### Security
+
+No issues found.
+
+### Overall Assessment
+
+Not quite ready. The core schema/helpers are mostly in place, but malformed metadata handling does not match the plan and can put invalid relationship fields into store state.

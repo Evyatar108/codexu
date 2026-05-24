@@ -1,0 +1,188 @@
+{
+  "planFile": "D:/harness-efforts/codexu/.ralph/jobs/ralph-pipeline-01-foundation/plan.md",
+  "repoDir": "D:/harness-efforts/codexu",
+  "findings": [
+    {
+      "id": "F-001",
+      "severity": "High",
+      "category": "Completeness",
+      "classification": "fixable",
+      "phase": "code",
+      "sectionRef": "Configuration layer / Downstream additive extensions",
+      "description": "scripts/lib/resolve-config.mjs:76-94 drops unknown config keys when resolving paths. The plan says downstream additive fields should pass through, but resolveConfigPaths() reconstructs only Plan 01 keys, so future fields like outputs.snapshot, devServer, or filters disappear.",
+      "relevantFiles": [
+        "scripts/lib/resolve-config.mjs:76-94"
+      ],
+      "suggestedFix": "Spread the merged config first, then override only the resolved path fields: return { ...mergedConfig, dataFile: ..., ralphRoot, ralphSubdirs: {...}, outputs: { ...mergedConfig.outputs, sidecarJs, sidecarJson }, lockFile, watcher: { ...mergedConfig.watcher, ignored: [...] } }. Add a regression test that puts a downstream key (e.g. outputs.snapshot) in the committed config and asserts it survives loadConfig.",
+      "status": "fixed",
+      "source": "claude",
+      "fixedInIteration": 1,
+      "resolution": "resolveConfigPaths now preserves unknown keys at root + nested-object level via destructure-and-spread; regression test asserts futureRootKey and outputs.snapshot survive."
+    },
+    {
+      "id": "F-002",
+      "severity": "High",
+      "category": "Correctness",
+      "classification": "fixable",
+      "phase": "code",
+      "sectionRef": "F-011 (malformed-artifact handling) / Acceptance criterion: malformed-JSON skip",
+      "description": "scripts/lib/sync-core.mjs:182-183, 206-213, and 243-249 silently ignore malformed prd.json, brainstorm.json, and review findings files. Only job-state.json parse errors become parse-error; corrupt PRDs can be misclassified as planning, corrupt findings can hide review-fix, and corrupt brainstorms vanish entirely. readJsonFile() returns the error in its result, but only readJobLikeBundles inspects jobStateResult.error.",
+      "relevantFiles": [
+        "scripts/lib/sync-core.mjs:182-183",
+        "scripts/lib/sync-core.mjs:206-213",
+        "scripts/lib/sync-core.mjs:243-253",
+        "scripts/lib/sync-core.mjs:305-314"
+      ],
+      "suggestedFix": "Either (a) log a stderr warning for any non-jobState parse error and continue with undefined (cheap, observable), or (b) mark the bundle parseError when a sibling artifact is malformed and route to unmatched with reason: 'parse-error'. Option (a) is the minimum to satisfy the observability requirement.",
+      "status": "fixed",
+      "source": "claude",
+      "fixedInIteration": 1,
+      "resolution": "Extended parse-error emission to readJobLikeBundles prd.json, readReviewOpenCount findings files, and readBrainstormBundles brainstorm.json. Sibling derivation skipped on parse-error. Unit test added."
+    },
+    {
+      "id": "F-003",
+      "severity": "High",
+      "category": "Correctness",
+      "classification": "fixable",
+      "phase": "code",
+      "sectionRef": "Stage derivation predicates / Phase-set constants",
+      "description": "F-003 fix regression: scripts/lib/sync-core.mjs:6 defines KNOWN_ORCHESTRATOR_PHASES = new Set(['5a', '5b', '5c', '5.5', '6']) which is missing IMPLEMENTING_PHASES values '1', '2', '3', '4'. Every job in implementing phase 1-4 now emits a spurious 'unknown orchestrator.phase' schema-drift warning. The original F-003 suggested fix said: 'detect phase values that aren't in REVIEW_PHASES, IMPLEMENTING_PHASES, or {undefined, \"\"}'. Confirmed by running pnpm --filter @codexu/overview-viewer test: stderr emits 'unknown orchestrator.phase=\"1\"|\"2\"|\"3\"' for fixture jobs that use perfectly valid implementing phases. The drift signal is now lost in noise — exactly the outcome F-003 was meant to prevent.",
+      "relevantFiles": [
+        "scripts/lib/sync-core.mjs:6",
+        "scripts/lib/derive-ralph-stage.mjs:1-2"
+      ],
+      "suggestedFix": "Either (a) import REVIEW_PHASES and IMPLEMENTING_PHASES from derive-ralph-stage.mjs and build KNOWN_ORCHESTRATOR_PHASES = new Set([...REVIEW_PHASES, ...IMPLEMENTING_PHASES]) so the two modules cannot drift, or (b) inline the full set as new Set(['1','2','3','4','5a','5b','5c','5.5','6']). Option (a) is preferred because derive-ralph-stage.mjs already owns the canonical phase enumeration. Also: update sync-core.test.mjs 'does not emit a warning for known phases' to iterate both KNOWN_PHASES = REVIEW_PHASES.concat(IMPLEMENTING_PHASES) so this regression is caught next time.",
+      "status": "fixed",
+      "source": "re-review",
+      "fixedInIteration": 2,
+      "resolution": "Imported REVIEW_PHASES + IMPLEMENTING_PHASES from derive-ralph-stage.mjs and built KNOWN_ORCHESTRATOR_PHASES = new Set([...REVIEW_PHASES, ...IMPLEMENTING_PHASES]); test updated to iterate the same union."
+    },
+    {
+      "id": "F-004",
+      "severity": "Medium",
+      "category": "Correctness",
+      "classification": "fixable",
+      "phase": "code",
+      "sectionRef": "Type model / RalphPipelineState.isParallel",
+      "description": "toPipelineState() in scripts/lib/sync-core.mjs:287 hardcodes isParallel: true for every group artifact. The plan says group.json carries 'cross-cutting metadata (member list, parallelism, group slug) that is recorded in RalphArtifacts/RalphPipelineState.isParallel' — parallelism is a property of the group's configuration, not a synonym for 'is a group'. Serial groups will display as parallel in the dashboard.",
+      "relevantFiles": [
+        "scripts/lib/sync-core.mjs:184-204",
+        "scripts/lib/sync-core.mjs:282-293"
+      ],
+      "suggestedFix": "Read group.json into the bundle (the file's already detected at line 192) and derive isParallel from a field on it — e.g. group.json.execution === 'parallel' or group.json.parallel === true (match the actual Ralph group.json schema). Pass the parsed group.json through bundle.groupMetadata so toPipelineState can set isParallel from it; default to undefined when the field is absent so the dashboard knows the parallelism is unknown.",
+      "status": "fixed",
+      "source": "claude",
+      "fixedInIteration": 1,
+      "resolution": "toPipelineState now calls deriveIsParallel(groupJson) which reads concurrency or falls back to phase-sharing heuristic; 4 unit tests cover serial/parallel both ways."
+    },
+    {
+      "id": "F-005",
+      "severity": "Medium",
+      "category": "Completeness",
+      "classification": "fixable",
+      "phase": "code",
+      "sectionRef": "Type model / RalphPipelineState.hasPrdWorthy",
+      "description": "tools/overview-viewer/src/types.ts:69 declares hasPrdWorthy?: boolean as a derived RalphPipelineState field, but toPipelineState() in scripts/lib/sync-core.mjs never emits it. The plan lists it under derived-vs-stored fields (F-013 in plan-review context) and the Ralph job-state schema exposes orchestrator.hasPrdWorthy as a known field. Today the dashboard will never see this signal.",
+      "relevantFiles": [
+        "scripts/lib/sync-core.mjs:281-293",
+        "tools/overview-viewer/src/types.ts:69"
+      ],
+      "suggestedFix": "In toPipelineState, read orchestrator?.hasPrdWorthy and include it in the returned object (it will be pruned by pruneUndefined when absent). One-line addition; matches the existing terminalReason/lastUpdatedAt pattern.",
+      "status": "fixed",
+      "source": "claude",
+      "fixedInIteration": 1,
+      "resolution": "toPipelineState reads orchestrator.hasPrdWorthy from job-state and emits true on the pipeline state entry; omitted otherwise. 2 unit tests."
+    },
+    {
+      "id": "F-006",
+      "severity": "Medium",
+      "category": "ConstraintDivergence",
+      "classification": "fixable",
+      "phase": "code",
+      "sectionRef": "Configuration layer / Schema (with codexu defaults)",
+      "description": "plans/ralph-pipeline-01-foundation.md:203 declares lockFile: 'plans/.overview-ralph-state.lock', but scripts/lib/default-config.mjs:13 and .ralph/overview-config.json:14 both use '.ralph/overview-sync.lock'. The plan is the source-of-truth contract; either the implementation should match the plan or the plan needs to be updated. Plan 02 (watcher) will consume lockFile and will be confused by the divergence.",
+      "relevantFiles": [
+        "scripts/lib/default-config.mjs:13",
+        ".ralph/overview-config.json:14",
+        "plans/ralph-pipeline-01-foundation.md:203"
+      ],
+      "suggestedFix": "Decide which path is correct (the .ralph/ location is arguably cleaner since the lock is a Ralph-adjacent concern, not a published artifact). Then either (a) update default-config.mjs + overview-config.json + schema to 'plans/.overview-ralph-state.lock' to match plan, or (b) update plan.md line 203 + INDEX references to '.ralph/overview-sync.lock' to match implementation. Commit the alignment so Plan 02 has one source of truth.",
+      "status": "fixed",
+      "source": "claude",
+      "fixedInIteration": 1,
+      "resolution": "Job-copy of plan.md updated to .ralph/overview-sync.lock to match implementation; canonical plans/ralph-pipeline-01-foundation.md already correct."
+    },
+    {
+      "id": "F-007",
+      "severity": "High",
+      "source": "copilot",
+      "detectedBy": [
+        "copilot"
+      ],
+      "classification": "fixable",
+      "phase": "code",
+      "category": "Completeness",
+      "sectionRef": null,
+      "description": "`scripts/lib/resolve-config.mjs:76-94` drops unknown config keys when resolving paths. The plan says downstream additive fields should pass through, but `resolveConfigPaths()` reconstructs only Plan 01 keys, so future fields like `outputs.snapshot`, `devServer`, or `filters` disappear.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Copilot duplicate of F-001; addressed by the same fix to resolveConfigPaths.",
+      "relevantFiles": [],
+      "suggestedFix": null
+    },
+    {
+      "id": "F-008",
+      "severity": "High",
+      "source": "copilot",
+      "detectedBy": [
+        "copilot"
+      ],
+      "classification": "fixable",
+      "phase": "code",
+      "category": "Correctness",
+      "sectionRef": null,
+      "description": "`scripts/lib/sync-core.mjs:182-183`, `206-213`, and `243-249` silently ignore malformed `prd.json`, `brainstorm.json`, and review findings files. Only `job-state.json` parse errors become `parse-error`; corrupt PRDs can be misclassified as `planning`, corrupt findings can hide `review-fix`, and corrupt brainstorms vanish entirely.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Copilot duplicate of F-002; addressed by the same fix to readJobLikeBundles + readReviewOpenCount + readBrainstormBundles.",
+      "relevantFiles": [],
+      "suggestedFix": null
+    },
+    {
+      "id": "F-009",
+      "severity": "Medium",
+      "source": "copilot",
+      "detectedBy": [
+        "copilot"
+      ],
+      "classification": "fixable",
+      "phase": "code",
+      "category": "Quality",
+      "sectionRef": null,
+      "description": "`scripts/lib/sync-core.mjs:271-278` / `scripts/lib/derive-ralph-stage.mjs:34-42` map unknown phases to `implementing` but never emit the required stderr warning for schema drift. Re-review note: the warning now fires (see F-003 fix commit 1daab947) but the warning's known-phase set is too narrow — see F-003 regression. Resolution still tracked under F-003.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Copilot duplicate of F-003; warning emission added by 1daab947, but follow-up regression tracked under F-003 (KNOWN_ORCHESTRATOR_PHASES missing implementing phases).",
+      "relevantFiles": [],
+      "suggestedFix": null
+    },
+    {
+      "id": "F-010",
+      "severity": "Medium",
+      "source": "copilot",
+      "detectedBy": [
+        "copilot"
+      ],
+      "classification": "fixable",
+      "phase": "code",
+      "category": "Quality",
+      "sectionRef": null,
+      "description": "`plans/ralph-pipeline-01-foundation.md:221` documents predicate #6 as allowing an absent orchestrator, while the implementation correctly requires `jobState.orchestrator` before returning `implementing`. That stale contract can mislead Plan 02+ implementers.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Updated plans/ralph-pipeline-01-foundation.md predicate #6 wording to match implementation (orchestrator presence required).",
+      "relevantFiles": [],
+      "suggestedFix": null
+    }
+  ]
+}

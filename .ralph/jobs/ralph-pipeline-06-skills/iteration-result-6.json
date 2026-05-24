@@ -1,0 +1,50 @@
+{
+  "storyId": "US-006",
+  "verifiedEvidence": [
+    {
+      "criterion": "plans/ralph-pipeline-INDEX.md \"Source-of-truth modules\" table lists scripts/lib/derive-next-command.mjs and the new .claude/skills/{work-on,triage,blocker-report}/ artifacts.",
+      "evidenceKind": "fallback",
+      "command": "grep -n \"## Deferred Cascade|ralph-pipeline-INDEX.md\" D:/harness-efforts/codexu/.ralph/jobs/ralph-pipeline-06-skills/notepad.md",
+      "result": "FALLBACK: Plan 07 worker was RUNNING, so shared plan docs were not touched; notepad Deferred Cascade lines 18 and 21 record the pending INDEX update for scripts/lib/derive-next-command.mjs and .claude/skills/{work-on,triage,blocker-report}/SKILL.md."
+    },
+    {
+      "criterion": "plans/ralph-pipeline-07-context.md reference to /blocker-report and deferredQuestionsPreview field name matches the actual implementation.",
+      "evidenceKind": "fallback",
+      "command": "grep -n \"ralph-pipeline-07-context.md|deferredQuestionsPreview\" D:/harness-efforts/codexu/.ralph/jobs/ralph-pipeline-06-skills/notepad.md",
+      "result": "FALLBACK: Plan 07 worker was RUNNING; notepad Deferred Cascade line 22 records the pending Plan 07 audit for /blocker-report, ralph.deferredQuestionsCount, and ralph.deferredQuestionsPreview."
+    },
+    {
+      "criterion": "plans/ralph-pipeline-08-crews.md --via-crew error string matches the implemented one.",
+      "evidenceKind": "fallback",
+      "command": "grep -n \"ralph-pipeline-08-crews.md|crews delegation not yet implemented\" D:/harness-efforts/codexu/.ralph/jobs/ralph-pipeline-06-skills/notepad.md",
+      "result": "FALLBACK: Plan 07 worker was RUNNING; notepad Deferred Cascade line 23 records the exact implemented string `crews delegation not yet implemented — wait for Plan 08.` for the later Plan 08 audit."
+    },
+    {
+      "criterion": "plans/ralph-pipeline-09-mcp.md predicate-module path matches.",
+      "evidenceKind": "fallback",
+      "command": "grep -n \"ralph-pipeline-09-mcp.md|deriveNextCommand\" D:/harness-efforts/codexu/.ralph/jobs/ralph-pipeline-06-skills/notepad.md",
+      "result": "FALLBACK: Plan 07 worker was RUNNING; notepad Deferred Cascade line 24 records the pending Plan 09 audit for scripts/lib/derive-next-command.mjs and deriveNextCommand(state, task, options?)."
+    },
+    {
+      "criterion": "If Plan 07 worker is still RUNNING at cascade time, emit ## Deferred Cascade entries to notepad.md instead of touching shared plan docs.",
+      "evidenceKind": "passed",
+      "command": "cat D:/harness-efforts/codexu/.ralph/jobs/ralph-pipeline-07-context/job-state.json | grep -n \"status\\|updatedAt\"; grep -n \"## Deferred Cascade\" D:/harness-efforts/codexu/.ralph/jobs/ralph-pipeline-06-skills/notepad.md; git diff --name-only -- plans/ralph-pipeline-INDEX.md plans/ralph-pipeline-07-context.md plans/ralph-pipeline-08-crews.md plans/ralph-pipeline-09-mcp.md",
+      "result": "Plan 07 job-state showed status RUNNING updatedAt 2026-05-20T08:12:16Z; notepad contains ## Deferred Cascade at line 18; git diff --name-only for the shared plan docs returned no files."
+    },
+    {
+      "criterion": "Cascade lands as a single atomic commit; commit message lists each diff (file:line, change summary).",
+      "evidenceKind": "passed",
+      "command": "git show -s --format=%H%n%B HEAD",
+      "result": "Commit dd907aa is feat: US-006 - Cascade refresh; body lists D:/harness-efforts/codexu/.ralph/jobs/ralph-pipeline-06-skills/notepad.md:18 and explains the deferred cascade entry. No shared plan-doc diffs were committed because Plan 07 was RUNNING."
+    },
+    {
+      "criterion": "Typecheck passes (no .ts changes here; this is doc-only).",
+      "evidenceKind": "passed",
+      "command": "pnpm --filter @codexu/overview-viewer typecheck > .test-output/overview-viewer.typecheck.log 2>&1; tail -30 .test-output/overview-viewer.typecheck.log",
+      "result": "Exit 0; @codexu/overview-viewer ran tsc --noEmit with no errors."
+    }
+  ],
+  "skippedReasons": [],
+  "notTested": [],
+  "iterationSHA": "dd907aa911fd8f844bba771568d7fcae4120b59a"
+}

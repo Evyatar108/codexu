@@ -1,0 +1,36 @@
+I’m verifying the plan against the actual integration points and constraints in the repo.
+
+### Feasibility
+
+1. **[High]** The proposed `emitAgentTreeUpdate(sessionId, delta)` API does not match how routing works today. In `packages/happy-server\sources\app\events\eventRouter.ts:238-253` and `:369-397`, every routed event is keyed by **`userId` plus a recipient filter**; session rooms are named `user:${userId}:session:${sessionId}`. Step 8/9 and AC3 omit `userId`, so the proposed method signature and test shape cannot be implemented as described. The plan should either pass `userId` explicitly or reuse an existing `emitUpdate`/`emitEphemeral`-style signature.
+
+2. **[Medium]** Step 3 points at `packages/happy-cli\src\codex\codexAppServerClient.ts:1701-1773`, but raw `item/*` normalization actually happens in `handleRawNotification()` at `:324-460`. That matters because `collabAgentToolCall` is a raw `item/*` shape, not a legacy `codex/event` notification. Implementing the feature in the location the plan cites would be working against the current parser structure.
+
+### Completeness
+
+1. **[High]** The server-side plan is missing an authorization check on the new inbound socket event. `sessionUpdateHandler()` is attached for **all** socket connections in `packages/happy-server\sources\app\api\socket.ts:226-230`, not just the daemon’s session-scoped CLI socket. If `agent-tree-update` only validates Zod shape and then fans out, any authenticated user-scoped socket could spoof agent-tree deltas into any session room. The handler needs to enforce `connection.connectionType === 'session-scoped'` and `connection.sessionId === data.sid` (or equivalent session-validity checks).
+
+2. **[High]** AC1 is not runnable as written. The repo-root `package.json` has no `build` script, so `pnpm build` from `D:\harness-efforts\codexu` will fail immediately. The acceptance criterion needs to name the real command (`pnpm -r build` or the specific package builds).
+
+3. **[High]** AC4 conflicts with the repo’s own test contract. `packages/happy-cli\agents.md` says the primary Codex acceptance file is `packages/happy-cli\src\codex\codex.integration.test.ts`, must use the **real** agent surface, and “mocked tests do not count as acceptance.” The plan’s fake-`CodexAppServerClient` scenario in that file is fine as a support check, but it is not a valid primary acceptance criterion under the existing rules.
+
+4. **[Medium]** The documentation step is incomplete. `plans\codexu-roadmap.md:5-9` says changes that affect readiness/status must refresh `plans\overview.html` in the same commit. The plan updates the roadmap and recent-deliveries text but does not include `plans\overview.html`.
+
+### Ordering
+
+1. **[Medium]** The docs step should include `plans\overview.html` as part of the same change set when `plans\codexu-roadmap.md` is edited. Leaving it out until later violates the roadmap’s own “markdown authoritative / HTML derivative” workflow and creates a temporary inconsistency the plan currently bakes in.
+
+### Simplicity
+
+1. **[Medium]** The new third Socket.IO frame looks over-engineered for the current server. `packages/happy-server\sources\app\events\eventRouter.ts:248-255` already has a transient, non-replayed channel via `emitEphemeral()`. Reusing the ephemeral path with a new payload type would avoid widening `RoutedSocketEvent.eventName`, avoid extra socket-surface plumbing, and still preserve the “RPC snapshot + transient delta stream” model.
+
+2. **[Low]** Step 7 assumes a typed socket contract on the server in `packages/happy-server\sources\app\api\socket.ts`, but that file currently uses untyped `socket.io` `Server`/`Socket` instances. The real compile-time socket contract here is on the CLI side in `packages/happy-cli\src\api\types.ts`. Adding a server “typed surface” is not aligned with current code structure.
+
+### Acceptance Criteria Quality
+
+1. **[High]** AC3 is too inaccurate to be machine-verifiable: it asserts `emitAgentTreeUpdate(sessionId, delta)` without modeling the required `userId` dimension or clarifying whether both session-scoped and user-scoped listeners should receive the event. The current router semantics require both.
+
+2. **[High]** AC4 is not a valid acceptance signal for this repo because it relies on a fake Codex inside the primary Codex integration file, which `packages/happy-cli\agents.md` explicitly forbids using as the main proof.
+
+3. **[Medium]** AC1 is untestable as written because the named command does not exist at the repo root. An autonomous implementation agent would have to guess the intended validation command.
+

@@ -1,0 +1,29 @@
+### Completeness
+
+[High] `tools/overview-mcp/src/__tests__/read-only-tools.test.ts:43` only has one combined `read-only-tools.test.ts`, not one `.test.ts` per tool as required by the plan and cross-cutting acceptance criteria. This does not break runtime behavior, but it fails an explicit acceptance criterion.
+
+[High] `tools/overview-mcp/src/server.ts:43` registers 10 tools, but there is no manual or automated stdio `tools/list` smoke test proving the server exposes exactly 10 tools over MCP. The plan explicitly requires that discovery check after build.
+
+### Correctness
+
+[High] `tools/overview-mcp/src/tools/get-transcript.ts:24` reads `session.transcriptPath`, but `list_crew_sessions` drops `transcriptPath` from the fresh manifest merge. If `discoverCrewSessions()` returns a partial ref without `transcriptPath` and the live manifest contains it, `get_transcript` still reports `session not found`. `readLiveManifest()` only returns live fields, not `transcriptPath`, so a valid manifest can be ignored.
+
+[High] `tools/overview-mcp/src/tools/read-only.ts:56` does not validate `taskId` with `assertSafeTaskId()` before resolving `tasks/<taskId>/journal.md`. The plan specifically requires validation before any filesystem read. The current code avoids traversal by using the matched snapshot task id, but it returns `unknown task` for unsafe ids instead of the required validation envelope and does not use the shared guard.
+
+[Medium] `tools/overview-mcp/src/snapshot-reader.ts:116` retries a torn read only once after 100 ms. The plan’s mitigation calls for retrying up to 3 times before falling back to cached/null, so longer atomic-write windows can unnecessarily serve stale/null data.
+
+[Medium] `tools/overview-mcp/src/utils/transcript-tail.ts:24` opens the transcript path synchronously without handling `ENOENT` or parse/read errors in the tool wrapper. A missing transcript file for a known session will throw out of the handler instead of returning a `{ ok: false, error }` envelope.
+
+### Quality
+
+[Medium] `tools/overview-mcp/src/types.ts:1` duplicates overview type definitions locally instead of using type-only imports from `tools/overview-viewer/src/types.ts`. This creates schema drift risk on the exact shared contract the MCP server is meant to mirror.
+
+[Medium] `tools/overview-mcp/src/schemas.ts:1` imports `zod/v3` while the package depends on zod v4. This compatibility path may work, but it is inconsistent with the declared dependency and MCP SDK surface, and makes future zod/API behavior harder to reason about.
+
+### Security
+
+No issues found.
+
+### Overall Assessment
+
+Not ready yet. The main implementation is substantial, but there are acceptance misses around testing/discovery and a real `get_transcript` correctness gap when transcript paths are only present in live manifests.

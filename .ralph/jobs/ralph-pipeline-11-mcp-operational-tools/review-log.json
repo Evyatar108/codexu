@@ -1,0 +1,82 @@
+[
+  {
+    "finding_id": "F-001",
+    "duration_s": 104,
+    "status": "fixed",
+    "summary": "Updated the plan to use one canonical Vite ready parser that strips ANSI escapes and matches Local URLs anywhere in the line, with tests for arrow-prefixed and plain banners."
+  },
+  {
+    "finding_id": "F-002",
+    "duration_s": 117,
+    "status": "fixed",
+    "summary": "Added readyPromise handling to the ProcessManager and dev_server.start plan so duplicate starts during the starting window wait for defined url, pid, and startedAt fields."
+  },
+  {
+    "finding_id": "F-003",
+    "duration_s": 92,
+    "status": "fixed",
+    "summary": "Added the missing sync-lock declaration file update to the plan with the readLockStatus export signature."
+  },
+  {
+    "finding_id": "F-004",
+    "duration_s": 243,
+    "status": "fixed",
+    "summary": "Updated the plan so one-shot build and sync children are tracked by ProcessManager while running and are killed by stopAll during MCP shutdown."
+  },
+  {
+    "finding_id": "F-005",
+    "duration_s": 103,
+    "status": "fixed",
+    "summary": "Updated the sync summary plan step to bind startTime and derive matched/unmatched counts from the actual runOneShot state object before logging."
+  },
+  {
+    "finding_id": "F-006",
+    "duration_s": 108,
+    "status": "fixed",
+    "summary": "Added the test helper and ServerContext literal audit/update requirement to the implementation strategy, file list, and US-004 story."
+  },
+  {
+    "finding_id": "F-007",
+    "duration_s": 151,
+    "status": "fixed",
+    "summary": "Added plan requirements for dev_server.start to clean up and remove stale process handles on startup failure, plus tests and acceptance coverage for retry-after-failure."
+  },
+  {
+    "finding_id": "F-008",
+    "duration_s": 208,
+    "status": "fixed",
+    "summary": "Amended the plan to add tree-kill as a v1 dependency, require Windows process-tree termination in ProcessManager.stop(), and verify descendant PIDs in no-orphan acceptance tests."
+  },
+  {
+    "finding_id": "F-009",
+    "duration_s": 87,
+    "status": "fixed",
+    "summary": "Strengthened shutdown acceptance and Verification L to capture descendant and port-5173 listener PIDs, assert captured PIDs are gone, and verify port 5173 is no longer listening after MCP shutdown."
+  },
+  {
+    "finding_id": "F-010",
+    "duration_s": 128,
+    "status": "fixed",
+    "summary": "Amended the plan to spell out the sync-lock refactor helpers, type declarations, and same-module unit tests needed for readLockStatus."
+  },
+  {
+    "finding_id": "F-011",
+    "duration_s": 101,
+    "status": "fixed",
+    "summary": "Amended the plan to make tools/overview-mcp/src/__tests__/sync-now.test.ts the canonical integration test for the sync summary output and removed the ambiguous scripts/__tests__/sync-watch-status fallback."
+  },
+  {
+    "finding_id": "F-012",
+    "duration_s": 84,
+    "status": "fixed",
+    "summary": "Made serial execution explicitly required for mcp-ops-tools and replaced the parallel handoff command with the serial handoff command."
+  },
+  {
+    "phase": "soft-cap",
+    "iteration": 13,
+    "openCount": 7,
+    "severities": {
+      "Medium": 7
+    }
+  }
+]

@@ -1,0 +1,29 @@
+I’m checking the attached file first so I can act on its instructions directly.
+
+I’ve got the plan; next I’m verifying the referenced files and structure so I can review it against the actual repo state.
+
+I found **six material issues** in the plan. I could verify the codex-side files directly; some codexu-side files referenced by the plan were restricted in this environment, so the review focuses on the parts I could confirm against the repo.
+
+### Feasibility
+- [High] **The plan’s cross-repo “link to `codexu/...`” instructions are underspecified and likely produce broken links.** In this repo, `CLAUDE.md` handles codexu references either as an external GitHub repo link or as a local absolute path (`CLAUDE.md:25-31`), not as Markdown links into a sibling repository. If `architecture.md` / `patch-surface.md` literally link to `codexu/docs/...` or `codexu/plans/...`, those links will not resolve when `codex` is used standalone on GitHub. The plan needs to say whether to use GitHub URLs, plain-text local paths, or non-link references.
+
+- [Medium] **The operator-gated push makes the plan non-executable for an autonomous agent.** Steps 7-8 require “wait for explicit go-ahead before push” and an operator choice between PR vs. fast-forward, but the acceptance criteria still require the branch to be pushed. That is a hard stop with no fallback behavior.
+
+### Completeness
+- [High] **The research on `docs/implementation/patch-surface.md` is outdated, so the proposed new “§17” is not grounded in the actual file shape.** The plan says the “current last live section is §16,” but the file continues after `## 16. Plugin \`.mcp.json\` placeholder substitution` (`patch-surface.md:894`) with another numbered section `## 11. TUI input latency...` (`:971`) and then `## Conflict-resolution guide for upstream rebase` (`:1008`) and `## Security Posture` (`:1133`). A plan that says “append §17 at the end” without reconciling that tail content is likely to create inconsistent numbering and structure.
+
+- [Medium] **The plan misses the required table-of-contents update in `docs/implementation/architecture.md`.** That file has an explicit TOC (`architecture.md:13-22`). Adding a new top-level `## Fork strategy` between `## Solution...` and `## Traffic flow` also requires inserting the new TOC entry, but the plan never mentions it.
+
+### Ordering
+- [Medium] **The codex-side docs are told to point at a codexu “Decisions made” record before that record exists.** Step 4 adds a `CLAUDE.md` sentence pointing readers to `codexu/plans/codexu-roadmap.md` §“Decisions made”, but the new roadmap entry is only created in step 9. If the codex commit lands first, it temporarily points to a decision record that has not been written yet.
+
+### Simplicity
+- [High] **`patch-surface.md` is the wrong place for roadmap-owned future work.** Its current contract is “the authoritative reference for every change we carry on top of upstream OpenAI Codex” (`patch-surface.md:22-24`). The proposed §17 explicitly contains “forward-looking placeholders” for patches that have **not** landed yet. That mixes shipped patch inventory with backlog tracking and duplicates the codexu planning docs the plan already cites. Simpler and cleaner: keep future seams in codexu roadmap/planning docs, and only add to `patch-surface.md` when a patch actually lands with its §14/§15 registration.
+
+### Acceptance Criteria Quality
+- [High] **Several criteria are not autonomously verifiable as written.** “Topic branch pushed to `gim-home/codex` (operator-gated)” and the operator choice around PR vs. fast-forward are not pass/fail checks an autonomous agent can satisfy without human input. The plan should explicitly split into “local-doc-edit commit” and “operator-approved publish” phases, with separate completion criteria.
+
+- [Medium] **The cross-link verification criterion is too weak.** “Verified with `grep` for key anchor strings” only proves the text exists; it does not prove that the links are valid, that the target format is correct for a standalone `codex` repo, or that the rendered anchors/URLs resolve.
+
+Overall, the biggest fixes are: **drop the future-work table from `patch-surface.md`, define the exact cross-repo link format, update the architecture TOC, and split operator-gated publishing from the implementable doc-edit work.**
+

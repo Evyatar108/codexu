@@ -1,0 +1,50 @@
+{
+  "storyId": "US-004",
+  "verifiedEvidence": [
+    {
+      "criterion": "One-shot path in scripts/sync-ralph-state.mjs calls acquireLock BEFORE walkRalphState; releases in finally. On contention exits non-zero with the canonical diagnostic message; no partial sidecar write.",
+      "command": "grep -nE 'acquireLock|runOneShot|walkRalphState|writeSidecar|releaseLock|processLabel: .one-shot.' scripts/sync-ralph-state.mjs && pnpm --filter @codexu/overview-viewer test > .test-output/overview-viewer.test.log 2>&1",
+      "result": "PASS: runOneShot acquires sync-lock with processLabel one-shot before walkRalphState and releases in finally; syncRalphStateCli test verified fresh-lock contention exits non-zero with canonical diagnostic and writes no sidecar files. Full suite passed 22 files / 122 tests.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "--watch flag triggers start({ ...args, processLabel: 'standalone' }) and blocks via process.stdin.resume(); SIGINT/SIGTERM cleanly call handle.stop() then exit 0.",
+      "command": "grep -nE -- '--watch|runWatchMode|processLabel: .standalone.|stdin.resume|SIGINT|SIGTERM|handle.stop' scripts/sync-ralph-state.mjs package.json tools/overview-viewer/src/__tests__/syncRalphStateCli.test.ts && pnpm --filter @codexu/overview-viewer test > .test-output/overview-viewer.test.log 2>&1",
+      "result": "PASS: --watch dispatches to runWatchMode; start receives processLabel standalone; stdin.resume is called; SIGINT/SIGTERM handlers call handle.stop() then process.exit(0). Test 'starts watch mode as standalone and stops cleanly on SIGINT' passed in the full suite.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "--debounce-ms <N> clamps to [500, 30000]; invalid input rejected with a clear error.",
+      "command": "grep -nE 'MIN_DEBOUNCE_MS|MAX_DEBOUNCE_MS|parseDebounceMs|must be a number|clamps debounce|invalid debounce' scripts/sync-ralph-state.mjs tools/overview-viewer/src/__tests__/syncRalphStateCli.test.ts && pnpm --filter @codexu/overview-viewer test > .test-output/overview-viewer.test.log 2>&1",
+      "result": "PASS: parseDebounceMs clamps 1 to 500, 45000 to 30000, preserves 2000, and rejects 'nope' with sync-ralph-state: --debounce-ms must be a number: nope; CLI invalid-input test passed.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "pnpm sync-ralph-state:watch script added to root package.json.",
+      "command": "grep -nE 'sync-ralph-state:watch' package.json",
+      "result": "PASS: package.json contains sync-ralph-state:watch = node scripts/sync-ralph-state.mjs --watch.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "chokidar added to root devDependencies; pnpm-lock.yaml committed; pnpm install --frozen-lockfile succeeds from a clean checkout.",
+      "command": "grep -nE 'chokidar' package.json pnpm-lock.yaml | head -40 && pnpm install --frozen-lockfile > .test-output/pnpm-install-frozen.log 2>&1",
+      "result": "PASS: root devDependencies and pnpm-lock importer pin chokidar 5.0.0; pnpm install --frozen-lockfile exited 0 in 87s (Done in 1m 25.5s using pnpm v10.11.0).",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Integration test: one-shot against a running watcher exits with the diagnostic message format.",
+      "command": "pnpm --filter @codexu/overview-viewer test > .test-output/overview-viewer.test.log 2>&1",
+      "result": "PASS: syncRalphStateCli test 'fails one-shot sync before writing sidecars when another fresh lock exists' passed; it asserts stderr contains sync-ralph-state: another sync in progress (pid <N>, process standalone, started <ts>) and no sidecar JSON/JS exists. Full suite passed 22 files / 122 tests.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Typecheck passes.",
+      "command": "pnpm --filter @codexu/overview-viewer typecheck > .test-output/overview-viewer.typecheck.log 2>&1",
+      "result": "PASS: tsc --noEmit completed with exit 0 in 6s.",
+      "evidenceKind": "passed"
+    }
+  ],
+  "skippedReasons": [],
+  "notTested": [],
+  "iterationSHA": "76dc0d2ba15d8c22853573ddc60eb4c1b075545f"
+}

@@ -1,0 +1,54 @@
+{
+  "planFile": "D:/harness-efforts/codexu/.ralph/jobs/ralph-pipeline-03-ui-chip/plan.md",
+  "repoDir": "D:/harness-efforts/codexu/.ralph/jobs/ralph-pipeline-03-ui-chip/worktree",
+  "findings": [
+    {
+      "id": "F-001",
+      "severity": "Medium",
+      "category": "Stale Documentation",
+      "classification": "fixable",
+      "phase": "docs",
+      "source": "docs",
+      "status": "fixed",
+      "description": "tools/overview-viewer/CLAUDE.md layout inventory line 31 still describes vite.config.ts as 'includes the custom overviewDataPlugin (HMR sidecar watcher + serve + singleFile inline)'. The diff registers a sibling overviewRalphStatePlugin() in the plugins[] array (vite.config.ts:135) that serves /overview-ralph-state.js in dev and inlines plans/overview-ralph-state.js into static overview.html. The CLAUDE.md addition at lines 11 and 53 already documents the Ralph sidecar pathway, but the layout-block inventory line still implies overviewDataPlugin is the only custom plugin, which is now factually incomplete for contributors scanning the file map.",
+      "relevantFiles": [
+        "tools/overview-viewer/CLAUDE.md"
+      ],
+      "suggestedFix": "Update line 31 to list both plugins, e.g.: `vite.config.ts            # includes the custom overviewDataPlugin and overviewRalphStatePlugin (HMR sidecar watcher + serve + singleFile inline for overview-data.js and overview-ralph-state.js)`.",
+      "fixedInIteration": 1,
+      "resolution": "Updated CLAUDE.md layout inventory line 31 to list both overviewDataPlugin and overviewRalphStatePlugin; clarified that the Ralph sidecar watcher is owned externally by Plan 02 (commit fe183219)."
+    },
+    {
+      "id": "F-002",
+      "severity": "Medium",
+      "category": "Stale Documentation",
+      "classification": "fixable",
+      "phase": "docs",
+      "source": "docs",
+      "status": "fixed",
+      "description": "tools/overview-viewer/README.md 'How HMR works under the hood' section (lines 74-84) describes 'The custom overviewDataPlugin in vite.config.ts wires three things' (serve middleware at /overview-data.js, watcher on plans/overview-data.js emitting overview-data:update, transformIndexHtml inlining the sidecar). The diff adds a parallel overviewRalphStatePlugin() that serves /overview-ralph-state.js, relies on Plan 02 (or future watcher) to emit overview-ralph-state:update, and inlines plans/overview-ralph-state.js into the static build via its own transformIndexHtml hook. The README's HMR-mechanism narrative no longer covers the full set of custom plugins in vite.config.ts and gives contributors an incomplete picture of the dev-server + static-build wiring shipped on this branch.",
+      "relevantFiles": [
+        "tools/overview-viewer/README.md"
+      ],
+      "suggestedFix": "Extend the 'How HMR works under the hood' section to document the sibling overviewRalphStatePlugin alongside overviewDataPlugin: same three responsibilities for plans/overview-ralph-state.js (serve middleware at /overview-ralph-state.js, transformIndexHtml inlining for static build), and note that the overview-ralph-state:update HMR event is emitted by an external watcher (Plan 02) rather than owned by overviewRalphStatePlugin itself, mirroring the App.tsx subscription pattern.",
+      "fixedInIteration": 1,
+      "resolution": "Extended README How-HMR-works section to document overviewRalphStatePlugin (serve + inline only) sibling to overviewDataPlugin; noted overview-ralph-state:update is emitted by Plan 02 watcher, not by this plugin."
+    },
+    {
+      "id": "F-003",
+      "severity": "Medium",
+      "category": "Stale Documentation",
+      "classification": "fixable",
+      "phase": "docs",
+      "source": "docs",
+      "status": "fixed",
+      "description": "tools/overview-viewer/CLAUDE.md layout-block App.tsx inventory line (line 19) still reads `App.tsx               # top-level composition; reads window.OVERVIEW_DATA + owns the inline reloadOverviewData() HMR handler`. The diff (src/App.tsx) adds a second sidecar pathway: App.tsx now also imports `getOverviewRalphState` from `./types`, holds `ralphState` via `useState<OverviewRalphState>(getOverviewRalphState)`, defines an inline `reloadRalphState` callback, and registers a second `useEffect` subscribing to `import.meta.hot.on('overview-ralph-state:update', reloadRalphState)`. The inventory line still only mentions overview-data state and the single HMR handler, which is the same staleness shape F-001 fixed for the vite.config.ts inventory line but was missed on the sibling App.tsx line. Contributors scanning the file map will not see that App.tsx now owns two HMR handlers (the Ralph state handler is the load-bearing surface for Plan 02's overview-ralph-state:update event).",
+      "relevantFiles": [
+        "tools/overview-viewer/CLAUDE.md"
+      ],
+      "suggestedFix": "Update line 19 to list both globals and both HMR handlers, e.g.: `App.tsx               # top-level composition; reads window.OVERVIEW_DATA + window.OVERVIEW_RALPH_STATE and owns the inline reloadOverviewData() + reloadRalphState() HMR handlers`. Keep the rest of the inventory line format consistent with the F-001 fix style (concise, single line, no narrative).",
+      "fixedInIteration": 2,
+      "resolution": "Updated CLAUDE.md App.tsx inventory line to list window.OVERVIEW_DATA + window.OVERVIEW_RALPH_STATE and both reloadOverviewData() + reloadRalphState() HMR handlers."
+    }
+  ]
+}

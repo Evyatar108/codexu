@@ -1,0 +1,160 @@
+diff --git a/docs/implementation/patch-surface.md b/docs/implementation/patch-surface.md
+index 7519031..0d8a04e 100644
+--- a/docs/implementation/patch-surface.md
++++ b/docs/implementation/patch-surface.md
+@@ -747,6 +747,7 @@ workspace unless this decision is explicitly reopened after measuring real pull
+ | 18 | `start_streaming_output()` sets `output_drained_flag` then calls `notify_waiters()`, not `notify_one()`. | overlay-test | `codex-rs-overlay/codex-invariant-tests/tests/output_drained.rs::invariant_18_output_drained_flag_precedes_notify_waiters` with `tokio::time::timeout(Duration::from_secs(2), ...)` via `cargo test -p codex-invariant-tests` | Change `notify_waiters()` to `notify_one()` in `core/src/unified_exec/async_watcher.rs`; run `cargo test -p codex-invariant-tests --test output_drained` and observe `both waiters must wake under notify_waiters within 2s` after a clean `Err(Elapsed)`-style timeout; revert. |
+ | 19 | Launcher must not force `features.unified_exec=false` for Cygwin/MSYS2 shells. | grep | `scripts/audit_invariants.sh` include-scoped launcher check | Reintroduce `features.unified_exec=false` shell guard; run `bash scripts/audit_invariants.sh`; revert. |
+ | 20 | Plugin-bundled `.mcp.json` substitutes `${CLAUDE_PLUGIN_ROOT}` / `${CODEX_PLUGIN_ROOT}` in `command`, `args`, `cwd`, and `env` values (not in `env_vars`). | in-subtree-test | `core-plugins/src/loader_tests.rs::normalize_substitutes_*` (8 tests) via `cargo test -p codex-core-plugins normalize_` | Delete the `apply_plugin_root_substitution` call in `core-plugins/src/loader.rs::normalize_plugin_mcp_server_value`; run the focused tests; revert. |
++| 21 | Built-in `explorer.toml` parses and supplies non-blank `developer_instructions` with explicit empty `project_doc_fallback_filenames`. | in-subtree-test | `core/src/agent/role_tests.rs::built_in_explorer_role_parses_and_has_non_blank_developer_instructions` via `cargo test -p codex-core built_in_explorer_role_parses` | Blank out `developer_instructions` in `core/src/agent/builtins/explorer.toml` or remove the `project_doc_fallback_filenames = []` line; run the focused test; observe failure; revert. |
+ 
+ CI mapping: `invariant-check.yml` must run `bash scripts/audit_invariants.sh` from the codex repo
+ root and `cargo test --workspace` from `external/repos/codex-patched/codex-rs` with no `--lib`, on
+@@ -968,7 +969,44 @@ relocating the helper call to the new top of the pipeline.
+ 
+ ---
+ 
+-## 17. Upcoming roadmap-owned seams
++## 17. Built-in agent role: `explorer` prompt
++
++The built-in `explorer` role already had an upstream registry seam and an empty embedded TOML stub.
++This fork fills that stub with a paraphrased read-only exploration prompt, sets low reasoning effort,
++and explicitly clears fallback project-doc filenames so the role stays lightweight and focused. The
++role wiring in `role.rs` remains a read-only reference; the patch surface is limited to the TOML body
++and its invariant coverage.
++
++| File | Role |
++|------|------|
++| `core/src/agent/builtins/explorer.toml` | Fork-filled built-in role config. Carries provenance on line 1, a `# SANDBOX PATCH:` marker on line 2, `model_reasoning_effort = "low"`, substantial `developer_instructions`, and `project_doc_fallback_filenames = []`. |
++| `core/src/agent/role_tests.rs` | Guards the changed role behavior and embedded TOML invariants. The changed and new test functions carry `// SANDBOX PATCH:` markers. |
++| `core/src/agent/role.rs::configs` | Read-only reference: `explorer` remains registered with `config_file: Some("explorer.toml")`. No edit. |
++| `core/src/agent/role.rs::config_file_contents` | Read-only reference: embeds `builtins/explorer.toml` through the existing `include_str!` match arm. No edit. |
++
++Important invariants:
++
++- `core/src/agent/builtins/explorer.toml` must parse as `ConfigToml`; `include_str!` embeds bytes but
++  does not validate TOML syntax at compile time.
++- `developer_instructions` must stay non-blank after trim and at least 200 characters, so the built-in
++  role cannot silently regress to an empty or placeholder prompt.
++- `project_doc_fallback_filenames = []` must remain an explicit top-level TOML array that
++  deserializes to `project_doc_fallback_filenames == Some(vec![])`. Do not replace this with a
++  typed `ConfigToml` default check; the raw TOML key is the invariant.
++- Applying the role must preserve the caller's model while setting `model_reasoning_effort` to `Low`
++  and adding exactly one session-flags layer.
++- Preserve the `# SANDBOX PATCH:` marker in `explorer.toml` and the `// SANDBOX PATCH:` markers on the
++  changed/new test function lines.
++
++Rebase guidance: if upstream leaves `explorer.toml` empty, keep this fork-filled body and its markers.
++If upstream adds its own `explorer.toml` content, merge upstream's functional additions only after a
++fresh license/paraphrase review of the combined prompt body, then re-run the focused role tests. If
++upstream moves the built-in role registry, re-locate the `explorer.toml` include seam before changing
++tests; do not add a second registry path.
++
++---
++
++## 18. Upcoming roadmap-owned seams
+ 
+ *Forward-looking placeholders, NOT shipped patches.* None of the entries below has a §14 invariant
+ row or a §15 rebase-replant recipe yet — those land in the same PR that implements the patch.
+diff --git a/external/repos/codex-patched/codex-rs/core/src/agent/builtins/explorer.toml b/external/repos/codex-patched/codex-rs/core/src/agent/builtins/explorer.toml
+index e69de29..a551ce8 100644
+--- a/external/repos/codex-patched/codex-rs/core/src/agent/builtins/explorer.toml
++++ b/external/repos/codex-patched/codex-rs/core/src/agent/builtins/explorer.toml
+@@ -0,0 +1,24 @@
++# Inspired by the design of Claude Code's built-in Explore subagent; prompt prose paraphrased for the codex agent.
++# SANDBOX PATCH: fork-only Explore prompt body for the built-in explorer role; upstream stub is empty.
++model_reasoning_effort = "low"
++developer_instructions = """You are the codex agent's explorer role.
++Your work is fast, read-only investigation of an existing project. Search, inspect, and explain what is already present; do not make changes.
++
++Read-only contract:
++
++1. Treat every request as analysis only. You must not create, edit, delete, move, copy, rename, stage, commit, install, or otherwise mutate files, repositories, packages, processes, or system state.
++2. Do not write scratch files, temporary files, redirected output, heredocs, generated reports, caches, or notes anywhere, including temporary directories.
++3. Use shell commands only when they are observational, such as listing directories, checking git status or history, showing diffs, finding paths, searching text, or printing file contents.
++4. If a command or tool could modify state, skip it and use a read-only alternative.
++
++Effective exploration:
++
++- Start broad enough to map the relevant files, then narrow quickly to the code, docs, tests, or configuration that answer the caller's question.
++- Prefer fast path discovery and regex search before opening large files.
++- Read the exact files needed to support your conclusion, and cite concrete paths or symbols in the final response.
++- Adjust depth to the caller's requested thoroughness; avoid exhaustive crawling when a targeted answer is enough.
++- Run independent searches or reads in parallel when that will reduce latency.
++
++Report findings directly in the conversation. Include the evidence that matters, call out uncertainty, and do not attempt to save a report to disk.
++"""
++project_doc_fallback_filenames = []
+diff --git a/external/repos/codex-patched/codex-rs/core/src/agent/role_tests.rs b/external/repos/codex-patched/codex-rs/core/src/agent/role_tests.rs
+index 1c99fb5..cd9a092 100644
+--- a/external/repos/codex-patched/codex-rs/core/src/agent/role_tests.rs
++++ b/external/repos/codex-patched/codex-rs/core/src/agent/role_tests.rs
+@@ -89,19 +89,28 @@ async fn apply_explorer_role_sets_model_and_adds_session_flags_layer() {
+ }
+ 
+ #[tokio::test]
+-async fn apply_empty_explorer_role_preserves_current_model_and_reasoning_effort() {
+-    let (_home, mut config) = test_config_with_cli_overrides(Vec::new()).await;
++async fn apply_explorer_role_preserves_current_model_and_sets_reasoning_effort_low() { // SANDBOX PATCH: explorer built-in now supplies low reasoning while leaving caller model intact.
++    let (_home, mut config) = test_config_with_cli_overrides(vec![
++        (
++            "model".to_string(),
++            TomlValue::String("gpt-5.4-mini".to_string()),
++        ),
++        (
++            "model_reasoning_effort".to_string(),
++            TomlValue::String("high".to_string()),
++        ),
++    ])
++    .await;
+     let before_layers = session_flags_layer_count(&config);
+-    config.model = Some("gpt-5.4-mini".to_string());
+-    config.model_reasoning_effort = Some(ReasoningEffort::High);
+ 
+     apply_role_to_config(&mut config, Some("explorer"))
+         .await
+         .expect("explorer role should apply");
+ 
+     assert_eq!(config.model.as_deref(), Some("gpt-5.4-mini"));
+-    assert_eq!(config.model_reasoning_effort, Some(ReasoningEffort::High));
+-    assert_eq!(session_flags_layer_count(&config), before_layers);
++    assert_eq!(config.model_reasoning_effort, Some(ReasoningEffort::Low));
++    let count_after = session_flags_layer_count(&config);
++    assert_eq!(count_after - before_layers, 1);
+ }
+ 
+ #[tokio::test]
+@@ -773,3 +782,33 @@ fn built_in_config_file_contents_resolves_explorer_only() {
+         None
+     );
+ }
++
++#[test]
++fn built_in_explorer_role_parses_and_has_non_blank_developer_instructions() { // SANDBOX PATCH: guard the fork-filled explorer.toml built-in role invariants.
++    let contents = built_in::config_file_contents(Path::new("explorer.toml"))
++        .expect("explorer.toml should be embedded as a built-in role config");
++
++    let parsed: ConfigToml =
++        toml::from_str(contents).expect("explorer.toml should parse as ConfigToml");
++    let developer_instructions = parsed
++        .developer_instructions
++        .as_deref()
++        .expect("explorer.toml should define developer_instructions");
++    assert!(
++        developer_instructions.trim().len() >= 200,
++        "developer_instructions should be substantial"
++    );
++
++    let raw: TomlValue = toml::from_str(contents).expect("explorer.toml should parse as TOML");
++    let table = raw
++        .as_table()
++        .expect("explorer.toml should parse to a top-level table");
++    let fallback_filenames = table
++        .get("project_doc_fallback_filenames")
++        .and_then(TomlValue::as_array)
++        .expect("explorer.toml should explicitly clear project_doc_fallback_filenames");
++    assert!(
++        fallback_filenames.is_empty(),
++        "project_doc_fallback_filenames should be an explicit empty array"
++    );
++}

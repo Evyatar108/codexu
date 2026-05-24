@@ -1,0 +1,56 @@
+{
+  "storyId": "US-007",
+  "verifiedEvidence": [
+    {
+      "criterion": "scripts/sync-ralph-state.mjs --update-crew-session <taskId> <stage> --json <ref-json> loads config.outputs.sidecarJson (Ralph sidecar shape: plans/overview-ralph-state.json), upserts into byTaskId[id].crewSessions[stage] with _isExplicit: true, calls writeSidecar().",
+      "evidenceKind": "passed",
+      "command": "nl -ba scripts/sync-ralph-state.mjs | sed -n '70,92p'",
+      "result": "PASS: runUpdateCrewSession validates stage/ref JSON, acquires the shared lock, reads the sidecar, upserts into byTaskId[taskId].crewSessions[stage] with _isExplicit: true, refreshes generatedAt, and calls writeSidecar."
+    },
+    {
+      "criterion": "scripts/sync-ralph-state.mjs --finalize-crew-session <taskId> <stage> --member <name> --outcome <s> [--summary <text>] loads the sidecar, finds the matching entry by (crewName, memberName) (or sessionId if provided), updates endedAt / outcome / summary in place, calls writeSidecar().",
+      "evidenceKind": "passed",
+      "command": "nl -ba scripts/sync-ralph-state.mjs | sed -n '95,125p'",
+      "result": "PASS: runFinalizeCrewSession loads the sidecar, matches the stage bucket by member plus optional crew/sessionId, updates endedAt/outcome/summary in place, preserves _isExplicit, and calls writeSidecar."
+    },
+    {
+      "criterion": "Both subcommands validate <stage> against the canonical RalphStage union and --outcome against ('completed'|'handed-off'|'stopped'|'failed'). Invalid input exits non-zero with a clear diagnostic.",
+      "evidenceKind": "passed",
+      "command": "nl -ba scripts/sync-ralph-state.mjs | sed -n '360,370p' && nl -ba scripts/sync-ralph-state.test.mjs | sed -n '190,214p'",
+      "result": "PASS: validateStage rejects unknown Ralph stages and validateOutcome rejects outcomes outside completed/handed-off/stopped/failed; Vitest asserts clear invalid stage/outcome diagnostics."
+    },
+    {
+      "criterion": "Both subcommands acquire sync-lock.mjs; on contention with a running watcher, fail fast with the canonical `another sync in progress (pid <N>, process <label>, started <ts>)` diagnostic — no partial write.",
+      "evidenceKind": "passed",
+      "command": "nl -ba scripts/sync-ralph-state.mjs | sed -n '70,125p' && nl -ba scripts/sync-ralph-state.test.mjs | sed -n '169,188p'",
+      "result": "PASS: both helpers acquire sync-lock before reading/mutating sidecar state; the watcher-held-lock test asserts the canonical diagnostic and verifies the sidecar remains unchanged."
+    },
+    {
+      "criterion": "Upsert identity matches the merge contract: sessionId when present, fallback (crewName, memberName) when partial.",
+      "evidenceKind": "passed",
+      "command": "nl -ba scripts/sync-ralph-state.mjs | sed -n '387,392p' && nl -ba scripts/sync-ralph-state.test.mjs | sed -n '116,145p'",
+      "result": "PASS: sameCrewSession compares sessionId first, then crewName/memberName; the serialized update test writes a partial explicit row then upgrades it with sessionId/transcriptPath without creating a duplicate."
+    },
+    {
+      "criterion": "Vitest covers: serialized invocations succeed; concurrent invocation against a watcher-held lock fails fast (no partial write); finalize updates an existing entry in place; invalid stage rejected; invalid outcome rejected.",
+      "evidenceKind": "passed",
+      "command": "grep -n 'sync-ralph-state.test.mjs' .test-output/root.test.log | tail -5 && grep -E 'Test Files|Tests' .test-output/root.test.log",
+      "result": "PASS: scripts/sync-ralph-state.test.mjs reports 5 tests passed, covering serialized update/finalize success, watcher-held lock failure with no mutation, finalize in-place update, invalid stage, invalid outcome, and subcommand parsing; root Vitest reports 21 files passed / 145 tests passed."
+    },
+    {
+      "criterion": "Typecheck passes.",
+      "evidenceKind": "passed",
+      "command": "pnpm --filter @codexu/overview-viewer typecheck",
+      "result": "PASS: tsc --noEmit completed with exit 0 in 16s; output saved to .test-output/overview-viewer.typecheck.log."
+    },
+    {
+      "criterion": "Tests pass.",
+      "evidenceKind": "passed",
+      "command": "pnpm test",
+      "result": "PASS: 21 test files passed, 145 tests passed; output saved to .test-output/root.test.log."
+    }
+  ],
+  "skippedReasons": [],
+  "notTested": [],
+  "iterationSHA": "6f3507bfe9d7d3b9353d2940916f91529491ca1c"
+}

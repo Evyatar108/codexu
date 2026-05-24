@@ -1,0 +1,38 @@
+{
+  "storyId": "US-005",
+  "verifiedEvidence": [
+    {
+      "criterion": "sync-core helper wiring and generated snapshot fields",
+      "command": "pnpm exec vitest run scripts/lib/sync-core.test.mjs",
+      "result": "PASS: 1 test file passed, 23 tests passed; Plan 07 fixture writes overview-snapshot.json and verifies notepad fields, branchName, prUrl, shipped-only mergeCommit, and missing-branch tolerance.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "watcher and one-shot journal append coverage",
+      "command": "pnpm exec vitest run scripts/lib/watch-ralph-state.test.mjs scripts/sync-ralph-state.test.mjs",
+      "result": "PASS: 2 test files passed, 4 tests passed; appendJournalEntry is mocked and asserted once per stage-changed activity event with expected args.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "existing script regressions remain green",
+      "command": "pnpm exec vitest run scripts/lib/sync-core.test.mjs scripts/lib/emit-activity.test.mjs scripts/lib/plan05-acceptance.test.mjs scripts/lib/emit-snapshot.test.mjs",
+      "result": "PASS: 4 test files passed, 37 tests passed.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "overview typecheck passes",
+      "command": "pnpm --filter @codexu/overview-viewer typecheck",
+      "result": "PASS: tsc --noEmit completed with exit=0.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "full required test commands pass",
+      "command": "pnpm test && pnpm --filter @codexu/overview-viewer test",
+      "result": "PASS: pnpm test reported 16 files / 93 tests passed; overview-viewer test reported 29 files / 159 tests passed.",
+      "evidenceKind": "passed"
+    }
+  ],
+  "skippedReasons": [],
+  "notTested": [],
+  "iterationSHA": "38d4a7a72d669cbcedbe94d7381f588f83fc3407"
+}

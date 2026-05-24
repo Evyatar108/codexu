@@ -1,0 +1,16 @@
+{
+  "id": "F-007",
+  "severity": "Low",
+  "source": "claude",
+  "category": "Quality",
+  "classification": "fixable",
+  "phase": "code",
+  "sectionRef": "Approach > Architecture > engine step 4",
+  "description": "init-consumer.mjs PACKAGE_SCRIPTS names (overview, overview:build, sync-ralph-state, sync-ralph-state:watch) match the legacy codexu layout and the installation.md Step 5 documentation, but diverge from the architecture plan text which named them overview:sync and overview:dev. Since both the implementation and the customer-facing doc agree, this is a plan-vs-implementation naming drift rather than a contract break; recommend reconciling the plan or noting the divergence in CHANGELOG.",
+  "relevantFiles": [
+    "plugins/ralph-overview/scripts/init-consumer.mjs:8-13",
+    "plugins/ralph-overview/docs/installation.md:101-108"
+  ],
+  "suggestedFix": "If preserving legacy parity is the intent (likely), update plan.md Approach > Architecture step 4 to name the actual scripts. Otherwise rename to overview:sync / overview:dev in PACKAGE_SCRIPTS and update installation.md.",
+  "status": "open"
+}

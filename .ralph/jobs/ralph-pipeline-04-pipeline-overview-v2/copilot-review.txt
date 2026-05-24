@@ -1,0 +1,28 @@
+I’ll inspect the provided temp path to determine the requested work.
+
+The temp file is large, so I’ll read the beginning and scan for task markers rather than dumping it all.
+
+I’ve identified this as a code review task; next I’ll extract the changed-file diff and inspect relevant repository files where needed.
+
+I’ll focus on defects that affect the plan’s acceptance criteria, especially artifact freshness, dependency graph shape, and UI filtering behavior.
+
+### Completeness
+
+No issues found.
+
+### Correctness
+
+[Medium] `scripts/lib/score-recommendations.mjs:31-43` scores every `byTaskId` entry, including `stage === 'shipped'`. Because dependency/freshness/priority still contribute, a fresh shipped task can score around `0.55+` and appear above real pending work, which contradicts the plan’s “next task to work on” recommendation list. Filter shipped tasks out, or otherwise make them ineligible for recommendations.
+
+### Quality
+
+No issues found.
+
+### Security
+
+No issues found.
+
+### Overall Assessment
+
+Needs one correctness fix before use: the generated recommendations can rank already-shipped work as actionable next tasks. The rest of the implementation appears aligned with the plan’s artifact freshness, config, graph, and UI-filter requirements.
+

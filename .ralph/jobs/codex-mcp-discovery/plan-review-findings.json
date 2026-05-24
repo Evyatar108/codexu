@@ -1,0 +1,130 @@
+{
+  "planFile": "D:/harness-efforts/codexu/.ralph/jobs/.staging/20260513-113812/draft-plan.md",
+  "repoDir": "D:/harness-efforts/codexu",
+  "generatedAt": "2026-05-13",
+  "round": 2,
+  "resolutionMode": "orchestrator-direct-amend (single round)",
+  "findings": [
+    {
+      "id": "F-R2-001",
+      "severity": "High",
+      "category": "Feasibility",
+      "source": "consensus",
+      "reviewers": ["codex", "copilot"],
+      "section": "Approach > Implementation Strategy step 1 (Zod schema)",
+      "description": "Proposed `z.union([Stdio, Http]).passthrough()` accepts `{ command, url }` simultaneously because each branch allows extras via `.passthrough()`. The codex Rust `RawMcpServerConfig` (`codex/external/repos/codex-patched/codex-rs/config/src/mcp_types.rs:274-325`) rejects cross-transport fields. Loader must enforce XOR via `.superRefine()` or explicit branch refinement, and a test must cover ambiguous-entry rejection.",
+      "status": "fixed",
+      "resolution": "Schema now adds `.superRefine()` enforcing command-XOR-url; helper unit test covers `{ command, url }` ambiguity (logged + skipped); plan documents the rejection contract."
+    },
+    {
+      "id": "F-R2-002",
+      "severity": "Medium",
+      "category": "Completeness",
+      "source": "copilot",
+      "reviewers": ["copilot"],
+      "section": "Implementation Strategy step 4 (docs flips)",
+      "description": "`plans/overview.html` update is under-specified. Per `.agents/skills/roadmap-and-overview/SKILL.md:81-164` (procedure B), shipping a task requires: flip cmd badge class `b-inflight` → `b-closed` and emoji `🟡 in progress` → `✅ shipped`; add a `runs[]` entry with commit SHA + ISO timestamp + outcome; bump `lastTouched[<taskId>]`; bump `generatedAt` and `generatedFromCommit`. Embedded JSON at `plans/overview.html:1900-1908,1944-1952`. Plan currently only says 'flip the row'.",
+      "status": "fixed",
+      "resolution": "Implementation Strategy step 4 (overview.html) now lists the six SKILL.md-mandated edits explicitly with file:line references."
+    },
+    {
+      "id": "F-R2-003",
+      "severity": "Medium",
+      "category": "Completeness",
+      "source": "codex",
+      "reviewers": ["codex"],
+      "section": "Implementation Strategy step 4 (docs flips)",
+      "description": "Docs-flip scope misses `plans/codex-agent-parity-audit.md:63-82,341`, which still documents the .mcp.json gap as an active High item and recommends shipping mcp-discovery first. Without this update the audit doc goes stale.",
+      "status": "fixed",
+      "resolution": "Added `plans/codex-agent-parity-audit.md` to the Files-to-Modify list with explicit edit instructions for the L63-82 and L341 references."
+    },
+    {
+      "id": "F-R2-004",
+      "severity": "Medium",
+      "category": "Ordering",
+      "source": "copilot",
+      "reviewers": ["copilot"],
+      "section": "Acceptance Criterion 9 (single commit)",
+      "description": "`runs[].commits` and `generatedFromCommit` in `plans/overview.html` require the landing commit SHA, but the SHA does not exist until the commit lands. Plan currently mandates one atomic commit without explaining how the SHA is captured. Either accept a follow-up amend (`git commit --amend` once with the SHA, still one commit at HEAD) or accept a sentinel/placeholder.",
+      "status": "fixed",
+      "resolution": "Acceptance Criteria 9 now allows a single `--amend` after the initial commit to fold the resolved SHA into `overview.html` runs[].commits and generatedFromCommit. End-state is still a single commit at HEAD; the amend is explicit and documented. Test+typecheck assertions are run BEFORE the initial commit so the amend is metadata-only."
+    },
+    {
+      "id": "F-R2-005",
+      "severity": "Medium",
+      "category": "Criteria Quality",
+      "source": "codex",
+      "reviewers": ["codex"],
+      "section": "Helper unit tests (Acceptance Criterion 5)",
+      "description": "Acceptance only covers passthrough of HTTP extras on a valid HTTP entry. Should also cover that ambiguous entries (`{ command, url }`) and transport-incompatible-extra entries are skipped with a warning.",
+      "status": "fixed",
+      "resolution": "Helper unit tests now include: `{ command, url }` ambiguous entry rejected with warning; transport-incompatible-extras (stdio-only `args` on http entry) handled per superRefine policy (explicitly documented)."
+    },
+    {
+      "id": "F-R2-006",
+      "severity": "Low",
+      "category": "Criteria Quality",
+      "source": "codex",
+      "reviewers": ["codex"],
+      "section": "Tests > runCodex.projectMcp.test.ts test (d)",
+      "description": "Existing `runCodex.fork.test.ts` mocks `./resumeExistingThread` — copying that harness would only prove the wrapper received `mcpServers`, not that `resumeExistingThread.ts:20-33` forwarded them to `client.resumeThread`. Test (d) should NOT mock `./resumeExistingThread`; assert against `client.resumeThread` mock directly.",
+      "status": "fixed",
+      "resolution": "Tests section now explicitly states test (d) must NOT mock `./resumeExistingThread` — uses the real forwarder and asserts on `client.resumeThread` mock call args."
+    },
+    {
+      "id": "F-R2-007",
+      "severity": "Low",
+      "category": "Criteria Quality",
+      "source": "codex",
+      "reviewers": ["codex"],
+      "section": "Acceptance Criterion 3",
+      "description": "'broken-JSON or invalid-shape' for the malformed start-path test conflates two distinct branches. Pick one concrete fixture (broken JSON) for the runCodex integration test to avoid implementer ambiguity; helper tests already cover both.",
+      "status": "fixed",
+      "resolution": "Acceptance Criterion 3 now specifies broken-JSON fixture for the runCodex integration test; helper unit tests still cover both branches separately."
+    },
+    {
+      "id": "F-R2-008",
+      "severity": "Low",
+      "category": "Criteria Quality",
+      "source": "copilot",
+      "reviewers": ["copilot"],
+      "section": "Acceptance Criterion 6 (test command)",
+      "description": "`tee /tmp/codexu-mcp-disc.log` is Bash-shaped; on Windows-first workflow this needs Git-Bash or a Windows-safe path. The original feature request specified this exact command so it stays for traceability, but plan should note the implementer may substitute a repo-relative log path if the shell requires it.",
+      "status": "fixed",
+      "resolution": "Acceptance Criterion 6 keeps the original command verbatim per the feature request, but adds a parenthetical noting that the implementer may substitute a repo-relative log path on shells where /tmp isn't writable."
+    },
+    {
+      "id": "F-R2-009",
+      "severity": "Info",
+      "category": "Feasibility",
+      "source": "claude-verification",
+      "reviewers": ["claude-verification-agent"],
+      "section": "Open Questions > Roadmap delivered convention",
+      "description": "Verification confirmed roadmap convention is `- ✅ ` prefix (no strikethrough, no date suffix). Open Question can be resolved.",
+      "status": "fixed",
+      "resolution": "Open Question replaced with the resolved convention; Implementation Strategy step 4 now explicitly says 'prefix with `- ✅ ` and keep existing bullet text'."
+    },
+    {
+      "id": "F-R2-010",
+      "severity": "Info",
+      "category": "Feasibility",
+      "source": "claude-verification",
+      "reviewers": ["claude-verification-agent"],
+      "section": "Open Questions > CLAUDE.md placement",
+      "description": "Verification confirmed `packages/happy-cli/CLAUDE.md` has NO existing 'Delivered' subsection. Cleanest action is to delete the open-gap bullet at L236-258 entirely (or replace with a one-line inline annotation referencing the roadmap).",
+      "status": "fixed",
+      "resolution": "Open Question resolved; Implementation Strategy step 4 now says: delete the open-gap bullet (or replace with a one-line `### Codex Agent Feature Parity` note pointing at the closed roadmap bullet)."
+    },
+    {
+      "id": "F-R2-011",
+      "severity": "Info",
+      "category": "Feasibility",
+      "source": "claude-verification",
+      "reviewers": ["claude-verification-agent"],
+      "section": "Technical Constraints > rememberThreadDefaults",
+      "description": "Verification confirmed that `codexAppServerClient.ts` `resumeThread` already uses `opts?.mcpServers ?? defaults.mcpServers` (L1172) so persisted snapshot covers reconnect without additional plumbing. Plan's assumption is correct and worth stating explicitly.",
+      "status": "fixed",
+      "resolution": "Technical Constraints now explicitly cites the L1172 fallback line so future maintainers see why no reconnect-path edit is needed."
+    }
+  ]
+}

@@ -1,0 +1,90 @@
+{
+  "storyId": "US-001",
+  "verifiedEvidence": [
+    {
+      "criterion": "Each details.cmd body is wrapped in <div class=\"cmd-body\"> (or the existing wrapper if present)",
+      "command": "grep -RInE \"cmd-body|cmd-body-inner\" tools/overview-viewer/src/components/TaskCommand.tsx tools/overview-viewer/src/__tests__/commandList.test.tsx",
+      "result": "PASS: TaskCommand renders <div class=\"cmd-body\"><div class=\"cmd-body-inner\"> for every command row; commandList SSR test asserts one wrapper per task.",
+      "evidenceKind": "inspection"
+    },
+    {
+      "criterion": "CSS rule on .cmd-body uses grid-template-rows: 0fr → 1fr driven by interpolate-size: allow-keywords with transition: grid-template-rows 0.3s ease-out",
+      "command": "grep -n \"@supports (interpolate-size: allow-keywords)\" -A14 tools/overview-viewer/src/styles.css",
+      "result": "PASS: styles.css lines 927-934 define .cmd-body grid-template-rows: 0fr, interpolate-size: allow-keywords, transition: grid-template-rows 0.3s ease-out, and .cmd[open] > .cmd-body grid-template-rows: 1fr.",
+      "evidenceKind": "inspection"
+    },
+    {
+      "criterion": "Animation degrades to instant snap on browsers without interpolate-size support (no JS-driven fallback required)",
+      "command": "grep -n \"@supports (interpolate-size: allow-keywords)\" -A14 tools/overview-viewer/src/styles.css",
+      "result": "PASS: the transition is inside @supports (interpolate-size: allow-keywords); unsupported browsers keep native <details> snap behavior with no JS fallback.",
+      "evidenceKind": "inspection"
+    },
+    {
+      "criterion": "Under prefers-reduced-motion the transition is removed (verified by computed styles with the media query active)",
+      "command": "grep -n \"@media (prefers-reduced-motion: reduce)\" -A5 tools/overview-viewer/src/styles.css",
+      "result": "SKIPPED: browser computed-style tooling unavailable; static CSS verifies the global reduced-motion guard sets transition: none !important for all elements, including .cmd-body.",
+      "evidenceKind": "skipped"
+    },
+    {
+      "criterion": "Typecheck passes (pnpm --filter @codexu/overview-viewer typecheck)",
+      "command": "pnpm --filter @codexu/overview-viewer typecheck > .test-output/overview-viewer.typecheck.log 2>&1",
+      "result": "PASS: tsc --noEmit completed with exit 0.",
+      "evidenceKind": "typecheck"
+    },
+    {
+      "criterion": "Tests pass (pnpm --filter @codexu/overview-viewer test)",
+      "command": "pnpm --filter @codexu/overview-viewer test > .test-output/overview-viewer.test.log 2>&1",
+      "result": "PASS: Vitest reported 11 test files passed, 36 tests passed.",
+      "evidenceKind": "test"
+    },
+    {
+      "criterion": "pnpm overview dev server starts and renders without console errors",
+      "command": "curl -fsS http://127.0.0.1:5173/overview.html && curl -fsS http://127.0.0.1:5173/overview-data.js",
+      "result": "HTTP smoke PASS: existing dev server served overview.html with one root node and overview-data.js with window.OVERVIEW_DATA. SKIPPED: browser console verification unavailable because browser automation is not installed.",
+      "evidenceKind": "skipped"
+    },
+    {
+      "criterion": "pnpm overview:build succeeds; regenerated plans/overview.html opens cleanly under file://",
+      "command": "pnpm overview:build; grep -nE '<script[^>]+src=|<link[^>]+href=' plans/overview.html || true; grep -n '<div id=\"root\"></div>' plans/overview.html",
+      "result": "Build PASS: Vite built plans/overview.html successfully; static artifact has root node and no external script/link refs. SKIPPED: live file:// browser open unavailable without browser automation.",
+      "evidenceKind": "build"
+    },
+    {
+      "criterion": "Bundle size of plans/overview.html stays under 500 KB",
+      "command": "stat -c%s plans/overview.html",
+      "result": "447918 bytes (< 500000).",
+      "evidenceKind": "command"
+    },
+    {
+      "criterion": "Three existing intentional deviations from 9f81c1f8 (deferred class, blocked/paused → tail of phase bucket, lastTouchedAt-asc) still hold",
+      "command": "grep -RInE \"deferred|data-cmd-status|lastTouchedAt|sortTasksByLastTouchedAsc\" tools/overview-viewer/src/components/PhaseTree.tsx tools/overview-viewer/src/components/CommandList.tsx tools/overview-viewer/src/styles.css",
+      "result": "PASS: PhaseTree still maps blocked/paused to deferred; styles.css still contains blocked/paused order tail rules; CommandList still exports and uses sortTasksByLastTouchedAsc.",
+      "evidenceKind": "inspection"
+    },
+    {
+      "criterion": "prefers-reduced-motion: reduce disables any animation added by the story",
+      "command": "grep -n \"@media (prefers-reduced-motion: reduce)\" -A5 tools/overview-viewer/src/styles.css && grep -n \"transition: grid-template-rows 0.3s ease-out\" tools/overview-viewer/src/styles.css",
+      "result": "PASS: the story adds a grid-template-rows transition, and the existing reduced-motion guard disables all transitions with !important.",
+      "evidenceKind": "inspection"
+    },
+    {
+      "criterion": "If tools/overview-viewer/package.json changes, workspace-root pnpm-lock.yaml is regenerated and committed in the same commit; pnpm install --frozen-lockfile from repo root must succeed",
+      "command": "git show --name-only --format= HEAD | grep -E \"tools/overview-viewer/package.json|pnpm-lock.yaml\" || true; pnpm install --frozen-lockfile --offline",
+      "result": "PASS: package.json and pnpm-lock.yaml were unchanged for this story; frozen offline install completed successfully.",
+      "evidenceKind": "command"
+    },
+    {
+      "criterion": "Commit message references the story ID and lists affected files",
+      "command": "git log -1 --format=%H%n%s%n%b",
+      "result": "Commit 49781fd09b6f42668743a07ab56db16a7694a180 subject references US-001; body lists TaskCommand.tsx, styles.css, commandList.test.tsx, and plans/overview.html.",
+      "evidenceKind": "command"
+    }
+  ],
+  "skippedReasons": [
+    "tool_unavailable"
+  ],
+  "notTested": [
+    "Live browser console, file:// double-click, and reduced-motion computed-style validation were not run because browser automation is unavailable."
+  ],
+  "iterationSHA": "49781fd09b6f42668743a07ab56db16a7694a180"
+}

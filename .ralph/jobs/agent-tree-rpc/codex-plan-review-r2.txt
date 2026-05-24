@@ -1,0 +1,29 @@
+### Feasibility
+
+[High] The Socket.IO payload shape is internally inconsistent. Step 4 says `ApiSessionClient.sendAgentTreeUpdate(delta)` does not pass `sessionId` because the socket is session-scoped, but Step 8 authorizes with `connection.sessionId === payload.sessionId`, and `eventRouter.emitAgentTreeUpdate` also needs `sessionId` to route. This affects `packages/happy-cli/src/api/apiSession.ts`, `packages/happy-cli/src/api/types.ts`, and `packages/happy-server/sources/app/api/socket/sessionUpdateHandler.ts`. The wire payload should explicitly be `{ sessionId, delta }` or the server must derive `sessionId` solely from the session-scoped connection.
+
+[Low] The plan still overstates that legacy `codex/event` and v2 `item/*` “both flows feed the same reducer.” `packages/happy-cli/src/codex/codexAppServerClient.ts` suppresses raw notifications after it classifies the stream as legacy via `notificationProtocol`. Dedup is still useful defensively, but runtime may not exercise both paths in the way the plan describes.
+
+### Completeness
+
+[Medium] `closeAgent` removal needs subtree semantics. Codex closes the target and live descendants in `codex-rs/core/src/agent/control.rs`, but the v2/legacy close events only identify the receiver. If `packages/happy-cli/src/codex/agentTreeState.ts` emits a single `node-removed`, child nodes can remain orphaned in snapshots. The reducer should remove all known descendants, or the delta schema should support a multi-node removal.
+
+[Medium] AC4b requires authorization testing for inbound `agent-tree-update`, but the file list only adds a fan-out test in `packages/happy-server/sources/app/events/eventRouter.test.ts`. The authorization branch belongs in `packages/happy-server/sources/app/api/socket/sessionUpdateHandler.ts`, so the plan should name a test location for that path, likely `packages/happy-server/sources/app/api/socket.spec.ts` or a new `sessionUpdateHandler.test.ts`.
+
+[Low] The `lastTaskMessage` fallback from later `agent_message` items is underspecified. The current v2 parser in `packages/happy-cli/src/codex/codexAppServerClient.ts` emits `agent_message` without `thread_id`, so the reducer cannot update the correct child unless the parser also preserves `params.thread_id`.
+
+### Ordering
+
+No issues found.
+
+### Simplicity
+
+No issues found. The distinct `agent-tree-update` frame is a broader contract change than reusing `ephemeral`, but the plan documents that trade-off and scopes it reasonably.
+
+### Acceptance Criteria Quality
+
+[Medium] AC4 is likely flaky as written. It requires the real Codex model to spawn child A and then have child A spawn child B, with exact ordering and snapshot shape. That is valid as an integration goal, but the prompt/test needs deterministic scaffolding: exact tool instructions, timeout bounds, and how the test observes the root/child thread IDs.
+
+[Low] AC4’s expected snapshot `{ nodes: 2 entries (A, B), edges: root->A, A->B, seq: 4 }` should explicitly define whether the root thread is intentionally excluded from `nodes`. `AgentRegistry.live_agents()` excludes root, so the expectation is plausible, but graph consumers may assume every edge endpoint exists in `nodes`.
+
+Prior High/Critical fixes look mostly adequate: AC1 build commands, parser location, `userId` fan-out, non-submodule scope, and no self-referential SHA are now aligned with the repo.

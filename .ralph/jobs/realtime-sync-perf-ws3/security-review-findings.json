@@ -1,0 +1,43 @@
+{
+  "planFile": "D:/harness-efforts/codexu/.ralph/jobs/realtime-sync-perf-ws3/plan.md",
+  "repoDir": "D:/harness-efforts/codexu",
+  "reviewCycle": 2,
+  "findings": [
+    {
+      "id": "F-001",
+      "severity": "Low",
+      "source": "security",
+      "classification": "fixable",
+      "phase": "security",
+      "category": "Denial-of-Service",
+      "sectionRef": "socket.ts handshake replay handler",
+      "description": "Hostile or buggy peer can amplify reconnect work by always sending auth.lastSeenSeq=0 (or any value <= replayBuffer[0].payload.seq), which forces the server into the cap-overflow branch — fast — OR, more interestingly, sending a lastSeenSeq just below the buffer's oldest entry forces the server to scan all 1024 buffered entries, filter each via doesFilterMatchConnection, and emit them all in a tight loop on a single socket. The total work per reconnect is O(buffer-size × filter-cost), bounded but not negligible if an attacker can drive many reconnects per second. The one-user-per-daemon invariant limits blast radius (an attacker must already be authenticated as the daemon's single owner), but a compromised mobile/web client could still hammer the daemon. No rate-limiting on the handshake-replay path. NOTE: The round 2 diff did not change this surface — getReplayForConnection still scans the full 1024-entry buffer with no rate limit; only the call ordering relative to addConnection was moved earlier (security-positive: prevents double-delivery of buffered + live events on the same seq).",
+      "relevantFiles": [
+        "packages/happy-server/sources/app/api/socket.ts:193-208",
+        "packages/happy-server/sources/app/events/eventRouter.ts:294-315"
+      ],
+      "suggestedFix": "Add a per-socket rate limit on connect-time replays (e.g., reject more than N replays per minute per socket.handshake.headers fingerprint), or cap the per-reconnect emit count to a reasonable bound (e.g., 256) and emit a single 'replay-truncated' signal beyond that. The one-user-per-daemon deployment posture makes this Low severity; revisit if/when the multi-tenant deployment becomes possible.",
+      "status": "wont_fix",
+      "fixedInIteration": 1,
+      "resolution": "Accepted Low: DoS-amplification on handshake replay is gated by the one-user-per-daemon trust model. Each daemon serves only its single operator; an attacker would need to be already authenticated as that operator. Rate-limit infrastructure is deferred follow-up; revisit when/if multi-tenant deployment becomes possible (same posture documented in original Phase 5a security review). v1 acceptable."
+    },
+    {
+      "id": "F-002",
+      "severity": "Low",
+      "source": "security",
+      "classification": "fixable",
+      "phase": "security",
+      "category": "Input Validation",
+      "sectionRef": "sync.ts replay-overflow handler -> resetLastSeenUpdateSeq",
+      "description": "The replay-overflow handler in sync.ts (line 1645-1652) passes the wire-supplied data.currentSeq directly into storage.getState().resetLastSeenUpdateSeq(machineId, data.currentSeq) after only a typeof === 'number' check. resetLastSeenUpdateSeq is intentionally non-monotonic (per packages/happy-app/CLAUDE.md it must be able to move the stored seq backwards for daemon-restart recovery), so it has no internal guard against NaN, Infinity, -Infinity, negative integers, or non-integer floats. Because the daemon is the operator's own process and the socket is authenticated by the tunnel claim, this is in-trust and not exploitable in the documented threat model. However a compromised/buggy daemon (or future protocol drift) could push pathological values into MMKV that would persist across restarts; e.g. NaN stored as the lastSeenSeq would later be serialized over the Socket.IO auth payload back to the server, where socket.ts:194 explicitly filters via Number.isFinite — recovery would silently downgrade to a no-replay HTTP refresh path. The client never validates: (a) currentSeq is a finite non-negative integer; (b) currentSeq >= 0; (c) replayOverflow flag is literally true.",
+      "relevantFiles": [
+        "packages/happy-app/sources/sync/sync.ts:1645-1653",
+        "packages/happy-app/sources/sync/storage.ts:1066-1078"
+      ],
+      "suggestedFix": "Tighten the wire-side guard inside the replay-overflow handler to `typeof data?.currentSeq === 'number' && Number.isFinite(data.currentSeq) && Number.isInteger(data.currentSeq) && data.currentSeq >= 0 && data?.replayOverflow === true`. This is defense-in-depth against a compromised or drifted daemon polluting persisted client state with NaN/Infinity/negative values. Mirror the same guard server-side wherever currentSeq is emitted, so both endpoints converge on the contract. Low severity because (i) the daemon is in-trust under the one-user-per-daemon deployment invariant and (ii) the next legitimate update would advance the seq through the monotonic setter and self-heal.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Tightened replay-overflow handler guard: replayOverflow===true AND typeof currentSeq===number AND Number.isFinite AND Number.isInteger AND >= 0. Added regression test in sync.test.ts asserting pathological payloads are rejected."
+    }
+  ]
+}

@@ -1,0 +1,73 @@
+{
+  "manifestPath": "D:/harness-efforts/codexu/.ralph/jobs/task-phases/iteration-result-5.json",
+  "iterationSHA": "5a369d6fd6ff1dfb32e946f7781f9296a93bc7b4",
+  "storyId": "US-005",
+  "verdicts": [
+    {
+      "criterion": "AC-001 temporary smoke copy outside repo loaded by file://",
+      "verdict": "agree",
+      "reason": "Manifest cites concrete tempRoot path under os.tmpdir(), outsideRepo=true and tempRemoved=true; the smoke script artifact in the diff confirms a temp directory under os.tmpdir() loaded by file:// is the harness used."
+    },
+    {
+      "criterion": "AC-002 brainstorm path on agent-comms",
+      "verdict": "agree",
+      "reason": "PASS 4/4 transition results recorded with phase progression brainstorm-ready -> brainstorm-in-progress -> brainstorm-review -> plan-ready and the expected classifier/filter/Today/order bucket outcomes for each transition."
+    },
+    {
+      "criterion": "AC-003 standard path on 1b-multidev",
+      "verdict": "agree",
+      "reason": "PASS 6/6 with full plan-ready -> plan-in-progress -> plan-review -> impl-ready -> impl-in-progress -> shipped sequence and explicit shipped-vs-closed bucket separation asserted."
+    },
+    {
+      "criterion": "AC-004 fused path on codex-claude-md-autoload",
+      "verdict": "agree",
+      "reason": "PASS 3/3 plan-ready -> impl-in-progress -> shipped with badge normalization, classifier/filter, Today bucket, order bucket, and non-transparent background assertions exercised."
+    },
+    {
+      "criterion": "AC-005 planOnly path on codex-parity-audit",
+      "verdict": "agree",
+      "reason": "PASS 4/4 plan-ready -> plan-in-progress -> plan-review -> closed with explicit closed-vs-shipped order-bucket separation; kanban phase-pill assertion also recorded."
+    },
+    {
+      "criterion": "AC-006 blocked precedence smoke",
+      "verdict": "agree",
+      "reason": "Concrete classifyCmd=blocked + visible-under-blocked-filter + Today hold-bucket + data-cmd-status=ready outcomes substantiate the status-over-phase precedence claim for filter/Today while phase governs sort."
+    },
+    {
+      "criterion": "AC-007 backwards-compatible legacy b-ready row",
+      "verdict": "agree",
+      "reason": "Hand-crafted row with only cmd-badge b-ready had no data-task-phase, classifyCmd returned ready via legacy fallback, and recorded a non-transparent computed background, satisfying fail-soft legacy behavior."
+    },
+    {
+      "criterion": "AC-008 dark and light theme verification",
+      "verdict": "agree",
+      "reason": "Both light (matchMedia dark=false, bodyBg=rgb(250,250,250)) and dark (--force-dark-mode, matchMedia dark=true, bodyBg=rgb(15,17,21)) passes recorded zero console errors and visible kanban/badge/Today/filter elements; specific numeric counts (23 spawned-from, 8 spawned-children) are concrete."
+    },
+    {
+      "criterion": "AC-009 smoke copy discarded and real overview unchanged",
+      "verdict": "agree",
+      "reason": "Cleanup of temporary directories combined with grep counts data-task-phase=49 and data-task-status=49 on plans/overview.html (which the diff for prior iterations established), plus named canonical rows unchanged, supports the unchanged-real-overview claim."
+    },
+    {
+      "criterion": "AC-010 pass/fail recorded per transition and theme",
+      "verdict": "agree",
+      "reason": "Commit 5a369d6f message body records 19/19 transition checks plus light/dark theme summary; per-criterion pass/fail is mirrored in this manifest's verifiedEvidence — acceptable in lieu of a PR description for a local Ralph run."
+    },
+    {
+      "criterion": "AC-011 dev-browser skill verification",
+      "verdict": "agree",
+      "reason": "evidenceKind=fallback with an explicit description of the action taken (headless Microsoft Edge over file:// pages) and what it proved (DOM, classifier, theme, console-error smoke), matching the criterion's tool-availability fallback guidance."
+    },
+    {
+      "criterion": "AC-012 typecheck / JS syntax",
+      "verdict": "agree",
+      "reason": "node --check on the extracted main script exited 0 and git diff --check exited 0 with no whitespace errors; appropriate quality-gate evidence for a plain-HTML+JS project with no automated typecheck."
+    }
+  ],
+  "warnings": [
+    {
+      "code": "manifest-nottested-shape",
+      "message": "manifest.notTested[0] is a bare string ('interactive DevTools visual inspection unavailable; covered by headless Edge smoke') rather than the documented {criterion, detail} object shape; advisory only."
+    }
+  ]
+}

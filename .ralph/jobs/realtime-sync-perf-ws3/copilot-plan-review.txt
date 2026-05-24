@@ -1,0 +1,26 @@
+I’m opening the attached task file first so I can see exactly what needs to be done.
+
+I’ve got the plan; now I’m checking the cited files and the missing tail section so I can validate feasibility and gaps against the actual code.
+
+I’m checking the existing test/layout conventions and the remaining sync/event-router implementation details so I can separate real plan defects from harmless wording.
+
+Reviewed against the current code, the plan is **close but not ready as-is**. The biggest gaps are the overflow rule, incomplete client seq persistence, and a contradictory reconnect acceptance criterion.
+
+### Feasibility
+- [High] The overflow rule is not generally sound with the current seq source. `allocateUserSeq` is module-global and ignores its user/account argument (`packages/happy-server/sources/storage/seq.ts:6-15`), but the plan’s server design stores a **per-user** buffer and treats `lastSeenSeq < oldestBufferedSeq` as overflow. That only works if each daemon truly serves exactly one user. Otherwise a user’s seqs are sparse, so `oldestBufferedSeq` can jump past `lastSeenSeq` even when no events for that user were lost. The plan should either state/enforce the one-user-per-daemon invariant, or switch to a trim-watermark/global-buffer design instead of comparing against the oldest retained per-user seq.
+
+### Completeness
+- [High] The client persistence hook is too narrow. The plan says to persist `lastSeenUpdateSeqByMachineId` only after the `apply*` sinks in `packages/happy-app/sources/sync/sync.ts`, but successful handling also happens in paths like `new-session` and `delete-session` (`sync.ts:1765-1799`) that do not go through those sinks. If seq persistence skips those cases, reconnects can replay already-processed control events indefinitely. Persist the seq once per successfully handled update, not only after `applySessions` / `applyMachines` / `applyProfile`.
+- [High] The core multi-machine handshake wiring is under-tested. The acceptance criteria verify `buildTunnelSocketOptions(...)` in `packages/happy-app/sources/sync/socketOptions.ts`, but that does **not** prove `packages/happy-app/sources/sync/apiSocket.ts:203-229` reads the right MMKV slot for each machine and passes it on connect. Since `apiSocket` owns one socket per machine, there should be an `apiSocket.test.ts` case that asserts machine A and machine B send different `auth.lastSeenSeq` values from `storage.getState().lastSeenUpdateSeqByMachineId`.
+- [Medium] The server handshake path in `packages/happy-server/sources/app/api/socket.ts:156-236` is effectively unverified if the tests stay concentrated in `eventRouter.test.ts`. The new replay behavior is only useful if connect-time parsing and dispatch are correct, so `socket.spec.ts` should be mandatory rather than “optional”.
+
+### Ordering
+No issues found.
+
+### Simplicity
+No issues found.
+
+### Acceptance Criteria Quality
+- [High] The plan contradicts itself on the “no stored seq” reconnect path. The amendment says to keep `sessionsSync.invalidate()` when `lastSeenUpdateSeqByMachineId[machineId]` is undefined, but the concrete `sync.ts` edit and acceptance criterion say `apiSocket.onReconnected(...)` should no longer call `sessionsSync.invalidate()` at all. An autonomous implementer could satisfy the acceptance test and still violate the decided behavior.
+- [Medium] One implementation step is too vague to execute reliably: `if (!isReplay || idempotentReplayPath)` references an `idempotentReplayPath` concept that does not exist in `packages/happy-app/sources/sync/sync.ts`. Also, the combined verification command writes to `/tmp/...` with `tee`, which is not a Windows/PowerShell-native path for this repo. Both should be made mechanically precise before handing this to an implementation agent.
+

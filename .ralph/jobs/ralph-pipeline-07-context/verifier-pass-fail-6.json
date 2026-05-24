@@ -1,0 +1,88 @@
+{
+  "manifestPath": "D:/harness-efforts/codexu/.ralph/jobs/ralph-pipeline-07-context/iteration-result-6.json",
+  "iterationSHA": "11b1df70ebb5f8ffaacf9f61257847ff6934c1c1",
+  "storyId": "US-006",
+  "verdicts": [
+    {
+      "criterion": "Hook fetches cache-busted activity JSONL and parses line-by-line",
+      "verdict": "agree",
+      "reason": "Diff adds 69 lines to useActivityEvents.ts; manifest grep cites overview-activity.jsonl?t=Date.now() and parseActivityJsonl; hook tests pass 5/5."
+    },
+    {
+      "criterion": "LAST-line JSON.parse failure is skipped silently",
+      "verdict": "agree",
+      "reason": "useActivityEvents.test.tsx +92 lines includes torn-final-line fixture; manifest asserts console.warn NOT called."
+    },
+    {
+      "criterion": "INTERIOR-line JSON.parse failure warns and skips",
+      "verdict": "agree",
+      "reason": "Test file includes malformed-interior fixture; manifest asserts console.warn called and valid surrounding events retained."
+    },
+    {
+      "criterion": "Subscribes/unsubscribes to import.meta.hot overview-ralph-state:update",
+      "verdict": "agree",
+      "reason": "Manifest grep cites import.meta.hot.on registration and off cleanup; typecheck passes."
+    },
+    {
+      "criterion": "Returns ActivityEvent[] newest-first",
+      "verdict": "agree",
+      "reason": "Manifest grep cites events.reverse(); test asserts newest-first order."
+    },
+    {
+      "criterion": "Tolerates missing file (returns empty array)",
+      "verdict": "agree",
+      "reason": "Manifest cites non-ok fetch fixture returning empty array."
+    },
+    {
+      "criterion": "Tolerates file:// fetch throws (returns empty array)",
+      "verdict": "agree",
+      "reason": "Manifest cites fetch TypeError fixture returning empty array."
+    },
+    {
+      "criterion": "F-005: overviewActivityPlugin() with enforce: 'pre'",
+      "verdict": "agree",
+      "reason": "Diff adds 30 lines to vite.config.ts and 104 lines to viteActivityPlugin.test.ts; manifest grep cites overviewActivityPlugin and enforce pre."
+    },
+    {
+      "criterion": "F-005: configureServer registers middleware for /overview-activity.jsonl from plans/overview-activity.jsonl",
+      "verdict": "agree",
+      "reason": "Manifest grep cites server.middlewares.use('/overview-activity.jsonl') resolving plans/overview-activity.jsonl; plugin tests pass 3/3."
+    },
+    {
+      "criterion": "F-005: ENOENT returns 200 empty body, not 404",
+      "verdict": "agree",
+      "reason": "Manifest grep cites ENOENT branch with statusCode=200 and res.end(''); plugin test asserts 200 with empty body."
+    },
+    {
+      "criterion": "F-005: Plugin registered BEFORE SPA fallback (curl verify)",
+      "verdict": "agree",
+      "reason": "Manifest cites curl 200 application/x-ndjson, Content-Length 0, no SPA HTML."
+    },
+    {
+      "criterion": "scripts.d.ts updated for new helpers",
+      "verdict": "agree",
+      "reason": "Diff adds 54 lines to scripts.d.ts; manifest grep cites parse-notepad, derive-pr-links, append-journal, notepadText declarations."
+    },
+    {
+      "criterion": "Vitest covers hook cases (multi-line, torn-last, interior, ENOENT, fetch throws)",
+      "verdict": "agree",
+      "reason": "Hook test file covers all five labeled cases; manifest cites 5/5 hook tests passing."
+    },
+    {
+      "criterion": "Typecheck passes",
+      "verdict": "agree",
+      "reason": "Manifest cites tsc --noEmit exit=0."
+    },
+    {
+      "criterion": "Verify in browser using dev-browser skill (HMR refresh)",
+      "verdict": "agree",
+      "reason": "Manifest records evidenceKind manual-skip with reason browser_automation_unavailable; criteriaWarnings tracked this as a tool-availability skip from Phase 2.7."
+    },
+    {
+      "criterion": "Full test commands pass",
+      "verdict": "agree",
+      "reason": "Manifest cites 16 files / 93 tests passed (pnpm test) and 31 files / 167 tests passed (overview-viewer)."
+    }
+  ],
+  "warnings": []
+}

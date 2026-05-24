@@ -1,0 +1,87 @@
+{
+  "planFile": "D:/harness-efforts/codexu/.ralph/jobs/ralph-pipeline-01-foundation/plan.md",
+  "repoDir": "D:/harness-efforts/codexu",
+  "reviewCycle": 1,
+  "findings": [
+    {
+      "id": "F-001",
+      "severity": "High",
+      "source": "docs",
+      "classification": "fixable",
+      "phase": "docs",
+      "category": "Stale Documentation",
+      "description": "plans/ralph-pipeline-04-pipeline-overview.md repeatedly describes a 9-stage chip strip, but Plan 01's diff expands RalphStage to 10 values (adds 'replan-pending'). Plan 01 line 268, Plan 02 line 25 verification, Plan 03 lines 6/82/116 and INDEX were all updated to 10; Plan 04 was missed. Three occurrences are stale: line 28 ('horizontal bar of 9 stage chips'), line 47 ('horizontal flex container of 9 stage chips'), line 91 ('Build PipelineOverview.tsx — render 9 stage chips with counts'), and line 99 ('PipelineOverview renders 9 stage chips with <stage> · <count> labels').",
+      "status": "fixed",
+      "relevantFiles": [
+        "plans/ralph-pipeline-04-pipeline-overview.md"
+      ],
+      "suggestedFix": "Replace every '9 stage chips' / '9 stages' occurrence in plans/ralph-pipeline-04-pipeline-overview.md (lines 28, 47, 91, 99) with '10 stage chips' / '10 stages' to match the RalphStage union (brainstorming, brainstorm-ready, planning, plan-ready, implementing, reviewing, review-fix, replan-pending, shipped, blocked) emitted by scripts/lib/derive-ralph-stage.mjs and the toolbar group already revised in Plan 03.",
+      "fixedInIteration": 1,
+      "resolution": "Cascade refresh applied per finding-specific suggestion."
+    },
+    {
+      "id": "F-002",
+      "severity": "High",
+      "source": "docs",
+      "classification": "fixable",
+      "phase": "docs",
+      "category": "Stale Documentation",
+      "description": "plans/ralph-pipeline-04-pipeline-overview.md line 75 'Stage urgency' weights table enumerates only 9 stages and omits 'replan-pending', which Plan 01 added as a first-class RalphStage value (predicate #3: terminal=true && terminalReason='replan'). With the new stage existing in the data, the histogram and score-recommendations consumer have no defined urgency weight, leaving the contract incomplete.",
+      "status": "fixed",
+      "relevantFiles": [
+        "plans/ralph-pipeline-04-pipeline-overview.md"
+      ],
+      "suggestedFix": "Insert a 'replan-pending' entry into the Stage urgency mapping on line 75 with an explicit weight (suggested: 0.95, since replan-pending represents a shipped-but-needs-replan state that is operationally as urgent as 'plan-ready'). Confirm the full list contains all 10 RalphStage values from scripts/lib/derive-ralph-stage.mjs.",
+      "fixedInIteration": 1,
+      "resolution": "Cascade refresh applied per finding-specific suggestion."
+    },
+    {
+      "id": "F-003",
+      "severity": "High",
+      "source": "docs",
+      "classification": "fixable",
+      "phase": "docs",
+      "category": "Stale Documentation",
+      "description": "plans/ralph-pipeline-06-skills.md predicate table for deriveNextCommand (lines 56-67) maps the replan branch as 'shipped with terminalReason: replan'. Per the Plan 01 diff, derive-ralph-stage.mjs now emits stage 'replan-pending' for terminal=true && terminalReason='replan' BEFORE the shipped predicate fires (predicate #3 precedes the shipped/blocked predicates in scripts/lib/derive-ralph-stage.mjs). A task in that state will therefore have stage='replan-pending', never stage='shipped', so the table's matching key is now wrong.",
+      "status": "fixed",
+      "relevantFiles": [
+        "plans/ralph-pipeline-06-skills.md"
+      ],
+      "suggestedFix": "Rename the 'shipped with terminalReason: replan' row in the predicate table (line 65) to 'replan-pending', and update the corresponding line 35 sentence so the test enumeration reads '10 stages' instead of '10 cases (9 stages + replan branch)'. The branch is now an enumerated stage rather than a side-band of shipped.",
+      "fixedInIteration": 1,
+      "resolution": "Cascade refresh applied per finding-specific suggestion."
+    },
+    {
+      "id": "F-004",
+      "severity": "High",
+      "source": "docs",
+      "classification": "fixable",
+      "phase": "docs",
+      "category": "Stale Documentation",
+      "description": "plans/ralph-pipeline-08-crews.md line 116 references 'plans/.overview-ralph-state.lock' as the shared lock file. Plan 01's diff relocated the lock to '.ralph/overview-sync.lock' (see plans/ralph-pipeline-01-foundation.md line 66 'lockFile: .ralph/overview-sync.lock' and the updated Plan 02 references). Plan 08's documented path no longer exists in the resolved config; consumers following this doc would create or look for the wrong file and fail to coordinate with the watcher.",
+      "status": "fixed",
+      "relevantFiles": [
+        "plans/ralph-pipeline-08-crews.md"
+      ],
+      "suggestedFix": "Replace 'plans/.overview-ralph-state.lock' on line 116 with 'config.lockFile (Plan 01 default: .ralph/overview-sync.lock)'. Mirror Plan 02's wording so the crew subcommand text remains config-driven rather than hardcoding a path.",
+      "fixedInIteration": 1,
+      "resolution": "Cascade refresh applied per finding-specific suggestion."
+    },
+    {
+      "id": "F-005",
+      "severity": "High",
+      "source": "docs",
+      "classification": "fixable",
+      "phase": "docs",
+      "category": "Stale Documentation",
+      "description": "plans/ralph-pipeline-11-mcp-operational-tools.md lines 70 and 130 reference 'plans/.overview-ralph-state.lock' when describing the overview.sync.watch_status tool and its lock-holder detection. Plan 01's diff renamed this lock to '.ralph/overview-sync.lock' in the default config; Plan 02 was updated, Plan 11 was not. The MCP tool described here would read the wrong path and report 'not running' even while the watcher holds the lock.",
+      "status": "fixed",
+      "relevantFiles": [
+        "plans/ralph-pipeline-11-mcp-operational-tools.md"
+      ],
+      "suggestedFix": "Replace both occurrences of 'plans/.overview-ralph-state.lock' (lines 70 and 130) with the config-resolved 'config.lockFile (default .ralph/overview-sync.lock)'. Reword the surrounding sentences so the heuristic reads the resolved config path, matching the Plan 01/Plan 02 contract.",
+      "fixedInIteration": 1,
+      "resolution": "Cascade refresh applied per finding-specific suggestion."
+    }
+  ]
+}

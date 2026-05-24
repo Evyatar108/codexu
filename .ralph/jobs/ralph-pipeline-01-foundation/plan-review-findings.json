@@ -1,0 +1,188 @@
+{
+  "planFile": "D:/harness-efforts/codexu/.ralph/jobs/.staging/20260518-153237/draft-plan.md",
+  "repoDir": "D:/harness-efforts/codexu",
+  "findings": [
+    {
+      "id": "F-001",
+      "severity": "High",
+      "category": "Feasibility",
+      "section": "Stage derivation predicates",
+      "source": "consensus",
+      "status": "fixed",
+      "description": "Group artifacts (.ralph/job-groups/<group>/group.json) have no derivable RalphStage. `groupState` is a parameter to deriveRalphStage, and sync-core's cross-kind precedence allows `group` to win over `brainstorm`, but no predicate in the table consumes `groupState`. A group-only match has no defined stage and cannot satisfy the '10 stage cases' acceptance criterion. Either drop `groupState` from the bundle, add explicit group-derived stages, or define group→stage roll-up rules in sync-core (e.g., use the dominant member's stage).",
+      "fixedInIteration": 1,
+      "resolution": "Clarified that group artifacts are read via their own top-level job-state.json/prd.json/findings (same schema as jobs), so the existing 10-case predicate covers them; dropped the unused groupState parameter from the predicate signature and ambient decl, and added a group-as-job acceptance-criterion test case."
+    },
+    {
+      "id": "F-002",
+      "severity": "High",
+      "category": "Feasibility",
+      "section": "Stage derivation predicates + Type model",
+      "source": "consensus",
+      "status": "fixed",
+      "description": "The `planning` predicate (#8) is not derivable under the declared `deriveRalphStage` signature. Predicate #8 needs a `jobDir-exists` marker when both prd.json and job-state.json are absent. Neither the runtime signature nor the scripts.d.ts declaration carries that marker. Either add a `jobDirMarker?: true` field to the bundle, or move the `planning` decision into sync-core and remove predicate #8 from the predicate table.",
+      "fixedInIteration": 2,
+      "resolution": "Added jobDirMarker?: true to the deriveRalphStage bundle (scripts.d.ts + JSDoc), rewrote predicate #8 to test the marker, and assigned sync-core the responsibility of setting it when a jobDir/groupDir is observed without prd.json or job-state.json."
+    },
+    {
+      "id": "F-003",
+      "severity": "High",
+      "category": "Completeness",
+      "section": "Files to Create — scripts.d.ts ambient declaration",
+      "source": "consensus",
+      "status": "fixed",
+      "description": "`scripts.d.ts` declares only `*/derive-ralph-stage.mjs`. The test plan (and acceptance criteria) also import helpers from `sync-core.mjs` and exercise `resolve-config.mjs`. Both also need ambient declarations. Further, under tsconfig moduleResolution=bundler, the glob pattern `*/derive-ralph-stage.mjs` does NOT match a relative import like `../../../../scripts/lib/derive-ralph-stage.mjs` — TypeScript resolves the relative path literally. Either use explicit non-glob module names (`declare module '../../../../scripts/lib/derive-ralph-stage.mjs'` with full relative path matching the import) or use typed dynamic imports inside the test. Update the plan to specify the resolved approach for ALL three modules (derive-ralph-stage, sync-core, resolve-config).",
+      "fixedInIteration": 3,
+      "resolution": "Expanded scripts.d.ts spec to declare all three test-imported modules (derive-ralph-stage, sync-core, resolve-config) using explicit relative-path module specifiers (not the wildcard `*/...mjs` form, which does not resolve relative imports under moduleResolution=bundler); offered typed dynamic import as a per-module alternative; updated the matching acceptance criterion, the ralphStage.test.ts file description, and the cascade-refresh checkbox to stay in lockstep."
+    },
+    {
+      "id": "F-004",
+      "severity": "High",
+      "category": "Completeness",
+      "section": "Configuration layer — Resolver module + Acceptance criteria",
+      "source": "copilot",
+      "status": "wont_fix",
+      "description": "Config precedence is internally contradictory. The resolver section says `OVERVIEW_CONFIG_PATH` redirects the committed-config path and `.local.json` overlay applies next to it. The acceptance criterion says precedence is `env var > .local.json > committed > defaults`. These produce different results when both env-redirected committed config and a `.local.json` exist (does the env redirect skip `.local.json` or still apply it?). Also: `scripts/sync-ralph-state.mjs` is required to accept `--config <path>` (Implementation Strategy step 5), but `loadConfig({ repoRoot })` has no `configPath` parameter. Add a `configPath?` arg to `loadConfig`, and define one canonical precedence rule in BOTH the resolver section and the AC.",
+      "fixedInIteration": 5,
+      "resolution": "Finding is stale — the draft-plan.md already has `loadConfig({ repoRoot, configPath? })`, a dedicated 'Canonical precedence' block (lines 266-271) defining merge order vs. committed-path lookup, explicit resolution of the env-var+overlay case, and an AC (line 460) that mirrors the resolver section. The contradiction the reviewer described matches the prior existing-plan.md revision, not the current draft."
+    },
+    {
+      "id": "F-005",
+      "severity": "High",
+      "category": "Completeness",
+      "section": "Files to Modify — .gitignore",
+      "source": "claude",
+      "status": "fixed",
+      "description": "The plan's Files to Modify lists `.gitignore — add .ralph/overview-config.local.json`, but the research-brief confirmed the current `.gitignore` does NOT yet contain this entry. The plan is consistent in *promising* the entry; the implementer must actually edit `.gitignore`. The acceptance criterion already lists this, but the Verification section does not have a step that confirms the entry is present. Add a verification step: `grep -F '.ralph/overview-config.local.json' .gitignore` exits 0.",
+      "fixedInIteration": 6,
+      "resolution": "Added Verification step L: grep -F '.ralph/overview-config.local.json' .gitignore must exit 0, closing the gap between the acceptance criterion and verification."
+    },
+    {
+      "id": "F-006",
+      "severity": "High",
+      "category": "Feasibility",
+      "section": "Stage derivation predicates — predicate #6",
+      "source": "claude",
+      "status": "fixed",
+      "description": "Predicate #6 (`implementing`) gates on `orchestrator.phase ∉ review phases` but does not enumerate which phases that includes. The plan elsewhere lists review phases as `['5a','5b','5.5','6']`; the `implementing` predicate should explicitly state the complement (e.g. `['1','2','3','4']` plus any phase value not in the review-phase set). Without an exact enumeration, a phase value like `'4.5'` or future numeric values may fall through to a different predicate or to `unmatched`, and the test cases cannot be specified precisely.",
+      "fixedInIteration": 7,
+      "resolution": "Defined REVIEW_PHASES and IMPLEMENTING_PHASES constants explicitly, rewrote predicate #6 to enumerate the complement (including 5c) and pin unknown/future phase strings to `implementing` with a stderr lint, updated the RalphStage type comment, and added parametrized + unknown-phase test cases to acceptance criteria."
+    },
+    {
+      "id": "F-007",
+      "severity": "Medium",
+      "category": "Completeness",
+      "section": "Configuration layer — JSON Schema",
+      "source": "consensus",
+      "status": "fixed",
+      "description": "The plan says `.ralph/overview-config.schema.json` may contain JSONC for human readability. JSON Schema must be valid JSON for editor and tooling consumers (the `$schema` field in `overview-config.json` points to it). Move all comments to a sibling README. State explicitly that BOTH `overview-config.json` AND `overview-config.schema.json` are pure JSON; only the JSONC code blocks in THIS plan are illustrative.",
+      "fixedInIteration": 1,
+      "resolution": "Amended four locations (Technical Constraints, Files-to-Modify schema bullet, Schema-block JSONC note, Common Mistake #8) to state explicitly that BOTH overview-config.json AND overview-config.schema.json must be pure JSON; JSONC code blocks in the plan are illustrative only; prose belongs in the sibling README."
+    },
+    {
+      "id": "F-008",
+      "severity": "Medium",
+      "category": "Criteria Quality",
+      "section": "Acceptance Criteria — Idempotency + Verification D, F",
+      "source": "consensus",
+      "status": "fixed",
+      "description": "The idempotency comparison `diff <(jq -S 'del(.generatedAt)' ...) <(... second run ...)` works for the JSON sidecar but not for the JS sidecar (which is `window.OVERVIEW_RALPH_STATE = <json>;`). Specify the JS comparison approach: either parse the JS via the trusted-eval pattern (testData.ts) and JSON.stringify the result for diff, or assert deep-equal of the parsed JS state vs the parsed JSON state and rely on JSON-side idempotency. Additionally: `RalphPipelineState.generatedAt` is optional per-entry; the diff filter must `del(.generatedAt, .byTaskId[].generatedAt)` to avoid spurious diffs, OR the plan must forbid per-entry generatedAt for Plan 01 outputs.",
+      "fixedInIteration": 2,
+      "resolution": "Specified JS-sidecar idempotency comparison (trusted-eval parse + strip top-level generatedAt + deep-equal, or via JS↔JSON consistency) and resolved the per-entry generatedAt question by forbidding it on RalphPipelineState in Plan 01; updated AC, Verification D, type model, and the soft-cap entry."
+    },
+    {
+      "id": "F-009",
+      "severity": "Medium",
+      "category": "Simplicity",
+      "section": "Configuration layer — Schema",
+      "source": "consensus",
+      "status": "fixed",
+      "description": "The Plan-01 config carries fields that this plan does not consume: `outputs.{dataJson, snapshot, activity, schema, recommendations, dependencyGraph, tasksIndex, journalDir}`, `crewsRoot`, `devServer`, `build`, `filters`. Each is annotated with the downstream plan that introduces it. Pre-declaring them now expands the schema/test surface before any consumer exists; if a downstream plan refines a field's shape, the Plan-01 schema becomes stale. Recommend trimming the Plan-01 config to the fields actually consumed here (`dataFile`, `ralphRoot`, `ralphSubdirs`, `outputs.{sidecarJs, sidecarJson}`, `lockFile`, `watcher.ignored`) and letting downstream plans extend the schema additively.",
+      "fixedInIteration": 3,
+      "resolution": "Trimmed the Configuration-layer JSONC example to only the fields Plan 01 consumes; added a 'Downstream additive extensions' subsection listing each deferred field with its owning plan (02/03/04/05/07/08/11); marked F-009 RESOLVED in the soft-cap section."
+    },
+    {
+      "id": "F-010",
+      "severity": "Medium",
+      "category": "Completeness",
+      "section": "sync-core.mjs — generatedFromCommit",
+      "source": "codex",
+      "status": "fixed",
+      "description": "`OverviewRalphState.generatedFromCommit` is required by the type model and the bootstrap sidecar but no module is assigned responsibility for computing it. The CLI already calls `git rev-parse --show-toplevel`; add a parallel `git rev-parse --short HEAD` (or `HEAD`) call and document where the value enters the bundle. Also specify behavior when the repo is detached or `HEAD` cannot be resolved (proposed: emit `'unknown'`, do not crash).",
+      "fixedInIteration": 4,
+      "resolution": "Assigned generatedFromCommit computation to the CLI (scripts/sync-ralph-state.mjs) via a parallel `git rev-parse --short HEAD` call, threaded it into walkRalphState's signature so it's stamped onto OverviewRalphState, and specified the 'unknown' fallback with stderr warning for any HEAD-resolution failure. Marked F-010 RESOLVED in the soft-cap list."
+    },
+    {
+      "id": "F-011",
+      "severity": "Medium",
+      "category": "Completeness",
+      "section": "sync-core.mjs — malformed-artifact handling",
+      "source": "codex",
+      "status": "open",
+      "description": "Acceptance criteria includes a 'malformed job-state.json: walk logs and skips, does not crash' test case, but the plan does not specify whether the malformed slug appears in `unmatched[]`, what `reason` to use (e.g., `'parse-error'`), or whether sibling files at the same path (e.g. `prd.json` next to a malformed `job-state.json`) still produce a stage. Specify: malformed JSON → log to stderr, append to `unmatched[]` with `reason: 'parse-error'`, do NOT attempt to derive a stage from sibling files for that slug (treat the whole job entry as opaque)."
+    },
+    {
+      "id": "F-012",
+      "severity": "Medium",
+      "category": "Completeness",
+      "section": "resolve-config.mjs — freeze semantics",
+      "source": "codex",
+      "status": "open",
+      "description": "Plan says `loadConfig` returns the result 'frozen via Object.freeze'. Object.freeze is shallow; nested objects like `outputs`, `ralphSubdirs`, and `watcher` remain mutable. Since downstream plans share the resolved config across watcher, MCP server, etc., either specify deep freeze (recursive walk + Object.freeze on every nested object) or drop the immutability claim and document the convention 'do not mutate the resolved config' in JSDoc."
+    },
+    {
+      "id": "F-013",
+      "severity": "Medium",
+      "category": "Completeness",
+      "section": "Type model — RalphPipelineState",
+      "source": "claude",
+      "status": "open",
+      "description": "`RalphPipelineState` carries `reviewOpenCount`, `storyCompletion`, `hasPrdWorthy`, etc. These are derived/computed at sync time, NOT read directly from any single Ralph artifact. Add a one-line comment on each derived field stating its source (e.g., `reviewOpenCount` is computed from `<jobDir>/code-review-findings.json` and `<jobDir>/docs-review-findings.json`) so an implementer building US-003/US-004 can't accidentally pass artifact-only data through. This is essential for the `undefined vs 0` invariant noted under Common Mistake #3."
+    },
+    {
+      "id": "F-014",
+      "severity": "Medium",
+      "category": "Criteria Quality",
+      "section": "Verification — step E (ralphOverrides smoke)",
+      "source": "codex",
+      "status": "open",
+      "description": "Verification step E asks the implementer to add a `ralphOverrides` map to `plans/overview-data.js`, re-run sync, then remove the override. This modifies the hand-curated data file (against the load-bearing invariant in `tools/overview-viewer/CLAUDE.md`). Replace with a temporary fixture: copy `overview-data.js` to a temp dir, edit there, point `OVERVIEW_CONFIG_PATH` at a temp config whose `dataFile` references the fixture, run sync, assert, clean up. The current AC risks accidental bookkeeping churn."
+    },
+    {
+      "id": "F-015",
+      "severity": "Medium",
+      "category": "Criteria Quality",
+      "section": "Verification — step C",
+      "source": "codex",
+      "status": "open",
+      "description": "Verification C says `cat plans/overview-ralph-state.json | jq '.byTaskId | keys'` returns 'the expected matching task IDs'. The expected set is not defined and depends on current `plans/overview-data.js` and `.ralph/` content — an autonomous implementer cannot verify this without a deterministic reference. Either define the expected set explicitly (e.g., 'at least N task IDs from <list>') or replace C with a fixture-based assertion that does not depend on live `.ralph/` state."
+    },
+    {
+      "id": "F-016",
+      "severity": "Medium",
+      "category": "Feasibility",
+      "section": "Stage derivation predicates — predicate #8 wording",
+      "source": "claude",
+      "status": "open",
+      "description": "Predicate #8 wording 'jobDir exists (via prd or jobState presence)' is logically inconsistent: if either prd or jobState exists, the higher-priority predicates (#1–#7) have already consumed them. The intent is 'an empty job-dir marker bundle that sync-core created without prd or jobState'. Rephrase to clearly distinguish the bundle markers the predicate sees, OR move the planning decision into sync-core (proposed by F-002)."
+    },
+    {
+      "id": "F-017",
+      "severity": "Medium",
+      "category": "Completeness",
+      "section": "Configuration layer — ralphSubdirs validation",
+      "source": "claude",
+      "status": "open",
+      "description": "The plan adds `ralphSubdirs` config block for Plan-12 portability, but `loadConfig` doesn't validate that the configured subdirs exist under `<ralphRoot>`. A misconfigured `ralphSubdirs.jobs = 'jobs-v2'` silently produces an empty walk. Add a non-fatal validation: if `<repoRoot>/<ralphRoot>/<sub>` does not exist for any configured sub, log a warning to stderr (do not throw — empty `.ralph/` is a valid case, covered by Verification G)."
+    },
+    {
+      "id": "F-018",
+      "severity": "Low",
+      "category": "Ordering",
+      "section": "Implementation Strategy step 7 vs Hand-off section",
+      "source": "codex",
+      "status": "open",
+      "description": "Step 7 says 'Bootstrap commit of plans/overview-ralph-state.{js,json} with empty byTaskId: {}'. The Hand-off section says 'The first commit after this plan ships should run pnpm sync-ralph-state and include the generated plans/overview-ralph-state.{js,json} files (initial state).' Reconcile: pick one (recommend dropping step 7 and letting the first real sync produce the initial sidecars), or label step 7 as 'optional safety net' and explain why both exist."
+    }
+  ]
+}

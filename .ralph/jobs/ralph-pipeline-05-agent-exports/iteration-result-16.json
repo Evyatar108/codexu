@@ -1,0 +1,32 @@
+{
+  "storyId": "US-016",
+  "verifiedEvidence": [
+    {
+      "criterion": "Source-of-truth modules table extended with new Plan 05 artifacts",
+      "command": "nl -ba plans/ralph-pipeline-INDEX.md | sed -n '185,208p'",
+      "result": "Lines 204-208 add overview-snapshot.json, overview-activity.jsonl, overview-snapshot.schema.json, overview-data.json, and tasks/INDEX.md; nearby rows refresh config/sync-core/watcher contracts.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "DAG diagram updated so 05 depends on 02",
+      "command": "nl -ba plans/ralph-pipeline-INDEX.md | sed -n '43,50p;132,143p'",
+      "result": "Line 46 labels 05-agent-exports as depends on 02; lines 134-143 adjust parallel-safe group ordering around that dependency.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Plan 04 outputs marked as conditional snapshot inputs",
+      "command": "grep -nE 'overview-recommendations.json|overview-dependency-graph.json|Conditional input|Snapshot.recommendations|Snapshot.dependencyGraph' plans/ralph-pipeline-INDEX.md",
+      "result": "Lines 201-202 mark overview-recommendations.json and overview-dependency-graph.json as conditional inputs with empty Snapshot defaults when absent.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Typecheck passes",
+      "command": "pnpm --filter @codexu/overview-viewer typecheck > .test-output/overview-viewer.typecheck.log 2>&1",
+      "result": "PASS exit=0 duration=15s; tsc --noEmit completed with no errors.",
+      "evidenceKind": "passed"
+    }
+  ],
+  "skippedReasons": [],
+  "notTested": [],
+  "iterationSHA": "e0f16c95dec33945f736c9aab0b89614449fb63e"
+}

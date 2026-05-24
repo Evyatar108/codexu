@@ -1,0 +1,26 @@
+{
+  "clusters": [
+    {
+      "name": "watcher-core",
+      "stories": ["US-001", "US-002", "US-003", "US-004", "US-005", "US-006"],
+      "phase": 1,
+      "dependsOn": [],
+      "fileOverlapEvidence": {
+        "sharedFiles": [
+          "scripts/lib/sync-core.mjs",
+          "scripts/lib/sync-core.d.mts",
+          "scripts/sync-ralph-state.mjs",
+          "tools/overview-viewer/vite.config.ts",
+          "package.json"
+        ],
+        "exclusiveFiles": [
+          "scripts/lib/watch-ralph-state.mjs",
+          "scripts/lib/watch-ralph-state.d.mts",
+          "tools/overview-viewer/src/__tests__/ralphWatcher.test.ts"
+        ],
+        "risk": "high"
+      },
+      "executionModeRationale": "Stories form a strict semantic chain (sync-core refactor -> watcher module -> CLI -> Vite plugin -> tests -> downstream cascade). Parallelizing would force speculative merges of sync-core.mjs and vite.config.ts and rewrite history. Serial execution within a single cluster keeps the worktree green at every step."
+    }
+  ]
+}

@@ -1,0 +1,32 @@
+{
+  "storyId": "US-009",
+  "verifiedEvidence": [
+    {
+      "criterion": ".agents/skills/roadmap-and-overview/SKILL.md viewing subsection additively updated",
+      "command": "grep -nE 'http://localhost:5173|pnpm overview:build|deferred|9f81c1f8' .agents/skills/roadmap-and-overview/SKILL.md",
+      "result": "Found the new Viewing subsection lines for http://localhost:5173, pnpm overview:build, and the deliberate phase-tree deferred class deviation from 9f81c1f8; bookkeeping procedures were not rewritten.",
+      "evidenceKind": "command-output"
+    },
+    {
+      "criterion": "Root README.md has Roadmap viewer subsection with dev and static commands",
+      "command": "grep -nE 'Roadmap viewer|pnpm overview|pnpm overview:build|http://localhost:5173' README.md",
+      "result": "Found Roadmap viewer subsection under Roadmap with pnpm overview, http://localhost:5173, and pnpm overview:build.",
+      "evidenceKind": "command-output"
+    },
+    {
+      "criterion": "tools/overview-viewer/README.md was already created in US-007 and not touched",
+      "command": "git diff --name-only -- tools/overview-viewer/README.md",
+      "result": "No output; tools/overview-viewer/README.md has no diff in US-009.",
+      "evidenceKind": "command-output"
+    },
+    {
+      "criterion": "Typecheck passes (no code changes; docs only)",
+      "command": "pnpm --filter @codexu/overview-viewer typecheck > .test-output/overview-viewer.typecheck.log 2>&1",
+      "result": "Exited 0; tsc --noEmit completed with no errors.",
+      "evidenceKind": "command-output"
+    }
+  ],
+  "skippedReasons": [],
+  "notTested": [],
+  "iterationSHA": "61c10cb4df25ce8841fd56328a278f42d666a3c5"
+}

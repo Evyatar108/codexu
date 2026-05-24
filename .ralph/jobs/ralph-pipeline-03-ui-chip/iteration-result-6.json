@@ -1,0 +1,54 @@
+{
+  "storyId": "US-006",
+  "verifiedEvidence": [
+    {
+      "criterion": "App.tsx adds reloadRalphState helper with defensive catch",
+      "command": "grep -nE 'reloadRalphState|overview-ralph-state.js|console.warn' tools/overview-viewer/src/App.tsx",
+      "result": "Lines 48-55 define reloadRalphState with useCallback, cache-busted fetch, new Function(text)(), setRalphState(getOverviewRalphState()), and console.warn('[ralph-state] reload failed', err) in catch.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "App.tsx subscribes to overview-ralph-state:update with matching cleanup",
+      "command": "grep -nE 'overview-ralph-state:update|import.meta.hot' tools/overview-viewer/src/App.tsx",
+      "result": "Lines 76-83 register import.meta.hot.on('overview-ralph-state:update', reloadRalphState) and cleanup import.meta.hot?.off('overview-ralph-state:update', reloadRalphState).",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "overview-data:update and overview-ralph-state:update subscriptions coexist",
+      "command": "grep -nE 'overview-data:update|overview-ralph-state:update' tools/overview-viewer/src/App.tsx",
+      "result": "Lines 68 and 70 keep overview-data:update on/off; lines 79 and 81 add separate overview-ralph-state:update on/off.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "US-006:AC-004 browser HMR observation",
+      "command": "N/A",
+      "result": "SKIPPED: live browser/HMR observation and Plan 02 watcher emission are unavailable; source review verifies the harmless no-op subscription wiring.",
+      "evidenceKind": "skipped"
+    },
+    {
+      "criterion": "Quality checks pass",
+      "command": "pnpm --filter @codexu/overview-viewer typecheck > .test-output/overview-viewer.typecheck.log 2>&1; pnpm --filter @codexu/overview-viewer test > .test-output/overview-viewer.test.log 2>&1",
+      "result": "Both commands exited 0 after final edits; typecheck ran tsc --noEmit and Vitest reported 24 test files passed and 119 tests passed.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Typecheck passes",
+      "command": "pnpm --filter @codexu/overview-viewer typecheck > .test-output/overview-viewer.typecheck.log 2>&1",
+      "result": "Exited 0 after final edits; tsc --noEmit completed with no errors.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "US-006:AC-006 browser verification",
+      "command": "N/A",
+      "result": "SKIPPED: dev-browser/browser automation is unavailable; reloadRalphState and HMR useEffect are covered by source review and package checks.",
+      "evidenceKind": "skipped"
+    }
+  ],
+  "skippedReasons": [
+    "tool_unavailable"
+  ],
+  "notTested": [
+    "live browser verification; dev-browser tooling unavailable"
+  ],
+  "iterationSHA": "8c884db72487dfcb0b1c566a7b95ef49177aa503"
+}

@@ -1,0 +1,52 @@
+{
+  "candidates": [
+    {
+      "name": "ralph-browser-verification-bridge",
+      "description": "Detect Ralph stories whose acceptance criteria require browser/HMR verification and route them through the available agent-browser skill instead of emitting a Not-tested commit trailer.",
+      "triggers": [
+        "Iteration agent is about to mark a story passed with browser, UI, HMR, tooltip, or sidebar acceptance criteria.",
+        "Story carries a Phase 2.7 tool-availability warning naming dev-browser.",
+        "Iteration is about to write a commit trailer matching 'Not-tested: Browser ... no browser automation tool available'."
+      ],
+      "targetLocation": "plugins/ralph-orchestration/skills/browser-verification-bridge/SKILL.md",
+      "evidence": [
+        "Commits 11b1df70 (US-006), 256acbb3 (US-007), and 9e1c82b3 (US-008) each carry a Not-tested: browser verification trailer in the job git log.",
+        "notepad.md:37 records Phase 2.7 tool-availability warnings for US-006:AC-015, US-007:AC-013, and US-008:AC-012 (dev-browser dependence).",
+        "progress.txt:104, 131, and 146 repeatedly log 'Browser verification: SKIPPED ... no browser automation/dev-browser tool is available' even though the agent-browser skill is listed as available in this environment."
+      ],
+      "rationale": "Three Not-tested trailers in a single job point to a discoverability gap: the agent-browser skill exists but iteration sub-sessions default to skipping. A thin routing skill (or a Phase 2.7 enrichment) that explicitly names agent-browser when criteria mention browser/HMR/click/tooltip would convert these skips into real verification without adding new automation capability."
+    },
+    {
+      "name": "ralph-evidence-kind-normalizer",
+      "description": "Map free-form iteration evidenceKind values onto the closed v5.25.0 manifest-verifier enum before structural validation runs.",
+      "triggers": [
+        "analyze-iteration Step 0.5 logs 'Manifest verifier ... advisory-skipped ... evidenceKind values do not match the closed enum'.",
+        "An iteration-result-*.json contains an evidenceKind outside (passed, skipped, manual-skip, fallback, absent-verified)."
+      ],
+      "targetLocation": "plugins/ralph-orchestration/skills/evidence-kind-normalizer/SKILL.md",
+      "evidence": [
+        "progress.txt:63 records the advisory-skip on iterations 1-3 with the explicit non-enum values (file-verified, test-pass, typecheck-pass, inspection).",
+        "notepad.md:39 echoes the same iteration 1-3 advisory.",
+        "progress.txt:118 shows iterations 4-6 producing verifier-pass-fail-{4,5,6}.json with all 'agree' verdicts once canonical evidenceKind values were used, confirming the mismatch is purely a vocabulary issue."
+      ],
+      "rationale": "Two consecutive batches in one job silently lost manifest-verifier coverage to the same closed-enum mismatch. A normalizer skill that ships the canonical mapping table and an invocation contract (inline in the iteration agent or as a Step 0.5 pre-pass) restores verifier signal without rewriting the verifier. The mapping is already implicit in iterations 4-6 of this job."
+    },
+    {
+      "name": "ralph-cascade-terminal-evidence",
+      "description": "Walk the progress.json -> orchestrator-terminal.json -> job-state.json fallback chain when confirming an upstream plan is terminal, and emit the chosen evidence file into the commit body.",
+      "triggers": [
+        "Story acceptance criteria mention 'cascade refresh', 'upstream plan terminal', or a downstream-plan INDEX edit.",
+        "progress.json is absent in the referenced upstream job directory.",
+        "Parallel mode is detected and a Deferred Cascade row may need to be added instead of a direct edit."
+      ],
+      "targetLocation": "plugins/ralph-orchestration/skills/cascade-terminal-evidence/SKILL.md",
+      "evidence": [
+        "progress.txt:6 codifies the fallback as a Codebase Pattern: 'Cascade terminal checks may need job-state.json / orchestrator-terminal.json fallback evidence when an older Ralph job lacks progress.json; record the missing progress.json explicitly.'",
+        "progress.txt:159-164 (US-009) applies the rule: 'Verified Plan 06 was terminal via orchestrator-terminal.json and job-state.json; progress.json was absent'.",
+        "Commit 72c002c0 carries the procedural trailer 'Constraint: Plan 06 terminal markers allowed direct cascade.'",
+        "notepad.md:23-24 documents the parallel-mode deferral interaction (defer to ## Deferred Cascade when peers edit shared INDEX files)."
+      ],
+      "rationale": "The fallback rule appears twice in this single job (Codebase Patterns + US-009 application) and interacts with parallel-mode cascade deferral. A short skill that lists the file precedence, the parallel-mode branching, and the required commit-trailer evidence would make this portable to every future cascade story rather than living only in per-job progress.txt notes."
+    }
+  ]
+}

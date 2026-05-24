@@ -1,0 +1,56 @@
+**Codebase Architecture**
+`D:/harness-efforts/codexu` is a pnpm monorepo with TypeScript packages under `packages/`, but this feature is mostly outside the app build. The roadmap viewer is a static, file-openable HTML artifact at [plans/overview.html](D:/harness-efforts/codexu/plans/overview.html:1): plain HTML/CSS/JS, no bundler, and intentionally works under `file://`.
+
+The roadmap workflow is split across:
+
+- [plans/overview.html](D:/harness-efforts/codexu/plans/overview.html:1) — current rendered dashboard, 3770 lines.
+- [plans/parallel-assignments.md](D:/harness-efforts/codexu/plans/parallel-assignments.md:1) — canonical ralph commands plus status table.
+- [plans/codexu-roadmap.md](D:/harness-efforts/codexu/plans/codexu-roadmap.md:1) — long-form roadmap and standing rules.
+- [plans/task-phases.md](D:/harness-efforts/codexu/plans/task-phases.md:1) — phase/status schema source for this migration.
+- [.agents/skills/roadmap-and-overview/SKILL.md](D:/harness-efforts/codexu/.agents/skills/roadmap-and-overview/SKILL.md:1) — current operator bookkeeping procedure.
+
+There is existing root tooling in [tools/render-roadmap.ts](D:/harness-efforts/codexu/tools/render-roadmap.ts:1) with Vitest config, but no existing `tools/overview/` directory and no `overview-data.js` yet.
+
+**Feature-Relevant Code**
+Key `overview.html` integration points:
+
+- Phase/status CSS lives around [plans/overview.html](D:/harness-efforts/codexu/plans/overview.html:849): `.cmd-badge.b-*`, `[data-task-phase='closed']`, `.cmd-status-mod`.
+- Toolbar and filters are static DOM at [plans/overview.html](D:/harness-efforts/codexu/plans/overview.html:997), with filter chips keyed by `data-filter-axis`.
+- Kanban starts at [plans/overview.html](D:/harness-efforts/codexu/plans/overview.html:1069). Cards use `data-task-id`, but are not one-to-one with tasks: `1b-multidev`, `polish-Fs`, `perf-WS2`, and `agent-comms` have multiple cards.
+- Ralph command rows start at [plans/overview.html](D:/harness-efforts/codexu/plans/overview.html:1427); actual task rows begin at line 1442. There are 49 real `details.cmd` rows with `data-task-id`, `data-task-scope`, `data-task-phase`, and `data-task-status`.
+- The embedded `roadmap-data` JSON starts at [plans/overview.html](D:/harness-efforts/codexu/plans/overview.html:2180). It contains `generatedAt`, `generatedFromCommit`, `lastTouched`, `periodic`, `cadence`, `runs`, `effort`, `risk`, `workstream`, `sizeBucket`, and `spawnedFrom`.
+- Main inline JS begins after the JSON. Important functions/IIFEs: `PHASE_TO_ORDER_BUCKET`, `PHASE_TO_FILTER_BUCKET`, `phaseForCmd`, `statusForCmd`, `filterBucketForCmd`, `renderPhaseBadges`, `injectTaskScopeChips`, copy preamble handling, Today panel rendering, URL `?tasks=` filter, multi-axis filters, workstream/cadence pills, spawn relationship rendering, run history, and freshness banner.
+
+**Technical Constraints**
+The sidecar must be `.js`, not `.json`, because the page is designed to work from `file://`; `fetch()` will break under Chromium file-origin rules.
+
+Existing JS assumes command rows and cards already exist in the DOM before the IIFEs run. A data-driven renderer must execute before `renderPhaseBadges`, `injectTaskScopeChips`, counts, filters, spawn links, and run-history injection.
+
+Preserve these DOM contracts:
+
+- `id="cmd-${task.id}"` for hash links.
+- `data-task-id`, `data-task-phase`, `data-task-status`, `data-task-scope`, `data-plan-only`, `data-merge-commit`.
+- URL filter currently uses `?tasks=a,b`, not `?id=`.
+- Scope values include `bookkeeping|codexu`, `codex|codexu`, `codex`, and `codexu`; schema should not narrow to only codex/codexu.
+- Prompt bodies currently live in `<pre>` with HTML entities decoded by `textContent`; JS strings must preserve the decoded clipboard text.
+
+The proposed single `kanbanColumn` field is too small if identical rendering is required. Current kanban has multiple cards per task with different titles/subtexts. Use `kanbanCards: []` per task or a top-level `kanbanCards` array.
+
+**Implementation Suggestions**
+Use `plans/overview-data.js` as the source of truth, but keep compatibility by re-emitting the same DOM shape first. Then most existing IIFEs can continue working with smaller changes.
+
+Recommended data shape additions:
+
+- `meta: { generatedAt, generatedFromCommit }`
+- `tasks[]`
+- `task.command: { summaryHtml, descriptionHtml, warnings[], planPrompt }`
+- `task.kanbanCards[]` rather than one `kanbanColumn`
+- `task.lastTouchedAt`, `effortHours`, `risk`, `workstream`, `sizeBucket`, `cadence`
+- `runs`, `periodic`
+- Optional `phaseTree` only if the phase tree is actually data-driven in this pass.
+
+Render with DOM APIs and `textContent` where possible. For existing rich text like `<code>` and `<a>` in descriptions, either store trusted HTML fragments or use a small structured inline-token format; trusted fragments are simpler for this static local file.
+
+Add `tools/overview/validate.mjs` and a root script such as `overview:validate`. Validate duplicate task ids, enums, scope labels, `blockedBy`/`spawnedFrom` refs, run `taskId` refs, kanban refs, and parity with the status table in `plans/parallel-assignments.md`.
+
+The skill update is mandatory. The current skill still tells agents to edit `overview.html`, `data-task-phase`, and `roadmap-data`; that must move to “edit the task entry in `plans/overview-data.js`.”

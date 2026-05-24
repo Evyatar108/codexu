@@ -1,0 +1,96 @@
+**Codebase Architecture**
+
+The relevant setup is two repos:
+
+- Parent `codexu` repo: contains roadmap/planning docs and pins `codex/` as a git submodule. `.gitmodules` points `codex` to `https://github.com/gim-home/codex.git`.
+- `codex/` submodule: the patched Codex fork. Current checkout is detached at `origin/main`; `origin` is `gim-home/codex`.
+
+Inside `codex/`:
+
+- `external/repos/codex-patched/` is the git subtree root. Evidence: latest subtree commit footer says `git-subtree-dir: external/repos/codex-patched`.
+- `external/repos/codex-patched/codex-rs/` is the Rust workspace under that subtree.
+- `codex-rs-overlay/` contains fork-owned sibling crates:
+  - `codex-copilot`
+  - `codex-copilot-launcher`
+  - `codex-invariant-tests`
+- The subtree workspace references overlay crates in `external/repos/codex-patched/codex-rs/Cargo.toml` with relative members like `../../../../codex-rs-overlay/codex-copilot`.
+
+Languages/tools:
+
+- Rust/Cargo for Codex CLI/runtime.
+- Markdown docs for architecture/patch policy.
+- npm/GitHub Actions for distribution packaging.
+- Git submodules for parent-to-fork pinning; git subtree for upstream `openai/codex` ingestion.
+
+One wording concern: the feature request says `external/repos/codex-patched/codex-rs/` is the git-subtree mirror. The commit footer shows the subtree root is `external/repos/codex-patched/`, with `codex-rs/` as the Rust workspace inside it. The docs should phrase this precisely.
+
+**Feature-Relevant Code**
+
+Primary files to edit:
+
+- `docs/implementation/architecture.md`
+  - Currently documents direct Copilot transport.
+  - Table of contents has no “Fork strategy” entry.
+  - Natural place: after “Solution: patched binary plus direct Copilot transport” or before “Distribution”, because the section is architectural rather than patch inventory.
+
+- `docs/implementation/patch-surface.md`
+  - Existing policy anchors:
+    - §14 “Invariant-to-test mapping” documents overlay test crate placement.
+    - §15 “Subtree lag check” documents stable-tag subtree pull policy.
+    - §16 documents current plugin `.mcp.json` placeholder patch.
+  - Add a short “Upcoming codexu-driven patches” note, not invariant rows, because this task is docs-only and the listed work is future work:
+    - plugin scoping, Phase 2c
+    - `AskUserQuestion`, Phase 2d
+    - Claude-via-Copilot adapter, Phase 7
+  - Cross-reference the overlay-first tenet and say each future patch needs its own seam verification, edit-budget, `SANDBOX PATCH` markers, §14/§15 registration, and tests only when it actually lands.
+
+- `CLAUDE.md`
+  - Already has “Core engineering tenants” and a `Consumer: codexu` section pointing to `C:/harness-efforts/codexu/plans/codexu-roadmap.md`.
+  - Likely update rather than add from scratch: explicitly tie the pointer to Phase 1a / fork strategy and the minimize-conflict-surface tenet.
+
+Parent repo file required by acceptance:
+
+- `../plans/codexu-roadmap.md`
+  - Has “Codex changes — minimize upstream conflict surface” around lines 190-228.
+  - Has “Decisions still open #1: Codex fork strategy”.
+  - Needs a new “Decisions made” entry locking the chosen strategy.
+  - This is outside the codex submodule, despite “Files to write” saying all docs are inside the submodule.
+
+Mandatory read:
+
+- `../docs/plans/codex-fork-extension-strategy.md`
+  - Consumer-side assumptions: `happy codex` uses Codex app-server JSON-RPC, future fork patches should be extension-surface expansions, and all future fork work must pass overlay-first + churn-data + patch-registration gates.
+  - Do not choose a strategy that switches away from `gim-home/codex`, makes upstream-only a blocker, or invalidates the planned bridge/plugin consumption model.
+
+**Technical Constraints**
+
+- Do not edit:
+  - `codex/external/repos/codex-patched/`
+  - `codex/codex-rs-overlay/`
+- This task is docs-only: no code changes, no tests.
+- Current parent `codexu` worktree is dirty, including `codex` submodule pointer and `plans/codexu-roadmap.md`. The implementer must not overwrite unrelated existing changes.
+- Use a separate codex worktree under `.ralph/jobs/<job-name>/codex-worktree/`, based on `gim-home/codex` `main`.
+- Commit codex docs on a topic branch in the submodule and push to `gim-home/codex`.
+- Then bump the parent `codexu` submodule pointer as a separate commit on `codexu` `main`.
+- Existing roadmap also mentions defining an RPC contract version during Phase 1a. The current acceptance criteria do not include protocol code changes, so the doc update should avoid pretending that versioning is implemented. Either leave it as future work or explicitly say this commit only locks fork layout/cadence strategy.
+
+**Implementation Suggestions**
+
+Use the existing strategy already present in `codexu` docs:
+
+- `codex/` remains a git submodule pinned to `gim-home/codex`.
+- `external/repos/codex-patched/` remains the upstream `openai/codex` subtree root; `codex-rs/` is the Rust workspace inside it.
+- Additive fork code defaults to `codex-rs-overlay/`.
+- Subtree edits are last resort and must follow the Core engineering tenants.
+- Subtree pulls come from stable upstream `rust-vX.Y.Z` tags, with `scripts/check_subtree_lag.sh` as the planning probe.
+
+Recommended doc shape:
+
+- `architecture.md`: add “Fork strategy” as a concise architecture section with a small text diagram: `codexu repo -> codex submodule -> external/repos/codex-patched subtree + codex-rs-overlay sibling crates`.
+- `patch-surface.md`: add a “Planned codexu patch surface” subsection near the top or before §14. Keep it explicitly non-authoritative until each patch lands.
+- `CLAUDE.md`: tighten the existing `Consumer: codexu` section so future agents know Phase 1a locked the submodule/subtree/overlay strategy.
+
+Surface to the operator before final commit if choosing between these two wording options:
+
+1. Strictly describe the subtree root as `external/repos/codex-patched/`.
+2. Use the roadmap’s looser phrasing that treats `external/repos/codex-patched/codex-rs/` as the practical Rust patch surface.

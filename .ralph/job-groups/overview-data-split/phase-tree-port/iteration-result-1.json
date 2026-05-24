@@ -1,0 +1,104 @@
+{
+  "storyId": "US-004",
+  "verifiedEvidence": [
+    {
+      "criterion": "phaseTree[] populated with rich node schema and recursive sub-phase support",
+      "command": "node - <<'NODE' ... vm.runInNewContext(plans/overview-data.js); walk(data.phaseTree) ... NODE",
+      "result": "PASS: phaseTree has 7 phases; renderer supports kind raw, task-ref, and sub-phase recursion. Phase 4/5 include collapsible true and non-empty summaries.",
+      "evidenceKind": "command"
+    },
+    {
+      "criterion": "task-ref nodes carry taskId, optional state, and trailingHtml",
+      "command": "node - <<'NODE' ... collect task-ref nodes from OVERVIEW_DATA.phaseTree ... NODE",
+      "result": "PASS: taskRefs=[1b-multidev,1b-multidev,1b-multidev,perf-WS3,polish-Fs], all with visibleText/state/trailingHtml where needed.",
+      "evidenceKind": "command"
+    },
+    {
+      "criterion": "raw nodes carry trusted li inner HTML for structural/composite/inline-style bullets",
+      "command": "node - <<'NODE' ... inspect raw nodes in OVERVIEW_DATA.phaseTree ... NODE",
+      "result": "PASS: raw nodes preserve structural 1b.1/4a-4m/5a-5f bullets, warn inline style on 3a, and composite F-013/F-015/F-017 line.",
+      "evidenceKind": "command"
+    },
+    {
+      "criterion": "rich phase headers and collapsible phases captured",
+      "command": "grep -o 'class=\"ptag\"' .test-output/overview.current.dom.html | wc -l; grep -o 'class=\"phase-subdetails\"' .test-output/overview.current.dom.html | wc -l",
+      "result": "PASS: current headless Chrome DOM has ptag count 5 and phase-subdetails count 2, matching main snapshot.",
+      "evidenceKind": "command"
+    },
+    {
+      "criterion": "renderPhaseTree() lives in the marker and emits #phase-tree > .phase-grid > .phase",
+      "command": "grep -n \"renderPhaseTree|renderTasks\" plans/overview.html; grep -o 'class=\"phase-grid\"' .test-output/overview.current.dom.html | wc -l",
+      "result": "PASS: renderPhaseTree marker at overview.html:2099; current browser DOM has exactly one phase-grid wrapper under the mount.",
+      "evidenceKind": "command"
+    },
+    {
+      "criterion": "task-ref, raw, and sub-phase render behavior",
+      "command": "node --check plans/overview-data.js && node --check .test-output-overview-inline.js; headless Chrome DOM ordered-text check",
+      "result": "PASS: task-ref nodes render item-name spans with state classes/trailing HTML, raw nodes inject trusted HTML, and sub-phase recursion path is implemented.",
+      "evidenceKind": "command"
+    },
+    {
+      "criterion": "Skeleton-ownership invariant respected",
+      "command": "git diff --stat HEAD~1..HEAD && git show --stat --oneline --name-only HEAD",
+      "result": "PASS: commit 3f6d260d changes only plans/overview-data.js and plans/overview.html; tasks[] and other top-level data fields were not edited.",
+      "evidenceKind": "command"
+    },
+    {
+      "criterion": "Section-marker invariant respected",
+      "command": "git diff HEAD~1..HEAD -- plans/overview.html | sed -n '100,230p'",
+      "result": "PASS: renderPhaseTree() body was filled inside its marker; renderTasks() marker/body was not edited.",
+      "evidenceKind": "command"
+    },
+    {
+      "criterion": "authored phase tree markup removed and empty #phase-tree mount remains",
+      "command": "grep -q '<div class=\"phase-grid\" id=\"phase-tree\">' plans/overview.html || grep -n '<div id=\"phase-tree\"></div>' plans/overview.html",
+      "result": "PASS: old authored phase-grid with id phase-tree is absent; empty mount remains at overview.html:1840.",
+      "evidenceKind": "command"
+    },
+    {
+      "criterion": "Drift handling for absent task-ref ids",
+      "command": "node - <<'NODE' ... refs.filter(id => !taskIds.has(id)) ... NODE",
+      "result": "PASS: missing=[]; task-ref ids are limited to existing tasks. Dead refs were rejected in commit body; raw nodes preserve visual parity until US-003 lands.",
+      "evidenceKind": "command"
+    },
+    {
+      "criterion": "renderPhaseTree() calls getRoadmapData()",
+      "command": "grep -n \"function renderPhaseTree|getRoadmapData\" plans/overview.html | sed -n '1,12p'",
+      "result": "PASS: renderPhaseTree() starts with var data = getRoadmapData(); and does not read window.OVERVIEW_DATA directly.",
+      "evidenceKind": "command"
+    },
+    {
+      "criterion": "file:// render parity against main snapshot",
+      "command": "headless Chrome --dump-dom for main and current; ordered-marker Node check; grep class counts",
+      "result": "PASS: main/current both have 7 phase heads, 2 subdetails, 1 phase-grid, 5 ptag spans; ordered phase text check passed for 44 markers; state counts match open=9 deferred=14 donefade=7 closed=1.",
+      "evidenceKind": "browser"
+    },
+    {
+      "criterion": "renderPhaseBadges() continues to function",
+      "command": "grep -o 'class=\"cmd-badge' .test-output/overview.current.dom.html | wc -l",
+      "result": "PASS: headless Chrome DOM has 83 cmd-badge nodes after renderTasks/renderPhaseTree/renderPhaseBadges flow; stderr was empty.",
+      "evidenceKind": "browser"
+    },
+    {
+      "criterion": "No console errors on page load on file://",
+      "command": "'/c/Program Files/Google/Chrome/Application/chrome.exe' --headless=new --dump-dom file:///D:/.../plans/overview.html 2> .test-output/overview.current.stderr.log; sed -n '1,20p' .test-output/overview.current.stderr.log",
+      "result": "PASS: headless Chrome stderr log was empty for current file:// page load.",
+      "evidenceKind": "browser"
+    },
+    {
+      "criterion": "Typecheck passes",
+      "command": "pnpm -r --if-present typecheck > .test-output/monorepo.typecheck.log 2>&1",
+      "result": "PASS: exit=0 in 67s. happy-wire, codexu-options-mode-plugin, codium, happy-agent, happy-app, happy-server, and happy-cli typechecks completed.",
+      "evidenceKind": "typecheck"
+    },
+    {
+      "criterion": "Verify in browser using agent-browser skill",
+      "command": "headless Chrome file:// fallback plus temporary click-expansion copy",
+      "result": "SKIPPED: agent-browser skill/MCP was unavailable in this session; fallback headless Chrome verified main/current DOM parity, empty stderr, and programmatic expansion of both phase 4 and phase 5 details (open count 2, 4m and 5f present).",
+      "evidenceKind": "browser"
+    }
+  ],
+  "skippedReasons": [],
+  "notTested": [],
+  "iterationSHA": "3f6d260d1a2a1ed56593e700934a807feca62333"
+}

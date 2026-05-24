@@ -1,0 +1,110 @@
+{
+  "storyId": "US-004",
+  "verifiedEvidence": [
+    {
+      "criterion": "scripts/lib/sync-core.mjs exports walkRalphState({ repoRoot, config, generatedFromCommit }) -> Promise<OverviewRalphState>",
+      "command": "grep -nE \"export async function walkRalphState|Promise<OverviewRalphState>\" scripts/lib/sync-core.mjs scripts/lib/sync-core.d.mts",
+      "result": "Found runtime export in sync-core.mjs:13 and declaration returning Promise<OverviewRalphState> in sync-core.d.mts.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Walk root is exactly <repoRoot>/<config.ralphRoot>/; walker NEVER recurses from <repoRoot> directly (would hit .worktrees/*/.ralph/)",
+      "command": "grep -nE \"rootDir: normalizedConfig.ralphSubdirs|readdirSync(rootDir|isPathInside\" scripts/lib/sync-core.mjs; pnpm --filter @codexu/overview-viewer test src/__tests__/syncCore.test.ts",
+      "result": "Walker only receives configured Ralph subdirs, readDirectChildDirs calls readdirSync(rootDir), and targeted test excludes .worktrees hidden state; 7 tests passed.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Walk reads direct children of <ralphRoot>/<ralphSubdirs.jobs>/ (job-state.json, prd.json, code-review-findings.json, docs-review-findings.json), <ralphRoot>/<ralphSubdirs.jobGroups>/ (top-level job-state.json/prd.json/findings + group.json metadata), <ralphRoot>/<ralphSubdirs.brainstorms>/ (brainstorm.json); sets jobDirMarker: true when <slug>/ or <group>/ observed; does NOT recurse into <slug>/",
+      "command": "grep -nE \"job-state.json|prd.json|code-review-findings|docs-review-findings|group.json|brainstorm.json|jobDirMarker\" scripts/lib/sync-core.mjs",
+      "result": "Found direct child readers for job-state, prd, code/docs findings, group.json, brainstorm.json, and jobDirMarker: true.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Skips symlinks; skips paths matching any pattern in config.watcher.ignored (minimum: .worktrees/**, **/.git/**, .ralph/jobs/*/worktree/**, .ralph/jobs/.staging/**, .ralph/telemetry/**, .crews/logs/**, .crews/spawn-launchers/**)",
+      "command": "grep -nE \"isSymbolicLink|matchesIgnored\" scripts/lib/sync-core.mjs; grep -nE \".worktrees|**/.git|worktree|.staging|telemetry|logs|spawn-launchers\" .ralph/overview-config.json",
+      "result": "Found symlink and ignored-path skips in sync-core; committed config contains all required ignored patterns.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Nested <jobGroups>/<group>/<member>/job-state.json files do NOT produce per-task entries (group-member granularity is Plan 10)",
+      "command": "grep -nE \"member/job-state|byTaskId.member\" tools/overview-viewer/src/__tests__/syncCore.test.ts",
+      "result": "Targeted test creates nested group member job-state and asserts byTaskId.member is undefined.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Slug-heuristic matching resolves each artifact to OverviewTask.id: (1) ralphOverrides[slug] -> matchSource: 'override'; (2) OverviewTask.id === slug -> matchSource: 'slug-default'; (3) otherwise append to unmatched[] with reason: 'no-matching-task-id'",
+      "command": "grep -nE \"ralphOverrides|override|slug-default|no-matching-task-id\" scripts/lib/sync-core.mjs tools/overview-viewer/src/__tests__/syncCore.test.ts",
+      "result": "Found override-first, slug-default, and no-matching-task-id logic; targeted test asserts direct and aliased matches.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Within-kind duplicates: pick max jobState.updatedAt (fallback to directory mtime); losers -> unmatched[] with reason: 'duplicate-resolution'",
+      "command": "grep -nE \"pickMostRecentByMtime|getBundleTimestamp|updatedAt|duplicate-resolution\" scripts/lib/sync-core.mjs tools/overview-viewer/src/__tests__/syncCore.test.ts",
+      "result": "Found duplicate-resolution, updatedAt timestamp preference, mtime fallback; targeted test asserts both timestamp modes.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Cross-kind precedence: job > group > brainstorm; losers -> unmatched[] with reason: 'shadowed-by-<winning-kind>'; precedence applied BEFORE predicate; winner's bundle is what deriveRalphStage sees",
+      "command": "grep -nE \"KIND_PRECEDENCE|resolveCrossKindPrecedence|shadowed-by|deriveRalphStage\" scripts/lib/sync-core.mjs tools/overview-viewer/src/__tests__/syncCore.test.ts",
+      "result": "Found job > group > brainstorm precedence before toPipelineState/deriveRalphStage; targeted test asserts job shadows brainstorm.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Malformed job-state.json: log to stderr, append to unmatched[] with reason: 'parse-error', do NOT derive a stage from sibling files for that slug (per F-011)",
+      "command": "grep -nE \"failed to parse|parse-error|byTaskId.broken\" scripts/lib/sync-core.mjs tools/overview-viewer/src/__tests__/syncCore.test.ts",
+      "result": "Malformed job-state path logs parse failure, records parse-error, and targeted test proves sibling prd does not create byTaskId.broken.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "reviewOpenCount.<phase> is undefined (NOT 0) when the corresponding findings file is missing",
+      "command": "grep -nE \"readReviewOpenCount|reviewOpenCount?.code\" scripts/lib/sync-core.mjs tools/overview-viewer/src/__tests__/syncCore.test.ts",
+      "result": "Missing findings files are skipped, leaving reviewOpenCount.code undefined; targeted test asserts this and reviewing stage.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Output is deterministically sorted: byTaskId keys alphabetical; unmatched[] sorted by kind then slug",
+      "command": "grep -nE \"byTaskId: sortObjectByKey|unmatched: sortUnmatched|function sortUnmatched\" scripts/lib/sync-core.mjs; node smoke printed sorted keys [a,b]",
+      "result": "Code sorts byTaskId and unmatched; smoke command printed sorted keys [\"a\",\"b\"].",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Sync-core stamps generatedFromCommit (passed by CLI) and generatedAt = new Date().toISOString() onto returned state",
+      "command": "grep -nE \"generatedAt: new Date().toISOString|generatedFromCommit\" scripts/lib/sync-core.mjs; node smoke confirmed generatedFromCommit and ISO generatedAt",
+      "result": "Code stamps generatedAt via new Date().toISOString() and generatedFromCommit from input; smoke command confirmed both.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "walkRalphState does NOT shell out to git (CLI owns git rev-parse)",
+      "command": "grep -nE \"node:child_process|execFile|spawn(|rev-parse\" scripts/lib/sync-core.mjs || true",
+      "result": "No matches, confirming sync-core does not import child_process or run git commands.",
+      "evidenceKind": "absent-verified"
+    },
+    {
+      "criterion": "Helper exports resolveCrossKindPrecedence and pickMostRecentByMtime for unit testing (signatures in scripts.d.ts)",
+      "command": "grep -nE \"resolveCrossKindPrecedence|pickMostRecentByMtime|RalphArtifactBundle\" scripts/lib/sync-core.d.mts tools/overview-viewer/src/__tests__/scripts.d.ts",
+      "result": "sync-core.d.mts and scripts.d.ts expose typed RalphArtifactBundle signatures for both helper exports.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Unit tests cover: cross-kind precedence (job shadows brainstorm), duplicate-by-mtime within one kind, malformed-JSON skip (asserts reason: 'parse-error' in unmatched[]), slug-default vs ralphOverrides resolution, group-as-job stage derivation",
+      "command": "pnpm --filter @codexu/overview-viewer test src/__tests__/syncCore.test.ts > .test-output/overview-viewer.syncCore.test.log 2>&1",
+      "result": "Exit 0. Log shows Test Files 1 passed and Tests 7 passed.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Tests pass",
+      "command": "pnpm --filter @codexu/overview-viewer test > .test-output/overview-viewer.test.log 2>&1",
+      "result": "Exit 0. Log shows Test Files 19 passed and Tests 94 passed.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Typecheck passes",
+      "command": "pnpm --filter @codexu/overview-viewer typecheck > .test-output/overview-viewer.typecheck.log 2>&1",
+      "result": "Exit 0. tsc --noEmit completed with no diagnostics.",
+      "evidenceKind": "passed"
+    }
+  ],
+  "skippedReasons": [],
+  "notTested": [],
+  "iterationSHA": "ea24d34492e1c3b6e189713cdcc5584b634b99d7"
+}

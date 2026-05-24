@@ -1,0 +1,50 @@
+{
+  "storyId": "US-017",
+  "verifiedEvidence": [
+    {
+      "criterion": "The one-shot sync command (verify exact name during implementation; expected pnpm sync-ralph-state) produces plans/overview-snapshot.json, plans/overview-data.json, plans/overview-activity.jsonl (empty on first run), plans/overview-snapshot.schema.json, tasks/INDEX.md on a fresh checkout.",
+      "command": "pnpm vitest run scripts/lib/plan05-acceptance.test.mjs > .test-output/plan05-acceptance.test.log 2>&1; nl -ba scripts/lib/plan05-acceptance.test.mjs | sed -n '26,37p;100,105p'",
+      "result": "PASS exit=0 duration=4.76s; 1 test file passed, 3 tests passed. Test lines 29-37 call runOneShotSync and assert snapshot, data JSON, empty activity JSONL, snapshot schema, and tasks/INDEX.md exist; lines 100-105 show the exact command path is pnpm sync-ralph-state --repo <fixture>.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Schema validation passes via a vitest test that imports ajv programmatically and validates plans/overview-snapshot.json against plans/overview-snapshot.schema.json.",
+      "command": "nl -ba scripts/lib/plan05-acceptance.test.mjs | sed -n '39,44p'; pnpm vitest run scripts/lib/plan05-acceptance.test.mjs > .test-output/plan05-acceptance.test.log 2>&1",
+      "result": "PASS exit=0 duration=4.76s; lines 39-43 read generated overview-snapshot.schema.json and overview-snapshot.json, compile the schema with new Ajv(), validate the generated snapshot, and assert validate.errors is null.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "A simulated stage-flip on a fixture job-state.json produces a new line in activity.jsonl within one watcher debounce, with prevStage !== newStage.",
+      "command": "nl -ba scripts/lib/plan05-acceptance.test.mjs | sed -n '47,59p'; pnpm vitest run scripts/lib/plan05-acceptance.test.mjs > .test-output/plan05-acceptance.test.log 2>&1",
+      "result": "PASS exit=0 duration=4.76s; lines 47-59 start the watcher with debounceMs 25, rewrite fixture job-state.json from phase 1 to phase 5a, then wait for exactly one activity event whose changedFields is [stage] and whose prevStage differs from newStage.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Inflating activity.jsonl past 1000 lines and rerunning sync rotates to plans/overview-activity.1.jsonl.",
+      "command": "nl -ba scripts/lib/sync-core.mjs | sed -n '367,386p'; nl -ba scripts/lib/plan05-acceptance.test.mjs | sed -n '62,76p'; pnpm vitest run scripts/lib/plan05-acceptance.test.mjs > .test-output/plan05-acceptance.test.log 2>&1",
+      "result": "PASS exit=0 duration=4.76s; sync-core lines 371-386 rotate activity when countLines(activityPath) >= activityMaxLines and recreate an empty file. Test lines 62-76 inflate activity JSONL to 1001 lines, rerun one-shot sync, assert overview-activity.1.jsonl has 1001 lines, and assert overview-activity.jsonl exists with size 0.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "pnpm --filter @codexu/overview-viewer typecheck passes.",
+      "command": "pnpm --filter @codexu/overview-viewer typecheck > .test-output/overview-viewer.typecheck.log 2>&1",
+      "result": "PASS exit=0 duration=20s; tsc --noEmit completed with no errors.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "pnpm --filter @codexu/overview-viewer test passes.",
+      "command": "pnpm --filter @codexu/overview-viewer test > .test-output/overview-viewer.test.log 2>&1",
+      "result": "PASS exit=0 duration=45s; 27 test files passed, 153 tests passed.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "The scripts/lib vitest command (exact form verified during implementation) passes.",
+      "command": "pnpm vitest run scripts/lib/*.test.mjs > .test-output/scripts-lib.test.log 2>&1",
+      "result": "PASS exit=0 duration=12s; 7 test files passed, 36 tests passed, including plan05-acceptance.test.mjs.",
+      "evidenceKind": "passed"
+    }
+  ],
+  "skippedReasons": [],
+  "notTested": [],
+  "iterationSHA": "de36786668deadf74efa0045f8ae28f06ead2874"
+}

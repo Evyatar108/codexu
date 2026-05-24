@@ -1,0 +1,44 @@
+{
+  "storyId": "US-007",
+  "verifiedEvidence": [
+    {
+      "criterion": "First post-implementation commit runs pnpm sync-ralph-state and includes the generated plans/overview-ralph-state.{js,json} files (Implementation-Strategy step 7 is dropped per F-018 resolution)",
+      "command": "pnpm sync-ralph-state > .test-output/sync-ralph-state.us007.stdout.log 2> .test-output/sync-ralph-state.us007.stderr.log; git show --stat --oneline --name-only HEAD -- plans/overview-ralph-state.js plans/overview-ralph-state.json",
+      "result": "pnpm sync-ralph-state exited 0 and regenerated non-empty sidecars (3352-byte JS, 3321-byte JSON). Commit 3ee7cdce includes plans/overview-ralph-state.js and plans/overview-ralph-state.json from that live sync.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "plans/ralph-pipeline-INDEX.md 'Source-of-truth modules' table updated to reflect: stateless derive-ralph-stage.mjs(bundle) signature with jobDirMarker; sync-core.mjs cross-kind precedence + nested-member suppression; resolve-config.mjs canonical precedence rule; </script> escape contract; scripts.d.ts ambient-decl approach; trimmed Plan-01 config schema with deferred fields documented as Downstream additive extensions",
+      "command": "grep -nE 'deriveRalphStage|jobDirMarker|cross-kind precedence|nested group-member|resolve-config|OVERVIEW_CONFIG_PATH|</script|scripts.d.ts|Trimmed Plan-01|downstream additive' plans/ralph-pipeline-INDEX.md plans/ralph-pipeline-01-foundation.md",
+      "result": "INDEX lines 187-192 now document loadConfig precedence, trimmed Plan-01 schema, deriveRalphStage bundle with jobDirMarker, sync-core cross-kind/nested-member/escape contracts, and scripts.d.ts explicit ambient declarations; Plan 01 lines 73 and 209 mirror the trimmed schema and bundle signature.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Sibling plans 02, 03, 05, 10, 12 referenced in the Hand-off section have their Plan-01 dependencies updated to match actual contracts; stale type signatures, function names, or behavior contracts corrected",
+      "command": "grep -nE 'jobDirMarker|config.lockFile|overview-sync.lock|10 chips|replan-pending|writeSidecar|loadConfig|overviewTaskId|Plan-01 keys|overview-config.schema' plans/ralph-pipeline-02-watcher.md plans/ralph-pipeline-03-ui-chip.md plans/ralph-pipeline-05-agent-exports.md plans/ralph-pipeline-10-ralph-handoff.md plans/ralph-pipeline-12-package-as-plugin.md",
+      "result": "Plan 02 now uses loadConfig/config.lockFile and Plan-01 walk semantics; Plan 03 now has 10 chips including replan-pending; Plan 05 reuses Plan-01 JS/JSON sidecar, config, and atomic writer contracts; Plan 10 marks overviewTaskId as a future sync follow-up; Plan 12 moves the schema/template contract into plugin templates with Plan-01 keys as the extraction baseline.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Implementation commit message lists every cross-plan diff (file, line range, what changed) so reviewers can verify the cascade in one read",
+      "command": "git show -s --format=%B HEAD",
+      "result": "Commit 3ee7cdce body contains a Cross-plan diffs section listing each changed plan/sidecar file, line ranges, and what changed; it also records the Plan 01 matcher constraint and rejected empty bootstrap alternative.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "All Verification steps A-L from plan.md pass: typecheck, predicate tests, one-shot sync, idempotency at both JSON and JS layers, slug-heuristic override via temp-fixture (NOT by editing real overview-data.js), JS/JSON consistency including </script grep, no-.ralph graceful handling, worktree exclusion, replan-pending derivation, cross-kind precedence end-to-end, deterministic Windows-rename retry verified by unit test that mocks fs.renameSync to throw EBUSY twice then succeed and asserts writeSidecar resolves with rename invoked 3 times, .gitignore entry",
+      "command": "pnpm --filter @codexu/overview-viewer typecheck; pnpm --filter @codexu/overview-viewer test src/__tests__/ralphStage.test.ts; pnpm sync-ralph-state; idempotency/fixture/consistency smoke scripts; pnpm --filter @codexu/overview-viewer test src/__tests__/syncCore.test.ts; grep -F '.ralph/overview-config.local.json' .gitignore",
+      "result": "A typecheck exit 0; B ralphStage.test.ts 19 passed; C live sync exit 0 with byTaskId keys [1a-fork-doc, agent-tree-rpc, codex-wire-spike, port-explorer-prompt, session-parent-link, session-role-pill] and unmatched length 13; D JSON and JS idempotency true after removing generatedAt; E temp fixture override matched then moved to unmatched when removed without editing real overview-data.js; F JS/JSON same payload and no literal </script true; G no-.ralph temp repo produced empty byTaskId/unmatched; H worktree fixture excluded hidden-task; I replan fixture produced replan-pending; J cross-kind fixture shadowed brainstorm by job; K syncCore.test.ts 10 passed including mocked EBUSY retry; L .gitignore line 95 contains .ralph/overview-config.local.json.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Typecheck passes",
+      "command": "pnpm --filter @codexu/overview-viewer typecheck > .test-output/overview-viewer.typecheck.log 2>&1",
+      "result": "Exit 0; tsc --noEmit completed with no diagnostics. Full overview-viewer tests also passed: 19 files, 97 tests.",
+      "evidenceKind": "passed"
+    }
+  ],
+  "skippedReasons": [],
+  "notTested": [],
+  "iterationSHA": "3ee7cdcee538454761b84973ea316c0ca9eb12e7"
+}

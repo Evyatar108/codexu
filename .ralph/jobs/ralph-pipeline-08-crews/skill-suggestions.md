@@ -1,0 +1,22 @@
+# Skill Suggestions
+
+## Candidate: ralph-sidecar-writer
+- Description: Enforce the "write sidecar under sync-lock, let writeSidecar regenerate the snapshot" convention for any new Ralph subcommand that mutates `plans/overview-ralph-state.json`.
+- Triggers: User asks to "add a sync-ralph-state subcommand", "write Ralph overview state from CLI", "update overview-snapshot/sidecar from script", or modifies `scripts/sync-ralph-state.mjs` to add a new mutation mode.
+- Target location: `D:/harness-efforts/codexu/.claude/skills/ralph-sidecar-writer/SKILL.md` (repo-level — codexu specific)
+- Evidence: progress.txt "Codebase Patterns" lines 14-15 ("Explicit crew-session CLI writes must acquire sync-lock.mjs before reading the sidecar and must persist via writeSidecar()"); US-007 commit `6f3507bf` and learnings (iteration 7); plan.md F-004 ("clarify crew-session subcommands write to sidecar, not snapshot") commit `448c4cf9`; CLAUDE.md bullet "Subcommands write to config.outputs.sidecarJson, NOT to the derived overview-snapshot.json"; code-review finding F-001 about phantom task entry from sidecar writes.
+- Rationale: The sidecar-vs-snapshot distinction plus shared-lock requirement is repeatedly violated, fixed, and re-documented across plan, code review, and iteration learnings. Plan 09 (MCP wrappers) and any future subcommand author will need the same workflow — it's a reusable procedure, not job-local trivia.
+
+## Candidate: linked-worktree-shared-state
+- Description: Resolve cross-branch shared state directories (e.g., `.crews/`) through `git rev-parse --git-common-dir` so linked worktrees read from the main repo root, not from per-worktree paths.
+- Triggers: User adds a new "shared workspace state" directory that lives outside a single branch (e.g., `.crews/`, `.ralph/jobs/`, telemetry roots), or writes config plumbing for a path that "should resolve to the main repo even in a worktree". Also triggers on watcher / sync-core changes that consume such roots.
+- Target location: `D:/harness-efforts/codexu/.claude/skills/linked-worktree-shared-state/SKILL.md`
+- Evidence: CLAUDE.md bullet "The cross-walk MUST resolve .crews/ from the main repo root, never from the worktree-local directory"; US-002 commit `0dc3e9d7` + "Constraint: linked worktrees resolve default .crews from main repo root"; F-004 fix commit `3fcd3d3a` ("resolve all relative crewsRoot values against the main repo root in linked-worktree mode"); F-005 commit `57858f36` (matchesIgnored altRoot fix for linked-worktree ignore patterns); progress.txt line 11 ("crewsRoot default .crews resolves through Git's common repo root for linked worktrees").
+- Rationale: Three separate fixes (US-002, F-004, F-005) landed the same lesson with slightly different facets (default resolution, override resolution, ignore-pattern relativization). A skill encoding the `git rev-parse --git-common-dir` rule plus the `path.dirname(absRoot)` ignore-relativization rule would prevent the next plan (09 MCP) from re-discovering it.
+
+## Candidate: crew-spawn-via-cli-mirror
+- Description: When orchestrating crew member spawns programmatically, always invoke the crews CLI mirror (`D:/ai-developer-toolkit/plugins/crews/tools/spawn-member.js`) rather than the Skill-tool form of `/spawn-member`, because Skill invocations do not fire the spawn-member hook.
+- Triggers: User asks to "spawn a crew member from code", "delegate work to a crew", wires `--via-crew` flags, or builds an MCP/SDK wrapper around crews spawn semantics.
+- Target location: `D:/harness-efforts/codexu/.claude/skills/crew-spawn-via-cli-mirror/SKILL.md`
+- Evidence: CLAUDE.md bullet "Spawn-member side-effects only fire via the CLI mirror, NOT via Skill tool invocations"; US-008 commit `e6526288` with `Constraint: Skill invocations cannot trigger spawn-member hooks` and `Rejected: direct Skill spawn hook | CLI mirror is required`; F-001 docs commit `869b4037` ("update plan 08 to cite crews CLI mirror for spawn-member"); progress.txt line 9 ("/work-on --via-crew must preflight the shared watcher lock before spawning and must use the crews CLI mirror"); plan 08 / plan 09 hand-off explicitly carries this rule forward.
+- Rationale: This is a non-obvious gotcha (Skill-tool form looks correct but is silently incorrect) that bit US-008 and required a docs fix (F-001). Plan 09 (MCP) and any future caller wrapping crew spawning will hit the same trap; a skill that documents the trigger and the preflight (`sync-lock.mjs` check before spawn) prevents orphan-member regressions.

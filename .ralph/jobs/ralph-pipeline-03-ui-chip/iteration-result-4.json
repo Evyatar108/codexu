@@ -1,0 +1,66 @@
+{
+  "storyId": "US-004",
+  "verifiedEvidence": [
+    {
+      "criterion": "tools/overview-viewer/src/components/Toolbar.tsx FILTER_GROUPS gains an entry { axis: 'ralphStage', title: 'Ralph stage', chips: [...10 entries...] }. Exact chips: brainstorming, brainstorm-ready, planning, plan-ready, implementing, reviewing, review-fix, replan-pending, shipped, blocked (each with emoji label per existing convention).",
+      "command": "grep -nE \"axis: 'ralphStage'|brainstorming|brainstorm-ready|planning|plan-ready|implementing|reviewing|review-fix|replan-pending|shipped|blocked\" tools/overview-viewer/src/components/Toolbar.tsx",
+      "result": "Lines 29-39 define the Ralph stage FILTER_GROUPS entry with all 10 required values and emoji labels.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Toolbar does NOT take a new prop — FILTER_GROUPS is module-level static.",
+      "command": "grep -n \"export function Toolbar\" tools/overview-viewer/src/components/Toolbar.tsx && grep -n \"ralphState\" tools/overview-viewer/src/components/Toolbar.tsx || true",
+      "result": "Line 128 shows the Toolbar prop shape is unchanged and no ralphState prop appears in Toolbar.tsx; FILTER_GROUPS remains module-level static.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "tools/overview-viewer/src/styles.css appended with .ralph-stage-chip base (mirror .pill at line 98) plus exactly 10 per-stage color variants (.stage-brainstorming … .stage-blocked) plus .ralph-stage-chip.match-slug-default { border-style: dotted; }.",
+      "command": "grep -nE \"ralph-stage-chip|stage-brainstorming|stage-brainstorm-ready|stage-planning|stage-plan-ready|stage-implementing|stage-reviewing|stage-review-fix|stage-replan-pending|stage-shipped|stage-blocked|match-slug-default\" tools/overview-viewer/src/styles.css",
+      "result": "Line 102 defines the base .ralph-stage-chip; lines 106-115 define exactly 10 .ralph-stage-chip.stage-* variants; line 116 defines .ralph-stage-chip.match-slug-default with dotted border style.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Toolbar renders exactly 10 stage chips under the 'Ralph stage' group: document.querySelectorAll('.filter-group[data-axis=\"ralphStage\"] .chip').length === 10 in dev.",
+      "command": "grep -nE \"querySelectorAll|ralphStage|toHaveLength(10)\" tools/overview-viewer/src/__tests__/interactions/toolbarRalphStageFilter.test.tsx && pnpm --filter @codexu/overview-viewer test > .test-output/overview-viewer.test.log 2>&1",
+      "result": "Line 57 asserts container.querySelectorAll('.filter-group[data-axis=\"ralphStage\"] .chip') has length 10; Vitest exited 0 with 24 files and 119 tests passing. US-004:AC-004 live-dev browser portion SKIPPED: browser automation unavailable; jsdom fallback verified the same selector.",
+      "evidenceKind": "fallback"
+    },
+    {
+      "criterion": "Positive filter test: matchesTaskFilter against a real OverviewRalphState with one task in stage implementing and one in stage shipped, given filters = { ralphStage: new Set(['implementing']) } returns true for the implementing task and false for the shipped task. Same for matchesKanbanFilter.",
+      "command": "grep -nE \"matchesTaskFilter|matchesKanbanFilter|ralphStage|implementing|shipped\" tools/overview-viewer/src/__tests__/ralphStageFilter.test.ts && pnpm --filter @codexu/overview-viewer test > .test-output/overview-viewer.test.log 2>&1",
+      "result": "ralphStageFilter.test.ts lines 19-35 build implementing and shipped tasks, toggle ralphStage=implementing, and assert matchesTaskFilter/matchesKanbanFilter true for implementing and false for shipped; Vitest exited 0 with 24 files and 119 tests passing.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Clicking a stage chip in dev (pnpm overview) filters both the command list AND the kanban view to that stage.",
+      "command": "grep -nE \"user.click|visibleTaskIds|visibleKanbanTaskIds|command-visible|kanban-visible\" tools/overview-viewer/src/__tests__/interactions/toolbarRalphStageFilter.test.tsx && pnpm --filter @codexu/overview-viewer test > .test-output/overview-viewer.test.log 2>&1",
+      "result": "Lines 45-46 expose visibleTaskIds and visibleKanbanTaskIds; line 64 clicks the implementing stage chip; lines 66-67 assert both command and kanban visible ids equal task-implementing. Vitest exited 0 with 24 files and 119 tests passing. US-004:AC-006 live pnpm overview browser portion SKIPPED: browser automation unavailable; jsdom interaction fallback verified the filter state.",
+      "evidenceKind": "fallback"
+    },
+    {
+      "criterion": "pnpm --filter @codexu/overview-viewer typecheck && pnpm --filter @codexu/overview-viewer test exits 0.",
+      "command": "pnpm --filter @codexu/overview-viewer typecheck > .test-output/overview-viewer.typecheck.log 2>&1; pnpm --filter @codexu/overview-viewer test > .test-output/overview-viewer.test.log 2>&1",
+      "result": "Both commands exited 0; typecheck ran tsc --noEmit and Vitest reported 24 test files passed and 119 tests passed.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Typecheck passes",
+      "command": "pnpm --filter @codexu/overview-viewer typecheck > .test-output/overview-viewer.typecheck.log 2>&1",
+      "result": "Exited 0; tsc --noEmit completed with no errors.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Verify in browser using dev-browser skill",
+      "command": "N/A",
+      "result": "SKIPPED: dev-browser skill/browser automation unavailable in this session; toolbar rendering and click filtering are covered by interactions/toolbarRalphStageFilter.test.tsx jsdom fallback for US-004:AC-009.",
+      "evidenceKind": "skipped"
+    }
+  ],
+  "skippedReasons": [
+    "tool_unavailable"
+  ],
+  "notTested": [
+    "live browser verification; dev-browser tooling unavailable"
+  ],
+  "iterationSHA": "c9a3581f990bc66b8723b4246fb9715ee85176b8"
+}

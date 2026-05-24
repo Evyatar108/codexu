@@ -1,0 +1,188 @@
+{
+  "planFile": "D:/harness-efforts/codexu/.ralph/jobs/.staging/20260517-003525/draft-plan.md",
+  "repoDir": "D:/harness-efforts/codexu",
+  "reviewCycle": 0,
+  "findings": [
+    {
+      "id": "F-001",
+      "severity": "High",
+      "category": "Feasibility",
+      "source": "consensus",
+      "sectionRef": "Implementation Strategy > Step 3 / US-002",
+      "description": "Migration is not autonomously executable — phase values for many of the 51 command rows are left to operator judgment (plan-review vs plan-ready, brainstorm-ready candidates). Smoke test targets (brainstorm-path, fused 1-paragraph) are also operator-pick. Need a pinned migration mapping table for all rows + explicit smoke test target IDs so an autonomous /implement-with-ralph can run without operator clarification.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Added pinned Migration Mapping table covering all 49 command rows with deterministic phase/status defaults plus explicit smoke-test targets (agent-comms brainstorm / 1b-multidev standard / codex-claude-md-autoload fused / codex-parity-audit planOnly); updated US-002/US-005/Risk-4/Open-Questions to reference the pinned table so autonomous implementation no longer requires operator clarification.",
+      "relevantFiles": [
+        "D:/harness-efforts/codexu/plans/overview.html",
+        "D:/harness-efforts/codexu/plans/task-phases.md"
+      ],
+      "suggestedFix": "Add an explicit migration mapping table to the plan (likely in the 'Preliminary Story Decomposition' or a new 'Migration Mapping' section) listing all 51 command rows with their default phase value (plan-ready for un-fired, shipped for landed, closed for obsolete) and a small set of ambiguous rows flagged TBD. Name the brainstorm-path and fused 1-paragraph smoke test targets explicitly (e.g., 'use codex-attachments for brainstorm path; use port-explorer-prompt for fused path')."
+    },
+    {
+      "id": "F-002",
+      "severity": "High",
+      "category": "Feasibility",
+      "source": "consensus",
+      "sectionRef": "Scope > In Scope / Approach > Architecture",
+      "description": "Scope item 'standardize all optional fields as null in persisted JSON' is out of scope for this HTML-only plan. Null-vs-undefined persistence is plan #2's (overview-data-split.md) concern. The plan currently mixes HTML attribute defaults (omit-when-absent) with persisted-JSON null defaults; the latter does not apply since this plan does not introduce persisted JSON.",
+      "status": "fixed",
+      "fixedInIteration": 2,
+      "resolution": "Replaced the persisted-JSON null-standardization In Scope item with a narrower forward-compatibility item locking in field names and enum values; null-vs-undefined handling is explicitly deferred to plan #2.",
+      "relevantFiles": [
+        "D:/harness-efforts/codexu/plans/overview-data-split.md"
+      ],
+      "suggestedFix": "Remove 'standardize all optional fields as null in persisted JSON; make planSource required once planPrompt is present' from the In Scope list. Replace with a narrower scope item: 'Lock in field names and enum values for forward-compatibility with plans #2 and #3 (which already reference this plan\\'s phase enum and planSource model).' The TypeScript / null-handling concerns are explicitly plan #2\\'s job."
+    },
+    {
+      "id": "F-003",
+      "severity": "High",
+      "category": "Completeness",
+      "source": "consensus",
+      "sectionRef": "Implementation Strategy > Step 5 / Files to Create/Modify",
+      "description": "Kanban cards range and title-matching scope are incomplete. Codex confirmed: kanban cards actually run lines 1061-1395 (not 1043-1178 as the plan says). Copilot found there is a SECOND title-matching path at lines 3334-3355 (the cross-section '→ command' link injection) that the plan's data-task-id refactor does not address. Both must be covered.",
+      "status": "fixed",
+      "fixedInIteration": 3,
+      "resolution": "Corrected kanban-card range to 1061-1395 (section opens at 1043) and added refactor coverage for the second title-text matcher linkKanbanToCmds at 3334-3355 in Step 5, Files to Create/Modify, Research Findings, Risk Areas, and Acceptance Criteria.",
+      "relevantFiles": [
+        "D:/harness-efforts/codexu/plans/overview.html"
+      ],
+      "suggestedFix": "Update Step 5 to use the correct range 1061-1395. Update Files to Create/Modify accordingly. Add a sentence about the second title-match path at 3334-3355: it should ALSO be refactored to read data-task-id (or explicitly left for follow-up with rationale). The new data-task-id attribute on each kanban card supports both consumers."
+    },
+    {
+      "id": "F-004",
+      "severity": "High",
+      "category": "Completeness",
+      "source": "codex",
+      "sectionRef": "Implementation Strategy > Step 1 / Step 2",
+      "description": "injectTaskScopeChips() at line 2626-2632 moves only .cmd-badge into .cmd-scope-cluster. A new .cmd-status-mod sub-badge written next to the badge will be left OUTSIDE the cluster, breaking the visual 'secondary badge next to primary' acceptance criterion. Plan must explicitly update this injector to move (or render) the status modifier alongside the phase badge.",
+      "status": "fixed",
+      "fixedInIteration": 4,
+      "resolution": "Added explicit update to injectTaskScopeChips() (lines 2626-2668) in Implementation Strategy step 2, the overview.html Files-to-Modify list, and the acceptance criterion for the secondary sub-badge — so .cmd-status-mod is relocated into .cmd-scope-cluster alongside .cmd-badge and they render as one tight visual group.",
+      "relevantFiles": [
+        "D:/harness-efforts/codexu/plans/overview.html"
+      ],
+      "suggestedFix": "Add a new step to Implementation Strategy: update injectTaskScopeChips() (line 2626-2660) to also relocate .cmd-status-mod (or any new modifier span class) into the .cmd-scope-cluster wrapper along with .cmd-badge, so the two render as one tight visual group."
+    },
+    {
+      "id": "F-005",
+      "severity": "High",
+      "category": "Feasibility",
+      "source": "codex",
+      "sectionRef": "Approach > Architecture / JS Reader Plumbing",
+      "description": "Precedence rule missing for data-task-status='blocked' vs phase-derived classification. classifyCmd() must return 'blocked' (not phase-derived 'ready') for a row with data-task-phase='plan-ready' AND data-task-status='blocked'. Without an explicit precedence rule the implementer will get it wrong and Today panel + filters will mis-classify blocked tasks.",
+      "status": "fixed",
+      "fixedInIteration": 5,
+      "resolution": "Added an explicit 'Precedence rule — status modifier vs phase' block in Approach > Architecture specifying that status modifier wins for filter/Today-panel/kanban-column bucket assignment while sort/order uses phase only, with the worked example for plan-ready+blocked. Added matching acceptance criterion and a note that the rule is documented inline as code comments.",
+      "relevantFiles": [
+        "D:/harness-efforts/codexu/plans/overview.html"
+      ],
+      "suggestedFix": "Add an explicit precedence rule in Approach > Architecture: 'For filter and Today-panel bucket assignment: status modifier (blocked, paused) takes precedence over phase. For sort/order bucket: phase only, with shipped sorted separately from closed. Status modifier never affects sort order, only filter visibility.' Document this in code comments too."
+    },
+    {
+      "id": "F-006",
+      "severity": "High",
+      "category": "Criteria Quality",
+      "source": "codex",
+      "sectionRef": "Acceptance Criteria > grep criterion",
+      "description": "First grep AC says 'returns at least 49' but the actual current row count is 51 (verified via Select-String count). The 'at least' bound is too weak: an implementer could miss two rows and still pass. AC must assert the count equals the actual command-row count AND that every details.cmd[data-task-id] has both valid data-task-phase and data-task-status.",
+      "status": "fixed",
+      "fixedInIteration": 6,
+      "resolution": "AC rewritten: 49 real data rows at lines 1417-1882; grep -c '<details class=\"cmd\"' returns 51 raw matches with 2 false positives (line 851 docstring, line 2799 JS comment); grep counts for data-task-phase and data-task-status both equal 49; phase enum values restricted to the 10 allowed; status enum to ok|blocked|paused.",
+      "relevantFiles": [
+        "D:/harness-efforts/codexu/plans/overview.html"
+      ],
+      "suggestedFix": "Replace the 49-row criterion with: 'grep -c \\'<details class=\"cmd\"\\' plans/overview.html should equal grep -c \\'data-task-phase=\\' plans/overview.html should equal grep -c \\'data-task-status=\\' plans/overview.html (all three counts must be equal to the actual command-row count, currently 51). Allowed enum values: grep -oP \\'data-task-phase=\"\\\\K[^\"]+\\' plans/overview.html | sort -u must return only the 10 phase values; same for data-task-status returning only ok|blocked|paused.' Also fix the plan's prose mention of '49 command rows' to '51 command rows' or 'all command rows' for future-proofing."
+    },
+    {
+      "id": "F-007",
+      "severity": "High",
+      "category": "Completeness",
+      "source": "copilot",
+      "sectionRef": "Implementation Strategy > Step 8 / Files to Create/Modify",
+      "description": ".agents/skills/roadmap-and-overview/SKILL.md update is under-scoped. Verified: the operational procedure is status-model-specific throughout. Lines that need updating include 36 (b-blocked reference), 49 (badge flip), 119 (badge classes), 133-135 (full bookkeeping procedure: cmd-badge class, b-ready, b-closed, etc.), 146 (status: ready/blocked), 161 (cmd-badge b-<status> template), 178 (status table), 196 (b-ready/b-inflight/b-closed transition), 226 (b-blocked/b-ready sweep), 244 (b-paused/b-blocked), 308 (badge classes counting), 315-316 (badge flip references). Plan must cover all of these.",
+      "status": "fixed",
+      "fixedInIteration": 7,
+      "resolution": "Step 8 rewritten to enumerate all SKILL.md line ranges that need updating (36, 49, 119, 133-135, 146, 161, 178, 196, 226, 244, 308, 315-316). Each line reference describes the specific edit needed; procedural workflow shape preserved, only field names change.",
+      "relevantFiles": [
+        "D:/harness-efforts/codexu/.agents/skills/roadmap-and-overview/SKILL.md"
+      ],
+      "suggestedFix": "Expand Step 8 to enumerate all the SKILL.md line ranges that need updating: 36, 49, 119, 133-135 (procedure A new-task table), 146 (status field guide), 161 (cmd-badge template), 178 (status table reference), 196 (status flip procedure), 226 (dependent-sweep procedure), 244 (paused/blocked procedure), 308 (badge classes note), 315-316 (badge flip references). Update each reference to use the new phase + status model. Replace cmd-badge b-<status> template with cmd-badge b-<phase> + status modifier span. Preserve the procedural workflow shape; only the field names change."
+    },
+    {
+      "id": "F-008",
+      "severity": "Medium",
+      "category": "Simplicity",
+      "source": "consensus",
+      "sectionRef": "Approach > Architecture > Render layer",
+      "description": "Dual-write design (manual data-task-phase + manual .cmd-badge.b-<phase> class + manual status modifier span) creates permanent drift risk for every bookkeeper edit. Simpler design: keep data-task-phase attribute authoritative; JS renders/normalizes the visible badge + modifier on load from the attribute. Eliminates 51-row dual-write burden and the 'badge class must match attribute' drift check.",
+      "status": "fixed",
+      "fixedInIteration": 8,
+      "relevantFiles": [
+        "D:/harness-efforts/codexu/plans/overview.html"
+      ],
+      "suggestedFix": "Refactor the Approach > Architecture section: 'data-task-phase is the single source of truth. On page load, a renderPhaseBadges() IIFE reads each row\\'s data-task-phase and data-task-status and writes the matching .cmd-badge.b-<phase> class + optional .cmd-status-mod sub-badge. Legacy rows with only a .b-* class get their data-task-phase populated by a similar derive-from-class fallback (so the renderer can canonicalize them on the fly). Bookkeepers only edit attributes; classes are render output.' Update US-002 to remove the dual-write requirement; US-001 grows slightly with the renderer.",
+      "resolution": "Eliminated dual-write. Added renderPhaseBadges() IIFE that normalizes the visible .cmd-badge class from data-task-phase on page load and inserts/removes .cmd-status-mod based on data-task-status. Rows with only legacy b-* class derive data-task-phase from the inverse of PHASE_TO_FILTER_BUCKET. Bookkeepers only edit attributes; classes are render output. Risk #5 (drift) replaced with risk about IIFE failure mode."
+    },
+    {
+      "id": "F-009",
+      "severity": "Medium",
+      "category": "Completeness",
+      "source": "codex",
+      "sectionRef": "JS Reader Plumbing",
+      "description": "Shipped vs closed needs TWO separate mappings: data-cmd-status='shipped' is treated separately from 'closed' in the sort/order logic (line 839), but Today/filter collapse both under 'closed' (line 2850). Plan should explicitly define phase->orderBucket and phase/status->filterBucket as two distinct mappings.",
+      "status": "fixed",
+      "fixedInIteration": 9,
+      "relevantFiles": [
+        "D:/harness-efforts/codexu/plans/overview.html"
+      ],
+      "suggestedFix": "In Approach > Architecture, replace 'PHASE_TO_LEGACY_BUCKET' with TWO constants: PHASE_TO_ORDER_BUCKET (used by classifyAndOrderCmds, with shipped and closed as distinct sort positions) and PHASE_TO_FILTER_BUCKET (used by classifyCmd / Today panel, with shipped and closed both collapsed to closed). Document both mappings in a table form.",
+      "resolution": "Split into two constants: PHASE_TO_ORDER_BUCKET (used by classifyAndOrderCmds, shipped sorted separately from closed) and PHASE_TO_FILTER_BUCKET (used by classifyCmd, multi-axis filter, Today panel; shipped collapsed into closed). Documented in Architecture > 'JS reads attributes' section and re-referenced in Files to Modify, Acceptance Criteria, and US-001."
+    },
+    {
+      "id": "F-010",
+      "severity": "Medium",
+      "category": "Feasibility",
+      "source": "codex",
+      "sectionRef": "Implementation Strategy > Step 2 (kanban column assignment)",
+      "description": "Plan refers to 'kanban column assignment' around line 2953 needing updates, but inspection (line 2955-2965) shows that code only COUNTS static .card elements per existing column (.kanban .col selector). There is no dynamic column-assignment logic to update. Cards are already manually placed in their columns; the plan needs to clarify this and remove the misleading reference.",
+      "status": "fixed",
+      "fixedInIteration": 10,
+      "relevantFiles": [
+        "D:/harness-efforts/codexu/plans/overview.html"
+      ],
+      "suggestedFix": "In Implementation Strategy, remove the 'kanban column assignment at 2953-2965' bullet (or rephrase to 'kanban card count rendering at 2955-2965 — only needs an update if we want phase pills counted in summaries; otherwise no change'). Clarify in Approach that cards stay in manually-assigned columns; phase becomes a pill ON each card but does not affect column placement.",
+      "resolution": "Removed 'kanban column assignment' references. Clarified that 2953-2965 is populateKanbanCount which only counts existing cards per static column; no phase-derived column placement is introduced. Cards stay manually placed. Phase becomes a pill on cards but does not affect column membership."
+    },
+    {
+      "id": "F-011",
+      "severity": "Medium",
+      "category": "Criteria Quality",
+      "source": "codex",
+      "sectionRef": "Acceptance Criteria > smoke test",
+      "description": "'Walk a representative task through each transition path' implies mutating real roadmap rows in overview.html, which is unsafe and would pollute the dashboard. Require a temporary scratch HTML copy or a clearly reverted local-only smoke, with the procedure documented in the plan.",
+      "status": "fixed",
+      "fixedInIteration": 11,
+      "relevantFiles": [
+        "D:/harness-efforts/codexu/plans/overview.html"
+      ],
+      "suggestedFix": "Replace the smoke test AC with: 'Make a temporary copy of plans/overview.html (e.g., plans/overview.smoke.html or via git stash + revert). In the copy, walk one representative task through each progression path by editing data-task-phase. Reload the page in a browser and verify visual rendering + filter behavior. Discard the copy after the smoke is complete. Capture pass/fail in the PR description with notes on which tasks were used.'",
+      "resolution": "Smoke test AC rewritten to use a temporary copy (plans/overview.smoke.html or out-of-tree path), with explicit per-target transitions for all 4 paths (brainstorm/standard/fused/planOnly) and a discard step. The real overview.html is never mutated for smoke."
+    },
+    {
+      "id": "F-012",
+      "severity": "Medium",
+      "category": "Criteria Quality",
+      "source": "codex",
+      "sectionRef": "Acceptance Criteria > visual distinctness",
+      "description": "'Render visually distinct colors in both dark and light themes' is subjective and not autonomously verifiable. Add concrete checks: all 10 class selectors exist (grep), none resolve to transparent/empty computed styles (manual DevTools or scripted check), manual screenshots or notes cover dark/light.",
+      "status": "fixed",
+      "fixedInIteration": 12,
+      "relevantFiles": [
+        "D:/harness-efforts/codexu/plans/overview.html"
+      ],
+      "suggestedFix": "Replace the 'visually distinct colors' AC with: '(1) All 10 phase classes are defined: grep -c \\'\\\\.cmd-badge\\\\.b-(brainstorm|plan|impl|shipped|closed)\\' plans/overview.html returns 10. (2) The .cmd-status-mod class is defined. (3) Manual visual smoke: load plans/overview.html in a browser, toggle prefers-color-scheme (DevTools > Rendering > Emulate CSS media), confirm no phase badge is invisible or unreadable in either theme; capture pass/fail notes in the PR description.'",
+      "resolution": "Visually-distinct AC replaced with three concrete checks: (1) grep that all 10 classes are defined, (2) DevTools console snippet that asserts no phase resolves to transparent or duplicates within a phase family, (3) manual theme toggle visual check with PR notes."
+    }
+  ]
+}

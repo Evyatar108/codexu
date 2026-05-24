@@ -1,0 +1,50 @@
+{
+  "storyId": "US-001",
+  "verifiedEvidence": [
+    {
+      "criterion": "CrewSessionRef interface in tools/overview-viewer/src/types.ts with required fields (crewName, memberName, startedAt) and optional fields (sessionId, transcriptPath, endedAt, outcome, summary, _isExplicit, cwd).",
+      "command": "grep -En 'interface CrewSessionRef|crewSessions?: Record' tools/overview-viewer/src/types.ts",
+      "result": "PASS: lines 52 and 93 show CrewSessionRef and RalphPipelineState.crewSessions; interface fields include required crewName/memberName/startedAt plus the specified optional fields.",
+      "evidenceKind": "inspection"
+    },
+    {
+      "criterion": "RalphPipelineState.crewSessions?: Record<RalphStage, CrewSessionRef[]> field added.",
+      "command": "grep -n 'crewSessions?: Record' tools/overview-viewer/src/types.ts",
+      "result": "PASS: line 93 contains crewSessions?: Record<RalphStage, CrewSessionRef[]>.",
+      "evidenceKind": "inspection"
+    },
+    {
+      "criterion": "scripts/lib/emit-snapshot-schema.mjs updated with explicit crewSessions JSON schema.",
+      "command": "grep -En 'CrewSessionRef|CrewSessionsByStage|crewSessions' scripts/lib/emit-snapshot-schema.mjs",
+      "result": "PASS: lines 106-175 define CrewSessionRef, CrewSessionsByStage, every RalphStage bucket, and RalphPipelineState.properties.crewSessions.",
+      "evidenceKind": "inspection"
+    },
+    {
+      "criterion": "scripts/lib/emit-snapshot-schema.test.mjs adds a positive case (snapshot with crewSessions validates) and a negative case (snapshot with CrewSessionRef missing memberName fails Ajv validation).",
+      "command": "grep -En 'validates a sample Snapshot|rejects crew session refs' scripts/lib/emit-snapshot-schema.test.mjs && grep -n 'emit-snapshot-schema.test.mjs' .test-output/root.test.log | tail -3",
+      "result": "PASS: positive sample test starts at line 7, negative missing-memberName test starts at line 62, and root test log reports scripts/lib/emit-snapshot-schema.test.mjs (4 tests) passed.",
+      "evidenceKind": "test"
+    },
+    {
+      "criterion": "pnpm --filter @codexu/overview-viewer typecheck passes.",
+      "command": "pnpm --filter @codexu/overview-viewer typecheck",
+      "result": "PASS: tsc --noEmit completed with exit 0; output saved to .test-output/overview-viewer.typecheck.log.",
+      "evidenceKind": "typecheck"
+    },
+    {
+      "criterion": "pnpm test passes.",
+      "command": "pnpm test",
+      "result": "PASS: 18 test files passed, 113 tests passed; output saved to .test-output/root.test.log.",
+      "evidenceKind": "test"
+    },
+    {
+      "criterion": "Typecheck passes.",
+      "command": "pnpm --filter @codexu/overview-viewer typecheck",
+      "result": "PASS: tsc --noEmit completed with exit 0; output saved to .test-output/overview-viewer.typecheck.log.",
+      "evidenceKind": "typecheck"
+    }
+  ],
+  "skippedReasons": [],
+  "notTested": [],
+  "iterationSHA": "431bf1947dae3592d30447aee332d129e47fd778"
+}

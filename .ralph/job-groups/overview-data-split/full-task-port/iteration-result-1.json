@@ -1,0 +1,86 @@
+{
+  "storyId": "US-003",
+  "verifiedEvidence": [
+    {
+      "criterion": "tasks[] in plans/overview-data.js contains exactly 51 entries total (the 3 from US-002 + 48 new); no two entries share the same id (deduplication check).",
+      "command": "node -e \"vm evaluate plans/overview-data.js; count tasks and unique ids\"",
+      "result": "OVERRIDE for US-003:AC-001: canonical current sources contain 49 task IDs, not 51. Fresh evidence: overview-data.js has 49 tasks and 49 unique ids after porting every existing source row (3 existing + 46 static command rows); plans/parallel-assignments.md status table and lastTouched also enumerate 49 ids, so no placeholder tasks were invented.",
+      "evidenceKind": "command-output"
+    },
+    {
+      "criterion": "Skeleton-ownership invariant respected. This story mutates ONLY the tasks[] array body — appending entries inside the existing tasks: [ ... ] braces. It does NOT add or reorder other top-level fields in OVERVIEW_DATA, does NOT touch phaseTree[], does NOT re-format the surrounding object literal. The diff against US-002's HEAD shows only tasks[]-internal additions, plans/overview.html deletions inside lines 1083-1425 / 1442-1914, and renderTasks() body completion.",
+      "command": "git diff --stat HEAD~1..HEAD && git diff -- plans/overview-data.js plans/overview.html",
+      "result": "Commit 12256256 changes only plans/overview-data.js and plans/overview.html. overview-data.js additions are inside tasks[]; phaseTree[] and other top-level fields remain in place. overview.html removes authored kanban/cmd rows and completes renderTasks() ordering/null-prompt handling.",
+      "evidenceKind": "command-output"
+    },
+    {
+      "criterion": "plans/overview.html contains zero authored static <div class=\"card\"> elements in the document body (card markup may exist only inside JS string templates or DOM-construction code within the inline <script>).",
+      "command": "grep -n '<div class=\"card\"' plans/overview.html || true",
+      "result": "No matches in plans/overview.html.",
+      "evidenceKind": "command-output"
+    },
+    {
+      "criterion": "plans/overview.html contains zero <details class=\"cmd\"> rows in the authored HTML body (all rendered from data).",
+      "command": "grep -n '<details class=\"cmd\" id=' plans/overview.html || true",
+      "result": "No authored cmd rows with ids remain; only explanatory text/comment references to <details class=\"cmd\"> remain.",
+      "evidenceKind": "command-output"
+    },
+    {
+      "criterion": "All HTML-entity decoding for prompt bodies happened once at port time; tasks[].command.planPrompt strings contain literal <, >, & (no &lt;, &gt;, &amp;). Decode once at port time (textarea.innerHTML/value or DOMParser); render path uses textContent so they round-trip without re-encoding.",
+      "command": "node -e \"evaluate overview-data.js and filter planPrompt strings matching /[&](lt|gt|amp);/\"",
+      "result": "No planPrompt strings contain &lt;, &gt;, or &amp;; browser render uses pre.textContent for command prompts.",
+      "evidenceKind": "browser"
+    },
+    {
+      "criterion": "Manual copy-paste check on first 3 + last 3 tasks (by tasks[] order): clipboard text from the rendered <pre class=\"cmd-pre\"> equals tasks[].command.planPrompt byte-for-byte.",
+      "command": "Playwright Chromium DOM assertion over first 3 + last 3 tasks",
+      "result": "All sampled rendered pre.cmd-pre textContent values matched tasks[].command.planPrompt byte-for-byte: perf-WS3, 1b-multidev, polish-Fs, codex-polish-lows, mcp-server-notifications, codex-channels.",
+      "evidenceKind": "browser"
+    },
+    {
+      "criterion": "Identical-render check (6 concrete checks): (1) Kanban column counts match pre-refactor (#kanban-ready, #kanban-soon, #kanban-blocked show same N/M/K); (2) Command row count = 51; (3) Every #cmd-<id> hash link in URL bar jumps to a matching <details> after reload; (4) ?tasks=<id1>,<id2> URL filter shows exactly those tasks; (5) Every kanban card retains its .card-meta block content (pills, icons, links, <code>); (6) Section counts (#counts-cmds, #counts-kanban) populate correctly via the existing IIFE.",
+      "command": "Playwright Chromium DOM assertion on file:///.../plans/overview.html and ?tasks=perf-WS3,perf-WS1#cmd-perf-WS1",
+      "result": "OVERRIDE for command count portion of US-003:AC-007: canonical count is 49. Browser evidence: command rows=49; kanban counts=11 Ready, 12 Soon, 10 Blocked; cardCount=33 and cardsWithMeta=33; #cmd-perf-WS1 opens from hash after reload; ?tasks=perf-WS3,perf-WS1 shows exactly [perf-WS3, perf-WS1]; #counts-cmds=\"(49 total)21 ready0 in progress10 blocked2 paused16 closed\" and #counts-kanban=\"11 Ready12 Soon10 Blocked\"; no console/page errors.",
+      "evidenceKind": "browser"
+    },
+    {
+      "criterion": "Today-panel check: after editing plans/overview-data.js to change one task's phase to impl-in-progress, a single page reload places the task's id-chip in #today-running with no console errors. Confirms buildTodayPanel() at line 2984 still classifies the freshly-rendered DOM correctly.",
+      "command": "Temporary edit of perf-WS1 phase to impl-in-progress, Playwright reload, then restore file",
+      "result": "After temporary data-only phase flip, #today-running contained perf-WS1, #cmd-perf-WS1 had data-task-phase=\"impl-in-progress\" and badge \"🟡 impl in progress\", with no console/page errors. File was restored afterward.",
+      "evidenceKind": "browser"
+    },
+    {
+      "criterion": "Bookkeeper workflow: flipping a task's phase from impl-in-progress to shipped requires editing exactly one entry in overview-data.js and zero edits to overview.html. The change reflects in kanban placement, command-row badge, and Today panel without further file edits.",
+      "command": "Same temporary data-only Playwright verification as Today-panel check",
+      "result": "Verified data-only phase mutation path: changing only perf-WS1 in overview-data.js updated the rendered command-row phase/badge and Today panel on reload; overview.html was not edited during the check.",
+      "evidenceKind": "browser"
+    },
+    {
+      "criterion": "Multiple kanban cards per task captured correctly: perf-WS2 and agent-comms each render >1 card; kanbanCards[] for each captures every card with full cardClass / inlineStyle / html fields.",
+      "command": "node -e \"evaluate overview-data.js; inspect perf-WS2/agent-comms kanbanCards and card field presence\" plus Playwright card counts",
+      "result": "overview-data.js: perf-WS2.kanbanCards.length=2, agent-comms.kanbanCards.length=2, and every kanban card has cardClass, inlineStyle, and html keys. Browser DOM rendered 2 cards for each task.",
+      "evidenceKind": "browser"
+    },
+    {
+      "criterion": "data-* attributes preserved: each rendered <details class=\"cmd\"> carries data-task-id, data-task-scope, data-task-phase, data-task-status; data-plan-only=\"true\" and data-merge-commit=\"<sha>\" emitted where applicable.",
+      "command": "Playwright Chromium DOM assertion",
+      "result": "All 49 rendered details.cmd rows had data-task-id, data-task-scope, data-task-phase, and data-task-status. Browser DOM also found 7 data-plan-only=\"true\" rows and 8 data-merge-commit rows.",
+      "evidenceKind": "browser"
+    },
+    {
+      "criterion": "Typecheck passes.",
+      "command": "pnpm -r --if-present typecheck",
+      "result": "Passed. 8 workspace projects ran typecheck; happy-agent, happy-server, happy-app, happy-cli, happy-wire, codium, and codexu-options-mode-plugin completed successfully. Local ignored workspace links were needed because pnpm install was blocked by a locked esbuild.exe.",
+      "evidenceKind": "command-output"
+    },
+    {
+      "criterion": "Verify in browser using dev-browser skill",
+      "command": "npx --yes playwright@latest screenshot file:///.../plans/overview.html .ralph/overview-check.png --wait-for-timeout=1000; Playwright Chromium DOM assertions",
+      "result": "OVERRIDE for US-003:AC-013: no dev-browser skill is available in this session. Browser verification was completed with Playwright Chromium instead: screenshot captured successfully, DOM assertions passed, and there were zero console/page errors.",
+      "evidenceKind": "browser"
+    }
+  ],
+  "skippedReasons": [],
+  "notTested": [],
+  "iterationSHA": "12256256f7022805f86acac6168b578e79903067"
+}

@@ -1,0 +1,19 @@
+{
+  "clusters": [
+    {
+      "name": "handoff-doc",
+      "stories": ["US-001"],
+      "phase": 1,
+      "dependsOn": [],
+      "fileOverlapEvidence": {
+        "sharedFiles": [],
+        "exclusiveFiles": [
+          "plans/ralph-overview-task-id.md",
+          "plans/ralph-pipeline-INDEX.md"
+        ],
+        "risk": "low"
+      },
+      "executionModeRationale": "The plan ships a single new markdown file plus an optional INDEX touch. There is no second cluster to parallelize against; serial execution is trivially correct."
+    }
+  ]
+}

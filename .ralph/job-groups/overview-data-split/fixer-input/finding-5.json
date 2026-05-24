@@ -1,0 +1,19 @@
+{
+  "id": "F-006",
+  "severity": "Low",
+  "source": "claude",
+  "classification": "fixable",
+  "phase": "code",
+  "category": "Quality",
+  "sectionRef": "renderKanbanCard schema vs. behavior",
+  "description": "`renderKanbanCard()` at `plans/overview.html:1335-1336` honors `cardData.order` (numeric) by appending the card directly, ignoring `cardData.insertBeforeTaskId` when both are set. The schema in the data file lists both fields on the same card entries (e.g., perf-WS3 carries `insertBeforeTaskId: '3a-skills'` AND `order: 30`). So `insertBeforeTaskId` is dead data on every order-having card and live data on no-order cards. The final layout is consistent (sort-by-order runs before insertBefore-by-anchor), but the schema invites confusion: future bookkeepers will set `insertBeforeTaskId` thinking it matters when paired with `order`. No bug, but a documentation gap.",
+  "status": "open",
+  "fixedInIteration": null,
+  "resolution": null,
+  "relevantFiles": [
+    "plans/overview.html:1326-1337",
+    "plans/overview-data.js",
+    ".agents/skills/roadmap-and-overview/SKILL.md"
+  ],
+  "suggestedFix": "Document the precedence in the SKILL.md schema reference: `order` (when present) is authoritative and `insertBeforeTaskId` is the fallback anchor for cards without `order`. Alternatively, strip `insertBeforeTaskId` from order-having entries in `plans/overview-data.js` so the data reflects what the renderer actually consumes."
+}

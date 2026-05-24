@@ -1,0 +1,19 @@
+{
+  "id": "F-004",
+  "severity": "Medium",
+  "source": "claude",
+  "classification": "fixable",
+  "phase": "code",
+  "category": "Correctness",
+  "sectionRef": "renderPhaseTree task-ref fallback",
+  "description": "`renderPhaseTree()` in `plans/overview.html:1426` falls back through `task.title || node.visibleText || task.id`. No task entry in `plans/overview-data.js` defines `task.title`, so the first branch is dead today. All 5 existing `task-ref` nodes carry `visibleText` so the renderer works, but any new task-ref node authored without `visibleText` will degrade to the bare task id (e.g., `perf-WS3` instead of the human-readable phase-tree label). The plan's schema documents `task.title` as the authoritative phase-tree label, so the contract is half-implemented. Codex flagged the same gap.",
+  "status": "open",
+  "fixedInIteration": null,
+  "resolution": null,
+  "relevantFiles": [
+    "plans/overview.html:1426",
+    "plans/overview-data.js",
+    ".agents/skills/roadmap-and-overview/SKILL.md"
+  ],
+  "suggestedFix": "Either (a) backfill `title` on every task entry from a human-readable label (e.g., the kanban card-title text) and update the SKILL example to actually use it, or (b) make `visibleText` on every task-ref node a hard requirement in the SKILL.md phase-tree procedure (E) and drop `task.title` from the schema. Tracking this with F-003 (both touch the SKILL.md/data-file consistency story) reduces edit churn."
+}

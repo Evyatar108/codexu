@@ -1,0 +1,27 @@
+### Completeness
+
+[High] `plugins/ralph-overview/scripts/generate-copilot-artifacts.mjs:20-26` copies `skills/*/SKILL.md` verbatim into `dist/copilot`. The plan required adapting the Ralph generator’s Copilot substitutions; the generated mirrors still contain Claude-only `Skill(` calls, e.g. `plugins/ralph-overview/dist/copilot/work-on/SKILL.md:178`, so the Copilot parity gate is not genuinely satisfied.
+
+[Medium] `plugins/ralph-overview/scripts/init-consumer.mjs:8-13` adds package scripts named `overview`, `overview:build`, `sync-ralph-state`, and `sync-ralph-state:watch`. The plan specified optional `overview:sync` and `overview:dev` scripts, so the optional package-script feature does not match the contract.
+
+### Correctness
+
+[High] `plugins/ralph-overview/tools/overview-mcp/src/install-server.ts:82-87` still only accepts `--print-only`, while `plugins/ralph-overview/bin/ralph-overview.mjs:20-23` forwards `install-server --repo .` to that parser. The documented and planned dispatcher path fails with “Unknown argument: --repo”.
+
+[High] `plugins/ralph-overview/tools/overview-mcp/src/install-server.ts:38-40` prints the `initConsumer` result object for `--print-only`, not the planned `.mcp.json` server registration plus `.claude/settings.json` enablement block. This violates AC17 and leaves operators without the preview block the legacy installer promised.
+
+[High] `plugins/ralph-overview/scripts/init-consumer.mjs:69-74` treats any existing scaffold file as a successful skip when `force` is false. The plan required conflicting `plans/overview-data.js` or `.ralph/overview-config.json` content to be refused unless `--force`; this implementation returns `ok: true`, masking an incomplete/conflicting setup.
+
+[High] `plugins/ralph-overview/scripts/lib/upsert-task-edit.mjs:67-71`, `:176-189`, and `:191-218` return insertion edits with `start === end`. For task creation, AC6b requires edited ranges covering the appended task object and exact map entries; zero-width ranges do not cover the inserted bytes, so downstream byte-identity assertions cannot trust the returned ranges.
+
+### Quality
+
+[Medium] `plugins/ralph-overview/tools/overview-mcp/src/__tests__/init-consumer.test.ts:98-102` claims engine/MCP/CLI parity but the “MCP shim” just calls `initConsumer()` directly. This does not exercise `overview.init` registration or SDK wrapping, so AC9’s cross-surface parity can regress unnoticed.
+
+### Security
+
+No issues found.
+
+### Overall Assessment
+
+Needs more work before use. The main feature surfaces are present, but installer compatibility, conflict handling, Copilot mirror generation, and upsert edit-range reporting miss explicit plan requirements.

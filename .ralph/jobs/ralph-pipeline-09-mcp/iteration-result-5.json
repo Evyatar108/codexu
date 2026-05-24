@@ -1,0 +1,62 @@
+{
+  "storyId": "US-005",
+  "verifiedEvidence": [
+    {
+      "criterion": "src/utils/set-override-edit.ts exposes editOverrides({ source, slug, taskId }) as a pure function",
+      "command": "grep -nE 'export function editOverrides|type EditOverridesResult|spliceSource|parse' tools/overview-mcp/src/utils/set-override-edit.ts",
+      "result": "editOverrides is exported at line 13, returns a source-bearing result type, uses @babel/parser on the input string, and only splices the provided source string; it performs no filesystem I/O.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Uses @babel/parser only to locate AST ranges; splices original source; does not call @babel/generator",
+      "command": "grep -nE '@babel/parser|@babel/generator|spliceSource' tools/overview-mcp/src/utils/set-override-edit.ts",
+      "result": "set-override-edit.ts imports @babel/parser at line 1 and uses spliceSource at lines 41, 58, 71, and 161. No @babel/generator reference was present in tools/overview-mcp/src.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Handles ralphOverrides present/absent cases and no-op same value",
+      "command": "grep -nE 'tasksProperty|ralphOverrides|findPropertyInsertionOffset|existingProperty|StringLiteral' tools/overview-mcp/src/utils/set-override-edit.ts; pnpm --filter @codexu/overview-mcp test",
+      "result": "Absent ralphOverrides inserts immediately after tasks; existing slug replaces only the StringLiteral value; same StringLiteral taskId returns the original source. Vitest passed these cases, including adding a new slug to an existing empty ralphOverrides object.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Tool wrapper reads config.dataFile, calls editOverrides, validates parse, writes via atomicWriteFile()",
+      "command": "grep -nE 'readFile|editOverrides|parseOverviewDataAssignment|atomicWriteFile' tools/overview-mcp/src/tools/set-override.ts; pnpm --filter @codexu/overview-mcp test",
+      "result": "setOverride reads context.config.dataFile at line 19, calls editOverrides at line 24, validates with parseOverviewDataAssignment at line 29, and writes through atomicWriteFile at line 35. Vitest verified the written file remains parseable via loadOverviewData().",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Returns { ok: false, error } on parse failure or absent window.OVERVIEW_DATA assignment and does not overwrite",
+      "command": "grep -nE 'ok: false|window.OVERVIEW_DATA assignment not found|does not overwrite' tools/overview-mcp/src/tools/set-override.ts tools/overview-mcp/src/utils/set-override-edit.ts tools/overview-mcp/src/__tests__/set-override.test.ts; pnpm --filter @codexu/overview-mcp test",
+      "result": "editOverrides returns ok:false for parse failures and absent assignments; setOverride propagates ok:false errors. Vitest case 'returns an error and does not overwrite when the overview assignment is absent' passed and asserted the file content stayed unchanged.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Representative overview-data fixture exists with required top-level keys",
+      "command": "grep -nE 'generatedAt|generatedFromCommit|tasks:|phaseTree|cadence|effort|lastTouched|periodic|risk|runs|sizeBucket|spawnedFrom|workstream' tools/overview-mcp/src/__tests__/fixtures/overview-data.sample.js",
+      "result": "Fixture tools/overview-mcp/src/__tests__/fixtures/overview-data.sample.js contains five tasks and the required top-level keys: generatedAt, generatedFromCommit, tasks, phaseTree, cadence, effort, lastTouched, periodic, risk, runs, sizeBucket, spawnedFrom, and workstream.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Byte-range confinement test covers absent, present different value, same value no-op, and malformed source",
+      "command": "grep -nE 'inserts ralphOverrides|replaces an existing|same value|malformed source|does not overwrite|Buffer.compare' tools/overview-mcp/src/__tests__/set-override.test.ts; pnpm --filter @codexu/overview-mcp test",
+      "result": "set-override.test.ts covers insert, replacement, no-op, malformed source, and no-overwrite wrapper behavior. assertOutsideRangeUnchanged uses Buffer.compare on bytes before and after the spliced range; Vitest reported 3 files passed and 21 tests passed.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Typecheck passes",
+      "command": "pnpm --filter @codexu/overview-mcp typecheck",
+      "result": "Exit 0; tsc --noEmit -p tsconfig.json completed without errors. Full log: .test-output/overview-mcp.typecheck.log.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Tests pass",
+      "command": "pnpm --filter @codexu/overview-mcp test",
+      "result": "Exit 0; Vitest reported 3 test files passed and 21 tests passed. Full log: .test-output/overview-mcp.test.log.",
+      "evidenceKind": "passed"
+    }
+  ],
+  "skippedReasons": [],
+  "notTested": [],
+  "iterationSHA": "5394f46dba16e32b2a944de085738e32cebf97b1"
+}

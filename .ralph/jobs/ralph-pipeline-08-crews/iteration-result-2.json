@@ -1,0 +1,56 @@
+{
+  "storyId": "US-002",
+  "verifiedEvidence": [
+    {
+      "criterion": "crewsRoot added to .ralph/overview-config.schema.json (top-level properties.crewsRoot: { \"type\": \"string\" }).",
+      "evidenceKind": "passed",
+      "command": "grep -n '\"crewsRoot\"' .ralph/overview-config.schema.json",
+      "result": "PASS: line 11 contains top-level properties.crewsRoot with type string."
+    },
+    {
+      "criterion": "scripts/lib/default-config.mjs sets crewsRoot: '.crews' default and adds chokidar ignore patterns for .crews/crews/*/members/*/mailbox.json, .crews/crews/*/members/*/outbox.jsonl, .crews/crews/*/leads/*/mailbox.json, .crews/crews/*/leads/*/outbox.jsonl, .crews/crews/*/inbox-history.jsonl.",
+      "evidenceKind": "passed",
+      "command": "grep -En 'crewsRoot|mailbox.json|outbox.jsonl|inbox-history.jsonl' scripts/lib/default-config.mjs",
+      "result": "PASS: line 4 sets crewsRoot: '.crews'; lines 42-46 include all five requested .crews ignore patterns."
+    },
+    {
+      "criterion": "scripts/lib/default-config.d.mts adds crewsRoot: string to RalphOverviewConfig.",
+      "evidenceKind": "passed",
+      "command": "grep -n 'crewsRoot' scripts/lib/default-config.d.mts",
+      "result": "PASS: line 4 declares crewsRoot: string on RalphOverviewConfig."
+    },
+    {
+      "criterion": "scripts/lib/resolve-config.mjs destructures crewsRoot and returns it via a new resolveCrewsRoot() helper that resolves linked-worktree paths to the common repo root (when git rev-parse --git-common-dir differs from --git-dir, base is path.resolve(repoRoot, commonDir, '..')).",
+      "evidenceKind": "passed",
+      "command": "grep -n 'crewsRoot|resolveCrewsRoot|git-common-dir|git-dir' scripts/lib/resolve-config.mjs",
+      "result": "PASS: lines 79-80 destructure crewsRoot, line 109 returns it, lines 149-155 define resolveCrewsRoot, and lines 160-171 compare --git-dir/--git-common-dir and resolve the common-root base."
+    },
+    {
+      "criterion": "scripts/lib/sync-core.mjs normalizeConfigPaths() also resolves crewsRoot.",
+      "evidenceKind": "passed",
+      "command": "grep -n 'crewsRoot' scripts/lib/sync-core.mjs",
+      "result": "PASS: line 709 resolves config.crewsRoot through resolveMaybeAbsolute(repoRoot, ...)."
+    },
+    {
+      "criterion": "Tests in scripts/lib/resolve-config.test.mjs cover: schema validation, absolute override preserved, relative override resolved against repo root, linked-worktree mode resolves default '.crews' to main repo's .crews/.",
+      "evidenceKind": "passed",
+      "command": "grep -En 'schema accepts|preserves absolute|relative crewsRoot|linked worktree' scripts/lib/resolve-config.test.mjs && grep -n 'resolve-config.test.mjs' .test-output/root.test.log | tail -3",
+      "result": "PASS: test cases are present at lines 20, 28, 36, and 43; pnpm test log reports scripts/lib/resolve-config.test.mjs (4 tests) passed."
+    },
+    {
+      "criterion": "Typecheck passes.",
+      "evidenceKind": "passed",
+      "command": "pnpm --filter @codexu/overview-viewer typecheck",
+      "result": "PASS: tsc --noEmit completed with exit 0; output saved to .test-output/overview-viewer.typecheck.log."
+    },
+    {
+      "criterion": "Quality checks pass.",
+      "evidenceKind": "passed",
+      "command": "pnpm test",
+      "result": "PASS: 19 test files passed, 117 tests passed; output saved to .test-output/root.test.log."
+    }
+  ],
+  "skippedReasons": [],
+  "notTested": [],
+  "iterationSHA": "0dc3e9d718ab3d6296f593b6ad4064581b01d543"
+}

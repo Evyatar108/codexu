@@ -1,0 +1,50 @@
+I’ll inspect the referenced temp file to see the requested task.
+
+The referenced file is readable but needs ranged reads; I’ll pull the prompt in sections.
+
+I’ll research the overview viewer files and current plan surfaces so the findings are grounded in the actual code.
+
+The initial glob pattern didn’t match, so I’m switching to direct known paths and targeted searches.
+
+Research complete: Plan 03 is feasible, but the plan should be tightened around **initial sidecar loading**, **test coverage**, and **Plan 02 Vite conflict boundaries**.
+
+### Codebase Architecture
+
+`tools\overview-viewer` is a React/Vite/TypeScript viewer inside the monorepo. Actual deps are React 19.2, Vite 8, Vitest split into SSR and jsdom interaction projects. It reads globals from root sidecars under `plans\`: currently `window.OVERVIEW_DATA` from `plans\overview-data.js`; Plan 01 already added `OverviewRalphState`, `RalphStage`, `getOverviewRalphState()`, and `window.OVERVIEW_RALPH_STATE`.
+
+Ralph sync lives in `scripts\lib\sync-core.mjs`, with defaults in `scripts\lib\default-config.mjs`; it already emits `plans\overview-ralph-state.js` and `.json`.
+
+### Feature-Relevant Code
+
+Key existing integration points:
+
+- `tools\overview-viewer\src\types.ts`: `RalphStage`, `OverviewRalphState`, `RalphPipelineState`, `getOverviewRalphState()`.
+- `tools\overview-viewer\src\overviewData.ts`: global `Window` already declares `OVERVIEW_RALPH_STATE`.
+- `tools\overview-viewer\src\App.tsx`: owns `data`, `reloadOverviewData()`, HMR subscription, `useMultiAxisFilter(data, taskIdFilter)`.
+- `tools\overview-viewer\src\utils\filters.ts`: current axes are `status | workstream | cadence | size | scope`; `matchesKanbanFilter` intentionally only applies workstream + query today.
+- `tools\overview-viewer\src\components\TaskCommand.tsx`: `WorkstreamPill` Radix Tooltip pattern and command-row insertion point around the summary.
+- `tools\overview-viewer\src\components\CommandList.tsx`: must receive and forward `ralphState` to `TaskCommand`.
+- `tools\overview-viewer\src\components\Toolbar.tsx`: static `FILTER_GROUPS`; no `ralphState` prop is needed for Plan 03 unless the plan wants dynamic counts.
+- `tools\overview-viewer\vite.config.ts`: current plugin only serves/watches/inlines `overview-data.js`.
+- `tools\overview-viewer\overview.html`: currently has only `<script src="./overview-data.js"></script>`.
+
+### Technical Constraints
+
+The plan must explicitly add `tools\overview-viewer\overview.html` to modified files. Without `<script src="./overview-ralph-state.js"></script>` before the React module script, the initial render will see empty Ralph state until an HMR event occurs. The Vite transform also needs a second placeholder/tag to replace during static builds.
+
+Plan 02 also edits `vite.config.ts` in `configureServer` to auto-start `watch-ralph-state.mjs` and emit `overview-ralph-state:update`. Plan 03 should add only sidecar serve/watch/inline plumbing, preferably as a distinct helper/plugin section, and must not import/start the Plan 02 watcher.
+
+Tests list is incomplete: `tools\overview-viewer\src\__tests__\urlFilter.test.ts` also calls `matchesTaskFilter` and must receive `NO_RALPH_STATE`. Tooltip hover/focus coverage should be under `src\__tests__\interactions\`, not only SSR, matching the existing `workstreamTooltip.test.tsx` pattern.
+
+### Implementation Suggestions
+
+Improve Plan 03 by adding these concrete changes:
+
+1. Add `tools\overview-viewer\overview.html` to scope and acceptance: it must load `overview-ralph-state.js` before `/src/main.tsx`.
+2. In `App.tsx`, use `const [ralphState, setRalphState] = useState(getOverviewRalphState)` and keep reload evaluation separate from setting React state.
+3. In `vite.config.ts`, add constants for `overviewRalphStatePath` and `ralphSidecarScriptTag`; serve `/overview-ralph-state.js`; watch the sidecar file defensively; inline/minify/escape it for static build.
+4. Add `urlFilter.test.ts` to the existing-test update list.
+5. Split `RalphStageChip` tests: SSR/null/class tests can live in `ralphStageChip.test.tsx`; hover/focus tooltip tests should live in `interactions\ralphStageChipTooltip.test.tsx`.
+6. Clarify kanban behavior: Plan 03 should add only `ralphStage` filtering to kanban visibility, not broaden kanban to all toolbar axes.
+7. Add explicit downstream audit targets: `plans\ralph-pipeline-04-pipeline-overview.md`, `05`, `06`, `07`, `08`, and `plans\ralph-pipeline-INDEX.md`.
+

@@ -1,0 +1,26 @@
+I’m opening the attached task file and pulling the relevant repo guidance before making changes.
+
+I’ve got the plan; now I’m checking the cited code and package guidance to verify whether the proposed changes line up with the repo as it actually exists.
+
+### Feasibility
+
+- [Medium] The same-machine constraint is not actually enforced by the proposed implementation. `parseCompositeSessionId` only splits whatever prefix it sees (`packages/happy-app/sources/sync/machineSessionId.ts:10-18`), and the planned normalization points in `packages/happy-app/sources/sync/sync.ts:324-333` and `:1816-1843` can only promote **bare** IDs using the current machine. If already-composite IDs are “left alone for idempotency,” cross-machine refs will still flow through unchanged. The plan should either reject foreign-machine composites explicitly or drop the “validated same-machine only” claim.
+
+### Completeness
+
+- [Medium] The documentation/status updates are incomplete. `plans/parallel-assignments.md:565-571` is the active task board and currently marks `session-parent-link` as in progress, but the plan only mentions updating `plans/agent-view-research.md`. If the code lands without updating the board, project tracking becomes inconsistent.
+
+- [Medium] Coverage for the live websocket path should not be optional. The risky behavior is in both initial fetch normalization and live `update-session` handling, and there is already a focused harness for that live path in `packages/happy-app/sources/sync/sync.test.ts:652-703`. Treating `sync.test.ts` as optional makes it too easy to validate only `toCompositeSession()` and miss regressions in the path users actually hit during session updates.
+
+### Ordering
+
+No issues found.
+
+### Simplicity
+
+- [High] The proposed `applySessions` “preserve undefined/null semantics” block is over-engineered and changes source-of-truth behavior. Today `applySessions` replaces the incoming session and only restores explicitly local-only overlays (`draft`, permission/model/effort, pinned avatar) in `packages/happy-app/sources/sync/storage.ts:437-447`; metadata is otherwise server-authoritative. The live `update-session` path in `packages/happy-app/sources/sync/sync.ts:1823-1843` follows the same model. Preserving an old local `spawnedChildren` array when the incoming metadata omits that field would let stale relationship data survive after a legitimate server metadata update. The simpler plan is the correct one here: extend the schema, normalize IDs on ingress, and let metadata round-trip as-is.
+
+### Acceptance Criteria Quality
+
+- [Medium] The round-trip acceptance is still ambiguous because it mixes “MMKV round-trip” language with a storage layer that does not persist the session map. The app only persists overlays like drafts, modes, pinned avatars, and last-seen seqs (`packages/happy-app/sources/sync/storage.ts:346-356`), while sessions themselves are reloaded from sync. As written, an autonomous implementer cannot tell whether success means “server re-fetch round-trip” or “app-restart persistence,” which are materially different scopes.
+

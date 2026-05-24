@@ -1,0 +1,32 @@
+{
+  "storyId": "US-002",
+  "verifiedEvidence": [
+    {
+      "criterion": "derivePRLinks export and declarations",
+      "command": "grep -n \"export function derivePRLinks\" scripts/lib/derive-pr-links.mjs scripts/lib/derive-pr-links.d.mts",
+      "result": "PASS: implementation and declaration exports are present with the requested parameter and return shapes.",
+      "evidenceKind": "inspection"
+    },
+    {
+      "criterion": "derive-pr-links behavior coverage",
+      "command": "pnpm exec vitest run scripts/lib/derive-pr-links.test.mjs",
+      "result": "PASS: 1 test file passed, 10 tests passed, covering group prUrl, log URL discovery, Closes #N reconstruction, failure handling, and mergeCommit stage gating.",
+      "evidenceKind": "test"
+    },
+    {
+      "criterion": "execFileSync argv-array usage",
+      "command": "grep -n \"execFileSync\" scripts/lib/derive-pr-links.mjs",
+      "result": "PASS: git log, rev-parse, and remote get-url invocations use execFileSync('git', [...]) argv arrays; no shell-string interpolation is present.",
+      "evidenceKind": "inspection"
+    },
+    {
+      "criterion": "Typecheck passes",
+      "command": "pnpm --filter @codexu/overview-viewer typecheck",
+      "result": "PASS: tsc --noEmit completed with exit 0; log captured at .test-output/overview-viewer.typecheck.log.",
+      "evidenceKind": "typecheck"
+    }
+  ],
+  "skippedReasons": [],
+  "notTested": [],
+  "iterationSHA": "0d9e8ef58882e6c1a09ad11055d295b393a0185a"
+}

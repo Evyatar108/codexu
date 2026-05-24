@@ -1,0 +1,115 @@
+I’m opening the referenced file to see the task and gather the relevant project context.
+
+I’ve got the task; now I’m pulling the current viewer plan, renderer, and shipped data shape so I can ground the analysis in the actual code.
+
+The plan is implementable on top of the current codebase. The main gotchas are: **workspace package registration is duplicated in two files**, the shipped data still contains **legacy `phaseTree.task-ref.state` fields** even though the renderer derives state from `task.phase`, and **`mergeCommit` is populated on 8 tasks, not 6**.
+
+### Codebase Architecture
+
+- **Monorepo** rooted at `D:\harness-efforts\codexu`, managed by **pnpm 10.11.0**.
+- Workspace packages are explicitly listed in **both**:
+  - `pnpm-workspace.yaml`
+  - root `package.json` → `workspaces.packages`
+- Main code areas:
+  - `packages/` — app/server/CLI/workspace packages
+  - `tools/` — standalone TS tools like `tools/render-roadmap.ts`
+  - `plans/` — roadmap docs, current viewer HTML, and shipped data
+- Languages / frameworks:
+  - **TypeScript / JavaScript**
+  - **React Native + Expo** in `packages/happy-app`
+  - **React 19 + Vite-based renderer precedent** in `packages/codium` (`electron-vite`, `@vitejs/plugin-react`)
+  - Current roadmap viewer is **static HTML + inline JS** in `plans/overview.html`
+- Build/test tools visible in repo:
+  - `tsc --noEmit` per-package
+  - `vitest`
+  - `electron-vite` in `packages/codium`
+  - no existing plain Vite workspace package yet
+
+### Feature-Relevant Code
+
+- **Current viewer shell**
+  - `plans/overview.html`
+  - Core render entry points:
+    - `renderTasks()` — renders command rows + kanban cards, preserves open `<details>` ids
+    - `renderPhaseTree()` — renders phase blocks and task refs
+    - `applyEnrichments()` — orchestrates the post-render UI passes
+- **Current data source**
+  - `plans/overview-data.js`
+  - Top-level contract is synchronous and file-safe:
+    - `window.OVERVIEW_DATA = { ... }`
+  - Actual task shape in shipped data includes:
+    - `id`, `scope`, `phase`, `status`, `lastTouchedAt`
+    - optional `mergeCommit`
+    - optional `planOnly`
+    - `kanbanCards[]`
+    - `command: { name, descriptionHtml, warnings, planPrompt }`
+- **Important renderer behavior already implemented in HTML**
+  - `plans/overview.html`
+    - `renderTasks()` — numeric `order` sort first; `insertBeforeTaskId` used as fallback anchor
+    - `renderPhaseBadges()` — glyph/text map for 10 phase badges
+    - `injectTaskScopeChips()` — scope chips in command summary
+    - `injectCopyNameButtons()` — summary button
+    - `injectCheckboxes()` — bulk-copy checkbox; disabled when no `.cmd-pre`
+    - `injectWorkstreamPills()` — more than workstream: also cadence icon/chip, size/cadence datasets, kanban `data-workstream`
+    - `injectKanbanPhasePills()` — phase pill on kanban cards
+    - `injectSpawnRelationships()` — parent/child lineage UI
+    - `injectRunHistory()` — per-task run history in command body
+    - `buildTodayPanel()` — running/ready/hold/recently-shipped summary
+    - `parseTaskIdFilter()` — uses `?tasks=foo,bar`
+    - `applyFilter()` — search + status/workstream/size/cadence/scope filters
+- **Current schema reality from shipped data**
+  - `plans/overview-data.js`
+    - `planOnly: true` appears **7** times
+    - populated `mergeCommit` appears **8** times
+    - `planSource`, `planSourceRef`, `planJobId`, `brainstormPrompt` have **0** matches
+    - `phaseTree.task-ref` nodes still contain legacy `state` fields in the data file
+- **Docs / integration points**
+  - `.agents/skills/roadmap-and-overview/SKILL.md` — procedure G already says preserve `file://` compatibility and keep a top-level `window.OVERVIEW_DATA`
+  - root `README.md` currently has roadmap context, but no viewer subsection
+  - root `package.json` currently has no `overview` / `overview:build` scripts
+
+### Technical Constraints
+
+- **Update both workspace manifests**: `pnpm-workspace.yaml` and root `package.json`. The plan currently mentions only the former.
+- **Do not rely on network loading**. Existing viewer and skill both assume `file://` compatibility and synchronous `window.OVERVIEW_DATA` availability.
+- `plans/overview-data.js` lives **outside** the future package root, so Vite will need:
+  - `server.fs.allow`
+  - explicit watcher registration
+- Existing UI state is persisted in localStorage:
+  - `codexu-overview-details-state-v2`
+  - `codexu-overview-last-visit-v1`
+  - `codexu-overview-notes-v1`
+- Current viewer injects **trusted HTML** in more places than just kanban/phase raw nodes:
+  - `kanbanCards[].html`
+  - `command.descriptionHtml`
+  - `command.warnings[].html`
+  - `phaseTree raw.html`
+  - `phaseTree task-ref.trailingHtml`
+- `renderPhaseTree()` currently derives class from **`task.phase` only**, not `task.status`; blocked/paused are not reflected there today.
+- There is **no root ESLint config** for workspace packages, so any `react/no-danger` rule would need package-local setup or should be omitted.
+
+### Implementation Suggestions
+
+- Use `tools/overview-viewer/` as a real workspace package, but mirror existing repo conventions:
+  - React/Vite dependency pattern from `packages/codium`
+  - strict TS / `jsx: react-jsx` shape from `packages/happy-app`
+- Treat the React port as a **data-driven rewrite**, not a DOM-effect wrapper around `applyEnrichments()`.
+- Natural integration points:
+  - `src/data/schema.ts` — based on **actual shipped data**, not only the plan prose
+  - `useOverviewData()` — `useSyncExternalStore` over `window.OVERVIEW_DATA`
+  - components for `TaskCommand`, `KanbanCard`, `StatusBadge`, `PhaseTree`, `RunsLog`, `TodayPanel`
+  - hooks for URL filter, hash nav, and persistent expansion
+- Preserve exact behavior first:
+  - badge text/glyph map
+  - `?tasks=` filter
+  - hash expand/scroll to `#cmd-...`
+  - current kanban ordering algorithm
+  - current filter axes
+  - current localStorage keys
+- Define TS types defensively:
+  - no `task.title`
+  - sparse/optional forward-compat fields
+  - optional legacy `phaseTree.task-ref.state`
+- `WorkstreamPill` in the plan should really absorb the full current `injectWorkstreamPills()` behavior, including cadence chips and dataset tagging, not just a label pill.
+- `tools/render-roadmap.ts` is useful context for repo structure, but **not** a pattern to copy: it is a standalone root tool, whereas this feature wants a workspace package.
+

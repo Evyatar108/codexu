@@ -1,0 +1,21 @@
+### Completeness
+
+[High] `plans/ralph-pipeline-INDEX.md`, `plans/ralph-pipeline-07-context.md`, `plans/ralph-pipeline-08-crews.md`, and `plans/ralph-pipeline-09-mcp.md` are not updated in the diff. The plan has an explicit acceptance criterion to refresh downstream plans and the INDEX after implementation, or defer via `notepad.md` if Plan 07 is still running. No cascade update or deferred-cascade note is present, so US-006 is unmet.
+
+[Medium] `scripts/lib/derive-next-command.mjs:31` and the other non-null return sites omit the `icon` field from every `NextCommand`. The predicate table requires icons for each stage command, even though the TypeScript type makes `icon` optional. This does not break command derivation, but it diverges from the planned shared contract for UI/MCP consumers.
+
+### Correctness
+
+[Medium] `.claude/skills/work-on/SKILL.md:83` tells `/work-on --dry-run` to print `null` and stop whenever the helper returns `null`, before the Null Handling section at lines 88-96. That means dry-run on `shipped` will print `null` instead of the planned “task is already done” message, and dry-run on a missing-artifact non-shipped stage will not surface the required missing-artifact error.
+
+### Quality
+
+No issues found.
+
+### Security
+
+No issues found.
+
+### Overall Assessment
+
+The core predicate and CLI shape are mostly in place, but the implementation is not ready against the plan because the cascade-refresh acceptance criterion is missing. The dry-run null handling should also be fixed before relying on the repo-local `/work-on` skill.

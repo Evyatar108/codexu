@@ -1,0 +1,33 @@
+### Feasibility
+
+[Medium] The plan says “Modify (5 files)” and the first acceptance criterion says “All 5 doc files,” but the modify-list and US-001 story enumerate only four files: `plans/parallel-assignments.md`, `docs/operations/BOOX-TESTING-HANDOFF.md`, `plans/codexu-roadmap.md`, and `plans/overview.html`. Either identify the fifth file or change the count to four.
+
+[Medium] The planned replacement text links to `.ralph/jobs/f-013-perms-closeout/plan.md`, but that path does not exist in this worktree. Current `.ralph/jobs` only has `phase-3a-port-ralph-skills/plan.md`; the F-013 plan is in `.ralph/jobs/.staging/20260513-060034/draft-plan.md`. If docs will reference the close-out plan, the plan must include creating/copying the job directory, or avoid the link.
+
+[Low] The cited code facts are mostly accurate: `packages/happy-cli/src/claude/utils/permissionHandler.ts:87-89` assigns `response.mode` directly, `PermissionResponse.mode` is typed as `ClaudeSdkPermissionMode`, `mapToClaudeMode` lives in `packages/happy-cli/src/claude/utils/permissionMode.ts`, and `BasePermissionHandler.PermissionResponse` has no `mode` field.
+
+### Completeness
+
+[Medium] Leaving `plans/parallel-assignments.md:160` optional is inconsistent with the close-out. It currently says `F-013, F-015, F-016 already addressed or deferred`; after this change, `F-013` should explicitly say closed, not “deferred,” especially because the grep acceptance expects only closed/obsolete annotations.
+
+[Medium] The plan keeps the F-013 card in `plans/overview.html:261-270`, which is under `Kanban — assignable now`. Adding a “closed” visual state still leaves a closed task in the assignable-now board. The simpler complete change is to remove the card from assignable-now or move it to a historical/closed section.
+
+[Low] `plans/overview.html:165` still names `devtunnels-E notepad` as a source even though the plan’s rationale says that notepad is missing. This is not strictly F-013 text, but it will remain misleading after a close-out based on reconstructed evidence.
+
+### Ordering
+
+[Medium] The docs should not be edited to point at `.ralph/jobs/f-013-perms-closeout/plan.md` until that path exists. If `/implement-with-ralph` creates it, make that an explicit prerequisite before the doc edits and final grep.
+
+### Simplicity
+
+[Low] For a docs-only close-out, full package typecheck and optional `vitest run` are more than this change needs. A focused `git diff --stat`, final grep, and HTML sanity check are enough unless the branch already has unrelated risk. If long tests are retained, capture output once per the repo guidance.
+
+[Low] For `plans/overview.html`, adding a new `.closed` class is unnecessary if the F-013 card is removed from the active kanban. Existing `.donefade` or plain text in a non-active list would be simpler.
+
+### Acceptance Criteria Quality
+
+[Medium] “All 5 doc files updated” is not satisfiable as written because only four files are listed. This needs correction before implementation.
+
+[Medium] The grep criterion is vague and internally inconsistent: it says grep across `plans/`, `docs/operations/`, but then allows an exception in `docs/fork-roadmap.md`, which is outside that scope. Provide an exact command and explicit allowlist.
+
+[Low] “`plans/overview.html` renders correctly when opened in a browser” is too subjective for an autonomous agent. Make it concrete, e.g. “HTML has balanced tags and the F-013 card no longer appears in the assignable-now Kanban,” plus an optional browser screenshot/manual check.

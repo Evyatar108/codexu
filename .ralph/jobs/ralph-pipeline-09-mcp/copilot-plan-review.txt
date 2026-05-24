@@ -1,0 +1,34 @@
+I’ll inspect the referenced temp path to determine what you want handled.
+
+The path is a large file, so I’ll sample it in sections to identify its structure before acting.
+
+I’ll validate the plan’s key references against the repository before writing the review.
+
+I found one likely type/contract mismatch; I’ll check the shared helper declarations and data shapes for any other plan-breaking issues.
+
+The plan is mostly implementable, but I found several blocking contract mismatches to fix before autonomous execution.
+
+### Feasibility
+
+- [High] `overview.invoke_next` via crew will corrupt MCP stdio unless it overrides `runWorkOnViaCrew`’s default stdout. `scripts/lib/work-on-via-crew.mjs` writes `Spawned ...` to `process.stdout` by default, while the plan requires stdout to be reserved for JSON-RPC. The plan should explicitly pass `stdout: process.stderr` or a buffer/logger when calling `runWorkOnViaCrew()`.
+
+- [High] `overview.list_crew_sessions` acceptance requires returning live `lastHeartbeatAt`, but `discoverCrewSessions()` currently drops that field. `scripts/lib/crews-cross-walk.mjs` reads `manifest.lastHeartbeatAt` only to compute staleness and returns a `CrewSessionRef` without `lastHeartbeatAt`; the type in `tools/overview-viewer/src/types.ts` also lacks it. The plan must either extend the shared return type/helper or have the MCP tool merge manifest heartbeat data separately.
+
+### Completeness
+
+- [High] `list_blockers` treats `reviewOpenCount` as a number, but the actual type is `Record<string, number | undefined>`. The plan’s predicate `(reviewOpenCount ?? 0) > 0` is wrong and will miss review findings or fail typecheck. It should sum/check object values, e.g. `Object.values(reviewOpenCount ?? {}).some((n) => (n ?? 0) > 0)`.
+
+- [High] `overview.get_task` reads `tasks/<taskId>/journal.md` but the plan only calls out `assertSafeTaskId` for `add_journal_entry`. The read path also needs a task-id guard, or it must only read the journal after resolving `taskId` from known snapshot tasks, to avoid path traversal through arbitrary tool input.
+
+### Ordering
+
+No issues found. The scaffold → snapshot reader → read-only/writer tools → crew tools → install/docs sequence is sound.
+
+### Simplicity
+
+No issues found. The plan correctly reuses existing helpers instead of reimplementing next-command derivation, config resolution, overview-data parsing, and crew spawning.
+
+### Acceptance Criteria Quality
+
+- [Medium] US-004 says tests must verify journal-note “idempotency,” but append-only journal writes are not naturally idempotent and the intended behavior is unclear. Specify whether duplicate calls should append duplicate lines, be de-duped by exact `(ts, note)`, or simply preserve the existing `appendJournalEntry()` behavior unchanged.
+

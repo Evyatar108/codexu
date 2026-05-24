@@ -1,0 +1,114 @@
+I’m opening the attached task file first, then I’ll make the requested change in the repo.
+
+I’ve got the brief; now I’m reading the referenced planning files and the current overview implementation to ground the research.
+
+I need one more pass over the overview script and repo shape to pin the natural integration points.
+
+## Codebase Architecture
+
+This repo is a **pnpm monorepo** (`package.json`) with TypeScript-heavy packages (`packages/happy-*`, `packages/codium`, plugins), but this feature lives entirely in the **planning/docs surface** under `plans/`. The relevant implementation is a **single-file static dashboard** at `plans/overview.html`: plain HTML + CSS + vanilla JS, no build step, designed to work under `file://`. The companion sources are markdown docs:
+
+- `plans/overview.html` — rendered dashboard + embedded task metadata JSON
+- `plans/parallel-assignments.md` — authoritative `/plan-with-ralph` command catalog + status table
+- `plans/codexu-roadmap.md` — long-form roadmap + standing rules
+- `.agents/skills/roadmap-and-overview/SKILL.md` — current maintenance procedure for the dashboard/schema
+
+The source doc’s cited ranges are still broadly accurate:
+- color tokens/light theme: `plans/overview.html:7-38`
+- kanban badge CSS: `plans/overview.html:76-83`
+- command-badge CSS/status ordering: `plans/overview.html:812-849`
+- kanban section: `plans/overview.html:1043+`
+- Ralph command rows: `plans/overview.html:1401+`
+- embedded JSON block: `plans/overview.html:2155+`
+- roadmap standing rules: `plans/codexu-roadmap.md:163-175`
+- “1-paragraph PRD” note: `plans/codexu-roadmap.md:1285-1286`
+
+## Feature-Relevant Code
+
+**Primary files**
+- `plans/task-phases.md` — hand-authored source-of-truth for the phase model
+- `plans/overview.html`
+  - color tokens/light theme: `7-38`
+  - kanban badges: `76-83`
+  - task command badge classes: `845-849`
+  - toolbar status filters: `978-985`
+  - kanban cards: `1043-1399`
+  - command rows: `1401-1883`
+  - roadmap metadata JSON: `2155-2585`
+  - status classification/sorting: `2671-2695`
+  - `classifyCmd()` used by Today panel + filters: `2841-2860`
+  - multi-axis filtering uses status strings: `3126-3163`
+  - `getRoadmapData()`: `3390-3394`
+- `plans/parallel-assignments.md`
+  - conventions/worktree rules: `1-22`
+  - status table: `553-608`
+- `plans/codexu-roadmap.md`
+  - standing rules target section: `163-175`
+  - in-flight jobs bookkeeping precedent: `176-203`
+  - fused plan+implement precedent: `1285-1286`
+
+**Patterns to reuse**
+- Semantic color tokens (`--ok`, `--warn`, `--info`, `--accent`, `--done`, `--purple`) already support dark/light themes.
+- Command rows use `data-task-id` and `data-task-scope` as load-bearing metadata.
+- `roadmap-data` already carries per-task maps (`lastTouched`, `effort`, `risk`, `workstream`, `sizeBucket`, `spawnedFrom`) and run history.
+- Existing PRD style examples:
+  - `tasks/prd-1a-fork-doc.md`
+  - `tasks/prd-port-explorer-prompt.md`
+
+## Technical Constraints
+
+1. **Current status is badge-class-driven, not schema-driven.**  
+   `overview.html` JS infers task state from `.cmd-badge` classes/text (`b-ready`, `b-inprogress`, `b-paused`, `b-blocked`, `b-closed`) in:
+   - `classifyAndOrderCmds()` at `2677-2695`
+   - `classifyCmd()` at `2842-2851`
+   - filter logic at `3135-3155`
+
+   So the phase model is not just CSS/markup; it touches sorting, Today panel counts, and status filters.
+
+2. **The dashboard duplicates task state in multiple representations.**  
+   A task may appear in:
+   - command row
+   - kanban card
+   - `roadmap-data` JSON maps
+   - `parallel-assignments.md` status table  
+   There is no single canonical task object yet.
+
+3. **The source doc says “HTML-only” and “don’t touch `runs[]`.”**  
+   That fits the current architecture if phase/status metadata lives on the HTML task rows/cards rather than changing run records.
+
+4. **Current toolbar filters expose only legacy status categories.**  
+   `ready / inprogress / blocked / paused / closed` chips are hardcoded at `978-985`. The source doc does not mention these, but the plan should.
+
+5. **Maintenance docs currently describe the old schema.**  
+   `.agents/skills/roadmap-and-overview/SKILL.md` still documents the old `status`-only model and update procedures. If left untouched, it will become stale immediately after this change.
+
+## Implementation Suggestions
+
+The natural integration point is to keep this as a **bookkeeping-layer change inside `plans/overview.html`**, not a data extraction. I’d recommend the plan frame the implementation as:
+
+1. **Introduce explicit per-task phase metadata on the HTML rows**  
+   Add `data-phase`, `data-status`, and optional `data-plan-only`, `data-plan-source`, job-id/artifact attrs to each `<details class="cmd">`. This matches the source doc’s “HTML-only” scope better than inventing a new sidecar schema.
+
+2. **Treat the badge as a renderer, not the source of truth**  
+   Refactor `classifyAndOrderCmds()`, `classifyCmd()`, Today panel logic, and toolbar filtering to derive from phase + modifier instead of legacy badge classes. Keep legacy `b-ready`/`b-blocked`/`b-paused`/`b-closed` as fail-soft aliases.
+
+3. **Keep the 3-column kanban**  
+   The source doc’s recommendation matches the current UI structure. Phase should become a pill on each card; blocked/paused should be a secondary modifier pill.
+
+4. **Update all existing task rows explicitly**  
+   Because there is no central task model, migration is manual and should be called out as such in the plan. The plan should preserve the source doc’s operator-confirmed migration table for `plan-review` vs `brainstorm-ready`.
+
+5. **Document the model in markdown, with `parallel-assignments.md` as the enum home**  
+   `codexu-roadmap.md` should add only the standing-rule summary and link out.
+
+6. **Reference the current maintenance skill as prior art**  
+   Reuse `.agents/skills/roadmap-and-overview/SKILL.md` as the description of the current data model and note it as a likely follow-up/staleness risk.
+
+For the full PRD conversion, the strongest story decomposition is:
+- **Story 1:** phase/status schema + `overview.html` renderer/plumbing
+- **Story 2:** migrate all existing tasks/cards/command rows
+- **Story 3:** document conventions in `parallel-assignments.md` and `codexu-roadmap.md`
+- **Story 4:** smoke representative progression paths + legacy-class fail-soft behavior
+
+The two biggest risk areas the source doc underplays are **filter/Today-panel JS coupling** and **maintenance-doc drift in `.agents/skills/roadmap-and-overview/SKILL.md`**.
+

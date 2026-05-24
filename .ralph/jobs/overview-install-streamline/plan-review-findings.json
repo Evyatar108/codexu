@@ -1,0 +1,291 @@
+{
+  "planFile": "D:/harness-efforts/codexu/.ralph/jobs/.staging/20260523-095140/draft-plan.md",
+  "repoDir": "D:/ai-developer-toolkit",
+  "reviewCycle": 0,
+  "findings": [
+    {
+      "id": "F-001",
+      "severity": "Critical",
+      "source": "consensus",
+      "category": "Completeness",
+      "sectionRef": "Acceptance Criteria > Criterion 3 (--force)",
+      "description": "AC3 says `overview.init --force` 'regenerates all four files' and 'replaces existing content with templates'. Applied literally to `.mcp.json` and `.claude/settings.json`, this would delete unrelated MCP servers (e.g. `paper`) and unrelated Claude settings, directly contradicting AC4 (.mcp.json safe-merge) and AC5 (enabledMcpjsonServers append-only). `--force` must be redefined to overwrite scaffold templates (`plans/overview-data.js`, `.ralph/overview-config.json`) only; registration files (`.mcp.json`, `.claude/settings.json`) MUST always safe-merge regardless of `--force`. Flagged by both Codex (Critical) and Copilot (High).",
+      "status": "fixed",
+      "relevantFiles": [
+        "D:/harness-efforts/codexu/.ralph/jobs/.staging/20260523-095140/draft-plan.md"
+      ],
+      "suggestedFix": "Rewrite AC3 to: '`overview.init --force` overwrites the scaffold templates `plans/overview-data.js` and `.ralph/overview-config.json` even when present. Registration files `.mcp.json` and `.claude/settings.json` always safe-merge regardless of `--force`; `--force` never deletes other servers or settings.' Update the Architecture section to enforce this split.",
+      "fixedInIteration": 1,
+      "resolution": "Amended the plan so --force overwrites only scaffold templates while .mcp.json and .claude/settings.json always safe-merge and preserve unrelated entries."
+    },
+    {
+      "id": "F-002",
+      "severity": "High",
+      "source": "consensus",
+      "category": "Feasibility",
+      "sectionRef": "Approach > Architecture; Open Questions > Mirror generator",
+      "description": "Copilot mirror parity work is not actionable as planned. `plugins/ralph-overview/dist/copilot/` does not exist; there is no mirror generator under `plugins/ralph-overview/scripts/`. The actual generator lives at `D:/ai-developer-toolkit/plugins/ralph/scripts/generate-copilot-artifacts.mjs` (the Ralph plugin, NOT ralph-overview). The plan must either (a) port/adapt that generator into ralph-overview, (b) extend the Ralph plugin's generator to discover ralph-overview skills, or (c) drop the mirror-count gate (AC14). Flagged by all three reviewers (Claude, Codex, Copilot).",
+      "status": "fixed",
+      "relevantFiles": [
+        "D:/ai-developer-toolkit/plugins/ralph-overview/skills/",
+        "D:/ai-developer-toolkit/plugins/ralph/scripts/generate-copilot-artifacts.mjs"
+      ],
+      "suggestedFix": "Move generator discovery to the START of US-001 as a P0 gate. If a generator is reachable (either in ralph-overview or via the Ralph plugin's tool), document its invocation in the plan and keep AC14. If no generator exists, either (i) carve out a new US to build a minimal mirror generator for ralph-overview, or (ii) drop AC14 and remove the Copilot mirror requirement from US-004. Pick one path explicitly in the plan.",
+      "fixedInIteration": 2,
+      "resolution": "The plan now explicitly creates a ralph-overview Copilot mirror generator in US-001 and uses it for the US-004 mirror parity gate instead of assuming an existing generator."
+    },
+    {
+      "id": "F-003",
+      "severity": "High",
+      "source": "consensus",
+      "category": "Completeness",
+      "sectionRef": "Approach > Architecture > upsert-task-edit.mjs; Acceptance Criteria > Criterion 6",
+      "description": "Byte-identical-outside-target-task contract is broken by reality. Many per-task fields the brainstorm enumerates (`workstream`, `sizeBucket`, `risk`, `cadence`, `effort`, `periodic`, `spawnedFrom`) live as TOP-LEVEL maps keyed by task id (see `tools/overview-viewer/src/types.ts` and `tools/overview-mcp/src/tools/read-only.ts` which filters via `overviewData.workstream[task.id]`), NOT as fields inside the task ObjectExpression. Editing those fields necessarily touches bytes OUTSIDE the target task. Flagged by both Codex and Copilot.",
+      "status": "fixed",
+      "relevantFiles": [
+        "D:/ai-developer-toolkit/plugins/ralph-overview/tools/overview-viewer/src/types.ts",
+        "D:/ai-developer-toolkit/plugins/ralph-overview/tools/overview-mcp/src/tools/read-only.ts"
+      ],
+      "suggestedFix": "Split the upsert schema into two disjoint groups: (A) `taskObjectFields` (fields inside the task ObjectExpression: `id`, `title`, `scope`, `status`, `phase`, `blockedBy`, `mergeCommit`, `kanbanCards`, `command`, etc.); (B) `topLevelMapFields` (fields stored in top-level maps keyed by id: `workstream`, `sizeBucket`, `risk`, `cadence`, `effort`, `periodic`, `spawnedFrom`). Acceptance Criterion 6 asserts byte-identity outside the union of (a) the target task ObjectExpression and (b) the touched entries in the top-level maps. The mutator returns which exact ranges it edited; the test asserts byte-identity outside those ranges.",
+      "fixedInIteration": 3,
+      "resolution": "Amended the plan to split upsert fields into task-object fields and top-level map fields, return edited byte ranges, and assert byte identity outside the union of those ranges."
+    },
+    {
+      "id": "F-004",
+      "severity": "High",
+      "source": "consensus",
+      "category": "Completeness",
+      "sectionRef": "Approach > Files to Modify; Acceptance Criteria > Criterion 12",
+      "description": "Adding two new MCP tools will break exact-list tests not enumerated in the plan: `tools/overview-mcp/src/__tests__/stdio-tools-list.test.ts` asserts exactly 17 tool names (Codex), and `tools/overview-mcp/src/__tests__/read-only-tools.test.ts` has a similar exact-list assertion (Copilot). `tools/overview-mcp/src/__tests__/build.test.ts` is also stale (Copilot — expects `pnpm overview:build` while `build.ts` uses the dispatcher). The plan only lists `install-server.test.ts` and `dev-server.test.ts`. The README files (`plugins/ralph-overview/README.md`, `tools/overview-mcp/README.md`) and `plugins/ralph-overview/CLAUDE.md` also document the tool count. Flagged by both Codex and Copilot.",
+      "status": "fixed",
+      "relevantFiles": [
+        "D:/ai-developer-toolkit/plugins/ralph-overview/tools/overview-mcp/src/__tests__/stdio-tools-list.test.ts",
+        "D:/ai-developer-toolkit/plugins/ralph-overview/tools/overview-mcp/src/__tests__/read-only-tools.test.ts",
+        "D:/ai-developer-toolkit/plugins/ralph-overview/tools/overview-mcp/src/__tests__/build.test.ts",
+        "D:/ai-developer-toolkit/plugins/ralph-overview/README.md",
+        "D:/ai-developer-toolkit/plugins/ralph-overview/tools/overview-mcp/README.md",
+        "D:/ai-developer-toolkit/plugins/ralph-overview/CLAUDE.md"
+      ],
+      "suggestedFix": "Expand US-003's test-update scope to include `stdio-tools-list.test.ts` (update expected count from 17 to 19 and add the two new tool names), `read-only-tools.test.ts` (review and reconcile), `build.test.ts` (fix stale dispatcher expectation). Update tool-count references in `README.md`, `tools/overview-mcp/README.md`, and `plugins/ralph-overview/CLAUDE.md`. Add to Acceptance Criterion 12: 'All exact-list and tool-count assertions in the MCP test suite pass green after adding the two new tools.'",
+      "fixedInIteration": 4,
+      "resolution": "Expanded US-003/US-005 scope, files-to-modify, risk notes, and AC12 to cover exact 19-tool assertions, build test drift, and documented MCP tool-count references."
+    },
+    {
+      "id": "F-005",
+      "severity": "High",
+      "source": "consensus",
+      "category": "Feasibility",
+      "sectionRef": "Approach > Files to Create; Implementation Strategy",
+      "description": "TypeScript files under `tools/overview-mcp/src/` import from `scripts/lib/*.mjs` via paired `*.d.mts` declaration files (e.g. `atomic-write.d.mts`, `sync-core.d.mts`). The plan creates `scripts/init-consumer.mjs`, `scripts/lib/upsert-task-edit.mjs`, and `scripts/lib/check-initialized.mjs` but omits matching `.d.mts` declarations. `tsc -p tools/overview-mcp/tsconfig.json` under `strict` will fail. Flagged by both Codex and Copilot.",
+      "status": "fixed",
+      "relevantFiles": [
+        "D:/ai-developer-toolkit/plugins/ralph-overview/scripts/lib/atomic-write.d.mts",
+        "D:/ai-developer-toolkit/plugins/ralph-overview/scripts/lib/sync-core.d.mts"
+      ],
+      "suggestedFix": "Add to Files to Create: `scripts/init-consumer.d.mts`, `scripts/lib/upsert-task-edit.d.mts`, `scripts/lib/check-initialized.d.mts`. Add to Acceptance Criteria: 'TypeScript build (`tsc -p tools/overview-mcp/tsconfig.json`) passes with no errors after the new modules are added.' Document the convention in the plan's Technical Constraints.",
+      "fixedInIteration": 5,
+      "resolution": "Added missing declaration-file requirements for the new script modules and a strict TypeScript build acceptance criterion."
+    },
+    {
+      "id": "F-006",
+      "severity": "High",
+      "source": "consensus",
+      "category": "Criteria Quality",
+      "sectionRef": "Approach > Architecture > upsert primitive; Open Questions > Schema",
+      "description": "The `overview.upsert_task.fields` schema is underspecified. The plan defers to an Open Question proposing 'strict whitelist + extras escape hatch'. An autonomous implementer cannot derive the whitelist from the plan as written. Flagged by both Codex and Copilot.",
+      "status": "fixed",
+      "relevantFiles": [
+        "D:/ai-developer-toolkit/plugins/ralph-overview/tools/overview-mcp/src/schemas.ts",
+        "D:/ai-developer-toolkit/plugins/ralph-overview/tools/overview-viewer/src/types.ts"
+      ],
+      "suggestedFix": "Enumerate the exact whitelist in the plan. Task-object fields (in the task ObjectExpression): `id` (required, immutable after create), `title`, `scope`, `status`, `phase`, `blockedBy`, `mergeCommit`, `lastTouchedAt`, `kanbanCards`, `command`, `runsAfter`, `notes`. Top-level map fields (keyed by id): `workstream`, `sizeBucket`, `risk`, `cadence`, `effort`, `periodic`, `spawnedFrom`. No extras escape hatch in v1 — adding a field requires a code change. Resolves Open Question 2 and feeds AC6 + the test fixture.",
+      "fixedInIteration": 6,
+      "resolution": "Enumerated the exact task-object and top-level map field whitelists for overview.upsert_task and resolved the schema open question as strict with no extras escape hatch in v1."
+    },
+    {
+      "id": "F-007",
+      "severity": "High",
+      "source": "codex",
+      "category": "Completeness",
+      "sectionRef": "Approach > Architecture > install-server reconciliation",
+      "description": "`install-server.ts` is exposed as a package bin (`overview-mcp-install` -> `dist/install-server.js` in `tools/overview-mcp/package.json`). The current `installServer()` API supports `--print-only`. Deleting/rerouting the file as the plan proposes would break the bin entry and the `--print-only` flag. (Codex)",
+      "status": "fixed",
+      "relevantFiles": [
+        "D:/ai-developer-toolkit/plugins/ralph-overview/tools/overview-mcp/package.json",
+        "D:/ai-developer-toolkit/plugins/ralph-overview/tools/overview-mcp/src/install-server.ts"
+      ],
+      "suggestedFix": "Preserve the `overview-mcp-install` bin entry and the `--print-only` flag. Reroute `install-server.ts` to call `initConsumer({ ..., serverOnly: true })` while keeping the exported function signature and `--print-only` behavior. Add an explicit AC: `overview-mcp-install --print-only` continues to print the registration block without writing files.",
+      "fixedInIteration": 7,
+      "resolution": "Updated the plan to keep the package bin and print-only installer contract while using the shared server-only init path."
+    },
+    {
+      "id": "F-008",
+      "severity": "High",
+      "source": "codex",
+      "category": "Ordering",
+      "sectionRef": "Implementation Strategy > Story Sequencing (US-001, US-003)",
+      "description": "US-003 needs the init engine to expose a `serverOnly` mode so install-server.ts can reconcile cleanly, but US-001 does not include `serverOnly` in the engine API. (Codex)",
+      "status": "fixed",
+      "relevantFiles": [
+        "D:/ai-developer-toolkit/plugins/ralph-overview/tools/overview-mcp/src/install-server.ts"
+      ],
+      "suggestedFix": "Add `serverOnly: boolean` (default `false`) to the engine signature in US-001. When `true`, the engine plans only the `.mcp.json` + `.claude/settings.json:enabledMcpjsonServers` mutations and skips the two scaffold templates. Document in the plan's Architecture section and add to the cross-surface parity acceptance criterion.",
+      "fixedInIteration": 8,
+      "resolution": "Added explicit serverOnly support to the overview.init API description and extended the cross-surface parity acceptance criterion to cover registration-only mode."
+    },
+    {
+      "id": "F-009",
+      "severity": "High",
+      "source": "codex",
+      "category": "Criteria Quality",
+      "sectionRef": "Acceptance Criteria > Criterion 9",
+      "description": "AC9 requires identical dry-run output across direct engine, MCP, and CLI, but 'same output' is underspecified when CLI prints human-readable text and engine returns a structured object. (Codex; Copilot agreed.)",
+      "status": "fixed",
+      "relevantFiles": [],
+      "suggestedFix": "Either (a) add `--json` to the CLI's `init` subcommand and assert JSON parity across the three surfaces, OR (b) compare only the parsed `filesPlanned[]` and `filesSkipped[]` arrays (extracted from CLI by re-parsing its human output is fragile — JSON mode is preferred). Recommend (a): add `--json` flag, AC9 asserts JSON equality of {filesPlanned, filesSkipped, errors} across the three surfaces.",
+      "fixedInIteration": 9,
+      "resolution": "Added CLI --json mode to the plan and amended AC9 to require JSON parity of filesPlanned, filesSkipped, and errors across direct engine, MCP, and CLI dry-run surfaces."
+    },
+    {
+      "id": "F-010",
+      "severity": "High",
+      "source": "codex",
+      "category": "Completeness",
+      "sectionRef": "Acceptance Criteria > Criterion 6",
+      "description": "AC6 only covers mutating one existing task's status field. `/overview-add-task` is in scope but there is no create-task acceptance test. Creation must verify insertion into `tasks[]`, idempotency, formatting (trailing commas, indentation), and population of related top-level maps. (Codex)",
+      "status": "fixed",
+      "relevantFiles": [],
+      "suggestedFix": "Split AC6 into AC6a (update existing) and AC6b (create new): AC6b asserts the new task is appended to `tasks[]`, required fields populated, related top-level maps (`workstream`, `sizeBucket`) receive the id key, and re-running the same create call is a no-op (idempotency). Byte-identity outside the union of touched ranges still holds.",
+      "fixedInIteration": 10,
+      "resolution": "Split AC6 into update and create acceptance criteria, adding create-task coverage for tasks[] append, required fields, workstream/sizeBucket map entries, formatting preservation, idempotency, and byte-identity boundaries."
+    },
+    {
+      "id": "F-011",
+      "severity": "High",
+      "source": "claude",
+      "category": "Completeness",
+      "sectionRef": "Approach > Architecture > install-server reconciliation",
+      "description": "Plan text proposes 'delete the body and re-route the install-server CLI subcommand' but Open Question 3 recommends 'keep the name + add --server-only flag to init'. The plan is internally contradictory about install-server's fate. (Claude)",
+      "status": "fixed",
+      "relevantFiles": [
+        "D:/ai-developer-toolkit/plugins/ralph-overview/tools/overview-mcp/src/install-server.ts",
+        "D:/ai-developer-toolkit/plugins/ralph-overview/bin/ralph-overview.mjs"
+      ],
+      "suggestedFix": "Resolve in the plan: keep `install-server.ts` as a thin wrapper that calls `initConsumer({ serverOnly: true, force: true })`, preserve the `overview-mcp-install` bin entry, preserve `--print-only`. The `bin/ralph-overview.mjs install-server` subcommand becomes equivalent to `init --server-only --force`. Drop Open Question 3 by encoding the resolution into Architecture.",
+      "fixedInIteration": 11,
+      "resolution": "Resolved the install-server contradiction by specifying the preserved wrapper/bin behavior, `initConsumer({ serverOnly: true, force: true })`, dispatcher equivalence to `init --server-only --force`, and removing the install-server open question."
+    },
+    {
+      "id": "F-012",
+      "severity": "Medium",
+      "source": "consensus",
+      "category": "Feasibility",
+      "sectionRef": "Technical Constraints; Approach > Architecture > syncNow",
+      "description": "The plan repeatedly describes `syncNow(context)` as 'in-process', but `tools/overview-mcp/src/tools/sync-now.ts` actually spawns `node bin/ralph-overview.mjs sync`. The brainstorm-quoted `pnpm sync-ralph-state` was wrong but so is the plan's 'in-process' replacement. Flagged by Codex and Copilot.",
+      "status": "open",
+      "relevantFiles": [
+        "D:/ai-developer-toolkit/plugins/ralph-overview/tools/overview-mcp/src/tools/sync-now.ts"
+      ],
+      "suggestedFix": "Either (a) accept that `syncNow(context)` is a subprocess wrapper and update the plan's wording from 'in-process' to 'via the existing syncNow() helper (subprocess)', OR (b) add a lower-level in-process sync entry point to `scripts/lib/sync-core.mjs` and call it directly from the upsert tool. Recommend (a) — fewer moving parts, smaller blast radius."
+    },
+    {
+      "id": "F-013",
+      "severity": "Medium",
+      "source": "codex",
+      "category": "Feasibility",
+      "sectionRef": "Approach > Implementation Strategy > CLI subcommand",
+      "description": "Plan's CLI examples use `init --cwd`, but the dispatcher convention in `bin/ralph-overview.mjs` is `--repo`. Implementable but the plan should explicitly support `--repo` as the primary flag and optionally alias `--cwd`. (Codex)",
+      "status": "open",
+      "relevantFiles": [
+        "D:/ai-developer-toolkit/plugins/ralph-overview/bin/ralph-overview.mjs"
+      ],
+      "suggestedFix": "Update the plan: CLI subcommand accepts `--repo <path>` (primary, matches existing dispatcher convention) with `--cwd` as an alias. Engine API parameter remains `cwd` (internal). Update Architecture and any CLI examples in the plan."
+    },
+    {
+      "id": "F-014",
+      "severity": "Medium",
+      "source": "consensus",
+      "category": "Completeness",
+      "sectionRef": "Approach > Architecture > First-run probe",
+      "description": "First-run probe is only planned for `overview.list_tasks` and `overview.dev_server.status`. The feature also promises agent-driven dashboard startup, so `overview.dev_server.start`, `overview.build`, and `overview.sync.now` (or whatever the actual tool names are) should also return the structured `consumer-not-initialized` signal. Flagged by Codex and Copilot.",
+      "status": "open",
+      "relevantFiles": [
+        "D:/ai-developer-toolkit/plugins/ralph-overview/tools/overview-mcp/src/server.ts"
+      ],
+      "suggestedFix": "Extend the probe to wrap all MCP tools that read `plans/overview-data.js` or `.ralph/overview-config.json`. Concretely: `overview.list_tasks`, `overview.get_task`, `overview.next_command`, `overview.list_recommendations`, `overview.list_blockers`, `overview.list_crew_sessions`, `overview.get_transcript`, `overview.invoke_next`, `overview.add_journal_entry`, `overview.set_override`, dev-server start/status/stop, build, sync. Implement as a helper called at the top of each tool handler. Document in the plan."
+    },
+    {
+      "id": "F-015",
+      "severity": "Medium",
+      "source": "codex",
+      "category": "Criteria Quality",
+      "sectionRef": "Acceptance Criteria > Criterion 7",
+      "description": "AC7 asserts snapshot mtime advances and content changes after upsert. Mtime is flaky on fast filesystems and lossy on Windows. (Codex)",
+      "status": "open",
+      "relevantFiles": [],
+      "suggestedFix": "Replace mtime assertion with content assertion: parse the post-sync snapshot file (`plans/overview-ralph-state.js` or wherever sync emits), assert the specific task's edited field equals the new value. Drop the mtime check entirely."
+    },
+    {
+      "id": "F-016",
+      "severity": "Medium",
+      "source": "codex",
+      "category": "Criteria Quality",
+      "sectionRef": "Acceptance Criteria > Criterion 1",
+      "description": "AC1 says all four files exist with 'expected content' but does not define the exact `ralph-overview` server entry shape (type/command/args, path style — absolute vs `${CLAUDE_PLUGIN_ROOT}`-tokenized). (Codex)",
+      "status": "open",
+      "relevantFiles": [
+        "D:/harness-efforts/codexu/.mcp.json"
+      ],
+      "suggestedFix": "Pin AC1's expected content to: `mcpServers['ralph-overview'] = { type: 'stdio', command: 'node', args: ['<resolved-absolute-launch.cjs-path>'] }` with forward-slash path style. Document whether to use the absolute consumer-side path or `${CLAUDE_PLUGIN_ROOT}/launch.cjs` token (codexu uses absolute path; recommend matching that for consistency)."
+    },
+    {
+      "id": "F-017",
+      "severity": "Medium",
+      "source": "claude",
+      "category": "Completeness",
+      "sectionRef": "Approach > Architecture > Template watcher patterns",
+      "description": "Plan says template's watcher.ignored is 'stale' and lists only 3 missing patterns (`**/node_modules/**`, `.ralph/jobs/*/*-worktree/**`, `.ralph/jobs/*/tasks/**`). `scripts/lib/default-config.mjs` has 17 patterns including `.crews/*` entries that the template lacks. The acceptance criterion's '⊇ DEFAULT_IGNORED' check (AC13) will fail if the implementer only adds the 3 explicitly listed. (Claude)",
+      "status": "open",
+      "relevantFiles": [
+        "D:/ai-developer-toolkit/plugins/ralph-overview/scripts/lib/default-config.mjs",
+        "D:/ai-developer-toolkit/plugins/ralph-overview/templates/overview-config.template.json"
+      ],
+      "suggestedFix": "Replace the inline enumeration with: 'Template watcher.ignored must equal the full DEFAULT_IGNORED array exported from `scripts/lib/default-config.mjs` (currently 17 patterns including .crews/*).' AC13 (template ⊇ DEFAULT_IGNORED) stays as written. The unit test imports DEFAULT_IGNORED from the source module — keeps the template auto-correct against future drift."
+    },
+    {
+      "id": "F-018",
+      "severity": "Medium",
+      "source": "copilot",
+      "category": "Ordering",
+      "sectionRef": "Implementation Strategy > US-005",
+      "description": "Release step is ambiguous: US-005 says to manually bump `plugin.json` + 3 marketplace files AND to use `/release-plugin`, but `/release-plugin` itself owns the bump + changelog + index updates. Risk of double-bumps or conflicting edits. (Copilot)",
+      "status": "open",
+      "relevantFiles": [
+        "D:/ai-developer-toolkit/.claude/skills/release-plugin/SKILL.md"
+      ],
+      "suggestedFix": "Pick one path. Recommend: US-005 prepares the CHANGELOG entry text and the `plugin/CLAUDE.md` edits manually (because those need narrative authorship), then invokes `/release-plugin` which atomically bumps `plugin.json` and the 3 marketplace indexes and creates the commit. Remove the manual marketplace-bump bullet from US-005."
+    },
+    {
+      "id": "F-019",
+      "severity": "Medium",
+      "source": "claude",
+      "category": "Criteria Quality",
+      "sectionRef": "Acceptance Criteria > Criterion 2 (idempotency)",
+      "description": "AC2 covers only the all-identical case. The plan's Architecture text mentions 'refuses any target file that already exists with conflicting content' — that branch needs its own coverage. (Claude)",
+      "status": "open",
+      "relevantFiles": [],
+      "suggestedFix": "Split AC2 into three sub-cases: (2a) all files exist with identical content → no-op, filesSkipped lists all four, no error; (2b) one file exists with conflicting content, others missing → without --force, refuse with structured error listing the conflict, write nothing; (2c) partial state (some exist, some missing) → without --force, proceed and write only the missing files. All three are explicit acceptance tests."
+    },
+    {
+      "id": "F-020",
+      "severity": "Low",
+      "source": "claude",
+      "category": "Simplicity",
+      "sectionRef": "Acceptance Criteria > Criterion 13",
+      "description": "AC13 says 'add a one-line check in the init engine (or a unit test) that asserts template's watcher.ignored ⊇ DEFAULT_IGNORED'. Runtime engine validation couples it to default-config.mjs and violates separation of concerns. (Claude)",
+      "status": "open",
+      "relevantFiles": [],
+      "suggestedFix": "Make the check a unit test at build/test time, not a runtime engine guard. The test imports DEFAULT_IGNORED from `scripts/lib/default-config.mjs` and the template, asserts inclusion. Update AC13 wording accordingly."
+    }
+  ]
+}

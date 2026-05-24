@@ -1,0 +1,98 @@
+I’m opening the attached file first to see the task and scope.
+
+I’ve got the planning seed; next I’m reading the overview-viewer sources and guidance to ground the analysis in the actual implementation.
+
+I’ve narrowed it to the renderer and data contract; now I’m tracing the specific components, hooks, and CSS rules this plan would have to extend.
+
+I’ve mapped the surfaces; next I’m reading the command row, toolbar, top-level shells, and CSS/test slices that the proposed phases would actually touch.
+
+I’ve confirmed the main command-list path; I’m pulling the remaining supporting surfaces and helpers so the integration points are complete.
+
+I’ve got the main components; I’m checking the remaining layout/data helpers that drive counts, “what’s new”, and the build constraints mentioned in the seed.
+
+I’ve got the helpers; I’m checking the command-list ordering CSS because Phase D explicitly replaces that mechanism with real bucket DOM structure.
+
+One last check: I’m looking at the test harness because the later phases add more interactive behavior than the current SSR-style tests cover.
+
+**Grounded research:** the feature belongs almost entirely in `tools/overview-viewer/`, with `plans/overview-data.js` staying read-only as the data contract and `plans/overview.html` remaining a generated artifact.
+
+### Codebase Architecture
+
+- **Monorepo / build:** PNPM workspace, with `tools/overview-viewer` registered in **both** `pnpm-workspace.yaml` and root `package.json`. Root scripts expose `pnpm overview`, `pnpm overview:build`, and `pnpm overview:build:preview`.
+- **Viewer package:** `tools/overview-viewer/` is **TypeScript + React + Vite**. Docs mention React 18, but the authoritative dependency is `tools/overview-viewer/package.json`, which pins **React 19.2.0** / `react-dom` 19.2.0, Vite 8, and `vite-plugin-singlefile`.
+- **Entry/build flow:** `tools/overview-viewer/overview.html` is the Vite entry, `src/main.tsx` mounts `src/App.tsx`, and `vite.config.ts` inlines `plans/overview-data.js` into the built `plans/overview.html` while preserving `file://` compatibility.
+- **Data model:** `src/types.ts` mirrors `window.OVERVIEW_DATA` from `plans/overview-data.js`: `tasks`, `phaseTree`, `runs`, `periodic`, `cadence`, `lastTouched`, `effort`, `risk`, `workstream`, `sizeBucket`, `spawnedFrom`.
+- **Renderer organization:**
+  - `src/components/` — UI surfaces (`Kanban`, `CommandList`, `TaskCommand`, `Toolbar`, `TodayPanel`, `PhaseTree`, etc.)
+  - `src/hooks/` — local UI state (`usePersistentExpanded`, `useMultiAxisFilter`, `useHashNav`, `useWhatsNewSinceLastVisit`, `useBulkSelection`)
+  - `src/utils/` — pure helpers (`taskClassification`, `kanbanOrdering`, `clipboard`, `warnings`, `commandNavigation`, etc.)
+- **Tests:** `vitest.config.ts` runs in **`environment: 'node'`**. Current tests are mostly SSR/static-markup oriented, not browser-interaction heavy.
+
+### Feature-Relevant Code
+
+- **Top-level composition:** `tools/overview-viewer/src/App.tsx`
+  - Current stack is single-column: heading → freshness → `TodayPanel` → `WhatsNewBanner` → `Toolbar` → `KeyboardHelp` → `Kanban` → command list → `PhaseTree` → static sections.
+  - Existing “expand/collapse all” uses `document.querySelectorAll('details')`, which will affect any new bucket/header `<details>`.
+- **Command rows / quick actions / badges:** `tools/overview-viewer/src/components/TaskCommand.tsx`
+  - Owns `.cmd-actions`, `CopyCommandButton`, `CopyNameButton`, `StatusBadge`, `ScopeChip`, `WorkstreamPill`, `SpawnedFromPill`, spawned-children chips, warnings, and run history.
+  - `stopToggle()` is the existing pattern for buttons inside `<summary>`.
+  - `cmd-desc` uses `dangerouslySetInnerHTML`; `descriptionHtml` often contains `<code>`.
+- **Command ordering / parent-child graph:** `tools/overview-viewer/src/components/CommandList.tsx`
+  - Current list is flat.
+  - `sortTasksByLastTouchedAsc()` is the existing secondary sort.
+  - `buildChildrenByParent()` already derives parent → children from `spawnedFrom`.
+- **Filtering/search:** `tools/overview-viewer/src/utils/filters.ts`, `src/hooks/useMultiAxisFilter.ts`, `src/components/Toolbar.tsx`
+  - Search currently only affects visibility; there is **no render-time highlighting** yet.
+  - Filter UI is currently native `<details className="toolbar-filters">`.
+- **Clipboard/toast bug surface:** `tools/overview-viewer/src/utils/clipboard.ts`
+  - `writeClipboard()` returns `Promise<boolean>`, but callers in `TaskCommand.tsx`, `Toolbar.tsx`, and `TopLevelSurfaces.tsx` ignore the result.
+  - `.copy-btn.copied` and `.copy-name-btn.copied` already exist in `src/styles.css`.
+- **Hash navigation:** `tools/overview-viewer/src/utils/commandNavigation.ts`, `src/hooks/useHashNav.ts`
+  - Already does `scrollIntoView({ behavior: 'smooth' })`.
+  - CSS already has `:target.cmd, :target.card`.
+  - There is **no transient flash class** yet.
+- **Today / metrics source:** `tools/overview-viewer/src/components/TodayPanel.tsx`
+  - Already computes filter-bucket groupings via `filterBucketForTask()` and a local `recentRuns()` helper.
+- **Kanban / legend / card jump targets:** `tools/overview-viewer/src/components/Kanban.tsx`, `src/utils/kanbanOrdering.ts`
+  - Kanban already derives columns and total count.
+  - `Legend` currently lives inside Kanban.
+  - Cards have `className="card"` and `data-task-id`, but **no stable `id`**, so “jump to kanban card” needs a new anchor.
+- **Roadmap/static sections:** `src/components/PhaseTree.tsx`, `src/components/StaticSections.tsx`
+  - Good anchors for the future ToC, but top-level section `<details>` currently have classes, not stable ids.
+- **Persistence:** `src/hooks/usePersistentExpanded.ts`
+  - Uses `codexu-overview-details-state-v2` and only persists `cmd-<taskId>` rows today.
+
+### Technical Constraints
+
+- **Do not mutate data from the viewer:** `plans/overview-data.js` is hand-edited source of truth; renderer changes stay in `tools/overview-viewer/src/`.
+- **Preserve build model:** `vite.config.ts` hard-codes the fetch-and-re-execute HMR path and single-file static build. No async/module replacement for `window.OVERVIEW_DATA`.
+- **Preserve existing intentional deviations:** README/CLAUDE call out:
+  1. phase-tree `deferred` derivation,
+  2. blocked/paused rows pushed to bucket tail,
+  3. `lastTouchedAt` ascending within bucket.
+- **CSS ordering is currently load-bearing:** `src/styles.css` uses `data-cmd-status` + `data-task-status` for global row ordering. Phase D must replace that with explicit DOM buckets, not layer a second ordering system on top.
+- **Interactive controls inside `<summary>` must stop propagation:** relevant to quick actions and any Radix checkbox/button work.
+- **`activateWorkstream()` in `App.tsx` imperatively opens `.toolbar-filters`**. If filters move to Radix Popover, that path must become state-driven.
+- **Bucket nesting affects navigation/persistence:** current hash-nav only expands task rows, not parent buckets; current persistence only knows task ids.
+- **Tests are Node/SSR-oriented:** browser-only parsing/focus/outside-click logic is harder to verify without changing the harness.
+
+### Implementation Suggestions
+
+- **Phase A/B:** keep changes in the current architecture.
+  - Add search highlighting in `TaskCommand.tsx`, but use a helper that can transform `descriptionHtml` **without touching `<code>`** and without relying on browser-only DOM APIs in render.
+  - Put copy-success state at the `App.tsx` level (singleton toast) and pass callbacks into `TaskCommand.tsx`; reuse existing `.copy-btn.copied`.
+  - Extend `commandNavigation.ts` for flash behavior; current smooth scroll already exists.
+  - Add the global reduced-motion block and toolbar elevation in `src/styles.css`, near existing toolbar and target-highlight rules.
+- **Phase C:** use Radix only where the seed suggests.
+  - Good rollout order is exactly what the seed proposes: tooltip first, then dialog, then toolbar filter popover, then checkbox.
+  - Keep native `<details>` for sections and command rows; that matches current CSS and persistence patterns.
+- **Phase D:** `CommandList.tsx` is the natural home.
+  - Group tasks in JS, reuse `sortTasksByLastTouchedAsc()` **within** each emitted bucket, and move blocked-tail CSS under bucket scope.
+  - Extend `usePersistentExpanded.ts` with bucket-prefixed keys under the existing v2 object.
+  - Add stable ids to top-level sections for the ToC.
+  - Reuse `filterBucketForTask()` plus an extracted `recentRuns()` helper for sticky-frame metrics.
+- **Phase E:** promote `Layout` from `<main>` to a real shell.
+  - Create a left rail component and move `TodayPanel`, what’s-new, recently shipped, periodic due-soon, and `Legend` there.
+  - Keep Kanban/commands/roadmap/parallelism/deps in the main column.
+  - Add responsive collapse at the shell/layout layer, not ad hoc inside each child.
+

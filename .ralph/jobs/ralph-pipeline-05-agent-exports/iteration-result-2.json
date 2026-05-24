@@ -1,0 +1,44 @@
+{
+  "storyId": "US-007",
+  "verifiedEvidence": [
+    {
+      "criterion": "scripts/lib/default-config.mjs and scripts/lib/default-config.d.mts declare six scalar paths (outputs.snapshot, outputs.activity, outputs.activityBackup, outputs.dataJson, outputs.snapshotSchema, outputs.tasksIndex) plus outputs.activityMaxLines (integer, default 1000).",
+      "command": "nl -ba scripts/lib/default-config.mjs | sed -n '1,35p'; nl -ba scripts/lib/default-config.d.mts | sed -n '1,28p'",
+      "result": "default-config.mjs lines 12-18 define snapshot, activity, activityBackup, dataJson, snapshotSchema, tasksIndex, and activityMaxLines: 1000; default-config.d.mts lines 12-18 declare the six strings plus activityMaxLines: number.",
+      "evidenceKind": "file-inspection"
+    },
+    {
+      "criterion": "scripts/lib/resolve-config.mjs resolves the six new paths via resolvePath alongside sidecarJs/sidecarJson and reads activityMaxLines as a plain integer.",
+      "command": "nl -ba scripts/lib/resolve-config.mjs | sed -n '77,116p'",
+      "result": "resolve-config.mjs lines 103-113 resolves sidecarJs, sidecarJson, snapshot, activity, activityBackup, dataJson, snapshotSchema, and tasksIndex with resolvePath; activityMaxLines is returned directly from config.outputs.activityMaxLines.",
+      "evidenceKind": "file-inspection"
+    },
+    {
+      "criterion": ".ralph/overview-config.json populates the seven new keys.",
+      "command": "jq '.outputs' .ralph/overview-config.json",
+      "result": "outputs includes snapshot=plans/overview-snapshot.json, activity=plans/overview-activity.jsonl, activityBackup=plans/overview-activity.1.jsonl, dataJson=plans/overview-data.json, snapshotSchema=plans/overview-snapshot.schema.json, tasksIndex=tasks/INDEX.md, activityMaxLines=1000.",
+      "evidenceKind": "file-inspection"
+    },
+    {
+      "criterion": ".ralph/overview-config.schema.json extends properties.outputs with the seven new property definitions (six string paths, plus integer with minimum 1, default 1000).",
+      "command": "jq '.properties.outputs.properties' .ralph/overview-config.schema.json",
+      "result": "outputs schema includes six new string properties and activityMaxLines with type integer, minimum 1, default 1000.",
+      "evidenceKind": "file-inspection"
+    },
+    {
+      "criterion": "tools/overview-viewer/src/__tests__/config.test.ts asserts the resolved shape -- paths are strings, activityMaxLines is an integer.",
+      "command": "nl -ba tools/overview-viewer/src/__tests__/config.test.ts | sed -n '40,82p'; nl -ba tools/overview-viewer/src/__tests__/config.test.ts | sed -n '132,152p'",
+      "result": "config.test.ts lines 67-77 assert resolved path strings and Number.isInteger(activityMaxLines); lines 136-149 assert committed config/schema values for the seven Plan 05 keys. Focused config test also passed: 1 file, 7 tests.",
+      "evidenceKind": "command-output"
+    },
+    {
+      "criterion": "Typecheck passes.",
+      "command": "pnpm --filter @codexu/overview-viewer typecheck > .test-output/overview-viewer.typecheck.log 2>&1",
+      "result": "PASS exit=0 duration=17s; tsc --noEmit completed with no errors. Package tests also passed: 27 files, 152 tests.",
+      "evidenceKind": "command-output"
+    }
+  ],
+  "skippedReasons": [],
+  "notTested": [],
+  "iterationSHA": "ec05e49cf136e964a592d369c2993e753e8f8898"
+}

@@ -1,0 +1,25 @@
+### Completeness
+
+[High] `plans/overview-data.js` does not meet the required task count. The plan requires 51 task entries, but `OVERVIEW_DATA.tasks` starting at `plans/overview-data.js:23` contains 49 entries. This fails the first acceptance criterion and means at least two command rows/cards were lost or never ported.
+
+[High] The `lastTouched` dual-update invariant is not implemented. Task entries such as `perf-WS3` at `plans/overview-data.js:25` have no `lastTouchedAt`, while the compatibility map starts at `plans/overview-data.js:1154`. All 49 task entries therefore fail the required check `task.lastTouchedAt === OVERVIEW_DATA.lastTouched[id]`.
+
+[High] The stale-doc grep acceptance criteria are not met. The new source of truth still contains old instructions to edit `plans/overview.html` / `roadmap-data`, for example `plans/overview-data.js:505`, `plans/overview-data.js:518`, `plans/overview-data.js:531`, and `plans/overview-data.js:658`. These are command prompts operators will copy, so they directly reintroduce the workflow the split was meant to remove.
+
+### Correctness
+
+[High] `renderPhaseTree()` expects task titles for task-ref fallback, but none of the task entries define `title`. The renderer uses `task.title || node.visibleText || task.id` at `plans/overview.html:1426`; current nodes often include `visibleText`, but newly added task-ref nodes following the documented schema will degrade to raw ids because `plans/overview-data.js:25` and the rest of `tasks[]` omit `title`.
+
+### Quality
+
+[Medium] `plans/crews-integration.md` is unrelated to the overview-data split and documents the pre-split workflow incorrectly. It says `overview.html` is hand-edited with “no live data binding” at `plans/crews-integration.md:76` and tells users to manually edit `overview.html` at `plans/crews-integration.md:174`. This is out of scope and conflicts with the new data-file contract.
+
+[Medium] The skill rewrite documents fields the live data does not actually contain. `.agents/skills/roadmap-and-overview/SKILL.md:142` says the current `1b-multidev` example includes `command.summaryHtml` and `lastTouchedAt`, but the actual data entry in `plans/overview-data.js` lacks both. That will mislead future bookkeeping edits.
+
+### Security
+
+No issues found.
+
+### Overall Assessment
+
+Not ready. The renderer direction is mostly in place, but the data migration is incomplete against the plan’s acceptance criteria, and stale operational prompts still direct agents back to the old `overview.html`/`roadmap-data` workflow.

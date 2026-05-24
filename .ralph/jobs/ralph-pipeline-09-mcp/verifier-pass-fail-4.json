@@ -1,0 +1,43 @@
+{
+  "manifestPath": "D:/harness-efforts/codexu/.ralph/jobs/ralph-pipeline-09-mcp/iteration-result-4.json",
+  "iterationSHA": "6d4d21791b2eee2b331bd396f37a67d7811423bc",
+  "storyId": "US-004",
+  "verdicts": [
+    {
+      "criterion": "scripts/lib/append-journal.mjs adds appendJournalNote({ repoRoot, taskId, ts, note }); format: '- <ts>  note: <note>\\n' with '\\n  ' continuation for multi-line notes; also exports assertSafeTaskId",
+      "verdict": "agree",
+      "reason": "Diff adds `export function appendJournalNote({ repoRoot, taskId, ts, note })` in scripts/lib/append-journal.mjs (line 17), exports `assertSafeTaskId` (line 51), and adds `formatContinuation` (line 60) which prepends '\\n  ' for multi-line note bodies. The note line is composed as `- ${ts}  note: ${formatContinuation(note)}\\n`."
+    },
+    {
+      "criterion": "scripts/lib/append-journal.d.mts declares appendJournalEntry, appendJournalNote, formatJournalLine, assertSafeTaskId",
+      "verdict": "agree",
+      "reason": "Diff adds scripts/lib/append-journal.d.mts with all four exported function declarations: `appendJournalEntry`, `appendJournalNote`, `formatJournalLine`, `assertSafeTaskId`."
+    },
+    {
+      "criterion": "scripts/lib/append-journal.test.mjs extends with: single-line note, multi-line note, special-character note; pre-existing stage-transition test cases all pass unchanged",
+      "verdict": "agree",
+      "reason": "Diff extends append-journal.test.mjs with note-specific cases (single-line, multi-line, special-character, duplicate-append). Manifest reports vitest pass with 1 test file and 10 tests including prior stage-transition cases."
+    },
+    {
+      "criterion": "MCP overview.add_journal_entry tool wraps appendJournalNote(); ts defaults to new Date().toISOString(); validates taskId via assertSafeTaskId",
+      "verdict": "agree",
+      "reason": "Diff adds tools/overview-mcp/src/tools/add-journal-entry.ts and registers `overview.add_journal_entry` in server.ts. Handler calls `assertSafeTaskId(input.taskId)` before delegating to `appendJournalNote` and uses `new Date().toISOString()` as the timestamp default."
+    },
+    {
+      "criterion": "Tests verify (a) fsync atomic append, (b) recursive mkdir idempotency, (c) existing stage tests, (d) duplicate notes append",
+      "verdict": "agree",
+      "reason": "Diff shows `fs.mkdirSync(..., { recursive: true })` and `fs.fsyncSync` in append-journal.mjs's append helper. Test cases spy on fsyncSync, call appendJournalNote twice and assert both lines persist, and prior stage-transition tests remain in the file."
+    },
+    {
+      "criterion": "Typecheck passes",
+      "verdict": "agree",
+      "reason": "Manifest cites `pnpm --filter @codexu/overview-mcp typecheck` exit 0 with .test-output log. The new add-journal-entry.ts file is included in the package's tsconfig include glob (src/**/*.ts)."
+    },
+    {
+      "criterion": "Tests pass for scripts/lib/ and tools/overview-mcp/",
+      "verdict": "agree",
+      "reason": "Manifest cites `pnpm vitest run scripts/lib` (21 files, 155 tests) and `pnpm --filter @codexu/overview-mcp test` (2 files, 13 tests), both exit 0."
+    }
+  ],
+  "warnings": []
+}

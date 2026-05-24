@@ -1,0 +1,37 @@
+{
+  "security_relevant": true,
+  "parseOutcome": "first-pass",
+  "round": 2,
+  "scope": "code",
+  "baseCommit": "0cf41367",
+  "headCommit": "da62fbed",
+  "filesChanged": 30,
+  "linesChanged": 1938,
+  "completedStories": 7,
+  "blockedStories": 0,
+  "reviewers": {
+    "claude": "ran",
+    "codex": "skipped",
+    "copilot": "skipped"
+  },
+  "reReview": true,
+  "reReviewNotes": "Re-review verification pass after F-003 regression fix (da62fbed). KNOWN_ORCHESTRATOR_PHASES now imports + unions REVIEW_PHASES and IMPLEMENTING_PHASES from derive-ralph-stage.mjs, so phases '1'-'4' no longer trigger spurious schema-drift warnings. Test fixture iterates the same union, locking in regression coverage. All 10 sync-core unit tests pass; full overview-viewer suite (19 files / 99 tests) green. All 10 prior findings (F-001..F-010) remain status: fixed; no new findings.",
+  "docs": {
+    "parseOutcome": "first-pass",
+    "round": 1,
+    "scope": "docs",
+    "reReview": true,
+    "baseCommit": "0cf41367",
+    "headCommit": "da62fbed",
+    "openCount": 0,
+    "criticalCount": 0,
+    "highCount": 0,
+    "mediumCount": 0,
+    "lowCount": 0,
+    "carriedForwardCount": 5,
+    "carriedForwardFixedCount": 5,
+    "newFindingsCount": 0,
+    "regressionsReopened": 0,
+    "notes": "Inline docs re-review (subagent spawning unavailable in this skill fork). git diff main...HEAD is empty (job runs on main per job CLAUDE.md). Verified all 5 prior fixed findings (F-001..F-005) remain resolved: greps for '9 stage chips', '9 stages', '9 cases', '.overview-ralph-state.lock', and 'shipped with terminalReason: replan' across plans/ralph-pipeline-*.md return no matches. No new staleness detected, no regressions. All findings retain status:fixed and original IDs per re-review carry-forward semantics."
+  }
+}

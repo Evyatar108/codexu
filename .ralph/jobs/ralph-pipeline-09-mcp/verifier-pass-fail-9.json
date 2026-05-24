@@ -1,0 +1,53 @@
+{
+  "manifestPath": "D:/harness-efforts/codexu/.ralph/jobs/ralph-pipeline-09-mcp/iteration-result-9.json",
+  "iterationSHA": "db8037170ff31396c5f1970df21f0a92c63989b5",
+  "storyId": "US-009",
+  "verdicts": [
+    {
+      "criterion": "CLI binary overview-mcp-install declared as package.json.bin -> dist/install-server.js",
+      "verdict": "agree",
+      "reason": "Diff updates tools/overview-mcp/src/install-server.ts to a real CLI entrypoint (#!/usr/bin/env node compiled output); manifest cites jq .bin[overview-mcp-install] mapping and the produced dist/install-server.js shebang."
+    },
+    {
+      "criterion": "Reads <repoRoot>/.claude/settings.local.json (creates {} if absent)",
+      "verdict": "agree",
+      "reason": "Diff resolves settingsPath = path.join(repoRoot, '.claude', 'settings.local.json'); install-server.test.ts (manifest) covers absent and existing settings paths with Vitest exit 0, 6 files / 37 tests."
+    },
+    {
+      "criterion": "Merges under mcpServers.codexu-overview with node command and absolute forward-slash dist/index.js arg",
+      "verdict": "agree",
+      "reason": "Diff defines SERVER_NAME = 'codexu-overview' and merges under mcpServers; manifest records temp-repo --print-only stdout containing { command: 'node', args: ['<temp-path>/tools/overview-mcp/dist/index.js'] } under mcpServers.codexu-overview."
+    },
+    {
+      "criterion": "Writes atomically via atomicWriteFile() from scripts/lib/atomic-write.mjs",
+      "verdict": "agree",
+      "reason": "Diff imports atomicWriteFile from ../../../scripts/lib/atomic-write.mjs and calls atomicWriteFile(settingsPath, serialized) when printOnly is false; matches manifest grep."
+    },
+    {
+      "criterion": "--print-only flag emits the JSON to stdout without writing",
+      "verdict": "agree",
+      "reason": "Diff parses argv for --print-only and short-circuits the atomic write; manifest cites a temp-repo run where stdout was parseable JSON and .claude/settings.local.json remained absent."
+    },
+    {
+      "criterion": "Errors clearly if dist/index.js is absent",
+      "verdict": "agree",
+      "reason": "Diff stderr-writes 'overview-mcp-install: Missing <path>/tools/overview-mcp/dist/index.js; run pnpm overview-mcp:build first' and exits 1; manifest confirms the temp-repo no-dist run."
+    },
+    {
+      "criterion": "Test uses a temp dir as repoRoot; asserts file content after install; verifies idempotency",
+      "verdict": "agree",
+      "reason": "install-server.test.ts (added in diff) uses fs.mkdtemp temp repo roots, asserts settings content after install, verifies running twice produces identical file content, and covers --print-only plus missing-dist paths; manifest reports Vitest 37 tests passed."
+    },
+    {
+      "criterion": "Typecheck passes",
+      "verdict": "agree",
+      "reason": "Manifest records `pnpm --filter @codexu/overview-mcp typecheck` exit 0 in 15s; log .test-output/overview-mcp.typecheck.log."
+    },
+    {
+      "criterion": "Tests pass",
+      "verdict": "agree",
+      "reason": "Manifest records `pnpm --filter @codexu/overview-mcp test` exit 0 with 6 files and 37 tests passed in 6.28s; log .test-output/overview-mcp.test.log."
+    }
+  ],
+  "warnings": []
+}

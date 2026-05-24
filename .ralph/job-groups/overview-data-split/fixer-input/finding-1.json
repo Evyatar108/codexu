@@ -1,0 +1,20 @@
+{
+  "id": "F-002",
+  "severity": "High",
+  "source": "claude",
+  "classification": "fixable",
+  "phase": "code",
+  "category": "Completeness",
+  "sectionRef": "Acceptance Criteria > stale-reference grep",
+  "description": "Four `planPrompt` strings inside the new `plans/overview-data.js` still instruct future agents to edit the now-deleted `plans/overview.html` roadmap-data JSON block. Specifically: line 505 `happy-upstream-sync` planPrompt ('bump the lastRanAt timestamp ... in plans/overview.html's roadmap-data JSON to today's date'); line 518 `codex-upstream-rebase` planPrompt ('bump the lastRanAt timestamp ... in plans/overview.html's roadmap-data JSON'); line 531 `agent-view-research` planPrompt ('Add new task entries to plans/parallel-assignments.md and plans/overview.html roadmap-data JSON for each follow-up'); line 658 `roadmap-plugin` planPrompt ('Writes a new <details class=\\'cmd\\'> row in plans/overview.html + new lettered section in plans/parallel-assignments.md + entries in every JSON map' and 'reads/edits plans/overview.html's JSON block'). These prompts are copy-pasted by operators into ralph commands, so they directly reintroduce the editing workflow this group was created to eliminate. Acceptance Criterion 'git grep -n \"edit plans/overview.html\" ... returns zero hits' is violated within plans/overview-data.js itself, and the parallel `roadmap-data` zero-hit AC is also violated. Codex flagged the same issue independently.",
+  "status": "open",
+  "fixedInIteration": null,
+  "resolution": null,
+  "relevantFiles": [
+    "plans/overview-data.js:505",
+    "plans/overview-data.js:518",
+    "plans/overview-data.js:531",
+    "plans/overview-data.js:658"
+  ],
+  "suggestedFix": "Rewrite each of the four planPrompt strings to point at `plans/overview-data.js` and the appropriate map/array (`OVERVIEW_DATA.tasks[]`, `OVERVIEW_DATA.runs[]`, `OVERVIEW_DATA.lastTouched[id]`, etc.) instead of `plans/overview.html` and `roadmap-data JSON`. The `roadmap-plugin` prompt also needs to drop the `<details class='cmd'> row` editing direction and replace it with `tasks[]` append semantics. After rewrite, run the AC grep `git grep -n 'roadmap-data\\|in plans/overview\\.html' -- plans/overview-data.js` and confirm zero hits."
+}

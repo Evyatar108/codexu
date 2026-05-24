@@ -1,0 +1,66 @@
+{
+  "storyId": "US-005",
+  "verifiedEvidence": [
+    {
+      "criterion": "Components PhaseTree and PhaseTreeNode implemented",
+      "command": "grep -RInE \"export function (PhaseTree|PhaseTreeNode)|derivePhaseTreeStateClass\" tools/overview-viewer/src/components/PhaseTree.tsx tools/overview-viewer/src/__tests__/phaseTreeDerivation.test.tsx",
+      "result": "PhaseTree.tsx exports PhaseTree, PhaseTreeNode, PhaseTreeBlock, and derivePhaseTreeStateClass; phaseTreeDerivation.test.tsx imports and exercises them.",
+      "evidenceKind": "command-output"
+    },
+    {
+      "criterion": "State derivation and legacy state ignored",
+      "command": "pnpm --filter @codexu/overview-viewer test > .test-output/overview-viewer.test.log 2>&1",
+      "result": "Exited 0; phaseTreeDerivation.test.tsx asserted shipped/donefade, closed/closed, blocked+paused/deferred, ok/open, and legacy state=open still rendered blocked status as item-name deferred.",
+      "evidenceKind": "command-output"
+    },
+    {
+      "criterion": "Phase-tree block and task-ref counts",
+      "command": "node script evaluating plans/overview-data.js and counting phaseTree entries/task-ref nodes",
+      "result": "Printed {\"phaseTreeBlocks\":7,\"taskRefs\":5,\"taskRefIds\":[\"1b-multidev\",\"1b-multidev\",\"1b-multidev\",\"perf-WS3\",\"polish-Fs\"]}; SSR test found the shipped task-ref text.",
+      "evidenceKind": "command-output"
+    },
+    {
+      "criterion": "Trusted HTML rendering",
+      "command": "grep -RIn \"dangerouslySetInnerHTML\" tools/overview-viewer/src/components/PhaseTree.tsx",
+      "result": "PhaseTree.tsx uses dangerouslySetInnerHTML for raw node html, task-ref trailingHtml, and headerHtml; SSR test includes raw HTML and trailing link HTML.",
+      "evidenceKind": "command-output"
+    },
+    {
+      "criterion": "Documentation staging for deferred-class behavior",
+      "command": "grep -nE \"Wire static build|Docs sweep|phase-tree deferred-class|deferred class deviation\" D:/harness-efforts/codexu/.ralph/jobs/overview-vite-react/plan.md D:/harness-efforts/codexu/.ralph/jobs/overview-vite-react/stories-outline.md",
+      "result": "STAGED: US-007 creates tools/overview-viewer/README.md with the deferred-class behavior; US-009 updates roadmap-and-overview SKILL.md. Those docs are intentionally not edited in US-005.",
+      "evidenceKind": "static-inspection"
+    },
+    {
+      "criterion": "Unit-tested in src/__tests__/phaseTreeDerivation.test.ts",
+      "command": "ls tools/overview-viewer/src/__tests__/phaseTreeDerivation.test.tsx && pnpm --filter @codexu/overview-viewer test > .test-output/overview-viewer.test.log 2>&1",
+      "result": "phaseTreeDerivation.test.tsx exists and passed as part of Vitest; overall run reported 7 test files passed and 13 tests passed.",
+      "evidenceKind": "command-output"
+    },
+    {
+      "criterion": "Typecheck passes",
+      "command": "pnpm --filter @codexu/overview-viewer typecheck > .test-output/overview-viewer.typecheck.log 2>&1",
+      "result": "Exited 0 in 12s; tsc --noEmit completed with no errors.",
+      "evidenceKind": "command-output"
+    },
+    {
+      "criterion": "Tests pass",
+      "command": "pnpm --filter @codexu/overview-viewer test > .test-output/overview-viewer.test.log 2>&1",
+      "result": "Exited 0 in 7s; Vitest reported 7 files passed and 13 tests passed.",
+      "evidenceKind": "command-output"
+    },
+    {
+      "criterion": "US-005:AC-008 browser verification",
+      "command": "N/A",
+      "result": "SKIPPED: dev-browser skill unavailable; manual DOM/visual phase-tree verification is still needed.",
+      "evidenceKind": "skipped"
+    }
+  ],
+  "skippedReasons": [
+    "browser_tool_unavailable"
+  ],
+  "notTested": [
+    "Browser DOM/visual phase-tree verification; dev-browser unavailable."
+  ],
+  "iterationSHA": "c775a2030e04d5330ebde30e78f54173efe8572e"
+}

@@ -1,0 +1,37 @@
+### Feasibility
+
+- [High] Parent worktree dirtiness is understated. The plan says codexu has only `M codex` and `M packages/happy-agent/dist/*`, but `plans/codexu-roadmap.md` is already modified, along with other plan files. Since the implementation also edits `plans/codexu-roadmap.md`, a plain `git add plans/codexu-roadmap.md` would include unrelated pre-existing hunks. The plan needs `git diff -- plans/codexu-roadmap.md` review and hunk staging, or a clean parent worktree.
+
+- [High] Step 8 allows “open a PR” on the codex side, but step 9 immediately bumps codexu to the new SHA. That can pin codexu to a commit only present on topic branch `1a-fork-doc-strategy`, contradicting the plan’s own requirement that the codex submodule point at `gim-home/codex main`. Require codex `main` to contain the commit before bumping codexu, or explicitly allow branch-only pinning.
+
+- [Medium] The plan says `docs/implementation/patch-surface.md`’s “current last live section is §16”, but the file has top-level sections after §16: duplicate `## 11. TUI input latency...`, `## Conflict-resolution guide for upstream rebase`, and `## Security Posture`. Adding `## 17` “at end of file” will create confusing section order. Specify exact placement, likely immediately after §16 or before the conflict/security appendices.
+
+### Completeness
+
+- [Medium] The plan edits `codex/CLAUDE.md` but explicitly avoids `codex/AGENTS.override.md`, while also stating `AGENTS.override.md` is the tenets source of truth and CLAUDE mirrors it. Adding new tenet cross-references only to CLAUDE makes the two diverge. Either update both, or avoid changing the mirrored tenets section in CLAUDE.
+
+- [Medium] Cross-references from codex docs to `codexu/docs/plans/codex-fork-extension-strategy.md` and `codexu/plans/codexu-roadmap.md` are not valid paths when the codex repo is cloned standalone. The plan correctly requires conditional wording, but it should also require links to be framed as consumer-repo references, not local in-repo markdown links.
+
+- [Low] The architecture table of contents in `docs/implementation/architecture.md` currently lists all top-level sections. The plan adds `## Fork strategy` but does not explicitly say to update the TOC. That should be included.
+
+### Ordering
+
+- [High] Parent commit ordering is incomplete. The codexu pointer bump should happen only after the codex doc commit is merged or fast-forwarded into `gim-home/codex main`, not merely pushed. Otherwise codexu can reference an unpublished or unmerged branch commit.
+
+- [Medium] Operator review is placed before push, but one operator choice affects parent roadmap handling: whether to leave, delete, or strikethrough “Decisions still open #1”. That choice should be resolved before editing `plans/codexu-roadmap.md`, not after the codex-side commit is already prepared.
+
+### Simplicity
+
+- [Medium] Adding a forward-looking §17 to `docs/implementation/patch-surface.md` may blur that file’s role as an inventory of actual patch surface and enforced invariants. The same future seams already belong naturally in `plans/codexu-roadmap.md` and the new architecture section. If kept, the section must be clearly advisory and separated from invariant/rebase obligations.
+
+- [Low] Creating a separate codex worktree is reasonable, but the parent codexu dirtiness makes the second commit riskier than necessary. A separate clean codexu worktree for the parent pointer bump would simplify staging and avoid accidental inclusion of existing roadmap changes.
+
+### Acceptance Criteria Quality
+
+- [High] “codexu pointer-bump commit’s diff includes ONLY `codex` and `plans/codexu-roadmap.md`” is insufficient because `plans/codexu-roadmap.md` already has unrelated modifications. The criterion must require only the Phase 1a hunks inside that file.
+
+- [Medium] “Topic branch pushed to `gim-home/codex`” is weaker than the later submodule-pointer requirement. Add an acceptance criterion that the target SHA is reachable from `origin/main` before codexu is bumped.
+
+- [Medium] “All three codex-side edits cross-link to each other” is vague and stricter than the implementation steps describe. Specify exact required strings or links per file.
+
+- [Low] “Worktree exists at `.ralph/jobs/...`” is an implementation detail, not a durable acceptance criterion. The durable criteria are branch base, edited files, clean diff, and commits.

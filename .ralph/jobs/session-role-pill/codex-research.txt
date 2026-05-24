@@ -1,0 +1,58 @@
+**Codebase Architecture**
+
+This is a pnpm monorepo with `packages/happy-app`, `happy-cli`, `happy-server`, `happy-wire`, etc. The target is `packages/happy-app`, a TypeScript React Native/Expo app using Expo Router, Zustand storage, Unistyles theming, and Vitest with `react-test-renderer`.
+
+Session list data is normalized before UI render:
+
+`Session` metadata lives in [storageTypes.ts](D:/harness-efforts/codexu/packages/happy-app/sources/sync/storageTypes.ts:8), including `currentModelCode`, `currentPermissionModeCode`, and `flavor`.
+
+`buildSessionRowData()` in [storage.ts](D:/harness-efforts/codexu/packages/happy-app/sources/sync/storage.ts:109) creates `SessionRowData`, which is what list rows receive. It currently includes `flavor`, but not `currentModelCode` or `currentPermissionModeCode`.
+
+`SessionsList` renders inactive session rows through `SessionItem` in [SessionsList.tsx](D:/harness-efforts/codexu/packages/happy-app/sources/components/SessionsList.tsx:342). Active sessions use a separate compact path in [ActiveSessionsGroupCompact.tsx](D:/harness-efforts/codexu/packages/happy-app/sources/components/ActiveSessionsGroupCompact.tsx:422).
+
+**Feature-Relevant Code**
+
+The direct change points are:
+
+- [storageTypes.ts](D:/harness-efforts/codexu/packages/happy-app/sources/sync/storageTypes.ts:16): metadata fields already exist. No schema change needed.
+- [storage.ts](D:/harness-efforts/codexu/packages/happy-app/sources/sync/storage.ts:84): extend `SessionRowData` with `currentModelCode?: string` and `currentPermissionModeCode?: string`.
+- [storage.ts](D:/harness-efforts/codexu/packages/happy-app/sources/sync/storage.ts:126): copy those metadata fields in `buildSessionRowData()`.
+- [SessionsList.tsx](D:/harness-efforts/codexu/packages/happy-app/sources/components/SessionsList.tsx:436): insert the pill row between subtitle and status row.
+- [NewSessionAgentIcons.ts](D:/harness-efforts/codexu/packages/happy-app/sources/components/NewSessionAgentIcons.ts:1): existing flavor icon assets for `claude`, `codex`, `openclaw`, `gemini`.
+- [SessionContextDrawer.tsx](D:/harness-efforts/codexu/packages/happy-app/sources/components/SessionContextDrawer.tsx:93): existing local chip styling pattern.
+- [NewSessionContextRow.tsx](D:/harness-efforts/codexu/packages/happy-app/sources/components/NewSessionContextRow.tsx:132): existing permission color mapping, though it is private.
+
+No generic reusable `Pill`/`Badge` primitive appears to exist. `GitStatusBadge`, `TaskNotificationPill`, and `SessionContextDrawer` chips are local/specialized.
+
+**Technical Constraints**
+
+`SessionRowData` is intentionally “all primitives, cheap to deep-equal” in [storage.ts](D:/harness-efforts/codexu/packages/happy-app/sources/sync/storage.ts:83). Keep added row fields primitive strings/nulls.
+
+`useSessionListViewData()` uses deep equality in [storage.ts](D:/harness-efforts/codexu/packages/happy-app/sources/sync/storage.ts:1485). Adding the metadata fields to `SessionRowData` is required so metadata-only updates can notify the list.
+
+Do not add these fields to `keyExtractor`; row identity should remain `session-${session.id}`.
+
+Be careful using `modelModeOptions` for permission resolution: Codex hardcoded modes do not include `plan`, but the acceptance case uses `flavor='codex'` plus `currentPermissionModeCode='plan'`. The row should render raw metadata codes, not filter through flavor-specific available modes.
+
+`SessionItem` is currently not exported, so a direct snapshot test needs either a named export or a small exported subcomponent. Existing component tests mock RN modules and use `react-test-renderer`.
+
+**Implementation Suggestions**
+
+Add a small local row component in `SessionsList.tsx`, for example `SessionMetadataPillRow`, plus helpers:
+
+- `formatFlavorLabel(flavor)` or icon-only flavor pill using `newSessionAgentIcons`.
+- `formatModelCode(code)` with deterministic abbreviation for known long Codex names, e.g. `gpt-5-codex` → `codex`; otherwise fall back to the raw code with `numberOfLines={1}` and `maxWidth`.
+- `getPermissionBadgeStyle(code)` with mappings for `plan`, `default`, `acceptEdits`, `auto_edit`, `dontAsk`, `safe-yolo`, `bypassPermissions`, `yolo`, `read-only`.
+
+Render the row only when at least one of `session.flavor`, `session.currentModelCode`, or `session.currentPermissionModeCode` is present. Keep it compact: `height`/`minHeight` fixed, `flexDirection: 'row'`, `gap`, `flexShrink`, `overflow: 'hidden'`, small font. Since `sessionItem` height is fixed at 88, either verify the extra row fits or bump height slightly.
+
+Add `packages/happy-app/sources/components/SessionsList.test.tsx`. For the acceptance snapshot, exporting `SessionItem` is the cleanest route. Mock `Avatar`, `StatusDot`, navigation, quick actions, `SessionActionsPopover`, Unistyles, RN primitives, and freeze `vibingMessages` randomness by using a non-thinking state.
+
+Also add or update a storage test to assert `buildSessionRowData`-backed list data includes `currentModelCode` and `currentPermissionModeCode`; this catches the shallow-copy pitfall.
+
+Verification commands should be:
+
+- `pnpm --filter happy-app test -- SessionsList`
+- `pnpm --filter happy-app test`
+- `pnpm --filter happy-app typecheck`
+- For “cross-package typecheck”, likely `pnpm -r --if-present typecheck`.

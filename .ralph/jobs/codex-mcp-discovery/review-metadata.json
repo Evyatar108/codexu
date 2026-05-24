@@ -1,0 +1,13 @@
+{
+  "scope": "code",
+  "round": 1,
+  "generatedAt": "2026-05-13T20:06:00Z",
+  "security_relevant": false,
+  "security_rationale": "Diff is a Zod-validated file reader (.mcp.json) wired into the codex agent's mcpServers config build site. No auth/credential/crypto/network-binding changes. No new RPC endpoints, no permission-mode changes, no token handling. The project .mcp.json trust model is identical to Claude Code's existing convention (developer trust over cwd). No security review needed.",
+  "synthesisDrop": null,
+  "reviewers": {
+    "claude": { "ran": false, "reason": "Claude reviewer crashed in forked skill execution" },
+    "codex": { "ran": true, "verdict": "clean" },
+    "copilot": { "ran": true, "verdict": "1 High (overstated, marked no-op) + 5 non-blocking" }
+  }
+}

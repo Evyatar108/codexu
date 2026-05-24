@@ -1,0 +1,28 @@
+I’m opening the provided file to see the task details, then I’ll carry it through.
+
+I’ve got the review brief; now I’m checking the rest of the plan and the referenced repo files for accuracy.
+
+### Feasibility
+
+- [Critical] The plan inverts `stop_hook_active` incorrectly. In codex, the first Stop-hook pass runs with `stop_hook_active = false`, and the flag is only flipped to `true` after a Stop hook has already blocked and injected a continuation prompt (`codex\external\repos\codex-patched\codex-rs\core\src\session\turn.rs:366`, `524-557`). The proposed codex-specific inversion (`if (input.stop_hook_active === false) return;`) would skip the initial enforcement pass entirely, so the main tag check would never fire on first completion.
+
+- [Critical] The Stop-hook input wire shape is misstated. `NullableString` is serialized transparently as `string | null`, not as `{"path": ...}` / `{"text": ...}` wrappers (`codex\external\repos\codex-patched\codex-rs\hooks\src\schema.rs:33-58`, `449-463`; `hooks\src\events\stop.rs:81-91`). The plan’s proposed unwrapping logic and fixture shapes would make `transcript_path` and `last_assistant_message` read as null, breaking both the tag check and the function-call fallback.
+
+### Completeness
+
+- [High] The install/discovery path is incomplete because the plan omits `.agents\plugins\marketplace.json`. This repo’s existing plugin package includes that file (`packages\codexu-plugin\.agents\plugins\marketplace.json`), its README documents `codex plugin marketplace add <dir>` as the normal install path (`packages\codexu-plugin\README.md:19-31`), and codex’s own CLI tests expect local marketplace roots to contain that manifest (`codex\external\repos\codex-patched\codex-rs\cli\tests\marketplace_add.rs:15-39`). Leaving marketplace wiring as an “if needed” open question is not enough for AC-15.
+
+- [Medium] AC-1 requires `pnpm --filter codexu-options-mode-plugin typecheck`, but the file list never adds a `tsconfig*.json` or any other concrete typecheck mechanism for this JS-only package. Existing workspace packages that expose `typecheck` all define an explicit TS config path (`packages\happy-agent\package.json:35-38`, `packages\codium\package.json:8-12`). As written, the plan asks for a typecheck gate without planning how it will pass.
+
+### Ordering
+
+No issues found.
+
+### Simplicity
+
+- [Medium] The plan appears to add a skill because it assumes codex TUI rejects unknown `/options-mode` text before `UserPromptSubmit`, but the composer code does not support that assumption. Built-in slash commands are dispatched only when recognized; otherwise the input falls through to normal submission (`codex\external\repos\codex-patched\codex-rs\tui\src\bottom_pane\chat_composer.rs:2797-2823`, `2838-2881`). That makes the existing `UserPromptSubmit` hook the natural primary toggle surface, with a skill optional at most. The current plan likely over-engineers the control path.
+
+### Acceptance Criteria Quality
+
+- [Low] The statusline acceptance story is still ambiguous. The plan substitutes SessionStart `additionalContext` for the original “statusline shows current state” behavior, then says that relaxation still needs operator confirmation. That means an autonomous implementer can satisfy the written ACs and still not know whether the feature is actually accepted.
+

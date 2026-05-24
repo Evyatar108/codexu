@@ -1,0 +1,50 @@
+{
+  "storyId": "US-010",
+  "verifiedEvidence": [
+    {
+      "criterion": "mergeAndWrite signature unchanged (same repoRoot, config, currentState, updates, generatedFromCommit).",
+      "command": "nl -ba scripts/lib/sync-core.mjs | sed -n '232,272p'",
+      "result": "Lines 232-272 keep mergeAndWrite destructuring the same repoRoot, config, currentState, updates, and generatedFromCommit inputs; only the returned object gains activityEvents.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Return value gains activityEvents: ActivityEvent[] alongside the existing state, writtenAt, changedTaskIds.",
+      "command": "nl -ba scripts/lib/sync-core.mjs | sed -n '267,272p'; nl -ba scripts/lib/sync-core.d.mts | sed -n '1,90p'",
+      "result": "sync-core.mjs line 270 derives activityEvents and line 272 returns it with state, writtenAt, and changedTaskIds; sync-core.d.mts imports ActivityEvent and declares activityEvents: ActivityEvent[] on the mergeAndWrite return type.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Events derived by diffing currentState.byTaskId against the new state.byTaskId by taskId: emits for stage change, storyCompletion change (count or fraction), task removal (newStage: null), task first-observation (prevStage: null).",
+      "command": "nl -ba scripts/lib/sync-core.mjs | sed -n '270,319p'; nl -ba scripts/lib/sync-core.test.mjs | sed -n '247,355p'",
+      "result": "deriveActivityEvents compares currentState.byTaskId to state.byTaskId over the task-id union, emits stage and storyCompletion changedFields, and fills prevStage/newStage with null for first-observation/removal; tests cover stage change, storyCompletion, removal, and first-observation.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Retain (no diff) emits zero events.",
+      "command": "nl -ba scripts/lib/sync-core.test.mjs | sed -n '357,371p'",
+      "result": "The retain test calls mergeAndWrite with action=retain and unchanged byTaskId, then asserts result.activityEvents is exactly [].",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Existing callers continue to work without modification.",
+      "command": "pnpm --filter @codexu/overview-viewer test > .test-output/overview-viewer.test.log 2>&1",
+      "result": "PASS exit=0 duration=9.21s; overview-viewer package suite passed with 27 test files and 153 tests, including existing watcher and sync-core callers.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "vitest cases in scripts/lib/sync-core.test.mjs cover all four diff dimensions.",
+      "command": "pnpm vitest run scripts/lib/sync-core.test.mjs > .test-output/sync-core-root.test.log 2>&1",
+      "result": "PASS exit=0 duration=2.01s; scripts/lib/sync-core.test.mjs passed with 1 file and 15 tests, including stage change, storyCompletion change, removal, first-observation, and retain/no-diff cases.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Typecheck passes.",
+      "command": "pnpm --filter @codexu/overview-viewer typecheck > .test-output/overview-viewer.typecheck.log 2>&1",
+      "result": "PASS exit=0 duration=11.3s; tsc --noEmit completed with no errors.",
+      "evidenceKind": "passed"
+    }
+  ],
+  "skippedReasons": [],
+  "notTested": [],
+  "iterationSHA": "e67002643cf93c1412011ab208de5cdfc51be9cb"
+}

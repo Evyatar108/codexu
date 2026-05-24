@@ -1,0 +1,103 @@
+I’m opening the provided file to see what task it contains.
+
+I found the embedded diff; next I’m checking the repo state and the touched files to validate the review against real code context.
+
+I found what may be a malformed hunk around `useHashNav`; I’m double-checking that section before I finalize findings.
+
+### Completeness
+
+- [High] `tools/overview-viewer/package.json:11-23` adds six new dependencies (`@radix-ui/react-dialog`, `@radix-ui/react-tooltip`, Testing Library, `jsdom`, `esbuild`), but there is no accompanying `pnpm-lock.yaml` update in the patch. The plan makes the lockfile part of the acceptance criteria for any dependency change, so this batch will not reproduce under `pnpm install --frozen-lockfile` / CI as submitted.
+
+- [High] `tools/overview-viewer/src/components/Kanban.tsx:97-110` only adds count chips to the top-level Kanban section summary. `KanbanColumn` still renders just the title and badge at `tools/overview-viewer/src/components/Kanban.tsx:67-74`, so the concrete US-005 requirement of a count chip on **each column header** is still unmet.
+
+### Correctness
+
+- [High] The reduced-motion path is still broken for navigation jumps. `tools/overview-viewer/src/hooks/useHashNav.ts:10-13` and `tools/overview-viewer/src/utils/commandNavigation.ts:38-41` always call `scrollIntoView({ behavior: 'smooth' })`, while the new reduced-motion block in `tools/overview-viewer/src/styles.css:30-35` only disables animations/transitions and never switches scrolling back to `auto`. Users with `prefers-reduced-motion` will still get animated scrolling on deep links and quick jumps, which fails the US-003/US-006 contract.
+
+- [High] Search highlighting only covers the command name and description, even though filtering still matches many other visible fields. The new `highlightMatches(...)` usage is limited to `TaskCommand`’s `cmd-name` / `cmd-desc` path (`tools/overview-viewer/src/components/TaskCommand.tsx:362-407`), but the search haystack still includes workstream, size, cadence, spawned-from, warnings, and child IDs (`tools/overview-viewer/src/utils/filters.ts:42-64`). That means queries can legitimately match a rendered row and still show no `<mark>` anywhere, so US-002 is only partially implemented.
+
+### Quality
+
+No issues found.
+
+### Security
+
+No issues found.
+
+### Overall Assessment
+
+This needs more work before it is ready. The patch has real acceptance-criteria misses on Kanban counts, reduced-motion behavior, and search highlighting, and it also omits the required lockfile regeneration for the new dependencies.
+
+8% of planned work completed (US-006 through US-011). Phases D and E (bucket headers, sticky frame, left rail, responsive collapse) and docs sweep (US-019) were never started. US-012 through US-014 blocked by bundle size constraint.
+**Evidence:** Progress log shows autonomous halt at iteration 12 with US-012 exceeding 500 KB limit (506,901 bytes). Remaining 8 stories marked blocked with no implementation.
+**Suggested fix:** Requires replanning to either (a) raise bundle ceiling, (b) tree-shake Radix imports, (c) defer Radix Popover/ToggleGroup features, or (d) split `overview-data.js` out of single-file bundle.
+
+---
+
+**[Medium]** Bundle budget miscalculation
+**File:** N/A (planning artifact)
+**Problem:** Plan estimated Phase C would add +15-25 KB. Actual: US-010+US-011 added +27 KB; US-012 attempt added +11 KB more, overshooting by 6.9 KB. Budget exhausted at story 12 of 19.
+**Evidence:** `notepad.md` line 79 documents the gap; `plans/overview.html` sizes: 457,004 B after US-009 → 495,479 B after US-011 → 506,901 B on `partial/US-012`.
+**Suggested fix:** Future Radix rollouts should measure per-primitive cost before committing multi-story phases.
+
+## Correctness
+
+**[High]** Search highlighting may double-escape already-escaped HTML entities
+**File:** `tools/overview-viewer/src/utils/searchHighlighting.ts:15-57`
+**Severity:** High
+**Problem:** `highlightMatches` wraps matches in `<mark>` tags but does not HTML-escape the matched text before wrapping. If the input `html` contains user-controlled search query that matches a literal `<` or `>` in the HTML (e.g., in a task description), the resulting `<mark>${match}</mark>` could inject unescaped angle brackets.
+**Evidence:** Line 18 creates `applyTextHighlight` that does `text.replace(matcher, (match) => <mark class="search-match">${match}</mark>`)` with no HTML escaping of `match`. The function correctly skips `<code>` blocks and tags, but `match` itself is never escaped.
+**Suggested fix:** Change line 18 to `return text.replace(matcher, (match) => <mark class="search-match">${escapeHtml(match)}</mark>)` where `escapeHtml` is the existing utility at `TaskCommand.tsx:75-82`.
+
+## Quality
+
+**[Medium]** `escapeHtml` utility duplicated
+**File:** `tools/overview-viewer/src/utils/searchHighlighting.ts` (missing) and `tools/overview-viewer/src/components/TaskCommand.tsx:75-82`
+**Problem:** `TaskCommand.tsx` defines a local `escapeHtml` function. `searchHighlighting.ts` needs the same function but doesn't import it, creating duplication risk if the implementation needs to change.
+**Evidence:** `TaskCommand.tsx` line 75 defines `escapeHtml`; `searchHighlighting.ts` has no such utility despite processing HTML.
+**Suggested fix:** Extract `escapeHtml` to `src/utils/htmlEscape.ts` and import it in both files.
+
+---
+
+**[Medium]** Incomplete bundle-size verification after US-010
+**File:** `tools/overview-viewer/vite.config.ts:45-50` (inferred from progress log)
+**Problem:** Progress log states "added build-side `overview-data.js` minification" was added *after* US-010 exceeded 500 KB, but the plan required US-010 itself to be the bundle-validation gate. The minification rescue should have been part of US-010, not a reactive fix.
+**Evidence:** Notepad line 78 says minification was added "after the first Radix build exceeded the 500 KB hard gate"; US-010 final size 472,965 B implies minification was applied retroactively.
+**Suggested fix:** Document this as a planning gap — the bundle gate story should have included minification infrastructure proactively.
+
+## Security
+
+No significant security issues found in the reviewed changes. The implementation correctly:
+- Uses `escapeRegExp` to prevent regex injection in search queries
+- Skips `<code>` blocks during highlighting to avoid breaking structured content
+- Preserves operator-authored HTML from `overview-data.js` as trusted (documented boundary)
+
+*Note:* The double-escape issue in Correctness could theoretically enable XSS if untrusted input reached the search query, but the data file is hand-curated and the search is client-side only.
+
+## Overall Assessment
+
+**Partially complete with one critical correctness issue.** 11 of 19 stories delivered cleanly with solid test coverage (16 files / 63 tests). Bundle budget exhaustion blocked Phase C completion and all downstream work. The search highlighting implementation has a potential HTML injection risk that should be fixed before merge. Code quality is generally good with established patterns (single toast pipeline, App-owned state, split vitest projects). Requires replanning to complete Phases D/E or accept partial scope.I found the job artifacts but not the new source file in the main tree, so I’m checking the Ralph worktree where this implementation appears to have been developed.
+
+I’ve verified one search-related defect and I’m checking the other Phase A behavior changes for any acceptance-criteria regressions before I finalize the review.
+
+I found two concrete acceptance-criteria regressions; I’m checking the search tests once to confirm they never exercise the visible-label case before I write up the review.
+
+**Needs more work.** The branch stops well short of the plan and still has two shipped-behavior regressions.
+
+### Completeness
+- **[High]** `.ralph/jobs/overview-viewer-polish/notepad.md:42-50` and `:75-82` plus `.ralph/jobs/overview-viewer-polish/progress.txt:123-134` explicitly show the job halted after **11/19** stories, with `US-012` blocked and `US-013..US-019` left undone. That means the plan’s later deliverables — bucket headers, sticky frame, left rail, responsive collapse, and the docs sweep — never landed, so this diff does not satisfy the requested implementation.
+
+### Correctness
+- **[High]** `tools/overview-viewer/src/utils/filters.ts:36-41,53-55` says search should mirror the row’s rendered text, but the haystack stores raw lookup keys like `perf` / `codex-parity` / size codes. `tools/overview-viewer/src/components/TaskCommand.tsx:276-310` renders the user-facing labels (`Performance`, `Codex parity`, etc.) instead. As a result, searching for the visible pill text can fail, and those visible fields can’t be highlighted as US-002 requires.
+
+- **[High]** `tools/overview-viewer/src/utils/commandNavigation.ts:33-40` and `tools/overview-viewer/src/hooks/useHashNav.ts:7-14` always call `scrollIntoView({ behavior: 'smooth' })`. The only reduced-motion guard in `tools/overview-viewer/src/styles.css:33-38` disables CSS animation/transition, not JS smooth scrolling. So `prefers-reduced-motion: reduce` users still get smooth scroll on hash jumps and in-app navigation, which misses the US-003 / US-006 reduced-motion contract.
+
+### Quality
+No issues found.
+
+### Security
+No issues found.
+
+### Overall Assessment
+Not ready. Beyond the branch being incomplete against the plan, the shipped search and reduced-motion behavior still miss stated acceptance criteria.
+

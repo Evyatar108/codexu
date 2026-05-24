@@ -1,0 +1,83 @@
+[
+  {
+    "finding_id": "F-001",
+    "duration_s": 170,
+    "status": "fixed",
+    "summary": "Extended US-012 scope to include App.tsx (lifting filter-open state so activateWorkstream can drive the Radix Popover), added a Risk Areas entry with mitigation + acceptance criterion, and updated the file inventory, story table, and cluster analysis to reflect the additional App.tsx edit."
+  },
+  {
+    "finding_id": "F-002",
+    "duration_s": 87,
+    "status": "unknown",
+    "summary": "No review-meta output"
+  },
+  {
+    "finding_id": "F-002",
+    "duration_s": 67,
+    "status": "wont_fix",
+    "summary": "Plan already contains the required per-story acceptance criteria for US-012 (line 170) and US-015 (line 172) covering the setAllDetails expand/collapse keyboard shortcut regression — both explicitly mandate the shortcuts keep controlling filter and bucket surfaces, with the exact mitigation the reviewer suggested."
+  },
+  {
+    "finding_id": "F-003",
+    "duration_s": 97,
+    "status": "fixed",
+    "summary": "Moved bucket-level indeterminate behavior from US-013 into US-015 (per the finding's suggested alternative) since the .cmd-bucket DOM only exists after US-015 lands; updated US-013 title, US-015 title + files + per-story acceptance criterion, the phase-d-bucket-headers cluster file-overlap, and the Files-to-Modify section."
+  },
+  {
+    "finding_id": "F-004",
+    "duration_s": 150,
+    "status": "fixed",
+    "summary": "Added per-story acceptance criterion gating the Radix interaction stories (US-011/US-012/US-013/US-014/US-018) on a verification harness installed by US-010 — either a split-projects vitest config with jsdom+@testing-library or a Playwright/agent-browser smoke — with explicit per-story test cases and documented transition risk for the existing 24 SSR tests."
+  },
+  {
+    "finding_id": "F-005",
+    "duration_s": 102,
+    "status": "fixed",
+    "summary": "Reordered Phase A so US-006 (global prefers-reduced-motion guard) is the first story; added US-006 as an explicit dependency for US-001/US-003/US-004 in the story table and in the phase-a-styles cluster, with a rationale note stating the guard must precede any animation rule."
+  },
+  {
+    "finding_id": "F-006",
+    "duration_s": 191,
+    "status": "fixed",
+    "summary": "Added pnpm-lock.yaml to the Modified files list for Radix stories US-010/011/012/013, added a global acceptance criterion requiring lockfile regeneration via pnpm install (verified by pnpm install --frozen-lockfile) on any package.json change, and reflected the lockfile in the story decomposition table and Phase C cluster file-overlap evidence."
+  },
+  {
+    "finding_id": "F-007",
+    "duration_s": 90,
+    "status": "fixed",
+    "summary": "Added App.tsx and CommandList.tsx to US-002's file list (in both the Modified (existing) section and the story-decomposition table), documented the query-string threading requirement (App.tsx → CommandList → TaskCommand → highlightMatches), and updated the phase-a-renderers cluster file-overlap evidence to reflect CommandList.tsx now being shared between US-002 and US-005."
+  },
+  {
+    "finding_id": "F-008",
+    "duration_s": 133,
+    "status": "unknown",
+    "summary": "No review-meta output"
+  },
+  {
+    "finding_id": "F-008",
+    "phase": "agent-failure",
+    "duration_s": 53,
+    "status": "skipped-after-2-retries",
+    "summary": "Agent failed to emit <review-meta> for F-008 on 2 consecutive iterations; finding auto-marked wont_fix"
+  },
+  {
+    "finding_id": "F-009",
+    "duration_s": 119,
+    "status": "fixed",
+    "summary": "Added src/utils/bucketNavigation.ts (with signature getBucketIdForTask(taskId, tasks)) to the New Files list for US-015, renamed src/__tests__/hashNavBucket.test.ts to bucketNavigation.test.ts, and propagated the new util into the US-015 table row, phase-d-bucket-headers cluster file-overlap evidence, and the Risk Areas mitigation note so the testability AC is enforceable."
+  },
+  {
+    "finding_id": "F-010",
+    "duration_s": 181,
+    "status": "fixed",
+    "summary": "Added a new 'Per-story Acceptance Criteria (concrete)' subsection inlining 2-5 verifiable acceptance criteria for the 13 stories that lacked them (US-001..US-010, US-016, US-017, US-019), so autonomous verification no longer depends on the deferred stories-outline.md."
+  },
+  {
+    "phase": "soft-cap",
+    "iteration": 5,
+    "openCount": 7,
+    "severities": {
+      "Medium": 7
+    }
+  }
+]

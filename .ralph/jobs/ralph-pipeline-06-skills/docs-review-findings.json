@@ -1,0 +1,76 @@
+{
+  "planFile": "D:/harness-efforts/codexu/.ralph/jobs/ralph-pipeline-06-skills/plan.md",
+  "repoDir": "D:/harness-efforts/codexu/.ralph/jobs/ralph-pipeline-06-skills/worktree",
+  "reviewCycle": 1,
+  "findings": [
+    {
+      "id": "F-001",
+      "severity": "Medium",
+      "source": "docs",
+      "classification": "fixable",
+      "phase": "docs",
+      "category": "Stale Documentation",
+      "sectionRef": "Plan 06 — Files > To create + Verification A",
+      "description": "plans/ralph-pipeline-06-skills.md prescribes the unit-test path as `scripts/lib/__tests__/deriveNextCommand.test.mjs` (lines 36 and 170), but the shipped implementation places the tests flat under `scripts/lib/derive-next-command.test.mjs` and `scripts/lib/derive-next-command-cli.test.mjs`. The `scripts/lib/__tests__/` directory does not exist. Job CLAUDE.md explicitly mandates the flat layout: `Tests live flat under scripts/lib/<name>.test.mjs (no __tests__/ subdirectory).` Anyone re-reading the plan to find the tests would look in the wrong place.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Updated lines 36 and 170 to flat-layout test paths.",
+      "relevantFiles": [
+        "plans/ralph-pipeline-06-skills.md"
+      ],
+      "suggestedFix": "Edit plans/ralph-pipeline-06-skills.md: (a) line 36 replace `scripts/lib/__tests__/deriveNextCommand.test.mjs OR add cases to tools/overview-viewer/src/__tests__/ralphStage.test.ts` with `scripts/lib/derive-next-command.test.mjs (one case per stage value, flat layout per repo convention) plus scripts/lib/derive-next-command-cli.test.mjs for the CLI wrapper`; (b) line 170 replace `pnpm test scripts/lib/__tests__/deriveNextCommand.test.mjs` with `pnpm test scripts/lib/derive-next-command.test.mjs`."
+    },
+    {
+      "id": "F-002",
+      "severity": "Medium",
+      "source": "docs",
+      "classification": "fixable",
+      "phase": "docs",
+      "category": "Stale Documentation",
+      "sectionRef": "Plan 06 — Read for reference + Version-pin note",
+      "description": "plans/ralph-pipeline-06-skills.md still cites ralph-orchestration v5.30.0 in four places (lines 48, 49, 50 for the `Read for reference` paths into `~/.claude/plugins/cache/ai-developer-toolkit/ralph-orchestration/5.30.0/skills/...`, and line 68 for the version-pin comment the implementer is told to add). The shipped scripts/lib/derive-next-command.mjs line 3 actually says `Tested against ralph-orchestration v5.41.0`, the job CLAUDE.md description names v5.41.0, and the installed plugin path is 5.41.0. The 5.30.0 cache directory does not exist on disk. Readers picking up Plan 06 later will look at the wrong skill source-of-truth.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Bumped 4 version refs from v5.30.0 to v5.41.0.",
+      "relevantFiles": [
+        "plans/ralph-pipeline-06-skills.md"
+      ],
+      "suggestedFix": "Edit plans/ralph-pipeline-06-skills.md to replace every `ralph-orchestration\\5.30.0` (and `v5.30.0`) reference with `ralph-orchestration\\5.41.0` (and `v5.41.0`). Affected lines: 48, 49, 50, 68. Confirm path existence with `ls C:/Users/evmitran/.claude/plugins/cache/ai-developer-toolkit/ralph-orchestration/5.41.0/skills/`."
+    },
+    {
+      "id": "F-003",
+      "severity": "Medium",
+      "source": "docs",
+      "classification": "fixable",
+      "phase": "docs",
+      "category": "Stale Documentation",
+      "sectionRef": "Plan 06 — Skill body step 5 + Common mistakes #3",
+      "description": "plans/ralph-pipeline-06-skills.md instructs the skill to shell out to Node via inline `node -e \"import('./scripts/lib/derive-next-command.mjs').then(m => console.log(JSON.stringify(m.deriveNextCommand(...))))\"` (lines 103 and 192). The shipped implementation instead introduced a dedicated CLI wrapper at `scripts/lib/derive-next-command-cli.mjs`, which `.claude/skills/work-on/SKILL.md` invokes as `node scripts/lib/derive-next-command-cli.mjs --task <id>`. The plan never mentions this CLI helper file even though it is now a Source-of-truth-adjacent module and ships with its own test file. Plan readers will be misled about how the skills integrate with the predicate, and the file list in `## Files > To create` is incomplete.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Added CLI wrapper to Files+test+step 5+common mistake #3.",
+      "relevantFiles": [
+        "plans/ralph-pipeline-06-skills.md"
+      ],
+      "suggestedFix": "Edit plans/ralph-pipeline-06-skills.md: (a) under `## Files > To create`, add a bullet for `scripts/lib/derive-next-command-cli.mjs` describing it as the thin Node CLI wrapper around `deriveNextCommand` that resolves repoRoot via `git rev-parse --show-toplevel`, reads `plans/overview-snapshot.json`, and prints the resulting `NextCommand | null` as JSON on stdout (plus the matching test file `scripts/lib/derive-next-command-cli.test.mjs`); (b) rewrite the line-103 `Derive next command` step to invoke `node scripts/lib/derive-next-command-cli.mjs --task <selected-task-id>` and parse stdout as JSON, rather than the inline `node -e \"import(...)\"` form; (c) update Common mistake #3 (line 192) to describe the CLI wrapper as the integration shape used by skills, with the inline-import note kept only as historical rationale or dropped."
+    },
+    {
+      "id": "F-004",
+      "severity": "Medium",
+      "source": "docs",
+      "classification": "fixable",
+      "phase": "docs",
+      "category": "Stale Documentation",
+      "sectionRef": "plans/ralph-pipeline-INDEX.md — Source-of-truth modules table (line 199)",
+      "description": "plans/ralph-pipeline-INDEX.md's `Source-of-truth modules shared across plans` table lists only `scripts/lib/derive-next-command.mjs` (introduced in 06, consumed by 06 (skills), 09 (MCP)). The shipped Plan 06 implementation introduced a second module, `scripts/lib/derive-next-command-cli.mjs`, which is the actual integration shape every repo-local skill (`/work-on`, `/triage`, `/blocker-report`) consumes per `.claude/skills/work-on/SKILL.md` line 80 (`node scripts/lib/derive-next-command-cli.mjs --task <selected-task-id>`), `.claude/skills/blocker-report/SKILL.md` line 102, and `.claude/skills/triage/SKILL.md` line 90. The CLI wrapper is now a shared contract between three skills and the predicate ESM, but the INDEX claims `derive-next-command.mjs` is consumed directly by 06 (skills) — which is the historical inline-import shape that the implementation deliberately replaced (see F-003). Plan 06's final acceptance criterion (line 167) requires the implementing agent to refresh the INDEX's `Source-of-truth modules` table for new file paths and behavior contracts; that audit missed the new CLI wrapper. Downstream cascade: Plan 12's extraction file list (plans/ralph-pipeline-12-package-as-plugin.md line 102) also omits `scripts/lib/derive-next-command-cli.mjs` from the files-to-remove inventory, so a future Plan 12 implementer would leave the CLI wrapper behind in codexu after plugin extraction and break all three skills.",
+      "status": "wont_fix",
+      "relevantFiles": [
+        "plans/ralph-pipeline-INDEX.md",
+        "plans/ralph-pipeline-12-package-as-plugin.md"
+      ],
+      "suggestedFix": "Edit plans/ralph-pipeline-INDEX.md: under `## Source-of-truth modules shared across plans`, add a new row immediately after the existing `scripts/lib/derive-next-command.mjs` row (currently line 199) for the CLI wrapper: | `scripts/lib/derive-next-command-cli.mjs` | 06 | Thin Node CLI around `deriveNextCommand`: resolves `repoRoot` via `git rev-parse --show-toplevel`, reads `plans/overview-snapshot.json` (override with `--snapshot <file>`), looks up `--task <id>` case-insensitively against `snapshot.tasks[].id`, and writes the resulting `NextCommand | null` as one JSON line to stdout. Errors go to stderr with non-zero exit. | 06 (`/work-on`, `/triage`, `/blocker-report`) |. Also update the existing `scripts/lib/derive-next-command.mjs` row's `Consumed by` column from `06 (skills), 09 (MCP)` to `06 (CLI wrapper + future UI), 09 (MCP)` so the table reflects that skills now go through the CLI rather than importing the .mjs directly. Then edit plans/ralph-pipeline-12-package-as-plugin.md line 102 to include `scripts/lib/derive-next-command-cli.mjs` in the comma-separated extraction list right after `scripts/lib/derive-next-command.mjs` (and add its matching `.d.mts` file to the catch-all at the end of that bullet).",
+      "fixedInIteration": 1,
+      "resolution": "Deferred to notepad.md ## Deferred Cascade per v5.40.0 parallel-safety rules; Plan 07 context-worker still RUNNING with 5/9 stories pass at 2026-05-20T08:49:55Z. Shared INDEX + Plan 12 edits cannot land while a peer Plan 0X job is in flight."
+    }
+  ]
+}

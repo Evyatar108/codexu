@@ -1,0 +1,19 @@
+### Completeness
+
+[High] [TaskCommand.tsx](D:/harness-efforts/codexu/.worktrees/overview-vite-react/tools/overview-viewer/src/components/TaskCommand.tsx:188) renders the workstream pill as “Filter to …”, but its click handler only prevents navigation and stops propagation. The legacy behavior clicked the matching workstream filter chip, so this does not port the full `injectWorkstreamPills()` behavior and breaks that filter shortcut.
+
+### Correctness
+
+[High] [useBulkSelection.ts](D:/harness-efforts/codexu/.worktrees/overview-vite-react/tools/overview-viewer/src/hooks/useBulkSelection.ts:5) builds bulk-copy text from raw `task.command.planPrompt` only. The plan’s `BulkCopyButton` AC requires concatenated copy-command output, which includes the same preamble injection used by `CopyCommandButton`. Selected codex/codexu tasks will be copied without required worktree/bookkeeping preambles.
+
+### Quality
+
+No issues found.
+
+### Security
+
+No issues found.
+
+### Overall Assessment
+
+Not ready yet. The main UI is broadly present, but the workstream shortcut and bulk-copy behavior miss planned acceptance criteria that affect operator workflows.

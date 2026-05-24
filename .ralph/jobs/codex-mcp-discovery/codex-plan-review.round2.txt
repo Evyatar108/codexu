@@ -1,0 +1,25 @@
+### Feasibility
+
+[Medium] The proposed Zod union does not enforce the plan’s own XOR requirement. In `codex/external/repos/codex-patched/codex-rs/config/src/mcp_types.rs:274-313`, Codex rejects configs with both `command` and `url`, and also rejects transport-specific incompatible fields. But the proposed `.passthrough()` union in `projectMcpConfig.ts` would accept `{ command, url }` via the stdio branch and forward it. Add `.superRefine()` or explicit branch refinements so ambiguous entries are logged and skipped before `client.startThread` / `client.resumeThread`.
+
+[Low] The resume-path test needs to avoid mocking `./resumeExistingThread` if it wants to assert `client.resumeThread` directly. Existing `packages/happy-cli/src/codex/runCodex.fork.test.ts` mocks `resumeExistingThread`, so copying that harness would only prove the wrapper received `mcpServers`, not that `packages/happy-cli/src/codex/resumeExistingThread.ts:20-33` forwarded them. The plan’s intent is good, but the test-harness instruction should be explicit.
+
+### Completeness
+
+[Medium] Docs update scope misses `plans/codex-agent-parity-audit.md`. That file still documents this as an active High gap at `plans/codex-agent-parity-audit.md:63-82` and recommends shipping `mcp-discovery` first at `plans/codex-agent-parity-audit.md:341`. If only `plans/codexu-roadmap.md`, `plans/parallel-assignments.md`, `plans/overview.html`, and `packages/happy-cli/CLAUDE.md` are updated, the audit doc remains stale.
+
+[Medium] Acceptance only checks passthrough of HTTP extras on an HTTP entry. Given Codex rejects incompatible transport fields in `mcp_types.rs:274-313`, add unit coverage that ambiguous or incompatible entries are skipped, e.g. `{ command: "node", url: "http://..." }` and HTTP entries with stdio-only fields if the loader chooses to validate those.
+
+### Ordering
+
+No issues found.
+
+### Simplicity
+
+No issues found. The single loader plus one `runCodex.ts` merge point matches the current architecture at `packages/happy-cli/src/codex/runCodex.ts:700-794`.
+
+### Acceptance Criteria Quality
+
+[Low] Criterion 3 says “broken-JSON or invalid-shape” for the malformed start-path test. Those are different branches: parse failure vs root-shape validation failure. Since helper tests cover both, the `runCodex.projectMcp.test.ts` criterion should pick one concrete fixture, preferably broken JSON, to avoid ambiguous implementation.
+
+[Low] Round 1 fixes look adequate overall: HTTP-only fixtures, resume coverage, `cwdAtStart`, `type` stripping, and the AGENTS.md acceptance tension are now addressed. The remaining gaps above are new rather than regressions.

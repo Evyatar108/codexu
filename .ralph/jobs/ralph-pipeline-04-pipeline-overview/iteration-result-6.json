@@ -1,0 +1,68 @@
+{
+  "storyId": "US-006",
+  "verifiedEvidence": [
+    {
+      "criterion": "scripts/lib/sync-core.mjs exports atomicWriteFile.",
+      "command": "grep -nE \"export async function atomicWriteFile\" scripts/lib/sync-core.mjs scripts/lib/sync-core.d.mts",
+      "result": "Exit 0; sync-core.mjs exports atomicWriteFile at line 358 and sync-core.d.mts declares it.",
+      "evidenceKind": "source-inspection"
+    },
+    {
+      "criterion": "sync-core.mjs calls scoreRecommendations and deriveDependencyGraph once with prdsByTaskId, then passes results to emitDerivedArtifacts after the core sidecar writes.",
+      "command": "grep -nE \"scoreRecommendations|deriveDependencyGraph|emitDerivedArtifacts|getPrdsByTaskId\" scripts/lib/sync-core.mjs",
+      "result": "Exit 0; writeSidecar loads overviewData, reads getPrdsByTaskId(state), calls scoreRecommendations once and deriveDependencyGraph once, then awaits emitDerivedArtifacts after the core JSON/JS atomic writes.",
+      "evidenceKind": "source-inspection"
+    },
+    {
+      "criterion": "Derived artifacts are emitted atomically on one-shot, watcher cold-start, and watcher incremental paths.",
+      "command": "pnpm --filter @codexu/overview-viewer exec vitest run src/__tests__/syncCore.test.ts src/__tests__/syncRalphStateCli.test.ts src/__tests__/ralphWatcher.test.ts",
+      "result": "Exit 0 in focused runs; syncCore passed 16 tests, syncRalphStateCli passed 5 tests, ralphWatcher passed 19 tests. Added one-shot artifact and watcher cold-start/flush artifact coverage.",
+      "evidenceKind": "test"
+    },
+    {
+      "criterion": "writeSidecar signature stays { repoRoot, config, state } and receives no overviewData or PRDs.",
+      "command": "grep -n 'export async function writeSidecar({ repoRoot, config, state })' scripts/lib/sync-core.mjs scripts/lib/sync-core.d.mts",
+      "result": "Exit 0; implementation and declaration keep writeSidecar({ repoRoot, config, state }); derived data is loaded from config/state inside sync-core.",
+      "evidenceKind": "source-inspection"
+    },
+    {
+      "criterion": "Recommendations and dependency graph use sidecar state metadata, not overviewData metadata.",
+      "command": "pnpm --filter @codexu/overview-viewer exec vitest run src/__tests__/syncCore.test.ts src/__tests__/syncRalphStateCli.test.ts src/__tests__/ralphWatcher.test.ts",
+      "result": "Exit 0; tests assert dependencyGraph.generatedAt equals overview-ralph-state generatedAt on writeSidecar, one-shot CLI, and watcher flush. Recommendations remain the specified array contract and are rederived from state.byTaskId.",
+      "evidenceKind": "test"
+    },
+    {
+      "criterion": "One-shot CLI path writes both artifacts with valid JSON shapes.",
+      "command": "pnpm --filter @codexu/overview-viewer exec vitest run src/__tests__/syncRalphStateCli.test.ts",
+      "result": "Exit 0; 1 test file passed and 5 tests passed, including assertions that overview-recommendations.json is an array and overview-dependency-graph.json has nodes/edges arrays.",
+      "evidenceKind": "test"
+    },
+    {
+      "criterion": "Watcher cold-start and flush path re-emits both artifacts with advancing generatedAt metadata.",
+      "command": "pnpm --filter @codexu/overview-viewer exec vitest run src/__tests__/ralphWatcher.test.ts",
+      "result": "Exit 0; 1 test file passed and 19 tests passed, including cold-start artifact emission and debounced flush re-emission with advancing sidecar/dependencyGraph generatedAt plus updated recommendation stage.",
+      "evidenceKind": "test"
+    },
+    {
+      "criterion": "Rebase guard ran.",
+      "command": "git fetch origin main && git rebase origin/main",
+      "result": "Exit 0; current branch ralph-pipeline-04-pipeline-overview was up to date with origin/main before US-006 edits.",
+      "evidenceKind": "command"
+    },
+    {
+      "criterion": "Typecheck passes.",
+      "command": "pnpm --filter @codexu/overview-viewer typecheck > .test-output/overview-viewer.typecheck.log 2>&1",
+      "result": "Exit 0; tsc --noEmit completed with no errors. Output captured in .test-output/overview-viewer.typecheck.log.",
+      "evidenceKind": "typecheck"
+    },
+    {
+      "criterion": "Tests pass.",
+      "command": "pnpm --filter @codexu/overview-viewer test > .test-output/overview-viewer.test.log 2>&1",
+      "result": "Exit 0; Vitest reported 27 test files passed and 155 tests passed.",
+      "evidenceKind": "test"
+    }
+  ],
+  "skippedReasons": [],
+  "notTested": [],
+  "iterationSHA": "f4fdb2ea53c6762f354b562d160941f9b80c5245"
+}

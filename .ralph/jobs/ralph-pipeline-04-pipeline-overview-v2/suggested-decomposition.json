@@ -1,0 +1,96 @@
+{
+  "clusters": [
+    {
+      "name": "foundation",
+      "stories": ["US-001"],
+      "phase": 1,
+      "dependsOn": [],
+      "fileOverlapEvidence": {
+        "sharedFiles": [],
+        "exclusiveFiles": [
+          "scripts/lib/load-prds-by-task-id.mjs",
+          "scripts/lib/load-prds-by-task-id.d.mts",
+          "scripts/lib/load-prds-by-task-id.test.mjs",
+          "tools/overview-viewer/src/types.ts",
+          "scripts/lib/emit-snapshot-schema.mjs",
+          ".ralph/overview-config.schema.json",
+          "scripts/lib/default-config.mjs",
+          "scripts/lib/default-config.d.mts",
+          "scripts/lib/resolve-config.mjs"
+        ],
+        "risk": "medium"
+      },
+      "executionModeRationale": "US-001 widens types and schemas used by every downstream story; must land first as the foundation. Cannot parallelize with anything in phase 1."
+    },
+    {
+      "name": "pure-helpers",
+      "stories": ["US-002", "US-003"],
+      "phase": 2,
+      "dependsOn": ["foundation"],
+      "fileOverlapEvidence": {
+        "sharedFiles": [],
+        "exclusiveFiles": [
+          "scripts/lib/score-recommendations.mjs",
+          "scripts/lib/score-recommendations.d.mts",
+          "scripts/lib/score-recommendations.test.mjs",
+          "scripts/lib/derive-dependency-graph.mjs",
+          "scripts/lib/derive-dependency-graph.d.mts",
+          "scripts/lib/derive-dependency-graph.test.mjs"
+        ],
+        "risk": "low"
+      },
+      "executionModeRationale": "Both stories create independent pure-function helpers in distinct files with zero file overlap. Safe to run in parallel once foundation lands."
+    },
+    {
+      "name": "wiring",
+      "stories": ["US-004"],
+      "phase": 3,
+      "dependsOn": ["pure-helpers"],
+      "fileOverlapEvidence": {
+        "sharedFiles": ["scripts/lib/sync-core.mjs"],
+        "exclusiveFiles": [
+          "scripts/lib/emit-derived-artifacts.mjs",
+          "scripts/lib/emit-derived-artifacts.d.mts",
+          "scripts/lib/emit-derived-artifacts.test.mjs"
+        ],
+        "risk": "medium"
+      },
+      "executionModeRationale": "US-004 imports the helpers from US-002+US-003 and modifies sync-core.mjs (a high-touch shared file). Cannot start until both phase-2 stories are complete."
+    },
+    {
+      "name": "ui",
+      "stories": ["US-005"],
+      "phase": 3,
+      "dependsOn": ["foundation"],
+      "fileOverlapEvidence": {
+        "sharedFiles": [],
+        "exclusiveFiles": [
+          "tools/overview-viewer/src/components/PipelineOverview.tsx",
+          "tools/overview-viewer/src/App.tsx",
+          "tools/overview-viewer/src/styles.css",
+          "tools/overview-viewer/src/__tests__/pipelineOverview.test.tsx",
+          "tools/overview-viewer/src/__tests__/interactions/pipelineOverviewFilter.test.tsx"
+        ],
+        "risk": "low"
+      },
+      "executionModeRationale": "UI changes only need the widened types from US-001 (foundation). The UI reads ralphState (already populated by Plan 03), not the new JSON files directly, so it does not depend on US-002/003/004. Can run in parallel with the wiring cluster."
+    },
+    {
+      "name": "cascade",
+      "stories": ["US-006"],
+      "phase": 4,
+      "dependsOn": ["wiring", "ui"],
+      "fileOverlapEvidence": {
+        "sharedFiles": [
+          "plans/ralph-pipeline-INDEX.md",
+          "plans/ralph-pipeline-06-skills.md",
+          "plans/ralph-pipeline-09-mcp.md",
+          "tools/overview-viewer/CLAUDE.md"
+        ],
+        "exclusiveFiles": ["<job_dir>/notepad.md"],
+        "risk": "high"
+      },
+      "executionModeRationale": "Cascade audit must run LAST because it verifies the entire implementation against downstream references. Cannot parallelize with anything; must serialize after wiring + ui converge. High concurrent-collision risk on shared plan markdown requires the parallel-safety scan before any edit."
+    }
+  ]
+}

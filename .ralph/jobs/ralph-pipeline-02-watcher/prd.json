@@ -1,0 +1,494 @@
+{
+  "project": "Continuous Ralph-State Watcher (Plan 02)",
+  "description": "Add a continuous chokidar-based watcher for .ralph/ that keeps plans/overview-ralph-state.{js,json} fresh in real time, with debounced per-slug incremental re-derivation that preserves cross-kind precedence, a shared sync-lock primitive consumed by both watch and one-shot modes, a Vite plugin auto-start, and downstream cascade refresh of Plans 03-12. Implements Plan 02 of the Ralph pipeline.",
+  "deslop": true,
+  "iterationEngine": "codex",
+  "jobDir": "D:/harness-efforts/codexu/.ralph/jobs/ralph-pipeline-02-watcher",
+  "repoDir": "D:/harness-efforts/codexu",
+  "branch": {
+    "name": "ralph-pipeline-02-watcher",
+    "created": true
+  },
+  "worktree": {
+    "path": "D:/harness-efforts/codexu/.ralph/jobs/ralph-pipeline-02-watcher/worktree",
+    "branch": "ralph-pipeline-02-watcher"
+  },
+  "planReviewContext": [
+    {
+      "id": "F-001",
+      "severity": "High",
+      "description": "deriveAffectedTaskUpdate return type { taskId, newPipelineState | null } conflates 'remove task' with 'keep prior state because JSON parse failed'. The plan elsewhere requires malformed JSON to retain prior entry, but the contract has no variant for that case.",
+      "source": "consensus",
+      "category": "Feasibility",
+      "suggestedFix": "Add an explicit result variant. Example: { action: 'upsert' | 'remove' | 'retain', taskId, newPipelineState?, error? }. 'retain' is emitted on parse failure; 'remove' is emitted when no candidates remain on disk."
+    },
+    {
+      "id": "F-002",
+      "severity": "High",
+      "description": "mergeAndWrite only describes applying byTaskId deltas, but OverviewRalphState also carries unmatched and unmatchedSummary (parse errors, duplicate-resolution, no-match, cross-kind shadowing). Incremental writes will leave those fields stale.",
+      "source": "consensus",
+      "category": "Completeness",
+      "suggestedFix": "Specify that mergeAndWrite recomputes the unmatched + unmatchedSummary slices for the affected taskId(s) before writing, or replaces them with a fresh fragment from assembleStateFromBundles for the touched kind/slug set. Update Acceptance Criterion C to read 'incremental output equals walkRalphState output after normalizing generatedAt' (covers unmatched + unmatchedSummary)."
+    },
+    {
+      "id": "F-003",
+      "severity": "High",
+      "description": "The acceptance criterion 'one-shot pnpm sync-ralph-state fails fast when a fresh watcher lock exists' is asserted but the ordered steps do not add lock handling to scripts/sync-ralph-state.mjs's one-shot path. As written, one-shot calls walkRalphState then writeSidecar with no lock check.",
+      "source": "consensus",
+      "category": "Completeness",
+      "suggestedFix": "Add a shared lock helper (e.g. scripts/lib/sync-lock.mjs) and a new step in Implementation Strategy: 'Wrap the one-shot path in sync-ralph-state.mjs with the shared lock helper so one-shot also acquires the lock before writeSidecar and fails fast on contention with the same diagnostic message.' Add the shared lock helper to Files to Create."
+    },
+    {
+      "id": "F-004",
+      "severity": "High",
+      "description": "pnpm-lock.yaml is not in the Files to Modify list, but adding chokidar to root devDependencies will require a lockfile update. Without it, frozen-lock installs break.",
+      "source": "consensus",
+      "category": "Completeness",
+      "suggestedFix": "Add 'pnpm-lock.yaml' to the Modify list with a note: 'updated by pnpm install -D chokidar; verify resolved version stays pinned to the current transitive 5.x'."
+    },
+    {
+      "id": "F-005",
+      "severity": "High",
+      "description": "Stale-lock policy 'mtime > 60s' makes every healthy watcher become 'stale' after 60s, allowing a second watcher to overwrite the lock and run concurrently. The 60s mtime check alone is not safe.",
+      "source": "codex",
+      "category": "Feasibility",
+      "suggestedFix": "Either (a) refresh lock file mtime on every debounce tick (or via a 30s heartbeat timer) AND/OR (b) on detected stale lock, parse the JSON, attempt a PID-liveness check (process.kill(pid, 0) catch ESRCH => stale) before overwriting. Document the chosen mechanism in Architecture + Acceptance Criteria + Test G."
+    },
+    {
+      "id": "F-006",
+      "severity": "High",
+      "description": "Watcher root description hardcodes config.ralphRoot/jobs, /job-groups, /brainstorms. config.ralphSubdirs supports overrides via scripts/lib/resolve-config.mjs; the watcher must resolve those subdir paths rather than hardcode the names.",
+      "source": "copilot",
+      "category": "Feasibility",
+      "suggestedFix": "Replace 'config.ralphRoot/jobs' / '/job-groups' / '/brainstorms' references with the resolved paths from config.ralphSubdirs.jobs / .jobGroups / .brainstorms (joined under config.ralphRoot). Document this in Architecture + Implementation Strategy step 2."
+    }
+  ],
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Refactor sync-core to support per-slug derivation",
+      "description": "As the watcher author, I want scripts/lib/sync-core.mjs to expose per-slug primitives so that incremental updates preserve cross-kind precedence and unmatched/unmatchedSummary fidelity.",
+      "acceptanceCriteria": [
+        "Internal helpers readBundleForSlug({ repoRoot, config, kind, slug }) and assembleStateFromBundles(bundles) exist; walkRalphState is refactored to use them with behavior preserved (Plan 01 tests pass unchanged).",
+        "New exports deriveAffectedTaskUpdate and mergeAndWrite are present with the discriminated-union signature documented in the plan's Architecture section (action: upsert | remove | retain; touched + unmatchedFragment carried).",
+        "mergeAndWrite refreshes unmatched + unmatchedSummary via drop-by-touched + append-unmatchedFragment + re-sort + re-summarize.",
+        "scripts/lib/sync-core.d.mts declares the new exports.",
+        "pnpm --filter @codexu/overview-viewer typecheck passes.",
+        "pnpm --filter @codexu/overview-viewer test passes (Plan 01 baseline + any new unit cases land in this story).",
+        "Typecheck passes."
+      ],
+      "priority": 1,
+      "passes": true,
+      "notes": "F-009 [Medium]: tools/overview-viewer/src/__tests__/scripts.d.ts declares sync-core exports separately. Add it to Files to Modify (or document if tests route through the existing barrel) and verify after US-001 that both scripts/lib/sync-core.d.mts and the test-local declaration expose the new exports.\n\nF-012 [Medium]: assembleStateFromBundles(bundles) is the shared internal primitive: full walk and incremental recompute both produce state fragments through it; mergeAndWrite composes fragments + writes. Avoid drift between the two code paths.",
+      "verifiedEvidence": [
+        {
+          "criterion": "Internal helpers readBundleForSlug({ repoRoot, config, kind, slug }) and assembleStateFromBundles(bundles) exist; walkRalphState is refactored to use them with behavior preserved (Plan 01 tests pass unchanged).",
+          "command": "pnpm --filter @codexu/overview-viewer test",
+          "result": "PASS: 19 test files passed, 102 tests passed; syncCore coverage includes readBundleForSlug + assembleStateFromBundles and existing Plan 01 behavior."
+        },
+        {
+          "criterion": "New exports deriveAffectedTaskUpdate and mergeAndWrite are present with the discriminated-union signature documented in the plan Architecture section (action: upsert | remove | retain; touched + unmatchedFragment carried).",
+          "command": "sed -n '1,120p' scripts/lib/sync-core.d.mts && pnpm --filter @codexu/overview-viewer typecheck",
+          "result": "PASS: sync-core.d.mts declares TaskUpdate action: upsert | remove | retain with touched and unmatchedFragment; typecheck exit 0."
+        },
+        {
+          "criterion": "mergeAndWrite refreshes unmatched + unmatchedSummary via drop-by-touched + append-unmatchedFragment + re-sort + re-summarize.",
+          "command": "pnpm --filter @codexu/overview-viewer test",
+          "result": "PASS: syncCore test \"mergeAndWrite refreshes task state and unmatched slices to match a full walk\" passed, including sidecar JSON equality after normalizing generatedAt."
+        },
+        {
+          "criterion": "scripts/lib/sync-core.d.mts declares the new exports.",
+          "command": "grep -nE \"readBundleForSlug|assembleStateFromBundles|deriveAffectedTaskUpdate|mergeAndWrite|TaskUpdate\" scripts/lib/sync-core.d.mts",
+          "result": "PASS: declarations are present for TaskUpdate, readBundleForSlug, assembleStateFromBundles, deriveAffectedTaskUpdate, and mergeAndWrite."
+        },
+        {
+          "criterion": "pnpm --filter @codexu/overview-viewer typecheck passes.",
+          "command": "pnpm --filter @codexu/overview-viewer typecheck > .test-output/overview-viewer.typecheck.log 2>&1",
+          "result": "PASS: tsc --noEmit completed with exit 0 in 6s."
+        },
+        {
+          "criterion": "pnpm --filter @codexu/overview-viewer test passes (Plan 01 baseline + any new unit cases land in this story).",
+          "command": "pnpm --filter @codexu/overview-viewer test > .test-output/overview-viewer.test.log 2>&1",
+          "result": "PASS: 19 test files passed, 102 tests passed in 9s."
+        },
+        {
+          "criterion": "Typecheck passes.",
+          "command": "pnpm --filter @codexu/overview-viewer typecheck > .test-output/overview-viewer.typecheck.log 2>&1",
+          "result": "PASS: tsc --noEmit completed with exit 0 in 6s."
+        }
+      ],
+      "dependencies": [],
+      "failureClassification": "",
+      "partialProgress": null
+    },
+    {
+      "id": "US-002",
+      "title": "Implement shared sync-lock helper",
+      "description": "As the watcher and one-shot CLI, I want a single scripts/lib/sync-lock.mjs module so that lock-file metadata, fresh/stale semantics, and PID-liveness gating are not duplicated and never drift.",
+      "acceptanceCriteria": [
+        "scripts/lib/sync-lock.mjs exports acquireLock({ lockPath, processLabel, staleAfterMs }), releaseLock(handle), touchLock(handle); LockHandle exposes release() (ENOENT-tolerant unlink) and touch() (ENOENT-tolerant fs.utimes).",
+        "Acquire writes JSON { pid, process, startedAt } with flag 'wx'.",
+        "On EEXIST with mtime age < staleAfterMs: throws Error(\"another sync in progress (pid <N>, process <label>, started <ts>)\") with the JSON parsed from disk.",
+        "On EEXIST with mtime age >= staleAfterMs: runs process.kill(parsedPid, 0) — ESRCH/unparseable JSON => overwrite + 'stale lock removed (mtime <ms> ms, pid <N> not alive)' warning; alive/EPERM => throw the canonical fresh-lock diagnostic.",
+        "scripts/lib/sync-lock.d.mts declares the matching types.",
+        "Vitest fake-timer unit tests cover: acquire on missing file, fast-fail on fresh lock with diagnostic match, ESRCH stale-overwrite path, EPERM-alive path, touch refresh, release ENOENT tolerance.",
+        "Typecheck passes."
+      ],
+      "priority": 2,
+      "passes": true,
+      "notes": "F-016 [Medium]: This story IS the resolution to F-016 (shared lock primitive). Confirm the helper covers the diagnostic-message format and PID/staleness inspection that F-016 requested; close as fixed during this story's implementation.",
+      "verifiedEvidence": [
+        {
+          "criterion": "scripts/lib/sync-lock.mjs exports acquireLock({ lockPath, processLabel, staleAfterMs }), releaseLock(handle), touchLock(handle); LockHandle exposes release() (ENOENT-tolerant unlink) and touch() (ENOENT-tolerant fs.utimes).",
+          "command": "grep -nE 'export async function|async release|async touch|fs.rm|fs.utimes' scripts/lib/sync-lock.mjs",
+          "result": "PASS: acquireLock/releaseLock/touchLock exports found; handle release() uses fs.rm force and touch() uses fs.utimes with ENOENT tolerance."
+        },
+        {
+          "criterion": "Acquire writes JSON { pid, process, startedAt } with flag 'wx'.",
+          "command": "grep -nE 'pid: process.pid|writeLockFile|fs.writeFile' scripts/lib/sync-lock.mjs",
+          "result": "PASS: acquireLock builds { pid, process, startedAt } metadata and writes through fs.writeFile(..., flag: 'wx')."
+        },
+        {
+          "criterion": "On EEXIST with mtime age < staleAfterMs: throws Error(\"another sync in progress (pid <N>, process <label>, started <ts>)\") with the JSON parsed from disk.",
+          "command": "pnpm --filter @codexu/overview-viewer test > .test-output/overview-viewer.test.log 2>&1",
+          "result": "PASS: syncLock test \"fast-fails on a fresh lock with the canonical diagnostic\" passed; full suite 20 files / 109 tests passed."
+        },
+        {
+          "criterion": "On EEXIST with mtime age >= staleAfterMs: runs process.kill(parsedPid, 0) - ESRCH/unparseable JSON => overwrite + 'stale lock removed (mtime <ms> ms, pid <N> not alive)' warning; alive/EPERM => throw the canonical fresh-lock diagnostic.",
+          "command": "grep -nE 'ageMs < staleAfterMs|formatLockDiagnostic|isLiveProcess|process.kill|ESRCH|stale lock removed|EPERM' scripts/lib/sync-lock.mjs tools/overview-viewer/src/__tests__/syncLock.test.ts && pnpm --filter @codexu/overview-viewer test > .test-output/overview-viewer.test.log 2>&1",
+          "result": "PASS: implementation probes process.kill(pid, 0); tests cover ESRCH stale overwrite, unparseable stale overwrite, and EPERM canonical diagnostic; full suite passed."
+        },
+        {
+          "criterion": "scripts/lib/sync-lock.d.mts declares the matching types.",
+          "command": "grep -nE 'interface SyncLockMetadata|interface LockHandle|acquireLock|releaseLock|touchLock' scripts/lib/sync-lock.d.mts tools/overview-viewer/src/__tests__/scripts.d.ts",
+          "result": "PASS: sync-lock.d.mts declares SyncLockMetadata, LockHandle, acquireLock, releaseLock, and touchLock; test-local ambient declarations mirror them."
+        },
+        {
+          "criterion": "Vitest fake-timer unit tests cover: acquire on missing file, fast-fail on fresh lock with diagnostic match, ESRCH stale-overwrite path, EPERM-alive path, touch refresh, release ENOENT tolerance.",
+          "command": "grep -nE 'acquires a missing lock|fast-fails|stale lock|EPERM|touch refreshes|release tolerates' tools/overview-viewer/src/__tests__/syncLock.test.ts && pnpm --filter @codexu/overview-viewer test > .test-output/overview-viewer.test.log 2>&1",
+          "result": "PASS: syncLock.test.ts contains the required fake-timer cases plus stale unparseable JSON; full suite passed 20 files / 109 tests."
+        },
+        {
+          "criterion": "Typecheck passes.",
+          "command": "pnpm --filter @codexu/overview-viewer typecheck > .test-output/overview-viewer.typecheck.log 2>&1",
+          "result": "PASS: tsc --noEmit completed with exit 0 in 9s."
+        }
+      ],
+      "dependencies": [],
+      "failureClassification": "",
+      "partialProgress": null
+    },
+    {
+      "id": "US-003",
+      "title": "Implement scripts/lib/watch-ralph-state.mjs",
+      "description": "As a developer running pnpm overview, I want a watcher that keeps plans/overview-ralph-state.{js,json} in sync with .ralph/ so the dashboard updates without me running anything.",
+      "acceptanceCriteria": [
+        "Exports async start({ repoRoot, configPath?, debounceMs?, processLabel, onWrite?, onError? }) => Promise<{ stop, status }>; start() is async and resolves only after cold-start + chokidar subscription are both ready.",
+        "Uses acquireLock/releaseLock from scripts/lib/sync-lock.mjs (does NOT inline fs.writeFileSync for the lock).",
+        "Schedules a 30 s .unref()-ed heartbeat via handle.touch(); cleared in stop() before releaseLock.",
+        "Cold-start runs walkRalphState once then writeSidecar; stores currentState in memory.",
+        "chokidar.watch resolves directory roots via config.ralphRoot joined with config.ralphSubdirs.{jobs,jobGroups,brainstorms} — NOT hardcoded subdir names (see F-006 in Open Questions); uses config.watcher.ignored, awaitWriteFinish: { stabilityThreshold: 200, pollInterval: 50 }, ignoreInitial: true.",
+        "Path-to-slug parser handles Windows + POSIX separators; non-watched files are dropped silently.",
+        "Debounce default 2000 ms; processes pending (kind, slug) set on fire; passes TaskUpdate[] to mergeAndWrite; calls onWrite({ writtenAt, changedTaskIds }).",
+        "On retain result, increments consecutiveFailures per slug, logs to stderr; emits single 'watcher: <slug> failing repeatedly' warning at 10; resets on next non-retain.",
+        "stop() closes chokidar, clears timers, releases lock in finally.",
+        "Touching .ralph/brainstorms/<slug>/selected-direction.md does not enqueue or fire onWrite.",
+        "scripts/lib/watch-ralph-state.d.mts declares the module.",
+        "Watcher unit tests in tools/overview-viewer/src/__tests__/ralphWatcher.test.ts cover: debounce coalescing, cold-start runs once, lock-collision rejection, malformed-JSON retain + counter, deletion-only-job-state -> plan-ready re-derivation, cross-kind promotion on job delete, worktree-isolation ignore, selected-direction.md no-op.",
+        "Typecheck passes."
+      ],
+      "priority": 3,
+      "passes": true,
+      "notes": "F-006 [High]: Implementation Strategy step 3 in the plan names config.ralphRoot/jobs, /job-groups, /brainstorms directly. Resolve these through config.ralphSubdirs.jobs / .jobGroups / .brainstorms (joined under config.ralphRoot) so user overrides via resolve-config.mjs are honored. MUST fix during this story before merging.\n\nF-007 [Medium]: start() should resolve HEAD internally (reusing the helper currently in sync-ralph-state.mjs) so CLI and Vite plugin do not need to plumb generatedFromCommit.\n\nF-010 [Medium]: Pick one explicit startup strategy and document on this story: (A) subscribe-then-cold-start (chokidar ignoreInitial:true, buffer events, then cold-start, then process), or (B) cold-start-then-subscribe-then-rescan (enqueue all slugs into pendingChanges after subscribe). The 'exactly one cold-start write before chokidar emits any event' AC should be read as 'exactly one cold-start write at startup; any writes that occurred during cold-start are reconciled by the first debounce tick'.",
+      "verifiedEvidence": [
+        {
+          "criterion": "Exports async start({ repoRoot, configPath?, debounceMs?, processLabel, onWrite?, onError? }) => Promise<{ stop, status }>; start() is async and resolves only after cold-start + chokidar subscription are both ready.",
+          "command": "grep -nE 'export async function start|watcher.on' scripts/lib/watch-ralph-state.mjs scripts/lib/watch-ralph-state.d.mts && pnpm --filter @codexu/overview-viewer test > .test-output/overview-viewer.test.log 2>&1",
+          "result": "PASS: start is exported by the implementation and .d.mts; ralphWatcher test 'runs one cold-start write after the chokidar subscription is ready' passed in the full suite (21 files / 118 tests)."
+        },
+        {
+          "criterion": "Uses acquireLock/releaseLock from scripts/lib/sync-lock.mjs (does NOT inline fs.writeFileSync for the lock).",
+          "command": "grep -nE 'acquireLock|releaseLock|writeFileSync' scripts/lib/watch-ralph-state.mjs",
+          "result": "PASS: watcher imports and calls acquireLock/releaseLock from sync-lock; no writeFileSync lock-writing path exists in watch-ralph-state.mjs."
+        },
+        {
+          "criterion": "Schedules a 30 s .unref()-ed heartbeat via handle.touch(); cleared in stop() before releaseLock.",
+          "command": "grep -nE 'HEARTBEAT_MS|setInterval|touch|unref|clearInterval|releaseLock' scripts/lib/watch-ralph-state.mjs tools/overview-viewer/src/__tests__/ralphWatcher.test.ts && pnpm --filter @codexu/overview-viewer test > .test-output/overview-viewer.test.log 2>&1",
+          "result": "PASS: HEARTBEAT_MS is 30000, interval calls lockHandle.touch(), unrefs, stop clears interval before releaseLock; test 'touches the lock on a 30 second heartbeat and releases it on stop' passed."
+        },
+        {
+          "criterion": "Cold-start runs walkRalphState once then writeSidecar; stores currentState in memory.",
+          "command": "grep -nE 'walkRalphState|writeSidecar|currentState' scripts/lib/watch-ralph-state.mjs tools/overview-viewer/src/__tests__/ralphWatcher.test.ts",
+          "result": "PASS: start awaits walkRalphState then writeSidecar and assigns currentState; cold-start test verified sidecar and status.currentState contain the implementing task."
+        },
+        {
+          "criterion": "chokidar.watch resolves directory roots via config.ralphRoot joined with config.ralphSubdirs.{jobs,jobGroups,brainstorms} — NOT hardcoded subdir names (see F-006 in Open Questions); uses config.watcher.ignored, awaitWriteFinish: { stabilityThreshold: 200, pollInterval: 50 }, ignoreInitial: true.",
+          "command": "grep -nE 'getWatchRoots|ralphSubdirs|config.watcher.ignored|awaitWriteFinish|ignoreInitial' scripts/lib/watch-ralph-state.mjs tools/overview-viewer/src/__tests__/ralphWatcher.test.ts",
+          "result": "PASS: getWatchRoots reads resolved config.ralphSubdirs; test used custom roots .custom-ralph/{queued,teams,ideas}; watcher options include config.watcher.ignored, awaitWriteFinish 200/50, and ignoreInitial true."
+        },
+        {
+          "criterion": "Path-to-slug parser handles Windows + POSIX separators; non-watched files are dropped silently.",
+          "command": "grep -nE 'parseWatchedPath|splitPath|toPosix|selected-direction|pendingChanges' scripts/lib/watch-ralph-state.mjs tools/overview-viewer/src/__tests__/ralphWatcher.test.ts",
+          "result": "PASS: parser normalizes split on both slash styles; tests emit a POSIX-normalized job path and verify selected-direction.md leaves pendingChanges empty with no write."
+        },
+        {
+          "criterion": "Debounce default 2000 ms; processes pending (kind, slug) set on fire; passes TaskUpdate[] to mergeAndWrite; calls onWrite({ writtenAt, changedTaskIds }).",
+          "command": "grep -nE 'DEFAULT_DEBOUNCE_MS|pendingChanges|mergeAndWrite|onWrite|coalesces duplicate slug changes' scripts/lib/watch-ralph-state.mjs tools/overview-viewer/src/__tests__/ralphWatcher.test.ts",
+          "result": "PASS: default debounce is 2000 ms; pending map coalesces by kind:slug; mergeAndWrite receives derived updates; debounce test verified one onWrite with changedTaskIds ['task']."
+        },
+        {
+          "criterion": "On retain result, increments consecutiveFailures per slug, logs to stderr; emits single 'watcher: <slug> failing repeatedly' warning at 10; resets on next non-retain.",
+          "command": "grep -nE 'consecutiveFailures|failing repeatedly|retains malformed JSON' scripts/lib/watch-ralph-state.mjs tools/overview-viewer/src/__tests__/ralphWatcher.test.ts",
+          "result": "PASS: retain path increments consecutiveFailures and emits one repeated-failure warning at 10; malformed JSON test verified count 10, zero onWrite calls, and exactly one repeated warning."
+        },
+        {
+          "criterion": "stop() closes chokidar, clears timers, releases lock in finally.",
+          "command": "grep -nE 'const stop|clearTimeout|clearInterval|close|finally|releaseLock|releases it on stop' scripts/lib/watch-ralph-state.mjs tools/overview-viewer/src/__tests__/ralphWatcher.test.ts",
+          "result": "PASS: stop clears debounce and heartbeat timers, closes watcher, and releases lock in finally; heartbeat/stop test verified watcher.closed, lock removed, and status.stopped true."
+        },
+        {
+          "criterion": "Touching .ralph/brainstorms/<slug>/selected-direction.md does not enqueue or fire onWrite.",
+          "command": "grep -nE 'selected-direction.md|pendingChanges|onWrite' tools/overview-viewer/src/__tests__/ralphWatcher.test.ts && pnpm --filter @codexu/overview-viewer test > .test-output/overview-viewer.test.log 2>&1",
+          "result": "PASS: selected-direction.md no-op test passed; it asserts pendingChanges remains [] and onWrite is not called."
+        },
+        {
+          "criterion": "scripts/lib/watch-ralph-state.d.mts declares the module.",
+          "command": "grep -nE 'WatchWriteEvent|WatchStatus|WatchHandle|start' scripts/lib/watch-ralph-state.d.mts tools/overview-viewer/src/__tests__/scripts.d.ts",
+          "result": "PASS: root .d.mts and test-local ambient declarations expose WatchWriteEvent, WatchStatus, WatchHandle, and start()."
+        },
+        {
+          "criterion": "Watcher unit tests in tools/overview-viewer/src/__tests__/ralphWatcher.test.ts cover: debounce coalescing, cold-start runs once, lock-collision rejection, malformed-JSON retain + counter, deletion-only-job-state -> plan-ready re-derivation, cross-kind promotion on job delete, worktree-isolation ignore, selected-direction.md no-op.",
+          "command": "grep -nE 'cold-start|coalesces|rejects startup|retains malformed|plan-ready|promotes a brainstorm|worktree paths ignored|selected-direction' tools/overview-viewer/src/__tests__/ralphWatcher.test.ts && pnpm --filter @codexu/overview-viewer test > .test-output/overview-viewer.test.log 2>&1",
+          "result": "PASS: ralphWatcher.test.ts includes all named watcher behavior tests plus heartbeat/stop; full suite passed 21 files / 118 tests."
+        },
+        {
+          "criterion": "Typecheck passes.",
+          "command": "pnpm --filter @codexu/overview-viewer typecheck > .test-output/overview-viewer.typecheck.log 2>&1",
+          "result": "PASS: tsc --noEmit completed with exit 0 in 9s."
+        }
+      ],
+      "dependencies": [
+        "US-001",
+        "US-002"
+      ],
+      "failureClassification": "",
+      "partialProgress": null
+    },
+    {
+      "id": "US-004",
+      "title": "Wire CLI — one-shot lock + --watch flag",
+      "description": "As a CLI user, I want pnpm sync-ralph-state to fail fast against a running watcher, and pnpm sync-ralph-state:watch to spawn the watcher with debounce control.",
+      "acceptanceCriteria": [
+        "One-shot path in scripts/sync-ralph-state.mjs calls acquireLock BEFORE walkRalphState; releases in finally. On contention exits non-zero with the canonical diagnostic message; no partial sidecar write.",
+        "--watch flag triggers start({ ...args, processLabel: 'standalone' }) and blocks via process.stdin.resume(); SIGINT/SIGTERM cleanly call handle.stop() then exit 0.",
+        "--debounce-ms <N> clamps to [500, 30000]; invalid input rejected with a clear error.",
+        "pnpm sync-ralph-state:watch script added to root package.json.",
+        "chokidar added to root devDependencies; pnpm-lock.yaml committed; pnpm install --frozen-lockfile succeeds from a clean checkout.",
+        "Integration test: one-shot against a running watcher exits with the diagnostic message format.",
+        "Typecheck passes."
+      ],
+      "priority": 4,
+      "passes": true,
+      "notes": "F-015 [Medium]: Install chokidar (pnpm install -D chokidar) and commit pnpm-lock.yaml BEFORE the watcher module that imports it is required by the running CLI. In practice that means within this story the chokidar install commit should land before the --watch wiring commit so no intermediate commit imports a missing dependency. (US-003 produces the module but the CLI is the first consumer that ships to root package.json.)",
+      "verifiedEvidence": [
+        {
+          "criterion": "One-shot path in scripts/sync-ralph-state.mjs calls acquireLock BEFORE walkRalphState; releases in finally. On contention exits non-zero with the canonical diagnostic message; no partial sidecar write.",
+          "command": "grep -nE 'acquireLock|runOneShot|walkRalphState|writeSidecar|releaseLock|processLabel: .one-shot.' scripts/sync-ralph-state.mjs && pnpm --filter @codexu/overview-viewer test > .test-output/overview-viewer.test.log 2>&1",
+          "result": "PASS: runOneShot acquires sync-lock with processLabel one-shot before walkRalphState and releases in finally; syncRalphStateCli test verified fresh-lock contention exits non-zero with canonical diagnostic and writes no sidecar files. Full suite passed 22 files / 122 tests."
+        },
+        {
+          "criterion": "--watch flag triggers start({ ...args, processLabel: 'standalone' }) and blocks via process.stdin.resume(); SIGINT/SIGTERM cleanly call handle.stop() then exit 0.",
+          "command": "grep -nE -- '--watch|runWatchMode|processLabel: .standalone.|stdin.resume|SIGINT|SIGTERM|handle.stop' scripts/sync-ralph-state.mjs package.json tools/overview-viewer/src/__tests__/syncRalphStateCli.test.ts && pnpm --filter @codexu/overview-viewer test > .test-output/overview-viewer.test.log 2>&1",
+          "result": "PASS: --watch dispatches to runWatchMode; start receives processLabel standalone; stdin.resume is called; SIGINT/SIGTERM handlers call handle.stop() then process.exit(0). Test 'starts watch mode as standalone and stops cleanly on SIGINT' passed in the full suite."
+        },
+        {
+          "criterion": "--debounce-ms <N> clamps to [500, 30000]; invalid input rejected with a clear error.",
+          "command": "grep -nE 'MIN_DEBOUNCE_MS|MAX_DEBOUNCE_MS|parseDebounceMs|must be a number|clamps debounce|invalid debounce' scripts/sync-ralph-state.mjs tools/overview-viewer/src/__tests__/syncRalphStateCli.test.ts && pnpm --filter @codexu/overview-viewer test > .test-output/overview-viewer.test.log 2>&1",
+          "result": "PASS: parseDebounceMs clamps 1 to 500, 45000 to 30000, preserves 2000, and rejects 'nope' with sync-ralph-state: --debounce-ms must be a number: nope; CLI invalid-input test passed."
+        },
+        {
+          "criterion": "pnpm sync-ralph-state:watch script added to root package.json.",
+          "command": "grep -nE 'sync-ralph-state:watch' package.json",
+          "result": "PASS: package.json contains sync-ralph-state:watch = node scripts/sync-ralph-state.mjs --watch."
+        },
+        {
+          "criterion": "chokidar added to root devDependencies; pnpm-lock.yaml committed; pnpm install --frozen-lockfile succeeds from a clean checkout.",
+          "command": "grep -nE 'chokidar' package.json pnpm-lock.yaml | head -40 && pnpm install --frozen-lockfile > .test-output/pnpm-install-frozen.log 2>&1",
+          "result": "PASS: root devDependencies and pnpm-lock importer pin chokidar 5.0.0; pnpm install --frozen-lockfile exited 0 in 87s (Done in 1m 25.5s using pnpm v10.11.0)."
+        },
+        {
+          "criterion": "Integration test: one-shot against a running watcher exits with the diagnostic message format.",
+          "command": "pnpm --filter @codexu/overview-viewer test > .test-output/overview-viewer.test.log 2>&1",
+          "result": "PASS: syncRalphStateCli test 'fails one-shot sync before writing sidecars when another fresh lock exists' passed; it asserts stderr contains sync-ralph-state: another sync in progress (pid <N>, process standalone, started <ts>) and no sidecar JSON/JS exists. Full suite passed 22 files / 122 tests."
+        },
+        {
+          "criterion": "Typecheck passes.",
+          "command": "pnpm --filter @codexu/overview-viewer typecheck > .test-output/overview-viewer.typecheck.log 2>&1",
+          "result": "PASS: tsc --noEmit completed with exit 0 in 6s."
+        }
+      ],
+      "dependencies": [
+        "US-002",
+        "US-003"
+      ],
+      "failureClassification": "",
+      "partialProgress": null
+    },
+    {
+      "id": "US-005",
+      "title": "Vite plugin auto-start",
+      "description": "As a developer running pnpm overview, I want the watcher to spawn inside the Vite dev server so I don't have to remember to run pnpm sync-ralph-state:watch separately.",
+      "acceptanceCriteria": [
+        "tools/overview-viewer/vite.config.ts configureServer dynamic-imports scripts/lib/watch-ralph-state.mjs and calls start({ ..., processLabel: 'vite-plugin' }).",
+        "On lock contention (\"another watcher holds lock\"), the plugin logs a warning via server.config.logger.warn and continues serving the app (does NOT crash pnpm overview).",
+        "server.httpServer?.on('close', ...) calls handle.stop().catch(() => {}).",
+        "onWrite fires server.ws.send({ type: 'custom', event: 'overview-ralph-state:update' }) exactly once per debounced write.",
+        "pnpm --filter @codexu/overview-viewer typecheck passes (the new .d.mts makes the dynamic import type-safe).",
+        "The vite-plugin auto-start path is covered by automated tests in tools/overview-viewer/src/__tests__/ralphWatcher.test.ts: a test named like \"vite-plugin auto-start fires overview-ralph-state:update on debounced write\" mocks Vite server.ws and asserts exactly one ws send per debounced write with payload { type: 'custom', event: 'overview-ralph-state:update' }; a second test named like \"vite-plugin tolerates lock contention\" simulates an existing fresh lock and asserts the plugin logs a warning via server.config.logger.warn and continues without throwing. pnpm --filter @codexu/overview-viewer test exits 0 with both named tests recorded as passing.",
+        "Typecheck passes."
+      ],
+      "priority": 5,
+      "passes": true,
+      "notes": "F-008 [Medium]: Wrap await watcher.start(...) in a try/catch; on 'another watcher holds lock', log a warning via server.config.logger.warn and continue serving the app. pnpm overview MUST NOT crash when a standalone watcher already runs.",
+      "verifiedEvidence": [
+        {
+          "criterion": "tools/overview-viewer/vite.config.ts configureServer dynamic-imports scripts/lib/watch-ralph-state.mjs and calls start({ ..., processLabel: 'vite-plugin' }).",
+          "command": "grep -nE \"import(pathToFileURL|watch-ralph-state.mjs|watcher.start|processLabel: 'vite-plugin'|ralphStateWatcherPlugin\" tools/overview-viewer/vite.config.ts",
+          "result": "PASS: ralphStateWatcherPlugin is registered in vite.config.ts; configureServer dynamically imports scripts/lib/watch-ralph-state.mjs through pathToFileURL and calls watcher.start with processLabel 'vite-plugin'."
+        },
+        {
+          "criterion": "On lock contention (\"another watcher holds lock\"), the plugin logs a warning via server.config.logger.warn and continues serving the app (does NOT crash pnpm overview).",
+          "command": "grep -nE \"another watcher holds lock|logger.warn|catch (error)|throw error\" tools/overview-viewer/vite.config.ts tools/overview-viewer/src/__tests__/ralphWatcher.test.ts && pnpm --filter @codexu/overview-viewer test > .test-output/overview-viewer.test.log 2>&1",
+          "result": "PASS: lock contention is caught, logger.warn includes 'another watcher holds lock' plus the canonical sync-lock diagnostic, and the named test 'vite-plugin tolerates lock contention' passed in the full suite."
+        },
+        {
+          "criterion": "server.httpServer?.on('close', ...) calls handle.stop().catch(() => {}).",
+          "command": "grep -nE \"httpServer?.on('close'|handle.stop().catch\" tools/overview-viewer/vite.config.ts",
+          "result": "PASS: vite.config.ts registers server.httpServer?.on('close', ...) and calls handle.stop().catch(() => {})."
+        },
+        {
+          "criterion": "onWrite fires server.ws.send({ type: 'custom', event: 'overview-ralph-state:update' }) exactly once per debounced write.",
+          "command": "grep -nE \"server.ws.send|overview-ralph-state:update|onWrite\" tools/overview-viewer/vite.config.ts tools/overview-viewer/src/__tests__/ralphWatcher.test.ts && pnpm --filter @codexu/overview-viewer test > .test-output/overview-viewer.test.log 2>&1",
+          "result": "PASS: onWrite sends { type: 'custom', event: 'overview-ralph-state:update' }; the named auto-start test asserted server.ws.send was called exactly once after a debounced write. Full suite passed 22 files / 124 tests."
+        },
+        {
+          "criterion": "pnpm --filter @codexu/overview-viewer typecheck passes (the new .d.mts makes the dynamic import type-safe).",
+          "command": "pnpm --filter @codexu/overview-viewer typecheck > .test-output/overview-viewer.typecheck.log 2>&1",
+          "result": "PASS: tsc --noEmit completed with exit 0 in 6s."
+        },
+        {
+          "criterion": "The vite-plugin auto-start path is covered by automated tests in tools/overview-viewer/src/__tests__/ralphWatcher.test.ts: a test named like \"vite-plugin auto-start fires overview-ralph-state:update on debounced write\" mocks Vite server.ws and asserts exactly one ws send per debounced write with payload { type: 'custom', event: 'overview-ralph-state:update' }; a second test named like \"vite-plugin tolerates lock contention\" simulates an existing fresh lock and asserts the plugin logs a warning via server.config.logger.warn and continues without throwing. pnpm --filter @codexu/overview-viewer test exits 0 with both named tests recorded as passing.",
+          "command": "grep -nE \"vite-plugin auto-start fires overview-ralph-state:update|vite-plugin tolerates lock contention|Tests  124 passed|Test Files  22 passed\" tools/overview-viewer/src/__tests__/ralphWatcher.test.ts .test-output/overview-viewer.test.log",
+          "result": "PASS: both named tests are present in ralphWatcher.test.ts, and pnpm --filter @codexu/overview-viewer test exited 0 with 22 test files and 124 tests passed."
+        },
+        {
+          "criterion": "Typecheck passes.",
+          "command": "pnpm --filter @codexu/overview-viewer typecheck > .test-output/overview-viewer.typecheck.log 2>&1",
+          "result": "PASS: tsc --noEmit completed with exit 0 in 6s."
+        }
+      ],
+      "dependencies": [
+        "US-003"
+      ],
+      "failureClassification": "",
+      "partialProgress": null
+    },
+    {
+      "id": "US-006",
+      "title": "Watcher integration test suite",
+      "description": "As a future maintainer, I want the watcher behaviors covered by automated tests so regressions are caught without manual pnpm overview driving.",
+      "acceptanceCriteria": [
+        "tools/overview-viewer/src/__tests__/ralphWatcher.test.ts exists under the ssr Vitest project (Node env).",
+        "Tests A–H from the plan's Verification section have automated counterparts (or are explicitly tagged as manual-only with a why-not-automated note).",
+        "Fake-timer tests cover debounce coalescing, fresh-lock diagnostic message format, stale-lock heartbeat refresh (Test G2), PID-liveness gate (Test G3), malformed-JSON counter, cross-kind promotion.",
+        "All tests pass under pnpm --filter @codexu/overview-viewer test.",
+        "Typecheck passes."
+      ],
+      "priority": 6,
+      "passes": true,
+      "notes": "F-011 [Medium]: Plan-review suggested splitting this into US-006a (core merge + watcher unit tests, lands with US-001/US-003) and US-006b (CLI + Vite integration tests, lands with US-004/US-005). This PRD keeps US-006 as a single story for simplicity; if the implementer chooses to split, both halves MUST land before US-007 — record the choice in notepad.md.\n\nF-013 [Medium]: Closed as duplicate by AC #4 of the plan + Test C as rewritten. Implementer may verify and close without separate action.\n\nF-014 [Medium]: Add a Test K that touches .ralph/brainstorms/<slug>/selected-direction.md and asserts NO pending change is enqueued, deriveAffectedTaskUpdate is NOT called, and onWrite is NOT fired. Spy on onWrite + pendingChanges to verify.\n\nF-017 [Medium]: Explicit fake-timer coverage list — debounce coalescing (Test B), lock contention diagnostic format (Test D), stale-lock recovery via heartbeat (Test G2), malformed-JSON failure counter (Test G), cross-kind promotion (Test H part 3). Run under the ssr Vitest project (Node env).",
+      "verifiedEvidence": [
+        {
+          "criterion": "tools/overview-viewer/src/__tests__/ralphWatcher.test.ts exists under the ssr Vitest project (Node env).",
+          "command": "grep -nE \"name: 'ssr'|environment: 'node'|include\" tools/overview-viewer/vitest.config.ts && test -f tools/overview-viewer/src/__tests__/ralphWatcher.test.ts && echo 'ralphWatcher.test.ts exists'",
+          "result": "PASS: vitest.config.ts defines the ssr project with environment node and include src/__tests__/**/*.test.{ts,tsx}; ralphWatcher.test.ts exists under that include."
+        },
+        {
+          "criterion": "Tests A-H from the plan Verification section have automated counterparts (or are explicitly tagged as manual-only with a why-not-automated note).",
+          "command": "grep -nE \"cold-start|coalesces duplicate|mergeAndWrite refreshes task state|fails one-shot sync|vite-plugin auto-start|rejects standalone startup|retains malformed|touches the lock|treats EPERM|overwrites a stale lock|re-derives a job|removes a task|promotes a brainstorm|worktree paths ignored|selected-direction\" tools/overview-viewer/src/__tests__/ralphWatcher.test.ts tools/overview-viewer/src/__tests__/syncCore.test.ts tools/overview-viewer/src/__tests__/syncLock.test.ts tools/overview-viewer/src/__tests__/syncRalphStateCli.test.ts",
+          "result": "PASS: automated counterparts exist for A cold-start, B debounce, C merge/full-walk equality, D lock contention, E Vite update, F concurrent watcher rejection, G malformed/recovery, G2 heartbeat, G3 PID-liveness, H deletion/promotion, I worktree isolation, and selected-direction no-op."
+        },
+        {
+          "criterion": "Fake-timer tests cover debounce coalescing, fresh-lock diagnostic message format, stale-lock heartbeat refresh (Test G2), PID-liveness gate (Test G3), malformed-JSON counter, cross-kind promotion.",
+          "command": "grep -nE \"coalesces duplicate|fails one-shot sync|touches the lock|overwrites a stale lock|treats EPERM|retains malformed|promotes a brainstorm\" tools/overview-viewer/src/__tests__/ralphWatcher.test.ts tools/overview-viewer/src/__tests__/syncLock.test.ts tools/overview-viewer/src/__tests__/syncRalphStateCli.test.ts",
+          "result": "PASS: fake-timer coverage is present for debounce coalescing, heartbeat refresh, stale PID overwrite, EPERM active PID gate, malformed counter/recovery, and cross-kind promotion; CLI test covers fresh-lock diagnostic format."
+        },
+        {
+          "criterion": "All tests pass under pnpm --filter @codexu/overview-viewer test.",
+          "command": "pnpm --filter @codexu/overview-viewer test > .test-output/overview-viewer.test.log 2>&1",
+          "result": "PASS: vitest completed with 22 test files passed and 126 tests passed."
+        },
+        {
+          "criterion": "Typecheck passes.",
+          "command": "pnpm --filter @codexu/overview-viewer typecheck > .test-output/overview-viewer.typecheck.log 2>&1",
+          "result": "PASS: tsc --noEmit completed with exit 0."
+        }
+      ],
+      "dependencies": [
+        "US-001",
+        "US-002",
+        "US-003",
+        "US-004",
+        "US-005"
+      ],
+      "failureClassification": "",
+      "partialProgress": null
+    },
+    {
+      "id": "US-007",
+      "title": "Downstream cascade audit",
+      "description": "As the consumer of Plans 03–12, I want any references to Plan 02's contracts (lock-file format, sidecar event name, deriveAffectedTaskUpdate API, watched-path conventions) refreshed in those plans + INDEX so future implementers don't follow stale guidance.",
+      "acceptanceCriteria": [
+        "Audit plans/ralph-pipeline-INDEX.md and plans/ralph-pipeline-{03..12}-*.md; identify any Plan-02-facing reference that diverges from what shipped.",
+        "Apply edits in the FINAL commit on the worktree branch (no earlier story commit touches these files).",
+        "Commit message lists each diff (file + line range + what changed) so reviewers can verify.",
+        "git log -1 --stat on that final commit shows the cascade edits."
+      ],
+      "priority": 7,
+      "passes": true,
+      "notes": "F-018 [Medium]: Cascade MUST land as the final commit on the worktree branch; earlier story commits MUST NOT touch plans/ralph-pipeline-{INDEX,03..12}*.md. Files to audit: plans/ralph-pipeline-INDEX.md, plans/ralph-pipeline-03-ui-chip.md, plans/ralph-pipeline-04-pipeline-overview.md, plans/ralph-pipeline-05-agent-exports.md, plans/ralph-pipeline-06-skills.md, plans/ralph-pipeline-07-context.md, plans/ralph-pipeline-08-crews.md, plans/ralph-pipeline-09-mcp.md, plans/ralph-pipeline-10-ralph-handoff.md, plans/ralph-pipeline-11-mcp-operational-tools.md, plans/ralph-pipeline-12-package-as-plugin.md.",
+      "verifiedEvidence": [
+        {
+          "criterion": "Audit plans/ralph-pipeline-INDEX.md and plans/ralph-pipeline-{03..12}-*.md; identify any Plan-02-facing reference that diverges from what shipped.",
+          "command": "grep -RInE \"sync-lock|overview-ralph-state:update|deriveAffectedTaskUpdate|ralphSubdirs|selected-direction|long-lived|JSON sync lock|PID-liveness|sync.watch_status|sync-ralph-state:watch|Vite-plugin\" plans/ralph-pipeline-INDEX.md plans/ralph-pipeline-03-ui-chip.md plans/ralph-pipeline-04-pipeline-overview.md plans/ralph-pipeline-05-agent-exports.md plans/ralph-pipeline-06-skills.md plans/ralph-pipeline-07-context.md plans/ralph-pipeline-08-crews.md plans/ralph-pipeline-09-mcp.md plans/ralph-pipeline-10-ralph-handoff.md plans/ralph-pipeline-11-mcp-operational-tools.md plans/ralph-pipeline-12-package-as-plugin.md",
+          "result": "PASS: audited INDEX and Plans 03-12; divergent Plan-02-facing references were updated in INDEX, 03, 06, 08, 11, and 12. Plans 04, 05, 07, 09, and 10 had no stale Plan 02 contract guidance requiring edits."
+        },
+        {
+          "criterion": "Apply edits in the FINAL commit on the worktree branch (no earlier story commit touches these files).",
+          "command": "git show --name-only --format=\"%h %s\" HEAD -- plans/ralph-pipeline-INDEX.md plans/ralph-pipeline-03-ui-chip.md plans/ralph-pipeline-04-pipeline-overview.md plans/ralph-pipeline-05-agent-exports.md plans/ralph-pipeline-06-skills.md plans/ralph-pipeline-07-context.md plans/ralph-pipeline-08-crews.md plans/ralph-pipeline-09-mcp.md plans/ralph-pipeline-10-ralph-handoff.md plans/ralph-pipeline-11-mcp-operational-tools.md plans/ralph-pipeline-12-package-as-plugin.md && git status --short --branch",
+          "result": "PASS: HEAD is b4e98fcc feat: US-007 - Downstream cascade audit and touches only the six cascade plan files; branch ralph-pipeline-02-watcher is clean after commit."
+        },
+        {
+          "criterion": "Commit message lists each diff (file + line range + what changed) so reviewers can verify.",
+          "command": "git log -1 --pretty=%B",
+          "result": "PASS: commit body lists each changed file with line ranges and descriptions for INDEX, Plan 03, Plan 06, Plan 08, Plan 11, and Plan 12."
+        },
+        {
+          "criterion": "git log -1 --stat on that final commit shows the cascade edits.",
+          "command": "git log -1 --stat",
+          "result": "PASS: git log -1 --stat shows b4e98fcc with 6 files changed, 34 insertions(+), 34 deletions(-), all under plans/ralph-pipeline*.md."
+        }
+      ],
+      "dependencies": [
+        "US-001",
+        "US-002",
+        "US-003",
+        "US-004",
+        "US-005",
+        "US-006"
+      ],
+      "failureClassification": "",
+      "partialProgress": null
+    }
+  ]
+}

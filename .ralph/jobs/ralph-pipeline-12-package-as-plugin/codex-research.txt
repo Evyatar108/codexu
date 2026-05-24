@@ -1,0 +1,62 @@
+**Codebase Architecture**
+
+`codexu` is a pnpm monorepo. The Ralph overview feature currently lives as repo-local tooling, not a standalone package:
+
+- Root scripts in `package.json`: `overview`, `overview:build`, `overview-mcp:*`, `sync-ralph-state`, `sync-ralph-state:watch`.
+- Workspace packages in `pnpm-workspace.yaml`: `tools/overview-viewer` and `tools/overview-mcp`.
+- Shared Node ESM scripts in `scripts/lib/*.mjs`, with adjacent `.d.mts` declarations and Vitest coverage.
+- Viewer: `tools/overview-viewer`, React 19 + Vite 8 + TypeScript + `vite-plugin-singlefile`.
+- MCP server: `tools/overview-mcp`, TypeScript NodeNext, `@modelcontextprotocol/sdk`, `zod`, `chokidar`, `tree-kill`.
+- Config: `.ralph/overview-config.json` plus `.ralph/overview-config.schema.json`; `scripts/lib/resolve-config.mjs` merges defaults, committed config, and `.local` overlay, then resolves paths.
+
+The toolkit repo uses a different plugin convention than the sample manifest in the plan. Existing plugins live under `D:\ai-developer-toolkit\plugins\<name>\` with `.claude-plugin/plugin.json`; Codex-facing plugins use `.codex-plugin/plugin.json` plus `.mcp.codex.json` when needed. MCP plugins also use `.mcp.json` with `${CLAUDE_PLUGIN_ROOT}`.
+
+**Feature-Relevant Code**
+
+Key extraction targets:
+
+- `scripts/sync-ralph-state.mjs`: CLI entrypoint for one-shot sync, watch mode, crew-session update/finalize.
+- `scripts/lib/default-config.mjs`: default config, currently named `codexuDefaultConfig`.
+- `scripts/lib/resolve-config.mjs`: config loading and path resolution; includes important git-worktree behavior for `crewsRoot`.
+- `scripts/lib/sync-core.mjs`: Ralph bundle walk, task matching, sidecar writing, derived artifact emission.
+- `scripts/lib/watch-ralph-state.mjs`: chokidar watcher, shared lock, Vite HMR update callback.
+- `scripts/lib/sync-lock.mjs`: JSON lock contract used by CLI, watcher, and MCP.
+- `scripts/lib/emit-*.mjs`, `derive-*.mjs`, `score-recommendations.mjs`, `crews-cross-walk.mjs`, `work-on-via-crew.mjs`: plugin library surface.
+- `tools/overview-viewer/vite.config.ts`: hardcodes `../../plans`, `../../scripts/lib/watch-ralph-state.mjs`, repo root, and output paths.
+- `tools/overview-viewer/src/App.tsx`: hardcoded title `codexu — plan overview`.
+- `tools/overview-viewer/src/components/Toolbar.tsx`: hardcoded `FILTER_GROUPS` for workstreams/scopes.
+- `tools/overview-viewer/src/components/StaticSections.tsx`, `TaskCommand.tsx`, `PhaseTree.tsx`, `data/copyPreambles.ts`: additional codexu/codex-specific UI text and copy-command behavior.
+- `tools/overview-mcp/src/context.ts`, `snapshot-reader.ts`, `tools/*.ts`: import from `../../../scripts/lib/*` and assume the scripts remain in the consumer repo.
+- `tools/overview-mcp/src/tools/dev-server-start.ts`: starts `pnpm overview` in the consumer repo.
+- `tools/overview-mcp/src/tools/build.ts`: starts `pnpm overview:build` and assumes `plans/overview.html`.
+- `tools/overview-mcp/src/tools/sync-now.ts`: runs `node scripts/sync-ralph-state.mjs`.
+- `tools/overview-mcp/src/install-server.ts`: writes server name `codexu-overview`.
+- `.claude/skills/work-on`, `triage`, `blocker-report`: all hardcode `plans/*`, `pnpm sync-ralph-state`, and `scripts/lib/derive-next-command-cli.mjs`.
+
+**Technical Constraints**
+
+The plugin must preserve the `window.OVERVIEW_DATA` sidecar contract. The loader executes `overview-data.js` with `new Function`, and the viewer fetches/re-executes both `overview-data.js` and `overview-ralph-state.js`.
+
+The activity reader already implements the AGENTS.md constraint: `useActivityEvents.ts` skips a malformed final JSONL line and warns only for malformed interior lines.
+
+The watcher and CLI share `.ralph/overview-sync.lock`; MCP tools inspect it via `readLockStatus`. Keep the lock JSON shape and process labels stable.
+
+`resolveCrewsRoot()` intentionally resolves `.crews` relative to the git common root for linked worktrees. A plugin extraction should not simplify this away.
+
+Current MCP build output is fragile because cross-package imports widen TypeScript `rootDir`; `tools/overview-mcp/package.json` compensates with a flattening `cpSync`. Extraction should replace these cross-repo imports with plugin-local imports or exported package entrypoints.
+
+The plan’s top-level `plugin.json` is not the canonical toolkit shape. Use `.claude-plugin/plugin.json`; add `.mcp.json`; add `.codex-plugin/plugin.json` and `.mcp.codex.json` if Codex should consume it. Also update toolkit marketplace indexes.
+
+`codexu` has no root `CLAUDE.md`; the relevant root doc is `AGENTS.md`, which currently points at `scripts/lib/watch-ralph-state.mjs` and `pnpm sync-ralph-state:watch`.
+
+**Implementation Suggestions**
+
+Create the plugin first as a Node plugin with a real launcher/CLI, for example `ralph-overview sync|watch|dev|build|mcp`. Then codexu wrapper scripts can delegate to that binary instead of keeping local scripts.
+
+Make `tools/overview-viewer/vite.config.ts` config-driven: resolve consumer repo root from `--repo`, env, or cwd/git root; call `loadConfig`; derive data, sidecar, activity, and build output paths from config. The dev server should run from the plugin path but serve files from the consumer workspace.
+
+Update MCP operational tools to call plugin commands, not consumer-local scripts: `ralph-overview sync --repo <repoRoot>`, `ralph-overview dev --repo <repoRoot>`, `ralph-overview build --repo <repoRoot>`.
+
+Move tests with the code. Keep codexu-only fixture expectations in codexu only if they reference codexu-specific task content.
+
+For reuse, do the planned `Toolbar.tsx` data-driven chip change, but also audit codexu-specific UI text and copy preambles. At minimum, make codex/codexu scope labels fallback-driven so other projects do not inherit misleading copy.

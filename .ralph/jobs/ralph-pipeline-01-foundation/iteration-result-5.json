@@ -1,0 +1,62 @@
+{
+  "storyId": "US-005",
+  "verifiedEvidence": [
+    {
+      "criterion": "scripts/lib/sync-core.mjs exports writeSidecar({ repoRoot, config, state }) -> Promise<void>",
+      "command": "grep -nE \"export async function writeSidecar|writeSidecar(options\" scripts/lib/sync-core.mjs scripts/lib/sync-core.d.mts tools/overview-viewer/src/__tests__/scripts.d.ts",
+      "result": "Found runtime export at scripts/lib/sync-core.mjs:111 plus Promise<void> declarations in scripts/lib/sync-core.d.mts:22 and test ambient scripts.d.ts:68.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Same-volume tmp + rename: .tmp file emitted next to its destination (e.g., plans/overview-ralph-state.js.tmp next to plans/overview-ralph-state.js); fs.fsync called on tmp; then fs.renameSync(tmp, final)",
+      "command": "grep -nE \"[.]tmp|fsyncSync|renameSync|renameWithRetry\" scripts/lib/sync-core.mjs; node sidecar smoke from this iteration",
+      "result": "sync-core.mjs uses tmpPath = `${finalPath}.tmp` at :128, fs.fsyncSync(fd) at :133, and fs.renameSync(tmpPath, finalPath) at :151. Smoke result reported tmpNextToDestinationAbsent:true after write.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Retry on Windows-transient errors: on EBUSY/EACCES/EPERM the rename retries up to 3x with 100ms delay; after 3rd failure, function rejects/exits non-zero",
+      "command": "grep -nE \"TRANSIENT_RENAME_ERRORS|RENAME_RETRY_LIMIT|RENAME_RETRY_DELAY_MS|rejects after the third|jsRenameAttempts\" scripts/lib/sync-core.mjs tools/overview-viewer/src/__tests__/syncCore.test.ts; pnpm --filter @codexu/overview-viewer test src/__tests__/syncCore.test.ts > .test-output/overview-viewer.syncCore.test.log 2>&1",
+      "result": "Constants are EBUSY/EACCES/EPERM, retry limit 3, delay 100ms; syncCore.test.ts covers success after 3 JS rename attempts and rejection after the third failure. Targeted run exited 0 with 1 file and 10 tests passed.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "</script> escape: JS sidecar body uses JSON.stringify(state).replace(/</(script)/gi, '<\\/$1'); unit test asserts the literal substring '</script' does not appear in emitted .js file after a slug containing '</script>' is fed through",
+      "command": "grep -n \"JSON.stringify(state)\" scripts/lib/sync-core.mjs; sed -n \"184,198p\" tools/overview-viewer/src/__tests__/syncCore.test.ts; node sidecar smoke from this iteration",
+      "result": "sync-core.mjs:117 uses JSON.stringify(state).replace(/</(script)/gi, '<\\/$1'); test feeds bad</script>slug and asserts js.not.toContain('</script'). Smoke result noScriptLiteral:true and parsedSlug restored to bad</script>slug.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "JS sidecar format: `window.OVERVIEW_RALPH_STATE = <escaped JSON>;`",
+      "command": "grep -nF \"window.OVERVIEW_RALPH_STATE = \" scripts/lib/sync-core.mjs tools/overview-viewer/src/__tests__/syncCore.test.ts; node sidecar smoke from this iteration",
+      "result": "sync-core.mjs:120 writes `window.OVERVIEW_RALPH_STATE = ${json};`; smoke result jsFormat:true.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "JS + JSON sidecars are byte-identical after stripping the JS wrapper (`window.OVERVIEW_RALPH_STATE = ` prefix and trailing `;`)",
+      "command": "grep -nE \"strippedJs|toBe(json)|toBe(js)\" tools/overview-viewer/src/__tests__/syncCore.test.ts; node sidecar smoke from this iteration",
+      "result": "syncCore.test.ts strips the JS prefix/trailing semicolon and asserts equality with JSON; smoke result jsJsonByteIdentical:true.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Idempotency: running writeSidecar twice in a row with the same state produces byte-identical files (excluding only the top-level generatedAt); per-entry generatedAt is forbidden in Plan 01",
+      "command": "sed -n \"192,199p\" tools/overview-viewer/src/__tests__/syncCore.test.ts; node sidecar smoke from this iteration",
+      "result": "Test writes the same state twice and asserts both JS and JSON bytes are unchanged; smoke result idempotent:true. The fixture state contains only top-level generatedAt and no per-entry generatedAt.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Tests pass",
+      "command": "pnpm --filter @codexu/overview-viewer test > .test-output/overview-viewer.test.log 2>&1",
+      "result": "Exit 0. Log shows Test Files 19 passed and Tests 97 passed.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Typecheck passes",
+      "command": "pnpm --filter @codexu/overview-viewer typecheck > .test-output/overview-viewer.typecheck.log 2>&1",
+      "result": "Exit 0. tsc --noEmit completed with no diagnostics.",
+      "evidenceKind": "passed"
+    }
+  ],
+  "skippedReasons": [],
+  "notTested": [],
+  "iterationSHA": "123c703ed88583c5703c2840fd694cbd14fb0c33"
+}

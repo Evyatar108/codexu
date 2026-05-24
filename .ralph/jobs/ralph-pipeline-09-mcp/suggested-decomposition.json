@@ -1,0 +1,129 @@
+{
+  "clusters": [
+    {
+      "name": "scaffold",
+      "stories": ["US-001"],
+      "phase": 1,
+      "dependsOn": [],
+      "fileOverlapEvidence": {
+        "sharedFiles": ["pnpm-workspace.yaml", "package.json"],
+        "exclusiveFiles": [
+          "tools/overview-mcp/package.json",
+          "tools/overview-mcp/tsconfig.json",
+          "tools/overview-mcp/vitest.config.ts",
+          "tools/overview-mcp/README.md",
+          "tools/overview-mcp/src/index.ts",
+          "tools/overview-mcp/src/server.ts",
+          "tools/overview-mcp/src/context.ts",
+          "scripts/lib/work-on-via-crew.d.mts"
+        ],
+        "risk": "low"
+      },
+      "executionModeRationale": "Foundational scaffolding — every later cluster depends on this and the workspace edits. Must complete before any parallel work begins."
+    },
+    {
+      "name": "snapshot-reader",
+      "stories": ["US-002"],
+      "phase": 2,
+      "dependsOn": ["scaffold"],
+      "fileOverlapEvidence": {
+        "sharedFiles": [],
+        "exclusiveFiles": [
+          "tools/overview-mcp/src/snapshot-reader.ts",
+          "tools/overview-mcp/src/__tests__/snapshot-reader.test.ts"
+        ],
+        "risk": "low"
+      },
+      "executionModeRationale": "Read-only-tools and crew-tools clusters both depend on this single reader. Serialize as a dependency point so downstream parallel work uses a stable cache contract."
+    },
+    {
+      "name": "read-only-tools",
+      "stories": ["US-003"],
+      "phase": 3,
+      "dependsOn": ["snapshot-reader"],
+      "fileOverlapEvidence": {
+        "sharedFiles": [
+          "tools/overview-mcp/src/schemas.ts",
+          "tools/overview-mcp/src/server.ts"
+        ],
+        "exclusiveFiles": [
+          "tools/overview-mcp/src/tools/list-tasks.ts",
+          "tools/overview-mcp/src/tools/get-task.ts",
+          "tools/overview-mcp/src/tools/next-command.ts",
+          "tools/overview-mcp/src/tools/list-recommendations.ts",
+          "tools/overview-mcp/src/tools/list-blockers.ts",
+          "tools/overview-mcp/src/__tests__/list-tasks.test.ts",
+          "tools/overview-mcp/src/__tests__/get-task.test.ts",
+          "tools/overview-mcp/src/__tests__/next-command.test.ts",
+          "tools/overview-mcp/src/__tests__/list-recommendations.test.ts",
+          "tools/overview-mcp/src/__tests__/list-blockers.test.ts"
+        ],
+        "risk": "low"
+      },
+      "executionModeRationale": "Five read-only tools share schemas.ts and server.ts tool-registration sites; a single implementer ships them serially for review coherence and to avoid merge conflicts on the shared files. Could be split into five parallel sub-tasks if isolated wisely (one tool per branch with disjoint registration calls)."
+    },
+    {
+      "name": "writers",
+      "stories": ["US-004", "US-005"],
+      "phase": 3,
+      "dependsOn": ["snapshot-reader"],
+      "fileOverlapEvidence": {
+        "sharedFiles": [
+          "tools/overview-mcp/src/schemas.ts",
+          "tools/overview-mcp/src/server.ts"
+        ],
+        "exclusiveFiles": [
+          "scripts/lib/append-journal.mjs",
+          "scripts/lib/append-journal.d.mts",
+          "scripts/lib/append-journal.test.mjs",
+          "tools/overview-mcp/src/tools/add-journal-entry.ts",
+          "tools/overview-mcp/src/tools/set-override.ts",
+          "tools/overview-mcp/src/utils/set-override-edit.ts",
+          "tools/overview-mcp/src/__tests__/add-journal-entry.test.ts",
+          "tools/overview-mcp/src/__tests__/set-override.test.ts"
+        ],
+        "risk": "medium"
+      },
+      "executionModeRationale": "US-004 (journal helper additive extension) and US-005 (set_override structured edit) touch disjoint exclusive files but share schemas.ts and server.ts. Can run in parallel with each other and with read-only-tools; coordinate the schemas.ts/server.ts touches via an early merge or serial check-in."
+    },
+    {
+      "name": "crew-tools",
+      "stories": ["US-006", "US-007", "US-008"],
+      "phase": 4,
+      "dependsOn": ["read-only-tools"],
+      "fileOverlapEvidence": {
+        "sharedFiles": [
+          "tools/overview-mcp/src/schemas.ts",
+          "tools/overview-mcp/src/server.ts"
+        ],
+        "exclusiveFiles": [
+          "tools/overview-mcp/src/tools/list-crew-sessions.ts",
+          "tools/overview-mcp/src/tools/get-transcript.ts",
+          "tools/overview-mcp/src/tools/invoke-next.ts",
+          "tools/overview-mcp/src/utils/transcript-tail.ts",
+          "tools/overview-mcp/src/__tests__/list-crew-sessions.test.ts",
+          "tools/overview-mcp/src/__tests__/get-transcript.test.ts",
+          "tools/overview-mcp/src/__tests__/invoke-next.test.ts"
+        ],
+        "risk": "medium"
+      },
+      "executionModeRationale": "Within this cluster, US-006 (list_crew_sessions) builds the live-discovery cache that US-007 (get_transcript) reuses for sessionId resolution. US-008 (invoke_next) delegates to runWorkOnViaCrew from scripts/lib. Serialize US-006 → US-007; US-008 can run in parallel with US-007 once US-006 lands."
+    },
+    {
+      "name": "install-and-docs",
+      "stories": ["US-009", "US-010"],
+      "phase": 5,
+      "dependsOn": ["scaffold", "writers", "crew-tools", "read-only-tools"],
+      "fileOverlapEvidence": {
+        "sharedFiles": ["package.json", "tools/overview-mcp/README.md"],
+        "exclusiveFiles": [
+          "tools/overview-mcp/src/install-server.ts",
+          "tools/overview-mcp/src/__tests__/install-server.test.ts",
+          "plans/ralph-pipeline-INDEX.md"
+        ],
+        "risk": "low"
+      },
+      "executionModeRationale": "Install script and final docs/INDEX refresh must run after all tools stabilize so the README accurately documents them and the INDEX reflects the final shape. Final atomic commit."
+    }
+  ]
+}

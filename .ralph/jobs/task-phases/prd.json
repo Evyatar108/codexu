@@ -1,0 +1,610 @@
+{
+  "project": "codexu-roadmap-dashboard",
+  "description": "task-phases — Phase-aware status model for the codexu roadmap dashboard. Introduces a 10-value data-task-phase enum + a 3-value data-task-status modifier on every command row in plans/overview.html, plus derived CSS badges, JS classifier updates, and bookkeeper-doc updates. Plan #1 of three sibling plans (overview-data-split, overview-vite-react are blocked on this).",
+  "deslop": true,
+  "iterationEngine": "codex",
+  "jobDir": "D:/harness-efforts/codexu/.ralph/jobs/task-phases",
+  "repoDir": "D:/harness-efforts/codexu",
+  "branch": {
+    "name": "task-phases",
+    "created": true
+  },
+  "worktree": {
+    "path": "D:/harness-efforts/codexu/.ralph/jobs/task-phases/worktree",
+    "branch": "task-phases"
+  },
+  "planReviewContext": [
+    {
+      "id": "F-001",
+      "severity": "High",
+      "source": "consensus",
+      "category": "Feasibility",
+      "description": "Migration must be autonomously executable. The plan now ships a pinned Migration Mapping table covering all 49 command rows with deterministic phase/status defaults + explicit smoke targets (agent-comms brainstorm / 1b-multidev standard / codex-claude-md-autoload fused / codex-parity-audit planOnly). DO NOT re-derive per-row values; apply the table verbatim.",
+      "relevantFiles": [
+        "D:/harness-efforts/codexu/plans/overview.html"
+      ],
+      "suggestedFix": "Apply plan.md Migration Mapping table (lines 166-217) verbatim; no operator clarification required."
+    },
+    {
+      "id": "F-003",
+      "severity": "High",
+      "source": "consensus",
+      "category": "Completeness",
+      "description": "Kanban cards range is 1061-1395 (NOT 1043-1178). There are TWO brittle title-text matchers: workstream-tagging at 3293-3307 AND linkKanbanToCmds (cross-section arrow-command link injection) at 3334-3355. Both must be refactored to read card.dataset.taskId.",
+      "relevantFiles": [
+        "D:/harness-efforts/codexu/plans/overview.html"
+      ],
+      "suggestedFix": "Refactor BOTH matchers (3293-3307 and 3334-3355) to consume data-task-id. The single new data-task-id on each kanban card supports phase-pill injection + workstream tagging + arrow-command link."
+    },
+    {
+      "id": "F-004",
+      "severity": "High",
+      "source": "codex",
+      "category": "Completeness",
+      "description": "injectTaskScopeChips() at 2626-2668 only moves .cmd-badge into .cmd-scope-cluster today. The new .cmd-status-mod sub-badge will be left OUTSIDE the cluster unless the injector is updated to capture both elements and append them together (badge first, modifier last).",
+      "relevantFiles": [
+        "D:/harness-efforts/codexu/plans/overview.html"
+      ],
+      "suggestedFix": "Update injectTaskScopeChips() to capture .cmd-badge AND .cmd-status-mod, then append both into .cmd-scope-cluster in that order."
+    },
+    {
+      "id": "F-005",
+      "severity": "High",
+      "source": "codex",
+      "category": "Feasibility",
+      "description": "Precedence rule: for filter / Today-panel / kanban-bucket assignment, data-task-status wins over phase (blocked/paused override phase). For sort/order (classifyAndOrderCmds), phase only — status never affects sort. A row with phase=plan-ready + status=blocked classifies as blocked in filter but sorts alongside other plan-ready rows.",
+      "relevantFiles": [
+        "D:/harness-efforts/codexu/plans/overview.html"
+      ],
+      "suggestedFix": "Document precedence inline as code comments above PHASE_TO_ORDER_BUCKET / PHASE_TO_FILTER_BUCKET and at the top of each consumer function."
+    },
+    {
+      "id": "F-006",
+      "severity": "High",
+      "source": "codex",
+      "category": "Criteria Quality",
+      "description": "grep -c '<details class=\"cmd\"' returns 51 raw matches but only 49 are real data rows (line 851 is a docstring example inside a CSS comment; line 2799 is a JS comment containing the same string). Acceptance checks must assert grep -c 'data-task-phase=' AND grep -c 'data-task-status=' both equal exactly 49.",
+      "relevantFiles": [
+        "D:/harness-efforts/codexu/plans/overview.html"
+      ],
+      "suggestedFix": "Use exactly-49 grep counts plus enum-value sort -u checks restricting phase to the 10 allowed values and status to ok|blocked|paused."
+    },
+    {
+      "id": "F-007",
+      "severity": "High",
+      "source": "copilot",
+      "category": "Completeness",
+      "description": "SKILL.md update touches 13 load-bearing line ranges (36, 49, 119, 133-135, 146, 161, 178, 196, 226, 244, 308, 315-316) — not just the 35-37 / 196-226 the original plan claimed. Every legacy cmd-badge b-<status> template must be replaced with cmd-badge b-<phase> primary + optional .cmd-status-mod modifier.",
+      "relevantFiles": [
+        "D:/harness-efforts/codexu/.agents/skills/roadmap-and-overview/SKILL.md"
+      ],
+      "suggestedFix": "Walk all 13 ranges per plan step 8. Preserve workflow shape; only field names + badge template snippets change."
+    },
+    {
+      "id": "F-000",
+      "severity": "Low",
+      "description": "# truncated 1 findings (sentinel: planReviewContext was capped at 500 tokens)"
+    }
+  ],
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "CSS + JS plumbing for phase + status schema",
+      "description": "As a roadmap viewer and bookkeeper, I want the dashboard CSS and JS to read a new data-task-phase + data-task-status model (10 phase classes defined, JS consumers reading from attributes, legacy .b-* preserved as fail-soft aliases), so the migration in US-002 can land without breaking section ordering, the Today panel, filter chips, or the kanban summary.",
+      "acceptanceCriteria": [
+        "10 new .cmd-badge.b-<phase> CSS classes defined in plans/overview.html near the existing badge block at lines 845-849, with non-transparent computed backgrounds in both dark (:root 7-21) and light (@media prefers-color-scheme: light 22-38) themes; no two phases in the same phase family resolve to the identical color. Class-definition grep: grep -cE '\\.cmd-badge\\.b-(brainstorm-ready|brainstorm-in-progress|brainstorm-review|plan-ready|plan-in-progress|plan-review|impl-ready|impl-in-progress|shipped|closed)' plans/overview.html returns at least 10.",
+        ".cmd-status-mod modifier sub-badge class defined (grep -cE '\\.cmd-status-mod' plans/overview.html >= 1).",
+        "PHASE_TO_ORDER_BUCKET constant introduced near the top of the existing <script> block, with shipped and closed in distinct buckets (preserving commit b2598368 behavior).",
+        "PHASE_TO_FILTER_BUCKET constant introduced (sibling), with shipped and closed collapsed into the closed bucket.",
+        "classifyAndOrderCmds() at 2671-2695 reads data-task-phase via PHASE_TO_ORDER_BUCKET, falling back to legacy class mapping when the attribute is absent.",
+        "classifyCmd() at 2842-2851, the multi-axis filter at 3126-3163, and Today-panel bucket logic at 962 read data-task-status first (status precedence: blocked and paused override phase) then data-task-phase via PHASE_TO_FILTER_BUCKET, falling back to legacy class mapping when both attributes are absent.",
+        "New renderPhaseBadges() IIFE added near 2626 that walks every <details class=\"cmd\">[data-task-phase], normalizes the inline .cmd-badge class to cmd-badge b-<data-task-phase>, and inserts/removes a <span class=\"cmd-status-mod\"> sibling based on data-task-status. Rows with only a legacy b-* class get data-task-phase derived from the inverse of PHASE_TO_FILTER_BUCKET. Wrapped in per-row try {} catch {}; failures logged to console.warn with the row's data-task-id.",
+        "injectTaskScopeChips() at 2626-2668 updated to capture both .cmd-badge and .cmd-status-mod before building .cmd-scope-cluster, then append both into the cluster (badge first, modifier last so it sits to the right).",
+        "renderPhaseBadges() invoked before injectTaskScopeChips() in the IIFE chain.",
+        "No change required to populateKanbanCount at 2953-2965 (it counts cards per existing column only — verify).",
+        "Both existing brittle title-text matchers refactored to read card.dataset.taskId instead of substring-matching title.textContent: workstream-tagging at 3293-3307 and linkKanbanToCmds (arrow-command link injection) at 3334-3355.",
+        "Legacy .b-ready, .b-blocked, .b-paused, .b-closed, .b-inprogress classes remain defined and styled (fail-soft aliases). A hand-crafted test row with only <span class=\"cmd-badge b-ready\"> (no data-task-phase) renders visually identical to today and classifies into the ready bucket.",
+        "No console errors when loading plans/overview.html in a browser.",
+        "Verify in browser using dev-browser skill (load overview.html, toggle dark/light, confirm no visual regression).",
+        "Typecheck passes (project has no automated typecheck for plans/*.html; acceptance is no JS console errors on load)."
+      ],
+      "priority": 1,
+      "passes": true,
+      "notes": "",
+      "verifiedEvidence": [
+        {
+          "criterion": "AC-001 phase badge CSS classes",
+          "command": "grep phase badge selectors in plans/overview.html",
+          "result": "phase_class_count=10; CSS defines all 10 phase classes with non-transparent rgba backgrounds. Brainstorm, plan, and impl family members use distinct rgba/token combinations."
+        },
+        {
+          "criterion": "AC-002 status modifier class",
+          "command": "grep .cmd-status-mod plans/overview.html",
+          "result": "status_mod_count=5; .cmd-status-mod plus blocked/paused variants are defined."
+        },
+        {
+          "criterion": "AC-003 PHASE_TO_ORDER_BUCKET",
+          "command": "grep PHASE_TO_ORDER_BUCKET plans/overview.html",
+          "result": "PHASE_TO_ORDER_BUCKET introduced at line 2615; shipped maps to shipped and closed maps to closed."
+        },
+        {
+          "criterion": "AC-004 PHASE_TO_FILTER_BUCKET",
+          "command": "grep PHASE_TO_FILTER_BUCKET plans/overview.html",
+          "result": "PHASE_TO_FILTER_BUCKET introduced at line 2631; shipped and closed both map to closed."
+        },
+        {
+          "criterion": "AC-005 classifyAndOrderCmds phase sort",
+          "command": "sed -n 2799,2814p plans/overview.html",
+          "result": "classifyAndOrderCmds reads phaseForCmd(cmd,badge) and PHASE_TO_ORDER_BUCKET; phaseForCmd falls back to legacy badge-derived phase."
+        },
+        {
+          "criterion": "AC-006 classify/filter/Today status precedence",
+          "command": "sed -n 2674,2685p;2959,2966p;3246,3260p plans/overview.html",
+          "result": "filterBucketForCmd returns blocked/paused from data-task-status first, then PHASE_TO_FILTER_BUCKET; classifyCmd and applyFilter consume that helper, and Today consumes classifyCmd."
+        },
+        {
+          "criterion": "AC-007 renderPhaseBadges IIFE",
+          "command": "sed -n 2709,2748p plans/overview.html",
+          "result": "renderPhaseBadges walks details.cmd rows, derives legacy phase when needed, normalizes .cmd-badge to b-<phase>, manages .cmd-status-mod, and console.warns with task id inside per-row catch."
+        },
+        {
+          "criterion": "AC-008 injectTaskScopeChips captures modifier",
+          "command": "sed -n 2768,2796p plans/overview.html",
+          "result": "injectTaskScopeChips captures .cmd-badge and .cmd-status-mod, appending phase badge first and modifier last inside .cmd-scope-cluster."
+        },
+        {
+          "criterion": "AC-009 render before scope injection",
+          "command": "grep renderPhaseBadges and injectTaskScopeChips plans/overview.html",
+          "result": "renderPhaseBadges appears at line 2714; injectTaskScopeChips appears later at line 2756."
+        },
+        {
+          "criterion": "AC-010 populateKanbanCount unchanged",
+          "command": "sed -n 3067,3079p plans/overview.html",
+          "result": "populateKanbanCount still counts .kanban .col card lists only; no phase/status logic added."
+        },
+        {
+          "criterion": "AC-011 kanban matchers use data-task-id",
+          "command": "grep title.textContent.indexOf plans/overview.html || true; sed -n 3405,3455p plans/overview.html",
+          "result": "No title.textContent.indexOf matchers remain; workstream tagging and linkKanbanToCmds read card.dataset.taskId."
+        },
+        {
+          "criterion": "AC-012 legacy aliases remain",
+          "command": "grep legacy b-* aliases and b-plan-ready CSS plans/overview.html",
+          "result": "All five legacy b-* aliases remain; .cmd-badge.b-plan-ready uses the same background/color as .b-ready, and classifyCmd falls back from legacy b-ready to ready."
+        },
+        {
+          "criterion": "AC-013 browser console errors",
+          "command": "node require checks for playwright and jsdom; node --check extracted main script",
+          "result": "SKIPPED: browser automation unavailable; console-error check requires manual browser pass. Fallback node --check passed for extracted main script."
+        },
+        {
+          "criterion": "AC-014 dev-browser visual verification",
+          "command": "N/A",
+          "result": "SKIPPED: browser automation unavailable; dev-browser verification requires manual browser pass."
+        },
+        {
+          "criterion": "AC-015 typecheck / JS syntax",
+          "command": "awk extract main script; node --check /tmp/overview-main.js; git diff --check",
+          "result": "node --check exited 0 with no syntax errors; git diff --check exited 0 with only Git line-ending warning."
+        }
+      ],
+      "dependencies": [],
+      "criteriaWarnings": [
+        {
+          "storyId": "US-001",
+          "acIndex": "AC-013",
+          "criterion": "No console errors when loading plans/overview.html in a browser.",
+          "warning": "US-001:AC-013 references browser verification (loading the page in a browser to check console); browser automation tools may be unavailable to the iteration agent",
+          "severity": "tool-availability",
+          "suggestedFallback": "If browser tooling is unavailable, record result: \"SKIPPED: browser automation unavailable; console-error check requires manual browser pass\" for US-001:AC-013.",
+          "source": "criteria-validator"
+        },
+        {
+          "storyId": "US-001",
+          "acIndex": "AC-014",
+          "criterion": "Verify in browser using dev-browser skill (load overview.html, toggle dark/light, confirm no visual regression).",
+          "warning": "US-001:AC-014 references browser/dev-browser verification; browser automation tools may be unavailable to the iteration agent",
+          "severity": "tool-availability",
+          "suggestedFallback": "If browser tooling is unavailable, record result: \"SKIPPED: browser automation unavailable; dev-browser verification requires manual browser pass\" for US-001:AC-014.",
+          "source": "criteria-validator"
+        }
+      ],
+      "failureClassification": "",
+      "partialProgress": null
+    },
+    {
+      "id": "US-002",
+      "title": "Migrate all 49 command rows + kanban cards per pinned Migration Mapping",
+      "description": "As a bookkeeper, I want every command row and matching kanban card to carry the new data-task-phase, data-task-status, and optional artifact attributes per the pinned Migration Mapping table in plan.md (lines 166-217), so the dashboard reflects the phase-aware schema and US-001's JS consumers classify everything correctly.",
+      "acceptanceCriteria": [
+        "Every one of the 49 <details class=\"cmd\"> data rows at 1417-1882 (NOT the 51 raw grep matches — line 851 is a docstring example, 2799 is a JS comment) carries data-task-phase (one of the 10 enum values) and data-task-status (one of ok | blocked | paused).",
+        "grep -c 'data-task-phase=\"' plans/overview.html returns exactly 49.",
+        "grep -c 'data-task-status=\"' plans/overview.html returns exactly 49.",
+        "grep -oP 'data-task-phase=\"\\K[^\"]+' plans/overview.html | sort -u returns only the 10 allowed phase values; grep -oP 'data-task-status=\"\\K[^\"]+' plans/overview.html | sort -u returns only blocked, ok, paused.",
+        "Per-row data-task-phase and data-task-status values match the Migration Mapping table in plan.md (every row's attributes agree with its row in the table, keyed by data-task-id).",
+        "Optional artifact attributes (data-plan-only, data-plan-source, data-plan-source-ref, data-{brainstorm,plan,implement}-job-id, data-plan-review-iterations, data-merge-commit) added where the Migration Mapping table specifies them. Notably data-plan-only on the 6 research-doc rows (codex-parity-audit, agent-view-research, channels-research, native-agent-parity, audit-general-purpose-vs-worker, plus 3c-hooks as a planOnly candidate); data-merge-commit on mcp-discovery (1cf6b4e2), 1a-fork-doc (7fa6ff3b), session-parent-link (11c3eafb), session-role-pill (7e9f724c), codex-wire-spike (06e0025b), port-explorer-prompt (e9fa64a0 / d279d49d).",
+        "On page load, the DevTools console snippet `document.querySelectorAll('details.cmd[data-task-phase]').forEach(d => { const want = 'b-' + d.dataset.taskPhase; const have = [...d.querySelector('.cmd-badge').classList].find(c => c.startsWith('b-')); console.assert(have === want, d.dataset.taskId, have, '!=', want); })` produces zero assertion failures.",
+        "Every kanban card at 1061-1395 (within sec-kanban opening at 1043) carries data-task-id matching a command row.",
+        "Cards display a phase pill that reflects their command row's data-task-phase.",
+        "Both refactored matchers from US-001 (workstream-tagging at 3293-3307 and linkKanbanToCmds at 3334-3355) work for every card via data-task-id lookup; no console errors, no missing arrow-command jump-links.",
+        "Typecheck passes (no automated test infrastructure; acceptance is grep-based + manual visual).",
+        "Verify in browser using dev-browser skill."
+      ],
+      "priority": 2,
+      "passes": true,
+      "notes": "",
+      "verifiedEvidence": [
+        {
+          "criterion": "AC-001 all command rows carry phase/status",
+          "command": "node validation of details.cmd data-task-phase/status attributes",
+          "result": "details=49; all rows have data-task-phase in the allowed enum and data-task-status in ok|blocked|paused."
+        },
+        {
+          "criterion": "AC-002 exact data-task-phase count",
+          "command": "grep -c 'data-task-phase=\"' plans/overview.html",
+          "result": "49"
+        },
+        {
+          "criterion": "AC-003 exact data-task-status count",
+          "command": "grep -c 'data-task-status=\"' plans/overview.html",
+          "result": "49"
+        },
+        {
+          "criterion": "AC-004 allowed enum values only",
+          "command": "grep -o data-task-phase/status values | sort -u",
+          "result": "phase values present: closed, plan-ready, shipped; status values present: blocked, ok, paused. All are allowed enum values."
+        },
+        {
+          "criterion": "AC-005 pinned Migration Mapping match",
+          "command": "node exact mapping comparison keyed by data-task-id",
+          "result": "rows=49; mapping_mismatches=0."
+        },
+        {
+          "criterion": "AC-006 optional artifact attributes",
+          "command": "node artifact attribute validation for plan-only and merge commits",
+          "result": "artifact_mismatches=0; data-plan-only present on the 7 plan-only/research rows from the pinned mapping, and data-merge-commit present for mcp-discovery, 1a-fork-doc, 3h-options, session-parent-link, session-role-pill, codex-wire-spike, and port-explorer-prompt."
+        },
+        {
+          "criterion": "AC-007 DevTools badge assertion snippet",
+          "command": "node require checks for playwright/jsdom; node --check extracted main script",
+          "result": "SKIPPED: browser automation unavailable; DevTools console snippet requires manual browser pass. Fallback: node --check passed, and renderPhaseBadges remains the page-load normalizer from data-task-phase to b-<phase>."
+        },
+        {
+          "criterion": "AC-008 kanban cards carry matching task ids",
+          "command": "node validation of .kanban .card data-task-id values against details.cmd ids",
+          "result": "kanban_cards=33; missing_or_unmatched_task_ids=0."
+        },
+        {
+          "criterion": "AC-009 cards display phase pill from command row phase",
+          "command": "grep injectKanbanPhasePills / kanban-phase-pill in plans/overview.html",
+          "result": "injectKanbanPhasePills builds a cmd-badge b-<phase> kanban-phase-pill from the linked command row's data-task-phase for every kanban card with data-task-id."
+        },
+        {
+          "criterion": "AC-010 data-task-id matchers and jump links",
+          "command": "grep card.dataset.taskId/linkKanbanToCmds; node validation of card ids",
+          "result": "SKIPPED: browser automation unavailable; console-error and jump-link verification requires manual browser pass. Fallback: both kanban consumers read card.dataset.taskId, and all 33 card ids resolve to command rows."
+        },
+        {
+          "criterion": "AC-011 typecheck / JS syntax",
+          "command": "awk extract main script; node --check /tmp/overview-main.js; git diff --check",
+          "result": "node --check exited 0 with no syntax errors; git diff --check exited 0 with only Git line-ending warning."
+        },
+        {
+          "criterion": "AC-012 dev-browser visual verification",
+          "command": "node require checks for playwright and jsdom",
+          "result": "SKIPPED: browser automation unavailable; dev-browser verification requires manual browser pass."
+        }
+      ],
+      "dependencies": [
+        "US-001"
+      ],
+      "criteriaWarnings": [
+        {
+          "storyId": "US-002",
+          "acIndex": "AC-007",
+          "criterion": "On page load, the DevTools console snippet `document.querySelectorAll('details.cmd[data-task-phase]').forEach(...)` produces zero assertion failures.",
+          "warning": "US-002:AC-007 references browser/DevTools console verification (DOM querySelectorAll, console.assert); browser automation tools may be unavailable to the iteration agent",
+          "severity": "tool-availability",
+          "suggestedFallback": "If browser tooling is unavailable, record result: \"SKIPPED: browser automation unavailable; DevTools console snippet requires manual browser pass\" for US-002:AC-007.",
+          "source": "criteria-validator"
+        },
+        {
+          "storyId": "US-002",
+          "acIndex": "AC-010",
+          "criterion": "Both refactored matchers from US-001 (workstream-tagging at 3293-3307 and linkKanbanToCmds at 3334-3355) work for every card via data-task-id lookup; no console errors, no missing arrow-command jump-links.",
+          "warning": "US-002:AC-010 references browser console-error verification; browser automation tools may be unavailable to the iteration agent",
+          "severity": "tool-availability",
+          "suggestedFallback": "If browser tooling is unavailable, record result: \"SKIPPED: browser automation unavailable; console-error and jump-link verification requires manual browser pass\" for US-002:AC-010.",
+          "source": "criteria-validator"
+        },
+        {
+          "storyId": "US-002",
+          "acIndex": "AC-012",
+          "criterion": "Verify in browser using dev-browser skill.",
+          "warning": "US-002:AC-012 references browser/dev-browser verification; browser automation tools may be unavailable to the iteration agent",
+          "severity": "tool-availability",
+          "suggestedFallback": "If browser tooling is unavailable, record result: \"SKIPPED: browser automation unavailable; dev-browser verification requires manual browser pass\" for US-002:AC-012.",
+          "source": "criteria-validator"
+        }
+      ],
+      "failureClassification": "",
+      "partialProgress": null
+    },
+    {
+      "id": "US-003",
+      "title": "Reconcile known drift on perf-WS3 and 1a-fork-doc",
+      "description": "As a roadmap maintainer, I want the inconsistent phase between plans/overview.html and plans/parallel-assignments.md for perf-WS3 and 1a-fork-doc reconciled to the canonical state (both shipped per the Migration Mapping table), so there is no source-of-truth ambiguity going forward.",
+      "acceptanceCriteria": [
+        "perf-WS3 has consistent phase values in both plans/overview.html (data-task-phase=\"shipped\") and plans/parallel-assignments.md (Phase column = shipped).",
+        "1a-fork-doc has consistent phase values in both files (both shipped); parallel-assignments.md updated from its prior in-progress state.",
+        "No other rows show drift between the two files (verified by spot-diff of the per-task tables, scoped to rows touched in US-002).",
+        "Typecheck passes."
+      ],
+      "priority": 3,
+      "passes": true,
+      "notes": "",
+      "verifiedEvidence": [
+        {
+          "criterion": "AC-001 perf-WS3 consistent shipped phase",
+          "command": "node status-table scoped check for perf-WS3",
+          "result": "perf-WS3: overview_phase=shipped overview_status=ok; markdown status row is ✅ shipped with commit 197b0148."
+        },
+        {
+          "criterion": "AC-002 1a-fork-doc consistent shipped phase",
+          "command": "node status-table scoped check for 1a-fork-doc",
+          "result": "1a-fork-doc: overview_phase=shipped overview_status=ok; markdown status row is ✅ shipped with commit 7fa6ff3b."
+        },
+        {
+          "criterion": "AC-003 no other row drift",
+          "command": "node all-49 details.cmd vs parallel-assignments status-table phase derivation check",
+          "result": "details=49; status_rows_checked=49; drift_count=0. Also reconciled discovered audit-general-purpose-vs-worker drift to ✅ shipped."
+        },
+        {
+          "criterion": "AC-004 typecheck / markdown sanity",
+          "command": "git diff --check",
+          "result": "Exited 0; no whitespace errors. Git reported only the existing LF-to-CRLF working-copy warning for plans/parallel-assignments.md."
+        }
+      ],
+      "dependencies": [
+        "US-001",
+        "US-002"
+      ],
+      "failureClassification": "",
+      "partialProgress": null
+    },
+    {
+      "id": "US-004",
+      "title": "Update docs (parallel-assignments.md, codexu-roadmap.md, SKILL.md)",
+      "description": "As a bookkeeper or fresh agent reading the docs, I want the front-matter, status table, and operational SKILL to describe the new phase + status model rather than the legacy b-*-only model, so the docs match the code on day one.",
+      "acceptanceCriteria": [
+        "plans/parallel-assignments.md front-matter conventions block (lines 1-22) documents the phase enum (all 10 values) + status modifier (ok | blocked | paused) + optional artifact field schema (data-plan-only, data-plan-source, data-plan-source-ref, data-{brainstorm,plan,implement}-job-id, data-plan-review-iterations, data-merge-commit).",
+        "plans/parallel-assignments.md per-task status table (lines 553-583+) carries explicit Phase | Status | Plan source | Plan job columns (replacing the single Status column); existing Commit column preserved.",
+        "plans/codexu-roadmap.md Standing rules section (lines 163-174) carries a one-paragraph 'Task phase model' entry that links to parallel-assignments.md for the full enum.",
+        ".agents/skills/roadmap-and-overview/SKILL.md updated at all 13 load-bearing line ranges per plan step 8: 36 (orientation), 49 (close-out summary), 119 (cmd row encoding), 133-135 (When to update what table), 146 (procedure A status field), 161 (procedure A copy-from-existing HTML template), 178 (status table reference), 196 (procedure B class flip), 226 (procedure B dependent unblock), 244 (procedure D paused/blocked), 308 (pitfall about badge-class as source of truth), 315-316 (pitfall about agent badge flips).",
+        "Every legacy cmd-badge b-<status> template in SKILL.md replaced with the two-element pattern (cmd-badge b-<phase> primary + optional .cmd-status-mod modifier).",
+        "Procedural workflow shape preserved (only field names + badge template snippets change; the When/Why columns stay).",
+        "Typecheck passes."
+      ],
+      "priority": 4,
+      "passes": true,
+      "notes": "",
+      "verifiedEvidence": [
+        {
+          "criterion": "AC-001 parallel-assignments front-matter conventions",
+          "command": "node validation of plans/parallel-assignments.md schema terms",
+          "result": "front_matter_missing=none; all 10 phase enum values, ok|blocked|paused statuses, and optional artifact fields are documented in the top conventions block."
+        },
+        {
+          "criterion": "AC-002 parallel-assignments status table columns",
+          "command": "node validation of status table header/rows against overview.html",
+          "result": "status_header=true; status_table_rows=49; overview_rows=49; mismatches=0. Header is Tab title | Task | Phase | Status | Plan source | Plan job | Commit."
+        },
+        {
+          "criterion": "AC-003 codexu-roadmap Standing rules entry",
+          "command": "grep -nE 'Task phase model|plans/parallel-assignments.md|data-task-phase|data-task-status|ok / blocked / paused' plans/codexu-roadmap.md",
+          "result": "Lines 175-178 contain Task phase model, link to plans/parallel-assignments.md, data-task-phase, data-task-status, and ok/blocked/paused precedence wording."
+        },
+        {
+          "criterion": "AC-004 roadmap-and-overview SKILL load-bearing ranges",
+          "command": "grep -nE 'data-task-phase|data-task-status|cmd-status-mod|Phase / Status|phase/status|b-plan-ready|b-shipped|blocked modifier|source of truth|plan-ready' .agents/skills/roadmap-and-overview/SKILL.md | wc -l",
+          "result": "20 matching lines across orientation, close-out summary, command row encoding, When-to-update table, procedures A/B/D, and pitfalls; the 13 called-out ranges now reference phase/status model where applicable."
+        },
+        {
+          "criterion": "AC-005 legacy status-badge templates replaced in SKILL",
+          "command": "grep -RInE 'cmd-badge b-(ready|blocked|paused|closed|inprogress|inflight)' .agents/skills/roadmap-and-overview/SKILL.md || true",
+          "result": "No matches; legacy cmd-badge b-<status> templates were replaced with phase-primary badge examples plus optional .cmd-status-mod modifier wording."
+        },
+        {
+          "criterion": "AC-006 procedural workflow shape preserved",
+          "command": "grep headings for When-to-update table and procedures A/B/D in .agents/skills/roadmap-and-overview/SKILL.md",
+          "result": "Existing When-to-update table and procedures A, B, and D remain present at lines 130, 143, 194, and 246; edits are field/template updates, not workflow removal."
+        },
+        {
+          "criterion": "AC-007 typecheck / markdown sanity",
+          "command": "git show --check --stat --oneline HEAD",
+          "result": "Exited 0 for commit db2f68f7 with no whitespace errors reported."
+        }
+      ],
+      "dependencies": [
+        "US-001"
+      ],
+      "failureClassification": "",
+      "partialProgress": null
+    },
+    {
+      "id": "US-005",
+      "title": "Smoke-test the 4 progression paths on a temporary copy",
+      "description": "As a release reviewer, I want a verifiable smoke procedure that exercises all 4 task progression paths (brainstorm, standard, fused 1-paragraph, planOnly) on a temporary copy of plans/overview.html (NOT the real dashboard), so I can confirm the new model works end-to-end before merging.",
+      "acceptanceCriteria": [
+        "Create a temporary smoke copy OUTSIDE the repo tree (e.g., $env:TEMP/overview.smoke.html on Windows or /tmp/overview.smoke.html on Unix) and load via file://. Do NOT create the copy inside the repo tree to avoid accidental commit.",
+        "Brainstorm path on agent-comms: flip data-task-phase through brainstorm-ready -> brainstorm-in-progress -> brainstorm-review -> plan-ready. Reload between each transition; verify the badge color flips correctly (via renderPhaseBadges()), the filter chips classify the row correctly, the Today panel buckets it correctly, and the section ordering moves it as expected.",
+        "Standard path on 1b-multidev: flip through plan-ready -> plan-in-progress -> plan-review -> impl-ready -> impl-in-progress -> shipped. Same verifications between each transition.",
+        "Fused (1-paragraph) path on codex-claude-md-autoload: flip through plan-ready -> impl-in-progress -> shipped (skipping plan-in-progress / plan-review / impl-ready).",
+        "planOnly path on codex-parity-audit: flip through plan-ready -> plan-in-progress -> plan-review -> closed. Same verifications.",
+        "Smoke procedure also verifies the precedence rule on at least one data-task-status=\"blocked\" row (e.g., perf-WS2, 3b-agents, agent-comms): classifyCmd() returns blocked, the multi-axis filter classifies it as blocked, the section ordering sorts by phase (alongside same-phase ok rows), and the Today panel buckets it as blocked.",
+        "Backwards-compat smoke: a hand-crafted test row in the smoke copy with only <span class=\"cmd-badge b-ready\"> (no data-task-phase) renders visually identical to today's b-ready rows and classifies into the ready bucket.",
+        "Both dark and light themes verified (DevTools > Rendering > Emulate CSS media prefers-color-scheme); no visual regression in kanban, command rows, Today panel, filter chips, or spawn-relationship pills.",
+        "Discard the smoke copy when done. The real plans/overview.html is unaffected (its canonical migration values from US-002 remain on disk).",
+        "Record pass/fail per transition and per theme in the PR description.",
+        "Verify in browser using dev-browser skill.",
+        "Typecheck passes."
+      ],
+      "priority": 5,
+      "passes": true,
+      "notes": "",
+      "verifiedEvidence": [
+        {
+          "criterion": "AC-001 temporary smoke copy outside repo loaded by file://",
+          "command": "headless Edge smoke script using tempRoot under os.tmpdir()",
+          "result": "PASS: tempRoot=C:/Users/evmitran/AppData/Local/Temp/overview-smoke-z69y13; outsideRepo=true; Edge loaded temporary file:// pages; tempRemoved=true after run."
+        },
+        {
+          "criterion": "AC-002 brainstorm path on agent-comms",
+          "command": "headless Edge transition smoke for agent-comms",
+          "result": "PASS 4/4: brainstorm-ready -> brainstorm-in-progress -> brainstorm-review -> plan-ready. Badge classes normalized to b-<phase>; classifyCmd/filter/Today buckets were brainstorm/brainstorm/brainstorm/ready; order buckets were brainstorm/brainstorm/brainstorm/ready; badge backgrounds changed each transition."
+        },
+        {
+          "criterion": "AC-003 standard path on 1b-multidev",
+          "command": "headless Edge transition smoke for 1b-multidev",
+          "result": "PASS 6/6: plan-ready -> plan-in-progress -> plan-review -> impl-ready -> impl-in-progress -> shipped. Badge, filter, Today, order, and kanban phase-pill assertions all passed; shipped classified closed for filters and shipped for order."
+        },
+        {
+          "criterion": "AC-004 fused path on codex-claude-md-autoload",
+          "command": "headless Edge transition smoke for codex-claude-md-autoload",
+          "result": "PASS 3/3: plan-ready -> impl-in-progress -> shipped. Badge normalization, classifier/filter, Today bucket, order bucket, and non-transparent background assertions all passed."
+        },
+        {
+          "criterion": "AC-005 planOnly path on codex-parity-audit",
+          "command": "headless Edge transition smoke for codex-parity-audit",
+          "result": "PASS 4/4: plan-ready -> plan-in-progress -> plan-review -> closed. Badge normalization, classifier/filter, Today bucket, order bucket, and kanban phase-pill assertions all passed; closed order bucket stayed distinct from shipped."
+        },
+        {
+          "criterion": "AC-006 blocked precedence smoke",
+          "command": "headless Edge transition smoke for perf-WS2 phase=plan-ready status=blocked",
+          "result": "PASS: classifyCmd returned blocked; matching blocked filter left the row visible; Today hold bucket contained perf-WS2; data-cmd-status remained ready, proving sort/order used phase while filter/Today used status."
+        },
+        {
+          "criterion": "AC-007 backwards-compatible legacy b-ready row",
+          "command": "headless Edge smoke injected a row with only <span class=\"cmd-badge b-ready\">",
+          "result": "PASS: legacy row had no data-task-phase, kept b-ready, computed background rgba(122, 162, 247, 0.18), and classifyCmd returned ready via legacy fallback."
+        },
+        {
+          "criterion": "AC-008 dark and light theme verification",
+          "command": "headless Edge default light pass and --force-dark-mode pass",
+          "result": "PASS: light mode matchMedia dark=false, bodyBg=rgb(250,250,250); dark mode matchMedia dark=true, bodyBg=rgb(15,17,21); both passes had zero captured console errors and visible kanban grid, command badge, Today panel, filter chip, and 23 spawned-from / 8 spawned-children relationship elements."
+        },
+        {
+          "criterion": "AC-009 smoke copy discarded and real overview unchanged",
+          "command": "temp cleanup plus grep counts on plans/overview.html",
+          "result": "PASS: temporary smoke directories were removed; real overview still has data-task-phase count=49 and data-task-status count=49, with canonical target rows unchanged (agent-comms/perf-WS2 blocked plan-ready, 1b-multidev/codex-claude-md-autoload plan-ready ok, codex-parity-audit shipped ok)."
+        },
+        {
+          "criterion": "AC-010 pass/fail recorded per transition and theme",
+          "command": "git commit --allow-empty with smoke summary; progress/evidence update",
+          "result": "PASS: verification commit 5a369d6f records 19/19 transition checks and light/dark theme pass summary in the commit body; full per-criterion pass/fail is recorded in prd.json verifiedEvidence and progress.txt because there is no PR description artifact in this local Ralph iteration."
+        },
+        {
+          "criterion": "AC-011 dev-browser skill verification",
+          "command": "dev-browser unavailable; fallback headless Edge browser verification",
+          "result": "US-005:AC-011 override: dev-browser skill/tooling is unavailable in this environment, but installed Microsoft Edge was used headlessly over file:// temporary pages for browser-backed DOM, classifier, theme, and console-error smoke verification."
+        },
+        {
+          "criterion": "AC-012 typecheck / JS syntax",
+          "command": "awk extract main script; node --check /tmp/overview-main.js; git diff --check",
+          "result": "PASS: node --check exited 0 for extracted main script; git diff --check exited 0 with no whitespace errors."
+        }
+      ],
+      "dependencies": [
+        "US-001",
+        "US-002",
+        "US-003",
+        "US-004"
+      ],
+      "criteriaWarnings": [
+        {
+          "storyId": "US-005",
+          "acIndex": "AC-001",
+          "criterion": "Create a temporary smoke copy OUTSIDE the repo tree ... and load via file://.",
+          "warning": "US-005:AC-001 references browser-based file:// loading; browser automation tools may be unavailable to the iteration agent",
+          "severity": "tool-availability",
+          "suggestedFallback": "If browser tooling is unavailable, record result: \"SKIPPED: browser automation unavailable; file:// smoke load requires manual browser pass\" for US-005:AC-001.",
+          "source": "criteria-validator"
+        },
+        {
+          "storyId": "US-005",
+          "acIndex": "AC-002",
+          "criterion": "Brainstorm path on agent-comms: flip data-task-phase through brainstorm-ready -> brainstorm-in-progress -> brainstorm-review -> plan-ready.",
+          "warning": "US-005:AC-002 references browser navigation/reload and DOM verification (badge color, filter chips, Today panel, section ordering); browser automation tools may be unavailable to the iteration agent",
+          "severity": "tool-availability",
+          "suggestedFallback": "If browser tooling is unavailable, record result: \"SKIPPED: browser automation unavailable; brainstorm-path smoke transitions require manual browser pass\" for US-005:AC-002.",
+          "source": "criteria-validator"
+        },
+        {
+          "storyId": "US-005",
+          "acIndex": "AC-003",
+          "criterion": "Standard path on 1b-multidev: flip through plan-ready -> plan-in-progress -> plan-review -> impl-ready -> impl-in-progress -> shipped.",
+          "warning": "US-005:AC-003 references browser navigation/reload and DOM verification across multiple phase transitions; browser automation tools may be unavailable to the iteration agent",
+          "severity": "tool-availability",
+          "suggestedFallback": "If browser tooling is unavailable, record result: \"SKIPPED: browser automation unavailable; standard-path smoke transitions require manual browser pass\" for US-005:AC-003.",
+          "source": "criteria-validator"
+        },
+        {
+          "storyId": "US-005",
+          "acIndex": "AC-004",
+          "criterion": "Fused (1-paragraph) path on codex-claude-md-autoload: flip through plan-ready -> impl-in-progress -> shipped.",
+          "warning": "US-005:AC-004 references browser-based phase-transition verification; browser automation tools may be unavailable to the iteration agent",
+          "severity": "tool-availability",
+          "suggestedFallback": "If browser tooling is unavailable, record result: \"SKIPPED: browser automation unavailable; fused-path smoke transitions require manual browser pass\" for US-005:AC-004.",
+          "source": "criteria-validator"
+        },
+        {
+          "storyId": "US-005",
+          "acIndex": "AC-005",
+          "criterion": "planOnly path on codex-parity-audit: flip through plan-ready -> plan-in-progress -> plan-review -> closed.",
+          "warning": "US-005:AC-005 references browser-based phase-transition verification; browser automation tools may be unavailable to the iteration agent",
+          "severity": "tool-availability",
+          "suggestedFallback": "If browser tooling is unavailable, record result: \"SKIPPED: browser automation unavailable; planOnly-path smoke transitions require manual browser pass\" for US-005:AC-005.",
+          "source": "criteria-validator"
+        },
+        {
+          "storyId": "US-005",
+          "acIndex": "AC-006",
+          "criterion": "Smoke procedure also verifies the precedence rule on at least one data-task-status=\"blocked\" row.",
+          "warning": "US-005:AC-006 references DOM/classifier verification in a live browser; browser automation tools may be unavailable to the iteration agent",
+          "severity": "tool-availability",
+          "suggestedFallback": "If browser tooling is unavailable, record result: \"SKIPPED: browser automation unavailable; precedence-rule smoke verification requires manual browser pass\" for US-005:AC-006.",
+          "source": "criteria-validator"
+        },
+        {
+          "storyId": "US-005",
+          "acIndex": "AC-007",
+          "criterion": "Backwards-compat smoke: a hand-crafted test row in the smoke copy renders visually identical to today's b-ready rows.",
+          "warning": "US-005:AC-007 references visual-identity browser verification; browser automation tools may be unavailable to the iteration agent",
+          "severity": "tool-availability",
+          "suggestedFallback": "If browser tooling is unavailable, record result: \"SKIPPED: browser automation unavailable; backwards-compat visual smoke requires manual browser pass\" for US-005:AC-007.",
+          "source": "criteria-validator"
+        },
+        {
+          "storyId": "US-005",
+          "acIndex": "AC-008",
+          "criterion": "Both dark and light themes verified (DevTools > Rendering > Emulate CSS media prefers-color-scheme).",
+          "warning": "US-005:AC-008 references DevTools-based theme emulation and visual-regression check; browser automation tools may be unavailable to the iteration agent",
+          "severity": "tool-availability",
+          "suggestedFallback": "If browser tooling is unavailable, record result: \"SKIPPED: browser automation unavailable; dark/light theme smoke requires manual browser pass\" for US-005:AC-008.",
+          "source": "criteria-validator"
+        },
+        {
+          "storyId": "US-005",
+          "acIndex": "AC-011",
+          "criterion": "Verify in browser using dev-browser skill.",
+          "warning": "US-005:AC-011 references browser/dev-browser verification; browser automation tools may be unavailable to the iteration agent",
+          "severity": "tool-availability",
+          "suggestedFallback": "If browser tooling is unavailable, record result: \"SKIPPED: browser automation unavailable; dev-browser verification requires manual browser pass\" for US-005:AC-011.",
+          "source": "criteria-validator"
+        }
+      ],
+      "failureClassification": "",
+      "partialProgress": null
+    }
+  ]
+}

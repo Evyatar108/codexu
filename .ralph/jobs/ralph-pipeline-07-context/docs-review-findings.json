@@ -1,0 +1,22 @@
+{
+  "planFile": "D:/harness-efforts/codexu/.ralph/jobs/ralph-pipeline-07-context/plan.md",
+  "repoDir": "D:/harness-efforts/codexu/.ralph/jobs/ralph-pipeline-07-context/worktree",
+  "findings": [
+    {
+      "id": "F-001",
+      "severity": "Medium",
+      "source": "docs",
+      "classification": "fixable",
+      "phase": "docs",
+      "category": "Stale Documentation",
+      "description": "tools/overview-viewer/README.md line 10 enumerates the contents of src/components/ as 'command rows, kanban, phase tree, Today panel, toolbar, and static sections' but the diff adds a new top-level RecentActivity sidebar component (src/components/RecentActivity.tsx) wired into App.tsx via the new Layout sidebar slot. The companion CLAUDE.md in the same package was updated for the new activity surface, but the README's File Layout summary still omits RecentActivity, leaving contributors with an inaccurate inventory of major top-level components.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Updated overview-viewer README File Layout bullets to mention the new RecentActivity sidebar component (wired via Layout right-side sidebar slot) and the new useActivityEvents hook.",
+      "relevantFiles": [
+        "tools/overview-viewer/README.md"
+      ],
+      "suggestedFix": "Update the File Layout bullet at tools/overview-viewer/README.md:10 to mention RecentActivity (and the right-side sidebar slot in Layout) alongside command rows, kanban, phase tree, Today panel, toolbar, and static sections. Also consider noting the new useActivityEvents hook in src/hooks/ if the inventory of hooks is meant to be complete."
+    }
+  ]
+}

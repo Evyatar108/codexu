@@ -1,0 +1,32 @@
+I’ll read the provided temp file to understand the task before making changes.
+
+The file is large, so I’ll sample the beginning and nearby structure to identify the requested work.
+
+This is a code-review prompt. I’ll inspect the plan sections and the diff, then report findings only.
+
+I’ll cross-check the changed files in the working tree where available so findings can cite real file lines rather than only diff offsets.
+
+### Completeness
+
+[High] `plugins/ralph-overview/tools/overview-mcp/src/install-server.ts:37-41` no longer preserves `overview-mcp-install --print-only`: it prints the `initConsumer` result envelope instead of the planned `.mcp.json`/`enabledMcpjsonServers` registration block required by AC17. Existing consumers using print-only as a no-write registration preview now receive unusable output.
+
+[Medium] `plugins/ralph-overview/tools/overview-mcp/src/tools/upsert-task.ts:24-35` does not return the planned `filePath` or `fieldsChanged[]` fields. The new skills and operators only get `action/changed/editedRanges/sync`, so the tool surface is less informative than the plan’s declared contract.
+
+### Correctness
+
+[High] `plugins/ralph-overview/bin/ralph-overview.mjs:50-52` rewires the existing `cli` subcommand to `sync-ralph-state.mjs` instead of dispatching named lib CLIs such as `derive-next-command`. Existing `/work-on` and blocker-report flows that call `ralph-overview cli derive-next-command` will run the sync script with the wrong arguments and fail to derive commands.
+
+[High] `plugins/ralph-overview/scripts/init-consumer.mjs:77-81` silently skips any existing scaffold file when `force` is false, regardless of whether its contents conflict with the template. The plan requires conflicting `plans/overview-data.js` / `.ralph/overview-config.json` to be refused unless forced; returning `ok: true` here can mark a broken or unrelated consumer file as successfully initialized.
+
+### Quality
+
+[Medium] `plugins/ralph-overview/scripts/lib/upsert-task-edit.mjs:172-219` hard-codes inserted newlines as `\n`. The plan calls out preserving the source newline style, including Windows `\r\n`; creating tasks or adding object/map entries in a CRLF `overview-data.js` will introduce mixed line endings in the edited regions.
+
+### Security
+
+No issues found.
+
+### Overall Assessment
+
+Not ready to ship. The main functionality is present, but the dispatcher regression and print-only contract break existing workflows, and init conflict handling does not meet the safety requirements in the plan.
+

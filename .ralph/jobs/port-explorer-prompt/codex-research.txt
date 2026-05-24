@@ -1,0 +1,75 @@
+**Codebase Architecture**
+
+`codexu` is a pnpm TypeScript monorepo for the Happy/codexu app stack, but this feature is isolated to the `codex/` git submodule. That submodule points at `https://github.com/gim-home/codex.git`; the actual Rust engine workspace is under:
+
+`codex/external/repos/codex-patched/codex-rs/`
+
+That Rust workspace is Cargo-based, edition 2024, with overlay crates under `codex/codex-rs-overlay/`. Built-in agent roles live in upstream-mirror Rust core files, so the roadmap’s “minimize conflict surface” rule applies.
+
+**Feature-Relevant Code**
+
+- `codex/external/repos/codex-patched/codex-rs/core/src/agent/builtins/explorer.toml`
+  Current target file. It is exactly `0` bytes.
+
+- `codex/external/repos/codex-patched/codex-rs/core/src/agent/role.rs`
+  Already declares built-in `explorer` with `config_file: Some("explorer.toml")` and embeds it via `include_str!("builtins/explorer.toml")` in `config_file_contents()`. No match-arm change is needed.
+
+- `codex/external/repos/codex-patched/codex-rs/core/src/agent/builtins/awaiter.toml`
+  Best local format example: a built-in TOML config layer containing only config keys such as `developer_instructions`.
+
+- `codex/external/repos/codex-patched/codex-rs/config/src/config_toml.rs`
+  Defines `ConfigToml`; `developer_instructions` is the right field for the prompt.
+
+- `codex/external/repos/codex-patched/codex-rs/core/src/config/agent_roles.rs`
+  User role parser strips `name` / `description`, but built-ins do not go through that path.
+
+- `codex/external/repos/codex-patched/codex-rs/core/src/agent/role_tests.rs`
+  Existing `apply_empty_explorer_role_preserves_current_model_and_reasoning_effort` will need updating once the file is non-empty.
+
+- Inspiration source:
+  `D:/harness-efforts/claude-code/worktrees/main/src/tools/AgentTool/built-in/exploreAgent.ts`
+
+**Technical Constraints**
+
+Do not put `name`, `description`, or `nickname_candidates` in `explorer.toml`. Built-ins are loaded as raw `ConfigToml`, unlike user role files, so metadata fields would be unknown config keys.
+
+The smallest safe TOML shape is a comment header plus:
+
+```toml
+developer_instructions = """..."""
+```
+
+A TOML comment header can cite inspiration, for example `# Inspired by the design of Claude Code's built-in Explore subagent; prose rewritten for codex.`
+
+Runtime read-only enforcement is not currently guaranteed by role TOML alone. Spawn code applies the role, then `apply_spawn_agent_runtime_overrides()` copies the parent turn’s permission profile afterward in `core/src/tools/handlers/multi_agents_common.rs`. So the practical implementation should preserve the read-only behavior contract in the prompt unless the plan expands to spawn-order/permission changes.
+
+`codex exec` does not expose a direct `--agent-type explorer` flag. The smoke test should run `codex exec` normally and prompt the parent agent to call `spawn_agent` with `agent_type: "explorer"` against a small target.
+
+The codexu worktree is dirty with unrelated Happy files and a modified `codex` submodule pointer; implementation must use a separate codex worktree and avoid reverting unrelated changes.
+
+**Implementation Suggestions**
+
+Use a codex submodule worktree as requested:
+
+```bash
+git -C codex fetch origin main
+git -C codex worktree add -b feat/explorer-role-prompt D:/harness-efforts/codexu/.ralph/jobs/<job-name>/codex-worktree origin/main
+```
+
+In that worktree, edit only:
+
+`external/repos/codex-patched/codex-rs/core/src/agent/builtins/explorer.toml`
+
+Recommended prompt content: paraphrased prose only, codex-branded, with sections for read-only constraints, search/read strengths, safe shell command examples, efficient parallel exploration, and concise final reporting. Avoid Claude/Anthropic product references and avoid copying source paragraphs.
+
+Update `role_tests.rs` to assert the built-in explorer role now applies a session layer, preserves inherited model/reasoning, sets non-blank `developer_instructions`, and contains no `Claude Code` / `Anthropic` strings.
+
+Verification path:
+
+```bash
+cargo test -p codex-core explorer
+cargo build --workspace
+codex exec --skip-git-repo-check "Spawn an explorer agent to inspect <small target> and report what it finds."
+```
+
+Before committing, surface the final paraphrased prompt for operator license review. After approval, commit/push in the codex worktree, then update the `codex` submodule pointer in codexu as a separate commit on codexu `main`.

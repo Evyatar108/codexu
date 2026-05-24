@@ -1,0 +1,51 @@
+I’ll inspect the referenced temp path to determine the requested work.
+
+I found the prompt is in research mode. I’ll inspect the overview viewer, data file, scripts, and test setup to ground the analysis in the repo.
+
+### Codebase Architecture
+
+`D:\harness-efforts\codexu` is a pnpm monorepo using `pnpm@10.11.0`. The overview dashboard is the `tools/overview-viewer` workspace package: Vite + React + TypeScript, with Vitest split into node SSR tests and jsdom interaction tests. The root `package.json` already exposes `overview`, `overview:build`, and `overview:build:preview`; `sync-ralph-state` should be added there.
+
+The dashboard source of truth is `plans/overview-data.js`, a hand-curated script assigning `window.OVERVIEW_DATA`. The renderer reads it synchronously before React mounts. Generated `plans/overview.html` must not be hand-edited.
+
+### Feature-Relevant Code
+
+Key files:
+
+| Path | Relevance |
+|---|---|
+| `tools/overview-viewer/src/types.ts` | Existing `OverviewData`, `OverviewTask`, task metadata types; add Ralph types and `ralphOverrides`. |
+| `tools/overview-viewer/src/overviewData.ts` | Declares `window.OVERVIEW_DATA`; future UI may also need `OVERVIEW_RALPH_STATE`. |
+| `tools/overview-viewer/src/__tests__/testData.ts` | Existing pattern for executing `plans/overview-data.js` in Node via `new Function('window', script)`. Reuse this approach in sync tests/helpers. |
+| `tools/overview-viewer/vite.config.ts` | Current sidecar serving/inlining is hardcoded to `overview-data.js`; Plan 01 does not need UI integration yet. |
+| `tools/overview-viewer/vitest.config.ts` | New `ralphStage.test.ts` under `src/__tests__` will run in the node SSR project. |
+| `plans/overview-data.js` | Read-only input for task ids and optional `ralphOverrides`. Do not write from sync code. |
+| `.gitignore` | Currently ignores only `.ralph/**/worktree/`; must add `.ralph/overview-config.local.json` if local config is promised. |
+| `plans/ralph-pipeline-INDEX.md` | Must be refreshed after implementation if actual module contracts differ. |
+
+The repo already has `.ralph/jobs`, `.ralph/job-groups`, and `.ralph/brainstorms` state. `job-state.json`, review finding files, and `brainstorm.json.recommendedDirection` exist in the expected shapes.
+
+### Technical Constraints
+
+`plans/overview-data.js` is JavaScript, not JSON. The sync script should evaluate it safely in a controlled `window` object, matching `testData.ts`, rather than importing it as a module.
+
+`tools/overview-viewer` has strict TypeScript with `moduleResolution: "bundler"` and `allowJs: false`; importing `.mjs` from a `.ts` Vitest file may need either a local declaration, dynamic import with compatible typing, or a JS test. Keep `derive-ralph-stage.mjs` pure ESM and dependency-free.
+
+Atomic writes should use temp file plus rename for both JS and JSON sidecars. The JS sidecar should escape `</script` defensively if it will later be inlined.
+
+The config promise requires a `.local.json` ignore rule. Without updating `.gitignore`, the plan is internally inconsistent.
+
+### Implementation Suggestions
+
+Implement the foundation in this order:
+
+1. Add type exports to `types.ts`, keeping Ralph state outside `OverviewTask`.
+2. Add `default-config.mjs` and `resolve-config.mjs`; resolve all configured paths to absolute paths and freeze the result.
+3. Add `.ralph/overview-config.json`, schema, and `.gitignore` entry for `.ralph/overview-config.local.json`.
+4. Add `derive-ralph-stage.mjs` as the single predicate source, with review finding counts passed in or computed before derivation.
+5. Add `sync-core.mjs`: read overview task ids/overrides, scan only configured `.ralph` roots, resolve slugs, dedupe by updated time, and emit `unmatched`.
+6. Add `sync-ralph-state.mjs` and root npm script.
+7. Add `ralphStage.test.ts` with one case per stage.
+
+One important edge case: `.ralph/job-groups/<group>/<member>/job-state.json` exists as nested job state. Decide whether Plan 01 treats those as jobs, group members, or group artifacts only; encode that consistently so duplicate-resolution behavior is deterministic.
+

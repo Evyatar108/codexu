@@ -1,0 +1,728 @@
+{
+  "project": "Overview MCP Server",
+  "description": "Plan 09 of the Ralph pipeline: a first-class Model Context Protocol server at tools/overview-mcp/ that exposes 10 typed RPC tools over the Ralph overview state (snapshot, recommendations, blockers, journal, crew sessions, transcripts) so other agents can call typed tools instead of parsing files. Reuses shared libraries under scripts/lib/ (derive-next-command, crews-cross-walk, work-on-via-crew, sync-core, resolve-config, atomic-write) and adds one additive helper (appendJournalNote) plus a sibling .d.mts for work-on-via-crew.mjs.",
+  "deslop": true,
+  "iterationEngine": "codex",
+  "planningEngine": "codex",
+  "jobDir": "D:/harness-efforts/codexu/.ralph/jobs/ralph-pipeline-09-mcp",
+  "repoDir": "D:/harness-efforts/codexu",
+  "branch": {
+    "name": "ralph-pipeline-09-mcp",
+    "created": true
+  },
+  "worktree": {
+    "path": "D:/harness-efforts/codexu/.ralph/jobs/ralph-pipeline-09-mcp/worktree",
+    "branch": "ralph-pipeline-09-mcp"
+  },
+  "planReviewContext": [
+    {
+      "id": "F-001",
+      "severity": "High",
+      "source": "consensus",
+      "category": "Feasibility",
+      "description": "Calling runWorkOnViaCrew() from the MCP server would corrupt the stdio JSON-RPC stream. runWorkOnViaCrew (scripts/lib/work-on-via-crew.mjs lines 21 and 61) defaults its stdout parameter to process.stdout and writes a 'Spawned <crew>/<member>...' confirmation line on success. The MCP server reserves stdout for the protocol stream. The plan must explicitly pass stdout: process.stderr (or a sink that forwards to stderr) when delegating to runWorkOnViaCrew.",
+      "relevantFiles": [
+        "scripts/lib/work-on-via-crew.mjs",
+        "tools/overview-mcp/src/tools/invoke-next.ts"
+      ],
+      "suggestedFix": "Pass { stdout: process.stderr } (or a logger that writes to stderr) when calling runWorkOnViaCrew so the spawn confirmation line never lands on the JSON-RPC stdout channel."
+    },
+    {
+      "id": "F-000",
+      "severity": "Low",
+      "description": "# truncated 5 findings (sentinel: planReviewContext was capped at 500 tokens)"
+    }
+  ],
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Scaffold MCP package + shared TypeScript context",
+      "description": "As an implementer, I want a working tools/overview-mcp/ package with all build infrastructure so subsequent stories can implement tools.",
+      "acceptanceCriteria": [
+        "tools/overview-mcp/package.json declares @codexu/overview-mcp (ESM, \"type\": \"module\"), bin overview-mcp-install -> dist/install-server.js, deps @modelcontextprotocol/sdk, zod, chokidar, @babel/parser, dev typescript, vitest, @types/node",
+        "tools/overview-mcp/tsconfig.json sets target ES2022, module NodeNext, moduleResolution NodeNext, outDir dist, declaration false, strict true",
+        "tools/overview-mcp/vitest.config.ts, stub README.md, src/index.ts (skeleton), src/server.ts (empty createServer), src/context.ts (buildContext() resolves repoRoot + config via scripts/lib/resolve-config.mjs) all created",
+        "pnpm-workspace.yaml contains tools/overview-mcp under packages",
+        "Root package.json.workspaces.packages contains tools/overview-mcp; root scripts include overview-mcp:build and overview-mcp:install",
+        "scripts/lib/work-on-via-crew.d.mts exists with runWorkOnViaCrew declared (type-only, mirroring the JS signature)",
+        "pnpm install succeeds; pnpm install --frozen-lockfile succeeds in a clean checkout; pnpm-lock.yaml is updated and committed",
+        "pnpm --filter @codexu/overview-mcp build produces dist/index.js; pnpm --filter @codexu/overview-mcp typecheck passes",
+        "node tools/overview-mcp/dist/index.js starts without crashing and logs 'connected' to stderr; exits cleanly on SIGINT; no stdout output during startup (pipe stdout to a file and assert empty)",
+        "Typecheck passes"
+      ],
+      "priority": 1,
+      "passes": true,
+      "notes": "",
+      "verifiedEvidence": [
+        {
+          "criterion": "tools/overview-mcp/package.json declares package metadata/deps/bin",
+          "command": "jq . tools/overview-mcp/package.json",
+          "result": "Package @codexu/overview-mcp is type module; bin overview-mcp-install points to dist/install-server.js; dependencies include @modelcontextprotocol/sdk, zod, chokidar, @babel/parser; devDependencies include typescript, vitest, @types/node."
+        },
+        {
+          "criterion": "tools/overview-mcp/tsconfig.json sets required compiler options",
+          "command": "jq .compilerOptions tools/overview-mcp/tsconfig.json",
+          "result": "target ES2022, module NodeNext, moduleResolution NodeNext, outDir dist, declaration false, strict true are configured."
+        },
+        {
+          "criterion": "Scaffold README and src skeleton/context files are created",
+          "command": "test -f tools/overview-mcp/README.md && test -f tools/overview-mcp/src/index.ts && test -f tools/overview-mcp/src/server.ts && test -f tools/overview-mcp/src/context.ts",
+          "result": "README.md, src/index.ts, src/server.ts, and src/context.ts exist; context.ts imports loadConfig() from scripts/lib/resolve-config.mjs and builds repoRoot/config context."
+        },
+        {
+          "criterion": "pnpm-workspace.yaml contains tools/overview-mcp",
+          "command": "grep -F \"tools/overview-mcp\" pnpm-workspace.yaml",
+          "result": "Workspace package list includes tools/overview-mcp."
+        },
+        {
+          "criterion": "Root package.json workspaces and scripts include overview-mcp",
+          "command": "jq .scripts[\"overview-mcp:build\"],.scripts[\"overview-mcp:install\"],.workspaces.packages package.json",
+          "result": "Root scripts include overview-mcp:build and overview-mcp:install; workspaces.packages includes tools/overview-mcp."
+        },
+        {
+          "criterion": "scripts/lib/work-on-via-crew.d.mts exists with runWorkOnViaCrew declaration",
+          "command": "grep -F \"runWorkOnViaCrew\" scripts/lib/work-on-via-crew.d.mts",
+          "result": "Type declaration file exists and declares runWorkOnViaCrew(options): Promise<CrewSessionRefResult>."
+        },
+        {
+          "criterion": "pnpm install and pnpm install --frozen-lockfile succeed",
+          "command": "pnpm install; pnpm install --frozen-lockfile",
+          "result": "pnpm install completed in 4m51.9s; frozen install completed in 40.1s with lockfile up to date."
+        },
+        {
+          "criterion": "pnpm-lock.yaml is updated and committed",
+          "command": "git show --stat --oneline HEAD -- pnpm-lock.yaml",
+          "result": "Commit 83d5a16d includes pnpm-lock.yaml with the new @codexu/overview-mcp importer/dependency resolution."
+        },
+        {
+          "criterion": "pnpm --filter @codexu/overview-mcp build produces dist/index.js",
+          "command": "pnpm --filter @codexu/overview-mcp build && find tools/overview-mcp/dist -maxdepth 1 -type f",
+          "result": "Build exit 0; dist contains index.js, server.js, context.js, and install-server.js."
+        },
+        {
+          "criterion": "pnpm --filter @codexu/overview-mcp typecheck passes",
+          "command": "pnpm --filter @codexu/overview-mcp typecheck",
+          "result": "Typecheck exit 0; see .test-output/overview-mcp.typecheck.log."
+        },
+        {
+          "criterion": "node tools/overview-mcp/dist/index.js startup contract",
+          "command": "node tools/overview-mcp/dist/index.js under child-process SIGINT harness",
+          "result": "Fresh harness result: { ok: true, code: null, signal: SIGINT, stdoutBytes: 0, stderrHasConnected: true }. Windows reports parent-sent SIGINT as signal termination; stdout file was empty and stderr contained connected."
+        },
+        {
+          "criterion": "Typecheck passes",
+          "command": "pnpm --filter @codexu/overview-mcp typecheck",
+          "result": "Exit 0; no TypeScript errors."
+        }
+      ],
+      "dependencies": [],
+      "failureClassification": "",
+      "partialProgress": null
+    },
+    {
+      "id": "US-002",
+      "title": "SnapshotReader + ServerContext (lazy load + chokidar invalidation)",
+      "description": "As a tool implementer, I want a SnapshotReader that lazily loads Snapshot and OverviewData from disk and invalidates on file change, so every read-only tool shares one cached parse path.",
+      "acceptanceCriteria": [
+        "SnapshotReader class exposes getSnapshot(), getOverviewData(), start(), close()",
+        "Uses chokidar.watch() on config.outputs.snapshot and config.dataFile; on change events nulls caches; next get*() re-reads",
+        "getSnapshot() returns null when the snapshot file is missing (no throw)",
+        "getOverviewData() reuses loadOverviewData() from scripts/lib/sync-core.mjs",
+        "Tolerates torn reads: on parse failure, schedule one 100 ms retry; if still failing, return cached value or null; log a single stderr warning per failure",
+        "Vitest fixture under a tmp dir: write snapshot -> read -> modify -> read -> assert refreshed; corrupt mid-write -> assert reader recovers",
+        "Typecheck passes",
+        "Tests pass"
+      ],
+      "priority": 2,
+      "passes": true,
+      "notes": "",
+      "verifiedEvidence": [
+        {
+          "criterion": "SnapshotReader class exposes getSnapshot(), getOverviewData(), start(), close()",
+          "command": "grep -n 'class SnapshotReader' tools/overview-mcp/src/snapshot-reader.ts; grep -n 'getSnapshot' tools/overview-mcp/src/snapshot-reader.ts; grep -n 'getOverviewData' tools/overview-mcp/src/snapshot-reader.ts; grep -n 'start():' tools/overview-mcp/src/snapshot-reader.ts; grep -n 'close():' tools/overview-mcp/src/snapshot-reader.ts",
+          "result": "SnapshotReader is defined with start(), close(), getSnapshot(), and getOverviewData() at lines 17, 34, 58, 66, and 82."
+        },
+        {
+          "criterion": "Uses chokidar.watch() on config.outputs.snapshot and config.dataFile; on change events nulls caches; next get*() re-reads",
+          "command": "grep -n 'chokidar.watch' tools/overview-mcp/src/snapshot-reader.ts; grep -n 'on(' tools/overview-mcp/src/snapshot-reader.ts; grep -n 'loaded = false' tools/overview-mcp/src/snapshot-reader.ts",
+          "result": "SnapshotReader watches config.outputs.snapshot and config.dataFile via chokidar.watch(); change/add/unlink handlers invalidate loaded cache flags, and tests confirm subsequent get*() calls refresh changed snapshot and overview-data files."
+        },
+        {
+          "criterion": "getSnapshot() returns null when the snapshot file is missing (no throw)",
+          "command": "pnpm --filter @codexu/overview-mcp test",
+          "result": "Exit 0; Vitest case 'returns null when the snapshot file is missing' passed. Overall: 1 test file passed, 4 tests passed."
+        },
+        {
+          "criterion": "getOverviewData() reuses loadOverviewData() from scripts/lib/sync-core.mjs",
+          "command": "grep -n loadOverviewData tools/overview-mcp/src/snapshot-reader.ts && pnpm --filter @codexu/overview-mcp test",
+          "result": "snapshot-reader.ts imports loadOverviewData from scripts/lib/sync-core.mjs and uses it in getOverviewData(); Vitest case 'reuses loadOverviewData and refreshes overview-data after file changes' passed."
+        },
+        {
+          "criterion": "Tolerates torn reads: on parse failure, schedule one 100 ms retry; if still failing, return cached value or null; log a single stderr warning per failure",
+          "command": "grep -n 'delay(100)' tools/overview-mcp/src/snapshot-reader.ts; grep -n 'process.stderr.write' tools/overview-mcp/src/snapshot-reader.ts; grep -n 'previous' tools/overview-mcp/src/snapshot-reader.ts; pnpm --filter @codexu/overview-mcp test",
+          "result": "readWithRetry waits 100 ms after initial parse failure, retries once, logs one stderr warning, and returns previous cached value or null; Vitest torn-read recovery case passed."
+        },
+        {
+          "criterion": "Vitest fixture under a tmp dir: write snapshot -> read -> modify -> read -> assert refreshed; corrupt mid-write -> assert reader recovers",
+          "command": "pnpm --filter @codexu/overview-mcp test",
+          "result": "Exit 0; snapshot-reader.test.ts uses fs.mkdtemp temp fixtures. Cases for snapshot refresh and corrupt mid-write recovery passed. Overall: 1 test file passed, 4 tests passed."
+        },
+        {
+          "criterion": "Typecheck passes",
+          "command": "pnpm --filter @codexu/overview-mcp typecheck",
+          "result": "Exit 0; tsc --noEmit -p tsconfig.json completed without errors. Full log: .test-output/overview-mcp.typecheck.log."
+        },
+        {
+          "criterion": "Tests pass",
+          "command": "pnpm --filter @codexu/overview-mcp test",
+          "result": "Exit 0; Vitest reported 1 test file passed and 4 tests passed. Full log: .test-output/overview-mcp.test.log."
+        }
+      ],
+      "dependencies": [
+        "US-001"
+      ],
+      "failureClassification": "",
+      "partialProgress": null
+    },
+    {
+      "id": "US-003",
+      "title": "Read-only snapshot tools (list_tasks, get_task, next_command, list_recommendations, list_blockers)",
+      "description": "As an agent, I want the five read-only tools so I can introspect the pipeline without parsing files.",
+      "acceptanceCriteria": [
+        "All five tools registered in src/server.ts with zod input schemas in src/schemas.ts",
+        "list_tasks filters supported: stage, scope, workstream (lookup via OverviewData.workstream), hasDeferredQuestions, hasOpenFindings; hasOpenFindings predicate uses Object.values(reviewOpenCount ?? {}).some((n) => (n ?? 0) > 0) (per F-002); title falls back to command?.descriptionHtml (plaintext) or command?.name",
+        "get_task validates taskId via the exported assertSafeTaskId (re-exported from scripts/lib/append-journal.mjs) before any filesystem read (per F-003), OR resolves taskId only against the snapshot's known task set and returns { ok: false, error: 'unknown task' } for unknown ids",
+        "get_task returns merged SnapshotTask + recentJournal: string[] (last 3 lines of tasks/<taskId>/journal.md)",
+        "next_command calls deriveNextCommand() from scripts/lib/derive-next-command.mjs directly; result matches node scripts/lib/derive-next-command-cli.mjs <taskId>",
+        "list_recommendations reads snapshot.recommendations; falls back to plans/overview-recommendations.json; both missing -> { ok: false, error: 'no recommendations available' }; supports limit and stageFilter",
+        "list_blockers returns tasks where stage === 'blocked' OR Object.values(reviewOpenCount ?? {}).some((n) => (n ?? 0) > 0) OR (deferredQuestionsCount ?? 0) > 0",
+        "One vitest test per tool covering happy path + at least one error case (missing snapshot, unknown task)",
+        "Typecheck passes",
+        "Tests pass"
+      ],
+      "priority": 3,
+      "passes": true,
+      "notes": "",
+      "verifiedEvidence": [
+        {
+          "criterion": "All five tools registered in src/server.ts with zod input schemas in src/schemas.ts",
+          "command": "grep -nE 'registerTool|overview[.]list_tasks|overview[.]get_task|overview[.]next_command|overview[.]list_recommendations|overview[.]list_blockers' tools/overview-mcp/src/server.ts; grep -nE 'export const .*InputSchema|ralphStageSchema' tools/overview-mcp/src/schemas.ts",
+          "result": "server.ts registers overview.list_tasks, overview.get_task, overview.next_command, overview.list_recommendations, and overview.list_blockers at lines 28-65. schemas.ts defines ralphStageSchema and all five exported input schemas at lines 3-41."
+        },
+        {
+          "criterion": "list_tasks filters supported: stage, scope, workstream, hasDeferredQuestions, hasOpenFindings; F-002 predicate; title fallback",
+          "command": "grep -nE 'workstream|hasDeferredQuestions|hasOpenReviewFindings|descriptionHtml|command[?][.]name|Object[.]values' tools/overview-mcp/src/tools/read-only.ts; pnpm --filter @codexu/overview-mcp test",
+          "result": "read-only.ts implements workstream lookup through OverviewData.workstream, deferred-question and open-finding filters, Object.values(ralph?.reviewOpenCount ?? {}).some((n) => (n ?? 0) > 0), and title fallback from command?.descriptionHtml plaintext to command?.name. Vitest 'overview.list_tasks' passed, including combined filters and plaintext title fallback."
+        },
+        {
+          "criterion": "get_task validates/resolves taskId before filesystem read and returns unknown task for unknown ids",
+          "command": "grep -nE 'findTask|readRecentJournal' tools/overview-mcp/src/tools/read-only.ts; pnpm --filter @codexu/overview-mcp test",
+          "result": "getTask calls findTask before readRecentJournal; unknown '../TASK-1' returns { ok: false, error: 'unknown task' } in Vitest before any journal path is read."
+        },
+        {
+          "criterion": "get_task returns merged SnapshotTask + recentJournal last 3 lines",
+          "command": "pnpm --filter @codexu/overview-mcp test",
+          "result": "Vitest 'overview.get_task' passed: a journal with four lines returned recentJournal ['- two', '- three', '- four'] merged with the TASK-1 snapshot task."
+        },
+        {
+          "criterion": "next_command calls deriveNextCommand() directly; result matches derive-next-command-cli",
+          "command": "grep -n 'deriveNextCommand' tools/overview-mcp/src/tools/read-only.ts; pnpm --filter @codexu/overview-mcp test",
+          "result": "read-only.ts imports and calls deriveNextCommand directly. Vitest 'overview.next_command' passed by comparing handler output to node scripts/lib/derive-next-command-cli.mjs --task TASK-1 --snapshot <fixture>."
+        },
+        {
+          "criterion": "list_recommendations reads snapshot.recommendations; falls back to plans/overview-recommendations.json; missing both errors; supports limit and stageFilter",
+          "command": "grep -nE 'readRecommendationFallback|recommendations|stageFilter|limit' tools/overview-mcp/src/tools/read-only.ts; pnpm --filter @codexu/overview-mcp test",
+          "result": "listRecommendations prefers snapshot.recommendations, falls back through readRecommendationFallback(config.outputs.recommendationsJson), returns { ok: false, error: 'no recommendations available' } when both are missing, and applies stageFilter plus limit. Vitest covered all of these paths."
+        },
+        {
+          "criterion": "list_blockers returns tasks blocked by stage/open findings/deferred questions",
+          "command": "grep -nE 'isBlocker|hasOpenReviewFindings|deferredQuestionsCount' tools/overview-mcp/src/tools/read-only.ts; pnpm --filter @codexu/overview-mcp test",
+          "result": "isBlocker returns true for ralph.stage === 'blocked', open review findings via Object.values(...).some((n) => (n ?? 0) > 0), or deferredQuestionsCount > 0. Vitest returned TASK-1, TASK-2, and TASK-3 for those three blocker causes."
+        },
+        {
+          "criterion": "One vitest test per tool covering happy path + at least one error case",
+          "command": "pnpm --filter @codexu/overview-mcp test",
+          "result": "Exit 0; Vitest reported 2 test files passed and 11 tests passed. read-only-tools.test.ts has one describe block per tool; missing snapshot and unknown task error paths are covered. Full log: .test-output/overview-mcp.test.log."
+        },
+        {
+          "criterion": "Typecheck passes",
+          "command": "pnpm --filter @codexu/overview-mcp typecheck",
+          "result": "Exit 0; tsc --noEmit -p tsconfig.json completed without errors in 6s. Full log: .test-output/overview-mcp.typecheck.log."
+        },
+        {
+          "criterion": "Tests pass",
+          "command": "pnpm --filter @codexu/overview-mcp test",
+          "result": "Exit 0; Vitest reported 2 test files passed and 11 tests passed in 2.35s. Full log: .test-output/overview-mcp.test.log."
+        }
+      ],
+      "dependencies": [
+        "US-001",
+        "US-002"
+      ],
+      "failureClassification": "",
+      "partialProgress": null
+    },
+    {
+      "id": "US-004",
+      "title": "add_journal_entry tool + appendJournalNote() helper",
+      "description": "As an agent, I want to append a free-form note to a task's journal so I can record context without going through the bookkeeper.",
+      "acceptanceCriteria": [
+        "scripts/lib/append-journal.mjs adds appendJournalNote({ repoRoot, taskId, ts, note }); format: '- <ts>  note: <note>\\n' with '\\n  ' continuation for multi-line notes; also exports assertSafeTaskId (currently file-local) so other modules can reuse it (per F-003)",
+        "scripts/lib/append-journal.d.mts declares appendJournalEntry, appendJournalNote, formatJournalLine, assertSafeTaskId",
+        "scripts/lib/append-journal.test.mjs extends with: single-line note, multi-line note, special-character note; pre-existing appendJournalEntry / formatJournalLine stage-transition test cases all pass unchanged (per F-013)",
+        "MCP overview.add_journal_entry tool wraps appendJournalNote(); ts defaults to new Date().toISOString(); validates taskId via assertSafeTaskId",
+        "Tests verify (per F-009): (a) append is atomic (uses fsync), (b) tasks/<taskId>/ is created idempotently via fs.mkdirSync({ recursive: true }) - calling appendJournalNote twice in a row succeeds with both lines appended, (c) existing stage-transition tests still pass; append semantics are NOT deduplicating - repeated identical calls append duplicate lines by design",
+        "Typecheck passes",
+        "Tests pass for scripts/lib/ and tools/overview-mcp/"
+      ],
+      "priority": 4,
+      "passes": true,
+      "notes": "",
+      "verifiedEvidence": [
+        {
+          "criterion": "appendJournalNote helper and exported assertSafeTaskId",
+          "command": "grep -nE \"appendJournalNote|assertSafeTaskId|formatContinuation\" scripts/lib/append-journal.mjs",
+          "result": "appendJournalNote is exported at scripts/lib/append-journal.mjs:17; assertSafeTaskId is exported at line 51; multi-line note continuation is formatted by formatContinuation at line 61. The helper writes note journal lines and indents continuation lines with two spaces."
+        },
+        {
+          "criterion": "append-journal.d.mts declares appendJournalEntry, appendJournalNote, formatJournalLine, assertSafeTaskId",
+          "command": "grep -nE \"appendJournalEntry|appendJournalNote|formatJournalLine|assertSafeTaskId\" scripts/lib/append-journal.d.mts",
+          "result": "Declaration file exposes appendJournalEntry, appendJournalNote, formatJournalLine, and assertSafeTaskId."
+        },
+        {
+          "criterion": "append-journal tests cover single-line, multi-line, special-character notes, and unchanged stage transitions",
+          "command": "pnpm vitest run scripts/lib/append-journal.test.mjs",
+          "result": "Exit 0; scripts/lib/append-journal.test.mjs reported 1 test file passed and 10 tests passed, including existing stage-transition format/append cases plus new note cases."
+        },
+        {
+          "criterion": "MCP overview.add_journal_entry wraps appendJournalNote; ts defaults; taskId validates via assertSafeTaskId",
+          "command": "grep -nE \"overview.add_journal_entry|addJournalEntryInputSchema|assertSafeTaskId|new Date\\(\\).toISOString\" tools/overview-mcp/src/server.ts tools/overview-mcp/src/schemas.ts tools/overview-mcp/src/tools/add-journal-entry.ts && pnpm --filter @codexu/overview-mcp test",
+          "result": "overview.add_journal_entry is registered in server.ts; schema accepts taskId, note, optional ts; handler calls assertSafeTaskId before appendJournalNote and defaults ts to new Date().toISOString(). Vitest exit 0 with 2 files and 13 tests passed, including explicit timestamp, default timestamp, and unsafe taskId rejection."
+        },
+        {
+          "criterion": "Tests verify fsync atomic append, recursive mkdir idempotency, existing stage tests, and duplicate note appends",
+          "command": "grep -nE \"fsyncSync|mkdirSync|appendJournalNote\\(entry\\)|appends a journal line\" scripts/lib/append-journal.mjs scripts/lib/append-journal.test.mjs && pnpm vitest run scripts/lib/append-journal.test.mjs",
+          "result": "appendLine uses fs.mkdirSync({ recursive: true }) and fs.fsyncSync; tests spy on fsyncSync, call appendJournalNote twice for the same task directory, assert duplicate identical note lines are appended, and existing appendJournalEntry stage-transition tests pass."
+        },
+        {
+          "criterion": "Typecheck passes",
+          "command": "pnpm --filter @codexu/overview-mcp typecheck",
+          "result": "Exit 0; tsc --noEmit -p tsconfig.json completed without errors. Full log: .test-output/overview-mcp.typecheck.log."
+        },
+        {
+          "criterion": "Tests pass for scripts/lib/ and tools/overview-mcp/",
+          "command": "pnpm vitest run scripts/lib; pnpm --filter @codexu/overview-mcp test",
+          "result": "scripts/lib exit 0 with 21 test files passed and 155 tests passed; overview-mcp exit 0 with 2 test files passed and 13 tests passed. Logs: .test-output/scripts-lib.test.log and .test-output/overview-mcp.test.log."
+        }
+      ],
+      "dependencies": [
+        "US-001"
+      ],
+      "failureClassification": "",
+      "partialProgress": null
+    },
+    {
+      "id": "US-005",
+      "title": "set_override (structured edit of overview-data.js)",
+      "description": "As an agent, I want to set ralphOverrides[slug] = taskId in plans/overview-data.js without touching any other field.",
+      "acceptanceCriteria": [
+        "src/utils/set-override-edit.ts exposes editOverrides({ source, slug, taskId }): { source: string } - pure function (no I/O)",
+        "Uses @babel/parser only to LOCATE AST ranges; splices the original source string; does NOT call @babel/generator",
+        "Handles both cases: ralphOverrides already present (replace value) or absent (insert immediately after tasks: property)",
+        "Tool wrapper reads config.dataFile, calls editOverrides, validates the result parses, writes via atomicWriteFile() from scripts/lib/atomic-write.mjs",
+        "Returns { ok: false, error } on parse failure or absent window.OVERVIEW_DATA assignment - does NOT overwrite",
+        "Fixture lives at tools/overview-mcp/src/__tests__/fixtures/overview-data.sample.js - a trimmed but representative window.OVERVIEW_DATA with ~5 tasks and the full top-level key set (generatedAt, generatedFromCommit, tasks, phaseTree, cadence, effort, lastTouched, periodic, risk, runs, sizeBucket, spawnedFrom, workstream) (per F-014)",
+        "Byte-range confinement test: capture the original source; run editOverrides(); compare every byte outside the replaced/inserted [start, end] range via Buffer.compare(originalSlice, newSlice) === 0; run all four scenarios: (a) ralphOverrides absent -> insert, (b) present, different value -> replace, (c) present, same value -> no-op (result.source === input), (d) malformed source -> { ok: false, error } returned and no write performed",
+        "Typecheck passes",
+        "Tests pass"
+      ],
+      "priority": 5,
+      "passes": true,
+      "notes": "",
+      "verifiedEvidence": [
+        {
+          "criterion": "src/utils/set-override-edit.ts exposes editOverrides({ source, slug, taskId }) as a pure function",
+          "command": "grep -nE 'export function editOverrides|type EditOverridesResult|spliceSource|parse' tools/overview-mcp/src/utils/set-override-edit.ts",
+          "result": "editOverrides is exported at line 13, returns a source-bearing result type, uses @babel/parser on the input string, and only splices the provided source string; it performs no filesystem I/O."
+        },
+        {
+          "criterion": "Uses @babel/parser only to locate AST ranges; splices original source; does not call @babel/generator",
+          "command": "grep -nE '@babel/parser|@babel/generator|spliceSource' tools/overview-mcp/src/utils/set-override-edit.ts",
+          "result": "set-override-edit.ts imports @babel/parser at line 1 and uses spliceSource at lines 41, 58, 71, and 161. No @babel/generator reference was present in tools/overview-mcp/src."
+        },
+        {
+          "criterion": "Handles ralphOverrides present/absent cases and no-op same value",
+          "command": "grep -nE 'tasksProperty|ralphOverrides|findPropertyInsertionOffset|existingProperty|StringLiteral' tools/overview-mcp/src/utils/set-override-edit.ts; pnpm --filter @codexu/overview-mcp test",
+          "result": "Absent ralphOverrides inserts immediately after tasks; existing slug replaces only the StringLiteral value; same StringLiteral taskId returns the original source. Vitest passed these cases, including adding a new slug to an existing empty ralphOverrides object."
+        },
+        {
+          "criterion": "Tool wrapper reads config.dataFile, calls editOverrides, validates parse, writes via atomicWriteFile()",
+          "command": "grep -nE 'readFile|editOverrides|parseOverviewDataAssignment|atomicWriteFile' tools/overview-mcp/src/tools/set-override.ts; pnpm --filter @codexu/overview-mcp test",
+          "result": "setOverride reads context.config.dataFile at line 19, calls editOverrides at line 24, validates with parseOverviewDataAssignment at line 29, and writes through atomicWriteFile at line 35. Vitest verified the written file remains parseable via loadOverviewData()."
+        },
+        {
+          "criterion": "Returns { ok: false, error } on parse failure or absent window.OVERVIEW_DATA assignment and does not overwrite",
+          "command": "grep -nE 'ok: false|window.OVERVIEW_DATA assignment not found|does not overwrite' tools/overview-mcp/src/tools/set-override.ts tools/overview-mcp/src/utils/set-override-edit.ts tools/overview-mcp/src/__tests__/set-override.test.ts; pnpm --filter @codexu/overview-mcp test",
+          "result": "editOverrides returns ok:false for parse failures and absent assignments; setOverride propagates ok:false errors. Vitest case 'returns an error and does not overwrite when the overview assignment is absent' passed and asserted the file content stayed unchanged."
+        },
+        {
+          "criterion": "Representative overview-data fixture exists with required top-level keys",
+          "command": "grep -nE 'generatedAt|generatedFromCommit|tasks:|phaseTree|cadence|effort|lastTouched|periodic|risk|runs|sizeBucket|spawnedFrom|workstream' tools/overview-mcp/src/__tests__/fixtures/overview-data.sample.js",
+          "result": "Fixture tools/overview-mcp/src/__tests__/fixtures/overview-data.sample.js contains five tasks and the required top-level keys: generatedAt, generatedFromCommit, tasks, phaseTree, cadence, effort, lastTouched, periodic, risk, runs, sizeBucket, spawnedFrom, and workstream."
+        },
+        {
+          "criterion": "Byte-range confinement test covers absent, present different value, same value no-op, and malformed source",
+          "command": "grep -nE 'inserts ralphOverrides|replaces an existing|same value|malformed source|does not overwrite|Buffer.compare' tools/overview-mcp/src/__tests__/set-override.test.ts; pnpm --filter @codexu/overview-mcp test",
+          "result": "set-override.test.ts covers insert, replacement, no-op, malformed source, and no-overwrite wrapper behavior. assertOutsideRangeUnchanged uses Buffer.compare on bytes before and after the spliced range; Vitest reported 3 files passed and 21 tests passed."
+        },
+        {
+          "criterion": "Typecheck passes",
+          "command": "pnpm --filter @codexu/overview-mcp typecheck",
+          "result": "Exit 0; tsc --noEmit -p tsconfig.json completed without errors. Full log: .test-output/overview-mcp.typecheck.log."
+        },
+        {
+          "criterion": "Tests pass",
+          "command": "pnpm --filter @codexu/overview-mcp test",
+          "result": "Exit 0; Vitest reported 3 test files passed and 21 tests passed. Full log: .test-output/overview-mcp.test.log."
+        }
+      ],
+      "dependencies": [
+        "US-001",
+        "US-002"
+      ],
+      "failureClassification": "",
+      "partialProgress": null
+    },
+    {
+      "id": "US-006",
+      "title": "list_crew_sessions (live re-read with 500 ms cache + LiveCrewSession shape)",
+      "description": "As an agent, I want to see live crew sessions per task (not the snapshot's cached view) so I can react to active members.",
+      "acceptanceCriteria": [
+        "Tool reuses discoverCrewSessions() from scripts/lib/crews-cross-walk.mjs with fresh inputs (Ralph state + OverviewData + config.crewsRoot)",
+        "Caches the discovery result for 500 ms (single call serves all reads within the window)",
+        "Defines a local LiveCrewSession type (in tools/overview-mcp/src/tools/list-crew-sessions.ts) extending CrewSessionRef with lastHeartbeatAt?, lastSummary?, lastTurnAt?, listenerState?, actorState? populated by re-reading each match's .crews/crews/<crew>/{members,leads}/<name>/manifest.json (per F-006); CrewSessionRef in the shared types remains unchanged",
+        "Returns Array<LiveCrewSession & { taskId: string; stage: RalphStage; role: 'member' | 'lead' }> (per F-011)",
+        "taskId filter (when provided) does an exact match on the flattened Map result - does NOT import the private matchTaskId() heuristic (per F-008)",
+        "Live-read regression test: write a manifest with lastHeartbeatAt = T1, call the tool (returns T1), advance fake time 600 ms (past cache window), update manifest to T2, call again (returns T2)",
+        "Typecheck passes",
+        "Tests pass"
+      ],
+      "priority": 6,
+      "passes": true,
+      "notes": "",
+      "verifiedEvidence": [
+        {
+          "criterion": "Tool registered with zod input schema",
+          "command": "grep -nE \"overview.list_crew_sessions|listCrewSessionsInputSchema|listCrewSessions\" tools/overview-mcp/src/server.ts tools/overview-mcp/src/schemas.ts",
+          "result": "server.ts registers overview.list_crew_sessions at line 88 using listCrewSessionsInputSchema, and schemas.ts defines listCrewSessionsInputSchema/listCrewSessionsSchema/ListCrewSessionsInput at lines 43, 63, and 72."
+        },
+        {
+          "criterion": "Tool reuses discoverCrewSessions() with fresh Ralph state, OverviewData, and config.crewsRoot",
+          "command": "grep -nE \"discoverCrewSessions|readRalphState|getOverviewData|crewsRoot\" tools/overview-mcp/src/tools/list-crew-sessions.ts && pnpm --filter @codexu/overview-mcp test",
+          "result": "list-crew-sessions.ts reads OverviewData via snapshotReader.getOverviewData(), reads config.outputs.sidecarJson via readRalphState(), and calls discoverCrewSessions({ repoRoot, ralphState, overviewData, crewsRoot: context.config.crewsRoot }). Vitest passed 4 files and 24 tests."
+        },
+        {
+          "criterion": "Caches discovery for 500 ms",
+          "command": "grep -nE \"CACHE_MS|WeakMap|expiresAt|500 ms cache\" tools/overview-mcp/src/tools/list-crew-sessions.ts tools/overview-mcp/src/__tests__/list-crew-sessions.test.ts",
+          "result": "CACHE_MS is 500; discoveryCache is a WeakMap keyed by ServerContext; cached entries are returned while expiresAt > Date.now(). The regression test confirms a 400 ms call returns T1 and a 600 ms call re-reads T2."
+        },
+        {
+          "criterion": "Local LiveCrewSession type extends CrewSessionRef and live manifest fields are re-read; shared CrewSessionRef remains unchanged",
+          "command": "grep -nE \"interface LiveCrewSession extends CrewSessionRef|lastHeartbeatAt|lastSummary|lastTurnAt|listenerState|actorState|readLiveManifest|readManifest\" tools/overview-mcp/src/tools/list-crew-sessions.ts; git diff -- scripts/lib/crews-cross-walk.d.mts scripts/lib/crews-cross-walk.mjs",
+          "result": "LiveCrewSession is local to tools/overview-mcp/src/tools/list-crew-sessions.ts and extends CrewSessionRef with lastHeartbeatAt, lastSummary, lastTurnAt, listenerState, and actorState populated from readLiveManifest()/readManifest(). git diff for scripts/lib/crews-cross-walk.d.mts and .mjs is empty, so the shared CrewSessionRef contract was not changed."
+        },
+        {
+          "criterion": "Returns Array<LiveCrewSession & { taskId: string; stage: RalphStage; role: member|lead }>",
+          "command": "grep -nE \"LiveCrewSessionResult|taskId: string|stage: RalphStage|role:|role: liveManifest.role\" tools/overview-mcp/src/tools/list-crew-sessions.ts",
+          "result": "LiveCrewSessionResult is defined as LiveCrewSession plus taskId, stage, and role: member | lead; flattenDiscoveredSessions pushes entries with taskId, stage, and liveManifest.role."
+        },
+        {
+          "criterion": "taskId filter is exact on flattened results and does not import private matchTaskId heuristic",
+          "command": "grep -n \"session.taskId === input.taskId\" tools/overview-mcp/src/tools/list-crew-sessions.ts; ! grep -n \"matchTaskId\" tools/overview-mcp/src/tools/list-crew-sessions.ts; pnpm --filter @codexu/overview-mcp test",
+          "result": "Filter predicate is session.taskId === input.taskId, and matchTaskId is absent from list-crew-sessions.ts. Vitest verifies filtering TASK-1 does not return TASK-12."
+        },
+        {
+          "criterion": "Live-read regression test covers T1 -> cache -> T2 after 600 ms",
+          "command": "grep -nE \"500 ms cache|2026-05-20T10:00:00.400Z|2026-05-20T10:00:00.600Z|2026-05-20T10:00:01.000Z\" tools/overview-mcp/src/__tests__/list-crew-sessions.test.ts; pnpm --filter @codexu/overview-mcp test",
+          "result": "The regression test writes T1, observes T1, rewrites the manifest to T2, observes cached T1 at +400 ms, then observes live T2 at +600 ms. Vitest passed 4 files and 24 tests."
+        },
+        {
+          "criterion": "Typecheck passes",
+          "command": "pnpm --filter @codexu/overview-mcp typecheck",
+          "result": "Exit 0; tsc --noEmit -p tsconfig.json completed without errors. Full log: .test-output/overview-mcp.typecheck.log."
+        },
+        {
+          "criterion": "Tests pass",
+          "command": "pnpm --filter @codexu/overview-mcp test",
+          "result": "Exit 0; Vitest reported 4 test files passed and 24 tests passed. Full log: .test-output/overview-mcp.test.log."
+        }
+      ],
+      "dependencies": [
+        "US-001",
+        "US-002"
+      ],
+      "failureClassification": "",
+      "partialProgress": null
+    },
+    {
+      "id": "US-007",
+      "title": "get_transcript (JSONL reverse-tail with torn-line tolerance)",
+      "description": "As an agent, I want to read the tail of a session transcript by sessionId so I can review what another agent did.",
+      "acceptanceCriteria": [
+        "src/utils/transcript-tail.ts exposes tailTranscript({ transcriptPath, lastN, includeToolEvents }): Array<TranscriptTurn>",
+        "Reads file backward in 64 KB chunks; stops when N complete lines collected or file exhausted; caps at 100 lastN",
+        "Tolerates a malformed final line (torn write) - skip without warning; malformed interior lines log a single stderr warning per line",
+        "Filters tool_use / tool_result entries by default; includeToolEvents: true retains them",
+        "Tool resolves sessionId -> transcriptPath via cached discoverCrewSessions() result (or scans .crews/.../manifest.json directly); returns { ok: false, error: 'session not found' } for unknown sessionId",
+        "Test fixture: JSONL with 50 mixed entries; assert last 20 user/assistant turns by default; assert full set with includeToolEvents: true; assert torn-line tolerance",
+        "Typecheck passes",
+        "Tests pass"
+      ],
+      "priority": 7,
+      "passes": true,
+      "notes": "",
+      "verifiedEvidence": [
+        {
+          "criterion": "src/utils/transcript-tail.ts exposes tailTranscript({ transcriptPath, lastN, includeToolEvents }): Array<TranscriptTurn>",
+          "command": "grep -nE 'export function tailTranscript|TranscriptTurn|TailTranscriptOptions' tools/overview-mcp/src/utils/transcript-tail.ts",
+          "result": "tailTranscript is exported from tools/overview-mcp/src/utils/transcript-tail.ts with TailTranscriptOptions containing transcriptPath, lastN, and includeToolEvents; it returns TranscriptTurn[]."
+        },
+        {
+          "criterion": "Reads file backward in 64 KB chunks; stops when N complete lines collected or file exhausted; caps at 100 lastN",
+          "command": "grep -nE 'CHUNK_SIZE|MAX_LAST_N|result.length < limit|fs.readSync' tools/overview-mcp/src/utils/transcript-tail.ts",
+          "result": "CHUNK_SIZE is 64 * 1024, MAX_LAST_N is 100, the reverse scan uses fs.readSync while position > 0 && result.length < limit, and the test covers a lastN=200 call capped against a 50-line fixture."
+        },
+        {
+          "criterion": "Tolerates a malformed final line (torn write) - skip without warning; malformed interior lines log a single stderr warning per line",
+          "command": "pnpm --filter @codexu/overview-mcp test",
+          "result": "Exit 0; Vitest case 'skips malformed final torn lines without warning and warns once for malformed interior lines' passed, asserting two valid turns returned and exactly one stderr warning for the malformed interior line."
+        },
+        {
+          "criterion": "Filters tool_use / tool_result entries by default; includeToolEvents: true retains them",
+          "command": "pnpm --filter @codexu/overview-mcp test",
+          "result": "Exit 0; tailTranscript tests passed: default output contained only user/assistant entries, while includeToolEvents:true returned all 50 JSONL entries including tool_use and tool_result."
+        },
+        {
+          "criterion": "Tool resolves sessionId -> transcriptPath via cached discoverCrewSessions() result (or scans .crews/.../manifest.json directly); returns { ok: false, error: 'session not found' } for unknown sessionId",
+          "command": "grep -nE 'listCrewSessions|sessionId|session not found|resolveTranscriptPath' tools/overview-mcp/src/tools/get-transcript.ts && pnpm --filter @codexu/overview-mcp test",
+          "result": "getTranscript calls listCrewSessions(context, {}) to reuse the cached live crew discovery, matches candidate.sessionId to the input, resolves transcriptPath, and returns { ok: false, error: 'session not found' } when no session matches; Vitest covered both paths."
+        },
+        {
+          "criterion": "Test fixture: JSONL with 50 mixed entries; assert last 20 user/assistant turns by default; assert full set with includeToolEvents: true; assert torn-line tolerance",
+          "command": "grep -nE 'mixedTranscriptEntries|last 20|includeToolEvents|torn' tools/overview-mcp/src/__tests__/get-transcript.test.ts && pnpm --filter @codexu/overview-mcp test",
+          "result": "get-transcript.test.ts writes 50 mixed JSONL entries, asserts the default call equals the last 20 filtered user/assistant turns, asserts includeToolEvents:true returns 50 entries with tool events, and asserts torn-line tolerance; overview-mcp tests passed with 5 files and 29 tests."
+        },
+        {
+          "criterion": "Typecheck passes",
+          "command": "pnpm --filter @codexu/overview-mcp typecheck",
+          "result": "Exit 0; tsc --noEmit -p tsconfig.json completed without errors. Full log: .test-output/overview-mcp.typecheck.log."
+        },
+        {
+          "criterion": "Tests pass",
+          "command": "pnpm --filter @codexu/overview-mcp test",
+          "result": "Exit 0; Vitest reported 5 test files passed and 29 tests passed. Full log: .test-output/overview-mcp.test.log."
+        }
+      ],
+      "dependencies": [
+        "US-001",
+        "US-002",
+        "US-006"
+      ],
+      "failureClassification": "",
+      "partialProgress": null
+    },
+    {
+      "id": "US-008",
+      "title": "invoke_next (default + viaCrewMember)",
+      "description": "As an agent, I want one tool that either tells me the next command to run, or spawns a crew member to run it.",
+      "acceptanceCriteria": [
+        "Default mode (no viaCrewMember): calls deriveNextCommand(), returns { ok: true, command: <NextCommand>, invocationGuidance: 'Use the Skill tool to invoke this - for example: Skill(\"ralph-orchestration:run-ralph\", args=\"...\")' }",
+        "Null command case (per F-010): when deriveNextCommand() returns null (shipped task, non-actionable), the tool returns { ok: true, command: null, invocationGuidance: 'no next command - task is complete or has no actionable next step' }",
+        "viaCrewMember mode: delegates to runWorkOnViaCrew({ repoRoot, config, taskId, stage, crewName, memberName?, stdout: process.stderr }) (per F-001 - stdout: process.stderr MUST be passed to prevent the helper's confirmation line from corrupting the MCP JSON-RPC channel); returns { ok: true, sessionRef }",
+        "Dynamic import for Plan-08 fallback (per F-007): the handler uses const mod = await import('../../scripts/lib/work-on-via-crew.mjs').catch(() => null); if null, returns { ok: false, error: 'requires plan 08' }; NO top-level static import of work-on-via-crew.mjs",
+        "Tests with mocks for runWorkOnViaCrew() assert: (a) default mode happy path, (b) null command case, (c) viaCrewMember happy path with stdout arg validated, (d) Plan-08-missing fallback (mock the dynamic import to fail)",
+        "Typecheck passes",
+        "Tests pass"
+      ],
+      "priority": 8,
+      "passes": true,
+      "notes": "",
+      "verifiedEvidence": [
+        {
+          "criterion": "Default mode calls deriveNextCommand() and returns top-level command plus invocationGuidance",
+          "command": "grep -nE \"INVOCATION_GUIDANCE|deriveNextCommand|command ?|overview.invoke_next\" tools/overview-mcp/src/tools/invoke-next.ts tools/overview-mcp/src/server.ts; pnpm --filter @codexu/overview-mcp test",
+          "result": "invoke-next.ts imports and calls deriveNextCommand(), returns { ok: true, command, invocationGuidance } with the exact Skill guidance string, and server.ts registers overview.invoke_next. Vitest passed 5 files and 33 tests, including the default-mode happy path."
+        },
+        {
+          "criterion": "Null command case returns no-next-command guidance",
+          "command": "grep -nE \"NO_NEXT_COMMAND_GUIDANCE|command: null|no next command\" tools/overview-mcp/src/tools/invoke-next.ts tools/overview-mcp/src/__tests__/read-only-tools.test.ts; pnpm --filter @codexu/overview-mcp test",
+          "result": "NO_NEXT_COMMAND_GUIDANCE is \"no next command - task is complete or has no actionable next step\"; Vitest shipped-task case returned { ok: true, command: null, invocationGuidance: ... }."
+        },
+        {
+          "criterion": "viaCrewMember delegates to runWorkOnViaCrew with stdout: process.stderr and returns sessionRef",
+          "command": "grep -nE \"runWorkOnViaCrew|stdout: process.stderr|sessionRef\" tools/overview-mcp/src/tools/invoke-next.ts tools/overview-mcp/src/__tests__/read-only-tools.test.ts; pnpm --filter @codexu/overview-mcp test",
+          "result": "viaCrewMember path calls mod.runWorkOnViaCrew({ repoRoot, config, taskId, stage, crewName, memberName, stdout: process.stderr }) and returns { ok: true, sessionRef }. Vitest validated the exact call args and sessionRef result."
+        },
+        {
+          "criterion": "Dynamic import fallback for Plan 08 and no top-level static import of work-on-via-crew.mjs",
+          "command": "grep -n \"import('../../../../scripts/lib/work-on-via-crew.mjs').catch(() => null)\" tools/overview-mcp/src/tools/invoke-next.ts; ! grep -RIn \"^import .*work-on-via-crew.mjs\" tools/overview-mcp/src && echo \"no top-level static import of work-on-via-crew.mjs\"; pnpm --filter @codexu/overview-mcp test",
+          "result": "loadWorkOnViaCrewModule dynamically imports ../../../../scripts/lib/work-on-via-crew.mjs and returns null on failure; grep confirmed no top-level static import. Vitest Plan-08-missing test returned { ok: false, error: \"requires plan 08\" }."
+        },
+        {
+          "criterion": "Tests with mocks cover default, null command, viaCrewMember stdout, and Plan-08-missing fallback",
+          "command": "grep -nE \"default invocation guidance|null command|delegates viaCrewMember|requires plan 08\" tools/overview-mcp/src/__tests__/read-only-tools.test.ts; pnpm --filter @codexu/overview-mcp test",
+          "result": "read-only-tools.test.ts contains US-008 cases for default guidance, no-next-command, mocked viaCrewMember stdout redirection, and dynamic-import fallback. Test run exit 0: 5 test files passed, 33 tests passed."
+        },
+        {
+          "criterion": "Typecheck passes",
+          "command": "pnpm --filter @codexu/overview-mcp typecheck",
+          "result": "Exit 0; tsc --noEmit -p tsconfig.json completed without errors. Full log: .test-output/overview-mcp.typecheck.log."
+        },
+        {
+          "criterion": "Tests pass",
+          "command": "pnpm --filter @codexu/overview-mcp test",
+          "result": "Exit 0; Vitest reported 5 test files passed and 33 tests passed. Full log: .test-output/overview-mcp.test.log."
+        }
+      ],
+      "dependencies": [
+        "US-001",
+        "US-002",
+        "US-003"
+      ],
+      "failureClassification": "",
+      "partialProgress": null
+    },
+    {
+      "id": "US-009",
+      "title": "install-server.ts (.claude/settings.local.json patcher)",
+      "description": "As an operator, I want a one-command install that registers the MCP server in my machine-local settings.",
+      "acceptanceCriteria": [
+        "CLI binary overview-mcp-install declared as package.json.bin -> dist/install-server.js",
+        "Reads <repoRoot>/.claude/settings.local.json (creates {} if absent)",
+        "Merges under mcpServers.codexu-overview: { command: 'node', args: ['<absolute-forward-slash-path-to-dist/index.js>'] }",
+        "Writes atomically via atomicWriteFile() from scripts/lib/atomic-write.mjs",
+        "--print-only flag emits the JSON to stdout without writing",
+        "Errors clearly if dist/index.js is absent (asks user to run pnpm overview-mcp:build first)",
+        "Test uses a temp dir as repoRoot; asserts file content after install; verifies idempotency (running twice produces the same file)",
+        "Typecheck passes",
+        "Tests pass"
+      ],
+      "priority": 9,
+      "passes": true,
+      "notes": "",
+      "verifiedEvidence": [
+        {
+          "criterion": "CLI binary overview-mcp-install declared as package.json.bin -> dist/install-server.js",
+          "command": "jq -r '.bin[\"overview-mcp-install\"]' tools/overview-mcp/package.json && test -f tools/overview-mcp/dist/install-server.js && head -1 tools/overview-mcp/dist/install-server.js",
+          "result": "package.json maps overview-mcp-install to dist/install-server.js; after pnpm --filter @codexu/overview-mcp build, dist/install-server.js exists and starts with #!/usr/bin/env node."
+        },
+        {
+          "criterion": "Reads <repoRoot>/.claude/settings.local.json (creates {} if absent)",
+          "command": "pnpm --filter @codexu/overview-mcp test",
+          "result": "Exit 0; Vitest reported 6 test files passed and 37 tests passed, including install-server tests for preserving an existing settings.local.json and creating one from an absent file."
+        },
+        {
+          "criterion": "Merges under mcpServers.codexu-overview with node command and absolute forward-slash dist/index.js arg",
+          "command": "node tools/overview-mcp/dist/install-server.js --print-only from a temp repo containing tools/overview-mcp/dist/index.js",
+          "result": "Exit 0; printed JSON contained {\"command\":\"node\",\"args\":[\"C:/Users/evmitran/AppData/Local/Temp/<tmp>/tools/overview-mcp/dist/index.js\"]} under mcpServers.codexu-overview."
+        },
+        {
+          "criterion": "Writes atomically via atomicWriteFile() from scripts/lib/atomic-write.mjs",
+          "command": "grep -nE \"settings.local.json|mcpServers|codexu-overview|atomicWriteFile|printOnly|overview-mcp:build\" tools/overview-mcp/src/install-server.ts",
+          "result": "install-server.ts imports atomicWriteFile from scripts/lib/atomic-write.mjs and writes settings.local.json through atomicWriteFile when printOnly is false."
+        },
+        {
+          "criterion": "--print-only flag emits the JSON to stdout without writing",
+          "command": "node tools/overview-mcp/dist/install-server.js --print-only from a temp repo; assert .claude/settings.local.json absent",
+          "result": "Exit 0; stdout was parseable settings JSON with codexu-overview registration, and the temp repo still had no .claude/settings.local.json file."
+        },
+        {
+          "criterion": "Errors clearly if dist/index.js is absent",
+          "command": "node tools/overview-mcp/dist/install-server.js from a temp repo without tools/overview-mcp/dist/index.js",
+          "result": "Exit 1; stderr said overview-mcp-install: Missing <temp>/tools/overview-mcp/dist/index.js; run pnpm overview-mcp:build first. No settings.local.json was written."
+        },
+        {
+          "criterion": "Test uses a temp dir as repoRoot; asserts file content after install; verifies idempotency",
+          "command": "grep -nE \"idempotent|creates settings|print-only|dist/index.js is absent|overview-mcp-install\" tools/overview-mcp/src/__tests__/install-server.test.ts && pnpm --filter @codexu/overview-mcp test",
+          "result": "install-server.test.ts uses fs.mkdtemp temp repo roots, asserts settings content after install, verifies running twice produces identical file content, and covers print-only plus missing dist/index.js. Vitest exit 0 with 37 tests."
+        },
+        {
+          "criterion": "Typecheck passes",
+          "command": "pnpm --filter @codexu/overview-mcp typecheck",
+          "result": "Exit 0; tsc --noEmit -p tsconfig.json completed without errors in 15s. Full log: .test-output/overview-mcp.typecheck.log."
+        },
+        {
+          "criterion": "Tests pass",
+          "command": "pnpm --filter @codexu/overview-mcp test",
+          "result": "Exit 0; Vitest reported 6 test files passed and 37 tests passed in 6.28s. Full log: .test-output/overview-mcp.test.log."
+        }
+      ],
+      "dependencies": [
+        "US-001"
+      ],
+      "failureClassification": "",
+      "partialProgress": null
+    },
+    {
+      "id": "US-010",
+      "title": "README + final INDEX refresh + downstream-plan audit",
+      "description": "As a future maintainer, I want clear docs on installation, registration, and each tool's contract; and the project INDEX must reflect the new package.",
+      "acceptanceCriteria": [
+        "tools/overview-mcp/README.md covers: install (pnpm overview-mcp:build && pnpm overview-mcp:install); registration JSON layout; verifying with /mcp (or the Claude Code tool list); per-tool contract (name, inputs, outputs, mutation behavior, error envelope); Windows-specific PowerShell verification commands",
+        "plans/ralph-pipeline-INDEX.md: Source-of-truth modules table lists tools/overview-mcp/ and the new appendJournalNote export; DAG diagram shows Plan 09 dependency edges",
+        "Any reference in plans/ralph-pipeline-10-ralph-handoff.md (per F-005 - correct filename) is updated to mention the MCP package",
+        "Atomic final commit; commit message lists each diff (file, lines, what changed) so reviewers can audit the cascade",
+        "Typecheck across the workspace passes",
+        "Full test suite passes"
+      ],
+      "priority": 10,
+      "passes": true,
+      "notes": "",
+      "verifiedEvidence": [
+        {
+          "criterion": "tools/overview-mcp/README.md covers install, registration, verification, per-tool contract, mutation/error behavior, and Windows PowerShell commands",
+          "command": "grep -nE 'pnpm overview-mcp:build|pnpm overview-mcp:install|mcpServers|/mcp|overview[.]list_tasks|overview[.]set_override|PowerShell|Start-Process' tools/overview-mcp/README.md",
+          "result": "README includes install commands at lines 12-13, registration JSON at lines 26-31, /mcp verification at line 39, PowerShell verification and startup commands at lines 41-61, and the per-tool contract table for overview.list_tasks through overview.set_override at lines 71-86."
+        },
+        {
+          "criterion": "plans/ralph-pipeline-INDEX.md lists tools/overview-mcp/ and appendJournalNote export; DAG diagram shows Plan 09 dependency edges",
+          "command": "grep -nE 'tools/overview-mcp|appendJournalNote|overview.add_journal_entry|depends on 05, 06, 07, 08' plans/ralph-pipeline-INDEX.md",
+          "result": "INDEX shows Plan 09 depends on 05, 06, 07, 08 in the DAG and parallel grouping at lines 76 and 140, documents appendJournalNote/assertSafeTaskId on line 199, and lists tools/overview-mcp/ in the source-of-truth modules table on line 222."
+        },
+        {
+          "criterion": "plans/ralph-pipeline-10-ralph-handoff.md mentions the MCP package using the correct filename",
+          "command": "grep -nE 'tools/overview-mcp|overview.set_override|overview.add_journal_entry|Plan 09 MCP' plans/ralph-pipeline-10-ralph-handoff.md",
+          "result": "The handoff plan at plans/ralph-pipeline-10-ralph-handoff.md mentions tools/overview-mcp plus overview.set_override and overview.add_journal_entry at line 15, and references the Plan 09 MCP set_override fallback at lines 35 and 100."
+        },
+        {
+          "criterion": "Atomic final commit; commit message lists each diff for reviewer audit",
+          "command": "git show --stat --format=fuller --no-renames HEAD -- tools/overview-mcp/README.md plans/ralph-pipeline-INDEX.md plans/ralph-pipeline-10-ralph-handoff.md",
+          "result": "Commit 027e882bd2dbf49dda92aaeb8f88c24d55176c9d has subject 'feat: US-010 - README + final INDEX refresh + downstream-plan audit', contains exactly the 3 documentation files, and its body lists each changed file with line areas and what changed. Stat: 100 insertions, 13 deletions."
+        },
+        {
+          "criterion": "Typecheck across the workspace passes",
+          "command": "pnpm -r --if-present typecheck > .test-output/workspace.typecheck.log 2>&1",
+          "result": "Exit 0 in 126s. Workspace typecheck ran 10 of 11 projects and completed packages/codexu-options-mode-plugin, happy-wire, codium, tools/overview-mcp, tools/overview-viewer, happy-agent, happy-server, happy-app, and happy-cli without TypeScript errors."
+        },
+        {
+          "criterion": "Full test suite passes",
+          "command": "pnpm test > .test-output/workspace.test.log 2>&1",
+          "result": "Exit 0 in 19s. Vitest reported 22 test files passed and 160 tests passed. Full log: .test-output/workspace.test.log."
+        }
+      ],
+      "dependencies": [
+        "US-001",
+        "US-002",
+        "US-003",
+        "US-004",
+        "US-005",
+        "US-006",
+        "US-007",
+        "US-008",
+        "US-009"
+      ],
+      "failureClassification": "",
+      "partialProgress": null
+    }
+  ]
+}

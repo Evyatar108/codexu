@@ -1,0 +1,102 @@
+{
+  "storyId": "US-002",
+  "verifiedEvidence": [
+    {
+      "criterion": "New file tools/overview-viewer/src/utils/searchHighlighting.ts exports highlightMatches(html: string, query: string): string",
+      "command": "grep -RIn 'export function highlightMatches' tools/overview-viewer/src/utils/searchHighlighting.ts",
+      "result": "PASS: searchHighlighting.ts exports highlightMatches(html: string, query: string): string.",
+      "evidenceKind": "inspection"
+    },
+    {
+      "criterion": "highlightMatches escapes regex metacharacters in query before building the matcher",
+      "command": "grep -RInE 'escapeRegExp|new RegExp' tools/overview-viewer/src/utils/searchHighlighting.ts && pnpm --filter @codexu/overview-viewer test",
+      "result": "PASS: escapeRegExp is used before new RegExp; regex-metacharacter test passed in the 12-file / 43-test suite.",
+      "evidenceKind": "test"
+    },
+    {
+      "criterion": "highlightMatches wraps text-node matches in <mark class=\"search-match\">; does NOT rewrite inside HTML tags/attributes; skips <code>...</code> blocks",
+      "command": "grep -RInE 'tags or attributes|skips code' tools/overview-viewer/src/__tests__/searchHighlighting.test.ts && pnpm --filter @codexu/overview-viewer test",
+      "result": "PASS: utility tests cover tag/attribute preservation and code-block skip; suite passed 12 files / 43 tests.",
+      "evidenceKind": "test"
+    },
+    {
+      "criterion": "Active search query threaded from App.tsx -> CommandList.tsx -> TaskCommand.tsx as a new query prop used in highlightMatches on cmd-name and the plain-text rendering of cmd-desc",
+      "command": "grep -RInE 'filter.query|query|highlightMatches|cmd-name|cmd-desc' tools/overview-viewer/src/App.tsx tools/overview-viewer/src/components/CommandList.tsx tools/overview-viewer/src/components/TaskCommand.tsx",
+      "result": "PASS: App passes filter.query to CommandList; CommandList passes query to TaskCommand; TaskCommand calls highlightMatches for escaped cmd-name and command description HTML.",
+      "evidenceKind": "inspection"
+    },
+    {
+      "criterion": "Clearing the query removes all <mark> wrappers in the next render",
+      "command": "grep -RIn 'removes search match markup when the query is cleared' tools/overview-viewer/src/__tests__/commandList.test.tsx && pnpm --filter @codexu/overview-viewer test",
+      "result": "PASS: CommandList SSR test renders query=\"\" and asserts no class=\"search-match\"; suite passed 12 files / 43 tests.",
+      "evidenceKind": "test"
+    },
+    {
+      "criterion": "New test file tools/overview-viewer/src/__tests__/searchHighlighting.test.ts covers: regex-metachar escape, no-rewrite-inside-tags, code-block skip, case-insensitive match, empty query no-op",
+      "command": "grep -RInE 'regex metacharacters|tags or attributes|skips code|case-insensitively|empty query' tools/overview-viewer/src/__tests__/searchHighlighting.test.ts",
+      "result": "PASS: searchHighlighting.test.ts contains all required coverage cases.",
+      "evidenceKind": "inspection"
+    },
+    {
+      "criterion": "Typecheck passes (pnpm --filter @codexu/overview-viewer typecheck)",
+      "command": "pnpm --filter @codexu/overview-viewer typecheck > .test-output/overview-viewer.typecheck.log 2>&1",
+      "result": "PASS: tsc --noEmit completed with exit 0.",
+      "evidenceKind": "typecheck"
+    },
+    {
+      "criterion": "Tests pass (pnpm --filter @codexu/overview-viewer test)",
+      "command": "pnpm --filter @codexu/overview-viewer test > .test-output/overview-viewer.test.log 2>&1",
+      "result": "PASS: Vitest reported 12 test files passed, 43 tests passed.",
+      "evidenceKind": "test"
+    },
+    {
+      "criterion": "pnpm overview dev server starts and renders without console errors",
+      "command": "curl -fsS http://127.0.0.1:5173/overview.html >/tmp/overview.html.smoke && curl -fsS http://127.0.0.1:5173/overview-data.js >/tmp/overview-data.js.smoke",
+      "result": "HTTP smoke PASS: existing dev server served overview.html with root node and overview-data.js with window.OVERVIEW_DATA. SKIPPED: browser console verification unavailable because browser automation is not installed.",
+      "evidenceKind": "skipped"
+    },
+    {
+      "criterion": "pnpm overview:build succeeds; regenerated plans/overview.html opens cleanly under file://",
+      "command": "pnpm overview:build > .test-output/overview-viewer.build.log 2>&1; grep -nE '<script[^>]+src=|<link[^>]+href=' plans/overview.html || true; grep -n '<div id=\"root\"></div>' plans/overview.html",
+      "result": "Build PASS: Vite built plans/overview.html successfully; static artifact has root node and no external script/link refs. SKIPPED: live file:// browser open unavailable without browser automation.",
+      "evidenceKind": "build"
+    },
+    {
+      "criterion": "Bundle size of plans/overview.html stays under 500 KB",
+      "command": "stat -c%s plans/overview.html",
+      "result": "448737 bytes (< 500000).",
+      "evidenceKind": "command"
+    },
+    {
+      "criterion": "Three existing intentional deviations from 9f81c1f8 (deferred class, blocked/paused -> tail of phase bucket, lastTouchedAt-asc) still hold",
+      "command": "grep -RInE 'deferred|data-cmd-status|lastTouchedAt|sortTasksByLastTouchedAsc' tools/overview-viewer/src/components/PhaseTree.tsx tools/overview-viewer/src/components/CommandList.tsx tools/overview-viewer/src/styles.css",
+      "result": "PASS: PhaseTree still maps blocked/paused to deferred; styles.css still contains blocked/paused order tail rules; CommandList still exports and uses sortTasksByLastTouchedAsc.",
+      "evidenceKind": "inspection"
+    },
+    {
+      "criterion": "prefers-reduced-motion: reduce disables any animation added by the story",
+      "command": "grep -n '@media (prefers-reduced-motion: reduce)' -A5 tools/overview-viewer/src/styles.css",
+      "result": "PASS: this story adds no animation; the existing global reduced-motion guard remains in place and disables all transitions/animations with !important.",
+      "evidenceKind": "inspection"
+    },
+    {
+      "criterion": "If tools/overview-viewer/package.json changes, workspace-root pnpm-lock.yaml is regenerated and committed in the same commit; pnpm install --frozen-lockfile from repo root must succeed",
+      "command": "git diff --name-only HEAD^ HEAD | grep -E 'tools/overview-viewer/package.json|pnpm-lock.yaml' || true; pnpm install --frozen-lockfile --offline > .test-output/pnpm-install-frozen.log 2>&1",
+      "result": "PASS: package.json and pnpm-lock.yaml were unchanged for this story; frozen offline install completed successfully. Postinstall happy-wire side-effect files were restored and not committed.",
+      "evidenceKind": "command"
+    },
+    {
+      "criterion": "Commit message references the story ID and lists affected files",
+      "command": "git log -1 --format=%H%n%s%n%b",
+      "result": "Commit 652ecff81966556a1c00a7328b11a652d7c6255f subject references US-002; body lists affected files and the command-name escaping constraint.",
+      "evidenceKind": "command"
+    }
+  ],
+  "skippedReasons": [
+    "tool_unavailable"
+  ],
+  "notTested": [
+    "Live browser console and file:// double-click validation were not run because browser automation is unavailable."
+  ],
+  "iterationSHA": "652ecff81966556a1c00a7328b11a652d7c6255f"
+}

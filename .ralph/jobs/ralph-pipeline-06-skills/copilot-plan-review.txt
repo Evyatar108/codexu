@@ -1,0 +1,28 @@
+I’ll inspect the referenced temp path to see what task or artifact it contains.
+
+I found a Ralph plan-review prompt in the temp file. I’ll verify the referenced repo structures and then return the requested review findings.
+
+I’m checking the command surface and package scripts so the review can distinguish real blockers from documentation-level issues.
+
+### Feasibility
+
+- **[High]** Parallel command derivation cannot meet the “absolute_groupDir” requirement. `sync-core.mjs` emits `artifacts.groupDir` as a repo-relative POSIX path, and `deriveNextCommand(state, task)` has no `repoRoot`, so it cannot produce `/implement-with-ralph --run-only --job <absolute_groupDir>`. Add a `repoRoot` option or change the acceptance criterion to allow relative paths.
+- **[High]** The plan assumes skills can invoke other skills with arguments (`Skill("work-on", args=...)` / mapped Ralph skill args). The available skill invocation model is name-only, so this may not be implementable as described. The skill docs should instead direct the agent to invoke the resolved slash command itself, or the runtime contract must explicitly support args.
+
+### Completeness
+
+- **[Medium]** `/blocker-report` says it surfaces Critical/High findings, but `reviewOpenCount` is Medium+ (`Medium`, `High`, `Critical`) in `sync-core.mjs`. To be accurate, either update wording to “Medium+ review findings” or read the findings JSON and count severities separately.
+- **[Medium]** The Windows temp-file shell-out story is underspecified. The plan recommends `mktemp`, but this repo is Windows-first and skills may run under PowerShell. Document a PowerShell/Node-safe temp-file pattern consistently.
+
+### Ordering
+
+No issues found.
+
+### Simplicity
+
+- **[Low]** The three skills repeat snapshot lookup, stale-lock handling, task matching, and picker behavior in prose. A small shared script/helper would reduce drift, but this is not required for v1.
+
+### Acceptance Criteria Quality
+
+- **[High]** Criteria around `/work-on`, `/triage`, and `/blocker-report` “invoking” skills are not mechanically verifiable unless the runtime supports arg-bearing skill calls. Make the expected observable behavior “prints resolved command” or define an executable harness for skill smoke tests.
+

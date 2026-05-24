@@ -1,0 +1,90 @@
+{
+  "storyId": "US-001",
+  "verifiedEvidence": [
+    {
+      "criterion": "tools/overview-viewer/ package scaffold and scripts",
+      "command": "jq -r package fields from tools/overview-viewer/package.json",
+      "result": "@codexu/overview-viewer; private true; scripts build,dev,test,typecheck.",
+      "evidenceKind": "command-output"
+    },
+    {
+      "criterion": "tsconfig strict React TS settings",
+      "command": "jq -r compilerOptions from tools/overview-viewer/tsconfig.json",
+      "result": "true, react-jsx, bundler, ES2022; tsconfig does not extend the Expo base.",
+      "evidenceKind": "command-output"
+    },
+    {
+      "criterion": "vite.config.ts foundation config",
+      "command": "grep required Vite settings in tools/overview-viewer/vite.config.ts",
+      "result": "base './', outDir '../../plans', emptyOutDir false, overview input, react(), singleFile(), overviewDataPlugin(), and fs allow including '../../plans' are present.",
+      "evidenceKind": "static-inspection"
+    },
+    {
+      "criterion": "overview.html Vite entry with relative sidecar script",
+      "command": "grep -n <script src=\"./overview-data.js\"> tools/overview-viewer/overview.html",
+      "result": "Line 7 contains the required relative sidecar script tag; entry file is overview.html, not index.html.",
+      "evidenceKind": "command-output"
+    },
+    {
+      "criterion": "src/main.tsx mounts StrictMode App",
+      "command": "grep -n '<StrictMode>|<App />' tools/overview-viewer/src/main.tsx",
+      "result": "main.tsx renders <StrictMode><App /></StrictMode> through createRoot.",
+      "evidenceKind": "command-output"
+    },
+    {
+      "criterion": "src/App.tsx reads OVERVIEW_DATA task count and renders h1",
+      "command": "grep -n 'OVERVIEW_DATA.*tasks.*length|<h1>{count} tasks</h1>' tools/overview-viewer/src/App.tsx",
+      "result": "App reads window.OVERVIEW_DATA?.tasks?.length and renders <h1>{count} tasks</h1>.",
+      "evidenceKind": "command-output"
+    },
+    {
+      "criterion": "workspace registration in pnpm-workspace.yaml",
+      "command": "grep -n 'tools/overview-viewer' pnpm-workspace.yaml",
+      "result": "pnpm-workspace.yaml includes - \"tools/overview-viewer\".",
+      "evidenceKind": "command-output"
+    },
+    {
+      "criterion": "root package workspace, scripts, and cross-env",
+      "command": "grep -n 'tools/overview-viewer|overview|cross-env' package.json",
+      "result": "Root package.json includes workspace package, overview scripts, overview:build:preview with cross-env, and cross-env devDependency.",
+      "evidenceKind": "command-output"
+    },
+    {
+      "criterion": "pnpm install succeeds with no new peer-dep warnings",
+      "command": "pnpm install > /tmp/overview-pnpm-install.out 2>&1; grep -Ei 'peer|warn' /tmp/overview-pnpm-install.out | tail -40",
+      "result": "pnpm install exited 0. Grep found only existing Prisma preview-feature deprecation warnings; no peer dependency warnings.",
+      "evidenceKind": "command-output"
+    },
+    {
+      "criterion": "US-001:AC-010 dev server on http://localhost:5173 displays count",
+      "command": "pnpm overview; curl -I http://127.0.0.1:5173/; node fetch/eval /overview-data.js",
+      "result": "US-001:AC-010 fallback: browser automation unavailable; dev server returned HTTP 200 at :5173 and sidecar evaluation printed '49 tasks'. Browser DOM display requires manual dev-browser pass.",
+      "evidenceKind": "command-output"
+    },
+    {
+      "criterion": "US-001:AC-011 sidecar edit triggers HMR update path",
+      "command": "pnpm overview; touch plans/overview-data.js; grep overview-data:update /tmp/overview-dev.out; grep import.meta.hot.on tools/overview-viewer/src/App.tsx",
+      "result": "US-001:AC-011 fallback: browser automation unavailable; sidecar change emitted 'overview-data:update' in the dev-server log and App subscribes with import.meta.hot.on('overview-data:update'). No full-page-reload observation without browser tooling.",
+      "evidenceKind": "command-output"
+    },
+    {
+      "criterion": "Typecheck passes",
+      "command": "pnpm --filter @codexu/overview-viewer typecheck",
+      "result": "Exited 0; tsc --noEmit completed with no errors.",
+      "evidenceKind": "command-output"
+    },
+    {
+      "criterion": "US-001:AC-013 Verify in browser using dev-browser skill",
+      "command": "N/A",
+      "result": "SKIPPED: dev-browser skill unavailable in this session; DOM/visual HMR verification requires manual browser pass.",
+      "evidenceKind": "skipped"
+    }
+  ],
+  "skippedReasons": [
+    "missing_tool"
+  ],
+  "notTested": [
+    "Browser DOM/HMR visual pass unavailable; verified dev server and HMR log fallback."
+  ],
+  "iterationSHA": "64a6d38c5bf4dc009c93645c9570b4f443384384"
+}

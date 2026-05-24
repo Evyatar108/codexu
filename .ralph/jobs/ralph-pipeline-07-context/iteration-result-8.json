@@ -1,0 +1,90 @@
+{
+  "storyId": "US-008",
+  "verifiedEvidence": [
+    {
+      "criterion": "TaskCommand replaces RalphStageChip call with composed tooltipExtras JSX",
+      "command": "grep -nE \"function RalphTooltipExtras|tooltipExtras=\" tools/overview-viewer/src/components/TaskCommand.tsx",
+      "result": "PASS: TaskCommand defines RalphTooltipExtras at line 198 and passes tooltipExtras into RalphStageChip at line 461.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "deferredQuestionsCount > 0 renders open-question row and preview subline",
+      "command": "pnpm --filter @codexu/overview-viewer exec vitest run src/__tests__/interactions/taskCommandTooltipExtras.test.tsx",
+      "result": "PASS: 1 test file / 4 tests passed; one-open-question fixture asserts the 📝 count row and tooltip-extras-subline preview text.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "branchName renders branch text plus QuickCopyButton copying literal git checkout <branchName>",
+      "command": "grep -nE \"git checkout|Copy checkout command\" tools/overview-viewer/src/components/TaskCommand.tsx tools/overview-viewer/src/__tests__/interactions/taskCommandTooltipExtras.test.tsx",
+      "result": "PASS: TaskCommand copies text `git checkout ${ralph.branchName}`; test asserts writeText receives `git checkout ralph/overview-data-split/integration` and toast is shown.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "prUrl renders external PR link",
+      "command": "grep -nE \"PR ↗|target=\\\"_blank\\\"|noopener noreferrer\" tools/overview-viewer/src/components/TaskCommand.tsx tools/overview-viewer/src/__tests__/interactions/taskCommandTooltipExtras.test.tsx",
+      "result": "PASS: TaskCommand renders PR ↗ with target=_blank and rel=noopener noreferrer; test asserts the PR link href.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Passes JSX through RalphStageChip tooltipExtras and does not modify RalphStageChip.tsx",
+      "command": "git diff --name-only -- tools/overview-viewer/src/components/RalphStageChip.tsx && grep -n \"tooltipExtras={tooltipExtras}\" tools/overview-viewer/src/components/TaskCommand.tsx",
+      "result": "PASS: no diff for RalphStageChip.tsx; TaskCommand line 461 passes tooltipExtras through the existing slot.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "All three fields absent renders no extra rows and no console warnings",
+      "command": "pnpm --filter @codexu/overview-viewer exec vitest run src/__tests__/interactions/taskCommandTooltipExtras.test.tsx",
+      "result": "PASS: none-fixture asserts zero .tooltip-extras-row nodes, no undefined/null text, and console.warn not called.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Vitest covers none / one / two / all three permutations without broken markup",
+      "command": "grep -nE \"no extra rows|one open-question|branch and PR|all three extras\" tools/overview-viewer/src/__tests__/interactions/taskCommandTooltipExtras.test.tsx && pnpm --filter @codexu/overview-viewer exec vitest run src/__tests__/interactions/taskCommandTooltipExtras.test.tsx",
+      "result": "PASS: required case labels are present; taskCommandTooltipExtras.test.tsx passed 4/4 tests.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "End-to-end synthetic notepad fixture surfaces open-question count and preview in chip tooltip",
+      "command": "pnpm exec vitest run scripts/lib/sync-core.test.mjs && pnpm --filter @codexu/overview-viewer exec vitest run src/__tests__/interactions/taskCommandTooltipExtras.test.tsx",
+      "result": "PASS: sync-core Plan 07 fixture populated notepad fields/branch/PR in 23/23 tests; jsdom hover test rendered 📝 open-question tooltip row and preview. Browser hover remains covered separately by US-008:AC-012 manual skip.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Branch surfacing uses exact checkout text and confirms toast",
+      "command": "pnpm --filter @codexu/overview-viewer exec vitest run src/__tests__/interactions/taskCommandTooltipExtras.test.tsx",
+      "result": "PASS: all-three fixture asserts branch `ralph/overview-data-split/integration`, copy text exactly `git checkout ralph/overview-data-split/integration`, and toast `Copied ... (0.1 KB)`.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "pnpm --filter @codexu/overview-viewer test passes including all new tests",
+      "command": "pnpm --filter @codexu/overview-viewer test",
+      "result": "PASS: overview-viewer Vitest suite reported 33 files passed, 178 tests passed.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Typecheck passes",
+      "command": "pnpm --filter @codexu/overview-viewer typecheck",
+      "result": "PASS: tsc --noEmit completed with exit=0.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "US-008:AC-012 browser tooltip hover/copy/PR-link verification",
+      "command": "N/A",
+      "result": "SKIPPED: browser automation unavailable; tooltip hover/copy-toast/PR-link verification requires manual browser pass",
+      "evidenceKind": "manual-skip"
+    },
+    {
+      "criterion": "Full regression tests and static overview build pass",
+      "command": "pnpm test && pnpm overview:build",
+      "result": "PASS: root tests reported 16 files / 93 tests passed; overview:build emitted plans/overview.html successfully.",
+      "evidenceKind": "passed"
+    }
+  ],
+  "skippedReasons": [
+    "browser_automation_unavailable"
+  ],
+  "notTested": [
+    "Browser tooltip hover/copy/PR-link flow requires manual browser pass"
+  ],
+  "iterationSHA": "9e1c82b35f45a4fae3fe0d549921873c785a7016"
+}

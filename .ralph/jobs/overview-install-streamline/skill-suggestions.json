@@ -1,0 +1,38 @@
+{
+  "candidates": [
+    {
+      "name": "regen-copilot-mirrors",
+      "description": "Codify the post-edit Copilot mirror regeneration + drift-check workflow for plugins that ship dist/copilot/ mirrors, so the v5.36.0 mirror-parity gate is satisfied automatically.",
+      "triggers": [
+        "User edits any plugins/<plugin>/skills/*/SKILL.md or adds a new skills/<name>/ directory.",
+        "User modifies the plugin's scripts/generate-copilot-artifacts.mjs.",
+        "User says 'regenerate copilot mirrors', 'drift-check mirrors', or 'verify mirror parity'."
+      ],
+      "targetLocation": "plugins/ralph-overview/skills/regen-copilot-mirrors/SKILL.md",
+      "evidence": [
+        "progress.txt iteration 1 (US-001) line 15: two-step `node plugins/ralph-overview/scripts/generate-copilot-artifacts.mjs --write` then drift-check command pair.",
+        "progress.txt iteration 4 (US-004) line 66 and prd.json US-004 AC4-AC6 verifiedEvidence: same regen+drift-check pair plus source/mirror count parity check (source=7 mirror=7).",
+        "code-review-findings.json F-001 (Medium, Completeness): generator copied SKILL.md verbatim without applying the Ralph plugin's substitution rules, leaving Skill(...) calls in Copilot mirrors.",
+        "Commit a438ef79 'fix: [F-001] - apply Copilot substitutions in ralph-overview skill mirror generator' adding applySubstitutions() to the generator.",
+        "prd.json US-001 acceptance criterion on `templates/overview-config.template.json watcher.ignored ⊇ DEFAULT_IGNORED`: same regenerate-and-verify-parity shape recurring across artifacts."
+      ],
+      "rationale": "The drift-check command surface and the v5.36.0 mirror-parity gate are not obvious to a fresh agent editing a SKILL.md; missing the regen step produced a real reviewer finding (F-001). A short skill that lists the exact two commands plus the source-vs-mirror count assertion turns a recurring multi-step verification into a single trigger. Existing inventory (blocker-report, triage, work-on, and the new overview-init/add-task/edit-task/set-status skills under plugins/ralph-overview/skills/) does not cover this maintainer-side post-edit check."
+    },
+    {
+      "name": "force-add-shipped-artifacts",
+      "description": "Document and automate the git add -f staging pattern for plugins whose intentional shipped artifacts (bin/, dist/copilot/) are gitignored at the repo root.",
+      "triggers": [
+        "User edits any file under plugins/<plugin>/bin/ or plugins/<plugin>/dist/copilot/ and then stages a commit.",
+        "User runs /release-plugin against ralph-overview.",
+        "User asks 'why is my dist/copilot change not showing in git status'."
+      ],
+      "targetLocation": "plugins/ralph-overview/skills/release-shipped-artifacts/SKILL.md",
+      "evidence": [
+        "progress.txt Codebase Patterns line 4: 'ralph-overview ships intentional artifacts under repo-ignored bin/ and dist/copilot/; use git add -f for those paths when updating the dispatcher or Copilot mirrors.'",
+        "progress.txt US-001 Learnings line 18: 'The plugin's root .gitignore ignores bin/ and dist/, so intentional shipped dispatcher/mirror artifacts need force-add staging.'",
+        "US-004 commit 018369bc and US-005 commit f84debcb both stage dist/copilot/* files that would otherwise be ignored."
+      ],
+      "rationale": "True silent-omission footgun: git status hides these files and a fresh agent shipping a new skill would push a release commit missing the generated mirror, breaking the v5.36.0 parity gate at install time. The existing repo-level /release-plugin skill at .claude/skills/release-plugin/SKILL.md covers manifest/index/changelog/commit/push but does not call out git add -f for ignored-but-shipped paths. Either extending /release-plugin with a pre-commit force-add step or shipping a standalone skill closes the gap. Lower signal than regen-copilot-mirrors because it surfaced only in two progress entries and never broke a verification gate in this job."
+    }
+  ]
+}

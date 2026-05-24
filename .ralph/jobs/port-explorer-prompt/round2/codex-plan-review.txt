@@ -1,0 +1,33 @@
+### Feasibility
+
+[High] Previous F-011 is not fully fixed. The plan’s path convention says codex-worktree-relative paths drop only `codex/`, but many implementation paths still incorrectly start at `core/src/...`. The actual files are under `external/repos/codex-patched/codex-rs/`, for example `codex/external/repos/codex-patched/codex-rs/core/src/agent/builtins/explorer.toml`. Since the worktree is created from `git -C codex worktree add ...`, commands run from that root will not find `core/src/...`, and `cargo check -p codex-core` will fail unless run from `external/repos/codex-patched/codex-rs/`.
+
+[High] The pre-flight stash command is too broad. `git stash push -u -m ...` from the codexu root would stash unrelated untracked paths currently present in the repo, including `.worktrees/`, `plans/research/`, `tasks/`, etc. The plan only needs to isolate the `codex` gitlink pointer. Use a path-scoped stash such as `git stash push -m "stash-before-explorer-pointer-bump" -- codex`, and do not use `-u` unless the exact untracked pathspec is intentional.
+
+[Medium] Previous F-002 is only partially fixed. The plan now requires `docs/implementation/patch-surface.md`, but `codex/CLAUDE.md` also requires upstream-canonical edits to carry a `SANDBOX PATCH` marker on edited lines. This plan edits `external/repos/codex-patched/codex-rs/core/src/agent/builtins/explorer.toml` and `.../role_tests.rs` without requiring markers. For TOML, use a `# SANDBOX PATCH:` comment; for Rust tests, use `// SANDBOX PATCH:` where appropriate.
+
+[Low] The suggested renamed test `apply_explorer_role_preserves_current_model_inherits_reasoning_effort` is misleading. Because the TOML sets `model_reasoning_effort = "low"`, the updated test should assert the role changes reasoning effort to `Low` while preserving the current model, not that it preserves or “inherits” the existing `High`.
+
+### Completeness
+
+[Medium] The plan omits the explicit working directory for each command. `cargo check -p codex-core`, `cargo test -p codex-core explorer`, and likely `just fmt` should be run from `external/repos/codex-patched/codex-rs/` inside the new codex worktree, while `docs/implementation/patch-surface.md` is edited from the codex repo root. This should be spelled out to avoid implementation drift.
+
+[Medium] The plan cites `codex/CLAUDE.md` fork discipline but does not include the required placement/options rationale: seams considered, chosen option, edit-budget estimate, and re-conflict probability. It has a general “smallest delta” claim, but not the documented planning deliverables.
+
+### Ordering
+
+[Medium] Step 4 says “Test + format locally from inside the codex worktree” before clarifying the correct `codex-rs` subdirectory. This ordering is fine conceptually, but as written the first verification command will run in the wrong directory.
+
+[Low] The smoke test runs before commit, which is good, but after staging. If the smoke causes any generated logs or incidental changes inside the codex worktree, the implementer must re-check `git diff --cached` and `git diff` before committing.
+
+### Simplicity
+
+[Medium] The stash workflow is over-scoped. A path-scoped stash or simply committing the existing codex pointer first would be simpler and safer than `git stash push -u` over the whole superproject.
+
+### Acceptance Criteria Quality
+
+[Medium] The smoke “zero write/edit/modification tool attempts” scan is too narrow and partly mismatched to Codex tool names. It scans for `Write`/`Edit`/`mkdir`/`rm`/`touch`/`mv`/`cp`, but Codex writes can happen through `apply_patch`, shell redirection, `python`, `powershell Set-Content`, etc. Require exact tool-call classification plus shell-command review for write-like operations.
+
+[Low] “Smoke target: `packages/codium/` or another ≤ ~30-file directory” is still not fixed enough for autonomous execution. Pick one concrete target in the plan, or make choosing and recording it an explicit operator-gated step before smoke.
+
+Previous High finding status: F-001, F-003, and F-004 look adequately resolved. F-002 is only partially resolved due the missing patch markers. F-011 has regressed or was not actually fixed in the executable parts of the plan.

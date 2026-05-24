@@ -1,0 +1,51 @@
+I’ll inspect the referenced temp file to see what needs to be done.
+
+I’ll inspect the existing MCP and overview tooling so the research report reflects the actual codebase.
+
+I found the Plan 09 MCP package and the Ralph watcher/sync implementation; I’ll quickly check the remaining config/test patterns before writing the research report.
+
+### Codebase Architecture
+
+This is a pnpm monorepo with `tools\overview-mcp` and `tools\overview-viewer` registered in both `pnpm-workspace.yaml` and root `package.json`. The MCP server is TypeScript ESM/NodeNext, built with `tsc`, tested with Vitest, and uses `@modelcontextprotocol/sdk`.
+
+`tools\overview-mcp\src\index.ts` is only the stdio entrypoint and shutdown wrapper. Tool registration lives in `tools\overview-mcp\src\server.ts`, using `server.registerTool(...)`, Zod input shapes from `schemas.ts`, and pretty JSON text responses via `toToolResult()` in `tools\read-only.ts`. Shared runtime state is in `ServerContext` from `context.ts`: `{ repoRoot, config, snapshotReader }`.
+
+The overview app is `tools\overview-viewer`: React 19 + Vite 8. Root scripts are already present: `pnpm overview`, `pnpm overview:build`, `pnpm sync-ralph-state`, and `pnpm sync-ralph-state:watch`.
+
+### Feature-Relevant Code
+
+Key integration points:
+
+- `tools\overview-mcp\src\server.ts`: register the 7 new tools here, not primarily in `index.ts`.
+- `tools\overview-mcp\src\index.ts`: add process shutdown cleanup next to existing `snapshotReader.close()` and `server.close()`.
+- `tools\overview-mcp\src\context.ts`: natural place to attach a singleton `ProcessManager` to `ServerContext`.
+- `tools\overview-mcp\src\schemas.ts`: add `devServerLogsInputSchema`; empty schemas for start/stop/status/build/sync-now/watch-status.
+- `tools\overview-mcp\src\__tests__\stdio-tools-list.test.ts`: currently expects 10 tools; must become 17.
+- `tools\overview-mcp\src\__tests__\read-only-tools.test.ts`: currently asserts the full registered tool list; update or scope it.
+- `tools\overview-viewer\vite.config.ts`: `ralphStateWatcherPlugin()` starts `watch-ralph-state.mjs` with `processLabel: 'vite-plugin'` during `pnpm overview`.
+- `scripts\sync-ralph-state.mjs`: `runOneShot()` already acquires the lock with `processLabel: 'standalone-oneshot'`, but does not emit the required parseable summary line.
+- `scripts\lib\sync-lock.mjs`: lock metadata and liveness logic already exist, but `DEFAULT_STALE_AFTER_MS`, metadata parsing, and `isLiveProcess()` are private.
+- `scripts\lib\default-config.mjs` and `scripts\lib\resolve-config.mjs`: `lockFile` defaults to `.ralph\overview-sync.lock` and resolves through config.
+
+### Technical Constraints
+
+Stdout is reserved for MCP JSON-RPC traffic, so spawned child output must be piped/ring-buffered and never inherited. Diagnostics should stay on stderr.
+
+Windows support matters: `child_process.spawn(cmd, args, { shell: true })` is appropriate for `pnpm` because Windows resolves `pnpm` via a `.cmd` shim. Normalize `\r\n` when buffering logs.
+
+Async cleanup cannot reliably run from Node’s `exit` event. Use SIGINT/SIGTERM for awaited `stopAll()`. If an `exit` handler is added, it can only do best-effort synchronous cleanup.
+
+The plan’s “modify `index.ts` to register tools” is inaccurate for this codebase; registration belongs in `server.ts`. `index.ts` should only own lifecycle wiring.
+
+### Implementation Suggestions
+
+Add `tools\overview-mcp\src\process-manager.ts` with injectable spawn factory for tests, per-stream 1000-line ring buffers, line splitting that handles chunk boundaries, an `AlreadyRunningError`, and `stopAll()`.
+
+Extend `ServerContext` to include `processManager`, then implement thin tool modules under `tools\overview-mcp\src\tools\`. Use existing `toToolResult()` but return the operational shape directly, e.g. `{ ok: true, url, pid }`, not necessarily nested under `data`.
+
+For `overview.build` and `overview.sync.now`, use one-shot spawn helpers plus module/context-level latches so overlapping builds/syncs return `{ ok: false, error: 'another ... in progress' }`.
+
+For `overview.sync.watch_status`, prefer exporting shared helpers from `scripts\lib\sync-lock.mjs` rather than duplicating stale/liveness behavior. At minimum, share the 60s stale threshold and mirror `process.kill(pid, 0)` handling exactly.
+
+For `sync.now`, update `runOneShot()` to emit something like `sync: matched=<Object.keys(state.byTaskId).length>, unmatched=<state.unmatched?.length ?? 0>, duration=<Nms>` to stdout after `writeSidecar()` succeeds.
+

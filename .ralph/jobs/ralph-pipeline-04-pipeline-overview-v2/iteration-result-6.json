@@ -1,0 +1,56 @@
+{
+  "storyId": "US-006",
+  "verifiedEvidence": [
+    {
+      "criterion": "Parallel-safety scan excludes current job and detects concurrent peers",
+      "evidenceKind": "passed",
+      "command": "cat .test-output/us-006.concurrent-peers.log",
+      "result": "PASS: current job slug ralph-pipeline-04-pipeline-overview-v2 was excluded explicitly; no peer job-state entry had status RUNNING with orchestrator.terminal != true."
+    },
+    {
+      "criterion": "Concurrent-peer fallback appends Deferred Cascade instead of editing shared plans",
+      "evidenceKind": "passed",
+      "command": "cat .test-output/us-006.concurrent-peers.log",
+      "result": "PASS: no concurrent peer was detected, so the Deferred Cascade fallback path was not required and shared plan markdown was safe to edit."
+    },
+    {
+      "criterion": "Audit downstream plan markdown for stale Plan 04 v2 contract references",
+      "evidenceKind": "passed",
+      "command": "cat .test-output/us-006.audit-grep.log",
+      "result": "PASS: present downstream plans and INDEX now show Recommendation shape, DependencyGraph shape/direction, artifact paths, scoreRecommendations signature, and runDurations threading."
+    },
+    {
+      "criterion": "If drift is found and no concurrent peer is running, update offending plan markdown atomically and list each diff",
+      "evidenceKind": "passed",
+      "command": "git diff --stat; git diff -- plans/ralph-pipeline-06-skills.md plans/ralph-pipeline-09-mcp.md plans/ralph-pipeline-INDEX.md",
+      "result": "PASS: drift was updated in Plan 06, Plan 09, and INDEX; commit body lists each changed surface."
+    },
+    {
+      "criterion": "tools/overview-viewer/CLAUDE.md Ralph state sidecar section documents same-write derived artifact emission",
+      "evidenceKind": "passed",
+      "command": "grep -n 'writeSidecar() now also emits' tools/overview-viewer/CLAUDE.md",
+      "result": "PASS: required writeSidecar/emitDerivedArtifacts/emitAgentArtifacts same-write sentence is present."
+    },
+    {
+      "criterion": "pnpm test passes",
+      "evidenceKind": "passed",
+      "command": "pnpm test > .test-output/root.test.log 2>&1",
+      "result": "PASS: Test Files 11 passed (11); Tests 62 passed (62)."
+    },
+    {
+      "criterion": "pnpm --filter @codexu/overview-viewer typecheck passes",
+      "evidenceKind": "passed",
+      "command": "pnpm --filter @codexu/overview-viewer typecheck > .test-output/overview-viewer.typecheck.log 2>&1",
+      "result": "PASS: tsc --noEmit completed with exit 0."
+    },
+    {
+      "criterion": "Typecheck passes",
+      "evidenceKind": "passed",
+      "command": "pnpm --filter @codexu/overview-viewer typecheck > .test-output/overview-viewer.typecheck.log 2>&1",
+      "result": "PASS: tsc --noEmit completed with exit 0."
+    }
+  ],
+  "skippedReasons": [],
+  "notTested": [],
+  "iterationSHA": "5be572925e9d5a6de72f26ab8594aa468443216d"
+}

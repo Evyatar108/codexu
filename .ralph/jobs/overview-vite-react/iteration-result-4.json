@@ -1,0 +1,54 @@
+{
+  "storyId": "US-004",
+  "verifiedEvidence": [
+    {
+      "criterion": "Components implemented",
+      "command": "grep -RInE \"export function (KanbanColumn|KanbanCard)|injectKanbanPhasePill|linkKanbanToCmds|navigateToCommand\" tools/overview-viewer/src/components tools/overview-viewer/src/utils",
+      "result": "KanbanColumn, KanbanCard, phase pill injection, command xref injection, and navigateToCommand are present.",
+      "evidenceKind": "command-output"
+    },
+    {
+      "criterion": "Kanban ordering and inline-style utilities",
+      "command": "pnpm --filter @codexu/overview-viewer test > .test-output/overview-viewer.test.log 2>&1",
+      "result": "kanbanOrdering.test.ts and kanbanInteraction.test.ts passed for numeric ordering, insertBefore fallback, and inline style parsing.",
+      "evidenceKind": "command-output"
+    },
+    {
+      "criterion": "Card count and trusted HTML rendering",
+      "command": "pnpm --filter @codexu/overview-viewer test > .test-output/overview-viewer.test.log 2>&1",
+      "result": "kanban.test.ts passed; card count is 33 and SSR output includes trusted card HTML, phase pills, xref links, and workstream attributes.",
+      "evidenceKind": "command-output"
+    },
+    {
+      "criterion": "US-004:AC-006 browser fallback",
+      "command": "pnpm --filter @codexu/overview-viewer test > .test-output/overview-viewer.test.log 2>&1",
+      "result": "Browser automation unavailable; navigateToCommand unit test verified expand, hash mutation, target lookup, and scrollIntoView request.",
+      "evidenceKind": "command-output"
+    },
+    {
+      "criterion": "Typecheck passes",
+      "command": "pnpm --filter @codexu/overview-viewer typecheck > .test-output/overview-viewer.typecheck.log 2>&1",
+      "result": "Exited 0; tsc --noEmit completed with no errors.",
+      "evidenceKind": "command-output"
+    },
+    {
+      "criterion": "Tests pass",
+      "command": "pnpm --filter @codexu/overview-viewer test > .test-output/overview-viewer.test.log 2>&1",
+      "result": "Exited 0; Vitest reported 6 files passed and 11 tests passed.",
+      "evidenceKind": "command-output"
+    },
+    {
+      "criterion": "US-004:AC-009 browser verification",
+      "command": "N/A",
+      "result": "SKIPPED: dev-browser skill unavailable; manual DOM/visual kanban verification is still needed.",
+      "evidenceKind": "skipped"
+    }
+  ],
+  "skippedReasons": [
+    "browser_tool_unavailable"
+  ],
+  "notTested": [
+    "Browser DOM/visual kanban verification unavailable; SSR and unit-test fallbacks passed."
+  ],
+  "iterationSHA": "12e7b109f37dad6bad5223d43a2772f51f2f936d"
+}

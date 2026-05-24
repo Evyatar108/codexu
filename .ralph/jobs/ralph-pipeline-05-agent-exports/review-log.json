@@ -1,0 +1,34 @@
+[
+  {
+    "finding_id": "F-001",
+    "duration_s": 90,
+    "status": "fixed",
+    "summary": "Added v1 stub interfaces for Recommendation and DependencyGraph in the Snapshot schema TS block, and updated the types.ts Files-to-Modify entry plus US-006 story to declare them as Plan 05 additions, so the Snapshot interface typechecks before Plan 04 ships."
+  },
+  {
+    "finding_id": "F-002",
+    "duration_s": 172,
+    "status": "fixed",
+    "summary": "Adopted option B: replaced the inconsistent outputs.activity.maxLines (which clashed with resolve-config.mjs's scalar-path treatment of outputs.* keys) with a separate integer key outputs.activityMaxLines. Updated Phase A config-keys list, emit-activity description, Files-to-Modify (default-config/resolve-config/.ralph config and schema), Activity-log-rotation section, the types-and-config cluster story summary, the five-config-file acceptance criterion, and the config-key-naming Open Question to consistently reference outputs.activityMaxLines."
+  },
+  {
+    "finding_id": "F-003",
+    "duration_s": 85,
+    "status": "fixed",
+    "summary": "Added plans/ralph-pipeline-04-pipeline-overview.md to the cascade modify list with the three required contract corrections (move runDurations type-home into Snapshot, keep Plan 04's two sibling JSON artifacts, reaffirm snapshot stays derived), and added a matching entry to the Acceptance Criteria cascade audit checklist."
+  },
+  {
+    "finding_id": "F-004",
+    "duration_s": 240,
+    "status": "fixed",
+    "summary": "Removed prevStateMap plumbing: mergeAndWrite now derives activityEvents internally by diffing currentState.byTaskId vs the new state.byTaskId (no signature change, no watcher-side slug-to-taskId resolution). Watcher Phase D simplifies to consuming result.activityEvents after a successful merge. Updated Architecture, Phases C/D, Files-to-Modify entries, clusters (watcher-wiring risk dropped to low, stories renumbered), Risk #1, and acceptance criteria accordingly."
+  },
+  {
+    "phase": "soft-cap",
+    "iteration": 5,
+    "openCount": 8,
+    "severities": {
+      "Medium": 8
+    }
+  }
+]

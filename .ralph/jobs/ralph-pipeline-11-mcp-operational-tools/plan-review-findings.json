@@ -1,0 +1,288 @@
+{
+  "planFile": "D:/harness-efforts/codexu/.ralph/jobs/.staging/20260521-013400/draft-plan.md",
+  "repoDir": "D:/harness-efforts/codexu",
+  "reviewCycle": 0,
+  "findings": [
+    {
+      "id": "F-001",
+      "severity": "High",
+      "category": "Feasibility",
+      "source": "consensus",
+      "sectionRef": "Approach > Architecture / Risk Areas #4",
+      "description": "The Vite ready regex `^\\s*Local:\\s+(\\S+)` will NOT match real Vite output. Vite v8 banner prints `  ➜  Local:   http://127.0.0.1:5173/` with an arrow prefix character. The proposed predicate would never fire and `overview.dev_server.start` would time out while the server is actually running. The plan's Risk #4 includes a more permissive variant in a regex comment, but the Approach section's canonical regex is the strict one — these contradict each other and the canonical one is wrong.",
+      "status": "fixed",
+      "relevantFiles": [
+        "tools/overview-mcp/src/tools/dev-server-start.ts",
+        "tools/overview-mcp/src/process-manager.ts"
+      ],
+      "suggestedFix": "Use a single canonical predicate that strips ANSI/control prefixes and then matches `Local:\\s+(\\S+)` anywhere in the line (not anchored to start). Pseudo: `const stripped = line.replace(/\\x1b\\[[0-9;]*[A-Za-z]/g, ''); const m = stripped.match(/Local:\\s+(https?:\\S+)/); if (m) return m[1];`. Document the canonical regex in the Approach section and update tests to assert both arrow-prefixed and plain variants are matched.",
+      "fixedInIteration": 1,
+      "resolution": "Updated the plan to use one canonical Vite ready parser that strips ANSI escapes and matches Local URLs anywhere in the line, with tests for arrow-prefixed and plain banners."
+    },
+    {
+      "id": "F-002",
+      "severity": "High",
+      "category": "Feasibility",
+      "source": "consensus",
+      "sectionRef": "ProcessManager design / Tools (dev_server.start)",
+      "description": "Double-start race is internally inconsistent. ProcessManager.spawn registers a `'starting'` record BEFORE the child emits the `'spawn'` event. During that window, a second call to `dev_server.start` throws `AlreadyRunning` and the tool layer is specified to return `{ alreadyRunning: true, url, pid, startedAt }` — but `url`, `pid`, and `startedAt` are undefined on the existing handle until the spawn event fires. The tool would return an object missing required fields.",
+      "status": "fixed",
+      "relevantFiles": [
+        "tools/overview-mcp/src/tools/dev-server-start.ts",
+        "tools/overview-mcp/src/process-manager.ts"
+      ],
+      "suggestedFix": "When `AlreadyRunning` is caught, the tool should `await existing.readyPromise` (a Promise<{url, pid, startedAt}> that the manager exposes per handle). The promise resolves when the first caller's onReady completes. Both callers then return identical `{ ok: true, alreadyRunning: true, url, pid, startedAt }` after readiness. Plan must add `readyPromise` to the ManagedProcess type and document the await behavior in the tool's contract.",
+      "fixedInIteration": 2,
+      "resolution": "Added readyPromise handling to the ProcessManager and dev_server.start plan so duplicate starts during the starting window wait for defined url, pid, and startedAt fields."
+    },
+    {
+      "id": "F-003",
+      "severity": "High",
+      "category": "Completeness",
+      "source": "consensus",
+      "sectionRef": "Files to Modify",
+      "description": "The plan modifies `scripts/lib/sync-lock.mjs` to export `readLockStatus(lockPath)` but does NOT mention updating `scripts/lib/sync-lock.d.mts`. The `tools/overview-mcp` package is TypeScript with `NodeNext` resolution and imports `.mjs` modules through their `.d.mts` declaration files. Without adding the `readLockStatus` export to the type declarations, `pnpm --filter @codexu/overview-mcp typecheck` will fail and `sync-watch-status.ts` won't be able to import the helper.",
+      "status": "fixed",
+      "relevantFiles": [
+        "scripts/lib/sync-lock.d.mts",
+        "scripts/lib/sync-lock.mjs",
+        "tools/overview-mcp/src/tools/sync-watch-status.ts"
+      ],
+      "suggestedFix": "Add `scripts/lib/sync-lock.d.mts` to the 'To modify' section. Declare `export function readLockStatus(lockPath: string, opts?: { staleAfterMs?: number }): Promise<{ state: 'missing' } | { state: 'active' | 'stale', pid: number, process: string, startedAt: string, mtime: Date }>;` plus any helper-export types if `parseLockMetadata` / `isLiveProcess` are factored out.",
+      "fixedInIteration": 3,
+      "resolution": "Added the missing sync-lock declaration file update to the plan with the readLockStatus export signature."
+    },
+    {
+      "id": "F-004",
+      "severity": "High",
+      "category": "Completeness",
+      "source": "codex",
+      "sectionRef": "Approach > Architecture / Implementation Strategy",
+      "description": "One-shot `overview.build` and `overview.sync.now` children are explicitly NOT tracked in `ProcessManager.Map`. This means `stopAll()` will not kill them. If SIGTERM arrives mid-build or mid-sync, those child processes are orphaned — directly violating the plan's own lifecycle constraint (acceptance criterion: 'When the MCP server receives SIGTERM/SIGINT, all spawned children are killed').",
+      "status": "fixed",
+      "relevantFiles": [
+        "tools/overview-mcp/src/process-manager.ts",
+        "tools/overview-mcp/src/tools/build.ts",
+        "tools/overview-mcp/src/tools/sync-now.ts"
+      ],
+      "suggestedFix": "Track transient one-shots inside ProcessManager with reserved single-flight names ('build', 'sync-now'). Exclude them from `dev_server.status` reads (those tools only inspect 'dev-server'), but include them in `stopAll()` so SIGTERM cleans them up. The single-flight rejection (currently a module-level `isBuilding` boolean for build) becomes a property of the manager's `spawn()` method via the `AlreadyRunning` exception.",
+      "fixedInIteration": 4,
+      "resolution": "Updated the plan so one-shot build and sync children are tracked by ProcessManager while running and are killed by stopAll during MCP shutdown."
+    },
+    {
+      "id": "F-005",
+      "severity": "High",
+      "category": "Completeness",
+      "source": "codex",
+      "sectionRef": "Files to Modify (scripts/sync-ralph-state.mjs)",
+      "description": "The planned summary line `sync: matched=${matched}, unmatched=${unmatched}, duration=${...}ms` uses identifiers `matched` and `unmatched` that do not exist as bindings in `scripts/sync-ralph-state.mjs:runOneShot()`. The plan must specify the exact derivation from the actual local state.",
+      "status": "fixed",
+      "relevantFiles": [
+        "scripts/sync-ralph-state.mjs"
+      ],
+      "suggestedFix": "Specify exact derivation: `const matched = Object.keys(state.byTaskId ?? {}).length; const unmatched = (state.unmatched ?? []).length; const durationMs = Date.now() - startTime;` (where `startTime = Date.now()` is captured at the top of runOneShot). Verify the variable names against the actual runOneShot scope in the plan text — DO NOT assume; read the function and bind the names that exist.",
+      "fixedInIteration": 5,
+      "resolution": "Updated the sync summary plan step to bind startTime and derive matched/unmatched counts from the actual runOneShot state object before logging."
+    },
+    {
+      "id": "F-006",
+      "severity": "High",
+      "category": "Completeness",
+      "source": "codex",
+      "sectionRef": "Files to Modify (context.ts)",
+      "description": "Extending `ServerContext` with a `processManager` field will break existing context construction sites, especially `tools/overview-mcp/src/__tests__/helpers.ts`. `makeContext()` currently returns the 3-field shape `{ repoRoot, config, snapshotReader }`. Adding a new required field will fail typecheck across all existing tests and tools unless every constructor and every fixture is updated atomically.",
+      "status": "fixed",
+      "relevantFiles": [
+        "tools/overview-mcp/src/context.ts",
+        "tools/overview-mcp/src/__tests__/helpers.ts"
+      ],
+      "suggestedFix": "Add `tools/overview-mcp/src/__tests__/helpers.ts` to the 'To modify' file list. Specify that `makeContext()` (or whatever helper builds a test ServerContext) must construct a `ProcessManager` instance — or accept one as an optional override defaulting to a stub. Walk all ServerContext literals after the change and update them.",
+      "fixedInIteration": 6,
+      "resolution": "Added the test helper and ServerContext literal audit/update requirement to the implementation strategy, file list, and US-004 story."
+    },
+    {
+      "id": "F-007",
+      "severity": "High",
+      "category": "Completeness",
+      "source": "copilot",
+      "sectionRef": "Tools (dev_server.start) / Risk Areas",
+      "description": "Start-failure cleanup is missing. If `onReady` times out or the child exits before matching, `dev-server-start.ts` does not stop or remove the registered `'dev-server'` handle from `ProcessManager.Map`. A failed start leaves a stale `'starting'`-or-`'exited'` record that may block subsequent start attempts depending on how the AlreadyRunning check is implemented.",
+      "status": "fixed",
+      "relevantFiles": [
+        "tools/overview-mcp/src/tools/dev-server-start.ts",
+        "tools/overview-mcp/src/process-manager.ts"
+      ],
+      "suggestedFix": "In `dev-server-start.ts`, wrap the spawn + onReady in try/catch. On any failure (timeout, exit-before-ready, error event), call `manager.stop('dev-server')` to remove the stale handle, then return `{ ok: false, error: <descriptive>, lastLogLines: stderr.slice(-30) }`. Add an acceptance criterion that covers the failed-start-then-retry path (second call to start must succeed if the first timed out).",
+      "fixedInIteration": 7,
+      "resolution": "Added plan requirements for dev_server.start to clean up and remove stale process handles on startup failure, plus tests and acceptance coverage for retry-after-failure."
+    },
+    {
+      "id": "F-008",
+      "severity": "High",
+      "category": "Feasibility",
+      "source": "codex",
+      "sectionRef": "Acceptance Criteria / Cross-platform notes",
+      "description": "Windows process model is under-specified. With `spawn('pnpm', args, { shell: true })`, the stored `pid` may be the shell wrapper (cmd.exe / pwsh.exe), not the Vite/Node process. Killing only that PID will not reliably satisfy the no-orphan acceptance criterion. The plan defers `tree-kill` as out of scope but this conflicts with the no-orphan AC.",
+      "status": "fixed",
+      "relevantFiles": [
+        "tools/overview-mcp/src/process-manager.ts"
+      ],
+      "suggestedFix": "EITHER (a) include `tree-kill` in v1 dependencies and use it inside ProcessManager.stop() on Windows (recommended — removes the AC ambiguity), OR (b) explicitly downgrade the no-orphan AC to 'best effort on Windows; verified for Vite specifically' and document the limitation in README. Pick one and commit. Do not leave the conflict open.",
+      "fixedInIteration": 8,
+      "resolution": "Amended the plan to add tree-kill as a v1 dependency, require Windows process-tree termination in ProcessManager.stop(), and verify descendant PIDs in no-orphan acceptance tests."
+    },
+    {
+      "id": "F-009",
+      "severity": "High",
+      "category": "Criteria Quality",
+      "source": "codex",
+      "sectionRef": "Acceptance Criteria / Verification L",
+      "description": "The no-orphan acceptance evidence is insufficient. Checking `tasklist /FI \"PID eq <pid>\"` against the stored pid proves little when `shell: true` may return a shell wrapper PID rather than the Vite/Node child. The AC should verify descendants and/or port 5173 is free, not just one PID.",
+      "status": "fixed",
+      "relevantFiles": [],
+      "suggestedFix": "Strengthen verification L to: (a) capture the dev-server pid AND the port-5173 listener pid (via `netstat -ano | findstr :5173` on Windows / `lsof -i :5173` on POSIX) before sending SIGTERM; (b) after MCP exits, assert BOTH pids are gone AND port 5173 is no longer listening; (c) additionally `wmic process where 'name=\"node.exe\" or name=\"pnpm.cmd\"' get processid` and assert none of the listed pids matches the pre-SIGTERM snapshot.",
+      "fixedInIteration": 9,
+      "resolution": "Strengthened shutdown acceptance and Verification L to capture descendant and port-5173 listener PIDs, assert captured PIDs are gone, and verify port 5173 is no longer listening after MCP shutdown."
+    },
+    {
+      "id": "F-010",
+      "severity": "High",
+      "category": "Completeness",
+      "source": "claude",
+      "sectionRef": "Files to Modify (scripts/lib/sync-lock.mjs)",
+      "description": "The plan prescribes a pseudocode `readLockStatus()` algorithm but does not enumerate the refactor burden inside `sync-lock.mjs`. Existing `isLiveProcess()` (line 127-139) and the inline `JSON.parse` block (around line 75-86) are private. Implementing the helper requires either extracting them as named/exported helpers or inlining their logic into a new exported `readLockStatus()`. The plan should make the refactor explicit so the implementer doesn't accidentally duplicate logic.",
+      "status": "fixed",
+      "relevantFiles": [
+        "scripts/lib/sync-lock.mjs"
+      ],
+      "suggestedFix": "Update the 'To modify' bullet for `sync-lock.mjs` to enumerate the sub-tasks: (1) extract the inline JSON parse + validation as `parseLockMetadata(buffer): { pid, process, startedAt } | null`; (2) extract the existing PID check as `isLockHolderAlive(pid: number): boolean` (export it); (3) write `readLockStatus(lockPath, opts)` that composes the two helpers + an `fs.stat`. Add unit tests for each extracted helper in the same module's test file.",
+      "fixedInIteration": 10,
+      "resolution": "Amended the plan to spell out the sync-lock refactor helpers, type declarations, and same-module unit tests needed for readLockStatus."
+    },
+    {
+      "id": "F-011",
+      "severity": "High",
+      "category": "Completeness",
+      "source": "claude",
+      "sectionRef": "Acceptance Criteria / Files to Create (tests)",
+      "description": "Plan AC line for sync-ralph-state summary references 'a unit test under `scripts/__tests__/` if one exists, or by an integration assertion in `sync-watch-status.test.ts`'. The conditional location creates ambiguity. The canonical location for sync-related script tests is unclear. If `scripts/__tests__/` does not exist (it doesn't on main), the implementer must fall back to the integration test — but `sync-watch-status.test.ts` is about lock-file parsing, not about the sync script's output format.",
+      "status": "fixed",
+      "relevantFiles": [
+        "scripts/__tests__/",
+        "scripts/sync-ralph-state.mjs",
+        "tools/overview-mcp/src/__tests__/"
+      ],
+      "suggestedFix": "Pick one canonical location and commit. Recommend: add `tools/overview-mcp/src/__tests__/sync-now.test.ts` that spawns the real sync script in a tmp repo (via the existing helpers) and asserts the stdout summary line is parseable. This tests both the script-side emission AND the MCP tool's parser in one shot. Remove the conditional `scripts/__tests__/` reference.",
+      "fixedInIteration": 11,
+      "resolution": "Amended the plan to make tools/overview-mcp/src/__tests__/sync-now.test.ts the canonical integration test for the sync summary output and removed the ambiguous scripts/__tests__/sync-watch-status fallback."
+    },
+    {
+      "id": "F-012",
+      "severity": "High",
+      "category": "Ordering",
+      "source": "claude",
+      "sectionRef": "Preliminary Story Decomposition / Suggested Decomposition",
+      "description": "The plan's prose recommends serial execution citing heavy merge churn, then offers a parallel handoff command using a JSON sidecar. This is internally inconsistent — the parallel path will be ineffective for cluster mcp-ops-tools (4 stories editing the same 5 files). An implementer reading just the handoff line could accidentally launch parallel execution against a serial-required cluster.",
+      "status": "fixed",
+      "relevantFiles": [],
+      "suggestedFix": "Tighten the prose under 'Suggested Decomposition': explicitly state that `execution_mode: serial` is REQUIRED for cluster mcp-ops-tools and the parallel handoff command is offered ONLY for completeness; recommend the serial handoff first. Alternatively, omit the parallel handoff command entirely and only show the serial one — the decomposition.json sidecar already records the serial requirement for any downstream tool that consumes it.",
+      "fixedInIteration": 12,
+      "resolution": "Made serial execution explicitly required for mcp-ops-tools and replaced the parallel handoff command with the serial handoff command."
+    },
+    {
+      "id": "F-013",
+      "severity": "Medium",
+      "category": "Ordering",
+      "source": "codex",
+      "sectionRef": "Preliminary Story Decomposition (US-004)",
+      "description": "US-004 is described as updating `stdio-tools-list.test.ts` to count 14 tools as an interim assertion, with the final count becoming 17 only after US-005/US-006 land. If those stories are merged or tests run between stories, the count drift will cause CI failures.",
+      "status": "open",
+      "relevantFiles": [
+        "tools/overview-mcp/src/__tests__/stdio-tools-list.test.ts"
+      ],
+      "suggestedFix": "Update the smoke test count in each story as new tools are registered. Story US-004 → 14, US-005 → 15, US-006 → 17, US-007 confirms 17. Each story's PR should leave the test green. Add this to the per-story acceptance criteria in stories-outline.md."
+    },
+    {
+      "id": "F-014",
+      "severity": "Medium",
+      "category": "Ordering",
+      "source": "codex",
+      "sectionRef": "Verification / Acceptance Criteria",
+      "description": "The existing `stdio-tools-list.test.ts` spawns the BUILT `tools/overview-mcp/dist/index.js`, not the TypeScript source. After source changes, a stale `dist/` would still report 10 tools. The plan does not call out the build prerequisite for running this smoke test.",
+      "status": "open",
+      "relevantFiles": [
+        "tools/overview-mcp/src/__tests__/stdio-tools-list.test.ts",
+        "tools/overview-mcp/package.json"
+      ],
+      "suggestedFix": "Add to AC and to the test file: 'Run `pnpm --filter @codexu/overview-mcp build` before invoking `stdio-tools-list.test.ts`, or add a `pretest` hook that does so.' Verify vitest config or scripts to ensure the build runs as part of `pnpm test` invocation."
+    },
+    {
+      "id": "F-015",
+      "severity": "Medium",
+      "category": "Simplicity",
+      "source": "codex",
+      "sectionRef": "Approach > Architecture / ProcessManager design",
+      "description": "Separating transient (build, sync-now) and long-lived (dev-server) into different code paths (module-level `isBuilding` flag for build; ad-hoc ring buffer inside each tool) duplicates the hardest parts of ProcessManager (line buffering, ring buffer, lifecycle) and misses the shutdown-cleanup benefit (see F-004).",
+      "status": "open",
+      "relevantFiles": [
+        "tools/overview-mcp/src/process-manager.ts",
+        "tools/overview-mcp/src/tools/build.ts",
+        "tools/overview-mcp/src/tools/sync-now.ts"
+      ],
+      "suggestedFix": "Unify under ProcessManager: support spawning transient processes by reserved single-flight name ('build', 'sync-now') with an `oneShot: true` flag. ProcessManager.spawn returns AlreadyRunning if the name is taken (replaces the isBuilding boolean). On `'exit'`, oneShot entries are auto-removed from the Map (but stay alive in any `stopAll()` iteration that started before the exit). This eliminates the separate code paths and ensures stopAll catches in-flight transients."
+    },
+    {
+      "id": "F-016",
+      "severity": "Medium",
+      "category": "Simplicity",
+      "source": "copilot",
+      "sectionRef": "Files to Create (tests/shutdown.test.ts)",
+      "description": "The shutdown integration test that starts the real Vite server through `dist/index.js` is heavyweight: it depends on Vite startup, port 5173 availability, and watcher startup. It will likely be flaky in CI and slow locally.",
+      "status": "open",
+      "relevantFiles": [
+        "tools/overview-mcp/src/__tests__/shutdown.test.ts"
+      ],
+      "suggestedFix": "Split into two tests: (1) a unit test for `ProcessManager.stopAll()` using `node -e 'setInterval(...)'` children only — covers the manager contract; (2) a SKIP-by-default-on-CI integration test that uses real Vite, runnable manually on Windows. Mark the heavy test with `it.skipIf(process.env.CI)` or `describe.skipIf(!process.env.OVERVIEW_MCP_REAL_VITE)`."
+    },
+    {
+      "id": "F-017",
+      "severity": "Medium",
+      "category": "Criteria Quality",
+      "source": "codex",
+      "sectionRef": "Tools (dev_server.logs) / Acceptance Criteria",
+      "description": "`dev_server.logs` says `tail` is both 'validated 1..1000' and 'clamped 1..1000'. Validation rejects invalid input; clamping coerces it. The plan needs to pick one to make the contract testable.",
+      "status": "open",
+      "relevantFiles": [
+        "tools/overview-mcp/src/schemas.ts",
+        "tools/overview-mcp/src/tools/dev-server-logs.ts"
+      ],
+      "suggestedFix": "Pick `clamp`: zod schema declares `tail: z.number().int().optional().default(100)`; the tool implementation clamps via `Math.max(1, Math.min(1000, input.tail ?? 100))`. Update AC to: 'tail: out-of-range values are clamped to [1, 1000]; the tool never rejects on tail.' Update tests to assert clamping (tail=0 → 1 line, tail=99999 → 1000 lines)."
+    },
+    {
+      "id": "F-018",
+      "severity": "Medium",
+      "category": "Criteria Quality",
+      "source": "consensus",
+      "sectionRef": "Acceptance Criteria / Tools (sync.now)",
+      "description": "The plan says `sync.now` has no in-process lock because the OS lock will serialize. ACs do not define what concurrent `sync.now` calls return when the lock is held by the Vite-plugin watcher or another caller. Without a defined error, callers can't write reliable code.",
+      "status": "open",
+      "relevantFiles": [
+        "tools/overview-mcp/src/tools/sync-now.ts"
+      ],
+      "suggestedFix": "Add an AC: 'If `sync.now` is called while `config.lockFile` is held by another holder (vite-plugin / standalone / another sync-now), the underlying script exits non-zero with a stderr line about lock contention. The MCP tool returns `{ ok: false, error: \\'sync lock held by <process>\\', lockHolderProcess: <label>, lockHolderPid: <pid> }` after parsing the lock metadata via `readLockStatus`.' Add a unit test covering this."
+    },
+    {
+      "id": "F-019",
+      "severity": "Medium",
+      "category": "Criteria Quality",
+      "source": "claude",
+      "sectionRef": "Acceptance Criteria (tools list count)",
+      "description": "AC for the stdio smoke test says 'the 7 new tool names appear in the listed-tools output' but does not require the test to assert the exact set. A drift that adds an 18th tool or renames one would be silently accepted by a count-only assertion.",
+      "status": "open",
+      "relevantFiles": [
+        "tools/overview-mcp/src/__tests__/stdio-tools-list.test.ts"
+      ],
+      "suggestedFix": "Strengthen the AC: 'The test must assert (a) exact tool count of 17 AND (b) the exact set of names. Use `expect(toolNames).toEqual(new Set([...10 from Plan 09, ...7 from Plan 11]))` so any rename or addition forces an explicit test update.'"
+    }
+  ]
+}

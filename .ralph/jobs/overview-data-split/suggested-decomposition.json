@@ -1,0 +1,84 @@
+{
+  "clusters": [
+    {
+      "name": "foundation",
+      "stories": ["US-001"],
+      "phase": 1,
+      "dependsOn": [],
+      "fileOverlapEvidence": {
+        "sharedFiles": ["plans/overview.html", "plans/overview-data.js"],
+        "exclusiveFiles": [],
+        "risk": "low"
+      },
+      "executionModeRationale": "Foundation story has no dependencies. It owns the entire data file at creation time and the inline-JSON deletion + script-tag addition in HTML."
+    },
+    {
+      "name": "representative-port",
+      "stories": ["US-002"],
+      "phase": 2,
+      "dependsOn": ["foundation"],
+      "fileOverlapEvidence": {
+        "sharedFiles": ["plans/overview.html", "plans/overview-data.js"],
+        "exclusiveFiles": [],
+        "risk": "low"
+      },
+      "executionModeRationale": "Establishes the render pipeline + DOM contract + open-state preserve/restore before the bulk port. Must serialize after US-001 because both touch the same files and US-002 reads the data-file scaffold US-001 created."
+    },
+    {
+      "name": "full-task-port",
+      "stories": ["US-003"],
+      "phase": 3,
+      "dependsOn": ["representative-port"],
+      "fileOverlapEvidence": {
+        "sharedFiles": ["plans/overview.html", "plans/overview-data.js"],
+        "exclusiveFiles": [],
+        "risk": "medium"
+      },
+      "executionModeRationale": "Heavy mechanical extraction of 48 tasks. Disjoint line ranges from phase-tree-port in overview.html (kanban + command rows at 1083-1425 and 1442-1914 vs phase tree at 1920-2009), but same file. Mutates only the tasks[] array body inside the OVERVIEW_DATA skeleton US-001 created (the 'each story owns its own array body' invariant). Worktree merge handles disjoint ranges cleanly. The render pipeline from representative-port is the contract."
+    },
+    {
+      "name": "phase-tree-port",
+      "stories": ["US-004"],
+      "phase": 3,
+      "dependsOn": ["representative-port"],
+      "fileOverlapEvidence": {
+        "sharedFiles": ["plans/overview.html", "plans/overview-data.js"],
+        "exclusiveFiles": [],
+        "risk": "medium"
+      },
+      "executionModeRationale": "Independent extraction of the phase tree section. File-overlap with full-task-port is on overview.html (disjoint line ranges: phase tree 1920-2009 vs kanban/commands 1083-1425 and 1442-1914) and overview-data.js (mutates only the phaseTree[] array body US-001 stubbed). renderPhaseTree() body lives inside the // ===== renderPhaseTree() ===== section marker US-002 emitted; renderTasks() marker remains untouched. Avoids merge conflicts with full-task-port."
+    },
+    {
+      "name": "docs-sweep",
+      "stories": ["US-005a"],
+      "phase": 3,
+      "dependsOn": ["representative-port"],
+      "fileOverlapEvidence": {
+        "sharedFiles": [],
+        "exclusiveFiles": [
+          "plans/codexu-roadmap.md",
+          "plans/parallel-assignments.md",
+          "plans/agent-view-research.md",
+          "plans/codex-agent-parity-audit.md",
+          "plans/overview-vite-react.md"
+        ],
+        "risk": "low"
+      },
+      "executionModeRationale": "Schema-shape-independent doc edits: rename 'edit plans/overview.html' -> 'edit plans/overview-data.js' across plans/, fix '?id=' -> '?tasks=' in plans/overview-vite-react.md (lines 66, 147), re-point the 'lastRanAt timestamp' and 'roadmap-data JSON' phrasings in plans/parallel-assignments.md (lines 225, 235, 242, 247), update the roadmap-plugin prompt body. Touches no files that US-003, US-004, or US-005b touch. Fully parallel-safe with full-task-port and phase-tree-port. This cluster is the parallel-safe portion of the original docs-and-skill-rewrite, carved out to resolve F-013."
+    },
+    {
+      "name": "skill-rewrite",
+      "stories": ["US-005b"],
+      "phase": 4,
+      "dependsOn": ["full-task-port", "phase-tree-port"],
+      "fileOverlapEvidence": {
+        "sharedFiles": [],
+        "exclusiveFiles": [
+          ".agents/skills/roadmap-and-overview/SKILL.md"
+        ],
+        "risk": "low"
+      },
+      "executionModeRationale": "Sole owner of .agents/skills/roadmap-and-overview/SKILL.md. Depends on full-task-port AND phase-tree-port because the rewrite must reference the finalized schema with a working example task entry (kanbanCards[].html, phaseTree raw/task-ref nodes, lastTouched dual-update). Running before US-003/US-004 risks SKILL examples drifting from the eventual data file. Phase 4 placement costs wall time, not parallelism (zero file overlap with any other cluster)."
+    }
+  ]
+}

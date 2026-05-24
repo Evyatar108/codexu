@@ -1,0 +1,50 @@
+{
+  "storyId": "US-005",
+  "verifiedEvidence": [
+    {
+      "criterion": "tools/overview-viewer/vite.config.ts configureServer dynamic-imports scripts/lib/watch-ralph-state.mjs and calls start({ ..., processLabel: 'vite-plugin' }).",
+      "command": "grep -nE \"import\\(pathToFileURL|watch-ralph-state\\.mjs|watcher\\.start|processLabel: 'vite-plugin'|ralphStateWatcherPlugin\" tools/overview-viewer/vite.config.ts",
+      "result": "PASS: ralphStateWatcherPlugin is registered in vite.config.ts; configureServer dynamically imports scripts/lib/watch-ralph-state.mjs through pathToFileURL and calls watcher.start with processLabel 'vite-plugin'.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "On lock contention (\"another watcher holds lock\"), the plugin logs a warning via server.config.logger.warn and continues serving the app (does NOT crash pnpm overview).",
+      "command": "grep -nE \"another watcher holds lock|logger\\.warn|catch \\(error\\)|throw error\" tools/overview-viewer/vite.config.ts tools/overview-viewer/src/__tests__/ralphWatcher.test.ts && pnpm --filter @codexu/overview-viewer test > .test-output/overview-viewer.test.log 2>&1",
+      "result": "PASS: lock contention is caught, logger.warn includes 'another watcher holds lock' plus the canonical sync-lock diagnostic, and the named test 'vite-plugin tolerates lock contention' passed in the full suite.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "server.httpServer?.on('close', ...) calls handle.stop().catch(() => {}).",
+      "command": "grep -nE \"httpServer\\?\\.on\\('close'|handle\\.stop\\(\\)\\.catch\" tools/overview-viewer/vite.config.ts",
+      "result": "PASS: vite.config.ts registers server.httpServer?.on('close', ...) and calls handle.stop().catch(() => {}).",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "onWrite fires server.ws.send({ type: 'custom', event: 'overview-ralph-state:update' }) exactly once per debounced write.",
+      "command": "grep -nE \"server\\.ws\\.send|overview-ralph-state:update|onWrite\" tools/overview-viewer/vite.config.ts tools/overview-viewer/src/__tests__/ralphWatcher.test.ts && pnpm --filter @codexu/overview-viewer test > .test-output/overview-viewer.test.log 2>&1",
+      "result": "PASS: onWrite sends { type: 'custom', event: 'overview-ralph-state:update' }; the named auto-start test asserted server.ws.send was called exactly once after a debounced write. Full suite passed 22 files / 124 tests.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "pnpm --filter @codexu/overview-viewer typecheck passes (the new .d.mts makes the dynamic import type-safe).",
+      "command": "pnpm --filter @codexu/overview-viewer typecheck > .test-output/overview-viewer.typecheck.log 2>&1",
+      "result": "PASS: tsc --noEmit completed with exit 0 in 6s.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "The vite-plugin auto-start path is covered by automated tests in tools/overview-viewer/src/__tests__/ralphWatcher.test.ts: a test named like \"vite-plugin auto-start fires overview-ralph-state:update on debounced write\" mocks Vite server.ws and asserts exactly one ws send per debounced write with payload { type: 'custom', event: 'overview-ralph-state:update' }; a second test named like \"vite-plugin tolerates lock contention\" simulates an existing fresh lock and asserts the plugin logs a warning via server.config.logger.warn and continues without throwing. pnpm --filter @codexu/overview-viewer test exits 0 with both named tests recorded as passing.",
+      "command": "grep -nE \"vite-plugin auto-start fires overview-ralph-state:update|vite-plugin tolerates lock contention|Tests  124 passed|Test Files  22 passed\" tools/overview-viewer/src/__tests__/ralphWatcher.test.ts .test-output/overview-viewer.test.log",
+      "result": "PASS: both named tests are present in ralphWatcher.test.ts, and pnpm --filter @codexu/overview-viewer test exited 0 with 22 test files and 124 tests passed.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Typecheck passes.",
+      "command": "pnpm --filter @codexu/overview-viewer typecheck > .test-output/overview-viewer.typecheck.log 2>&1",
+      "result": "PASS: tsc --noEmit completed with exit 0 in 6s.",
+      "evidenceKind": "passed"
+    }
+  ],
+  "skippedReasons": [],
+  "notTested": [],
+  "iterationSHA": "5d02569876fc1a50e4129c9c1093751ff8478273"
+}

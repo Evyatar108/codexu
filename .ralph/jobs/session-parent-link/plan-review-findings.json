@@ -1,0 +1,156 @@
+{
+  "planFile": "D:/harness-efforts/codexu/.ralph/jobs/.staging/20260513-113551/draft-plan.md",
+  "repoDir": "D:/harness-efforts/codexu",
+  "findings": [
+    {
+      "id": "F-001",
+      "severity": "High",
+      "source": "consensus",
+      "category": "Simplicity",
+      "section": "Approach > Implementation Strategy > Step 4 + Acceptance Criteria + Risk Areas #1",
+      "description": "The applySessions 'preserve spawnedChildren: undefined' merge block is wrong. Metadata is server-authoritative; preserving stale local spawnedChildren when server sends undefined would resurrect removed parent-child relationships and mask producer writes. The simpler correct approach: extend schema, normalize IDs on ingress, let metadata round-trip as-is. No special applySessions logic needed because there is no schema default that backfills [].",
+      "status": "resolved",
+      "resolution": "Plan amended: removed applySessions merge-preservation step. The risk-area #1 reframed: server is authoritative; the 'don't backfill []' pitfall is satisfied because the schema uses .optional() (no default), and applySessions full-replace passes undefined through naturally. Acceptance criterion adjusted to verify the field is undefined/absent after a server update without spawnedChildren — not that a stale local value persists."
+    },
+    {
+      "id": "F-002",
+      "severity": "High",
+      "source": "codex",
+      "category": "Completeness",
+      "section": "Scope > Out of Scope, Acceptance Criteria, Open Questions #1",
+      "description": "Plan defers CLI fork/spawn writer wiring (createSessionMetadata.ts, runCodex.ts, daemon/forkSession.ts HAPPY_FORKED_FROM_SESSION_ID, ops.ts machineForkSession). Without these, real user flows will not populate the new fields. The feature becomes inert until a follow-up commit.",
+      "status": "wont_fix",
+      "resolution": "Confirmed at gap-assessment that CLI write surfaces are out-of-scope and belong to a separate spawn-flow integration task. Recorded explicitly in requirements-gaps.md and Open Questions. The shape of this task is 'read-side parity + schema + helpers'; making mobile-tree-view possible. The deferred follow-up is named in Open Questions #1 and will be tracked in plans/parallel-assignments.md as a separate row."
+    },
+    {
+      "id": "F-003",
+      "severity": "High",
+      "source": "codex",
+      "category": "Criteria Quality",
+      "section": "Acceptance Criteria",
+      "description": "No acceptance criterion tests a real fork flow producing parentSessionId on a child session. Without such a test, regressions in the writer path will land silently.",
+      "status": "wont_fix",
+      "resolution": "Aligned with F-002 — writer path is out of scope this task. The acceptance criterion 'round-trip through applySessions with parentSessionId set' verifies the read-side contract independent of who writes the field. The spawn-flow task will own end-to-end fork verification."
+    },
+    {
+      "id": "F-004",
+      "severity": "Medium",
+      "source": "consensus",
+      "category": "Feasibility",
+      "section": "Approach > Implementation Strategy > Step 3 + Risk Areas #2",
+      "description": "Same-machine constraint is not actually enforced. parseCompositeSessionId splits any prefix; the planned normalization only promotes bare IDs using the current machine — already-composite refs (including foreign-machine refs like 'm2:abc') flow through unchanged. The plan's 'cross-machine refs out of scope; same-machine via parseCompositeSessionId validation' claim is inaccurate.",
+      "status": "resolved",
+      "resolution": "Plan amended: removed the 'validate same-machine' claim. Replaced with explicit policy: bare refs are promoted using the session's machineId; already-composite refs pass through as-is. Cross-machine refs are tolerated (read-side); future write-side may add validation but is out of scope. New acceptance criterion: 'a metadata blob containing m2:foreign-id does not crash sync; the foreign ref is preserved verbatim in the store.'"
+    },
+    {
+      "id": "F-005",
+      "severity": "Medium",
+      "source": "consensus",
+      "category": "Completeness",
+      "section": "Files to Create/Modify (row 11) + Acceptance Criteria",
+      "description": "Status doc updates are incomplete. session-parent-link is tracked in plans/parallel-assignments.md (active task board) and plans/overview.html. Updating only plans/agent-view-research.md leaves the project tracking inconsistent.",
+      "status": "resolved",
+      "resolution": "Plan amended: added plans/parallel-assignments.md and plans/overview.html to the documentation-update list. Acceptance criteria expanded to include flipping all three trackers."
+    },
+    {
+      "id": "F-006",
+      "severity": "Medium",
+      "source": "codex",
+      "category": "Feasibility",
+      "section": "Approach > Implementation Strategy > Step 3",
+      "description": "sync.ts parses metadata with parsePlainJson(...), not MetadataSchema.parse(...). toCompositeSession and update-session can receive arbitrary objects. The plan must require typeof check (string) for parentSessionId and Array.isArray for spawnedChildren before promoting refs, or one malformed metadata blob can break sync.",
+      "status": "resolved",
+      "resolution": "Plan amended: Step 3 explicitly requires defensive shape guards before normalization (typeof === 'string' for parentSessionId; Array.isArray + every-element-is-string for spawnedChildren). Malformed entries are left as-is (don't crash; let downstream Zod parse decide whether to drop them). New acceptance criterion added for malformed-metadata tolerance."
+    },
+    {
+      "id": "F-007",
+      "severity": "Medium",
+      "source": "codex",
+      "category": "Feasibility",
+      "section": "Approach > Implementation Strategy > Step 3",
+      "description": "The update-session handler at sync.ts:1816 does not have a local machineId variable. Plan must specify the source for compositeSessionId(machineId, ...) — sourceMachineId, session.metadata?.machineId, or parsed from the composite sessionId.",
+      "status": "resolved",
+      "resolution": "Plan amended: Step 3 specifies machineId resolution order — (1) prefer the existing in-store session's metadata.machineId; (2) fall back to parseCompositeSessionId(sessionId).machineId; (3) if neither yields a machineId, skip promotion and leave ref bare (consistent with current toCompositeSession idempotency)."
+    },
+    {
+      "id": "F-008",
+      "severity": "Medium",
+      "source": "copilot",
+      "category": "Completeness",
+      "section": "Files to Create/Modify (row 9)",
+      "description": "Coverage for the live websocket update-session path should not be optional. The risky behavior lives in both initial fetch (toCompositeSession) and live update (update-session handler). sync.test.ts already has a focused harness at lines 652-703.",
+      "status": "resolved",
+      "resolution": "Plan amended: sync.test.ts addition is now required (not optional). Acceptance criterion includes coverage of both fetch and update-session paths."
+    },
+    {
+      "id": "F-009",
+      "severity": "Medium",
+      "source": "copilot",
+      "category": "Criteria Quality",
+      "section": "Acceptance Criteria > round-trip",
+      "description": "Round-trip acceptance still mixes 'MMKV round-trip' language with a storage layer that does not persist the session map. Autonomous implementer cannot tell whether success means 'server re-fetch round-trip' or 'app-restart persistence'.",
+      "status": "resolved",
+      "resolution": "Plan amended: round-trip criterion rewritten as 'simulated server fetch → applySessions → store read → simulated subsequent fetch → applySessions returns the same two fields'. Explicit note that persistence.ts is not modified and app-restart persistence is out of scope (documented in Scope > Out of Scope and Open Questions #2)."
+    },
+    {
+      "id": "F-010",
+      "severity": "Medium",
+      "source": "codex",
+      "category": "Criteria Quality",
+      "section": "Acceptance Criteria",
+      "description": "Add explicit criterion for malformed metadata tolerance: non-string parentSessionId and non-array spawnedChildren must not crash sync.",
+      "status": "resolved",
+      "resolution": "Plan amended: new AC and test case for malformed-input tolerance (paired with F-006)."
+    },
+    {
+      "id": "F-011",
+      "severity": "Medium",
+      "source": "codex",
+      "category": "Criteria Quality",
+      "section": "Acceptance Criteria",
+      "description": "Plan says cross-machine refs are out of scope but acceptance does not say whether m2:child in an m1 session is rejected, ignored, or preserved.",
+      "status": "resolved",
+      "resolution": "Plan amended: cross-machine refs are PRESERVED VERBATIM (read-side) — no rejection, no rewrite. New AC: a session whose metadata contains spawnedChildren=['m2:foo'] does not crash and the foreign ref survives applySessions unchanged. Write-side enforcement is the spawn-flow task's concern."
+    },
+    {
+      "id": "F-012",
+      "severity": "Medium",
+      "source": "codex",
+      "category": "Ordering",
+      "section": "Approach > Implementation Strategy",
+      "description": "Add a shared normalization helper before editing both toCompositeSession and update-session. Otherwise the two paths can drift.",
+      "status": "resolved",
+      "resolution": "Plan amended: Step 3 introduces a single private helper `normalizeMetadataParentChildRefs(rawMetadata, machineId): RawMetadata` inside sync.ts (or a sibling file), used by both call sites. Tests cover the helper directly."
+    },
+    {
+      "id": "F-013",
+      "severity": "Low",
+      "source": "codex",
+      "category": "Feasibility",
+      "section": "Files to Create/Modify (row 2)",
+      "description": "CLI mirroring must include nullability, not only optionality. App schema parentSessionId: z.string().nullish() implies parentSessionId?: string | null.",
+      "status": "resolved",
+      "resolution": "Plan amended: CLI type signature is `parentSessionId?: string | null` (matches the .nullish() schema)."
+    },
+    {
+      "id": "F-014",
+      "severity": "Low",
+      "source": "codex",
+      "category": "Criteria Quality",
+      "section": "Open Questions / helper semantics",
+      "description": "'parentSessionId: null semantics' is vague. Specify that helpers treat null, undefined, and missing parent session as null, while preserving an explicit null if the server sends it.",
+      "status": "resolved",
+      "resolution": "Plan amended: getSessionParent returns null when parentSessionId is null OR undefined OR when the referenced parent Session is not in the store. The store preserves the literal null vs undefined distinction (Zod .nullish() handles this on parse)."
+    },
+    {
+      "id": "F-015",
+      "severity": "Low",
+      "source": "codex",
+      "category": "Simplicity",
+      "section": "Open Questions #3",
+      "description": "getSessionChildren defaults to explicit-only resolution. If CAS race only updates child metadata but not parent's spawnedChildren, first UI consumer is brittle.",
+      "status": "wont_fix",
+      "resolution": "Acknowledged in Open Questions #3; reverse-scan is a one-liner if mobile-tree-view needs it. Defaulting to explicit-only is the simpler contract. Will be revisited at consumer integration."
+    }
+  ]
+}

@@ -1,0 +1,23 @@
+### Completeness
+
+[High] `plans/overview.html:2710-2737` renders badge classes from `data-task-phase` but never updates the badge text. Migrated blocked/paused/ready rows still contain legacy text like `🔒 blocked`, `⏸ paused`, or `⬜ ready`, then get an added status modifier, so the UI can show “blocked blocked” and never shows the primary phase (`plan-ready`). This misses the plan’s primary phase pill + secondary status modifier model.
+
+[Medium] `.agents/skills/roadmap-and-overview/SKILL.md` updates the old badge guidance, but the required cross-links to the new “Task phase model” paragraph in `plans/codexu-roadmap.md` and the updated conventions block in `plans/parallel-assignments.md` are not added. That leaves the skill weaker as the bookkeeper entry point than the plan specified.
+
+### Correctness
+
+[High] `plans/overview.html:2611-2639` implements the phase bucket maps incorrectly for brainstorm phases. The plan explicitly requires `brainstorm-* -> brainstorm` for both order and filter bucket maps, but the code maps `brainstorm-ready` to `ready` and the other brainstorm phases to `inprogress`. The brainstorm smoke path will not classify or order into the planned brainstorm bucket.
+
+[Medium] `plans/overview.html:858` defines `.cmd-badge.b-closed` after legacy `.b-closed`, so legacy `b-closed` shipped rows render with the new closed/gray styling until JS rewrites them to `b-shipped`. That weakens the “legacy classes remain fail-soft aliases equivalent to today” requirement, especially if the render IIFE fails or JS is unavailable.
+
+### Quality
+
+No issues found beyond the documentation cross-link gap above.
+
+### Security
+
+No issues found.
+
+### Overall Assessment
+
+Needs more work before use. The data attributes are mostly present, but the visible phase model and brainstorm classification do not match the plan, so the dashboard would still miscommunicate task state in key paths.

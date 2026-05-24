@@ -1,0 +1,593 @@
+{
+  "project": "codexu",
+  "description": "Ralph Pipeline 01 - Foundation: schema, sync core, one-shot sync, sidecar emit for surfacing Ralph pipeline state to the overview-viewer dashboard via a generated sidecar (plans/overview-ralph-state.{js,json}).",
+  "deslop": true,
+  "iterationEngine": "codex",
+  "jobDir": "D:/harness-efforts/codexu/.ralph/jobs/ralph-pipeline-01-foundation",
+  "repoDir": "D:/harness-efforts/codexu",
+  "branch": {
+    "name": "main",
+    "created": false
+  },
+  "worktree": {
+    "path": "D:/harness-efforts/codexu",
+    "branch": "main",
+    "external": true
+  },
+  "planReviewContext": [
+    {
+      "id": "F-001",
+      "severity": "High",
+      "category": "Feasibility",
+      "source": "consensus",
+      "description": "Group artifacts (.ralph/job-groups/<group>/group.json) have no derivable RalphStage. `groupState` is a parameter to deriveRalphStage, and sync-core's cross-kind precedence allows `group` to win over `brainstorm`, but no predicate in the table consumes `groupState`. A group-only match has no defined stage and cannot satisfy the '10 stage cases' acceptance criterion. Either drop `groupState` from the bundle, add explicit group-derived stages, or define group->stage roll-up rules in sync-core (e.g., use the dominant member's stage).",
+      "suggestedFix": "Group artifacts are read via their own top-level job-state.json/prd.json/findings (same schema as jobs); the existing 10-case predicate covers them. Drop the unused groupState parameter from the predicate signature and ambient decl; add a group-as-job acceptance-criterion test case."
+    },
+    {
+      "id": "F-002",
+      "severity": "High",
+      "category": "Feasibility",
+      "source": "consensus",
+      "description": "The `planning` predicate (#8) is not derivable under the declared `deriveRalphStage` signature. Predicate #8 needs a `jobDir-exists` marker when both prd.json and job-state.json are absent. Neither the runtime signature nor the scripts.d.ts declaration carries that marker. Add a `jobDirMarker?: true` field to the bundle, or move the `planning` decision into sync-core.",
+      "suggestedFix": "Add jobDirMarker?: true to the deriveRalphStage bundle (scripts.d.ts + JSDoc), rewrite predicate #8 to test the marker, and assign sync-core the responsibility of setting it when a jobDir/groupDir is observed without prd.json or job-state.json."
+    },
+    {
+      "id": "F-000",
+      "severity": "Low",
+      "description": "# truncated 4 findings (sentinel: planReviewContext was capped at 500 tokens)"
+    }
+  ],
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Ralph types + Window declaration in overview-viewer",
+      "description": "As a frontend developer, I want the overview-viewer to carry the type model for Ralph pipeline state so that future plans can typecheck against a stable contract.",
+      "acceptanceCriteria": [
+        "tools/overview-viewer/src/types.ts exports RalphStage (10 values: brainstorming, brainstorm-ready, planning, plan-ready, implementing, reviewing, review-fix, replan-pending, shipped, blocked), RalphEntryPath, RalphArtifacts, RalphPipelineState, OverviewRalphState, and a getOverviewRalphState(): OverviewRalphState helper",
+        "OverviewData interface is extended with ralphOverrides?: Record<string, string> (slug -> taskId, hand-edited)",
+        "tools/overview-viewer/src/overviewData.ts declares Window.OVERVIEW_RALPH_STATE?: OverviewRalphState alongside the existing OVERVIEW_DATA global in the declare global block",
+        "getOverviewRalphState() typechecks without `as` casts (relies on the ambient Window declaration)",
+        "OverviewTask does NOT carry a ralph field; separation is preserved; lookup is ralphState.byTaskId[task.id]",
+        "pnpm --filter @codexu/overview-viewer typecheck exits 0",
+        "Typecheck passes"
+      ],
+      "priority": 1,
+      "passes": true,
+      "notes": "",
+      "verifiedEvidence": [
+        {
+          "criterion": "tools/overview-viewer/src/types.ts exports RalphStage (10 values: brainstorming, brainstorm-ready, planning, plan-ready, implementing, reviewing, review-fix, replan-pending, shipped, blocked), RalphEntryPath, RalphArtifacts, RalphPipelineState, OverviewRalphState, and a getOverviewRalphState(): OverviewRalphState helper",
+          "command": "grep -nE \"export type RalphStage|brainstorming|brainstorm-ready|planning|plan-ready|implementing|reviewing|review-fix|replan-pending|shipped|blocked|export type RalphEntryPath|export interface RalphArtifacts|export interface RalphPipelineState|export interface OverviewRalphState|export function getOverviewRalphState\" tools/overview-viewer/src/types.ts",
+          "result": "Found RalphStage and all 10 stage literals at types.ts:36-46, RalphEntryPath at :48, RalphArtifacts at :50, RalphPipelineState at :59, OverviewRalphState at :75, and getOverviewRalphState(): OverviewRalphState at :83."
+        },
+        {
+          "criterion": "OverviewData interface is extended with ralphOverrides?: Record<string, string> (slug -> taskId, hand-edited)",
+          "command": "grep -n \"ralphOverrides\" tools/overview-viewer/src/types.ts",
+          "result": "types.ts:144 contains ralphOverrides?: Record<string, string>."
+        },
+        {
+          "criterion": "tools/overview-viewer/src/overviewData.ts declares Window.OVERVIEW_RALPH_STATE?: OverviewRalphState alongside the existing OVERVIEW_DATA global in the declare global block",
+          "command": "grep -nE \"OVERVIEW_DATA|OVERVIEW_RALPH_STATE|OverviewRalphState\" tools/overview-viewer/src/overviewData.ts",
+          "result": "overviewData.ts imports OverviewRalphState at :1 and declares OVERVIEW_DATA at :5 plus OVERVIEW_RALPH_STATE?: OverviewRalphState at :6."
+        },
+        {
+          "criterion": "getOverviewRalphState() typechecks without `as` casts (relies on the ambient Window declaration)",
+          "command": "sed -n '/export function getOverviewRalphState/,/}/p' tools/overview-viewer/src/types.ts | grep -n \" as \" || true; pnpm --filter @codexu/overview-viewer typecheck",
+          "result": "grep produced no matches for ` as ` in getOverviewRalphState(); typecheck exited 0."
+        },
+        {
+          "criterion": "OverviewTask does NOT carry a ralph field; separation is preserved; lookup is ralphState.byTaskId[task.id]",
+          "command": "sed -n '/export interface OverviewTask/,/^}/p' tools/overview-viewer/src/types.ts",
+          "result": "OverviewTask block contains id, scope, phase, status, lastTouchedAt, planOnly, mergeCommit, kanbanCards, command; no ralph field."
+        },
+        {
+          "criterion": "pnpm --filter @codexu/overview-viewer typecheck exits 0",
+          "command": "pnpm --filter @codexu/overview-viewer typecheck > .test-output/overview-viewer.typecheck.log 2>&1",
+          "result": "Exit 0; tsc --noEmit completed with no diagnostics. Log: .test-output/overview-viewer.typecheck.log."
+        },
+        {
+          "criterion": "Typecheck passes",
+          "command": "tail -10 .test-output/overview-viewer.typecheck.log",
+          "result": "Log shows @codexu/overview-viewer typecheck running `tsc --noEmit` with no errors; cached run exit=0 in .test-output/all.summary.log."
+        }
+      ],
+      "dependencies": [],
+      "failureClassification": "",
+      "partialProgress": null
+    },
+    {
+      "id": "US-002",
+      "title": "Config layer: resolver + default + schema + .gitignore",
+      "description": "As an operator running `pnpm sync-ralph-state`, I want a single config resolver so the sync code stays project-agnostic and downstream plans extend the same artifact.",
+      "acceptanceCriteria": [
+        "scripts/lib/default-config.mjs exports a frozen codexu-default config object with Plan-01 fields only: dataFile, ralphRoot, ralphSubdirs.{jobs, jobGroups, brainstorms}, outputs.{sidecarJs, sidecarJson}, lockFile, watcher.ignored",
+        "scripts/lib/resolve-config.mjs exports loadConfig({ repoRoot, configPath? }) enforcing canonical precedence: merge order defaults < committed < .local.json overlay; committed-path lookup default <repoRoot>/.ralph/overview-config.json < OVERVIEW_CONFIG_PATH env var < configPath argument; .local.json overlay always sits next to the selected committed file",
+        "loadConfig resolves all paths to absolute paths against repoRoot",
+        "loadConfig returns the resolved object deep-frozen (recursive Object.freeze on outputs, ralphSubdirs, watcher) per F-012",
+        "loadConfig warns to stderr (does not throw) when a configured ralphSubdirs.* directory is missing; empty .ralph/ remains valid",
+        ".ralph/overview-config.json exists as pure JSON (no comments, no trailing commas), validated by node -e \"JSON.parse(require('fs').readFileSync('.ralph/overview-config.json'))\"",
+        ".ralph/overview-config.schema.json exists as pure JSON Schema, referenced by $schema from the committed config",
+        ".gitignore contains `.ralph/overview-config.local.json`; verifiable via grep -F '.ralph/overview-config.local.json' .gitignore",
+        "Config-layering unit test passes both sub-assertions: (a) overlay wins over redirected committed config; (b) configPath arg overrides OVERVIEW_CONFIG_PATH env var",
+        "pnpm --filter @codexu/overview-viewer typecheck passes",
+        "Tests pass",
+        "Typecheck passes"
+      ],
+      "priority": 2,
+      "passes": true,
+      "notes": "",
+      "verifiedEvidence": [
+        {
+          "criterion": "scripts/lib/default-config.mjs exports a frozen codexu-default config object with Plan-01 fields only: dataFile, ralphRoot, ralphSubdirs.{jobs, jobGroups, brainstorms}, outputs.{sidecarJs, sidecarJson}, lockFile, watcher.ignored",
+          "command": "grep -nE \"export const codexuDefaultConfig|dataFile|ralphRoot|jobs:|jobGroups:|brainstorms:|outputs|sidecarJs|sidecarJson|lockFile|watcher|Object.freeze\" scripts/lib/default-config.mjs; pnpm --filter @codexu/overview-viewer test src/__tests__/config.test.ts",
+          "result": "default-config.mjs lines 1-35 define codexuDefaultConfig with only the Plan-01 keys and recursive Object.freeze; config.test.ts verified Object.isFrozen for the default object and nested outputs/ralphSubdirs/watcher. Targeted test passed: 1 file, 5 tests."
+        },
+        {
+          "criterion": "scripts/lib/resolve-config.mjs exports loadConfig({ repoRoot, configPath? }) enforcing canonical precedence: merge order defaults < committed < .local.json overlay; committed-path lookup default <repoRoot>/.ralph/overview-config.json < OVERVIEW_CONFIG_PATH env var < configPath argument; .local.json overlay always sits next to the selected committed file",
+          "command": "grep -nE \"export function loadConfig|defaultConfigPath|OVERVIEW_CONFIG_PATH|configPath|localOverlayPath\" scripts/lib/resolve-config.mjs; pnpm --filter @codexu/overview-viewer test src/__tests__/config.test.ts",
+          "result": "resolve-config.mjs lines 8-38 implement loadConfig, default path, env override, configPath override, and selected-file local overlay. config.test.ts lines 41-82 verify overlay over redirected committed config and configPath overriding OVERVIEW_CONFIG_PATH. Targeted test passed: 1 file, 5 tests."
+        },
+        {
+          "criterion": "loadConfig resolves all paths to absolute paths against repoRoot",
+          "command": "node - <<'NODE'\nimport path from 'node:path'\nimport { loadConfig } from './scripts/lib/resolve-config.mjs'\nconst warn = console.warn; console.warn = () => {}\nconst config = loadConfig({ repoRoot: process.cwd() }); console.warn = warn\nconsole.log([config.dataFile, config.ralphRoot, config.ralphSubdirs.jobs, config.ralphSubdirs.jobGroups, config.ralphSubdirs.brainstorms, config.outputs.sidecarJs, config.outputs.sidecarJson, config.lockFile].every((value) => path.isAbsolute(value)))\nNODE",
+          "result": "Command printed true; config.test.ts also asserts resolved absolute fixture paths for dataFile, outputs, ralphRoot, and ralphSubdirs.jobs."
+        },
+        {
+          "criterion": "loadConfig returns the resolved object deep-frozen (recursive Object.freeze on outputs, ralphSubdirs, watcher) per F-012",
+          "command": "node - <<'NODE'\nimport { loadConfig } from './scripts/lib/resolve-config.mjs'\nconst warn = console.warn; console.warn = () => {}\nconst config = loadConfig({ repoRoot: process.cwd() }); console.warn = warn\nconsole.log(JSON.stringify({ config: Object.isFrozen(config), outputs: Object.isFrozen(config.outputs), ralphSubdirs: Object.isFrozen(config.ralphSubdirs), watcher: Object.isFrozen(config.watcher) }))\nNODE",
+          "result": "Command printed all true; config.test.ts lines 65-68 verifies the returned object and nested outputs, ralphSubdirs, and watcher are frozen."
+        },
+        {
+          "criterion": "loadConfig warns to stderr (does not throw) when a configured ralphSubdirs.* directory is missing; empty .ralph/ remains valid",
+          "command": "pnpm --filter @codexu/overview-viewer test src/__tests__/config.test.ts",
+          "result": "config.test.ts lines 86-95 creates an empty .ralph fixture, asserts loadConfig does not throw, and verifies warnings for jobs, jobGroups, and brainstorms. Targeted test passed: 1 file, 5 tests."
+        },
+        {
+          "criterion": ".ralph/overview-config.json exists as pure JSON (no comments, no trailing commas), validated by node -e \"JSON.parse(require('fs').readFileSync('.ralph/overview-config.json'))\"",
+          "command": "node -e \"JSON.parse(require('fs').readFileSync('.ralph/overview-config.json')); console.log('overview-config.json parse ok')\"",
+          "result": "overview-config.json parse ok"
+        },
+        {
+          "criterion": ".ralph/overview-config.schema.json exists as pure JSON Schema, referenced by $schema from the committed config",
+          "command": "node - <<'NODE'\nconst fs = require('fs')\nconst config = JSON.parse(fs.readFileSync('.ralph/overview-config.json', 'utf8'))\nconst schema = JSON.parse(fs.readFileSync('.ralph/overview-config.schema.json', 'utf8'))\nconsole.log(`${config.$schema}; ${schema.$schema}`)\nNODE",
+          "result": "Printed ./overview-config.schema.json; https://json-schema.org/draft/2020-12/schema."
+        },
+        {
+          "criterion": ".gitignore contains `.ralph/overview-config.local.json`; verifiable via grep -F '.ralph/overview-config.local.json' .gitignore",
+          "command": "grep -nF '.ralph/overview-config.local.json' .gitignore",
+          "result": "Line 95 contains .ralph/overview-config.local.json."
+        },
+        {
+          "criterion": "Config-layering unit test passes both sub-assertions: (a) overlay wins over redirected committed config; (b) configPath arg overrides OVERVIEW_CONFIG_PATH env var",
+          "command": "pnpm --filter @codexu/overview-viewer test src/__tests__/config.test.ts > .test-output/overview-viewer.config.test.log 2>&1",
+          "result": "Exit 0. Log shows Test Files 1 passed and Tests 5 passed; the two precedence tests are config.test.ts lines 41-82."
+        },
+        {
+          "criterion": "pnpm --filter @codexu/overview-viewer typecheck passes",
+          "command": "pnpm --filter @codexu/overview-viewer typecheck > .test-output/overview-viewer.typecheck.log 2>&1",
+          "result": "Exit 0; tsc --noEmit completed with no diagnostics."
+        },
+        {
+          "criterion": "Tests pass",
+          "command": "pnpm --filter @codexu/overview-viewer test > .test-output/overview-viewer.test.log 2>&1",
+          "result": "Exit 0. Log shows Test Files 17 passed and Tests 68 passed."
+        },
+        {
+          "criterion": "Typecheck passes",
+          "command": "tail -20 .test-output/overview-viewer.typecheck.log",
+          "result": "Log shows @codexu/overview-viewer typecheck running tsc --noEmit with no diagnostics."
+        }
+      ],
+      "dependencies": [
+        "US-001"
+      ],
+      "failureClassification": "",
+      "partialProgress": null
+    },
+    {
+      "id": "US-003",
+      "title": "Stateless stage-derivation predicate (deriveRalphStage)",
+      "description": "As a sync orchestrator, I want a pure stage-derivation predicate so the predicate stays unit-testable in isolation and is reused by future plans (watcher, snapshot, MCP).",
+      "acceptanceCriteria": [
+        "scripts/lib/derive-ralph-stage.mjs exports deriveRalphStage(bundle) -> RalphStage accepting { jobState?, prd?, brainstormJson?, reviewOpenCount?, jobDirMarker? }; no filesystem access; no list inputs",
+        "Predicate-set constants defined once: REVIEW_PHASES = ['5a','5b','5.5','6'] and IMPLEMENTING_PHASES = ['1','2','3','4','5c']",
+        "All 10 predicates from the plan's stage-derivation table are implemented in order (first match wins): shipped, blocked, replan-pending, review-fix, reviewing, implementing, plan-ready, planning, brainstorm-ready, brainstorming",
+        "Unknown/future phase values map to implementing via predicate #6 (never fall through to plan-ready/planning)",
+        "tools/overview-viewer/src/__tests__/scripts.d.ts declares all three .mjs modules (derive-ralph-stage.mjs, sync-core.mjs, resolve-config.mjs) using explicit relative-path module specifiers (e.g., '../../../../scripts/lib/<file>.mjs'); NOT wildcard patterns",
+        "tools/overview-viewer/src/__tests__/ralphStage.test.ts includes: 10 stage cases (one per RalphStage), 1 case for reviewOpenCount.<phase> === undefined mapping to reviewing (NOT review-fix), 1 case per IMPLEMENTING_PHASES value via it.each, 1 case for unknown phase string ('4.5','7') mapping to implementing, 1 case for jobDirMarker: true (no prd/jobState) mapping to planning",
+        "pnpm --filter @codexu/overview-viewer test src/__tests__/ralphStage.test.ts exits 0",
+        "Tests pass",
+        "Typecheck passes"
+      ],
+      "priority": 3,
+      "passes": true,
+      "notes": "",
+      "verifiedEvidence": [
+        {
+          "criterion": "scripts/lib/derive-ralph-stage.mjs exports deriveRalphStage(bundle) -> RalphStage accepting { jobState?, prd?, brainstormJson?, reviewOpenCount?, jobDirMarker? }; no filesystem access; no list inputs",
+          "command": "grep -nE 'export function deriveRalphStage|jobState|prd|brainstormJson|reviewOpenCount|jobDirMarker' scripts/lib/derive-ralph-stage.mjs scripts/lib/derive-ralph-stage.d.mts; grep -nE 'node:fs|fs[.]' scripts/lib/derive-ralph-stage.mjs || true",
+          "result": "derive-ralph-stage.mjs exports deriveRalphStage(bundle = {}) at line 14; JSDoc and derive-ralph-stage.d.mts declare jobState?, prd?, brainstormJson?, reviewOpenCount?, and jobDirMarker?. The filesystem grep produced no matches, and the function accepts one bundle argument rather than lists."
+        },
+        {
+          "criterion": "Predicate-set constants defined once: REVIEW_PHASES = ['5a','5b','5.5','6'] and IMPLEMENTING_PHASES = ['1','2','3','4','5c']",
+          "command": "grep -nE 'REVIEW_PHASES|IMPLEMENTING_PHASES' scripts/lib/derive-ralph-stage.mjs tools/overview-viewer/src/__tests__/ralphStage.test.ts",
+          "result": "derive-ralph-stage.mjs lines 1-2 define REVIEW_PHASES and IMPLEMENTING_PHASES once; tests import IMPLEMENTING_PHASES from the module rather than duplicating the list."
+        },
+        {
+          "criterion": "All 10 predicates from the plan's stage-derivation table are implemented in order (first match wins): shipped, blocked, replan-pending, review-fix, reviewing, implementing, plan-ready, planning, brainstorm-ready, brainstorming",
+          "command": "grep -n \"return '\" scripts/lib/derive-ralph-stage.mjs",
+          "result": "Return order is shipped line 23, blocked 27, replan-pending 31, review-fix 36, reviewing 38, implementing 42, plan-ready 46, planning 50, brainstorm-ready 54, brainstorming 58."
+        },
+        {
+          "criterion": "Unknown/future phase values map to implementing via predicate #6 (never fall through to plan-ready/planning)",
+          "command": "grep -nE '4[.]5|unknown phase' tools/overview-viewer/src/__tests__/ralphStage.test.ts; pnpm --filter @codexu/overview-viewer test src/__tests__/ralphStage.test.ts > .test-output/overview-viewer.ralphStage.test.log 2>&1",
+          "result": "ralphStage.test.ts lines 49-52 cover unknown phase strings '4.5' and '7' mapping to implementing; targeted test exited 0 with 1 file and 19 tests passed."
+        },
+        {
+          "criterion": "tools/overview-viewer/src/__tests__/scripts.d.ts declares all three .mjs modules (derive-ralph-stage.mjs, sync-core.mjs, resolve-config.mjs) using explicit relative-path module specifiers (e.g., '../../../../scripts/lib/<file>.mjs'); NOT wildcard patterns",
+          "command": "grep -nE 'derive-ralph-stage[.]mjs|sync-core[.]mjs|resolve-config[.]mjs|declare module' tools/overview-viewer/src/__tests__/scripts.d.ts; grep -n '[*]' tools/overview-viewer/src/__tests__/scripts.d.ts || true",
+          "result": "scripts.d.ts declares explicit relative modules for resolve-config at line 25, derive-ralph-stage at line 31, and sync-core at line 46; wildcard grep produced no matches."
+        },
+        {
+          "criterion": "tools/overview-viewer/src/__tests__/ralphStage.test.ts includes: 10 stage cases (one per RalphStage), 1 case for reviewOpenCount.<phase> === undefined mapping to reviewing (NOT review-fix), 1 case per IMPLEMENTING_PHASES value via it.each, 1 case for unknown phase string ('4.5','7') mapping to implementing, 1 case for jobDirMarker: true (no prd/jobState) mapping to planning",
+          "command": "grep -nE 'IMPLEMENTING_PHASES|jobDirMarker|reviewOpenCount|brainstorm-ready|brainstorming|replan-pending|review-fix|4[.]5' tools/overview-viewer/src/__tests__/ralphStage.test.ts; tail -20 .test-output/overview-viewer.ralphStage.test.log",
+          "result": "ralphStage.test.ts lines 8-33 define the 10 stage case table, line 37 verifies missing reviewOpenCount maps to reviewing, line 43 uses it.each(IMPLEMENTING_PHASES), line 49 covers '4.5' and '7', and line 56 verifies jobDirMarker-only planning. Targeted run passed 19 tests."
+        },
+        {
+          "criterion": "pnpm --filter @codexu/overview-viewer test src/__tests__/ralphStage.test.ts exits 0",
+          "command": "pnpm --filter @codexu/overview-viewer test src/__tests__/ralphStage.test.ts > .test-output/overview-viewer.ralphStage.test.log 2>&1",
+          "result": "Exit 0. Log shows Test Files 1 passed and Tests 19 passed."
+        },
+        {
+          "criterion": "Tests pass",
+          "command": "pnpm --filter @codexu/overview-viewer test > .test-output/overview-viewer.test.log 2>&1",
+          "result": "Exit 0. Log shows Test Files 18 passed and Tests 87 passed."
+        },
+        {
+          "criterion": "Typecheck passes",
+          "command": "pnpm --filter @codexu/overview-viewer typecheck > .test-output/overview-viewer.typecheck.log 2>&1",
+          "result": "Exit 0. tsc --noEmit completed with no diagnostics."
+        }
+      ],
+      "dependencies": [
+        "US-001"
+      ],
+      "failureClassification": "",
+      "partialProgress": null
+    },
+    {
+      "id": "US-004",
+      "title": "Walk + match + cross-kind collapse (sync-core walkRalphState)",
+      "description": "As a sync orchestrator, I want a deterministic walk of .ralph/ that resolves artifacts to overview task IDs and collapses cross-kind collisions before predicate evaluation.",
+      "acceptanceCriteria": [
+        "scripts/lib/sync-core.mjs exports walkRalphState({ repoRoot, config, generatedFromCommit }) -> Promise<OverviewRalphState>",
+        "Walk root is exactly <repoRoot>/<config.ralphRoot>/; walker NEVER recurses from <repoRoot> directly (would hit .worktrees/*/.ralph/)",
+        "Walk reads direct children of <ralphRoot>/<ralphSubdirs.jobs>/ (job-state.json, prd.json, code-review-findings.json, docs-review-findings.json), <ralphRoot>/<ralphSubdirs.jobGroups>/ (top-level job-state.json/prd.json/findings + group.json metadata), <ralphRoot>/<ralphSubdirs.brainstorms>/ (brainstorm.json); sets jobDirMarker: true when <slug>/ or <group>/ observed; does NOT recurse into <slug>/",
+        "Skips symlinks; skips paths matching any pattern in config.watcher.ignored (minimum: .worktrees/**, **/.git/**, .ralph/jobs/*/worktree/**, .ralph/jobs/.staging/**, .ralph/telemetry/**, .crews/logs/**, .crews/spawn-launchers/**)",
+        "Nested <jobGroups>/<group>/<member>/job-state.json files do NOT produce per-task entries (group-member granularity is Plan 10)",
+        "Slug-heuristic matching resolves each artifact to OverviewTask.id: (1) ralphOverrides[slug] -> matchSource: 'override'; (2) OverviewTask.id === slug -> matchSource: 'slug-default'; (3) otherwise append to unmatched[] with reason: 'no-matching-task-id'",
+        "Within-kind duplicates: pick max jobState.updatedAt (fallback to directory mtime); losers -> unmatched[] with reason: 'duplicate-resolution'",
+        "Cross-kind precedence: job > group > brainstorm; losers -> unmatched[] with reason: 'shadowed-by-<winning-kind>'; precedence applied BEFORE predicate; winner's bundle is what deriveRalphStage sees",
+        "Malformed job-state.json: log to stderr, append to unmatched[] with reason: 'parse-error', do NOT derive a stage from sibling files for that slug (per F-011)",
+        "reviewOpenCount.<phase> is undefined (NOT 0) when the corresponding findings file is missing",
+        "Output is deterministically sorted: byTaskId keys alphabetical; unmatched[] sorted by kind then slug",
+        "Sync-core stamps generatedFromCommit (passed by CLI) and generatedAt = new Date().toISOString() onto returned state",
+        "walkRalphState does NOT shell out to git (CLI owns git rev-parse)",
+        "Helper exports resolveCrossKindPrecedence and pickMostRecentByMtime for unit testing (signatures in scripts.d.ts)",
+        "Unit tests cover: cross-kind precedence (job shadows brainstorm), duplicate-by-mtime within one kind, malformed-JSON skip (asserts reason: 'parse-error' in unmatched[]), slug-default vs ralphOverrides resolution, group-as-job stage derivation",
+        "Tests pass",
+        "Typecheck passes"
+      ],
+      "priority": 4,
+      "passes": true,
+      "notes": "",
+      "verifiedEvidence": [
+        {
+          "criterion": "scripts/lib/sync-core.mjs exports walkRalphState({ repoRoot, config, generatedFromCommit }) -> Promise<OverviewRalphState>",
+          "command": "grep -nE \"export async function walkRalphState|Promise<OverviewRalphState>\" scripts/lib/sync-core.mjs scripts/lib/sync-core.d.mts",
+          "result": "Found runtime export in sync-core.mjs:13 and declaration returning Promise<OverviewRalphState> in sync-core.d.mts."
+        },
+        {
+          "criterion": "Walk root is exactly <repoRoot>/<config.ralphRoot>/; walker NEVER recurses from <repoRoot> directly (would hit .worktrees/*/.ralph/)",
+          "command": "grep -nE \"rootDir: normalizedConfig.ralphSubdirs|readdirSync(rootDir|isPathInside\" scripts/lib/sync-core.mjs; pnpm --filter @codexu/overview-viewer test src/__tests__/syncCore.test.ts",
+          "result": "Walker only receives configured Ralph subdirs, readDirectChildDirs calls readdirSync(rootDir), and targeted test excludes .worktrees hidden state; 7 tests passed."
+        },
+        {
+          "criterion": "Walk reads direct children of <ralphRoot>/<ralphSubdirs.jobs>/ (job-state.json, prd.json, code-review-findings.json, docs-review-findings.json), <ralphRoot>/<ralphSubdirs.jobGroups>/ (top-level job-state.json/prd.json/findings + group.json metadata), <ralphRoot>/<ralphSubdirs.brainstorms>/ (brainstorm.json); sets jobDirMarker: true when <slug>/ or <group>/ observed; does NOT recurse into <slug>/",
+          "command": "grep -nE \"job-state.json|prd.json|code-review-findings|docs-review-findings|group.json|brainstorm.json|jobDirMarker\" scripts/lib/sync-core.mjs",
+          "result": "Found direct child readers for job-state, prd, code/docs findings, group.json, brainstorm.json, and jobDirMarker: true."
+        },
+        {
+          "criterion": "Skips symlinks; skips paths matching any pattern in config.watcher.ignored (minimum: .worktrees/**, **/.git/**, .ralph/jobs/*/worktree/**, .ralph/jobs/.staging/**, .ralph/telemetry/**, .crews/logs/**, .crews/spawn-launchers/**)",
+          "command": "grep -nE \"isSymbolicLink|matchesIgnored\" scripts/lib/sync-core.mjs; grep -nE \".worktrees|**/.git|worktree|.staging|telemetry|logs|spawn-launchers\" .ralph/overview-config.json",
+          "result": "Found symlink and ignored-path skips in sync-core; committed config contains all required ignored patterns."
+        },
+        {
+          "criterion": "Nested <jobGroups>/<group>/<member>/job-state.json files do NOT produce per-task entries (group-member granularity is Plan 10)",
+          "command": "grep -nE \"member/job-state|byTaskId.member\" tools/overview-viewer/src/__tests__/syncCore.test.ts",
+          "result": "Targeted test creates nested group member job-state and asserts byTaskId.member is undefined."
+        },
+        {
+          "criterion": "Slug-heuristic matching resolves each artifact to OverviewTask.id: (1) ralphOverrides[slug] -> matchSource: 'override'; (2) OverviewTask.id === slug -> matchSource: 'slug-default'; (3) otherwise append to unmatched[] with reason: 'no-matching-task-id'",
+          "command": "grep -nE \"ralphOverrides|override|slug-default|no-matching-task-id\" scripts/lib/sync-core.mjs tools/overview-viewer/src/__tests__/syncCore.test.ts",
+          "result": "Found override-first, slug-default, and no-matching-task-id logic; targeted test asserts direct and aliased matches."
+        },
+        {
+          "criterion": "Within-kind duplicates: pick max jobState.updatedAt (fallback to directory mtime); losers -> unmatched[] with reason: 'duplicate-resolution'",
+          "command": "grep -nE \"pickMostRecentByMtime|getBundleTimestamp|updatedAt|duplicate-resolution\" scripts/lib/sync-core.mjs tools/overview-viewer/src/__tests__/syncCore.test.ts",
+          "result": "Found duplicate-resolution, updatedAt timestamp preference, mtime fallback; targeted test asserts both timestamp modes."
+        },
+        {
+          "criterion": "Cross-kind precedence: job > group > brainstorm; losers -> unmatched[] with reason: 'shadowed-by-<winning-kind>'; precedence applied BEFORE predicate; winner's bundle is what deriveRalphStage sees",
+          "command": "grep -nE \"KIND_PRECEDENCE|resolveCrossKindPrecedence|shadowed-by|deriveRalphStage\" scripts/lib/sync-core.mjs tools/overview-viewer/src/__tests__/syncCore.test.ts",
+          "result": "Found job > group > brainstorm precedence before toPipelineState/deriveRalphStage; targeted test asserts job shadows brainstorm."
+        },
+        {
+          "criterion": "Malformed job-state.json: log to stderr, append to unmatched[] with reason: 'parse-error', do NOT derive a stage from sibling files for that slug (per F-011)",
+          "command": "grep -nE \"failed to parse|parse-error|byTaskId.broken\" scripts/lib/sync-core.mjs tools/overview-viewer/src/__tests__/syncCore.test.ts",
+          "result": "Malformed job-state path logs parse failure, records parse-error, and targeted test proves sibling prd does not create byTaskId.broken."
+        },
+        {
+          "criterion": "reviewOpenCount.<phase> is undefined (NOT 0) when the corresponding findings file is missing",
+          "command": "grep -nE \"readReviewOpenCount|reviewOpenCount?.code\" scripts/lib/sync-core.mjs tools/overview-viewer/src/__tests__/syncCore.test.ts",
+          "result": "Missing findings files are skipped, leaving reviewOpenCount.code undefined; targeted test asserts this and reviewing stage."
+        },
+        {
+          "criterion": "Output is deterministically sorted: byTaskId keys alphabetical; unmatched[] sorted by kind then slug",
+          "command": "grep -nE \"byTaskId: sortObjectByKey|unmatched: sortUnmatched|function sortUnmatched\" scripts/lib/sync-core.mjs; node smoke printed sorted keys [a,b]",
+          "result": "Code sorts byTaskId and unmatched; smoke command printed sorted keys [\"a\",\"b\"]."
+        },
+        {
+          "criterion": "Sync-core stamps generatedFromCommit (passed by CLI) and generatedAt = new Date().toISOString() onto returned state",
+          "command": "grep -nE \"generatedAt: new Date().toISOString|generatedFromCommit\" scripts/lib/sync-core.mjs; node smoke confirmed generatedFromCommit and ISO generatedAt",
+          "result": "Code stamps generatedAt via new Date().toISOString() and generatedFromCommit from input; smoke command confirmed both."
+        },
+        {
+          "criterion": "walkRalphState does NOT shell out to git (CLI owns git rev-parse)",
+          "command": "grep -nE \"node:child_process|execFile|spawn(|rev-parse\" scripts/lib/sync-core.mjs || true",
+          "result": "No matches, confirming sync-core does not import child_process or run git commands."
+        },
+        {
+          "criterion": "Helper exports resolveCrossKindPrecedence and pickMostRecentByMtime for unit testing (signatures in scripts.d.ts)",
+          "command": "grep -nE \"resolveCrossKindPrecedence|pickMostRecentByMtime|RalphArtifactBundle\" scripts/lib/sync-core.d.mts tools/overview-viewer/src/__tests__/scripts.d.ts",
+          "result": "sync-core.d.mts and scripts.d.ts expose typed RalphArtifactBundle signatures for both helper exports."
+        },
+        {
+          "criterion": "Unit tests cover: cross-kind precedence (job shadows brainstorm), duplicate-by-mtime within one kind, malformed-JSON skip (asserts reason: 'parse-error' in unmatched[]), slug-default vs ralphOverrides resolution, group-as-job stage derivation",
+          "command": "pnpm --filter @codexu/overview-viewer test src/__tests__/syncCore.test.ts > .test-output/overview-viewer.syncCore.test.log 2>&1",
+          "result": "Exit 0. Log shows Test Files 1 passed and Tests 7 passed."
+        },
+        {
+          "criterion": "Tests pass",
+          "command": "pnpm --filter @codexu/overview-viewer test > .test-output/overview-viewer.test.log 2>&1",
+          "result": "Exit 0. Log shows Test Files 19 passed and Tests 94 passed."
+        },
+        {
+          "criterion": "Typecheck passes",
+          "command": "pnpm --filter @codexu/overview-viewer typecheck > .test-output/overview-viewer.typecheck.log 2>&1",
+          "result": "Exit 0. tsc --noEmit completed with no diagnostics."
+        }
+      ],
+      "dependencies": [
+        "US-001",
+        "US-002",
+        "US-003"
+      ],
+      "failureClassification": "",
+      "partialProgress": null
+    },
+    {
+      "id": "US-005",
+      "title": "Atomic write + </script> escape (writeSidecar)",
+      "description": "As a sync emitter, I want atomic, escape-safe sidecar writes so the React dashboard never eval-crashes on a torn file and inlined HTML can't be broken by a script-tag substring.",
+      "acceptanceCriteria": [
+        "scripts/lib/sync-core.mjs exports writeSidecar({ repoRoot, config, state }) -> Promise<void>",
+        "Same-volume tmp + rename: .tmp file emitted next to its destination (e.g., plans/overview-ralph-state.js.tmp next to plans/overview-ralph-state.js); fs.fsync called on tmp; then fs.renameSync(tmp, final)",
+        "Retry on Windows-transient errors: on EBUSY/EACCES/EPERM the rename retries up to 3x with 100ms delay; after 3rd failure, function rejects/exits non-zero",
+        "</script> escape: JS sidecar body uses JSON.stringify(state).replace(/<\\/(script)/gi, '<\\\\/$1'); unit test asserts the literal substring '</script' does not appear in emitted .js file after a slug containing '</script>' is fed through",
+        "JS sidecar format: `window.OVERVIEW_RALPH_STATE = <escaped JSON>;`",
+        "JS + JSON sidecars are byte-identical after stripping the JS wrapper (`window.OVERVIEW_RALPH_STATE = ` prefix and trailing `;`)",
+        "Idempotency: running writeSidecar twice in a row with the same state produces byte-identical files (excluding only the top-level generatedAt); per-entry generatedAt is forbidden in Plan 01",
+        "Tests pass",
+        "Typecheck passes"
+      ],
+      "priority": 5,
+      "passes": true,
+      "notes": "",
+      "verifiedEvidence": [
+        {
+          "criterion": "scripts/lib/sync-core.mjs exports writeSidecar({ repoRoot, config, state }) -> Promise<void>",
+          "command": "grep -nE \"export async function writeSidecar|writeSidecar(options\" scripts/lib/sync-core.mjs scripts/lib/sync-core.d.mts tools/overview-viewer/src/__tests__/scripts.d.ts",
+          "result": "Found runtime export at scripts/lib/sync-core.mjs:111 plus Promise<void> declarations in scripts/lib/sync-core.d.mts:22 and test ambient scripts.d.ts:68."
+        },
+        {
+          "criterion": "Same-volume tmp + rename: .tmp file emitted next to its destination (e.g., plans/overview-ralph-state.js.tmp next to plans/overview-ralph-state.js); fs.fsync called on tmp; then fs.renameSync(tmp, final)",
+          "command": "grep -nE \"[.]tmp|fsyncSync|renameSync|renameWithRetry\" scripts/lib/sync-core.mjs; node sidecar smoke from this iteration",
+          "result": "sync-core.mjs uses tmpPath = `${finalPath}.tmp` at :128, fs.fsyncSync(fd) at :133, and fs.renameSync(tmpPath, finalPath) at :151. Smoke result reported tmpNextToDestinationAbsent:true after write."
+        },
+        {
+          "criterion": "Retry on Windows-transient errors: on EBUSY/EACCES/EPERM the rename retries up to 3x with 100ms delay; after 3rd failure, function rejects/exits non-zero",
+          "command": "grep -nE \"TRANSIENT_RENAME_ERRORS|RENAME_RETRY_LIMIT|RENAME_RETRY_DELAY_MS|rejects after the third|jsRenameAttempts\" scripts/lib/sync-core.mjs tools/overview-viewer/src/__tests__/syncCore.test.ts; pnpm --filter @codexu/overview-viewer test src/__tests__/syncCore.test.ts > .test-output/overview-viewer.syncCore.test.log 2>&1",
+          "result": "Constants are EBUSY/EACCES/EPERM, retry limit 3, delay 100ms; syncCore.test.ts covers success after 3 JS rename attempts and rejection after the third failure. Targeted run exited 0 with 1 file and 10 tests passed."
+        },
+        {
+          "criterion": "</script> escape: JS sidecar body uses JSON.stringify(state).replace(/</(script)/gi, '<\\/$1'); unit test asserts the literal substring '</script' does not appear in emitted .js file after a slug containing '</script>' is fed through",
+          "command": "grep -n \"JSON.stringify(state)\" scripts/lib/sync-core.mjs; sed -n \"184,198p\" tools/overview-viewer/src/__tests__/syncCore.test.ts; node sidecar smoke from this iteration",
+          "result": "sync-core.mjs:117 uses JSON.stringify(state).replace(/</(script)/gi, '<\\/$1'); test feeds bad</script>slug and asserts js.not.toContain('</script'). Smoke result noScriptLiteral:true and parsedSlug restored to bad</script>slug."
+        },
+        {
+          "criterion": "JS sidecar format: `window.OVERVIEW_RALPH_STATE = <escaped JSON>;`",
+          "command": "grep -nF \"window.OVERVIEW_RALPH_STATE = \" scripts/lib/sync-core.mjs tools/overview-viewer/src/__tests__/syncCore.test.ts; node sidecar smoke from this iteration",
+          "result": "sync-core.mjs:120 writes `window.OVERVIEW_RALPH_STATE = ${json};`; smoke result jsFormat:true."
+        },
+        {
+          "criterion": "JS + JSON sidecars are byte-identical after stripping the JS wrapper (`window.OVERVIEW_RALPH_STATE = ` prefix and trailing `;`)",
+          "command": "grep -nE \"strippedJs|toBe(json)|toBe(js)\" tools/overview-viewer/src/__tests__/syncCore.test.ts; node sidecar smoke from this iteration",
+          "result": "syncCore.test.ts strips the JS prefix/trailing semicolon and asserts equality with JSON; smoke result jsJsonByteIdentical:true."
+        },
+        {
+          "criterion": "Idempotency: running writeSidecar twice in a row with the same state produces byte-identical files (excluding only the top-level generatedAt); per-entry generatedAt is forbidden in Plan 01",
+          "command": "sed -n \"192,199p\" tools/overview-viewer/src/__tests__/syncCore.test.ts; node sidecar smoke from this iteration",
+          "result": "Test writes the same state twice and asserts both JS and JSON bytes are unchanged; smoke result idempotent:true. The fixture state contains only top-level generatedAt and no per-entry generatedAt."
+        },
+        {
+          "criterion": "Tests pass",
+          "command": "pnpm --filter @codexu/overview-viewer test > .test-output/overview-viewer.test.log 2>&1",
+          "result": "Exit 0. Log shows Test Files 19 passed and Tests 97 passed."
+        },
+        {
+          "criterion": "Typecheck passes",
+          "command": "pnpm --filter @codexu/overview-viewer typecheck > .test-output/overview-viewer.typecheck.log 2>&1",
+          "result": "Exit 0. tsc --noEmit completed with no diagnostics."
+        }
+      ],
+      "dependencies": [
+        "US-001",
+        "US-002",
+        "US-003",
+        "US-004"
+      ],
+      "failureClassification": "",
+      "partialProgress": null
+    },
+    {
+      "id": "US-006",
+      "title": "CLI wrapper + npm script (sync-ralph-state)",
+      "description": "As an operator, I want `pnpm sync-ralph-state` to run an end-to-end one-shot sync against the live .ralph/.",
+      "acceptanceCriteria": [
+        "scripts/sync-ralph-state.mjs exists; resolves repo root via child_process.execFileSync('git', ['rev-parse', '--show-toplevel'])",
+        "Computes generatedFromCommit via child_process.execFileSync('git', ['rev-parse', '--short', 'HEAD'], { cwd: repoRoot }); any thrown error or non-zero exit (detached HEAD, missing .git, unresolvable HEAD, git not on PATH) is caught, emits stderr warning 'sync-ralph-state: could not resolve HEAD short SHA, using unknown', and sets generatedFromCommit = 'unknown'; never crashes",
+        "Accepts --repo <path> (override repo root) and --config <path> (override config path) flags; --config value threaded into loadConfig({ repoRoot, configPath })",
+        "Pipeline: loadConfig -> walkRalphState({ config, repoRoot, generatedFromCommit }) -> writeSidecar({ config, repoRoot, state })",
+        "Prints state.unmatched[] to stderr (one line per entry)",
+        "Exits 0 on success, 1 on hard error",
+        "Root package.json has `\"sync-ralph-state\": \"node scripts/sync-ralph-state.mjs\"` in scripts block",
+        "pnpm sync-ralph-state from D:/harness-efforts/codexu exits 0 against current .ralph/ and produces non-empty plans/overview-ralph-state.{js,json} whose byTaskId is a valid (possibly empty) object",
+        "Running with a clean checkout where .ralph/ is absent: exit 0; sidecar contains byTaskId: {} and unmatched: []",
+        "Typecheck passes"
+      ],
+      "priority": 6,
+      "passes": true,
+      "notes": "",
+      "verifiedEvidence": [
+        {
+          "criterion": "scripts/sync-ralph-state.mjs exists; resolves repo root via child_process.execFileSync('git', ['rev-parse', '--show-toplevel'])",
+          "command": "ls scripts/sync-ralph-state.mjs && grep -n \"execFileSync('git', ['rev-parse', '--show-toplevel']\" scripts/sync-ralph-state.mjs",
+          "result": "scripts/sync-ralph-state.mjs exists; grep found resolveRepoRoot using execFileSync('git', ['rev-parse', '--show-toplevel'], { encoding: 'utf8' }) at line 48."
+        },
+        {
+          "criterion": "Computes generatedFromCommit via child_process.execFileSync('git', ['rev-parse', '--short', 'HEAD'], { cwd: repoRoot }); any thrown error or non-zero exit (detached HEAD, missing .git, unresolvable HEAD, git not on PATH) is caught, emits stderr warning 'sync-ralph-state: could not resolve HEAD short SHA, using unknown', and sets generatedFromCommit = 'unknown'; never crashes",
+          "command": "grep -nE \"--short', 'HEAD|HEAD_WARNING|generatedFromCommit\" scripts/sync-ralph-state.mjs; node scripts/sync-ralph-state.mjs --repo <temp-no-git>",
+          "result": "grep found the HEAD execFileSync path and HEAD_WARNING; no-git temp repo run exited 0, stderr included exactly 'sync-ralph-state: could not resolve HEAD short SHA, using unknown', and the sidecar contained generatedFromCommit:'unknown'."
+        },
+        {
+          "criterion": "Accepts --repo <path> (override repo root) and --config <path> (override config path) flags; --config value threaded into loadConfig({ repoRoot, configPath })",
+          "command": "node scripts/sync-ralph-state.mjs --repo <temp> --config <temp>/custom-config.json; grep -nE \"--repo|--config|loadConfig\" scripts/sync-ralph-state.mjs",
+          "result": "Custom-config smoke exited 0 and wrote <temp>/custom-plans/state.json while not writing the default plans/overview-ralph-state.json, proving --repo and --config were honored. grep found flag parsing and loadConfig({ repoRoot, configPath: args.config })."
+        },
+        {
+          "criterion": "Pipeline: loadConfig -> walkRalphState({ config, repoRoot, generatedFromCommit }) -> writeSidecar({ config, repoRoot, state })",
+          "command": "grep -nE \"loadConfig|walkRalphState|writeSidecar\" scripts/sync-ralph-state.mjs",
+          "result": "scripts/sync-ralph-state.mjs imports the three functions at lines 5-6 and calls loadConfig at line 15, walkRalphState at line 16, then writeSidecar at line 22."
+        },
+        {
+          "criterion": "Prints state.unmatched[] to stderr (one line per entry)",
+          "command": "pnpm sync-ralph-state > .test-output/sync-ralph-state.live.stdout.log 2> .test-output/sync-ralph-state.live.stderr.log; wc -l .test-output/sync-ralph-state.live.stderr.log; tail -20 .test-output/sync-ralph-state.live.stderr.log",
+          "result": "Live run exited 0 and stderr contained 13 one-line unmatched entries like 'sync-ralph-state: unmatched job/ralph-pipeline-01-foundation: no-matching-task-id'."
+        },
+        {
+          "criterion": "Exits 0 on success, 1 on hard error",
+          "command": "pnpm sync-ralph-state; node scripts/sync-ralph-state.mjs --repo",
+          "result": "Live pnpm sync-ralph-state exited 0. Hard-error smoke with missing --repo value exited 1 and wrote 'sync-ralph-state: --repo requires a value' to stderr."
+        },
+        {
+          "criterion": "Root package.json has `\"sync-ralph-state\": \"node scripts/sync-ralph-state.mjs\"` in scripts block",
+          "command": "grep -nF '\"sync-ralph-state\": \"node scripts/sync-ralph-state.mjs\"' package.json",
+          "result": "package.json line 12 contains the sync-ralph-state script."
+        },
+        {
+          "criterion": "pnpm sync-ralph-state from D:/harness-efforts/codexu exits 0 against current .ralph/ and produces non-empty plans/overview-ralph-state.{js,json} whose byTaskId is a valid (possibly empty) object",
+          "command": "pnpm sync-ralph-state; node -e \"inspect plans/overview-ralph-state.{js,json}\"",
+          "result": "Live run exited 0. Sidecar inspection reported jsBytes=3352, jsonBytes=3321, wrapper=true, samePayload=true, byTaskIdIsObject=true, byTaskIdCount=6."
+        },
+        {
+          "criterion": "Running with a clean checkout where .ralph/ is absent: exit 0; sidecar contains byTaskId: {} and unmatched: []",
+          "command": "tmp=$(mktemp -d); node scripts/sync-ralph-state.mjs --repo \"$tmp\"; node -e \"inspect $tmp/plans/overview-ralph-state.json\"",
+          "result": "Temp repo without .ralph exited 0; sidecar inspection printed byTaskId:{}, unmatched:[], generatedFromCommit:'unknown'. Missing Ralph subdir warnings were emitted, but the command did not fail."
+        },
+        {
+          "criterion": "Typecheck passes",
+          "command": "pnpm --filter @codexu/overview-viewer typecheck > .test-output/overview-viewer.typecheck.log 2>&1",
+          "result": "Exit 0; tsc --noEmit completed with no diagnostics. Full overview-viewer tests also passed: 19 files, 97 tests."
+        }
+      ],
+      "dependencies": [
+        "US-001",
+        "US-002",
+        "US-003",
+        "US-004",
+        "US-005"
+      ],
+      "failureClassification": "",
+      "partialProgress": null
+    },
+    {
+      "id": "US-007",
+      "title": "Bootstrap sidecar + cascade refresh (INDEX + sibling plans)",
+      "description": "As a downstream-plan author, I want Plan 01's contracts surfaced in the INDEX and sibling plans so the cascade from Plan 02-12 stays coherent.",
+      "acceptanceCriteria": [
+        "First post-implementation commit runs pnpm sync-ralph-state and includes the generated plans/overview-ralph-state.{js,json} files (Implementation-Strategy step 7 is dropped per F-018 resolution)",
+        "plans/ralph-pipeline-INDEX.md 'Source-of-truth modules' table updated to reflect: stateless derive-ralph-stage.mjs(bundle) signature with jobDirMarker; sync-core.mjs cross-kind precedence + nested-member suppression; resolve-config.mjs canonical precedence rule; </script> escape contract; scripts.d.ts ambient-decl approach; trimmed Plan-01 config schema with deferred fields documented as Downstream additive extensions",
+        "Sibling plans 02, 03, 05, 10, 12 referenced in the Hand-off section have their Plan-01 dependencies updated to match actual contracts; stale type signatures, function names, or behavior contracts corrected",
+        "Implementation commit message lists every cross-plan diff (file, line range, what changed) so reviewers can verify the cascade in one read",
+        "All Verification steps A-L from plan.md pass: typecheck, predicate tests, one-shot sync, idempotency at both JSON and JS layers, slug-heuristic override via temp-fixture (NOT by editing real overview-data.js), JS/JSON consistency including </script grep, no-.ralph graceful handling, worktree exclusion, replan-pending derivation, cross-kind precedence end-to-end, deterministic Windows-rename retry verified by unit test that mocks fs.renameSync to throw EBUSY twice then succeed and asserts writeSidecar resolves with rename invoked 3 times, .gitignore entry",
+        "Typecheck passes"
+      ],
+      "priority": 7,
+      "passes": true,
+      "notes": "",
+      "verifiedEvidence": [
+        {
+          "criterion": "First post-implementation commit runs pnpm sync-ralph-state and includes the generated plans/overview-ralph-state.{js,json} files (Implementation-Strategy step 7 is dropped per F-018 resolution)",
+          "command": "pnpm sync-ralph-state > .test-output/sync-ralph-state.us007.stdout.log 2> .test-output/sync-ralph-state.us007.stderr.log; git show --stat --oneline --name-only HEAD -- plans/overview-ralph-state.js plans/overview-ralph-state.json",
+          "result": "pnpm sync-ralph-state exited 0 and regenerated non-empty sidecars (3352-byte JS, 3321-byte JSON). Commit 3ee7cdce includes plans/overview-ralph-state.js and plans/overview-ralph-state.json from that live sync."
+        },
+        {
+          "criterion": "plans/ralph-pipeline-INDEX.md 'Source-of-truth modules' table updated to reflect: stateless derive-ralph-stage.mjs(bundle) signature with jobDirMarker; sync-core.mjs cross-kind precedence + nested-member suppression; resolve-config.mjs canonical precedence rule; </script> escape contract; scripts.d.ts ambient-decl approach; trimmed Plan-01 config schema with deferred fields documented as Downstream additive extensions",
+          "command": "grep -nE 'deriveRalphStage|jobDirMarker|cross-kind precedence|nested group-member|resolve-config|OVERVIEW_CONFIG_PATH|</script|scripts.d.ts|Trimmed Plan-01|downstream additive' plans/ralph-pipeline-INDEX.md plans/ralph-pipeline-01-foundation.md",
+          "result": "INDEX lines 187-192 now document loadConfig precedence, trimmed Plan-01 schema, deriveRalphStage bundle with jobDirMarker, sync-core cross-kind/nested-member/escape contracts, and scripts.d.ts explicit ambient declarations; Plan 01 lines 73 and 209 mirror the trimmed schema and bundle signature."
+        },
+        {
+          "criterion": "Sibling plans 02, 03, 05, 10, 12 referenced in the Hand-off section have their Plan-01 dependencies updated to match actual contracts; stale type signatures, function names, or behavior contracts corrected",
+          "command": "grep -nE 'jobDirMarker|config.lockFile|overview-sync.lock|10 chips|replan-pending|writeSidecar|loadConfig|overviewTaskId|Plan-01 keys|overview-config.schema' plans/ralph-pipeline-02-watcher.md plans/ralph-pipeline-03-ui-chip.md plans/ralph-pipeline-05-agent-exports.md plans/ralph-pipeline-10-ralph-handoff.md plans/ralph-pipeline-12-package-as-plugin.md",
+          "result": "Plan 02 now uses loadConfig/config.lockFile and Plan-01 walk semantics; Plan 03 now has 10 chips including replan-pending; Plan 05 reuses Plan-01 JS/JSON sidecar, config, and atomic writer contracts; Plan 10 marks overviewTaskId as a future sync follow-up; Plan 12 moves the schema/template contract into plugin templates with Plan-01 keys as the extraction baseline."
+        },
+        {
+          "criterion": "Implementation commit message lists every cross-plan diff (file, line range, what changed) so reviewers can verify the cascade in one read",
+          "command": "git show -s --format=%B HEAD",
+          "result": "Commit 3ee7cdce body contains a Cross-plan diffs section listing each changed plan/sidecar file, line ranges, and what changed; it also records the Plan 01 matcher constraint and rejected empty bootstrap alternative."
+        },
+        {
+          "criterion": "All Verification steps A-L from plan.md pass: typecheck, predicate tests, one-shot sync, idempotency at both JSON and JS layers, slug-heuristic override via temp-fixture (NOT by editing real overview-data.js), JS/JSON consistency including </script grep, no-.ralph graceful handling, worktree exclusion, replan-pending derivation, cross-kind precedence end-to-end, deterministic Windows-rename retry verified by unit test that mocks fs.renameSync to throw EBUSY twice then succeed and asserts writeSidecar resolves with rename invoked 3 times, .gitignore entry",
+          "command": "pnpm --filter @codexu/overview-viewer typecheck; pnpm --filter @codexu/overview-viewer test src/__tests__/ralphStage.test.ts; pnpm sync-ralph-state; idempotency/fixture/consistency smoke scripts; pnpm --filter @codexu/overview-viewer test src/__tests__/syncCore.test.ts; grep -F '.ralph/overview-config.local.json' .gitignore",
+          "result": "A typecheck exit 0; B ralphStage.test.ts 19 passed; C live sync exit 0 with byTaskId keys [1a-fork-doc, agent-tree-rpc, codex-wire-spike, port-explorer-prompt, session-parent-link, session-role-pill] and unmatched length 13; D JSON and JS idempotency true after removing generatedAt; E temp fixture override matched then moved to unmatched when removed without editing real overview-data.js; F JS/JSON same payload and no literal </script true; G no-.ralph temp repo produced empty byTaskId/unmatched; H worktree fixture excluded hidden-task; I replan fixture produced replan-pending; J cross-kind fixture shadowed brainstorm by job; K syncCore.test.ts 10 passed including mocked EBUSY retry; L .gitignore line 95 contains .ralph/overview-config.local.json."
+        },
+        {
+          "criterion": "Typecheck passes",
+          "command": "pnpm --filter @codexu/overview-viewer typecheck > .test-output/overview-viewer.typecheck.log 2>&1",
+          "result": "Exit 0; tsc --noEmit completed with no diagnostics. Full overview-viewer tests also passed: 19 files, 97 tests."
+        }
+      ],
+      "dependencies": [
+        "US-001",
+        "US-002",
+        "US-003",
+        "US-004",
+        "US-005",
+        "US-006"
+      ],
+      "failureClassification": "",
+      "partialProgress": null
+    }
+  ]
+}

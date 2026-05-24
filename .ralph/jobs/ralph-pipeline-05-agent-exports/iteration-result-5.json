@@ -1,0 +1,44 @@
+{
+  "storyId": "US-002",
+  "verifiedEvidence": [
+    {
+      "criterion": "scripts/lib/emit-activity.mjs exports appendActivity(repoRoot, event, { activityPath, activityBackupPath, maxLines = 1000 }) and rotateActivity(activityPath, activityBackupPath).",
+      "command": "nl -ba scripts/lib/emit-activity.mjs | sed -n '1,60p'",
+      "result": "Lines 4-7 define default maxLines=1000 and export appendActivity(repoRoot, event, options); lines 36-43 export rotateActivity(activityPath, activityBackupPath).",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Append opens the file in append mode, writes a single writeSync(JSON.stringify(event) + '\\n'), calls fsyncSync, then closes the handle.",
+      "command": "nl -ba scripts/lib/emit-activity.mjs | sed -n '14,33p'; nl -ba scripts/lib/emit-activity.test.mjs | sed -n '58,69p'",
+      "result": "emit-activity.mjs lines 14 and 26-31 build the JSONL line, open with mode 'a', call one writeSync, fsyncSync, and close; the test asserts writeSync and fsyncSync are each called once and the event is appended.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Before append, rotation: if the file has >= maxLines, rename to activityBackupPath (overwriting any prior backup), then start fresh.",
+      "command": "nl -ba scripts/lib/emit-activity.mjs | sed -n '19,43p'; nl -ba scripts/lib/emit-activity.test.mjs | sed -n '71,81p'",
+      "result": "Lines 19-20 rotate before append when countLines(activityPath) >= maxLines; rotateActivity removes the previous backup and renameSyncs the activity file. The rotation test passes with maxLines=2 and verifies the new activity file contains only the new event while backup contains the old two events.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Lines fit within a single 4KB write.",
+      "command": "nl -ba scripts/lib/emit-activity.mjs | sed -n '4,17p'; nl -ba scripts/lib/emit-activity.test.mjs | sed -n '83,88p'",
+      "result": "Lines 5 and 15-17 enforce MAX_ACTIVITY_LINE_BYTES=4096 before writing; the test rejects an oversized event and verifies no activity file is created.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Typecheck passes.",
+      "command": "pnpm --filter @codexu/overview-viewer typecheck > .test-output/overview-viewer.typecheck.log 2>&1",
+      "result": "PASS exit=0 duration=14s; tsc --noEmit completed with no errors.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Unit tests pass: `pnpm vitest run scripts/lib/emit-activity.test.mjs` - append, rotation at maxLines, retain-emits-zero, storyCompletion change, removal (newStage: null), and first-observation (prevStage: null) all green.",
+      "command": "pnpm vitest run scripts/lib/emit-activity.test.mjs > .test-output/emit-activity.test.log 2>&1",
+      "result": "PASS exit=0 duration=1.33s; 1 test file passed, 7 tests passed, covering append, rotation, 4KB rejection, retain zero writes, storyCompletion/removal/first-observation event shapes, torn final line tolerance, and direct rotateActivity backup overwrite. Package tests also passed: 27 files, 152 tests.",
+      "evidenceKind": "passed"
+    }
+  ],
+  "skippedReasons": [],
+  "notTested": [],
+  "iterationSHA": "d19d9e48272a77e0d19539cf7a10d27527f17154"
+}

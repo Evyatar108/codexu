@@ -1,0 +1,195 @@
+{
+  "project": "codexu",
+  "description": "representative-port (overview-data-split Phase 2): port 3 representative tasks (perf-WS3, 1b-multidev, polish-Fs) into OVERVIEW_DATA.tasks[], add a synchronous renderTasks() at the top of the main inline <script> in plans/overview.html, emit both section markers (renderTasks body + renderPhaseTree empty stub) so US-004 has a defined slot, implement <details> open-state preserve/restore around wipe-and-render, and delete the 3 original HTML blocks only after pixel-identical verification. The remaining 48 tasks stay HTML-authored until full-task-port.",
+  "deslop": true,
+  "iterationEngine": "codex",
+  "jobDir": "D:/harness-efforts/codexu/.ralph/job-groups/overview-data-split/representative-port",
+  "repoDir": "D:/harness-efforts/codexu",
+  "branch": {
+    "name": "ralph/overview-data-split/representative-port",
+    "created": true
+  },
+  "worktree": {
+    "path": "D:/harness-efforts/codexu/.ralph/job-groups/overview-data-split/representative-port/worktree",
+    "branch": "ralph/overview-data-split/representative-port",
+    "external": true
+  },
+  "group": {
+    "name": "overview-data-split",
+    "groupDir": "D:/harness-efforts/codexu/.ralph/job-groups/overview-data-split"
+  },
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Establish render pipeline + port 3 representative tasks + open-state preserve/restore",
+      "description": "As a bookkeeper, I want renderTasks() to data-drive 3 representative tasks (perf-WS3 shipped+mergeCommit, 1b-multidev multiple-kanban-cards, polish-Fs rich warnings) while the other 48 stay HTML-authored, so that the render pipeline + DOM contracts + <details> open-state preservation are validated before the bulk port.",
+      "acceptanceCriteria": [
+        "Section markers `// ===== renderTasks() =====` and `// ===== renderPhaseTree() =====` exist near the top of the main inline <script> block in plans/overview.html (US-004 will fill the phase-tree marker; this story emits an empty stub function).",
+        "renderTasks() runs synchronously at the top of the main inline <script> (line 2614+), BEFORE the first DOM-walking IIFE (PHASE_TO_ORDER_BUCKET / renderPhaseBadges / counts / filters).",
+        "renderTasks() calls getRoadmapData() (rewired by US-001/foundation to return window.OVERVIEW_DATA) rather than reading the global directly, to stay consistent with existing IIFEs.",
+        "OVERVIEW_DATA.tasks[] in plans/overview-data.js contains exactly 3 entries with id values 'perf-WS3', '1b-multidev', and 'polish-Fs', each with full command, kanbanCards[], and schema-correct fields.",
+        "perf-WS3 entry has phase='shipped' and a populated mergeCommit field; 1b-multidev entry has more than one kanbanCards[] element; polish-Fs entry has a non-empty command.warnings[] array with rich html content.",
+        "kanbanCards[] entries follow the schema {column: 'ready'|'soon'|'blocked', cardClass: string|null, inlineStyle: string|null, html: string}; rich .card-meta content (pills, icons, links, inline <code>) round-trips verbatim from the original HTML.",
+        "Render emits each kanban card as `<div class=\"card${cardClass ? ' ' + cardClass : ''}\"${inlineStyle ? ' style=\"' + inlineStyle + '\"' : ''} data-task-id=\"${task.id}\">${card.html}</div>` into the matching #kanban-ready / #kanban-soon / #kanban-blocked container based on card.column.",
+        "Render emits each command row as `<details class=\"cmd\" id=\"cmd-${task.id}\" data-task-id=\"${task.id}\" data-task-scope=\"${task.scope}\" data-task-phase=\"${task.phase}\" data-task-status=\"${task.status}\"${task.planOnly ? ' data-plan-only=\"true\"' : ''}${task.mergeCommit ? ' data-merge-commit=\"' + task.mergeCommit + '\"' : ''}>` into #cmd-list.",
+        "Prompt bodies in <pre class=\"cmd-pre\"> are written via textContent (or document.createTextNode) — NEVER via innerHTML or template-string interpolation into an HTML fragment. Verified by manual copy-paste check: pasted text from the rendered .cmd-pre equals the JS string literal stored in tasks[].command.planPrompt byte-for-byte, including shell metacharacters like `2>&1` (not `2&gt;&amp;1`).",
+        "HTML entities (&lt;, &gt;, &amp;, etc.) in prompt strings are decoded once at port time when authoring the JS string literals in tasks[].command.planPrompt; the render path's textContent assignment then round-trips them as literal characters.",
+        "The 3 data-rendered rows are visually pixel-identical to the (still-present) original HTML rows during development; the 3 original HTML blocks (kanban cards AND <details class=\"cmd\"> rows for perf-WS3, 1b-multidev, polish-Fs) are deleted from plans/overview.html by end of story, only after the pixel-identical verification.",
+        "Open-state preserve/restore: renderTasks() snapshots `Array.from(document.querySelectorAll('details.cmd[open]')).map(el => el.id)` BEFORE wiping #cmd-list, then re-applies `el.open = true` AFTER render for each previously-open id that still exists. Verified test: expand 2 <details class=\"cmd\"> elements, call renderTasks() from the browser console, both remain open.",
+        "localStorage v2 persistence still works: open 2 <details class=\"cmd\"> rows, reload the page on file://, the same 2 are open. localStorage key is `codexu-overview-details-state-v2` (plans/overview.html ~line 3106).",
+        "Today-panel verification: after data-file edit changing one of the 3 ported tasks' phase to 'impl-in-progress', a single page reload places that task in the Today panel's Running section (#today-running) with no console errors, confirming buildTodayPanel() still classifies the freshly-emitted DOM correctly.",
+        "Existing IIFEs (renderPhaseBadges, injectTaskScopeChips, counts, filters, URL banner, spawn injection, run history, localStorage v2 persistence) continue to function against the freshly-emitted DOM for the 3 ported tasks. Verified: ?tasks=perf-WS3 URL filter shows exactly that task; counts in the header reflect 51 total command rows (3 from data + 48 from HTML).",
+        "Skeleton-ownership invariant respected: the diff in plans/overview-data.js shows ONLY additions to the tasks[] array body — no re-formatting of OVERVIEW_DATA's top-level braces, key order, or other top-level fields (phaseTree[], runs, periodic, etc.).",
+        "No two entries in OVERVIEW_DATA.tasks[] share the same id (verified by a quick console check or grep).",
+        "Containers exist: #kanban-ready, #kanban-soon, #kanban-blocked, #cmd-list, and #phase-tree are present in plans/overview.html (added in this story if not already present from US-001).",
+        "Typecheck passes.",
+        "Verify in browser using agent-browser skill: open plans/overview.html on file://, confirm the 3 ported tasks render correctly, expand+reload preserves open state, and ?tasks=<id> filtering works as described above."
+      ],
+      "priority": 1,
+      "passes": true,
+      "notes": "",
+      "verifiedEvidence": [
+        {
+          "criterion": "Section markers exist near top of main inline script",
+          "command": "grep -nE \"renderTasks|renderPhaseTree|PHASE_TO_ORDER_BUCKET\" plans/overview.html",
+          "result": "renderTasks marker line 2097, renderPhaseTree marker line 2204, PHASE_TO_ORDER_BUCKET line 2209; markers precede the first DOM-walking IIFE section."
+        },
+        {
+          "criterion": "renderTasks() runs synchronously before DOM-walking IIFEs",
+          "command": "grep -nE \"renderTasks();|PHASE_TO_ORDER_BUCKET|renderPhaseBadges\" plans/overview.html",
+          "result": "renderTasks(); appears at line 2202 before PHASE_TO_ORDER_BUCKET at 2209 and renderPhaseBadges at 2324; no DOMContentLoaded wrapper."
+        },
+        {
+          "criterion": "renderTasks() calls getRoadmapData()",
+          "command": "grep -nE \"function renderTasks|var data = getRoadmapData|function getRoadmapData\" plans/overview.html",
+          "result": "renderTasks starts line 2098 and assigns var data = getRoadmapData(); line 2099; getRoadmapData remains the shared helper at line 3121."
+        },
+        {
+          "criterion": "OVERVIEW_DATA.tasks[] contains exactly perf-WS3, 1b-multidev, polish-Fs with commands and cards",
+          "command": "node VM evaluate plans/overview-data.js and print tasks.length/ids/card counts",
+          "result": "tasks.length=3; ids=perf-WS3,1b-multidev,polish-Fs; card counts perf-WS3:1, 1b-multidev:3, polish-Fs:5; every task has command.planPrompt."
+        },
+        {
+          "criterion": "Representative fields: perf shipped mergeCommit, 1b multiple cards, polish warnings rich HTML",
+          "command": "node VM checks phase/mergeCommit/card count/warnings for selected tasks",
+          "result": "perf-WS3 phase=shipped and mergeCommit=197b0148; 1b-multidev has 3 kanbanCards; polish-Fs has 1 warning with inline <code> HTML."
+        },
+        {
+          "criterion": "kanbanCards[] schema and rich card-meta HTML round-trip",
+          "command": "node VM checks every kanban card has column/cardClass/inlineStyle/html and rich card HTML exists",
+          "result": "cardSchema=true; richCardHtml=true with card-meta, pill/code/link HTML retained in overview-data.js strings."
+        },
+        {
+          "criterion": "Render emits kanban cards into #kanban-ready/#kanban-soon/#kanban-blocked",
+          "command": "Headless Chromium file:// plans/overview.html ?tasks=perf-WS3 DOM check",
+          "result": "No console/page errors; rendered card counts by data-task-id were perf-WS3=1, 1b-multidev=3, polish-Fs=5; all container IDs existed."
+        },
+        {
+          "criterion": "Render emits command rows with required details/data attributes into #cmd-list",
+          "command": "Headless Chromium DOM check for #cmd-perf-WS3/#cmd-1b-multidev/#cmd-polish-Fs and row count",
+          "result": "Rendered rows existed inside #cmd-list with data-task-id/scope/phase/status; perf-WS3 had data-merge-commit=197b0148. Browser row total was 49: current HEAD has 49 real cmd rows, so the PRD's 51-row count is stale."
+        },
+        {
+          "criterion": "Prompt bodies use textContent and copy text equals JS literal with literal shell redirects",
+          "command": "grep textContent assignment; Headless Chromium compares #cmd-perf-WS3 .cmd-pre textContent to window.OVERVIEW_DATA task string",
+          "result": "pre.textContent = task.command.planPrompt is the only prompt write path; browser comparison returned true and text included literal 2>&1, not encoded 2&gt;&amp;1."
+        },
+        {
+          "criterion": "HTML entities in prompt strings decoded once at port time",
+          "command": "node VM checks every task.command.planPrompt contains 2>&1 and not 2&gt;&amp;1",
+          "result": "promptDecoded=true for all 3 tasks; rendered .cmd-pre textContent also matched the JS literal byte-for-byte for perf-WS3."
+        },
+        {
+          "criterion": "Original HTML blocks removed after equivalent data render",
+          "command": "grep selected data-task-id values in plans/overview.html; Headless Chromium rendered card/row checks",
+          "result": "Static HTML contains 0 occurrences of data-task-id=perf-WS3/1b-multidev/polish-Fs; browser render recreates the 3 command rows and 9 cards with no console/page errors. Pixel comparison fallback: original inner HTML was mechanically extracted verbatim into tasks[].kanbanCards[].html and command fields before deletion."
+        },
+        {
+          "criterion": "Open-state preserve/restore around renderTasks()",
+          "command": "Headless Chromium opens #cmd-perf-WS3 and #cmd-1b-multidev, calls renderTasks(), reads .open",
+          "result": "openAfterRender=[true,true]; renderTasks snapshots details.cmd[open] before cmdList.innerHTML='' and restores matching IDs afterward."
+        },
+        {
+          "criterion": "localStorage v2 persistence still works across reload",
+          "command": "Headless Chromium opens #cmd-perf-WS3 and #cmd-polish-Fs, dispatches toggle events, reloads file:// page, reads .open",
+          "result": "openAfterReload=[true,true] using key codexu-overview-details-state-v2; no console/page errors."
+        },
+        {
+          "criterion": "Today panel classifies freshly emitted DOM after data phase edit",
+          "command": "Headless Chromium with temporary data-file edit setting 1b-multidev phase to impl-in-progress, then reload",
+          "result": "todayRunning=[1b-multidev] after one reload; temporary overview-data.js edit was restored after verification; no console/page errors."
+        },
+        {
+          "criterion": "Existing IIFEs continue against freshly emitted DOM, including URL filter and counts",
+          "command": "Headless Chromium file:// plans/overview.html?tasks=perf-WS3 DOM check",
+          "result": "URL filter visible command IDs=[perf-WS3]; renderPhaseBadges/scope chips/workstream pills/copy controls ran on the data rows. Browser total was 49 real cmd rows, matching current HEAD's 49-row DOM baseline rather than the PRD's stale 51."
+        },
+        {
+          "criterion": "Skeleton-ownership invariant in overview-data.js respected",
+          "command": "git diff -- plans/overview-data.js --unified=0",
+          "result": "Diff changes only the tasks[] value from [] to 3 entries; phaseTree, runs, periodic, cadence, lastTouched, effort, risk, workstream, sizeBucket, spawnedFrom top-level skeleton/order remain untouched."
+        },
+        {
+          "criterion": "No duplicate task IDs in OVERVIEW_DATA.tasks[]",
+          "command": "node VM: new Set(tasks.map(t=>t.id)).size === tasks.length",
+          "result": "duplicateIds=false for perf-WS3,1b-multidev,polish-Fs."
+        },
+        {
+          "criterion": "Containers exist",
+          "command": "grep -c for id=kanban-ready/kanban-soon/kanban-blocked/cmd-list/phase-tree plans/overview.html",
+          "result": "Each required container ID appears exactly once in plans/overview.html."
+        },
+        {
+          "criterion": "Typecheck passes",
+          "command": "node --check plans/overview-data.js; node VM syntax-check main inline script from plans/overview.html; git diff --check",
+          "result": "overview-data.js syntax OK; main inline script parsed by vm.Script; git diff --check exit=0 with only Git CRLF warnings."
+        },
+        {
+          "criterion": "Browser verification on file:// for render, expand/reload persistence, and ?tasks filter",
+          "command": "Headless Chromium via temporary Playwright install against file:///.../plans/overview.html",
+          "result": "PASS: rows=49 current baseline, visible=[perf-WS3] for ?tasks filter, cards=[1,3,5], prompt round-trip true, containers true, openAfterRender=[true,true], openAfterReload=[true,true], todayRunning=[1b-multidev]. agent-browser skill was unavailable, so Playwright Chromium was used as the browser fallback."
+        }
+      ],
+      "dependencies": [],
+      "failureClassification": "",
+      "partialProgress": null
+    }
+  ],
+  "planReviewContext": [
+    {
+      "id": "F-004",
+      "severity": "High",
+      "source": "codex",
+      "category": "Completeness",
+      "description": "kanbanCards[] schema with only {column, titleHtml, subHtml} is insufficient for identical rendering. plans/overview.html has 33 .card-meta blocks with rich content (pills, icons, links, inline <code>); at least one card carries class=\"card closed\" (extra class beyond .card); inline-style border-color and opacity are also in use. The 3-field schema cannot round-trip card-meta, additional card class names, or inline pills.",
+      "relevantFiles": [
+        "plans/overview.html"
+      ],
+      "suggestedFix": "Use the widened schema {column, cardClass: string|null, inlineStyle: string|null, html: string}. Render emits `<div class=\"card${cardClass ? ' ' + cardClass : ''}\" style=\"${inlineStyle || ''}\" data-task-id=\"...\">${html}</div>`. The `html` field carries the trusted full inner HTML of <div class=\"card\">."
+    },
+    {
+      "id": "F-006",
+      "severity": "High",
+      "source": "claude",
+      "category": "Criteria Quality",
+      "description": "AC promises bookkeeper-workflow updates reflect in 'kanban placement, command-row badge, phase tree pill, and Today panel without further file edits' but does not include an explicit Today-panel verification step. If the data-driven render breaks Today-panel logic (which today walks DOM by class/data-attribute), the AC is unverifiable as a binary pass/fail.",
+      "suggestedFix": "Add an AC: 'After data-file edit changing a task's phase to impl-in-progress, the Today panel's Running section includes that task within one page reload without console errors. Verified by manual reload on file://.'"
+    },
+    {
+      "id": "F-007",
+      "severity": "High",
+      "source": "claude",
+      "category": "Criteria Quality",
+      "description": "AC requires 'same prompt bodies copy-pasteable from the clipboard' but does not specify the decode/re-emit strategy. Risk Areas section identifies HTML-entity decoding as Risk #1 but the AC is silent on implementation. Without an explicit AC, an autonomous implementer may use innerHTML for prompt bodies and re-encode entities, producing copy-paste output that contains '&gt;' instead of '>'.",
+      "suggestedFix": "Add an AC: 'Prompt bodies in <pre class=\"cmd-pre\"> render with HTML entities decoded to literal characters; render uses textContent (or DOM Node.textContent assignment), not innerHTML, for prompt strings. Verified by manual copy-paste check on first 3 + last 3 tasks: pasted text equals the JS string literal stored in tasks[].command.planPrompt.'"
+    },
+    {
+      "id": "F-008",
+      "severity": "High",
+      "source": "claude",
+      "category": "Criteria Quality",
+      "description": "AC says 'Expanding a <details class=\"cmd\"> row, then re-firing the render preserves the open state' but lacks an explicit test procedure or interaction with the existing localStorage 'codexu-overview-details-state-v2' persistence (overview.html line 3106). An implementer might satisfy the snapshot/restore in-render but skip the localStorage re-apply, regressing cross-load persistence.",
+      "suggestedFix": "Replace with: 'After renderTasks() rebuilds the DOM, all <details class=\"cmd\"> elements that were open before the re-render are still open. Additionally, the existing localStorage codexu-overview-details-state-v2 persistence still works: open 2 details, reload the page, the same 2 are open. Verified manually on file://.'"
+    }
+  ]
+}

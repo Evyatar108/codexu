@@ -1,0 +1,35 @@
+### Feasibility
+
+[High] `dev_server.start` is likely to timeout because the ready regex is too strict. Vite normally prints lines like `  ➜  Local:   http://127.0.0.1:5173/`, not a line beginning with `Local:`. The planned predicate `^\s*Local:\s+(\S+)` in `tools/overview-mcp/src/tools/dev-server-start.ts` should instead search for `Local:\s+(\S+)` after stripping ANSI/control prefixes.
+
+[High] The double-start behavior is internally inconsistent. `ProcessManager.spawn()` registers a `starting` record before the child emits `spawn`, but `dev_server.start` is supposed to return `{ alreadyRunning: true, url, pid, startedAt }` immediately. During the race window those fields may not exist yet. The second caller should wait on the existing handle’s ready promise, or the return shape must allow a `starting` state.
+
+[High] The Windows process model is under-specified. With `spawn('pnpm', ..., { shell: true })`, the stored PID may be the shell wrapper, not the Vite/Node process. Killing only that PID in `tools/overview-mcp/src/process-manager.ts` will not reliably satisfy the no-orphan criterion on Windows. Deferring `tree-kill` as out of scope conflicts with the acceptance criteria.
+
+### Completeness
+
+[High] Extending `ServerContext` requires updating existing context literals, especially `tools/overview-mcp/src/__tests__/helpers.ts`. `makeContext()` currently returns `{ repoRoot, config, snapshotReader }`; after adding `processManager`, existing tests/typecheck will fail unless the helper and any direct `ServerContext` fixtures are updated.
+
+[High] `scripts/lib/sync-lock.d.mts` must be updated with the new `readLockStatus()` export. The plan only modifies `scripts/lib/sync-lock.mjs`, but `tools/overview-mcp` imports script modules from TypeScript and relies on `.d.mts` declarations.
+
+[High] One-shot `overview.build` and `overview.sync.now` children are explicitly not tracked by `ProcessManager`, so `index.ts` shutdown only kills the dev server. This violates the plan’s own lifecycle constraint that children die with the MCP server if SIGTERM arrives during a build or sync.
+
+[High] The planned sync summary line uses undefined names: `matched` and `unmatched` do not exist in `scripts/sync-ralph-state.mjs:runOneShot()`. The plan should specify the exact derivation, e.g. `Object.keys(state.byTaskId ?? {}).length` and `(state.unmatched ?? []).length`.
+
+### Ordering
+
+[Medium] The story decomposition says US-004 should update `src/__tests__/stdio-tools-list.test.ts` to count 14 tools, with the final count becoming 17 later. If tests run after US-005 or US-006 before US-007 adjusts the count again, the smoke test will fail. Either update the expected list in the final registration story only, or make each story update it alongside each new tool.
+
+[Medium] `stdio-tools-list.test.ts` spawns `tools/overview-mcp/dist/index.js`, not TypeScript source. The plan should make the build prerequisite explicit before running this test, otherwise a stale `dist` can report the old 10-tool server even after source changes.
+
+### Simplicity
+
+[Medium] Separate transient child handling for build/sync duplicates the hardest parts of `ProcessManager` while missing shutdown cleanup. A simpler design is to let `ProcessManager` support tracked transient processes with single-flight names like `build` and `sync-now`, while still excluding them from long-lived status tools.
+
+### Acceptance Criteria Quality
+
+[High] The no-orphan acceptance evidence is insufficient. Checking only the returned `pid` proves little when `shell: true` may return a shell PID. The criterion should verify descendants and/or port `5173`, and on Windows inspect remaining `node`/`pnpm` children, not just `tasklist /FI "PID eq <pid>"`.
+
+[Medium] `dev_server.logs` says `tail` is both “validated 1..1000” and “clamped 1..1000.” Those are different contracts. Pick one so the autonomous implementer knows whether invalid input should be rejected or coerced.
+
+[Medium] The plan says `sync.now` has no in-process lock because the OS lock should surface races, but the acceptance criteria do not define what concurrent `sync.now` calls should return. Add an explicit expected result for lock contention.

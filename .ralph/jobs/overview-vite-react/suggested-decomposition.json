@@ -1,0 +1,73 @@
+{
+  "clusters": [
+    {
+      "name": "overview-viewer-foundation",
+      "stories": ["US-001", "US-002"],
+      "phase": 1,
+      "dependsOn": [],
+      "fileOverlapEvidence": {
+        "sharedFiles": [
+          "tools/overview-viewer/package.json",
+          "pnpm-workspace.yaml",
+          "package.json",
+          "tools/overview-viewer/src/main.tsx",
+          "tools/overview-viewer/src/styles.css"
+        ],
+        "exclusiveFiles": [],
+        "risk": "high"
+      },
+      "executionModeRationale": "Serial within the cluster: US-002 imports styles into the scaffold built in US-001. Workspace registration in US-001 must land before any other file is added under tools/overview-viewer/."
+    },
+    {
+      "name": "overview-viewer-components",
+      "stories": ["US-003", "US-004", "US-005", "US-006"],
+      "phase": 2,
+      "dependsOn": ["overview-viewer-foundation"],
+      "fileOverlapEvidence": {
+        "sharedFiles": [
+          "tools/overview-viewer/src/App.tsx",
+          "tools/overview-viewer/src/data/schema.ts"
+        ],
+        "exclusiveFiles": [
+          "tools/overview-viewer/src/components/TaskCommand.tsx",
+          "tools/overview-viewer/src/components/KanbanColumn.tsx",
+          "tools/overview-viewer/src/components/PhaseTree.tsx",
+          "tools/overview-viewer/src/components/TodayPanel.tsx"
+        ],
+        "risk": "medium"
+      },
+      "executionModeRationale": "Serial: each story extends App.tsx to mount its new section and adds fields to schema.ts. Parallelizing risks merge conflicts in App.tsx and schema.ts even though the per-section components are exclusive."
+    },
+    {
+      "name": "overview-viewer-build-and-swap",
+      "stories": ["US-007", "US-008"],
+      "phase": 3,
+      "dependsOn": ["overview-viewer-components"],
+      "fileOverlapEvidence": {
+        "sharedFiles": [
+          "tools/overview-viewer/vite.config.ts",
+          "plans/overview.html"
+        ],
+        "exclusiveFiles": [],
+        "risk": "high"
+      },
+      "executionModeRationale": "Serial and gated: US-008 is destructive (deletes plans/overview.html) and must follow operator approval of US-007's parity output. Cannot be parallelized with any other story."
+    },
+    {
+      "name": "overview-viewer-docs",
+      "stories": ["US-009"],
+      "phase": 4,
+      "dependsOn": ["overview-viewer-build-and-swap"],
+      "fileOverlapEvidence": {
+        "sharedFiles": [],
+        "exclusiveFiles": [
+          ".agents/skills/roadmap-and-overview/SKILL.md",
+          "README.md",
+          "tools/overview-viewer/README.md"
+        ],
+        "risk": "low"
+      },
+      "executionModeRationale": "Sole-story cluster; runs after the build/swap so docs reflect the final dev-server URL, build command, and deferred-class behavior."
+    }
+  ]
+}

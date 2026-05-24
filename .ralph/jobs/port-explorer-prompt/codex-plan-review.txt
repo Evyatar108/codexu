@@ -1,0 +1,43 @@
+Overall, the plan is implementable, but it has a few correctness and process gaps that should be fixed before handing it to an autonomous implementer.
+
+### Feasibility
+
+[High] The proposed `explorer.toml` comment contradicts the acceptance criteria. The plan proposes `# Inspired by the design of Claude Code's...`, while the AC says no `"Claude Code"` substring may appear anywhere in `codex-rs/core/src/agent/builtins/explorer.toml`.
+
+[High] `sandbox_mode = "read-only"` may make the planned smoke test fail. `codex/docs/workflows/codex-cli-git-bash-diagnostic.md` documents `codex exec --sandbox read-only` as incompatible with tool-using prompts because exec pins approval to `never`. If the explorer role itself forces read-only, a parent `codex exec` spawning `agent_type=explorer` can hit the same failure mode.
+
+[Medium] The plan says malformed TOML breaks `cargo build` via `include_str!`; that is inaccurate. `include_str!` only embeds bytes. TOML is parsed at runtime in `codex-rs/core/src/agent/role.rs` via `toml::from_str` inside `load_role_layer_toml`. The new test must explicitly parse/apply the built-in role.
+
+[Low] Worktree paths are slightly ambiguous. In a worktree of the `codex` repo, the edited file path is `external/repos/codex-patched/codex-rs/...`, not `codex/external/repos/...`. The plan should distinguish superproject-relative paths from codex-worktree-relative paths.
+
+### Completeness
+
+[High] The plan includes `git push` to `gim-home/codex` but lacks an explicit push approval gate. The repo instructions require asking before pushing to remotes.
+
+[Medium] The patch-surface documentation step is too weak for `codex/CLAUDE.md`. Edits under `codex/external/repos/codex-patched/` require a patch-surface entry with invariant/guard and rebase note; the TOML should also use an equivalent marker such as `# SANDBOX PATCH:` if a marker is required for this upstream-canonical edit.
+
+[Medium] `project_doc_fallback_filenames = []` needs clearer expected behavior. It can suppress configured fallback filenames such as `CLAUDE.md`, but `codex-rs/core/src/agents_md.rs` always checks `AGENTS.md` first. If the intended behavior is “no project docs at all,” this field is insufficient.
+
+[Low] The plan edits Rust tests but omits the repo-required formatting step. `codex/external/repos/codex-patched/AGENTS.md` says to run `just fmt` after Rust code changes.
+
+### Ordering
+
+[Medium] The patch-surface doc update should happen before the submodule commit/push, not as an optional follow-up after US-006. Otherwise the pushed commit can temporarily violate the fork’s own patch documentation discipline.
+
+[Low] The license/operator gate is correctly placed before commit, but push approval should be a separate gate after tests and before `git push`.
+
+### Simplicity
+
+[Medium] `cargo build --workspace` is likely overkill and does not prove TOML validity. A tighter verification set is: apply-role test that parses the embedded TOML, `cargo check -p codex-core`, `cargo test -p codex-core explorer`, and possibly `cargo check --workspace` if broader confidence is desired.
+
+[Low] Consider omitting `sandbox_mode = "read-only"` initially and relying on the role prompt until the noninteractive spawn behavior is proven. That keeps the first change focused on prompt parity and avoids the documented exec/read-only trap.
+
+### Acceptance Criteria Quality
+
+[Medium] “No verbatim span of > 5 consecutive words” is manual and subjective. Since this is license-sensitive, the AC should require the implementer to show the final TOML diff beside `exploreAgent.ts:24-56` and record explicit operator approval.
+
+[Medium] “Returns a sensible exploration summary” is vague. Specify a fixed tiny target, expected file reference behavior, and that no write/edit/tool-modification attempts occur.
+
+[Low] The TOML length check `>= 200 chars` is weak. It should also assert the role actually applies `developer_instructions` and any intended locked settings, such as `model_reasoning_effort = "low"` if retained.
+
+No prior review cycles or amendments are mentioned, so there are no prior fixes to assess.

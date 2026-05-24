@@ -1,0 +1,73 @@
+{
+  "storyId": "US-009",
+  "verifiedEvidence": [
+    {
+      "criterion": "tools/overview-viewer/src/__tests__/interactions/pipelineOverview.test.tsx covers: histogram count rendering, click-to-filter (replace + clear), empty-state branch, multi-select coexistence with the toolbar filter group. Lives under interactions/ per F-013 so jsdom + userEvent are available.",
+      "command": "grep -n \"renders the canonical\" tools/overview-viewer/src/__tests__/interactions/pipelineOverview.test.tsx; grep -n \"replaces and clears\" tools/overview-viewer/src/__tests__/interactions/pipelineOverview.test.tsx; grep -n \"renders the empty state\" tools/overview-viewer/src/__tests__/interactions/pipelineOverview.test.tsx; grep -n \"preserves other filter axes\" tools/overview-viewer/src/__tests__/interactions/pipelineOverview.test.tsx; pnpm --filter @codexu/overview-viewer test -- pipelineOverview",
+      "result": "Exit 0; source grep shows the four required interaction tests at lines 80, 92, 100, and 114 under src/__tests__/interactions/. Focused Vitest reported 28 test files passed and 160 tests passed.",
+      "evidenceKind": "test"
+    },
+    {
+      "criterion": "pnpm --filter @codexu/overview-viewer typecheck and pnpm --filter @codexu/overview-viewer test both pass.",
+      "command": "pnpm --filter @codexu/overview-viewer typecheck > .test-output/overview-viewer.typecheck.log 2>&1; pnpm --filter @codexu/overview-viewer test > .test-output/overview-viewer.test.log 2>&1",
+      "result": "Exit 0 for both; typecheck meta recorded exitCode 0 and Vitest reported 28 test files passed / 160 tests passed.",
+      "evidenceKind": "typecheck"
+    },
+    {
+      "criterion": "pnpm sync-ralph-state (one-shot) emits both artifacts; verify via jq checks per plan Verification A (recommendations[0:5] returns up to 5 entries with taskId/score/stage/reasons; edges length >= 1 when any source data has spawnedFrom/blocks/PRD deps; story node ids match `${taskId}:${storyId}`).",
+      "command": "pnpm sync-ralph-state; OVERVIEW_CONFIG_PATH=.test-output/overview-config.parent-ralph.json pnpm sync-ralph-state; jq checks on plans/overview-recommendations.json and plans/overview-dependency-graph.json",
+      "result": "Exit 0; one-shot sync emitted plans/overview-recommendations.json and plans/overview-dependency-graph.json. Populated parent-.ralph verification showed 6 recommendations with taskId/score/stage/reasons, dependency graph nodes=81 and edges=65, edgeKinds includes depends-on-story and spawn, and first story node IDs include 1a-fork-doc:US-001 and agent-tree-rpc:US-001.",
+      "evidenceKind": "source-inspection"
+    },
+    {
+      "criterion": "pnpm overview:build regenerates plans/overview.html; the file is < 512000 bytes; the regenerated file is committed in this story (per F-007).",
+      "command": "pnpm overview:build && wc -c plans/overview.html && git show --stat --oneline HEAD",
+      "result": "Exit 0; Vite built ../../plans/overview.html, wc reported 504238 bytes (<512000), and commit 3f062b70 includes plans/overview.html.",
+      "evidenceKind": "source-inspection"
+    },
+    {
+      "criterion": "Audit and refresh plans/ralph-pipeline-05-*.md, plans/ralph-pipeline-06-*.md, plans/ralph-pipeline-09-*.md, and plans/ralph-pipeline-INDEX.md for stale references (file paths, type signatures, function/export names, behavior contracts, module dependencies).",
+      "command": "grep -n \"Plan 04\" plans/ralph-pipeline-05-agent-exports.md plans/ralph-pipeline-06-skills.md plans/ralph-pipeline-09-mcp.md; grep -n \"derive-dependency-graph.mjs\" plans/ralph-pipeline-05-agent-exports.md plans/ralph-pipeline-INDEX.md; grep -n \"PipelineOverview.tsx\" plans/ralph-pipeline-INDEX.md",
+      "result": "Exit 0; refreshed Plan 05 for shipped Plan 04 artifact contracts and writeSidecar/emitDerivedArtifacts order, Plan 06 for bare Recommendation[] triage input, Plan 09 for bare Recommendation[] MCP input plus dependency graph artifact, and INDEX source-of-truth rows for sync-core, PipelineOverview, scoreRecommendations, and deriveDependencyGraph.",
+      "evidenceKind": "source-inspection"
+    },
+    {
+      "criterion": "Create plans/ralph-pipeline-04-refresh-changelog.md listing each downstream-plan diff (file, lines, what changed). Commit this file plus the updated plans in the same final commit (per F-008).",
+      "command": "grep -n \"Downstream Plan Diffs\" plans/ralph-pipeline-04-refresh-changelog.md; grep -n \"ralph-pipeline-05\" plans/ralph-pipeline-04-refresh-changelog.md; grep -n \"ralph-pipeline-06\" plans/ralph-pipeline-04-refresh-changelog.md; grep -n \"ralph-pipeline-09\" plans/ralph-pipeline-04-refresh-changelog.md; grep -n \"ralph-pipeline-INDEX\" plans/ralph-pipeline-04-refresh-changelog.md; git show --name-only --oneline HEAD",
+      "result": "Exit 0; changelog lines 7-10 list each downstream-plan diff by file, lines, and change. Commit 3f062b70 includes the changelog plus Plan 05, Plan 06, Plan 09, and INDEX updates.",
+      "evidenceKind": "source-inspection"
+    },
+    {
+      "criterion": "No existing tests broken across the repo.",
+      "command": "pnpm --filter @codexu/overview-viewer test > .test-output/overview-viewer.test.log 2>&1; pnpm exec vitest run scripts/lib/score-recommendations.test.mjs scripts/lib/derive-dependency-graph.test.mjs --root . > .test-output/scripts-lib.plan04.test.log 2>&1",
+      "result": "Exit 0; overview-viewer full suite reported 28 test files passed / 160 tests passed, and root Plan 04 script-library Vitest reported 2 test files passed / 11 tests passed. Unrelated happy-* package suites were not run because the change surface is overview artifacts and plan docs.",
+      "evidenceKind": "test"
+    },
+    {
+      "criterion": "Typecheck passes.",
+      "command": "pnpm --filter @codexu/overview-viewer typecheck > .test-output/overview-viewer.typecheck.log 2>&1",
+      "result": "Exit 0; tsc --noEmit completed with no errors.",
+      "evidenceKind": "typecheck"
+    },
+    {
+      "criterion": "Tests pass.",
+      "command": "pnpm --filter @codexu/overview-viewer test > .test-output/overview-viewer.test.log 2>&1; pnpm exec vitest run scripts/lib/score-recommendations.test.mjs scripts/lib/derive-dependency-graph.test.mjs --root .",
+      "result": "Exit 0; overview-viewer Vitest reported 28 test files passed / 160 tests passed, and focused root script tests reported 2 test files passed / 11 tests passed.",
+      "evidenceKind": "test"
+    },
+    {
+      "criterion": "Verify in browser using dev-browser skill.",
+      "command": "N/A",
+      "result": "SKIPPED: browser automation unavailable for US-009:AC-010; no dev-browser skill or browser MCP/tool is available in this session, so the vitest interaction suite is the verifiable fallback surface.",
+      "evidenceKind": "command"
+    }
+  ],
+  "skippedReasons": [
+    "tool_unavailable"
+  ],
+  "notTested": [
+    "Manual browser verification for US-009:AC-010; browser automation/dev-browser tooling unavailable.",
+    "Unrelated happy-* package suites; change surface is overview artifacts and plan docs."
+  ],
+  "iterationSHA": "3f062b70abe5c173a08083bd9bdeb343658d4345"
+}

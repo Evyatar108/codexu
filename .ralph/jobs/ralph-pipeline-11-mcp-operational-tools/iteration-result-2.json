@@ -1,0 +1,50 @@
+{
+  "storyId": "US-002",
+  "verifiedEvidence": [
+    {
+      "criterion": "scripts/lib/sync-lock.mjs exports parseLockMetadata(buffer), isLockHolderAlive(pid), and readLockStatus(lockPath, opts?).",
+      "command": "pnpm vitest run scripts/lib/sync-lock.test.mjs",
+      "result": "PASS: sync-lock.test.mjs imports and exercises parseLockMetadata, isLockHolderAlive, and readLockStatus; 1 test file passed, 11 tests passed.",
+      "evidenceKind": "command-output"
+    },
+    {
+      "criterion": "readLockStatus returns missing/active/stale shapes and retries unparseable JSON once before stale.",
+      "command": "pnpm vitest run scripts/lib/sync-lock.test.mjs",
+      "result": "PASS: tests cover missing file, fresh active lock with Date mtime, stale old lock with dead PID, unparseable JSON rewritten before retry, and still-unparseable JSON returning stale.",
+      "evidenceKind": "command-output"
+    },
+    {
+      "criterion": "When mtime is older than staleAfterMs but isLockHolderAlive(pid) is true, readLockStatus returns active.",
+      "command": "pnpm vitest run scripts/lib/sync-lock.test.mjs",
+      "result": "PASS: test 'readLockStatus trusts a live PID over stale mtime' returned { state: 'active', pid: 123, process: 'watcher' } for a 120s-old lock.",
+      "evidenceKind": "command-output"
+    },
+    {
+      "criterion": "scripts/lib/sync-lock.d.mts declares the new exports with documented type shapes.",
+      "command": "pnpm exec tsc --module NodeNext --moduleResolution NodeNext --target ES2022 --types node --noEmit scripts/lib/sync-lock.d.mts",
+      "result": "PASS: declaration-only TypeScript compile exited 0; declarations include DEFAULT_STALE_AFTER_MS, ParsedSyncLockMetadata, LockStatus, parseLockMetadata, isLockHolderAlive, and readLockStatus.",
+      "evidenceKind": "command-output"
+    },
+    {
+      "criterion": "scripts/lib/sync-lock.test.mjs covers each helper and lock-status case.",
+      "command": "pnpm vitest run scripts/lib/sync-lock.test.mjs",
+      "result": "PASS: 11 tests passed covering parse success/failure, alive PID, dead PID, active mtime, stale mtime + dead PID, stale mtime + alive PID, missing file, unparseable + retry, and unparseable stale.",
+      "evidenceKind": "command-output"
+    },
+    {
+      "criterion": "No behavior change to existing acquireLock / releaseLock callers.",
+      "command": "pnpm vitest run scripts/lib/sync-lock.test.mjs",
+      "result": "PASS: test 'acquireLock and releaseLock still create and remove the lock file' verified acquire writes pid/process metadata and release removes the lock file.",
+      "evidenceKind": "command-output"
+    },
+    {
+      "criterion": "Typecheck and tests pass for @codexu/overview-mcp.",
+      "command": "pnpm --filter @codexu/overview-mcp typecheck && pnpm --filter @codexu/overview-mcp test",
+      "result": "PASS: typecheck exited 0 (log .test-output/overview-mcp.typecheck.log); test exited 0 with Test Files 15 passed (15), Tests 51 passed (51), log .test-output/overview-mcp.test.log.",
+      "evidenceKind": "command-output"
+    }
+  ],
+  "skippedReasons": [],
+  "notTested": [],
+  "iterationSHA": "720166503da3e3b7cb46f956eea9e3b1ecff6e0f"
+}

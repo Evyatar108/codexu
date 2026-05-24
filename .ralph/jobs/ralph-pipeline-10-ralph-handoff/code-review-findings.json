@@ -1,0 +1,42 @@
+{
+  "planFile": "D:/harness-efforts/codexu/.ralph/jobs/ralph-pipeline-10-ralph-handoff/plan.md",
+  "repoDir": "D:/harness-efforts/codexu/.ralph/jobs/ralph-pipeline-10-ralph-handoff/worktree",
+  "reviewCycle": 0,
+  "findings": [
+    {
+      "id": "F-001",
+      "severity": "High",
+      "source": "claude",
+      "classification": "fixable",
+      "phase": "code",
+      "category": "Completeness",
+      "sectionRef": "3.3 brainstorm-with-ralph",
+      "description": "Section 3.3 conditions the selected-direction.md metadata format on the Section 6.1 decision (\"If YAML front-matter is selected in Section 6.1 [...] If the Section 6.1 decision chooses a non-front-matter format, use that same format here instead.\"). Section 6.1 is scoped to plan.md's compatibility with implement-with-ralph Phase 0's first-line check; selected-direction.md is not consumed by Phase 0 and has no first-line-check constraint. The source plan unambiguously requires YAML front-matter on selected-direction.md. Coupling the brainstorm metadata format to the 6.1 plan-format decision lets a future cycle skip the required brainstorm front-matter contract.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Decoupled Section 3.3 brainstorm metadata format from Section 6.1: replaced the conditional language with an unconditional mandate to always write YAML front-matter on selected-direction.md. The Section 6.1 plan-format decision is now scoped to plan.md only.",
+      "relevantFiles": [
+        "plans/ralph-overview-task-id.md:112",
+        "plans/ralph-overview-task-id.md:120"
+      ],
+      "suggestedFix": "Decouple 3.3 from 6.1: mandate YAML front-matter on selected-direction.md unconditionally (the source plan requires it). Keep 6.1's optional-format-choice scoped to plan.md only."
+    },
+    {
+      "id": "F-002",
+      "severity": "Medium",
+      "source": "claude",
+      "classification": "fixable",
+      "phase": "code",
+      "category": "Quality",
+      "sectionRef": "7 Suggested landing order",
+      "description": "Section 7 lists the conditional implement-with-ralph patch as step 5 but the body says \"land this before steps 2-4 only if Section 6.1 resolution A is selected.\" Numbering a prerequisite step as the last item is internally contradictory and risks the future patch cycle treating Phase 0 as a final-step fix when YAML front-matter is chosen.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Moved the conditional implement-with-ralph step from position 5 to position 0 in Section 7. Numbering now matches the in-text qualifier (\"land this first, before steps 1-4, only if Section 6.1 resolution A is selected\").",
+      "relevantFiles": [
+        "plans/ralph-overview-task-id.md:208"
+      ],
+      "suggestedFix": "Renumber the conditional implement-with-ralph patch as step 0 (or call it out as a Step 0 prerequisite under the existing Section 7 prerequisite note), so the ordering and the in-text qualifier (\"before steps 2-4\") agree."
+    }
+  ]
+}

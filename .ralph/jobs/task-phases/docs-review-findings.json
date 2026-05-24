@@ -1,0 +1,23 @@
+{
+  "planFile": "D:/harness-efforts/codexu/.ralph/jobs/task-phases/plan.md",
+  "repoDir": "D:/harness-efforts/codexu/.ralph/jobs/task-phases/worktree",
+  "reviewCycle": 1,
+  "findings": [
+    {
+      "id": "F-001",
+      "severity": "Medium",
+      "source": "docs",
+      "classification": "fixable",
+      "phase": "docs",
+      "category": "Stale Documentation",
+      "description": "plans/crews-integration.md still cites the legacy `b-inflight` badge model when describing how the codexu lead skill discovers in-flight tasks. Two passages reference it: (a) line 132 quotes `.agents/skills/roadmap-and-overview/SKILL.md`'s old wording \"Scan plans/overview.html for tasks with `b-inflight` badges\" as if that wording were current; (b) line 139 prescribes a future migration step that says replace \"scan plans/overview.html for tasks with `b-inflight` badges + `cmd-warn blocked` banners\" with `/list-members --crew codexu`. After this diff lands, SKILL.md no longer mentions `b-inflight` — step 3 of \"First five things to do\" now reads tasks whose `data-task-phase` ends in `-in-progress` (plus `cmd-warn blocked` banners). So the quoted source string in crews-integration.md no longer exists in the file it points to, making the planned crews-side replacement instruction misaligned with reality.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Updated both stale b-inflight references in crews-integration.md to data-task-phase ending in -in-progress",
+      "relevantFiles": [
+        "plans/crews-integration.md"
+      ],
+      "suggestedFix": "Update both passages in plans/crews-integration.md to track the new phase model. For line 132 (bullet under \"Fresh-agent orientation\"): change \"tasks with `b-inflight` badges\" to \"tasks whose `data-task-phase` ends in `-in-progress`\". For line 139 (action item under the migration list): change the quoted source string from \"scan plans/overview.html for tasks with `b-inflight` badges + `cmd-warn blocked` banners\" to \"scan plans/overview.html for tasks whose `data-task-phase` ends in `-in-progress` or that have `cmd-warn blocked` banners\" so the before/after replacement still matches the actual SKILL.md text the crews migration would supersede."
+    }
+  ]
+}

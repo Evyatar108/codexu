@@ -1,0 +1,15 @@
+{
+  "storyId": "US-002",
+  "iterationSHA": "0dc3e9d718ab3d6296f593b6ad4064581b01d543",
+  "verdicts": [
+    { "criterion": "crewsRoot added to .ralph/overview-config.schema.json", "verdict": "agree", "notes": "Diff modifies .ralph/overview-config.schema.json; evidence cites line 11." },
+    { "criterion": "scripts/lib/default-config.mjs sets crewsRoot default and adds chokidar ignore patterns", "verdict": "agree", "notes": "Diff modifies default-config.mjs; evidence enumerates all 5 ignore patterns." },
+    { "criterion": "scripts/lib/default-config.d.mts adds crewsRoot: string", "verdict": "agree", "notes": "Diff modifies default-config.d.mts." },
+    { "criterion": "scripts/lib/resolve-config.mjs destructures crewsRoot and adds resolveCrewsRoot()", "verdict": "agree", "notes": "Diff modifies resolve-config.mjs; evidence cites git-common-dir vs git-dir handling." },
+    { "criterion": "scripts/lib/sync-core.mjs normalizeConfigPaths() also resolves crewsRoot", "verdict": "agree", "notes": "Diff modifies sync-core.mjs." },
+    { "criterion": "Tests in scripts/lib/resolve-config.test.mjs cover schema/absolute/relative/linked-worktree", "verdict": "agree", "notes": "New file scripts/lib/resolve-config.test.mjs added." },
+    { "criterion": "Typecheck passes", "verdict": "agree", "notes": "Evidence cites overview-viewer typecheck exit 0." },
+    { "criterion": "Quality checks pass", "verdict": "agree", "notes": "Evidence cites pnpm test 19 files / 117 tests." }
+  ],
+  "warnings": []
+}

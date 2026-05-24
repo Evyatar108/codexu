@@ -1,0 +1,56 @@
+{
+  "storyId": "US-004",
+  "verifiedEvidence": [
+    {
+      "criterion": "Four new SKILL.md files with ralph-meta metadata",
+      "evidenceKind": "passed",
+      "command": "for f in plugins/ralph-overview/skills/overview-init/SKILL.md plugins/ralph-overview/skills/overview-add-task/SKILL.md plugins/ralph-overview/skills/overview-edit-task/SKILL.md plugins/ralph-overview/skills/overview-set-status/SKILL.md; do test -f $f || exit 1; done; grep -Hn '<!-- ralph-meta {.*} -->' plugins/ralph-overview/skills/overview-*/SKILL.md",
+      "result": "All four files exist; grep found ralph-meta metadata in overview-add-task, overview-edit-task, overview-init, and overview-set-status SKILL.md files."
+    },
+    {
+      "criterion": "/overview-init instructs overview.init dry-run first, confirm, force only when confirmed",
+      "evidenceKind": "passed",
+      "command": "grep -Hn -e 'overview.init' -e 'dryRun' -e 'confirm' -e 'force' plugins/ralph-overview/skills/overview-init/SKILL.md",
+      "result": "Skill content calls overview.init, sets dryRun true first, requires confirmation before writing, and uses force true only after explicit scaffold overwrite confirmation."
+    },
+    {
+      "criterion": "/overview-add-task, /overview-edit-task, /overview-set-status are thin overview.upsert_task wrappers",
+      "evidenceKind": "passed",
+      "command": "grep -Hn -e 'overview.upsert_task' -e 'taskObjectFields' -e 'topLevelMapFields' -e 'status' -e 'blockedBy' plugins/ralph-overview/skills/overview-add-task/SKILL.md plugins/ralph-overview/skills/overview-edit-task/SKILL.md plugins/ralph-overview/skills/overview-set-status/SKILL.md",
+      "result": "All three skills instruct a single overview.upsert_task call with opinionated taskObjectFields/topLevelMapFields or status-related field sets and direct-edit avoidance."
+    },
+    {
+      "criterion": "generate-copilot-artifacts --write regenerates mirrors for all 7 skills",
+      "evidenceKind": "passed",
+      "command": "node plugins/ralph-overview/scripts/generate-copilot-artifacts.mjs --write; /usr/bin/find plugins/ralph-overview/dist/copilot -mindepth 2 -maxdepth 2 -name SKILL.md -printf '%P\n' | sort",
+      "result": "Generator printed ok and listed blocker-report, overview-add-task, overview-edit-task, overview-init, overview-set-status, triage, and work-on mirrors."
+    },
+    {
+      "criterion": "Copilot mirror count equals source skill count (7 = 7)",
+      "evidenceKind": "passed",
+      "command": "src_count=$(/usr/bin/find plugins/ralph-overview/skills -mindepth 2 -maxdepth 2 -name SKILL.md | wc -l); mirror_count=$(/usr/bin/find plugins/ralph-overview/dist/copilot -mindepth 2 -maxdepth 2 -name SKILL.md | wc -l); printf 'source=%s mirror=%s\n' $src_count $mirror_count; test $src_count -eq 7; test $mirror_count -eq 7; test $src_count -eq $mirror_count",
+      "result": "Printed source=7 mirror=7 and all equality checks passed."
+    },
+    {
+      "criterion": "Generator drift-check mode passes on a clean tree",
+      "evidenceKind": "passed",
+      "command": "node plugins/ralph-overview/scripts/generate-copilot-artifacts.mjs",
+      "result": "Printed ok: Copilot skill mirrors match."
+    },
+    {
+      "criterion": "Typecheck passes (tsc -p tools/overview-mcp/tsconfig.json)",
+      "evidenceKind": "passed",
+      "command": "npx tsc -p tools/overview-mcp/tsconfig.json 2>&1 | tee D:/harness-efforts/codexu/.ralph/jobs/overview-install-streamline/test-output-us004-typecheck.log",
+      "result": "Exit code 0 with no TypeScript diagnostics; captured typecheck log is 0 bytes."
+    },
+    {
+      "criterion": "Workspace tests pass",
+      "evidenceKind": "passed",
+      "command": "npm test --workspace=tools/overview-mcp 2>&1 | tee D:/harness-efforts/codexu/.ralph/jobs/overview-install-streamline/test-output-us004-npm-test.log",
+      "result": "Vitest summary: Test Files 23 passed | 1 skipped (24); Tests 93 passed | 1 skipped (94)."
+    }
+  ],
+  "skippedReasons": [],
+  "notTested": [],
+  "iterationSHA": "018369bcd4d87954e339d6937565d16104ef44ca"
+}

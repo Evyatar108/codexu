@@ -1,0 +1,50 @@
+{
+  "storyId": "US-008",
+  "verifiedEvidence": [
+    {
+      "criterion": ".claude/skills/work-on/SKILL.md replaces the Plan 06 --via-crew placeholder with the full flow.",
+      "evidenceKind": "passed",
+      "command": "grep -n \"Via Crew\" .claude/skills/work-on/SKILL.md && ! grep -q \"crews delegation not yet implemented\" .claude/skills/work-on/SKILL.md",
+      "result": "PASS: the Via Crew section starts at line 102 and the old Plan 06 placeholder text is absent."
+    },
+    {
+      "criterion": "Pseudocode covers: (a) lock preflight (read config.lockFile JSON, check PID liveness — abort before spawn if held); (b) `node scripts/lib/derive-next-command-cli.mjs <taskId>` to derive the prompt; (c) generate a unique member name; (d) invoke `node D:/ai-developer-toolkit/plugins/crews/tools/spawn-member.js <name> --crew <crewName> --cwd <main-repo-root> -- \"<prompt>\"`; (e) poll the member manifest for sessionId/transcriptPath (10s timeout, 500ms interval); (f) call `node scripts/sync-ralph-state.mjs --update-crew-session <taskId> <stage> --json <ref>` (recording partial entry with crewName/memberName/cwd/startedAt when manifest fields still absent); (g) print confirmation `Spawned <crew>/<member> for <taskId>:<stage>; session=<id|pending>`.",
+      "evidenceKind": "passed",
+      "command": "nl -ba .claude/skills/work-on/SKILL.md | sed -n '111,165p'",
+      "result": "PASS: lines 111-165 document lock preflight, positional derive-next-command CLI, unique member naming, spawn-member CLI invocation, manifest polling with 10s/500ms, sync-ralph-state update with partial refs, and the confirmation string."
+    },
+    {
+      "criterion": "Lock preflight aborts BEFORE spawning if the watcher owns the lock — no orphan members.",
+      "evidenceKind": "passed",
+      "command": "nl -ba scripts/lib/work-on-via-crew.mjs | sed -n '31,43p;65,76p' && nl -ba scripts/lib/work-on-via-crew.test.mjs | sed -n '72,91p'",
+      "result": "PASS: runWorkOnViaCrew calls preflightWatcherLock before spawn-member; the watcher-owned-lock test asserts the canonical diagnostic and a spawn function that would throw is never called."
+    },
+    {
+      "criterion": "Documents that Skill tool invocations cannot trigger the /spawn-member hook; the CLI mirror at D:/ai-developer-toolkit/plugins/crews/tools/spawn-member.js is REQUIRED.",
+      "evidenceKind": "passed",
+      "command": "nl -ba .claude/skills/work-on/SKILL.md | sed -n '102,109p'",
+      "result": "PASS: lines 107-109 state Skill tool invocations cannot trigger the crews /spawn-member hook and require the D:/ai-developer-toolkit/plugins/crews/tools/spawn-member.js CLI mirror."
+    },
+    {
+      "criterion": "Vitest covers: end-to-end happy path (mocked spawn), lock-contention preflight failure, manifest-race partial entry written when polling times out.",
+      "evidenceKind": "passed",
+      "command": "nl -ba scripts/lib/work-on-via-crew.test.mjs | sed -n '17,125p' && grep -n \"work-on-via-crew.test.mjs\" .test-output/root.test.log",
+      "result": "PASS: work-on-via-crew.test.mjs covers mocked spawn happy path, watcher lock preflight failure, and manifest timeout partial ref; root test log reports scripts/lib/work-on-via-crew.test.mjs (3 tests) passed."
+    },
+    {
+      "criterion": "Typecheck passes.",
+      "evidenceKind": "passed",
+      "command": "pnpm --filter @codexu/overview-viewer typecheck",
+      "result": "PASS: tsc --noEmit completed with exit 0; output saved to .test-output/overview-viewer.typecheck.log."
+    },
+    {
+      "criterion": "Tests pass.",
+      "evidenceKind": "passed",
+      "command": "pnpm test",
+      "result": "PASS: 22 test files passed, 149 tests passed; output saved to .test-output/root.test.log."
+    }
+  ],
+  "skippedReasons": [],
+  "notTested": [],
+  "iterationSHA": "e65262883ad38244dd12afec6ca376e5b26a5832"
+}

@@ -1,0 +1,80 @@
+{
+  "storyId": "US-001",
+  "verifiedEvidence": [
+    {
+      "criterion": "tools/overview-mcp/package.json declares package metadata/deps/bin",
+      "command": "jq . tools/overview-mcp/package.json",
+      "result": "Package @codexu/overview-mcp is type module; bin overview-mcp-install points to dist/install-server.js; dependencies include @modelcontextprotocol/sdk, zod, chokidar, @babel/parser; devDependencies include typescript, vitest, @types/node.",
+      "evidenceKind": "command"
+    },
+    {
+      "criterion": "tools/overview-mcp/tsconfig.json sets required compiler options",
+      "command": "jq .compilerOptions tools/overview-mcp/tsconfig.json",
+      "result": "target ES2022, module NodeNext, moduleResolution NodeNext, outDir dist, declaration false, strict true are configured.",
+      "evidenceKind": "command"
+    },
+    {
+      "criterion": "Scaffold README and src skeleton/context files are created",
+      "command": "test -f tools/overview-mcp/README.md && test -f tools/overview-mcp/src/index.ts && test -f tools/overview-mcp/src/server.ts && test -f tools/overview-mcp/src/context.ts",
+      "result": "README.md, src/index.ts, src/server.ts, and src/context.ts exist; context.ts imports loadConfig() from scripts/lib/resolve-config.mjs and builds repoRoot/config context.",
+      "evidenceKind": "command"
+    },
+    {
+      "criterion": "pnpm-workspace.yaml contains tools/overview-mcp",
+      "command": "grep -F \"tools/overview-mcp\" pnpm-workspace.yaml",
+      "result": "Workspace package list includes tools/overview-mcp.",
+      "evidenceKind": "command"
+    },
+    {
+      "criterion": "Root package.json workspaces and scripts include overview-mcp",
+      "command": "jq .scripts[\"overview-mcp:build\"],.scripts[\"overview-mcp:install\"],.workspaces.packages package.json",
+      "result": "Root scripts include overview-mcp:build and overview-mcp:install; workspaces.packages includes tools/overview-mcp.",
+      "evidenceKind": "command"
+    },
+    {
+      "criterion": "scripts/lib/work-on-via-crew.d.mts exists with runWorkOnViaCrew declaration",
+      "command": "grep -F \"runWorkOnViaCrew\" scripts/lib/work-on-via-crew.d.mts",
+      "result": "Type declaration file exists and declares runWorkOnViaCrew(options): Promise<CrewSessionRefResult>.",
+      "evidenceKind": "command"
+    },
+    {
+      "criterion": "pnpm install and pnpm install --frozen-lockfile succeed",
+      "command": "pnpm install; pnpm install --frozen-lockfile",
+      "result": "pnpm install completed in 4m51.9s; frozen install completed in 40.1s with lockfile up to date.",
+      "evidenceKind": "command"
+    },
+    {
+      "criterion": "pnpm-lock.yaml is updated and committed",
+      "command": "git show --stat --oneline HEAD -- pnpm-lock.yaml",
+      "result": "Commit 83d5a16d includes pnpm-lock.yaml with the new @codexu/overview-mcp importer/dependency resolution.",
+      "evidenceKind": "command"
+    },
+    {
+      "criterion": "pnpm --filter @codexu/overview-mcp build produces dist/index.js",
+      "command": "pnpm --filter @codexu/overview-mcp build && find tools/overview-mcp/dist -maxdepth 1 -type f",
+      "result": "Build exit 0; dist contains index.js, server.js, context.js, and install-server.js.",
+      "evidenceKind": "command"
+    },
+    {
+      "criterion": "pnpm --filter @codexu/overview-mcp typecheck passes",
+      "command": "pnpm --filter @codexu/overview-mcp typecheck",
+      "result": "Typecheck exit 0; see .test-output/overview-mcp.typecheck.log.",
+      "evidenceKind": "typecheck"
+    },
+    {
+      "criterion": "node tools/overview-mcp/dist/index.js startup contract",
+      "command": "node tools/overview-mcp/dist/index.js under child-process SIGINT harness",
+      "result": "Fresh harness result: { ok: true, code: null, signal: SIGINT, stdoutBytes: 0, stderrHasConnected: true }. Windows reports parent-sent SIGINT as signal termination; stdout file was empty and stderr contained connected.",
+      "evidenceKind": "command"
+    },
+    {
+      "criterion": "Typecheck passes",
+      "command": "pnpm --filter @codexu/overview-mcp typecheck",
+      "result": "Exit 0; no TypeScript errors.",
+      "evidenceKind": "typecheck"
+    }
+  ],
+  "skippedReasons": [],
+  "notTested": [],
+  "iterationSHA": "83d5a16df6a4d3f0392ca75515046b6d94128fbe"
+}

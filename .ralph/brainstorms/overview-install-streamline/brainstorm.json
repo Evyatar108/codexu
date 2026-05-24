@@ -1,0 +1,47 @@
+{
+  "brainstormName": "overview-install-streamline",
+  "idea": "Streamline the ralph-overview plugin install for new consumer projects. Reduce the 7 manual steps after /plugin install to zero or one operator action.",
+  "availableLenses": ["codex", "copilot", "devils-advocate"],
+  "missingLenses": [],
+  "candidateDirections": [
+    {
+      "id": "D-001",
+      "name": "Shared init engine with multiple surfaces (skill primary + CLI + optional MCP)",
+      "summary": "One shared scripts/init-consumer.mjs engine; thin /overview-init slash skill (interactive), `bin/ralph-overview.mjs init` CLI, optional overview.init MCP tool. Extends existing install-server.ts. Dry-run + refuse-to-overwrite semantics.",
+      "contributingLenses": ["codex", "copilot"]
+    },
+    {
+      "id": "D-002",
+      "name": "Lazy auto-bootstrap (postinstall or first-run sync)",
+      "summary": "Zero operator action: first sync detects missing files and writes templates at default paths. Blocked on Claude Code plugin lifecycle (postinstall hook may not exist); restart still required so 'install equals done' is unreachable.",
+      "contributingLenses": ["codex", "copilot"]
+    },
+    {
+      "id": "D-003",
+      "name": "Invest in ongoing bookkeeping skills instead of init (reframe)",
+      "summary": "Reframe: install happens once; task-status edits happen weekly. Build /overview-add-task, /overview-edit-task, /overview-set-status FIRST. Highest leverage per operator-hour; init friction amortizes to zero.",
+      "contributingLenses": ["devils-advocate"]
+    },
+    {
+      "id": "D-004",
+      "name": "Do nothing automated — INSTALL.md + post-install banner",
+      "summary": "Polish existing docs/installation.md + add launch.cjs first-run banner. Closes 80% of operator friction at 5% of engineering cost. Zero new code, zero failure modes, zero migration story.",
+      "contributingLenses": ["devils-advocate"]
+    },
+    {
+      "id": "D-005",
+      "name": "Plugin self-diagnoses on first run — helpful error + minimal CLI file-copier",
+      "summary": "Replace opaque missing-file errors with structured guidance: 'run init OR copy these files OR paste this MCP stanza, then restart'. CLI is a 30-line file-copier that REFUSES to overwrite. No schema knowledge, no merge logic. Dodges the 'ran-init-twice' failure mode by construction.",
+      "contributingLenses": ["devils-advocate"]
+    }
+  ],
+  "recommendedDirection": null,
+  "questionsForSynthesis": [
+    "What is the net-new consumer install rate per quarter? If <4, D-004 (docs only) is strictly best; if >4, D-001 starts to amortize.",
+    "Does the Claude Code plugin lifecycle support a postinstall hook? D-002 hinges on this.",
+    "Are operators complaining about install steps themselves, or about not knowing what the steps were? Different problems.",
+    "Behavior when init runs twice on the same project — refuse, prompt, merge, or overwrite?",
+    "Is recurring bookkeeping friction (D-003) more painful than initial install (D-001)?",
+    "Should .mcp.json safe-merge be a plugin responsibility or a Claude Code host responsibility?"
+  ]
+}

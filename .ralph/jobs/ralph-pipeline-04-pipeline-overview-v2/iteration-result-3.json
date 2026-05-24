@@ -1,0 +1,74 @@
+{
+  "storyId": "US-003",
+  "verifiedEvidence": [
+    {
+      "criterion": "scripts/lib/derive-dependency-graph.mjs exports deriveDependencyGraph({ byTaskId, overviewData, prdsByTaskId, generatedFromCommit }) -> DependencyGraph",
+      "command": "node --input-type=module static US-003 assertions > .test-output/us-003.static.log 2>&1",
+      "result": "PASS: static assertions confirmed the exported deriveDependencyGraph signature with byTaskId, overviewData, prdsByTaskId, and generatedFromCommit parameters.",
+      "evidenceKind": "inspection"
+    },
+    {
+      "criterion": "Task nodes use taskId directly; story nodes use globally unique ${taskId}:${storyId} ids and preserve raw storyId",
+      "command": "pnpm exec vitest run scripts/lib/derive-dependency-graph.test.mjs > .test-output/derive-dependency-graph.test.log 2>&1",
+      "result": "PASS: targeted Vitest 1 file/7 tests passed; duplicate US-001 stories from alpha and beta produce alpha:US-001 and beta:US-001 nodes with raw storyId preserved.",
+      "evidenceKind": "test"
+    },
+    {
+      "criterion": "Edge direction convention documented and applied: from = dependent, to = prerequisite for all edge types",
+      "command": "pnpm exec vitest run scripts/lib/derive-dependency-graph.test.mjs > .test-output/derive-dependency-graph.test.log 2>&1; node --input-type=module static US-003 assertions > .test-output/us-003.static.log 2>&1",
+      "result": "PASS: tests assert depends-on-story storyTask:US-002 -> storyTask:US-001, spawn child -> parent, blocks blocked -> blocker, and depends-on-task depends -> prerequisite; static assertion confirmed the direction JSDoc.",
+      "evidenceKind": "test"
+    },
+    {
+      "criterion": "Edge types emitted in priority order with correct sources and depends-on-task fallback for PRDs with no userStories",
+      "command": "pnpm exec vitest run scripts/lib/derive-dependency-graph.test.mjs > .test-output/derive-dependency-graph.test.log 2>&1; node --input-type=module static US-003 assertions > .test-output/us-003.static.log 2>&1",
+      "result": "PASS: tests assert edge type order [depends-on-story, spawn, blocks, depends-on-task], same-task and qualified story deps, top-level spawnedFrom, OverviewTask.blocks, and empty-userStories PRD root dependencies fallback.",
+      "evidenceKind": "test"
+    },
+    {
+      "criterion": "Edges are de-duplicated by {from,to,type}",
+      "command": "pnpm exec vitest run scripts/lib/derive-dependency-graph.test.mjs > .test-output/derive-dependency-graph.test.log 2>&1",
+      "result": "PASS: de-duplication test asserts duplicate story dependencies and duplicate blocks entries each emit one edge.",
+      "evidenceKind": "test"
+    },
+    {
+      "criterion": "Pure function: no fs, no console",
+      "command": "node --input-type=module static US-003 assertions > .test-output/us-003.static.log 2>&1; pnpm exec vitest run scripts/lib/derive-dependency-graph.test.mjs > .test-output/derive-dependency-graph.test.log 2>&1",
+      "result": "PASS: static assertions confirmed no node:fs import and no console usage in the helper; targeted test spies on console.log and verifies no calls.",
+      "evidenceKind": "test"
+    },
+    {
+      "criterion": "Adjacent scripts/lib/derive-dependency-graph.d.mts exists",
+      "command": "test -f scripts/lib/derive-dependency-graph.d.mts && node --input-type=module static US-003 assertions > .test-output/us-003.static.log 2>&1",
+      "result": "PASS: declaration file exists and exports DeriveDependencyGraphOptions plus deriveDependencyGraph(options?: DeriveDependencyGraphOptions): DependencyGraph.",
+      "evidenceKind": "inspection"
+    },
+    {
+      "criterion": "scripts/lib/derive-dependency-graph.test.mjs covers edge directions, composite uniqueness, de-duplication, acyclicity, and empty inputs",
+      "command": "pnpm exec vitest run scripts/lib/derive-dependency-graph.test.mjs > .test-output/derive-dependency-graph.test.log 2>&1; node --input-type=module static US-003 assertions > .test-output/us-003.static.log 2>&1",
+      "result": "PASS: targeted Vitest 1 file/7 tests passed; static assertions confirmed required scenario names are present.",
+      "evidenceKind": "test"
+    },
+    {
+      "criterion": "pnpm test passes",
+      "command": "pnpm test > .test-output/root.test.log 2>&1",
+      "result": "PASS: Test Files 10 passed (10); Tests 63 passed (63).",
+      "evidenceKind": "test"
+    },
+    {
+      "criterion": "Typecheck passes",
+      "command": "pnpm --filter @codexu/overview-viewer typecheck > .test-output/overview-viewer.typecheck.log 2>&1",
+      "result": "PASS: tsc --noEmit completed with exit 0.",
+      "evidenceKind": "typecheck"
+    },
+    {
+      "criterion": "Tests pass",
+      "command": "pnpm test > .test-output/root.test.log 2>&1; pnpm exec vitest run scripts/lib/derive-dependency-graph.test.mjs > .test-output/derive-dependency-graph.test.log 2>&1",
+      "result": "PASS: root Vitest 10 files/63 tests passed; targeted deriveDependencyGraph Vitest 1 file/7 tests passed.",
+      "evidenceKind": "test"
+    }
+  ],
+  "skippedReasons": [],
+  "notTested": [],
+  "iterationSHA": "9a50c3755599413fba2384425f8d5b036230aaa4"
+}

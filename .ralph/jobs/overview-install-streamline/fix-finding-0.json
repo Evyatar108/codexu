@@ -1,0 +1,16 @@
+{
+  "id": "F-001",
+  "severity": "Medium",
+  "source": "claude",
+  "category": "Completeness",
+  "classification": "fixable",
+  "phase": "code",
+  "sectionRef": "Approach > Architecture > Copilot mirror generator",
+  "description": "scripts/generate-copilot-artifacts.mjs copies skills/*/SKILL.md verbatim into dist/copilot/ without applying the Ralph generator's substitution rules. The plan states the generator should 'adapt the Ralph plugin's transformation rules but change discovery'. As a result, mirrors such as dist/copilot/work-on/SKILL.md:180 still contain Claude-specific Skill(...) invocations like Skill(\"ralph-orchestration:implement-with-ralph\", args=\"resume my-job\") that would be invalid under Copilot. AC14 (mirror count parity) still passes because it only counts files, not content adaptation.",
+  "relevantFiles": [
+    "plugins/ralph-overview/scripts/generate-copilot-artifacts.mjs:11-35",
+    "plugins/ralph-overview/dist/copilot/work-on/SKILL.md:180"
+  ],
+  "suggestedFix": "Pipe each SKILL.md through an applySubstitutions() helper modeled on plugins/ralph/scripts/generate-copilot-artifacts.mjs SUBSTITUTIONS array (skill-dispatch, agent-dispatch, options-tags, mcp-tools, etc.). At minimum, the substitutions safe for ralph-overview mirrors are the ones that rewrite Skill(...) and Agent(...) into Copilot task() calls.",
+  "status": "open"
+}

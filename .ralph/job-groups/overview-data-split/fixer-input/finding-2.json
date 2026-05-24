@@ -1,0 +1,18 @@
+{
+  "id": "F-003",
+  "severity": "Medium",
+  "source": "claude",
+  "classification": "fixable",
+  "phase": "code",
+  "category": "Quality",
+  "sectionRef": "SKILL.md authoring contract vs. live data",
+  "description": "`.agents/skills/roadmap-and-overview/SKILL.md` documents a forward-looking authoring contract that includes `title`, `command.summaryHtml`, and `lastTouchedAt` on every task entry (lines 142, 147, 179, 189). The live data file `plans/overview-data.js` does not implement any of these three fields on any of its 49 task entries. The SKILL example explicitly says 'keeps `command.name` for the live renderer and adds `command.summaryHtml` / `lastTouchedAt` as the authoring contract' — but the contract is aspirational, not realized. Agents copying the SKILL example into a new task entry will produce entries that diverge from every existing entry, making it hard to spot inconsistencies via grep and breaking the 'one canonical task entry as a working example' design principle the plan called out in Risk #7. Codex flagged the same gap independently.",
+  "status": "open",
+  "fixedInIteration": null,
+  "resolution": null,
+  "relevantFiles": [
+    ".agents/skills/roadmap-and-overview/SKILL.md:140-194",
+    "plans/overview-data.js"
+  ],
+  "suggestedFix": "Either (a) backfill `title`, `command.summaryHtml`, and `lastTouchedAt` on every task entry in `plans/overview-data.js` so the SKILL example matches reality (preferred — also fixes F-001 dual-update gap), or (b) trim the SKILL example down to the fields actually present and drop `title`/`summaryHtml`/`lastTouchedAt` from the authoring contract. Option (a) preserves the contract; option (b) is a cheaper short-term fix."
+}

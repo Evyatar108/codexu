@@ -1,0 +1,41 @@
+### Feasibility
+
+[High] `scoreRecommendations(byTaskId, overviewData, config?)` cannot implement the planned dependency-state score as a pure function. The score needs PRD `userStories[].dependencies[]` and `passes`, but `OverviewRalphState.byTaskId` only has aggregate `storyCompletion`. Add `prdsByTaskId` to the function signature or drop that scoring dimension. Relevant files: `scripts/lib/sync-core.mjs`, `.ralph/jobs/*/prd.json`.
+
+[High] The `writeSidecar` hook is not sufficient as described. Current `writeSidecar({ repoRoot, config, state })` has no access to PRDs, bundle `createdAt`/`completedAt`, or `overviewData`; those are discarded by `assembleStateFromBundles`. The plan also says `emitDerivedArtifacts` runs after sidecar durability but attaches `runDurations` before the sidecar write, which is contradictory. Enrichment must happen before serialization, likely in `assembleStateFromBundles`, or `writeSidecar` must receive a richer context.
+
+[Medium] The plan says `.ralph/overview-config.json` does not exist and lists it under “Files to Create”, but it exists now. This should be a modify-in-place step, not create. Relevant files: `.ralph/overview-config.json`, `.ralph/overview-config.schema.json`.
+
+[Low] The plan references `tools/overview-viewer/src/__tests__/toolbarRalphStageFilter.test.tsx`, but the actual file is `tools/overview-viewer/src/__tests__/interactions/toolbarRalphStageFilter.test.tsx`.
+
+### Completeness
+
+[High] The plan is inconsistent about where recommendations and the dependency graph live. It says no Vite plugin is needed because they “travel inside `overview-ralph-state.json`”, but the implementation writes separate `plans/overview-recommendations.json` and `plans/overview-dependency-graph.json`, and no step embeds them into `OverviewRalphState`. Pick one contract and update types, HMR expectations, and downstream plans accordingly.
+
+[High] `deriveDependencyGraph({ overviewData, byTaskId, prdsByTaskId })` is specified to return `generatedFromCommit`, but no `generatedFromCommit` input is included. Using `overviewData.generatedFromCommit` may diverge from the Ralph sidecar commit. Pass `generatedFromCommit` or `state.generatedFromCommit` explicitly.
+
+[Medium] UI changes require regenerating the committed static artifact `plans/overview.html` per the overview skill, but `plans/overview.html` is not listed in “Files to Modify”. `pnpm overview:build` should produce and commit it if this repo expects generated artifacts checked in.
+
+[Medium] Config resolver tests are described as `scripts/lib/resolve-config.test.mjs` “if present”, but current config coverage is under `tools/overview-viewer/src/__tests__/config.test.ts`. The plan should name the real test file.
+
+### Ordering
+
+[High] Story 5 wires `emitDerivedArtifacts` into `writeSidecar`, then Story 6 adds `runDurations`, but `runDurations` must be present before `writeSidecar` serializes the state. Story 6 should precede or be merged into the sidecar-write refactor.
+
+[Medium] The Plan 05 conflict note is under-specified. Current `.ralph/jobs/ralph-pipeline-05-agent-exports/prd.json` already shows work in the same type/config surfaces. “Plan 04 lands first” is an assumption, not a guard. Add an explicit rebase contingency before Stories 1-2 and 5, not only in the final refresh story.
+
+### Simplicity
+
+[Medium] Declaring `OverviewRalphState.aggregateStages?` while choosing to derive counts client-side adds a contract that no producer owns. Leave it out until an emitter actually writes it.
+
+[Low] Exporting `atomicWriteFile` from `sync-core.mjs` is acceptable, but a small `scripts/lib/atomic-write.mjs` utility would reduce coupling if multiple artifact emitters now share it.
+
+### Acceptance Criteria Quality
+
+[High] “`pnpm overview:build` still produces a static `overview.html` under 500 KB” is already ambiguous or failing: current `plans/overview.html` is 501,307 bytes. Define the threshold precisely, e.g. `<512000 bytes`, or require a specific size budget delta.
+
+[Medium] “Config override: top recommendation shifts to a higher-priority task” is brittle because current data may not contain useful `priority` values. Make this a fixture-based unit test for `scoreRecommendations`.
+
+[Medium] The watcher emission criterion needs a concrete automated check, not just “watcher path emits.” Existing watcher plumbing is in `scripts/lib/watch-ralph-state.mjs`; add or extend a watcher test to assert the two derived files are written on cold start and incremental flush.
+
+The prior correction about `overviewData.spawnedFrom` being top-level is adequate. The inline DAG cut also looks properly scoped out.

@@ -1,0 +1,63 @@
+{
+  "manifestPath": "D:/harness-efforts/codexu/.ralph/jobs/ralph-pipeline-03-ui-chip/iteration-result-5.json",
+  "iterationSHA": "f34a7ddf7d87ae72883284cf2c425c1db751f68a",
+  "storyId": "US-005",
+  "verdicts": [
+    {
+      "criterion": "tools/overview-viewer/vite.config.ts defines a new named factory overviewRalphStatePlugin(): Plugin distinct from overviewDataPlugin() (DO NOT modify or extend the existing plugin).",
+      "verdict": "agree",
+      "reason": "Diff shows a new function overviewRalphStatePlugin(): Plugin added as a sibling to overviewDataPlugin; existing plugin is only edited for variable rename, not extended."
+    },
+    {
+      "criterion": "Do NOT touch Plan 02's configureServer extensions or extend overviewDataPlugin. Add a separate named plugin only.",
+      "verdict": "agree",
+      "reason": "Diff shows configureServer is added only inside the new overviewRalphStatePlugin; overviewDataPlugin's configureServer is not modified by the diff (only the sidecarScriptTag rename)."
+    },
+    {
+      "criterion": "overviewRalphStatePlugin.configureServer registers middleware on /overview-ralph-state.js that reads plans/overview-ralph-state.js from disk and serves it with Content-Type: application/javascript. Read errors return 500 with an inline comment.",
+      "verdict": "agree",
+      "reason": "Diff shows server.middlewares.use('/overview-ralph-state.js', ...) reading overviewRalphStatePath, setting Content-Type application/javascript, and on catch setting res.statusCode = 500 and returning an inline /* Failed... */ comment."
+    },
+    {
+      "criterion": "Does NOT call server.watcher.add(...) for the ralph sidecar (Plan 02 owns the watch).",
+      "verdict": "agree",
+      "reason": "Targeted grep for server.watcher.add returned only the pre-existing overviewDataPath line; diff for overviewRalphStatePlugin contains no server.watcher.add call. This is a valid absent-verified check, not a broad listing."
+    },
+    {
+      "criterion": "transformIndexHtml order pre is skipped on dev, reads plans/overview-ralph-state.js, minifies via esbuild, escapes closing script tags, and inlines into the script tag with a clear missing-tag error.",
+      "verdict": "agree",
+      "reason": "Diff shows transformIndexHtml with order: 'pre', early return when ctx.server is truthy, this.error('Expected <script ...></script> in overview.html') when tag missing, readFile + esbuild transform with minify, replace of closing-script tags, and inline replacement of the overviewRalphStateScriptTag."
+    },
+    {
+      "criterion": "tools/overview-viewer/overview.html contains <script src=\"./overview-ralph-state.js\"></script> placed between the existing overview-data.js tag and the /src/main.tsx module tag.",
+      "verdict": "agree",
+      "reason": "Diff shows the new <script src=\"./overview-ralph-state.js\"></script> inserted immediately after the existing overview-data.js script tag in the <head>, before the body (which contains main.tsx)."
+    },
+    {
+      "criterion": "Dev verification: while pnpm overview is running, fetching <dev-server-url>/overview-ralph-state.js (using the URL printed by pnpm overview, NOT a hardcoded 127.0.0.1:5173) returns a non-empty body containing 'window.OVERVIEW_RALPH_STATE = '.",
+      "verdict": "agree",
+      "reason": "Manifest records parsing the printed URL (http://127.0.0.1:5175/ after Vite shifted off occupied ports), then curl returning a 3352-byte body with one 'window.OVERVIEW_RALPH_STATE = ' match. Command and result are concrete and route-matched."
+    },
+    {
+      "criterion": "Static verification: pnpm overview:build produces plans/overview.html with grep -c 'OVERVIEW_RALPH_STATE' plans/overview.html >= 1.",
+      "verdict": "agree",
+      "reason": "Manifest records pnpm overview:build exit 0 in 5s and grep -c returning 2 against plans/overview.html, which satisfies >= 1."
+    },
+    {
+      "criterion": "Bundle size budget: wc -c plans/overview.html reports <= 525000 bytes.",
+      "verdict": "agree",
+      "reason": "Manifest records wc -c output 501307 bytes, which is <= 525000."
+    },
+    {
+      "criterion": "pnpm --filter @codexu/overview-viewer typecheck && pnpm --filter @codexu/overview-viewer test exits 0.",
+      "verdict": "agree",
+      "reason": "Manifest records both commands exit 0; typecheck via tsc --noEmit and Vitest reporting 24 files / 119 tests passed."
+    },
+    {
+      "criterion": "Typecheck passes",
+      "verdict": "agree",
+      "reason": "Manifest records pnpm --filter @codexu/overview-viewer typecheck exit 0 with no tsc errors."
+    }
+  ],
+  "warnings": []
+}

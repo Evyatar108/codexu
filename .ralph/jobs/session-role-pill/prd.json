@@ -1,0 +1,295 @@
+{
+  "project": "Session Role Pill",
+  "description": "Add an inline horizontal pill row to SessionItem in packages/happy-app/sources/components/SessionsList.tsx, surfacing flavor icon, abbreviated model code, and permission-mode badge for each session list row. Reuses newSessionAgentIcons and theme.colors.permission.*; renders raw metadata codes (no picker label resolution in v1). Includes vitest snapshot + structural assertion coverage.",
+  "deslop": true,
+  "iterationEngine": "codex",
+  "jobDir": "D:/harness-efforts/codexu/.ralph/jobs/session-role-pill",
+  "repoDir": "D:/harness-efforts/codexu",
+  "branch": {
+    "name": "ralph/session-role-pill",
+    "created": true
+  },
+  "worktree": {
+    "path": "D:/harness-efforts/codexu/.worktrees/session-role-pill",
+    "branch": "ralph/session-role-pill",
+    "external": true
+  },
+  "codexReview": "always",
+  "copilotReview": "always",
+  "securityFixLoop": false,
+  "batch": 3,
+  "planReviewContext": [
+    {
+      "id": "F-001",
+      "severity": "High",
+      "description": "Permission color lookup via theme.colors.permission[code] is wrong. Theme keys are bypass/readOnly/safeYolo but actual metadata codes are bypassPermissions/read-only/safe-yolo (confirmed in modelModeOptions.ts:48-72). Direct dynamic indexing also fails TS strict mode. Existing app already special-cases this in AgentInput.tsx:1388-1396.",
+      "source": "consensus",
+      "category": "Feasibility",
+      "relevantFiles": [
+        "packages/happy-app/sources/theme.ts",
+        "packages/happy-app/sources/components/modelModeOptions.ts",
+        "packages/happy-app/sources/components/AgentInput.tsx"
+      ],
+      "suggestedFix": "Add a local helper permissionColorForCode(code: string | null | undefined): string that maps metadata code keys to theme.colors.permission.* values explicitly. Model after AgentInput.tsx:1388-1396 mapping."
+    },
+    {
+      "id": "F-002",
+      "severity": "High",
+      "description": "Test mock list is incomplete. SessionsList.tsx imports expo-router, react-native-safe-area-context, useVisibleSessionListViewData, useIsTablet, requestReview, UpdateBanner (which pulls more hooks), StyledText (which pulls react-native-reanimated). Vitest evaluates the whole module on import, so mocking only Avatar/StatusDot/navigation will fail with import errors before the test runs.",
+      "source": "consensus",
+      "category": "Completeness",
+      "relevantFiles": [
+        "packages/happy-app/sources/components/SessionsList.tsx",
+        "packages/happy-app/sources/components/StyledText.tsx",
+        "packages/happy-app/sources/components/UpdateBanner.tsx"
+      ],
+      "suggestedFix": "Expand the mock list to cover ALL module-scope imports of SessionsList.tsx (lines 3-23): expo-router, react-native-safe-area-context, expo-store-review, @/components/UpdateBanner, @/components/StyledText, @/hooks/useIsTablet, @/sync/storage, @/hooks/useVisibleSessionListViewData, react-native-reanimated. Provide working stubs for each."
+    }
+  ],
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Extend SessionRowData with metadata model/permission fields",
+      "description": "As a session-list consumer, I want currentModelCode and currentPermissionModeCode projected onto each SessionRowData so the list row can render them without reaching into the raw Session object.",
+      "acceptanceCriteria": [
+        "SessionRowData interface in packages/happy-app/sources/sync/storage.ts (lines 84-107) has two new fields: currentModelCode?: string | null and currentPermissionModeCode?: string | null.",
+        "buildSessionRowData() (lines 109-147) copies session.metadata?.currentModelCode ?? null and session.metadata?.currentPermissionModeCode ?? null into the returned object.",
+        "No other field is added or modified on SessionRowData.",
+        "keyExtractor in SessionsList.tsx (lines 225-233) is unchanged (still keys on session-${session.id}).",
+        "Typecheck passes: pnpm --filter happy-app typecheck exits 0."
+      ],
+      "priority": 1,
+      "passes": true,
+      "notes": "",
+      "verifiedEvidence": [
+        {
+          "criterion": "SessionRowData interface has currentModelCode?: string | null and currentPermissionModeCode?: string | null",
+          "command": "sed -n 84,107p packages/happy-app/sources/sync/storage.ts",
+          "result": "Interface includes flavor: string | null followed by currentModelCode?: string | null and currentPermissionModeCode?: string | null; existing surrounding fields remain summaryText, metadataName, pinnedAvatarImageIndex, pinnedAvatarColorIndex."
+        },
+        {
+          "criterion": "buildSessionRowData copies session.metadata current model and permission codes",
+          "command": "sed -n 109,145p packages/happy-app/sources/sync/storage.ts",
+          "result": "Returned object includes currentModelCode: session.metadata?.currentModelCode ?? null and currentPermissionModeCode: session.metadata?.currentPermissionModeCode ?? null."
+        },
+        {
+          "criterion": "No other field is added or modified on SessionRowData",
+          "command": "git show --stat --oneline HEAD -- packages/happy-app/sources/sync/storage.ts && git show --unified=0 -- packages/happy-app/sources/sync/storage.ts",
+          "result": "Commit 2a6810fe changes one file with 4 insertions: exactly two SessionRowData interface fields and two buildSessionRowData return fields."
+        },
+        {
+          "criterion": "keyExtractor in SessionsList.tsx is unchanged and still keys sessions on session-${session.id}",
+          "command": "sed -n 225,233p packages/happy-app/sources/components/SessionsList.tsx",
+          "result": "Session case remains: case 'session': return `session-${item.session.id}`; no SessionsList.tsx diff in this commit."
+        },
+        {
+          "criterion": "Typecheck passes: pnpm --filter happy-app typecheck exits 0",
+          "command": "pnpm --filter happy-app typecheck > .test-output/happy-app.typecheck.log 2>&1",
+          "result": "Exit 0 in 36s. Output: > happy-app@1.0.0 typecheck ... > tsc --noEmit. Full log: .test-output/happy-app.typecheck.log"
+        }
+      ],
+      "dependencies": [],
+      "failureClassification": "",
+      "partialProgress": null
+    },
+    {
+      "id": "US-002",
+      "title": "Add helpers and pill row to SessionItem; export SessionItem",
+      "description": "As a mobile session-list user, I want each session row to show the agent's flavor icon, abbreviated model code, and permission-mode badge so I can identify the running agent at a glance without opening the drawer.",
+      "acceptanceCriteria": [
+        "packages/happy-app/sources/components/SessionsList.tsx gains a pure helper formatModelCode(code: string | null | undefined): string | null that returns the last `-`-segment when it matches ['codex','opus','sonnet','haiku'], otherwise the raw code (capped at ~12 chars).",
+        "packages/happy-app/sources/components/SessionsList.tsx gains a pure helper permissionColorForCode(code, theme): string with explicit switch mapping acceptEdits/bypassPermissions/plan/read-only/safe-yolo/yolo/default to theme.colors.permission.* (mirrors AgentInput.tsx:1387-1396). Falls back to theme.colors.textSecondary for unknown codes.",
+        "SessionItem (line 342) is exported via `export const SessionItem = React.memo(...)`. No other export changes.",
+        "SessionItem renders a pill-row View between the subtitle Text (lines 436-438) and the statusRow View (lines 440-450). The pill row container is rendered ONLY when at least one of session.flavor, session.currentModelCode, session.currentPermissionModeCode is non-null/non-empty.",
+        "testID='session-role-pill-flavor' pill renders an expo-image Image with source=newSessionAgentIcons[flavor], inline size { width: 12, height: 12 }, shown only when session.flavor matches a known key.",
+        "testID='session-role-pill-model' pill renders Text with formatModelCode(session.currentModelCode), shown only when session.currentModelCode is non-null.",
+        "testID='session-role-pill-permission' pill renders Text with the raw session.currentPermissionModeCode, colored via permissionColorForCode(...), shown only when session.currentPermissionModeCode is non-null.",
+        "Pill row container style: flexDirection:'row', alignItems:'center', gap:6, marginTop:4, overflow:'hidden'. Each pill: flexShrink:1, minWidth:0, height:20, paddingHorizontal:6, borderRadius:6. Pill text: numberOfLines={1}, ellipsizeMode:'tail'.",
+        "sessionItem style height is bumped from 88 to 108 in the unistyles block at the end of the file.",
+        "All new styles live in the existing stylesheet = StyleSheet.create((theme) => ({...})) block (project convention — styles at end of file).",
+        "React.memo call on SessionItem remains without a custom comparator (default shallow compare).",
+        "Typecheck passes: pnpm --filter happy-app typecheck exits 0.",
+        "Verify in browser using dev-browser skill that the pill row renders without clipping the statusRow at the new 108px height; if clipping observed, raise the height to at most 120.",
+        "Unit tests covering this story's helpers and pill rendering pass via 'pnpm --filter happy-app test --run SessionsList' after US-003 lands the test file (the test file imports SessionItem, formatModelCode, and observes pill testIDs introduced in this story)"
+      ],
+      "priority": 2,
+      "passes": true,
+      "notes": "",
+      "verifiedEvidence": [
+        {
+          "criterion": "formatModelCode helper returns known last dash segment or capped raw code",
+          "command": "sed -n 28,41p packages/happy-app/sources/components/SessionsList.tsx",
+          "result": "formatModelCode trims nullable input, returns null for empty values, returns last segment when it is codex/opus/sonnet/haiku, otherwise returns the raw code capped to about 12 characters."
+        },
+        {
+          "criterion": "permissionColorForCode uses explicit metadata-code switch mapping and unknown fallback",
+          "command": "sed -n 43,65p packages/happy-app/sources/components/SessionsList.tsx",
+          "result": "Switch maps acceptEdits, bypassPermissions, plan, read-only, safe-yolo, yolo, and default to theme.colors.permission.*; default branch returns theme.colors.textSecondary."
+        },
+        {
+          "criterion": "SessionItem is exported via export const SessionItem = React.memo(...) with no custom comparator",
+          "command": "grep -n \"export const SessionItem = React.memo\" packages/happy-app/sources/components/SessionsList.tsx && grep -n \"React.memo\" packages/happy-app/sources/components/SessionsList.tsx",
+          "result": "Line 413 is export const SessionItem = React.memo(({ session, selected, isFirst, isLast, isSingle }: { ... }) => {; grep shows the React.memo call has no second comparator argument."
+        },
+        {
+          "criterion": "SessionItem renders pill row between subtitle Text and statusRow only when role metadata is present",
+          "command": "sed -n 418,425p packages/happy-app/sources/components/SessionsList.tsx && sed -n 508,555p packages/happy-app/sources/components/SessionsList.tsx",
+          "result": "SessionItem derives flavorIcon, modelCode, permissionCode, and showRolePills; JSX places {showRolePills && <View testID=\"session-role-pill-row\">...} immediately after sessionSubtitle Text and before statusRow."
+        },
+        {
+          "criterion": "Flavor pill renders expo-image Image from newSessionAgentIcons with inline 12x12 size only for known flavors",
+          "command": "sed -n 58,67p packages/happy-app/sources/components/SessionsList.tsx && sed -n 514,524p packages/happy-app/sources/components/SessionsList.tsx",
+          "result": "knownAgentIconForFlavor returns an icon only when the flavor key exists in newSessionAgentIcons; session-role-pill-flavor renders expo-image Image source={flavorIcon} style={{ width: 12, height: 12 }}."
+        },
+        {
+          "criterion": "Model pill renders formatted model code only when currentModelCode yields a value",
+          "command": "sed -n 425,425p packages/happy-app/sources/components/SessionsList.tsx && sed -n 526,537p packages/happy-app/sources/components/SessionsList.tsx",
+          "result": "modelCode is computed with formatModelCode(session.currentModelCode); session-role-pill-model renders only when modelCode is truthy and its Text is numberOfLines={1} ellipsizeMode=\"tail\"."
+        },
+        {
+          "criterion": "Permission pill renders raw currentPermissionModeCode colored via permissionColorForCode",
+          "command": "sed -n 426,426p packages/happy-app/sources/components/SessionsList.tsx && sed -n 538,553p packages/happy-app/sources/components/SessionsList.tsx",
+          "result": "permissionCode is session.currentPermissionModeCode trimmed for display gating; session-role-pill-permission renders the raw permissionCode text and applies { color: permissionColorForCode(permissionCode, theme) }."
+        },
+        {
+          "criterion": "Pill row, pill, and pill text styles match required layout constraints",
+          "command": "sed -n 178,201p packages/happy-app/sources/components/SessionsList.tsx",
+          "result": "sessionRolePillRow has flexDirection row, alignItems center, gap 6, marginTop 4, overflow hidden; sessionRolePill has flexShrink 1, minWidth 0, height 20, paddingHorizontal 6, borderRadius 6; pill text uses compact one-line styling in JSX."
+        },
+        {
+          "criterion": "sessionItem style height is bumped from 88 to 108",
+          "command": "sed -n 108,116p packages/happy-app/sources/components/SessionsList.tsx",
+          "result": "sessionItem height is 108 with the existing row layout and padding."
+        },
+        {
+          "criterion": "All new styles live in existing StyleSheet.create block",
+          "command": "grep -n \"const stylesheet = StyleSheet.create\" packages/happy-app/sources/components/SessionsList.tsx && sed -n 178,201p packages/happy-app/sources/components/SessionsList.tsx",
+          "result": "New sessionRolePillRow, sessionRolePill, and sessionRolePillText styles are inside the existing stylesheet = StyleSheet.create((theme) => ({ ... })) block."
+        },
+        {
+          "criterion": "React.memo call on SessionItem remains default shallow compare",
+          "command": "grep -n \"React.memo\" packages/happy-app/sources/components/SessionsList.tsx",
+          "result": "Only SessionItem uses React.memo, and the call wraps the component function without a custom comparator parameter."
+        },
+        {
+          "criterion": "Typecheck passes: pnpm --filter happy-app typecheck exits 0",
+          "command": "pnpm --filter {packages/happy-app} typecheck > .test-output/happy-app.typecheck.log 2>&1",
+          "result": "Exit 0 in 25s. Output: > happy-app@1.0.0 typecheck ... > tsc --noEmit. Full log: .test-output/happy-app.typecheck.log"
+        },
+        {
+          "criterion": "US-002:AC-013 browser clipping verification at 108px height",
+          "command": "N/A",
+          "result": "SKIPPED: dev-browser/browser automation tooling is unavailable in this environment; fallback code review verified height is 108 and structural pill row is inserted before statusRow without changing statusRow markup."
+        },
+        {
+          "criterion": "Unit tests covering helpers and pill rendering pass via pnpm --filter happy-app test --run SessionsList after US-003 lands",
+          "command": "N/A",
+          "result": "SKIPPED: US-003 owns creating SessionsList.test.tsx and the snapshot/structural assertions; no SessionsList test file exists in this story iteration."
+        }
+      ],
+      "dependencies": [
+        "US-001"
+      ],
+      "criteriaWarnings": [
+        {
+          "acIndex": "AC-013",
+          "criterion": "Verify in browser using dev-browser skill that the pill row renders without clipping the statusRow at the new 108px height; if clipping observed, raise the height to at most 120.",
+          "warning": "US-002:AC-013 references browser/dev-browser verification; browser automation tools may be unavailable to the iteration agent",
+          "severity": "tool-availability",
+          "suggestedFallback": "If browser tooling is unavailable, record SKIPPED for US-002:AC-013 and rely on the structural snapshot test in US-003 plus the 108px height assertion in code review.",
+          "source": "criteria-validator"
+        }
+      ],
+      "failureClassification": "",
+      "partialProgress": null
+    },
+    {
+      "id": "US-003",
+      "title": "Snapshot/structural tests + docs status update",
+      "description": "As a code reviewer, I want a vitest test that locks in the three-pill render and a deterministic snapshot so future refactors don't silently regress this UX.",
+      "acceptanceCriteria": [
+        "New file packages/happy-app/sources/components/SessionsList.test.tsx exists.",
+        "Test file mocks all module-scope imports of SessionsList.tsx so vitest can evaluate the module under the node runner: react-native, react-native-unistyles, react-native-safe-area-context, react-native-reanimated, @expo/vector-icons, expo-image, expo-router, expo-store-review, @/components/StyledText, @/components/Avatar, @/components/StatusDot, @/components/UpdateBanner, @/components/SessionActionsPopover, @/components/ActiveSessionsGroupCompact, @/components/NewSessionAgentIcons (stable stub: { codex:1, claude:2, gemini:3, openclaw:4 }), @/hooks/useNavigateToSession, @/hooks/useVisibleSessionListViewData, @/hooks/useSessionQuickActions, @/utils/responsive, @/utils/requestReview, @/utils/sessionUtils (deterministic vibingMessages/formatLastSeen), @/sync/storage, @/text, @/constants/Typography, @/components/layout.",
+        "Test A (acceptance): renders SessionItem with flavor:'codex', currentModelCode:'gpt-5-codex', currentPermissionModeCode:'plan', state:'waiting'. Asserts renderer.root.findByProps({ testID: 'session-role-pill-flavor' }) resolves; findByProps({ testID: 'session-role-pill-model' }) resolves and its descendant text reads 'codex'; findByProps({ testID: 'session-role-pill-permission' }) resolves and its descendant text reads 'plan'; expect(renderer.toJSON()).toMatchSnapshot() passes (snapshot file created on first run).",
+        "Test B (no-fields): renders SessionItem with flavor:null, currentModelCode:null, currentPermissionModeCode:null, state:'waiting'. Asserts renderer.root.findAllByProps({ testID: 'session-role-pill-flavor' }) returns an empty array (and likewise for the other two testIDs). No empty pill-row container is rendered.",
+        "pnpm --filter happy-app test --run SessionsList exits 0 and creates __snapshots__/SessionsList.test.tsx.snap.",
+        "pnpm --filter happy-app test --run (full package suite) exits 0.",
+        "pnpm -r --if-present typecheck (cross-package typecheck) exits 0.",
+        "plans/parallel-assignments.md line 484 status flipped from `🟡 in progress` to `✅ done`.",
+        "Single commit on ralph/session-role-pill branch inside the worktree at D:/harness-efforts/codexu/.worktrees/session-role-pill.",
+        "Verify in browser using dev-browser skill that the SessionsList page still renders correctly with the new pill row (no clipping, no overlap with statusRow)."
+      ],
+      "priority": 3,
+      "passes": true,
+      "notes": "",
+      "verifiedEvidence": [
+        {
+          "criterion": "New file packages/happy-app/sources/components/SessionsList.test.tsx exists",
+          "command": "test -f packages/happy-app/sources/components/SessionsList.test.tsx && echo exists",
+          "result": "exists"
+        },
+        {
+          "criterion": "Test file mocks all module-scope imports of SessionsList.tsx for node-runner evaluation",
+          "command": "grep -n \"vi.mock\" packages/happy-app/sources/components/SessionsList.test.tsx",
+          "result": "Mocks present for react-native, react-native-unistyles, react-native-safe-area-context, react-native-reanimated, @expo/vector-icons, expo-image, expo-router, expo-store-review, StyledText, Avatar, StatusDot, UpdateBanner, SessionActionsPopover, ActiveSessionsGroupCompact, NewSessionAgentIcons stable stub { codex:1, claude:2, gemini:3, openclaw:4 }, useNavigateToSession, useVisibleSessionListViewData, useSessionQuickActions, responsive/useIsTablet, requestReview, sessionUtils, sync/storage, text, Typography, and layout."
+        },
+        {
+          "criterion": "Test A renders metadata-backed flavor/model/permission pills and snapshot",
+          "command": "grep -En \"renders flavor, model, and permission|session-role-pill-flavor|session-role-pill-model|session-role-pill-permission|toMatchSnapshot\" packages/happy-app/sources/components/SessionsList.test.tsx",
+          "result": "Test renders flavor codex, currentModelCode gpt-5-codex, currentPermissionModeCode plan, asserts the three testIDs, checks model text codex and permission text plan, and calls toMatchSnapshot()."
+        },
+        {
+          "criterion": "Test B omits all role pills and empty pill row when metadata fields are null",
+          "command": "grep -En \"does not render role pills|session-role-pill-row|findAllByProps\" packages/happy-app/sources/components/SessionsList.test.tsx",
+          "result": "No-fields test asserts flavor/model/permission testIDs have length 0 and session-role-pill-row has length 0."
+        },
+        {
+          "criterion": "pnpm --filter happy-app test --run SessionsList exits 0 and creates snapshot",
+          "command": "pnpm --filter happy-app test --run SessionsList > .test-output/happy-app.SessionsList.test.log 2>&1; grep -E \"Test Files|Tests|Snapshots\" .test-output/happy-app.SessionsList.test.log; test -f packages/happy-app/sources/components/__snapshots__/SessionsList.test.tsx.snap",
+          "result": "Exit 0. Output: Snapshots 1 written; Test Files 1 passed (1); Tests 3 passed (3). Snapshot file exists at packages/happy-app/sources/components/__snapshots__/SessionsList.test.tsx.snap."
+        },
+        {
+          "criterion": "pnpm --filter happy-app test --run full package suite exits 0",
+          "command": "pnpm --filter happy-app test --run > .test-output/happy-app.test.log 2>&1; grep -E \"Test Files|Tests\" .test-output/happy-app.test.log",
+          "result": "Exit 0 in 40s. Output: Test Files 122 passed (122); Tests 1075 passed (1075). Full log: .test-output/happy-app.test.log"
+        },
+        {
+          "criterion": "pnpm -r --if-present typecheck cross-package typecheck exits 0",
+          "command": "pnpm -r --if-present typecheck > .test-output/all.typecheck.log 2>&1; tail -20 .test-output/all.typecheck.log",
+          "result": "Exit 0 in 113s. happy-wire, codium, happy-agent, happy-app, happy-server, and happy-cli typecheck scripts all completed with Done. Full log: .test-output/all.typecheck.log"
+        },
+        {
+          "criterion": "plans/parallel-assignments.md line 484 status flipped from in progress to done",
+          "command": "grep -n \"session-role-pill\" plans/parallel-assignments.md",
+          "result": "Line 569 now reads: | `session-role-pill` 🤖 | Flavor + model + permission-mode pills in session row | ✅ done | — |"
+        },
+        {
+          "criterion": "Single commit on ralph/session-role-pill branch inside worktree",
+          "command": "git branch --show-current && git log --oneline -1",
+          "result": "Branch ralph/session-role-pill; HEAD commit 56e67795 feat: US-003 - Snapshot/structural tests + docs status update."
+        },
+        {
+          "criterion": "US-003:AC-009 browser/dev-browser verification",
+          "command": "N/A",
+          "result": "SKIPPED: browser/dev-browser tooling is unavailable in this environment; fallback verification is the Vitest structural assertion plus snapshot showing the 108px row, pill row before statusRow, and no empty row for null metadata."
+        }
+      ],
+      "dependencies": [
+        "US-001",
+        "US-002"
+      ],
+      "criteriaWarnings": [
+        {
+          "acIndex": "AC-009",
+          "criterion": "Verify in browser using dev-browser skill that the SessionsList page still renders correctly with the new pill row.",
+          "warning": "US-003:AC-009 references browser/dev-browser verification; browser automation tools may be unavailable to the iteration agent",
+          "severity": "tool-availability",
+          "suggestedFallback": "If browser tooling is unavailable, record SKIPPED for US-003:AC-009 and rely on the vitest snapshot + structural assertions defined in US-003:AC-003 and US-003:AC-004.",
+          "source": "criteria-validator"
+        }
+      ],
+      "failureClassification": "",
+      "partialProgress": null
+    }
+  ]
+}

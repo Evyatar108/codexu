@@ -1,0 +1,56 @@
+{
+  "storyId": "US-015",
+  "verifiedEvidence": [
+    {
+      "criterion": "plans/ralph-pipeline-04-pipeline-overview.md cascade updated",
+      "command": "nl -ba plans/ralph-pipeline-04-pipeline-overview.md | sed -n '31,60p;84,91p;102,106p;120,132p;136,140p'",
+      "result": "Lines 34, 57, 59, 86, 90, 105, 122, 131, and 138 move runDurations to Snapshot/overview-snapshot.json and keep the two Plan 04 sibling JSON artifacts.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "plans/ralph-pipeline-06-skills.md snapshot path confirmed",
+      "command": "nl -ba plans/ralph-pipeline-06-skills.md | sed -n '1,18p;115,118p;156,163p;178,180p'",
+      "result": "Lines 5, 15, 117, 162, and 178-180 make skills snapshot-first with recommendation fallback where needed.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "plans/ralph-pipeline-07-context.md activity ordering updated",
+      "command": "nl -ba plans/ralph-pipeline-07-context.md | sed -n '16,19p;56,60p;121,128p'",
+      "result": "Lines 18 and 59 document append-after-successful-write inside the lock window; line 127 documents torn-final-line tolerance.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "plans/ralph-pipeline-08-crews.md crew session wording updated",
+      "command": "nl -ba plans/ralph-pipeline-08-crews.md | sed -n '33,43p;114,119p'",
+      "result": "Lines 37, 42, and 118 describe extending RalphPipelineState.crewSessions instead of merging into the snapshot.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "plans/ralph-pipeline-09-mcp.md type/schema roles clarified",
+      "command": "nl -ba plans/ralph-pipeline-09-mcp.md | sed -n '39,47p;56,60p;73,79p;186,190p'",
+      "result": "Lines 45, 59, 76-78, and 189 separate TypeScript Snapshot types from JSON Schema runtime validation.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "plans/ralph-pipeline-10/11/12 scanned and Plan 12 refreshed",
+      "command": "nl -ba plans/ralph-pipeline-10-ralph-handoff.md | sed -n '1,20p;168,176p;195,197p'; nl -ba plans/ralph-pipeline-11-mcp-operational-tools.md | sed -n '1,20p;232,240p'; nl -ba plans/ralph-pipeline-12-package-as-plugin.md | sed -n '21,29p;107,111p;188,193p'",
+      "result": "Plans 10 and 11 had no stale Plan 05 artifact contract; Plan 12 lines 24, 110, and 190 refresh the full Plan 05 artifact set.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Commit message lists each edited file",
+      "command": "git log -1 --pretty=full",
+      "result": "Commit a6c74b146cb5cd4579bdd7ae0f2d5f902ab137c5 lists all six edited files with line ranges and one-line descriptions.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Typecheck passes",
+      "command": "pnpm --filter @codexu/overview-viewer typecheck > .test-output/overview-viewer.typecheck.log 2>&1",
+      "result": "PASS exit=0 duration=5s; tsc --noEmit completed with no errors.",
+      "evidenceKind": "passed"
+    }
+  ],
+  "skippedReasons": [],
+  "notTested": [],
+  "iterationSHA": "a6c74b146cb5cd4579bdd7ae0f2d5f902ab137c5"
+}

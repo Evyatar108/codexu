@@ -1,0 +1,28 @@
+{
+  "manifestPath": "D:/harness-efforts/codexu/.ralph/jobs/ralph-pipeline-02-watcher/iteration-result-7.json",
+  "iterationSHA": "b4e98fcce46a28877ec8828c13f3f96867269d30",
+  "storyId": "US-007",
+  "verdicts": [
+    {
+      "criterion": "Audit plans/ralph-pipeline-INDEX.md and plans/ralph-pipeline-{03..12}-*.md; identify any Plan-02-facing reference that diverges from what shipped.",
+      "verdict": "agree",
+      "reason": "Manifest cites a concrete grep across INDEX and plans 03-12 with explicit pattern list; result enumerates which plans (INDEX, 03, 06, 08, 11, 12) required edits and which (04, 05, 07, 09, 10) did not. Final-commit diff touches exactly that subset of plan files."
+    },
+    {
+      "criterion": "Apply edits in the FINAL commit on the worktree branch (no earlier story commit touches these files).",
+      "verdict": "agree",
+      "reason": "Manifest evidence runs git show --name-only on HEAD b4e98fcc and reports only the six cascade plan files. Pre-computed diff range 8a718c35..b4e98fcc shows the same six plan files; no overlap with earlier story commits on those plans."
+    },
+    {
+      "criterion": "Commit message lists each diff (file + line range + what changed) so reviewers can verify.",
+      "verdict": "agree",
+      "reason": "git log -1 --pretty=fuller (visible in supplied diff context) shows the commit body lists each of the six files with explicit line ranges (e.g. INDEX:191-196, 03-ui-chip:14,82,106,123,141,156, 06-skills:90, 08-crews:78-141,167,191, 11-mcp:51-179,213,224, 12-package:94-102) and a per-file change summary."
+    },
+    {
+      "criterion": "git log -1 --stat on that final commit shows the cascade edits.",
+      "verdict": "agree",
+      "reason": "Manifest's git log -1 --stat result matches the supplied diff: 6 files changed, 34 insertions(+), 34 deletions(-), all under plans/ralph-pipeline*.md. No production-source files appear in the stat."
+    }
+  ],
+  "warnings": []
+}

@@ -1,0 +1,110 @@
+{
+  "storyId": "US-001",
+  "verifiedEvidence": [
+    {
+      "criterion": "tools/overview-viewer/src/types.ts widened Recommendation and DependencyGraph shapes",
+      "command": "node --input-type=module static US-001 assertions",
+      "result": "PASS: static US-001 assertions passed; Recommendation has required taskId/score/stage/reasons and DependencyGraph nodes/edges include task/story and blocks/depends-on-story/spawn/depends-on-task types.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "OverviewTask interface gains blocks?: string[] and priority?: number",
+      "command": "node --input-type=module static US-001 assertions",
+      "result": "PASS: static assertions found blocks?: string[] and priority?: number in tools/overview-viewer/src/types.ts.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "scripts/lib/emit-snapshot-schema.mjs mirrors widened shapes and keeps additionalProperties on Recommendation/nodes/edges",
+      "command": "pnpm test; node --input-type=module static US-001 assertions",
+      "result": "PASS: root suite reports 8 files/49 tests passed; static assertions confirmed Recommendation additionalProperties true and DependencyGraph node/edge additionalProperties true.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": ".ralph/overview-config.schema.json accepts outputs.recommendationsJson, outputs.dependencyGraphJson, recommendations.weights, recommendations.topN >= 1",
+      "command": "node --input-type=module static US-001 assertions",
+      "result": "PASS: static assertions confirmed both output keys are string schema properties and recommendations.topN has minimum 1.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "scripts/lib/default-config.mjs + default-config.d.mts supply recommendations output and scoring defaults",
+      "command": "node --input-type=module static US-001 assertions",
+      "result": "PASS: defaults are recommendationsJson=plans/overview-recommendations.json, dependencyGraphJson=plans/overview-dependency-graph.json, weights {stageUrgency:40,dependencyState:30,freshness:20,priority:10}, topN=20.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "scripts/lib/resolve-config.mjs round-trips new keys without filtering and unit test asserts preservation",
+      "command": "pnpm --filter @codexu/overview-viewer test",
+      "result": "PASS: overview-viewer suite reports 27 files/153 tests passed, including config.test.ts coverage for resolved recommendationsJson, dependencyGraphJson, weights, and topN.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "scripts/lib/atomic-write.mjs exists and sync-core imports/re-exports atomicWriteFile from it",
+      "command": "node --input-type=module static US-001 assertions",
+      "result": "PASS: static assertions confirmed scripts/lib/atomic-write.mjs exists and sync-core imports/re-exports atomicWriteFile. emit-derived-artifacts.mjs is created in US-004 and will import the shared helper there.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "scripts/lib/load-prds-by-task-id.mjs + .d.mts + .test.mjs exist and return widened PRD carrier from jobs and group members",
+      "command": "pnpm test",
+      "result": "PASS: root suite reports scripts/lib/load-prds-by-task-id.test.mjs (6 tests) passed; tests cover jobs, .ralph/job-groups/<group>/<member>/prd.json, userStories[].passes, story dependencies, and PRD-level dependencies preservation.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Malformed JSON logs [load-prds-by-task-id] failed to parse <path>: <error> and skips without throwing",
+      "command": "pnpm test",
+      "result": "PASS: load-prds-by-task-id.test.mjs malformed JSON case passed and asserts no throw plus stderr prefix [load-prds-by-task-id] failed to parse.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Task matching reuses ralphOverrides + filename slug resolution; multi-job same-taskId last-write-wins by mtime",
+      "command": "pnpm test; node --input-type=module static US-001 assertions",
+      "result": "PASS: resolveTaskMatch is exported from sync-core and shared via task-match.mjs; load-prds tests cover ralphOverrides and newer PRD mtime winning duplicate task matches.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Tests cover missing prd.json, malformed JSON, ralphOverrides, group-member fixture, duplicate task mtime, passes, and PRD-level dependencies",
+      "command": "pnpm test",
+      "result": "PASS: root suite reports scripts/lib/load-prds-by-task-id.test.mjs (6 tests) passed with those named fixture scenarios.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Plugin PRD schema inspected for userStories[].id, userStories[].dependencies, userStories[].passes, and PRD-level dependencies field names; JSDoc records findings",
+      "command": "grep -n userStories,id,dependencies,passes C:/Users/evmitran/.claude/plugins/cache/ai-developer-toolkit/ralph-orchestration/5.41.0/schemas/prd-schema.json",
+      "result": "PASS: schema lines show userStories at 95, required id/title/acceptanceCriteria/priority/passes/verifiedEvidence at 100, passes at 118, and only userStory dependencies at 152. JSDoc records root dependencies is not schema-guaranteed and is preserved only when present.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "tools/overview-viewer/src/__tests__/scripts.d.ts ambient declarations updated for new default-config fields",
+      "command": "pnpm --filter @codexu/overview-viewer typecheck",
+      "result": "PASS: overview-viewer typecheck exit 0; static assertions confirmed scripts.d.ts includes recommendationsJson and dependencyGraphJson fields.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "pnpm test (root vitest) passes",
+      "command": "pnpm test > .test-output/root.test.log 2>&1",
+      "result": "PASS: Test Files 8 passed (8); Tests 49 passed (49).",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "pnpm --filter @codexu/overview-viewer typecheck passes",
+      "command": "pnpm --filter @codexu/overview-viewer typecheck > .test-output/overview-viewer.typecheck.log 2>&1",
+      "result": "PASS: tsc --noEmit completed with exit 0.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Typecheck passes",
+      "command": "pnpm --filter @codexu/overview-viewer typecheck > .test-output/overview-viewer.typecheck.log 2>&1",
+      "result": "PASS: tsc --noEmit completed with exit 0.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Tests pass",
+      "command": "pnpm test > .test-output/root.test.log 2>&1; pnpm --filter @codexu/overview-viewer test > .test-output/overview-viewer.test.log 2>&1",
+      "result": "PASS: root Vitest 8 files/49 tests passed; overview-viewer Vitest 27 files/153 tests passed.",
+      "evidenceKind": "passed"
+    }
+  ],
+  "skippedReasons": [],
+  "notTested": [],
+  "iterationSHA": "d06ef014d43952141140831cff492d009808e379"
+}

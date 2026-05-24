@@ -1,0 +1,23 @@
+I found no remaining High or Critical blockers. The plan is implementable against the current repo shape. I do see a few Medium/Low items worth tightening before handing it to an autonomous implementer.
+
+### Feasibility
+
+[Medium] `connection.connectionType === 'session-scoped'` in [sessionUpdateHandler.ts](/D:/harness-efforts/codexu/packages/happy-server/sources/app/api/socket/sessionUpdateHandler.ts) is weaker than the plan’s “spoofing impossible” claim. In [socket.ts](/D:/harness-efforts/codexu/packages/happy-server/sources/app/api/socket.ts:71), `clientType` and `sessionId` come from socket auth metadata, so any authenticated client that can choose `clientType: 'session-scoped'` can still emit deltas for that handshake session. This is probably acceptable under the single-user daemon threat model, but the plan should stop claiming full spoof elimination or add a stronger daemon/session proof.
+
+### Completeness
+
+[Medium] The legacy/v2 dedup rule needs one more detail: duplicates should still be allowed to enrich existing nodes. v2 `collabAgentToolCall` in `codex-rs/app-server-protocol/src/protocol/v2/item.rs` carries `receiverThreadIds` and status, but not nickname/role; legacy `CollabAgentSpawnEndEvent` in `codex-rs/protocol/src/protocol.rs` carries `new_agent_nickname` and `new_agent_role`. If v2 arrives first and the reducer in `packages/happy-cli/src/codex/agentTreeState.ts` fully drops the later legacy `(callId, end)` duplicate, optional metadata can be lost. Add an explicit “dedup structural delta, but merge richer metadata” rule and test.
+
+### Ordering
+
+No issues found.
+
+### Simplicity
+
+[Low] `emitAgentTreeUpdate` in [eventRouter.ts](/D:/harness-efforts/codexu/packages/happy-server/sources/app/events/eventRouter.ts) should probably accept the same optional `skipSenderConnection` shape as `emitUpdate` / `emitEphemeral`. It is not required for correctness, but it would avoid echoing `agent-tree-update` back to the originating session-scoped CLI socket and keeps the router API uniform.
+
+### Acceptance Criteria Quality
+
+[Medium] AC4 remains inherently flaky because it depends on a live model obeying “spawn A, then A spawns B.” The ordered-subsequence assertion helps, but “deterministic prompts” is not a true deterministic control. Tighten AC4 with a retry/diagnostic strategy or make the test assert “skipped/inconclusive with clear reason” when the model does not produce the requested spawn topology within the timeout.
+
+Prior review amendments look adequate overall: the parser location, build command, server typing site, real Codex integration requirement, fan-out `userId`, inbound authorization branch, and docs/overview regeneration were all corrected.

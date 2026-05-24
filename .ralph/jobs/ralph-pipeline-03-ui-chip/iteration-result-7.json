@@ -1,0 +1,50 @@
+{
+  "storyId": "US-007",
+  "verifiedEvidence": [
+    {
+      "criterion": "Read each existing plan under plans/ralph-pipeline-04-pipeline-overview.md through plans/ralph-pipeline-12-package-as-plugin.md. For each, list any reference to RalphStageChip, filters.ralphStage, useMultiAxisFilter, overview-ralph-state.js sidecar, or vite.config.ts plumbing.",
+      "command": "grep -RInE 'RalphStageChip|filters[.]ralphStage|useMultiAxisFilter|overview-ralph-state[.]js|vite[.]config[.]ts|overviewRalphStatePlugin|ralphStage|setFilters' plans/ralph-pipeline-04-pipeline-overview.md plans/ralph-pipeline-05-agent-exports.md plans/ralph-pipeline-06-skills.md plans/ralph-pipeline-07-context.md plans/ralph-pipeline-08-crews.md plans/ralph-pipeline-09-mcp.md plans/ralph-pipeline-10-ralph-handoff.md plans/ralph-pipeline-11-mcp-operational-tools.md plans/ralph-pipeline-12-package-as-plugin.md plans/ralph-pipeline-INDEX.md | wc -l",
+      "result": "Fresh audit found 30 references. Relevant stale references were in Plan 04, Plan 05, Plan 07, Plan 08, and the INDEX; Plans 06, 09, 10, 11, and 12 had no Plan 03 contract drift needing edits.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Plan 04 (plans/ralph-pipeline-04-pipeline-overview.md) line 58 references setFilters from useMultiAxisFilter. Confirm that Plan 03's US-001 has exposed setFilters on the hook's return object. If Plan 04 references any other shape change, update Plan 03 accordingly OR update Plan 04 — pick the more correct of the two.",
+      "command": "grep -nE 'setFilters: Dispatch|Plan 03.*hook returns|setFilters: setActiveFilters|filters: activeFilters' plans/ralph-pipeline-04-pipeline-overview.md tools/overview-viewer/src/hooks/useMultiAxisFilter.ts",
+      "result": "Plan 04 now documents setFilters as Dispatch<SetStateAction<ActiveFilters>> and restates the Plan 03 hook return object; useMultiAxisFilter returns filters: activeFilters and setFilters: setActiveFilters.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Read plans/ralph-pipeline-INDEX.md and update the 'Source-of-truth modules' table and DAG diagram if Plan 03's deliverables changed module names, paths, or contracts (e.g., RalphStageChip becomes the source-of-truth chip component for plans 07/08).",
+      "command": "grep -nE 'utils/filters.ts|useMultiAxisFilter.ts|RalphStageChip.tsx|overviewRalphStatePlugin' plans/ralph-pipeline-INDEX.md",
+      "result": "INDEX source-of-truth table now includes Plan 03 rows for filters.ts, useMultiAxisFilter.ts, RalphStageChip.tsx, and overviewRalphStatePlugin(). The existing DAG already named 03-ui-chip with RalphStageChip, filter axis, and Vite serve, so no DAG edit was needed.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Refresh stale references — file paths, type signatures, function/export names, behavior contracts, module dependencies — that diverged from Plan 03's actual implementation.",
+      "command": "grep -nE 'synthetic-window|TaskCommand.tsx|tooltipExtras|overviewRalphStatePlugin|RalphStageChip.tsx' plans/ralph-pipeline-05-agent-exports.md plans/ralph-pipeline-07-context.md plans/ralph-pipeline-08-crews.md plans/ralph-pipeline-INDEX.md",
+      "result": "Updated Plan 05 to use synthetic-window sidecar evaluation; updated Plans 07 and 08 to compose tooltipExtras in TaskCommand while preserving RalphStageChip's generic slot; added INDEX rows for Plan 03 contracts.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Apply all cascade updates in the final implementation commit. The commit message lists each diff (filename, lines changed, what changed) so reviewers can verify the cascade in one read.",
+      "command": "git show --stat --format=%B HEAD",
+      "result": "Commit 13151700 has subject feat: US-007 - Downstream-plan cascade audit + INDEX refresh and body entries for each changed file: Plan 04 setFilters/hook shape, Plan 05 synthetic-window verification, Plan 07 TaskCommand tooltipExtras composition, Plan 08 crew tooltipExtras composition, and INDEX Plan 03 source-of-truth rows.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Typecheck passes",
+      "command": "pnpm --filter @codexu/overview-viewer typecheck > .test-output/overview-viewer.typecheck.log 2>&1",
+      "result": "Exited 0; tsc --noEmit completed with no errors.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Quality test suite passes",
+      "command": "pnpm --filter @codexu/overview-viewer test > .test-output/overview-viewer.test.log 2>&1",
+      "result": "Exited 0; Vitest reported 24 test files passed and 119 tests passed.",
+      "evidenceKind": "passed"
+    }
+  ],
+  "skippedReasons": [],
+  "notTested": [],
+  "iterationSHA": "1315170008c2fcd5dc280e680aa1b6e73d59baa7"
+}

@@ -1,0 +1,36 @@
+I'll inspect the referenced temp artifact to see what needs to be handled.
+
+The artifact is a text file; I'm reading it in sections now to identify the actual request.
+
+I found this is a plan-review prompt, so I'm checking the referenced code paths before issuing findings.
+
+I'm checking config/schema and write paths to verify whether the plan's integration points are complete.
+
+### Feasibility
+
+- [High] `scripts/sync-ralph-state.mjs` subcommands are specified as “load current snapshot → apply mutation → call `writeSidecar()`”, but `writeSidecar()` expects Ralph sidecar state (`generatedAt`, `generatedFromCommit`, `byTaskId`, `unmatched`), not `plans/overview-snapshot.json` shape (`tasks[]`, `schemaVersion`, etc.). The subcommands should load/mutate `config.outputs.sidecarJson` (`plans/overview-ralph-state.json`) or explicitly transform snapshot `tasks[].ralph` back into `byTaskId` before calling `writeSidecar()`.
+
+- [High] The manifest-race fallback says `/work-on --via-crew` may record a partial explicit entry without `sessionId`, and a later heuristic tick will fill it in. The merge rule only dedupes/preserves by `sessionId`, so it cannot correlate that partial explicit entry with the later manifest-derived entry. Add a fallback identity key such as `(crewName, memberName)` when `sessionId` is absent, then upgrade the same entry when `sessionId`/`transcriptPath` appear.
+
+### Completeness
+
+- [High] The plan does not specify how heuristic discoveries are assigned to a `RalphStage`. `discoverCrewSessions()` matches a manifest to a `taskId`, but `crewSessions` is keyed by stage. The implementation needs an explicit rule, likely “assign heuristic sessions to `ralphState.byTaskId[taskId].stage` at discovery time,” and tests proving explicit entries remain under their recorded stage even if the task later advances.
+
+- [High] `tools/overview-viewer/CLAUDE.md` requires an Ajv regression in `scripts/lib/emit-snapshot-schema.test.mjs` whenever fields are added to `RalphPipelineState`. The plan updates `scripts/lib/emit-snapshot-schema.mjs` but does not list the test update; the existing permissive “future-plan-extension” test is not enough to prove the explicit `crewSessions` contract.
+
+- [Medium] Config plumbing should explicitly include `normalizeConfigPaths()` in `scripts/lib/sync-core.mjs`, not only `default-config.mjs`, `default-config.d.mts`, `resolve-config.mjs`, and schema. Direct callers/tests can pass default config objects through `walkRalphState()`/`assembleStateFromBundles()`, and `crewsRoot` must be resolved consistently there too.
+
+### Ordering
+
+No issues found. The serial ordering is appropriate given shared edits in `sync-core.mjs`, `watch-ralph-state.mjs`, and `sync-ralph-state.mjs`.
+
+### Simplicity
+
+- [Medium] The watcher “crews event triggers full crew-rescan without Ralph re-derive” path should probably be a small dedicated helper, e.g. `mergeCrewSessionsIntoState(currentState, ...)`, instead of forcing fake `{ kind, slug }` updates through `deriveAffectedTaskUpdate()`. The plan hints at special routing but should make that integration shape explicit to avoid contorting the existing per-slug pipeline.
+
+### Acceptance Criteria Quality
+
+- [High] The stale-idempotency and conflict-resolution ACs should include the partial-entry race: an explicit entry with only `memberName`/`crewName` survives, is updated in place when `sessionId` appears, and does not duplicate after heuristic discovery.
+
+- [Medium] Tooltip link AC should require URL encoding, not only Windows backslash replacement. `file://` links built from `transcriptPath` can contain spaces or `#`; tests should assert a valid encoded href.
+

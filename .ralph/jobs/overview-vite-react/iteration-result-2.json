@@ -1,0 +1,48 @@
+{
+  "storyId": "US-002",
+  "verifiedEvidence": [
+    {
+      "criterion": "src/styles.css contains the verbatim legacy style block contents",
+      "command": "diff -u <(sed -n '7,976p' plans/overview.html) tools/overview-viewer/src/styles.css",
+      "result": "Exited 0 with no diff; styles.css matches the contents between <style> and </style> in plans/overview.html byte-for-byte for the extracted lines.",
+      "evidenceKind": "command-output"
+    },
+    {
+      "criterion": "No edits, no Tailwind, no CSS-in-JS, no reformatting",
+      "command": "diff -u <(sed -n '7,976p' plans/overview.html) tools/overview-viewer/src/styles.css; grep -nEi 'tailwind|styled-components|@emotion|css-in-js' tools/overview-viewer/src/styles.css tools/overview-viewer/src/main.tsx tools/overview-viewer/src/App.tsx || true",
+      "result": "CSS diff exited 0 with no output, confirming no reformatting; grep returned no Tailwind or CSS-in-JS references.",
+      "evidenceKind": "command-output"
+    },
+    {
+      "criterion": "src/main.tsx imports ./styles.css and typecheck passes",
+      "command": "grep -n \"import './styles.css'\" tools/overview-viewer/src/main.tsx; pnpm --filter @codexu/overview-viewer typecheck",
+      "result": "grep found line 4: import './styles.css'; typecheck exited 0 with tsc --noEmit and no errors.",
+      "evidenceKind": "command-output"
+    },
+    {
+      "criterion": "US-002:AC-004 Dev server renders dark/light theme",
+      "command": "N/A",
+      "result": "SKIPPED: browser automation unavailable; theme verification requires manual prefers-color-scheme toggle. Static fallback verified the dark/light CSS rules were copied verbatim into styles.css.",
+      "evidenceKind": "skipped"
+    },
+    {
+      "criterion": "Typecheck passes",
+      "command": "pnpm --filter @codexu/overview-viewer typecheck > .test-output/overview-viewer.typecheck.log 2>&1",
+      "result": "Exited 0 in 4s; tsc --noEmit completed with no errors. Full output in .test-output/overview-viewer.typecheck.log.",
+      "evidenceKind": "command-output"
+    },
+    {
+      "criterion": "US-002:AC-006 Verify in browser using dev-browser skill",
+      "command": "N/A",
+      "result": "SKIPPED: dev-browser skill unavailable in this session; DOM/visual verification requires manual browser pass.",
+      "evidenceKind": "skipped"
+    }
+  ],
+  "skippedReasons": [
+    "missing_tool"
+  ],
+  "notTested": [
+    "Browser theme and visual verification unavailable; CSS parity verified by exact diff fallback."
+  ],
+  "iterationSHA": "75358df37b4dd85412f143a1657615ece15fbef1"
+}

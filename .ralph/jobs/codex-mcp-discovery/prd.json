@@ -1,0 +1,98 @@
+{
+  "project": "happy-cli",
+  "description": "Codex Agent Per-cwd `.mcp.json` Discovery — Zod-validated loader for project-level MCP servers (stdio + HTTP transports), wired into both startThread and resumeThread paths with mocked sibling tests and full roadmap/audit/overview doc flips.",
+  "overviewTaskId": "mcp-discovery",
+  "deslop": true,
+  "iterationEngine": "codex",
+  "codexReview": "always",
+  "copilotReview": "always",
+  "securityFixLoop": false,
+  "jobDir": "D:/harness-efforts/codexu/.ralph/jobs/codex-mcp-discovery",
+  "repoDir": "D:/harness-efforts/codexu",
+  "branch": { "name": "feat/codex-mcp-discovery", "created": true },
+  "worktree": { "path": "D:/harness-efforts/codexu/.worktrees/codex-mcp-discovery", "branch": "feat/codex-mcp-discovery" },
+  "planReviewContext": [
+    {
+      "id": "F-R2-001",
+      "severity": "High",
+      "description": "Loader must enforce command-XOR-url because passthrough union branches otherwise accept ambiguous transport entries.",
+      "source": "consensus",
+      "category": "Feasibility",
+      "suggestedFix": "Schema adds .superRefine() enforcing command-XOR-url; helper unit test covers ambiguity."
+    }
+  ],
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Project `.mcp.json` loader module with Zod schema + helper unit tests",
+      "description": "Create loadProjectMcpServers(cwd) with Zod validation, warnings, reserved happy handling, type stripping, and helper tests.",
+      "acceptanceCriteria": ["Loader module and tests implemented", "happy-cli typecheck passes", "projectMcpConfig tests pass"],
+      "priority": 1,
+      "passes": true,
+      "notes": "Completed in commit 1d3083ad before PRD repair; see progress.txt for full evidence.",
+      "verifiedEvidence": [
+        { "criterion": "US-001 implementation", "command": "git log --oneline -- packages/happy-cli/src/codex/projectMcpConfig.ts packages/happy-cli/src/codex/projectMcpConfig.test.ts", "result": "PASS: commit 1d3083ad added the loader and 9 helper tests; progress.txt contains detailed per-criterion evidence." }
+      ],
+      "dependencies": [],
+      "failureClassification": "",
+      "partialProgress": null
+    },
+    {
+      "id": "US-002",
+      "title": "Wire loader into runCodex.ts and add 4 mocked acceptance tests (start ×3 + resume ×1)",
+      "description": "Wire project MCP discovery into codex start and resume paths with mocked acceptance tests.",
+      "acceptanceCriteria": ["runCodex wiring implemented", "4 acceptance tests added", "targeted codex tests and typecheck pass"],
+      "priority": 2,
+      "passes": true,
+      "notes": "Completed in commit fa400e6e before PRD repair; see progress.txt for full evidence.",
+      "verifiedEvidence": [
+        { "criterion": "US-002 implementation", "command": "git log --oneline -- packages/happy-cli/src/codex/runCodex.ts packages/happy-cli/src/codex/runCodex.projectMcp.test.ts", "result": "PASS: commit fa400e6e wired loadProjectMcpServers into start/resume and added 4 mocked acceptance tests; progress.txt contains detailed per-criterion evidence." }
+      ],
+      "dependencies": ["US-001"],
+      "failureClassification": "",
+      "partialProgress": null
+    },
+    {
+      "id": "US-003",
+      "title": "Roadmap, parity audit, overview, parallel-assignments, and CLAUDE.md docs flipped + single atomic commit (with one --amend for SHA)",
+      "description": "Mark mcp-discovery delivered across roadmap, parallel assignments, overview, parity audit, and happy-cli CLAUDE.md docs.",
+      "acceptanceCriteria": [
+        "plans/codexu-roadmap.md marks Codex agent project-.mcp.json parity delivered with ✅ prefix and delivered qualifier",
+        "plans/parallel-assignments.md flips mcp-discovery row to delivered status",
+        "plans/overview.html cmd-mcp-discovery summary badge class is b-closed",
+        "plans/overview.html status text is ✅ shipped",
+        "plans/overview.html cmd-desc appends commit code",
+        "plans/overview.html kanban card is shipped with ok styling",
+        "plans/overview.html runs[] entry appended",
+        "plans/overview.html lastTouched/generatedAt/generatedFromCommit bumped",
+        "plans/codex-agent-parity-audit.md Gap 1 marked shipped",
+        "plans/codex-agent-parity-audit.md recommendation annotated completed",
+        "packages/happy-cli/CLAUDE.md open-gap bullet deleted",
+        "Quality gates run",
+        "Initial commit used pending sentinels",
+        "Required commit subject used",
+        "Pending sentinels replaced after initial commit",
+        "git commit --amend --no-edit executed",
+        "Post-amend commit checked",
+        "git status clean"
+      ],
+      "priority": 3,
+      "passes": true,
+      "notes": "Full happy-cli Vitest remains red for unrelated baseline failures; project MCP tests passed inside the run and pnpm -r run typecheck passed. The overview generatedFromCommit records the initial captured SHA f5bdfe67; final amended object id is 4378ef3f because a normal amend changes the commit hash.",
+      "verifiedEvidence": [
+        { "criterion": "Roadmap delivered bullet", "command": "grep -n \"Codex agent project-.*mcp\" plans/codexu-roadmap.md", "result": "PASS: line 472 is '- ✅ **Codex agent project-`.mcp.json` parity (delivered 2026-05-13):**'." },
+        { "criterion": "Parallel assignments delivered row", "command": "grep -n \"mcp-discovery.*Codex agent project\" plans/parallel-assignments.md", "result": "PASS: status table row shows `mcp-discovery` as ✅ landed 2026-05-13 with commit column f5bdfe67." },
+        { "criterion": "Overview cmd row shipped", "command": "sed -n '1358,1362p' plans/overview.html", "result": "PASS: cmd-mcp-discovery uses `cmd-badge b-closed`, visible text `✅ shipped`, and commit suffix `f5bdfe67`." },
+        { "criterion": "Overview kanban card shipped", "command": "sed -n '1004,1010p' plans/overview.html", "result": "PASS: card has `border-color: var(--ok); opacity: 0.8;` and `(shipped f5bdfe67)` sub-text." },
+        { "criterion": "Overview run and metadata", "command": "sed -n '1983,2048p' plans/overview.html", "result": "PASS: roadmap-data JSON contains generatedAt, lastTouched.mcp-discovery, generatedFromCommit, and the completed mcp-discovery run entry." },
+        { "criterion": "Parity audit shipped markers", "command": "sed -n '63,83p' plans/codex-agent-parity-audit.md && sed -n '340,344p' plans/codex-agent-parity-audit.md", "result": "PASS: Gap 1 heading says ✅ Shipped 2026-05-13 and recommendation item 1 is checked/completed." },
+        { "criterion": "happy-cli CLAUDE.md gap removed", "command": "grep -n 'Project-cwd `.mcp.json` discovery' packages/happy-cli/CLAUDE.md; grep -n '<sha>' packages/happy-cli/CLAUDE.md || true", "result": "PASS: open-gap bullet is gone, replaced by a one-line shipped cross-reference; no `<sha>` placeholder found." },
+        { "criterion": "Quality gates", "command": "pnpm --filter '{packages/happy-cli}' exec vitest run > .test-output/happy-cli.vitest.log 2>&1; pnpm -r run typecheck > .test-output/recursive.typecheck.log 2>&1", "result": "BASELINE: full happy-cli Vitest exited 1 with known unrelated baseline failures (14 failed files, 51 failed tests, 102 passed files, 846 passed tests); project MCP tests passed in that run. Recursive workspace typecheck exited 0." },
+        { "criterion": "Commit and amend flow", "command": "git reflog -2 --oneline; git log -1 --format='%H %s'; git status --short", "result": "PASS: initial f5bdfe67 commit was amended once to 4378ef3f with required subject; git status output is empty." }
+      ],
+      "dependencies": ["US-001", "US-002"],
+      "failureClassification": "",
+      "partialProgress": null
+    }
+  ]
+}

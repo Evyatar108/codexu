@@ -1,0 +1,222 @@
+{
+  "project": "Codex Wire-Acceptance Spike",
+  "description": "Research-only spike: connect to a real codex app-server over JSON-RPC stdio, run three probes (Q1 image input shape, Q2 project_doc_fallback_filenames, Q3 compactPrompt placement), capture payload evidence, and append a 'Wire spike results' section to plans/codex-agent-parity-audit.md so the Gap 2 / Gap 3 / Gap 5 fix-PRs are unblocked. No production code is modified; the deliverables are tasks/spikes/codex-wire-spike.mjs (reproducer) and the audit-doc update.",
+  "deslop": true,
+  "iterationEngine": "codex",
+  "codexReview": "always",
+  "copilotReview": "always",
+  "securityFixLoop": false,
+  "jobDir": "D:/harness-efforts/codexu/.ralph/jobs/codex-wire-spike",
+  "repoDir": "D:/harness-efforts/codexu",
+  "branch": {
+    "name": "codex-wire-spike",
+    "created": true,
+    "startPoint": "main"
+  },
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Build spike harness and run Q2 (project_doc_fallback_filenames)",
+      "description": "As an audit-doc maintainer, I want a JSON-RPC spike harness against a real `codex app-server` that resolves Q2 (config knob `project_doc_fallback_filenames`) using the auth-free `ThreadStartResponse.instruction_sources` oracle, so that downstream Q1/Q3 probes can build on a derisked harness foundation.",
+      "acceptanceCriteria": [
+        "`tasks/spikes/codex-wire-spike.mjs` exists; spawns `codex app-server` as a child process via `child_process.spawn` with auth-preserving isolated `CODEX_HOME=<fresh-tmpdir>/codex-home`: harness copies `auth.json` from the operator's real `CODEX_HOME` (env var first, else `~/.codex/`) into the tmpdir, leaves `config.toml` empty, falls back to `OPENAI_API_KEY` env passthrough if no auth.json. Harness also issues a startup `config/read { include_layers: true }` taint check and warns if a managed-config layer overrides `project_doc_fallback_filenames` or `compact_prompt` (managed-config is not isolatable on release `codex` binary per `app-server/src/main.rs:42-57,83-104` debug-only guards).",
+        "Harness sends `initialize` with `capabilities: { experimentalApi: true }` and `notify('initialized')` before any `thread/start` (matches happy-cli's handshake at `codexAppServerClient.ts`).",
+        "All three Q2 probes (3a CLAUDE-only with config knob, 3b CLAUDE-only without knob, 3c BOTH files present with `['CLAUDE.md','AGENTS.md']` knob) execute end-to-end and capture each `ThreadStartResponse.instruction_sources` array.",
+        "Captured findings are written to an in-memory or scratch-file structure ready to be inlined into the audit doc in US-003.",
+        "All RPC calls bounded by a 10-second timeout; script exits cleanly even when an RPC hangs (no `codex app-server` orphan after exit).",
+        "`codex --version` output captured at spike runtime (for audit-doc header in US-003).",
+        "Typecheck passes (script is `.mjs` so this means it parses and runs; no TypeScript involved)."
+      ],
+      "priority": 1,
+      "passes": true,
+      "notes": "",
+      "verifiedEvidence": [
+        {
+          "criterion": "Harness file exists and spawns app-server with isolated CODEX_HOME/auth handling plus config/read taint check",
+          "command": "test -f tasks/spikes/codex-wire-spike.mjs && grep -n -E 'spawn|CODEX_HOME|config/read' tasks/spikes/codex-wire-spike.mjs && jq '.isolation, .taintWarnings' /tmp/codex-wire-spike-us001.out",
+          "result": "Script exists; uses child_process.spawn; sets CODEX_HOME to a fresh tmp codex-home with empty config.toml; no auth.json was present so OPENAI_API_KEY passthrough was used; config/read includeLayers returned taintWarnings: []."
+        },
+        {
+          "criterion": "Initialize handshake uses experimentalApi and initialized notification before thread/start",
+          "command": "grep -n -E 'initialize|initialized|thread/start' tasks/spikes/codex-wire-spike.mjs",
+          "result": "Source shows request('initialize', { capabilities: { experimentalApi: true } }) at line 256, notify('initialized') at line 260, and thread/start at line 298."
+        },
+        {
+          "criterion": "All three Q2 probes execute and capture ThreadStartResponse.instruction_sources",
+          "command": "node tasks/spikes/codex-wire-spike.mjs > /tmp/codex-wire-spike-us001.out 2>&1 && jq '.q2[] | {id,title,instructionSources}' /tmp/codex-wire-spike-us001.out",
+          "result": "3a captured CLAUDE.md; 3b captured []; 3c captured AGENTS.md despite ['CLAUDE.md','AGENTS.md'] fallback list."
+        },
+        {
+          "criterion": "Captured findings ready to inline into audit doc",
+          "command": "jq '.q2[] | {id, request, instructionSources}' /tmp/codex-wire-spike-us001.out",
+          "result": "Output contains per-probe request payloads and instructionSources arrays in JSON, suitable for US-003 audit-doc fenced blocks."
+        },
+        {
+          "criterion": "RPC calls bounded and app-server exits cleanly without stdio orphan",
+          "command": "grep -n -E 'REQUEST_TIMEOUT_MS|timed out after|killProcessTree' tasks/spikes/codex-wire-spike.mjs && powershell.exe -NoProfile -Command 'Get-CimInstance Win32_Process | Where-Object { ($_.Name -like \"codex*\") -and ($_.CommandLine -like \"*app-server --listen stdio://*\") } | Select-Object ProcessId,ParentProcessId,Name,CommandLine | ConvertTo-Json -Compress'",
+          "result": "REQUEST_TIMEOUT_MS is 10000 and every request uses the timeout path; post-run stdio app-server process query returned empty output."
+        },
+        {
+          "criterion": "codex --version output captured at spike runtime",
+          "command": "jq '.codexVersion' /tmp/codex-wire-spike-us001.out",
+          "result": "codex-cli 0.125.0-copilot-api.8"
+        },
+        {
+          "criterion": "Typecheck passes (script parses and runs)",
+          "command": "node --check tasks/spikes/codex-wire-spike.mjs && node tasks/spikes/codex-wire-spike.mjs > /tmp/codex-wire-spike-us001.out 2>&1",
+          "result": "node --check exited 0; spike script exited 0 and produced Q2 JSON results."
+        }
+      ],
+      "dependencies": [],
+      "failureClassification": "",
+      "partialProgress": null
+    },
+    {
+      "id": "US-002",
+      "title": "Q1 (image input shape) and Q3 (compactPrompt placement)",
+      "description": "As an audit-doc maintainer, I want the spike to definitively answer whether codex-core accepts data: URLs as image input AND whether happy-cli's top-level `compactPrompt` field is silently dropped vs. honored when nested under `config.compact_prompt`, with thread-scoped evidence — so that the `codex-attachments` and `codex-slash-commands` ralph commands can be written without false assumptions.",
+      "acceptanceCriteria": [
+        "Q1: harness inlines a discriminating canary PNG (NOT a 1×1 transparent placeholder) — either a pre-rendered PNG containing visible text `SPIKE-CANARY-Q1-XJ7QK` OR a solid-color image with prompt designed to require image-read.",
+        "Q1: harness sends `turn/start` with the `image` variant (`{ type: 'image', url: 'data:image/png;base64,...' }`) and captures `item/agentMessage/delta`/`item/completed`/`error`/`turn/completed` notifications. (`turn/completed` alone is lifecycle, not content — not sufficient evidence.)",
+        "Q1: same probe repeated with `localImage` variant pointing at a tmpfile path.",
+        "Q1: each variant produces one of three verdicts based on captured agent content: ✓ accepted / ⚠ silently dropped (agent says `NO IMAGE RECEIVED` or describes nothing) / ✗ rejected (JSON-RPC error captured).",
+        "Q3: **oracle confirmed first.** Before writing the comparison probe, harness greps `app-server-protocol/src/protocol/v2/thread.rs` for `compact_prompt` to discover any cheaper thread-scoped read RPC. If none, harness uses `thread/compact/start` event capture (the only confirmed valid oracle — requires working auth). If auth is unavailable AND no cheap thread-scoped read RPC exists, Q3 records the static-source verdict (\"`ThreadStartParams` lacks the field; serde doesn't deny_unknown_fields; top-level is dropped at deserialization\") and notes that Q3 needs re-spiking with auth before Gap 5's wire-shape fix is finalized.",
+        "Q3: harness runs two `thread/start` calls — one with top-level `compactPrompt: \"CANARY-Q3-TOP-XJ7QK\"`, one with nested `config: { compact_prompt: \"CANARY-Q3-NESTED-XJ7QK\" }` — and captures thread-scoped evidence (per the oracle above) of which canary is the live prompt-of-record for each.",
+        "Q3 does NOT use `config/read` as a thread-scoped oracle (reads disk-layered config with no per-thread overrides, per `v2/config.rs:329-347` + `app-server/src/config_manager_service.rs:109-152`) AND does NOT use rollout-file grep (`compact_prompt` is NOT persisted in `SessionMeta` `protocol.rs:2704` nor `TurnContextItem` `protocol.rs:2808`; held only in runtime turn context `core/src/session/turn_context.rs:77`).",
+        "All RPC and event-wait timeouts bounded (10 s response, 30 s turn-complete, 60 s thread-compacted).",
+        "Typecheck passes."
+      ],
+      "priority": 2,
+      "passes": true,
+      "notes": "",
+      "verifiedEvidence": [
+        {
+          "criterion": "Q1 discriminating canary PNG is inlined and not a 1x1 transparent placeholder",
+          "command": "node - <<'NODE' ... parse RED_CANARY_PNG_BASE64 dimensions from tasks/spikes/codex-wire-spike.mjs",
+          "result": "Fresh check returned {\"signature\":\"PNG\",\"width\":32,\"height\":32,\"bytes\":105}; probe prompt requires the model to identify a predominantly red image and emit IMAGE_ACCEPTED_RED_CANARY."
+        },
+        {
+          "criterion": "Q1 data URL image variant captures content notifications",
+          "command": "node tasks/spikes/codex-wire-spike.mjs > /tmp/codex-wire-spike-us002-final.out 2> /tmp/codex-wire-spike-us002-final.err; summarize .q1[variant=data-url]",
+          "result": "Exit 0. Request input[1] was {type:'image', url:'data:image/png;base64,...'}; captured turn/started, item/agentMessage/delta, item/completed, turn/completed; agent content contained IMAGE_ACCEPTED_RED_CANARY."
+        },
+        {
+          "criterion": "Q1 localImage variant captures content notifications",
+          "command": "node tasks/spikes/codex-wire-spike.mjs > /tmp/codex-wire-spike-us002-final.out 2> /tmp/codex-wire-spike-us002-final.err; summarize .q1[variant=local-file]",
+          "result": "Exit 0. Request input[1] was {type:'localImage', path:'.../q1-red-canary.png'}; captured turn/started, item/agentMessage/delta, item/completed, turn/completed; agent content contained IMAGE_ACCEPTED_RED_CANARY."
+        },
+        {
+          "criterion": "Q1 verdicts are classified as accepted, silently dropped, or rejected from captured agent content/errors",
+          "command": "summarize .q1[].verdict from /tmp/codex-wire-spike-us002-final.out",
+          "result": "data-url verdict: accepted; local-file verdict: accepted. Both verdicts were based on captured agent message content, not turn/completed lifecycle alone."
+        },
+        {
+          "criterion": "Q3 oracle confirmed first from thread.rs before comparison probes",
+          "command": "grep -n 'compact_prompt' D:/harness-efforts/codexu/codex/external/repos/codex-patched/codex-rs/app-server-protocol/src/protocol/v2/thread.rs; summarize .q3.sourceOracle",
+          "result": "grep found no compact_prompt lines in thread.rs; ThreadStartParams excerpt lacks compact_prompt; sourceOracle.cheaperThreadScopedReadRpcFound=false, so the harness used thread/compact/start as the runtime oracle."
+        },
+        {
+          "criterion": "Q3 top-level compactPrompt and nested config.compact_prompt thread/start probes capture thread-scoped evidence",
+          "command": "summarize .q3.probes[] from /tmp/codex-wire-spike-us002-final.out",
+          "result": "top-level request included compactPrompt:'...CANARY-Q3-TOP-XJ7QK' and verdict was not honored with content NO_Q3_CANARY_VISIBLE; nested request included config.compact_prompt:'...CANARY-Q3-NESTED-XJ7QK' and verdict was honored with content CANARY-Q3-NESTED-XJ7QK."
+        },
+        {
+          "criterion": "Q3 avoids config/read and rollout-file grep as thread-scoped oracles",
+          "command": "grep -n -E 'config/read|thread/compact/start|rollout' tasks/spikes/codex-wire-spike.mjs",
+          "result": "config/read appears only in startup taint check; Q3 uses sourceOracle plus thread/compact/start; no rollout-file grep is present."
+        },
+        {
+          "criterion": "All RPC and event wait timeouts are bounded",
+          "command": "grep -n -E 'REQUEST_TIMEOUT_MS|TURN_COMPLETE_TIMEOUT_MS|THREAD_COMPACTED_TIMEOUT_MS|waitForNotification|request' tasks/spikes/codex-wire-spike.mjs",
+          "result": "REQUEST_TIMEOUT_MS=10000, TURN_COMPLETE_TIMEOUT_MS=30000, THREAD_COMPACTED_TIMEOUT_MS=60000; request() defaults to the 10s timeout and event waits use the 30s/60s constants. Post-cleanup stdio app-server process query returned empty output."
+        },
+        {
+          "criterion": "Typecheck passes",
+          "command": "node --check tasks/spikes/codex-wire-spike.mjs && node tasks/spikes/codex-wire-spike.mjs > /tmp/codex-wire-spike-us002-final.out 2> /tmp/codex-wire-spike-us002-final.err",
+          "result": "node --check exited 0; full spike exited 0 and produced Q1/Q3 JSON evidence in /tmp/codex-wire-spike-us002-final.out."
+        }
+      ],
+      "dependencies": [
+        "US-001"
+      ],
+      "failureClassification": "",
+      "partialProgress": null
+    },
+    {
+      "id": "US-003",
+      "title": "Append 'Wire spike results' to plans/codex-agent-parity-audit.md",
+      "description": "As an audit-doc consumer (operator preparing follow-up ralph commands), I want a 'Wire spike results' section with definitive answers + inline payload evidence + cross-references from the existing Gap 2/3/5 callouts, so that the `codex-attachments`, `codex-claude-md-autoload`, and `codex-slash-commands` ralph commands can be written with grounded wire-acceptance assumptions.",
+      "acceptanceCriteria": [
+        "New section `## Wire spike results` is appended to `plans/codex-agent-parity-audit.md` AFTER the existing `## Open questions surfaced by this audit` section, with date + `codex --version` in the section header.",
+        "Section contains three subsections: §1 (image input — Gap 3), §2 (project_doc_fallback — Gap 2), §3 (compactPrompt — Gap 5). Each subsection has: (a) the request payload(s) as fenced ```json blocks, (b) the response/notification evidence as fenced ```json blocks, (c) a verdict line in **bold**, (d) one-sentence implication for the corresponding Gap fix-PR.",
+        "Cross-cutting verification block at audit-doc lines 351-356 is replaced with a single link to the new section.",
+        "Gap 2 lines 95-101 (its \"Open question for operator\" + AGENTS.md/CLAUDE.md ordering recommendation) are updated to reflect the spike's source-verified resolution: same-directory CLAUDE-first cannot be achieved via `project_doc_fallback_filenames` (hardcoded `AGENTS.md` prefix in `agents_md.rs:285-319`); the audit's `['CLAUDE.md', 'AGENTS.md']` recommendation works ONLY for CLAUDE-only projects. Gap 2 (or a new gap) must propose an alternative path for mixed-files CLAUDE-first.",
+        "Gap 3 lines 117 + 122 (the two \"Need to spike codex acceptance of data URLs first\" / \"Pre-flight: spike whether codex-core accepts data: URLs\" lines) are updated to either remove the spike-callout or replace with a link to §1.",
+        "Gap 5 lines 165-179 (the `compactPrompt` plumbing discussion + ralph-command sketch) are updated to reflect Q3's finding. If happy-cli's top-level shape is wrong, the Gap 5 entry explicitly calls out fixing BOTH `packages/happy-cli/src/codex/codexAppServerTypes.ts:29` AND `packages/happy-cli/src/codex/codexAppServerClient.ts:1137`.",
+        "`git diff` shows NO production-code changes — only `plans/codex-agent-parity-audit.md` modified and `tasks/spikes/codex-wire-spike.mjs` created.",
+        "`.gitignore` decision documented: either `tasks/` is added (and `tasks/spikes/codex-wire-spike.mjs` is force-added with `git add -f`) or left alone (and `tasks/spikes/codex-wire-spike.mjs` is committed directly). PR description states which.",
+        "Typecheck passes (no source code changed; this is a no-op for typecheck)."
+      ],
+      "priority": 3,
+      "passes": true,
+      "notes": "",
+      "verifiedEvidence": [
+        {
+          "criterion": "New Wire spike results section appended after Open questions with date and codex version",
+          "command": "grep -n -E 'Open questions surfaced|Wire spike results|codex-cli 0.125.0' plans/codex-agent-parity-audit.md",
+          "result": "Open questions section starts at line 355; Wire spike results follows at line 364 with header date 2026-05-13 and codex-cli 0.125.0-copilot-api.8."
+        },
+        {
+          "criterion": "Section contains §1/§2/§3 with JSON payloads, evidence, bold verdicts, and implications",
+          "command": "grep -n -E '§1|§2|§3|Request payloads:|evidence:|Verdict:|Implication for Gap' plans/codex-agent-parity-audit.md",
+          "result": "Found §1 Image input, §2 project_doc_fallback_filenames, and §3 compactPrompt; each has Request payloads, evidence, a bold Verdict, and an Implication line."
+        },
+        {
+          "criterion": "Cross-cutting verification block replaced with a single link to the new section",
+          "command": "grep -n 'Cross-cutting verification' plans/codex-agent-parity-audit.md; grep -n -E 'Spike codex-core|A 30-minute spike' plans/codex-agent-parity-audit.md || true",
+          "result": "Line 351 is a single link to Wire spike results; old cross-cutting checklist text is absent."
+        },
+        {
+          "criterion": "Gap 2 updated for source-verified project_doc_fallback_filenames limits",
+          "command": "grep -n -E 'same-directory CLAUDE-first|Wire-spike resolution|mixed-file CLAUDE-first' plans/codex-agent-parity-audit.md",
+          "result": "Gap 2 now states CLAUDE-only recovery works, same-directory CLAUDE-first cannot be achieved via the knob, AGENTS.md is prepended per agents_md.rs:285-319, and mixed-file CLAUDE-first needs a separate mechanism."
+        },
+        {
+          "criterion": "Gap 3 stale data URL spike callouts updated to link to §1",
+          "command": "grep -n -E 'data URLs|Wire spike results|codex-attachments' plans/codex-agent-parity-audit.md; grep -n -E 'Need to spike codex acceptance|Pre-flight: spike whether codex-core accepts' plans/codex-agent-parity-audit.md || true",
+          "result": "Gap 3 proposed fix and command shape now use data URLs with localImage fallback and link to Wire spike §1; old Need to spike and Pre-flight callouts are absent."
+        },
+        {
+          "criterion": "Gap 5 updated for compactPrompt finding and both happy-cli files called out",
+          "command": "grep -n -E 'codexAppServerTypes.ts:29|codexAppServerClient.ts:1137|config.compact_prompt|thread/compact/start' plans/codex-agent-parity-audit.md",
+          "result": "Gap 5 now says top-level compactPrompt is dropped, nested config.compact_prompt is honored, and both packages/happy-cli/src/codex/codexAppServerTypes.ts:29 and packages/happy-cli/src/codex/codexAppServerClient.ts:1137 must be fixed."
+        },
+        {
+          "criterion": "No production-code changes in the spike commits",
+          "command": "git show --name-status --format='%h %s' 0dcd8614 63edcc63 355db937; git show --name-only --format='' 0dcd8614 63edcc63 355db937 | sed '/^$/d' | sort -u",
+          "result": "US-001 added tasks/spikes/codex-wire-spike.mjs; US-002 modified that harness; US-003 modified plans/codex-agent-parity-audit.md. Unique touched files are only those two paths, so no production-code files were changed by the spike commits."
+        },
+        {
+          "criterion": ".gitignore decision documented",
+          "command": "grep -n '.gitignore.*left unchanged' plans/codex-agent-parity-audit.md; git check-ignore -v tasks/spikes/codex-wire-spike.mjs tasks || true",
+          "result": "Line 366 documents that .gitignore was left unchanged because tasks/ is not ignored; git check-ignore returned no ignored-path output for tasks or the harness."
+        },
+        {
+          "criterion": "Typecheck passes (no source code changed; no-op plus harness parse check)",
+          "command": "node --check tasks/spikes/codex-wire-spike.mjs && git diff --check HEAD~1..HEAD",
+          "result": "node --check exited 0; git diff --check for the US-003 commit exited 0."
+        }
+      ],
+      "dependencies": [
+        "US-001",
+        "US-002"
+      ],
+      "failureClassification": "",
+      "partialProgress": null
+    }
+  ],
+  "worktree": {
+    "path": "D:/harness-efforts/codexu/.worktrees/codex-wire-spike",
+    "created": true
+  }
+}

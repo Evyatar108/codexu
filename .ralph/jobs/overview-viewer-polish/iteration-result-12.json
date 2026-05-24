@@ -1,0 +1,34 @@
+{
+  "storyId": "US-012",
+  "verifiedEvidence": [
+    {
+      "criterion": "Typecheck before bundle gate",
+      "command": "pnpm --filter @codexu/overview-viewer typecheck > .test-output/overview-viewer.typecheck.log 2>&1",
+      "result": "PASS: tsc --noEmit completed with exit 0 for the attempted Radix Popover + ToggleGroup implementation.",
+      "evidenceKind": "typecheck"
+    },
+    {
+      "criterion": "Tests before bundle gate",
+      "command": "pnpm --filter @codexu/overview-viewer test > .test-output/overview-viewer.test.log 2>&1",
+      "result": "PASS: Vitest reported 17 test files passed, 67 tests passed, including US-012 jsdom interaction coverage.",
+      "evidenceKind": "test"
+    },
+    {
+      "criterion": "After build, bundle size < 500 KB",
+      "command": "pnpm overview:build > .test-output/overview-viewer.build.log 2>&1; stat -c%s plans/overview.html",
+      "result": "BLOCKED: build succeeded but stat reported 506901 bytes, exceeding the 500000 byte Phase C hard gate by 6901 bytes.",
+      "evidenceKind": "build"
+    },
+    {
+      "criterion": "Partial implementation preserved",
+      "command": "git show --stat --oneline partial/US-012 -1",
+      "result": "PASS: attempted implementation preserved on partial/US-012 at commit 7bc7bb9f with package, source, test, lockfile, and generated artifact changes.",
+      "evidenceKind": "command"
+    }
+  ],
+  "skippedReasons": [],
+  "notTested": [
+    "frozen-lockfile install, dev-server smoke, and final full AC evidence were not run after the bundle hard gate failed."
+  ],
+  "iterationSHA": "a6ddb4ffbf64c54fe35cb3c98f9020d8d809b8c0"
+}

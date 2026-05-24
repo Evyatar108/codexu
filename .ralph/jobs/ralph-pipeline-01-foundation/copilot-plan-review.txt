@@ -1,0 +1,34 @@
+I’ll inspect the referenced temp artifact to determine the requested work.
+
+The artifact is a large text file, so I’ll sample the relevant sections first rather than reading it all at once.
+
+The artifact is a research prompt for a Ralph/overview dashboard plan. I’ll inspect the code paths it references and then provide the requested codebase analysis.
+
+I’ll validate the plan’s assumptions against the actual overview package and repo layout before writing the review.
+
+### Feasibility
+
+- [High] `deriveRalphStage()` has no predicate for `groupState`, even though `scripts/lib/sync-core.mjs` is required to discover `.ralph/job-groups/*/group.json`, apply `group > brainstorm` precedence, and pass group bundles into the predicate. A group-only match cannot produce any of the 10 `RalphStage` values as specified.
+
+### Completeness
+
+- [High] The test plan says `ralphStage.test.ts` imports helpers from `sync-core.mjs` and tests config layering, but `tools/overview-viewer/tsconfig.json` has `allowJs: false`, and the only proposed ambient module declaration is for `*/derive-ralph-stage.mjs`. Static TS imports from `scripts/lib/sync-core.mjs` or `scripts/lib/resolve-config.mjs` will fail unless declarations are added or tests use typed dynamic imports.
+
+- [High] `scripts/sync-ralph-state.mjs` is required to parse `--config <path>`, but `loadConfig({ repoRoot })` has no `configPath` parameter in the plan. As written, the CLI cannot actually pass the parsed config override unless it mutates `OVERVIEW_CONFIG_PATH`, which the plan does not specify.
+
+- [Medium] The plan says `.ralph/overview-config.schema.json` “may contain JSONC,” but `.ralph/overview-config.json` points to it via `"$schema": "./overview-config.schema.json"`. A `.schema.json` file with comments is not valid JSON Schema for editor/tool consumers.
+
+### Ordering
+
+No issues found.
+
+### Simplicity
+
+- [Medium] The config layer includes many Plan 03/04/05/07/08/11/12 fields in Plan 01 (`snapshot`, `activity`, `recommendations`, `crewsRoot`, `devServer`, etc.). This is implementable, but it expands tests/schema surface before consumers exist. A smaller Plan 01 config limited to data file, Ralph roots, outputs, lock file, and ignored paths would reduce drift risk.
+
+### Acceptance Criteria Quality
+
+- [High] Config precedence is contradictory. The resolver section says `OVERVIEW_CONFIG_PATH` redirects the committed config path and then `.local.json` next to it overlays on top, but the acceptance criterion says precedence is `env var > .local.json > committed > defaults`. Those produce different results when both env config and local config exist.
+
+- [Medium] The idempotency criterion says sidecars must be byte-identical “excluding `generatedAt`,” but does not define how to compare the JS sidecar where the timestamp is embedded inside an assignment. The JSON comparison is clear; the JS comparison needs an explicit parse-and-normalize step.
+

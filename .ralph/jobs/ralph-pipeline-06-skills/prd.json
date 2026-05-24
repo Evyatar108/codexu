@@ -1,0 +1,393 @@
+{
+  "project": "Plan 06 — Repo-local skills + derive-next-command.mjs",
+  "description": "Three repo-local Claude Code skills (/work-on, /triage, /blocker-report) wrap the Ralph orchestrator's per-stage command surface. A single new pure-ESM module, scripts/lib/derive-next-command.mjs, owns the stage→command predicate. The skills, an optional UI button, and Plan 09's MCP tools all consume the same predicate. Predicate is pinned to ralph-orchestration v5.41.0 and must be browser-safe / Vite-bundlable. All work lands on branch ralph-pipeline-06-skills inside the job worktree; nothing merges to main until Phase 6 review converges.",
+  "deslop": true,
+  "iterationEngine": "codex",
+  "planningEngine": "codex",
+  "jobDir": "D:/harness-efforts/codexu/.ralph/jobs/ralph-pipeline-06-skills",
+  "repoDir": "D:/harness-efforts/codexu",
+  "branch": {
+    "name": "ralph-pipeline-06-skills",
+    "created": true
+  },
+  "worktree": {
+    "path": "D:/harness-efforts/codexu/.ralph/jobs/ralph-pipeline-06-skills/worktree",
+    "branch": "ralph-pipeline-06-skills",
+    "startPoint": "main"
+  },
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Predicate module + types",
+      "description": "As a Ralph user, I want a single pure-ESM module that maps a task's RalphPipelineState to the next-step command so all consumers (skills, optional UI, future MCP) share one source of truth.",
+      "acceptanceCriteria": [
+        "scripts/lib/derive-next-command.mjs exports deriveNextCommand(state, task, options?) -> NextCommand | null with the file-level JSDoc version-pin naming ralph-orchestration v5.41.0.",
+        "Module is browser-safe — no node:fs, node:path, or node:child_process imports.",
+        "scripts/lib/derive-next-command.d.mts exists and re-exports the signature for TypeScript consumers.",
+        "tools/overview-viewer/src/types.ts exports interface NextCommand { label: string; command: string; icon?: string } placed near Recommendation (additive — no conflict with Plan 07's RalphPipelineState extension).",
+        "pnpm --filter @codexu/overview-viewer typecheck passes.",
+        "scripts/lib/derive-next-command.test.mjs covers all 10 stages plus null-on-shipped, parallel-group implementing with { repoRoot }, brainstorming-with-slug, no-artifact fallback. pnpm test scripts/lib/derive-next-command.test.mjs passes.",
+        "Typecheck passes."
+      ],
+      "priority": 1,
+      "passes": true,
+      "notes": "",
+      "verifiedEvidence": [
+        {
+          "criterion": "scripts/lib/derive-next-command.mjs exports deriveNextCommand(state, task, options?) -> NextCommand | null with the file-level JSDoc version-pin naming ralph-orchestration v5.41.0.",
+          "command": "test -f scripts/lib/derive-next-command.mjs && grep -nE 'ralph-orchestration v5.41.0|export function deriveNextCommand' scripts/lib/derive-next-command.mjs",
+          "result": "Found version pin at line 3 and export function deriveNextCommand(state, task, options = {}) at line 16."
+        },
+        {
+          "criterion": "Module is browser-safe — no node:fs, node:path, or node:child_process imports.",
+          "command": "if grep -nE 'node:fs|node:path|node:child_process' scripts/lib/derive-next-command.mjs; then exit 1; else echo 'No forbidden Node-only imports found'; fi",
+          "result": "No forbidden Node-only imports found."
+        },
+        {
+          "criterion": "scripts/lib/derive-next-command.d.mts exists and re-exports the signature for TypeScript consumers.",
+          "command": "test -f scripts/lib/derive-next-command.d.mts && sed -n '1,20p' scripts/lib/derive-next-command.d.mts",
+          "result": "Declaration file exists and exports deriveNextCommand(state: RalphPipelineState | undefined, task: OverviewTask | undefined, options?: DeriveNextCommandOptions): NextCommand | null."
+        },
+        {
+          "criterion": "tools/overview-viewer/src/types.ts exports interface NextCommand { label: string; command: string; icon?: string } placed near Recommendation (additive — no conflict with Plan 07's RalphPipelineState extension).",
+          "command": "grep -n 'export interface NextCommand' -A5 tools/overview-viewer/src/types.ts",
+          "result": "NextCommand exported at lines 166-170 immediately after Recommendation with label, command, and optional icon fields."
+        },
+        {
+          "criterion": "pnpm --filter @codexu/overview-viewer typecheck passes.",
+          "command": "pnpm --filter @codexu/overview-viewer typecheck > .test-output/overview-viewer.typecheck.log 2>&1; tail -30 .test-output/overview-viewer.typecheck.log",
+          "result": "Exit 0; tsc --noEmit completed with no errors."
+        },
+        {
+          "criterion": "scripts/lib/derive-next-command.test.mjs covers all 10 stages plus null-on-shipped, parallel-group implementing with { repoRoot }, brainstorming-with-slug, no-artifact fallback. pnpm test scripts/lib/derive-next-command.test.mjs passes.",
+          "command": "pnpm test scripts/lib/derive-next-command.test.mjs",
+          "result": "Exit 0; 1 test file passed, 15 tests passed. Grep confirmed coverage for all stages, repoRoot parallel group, and required-artifact null fallback."
+        },
+        {
+          "criterion": "Typecheck passes.",
+          "command": "pnpm --filter @codexu/overview-viewer typecheck",
+          "result": "Exit 0; overview-viewer typecheck passed with tsc --noEmit and no errors."
+        }
+      ],
+      "dependencies": [],
+      "failureClassification": "",
+      "partialProgress": null
+    },
+    {
+      "id": "US-002",
+      "title": "CLI helper",
+      "description": "As a skill author, I want a CLI wrapper around the predicate so skill markdown bodies can shell out via one short command without JSON-quoting fragility.",
+      "acceptanceCriteria": [
+        "scripts/lib/derive-next-command-cli.mjs exists. Reading plans/overview-snapshot.json, looking up --task <id>, resolving repoRoot via git rev-parse --show-toplevel, and writing NextCommand | null as JSON to stdout.",
+        "Optional --snapshot <path> overrides the snapshot location.",
+        "On no-match, exits non-zero with a stderr message naming the missing task id.",
+        "CLI smoke: `node scripts/lib/derive-next-command-cli.mjs --task <known-task-id> --snapshot <fixture-snapshot.json>` exits 0 and stdout JSON-parses to an object with string fields `label` and `command`; running with --task <missing-id> exits non-zero.",
+        "Vitest at scripts/lib/derive-next-command-cli.test.mjs covers at least 3 cases: happy-path --task on a fixture snapshot returns expected command; --snapshot override resolves to a custom file; --task missing exits non-zero with the task id in stderr. `pnpm test scripts/lib/derive-next-command-cli.test.mjs` passes.",
+        "Typecheck passes."
+      ],
+      "priority": 2,
+      "passes": true,
+      "notes": "",
+      "verifiedEvidence": [
+        {
+          "criterion": "scripts/lib/derive-next-command-cli.mjs exists. Reading plans/overview-snapshot.json, looking up --task <id>, resolving repoRoot via git rev-parse --show-toplevel, and writing NextCommand | null as JSON to stdout.",
+          "command": "test -f scripts/lib/derive-next-command-cli.mjs && grep -nE 'plans.*overview-snapshot|--task|rev-parse|JSON.stringify' scripts/lib/derive-next-command-cli.mjs",
+          "result": "File exists; grep found default plans/overview-snapshot.json resolution, --task parsing, git rev-parse --show-toplevel repoRoot resolution, and JSON.stringify stdout output."
+        },
+        {
+          "criterion": "Optional --snapshot <path> overrides the snapshot location.",
+          "command": "grep -n -- '--snapshot' scripts/lib/derive-next-command-cli.mjs && pnpm test scripts/lib/derive-next-command-cli.test.mjs",
+          "result": "--snapshot parser branch found at lines 41-42; vitest custom snapshot override case passed."
+        },
+        {
+          "criterion": "On no-match, exits non-zero with a stderr message naming the missing task id.",
+          "command": "node scripts/lib/derive-next-command-cli.mjs --task MISSING-TASK --snapshot scripts/lib/fixtures/derive-next-command-snapshot.json",
+          "result": "Exit 1; stderr named missing task id MISSING-TASK and the fixture snapshot path."
+        },
+        {
+          "criterion": "CLI smoke: node scripts/lib/derive-next-command-cli.mjs --task <known-task-id> --snapshot <fixture-snapshot.json> exits 0 and stdout JSON-parses to an object with string fields label and command; running with --task <missing-id> exits non-zero.",
+          "command": "node scripts/lib/derive-next-command-cli.mjs --task TASK-CLI --snapshot scripts/lib/fixtures/derive-next-command-snapshot.json | node -e 'const fs = require(\"fs\"); const o = JSON.parse(fs.readFileSync(0, \"utf8\")); console.log(typeof o.label + \":\" + o.label); console.log(typeof o.command + \":\" + o.command);'",
+          "result": "Known TASK-CLI exited 0 and parsed to label string 'Resume implementation' and command string '/implement-with-ralph resume fixture-cli-job'; missing MISSING-TASK exited 1."
+        },
+        {
+          "criterion": "Vitest at scripts/lib/derive-next-command-cli.test.mjs covers at least 3 cases: happy-path --task on a fixture snapshot returns expected command; --snapshot override resolves to a custom file; --task missing exits non-zero with the task id in stderr. pnpm test scripts/lib/derive-next-command-cli.test.mjs passes.",
+          "command": "pnpm test scripts/lib/derive-next-command-cli.test.mjs",
+          "result": "Exit 0; 1 test file passed, 4 tests passed, covering fixture happy path, custom --snapshot override, repoRoot parallel group, and missing task stderr."
+        },
+        {
+          "criterion": "Typecheck passes.",
+          "command": "pnpm --filter @codexu/overview-viewer typecheck > .test-output/overview-viewer.typecheck.log 2>&1; tail -30 .test-output/overview-viewer.typecheck.log",
+          "result": "Exit 0; tsc --noEmit completed with no errors."
+        }
+      ],
+      "dependencies": [
+        "US-001"
+      ],
+      "failureClassification": "",
+      "partialProgress": null
+    },
+    {
+      "id": "US-003",
+      "title": "/work-on skill",
+      "description": "As a Ralph user, I want /work-on <task-id> to resolve the right Ralph skill invocation for a task's current stage and either dry-run-print or invoke it.",
+      "acceptanceCriteria": [
+        ".claude/skills/work-on/SKILL.md exists with YAML frontmatter (name: work-on, description: ...).",
+        "Body covers arg parsing (positional <task-id> exact case-insensitive match; --dry-run; --via-crew error for Plan 08); snapshot location; task resolution + picker on ambiguity; null-handling for shipped vs other stages; seed-prompt fallback; explicit skill-name mapping (/plan-with-ralph -> ralph-orchestration:plan-with-ralph etc.).",
+        "Dry-run output verified deterministically: `node scripts/lib/derive-next-command-cli.mjs --task <fixture-id> --snapshot <fixture-snapshot.json>` returns the predicate-table command for the task stage as JSON. The /work-on skill body invokes this same CLI, so the CLI test in US-002 and the predicate test in US-001 transitively cover the dry-run output.",
+        "`/work-on <known-id> --via-crew foo` errors with the exact string \"crews delegation not yet implemented — wait for Plan 08.\" (assert by `grep -q \"crews delegation not yet implemented\" .claude/skills/work-on/SKILL.md` exit 0).",
+        "Skill body content asserted by grep against `.claude/skills/work-on/SKILL.md`: `grep -q \"name: work-on\"`, `grep -q -- \"--via-crew\"`, `grep -q \"ralph-orchestration:plan-with-ralph\"` all return exit 0.",
+        "Typecheck passes."
+      ],
+      "priority": 3,
+      "passes": true,
+      "notes": "",
+      "verifiedEvidence": [
+        {
+          "criterion": ".claude/skills/work-on/SKILL.md exists with YAML frontmatter (name: work-on, description: ...).",
+          "command": "test -f .claude/skills/work-on/SKILL.md && grep -nE '^name: work-on|^description:' .claude/skills/work-on/SKILL.md",
+          "result": "Exit 0; file exists with frontmatter name at line 2 and description at line 3."
+        },
+        {
+          "criterion": "Body covers arg parsing (positional <task-id> exact case-insensitive match; --dry-run; --via-crew error for Plan 08); snapshot location; task resolution + picker on ambiguity; null-handling for shipped vs other stages; seed-prompt fallback; explicit skill-name mapping (/plan-with-ralph -> ralph-orchestration:plan-with-ralph etc.).",
+          "command": "grep -nE 'exact and case-insensitive|--dry-run|--via-crew|overview-snapshot|numbered picker|seed prompt|shipped|cannot derive command|ralph-orchestration:plan-with-ralph|derive-next-command-cli' .claude/skills/work-on/SKILL.md",
+          "result": "Exit 0; grep found exact case-insensitive matching, --dry-run, --via-crew, overview-snapshot location, ambiguity picker, seed prompt fallback, shipped/null handling, CLI helper invocation, and Ralph skill-name mapping."
+        },
+        {
+          "criterion": "Dry-run output verified deterministically: node scripts/lib/derive-next-command-cli.mjs --task <fixture-id> --snapshot <fixture-snapshot.json> returns the predicate-table command for the task stage as JSON. The /work-on skill body invokes this same CLI, so the CLI test in US-002 and the predicate test in US-001 transitively cover the dry-run output.",
+          "command": "node scripts/lib/derive-next-command-cli.mjs --task TASK-CLI --snapshot scripts/lib/fixtures/derive-next-command-snapshot.json",
+          "result": "Exit 0; stdout JSON was {\"label\":\"Resume implementation\",\"command\":\"/implement-with-ralph resume fixture-cli-job\"}. Parsed smoke confirmed both label and command are strings. Skill body invokes scripts/lib/derive-next-command-cli.mjs at line 80."
+        },
+        {
+          "criterion": "C:/Program Files/Git/work-on <known-id> --via-crew foo errors with the exact string \"crews delegation not yet implemented — wait for Plan 08.\" (assert by grep -q \"crews delegation not yet implemented\" .claude/skills/work-on/SKILL.md exit 0).",
+          "command": "grep -q 'crews delegation not yet implemented' .claude/skills/work-on/SKILL.md && echo 'via-crew error string present'",
+          "result": "Exit 0; via-crew error string present in the skill body."
+        },
+        {
+          "criterion": "Skill body content asserted by grep against .claude/skills/work-on/SKILL.md: grep -q \"name: work-on\", grep -q -- \"--via-crew\", grep -q \"ralph-orchestration:plan-with-ralph\" all return exit 0.",
+          "command": "grep -q 'name: work-on' .claude/skills/work-on/SKILL.md && grep -q -- '--via-crew' .claude/skills/work-on/SKILL.md && grep -q 'ralph-orchestration:plan-with-ralph' .claude/skills/work-on/SKILL.md && echo 'content assertion greps passed'",
+          "result": "Exit 0; required name, --via-crew, and ralph-orchestration:plan-with-ralph greps all passed."
+        },
+        {
+          "criterion": "Typecheck passes.",
+          "command": "pnpm --filter @codexu/overview-viewer typecheck > .test-output/overview-viewer.typecheck.log 2>&1; tail -30 .test-output/overview-viewer.typecheck.log",
+          "result": "Exit 0; tsc --noEmit completed with no errors."
+        }
+      ],
+      "dependencies": [
+        "US-001",
+        "US-002"
+      ],
+      "failureClassification": "",
+      "partialProgress": null
+    },
+    {
+      "id": "US-004",
+      "title": "/triage skill",
+      "description": "As a Ralph user, I want /triage to rank tasks needing attention from the snapshot's recommendations and chain into /work-on.",
+      "acceptanceCriteria": [
+        ".claude/skills/triage/SKILL.md exists with frontmatter and body.",
+        "Reads snapshot.recommendations primarily; falls back to plans/overview-recommendations.json wrapper only when snapshot is missing (not when snapshot is present-but-empty).",
+        "Renders numbered list with taskId, stage, score, reasons; prompts for picker; selecting a number invokes /work-on <id>.",
+        "--limit N and --filter stage=<stage> flags supported.",
+        "Behavior verified deterministically: skill body contains the documented snapshot-vs-wrapper fallback rule, the no-recommendations message string \"no recommendations available\", and the picker-to-/work-on chain instruction. Verified via grep against `.claude/skills/triage/SKILL.md`: `grep -q \"snapshot.recommendations\"`, `grep -q \"no recommendations available\"`, `grep -q -- \"--limit\"`, `grep -q \"--filter stage=\"` all return exit 0.",
+        "Typecheck passes."
+      ],
+      "priority": 4,
+      "passes": true,
+      "notes": "",
+      "verifiedEvidence": [
+        {
+          "criterion": ".claude/skills/triage/SKILL.md exists with frontmatter and body.",
+          "command": "test -f .claude/skills/triage/SKILL.md && grep -nE '^name: triage|^description:' .claude/skills/triage/SKILL.md",
+          "result": "Exit 0; file exists with frontmatter name at line 2 and description at line 3, followed by the triage skill body."
+        },
+        {
+          "criterion": "Reads snapshot.recommendations primarily; falls back to plans/overview-recommendations.json wrapper only when snapshot is missing (not when snapshot is present-but-empty).",
+          "command": "grep -nF 'snapshot.recommendations' .claude/skills/triage/SKILL.md && grep -nF 'overview-recommendations' .claude/skills/triage/SKILL.md && grep -nF 'Do not fall back' .claude/skills/triage/SKILL.md && grep -nF 'present snapshot' .claude/skills/triage/SKILL.md",
+          "result": "Exit 0; skill body names snapshot.recommendations as primary, documents wrapper fallback only when plans/overview-snapshot.json is missing, and explicitly says not to fall back when a present snapshot has an empty recommendation list."
+        },
+        {
+          "criterion": "Renders numbered list with taskId, stage, score, reasons; prompts for picker; selecting a number invokes /work-on <id>.",
+          "command": "grep -nE 'numbered list|taskId, stage, score, and|Reasons:|Prompt the user|Skill[(]\"work-on\"|picker-to-/work-on' .claude/skills/triage/SKILL.md",
+          "result": "Exit 0; render section includes numbered list format with taskId/stage/score/reasons and /work-on taskId line; picker section prompts for 1..N and invokes Skill(\"work-on\", args=\"<selected-task-id>\")."
+        },
+        {
+          "criterion": "--limit N and --filter stage=<stage> flags supported.",
+          "command": "grep -nE -- '--limit N|--filter stage=<stage>' .claude/skills/triage/SKILL.md",
+          "result": "Exit 0; frontmatter and Arguments/Filtering sections document --limit N defaulting to 5 and exact --filter stage=<stage> filtering."
+        },
+        {
+          "criterion": "Behavior verified deterministically: skill body contains the documented snapshot-vs-wrapper fallback rule, the no-recommendations message string \"no recommendations available\", and the picker-to-/work-on chain instruction. Verified via grep against `.claude/skills/triage/SKILL.md`: `grep -q \"snapshot.recommendations\"`, `grep -q \"no recommendations available\"`, `grep -q -- \"--limit\"`, `grep -q \"--filter stage=\"` all return exit 0.",
+          "command": "grep -q 'snapshot.recommendations' .claude/skills/triage/SKILL.md && grep -q 'no recommendations available' .claude/skills/triage/SKILL.md && grep -q -- '--limit' .claude/skills/triage/SKILL.md && grep -q -- '--filter stage=' .claude/skills/triage/SKILL.md && echo 'triage content greps passed'",
+          "result": "Exit 0; triage content greps passed. Used grep -q -- for the --filter stage= pattern so GNU grep treats the leading dashes as data."
+        },
+        {
+          "criterion": "Typecheck passes.",
+          "command": "pnpm --filter @codexu/overview-viewer typecheck > .test-output/overview-viewer.typecheck.log 2>&1; tail -30 .test-output/overview-viewer.typecheck.log",
+          "result": "Exit 0; tsc --noEmit completed with no errors. Tail showed @codexu/overview-viewer typecheck running tsc --noEmit."
+        }
+      ],
+      "dependencies": [
+        "US-001",
+        "US-002",
+        "US-003"
+      ],
+      "failureClassification": "",
+      "partialProgress": null
+    },
+    {
+      "id": "US-005",
+      "title": "/blocker-report skill",
+      "description": "As a Ralph user, I want /blocker-report to surface blocked tasks with proposed remediation commands.",
+      "acceptanceCriteria": [
+        ".claude/skills/blocker-report/SKILL.md exists with frontmatter and body.",
+        "Filters snapshot.tasks for ralph.stage === \"blocked\", ralph.stage === \"review-fix\" with non-zero reviewOpenCount.code|docs (open Medium+ findings — wording must match), ralph.deferredQuestionsCount > 0 (gated; undefined treated as 0), and PRD userStories[].blocked === true.",
+        "Renders entries with taskId, stage, jobDir, blocker summary, proposed action (/implement-with-ralph resume <jobSlug>). Picker chains into /work-on.",
+        "Behavior verified deterministically: skill body contains the four filter clauses and the literal phrase \"open Medium+ review findings\" (NOT \"Critical/High\"). Verified via grep against `.claude/skills/blocker-report/SKILL.md`: `grep -q \"blocked\"`, `grep -q \"reviewOpenCount\"`, `grep -q \"deferredQuestionsCount\"`, `grep -q \"open Medium+\"` all return exit 0.",
+        "Skill body contains the proposed-action template `/implement-with-ralph resume` and the picker-to-/work-on chain instruction. Verified via `grep -q \"/implement-with-ralph resume\"` and `grep -q \"/work-on\"` against `.claude/skills/blocker-report/SKILL.md` returning exit 0.",
+        "Typecheck passes."
+      ],
+      "priority": 5,
+      "passes": true,
+      "notes": "",
+      "verifiedEvidence": [
+        {
+          "criterion": ".claude/skills/blocker-report/SKILL.md exists with frontmatter and body.",
+          "command": "test -f .claude/skills/blocker-report/SKILL.md && grep -nE '^name: blocker-report|^description:' .claude/skills/blocker-report/SKILL.md",
+          "result": "Exit 0; file exists with frontmatter name at line 2 and description at line 3, followed by the blocker-report skill body."
+        },
+        {
+          "criterion": "Filters snapshot.tasks for ralph.stage === \"blocked\", ralph.stage === \"review-fix\" with non-zero reviewOpenCount.code|docs (open Medium+ findings — wording must match), ralph.deferredQuestionsCount > 0 (gated; undefined treated as 0), and PRD userStories[].blocked === true.",
+          "command": "grep -nE 'ralph.stage === \"blocked\"|ralph.stage === \"review-fix\"|reviewOpenCount.code|reviewOpenCount.docs|deferredQuestionsCount > 0|undefined.*0|userStories[].blocked === true|open Medium+ review findings' .claude/skills/blocker-report/SKILL.md",
+          "result": "Exit 0; grep found all four filter clauses, undefined deferredQuestionsCount treated as 0, and the literal open Medium+ review findings wording."
+        },
+        {
+          "criterion": "Renders entries with taskId, stage, jobDir, blocker summary, proposed action (/implement-with-ralph resume <jobSlug>). Picker chains into /work-on.",
+          "command": "grep -nE 'taskId, stage, jobDir|Blocker:|Proposed action: /implement-with-ralph resume|-> /work-on|Skill(\"work-on\", args=' .claude/skills/blocker-report/SKILL.md",
+          "result": "Exit 0; render section includes taskId/stage/jobDir/blocker summary/proposed action, /work-on line, and Skill(\"work-on\", args=\"<selected-task-id>\") picker chain."
+        },
+        {
+          "criterion": "Behavior verified deterministically: skill body contains the four filter clauses and the literal phrase \"open Medium+ review findings\" (NOT \"Critical/High\"). Verified via grep against `.claude/skills/blocker-report/SKILL.md`: `grep -q \"blocked\"`, `grep -q \"reviewOpenCount\"`, `grep -q \"deferredQuestionsCount\"`, `grep -q \"open Medium+\"` all return exit 0.",
+          "command": "grep -q 'blocked' .claude/skills/blocker-report/SKILL.md && grep -q 'reviewOpenCount' .claude/skills/blocker-report/SKILL.md && grep -q 'deferredQuestionsCount' .claude/skills/blocker-report/SKILL.md && grep -q 'open Medium+' .claude/skills/blocker-report/SKILL.md && echo 'blocker filter greps passed'",
+          "result": "Exit 0; blocker filter greps passed."
+        },
+        {
+          "criterion": "Skill body contains the proposed-action template `/implement-with-ralph resume` and the picker-to-/work-on chain instruction. Verified via `grep -q \"/implement-with-ralph resume\"` and `grep -q \"/work-on\"` against `.claude/skills/blocker-report/SKILL.md` returning exit 0.",
+          "command": "grep -q '/implement-with-ralph resume' .claude/skills/blocker-report/SKILL.md && grep -q '/work-on' .claude/skills/blocker-report/SKILL.md && echo 'proposed action and work-on greps passed'",
+          "result": "Exit 0; proposed action and work-on greps passed."
+        },
+        {
+          "criterion": "Typecheck passes.",
+          "command": "pnpm --filter @codexu/overview-viewer typecheck > .test-output/overview-viewer.typecheck.log 2>&1; tail -30 .test-output/overview-viewer.typecheck.log",
+          "result": "Exit 0; tsc --noEmit completed with no errors. Tail showed @codexu/overview-viewer typecheck running tsc --noEmit."
+        }
+      ],
+      "dependencies": [
+        "US-001",
+        "US-002",
+        "US-003"
+      ],
+      "failureClassification": "",
+      "partialProgress": null
+    },
+    {
+      "id": "US-006",
+      "title": "Cascade refresh",
+      "description": "As a Ralph pipeline maintainer, I want Plan 06's implementation to update the INDEX and downstream plan references so future agents see a consistent contract.",
+      "acceptanceCriteria": [
+        "plans/ralph-pipeline-INDEX.md \"Source-of-truth modules\" table lists scripts/lib/derive-next-command.mjs and the new .claude/skills/{work-on,triage,blocker-report}/ artifacts.",
+        "plans/ralph-pipeline-07-context.md reference to /blocker-report and deferredQuestionsPreview field name matches the actual implementation.",
+        "plans/ralph-pipeline-08-crews.md --via-crew error string matches the implemented one.",
+        "plans/ralph-pipeline-09-mcp.md predicate-module path matches.",
+        "**If Plan 07 worker is still RUNNING at cascade time**, emit ## Deferred Cascade entries to notepad.md instead of touching shared plan docs.",
+        "Cascade lands as a single atomic commit; commit message lists each diff (file:line, change summary).",
+        "Typecheck passes (no .ts changes here; this is doc-only)."
+      ],
+      "priority": 6,
+      "passes": true,
+      "notes": "",
+      "verifiedEvidence": [
+        {
+          "criterion": "plans/ralph-pipeline-INDEX.md \"Source-of-truth modules\" table lists scripts/lib/derive-next-command.mjs and the new .claude/skills/{work-on,triage,blocker-report}/ artifacts.",
+          "command": "grep -n \"## Deferred Cascade|ralph-pipeline-INDEX.md\" D:/harness-efforts/codexu/.ralph/jobs/ralph-pipeline-06-skills/notepad.md",
+          "result": "FALLBACK: Plan 07 worker was RUNNING, so shared plan docs were not touched; notepad Deferred Cascade lines 18 and 21 record the pending INDEX update for scripts/lib/derive-next-command.mjs and .claude/skills/{work-on,triage,blocker-report}/SKILL.md."
+        },
+        {
+          "criterion": "plans/ralph-pipeline-07-context.md reference to /blocker-report and deferredQuestionsPreview field name matches the actual implementation.",
+          "command": "grep -n \"ralph-pipeline-07-context.md|deferredQuestionsPreview\" D:/harness-efforts/codexu/.ralph/jobs/ralph-pipeline-06-skills/notepad.md",
+          "result": "FALLBACK: Plan 07 worker was RUNNING; notepad Deferred Cascade line 22 records the pending Plan 07 audit for /blocker-report, ralph.deferredQuestionsCount, and ralph.deferredQuestionsPreview."
+        },
+        {
+          "criterion": "plans/ralph-pipeline-08-crews.md --via-crew error string matches the implemented one.",
+          "command": "grep -n \"ralph-pipeline-08-crews.md|crews delegation not yet implemented\" D:/harness-efforts/codexu/.ralph/jobs/ralph-pipeline-06-skills/notepad.md",
+          "result": "FALLBACK: Plan 07 worker was RUNNING; notepad Deferred Cascade line 23 records the exact implemented string `crews delegation not yet implemented — wait for Plan 08.` for the later Plan 08 audit."
+        },
+        {
+          "criterion": "plans/ralph-pipeline-09-mcp.md predicate-module path matches.",
+          "command": "grep -n \"ralph-pipeline-09-mcp.md|deriveNextCommand\" D:/harness-efforts/codexu/.ralph/jobs/ralph-pipeline-06-skills/notepad.md",
+          "result": "FALLBACK: Plan 07 worker was RUNNING; notepad Deferred Cascade line 24 records the pending Plan 09 audit for scripts/lib/derive-next-command.mjs and deriveNextCommand(state, task, options?)."
+        },
+        {
+          "criterion": "If Plan 07 worker is still RUNNING at cascade time, emit ## Deferred Cascade entries to notepad.md instead of touching shared plan docs.",
+          "command": "cat D:/harness-efforts/codexu/.ralph/jobs/ralph-pipeline-07-context/job-state.json | grep -n \"status|updatedAt\"; grep -n \"## Deferred Cascade\" D:/harness-efforts/codexu/.ralph/jobs/ralph-pipeline-06-skills/notepad.md; git diff --name-only -- plans/ralph-pipeline-INDEX.md plans/ralph-pipeline-07-context.md plans/ralph-pipeline-08-crews.md plans/ralph-pipeline-09-mcp.md",
+          "result": "Plan 07 job-state showed status RUNNING updatedAt 2026-05-20T08:12:16Z; notepad contains ## Deferred Cascade at line 18; git diff --name-only for the shared plan docs returned no files."
+        },
+        {
+          "criterion": "Cascade lands as a single atomic commit; commit message lists each diff (file:line, change summary).",
+          "command": "git show -s --format=%H%n%B HEAD",
+          "result": "Commit dd907aa is feat: US-006 - Cascade refresh; body lists D:/harness-efforts/codexu/.ralph/jobs/ralph-pipeline-06-skills/notepad.md:18 and explains the deferred cascade entry. No shared plan-doc diffs were committed because Plan 07 was RUNNING."
+        },
+        {
+          "criterion": "Typecheck passes (no .ts changes here; this is doc-only).",
+          "command": "pnpm --filter @codexu/overview-viewer typecheck > .test-output/overview-viewer.typecheck.log 2>&1; tail -30 .test-output/overview-viewer.typecheck.log",
+          "result": "Exit 0; @codexu/overview-viewer ran tsc --noEmit with no errors."
+        }
+      ],
+      "dependencies": [
+        "US-001",
+        "US-002",
+        "US-003",
+        "US-004",
+        "US-005"
+      ],
+      "failureClassification": "",
+      "partialProgress": null
+    }
+  ],
+  "planReviewContext": [
+    {
+      "id": "F-001",
+      "severity": "High",
+      "description": "deriveNextCommand(state, task) had no repoRoot input, making the parallel-group '/implement-with-ralph --run-only --job <absolute_groupDir>' command underivable since sync-core.mjs emits artifacts.groupDir as repo-relative.",
+      "source": "consensus",
+      "category": "Feasibility",
+      "relevantFiles": [
+        "scripts/lib/derive-next-command.mjs",
+        "scripts/lib/derive-next-command-cli.mjs"
+      ],
+      "suggestedFix": "Add optional repoRoot arg; CLI helper supplies it."
+    },
+    {
+      "id": "F-002",
+      "severity": "High",
+      "description": "/brainstorm-with-ralph without a name argument cannot resume a specific brainstorm — the skill derives brainstorm_name from $ARGUMENTS.",
+      "source": "codex",
+      "category": "Feasibility",
+      "relevantFiles": [
+        "scripts/lib/derive-next-command.mjs"
+      ],
+      "suggestedFix": "Include brainstorm slug from artifacts.brainstormDir trailing segment."
+    },
+    {
+      "id": "F-003",
+      "severity": "High",
+      "description": "Skill invocation with args may not be supported by the runtime; '/work-on, /triage, /blocker-report invoking skills' is not mechanically verifiable.",
+      "source": "copilot",
+      "category": "Feasibility",
+      "relevantFiles": [
+        ".claude/skills/work-on/SKILL.md"
+      ],
+      "suggestedFix": "Document skill-name mapping and rely on --dry-run for verifiability."
+    }
+  ]
+}

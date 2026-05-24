@@ -1,0 +1,31 @@
+### Feasibility
+
+[High] `overview.invoke_next` via `viaCrewMember` would corrupt MCP stdio unless the plan explicitly overrides `runWorkOnViaCrew`’s `stdout`. The helper defaults to `process.stdout` and writes a confirmation line at [scripts/lib/work-on-via-crew.mjs](D:/harness-efforts/codexu/scripts/lib/work-on-via-crew.mjs:21) and [line 61](D:/harness-efforts/codexu/scripts/lib/work-on-via-crew.mjs:61). The plan says diagnostics must go to stderr, but the delegated call omits `stdout`; pass a sink or `process.stderr`.
+
+[High] `list_blockers` / `hasOpenFindings` logic is wrong as written. `reviewOpenCount` is `Record<string, number | undefined>` in [tools/overview-viewer/src/types.ts](D:/harness-efforts/codexu/tools/overview-viewer/src/types.ts:89), not a number, so `(reviewOpenCount ?? 0) > 0` will not detect open findings. Existing code uses `Object.values(reviewOpenCount).some(...)` in [scripts/lib/derive-ralph-stage.mjs](D:/harness-efforts/codexu/scripts/lib/derive-ralph-stage.mjs:64).
+
+[Medium] The Plan 08-missing fallback for `invoke_next` is only feasible if `work-on-via-crew.mjs` is dynamically imported or checked before import. A static import would crash server startup before the tool can return `{ ok: false, error: 'requires plan 08' }`.
+
+### Completeness
+
+[High] The modify list omits `pnpm-lock.yaml`. Adding `tools/overview-mcp` plus package-local dependencies requires a new lockfile importer; otherwise frozen installs can fail even if `package.json` and `pnpm-workspace.yaml` are updated.
+
+[High] The Plan 10 handoff path is stale. The plan references `plans/ralph-pipeline-10-handoff.md`, but the repo has [plans/ralph-pipeline-10-ralph-handoff.md](D:/harness-efforts/codexu/plans/ralph-pipeline-10-ralph-handoff.md:1). US-010 should name the real file or the downstream audit can silently skip it.
+
+[Medium] `get_task` reads `tasks/<taskId>/journal.md`, but its AC does not require validating `taskId` or deriving the journal path from the matched snapshot task. `add_journal_entry` covers path traversal via `assertSafeTaskId`; the read path should have the same guard or require a known task match before reading.
+
+### Ordering
+
+No issues found.
+
+### Simplicity
+
+[Medium] `list_crew_sessions` should not try to reuse `matchTaskId()` “post-discovery”; that function is private inside [scripts/lib/crews-cross-walk.mjs](D:/harness-efforts/codexu/scripts/lib/crews-cross-walk.mjs:34). `discoverCrewSessions()` already returns a `Map` keyed by taskId, so the simpler integration is to flatten that map and exact-filter by `taskId`.
+
+### Acceptance Criteria Quality
+
+[Medium] `appendJournalNote` “idempotency” is vague and conflicts with append-only semantics. If the intended check is “creating the task directory is idempotent,” say that. If repeated identical notes should dedupe, that needs an explicit contract.
+
+[Medium] `overview.invoke_next` does not specify behavior when `deriveNextCommand()` returns `null` for shipped/unknown/non-actionable tasks. The AC currently requires `{ ok: true, command: NextCommand }`; add a concrete `{ ok: false, error }` or `{ ok: true, command: null }` case.
+
+[Medium] `overview.list_crew_sessions` says it returns “array of live crew sessions,” but the reused API returns taskId → stage → refs. The AC should specify the flattened item shape, especially whether each item includes `taskId` and `stage`, because `get_transcript` depends on callers finding `sessionId`.

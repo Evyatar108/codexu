@@ -1,0 +1,55 @@
+I’m reading the attached task file in chunks to identify the requested work.
+
+I found the review instructions and plan; next I’m locating the actual diff sections to assess implementation against it.
+
+I’ve reached the diff; I’m now reading the implementation hunks that are most likely to hide correctness or completeness gaps.
+
+I’ve got the core reducer and wiring; I’m filling in the remaining hunks around the parser, wire types, and docs to look for plan mismatches.
+
+I still need the source wire-type and integration-test hunks to judge plan coverage, so I’m pulling the nearby diff ranges where those files should appear.
+
+I’ve confirmed several core files, but some planned files still haven’t appeared in the diff; I’m checking whether they were omitted entirely or are just farther down.
+
+I’m checking the tail of the diff now; the generated `happy-wire/dist` changes may be hiding whether the planned source and docs edits actually landed afterward.
+
+The diff is much longer than the initial view suggested, so I’m sampling later sections to find whether the missing source, integration, and docs files were actually changed.
+
+I’ve extracted enough of the attached diff to spot likely gaps, and I’m cross-checking against the actual worktree so I can confirm which planned files were really changed.
+
+The root repo only shows the `codex` submodule pointer as changed, so I’m checking inside that worktree to confirm the actual file set.
+
+The generated declarations still dominate the tail, so I’m checking just past that point to see whether any source/docs hunks exist after `happy-wire/dist`.
+
+I can validate a few suspected gaps by searching the checked-out submodule directly for the new symbols and planned test/doc touchpoints.
+
+Those symbols aren’t present under `codex/`, so I’m checking the repo root as well in case the diff corresponds to the main workspace rather than the submodule.
+
+I’m checking the existing codebase for the underlying item shape so I can tell whether the parser is dropping fields or applying state transitions at the wrong phase.
+
+I found the generated protocol schema for `collabAgentToolCall`; reading that lets me verify whether the implementation is ignoring important fields like status or tool results.
+
+I suspect the wire package may have only generated `dist` changes in the diff, so I’m checking the package layout to see whether omitting `src` edits would break workspace consumers.
+
+I want to avoid overstating missing files, so I’m jumping farther ahead in the attachment to see whether later diff hunks cover the planned integration/doc/source edits.
+
+I found the later source/doc hunks, including roadmap updates, and I’m now checking for the remaining planned items like the primary real-Codex integration test and the parallel-assignments update.
+
+I want to verify one other possible gap from the plan: whether the legacy `codex/event` path already forwards non-spawn collab tool events, or whether the new code only handles the v2 path.
+
+### Completeness
+- [High] The patch never touches `packages/happy-cli/src/codex/codex.integration.test.ts`, even though the plan explicitly calls that file out as the **primary acceptance** surface (plan lines 128-136, 181-184) and `packages/happy-cli/agents.md` requires the real agent surface there. The diff jumps straight from `packages/happy-cli/src/codex/codexAppServerClient.ts` to `packages/happy-cli/src/codex/runCodex.agentTree.test.ts` (attached diff around lines 1050-1178 and 1178-1438). At the same time, `plans/codexu-roadmap.md:186-193` says the real-Codex nested-child acceptance is still blocked, while `plans/agent-view-research.md:192-196`, `plans/parallel-assignments.md:371-379` and `:563-569`, and `plans/overview.html:1597-1604` all mark the task shipped/done. That means AC4 is still unmet, but the docs now overstate completion.
+
+### Correctness
+- [High] `packages/happy-cli/src/codex/codexAppServerClient.ts:344-405` emits `collabAgentToolCall` events for `sendInput`, `wait`, `closeAgent`, and `resumeAgent` on both `item/started` and `item/completed`, but `packages/happy-cli/src/codex/agentTreeState.ts:315-323` ignores the emitted `phase` and applies the transition immediately. For `closeAgent`, that means the subtree is removed as soon as the tool starts, even though the v2 schema exposes a real `status` field for the tool call (`codex/external/repos/codex-patched/codex-rs/app-server-protocol/schema/typescript/v2/ThreadItem.ts:74-101`). A failed/cancelled close will therefore make the live tree lie by dropping agents that are still running.
+
+- [Medium] The same parser collapses `receiverThreadIds` to a single thread via `firstStringField(item.receiverThreadIds, ...)` in `packages/happy-cli/src/codex/codexAppServerClient.ts:347-349`, but the protocol shape is explicitly multi-target: `receiverThreadIds: Array<string>` plus per-target `agentsStates` (`.../ThreadItem.ts:82-101`). Any multi-agent `wait`/`resumeAgent`/`closeAgent` call will update only the first child and leave the rest of the tree stale.
+
+### Quality
+- [Low] `plans/codexu-roadmap.md:207-212` records this work as five commits, and `plans/overview.html:1597-1604` / `plans/parallel-assignments.md:563-569` embed commit `b2826f89`, which conflicts with the plan’s “single commit on main” constraint and its “no self-referencing SHA” guidance for this delivery. Even if that gets cleaned up later, the checked-in planning artifacts are currently out of sync with the implementation rules they claim to satisfy.
+
+### Security
+No issues found.
+
+### Overall Assessment
+Not ready. The core plumbing is close, but the patch still lacks the required real-Codex primary acceptance and has a phase-handling bug that can make `agent-tree-update` report removals before the underlying collab tool call has actually succeeded.
+

@@ -1,0 +1,50 @@
+{
+  "storyId": "US-005",
+  "verifiedEvidence": [
+    {
+      "criterion": "assembleStateFromBundles returns enriched state with runDurations and non-serialized prdsByTaskId.",
+      "command": "node --input-type=module fixture calling walkRalphState, writeSidecar, and getPrdsByTaskId",
+      "result": "Exit 0; persisted runDurations {\"task/run\":2}, persistedHasPrdsByTaskId false, carrierStoryId \"US-001\".",
+      "evidenceKind": "command-output"
+    },
+    {
+      "criterion": "Incremental enrichment matches one-shot enrichment.",
+      "command": "pnpm --filter @codexu/overview-viewer exec vitest run src/__tests__/syncCore.test.ts",
+      "result": "Exit 0; 1 test file passed, 16 tests passed, including incremental merged/full enriched-state equivalence.",
+      "evidenceKind": "test"
+    },
+    {
+      "criterion": "runDurations is populated before writeSidecar on one-shot, cold-start, and incremental paths.",
+      "command": "grep -nE 'runDurations|await writeSidecar|state: currentState' scripts/lib/sync-core.mjs scripts/lib/watch-ralph-state.mjs",
+      "result": "Source inspection shows assembleStateFromBundles sets runDurations before one-shot/cold-start writes and mergeAndWrite sets it before incremental writeSidecar.",
+      "evidenceKind": "inspection"
+    },
+    {
+      "criterion": "writeSidecar signature remains unchanged.",
+      "command": "grep -n 'export async function writeSidecar({ repoRoot, config, state })' scripts/lib/sync-core.mjs scripts/lib/sync-core.d.mts",
+      "result": "Implementation and declaration keep writeSidecar({ repoRoot, config, state }); no overviewData or PRD parameters were added.",
+      "evidenceKind": "inspection"
+    },
+    {
+      "criterion": "Rebase guard ran.",
+      "command": "git fetch origin main && git rebase origin/main",
+      "result": "Exit 0; current branch ralph-pipeline-04-pipeline-overview was up to date with origin/main before US-005 edits.",
+      "evidenceKind": "command"
+    },
+    {
+      "criterion": "Typecheck passes.",
+      "command": "pnpm --filter @codexu/overview-viewer typecheck > .test-output/overview-viewer.typecheck.log 2>&1",
+      "result": "Exit 0; tsc --noEmit completed with no errors.",
+      "evidenceKind": "typecheck"
+    },
+    {
+      "criterion": "Tests pass.",
+      "command": "pnpm --filter @codexu/overview-viewer test > .test-output/overview-viewer.test.log 2>&1",
+      "result": "Exit 0; 27 test files passed and 153 tests passed.",
+      "evidenceKind": "test"
+    }
+  ],
+  "skippedReasons": [],
+  "notTested": [],
+  "iterationSHA": "cfd93a33a35b9f80f39780aa826352672ace2db5"
+}

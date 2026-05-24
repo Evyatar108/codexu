@@ -1,0 +1,33 @@
+### Feasibility
+
+[Critical] The proposed server schema requires `command: string`, but the actual target config [`.mcp.json`](/d:/harness-efforts/codexu/.mcp.json:2) is HTTP-only: `{ "type": "http", "url": "http://127.0.0.1:29979/mcp" }`. That entry would be rejected, so the feature would not fix the stated `paper` MCP gap. Codex’s own config shape supports either `command` or `url` in `codex/external/repos/codex-patched/codex-rs/config/src/mcp_types.rs:190` and selects HTTP when `url` is present at line 312. The loader schema should require `command` XOR `url`, not always `command`.
+
+[Medium] The plan’s statement that Codex `McpServerConfig` rejects literal `type` may be overstated for the current Rust type: `RawMcpServerConfig` in `codex/.../config/src/mcp_types.rs:190` does not declare `#[serde(deny_unknown_fields)]`. Stripping `type` is still fine and matches `core-plugins/src/loader.rs:1042`, but the plan should not rely on that as the only normalization requirement.
+
+### Completeness
+
+[High] The plan does not include an acceptance test for the resume path. The requirement explicitly says merge into both `client.startThread` and `resumeExistingThread`; [runCodex.ts](/d:/harness-efforts/codexu/packages/happy-cli/src/codex/runCodex.ts:719) forwards `mcpServers` to resume, but the proposed three mocked tests only assert `client.startThread`. Add a resume test that calls `runCodex({ resumeThreadId })` and asserts `resumeExistingThread` receives both `happy` and the project MCP entry.
+
+[Medium] The loader schema omits Codex-supported MCP fields that appear in the Rust config contract, including `cwd`, `env_vars`, `http_headers`, `env_http_headers`, `bearer_token_env_var`, `startup_timeout_sec`, `tool_timeout_sec`, `enabled`, `required`, and tool allow/deny settings. Some can be passed through, but the plan should explicitly decide whether to preserve supported fields or warn/skip unsupported Claude-only aliases. The external-agent migrator already handles HTTP configs and header/env translation in `codex/.../external_agent_config_tests.rs:457`.
+
+[Low] The docs step says `packages/happy-cli/CLAUDE.md` may include `commit <sha>` in the same commit. A commit cannot practically include its own final SHA unless amended afterward. Prefer “delivered 2026-05-13” or reference the roadmap bullet in the commit message only.
+
+### Ordering
+
+No issues found. The proposed order, loader first, then `runCodex.ts` wiring, then docs, is sensible. The only caveat is that the schema correction above must happen before writing acceptance tests, otherwise the valid fixture should fail.
+
+### Simplicity
+
+[Medium] Instead of inventing a narrow “Claude shape” schema, mirror the Codex `RawMcpServerConfig` transport split: accept stdio entries with `command` and HTTP entries with `url`, strip `type`, and preserve known Codex-compatible fields. That is simpler and less brittle than `.passthrough()` plus a required `command`.
+
+[Low] `cwdAtStart` should be used consistently. The snippet loads `.mcp.json` from `cwdAtStart` but existing call sites still pass `process.cwd()` to `startThread` and `resumeExistingThread` at [runCodex.ts](/d:/harness-efforts/codexu/packages/happy-cli/src/codex/runCodex.ts:724) and line 791. Use the same captured cwd for loader and thread params to avoid rare mismatches in tests or future code that calls `process.chdir()`.
+
+### Acceptance Criteria Quality
+
+[High] Criteria 1-3 should include an HTTP `.mcp.json` fixture matching the real repo file, not just a stdio `{ command }` fixture. Otherwise the tests can pass while the actual `paper` server remains invisible.
+
+[Medium] Criteria should assert `type` is stripped and the project entry is still accepted when it uses `{ type: "http", url: ... }`.
+
+[Medium] Criteria should include resume behavior: `resumeExistingThread` receives merged `mcpServers`, including project entries, and reserved `happy` from the project file is skipped.
+
+[Low] The `runCodex.projectMcp.test.ts` setup must ensure `hasActiveThread()` returns `false` and a user batch is queued; otherwise `runCodex` exits before `client.startThread` is called. Existing sibling tests vary here: `runCodex.fork.test.ts` sets `hasActiveThread = true`, so copying it directly would not exercise the target path.

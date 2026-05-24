@@ -1,0 +1,28 @@
+{
+  "recommendation": "CONTINUE",
+  "passCount": 3,
+  "storiesCompleted": [
+    {"id": "US-001", "commitSha": "3bb42395", "evidenceValidation": "VALID"},
+    {"id": "US-002", "commitSha": "e8284585", "evidenceValidation": "VALID"},
+    {"id": "US-003", "commitSha": "2eb3f440", "evidenceValidation": "VALID"}
+  ],
+  "storiesBlocked": [],
+  "storiesRemaining": [
+    {"id": "US-004", "status": "unblocked"},
+    {"id": "US-005", "status": "dependency-blocked", "waitsOn": ["US-004"]},
+    {"id": "US-006", "status": "dependency-blocked", "waitsOn": ["US-004", "US-005"]}
+  ],
+  "deferredQuestions": [],
+  "storyDoctorActions": [],
+  "qualityGateResult": "pass",
+  "rollbackFailures": [],
+  "notes": {
+    "velocityStoriesPerIter": 1.0,
+    "iterationsThisRun": 3,
+    "paritySpotCheck": {"story": "US-003", "result": "pass", "method": "diff-u and git-diff-no-index against upstream"},
+    "refactoringPass": "skipped (interval=5 default, completedCount=3)",
+    "recurringFailureDetection": "unavailable (job-state.json.startCommit is null)",
+    "qualityGateFrequencyUsed": 1,
+    "compactionApplied": false
+  }
+}

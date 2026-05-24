@@ -1,0 +1,37 @@
+{
+  "recommendation": "CONTINUE",
+  "passCount": 3,
+  "storiesCompleted": [
+    {"id": "US-001", "commit": "d06ef014d43952141140831cff492d009808e379"},
+    {"id": "US-002", "commit": "4f86ead30f665b5420bcdaf02da22a93c5417d30"},
+    {"id": "US-003", "commit": "9a50c3755599413fba2384425f8d5b036230aaa4"}
+  ],
+  "storiesBlocked": [],
+  "storiesRemaining": ["US-004", "US-005", "US-006"],
+  "storiesUnblocked": ["US-004", "US-005"],
+  "storiesDependencyBlocked": ["US-006"],
+  "deferredQuestions": [],
+  "storyDoctorActions": [],
+  "qualityGateResult": "pass",
+  "qualityGateDetails": {
+    "typecheck": "pass",
+    "tests": "63/63 pass (root vitest), 153/153 pass (overview-viewer)",
+    "paritySpotCheck": "pass (US-001 mirrors: emit-snapshot-schema, task-match, scripts.d.ts)"
+  },
+  "rollbackFailures": [],
+  "evidenceValidation": {
+    "US-001": "VALID",
+    "US-002": "VALID",
+    "US-003": "VALID"
+  },
+  "manifestVerifier": {
+    "iter1": "skipped (no Agent subagent tool; advisory fail-open)",
+    "iter2": "skipped (no Agent subagent tool; advisory fail-open)",
+    "iter3": "skipped (structural validation failed: non-enum evidenceKind values)"
+  },
+  "advisoryNotes": [
+    "iteration-result-3.json uses non-enum evidenceKind values (inspection/test/typecheck); recommend tightening iteration-agent prompt to use {passed,skipped,manual-skip,fallback,absent-verified}."
+  ],
+  "velocity": "3 stories / 3 iterations (1.0 stories/iter)",
+  "recurringFailures": []
+}

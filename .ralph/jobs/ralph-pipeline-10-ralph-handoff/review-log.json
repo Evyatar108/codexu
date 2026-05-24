@@ -1,0 +1,34 @@
+[
+  {
+    "finding_id": "F-001",
+    "duration_s": 176,
+    "status": "fixed",
+    "summary": "Reordered §3.2 decompose-plan precedence list so the explicit --overview-task-id CLI flag comes first (highest precedence), then parent plan metadata, then parent prd.json. Updated the §8 acceptance criterion for decompose-plan and §9 tests to include a CLI-flag-wins precedence test, and added a top-level Acceptance Criterion pinning the new order."
+  },
+  {
+    "finding_id": "F-002",
+    "duration_s": 113,
+    "status": "fixed",
+    "summary": "Reworded §3.1 to make --overview-task-id flag canonical, free-form prompt the default, and the overview-data.js lookup an opt-in config-driven convenience — no longer hardcodes the codexu-specific path."
+  },
+  {
+    "finding_id": "F-003",
+    "duration_s": 104,
+    "status": "fixed",
+    "summary": "Corrected the inaccurate 'both schemas use additionalProperties: true' claim in the Codebase Context bullet and the doc template §2 to reflect that prd-schema.json sets it explicitly on line 7 while group-schema.json relies on the JSON Schema default."
+  },
+  {
+    "finding_id": "F-004",
+    "duration_s": 74,
+    "status": "fixed",
+    "summary": "Replaced the first AC bullet to say '10 top-level sections' with explicit numbered ordering (1. Context through 10. How to pick this up), and removed the parenthetical commentary about the source plan's '6 sections' typo."
+  },
+  {
+    "phase": "soft-cap",
+    "iteration": 5,
+    "openCount": 6,
+    "severities": {
+      "Medium": 6
+    }
+  }
+]

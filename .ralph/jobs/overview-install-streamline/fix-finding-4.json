@@ -1,0 +1,16 @@
+{
+  "id": "F-005",
+  "severity": "Medium",
+  "source": "claude",
+  "category": "Quality",
+  "classification": "fixable",
+  "phase": "code",
+  "sectionRef": "Acceptance Criteria > AC9 (cross-surface parity)",
+  "description": "init-consumer.test.ts:100-108 names a sub-block 'engine, MCP shim stub, and CLI JSON expose matching planning fields', but the 'shim' (overviewInitShim) is implemented at lines 153-155 as `return initConsumer(options)` — a direct passthrough that does not exercise the overview.init MCP tool. AC9 says all three surfaces (engine + MCP + CLI) must produce identical JSON, so cross-parity regressions in the MCP wrapper or its zod-strict casting would go undetected by this specific test. init-upsert-tools.test.ts:28-37 does exercise overviewInit() directly, so the regression surface is narrow but real.",
+  "relevantFiles": [
+    "plugins/ralph-overview/tools/overview-mcp/src/__tests__/init-consumer.test.ts:100-108",
+    "plugins/ralph-overview/tools/overview-mcp/src/__tests__/init-consumer.test.ts:153-155"
+  ],
+  "suggestedFix": "Replace the overviewInitShim stub with a call to overviewInit(context, options) from src/tools/init.ts, building a minimal ServerContext just for the test. Alternatively, add an explicit assertion in init-upsert-tools.test.ts that the MCP overviewInit() result is JSON-equal to the same engine call.",
+  "status": "open"
+}

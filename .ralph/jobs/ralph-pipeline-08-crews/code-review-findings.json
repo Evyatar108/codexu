@@ -1,0 +1,133 @@
+{
+  "planFile": "D:/harness-efforts/codexu/.ralph/jobs/ralph-pipeline-08-crews/plan.md",
+  "repoDir": "D:/harness-efforts/codexu/.ralph/jobs/ralph-pipeline-08-crews/worktree",
+  "reviewCycle": 2,
+  "findings": [
+    {
+      "id": "F-001",
+      "severity": "Medium",
+      "source": "claude",
+      "classification": "fixable",
+      "phase": "code",
+      "category": "Correctness",
+      "sectionRef": "Subcommands - phantom task entry",
+      "description": "runUpdateCrewSession creates a phantom task state ({stage, crewSessions}) when invoked for a taskId that does not exist in the sidecar. On the next walkRalphState, byTaskId is rebuilt from Ralph bundles only and mergeDiscoveredCrewSessions's applyCrewSessionsMap only seeds existing byTaskId entries, so the phantom entry's explicit crewSessions are silently dropped. Recommend validating that taskId already has a Ralph bundle (or at minimum exists in overviewData) before the upsert, or persist crewSessions in a side-table that survives full walks.",
+      "status": "fixed",
+      "relevantFiles": [
+        "scripts/sync-ralph-state.mjs:333",
+        "scripts/lib/sync-core.mjs:354"
+      ],
+      "suggestedFix": "Reject --update-crew-session when taskId is missing from state.byTaskId AND not present in overviewData; OR change mergeDiscoveredCrewSessions to preserve phantom entries by carrying over priorCrewSessions for orphan taskIds.",
+      "fixedInIteration": 1,
+      "resolution": "Guard rejecting --update-crew-session for unknown taskIds applied (commit 270d5cc3)."
+    },
+    {
+      "id": "F-002",
+      "severity": "Medium",
+      "source": "claude",
+      "classification": "fixable",
+      "phase": "code",
+      "category": "Correctness",
+      "sectionRef": "Subcommands - finalize match by sessionId",
+      "description": "--finalize-crew-session validates that --member is required (validateParsedArgs line 290) even when the caller passes --session-id. The plan says matching can be by sessionId. findFinalizeMatches already short-circuits on sessionId when present, so the --member requirement is over-strict and inconsistent with the documented match semantics.",
+      "status": "fixed",
+      "relevantFiles": [
+        "scripts/sync-ralph-state.mjs:288",
+        "scripts/sync-ralph-state.mjs:372"
+      ],
+      "suggestedFix": "Allow --finalize-crew-session when EITHER --member OR --session-id is provided. Update validateParsedArgs to enforce 'at least one of --member or --session-id' instead of requiring --member unconditionally.",
+      "fixedInIteration": 1,
+      "resolution": "validateParsedArgs now requires at least one of --member or --session-id, consistent with findFinalizeMatches."
+    },
+    {
+      "id": "F-003",
+      "severity": "Low",
+      "source": "claude",
+      "classification": "fixable",
+      "phase": "code",
+      "category": "Quality",
+      "sectionRef": "Types - crewSessions shape accuracy",
+      "description": "RalphPipelineState.crewSessions is typed as Record<RalphStage, CrewSessionRef[]> (all 10 stages required) but the implementation builds it sparsely (only stages with active sessions). Pruning via pruneEmptyCrewStages and the schema's additionalProperties:false + properties (not required) confirm sparseness is intended. Type should be Partial<Record<RalphStage, CrewSessionRef[]>> to match runtime.",
+      "status": "fixed",
+      "relevantFiles": [
+        "tools/overview-viewer/src/types.ts:93"
+      ],
+      "suggestedFix": "Change to crewSessions?: Partial<Record<RalphStage, CrewSessionRef[]>>",
+      "fixedInIteration": 1,
+      "resolution": "crewSessions field typed as Partial<Record<RalphStage, CrewSessionRef[]>>; typecheck passes."
+    },
+    {
+      "id": "F-004",
+      "severity": "High",
+      "source": "codex",
+      "classification": "fixable",
+      "phase": "code",
+      "category": "Completeness",
+      "sectionRef": "resolveCrewsRoot - linked-worktree resolution",
+      "description": "crewsRoot is not worktree-safe for custom relative overrides. resolveCrewsRoot() only resolves the literal default '.crews' against the git common repo root (scripts/lib/resolve-config.mjs:149); any other relative value still resolves against the worktree repoRoot, violating plan AC which says 'preserving absolute overrides and resolving relative values against the main repo root when repoRoot is a linked worktree'. normalizeConfigPaths() in scripts/lib/sync-core.mjs:851 also unconditionally resolves crewsRoot against repoRoot, so direct sync-core callers can never get worktree-safe behavior. The current resolve-config.test.mjs test (line 36-41) codifies the divergent behavior.",
+      "status": "fixed",
+      "relevantFiles": [
+        "scripts/lib/resolve-config.mjs:149",
+        "scripts/lib/sync-core.mjs:851",
+        "scripts/lib/resolve-config.test.mjs:36"
+      ],
+      "suggestedFix": "In resolveCrewsRoot(), use resolveCommonRepoRoot(repoRoot) as the base for ALL relative crewsRoot values, not only the default. Also have normalizeConfigPaths() in sync-core.mjs share the same logic (extract or import resolveCrewsRoot). Update the resolve-config.test.mjs 'relative override' test to assert main-repo-root resolution in linked-worktree mode.",
+      "fixedInIteration": 1,
+      "resolution": "resolveCrewsRoot uses common-repo-root base for ALL relative values; normalizeConfigPaths shares the logic via import."
+    },
+    {
+      "id": "F-005",
+      "severity": "High",
+      "source": "codex",
+      "classification": "fixable",
+      "phase": "code",
+      "category": "Correctness",
+      "sectionRef": "Watcher - mailbox/outbox ignore patterns",
+      "description": "Crew mailbox/outbox ignore patterns will not match in linked-worktree mode. The watcher passes absolute paths to matchesIgnored(filePath, absoluteRepoRoot, ...) (scripts/lib/watch-ralph-state.mjs:235). matchesIgnored() relativizes via path.relative(repoRoot, filePath) (scripts/lib/path-utils.mjs:26). When .crews/ is outside the worktree, the relative path begins with '..' and the glob '.crews/crews/*/members/*/mailbox.json' never matches. The watch-ralph-state.test.mjs:219 test passes only because the fixture uses an in-worktree .crews/, not a linked-worktree main-repo .crews/. This violates plan AC for excluded patterns.",
+      "status": "fixed",
+      "relevantFiles": [
+        "scripts/lib/watch-ralph-state.mjs:235",
+        "scripts/lib/path-utils.mjs:26",
+        "scripts/lib/default-config.mjs:39",
+        "scripts/lib/watch-ralph-state.test.mjs:219"
+      ],
+      "suggestedFix": "Relativize ignore patterns against the relevant root for each watch root (Ralph patterns against repoRoot, crews patterns against config.crewsRoot). Either pass per-pattern base roots into matchesIgnored, or pre-resolve the crews patterns to absolute paths once at watcher startup. Add a linked-worktree-style fixture in watch-ralph-state.test.mjs that places .crews/ above the watcher repoRoot to lock the behavior in.",
+      "fixedInIteration": 1,
+      "resolution": "matchesIgnored gained altRoot parameter; watcher passes crewsRootParent to make crews patterns match in linked-worktree mode."
+    },
+    {
+      "id": "F-006",
+      "severity": "High",
+      "source": "codex",
+      "classification": "fixable",
+      "phase": "code",
+      "category": "Quality",
+      "sectionRef": "parse-spawn-launcher test - hardcoded external fixture",
+      "description": "parse-spawn-launcher.test.mjs:19 depends on a real, machine-specific absolute path D:/harness-efforts/codexu/.crews/spawn-launchers/alice-1778830606020.ps1 outside the worktree. .crews/ is explicitly shared, mutable runtime state (not committed branch state), so this test breaks on clean checkouts, on other machines, and any time that launcher is renamed/removed by an unrelated workflow.",
+      "status": "fixed",
+      "relevantFiles": [
+        "scripts/lib/parse-spawn-launcher.test.mjs:19"
+      ],
+      "suggestedFix": "Replace the hardcoded path with a fixture written inside a temp directory in beforeEach (mirroring the pattern used by the other tests in the same file). Move the canonical 'real-format' fixture into test fixtures under scripts/lib/__fixtures__/.",
+      "fixedInIteration": 1,
+      "resolution": "Hardcoded path replaced with inline temp-dir fixture matching the real-format spec."
+    },
+    {
+      "id": "F-007",
+      "severity": "Medium",
+      "source": "codex",
+      "classification": "fixable",
+      "phase": "code",
+      "category": "Correctness",
+      "sectionRef": "work-on-via-crew - manifest polling early exit",
+      "description": "pollMemberManifest at scripts/lib/work-on-via-crew.mjs:79 returns as soon as EITHER sessionId OR transcriptPath is present. The plan says polling waits up to 10s for both fields to appear (they race separately after spawn). Returning on the first field can persist a partial explicit ref (sessionId without transcriptPath, or vice versa) and rely on a later heuristic tick to upgrade — defeating the polling window's purpose.",
+      "status": "fixed",
+      "relevantFiles": [
+        "scripts/lib/work-on-via-crew.mjs:79"
+      ],
+      "suggestedFix": "Change the early-exit condition to require BOTH sessionId AND transcriptPath before returning early; on timeout, return whatever partial fields are present (current fallback behavior is correct). Adjust the test that writes both fields atomically to also exercise the staggered-write case.",
+      "fixedInIteration": 1,
+      "resolution": "Polling early-exit changed from OR to AND; staggered-write test added."
+    }
+  ]
+}

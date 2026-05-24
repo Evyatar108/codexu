@@ -1,0 +1,20 @@
+30-minute pre-flight spike against a real codex app-server to resolve wire-acceptance questions blocking Gaps 2, 3, 5 from plans/codex-agent-parity-audit.md.
+
+Spike 3 questions:
+(1) does codex-core accept InputItem `{ type: 'image', url: 'data:image/png;base64,...' }` or does it require `{ type: 'localImage', path }` (Gap 3)?
+(2) does codex-core honor `config: { project_doc_fallback_filenames: ['CLAUDE.md', 'AGENTS.md'] }` in NewConversationParams (Gap 2)?
+(3) what's the behavior of `compactPrompt` in NewConversationParams (Gap 5)?
+
+Method: spawn a real `codex app-server` and send hand-crafted JSON-RPC requests via netcat / node script.
+
+Reference reads:
+- packages/happy-cli/src/codex/codexAppServerTypes.ts (wire shape)
+- codex/external/repos/codex-patched/codex-rs/protocol/src/lib.rs (deserializer behavior)
+
+Output: new section "Wire spike results" appended to plans/codex-agent-parity-audit.md with concrete answers and any follow-up steps.
+
+Constraint: NO production code changes — research/spike only.
+
+Acceptance: each of the 3 questions has a definitive answer in the doc (works / requires X / unsupported), with evidence (request + response payload or referenced source-line).
+
+This unblocks codex-attachments (Gap 3) and informs codex-claude-md-autoload (Gap 2) + future codex-slash-commands (Gap 5).

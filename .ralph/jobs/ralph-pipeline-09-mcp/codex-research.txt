@@ -1,0 +1,55 @@
+**Codebase Architecture**
+This is a pnpm 10 monorepo on Node 20 with mixed TS/JS. Main packages live under `packages/`; overview/Ralph tooling is split between:
+
+- `tools/overview-viewer/`: React/Vite TypeScript dashboard package.
+- `scripts/lib/*.mjs`: Node ESM Ralph pipeline helpers, with adjacent `.d.mts` declarations for TS consumers.
+- `plans/`: hand-authored and generated overview artifacts.
+- `.ralph/`: Ralph job state/config/locks.
+- `.crews/`: crew manifests and spawn state.
+
+Workspace registration is duplicated in root `package.json` and `pnpm-workspace.yaml`; `tools/overview-viewer` is already registered this way, so `tools/overview-mcp` should follow the same pattern. There is no root `tsconfig.json`; each TS package owns its own config.
+
+**Feature-Relevant Code**
+Key integration points:
+
+- `tools/overview-viewer/src/types.ts`: `Snapshot`, `SnapshotTask`, `RalphPipelineState`, `RalphStage`, `CrewSessionRef`, `OverviewData`.
+- `scripts/lib/resolve-config.mjs` + `.ralph/overview-config.json`: resolves `dataFile`, `outputs.snapshot`, `crewsRoot`, lock path, etc.
+- `scripts/lib/sync-core.mjs`: `loadOverviewData()`, `writeSidecar()`, `rescanCrewSessionsAndWrite()`, `atomicWriteFile` export.
+- `scripts/lib/emit-snapshot.mjs` and `emit-snapshot-schema.mjs`: snapshot construction and runtime schema.
+- `scripts/lib/derive-next-command.mjs` / `derive-next-command-cli.mjs`: source of truth for `overview.next_command`.
+- `scripts/lib/score-recommendations.mjs`: recommendation shape and scoring fallback.
+- `scripts/lib/append-journal.mjs`: current journal append helper.
+- `scripts/lib/crews-cross-walk.mjs`, `parse-spawn-launcher.mjs`, `work-on-via-crew.mjs`: crew discovery/spawn contracts.
+- `scripts/sync-ralph-state.mjs`: `--update-crew-session` / `--finalize-crew-session`.
+- `.claude/settings.json` and `.gitignore`: committed settings exist, but `.claude/settings.local.json` is gitignored and is the right MCP registration target.
+- MCP examples: `D:/ai-developer-toolkit/plugins/agent-peers/src/index.ts` and `src/server.ts` show `McpServer`, `StdioServerTransport`, and zod tool registration.
+
+Current `main` has `plans/overview-ralph-state.json`, but not `plans/overview-snapshot.json`, `overview-snapshot.schema.json`, or recommendations artifacts. Plan 09 depends on Plan 05 outputs being generated.
+
+**Technical Constraints**
+`Snapshot` currently does not include top-level `OverviewData` maps such as `workstream`, `sizeBucket`, or `cadence`. `overview.list_tasks` cannot support `workstream` filtering from snapshot alone unless the MCP reader also reads `plans/overview-data.json`/`overview-data.js`, or Plan 05 snapshot schema is extended.
+
+`OverviewTask` does not define `title`; current tasks mostly use `command.descriptionHtml`/`command.name`. `list_tasks` needs a fallback title rule.
+
+`appendJournalEntry()` currently requires `{ ts, prevStage, newStage, slug }`; it does not accept arbitrary `{ note }`. Either extend it additively or create a separate safe note append helper.
+
+For `set_override`, Babel generator will likely reformat more than `ralphOverrides`. To meet byte-identical requirements, parse only to locate AST ranges, then splice the original source and write atomically.
+
+Changing `ralphOverrides` does not by itself refresh `overview-ralph-state.json` or snapshot unless sync runs. Decide whether the tool only edits the field or also invokes `pnpm sync-ralph-state`.
+
+`work-on-via-crew.mjs` already implements most `invoke_next viaCrewMember` behavior, but lacks a `.d.mts`; add one if importing from TS. It also preflights watcher locks, so calls can fail while Vite/standalone watcher owns `.ralph/overview-sync.lock`.
+
+Declare direct dependencies needed by the MCP package: `@modelcontextprotocol/sdk`, `zod`, `chokidar`, and likely `ajv`; add `@types/node`, `vitest`, `typescript`, `tsx`, and Babel parser/generator if used.
+
+**Implementation Suggestions**
+Create `tools/overview-mcp` as a Node ESM package with a testable `createServer()` and a thin `src/index.ts` that connects `StdioServerTransport`, matching the toolkit MCP examples.
+
+Build a shared context object: resolve repo root, call `loadConfig`, create `SnapshotReader`, and optionally a data reader for `overview-data.json`. Prefer config paths over hardcoded `plans/*`.
+
+Implement read-only tools first. Use `task.ralph?.stage` for Ralph stage, sum `reviewOpenCount` values for open findings, and use `deferredQuestionsCount > 0` for questions.
+
+Reuse `deriveNextCommand()` directly. For default `invoke_next`, return command/guidance only. For crew mode, wrap `runWorkOnViaCrew()` instead of duplicating spawn/poll/update logic.
+
+For live crew listing, call `discoverCrewSessions()` against `config.crewsRoot` with a synthetic `OverviewRalphState` from the snapshot and cache for about 500 ms. Resolve `get_transcript` by session id from that live list, then tail/parse the JSONL and filter tool events by default.
+
+Use package-local Vitest tests with temp repo fixtures; root `vitest.config.ts` only covers `scripts/**/*.test.mjs`, so `pnpm --filter @codexu/overview-mcp test` should own these tests.

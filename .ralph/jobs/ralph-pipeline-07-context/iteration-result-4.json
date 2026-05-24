@@ -1,0 +1,44 @@
+{
+  "storyId": "US-004",
+  "verifiedEvidence": [
+    {
+      "criterion": "RalphPipelineState optional fields declared",
+      "command": "grep -nE 'branchName|deferredQuestionsCount|deferredQuestionsPreview|mergeCommit|prUrl|storyDoctorInterventions' tools/overview-viewer/src/types.ts",
+      "result": "PASS: lines 63-68 define the six optional fields in the requested order.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Snapshot schema optional fields declared",
+      "command": "grep -nE 'branchName|deferredQuestionsCount|deferredQuestionsPreview|mergeCommit|prUrl|storyDoctorInterventions' scripts/lib/emit-snapshot-schema.mjs",
+      "result": "PASS: RalphPipelineState schema properties include all six Plan 07 fields at lines 125-130.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Schema validates populated optional fields and legacy snapshots",
+      "command": "pnpm exec vitest run scripts/lib/emit-snapshot-schema.test.mjs",
+      "result": "PASS: 1 test file, 3 tests; includes legacy minimal snapshot and populated Plan 07 optional fields.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Emit snapshot tests pass",
+      "command": "pnpm test -- scripts/lib/emit-snapshot.test.mjs",
+      "result": "PASS: scripts project reported 15 test files passed and 90 tests passed, including emit-snapshot.test.mjs.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Overview typecheck passes",
+      "command": "pnpm --filter @codexu/overview-viewer typecheck",
+      "result": "PASS: tsc --noEmit completed with exit=0.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Overview tests pass",
+      "command": "pnpm --filter @codexu/overview-viewer test",
+      "result": "PASS: 29 test files passed and 159 tests passed.",
+      "evidenceKind": "passed"
+    }
+  ],
+  "skippedReasons": [],
+  "notTested": [],
+  "iterationSHA": "a4cc7b2269fbff0730c7537178fbbc6f0e5e9912"
+}

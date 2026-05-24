@@ -1,0 +1,110 @@
+{
+  "storyId": "US-001",
+  "verifiedEvidence": [
+    {
+      "criterion": "Doc file exists at required worktree path",
+      "command": "test -f plans/ralph-overview-task-id.md",
+      "result": "PASS: file exists at worktree/plans/ralph-overview-task-id.md",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Doc contains all 10 top-level sections in required order",
+      "command": "awk '/^## [0-9]+[.] /{print}' plans/ralph-overview-task-id.md",
+      "result": "PASS: 1 Context; 2 Ralph internals checked; 3 Patches required; 4 Back-compat; 5 Out of scope; 6 Critical compatibility gotchas; 7 Suggested landing order; 8 Acceptance criteria; 9 Tests; 10 How to pick this up",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "All 4 Ralph skill patches documented with CLI/prompt, write location, and schema or artifact directive",
+      "command": "awk '/^### 3[.]/{print}' plans/ralph-overview-task-id.md",
+      "result": "PASS: 3.1 convert-to-ralph-prd; 3.2 decompose-plan; 3.3 brainstorm-with-ralph; 3.4 plan-with-ralph; each section includes the required behavior and directive",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Doc pins cached v5.32.0 and source-tree v5.35.0 with drift directive",
+      "command": "grep -nE 'v5[.]32[.]0|v5[.]35[.]0|drift' plans/ralph-overview-task-id.md",
+      "result": "PASS: lines 3-4 pin cached v5.32.0, source v5.35.0, and require drift reconciliation",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Doc references foundation plan and comprehensive plan",
+      "command": "grep -nE 'ralph-pipeline-01-foundation|glistening-wondering-llama' plans/ralph-overview-task-id.md",
+      "result": "PASS: lines 14-15 reference plans/ralph-pipeline-01-foundation.md and C:/Users/evmitran/.claude/plans/glistening-wondering-llama.md",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Doc names overviewTaskId, confirms no collision, and states optional/not required",
+      "command": "grep -nE 'Name: `overviewTaskId`|Optional everywhere|No existing|Neither schema|Do not add `overviewTaskId` to `required`' plans/ralph-overview-task-id.md",
+      "result": "PASS: lines 20, 23-24, 33, 70, 98, and 160 cover name, no collision, and optional/not required",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Section 3.2 precedence is CLI flag, parent plan metadata, parent prd.json",
+      "command": "grep -n 'Explicit `--overview-task-id`' -A4 plans/ralph-overview-task-id.md",
+      "result": "PASS: lines 78-80 list explicit CLI flag first, then parent plan metadata, then parent prd.json",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Section 3.1 canonical flag, free-form default, opt-in lookup with fallback",
+      "command": "grep -nE 'canonical|free-form|consumer-config-driven|Lookup must not block' plans/ralph-overview-task-id.md",
+      "result": "PASS: lines 50-54 make --overview-task-id canonical, free-form default, config lookup opt-in, and lookup non-blocking",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Section 6.1 Phase 0 first-line gotcha and both resolutions",
+      "command": "sed -n '179,188p' plans/ralph-overview-task-id.md",
+      "result": "PASS: documents Phase 0 header check, resolution A to skip YAML front-matter, and resolution B non-front-matter metadata",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Section 6.2 calls out test-no-prohibited-changes whitelist",
+      "command": "sed -n '190,193p' plans/ralph-overview-task-id.md",
+      "result": "PASS: names tests/test-no-prohibited-changes.sh and says to whitelist overviewTaskId",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Section 6.3 cache-vs-source dance",
+      "command": "sed -n '194,198p' plans/ralph-overview-task-id.md && sed -n '248p' plans/ralph-overview-task-id.md",
+      "result": "PASS: says edit D:/ai-developer-toolkit/plugins/ralph/ and invalidate ~/.claude/plugins/cache before integration testing",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Section 10 verbatim Windows handoff command",
+      "command": "sed -n '238,247p' plans/ralph-overview-task-id.md",
+      "result": "PASS: includes cd D:[.]i-developer-toolkit[.]lugins[.]alph and /plan-with-ralph --improve D:[.]arness-efforts[.]odexu[.]lans[.]alph-overview-task-id.md",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Section 3 includes conditional 3.5 implement-with-ralph Phase 0 patch site",
+      "command": "sed -n '148,155p' plans/ralph-overview-task-id.md",
+      "result": "PASS: 3.5 names skills/implement-with-ralph/SKILL.md Phase 0 and makes it conditional on Section 6.1 resolution A",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Sections 3.4 and 6 reference tool-agnostic YAML parsing",
+      "command": "grep -nE 'shell-portable YAML front-matter parser|yq|sed`/`awk|future Ralph patch cycle decides' plans/ralph-overview-task-id.md",
+      "result": "PASS: lines 145 and 185 specify shell-portable parsing, optional yq, sed/awk fallback, and future-cycle decision",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Section 7 prerequisite metadata-format decision before four skill patches",
+      "command": "sed -n '198,201p' plans/ralph-overview-task-id.md",
+      "result": "PASS: Section 7 starts with the Section 6.1 metadata-format prerequisite",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "plans/ralph-pipeline-INDEX.md audited and left unchanged if not divergent",
+      "command": "grep -nE 'ralph-overview-task-id[.]md|overviewTaskId|v5[.]32[.]0|v5[.]35[.]0|v5[.]30[.]0' plans/ralph-pipeline-INDEX.md || true",
+      "result": "PASS: only line 127 overviewTaskId reference found and it is correct; no stale filename or version pin found, so INDEX unchanged",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Typecheck passes",
+      "command": "pnpm --filter @codexu/overview-viewer typecheck",
+      "result": "PASS: tsc --noEmit exited 0; meta recorded exitCode 0, durationSec 11, timestamp 2026-05-19T08:24:15Z",
+      "evidenceKind": "passed"
+    }
+  ],
+  "skippedReasons": [],
+  "notTested": [],
+  "iterationSHA": "d3cddcd575df5fb116614f4c603966521bfd16cb"
+}

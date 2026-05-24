@@ -1,0 +1,40 @@
+I’ll inspect the referenced temp file to determine the requested work.
+
+I’ll research the current repo state against the watcher plan and verify the referenced integration points.
+
+I found Plan 01’s sync-core and the overview Vite plugin are already present; I’m checking their exact APIs and test layout before reporting gaps.
+
+### Codebase Architecture
+
+This is a pnpm monorepo with a React/Vite/TypeScript overview viewer in `tools/overview-viewer/` and root-level ESM Node scripts under `scripts/`. Plan 01 is already implemented: `scripts/sync-ralph-state.mjs` does one-shot sync; `scripts/lib/sync-core.mjs` walks `.ralph/`, derives pipeline state, and writes `plans/overview-ralph-state.{js,json}` atomically; `scripts/lib/resolve-config.mjs` loads `.ralph/overview-config.json`.
+
+### Feature-Relevant Code
+
+Key current files:
+
+- `scripts/lib/sync-core.mjs` exports `walkRalphState`, `writeSidecar`, `resolveCrossKindPrecedence`, `pickMostRecentByMtime`; it does not yet export `deriveOneSlug` or `mergeAndWrite`.
+- `scripts/sync-ralph-state.mjs` only supports `--repo` and `--config`; no lock handling or watch mode yet.
+- `tools/overview-viewer/vite.config.ts` has `overviewDataPlugin()` serving/watching only `plans/overview-data.js` and emitting `overview-data:update`.
+- `tools/overview-viewer/src/App.tsx` subscribes only to `overview-data:update`; Plan 03 will add Ralph-state UI/HMR consumption.
+- Type declarations exist beside root ESM modules: `scripts/lib/*.d.mts`, plus test ambient declarations in `tools/overview-viewer/src/__tests__/scripts.d.ts`.
+- Current config defaults already include `.crews/logs/**` and `.crews/spawn-launchers/**` in `watcher.ignored`; Plan 02’s exclude list is missing those.
+
+### Technical Constraints
+
+`chokidar` is only present transitively in `pnpm-lock.yaml`; add it as an explicit dependency/devDependency for the watcher. If using chokidar v4+, do not rely on glob watch inputs; watch configured directories and filter event paths manually.
+
+Incremental re-derivation is trickier than “one changed slug = one changed entry”: duplicate resolution and cross-kind precedence mean one slug change/delete can reveal another slug for the same task. The plan should require maintaining or recomputing the affected task candidate set, not blindly replacing by slug.
+
+Current parse-error behavior is centralized but uneven: malformed `job-state.json`, `prd.json`, review findings, and `brainstorm.json` are handled; malformed `group.json` is currently ignored. If watcher resilience covers all watched JSON files, sync-core should be fixed consistently.
+
+### Implementation Suggestions
+
+Refine Plan 02 to:
+
+1. Add a shared lock helper used by both one-shot and watch mode; because the watcher holds the lock until `stop()`, one-shot should fail fast while the watcher is running.
+2. Make `start()` load config and resolve `generatedFromCommit` itself, or pass both explicitly; avoid double cold-starting in the CLI and watcher.
+3. Add `deriveOneSlug` by extracting/reusing existing bundle-reader/matching/collapse logic from `sync-core.mjs`, plus an affected-task recomputation path for precedence/duplicates.
+4. Add/update `.d.mts` declarations for `watch-ralph-state.mjs` and new `sync-core.mjs` exports.
+5. Put watcher tests in a separate `ralphWatcher.test.ts` under `tools/overview-viewer/src/__tests__/` or ensure root `scripts/lib/*.test.mjs` is actually run by the chosen test command.
+6. Remove `selected-direction.md` from watched paths unless sync-core begins reading it; currently brainstorm state only consumes `brainstorm.json`.
+

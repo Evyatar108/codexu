@@ -1,0 +1,118 @@
+{
+  "planFile": "D:/harness-efforts/codexu/.ralph/jobs/ralph-pipeline-08-crews/plan.md",
+  "repoDir": "D:/harness-efforts/codexu/.ralph/jobs/ralph-pipeline-08-crews/worktree",
+  "findings": [
+    {
+      "id": "F-001",
+      "severity": "High",
+      "category": "Stale Documentation",
+      "classification": "fixable",
+      "phase": "docs",
+      "source": "docs",
+      "status": "fixed",
+      "description": "plans/ralph-pipeline-08-crews.md still documents `/spawn-member` as a Skill-tool slash-command invocation (lines 87-89 in the To-modify section: \"Use the crews plugin's `/spawn-member` slash command to spawn a member: `/spawn-member <generated-name> --crew <crewName> --cwd <repo_root> -- <derived-command-prompt>`\"). The actual shipped flow in `.claude/skills/work-on/SKILL.md` and `plans/ralph-pipeline-09-mcp.md` (both updated in this diff) and the job CLAUDE.md require the CLI mirror at `node D:/ai-developer-toolkit/plugins/crews/tools/spawn-member.js` because Skill tool invocations cannot trigger the crews spawn hook. Plan 08's hand-off to plan 09 promises the same flow as `/work-on --via-crew`, but plan 08's body still describes the obsolete Skill-tool invocation.",
+      "relevantFiles": [
+        "plans/ralph-pipeline-08-crews.md"
+      ],
+      "suggestedFix": "Update plans/ralph-pipeline-08-crews.md `.claude/skills/work-on/SKILL.md` modification block (currently lines 85-90) to describe the CLI-mirror spawn flow: replace the `/spawn-member` Skill-tool example with `node D:/ai-developer-toolkit/plugins/crews/tools/spawn-member.js <memberName> --crew <crewName> --cwd <main-repo-root> -- \"<prompt>\"`, add the pre-spawn lock preflight requirement against `config.lockFile`, document that `mainRepoRoot` is derived from `config.crewsRoot` (linked-worktree resolution), and note that partial refs (crewName, memberName, cwd, startedAt without sessionId/transcriptPath) are written when manifest polling expires.",
+      "fixedInIteration": 1,
+      "resolution": "Updated SKILL.md modification step to specify crews CLI mirror as canonical spawn path."
+    },
+    {
+      "id": "F-002",
+      "severity": "Medium",
+      "category": "Stale Documentation",
+      "classification": "fixable",
+      "phase": "docs",
+      "source": "docs",
+      "status": "fixed",
+      "description": "plans/ralph-pipeline-08-crews.md declares `CrewSessionRef.sessionId: string` and `CrewSessionRef.transcriptPath: string` as required (no `?`) in the type sketch at lines 60-69. The shipped `tools/overview-viewer/src/types.ts` makes those fields optional, and the INDEX entry (already updated in this diff: \"Required fields are crewName, memberName, and startedAt; optional fields include sessionId, transcriptPath, endedAt, outcome, summary, _isExplicit, and cwd\") matches the implementation. Plan 08's type sketch and the explicit/heuristic-merge contract (line 126: \"`_source: 'explicit' | 'heuristic'` field\") are out of sync with the shipped contract (`_isExplicit` boolean + optional `cwd`).",
+      "relevantFiles": [
+        "plans/ralph-pipeline-08-crews.md"
+      ],
+      "suggestedFix": "Rewrite the `CrewSessionRef` interface block in plans/ralph-pipeline-08-crews.md (lines ~60-75) so `sessionId?: string`, `transcriptPath?: string`, plus optional `cwd?: string` and `_isExplicit?: boolean` are explicit. In the \"Conflict resolution between heuristic and explicit writes\" section (lines ~120-132) rename `_source: 'explicit' | 'heuristic'` to `_isExplicit?: boolean` and explain the truthy-explicit precedence rule used by the merge.",
+      "fixedInIteration": 1,
+      "resolution": "CrewSessionRef sessionId/transcriptPath marked optional; added cwd, _isExplicit; conflict resolution rewritten to _isExplicit serialized flag."
+    },
+    {
+      "id": "F-003",
+      "severity": "Medium",
+      "category": "Stale Documentation",
+      "classification": "fixable",
+      "phase": "docs",
+      "source": "docs",
+      "status": "fixed",
+      "description": "plans/ralph-pipeline-08-crews.md sync-core integration section (lines 76-81) says to \"invoke `discoverCrewSessions` during the per-tick merge, AFTER the per-slug Ralph-side derivation,\" but does not describe the dedicated `rescanCrewSessionsAndWrite()` helper that actually shipped. The INDEX (already updated in this diff) registers `rescanCrewSessionsAndWrite()` as the slugless `{ kind: 'crews' }` change handler in sync-core, and `tools/overview-viewer/CLAUDE.md` (also updated) documents that watcher changes under `.crews/crews/` and `.crews/sessions-configs/` are routed through `rescanCrewSessionsAndWrite()` rather than `deriveAffectedTaskUpdate()`. Plan 08's watcher-integration section still implies a single per-tick merge path.",
+      "relevantFiles": [
+        "plans/ralph-pipeline-08-crews.md"
+      ],
+      "suggestedFix": "In the \"To modify - scripts/lib/sync-core.mjs\" bullet and the watcher integration paragraph, document the new `rescanCrewSessionsAndWrite()` export, note that `.crews/crews/` and `.crews/sessions-configs/` changes surface as slugless `{ kind: 'crews' }` events handled by `rescanCrewSessionsAndWrite()` after any Ralph `mergeAndWrite()` in the same debounce batch, and clarify that crew-only changes do NOT pass through `deriveAffectedTaskUpdate()`.",
+      "fixedInIteration": 1,
+      "resolution": "Documented rescanCrewSessionsAndWrite helper for slugless crews events."
+    },
+    {
+      "id": "F-004",
+      "severity": "Medium",
+      "category": "Stale Documentation",
+      "classification": "fixable",
+      "phase": "docs",
+      "source": "docs",
+      "status": "fixed",
+      "description": "plans/ralph-pipeline-08-crews.md subcommand description (lines 82-84) says `--update-crew-session` and `--finalize-crew-session` \"acquire the same lock, apply the merge, exits,\" but does not specify the write target. The job CLAUDE.md flags this explicitly: \"Subcommands (`--update-crew-session`, `--finalize-crew-session`) write to `config.outputs.sidecarJson` (Ralph sidecar at `plans/overview-ralph-state.json`), NOT to the derived `overview-snapshot.json`. `writeSidecar()` regenerates the snapshot downstream.\" Verification step C in plan 08 still tells users to inspect `plans/overview-snapshot.json` first, which is the downstream-derived view and may lead reviewers to believe the subcommands write the snapshot directly.",
+      "relevantFiles": [
+        "plans/ralph-pipeline-08-crews.md"
+      ],
+      "suggestedFix": "In the \"Subcommand-mode contract\" section (lines ~114-118), add: \"Subcommand writes target `config.outputs.sidecarJson` (the Ralph sidecar at `plans/overview-ralph-state.json`); `writeSidecar()` regenerates `plans/overview-snapshot.json` downstream in the same lock window.\" Update Verification C to reference inspecting both files.",
+      "fixedInIteration": 1,
+      "resolution": "Clarified subcommands mutate config.outputs.sidecarJson; writeSidecar regenerates snapshot."
+    },
+    {
+      "id": "F-005",
+      "severity": "Medium",
+      "category": "Stale Documentation",
+      "classification": "fixable",
+      "phase": "docs",
+      "source": "docs",
+      "status": "fixed",
+      "description": "plans/ralph-pipeline-08-crews.md does not document the `config.crewsRoot` plumbing that shipped in `scripts/lib/default-config.mjs`, `scripts/lib/resolve-config.mjs`, and `.ralph/overview-config.schema.json` (all in this diff). The shipped Plan 08 work added `crewsRoot` to the config so linked worktrees can resolve `.crews/` from the main repo root rather than the worktree-local directory. The job CLAUDE.md highlights this as Risk Area 4: \"This plan reads from `.crews/` (shared workspace state, not branch state). The cross-walk MUST resolve `.crews/` from the main repo root, never from the worktree-local directory.\" The plan's heuristic-matching contract (lines 102-112) mentions `cwd` filtering but never explains how `.crews/` itself is located.",
+      "relevantFiles": [
+        "plans/ralph-pipeline-08-crews.md"
+      ],
+      "suggestedFix": "Add a paragraph to the \"To modify\" section (or a new \"Config plumbing\" subsection) explaining that `crewsRoot` is now a `RalphOverviewConfig` field with a default of `<repoRoot>/.crews/`, that linked worktrees override it to point at the main repo's `.crews/`, and that `discoverCrewSessions` and the `--via-crew` flow both resolve `.crews/` through `config.crewsRoot` rather than `path.join(repoRoot, '.crews')`.",
+      "fixedInIteration": 1,
+      "resolution": "Added crewsRoot config plumbing description + Risk Area note for linked-worktree resolution."
+    },
+    {
+      "id": "F-006",
+      "severity": "Medium",
+      "category": "Stale Documentation",
+      "classification": "fixable",
+      "phase": "docs",
+      "source": "docs",
+      "status": "fixed",
+      "description": "plans/ralph-pipeline-08-crews.md heuristic-matching contract (lines 102-110) lists only `manifest.lastSummary` and `spawn-launchers/*.ps1` as match signals and only `members/*` in the discovery walk. The shipped `scripts/lib/crews-cross-walk.mjs` (per the INDEX entry added in this diff) walks BOTH `.crews/crews/*/members/*/manifest.json` AND `.crews/crews/*/leads/*/manifest.json`, and plans/ralph-pipeline-09-mcp.md was updated in this diff to also list both paths. Plan 08's scope bullet (line 34) does mention both members and leads in the watched-paths list, but the heuristic-matching contract section reads as if only members are matched — leading reviewers to assume leads are watched-but-never-attributed.",
+      "relevantFiles": [
+        "plans/ralph-pipeline-08-crews.md"
+      ],
+      "suggestedFix": "Update the heuristic-matching contract section: change \"Walks `.crews/crews/*/members/*/manifest.json`\" to \"Walks `.crews/crews/*/{members,leads}/*/manifest.json`,\" and update the unmatched-stderr log line to say \"member/lead\" so it reflects the implementation.",
+      "fixedInIteration": 1,
+      "resolution": "Heuristic matching contract now describes walking BOTH members and leads."
+    },
+    {
+      "id": "F-007",
+      "severity": "Low",
+      "category": "Stale Documentation",
+      "classification": "fixable",
+      "phase": "docs",
+      "source": "docs",
+      "status": "fixed",
+      "description": "plans/ralph-pipeline-08-crews.md tooltip-extras description (line 91) says transcript paths are rendered \"as `file://`\". The shipped behavior, documented in tools/overview-viewer/CLAUDE.md (line added in this diff): \"Crew-session transcript links in `TaskCommand` run in the browser bundle, so encode Windows paths with a client-side `pathToFileURL` equivalent that preserves drive letters and percent-encodes path segments such as spaces and `#`.\" Plan 08's \"as `file://`\" phrasing is correct in the broad sense but understates the percent-encoding requirement that's needed for Windows paths containing spaces or `#`.",
+      "relevantFiles": [
+        "plans/ralph-pipeline-08-crews.md"
+      ],
+      "suggestedFix": "Replace \"rendered as `file://` so clicking opens the JSONL in the system viewer or VS Code\" with \"rendered as a `file://` URL produced by a client-side `pathToFileURL` equivalent that preserves Windows drive letters and percent-encodes spaces / `#` in segments, so clicking opens the JSONL in the system viewer or VS Code.\"",
+      "fixedInIteration": 1,
+      "resolution": "Tooltip transcript link description specifies pathToFileURL-equivalent with URL-encoded segments."
+    }
+  ]
+}

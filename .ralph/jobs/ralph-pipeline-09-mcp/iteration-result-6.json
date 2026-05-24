@@ -1,0 +1,62 @@
+{
+  "storyId": "US-006",
+  "verifiedEvidence": [
+    {
+      "criterion": "Tool registered with zod input schema",
+      "command": "grep -nE \"overview.list_crew_sessions|listCrewSessionsInputSchema|listCrewSessions\" tools/overview-mcp/src/server.ts tools/overview-mcp/src/schemas.ts",
+      "result": "server.ts registers overview.list_crew_sessions at line 88 using listCrewSessionsInputSchema, and schemas.ts defines listCrewSessionsInputSchema/listCrewSessionsSchema/ListCrewSessionsInput at lines 43, 63, and 72.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Tool reuses discoverCrewSessions() with fresh Ralph state, OverviewData, and config.crewsRoot",
+      "command": "grep -nE \"discoverCrewSessions|readRalphState|getOverviewData|crewsRoot\" tools/overview-mcp/src/tools/list-crew-sessions.ts && pnpm --filter @codexu/overview-mcp test",
+      "result": "list-crew-sessions.ts reads OverviewData via snapshotReader.getOverviewData(), reads config.outputs.sidecarJson via readRalphState(), and calls discoverCrewSessions({ repoRoot, ralphState, overviewData, crewsRoot: context.config.crewsRoot }). Vitest passed 4 files and 24 tests.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Caches discovery for 500 ms",
+      "command": "grep -nE \"CACHE_MS|WeakMap|expiresAt|500 ms cache\" tools/overview-mcp/src/tools/list-crew-sessions.ts tools/overview-mcp/src/__tests__/list-crew-sessions.test.ts",
+      "result": "CACHE_MS is 500; discoveryCache is a WeakMap keyed by ServerContext; cached entries are returned while expiresAt > Date.now(). The regression test confirms a 400 ms call returns T1 and a 600 ms call re-reads T2.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Local LiveCrewSession type extends CrewSessionRef and live manifest fields are re-read; shared CrewSessionRef remains unchanged",
+      "command": "grep -nE \"interface LiveCrewSession extends CrewSessionRef|lastHeartbeatAt|lastSummary|lastTurnAt|listenerState|actorState|readLiveManifest|readManifest\" tools/overview-mcp/src/tools/list-crew-sessions.ts; git diff -- scripts/lib/crews-cross-walk.d.mts scripts/lib/crews-cross-walk.mjs",
+      "result": "LiveCrewSession is local to tools/overview-mcp/src/tools/list-crew-sessions.ts and extends CrewSessionRef with lastHeartbeatAt, lastSummary, lastTurnAt, listenerState, and actorState populated from readLiveManifest()/readManifest(). git diff for scripts/lib/crews-cross-walk.d.mts and .mjs is empty, so the shared CrewSessionRef contract was not changed.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Returns Array<LiveCrewSession & { taskId: string; stage: RalphStage; role: member|lead }>",
+      "command": "grep -nE \"LiveCrewSessionResult|taskId: string|stage: RalphStage|role:|role: liveManifest.role\" tools/overview-mcp/src/tools/list-crew-sessions.ts",
+      "result": "LiveCrewSessionResult is defined as LiveCrewSession plus taskId, stage, and role: 'member' | 'lead'; flattenDiscoveredSessions pushes entries with taskId, stage, and liveManifest.role.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "taskId filter is exact on flattened results and does not import private matchTaskId heuristic",
+      "command": "grep -n \"session.taskId === input.taskId\" tools/overview-mcp/src/tools/list-crew-sessions.ts; ! grep -n \"matchTaskId\" tools/overview-mcp/src/tools/list-crew-sessions.ts; pnpm --filter @codexu/overview-mcp test",
+      "result": "Filter predicate is session.taskId === input.taskId, and matchTaskId is absent from list-crew-sessions.ts. Vitest verifies filtering TASK-1 does not return TASK-12.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Live-read regression test covers T1 -> cache -> T2 after 600 ms",
+      "command": "grep -nE \"500 ms cache|2026-05-20T10:00:00.400Z|2026-05-20T10:00:00.600Z|2026-05-20T10:00:01.000Z\" tools/overview-mcp/src/__tests__/list-crew-sessions.test.ts; pnpm --filter @codexu/overview-mcp test",
+      "result": "The regression test writes T1, observes T1, rewrites the manifest to T2, observes cached T1 at +400 ms, then observes live T2 at +600 ms. Vitest passed 4 files and 24 tests.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Typecheck passes",
+      "command": "pnpm --filter @codexu/overview-mcp typecheck",
+      "result": "Exit 0; tsc --noEmit -p tsconfig.json completed without errors. Full log: .test-output/overview-mcp.typecheck.log.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Tests pass",
+      "command": "pnpm --filter @codexu/overview-mcp test",
+      "result": "Exit 0; Vitest reported 4 test files passed and 24 tests passed. Full log: .test-output/overview-mcp.test.log.",
+      "evidenceKind": "passed"
+    }
+  ],
+  "skippedReasons": [],
+  "notTested": [],
+  "iterationSHA": "a0992f1c02811665c60d40f3d9ee7fc720418ce6"
+}

@@ -1,0 +1,56 @@
+{
+  "recommendation": "CONTINUE",
+  "passCount": 17,
+  "storiesCompleted": [
+    {
+      "id": "US-016",
+      "sha": "e0f16c95",
+      "title": "Update plans/ralph-pipeline-INDEX.md",
+      "evidenceVerdict": "VALID"
+    },
+    {
+      "id": "US-017",
+      "sha": "de367866",
+      "title": "End-to-end acceptance run",
+      "evidenceVerdict": "VALID"
+    }
+  ],
+  "storiesBlocked": [],
+  "storiesRemaining": [],
+  "deferredQuestions": [],
+  "storyDoctorActions": [],
+  "qualityGateResult": "pass",
+  "rollbackFailures": [],
+  "jobComplete": true,
+  "manifestVerifier": {
+    "enabled": true,
+    "mode": "advisory",
+    "iterationsAnalyzed": [16, 17],
+    "iterationsSkipped": [
+      {
+        "iteration": 16,
+        "reason": "manifest-verifier subagent unavailable in this orchestrator session; manifest structurally valid (4 evidence entries, evidenceKind=passed)"
+      },
+      {
+        "iteration": 17,
+        "reason": "manifest-verifier subagent unavailable in this orchestrator session; manifest structurally valid (7 evidence entries, evidenceKind=passed)"
+      }
+    ],
+    "blocking": false
+  },
+  "refactoringPass": {
+    "triggered": false,
+    "executed": false,
+    "reason": "refactorInterval default 5; cumulativeCompleted went 15 -> 17 this batch -- multiple-of-5 boundary NOT crossed (next boundary at 20; job ends at 17). No trigger."
+  },
+  "recurringFailures": [],
+  "parityCheck": {
+    "triggered": false,
+    "reason": "No parity-relevant keywords (mirror/parity/reuse) in US-016/US-017 acceptance criteria."
+  },
+  "notes": [
+    "Both iterations (US-016, US-017) produced full verifiedEvidence covering every acceptance criterion (4/7). Every evidenceKind = passed; zero notTested, zero skippedReasons.",
+    "Quality Gate: US-017 end-to-end acceptance covered the canonical run-of-record: plan05-acceptance vitest (1f/3t), scripts/lib/*.test.mjs (7f/36t), overview-viewer typecheck + tests (27f/153t). All passing, logged to .test-output/.",
+    "Cumulative 17/17 stories passed with zero blockers, zero rollbacks, zero Story Doctor escalations, zero deferred questions across the entire 17-iteration run. Job is complete -- orchestrator should advance to review/merge phase."
+  ]
+}

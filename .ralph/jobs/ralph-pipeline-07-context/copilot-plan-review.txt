@@ -1,0 +1,31 @@
+I'll inspect the referenced temp file to see what task or context it contains.
+
+The referenced file is a larger text artifact, so I'll read it in sections and extract the actionable instructions.
+
+I'll verify the plan's assumptions against the repository before writing the review findings.
+
+I found the key integration points and am checking for places where the plan's wiring would be underspecified or fail as written.
+
+### Feasibility
+
+- [High] `scripts/lib/sync-core.mjs` plan says `toPipelineState(bundle)` should call `derivePRLinks({ repoRoot, ... })`, but `toPipelineState` currently receives only `bundle`, and bundles do not carry `repoRoot`. The plan must explicitly change `toPipelineState(bundle, repoRoot)` or attach `repoRoot` before derivation, otherwise AC-2/AC-6 cannot be implemented as written.
+- [High] `mergeCommit` derivation is underspecified and partly incorrect. The helper signature has no `stage`, but the plan says `mergeCommit` should be set only when stage is `shipped`; it also suggests `git rev-parse --short HEAD <branchName>`, which can emit multiple revs and does not establish the merge commit for the shipped task. Specify the source of truth and inputs.
+
+### Completeness
+
+- [Medium] The plan mentions updating `tools/overview-viewer/src/__tests__/scripts.d.ts`, but not the adjacent root declaration `scripts/lib/sync-core.d.mts`. If tests or callers assert the newly read `notepadText` / enriched bundle shape from `readBundleForSlug`, typecheck can drift from runtime.
+- [Medium] `appendJournalEntry({ repoRoot, taskId, line })` accepts a preformatted line, but AC-3 requires the helper to append a specific timestamp/stage/job format. Either make the helper accept `{ prevStage, newStage, slug }` and format internally, or state that watchers are responsible for constructing the exact line.
+- [Medium] `RecentActivity` is described as “collapsible (controlled by parent)” and “collapsed by default in compact density mode,” but its proposed props omit collapsed state and toggle handlers. Add explicit props or move collapse ownership into the component and adjust the density requirement.
+
+### Ordering
+
+No issues found. The serial story order is reasonable.
+
+### Simplicity
+
+- [Medium] Calling git from PR-link derivation per bundle during full sync could become expensive. The plan should cache `origin` parsing and git-log results by branch within a sync pass, or at least restrict calls to bundles with a branch and no `groupState.prUrl`.
+
+### Acceptance Criteria Quality
+
+- [Medium] AC-6 does not define the synthetic job shape precisely enough to prove all six fields, especially `mergeCommit`. Add fixture details for `prd.branch.name`, notepad contents, direct PR URL vs `Closes #N`, and shipped/non-shipped merge commit expectations.
+

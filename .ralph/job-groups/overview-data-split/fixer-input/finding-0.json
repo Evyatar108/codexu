@@ -1,0 +1,18 @@
+{
+  "id": "F-001",
+  "severity": "High",
+  "source": "claude",
+  "classification": "fixable",
+  "phase": "code",
+  "category": "Completeness",
+  "sectionRef": "Acceptance Criteria > lastTouched dual-update invariant",
+  "description": "The plan's explicit AC requires that each task carry both `lastTouchedAt` (per-task) AND `OVERVIEW_DATA.lastTouched[taskId]` (top-level map), and that the file pass `Object.keys(OVERVIEW_DATA.lastTouched).every(id => OVERVIEW_DATA.tasks.find(t => t.id === id)?.lastTouchedAt === OVERVIEW_DATA.lastTouched[id])`. Verified by `grep -c '\"lastTouchedAt\"' plans/overview-data.js` returning 0. Zero of the 49 task entries carry `lastTouchedAt`, so the invariant fails on every task; the SKILL.md Procedure B mark-shipped instructions that call out this dual-update will therefore never produce a consistent file until someone backfills every task. The renderer doesn't depend on the per-task field today (only the top-level `lastTouched` map is read), so the page still ships visually, but Acceptance Criterion 'lastTouched dual-update invariant' is unmet and the bookkeeper contract documented in SKILL.md (line 224) is broken from day one.",
+  "status": "open",
+  "fixedInIteration": null,
+  "resolution": null,
+  "relevantFiles": [
+    "plans/overview-data.js",
+    ".agents/skills/roadmap-and-overview/SKILL.md:224"
+  ],
+  "suggestedFix": "Add `lastTouchedAt: <ISO timestamp>` to every task entry, mirroring the value from `OVERVIEW_DATA.lastTouched[id]`. Can be done programmatically: walk `tasks[]`, set `task.lastTouchedAt = OVERVIEW_DATA.lastTouched[task.id] || null`. Alternatively, drop the per-task field from the AC and SKILL.md if the duplication is unwanted — but then update both docs."
+}

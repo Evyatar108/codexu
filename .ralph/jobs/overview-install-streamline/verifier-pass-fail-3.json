@@ -1,0 +1,63 @@
+{
+  "manifestPath": "D:/harness-efforts/codexu/.ralph/jobs/overview-install-streamline/iteration-result-3.json",
+  "iterationSHA": "8c8e0b3951543dcd22ca4861e69a4b2140bd8c60",
+  "storyId": "US-003",
+  "verdicts": [
+    {
+      "criterion": "tools/overview-mcp/src/tools/init.ts wraps initConsumer() and returns its result via MCP",
+      "verdict": "agree",
+      "reason": "Diff adds tools/overview-mcp/src/tools/init.ts and modifies src/server.ts; manifest grep finds initConsumer import and overview.init registration."
+    },
+    {
+      "criterion": "tools/overview-mcp/src/tools/upsert-task.ts reads overview-data.js, calls upsertTaskInSource(), writes via atomicWriteFile(), then calls syncNow(context)",
+      "verdict": "agree",
+      "reason": "Diff adds tools/overview-mcp/src/tools/upsert-task.ts; manifest grep finds upsertTaskInSource, atomicWriteFile, and syncNow calls; init-upsert-tools.test.ts pass cited."
+    },
+    {
+      "criterion": "tools/overview-mcp/src/schemas.ts adds overviewInitInputSchema and overviewUpsertTaskInputSchema (strict, no extras)",
+      "verdict": "agree",
+      "reason": "Diff modifies src/schemas.ts; manifest grep finds overviewInitSchema/overviewUpsertTaskSchema with strict; tests assert Unrecognized key on ui.*."
+    },
+    {
+      "criterion": "tools/overview-mcp/src/server.ts registers both new tools",
+      "verdict": "agree",
+      "reason": "Diff modifies src/server.ts; manifest cites 23/93 vitest pass with read-only-tools and stdio-tools-list asserting 19 tools including overview.init and overview.upsert_task."
+    },
+    {
+      "criterion": "scripts/lib/check-initialized.mjs exports checkConsumerInitialized(repoRoot) returning initialized/missing; paired .d.mts exists",
+      "verdict": "agree",
+      "reason": "Diff adds scripts/lib/check-initialized.mjs and scripts/lib/check-initialized.d.mts; manifest invokes the function and prints the expected initialized:false + four-item missing array."
+    },
+    {
+      "criterion": "overview.list_tasks and overview.dev_server.status return consumer-not-initialized with suggestedTool overview.init when the probe fails",
+      "verdict": "agree",
+      "reason": "Diff modifies tools/read-only.ts and tools/dev-server-status.ts plus their test files; manifest cites both tests asserting the exact error shape."
+    },
+    {
+      "criterion": "install-server.ts calls initConsumer({ serverOnly: true, force: true }) and preserves installServer API, package bin, and --print-only preview",
+      "verdict": "agree",
+      "reason": "Diff modifies src/install-server.ts and its test; manifest grep confirms initConsumer call with serverOnly:true, force:true, dryRun from printOnly; package.json overview-mcp-install bin retained."
+    },
+    {
+      "criterion": "bin/ralph-overview.mjs install-server delegates to the built installer and is semantically equivalent to init --server-only --force",
+      "verdict": "agree",
+      "reason": "Diff modifies plugins/ralph-overview/bin/ralph-overview.mjs; manifest cites CLI --print-only run producing filesPlanned=[.mcp.json,.claude/settings.json] and no writes."
+    },
+    {
+      "criterion": "Stale tests fixed for install-server, dev-server, build, stdio-tools-list, and read-only-tools",
+      "verdict": "agree",
+      "reason": "Diff modifies all five enumerated test files in __tests__/; manifest grep finds settings.json, ralph-overview, print-only, dispatcher build, and 19-tool assertions."
+    },
+    {
+      "criterion": "npm test --workspace=tools/overview-mcp passes green",
+      "verdict": "agree",
+      "reason": "Manifest captured the workspace npm-test output to test-output-us003-npm-test.log with summary 23 passed | 1 skipped (24) test files and 93 passed | 1 skipped (94) tests."
+    },
+    {
+      "criterion": "Typecheck passes (tsc -p tools/overview-mcp/tsconfig.json)",
+      "verdict": "agree",
+      "reason": "Manifest captured tsc output to test-output-us003-typecheck.log; log length 0 bytes confirms exit 0 with no diagnostics; diff touches .ts files that compile."
+    }
+  ],
+  "warnings": []
+}

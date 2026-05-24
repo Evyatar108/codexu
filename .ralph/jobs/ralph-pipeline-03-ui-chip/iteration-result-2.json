@@ -1,0 +1,48 @@
+{
+  "storyId": "US-002",
+  "verifiedEvidence": [
+    {
+      "criterion": "RalphStageChip component and props exist",
+      "command": "grep -nE \"export function RalphStageChip|taskId: string; ralphState: OverviewRalphState; tooltipExtras\\?\" tools/overview-viewer/src/components/RalphStageChip.tsx",
+      "result": "Line 6 exports RalphStageChip with taskId, ralphState, and optional tooltipExtras props.",
+      "evidenceKind": "source-inspection"
+    },
+    {
+      "criterion": "Absent task state renders no chip",
+      "command": "pnpm --filter @codexu/overview-viewer test > .test-output/overview-viewer.test.log 2>&1",
+      "result": "Exited 0; ralphStageChip.test.tsx covers null-when-absent and Vitest reported 21 files / 114 tests passed.",
+      "evidenceKind": "absent-verified"
+    },
+    {
+      "criterion": "Focusable Radix tooltip trigger has expected chip classes and no role=button",
+      "command": "grep -nE \"Tooltip.Provider|Tooltip.Trigger asChild|Tooltip.Portal|Tooltip.Content|tabIndex=\\{0\\}|aria-label|onClick=\\{\\(event\\) => event.stopPropagation\\(\\)\\}\" tools/overview-viewer/src/components/RalphStageChip.tsx",
+      "result": "Lines 20-43 wrap the trigger in Radix Tooltip primitives; lines 23-29 render the focusable span trigger.",
+      "evidenceKind": "source-inspection"
+    },
+    {
+      "criterion": "Tooltip details, slug-default class, extras, and optional-row omission are tested",
+      "command": "pnpm --filter @codexu/overview-viewer test > .test-output/overview-viewer.test.log 2>&1",
+      "result": "Exited 0; SSR and jsdom tests cover all 10 stage classes, match-slug-default, no undefined, focus tooltip stage/slug, and tooltipExtras.",
+      "evidenceKind": "test-output"
+    },
+    {
+      "criterion": "Quality checks pass",
+      "command": "pnpm --filter @codexu/overview-viewer typecheck > .test-output/overview-viewer.typecheck.log 2>&1; pnpm --filter @codexu/overview-viewer test > .test-output/overview-viewer.test.log 2>&1",
+      "result": "Both commands exited 0; typecheck ran tsc --noEmit and Vitest reported 21 test files passed and 114 tests passed.",
+      "evidenceKind": "command-output"
+    },
+    {
+      "criterion": "US-002:AC-010 browser verification",
+      "command": "N/A",
+      "result": "SKIPPED: dev-browser skill/browser automation unavailable in this session; chip rendering is covered by ralphStageChip.test.tsx and interactions/ralphStageChipTooltip.test.tsx.",
+      "evidenceKind": "skipped"
+    }
+  ],
+  "skippedReasons": [
+    "tool_unavailable"
+  ],
+  "notTested": [
+    "live browser verification; dev-browser tooling unavailable"
+  ],
+  "iterationSHA": "f701ff05a830a5353d649f6302fb10f0054f4afc"
+}

@@ -1,0 +1,87 @@
+{
+  "planFile": "D:/harness-efforts/codexu/.ralph/jobs/phase-3h-options-mode-migration/plan.md",
+  "repoDir": "D:/harness-efforts/codexu/.ralph/jobs/phase-3h-options-mode-migration/worktree",
+  "reviewCycle": 0,
+  "findings": [
+    {
+      "id": "F-001",
+      "severity": "High",
+      "source": "docs",
+      "classification": "fixable",
+      "phase": "docs",
+      "category": "Stale Documentation",
+      "description": "plans/codexu-roadmap.md lines 2322-2327 (under the now `DONE 2026-05-13` Phase 3h section) say `hooks/config.js` will \"Update getConfigRoot() line 32-34: hardcoded ~/.claude → prefer CODEX_HOME env or ~/.codex/\". The shipped plugin's hooks/config.js does the opposite per the job's load-bearing INV-6: it reads PLUGIN_DATA and throws when unset, with no fallback to CODEX_HOME or ~/.codex/. This direct factual contradiction will mislead future engineers about how options-mode state is rooted.",
+      "status": "fixed",
+      "relevantFiles": [
+        "plans/codexu-roadmap.md"
+      ],
+      "suggestedFix": "In plans/codexu-roadmap.md, update the `hooks/config.js` bullet in the LOC inventory (lines ~2322-2327) to reflect the shipped behavior: getConfigRoot() reads PLUGIN_DATA (set by codex plugin discovery per discovery.rs:184-186) and fails loud if unset. Drop the CODEX_HOME/~/.codex preference language.",
+      "fixedInIteration": 1,
+      "resolution": "Rewrote plans/codexu-roadmap.md §Phase 3h body to match shipped state. Batched fix closing F-001..F-005."
+    },
+    {
+      "id": "F-002",
+      "severity": "High",
+      "source": "docs",
+      "classification": "fixable",
+      "phase": "docs",
+      "category": "Stale Documentation",
+      "description": "plans/codexu-roadmap.md lines 2366-2374 \"Files to author\" still lists placeholder paths `<options-mode-codex-plugin>/.codex-plugin/plugin.json`, `<plugin>/apps/hooks/` (Node.js scripts), and `skills/options-mode-toggle/SKILL.md`. The actually-shipped paths are `packages/codexu-options-mode-plugin/.codex-plugin/plugin.json`, `packages/codexu-options-mode-plugin/hooks/` (NOT `apps/hooks/`), and `packages/codexu-options-mode-plugin/skills/options-mode/SKILL.md` (NOT `options-mode-toggle`). The directory structure listed no longer matches the repo.",
+      "status": "fixed",
+      "relevantFiles": [
+        "plans/codexu-roadmap.md"
+      ],
+      "suggestedFix": "Replace the \"Files to author\" list in plans/codexu-roadmap.md (~lines 2366-2374) with a \"Files shipped\" list pointing at the real paths under `packages/codexu-options-mode-plugin/`: `.codex-plugin/plugin.json`, `hooks/{config,session-start,user-prompt-submit,stop}.js`, `hooks/hooks.json`, and `skills/options-mode/SKILL.md`. Or simply delete the section now that the work is done.",
+      "fixedInIteration": 1,
+      "resolution": "Rewrote plans/codexu-roadmap.md §Phase 3h body to match shipped state. Batched fix closing F-001..F-005."
+    },
+    {
+      "id": "F-003",
+      "severity": "Medium",
+      "source": "docs",
+      "classification": "fixable",
+      "phase": "docs",
+      "category": "Stale Documentation",
+      "description": "plans/codexu-roadmap.md lines 2253-2255 (under Phase 3g/3h \"Files to author/update\") still says \"Update install instructions in `C:/ai-developer-toolkit/plugins/ralph/CLAUDE.md` and `plugins/options-mode/CLAUDE.md`\". The shipped Phase 3h migration put install instructions in the new in-repo `packages/codexu-options-mode-plugin/README.md` and `packages/codexu-options-mode-plugin/CLAUDE.md` instead. Pointing engineers at the legacy `C:/ai-developer-toolkit/plugins/options-mode/` location for install docs is misleading post-migration.",
+      "status": "fixed",
+      "relevantFiles": [
+        "plans/codexu-roadmap.md"
+      ],
+      "suggestedFix": "Update the Phase 3g/3h \"Files to author/update\" bullet at plans/codexu-roadmap.md:2253-2255 to point at the in-repo locations: `packages/codexu-options-mode-plugin/README.md` and `packages/codexu-options-mode-plugin/CLAUDE.md`. Keep the ralph plugin CLAUDE.md reference if Phase 3a still uses that path.",
+      "fixedInIteration": 1,
+      "resolution": "Rewrote plans/codexu-roadmap.md §Phase 3h body to match shipped state. Batched fix closing F-001..F-005."
+    },
+    {
+      "id": "F-004",
+      "severity": "Medium",
+      "source": "docs",
+      "classification": "fixable",
+      "phase": "docs",
+      "category": "Stale Documentation",
+      "description": "plans/codexu-roadmap.md lines 2278-2289 \"What it does today\" describes the upstream Claude plugin's tag protocol — `<options-mode>continue</options-mode>` and a single closing-tag-or-choice contract. The shipped codex port (verified in packages/codexu-options-mode-plugin/hooks/config.js:12-15 and skills/options-mode/SKILL.md) uses a different tag set: `no-question`, `task-complete`, `background-task`, `background-agent`. There is no `continue` tag in the shipped plugin. Now that this paragraph sits under a header marked `DONE 2026-05-13`, readers will reasonably read it as \"what the shipped 3h plugin does\" and form an incorrect mental model.",
+      "status": "fixed",
+      "relevantFiles": [
+        "plans/codexu-roadmap.md"
+      ],
+      "suggestedFix": "Either (a) reframe the \"What it does today\" block at plans/codexu-roadmap.md:2278-2289 as \"What the upstream plugin did (pre-migration baseline)\" with the same content, OR (b) replace it with a current-state summary that names the shipped tag set (no-question, task-complete, background-task, background-agent) and the four modes (off/on/strict/auto) per packages/codexu-options-mode-plugin/README.md.",
+      "fixedInIteration": 1,
+      "resolution": "Rewrote plans/codexu-roadmap.md §Phase 3h body to match shipped state. Batched fix closing F-001..F-005."
+    },
+    {
+      "id": "F-005",
+      "severity": "Medium",
+      "source": "docs",
+      "classification": "fixable",
+      "phase": "docs",
+      "category": "Stale Documentation",
+      "description": "plans/codexu-roadmap.md lines 2339-2353 (LOC inventory bullets for `commands/options-mode.toml` and `hooks/options-mode-statusline.{ps1,sh}`) still presents both topics as open future choices: slash command is \"Two options: (1) UserPromptSubmit hook OR (2) convert to a skill\", and statusline scripts \"Drop, OR upstream a new StatusLineItem variant\". The shipped plugin already chose: UserPromptSubmit hook handles the toggle AND a documentation-only skill exists at skills/options-mode/SKILL.md; statusline scripts were kept under apps/statusline/ for forward-compat (per README \"Known Gaps\"), not dropped. The \"choose later\" framing is stale.",
+      "status": "fixed",
+      "relevantFiles": [
+        "plans/codexu-roadmap.md"
+      ],
+      "suggestedFix": "Rewrite the two bullets at plans/codexu-roadmap.md:2339-2353 in past tense, naming the chosen designs: UserPromptSubmit hook intercepts `/options-mode <args>` (Codex TUI falls through unknown slash text), and a discoverability skill at packages/codexu-options-mode-plugin/skills/options-mode/SKILL.md documents the commands; statusline shell scripts are copied under packages/codexu-options-mode-plugin/apps/statusline/ for forward-compat with a future Codex plugin statusline slot (Phase 3h-tail).",
+      "fixedInIteration": 1,
+      "resolution": "Rewrote plans/codexu-roadmap.md §Phase 3h body to match shipped state. Batched fix closing F-001..F-005."
+    }
+  ]
+}

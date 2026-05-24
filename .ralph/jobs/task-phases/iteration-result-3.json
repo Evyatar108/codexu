@@ -1,0 +1,32 @@
+{
+  "storyId": "US-003",
+  "verifiedEvidence": [
+    {
+      "criterion": "AC-001 perf-WS3 consistent shipped phase",
+      "command": "node status-table scoped check for perf-WS3",
+      "result": "perf-WS3: overview_phase=shipped overview_status=ok; markdown status row is ✅ shipped with commit 197b0148.",
+      "evidenceKind": "command-output"
+    },
+    {
+      "criterion": "AC-002 1a-fork-doc consistent shipped phase",
+      "command": "node status-table scoped check for 1a-fork-doc",
+      "result": "1a-fork-doc: overview_phase=shipped overview_status=ok; markdown status row is ✅ shipped with commit 7fa6ff3b.",
+      "evidenceKind": "command-output"
+    },
+    {
+      "criterion": "AC-003 no other row drift",
+      "command": "node all-49 details.cmd vs parallel-assignments status-table phase derivation check",
+      "result": "details=49; status_rows_checked=49; drift_count=0. Also reconciled discovered audit-general-purpose-vs-worker drift to ✅ shipped.",
+      "evidenceKind": "command-output"
+    },
+    {
+      "criterion": "AC-004 typecheck / markdown sanity",
+      "command": "git diff --check",
+      "result": "Exited 0; no whitespace errors. Git reported only the existing LF-to-CRLF working-copy warning for plans/parallel-assignments.md.",
+      "evidenceKind": "command-output"
+    }
+  ],
+  "skippedReasons": [],
+  "notTested": [],
+  "iterationSHA": "c885967aafba6bd0ad9181da8cf373c4ce46b8bf"
+}

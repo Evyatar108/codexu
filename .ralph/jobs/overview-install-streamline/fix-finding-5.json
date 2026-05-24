@@ -1,0 +1,18 @@
+{
+  "id": "F-006",
+  "severity": "Medium",
+  "source": "claude",
+  "category": "Quality",
+  "classification": "fixable",
+  "phase": "code",
+  "sectionRef": "Approach > Architecture > MCP tool registration",
+  "description": "schemas.ts registers overviewInitInputSchema and overviewUpsertTaskInputSchema as plain object literals (no .strict()) for the SDK via asSdkInputSchema(). The separately exported overviewInitSchema / overviewUpsertTaskSchema have .strict(), and the unit test 'uses strict schemas for both tool inputs' (init-upsert-tools.test.ts:64-67) parses through those strict variants. The actual MCP tool registration path goes through the loose plain-object form, so unknown keys may be accepted at the protocol boundary even though strict semantics are documented and tested.",
+  "relevantFiles": [
+    "plugins/ralph-overview/tools/overview-mcp/src/schemas.ts:76-114",
+    "plugins/ralph-overview/tools/overview-mcp/src/schemas.ts:137-138",
+    "plugins/ralph-overview/tools/overview-mcp/src/tools/init.ts:11-19",
+    "plugins/ralph-overview/tools/overview-mcp/src/tools/upsert-task.ts:14-23"
+  ],
+  "suggestedFix": "Pass the strict schema variants (or a strict-wrapped shape) into registerTool, e.g. by changing the registration to use overviewInitSchema.shape (in zod v4) or by composing asSdkInputSchema to wrap with .strict() automatically. Add a regression test that calls the MCP tool with an extra key and asserts it is rejected at the SDK boundary.",
+  "status": "open"
+}

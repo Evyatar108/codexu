@@ -1,0 +1,38 @@
+{
+  "storyId": "US-006",
+  "verifiedEvidence": [
+    {
+      "criterion": "tools/overview-viewer/src/__tests__/ralphWatcher.test.ts exists under the ssr Vitest project (Node env).",
+      "command": "grep -nE \"name: 'ssr'|environment: 'node'|include\" tools/overview-viewer/vitest.config.ts && test -f tools/overview-viewer/src/__tests__/ralphWatcher.test.ts && echo 'ralphWatcher.test.ts exists'",
+      "result": "PASS: vitest.config.ts defines the ssr project with environment node and include src/__tests__/**/*.test.{ts,tsx}; ralphWatcher.test.ts exists under that include.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Tests A-H from the plan Verification section have automated counterparts (or are explicitly tagged as manual-only with a why-not-automated note).",
+      "command": "grep -nE \"cold-start|coalesces duplicate|mergeAndWrite refreshes task state|fails one-shot sync|vite-plugin auto-start|rejects standalone startup|retains malformed|touches the lock|treats EPERM|overwrites a stale lock|re-derives a job|removes a task|promotes a brainstorm|worktree paths ignored|selected-direction\" tools/overview-viewer/src/__tests__/ralphWatcher.test.ts tools/overview-viewer/src/__tests__/syncCore.test.ts tools/overview-viewer/src/__tests__/syncLock.test.ts tools/overview-viewer/src/__tests__/syncRalphStateCli.test.ts",
+      "result": "PASS: automated counterparts exist for A cold-start, B debounce, C merge/full-walk equality, D lock contention, E Vite update, F concurrent watcher rejection, G malformed/recovery, G2 heartbeat, G3 PID-liveness, H deletion/promotion, I worktree isolation, and selected-direction no-op.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Fake-timer tests cover debounce coalescing, fresh-lock diagnostic message format, stale-lock heartbeat refresh (Test G2), PID-liveness gate (Test G3), malformed-JSON counter, cross-kind promotion.",
+      "command": "grep -nE \"coalesces duplicate|fails one-shot sync|touches the lock|overwrites a stale lock|treats EPERM|retains malformed|promotes a brainstorm\" tools/overview-viewer/src/__tests__/ralphWatcher.test.ts tools/overview-viewer/src/__tests__/syncLock.test.ts tools/overview-viewer/src/__tests__/syncRalphStateCli.test.ts",
+      "result": "PASS: fake-timer coverage is present for debounce coalescing, heartbeat refresh, stale PID overwrite, EPERM active PID gate, malformed counter/recovery, and cross-kind promotion; CLI test covers fresh-lock diagnostic format.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "All tests pass under pnpm --filter @codexu/overview-viewer test.",
+      "command": "pnpm --filter @codexu/overview-viewer test > .test-output/overview-viewer.test.log 2>&1",
+      "result": "PASS: vitest completed with 22 test files passed and 126 tests passed.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Typecheck passes.",
+      "command": "pnpm --filter @codexu/overview-viewer typecheck > .test-output/overview-viewer.typecheck.log 2>&1",
+      "result": "PASS: tsc --noEmit completed with exit 0.",
+      "evidenceKind": "passed"
+    }
+  ],
+  "skippedReasons": [],
+  "notTested": [],
+  "iterationSHA": "43c4bce3cae401a131697a23e63a5c3500af3dcb"
+}

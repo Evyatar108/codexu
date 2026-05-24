@@ -1,0 +1,26 @@
+{
+  "storyId": "US-001",
+  "verifiedEvidence": [
+    {
+      "criterion": "ProcessManager implementation and lifecycle edge coverage",
+      "command": "pnpm --filter @codexu/overview-mcp test",
+      "result": "PASS: process-manager.test.ts covers spawn/logs, onReady stdout/stderr, Windows tree-kill escalation, stopAll, already-running, race ordering, stop-while-starting, ring-buffer overflow, CRLF normalization, and stdio isolation; package suite 15 files passed, 51 tests passed.",
+      "evidenceKind": "command-output"
+    },
+    {
+      "criterion": "Typecheck passes for @codexu/overview-mcp",
+      "command": "pnpm --filter @codexu/overview-mcp typecheck",
+      "result": "PASS: tsc --noEmit -p tsconfig.json exited 0.",
+      "evidenceKind": "command-output"
+    },
+    {
+      "criterion": "Build produces package dist entry used by stdio smoke test",
+      "command": "pnpm --filter @codexu/overview-mcp build",
+      "result": "PASS: tsc build and dist copy step exited 0; stdio smoke test passed afterward as part of pnpm --filter @codexu/overview-mcp test.",
+      "evidenceKind": "command-output"
+    }
+  ],
+  "skippedReasons": [],
+  "notTested": [],
+  "iterationSHA": "7532573a998499faad9c3f7f16c06c5036cc106b"
+}

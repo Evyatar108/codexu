@@ -1,0 +1,74 @@
+{
+  "storyId": "US-003",
+  "verifiedEvidence": [
+    {
+      "criterion": "tools/overview-mcp/src/tools/init.ts wraps initConsumer() and returns its result via MCP",
+      "evidenceKind": "passed",
+      "command": "grep -RIn -E 'initConsumer|overview.init' plugins/ralph-overview/tools/overview-mcp/src/tools/init.ts plugins/ralph-overview/tools/overview-mcp/src/server.ts",
+      "result": "Found initConsumer import, overview.init registration, and return initConsumer({ cwd: context.repoRoot, ...input }) in tools/init.ts."
+    },
+    {
+      "criterion": "tools/overview-mcp/src/tools/upsert-task.ts reads overview-data.js, calls upsertTaskInSource(), writes via atomicWriteFile(), then calls syncNow(context)",
+      "evidenceKind": "passed",
+      "command": "grep -RIn -E 'upsertTaskInSource|atomicWriteFile|syncNow|overview.upsert_task' plugins/ralph-overview/tools/overview-mcp/src/tools/upsert-task.ts plugins/ralph-overview/tools/overview-mcp/src/server.ts",
+      "result": "Found upsertTaskInSource, atomicWriteFile, and syncNow imports/calls in tools/upsert-task.ts plus overview.upsert_task registration; init-upsert-tools test passed."
+    },
+    {
+      "criterion": "tools/overview-mcp/src/schemas.ts adds overviewInitInputSchema and overviewUpsertTaskInputSchema (strict, no extras)",
+      "evidenceKind": "passed",
+      "command": "grep -RIn -E 'overviewInitSchema|overviewUpsertTaskSchema|strict' plugins/ralph-overview/tools/overview-mcp/src/schemas.ts plugins/ralph-overview/tools/overview-mcp/src/__tests__/init-upsert-tools.test.ts",
+      "result": "Schemas include strict overviewInitSchema and overviewUpsertTaskSchema; tests assert extra and taskObjectFields.ui are rejected with Unrecognized key."
+    },
+    {
+      "criterion": "tools/overview-mcp/src/server.ts registers both new tools",
+      "evidenceKind": "passed",
+      "command": "npm test --workspace=tools/overview-mcp",
+      "result": "Vitest passed 23 files / 93 tests; read-only-tools and stdio-tools-list exact-name tests include overview.init and overview.upsert_task in the 19 registered tools."
+    },
+    {
+      "criterion": "scripts/lib/check-initialized.mjs exports checkConsumerInitialized(repoRoot) returning initialized/missing; paired .d.mts exists",
+      "evidenceKind": "passed",
+      "command": "test -f plugins/ralph-overview/scripts/lib/check-initialized.mjs && test -f plugins/ralph-overview/scripts/lib/check-initialized.d.mts && node -e \"import('./plugins/ralph-overview/scripts/lib/check-initialized.mjs').then(({checkConsumerInitialized})=>console.log(JSON.stringify(checkConsumerInitialized(process.cwd()))))\"",
+      "result": "Both files exist; command printed {\"initialized\":false,\"missing\":[\"plans/overview-data.js\",\".ralph/overview-config.json\",\".mcp.json:mcpServers.ralph-overview\",\".claude/settings.json:enabledMcpjsonServers\"]}."
+    },
+    {
+      "criterion": "overview.list_tasks and overview.dev_server.status return consumer-not-initialized with suggestedTool overview.init when the probe fails",
+      "evidenceKind": "passed",
+      "command": "npm test --workspace=tools/overview-mcp; grep -RIn -E 'consumer-not-initialized|suggestedTool' plugins/ralph-overview/tools/overview-mcp/src/__tests__/list-tasks.test.ts plugins/ralph-overview/tools/overview-mcp/src/__tests__/dev-server.test.ts",
+      "result": "Vitest passed; list-tasks and dev-server tests assert { ok:false, code:\"consumer-not-initialized\", suggestedTool:\"overview.init\", missing:[...] }."
+    },
+    {
+      "criterion": "install-server.ts calls initConsumer({ serverOnly: true, force: true }) and preserves installServer API, package bin, and --print-only preview",
+      "evidenceKind": "passed",
+      "command": "grep -RIn -E 'initConsumer|serverOnly: true|force: true|overview-mcp-install|printOnly' plugins/ralph-overview/tools/overview-mcp/src/install-server.ts plugins/ralph-overview/tools/overview-mcp/package.json plugins/ralph-overview/tools/overview-mcp/src/__tests__/install-server.test.ts",
+      "result": "install-server.ts calls initConsumer with dryRun from printOnly, serverOnly true, force true; package.json still exposes overview-mcp-install; tests cover settings.json, ralph-overview, and print-only no-write."
+    },
+    {
+      "criterion": "bin/ralph-overview.mjs install-server delegates to the built installer and is semantically equivalent to init --server-only --force",
+      "evidenceKind": "passed",
+      "command": "tmp=$(mktemp -d); (cd \"$tmp\" && node /d/harness-efforts/codexu/.ralph/jobs/overview-install-streamline/worktree/plugins/ralph-overview/bin/ralph-overview.mjs install-server --print-only); rc=$?; rm -rf \"$tmp\"; exit $rc",
+      "result": "CLI printed ok JSON with filesPlanned [\".mcp.json\",\".claude/settings.json\"], filesWritten [], filesSkipped [], errors [], matching server-only dry-run registration behavior."
+    },
+    {
+      "criterion": "Stale tests fixed for install-server, dev-server, build, stdio-tools-list, and read-only-tools",
+      "evidenceKind": "passed",
+      "command": "grep -RIn -E 'settings.json|ralph-overview|print-only|dispatcher build|ralph-overview.mjs.*dev|19 overview|overview.init|overview.upsert_task' plugins/ralph-overview/tools/overview-mcp/src/__tests__/install-server.test.ts plugins/ralph-overview/tools/overview-mcp/src/__tests__/dev-server.test.ts plugins/ralph-overview/tools/overview-mcp/src/__tests__/build.test.ts plugins/ralph-overview/tools/overview-mcp/src/__tests__/stdio-tools-list.test.ts plugins/ralph-overview/tools/overview-mcp/src/__tests__/read-only-tools.test.ts",
+      "result": "Tests now assert settings.json, ralph-overview registration, print-only no-write, dispatcher dev/build commands, and 19-tool exact lists with overview.init and overview.upsert_task."
+    },
+    {
+      "criterion": "npm test --workspace=tools/overview-mcp passes green",
+      "evidenceKind": "passed",
+      "command": "npm test --workspace=tools/overview-mcp 2>&1 | tee D:/harness-efforts/codexu/.ralph/jobs/overview-install-streamline/test-output-us003-npm-test.log",
+      "result": "Vitest summary: Test Files 23 passed | 1 skipped (24); Tests 93 passed | 1 skipped (94)."
+    },
+    {
+      "criterion": "Typecheck passes (tsc -p tools/overview-mcp/tsconfig.json)",
+      "evidenceKind": "passed",
+      "command": "npx tsc -p tools/overview-mcp/tsconfig.json 2>&1 | tee D:/harness-efforts/codexu/.ralph/jobs/overview-install-streamline/test-output-us003-typecheck.log",
+      "result": "Exit code 0; typecheck log length 0 bytes, no TypeScript diagnostics."
+    }
+  ],
+  "skippedReasons": [],
+  "notTested": [],
+  "iterationSHA": "8c8e0b3951543dcd22ca4861e69a4b2140bd8c60"
+}

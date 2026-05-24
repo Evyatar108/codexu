@@ -1,0 +1,41 @@
+### Feasibility
+
+[High] US-004 / AC14 is not feasible as written. `plugins/ralph-overview/dist/` does not exist, and I found no Copilot mirror generator under `plugins/ralph-overview/scripts/`. The only matching generator is for `plugins/ralph/`, not `plugins/ralph-overview/`. The plan must either add/adapt a generator or remove the mirror-count gate.
+
+[High] The planned `.mjs` modules imported from TypeScript need declaration files. Existing imports from `tools/overview-mcp/src/**/*.ts` rely on paired `*.d.mts` files for `scripts/lib/*.mjs`. The plan creates `scripts/init-consumer.mjs`, `scripts/lib/upsert-task-edit.mjs`, and `scripts/lib/check-initialized.mjs` but omits matching `.d.mts`; `tsc -p tools/overview-mcp/tsconfig.json` will likely fail under `strict`.
+
+[Medium] The plan repeatedly describes `syncNow(context)` as “in-process,” but `tools/overview-mcp/src/tools/sync-now.ts` currently spawns `node <pluginRoot>/bin/ralph-overview.mjs sync --repo <repoRoot>`. Calling `syncNow(context)` is fine, but the “in-process” claim is inaccurate and can mislead tests or implementation.
+
+[Medium] The plan’s CLI examples use `init --cwd`, while the dispatcher convention in `plugins/ralph-overview/bin/ralph-overview.mjs` and docs is `--repo`. This is implementable, but the plan should explicitly support `--repo` and optionally alias `--cwd`.
+
+### Completeness
+
+[Critical] AC3 says `overview.init --force` “regenerates all four files” and “replacing existing content with templates.” Applied literally to `.mcp.json` and `.claude/settings.json`, this can delete unrelated MCP servers and Claude settings, contradicting the plan’s own safe-merge / append-only constraints. Force should overwrite only scaffold templates, while registration files still merge.
+
+[High] The upsert design conflicts with the actual data model in `tools/overview-viewer/src/types.ts`. Fields like `workstream`, `sizeBucket`, `risk`, `cadence`, `effort`, `periodic`, and `spawnedFrom` are top-level maps keyed by task id, not fields inside `tasks[]`. The plan says byte-identical outside the target task object, but editing those fields necessarily touches ranges outside that object. The mutator contract needs separate allowed fields for task object fields vs top-level map fields.
+
+[High] The plan does not add a creation acceptance test for `overview.upsert_task`, despite `/overview-add-task` being in scope. AC6 only mutates one existing task’s `status`. Creating a task must verify insertion into `tasks[]`, idempotency, formatting, and any related top-level maps.
+
+[High] Adding two MCP tools will break `tools/overview-mcp/src/__tests__/stdio-tools-list.test.ts`, which currently asserts exactly 17 tool names. The plan lists `server.ts` updates but does not include updating this test or the documented tool count in `plugins/ralph-overview/README.md`, `plugins/ralph-overview/CLAUDE.md`, and `tools/overview-mcp/README.md`.
+
+[High] `install-server.ts` cannot simply be deleted/rerouted without preserving its package-bin behavior. `tools/overview-mcp/package.json` exposes `overview-mcp-install` as `dist/install-server.js`, and the current `installServer()` API supports `--print-only`. The plan should require preserving that API or updating/removing the bin contract intentionally.
+
+[Medium] First-run probing is only planned for `overview.list_tasks` and `overview.dev_server.status`. `overview.dev_server.start`, `overview.build`, and `overview.sync.now` can still fail with lower-level missing-file errors in an uninitialized repo.
+
+### Ordering
+
+[High] US-003 depends on the init engine having a server-only mode, but US-001’s engine API does not include `serverOnly` / `registrationOnly`. Add that option in US-001 before reconciling `install-server.ts`.
+
+[Medium] The Copilot mirror work is placed after source skills, but because the generator is missing, discovery of the generator should be moved to the start of US-004 or earlier as an explicit gate.
+
+### Simplicity
+
+[Medium] A single generic `overview.upsert_task` is reasonable, but the plan over-compresses different mutation shapes into one `{ fields }` bag. Simpler and safer: whitelist task-object fields separately from top-level-map fields and report exact edited ranges.
+
+### Acceptance Criteria Quality
+
+[High] AC9 requires identical dry-run output across direct engine, MCP, and CLI, but “same output” is underspecified for CLI human text vs structured engine result. Require `--json` for CLI parity or compare only parsed structured fields.
+
+[High] AC7 says assert snapshot mtime advances and content changes. Mtime alone is flaky on fast filesystems, and content change depends on sync matching the edited field. Require parsing `plans/overview-snapshot.json` or `plans/overview-ralph-state.json` and asserting the specific task field changed.
+
+[Medium] AC1 says “expected content” for `.mcp.json` and `.claude/settings.json` but does not define the exact `ralph-overview` server entry. The plan should specify `type`, `command`, `args`, path style, and whether `launch.cjs` is absolute or tokenized.

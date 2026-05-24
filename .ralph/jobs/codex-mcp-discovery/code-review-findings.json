@@ -1,0 +1,104 @@
+{
+  "planFile": "D:/harness-efforts/codexu/.ralph/jobs/codex-mcp-discovery/plan.md",
+  "repoDir": "D:/harness-efforts/codexu",
+  "workDir": "D:/harness-efforts/codexu/.worktrees/codex-mcp-discovery",
+  "generatedAt": "2026-05-13T20:06:00Z",
+  "round": 1,
+  "scope": "code",
+  "synthesisNote": "Claude reviewer agent crashed (review-changes skill forked execution failed); synthesis derived from codex-review.txt (clean) + copilot-review.txt (1 High + 5 non-blocking) + orchestrator-derived AC9 audit. Tests verified green (13/13).",
+  "findings": [
+    {
+      "id": "F-001",
+      "severity": "Medium",
+      "category": "Correctness",
+      "classification": "fixable",
+      "source": "copilot",
+      "section": "plans/parallel-assignments.md:547",
+      "description": "Stale commit hash `f5bdfe67` written into the `mcp-discovery` status row. That SHA does not exist in this branch's history. Per plan Acceptance Criterion 9, the implementation creates an initial commit with `pending` sentinel SHAs in overview.html + parity-tracking docs, then runs `git commit --amend --no-edit` once with the real resolved SHA. The fake hash here must be replaced with the literal sentinel `pending` (the `--amend` step in US-003's finalization is where the real SHA flows in).",
+      "filePath": "plans/parallel-assignments.md",
+      "lineNumber": 547,
+      "status": "open",
+      "resolution": null,
+      "fixGuidance": "In packages/happy-cli/../.worktrees/codex-mcp-discovery/plans/parallel-assignments.md line 547, replace `f5bdfe67` with `pending` in the status row for `mcp-discovery`. Do not invent a SHA. The `--amend` step in US-003's finalization is the canonical site where the real SHA replaces the sentinel — but since this commit chain is currently 3 separate commits (not one atomic), the `--amend` workflow needs to be reconciled with F-002 first. Land this finding's fix on its own, then handle F-002 (commit squash) which will produce the SHA used in a follow-up amend."
+    },
+    {
+      "id": "F-002",
+      "severity": "Medium",
+      "category": "Process",
+      "classification": "fixable",
+      "source": "orchestrator-audit",
+      "section": "git log on feat/codex-mcp-discovery",
+      "description": "Plan Acceptance Criterion 9 mandates 'one atomic commit at HEAD, allowed to be created via initial commit + one `git commit --amend`'. The current branch has 3 commits: `1d3083ad` (US-001), `fa400e6e` (US-002), `4378ef3f` (US-003). This violates AC9 — three commits is not one atomic commit even with --amend. Must be squashed into a single commit whose message references the roadmap bullet (the message of 4378ef3f is already correctly worded; reuse it).",
+      "filePath": null,
+      "lineNumber": null,
+      "status": "open",
+      "resolution": null,
+      "fixGuidance": "From the worktree `D:/harness-efforts/codexu/.worktrees/codex-mcp-discovery`, run: `git reset --soft <main HEAD>` then `git commit -m 'feat(happy-cli/codex): per-cwd .mcp.json discovery — closes codexu-roadmap \"Codex agent project-.mcp.json parity\"'`. Verify final state with `git log --oneline main..HEAD` showing exactly ONE commit, then `git diff main..HEAD --stat` to confirm no file deltas vs the 3-commit state. After squashing, capture the resolved short SHA, then update `plans/parallel-assignments.md:547`, `plans/codex-agent-parity-audit.md` (any `pending` markers), `plans/overview.html` (runs[].commits, generatedFromCommit, cmd-desc suffix, kanban sub-text) by replacing every `pending` sentinel and the stale `f5bdfe67` with the squashed-commit short SHA. Finally `git add -A && git commit --amend --no-edit` so the SHA-bearing metadata folds into the single commit. This satisfies AC9 end-state: ONE commit at HEAD with all SHA-bearing fields populated.",
+      "dependsOn": ["F-001"]
+    },
+    {
+      "id": "F-003",
+      "severity": "Low",
+      "category": "Quality",
+      "classification": "fixable",
+      "source": "copilot",
+      "section": "packages/happy-cli/src/codex/projectMcpConfig.ts:14",
+      "description": "HTTP `url` field is declared as `z.string()` rather than `z.string().url()`. An empty string or `\"not a url\"` would pass the loader and reach the codex client, which would then fail to connect or reject the entry at thread/start. Cheap to fix and matches the 'skip malformed entries' intent.",
+      "filePath": "packages/happy-cli/src/codex/projectMcpConfig.ts",
+      "lineNumber": 14,
+      "status": "open",
+      "resolution": null,
+      "fixGuidance": "Change `url: z.string()` to `url: z.string().url()` in HttpEntry. Add a helper unit test case in `projectMcpConfig.test.ts` asserting that an entry with `{ type: 'http', url: 'not-a-url' }` is logged + skipped (counts as an 'invalid entry' for the existing per-entry skip path)."
+    },
+    {
+      "id": "F-004",
+      "severity": "Low",
+      "category": "Quality",
+      "classification": "fixable",
+      "source": "copilot",
+      "section": "packages/happy-cli/src/codex/projectMcpConfig.ts:56",
+      "description": "Reserved-name check `serverName === 'happy'` is strict case-sensitive. `Happy`, `HAPPY`, ` happy`, or `happy ` would slip past the guard, land in `projectMcpServers`, and then be silently overwritten by the spread-bridge-last fallback in `runCodex.ts` without an explanatory warning. The bridge still wins (defense-in-depth holds), but the user-visible behavior is that their project entry vanishes silently.",
+      "filePath": "packages/happy-cli/src/codex/projectMcpConfig.ts",
+      "lineNumber": 56,
+      "status": "open",
+      "resolution": null,
+      "fixGuidance": "Change the guard to `serverName.trim().toLowerCase() === 'happy'` so confusable casings + leading/trailing whitespace all hit the warn-and-skip path. Add a helper unit test for `Happy` and ` happy` confirming the warning fires and the entry is skipped."
+    }
+  ],
+  "informationalFindings": [
+    {
+      "id": "F-I001",
+      "severity": "Low",
+      "category": "Quality",
+      "classification": "no-op",
+      "source": "copilot",
+      "section": "packages/happy-cli/src/codex/projectMcpConfig.ts (schema passthrough)",
+      "description": "Copilot flagged this as `[High]` claiming codex's `RawMcpServerConfig` rejects unknown fields via `#[schemars(deny_unknown_fields)]`. Verified at `codex/external/repos/codex-patched/codex-rs/config/src/mcp_types.rs:189` — the attribute is `#[schemars(deny_unknown_fields)]` (schemars, for JSON schema generation) NOT `#[serde(deny_unknown_fields)]`. Serde silently drops unknown fields during deserialization; the schemars attribute only affects schema doc emission. The `TryFrom<RawMcpServerConfig>` conversion exhaustively destructures known fields (line 247-256), so unknowns are dropped at conversion rather than rejected. Plan's `.passthrough()` decision is correct as written. Marked no-op.",
+      "filePath": "packages/happy-cli/src/codex/projectMcpConfig.ts",
+      "status": "wont_fix",
+      "resolution": "Misattribution: schemars deny_unknown_fields ≠ serde deny_unknown_fields. Codex serde lets unknowns through silently. Plan's .passthrough() stays."
+    },
+    {
+      "id": "F-I002",
+      "severity": "Low",
+      "category": "Coverage",
+      "classification": "fixable",
+      "source": "copilot",
+      "section": "Acceptance test suite",
+      "description": "Copilot suggested adding a test for `reconnectAndResumeThread` path to lock in the parity guarantee on ws-drop. Plan Open Questions explicitly listed this as out-of-scope for this commit (deferred to a future task). Marked won't-fix per plan scope.",
+      "status": "wont_fix",
+      "resolution": "Plan explicitly defers reconnect-path test to a future commit (out-of-scope per Open Questions section)."
+    },
+    {
+      "id": "F-I003",
+      "severity": "Low",
+      "category": "Documentation",
+      "classification": "no-op",
+      "source": "copilot",
+      "section": "packages/happy-cli/src/codex/runCodex.ts (cwdAtStart capture timing)",
+      "description": "Copilot suggested a one-line comment explaining that on ws-mode reattach to a detached app-server, the codex side's pre-existing cwd wins over our newly-captured one. Acceptable behavior (matches per-cwd discovery framing). Out-of-scope polish.",
+      "status": "wont_fix",
+      "resolution": "Behavior matches plan; one-line comment is polish, out-of-scope."
+    }
+  ]
+}

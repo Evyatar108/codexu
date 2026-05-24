@@ -1,0 +1,174 @@
+{
+  "clusters": [
+    {
+      "name": "phase-a-styles",
+      "stories": ["US-001", "US-003", "US-004", "US-006"],
+      "phase": 1,
+      "dependsOn": [],
+      "fileOverlapEvidence": {
+        "sharedFiles": ["tools/overview-viewer/src/styles.css"],
+        "exclusiveFiles": ["tools/overview-viewer/src/hooks/useHashNav.ts"],
+        "risk": "medium"
+      },
+      "executionModeRationale": "All four stories edit styles.css in disjoint sections, but styles.css is one file. Serial execution is simpler than merge-conflict resolution."
+    },
+    {
+      "name": "phase-a-renderers",
+      "stories": ["US-002", "US-005"],
+      "phase": 1,
+      "dependsOn": [],
+      "fileOverlapEvidence": {
+        "sharedFiles": ["tools/overview-viewer/src/styles.css"],
+        "exclusiveFiles": [
+          "tools/overview-viewer/src/utils/searchHighlighting.ts",
+          "tools/overview-viewer/src/utils/filters.ts",
+          "tools/overview-viewer/src/components/TaskCommand.tsx",
+          "tools/overview-viewer/src/components/Kanban.tsx",
+          "tools/overview-viewer/src/components/CommandList.tsx"
+        ],
+        "risk": "low"
+      },
+      "executionModeRationale": "US-002 and US-005 touch different component files. Could parallelize, but small enough that orchestration overhead outweighs savings."
+    },
+    {
+      "name": "phase-b-rendering-additions",
+      "stories": ["US-007", "US-008", "US-009"],
+      "phase": 2,
+      "dependsOn": ["phase-a-styles", "phase-a-renderers"],
+      "fileOverlapEvidence": {
+        "sharedFiles": [
+          "tools/overview-viewer/src/styles.css",
+          "tools/overview-viewer/src/components/TaskCommand.tsx"
+        ],
+        "exclusiveFiles": [
+          "tools/overview-viewer/src/components/CopyToast.tsx",
+          "tools/overview-viewer/src/utils/clipboard.ts",
+          "tools/overview-viewer/src/utils/copyCommand.ts",
+          "tools/overview-viewer/src/components/Toolbar.tsx"
+        ],
+        "risk": "medium"
+      },
+      "executionModeRationale": "US-007 must land before US-008 because US-008's quick-actions strip uses the toast singleton wired by US-007. US-009 is orthogonal but shares styles.css. Serial execution recommended."
+    },
+    {
+      "name": "phase-c-radix-gate",
+      "stories": ["US-010"],
+      "phase": 3,
+      "dependsOn": ["phase-b-rendering-additions"],
+      "fileOverlapEvidence": {
+        "sharedFiles": [
+          "tools/overview-viewer/src/styles.css",
+          "tools/overview-viewer/src/components/TaskCommand.tsx"
+        ],
+        "exclusiveFiles": ["tools/overview-viewer/package.json"],
+        "risk": "high"
+      },
+      "executionModeRationale": "US-010 is the bundle-validation and CSS-interleaving gate for all of Phase C. Must complete and pass bundle-size check (< 500 KB artifact) before US-011-US-014 begin. Solo serial execution."
+    },
+    {
+      "name": "phase-c-radix-rollout",
+      "stories": ["US-011", "US-012", "US-013", "US-014"],
+      "phase": 4,
+      "dependsOn": ["phase-c-radix-gate"],
+      "fileOverlapEvidence": {
+        "sharedFiles": [
+          "tools/overview-viewer/src/styles.css",
+          "tools/overview-viewer/package.json",
+          "tools/overview-viewer/src/components/TaskCommand.tsx"
+        ],
+        "exclusiveFiles": [
+          "tools/overview-viewer/src/components/TopLevelSurfaces.tsx",
+          "tools/overview-viewer/src/components/Toolbar.tsx",
+          "tools/overview-viewer/src/components/CommandList.tsx",
+          "tools/overview-viewer/src/components/Kanban.tsx"
+        ],
+        "risk": "medium"
+      },
+      "executionModeRationale": "Each story adds a Radix dep and touches styles.css. US-013 and US-014 both touch TaskCommand.tsx, requiring serial execution. Bundle-size measurement gate after each story."
+    },
+    {
+      "name": "phase-d-bucket-headers",
+      "stories": ["US-015"],
+      "phase": 5,
+      "dependsOn": ["phase-c-radix-rollout"],
+      "fileOverlapEvidence": {
+        "sharedFiles": ["tools/overview-viewer/src/styles.css"],
+        "exclusiveFiles": [
+          "tools/overview-viewer/src/components/CommandList.tsx",
+          "tools/overview-viewer/src/hooks/usePersistentExpanded.ts",
+          "tools/overview-viewer/src/hooks/useHashNav.ts"
+        ],
+        "risk": "high"
+      },
+      "executionModeRationale": "Solo story with the largest DOM and CSS refactor (bucket grouping + walk-up hash nav + persisted bucket state). Must land before US-016 because the StickyFrame's ToC anchors reference bucket IDs created here."
+    },
+    {
+      "name": "phase-d-sticky-frame",
+      "stories": ["US-016"],
+      "phase": 6,
+      "dependsOn": ["phase-d-bucket-headers"],
+      "fileOverlapEvidence": {
+        "sharedFiles": ["tools/overview-viewer/src/styles.css"],
+        "exclusiveFiles": [
+          "tools/overview-viewer/src/components/StickyFrame.tsx",
+          "tools/overview-viewer/src/utils/dashboardCounts.ts",
+          "tools/overview-viewer/src/App.tsx",
+          "tools/overview-viewer/src/components/TodayPanel.tsx"
+        ],
+        "risk": "medium"
+      },
+      "executionModeRationale": "Builds on US-015 bucket grouping for accurate metrics and ToC anchors. Solo serial execution."
+    },
+    {
+      "name": "phase-e-left-rail",
+      "stories": ["US-017"],
+      "phase": 7,
+      "dependsOn": ["phase-d-sticky-frame"],
+      "fileOverlapEvidence": {
+        "sharedFiles": [
+          "tools/overview-viewer/src/styles.css",
+          "tools/overview-viewer/src/App.tsx",
+          "tools/overview-viewer/src/components/TodayPanel.tsx"
+        ],
+        "exclusiveFiles": [
+          "tools/overview-viewer/src/components/LeftRail.tsx",
+          "tools/overview-viewer/src/components/TopLevelSurfaces.tsx",
+          "tools/overview-viewer/src/components/Kanban.tsx"
+        ],
+        "risk": "medium"
+      },
+      "executionModeRationale": "Layout reshape depending on StickyFrame from US-016 being in place. LeftRail sits beneath StickyFrame at top: 60px. Solo serial."
+    },
+    {
+      "name": "phase-e-responsive",
+      "stories": ["US-018"],
+      "phase": 8,
+      "dependsOn": ["phase-e-left-rail"],
+      "fileOverlapEvidence": {
+        "sharedFiles": ["tools/overview-viewer/src/styles.css"],
+        "exclusiveFiles": [
+          "tools/overview-viewer/src/components/LeftRail.tsx",
+          "tools/overview-viewer/src/components/StickyFrame.tsx"
+        ],
+        "risk": "medium"
+      },
+      "executionModeRationale": "Adds < 900px responsive collapse + hamburger toggle on top of US-017 layout. Solo serial."
+    },
+    {
+      "name": "docs-sweep",
+      "stories": ["US-019"],
+      "phase": 9,
+      "dependsOn": ["phase-e-responsive"],
+      "fileOverlapEvidence": {
+        "sharedFiles": [],
+        "exclusiveFiles": [
+          "tools/overview-viewer/README.md",
+          "tools/overview-viewer/CLAUDE.md",
+          ".agents/skills/roadmap-and-overview/SKILL.md"
+        ],
+        "risk": "low"
+      },
+      "executionModeRationale": "Docs must reflect the as-shipped state of all preceding stories. Solo serial, must run last."
+    }
+  ]
+}

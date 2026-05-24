@@ -1,0 +1,43 @@
+{
+  "manifestPath": "D:/harness-efforts/codexu/.ralph/jobs/ralph-pipeline-02-watcher/iteration-result-4.json",
+  "iterationSHA": "76dc0d2ba15d8c22853573ddc60eb4c1b075545f",
+  "storyId": "US-004",
+  "verdicts": [
+    {
+      "criterion": "One-shot path in scripts/sync-ralph-state.mjs calls acquireLock BEFORE walkRalphState; releases in finally. On contention exits non-zero with the canonical diagnostic message; no partial sidecar write.",
+      "verdict": "agree",
+      "reason": "Diff shows scripts/sync-ralph-state.mjs modified; evidence command targets specific tokens (acquireLock/runOneShot/walkRalphState/processLabel one-shot) plus runs the overview-viewer test suite, and result asserts the contention test passed."
+    },
+    {
+      "criterion": "--watch flag triggers start({ ...args, processLabel: 'standalone' }) and blocks via process.stdin.resume(); SIGINT/SIGTERM cleanly call handle.stop() then exit 0.",
+      "verdict": "agree",
+      "reason": "Evidence greps for --watch / runWatchMode / processLabel 'standalone' / stdin.resume / SIGINT|SIGTERM / handle.stop in scripts/sync-ralph-state.mjs and confirms all tokens present, consistent with diff modifying that file."
+    },
+    {
+      "criterion": "--debounce-ms <N> clamps to [500, 30000]; invalid input rejected with a clear error.",
+      "verdict": "agree",
+      "reason": "Evidence cites parseDebounceMs clamping 1->500 and 45000->30000 and rejecting 'nope' with explicit error string; concrete result text describes observed clamp values."
+    },
+    {
+      "criterion": "pnpm sync-ralph-state:watch script added to root package.json.",
+      "verdict": "agree",
+      "reason": "Targeted grep of package.json plus diff shows package.json modified; result quotes the script entry."
+    },
+    {
+      "criterion": "chokidar added to root devDependencies; pnpm-lock.yaml committed; pnpm install --frozen-lockfile succeeds from a clean checkout.",
+      "verdict": "agree",
+      "reason": "Diff shows package.json and pnpm-lock.yaml modified; evidence runs pnpm install --frozen-lockfile and records exit 0 with timing."
+    },
+    {
+      "criterion": "Integration test: one-shot against a running watcher exits with the diagnostic message format.",
+      "verdict": "agree",
+      "reason": "Evidence runs the overview-viewer test suite and cites a named syncRalphStateCli test ('fails one-shot sync before writing sidecars when another fresh lock exists') that asserts the diagnostic format; diff shows syncRalphStateCli.test.ts added."
+    },
+    {
+      "criterion": "Typecheck passes.",
+      "verdict": "agree",
+      "reason": "Evidence runs pnpm --filter @codexu/overview-viewer typecheck and records exit 0."
+    }
+  ],
+  "warnings": []
+}

@@ -1,0 +1,124 @@
+{
+  "storyId": "US-006",
+  "verifiedEvidence": [
+    {
+      "criterion": "Components implemented",
+      "command": "grep -RInE 'export function (RunsLog|TodayPanel|Toolbar|FilterChips|BulkCopyButton|KeyboardHelp|FreshnessHint|WhatsNewBanner|ParallelismSection|DependenciesSection|Footnote|Legend|UrlFilterBanner|SearchInput|Layout)' tools/overview-viewer/src/components",
+      "result": "All required component exports found; RunsLog is rendered from TaskCommand command bodies.",
+      "evidenceKind": "command-output"
+    },
+    {
+      "criterion": "Hooks implemented",
+      "command": "grep -RInE 'export function (useMultiAxisFilter|useKeyboardShortcuts|useWhatsNewSinceLastVisit|useUrlFilter|useHashNav|useBulkSelection)|codexu-overview-last-visit-v1|parseTaskIdFilter' tools/overview-viewer/src/hooks tools/overview-viewer/src/utils",
+      "result": "All required hooks found; whats-new uses codexu-overview-last-visit-v1 and URL filtering uses parseTaskIdFilter.",
+      "evidenceKind": "command-output"
+    },
+    {
+      "criterion": "Today panel shows the 4 buckets in documented order and visual format",
+      "command": "pnpm --filter @codexu/overview-viewer test > .test-output/overview-viewer.test.log 2>&1; node bucket probe",
+      "result": "topLevelSurfaces.test.tsx passed and SSR contains today-running/today-ready/today-hold/Recently shipped. Probe reported running 0, ready 21, hold 12, closed 16.",
+      "evidenceKind": "command-output"
+    },
+    {
+      "criterion": "Runs log renders one entry per OVERVIEW_DATA.runs[*] (17 currently)",
+      "command": "node script evaluating plans/overview-data.js; pnpm --filter @codexu/overview-viewer test",
+      "result": "Node probe printed runs=17; commandList.test.tsx passed with run-history markup present.",
+      "evidenceKind": "command-output"
+    },
+    {
+      "criterion": "US-006:AC-005 Search input + 5-axis filter chips work; clearing chips returns unfiltered view",
+      "command": "pnpm --filter @codexu/overview-viewer test > .test-output/overview-viewer.test.log 2>&1",
+      "result": "US-006:AC-005 fallback: browser automation unavailable; urlFilter.test.ts verified search plus status/workstream/cadence/size/scope/URL filters, and Toolbar renders SearchInput plus five filter axes.",
+      "evidenceKind": "command-output"
+    },
+    {
+      "criterion": "BulkCopyButton disabled with 0 selected; Copy N selected label and ordered clipboard output",
+      "command": "pnpm --filter @codexu/overview-viewer test > .test-output/overview-viewer.test.log 2>&1",
+      "result": "topLevelSurfaces.test.tsx passed; buildBulkCopyText preserves OVERVIEW_DATA.tasks order. Toolbar disables at selectedCount 0 and labels Copy N selected.",
+      "evidenceKind": "command-output"
+    },
+    {
+      "criterion": "US-006:AC-007 KeyboardHelp opens/closes via ? and Esc; all shortcuts function",
+      "command": "pnpm --filter @codexu/overview-viewer test > .test-output/overview-viewer.test.log 2>&1",
+      "result": "US-006:AC-007 fallback: browser automation unavailable; test verified shortcut handler for ?, Esc, and e; App wires /, Esc, e, c, and ? through useKeyboardShortcuts.",
+      "evidenceKind": "command-output"
+    },
+    {
+      "criterion": "FreshnessHint renders short SHA and relative timestamp",
+      "command": "pnpm --filter @codexu/overview-viewer test > .test-output/overview-viewer.test.log 2>&1",
+      "result": "topLevelSurfaces.test.tsx passed; SSR contains id=gen-sha and d279d49d, with relativeSnapshotAge used for generatedAt.",
+      "evidenceKind": "command-output"
+    },
+    {
+      "criterion": "US-006:AC-009 WhatsNewBanner and per-row NEW badge behavior",
+      "command": "pnpm --filter @codexu/overview-viewer test; grep -RInE 'cmd-changed|new-badge|Mark all seen|codexu-overview-last-visit-v1' tools/overview-viewer/src",
+      "result": "US-006:AC-009 fallback: browser automation unavailable; tests verified changed-set and max-of-data timestamp; code renders cmd-changed/new-badge and Mark all seen with the v1 storage key.",
+      "evidenceKind": "command-output"
+    },
+    {
+      "criterion": "ParallelismSection, DependenciesSection, Footnote render static content",
+      "command": "pnpm --filter @codexu/overview-viewer test > .test-output/overview-viewer.test.log 2>&1",
+      "result": "topLevelSurfaces.test.tsx passed; SSR contains Parallelism, Dependencies, and Sync contract content; StaticSections renders details where source uses details.",
+      "evidenceKind": "command-output"
+    },
+    {
+      "criterion": "Legend block renders swatches from legacy legend",
+      "command": "grep -RInE 'export function Legend|area-app|area-server|area-cli|area-codex|area-multi|p-low|p-med|p-high' tools/overview-viewer/src/components/TopLevelSurfaces.tsx tools/overview-viewer/src/components/Kanban.tsx",
+      "result": "Legend is exported and rendered from Kanban with happy-app/server/cli/codex/multi-package and low/medium/high risk swatches.",
+      "evidenceKind": "command-output"
+    },
+    {
+      "criterion": "US-006:AC-012 ?tasks URL filter works and UrlFilterBanner renders",
+      "command": "pnpm --filter @codexu/overview-viewer test > .test-output/overview-viewer.test.log 2>&1",
+      "result": "US-006:AC-012 fallback: browser automation unavailable; urlFilter.test.ts verified parsing/clearing tasks query and topLevelSurfaces.test.tsx verified UrlFilterBanner SSR.",
+      "evidenceKind": "command-output"
+    },
+    {
+      "criterion": "US-006:AC-013 #cmd hash navigation scrolls to and expands matching task",
+      "command": "pnpm --filter @codexu/overview-viewer test; grep -RInE 'useHashNav|hashchange|navigateToCommand|scrollIntoView' tools/overview-viewer/src",
+      "result": "US-006:AC-013 fallback: browser automation unavailable; kanbanInteraction.test.ts verified expand, hash mutation, and scrollIntoView; useHashNav uses the same helper and cleans hashchange.",
+      "evidenceKind": "command-output"
+    },
+    {
+      "criterion": "Unit-tested in src/__tests__/urlFilter.test.ts",
+      "command": "ls tools/overview-viewer/src/__tests__/urlFilter.test.ts && pnpm --filter @codexu/overview-viewer test > .test-output/overview-viewer.test.log 2>&1",
+      "result": "urlFilter.test.ts exists and passed; full Vitest run reported 9 test files and 19 tests passed.",
+      "evidenceKind": "command-output"
+    },
+    {
+      "criterion": "React StrictMode in dev does not produce duplicate event subscriptions",
+      "command": "pnpm overview; touch plans/overview-data.js twice; grep overview-data:update /tmp/overview-us006-dev.out; grep import.meta.hot.on/off tools/overview-viewer/src/App.tsx",
+      "result": "Dev server returned HTTP 200. Two touches produced exactly two overview-data:update lines; App registers import.meta.hot.on and cleans up with import.meta.hot.off.",
+      "evidenceKind": "command-output"
+    },
+    {
+      "criterion": "Typecheck passes",
+      "command": "pnpm --filter @codexu/overview-viewer typecheck > .test-output/overview-viewer.typecheck.log 2>&1",
+      "result": "Exited 0 in 5s; tsc --noEmit completed with no errors.",
+      "evidenceKind": "command-output"
+    },
+    {
+      "criterion": "pnpm --filter @codexu/overview-viewer test exits 0",
+      "command": "pnpm --filter @codexu/overview-viewer test > .test-output/overview-viewer.test.log 2>&1",
+      "result": "Exited 0 in 4s; Vitest reported 9 test files passed and 19 tests passed.",
+      "evidenceKind": "command-output"
+    },
+    {
+      "criterion": "US-006:AC-019 Verify in browser using dev-browser skill",
+      "command": "N/A",
+      "result": "SKIPPED: dev-browser skill unavailable in this session; DOM/visual top-level surface verification requires manual browser pass.",
+      "evidenceKind": "skipped"
+    }
+  ],
+  "skippedReasons": [
+    {
+      "criterion": "US-006:AC-019",
+      "reason": "browser_tool_unavailable",
+      "detail": "dev-browser skill unavailable; DOM/visual top-level surface verification requires manual browser pass"
+    }
+  ],
+  "notTested": [
+    "browser DOM/visual US-006 pass; dev-browser unavailable"
+  ],
+  "iterationSHA": "33e320ab61f4710caa355352c5d8b5ef036fb9c6"
+}

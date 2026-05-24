@@ -1,0 +1,134 @@
+{
+  "planFile": "D:/harness-efforts/codexu/.ralph/jobs/overview-vite-react/plan.md",
+  "repoDir": "D:/harness-efforts/codexu/.worktrees/overview-vite-react",
+  "reviewCycle": 2,
+  "findings": [
+    {
+      "id": "F-001",
+      "severity": "High",
+      "source": "claude",
+      "classification": "fixable",
+      "phase": "code",
+      "category": "Completeness",
+      "sectionRef": "WorkstreamPill / injectWorkstreamPills",
+      "description": "WorkstreamPill click handler (TaskCommand.tsx:188-197) only calls preventDefault + stopPropagation, so clicking a workstream pill on a command row is a no-op. The legacy injectWorkstreamPills() at plans/overview.html:2284-2291 opens the toolbar filter popover and synthetically clicks the matching filter chip — a one-click workstream filter shortcut. This breaks an operator workflow advertised by the AC 'WorkstreamPill must absorb the full current behavior'.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "WorkstreamPill click handler now wires onActivateWorkstream callback through App -> CommandList -> TaskCommand; calls filter.toggleFilter(workstream, ws) and opens toolbar filter <details>, mirroring legacy injectWorkstreamPills().",
+      "relevantFiles": [
+        "tools/overview-viewer/src/components/TaskCommand.tsx:188",
+        "tools/overview-viewer/src/components/Toolbar.tsx:58"
+      ],
+      "suggestedFix": "Pass an onActivateWorkstream callback (or a toggleFilter dispatcher from useMultiAxisFilter) down through CommandList -> TaskCommand -> WorkstreamPill; on click, call toggleFilter('workstream', workstream) and also open the toolbar filter <details> (e.g., via a ref or setOpen state). Mirror the legacy popover-open + chip-click behavior."
+    },
+    {
+      "id": "F-002",
+      "severity": "Medium",
+      "source": "claude",
+      "classification": "fixable",
+      "phase": "code",
+      "category": "Correctness",
+      "sectionRef": "Bulk-copy preamble injection",
+      "description": "buildBulkCopyText (useBulkSelection.ts:5-9) concatenates raw task.command.planPrompt strings without running them through buildCopyCommandText() the way per-row CopyCommandButton does (TaskCommand.tsx:113). Plan AC line 213 says BulkCopyButton 'writes the concatenated copy-command output' which is ambiguous — but the legacy bulk-copy handler at plans/overview.html:'#bulk-copy' click also concatenates raw planPrompt via .cmd-pre.textContent, so the current behavior matches 9f81c1f8 baseline. Flagging as Medium because both external reviewers raised it as High; if the operator interpretation favors preamble-injected output, fixing it is a one-line change.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "buildBulkCopyText now invokes buildCopyCommandText(planPrompt, scope) so bulk copy emits the same scope preambles as per-row copy.",
+      "relevantFiles": [
+        "tools/overview-viewer/src/hooks/useBulkSelection.ts:5",
+        "tools/overview-viewer/src/components/TaskCommand.tsx:113",
+        "tools/overview-viewer/src/utils/copyCommand.ts:3"
+      ],
+      "suggestedFix": "If the AC interpretation is preamble-injected: change buildBulkCopyText to import buildCopyCommandText from '../utils/copyCommand' and use `# === ${task.id} ===\\n${buildCopyCommandText(task.command?.planPrompt ?? '', task.scope)}`. Otherwise, mark the finding wont_fix with the baseline-parity rationale."
+    },
+    {
+      "id": "F-003",
+      "severity": "Medium",
+      "source": "claude",
+      "classification": "fixable",
+      "phase": "code",
+      "category": "Completeness",
+      "sectionRef": "ConstraintDivergence — declared deliverables",
+      "description": "Plan §Files to Create explicitly required `tools/overview-viewer/vitest.config.ts` (minimal config mirroring tools/vitest.config.ts: environment: 'node', include: ['src/__tests__/**/*.test.ts']). The file is absent. Tests currently run because vitest picks up defaults + the .tsx test files use react-dom/server (which works in node env without an explicit jsdom requirement). The plan listed this as a required deliverable, so its absence is a constraint divergence; severity is High by the ConstraintDivergence rubric but downgraded to Medium because the test suite empirically passes and no AC fails.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Added tools/overview-viewer/vitest.config.ts with environment: node, include: src/__tests__/**/*.test.{ts,tsx}.",
+      "relevantFiles": [
+        "tools/overview-viewer/package.json",
+        "D:/harness-efforts/codexu/.ralph/jobs/overview-vite-react/plan.md:112"
+      ],
+      "suggestedFix": "Either add the planned vitest.config.ts (minimal: defineConfig({ test: { environment: 'node', include: ['src/__tests__/**/*.test.{ts,tsx}'] } })) — note the tsx pattern is needed because half the test files are .tsx — or update plan.md to record that the deliverable was dropped because vite.config.ts + vitest defaults suffice. Document the chosen path."
+    },
+    {
+      "id": "F-004",
+      "severity": "Low",
+      "source": "claude",
+      "classification": "fixable",
+      "phase": "code",
+      "category": "Quality",
+      "sectionRef": "Type hygiene — @types/node",
+      "description": "tools/overview-viewer/vite.config.ts uses __dirname, process.env, node:fs/promises, node:path but tools/overview-viewer/package.json does not declare @types/node. Type resolution relies on hoisting from sibling workspace packages. This works today but is fragile: a root-level pnpm prune or a workspace move can break the typecheck step out from under the package.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Added @types/node >=20 to tools/overview-viewer/package.json devDependencies; pnpm install updated lockfile.",
+      "relevantFiles": [
+        "tools/overview-viewer/vite.config.ts:1",
+        "tools/overview-viewer/package.json:17"
+      ],
+      "suggestedFix": "Add `\"@types/node\": \"^20.0.0\"` (or whichever version the existing workspace uses) to tools/overview-viewer/package.json devDependencies."
+    },
+    {
+      "id": "F-005",
+      "severity": "High",
+      "source": "copilot",
+      "detectedBy": [
+        "copilot"
+      ],
+      "classification": "fixable",
+      "phase": "code",
+      "category": "Correctness",
+      "sectionRef": null,
+      "description": "Bulk copy is not copy-command parity. Single-row copy goes through `buildCopyCommandText(...)` in `tools/overview-viewer/src/components/TaskCommand.tsx:111-113`, which injects the scope preambles, but bulk copy in `tools/overview-viewer/src/hooks/useBulkSelection.ts:5-9` concatenates raw `planPrompt` text and prepends custom `# === task ===` headers. That violates the explicit AC that bulk copy should emit the concatenated per-row copy-command output.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Duplicate of F-002 (bulk-copy preamble); already resolved by F-002 fix.",
+      "relevantFiles": [],
+      "suggestedFix": null
+    },
+    {
+      "id": "F-006",
+      "severity": "High",
+      "source": "copilot",
+      "detectedBy": [
+        "copilot"
+      ],
+      "classification": "fixable",
+      "phase": "code",
+      "category": "Correctness",
+      "sectionRef": null,
+      "description": "The advertised multi-axis / URL filtering does not apply to kanban. `tools/overview-viewer/src/hooks/useMultiAxisFilter.ts:18-24` computes `visibleKanbanTaskIds` without the `taskIdFilter`, and `tools/overview-viewer/src/utils/filters.ts:58-64` only checks workstream + text for kanban cards. As a result, status/cadence/size/scope chips — and even `?tasks=foo,bar` — leave unrelated kanban cards visible, which breaks the toolbar and URL-filter behavior promised by the plan.",
+      "status": "wont_fix",
+      "fixedInIteration": 1,
+      "resolution": "Baseline parity. plans/overview.html:2159-2164 scopes kanban filtering to workstream+text only — status/cadence/size/scope/taskId filters do not apply to kanban cards in legacy. matchesKanbanFilter + visibleKanbanTaskIds faithfully reproduce baseline; plan requires visual parity.",
+      "relevantFiles": [],
+      "suggestedFix": null
+    },
+    {
+      "id": "F-007",
+      "severity": "High",
+      "source": "copilot",
+      "detectedBy": [
+        "copilot"
+      ],
+      "classification": "fixable",
+      "phase": "code",
+      "category": "Correctness",
+      "sectionRef": null,
+      "description": "`Esc` does not actually “clear search” unless focus is still inside an input. `tools/overview-viewer/src/hooks/useKeyboardShortcuts.ts:25-33` only calls `clearSearch()` when `inField` is true. After typing a query and clicking elsewhere, `Esc` no longer clears it, even though the help text in `tools/overview-viewer/src/components/TopLevelSurfaces.tsx:53-57` and the plan both promise global `Esc` clear-search behavior.",
+      "status": "wont_fix",
+      "fixedInIteration": 1,
+      "resolution": "Baseline parity. plans/overview.html:2387-2390 global Esc handler explicitly returns when inField; only input own keydown clears search. useKeyboardShortcuts.ts faithfully reproduces this; plan AC requires no global Esc-clears-search.",
+      "relevantFiles": [],
+      "suggestedFix": null
+    }
+  ]
+}

@@ -1,0 +1,37 @@
+I’ll inspect the referenced temp file to understand the requested task.
+
+The file is available; I’m reading it in sections so I can act on its contents.
+
+I’m checking the referenced plan against the actual code so the review can flag concrete feasibility and completeness issues.
+
+I found the main surfaces; I’m checking the package scripts and type declarations to make the review precise.
+
+### Feasibility
+
+- [High] `deriveAffectedTaskUpdate`’s proposed return type conflates “remove this task” with “do not change current state because parsing failed.” The plan requires malformed JSON to retain the prior entry, but `{ taskId, newPipelineState | null }` only has `null` for removal. Add an explicit no-op/error result, e.g. `{ action: 'retain', taskId, error }`.
+- [High] The watcher root wording hardcodes default subdirs (`config.ralphRoot/jobs`, etc.). Existing config supports custom absolute `config.ralphSubdirs.*` via `scripts/lib/resolve-config.mjs`; the watcher must watch those resolved subdir paths instead.
+- [Medium] The plan relies on `chokidar` but adds the dependency only in step 4, after creating `watch-ralph-state.mjs` in step 2. If each step is committed green, dependency + lockfile update should happen before the first import.
+
+### Completeness
+
+- [High] Incremental writes only discuss `byTaskId`; `OverviewRalphState` also includes `unmatched` and `unmatchedSummary` from `scripts/lib/sync-core.mjs`. Deletions/promotions will leave stale `shadowed-by-*`, `duplicate-resolution`, or parse-error entries unless the affected unmatched entries are recomputed and merged.
+- [High] One-shot lock contention is in acceptance criteria but not concretely wired. `scripts/sync-ralph-state.mjs` currently calls `walkRalphState` then `writeSidecar`; the plan should add a shared lock/check helper and require one-shot mode to fail before writing when a fresh watcher lock exists.
+- [Medium] Adding root `devDependencies.chokidar` must also update root `pnpm-lock.yaml`. The file list omits it.
+- [Medium] `selected-direction.md` is said to be “NOT in the watched-paths set,” but watching the brainstorm directory means chokidar will observe it unless event filtering rejects non-input files. Clarify that it must not enqueue/process, or add it to ignored paths.
+
+### Ordering
+
+- [Medium] Move dependency installation/lockfile update ahead of watcher implementation, then add watcher, then CLI/Vite integrations. Current order risks a broken intermediate commit.
+- [Medium] Tests should be introduced alongside the sync-core and watcher contracts, not after Vite integration, because the most fragile behavior is the incremental merge/error-state API.
+
+### Simplicity
+
+- [Medium] A small shared lock module would simplify both watcher and one-shot behavior. Without it, duplicated lock parsing/staleness formatting is likely to drift from the required messages.
+- [Low] The Vite plugin can be a sibling plugin rather than extending `overviewDataPlugin`; either is fine, but a sibling keeps `overview-data:update` and `overview-ralph-state:update` responsibilities separated.
+
+### Acceptance Criteria Quality
+
+- [Medium] Several criteria are manual and timing-based (`within ~5s`, “exactly once,” “within ~1s”). Add automated fake-timer/unit coverage for debounce, lock contention, stale lock, malformed JSON recovery, and promotion.
+- [Medium] Criterion C says only one task section changes plus `generatedAt`; if `unmatched`/`unmatchedSummary` also changes correctly, that diff is expected. Update the criterion to include those fields.
+- [Medium] Criterion J depends on `git log -1 --stat`, but the plan also says each step lands as its own commit. Clarify whether downstream cascade must be the final commit and whether earlier implementation commits may modify plan files.
+

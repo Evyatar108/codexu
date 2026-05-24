@@ -1,0 +1,86 @@
+{
+  "storyId": "US-002",
+  "verifiedEvidence": [
+    {
+      "criterion": "scripts/lib/score-recommendations.mjs exports scoreRecommendations({ byTaskId, overviewData, prdsByTaskId, weights, topN, now? }) -> Recommendation[], sorted score-descending, capped at topN",
+      "command": "pnpm exec vitest run scripts/lib/score-recommendations.test.mjs > .test-output/score-recommendations.test.log 2>&1; node --input-type=module static US-002 assertions > .test-output/us-002.static.log 2>&1",
+      "result": "PASS: targeted Vitest 1 file/7 tests passed; static assertions confirmed the exported helper signature, score-descending sort, and topN cap test coverage.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Each Recommendation = { taskId: string; score: number; stage: RalphStage; reasons: string[] } with top contributing reasons",
+      "command": "pnpm exec vitest run scripts/lib/score-recommendations.test.mjs > .test-output/score-recommendations.test.log 2>&1",
+      "result": "PASS: tests assert returned taskId, score, stage, and reasons including 'review-fix stage', 'partially blocked', 'fully blocked', and 'default priority'.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Scoring rubric: 40 stage urgency / 30 dependency state / 20 freshness / 10 priority with specified stage urgency map",
+      "command": "node --input-type=module static US-002 assertions > .test-output/us-002.static.log 2>&1; pnpm exec vitest run scripts/lib/score-recommendations.test.mjs > .test-output/score-recommendations.test.log 2>&1",
+      "result": "PASS: static assertions confirmed default weights and stage map; stage test verifies review-fix=1, plan-ready=0.9, shipped=0.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Dependency state derived from prdsByTaskId[taskId].userStories[].passes with unblocked, partial, fully blocked, and no dependencies semantics",
+      "command": "pnpm exec vitest run scripts/lib/score-recommendations.test.mjs > .test-output/score-recommendations.test.log 2>&1",
+      "result": "PASS: dependency test asserts unblocked=1, partially blocked=0.5, fully blocked=0, cross-task qualified dependency pass, and no-PRD/no-dependency fallback=1.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Freshness linear decay 1.0 <= 1 day to 0.0 >= 14 days; missing timestamp -> 0.5",
+      "command": "pnpm exec vitest run scripts/lib/score-recommendations.test.mjs > .test-output/score-recommendations.test.log 2>&1",
+      "result": "PASS: freshness test asserts 1 day=1, 7.5 days ~=0.5, 19 days=0, and missing timestamp=0.5.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Priority reads OverviewTask.priority; numeric values normalized 0..1; missing or non-numeric -> 0.5",
+      "command": "pnpm exec vitest run scripts/lib/score-recommendations.test.mjs > .test-output/score-recommendations.test.log 2>&1",
+      "result": "PASS: priority test asserts 0.8, 0.2, clamped 3 -> 1, and missing priority -> 0.5.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Score formula: score = sum(w_i * v_i) / sum(w_i), range [0, 1]",
+      "command": "node --input-type=module static US-002 assertions > .test-output/us-002.static.log 2>&1",
+      "result": "PASS: static assertions confirmed weighted contribution multiplication, division by total weight, and clamp01 range guard.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Pure function: no fs, no console; only clock read is Date.now() for freshness; tests inject optional now",
+      "command": "node --input-type=module static US-002 assertions > .test-output/us-002.static.log 2>&1; pnpm exec vitest run scripts/lib/score-recommendations.test.mjs > .test-output/score-recommendations.test.log 2>&1",
+      "result": "PASS: static assertions confirmed no fs import, no console use, and Date.now only as fallback; tests inject NOW and assert no console.log side effect.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Adjacent scripts/lib/score-recommendations.d.mts exists",
+      "command": "test -f scripts/lib/score-recommendations.d.mts && node --input-type=module static US-002 assertions > .test-output/us-002.static.log 2>&1",
+      "result": "PASS: declaration file exists and exports ScoreRecommendationsOptions plus scoreRecommendations(options?: ScoreRecommendationsOptions): Recommendation[].",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "scripts/lib/score-recommendations.test.mjs covers per-dimension scoring, weight override, topN, missing-data fallbacks, deterministic tie-break, no-PRD case",
+      "command": "pnpm exec vitest run scripts/lib/score-recommendations.test.mjs > .test-output/score-recommendations.test.log 2>&1; node --input-type=module static US-002 assertions > .test-output/us-002.static.log 2>&1",
+      "result": "PASS: targeted Vitest 1 file/7 tests passed; static assertions confirmed required scenario names are present.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "pnpm test passes",
+      "command": "pnpm test > .test-output/root.test.log 2>&1",
+      "result": "PASS: Test Files 9 passed (9); Tests 56 passed (56).",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Typecheck passes",
+      "command": "pnpm --filter @codexu/overview-viewer typecheck > .test-output/overview-viewer.typecheck.log 2>&1",
+      "result": "PASS: tsc --noEmit completed with exit 0.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Tests pass",
+      "command": "pnpm test > .test-output/root.test.log 2>&1; pnpm exec vitest run scripts/lib/score-recommendations.test.mjs > .test-output/score-recommendations.test.log 2>&1",
+      "result": "PASS: root Vitest 9 files/56 tests passed; targeted scoreRecommendations Vitest 1 file/7 tests passed.",
+      "evidenceKind": "passed"
+    }
+  ],
+  "skippedReasons": [],
+  "notTested": [],
+  "iterationSHA": "4f86ead30f665b5420bcdaf02da22a93c5417d30"
+}

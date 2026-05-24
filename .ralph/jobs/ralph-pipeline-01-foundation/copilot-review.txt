@@ -1,0 +1,30 @@
+I’ll inspect the referenced temp artifact to determine the requested work, then act on it.
+
+The artifact is a large text file, so I’ll read the beginning and key sections instead of loading it all at once.
+
+I’ve found this is a code-review request. I’ll inspect the implementation diff, focusing on the new sync/config code and test coverage against the plan.
+
+I found **two blocking issues** and two non-blocking issues.
+
+### Completeness
+
+- [High] `scripts/lib/resolve-config.mjs:76-94` drops unknown config keys when resolving paths. The plan says downstream additive fields should pass through, but `resolveConfigPaths()` reconstructs only Plan 01 keys, so future fields like `outputs.snapshot`, `devServer`, or `filters` disappear.
+
+### Correctness
+
+- [High] `scripts/lib/sync-core.mjs:182-183`, `206-213`, and `243-249` silently ignore malformed `prd.json`, `brainstorm.json`, and review findings files. Only `job-state.json` parse errors become `parse-error`; corrupt PRDs can be misclassified as `planning`, corrupt findings can hide `review-fix`, and corrupt brainstorms vanish entirely.
+
+### Quality
+
+- [Medium] `scripts/lib/sync-core.mjs:271-278` / `scripts/lib/derive-ralph-stage.mjs:34-42` map unknown phases to `implementing` but never emit the required stderr warning for schema drift.
+
+- [Medium] `plans/ralph-pipeline-01-foundation.md:221` documents predicate #6 as allowing an absent orchestrator, while the implementation correctly requires `jobState.orchestrator` before returning `implementing`. That stale contract can mislead Plan 02+ implementers.
+
+### Security
+
+No issues found.
+
+### Overall Assessment
+
+Not ready yet. The core shape is close, but parse-error handling and config pass-through need fixes before this can safely become the foundation for downstream plans.
+

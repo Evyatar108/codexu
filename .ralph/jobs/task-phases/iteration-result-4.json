@@ -1,0 +1,50 @@
+{
+  "storyId": "US-004",
+  "verifiedEvidence": [
+    {
+      "criterion": "AC-001 parallel-assignments front-matter conventions",
+      "command": "node validation of plans/parallel-assignments.md schema terms",
+      "result": "front_matter_missing=none; all 10 phase enum values, ok|blocked|paused statuses, and optional artifact fields are documented in the top conventions block.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "AC-002 parallel-assignments status table columns",
+      "command": "node validation of status table header/rows against overview.html",
+      "result": "status_header=true; status_table_rows=49; overview_rows=49; mismatches=0. Header is Tab title | Task | Phase | Status | Plan source | Plan job | Commit.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "AC-003 codexu-roadmap Standing rules entry",
+      "command": "grep -nE 'Task phase model|plans/parallel-assignments.md|data-task-phase|data-task-status|ok / blocked / paused' plans/codexu-roadmap.md",
+      "result": "Lines 175-178 contain Task phase model, link to plans/parallel-assignments.md, data-task-phase, data-task-status, and ok/blocked/paused precedence wording.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "AC-004 roadmap-and-overview SKILL load-bearing ranges",
+      "command": "grep -nE 'data-task-phase|data-task-status|cmd-status-mod|Phase / Status|phase/status|b-plan-ready|b-shipped|blocked modifier|source of truth|plan-ready' .agents/skills/roadmap-and-overview/SKILL.md | wc -l",
+      "result": "20 matching lines across orientation, close-out summary, command row encoding, When-to-update table, procedures A/B/D, and pitfalls; the 13 called-out ranges now reference phase/status model where applicable.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "AC-005 legacy status-badge templates replaced in SKILL",
+      "command": "grep -RInE 'cmd-badge b-(ready|blocked|paused|closed|inprogress|inflight)' .agents/skills/roadmap-and-overview/SKILL.md || true",
+      "result": "No matches; legacy cmd-badge b-<status> templates were replaced with phase-primary badge examples plus optional .cmd-status-mod modifier wording.",
+      "evidenceKind": "absent-verified"
+    },
+    {
+      "criterion": "AC-006 procedural workflow shape preserved",
+      "command": "grep headings for When-to-update table and procedures A/B/D in .agents/skills/roadmap-and-overview/SKILL.md",
+      "result": "Existing When-to-update table and procedures A, B, and D remain present at lines 130, 143, 194, and 246; edits are field/template updates, not workflow removal.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "AC-007 typecheck / markdown sanity",
+      "command": "git show --check --stat --oneline HEAD",
+      "result": "Exited 0 for commit db2f68f7 with no whitespace errors reported.",
+      "evidenceKind": "passed"
+    }
+  ],
+  "skippedReasons": [],
+  "notTested": [],
+  "iterationSHA": "db2f68f72ba71e141dca4ff95c4930172e2040da"
+}

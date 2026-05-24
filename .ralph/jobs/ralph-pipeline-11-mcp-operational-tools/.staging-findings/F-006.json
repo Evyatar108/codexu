@@ -1,0 +1,17 @@
+{
+  "id": "F-006",
+  "severity": "High",
+  "source": "claude",
+  "classification": "fixable",
+  "phase": "code",
+  "category": "Correctness",
+  "sectionRef": "ProcessManager design — stop flow SIGKILL escalation verification",
+  "description": "stopManagedProcess does not verify the process actually exited after the SIGKILL escalation. killAndWait races the exit event against a timeout and returns silently when the timeout wins. The plan requires: 'If still alive after that, throw StopFailed (rare; expected when the OS itself is stuck)'. Without that check, dev_server.stop and stopAll can report success while the child is still alive, leaving an orphan and breaking the no-orphan AC.",
+  "status": "open",
+  "fixedInIteration": null,
+  "resolution": null,
+  "relevantFiles": [
+    "tools/overview-mcp/src/process-manager.ts:358-392"
+  ],
+  "suggestedFix": "After the SIGKILL killAndWait race, check managed.status (or use process.kill(pid, 0) to probe liveness); if not exited, throw a new StopFailed error class. Update stopAll to swallow/log StopFailed without short-circuiting the sweep (combined with the allSettled fix in F-005)."
+}

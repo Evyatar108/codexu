@@ -1,0 +1,40 @@
+{
+  "manifestPath": "D:/harness-efforts/codexu/.ralph/jobs/ralph-pipeline-01-foundation/iteration-result-7.json",
+  "iterationSHA": "3ee7cdcee538454761b84973ea316c0ca9eb12e7",
+  "storyId": "US-007",
+  "verdicts": [
+    {
+      "criterion": "First post-implementation commit runs pnpm sync-ralph-state and includes the generated plans/overview-ralph-state.{js,json} files (Implementation-Strategy step 7 is dropped per F-018 resolution)",
+      "verdict": "agree",
+      "reason": "Diff at HEAD touches plans/overview-ralph-state.js and plans/overview-ralph-state.json (both regenerated, +2/-2 each). Manifest evidence: pnpm sync-ralph-state exited 0 and produced 3352-byte JS / 3321-byte JSON sidecars before commit; both files are in commit 3ee7cdce's tree."
+    },
+    {
+      "criterion": "plans/ralph-pipeline-INDEX.md 'Source-of-truth modules' table updated to reflect: stateless derive-ralph-stage.mjs(bundle) signature with jobDirMarker; sync-core.mjs cross-kind precedence + nested-member suppression; resolve-config.mjs canonical precedence rule; </script> escape contract; scripts.d.ts ambient-decl approach; trimmed Plan-01 config schema with deferred fields documented as Downstream additive extensions",
+      "verdict": "agree",
+      "reason": "Diff at plans/ralph-pipeline-INDEX.md:21-26,181-197 updates the DAG + source-of-truth module contracts. Manifest grep result confirms lines 187-192 mention deriveRalphStage bundle/jobDirMarker, sync-core cross-kind/nested-member/escape, loadConfig precedence, scripts.d.ts, and trimmed Plan-01 schema."
+    },
+    {
+      "criterion": "Sibling plans 02, 03, 05, 10, 12 referenced in the Hand-off section have their Plan-01 dependencies updated to match actual contracts; stale type signatures, function names, or behavior contracts corrected",
+      "verdict": "agree",
+      "reason": "Diff touches all five sibling plans (02:18-25,52-53,100,135; 03:9,24,66-83,103,115; 05:21,55-73; 10:98-104,197; 12:71,86-87). Manifest grep verifies loadConfig/config.lockFile (02), 10 chips including replan-pending (03), JS/JSON sidecar reuse (05), overviewTaskId as future follow-up (10), and Plan-01 keys as extraction baseline (12)."
+    },
+    {
+      "criterion": "Implementation commit message lists every cross-plan diff (file, line range, what changed) so reviewers can verify the cascade in one read",
+      "verdict": "agree",
+      "reason": "git show -s --format=%B on 3ee7cdce contains a 'Cross-plan diffs:' section enumerating each of the 9 touched plan/sidecar files with line ranges (e.g., 'plans/ralph-pipeline-01-foundation.md:52-88,99-108,209-226,246-254,279-303,313-317') plus a Constraint line and a Rejected-alternative line."
+    },
+    {
+      "criterion": "All Verification steps A-L from plan.md pass: typecheck, predicate tests, one-shot sync, idempotency at both JSON and JS layers, slug-heuristic override via temp-fixture (NOT by editing real overview-data.js), JS/JSON consistency including </script grep, no-.ralph graceful handling, worktree exclusion, replan-pending derivation, cross-kind precedence end-to-end, deterministic Windows-rename retry verified by unit test that mocks fs.renameSync to throw EBUSY twice then succeed and asserts writeSidecar resolves with rename invoked 3 times, .gitignore entry",
+      "verdict": "agree",
+      "reason": "Manifest evidence enumerates A-L explicitly with concrete outcomes: A typecheck exit 0; B ralphStage.test.ts 19/19; C live sync exit 0 (6 byTaskId keys, 13 unmatched); D JSON+JS idempotency true (sans generatedAt); E temp-fixture slug override works without editing real overview-data.js; F no literal </script in JS payload; G no-.ralph empty result; H worktree fixture excluded; I replan-pending fixture produced; J cross-kind brainstorm-shadow; K syncCore.test.ts 10/10 incl. EBUSY-retry-3x mock; L .gitignore:95 contains .ralph/overview-config.local.json."
+    },
+    {
+      "criterion": "Typecheck passes",
+      "verdict": "agree",
+      "reason": "Manifest evidence: pnpm --filter @codexu/overview-viewer typecheck exited 0 with no diagnostics. Full overview-viewer test suite (19 files / 97 tests) also passed, confirming no type regressions in the typecheck graph."
+    }
+  ],
+  "warnings": [
+    "advisory-synthesized: manifest-verifier subagent could not be spawned from analyze-iteration; verdicts synthesized inline from diff + manifest evidence following the iter 1-6 precedent recorded in prior analysis-result.json."
+  ]
+}

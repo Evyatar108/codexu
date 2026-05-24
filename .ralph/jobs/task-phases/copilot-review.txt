@@ -1,0 +1,92 @@
+I’m opening the provided temp path to see the task details, then I’ll make the needed change directly in the repo.
+
+I found the embedded review instructions; now I’m locating the diff and changed files so I can assess the implementation against the plan.
+
+I’ve narrowed this to the behavior changes in `overview.html`; I’m checking the existing ordering/filter CSS and helpers to see whether the new phase mapping actually preserves the planned semantics.
+
+I’m doing a quick structured scan of the embedded patch section to check for omissions like missing `data-task-id` or `data-task-phase` additions that won’t show up from spot-reading alone.
+
+I found a likely cross-file consistency issue in the migrated metadata, and I’m checking whether the commit references now disagree between `overview.html` and `parallel-assignments.md`.
+
+I have two concrete issues already; I’m running one independent review pass over the embedded patch to catch any additional substantive defects before I finalize the findings.
+
+I'll review the patch file to identify any correctness or completeness issues against the stated plan and acceptance criteria.Let me continue reading to understand the plan and then review the diff:Let me continue reading to see the acceptance criteria and the actual diff:Let me continue reading the diff to see the actual implementation of the JS changes and the command row migrations:Let me see the JS implementation section with the constants and rendering functions:Let me search more specifically for the JS constants in the diff:Now let me check the constants definition and the linkKanbanToCmds refactor:Let me check the parallel-assignments.md changes to see if the table columns were updated:Now I have enough context to analyze the implementation. Let me check for any issues by reviewing key aspects:
+
+1. **The plan states that `brainstorm-in-progress` and `brainstorm-review` should map to `brainstorm` in ORDER_BUCKET, but the implementation maps them to `inprogress`**
+2. **The status modifier fallback logic in `statusForCmd`**  
+3. **The kanban phase pill injection**
+
+Let me verify the exact requirements from the plan:Perfect, I found a critical issue. The plan explicitly states at line 235 that `brainstorm-*` should map to `brainstorm` in `PHASE_TO_ORDER_BUCKET`, but the implementation at lines 1464-1474 maps them to `ready` and `inprogress` instead. Let me check if there's more context or if the acceptance criteria mention this:Now let me check the statusForCmd fallback issue more specifically - the plan says `data-task-status` is required with default `ok`, but I need to see if the implementation handles the missing `ok` value correctly:I found another issue. The renderPhaseBadges function at line 1552 only sets `cmd.dataset.taskStatus` when the status is `blocked` or `paused`, but the plan says at line 216 that `data-task-status` is **required** with default `ok`. This means rows with `status="ok"` will not have the attribute set, violating the acceptance criteria. Let me verify the acceptance criteria:Perfect - this confirms the acceptance criteria require exactly 49 `data-task-status` attributes. Now let me check whether the actual HTML rows in the diff have `data-task-status="ok"` added:Good - the HTML rows **do** have `data-task-status="ok"` added. So the `renderPhaseBadges` function issue I identified is only about the **runtime fail-soft normalization** for legacy rows. The migration itself is correct. Let me now compile my findings:
+
+Based on my review of the patch against the implementation plan and acceptance criteria, here are my findings:
+
+## Completeness
+
+**[High]** Incorrect PHASE_TO_ORDER_BUCKET mapping for brainstorm phases  
+**File:** plans/overview.html diff lines 1463-1474  
+**Problem:** The plan at line 235 explicitly specifies that `PHASE_TO_ORDER_BUCKET` should map `brainstorm-*` → `brainstorm`, but the implementation maps:
+- `'brainstorm-ready': 'ready'` (should be `'brainstorm-ready': 'brainstorm'`)
+- `'brainstorm-in-progress': 'inprogress'` (should be `'brainstorm-in-progress': 'brainstorm'`)  
+- `'brainstorm-review': 'inprogress'` (should be `'brainstorm-review': 'brainstorm'`)
+
+This will cause brainstorm-phase tasks to sort incorrectly mixed with plan-phase and impl-phase tasks instead of in their own separate sort bucket. The plan explicitly states the mapping to create a distinct `brainstorm` sort bucket.
+
+**Evidence:** Plan line 235: "`brainstorm-*` → `brainstorm`, `plan-*`/`impl-ready` → `ready`, `impl-in-progress` → `inprogress`, `shipped` → `shipped`, `closed` → `closed`"
+
+---
+
+## Correctness
+
+**[Medium]** renderPhaseBadges does not set data-task-status="ok" for legacy fail-soft normalization  
+**File:** plans/overview.html diff lines 1552-1554  
+**Problem:** The `renderPhaseBadges()` IIFE only sets `cmd.dataset.taskStatus` when the legacy-derived status is `blocked` or `paused`, but not when it's empty string or would normalize to `ok`. This means legacy rows that should fail-soft to `data-task-status="ok"` won't have the attribute set at runtime.
+
+The plan at line 216 states `data-task-status` is "required, default `ok`". While the migrated HTML rows correctly include `data-task-status="ok"` explicitly, the runtime normalization for any future legacy-only rows (the fail-soft path mentioned in the plan) won't add the `ok` attribute.
+
+**Evidence:** Line 1552 only writes `taskStatus` when `status === 'blocked' || status === 'paused'`, leaving rows with status `ok` or empty without the attribute.
+
+**Suggested fix:** Add an `else` branch:
+```javascript
+if (!cmd.dataset.taskStatus && (status === 'blocked' || status === 'paused')) {
+  cmd.dataset.taskStatus = status;
+} else if (!cmd.dataset.taskStatus) {
+  cmd.dataset.taskStatus = 'ok';
+}
+```
+
+---
+
+## Quality
+
+No issues found.
+
+---
+
+## Security
+
+No issues found.
+
+---
+
+## Overall Assessment
+
+The implementation is mostly complete but has one **High-severity completeness issue** that will break sort ordering for brainstorm-phase tasks. The incorrect `PHASE_TO_ORDER_BUCKET` mapping violates the explicit plan requirement and acceptance criteria for proper phase-based ordering. Additionally, there is a **Medium-severity correctness issue** in the legacy fail-soft path that won't fully normalize missing `data-task-status` attributes at runtime. Both issues should be fixed before merging.### Completeness
+
+- **[High]** `plans/overview.html:1463-1489` does not implement the bucket mapping the plan calls for. The plan explicitly says `plan-*` and `impl-ready` stay in the `ready` bucket, only `impl-in-progress` maps to `inprogress`, and `brainstorm-*` gets its own bucket (review packet lines 235-236). Instead, this patch maps `plan-in-progress` / `plan-review` to `inprogress` and collapses `brainstorm-*` into `ready` / `inprogress`. That means the pinned `1b-multidev` smoke path will show planning states as active implementation in the Today/filter/order surfaces, and brainstorm rows never get the separate ordering the plan specifies.
+
+### Correctness
+
+- **[High]** `plans/overview.html:1492-1498, 1547-1554, 1631-1633` breaks the required legacy-class fail-soft path for blocked/paused rows. `LEGACY_STATUS_TO_PHASE` rewrites legacy `b-blocked` / `b-paused` to `plan-ready`, `renderPhaseBadges()` persists that phase, and `classifyAndOrderCmds()` then assigns the row the `ready` order bucket. The acceptance criteria require legacy-only rows to keep classifying into their legacy buckets when attributes are absent (review packet lines 433-434), so a hand-authored legacy `b-blocked` row will now sort as ready instead of blocked.
+
+### Quality
+
+No issues found.
+
+### Security
+
+No issues found.
+
+### Overall Assessment
+
+This is **not ready yet**. The row migration and docs updates are mostly there, but the new classification logic still diverges from the planned phase semantics and from the documented legacy fallback behavior.
+

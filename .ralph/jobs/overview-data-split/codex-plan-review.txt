@@ -1,0 +1,39 @@
+**Feasibility**
+
+- [High] The task counts in the plan are stale. Current [plans/overview.html](/d:/harness-efforts/codexu/plans/overview.html:1442) has 51 `<details class="cmd">` rows, not 49; 7 `data-plan-only="true"` rows and 7 `data-merge-commit` rows, not 3 and 6. The AC requiring “49 task entries” and US-003’s “remaining 46 tasks” would drop two tasks.
+
+- [High] The plan’s line ranges are dangerous if followed literally. The JSON block starts at [plans/overview.html](/d:/harness-efforts/codexu/plans/overview.html:2180) and ends at line 2612; the main script starts at line 2614. The plan says JSON runs to 3529 and inline JS starts there, which would delete most of the main script.
+
+- [High] The proposed `meta: { generatedAt, generatedFromCommit }` shape breaks existing consumers unless the plan also rewrites them. Current JS reads `data.generatedFromCommit` and `data.generatedAt` at [plans/overview.html](/d:/harness-efforts/codexu/plans/overview.html:3540), not `data.meta.*`.
+
+- [High] The `kanbanCards[]` schema is insufficient for identical rendering. Existing cards contain `.card-meta` rich content throughout, and at least one has `class="card closed"` at [plans/overview.html](/d:/harness-efforts/codexu/plans/overview.html:1174). The schema only has `column`, `titleHtml`, and `subHtml`, so card metadata, pills, links, and closed styling cannot round-trip.
+
+- [Medium] The render-order guidance references “DOMContentLoaded handling,” but this file has no `DOMContentLoaded` wrapper; IIFEs run immediately from [plans/overview.html](/d:/harness-efforts/codexu/plans/overview.html:2614). The plan should explicitly say to render synchronously before the first DOM-walking IIFE.
+
+**Completeness**
+
+- [High] `phaseTree[]` is underspecified for the current markup. The current tree uses `.phase-grid`, `.phase`, `.phase-head`, `.item-name open/deferred/donefade/closed`, inline styling, and nested `<details class="phase-subdetails">` around [plans/overview.html](/d:/harness-efforts/codexu/plans/overview.html:1926). The proposed `task-ref | bullet | sub-phase` model does not preserve those display states unless most nodes fall back to raw HTML.
+
+- [Medium] The plan omits updating `plans/overview-vite-react.md`, even though it cites that sibling as a downstream contract. That file still documents URL filtering as `?id=foo,bar` at [plans/overview-vite-react.md](/d:/harness-efforts/codexu/plans/overview-vite-react.md:66), while current `overview.html` uses `?tasks=` at [plans/overview.html](/d:/harness-efforts/codexu/plans/overview.html:3206).
+
+- [Medium] The stale-doc grep target is too narrow. It catches literal `edit plans/overview.html`, but current stale workflow text also says “bump the lastRanAt timestamp … in plans/overview.html’s roadmap-data JSON” in [plans/parallel-assignments.md](/d:/harness-efforts/codexu/plans/parallel-assignments.md:225) and similar wording elsewhere. The plan should require grepping for `roadmap-data`, `overview.html`, and `generatedFromCommit`, not only one phrase.
+
+- [Medium] The prior amendment to include all metadata maps is adequate: current JSON has `lastTouched`, `periodic`, `cadence`, `runs`, `effort`, `risk`, `workstream`, `sizeBucket`, and `spawnedFrom` at [plans/overview.html](/d:/harness-efforts/codexu/plans/overview.html:2184). The prior count amendment is not adequate, per the 51-row mismatch above.
+
+**Ordering**
+
+- [Medium] US-005 is marked parallel after US-002, but the plan’s own risk section says to write the skill after US-003/US-004 finalize the schema. Running docs early can bake in a representative-only schema that lacks final `cardMetaHtml`/phase-tree fields.
+
+- [Medium] US-003 and US-004 both edit `overview.html` and the same top-level `window.OVERVIEW_DATA` object. Parallel execution is possible, but the plan should require one owner for the object skeleton or a merge checkpoint after US-003 before US-004 appends `phaseTree`.
+
+**Simplicity**
+
+- [Medium] A lower-risk first split would preserve rich DOM as trusted fragments: `kanbanCards[].metaHtml` or `html`, `command.bodyHtml`, and `phaseTreeHtml`/node HTML, while keeping task metadata structured. The current plan tries to normalize the view and move the data in one step, but the schema misses existing markup.
+
+**Acceptance Criteria Quality**
+
+- [High] “49 task entries” is objectively wrong for this checkout; update to 51 command tasks and include a no-duplicate-id check.
+
+- [Medium] “Renders identically” is not specific enough for autonomous verification. Add concrete checks: counts for command rows/cards/phase nodes, `#cmd-<id>` hash opens, `?tasks=` filter works, all `.cmd-pre` text matches pre-refactor decoded text, and no missing `.card-meta`.
+
+- [Medium] “No kanban `<div class="card">` blocks” is ambiguous if render templates contain HTML strings. Say “no authored static card elements in the body; card markup may only exist in JS render templates or DOM creation code.”

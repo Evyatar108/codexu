@@ -1,0 +1,39 @@
+{
+  "recommendation": "CONTINUE",
+  "passCount": 6,
+  "storiesCompleted": [
+    {"id": "US-001", "sha": "9fd47412", "evidence": "VALID"},
+    {"id": "US-002", "sha": "f701ff05", "evidence": "VALID"},
+    {"id": "US-003", "sha": "6cebd1df", "evidence": "VALID"},
+    {"id": "US-004", "sha": "c9a3581f", "evidence": "VALID"},
+    {"id": "US-005", "sha": "f34a7ddf", "evidence": "VALID"},
+    {"id": "US-006", "sha": "8c884db7", "evidence": "VALID"}
+  ],
+  "storiesCompletedThisBatch": [
+    {"id": "US-004", "sha": "c9a3581f990bc66b8723b4246fb9715ee85176b8", "evidence": "VALID"},
+    {"id": "US-005", "sha": "f34a7ddf7d87ae72883284cf2c425c1db751f68a", "evidence": "VALID"},
+    {"id": "US-006", "sha": "8c884db72487dfcb0b1c566a7b95ef49177aa503", "evidence": "VALID"}
+  ],
+  "storiesBlocked": [],
+  "storiesRemaining": ["US-007"],
+  "deferredQuestions": [],
+  "storyDoctorActions": [],
+  "qualityGateResult": "pass",
+  "rollbackFailures": [],
+  "recurringFailuresPromoted": [
+    {
+      "key": "c3eaeb869183a0e654f1472570ccba7a5d7b1c8e61a3559dfac1beeafa919333",
+      "normalizedLine": "live browser verification; dev-browser tooling unavailable",
+      "occurrences": 2,
+      "revalidateAfter": "2026-05-20T11:21:08Z",
+      "status": "already-promoted (idempotent)"
+    }
+  ],
+  "manifestVerifier": {
+    "iteration4": "structural-skip (skippedReasons string-array vs required object-array)",
+    "iteration5": "all-agree (11/11 verdicts agree, no warnings)",
+    "iteration6": "structural-skip (skippedReasons string-array vs required object-array)"
+  },
+  "parityCheck": "pass",
+  "refactoringPass": "deferred (parallel-work guardrail on tools/overview-viewer/vite.config.ts; only US-007 docs-only remaining)"
+}

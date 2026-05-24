@@ -1,0 +1,68 @@
+{
+  "manifestPath": "D:/harness-efforts/codexu/.ralph/jobs/ralph-pipeline-08-crews/iteration-result-4.json",
+  "iterationSHA": "9c66faf7f20a27e66bde423b5459aeceb51ecbcb",
+  "storyId": "US-004",
+  "verdicts": [
+    {
+      "criterion": "scripts/lib/crews-cross-walk.mjs exports discoverCrewSessions({ repoRoot, ralphState, overviewData, crewsRoot, now?, logger? }) -> Map<taskId, Record<RalphStage, CrewSessionRef[]>>.",
+      "verdict": "agree",
+      "reason": "Diff line 45 of scripts/lib/crews-cross-walk.mjs exports discoverCrewSessions with the documented options shape; .d.mts declaration at line 30 returns Map<string, Partial<Record<RalphStage, CrewSessionRef[]>>>."
+    },
+    {
+      "criterion": "Walks .crews/crews/*/members/*/manifest.json AND .crews/crews/*/leads/*/manifest.json.",
+      "verdict": "agree",
+      "reason": "CREW_ROLES = Object.freeze(['members','leads']) at line 42 and the manifest-walk loop at line 111 iterates both role directories under .crews/crews/*."
+    },
+    {
+      "criterion": "Filters by cwd via path.relative(repoRoot, manifestCwd) accepting empty string (cwd === repoRoot), case-normalized on Windows; rejects ..-prefixed and absolute results.",
+      "verdict": "agree",
+      "reason": "isManifestCwdInsideRepo (diff line 143) uses path.relative and rejects '..' / absolute paths; corresponding Vitest cases assert repo-root cwd acceptance and prefix-attack rejection."
+    },
+    {
+      "criterion": "Matches task ID in lastSummary via custom-boundary regex (?<![A-Za-z0-9_-])<id>(?![A-Za-z0-9_-]). Multi-match picks longest ID.",
+      "verdict": "agree",
+      "reason": "taskIdRegex helper at diff line 217 builds the custom-boundary regex; matches at line 205 collect all hits and the longest-ID tiebreak is exercised by the launcher fallback test."
+    },
+    {
+      "criterion": "Fallback medium-signal: scans .crews/spawn-launchers/*.ps1 indexed by (crewName, memberName), tiebreaks by latest filename timestamp.",
+      "verdict": "agree",
+      "reason": "indexSpawnLaunchers (line 164) builds a (crewName, memberName) index keyed off filename timestamps; spawn-launcher prompt test covers the fallback path."
+    },
+    {
+      "criterion": "Reads stage from ralphState.byTaskId[taskId].stage at discovery time; entries stay under their recorded stage even if the task later advances.",
+      "verdict": "agree",
+      "reason": "appendCrewSession path uses ralphState.byTaskId[taskId].stage for new entries while preserving existing-entry stage placement via sameCrewSession dedupe."
+    },
+    {
+      "criterion": "Dedupes by sessionId, falling back to (crewName, memberName) for partial entries.",
+      "verdict": "agree",
+      "reason": "sameCrewSession (line 236) compares sessionId first and falls back to crewName/memberName when sessionId is absent."
+    },
+    {
+      "criterion": "Stale detection: manifest.lastHeartbeatAt > 60min -> sets outcome: 'stopped' and endedAt: lastHeartbeatAt ONLY when the existing entry has no outcome (idempotency guard).",
+      "verdict": "agree",
+      "reason": "STALE_AFTER_MS = 60*60*1000 (line 43) gates stale marking; the merge path preserves an existing outcome/endedAt, matching the idempotency guard."
+    },
+    {
+      "criterion": "Stderr-logs unmatched and ambiguous matches.",
+      "verdict": "agree",
+      "reason": "log() calls at diff lines 77, 81, 89 emit 'ambiguous task match' and 'unmatched crew session' warnings via the injectable logger (defaulting to stderr)."
+    },
+    {
+      "criterion": "scripts/lib/crews-cross-walk.test.mjs covers the requested discovery cases.",
+      "verdict": "agree",
+      "reason": "Test file introduced in the diff at line 314 declares describe('discoverCrewSessions') with cases for cwd filtering, taskId matching, launcher fallback, ambiguity, dedupe, stale, and stage stickiness."
+    },
+    {
+      "criterion": "Typecheck passes.",
+      "verdict": "agree",
+      "reason": "Manifest cites pnpm --filter @codexu/overview-viewer typecheck exit 0 with output saved to .test-output/overview-viewer.typecheck.log."
+    },
+    {
+      "criterion": "Tests pass.",
+      "verdict": "agree",
+      "reason": "Manifest cites pnpm test = 21 files / 131 tests passed; .test-output/root.test.log is referenced as artifact."
+    }
+  ],
+  "warnings": []
+}

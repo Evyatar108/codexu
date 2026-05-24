@@ -1,0 +1,38 @@
+{
+  "manifestPath": "D:/harness-efforts/codexu/.ralph/jobs/ralph-pipeline-09-mcp/iteration-result-10.json",
+  "iterationSHA": "027e882bd2dbf49dda92aaeb8f88c24d55176c9d",
+  "storyId": "US-010",
+  "verdicts": [
+    {
+      "criterion": "tools/overview-mcp/README.md covers install, registration JSON, /mcp verification, per-tool contract, mutation/error envelope, and Windows PowerShell verification commands",
+      "verdict": "agree",
+      "reason": "Diff for tools/overview-mcp/README.md adds 87 lines documenting install commands, registration JSON, /mcp verification, per-tool contract, and PowerShell verification commands; manifest cites concrete grep with line ranges 12-13, 26-31, 39, 41-61, 71-86."
+    },
+    {
+      "criterion": "plans/ralph-pipeline-INDEX.md: Source-of-truth modules table lists tools/overview-mcp/ and the new appendJournalNote export; DAG diagram shows Plan 09 dependency edges",
+      "verdict": "agree",
+      "reason": "Diff for plans/ralph-pipeline-INDEX.md updates lines 76, 126, 140, 199, 222 — DAG dependency wording for Plan 09 plus appendJournalNote/assertSafeTaskId documentation and source-of-truth listing; manifest grep result corroborates these line numbers."
+    },
+    {
+      "criterion": "Any reference in plans/ralph-pipeline-10-ralph-handoff.md is updated to mention the MCP package",
+      "verdict": "agree",
+      "reason": "Diff for plans/ralph-pipeline-10-ralph-handoff.md edits lines 15, 35, 96-103 to reference tools/overview-mcp, overview.set_override and overview.add_journal_entry; manifest grep result lists matching line numbers and tokens."
+    },
+    {
+      "criterion": "Atomic final commit; commit message lists each diff (file, lines, what changed) so reviewers can audit the cascade",
+      "verdict": "agree",
+      "reason": "Single commit 027e882b includes exactly 3 documentation files (README, INDEX, handoff) per git show --stat. Commit message contains 'Diff audit:' enumerating each file with line ranges and changes."
+    },
+    {
+      "criterion": "Typecheck across the workspace passes",
+      "verdict": "agree",
+      "reason": "Manifest records exit 0 for pnpm -r --if-present typecheck across 10 of 11 projects in 126s with log at .test-output/workspace.typecheck.log; concrete command and result provided."
+    },
+    {
+      "criterion": "Full test suite passes",
+      "verdict": "agree",
+      "reason": "Manifest records exit 0 for pnpm test with 22 test files / 160 tests passed in 19s; log at .test-output/workspace.test.log."
+    }
+  ],
+  "warnings": []
+}

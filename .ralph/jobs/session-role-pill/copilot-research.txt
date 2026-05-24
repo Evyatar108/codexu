@@ -1,0 +1,115 @@
+I’m inspecting the session list, metadata types, and nearby UI primitives to ground the plan review in the actual code.
+
+The key question now is whether the session-list row already receives the needed fields or whether storage selectors must be extended and rebuilt on local mode changes.
+
+## Codebase Architecture
+
+This is a **pnpm workspace monorepo** (`package.json`) with app/server/CLI/shared packages under `packages/`. The feature is app-local:
+
+- `packages/happy-app/` — **React Native + Expo Router + TypeScript + Unistyles**, with Vitest (`package.json`, `vitest.config.mts`)
+- `packages/happy-wire/` — shared protocol/types used by the app
+- App code is organized under `packages/happy-app/sources/`:
+  - `components/` reusable UI
+  - `sync/` Zustand-backed sync/storage layer and wire-normalized session state
+  - `app/` Expo Router screens
+  - `hooks/`, `utils/`, `text/`
+
+The session list UI is not built directly from raw `Session`; it comes from **derived row data** in the sync store:
+`Session -> buildSessionRowData() -> sessionListViewData -> useVisibleSessionListViewData() -> SessionsList.tsx`.
+
+## Feature-Relevant Code
+
+**Session metadata / types**
+- `packages/happy-app/sources/sync/storageTypes.ts`
+  - `MetadataSchema` already includes `flavor`, `currentModelCode`, `currentPermissionModeCode`
+  - `Session` stores `metadata`, plus local-only overrides like `modelMode`, `permissionMode`, `permissionModeUserChosen`
+
+**Derived row data feeding the list**
+- `packages/happy-app/sources/sync/storage.ts`
+  - `SessionRowData` currently contains `flavor`, but **not** `currentModelCode` / `currentPermissionModeCode`
+  - `buildSessionRowData(session, machines)` is the natural place to thread raw metadata into list rows
+  - `buildSessionListViewData(...)` rebuilds the list model
+  - `useSessionListViewData()` returns `sessionListViewData` via deep-equal memoization
+
+**List rendering target**
+- `packages/happy-app/sources/components/SessionsList.tsx`
+  - `SessionItem` memo at the exact target area (`342-463`)
+  - Current row layout: avatar, title, subtitle, status row
+  - `sessionItem` height is fixed at `88`, so a new pill row likely needs layout/height changes
+  - `Avatar` already receives `session.flavor`
+
+**Existing “drawer” logic for the same concepts**
+- `packages/happy-app/sources/-session/SessionView.tsx`
+  - Computes `availableModels`, `availableModes`
+  - Uses `resolveCurrentOption(...)` for model and `resolvePermissionModeForPicker(...)` for permission
+  - Has both full picker state and **drawer-style metadata-only** derived values
+- `packages/happy-app/sources/components/SessionContextDrawer.tsx`
+  - Shows model + permission chips today
+  - Has local private chip implementations (`ContextChip`, `PathChip`), not a shared primitive
+
+**Existing helpers to reuse**
+- `packages/happy-app/sources/components/modelModeOptions.ts`
+  - hardcoded fallbacks and metadata mapping for model/permission modes
+  - `getAvailableModels`, `getAvailablePermissionModes`
+  - `resolveCurrentOption`, `resolvePermissionModeForPicker`
+- `packages/happy-app/sources/theme.ts`
+  - canonical permission colors: `theme.colors.permission.*`
+- `packages/happy-app/sources/components/NewSessionAgentIcons.ts`
+  - already exposes shared flavor icon asset map
+- `packages/happy-app/sources/components/Avatar.tsx`
+  - also has flavor icon mapping, but not exported
+
+**Related tests**
+- `packages/happy-app/sources/components/SessionContextDrawer.test.tsx`
+- `packages/happy-app/sources/components/modelModeOptions.test.ts`
+- `packages/happy-app/sources/sync/storage.spec.ts`
+- `packages/happy-app/sources/sync/storage.applySessions.spec.ts`
+
+There is **no existing `SessionsList` / `SessionItem` test file**.
+
+## Technical Constraints
+
+1. **No schema change is needed.** The needed fields already exist in `Session.metadata`.
+2. **List rows are store-derived.** If the row should render new metadata, `SessionRowData` must be extended; adding UI-only logic in `SessionsList.tsx` alone is not enough.
+3. `SessionRowData` is explicitly “**all primitives, cheap to deep-equal**” in `storage.ts`; keep new row fields primitive.
+4. `keyExtractor` in `SessionsList.tsx` is just `session-${item.session.id}`. It does **not** need to change for this feature.
+5. If the pills should mirror **metadata only** (like `SessionContextDrawer`), current `applySessions()` rebuild behavior is enough.
+6. If the pills should reflect **local unsynced picks immediately**, extra work is required:
+   - `updateSessionPermissionMode()` and `updateSessionModelMode()` in `storage.ts` currently **do not rebuild** `sessionListViewData`, with comments explicitly saying the list is unaffected.
+7. There is **no generic shared Pill/Badge primitive** in `sources/components/`; existing chip/badge code is component-local.
+8. Flavor normalization is slightly inconsistent:
+   - `info.tsx` treats `gpt`/`openai` as Codex
+   - `NewSessionAgentIcons.ts` / `Avatar.tsx` only key on `codex`
+   - if row pills use flavor icons directly, add/ reuse a normalization helper
+9. Root `package.json` has **no monorepo-wide `typecheck` script**; validation needs package-specific commands.
+
+## Implementation Suggestions
+
+1. **Extend `SessionRowData`** in `packages/happy-app/sources/sync/storage.ts` with raw primitives for:
+   - `currentModelCode`
+   - `currentPermissionModeCode`
+   - optionally normalized flavor if you want to avoid repeating normalization in render code
+
+2. In `buildSessionRowData(...)`, source them from `session.metadata` first.  
+   If you want drawer-parity, keep this **metadata-only**.
+
+3. In `SessionItem` (`SessionsList.tsx`), derive display pills using existing helpers from `modelModeOptions.ts` rather than hardcoding labels:
+   - model: `getAvailableModels(...)` + `resolveCurrentOption(...)`
+   - permission: `getAvailablePermissionModes(...)` + `resolvePermissionModeForPicker(...)` or a simpler metadata-only equivalent
+
+4. Reuse:
+   - `theme.colors.permission.*` for badge colors
+   - `newSessionAgentIcons` for flavor assets
+   - SessionContextDrawer’s chip styling pattern, but likely via a small extracted shared chip component or a new local `SessionMetaPill`
+
+5. Add a new `SessionsList.test.tsx` or `SessionsListItem.test.tsx`. Since `SessionItem` is not exported, the cleanest path is usually:
+   - export a testable row component, **or**
+   - render `SessionsList` with mocked `useVisibleSessionListViewData()`
+
+6. Acceptance is slightly underspecified around the model pill:
+   - whether text is raw code vs display name
+   - how abbreviation is decided
+   - whether local picker changes should appear before metadata echo
+
+The most natural integration is: **thread raw metadata fields through `SessionRowData`, render pills in `SessionItem`, and reuse `modelModeOptions` + theme permission colors + shared flavor icon assets.**
+

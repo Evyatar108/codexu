@@ -1,0 +1,38 @@
+{
+  "storyId": "US-013",
+  "verifiedEvidence": [
+    {
+      "criterion": "The watcher calls appendActivity(repoRoot, event, { activityPath, activityBackupPath, maxLines }) per event from result.activityEvents BEFORE releasing the flush-time lock.",
+      "command": "nl -ba scripts/lib/watch-ralph-state.mjs | sed -n '128,153p'; nl -ba scripts/lib/watch-ralph-state.test.mjs | sed -n '100,168p'",
+      "result": "watch-ralph-state.mjs lines 135-148 call mergeAndWrite and append each result.activityEvents entry with activityPath, activityBackupPath, and maxLines before state update/touch. The lock-order test records mergeAndWrite, two append calls, touch, then release in that exact order.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "If mergeAndWrite throws, no appends happen (no phantom events).",
+      "command": "nl -ba scripts/lib/watch-ralph-state.test.mjs | sed -n '171,194p'",
+      "result": "The failure-path test stubs mergeAndWrite to throw, waits for onError, verifies mergeAndWrite was called, and asserts appendActivity was not called.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "A vitest case in scripts/lib/watch-ralph-state.test.mjs (file created if absent) verifies lock-hold ordering.",
+      "command": "pnpm vitest run scripts/lib/watch-ralph-state.test.mjs > .test-output/watch-ralph-state-lock-order.test.log 2>&1",
+      "result": "PASS exit=0 duration=6s; 1 test file passed, 3 tests passed, including appends activityEvents before touching and releasing the lock.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Typecheck passes.",
+      "command": "pnpm --filter @codexu/overview-viewer typecheck > .test-output/overview-viewer.typecheck.log 2>&1",
+      "result": "PASS exit=0 duration=13s; tsc --noEmit completed with no errors.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Package regression tests pass.",
+      "command": "pnpm --filter @codexu/overview-viewer test > .test-output/overview-viewer.test.log 2>&1",
+      "result": "PASS exit=0 duration=14s; 27 test files passed, 153 tests passed.",
+      "evidenceKind": "passed"
+    }
+  ],
+  "skippedReasons": [],
+  "notTested": [],
+  "iterationSHA": "409a0f0944b4487d8965ab955925097126a127a7"
+}

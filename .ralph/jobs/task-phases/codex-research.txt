@@ -1,0 +1,49 @@
+**Codebase Architecture**
+This is a pnpm TypeScript monorepo (`pnpm@10.11.0`) with packages for the mobile app, CLI, server, shared wire types, plugins, and a `codex/` git submodule. The roadmap feature surface is separate from the app build: [plans/overview.html](D:/harness-efforts/codexu/plans/overview.html:1) is a single static HTML file with inline CSS/JS and embedded JSON; there is no bundler or generator for it today.
+
+The authoritative bookkeeping docs are [plans/codexu-roadmap.md](D:/harness-efforts/codexu/plans/codexu-roadmap.md:163) and [plans/parallel-assignments.md](D:/harness-efforts/codexu/plans/parallel-assignments.md:1). The `roadmap-and-overview` skill confirms the sync contract: markdown is authoritative, `overview.html` is a hand-curated derivative snapshot.
+
+**Feature-Relevant Code**
+Key current integration points:
+
+- [plans/overview.html](D:/harness-efforts/codexu/plans/overview.html:7): dark/light color tokens. The source doc’s color range is accurate.
+- [plans/overview.html](D:/harness-efforts/codexu/plans/overview.html:76): simple kanban badge CSS (`.b-now`, `.b-soon`, `.b-block`).
+- [plans/overview.html](D:/harness-efforts/codexu/plans/overview.html:812): command-row badge CSS and legacy status classes (`.b-ready`, `.b-inprogress`, `.b-blocked`, `.b-paused`, `.b-closed`).
+- [plans/overview.html](D:/harness-efforts/codexu/plans/overview.html:962): Today panel grouped by running / ready / on hold.
+- [plans/overview.html](D:/harness-efforts/codexu/plans/overview.html:979): status filter chips currently assume one status axis.
+- [plans/overview.html](D:/harness-efforts/codexu/plans/overview.html:1043): 3-column kanban. This range is current.
+- [plans/overview.html](D:/harness-efforts/codexu/plans/overview.html:1401): 49 `<details class="cmd">` task rows. The source doc’s `1400-2150` range includes command rows plus later sections; actual command rows end around `1889`.
+- [plans/overview.html](D:/harness-efforts/codexu/plans/overview.html:1895): existing “phase-by-phase” roadmap tree, separate from the proposed task-phase model.
+- [plans/overview.html](D:/harness-efforts/codexu/plans/overview.html:2155): embedded `roadmap-data`; current schema has `lastTouched`, `effort`, `risk`, `workstream`, `sizeBucket`, `cadence`, `periodic`, `spawnedFrom`, and `runs`, but no phase fields.
+- [plans/overview.html](D:/harness-efforts/codexu/plans/overview.html:2677): `classifyAndOrderCmds()` derives row order from badge classes.
+- [plans/overview.html](D:/harness-efforts/codexu/plans/overview.html:2842): `classifyCmd()` feeds Today panel and filters from legacy badge classes.
+- [plans/overview.html](D:/harness-efforts/codexu/plans/overview.html:3126): multi-axis filter uses `status` as one axis.
+- [plans/parallel-assignments.md](D:/harness-efforts/codexu/plans/parallel-assignments.md:553): bottom status table needs phase + modifier columns.
+- [plans/codexu-roadmap.md](D:/harness-efforts/codexu/plans/codexu-roadmap.md:163): Standing rules insertion point is accurate.
+- [plans/codexu-roadmap.md](D:/harness-efforts/codexu/plans/codexu-roadmap.md:1285): the “1-paragraph PRD” reference exists.
+
+Reference PRDs [tasks/prd-1a-fork-doc.md](D:/harness-efforts/codexu/tasks/prd-1a-fork-doc.md:22) and [tasks/prd-port-explorer-prompt.md](D:/harness-efforts/codexu/tasks/prd-port-explorer-prompt.md:20) show the expected story/acceptance style with autonomous stories plus operator-gated stories.
+
+**Technical Constraints**
+The page must remain static HTML: no Vite/React, no sidecar JSON extraction, and no generator. That means the phase schema should be represented in existing HTML, most naturally as `data-task-phase`, `data-task-status`, and optional `data-*` attributes on each `<details class="cmd">`.
+
+Current JS is class-driven, so `classifyCmd()`, `classifyAndOrderCmds()`, status filters, Today panel counts, and section counts must be updated together. If only CSS badges change, filters and counts will drift.
+
+There is existing doc drift: `overview.html` marks `perf-WS3` and `1a-fork-doc` shipped, while `parallel-assignments.md` still says in progress. The migration plan should include a reconciliation pass rather than blindly converting table text.
+
+`.ralph/jobs/devtunnels-E-cleanup/` is not present in this checkout, so treat it as optional context only. The three sibling plan docs exist but are untracked: `plans/task-phases.md`, `plans/overview-data-split.md`, and `plans/overview-vite-react.md`.
+
+**Implementation Suggestions**
+Use row-level attributes as the HTML-only schema:
+
+`data-task-phase="plan-ready"` and `data-task-status="ok|blocked|paused"` on every command row, with optional attributes like `data-plan-only`, `data-plan-source`, `data-plan-source-ref`, `data-brainstorm-job-id`, `data-plan-job-id`, `data-implement-job-id`, `data-plan-review-iterations`, and `data-merge-commit`.
+
+Keep the visual badge as a rendered/readable artifact: `.cmd-badge.b-plan-ready`, plus a smaller modifier pill only when status is `blocked` or `paused`. Leave legacy `.b-ready`, `.b-blocked`, `.b-paused`, `.b-closed`, `.b-inprogress` as aliases/fallbacks.
+
+Update JS to classify phase separately from modifier. The status filter should probably become either “Phase” + “Modifier” filters, or keep current “Status” filter labels mapped onto derived buckets for backwards UX. For the PRD, specify this explicitly.
+
+For kanban, preserve the three columns. Add phase pills to cards either manually or by adding `data-task-id` to cards and injecting from matching command rows; the current title-text matching at [plans/overview.html](D:/harness-efforts/codexu/plans/overview.html:3293) is useful but brittle.
+
+For docs, add the enum convention to `parallel-assignments.md` preamble and expand the status table to `Phase | Modifier | Plan source/job | Commit` only if the PRD wants artifact visibility there; minimum requested scope is phase + status. Add one concise Standing rules paragraph to `codexu-roadmap.md`.
+
+Verification should be static: grep every command row for `data-task-phase`, grep allowed enum values, open `overview.html` in dark/light mode, and manually flip one representative row through each progression path to ensure pills, filters, counts, and modifier rendering stay readable.

@@ -1,0 +1,90 @@
+I’m pulling the roadmap-specific workflow context, then I’ll inspect the referenced files and map the implementation surface.
+
+I’ve identified the relevant roadmap files; next I’m locating the exact sections and repo-level context so I can assess the plan against the current implementation.
+
+I’ve mapped the main renderer and metadata consumers; I’m checking the remaining data maps and phase-tree structure to catch any plan gaps before writing the review.
+
+I found an existing `tools/render-roadmap.ts` workflow, which may materially change the recommended integration point; I’m reading that before finalizing the analysis.
+
+The natural integration point is `plans/overview.html`’s existing split between embedded metadata and DOM-enhancement JS, but one caveat is major: **the current phase tree is not task-derived**, so a `tasks[]`-only sidecar will not reproduce the page identically without either a separate `phaseTree` schema or an explicit deferral.
+
+### Codebase Architecture
+- The repo is a **pnpm monorepo** (`package.json`, `pnpm-workspace.yaml`) with TypeScript/Node packages under `packages/*`; the roadmap viewer is **not** a workspace package today.
+- The relevant surface is a **hand-authored static file**: `plans/overview.html`. It contains:
+  - CSS and layout
+  - toolbar/search/filter UI
+  - kanban cards
+  - Ralph command `<details>` rows
+  - a static roadmap/phase-tree section
+  - an embedded `<script type="application/json" id="roadmap-data">`
+  - ~400 lines of vanilla JS that enhance the already-authored DOM
+- Root-level maintenance tooling already exists under `tools/` (`tools/render-roadmap.ts`, `tools/vitest.config.ts`), so adding a small validator there fits current repo patterns.
+
+### Feature-Relevant Code
+- **`plans/overview.html`** is the primary implementation target.
+  - **Kanban cards:** around `1068-1426`
+  - **Command rows:** around `1432-1918`
+  - **Phase tree / roadmap section:** around `1920-2028`
+  - **Embedded metadata:** `2175-2612`
+  - **Renderer/enhancers:** `2614+`
+- Important JS in `plans/overview.html`:
+  - `getRoadmapData()` (`3529-3533`) parses the inline JSON
+  - `renderPhaseBadges()` (`2729-2762`) maps phase/status to pills
+  - `getOrCreateCmdActions()` (`2692-2705`) moves/injects action buttons
+  - `applyFilter()` (`3265-3301`) filters command rows and kanban cards from DOM/data attributes
+  - `parseTaskIdFilter()` / URL banner (`3206-3254`)
+  - `injectWorkstreamPills()` (`3337+`)
+  - `injectSpawnRelationships()` (`3555+`)
+  - `injectRunHistory()` (`3611+`)
+  - `persistDetails()` (`3105-3122`)
+- Current inline JSON already holds more than runs/cadence:
+  - `generatedAt`, `generatedFromCommit`
+  - `lastTouched`
+  - `periodic`, `cadence`, `runs`
+  - `effort`, `risk`, `workstream`, `sizeBucket`, `spawnedFrom`
+- **`plans/task-phases.md`** is the schema dependency: it defines the 10-value `phase` enum and the `status` split, plus future-ish fields like `planSource`, `planJobId`, `mergeCommit`.
+- **`plans/parallel-assignments.md`** is the other key input/output surface:
+  - top preamble documents the phase/status model
+  - bottom status table mirrors task phase/status/job metadata
+- **`.agents/skills/roadmap-and-overview/SKILL.md`** currently encodes the old multi-surface bookkeeping workflow and will need a substantial rewrite.
+- **`plans/codexu-roadmap.md`** has the “Companion snapshot” note and “Task phase model” rule that still point at `plans/overview.html`.
+- **`plans/overview-vite-react.md`** already assumes plan #2 produces `plans/overview-data.js`, so the sidecar direction matches the future plan.
+
+### Technical Constraints
+- **`file://` compatibility is real and already baked into the current design.** Today the JSON is inline specifically so it exists before the main script runs (`plans/overview.html:2175-2180`, `3529-3533`). A sidecar `.js` file loaded with `<script src="overview-data.js"></script>` before the main script is compatible; `fetch('./overview-data.json')` is not.
+- The current page is **DOM-first**. Many IIFEs query existing `details.cmd` and `.card` nodes on load. If tasks are rendered from data, that render must happen **before** those enhancers run, or those enhancers need to be folded into the new render path.
+- The migration is **not just moving `runs[]`**. Existing consumers read map-shaped metadata keyed by task id (`effort`, `workstream`, `sizeBucket`, `lastTouched`, `spawnedFrom`, etc.). If those values move into `tasks[]`, the current helper IIFEs need refactors or a compatibility adapter.
+- Several DOM attributes are **load-bearing** and must be re-emitted on rendered rows:
+  - `id="cmd-<taskId>"`
+  - `data-task-id`
+  - `data-task-phase`
+  - `data-task-status`
+  - `data-task-scope`
+  - optional `data-plan-only`, `data-merge-commit`
+- The current content is **richer than the example schema suggests**:
+  - `cmd-desc` often contains inline `<code>` and links
+  - warnings contain ordered rich text
+  - kanban cards contain inline links/code and shipped/paused styling
+  - some tasks have no command body at all
+  A flat string-only task model will not preserve the page character-for-character.
+- **Phase tree is the big mismatch.** The current roadmap section contains many items that are not task rows at all (`1b.1`, `4a-4m`, etc.) and has no task IDs on those bullets. A `phaseTreePath` on tasks is not enough by itself if identical rendering is required.
+- There is already some **doc drift**: the skill doc still mentions `codexu-overview-details-state-v1`, while the page now uses `...-v2` (`plans/overview.html:3105-3122`). That supports the plan’s requirement to rewrite the skill in the same commit.
+- There is **no `pnpm overview:validate` script today**, so package.json wiring will be needed if the validator ships.
+
+### Implementation Suggestions
+- Keep the plan’s overall direction: **`plans/overview-data.js` as the source of truth** is a natural next step and aligns with `plans/overview-vite-react.md`.
+- For the first migration commit, move the current inline JSON **verbatim** into `window.OVERVIEW_DATA` and change `getRoadmapData()` to return that object. Include **all** existing maps, not just `runs/periodic/cadence/lastTouched`.
+- Render **command rows and kanban cards** from `tasks[]`, then preserve the existing DOM contract so current enhancers (filters, copy buttons, hash navigation, details persistence, spawned-from pills, run history) can keep working with minimal rewrite.
+- Treat the phase tree separately:
+  1. either add a dedicated `phaseTree` structure to `overview-data.js`, or
+  2. defer phase-tree extraction to a later commit.
+  I would not promise “identical phase tree” from `tasks[]` alone.
+- Make the task schema a bit richer than the draft example:
+  - raw prompt text
+  - ordered warnings
+  - optional summary/card HTML or structured rich-text fields
+  - optional command presence
+  - current scope/planOnly/mergeCommit fields
+- `tools/overview/validate.mjs` is a good fit. The repo already has root `tools/` scripts and Vitest config, so validator/test wiring belongs there rather than inside `plans/`.
+- Besides the named docs, do a repo-wide sweep for instructions that still tell agents to edit `plans/overview.html` or its JSON block directly; `plans/parallel-assignments.md` already contains several such prompt bodies, and the `roadmap-plugin` prompt also assumes the old model.
+

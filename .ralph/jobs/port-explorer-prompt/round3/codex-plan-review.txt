@@ -1,0 +1,22 @@
+**Feasibility**
+[High] The smoke test may not exercise the new prompt at all. `explorer.toml` is compiled into the binary via `include_str!` in [role.rs](D:/harness-efforts/codexu/codex/external/repos/codex-patched/codex-rs/core/src/agent/role.rs:421). The plan runs `cargo check`/`cargo test`, but the smoke uses `codex exec` without specifying a rebuilt binary from the codex worktree. If that resolves to the installed/global Codex, the smoke can pass while testing the old empty built-in. Add an explicit build/run path, or make the smoke invoke the worktree-built executable.
+
+[Medium] The renamed existing test may fail or test the wrong thing if it keeps the current setup in [role_tests.rs](D:/harness-efforts/codexu/codex/external/repos/codex-patched/codex-rs/core/src/agent/role_tests.rs:92). That test mutates `config.model` directly, but non-empty role application rebuilds config from the layer stack. To prove “caller model is preserved,” seed `model` through CLI overrides or config.toml, like `apply_role_preserves_unspecified_keys`.
+
+**Completeness**
+[High] F-205 is not actually fixed as described. The proposed assertion `parsed.project_doc_fallback_filenames == Some(vec![])` can pass even when `explorer.toml` omits the key, because `ConfigToml` defaults it to `Some(Vec::new())` in [config_toml.rs](D:/harness-efforts/codexu/codex/external/repos/codex-patched/codex-rs/config/src/config_toml.rs:82) and [config_toml.rs](D:/harness-efforts/codexu/codex/external/repos/codex-patched/codex-rs/config/src/config_toml.rs:235). The test must assert the raw TOML contains an explicit empty `project_doc_fallback_filenames` array, or apply the explorer role over a config with fallback filenames set and assert they are cleared.
+
+[Medium] F-208 regressed in Open Questions: item 6 still says the plan suggests `packages/codium/`, while the AC correctly rescinds it as too large. This stale note can steer implementation back to the invalid smoke target. Remove `packages/codium/` from Open Questions.
+
+**Ordering**
+[High] The submodule pointer bump step is incomplete. The submodule commit is created in `.ralph/jobs/<job_dir>/codex-worktree/`, but `git add codex` in the superproject records the commit currently checked out at `D:/harness-efforts/codexu/codex`, not the sibling worktree’s HEAD. Step 12 needs to fetch/checkout the new SHA in the actual `codex` submodule path before `git add codex`.
+
+**Simplicity**
+No issues found.
+
+**Acceptance Criteria Quality**
+[High] The AC for `project_doc_fallback_filenames == Some(vec![])` is too weak for the intended invariant because it does not distinguish explicit role-layer override from `ConfigToml` defaulting. Strengthen it to inspect the raw `TomlValue` key or verify role application clears a pre-existing non-empty fallback list.
+
+[Medium] The smoke AC should state which `codex` binary is used and require proof that it was built from the topic worktree SHA. Without that, the smoke criteria are observable but not tied to this implementation.
+
+R1/R2 fixes are mostly reflected in the plan, including path views, push approval, mandatory patch-surface updates, marker discipline, and deferred staging. The main unresolved regression is F-205’s false-positive test shape, plus the stale `packages/codium/` Open Question.

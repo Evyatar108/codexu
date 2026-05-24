@@ -1,0 +1,110 @@
+{
+  "storyId": "US-004",
+  "verifiedEvidence": [
+    {
+      "criterion": "scripts/lib/emit-derived-artifacts.mjs exports emitDerivedArtifacts({ repoRoot, config, state, overviewData, prdsByTaskId?, generatedFromCommit }) -> Promise<{ runDurations }>",
+      "command": "node --input-type=module static US-004 assertions > .test-output/us-004.static.log 2>&1",
+      "result": "PASS: static assertions confirmed emitDerivedArtifacts is exported with repoRoot, config, state, overviewData, prdsByTaskId, and generatedFromCommit parameters; declaration file returns Promise<{ runDurations: Record<string, number> }>.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "When prdsByTaskId is not supplied, helper loads it lazily via loadPrdsByTaskId",
+      "command": "node --input-type=module static US-004 assertions > .test-output/us-004.static.log 2>&1; pnpm test > .test-output/root.test.log 2>&1",
+      "result": "PASS: static assertions found the prdsByTaskId ?? loadPrdsByTaskId lazy path; write-sidecar-freshness integration uses the lazy path and root Vitest passed 11 files/62 tests.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "emitDerivedArtifacts body order, recommendations wrapper, unwrapped graph, and return { runDurations }",
+      "command": "node --input-type=module static US-004 assertions > .test-output/us-004.static.log 2>&1",
+      "result": "PASS: static assertions confirmed scoreRecommendations -> deriveDependencyGraph -> computeRunDurations -> atomicWriteFile recommendations wrapper -> atomicWriteFile graph -> return { runDurations }.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "runDurations precision: key = OverviewData.runs[].id and value = hours rounded to 1 decimal",
+      "command": "pnpm test > .test-output/root.test.log 2>&1; node --input-type=module static US-004 assertions > .test-output/us-004.static.log 2>&1",
+      "result": "PASS: write-sidecar-freshness test asserts run-alpha duration is 3.5 for 3h30m; static assertions confirmed durations[run.id] and one-decimal rounding formula.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "writeSidecar hoists loadOverviewData(resolveMaybeAbsolute(absoluteRepoRoot, config.dataFile)) and passes overviewData to emitDerivedArtifacts and emitAgentArtifacts",
+      "command": "node --input-type=module static US-004 assertions > .test-output/us-004.static.log 2>&1",
+      "result": "PASS: static assertions confirmed writeSidecar loads overviewData once from the resolved config dataFile and passes the parsed value to both downstream emitters.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "emitDerivedArtifacts is called before emitAgentArtifacts; returned runDurations is passed to buildSnapshot through emitAgentArtifacts; state is never mutated",
+      "command": "node --input-type=module static US-004 assertions > .test-output/us-004.static.log 2>&1; pnpm test > .test-output/root.test.log 2>&1",
+      "result": "PASS: static assertions confirmed call order, runDurations parameter threading, and no state.runDurations assignment; integration tests assert sidecar JSON and in-memory state do not have runDurations.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "generatedFromCommit source of truth is state.generatedFromCommit and writeSidecar signature is unchanged",
+      "command": "node --input-type=module static US-004 assertions > .test-output/us-004.static.log 2>&1",
+      "result": "PASS: static assertions confirmed writeSidecar passes generatedFromCommit: state.generatedFromCommit to emitDerivedArtifacts and the exported writeSidecar signature remains { repoRoot, config, state }.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Hardcoded PLAN_04_RECOMMENDATIONS_PATH and PLAN_04_DEPENDENCY_GRAPH_PATH constants removed; reader uses configured outputs paths",
+      "command": "node --input-type=module static US-004 assertions > .test-output/us-004.static.log 2>&1",
+      "result": "PASS: static assertions confirmed both PLAN_04 constants are absent and emitAgentArtifacts reads outputs.recommendationsJson and outputs.dependencyGraphJson via resolveMaybeAbsolute.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "emitAgentArtifacts accepts optional overviewData and runDurations fallbacks",
+      "command": "node --input-type=module static US-004 assertions > .test-output/us-004.static.log 2>&1",
+      "result": "PASS: static assertions confirmed emitAgentArtifacts destructures optional overviewData/runDurations, falls back to loadOverviewData when overviewData is omitted, and defaults runDurations to {}.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Both derived JSON files are written via shared atomicWriteFile from scripts/lib/atomic-write.mjs",
+      "command": "node --input-type=module static US-004 assertions > .test-output/us-004.static.log 2>&1",
+      "result": "PASS: static assertions confirmed emit-derived-artifacts imports atomicWriteFile from ./atomic-write.mjs and uses it for both recommendations and dependency graph writes.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Integration test asserts snapshot recommendations and dependencyGraph equal same-pass derived files",
+      "command": "pnpm test > .test-output/root.test.log 2>&1",
+      "result": "PASS: root Vitest passed 11 files/62 tests, including scripts/lib/write-sidecar-freshness.test.mjs 2 tests; it reads snapshot, recommendations JSON, and graph JSON after one writeSidecar call and asserts deep equality.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Custom output-path override test writes overridden paths and embeds same contents in snapshot",
+      "command": "pnpm test > .test-output/root.test.log 2>&1",
+      "result": "PASS: write-sidecar-freshness test uses recommendationsJson='tmp/custom-rec.json' and dependencyGraphJson='tmp/custom-dep.json', asserts both files exist, and asserts snapshot embeds their contents.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Regression guard: sidecar JSON does not contain runDurations after writeSidecar",
+      "command": "pnpm test > .test-output/root.test.log 2>&1",
+      "result": "PASS: write-sidecar-freshness tests assert JSON.parse(sidecarJsonPath) does not have runDurations, proving state serialization did not persist the threaded map.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "pnpm test passes",
+      "command": "pnpm test > .test-output/root.test.log 2>&1",
+      "result": "PASS: Test Files 11 passed (11); Tests 62 passed (62).",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "pnpm --filter @codexu/overview-viewer typecheck passes",
+      "command": "pnpm --filter @codexu/overview-viewer typecheck > .test-output/overview-viewer.typecheck.log 2>&1",
+      "result": "PASS: tsc --noEmit completed with exit 0.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Typecheck passes",
+      "command": "pnpm --filter @codexu/overview-viewer typecheck > .test-output/overview-viewer.typecheck.log 2>&1",
+      "result": "PASS: tsc --noEmit completed with exit 0.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Tests pass",
+      "command": "pnpm test > .test-output/root.test.log 2>&1; pnpm exec vitest run scripts/lib/write-sidecar-freshness.test.mjs",
+      "result": "PASS: root Vitest 11 files/62 tests passed; targeted write-sidecar-freshness Vitest 1 file/2 tests passed.",
+      "evidenceKind": "passed"
+    }
+  ],
+  "skippedReasons": [],
+  "notTested": [],
+  "iterationSHA": "9e7e007a6b4bd1b34cb014042a96235336f579f2"
+}

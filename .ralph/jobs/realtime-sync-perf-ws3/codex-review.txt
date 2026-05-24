@@ -1,0 +1,23 @@
+### Completeness
+
+[Medium] `packages/happy-app/sources/sync/sync.ts:291-296` still calls `this.sessionsSync.invalidate()` unconditionally on app foreground. The plan explicitly calls out app background/reconnect as a target case, so this path can still force the HTTP refetch even when `lastSeenSeq` exists and server replay should cover recovery.
+
+[Low] `plans/realtime-sync-perf.md:164` records the implementation as `commit pending-US-007-single-WS3-commit`, not an actual commit SHA as required by the plan.
+
+### Correctness
+
+[High] `packages/happy-app/sources/sync/sync.ts:1721-1728` persists `lastSeenUpdateSeq` inside `.finally()` for the missing-session `new-message` path. If `invalidateAndAwait()` rejects, the session fetch did not commit, but the seq is still marked seen; the next reconnect will send that seq and the server can skip replaying the message, permanently losing the update. Persist should happen only on successful invalidation.
+
+[Medium] `packages/happy-app/sources/sync/sync.ts:1822-1825` falls through when an `update-session` arrives for a missing session, then `packages/happy-app/sources/sync/sync.ts:1964-1969` persists the seq anyway. That violates the “persist after effects commit” rule and can acknowledge a replayed metadata/agent-state update without applying it or fetching the missing session.
+
+### Quality
+
+[Medium] The diff mixes unrelated changes into the WS3 deliverable, including pairing/auth refresh behavior in `packages/happy-app/sources/sync/refreshClaim.ts:65-75`, profile parsing expectations in `packages/happy-app/sources/sync/profile.test.ts:23`, and roadmap HTML movement in `plans/overview.html:1542`. The plan asked for a single WS3 commit; this extra churn makes the change harder to review and increases regression risk outside the replay-buffer scope.
+
+### Security
+
+No issues found.
+
+### Overall Assessment
+
+Not ready as-is. The server replay path is mostly covered, but the client can still mark updates seen before the corresponding state is committed, and app resume still has an unconditional HTTP refresh path that undercuts the main performance goal.

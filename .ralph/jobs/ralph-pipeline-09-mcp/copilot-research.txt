@@ -1,0 +1,56 @@
+I’ll inspect the referenced temp file to determine the requested work.
+
+I’ll research the repo structure and the plan’s integration points, then return the requested analysis.
+
+I found this is a Plan Analysis research prompt. I’m checking the Ralph sidecar and overview helper APIs now so the answer can reference concrete files and contracts.
+
+### Codebase Architecture
+
+This is a pnpm monorepo with root workspace registration in both `package.json` and `pnpm-workspace.yaml`. Existing packages live under `packages/`; roadmap tooling lives under `tools/overview-viewer/`.
+
+The Ralph overview system is file/artifact based. `plans/overview-data.js` is the hand-edited source, while generated agent-facing artifacts include `plans/overview-snapshot.json`, `plans/overview-snapshot.schema.json`, `plans/overview-recommendations.json`, `plans/overview-dependency-graph.json`, `plans/overview-activity.jsonl`, and `tasks/INDEX.md`. Generation is centralized in `scripts/lib/sync-core.mjs` and triggered by `scripts/sync-ralph-state.mjs` or the Vite plugin in `tools/overview-viewer/vite.config.ts`.
+
+Languages/tools: TypeScript, Node ESM, Vitest, pnpm 10, Vite/React for the viewer, `.mjs` script libraries with adjacent `.d.mts` declarations.
+
+### Feature-Relevant Code
+
+Key existing contracts:
+
+- `tools/overview-viewer/src/types.ts` defines `OverviewData`, `OverviewTask`, `RalphPipelineState`, `CrewSessionRef`, `SnapshotTask`, `Snapshot`, `Recommendation`, `NextCommand`, and `RalphStage`.
+- `scripts/lib/default-config.mjs` defines canonical paths including `outputs.snapshot`, `outputs.snapshotSchema`, `outputs.recommendationsJson`, `outputs.dependencyGraphJson`, `crewsRoot`, and `dataFile`.
+- `scripts/lib/sync-core.mjs` exports `loadOverviewData`, `writeSidecar`, `rescanCrewSessionsAndWrite`, and related sync helpers.
+- `scripts/lib/derive-next-command.mjs` exports `deriveNextCommand(state, task, { repoRoot? })`.
+- `scripts/lib/derive-next-command-cli.mjs` reads `plans/overview-snapshot.json` and prints the command for a task.
+- `scripts/lib/append-journal.mjs` only appends semantic stage-transition lines: `{ repoRoot, taskId, ts, prevStage, newStage, slug }`; it does **not** currently accept arbitrary `{ taskId, note }`.
+- `scripts/lib/crews-cross-walk.mjs` implements live crew manifest discovery via `.crews/crews/*/{members,leads}/*/manifest.json`.
+- `scripts/lib/work-on-via-crew.mjs` already encapsulates the Plan 08 crew spawn flow and should be reused for `overview.invoke_next` with `viaCrewMember`.
+- `scripts/sync-ralph-state.mjs` owns lock-protected `--update-crew-session` and `--finalize-crew-session`.
+
+Existing MCP examples are in `packages/happy-cli/src/codex/happyMcpStdioBridge.ts` and `packages/happy-cli/src/claude/utils/startHappyServer.ts`.
+
+### Technical Constraints
+
+The new package must be registered in both root workspace surfaces, matching `tools/overview-viewer/CLAUDE.md`.
+
+The server must not write to `.claude/settings.json`; registration belongs in gitignored `.claude/settings.local.json` or printed instructions. Because MCP stdio uses stdout for protocol traffic, diagnostics must go to stderr only.
+
+Snapshot schema validation should use `plans/overview-snapshot.schema.json` at runtime; TypeScript shape references come from the existing overview types. Avoid importing viewer runtime/Vite/React code.
+
+`set_override` is the riskiest write path: it must mutate only `ralphOverrides` in `plans/overview-data.js`, atomically, without rewriting unrelated generated or hand-authored content.
+
+The plan’s `add_journal_entry { taskId, note }` contract does not match the current `appendJournalEntry` helper, which only formats stage transitions. The implementer must either add a new note-append helper/contract or change the MCP tool to require the existing semantic fields.
+
+### Implementation Suggestions
+
+Scaffold `tools/overview-mcp/` as an ESM TypeScript package with `@modelcontextprotocol/sdk`, `zod`, `chokidar`, `vitest`, `typescript`, and likely `tsx` for tests/scripts. Follow the stdio pattern from `happyMcpStdioBridge.ts`.
+
+Use a shared server context object: `{ repoRoot, config, snapshotReader }`. Load config through `scripts/lib/resolve-config.mjs` rather than hardcoding paths.
+
+Implement read-only tools first against `SnapshotReader`: `list_tasks`, `get_task`, `next_command`, `list_recommendations`, and `list_blockers`. `list_recommendations` should prefer `snapshot.recommendations` and only read `config.outputs.recommendationsJson` as fallback.
+
+For crew flows, prefer `runWorkOnViaCrew()` from `scripts/lib/work-on-via-crew.mjs` instead of duplicating spawn/poll/persist logic. For live session listing, reuse `discoverCrewSessions()` with fresh `overviewData`/Ralph state inputs and a very short cache.
+
+For transcript lookup, resolve `sessionId` through live crew refs plus snapshot refs, then tail the transcript JSONL and filter user/assistant messages; tolerate malformed final lines like existing activity readers do.
+
+Tests should exercise handler functions directly plus one stdio registration smoke test. The most important regression tests are snapshot refresh, `set_override` diff confinement, crew live-read behavior, and the journal helper contract mismatch.
+

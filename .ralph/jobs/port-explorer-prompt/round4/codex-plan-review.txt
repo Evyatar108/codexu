@@ -1,0 +1,20 @@
+No Critical findings. The R3 fixes for using a worktree-built `codex` binary and for explicitly updating the main submodule checkout before `git add codex` look adequate.
+
+**Feasibility**
+[High] US-001’s path-scoped stash does not actually isolate the current unstaged submodule gitlink. The repo currently shows ` M codex` / `+ed5d2fd... codex`, and `git stash push -- codex` does not clean or reliably stash an unstaged submodule HEAD change. I reproduced this in a throwaway repo: status stayed ` M sm` after the stash command. The plan’s “known-clean base” assumption is therefore false. Fix: record `git -C codex rev-parse HEAD`, verify `git -C codex status --short` is clean, checkout the superproject-recorded gitlink via `git -C codex checkout $(git rev-parse HEAD:codex)`, then restore/report the recorded SHA at the end; or define an explicit staged-gitlink stash flow.
+
+[High] The “strong” `project_doc_fallback_filenames` assertion still permits a false positive. If the test seeds `config.project_doc_fallback_filenames = vec![...]` after `ConfigBuilder`, `apply_role_to_config` rebuilds from `config.config_layer_stack`, not that mutated field ([role.rs](D:/harness-efforts/codexu/codex/external/repos/codex-patched/codex-rs/core/src/agent/role.rs:155)). The result can become empty even if `explorer.toml` omits the key. Require the raw `toml::Value` explicit-key assertion, or seed the non-empty fallback through `config.toml` before building the `Config`.
+
+**Completeness**
+[Medium] The patch-surface numbering is stale. [patch-surface.md](D:/harness-efforts/codexu/codex/docs/implementation/patch-surface.md:708) already has invariant rows 19 and 20, so the new row must be 21, not 19. The plan also still says “§15-style rebase-replant note” in several places even though §15 is subtree lag; keep the rebase note inside the new §17 section or the global conflict-resolution guide.
+
+**Ordering**
+[Low] The commit/approval order is inconsistent. Implementation step 9 is titled “Stage + commit” but only stages; step 11 commits and pushes. US-007 says commit before push approval. Pick one flow. Since the repo guidance only requires approval before pushing, the simpler order is: stage, commit locally, show commit/diff/transcript, get push approval, push.
+
+**Simplicity**
+[Low] For the fallback-clearing guard, use only the raw TOML explicit-key assertion. It is simpler and directly proves the file contains `project_doc_fallback_filenames = []`, avoiding config-layer setup subtleties.
+
+**Acceptance Criteria Quality**
+[Medium] The smoke “zero write activity” criteria are too raw-string based. A transcript may mention `Write`, `Edit`, `>` or `git checkout` in prose, while a shell command could write via another spelling. Require checking structured tool-call records where available, or narrowly match command/tool-call blocks rather than arbitrary transcript text.
+
+[Low] The license criterion “no verbatim span > 5 consecutive words” remains manual and somewhat subjective, but it is acceptable because the plan explicitly gates on operator approval before commit.

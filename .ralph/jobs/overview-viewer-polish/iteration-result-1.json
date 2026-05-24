@@ -1,0 +1,60 @@
+{
+  "storyId": "US-006",
+  "verifiedEvidence": [
+    {
+      "criterion": "Reduced-motion guard placement",
+      "command": "grep -n \"@media (prefers-reduced-motion: reduce)\" -A5 tools/overview-viewer/src/styles.css",
+      "result": "Lines 33-38 show the guard immediately after the CSS variable definitions and before the first non-variable rule.",
+      "evidenceKind": "inspection"
+    },
+    {
+      "criterion": "Typecheck passes",
+      "command": "pnpm --filter @codexu/overview-viewer typecheck",
+      "result": "PASS: tsc --noEmit completed with exit 0.",
+      "evidenceKind": "typecheck"
+    },
+    {
+      "criterion": "Tests pass",
+      "command": "pnpm --filter @codexu/overview-viewer test",
+      "result": "PASS: 11 test files passed, 36 tests passed.",
+      "evidenceKind": "test"
+    },
+    {
+      "criterion": "Build and static artifact",
+      "command": "pnpm overview:build; stat -c%s plans/overview.html",
+      "result": "PASS: build succeeded; plans/overview.html is 447591 bytes and contains the inlined reduced-motion guard.",
+      "evidenceKind": "build"
+    },
+    {
+      "criterion": "Dev server smoke",
+      "command": "curl -fsS http://127.0.0.1:5173/overview.html && curl -fsS http://127.0.0.1:5173/overview-data.js",
+      "result": "HTTP smoke PASS; SKIPPED: browser console verification unavailable because Playwright/browser tooling is not installed.",
+      "evidenceKind": "skipped"
+    },
+    {
+      "criterion": "file:// validation",
+      "command": "grep -nE '<script[^>]+src=|<link[^>]+href=' plans/overview.html || true",
+      "result": "Static artifact has no external script/link refs; SKIPPED: live file:// browser open unavailable without browser automation.",
+      "evidenceKind": "skipped"
+    },
+    {
+      "criterion": "Existing intentional deviations preserved",
+      "command": "grep -nE \"deferred|data-cmd-status|lastTouchedAt|sortTasksByLastTouchedAsc\" tools/overview-viewer/src/components/PhaseTree.tsx tools/overview-viewer/src/components/CommandList.tsx tools/overview-viewer/src/styles.css",
+      "result": "Deferred mapping, blocked/paused tail ordering, and lastTouchedAt ascending sort remain present.",
+      "evidenceKind": "inspection"
+    },
+    {
+      "criterion": "Frozen install",
+      "command": "pnpm install --frozen-lockfile --offline",
+      "result": "PASS: frozen install completed successfully; package.json and pnpm-lock.yaml were unchanged.",
+      "evidenceKind": "command"
+    }
+  ],
+  "skippedReasons": [
+    "tool_unavailable"
+  ],
+  "notTested": [
+    "Live browser console and file:// double-click validation were not run because browser automation is unavailable."
+  ],
+  "iterationSHA": "488fd285ffbbb3b47274b28925b8293aad9f6a33"
+}

@@ -1,0 +1,26 @@
+I’ve got the plan; next I’m checking the referenced files against the codebase to validate feasibility and spot gaps.
+
+Found a few plan gaps. The biggest one is that the proposed permission-badge implementation does not match the codebase’s actual permission keys, so it would miss the intended colors for several real modes.
+
+### Feasibility
+
+- [High] The plan’s `theme.colors.permission[code]` lookup is not implementable as written for current mode keys. `packages/happy-app/sources/theme.ts:139-147` exposes `bypass`, `readOnly`, and `safeYolo`, but the actual permission codes in `packages/happy-app/sources/components/modelModeOptions.ts:48-72` are `bypassPermissions`, `read-only`, and `safe-yolo`. The existing UI already special-cases this in `packages/happy-app/sources/components/AgentInput.tsx:1388-1396`. If the plan follows the direct lookup + fallback approach, many pills will silently render with the default color instead of the requested mode color.
+
+- [Medium] The test plan underestimates the module graph behind `SessionItem`. Importing `packages/happy-app/sources/components/SessionsList.tsx` for a snapshot will also load `StyledText`, `UpdateBanner`, router/safe-area hooks, and other module-level imports from `SessionsList.tsx:3-23`; `StyledText` itself pulls in `react-native-reanimated` (`packages/happy-app/sources/components/StyledText.tsx:1-35`), and `UpdateBanner` pulls more hooks/router code (`packages/happy-app/sources/components/UpdateBanner.tsx:1-18`). The listed mocks are incomplete for that import path, so the “just export `SessionItem` and snapshot it” step is likely to fail or become much more involved than the plan suggests.
+
+### Completeness
+
+- [Medium] The plan says to render raw permission codes, but the current app resolves permission display names through existing option helpers and uses those names in the drawer. `packages/happy-app/sources/-session/SessionView.tsx:302-317` computes the current permission via `getAvailablePermissionModes(...)` + `resolvePermissionModeForPicker(...)`, and `packages/happy-app/sources/components/SessionContextDrawer.tsx:94-95` renders `permissionMode?.name`. Rendering raw metadata would regress known cases like Claude `bypassPermissions` to an internal code instead of the current user-facing label (`yolo` / localized equivalents from `packages/happy-app/sources/text/_default.ts:499-557`). The plan needs a resolved-label path with raw fallback only for unknown combinations like Codex + `plan`.
+
+### Ordering
+
+No issues found.
+
+### Simplicity
+
+- [Medium] Exporting `SessionItem` purely for testability is more invasive than necessary and contradicts the plan’s own “no API surface impact” claim. `packages/happy-app/sources/components/SessionsList.tsx:342-463` is currently private to the module. A simpler approach is to test the public `SessionsList` with `useVisibleSessionListViewData()` mocked to return a single session row, or to extract only the new pill-row subcomponent and test that. Either option avoids widening the module surface just to satisfy the snapshot.
+
+### Acceptance Criteria Quality
+
+- [Medium] The layout criteria are too subjective for autonomous implementation. The plan explicitly says `88 -> 108` is “a guess” and “adjust if pills wrap,” but the acceptance section never turns that into a concrete requirement. The risky behavior here is visual: no clipping, no overlap with the status row, and no empty spacer when all three metadata fields are absent. Those conditions should be stated explicitly; otherwise an implementation can satisfy the listed commands and still ship a broken row layout.
+

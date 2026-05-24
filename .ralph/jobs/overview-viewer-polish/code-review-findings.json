@@ -1,0 +1,133 @@
+{
+  "planFile": "D:/harness-efforts/codexu/.ralph/jobs/overview-viewer-polish/plan.md",
+  "repoDir": "D:/harness-efforts/codexu/.ralph/jobs/overview-viewer-polish/worktree",
+  "findings": [
+    {
+      "id": "F-001",
+      "source": "claude",
+      "severity": "High",
+      "category": "Completeness",
+      "classification": "prd-worthy",
+      "phase": "code",
+      "status": "open",
+      "sectionRef": "Phase C / D / E story completion",
+      "description": "Only 11 of 19 stories landed (US-006, US-001..US-005, US-007..US-011). US-012 blocked by 500 KB bundle gate at 506901 B (+6901 over ceiling); US-013..US-019 are blocked-by-dependency. Phase D (bucket headers, sticky frame), Phase E (left rail, responsive), and the US-019 docs sweep were never started. The plan's acceptance criteria for US-012..US-019 are unmet; this is a planning/scope gap that requires replan rather than another fix iteration.",
+      "relevantFiles": [
+        "D:/harness-efforts/codexu/.ralph/jobs/overview-viewer-polish/plan.md",
+        "D:/harness-efforts/codexu/.ralph/jobs/overview-viewer-polish/notepad.md",
+        "D:/harness-efforts/codexu/.ralph/jobs/overview-viewer-polish/prd.json"
+      ],
+      "suggestedFix": "Treat as prd-worthy. Replan options: (a) raise the 500 KB ceiling, (b) tree-shake or replace Radix Popover/ToggleGroup, (c) split overview-data.js out of the single-file bundle to recover ~7 KB, (d) drop US-012..US-014 and advance to Phases D/E + docs sweep (US-015..US-019 do not depend on Popover/ToggleGroup), then revisit Phase C scope."
+    },
+    {
+      "id": "F-002",
+      "source": "claude",
+      "severity": "High",
+      "category": "Correctness",
+      "classification": "fixable",
+      "phase": "code",
+      "status": "open",
+      "sectionRef": "US-003 prefers-reduced-motion AC",
+      "description": "useHashNav and navigateToCommand unconditionally call scrollIntoView({ behavior: 'smooth' }) and add the cmd-flash class. US-003's per-story AC requires `prefers-reduced-motion: reduce` to make the scroll instant and skip the flash pulse. The global CSS guard at styles.css:33 disables the @keyframes animation, so the visible pulse degrades, but the JS-driven smooth scroll itself is never gated on the media query, violating the documented criterion.",
+      "relevantFiles": [
+        "tools/overview-viewer/src/hooks/useHashNav.ts:12-14",
+        "tools/overview-viewer/src/utils/commandNavigation.ts:35-40"
+      ],
+      "suggestedFix": "Read `window.matchMedia('(prefers-reduced-motion: reduce)').matches` before navigation; pass `behavior: 'auto'` and skip flashCommandElement when reduced motion is requested. Extract a shared helper used by both useHashNav and navigateToCommand."
+    },
+    {
+      "id": "F-003",
+      "source": "claude",
+      "severity": "High",
+      "category": "Correctness",
+      "classification": "fixable",
+      "phase": "code",
+      "status": "open",
+      "sectionRef": "US-001 animation duration AC",
+      "description": "styles.css:1031 sets the .cmd-body grid-template-rows transition to 0.3s, exceeding US-001's `Animation duration <= 200ms, ease-out curve` acceptance criterion. The animation otherwise works correctly (interpolate-size with @supports gate, reduced-motion fallback) but the duration breaks the AC.",
+      "relevantFiles": [
+        "tools/overview-viewer/src/styles.css:1029-1033"
+      ],
+      "suggestedFix": "Change `transition: grid-template-rows 0.3s ease-out;` to `transition: grid-template-rows 0.2s ease-out;` (or 180ms). Add a comment referencing US-001's <=200ms gate so future edits do not regress."
+    },
+    {
+      "id": "F-004",
+      "source": "claude",
+      "severity": "High",
+      "category": "ConstraintDivergence",
+      "classification": "fixable",
+      "phase": "code",
+      "status": "open",
+      "sectionRef": "plan.md Open Question #14 (F-015 from plan review) — Radix dep pinning",
+      "description": "Plan-review finding F-015 (Open Question #14) requires Radix primitives to be pinned to `^1.1.x`. tools/overview-viewer/package.json pins `@radix-ui/react-dialog: ^1.1.15` (compliant) but `@radix-ui/react-tooltip: ^1.1.8` (also compliant — `^1.1.x` allows 1.1.8, but `^1.1.8` also allows 1.2.x and 2.x.x under SemVer caret semantics). This is a silent divergence from the plan constraint declared in Open Questions section.",
+      "relevantFiles": [
+        "tools/overview-viewer/package.json:11",
+        "D:/harness-efforts/codexu/.ralph/jobs/overview-viewer-polish/plan.md:367"
+      ],
+      "suggestedFix": "Change `^1.1.8` to `~1.1.8` (or `1.1.x`) for both Radix primitives to honor the `^1.1.x` plan constraint literally. Alternatively, document a deferred question if the intent was caret ranges and update the plan."
+    },
+    {
+      "id": "F-005",
+      "source": "claude",
+      "severity": "Medium",
+      "category": "Quality",
+      "classification": "fixable",
+      "phase": "code",
+      "status": "open",
+      "sectionRef": "US-009 density toggle scope",
+      "description": "`body.compact .sub { display: none; }` at styles.css:886 hides every element with the `.sub` class globally, not just command-row summary subtext. App.tsx renders the `.sub` class on the 'Self-contained /plan-with-ralph prompts mirrored from plans/parallel-assignments.md...' descriptor inside CommandList, and there is no scoping selector restricting compact-mode hiding to within `.cmd > summary`. The result is broader than the US-009 AC `Compact mode reduces row vertical padding by >= 30%` and may hide section-level explanatory text users want to keep.",
+      "relevantFiles": [
+        "tools/overview-viewer/src/styles.css:884-886",
+        "tools/overview-viewer/src/components/CommandList.tsx:88-90"
+      ],
+      "suggestedFix": "Scope the rule to command rows only: `body.compact .cmd .cmd-desc, body.compact .cmd .sub { display: none; }` — or move the hidden-in-compact subtext to a dedicated class like `.cmd-sub` and target that. Verify section-head subtext (CommandList's `<div className=\"sub\">`) is still visible in compact mode if intended."
+    },
+    {
+      "id": "F-006",
+      "source": "claude",
+      "severity": "Medium",
+      "category": "Quality",
+      "classification": "fixable",
+      "phase": "code",
+      "status": "open",
+      "sectionRef": "Kanban quick-action UX consistency",
+      "description": "TaskCommand.tsx's `focusKanbanCard` quick-action sets `window.location.hash = kanban-card-<id>-0` and calls `scrollIntoView({block: 'center', behavior: 'smooth'})` directly, bypassing `navigateToCommand`/`flashCommandElement`. The CLAUDE.md contract (`Hash navigation` section) says in-page jumps `should go through navigateToCommand so they share the same flash behavior`. Kanban jumps land on a card with no visual flash, while command jumps flash — inconsistent affordance.",
+      "relevantFiles": [
+        "tools/overview-viewer/src/components/TaskCommand.tsx:153-160",
+        "D:/harness-efforts/codexu/.ralph/jobs/overview-viewer-polish/worktree/tools/overview-viewer/CLAUDE.md"
+      ],
+      "suggestedFix": "Extract a `navigateToKanbanCard(taskId)` helper in `utils/commandNavigation.ts` that mirrors `navigateToCommand` — set the hash, scroll into view, and call `flashCommandElement` on the kanban card. Add `.card.cmd-flash` to the existing flash CSS selector so the pulse applies on both row and card."
+    },
+    {
+      "id": "F-007",
+      "source": "claude",
+      "severity": "Medium",
+      "category": "Correctness",
+      "classification": "fixable",
+      "phase": "code",
+      "status": "open",
+      "sectionRef": "US-002 search highlighting and HTML entities",
+      "description": "highlightMatches in utils/searchHighlighting.ts processes plain text between tags but does not detect or skip HTML entities. A query like `lt` will match inside `&lt;` and inject `&<mark class=\"search-match\">lt</mark>;`, breaking the entity. Browsers still render this as `<` + `;` so it's not a security issue, but it visually corrupts any escaped HTML in descriptionHtml that contains the matched substring.",
+      "relevantFiles": [
+        "tools/overview-viewer/src/utils/searchHighlighting.ts:14-53"
+      ],
+      "suggestedFix": "Track entity context similarly to code-block tracking: when an `&` is encountered, skip highlighting until the matching `;` (or whitespace/tag boundary indicating an unterminated entity). Add a unit test for `highlightMatches('a &lt;b', 'lt')` asserting the output preserves `&lt;`."
+    },
+    {
+      "id": "F-008",
+      "source": "claude",
+      "severity": "Medium",
+      "category": "Completeness",
+      "classification": "fixable",
+      "phase": "code",
+      "status": "open",
+      "sectionRef": "US-007 / US-008 / US-009 evidence — live-browser AC gap",
+      "description": "The PERMANENT not-tested ledger records that `live browser console and file:// double-click validation were not run because browser automation is unavailable` (keys 145eaa28..., a5ea5d3c...). The global plan AC `pnpm overview dev server starts and renders the page without console errors` and `pnpm overview:build succeeds; the regenerated plans/overview.html opens cleanly under file://` are therefore unverified for every story that landed. Iteration evidence falls back to HTTP smoke + static SSR tests. This is structurally documented as a recurring not-tested promotion, not a fix-loop bug, but the unverified portion of the AC should be visible in the final review summary.",
+      "relevantFiles": [
+        "D:/harness-efforts/codexu/.ralph/jobs/overview-viewer-polish/notepad.md",
+        "D:/harness-efforts/codexu/.ralph/jobs/overview-viewer-polish/plan.md:135-145"
+      ],
+      "suggestedFix": "Either (a) wire the agent-browser skill into the harness so `file://` double-click can be validated automatically, or (b) explicitly downgrade those two global AC entries in the plan to `dev-server HTTP smoke + jsdom interaction project` so the per-story evidence aligns with the stated criteria. Recommend (b) for this batch since the gap is consistent across all 11 stories that landed."
+    }
+  ]
+}

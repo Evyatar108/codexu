@@ -1,0 +1,144 @@
+{
+  "project": "codexu",
+  "description": "docs-sweep (overview-data-split Phase 3): schema-shape-independent stale-reference fixes across plans/. Re-point every doc that tells agents to edit plans/overview.html for task state to plans/overview-data.js. Fix ?id= -> ?tasks= in plans/overview-vite-react.md. Re-point lastRanAt timestamp / roadmap-data JSON phrasings in plans/parallel-assignments.md. Update the roadmap-plugin prompt body. Does NOT touch .agents/skills/roadmap-and-overview/SKILL.md (US-005b owns that).",
+  "deslop": true,
+  "iterationEngine": "codex",
+  "jobDir": "D:/harness-efforts/codexu/.ralph/job-groups/overview-data-split/docs-sweep",
+  "repoDir": "D:/harness-efforts/codexu",
+  "branch": {
+    "name": "ralph/overview-data-split/docs-sweep",
+    "created": true
+  },
+  "worktree": {
+    "path": "D:/harness-efforts/codexu/.ralph/job-groups/overview-data-split/docs-sweep/worktree",
+    "branch": "ralph/overview-data-split/docs-sweep",
+    "external": true
+  },
+  "group": {
+    "name": "overview-data-split",
+    "groupDir": "D:/harness-efforts/codexu/.ralph/job-groups/overview-data-split"
+  },
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Docs sweep (stale-reference fixes outside SKILL.md)",
+      "description": "As an autonomous bookkeeper agent, I want every standing doc outside the SKILL to stop telling agents to edit plans/overview.html for task state and to start pointing at plans/overview-data.js, so that the source-of-truth shift is consistent across all human- and agent-facing references — independent of when the SKILL rewrite (US-005b) finalizes. This story is schema-shape-independent: it does NOT depend on tasks[] or phaseTree[] final content because all edits are at the file-path / parameter-name level.",
+      "acceptanceCriteria": [
+        "plans/codexu-roadmap.md Companion-snapshot callout (lines 5-9) and Task-phase-model standing rule (line 175) reference plans/overview-data.js.",
+        "plans/parallel-assignments.md top adds a 'data file is source of truth' note; bottom status table (lines 561-612) remains as a derived view.",
+        "plans/parallel-assignments.md lines 225, 235, 242, 247 — stale 'bump lastRanAt timestamp in plans/overview.html's roadmap-data JSON' and 'Add new task entries to plans/parallel-assignments.md and plans/overview.html roadmap-data JSON' phrasings — re-pointed to plans/overview-data.js.",
+        "plans/agent-view-research.md and plans/codex-agent-parity-audit.md line 1358 — references to editing overview.html for task state re-pointed to plans/overview-data.js.",
+        "plans/overview-vite-react.md lines 66 and 147 — stale ?id=foo,bar URL-filter references updated to ?tasks= (matching parseTaskIdFilter() at plans/overview.html line 3206).",
+        "plans/overview-vite-react.md adds a note that <KanbanCard> and <PhaseTreeNode> raw branches consume kanbanCards[].html and phaseTree raw nodes via dangerouslySetInnerHTML (trusted-HTML escape hatch per the master plan's Risk Area #9).",
+        "The roadmap-plugin prompt body (locate via `git grep roadmap-plugin plans/`) is updated to describe the data-file edit model, not HTML edits.",
+        "Broad grep AC: each of the following, run against `.agents/ plans/ packages/` with plans/overview.html excluded, returns zero hits: `edit plans/overview.html`, `roadmap-data`, `lastRanAt timestamp`.",
+        "Narrow grep AC: `git grep -n \"edit plans/overview.html\" -- :!plans/overview.html .agents/ plans/ packages/` returns zero hits.",
+        "Does NOT modify .agents/skills/roadmap-and-overview/SKILL.md (that is US-005b's territory; running this story before SKILL is finalized must be safe).",
+        "Typecheck passes (root pnpm workspace installs/builds successfully)."
+      ],
+      "priority": 1,
+      "passes": true,
+      "notes": "",
+      "verifiedEvidence": [
+        {
+          "criterion": "plans/codexu-roadmap.md Companion-snapshot callout and Task-phase-model standing rule reference plans/overview-data.js.",
+          "command": "grep -n 'overview-data.js' plans/codexu-roadmap.md",
+          "result": "Lines 6, 8, and 176 reference plans/overview-data.js for the companion snapshot refresh and task phase model."
+        },
+        {
+          "criterion": "plans/parallel-assignments.md top adds a data-file source-of-truth note; bottom status table remains derived.",
+          "command": "grep -n -E 'overview-data.js|derived tracker' plans/parallel-assignments.md",
+          "result": "Line 7 says roadmap task state lives in plans/overview-data.js and the status table is a derived tracker; line 561 says to refresh plans/overview-data.js after status-table updates."
+        },
+        {
+          "criterion": "plans/parallel-assignments.md stale lastRanAt / roadmap-data JSON phrasings re-pointed to plans/overview-data.js.",
+          "command": "grep -n -E 'record the .* run metadata|overview-data.js' plans/parallel-assignments.md",
+          "result": "Lines 227 and 237 instruct agents to record periodic run metadata in plans/overview-data.js; lines 244 and 249 point spawned follow-up metadata to plans/overview-data.js."
+        },
+        {
+          "criterion": "plans/agent-view-research.md and plans/codex-agent-parity-audit.md task-state references re-pointed to plans/overview-data.js.",
+          "command": "grep -n 'overview-data.js' plans/agent-view-research.md plans/codex-agent-parity-audit.md",
+          "result": "agent-view-research.md:191 and codex-agent-parity-audit.md:82 reference plans/overview-data.js."
+        },
+        {
+          "criterion": "plans/overview-vite-react.md stale ?id=foo,bar URL-filter references updated to ?tasks=.",
+          "command": "if test -e plans/overview-vite-react.md; then echo present; else echo absent; fi; git ls-files -- plans/overview-vite-react.md | wc -l; git grep -n -E '[?]id=foo,bar|[?]id=' -- plans/ ':!plans/overview.html' || true",
+          "result": "SKIPPED: plans/overview-vite-react.md is absent in this worktree and git ls-files returns 0; no ?id=foo,bar or ?id= hits remain under plans/ outside plans/overview.html."
+        },
+        {
+          "criterion": "plans/overview-vite-react.md adds trusted-HTML escape-hatch note for <KanbanCard> and <PhaseTreeNode> raw branches.",
+          "command": "if test -e plans/overview-vite-react.md; then echo present; else echo absent; fi; git grep -n -E 'dangerouslySetInnerHTML|KanbanCard|PhaseTreeNode' -- plans/ ':!plans/overview.html' || true",
+          "result": "SKIPPED: plans/overview-vite-react.md is absent in this worktree; no target file exists to receive the note."
+        },
+        {
+          "criterion": "The roadmap-plugin prompt body describes the data-file edit model, not HTML edits.",
+          "command": "grep -n -E 'roadmap data|overview-data.js|task record and metadata maps' plans/parallel-assignments.md",
+          "result": "roadmap-plugin heading/status and prompt lines 338, 343, 347, 352, 353, and 613 describe managing roadmap data in plans/overview-data.js."
+        },
+        {
+          "criterion": "Broad grep AC for edit plans/overview.html, roadmap-data, lastRanAt timestamp across .agents/ plans/ packages/ excluding plans/overview.html.",
+          "command": "git grep -n 'edit plans/overview.html' -- ':!plans/overview.html' .agents/ plans/ packages/ || true; git grep -n 'roadmap-data' -- ':!plans/overview.html' .agents/ plans/ packages/ || true; git grep -n 'lastRanAt timestamp' -- ':!plans/overview.html' .agents/ plans/ packages/ || true; git grep -n -E 'edit plans/overview.html|roadmap-data|lastRanAt timestamp' -- ':!plans/overview.html' ':!.agents/skills/roadmap-and-overview/SKILL.md' .agents/ plans/ packages/ || true",
+          "result": "OVERRIDE: edit plans/overview.html and lastRanAt timestamp return zero. Exact roadmap-data grep returns only .agents/skills/roadmap-and-overview/SKILL.md lines 91, 307, 313, 368, and 470, which this story is forbidden to edit; the same broad grep excluding that US-005b-owned file returns zero."
+        },
+        {
+          "criterion": "Narrow grep AC for edit plans/overview.html excluding plans/overview.html returns zero hits.",
+          "command": "git grep -n 'edit plans/overview.html' -- :!plans/overview.html .agents/ plans/ packages/ || true",
+          "result": "No output; zero hits."
+        },
+        {
+          "criterion": "Does NOT modify .agents/skills/roadmap-and-overview/SKILL.md.",
+          "command": "git diff --name-only | grep 'roadmap-and-overview/SKILL.md' || true",
+          "result": "No output; SKILL.md was not modified."
+        },
+        {
+          "criterion": "Typecheck passes (root pnpm workspace installs/builds successfully).",
+          "command": "pnpm install; pnpm -r typecheck > .test-output/workspace.typecheck.log 2>&1",
+          "result": "pnpm install exit=0. Final workspace typecheck exit=0 in 36s; happy-wire, codexu-options-mode-plugin, codium, happy-agent, happy-app, happy-server, and happy-cli all reported Done."
+        }
+      ],
+      "dependencies": [],
+      "failureClassification": "",
+      "partialProgress": null
+    }
+  ],
+  "planReviewContext": [
+    {
+      "id": "F-011",
+      "severity": "Medium",
+      "source": "synthesis",
+      "category": "Documentation",
+      "description": "plans/overview-vite-react.md lines 66 and 147 use stale ?id=foo,bar URL syntax. Actual implementation in plans/overview.html:3206 parseTaskIdFilter() reads ?tasks=. Folded into US-005a scope.",
+      "relevantFiles": [
+        "plans/overview-vite-react.md",
+        "plans/overview.html"
+      ],
+      "suggestedFix": "Update both lines to ?tasks= and add a note that the React migration must consume the trusted-HTML escape hatch (kanbanCards[].html, phaseTree raw nodes) via dangerouslySetInnerHTML."
+    },
+    {
+      "id": "F-012",
+      "severity": "Medium",
+      "source": "synthesis",
+      "category": "Documentation",
+      "description": "Stale-doc sweep too narrow in earlier plan drafts. Folded into US-005a broad grep AC covering `edit plans/overview.html`, `roadmap-data`, `lastRanAt timestamp` across `.agents/ plans/ packages/` (plans/overview.html excluded).",
+      "relevantFiles": [
+        "plans/codexu-roadmap.md",
+        "plans/parallel-assignments.md",
+        "plans/agent-view-research.md",
+        "plans/codex-agent-parity-audit.md",
+        "plans/overview-vite-react.md"
+      ],
+      "suggestedFix": "Run the broad and narrow grep ACs after edits; iterate until both return zero hits."
+    },
+    {
+      "id": "F-013",
+      "severity": "Medium",
+      "source": "synthesis",
+      "category": "Ordering",
+      "description": "Original US-005 mixed schema-shape-independent doc edits with the SKILL rewrite (which depends on the finalized schema). Resolved by splitting into US-005a (this story, Phase 3, parallel-safe) and US-005b (Phase 4, depends on full-task-port + phase-tree-port).",
+      "relevantFiles": [
+        ".agents/skills/roadmap-and-overview/SKILL.md"
+      ],
+      "suggestedFix": "Do NOT touch SKILL.md in this story; it is US-005b's territory."
+    }
+  ]
+}

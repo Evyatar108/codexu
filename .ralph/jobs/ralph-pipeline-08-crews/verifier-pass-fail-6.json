@@ -1,0 +1,48 @@
+{
+  "manifestPath": "D:/harness-efforts/codexu/.ralph/jobs/ralph-pipeline-08-crews/iteration-result-6.json",
+  "iterationSHA": "cdc4778703e4d02ae41ea7c0bdb363f84f07935b",
+  "storyId": "US-006",
+  "verdicts": [
+    {
+      "criterion": "getWatchRoots() in scripts/lib/watch-ralph-state.mjs returns <crewsRoot>/crews/ and <crewsRoot>/sessions-configs/ in addition to existing Ralph roots.",
+      "verdict": "agree",
+      "reason": "Diff line 1731 exports getWatchRoots; line 1737 appends path.join(config.crewsRoot, 'sessions-configs') alongside the crews dir to the returned roots."
+    },
+    {
+      "criterion": "parseWatchedPath() detects paths under those .crews/ roots BEFORE the Ralph rootEntries loop; returns { kind: 'crews' } (no slug).",
+      "verdict": "agree",
+      "reason": "Diff line 1742 exports parseWatchedPath; line 1753 returns { kind: 'crews' } from the crews-root branch positioned ahead of rootEntries handling."
+    },
+    {
+      "criterion": "flushPending() branches on kind === 'crews' BEFORE calling deriveAffectedTaskUpdate(). Crew events route to rescanCrewSessionsAndWrite({ currentState, config, repoRoot, overviewData }).",
+      "verdict": "agree",
+      "reason": "Diff at line 1647 computes shouldRescanCrews; deriveAffectedTaskUpdate (line 1649) is called for non-crew kinds, and the crew path at line 1698 awaits rescanCrewSessionsAndWrite with the documented options."
+    },
+    {
+      "criterion": "rescanCrewSessionsAndWrite re-runs discoverCrewSessions, merges into currentState.byTaskId[*].crewSessions (preserving _isExplicit + stage buckets), updates only crew-session data + generatedAt, calls writeSidecar() without re-reading or re-deriving Ralph bundles.",
+      "verdict": "agree",
+      "reason": "rescanCrewSessionsAndWrite (line 1201) calls mergeDiscoveredCrewSessions and writeSidecar without re-reading Ralph bundles; sync-core tests cover explicit preservation, recorded-stage stickiness, and non-crew field preservation."
+    },
+    {
+      "criterion": "Mixed-batch flushes apply Ralph mergeAndWrite first, then crew rescan.",
+      "verdict": "agree",
+      "reason": "The flush path executes deriveAffectedTaskUpdate for Ralph kinds (line 1649) before the awaited rescanCrewSessionsAndWrite block (line 1698); the watch-ralph-state.test.mjs mixed-batch test (referenced in evidence) asserts the order ['merge','rescan']."
+    },
+    {
+      "criterion": "Vitest covers: mailbox file change is ignored; manifest change triggers crew-only flush; debounce coalesces multiple .crews/ events; mixed batch ordering applies Ralph merge first then crew rescan; crew-only flush does not call deriveAffectedTaskUpdate.",
+      "verdict": "agree",
+      "reason": "Diff line 1785 asserts ignored mailbox.json and non-ignored manifest.json; the chokidar ignore additions plus the deriveAffectedTaskUpdate spy at line 1794 substantiate the manifest-routes-to-crew-only-flush and the no-call-to-deriveAffectedTaskUpdate assertions."
+    },
+    {
+      "criterion": "Typecheck passes.",
+      "verdict": "agree",
+      "reason": "Manifest cites pnpm --filter @codexu/overview-viewer typecheck exit 0 with .test-output/overview-viewer.typecheck.log artifact."
+    },
+    {
+      "criterion": "Tests pass.",
+      "verdict": "agree",
+      "reason": "Manifest cites pnpm test = 21 files / 141 tests passed and an overview-viewer-only run of 33 files / 178 tests."
+    }
+  ],
+  "warnings": []
+}

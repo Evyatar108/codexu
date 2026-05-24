@@ -1,0 +1,191 @@
+{
+  "planFile": "D:/harness-efforts/codexu/.ralph/job-groups/overview-data-split/plan.md",
+  "repoDir": "D:/harness-efforts/codexu",
+  "reviewCycle": 2,
+  "findings": [
+    {
+      "id": "F-001",
+      "severity": "High",
+      "source": "claude",
+      "classification": "fixable",
+      "phase": "code",
+      "category": "Completeness",
+      "sectionRef": "Acceptance Criteria > lastTouched dual-update invariant",
+      "description": "The plan's explicit AC requires that each task carry both `lastTouchedAt` (per-task) AND `OVERVIEW_DATA.lastTouched[taskId]` (top-level map), and that the file pass `Object.keys(OVERVIEW_DATA.lastTouched).every(id => OVERVIEW_DATA.tasks.find(t => t.id === id)?.lastTouchedAt === OVERVIEW_DATA.lastTouched[id])`. Verified by `grep -c '\"lastTouchedAt\"' plans/overview-data.js` returning 0. Zero of the 49 task entries carry `lastTouchedAt`, so the invariant fails on every task; the SKILL.md Procedure B mark-shipped instructions that call out this dual-update will therefore never produce a consistent file until someone backfills every task. The renderer doesn't depend on the per-task field today (only the top-level `lastTouched` map is read), so the page still ships visually, but Acceptance Criterion 'lastTouched dual-update invariant' is unmet and the bookkeeper contract documented in SKILL.md (line 224) is broken from day one.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Added lastTouchedAt to all 49 task entries, mirroring OVERVIEW_DATA.lastTouched map",
+      "relevantFiles": [
+        "plans/overview-data.js",
+        ".agents/skills/roadmap-and-overview/SKILL.md:224"
+      ],
+      "suggestedFix": "Add `lastTouchedAt: <ISO timestamp>` to every task entry, mirroring the value from `OVERVIEW_DATA.lastTouched[id]`. Can be done programmatically: walk `tasks[]`, set `task.lastTouchedAt = OVERVIEW_DATA.lastTouched[task.id] || null`. Alternatively, drop the per-task field from the AC and SKILL.md if the duplication is unwanted — but then update both docs."
+    },
+    {
+      "id": "F-002",
+      "severity": "High",
+      "source": "claude",
+      "classification": "fixable",
+      "phase": "code",
+      "category": "Completeness",
+      "sectionRef": "Acceptance Criteria > stale-reference grep",
+      "description": "Four `planPrompt` strings inside the new `plans/overview-data.js` still instruct future agents to edit the now-deleted `plans/overview.html` roadmap-data JSON block. Specifically: line 505 `happy-upstream-sync` planPrompt ('bump the lastRanAt timestamp ... in plans/overview.html's roadmap-data JSON to today's date'); line 518 `codex-upstream-rebase` planPrompt ('bump the lastRanAt timestamp ... in plans/overview.html's roadmap-data JSON'); line 531 `agent-view-research` planPrompt ('Add new task entries to plans/parallel-assignments.md and plans/overview.html roadmap-data JSON for each follow-up'); line 658 `roadmap-plugin` planPrompt ('Writes a new <details class=\\'cmd\\'> row in plans/overview.html + new lettered section in plans/parallel-assignments.md + entries in every JSON map' and 'reads/edits plans/overview.html's JSON block'). These prompts are copy-pasted by operators into ralph commands, so they directly reintroduce the editing workflow this group was created to eliminate. Acceptance Criterion 'git grep -n \"edit plans/overview.html\" ... returns zero hits' is violated within plans/overview-data.js itself, and the parallel `roadmap-data` zero-hit AC is also violated. Codex flagged the same issue independently.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Rewrote 8 planPrompt strings to point at OVERVIEW_DATA.tasks[] instead of overview.html roadmap-data JSON",
+      "relevantFiles": [
+        "plans/overview-data.js:505",
+        "plans/overview-data.js:518",
+        "plans/overview-data.js:531",
+        "plans/overview-data.js:658"
+      ],
+      "suggestedFix": "Rewrite each of the four planPrompt strings to point at `plans/overview-data.js` and the appropriate map/array (`OVERVIEW_DATA.tasks[]`, `OVERVIEW_DATA.runs[]`, `OVERVIEW_DATA.lastTouched[id]`, etc.) instead of `plans/overview.html` and `roadmap-data JSON`. The `roadmap-plugin` prompt also needs to drop the `<details class='cmd'> row` editing direction and replace it with `tasks[]` append semantics. After rewrite, run the AC grep `git grep -n 'roadmap-data\\|in plans/overview\\.html' -- plans/overview-data.js` and confirm zero hits."
+    },
+    {
+      "id": "F-003",
+      "severity": "Medium",
+      "source": "claude",
+      "classification": "fixable",
+      "phase": "code",
+      "category": "Quality",
+      "sectionRef": "SKILL.md authoring contract vs. live data",
+      "description": "`.agents/skills/roadmap-and-overview/SKILL.md` documents a forward-looking authoring contract that includes `title`, `command.summaryHtml`, and `lastTouchedAt` on every task entry (lines 142, 147, 179, 189). The live data file `plans/overview-data.js` does not implement any of these three fields on any of its 49 task entries. The SKILL example explicitly says 'keeps `command.name` for the live renderer and adds `command.summaryHtml` / `lastTouchedAt` as the authoring contract' — but the contract is aspirational, not realized. Agents copying the SKILL example into a new task entry will produce entries that diverge from every existing entry, making it hard to spot inconsistencies via grep and breaking the 'one canonical task entry as a working example' design principle the plan called out in Risk #7. Codex flagged the same gap independently.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Reconciled SKILL.md schema example with live data shape (removed title/summaryHtml/planOnly/spawnedFrom)",
+      "relevantFiles": [
+        ".agents/skills/roadmap-and-overview/SKILL.md:140-194",
+        "plans/overview-data.js"
+      ],
+      "suggestedFix": "Either (a) backfill `title`, `command.summaryHtml`, and `lastTouchedAt` on every task entry in `plans/overview-data.js` so the SKILL example matches reality (preferred — also fixes F-001 dual-update gap), or (b) trim the SKILL example down to the fields actually present and drop `title`/`summaryHtml`/`lastTouchedAt` from the authoring contract. Option (a) preserves the contract; option (b) is a cheaper short-term fix."
+    },
+    {
+      "id": "F-004",
+      "severity": "Medium",
+      "source": "claude",
+      "classification": "fixable",
+      "phase": "code",
+      "category": "Correctness",
+      "sectionRef": "renderPhaseTree task-ref fallback",
+      "description": "`renderPhaseTree()` in `plans/overview.html:1426` falls back through `task.title || node.visibleText || task.id`. No task entry in `plans/overview-data.js` defines `task.title`, so the first branch is dead today. All 5 existing `task-ref` nodes carry `visibleText` so the renderer works, but any new task-ref node authored without `visibleText` will degrade to the bare task id (e.g., `perf-WS3` instead of the human-readable phase-tree label). The plan's schema documents `task.title` as the authoritative phase-tree label, so the contract is half-implemented. Codex flagged the same gap.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Removed dead task.title clause from renderPhaseTree fallback chain",
+      "relevantFiles": [
+        "plans/overview.html:1426",
+        "plans/overview-data.js",
+        ".agents/skills/roadmap-and-overview/SKILL.md"
+      ],
+      "suggestedFix": "Either (a) backfill `title` on every task entry from a human-readable label (e.g., the kanban card-title text) and update the SKILL example to actually use it, or (b) make `visibleText` on every task-ref node a hard requirement in the SKILL.md phase-tree procedure (E) and drop `task.title` from the schema. Tracking this with F-003 (both touch the SKILL.md/data-file consistency story) reduces edit churn."
+    },
+    {
+      "id": "F-005",
+      "severity": "Low",
+      "source": "claude",
+      "classification": "fixable",
+      "phase": "code",
+      "category": "Quality",
+      "sectionRef": "Acceptance Criteria > task count",
+      "description": "The plan and acceptance criteria state '51 task entries' (set in plan-review F-001). The actual original `plans/overview.html` on `origin/main` contains 51 `<details class=\"cmd\">` elements but only 49 unique `data-task-id` attributes — the two extra `<details class=\"cmd\">` literals are inside CSS comments and JS comments (lines 851 and 2799 of the original), not real rows. The ported file correctly has 49 unique task entries with zero duplicates. The AC text is wrong, not the implementation. Codex raised this as High based on the AC count vs. delivered count, but in practice the delivery is correct and the AC text drifted during plan-review iteration F-001.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Updated 51→49 in plan.md/prd.json/stories-outline across planning artifacts (.ralph/ is gitignored, edits on disk)",
+      "relevantFiles": [
+        "plans/overview-data.js",
+        ".ralph/job-groups/overview-data-split/plan.md"
+      ],
+      "suggestedFix": "Update plan.md Acceptance Criteria from '51 task entries' to '49 task entries' (or 'every task entry from the pre-split `<details class=\"cmd\">[data-task-id]` set on origin/main, deduplicated by `data-task-id`'). Leave the data file as-is."
+    },
+    {
+      "id": "F-006",
+      "severity": "Low",
+      "source": "claude",
+      "classification": "fixable",
+      "phase": "code",
+      "category": "Quality",
+      "sectionRef": "renderKanbanCard schema vs. behavior",
+      "description": "`renderKanbanCard()` at `plans/overview.html:1335-1336` honors `cardData.order` (numeric) by appending the card directly, ignoring `cardData.insertBeforeTaskId` when both are set. The schema in the data file lists both fields on the same card entries (e.g., perf-WS3 carries `insertBeforeTaskId: '3a-skills'` AND `order: 30`). So `insertBeforeTaskId` is dead data on every order-having card and live data on no-order cards. The final layout is consistent (sort-by-order runs before insertBefore-by-anchor), but the schema invites confusion: future bookkeepers will set `insertBeforeTaskId` thinking it matters when paired with `order`. No bug, but a documentation gap.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Documented order > insertBeforeTaskId precedence inline in renderKanbanCard and SKILL.md kanban schema",
+      "relevantFiles": [
+        "plans/overview.html:1326-1337",
+        "plans/overview-data.js",
+        ".agents/skills/roadmap-and-overview/SKILL.md"
+      ],
+      "suggestedFix": "Document the precedence in the SKILL.md schema reference: `order` (when present) is authoritative and `insertBeforeTaskId` is the fallback anchor for cards without `order`. Alternatively, strip `insertBeforeTaskId` from order-having entries in `plans/overview-data.js` so the data reflects what the renderer actually consumes."
+    },
+    {
+      "id": "F-007",
+      "severity": "High",
+      "source": "copilot",
+      "detectedBy": [
+        "copilot"
+      ],
+      "classification": "fixable",
+      "phase": "code",
+      "category": "Completeness",
+      "sectionRef": null,
+      "description": "`plans/overview-data.js:23-1049` only contains **49** task objects, but the plan explicitly requires **51** task entries. That means the refactor ships an incomplete dashboard dataset and fails the primary acceptance check for the new sidecar file.",
+      "status": "wont_fix",
+      "fixedInIteration": 1,
+      "resolution": "Confirmed origin/main had only 49 unique data-task-id values; the 2 extras were inside CSS/JS comments. Data file is correct; AC text was wrong (addressed by F-005).",
+      "relevantFiles": [],
+      "suggestedFix": null
+    },
+    {
+      "id": "F-008",
+      "severity": "High",
+      "source": "copilot",
+      "detectedBy": [
+        "copilot"
+      ],
+      "classification": "fixable",
+      "phase": "code",
+      "category": "Completeness",
+      "sectionRef": null,
+      "description": "The repo-wide stale-instruction sweep is incomplete. Even after moving the source of truth to `plans/overview-data.js`, several surviving prompts still tell future agents to update `plans/overview.html` or its removed JSON block: `plans/overview-data.js:505`, `:518`, `:531`, `:658`; `plans/parallel-assignments.md:133`, `:445`; `plans/crews-integration.md:3`. That directly violates the planned “grep for stale `edit plans/overview.html` instructions” cleanup and will send future work back to the derived view.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Fixed stale workflow instructions across parallel-assignments.md and crews-integration.md; greps return empty",
+      "relevantFiles": [],
+      "suggestedFix": null
+    },
+    {
+      "id": "F-009",
+      "severity": "High",
+      "source": "copilot",
+      "detectedBy": [
+        "copilot"
+      ],
+      "classification": "fixable",
+      "phase": "code",
+      "category": "Correctness",
+      "sectionRef": null,
+      "description": "`plans/overview.html:1421-1428` renders phase-tree task refs from static `node.state` / `visibleText`, and those states are hardcoded in `plans/overview-data.js:1060-1062,1142,1149`. So flipping a task’s `phase` in `tasks[]` updates the command row, but **does not update the corresponding phase-tree entry** without a second manual edit in `phaseTree[]`. That breaks the promised one-entry “bookkeeper workflow” acceptance criterion.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Added phaseToItemClass() helper deriving phase-tree task-ref state from referenced task.phase at render time",
+      "relevantFiles": [],
+      "suggestedFix": null
+    },
+    {
+      "id": "F-010",
+      "severity": "Medium",
+      "source": "copilot",
+      "detectedBy": [
+        "copilot"
+      ],
+      "classification": "fixable",
+      "phase": "code",
+      "category": "Correctness",
+      "sectionRef": null,
+      "description": "`plans/overview.html:1288-1396` rebuilds the kanban and command DOM, but all of the enrichers that make the page fully functional are one-shot IIFEs later in the file (`:1588-1674`, `:1692-1705`, `:1943-1955`, `:2196-2310`, `:2338-2353`). A console `renderTasks()` rerender preserves open `<details>` state, but it drops scope chips, workstream pills, copy-name buttons, kanban → command links, and leaves counts / Today-panel state stale. That makes the exposed rerender path unsafe for the manual refresh/debugging workflow the plan calls out.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Extracted 13 enrichment IIFEs into named functions called by applyEnrichments(); renderTasks() now calls applyEnrichments() after every rebuild",
+      "relevantFiles": [],
+      "suggestedFix": null
+    }
+  ]
+}

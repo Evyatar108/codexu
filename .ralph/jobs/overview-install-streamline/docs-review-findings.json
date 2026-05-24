@@ -1,0 +1,52 @@
+{
+  "planFile": "D:/harness-efforts/codexu/.ralph/jobs/overview-install-streamline/plan.md",
+  "repoDir": "D:/harness-efforts/codexu/.ralph/jobs/overview-install-streamline/worktree",
+  "reviewCycle": 2,
+  "findings": [
+    {
+      "id": "F-001",
+      "severity": "Medium",
+      "source": "docs",
+      "classification": "fixable",
+      "phase": "docs",
+      "category": "Stale Documentation",
+      "description": "plugins/ralph-overview/tools/overview-mcp/README.md:174 still says `pnpm --filter @gim-home/ralph-overview-mcp build` even though this same file's diff converted every other `pnpm`/`pnpm --filter` invocation to `npm run build --workspace=tools/overview-mcp` (see lines 12-13, 44-47, 162-164). The job CLAUDE.md mandates `npm, not pnpm` for this plugin. The remaining pnpm line is internally inconsistent with the rest of the file after the diff and will misguide a maintainer following the `rootDir` troubleshooting tip.",
+      "status": "fixed",
+      "relevantFiles": [
+        "plugins/ralph-overview/tools/overview-mcp/README.md"
+      ],
+      "suggestedFix": "Replace `pnpm --filter @gim-home/ralph-overview-mcp build` on line 174 with `npm run build --workspace=tools/overview-mcp` to match the other npm-workspace invocations elsewhere in the same file.",
+      "fixedInIteration": 1
+    },
+    {
+      "id": "F-002",
+      "severity": "Medium",
+      "source": "docs",
+      "classification": "fixable",
+      "phase": "docs",
+      "category": "Stale Documentation",
+      "description": "plugins/ralph-overview/tools/overview-mcp/README.md Tool Contracts table (line 71) and the `overview.dev_server.status` section (lines 106-114) do not document the new `consumer-not-initialized` return path that was added in this diff. Per AC11 of plan.md and the v1.1.0 behavioral additions in plugin CLAUDE.md, both `overview.list_tasks` and `overview.dev_server.status` now check `checkConsumerInitialized(context.repoRoot)` before reading the snapshot (see worktree `tools/overview-mcp/src/tools/read-only.ts:45-48` and `dev-server-status.ts:37-40`) and return `{ ok: false, code: 'consumer-not-initialized', suggestedTool: 'overview.init', missing }` instead of the legacy `missing snapshot` error. The README still lists only `missing snapshot` for `overview.list_tasks` and shows no failure shape at all for `overview.dev_server.status`.",
+      "status": "fixed",
+      "relevantFiles": [
+        "plugins/ralph-overview/tools/overview-mcp/README.md"
+      ],
+      "suggestedFix": "Update the `overview.list_tasks` row's Errors column on line 71 to read `consumer-not-initialized, missing snapshot`. In the `overview.dev_server.status` section starting at line 106, add a bullet documenting the `{ ok: false, code: 'consumer-not-initialized', suggestedTool: 'overview.init', missing: string[] }` return shape when the consumer is not initialized.",
+      "fixedInIteration": 1
+    },
+    {
+      "id": "F-003",
+      "severity": "Medium",
+      "source": "docs",
+      "classification": "fixable",
+      "phase": "docs",
+      "category": "Stale Documentation",
+      "description": "plugins/ralph-overview/CLAUDE.md:20 added in this diff overstates the scope of the first-run probe: it says `Consumer-reading tools report { ok: false, code: 'consumer-not-initialized', ... } until required overview artifacts and MCP registration are present`. In the diff, only `listTasks` in `tools/overview-mcp/src/tools/read-only.ts` and `dev-server-status.ts` actually invoke `checkConsumerInitialized` (see read-only.ts:45-48 and dev-server-status.ts:37-40). Other consumer-reading tools in the same file — `getTask`, `nextCommand`, `listRecommendations`, `listBlockers` — still return `missing snapshot` rather than `consumer-not-initialized`. The generalised wording in the new CLAUDE.md section misdescribes the implementation the same diff shipped.",
+      "status": "fixed",
+      "relevantFiles": [
+        "plugins/ralph-overview/CLAUDE.md"
+      ],
+      "suggestedFix": "Narrow the v1.1.0 behavioral additions bullet on CLAUDE.md:20 to name the actually-gated tools, e.g. `overview.list_tasks and overview.dev_server.status report { ok: false, code: 'consumer-not-initialized', suggestedTool: 'overview.init', missing } when required overview artifacts and MCP registration are absent; other consumer-reading tools continue to surface a 'missing snapshot' error.`",
+      "fixedInIteration": 1
+    }
+  ]
+}

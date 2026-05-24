@@ -1,0 +1,51 @@
+[
+  {
+    "finding_id": "F-001",
+    "duration_s": 127,
+    "status": "fixed",
+    "summary": "Replaced narrow per-apply* persist with a tail-of-handleUpdate persist that splits into synchronous-apply branches (persist directly) and invalidate-deferred branches (switch to invalidateAndAwait and chain persist via .then); added Risk Area #8, two new acceptance criteria, and a new sync.test.ts case asserting persist is deferred until the invalidate promise resolves."
+  },
+  {
+    "finding_id": "F-002",
+    "duration_s": 155,
+    "status": "fixed",
+    "summary": "Committed onReconnected design (invalidate iff stored lastSeenSeq is undefined) in Approach, mirrored it in Files-to-Modify sync.ts bullet and Scope, and split the acceptance test into two spy-based assertions covering both branches; updated Open Questions §3 to mark the decision as resolved."
+  },
+  {
+    "finding_id": "F-003",
+    "duration_s": 134,
+    "status": "unknown",
+    "summary": "No review-meta output"
+  },
+  {
+    "finding_id": "F-003",
+    "duration_s": 60,
+    "status": "wont_fix",
+    "summary": "Plan already addresses the finding in full: BufferedUpdate includes recipientFilter and createdAt; a private doesFilterMatchConnection helper mirroring getRoomsForFilter is specified with the exact per-filter-type mapping the finding requests; replay loop emits only filter-matched entries; the connection is passed from socket.ts; test (d) covers the connection-type × filter-type matrix; Risk #4 enforces the helper/getRoomsForFilter lockstep invariant. The 'recipientFilterFromConnection' string referenced in the finding's description does not appear in the current plan."
+  },
+  {
+    "finding_id": "F-004",
+    "duration_s": 122,
+    "status": "fixed",
+    "summary": "Storage setLastSeenUpdateSeq is now specified as monotonic via Math.max with central guard for all callers; added Risk #9 describing the async out-of-order race and a dedicated acceptance-criteria test asserting that writing seq 10 then seq 6 leaves stored value at 10 and skips the regressing MMKV write."
+  },
+  {
+    "finding_id": "F-005",
+    "duration_s": 113,
+    "status": "unknown",
+    "summary": "No review-meta output"
+  },
+  {
+    "finding_id": "F-005",
+    "phase": "agent-failure",
+    "duration_s": 51,
+    "status": "skipped-after-2-retries",
+    "summary": "Agent failed to emit <review-meta> for F-005 on 2 consecutive iterations; finding auto-marked wont_fix"
+  },
+  {
+    "finding_id": "F-006",
+    "duration_s": 222,
+    "status": "fixed",
+    "summary": "Documented the one-user-per-daemon invariant (empirical basis: dualListenerBinding.ts pinning + pair-protocol gating) as the precondition that licenses per-user cap-overflow math given global allocateUserSeq; added Risk #10, Technical-constraints bullet, CLAUDE.md update requirement, inline-comment requirement at module-scoped maps, Open Question follow-up, and explicit trim-watermark/per-account-refactor escape hatch if the invariant is ever relaxed."
+  }
+]

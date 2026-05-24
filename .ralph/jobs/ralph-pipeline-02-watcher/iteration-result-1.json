@@ -1,0 +1,50 @@
+{
+  "storyId": "US-001",
+  "verifiedEvidence": [
+    {
+      "criterion": "Internal helpers readBundleForSlug({ repoRoot, config, kind, slug }) and assembleStateFromBundles(bundles) exist; walkRalphState is refactored to use them with behavior preserved (Plan 01 tests pass unchanged).",
+      "command": "pnpm --filter @codexu/overview-viewer test",
+      "result": "PASS: 19 test files passed, 102 tests passed; syncCore coverage includes readBundleForSlug + assembleStateFromBundles and existing Plan 01 behavior.",
+      "evidenceKind": "test"
+    },
+    {
+      "criterion": "New exports deriveAffectedTaskUpdate and mergeAndWrite are present with the discriminated-union signature documented in the plan Architecture section (action: upsert | remove | retain; touched + unmatchedFragment carried).",
+      "command": "sed -n '1,120p' scripts/lib/sync-core.d.mts && pnpm --filter @codexu/overview-viewer typecheck",
+      "result": "PASS: sync-core.d.mts declares TaskUpdate action: upsert | remove | retain with touched and unmatchedFragment; typecheck exit 0.",
+      "evidenceKind": "inspection"
+    },
+    {
+      "criterion": "mergeAndWrite refreshes unmatched + unmatchedSummary via drop-by-touched + append-unmatchedFragment + re-sort + re-summarize.",
+      "command": "pnpm --filter @codexu/overview-viewer test",
+      "result": "PASS: syncCore test \"mergeAndWrite refreshes task state and unmatched slices to match a full walk\" passed, including sidecar JSON equality after normalizing generatedAt.",
+      "evidenceKind": "test"
+    },
+    {
+      "criterion": "scripts/lib/sync-core.d.mts declares the new exports.",
+      "command": "grep -nE \"readBundleForSlug|assembleStateFromBundles|deriveAffectedTaskUpdate|mergeAndWrite|TaskUpdate\" scripts/lib/sync-core.d.mts",
+      "result": "PASS: declarations are present for TaskUpdate, readBundleForSlug, assembleStateFromBundles, deriveAffectedTaskUpdate, and mergeAndWrite.",
+      "evidenceKind": "inspection"
+    },
+    {
+      "criterion": "pnpm --filter @codexu/overview-viewer typecheck passes.",
+      "command": "pnpm --filter @codexu/overview-viewer typecheck > .test-output/overview-viewer.typecheck.log 2>&1",
+      "result": "PASS: tsc --noEmit completed with exit 0 in 6s.",
+      "evidenceKind": "typecheck"
+    },
+    {
+      "criterion": "pnpm --filter @codexu/overview-viewer test passes (Plan 01 baseline + any new unit cases land in this story).",
+      "command": "pnpm --filter @codexu/overview-viewer test > .test-output/overview-viewer.test.log 2>&1",
+      "result": "PASS: 19 test files passed, 102 tests passed in 9s.",
+      "evidenceKind": "test"
+    },
+    {
+      "criterion": "Typecheck passes.",
+      "command": "pnpm --filter @codexu/overview-viewer typecheck > .test-output/overview-viewer.typecheck.log 2>&1",
+      "result": "PASS: tsc --noEmit completed with exit 0 in 6s.",
+      "evidenceKind": "typecheck"
+    }
+  ],
+  "skippedReasons": [],
+  "notTested": [],
+  "iterationSHA": "ab1adaa92fa86e55432e47f45f926a0e16fc79b2"
+}

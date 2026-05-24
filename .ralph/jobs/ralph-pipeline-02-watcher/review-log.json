@@ -1,0 +1,32 @@
+[
+  {
+    "finding_id": "F-001",
+    "duration_s": 82,
+    "status": "fixed",
+    "summary": "Changed deriveAffectedTaskUpdate return type to a discriminated union with action: 'upsert' | 'remove' | 'retain', so parse-failure (retain) is distinct from no-candidates (remove); updated mergeAndWrite input shape and the watcher's debounce-fire + consecutive-failure handling to match."
+  },
+  {
+    "finding_id": "F-002",
+    "duration_s": 129,
+    "status": "fixed",
+    "summary": "Extended deriveAffectedTaskUpdate with touched + unmatchedFragment fields, specified that mergeAndWrite drops touched (kind, slug) entries from unmatched and appends fresh fragments before re-sorting/re-summarizing, added a Functional acceptance criterion asserting unmatched + unmatchedSummary parity with walkRalphState, and rewrote verification case C as 'incremental output equals walkRalphState output after normalizing generatedAt' covering byTaskId, unmatched, and unmatchedSummary."
+  },
+  {
+    "finding_id": "F-003",
+    "duration_s": 247,
+    "status": "fixed",
+    "summary": "Added a shared scripts/lib/sync-lock.mjs helper, a new Step 2 creating it, wired the one-shot path in scripts/sync-ralph-state.mjs to wrap walk/write with acquireLock/releaseLock, added the file to Files to Create, added a US-002 story, and added acceptance bullets asserting both code paths consume the shared helper."
+  },
+  {
+    "finding_id": "F-004",
+    "duration_s": 201,
+    "status": "fixed",
+    "summary": "Added pnpm-lock.yaml to Files to Modify with a note about staying pinned to the existing 5.x resolution; mirrored the constraint in Step 5, Scope, Risk #9, and an acceptance criterion for frozen-lockfile install."
+  },
+  {
+    "finding_id": "F-005",
+    "duration_s": 183,
+    "status": "fixed",
+    "summary": "Replaced the bare 60s-mtime stale-lock rule with a layered design: 30s heartbeat (LockHandle.touch via fs.utimes, .unref()-ed interval, cleared in stop()) refreshes the watcher's mtime; mtime-aged locks now require a process.kill(pid, 0) liveness probe — only ESRCH/unparseable JSON authorizes overwrite, EPERM/alive yields the canonical fresh-lock diagnostic. Updated Architecture, Implementation Strategy steps 2–3, two acceptance criteria, Risk Area 2, and added verification tests G2 (heartbeat) and G3 (PID-liveness gate)."
+  }
+]

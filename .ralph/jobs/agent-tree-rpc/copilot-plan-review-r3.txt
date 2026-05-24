@@ -1,0 +1,30 @@
+I’m checking the attached file first to see what needs to be done.
+
+I’ve got the plan; now I’m checking the referenced code and local guidance to verify whether it’s actually implementable as written.
+
+I found a likely acceptance-test blind spot, so I’m checking the underlying Codex protocol details before I finalize the review.
+
+### Feasibility
+
+- [High] The reducer API is internally inconsistent with the close-agent behavior the plan itself requires. Step 2 defines `applyEvent(evt) -> { delta, seq } | null` (`tmp.r2VyEelJm2:126`), but the Open Questions section says a `closeAgent` must emit **one `node-removed` delta per removed node** (“descendants first, then the explicit target”, `tmp.r2VyEelJm2:231`). A single-return API cannot express that case as written; the reducer surface needs to return an array / iterator of deltas or accept an emitter callback.
+
+### Completeness
+
+- [High] The plan touches `packages/happy-cli/src/codex/runCodex.ts` for the most failure-prone glue — state creation, event-handler dispatch, `sendAgentTreeUpdate`, RPC registration, and teardown (`tmp.r2VyEelJm2:130-137`) — but the test plan never exercises that glue. This repo already has focused `runCodex` tests (`packages/happy-cli/src/codex/runCodex.fork.test.ts`, `runCodexPublishMode.test.ts`, `runCodex.attachmentsIgnore.test.ts`), so there is a natural place to assert “RPC gets registered/unregistered” and “incoming Codex event produces outbound delta”. As written, reducer/parser tests plus the CodexAppServerClient integration test could all pass while `runCodex` forgets to wire the feature in.
+
+- [Medium] The documentation update set is incomplete. `plans/parallel-assignments.md` explicitly says landed tasks must be marked done (`plans/parallel-assignments.md:17`), contains the `agent-tree-rpc` task entry (`:372`), and still shows it as `🟡 in progress` in the status table (`:566`). It also has downstream `agent-status-stream` guidance that depends on this task’s wire semantics (`:427`). Updating only `plans/agent-view-research.md`, `plans/codexu-roadmap.md`, and `plans/overview.html` will leave the planning docs out of sync.
+
+### Ordering
+
+- [Medium] Step 4/5 order violates the plan’s own “each step compiles independently” claim. `ApiSessionClient` uses a typed Socket.IO client (`packages/happy-cli/src/api/apiSession.ts:187,260`), so adding `sendAgentTreeUpdate()` in step 4 will call `this.socket.emit('agent-tree-update', ...)` before `ClientToServerEvents` in `packages/happy-cli/src/api/types.ts` knows that event exists. The typing change has to land before, or in the same step as, the helper.
+
+### Simplicity
+
+No issues found.
+
+### Acceptance Criteria Quality
+
+- [High] AC4 does not verify the advertised snapshot RPC at all. It asserts `state.snapshot()` directly on an in-test reducer (`tmp.r2VyEelJm2:205`), which proves reducer behavior, not `sessionGetAgentTree`. A broken or unregistered `${sessionId}:sessionGetAgentTree` handler could still ship green. Add at least one acceptance assertion through the real RPC registration path.
+
+The earlier high-priority fixes from prior review rounds — build command, parser location, and typed-socket ownership — look adequately resolved.
+

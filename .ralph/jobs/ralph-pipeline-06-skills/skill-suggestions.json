@@ -1,0 +1,55 @@
+{
+  "candidates": [
+    {
+      "name": "verify-markdown-skill-body",
+      "description": "Verify a SKILL.md (or other instruction-only markdown) by grepping for a checklist of required clauses, treating the markdown as instructions rather than executable code.",
+      "triggers": [
+        "Implementing or modifying a repo-local SKILL.md whose behavior is markdown prose with no unit-testable surface.",
+        "Acceptance criteria that say 'Manual smoke' or otherwise lack a vitest-style assertion.",
+        "Iteration agents that need a deterministic, fast pass/fail signal for markdown-only stories."
+      ],
+      "targetLocation": "plugins/ralph-orchestration/skills/verify-markdown-skill-body/SKILL.md",
+      "evidence": [
+        "progress.txt lines 60-67: US-004 verified via 'deterministic grep checks, including snapshot.recommendations, no recommendations available, --limit, --filter stage='.",
+        "progress.txt lines 75-78: US-005 verified via 'deterministic grep checks, including reviewOpenCount, deferredQuestionsCount, open Medium+, /implement-with-ralph resume, /work-on'.",
+        "notepad.md line 16 Criteria Validator note: 'transitively covered by US-001/US-002 tests (CLI output) plus grep-based body assertions; skills are markdown, not unit-testable in vitest'.",
+        "progress.txt line 67 lesson: 'Grep evidence for patterns beginning with -- should use grep -q -- ''<pattern>'' so GNU grep does not parse the pattern as an option'."
+      ],
+      "rationale": "Pattern recurred across three stories in a single job (US-003/004/005), produced a non-obvious GNU-grep gotcha worth memorializing, and is reusable for any future markdown-only skill story across Ralph pipelines. No existing ralph-orchestration or repo skill encodes the recipe (list required clauses, grep -F -q for literal phrases, grep -q -- for option-like needles, exit nonzero on first miss)."
+    },
+    {
+      "name": "parallel-job-cascade-deferral",
+      "description": "Before touching shared cross-plan documentation during a cascade-refresh story, check whether peer parallel-pipeline jobs are RUNNING; if so, defer the edits by appending dated entries to notepad.md under ## Deferred Cascade and record the guard in an empty commit.",
+      "triggers": [
+        "Stories that must update shared cross-plan documents (INDEX, sibling plan files) while peer Ralph jobs may edit the same files.",
+        "Docs-review findings classified wont_fix due to peer job still RUNNING.",
+        "Story acceptance criteria that reference 'cascade', 'shared plan docs', or 'INDEX refresh'."
+      ],
+      "targetLocation": "plugins/ralph-orchestration/skills/parallel-job-cascade-deferral/SKILL.md",
+      "evidence": [
+        "prd.json US-006 (cascade refresh story) and progress.txt lines 87-95: Plan 07 RUNNING, deferred via notepad ## Deferred Cascade, empty commit dd907aa.",
+        "notepad.md lines 18-25: five concrete deferred entries naming peer job path and downstream INDEX/Plan 07/08/09 audits.",
+        "docs-review-findings.json F-004: status wont_fix with resolution 'Deferred to notepad.md ## Deferred Cascade per v5.40.0 parallel-safety rules; Plan 07 context-worker still RUNNING'.",
+        "Git commit dd907aa911 trailer: 'Constraint: Plan 07 worker was RUNNING, so shared plan docs were not touched'."
+      ],
+      "rationale": "Recurring v5.40.0+ parallel-safety pattern that already appears in both the cascade story body and a docs-review wont_fix resolution, with a precise mechanical recipe (peer job-state.json.status check, ## Deferred Cascade rows with peer-job path/timestamp, empty commit with Constraint trailer). Without a skill, every cascade story re-derives the guard."
+    },
+    {
+      "name": "skill-via-cli-helper",
+      "description": "Author a repo-local skill so its SKILL.md is pure instructions that shell out to a thin Node CLI wrapper (resolving repoRoot via git rev-parse --show-toplevel, parsing flags, printing one JSON line to stdout) instead of duplicating predicate logic in markdown.",
+      "triggers": [
+        "Drafting a new repo-local skill that consumes a shared ESM module such as a predicate or snapshot reader.",
+        "Review findings that flag inline node -e or duplicated logic in markdown skill bodies.",
+        "Stories whose acceptance criteria pair a markdown skill body with a separate predicate or CLI module."
+      ],
+      "targetLocation": "plugins/ralph-orchestration/skills/skill-via-cli-helper/SKILL.md",
+      "evidence": [
+        "progress.txt lines 6-8 Codebase Patterns: 'Plan 06 skills should shell out through scripts/lib/derive-next-command-cli.mjs instead of reimplementing snapshot reads or JSON quoting in markdown bodies' and 'call derive-next-command-cli.mjs with the resolved canonical task.id'.",
+        "progress.txt line 51 lesson: 'Keep the skill body as instructions that call the CLI helper; do not duplicate the stage predicate in markdown'.",
+        "docs-review-findings.json F-003: Medium docs finding fixed by adding CLI wrapper to plan; resolution 'Added CLI wrapper to Files+test+step 5+common mistake #3'.",
+        "Git commit 50b78f4b trailer: 'Constraint: Skill body must shell out through derive-next-command-cli.mjs'; git commit 92411fcd documents the CLI wrapper as the integration shape."
+      ],
+      "rationale": "Both an explicit codebase-pattern entry and a Medium docs-review finding called this out, and trailer history shows it was an enforced constraint across multiple stories. Plan 09 (MCP) and future skills that consume shared modules would benefit from the same recipe. No existing ralph-orchestration or repo .claude/skills entry documents this integration shape."
+    }
+  ]
+}

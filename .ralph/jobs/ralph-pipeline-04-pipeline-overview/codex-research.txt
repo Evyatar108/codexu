@@ -1,0 +1,95 @@
+**Codebase Architecture**
+
+This is a pnpm monorepo. The Plan 04 surface is mostly in:
+
+- `scripts/lib/*.mjs`: Node ESM sync pipeline. Public typings live beside modules as `.d.mts`.
+- `scripts/sync-ralph-state.mjs`: one-shot and watch CLI.
+- `tools/overview-viewer`: React 19 + Vite 8 + TypeScript dashboard.
+- `plans/overview-data.js`: hand-edited `window.OVERVIEW_DATA`.
+- `plans/overview-ralph-state.{js,json}`: generated sidecar from `.ralph/`.
+
+Build/test entry points:
+
+- `pnpm sync-ralph-state`
+- `pnpm overview`
+- `pnpm overview:build`
+- `pnpm --filter @codexu/overview-viewer typecheck`
+- `pnpm --filter @codexu/overview-viewer test`
+
+**Feature-Relevant Code**
+
+Key integration points:
+
+- `scripts/lib/sync-core.mjs`
+  - `assembleStateFromBundles()` reads `plans/overview-data.js`, matches Ralph slugs to task IDs, and builds `byTaskId`.
+  - `mergeAndWrite()` currently merges watcher updates then calls `writeSidecar()`.
+  - `writeSidecar()` is the real durable artifact hook for both one-shot sync and watcher sync.
+  - `atomicWriteFile()` is private and already does tmp/fsync/rename-with-retry.
+  - `toPipelineState()` carries `stage`, artifacts, `storyCompletion`, `reviewOpenCount`, `lastUpdatedAt`, but not `createdAt` / `completedAt`.
+
+- `scripts/sync-ralph-state.mjs`
+  - one-shot path calls `walkRalphState()` then `writeSidecar()` directly. Plan 04 must not only hook `mergeAndWrite()` or `pnpm sync-ralph-state` will miss recommendations/graph outputs.
+
+- `scripts/lib/watch-ralph-state.mjs`
+  - watcher cold-start also calls `writeSidecar()` directly.
+  - debounced updates flow through `deriveAffectedTaskUpdate()` → `mergeAndWrite()`.
+
+- `tools/overview-viewer/src/App.tsx`
+  - owns `data`, `ralphState`, and `filter = useMultiAxisFilter(...)`.
+  - natural UI insertion point is after `<Toolbar />` / `<CopyToast />` and before `<Kanban />`.
+
+- `tools/overview-viewer/src/hooks/useMultiAxisFilter.ts`
+  - returns `{ activeFilters, filters, setFilters, toggleFilter, visibleTaskIds, visibleKanbanTaskIds }`.
+
+- `tools/overview-viewer/src/utils/filters.ts`
+  - `FilterAxis` already includes `ralphStage`.
+  - `cloneFilters()` should be reused for histogram single-select updates.
+
+- `tools/overview-viewer/src/components/Toolbar.tsx`
+  - already defines the ten Ralph stage chip labels in the filter popover.
+
+- `tools/overview-viewer/src/components/RalphStageChip.tsx`
+  - already supports `tooltipExtras`, but no graph data is loaded into the browser today.
+
+- `tools/overview-viewer/vite.config.ts`
+  - only serves/inlines `overview-data.js` and `overview-ralph-state.js`. A dependency-graph tooltip would require a new JS/global sidecar or removing that tooltip promise from Plan 04.
+
+**Technical Constraints**
+
+- `.ralph/overview-config.schema.json` has `additionalProperties: false`; adding `recommendations.weights` requires schema updates. Typings also need `scripts/lib/default-config.d.mts` updates.
+- New script modules need adjacent `.d.mts` files if TypeScript tests import them.
+- `overviewData.spawnedFrom` is top-level, not `OverviewTask.spawnedFrom`.
+- `userStories[].dependencies[]` are story IDs within the same PRD, per the Ralph schema. They are not cross-job references. A task-level dependency graph must not treat `US-001` as globally unique without prefixing it by task/job.
+- `OverviewTask.priority` does not exist in `types.ts` or current `overview-data.js`; either add `priority?: number` or define fallback-only behavior.
+- Run duration mapping is underspecified: `RunRecord.id` is not directly linked to `.ralph/jobs/<slug>/job-state.json`. The plan should define whether durations key by latest run ID, task ID, or matching `completedAt` to `run.ranAt`.
+- Plan 05 in flight is moving durable artifact emission toward `writeSidecar()` and moving `runDurations` into `Snapshot.runDurations`. Plan 04 should be explicit about conflict handling depending on whether Plan 05 lands first.
+
+**Implementation Suggestions**
+
+1. Change Plan 04’s sync integration from “after `mergeAndWrite`” to “inside `writeSidecar()` or a shared helper called by `writeSidecar()`.” That covers one-shot sync, watcher cold-start, and watcher updates.
+
+2. Add config/output keys instead of hardcoded paths:
+   - `outputs.recommendationsJson`
+   - `outputs.dependencyGraphJson`
+   - optional `recommendations.weights`
+   Update `default-config.mjs`, `default-config.d.mts`, `resolve-config.mjs`, `.ralph/overview-config.schema.json`, and config tests.
+
+3. Define exact JSON shapes:
+   - `overview-recommendations.json`: `{ generatedAt, generatedFromCommit, recommendations: Recommendation[] }`
+   - `overview-dependency-graph.json`: `{ generatedAt, generatedFromCommit, nodes, edges }` or keep root `{ nodes, edges }`, but make verification match.
+
+4. Fix dependency graph inputs:
+   - `deriveDependencyGraph({ overviewData, ralphState, prdsByTaskId })`
+   - Build `prdsByTaskId` from `RalphPipelineState.artifacts.prdFile`.
+   - Use story node IDs like `${taskId}:${storyId}`.
+   - Use `overviewData.spawnedFrom` for task lineage.
+   - Use `OverviewTask.blocks?: string[]` only as explicit bookkeeper-authored task-level edges.
+
+5. Fix recommendation dependency scoring:
+   - Internal PRD dependencies: unblocked if at least one failing story has all dependency story IDs passing.
+   - Task-level dependencies: use graph edges from `blocks` / `spawnedFrom` separately.
+   - Do not claim `userStories[].dependencies[]` reference other jobs.
+
+6. Either remove the “inline DAG in chip tooltip” claim, or add the missing browser plumbing: emit/inload a graph JS sidecar, extend Vite HMR/static inlining, add App state, and pass `tooltipExtras` into `RalphStageChip` from `TaskCommand`.
+
+7. Add tests under `tools/overview-viewer/src/__tests__/` plus `.d.mts` declarations for new script modules. Reuse existing fixture patterns from `syncCore.test.ts` and interaction patterns from `toolbarRalphStageFilter.test.tsx`.

@@ -1,0 +1,24 @@
+{
+  "planFile": "D:/harness-efforts/codexu/.ralph/jobs/realtime-sync-perf-ws3/plan.md",
+  "repoDir": "D:/harness-efforts/codexu",
+  "findings": [
+    {
+      "id": "F-001",
+      "severity": "Medium",
+      "source": "docs",
+      "classification": "fixable",
+      "phase": "docs",
+      "category": "Stale Documentation",
+      "description": "packages/happy-app/CLAUDE.md \"Reconnect Replay State\" section (lines ~150-153) describes the monotonic-no-op guard as attached to setLastSeenUpdateSeq and frames it as the mitigation for \"an async replay handler [that] tries to write a regressing seq.\" That framing is now stale in two ways. (1) The diff introduces a second, deliberately NON-monotonic setter resetLastSeenUpdateSeq in packages/happy-app/sources/sync/storage.ts:1066-1079, which does NOT no-op on a regressing seq and instead writes whatever value it is given. (2) The replay-overflow handler at packages/happy-app/sources/sync/sync.ts:1648 was switched from setLastSeenUpdateSeq to resetLastSeenUpdateSeq precisely so the recovery path can move the stored seq backwards to the server's currentSeq after a daemon restart. So the doc's claim that \"the async replay handler\" is the case the monotonic guard protects against is no longer correct (the replay-overflow handler intentionally bypasses the guard via the new setter), and the doc never mentions resetLastSeenUpdateSeq at all even though it is now part of the post-overflow recovery contract.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Updated Reconnect Replay State section in packages/happy-app/CLAUDE.md to document both setLastSeenUpdateSeq (monotonic) and resetLastSeenUpdateSeq (non-monotonic, replay-overflow only). Reworded stale framing.",
+      "relevantFiles": [
+        "packages/happy-app/CLAUDE.md",
+        "packages/happy-app/sources/sync/storage.ts",
+        "packages/happy-app/sources/sync/sync.ts"
+      ],
+      "suggestedFix": "Update packages/happy-app/CLAUDE.md \"Reconnect Replay State\" to document BOTH setters: (a) setLastSeenUpdateSeq remains the monotonic, no-op-on-regressing-write setter used by per-update persistence (sync.ts persistLastSeenUpdateSeq → applies to synchronous-apply branches AND the deferred-invalidate .then() tail-persists), which protects against out-of-order async handleUpdate completions clobbering a higher stored seq with a lower one; (b) resetLastSeenUpdateSeq is the non-monotonic setter used exclusively by the replay-overflow handler so it can reset the stored seq to the server's currentSeq after a daemon restart (when lastSeenSeq > currentSeq), even when currentSeq is smaller than the stored seq. Reword the \"an async replay handler tries to write a regressing seq\" sentence so it points at the per-update persist path (out-of-order handleUpdate completions) rather than implying the replay-overflow handler still goes through the monotonic guard."
+    }
+  ]
+}

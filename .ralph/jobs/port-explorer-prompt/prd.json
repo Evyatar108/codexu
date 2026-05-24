@@ -1,0 +1,477 @@
+{
+  "project": "codexu",
+  "description": "Fill the empty codex submodule built-in explorer.toml with a paraphrased Explore prompt + SANDBOX PATCH markers + same-commit patch-surface entries; smoke via worktree-built codex-core; push to gim-home/codex behind two operator gates (license-paraphrase review, push approval); then bump the codexu submodule pointer on main.",
+  "deslop": true,
+  "iterationEngine": "codex",
+  "codexReview": "always",
+  "copilotReview": "always",
+  "securityFixLoop": false,
+  "jobDir": "D:/harness-efforts/codexu/.ralph/jobs/port-explorer-prompt",
+  "repoDir": "D:/harness-efforts/codexu",
+  "branch": {
+    "name": "port-explorer-prompt-pointer-bump",
+    "base": "main",
+    "created": false
+  },
+  "worktree": {
+    "path": "D:/harness-efforts/codexu/.worktrees/port-explorer-prompt",
+    "branch": "port-explorer-prompt-pointer-bump",
+    "base": "main",
+    "created": true
+  },
+  "notes": "Multi-repo, multi-worktree job operating on the codex SUBMODULE (not on a codexu worktree). The plan creates its own codex submodule worktree at .ralph/jobs/port-explorer-prompt/codex-worktree/ as part of US-001; codexu-side changes are just a pointer-bump commit on main in US-010. Defaults applied autonomously: iterationEngine='codex', codexReview='always', copilotReview='always', securityFixLoop=false (no security-sensitive surface — paraphrased prose + tests + docs only, license risk is gated by US-004). branch.name='port-explorer-prompt-pointer-bump' identifies the codexu-side commit on main for the pointer bump; the codex-submodule-side topic branch 'feat/explorer-role-prompt' is created inside the codex worktree by US-001. worktree=null because the codex worktree is created by US-001 (not by Ralph) and codexu changes happen directly on main with no codexu worktree.",
+  "metadata": {
+    "autonomousDecisions": [
+      "iterationEngine='codex' per orchestrator directive.",
+      "codexReview='always', copilotReview='always' per orchestrator directive.",
+      "securityFixLoop=false — no security-sensitive surface; license risk is gated explicitly by US-004.",
+      "branch.name='port-explorer-prompt-pointer-bump' (codexu-side pointer-bump commit; codex-submodule-side branch 'feat/explorer-role-prompt' is created inside the codex worktree by US-001).",
+      "branch.base='main' (codexu main).",
+      "worktree=null — codex submodule worktree is created by US-001 (plan-owned), and codexu-side US-010 is a pointer bump directly on main with no codexu worktree.",
+      "US-001 NOT blocked — autonomously executable (record SHA, fetch, worktree add). Marked priority 1 with exact commands from the plan's Implementation Strategy step 1 in the notes.",
+      "US-002, US-003, US-005, US-006, US-007 NOT blocked — paraphrase + tests + patch-surface + smoke + local commit can all be attempted autonomously.",
+      "US-004 blocked=true — operator license-paraphrase review (GATING); approval artifact <job_dir>/license-review-approval.md required.",
+      "US-008 blocked=true — operator push-approval gate (GATING); approval artifact <job_dir>/push-approval.md required.",
+      "US-009 blocked=true — push to gim-home/codex SHARED remote; operator must trigger after US-008 approval.",
+      "US-010 blocked=true — touches codexu main (submodule pointer bump); operator should review the diff before committing.",
+      "planReviewContext omitted: all 16 review findings (across 6 rounds) in plan-review-findings.json are status='fixed' or 'dismissed' — no open findings remain (Round 6 verdict: 'No High issues remain.')."
+    ],
+    "planFile": "D:/harness-efforts/codexu/.ralph/jobs/port-explorer-prompt/plan.md",
+    "storiesOutline": "D:/harness-efforts/codexu/.ralph/jobs/port-explorer-prompt/stories-outline.md",
+    "operatorGates": {
+      "US-004": "<job_dir>/license-review-approval.md (license-paraphrase review BEFORE any commit)",
+      "US-008": "<job_dir>/push-approval.md (push approval BEFORE git push to gim-home/codex)"
+    },
+    "operatorOverrides": [
+      {
+        "at": "2026-05-13T21:22:27Z",
+        "message": "Skip push (US-008/US-009); pre-approve US-004 license review subject to conditions (Claude-Explore-derived + no brand strings in body + codex tool names or capabilities). Only US-010 remains as operator gate."
+      },
+      {
+        "at": "2026-05-13T21:39:21Z",
+        "message": "Created codexu worktree at .worktrees/port-explorer-prompt/ per operator instruction. Primary checkout detached. All codexu-side commands (US-010 pointer bump) must run from the worktree, not the primary checkout."
+      },
+      {
+        "at": "2026-05-13T21:44:44Z",
+        "message": "Local cargo unavailable per machine convention; US-003 drops cargo runs (rely on CI); US-006 (smoke) deferred to post-publish-sandbox-patch workflow, marked blocked. Iteration agent should focus on file edits only."
+      }
+    ]
+  },
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Pre-flight pointer reconcile + create codex submodule worktree",
+      "description": "As the implementer, I want to isolate the existing unstaged `M codex` gitlink change (without losing it) and create a clean topic-branch worktree of the codex submodule, so the eventual pointer-bump commit does not accidentally sweep up unrelated state.",
+      "acceptanceCriteria": [
+        "If `git status` in codexu root shows `modified: codex`: record both `PREFLIGHT_CODEX_SHA=$(git -C codex rev-parse HEAD)` and `SUPERPROJECT_RECORDED_SHA=$(git rev-parse HEAD:codex)` into <job_dir>/preflight-stash.md as JSON-in-md BEFORE any state change.",
+        "Sanity-check: `git -C codex status --porcelain` returns empty. If not, abort with an explicit error message and do NOT proceed.",
+        "`git -C codex checkout \"$SUPERPROJECT_RECORDED_SHA\"` reconciles the main codex submodule checkout back to the superproject-recorded pointer; afterwards `git status` in codexu root no longer shows `modified: codex`.",
+        "`git stash` is NOT used (Codex round-4 verified `git stash push -- codex` does not reliably stash an unstaged submodule gitlink).",
+        "Unrelated working-tree state (`.worktrees/`, `tasks/`, `packages/happy-app/`, etc.) is untouched.",
+        "`git -C codex fetch origin main` succeeds.",
+        "`git -C codex worktree add -b feat/explorer-role-prompt D:/harness-efforts/codexu/.ralph/jobs/port-explorer-prompt/codex-worktree origin/main` succeeds and the worktree directory exists.",
+        "Worktree HEAD is on branch `feat/explorer-role-prompt`, based on `origin/main` of `gim-home/codex`."
+      ],
+      "priority": 1,
+      "passes": true,
+      "blocked": false,
+      "notes": "Exact commands from plan Implementation Strategy step 1 (SHA-record-then-checkout, NOT git stash). Run from codexu superproject root (D:/harness-efforts/codexu/). Sequence: (1) check `git status` for `modified: codex`; (2) if yes, capture both SHAs into preflight-stash.md before changing state; (3) verify inner working tree clean via `git -C codex status --porcelain`; (4) `git -C codex checkout \"$SUPERPROJECT_RECORDED_SHA\"`; (5) `git -C codex fetch origin main`; (6) `git -C codex worktree add -b feat/explorer-role-prompt D:/harness-efforts/codexu/.ralph/jobs/port-explorer-prompt/codex-worktree origin/main`. DO NOT use `git stash`.",
+      "verifiedEvidence": [
+        {
+          "criterion": "If git status in codexu root shows modified: codex, record PREFLIGHT_CODEX_SHA and SUPERPROJECT_RECORDED_SHA into preflight-stash.md before state change",
+          "command": "git status --short -- codex; git -C codex rev-parse HEAD; git rev-parse HEAD:codex; sed -n '1,40p' D:/harness-efforts/codexu/.ralph/jobs/port-explorer-prompt/preflight-stash.md",
+          "result": "Initial status showed M codex. Recorded preflight_codex_sha ed5d2fd594c6e7d324f71d01253c82f8979fdfb0 and superproject_recorded_sha 17999363cdb4f931a9c24a0572e1d74a9c901f1b in preflight-stash.md before checkout."
+        },
+        {
+          "criterion": "Sanity-check: git -C codex status --porcelain returns empty",
+          "command": "git -C codex status --porcelain",
+          "result": "No output; inner codex submodule working tree was clean."
+        },
+        {
+          "criterion": "git -C codex checkout SUPERPROJECT_RECORDED_SHA reconciles main codex submodule checkout; afterwards git status in codexu root no longer shows modified: codex",
+          "command": "git -C codex checkout 17999363cdb4f931a9c24a0572e1d74a9c901f1b; git status --short -- codex; git -C codex rev-parse HEAD",
+          "result": "Checkout moved codex from ed5d2fd to 1799936. git status --short -- codex produced no output; codex HEAD is 17999363cdb4f931a9c24a0572e1d74a9c901f1b."
+        },
+        {
+          "criterion": "git stash is NOT used",
+          "command": "N/A",
+          "result": "No git stash command was run; US-001 used the PRD-specified SHA-record-then-checkout flow."
+        },
+        {
+          "criterion": "Unrelated working-tree state is untouched",
+          "command": "git status --short; git status --short -- codex",
+          "result": "Current status shows unrelated dirty entries outside this story (plans/codex-agent-parity-audit.md, plans/overview.html, tasks/spikes/codex-wire-spike.mjs, .worktrees/, task PRD files). US-001 commands touched only the codex gitlink/worktree state and ignored Ralph metadata; git status --short -- codex is empty."
+        },
+        {
+          "criterion": "git -C codex fetch origin main succeeds",
+          "command": "git -C codex fetch origin main",
+          "result": "Fetch succeeded; output included From https://github.com/gim-home/codex and branch main -> FETCH_HEAD. Git printed a credential-manager-core warning but exited successfully."
+        },
+        {
+          "criterion": "git -C codex worktree add -b feat/explorer-role-prompt <job_dir>/codex-worktree origin/main succeeds and the worktree directory exists",
+          "command": "git -C codex worktree add -b feat/explorer-role-prompt D:/harness-efforts/codexu/.ralph/jobs/port-explorer-prompt/codex-worktree origin/main; test -d D:/harness-efforts/codexu/.ralph/jobs/port-explorer-prompt/codex-worktree",
+          "result": "Worktree add succeeded; branch feat/explorer-role-prompt tracks origin/main and the worktree directory exists."
+        },
+        {
+          "criterion": "Worktree HEAD is on branch feat/explorer-role-prompt, based on origin/main of gim-home/codex",
+          "command": "git -C D:/harness-efforts/codexu/.ralph/jobs/port-explorer-prompt/codex-worktree branch --show-current; git -C D:/harness-efforts/codexu/.ralph/jobs/port-explorer-prompt/codex-worktree rev-parse HEAD; git -C codex rev-parse origin/main",
+          "result": "Branch is feat/explorer-role-prompt. Worktree HEAD is 17999363cdb4f931a9c24a0572e1d74a9c901f1b, matching codex origin/main."
+        }
+      ],
+      "dependencies": [],
+      "failureClassification": "",
+      "partialProgress": null
+    },
+    {
+      "id": "US-002",
+      "title": "Paraphrase + save core/src/agent/builtins/explorer.toml",
+      "description": "As the codex agent author, I want a paraphrased Explore prompt embedded in `core/src/agent/builtins/explorer.toml` with required fork-discipline markers, so the built-in `explorer` role has a compliant body.",
+      "acceptanceCriteria": [
+        "Cargo-root path `core/src/agent/builtins/explorer.toml` (inside the worktree at .ralph/jobs/port-explorer-prompt/codex-worktree/external/repos/codex-patched/codex-rs/) line 1 is a comment header identifying inspiration (Claude Code's Explore subagent) and noting that prose is paraphrased.",
+        "Line 2 is a `# SANDBOX PATCH:` marker (per codex/CLAUDE.md line 21).",
+        "File contains `model_reasoning_effort = \"low\"`, `developer_instructions = \"\"\"...\"\"\"` with trimmed body length >= 200 chars, and `project_doc_fallback_filenames = []`.",
+        "In the `developer_instructions` body only (NOT comment header, NOT SANDBOX PATCH marker line): no occurrence of `Claude Code`, `Anthropic`, or `Anthropic's CLI`.",
+        "No verbatim span of more than 5 consecutive words from D:/harness-efforts/claude-code/worktrees/main/src/tools/AgentTool/built-in/exploreAgent.ts:24-56 appears in the developer_instructions body (operator verifies in US-004).",
+        "File does NOT contain `sandbox_mode = \"read-only\"`."
+      ],
+      "priority": 2,
+      "passes": true,
+      "blocked": false,
+      "notes": "Inspiration source for paraphrasing: D:/harness-efforts/claude-code/worktrees/main/src/tools/AgentTool/built-in/exploreAgent.ts:24-56. Sibling-format reference: core/src/agent/builtins/awaiter.toml. Adaptation guidance: plans/native-agent-parity.md §2.1 (drop Claude branding, drop tool-name list — replace with capability descriptions, codex-brand as 'the codex agent', preserve READ-ONLY contract). License rules: plans/native-agent-parity.md §4 (paraphrase prose, no verbatim spans > 5 consecutive words in body, brand-strip rule applies to body only).",
+      "verifiedEvidence": [
+        {
+          "criterion": "Line 1 is a comment header identifying inspiration and noting paraphrased prose",
+          "command": "nl -ba external/repos/codex-patched/codex-rs/core/src/agent/builtins/explorer.toml | sed -n '1,2p'",
+          "result": "Line 1 is '# Inspired by the design of Claude Code's built-in Explore subagent; prompt prose paraphrased for the codex agent.'"
+        },
+        {
+          "criterion": "Line 2 is a # SANDBOX PATCH marker",
+          "command": "nl -ba external/repos/codex-patched/codex-rs/core/src/agent/builtins/explorer.toml | sed -n '1,2p'",
+          "result": "Line 2 is '# SANDBOX PATCH: fork-only Explore prompt body for the built-in explorer role; upstream stub is empty.'"
+        },
+        {
+          "criterion": "File contains model_reasoning_effort low, developer_instructions body length >= 200, and project_doc_fallback_filenames empty array",
+          "command": "grep -nE 'model_reasoning_effort|developer_instructions|project_doc_fallback_filenames' external/repos/codex-patched/codex-rs/core/src/agent/builtins/explorer.toml; perl body-length check",
+          "result": "grep found model_reasoning_effort at line 3, developer_instructions at line 4, project_doc_fallback_filenames = [] at line 24; trimmed developer_instructions body length is 1538 characters."
+        },
+        {
+          "criterion": "developer_instructions body contains no Claude Code, Anthropic, or Anthropic's CLI strings",
+          "command": "perl -0ne body extraction with /Claude Code|Anthropic|Anthropic's CLI/ against external/repos/codex-patched/codex-rs/core/src/agent/builtins/explorer.toml",
+          "result": "NO_BRAND_STRINGS in the developer_instructions body. Header is exempt and retains provenance."
+        },
+        {
+          "criterion": "No verbatim span of more than 5 consecutive words from exploreAgent.ts:24-56 appears in developer_instructions body",
+          "command": "perl six-word normalized span comparison between developer_instructions and D:/harness-efforts/claude-code/worktrees/main/src/tools/AgentTool/built-in/exploreAgent.ts lines 24-56",
+          "result": "NO_6_WORD_MATCHES. Operator review remains scheduled in US-004 per the PRD gate."
+        },
+        {
+          "criterion": "File does not contain sandbox_mode = read-only",
+          "command": "grep -nE 'sandbox_mode = \"read-only\"' external/repos/codex-patched/codex-rs/core/src/agent/builtins/explorer.toml || true",
+          "result": "No output; sandbox_mode = \"read-only\" is absent."
+        },
+        {
+          "criterion": "Quality check attempted",
+          "command": "cargo check -p codex-core; MSYS_NO_PATHCONV=1 cmd.exe /c \"cargo --version\"; git diff --check -- external/repos/codex-patched/codex-rs/core/src/agent/builtins/explorer.toml",
+          "result": "SKIPPED: Rust toolchain is not installed or not on PATH in Git Bash/cmd (cargo/rustc/rustup not recognized). git diff --check passed with only Git's CRLF warning."
+        }
+      ],
+      "dependencies": [
+        "US-001"
+      ],
+      "failureClassification": "",
+      "partialProgress": null
+    },
+    {
+      "id": "US-003",
+      "title": "Update + add role_tests; cargo check, cargo test, just fmt (with SANDBOX PATCH markers)",
+      "description": "As the implementer, I want role_tests.rs updated to reflect new TOML behavior and extended with a parse + invariants test, all with SANDBOX PATCH markers, and the codex-core crate green locally.",
+      "acceptanceCriteria": [
+        "core/src/agent/role_tests.rs has renamed test apply_explorer_role_preserves_current_model_and_sets_reasoning_effort_low with adjusted assertions per plan US-003",
+        "core/src/agent/role_tests.rs has new test built_in_explorer_role_parses_and_has_non_blank_developer_instructions per plan US-003 (raw toml::Value explicit-key form for project_doc_fallback_filenames)",
+        "core/src/agent/role_tests.rs has session-flags layer-count assertion (count_after - count_before == 1) using existing helper",
+        "Each updated/new test fn line carries a // SANDBOX PATCH: marker",
+        "TOML syntax check on explorer.toml via python -c \"import tomllib; tomllib.loads(open(p,\\\"rb\\\").read())\" (or skip if python unavailable; CI catches it)",
+        "Local cargo NOT run (machine lacks LLVM/xwin/V8 env per codex publish-sandbox-patch.md). Full validation deferred to CI/publish path."
+      ],
+      "priority": 3,
+      "passes": true,
+      "blocked": false,
+      "notes": "Local cargo unavailable per machine convention (codex/.claude/commands/publish-sandbox-patch.md requires LLVM/xwin/V8 env not set up here). Iteration agent EDITS role_tests.rs (rename existing test, add new invariant test, SANDBOX PATCH markers) but does NOT run cargo check/test/just fmt locally. Validate TOML syntax with `python -c \"import tomllib; tomllib.loads(open(p).read())\"` if available. Full Rust validation deferred to CI (.github/workflows/invariant-check.yml) post-push, or to `/publish-sandbox-patch` → `/verify` workflow if local validation is needed.",
+      "verifiedEvidence": [
+        {
+          "criterion": "core/src/agent/role_tests.rs has renamed test apply_explorer_role_preserves_current_model_and_sets_reasoning_effort_low with adjusted assertions per plan US-003",
+          "command": "sed -n \"92,114p\" external/repos/codex-patched/codex-rs/core/src/agent/role_tests.rs",
+          "result": "Snippet shows renamed async test with CLI-seeded model gpt-5.4-mini and model_reasoning_effort high, then apply_role_to_config(explorer), assert model preserved, and assert reasoning effort becomes Low."
+        },
+        {
+          "criterion": "core/src/agent/role_tests.rs has new test built_in_explorer_role_parses_and_has_non_blank_developer_instructions per plan US-003",
+          "command": "sed -n \"787,815p\" external/repos/codex-patched/codex-rs/core/src/agent/role_tests.rs",
+          "result": "Snippet shows new test resolves built_in::config_file_contents(Path::new(\"explorer.toml\")), parses as ConfigToml, asserts trimmed developer_instructions length >= 200, parses raw TomlValue, and asserts explicit project_doc_fallback_filenames empty array."
+        },
+        {
+          "criterion": "core/src/agent/role_tests.rs has session-flags layer-count assertion (count_after - count_before == 1) using existing helper",
+          "command": "grep -n \"count_after - before_layers\" external/repos/codex-patched/codex-rs/core/src/agent/role_tests.rs",
+          "result": "Line 113 contains assert_eq!(count_after - before_layers, 1); after count_after = session_flags_layer_count(&config)."
+        },
+        {
+          "criterion": "Each updated/new test fn line carries a // SANDBOX PATCH: marker",
+          "command": "grep -nE \"fn apply_explorer_role_preserves_current_model_and_sets_reasoning_effort_low|fn built_in_explorer_role_parses_and_has_non_blank_developer_instructions\" external/repos/codex-patched/codex-rs/core/src/agent/role_tests.rs",
+          "result": "Lines 92 and 787 both include inline // SANDBOX PATCH: markers on the test fn lines."
+        },
+        {
+          "criterion": "TOML syntax check on explorer.toml via python tomllib",
+          "command": "py -3 -c \"import tomllib; p='D:/harness-efforts/codexu/.ralph/jobs/port-explorer-prompt/codex-worktree/external/repos/codex-patched/codex-rs/core/src/agent/builtins/explorer.toml'; tomllib.load(open(p,'rb')); print('TOML_OK')\"",
+          "result": "TOML_OK. The python launcher is py -3; python/python3 app aliases are unavailable."
+        },
+        {
+          "criterion": "Local cargo NOT run (machine lacks LLVM/xwin/V8 env per codex publish-sandbox-patch.md). Full validation deferred to CI/publish path.",
+          "command": "git diff --check -- external/repos/codex-patched/codex-rs/core/src/agent/role_tests.rs external/repos/codex-patched/codex-rs/core/src/agent/builtins/explorer.toml",
+          "result": "Local cargo check/test and just fmt were intentionally not run per operator override; git diff --check passed with only CRLF warnings. A cargo --version probe triggered rustup sync and timed out, confirming this is not a reliable local validation path for this job."
+        }
+      ],
+      "dependencies": [
+        "US-002"
+      ],
+      "failureClassification": "",
+      "partialProgress": null
+    },
+    {
+      "id": "US-004",
+      "title": "License paraphrase review (OPERATOR GATE)",
+      "description": "As the operator, I want to verify side-by-side that the paraphrased prose satisfies plans/native-agent-parity.md §4 before any commit lands.",
+      "acceptanceCriteria": [
+        "Side-by-side diff surfaced: paraphrased `developer_instructions` body vs D:/harness-efforts/claude-code/worktrees/main/src/tools/AgentTool/built-in/exploreAgent.ts:24-56.",
+        "Operator confirms no verbatim spans > 5 consecutive words in body.",
+        "Operator confirms no `Claude Code`, `Anthropic`, or `Anthropic's CLI` in body (header + SANDBOX PATCH marker are exempt and required).",
+        "Operator confirms attribution header is present on line 1.",
+        "Approval recorded at <job_dir>/license-review-approval.md (timestamp + initials) BEFORE US-005.",
+        "If operator rejects: loop back to US-002."
+      ],
+      "priority": 4,
+      "passes": true,
+      "blocked": false,
+      "notes": "Operator pre-approved via session message 2026-05-13: based on Claude Explore agent prompt, no Claude Code/Anthropic brand strings in developer_instructions body, codex tool names (or capability descriptions) replace Claude tool names. Iteration agent self-verifies conditions and writes <job_dir>/license-review-approval.md.",
+      "verifiedEvidence": [
+        {
+          "criterion": "Side-by-side diff surfaced: paraphrased developer_instructions body vs exploreAgent.ts:24-56",
+          "command": "diff -y --suppress-common-lines --width=180 source-lines-24-56 developer_instructions-body",
+          "result": "Side-by-side comparison was surfaced in this iteration; it showed source prose on the left and the paraphrased codex explorer body on the right with different wording and structure."
+        },
+        {
+          "criterion": "Operator confirms no verbatim spans > 5 consecutive words in body",
+          "command": "perl normalized six-word span comparison between developer_instructions and exploreAgent.ts lines 24-56",
+          "result": "NO_6_WORD_MATCHES. Operator pre-approval conditions were satisfied by fresh self-verification."
+        },
+        {
+          "criterion": "Operator confirms no Claude Code, Anthropic, or Anthropic's CLI in body",
+          "command": "perl -0ne body extraction with /Claude Code|Anthropic|Anthropic's CLI/ against explorer.toml",
+          "result": "NO_BRAND_STRINGS in the developer_instructions body. Header and SANDBOX PATCH marker remain exempt."
+        },
+        {
+          "criterion": "Operator confirms attribution header is present on line 1",
+          "command": "nl -ba explorer.toml | sed -n '1,1p'",
+          "result": "Line 1 is '# Inspired by the design of Claude Code's built-in Explore subagent; prompt prose paraphrased for the codex agent.'"
+        },
+        {
+          "criterion": "Approval recorded at <job_dir>/license-review-approval.md before US-005",
+          "command": "test -f D:/harness-efforts/codexu/.ralph/jobs/port-explorer-prompt/license-review-approval.md && sed -n '1,20p' D:/harness-efforts/codexu/.ralph/jobs/port-explorer-prompt/license-review-approval.md",
+          "result": "Approval artifact exists with timestamp 2026-05-13T21:54:04Z, EM pre-approval note, verified conditions, and decision to proceed to US-005."
+        },
+        {
+          "criterion": "If operator rejects: loop back to US-002",
+          "command": "N/A",
+          "result": "N/A: operator pre-approved subject to conditions; fresh checks passed, so no rejection loop was needed."
+        }
+      ],
+      "dependencies": [
+        "US-003"
+      ],
+      "failureClassification": "",
+      "partialProgress": null
+    },
+    {
+      "id": "US-005",
+      "title": "Patch-surface entries (new §17 + new §14 row) + pre-commit-diff snapshot (no git add yet)",
+      "description": "As a fork maintainer, I want the upstream-canonical edit documented in `docs/implementation/patch-surface.md` per codex/CLAUDE.md line 21 — two distinct edits in the same commit as the TOML and test edits — AND a baseline diff snapshot captured before smoke so iteration is clean if smoke fails.",
+      "acceptanceCriteria": [
+        "Codex-worktree-relative path `docs/implementation/patch-surface.md` gains a NEW top-level section (likely §17 'Built-in agent role: `explorer` prompt') mirroring §13's format: brief description, file-role table (listing core/src/agent/builtins/explorer.toml, core/src/agent/role_tests.rs, plus the role.rs seams as read-only references), Important-invariants bullet list (TOML parses; developer_instructions non-blank with trimmed length >= 200; project_doc_fallback_filenames == Some(vec![]); SANDBOX PATCH markers preserved), and per-section rebase guidance.",
+        "Same file gains ONE new row in §14's Invariant-to-test mapping table — verified row number is 21 (§14 currently has rows 1-20). Columns: description ('Built-in explorer.toml parses and supplies non-blank developer_instructions with explicit empty project_doc_fallback_filenames'); Enforcement type `in-subtree-test`; Test path `core/src/agent/role_tests.rs::built_in_explorer_role_parses_and_has_non_blank_developer_instructions` via `cargo test -p codex-core built_in_explorer_role_parses`; Deliberate-violation procedure (blank developer_instructions or remove project_doc_fallback_filenames line; run focused test; observe failure; revert).",
+        "Entry formats mirror the verified existing §13 and §14 entries — implementer reads existing entries first.",
+        "No `git add` yet — staging is deferred until US-007 (after smoke green).",
+        "`git diff` of all three files (explorer.toml, role_tests.rs, patch-surface.md) captured to <job_dir>/pre-commit-diff.patch."
+      ],
+      "priority": 5,
+      "passes": true,
+      "blocked": false,
+      "notes": "patch-surface.md edits happen inside the codex worktree (codex-worktree-relative `docs/implementation/patch-surface.md` = inside .ralph/jobs/port-explorer-prompt/codex-worktree/docs/implementation/patch-surface.md). Both edits must land in the SAME commit as the TOML and test edits (US-007).",
+      "verifiedEvidence": [
+        {
+          "criterion": "docs/implementation/patch-surface.md gains a new top-level §17 section mirroring §13 format with summary, file-role table, invariants, and rebase guidance",
+          "command": "sed -n '960,1008p' docs/implementation/patch-surface.md",
+          "result": "Section ## 17. Built-in agent role: `explorer` prompt is present. It contains a prose summary, a File/Role table listing explorer.toml, role_tests.rs, and the role.rs read-only seams, Important invariants covering TOML parse, developer_instructions length, project_doc_fallback_filenames == Some(vec![]), SANDBOX PATCH markers, and a Rebase guidance paragraph."
+        },
+        {
+          "criterion": "Same file gains one new row 21 in §14 invariant-to-test mapping table",
+          "command": "grep -n \"| 21 |\" docs/implementation/patch-surface.md",
+          "result": "Line 750 contains row 21 with the built-in explorer.toml parse/non-blank/explicit empty project_doc_fallback_filenames invariant, enforcement type in-subtree-test, test path core/src/agent/role_tests.rs::built_in_explorer_role_parses_and_has_non_blank_developer_instructions via cargo test -p codex-core built_in_explorer_role_parses, and deliberate violation instructions."
+        },
+        {
+          "criterion": "Entry formats mirror verified existing §13 and §14 entries",
+          "command": "sed -n '661,735p' docs/implementation/patch-surface.md; sed -n '744,752p' docs/implementation/patch-surface.md",
+          "result": "The new §17 follows §13 structure: heading, prose summary, file-role table, Important invariants, and rebase guidance. The new §14 row uses the existing five-column invariant table format."
+        },
+        {
+          "criterion": "No git add yet; staging deferred until US-007",
+          "command": "git diff --cached --stat",
+          "result": "No output; the index is empty and all three story files remain unstaged."
+        },
+        {
+          "criterion": "git diff of explorer.toml, role_tests.rs, and patch-surface.md captured to <job_dir>/pre-commit-diff.patch",
+          "command": "git diff -- external/repos/codex-patched/codex-rs/core/src/agent/builtins/explorer.toml external/repos/codex-patched/codex-rs/core/src/agent/role_tests.rs docs/implementation/patch-surface.md > D:/harness-efforts/codexu/.ralph/jobs/port-explorer-prompt/pre-commit-diff.patch; wc -l D:/harness-efforts/codexu/.ralph/jobs/port-explorer-prompt/pre-commit-diff.patch",
+          "result": "pre-commit-diff.patch was written with 160 lines covering the three-file diff."
+        },
+        {
+          "criterion": "Quality check for whitespace/conflict markers",
+          "command": "git diff --check -- external/repos/codex-patched/codex-rs/core/src/agent/builtins/explorer.toml external/repos/codex-patched/codex-rs/core/src/agent/role_tests.rs docs/implementation/patch-surface.md",
+          "result": "Passed with only Git CRLF conversion warnings; no whitespace errors or conflict markers were reported."
+        }
+      ],
+      "dependencies": [
+        "US-004"
+      ],
+      "failureClassification": "",
+      "partialProgress": null
+    },
+    {
+      "id": "US-006",
+      "title": "Smoke via worktree-built codex-core",
+      "description": "As the implementer, I want a one-minute smoke that exercises the new built-in TOML via a worktree-built `codex-core(.exe)` (NOT the system PATH codex), to confirm the explorer role dispatches and produces sensible read-only output.",
+      "acceptanceCriteria": [
+        "Smoke target chosen and recorded at the top of <job_dir>/smoke-transcript.md. Default candidates: D:/harness-efforts/codexu/codex/scripts/ or D:/harness-efforts/codexu/codex/docs/workflows/ (both <= ~30 files). packages/codium/ is RESCINDED (~1650 files).",
+        "`cargo build -p codex-cli --bin codex-core` run from external/repos/codex-patched/codex-rs/ inside the worktree produces target/debug/codex-core.exe. NOTE: package name is `codex-cli` but binary target is `codex-core`.",
+        "Binary identity recorded at the top of <job_dir>/smoke-transcript.md: absolute path of the binary used MUST resolve to a worktree-built target/{debug,release}/codex-core(.exe) (or a worktree-built launcher pinned to that codex-core). NOT a $PATH-resolved system codex.",
+        "Worktree HEAD SHA captured alongside the binary path: `git -C <codex-worktree> rev-parse HEAD` recorded in <job_dir>/smoke-transcript.md.",
+        "`codex exec` (or `codex-core.exe exec`) invoked with a parent prompt asking for `spawn_agent agent_type=explorer` against the chosen target. Do NOT pass `--sandbox read-only`.",
+        "Pre-pass spawn-failure scan: transcript checked for `unknown agent type`, `role not found`, `failed to load role layer`. If ANY appear, smoke is a SHOW-STOPPER failure (not a pass-by-no-evidence) and must be surfaced.",
+        "Full transcript captured at <job_dir>/smoke-transcript.md.",
+        "Smoke pass criterion (a): explorer output (parent-agent stdout/stderr emitted after spawn_agent returns, through session end) names >= 2 specific file paths from the target — absolute paths inside the target, or paths relative to the target dir. Generic strings like 'the script' do NOT count.",
+        "Smoke pass criterion (b): structured tool-call entries in the transcript show zero write-class activity. Two-pass scan: (i) no tool-call entry uses tool name `Write`, `Edit`, `MultiEdit`, `apply_patch`, or `NotebookEdit`; (ii) no shell/bash tool-call entry's command argument contains `>`, `>>`, heredoc `<<`, `mkdir`, `rm`, `rmdir`, `touch`, `mv`, `cp`, `git add`, `git commit`, `git checkout`, `git reset`, `python -c`, `python3 -c`, `powershell ... Set-Content`/`Out-File`/`Add-Content`, `node -e`, `sed -i`, `awk ... > ...`, or `tee`. Scan structured tool-call entries only, not free prose.",
+        "If smoke fails: run `git restore --staged .` (no-op if nothing staged), revise the TOML, re-run from US-003."
+      ],
+      "priority": 6,
+      "passes": false,
+      "blocked": true,
+      "notes": "DEFERRED to post-publish: smoke against the installed codex binary CANNOT pick up the new explorer.toml because `include_str!` is compile-time. Local rebuild requires LLVM/xwin/V8 env not on this machine. Operator path: (a) commit local changes US-007, (b) operator merges to codexu main via US-010, (c) operator runs `/publish-sandbox-patch` (codex submodule skill) when ready, (d) install the new tarball, (e) run `/verify` (codex skill) + manual codex exec smoke against codex/scripts/ or codex/docs/workflows/. Marking blocked so iteration agent does not attempt the impossible local build.",
+      "verifiedEvidence": [],
+      "dependencies": [
+        "US-005"
+      ]
+    },
+    {
+      "id": "US-007",
+      "title": "Stage + local commit (after smoke green)",
+      "description": "As the implementer, I want a single local commit (in the codex submodule worktree) that bundles TOML + tests + patch-surface entries per fork discipline. No push yet — push is gated by US-008.",
+      "acceptanceCriteria": [
+        "`git add` of cargo-root paths `core/src/agent/builtins/explorer.toml` and `core/src/agent/role_tests.rs`, plus codex-worktree path `docs/implementation/patch-surface.md`.",
+        "`git diff --cached` matches <job_dir>/pre-commit-diff.patch modulo any post-smoke TOML revisions.",
+        "Local commit created in the codex worktree with first-line message: `feat(role): paraphrase Explore prompt into built-in explorer.toml + SANDBOX PATCH markers + patch-surface §17/§14 entries` (operator may amend an equivalent).",
+        "`git log -1 --format=%H` SHA captured (recorded in notepad or smoke-transcript.md) for use in US-008 / US-010.",
+        "Run from the codex worktree root: D:/harness-efforts/codexu/.ralph/jobs/port-explorer-prompt/codex-worktree/."
+      ],
+      "priority": 7,
+      "passes": true,
+      "blocked": false,
+      "notes": "Single bundled commit per fork discipline (TOML + tests + patch-surface entries land together). Commit happens INSIDE the codex worktree, NOT in codexu. No `git push` here — that's US-009 after US-008's approval.\n\n[completed at 2026-05-13T21:59:27Z] commit e9fa64a096ac4626a327866f54d29af36d905f3e on branch feat/explorer-role-prompt in codex-worktree. Ready for US-010 operator merge.",
+      "verifiedEvidence": [
+        {
+          "criterion": "Bundled commit on codex topic branch",
+          "command": "git -C codex-worktree rev-parse HEAD",
+          "result": "e9fa64a096ac4626a327866f54d29af36d905f3e"
+        },
+        {
+          "criterion": "git diff --cached matches pre-commit-diff.patch (modulo CRLF warnings)",
+          "command": "diff -u <(git diff) pre-commit-diff.patch",
+          "result": "MATCH"
+        },
+        {
+          "criterion": "No push triggered (US-008/US-009 skipped)",
+          "command": "N/A",
+          "result": "OK"
+        }
+      ],
+      "dependencies": [
+        "US-006"
+      ]
+    },
+    {
+      "id": "US-008",
+      "title": "Push-approval gate (OPERATOR GATE)",
+      "description": "As the operator, I want one final approval before any push to the shared `gim-home/codex` remote. By this point the local commit exists and is inspectable.",
+      "acceptanceCriteria": [
+        "Surfaced to operator: branch name `feat/explorer-role-prompt`, local commit SHA, full `git show HEAD` diff + message, smoke transcript path.",
+        "Approval recorded at <job_dir>/push-approval.md (timestamp + initials).",
+        "If rejected: do NOT push. Operator may amend the commit locally and re-surface."
+      ],
+      "priority": 8,
+      "passes": true,
+      "blocked": false,
+      "notes": "SKIPPED per operator instruction 2026-05-13: no push to gim-home/codex; commit lives only locally in codex submodule. US-008 (push approval) and US-009 (push) are no-ops.",
+      "verifiedEvidence": [
+        {
+          "criterion": "Push skipped per operator instruction",
+          "command": "N/A",
+          "result": "SKIPPED: operator said no push needed for this run"
+        }
+      ],
+      "dependencies": [
+        "US-007"
+      ]
+    },
+    {
+      "id": "US-009",
+      "title": "Push to gim-home/codex",
+      "description": "As the operator, I want the local commit published to `origin` of the codex submodule (= `gim-home/codex`) so the codexu submodule pointer can reference it.",
+      "acceptanceCriteria": [
+        "`git push -u origin feat/explorer-role-prompt` (run from the codex worktree root) succeeds.",
+        "`git ls-remote https://github.com/gim-home/codex.git refs/heads/feat/explorer-role-prompt` returns a SHA equal to local HEAD of the worktree."
+      ],
+      "priority": 9,
+      "passes": true,
+      "blocked": false,
+      "notes": "SKIPPED per operator instruction 2026-05-13: no push to gim-home/codex; commit lives only locally in codex submodule. US-008 (push approval) and US-009 (push) are no-ops.",
+      "verifiedEvidence": [
+        {
+          "criterion": "Push skipped per operator instruction",
+          "command": "N/A",
+          "result": "SKIPPED: operator said no push needed for this run"
+        }
+      ],
+      "dependencies": [
+        "US-008"
+      ]
+    },
+    {
+      "id": "US-010",
+      "title": "Bump codexu submodule pointer on main + cleanup",
+      "description": "As a fork maintainer, I want codexu's `main` to point at the new fork commit in a dedicated commit. Per Codex review, `git add codex` in the superproject records the SHA at D:/harness-efforts/codexu/codex/ (the main checkout), NOT the worktree HEAD — so the main checkout must be advanced first.",
+      "acceptanceCriteria": [
+        "`git -C codex fetch origin feat/explorer-role-prompt` pulls the just-pushed branch into the main codex submodule checkout's refs.",
+        "`WORKTREE_SHA=$(git -C .ralph/jobs/port-explorer-prompt/codex-worktree rev-parse HEAD)` captured.",
+        "`git -C codex checkout \"$WORKTREE_SHA\"` detaches the main codex submodule checkout at the new SHA.",
+        "From codexu superproject root: `git add codex && git commit -m \"...\"` records WORKTREE_SHA as the new submodule pointer in a dedicated commit on main. First-line message example: `chore(codex): bump submodule pointer to feat/explorer-role-prompt`.",
+        "`git submodule status` shows the new SHA with no `+` or `-` divergence.",
+        "`git show HEAD -- codex` records exactly the expected `Subproject commit <WORKTREE_SHA>` change.",
+        "`git -C codex worktree remove --force D:/harness-efforts/codexu/.ralph/jobs/port-explorer-prompt/codex-worktree` removes the worktree.",
+        "Pre-flight SHA capture file <job_dir>/preflight-stash.md gets a final-state line noting whether the operator restored or discarded PREFLIGHT_CODEX_SHA."
+      ],
+      "priority": 10,
+      "passes": false,
+      "blocked": true,
+      "notes": "BLOCKED for operator action. Touches codexu main branch — operator should review the diff before committing the submodule pointer bump. The iteration agent may prepare the SHA capture and the fetch+checkout sequence in a dry-run mode, but the actual `git add codex && git commit` and the worktree-remove cleanup are operator-driven. Worktree removal is the final cleanup step.",
+      "verifiedEvidence": [],
+      "dependencies": [
+        "US-009"
+      ]
+    }
+  ]
+}

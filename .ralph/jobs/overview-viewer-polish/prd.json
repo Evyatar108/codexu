@@ -1,0 +1,1695 @@
+{
+  "project": "overview-viewer-polish",
+  "description": "Polish + information-architecture restructuring of the @codexu/overview-viewer React app at tools/overview-viewer/. Five phases (A=CSS polish, B=toast+quick-actions+density, C=Radix UI primitives rollout, D=bucket headers + sticky top frame, E=left rail), totaling 19 stories. Bundle ceiling 500 KB; honors prefers-reduced-motion; preserves the 3 existing intentional deviations from 9f81c1f8.",
+  "deslop": true,
+  "iterationEngine": "codex",
+  "codexReview": "always",
+  "copilotReview": "always",
+  "jobDir": "D:/harness-efforts/codexu/.ralph/jobs/overview-viewer-polish",
+  "repoDir": "D:/harness-efforts/codexu",
+  "branch": {
+    "name": "ralph/overview-viewer-polish",
+    "created": true
+  },
+  "worktree": {
+    "path": "D:/harness-efforts/codexu/.ralph/jobs/overview-viewer-polish/worktree",
+    "branch": "ralph/overview-viewer-polish"
+  },
+  "planReviewContext": [
+    {
+      "id": "F-001",
+      "severity": "High",
+      "description": "US-012 swaps Toolbar's <details className='toolbar-filters'> for a Radix Popover, but App.tsx:66-70 (activateWorkstream) currently opens the filter UI by querying the .toolbar-filters DOM and mutating HTMLDetailsElement.open. After US-012, this contract breaks silently and the workstream-pill → filter-popover activation regresses. The plan's file inventory only touches App.tsx in US-016/US-017/US-019; US-012 must include App.tsx changes to lift filter open-state into App or expose a setOpen callback through Toolbar's prop interface.",
+      "classification": "fixable",
+      "source": "consensus",
+      "category": "Feasibility",
+      "relevantFiles": [
+        "tools/overview-viewer/src/App.tsx:66",
+        "tools/overview-viewer/src/components/Toolbar.tsx"
+      ],
+      "suggestedFix": "Extend US-012's file list to include tools/overview-viewer/src/App.tsx and add an acceptance criterion: 'activateWorkstream callback still opens the filter UI after the Radix Popover swap.' Refactor: lift filter-open state up to App via useState, pass openFilters/setOpenFilters callbacks into Toolbar, and have activateWorkstream call setOpenFilters(true)."
+    },
+    {
+      "id": "F-000",
+      "severity": "Low",
+      "description": "# truncated 9 findings (sentinel: planReviewContext was capped at 500 tokens)"
+    }
+  ],
+  "userStories": [
+    {
+      "id": "US-006",
+      "title": "Install global prefers-reduced-motion guard (LANDS FIRST)",
+      "description": "As a viewer user with reduced-motion preference enabled, I want all current and future animations on the overview page to degrade to instant transitions so I don't get vestibular discomfort.",
+      "acceptanceCriteria": [
+        "tools/overview-viewer/src/styles.css has a @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } } block placed immediately after the CSS variable definitions (top of file, before any animation rule)",
+        "No existing tests regress",
+        "Typecheck passes (pnpm --filter @codexu/overview-viewer typecheck)",
+        "Tests pass (pnpm --filter @codexu/overview-viewer test)",
+        "pnpm overview dev server starts and renders without console errors",
+        "pnpm overview:build succeeds; regenerated plans/overview.html opens cleanly under file://",
+        "Bundle size of plans/overview.html stays under 500 KB",
+        "Three existing intentional deviations from 9f81c1f8 (deferred class, blocked/paused → tail of phase bucket, lastTouchedAt-asc) still hold",
+        "prefers-reduced-motion: reduce disables any animation added by the story",
+        "If tools/overview-viewer/package.json changes, workspace-root pnpm-lock.yaml is regenerated and committed in the same commit; pnpm install --frozen-lockfile from repo root must succeed",
+        "Commit message references the story ID and lists affected files"
+      ],
+      "priority": 1,
+      "passes": true,
+      "notes": "",
+      "verifiedEvidence": [
+        {
+          "criterion": "tools/overview-viewer/src/styles.css has a @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } } block placed immediately after the CSS variable definitions (top of file, before any animation rule)",
+          "command": "grep -n \"@media (prefers-reduced-motion: reduce)\" -A5 tools/overview-viewer/src/styles.css",
+          "result": "Lines 33-38 show the guard immediately after the dark/light :root variable definitions and before the first non-variable rule."
+        },
+        {
+          "criterion": "No existing tests regress",
+          "command": "pnpm --filter @codexu/overview-viewer test",
+          "result": "PASS: 11 test files passed, 36 tests passed."
+        },
+        {
+          "criterion": "Typecheck passes (pnpm --filter @codexu/overview-viewer typecheck)",
+          "command": "pnpm --filter @codexu/overview-viewer typecheck",
+          "result": "PASS: tsc --noEmit completed with exit 0."
+        },
+        {
+          "criterion": "Tests pass (pnpm --filter @codexu/overview-viewer test)",
+          "command": "pnpm --filter @codexu/overview-viewer test",
+          "result": "PASS: Vitest reported 11 files passed, 36 tests passed."
+        },
+        {
+          "criterion": "pnpm overview dev server starts and renders without console errors",
+          "command": "curl -fsS http://127.0.0.1:5173/overview.html && curl -fsS http://127.0.0.1:5173/overview-data.js",
+          "result": "HTTP smoke PASS: existing dev server served overview.html with <div id=\"root\"></div> and overview-data.js. SKIPPED: browser console verification unavailable because Playwright/browser tooling is not installed."
+        },
+        {
+          "criterion": "pnpm overview:build succeeds; regenerated plans/overview.html opens cleanly under file://",
+          "command": "pnpm overview:build; grep -nE '<script[^>]+src=|<link[^>]+href=' plans/overview.html || true; grep -n '<div id=\"root\"></div>' plans/overview.html",
+          "result": "Build PASS: Vite built plans/overview.html successfully. Static artifact has root node and no external script/link refs. SKIPPED: live file:// browser open unavailable without browser automation."
+        },
+        {
+          "criterion": "Bundle size of plans/overview.html stays under 500 KB",
+          "command": "stat -c%s plans/overview.html",
+          "result": "447591 bytes (< 500000)."
+        },
+        {
+          "criterion": "Three existing intentional deviations from 9f81c1f8 (deferred class, blocked/paused → tail of phase bucket, lastTouchedAt-asc) still hold",
+          "command": "grep -nE \"deferred|data-cmd-status|lastTouchedAt|sortTasksByLastTouchedAsc\" tools/overview-viewer/src/components/PhaseTree.tsx tools/overview-viewer/src/components/CommandList.tsx tools/overview-viewer/src/styles.css",
+          "result": "PhaseTree still maps blocked/paused to deferred; styles.css still contains blocked/paused order tail rules; CommandList still exports and uses sortTasksByLastTouchedAsc."
+        },
+        {
+          "criterion": "prefers-reduced-motion: reduce disables any animation added by the story",
+          "command": "grep -n \"@media (prefers-reduced-motion: reduce)\" -A5 tools/overview-viewer/src/styles.css",
+          "result": "The story adds no new animation; the new global reduced-motion guard disables all animation and transition declarations with !important."
+        },
+        {
+          "criterion": "If tools/overview-viewer/package.json changes, workspace-root pnpm-lock.yaml is regenerated and committed in the same commit; pnpm install --frozen-lockfile from repo root must succeed",
+          "command": "pnpm install --frozen-lockfile --offline",
+          "result": "PASS: frozen install completed successfully; package.json and pnpm-lock.yaml were unchanged for this story."
+        },
+        {
+          "criterion": "Commit message references the story ID and lists affected files",
+          "command": "git log -1 --format=%H%n%s%n%b",
+          "result": "Commit 488fd285ffbbb3b47274b28925b8293aad9f6a33 subject references US-006; body lists tools/overview-viewer/src/styles.css and plans/overview.html."
+        }
+      ],
+      "dependencies": [],
+      "failureClassification": "",
+      "partialProgress": null
+    },
+    {
+      "id": "US-001",
+      "title": "Smooth <details> expand/collapse via interpolate-size",
+      "description": "As an operator, when I expand or collapse a command row, I want the body to animate smoothly rather than snap so I can track which row I just opened.",
+      "acceptanceCriteria": [
+        "Each details.cmd body is wrapped in <div class=\"cmd-body\"> (or the existing wrapper if present)",
+        "CSS rule on .cmd-body uses grid-template-rows: 0fr → 1fr driven by interpolate-size: allow-keywords with transition: grid-template-rows 0.3s ease-out",
+        "Animation degrades to instant snap on browsers without interpolate-size support (no JS-driven fallback required)",
+        "Under prefers-reduced-motion the transition is removed (verified by computed styles with the media query active)",
+        "Typecheck passes (pnpm --filter @codexu/overview-viewer typecheck)",
+        "Tests pass (pnpm --filter @codexu/overview-viewer test)",
+        "pnpm overview dev server starts and renders without console errors",
+        "pnpm overview:build succeeds; regenerated plans/overview.html opens cleanly under file://",
+        "Bundle size of plans/overview.html stays under 500 KB",
+        "Three existing intentional deviations from 9f81c1f8 (deferred class, blocked/paused → tail of phase bucket, lastTouchedAt-asc) still hold",
+        "prefers-reduced-motion: reduce disables any animation added by the story",
+        "If tools/overview-viewer/package.json changes, workspace-root pnpm-lock.yaml is regenerated and committed in the same commit; pnpm install --frozen-lockfile from repo root must succeed",
+        "Commit message references the story ID and lists affected files"
+      ],
+      "priority": 2,
+      "passes": true,
+      "notes": "",
+      "verifiedEvidence": [
+        {
+          "criterion": "Each details.cmd body is wrapped in <div class=\"cmd-body\"> (or the existing wrapper if present)",
+          "command": "grep -RInE \"cmd-body|cmd-body-inner\" tools/overview-viewer/src/components/TaskCommand.tsx tools/overview-viewer/src/__tests__/commandList.test.tsx",
+          "result": "PASS: TaskCommand renders <div class=\"cmd-body\"><div class=\"cmd-body-inner\"> for every command row; commandList SSR test asserts one wrapper per task."
+        },
+        {
+          "criterion": "CSS rule on .cmd-body uses grid-template-rows: 0fr → 1fr driven by interpolate-size: allow-keywords with transition: grid-template-rows 0.3s ease-out",
+          "command": "grep -n \"@supports (interpolate-size: allow-keywords)\" -A14 tools/overview-viewer/src/styles.css",
+          "result": "PASS: styles.css lines 927-934 define .cmd-body grid-template-rows: 0fr, interpolate-size: allow-keywords, transition: grid-template-rows 0.3s ease-out, and .cmd[open] > .cmd-body grid-template-rows: 1fr."
+        },
+        {
+          "criterion": "Animation degrades to instant snap on browsers without interpolate-size support (no JS-driven fallback required)",
+          "command": "grep -n \"@supports (interpolate-size: allow-keywords)\" -A14 tools/overview-viewer/src/styles.css",
+          "result": "PASS: the transition is inside @supports (interpolate-size: allow-keywords); unsupported browsers keep native <details> snap behavior with no JS fallback."
+        },
+        {
+          "criterion": "Under prefers-reduced-motion the transition is removed (verified by computed styles with the media query active)",
+          "command": "grep -n \"@media (prefers-reduced-motion: reduce)\" -A5 tools/overview-viewer/src/styles.css",
+          "result": "SKIPPED: browser computed-style tooling unavailable; static CSS verifies the global reduced-motion guard sets transition: none !important for all elements, including .cmd-body."
+        },
+        {
+          "criterion": "Typecheck passes (pnpm --filter @codexu/overview-viewer typecheck)",
+          "command": "pnpm --filter @codexu/overview-viewer typecheck > .test-output/overview-viewer.typecheck.log 2>&1",
+          "result": "PASS: tsc --noEmit completed with exit 0."
+        },
+        {
+          "criterion": "Tests pass (pnpm --filter @codexu/overview-viewer test)",
+          "command": "pnpm --filter @codexu/overview-viewer test > .test-output/overview-viewer.test.log 2>&1",
+          "result": "PASS: Vitest reported 11 test files passed, 36 tests passed."
+        },
+        {
+          "criterion": "pnpm overview dev server starts and renders without console errors",
+          "command": "curl -fsS http://127.0.0.1:5173/overview.html && curl -fsS http://127.0.0.1:5173/overview-data.js",
+          "result": "HTTP smoke PASS: existing dev server served overview.html with one root node and overview-data.js with window.OVERVIEW_DATA. SKIPPED: browser console verification unavailable because browser automation is not installed."
+        },
+        {
+          "criterion": "pnpm overview:build succeeds; regenerated plans/overview.html opens cleanly under file://",
+          "command": "pnpm overview:build; grep -nE '<script[^>]+src=|<link[^>]+href=' plans/overview.html || true; grep -n '<div id=\"root\"></div>' plans/overview.html",
+          "result": "Build PASS: Vite built plans/overview.html successfully; static artifact has root node and no external script/link refs. SKIPPED: live file:// browser open unavailable without browser automation."
+        },
+        {
+          "criterion": "Bundle size of plans/overview.html stays under 500 KB",
+          "command": "stat -c%s plans/overview.html",
+          "result": "447918 bytes (< 500000)."
+        },
+        {
+          "criterion": "Three existing intentional deviations from 9f81c1f8 (deferred class, blocked/paused → tail of phase bucket, lastTouchedAt-asc) still hold",
+          "command": "grep -RInE \"deferred|data-cmd-status|lastTouchedAt|sortTasksByLastTouchedAsc\" tools/overview-viewer/src/components/PhaseTree.tsx tools/overview-viewer/src/components/CommandList.tsx tools/overview-viewer/src/styles.css",
+          "result": "PASS: PhaseTree still maps blocked/paused to deferred; styles.css still contains blocked/paused order tail rules; CommandList still exports and uses sortTasksByLastTouchedAsc."
+        },
+        {
+          "criterion": "prefers-reduced-motion: reduce disables any animation added by the story",
+          "command": "grep -n \"@media (prefers-reduced-motion: reduce)\" -A5 tools/overview-viewer/src/styles.css && grep -n \"transition: grid-template-rows 0.3s ease-out\" tools/overview-viewer/src/styles.css",
+          "result": "PASS: the story adds a grid-template-rows transition, and the existing reduced-motion guard disables all transitions with !important."
+        },
+        {
+          "criterion": "If tools/overview-viewer/package.json changes, workspace-root pnpm-lock.yaml is regenerated and committed in the same commit; pnpm install --frozen-lockfile from repo root must succeed",
+          "command": "git show --name-only --format= HEAD | grep -E \"tools/overview-viewer/package.json|pnpm-lock.yaml\" || true; pnpm install --frozen-lockfile --offline",
+          "result": "PASS: package.json and pnpm-lock.yaml were unchanged for this story; frozen offline install completed successfully."
+        },
+        {
+          "criterion": "Commit message references the story ID and lists affected files",
+          "command": "git log -1 --format=%H%n%s%n%b",
+          "result": "Commit 49781fd09b6f42668743a07ab56db16a7694a180 subject references US-001; body lists TaskCommand.tsx, styles.css, commandList.test.tsx, and plans/overview.html."
+        }
+      ],
+      "dependencies": [
+        "US-006"
+      ],
+      "failureClassification": "",
+      "partialProgress": null
+    },
+    {
+      "id": "US-002",
+      "title": "Search-hit highlighting wraps matches in <mark class=\"search-match\">",
+      "description": "As an operator searching for \"perf\", I want the matching text in each visible row to be visually highlighted so I can see exactly which substring matched.",
+      "acceptanceCriteria": [
+        "New file tools/overview-viewer/src/utils/searchHighlighting.ts exports highlightMatches(html: string, query: string): string",
+        "highlightMatches escapes regex metacharacters in query before building the matcher",
+        "highlightMatches wraps text-node matches in <mark class=\"search-match\">; does NOT rewrite inside HTML tags/attributes; skips <code>...</code> blocks",
+        "Active search query threaded from App.tsx → CommandList.tsx → TaskCommand.tsx as a new query prop used in highlightMatches on cmd-name and the plain-text rendering of cmd-desc",
+        "Clearing the query removes all <mark> wrappers in the next render",
+        "New test file tools/overview-viewer/src/__tests__/searchHighlighting.test.ts covers: regex-metachar escape, no-rewrite-inside-tags, code-block skip, case-insensitive match, empty query no-op",
+        "Typecheck passes (pnpm --filter @codexu/overview-viewer typecheck)",
+        "Tests pass (pnpm --filter @codexu/overview-viewer test)",
+        "pnpm overview dev server starts and renders without console errors",
+        "pnpm overview:build succeeds; regenerated plans/overview.html opens cleanly under file://",
+        "Bundle size of plans/overview.html stays under 500 KB",
+        "Three existing intentional deviations from 9f81c1f8 (deferred class, blocked/paused → tail of phase bucket, lastTouchedAt-asc) still hold",
+        "prefers-reduced-motion: reduce disables any animation added by the story",
+        "If tools/overview-viewer/package.json changes, workspace-root pnpm-lock.yaml is regenerated and committed in the same commit; pnpm install --frozen-lockfile from repo root must succeed",
+        "Commit message references the story ID and lists affected files"
+      ],
+      "priority": 3,
+      "passes": true,
+      "notes": "",
+      "verifiedEvidence": [
+        {
+          "criterion": "New file tools/overview-viewer/src/utils/searchHighlighting.ts exports highlightMatches(html: string, query: string): string",
+          "command": "grep -RIn 'export function highlightMatches' tools/overview-viewer/src/utils/searchHighlighting.ts",
+          "result": "PASS: searchHighlighting.ts exports highlightMatches(html: string, query: string): string.",
+          "evidenceKind": "inspection"
+        },
+        {
+          "criterion": "highlightMatches escapes regex metacharacters in query before building the matcher",
+          "command": "grep -RInE 'escapeRegExp|new RegExp' tools/overview-viewer/src/utils/searchHighlighting.ts && pnpm --filter @codexu/overview-viewer test",
+          "result": "PASS: escapeRegExp is used before new RegExp; regex-metacharacter test passed in the 12-file / 43-test suite.",
+          "evidenceKind": "test"
+        },
+        {
+          "criterion": "highlightMatches wraps text-node matches in <mark class=\"search-match\">; does NOT rewrite inside HTML tags/attributes; skips <code>...</code> blocks",
+          "command": "grep -RInE 'tags or attributes|skips code' tools/overview-viewer/src/__tests__/searchHighlighting.test.ts && pnpm --filter @codexu/overview-viewer test",
+          "result": "PASS: utility tests cover tag/attribute preservation and code-block skip; suite passed 12 files / 43 tests.",
+          "evidenceKind": "test"
+        },
+        {
+          "criterion": "Active search query threaded from App.tsx -> CommandList.tsx -> TaskCommand.tsx as a new query prop used in highlightMatches on cmd-name and the plain-text rendering of cmd-desc",
+          "command": "grep -RInE 'filter.query|query|highlightMatches|cmd-name|cmd-desc' tools/overview-viewer/src/App.tsx tools/overview-viewer/src/components/CommandList.tsx tools/overview-viewer/src/components/TaskCommand.tsx",
+          "result": "PASS: App passes filter.query to CommandList; CommandList passes query to TaskCommand; TaskCommand calls highlightMatches for escaped cmd-name and command description HTML.",
+          "evidenceKind": "inspection"
+        },
+        {
+          "criterion": "Clearing the query removes all <mark> wrappers in the next render",
+          "command": "grep -RIn 'removes search match markup when the query is cleared' tools/overview-viewer/src/__tests__/commandList.test.tsx && pnpm --filter @codexu/overview-viewer test",
+          "result": "PASS: CommandList SSR test renders query=\"\" and asserts no class=\"search-match\"; suite passed 12 files / 43 tests.",
+          "evidenceKind": "test"
+        },
+        {
+          "criterion": "New test file tools/overview-viewer/src/__tests__/searchHighlighting.test.ts covers: regex-metachar escape, no-rewrite-inside-tags, code-block skip, case-insensitive match, empty query no-op",
+          "command": "grep -RInE 'regex metacharacters|tags or attributes|skips code|case-insensitively|empty query' tools/overview-viewer/src/__tests__/searchHighlighting.test.ts",
+          "result": "PASS: searchHighlighting.test.ts contains all required coverage cases.",
+          "evidenceKind": "inspection"
+        },
+        {
+          "criterion": "Typecheck passes (pnpm --filter @codexu/overview-viewer typecheck)",
+          "command": "pnpm --filter @codexu/overview-viewer typecheck > .test-output/overview-viewer.typecheck.log 2>&1",
+          "result": "PASS: tsc --noEmit completed with exit 0.",
+          "evidenceKind": "typecheck"
+        },
+        {
+          "criterion": "Tests pass (pnpm --filter @codexu/overview-viewer test)",
+          "command": "pnpm --filter @codexu/overview-viewer test > .test-output/overview-viewer.test.log 2>&1",
+          "result": "PASS: Vitest reported 12 test files passed, 43 tests passed.",
+          "evidenceKind": "test"
+        },
+        {
+          "criterion": "pnpm overview dev server starts and renders without console errors",
+          "command": "curl -fsS http://127.0.0.1:5173/overview.html >/tmp/overview.html.smoke && curl -fsS http://127.0.0.1:5173/overview-data.js >/tmp/overview-data.js.smoke",
+          "result": "HTTP smoke PASS: existing dev server served overview.html with root node and overview-data.js with window.OVERVIEW_DATA. SKIPPED: browser console verification unavailable because browser automation is not installed.",
+          "evidenceKind": "skipped"
+        },
+        {
+          "criterion": "pnpm overview:build succeeds; regenerated plans/overview.html opens cleanly under file://",
+          "command": "pnpm overview:build > .test-output/overview-viewer.build.log 2>&1; grep -nE '<script[^>]+src=|<link[^>]+href=' plans/overview.html || true; grep -n '<div id=\"root\"></div>' plans/overview.html",
+          "result": "Build PASS: Vite built plans/overview.html successfully; static artifact has root node and no external script/link refs. SKIPPED: live file:// browser open unavailable without browser automation.",
+          "evidenceKind": "build"
+        },
+        {
+          "criterion": "Bundle size of plans/overview.html stays under 500 KB",
+          "command": "stat -c%s plans/overview.html",
+          "result": "448737 bytes (< 500000).",
+          "evidenceKind": "command"
+        },
+        {
+          "criterion": "Three existing intentional deviations from 9f81c1f8 (deferred class, blocked/paused -> tail of phase bucket, lastTouchedAt-asc) still hold",
+          "command": "grep -RInE 'deferred|data-cmd-status|lastTouchedAt|sortTasksByLastTouchedAsc' tools/overview-viewer/src/components/PhaseTree.tsx tools/overview-viewer/src/components/CommandList.tsx tools/overview-viewer/src/styles.css",
+          "result": "PASS: PhaseTree still maps blocked/paused to deferred; styles.css still contains blocked/paused order tail rules; CommandList still exports and uses sortTasksByLastTouchedAsc.",
+          "evidenceKind": "inspection"
+        },
+        {
+          "criterion": "prefers-reduced-motion: reduce disables any animation added by the story",
+          "command": "grep -n '@media (prefers-reduced-motion: reduce)' -A5 tools/overview-viewer/src/styles.css",
+          "result": "PASS: this story adds no animation; the existing global reduced-motion guard remains in place and disables all transitions/animations with !important.",
+          "evidenceKind": "inspection"
+        },
+        {
+          "criterion": "If tools/overview-viewer/package.json changes, workspace-root pnpm-lock.yaml is regenerated and committed in the same commit; pnpm install --frozen-lockfile from repo root must succeed",
+          "command": "git diff --name-only HEAD^ HEAD | grep -E 'tools/overview-viewer/package.json|pnpm-lock.yaml' || true; pnpm install --frozen-lockfile --offline > .test-output/pnpm-install-frozen.log 2>&1",
+          "result": "PASS: package.json and pnpm-lock.yaml were unchanged for this story; frozen offline install completed successfully. Postinstall happy-wire side-effect files were restored and not committed.",
+          "evidenceKind": "command"
+        },
+        {
+          "criterion": "Commit message references the story ID and lists affected files",
+          "command": "git log -1 --format=%H%n%s%n%b",
+          "result": "Commit 652ecff81966556a1c00a7328b11a652d7c6255f subject references US-002; body lists affected files and the command-name escaping constraint.",
+          "evidenceKind": "command"
+        }
+      ],
+      "dependencies": [
+        "US-006"
+      ],
+      "failureClassification": "",
+      "partialProgress": null
+    },
+    {
+      "id": "US-003",
+      "title": "Smooth-scroll + 1.5s flash-pulse on #cmd-foo hash navigation",
+      "description": "As an operator clicking a deep-linked task ID, I want the page to scroll smoothly to the target row and pulse it briefly so I keep my place.",
+      "acceptanceCriteria": [
+        "tools/overview-viewer/src/hooks/useHashNav.ts calls element.scrollIntoView({ behavior: 'smooth', block: 'center' }) after expanding the target",
+        "A .cmd-flash class is applied for 1.5s on hash-nav arrival; the class triggers a CSS keyframe pulsing the accent ring (box-shadow: 0 0 0 2px var(--accent) → 6px and back)",
+        "Under prefers-reduced-motion the keyframe degrades to a static ring for 1.5s (US-006 guard handles this)",
+        "Typecheck passes (pnpm --filter @codexu/overview-viewer typecheck)",
+        "Tests pass (pnpm --filter @codexu/overview-viewer test)",
+        "pnpm overview dev server starts and renders without console errors",
+        "pnpm overview:build succeeds; regenerated plans/overview.html opens cleanly under file://",
+        "Bundle size of plans/overview.html stays under 500 KB",
+        "Three existing intentional deviations from 9f81c1f8 (deferred class, blocked/paused → tail of phase bucket, lastTouchedAt-asc) still hold",
+        "prefers-reduced-motion: reduce disables any animation added by the story",
+        "If tools/overview-viewer/package.json changes, workspace-root pnpm-lock.yaml is regenerated and committed in the same commit; pnpm install --frozen-lockfile from repo root must succeed",
+        "Commit message references the story ID and lists affected files"
+      ],
+      "priority": 4,
+      "passes": true,
+      "notes": "",
+      "verifiedEvidence": [
+        {
+          "criterion": "tools/overview-viewer/src/hooks/useHashNav.ts calls element.scrollIntoView({ behavior: 'smooth', block: 'center' }) after expanding the target",
+          "command": "grep -RInE 'scrollIntoView|flashCommandElement|cmd-flash' tools/overview-viewer/src/hooks/useHashNav.ts tools/overview-viewer/src/utils/commandNavigation.ts tools/overview-viewer/src/__tests__/kanbanInteraction.test.ts",
+          "result": "PASS: useHashNav expands the target task, fetches document.getElementById(`cmd-${taskId}`), calls scrollIntoView({ behavior: 'smooth', block: 'center' }), then applies the shared cmd-flash class.",
+          "evidenceKind": "inspection"
+        },
+        {
+          "criterion": "A .cmd-flash class is applied for 1.5s on hash-nav arrival; the class triggers a CSS keyframe pulsing the accent ring (box-shadow: 0 0 0 2px var(--accent) -> 6px and back)",
+          "command": "grep -nE 'cmd-flash|@keyframes cmd-flash-pulse|box-shadow: 0 0 0 (2px|6px)' tools/overview-viewer/src/styles.css && pnpm --filter @codexu/overview-viewer test",
+          "result": "PASS: styles.css defines .cmd.cmd-flash with animation: cmd-flash-pulse 1.5s ease-out and keyframes pulsing 2px -> 6px -> 2px. Vitest covers class add/remove after COMMAND_FLASH_DURATION_MS; suite passed 12 files / 44 tests.",
+          "evidenceKind": "test"
+        },
+        {
+          "criterion": "Under prefers-reduced-motion the keyframe degrades to a static ring for 1.5s (US-006 guard handles this)",
+          "command": "grep -n '@media (prefers-reduced-motion: reduce)' -A5 tools/overview-viewer/src/styles.css && grep -n 'cmd-flash-pulse' -A4 -B2 tools/overview-viewer/src/styles.css",
+          "result": "PASS: global reduced-motion guard sets animation: none !important while .cmd.cmd-flash still applies the static 2px accent ring; the JS timer keeps the class for 1.5s.",
+          "evidenceKind": "inspection"
+        },
+        {
+          "criterion": "Typecheck passes (pnpm --filter @codexu/overview-viewer typecheck)",
+          "command": "pnpm --filter @codexu/overview-viewer typecheck > .test-output/overview-viewer.typecheck.log 2>&1",
+          "result": "PASS: tsc --noEmit completed with exit 0.",
+          "evidenceKind": "typecheck"
+        },
+        {
+          "criterion": "Tests pass (pnpm --filter @codexu/overview-viewer test)",
+          "command": "pnpm --filter @codexu/overview-viewer test > .test-output/overview-viewer.test.log 2>&1",
+          "result": "PASS: Vitest reported 12 test files passed, 44 tests passed.",
+          "evidenceKind": "test"
+        },
+        {
+          "criterion": "pnpm overview dev server starts and renders without console errors",
+          "command": "curl -fsS http://127.0.0.1:5173/overview.html > /tmp/overview.html.smoke && curl -fsS http://127.0.0.1:5173/overview-data.js > /tmp/overview-data.js.smoke && grep -q '<div id=\"root\"></div>' /tmp/overview.html.smoke && grep -q 'window.OVERVIEW_DATA' /tmp/overview-data.js.smoke",
+          "result": "HTTP smoke PASS: existing dev server served overview.html with root node and overview-data.js with window.OVERVIEW_DATA. SKIPPED: browser console verification unavailable because browser automation is not installed.",
+          "evidenceKind": "skipped"
+        },
+        {
+          "criterion": "pnpm overview:build succeeds; regenerated plans/overview.html opens cleanly under file://",
+          "command": "pnpm overview:build > .test-output/overview-viewer.build.log 2>&1; grep -nE '<script[^>]+src=|<link[^>]+href=' plans/overview.html || true; grep -n '<div id=\"root\"></div>' plans/overview.html",
+          "result": "Build PASS: Vite built plans/overview.html successfully; static artifact has root node and no external script/link refs. SKIPPED: live file:// browser open unavailable without browser automation.",
+          "evidenceKind": "build"
+        },
+        {
+          "criterion": "Bundle size of plans/overview.html stays under 500 KB",
+          "command": "stat -c%s plans/overview.html",
+          "result": "449318 bytes (< 500000).",
+          "evidenceKind": "command"
+        },
+        {
+          "criterion": "Three existing intentional deviations from 9f81c1f8 (deferred class, blocked/paused -> tail of phase bucket, lastTouchedAt-asc) still hold",
+          "command": "grep -RInE 'deferred|data-cmd-status|lastTouchedAt|sortTasksByLastTouchedAsc' tools/overview-viewer/src/components/PhaseTree.tsx tools/overview-viewer/src/components/CommandList.tsx tools/overview-viewer/src/styles.css",
+          "result": "PASS: PhaseTree still maps blocked/paused to deferred; styles.css still contains blocked/paused order tail rules; CommandList still exports and uses sortTasksByLastTouchedAsc.",
+          "evidenceKind": "inspection"
+        },
+        {
+          "criterion": "prefers-reduced-motion: reduce disables any animation added by the story",
+          "command": "grep -n '@media (prefers-reduced-motion: reduce)' -A5 tools/overview-viewer/src/styles.css && grep -n 'cmd-flash-pulse' -A4 -B2 tools/overview-viewer/src/styles.css",
+          "result": "PASS: this story adds cmd-flash-pulse animation; the existing global reduced-motion guard disables all animations with !important.",
+          "evidenceKind": "inspection"
+        },
+        {
+          "criterion": "If tools/overview-viewer/package.json changes, workspace-root pnpm-lock.yaml is regenerated and committed in the same commit; pnpm install --frozen-lockfile from repo root must succeed",
+          "command": "git diff --name-only HEAD^ HEAD | grep -E 'tools/overview-viewer/package.json|pnpm-lock.yaml' || true; pnpm install --frozen-lockfile --offline > .test-output/pnpm-install-frozen.log 2>&1",
+          "result": "PASS: package.json and pnpm-lock.yaml were unchanged for this story; frozen offline install completed successfully. Postinstall happy-wire side-effect files were restored and not committed.",
+          "evidenceKind": "command"
+        },
+        {
+          "criterion": "Commit message references the story ID and lists affected files",
+          "command": "git log -1 --format=%H%n%s%n%b",
+          "result": "Commit 33277a0b38162141c9dcdde52bdb0187b326ad80 subject references US-003; body lists affected files and the browser-automation constraint.",
+          "evidenceKind": "command"
+        }
+      ],
+      "dependencies": [
+        "US-006"
+      ],
+      "failureClassification": "",
+      "partialProgress": null
+    },
+    {
+      "id": "US-004",
+      "title": "Sticky-toolbar elevation via animation-timeline: scroll()",
+      "description": "As an operator scrolling down, I want the toolbar's shadow and backdrop-blur to fade in only after I've scrolled past the top so the page feels less cluttered above the fold.",
+      "acceptanceCriteria": [
+        ".toolbar CSS uses animation-timeline: scroll() + animation-range: 0px 24px to fade box-shadow and backdrop-filter: blur(...) from 0% to 100% over the first 24px of scroll",
+        "Older browsers (Safari < 18, Firefox without animation-timeline) keep the existing static shadow — no JS fallback",
+        "Under prefers-reduced-motion the toolbar carries the static-shadow path (US-006 guard)",
+        "Typecheck passes (pnpm --filter @codexu/overview-viewer typecheck)",
+        "Tests pass (pnpm --filter @codexu/overview-viewer test)",
+        "pnpm overview dev server starts and renders without console errors",
+        "pnpm overview:build succeeds; regenerated plans/overview.html opens cleanly under file://",
+        "Bundle size of plans/overview.html stays under 500 KB",
+        "Three existing intentional deviations from 9f81c1f8 (deferred class, blocked/paused → tail of phase bucket, lastTouchedAt-asc) still hold",
+        "prefers-reduced-motion: reduce disables any animation added by the story",
+        "If tools/overview-viewer/package.json changes, workspace-root pnpm-lock.yaml is regenerated and committed in the same commit; pnpm install --frozen-lockfile from repo root must succeed",
+        "Commit message references the story ID and lists affected files"
+      ],
+      "priority": 5,
+      "passes": true,
+      "notes": "",
+      "verifiedEvidence": [
+        {
+          "criterion": ".toolbar CSS uses animation-timeline: scroll() + animation-range: 0px 24px to fade box-shadow and backdrop-filter: blur(...) from 0% to 100% over the first 24px of scroll",
+          "command": "grep -n '.toolbar' -A38 tools/overview-viewer/src/styles.css | sed -n '1,60p'",
+          "result": "PASS: .toolbar has fallback box-shadow/backdrop-filter and an @supports (animation-timeline: scroll()) block with animation-timeline: scroll(), animation-range: 0px 24px, and toolbar-elevation keyframes fading box-shadow alpha 0 -> 0.12 and backdrop-filter blur(0) -> blur(8px).",
+          "evidenceKind": "inspection"
+        },
+        {
+          "criterion": "Older browsers (Safari < 18, Firefox without animation-timeline) keep the existing static shadow — no JS fallback",
+          "command": "grep -n '.toolbar' -A16 tools/overview-viewer/src/styles.css",
+          "result": "PASS: the default .toolbar rule keeps the static box-shadow outside @supports; the scroll animation is CSS-only and only applies inside @supports (animation-timeline: scroll()).",
+          "evidenceKind": "inspection"
+        },
+        {
+          "criterion": "Under prefers-reduced-motion the toolbar carries the static-shadow path (US-006 guard)",
+          "command": "grep -n '@media (prefers-reduced-motion: reduce)' -A5 tools/overview-viewer/src/styles.css; grep -n 'toolbar-elevation' -A20 tools/overview-viewer/src/styles.css",
+          "result": "PASS: the global reduced-motion guard disables animation; the toolbar-specific reduced-motion rule restores the static 0 4px 12px shadow and blur(8px).",
+          "evidenceKind": "inspection"
+        },
+        {
+          "criterion": "Typecheck passes (pnpm --filter @codexu/overview-viewer typecheck)",
+          "command": "pnpm --filter @codexu/overview-viewer typecheck > .test-output/overview-viewer.typecheck.log 2>&1",
+          "result": "PASS: tsc --noEmit completed with exit 0.",
+          "evidenceKind": "typecheck"
+        },
+        {
+          "criterion": "Tests pass (pnpm --filter @codexu/overview-viewer test)",
+          "command": "pnpm --filter @codexu/overview-viewer test > .test-output/overview-viewer.test.log 2>&1",
+          "result": "PASS: Vitest reported 12 test files passed, 44 tests passed.",
+          "evidenceKind": "test"
+        },
+        {
+          "criterion": "pnpm overview dev server starts and renders without console errors",
+          "command": "curl -fsS http://127.0.0.1:5173/overview.html > /tmp/overview.html.smoke && curl -fsS http://127.0.0.1:5173/overview-data.js > /tmp/overview-data.js.smoke && grep -q '<div id=\"root\"></div>' /tmp/overview.html.smoke && grep -q 'window.OVERVIEW_DATA' /tmp/overview-data.js.smoke",
+          "result": "HTTP smoke PASS: existing dev server served overview.html with root node and overview-data.js with window.OVERVIEW_DATA. SKIPPED: browser console verification unavailable because browser automation is not installed.",
+          "evidenceKind": "skipped"
+        },
+        {
+          "criterion": "pnpm overview:build succeeds; regenerated plans/overview.html opens cleanly under file://",
+          "command": "pnpm overview:build > .test-output/overview-viewer.build.log 2>&1; grep -nE '<script[^>]+src=|<link[^>]+href=' plans/overview.html || true; grep -n '<div id=\"root\"></div>' plans/overview.html",
+          "result": "Build PASS: Vite built plans/overview.html successfully; static artifact has root node and no external script/link refs. SKIPPED: live file:// browser open unavailable without browser automation.",
+          "evidenceKind": "build"
+        },
+        {
+          "criterion": "Bundle size of plans/overview.html stays under 500 KB",
+          "command": "stat -c%s plans/overview.html",
+          "result": "449870 bytes (< 500000).",
+          "evidenceKind": "command"
+        },
+        {
+          "criterion": "Three existing intentional deviations from 9f81c1f8 (deferred class, blocked/paused -> tail of phase bucket, lastTouchedAt-asc) still hold",
+          "command": "grep -RInE 'deferred|data-cmd-status|lastTouchedAt|sortTasksByLastTouchedAsc' tools/overview-viewer/src/components/PhaseTree.tsx tools/overview-viewer/src/components/CommandList.tsx tools/overview-viewer/src/styles.css",
+          "result": "PASS: PhaseTree still maps blocked/paused to deferred; styles.css still contains blocked/paused order tail rules; CommandList still exports and uses sortTasksByLastTouchedAsc.",
+          "evidenceKind": "inspection"
+        },
+        {
+          "criterion": "prefers-reduced-motion: reduce disables any animation added by the story",
+          "command": "grep -n '@media (prefers-reduced-motion: reduce)' -A5 tools/overview-viewer/src/styles.css && grep -n 'toolbar-elevation' -A20 tools/overview-viewer/src/styles.css",
+          "result": "PASS: this story adds toolbar-elevation animation; the global reduced-motion guard disables all animations with !important and the toolbar reduced-motion rule keeps the static elevation state.",
+          "evidenceKind": "inspection"
+        },
+        {
+          "criterion": "If tools/overview-viewer/package.json changes, workspace-root pnpm-lock.yaml is regenerated and committed in the same commit; pnpm install --frozen-lockfile from repo root must succeed",
+          "command": "git diff --name-only HEAD^ HEAD | grep -E 'tools/overview-viewer/package.json|pnpm-lock.yaml' || true; pnpm install --frozen-lockfile --offline > .test-output/pnpm-install-frozen.log 2>&1",
+          "result": "PASS: package.json and pnpm-lock.yaml were unchanged for this story; frozen offline install completed successfully. Postinstall happy-wire side-effect files were restored and not committed.",
+          "evidenceKind": "command"
+        },
+        {
+          "criterion": "Commit message references the story ID and lists affected files",
+          "command": "git log -1 --format=%H%n%s%n%b",
+          "result": "Commit 78a993a7de736bdf8c97ccf1623d0784a862e367 subject references US-004; body lists styles.css and plans/overview.html plus the CSS-only bundle constraint.",
+          "evidenceKind": "command"
+        }
+      ],
+      "dependencies": [
+        "US-006"
+      ],
+      "failureClassification": "",
+      "partialProgress": null
+    },
+    {
+      "id": "US-005",
+      "title": "Bucket-count chips in section summaries (Kanban + Commands)",
+      "description": "As an operator, I want a per-bucket count chip in section summaries so I can triage without expanding.",
+      "acceptanceCriteria": [
+        "Kanban.tsx summary renders a count chip per kanban column (ready / soon / blocked)",
+        "CommandList.tsx summary renders a count chip per phase bucket (brainstorm / inprogress / ready / shipped / closed); counts come from useTaskClassification.orderBucket aggregation",
+        "Counts update reactively when filters change (reflect post-filter visible tasks)",
+        "Styling reuses existing .section-counts span — no new CSS classes",
+        "Typecheck passes (pnpm --filter @codexu/overview-viewer typecheck)",
+        "Tests pass (pnpm --filter @codexu/overview-viewer test)",
+        "pnpm overview dev server starts and renders without console errors",
+        "pnpm overview:build succeeds; regenerated plans/overview.html opens cleanly under file://",
+        "Bundle size of plans/overview.html stays under 500 KB",
+        "Three existing intentional deviations from 9f81c1f8 (deferred class, blocked/paused → tail of phase bucket, lastTouchedAt-asc) still hold",
+        "prefers-reduced-motion: reduce disables any animation added by the story",
+        "If tools/overview-viewer/package.json changes, workspace-root pnpm-lock.yaml is regenerated and committed in the same commit; pnpm install --frozen-lockfile from repo root must succeed",
+        "Commit message references the story ID and lists affected files"
+      ],
+      "priority": 6,
+      "passes": true,
+      "notes": "",
+      "verifiedEvidence": [
+        {
+          "criterion": "Kanban.tsx summary renders a count chip per kanban column (ready / soon / blocked)",
+          "command": "grep -RInE 'countVisibleKanbanCardsByColumn|counts-kanban|ready|soon|blocked' tools/overview-viewer/src/components/Kanban.tsx tools/overview-viewer/src/__tests__/kanban.test.tsx",
+          "result": "PASS: Kanban summary renders counts-kanban with existing sc chips for ready, soon, and blocked; kanban.test.tsx verifies visible-column counts.",
+          "evidenceKind": "inspection"
+        },
+        {
+          "criterion": "CommandList.tsx summary renders a count chip per phase bucket (brainstorm / inprogress / ready / shipped / closed); counts come from useTaskClassification.orderBucket aggregation",
+          "command": "grep -RInE 'countVisibleTasksByOrderBucket|orderBucketForTask|counts-cmds|brainstorm|in progress|ready|shipped|closed' tools/overview-viewer/src/components/CommandList.tsx tools/overview-viewer/src/__tests__/commandList.test.tsx",
+          "result": "PASS: CommandList owns the commands section summary, aggregates visible tasks with orderBucketForTask (the same source used by useTaskClassification.orderBucket), and renders brainstorm/inprogress/ready/shipped/closed chips; commandList.test.tsx verifies the aggregation.",
+          "evidenceKind": "inspection"
+        },
+        {
+          "criterion": "Counts update reactively when filters change (reflect post-filter visible tasks)",
+          "command": "pnpm --filter @codexu/overview-viewer test > .test-output/overview-viewer.test.log 2>&1",
+          "result": "PASS: SSR tests pass visibleTaskIds into Kanban and CommandList and assert the summaries render filtered counts; suite passed 12 files / 46 tests.",
+          "evidenceKind": "test"
+        },
+        {
+          "criterion": "Styling reuses existing .section-counts span — no new CSS classes",
+          "command": "grep -RIn 'section-counts' tools/overview-viewer/src/components/Kanban.tsx tools/overview-viewer/src/components/CommandList.tsx && git diff -- tools/overview-viewer/src/styles.css",
+          "result": "PASS: both summaries use the existing section-counts span and existing sc/sc-* chip classes; styles.css has no diff.",
+          "evidenceKind": "inspection"
+        },
+        {
+          "criterion": "Typecheck passes (pnpm --filter @codexu/overview-viewer typecheck)",
+          "command": "pnpm --filter @codexu/overview-viewer typecheck > .test-output/overview-viewer.typecheck.log 2>&1",
+          "result": "PASS: tsc --noEmit completed with exit 0.",
+          "evidenceKind": "typecheck"
+        },
+        {
+          "criterion": "Tests pass (pnpm --filter @codexu/overview-viewer test)",
+          "command": "pnpm --filter @codexu/overview-viewer test > .test-output/overview-viewer.test.log 2>&1",
+          "result": "PASS: Vitest reported 12 test files passed, 46 tests passed.",
+          "evidenceKind": "test"
+        },
+        {
+          "criterion": "pnpm overview dev server starts and renders without console errors",
+          "command": "curl -fsS http://127.0.0.1:5173/overview.html > /tmp/overview.html.smoke && curl -fsS http://127.0.0.1:5173/overview-data.js > /tmp/overview-data.js.smoke && grep -q '<div id=\"root\"></div>' /tmp/overview.html.smoke && grep -q 'window.OVERVIEW_DATA' /tmp/overview-data.js.smoke",
+          "result": "HTTP smoke PASS: existing dev server served overview.html with root node and overview-data.js with window.OVERVIEW_DATA. SKIPPED: browser console verification unavailable because browser automation is not installed.",
+          "evidenceKind": "skipped"
+        },
+        {
+          "criterion": "pnpm overview:build succeeds; regenerated plans/overview.html opens cleanly under file://",
+          "command": "pnpm overview:build > .test-output/overview-viewer.build.log 2>&1; grep -nE '<script[^>]+src=|<link[^>]+href=' plans/overview.html || true; grep -n '<div id=\"root\"></div>' plans/overview.html",
+          "result": "Build PASS: Vite built plans/overview.html successfully; static artifact has root node and no external script/link refs. SKIPPED: live file:// browser open unavailable without browser automation.",
+          "evidenceKind": "build"
+        },
+        {
+          "criterion": "Bundle size of plans/overview.html stays under 500 KB",
+          "command": "stat -c%s plans/overview.html",
+          "result": "450897 bytes (< 500000).",
+          "evidenceKind": "command"
+        },
+        {
+          "criterion": "Three existing intentional deviations from 9f81c1f8 (deferred class, blocked/paused → tail of phase bucket, lastTouchedAt-asc) still hold",
+          "command": "grep -RInE 'deferred|data-cmd-status|lastTouchedAt|sortTasksByLastTouchedAsc' tools/overview-viewer/src/components/PhaseTree.tsx tools/overview-viewer/src/components/CommandList.tsx tools/overview-viewer/src/styles.css",
+          "result": "PASS: PhaseTree still maps blocked/paused to deferred; styles.css still contains blocked/paused order tail rules; CommandList still exports and uses sortTasksByLastTouchedAsc.",
+          "evidenceKind": "inspection"
+        },
+        {
+          "criterion": "prefers-reduced-motion: reduce disables any animation added by the story",
+          "command": "grep -n '@media (prefers-reduced-motion: reduce)' -A5 tools/overview-viewer/src/styles.css",
+          "result": "PASS: this story adds no animation; the existing global reduced-motion guard remains in place and disables all transitions/animations with !important.",
+          "evidenceKind": "inspection"
+        },
+        {
+          "criterion": "If tools/overview-viewer/package.json changes, workspace-root pnpm-lock.yaml is regenerated and committed in the same commit; pnpm install --frozen-lockfile from repo root must succeed",
+          "command": "git diff --name-only HEAD^ HEAD | grep -E 'tools/overview-viewer/package.json|pnpm-lock.yaml' || true; pnpm install --frozen-lockfile --offline > .test-output/pnpm-install-frozen.log 2>&1",
+          "result": "PASS: package.json and pnpm-lock.yaml were unchanged for this story; frozen offline install completed successfully. Postinstall side-effect files were restored and not committed.",
+          "evidenceKind": "command"
+        },
+        {
+          "criterion": "Commit message references the story ID and lists affected files",
+          "command": "git log -1 --format=%H%n%s%n%b --name-only",
+          "result": "Commit bf05841cd0908dab0582357411af32dffadca6bb subject references US-005; body lists affected files and the section-counts CSS constraint.",
+          "evidenceKind": "command"
+        }
+      ],
+      "dependencies": [
+        "US-006"
+      ],
+      "failureClassification": "",
+      "partialProgress": null
+    },
+    {
+      "id": "US-007",
+      "title": "Copy-Command success toast (fixes silent-copy bug)",
+      "description": "As an operator clicking \"Copy Command\", I want visible confirmation that the copy succeeded so I don't double-paste in my terminal.",
+      "acceptanceCriteria": [
+        "New tools/overview-viewer/src/components/CopyToast.tsx rendered at App.tsx as a single bottom-right surface (role=\"status\")",
+        "New useToast hook in src/hooks/ exposes { showToast(text), currentToast }; all copy buttons (CopyName, CopyCommand, BulkCopy, future markdown-link from US-008) dispatch via this hook",
+        "On copy success the toast shows \"Copied `<task-id>` (N KB)\" and auto-dismisses after 1.2s; the button gets .copied class briefly (existing CSS at styles.css:958)",
+        "On clipboard failure (writeClipboard returns false) no toast is rendered",
+        "utils/clipboard.ts's boolean return is propagated to the caller in TaskCommand.tsx",
+        "CSS keyframe slide-in for the toast respects prefers-reduced-motion (US-006 guard)",
+        "New test file tools/overview-viewer/src/__tests__/copyToast.test.tsx covers: render with text, auto-dismiss timing (vitest fake timers), useToast dispatch, no toast on failure",
+        "App.tsx is on the modified-file list and mounts the single CopyToast surface",
+        "Typecheck passes (pnpm --filter @codexu/overview-viewer typecheck)",
+        "Tests pass (pnpm --filter @codexu/overview-viewer test)",
+        "pnpm overview dev server starts and renders without console errors",
+        "pnpm overview:build succeeds; regenerated plans/overview.html opens cleanly under file://",
+        "Bundle size of plans/overview.html stays under 500 KB",
+        "Three existing intentional deviations from 9f81c1f8 (deferred class, blocked/paused → tail of phase bucket, lastTouchedAt-asc) still hold",
+        "prefers-reduced-motion: reduce disables any animation added by the story",
+        "If tools/overview-viewer/package.json changes, workspace-root pnpm-lock.yaml is regenerated and committed in the same commit; pnpm install --frozen-lockfile from repo root must succeed",
+        "Commit message references the story ID and lists affected files"
+      ],
+      "priority": 7,
+      "passes": true,
+      "notes": "",
+      "verifiedEvidence": [
+        {
+          "criterion": "CopyToast component rendered at App as a single bottom-right role=status surface",
+          "command": "grep CopyToast/App/styles",
+          "result": "PASS: CopyToast.tsx exports a role=\"status\" .copy-toast; App.tsx mounts one <CopyToast text={toast.currentToast} />; CSS fixes it bottom-right.",
+          "evidenceKind": "inspection"
+        },
+        {
+          "criterion": "useToast exposes showToast/currentToast and copy buttons dispatch through it",
+          "command": "grep useToast/showToast threading",
+          "result": "PASS: useToast returns { currentToast, showToast }; App owns one instance and passes showToast to Toolbar and CommandList; CopyName, CopyCommand, and BulkCopy call copyTextWithToast with that callback.",
+          "evidenceKind": "inspection"
+        },
+        {
+          "criterion": "Successful copy shows Copied `<task-id>` (N KB), auto-dismisses after 1.2s, and button gets .copied briefly",
+          "command": "grep copyFeedback/useToast/useCopiedFeedback plus pnpm --filter @codexu/overview-viewer test",
+          "result": "PASS: formatCopiedToast emits Copied `<label>` (N KB); fake-timer test verifies 1200ms auto-dismiss; useCopiedFeedback applies temporary .copied; suite passed 13 files / 52 tests.",
+          "evidenceKind": "test"
+        },
+        {
+          "criterion": "Clipboard failure renders no toast",
+          "command": "pnpm --filter @codexu/overview-viewer test",
+          "result": "PASS: copyToast.test.tsx mocks write=false and asserts showToast is not called; suite passed 13 files / 52 tests.",
+          "evidenceKind": "test"
+        },
+        {
+          "criterion": "utils/clipboard.ts boolean return is propagated to TaskCommand caller",
+          "command": "grep copyTextWithToast TaskCommand.tsx",
+          "result": "PASS: copyTextWithToast awaits writeClipboard's boolean and returns it; TaskCommand awaits the result before calling markCopied.",
+          "evidenceKind": "inspection"
+        },
+        {
+          "criterion": "Toast slide-in keyframe respects prefers-reduced-motion",
+          "command": "grep prefers-reduced-motion and copy-toast-slide-in styles.css",
+          "result": "PASS: .copy-toast uses copy-toast-slide-in; the global reduced-motion guard disables all animation/transition declarations with !important.",
+          "evidenceKind": "inspection"
+        },
+        {
+          "criterion": "copyToast.test.tsx covers render, auto-dismiss fake timers, dispatch, and failure",
+          "command": "grep tests and pnpm --filter @codexu/overview-viewer test",
+          "result": "PASS: test names cover render with text, fake-timer auto-dismiss via the useToast dispatcher, successful dispatch, and no toast on failure; suite passed 13 files / 52 tests.",
+          "evidenceKind": "test"
+        },
+        {
+          "criterion": "App.tsx modified and mounts CopyToast singleton",
+          "command": "git log -1 --name-only; grep <CopyToast App.tsx",
+          "result": "PASS: commit includes tools/overview-viewer/src/App.tsx and App mounts <CopyToast text={toast.currentToast} /> once.",
+          "evidenceKind": "inspection"
+        },
+        {
+          "criterion": "Typecheck passes (pnpm --filter @codexu/overview-viewer typecheck)",
+          "command": "pnpm --filter @codexu/overview-viewer typecheck > .test-output/overview-viewer.typecheck.log 2>&1",
+          "result": "PASS: tsc --noEmit completed with exit 0.",
+          "evidenceKind": "typecheck"
+        },
+        {
+          "criterion": "Tests pass (pnpm --filter @codexu/overview-viewer test)",
+          "command": "pnpm --filter @codexu/overview-viewer test > .test-output/overview-viewer.test.log 2>&1",
+          "result": "PASS: Vitest reported 13 test files passed, 52 tests passed.",
+          "evidenceKind": "test"
+        },
+        {
+          "criterion": "pnpm overview dev server starts and renders without console errors",
+          "command": "curl -fsS http://127.0.0.1:5173/overview.html; curl -fsS http://127.0.0.1:5173/overview-data.js",
+          "result": "HTTP smoke PASS: existing dev server served root HTML and window.OVERVIEW_DATA. SKIPPED: browser console verification unavailable because browser automation is not installed.",
+          "evidenceKind": "skipped"
+        },
+        {
+          "criterion": "pnpm overview:build succeeds and regenerated plans/overview.html opens cleanly under file://",
+          "command": "pnpm overview:build > .test-output/overview-viewer.build.log 2>&1; grep root/external refs plans/overview.html",
+          "result": "Build PASS: Vite built plans/overview.html; static artifact has root node and no external script/link refs. SKIPPED: live file:// browser open unavailable without browser automation.",
+          "evidenceKind": "build"
+        },
+        {
+          "criterion": "Bundle size stays under 500 KB",
+          "command": "stat -c%s plans/overview.html",
+          "result": "452906 bytes (< 500000).",
+          "evidenceKind": "command"
+        },
+        {
+          "criterion": "Three intentional deviations still hold",
+          "command": "grep deferred/data-cmd-status/lastTouchedAt/sortTasksByLastTouchedAsc",
+          "result": "PASS: PhaseTree still maps blocked/paused to deferred; CSS still contains blocked/paused tail ordering; CommandList still sorts by lastTouchedAt ascending.",
+          "evidenceKind": "inspection"
+        },
+        {
+          "criterion": "prefers-reduced-motion disables animation added by the story",
+          "command": "grep prefers-reduced-motion and copy-toast-slide-in styles.css",
+          "result": "PASS: this story adds copy-toast-slide-in; the global reduced-motion guard disables all animations with !important.",
+          "evidenceKind": "inspection"
+        },
+        {
+          "criterion": "package/lockfile handling and frozen install",
+          "command": "git show --name-only --format= HEAD | grep package/lock || true; pnpm install --frozen-lockfile --offline",
+          "result": "PASS: package.json and pnpm-lock.yaml were unchanged; frozen offline install completed. Postinstall happy-wire side-effect files were restored and not committed.",
+          "evidenceKind": "command"
+        },
+        {
+          "criterion": "Commit message references story ID and lists affected files",
+          "command": "git log -1 --format=%H%n%s%n%b --name-only",
+          "result": "PASS: commit 754bf7a69ea939cfef1b6c6bc54442fc8d8f3b76 subject references US-007; body lists affected files and includes relevant trailers.",
+          "evidenceKind": "command"
+        }
+      ],
+      "dependencies": [
+        "US-001",
+        "US-002",
+        "US-003",
+        "US-004",
+        "US-005",
+        "US-006"
+      ],
+      "failureClassification": "",
+      "partialProgress": null
+    },
+    {
+      "id": "US-008",
+      "title": "Per-row quick-actions strip",
+      "description": "As an operator, I want one-click access to per-task operations from the row summary so I don't have to expand the row to navigate.",
+      "acceptanceCriteria": [
+        "TaskCommand.tsx summary .cmd-actions cluster gets these icon-only buttons (conditional render):",
+        "  Copy markdown link — always; emits [`task-id`](file://.../overview.html#cmd-task-id) via the US-007 toast pipeline",
+        "  Copy ID + status — always; emits `task-id [phase/status]`",
+        "  ↑ parent — only when data.spawnedFrom[task.id] is set; links to #cmd-<parentId>",
+        "  ↓ N children — only when reverse lookup of data.spawnedFrom has any children; links to first child or expands a sub-list",
+        "  Jump to kanban card — only when task.kanbanCards?.length > 0",
+        "Each button has an aria-label and is keyboard-focusable in tab order",
+        "Strip is hidden by default and revealed on :hover or :focus-within on the row (verifiable by computed opacity / visibility toggling)",
+        "Buttons reuse the toast singleton from US-007 for copy operations",
+        "Icon-only buttons have title= attributes (will be upgraded to Radix Tooltip in US-014)",
+        "Typecheck passes (pnpm --filter @codexu/overview-viewer typecheck)",
+        "Tests pass (pnpm --filter @codexu/overview-viewer test)",
+        "pnpm overview dev server starts and renders without console errors",
+        "pnpm overview:build succeeds; regenerated plans/overview.html opens cleanly under file://",
+        "Bundle size of plans/overview.html stays under 500 KB",
+        "Three existing intentional deviations from 9f81c1f8 (deferred class, blocked/paused → tail of phase bucket, lastTouchedAt-asc) still hold",
+        "prefers-reduced-motion: reduce disables any animation added by the story",
+        "If tools/overview-viewer/package.json changes, workspace-root pnpm-lock.yaml is regenerated and committed in the same commit; pnpm install --frozen-lockfile from repo root must succeed",
+        "Commit message references the story ID and lists affected files"
+      ],
+      "priority": 8,
+      "passes": true,
+      "notes": "",
+      "verifiedEvidence": [
+        {
+          "criterion": "cmd-actions quick-action strip",
+          "command": "grep QuickActions TaskCommand.tsx; pnpm --filter @codexu/overview-viewer test",
+          "result": "PASS: .quick-actions strip renders QuickCopyButton/QuickNavButton; tests passed 13 files / 54 tests.",
+          "evidenceKind": "test"
+        },
+        {
+          "criterion": "Copy markdown link",
+          "command": "grep overviewMarkdownLink TaskCommand.tsx",
+          "result": "PASS: always-rendered Copy markdown link uses overviewMarkdownLink and copyTextWithToast/showToast; file:// static URL path is used when opened from file://.",
+          "evidenceKind": "inspection"
+        },
+        {
+          "criterion": "Copy ID + status",
+          "command": "grep taskStatusLabel TaskCommand.tsx",
+          "result": "PASS: always-rendered Copy ID and status emits task.id plus [phase/status].",
+          "evidenceKind": "inspection"
+        },
+        {
+          "criterion": "Parent quick action",
+          "command": "grep 'Jump to parent' TaskCommand.tsx; pnpm --filter @codexu/overview-viewer test",
+          "result": "PASS: parent button is conditional on parentId and calls navigateToCommand(parentId), which sets #cmd-parentId; SSR test covers a real parent.",
+          "evidenceKind": "test"
+        },
+        {
+          "criterion": "Children quick action",
+          "command": "grep 'Jump to first child' TaskCommand.tsx; pnpm --filter @codexu/overview-viewer test",
+          "result": "PASS: child button is conditional on childrenByParent[task.id], displays child count, and navigates to first child; SSR test covers a real child.",
+          "evidenceKind": "test"
+        },
+        {
+          "criterion": "Kanban quick action",
+          "command": "grep 'Jump to kanban card' TaskCommand.tsx; grep kanban-card- Kanban.tsx; pnpm --filter @codexu/overview-viewer test",
+          "result": "PASS: kanban button is conditional on kanbanCards length and targets stable kanban-card-taskId-0 IDs; kanban test verifies IDs.",
+          "evidenceKind": "test"
+        },
+        {
+          "criterion": "aria-label and keyboard focus",
+          "command": "grep 'aria-label={ariaLabel}' TaskCommand.tsx",
+          "result": "PASS: quick actions are native button elements with aria-labels, so they are keyboard focusable in tab order.",
+          "evidenceKind": "inspection"
+        },
+        {
+          "criterion": "Hidden until hover/focus-within",
+          "command": "grep -nE 'quick-actions|focus-within|opacity: 0|visibility: hidden' styles.css; pnpm --filter @codexu/overview-viewer test",
+          "result": "PASS: CSS hides .quick-actions by default and reveals on .cmd:hover or .cmd:focus-within; static test covers the contract. SKIPPED: live computed-style browser check unavailable.",
+          "evidenceKind": "test"
+        },
+        {
+          "criterion": "Reuse toast singleton",
+          "command": "grep -RInE 'QuickCopyButton|copyTextWithToast|showToast' TaskCommand.tsx CommandList.tsx App.tsx",
+          "result": "PASS: QuickCopyButton receives threaded showToast and calls copyTextWithToast, reusing App's single toast pipeline.",
+          "evidenceKind": "inspection"
+        },
+        {
+          "criterion": "title attributes",
+          "command": "grep -RInE 'title=|Copy markdown link|Copy ID and status|Jump to parent|Jump to first child|Jump to kanban card' TaskCommand.tsx commandList.test.tsx",
+          "result": "PASS: every icon-only quick action passes a title prop; SSR test asserts copy-action titles.",
+          "evidenceKind": "inspection"
+        },
+        {
+          "criterion": "Typecheck",
+          "command": "pnpm --filter @codexu/overview-viewer typecheck > .test-output/overview-viewer.typecheck.log 2>&1",
+          "result": "PASS: tsc --noEmit completed with exit 0.",
+          "evidenceKind": "typecheck"
+        },
+        {
+          "criterion": "Tests",
+          "command": "pnpm --filter @codexu/overview-viewer test > .test-output/overview-viewer.test.log 2>&1",
+          "result": "PASS: Vitest reported 13 test files passed, 54 tests passed.",
+          "evidenceKind": "test"
+        },
+        {
+          "criterion": "Dev server smoke",
+          "command": "curl -fsS http://127.0.0.1:5173/overview.html; curl -fsS http://127.0.0.1:5173/overview-data.js",
+          "result": "HTTP smoke PASS: root HTML and window.OVERVIEW_DATA served. SKIPPED: browser console verification unavailable.",
+          "evidenceKind": "skipped"
+        },
+        {
+          "criterion": "Build and file artifact",
+          "command": "pnpm overview:build > .test-output/overview-viewer.build.log 2>&1; grep root/external refs plans/overview.html",
+          "result": "Build PASS: Vite regenerated plans/overview.html; root node present and no external script/link refs. SKIPPED: live file:// browser open unavailable.",
+          "evidenceKind": "build"
+        },
+        {
+          "criterion": "Bundle size",
+          "command": "stat -c%s plans/overview.html",
+          "result": "455647 bytes (< 500000).",
+          "evidenceKind": "command"
+        },
+        {
+          "criterion": "Intentional deviations preserved",
+          "command": "grep -RInE 'deferred|data-cmd-status|lastTouchedAt|sortTasksByLastTouchedAsc' PhaseTree.tsx CommandList.tsx styles.css",
+          "result": "PASS: deferred class, blocked/paused tail ordering, and lastTouchedAt ascending sort remain present.",
+          "evidenceKind": "inspection"
+        },
+        {
+          "criterion": "Reduced motion",
+          "command": "grep -n '@media (prefers-reduced-motion: reduce)' -A5 styles.css; grep 'transition: opacity 0.12s' styles.css",
+          "result": "PASS: story adds an opacity transition; global reduced-motion guard disables all transitions with !important.",
+          "evidenceKind": "inspection"
+        },
+        {
+          "criterion": "Package lock handling",
+          "command": "git diff --name-only -- tools/overview-viewer/package.json pnpm-lock.yaml || true; pnpm install --frozen-lockfile --offline",
+          "result": "PASS: package.json and pnpm-lock.yaml unchanged; frozen offline install passed. happy-wire postinstall side effects restored and not committed.",
+          "evidenceKind": "command"
+        },
+        {
+          "criterion": "Commit message",
+          "command": "git log -1 --format=%H%n%s%n%b --name-only",
+          "result": "PASS: commit 9a90b06c1a827ecfd75f41db9dee6bfd3c8edb3d references US-008 and lists affected files.",
+          "evidenceKind": "command"
+        }
+      ],
+      "dependencies": [
+        "US-007"
+      ],
+      "failureClassification": "",
+      "partialProgress": null
+    },
+    {
+      "id": "US-009",
+      "title": "Density toggle (comfortable / compact) in toolbar",
+      "description": "As an operator with many tasks visible, I want a compact mode that shrinks row padding and hides description sub-text so I can see more rows at once.",
+      "acceptanceCriteria": [
+        "Toolbar.tsx has a density toggle button (two states: Comfortable / Compact)",
+        "On toggle, <body> gets/loses class compact; persisted to localStorage under key codexu-overview-density-v1",
+        "CSS rule body.compact .cmd { padding: 4px 8px; } body.compact .cmd-desc, body.compact .sub { display: none; } (or equivalent — compact mode reduces row vertical padding by ≥ 30% versus comfortable)",
+        "Reads localStorage on mount; sensible default (comfortable) when no value stored",
+        "New test file tools/overview-viewer/src/__tests__/density.test.ts covers: localStorage round-trip, default value, key-versioning collision",
+        "Typecheck passes (pnpm --filter @codexu/overview-viewer typecheck)",
+        "Tests pass (pnpm --filter @codexu/overview-viewer test)",
+        "pnpm overview dev server starts and renders without console errors",
+        "pnpm overview:build succeeds; regenerated plans/overview.html opens cleanly under file://",
+        "Bundle size of plans/overview.html stays under 500 KB",
+        "Three existing intentional deviations from 9f81c1f8 (deferred class, blocked/paused → tail of phase bucket, lastTouchedAt-asc) still hold",
+        "prefers-reduced-motion: reduce disables any animation added by the story",
+        "If tools/overview-viewer/package.json changes, workspace-root pnpm-lock.yaml is regenerated and committed in the same commit; pnpm install --frozen-lockfile from repo root must succeed",
+        "Commit message references the story ID and lists affected files"
+      ],
+      "priority": 9,
+      "passes": true,
+      "notes": "",
+      "verifiedEvidence": [
+        {
+          "criterion": "Toolbar.tsx has a density toggle button (two states: Comfortable / Compact)",
+          "command": "grep -RInE \"DensityToggleButton|density-toggle|Comfortable|Compact\" tools/overview-viewer/src/components/Toolbar.tsx tools/overview-viewer/src/__tests__/density.test.ts",
+          "result": "PASS: Toolbar renders DensityToggleButton with Comfortable and Compact labels, aria-pressed state, and density.test.ts asserts both rendered states.",
+          "evidenceKind": "test"
+        },
+        {
+          "criterion": "On toggle, <body> gets/loses class compact; persisted to localStorage under key codexu-overview-density-v1",
+          "command": "grep -RInE \"DENSITY_STORAGE_KEY|codexu-overview-density-v1|applyBodyDensityClass|toggleDensity|writeDensityPreference\" tools/overview-viewer/src/hooks/useDensity.ts tools/overview-viewer/src/App.tsx tools/overview-viewer/src/components/Toolbar.tsx tools/overview-viewer/src/__tests__/density.test.ts && pnpm --filter @codexu/overview-viewer test",
+          "result": "PASS: App owns useDensity and passes toggleDensity to Toolbar; useDensity persists codexu-overview-density-v1 and applies body.classList.toggle('compact', ...). density.test.ts verifies storage round-trip and compact class add/remove; suite passed 14 files / 60 tests.",
+          "evidenceKind": "test"
+        },
+        {
+          "criterion": "CSS rule body.compact .cmd { padding: 4px 8px; } body.compact .cmd-desc, body.compact .sub { display: none; } (or equivalent — compact mode reduces row vertical padding by ≥ 30% versus comfortable)",
+          "command": "grep -n 'body.compact' -A2 tools/overview-viewer/src/styles.css",
+          "result": "PASS: styles.css defines body.compact .cmd { padding: 4px 8px; } and hides body.compact .cmd-desc plus body.compact .sub, reducing vertical row padding by 50% versus 8px 12px comfortable rows.",
+          "evidenceKind": "inspection"
+        },
+        {
+          "criterion": "Reads localStorage on mount; sensible default (comfortable) when no value stored",
+          "command": "grep -RInE \"useState<Density>|readDensityPreference|getLocalStorage|comfortable\" tools/overview-viewer/src/hooks/useDensity.ts tools/overview-viewer/src/__tests__/density.test.ts",
+          "result": "PASS: useDensity initializes from readDensityPreference(getLocalStorage()); readDensityPreference returns comfortable when storage is absent or unset, and density.test.ts verifies the default.",
+          "evidenceKind": "test"
+        },
+        {
+          "criterion": "New test file tools/overview-viewer/src/__tests__/density.test.ts covers: localStorage round-trip, default value, key-versioning collision",
+          "command": "grep -RInE \"round-trips compact mode|defaults to comfortable|ignores older density keys|codexu-overview-density\" tools/overview-viewer/src/__tests__/density.test.ts",
+          "result": "PASS: density.test.ts exists and covers localStorage round-trip, default comfortable value, and ignoring older/unversioned density keys plus malformed values.",
+          "evidenceKind": "inspection"
+        },
+        {
+          "criterion": "Typecheck passes (pnpm --filter @codexu/overview-viewer typecheck)",
+          "command": "pnpm --filter @codexu/overview-viewer typecheck > .test-output/overview-viewer.typecheck.log 2>&1",
+          "result": "PASS: tsc --noEmit completed with exit 0 after the final test-file rename.",
+          "evidenceKind": "typecheck"
+        },
+        {
+          "criterion": "Tests pass (pnpm --filter @codexu/overview-viewer test)",
+          "command": "pnpm --filter @codexu/overview-viewer test > .test-output/overview-viewer.test.log 2>&1",
+          "result": "PASS: Vitest reported 14 test files passed, 60 tests passed after the final test-file rename.",
+          "evidenceKind": "test"
+        },
+        {
+          "criterion": "pnpm overview dev server starts and renders without console errors",
+          "command": "curl -fsS http://127.0.0.1:5173/overview.html > /tmp/overview.html.smoke && curl -fsS http://127.0.0.1:5173/overview-data.js > /tmp/overview-data.js.smoke && grep -q '<div id=\"root\"></div>' /tmp/overview.html.smoke && grep -q 'window.OVERVIEW_DATA' /tmp/overview-data.js.smoke",
+          "result": "HTTP smoke PASS: existing dev server served overview.html with root node and overview-data.js with window.OVERVIEW_DATA. SKIPPED: browser console verification unavailable because browser automation is not installed.",
+          "evidenceKind": "skipped"
+        },
+        {
+          "criterion": "pnpm overview:build succeeds; regenerated plans/overview.html opens cleanly under file://",
+          "command": "pnpm overview:build > .test-output/overview-viewer.build.log 2>&1; grep -nE '<script[^>]+src=|<link[^>]+href=' plans/overview.html || true; grep -n '<div id=\"root\"></div>' plans/overview.html",
+          "result": "Build PASS: Vite regenerated plans/overview.html successfully; static artifact has root node and no external script/link refs. SKIPPED: live file:// browser open unavailable without browser automation.",
+          "evidenceKind": "build"
+        },
+        {
+          "criterion": "Bundle size of plans/overview.html stays under 500 KB",
+          "command": "stat -c%s plans/overview.html",
+          "result": "457004 bytes (< 500000).",
+          "evidenceKind": "command"
+        },
+        {
+          "criterion": "Three existing intentional deviations from 9f81c1f8 (deferred class, blocked/paused → tail of phase bucket, lastTouchedAt-asc) still hold",
+          "command": "grep -RInE \"deferred|data-cmd-status|lastTouchedAt|sortTasksByLastTouchedAsc\" tools/overview-viewer/src/components/PhaseTree.tsx tools/overview-viewer/src/components/CommandList.tsx tools/overview-viewer/src/styles.css",
+          "result": "PASS: PhaseTree still maps blocked/paused to deferred; styles.css still contains blocked/paused tail ordering; CommandList still exports and uses sortTasksByLastTouchedAsc.",
+          "evidenceKind": "inspection"
+        },
+        {
+          "criterion": "prefers-reduced-motion: reduce disables any animation added by the story",
+          "command": "grep -n '@media (prefers-reduced-motion: reduce)' -A5 tools/overview-viewer/src/styles.css; grep -n 'density-toggle' -A12 tools/overview-viewer/src/styles.css",
+          "result": "PASS: this story adds no animation; the existing global reduced-motion guard remains in place and disables all animations/transitions with !important.",
+          "evidenceKind": "inspection"
+        },
+        {
+          "criterion": "If tools/overview-viewer/package.json changes, workspace-root pnpm-lock.yaml is regenerated and committed in the same commit; pnpm install --frozen-lockfile from repo root must succeed",
+          "command": "git show --name-only --format= HEAD | grep -E 'tools/overview-viewer/package.json|pnpm-lock.yaml' || true; pnpm install --frozen-lockfile --offline > .test-output/pnpm-install-frozen.log 2>&1",
+          "result": "PASS: package.json and pnpm-lock.yaml were unchanged for this story; frozen offline install completed successfully. Postinstall happy-wire side-effect files were restored and not committed.",
+          "evidenceKind": "command"
+        },
+        {
+          "criterion": "Commit message references the story ID and lists affected files",
+          "command": "git log -1 --format=%H%n%s%n%b --name-only",
+          "result": "PASS: commit 3e75b0d9534f08fd7fb326f6b115457b2de6ef54 subject references US-009; body lists affected files and includes the node-only harness constraint plus not-tested trailer.",
+          "evidenceKind": "command"
+        }
+      ],
+      "dependencies": [
+        "US-007"
+      ],
+      "failureClassification": "",
+      "partialProgress": null
+    },
+    {
+      "id": "US-010",
+      "title": "Radix Tooltip on WorkstreamPill (BUNDLE-VALIDATION GATE)",
+      "description": "As an operator, I want hover/focus tooltips on workstream pills with proper keyboard accessibility. This story is the bundle-size and CSS-interleaving validation gate for Phase C.",
+      "acceptanceCriteria": [
+        "Add @radix-ui/react-tooltip ^1.1.x to tools/overview-viewer/package.json",
+        "Root pnpm-lock.yaml regenerated by pnpm install and committed in the same commit",
+        "WorkstreamPill in TaskCommand.tsx wraps the <a class=\"pill-workstream\"> in Tooltip.Root + Tooltip.Trigger asChild + Tooltip.Portal + Tooltip.Content",
+        "Hovering or keyboard-focusing the pill shows the workstream's full label within ≤ 300ms",
+        "New CSS rule .tooltip-content (in styles.css) styles the Radix-emitted [data-state=\"open\"] content with existing CSS variables",
+        "BUNDLE HARD GATE: after pnpm overview:build, stat -c%s plans/overview.html returns < 500000; halt remaining Phase C if exceeded",
+        "Install verification harness for Phase C: either (a) split-projects vitest config with environment: 'jsdom' + @testing-library/react + @testing-library/user-event in src/__tests__/interactions/**/*.test.tsx (preserving 11 SSR test files in environment: 'node' project) OR (b) Playwright / agent-browser smoke harness via a single pnpm script",
+        "Harness skeleton plus at least one interaction test exercising the WorkstreamPill tooltip is committed in this story",
+        "Decision (harness option a or b) documented in the commit message",
+        "Typecheck passes (pnpm --filter @codexu/overview-viewer typecheck)",
+        "Tests pass (pnpm --filter @codexu/overview-viewer test)",
+        "pnpm overview dev server starts and renders without console errors",
+        "pnpm overview:build succeeds; regenerated plans/overview.html opens cleanly under file://",
+        "Bundle size of plans/overview.html stays under 500 KB",
+        "Three existing intentional deviations from 9f81c1f8 (deferred class, blocked/paused → tail of phase bucket, lastTouchedAt-asc) still hold",
+        "prefers-reduced-motion: reduce disables any animation added by the story",
+        "If tools/overview-viewer/package.json changes, workspace-root pnpm-lock.yaml is regenerated and committed in the same commit; pnpm install --frozen-lockfile from repo root must succeed",
+        "Commit message references the story ID and lists affected files"
+      ],
+      "priority": 10,
+      "passes": true,
+      "notes": "",
+      "verifiedEvidence": [
+        {
+          "criterion": "Add @radix-ui/react-tooltip ^1.1.x to tools/overview-viewer/package.json",
+          "command": "grep -RIn '@radix-ui/react-tooltip' tools/overview-viewer/package.json pnpm-lock.yaml | head",
+          "result": "PASS: package.json declares @radix-ui/react-tooltip ^1.1.8; pnpm-lock.yaml importer records specifier ^1.1.8 and resolved 1.2.8.",
+          "evidenceKind": "inspection"
+        },
+        {
+          "criterion": "Root pnpm-lock.yaml regenerated by pnpm install and committed in the same commit",
+          "command": "git log -1 --format=%H%n%s%n%b --name-only",
+          "result": "PASS: commit 2f004991 includes tools/overview-viewer/package.json and root pnpm-lock.yaml with the US-010 dependency changes.",
+          "evidenceKind": "command"
+        },
+        {
+          "criterion": "WorkstreamPill wraps the pill in Tooltip.Root + Trigger asChild + Portal + Content",
+          "command": "grep -RIn 'Tooltip.' tools/overview-viewer/src/components/TaskCommand.tsx",
+          "result": "PASS: WorkstreamPill wraps the .pill-workstream anchor with Tooltip.Provider, Tooltip.Root, Tooltip.Trigger asChild, Tooltip.Portal, and Tooltip.Content.",
+          "evidenceKind": "inspection"
+        },
+        {
+          "criterion": "Hovering or keyboard-focusing the pill shows the workstream full label within <= 300ms",
+          "command": "pnpm --filter @codexu/overview-viewer test > .test-output/overview-viewer.test.log 2>&1",
+          "result": "PASS: jsdom interaction tests hover the pill and tab-focus it; both find role=tooltip with 'Filter to Performance workstream (size: small)'. Tooltip delayDuration is 200ms, satisfying <= 300ms.",
+          "evidenceKind": "test"
+        },
+        {
+          "criterion": "New CSS rule .tooltip-content styles Radix tooltip content with existing CSS variables",
+          "command": "grep -RIn 'tooltip-content' tools/overview-viewer/src/styles.css",
+          "result": "PASS: .tooltip-content uses var(--border), var(--card), var(--fg), z-index 120, and open/delayed-open/instant-open data-state selectors.",
+          "evidenceKind": "inspection"
+        },
+        {
+          "criterion": "BUNDLE HARD GATE: after pnpm overview:build, plans/overview.html is < 500000 bytes",
+          "command": "pnpm overview:build > .test-output/overview-viewer.build.log 2>&1; stat -c%s plans/overview.html",
+          "result": "PASS: build succeeded and stat reported 472965 bytes (< 500000). The first unoptimized build exceeded the gate, so vite.config.ts now minifies only the inlined overview-data.js sidecar during static builds.",
+          "evidenceKind": "build"
+        },
+        {
+          "criterion": "Install verification harness for Phase C",
+          "command": "grep -RIn 'environment:' tools/overview-viewer/vitest.config.ts && grep -RIn '@testing-library' tools/overview-viewer/package.json",
+          "result": "US-010:AC-007 fallback result: PASS via recommended option (a). Split Vitest projects keep SSR tests in environment: node and run src/__tests__/interactions/**/*.test.tsx in environment: jsdom with @testing-library/react and @testing-library/user-event. Playwright/agent-browser was not used because browser automation is unavailable.",
+          "evidenceKind": "inspection"
+        },
+        {
+          "criterion": "Harness skeleton plus at least one interaction test exercising WorkstreamPill tooltip is committed",
+          "command": "grep -RIn 'findByRole|findByRole|findByRole' tools/overview-viewer/src/__tests__/interactions/workstreamTooltip.test.tsx && pnpm --filter @codexu/overview-viewer test",
+          "result": "PASS: workstreamTooltip.test.tsx exercises hover and keyboard focus tooltip behavior; full suite passed 15 files / 62 tests.",
+          "evidenceKind": "test"
+        },
+        {
+          "criterion": "Decision (harness option a or b) documented in the commit message",
+          "command": "git log -1 --format=%H%n%s%n%b",
+          "result": "PASS: commit 2f004991 body documents 'Harness decision: option (a), split Vitest projects...' and rejects Playwright/agent-browser as unavailable.",
+          "evidenceKind": "command"
+        },
+        {
+          "criterion": "Typecheck passes (pnpm --filter @codexu/overview-viewer typecheck)",
+          "command": "pnpm --filter @codexu/overview-viewer typecheck > .test-output/overview-viewer.typecheck.log 2>&1",
+          "result": "PASS: tsc --noEmit completed with exit 0.",
+          "evidenceKind": "typecheck"
+        },
+        {
+          "criterion": "Tests pass (pnpm --filter @codexu/overview-viewer test)",
+          "command": "pnpm --filter @codexu/overview-viewer test > .test-output/overview-viewer.test.log 2>&1",
+          "result": "PASS: Vitest reported 15 test files passed, 62 tests passed.",
+          "evidenceKind": "test"
+        },
+        {
+          "criterion": "pnpm overview dev server starts and renders without console errors",
+          "command": "curl -fsS http://127.0.0.1:5173/overview.html > /tmp/overview.html.smoke && curl -fsS http://127.0.0.1:5173/overview-data.js > /tmp/overview-data.js.smoke && grep -q '<div id=' /tmp/overview.html.smoke && grep -q 'window.OVERVIEW_DATA' /tmp/overview-data.js.smoke",
+          "result": "HTTP smoke PASS: existing dev server served overview.html with root node and overview-data.js with window.OVERVIEW_DATA. SKIPPED: live browser console verification unavailable; jsdom interaction harness covers automated UI behavior.",
+          "evidenceKind": "skipped"
+        },
+        {
+          "criterion": "pnpm overview:build succeeds; regenerated plans/overview.html opens cleanly under file://",
+          "command": "pnpm overview:build > .test-output/overview-viewer.build.log 2>&1; grep -nE '<script[^>]+src=|<link[^>]+href=' plans/overview.html || true; grep -n '<div id=' plans/overview.html",
+          "result": "Build PASS: Vite regenerated plans/overview.html; static artifact has root node and no external script/link refs. SKIPPED: live file:// browser open unavailable without browser automation.",
+          "evidenceKind": "build"
+        },
+        {
+          "criterion": "Bundle size of plans/overview.html stays under 500 KB",
+          "command": "stat -c%s plans/overview.html",
+          "result": "PASS: 472965 bytes (< 500000).",
+          "evidenceKind": "command"
+        },
+        {
+          "criterion": "Three existing intentional deviations from 9f81c1f8 still hold",
+          "command": "grep -RInE 'deferred|data-cmd-status|lastTouchedAt|sortTasksByLastTouchedAsc' tools/overview-viewer/src/components/PhaseTree.tsx tools/overview-viewer/src/components/CommandList.tsx tools/overview-viewer/src/styles.css",
+          "result": "PASS: PhaseTree still maps blocked/paused to deferred; styles.css still contains blocked/paused tail ordering; CommandList still exports and uses sortTasksByLastTouchedAsc.",
+          "evidenceKind": "inspection"
+        },
+        {
+          "criterion": "prefers-reduced-motion: reduce disables any animation added by the story",
+          "command": "grep -n '@media (prefers-reduced-motion: reduce)' -A5 tools/overview-viewer/src/styles.css && grep -n 'tooltip-content[data-state=' tools/overview-viewer/src/styles.css",
+          "result": "PASS: this story adds tooltip open-state animation; the global reduced-motion guard disables all animations with !important.",
+          "evidenceKind": "inspection"
+        },
+        {
+          "criterion": "If tools/overview-viewer/package.json changes, root pnpm-lock.yaml is regenerated and pnpm install --frozen-lockfile succeeds",
+          "command": "pnpm install --frozen-lockfile > .test-output/pnpm-install-frozen.log 2>&1",
+          "result": "PASS: frozen install completed with exit 0 after package.json/lockfile updates. Known happy-wire postinstall side-effect files were restored and not committed.",
+          "evidenceKind": "command"
+        },
+        {
+          "criterion": "Commit message references the story ID and lists affected files",
+          "command": "git log -1 --format=%H%n%s%n%b --name-only",
+          "result": "PASS: commit 2f004991 subject references US-010; body lists affected files, documents harness option (a), and includes constraint/rejected/not-tested trailers.",
+          "evidenceKind": "command"
+        }
+      ],
+      "dependencies": [
+        "US-009"
+      ],
+      "criteriaWarnings": [
+        {
+          "storyId": "US-010",
+          "acIndex": "AC-007",
+          "criterion": "Install verification harness for Phase C",
+          "warning": "US-010:AC-007 references browser automation harness; browser tools may be unavailable to the iteration agent",
+          "severity": "tool-availability",
+          "suggestedFallback": "Prefer option (a) split-projects jsdom harness; if (b) was attempted record 'SKIPPED: browser automation unavailable; jsdom interaction tests used instead'.",
+          "source": "criteria-validator"
+        }
+      ],
+      "failureClassification": "",
+      "partialProgress": null
+    },
+    {
+      "id": "US-011",
+      "title": "Radix Dialog replaces KeyboardHelp .kbd-help div pair",
+      "description": "As a keyboard user, I want the ? help modal to have proper focus trap, ESC handling, and focus restoration on close.",
+      "acceptanceCriteria": [
+        "Add @radix-ui/react-dialog ^1.1.x to package.json; commit root pnpm-lock.yaml",
+        "KeyboardHelp in TopLevelSurfaces.tsx uses Dialog.Root + Dialog.Trigger + Dialog.Portal + Dialog.Overlay + Dialog.Content",
+        "Existing .kbd-help CSS (at styles.css:584-618) reused via [role=\"dialog\"] selector; existing .kbd-backdrop becomes the Dialog.Overlay",
+        "Radix portal z-index ≥ 100 (matches existing .kbd-help z-index: 100)",
+        "After build, stat -c%s plans/overview.html < 500000 (halt remaining Phase C if exceeded)",
+        "Interaction test (via US-010 harness): Dialog open + focus trap + Escape dismisses + focus returns to the ? trigger; zero console errors",
+        "file:// validation: open plans/overview.html via OS double-click, open the help dialog, hit Escape, verify zero console errors and focus returns to the ? trigger",
+        "Typecheck passes (pnpm --filter @codexu/overview-viewer typecheck)",
+        "Tests pass (pnpm --filter @codexu/overview-viewer test)",
+        "pnpm overview dev server starts and renders without console errors",
+        "pnpm overview:build succeeds; regenerated plans/overview.html opens cleanly under file://",
+        "Bundle size of plans/overview.html stays under 500 KB",
+        "Three existing intentional deviations from 9f81c1f8 (deferred class, blocked/paused → tail of phase bucket, lastTouchedAt-asc) still hold",
+        "prefers-reduced-motion: reduce disables any animation added by the story",
+        "If tools/overview-viewer/package.json changes, workspace-root pnpm-lock.yaml is regenerated and committed in the same commit; pnpm install --frozen-lockfile from repo root must succeed",
+        "Commit message references the story ID and lists affected files"
+      ],
+      "priority": 11,
+      "passes": true,
+      "notes": "",
+      "verifiedEvidence": [
+        {
+          "criterion": "Add @radix-ui/react-dialog ^1.1.x to package.json; commit root pnpm-lock.yaml",
+          "command": "grep -n '@radix-ui/react-dialog' -A2 -B2 tools/overview-viewer/package.json pnpm-lock.yaml | head -30",
+          "result": "PASS: tools/overview-viewer/package.json declares @radix-ui/react-dialog ^1.1.15; pnpm-lock.yaml records the overview-viewer importer dependency resolved to 1.1.15.",
+          "evidenceKind": "inspection"
+        },
+        {
+          "criterion": "Root pnpm-lock.yaml regenerated by pnpm install and committed in the same commit",
+          "command": "git log -1 --format=%H%n%s%n%b --name-only",
+          "result": "PASS: commit a6ddb4ff includes pnpm-lock.yaml and tools/overview-viewer/package.json with the US-011 dependency update.",
+          "evidenceKind": "command"
+        },
+        {
+          "criterion": "KeyboardHelp in TopLevelSurfaces.tsx uses Dialog.Root + Dialog.Trigger + Dialog.Portal + Dialog.Overlay + Dialog.Content",
+          "command": "grep -RInE 'Dialog\\.(Root|Trigger|Portal|Overlay|Content)' tools/overview-viewer/src/components/TopLevelSurfaces.tsx",
+          "result": "PASS: KeyboardHelp renders Dialog.Root, Dialog.Trigger asChild, Dialog.Portal, Dialog.Overlay, and Dialog.Content.",
+          "evidenceKind": "inspection"
+        },
+        {
+          "criterion": "Existing .kbd-help CSS reused via [role=\"dialog\"] selector; existing .kbd-backdrop becomes the Dialog.Overlay",
+          "command": "grep -RInE 'kbd-help\\[role=\"dialog\"\\]|Dialog\\.Overlay className=\"kbd-backdrop\"|kbd-backdrop\\[data-state=\"open\"\\]' tools/overview-viewer/src/components/TopLevelSurfaces.tsx tools/overview-viewer/src/styles.css",
+          "result": "PASS: Dialog.Overlay uses className=\"kbd-backdrop\"; styles.css keeps the existing .kbd-help/.kbd-backdrop hooks and adds .kbd-help[role=\"dialog\"] plus .kbd-backdrop[data-state=\"open\"] for Radix state.",
+          "evidenceKind": "inspection"
+        },
+        {
+          "criterion": "Radix portal z-index >= 100 (matches existing .kbd-help z-index: 100)",
+          "command": "grep -n '.kbd-help' -A12 tools/overview-viewer/src/styles.css | grep 'z-index'",
+          "result": "PASS: .kbd-help keeps z-index: 100, satisfying the >=100 portal-content requirement.",
+          "evidenceKind": "inspection"
+        },
+        {
+          "criterion": "After build, stat -c%s plans/overview.html < 500000 (halt remaining Phase C if exceeded)",
+          "command": "pnpm overview:build > .test-output/overview-viewer.build.log 2>&1; stat -c%s plans/overview.html",
+          "result": "PASS: build succeeded and stat reported 495479 bytes (< 500000), leaving 4521 bytes of headroom.",
+          "evidenceKind": "build"
+        },
+        {
+          "criterion": "Interaction test (via US-010 harness): Dialog open + focus trap + Escape dismisses + focus returns to the ? trigger; zero console errors",
+          "command": "pnpm --filter @codexu/overview-viewer test > .test-output/overview-viewer.test.log 2>&1",
+          "result": "PASS: keyboardHelpDialog.test.tsx opens the Dialog from the ? trigger, verifies focus stays out of the outside After button, closes with Escape, asserts focus returns to the trigger, and spies on console.error; full suite passed 16 files / 63 tests.",
+          "evidenceKind": "test"
+        },
+        {
+          "criterion": "file:// validation: open plans/overview.html via OS double-click, open the help dialog, hit Escape, verify zero console errors and focus returns to the ? trigger",
+          "command": "grep -nE '<script[^>]+src=|<link[^>]+href=' plans/overview.html || true; grep -n '<div id=' plans/overview.html | head",
+          "result": "US-011:AC-007 SKIPPED: browser automation is unavailable and OS double-click file:// validation requires a live browser; fallback static artifact check found a root node and no external script/link refs, and jsdom interaction coverage verified open, Escape close, zero console errors, and focus restoration.",
+          "evidenceKind": "skipped"
+        },
+        {
+          "criterion": "Typecheck passes (pnpm --filter @codexu/overview-viewer typecheck)",
+          "command": "pnpm --filter @codexu/overview-viewer typecheck > .test-output/overview-viewer.typecheck.log 2>&1",
+          "result": "PASS: tsc --noEmit completed with exit 0.",
+          "evidenceKind": "typecheck"
+        },
+        {
+          "criterion": "Tests pass (pnpm --filter @codexu/overview-viewer test)",
+          "command": "pnpm --filter @codexu/overview-viewer test > .test-output/overview-viewer.test.log 2>&1",
+          "result": "PASS: Vitest reported 16 test files passed, 63 tests passed.",
+          "evidenceKind": "test"
+        },
+        {
+          "criterion": "pnpm overview dev server starts and renders without console errors",
+          "command": "curl -fsS http://127.0.0.1:5173/overview.html > /tmp/overview.html.smoke && curl -fsS http://127.0.0.1:5173/overview-data.js > /tmp/overview-data.js.smoke && grep -q '<div id=\"root\"></div>' /tmp/overview.html.smoke && grep -q 'window.OVERVIEW_DATA' /tmp/overview-data.js.smoke",
+          "result": "HTTP smoke PASS: existing dev server served overview.html with the root node and overview-data.js with window.OVERVIEW_DATA. SKIPPED: live browser console verification unavailable because browser automation is not installed.",
+          "evidenceKind": "skipped"
+        },
+        {
+          "criterion": "pnpm overview:build succeeds; regenerated plans/overview.html opens cleanly under file://",
+          "command": "pnpm overview:build > .test-output/overview-viewer.build.log 2>&1; grep -nE '<script[^>]+src=|<link[^>]+href=' plans/overview.html || true; grep -n '<div id=' plans/overview.html | head",
+          "result": "Build PASS: Vite regenerated plans/overview.html successfully; static artifact has a root node and no external script/link refs. SKIPPED: live file:// browser open unavailable without browser automation.",
+          "evidenceKind": "build"
+        },
+        {
+          "criterion": "Bundle size of plans/overview.html stays under 500 KB",
+          "command": "stat -c%s plans/overview.html",
+          "result": "PASS: 495479 bytes (< 500000).",
+          "evidenceKind": "command"
+        },
+        {
+          "criterion": "Three existing intentional deviations from 9f81c1f8 (deferred class, blocked/paused -> tail of phase bucket, lastTouchedAt-asc) still hold",
+          "command": "grep -RInE 'deferred|data-cmd-status|lastTouchedAt|sortTasksByLastTouchedAsc' tools/overview-viewer/src/components/PhaseTree.tsx tools/overview-viewer/src/components/CommandList.tsx tools/overview-viewer/src/styles.css",
+          "result": "PASS: PhaseTree still maps blocked/paused to deferred; styles.css still contains blocked/paused tail ordering rules; CommandList still exports and uses sortTasksByLastTouchedAsc.",
+          "evidenceKind": "inspection"
+        },
+        {
+          "criterion": "prefers-reduced-motion: reduce disables any animation added by the story",
+          "command": "grep -n '@media (prefers-reduced-motion: reduce)' -A5 tools/overview-viewer/src/styles.css; grep -nE 'kbd-help|kbd-backdrop|data-state' tools/overview-viewer/src/styles.css | head -40",
+          "result": "PASS: this story adds no CSS animation; the global reduced-motion guard remains in place and disables all animations/transitions with !important.",
+          "evidenceKind": "inspection"
+        },
+        {
+          "criterion": "If tools/overview-viewer/package.json changes, workspace-root pnpm-lock.yaml is regenerated and committed in the same commit; pnpm install --frozen-lockfile from repo root must succeed",
+          "command": "pnpm install --frozen-lockfile > .test-output/pnpm-install-frozen.log 2>&1",
+          "result": "PASS: frozen install completed with exit 0 after the package.json/lockfile update. Known happy-wire postinstall side-effect files were restored and not committed.",
+          "evidenceKind": "command"
+        },
+        {
+          "criterion": "Commit message references the story ID and lists affected files",
+          "command": "git log -1 --format=%H%n%s%n%b --name-only",
+          "result": "PASS: commit a6ddb4ffbf64c54fe35cb3c98f9020d8d809b8c0 subject references US-011; body lists affected files and includes relevant constraint/not-tested trailers.",
+          "evidenceKind": "command"
+        }
+      ],
+      "dependencies": [
+        "US-010"
+      ],
+      "criteriaWarnings": [
+        {
+          "storyId": "US-011",
+          "acIndex": "AC-007",
+          "criterion": "file:// validation: open plans/overview.html via OS double-click",
+          "warning": "US-011:AC-007 requires manual file:// browser validation; browser tools may be unavailable",
+          "severity": "tool-availability",
+          "suggestedFallback": "Record 'SKIPPED: browser automation unavailable; file:// double-click requires manual pass' for AC-007 and rely on US-010 harness AC for automated coverage.",
+          "source": "criteria-validator"
+        }
+      ],
+      "failureClassification": "",
+      "partialProgress": null
+    },
+    {
+      "id": "US-012",
+      "title": "Radix Popover + ToggleGroup replaces FilterChips <details>",
+      "description": "As an operator, I want the filter popover to dismiss on outside click + ESC and to support roving Tab/Shift-Tab focus across chips. The activateWorkstream callback at App.tsx:66-70 must continue to open the filter UI after the swap.",
+      "acceptanceCriteria": [
+        "Add @radix-ui/react-popover ^1.1.x AND @radix-ui/react-toggle-group ^1.1.x to package.json; commit pnpm-lock.yaml",
+        "FilterChips in Toolbar.tsx uses Popover.Root + Popover.Trigger + Popover.Portal + Popover.Content containing ToggleGroup.Root + ToggleGroup.Item per chip",
+        "App.tsx modified: filter-open state lifted into App via useState; openFilters/setOpenFilters callbacks threaded into Toolbar's props; activateWorkstream (App.tsx:66) calls setOpenFilters(true) AND filter.toggleFilter('workstream', ws) so a workstream-pill click reveals + activates the matching chip",
+        "Acceptance: clicking a .pill-workstream on any command row opens the filter popover with the matching workstream chip in data-state=\"on\" (verified via US-010 harness)",
+        "The new contract MUST NOT rely on document.querySelector('.toolbar-filters') or HTMLDetailsElement.open mutation",
+        "Expand-all (e) / Collapse-all (c) keyboard shortcuts continue to control the same surfaces they did before — choose one of: (a) accept the filter exits Expand-all and document it explicitly, OR (b) extend setAllDetails to also call setOpenFilters(open) so the filter popover still participates",
+        "After build, bundle size < 500 KB",
+        "Interaction test (via US-010 harness): workstream-pill click opens popover; Escape dismisses + focus returns to trigger; Tab through chips, Shift-Tab back; click outside dismisses",
+        "Expand-all/Collapse-all test: pressing e and c still affects the filter surface (either by remaining as <details>, or via the lifted setOpenFilters dispatch)",
+        "Typecheck passes (pnpm --filter @codexu/overview-viewer typecheck)",
+        "Tests pass (pnpm --filter @codexu/overview-viewer test)",
+        "pnpm overview dev server starts and renders without console errors",
+        "pnpm overview:build succeeds; regenerated plans/overview.html opens cleanly under file://",
+        "Bundle size of plans/overview.html stays under 500 KB",
+        "Three existing intentional deviations from 9f81c1f8 (deferred class, blocked/paused → tail of phase bucket, lastTouchedAt-asc) still hold",
+        "prefers-reduced-motion: reduce disables any animation added by the story",
+        "If tools/overview-viewer/package.json changes, workspace-root pnpm-lock.yaml is regenerated and committed in the same commit; pnpm install --frozen-lockfile from repo root must succeed",
+        "Commit message references the story ID and lists affected files"
+      ],
+      "priority": 12,
+      "passes": false,
+      "notes": "BLOCKED: implemented Radix Popover/ToggleGroup attempt passed typecheck and tests, but pnpm overview:build produced plans/overview.html at 506901 bytes, exceeding the 500000 byte Phase C hard gate. Attempt preserved on partial/US-012 (commit 7bc7bb9f); halt Phase C until bundle budget is recovered or scope is revised.",
+      "verifiedEvidence": [],
+      "dependencies": [
+        "US-011"
+      ],
+      "criteriaWarnings": [
+        {
+          "storyId": "US-012",
+          "acIndex": "AC-004",
+          "criterion": "Acceptance: clicking a .pill-workstream opens the filter popover",
+          "warning": "US-012:AC-004 verifies click behavior via US-010 harness; browser tools may be unavailable",
+          "severity": "tool-availability",
+          "suggestedFallback": "If browser tooling unavailable, record 'SKIPPED: browser automation unavailable; verify via jsdom harness or manual browser pass' for AC-004.",
+          "source": "criteria-validator"
+        },
+        {
+          "storyId": "US-012",
+          "acIndex": "AC-008",
+          "criterion": "Interaction test: workstream-pill click opens popover; Escape dismisses",
+          "warning": "US-012:AC-008 is an interaction test requiring click + keyboard simulation; browser tools may be unavailable",
+          "severity": "tool-availability",
+          "suggestedFallback": "If browser tooling unavailable, record 'SKIPPED: requires jsdom harness or manual browser pass' for AC-008.",
+          "source": "criteria-validator"
+        }
+      ],
+      "blocked": true,
+      "partialProgress": {
+        "branch": "partial/US-012",
+        "filesCreated": [
+          "tools/overview-viewer/src/__tests__/interactions/filterPopover.test.tsx"
+        ],
+        "filesModified": [
+          "pnpm-lock.yaml",
+          "tools/overview-viewer/package.json",
+          "tools/overview-viewer/src/App.tsx",
+          "tools/overview-viewer/src/components/Toolbar.tsx",
+          "tools/overview-viewer/src/styles.css",
+          "tools/overview-viewer/src/__tests__/density.test.ts",
+          "plans/overview.html"
+        ],
+        "completedSteps": [
+          "Added @radix-ui/react-popover and @radix-ui/react-toggle-group dependencies",
+          "Replaced FilterChips details with Radix Popover and ToggleGroup",
+          "Lifted filter popover open state into App and removed toolbar-filters DOM mutation",
+          "Added jsdom interaction coverage for workstream activation, Escape/outside dismiss, tab traversal, and expand/collapse shortcuts",
+          "Typecheck passed",
+          "Tests passed"
+        ],
+        "remainingSteps": [
+          "Recover at least 6902 bytes of bundle size headroom or revise Phase C dependency scope",
+          "Re-run pnpm overview:build and verify plans/overview.html < 500000 bytes",
+          "Run frozen-lockfile install and final evidence collection if unblocked"
+        ],
+        "testStatus": "typecheck passed; tests passed 17 files / 67 tests; build succeeded but bundle gate failed at 506901 bytes"
+      }
+    },
+    {
+      "id": "US-013",
+      "title": "Radix Checkbox replaces BulkSelectCheckbox (row-level only)",
+      "description": "As an operator, I want row-level bulk-select checkboxes with proper keyboard semantics. (Bucket-level indeterminate is deferred to US-015 because the .cmd-bucket DOM does not exist yet.)",
+      "acceptanceCriteria": [
+        "Add @radix-ui/react-checkbox ^1.1.x to package.json; commit pnpm-lock.yaml",
+        "BulkSelectCheckbox in TaskCommand.tsx uses Checkbox.Root + Checkbox.Indicator",
+        "Existing .cmd-select CSS (at styles.css:564-568) extends via [data-state=\"checked\"] selector",
+        "Keyboard: Space toggles, focus visible",
+        "After build, bundle size < 500 KB",
+        "Interaction test (via US-010 harness): Space toggles the Radix Checkbox; focus visible",
+        "Typecheck passes (pnpm --filter @codexu/overview-viewer typecheck)",
+        "Tests pass (pnpm --filter @codexu/overview-viewer test)",
+        "pnpm overview dev server starts and renders without console errors",
+        "pnpm overview:build succeeds; regenerated plans/overview.html opens cleanly under file://",
+        "Bundle size of plans/overview.html stays under 500 KB",
+        "Three existing intentional deviations from 9f81c1f8 (deferred class, blocked/paused → tail of phase bucket, lastTouchedAt-asc) still hold",
+        "prefers-reduced-motion: reduce disables any animation added by the story",
+        "If tools/overview-viewer/package.json changes, workspace-root pnpm-lock.yaml is regenerated and committed in the same commit; pnpm install --frozen-lockfile from repo root must succeed",
+        "Commit message references the story ID and lists affected files"
+      ],
+      "priority": 13,
+      "passes": false,
+      "notes": "BLOCKED: dependency US-012 blocked on bundle_exceeded. Downstream stories cannot proceed without Phase C replan. Auto-blocked 2026-05-18T07:50:27Z.",
+      "verifiedEvidence": [],
+      "dependencies": [
+        "US-012"
+      ],
+      "blocked": true
+    },
+    {
+      "id": "US-014",
+      "title": "Broader Tooltip adoption: cadenceChip, StatusBadge, ScopeChip, SpawnedFromPill, kanban tooltips",
+      "description": "As an operator, I want consistent keyboard-accessible tooltips on all hint-bearing UI elements.",
+      "acceptanceCriteria": [
+        "Replace title= attribute with Radix Tooltip wrap on: cadenceChip, StatusBadge, ScopeChip, SpawnedFromPill (all in TaskCommand.tsx), plus any kanban card pills in Kanban.tsx",
+        "All tooltips share the same .tooltip-content CSS from US-010",
+        "No additional Radix dependencies (reuses US-010's @radix-ui/react-tooltip)",
+        "After build, bundle size < 500 KB",
+        "Interaction test (via US-010 harness): Tooltip shows on focus + hides on blur",
+        "Typecheck passes (pnpm --filter @codexu/overview-viewer typecheck)",
+        "Tests pass (pnpm --filter @codexu/overview-viewer test)",
+        "pnpm overview dev server starts and renders without console errors",
+        "pnpm overview:build succeeds; regenerated plans/overview.html opens cleanly under file://",
+        "Bundle size of plans/overview.html stays under 500 KB",
+        "Three existing intentional deviations from 9f81c1f8 (deferred class, blocked/paused → tail of phase bucket, lastTouchedAt-asc) still hold",
+        "prefers-reduced-motion: reduce disables any animation added by the story",
+        "If tools/overview-viewer/package.json changes, workspace-root pnpm-lock.yaml is regenerated and committed in the same commit; pnpm install --frozen-lockfile from repo root must succeed",
+        "Commit message references the story ID and lists affected files"
+      ],
+      "priority": 14,
+      "passes": false,
+      "notes": "BLOCKED: dependency US-012 blocked on bundle_exceeded. Downstream stories cannot proceed without Phase C replan. Auto-blocked 2026-05-18T07:50:27Z.",
+      "verifiedEvidence": [],
+      "dependencies": [
+        "US-013"
+      ],
+      "blocked": true
+    },
+    {
+      "id": "US-015",
+      "title": "Collapse-by-phase bucket headers in CommandList (+ bucket-level indeterminate select-all)",
+      "description": "As an operator with 73+ rows, I want to fold whole phase buckets so I can focus on plan-ready work. Also adds bucket-level indeterminate select-all checkbox (deferred from US-013 because it needs this bucket DOM).",
+      "acceptanceCriteria": [
+        "CommandList.tsx groups tasks by useTaskClassification(task).orderBucket; emits one <details class=\"cmd-bucket\" id=\"cmd-bucket-<orderBucket>\"> per non-empty bucket; buckets are orderBucket values from PHASE_TO_ORDER_BUCKET (brainstorm/shipped/closed/inprogress/ready), NOT raw task.phase",
+        "Default shipped/closed buckets are closed; plan-ready/inprogress/brainstorm are open",
+        "Bucket summary shows: <bucket-label> (count · N blocked · oldest YYYY-MM-DD); counts derive from the filtered visible-task set",
+        "<TaskCommand> children sorted inside each bucket via sortTasksByLastTouchedAsc (preserves deviation #3)",
+        "CSS: drop or scope down the global .cmd[data-cmd-status] order rules at styles.css:837-852 (they become inert since DOM order reflects buckets); add new .cmd-bucket > .cmd[data-task-status=\"blocked\"] and [data-task-status=\"paused\"] rules to preserve deviation #2",
+        "Bucket headers MUST remain native <details class=\"cmd-bucket\"> (NOT Radix Collapsible) so existing document.querySelectorAll('details') in setAllDetails still finds them",
+        "App.tsx modified: thread the new bucket open-state controls from extended usePersistentExpanded through CommandList; the useHashNav(...) call site at App.tsx:39 receives both task and bucket setters; setAllDetails at App.tsx:58-64 intentionally left as a document.querySelectorAll('details') sweep",
+        "New file tools/overview-viewer/src/utils/bucketNavigation.ts exports getBucketIdForTask(taskId: string, tasks: OverviewTask[]): string | null (pure function, no DOM access)",
+        "useHashNav.ts uses getBucketIdForTask to find the parent bucket and calls setBucketExpanded(bucketId, true) BEFORE expanding the task, then scrolls + flashes",
+        "usePersistentExpanded.ts extended with setBucketExpanded(bucketId, open) and isBucketExpanded(bucketId); same localStorage key (codexu-overview-details-state-v2); bucket keys use prefix cmd-bucket-<orderBucket>",
+        "Bucket-level indeterminate select-all: add a Radix Checkbox in each <summary> of .cmd-bucket with three-state behavior (checked when all in-bucket task rows are selected; indeterminate when some-but-not-all; unchecked when none); clicking toggles selection of all task rows in that bucket",
+        "Expand-all (e) / Collapse-all (c) shortcuts continue to control bucket open-state (since buckets ARE native <details>, document.querySelectorAll('details') still finds them)",
+        "New tests: tools/overview-viewer/src/__tests__/bucketGrouping.test.ts (group-by + count + oldest aggregation), tools/overview-viewer/src/__tests__/bucketNavigation.test.ts (pure-function test of getBucketIdForTask)",
+        "Deep-link regression test: loading ?#cmd-<id> where the parent bucket is persisted-collapsed expands BOTH the bucket and the task, then scrolls + flashes",
+        "Typecheck passes (pnpm --filter @codexu/overview-viewer typecheck)",
+        "Tests pass (pnpm --filter @codexu/overview-viewer test)",
+        "pnpm overview dev server starts and renders without console errors",
+        "pnpm overview:build succeeds; regenerated plans/overview.html opens cleanly under file://",
+        "Bundle size of plans/overview.html stays under 500 KB",
+        "Three existing intentional deviations from 9f81c1f8 (deferred class, blocked/paused → tail of phase bucket, lastTouchedAt-asc) still hold",
+        "prefers-reduced-motion: reduce disables any animation added by the story",
+        "If tools/overview-viewer/package.json changes, workspace-root pnpm-lock.yaml is regenerated and committed in the same commit; pnpm install --frozen-lockfile from repo root must succeed",
+        "Commit message references the story ID and lists affected files"
+      ],
+      "priority": 15,
+      "passes": false,
+      "notes": "BLOCKED: dependency US-012 blocked on bundle_exceeded. Downstream stories cannot proceed without Phase C replan. Auto-blocked 2026-05-18T07:50:27Z.",
+      "verifiedEvidence": [],
+      "dependencies": [
+        "US-014"
+      ],
+      "blocked": true
+    },
+    {
+      "id": "US-016",
+      "title": "Sticky top frame: metrics strip + ToC anchors",
+      "description": "As an operator, I want a persistent metrics strip and ToC anchors at the top of the page so I always know where I am and what the high-level state is.",
+      "acceptanceCriteria": [
+        "New file tools/overview-viewer/src/components/StickyFrame.tsx with metrics + ToC sub-components",
+        "New file tools/overview-viewer/src/utils/dashboardCounts.ts exports getDashboardCounts(data: OverviewData): { total, ready, inProgress, blocked, shippedRecent } (shared with future LeftRail in US-017)",
+        "App.tsx: mount <StickyFrame> above <main>; position sticky, top: 0, z-index: 15 (above toolbar's 10)",
+        "Metric counts computed from the post-filter visible task list; each metric clickable; click toggles the corresponding filter via filter.toggleFilter('status', '<bucket>')",
+        "ToC anchor row has one anchor per phase bucket created by US-015; click smoothly scrolls to the bucket and force-opens it (reuses US-015's useHashNav walk-up)",
+        "StickyFrame stays at top: 0 and does NOT overlap the existing .toolbar (z-index layering documented in CSS rules)",
+        "TodayPanel.tsx refactored to consume getDashboardCounts (eliminates duplicated calculation)",
+        "New test file tools/overview-viewer/src/__tests__/stickyFrame.test.tsx covers: metric counts computed correctly from a fixture task list; one ToC anchor rendered per distinct phase bucket in the fixture; click-to-filter wiring",
+        "Typecheck passes (pnpm --filter @codexu/overview-viewer typecheck)",
+        "Tests pass (pnpm --filter @codexu/overview-viewer test)",
+        "pnpm overview dev server starts and renders without console errors",
+        "pnpm overview:build succeeds; regenerated plans/overview.html opens cleanly under file://",
+        "Bundle size of plans/overview.html stays under 500 KB",
+        "Three existing intentional deviations from 9f81c1f8 (deferred class, blocked/paused → tail of phase bucket, lastTouchedAt-asc) still hold",
+        "prefers-reduced-motion: reduce disables any animation added by the story",
+        "If tools/overview-viewer/package.json changes, workspace-root pnpm-lock.yaml is regenerated and committed in the same commit; pnpm install --frozen-lockfile from repo root must succeed",
+        "Commit message references the story ID and lists affected files"
+      ],
+      "priority": 16,
+      "passes": false,
+      "notes": "BLOCKED: dependency US-012 blocked on bundle_exceeded. Downstream stories cannot proceed without Phase C replan. Auto-blocked 2026-05-18T07:50:27Z.",
+      "verifiedEvidence": [],
+      "dependencies": [
+        "US-015"
+      ],
+      "criteriaWarnings": [
+        {
+          "storyId": "US-016",
+          "acIndex": "AC-004",
+          "criterion": "Metric counts; each metric clickable; click toggles filter",
+          "warning": "US-016:AC-004 verifies click-to-toggle filter; browser tools may be unavailable",
+          "severity": "tool-availability",
+          "suggestedFallback": "Verify via stickyFrame.test.tsx fireEvent.click; record 'Verified via jsdom unit test; live browser pass SKIPPED' for AC-004.",
+          "source": "criteria-validator"
+        },
+        {
+          "storyId": "US-016",
+          "acIndex": "AC-005",
+          "criterion": "ToC anchor row click smoothly scrolls to bucket",
+          "warning": "US-016:AC-005 verifies smooth-scroll click; browser tools may be unavailable",
+          "severity": "tool-availability",
+          "suggestedFallback": "Verify anchor-click wiring via jsdom (scrollIntoView mocked); record 'SKIPPED: live smooth-scroll requires manual browser pass' for AC-005.",
+          "source": "criteria-validator"
+        }
+      ],
+      "blocked": true
+    },
+    {
+      "id": "US-017",
+      "title": "LeftRail component + factor TodayPanel/Legend utilities",
+      "description": "As an operator, I want a persistent left sidebar showing Today / What's-New / Recently shipped / Periodic / Legend so these panels are always visible while scrolling.",
+      "acceptanceCriteria": [
+        "New file tools/overview-viewer/src/components/LeftRail.tsx rendering 5 sub-sections",
+        "App.tsx layout: <div class=\"main-layout\" style=\"display: grid; grid-template-columns: 220px 1fr; gap: 16px;\"><LeftRail /><main>...</main></div> (or equivalent CSS rule in styles.css)",
+        "LeftRail has position: sticky; top: 60px; max-height: 100vh; overflow-y: auto; top offset equals the StickyFrame height (verifiable by a CSS variable shared between them)",
+        "Refactor: extract buildTodayBuckets, recentRuns, TodayChips from TodayPanel.tsx into reusable utilities consumed by both TodayPanel and LeftRail",
+        "Legend extracted from TopLevelSurfaces.tsx / Kanban.tsx into LeftRail; previous mount points no longer render duplicates",
+        "Main content reflows into the right grid column at ≥ 900px viewport with no horizontal overflow",
+        "New test file tools/overview-viewer/src/__tests__/leftRail.test.tsx covers: LeftRail renders both extracted pieces; main content tree no longer contains the originals",
+        "Typecheck passes (pnpm --filter @codexu/overview-viewer typecheck)",
+        "Tests pass (pnpm --filter @codexu/overview-viewer test)",
+        "pnpm overview dev server starts and renders without console errors",
+        "pnpm overview:build succeeds; regenerated plans/overview.html opens cleanly under file://",
+        "Bundle size of plans/overview.html stays under 500 KB",
+        "Three existing intentional deviations from 9f81c1f8 (deferred class, blocked/paused → tail of phase bucket, lastTouchedAt-asc) still hold",
+        "prefers-reduced-motion: reduce disables any animation added by the story",
+        "If tools/overview-viewer/package.json changes, workspace-root pnpm-lock.yaml is regenerated and committed in the same commit; pnpm install --frozen-lockfile from repo root must succeed",
+        "Commit message references the story ID and lists affected files"
+      ],
+      "priority": 17,
+      "passes": false,
+      "notes": "BLOCKED: dependency US-012 blocked on bundle_exceeded. Downstream stories cannot proceed without Phase C replan. Auto-blocked 2026-05-18T07:50:27Z.",
+      "verifiedEvidence": [],
+      "dependencies": [
+        "US-016"
+      ],
+      "blocked": true
+    },
+    {
+      "id": "US-018",
+      "title": "Responsive collapse for LeftRail (< 900px hamburger toggle)",
+      "description": "As a narrow-window user, I want the LeftRail to collapse behind a hamburger button so the main content gets full width.",
+      "acceptanceCriteria": [
+        "CSS @media (max-width: 900px): .left-rail { position: fixed; left: -220px; transition: left 0.3s; } .left-rail.open { left: 0; }; main layout becomes single-column at < 900px",
+        "StickyFrame.tsx (or App.tsx) renders a hamburger button in the metrics strip (visible only via the same media query); clicking toggles .left-rail.open",
+        "Transition respects prefers-reduced-motion (US-006 guard)",
+        "Interaction test (via US-010 harness): at 800px viewport (jsdom window.innerWidth + matchMedia polyfill) the hamburger is visible and functional",
+        "file:// validation: resize browser to 800px wide, click hamburger, verify rail slides in over main; click outside / hit Esc to dismiss",
+        "Typecheck passes (pnpm --filter @codexu/overview-viewer typecheck)",
+        "Tests pass (pnpm --filter @codexu/overview-viewer test)",
+        "pnpm overview dev server starts and renders without console errors",
+        "pnpm overview:build succeeds; regenerated plans/overview.html opens cleanly under file://",
+        "Bundle size of plans/overview.html stays under 500 KB",
+        "Three existing intentional deviations from 9f81c1f8 (deferred class, blocked/paused → tail of phase bucket, lastTouchedAt-asc) still hold",
+        "prefers-reduced-motion: reduce disables any animation added by the story",
+        "If tools/overview-viewer/package.json changes, workspace-root pnpm-lock.yaml is regenerated and committed in the same commit; pnpm install --frozen-lockfile from repo root must succeed",
+        "Commit message references the story ID and lists affected files"
+      ],
+      "priority": 18,
+      "passes": false,
+      "notes": "BLOCKED: dependency US-012 blocked on bundle_exceeded. Downstream stories cannot proceed without Phase C replan. Auto-blocked 2026-05-18T07:50:27Z.",
+      "verifiedEvidence": [],
+      "dependencies": [
+        "US-017"
+      ],
+      "criteriaWarnings": [
+        {
+          "storyId": "US-018",
+          "acIndex": "AC-002",
+          "criterion": "Hamburger button clicking toggles .left-rail.open",
+          "warning": "US-018:AC-002 verifies click-to-toggle hamburger; browser tools may be unavailable",
+          "severity": "tool-availability",
+          "suggestedFallback": "Verify via jsdom (matchMedia polyfill + fireEvent.click); record 'Verified via jsdom; live browser pass SKIPPED' for AC-002.",
+          "source": "criteria-validator"
+        },
+        {
+          "storyId": "US-018",
+          "acIndex": "AC-005",
+          "criterion": "file:// validation: resize browser, click hamburger",
+          "warning": "US-018:AC-005 requires manual browser resize + click validation; browser tools may be unavailable",
+          "severity": "tool-availability",
+          "suggestedFallback": "Record 'SKIPPED: 800px-resize file:// verification requires manual browser pass' for AC-005; rely on US-010 jsdom harness for automated coverage.",
+          "source": "criteria-validator"
+        }
+      ],
+      "blocked": true
+    },
+    {
+      "id": "US-019",
+      "title": "Docs sweep — README, CLAUDE.md, SKILL.md reflect new layout + expanded intentional deviations",
+      "description": "As a future contributor, I want the docs to reflect the new layout (LeftRail, StickyFrame, bucket headers) and to list all intentional deviations from the 9f81c1f8 baseline.",
+      "acceptanceCriteria": [
+        "tools/overview-viewer/README.md Layout section updated with the new structure (StickyFrame on top, LeftRail on left, main column with bucket-grouped CommandList)",
+        "tools/overview-viewer/README.md Intentional Deviations section expanded from 3 to up to 7 entries: (1) deferred class, (2) blocked/paused tail, (3) lastTouchedAt-asc, (4) phase-bucket headers (US-015), (5) sticky top frame (US-016), (6) left rail (US-017), (7) motion polish (US-001/US-003/US-004)",
+        "tools/overview-viewer/CLAUDE.md Layout section + HMR description updated; if the US-010 harness option chosen is a smoke runner, that is noted here",
+        ".agents/skills/roadmap-and-overview/SKILL.md viewing subsection updated; mentions density toggle and < 900px hamburger toggle if user-visible",
+        "No source code changes in this story; doc-only",
+        "Typecheck passes (pnpm --filter @codexu/overview-viewer typecheck)",
+        "Tests pass (pnpm --filter @codexu/overview-viewer test)",
+        "pnpm overview dev server starts and renders without console errors",
+        "pnpm overview:build succeeds; regenerated plans/overview.html opens cleanly under file://",
+        "Bundle size of plans/overview.html stays under 500 KB",
+        "Three existing intentional deviations from 9f81c1f8 (deferred class, blocked/paused → tail of phase bucket, lastTouchedAt-asc) still hold",
+        "prefers-reduced-motion: reduce disables any animation added by the story",
+        "If tools/overview-viewer/package.json changes, workspace-root pnpm-lock.yaml is regenerated and committed in the same commit; pnpm install --frozen-lockfile from repo root must succeed",
+        "Commit message references the story ID and lists affected files"
+      ],
+      "priority": 19,
+      "passes": false,
+      "notes": "BLOCKED: dependency US-012 blocked on bundle_exceeded. Downstream stories cannot proceed without Phase C replan. Auto-blocked 2026-05-18T07:50:27Z.",
+      "verifiedEvidence": [],
+      "dependencies": [
+        "US-018"
+      ],
+      "blocked": true
+    }
+  ],
+  "baseBranch": "main"
+}

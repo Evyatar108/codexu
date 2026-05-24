@@ -1,0 +1,21 @@
+{
+  "id": "F-002",
+  "severity": "High",
+  "source": "consensus",
+  "detectedBy": [
+    "claude",
+    "codex",
+    "copilot"
+  ],
+  "category": "Correctness",
+  "classification": "fixable",
+  "phase": "code",
+  "sectionRef": "Approach > Architecture > install-server.ts reconciliation",
+  "description": "install-server.ts --print-only writes the engine result envelope (ok / filesPlanned / filesWritten / filesSkipped / errors / summary) to stdout rather than the planned server registration block (\".mcp.json + .claude/settings.json\" preview content). AC17 says --print-only 'prints the server registration block for the new .mcp.json + enabledMcpjsonServers shape', but the test (install-server.test.ts:84-91) only asserts the engine envelope, leaving the AC under-tested. Codex and Copilot both flagged this as a High break of the legacy --print-only contract for existing consumers; promoted to High via 3-way consensus.",
+  "relevantFiles": [
+    "plugins/ralph-overview/tools/overview-mcp/src/install-server.ts:38-43",
+    "plugins/ralph-overview/tools/overview-mcp/src/__tests__/install-server.test.ts:75-91"
+  ],
+  "suggestedFix": "Either (a) update install-server.ts to compute the planned .mcp.json and .claude/settings.json content (e.g., via previewSettings + an analogous previewMcp) and print those JSON blocks; or (b) loosen AC17 wording to describe the engine plan envelope. If (a), extend install-server.test.ts to assert mcpServers['ralph-overview'] and enabledMcpjsonServers inside stdout.",
+  "status": "open"
+}

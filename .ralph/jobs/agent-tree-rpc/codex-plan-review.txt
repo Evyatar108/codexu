@@ -1,0 +1,35 @@
+### Feasibility
+
+[Critical] AC1 is not executable as written. The repo root [package.json](/D:/harness-efforts/codexu/package.json:1) has no `build` script, so `pnpm build` will fail before testing any implementation. Use `pnpm -r build` or explicit filters for `@slopus/happy-wire`, `happy`, and `happy-server`.
+
+[High] The parser integration point is misstated. `item/*` notifications are handled in `packages/happy-cli/src/codex/codexAppServerClient.ts` inside `handleRawNotification` around line 316, not the `handleNotification` block around line 1701. Adding only a `handleNotification` case will not parse `collabAgentToolCall`; `handleRawNotification` currently returns `method.startsWith('item/')` after swallowing unknown item types.
+
+[High] The plan says both legacy `codex/event` and v2 `collabAgentToolCall` should feed the same reducer, but it does not specify deduping. `CodexAppServerClient` suppresses raw notifications after legacy is selected, but legacy events are still processed even after raw mode is selected. If both streams appear, spawn begin/end can double-emit unless deduped by call id and phase.
+
+[Medium] “Server socket typing” is over-specified. `packages/happy-server/sources/app/api/socket.ts` uses untyped `Server`/`Socket` from Socket.IO; the concrete typed surface is mainly `packages/happy-cli/src/api/types.ts`. There may be little or nothing meaningful to type on the server file beyond handler payload validation.
+
+### Completeness
+
+[High] Runtime sources for `node-status-changed` and `node-removed` are missing. The plan only describes spawn begin/end parsing, but the v2 protocol has `CollabAgentToolCall.tool` values for `sendInput`, `wait`, `closeAgent`, and `resumeAgent` in `codex/.../schema/typescript/v2/CollabAgentTool.ts`. Without handling those or legacy close/wait/resume events, status/removal deltas will be dead schema variants.
+
+[Medium] The plan does not include an app-side event subscription, despite saying mobile clients can render the stream. `packages/happy-app/sources/sync/apiSocket.ts` supports arbitrary `onMessage(event, handler)`, but no handler for `agent-tree-update` is in scope. That is acceptable only if this task is explicitly “transport only”; the overview currently implies renderability.
+
+[Medium] The v2 path cannot provide nickname/role directly. `event_mapping.rs` maps spawn end into `ThreadItem::CollabAgentToolCall` without `new_agent_nickname` or `new_agent_role`, while legacy `CollabAgentSpawnEndEvent` has those fields in `codex-rs/protocol/src/protocol.rs`. If nickname/role are part of `AgentTreeNode`, the plan should specify either a `thread/read` call or null-only best effort.
+
+### Ordering
+
+[Medium] Documentation AC7 conflicts with AC6. A single commit cannot contain its own final SHA in `plans/agent-view-research.md`; changing the file changes the SHA. Use “Delivered” without SHA, reference the branch/plan, or allow a second docs amend after commit creation.
+
+[Low] Creating `AgentTreeState` “after `client.connect()`” is awkward relative to the current flow in `runCodex.ts`, where `client.setEventHandler(...)` is registered before `client.connect()`. Initialize the state before registering the handler, then connect.
+
+### Simplicity
+
+[Medium] A new `agent-tree-update` frame may be more surface area than needed for a transport-only first slice. Existing `update`/`ephemeral` fan-out already reaches `all-interested-in-session`; if replay is intentionally not wanted, `ephemeral` could carry a typed `agent-tree-update` payload with less socket contract churn. A dedicated frame is reasonable, but the plan should justify it.
+
+### Acceptance Criteria Quality
+
+[High] AC4 depends on a “fake `CodexAppServerClient`” but does not name the injection seam. `runCodex.ts` constructs the client internally, so the plan should specify whether to extend existing `codex.integration.test.ts` mocks or test `CodexAppServerClient` plus reducer separately.
+
+[Medium] AC5 says verify with `git diff --name-only HEAD~1`, which only works after the final commit exists and assumes exactly one commit. During implementation, use `git diff --name-only -- codex/external/repos/codex-patched` as the pre-commit check.
+
+[Low] Prior review amendments are not mentioned, so there are no amendment regressions to evaluate.

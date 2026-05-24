@@ -1,0 +1,69 @@
+**Codebase Architecture**
+
+This is a pnpm TypeScript monorepo. The relevant packages are:
+
+- `packages/happy-app`: Expo/React Native app, Zustand sync store, Zod app-side schemas, Socket.IO client, MMKV for local-only settings/drafts.
+- `packages/happy-server`: embedded Fastify + Socket.IO server, Prisma/PGlite/Postgres persistence. `Session.metadata` is currently an opaque `String` on the `Session` table.
+- `packages/happy-cli`: creates sessions, owns CLI-side `Metadata` type, writes metadata through `ApiSessionClient.updateMetadata`.
+- `packages/happy-wire`: shared Zod schemas for messages/update envelopes, but not for session metadata JSON.
+
+The session sync path is: server `/v1/sessions` returns metadata string → app `sync.ts` parses JSON → app `toCompositeSession()` rewrites session ids to `${machineId}:${localSessionId}` → `storage.applySessions()` merges into Zustand.
+
+**Feature-Relevant Code**
+
+Key app files:
+
+- [storageTypes.ts](D:/harness-efforts/codexu/packages/happy-app/sources/sync/storageTypes.ts:8): `MetadataSchema` and `Metadata`; add `parentSessionId` and `spawnedChildren` here.
+- [storageTypes.ts](D:/harness-efforts/codexu/packages/happy-app/sources/sync/storageTypes.ts:130): `Session` interface.
+- [storage.ts](D:/harness-efforts/codexu/packages/happy-app/sources/sync/storage.ts:395): `applySessions`; current merge spreads incoming `session`, then restores local-only fields.
+- [storage.ts](D:/harness-efforts/codexu/packages/happy-app/sources/sync/storage.ts:1414): exported hooks/helpers live near here; natural place for `getSessionChildren()` and `getSessionParent()`.
+- [machineSessionId.ts](D:/harness-efforts/codexu/packages/happy-app/sources/sync/machineSessionId.ts:6): composite id helpers.
+- [sync.ts](D:/harness-efforts/codexu/packages/happy-app/sources/sync/sync.ts:324): `toCompositeSession()` currently composites only `session.id` and injects `metadata.machineId`.
+- [sync.ts](D:/harness-efforts/codexu/packages/happy-app/sources/sync/sync.ts:1816): `update-session` handling preserves existing metadata when update lacks metadata.
+- [ops.ts](D:/harness-efforts/codexu/packages/happy-app/sources/sync/ops.ts:397): `sessionUpdateMetadata()` already preserves arbitrary metadata JSON and localizes only the socket `sid`.
+
+Server and CLI:
+
+- [schema.prisma](D:/harness-efforts/codexu/packages/happy-server/prisma/schema.prisma:22): `Session.metadata String`.
+- [sessionRoutes.ts](D:/harness-efforts/codexu/packages/happy-server/sources/app/api/routes/sessionRoutes.ts:15): `/v1/sessions` returns metadata unchanged.
+- [sessionUpdateHandler.ts](D:/harness-efforts/codexu/packages/happy-server/sources/app/api/socket/sessionUpdateHandler.ts:52): `update-metadata` CAS writes metadata string unchanged.
+- [eventRouter.ts](D:/harness-efforts/codexu/packages/happy-server/sources/app/events/eventRouter.ts:506): `update-session` metadata echo is `{ value, version }`.
+- [api/types.ts](D:/harness-efforts/codexu/packages/happy-cli/src/api/types.ts:266): CLI `Metadata` type also needs the new fields.
+- [createSessionMetadata.ts](D:/harness-efforts/codexu/packages/happy-cli/src/utils/createSessionMetadata.ts:70): common metadata factory.
+
+**Technical Constraints**
+
+Use composite session ids in app-visible metadata. Server/daemon RPCs use bare local ids; app calls must continue through `apiSocket.forSession(sid)` and use `scope.ref.localSessionId` only for payload fields that target a single machine.
+
+`parentSessionId` should accept `null | undefined | string`; null/undefined means top-level. `spawnedChildren` should stay optional. Do not backfill `spawnedChildren: []`, because empty array means “known no children,” while missing means “not tracked yet.”
+
+Full Session objects are not persisted to MMKV today. MMKV stores local overlays like drafts, permission mode flags, model mode, effort, pinned avatars, and last seen seq. If acceptance literally requires app restart persistence without server refetch, that is new scope; otherwise the current round-trip target is server → app Zustand store → re-fetch.
+
+The server does not validate metadata shape. Adding DB columns would require a Prisma migration and duplicated consistency logic between columns and JSON. Package guidance says not to update schema unless necessary.
+
+**Implementation Suggestions**
+
+Choose metadata-only for this task. It matches the existing metadata contract, avoids a migration, and satisfies the stated acceptance. Add DB columns only if the operator wants server-side querying/indexing of parent-child trees before the mobile tree UI exists.
+
+Suggested app schema:
+
+```ts
+parentSessionId: z.string().nullish(),
+spawnedChildren: z.array(z.string()).optional(),
+```
+
+Suggested CLI type additions mirror this:
+
+```ts
+parentSessionId?: string | null;
+spawnedChildren?: string[];
+```
+
+For helpers, prefer top-level exports in `storage.ts`:
+
+- `getSessionParent(sid): Session | null`
+- `getSessionChildren(sid): Session[]`
+
+Recommended semantics: explicit fields win. If `parentSessionId === null`, return no parent. If `parentSessionId === undefined`, optionally reverse-scan parents whose `spawnedChildren` includes `sid`. For children, if `spawnedChildren` is defined, return those existing sessions in listed order; if undefined, reverse-scan sessions whose `metadata.parentSessionId === sid`.
+
+Tests should cover `MetadataSchema`, `applySessions` preservation, helper behavior, and `sessionUpdateMetadata()` preserving composite parent/child ids while localizing only the socket `sid`. Cross-package checks should include `happy-app`, `happy-cli`, and `happy-server` typecheck.

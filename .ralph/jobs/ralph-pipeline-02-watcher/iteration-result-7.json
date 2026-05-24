@@ -1,0 +1,32 @@
+{
+  "storyId": "US-007",
+  "verifiedEvidence": [
+    {
+      "criterion": "Audit plans/ralph-pipeline-INDEX.md and plans/ralph-pipeline-{03..12}-*.md; identify any Plan-02-facing reference that diverges from what shipped.",
+      "command": "grep -RInE \"sync-lock|overview-ralph-state:update|deriveAffectedTaskUpdate|ralphSubdirs|selected-direction|long-lived|JSON sync lock|PID-liveness|sync.watch_status|sync-ralph-state:watch|Vite-plugin\" plans/ralph-pipeline-INDEX.md plans/ralph-pipeline-03-ui-chip.md plans/ralph-pipeline-04-pipeline-overview.md plans/ralph-pipeline-05-agent-exports.md plans/ralph-pipeline-06-skills.md plans/ralph-pipeline-07-context.md plans/ralph-pipeline-08-crews.md plans/ralph-pipeline-09-mcp.md plans/ralph-pipeline-10-ralph-handoff.md plans/ralph-pipeline-11-mcp-operational-tools.md plans/ralph-pipeline-12-package-as-plugin.md",
+      "result": "PASS: audited INDEX and Plans 03-12; divergent Plan-02-facing references were updated in INDEX, 03, 06, 08, 11, and 12. Plans 04, 05, 07, 09, and 10 had no stale Plan 02 contract guidance requiring edits.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Apply edits in the FINAL commit on the worktree branch (no earlier story commit touches these files).",
+      "command": "git show --name-only --format=\"%h %s\" HEAD -- plans/ralph-pipeline-INDEX.md plans/ralph-pipeline-03-ui-chip.md plans/ralph-pipeline-04-pipeline-overview.md plans/ralph-pipeline-05-agent-exports.md plans/ralph-pipeline-06-skills.md plans/ralph-pipeline-07-context.md plans/ralph-pipeline-08-crews.md plans/ralph-pipeline-09-mcp.md plans/ralph-pipeline-10-ralph-handoff.md plans/ralph-pipeline-11-mcp-operational-tools.md plans/ralph-pipeline-12-package-as-plugin.md && git status --short --branch",
+      "result": "PASS: HEAD is b4e98fcc feat: US-007 - Downstream cascade audit and touches only the six cascade plan files; branch ralph-pipeline-02-watcher is clean after commit.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Commit message lists each diff (file + line range + what changed) so reviewers can verify.",
+      "command": "git log -1 --pretty=%B",
+      "result": "PASS: commit body lists each changed file with line ranges and descriptions for INDEX, Plan 03, Plan 06, Plan 08, Plan 11, and Plan 12.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "git log -1 --stat on that final commit shows the cascade edits.",
+      "command": "git log -1 --stat",
+      "result": "PASS: git log -1 --stat shows b4e98fcc with 6 files changed, 34 insertions(+), 34 deletions(-), all under plans/ralph-pipeline*.md.",
+      "evidenceKind": "passed"
+    }
+  ],
+  "skippedReasons": [],
+  "notTested": [],
+  "iterationSHA": "b4e98fcce46a28877ec8828c13f3f96867269d30"
+}

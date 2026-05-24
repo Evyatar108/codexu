@@ -1,0 +1,61 @@
+{
+  "planFile": "D:/harness-efforts/codexu/.ralph/jobs/ralph-pipeline-03-ui-chip/plan.md",
+  "repoDir": "D:/harness-efforts/codexu/.ralph/jobs/ralph-pipeline-03-ui-chip/worktree",
+  "reviewCycle": 2,
+  "findings": [
+    {
+      "id": "F-001",
+      "severity": "Medium",
+      "source": "claude",
+      "classification": "fixable",
+      "phase": "code",
+      "category": "Quality",
+      "sectionRef": "Kanban component prop contract",
+      "description": "`Kanban` declares `ralphState: OverviewRalphState` as a required prop in its type signature (tools/overview-viewer/src/components/Kanban.tsx:97) but does not destructure or consume it inside the function body. App.tsx and the kanban tests pass `ralphState={ralphState}` / `ralphState={NO_RALPH_STATE}` solely to satisfy TypeScript. The plan deliberately reserves the slot for downstream Plan 04, but in the current ship state it is a required-but-unused prop, which is a quality footgun: a future renamed destructure or accidental positional drop would silently typecheck. Either destructure `ralphState` and drop it with an inline comment so the linter knows it is intentional, or relax the prop to optional (`ralphState?: OverviewRalphState`) until Plan 04 actually wires it.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Destructured ralphState as _ralphState in Kanban function argument list (Kanban.tsx:97). Required prop preserved for Plan 04. Typecheck + 7 kanban tests green. Round-2 re-review verified: commit de232734 lands the destructure cleanly, 119 vitest tests pass.",
+      "relevantFiles": [
+        "tools/overview-viewer/src/components/Kanban.tsx:97"
+      ],
+      "suggestedFix": "Destructure `ralphState` in the function arg list and prefix with `_` (e.g., `{ data, _ralphState, onJumpToCommand, visibleTaskIds }`), or relax the type to `ralphState?: OverviewRalphState` until Plan 04 consumes it. Either makes the unused-but-required contract explicit."
+    },
+    {
+      "id": "F-002",
+      "severity": "Low",
+      "source": "claude",
+      "classification": "fixable",
+      "phase": "code",
+      "category": "Quality",
+      "sectionRef": "RalphStageChip Tooltip.Provider scope",
+      "description": "`RalphStageChip` wraps every chip in its own `<Tooltip.Provider delayDuration={200} skipDelayDuration={0}>` (tools/overview-viewer/src/components/RalphStageChip.tsx:20). Because the chip is rendered once per task row in `CommandList`, this creates one Tooltip.Provider per row. `WorkstreamPill` already does the same, so this is consistent with the existing pattern, but a single top-level `<Tooltip.Provider>` around the whole app (or per-list) would be lighter and matches Radix's recommendation. Not a bug; quality nit only.",
+      "status": "wont_fix",
+      "fixedInIteration": 1,
+      "resolution": "Hoisting Tooltip.Provider to App.tsx would break interaction tests that render RalphStageChip and WorkstreamPill in isolation without an App wrapper. Cross-cutting test changes also conflict with CLAUDE.md parallel-work guardrail. Per-component provider is functionally correct; optimization deferred.",
+      "relevantFiles": [
+        "tools/overview-viewer/src/components/RalphStageChip.tsx:20",
+        "tools/overview-viewer/src/components/TaskCommand.tsx:298"
+      ],
+      "suggestedFix": "Defer to a follow-up: hoist `<Tooltip.Provider>` to App.tsx or CommandList and drop the per-chip wrapper from both RalphStageChip and WorkstreamPill in the same pass. Not in scope for Plan 03."
+    },
+    {
+      "id": "F-003",
+      "severity": "Low",
+      "source": "claude",
+      "classification": "fixable",
+      "phase": "code",
+      "category": "Quality",
+      "sectionRef": "filters.ts sentinel collision risk",
+      "description": "`NO_RALPH_STAGE = '__no_ralph__'` in tools/overview-viewer/src/utils/filters.ts:5 is a magic-string sentinel used inside `matchesTaskFilter` / `matchesKanbanFilter` to denote untracked tasks. The reserved value is invisible to readers of `RalphStage` and a future stage literal named `__no_ralph__` (vanishingly unlikely, but possible if the union ever opens) would collide. Optional hardening: rename to `RALPH_STAGE_NONE` or annotate the union/type docs so the reserved string is discoverable.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Added 1-line JSDoc comment above NO_RALPH_STAGE in filters.ts explaining the sentinel is intentionally outside the RalphStage union. Typecheck + 119 tests green. Round-2 re-review verified: commit 24c173dd lands the JSDoc cleanly.",
+      "relevantFiles": [
+        "tools/overview-viewer/src/utils/filters.ts:5",
+        "tools/overview-viewer/src/utils/filters.ts:88",
+        "tools/overview-viewer/src/utils/filters.ts:98"
+      ],
+      "suggestedFix": "Add a one-line jsdoc to `RalphStage` in types.ts noting `__no_ralph__` is reserved by filters.ts, or move the sentinel into types.ts so the reservation lives next to the union."
+    }
+  ]
+}

@@ -1,0 +1,20 @@
+Most of the round-1 fixes look adequate. The remaining gaps are below.
+
+### Feasibility
+- [High] `packages/happy-cli\src\codex\codex.integration.test.ts` is still the wrong harness for AC4 as described. That file only drives `CodexAppServerClient` directly; it does **not** boot `packages/happy-cli\src\codex\runCodex.ts`, `packages/happy-cli\src\api\apiSession.ts`, Socket.IO emission, or session RPC registration. So the plan’s claim that it can “re-use the same real-CLI test rig” to assert `agent-tree-update` emission and `sessionGetAgentTree` is inaccurate.
+- [Medium] The v2-only nickname/role fallback is still underspecified. The plan says `thread/read` can fill those fields, but `packages/happy-cli\src\codex\codexAppServerClient.ts` handles notifications synchronously in `handleRawNotification()` / `handleNotification()`, and the delta model only includes `pending-spawn-started | node-added | node-status-changed | node-removed`. There is no clean late “metadata enriched” update path if `thread/read` completes after the initial `node-added`.
+
+### Completeness
+- [High] Step 4 and Step 8 still conflict on payload shape. Step 4 says `sendAgentTreeUpdate(delta)` does **not** need to send `sessionId`; Step 8 says `packages/happy-server\sources\app\api\socket\sessionUpdateHandler.ts` must authorize by checking `payload.sessionId`. As written, the server-side auth check cannot be implemented against the client payload the plan defines.
+- [Medium] AC4b requires a server test for rejecting spoofed inbound `agent-tree-update` frames, but the file table only adds `packages/happy-server\sources\app\events\eventRouter.test.ts`. That covers fan-out, not `sessionUpdateHandler.ts` authorization. The plan should explicitly add a `sessionUpdateHandler` test file/scope.
+- [Medium] AC3 is narrower than the actual routing contract in `packages/happy-server\sources\app\events\eventRouter.ts`. `all-interested-in-session` currently fans out to both the session room **and** `user:${userId}:user-scoped`. AC3 only checks session-scoped delivery and machine-scoped non-delivery, so a regression that drops user-scoped listeners would still pass.
+
+### Ordering
+- [Low] The document still contains an ordering contradiction. The architecture section says `AgentTreeState` is created after `client.connect()` succeeds, but Step 6 and the risk section correctly require it before `client.setEventHandler(...)` in `packages/happy-cli\src\codex\runCodex.ts`. The later steps look right; the earlier statement should be corrected.
+
+### Simplicity
+No issues found.
+
+### Acceptance Criteria Quality
+- [High] AC4’s command will skip the primary test entirely. `packages/happy-cli\src\codex\codex.integration.test.ts` is gated by `process.env.RUN_CODEX_INTEGRATION === "1"`, but AC4 only says to run `npm_config_script_shell=bash pnpm --filter happy exec vitest run src/codex/codex.integration.test.ts`. Without `RUN_CODEX_INTEGRATION=1`, Vitest can pass without exercising the real Codex path.
+

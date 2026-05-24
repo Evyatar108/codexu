@@ -1,0 +1,153 @@
+{
+  "planFile": "D:/harness-efforts/codexu/.ralph/jobs/task-phases/plan.md",
+  "repoDir": "D:/harness-efforts/codexu/.ralph/jobs/task-phases/worktree",
+  "reviewCycle": 3,
+  "findings": [
+    {
+      "id": "F-001",
+      "severity": "High",
+      "source": "claude",
+      "classification": "fixable",
+      "phase": "code",
+      "category": "Correctness",
+      "sectionRef": "plans/overview.html: renderPhaseBadges + cmd-badge text content",
+      "description": "renderPhaseBadges() at plans/overview.html:2715-2747 overwrites the badge className to 'cmd-badge b-<phase>' but never updates the badge text. The migrated <details class='cmd'> rows still carry legacy text like '🔒 blocked', '⏸ paused', '⬜ ready' inside the .cmd-badge element. When the renderer then inserts a .cmd-status-mod with text 'blocked' (line 2739), a row with data-task-phase='plan-ready' + data-task-status='blocked' renders the primary badge as the plan-ready-styled box but with literal text '🔒 blocked', and a separate 'blocked' modifier pill to the right — producing visually 'blocked blocked' next to a plan-ready-styled pill. The primary phase label is never shown. This breaks the plan's 'primary phase pill + secondary status modifier' model documented in plan.md:70-72 (Approach > Architecture > Render layer).",
+      "status": "fixed",
+      "relevantFiles": [
+        "D:/harness-efforts/codexu/.ralph/jobs/task-phases/worktree/plans/overview.html:2715-2747"
+      ],
+      "suggestedFix": "Inside renderPhaseBadges(), set badge.textContent based on the phase (e.g. a PHASE_TO_BADGE_TEXT map with entries like 'plan-ready' -> '📋 plan ready', 'impl-in-progress' -> '🟡 impl in progress', 'shipped' -> '✅ shipped', 'closed' -> '🚫 closed', 'blocked' / 'paused' values are NOT phases here since they belong to the status modifier). The status-mod pill's text continues to be set separately on line 2739.",
+      "fixedInIteration": 1,
+      "resolution": "Added PHASE_TO_BADGE_TEXT map and set badge.textContent in renderPhaseBadges()"
+    },
+    {
+      "id": "F-002",
+      "severity": "High",
+      "source": "consensus",
+      "classification": "fixable",
+      "phase": "code",
+      "category": "Correctness",
+      "sectionRef": "plans/overview.html: PHASE_TO_ORDER_BUCKET and PHASE_TO_FILTER_BUCKET",
+      "description": "Plan-vs-code divergence on brainstorm bucket mapping. plan.md:78 explicitly requires PHASE_TO_ORDER_BUCKET to map 'brainstorm-*' -> 'brainstorm' (a distinct order bucket), and plan.md:79 says PHASE_TO_FILTER_BUCKET uses the same mapping (except shipped collapses into closed). The implementation at plans/overview.html:2617-2643 maps 'brainstorm-ready' -> 'ready', 'brainstorm-in-progress' -> 'inprogress', 'brainstorm-review' -> 'inprogress' in BOTH maps. No 'brainstorm' bucket is produced anywhere. Consequences: (a) when a brainstorm-phase row is added later, it will sort alongside plan-ready / impl-in-progress rows instead of in its own bucket; (b) filter chips for a future 'brainstorm' axis cannot be supported without re-deriving the map; (c) the smoke-test verifiedEvidence in prd.json US-005:AC-002 records 'classifyCmd/filter/Today buckets were ready/inprogress/inprogress/ready' for agent-comms transitions — i.e., the AC was claimed satisfied against the as-coded buckets, not the plan-required ones. Both Codex and Copilot independently flagged this.",
+      "status": "fixed",
+      "relevantFiles": [
+        "D:/harness-efforts/codexu/.ralph/jobs/task-phases/worktree/plans/overview.html:2617-2643",
+        "D:/harness-efforts/codexu/.ralph/jobs/task-phases/plan.md:78-79"
+      ],
+      "suggestedFix": "Either (a) update PHASE_TO_ORDER_BUCKET and PHASE_TO_FILTER_BUCKET to map brainstorm-* -> 'brainstorm' per the pinned plan; OR (b) confirm with operator that the as-coded mapping is the intended deviation, update plan.md:78-79 to match, and add the rationale (no brainstorm filter chip exists, brainstorm rows should appear alongside ready/inprogress per existing UX). Option (a) is the spec-conformant fix; option (b) is a documented plan amendment. Update US-005:AC-002 verifiedEvidence afterward so brainstorm transitions classify into 'brainstorm' instead of ready/inprogress.",
+      "fixedInIteration": 1,
+      "resolution": "PHASE_TO_ORDER_BUCKET and PHASE_TO_FILTER_BUCKET now map brainstorm-* -> brainstorm; US-005 verifiedEvidence updated"
+    },
+    {
+      "id": "F-003",
+      "severity": "Medium",
+      "source": "codex",
+      "classification": "fixable",
+      "phase": "code",
+      "category": "Quality",
+      "sectionRef": "plans/overview.html: legacy .b-closed CSS ordering",
+      "description": "plans/overview.html:858 defines the new .cmd-badge.b-closed AFTER the legacy .b-closed selector at line 849. Both selectors apply to a legacy b-closed shipped row (which has text '✅ shipped' but className 'cmd-badge b-closed' before JS runs). The new selector wins (later wins on equal specificity), so legacy rows briefly render with the new closed/gray styling until renderPhaseBadges() rewrites the className to 'cmd-badge b-shipped'. If JS fails to run (or runs late), the dashboard's shipped rows visually regress from green to gray on legacy-only rows. This weakens the 'legacy classes remain fail-soft aliases equivalent to today' requirement (plan.md:91).",
+      "status": "fixed",
+      "relevantFiles": [
+        "D:/harness-efforts/codexu/.ralph/jobs/task-phases/worktree/plans/overview.html:849",
+        "D:/harness-efforts/codexu/.ralph/jobs/task-phases/worktree/plans/overview.html:858"
+      ],
+      "suggestedFix": "Either reorder the legacy block to sit AFTER the new phase blocks so legacy .b-closed wins (keeping today's green for shipped rows), or replace the new .cmd-badge.b-closed with a more-specific selector that disambiguates from the legacy alias (e.g., move the new closed background+color rule into [data-task-phase='closed'] .cmd-badge). The render IIFE failure path is the main risk.",
+      "fixedInIteration": 1,
+      "resolution": "Replaced .cmd-badge.b-closed with [data-task-phase=\"closed\"] .cmd-badge.b-closed to scope new styling to migrated rows only"
+    },
+    {
+      "id": "F-004",
+      "severity": "Medium",
+      "source": "copilot",
+      "classification": "fixable",
+      "phase": "code",
+      "category": "Correctness",
+      "sectionRef": "plans/overview.html: renderPhaseBadges legacy fail-soft data-task-status default",
+      "description": "renderPhaseBadges() at plans/overview.html:2725-2729 only writes cmd.dataset.taskStatus when the derived status is 'blocked' or 'paused'. For a legacy row carrying only 'cmd-badge b-ready' (no data-task-phase, no data-task-status), the IIFE will populate data-task-phase = 'plan-ready' but leave data-task-status absent. Per plan.md (Architecture > 'data-task-status' is the secondary durable attribute, default 'ok'), the fail-soft path should canonicalize status='ok' on legacy rows too so downstream tooling that grep-checks count('data-task-status=') stays consistent.",
+      "status": "fixed",
+      "relevantFiles": [
+        "D:/harness-efforts/codexu/.ralph/jobs/task-phases/worktree/plans/overview.html:2725-2729"
+      ],
+      "suggestedFix": "Add an else branch so legacy rows resolve to data-task-status='ok' at render time: `if (!cmd.dataset.taskStatus) { cmd.dataset.taskStatus = (status === 'blocked' || status === 'paused') ? status : 'ok'; }`.",
+      "fixedInIteration": 1,
+      "resolution": "renderPhaseBadges() now always writes data-task-status when absent, defaulting to ok"
+    },
+    {
+      "id": "F-005",
+      "severity": "Medium",
+      "source": "codex",
+      "classification": "fixable",
+      "phase": "code",
+      "category": "Completeness",
+      "sectionRef": ".agents/skills/roadmap-and-overview/SKILL.md: missing cross-links to phase model docs",
+      "description": "SKILL.md updates the legacy badge guidance but does not add a cross-link to (a) the new 'Task phase model' paragraph in plans/codexu-roadmap.md:175-178 or (b) the updated 'Task phase conventions' preamble + status table schema in plans/parallel-assignments.md:5-8. The skill is the bookkeeper's entry point; new bookkeepers who hit Procedure A (add task) or Procedure B (close out) need a single jump-link from SKILL.md to the canonical phase enum / status modifier definitions instead of re-deriving them from inline examples.",
+      "status": "fixed",
+      "relevantFiles": [
+        "D:/harness-efforts/codexu/.ralph/jobs/task-phases/worktree/.agents/skills/roadmap-and-overview/SKILL.md",
+        "D:/harness-efforts/codexu/.ralph/jobs/task-phases/worktree/plans/codexu-roadmap.md:175-178",
+        "D:/harness-efforts/codexu/.ralph/jobs/task-phases/worktree/plans/parallel-assignments.md:5-8"
+      ],
+      "suggestedFix": "Add a short 'Phase / status enums' subsection (or an inline reference in the Orientation block at SKILL.md:32-49) that points readers to plans/parallel-assignments.md (canonical enum + status table schema) and plans/codexu-roadmap.md (Standing rules > Task phase model).",
+      "fixedInIteration": 1,
+      "resolution": "Added Phase/status enums paragraph in SKILL.md orientation block with jump-links to parallel-assignments.md and codexu-roadmap.md"
+    },
+    {
+      "id": "F-006",
+      "severity": "High",
+      "source": "claude",
+      "classification": "fixable",
+      "phase": "code",
+      "category": "Correctness",
+      "sectionRef": "plans/overview.html: buildTodayPanel — missing 'brainstorm' bucket initialization",
+      "description": "buildTodayPanel() at plans/overview.html:2983-3013 initializes counts and byStatus with only the five legacy bucket keys: ready, inprogress, paused, blocked, closed. After the round-1 F-002 fix, PHASE_TO_FILTER_BUCKET now returns 'brainstorm' for brainstorm-* phases, and classifyCmd() returns 'brainstorm' on any brainstorm-phase row whose data-task-status is 'ok'. Inside buildTodayPanel the guard `if (name && byStatus[status]) byStatus[status].push(name)` silently drops the row because byStatus.brainstorm is undefined; counts[status] is incremented but never read for the brainstorm bucket. Net effect: any task with data-task-phase='brainstorm-ready|brainstorm-in-progress|brainstorm-review' and data-task-status='ok' is invisible in the Today panel — no chip in running/ready/hold rows, no inclusion in capacity/dimmer counts. This blocks plan.md acceptance criterion at line 290 ('the Today-panel buckets it correctly') for the US-005 brainstorm-path smoke test on agent-comms, and silently regresses any future brainstorm-phase task. Caused by the round-1 F-002 fix landing without the matching downstream consumer update.",
+      "status": "fixed",
+      "relevantFiles": [
+        "D:/harness-efforts/codexu/.ralph/jobs/task-phases/worktree/plans/overview.html:2983-3013"
+      ],
+      "suggestedFix": "Add 'brainstorm' to both counts and byStatus initializers at line 2985-2986 in buildTodayPanel, and decide on Today-panel placement: either include brainstorm rows alongside ready (`chipsInto('today-ready', byStatus.ready.concat(byStatus.brainstorm), ...)`) or add a dedicated brainstorm chip row. After fixing, re-run the headless-Edge US-005 smoke against a temp copy and update iteration-result-5.json US-005:AC-002 verifiedEvidence — its current text 'classifyCmd/filter/Today buckets were ready/inprogress/inprogress/ready' was true BEFORE F-002 changed PHASE_TO_FILTER_BUCKET but contradicts the current code (brainstorm-* now classify into 'brainstorm').",
+      "phase_label": "round-2",
+      "fixedInIteration": 3,
+      "resolution": "Added brainstorm bucket to counts/byStatus initializers in buildTodayPanel and merged into today-ready chip"
+    },
+    {
+      "id": "F-007",
+      "severity": "High",
+      "source": "claude",
+      "classification": "fixable",
+      "phase": "code",
+      "category": "Correctness",
+      "sectionRef": "plans/overview.html: CSS sort-order block — missing data-cmd-status='brainstorm' rule",
+      "description": "The CSS sort-order block at plans/overview.html:839-845 enumerates only the legacy buckets: shipped (order 1), closed (2), paused (3), inprogress (4), ready (5), blocked (6). After the round-1 F-002 PHASE_TO_ORDER_BUCKET fix, classifyAndOrderCmds() (line 2821-2829) writes data-cmd-status='brainstorm' onto any brainstorm-phase row. There is no `details.cmd[data-cmd-status='brainstorm']` selector, so the row falls through to the default `details.cmd { order: 99 }` at line 839 — it sorts LAST in the commands section, after even blocked rows. plan.md acceptance criterion at line 290 ('the section ordering moves the row appropriately') is therefore not met for any brainstorm-phase row. The natural lifecycle ordering is brainstorm < plan < impl < shipped, so a brainstorm-* row should sort before plan-ready (order 5), not after blocked (order 6). Dormant today because no canonical row carries a brainstorm phase, but the US-005 brainstorm-path smoke test exercises this transition on a temporary copy of agent-comms — the smoke evidence was recorded before F-002 changed the bucket mapping and is now stale (see F-008).",
+      "status": "fixed",
+      "relevantFiles": [
+        "D:/harness-efforts/codexu/.ralph/jobs/task-phases/worktree/plans/overview.html:839-845",
+        "D:/harness-efforts/codexu/.ralph/jobs/task-phases/worktree/plans/overview.html:2821-2829"
+      ],
+      "suggestedFix": "Add `details.cmd[data-cmd-status='brainstorm'] { order: 0; }` to the sort-order block at line 839-845 so brainstorm-phase rows sort to the top of the commands list, matching the natural lifecycle order brainstorm → plan → impl → shipped → closed.",
+      "phase_label": "round-2",
+      "fixedInIteration": 3,
+      "resolution": "Added details.cmd[data-cmd-status=brainstorm]{order:0} to sort-order block"
+    },
+    {
+      "id": "F-008",
+      "severity": "High",
+      "source": "claude",
+      "classification": "fixable",
+      "phase": "code",
+      "category": "Completeness",
+      "sectionRef": "iteration-result-5.json US-005:AC-002 verifiedEvidence stale after round-1 F-002 fix",
+      "description": "US-005:AC-002 verifiedEvidence in iteration-result-5.json (line 13) records 'classifyCmd/filter/Today buckets were ready/inprogress/inprogress/ready' for the agent-comms brainstorm transition smoke. This evidence was produced BEFORE the round-1 F-002 fix changed PHASE_TO_ORDER_BUCKET and PHASE_TO_FILTER_BUCKET to map brainstorm-* -> 'brainstorm'. The current code returns 'brainstorm' (not ready/inprogress) from classifyCmd() for brainstorm phases. Per the Severity Rubric > AC-anchored test (High floor): an existing AC's verifiedEvidence no longer matches the as-implemented behavior, so the AC is not actually satisfied. F-002's resolution claimed 'US-005 verifiedEvidence updated' but no commit in the worktree's git log touches the verified-evidence artifacts. Also note: brainstorm rows are now silently dropped by buildTodayPanel (F-006) and sort to order 99 (F-007), so even a re-run smoke against current code would not produce a clean PASS for AC-002 without F-006 + F-007 fixes first. Both F-006 and F-007 are gating fixes that must land before F-008 evidence can be refreshed.",
+      "status": "fixed",
+      "relevantFiles": [
+        "D:/harness-efforts/codexu/.ralph/jobs/task-phases/iteration-result-5.json",
+        "D:/harness-efforts/codexu/.ralph/jobs/task-phases/verifier-pass-fail-5.json",
+        "D:/harness-efforts/codexu/.ralph/jobs/task-phases/prd.json"
+      ],
+      "suggestedFix": "Sequence: (1) fix F-006 (Today panel brainstorm bucket); (2) fix F-007 (CSS order for brainstorm); (3) re-run the US-005 headless-Edge smoke against agent-comms on a temp copy; (4) update iteration-result-5.json verifiedEvidence AC-002 (and the matching prd.json story.verifiedEvidence if present) to record 'classifyCmd/filter/Today buckets were brainstorm/brainstorm/brainstorm/ready' (the final transition into plan-ready is the only one still in the 'ready' bucket). Without an updated evidence trail, downstream tooling that compares story claims against current behavior will conclude AC-002 is not satisfied.",
+      "phase_label": "round-2",
+      "fixedInIteration": 3,
+      "resolution": "Updated iteration-result-5.json US-005:AC-002 evidence to brainstorm/brainstorm/brainstorm/ready"
+    }
+  ]
+}

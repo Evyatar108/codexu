@@ -1,0 +1,37 @@
+**Feasibility**
+
+[High] The predicate signature cannot implement the planned `planning` stage. `deriveRalphStage()` is specified to receive only `jobState`, `prd`, `groupState`, `brainstormJson`, and `reviewOpenCount`, but predicate #8 depends on a “jobDir marker” when neither `prd.json` nor `job-state.json` exists. Neither the runtime signature nor the proposed `scripts.d.ts` declaration carries `jobDir`/`artifacts`, so `planning` is impossible as described.
+
+[High] Group artifacts can win cross-kind precedence, but no group-stage derivation is defined. The plan says `group` wins over `brainstorm`, and current state includes `.ralph/job-groups/overview-data-split/group.json`, but the stage table never uses `groupState` or the group-level `.ralph/job-groups/<group>/job-state.json`. A matched group-only task would have no deterministic `RalphStage`.
+
+[High] The TypeScript test plan is incomplete for `.mjs` imports. [tsconfig.json](D:/harness-efforts/codexu/tools/overview-viewer/tsconfig.json:1) has `allowJs: false`, and the proposed `scripts.d.ts` declares only `*/derive-ralph-stage.mjs`, while the test plan also imports helpers from `sync-core.mjs` and tests `resolve-config.mjs`. Those modules also need ambient declarations or typed dynamic imports.
+
+[Medium] `.ralph/overview-config.schema.json` is described as allowed JSONC. A `.schema.json` file should be valid JSON if editors, validators, or future tooling are expected to load it as JSON Schema. Keep comments in a README, not in the schema file.
+
+**Completeness**
+
+[Medium] `generatedFromCommit` is required by `OverviewRalphState`, the bootstrap sidecar, and JS/JSON consistency checks, but no module is assigned responsibility for computing it. The CLI already calls `git rev-parse --show-toplevel`; the plan should also specify `git rev-parse --short HEAD` or an equivalent source.
+
+[Medium] Malformed artifact handling is under-specified. Acceptance says malformed `job-state.json` is logged and skipped, but the plan does not define whether it appears in `unmatched[]`, what `reason` to use, or whether sibling files like `prd.json` still produce a stage.
+
+[Medium] The config resolver promises “freezes the result” but does not say deep-freeze. Since nested objects like `outputs`, `ralphSubdirs`, and `watcher` are shared across sync/watch/future plans, either specify deep freeze or drop the immutability claim.
+
+**Ordering**
+
+[Low] The sidecar bootstrap order is contradictory. Step 7 says commit empty `byTaskId: {}` sidecars, while the handoff says the first commit after shipping should run `pnpm sync-ralph-state` and include generated state. Pick one expected initial artifact state so implementers do not churn generated files between stories.
+
+**Simplicity**
+
+[Medium] The Plan 01 config includes many future-only fields (`dataJson`, `snapshot`, `activity`, `recommendations`, `dependencyGraph`, `tasksIndex`, `journalDir`, `crewsRoot`, `devServer`, `build`, `filters`, `lockFile`) that this plan does not consume. That increases schema/test surface now. A smaller Plan 01 config plus additive fields in later plans would reduce drift risk.
+
+**Acceptance Criteria Quality**
+
+[High] The “10 stage-derivation cases” criterion cannot be satisfied until the `planning` marker and group behavior are fixed. As written, a test for `planning` has no valid input shape under the declared `deriveRalphStage()` signature.
+
+[Medium] “Expected matching task IDs” in verification C is vague. It should define the expected set from current `plans/overview-data.js` slug equality, or require a deterministic fixture repo/temp `.ralph` tree.
+
+[Medium] The idempotency criterion says to ignore only root `generatedAt`, but `RalphPipelineState` also has optional per-entry `generatedAt`. Either forbid per-entry generation timestamps in this plan or update the diff filter.
+
+[Medium] The manual `ralphOverrides` verification asks implementers to edit [overview-data.js](D:/harness-efforts/codexu/plans/overview-data.js:1), which the plan otherwise treats as hand-curated and not modified by sync. This is fine as a manual smoke, but the AC should require restoring the file or use a temp fixture to avoid accidental bookkeeping churn.
+
+Prior amendments for de-versioning the Ralph schema path and adding `replan-pending` are adequate. The remaining blockers are mainly the missing input shape for `planning`, undefined group-stage behavior, and incomplete `.mjs` typing for the planned tests.

@@ -1,0 +1,74 @@
+{
+  "storyId": "US-005",
+  "verifiedEvidence": [
+    {
+      "criterion": "tools/overview-viewer/vite.config.ts defines a new named factory overviewRalphStatePlugin(): Plugin distinct from overviewDataPlugin() (DO NOT modify or extend the existing plugin).",
+      "command": "nl -ba tools/overview-viewer/vite.config.ts | sed -n '20,135p'",
+      "result": "Line 20 keeps overviewDataPlugin(); line 91 defines separate overviewRalphStatePlugin(): Plugin; line 135 registers both plugins as siblings.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Do NOT touch Plan 02's configureServer extensions or extend overviewDataPlugin. Add a separate named plugin only.",
+      "command": "grep -nE 'server.watcher.add|function overviewRalphStatePlugin|plugins:' tools/overview-viewer/vite.config.ts",
+      "result": "The Ralph sidecar is implemented by separate overviewRalphStatePlugin() and registered beside overviewDataPlugin(); server.watcher.add appears only for overviewDataPath on line 45.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "overviewRalphStatePlugin.configureServer registers middleware on /overview-ralph-state.js that reads plans/overview-ralph-state.js from disk and serves it with Content-Type: application/javascript. Read errors return 500 with an inline comment.",
+      "command": "nl -ba tools/overview-viewer/vite.config.ts | sed -n '91,107p'",
+      "result": "Lines 95-107 register /overview-ralph-state.js middleware; line 98 reads overviewRalphStatePath, lines 99 and 104 set application/javascript, and lines 103-105 return status 500 with an inline comment on read failure.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Does NOT call server.watcher.add(...) for the ralph sidecar (Plan 02 owns the watch).",
+      "command": "grep -n 'server.watcher.add' tools/overview-viewer/vite.config.ts",
+      "result": "Only line 45 matches, and it is server.watcher.add(overviewDataPath); there is no watcher add for overviewRalphStatePath.",
+      "evidenceKind": "absent-verified"
+    },
+    {
+      "criterion": "transformIndexHtml order pre is skipped on dev, reads plans/overview-ralph-state.js, minifies via esbuild, escapes closing script tags, and inlines into the script tag with a clear missing-tag error.",
+      "command": "nl -ba tools/overview-viewer/vite.config.ts | sed -n '109,126p'",
+      "result": "Lines 109-126 define transformIndexHtml order 'pre', return original html when ctx.server exists, throw Expected <script src=\"./overview-ralph-state.js\"></script> if missing, read overviewRalphStatePath, minify via esbuild transform, escape closing script tags, and replace the sidecar script tag with inline code.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "tools/overview-viewer/overview.html contains <script src=\"./overview-ralph-state.js\"></script> placed between the existing overview-data.js tag and the /src/main.tsx module tag.",
+      "command": "nl -ba tools/overview-viewer/overview.html | sed -n '1,14p'",
+      "result": "Line 8 contains the Ralph state script tag, between overview-data.js on line 7 and the /src/main.tsx module tag on line 12.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Dev verification: while pnpm overview is running, fetching <dev-server-url>/overview-ralph-state.js (using the URL printed by pnpm overview, NOT a hardcoded 127.0.0.1:5173) returns a non-empty body containing 'window.OVERVIEW_RALPH_STATE = '.",
+      "command": "pnpm overview > .test-output/overview-viewer.dev.log 2>&1; parse printed URL; curl ${URL%/}/overview-ralph-state.js > .test-output/overview-viewer.dev-fetch.out",
+      "result": "Parsed printed dev URL http://127.0.0.1:5175/ after Vite skipped occupied ports 5173 and 5174; fetched http://127.0.0.1:5175/overview-ralph-state.js; response was 3352 bytes and contained one 'window.OVERVIEW_RALPH_STATE = ' match.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Static verification: pnpm overview:build produces plans/overview.html with grep -c 'OVERVIEW_RALPH_STATE' plans/overview.html >= 1.",
+      "command": "pnpm overview:build > .test-output/overview-viewer.build.log 2>&1; grep -c 'OVERVIEW_RALPH_STATE' plans/overview.html",
+      "result": "Build exited 0 in 5s; grep count was 2, satisfying >= 1.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Bundle size budget: wc -c plans/overview.html reports <= 525000 bytes.",
+      "command": "wc -c plans/overview.html",
+      "result": "501307 plans/overview.html, which is <= 525000 bytes.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "pnpm --filter @codexu/overview-viewer typecheck && pnpm --filter @codexu/overview-viewer test exits 0.",
+      "command": "pnpm --filter @codexu/overview-viewer typecheck > .test-output/overview-viewer.typecheck.log 2>&1; pnpm --filter @codexu/overview-viewer test > .test-output/overview-viewer.test.log 2>&1",
+      "result": "Both commands exited 0 after the final edits; typecheck ran tsc --noEmit and Vitest reported 24 test files passed and 119 tests passed.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Typecheck passes",
+      "command": "pnpm --filter @codexu/overview-viewer typecheck > .test-output/overview-viewer.typecheck.log 2>&1",
+      "result": "Exited 0 after the final edits; tsc --noEmit completed with no errors.",
+      "evidenceKind": "passed"
+    }
+  ],
+  "skippedReasons": [],
+  "notTested": [],
+  "iterationSHA": "f34a7ddf7d87ae72883284cf2c425c1db751f68a"
+}

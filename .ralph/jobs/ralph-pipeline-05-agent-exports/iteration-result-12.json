@@ -1,0 +1,38 @@
+{
+  "storyId": "US-012",
+  "verifiedEvidence": [
+    {
+      "criterion": "After mergeAndWrite returns successfully in flushPending, the watcher iterates result.activityEvents.",
+      "command": "nl -ba scripts/lib/watch-ralph-state.mjs | sed -n '135,148p'",
+      "result": "Lines 135-148 call mergeAndWrite, then iterate result.activityEvents and call appendActivity for each event with configured activity paths and maxLines.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "No additional state plumbing is added to the watcher debounce buffer (still { kind, slug } keyed via changeKey).",
+      "command": "grep -n \"pendingChanges.set\" scripts/lib/watch-ralph-state.mjs; grep -n \"return { kind, slug }\" scripts/lib/watch-ralph-state.mjs; nl -ba scripts/lib/watch-ralph-state.test.mjs | sed -n '79,99p'",
+      "result": "watch-ralph-state.mjs still stores parsed watcher changes with pendingChanges.set(changeKey(change.kind, change.slug), change) and parseWatchedPath returns only { kind, slug }; the focused test asserts pendingChanges is [{ kind: job, slug: task }] before flush and [] after flush.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Typecheck passes.",
+      "command": "pnpm --filter @codexu/overview-viewer typecheck > .test-output/overview-viewer.typecheck.log 2>&1",
+      "result": "PASS exit=0 duration=13s; tsc --noEmit completed with no errors.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Unit test passes: `pnpm vitest run scripts/lib/watch-ralph-state.test.mjs -t \"iterates activityEvents\"` -- stubbed mergeAndWrite returns 2 events; flushPending calls appendActivity exactly 2 times in order; debounce buffer remains `{ kind, slug }`.",
+      "command": "pnpm vitest run scripts/lib/watch-ralph-state.test.mjs -t \"iterates activityEvents\" > .test-output/watch-ralph-state-activityEvents.test.log 2>&1",
+      "result": "PASS exit=0 duration=7s; 1 test file passed, 1 test passed. The test stubs mergeAndWrite with 2 activityEvents, asserts appendActivity is called exactly twice in order, and verifies pendingChanges uses only { kind, slug }.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Package regression tests pass.",
+      "command": "pnpm --filter @codexu/overview-viewer test > .test-output/overview-viewer.test.log 2>&1",
+      "result": "PASS exit=0 duration=14s; 27 test files passed, 153 tests passed.",
+      "evidenceKind": "passed"
+    }
+  ],
+  "skippedReasons": [],
+  "notTested": [],
+  "iterationSHA": "84683ccb2759b852e53910a77d84fc87c8ef6ac6"
+}

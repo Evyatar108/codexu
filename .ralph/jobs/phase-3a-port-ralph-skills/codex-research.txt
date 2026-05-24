@@ -1,0 +1,78 @@
+**Codebase Architecture**
+
+This repo is a pnpm monorepo at `D:/harness-efforts/codexu` with TypeScript/React Native packages for the Happy/Codexu app stack plus one content-only Codex plugin:
+
+- [package.json](</d:/harness-efforts/codexu/package.json>) / [pnpm-workspace.yaml](</d:/harness-efforts/codexu/pnpm-workspace.yaml>): workspace packages include `happy-app`, `happy-cli`, `happy-server`, `happy-wire`, `codium`, and `packages/codexu-plugin`.
+- [packages/codexu-plugin](</d:/harness-efforts/codexu/packages/codexu-plugin>): no package.json; it is versioned in the monorepo but loaded by Codex as a plugin.
+- [packages/codexu-plugin/.codex-plugin/plugin.json](</d:/harness-efforts/codexu/packages/codexu-plugin/.codex-plugin/plugin.json>): Codex plugin manifest.
+- [packages/codexu-plugin/skills/hello-world/SKILL.md](</d:/harness-efforts/codexu/packages/codexu-plugin/skills/hello-world/SKILL.md>): current skill template.
+- [packages/codexu-plugin/.agents/plugins/marketplace.json](</d:/harness-efforts/codexu/packages/codexu-plugin/.agents/plugins/marketplace.json>): local marketplace catalog for installing/upgrading the plugin.
+
+The Codex engine is intended to be a git submodule at `codex/`, but it is not initialized in this checkout (`git submodule status` shows `-c3bad... codex`). So `codex/core-plugins/src/manifest.rs` cannot currently be read directly here.
+
+The requested Ralph source is also missing in this environment. I checked `C:/ai-developer-toolkit/plugins/ralph/skills`, `/c/ai-developer-toolkit`, `./ralph`, and the roadmap-mentioned junction paths; none exist. Implementation needs that source path restored first.
+
+**Feature-Relevant Code**
+
+Directly relevant files:
+
+- [packages/codexu-plugin/.codex-plugin/plugin.json](</d:/harness-efforts/codexu/packages/codexu-plugin/.codex-plugin/plugin.json>): currently:
+  ```json
+  "skills": "./skills"
+  ```
+  This is already the correct single-root shape.
+- [packages/codexu-plugin/skills/hello-world/SKILL.md](</d:/harness-efforts/codexu/packages/codexu-plugin/skills/hello-world/SKILL.md>): frontmatter template:
+  ```yaml
+  ---
+  name: hello-world
+  description: ...
+  user-invocable: true
+  ---
+  ```
+- [packages/codexu-plugin/README.md](</d:/harness-efforts/codexu/packages/codexu-plugin/README.md>): install/upgrade and smoke-test notes.
+- [plans/codexu-roadmap.md](</d:/harness-efforts/codexu/plans/codexu-roadmap.md>): Phase 1c, Phase 2b, Phase 3a. It records the manifest schema, the one-skills-root constraint, and the 13 Ralph skill names.
+- [docs/fork-notes.md](</d:/harness-efforts/codexu/docs/fork-notes.md>): repo/fork context and Ralph workflow prerequisites.
+
+Relevant roadmap facts:
+
+- Phase 3a lists 13 Ralph skills: 4 user-invocable and 9 internal.
+- Phase 2b says Codex tolerates Claude-only skill frontmatter fields like `allowed-tools`.
+- Phase 1c says Codex manifest fields are `skills`, `mcpServers`, `apps`, `hooks`, `interface`; `skills` is a single string path, not a per-skill array.
+
+**Technical Constraints**
+
+The biggest constraint: do not add a `skills` array. The actual manifest shape is `skills: Option<String>`, and the existing plugin already uses `"skills": "./skills"`. Adding per-skill manifest entries would be wrong; Codex discovers every `SKILL.md` under that one root.
+
+Path constraints from the roadmap’s manifest notes:
+
+- `skills` must start with `./`.
+- Absolute paths and `..` are rejected.
+- Unknown manifest fields are silently ignored.
+- Malformed JSON or wrong field types can make the plugin absent or drop fields with only log warnings.
+
+Operational constraints:
+
+- The source Ralph plugin path is currently unavailable, so copying cannot proceed until the junction/source is restored.
+- The `codex/` submodule is uninitialized, so direct verification against `manifest.rs` is blocked unless `git submodule update --init codex` is run.
+- Installed Codex CLI here is `codex-cli 0.125.0-copilot-api.8`; the roadmap references `0.128.0...`. The needed commands exist: `codex plugin marketplace upgrade` and `codex debug prompt-input`.
+
+**Implementation Suggestions**
+
+Use a mechanical copy-plus-frontmatter pass:
+
+1. Restore or provide `C:/ai-developer-toolkit/plugins/ralph/skills`.
+2. For each Ralph skill, create:
+   `packages/codexu-plugin/skills/<skill-name>/SKILL.md`.
+3. Preserve frontmatter keys that Codex understands or tolerates: `name`, `description`, `model` if present, and `user-invocable`.
+4. Strip Claude-only fields such as `allowed-tools` only if desired for cleanliness; Codex tolerates them, but Phase 3a asks to remove them.
+5. Leave [plugin.json](</d:/harness-efforts/codexu/packages/codexu-plugin/.codex-plugin/plugin.json>) as `"skills": "./skills"` unless adding another plugin-level path field. Do not convert it to an array.
+6. Review skill bodies for Claude-specific instructions only if Phase 3a scope includes body adaptation. The roadmap specifically flags `Task({ subagent_type: ... })` wording as needing Codex `agent_type` phrasing, but deeper subagent role conversion is Phase 3b, not this port.
+7. Do not port options-mode; it is Phase 3h.
+
+Verification should be:
+
+- Run `codex plugin marketplace upgrade codexu`.
+- Re-enable `codexu-plugin` in TUI if needed.
+- Run `codex debug prompt-input "test"` and confirm all 13 Ralph skill names appear with paths under `packages/codexu-plugin/skills/...`.
+- Check `~/.codex/log/` for plugin/manifest warnings.
+- Use `/skills` picker for one simple user-invocable skill. The request suggests `/list-jobs`, but roadmap classifies `list-jobs` as internal, so either make sure it is intentionally user-invocable for this test or pick one of the four declared user-invocable skills.

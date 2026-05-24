@@ -1,0 +1,17 @@
+{
+  "id": "F-004",
+  "severity": "High",
+  "source": "claude",
+  "classification": "fixable",
+  "phase": "code",
+  "category": "Correctness",
+  "sectionRef": "ProcessManager design — stop flow",
+  "description": "ProcessManager.stop removes the entry from the Map by default (options.remove !== false). The plan specifies the opposite default: 'No-op if absent or already exited unless remove is true, in which case the Map entry is deleted'. Default-removal silently drops dev-server logs/status history after dev_server.stop, breaking the post-stop status/logs read path the long-lived dev-server design depends on. It also makes dev-server-start.ts's recovery path work only accidentally; the contract is inverted from the plan.",
+  "status": "open",
+  "fixedInIteration": null,
+  "resolution": null,
+  "relevantFiles": [
+    "tools/overview-mcp/src/process-manager.ts:306-316"
+  ],
+  "suggestedFix": "Flip the default: only delete when options.remove === true. Update dev-server-start.ts failure cleanup to pass { remove: true } explicitly. Update the dev-server.test.ts 'clears a failed startup handle' assertion to reflect the explicit remove flag. Consider keeping a separate cleanup pass in shutdown if log retention after dev_server.stop is desired."
+}

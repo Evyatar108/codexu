@@ -1,0 +1,58 @@
+I’ll inspect the referenced temp artifact to identify the task and next steps.
+
+I’ll research the ralph-overview plugin structure and implementation points so the plan analysis is grounded in current code.
+
+I found this is a research-mode plan-analysis prompt. I’ll inspect the plugin’s MCP, CLI, templates, and sync/config code to produce a concise architecture and implementation report.
+
+I have enough of the structure; I’ll check the installer tests and skill patterns to confirm extension points before writing the research report.
+
+### Codebase Architecture
+
+`plugins\ralph-overview` is a Claude Code plugin with Node 20+ / TypeScript workspaces:
+
+- `bin\ralph-overview.mjs` is the consumer-facing dispatcher for `sync`, `watch`, `dev`, `build`, `mcp`, `install-server`, and `cli`.
+- `tools\overview-mcp\src\` is the MCP server using `@modelcontextprotocol/sdk`, Zod schemas, Vitest tests, and TypeScript `NodeNext`.
+- `tools\overview-viewer\src\` is the React 19 + Vite 8 dashboard.
+- `scripts\sync-ralph-state.mjs` and `scripts\lib\*.mjs` generate snapshots, sidecars, recommendations, activity logs, and watcher output.
+- `templates\overview-data.template.js` and `templates\overview-config.template.json` are the current consumer scaffolding sources.
+- `skills\work-on`, `skills\triage`, and `skills\blocker-report` show the current slash-skill pattern.
+
+The plugin already uses `.mcp.json` for plugin MCP registration and `launch.cjs` for build-on-first-launch caching.
+
+### Feature-Relevant Code
+
+Key implementation points:
+
+- `tools\overview-mcp\src\server.ts`: registers current MCP tools; add `overview.init` and `overview.upsert_task` here.
+- `tools\overview-mcp\src\schemas.ts`: add Zod input schemas for init/upsert.
+- `tools\overview-mcp\src\context.ts`: resolves `repoRoot`, `pluginRoot`, and config; init may need to avoid requiring existing `.ralph\overview-config.json` before scaffolding.
+- `tools\overview-mcp\src\tools\sync-now.ts`: existing reusable path for post-upsert sync behavior.
+- `tools\overview-mcp\src\tools\set-override.ts` and `utils\set-override-edit.ts`: best prior art for AST-located edits to `plans\overview-data.js`.
+- `scripts\lib\atomic-write.mjs`: use for safe writes and Windows EPERM rename retries.
+- `tools\overview-mcp\src\install-server.ts`: currently writes `.claude\settings.json:mcpServers`; this is the code to reconcile with `.mcp.json` plus `.claude\settings.json:enabledMcpjsonServers`.
+- `templates\overview-config.template.json`: must mirror watcher ignore defaults more completely.
+- `bin\ralph-overview.mjs`: add `init` subcommand that calls the shared engine.
+- `skills\*\SKILL.md`: add `overview-init`, `overview-add-task`, `overview-edit-task`, `overview-set-status`.
+
+### Technical Constraints
+
+- Do not add consumer-specific defaults to production code; templates may be generic only.
+- Consumer root must flow through `OVERVIEW_REPO_ROOT`; plugin root through `RALPH_OVERVIEW_PLUGIN_ROOT`.
+- Consumer entry should go through `bin\ralph-overview.mjs`, not internal script paths.
+- `overview-data.js` must remain plain JS assigning `window.OVERVIEW_DATA`; comments and rich UI blocks must be preserved.
+- Config array merge replaces defaults, so scaffolded `watcher.ignored` must include all broad ignore patterns from `scripts\lib\default-config.mjs`.
+- Existing tests around `install-server.ts` appear stale: they expect `settings.local.json` and `codexu-overview`, while current source writes `settings.json` and `ralph-overview`.
+- `loadConfig()` warns on missing Ralph subdirs and assumes config shape; `overview.init` should not depend on successful preexisting config loading.
+- Use `atomicWriteFile`; do not hand-roll JSON writes.
+- MCP operational tools should spawn via the dispatcher, as `sync-now` and `dev-server-start` already do.
+
+### Implementation Suggestions
+
+Build `scripts\init-consumer.mjs` as the shared engine exporting a pure `initConsumer(options)` function and CLI entrypoint. It should compute a dry-run plan, copy templates, create missing directories, merge `.mcp.json`, append `enabledMcpjsonServers`, optionally patch `package.json`, and run initial sync after writes. Add `init` to `bin\ralph-overview.mjs` as a dispatcher subcommand.
+
+For `overview.upsert_task`, reuse the Babel parser pattern from `utils\set-override-edit.ts`, but create a separate `upsert-task-edit.ts`. Locate only `window.OVERVIEW_DATA.tasks`; update or insert one task object and recognized per-task maps only. Validate by parsing the edited source before `atomicWriteFile`, then call `syncNow(context)`.
+
+For first-run prompting, add a small initialization probe helper used by `overview.list_tasks` and `overview.dev_server.status`: detect missing `plans\overview-data.js`, `.ralph\overview-config.json`, `.mcp.json`, or enabled server entry and return a structured `consumer-not-initialized` response instead of only `missing snapshot`.
+
+Testing should focus on temp fixture repos: empty init, partial init, `.mcp.json` safe merge, `enabledMcpjsonServers` append-only, force overwrite, rich `overview-data.js` upsert byte preservation, and CLI/MCP/engine parity.
+

@@ -1,0 +1,16 @@
+{
+  "id": "F-009",
+  "severity": "Medium",
+  "source": "copilot",
+  "category": "Completeness",
+  "classification": "fixable",
+  "phase": "code",
+  "sectionRef": "Approach > Architecture > overview.upsert_task return shape",
+  "description": "tools/upsert-task.ts:24-35 returns { ok, action, changed, editedRanges, sync } but the architecture text says 'Returns { ok, action, fieldsChanged[], editedRanges[], filePath }'. The missing filePath and fieldsChanged[] fields are minor in absolute terms (skills can compute them) but the plan explicitly committed to the richer shape, and they would help operator-driven flows see which fields were touched without re-reading the mutator's editedRanges labels.",
+  "relevantFiles": [
+    "plugins/ralph-overview/tools/overview-mcp/src/tools/upsert-task.ts:24-35",
+    "plugins/ralph-overview/plan.md (Approach > Architecture - overview.upsert_task return shape)"
+  ],
+  "suggestedFix": "Extend the return value to { ok, action, changed, fieldsChanged: editedRanges.map(r => r.label), editedRanges, filePath: context.config.dataFile, sync }. fieldsChanged is just a label projection so it does not require new mutator output. Add a test that asserts the new fields.",
+  "status": "open"
+}

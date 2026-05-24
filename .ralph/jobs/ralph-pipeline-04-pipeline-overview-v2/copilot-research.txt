@@ -1,0 +1,57 @@
+I'll inspect the referenced temp file to see what task it contains.
+
+I’ll research the source plan and the pipeline/overview code paths it references, then return the requested implementation-plan research summary.
+
+The broad search was too noisy, so I’m narrowing to the overview viewer and sync-core modules that own this feature.
+
+I found Plan 05 already added snapshot/run-duration scaffolding, so I’m reading the current sync emitter and config surfaces to identify the exact integration points for a v2 Plan 04.
+
+Access to listing the stale design branch contents was denied, so I’m relying on the current main code plus the preserved plan text rather than trying to inspect branch code.
+
+Research complete: Plan 04 v2 is feasible, but current main already has Plan 05 snapshot scaffolding, so the implementation should be a **post-sidecar derived-artifacts refactor**, not a fresh sidecar extension.
+
+### Codebase Architecture
+
+This is a pnpm monorepo. The roadmap dashboard is a React/Vite package at `tools\overview-viewer`, while Ralph state generation lives in Node ESM scripts under `scripts\lib`.
+
+Key flow:
+
+- `plans\overview-data.js` is the hand-authored dashboard source.
+- `scripts\sync-ralph-state.mjs` runs one-shot sync and calls `walkRalphState()` then `writeSidecar()`.
+- `scripts\lib\watch-ralph-state.mjs` runs the watcher, cold-starts via `walkRalphState()`/`writeSidecar()`, then debounces updates through `deriveAffectedTaskUpdate()`/`mergeAndWrite()`.
+- `scripts\lib\sync-core.mjs` owns Ralph bundle walking, matching, sidecar writes, and current Plan 05 artifact emission.
+- `tools\overview-viewer\src\App.tsx` reads `window.OVERVIEW_DATA` and `window.OVERVIEW_RALPH_STATE`, then composes Toolbar, Kanban, CommandList, PhaseTree.
+
+Build/test tools: React 19, Vite 8, TypeScript 5.9, Vitest 4. Root scripts include `pnpm overview`, `pnpm overview:build`, and `pnpm sync-ralph-state`.
+
+### Feature-Relevant Code
+
+- `tools\overview-viewer\src\App.tsx`: natural UI insertion point. `useMultiAxisFilter()` already returns `filters`, `setFilters`, `visibleTaskIds`, and `visibleKanbanTaskIds`.
+- `tools\overview-viewer\src\utils\filters.ts`: `ActiveFilters`, `cloneFilters()`, and `ralphStage` filtering already exist.
+- `tools\overview-viewer\src\components\Toolbar.tsx`: has the canonical 10 Ralph stage labels.
+- `tools\overview-viewer\src\components\RalphStageChip.tsx`: reusable stage chip styling/tooltips.
+- `tools\overview-viewer\src\styles.css`: already has `.ralph-stage-chip.stage-*`; add `.pipeline-overview*` here.
+- `tools\overview-viewer\src\types.ts`: currently has `Snapshot.runDurations`, minimal `Recommendation`, `DependencyGraph`; needs richer Plan 04 types plus `OverviewTask.blocks?: string[]`.
+- `scripts\lib\sync-core.mjs`: key functions are `assembleStateFromBundles()`, `mergeAndWrite()`, `writeSidecar()`, `atomicWriteFile()`, `emitAgentArtifacts()`. It already exports `atomicWriteFile`.
+- `scripts\sync-ralph-state.mjs`: one-shot path must call derived artifact emission after `writeSidecar()`.
+- `scripts\lib\watch-ralph-state.mjs`: watcher cold-start currently calls `writeSidecar()` directly; debounced writes go through `mergeAndWrite()`.
+- `.ralph\overview-config.schema.json`: currently disallows `recommendations.weights`, so config schema/type updates are required.
+- Downstream stale-reference audit targets: `plans\ralph-pipeline-06-skills.md`, `plans\ralph-pipeline-09-mcp.md`, `plans\ralph-pipeline-12-package-as-plugin.md`, `plans\ralph-pipeline-INDEX.md`. Plans 07/08 did not show direct recommendation/dependency-graph references in the search.
+
+### Technical Constraints
+
+- Do **not** add `runDurations` to `OverviewRalphState`; `Snapshot.runDurations` already exists. Current `sync-core.mjs` passes `state.runDurations ?? {}` into `buildSnapshot()`, but `state` is not typed for that field; v2 should compute durations separately and pass them to the snapshot emitter.
+- `writeSidecar()` currently calls `emitAgentArtifacts()` before writing `overview-ralph-state.{js,json}`. The v2 requirement says `scoreRecommendations`, `deriveDependencyGraph`, and derived artifact emission must happen **after** `writeSidecar()` in both watcher and one-shot paths, so this needs refactoring.
+- `OverviewData.spawnedFrom` is a top-level `childTaskId -> parentTaskId` map, not `OverviewTask.spawnedFrom`.
+- `loadConfig()` preserves unknown config keys, but `.ralph\overview-config.schema.json` and `scripts\lib\default-config.d.mts` do not yet model `recommendations.weights`.
+- New root `.mjs` modules imported by TypeScript tests need matching `.d.mts` declarations.
+- The external PRD schema path from the plan was inaccessible in this session; verify the exact `userStories[].dependencies[]` shape before finalizing dependency parsing.
+
+### Implementation Suggestions
+
+Add `PipelineOverview.tsx` as a small controlled component that counts `Object.values(ralphState.byTaskId)` by the 10 stages, renders buttons with `<stage> · <count>`, and uses functional `setFilters(current => cloneFilters(current))` to single-select/clear `filters.ralphStage` while preserving other axes.
+
+For sync, create pure `scripts\lib\score-recommendations.mjs` and `scripts\lib\derive-dependency-graph.mjs`, plus tests and `.d.mts` files. Derive `prdsByTaskId` inside `assembleStateFromBundles()` while task matching/winner selection is already available, then thread it as a non-sidecar carrier into the post-write derived emitter. Also carry only minimal job timing data needed for `Snapshot.runDurations`; do not persist full PRDs or timings into `OverviewRalphState`.
+
+Refactor Plan 05 artifact emission into an explicit post-sidecar function, then call it after `writeSidecar()` from `mergeAndWrite()` and `scripts\sync-ralph-state.mjs` one-shot. Include the watcher cold-start direct `writeSidecar()` call in the refactor decision so dev-server startup still emits snapshot/data/index artifacts.
+

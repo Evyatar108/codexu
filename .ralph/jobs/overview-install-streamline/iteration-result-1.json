@@ -1,0 +1,79 @@
+{
+  "storyId": "US-001",
+  "verifiedEvidence": [
+    {
+      "criterion": "Copilot mirror generator exists, supports drift-check and --write, and discovers ralph-overview skills",
+      "command": "node plugins/ralph-overview/scripts/generate-copilot-artifacts.mjs --write && node plugins/ralph-overview/scripts/generate-copilot-artifacts.mjs; find plugins/ralph-overview/dist/copilot -name SKILL.md -print | sort",
+      "result": "Generator wrote mirrors, drift-check printed 'ok: Copilot skill mirrors match', and listed blocker-report/triage/work-on mirrors under plugins/ralph-overview/dist/copilot.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "initConsumer export returns ok/filesPlanned/filesWritten/filesSkipped/errors/summary",
+      "command": "npx vitest run src/__tests__/init-consumer.test.ts",
+      "result": "1 test file passed, 8 tests passed; tests import initConsumer from scripts/init-consumer.mjs and assert the result shape and written file lists.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "serverOnly plans only .mcp.json and .claude/settings.json enabledMcpjsonServers mutations",
+      "command": "tmp=$(mktemp -d); node plugins/ralph-overview/bin/ralph-overview.mjs init --repo \"$tmp\" --dry-run --server-only --json; rm -rf \"$tmp\"",
+      "result": "JSON output had filesPlanned [\".mcp.json\",\".claude/settings.json\"], filesWritten [], filesSkipped [], errors [].",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "--force overwrites scaffold templates only; registration files safe-merge regardless of --force",
+      "command": "npx vitest run src/__tests__/init-consumer.test.ts",
+      "result": "The force test overwrote plans/overview-data.js and .ralph/overview-config.json while preserving an existing .mcp.json server and adding ralph-overview.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "All writes route through scripts/lib/atomic-write.mjs with Windows transient retry coverage",
+      "command": "grep -R \"atomicWriteFile\" -n plugins/ralph-overview/scripts/init-consumer.mjs plugins/ralph-overview/scripts/generate-copilot-artifacts.mjs plugins/ralph-overview/bin/ralph-overview.mjs; npx vitest run src/__tests__/init-consumer.test.ts",
+      "result": "Only atomicWriteFile appears in production write paths; Vitest EPERM retry test passed and observed renameSync called twice before writing ok.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "bin/ralph-overview.mjs init subcommand supports repo/cwd/dry-run/force/server-only/json/add-package-json-scripts",
+      "command": "tmp=$(mktemp -d); node plugins/ralph-overview/bin/ralph-overview.mjs init --repo \"$tmp\" --dry-run --server-only --json; rm -rf \"$tmp\"",
+      "result": "CLI accepted init flags and returned ok JSON with server-only planned registration files; tests also execute the CLI JSON surface.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "overview-config.template.json watcher.ignored includes DEFAULT_IGNORED",
+      "command": "node -e \"const cfg=require('./plugins/ralph-overview/templates/overview-config.template.json'); import('./plugins/ralph-overview/scripts/lib/default-config.mjs').then(({defaultOverviewConfig})=>{const missing=defaultOverviewConfig.watcher.ignored.filter(x=>!cfg.watcher.ignored.includes(x)); console.log(JSON.stringify({missing, templateCount: cfg.watcher.ignored.length, defaultCount: defaultOverviewConfig.watcher.ignored.length})); process.exit(missing.length?1:0);})\"",
+      "result": "Printed {\"missing\":[],\"templateCount\":15,\"defaultCount\":15}.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Paired .d.mts declaration exists for scripts/init-consumer.mjs",
+      "command": "ls plugins/ralph-overview/scripts/init-consumer.mjs plugins/ralph-overview/scripts/init-consumer.d.mts",
+      "result": "Both scripts/init-consumer.mjs and scripts/init-consumer.d.mts are present.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Tests cover empty init, .mcp safe-merge, codexu-like idempotency, force semantics, server-only, and EPERM retry",
+      "command": "npx vitest run src/__tests__/init-consumer.test.ts",
+      "result": "1 test file passed, 8 tests passed, covering all listed init and atomic-write retry cases.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Engine direct, MCP-tool-shim-stub, and CLI --json produce identical filesPlanned/filesSkipped/errors including serverOnly",
+      "command": "npx vitest run src/__tests__/init-consumer.test.ts",
+      "result": "Parity test passed: direct initConsumer, overviewInitShim, and CLI --json matched for filesPlanned/filesSkipped/errors in serverOnly mode.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Typecheck passes (tsc -p tools/overview-mcp/tsconfig.json)",
+      "command": "npx tsc -p tools/overview-mcp/tsconfig.json",
+      "result": "Exit code 0 with no TypeScript diagnostics.",
+      "evidenceKind": "passed"
+    }
+  ],
+  "skippedReasons": [],
+  "notTested": [
+    {
+      "criterion": "Full MCP workspace suite",
+      "detail": "Known stale install/tool-count tests are assigned to US-003; targeted US-001 tests and typecheck passed."
+    }
+  ],
+  "iterationSHA": "00f733f172309f638ee5b7a49752142fbe19a915"
+}

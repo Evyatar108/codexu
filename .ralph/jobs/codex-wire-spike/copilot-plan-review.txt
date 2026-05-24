@@ -1,0 +1,26 @@
+I’m opening the attached file to see the task and then I’ll carry it through in the repo.
+
+I’ve identified this as a plan review. I’m checking the cited files and the audit doc to validate feasibility, coverage, and acceptance criteria against the actual repo.
+
+### Feasibility
+
+- [Critical] `AC-3` / Phase 4 relies on `config/read` to prove whether `thread/start` honored `compactPrompt` vs `config.compact_prompt` (`C:\Users\evmitran\AppData\Local\Temp\tmp.znIeYiQcuD:151-156`, `223-225`). That RPC cannot do that. `ConfigReadParams` only accepts `include_layers` and optional `cwd`, and `ConfigManager::read()` only rebuilds effective config layers from disk; it has no `threadId` input and no access to per-thread overrides (`codex\external\repos\codex-patched\codex-rs\app-server-protocol\src\protocol\v2\config.rs:329-347`, `codex\external\repos\codex-patched\codex-rs\app-server\src\config_manager_service.rs:109-152`). As written, the spike has no valid oracle for Q3, so the plan cannot deliver its stated verdict.
+
+- [High] Q1’s probe image is a 1x1 transparent PNG, and the proposed evidence is “ask the model what it sees” (`C:\Users\evmitran\AppData\Local\Temp\tmp.znIeYiQcuD:135-141`). That does not distinguish “image transported successfully” from “image silently dropped and the model guessed.” The server protocol only shows that `UserInput::Image { url }` forwards a string into core without validating the URL shape (`codex\external\repos\codex-patched\codex-rs\app-server-protocol\src\protocol\v2\turn.rs:238-277`). To make the spike conclusive, the plan needs a canary image with unmistakable visible content or another non-semantic acceptance signal.
+
+### Completeness
+
+- [High] The plan never isolates `CODEX_HOME` / managed config before launching `codex app-server`. Codex’s own app-server tests do this explicitly by spawning against a temp home and temp managed-config path (`codex\external\repos\codex-patched\codex-rs\app-server\tests\common\mcp_process.rs:172-205`). Without that isolation, existing user config can already set `project_doc_fallback_filenames` or `compact_prompt`, which would taint Q2/Q3 and make the spike results non-attributable to the payloads being tested.
+
+### Ordering
+
+No issues found.
+
+### Simplicity
+
+- [Medium] Q2 is overcomplicated and more auth-dependent than necessary. The plan still includes a full user turn and an inverse-control turn (`C:\Users\evmitran\AppData\Local\Temp\tmp.znIeYiQcuD:143-149`) even though `ThreadStartResponse` already exposes `instruction_sources`, which is the direct signal for whether the project doc loaded (`codex\external\repos\codex-patched\codex-rs\app-server-protocol\src\protocol\v2\thread.rs:192-220`). With an isolated temp `CODEX_HOME` and temp cwd, the spike can answer Q2 from `thread/start` alone.
+
+### Acceptance Criteria Quality
+
+- [High] `AC-1` asks for a definitive verdict of “data URL accepted / silently dropped / rejected” based on the Q1 run (`C:\Users\evmitran\AppData\Local\Temp\tmp.znIeYiQcuD:223-224`), but the plan’s chosen artifact is a transparent 1x1 image with no unique observable outcome. That makes the AC effectively untestable as written: an implementation can satisfy the formatting requirement without actually proving whether codex consumed the image. The AC needs to specify a discriminating probe image or a different acceptance oracle.
+

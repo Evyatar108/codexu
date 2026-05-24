@@ -1,0 +1,26 @@
+{
+  "storyId": "US-001",
+  "verifiedEvidence": [
+    {
+      "criterion": "parseNotepad export and declaration shape",
+      "command": "grep -n \"export function parseNotepad\" scripts/lib/parse-notepad.mjs && grep -n \"export function parseNotepad\" scripts/lib/parse-notepad.d.mts",
+      "result": "parse-notepad.mjs line 3 exports parseNotepad; parse-notepad.d.mts line 7 declares parseNotepad(text: string): ParsedNotepad.",
+      "evidenceKind": "file-verified"
+    },
+    {
+      "criterion": "Required parse-notepad Vitest fixtures pass",
+      "command": "pnpm exec vitest run scripts/lib/parse-notepad.test.mjs",
+      "result": "PASS: 1 test file, 6 tests passed.",
+      "evidenceKind": "test-pass"
+    },
+    {
+      "criterion": "Overview viewer typecheck passes",
+      "command": "pnpm --filter @codexu/overview-viewer typecheck",
+      "result": "PASS: tsc --noEmit completed with exit=0.",
+      "evidenceKind": "typecheck-pass"
+    }
+  ],
+  "skippedReasons": [],
+  "notTested": [],
+  "iterationSHA": "7701f6c6f78050265bd4acaccba2796546f636c6"
+}

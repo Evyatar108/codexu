@@ -1,0 +1,33 @@
+### Feasibility
+
+[High] Static build is not implementable as described. `tools/overview-viewer/index.html` plus `outDir: '../../plans'` will emit `plans/index.html`, not `plans/overview.html` or `plans/overview.html.next`. The plan needs an explicit filename strategy, such as an HTML input named `overview.html` or a postbuild rename script.
+
+[High] The static build conflicts with the “single self-contained file” AC. Current data loading is synchronous via [plans/overview.html](D:/harness-efforts/codexu/plans/overview.html:1284) `<script src="overview-data.js">`; the plan proposes `<script src="/overview-data.js">`, which is external and absolute. `vite-plugin-singlefile` will not automatically make the external global assignment self-contained unless the plan adds a build-time data injection/bundling step.
+
+[High] Dev HMR is underspecified. Watching [plans/overview-data.js](D:/harness-efforts/codexu/plans/overview-data.js:20) does not update `window.OVERVIEW_DATA` by itself. A Vite plugin must also send a client event and the app must re-fetch/re-evaluate the data file or import it through a virtual module. Otherwise `useSyncExternalStore` has no changed snapshot to publish.
+
+### Completeness
+
+[High] “Same UI as today” omits current static sections and page behaviors. [plans/overview.html](D:/harness-efforts/codexu/plans/overview.html:1068) includes Parallelism, Dependencies, footer/source notes, keyboard help, freshness hint, and “what changed since last visit” logic at [plans/overview.html](D:/harness-efforts/codexu/plans/overview.html:2549). The plan’s component list does not include these, so visual parity would fail.
+
+[High] Multi-axis filter behavior is not fully planned. Current filtering covers search plus status, workstream, size, cadence, and scope chips in [plans/overview.html](D:/harness-efforts/codexu/plans/overview.html:1000) and [plans/overview.html](D:/harness-efforts/codexu/plans/overview.html:2125). The plan only names `SearchInput`, `UrlFilterBanner`, and workstream pills; it does not explicitly port toolbar filter state or chip semantics.
+
+[High] Unit tests are listed but the package scaffold omits `vitest` and a `test` script. Existing precedent is [tools/vitest.config.ts](D:/harness-efforts/codexu/tools/vitest.config.ts:1), but the new package’s described `package.json` only has `dev`, `build`, and `typecheck`. The test ACs cannot be verified without adding `vitest` and a runnable script.
+
+### Ordering
+
+[Medium] Docs are delayed until after the destructive swap, but the plan asks operators to review dev mode through stage 7 and approve stage 8. `tools/overview-viewer/README.md` should exist before or during stage 7 so reviewers know how to run the safe artifact and understand the deliberate phase-tree deviation before approving replacement.
+
+[High] Stage 7 says emit `plans/overview.html.next`, then stage 8 “configure the build” to emit `plans/overview.html`. Because the filename mechanism is not defined, the gate cannot reliably compare the same build output path before and after the destructive step.
+
+### Simplicity
+
+[Medium] A full React rewrite may be justified, but the plan should isolate pure logic first: parse/classify tasks, filter rows, order kanban cards, derive Today buckets, and generate copy text. These utilities can be tested against the existing data before the UI port, reducing risk in stages 3-6.
+
+### Acceptance Criteria Quality
+
+[High] “React diff updates only the changed task within ~200 ms” is not currently testable. The plan needs measurable evidence, such as render counters around `TaskCommand`/`KanbanCard`, a Playwright assertion, or relaxed wording to “updates without full page reload while preserving state.”
+
+[Medium] “Visual parity vs `9f81c1f8`” is too broad for autonomous verification. The AC should name required screenshots or DOM checks for the omitted surfaces: toolbar filters, keyboard help, static sections, freshness/what’s-new banner, command rows, kanban, phase tree, and Today panel.
+
+[Medium] Prior-plan assumptions are mostly reflected in the current files, but the plan’s own “all 13 enrichment behaviors” wording is incomplete because important behaviors live outside `applyEnrichments()` in [plans/overview.html](D:/harness-efforts/codexu/plans/overview.html:2524). That needs an explicit amendment before implementation.

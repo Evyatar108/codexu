@@ -1,0 +1,35 @@
+### Feasibility
+
+[High] The plan is built around “49 command rows,” but the file currently has 51 `<details class="cmd">` rows in [plans/overview.html](D:/harness-efforts/codexu/plans/overview.html:1417), ending at [plans/overview.html](D:/harness-efforts/codexu/plans/overview.html:1882). The implementation steps and acceptance checks can miss two rows while still passing “at least 49.”
+
+[High] `data-task-status="ok|blocked|paused"` is introduced as cross-cutting, but the plan does not define precedence for existing `Status` filtering and Today grouping. If a row is `data-task-phase="plan-ready"` and `data-task-status="blocked"`, `classifyCmd()` must return `blocked`, not the phase-derived `ready`. This affects [plans/overview.html](D:/harness-efforts/codexu/plans/overview.html:2842) and the filter path at [plans/overview.html](D:/harness-efforts/codexu/plans/overview.html:3137).
+
+[Medium] The plan refers to “kanban column assignment” around [plans/overview.html](D:/harness-efforts/codexu/plans/overview.html:2953), but that code only counts static `.card` elements per existing column. There is no dynamic kanban assignment logic today.
+
+### Completeness
+
+[High] The kanban migration range is incomplete. Kanban cards run from about [plans/overview.html](D:/harness-efforts/codexu/plans/overview.html:1061) through [plans/overview.html](D:/harness-efforts/codexu/plans/overview.html:1391), not just `1043-1178`. Later cards would not get `data-task-id` or phase pills if the implementer follows the stated range.
+
+[High] The plan misses the `injectTaskScopeChips()` interaction at [plans/overview.html](D:/harness-efforts/codexu/plans/overview.html:2632). That function moves only `.cmd-badge` into `.cmd-scope-cluster`; a new `.cmd-status-mod` authored next to the badge will be left outside the cluster, so the “secondary badge next to primary badge” acceptance criterion can fail. The plan should explicitly update this injector to move or render the status modifier with the phase badge.
+
+[High] The scope says “standardize all optional fields as `null` in persisted JSON,” but the architecture says optional HTML attributes are omitted when absent, and this plan explicitly excludes sidecar task JSON. There is no clear persisted JSON task record to apply `planSource`, `planOnly`, `brainstormJobId`, etc. to in [plans/overview.html](D:/harness-efforts/codexu/plans/overview.html:2155). This contract needs to be removed from v1 or given a concrete JSON location.
+
+[Medium] Shipped versus closed needs two mappings, not one. Existing sort uses `data-cmd-status="shipped"` separately from `closed` at [plans/overview.html](D:/harness-efforts/codexu/plans/overview.html:839), while Today/filter collapse both under `closed` at [plans/overview.html](D:/harness-efforts/codexu/plans/overview.html:2850). The plan should specify `phase -> orderBucket` and `phase/status -> filterBucket`.
+
+### Ordering
+
+[Medium] US-002 depends on operator-confirmed phase choices and smoke-test targets, but those are still open questions. If this is intended for autonomous `/implement-with-ralph`, the plan should either provide a complete migration table or state deterministic defaults for every ambiguous row.
+
+### Simplicity
+
+[Medium] Adding both hand-edited badge classes and authoritative data attributes creates permanent drift risk. A simpler static-HTML approach is to keep the attribute authoritative and have JS normalize/render the visible badge on load, while preserving legacy class fallback for old rows.
+
+### Acceptance Criteria Quality
+
+[High] The grep criterion `grep -c 'data-task-phase=' ... returns at least 49` is too weak and currently wrong for the repo. It must assert the count equals the actual command-row count and that every `details.cmd[data-task-id]` has valid `data-task-phase` and `data-task-status`.
+
+[Medium] “Walk a representative task through each transition path” is not safely testable as written because it implies mutating real roadmap rows. Require a temporary copied row, a scratch HTML copy, or a clearly reverted local-only smoke.
+
+[Medium] “Visually distinct colors in both themes” is subjective. Add concrete checks: all 10 class selectors exist, none resolve to transparent/empty styles, and manual screenshots or notes cover dark/light.
+
+No prior review cycles or amendments were mentioned.

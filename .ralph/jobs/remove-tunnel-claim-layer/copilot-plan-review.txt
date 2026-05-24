@@ -1,0 +1,32 @@
+I’m opening the provided file to see the task and context.
+
+I’ve got the plan; now I’m checking the cited code and docs to see where the plan is accurate, incomplete, or risky.
+
+I found several additional codepaths outside the plan’s file list; I’m reading those before I write the review so I can flag concrete gaps instead of guesses.
+
+### Feasibility
+
+[High] The happy-agent portion is not implementable from the plan’s current change list. The plan only calls out `packages/happy-agent/src/api.ts`, `src/api.test.ts`, and `src/machineRpc.ts`, but the package’s actual auth and CLI flows still *derive, persist, and refresh* `tunnelClaim`/`accountId`: `packages/happy-agent/src/auth.ts:285-299,302-307`, `packages/happy-agent/src/credentials.ts:21-32`, and `packages/happy-agent/src/index.ts:71-77,280-387`. If `/pair/complete` stops returning `tunnelClaim`, those files must be redesigned too, otherwise login, stored credentials, and spawn/resume commands no longer have a defined data model.
+
+[Medium] The plan’s architecture summary collapses happy-cli and happy-agent into the same “loopback locality” trust model, but the codebase does not. happy-agent still talks to remote tunnel URLs and relies on Dev Tunnels gateway auth: `packages/happy-agent/src/api.ts:315-323` and `packages/happy-agent/src/machineRpc.ts:61-79`. The plan should explicitly distinguish **happy-cli = loopback** from **happy-agent/happy-app = remote Dev Tunnels connect-token path**, or it risks deleting the wrong invariants from code and docs.
+
+### Completeness
+
+[High] The server file list misses the route-level `accountId` gate that still enforces claim-derived identity: `packages/happy-server/sources/app/api/utils/requireAccountIdForTunnel.ts:6-10`, `packages/happy-server/sources/app/api/routes/accountRoutes.ts:47-50,67-79`, and `packages/happy-server/sources/app/api/routes/machineSelfRoutes.ts:23-26`. Those files have to be part of the plan, not discovered ad hoc during implementation.
+
+[High] Several additional live claim references are outside the plan’s “Files to Modify” list and will keep tests/types/docs stale: `packages/happy-server/sources/index.ts:9`, `packages/happy-server/sources/app/api/types.ts:53-63`, `packages/happy-app/sources/app/_layout.tsx:170-197,239`, and `packages/happy-app/sources/app/(app)/picker.test.tsx:92-96`. The current plan also omits happy-agent’s supporting tests (`src/auth.test.ts`, `src/credentials.test.ts`, `src/happy-agent.integration.test.ts`, `src/cli-smoke.test.ts`) even though they encode the old claim contract.
+
+### Ordering
+
+[Critical] Story 1’s ordering is wrong. The plan says US-001 can make `authenticateTunnelClaim` a no-op first so “the system is at least uniformly accepting,” but tunnel routes still run `requireAccountIdForTunnel`, which returns 401 when `request.accountId` is absent (`packages/happy-server/sources/app/api/api.ts:81-90`, `packages/happy-server/sources/app/api/utils/requireAccountIdForTunnel.ts:6-10`). Until that gate is removed or replaced in the same story, `/v2/me/profile`, `/v2/me/settings`, and `/v2/me/machine` will fail, so the “server-first green state” assumption is false.
+
+### Simplicity
+
+No issues found.
+
+### Acceptance Criteria Quality
+
+[Medium] The grep-based acceptance criteria do not match the scoped documentation work. The plan requires `grep -r 'X-Codexu-Authorization' packages/` to return no hits, but it only schedules doc updates for `packages/happy-server/CLAUDE.md` (and maybe `packages/happy-app/CLAUDE.md`). Current package-level hits also exist in `packages/happy-agent/CLAUDE.md`, `packages/happy-cli/CLAUDE.md`, and `packages/happy-cli/src/daemon/CLAUDE.md`, so the AC will fail unless those files are added explicitly.
+
+[Medium] The `tunnelClaim` acceptance criteria are not specific enough for autonomous implementation because the plan never settles the leftover-storage question outside happy-app. For example, `packages/happy-app/sources/app/_layout.tsx` still accepts dev-only `EXPO_PUBLIC_DEV_TUNNEL_CLAIM` / `dev_tunnel_claim`, and happy-agent currently persists `tunnelClaim` in `packages/happy-agent/src/credentials.ts:21-32`. The plan should say exactly which residual references are allowed, optional, or must be removed.
+

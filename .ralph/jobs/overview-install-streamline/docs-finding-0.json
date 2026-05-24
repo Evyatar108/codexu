@@ -1,0 +1,14 @@
+{
+  "id": "F-001",
+  "severity": "Medium",
+  "source": "docs",
+  "classification": "fixable",
+  "phase": "docs",
+  "category": "Stale Documentation",
+  "description": "plugins/ralph-overview/tools/overview-mcp/README.md:174 still says `pnpm --filter @gim-home/ralph-overview-mcp build` even though this same file's diff converted every other `pnpm`/`pnpm --filter` invocation to `npm run build --workspace=tools/overview-mcp` (see lines 12-13, 44-47, 162-164). The job CLAUDE.md mandates `npm, not pnpm` for this plugin. The remaining pnpm line is internally inconsistent with the rest of the file after the diff and will misguide a maintainer following the `rootDir` troubleshooting tip.",
+  "status": "open",
+  "relevantFiles": [
+    "plugins/ralph-overview/tools/overview-mcp/README.md"
+  ],
+  "suggestedFix": "Replace `pnpm --filter @gim-home/ralph-overview-mcp build` on line 174 with `npm run build --workspace=tools/overview-mcp` to match the other npm-workspace invocations elsewhere in the same file."
+}

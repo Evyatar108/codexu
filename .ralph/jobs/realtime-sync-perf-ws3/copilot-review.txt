@@ -1,0 +1,20 @@
+### Completeness
+No issues found.
+
+### Correctness
+- [High] `packages/happy-app/sources/sync/sync.ts:1721-1728` advances `lastSeenUpdateSeq` from a `.finally(...)` block in the missing-session `new-message` path. If `sessionsSync.invalidateAndAwait()` fails, the queued event is still dropped and the replay cursor still moves forward, so the next reconnect asks the server to resume **after** an update the client never applied. That can permanently hide the first message for a just-created session after a transient refresh failure.
+
+- [High] `packages/happy-app/sources/sync/sync.ts:1721-1728` advances `lastSeenUpdateSeq` **before** the queued replayed `new-message` handlers have actually succeeded. In the missing-session path you now `void this.handleUpdate(evt, true, sourceMachineId)` for each queued event and immediately call `this.persistLastSeenUpdateSeq(...)`. If any replayed handler then hits the explicit drop path at `sync.ts:1712-1714` (`Session ... still missing after sessions refetch; dropping new-message event`) or otherwise fails, the cursor has already moved past that seq, so the server will stop replaying it on the next reconnect and the message is lost permanently. The plan explicitly required persisting only after the update had been successfully applied.
+
+- [High] `packages/happy-server/sources/app/api/socket.ts:193-205` registers the socket with `eventRouter.addConnection(...)` before replaying buffered updates, and `packages/happy-server/sources/app/events/eventRouter.ts:273-287` joins the live rooms immediately. That creates a handshake race: any live publish that lands between `addConnection()` and the replay loop can reach the socket live, then get replayed again (or arrive before older replayed events). The reconnect path therefore is not ordered or deduplicated under load.
+
+- [Low] `packages/happy-app/sources/sync/sync.ts:1785`, `1819`, and `1964-1966` changed `new-session` / `delete-session` handling to `invalidateAndAwait()` and then fire `void deferredInvalidate.then(...)` with no rejection handler. A failed invalidate no longer just skips cursor persistence; it also becomes an unhandled promise rejection on the socket-update path.
+
+### Quality
+- [Low] This workstream is no longer self-contained. The diff also includes unrelated changes in `packages/happy-app/sources/sync/refreshClaim.ts:72-76`, `packages/happy-app/sources/sync/profile.test.ts:515-520`, `packages/happy-app/sources/components/AgentInput.activeRegression.test.tsx:165-180`, and `packages/happy-app/sources/components/SettingsView.test.tsx:372-376`. None of those files are part of the WS3 plan's touched-file list, so bundling them here makes the replay-buffer change harder to review, bisect, and revert.
+
+### Security
+No issues found.
+
+### Overall Assessment
+This is **not ready yet**. The replay cursor can advance past queued `new-message` updates that were never successfully applied (undermining the main reliability goal of WS3), and the server handshake can deliver replayed and live updates out of order or twice during reconnect. After those are fixed, the remaining issue is mainly keeping the commit scoped to the planned workstream.

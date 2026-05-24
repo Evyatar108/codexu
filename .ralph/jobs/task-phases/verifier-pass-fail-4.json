@@ -1,0 +1,43 @@
+{
+  "manifestPath": "D:/harness-efforts/codexu/.ralph/jobs/task-phases/iteration-result-4.json",
+  "iterationSHA": "db2f68f72ba71e141dca4ff95c4930172e2040da",
+  "storyId": "US-004",
+  "verdicts": [
+    {
+      "criterion": "AC-001 parallel-assignments front-matter conventions",
+      "verdict": "agree",
+      "reason": "Diff for plans/parallel-assignments.md introduces a conventions block listing the 10 phase enum values and ok|blocked|paused statuses; manifest result names front_matter_missing=none which matches the added prose."
+    },
+    {
+      "criterion": "AC-002 parallel-assignments status table columns",
+      "verdict": "agree",
+      "reason": "Diff shows the status table with header 'Tab title | Task | Phase | Status | Plan source | Plan job | Commit' and 49 data rows aligning with the manifest's status_table_rows=49 and mismatches=0 claim."
+    },
+    {
+      "criterion": "AC-003 codexu-roadmap Standing rules entry",
+      "verdict": "agree",
+      "reason": "Diff for plans/codexu-roadmap.md adds the 'Task phase model' bullet linking plans/parallel-assignments.md with data-task-phase / data-task-status / ok-blocked-paused precedence wording, matching the cited line range 175-178."
+    },
+    {
+      "criterion": "AC-004 roadmap-and-overview SKILL load-bearing ranges",
+      "verdict": "agree",
+      "reason": "Diff for .agents/skills/roadmap-and-overview/SKILL.md touches the 13 load-bearing ranges called out in F-007, replacing legacy status-badge templates with phase/status references; grep count of 20 matches is consistent with the diff."
+    },
+    {
+      "criterion": "AC-005 legacy status-badge templates replaced in SKILL",
+      "verdict": "agree",
+      "reason": "absent-verified evidence uses a targeted negation grep -RInE 'cmd-badge b-(ready|blocked|paused|closed|inprogress|inflight)' against the specific SKILL.md file; the regex would fail if any legacy template remained, satisfying the negation-test rule."
+    },
+    {
+      "criterion": "AC-006 procedural workflow shape preserved",
+      "verdict": "agree",
+      "reason": "Diff preserves the When-to-update table and procedures A/B/D headings; manifest cites concrete line numbers (130, 143, 194, 246) that exist post-diff."
+    },
+    {
+      "criterion": "AC-007 typecheck / markdown sanity",
+      "verdict": "agree",
+      "reason": "git show --check --stat --oneline HEAD for commit db2f68f7 exited 0 with no whitespace errors, an artifact-state check appropriate for a docs-only commit."
+    }
+  ],
+  "warnings": []
+}

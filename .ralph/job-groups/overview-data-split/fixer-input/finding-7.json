@@ -1,0 +1,18 @@
+{
+  "id": "F-008",
+  "severity": "High",
+  "source": "copilot",
+  "detectedBy": [
+    "copilot"
+  ],
+  "classification": "fixable",
+  "phase": "code",
+  "category": "Completeness",
+  "sectionRef": null,
+  "description": "The repo-wide stale-instruction sweep is incomplete. Even after moving the source of truth to `plans/overview-data.js`, several surviving prompts still tell future agents to update `plans/overview.html` or its removed JSON block: `plans/overview-data.js:505`, `:518`, `:531`, `:658`; `plans/parallel-assignments.md:133`, `:445`; `plans/crews-integration.md:3`. That directly violates the planned “grep for stale `edit plans/overview.html` instructions” cleanup and will send future work back to the derived view.",
+  "status": "open",
+  "fixedInIteration": null,
+  "resolution": null,
+  "relevantFiles": [],
+  "suggestedFix": null
+}

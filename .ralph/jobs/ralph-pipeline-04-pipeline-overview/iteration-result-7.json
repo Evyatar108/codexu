@@ -1,0 +1,66 @@
+{
+  "storyId": "US-007",
+  "verifiedEvidence": [
+    {
+      "criterion": "PipelineOverview renders 10 canonical Ralph stage chips with stage/count labels.",
+      "command": "sed -n '1,90p' tools/overview-viewer/src/components/PipelineOverview.tsx && cat tools/overview-viewer/src/utils/ralphStages.ts && pnpm --filter @codexu/overview-viewer test -- pipelineOverview",
+      "result": "Exit 0; component maps over RALPH_STAGE_ORDER, renders labels `${stage} · ${count}`, and focused Vitest reported 28 test files passed / 159 tests passed.",
+      "evidenceKind": "test"
+    },
+    {
+      "criterion": "Counts are derived client-side from ralphState.byTaskId without aggregateStages.",
+      "command": "sed -n '1,32p' tools/overview-viewer/src/components/PipelineOverview.tsx && grep -R \"aggregateStages\" -n tools/overview-viewer/src/components/PipelineOverview.tsx tools/overview-viewer/src/utils/ralphStages.ts tools/overview-viewer/src/__tests__/interactions/pipelineOverview.test.tsx tools/overview-viewer/src/styles.css || true",
+      "result": "Exit 0; countRalphStages iterates Object.values(ralphState.byTaskId); grep found no aggregateStages usage in the new files.",
+      "evidenceKind": "source-inspection"
+    },
+    {
+      "criterion": "Empty state renders for null Ralph state and zero total count.",
+      "command": "pnpm --filter @codexu/overview-viewer test -- pipelineOverview",
+      "result": "Exit 0; focused Vitest covers null-state and empty byTaskId assertions for the `No Ralph stage data` branch.",
+      "evidenceKind": "test"
+    },
+    {
+      "criterion": "Click handler replaces or clears the Ralph stage filter while preserving other axes.",
+      "command": "pnpm --filter @codexu/overview-viewer test -- pipelineOverview",
+      "result": "Exit 0; focused Vitest covers review-fix selection, replacement by implementing, clearing implementing, and workstream preservation.",
+      "evidenceKind": "test"
+    },
+    {
+      "criterion": "RALPH_STAGE_ORDER is exported for shared use and Toolbar.tsx was not refactored.",
+      "command": "cat tools/overview-viewer/src/utils/ralphStages.ts && git diff --name-only -- tools/overview-viewer/src/components/Toolbar.tsx",
+      "result": "Exit 0; ralphStages.ts exports the canonical ten-stage order; git diff reported no Toolbar.tsx changes.",
+      "evidenceKind": "source-inspection"
+    },
+    {
+      "criterion": "Pipeline overview CSS classes and states exist.",
+      "command": "grep -n \"pipeline-overview\" tools/overview-viewer/src/styles.css",
+      "result": "Exit 0; styles include .pipeline-overview, .pipeline-overview-empty, hover, focus-visible, and active/[aria-pressed=true] rules.",
+      "evidenceKind": "source-inspection"
+    },
+    {
+      "criterion": "Typecheck passes.",
+      "command": "pnpm --filter @codexu/overview-viewer typecheck > .test-output/overview-viewer.typecheck.log 2>&1",
+      "result": "Exit 0; tsc --noEmit completed with no errors.",
+      "evidenceKind": "typecheck"
+    },
+    {
+      "criterion": "Tests pass.",
+      "command": "pnpm --filter @codexu/overview-viewer test > .test-output/overview-viewer.test.log 2>&1",
+      "result": "Exit 0; Vitest reported 28 test files passed and 159 tests passed.",
+      "evidenceKind": "test"
+    },
+    {
+      "criterion": "US-007:AC-008 browser verification warning handled.",
+      "command": "N/A",
+      "result": "SKIPPED: browser automation unavailable; no dev-browser skill or browser MCP/tool is available in this session, so deterministic pipelineOverview interaction tests are the fallback evidence.",
+      "evidenceKind": "command"
+    }
+  ],
+  "skippedReasons": [
+    "tool_unavailable"
+  ],
+  "notTested": [
+    "Manual browser rendering for US-007:AC-008; browser automation/dev-browser tooling unavailable."
+  ],
+  "iterationSHA": "21cca3a14489e6d196e411f1566317d11a4f3a1d"
+}

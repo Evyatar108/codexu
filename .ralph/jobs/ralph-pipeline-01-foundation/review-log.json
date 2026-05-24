@@ -1,0 +1,84 @@
+[
+  {
+    "finding_id": "F-001",
+    "duration_s": 193,
+    "status": "fixed",
+    "summary": "Clarified that group artifacts are read via their own top-level job-state.json/prd.json/findings (same schema as jobs), so the existing 10-case predicate covers them; dropped the unused groupState parameter from the predicate signature and ambient decl, and added a group-as-job acceptance-criterion test case."
+  },
+  {
+    "finding_id": "F-002",
+    "duration_s": 125,
+    "status": "fixed",
+    "summary": "Added jobDirMarker?: true to the deriveRalphStage bundle (scripts.d.ts + JSDoc), rewrote predicate #8 to test the marker, and assigned sync-core the responsibility of setting it when a jobDir/groupDir is observed without prd.json or job-state.json."
+  },
+  {
+    "finding_id": "F-003",
+    "duration_s": 119,
+    "status": "fixed",
+    "summary": "Expanded scripts.d.ts spec to declare all three test-imported modules (derive-ralph-stage, sync-core, resolve-config) using explicit relative-path module specifiers (not the wildcard `*/...mjs` form, which does not resolve relative imports under moduleResolution=bundler); offered typed dynamic import as a per-module alternative; updated the matching acceptance criterion, the ralphStage.test.ts file description, and the cascade-refresh checkbox to stay in lockstep."
+  },
+  {
+    "finding_id": "F-004",
+    "duration_s": 122,
+    "status": "unknown",
+    "summary": "No review-meta output"
+  },
+  {
+    "finding_id": "F-004",
+    "duration_s": 84,
+    "status": "wont_fix",
+    "summary": "Finding is stale — the draft-plan.md already has `loadConfig({ repoRoot, configPath? })`, a dedicated 'Canonical precedence' block (lines 266-271) defining merge order vs. committed-path lookup, explicit resolution of the env-var+overlay case, and an AC (line 460) that mirrors the resolver section. The contradiction the reviewer described matches the prior existing-plan.md revision, not the current draft."
+  },
+  {
+    "finding_id": "F-005",
+    "duration_s": 297,
+    "status": "fixed",
+    "summary": "Added Verification step L: grep -F '.ralph/overview-config.local.json' .gitignore must exit 0, closing the gap between the acceptance criterion and verification."
+  },
+  {
+    "finding_id": "F-006",
+    "duration_s": 159,
+    "status": "fixed",
+    "summary": "Defined REVIEW_PHASES and IMPLEMENTING_PHASES constants explicitly, rewrote predicate #6 to enumerate the complement (including 5c) and pin unknown/future phase strings to `implementing` with a stderr lint, updated the RalphStage type comment, and added parametrized + unknown-phase test cases to acceptance criteria."
+  },
+  {
+    "phase": "soft-cap",
+    "iteration": 8,
+    "openCount": 11,
+    "severities": {
+      "Medium": 11
+    }
+  },
+  {
+    "finding_id": "F-007",
+    "duration_s": 96,
+    "status": "fixed",
+    "summary": "Amended four locations (Technical Constraints, Files-to-Modify schema bullet, Schema-block JSONC note, Common Mistake #8) to state explicitly that BOTH overview-config.json AND overview-config.schema.json must be pure JSON; JSONC code blocks in the plan are illustrative only; prose belongs in the sibling README."
+  },
+  {
+    "finding_id": "F-008",
+    "duration_s": 118,
+    "status": "fixed",
+    "summary": "Specified JS-sidecar idempotency comparison (trusted-eval parse + strip top-level generatedAt + deep-equal, or via JS↔JSON consistency) and resolved the per-entry generatedAt question by forbidding it on RalphPipelineState in Plan 01; updated AC, Verification D, type model, and the soft-cap entry."
+  },
+  {
+    "finding_id": "F-009",
+    "duration_s": 161,
+    "status": "fixed",
+    "summary": "Trimmed the Configuration-layer JSONC example to only the fields Plan 01 consumes; added a 'Downstream additive extensions' subsection listing each deferred field with its owning plan (02/03/04/05/07/08/11); marked F-009 RESOLVED in the soft-cap section."
+  },
+  {
+    "finding_id": "F-010",
+    "duration_s": 117,
+    "status": "fixed",
+    "summary": "Assigned generatedFromCommit computation to the CLI (scripts/sync-ralph-state.mjs) via a parallel `git rev-parse --short HEAD` call, threaded it into walkRalphState's signature so it's stamped onto OverviewRalphState, and specified the 'unknown' fallback with stderr warning for any HEAD-resolution failure. Marked F-010 RESOLVED in the soft-cap list."
+  },
+  {
+    "phase": "soft-cap",
+    "iteration": 5,
+    "openCount": 7,
+    "severities": {
+      "Medium": 7
+    }
+  }
+]

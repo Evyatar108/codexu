@@ -1,0 +1,50 @@
+{
+  "storyId": "US-004",
+  "verifiedEvidence": [
+    {
+      "criterion": "appendJournalNote helper and exported assertSafeTaskId",
+      "command": "grep -nE \"appendJournalNote|assertSafeTaskId|formatContinuation\" scripts/lib/append-journal.mjs",
+      "result": "appendJournalNote is exported at scripts/lib/append-journal.mjs:17; assertSafeTaskId is exported at line 51; multi-line note continuation is formatted by formatContinuation at line 61. The helper writes note journal lines and indents continuation lines with two spaces.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "append-journal.d.mts declares appendJournalEntry, appendJournalNote, formatJournalLine, assertSafeTaskId",
+      "command": "grep -nE \"appendJournalEntry|appendJournalNote|formatJournalLine|assertSafeTaskId\" scripts/lib/append-journal.d.mts",
+      "result": "Declaration file exposes appendJournalEntry, appendJournalNote, formatJournalLine, and assertSafeTaskId.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "append-journal tests cover single-line, multi-line, special-character notes, and unchanged stage transitions",
+      "command": "pnpm vitest run scripts/lib/append-journal.test.mjs",
+      "result": "Exit 0; scripts/lib/append-journal.test.mjs reported 1 test file passed and 10 tests passed, including existing stage-transition format/append cases plus new note cases.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "MCP overview.add_journal_entry wraps appendJournalNote; ts defaults; taskId validates via assertSafeTaskId",
+      "command": "grep -nE \"overview.add_journal_entry|addJournalEntryInputSchema|assertSafeTaskId|new Date\\(\\).toISOString\" tools/overview-mcp/src/server.ts tools/overview-mcp/src/schemas.ts tools/overview-mcp/src/tools/add-journal-entry.ts && pnpm --filter @codexu/overview-mcp test",
+      "result": "overview.add_journal_entry is registered in server.ts; schema accepts taskId, note, optional ts; handler calls assertSafeTaskId before appendJournalNote and defaults ts to new Date().toISOString(). Vitest exit 0 with 2 files and 13 tests passed, including explicit timestamp, default timestamp, and unsafe taskId rejection.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Tests verify fsync atomic append, recursive mkdir idempotency, existing stage tests, and duplicate note appends",
+      "command": "grep -nE \"fsyncSync|mkdirSync|appendJournalNote\\(entry\\)|appends a journal line\" scripts/lib/append-journal.mjs scripts/lib/append-journal.test.mjs && pnpm vitest run scripts/lib/append-journal.test.mjs",
+      "result": "appendLine uses fs.mkdirSync({ recursive: true }) and fs.fsyncSync; tests spy on fsyncSync, call appendJournalNote twice for the same task directory, assert duplicate identical note lines are appended, and existing appendJournalEntry stage-transition tests pass.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Typecheck passes",
+      "command": "pnpm --filter @codexu/overview-mcp typecheck",
+      "result": "Exit 0; tsc --noEmit -p tsconfig.json completed without errors. Full log: .test-output/overview-mcp.typecheck.log.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Tests pass for scripts/lib/ and tools/overview-mcp/",
+      "command": "pnpm vitest run scripts/lib; pnpm --filter @codexu/overview-mcp test",
+      "result": "scripts/lib exit 0 with 21 test files passed and 155 tests passed; overview-mcp exit 0 with 2 test files passed and 13 tests passed. Logs: .test-output/scripts-lib.test.log and .test-output/overview-mcp.test.log.",
+      "evidenceKind": "passed"
+    }
+  ],
+  "skippedReasons": [],
+  "notTested": [],
+  "iterationSHA": "6d4d21791b2eee2b331bd396f37a67d7811423bc"
+}

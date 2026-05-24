@@ -1,0 +1,21 @@
+I’m opening the attached task file first so I can carry it through end to end.
+
+The file is a bit larger than a single read, so I’m pulling it in chunks and extracting the actual task.
+
+I’ve got the plan and diff header; now I’m reading the rest of the patch and the touched source files to check it against the actual code paths.
+
+### Completeness
+- [Low] `packages/happy-app/sources/components/SessionsList.test.tsx:528-539` — The acceptance test never verifies that the flavor pill actually contains an `Image`; it only checks that the wrapper with `testID="session-role-pill-flavor"` exists. That leaves the plan’s explicit acceptance criterion for the flavor icon unmet and wouldn’t catch a future regression where the pill renders empty.
+
+### Correctness
+- [Medium] `packages/happy-app/sources/components/SessionsList.tsx:621-625,687-701` — `knownAgentIconForFlavor()` returns `null` for any flavor not present in `newSessionAgentIcons`, and `showRolePills` is gated on that resolved icon rather than on `session.flavor` itself. The plan called for a direct lookup **with fallback**; as written, sessions whose metadata flavor is a non-canonical value like `gpt` or `openai` will lose the flavor pill entirely instead of showing the fallback icon.
+
+### Quality
+No issues found.
+
+### Security
+No issues found.
+
+### Overall Assessment
+This is close, but it still needs work. The main implementation regresses flavor-pill rendering for non-canonical flavor codes, and the new test file doesn’t enforce the full acceptance criteria that would catch that case.
+

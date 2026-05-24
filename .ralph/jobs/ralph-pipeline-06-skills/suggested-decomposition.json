@@ -1,0 +1,40 @@
+{
+  "clusters": [
+    {
+      "name": "predicate-and-skills",
+      "stories": ["US-001", "US-002", "US-003", "US-004", "US-005"],
+      "phase": 1,
+      "dependsOn": [],
+      "fileOverlapEvidence": {
+        "sharedFiles": [
+          "scripts/lib/derive-next-command.mjs",
+          "scripts/lib/derive-next-command-cli.mjs",
+          "tools/overview-viewer/src/types.ts"
+        ],
+        "exclusiveFiles": [
+          ".claude/skills/work-on/SKILL.md",
+          ".claude/skills/triage/SKILL.md",
+          ".claude/skills/blocker-report/SKILL.md"
+        ],
+        "risk": "medium"
+      },
+      "executionModeRationale": "Serial. US-001/US-002 build the predicate and CLI helper that all three skills shell out to. Parallelizing the skills would race on manual-smoke validation of the same CLI output."
+    },
+    {
+      "name": "cascade-refresh",
+      "stories": ["US-006"],
+      "phase": 2,
+      "dependsOn": ["predicate-and-skills"],
+      "fileOverlapEvidence": {
+        "sharedFiles": ["plans/ralph-pipeline-INDEX.md"],
+        "exclusiveFiles": [
+          "plans/ralph-pipeline-07-context.md",
+          "plans/ralph-pipeline-08-crews.md",
+          "plans/ralph-pipeline-09-mcp.md"
+        ],
+        "risk": "low"
+      },
+      "executionModeRationale": "Single-task cluster running after implementation reaches green. Defer to notepad ## Deferred Cascade if Plan 07 context-worker is still RUNNING."
+    }
+  ]
+}

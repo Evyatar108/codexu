@@ -1,0 +1,21 @@
+### Completeness
+
+- [Medium] `packages/happy-app/sources/components/SessionsList.tsx:65` / `:423-426`: unknown non-empty `session.flavor` values do not render a flavor pill. The plan requires rendering the pill row when `session.flavor` is present and using `newSessionAgentIcons` “with a fallback”; this implementation derives `showRolePills` from `flavorIcon`, and `knownAgentIconForFlavor()` returns `null` for unrecognized flavors. A session with only `flavor: 'gpt'` or `'openai'` would show no role pill at all.
+
+- [Low] `packages/happy-app/sources/components/SessionsList.test.tsx:220`: the acceptance criteria require asserting the flavor pill contains an `Image`; the test only asserts the flavor pill node exists. The snapshot happens to include the image, but the structural assertion requested by the plan is missing.
+
+### Correctness
+
+No issues found.
+
+### Quality
+
+- [Low] `packages/happy-app/sources/components/SessionsList.tsx:184`: pill styling diverges from the specified chip pattern. The plan called for `theme.colors.surfacePressed` and `gap: 4` on each pill; the implementation uses `surfaceHighest` and omits the pill-level gap. This is minor visually today, but it weakens consistency with the referenced drawer chip pattern.
+
+### Security
+
+No issues found.
+
+### Overall Assessment
+
+The core data plumbing and pill rendering are mostly in place, but the flavor fallback behavior misses a stated requirement and affects real metadata variants. I would fix that before calling this ready.

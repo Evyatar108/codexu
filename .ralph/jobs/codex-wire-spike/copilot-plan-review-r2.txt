@@ -1,0 +1,26 @@
+I’m reading the attached task file first so I can act on it directly.
+
+I’ve got the review prompt; now I’m checking the referenced files and APIs so I can flag only genuinely new High+ issues.
+
+### Feasibility
+
+- [High] `C:\Users\evmitran\AppData\Local\Temp\tmp.YyRSTEV9MA:165-170` and `:257-258` still assume Probe 3c can discover a `project_doc_fallback_filenames` list that makes `CLAUDE.md` win when both `CLAUDE.md` and `AGENTS.md` exist. That is not how codex currently resolves same-directory project docs. `codex\external\repos\codex-patched\codex-rs\core\src\agents_md.rs:286-293` stops at the **first** matching candidate per directory, and `agents_md.rs:305-318` hard-prepends `AGENTS.override.md` and `AGENTS.md` before any configured fallback filenames. `codex\CLAUDE.md:119` says the same thing explicitly: `AGENTS.override.md` / `AGENTS.md` win in the same directory and `CLAUDE.md` only loads where those are absent. So AC-2 cannot honestly conclude “use list `[<actual-winning-order>]`” for CLAUDE-first; the real outcome may be “config knob works, but it cannot override same-dir AGENTS.md.”
+
+- [High] The isolation step for managed config is not valid for the installed `codex` binary. The plan relies on test-only env tricks from `codex\external\repos\codex-patched\codex-rs\app-server\tests\common\mcp_process.rs:187-190` and calls for setting a tmp managed-config path at `tmp.YyRSTEV9MA:128-131`, but `codex\external\repos\codex-patched\codex-rs\app-server\src\main.rs:42-57,83-104` guards both `CODEX_APP_SERVER_MANAGED_CONFIG_PATH` and `CODEX_APP_SERVER_DISABLE_MANAGED_CONFIG` behind `#[cfg(debug_assertions)]`. A release `codex app-server` from PATH will ignore those env vars, so Q2/Q3 can still be contaminated by host managed config.
+
+### Completeness
+
+- [High] The amended plan still tells the implementer to create `tasks/spikes/codex-wire-spike-output.json` at `tmp.YyRSTEV9MA:203-205`, but AC-5/AC-6 explicitly say the audit doc is the canonical evidence artifact and that the **only** created path should be `tasks/spikes/codex-wire-spike.mjs` (`tmp.YyRSTEV9MA:259-261`). That contradiction is actionable enough to cause an autonomous agent to fail the acceptance criteria even if the spike itself works.
+
+### Ordering
+
+No issues found.
+
+### Simplicity
+
+No issues found.
+
+### Acceptance Criteria Quality
+
+- [High] Appendix C reintroduces the exact invalid oracle the plan says it fixed. AC-3 forbids `config/read` because it is not thread-scoped (`tmp.YyRSTEV9MA:257-258`), but the appendix template still tells the implementer to include a ``config/read`` response for each thread in §3 (`tmp.YyRSTEV9MA:383-386`). That stale template is likely to produce a non-compliant implementation/doc even if the earlier prose is correct.
+

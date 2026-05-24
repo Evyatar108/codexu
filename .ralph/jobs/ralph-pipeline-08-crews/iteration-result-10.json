@@ -1,0 +1,44 @@
+{
+  "storyId": "US-010",
+  "verifiedEvidence": [
+    {
+      "criterion": "Test with a synthetic manifest whose lastHeartbeatAt is 121 minutes ago — first discoverCrewSessions tick sets outcome: 'stopped' and endedAt: lastHeartbeatAt.",
+      "evidenceKind": "passed",
+      "command": "grep -n \"sets stale sessions\" scripts/lib/crews-cross-walk.test.mjs && pnpm vitest run scripts/lib/crews-cross-walk.test.mjs --reporter=verbose",
+      "result": "PASS: scripts/lib/crews-cross-walk.test.mjs line 150 defines the stale-session idempotency test; the first discover tick uses now=2026-05-20T13:00:00.000Z with lastHeartbeatAt=2026-05-20T10:59:00.000Z (121 minutes) and asserts outcome 'stopped' plus endedAt equal to that heartbeat. Focused Vitest passed: 1 file, 10 tests."
+    },
+    {
+      "criterion": "Re-running discoverCrewSessions on the same manifest does NOT shift endedAt (idempotent).",
+      "evidenceKind": "passed",
+      "command": "grep -n \"rerunSameManifest\" scripts/lib/crews-cross-walk.test.mjs && pnpm vitest run scripts/lib/crews-cross-walk.test.mjs --reporter=verbose",
+      "result": "PASS: lines 165-167 re-run discoverCrewSessions with the same manifest and later now=2026-05-20T14:00:00.000Z, then assert endedAt remains 2026-05-20T10:59:00.000Z. Focused Vitest passed: 1 file, 10 tests."
+    },
+    {
+      "criterion": "When the synthetic member briefly revives (heartbeat moves forward), the existing outcome: 'stopped' is preserved (not re-derived).",
+      "evidenceKind": "passed",
+      "command": "grep -n \"revived\" scripts/lib/crews-cross-walk.test.mjs && pnpm vitest run scripts/lib/crews-cross-walk.test.mjs --reporter=verbose",
+      "result": "PASS: lines 178-180 discover after the manifest heartbeat moves forward to 2026-05-20T12:59:00.000Z and assert outcome remains 'stopped' with endedAt still 2026-05-20T10:59:00.000Z. Focused Vitest passed: 1 file, 10 tests."
+    },
+    {
+      "criterion": "Tests added to scripts/lib/crews-cross-walk.test.mjs (or a dedicated stale-idempotency spec).",
+      "evidenceKind": "passed",
+      "command": "grep -n \"sets stale sessions to stopped once and preserves that outcome across stale and revived ticks\" scripts/lib/crews-cross-walk.test.mjs && grep -n \"crews-cross-walk.test.mjs\" .test-output/root.test.log | tail -3",
+      "result": "PASS: scripts/lib/crews-cross-walk.test.mjs contains the expanded stale-idempotency test at line 150; root test log reports scripts/lib/crews-cross-walk.test.mjs (10 tests) passed."
+    },
+    {
+      "criterion": "Typecheck passes.",
+      "evidenceKind": "passed",
+      "command": "pnpm --filter @codexu/overview-viewer typecheck",
+      "result": "PASS: tsc --noEmit completed with exit 0 in 15s; output saved to .test-output/overview-viewer.typecheck.log."
+    },
+    {
+      "criterion": "Tests pass.",
+      "evidenceKind": "passed",
+      "command": "pnpm test",
+      "result": "PASS: root Vitest completed with exit 0; 22 test files passed, 149 tests passed; output saved to .test-output/root.test.log."
+    }
+  ],
+  "skippedReasons": [],
+  "notTested": [],
+  "iterationSHA": "516ebbb828d3316bc72a057d0650892700294e50"
+}

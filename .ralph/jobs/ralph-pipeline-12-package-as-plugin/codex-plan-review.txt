@@ -1,0 +1,43 @@
+### Feasibility
+
+- [High] The MCP import-path rewrite is wrong. In `D:/harness-efforts/codexu/tools/overview-mcp/src/tools/*.ts`, `../../../../scripts/lib/...` is the correct depth after copying into `plugins/ralph-overview/tools/overview-mcp/src/tools/`; changing all imports to `../../../scripts/lib/...` will break builds. Only files directly under `src/` use `../../../scripts/lib/...`.
+
+- [High] The Toolbar data model is misread. `plans/overview-data.js` documents `workstream` as “map of taskId to dashboard workstream key”, and `tools/overview-viewer/src/utils/filters.ts` uses `data.workstream?.[task.id]`. The plan’s `Object.keys(data.workstream)` approach would render task IDs as chips, not `"frontend"` / `"backend"`. It should derive unique `Object.values(data.workstream ?? {})`.
+
+- [High] The plugin build/install model is underspecified and likely nonfunctional. `D:/ai-developer-toolkit` has no root `package.json` or `pnpm-workspace.yaml`, but the plan verifies with `pnpm --filter @ralph/overview-mcp build`. A plugin containing nested packages needs its own `pnpm-workspace.yaml` or root scripts that run inside `tools/overview-*`.
+
+- [High] Runtime distribution is not viable as written. Existing toolkit MCP plugins generally launch through root `launch.*` files or prebuilt binaries; the proposed `.mcp.json` points directly to `tools/overview-mcp/dist/index.js`, but the plan does not ensure `dist/` and `node_modules` exist after marketplace install.
+
+- [High] Consumer scripts like `"overview": "ralph-overview dev"` assume the plugin package bin is on codexu’s PATH. Claude plugin installation does not imply an npm global link. This will likely fail from `D:/harness-efforts/codexu/package.json`.
+
+### Completeness
+
+- [Critical] Marketplace registration is incomplete for `ai-developer-toolkit`. `D:/ai-developer-toolkit/CLAUDE.md` requires marketplace indexes to stay in sync across `.claude-plugin/marketplace.json`, `.github/plugin/marketplace.json`, and `.agents/plugins/marketplace.json`; the plan only updates `.claude-plugin/marketplace.json`.
+
+- [High] The file inventory is internally inconsistent. Actual `scripts/lib/` has 25 non-test `.mjs`, 24 `.d.mts`, and 22 `.test.mjs`; the plan claims 28 modules and 21 tests. It also omits removal/copying of `scripts/sync-ralph-state.d.mts` and `scripts/sync-ralph-state.test.mjs`.
+
+- [Medium] The plan adds `data.ui?.title` style overrides but does not update `tools/overview-viewer/src/types.ts`, template data, or tests/schema expectations for that new `OverviewData.ui` shape.
+
+- [Medium] `tools/overview-mcp/src/tools/build.ts` still hardcodes `plans/overview.html` as the output path. The plan genericizes Vite config but does not mention making the MCP build result use config-derived output paths.
+
+### Ordering
+
+- [High] Phase B says install the plugin, then update package wrappers to call `ralph-overview`, but the plan never proves that binary is installed or resolvable. Establish the runtime invocation mechanism in Phase A before codexu migration.
+
+- [Medium] US-003 operational tool changes depend on the CLI dispatcher’s final path and behavior, but US-001 only creates the dispatcher shell and US-003 may proceed before dispatcher semantics are tested. Make CLI dispatcher implementation/testing a hard prerequisite for MCP tool rewrites.
+
+### Simplicity
+
+- [Medium] A root `bin` plus nested workspace packages plus consumer PATH wrappers is more fragile than the existing toolkit pattern. A root `launch.cjs`/`launch.ps1` that builds/caches the MCP server and viewer, plus explicit plugin-local invocation, would better match `plugins/devui`, `plugins/cli-manager`, and other toolkit plugins.
+
+- [Medium] The plan keeps `.claude/settings.json` MCP registration as a manual consumer migration step even though plugin `.mcp.json` is the canonical plugin mechanism. Codexu likely needs `enabledPlugins` updated, not a duplicated raw `mcpServers` entry with plugin-root placeholders.
+
+### Acceptance Criteria Quality
+
+- [High] “All 28 `.mjs` modules” is untestable against the actual repo because the listed files total 25 non-test modules. This AC will either fail forever or encourage copying the wrong files.
+
+- [High] `pnpm typecheck` is not currently a valid root script in `D:/harness-efforts/codexu/package.json`. Unless the plan adds that script, the AC “Codexu typecheck passes (`pnpm typecheck`)" is invalid.
+
+- [High] “Dashboard indistinguishable from pre-migration” is too vague for autonomous verification. Require concrete checks: build artifact exists, `pnpm overview` serves, specific codexu chips render, filter click changes visible rows, and sidecar HMR updates.
+
+- [Medium] “Plugin isolation smoke test passes” needs exact commands for installing dependencies/building the plugin in a throwaway directory. As written, it skips the dependency/bootstrap problem that is most likely to break the plugin.

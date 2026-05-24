@@ -1,0 +1,116 @@
+{
+  "planFile": "D:/harness-efforts/codexu/.ralph/jobs/.staging/20260513-113629/draft-plan.md",
+  "repoDir": "D:/harness-efforts/codexu",
+  "reviewCycle": 0,
+  "findings": [
+    {
+      "id": "F-001",
+      "severity": "High",
+      "source": "consensus",
+      "category": "Feasibility",
+      "sectionRef": "Approach > Implementation Strategy (step 4) and Acceptance Criteria",
+      "description": "Permission color lookup via theme.colors.permission[code] is wrong. Theme keys are bypass/readOnly/safeYolo but actual metadata codes are bypassPermissions/read-only/safe-yolo (confirmed in modelModeOptions.ts:48-72). Direct dynamic indexing also fails TS strict mode. Existing app already special-cases this in AgentInput.tsx:1388-1396.",
+      "status": "fixed",
+      "fixedInIteration": 0,
+      "resolution": "Plan amended: added explicit permissionColorForCode() helper section with full code, called out theme-key/metadata-code mismatch as critical, updated implementation strategy step 4 and acceptance criteria.",
+      "relevantFiles": [
+        "packages/happy-app/sources/theme.ts",
+        "packages/happy-app/sources/components/modelModeOptions.ts",
+        "packages/happy-app/sources/components/AgentInput.tsx"
+      ],
+      "suggestedFix": "Add a local helper permissionColorForCode(code: string | null | undefined): string that maps metadata code keys to theme.colors.permission.* values explicitly. Model after AgentInput.tsx:1388-1396 mapping."
+    },
+    {
+      "id": "F-002",
+      "severity": "High",
+      "source": "consensus",
+      "category": "Completeness",
+      "sectionRef": "Approach > Implementation Strategy (step 5) and Files to Create",
+      "description": "Test mock list is incomplete. SessionsList.tsx imports expo-router, react-native-safe-area-context, useVisibleSessionListViewData, useIsTablet, requestReview, UpdateBanner (which pulls more hooks), StyledText (which pulls react-native-reanimated). Vitest evaluates the whole module on import, so mocking only Avatar/StatusDot/navigation will fail with import errors before the test runs.",
+      "status": "fixed",
+      "fixedInIteration": 0,
+      "resolution": "Plan amended: expanded test mock list in Implementation Strategy step 5 to cover ~25 module-scope imports including transitive ones (react-native-reanimated via StyledText, UpdateBanner deps, expo-router, expo-store-review, expo-image, etc.).",
+      "relevantFiles": [
+        "packages/happy-app/sources/components/SessionsList.tsx",
+        "packages/happy-app/sources/components/StyledText.tsx",
+        "packages/happy-app/sources/components/UpdateBanner.tsx"
+      ],
+      "suggestedFix": "Expand the mock list to cover ALL module-scope imports of SessionsList.tsx (lines 3-23): expo-router, react-native-safe-area-context, expo-store-review, @/components/UpdateBanner, @/components/StyledText, @/hooks/useIsTablet, @/sync/storage, @/hooks/useVisibleSessionListViewData, react-native-reanimated. Provide working stubs for each."
+    },
+    {
+      "id": "F-003",
+      "severity": "Medium",
+      "source": "codex",
+      "category": "Completeness",
+      "sectionRef": "Approach > Architecture and Implementation Strategy",
+      "description": "Pill row layout constraints are underspecified. Without minWidth:0, flexShrink, numberOfLines={1}, ellipsizeMode on text pills, narrow mobile rows will wrap or overflow. 'Adjust if wraps' is too late for autonomous implementation.",
+      "status": "fixed",
+      "fixedInIteration": 0,
+      "resolution": "Plan amended directly with all consensus findings.",
+      "relevantFiles": [
+        "packages/happy-app/sources/components/SessionsList.tsx"
+      ],
+      "suggestedFix": "Specify explicit pill layout constraints in the plan: each pill flex:0, minWidth:0, flexShrink:1; pill Text uses numberOfLines={1} and ellipsizeMode='tail'; container View uses flexDirection:'row', alignItems:'center', gap:6, overflow:'hidden'."
+    },
+    {
+      "id": "F-004",
+      "severity": "Medium",
+      "source": "consensus",
+      "category": "Criteria Quality",
+      "sectionRef": "Acceptance Criteria",
+      "description": "'Three identifiable pill elements' is vague. Snapshot serializer captures tree structure; need concrete identifiers (testID or text content) to make assertions verifiable.",
+      "status": "fixed",
+      "fixedInIteration": 0,
+      "resolution": "Plan amended directly with all consensus findings.",
+      "relevantFiles": [],
+      "suggestedFix": "Add specific acceptance criteria: model pill renders text 'codex' (after formatModelCode on 'gpt-5-codex'); permission pill renders text 'plan'; flavor pill renders an expo-image Image with testID='session-role-pill-flavor'. Optionally add testIDs to all three pills for stable assertions."
+    },
+    {
+      "id": "F-005",
+      "severity": "Medium",
+      "source": "copilot",
+      "category": "Criteria Quality",
+      "sectionRef": "Acceptance Criteria + Risk Areas",
+      "description": "Layout acceptance is too subjective. Row height bump (88→108) is a guess and visual conditions (no clipping, no overlap with statusRow, no empty spacer when all three fields absent) are never converted to verifiable requirements.",
+      "status": "fixed",
+      "fixedInIteration": 0,
+      "resolution": "Plan amended directly with all consensus findings.",
+      "relevantFiles": [
+        "packages/happy-app/sources/components/SessionsList.tsx"
+      ],
+      "suggestedFix": "Add concrete criteria: when all three metadata fields are null, the pill row container is not rendered (no empty spacer); when all three are present, pills render single-line with truncation rather than wrapping; statusRow remains visible and not overlapped. Test the all-absent case as a second snapshot."
+    },
+    {
+      "id": "F-006",
+      "severity": "Medium",
+      "source": "copilot",
+      "category": "Completeness",
+      "sectionRef": "Approach > Architecture (Render raw codes decision)",
+      "description": "Plan chooses raw-code rendering, but SessionContextDrawer resolves display names via getAvailablePermissionModes + resolvePermissionModeForPicker. For known modes (bypassPermissions->'Yolo', read-only->'Read Only'), raw rendering regresses UX. The acceptance test's 'plan' literal happens to match either approach.",
+      "status": "fixed",
+      "fixedInIteration": 0,
+      "resolution": "Plan amended directly with all consensus findings.",
+      "relevantFiles": [
+        "packages/happy-app/sources/components/modelModeOptions.ts",
+        "packages/happy-app/sources/-session/SessionView.tsx",
+        "packages/happy-app/sources/components/SessionContextDrawer.tsx"
+      ],
+      "suggestedFix": "Either (a) resolve permission labels via getAvailablePermissionModes(flavor) when a matching option exists and fall back to raw code otherwise — drawer parity — or (b) document the raw-rendering decision as explicit v1 simplification with a follow-up to add label resolution. Pick one and state it in the plan."
+    },
+    {
+      "id": "F-007",
+      "severity": "Low",
+      "source": "codex",
+      "category": "Completeness",
+      "sectionRef": "Approach > Implementation Strategy (step 5)",
+      "description": "Snapshot test importing the full SessionsList.tsx module is more brittle than a structural assertion (findAllByType / findByProps). ActiveSessionsGroupCompact.test.tsx favors structural assertions over snapshots.",
+      "status": "fixed",
+      "fixedInIteration": 0,
+      "resolution": "Plan amended directly with all consensus findings.",
+      "relevantFiles": [
+        "packages/happy-app/sources/components/ActiveSessionsGroupCompact.test.tsx"
+      ],
+      "suggestedFix": "Optional: keep a single snapshot test for the 'three pills present' case but ALSO add structural assertions for testIDs / text content to make the test robust against unrelated tree changes."
+    }
+  ]
+}

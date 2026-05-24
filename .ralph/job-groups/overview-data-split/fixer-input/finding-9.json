@@ -1,0 +1,18 @@
+{
+  "id": "F-010",
+  "severity": "Medium",
+  "source": "copilot",
+  "detectedBy": [
+    "copilot"
+  ],
+  "classification": "fixable",
+  "phase": "code",
+  "category": "Correctness",
+  "sectionRef": null,
+  "description": "`plans/overview.html:1288-1396` rebuilds the kanban and command DOM, but all of the enrichers that make the page fully functional are one-shot IIFEs later in the file (`:1588-1674`, `:1692-1705`, `:1943-1955`, `:2196-2310`, `:2338-2353`). A console `renderTasks()` rerender preserves open `<details>` state, but it drops scope chips, workstream pills, copy-name buttons, kanban → command links, and leaves counts / Today-panel state stale. That makes the exposed rerender path unsafe for the manual refresh/debugging workflow the plan calls out.",
+  "status": "open",
+  "fixedInIteration": null,
+  "resolution": null,
+  "relevantFiles": [],
+  "suggestedFix": null
+}

@@ -1,0 +1,44 @@
+{
+  "storyId": "US-003",
+  "verifiedEvidence": [
+    {
+      "criterion": ".claude/skills/work-on/SKILL.md exists with YAML frontmatter",
+      "command": "test -f .claude/skills/work-on/SKILL.md && grep -nE '^name: work-on|^description:' .claude/skills/work-on/SKILL.md",
+      "result": "Exit 0; file exists with frontmatter name at line 2 and description at line 3.",
+      "evidenceKind": "command"
+    },
+    {
+      "criterion": "Body covers required /work-on behavior",
+      "command": "grep -nE 'exact and case-insensitive|--dry-run|--via-crew|overview-snapshot|numbered picker|seed prompt|shipped|cannot derive command|ralph-orchestration:plan-with-ralph|derive-next-command-cli' .claude/skills/work-on/SKILL.md",
+      "result": "Exit 0; grep found all required behavior clauses.",
+      "evidenceKind": "command"
+    },
+    {
+      "criterion": "Dry-run output via shared CLI",
+      "command": "node scripts/lib/derive-next-command-cli.mjs --task TASK-CLI --snapshot scripts/lib/fixtures/derive-next-command-snapshot.json",
+      "result": "Exit 0; stdout JSON was {\"label\":\"Resume implementation\",\"command\":\"/implement-with-ralph resume fixture-cli-job\"}.",
+      "evidenceKind": "command"
+    },
+    {
+      "criterion": "--via-crew Plan 08 error string",
+      "command": "grep -q 'crews delegation not yet implemented' .claude/skills/work-on/SKILL.md",
+      "result": "Exit 0; error string present.",
+      "evidenceKind": "command"
+    },
+    {
+      "criterion": "Required content greps",
+      "command": "grep -q 'name: work-on' .claude/skills/work-on/SKILL.md && grep -q -- '--via-crew' .claude/skills/work-on/SKILL.md && grep -q 'ralph-orchestration:plan-with-ralph' .claude/skills/work-on/SKILL.md",
+      "result": "Exit 0; all required greps passed.",
+      "evidenceKind": "command"
+    },
+    {
+      "criterion": "Typecheck passes",
+      "command": "pnpm --filter @codexu/overview-viewer typecheck",
+      "result": "Exit 0; tsc --noEmit completed with no errors.",
+      "evidenceKind": "typecheck"
+    }
+  ],
+  "skippedReasons": [],
+  "notTested": [],
+  "iterationSHA": "50b78f4b27c012a388ef33790bd751ec5cefd707"
+}

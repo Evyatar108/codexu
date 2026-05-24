@@ -1,0 +1,50 @@
+{
+  "storyId": "US-001",
+  "verifiedEvidence": [
+    {
+      "criterion": "scripts/lib/derive-next-command.mjs exports deriveNextCommand(state, task, options?) -> NextCommand | null with the file-level JSDoc version-pin naming ralph-orchestration v5.41.0.",
+      "command": "test -f scripts/lib/derive-next-command.mjs && grep -nE 'ralph-orchestration v5.41.0|export function deriveNextCommand' scripts/lib/derive-next-command.mjs",
+      "result": "Found version pin at line 3 and export function deriveNextCommand(state, task, options = {}) at line 16.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Module is browser-safe — no node:fs, node:path, or node:child_process imports.",
+      "command": "if grep -nE 'node:fs|node:path|node:child_process' scripts/lib/derive-next-command.mjs; then exit 1; else echo 'No forbidden Node-only imports found'; fi",
+      "result": "No forbidden Node-only imports found.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "scripts/lib/derive-next-command.d.mts exists and re-exports the signature for TypeScript consumers.",
+      "command": "test -f scripts/lib/derive-next-command.d.mts && sed -n '1,20p' scripts/lib/derive-next-command.d.mts",
+      "result": "Declaration file exists and exports deriveNextCommand(state: RalphPipelineState | undefined, task: OverviewTask | undefined, options?: DeriveNextCommandOptions): NextCommand | null.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "tools/overview-viewer/src/types.ts exports interface NextCommand { label: string; command: string; icon?: string } placed near Recommendation (additive — no conflict with Plan 07's RalphPipelineState extension).",
+      "command": "grep -n 'export interface NextCommand' -A5 tools/overview-viewer/src/types.ts",
+      "result": "NextCommand exported at lines 166-170 immediately after Recommendation with label, command, and optional icon fields.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "pnpm --filter @codexu/overview-viewer typecheck passes.",
+      "command": "pnpm --filter @codexu/overview-viewer typecheck > .test-output/overview-viewer.typecheck.log 2>&1; tail -30 .test-output/overview-viewer.typecheck.log",
+      "result": "Exit 0; tsc --noEmit completed with no errors.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "scripts/lib/derive-next-command.test.mjs covers all 10 stages plus null-on-shipped, parallel-group implementing with { repoRoot }, brainstorming-with-slug, no-artifact fallback. pnpm test scripts/lib/derive-next-command.test.mjs passes.",
+      "command": "pnpm test scripts/lib/derive-next-command.test.mjs",
+      "result": "Exit 0; 1 test file passed, 15 tests passed. Grep confirmed coverage for all stages, repoRoot parallel group, and required-artifact null fallback.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Typecheck passes.",
+      "command": "pnpm --filter @codexu/overview-viewer typecheck",
+      "result": "Exit 0; overview-viewer typecheck passed with tsc --noEmit and no errors.",
+      "evidenceKind": "passed"
+    }
+  ],
+  "skippedReasons": [],
+  "notTested": [],
+  "iterationSHA": "fc8d0b5ec7c195d8a759c70a69d9854e7f72c0ec"
+}

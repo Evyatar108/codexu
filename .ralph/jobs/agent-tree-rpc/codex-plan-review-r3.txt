@@ -1,0 +1,33 @@
+### Feasibility
+
+[High] Inbound payload omits `sessionId`, but outbound fan-out also appears to omit it. `sessionUpdateHandler.ts` can derive `connection.sessionId` safely, but `eventRouter.emitAgentTreeUpdate({ userId, sessionId, delta })` must include the trusted `sessionId` in the Socket.IO frame sent to clients. AC3 explicitly sends to `user:${userId}:user-scoped`; those sockets receive events for multiple sessions and cannot demultiplex `{ delta }` alone.
+
+[High] `AgentTreeState.applyEvent(evt) -> { delta, seq } | null` cannot satisfy the stated `closeAgent` behavior. The plan says close removes the target plus descendants and emits one `node-removed` per node, but the reducer API returns only one delta. Change the reducer surface to return `AgentTreeDelta[]` or a batch object, and have `runCodex.ts` emit each delta in order.
+
+[Medium] Legacy Codex event names are snake_case on the wire. `codex-rs/protocol/src/protocol.rs` uses `#[serde(tag = "type", rename_all = "snake_case")]`, so `codexAppServerClient.ts` receives types like `collab_agent_spawn_begin`, not `CollabAgentSpawnBegin`. The plan’s “legacy CollabAgent* counterparts” wording is easy to implement incorrectly, especially because nickname/role recovery depends on the legacy payload.
+
+[Medium] AC4a references `params.thread_id`, but current v2 notifications use camelCase `threadId`; existing tests in `packages/happy-cli/src/codex/codexAppServerClient.test.ts` also use `threadId`. The parser/test requirement should say preserve `params.threadId`.
+
+### Completeness
+
+[Medium] The server event-router type changes need to include every local union and mock surface, not just a method body. `packages/happy-server/sources/app/events/eventRouter.ts` currently constrains `RoutedSocketEvent.eventName` and `publish/emitToLocalSink` to `'update' | 'ephemeral'`; adding `agent-tree-update` requires widening those unions and updating typed test fakes such as `createFakeEventRouter()` in `packages/happy-server/sources/app/api/socket.spec.ts` if typecheck touches them.
+
+[Low] The plan says nickname/role can fall back to `thread/read`, but it does not name a helper or method on `CodexAppServerClient.ts` for issuing that request. If implemented, this needs either a small client method or an explicit “skip thread/read in this commit” decision.
+
+### Ordering
+
+No issues found. The dependency order `happy-wire -> happy-cli reducer/parser/runtime -> happy-server validation/fan-out -> tests/docs` is coherent.
+
+### Simplicity
+
+No major issues found. The prior concern about reusing `ephemeral` is adequately addressed as a deliberate distinct-frame tradeoff.
+
+### Acceptance Criteria Quality
+
+[High] AC4 is still brittle for autonomous verification. A real model prompt like “spawn one explorer named A, then have A spawn one explorer named B” may not reliably produce nested child-under-child spawns, and exact equality to four deltas leaves no tolerance for valid status deltas. Prefer asserting an ordered subsequence of spawn deltas plus final snapshot topology, with clear filtering rules.
+
+[Medium] AC3 should assert the outbound `agent-tree-update` payload contains the trusted `sessionId` added by the server, while the inbound CLI payload does not. This preserves the spoofing fix without breaking user-scoped clients.
+
+[Medium] AC4a should be corrected from `params.thread_id` to `params.threadId`.
+
+Prior High/Critical items are mostly resolved: root build command, parser location, real Codex integration test, server `userId` fan-out, inbound authorization, and no self-referential SHA are all addressed. The remaining High items are the missing outbound `sessionId` and the reducer API mismatch for multi-delta removals.

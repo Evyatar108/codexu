@@ -1,0 +1,69 @@
+{
+  "planFile": "D:/harness-efforts/codexu/.ralph/jobs/ralph-pipeline-06-skills/plan.md",
+  "repoDir": "D:/harness-efforts/codexu/.ralph/jobs/ralph-pipeline-06-skills/worktree",
+  "reviewCycle": 2,
+  "findings": [
+    {
+      "id": "F-001",
+      "severity": "Medium",
+      "source": "claude",
+      "classification": "fixable",
+      "phase": "code",
+      "category": "Completeness",
+      "sectionRef": "deriveNextCommand predicate table",
+      "description": "deriveNextCommand returns NextCommand objects without the icon field at every return site (brainstorming, brainstorm-ready, planning, plan-ready, implementing, reviewing/review-fix, replan-pending, blocked). The predicate table in plan.md prescribes specific emoji icons per stage and the NextCommand interface includes an optional icon field. Optional typing keeps the build green but UI/MCP consumers receive icon-less commands, breaking the shared contract.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Added icon field to every NextCommand return site per predicate table. Tests updated to assert icon.",
+      "relevantFiles": [
+        "scripts/lib/derive-next-command.mjs:31",
+        "scripts/lib/derive-next-command.mjs:38",
+        "scripts/lib/derive-next-command.mjs:45",
+        "scripts/lib/derive-next-command.mjs:56",
+        "scripts/lib/derive-next-command.mjs:64",
+        "scripts/lib/derive-next-command.mjs:69",
+        "scripts/lib/derive-next-command.mjs:76",
+        "scripts/lib/derive-next-command.mjs:83",
+        "scripts/lib/derive-next-command.mjs:89",
+        "tools/overview-viewer/src/types.ts:166"
+      ],
+      "suggestedFix": "Add the icon field to each returned NextCommand per the plan's predicate table (brainstorming: light bulb, brainstorm-ready: clipboard, planning: pencil, plan-ready: rocket, implementing: gear, reviewing/review-fix: magnifier, replan-pending: refresh arrows, blocked: wrench) and update derive-next-command.test.mjs expected objects to assert icon presence."
+    },
+    {
+      "id": "F-002",
+      "severity": "Medium",
+      "source": "claude",
+      "classification": "fixable",
+      "phase": "code",
+      "category": "Correctness",
+      "sectionRef": "/work-on dry-run vs null handling",
+      "description": "The Derive Command section in .claude/skills/work-on/SKILL.md instructs to print 'null' and stop when --dry-run is passed and the helper returns null, before the Null Handling section runs. As a result, --dry-run on a shipped task prints 'null' instead of 'task is already done' with mergeCommit, and --dry-run on a non-shipped stage with missing artifacts prints 'null' instead of the required \"cannot derive command for stage '<stage>' — required artifact ...\" error. This contradicts the plan's Null Handling contract and Verification cases B/D.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Reordered: --dry-run short-circuit now after Null Handling, gated on command !== null.",
+      "relevantFiles": [
+        ".claude/skills/work-on/SKILL.md:88",
+        ".claude/skills/work-on/SKILL.md:91"
+      ],
+      "suggestedFix": "Reorder: evaluate Null Handling first when the helper returns null (shipped message or missing-artifact error). Only when the helper returns a non-null NextCommand should --dry-run short-circuit and print the command string. Concretely: move the 'If --dry-run was passed, print and stop' clause to AFTER the null branches and gate it on command !== null."
+    },
+    {
+      "id": "F-003",
+      "severity": "Low",
+      "source": "claude",
+      "classification": "fixable",
+      "phase": "code",
+      "category": "Quality",
+      "sectionRef": "predicate unused parameter",
+      "description": "scripts/lib/derive-next-command.mjs uses `void task` at line 17 to suppress the unused-parameter signal, but the predicate body never reads task. The plan documents task as part of the signature for future seed-prompt fallback, but that fallback is implemented in the /work-on skill body, not the predicate. Either drop the parameter or replace the void trick with a JSDoc note like '@param task currently unused; reserved for future expansion'.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Replaced void task with JSDoc note; parameter kept in signature per public contract.",
+      "relevantFiles": [
+        "scripts/lib/derive-next-command.mjs:16",
+        "scripts/lib/derive-next-command.mjs:17"
+      ],
+      "suggestedFix": "Replace `void task` with a JSDoc comment explaining that the parameter is reserved for future task-level fallback; or remove the parameter from the signature and from derive-next-command-cli.mjs:28 and the test calls."
+    }
+  ]
+}

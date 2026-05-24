@@ -1,0 +1,62 @@
+{
+  "storyId": "US-003",
+  "verifiedEvidence": [
+    {
+      "criterion": "scripts/lib/derive-ralph-stage.mjs exports deriveRalphStage(bundle) -> RalphStage accepting { jobState?, prd?, brainstormJson?, reviewOpenCount?, jobDirMarker? }; no filesystem access; no list inputs",
+      "command": "grep -nE 'export function deriveRalphStage|jobState|prd|brainstormJson|reviewOpenCount|jobDirMarker' scripts/lib/derive-ralph-stage.mjs scripts/lib/derive-ralph-stage.d.mts; grep -nE 'node:fs|fs[.]' scripts/lib/derive-ralph-stage.mjs || true",
+      "result": "derive-ralph-stage.mjs exports deriveRalphStage(bundle = {}) at line 14; JSDoc and derive-ralph-stage.d.mts declare jobState?, prd?, brainstormJson?, reviewOpenCount?, and jobDirMarker?. The filesystem grep produced no matches, and the function accepts one bundle argument rather than lists.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Predicate-set constants defined once: REVIEW_PHASES = ['5a','5b','5.5','6'] and IMPLEMENTING_PHASES = ['1','2','3','4','5c']",
+      "command": "grep -nE 'REVIEW_PHASES|IMPLEMENTING_PHASES' scripts/lib/derive-ralph-stage.mjs tools/overview-viewer/src/__tests__/ralphStage.test.ts",
+      "result": "derive-ralph-stage.mjs lines 1-2 define REVIEW_PHASES and IMPLEMENTING_PHASES once; tests import IMPLEMENTING_PHASES from the module rather than duplicating the list.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "All 10 predicates from the plan's stage-derivation table are implemented in order (first match wins): shipped, blocked, replan-pending, review-fix, reviewing, implementing, plan-ready, planning, brainstorm-ready, brainstorming",
+      "command": "grep -n \"return '\" scripts/lib/derive-ralph-stage.mjs",
+      "result": "Return order is shipped line 23, blocked 27, replan-pending 31, review-fix 36, reviewing 38, implementing 42, plan-ready 46, planning 50, brainstorm-ready 54, brainstorming 58.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Unknown/future phase values map to implementing via predicate #6 (never fall through to plan-ready/planning)",
+      "command": "grep -nE '4[.]5|unknown phase' tools/overview-viewer/src/__tests__/ralphStage.test.ts; pnpm --filter @codexu/overview-viewer test src/__tests__/ralphStage.test.ts > .test-output/overview-viewer.ralphStage.test.log 2>&1",
+      "result": "ralphStage.test.ts lines 49-52 cover unknown phase strings '4.5' and '7' mapping to implementing; targeted test exited 0 with 1 file and 19 tests passed.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "tools/overview-viewer/src/__tests__/scripts.d.ts declares all three .mjs modules (derive-ralph-stage.mjs, sync-core.mjs, resolve-config.mjs) using explicit relative-path module specifiers (e.g., '../../../../scripts/lib/<file>.mjs'); NOT wildcard patterns",
+      "command": "grep -nE 'derive-ralph-stage[.]mjs|sync-core[.]mjs|resolve-config[.]mjs|declare module' tools/overview-viewer/src/__tests__/scripts.d.ts; grep -n '[*]' tools/overview-viewer/src/__tests__/scripts.d.ts || true",
+      "result": "scripts.d.ts declares explicit relative modules for resolve-config at line 25, derive-ralph-stage at line 31, and sync-core at line 46; wildcard grep produced no matches.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "tools/overview-viewer/src/__tests__/ralphStage.test.ts includes: 10 stage cases (one per RalphStage), 1 case for reviewOpenCount.<phase> === undefined mapping to reviewing (NOT review-fix), 1 case per IMPLEMENTING_PHASES value via it.each, 1 case for unknown phase string ('4.5','7') mapping to implementing, 1 case for jobDirMarker: true (no prd/jobState) mapping to planning",
+      "command": "grep -nE 'IMPLEMENTING_PHASES|jobDirMarker|reviewOpenCount|brainstorm-ready|brainstorming|replan-pending|review-fix|4[.]5' tools/overview-viewer/src/__tests__/ralphStage.test.ts; tail -20 .test-output/overview-viewer.ralphStage.test.log",
+      "result": "ralphStage.test.ts lines 8-33 define the 10 stage case table, line 37 verifies missing reviewOpenCount maps to reviewing, line 43 uses it.each(IMPLEMENTING_PHASES), line 49 covers '4.5' and '7', and line 56 verifies jobDirMarker-only planning. Targeted run passed 19 tests.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "pnpm --filter @codexu/overview-viewer test src/__tests__/ralphStage.test.ts exits 0",
+      "command": "pnpm --filter @codexu/overview-viewer test src/__tests__/ralphStage.test.ts > .test-output/overview-viewer.ralphStage.test.log 2>&1",
+      "result": "Exit 0. Log shows Test Files 1 passed and Tests 19 passed.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Tests pass",
+      "command": "pnpm --filter @codexu/overview-viewer test > .test-output/overview-viewer.test.log 2>&1",
+      "result": "Exit 0. Log shows Test Files 18 passed and Tests 87 passed.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Typecheck passes",
+      "command": "pnpm --filter @codexu/overview-viewer typecheck > .test-output/overview-viewer.typecheck.log 2>&1",
+      "result": "Exit 0. tsc --noEmit completed with no diagnostics.",
+      "evidenceKind": "passed"
+    }
+  ],
+  "skippedReasons": [],
+  "notTested": [],
+  "iterationSHA": "07be1dfda46c8fa0ce50ad4e8223af1dbf5fdd33"
+}

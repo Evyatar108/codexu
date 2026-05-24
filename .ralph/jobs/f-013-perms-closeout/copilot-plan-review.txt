@@ -1,0 +1,20 @@
+I’m opening the attached brief first, then I’ll inspect the relevant code and make the change end to end.
+
+I’ve got the core references; now I’m checking the remaining cited files and whether the plan’s assumptions about HTML classes, job paths, and status-table consumers are actually true.
+
+### Feasibility
+- [Low] The execution target is ambiguous. The plan says “**Single git commit, branch off `main`**” (`Plan` lines 96-100), but the scope later says “**Single git commit on `main`**” (lines 149-150). An autonomous implementer needs one clear workflow: either commit on a topic branch and merge later, or commit directly to `main`.
+
+### Completeness
+No issues found.
+
+### Ordering
+No issues found.
+
+### Simplicity
+- [Medium] The proposed `plans/codexu-roadmap.md:322` rewrite keeps F-013 inside the **“Open findings”** bullet as `0 code (F-013 Low closed 2026-05-13 obsolete-by-design)`. That is more confusing than necessary: a closed item should disappear from the open-findings bucket entirely, with the closure recorded in the preceding “Review convergence” text (`plans/codexu-roadmap.md:317-322`) or in a separate short note. Leaving a closed item named under “Open findings” weakens the stated close-out.
+
+### Acceptance Criteria Quality
+- [High] The file-count criteria are internally inconsistent. The plan says **“Modify (5 files)”** (line 115) and AC says **“All 5 doc files updated”** (line 173), but the modify list only names **four** files: `plans/parallel-assignments.md`, `docs/operations/BOOX-TESTING-HANDOFF.md`, `plans/codexu-roadmap.md`, and `plans/overview.html` (lines 117-135). That is the kind of mismatch that makes an autonomous agent either hunt for a nonexistent fifth file or fail a check it cannot satisfy.
+- [Medium] AC 1 is not executable as written. It says grep across **`plans/`** and **`docs/operations/`** should return only closed annotations **or** the unrelated `docs/fork-roadmap.md:103` reference (line 173), but `docs/fork-roadmap.md` is outside the stated grep roots. Either widen the grep scope to include `docs/`, or remove that exception and keep it as a separate “do not edit” note.
+

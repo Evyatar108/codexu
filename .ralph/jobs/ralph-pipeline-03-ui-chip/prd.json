@@ -1,0 +1,682 @@
+{
+  "project": "Ralph Stage Chip + Filter Axis + Vite Sidecar Plumbing",
+  "description": "Render a per-task RalphStageChip in every TaskCommand row, add a 10-chip Ralph-stage filter axis to the toolbar (filtering both command list and kanban), and extend Vite to serve / inline plans/overview-ralph-state.js for both dev and static builds. First user-visible win in the ralph-pipeline series. Plan 02 (sibling crew) is concurrently editing tools/overview-viewer/vite.config.ts on branch ralph-pipeline-02-watcher; Plan 03 confines its vite.config edits to a NEW named overviewRalphStatePlugin() registered alongside (NOT inside) overviewDataPlugin().",
+  "deslop": true,
+  "iterationEngine": "codex",
+  "jobDir": "D:/harness-efforts/codexu/.ralph/jobs/ralph-pipeline-03-ui-chip",
+  "repoDir": "D:/harness-efforts/codexu",
+  "branch": {
+    "name": "ralph-pipeline-03-ui-chip",
+    "created": true
+  },
+  "worktree": {
+    "path": "D:/harness-efforts/codexu/.ralph/jobs/ralph-pipeline-03-ui-chip/worktree",
+    "branch": "ralph-pipeline-03-ui-chip"
+  },
+  "planReviewContext": [
+    {
+      "id": "F-001",
+      "severity": "High",
+      "description": "Plan 04 (plans/ralph-pipeline-04-pipeline-overview.md line 58) already requires useMultiAxisFilter to expose setFilters: '<PipelineOverview ... setFilters={setFilters} />'. The current hook returns only an object without setFilters. Plan 03 must explicitly extend the hook's return object with setFilters (or rename setActiveFilters to setFilters) NOW. The hook returns an object (named properties); keep it that shape — do NOT switch to a tuple.",
+      "source": "consensus",
+      "category": "Completeness",
+      "relevantFiles": [
+        "tools/overview-viewer/src/hooks/useMultiAxisFilter.ts",
+        "plans/ralph-pipeline-04-pipeline-overview.md"
+      ],
+      "suggestedFix": "In useMultiAxisFilter.ts, extend the returned object with `setFilters: setActiveFilters` (or rename the existing state setter). Add an acceptance criterion: 'useMultiAxisFilter returns { activeFilters, filters, setFilters, query, setQuery, toggleFilter, visibleTaskIds, visibleKanbanTaskIds }'."
+    },
+    {
+      "id": "F-002",
+      "severity": "High",
+      "description": "loadRalphState() must use the synthetic-window pattern. plans/overview-ralph-state.js assigns to window.OVERVIEW_RALPH_STATE. Node SSR tests have no window global, so bare `new Function(text)()` throws ReferenceError. Mirror loadOverviewData() at testData.ts:7 which passes a synthetic window argument via `new Function('window', script)(windowValue)` and returns windowValue.OVERVIEW_DATA.",
+      "source": "consensus",
+      "category": "Feasibility",
+      "relevantFiles": [
+        "tools/overview-viewer/src/__tests__/testData.ts"
+      ],
+      "suggestedFix": "Specify loadRalphState() as: `const w: { OVERVIEW_RALPH_STATE?: OverviewRalphState } = {}; new Function('window', script)(w); return w.OVERVIEW_RALPH_STATE ?? NO_RALPH_STATE;`. Add an acceptance criterion that loadRalphState() works in Node test env without ReferenceError."
+    },
+    {
+      "id": "F-003",
+      "severity": "High",
+      "description": "Test updates split into two explicit subsections: (a) direct filter-helper call sites — searchHaystack.test.ts and urlFilter.test.ts append NO_RALPH_STATE; (b) component render tests — commandList.test.tsx and kanban.test.tsx pass ralphState={NO_RALPH_STATE} in every JSX render call (CommandList/Kanban gain a required ralphState prop).",
+      "source": "consensus",
+      "category": "Completeness",
+      "relevantFiles": [
+        "tools/overview-viewer/src/__tests__/searchHaystack.test.ts",
+        "tools/overview-viewer/src/__tests__/urlFilter.test.ts",
+        "tools/overview-viewer/src/__tests__/kanban.test.tsx",
+        "tools/overview-viewer/src/__tests__/commandList.test.tsx"
+      ],
+      "suggestedFix": "Two subsections: 'Direct filter-helper call sites' (searchHaystack.test.ts, urlFilter.test.ts — append NO_RALPH_STATE arg) and 'Component render tests with new required prop' (kanban.test.tsx, commandList.test.tsx — pass ralphState={NO_RALPH_STATE} in JSX)."
+    },
+    {
+      "id": "F-004",
+      "severity": "High",
+      "description": "US-001 changes useMultiAxisFilter's signature to require ralphState, but App.tsx must be updated atomically with the hook signature change or typecheck will fail at end of US-001 (App.tsx calls useMultiAxisFilter(data, taskIdFilter) and will be one argument short). Move the minimal `const [ralphState, setRalphState] = useState(getOverviewRalphState)` into US-001 so App.tsx call site updates atomically. Keep reloadRalphState helper + HMR useEffect in US-006 since they depend on US-005's Vite sidecar plugin.",
+      "source": "codex",
+      "category": "Ordering",
+      "relevantFiles": [
+        "tools/overview-viewer/src/App.tsx",
+        "tools/overview-viewer/src/hooks/useMultiAxisFilter.ts"
+      ],
+      "suggestedFix": "Move App.tsx minimal ralphState init (const [ralphState, setRalphState] = useState(getOverviewRalphState); pass to useMultiAxisFilter) into US-001. Keep reloadRalphState helper + useEffect HMR subscription in US-006. Restate US-001 acceptance: typecheck must pass at end of US-001."
+    }
+  ],
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Filter threading + minimal App.tsx state (no UI yet)",
+      "description": "As an engineer, I want the 'ralphStage' filter axis threaded through the predicate functions, hook, and App.tsx state so that subsequent stories can render and toggle stage chips without breaking typecheck mid-flight.",
+      "acceptanceCriteria": [
+        "FilterAxis union in tools/overview-viewer/src/utils/filters.ts includes 'ralphStage'.",
+        "createEmptyFilters() returns { ..., ralphStage: new Set<string>() }.",
+        "cloneFilters(f) deep-clones ralphStage via new Set(filters.ralphStage).",
+        "getTaskSearchHaystack(task, data, ralphState) accepts ralphState: OverviewRalphState as a non-optional 3rd parameter and appends ralphState.byTaskId[task.id]?.stage / jobSlug / groupSlug to the haystack parts.",
+        "matchesTaskFilter and matchesKanbanFilter accept ralphState as a non-optional parameter and apply the predicate filters.ralphStage.size === 0 || filters.ralphStage.has(ralphState.byTaskId[task.id]?.stage ?? '__no_ralph__').",
+        "useMultiAxisFilter(data, taskIdFilter, ralphState) accepts ralphState as the third parameter, forwards it to filter helpers, and includes it in memo deps.",
+        "useMultiAxisFilter returns an object containing { activeFilters, filters, setFilters, query, setQuery, toggleFilter, visibleTaskIds, visibleKanbanTaskIds }. filters aliases activeFilters; setFilters exposes the raw setActiveFilters state setter. (Required by Plan 04.)",
+        "App.tsx calls const [ralphState, setRalphState] = useState<OverviewRalphState>(getOverviewRalphState); and passes ralphState to useMultiAxisFilter(data, taskIdFilter, ralphState). Do NOT add reloadRalphState or the HMR useEffect yet — those are US-006.",
+        "testData.ts exports NO_RALPH_STATE: OverviewRalphState = { generatedAt: '', generatedFromCommit: '', byTaskId: {} } and a loadRalphState() helper using the synthetic-window pattern: const w: { OVERVIEW_RALPH_STATE?: OverviewRalphState } = {}; new Function('window', script)(w); return w.OVERVIEW_RALPH_STATE ?? NO_RALPH_STATE; (mirrors loadOverviewData() at testData.ts:7).",
+        "loadRalphState() returns NO_RALPH_STATE without throwing when plans/overview-ralph-state.js is missing.",
+        "Direct filter-helper call sites updated: searchHaystack.test.ts, urlFilter.test.ts — every call to matchesTaskFilter / matchesKanbanFilter / getTaskSearchHaystack appends NO_RALPH_STATE as the new argument; existing assertions unchanged.",
+        "pnpm --filter @codexu/overview-viewer typecheck exits 0.",
+        "pnpm --filter @codexu/overview-viewer test exits 0.",
+        "Typecheck passes"
+      ],
+      "priority": 1,
+      "passes": true,
+      "notes": "Foundation story: changes signatures only, no UI. Atomically updates App.tsx call site so typecheck passes at end of US-001 (resolves F-004). Do NOT touch Plan 02's configureServer extensions or extend overviewDataPlugin. Vite plugin work is US-005.",
+      "verifiedEvidence": [
+        {
+          "criterion": "FilterAxis union in tools/overview-viewer/src/utils/filters.ts includes 'ralphStage'.",
+          "command": "grep -n \"FilterAxis\" tools/overview-viewer/src/utils/filters.ts",
+          "result": "Line 7: FilterAxis includes 'ralphStage'."
+        },
+        {
+          "criterion": "createEmptyFilters() returns { ..., ralphStage: new Set<string>() }.",
+          "command": "grep -n \"ralphStage: new Set\" tools/overview-viewer/src/utils/filters.ts",
+          "result": "Line 17: createEmptyFilters includes ralphStage: new Set()."
+        },
+        {
+          "criterion": "cloneFilters(f) deep-clones ralphStage via new Set(filters.ralphStage).",
+          "command": "grep -n \"new Set(filters.ralphStage)\" tools/overview-viewer/src/utils/filters.ts",
+          "result": "Line 28: cloneFilters returns ralphStage: new Set(filters.ralphStage)."
+        },
+        {
+          "criterion": "getTaskSearchHaystack(task, data, ralphState) accepts ralphState: OverviewRalphState as a non-optional 3rd parameter and appends ralphState.byTaskId[task.id]?.stage / jobSlug / groupSlug to the haystack parts.",
+          "command": "grep -nE \"getTaskSearchHaystack|ralph?.stage|ralph?.jobSlug|ralph?.groupSlug\" tools/overview-viewer/src/utils/filters.ts",
+          "result": "Line 46 signature includes ralphState: OverviewRalphState; lines 59-61 append stage, jobSlug, and groupSlug."
+        },
+        {
+          "criterion": "matchesTaskFilter and matchesKanbanFilter accept ralphState as a non-optional parameter and apply the predicate filters.ralphStage.size === 0 || filters.ralphStage.has(ralphState.byTaskId[task.id]?.stage ?? '__no_ralph__').",
+          "command": "grep -nE \"matchesTaskFilter|matchesKanbanFilter|ralphStageOk\" tools/overview-viewer/src/utils/filters.ts",
+          "result": "Line 75 and line 94 signatures include ralphState; lines 88 and 98 apply the ralphStage predicate with __no_ralph__ fallback."
+        },
+        {
+          "criterion": "useMultiAxisFilter(data, taskIdFilter, ralphState) accepts ralphState as the third parameter, forwards it to filter helpers, and includes it in memo deps.",
+          "command": "grep -nE \"useMultiAxisFilter|matchesTaskFilter|matchesKanbanFilter|ralphState\" tools/overview-viewer/src/hooks/useMultiAxisFilter.ts",
+          "result": "Line 6 signature accepts ralphState; lines 13 and 21 forward it; lines 16 and 24 include ralphState in useMemo deps."
+        },
+        {
+          "criterion": "useMultiAxisFilter returns an object containing { activeFilters, filters, setFilters, query, setQuery, toggleFilter, visibleTaskIds, visibleKanbanTaskIds }. filters aliases activeFilters; setFilters exposes the raw setActiveFilters state setter. (Required by Plan 04.)",
+          "command": "grep -nE \"filters: activeFilters|setFilters: setActiveFilters|visibleTaskIds|visibleKanbanTaskIds\" tools/overview-viewer/src/hooks/useMultiAxisFilter.ts",
+          "result": "Return object includes activeFilters, filters: activeFilters, setFilters: setActiveFilters, query, setQuery, toggleFilter, visibleKanbanTaskIds, and visibleTaskIds."
+        },
+        {
+          "criterion": "App.tsx calls const [ralphState, setRalphState] = useState<OverviewRalphState>(getOverviewRalphState); and passes ralphState to useMultiAxisFilter(data, taskIdFilter, ralphState). Do NOT add reloadRalphState or the HMR useEffect yet — those are US-006.",
+          "command": "grep -nE \"getOverviewRalphState|useState<OverviewRalphState>|useMultiAxisFilter[(]data, taskIdFilter, ralphState[)]\" tools/overview-viewer/src/App.tsx",
+          "result": "Lines 21, 36, and 41 show getOverviewRalphState import, ralphState state initialization, and the hook call; no reloadRalphState or overview-ralph-state:update match is present."
+        },
+        {
+          "criterion": "testData.ts exports NO_RALPH_STATE: OverviewRalphState = { generatedAt: '', generatedFromCommit: '', byTaskId: {} } and a loadRalphState() helper using the synthetic-window pattern: const w: { OVERVIEW_RALPH_STATE?: OverviewRalphState } = {}; new Function('window', script)(w); return w.OVERVIEW_RALPH_STATE ?? NO_RALPH_STATE; (mirrors loadOverviewData() at testData.ts:7).",
+          "command": "grep -nE \"NO_RALPH_STATE|loadRalphState|new Function[(]'window'|OVERVIEW_RALPH_STATE\" tools/overview-viewer/src/__tests__/testData.ts",
+          "result": "Line 7 exports NO_RALPH_STATE; lines 16-26 define loadRalphState with new Function('window', script)(windowValue) and NO_RALPH_STATE fallback."
+        },
+        {
+          "criterion": "loadRalphState() returns NO_RALPH_STATE without throwing when plans/overview-ralph-state.js is missing.",
+          "command": "cd tools/overview-viewer && pnpm exec tsx -e \"loadRalphState in a temporary cwd with no plans/overview-ralph-state.js\"",
+          "result": "Exited 0 and printed {\"generatedAt\":\"\",\"generatedFromCommit\":\"\",\"byTaskId\":{}}."
+        },
+        {
+          "criterion": "Direct filter-helper call sites updated: searchHaystack.test.ts, urlFilter.test.ts — every call to matchesTaskFilter / matchesKanbanFilter / getTaskSearchHaystack appends NO_RALPH_STATE as the new argument; existing assertions unchanged.",
+          "command": "grep -RIn \"matchesTaskFilter(.*NO_RALPH_STATE\" tools/overview-viewer/src/__tests__/searchHaystack.test.ts tools/overview-viewer/src/__tests__/urlFilter.test.ts",
+          "result": "All 15 direct matchesTaskFilter test calls in searchHaystack.test.ts and urlFilter.test.ts append NO_RALPH_STATE; existing assertions remain true/false as before."
+        },
+        {
+          "criterion": "pnpm --filter @codexu/overview-viewer typecheck exits 0.",
+          "command": "pnpm --filter @codexu/overview-viewer typecheck > .test-output/overview-viewer.typecheck.log 2>&1",
+          "result": "Exited 0; tsc --noEmit completed with no errors."
+        },
+        {
+          "criterion": "pnpm --filter @codexu/overview-viewer test exits 0.",
+          "command": "pnpm --filter @codexu/overview-viewer test > .test-output/overview-viewer.test.log 2>&1",
+          "result": "Exited 0; Vitest reported 19 test files passed and 99 tests passed."
+        },
+        {
+          "criterion": "Typecheck passes",
+          "command": "pnpm --filter @codexu/overview-viewer typecheck > .test-output/overview-viewer.typecheck.log 2>&1",
+          "result": "Exited 0; tsc --noEmit completed with no errors."
+        }
+      ],
+      "dependencies": [],
+      "failureClassification": "",
+      "partialProgress": null
+    },
+    {
+      "id": "US-002",
+      "title": "RalphStageChip component + unit + interaction tests",
+      "description": "As a user, I want a focusable stage chip with a Radix Tooltip showing stage / slug / timestamp so I can see at-a-glance where each task sits in the Ralph pipeline.",
+      "acceptanceCriteria": [
+        "New file tools/overview-viewer/src/components/RalphStageChip.tsx exports a React component with props { taskId: string; ralphState: OverviewRalphState; tooltipExtras?: ReactNode }.",
+        "Returns null when ralphState.byTaskId[taskId] is undefined.",
+        "Renders <span class=\"ralph-stage-chip stage-<stage>\" tabIndex={0} aria-label={'Ralph stage: ' + stage} onClick={e => e.stopPropagation()}>...</span> wrapped in a Radix Tooltip.Provider / Trigger asChild / Portal / Content (mirror WorkstreamPill at TaskCommand.tsx:276-322). No role=\"button\".",
+        "Tooltip body renders stage name, slug (prefer jobSlug, fall back to groupSlug, omit if both null), and lastUpdatedAt (omit if null). No literal undefined strings in the DOM.",
+        "When ralphState.byTaskId[taskId].matchSource === 'slug-default', the chip element also carries class match-slug-default.",
+        "When tooltipExtras prop is provided, it renders inside the tooltip body below the stage/slug/timestamp rows.",
+        "New file tools/overview-viewer/src/__tests__/ralphStageChip.test.tsx (node SSR project) covers: null-when-absent; correct stage-<stage> class for each of the 10 stages; match-slug-default class added when matchSource is slug-default; no undefined in rendered output when jobSlug/groupSlug/lastUpdatedAt are missing.",
+        "New file tools/overview-viewer/src/__tests__/interactions/ralphStageChipTooltip.test.tsx (jsdom project, mirror interactions/workstreamTooltip.test.tsx) covers: tab reaches the chip; tooltip appears on focus; tooltip content includes stage and slug.",
+        "pnpm --filter @codexu/overview-viewer typecheck && pnpm --filter @codexu/overview-viewer test exits 0.",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 2,
+      "passes": true,
+      "notes": "Drop role=\"button\" (no click action). Use tabIndex={0} + aria-label + onClick stopPropagation so it stays focusable and screen-reader-friendly and doesn't toggle the parent <summary> row.",
+      "verifiedEvidence": [
+        {
+          "criterion": "New file tools/overview-viewer/src/components/RalphStageChip.tsx exports a React component with props { taskId: string; ralphState: OverviewRalphState; tooltipExtras?: ReactNode }.",
+          "command": "grep -nE \"export function RalphStageChip|taskId: string; ralphState: OverviewRalphState; tooltipExtras?\" tools/overview-viewer/src/components/RalphStageChip.tsx",
+          "result": "Line 6 exports RalphStageChip with taskId, ralphState, and optional tooltipExtras props."
+        },
+        {
+          "criterion": "Returns null when ralphState.byTaskId[taskId] is undefined.",
+          "command": "grep -n \"if (!ralph) return null\" tools/overview-viewer/src/components/RalphStageChip.tsx && pnpm --filter @codexu/overview-viewer test > .test-output/overview-viewer.test.log 2>&1",
+          "result": "Line 8 returns null for missing Ralph state; Vitest exited 0 with 21 files and 114 tests passing, including the null-when-absent SSR test."
+        },
+        {
+          "criterion": "Renders <span class=\"ralph-stage-chip stage-<stage>\" tabIndex={0} aria-label={'Ralph stage: ' + stage} onClick={e => e.stopPropagation()}>...</span> wrapped in a Radix Tooltip.Provider / Trigger asChild / Portal / Content (mirror WorkstreamPill at TaskCommand.tsx:276-322). No role=\"button\".",
+          "command": "grep -nE \"Tooltip.Provider|Tooltip.Trigger asChild|Tooltip.Portal|Tooltip.Content|tabIndex={0}|aria-label|onClick={(event) => event.stopPropagation()}\" tools/overview-viewer/src/components/RalphStageChip.tsx && pnpm --filter @codexu/overview-viewer test > .test-output/overview-viewer.test.log 2>&1",
+          "result": "Lines 20-43 wrap the trigger in Radix Tooltip primitives; lines 23-29 render the focusable span with class, tabIndex, aria-label, and stopPropagation click handler. SSR tests assert no role=\"button\" for all 10 stages."
+        },
+        {
+          "criterion": "Tooltip body renders stage name, slug (prefer jobSlug, fall back to groupSlug, omit if both null), and lastUpdatedAt (omit if null). No literal undefined strings in the DOM.",
+          "command": "grep -nE \"jobSlug|groupSlug|lastUpdatedAt\" tools/overview-viewer/src/components/RalphStageChip.tsx && pnpm --filter @codexu/overview-viewer test > .test-output/overview-viewer.test.log 2>&1",
+          "result": "Line 10 prefers jobSlug over groupSlug; lines 35-37 render stage, slug when present, and lastUpdatedAt when present. Vitest exited 0; interaction tests verify tooltip text includes stage and jobSlug, and SSR test verifies no literal undefined when optional values are absent."
+        },
+        {
+          "criterion": "When ralphState.byTaskId[taskId].matchSource === 'slug-default', the chip element also carries class match-slug-default.",
+          "command": "grep -n \"match-slug-default\" tools/overview-viewer/src/components/RalphStageChip.tsx tools/overview-viewer/src/__tests__/ralphStageChip.test.tsx",
+          "result": "Component line 14 adds match-slug-default for slug-default matchSource; SSR test lines 50-55 assert the class is present."
+        },
+        {
+          "criterion": "When tooltipExtras prop is provided, it renders inside the tooltip body below the stage/slug/timestamp rows.",
+          "command": "grep -nE \"tooltipExtras|chip-extra\" tools/overview-viewer/src/components/RalphStageChip.tsx tools/overview-viewer/src/__tests__/interactions/ralphStageChipTooltip.test.tsx && pnpm --filter @codexu/overview-viewer test > .test-output/overview-viewer.test.log 2>&1",
+          "result": "Component line 38 renders tooltipExtras after stage, slug, and timestamp rows. Interaction test lines 36-48 focuses the chip and asserts the extra content is rendered."
+        },
+        {
+          "criterion": "New file tools/overview-viewer/src/__tests__/ralphStageChip.test.tsx (node SSR project) covers: null-when-absent; correct stage-<stage> class for each of the 10 stages; match-slug-default class added when matchSource is slug-default; no undefined in rendered output when jobSlug/groupSlug/lastUpdatedAt are missing.",
+          "command": "grep -nE \"renders nothing|it.each(stages)|match-slug-default|undefined\" tools/overview-viewer/src/__tests__/ralphStageChip.test.tsx && pnpm --filter @codexu/overview-viewer test > .test-output/overview-viewer.test.log 2>&1",
+          "result": "SSR test lines 38-66 cover null absent state, all 10 stage classes, slug-default class, and no literal undefined. Vitest exited 0 with 21 files and 114 tests passing."
+        },
+        {
+          "criterion": "New file tools/overview-viewer/src/__tests__/interactions/ralphStageChipTooltip.test.tsx (jsdom project, mirror interactions/workstreamTooltip.test.tsx) covers: tab reaches the chip; tooltip appears on focus; tooltip content includes stage and slug.",
+          "command": "grep -nE \"user.tab|activeElement|tooltip|pipeline-chip-job\" tools/overview-viewer/src/__tests__/interactions/ralphStageChipTooltip.test.tsx && pnpm --filter @codexu/overview-viewer test > .test-output/overview-viewer.test.log 2>&1",
+          "result": "Interaction test lines 28-33 tabs to the chip, asserts document.activeElement is the chip, and verifies tooltip content includes implementing and pipeline-chip-job. Vitest exited 0."
+        },
+        {
+          "criterion": "pnpm --filter @codexu/overview-viewer typecheck && pnpm --filter @codexu/overview-viewer test exits 0.",
+          "command": "pnpm --filter @codexu/overview-viewer typecheck > .test-output/overview-viewer.typecheck.log 2>&1; pnpm --filter @codexu/overview-viewer test > .test-output/overview-viewer.test.log 2>&1",
+          "result": "Both commands exited 0; typecheck ran tsc --noEmit and Vitest reported 21 test files passed and 114 tests passed."
+        },
+        {
+          "criterion": "Typecheck passes",
+          "command": "pnpm --filter @codexu/overview-viewer typecheck > .test-output/overview-viewer.typecheck.log 2>&1",
+          "result": "Exited 0; tsc --noEmit completed with no errors."
+        },
+        {
+          "criterion": "Verify in browser using dev-browser skill",
+          "command": "N/A",
+          "result": "SKIPPED: dev-browser skill/browser automation unavailable in this session; chip rendering is covered by ralphStageChip.test.tsx and interactions/ralphStageChipTooltip.test.tsx for US-002:AC-010."
+        }
+      ],
+      "dependencies": [
+        "US-001"
+      ],
+      "criteriaWarnings": [
+        {
+          "storyId": "US-002",
+          "acIndex": "AC-010",
+          "criterion": "Verify in browser using dev-browser skill",
+          "warning": "US-002:AC-010 references browser/dev-browser verification; browser automation tools may be unavailable to the iteration agent",
+          "severity": "tool-availability",
+          "suggestedFallback": "If browser tooling is unavailable, record result: SKIPPED: browser automation unavailable; chip rendering covered by ralphStageChip.test.tsx and interactions/ralphStageChipTooltip.test.tsx for US-002:AC-010.",
+          "source": "criteria-validator"
+        }
+      ],
+      "failureClassification": "",
+      "partialProgress": null
+    },
+    {
+      "id": "US-003",
+      "title": "Wire chip through CommandList -> TaskCommand",
+      "description": "As a user, I want stage chips to actually show up on every command row in the viewer.",
+      "acceptanceCriteria": [
+        "tools/overview-viewer/src/components/CommandList.tsx accepts ralphState: OverviewRalphState as a required prop and forwards it to every <TaskCommand … /> render call.",
+        "tools/overview-viewer/src/components/TaskCommand.tsx accepts ralphState as a required prop and renders <RalphStageChip taskId={task.id} ralphState={ralphState} /> immediately next to the existing <WorkstreamPill … /> (around line 410 in current code).",
+        "App.tsx passes ralphState to <CommandList … ralphState={ralphState} />.",
+        "Component-render tests commandList.test.tsx and kanban.test.tsx updated to pass ralphState={NO_RALPH_STATE} in JSX so they continue to compile and existing assertions still hold.",
+        "Tasks whose id is NOT in ralphState.byTaskId show no .ralph-stage-chip element: document.querySelectorAll('[data-task-id=\"<untracked-id>\"] .ralph-stage-chip').length === 0.",
+        "Existing commandList.test.tsx and kanban.test.tsx snapshots remain unchanged.",
+        "pnpm --filter @codexu/overview-viewer typecheck && pnpm --filter @codexu/overview-viewer test exits 0.",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 3,
+      "passes": true,
+      "notes": "Wires up the chip in the existing command rows. ralphState already flows from App.tsx (US-001).",
+      "verifiedEvidence": [
+        {
+          "criterion": "tools/overview-viewer/src/components/CommandList.tsx accepts ralphState: OverviewRalphState as a required prop and forwards it to every <TaskCommand … /> render call.",
+          "command": "grep -n ralphState tools/overview-viewer/src/components/CommandList.tsx",
+          "result": "Lines 83 and 119 show CommandList requires ralphState: OverviewRalphState and forwards ralphState to TaskCommand."
+        },
+        {
+          "criterion": "tools/overview-viewer/src/components/TaskCommand.tsx accepts ralphState as a required prop and renders <RalphStageChip taskId={task.id} ralphState={ralphState} /> immediately next to the existing <WorkstreamPill … /> (around line 410 in current code).",
+          "command": "grep -nE 'ralphState|WorkstreamPill|RalphStageChip' tools/overview-viewer/src/components/TaskCommand.tsx",
+          "result": "Line 55 requires ralphState; lines 412-413 render WorkstreamPill followed immediately by RalphStageChip."
+        },
+        {
+          "criterion": "App.tsx passes ralphState to <CommandList … ralphState={ralphState} />.",
+          "command": "grep -n 'ralphState={ralphState}' tools/overview-viewer/src/App.tsx",
+          "result": "Line 124 passes ralphState to CommandList; line 116 also passes it through the Kanban render contract used by component tests."
+        },
+        {
+          "criterion": "Component-render tests commandList.test.tsx and kanban.test.tsx updated to pass ralphState={NO_RALPH_STATE} in JSX so they continue to compile and existing assertions still hold.",
+          "command": "grep -n 'ralphState={NO_RALPH_STATE}' tools/overview-viewer/src/__tests__/commandList.test.tsx tools/overview-viewer/src/__tests__/kanban.test.tsx && pnpm --filter @codexu/overview-viewer test > .test-output/overview-viewer.test.log 2>&1",
+          "result": "commandList.test.tsx has 6 NO_RALPH_STATE render call sites and kanban.test.tsx has 3; Vitest exited 0 with 22 test files and 116 tests passing, so existing assertions still hold."
+        },
+        {
+          "criterion": "Tasks whose id is NOT in ralphState.byTaskId show no .ralph-stage-chip element: document.querySelectorAll('[data-task-id=\"<untracked-id>\"] .ralph-stage-chip').length === 0.",
+          "command": "grep -n querySelectorAll tools/overview-viewer/src/__tests__/interactions/commandListRalphStageChip.test.tsx && pnpm --filter @codexu/overview-viewer test > .test-output/overview-viewer.test.log 2>&1",
+          "result": "Line 23 asserts the jsdom querySelectorAll('[data-task-id=...] .ralph-stage-chip') length is 0; Vitest exited 0 with 22 files and 116 tests passing. US-003:AC-005 live-browser portion SKIPPED: browser automation unavailable; jsdom DOM fallback verified the same selector."
+        },
+        {
+          "criterion": "Existing commandList.test.tsx and kanban.test.tsx snapshots remain unchanged.",
+          "command": "git diff --name-only | grep -E '(__snapshots__|[.]snap$)' || true",
+          "result": "No snapshot files were changed; no snapshot files are present under tools/overview-viewer/src/__tests__."
+        },
+        {
+          "criterion": "pnpm --filter @codexu/overview-viewer typecheck && pnpm --filter @codexu/overview-viewer test exits 0.",
+          "command": "pnpm --filter @codexu/overview-viewer typecheck > .test-output/overview-viewer.typecheck.log 2>&1; pnpm --filter @codexu/overview-viewer test > .test-output/overview-viewer.test.log 2>&1",
+          "result": "Both commands exited 0; typecheck ran tsc --noEmit and Vitest reported 22 test files passed and 116 tests passed."
+        },
+        {
+          "criterion": "Typecheck passes",
+          "command": "pnpm --filter @codexu/overview-viewer typecheck > .test-output/overview-viewer.typecheck.log 2>&1",
+          "result": "Exited 0; tsc --noEmit completed with no errors."
+        },
+        {
+          "criterion": "Verify in browser using dev-browser skill",
+          "command": "N/A",
+          "result": "SKIPPED: dev-browser skill/browser automation unavailable in this session; CommandList/TaskCommand wiring is covered by commandList.test.tsx render assertions and interactions/commandListRalphStageChip.test.tsx jsdom DOM verification for US-003:AC-009."
+        }
+      ],
+      "dependencies": [
+        "US-001",
+        "US-002"
+      ],
+      "criteriaWarnings": [
+        {
+          "storyId": "US-003",
+          "acIndex": "AC-005",
+          "criterion": "Tasks whose id is NOT in ralphState.byTaskId show no .ralph-stage-chip element via querySelectorAll length 0.",
+          "warning": "US-003:AC-005 references DOM/querySelectorAll verification; browser automation tools may be unavailable to the iteration agent",
+          "severity": "tool-availability",
+          "suggestedFallback": "If browser tooling is unavailable, cover via jsdom test in interactions/ project asserting the same querySelectorAll length, and record SKIPPED for live-browser portion of US-003:AC-005.",
+          "source": "criteria-validator"
+        },
+        {
+          "storyId": "US-003",
+          "acIndex": "AC-009",
+          "criterion": "Verify in browser using dev-browser skill",
+          "warning": "US-003:AC-009 references browser/dev-browser verification; browser automation tools may be unavailable to the iteration agent",
+          "severity": "tool-availability",
+          "suggestedFallback": "If browser tooling is unavailable, record result: SKIPPED: browser automation unavailable; CommandList/TaskCommand wiring covered by commandList.test.tsx render assertions for US-003:AC-009.",
+          "source": "criteria-validator"
+        }
+      ],
+      "failureClassification": "",
+      "partialProgress": null
+    },
+    {
+      "id": "US-004",
+      "title": "Toolbar filter group + 10 CSS stage variants",
+      "description": "As a user, I want a row of 10 stage chips in the toolbar so I can filter the command list and kanban view by Ralph stage.",
+      "acceptanceCriteria": [
+        "tools/overview-viewer/src/components/Toolbar.tsx FILTER_GROUPS gains an entry { axis: 'ralphStage', title: 'Ralph stage', chips: [...10 entries...] }. Exact chips: brainstorming, brainstorm-ready, planning, plan-ready, implementing, reviewing, review-fix, replan-pending, shipped, blocked (each with emoji label per existing convention).",
+        "Toolbar does NOT take a new prop — FILTER_GROUPS is module-level static.",
+        "tools/overview-viewer/src/styles.css appended with .ralph-stage-chip base (mirror .pill at line 98) plus exactly 10 per-stage color variants (.stage-brainstorming … .stage-blocked) plus .ralph-stage-chip.match-slug-default { border-style: dotted; }.",
+        "Toolbar renders exactly 10 stage chips under the 'Ralph stage' group: document.querySelectorAll('.filter-group[data-axis=\"ralphStage\"] .chip').length === 10 in dev.",
+        "Positive filter test: matchesTaskFilter against a real OverviewRalphState with one task in stage implementing and one in stage shipped, given filters = { ralphStage: new Set(['implementing']) } returns true for the implementing task and false for the shipped task. Same for matchesKanbanFilter.",
+        "Clicking a stage chip in dev (pnpm overview) filters both the command list AND the kanban view to that stage.",
+        "pnpm --filter @codexu/overview-viewer typecheck && pnpm --filter @codexu/overview-viewer test exits 0.",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 4,
+      "passes": true,
+      "notes": "Positive-coverage filter tests required (F-007): the existing tests only prove the no-ralph path, so add tests that prove the populated-state path actually filters.",
+      "verifiedEvidence": [
+        {
+          "criterion": "tools/overview-viewer/src/components/Toolbar.tsx FILTER_GROUPS gains an entry { axis: 'ralphStage', title: 'Ralph stage', chips: [...10 entries...] }. Exact chips: brainstorming, brainstorm-ready, planning, plan-ready, implementing, reviewing, review-fix, replan-pending, shipped, blocked (each with emoji label per existing convention).",
+          "command": "grep -nE \"axis: 'ralphStage'|brainstorming|brainstorm-ready|planning|plan-ready|implementing|reviewing|review-fix|replan-pending|shipped|blocked\" tools/overview-viewer/src/components/Toolbar.tsx",
+          "result": "Lines 29-39 define the Ralph stage FILTER_GROUPS entry with all 10 required values and emoji labels."
+        },
+        {
+          "criterion": "Toolbar does NOT take a new prop — FILTER_GROUPS is module-level static.",
+          "command": "grep -n \"export function Toolbar\" tools/overview-viewer/src/components/Toolbar.tsx && grep -n \"ralphState\" tools/overview-viewer/src/components/Toolbar.tsx || true",
+          "result": "Line 128 shows the Toolbar prop shape is unchanged and no ralphState prop appears in Toolbar.tsx; FILTER_GROUPS remains module-level static."
+        },
+        {
+          "criterion": "tools/overview-viewer/src/styles.css appended with .ralph-stage-chip base (mirror .pill at line 98) plus exactly 10 per-stage color variants (.stage-brainstorming … .stage-blocked) plus .ralph-stage-chip.match-slug-default { border-style: dotted; }.",
+          "command": "grep -nE \"ralph-stage-chip|stage-brainstorming|stage-brainstorm-ready|stage-planning|stage-plan-ready|stage-implementing|stage-reviewing|stage-review-fix|stage-replan-pending|stage-shipped|stage-blocked|match-slug-default\" tools/overview-viewer/src/styles.css",
+          "result": "Line 102 defines the base .ralph-stage-chip; lines 106-115 define exactly 10 .ralph-stage-chip.stage-* variants; line 116 defines .ralph-stage-chip.match-slug-default with dotted border style."
+        },
+        {
+          "criterion": "Toolbar renders exactly 10 stage chips under the 'Ralph stage' group: document.querySelectorAll('.filter-group[data-axis=\"ralphStage\"] .chip').length === 10 in dev.",
+          "command": "grep -nE \"querySelectorAll|ralphStage|toHaveLength(10)\" tools/overview-viewer/src/__tests__/interactions/toolbarRalphStageFilter.test.tsx && pnpm --filter @codexu/overview-viewer test > .test-output/overview-viewer.test.log 2>&1",
+          "result": "Line 57 asserts container.querySelectorAll('.filter-group[data-axis=\"ralphStage\"] .chip') has length 10; Vitest exited 0 with 24 files and 119 tests passing. US-004:AC-004 live-dev browser portion SKIPPED: browser automation unavailable; jsdom fallback verified the same selector."
+        },
+        {
+          "criterion": "Positive filter test: matchesTaskFilter against a real OverviewRalphState with one task in stage implementing and one in stage shipped, given filters = { ralphStage: new Set(['implementing']) } returns true for the implementing task and false for the shipped task. Same for matchesKanbanFilter.",
+          "command": "grep -nE \"matchesTaskFilter|matchesKanbanFilter|ralphStage|implementing|shipped\" tools/overview-viewer/src/__tests__/ralphStageFilter.test.ts && pnpm --filter @codexu/overview-viewer test > .test-output/overview-viewer.test.log 2>&1",
+          "result": "ralphStageFilter.test.ts lines 19-35 build implementing and shipped tasks, toggle ralphStage=implementing, and assert matchesTaskFilter/matchesKanbanFilter true for implementing and false for shipped; Vitest exited 0 with 24 files and 119 tests passing."
+        },
+        {
+          "criterion": "Clicking a stage chip in dev (pnpm overview) filters both the command list AND the kanban view to that stage.",
+          "command": "grep -nE \"user.click|visibleTaskIds|visibleKanbanTaskIds|command-visible|kanban-visible\" tools/overview-viewer/src/__tests__/interactions/toolbarRalphStageFilter.test.tsx && pnpm --filter @codexu/overview-viewer test > .test-output/overview-viewer.test.log 2>&1",
+          "result": "Lines 45-46 expose visibleTaskIds and visibleKanbanTaskIds; line 64 clicks the implementing stage chip; lines 66-67 assert both command and kanban visible ids equal task-implementing. Vitest exited 0 with 24 files and 119 tests passing. US-004:AC-006 live pnpm overview browser portion SKIPPED: browser automation unavailable; jsdom interaction fallback verified the filter state."
+        },
+        {
+          "criterion": "pnpm --filter @codexu/overview-viewer typecheck && pnpm --filter @codexu/overview-viewer test exits 0.",
+          "command": "pnpm --filter @codexu/overview-viewer typecheck > .test-output/overview-viewer.typecheck.log 2>&1; pnpm --filter @codexu/overview-viewer test > .test-output/overview-viewer.test.log 2>&1",
+          "result": "Both commands exited 0; typecheck ran tsc --noEmit and Vitest reported 24 test files passed and 119 tests passed."
+        },
+        {
+          "criterion": "Typecheck passes",
+          "command": "pnpm --filter @codexu/overview-viewer typecheck > .test-output/overview-viewer.typecheck.log 2>&1",
+          "result": "Exited 0; tsc --noEmit completed with no errors."
+        },
+        {
+          "criterion": "Verify in browser using dev-browser skill",
+          "command": "N/A",
+          "result": "SKIPPED: dev-browser skill/browser automation unavailable in this session; toolbar rendering and click filtering are covered by interactions/toolbarRalphStageFilter.test.tsx jsdom fallback for US-004:AC-009."
+        }
+      ],
+      "dependencies": [
+        "US-001",
+        "US-003"
+      ],
+      "criteriaWarnings": [
+        {
+          "storyId": "US-004",
+          "acIndex": "AC-004",
+          "criterion": "Toolbar renders exactly 10 stage chips under Ralph stage group via querySelectorAll length 10 in dev.",
+          "warning": "US-004:AC-004 references DOM/querySelectorAll verification in dev browser; browser automation tools may be unavailable to the iteration agent",
+          "severity": "tool-availability",
+          "suggestedFallback": "If browser tooling is unavailable, add a jsdom render test asserting container.querySelectorAll length 10 and record SKIPPED for live-dev portion of US-004:AC-004.",
+          "source": "criteria-validator"
+        },
+        {
+          "storyId": "US-004",
+          "acIndex": "AC-006",
+          "criterion": "Clicking a stage chip in dev (pnpm overview) filters both the command list AND the kanban view to that stage.",
+          "warning": "US-004:AC-006 references clicking/dev browser interaction; browser automation tools may be unavailable to the iteration agent",
+          "severity": "tool-availability",
+          "suggestedFallback": "If browser tooling is unavailable, add a jsdom interaction test under src/__tests__/interactions/ that fires a click event on the stage chip and asserts filtered visibleTaskIds/visibleKanbanTaskIds, then record SKIPPED for the live pnpm overview portion of US-004:AC-006.",
+          "source": "criteria-validator"
+        },
+        {
+          "storyId": "US-004",
+          "acIndex": "AC-009",
+          "criterion": "Verify in browser using dev-browser skill",
+          "warning": "US-004:AC-009 references browser/dev-browser verification; browser automation tools may be unavailable to the iteration agent",
+          "severity": "tool-availability",
+          "suggestedFallback": "If browser tooling is unavailable, record result: SKIPPED: browser automation unavailable; toolbar + filter behavior covered by jsdom interaction tests for US-004:AC-009.",
+          "source": "criteria-validator"
+        }
+      ],
+      "failureClassification": "",
+      "partialProgress": null
+    },
+    {
+      "id": "US-005",
+      "title": "overviewRalphStatePlugin in vite.config.ts + overview.html script tag",
+      "description": "As a user, I want the static build and dev server to serve plans/overview-ralph-state.js so the chips render in both pnpm overview and pnpm overview:build outputs.",
+      "acceptanceCriteria": [
+        "tools/overview-viewer/vite.config.ts defines a new named factory overviewRalphStatePlugin(): Plugin distinct from overviewDataPlugin() (DO NOT modify or extend the existing plugin).",
+        "Do NOT touch Plan 02's configureServer extensions or extend overviewDataPlugin. Add a separate named plugin only.",
+        "overviewRalphStatePlugin.configureServer registers middleware on /overview-ralph-state.js that reads plans/overview-ralph-state.js from disk and serves it with Content-Type: application/javascript. Read errors return 500 with an inline comment.",
+        "Does NOT call server.watcher.add(...) for the ralph sidecar (Plan 02 owns the watch).",
+        "transformIndexHtml (order: 'pre', skipped on dev) reads plans/overview-ralph-state.js, minifies via esbuild, escapes </script -> <\\/script, and inlines into the script tag. Must throw a clear error if overview.html does not contain <script src=\"./overview-ralph-state.js\"></script> (mirror existing overviewDataPlugin guard).",
+        "tools/overview-viewer/overview.html contains <script src=\"./overview-ralph-state.js\"></script> placed between the existing overview-data.js tag and the /src/main.tsx module tag.",
+        "Dev verification: while pnpm overview is running, fetching <dev-server-url>/overview-ralph-state.js (using the URL printed by pnpm overview, NOT a hardcoded 127.0.0.1:5173) returns a non-empty body containing 'window.OVERVIEW_RALPH_STATE = '.",
+        "Static verification: pnpm overview:build produces plans/overview.html with grep -c 'OVERVIEW_RALPH_STATE' plans/overview.html >= 1.",
+        "Bundle size budget: wc -c plans/overview.html reports <= 525000 bytes.",
+        "pnpm --filter @codexu/overview-viewer typecheck && pnpm --filter @codexu/overview-viewer test exits 0.",
+        "Typecheck passes"
+      ],
+      "priority": 5,
+      "passes": true,
+      "notes": "Plan 02 boundary: NEW named plugin only — sibling to overviewDataPlugin. NO server.watcher.add for the ralph sidecar. Fail-fast on missing script tag (F-005).",
+      "verifiedEvidence": [
+        {
+          "criterion": "tools/overview-viewer/vite.config.ts defines a new named factory overviewRalphStatePlugin(): Plugin distinct from overviewDataPlugin() (DO NOT modify or extend the existing plugin).",
+          "command": "nl -ba tools/overview-viewer/vite.config.ts | sed -n '20,135p'",
+          "result": "Line 20 keeps overviewDataPlugin(); line 91 defines separate overviewRalphStatePlugin(): Plugin; line 135 registers both plugins as siblings."
+        },
+        {
+          "criterion": "Do NOT touch Plan 02's configureServer extensions or extend overviewDataPlugin. Add a separate named plugin only.",
+          "command": "grep -nE 'server.watcher.add|function overviewRalphStatePlugin|plugins:' tools/overview-viewer/vite.config.ts",
+          "result": "The Ralph sidecar is implemented by separate overviewRalphStatePlugin() and registered beside overviewDataPlugin(); server.watcher.add appears only for overviewDataPath on line 45."
+        },
+        {
+          "criterion": "overviewRalphStatePlugin.configureServer registers middleware on /overview-ralph-state.js that reads plans/overview-ralph-state.js from disk and serves it with Content-Type: application/javascript. Read errors return 500 with an inline comment.",
+          "command": "nl -ba tools/overview-viewer/vite.config.ts | sed -n '91,107p'",
+          "result": "Lines 95-107 register /overview-ralph-state.js middleware; line 98 reads overviewRalphStatePath, lines 99 and 104 set application/javascript, and lines 103-105 return status 500 with an inline comment on read failure."
+        },
+        {
+          "criterion": "Does NOT call server.watcher.add(...) for the ralph sidecar (Plan 02 owns the watch).",
+          "command": "grep -n 'server.watcher.add' tools/overview-viewer/vite.config.ts",
+          "result": "Only line 45 matches, and it is server.watcher.add(overviewDataPath); there is no watcher add for overviewRalphStatePath."
+        },
+        {
+          "criterion": "transformIndexHtml order pre is skipped on dev, reads plans/overview-ralph-state.js, minifies via esbuild, escapes closing script tags, and inlines into the script tag with a clear missing-tag error.",
+          "command": "nl -ba tools/overview-viewer/vite.config.ts | sed -n '109,126p'",
+          "result": "Lines 109-126 define transformIndexHtml order 'pre', return original html when ctx.server exists, throw Expected <script src=\"./overview-ralph-state.js\"></script> if missing, read overviewRalphStatePath, minify via esbuild transform, escape closing script tags, and replace the sidecar script tag with inline code."
+        },
+        {
+          "criterion": "tools/overview-viewer/overview.html contains <script src=\"./overview-ralph-state.js\"></script> placed between the existing overview-data.js tag and the /src/main.tsx module tag.",
+          "command": "nl -ba tools/overview-viewer/overview.html | sed -n '1,14p'",
+          "result": "Line 8 contains the Ralph state script tag, between overview-data.js on line 7 and the /src/main.tsx module tag on line 12."
+        },
+        {
+          "criterion": "Dev verification: while pnpm overview is running, fetching <dev-server-url>/overview-ralph-state.js (using the URL printed by pnpm overview, NOT a hardcoded 127.0.0.1:5173) returns a non-empty body containing 'window.OVERVIEW_RALPH_STATE = '.",
+          "command": "pnpm overview > .test-output/overview-viewer.dev.log 2>&1; parse printed URL; curl ${URL%/}/overview-ralph-state.js > .test-output/overview-viewer.dev-fetch.out",
+          "result": "Parsed printed dev URL http://127.0.0.1:5175/ after Vite skipped occupied ports 5173 and 5174; fetched http://127.0.0.1:5175/overview-ralph-state.js; response was 3352 bytes and contained one 'window.OVERVIEW_RALPH_STATE = ' match."
+        },
+        {
+          "criterion": "Static verification: pnpm overview:build produces plans/overview.html with grep -c 'OVERVIEW_RALPH_STATE' plans/overview.html >= 1.",
+          "command": "pnpm overview:build > .test-output/overview-viewer.build.log 2>&1; grep -c 'OVERVIEW_RALPH_STATE' plans/overview.html",
+          "result": "Build exited 0 in 5s; grep count was 2, satisfying >= 1."
+        },
+        {
+          "criterion": "Bundle size budget: wc -c plans/overview.html reports <= 525000 bytes.",
+          "command": "wc -c plans/overview.html",
+          "result": "501307 plans/overview.html, which is <= 525000 bytes."
+        },
+        {
+          "criterion": "pnpm --filter @codexu/overview-viewer typecheck && pnpm --filter @codexu/overview-viewer test exits 0.",
+          "command": "pnpm --filter @codexu/overview-viewer typecheck > .test-output/overview-viewer.typecheck.log 2>&1; pnpm --filter @codexu/overview-viewer test > .test-output/overview-viewer.test.log 2>&1",
+          "result": "Both commands exited 0 after the final edits; typecheck ran tsc --noEmit and Vitest reported 24 test files passed and 119 tests passed."
+        },
+        {
+          "criterion": "Typecheck passes",
+          "command": "pnpm --filter @codexu/overview-viewer typecheck > .test-output/overview-viewer.typecheck.log 2>&1",
+          "result": "Exited 0 after the final edits; tsc --noEmit completed with no errors."
+        }
+      ],
+      "dependencies": [
+        "US-001",
+        "US-004"
+      ],
+      "failureClassification": "",
+      "partialProgress": null
+    },
+    {
+      "id": "US-006",
+      "title": "App.tsx reloadRalphState helper + HMR useEffect",
+      "description": "As a user with Plan 02's watcher running, I want stage chips to update in real time when underlying job-state files change.",
+      "acceptanceCriteria": [
+        "App.tsx adds a reloadRalphState helper: useCallback(async () => { try { const text = await fetch('./overview-ralph-state.js?t=' + Date.now()).then(r => r.text()); new Function(text)(); setRalphState(getOverviewRalphState()); } catch (err) { console.warn('[ralph-state] reload failed', err); } }, []); — defensive .catch for transient fetch failures during atomic writes.",
+        "App.tsx adds a useEffect subscribing to overview-ralph-state:update via import.meta.hot?.on('overview-ralph-state:update', reloadRalphState), with the matching import.meta.hot?.off in cleanup. Mirror the existing overview-data:update subscription pattern.",
+        "Both overview-data:update and overview-ralph-state:update subscriptions coexist (the new one is additive, not a replacement).",
+        "Dev verification (only if Plan 02 is merged): editing a .ralph/jobs/<test>/job-state.json updates the chip color in the browser within ~2-3 seconds without a page reload. Without Plan 02, the subscription is a harmless no-op.",
+        "pnpm --filter @codexu/overview-viewer typecheck && pnpm --filter @codexu/overview-viewer test exits 0.",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 6,
+      "passes": true,
+      "notes": "Depends on US-005's vite plugin so the fetch resolves. Without Plan 02 merged, the HMR subscription is a harmless no-op.",
+      "verifiedEvidence": [
+        {
+          "criterion": "App.tsx adds a reloadRalphState helper: useCallback(async () => { try { const text = await fetch('./overview-ralph-state.js?t=' + Date.now()).then(r => r.text()); new Function(text)(); setRalphState(getOverviewRalphState()); } catch (err) { console.warn('[ralph-state] reload failed', err); } }, []); defensive .catch for transient fetch failures during atomic writes.",
+          "command": "grep -nE 'reloadRalphState|overview-ralph-state.js|console.warn' tools/overview-viewer/src/App.tsx",
+          "result": "Lines 48-55 define reloadRalphState with useCallback, cache-busted fetch of ./overview-ralph-state.js, new Function(text)(), setRalphState(getOverviewRalphState()), and console.warn('[ralph-state] reload failed', err) in catch."
+        },
+        {
+          "criterion": "App.tsx adds a useEffect subscribing to overview-ralph-state:update via import.meta.hot?.on('overview-ralph-state:update', reloadRalphState), with the matching import.meta.hot?.off in cleanup. Mirror the existing overview-data:update subscription pattern.",
+          "command": "grep -nE 'overview-ralph-state:update|import.meta.hot' tools/overview-viewer/src/App.tsx",
+          "result": "Lines 76-83 define the Ralph-state HMR useEffect, registering import.meta.hot.on('overview-ralph-state:update', reloadRalphState) and cleanup import.meta.hot?.off('overview-ralph-state:update', reloadRalphState)."
+        },
+        {
+          "criterion": "Both overview-data:update and overview-ralph-state:update subscriptions coexist (the new one is additive, not a replacement).",
+          "command": "grep -nE 'overview-data:update|overview-ralph-state:update' tools/overview-viewer/src/App.tsx",
+          "result": "Lines 68 and 70 keep the existing overview-data:update on/off subscription; lines 79 and 81 add the separate overview-ralph-state:update on/off subscription."
+        },
+        {
+          "criterion": "Dev verification (only if Plan 02 is merged): editing a .ralph/jobs/<test>/job-state.json updates the chip color in the browser within ~2-3 seconds without a page reload. Without Plan 02, the subscription is a harmless no-op.",
+          "command": "N/A",
+          "result": "SKIPPED: US-006:AC-004 requires live browser/HMR observation and Plan 02 watcher emission, which are unavailable in this session; fallback source review verifies the harmless no-op subscription wiring via import.meta.hot.on('overview-ralph-state:update', reloadRalphState)."
+        },
+        {
+          "criterion": "pnpm --filter @codexu/overview-viewer typecheck && pnpm --filter @codexu/overview-viewer test exits 0.",
+          "command": "pnpm --filter @codexu/overview-viewer typecheck > .test-output/overview-viewer.typecheck.log 2>&1; pnpm --filter @codexu/overview-viewer test > .test-output/overview-viewer.test.log 2>&1",
+          "result": "Both commands exited 0 after final edits; typecheck ran tsc --noEmit and Vitest reported 24 test files passed and 119 tests passed."
+        },
+        {
+          "criterion": "Typecheck passes",
+          "command": "pnpm --filter @codexu/overview-viewer typecheck > .test-output/overview-viewer.typecheck.log 2>&1",
+          "result": "Exited 0 after final edits; tsc --noEmit completed with no errors."
+        },
+        {
+          "criterion": "Verify in browser using dev-browser skill",
+          "command": "N/A",
+          "result": "SKIPPED: US-006:AC-006 dev-browser/browser automation is unavailable in this session; reloadRalphState and the HMR useEffect are covered by source-level review and package typecheck/test."
+        }
+      ],
+      "dependencies": [
+        "US-001",
+        "US-005"
+      ],
+      "criteriaWarnings": [
+        {
+          "storyId": "US-006",
+          "acIndex": "AC-004",
+          "criterion": "Dev verification (only if Plan 02 is merged): editing a .ralph/jobs/<test>/job-state.json updates the chip color in the browser within 2-3 seconds without a page reload.",
+          "warning": "US-006:AC-004 references browser HMR observation; browser automation tools may be unavailable to the iteration agent and this AC is conditional on Plan 02 being merged",
+          "severity": "tool-availability",
+          "suggestedFallback": "If browser tooling is unavailable or Plan 02 is unmerged, record SKIPPED with rationale: HMR subscription wiring covered by source-level review of import.meta.hot.on('overview-ralph-state:update', reloadRalphState).",
+          "source": "criteria-validator"
+        },
+        {
+          "storyId": "US-006",
+          "acIndex": "AC-006",
+          "criterion": "Verify in browser using dev-browser skill",
+          "warning": "US-006:AC-006 references browser/dev-browser verification; browser automation tools may be unavailable to the iteration agent",
+          "severity": "tool-availability",
+          "suggestedFallback": "If browser tooling is unavailable, record SKIPPED: reloadRalphState + HMR useEffect covered by code-level review.",
+          "source": "criteria-validator"
+        }
+      ],
+      "failureClassification": "",
+      "partialProgress": null
+    },
+    {
+      "id": "US-007",
+      "title": "Downstream-plan cascade audit + INDEX refresh",
+      "description": "As the next plan-author, I want plans 04-12 + the INDEX to reflect Plan 03's actual deliverables so nobody chases stale file paths or type signatures.",
+      "acceptanceCriteria": [
+        "Read each existing plan under plans/ralph-pipeline-04-pipeline-overview.md through plans/ralph-pipeline-12-package-as-plugin.md. For each, list any reference to RalphStageChip, filters.ralphStage, useMultiAxisFilter, overview-ralph-state.js sidecar, or vite.config.ts plumbing.",
+        "Plan 04 (plans/ralph-pipeline-04-pipeline-overview.md) line 58 references setFilters from useMultiAxisFilter. Confirm that Plan 03's US-001 has exposed setFilters on the hook's return object. If Plan 04 references any other shape change, update Plan 03 accordingly OR update Plan 04 — pick the more correct of the two.",
+        "Read plans/ralph-pipeline-INDEX.md and update the 'Source-of-truth modules' table and DAG diagram if Plan 03's deliverables changed module names, paths, or contracts (e.g., RalphStageChip becomes the source-of-truth chip component for plans 07/08).",
+        "Refresh stale references — file paths, type signatures, function/export names, behavior contracts, module dependencies — that diverged from Plan 03's actual implementation.",
+        "Apply all cascade updates in the final implementation commit. The commit message lists each diff (filename, lines changed, what changed) so reviewers can verify the cascade in one read.",
+        "Typecheck passes"
+      ],
+      "priority": 7,
+      "passes": true,
+      "notes": "Cascade audit. Meaningful only after US-001..US-006 have materialized.",
+      "verifiedEvidence": [
+        {
+          "criterion": "Read each existing plan under plans/ralph-pipeline-04-pipeline-overview.md through plans/ralph-pipeline-12-package-as-plugin.md. For each, list any reference to RalphStageChip, filters.ralphStage, useMultiAxisFilter, overview-ralph-state.js sidecar, or vite.config.ts plumbing.",
+          "command": "grep -RInE 'RalphStageChip|filters[.]ralphStage|useMultiAxisFilter|overview-ralph-state[.]js|vite[.]config[.]ts|overviewRalphStatePlugin|ralphStage|setFilters' plans/ralph-pipeline-04-pipeline-overview.md plans/ralph-pipeline-05-agent-exports.md plans/ralph-pipeline-06-skills.md plans/ralph-pipeline-07-context.md plans/ralph-pipeline-08-crews.md plans/ralph-pipeline-09-mcp.md plans/ralph-pipeline-10-ralph-handoff.md plans/ralph-pipeline-11-mcp-operational-tools.md plans/ralph-pipeline-12-package-as-plugin.md plans/ralph-pipeline-INDEX.md | wc -l",
+          "result": "Fresh audit found 30 references. Relevant stale references were in Plan 04, Plan 05, Plan 07, Plan 08, and the INDEX; Plans 06, 09, 10, 11, and 12 had no Plan 03 contract drift needing edits."
+        },
+        {
+          "criterion": "Plan 04 (plans/ralph-pipeline-04-pipeline-overview.md) line 58 references setFilters from useMultiAxisFilter. Confirm that Plan 03's US-001 has exposed setFilters on the hook's return object. If Plan 04 references any other shape change, update Plan 03 accordingly OR update Plan 04 — pick the more correct of the two.",
+          "command": "grep -nE 'setFilters: Dispatch|Plan 03.*hook returns|setFilters: setActiveFilters|filters: activeFilters' plans/ralph-pipeline-04-pipeline-overview.md tools/overview-viewer/src/hooks/useMultiAxisFilter.ts",
+          "result": "Plan 04 now documents setFilters as Dispatch<SetStateAction<ActiveFilters>> and restates the Plan 03 hook return object; useMultiAxisFilter returns filters: activeFilters and setFilters: setActiveFilters."
+        },
+        {
+          "criterion": "Read plans/ralph-pipeline-INDEX.md and update the 'Source-of-truth modules' table and DAG diagram if Plan 03's deliverables changed module names, paths, or contracts (e.g., RalphStageChip becomes the source-of-truth chip component for plans 07/08).",
+          "command": "grep -nE 'utils/filters.ts|useMultiAxisFilter.ts|RalphStageChip.tsx|overviewRalphStatePlugin' plans/ralph-pipeline-INDEX.md",
+          "result": "INDEX source-of-truth table now includes Plan 03 rows for filters.ts, useMultiAxisFilter.ts, RalphStageChip.tsx, and overviewRalphStatePlugin(). The existing DAG already named 03-ui-chip with RalphStageChip, filter axis, and Vite serve, so no DAG edit was needed."
+        },
+        {
+          "criterion": "Refresh stale references — file paths, type signatures, function/export names, behavior contracts, module dependencies — that diverged from Plan 03's actual implementation.",
+          "command": "grep -nE 'synthetic-window|TaskCommand.tsx|tooltipExtras|overviewRalphStatePlugin|RalphStageChip.tsx' plans/ralph-pipeline-05-agent-exports.md plans/ralph-pipeline-07-context.md plans/ralph-pipeline-08-crews.md plans/ralph-pipeline-INDEX.md",
+          "result": "Updated Plan 05 to use synthetic-window sidecar evaluation; updated Plans 07 and 08 to compose tooltipExtras in TaskCommand while preserving RalphStageChip's generic slot; added INDEX rows for Plan 03 contracts."
+        },
+        {
+          "criterion": "Apply all cascade updates in the final implementation commit. The commit message lists each diff (filename, lines changed, what changed) so reviewers can verify the cascade in one read.",
+          "command": "git show --stat --format=%B HEAD",
+          "result": "Commit 13151700 has subject feat: US-007 - Downstream-plan cascade audit + INDEX refresh and body entries for each changed file: Plan 04 setFilters/hook shape, Plan 05 synthetic-window verification, Plan 07 TaskCommand tooltipExtras composition, Plan 08 crew tooltipExtras composition, and INDEX Plan 03 source-of-truth rows."
+        },
+        {
+          "criterion": "Typecheck passes",
+          "command": "pnpm --filter @codexu/overview-viewer typecheck > .test-output/overview-viewer.typecheck.log 2>&1",
+          "result": "Exited 0; tsc --noEmit completed with no errors."
+        },
+        {
+          "criterion": "Quality test suite passes",
+          "command": "pnpm --filter @codexu/overview-viewer test > .test-output/overview-viewer.test.log 2>&1",
+          "result": "Exited 0; Vitest reported 24 test files passed and 119 tests passed."
+        }
+      ],
+      "dependencies": [
+        "US-001",
+        "US-002",
+        "US-003",
+        "US-004",
+        "US-005",
+        "US-006"
+      ],
+      "failureClassification": "",
+      "partialProgress": null
+    }
+  ]
+}

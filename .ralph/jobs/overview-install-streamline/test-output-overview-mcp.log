@@ -1,0 +1,134 @@
+
+> test
+> vitest run --passWithNoTests
+
+
+[1m[46m RUN [49m[22m [36mv3.2.4 [39m[90mD:/harness-efforts/codexu/.ralph/jobs/overview-install-streamline/worktree/plugins/ralph-overview/tools/overview-mcp[39m
+
+ [31m❯[39m src/__tests__/stdio-tools-list.test.ts [2m([22m[2m1 test[22m[2m | [22m[31m1 failed[39m[2m)[22m[32m 211[2mms[22m[39m
+[31m   [31m×[31m stdio tools/list smoke test[2m > [22mreturns 17 overview tools by exact name[39m[32m 209[2mms[22m[39m
+[31m     → server exited with code 1 before responding[39m
+ [31m❯[39m src/__tests__/install-server.test.ts [2m([22m[2m4 tests[22m[2m | [22m[31m4 failed[39m[2m)[22m[32m 77[2mms[22m[39m
+[31m   [31m×[31m overview-mcp-install[2m > [22mwrites codexu-overview MCP settings and is idempotent[39m[32m 29[2mms[22m[39m
+[31m     → Missing plugin launcher at D:/harness-efforts/codexu/.ralph/jobs/overview-install-streamline/worktree/plugins/ralph-overview/tools/launch.cjs; ensure ralph-overview plugin is installed and RALPH_OVERVIEW_PLUGIN_ROOT or CLAUDE_PLUGIN_ROOT is set.[39m
+[31m   [31m×[31m overview-mcp-install[2m > [22mcreates settings.local.json from an absent file[39m[32m 12[2mms[22m[39m
+[31m     → Missing plugin launcher at D:/harness-efforts/codexu/.ralph/jobs/overview-install-streamline/worktree/plugins/ralph-overview/tools/launch.cjs; ensure ralph-overview plugin is installed and RALPH_OVERVIEW_PLUGIN_ROOT or CLAUDE_PLUGIN_ROOT is set.[39m
+[31m   [31m×[31m overview-mcp-install[2m > [22mprints the merged JSON without writing when --print-only is requested[39m[32m 17[2mms[22m[39m
+[31m     → Missing plugin launcher at D:/harness-efforts/codexu/.ralph/jobs/overview-install-streamline/worktree/plugins/ralph-overview/tools/launch.cjs; ensure ralph-overview plugin is installed and RALPH_OVERVIEW_PLUGIN_ROOT or CLAUDE_PLUGIN_ROOT is set.[39m
+[31m   [31m×[31m overview-mcp-install[2m > [22merrors clearly when dist/index.js is absent[39m[32m 16[2mms[22m[39m
+[31m     → expected [Function] to throw error matching /run pnpm overview-mcp:build first/ but got 'Missing plugin launcher at D:/harness…'[39m
+ [32m✓[39m src/__tests__/init-consumer.test.ts [2m([22m[2m8 tests[22m[2m)[22m[33m 690[2mms[22m[39m
+   [33m[2m✓[22m[39m initConsumer[2m > [22mengine, MCP shim stub, and CLI JSON expose matching planning fields [33m 341[2mms[22m[39m
+ [32m✓[39m src/__tests__/snapshot-reader.test.ts [2m([22m[2m5 tests[22m[2m)[22m[33m 1533[2mms[22m[39m
+   [33m[2m✓[22m[39m SnapshotReader[2m > [22msucceeds when the parser fails twice then succeeds on the third attempt [33m 303[2mms[22m[39m
+   [33m[2m✓[22m[39m SnapshotReader[2m > [22mreturns the cached snapshot on torn reads and recovers on the next valid write [33m 935[2mms[22m[39m
+
+[31m⎯⎯⎯⎯⎯⎯[39m[1m[41m Failed Suites 18 [49m[22m[31m⎯⎯⎯⎯⎯⎯[39m
+
+[41m[1m FAIL [22m[49m src/__tests__/add-journal-entry.test.ts[2m [ src/__tests__/add-journal-entry.test.ts ][22m
+[41m[1m FAIL [22m[49m src/__tests__/build.test.ts[2m [ src/__tests__/build.test.ts ][22m
+[41m[1m FAIL [22m[49m src/__tests__/dev-server.test.ts[2m [ src/__tests__/dev-server.test.ts ][22m
+[41m[1m FAIL [22m[49m src/__tests__/get-task.test.ts[2m [ src/__tests__/get-task.test.ts ][22m
+[41m[1m FAIL [22m[49m src/__tests__/get-transcript.test.ts[2m [ src/__tests__/get-transcript.test.ts ][22m
+[41m[1m FAIL [22m[49m src/__tests__/invoke-next.test.ts[2m [ src/__tests__/invoke-next.test.ts ][22m
+[41m[1m FAIL [22m[49m src/__tests__/list-blockers.test.ts[2m [ src/__tests__/list-blockers.test.ts ][22m
+[41m[1m FAIL [22m[49m src/__tests__/list-crew-sessions.test.ts[2m [ src/__tests__/list-crew-sessions.test.ts ][22m
+[41m[1m FAIL [22m[49m src/__tests__/list-recommendations.test.ts[2m [ src/__tests__/list-recommendations.test.ts ][22m
+[41m[1m FAIL [22m[49m src/__tests__/list-tasks.test.ts[2m [ src/__tests__/list-tasks.test.ts ][22m
+[41m[1m FAIL [22m[49m src/__tests__/next-command.test.ts[2m [ src/__tests__/next-command.test.ts ][22m
+[41m[1m FAIL [22m[49m src/__tests__/process-manager.test.ts[2m [ src/__tests__/process-manager.test.ts ][22m
+[41m[1m FAIL [22m[49m src/__tests__/read-only-tools.test.ts[2m [ src/__tests__/read-only-tools.test.ts ][22m
+[41m[1m FAIL [22m[49m src/__tests__/set-override.test.ts[2m [ src/__tests__/set-override.test.ts ][22m
+[41m[1m FAIL [22m[49m src/__tests__/shutdown-vite.test.ts[2m [ src/__tests__/shutdown-vite.test.ts ][22m
+[41m[1m FAIL [22m[49m src/__tests__/shutdown.test.ts[2m [ src/__tests__/shutdown.test.ts ][22m
+[41m[1m FAIL [22m[49m src/__tests__/sync-now.test.ts[2m [ src/__tests__/sync-now.test.ts ][22m
+[41m[1m FAIL [22m[49m src/__tests__/sync-watch-status.test.ts[2m [ src/__tests__/sync-watch-status.test.ts ][22m
+[31m[1mError[22m: Cannot find package 'tree-kill' imported from 'D:/harness-efforts/codexu/.ralph/jobs/overview-install-streamline/worktree/plugins/ralph-overview/tools/overview-mcp/src/process-manager.ts'[39m
+[36m [2m❯[22m src/process-manager.ts:[2m4:1[22m[39m
+    [90m  2| [39m[35mimport[39m type { [33mChildProcess[39m[33m,[39m [33mSpawnOptions[39m } [35mfrom[39m [32m'node:child_process'[39m[33m;[39m
+    [90m  3| [39m
+    [90m  4| [39m[35mimport[39m treeKill [35mfrom[39m [32m'tree-kill'[39m[33m;[39m
+    [90m   | [39m[31m^[39m
+    [90m  5| [39m
+    [90m  6| [39m[35mconst[39m [33mMAX_LOG_LINES[39m [33m=[39m [34m1000[39m[33m;[39m
+
+[31m[1mCaused by: Error[22m: Failed to load url tree-kill (resolved id: tree-kill) in D:/harness-efforts/codexu/.ralph/jobs/overview-install-streamline/worktree/plugins/ralph-overview/tools/overview-mcp/src/process-manager.ts. Does the file exist?[39m
+[90m [2m❯[22m loadAndTransform ../../../../../../../../node_modules/vitest/node_modules/vite/dist/node/chunks/config.js:[2m22663:33[22m[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/23]⎯[22m[39m
+
+
+[31m⎯⎯⎯⎯⎯⎯⎯[39m[1m[41m Failed Tests 5 [49m[22m[31m⎯⎯⎯⎯⎯⎯⎯[39m
+
+[41m[1m FAIL [22m[49m src/__tests__/install-server.test.ts[2m > [22moverview-mcp-install[2m > [22mwrites codexu-overview MCP settings and is idempotent
+[31m[1mError[22m: Missing plugin launcher at D:/harness-efforts/codexu/.ralph/jobs/overview-install-streamline/worktree/plugins/ralph-overview/tools/launch.cjs; ensure ralph-overview plugin is installed and RALPH_OVERVIEW_PLUGIN_ROOT or CLAUDE_PLUGIN_ROOT is set.[39m
+[36m [2m❯[22m installServer src/install-server.ts:[2m40:11[22m[39m
+    [90m 38| [39m
+    [90m 39| [39m  [35mif[39m ([33m![39mfs[33m.[39m[34mexistsSync[39m(launcherPath)) {
+    [90m 40| [39m    [35mthrow[39m [35mnew[39m [33mError[39m(
+    [90m   | [39m          [31m^[39m
+    [90m 41| [39m      `Missing plugin launcher at ${toForwardSlash(launcherPath)}; ens…
+    [90m 42| [39m    )[33m;[39m
+[90m [2m❯[22m src/__tests__/install-server.test.ts:[2m30:11[22m[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/23]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/__tests__/install-server.test.ts[2m > [22moverview-mcp-install[2m > [22mcreates settings.local.json from an absent file
+[31m[1mError[22m: Missing plugin launcher at D:/harness-efforts/codexu/.ralph/jobs/overview-install-streamline/worktree/plugins/ralph-overview/tools/launch.cjs; ensure ralph-overview plugin is installed and RALPH_OVERVIEW_PLUGIN_ROOT or CLAUDE_PLUGIN_ROOT is set.[39m
+[36m [2m❯[22m installServer src/install-server.ts:[2m40:11[22m[39m
+    [90m 38| [39m
+    [90m 39| [39m  [35mif[39m ([33m![39mfs[33m.[39m[34mexistsSync[39m(launcherPath)) {
+    [90m 40| [39m    [35mthrow[39m [35mnew[39m [33mError[39m(
+    [90m   | [39m          [31m^[39m
+    [90m 41| [39m      `Missing plugin launcher at ${toForwardSlash(launcherPath)}; ens…
+    [90m 42| [39m    )[33m;[39m
+[90m [2m❯[22m src/__tests__/install-server.test.ts:[2m51:11[22m[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/23]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/__tests__/install-server.test.ts[2m > [22moverview-mcp-install[2m > [22mprints the merged JSON without writing when --print-only is requested
+[31m[1mError[22m: Missing plugin launcher at D:/harness-efforts/codexu/.ralph/jobs/overview-install-streamline/worktree/plugins/ralph-overview/tools/launch.cjs; ensure ralph-overview plugin is installed and RALPH_OVERVIEW_PLUGIN_ROOT or CLAUDE_PLUGIN_ROOT is set.[39m
+[36m [2m❯[22m installServer src/install-server.ts:[2m40:11[22m[39m
+    [90m 38| [39m
+    [90m 39| [39m  [35mif[39m ([33m![39mfs[33m.[39m[34mexistsSync[39m(launcherPath)) {
+    [90m 40| [39m    [35mthrow[39m [35mnew[39m [33mError[39m(
+    [90m   | [39m          [31m^[39m
+    [90m 41| [39m      `Missing plugin launcher at ${toForwardSlash(launcherPath)}; ens…
+    [90m 42| [39m    )[33m;[39m
+[90m [2m❯[22m src/__tests__/install-server.test.ts:[2m64:11[22m[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/23]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/__tests__/install-server.test.ts[2m > [22moverview-mcp-install[2m > [22merrors clearly when dist/index.js is absent
+[31m[1mAssertionError[22m: expected [Function] to throw error matching /run pnpm overview-mcp:build first/ but got 'Missing plugin launcher at D:/harness…'[39m
+
+[32m- Expected:[39m 
+/run pnpm overview-mcp:build first/
+
+[31m+ Received:[39m 
+"Missing plugin launcher at D:/harness-efforts/codexu/.ralph/jobs/overview-install-streamline/worktree/plugins/ralph-overview/tools/launch.cjs; ensure ralph-overview plugin is installed and RALPH_OVERVIEW_PLUGIN_ROOT or CLAUDE_PLUGIN_ROOT is set."
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/23]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/__tests__/stdio-tools-list.test.ts[2m > [22mstdio tools/list smoke test[2m > [22mreturns 17 overview tools by exact name
+[31m[1mError[22m: server exited with code 1 before responding[39m
+[36m [2m❯[22m ChildProcess.<anonymous> src/__tests__/stdio-tools-list.test.ts:[2m71:16[22m[39m
+    [90m 69| [39m      [35mif[39m ([33m![39msettled) {
+    [90m 70| [39m        settled [33m=[39m [35mtrue[39m[33m;[39m
+    [90m 71| [39m        reject(new Error(`server exited with code ${code} before respo…
+    [90m   | [39m               [31m^[39m
+    [90m 72| [39m      }
+    [90m 73| [39m    })[33m;[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/23]⎯[22m[39m
+
+
+[2m Test Files [22m [1m[31m20 failed[39m[22m[2m | [22m[1m[32m2 passed[39m[22m[90m (22)[39m
+[2m      Tests [22m [1m[31m5 failed[39m[22m[2m | [22m[1m[32m13 passed[39m[22m[90m (18)[39m
+[2m   Start at [22m 03:50:28
+[2m   Duration [22m 6.60s[2m (transform 2.94s, setup 0ms, collect 2.70s, tests 2.51s, environment 7ms, prepare 14.34s)[22m
+
+npm ERR! Lifecycle script `test` failed with error: 
+npm ERR! Error: command failed 
+npm ERR!   in workspace: @gim-home/ralph-overview-mcp 
+npm ERR!   at location: D:\harness-efforts\codexu\.ralph\jobs\overview-install-streamline\worktree\plugins\ralph-overview\tools\overview-mcp 

@@ -1,0 +1,29 @@
+I’m opening the attached file in chunks to determine what it contains and act on it.
+
+I found the review instructions and plan; now I’m locating the diff sections and the changed files to assess them against that plan.
+
+I have the diff; I’m checking the surrounding implementation in the repo to distinguish real defects from harmless omissions.
+
+I’m checking how session metadata is validated on ingress, because that determines whether the new normalizer can safely pass malformed fields through.
+
+The broad search was noisy; I’m narrowing to the actual session-ingress validation sites that touch `metadata`.
+
+I found one likely runtime hole around malformed metadata. I’m checking whether the existing sync tests or helpers already guard that elsewhere before I finalize the review.
+
+I’m grabbing the exact line ranges for the suspect areas so the review can reference the real locations precisely.
+
+### Completeness
+- [Low] `packages/happy-app/sources/sync/sync.test.ts:845-887` only covers the happy-path initial-fetch normalization. The plan called for the `toCompositeSession()`/initial-fetch path to get the same malformed-input coverage as the live `update-session` path, so the fetch-side malformed-metadata case is still untested.
+
+### Correctness
+- [High] `packages/happy-app/sources/sync/sync.ts:121-146` deliberately preserves malformed `spawnedChildren` values, but `packages/happy-app/sources/sync/storage.ts:1428-1436` then assumes `spawnedChildren` is an array and calls `.map(...)`. The new test at `packages/happy-app/sources/sync/sync.test.ts:803-833` even codifies this by expecting `'not-an-array'` to reach `applySessions()`. That means a bad wire payload can still enter the store, and any consumer of `getSessionChildren()` will crash with `map is not a function` instead of safely dropping the invalid field as the plan intended.
+
+### Quality
+No issues found.
+
+### Security
+No issues found.
+
+### Overall Assessment
+This is **not ready yet**. The malformed-metadata path is unsafe in a way that can break the new child-resolution helper, and one of the planned fetch-side acceptance cases is still missing.
+

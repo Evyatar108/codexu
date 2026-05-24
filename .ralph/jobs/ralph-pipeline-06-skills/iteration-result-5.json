@@ -1,0 +1,44 @@
+{
+  "storyId": "US-005",
+  "verifiedEvidence": [
+    {
+      "criterion": ".claude/skills/blocker-report/SKILL.md exists with frontmatter and body.",
+      "command": "test -f .claude/skills/blocker-report/SKILL.md && grep -nE '^name: blocker-report|^description:' .claude/skills/blocker-report/SKILL.md",
+      "result": "Exit 0; file exists with frontmatter name at line 2 and description at line 3, followed by the blocker-report skill body.",
+      "evidenceKind": "command-output"
+    },
+    {
+      "criterion": "Filters snapshot.tasks for ralph.stage === \"blocked\", ralph.stage === \"review-fix\" with non-zero reviewOpenCount.code|docs (open Medium+ findings — wording must match), ralph.deferredQuestionsCount > 0 (gated; undefined treated as 0), and PRD userStories[].blocked === true.",
+      "command": "grep -nE 'ralph.stage === \"blocked\"|ralph.stage === \"review-fix\"|reviewOpenCount.code|reviewOpenCount.docs|deferredQuestionsCount > 0|undefined.*0|userStories[].blocked === true|open Medium+ review findings' .claude/skills/blocker-report/SKILL.md",
+      "result": "Exit 0; grep found all four filter clauses, undefined deferredQuestionsCount treated as 0, and the literal open Medium+ review findings wording.",
+      "evidenceKind": "command-output"
+    },
+    {
+      "criterion": "Renders entries with taskId, stage, jobDir, blocker summary, proposed action (/implement-with-ralph resume <jobSlug>). Picker chains into /work-on.",
+      "command": "grep -nE 'taskId, stage, jobDir|Blocker:|Proposed action: /implement-with-ralph resume|-> /work-on|Skill(\"work-on\", args=' .claude/skills/blocker-report/SKILL.md",
+      "result": "Exit 0; render section includes taskId/stage/jobDir/blocker summary/proposed action, /work-on line, and Skill(\"work-on\", args=\"<selected-task-id>\") picker chain.",
+      "evidenceKind": "command-output"
+    },
+    {
+      "criterion": "Behavior verified deterministically: skill body contains the four filter clauses and the literal phrase \"open Medium+ review findings\" (NOT \"Critical/High\"). Verified via grep against `.claude/skills/blocker-report/SKILL.md`: `grep -q \"blocked\"`, `grep -q \"reviewOpenCount\"`, `grep -q \"deferredQuestionsCount\"`, `grep -q \"open Medium+\"` all return exit 0.",
+      "command": "grep -q 'blocked' .claude/skills/blocker-report/SKILL.md && grep -q 'reviewOpenCount' .claude/skills/blocker-report/SKILL.md && grep -q 'deferredQuestionsCount' .claude/skills/blocker-report/SKILL.md && grep -q 'open Medium+' .claude/skills/blocker-report/SKILL.md && echo 'blocker filter greps passed'",
+      "result": "Exit 0; blocker filter greps passed.",
+      "evidenceKind": "command-output"
+    },
+    {
+      "criterion": "Skill body contains the proposed-action template `/implement-with-ralph resume` and the picker-to-/work-on chain instruction. Verified via `grep -q \"/implement-with-ralph resume\"` and `grep -q \"/work-on\"` against `.claude/skills/blocker-report/SKILL.md` returning exit 0.",
+      "command": "grep -q '/implement-with-ralph resume' .claude/skills/blocker-report/SKILL.md && grep -q '/work-on' .claude/skills/blocker-report/SKILL.md && echo 'proposed action and work-on greps passed'",
+      "result": "Exit 0; proposed action and work-on greps passed.",
+      "evidenceKind": "command-output"
+    },
+    {
+      "criterion": "Typecheck passes.",
+      "command": "pnpm --filter @codexu/overview-viewer typecheck > .test-output/overview-viewer.typecheck.log 2>&1; tail -30 .test-output/overview-viewer.typecheck.log",
+      "result": "Exit 0; tsc --noEmit completed with no errors. Tail showed @codexu/overview-viewer typecheck running tsc --noEmit.",
+      "evidenceKind": "typecheck"
+    }
+  ],
+  "skippedReasons": [],
+  "notTested": [],
+  "iterationSHA": "84ff4dd95ae41c6ec0dfe2c65d709c14bbc88d90"
+}

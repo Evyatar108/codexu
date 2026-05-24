@@ -1,0 +1,56 @@
+{
+  "storyId": "US-011",
+  "verifiedEvidence": [
+    {
+      "criterion": "writeSidecar (or a new emitAgentArtifacts helper called from inside writeSidecar) invokes, in order: schema → snapshot → data-twin → tasks-index. All use atomicWriteFile.",
+      "command": "nl -ba scripts/lib/sync-core.mjs | sed -n '341,370p'; nl -ba scripts/lib/sync-core.test.mjs | sed -n '391,410p'",
+      "result": "sync-core.mjs lines 347 and 355-370 call emitAgentArtifacts from writeSidecar and then atomicWriteFile in order for snapshotSchema, snapshot, dataJson, and tasksIndex. The test records those four final artifact targets and asserts exact order plus Set size 4.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "On first run with no plans/overview-activity.jsonl file, the file is created empty (size 0).",
+      "command": "nl -ba scripts/lib/sync-core.mjs | sed -n '366,378p'; nl -ba scripts/lib/sync-core.test.mjs | sed -n '414,416p'",
+      "result": "emitAgentArtifacts calls ensureEmptyFile for outputs.activity after artifact writes; ensureEmptyFile creates the missing file. The integration test asserts the activity file exists and statSync(...).size is 0.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "The watcher does NOT call emitters directly; emission happens once per flush via the same mergeAndWrite → writeSidecar path.",
+      "command": "grep -R -E \"emit-snapshot|emit-activity|emit-tasks-index|emit-snapshot-schema\" -n scripts/lib/watch-ralph-state.mjs scripts/sync-ralph-state.mjs scripts/lib/sync-core.mjs",
+      "result": "Only scripts/lib/sync-core.mjs imports emit-snapshot, emit-snapshot-schema, and emit-tasks-index; watcher and one-shot script have no direct emitter imports. mergeAndWrite calls writeSidecar at sync-core.mjs line 276.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "All writes happen inside the existing lock window.",
+      "command": "nl -ba scripts/sync-ralph-state.mjs | sed -n '35,47p'; nl -ba scripts/lib/watch-ralph-state.mjs | sed -n '28,147p'; nl -ba scripts/lib/sync-core.mjs | sed -n '267,277p'",
+      "result": "One-shot sync acquires the lock before walkRalphState/writeSidecar and releases in finally; watcher acquires one lock at startup and flushPending calls mergeAndWrite before touching/releasing it; mergeAndWrite calls writeSidecar before returning.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "No double-emit.",
+      "command": "nl -ba scripts/lib/sync-core.test.mjs | sed -n '391,410p'; grep -E \"Test Files|Tests|Duration\" .test-output/sync-core-writeSidecar.test.log",
+      "result": "The focused writeSidecar test records exactly four agent artifact rename targets in the required order and asserts Set size 4. PASS: 1 test file passed, 1 test passed, 15 skipped, duration 1.32s.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Typecheck passes.",
+      "command": "pnpm --filter @codexu/overview-viewer typecheck > .test-output/overview-viewer.typecheck.log 2>&1",
+      "result": "PASS exit=0 duration=8s; tsc --noEmit completed with no errors.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Integration test passes: `pnpm vitest run scripts/lib/sync-core.test.mjs -t writeSidecar` — after one writeSidecar call on a temp repo, all four artifacts (overview-snapshot.schema.json, overview-snapshot.json, overview-data.json, tasks/INDEX.md) exist on disk and overview-activity.jsonl exists; no double-emit (spy on atomicWriteFile records four calls in order: schema, snapshot, data-twin, tasks-index).",
+      "command": "pnpm vitest run scripts/lib/sync-core.test.mjs -t writeSidecar > .test-output/sync-core-writeSidecar.test.log 2>&1",
+      "result": "PASS exit=0 duration=1.32s; 1 test file passed, 1 test passed, 15 skipped. The test verifies four artifact paths exist, overview-activity.jsonl exists with size 0, snapshot/data JSON content, tasks index content, and exactly four agent artifact writes in schema/snapshot/data-twin/tasks-index order.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Regression tests pass.",
+      "command": "pnpm vitest run scripts/lib/sync-core.test.mjs > .test-output/sync-core-root.test.log 2>&1; pnpm --filter @codexu/overview-viewer test > .test-output/overview-viewer.test.log 2>&1",
+      "result": "PASS; scripts/lib/sync-core.test.mjs passed with 1 file and 16 tests. overview-viewer package tests passed with 27 files and 153 tests.",
+      "evidenceKind": "passed"
+    }
+  ],
+  "skippedReasons": [],
+  "notTested": [],
+  "iterationSHA": "254b0d21ccc091125903fa6c56f384a9f8c6fb37"
+}

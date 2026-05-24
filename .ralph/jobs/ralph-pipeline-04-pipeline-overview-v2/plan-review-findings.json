@@ -1,0 +1,320 @@
+{
+  "planFile": "D:/harness-efforts/codexu/.ralph/jobs/.staging/20260520-034047/draft-plan.md",
+  "repoDir": "D:/harness-efforts/codexu",
+  "reviewCycle": 0,
+  "findings": [
+    {
+      "id": "F-001",
+      "severity": "High",
+      "source": "consensus",
+      "category": "Architecture / sidecar persistence",
+      "sectionRef": "Approach > Architecture (point 1, point 4 of emitDerivedArtifacts body)",
+      "description": "Mutating state.runDurations before writeSidecar serialises state via JSON.stringify(state) at scripts/lib/sync-core.mjs:358, so runDurations WILL be persisted in plans/overview-ralph-state.{json,js} despite the TypeScript type not declaring it. The plan's claim 'NOT persisted on the Ralph sidecar' is contradicted by the implementation. Flagged by Codex AND Copilot.",
+      "status": "fixed",
+      "relevantFiles": [
+        "scripts/lib/sync-core.mjs",
+        "tools/overview-viewer/src/types.ts"
+      ],
+      "suggestedFix": "Pass runDurations as a separate parameter through emitDerivedArtifacts → writeSidecar → emitAgentArtifacts (and into buildSnapshot via the existing buildSnapshot parameter). Do NOT mutate state. Remove the AC line that claims the sidecar JSON doesn't carry runDurations, and replace with an AC that asserts emitAgentArtifacts receives the runDurations value via parameter.",
+      "fixedInIteration": 1,
+      "resolution": "Amended the plan to route runDurations as a separate parameter through emitDerivedArtifacts, writeSidecar, emitAgentArtifacts, and buildSnapshot without mutating state."
+    },
+    {
+      "id": "F-002",
+      "severity": "High",
+      "source": "consensus",
+      "category": "Data model / PRD carrier shape",
+      "sectionRef": "Approach > Architecture (point 2) + US-001 load-prds-by-task-id helper",
+      "description": "The PRD carrier extracts only { id, dependencies } per userStory, but scoreRecommendations needs userStories[].passes to compute dependency state (unblocked vs partial vs fully blocked) and deriveDependencyGraph needs PRD-level dependency fields for the depends-on-task fallback. Existing PRDs in .ralph/jobs/*/prd.json include userStories[].passes. Flagged by Codex AND Copilot.",
+      "status": "fixed",
+      "relevantFiles": [
+        ".ralph/jobs/ralph-pipeline-05-agent-exports/prd.json"
+      ],
+      "suggestedFix": "Widen the carrier shape to { userStories: Array<{ id, dependencies?: string[], passes?: boolean | string }>, dependencies?: string[] }. Update load-prds-by-task-id.mjs implementation, .d.mts, and tests. Document the exact PRD field names in US-001 acceptance criteria.",
+      "fixedInIteration": 2,
+      "resolution": "Amended the plan so the PRD carrier preserves root dependencies plus userStories[].dependencies and userStories[].passes, with matching US-001 and acceptance-criteria coverage."
+    },
+    {
+      "id": "F-003",
+      "severity": "High",
+      "source": "consensus",
+      "category": "Config / hardcoded path divergence",
+      "sectionRef": "US-001 config schema + US-004 wiring",
+      "description": "emitAgentArtifacts reads HARDCODED constants PLAN_04_RECOMMENDATIONS_PATH and PLAN_04_DEPENDENCY_GRAPH_PATH (sync-core.mjs:38-39, 381-382). The plan adds configurable outputs.recommendationsJson / outputs.dependencyGraphJson but does not require updating the reader. Result: if a user overrides paths via config, emitDerivedArtifacts writes to the new location and emitAgentArtifacts still reads the hardcoded location — snapshot.recommendations and snapshot.dependencyGraph stay empty. Flagged by Codex AND Copilot.",
+      "status": "fixed",
+      "relevantFiles": [
+        "scripts/lib/sync-core.mjs"
+      ],
+      "suggestedFix": "Add to US-004: replace the PLAN_04_RECOMMENDATIONS_PATH / PLAN_04_DEPENDENCY_GRAPH_PATH constants with config.outputs.recommendationsJson / config.outputs.dependencyGraphJson resolution via resolveMaybeAbsolute, matching how outputs.snapshot/dataJson are resolved. Add an AC asserting a custom output path override flows through both writer (emitDerivedArtifacts) and reader (emitAgentArtifacts) consistently.",
+      "fixedInIteration": 3,
+      "resolution": "Amended the plan so US-004 replaces hardcoded Plan 04 artifact reads with configured output paths and adds override coverage in tests, acceptance criteria, and verification."
+    },
+    {
+      "id": "F-004",
+      "severity": "High",
+      "source": "copilot",
+      "category": "Filesystem walk / path layout",
+      "sectionRef": "Approach > Architecture (point 2) + US-001 load-prds-by-task-id",
+      "description": "The plan describes walking .ralph/job-groups/*/prd.json, but actual group member PRDs live at .ralph/job-groups/<group>/<member>/prd.json (e.g. .ralph/job-groups/overview-data-split/foundation/prd.json). A one-level shallow walk misses these PRDs and drops grouped-work dependencies from the carrier.",
+      "status": "fixed",
+      "relevantFiles": [
+        ".ralph/job-groups"
+      ],
+      "suggestedFix": "Update US-001 spec for load-prds-by-task-id.mjs: walk .ralph/jobs/*/prd.json AND .ralph/job-groups/*/*/prd.json (two-level glob for groups). Add a test fixture covering a group member PRD and assert it appears in the resulting prdsByTaskId.",
+      "fixedInIteration": 4,
+      "resolution": "Updated the plan to walk .ralph/jobs/*/prd.json and .ralph/job-groups/*/*/prd.json, and added US-001 test coverage for grouped member PRDs appearing in prdsByTaskId."
+    },
+    {
+      "id": "F-005",
+      "severity": "High",
+      "source": "codex",
+      "category": "Data model / global uniqueness",
+      "sectionRef": "Approach > Architecture (point 4 DependencyGraph schema) + US-003",
+      "description": "Story node IDs in the dependency graph use just storyId (e.g. US-001). PRDs across multiple tasks all use US-001/US-002/etc, so distinct stories from different tasks would collapse to one node. Edges across PRDs would be wrong.",
+      "status": "fixed",
+      "relevantFiles": [],
+      "suggestedFix": "Make story node id = `${taskId}:${storyId}` (composite) and keep storyId as separate metadata. Update both the architecture description and US-003 acceptance criteria. Add a test asserting two PRDs with the same story id produce two distinct nodes.",
+      "fixedInIteration": 5,
+      "resolution": "Updated the dependency graph plan so story nodes use globally unique `${taskId}:${storyId}` ids and US-003 tests assert duplicate PRD story ids do not collapse."
+    },
+    {
+      "id": "F-006",
+      "severity": "High",
+      "source": "consensus",
+      "category": "Type gap / scoring input",
+      "sectionRef": "Approach > Architecture (point 3 scoring rubric) + US-001 + US-002",
+      "description": "The scoring rubric references OverviewTask.priority (weight 10), but the field does not exist on the OverviewTask type at tools/overview-viewer/src/types.ts. The current plan implicitly assumes a runtime field that isn't declared. Will silently fall back to 0.5 for every task. Flagged by Claude (High) AND Copilot (Medium).",
+      "status": "fixed",
+      "relevantFiles": [
+        "tools/overview-viewer/src/types.ts"
+      ],
+      "suggestedFix": "Pick one: (a) Add `priority?: number` to the OverviewTask interface in US-001 and document the default 0.5 fallback in score-recommendations.mjs and its test; OR (b) drop priority from the rubric, redistribute weights to 40/30/30 (stage/dep/freshness) or 50/30/20. Recommend (a). Update the scoring rubric table and the AC.",
+      "fixedInIteration": 6,
+      "resolution": "Added the missing optional OverviewTask.priority field to the plan's type widening story and tied the scoring rubric, tests, scope, files, and acceptance criteria to the documented 0.5 fallback."
+    },
+    {
+      "id": "F-007",
+      "severity": "High",
+      "source": "codex",
+      "category": "AC inconsistency",
+      "sectionRef": "Acceptance Criteria > Snapshot freshness",
+      "description": "AC says 'snapshot.recommendations equals the freshly emitted overview-recommendations.json' but the planned recommendations.json shape is `{ recommendations }` (wrapped). Equality check would compare an array to an object.",
+      "status": "fixed",
+      "relevantFiles": [],
+      "suggestedFix": "Reword AC: 'After a single writeSidecar() call, JSON.parse(read(snapshotPath)).recommendations deep-equals JSON.parse(read(recommendationsPath)).recommendations'. Same for dependencyGraph: snapshot.dependencyGraph deep-equals JSON.parse(read(graphPath)) (the graph file is unwrapped — see existing unwrapDependencyGraph at sync-core.mjs:370).",
+      "fixedInIteration": 7,
+      "resolution": "Reworded the snapshot freshness acceptance criterion to compare snapshot.recommendations against the recommendations array inside the wrapped recommendations file, and snapshot.dependencyGraph against the unwrapped graph file."
+    },
+    {
+      "id": "F-008",
+      "severity": "Medium",
+      "source": "consensus",
+      "category": "Simplicity / fragility",
+      "sectionRef": "Approach > Architecture (point 1)",
+      "description": "Mutating in-parameter state.runDurations to smuggle snapshot-only data is fragile and contradicts F-001. Passing runDurations as a separate value through emitDerivedArtifacts → writeSidecar → emitAgentArtifacts / buildSnapshot is simpler and avoids special stripping logic. Flagged by Codex AND Copilot.",
+      "status": "open",
+      "relevantFiles": [
+        "scripts/lib/sync-core.mjs",
+        "scripts/lib/emit-snapshot.mjs"
+      ],
+      "suggestedFix": "Refactor the architecture description: emitDerivedArtifacts returns or accepts a runDurations parameter. writeSidecar threads it into emitAgentArtifacts which threads it into buildSnapshot (buildSnapshot already accepts runDurations as a destructured parameter at emit-snapshot.mjs:6). No state mutation. Remove the JSDoc-mutation pattern and the matching AC; replace with an AC asserting buildSnapshot's runDurations argument is populated from emitDerivedArtifacts output."
+    },
+    {
+      "id": "F-009",
+      "severity": "Medium",
+      "source": "consensus",
+      "category": "Code organization / drift risk",
+      "sectionRef": "US-005 PipelineOverview + Read for reference",
+      "description": "Toolbar.tsx defines the canonical Ralph stage order in a private FILTER_GROUPS constant. PipelineOverview is told to mirror that order, but no shared export exists — invites future drift between the two surfaces. Flagged by Codex AND Copilot.",
+      "status": "open",
+      "relevantFiles": [
+        "tools/overview-viewer/src/components/Toolbar.tsx",
+        "tools/overview-viewer/src/components/PipelineOverview.tsx"
+      ],
+      "suggestedFix": "Extract the stage order to a shared module (e.g. tools/overview-viewer/src/utils/ralphStages.ts) exporting a frozen RALPH_STAGE_ORDER: RalphStage[] constant. Refactor Toolbar to import it. Use the same import in PipelineOverview. Add a test asserting the array length is 10 and matches RalphStage union members."
+    },
+    {
+      "id": "F-010",
+      "severity": "Medium",
+      "source": "codex",
+      "category": "Scope drift",
+      "sectionRef": "Overview (point 3) + Out of Scope",
+      "description": "Overview promises 'a small inline DAG in the chip tooltip' but no story, component, prop, test, or AC implements any tooltip/DAG UI. The Out of Scope section also says detail dialog is out of scope. Inconsistent.",
+      "status": "open",
+      "relevantFiles": [],
+      "suggestedFix": "Remove the tooltip-DAG promise from the Overview bullet list. Replace with 'The histogram doubles as a clickable filter UI.' Keep the existing Out-of-Scope item about the detail dialog."
+    },
+    {
+      "id": "F-011",
+      "severity": "Medium",
+      "source": "codex",
+      "category": "US-006 / self-detection bug",
+      "sectionRef": "US-006 parallel-safety check",
+      "description": "The concurrent-job scan globs .ralph/jobs/*/job-state.json and checks status=RUNNING & terminal!=true. The current implementation job (ralph-pipeline-04-pipeline-overview-v2) itself satisfies these criteria during US-006 execution → false positive defer.",
+      "status": "open",
+      "relevantFiles": [],
+      "suggestedFix": "Add to US-006: 'Exclude the current job directory from the scan. Read the current job slug from <job_dir>/job-state.json or pass it as $CURRENT_JOB env var; skip any entry whose path matches the current job dir.' Document this in the parallel-safety steps."
+    },
+    {
+      "id": "F-012",
+      "severity": "Medium",
+      "source": "codex",
+      "category": "Signature consistency",
+      "sectionRef": "Approach > Architecture (writeSidecar pseudocode)",
+      "description": "The writeSidecar pseudocode passes generatedFromCommit into emitDerivedArtifacts, but writeSidecar today does not have a generatedFromCommit parameter. state.generatedFromCommit exists; use that, or widen writeSidecar's signature explicitly.",
+      "status": "open",
+      "relevantFiles": [
+        "scripts/lib/sync-core.mjs"
+      ],
+      "suggestedFix": "Inside writeSidecar pseudocode, replace `generatedFromCommit` with `state.generatedFromCommit` when calling emitDerivedArtifacts. Confirm callers (mergeAndWrite line 277, sync-ralph-state.mjs line 47, watcher cold-start) always set state.generatedFromCommit upstream."
+    },
+    {
+      "id": "F-013",
+      "severity": "Medium",
+      "source": "codex",
+      "category": "ESM circular import risk",
+      "sectionRef": "Files to Create / US-004",
+      "description": "emit-derived-artifacts.mjs is planned to import atomicWriteFile from sync-core.mjs, while sync-core.mjs's writeSidecar imports emit-derived-artifacts.mjs. That is a circular import that may or may not work depending on initialization order.",
+      "status": "open",
+      "relevantFiles": [
+        "scripts/lib/sync-core.mjs"
+      ],
+      "suggestedFix": "Either (a) move atomicWriteFile to a small utility module (e.g. scripts/lib/atomic-write.mjs) and have both sync-core.mjs and emit-derived-artifacts.mjs import from there, OR (b) pass atomicWriteFile as a dependency-injection parameter into emitDerivedArtifacts. Prefer (a) for simplicity; document the extraction in US-001 or US-004."
+    },
+    {
+      "id": "F-014",
+      "severity": "Medium",
+      "source": "codex",
+      "category": "Contract precision",
+      "sectionRef": "Approach > Architecture (runDurations) + Acceptance Criteria",
+      "description": "runDurations contract is imprecise: is the key the runId, taskId, or jobSlug? Plan 05 schema says additionalProperties: { type: 'number' } — but no key naming convention. Precision of values (hours, minutes, rounded to 0.1?) is unspecified.",
+      "status": "open",
+      "relevantFiles": [
+        "scripts/lib/emit-snapshot-schema.mjs",
+        "tools/overview-viewer/src/types.ts"
+      ],
+      "suggestedFix": "Define explicitly: key = runId (matching OverviewData.runs[].id from types.ts:151), value = hours rounded to 0.1 (3:30 → 3.5). Add to the architecture section and as an AC: 'runDurations is Record<runId, hours-as-number-rounded-to-1-decimal>'."
+    },
+    {
+      "id": "F-015",
+      "severity": "Medium",
+      "source": "codex",
+      "category": "Edge direction",
+      "sectionRef": "Approach > Architecture (DependencyGraph schema) + US-003",
+      "description": "DependencyGraph edge direction is not specified per type. For depends-on-story: does 'from' point at the dependent or the prerequisite? Plan 09 (MCP consumer) needs a stable convention.",
+      "status": "open",
+      "relevantFiles": [],
+      "suggestedFix": "Document: for ALL edge types, 'from' is the DEPENDENT and 'to' is the PREREQUISITE. Story A depends on Story B → edge { from: A, to: B, type: 'depends-on-story' }. Same convention for blocks (from blocks to), spawn (from spawned-by to). Add explicit note in the DependencyGraph schema section and add a US-003 AC asserting direction in a unit test."
+    },
+    {
+      "id": "F-016",
+      "severity": "Medium",
+      "source": "copilot",
+      "category": "Failure-mode specification",
+      "sectionRef": "US-001 load-prds-by-task-id",
+      "description": "Malformed PRD JSON failure mode is not specified. Plan says tests cover the case but not whether the helper throws, logs+skips, or returns diagnostics. Since it runs inside writeSidecar (called from a debounce loop), throwing could halt the watcher.",
+      "status": "open",
+      "relevantFiles": [],
+      "suggestedFix": "Spec: log to stderr with format '[load-prds-by-task-id] failed to parse <path>: <error>' and skip that PRD (continue with remaining PRDs). The helper never throws. Add to US-001 AC + test fixture with a malformed prd.json that asserts (a) stderr warning emitted, (b) other PRDs still in the returned map."
+    },
+    {
+      "id": "F-017",
+      "severity": "Medium",
+      "source": "copilot",
+      "category": "Underspecified fallback",
+      "sectionRef": "Approach > Architecture (DependencyGraph point 4 fallback) + US-003",
+      "description": "The 'PRD-level deps fallback' edge type (depends-on-task) is mentioned but the source PRD field is not named. Implementer cannot verify without guessing.",
+      "status": "open",
+      "relevantFiles": [],
+      "suggestedFix": "Name the PRD field explicitly. Inspect plugins/cache/ai-developer-toolkit/ralph-orchestration/5.41.0/schemas/prd-schema.json for top-level dependencies field. If present, document as PRD.dependencies?: string[] (array of taskIds). If absent, drop the depends-on-task fallback edge type entirely. Update US-003 AC accordingly."
+    },
+    {
+      "id": "F-018",
+      "severity": "Medium",
+      "source": "claude",
+      "category": "AC specificity",
+      "sectionRef": "Acceptance Criteria > overview.html size",
+      "description": "Size budget AC says '≤ 5% growth vs baseline measured immediately before US-005' but doesn't hard-code the baseline value.",
+      "status": "open",
+      "relevantFiles": [
+        "plans/overview.html"
+      ],
+      "suggestedFix": "Hard-code: 'Current baseline: 501,307 bytes. After US-005 lands, new size must be ≤ 526,372 bytes (1.05x baseline). Record the final byte count in the US-005 commit message.'"
+    },
+    {
+      "id": "F-019",
+      "severity": "Medium",
+      "source": "codex",
+      "category": "Test typing drift",
+      "sectionRef": "US-001",
+      "description": "tools/overview-viewer/src/__tests__/scripts.d.ts contains ambient declarations for root .mjs modules (e.g. RalphOverviewConfig). When US-001 adds new outputs and recommendations keys to scripts/lib/default-config.d.mts, this ambient file should be kept in sync or overview-viewer typecheck can drift/fail.",
+      "status": "open",
+      "relevantFiles": [
+        "tools/overview-viewer/src/__tests__/scripts.d.ts",
+        "scripts/lib/default-config.d.mts"
+      ],
+      "suggestedFix": "Add to US-001 acceptance: 'tools/overview-viewer/src/__tests__/scripts.d.ts kept in sync with the new default-config.d.mts shape. pnpm --filter @codexu/overview-viewer typecheck passes after changes.'"
+    },
+    {
+      "id": "F-020",
+      "severity": "Low",
+      "source": "codex",
+      "category": "Documentation accuracy",
+      "sectionRef": "Research Findings > Codebase Context",
+      "description": "Plan claims React 18; tools/overview-viewer/package.json uses React 19.2.0.",
+      "status": "open",
+      "relevantFiles": [
+        "tools/overview-viewer/package.json"
+      ],
+      "suggestedFix": "Change 'Vite + React 18 + TS' to 'Vite + React 19 + TS' in the Codebase Context section."
+    },
+    {
+      "id": "F-021",
+      "severity": "Low",
+      "source": "claude",
+      "category": "AC specificity",
+      "sectionRef": "Acceptance Criteria > Empty state",
+      "description": "Empty-state AC doesn't pin the testable selector/text.",
+      "status": "open",
+      "relevantFiles": [],
+      "suggestedFix": "Add to AC: 'SSR test asserts the rendered output contains the substring \"No Ralph state tracked yet\" and an element with class pipeline-overview-empty.'"
+    },
+    {
+      "id": "F-022",
+      "severity": "Low",
+      "source": "claude",
+      "category": "AC specificity",
+      "sectionRef": "Acceptance Criteria",
+      "description": "No AC mandates JSDoc on emitDerivedArtifacts (or the chosen runDurations threading approach).",
+      "status": "open",
+      "relevantFiles": [],
+      "suggestedFix": "Add AC: 'emitDerivedArtifacts has a JSDoc block describing inputs/outputs and the runDurations threading contract.' (After F-001/F-008 fix removes the mutation contract, this becomes a simple doc requirement.)"
+    },
+    {
+      "id": "F-023",
+      "severity": "Low",
+      "source": "claude",
+      "category": "Documentation clarity",
+      "sectionRef": "Files to Modify > resolve-config.mjs",
+      "description": "Plan says 'pass-through' for resolve-config.mjs without specifying behavior.",
+      "status": "open",
+      "relevantFiles": [
+        "scripts/lib/resolve-config.mjs"
+      ],
+      "suggestedFix": "Clarify: 'resolve-config.mjs — verify that recommendations.weights, recommendations.topN, outputs.recommendationsJson, outputs.dependencyGraphJson round-trip through loadConfig/resolveConfig without being filtered by any allow-list.'"
+    },
+    {
+      "id": "F-024",
+      "severity": "Medium",
+      "source": "claude",
+      "category": "AC specificity / external schema",
+      "sectionRef": "Open Questions (PRD schema verification)",
+      "description": "PRD schema verification is deferred to the implementer with medium confidence. If schema diverges, parse produces garbage silently.",
+      "status": "open",
+      "relevantFiles": [
+        "C:/Users/evmitran/.claude/plugins/cache/ai-developer-toolkit/ralph-orchestration/5.41.0/schemas/prd-schema.json"
+      ],
+      "suggestedFix": "Replace Open Question with a concrete US-001 task: 'Inspect plugins/cache/ai-developer-toolkit/ralph-orchestration/5.41.0/schemas/prd-schema.json. Confirm userStories[].id, userStories[].dependencies, userStories[].passes, and PRD-level dependencies (if any) field names. Capture findings in load-prds-by-task-id.mjs JSDoc and update fixture tests to match the verified schema.'"
+    }
+  ]
+}

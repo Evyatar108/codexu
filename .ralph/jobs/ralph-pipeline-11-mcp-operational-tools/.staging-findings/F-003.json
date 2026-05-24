@@ -1,0 +1,19 @@
+{
+  "id": "F-003",
+  "severity": "High",
+  "source": "claude",
+  "classification": "fixable",
+  "phase": "code",
+  "category": "Completeness",
+  "sectionRef": "Acceptance Criteria — sync.now concurrent error contract",
+  "description": "sync.now returns 'sync already in progress' for concurrent calls, but the plan AC and README inconsistency require 'another sync in progress' (and the sync-lock diagnostic prose throughout the codebase already uses that exact wording). The current string also diverges from the matching build.ts contract which correctly returns 'another build in progress'.",
+  "status": "open",
+  "fixedInIteration": null,
+  "resolution": null,
+  "relevantFiles": [
+    "tools/overview-mcp/src/tools/sync-now.ts:63",
+    "tools/overview-mcp/src/__tests__/sync-now.test.ts:87",
+    "tools/overview-mcp/README.md:142"
+  ],
+  "suggestedFix": "Change the AlreadyRunningError branch in sync-now.ts to return { ok: false, error: 'another sync in progress' }; update the assertion in sync-now.test.ts and the README sentence to match."
+}

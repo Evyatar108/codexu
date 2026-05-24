@@ -1,0 +1,82 @@
+{
+  "storyId": "US-005",
+  "verifiedEvidence": [
+    {
+      "criterion": "AC-001 temporary smoke copy outside repo loaded by file://",
+      "command": "headless Edge smoke script using tempRoot under os.tmpdir()",
+      "result": "PASS: tempRoot=C:/Users/evmitran/AppData/Local/Temp/overview-smoke-z69y13; outsideRepo=true; Edge loaded temporary file:// pages; tempRemoved=true after run.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "AC-002 brainstorm path on agent-comms",
+      "command": "headless Edge transition smoke for agent-comms",
+      "result": "PASS 4/4: brainstorm-ready -> brainstorm-in-progress -> brainstorm-review -> plan-ready. Badge classes normalized to b-<phase>; classifyCmd/filter/Today buckets were brainstorm/brainstorm/brainstorm/ready; order buckets followed phase; badge backgrounds changed each transition.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "AC-003 standard path on 1b-multidev",
+      "command": "headless Edge transition smoke for 1b-multidev",
+      "result": "PASS 6/6: plan-ready -> plan-in-progress -> plan-review -> impl-ready -> impl-in-progress -> shipped. Badge, filter, Today, order, and kanban phase-pill assertions all passed; shipped classified closed for filters and shipped for order.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "AC-004 fused path on codex-claude-md-autoload",
+      "command": "headless Edge transition smoke for codex-claude-md-autoload",
+      "result": "PASS 3/3: plan-ready -> impl-in-progress -> shipped. Badge normalization, classifier/filter, Today bucket, order bucket, and non-transparent background assertions all passed.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "AC-005 planOnly path on codex-parity-audit",
+      "command": "headless Edge transition smoke for codex-parity-audit",
+      "result": "PASS 4/4: plan-ready -> plan-in-progress -> plan-review -> closed. Badge normalization, classifier/filter, Today bucket, order bucket, and kanban phase-pill assertions all passed; closed order bucket stayed distinct from shipped.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "AC-006 blocked precedence smoke",
+      "command": "headless Edge transition smoke for perf-WS2 phase=plan-ready status=blocked",
+      "result": "PASS: classifyCmd returned blocked; matching blocked filter left the row visible; Today hold bucket contained perf-WS2; data-cmd-status remained ready, proving sort/order used phase while filter/Today used status.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "AC-007 backwards-compatible legacy b-ready row",
+      "command": "headless Edge smoke injected a row with only <span class=\"cmd-badge b-ready\">",
+      "result": "PASS: legacy row had no data-task-phase, kept b-ready, computed background rgba(122, 162, 247, 0.18), and classifyCmd returned ready via legacy fallback.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "AC-008 dark and light theme verification",
+      "command": "headless Edge default light pass and --force-dark-mode pass",
+      "result": "PASS: light mode matchMedia dark=false, bodyBg=rgb(250,250,250); dark mode matchMedia dark=true, bodyBg=rgb(15,17,21); both passes had zero captured console errors and visible kanban grid, command badge, Today panel, filter chip, and 23 spawned-from / 8 spawned-children relationship elements.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "AC-009 smoke copy discarded and real overview unchanged",
+      "command": "temp cleanup plus grep counts on plans/overview.html",
+      "result": "PASS: temporary smoke directories were removed; real overview still has data-task-phase count=49 and data-task-status count=49, with canonical target rows unchanged (agent-comms/perf-WS2 blocked plan-ready, 1b-multidev/codex-claude-md-autoload plan-ready ok, codex-parity-audit shipped ok).",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "AC-010 pass/fail recorded per transition and theme",
+      "command": "git commit --allow-empty with smoke summary; progress/evidence update",
+      "result": "PASS: verification commit 5a369d6f records 19/19 transition checks and light/dark theme pass summary in the commit body; full per-criterion pass/fail is recorded in prd.json verifiedEvidence and progress.txt because there is no PR description artifact in this local Ralph iteration.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "AC-011 dev-browser skill verification",
+      "command": "dev-browser unavailable; fallback headless Edge browser verification",
+      "result": "US-005:AC-011 override: dev-browser skill/tooling is unavailable in this environment, but installed Microsoft Edge was used headlessly over file:// temporary pages for browser-backed DOM, classifier, theme, and console-error smoke verification.",
+      "evidenceKind": "fallback"
+    },
+    {
+      "criterion": "AC-012 typecheck / JS syntax",
+      "command": "awk extract main script; node --check /tmp/overview-main.js; git diff --check",
+      "result": "PASS: node --check exited 0 for extracted main script; git diff --check exited 0 with no whitespace errors.",
+      "evidenceKind": "passed"
+    }
+  ],
+  "skippedReasons": [],
+  "notTested": [
+    "interactive DevTools visual inspection unavailable; covered by headless Edge smoke"
+  ],
+  "iterationSHA": "5a369d6fd6ff1dfb32e946f7781f9296a93bc7b4"
+}

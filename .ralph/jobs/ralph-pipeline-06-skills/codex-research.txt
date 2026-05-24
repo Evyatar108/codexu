@@ -1,0 +1,59 @@
+**Codebase Architecture**
+
+This is a pnpm monorepo using Node ESM scripts, TypeScript, React/Vite, and Vitest.
+
+Key structure:
+- `scripts/lib/`: Ralph/overview sync logic, pure derivation modules, generated artifact emitters, tests.
+- `scripts/sync-ralph-state.mjs`: one-shot/watch entrypoint for generating Ralph sidecars.
+- `tools/overview-viewer/`: React 19 + Vite dashboard, with TS types in `src/types.ts`.
+- `plans/`: generated overview artifacts and plan docs.
+- `.claude/skills/`: repo-local Claude skills already exist here, so Plan 06’s skill location matches repo convention.
+- `.ralph/`: Ralph job/group/brainstorm state. Generated overview config lives at `.ralph/overview-config.json`.
+
+The root `vitest.config.ts` includes `scripts/lib/**/*.test.mjs`, so a new `scripts/lib/derive-next-command.test.mjs` or `scripts/lib/__tests__/deriveNextCommand.test.mjs` will be picked up.
+
+**Feature-Relevant Code**
+
+Direct integration points:
+- `scripts/lib/derive-ralph-stage.mjs`: existing pure stage predicate and the canonical 10-stage model.
+- `tools/overview-viewer/src/types.ts`: defines `RalphStage`, `RalphPipelineState`, `Snapshot`, `Recommendation`; add `NextCommand` here.
+- `scripts/lib/sync-core.mjs`: builds `RalphPipelineState`. Important artifact fields:
+  - jobs get `artifacts.jobDir`
+  - groups get `artifacts.groupDir`
+  - brainstorms get `artifacts.brainstormDir`
+  - job `plan.md` is not currently emitted as `artifacts.planFile`
+- `scripts/lib/emit-snapshot.mjs`: embeds `task.ralph` into `plans/overview-snapshot.json`.
+- `scripts/lib/emit-derived-artifacts.mjs` and `scripts/lib/score-recommendations.mjs`: source of `snapshot.recommendations`.
+- `scripts/lib/default-config.mjs` / `resolve-config.mjs`: snapshot path, lock path, recommendation fallback path.
+- `scripts/lib/sync-lock.mjs` and `watch-ralph-state.mjs`: lock heartbeat behavior for stale snapshot warnings.
+- `tools/overview-viewer/src/components/TaskCommand.tsx`: optional “copy next command” UI slot; already has `QuickCopyButton` and `copyTextWithToast`.
+- `tools/overview-viewer/src/__tests__/ralphStage.test.ts`: stage test style reference.
+- `.claude/skills/{agent-browser,run-tests,terminal-emulator}/SKILL.md`: repo-local skill frontmatter/body conventions.
+- Ralph skill references exist under `C:/Users/evmitran/.claude/plugins/cache/ai-developer-toolkit/ralph-orchestration/`.
+
+Notable local state: `plans/overview-snapshot.json` is not currently present in this checkout, though Plan 05 code exists. The implementation should run `pnpm sync-ralph-state` before manual `/work-on` testing.
+
+**Technical Constraints**
+
+- Do not edit `main`; the Plan 06 worktree path does not appear to exist yet, so the implementing agent must create/use `.ralph/jobs/ralph-pipeline-06-skills/worktree`.
+- Keep `derive-next-command.mjs` pure and browser-safe if optional UI imports it. Avoid `fs` and `node:path`; use string helpers so Vite can bundle it.
+- Current artifact paths are repo-relative POSIX strings like `.ralph/jobs/x`. Avoid Windows backslash generation in command strings.
+- The plan asks for absolute `groupDir` in `/implement-with-ralph --run-only --job <absolute_groupDir>`, but `deriveNextCommand(state, task)` has no `repoRoot`, and `sync-core` stores group paths as relative. Either return the relative `groupDir` (Ralph accepts relative paths) or extend the function with an optional `{ repoRoot }` argument.
+- `planning` stage may only have `artifacts.jobDir`; `sync-core.mjs` does not populate job `planFile` or `planDraftFile`. Derive should fall back to `${jobDir}/plan.md` when no explicit plan file exists.
+- If optional UI imports the new `.mjs`, add `scripts/lib/derive-next-command.d.mts` or an ambient declaration in `tools/overview-viewer/src/__tests__/scripts.d.ts` for TS/typecheck cleanliness.
+- Ralph command syntax is stable in cached versions 5.30.0, 5.32.0, and 5.41.0 for `--from-plan`, `--run-only`, `resume <name>`, `--from-brainstorm`, and `--improve`. One caveat: Ralph’s own v5.30 docs say terminal `replan` is followed by re-invoking `/implement-with-ralph --parallel --from-plan <group_dir>/plan.md`; the Plan 06 table chooses `/plan-with-ralph --improve <jobDir>/plan.md`, so implement that deliberately or amend the plan.
+
+**Implementation Suggestions**
+
+Create `scripts/lib/derive-next-command.mjs` parallel to `derive-ralph-stage.mjs`: a small switch on `ralph.stage`, with helper functions for `jobDir`, `groupDir`, `brainstormDir`, `jobSlug/groupSlug`, and `${dir}/plan.md`.
+
+Recommended behavior:
+- Return `null` for `shipped`.
+- Return `null` or a labeled “missing artifact” only if required fields are absent; tests should cover normal populated states.
+- For `implementing`, `reviewing`, `review-fix`, and `blocked`, prefer `jobSlug`; for groups use `--run-only --job <groupDir>`.
+- For `plan-ready` with `isParallel === true`, append `--parallel --suggested-decomposition ${jobDir}/suggested-decomposition.json`.
+- Keep the version-pin comment exactly as requested.
+
+For tests, put them under `scripts/lib/` or `scripts/lib/__tests__/`, use Vitest, and cover all 10 `RalphStage` values.
+
+For skills, write Markdown instructions only; have `/work-on` shell out to Node to load the snapshot and call the pure module. Reuse `resolve-config.mjs` semantics in prose so custom snapshot/lock paths keep working.

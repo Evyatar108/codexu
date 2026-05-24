@@ -1,0 +1,74 @@
+### Codebase Architecture
+
+`D:\harness-efforts\codexu` is a pnpm monorepo. Root `package.json` and `pnpm-workspace.yaml` include `tools/overview-viewer` plus the Happy app/server/CLI packages. The relevant package is `tools/overview-viewer`, a private ESM Vite + React + TypeScript app.
+
+Key files:
+
+- `tools/overview-viewer/package.json`: package scripts are `dev`, `build`, `typecheck`, `test`; deps include React `19.2.0`, Vite `^8.0.9`, TypeScript `^5.9.3`, Vitest `^4.1.5`.
+- `tools/overview-viewer/vite.config.ts`: custom `overviewDataPlugin()` serves and inlines `plans/overview-data.js`.
+- `tools/overview-viewer/src/App.tsx`: reads `window.OVERVIEW_DATA`, reloads it during HMR via `new Function(text)()`.
+- `tools/overview-viewer/src/types.ts`: central data model for `OverviewData`, `OverviewTask`, command, kanban, phase-tree, run metadata.
+- `tools/overview-viewer/src/overviewData.ts`: global Window declaration for `OVERVIEW_DATA`.
+- `plans/overview-data.js`: hand-curated source sidecar assigning `window.OVERVIEW_DATA = {...}`.
+- `plans/overview.html`: generated static artifact; not hand-edited.
+
+Tests live under `tools/overview-viewer/src/__tests__`. `vitest.config.ts` has two projects: node SSR tests for normal `src/__tests__/**/*.test.{ts,tsx}`, and jsdom tests only under `src/__tests__/interactions`.
+
+There is currently no `scripts/lib` directory. Existing root scripts are mostly `scripts/release.cjs`, `scripts/postinstall.cjs`, and fork setup scripts.
+
+### Feature-Relevant Code
+
+Direct integration points:
+
+- `tools/overview-viewer/src/types.ts`: add `RalphStage`, `RalphPipelineState`, `OverviewRalphState`, and `ralphOverrides?: Record<string,string>` on `OverviewData`.
+- `tools/overview-viewer/src/overviewData.ts`: likely should also declare `OVERVIEW_RALPH_STATE?: OverviewRalphState` on `Window`, even if `getOverviewRalphState()` lives in `types.ts`.
+- `tools/overview-viewer/vite.config.ts`: future UI plans will need another sidecar plugin path similar to `overviewDataPath`; this foundation plan only generates files.
+- `tools/overview-viewer/src/__tests__/testData.ts`: existing tests execute `plans/overview-data.js` with `new Function('window', script)(windowValue)`. A new sidecar test can mirror this pattern.
+- `package.json`: add root script `"sync-ralph-state": "node scripts/sync-ralph-state.mjs"`.
+
+Ralph artifact examples already exist:
+
+- `.ralph/jobs/*/job-state.json`: contains `status`, `updatedAt`, `storyCompletion`, `orchestrator.phase`, `orchestrator.terminal`, `terminalReason`, `hasPrdWorthy`.
+- `.ralph/jobs/*/prd.json`: contains `branch.name`, `worktree.path`, `group`, `userStories[].passes`, `blocked`, `dependencies`.
+- `.ralph/jobs/*/code-review-findings.json` and `docs-review-findings.json`: contain `findings[].severity/status/classification`.
+- `.ralph/job-groups/overview-data-split/group.json`: group status, jobs, `lastPhase`, timestamps.
+- `.ralph/brainstorms/codex-fork-extension-strategy/brainstorm.json`: has `recommendedDirection`.
+
+Authoritative external schemas are present at:
+
+- `C:\Users\evmitran\.claude\plugins\cache\ai-developer-toolkit\ralph-orchestration\5.30.0\schemas\job-state-schema.json`
+- `...\prd-schema.json`
+- `...\group-schema.json`
+- `...\review-findings-schema.json`
+
+### Technical Constraints
+
+`plans/overview-data.js` is explicitly hand-curated and must not be written by sync code. This is documented in `tools/overview-viewer/CLAUDE.md`.
+
+The overview app depends on synchronous global sidecars. Static build currently inlines only `<script src="./overview-data.js"></script>` from `tools/overview-viewer/overview.html`; future Ralph UI work must preserve that model.
+
+`tools/overview-viewer/tsconfig.json` has `allowJs: false`, `strict: true`, `moduleResolution: "bundler"`, and `include: ["src", "vite.config.ts"]`. A TS test that statically imports `../../../../scripts/lib/derive-ralph-stage.mjs` may need an ambient declaration or typed dynamic import to satisfy typecheck.
+
+Current `.gitignore` ignores only `.ralph/**/worktree/`, not `.ralph/overview-config.local.json`. If the plan requires local config to be gitignored, add that ignore rule.
+
+The config examples are `.json` but include JSONC-style comments/header-comment language. If using `JSON.parse`, committed config and local config must be pure JSON. Otherwise the resolver needs an explicit JSONC parser, which would add dependency/scope.
+
+`rg` is unavailable in this environment, but that only affects implementation ergonomics.
+
+### Implementation Suggestions
+
+Use a small Node ESM script stack:
+
+- `scripts/lib/default-config.mjs`: plain object defaults.
+- `scripts/lib/resolve-config.mjs`: deep merge defaults, committed config, local config; resolve paths to absolute paths; freeze result.
+- `scripts/lib/derive-ralph-stage.mjs`: pure predicate, no filesystem/config.
+- `scripts/lib/sync-core.mjs`: parse `plans/overview-data.js`, walk configured `.ralph` subdirs, derive per-task state, write JS+JSON sidecars atomically.
+- `scripts/sync-ralph-state.mjs`: CLI wrapper only.
+
+For parsing `overview-data.js`, reuse the existing trusted sidecar execution pattern from `src/__tests__/testData.ts`: execute with a controlled `window` object and read `window.OVERVIEW_DATA`. That avoids brittle string parsing.
+
+For deterministic idempotency, sort discovered jobs/groups/brainstorms by slug before processing, sort unmatched entries before writing, and compute duplicate winners using `updatedAt` plus slug as a tie-breaker.
+
+For review counts, keep missing file as `undefined`; only count open `Critical|High|Medium` findings when the file exists and parses.
+
+Add a focused unit test for `deriveRalphStage`. Because of the `.mjs` import/typecheck constraint, consider a tiny declaration file under `tools/overview-viewer/src/__tests__/scripts.d.ts` or use dynamic import with an explicit local function type.

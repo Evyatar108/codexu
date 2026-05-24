@@ -1,0 +1,56 @@
+{
+  "storyId": "US-009",
+  "verifiedEvidence": [
+    {
+      "criterion": "F-006: Before cascade, read `.ralph/jobs/ralph-pipeline-06-skills/progress.json`. Plan 06 is TERMINAL if `progress.terminal === true` OR the directory contains only `plan.md` (not yet started)",
+      "command": "test ! -f .ralph/jobs/ralph-pipeline-06-skills/progress.json; jq -r .terminal,.terminalReason orchestrator-terminal.json; jq -r .status,.orchestrator.terminal,.storyCompletion.passed,.storyCompletion.total job-state.json",
+      "result": "PASS: progress.json was absent; Plan 06 terminal markers showed orchestrator-terminal terminal=true, terminalReason=complete, job-state status=COMPLETED, orchestrator.terminal=true, and 6/6 stories passed.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "F-006: If `progress.json` exists with `terminal !== true`, DEFER cascade by appending entries to `<jobDir>/notepad.md` under `## Deferred Cascade` and leaving `plans/ralph-pipeline-INDEX.md` UNTOUCHED",
+      "command": "test ! -f .ralph/jobs/ralph-pipeline-06-skills/progress.json && git show --name-only --format=%B HEAD --",
+      "result": "PASS: deferral condition was false because progress.json did not exist and Plan 06 terminal markers showed complete; direct cascade touched only plans/ralph-pipeline-INDEX.md.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "If Plan 06 is terminal (or unstarted): update `plans/ralph-pipeline-INDEX.md` Source-of-truth modules table with the 5 new modules",
+      "command": "grep -nE 'parse-notepad|derive-pr-links|append-journal|useActivityEvents|RecentActivity' plans/ralph-pipeline-INDEX.md",
+      "result": "PASS: Source-of-truth table contains the five Plan 07 module rows at lines 193-195 and 201-202.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Extend the `RalphPipelineState` row in that table with the 6 new optional fields",
+      "command": "grep -n 'RalphPipelineState' plans/ralph-pipeline-INDEX.md",
+      "result": "PASS: line 211 documents optional branchName, deferredQuestionsCount, deferredQuestionsPreview, mergeCommit, prUrl, and storyDoctorInterventions fields.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Verify the DAG diagram still reflects Plan 07's 'depends on Plan 05' edge",
+      "command": "grep -nE '07-context|depends on 05' plans/ralph-pipeline-INDEX.md",
+      "result": "PASS: DAG still shows 07-context under the Plan 05 branch, and the parallel-safe grouping states 07-context depends on 05 at line 137.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Update applied atomically in the final implementation commit; commit message lists each diff (file, lines, change) for reviewer verification",
+      "command": "git show --stat --format=%B --name-only HEAD --",
+      "result": "PASS: commit 72c002c0 has subject feat: US-009 - Cascade refresh..., touches only plans/ralph-pipeline-INDEX.md, and its body lists file/line summaries for lines 193-195, 201-202, and 211.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "All other ACs (US-001 through US-008) pass before US-009 starts",
+      "command": "jq -r '.userStories[] | select(.id >= \"US-001\" and .id <= \"US-008\") | \"(.id)=(.passes)\"' prd.json",
+      "result": "PASS: canonical PRD showed US-001 through US-008 all passes=true before US-009 was updated.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Typecheck passes (markdown-only change -- no source impact)",
+      "command": "pnpm --filter @codexu/overview-viewer typecheck",
+      "result": "PASS: tsc --noEmit completed with exit=0; log captured at .test-output/overview-viewer.typecheck.log.",
+      "evidenceKind": "passed"
+    }
+  ],
+  "skippedReasons": [],
+  "notTested": [],
+  "iterationSHA": "72c002c0f1bcabb4e6626f0e2b7b97ebeeccfcc6"
+}

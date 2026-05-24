@@ -1,0 +1,57 @@
+### Codebase Architecture
+
+`D:\harness-efforts\codexu` is a pnpm monorepo for the Happy fork plus Codex/Ralph tooling. The relevant stack is Node/TypeScript, React 19, Vite, Vitest, and plain ESM scripts.
+
+The overview dashboard is split into:
+
+- `plans/overview-data.js` — hand-curated `window.OVERVIEW_DATA`.
+- `scripts/sync-ralph-state.mjs` + `scripts/lib/sync-core.mjs` — one-shot Ralph state sync.
+- `plans/overview-ralph-state.{js,json}` — generated sidecar output.
+- `tools/overview-viewer/` — React/Vite static dashboard.
+- `.ralph/overview-config.json` and `scripts/lib/default-config.mjs` — config-driven paths for `.ralph/jobs`, `.ralph/job-groups`, `.ralph/brainstorms`, and sidecar outputs.
+
+Ralph itself is a separate plugin repo at `D:\ai-developer-toolkit\plugins\ralph`. The source tree currently reports `ralph-orchestration` version `5.35.0`; the plan’s read references point at cached install version `5.30.0` under `C:\Users\evmitran\.claude\plugins\cache\...`.
+
+### Feature-Relevant Code
+
+Key codexu files:
+
+- `plans/ralph-pipeline-10-ralph-handoff.md` — source plan for this doc deliverable.
+- `plans/ralph-pipeline-01-foundation.md` — defines the planned matching tiers and explicitly says Plan 01 does not consume `overviewTaskId` yet.
+- `plans/ralph-pipeline-INDEX.md` — DAG/index; Plan 10 is standalone.
+- `scripts/lib/sync-core.mjs` — `walkRalphState()` reads Ralph artifacts; `resolveTaskMatch()` currently matches only `ralphOverrides[slug]` then slug equality.
+- `tools/overview-viewer/src/types.ts` — `OverviewTask.id`; `RalphPipelineState.matchSource` already includes reserved `'overviewTaskId'`; `OverviewData.ralphOverrides`.
+- `.ralph/overview-config.json` — confirms Ralph artifact directories and sidecar paths.
+
+Relevant Ralph plugin targets:
+
+- `skills/convert-to-ralph-prd/SKILL.md` — batch flags do not include `--overview-task-id`; Step 8 writes `prd.json`; Step 9 validates it.
+- `skills/decompose-plan/SKILL.md` — creates `group.json`, invokes `convert-to-ralph-prd --batch`, then mutates `group.json` via `lib/atomic_update_group.sh`.
+- `skills/brainstorm-with-ralph/SKILL.md` — defines `brainstorm.json` inline; Phase 5 writes `selected-direction.md` without YAML front matter today.
+- `skills/plan-with-ralph/SKILL.md` — `--from-brainstorm` copies `selected-direction.md` verbatim into staging `feature-request.txt`; generated plans start with `# Implementation Plan: ...`.
+- `skills/implement-with-ralph/SKILL.md` — Phase 0 requires the first line of `--from-plan` to start with `# Implementation Plan:`.
+- `schemas/prd-schema.json` and `schemas/group-schema.json` — no existing `overviewTaskId`; no collision found in v5.30.0 cache or v5.35.0 source.
+- There is no `brainstorm-schema.json` in `schemas/`.
+- `tests/test-no-prohibited-changes.sh` in the Ralph source currently rejects changes to `prd-schema.json` and group-schema shape, so future plugin patches must update that guard.
+
+### Technical Constraints
+
+The current plan is doc-only: create `plans/ralph-overview-task-id.md` in codexu. Do not patch Ralph, do not backfill existing `.ralph` artifacts, and do not modify `plans/overview-data.js`.
+
+The requested `overviewTaskId` must remain optional. Existing PRDs, groups, and brainstorms omit it; codexu sync must continue falling back to `ralphOverrides` and slug equality until a later consumer patch reads the field.
+
+Important caveat: adding YAML front matter to generated `plan.md` conflicts with current `implement-with-ralph` Phase 0, which validates the first line as `# Implementation Plan:`. The handoff doc should explicitly tell the future Ralph implementation cycle to either patch `implement-with-ralph` to tolerate leading YAML front matter or choose a metadata format that preserves the current first-line header contract.
+
+Also, the acceptance criterion says “6 sections” but names seven: Context, Patches required, Back-compat, Out of scope, Acceptance criteria, Tests, How to pick this up. The doc should include all seven named headings.
+
+### Implementation Suggestions
+
+For this plan, write the markdown doc mostly from the supplied template, but add a short “Ralph internals checked” note:
+
+- Researched against cached `ralph-orchestration` v5.30.0.
+- Source tree at `D:\ai-developer-toolkit\plugins\ralph` currently reports v5.35.0, so the future patch cycle must re-check drift.
+- `overviewTaskId` does not currently exist in PRD/group/brainstorm artifacts.
+- `plan.md` YAML front matter requires an `implement-with-ralph` compatibility change.
+- Ralph’s `test-no-prohibited-changes.sh` must be updated when schemas change.
+
+For the future Ralph patch plan, the natural implementation path is to add `overviewTaskId?: string | null` at top level, thread it through existing jq/JSON write points, pass it from `decompose-plan` into `convert-to-ralph-prd --batch`, and keep `group.json` mutations behind `atomic_update_group`. Tests should cover the flag, schema allowance, group propagation, brainstorm finalize output, and `plan-with-ralph --from-brainstorm` propagation.

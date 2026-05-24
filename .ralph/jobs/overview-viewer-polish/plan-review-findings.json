@@ -1,0 +1,345 @@
+{
+  "planFile": "D:/harness-efforts/codexu/.ralph/jobs/.staging/20260518-040659/draft-plan.md",
+  "repoDir": "D:/harness-efforts/codexu",
+  "findings": [
+    {
+      "id": "F-001",
+      "severity": "High",
+      "source": "consensus",
+      "detectedBy": [
+        "codex",
+        "copilot"
+      ],
+      "classification": "fixable",
+      "phase": "plan-review",
+      "category": "Feasibility",
+      "sectionRef": "US-012 Radix Popover for FilterChips",
+      "description": "US-012 swaps Toolbar's <details className='toolbar-filters'> for a Radix Popover, but App.tsx:66-70 (activateWorkstream) currently opens the filter UI by querying the .toolbar-filters DOM and mutating HTMLDetailsElement.open. After US-012, this contract breaks silently and the workstream-pill → filter-popover activation regresses. The plan's file inventory only touches App.tsx in US-016/US-017/US-019; US-012 must include App.tsx changes to lift filter open-state into App or expose a setOpen callback through Toolbar's prop interface.",
+      "relevantFiles": [
+        "tools/overview-viewer/src/App.tsx:66",
+        "tools/overview-viewer/src/components/Toolbar.tsx"
+      ],
+      "suggestedFix": "Extend US-012's file list to include tools/overview-viewer/src/App.tsx and add an acceptance criterion: 'activateWorkstream callback still opens the filter UI after the Radix Popover swap.' Refactor: lift filter-open state up to App via useState, pass openFilters/setOpenFilters callbacks into Toolbar, and have activateWorkstream call setOpenFilters(true).",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Extended US-012 scope to include App.tsx (lifting filter-open state so activateWorkstream can drive the Radix Popover), added a Risk Areas entry with mitigation + acceptance criterion, and updated the file inventory, story table, and cluster analysis to reflect the additional App.tsx edit."
+    },
+    {
+      "id": "F-002",
+      "severity": "High",
+      "source": "copilot",
+      "detectedBy": [
+        "copilot"
+      ],
+      "classification": "fixable",
+      "phase": "plan-review",
+      "category": "Feasibility",
+      "sectionRef": "US-012, US-015 — Expand/Collapse all keyboard shortcut regression",
+      "description": "App.tsx:58-64 setAllDetails() does document.querySelectorAll('details').forEach(d => d.open = open) for the 'Expand all' / 'Collapse all' keyboard shortcut. Today this incidentally closes the filter <details> too. After US-012 swaps the filter for a Radix Popover (not a <details>), the shortcut silently stops controlling the filter. After US-015 if bucket headers also use Radix Collapsible instead of native <details>, the shortcut stops controlling buckets. Either Radix changes must keep <details> as the underlying element OR setAllDetails must be reworked to control bucket state via the new persistent-expanded hook AND any Radix-managed open state.",
+      "relevantFiles": [
+        "tools/overview-viewer/src/App.tsx:58",
+        "tools/overview-viewer/src/hooks/useKeyboardShortcuts.ts"
+      ],
+      "suggestedFix": "Add an acceptance criterion to both US-012 and US-015: 'Expand-all (e) and Collapse-all (c) keyboard shortcuts continue to control the same set of surfaces they did before this story.' Bucket headers in US-015 should remain native <details class='cmd-bucket'> (the plan already says this — confirm). For US-012, either keep the filter as native <details> styled with Popover-like UX, OR refactor setAllDetails to dispatch to a registered set of open-state controllers.",
+      "status": "wont_fix",
+      "fixedInIteration": 3,
+      "resolution": "Plan already contains the required per-story acceptance criteria for US-012 (line 170) and US-015 (line 172) covering the setAllDetails expand/collapse keyboard shortcut regression — both explicitly mandate the shortcuts keep controlling filter and bucket surfaces, with the exact mitigation the reviewer suggested."
+    },
+    {
+      "id": "F-003",
+      "severity": "High",
+      "source": "consensus",
+      "detectedBy": [
+        "codex",
+        "copilot"
+      ],
+      "classification": "fixable",
+      "phase": "plan-review",
+      "category": "Ordering",
+      "sectionRef": "US-013 bucket-level indeterminate ordering",
+      "description": "US-013 includes 'adds bucket-level indeterminate' for the BulkSelectCheckbox, but CommandList.tsx today renders a flat tasks.map(...) with no bucket DOM. Buckets only exist after US-015 lands. As written, US-013 cannot deliver the bucket-level indeterminate AC. Options: (a) split US-013 into US-013a (row-level Radix Checkbox migration) + US-013b (bucket-level indeterminate after US-015), or (b) reorder so US-015 lands before US-013.",
+      "relevantFiles": [
+        "tools/overview-viewer/src/components/TaskCommand.tsx",
+        "tools/overview-viewer/src/components/CommandList.tsx"
+      ],
+      "suggestedFix": "Recommended: split US-013 into US-013a (Radix Checkbox swap on BulkSelectCheckbox, row-level only) and a new US-015b (bucket-level indeterminate checkbox, depends on US-015 bucket DOM). Or alternatively, move bucket-level indeterminate behavior into US-015 as a sub-criterion.",
+      "status": "fixed",
+      "fixedInIteration": 4,
+      "resolution": "Moved bucket-level indeterminate behavior from US-013 into US-015 (per the finding's suggested alternative) since the .cmd-bucket DOM only exists after US-015 lands; updated US-013 title, US-015 title + files + per-story acceptance criterion, the phase-d-bucket-headers cluster file-overlap, and the Files-to-Modify section."
+    },
+    {
+      "id": "F-004",
+      "severity": "High",
+      "source": "consensus",
+      "detectedBy": [
+        "codex",
+        "copilot"
+      ],
+      "classification": "fixable",
+      "phase": "plan-review",
+      "category": "Criteria Quality",
+      "sectionRef": "Acceptance Criteria > verification gate for Radix interaction stories",
+      "description": "vitest.config.ts runs in environment: 'node', and existing tests are SSR via react-dom/server. This stack cannot exercise Radix Popover/Dialog open-close, focus trap, Escape-to-dismiss, portal mount points, or the <900px hamburger from US-018. The plan's 'no console errors in pnpm overview' and 'file:// opens cleanly' are not deterministic autonomous gates for those stories.",
+      "relevantFiles": [
+        "tools/overview-viewer/vitest.config.ts",
+        "tools/overview-viewer/src/__tests__/topLevelSurfaces.test.tsx"
+      ],
+      "suggestedFix": "Add an explicit verification path for Radix interaction stories (US-011, US-012, US-013, US-014, US-018). Options: (a) add a second vitest project with environment: 'jsdom' + @testing-library/react + @testing-library/user-event for interaction tests, OR (b) add a small Playwright/agent-browser smoke covering popover open/close + Escape, dialog focus trap, hamburger toggle at 800px viewport, file:// load with zero console errors. If switching to jsdom in the existing config, existing 24 SSR tests need // @vitest-environment node pragmas or a split-projects config. Document the transition risk in the story AC.",
+      "status": "fixed",
+      "fixedInIteration": 5,
+      "resolution": "Added per-story acceptance criterion gating the Radix interaction stories (US-011/US-012/US-013/US-014/US-018) on a verification harness installed by US-010 — either a split-projects vitest config with jsdom+@testing-library or a Playwright/agent-browser smoke — with explicit per-story test cases and documented transition risk for the existing 24 SSR tests."
+    },
+    {
+      "id": "F-005",
+      "severity": "High",
+      "source": "codex",
+      "detectedBy": [
+        "codex"
+      ],
+      "classification": "fixable",
+      "phase": "plan-review",
+      "category": "Ordering",
+      "sectionRef": "US-006 vs US-001/US-003/US-004 — animation guard ordering",
+      "description": "Global AC says every story's added animation must degrade under prefers-reduced-motion: reduce, but US-001 (smooth details), US-003 (flash-pulse on hash nav), and US-004 (sticky-toolbar elevation) all add animation BEFORE US-006 installs the global guard. Each of those stories' acceptance criteria require the animation to honor reduced-motion, but without US-006's guard at the top of styles.css, that requires per-rule @media (prefers-reduced-motion: reduce) blocks in every animation rule.",
+      "relevantFiles": [
+        "tools/overview-viewer/src/styles.css"
+      ],
+      "suggestedFix": "Reorder Phase A: US-006 (global reduced-motion guard) lands FIRST, before US-001/US-003/US-004. Alternative: fold US-006 into US-001 as a prerequisite step. Either way, the guard must be in place before any animation rule is added.",
+      "status": "fixed",
+      "fixedInIteration": 6,
+      "resolution": "Reordered Phase A so US-006 (global prefers-reduced-motion guard) is the first story; added US-006 as an explicit dependency for US-001/US-003/US-004 in the story table and in the phase-a-styles cluster, with a rationale note stating the guard must precede any animation rule."
+    },
+    {
+      "id": "F-006",
+      "severity": "High",
+      "source": "consensus",
+      "detectedBy": [
+        "codex",
+        "copilot"
+      ],
+      "classification": "fixable",
+      "phase": "plan-review",
+      "category": "Completeness",
+      "sectionRef": "Files to Create/Modify > package.json — missing root pnpm-lock.yaml",
+      "description": "US-010/US-011/US-012/US-013 add Radix dependencies to tools/overview-viewer/package.json, but the workspace lockfile at the root (D:/harness-efforts/codexu/pnpm-lock.yaml) is not listed in any story's modified-file inventory. This is a pnpm workspace — dependency additions land in the root lockfile, not under tools/overview-viewer/. Frozen-lockfile CI installs and reproducible builds will fail if the lockfile is not committed alongside package.json. Copilot reframed this as a 'scope drift' issue — autonomous agents following the plan literally may skip-commit the root lockfile.",
+      "relevantFiles": [
+        "pnpm-lock.yaml",
+        "tools/overview-viewer/package.json"
+      ],
+      "suggestedFix": "Add pnpm-lock.yaml to the 'Modified (existing)' file list for every Radix story (US-010, US-011, US-012, US-013). Add to the global acceptance criteria: 'The root pnpm-lock.yaml is regenerated by pnpm install and committed alongside any tools/overview-viewer/package.json change.'",
+      "status": "fixed",
+      "fixedInIteration": 7,
+      "resolution": "Added pnpm-lock.yaml to the Modified files list for Radix stories US-010/011/012/013, added a global acceptance criterion requiring lockfile regeneration via pnpm install (verified by pnpm install --frozen-lockfile) on any package.json change, and reflected the lockfile in the story decomposition table and Phase C cluster file-overlap evidence."
+    },
+    {
+      "id": "F-007",
+      "severity": "High",
+      "source": "codex",
+      "detectedBy": [
+        "codex"
+      ],
+      "classification": "fixable",
+      "phase": "plan-review",
+      "category": "Feasibility",
+      "sectionRef": "US-002 search highlighting — file list incomplete",
+      "description": "US-002's file list does not include App.tsx or CommandList.tsx, but the search query state lives in useMultiAxisFilter (called from App.tsx) and TaskCommand receives only visibleTaskIds via CommandList — no query prop. To highlight matches in command rows, the query string must be threaded App.tsx → CommandList → TaskCommand. With only utils/searchHighlighting.ts, utils/filters.ts, and components/TaskCommand.tsx listed, US-002 cannot be implemented cleanly.",
+      "relevantFiles": [
+        "tools/overview-viewer/src/App.tsx",
+        "tools/overview-viewer/src/components/CommandList.tsx",
+        "tools/overview-viewer/src/components/TaskCommand.tsx"
+      ],
+      "suggestedFix": "Extend US-002's file list to include tools/overview-viewer/src/App.tsx and tools/overview-viewer/src/components/CommandList.tsx. Add to US-002 the threading requirement: 'pass the active search query string as a prop from App.tsx through CommandList to TaskCommand for use in highlightMatches.'",
+      "status": "fixed",
+      "fixedInIteration": 8,
+      "resolution": "Added App.tsx and CommandList.tsx to US-002's file list (in both the Modified (existing) section and the story-decomposition table), documented the query-string threading requirement (App.tsx → CommandList → TaskCommand → highlightMatches), and updated the phase-a-renderers cluster file-overlap evidence to reflect CommandList.tsx now being shared between US-002 and US-005."
+    },
+    {
+      "id": "F-008",
+      "severity": "High",
+      "source": "codex",
+      "detectedBy": [
+        "codex"
+      ],
+      "classification": "fixable",
+      "phase": "plan-review",
+      "category": "Completeness",
+      "sectionRef": "US-015 missing App.tsx top-level integration",
+      "description": "App.tsx currently calls useHashNav(expandedControls.setTaskExpanded) and setAllDetails knows only task IDs. US-015 introduces bucket-level expand/collapse state via usePersistentExpanded extension AND walk-up hash nav. These changes require top-level threading: the new setBucketExpanded/isBucketExpanded controls must reach useHashNav, and setAllDetails (Expand-all/Collapse-all) must also affect buckets. US-015's file list does not include App.tsx.",
+      "relevantFiles": [
+        "tools/overview-viewer/src/App.tsx",
+        "tools/overview-viewer/src/hooks/usePersistentExpanded.ts",
+        "tools/overview-viewer/src/hooks/useHashNav.ts"
+      ],
+      "suggestedFix": "Extend US-015's file list to include tools/overview-viewer/src/App.tsx. Add to US-015 the threading requirement: 'pass bucket open-state controls from usePersistentExpanded through CommandList; useHashNav receives both task and bucket setters and walks DOM up to .cmd-bucket before scrolling.' Confirm setAllDetails affects both task and bucket details (or document that it currently only targets task <details> and that the shortcut is intentionally task-only).",
+      "status": "wont_fix",
+      "resolution": "Skipped: agent failed to emit <review-meta> on 2 consecutive iterations"
+    },
+    {
+      "id": "F-009",
+      "severity": "High",
+      "source": "claude",
+      "detectedBy": [
+        "claude"
+      ],
+      "classification": "fixable",
+      "phase": "plan-review",
+      "category": "Feasibility",
+      "sectionRef": "US-015 walk-up hash nav — missing pure-function util",
+      "description": "Plan's Risk Areas mention 'extract find-parent-bucket-id-for-task logic into a util that's testable without DOM' but the 'Files to Create' section does not list this util. Risk: implementer may ship the walk-up logic inline in useHashNav (DOM-coupled) and fail the testability AC since vitest is environment: 'node'.",
+      "relevantFiles": [
+        "tools/overview-viewer/src/utils/bucketNavigation.ts"
+      ],
+      "suggestedFix": "Add tools/overview-viewer/src/utils/bucketNavigation.ts to US-015's new-file list. Function signature: getBucketIdForTask(taskId: string, tasks: OverviewTask[]): string | null. Test it via a new tools/overview-viewer/src/__tests__/bucketNavigation.test.ts (already listed as hashNavBucket.test.ts in the plan — rename for clarity).",
+      "status": "fixed",
+      "fixedInIteration": 3,
+      "resolution": "Added src/utils/bucketNavigation.ts (with signature getBucketIdForTask(taskId, tasks)) to the New Files list for US-015, renamed src/__tests__/hashNavBucket.test.ts to bucketNavigation.test.ts, and propagated the new util into the US-015 table row, phase-d-bucket-headers cluster file-overlap evidence, and the Risk Areas mitigation note so the testability AC is enforceable."
+    },
+    {
+      "id": "F-010",
+      "severity": "High",
+      "source": "claude",
+      "detectedBy": [
+        "claude"
+      ],
+      "classification": "fixable",
+      "phase": "plan-review",
+      "category": "Criteria Quality",
+      "sectionRef": "Acceptance Criteria > per-story specificity",
+      "description": "Per-story acceptance criteria are deferred to stories-outline.md (Phase 5 of plan-with-ralph), but the plan's global ACs (typecheck, tests, file:// build, < 500 KB) are insufficient for autonomous verification of behavioral stories. For example, US-007's toast behavior, US-015's bucket count summary, US-016's metrics calculation all need per-story ACs to be verifiable.",
+      "relevantFiles": [],
+      "suggestedFix": "Either inline 2-4 concrete acceptance criteria per story directly in the 'Preliminary Story Decomposition' table (a new 'Key ACs' column), or commit to generating stories-outline.md with explicit per-story criteria as a prerequisite gate before any implementation begins. The simpler fix is the table-column approach.",
+      "status": "fixed",
+      "fixedInIteration": 4,
+      "resolution": "Added a new 'Per-story Acceptance Criteria (concrete)' subsection inlining 2-5 verifiable acceptance criteria for the 13 stories that lacked them (US-001..US-010, US-016, US-017, US-019), so autonomous verification no longer depends on the deferred stories-outline.md."
+    },
+    {
+      "id": "F-011",
+      "severity": "Medium",
+      "source": "codex",
+      "detectedBy": [
+        "codex"
+      ],
+      "classification": "fixable",
+      "phase": "plan-review",
+      "category": "Feasibility",
+      "sectionRef": "US-015 phase bucket semantics",
+      "description": "US-015's 'phase bucket' language is ambiguous. CommandList.tsx today sorts by lastTouchedAt and styles.css orders rows via data-cmd-status (which comes from PHASE_TO_ORDER_BUCKET in utils/taskClassification.ts), not from raw task.phase. The plan should define whether buckets are raw phases (closed/plan-ready/shipped) or existing order buckets (brainstorm/shipped/closed/inprogress/ready) — they're different.",
+      "relevantFiles": [
+        "tools/overview-viewer/src/utils/taskClassification.ts"
+      ],
+      "suggestedFix": "Add to US-015 description: 'Buckets are the existing orderBucket values from PHASE_TO_ORDER_BUCKET in utils/taskClassification.ts (brainstorm, shipped, closed, inprogress, ready), not raw task.phase values. Bucket IDs in the DOM use format cmd-bucket-<orderBucket> (e.g., cmd-bucket-ready, cmd-bucket-shipped).'",
+      "status": "open"
+    },
+    {
+      "id": "F-012",
+      "severity": "Medium",
+      "source": "codex",
+      "detectedBy": [
+        "codex"
+      ],
+      "classification": "fixable",
+      "phase": "plan-review",
+      "category": "Completeness",
+      "sectionRef": "US-002 safe highlighting across trusted-HTML boundaries",
+      "description": "TaskCommand.tsx renders descriptionHtml and warning.html via dangerouslySetInnerHTML. The highlighter must not rewrite inside HTML tag names or attribute values, and must escape regex metacharacters in the user-typed query.",
+      "relevantFiles": [
+        "tools/overview-viewer/src/components/TaskCommand.tsx",
+        "tools/overview-viewer/src/utils/searchHighlighting.ts"
+      ],
+      "suggestedFix": "Add to US-002 acceptance criteria: 'highlightMatches(html, query) escapes regex metacharacters in the query and only wraps matches in text nodes, not inside tags or attributes. Skip <code>...</code> blocks. Verified by unit tests in searchHighlighting.test.ts.'",
+      "status": "open"
+    },
+    {
+      "id": "F-013",
+      "severity": "Medium",
+      "source": "codex",
+      "detectedBy": [
+        "codex"
+      ],
+      "classification": "fixable",
+      "phase": "plan-review",
+      "category": "Completeness",
+      "sectionRef": "US-007 CopyToast ownership",
+      "description": "Plan creates CopyToast.tsx but doesn't say where it mounts or how copy buttons trigger it. Is it app-level (one toast surface) or row-local (N toasts)? How do CopyName, CopyCommand, and bulk-copy all dispatch to it?",
+      "relevantFiles": [
+        "tools/overview-viewer/src/components/CopyToast.tsx",
+        "tools/overview-viewer/src/App.tsx"
+      ],
+      "suggestedFix": "Add to US-007 description: 'CopyToast is mounted at App.tsx (single surface), state managed by a new useToast hook (or React context). All copy buttons — CopyName, CopyCommand, BulkCopy, and the future markdown-link button from US-008 — dispatch via the same hook. Toast auto-dismisses after 1.2s.' Add App.tsx to US-007's modified-file list.",
+      "status": "open"
+    },
+    {
+      "id": "F-014",
+      "severity": "Medium",
+      "source": "claude",
+      "detectedBy": [
+        "claude"
+      ],
+      "classification": "fixable",
+      "phase": "plan-review",
+      "category": "Completeness",
+      "sectionRef": "Acceptance Criteria > artifact commit strategy",
+      "description": "Plan recommends per-story commits of plans/overview.html, but doesn't encode this as a global AC. Autonomous agents need clarity on whether to commit the artifact, whether to put it in .gitignore, and how to label the commits.",
+      "relevantFiles": [
+        "plans/overview.html",
+        ".gitignore"
+      ],
+      "suggestedFix": "Add to global acceptance criteria: 'Each story commits the regenerated plans/overview.html alongside its source changes. The artifact is NOT in .gitignore. Commit messages reference the story ID + a separate note like \"Regenerated via pnpm overview:build\" so reviewers can skip the artifact diff.' Add a sanity check: ls -la plans/overview.html shows size < 500000 bytes.",
+      "status": "open"
+    },
+    {
+      "id": "F-015",
+      "severity": "Medium",
+      "source": "codex",
+      "detectedBy": [
+        "codex"
+      ],
+      "classification": "fixable",
+      "phase": "plan-review",
+      "category": "Criteria Quality",
+      "sectionRef": "Acceptance Criteria > Radix dependency versions",
+      "description": "US-010/US-011/US-012/US-013 do not name exact Radix packages or version constraints. Autonomous agent might pull arbitrary major versions.",
+      "relevantFiles": [
+        "tools/overview-viewer/package.json"
+      ],
+      "suggestedFix": "Pin exact Radix package names and version ranges per story: US-010 adds '@radix-ui/react-tooltip': '^1.1.x'; US-011 adds '@radix-ui/react-dialog': '^1.1.x'; US-012 adds '@radix-ui/react-popover': '^1.1.x' AND '@radix-ui/react-toggle-group': '^1.1.x'; US-013 adds '@radix-ui/react-checkbox': '^1.1.x'. Verify each at current latest stable before merging.",
+      "status": "open"
+    },
+    {
+      "id": "F-016",
+      "severity": "Medium",
+      "source": "copilot",
+      "detectedBy": [
+        "copilot"
+      ],
+      "classification": "fixable",
+      "phase": "plan-review",
+      "category": "Criteria Quality",
+      "sectionRef": "Acceptance Criteria > bundle-size measurement step",
+      "description": "Plan says target is < 500 KB on the inlined artifact, but doesn't encode the measurement step as an AC. Autonomous executor needs an explicit measurement assertion after each Radix story.",
+      "relevantFiles": [
+        "plans/overview.html"
+      ],
+      "suggestedFix": "Add to US-010, US-011, US-012, US-013, US-014 acceptance criteria: 'After pnpm overview:build, the resulting plans/overview.html is less than 500000 bytes (measured by stat -c%s plans/overview.html or equivalent).' Add an early-halt rule: if the measurement exceeds 500 KB after any Radix story, halt the remaining Phase C stories and revisit the plan.",
+      "status": "open"
+    },
+    {
+      "id": "F-017",
+      "severity": "Medium",
+      "source": "copilot",
+      "detectedBy": [
+        "copilot"
+      ],
+      "classification": "fixable",
+      "phase": "plan-review",
+      "category": "Criteria Quality",
+      "sectionRef": "Acceptance Criteria > Radix portal + file:// validation",
+      "description": "Radix Popover/Dialog mount via portal to document.body. file:// load + portal interaction is the highest-risk corner of Phase C but the plan only requires 'file:// opens cleanly.' That doesn't exercise the portal.",
+      "relevantFiles": [
+        "plans/overview.html"
+      ],
+      "suggestedFix": "Add to US-011 and US-012 acceptance criteria: 'After pnpm overview:build, open plans/overview.html via file:// (OS double-click or file URL), open the Dialog/Popover at least once, hit Escape to dismiss, verify zero console errors and that focus returns to the trigger element.'",
+      "status": "open"
+    }
+  ]
+}

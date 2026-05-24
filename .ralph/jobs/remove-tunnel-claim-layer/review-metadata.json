@@ -1,0 +1,16 @@
+{
+  "security_relevant": true,
+  "parseOutcome": "first-pass",
+  "rereviewRound1": {
+    "newFindings": 2,
+    "reopenedFindings": 0,
+    "carryForwardFixed": 4,
+    "verification": "Verified F-001..F-004 docs fixes landed in the worktree (BOOX-TESTING-HANDOFF.md:140, .agents/skills/release/SKILL.md:170, docs/spikes/devtunnel-api-discovery-result.md:101, packages/happy-server/README.md:37). Found 2 new tracked-md staleness items missed by the US-006 sweep: F-005 (packages/happy-cli/CLAUDE.md:192 Security Considerations bullet still describes the retired `jti` replay mechanism as current-state) and F-006 (docs/plans/github-auth-via-vscode-tunnels.md:44 and :240 still describe extending the Happy tunnel claim with `accountId` as active Sprint A direction, inconsistent with the companion spike file which was already updated)."
+  },
+  "rereviewRound2": {
+    "newFindings": 3,
+    "reopenedFindings": 0,
+    "carryForwardFixed": 6,
+    "verification": "Verified F-001..F-006 docs fixes all landed in the worktree on branch ralph/remove-tunnel-claim-layer (commits 9a31f9eb, 74c97c54, c15f833b, 1b10a66d, 3f46ade2, ac2aa75f). Re-swept all tracked .md files (excluding .ralph/) for residual tunnel-claim / Happy-claim / X-Codexu-Authorization / signed-claim language and found 3 new staleness items missed by US-006 and the round-1 re-review: F-007 (packages/happy-server/README.md:15 'Cryptographic Auth' Features bullet still advertises 'Dev Tunnel-scoped claims' as a current feature — the same README's F-004 fix at line 37 did not touch the public Features section), F-008 (docs/research/tunnel-transport-recommendation.md:15 'Status: implemented' checklist still ticks '✅ Ed25519-signed claims' as a confirmed-implemented transport component, contradicting the diff's deletion of the Ed25519-signed Happy tunnel claim envelope), and F-009 (plans/realtime-sync-perf.md:72 'What the server already does' recap still describes `/pair/complete` as 'pair + claim refresh', inconsistent with its own Workstream 1 OBSOLETED note 8 lines below and with packages/happy-server/CLAUDE.md:186 which the diff updated to say `/pair/complete` 'does not mint or refresh a Happy-specific tunnel claim'). Other suspicious matches reviewed and dismissed as out-of-scope or already historicized: docs/roadmap.md:21 and docs/happy-wire.md:57 reference X25519 ECDH session keys (staleness from Sprint D, predates remove-tunnel-claim-layer diff); docs/encryption.md:38, docs/security-model.md, docs/cli-architecture.md, docs/protocol.md, docs/api.md, docs/operations/BOOX-TESTING-HANDOFF.md:39, docs/validation/devtunnels-boox-result.md were all updated in this diff with correct historicized framing; packages/happy-server/CLAUDE.md:186 explicitly states the retired claim contract; .agents/skills/release/SKILL.md:170 is the F-002 fix in place."
+  }
+}

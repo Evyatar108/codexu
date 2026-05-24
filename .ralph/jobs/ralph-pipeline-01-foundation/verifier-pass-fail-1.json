@@ -1,0 +1,42 @@
+{
+  "storyId": "US-001",
+  "iterationSHA": "2706a9886d0528c47fe241ae6637c0090801b091",
+  "verdicts": [
+    {
+      "criterion": "tools/overview-viewer/src/types.ts exports RalphStage (10 values: brainstorming, brainstorm-ready, planning, plan-ready, implementing, reviewing, review-fix, replan-pending, shipped, blocked), RalphEntryPath, RalphArtifacts, RalphPipelineState, OverviewRalphState, and a getOverviewRalphState(): OverviewRalphState helper",
+      "verdict": "agree",
+      "rationale": "Verified types.ts:36-89 — RalphStage union has all 10 literals, plus RalphEntryPath, RalphArtifacts, RalphPipelineState, OverviewRalphState, and getOverviewRalphState() with the correct return type."
+    },
+    {
+      "criterion": "OverviewData interface is extended with ralphOverrides?: Record<string, string> (slug -> taskId, hand-edited)",
+      "verdict": "agree",
+      "rationale": "types.ts:144 contains `ralphOverrides?: Record<string, string>` inside the OverviewData interface."
+    },
+    {
+      "criterion": "tools/overview-viewer/src/overviewData.ts declares Window.OVERVIEW_RALPH_STATE?: OverviewRalphState alongside the existing OVERVIEW_DATA global in the declare global block",
+      "verdict": "agree",
+      "rationale": "overviewData.ts:3-8 has a single `declare global` block with both OVERVIEW_DATA and OVERVIEW_RALPH_STATE on Window; OverviewRalphState is imported on line 1."
+    },
+    {
+      "criterion": "getOverviewRalphState() typechecks without `as` casts (relies on the ambient Window declaration)",
+      "verdict": "agree",
+      "rationale": "Helper body uses `??` nullish coalescing on `window.OVERVIEW_RALPH_STATE`; no `as` casts present."
+    },
+    {
+      "criterion": "OverviewTask does NOT carry a ralph field; separation is preserved; lookup is ralphState.byTaskId[task.id]",
+      "verdict": "agree",
+      "rationale": "OverviewTask block at types.ts:24-34 has only id/scope/phase/status/lastTouchedAt/planOnly/mergeCommit/kanbanCards/command. No ralph field. Separation preserved."
+    },
+    {
+      "criterion": "pnpm --filter @codexu/overview-viewer typecheck exits 0",
+      "verdict": "agree",
+      "rationale": "Evidence cites cached typecheck log with exit 0; consistent with diff scope (TS type additions only)."
+    },
+    {
+      "criterion": "Typecheck passes",
+      "verdict": "agree",
+      "rationale": "Duplicate of prior criterion; same evidence."
+    }
+  ],
+  "warnings": []
+}

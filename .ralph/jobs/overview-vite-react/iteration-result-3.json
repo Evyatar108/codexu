@@ -1,0 +1,66 @@
+{
+  "storyId": "US-003",
+  "verifiedEvidence": [
+    {
+      "criterion": "Components implemented",
+      "command": "grep -R -nE 'export function (TaskCommand|StatusBadge|ScopeChip|CopyNameButton|CopyCommandButton|BulkSelectCheckbox|WorkstreamPill|Warning|SpawnedFromPill|SpawnedChildren)' tools/overview-viewer/src/components",
+      "result": "All required component exports found in TaskCommand.tsx.",
+      "evidenceKind": "command-output"
+    },
+    {
+      "criterion": "Hooks implemented",
+      "command": "grep -R -nE 'usePersistentExpanded|useTaskClassification|codexu-overview-details-state-v2|PHASE_TO_ORDER_BUCKET' tools/overview-viewer/src/hooks tools/overview-viewer/src/utils",
+      "result": "Persistent expansion key and classification helpers are present.",
+      "evidenceKind": "command-output"
+    },
+    {
+      "criterion": "Copy preambles and copy parity",
+      "command": "pnpm --filter @codexu/overview-viewer test > .test-output/overview-viewer.test.log 2>&1",
+      "result": "copyPreamble.test.ts passed against legacy constants evaluated from plans/overview.html.",
+      "evidenceKind": "command-output"
+    },
+    {
+      "criterion": "Command list row count and row enrichments",
+      "command": "pnpm --filter @codexu/overview-viewer test > .test-output/overview-viewer.test.log 2>&1",
+      "result": "commandList.test.tsx passed; SSR row count matched 49 tasks and checked workstream, cadence, warning link, and spawn markup.",
+      "evidenceKind": "command-output"
+    },
+    {
+      "criterion": "US-003:AC-006 persistence fallback",
+      "command": "pnpm --filter @codexu/overview-viewer test > .test-output/overview-viewer.test.log 2>&1",
+      "result": "Browser automation unavailable; persistentExpanded.test.ts verified codexu-overview-details-state-v2 read/write via localStorage-compatible stub.",
+      "evidenceKind": "command-output"
+    },
+    {
+      "criterion": "Trusted HTML rendering",
+      "command": "grep -R -n 'dangerouslySetInnerHTML' tools/overview-viewer/src/components",
+      "result": "descriptionHtml and warning HTML are rendered via dangerouslySetInnerHTML; planPrompt text is not normalized.",
+      "evidenceKind": "command-output"
+    },
+    {
+      "criterion": "Typecheck passes",
+      "command": "pnpm --filter @codexu/overview-viewer typecheck > .test-output/overview-viewer.typecheck.log 2>&1",
+      "result": "Exited 0 in 5s; tsc --noEmit completed with no errors.",
+      "evidenceKind": "command-output"
+    },
+    {
+      "criterion": "Tests pass",
+      "command": "pnpm --filter @codexu/overview-viewer test > .test-output/overview-viewer.test.log 2>&1",
+      "result": "Exited 0 in 4s; Vitest reported 3 files passed and 6 tests passed.",
+      "evidenceKind": "command-output"
+    },
+    {
+      "criterion": "US-003:AC-010 browser verification",
+      "command": "N/A",
+      "result": "SKIPPED: dev-browser skill unavailable; manual DOM/visual command-list verification is still needed.",
+      "evidenceKind": "skipped"
+    }
+  ],
+  "skippedReasons": [
+    "browser_tool_unavailable"
+  ],
+  "notTested": [
+    "Browser DOM/visual command-list verification unavailable; SSR and unit-test fallbacks passed."
+  ],
+  "iterationSHA": "649228400998b80e2943b88c3c447aa515f4fc09"
+}

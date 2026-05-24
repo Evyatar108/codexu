@@ -1,0 +1,87 @@
+{
+  "planFile": "D:/harness-efforts/codexu/.ralph/jobs/agent-tree-rpc/plan.md",
+  "repoDir": "D:/harness-efforts/codexu/.ralph/jobs/agent-tree-rpc/worktree",
+  "reviewCycle": 2,
+  "findings": [
+    {
+      "id": "F-001",
+      "severity": "Medium",
+      "source": "docs",
+      "classification": "fixable",
+      "phase": "docs",
+      "category": "Stale Documentation",
+      "description": "packages/happy-wire/README.md 'Public Exports' section (lines 121-127) enumerates the source files re-exported from src/index.ts: messages.ts, legacyProtocol.ts, sessionProtocol.ts, tofu.ts, nonRenderablePolicy.ts, ledger.ts. The diff adds `export * from './agentTree'` to src/index.ts (and creates packages/happy-wire/src/agentTree.ts with the AgentTreeNode/Snapshot/Delta/payload/RPC schemas), but the README does not list agentTree.ts in the exports inventory and lacks a corresponding '### agentTree.ts exports' section (the README has per-file sections for every other re-exported module).",
+      "relevantFiles": [
+        "packages/happy-wire/README.md"
+      ],
+      "suggestedFix": "Add `- src/agentTree.ts` to the 'Public Exports' bullet list (after `- src/ledger.ts`). Add a new '### agentTree.ts exports' section enumerating the exported schemas + inferred types: AgentTreeNodeSchema/AgentTreeNode, AgentTreeEdgeSchema/AgentTreeEdge, AgentTreeSnapshotSchema/AgentTreeSnapshot, AgentTreePendingSpawnStartedDeltaSchema, AgentTreeNodeAddedDeltaSchema, AgentTreeNodeStatusChangedDeltaSchema, AgentTreeNodeRemovedDeltaSchema, AgentTreeDeltaSchema/AgentTreeDelta (discriminated union on `type`), AgentTreeUpdateInboundPayloadSchema, AgentTreeUpdateOutboundPayloadSchema (the server fan-out shape `{ sessionId, delta }`), SessionGetAgentTreeRequestSchema, and SessionGetAgentTreeResponseSchema (alias of AgentTreeSnapshotSchema).",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Doc updated with agent-tree wire schemas, socket frame, and RPC documentation."
+    },
+    {
+      "id": "F-002",
+      "severity": "Medium",
+      "source": "docs",
+      "classification": "fixable",
+      "phase": "docs",
+      "category": "Stale Documentation",
+      "description": "docs/happy-wire.md 'What is shared' inventory enumerates five shared schema families (1. Wire message schemas, 2. Session protocol schema, 3. TOFU handshake schemas, 4. Non-renderable content registry, 5. Ledger record schemas). The diff introduces a new sixth family — agent-tree wire schemas in packages/happy-wire/src/agentTree.ts — that is not represented anywhere in the doc, despite the doc's stated goal of being the inventory of '@slopus/happy-wire' shared contracts.",
+      "relevantFiles": [
+        "docs/happy-wire.md"
+      ],
+      "suggestedFix": "Add a new '### 6. Agent tree wire schemas' section (after '### 5. Ledger record schemas') summarizing the new wire surface: AgentTreeNode/Edge/Snapshot for the queryable shape returned by `sessionGetAgentTree`; the AgentTreeDelta discriminated union (`pending-spawn-started`, `node-added`, `node-status-changed`, `node-removed`) for the streaming surface; the inbound (`{ delta }`, CLI->server) and outbound (`{ sessionId, delta }`, server->client) payload schemas for the `agent-tree-update` Socket.IO event; and the SessionGetAgentTreeRequest/Response RPC envelope shapes. Mention that these are consumed by happy-cli's runCodex agent-tree bridge and happy-server's sessionUpdateHandler + eventRouter fan-out.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Doc updated with agent-tree wire schemas, socket frame, and RPC documentation."
+    },
+    {
+      "id": "F-003",
+      "severity": "Medium",
+      "source": "docs",
+      "classification": "fixable",
+      "phase": "docs",
+      "category": "Stale Documentation",
+      "description": "docs/protocol.md is the canonical wire-contract enumeration of Socket.IO events. Line 57 states 'The server emits two event types' and the document explicitly catalogs Server->client events ('update', 'ephemeral') and Client->server WebSocket events (ping, update-metadata, update-state, message, session-alive, session-end, machine-alive, machine-update-metadata, machine-update-state, rpc-register, rpc-unregister, rpc-call). The diff adds a third server->client event `agent-tree-update` (payload `{ sessionId, delta }`) and a new client->server event `agent-tree-update` (payload `{ delta }`) — both wired through ServerToClientEvents / ClientToServerEvents in packages/happy-cli/src/api/types.ts and routed through eventRouter.emitAgentTreeUpdate on happy-server. Neither direction is documented in protocol.md, and the doc also lacks any reference to the new `sessionGetAgentTree` RPC method registered on the session-scoped RpcHandlerManager.",
+      "relevantFiles": [
+        "docs/protocol.md"
+      ],
+      "suggestedFix": "Update the 'Server -> client events' section: revise the '...emits two event types' phrasing to acknowledge the agent-tree fan-out, then add a new '#### `agent-tree-update`' subsection describing the outbound payload `{ sessionId, delta: AgentTreeDelta }` and the recipient filter (all connections interested in the session). Add the four AgentTreeDelta variants (pending-spawn-started, node-added, node-status-changed, node-removed) under a new 'Agent tree delta types' subsection. Update 'Client -> server WebSocket events' with `agent-tree-update` (`{ delta }`, restricted to session-scoped connections; payload validated by AgentTreeUpdateInboundPayloadSchema). Optionally add a note pointing at the `sessionGetAgentTree` RPC under the rpc-call surface for the queryable snapshot RPC.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Doc updated with agent-tree wire schemas, socket frame, and RPC documentation."
+    },
+    {
+      "id": "F-004",
+      "severity": "Low",
+      "source": "docs",
+      "classification": "fixable",
+      "phase": "docs",
+      "category": "Stale Documentation",
+      "description": "docs/realtime-sync-and-rpc.md describes the realtime sync flow with two event categories. Line 20 says '`eventRouter.ts` handles fan-out for normal realtime updates' and lines 46-47 enumerate the flow as 'eventRouter emits update events ... the server emits ephemeral events'. After this diff, eventRouter additionally exposes `emitAgentTreeUpdate({ userId, sessionId, delta, ... })` which routes via the `all-interested-in-session` recipient filter and emits a third event class (`agent-tree-update`). The high-level overview no longer covers this surface, though it still correctly describes the update/ephemeral split.",
+      "relevantFiles": [
+        "docs/realtime-sync-and-rpc.md"
+      ],
+      "suggestedFix": "Extend the 'Realtime Sync Flow' numbered list with a new bullet noting that codex sessions also publish agent-tree deltas: e.g., '6. Session-scoped codex bridges emit `agent-tree-update` events (one per spawn-tree delta); the server fans them out to all connections interested in the session.' Optionally cross-link docs/protocol.md for the wire shape.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Doc updated with agent-tree wire schemas, socket frame, and RPC documentation."
+    },
+    {
+      "id": "F-005",
+      "severity": "Low",
+      "source": "docs",
+      "classification": "fixable",
+      "phase": "docs",
+      "category": "Stale Documentation",
+      "description": "docs/backend-architecture.md line 229-231 describes the EventRouter as routing two event classes: 'Persistent `update` events' and 'Ephemeral events'. After this diff, the EventRouter interface in packages/happy-server/sources/app/events/eventRouter.ts gains `emitAgentTreeUpdate(...)` and the internal RoutedSocketEvent union widens from `'update' | 'ephemeral'` to `'update' | 'ephemeral' | 'agent-tree-update'`. The backend-architecture overview no longer fully describes the router's responsibilities.",
+      "relevantFiles": [
+        "docs/backend-architecture.md"
+      ],
+      "suggestedFix": "In the '### Event router' subsection, add a third bullet alongside 'Persistent update events' and 'Ephemeral events': '- **`agent-tree-update` events**: codex spawn-tree deltas fanned out to all connections interested in a given session (no replay-buffer; ephemeral semantically but emitted as a distinct event name to avoid forcing all clients to decode the agent-tree shape).' Cross-link to docs/protocol.md for the payload shape.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Doc updated with agent-tree wire schemas, socket frame, and RPC documentation."
+    }
+  ]
+}

@@ -1,0 +1,54 @@
+{
+  "storyId": "US-001",
+  "verifiedEvidence": [
+    {
+      "criterion": "plans/codexu-roadmap.md references plans/overview-data.js",
+      "command": "grep -n 'overview-data.js' plans/codexu-roadmap.md",
+      "result": "Lines 6, 8, and 176 reference plans/overview-data.js.",
+      "evidenceKind": "file-snippet"
+    },
+    {
+      "criterion": "plans/parallel-assignments.md source-of-truth and derived-table notes",
+      "command": "grep -n -E 'overview-data.js|derived tracker' plans/parallel-assignments.md",
+      "result": "Line 7 names plans/overview-data.js as roadmap task state; line 561 points refreshes there.",
+      "evidenceKind": "file-snippet"
+    },
+    {
+      "criterion": "Allowed docs no longer contain stale overview-data split phrases",
+      "command": "git grep -n -E 'edit plans/overview.html|roadmap-data|lastRanAt timestamp' -- ':!plans/overview.html' ':!.agents/skills/roadmap-and-overview/SKILL.md' .agents/ plans/ packages/ || true",
+      "result": "No output after excluding the explicitly forbidden US-005b SKILL.md file.",
+      "evidenceKind": "absent-verified"
+    },
+    {
+      "criterion": "Exact narrow edit plans/overview.html grep returns zero",
+      "command": "git grep -n 'edit plans/overview.html' -- :!plans/overview.html .agents/ plans/ packages/ || true",
+      "result": "No output; zero hits.",
+      "evidenceKind": "absent-verified"
+    },
+    {
+      "criterion": "plans/overview-vite-react.md criteria",
+      "command": "if test -e plans/overview-vite-react.md; then echo present; else echo absent; fi; git ls-files -- plans/overview-vite-react.md | wc -l",
+      "result": "SKIPPED: plans/overview-vite-react.md is absent in this worktree and git ls-files returns 0.",
+      "evidenceKind": "skipped"
+    },
+    {
+      "criterion": "SKILL.md remains untouched",
+      "command": "git diff --name-only | grep 'roadmap-and-overview/SKILL.md' || true",
+      "result": "No output; .agents/skills/roadmap-and-overview/SKILL.md was not modified.",
+      "evidenceKind": "absent-verified"
+    },
+    {
+      "criterion": "Workspace typecheck",
+      "command": "pnpm install; pnpm -r typecheck > .test-output/workspace.typecheck.log 2>&1",
+      "result": "pnpm install exit=0; final workspace typecheck exit=0 in 36s.",
+      "evidenceKind": "test-output"
+    }
+  ],
+  "skippedReasons": [
+    "missing_file"
+  ],
+  "notTested": [
+    "plans/overview-vite-react.md updates; file absent in this worktree"
+  ],
+  "iterationSHA": "57635c9ec688d194036fc4eabd2b6caaff55d1c8"
+}

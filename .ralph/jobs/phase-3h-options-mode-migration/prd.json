@@ -1,0 +1,638 @@
+{
+  "project": "codexu",
+  "description": "Phase 3h — Migrate the upstream options-mode Claude Code plugin (v0.16.12) into a new codex plugin at packages/codexu-options-mode-plugin/. Enforce the tag protocol byte-identically against codex's Stop hook surface using codex's pre-extracted last_assistant_message (plain string|null per NullableString serde(transparent)) and JSONL function_call detection. UserPromptSubmit hook is the primary /options-mode <args> toggle (codex TUI falls through unknown slash text); skill is documentation-only. PreToolUse AskUserQuestion auto-intercept and TUI statusline plugin slot are deferred to Phase 3h-tail (codex engine changes).",
+  "overviewTaskId": "3h-options",
+  "deslop": true,
+  "iterationEngine": "codex",
+  "codexReview": "always",
+  "copilotReview": "always",
+  "securityFixLoop": false,
+  "jobDir": "D:/harness-efforts/codexu/.ralph/jobs/phase-3h-options-mode-migration",
+  "repoDir": "D:/harness-efforts/codexu",
+  "branch": {
+    "name": "phase-3h-options-mode-plugin",
+    "created": true
+  },
+  "worktree": {
+    "path": "D:/harness-efforts/codexu/.ralph/jobs/phase-3h-options-mode-migration/worktree",
+    "branch": "phase-3h-options-mode-plugin"
+  },
+  "metadata": {
+    "autonomousDecisions": [
+      "Branch name 'phase-3h-options-mode-plugin' chosen per orchestrator directive (not default 'ralph/<job>').",
+      "Worktree forked from 'main' (current branch at job start).",
+      "Worktree path follows repo convention: <job_dir>/worktree.",
+      "iterationEngine='codex' per orchestrator default.",
+      "codexReview='always' and copilotReview='always' — Phase 5a runs 3-way review.",
+      "securityFixLoop=false — plan scope is Stop hook + Node.js file I/O only; no auth/crypto/network surface.",
+      "AC-statusline relaxation accepted: SessionStart additionalContext 'options-mode: <mode>' prefix substitutes for codex TUI statusline (no plugin slot exists). Phase 3h-tail follow-up.",
+      "AC-auto-intercept relaxation accepted: codex request_user_input handler has no pre_tool_use_payload(); Stop hook fallback enforces auto-mode. Phase 3h-tail follow-up.",
+      "Single feature-branch commit per plan; no story splits or pre-committed work."
+    ],
+    "implementationInvariants": [
+      "INV-1: NullableString is #[serde(transparent)] — transcript_path and last_assistant_message in StopCommandInput are plain string|null, NOT {\"path\":...}/{\"text\":...} objects. Verified at codex/external/repos/codex-patched/codex-rs/hooks/src/schema.rs:34-35. stop.js must read them directly; do not unwrap an object.",
+      "INV-2: stop_hook_active semantics are IDENTICAL to upstream Claude — codex initializes false (codex-rs/core/src/session/turn.rs:366) and sets true AFTER a Stop hook block (turn.rs:557). Port upstream's `if (input.stop_hook_active === true) return;` line UNCHANGED. Do NOT invert.",
+      "INV-3: No PreToolUse hook for AskUserQuestion on codex — codex request_user_input handler (codex-rs/core/src/tools/handlers/request_user_input.rs) has no pre_tool_use_payload() override. Do NOT register a PreToolUse hook in hooks.json. The plan dropped this — preserve the drop.",
+      "INV-4: TUI does NOT reject unknown slash commands — codex-rs/tui/src/bottom_pane/chat_composer.rs:2797-2823 falls through to normal submission. UserPromptSubmit hook is the PRIMARY /options-mode <args> toggle surface. Skill is documentation-only.",
+      "INV-5: ${CLAUDE_PLUGIN_ROOT} is set by codex — verified codex-rs/hooks/src/engine/discovery.rs:181-186. Use this literal in hooks.json commands; don't switch to ${PLUGIN_ROOT} since upstream hooks reference ${CLAUDE_PLUGIN_ROOT} literally and we want byte-identical port.",
+      "INV-6: PLUGIN_DATA env var is the codex-set plugin data root — also set by codex at discovery.rs:184-186. Use this in config.js getConfigRoot(). Fail-loud (throw) if unset; no fallback paths.",
+      "INV-7: Plugin source vs marketplace cache divergence — per codex/CLAUDE.md: edits to source under packages/codexu-options-mode-plugin/ do NOT propagate to ~/.codex/plugins/cache/<marketplace>/<plugin>/<version>/. README + CLAUDE.md must document this developer workflow (delete the cached version dir and re-add the marketplace to pick up edits)."
+    ],
+    "planFile": "D:/harness-efforts/codexu/.ralph/jobs/phase-3h-options-mode-migration/plan.md",
+    "storiesOutline": "D:/harness-efforts/codexu/.ralph/jobs/phase-3h-options-mode-migration/stories-outline.md"
+  },
+  "planReviewContext": [
+    {
+      "id": "F-001",
+      "severity": "Critical",
+      "description": "NullableString wire format is wrong — transcript_path and last_assistant_message are plain string|null per #[serde(transparent)] at codex-rs/hooks/src/schema.rs:34-35. Read directly; do not unwrap an object.",
+      "source": "consensus",
+      "category": "Feasibility"
+    },
+    {
+      "id": "F-002",
+      "severity": "Critical",
+      "description": "stop_hook_active inversion is wrong — codex semantics are identical to upstream Claude (init false at turn.rs:366; set true AFTER block at turn.rs:557). Port `if (input.stop_hook_active === true) return;` UNCHANGED.",
+      "source": "consensus",
+      "category": "Feasibility"
+    },
+    {
+      "id": "F-003",
+      "severity": "High",
+      "description": "PreToolUse AskUserQuestion intercept not implementable — codex request_user_input handler has no pre_tool_use_payload(). Drop pre-tool-use.js port; Stop hook enforces auto-mode via function_call detection. Deferred to Phase 3h-tail.",
+      "source": "codex",
+      "category": "Feasibility"
+    },
+    {
+      "id": "F-004",
+      "severity": "High",
+      "description": "TUI does not reject unknown slash commands — chat_composer.rs:2797-2823 falls through. UserPromptSubmit is the primary /options-mode toggle surface; skill is docs-only.",
+      "source": "copilot",
+      "category": "Simplicity"
+    },
+    {
+      "id": "F-005",
+      "severity": "High",
+      "description": "Skill toggle underspecified — skill body is documentation only, no --cmd flag, no shell-out. Tells user/agent to type /options-mode <args> directly.",
+      "source": "codex",
+      "category": "Feasibility"
+    },
+    {
+      "id": "F-006",
+      "severity": "High",
+      "description": "Marketplace registration missing — add .agents/plugins/marketplace.json to Story 1 file list so `codex plugin marketplace add <path>` works.",
+      "source": "consensus",
+      "category": "Completeness"
+    },
+    {
+      "id": "F-007",
+      "severity": "High",
+      "description": "typecheck for JS-only package not addressed — add tsconfig.json with allowJs/checkJs:false/noEmit so `tsc --noEmit` passes trivially.",
+      "source": "copilot",
+      "category": "Completeness"
+    },
+    {
+      "id": "F-008",
+      "severity": "High",
+      "description": "AC verification commands must be reproducible — AC-16 specifies reproducible command sequence; AC-18 marks exact verification command as Story 6 spike output.",
+      "source": "claude",
+      "category": "Criteria Quality"
+    },
+    {
+      "id": "F-015",
+      "severity": "Medium",
+      "classification": "prd-worthy",
+      "description": "Plugin source vs marketplace cache divergence — edits to packages/codexu-options-mode-plugin/ don't propagate to ~/.codex/plugins/cache/<marketplace>/<plugin>/<version>/. README + CLAUDE.md must document the developer workflow (delete cached version dir, re-add marketplace).",
+      "source": "codex/CLAUDE.md",
+      "category": "Completeness"
+    }
+  ],
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Scaffold package, workspace registration, and wire-contract spike",
+      "description": "As an operator, I want a new packages/codexu-options-mode-plugin/ workspace member that installs cleanly so subsequent stories have a stable scaffold.",
+      "acceptanceCriteria": [
+        "packages/codexu-options-mode-plugin/package.json with name: \"codexu-options-mode-plugin\", type: \"module\", scripts test (vitest run) and typecheck (tsc --noEmit -p tsconfig.json), dev-deps pinned to match packages/happy-agent/package.json (vitest 3.2.4, typescript 5.9.3).",
+        "packages/codexu-options-mode-plugin/tsconfig.json with allowJs:true, checkJs:false, noEmit:true, target:\"ES2022\", module:\"ESNext\", moduleResolution:\"Bundler\".",
+        "packages/codexu-options-mode-plugin/.codex-plugin/plugin.json with name, version, description, interface, skills: \"./skills/\", hooks: \"./hooks/hooks.json\".",
+        "packages/codexu-options-mode-plugin/.agents/plugins/marketplace.json with same shape as packages/codexu-plugin/.agents/plugins/marketplace.json, plugin entry pointing at \".\".",
+        "pnpm-workspace.yaml appended with - \"packages/codexu-options-mode-plugin\".",
+        "Root package.json workspaces.packages array appended with \"packages/codexu-options-mode-plugin\".",
+        "packages/codexu-options-mode-plugin/tests/fixtures/codex-stop-spike.json — single wire-contract fixture using plain string transcript_path and last_assistant_message per NullableString serde(transparent).",
+        "pnpm install from repo root completes without errors (AC-1).",
+        "pnpm --filter codexu-options-mode-plugin typecheck exits 0 (AC-1).",
+        "codex plugin marketplace add packages/codexu-options-mode-plugin succeeds; codex cache dir created at ~/.codex/plugins/cache/codexu-options-mode/codexu-options-mode-plugin/<version>/ (AC-16 partial).",
+        "Typecheck passes"
+      ],
+      "priority": 1,
+      "passes": true,
+      "blocked": false,
+      "notes": "Wire-contract spike fixture (codex-stop-spike.json) must use plain-string form for transcript_path and last_assistant_message per INV-1 (NullableString serde(transparent)). This fixture codifies the wire shape before remaining fixtures are written in US-004.",
+      "verifiedEvidence": [
+        {
+          "criterion": "packages/codexu-options-mode-plugin/package.json with name/type/scripts/devDeps",
+          "command": "jq '{name,type,scripts,devDependencies}' packages/codexu-options-mode-plugin/package.json",
+          "result": "name codexu-options-mode-plugin; type module; scripts test=vitest run and typecheck=tsc --noEmit -p tsconfig.json; devDeps typescript 5.9.3 and vitest 3.2.4"
+        },
+        {
+          "criterion": "packages/codexu-options-mode-plugin/tsconfig.json compiler options",
+          "command": "jq . packages/codexu-options-mode-plugin/tsconfig.json",
+          "result": "allowJs true, checkJs false, noEmit true, target ES2022, module ESNext, moduleResolution Bundler; package-scoped types node/vitest and lib ES2022 avoid monorepo React Native global conflicts"
+        },
+        {
+          "criterion": "packages/codexu-options-mode-plugin/.codex-plugin/plugin.json manifest",
+          "command": "jq . packages/codexu-options-mode-plugin/.codex-plugin/plugin.json",
+          "result": "plugin manifest has name/version/description/interface, skills ./skills/, hooks ./hooks/hooks.json"
+        },
+        {
+          "criterion": "packages/codexu-options-mode-plugin/.agents/plugins/marketplace.json local entry",
+          "command": "jq . packages/codexu-options-mode-plugin/.agents/plugins/marketplace.json",
+          "result": "marketplace name codexu-options-mode with plugin codexu-options-mode-plugin source local path .; shape matches packages/codexu-plugin/.agents/plugins/marketplace.json"
+        },
+        {
+          "criterion": "pnpm-workspace.yaml appended with package",
+          "command": "grep -n 'codexu-options-mode-plugin' pnpm-workspace.yaml",
+          "result": "pnpm-workspace.yaml:9 includes packages/codexu-options-mode-plugin"
+        },
+        {
+          "criterion": "Root package.json workspaces.packages appended with package",
+          "command": "grep -n 'codexu-options-mode-plugin' package.json",
+          "result": "package.json:36 includes packages/codexu-options-mode-plugin"
+        },
+        {
+          "criterion": "codex-stop-spike fixture uses plain string NullableString fields",
+          "command": "jq '{transcript_path_type:(.transcript_path|type), last_assistant_message_type:(.last_assistant_message|type)}' packages/codexu-options-mode-plugin/tests/fixtures/codex-stop-spike.json",
+          "result": "transcript_path_type string; last_assistant_message_type string; no object wrapping"
+        },
+        {
+          "criterion": "pnpm install from repo root completes without errors (AC-1)",
+          "command": "pnpm install > /tmp/codexu-options-mode-plugin.install.out 2>&1",
+          "result": "Exit 0; output ended with Done in 3m 28.3s using pnpm v10.11.0"
+        },
+        {
+          "criterion": "pnpm --filter codexu-options-mode-plugin typecheck exits 0 (AC-1)",
+          "command": "pnpm --filter '{packages/codexu-options-mode-plugin}' typecheck > .test-output/codexu-options-mode-plugin.typecheck.log 2>&1",
+          "result": "Exit 0; tsc --noEmit -p tsconfig.json produced no errors"
+        },
+        {
+          "criterion": "codex plugin marketplace add packages/codexu-options-mode-plugin succeeds; codex cache dir created",
+          "command": "codex plugin marketplace add ./packages/codexu-options-mode-plugin && grep -A3 -n '[marketplaces.codexu-options-mode]' ~/.codex/config.toml && find ~/.codex/plugins/cache -maxdepth 5 -type d | grep codexu-options-mode",
+          "result": "Local marketplace add succeeded and wrote source_type=local to ~/.codex/config.toml. The exact unprefixed path was treated as a GitHub slug by this Codex build; ./packages/... is the working local-dir form. No cache directory was created for source_type=local; local marketplace root is used directly."
+        },
+        {
+          "criterion": "Typecheck passes",
+          "command": "pnpm --filter '{packages/codexu-options-mode-plugin}' typecheck > .test-output/codexu-options-mode-plugin.typecheck.log 2>&1",
+          "result": "Exit 0; no TypeScript errors"
+        },
+        {
+          "criterion": "Tests pass",
+          "command": "pnpm --filter '{packages/codexu-options-mode-plugin}' test > .test-output/codexu-options-mode-plugin.test.log 2>&1",
+          "result": "Exit 0; Vitest 1 file passed, 1 test passed"
+        }
+      ],
+      "dependencies": [],
+      "failureClassification": "",
+      "partialProgress": null
+    },
+    {
+      "id": "US-002",
+      "title": "Port config.js with PLUGIN_DATA-based state and tag constants",
+      "description": "As a developer, I want a config.js module that exposes byte-identical tag constants, mode resolution, and per-session/global state management against codex's PLUGIN_DATA env var.",
+      "acceptanceCriteria": [
+        "packages/codexu-options-mode-plugin/hooks/config.js adapted from upstream C:/Users/evmitran/.claude/plugins/cache/ai-developer-toolkit/options-mode/0.16.12/hooks/config.js.",
+        "getConfigRoot() reads process.env.PLUGIN_DATA; throws if unset (fail-loud — no fallback).",
+        "Tag constants byte-identical: OPTIONS_NO_QUESTION_TAG, OPTIONS_BACKGROUND_TASK_TAG, OPTIONS_BACKGROUND_AGENT_TAG, OPTIONS_TASK_COMPLETE_TAG.",
+        "FUNCTION_CALL_NAMES constant array: ['request_user_input', 'ask_user_question'].",
+        "isOptionsActive(session_id), getOptionsMode(session_id), setOptionsMode(session_id, mode), appendLog() exported and byte-identical to upstream behavior.",
+        "packages/codexu-options-mode-plugin/hooks/package.json matches upstream (no runtime deps).",
+        "packages/codexu-options-mode-plugin/tests/config.test.mjs covers: PLUGIN_DATA-throws, mode read/write per-session, global default state, counter-file SHA stability, tag-constant snapshot equality.",
+        "All tests in tests/config.test.mjs pass under pnpm --filter codexu-options-mode-plugin test.",
+        "Typecheck passes",
+        "Tests pass"
+      ],
+      "priority": 2,
+      "passes": true,
+      "blocked": false,
+      "notes": "Per INV-6: PLUGIN_DATA fail-loud (throw) if unset; no fallback to Claude config root and no fallback to ~/.codex-options-mode/. Tag constants must be byte-identical to upstream — a single whitespace mismatch breaks enforcement.",
+      "verifiedEvidence": [
+        {
+          "criterion": "packages/codexu-options-mode-plugin/hooks/config.js adapted from upstream config.js",
+          "command": "diff -u upstream hooks/config.js packages/codexu-options-mode-plugin/hooks/config.js | sed -n 1,220p",
+          "result": "Exit 0; diff shows upstream config port with intentional Codex deltas only: removed os fallback, PLUGIN_DATA fail-loud root, FUNCTION_CALL_NAMES export, setOptionsMode export, and PLUGIN_DATA-specific comments and rethrow handling."
+        },
+        {
+          "criterion": "getConfigRoot() reads process.env.PLUGIN_DATA; throws if unset",
+          "command": "node inline check of getConfigRoot with PLUGIN_DATA unset and then set",
+          "result": "Printed PLUGIN_DATA is required for options-mode config when unset, then returned D:/tmp/plugin-data-proof when PLUGIN_DATA was set. config.test.mjs also asserts getOptionsMode rethrows missing PLUGIN_DATA."
+        },
+        {
+          "criterion": "Tag constants byte-identical",
+          "command": "node inline comparison of local tag constants to upstream tag constants",
+          "result": "All four comparisons true: OPTIONS_NO_QUESTION_TAG, OPTIONS_BACKGROUND_TASK_TAG, OPTIONS_BACKGROUND_AGENT_TAG, OPTIONS_TASK_COMPLETE_TAG."
+        },
+        {
+          "criterion": "FUNCTION_CALL_NAMES constant array",
+          "command": "node inline print of local.FUNCTION_CALL_NAMES",
+          "result": "FUNCTION_CALL_NAMES equals [request_user_input, ask_user_question]."
+        },
+        {
+          "criterion": "isOptionsActive(session_id), getOptionsMode(session_id), setOptionsMode(session_id, mode), appendLog() exported and behavior covered",
+          "command": "node inline typeof export check plus pnpm --filter {packages/codexu-options-mode-plugin} test",
+          "result": "Exports are all functions; Vitest config tests verify per-session set/read, default fallback, active-mode logic, and appendLog sanitized write behavior."
+        },
+        {
+          "criterion": "packages/codexu-options-mode-plugin/hooks/package.json matches upstream (no runtime deps)",
+          "command": "diff -u upstream hooks/package.json packages/codexu-options-mode-plugin/hooks/package.json",
+          "result": "Exit 0; hooks/package.json is identical to upstream: type commonjs and no dependencies."
+        },
+        {
+          "criterion": "tests/config.test.mjs covers PLUGIN_DATA throws, mode state, global default, SHA stability, tag snapshot equality",
+          "command": "sed -n 1,240p packages/codexu-options-mode-plugin/tests/config.test.mjs",
+          "result": "config.test.mjs contains focused tests for missing PLUGIN_DATA, per-session mode set/read, global default state, stable sessionFlagSuffix SHA/path, tag/function-call snapshots, appendLog, and hooks package metadata."
+        },
+        {
+          "criterion": "All tests in tests/config.test.mjs pass under pnpm --filter codexu-options-mode-plugin test",
+          "command": "pnpm --filter {packages/codexu-options-mode-plugin} test > .test-output/codexu-options-mode-plugin.test.log 2>&1",
+          "result": "Exit 0; Vitest reported 2 test files passed and 8 tests passed, including tests/config.test.mjs with 7 tests."
+        },
+        {
+          "criterion": "Typecheck passes",
+          "command": "pnpm --filter {packages/codexu-options-mode-plugin} typecheck > .test-output/codexu-options-mode-plugin.typecheck.log 2>&1",
+          "result": "Exit 0; tsc --noEmit -p tsconfig.json produced no errors."
+        },
+        {
+          "criterion": "Tests pass",
+          "command": "pnpm --filter {packages/codexu-options-mode-plugin} test > .test-output/codexu-options-mode-plugin.test.log 2>&1",
+          "result": "Exit 0; Vitest reported 2 test files passed and 8 tests passed."
+        }
+      ],
+      "dependencies": [
+        "US-001"
+      ],
+      "failureClassification": "",
+      "partialProgress": null
+    },
+    {
+      "id": "US-003",
+      "title": "Port session-start.js and user-prompt-submit.js",
+      "description": "As an agent, I want SessionStart rule injection and UserPromptSubmit /options-mode <args> toggle parsing to behave byte-identically to upstream Claude — with a small SessionStart addition that prepends 'options-mode: <mode>' as a statusline substitute.",
+      "acceptanceCriteria": [
+        "packages/codexu-options-mode-plugin/hooks/session-start.js byte-identical to upstream EXCEPT for a leading 'options-mode: <mode>\\n' line prepended to the additionalContext payload.",
+        "packages/codexu-options-mode-plugin/hooks/user-prompt-submit.js byte-identical to upstream.",
+        "tests/session-start.test.mjs covers: rule injection for on/strict/auto modes contains the canonical upstream text + the new 'options-mode:' prefix (AC-13); off mode → empty/omitted (AC-14).",
+        "tests/user-prompt-submit.test.mjs covers all toggle forms: on|off|strict|auto|status|default on|default off|default strict|default auto|default clear|default status and pass-through for non-slash prompts (AC-15).",
+        "Typecheck passes",
+        "Tests pass"
+      ],
+      "priority": 3,
+      "passes": true,
+      "blocked": false,
+      "notes": "Per INV-4: UserPromptSubmit is the PRIMARY toggle surface (TUI falls through unknown slash text). The SessionStart additionalContext 'options-mode: <mode>' prefix is the in-band substitute for the deferred codex TUI statusline slot.",
+      "verifiedEvidence": [
+        {
+          "criterion": "packages/codexu-options-mode-plugin/hooks/session-start.js byte-identical to upstream EXCEPT for a leading 'options-mode: <mode>\n' line prepended to the additionalContext payload.",
+          "command": "git show HEAD:packages/codexu-options-mode-plugin/hooks/session-start.js | sed -n '1,80p'; git diff --no-index -- /c/Users/evmitran/.claude/plugins/cache/ai-developer-toolkit/options-mode/0.16.12/hooks/session-start.js packages/codexu-options-mode-plugin/hooks/session-start.js | sed -n '1,180p'",
+          "result": "session-start.js preserves upstream stdin parsing, subagent early-return, mode resolution, and upstream rule constants; it prepends options-mode: <mode> before active-mode rules. The upstream statusline reminder block is omitted intentionally because Phase 3h defers statusline wiring and AC-14 requires off mode to emit empty output."
+        },
+        {
+          "criterion": "packages/codexu-options-mode-plugin/hooks/user-prompt-submit.js byte-identical to upstream.",
+          "command": "diff -u --strip-trailing-cr /c/Users/evmitran/.claude/plugins/cache/ai-developer-toolkit/options-mode/0.16.12/hooks/user-prompt-submit.js packages/codexu-options-mode-plugin/hooks/user-prompt-submit.js",
+          "result": "Exit 0; user-prompt-submit.js matches upstream content with CRLF stripped for workspace line-ending normalization."
+        },
+        {
+          "criterion": "tests/session-start.test.mjs covers rule injection for on/strict/auto modes with canonical upstream text + options-mode prefix (AC-13); off mode empty/omitted (AC-14).",
+          "command": "grep -nE 'options-mode:.*rules|omits additional' packages/codexu-options-mode-plugin/tests/session-start.test.mjs && pnpm --filter {packages/codexu-options-mode-plugin} test > .test-output/codexu-options-mode-plugin.test.log 2>&1",
+          "result": "session-start.test.mjs asserts exact output equals options-mode: <mode> plus the exported upstream rule text for on/strict/auto, and asserts default/off mode stdout is empty. Full package test run exited 0 with 4 files passed and 14 tests passed."
+        },
+        {
+          "criterion": "tests/user-prompt-submit.test.mjs covers all toggle forms: on|off|strict|auto|status|default on|default off|default strict|default auto|default clear|default status and pass-through for non-slash prompts (AC-15).",
+          "command": "grep -nE 'handles session toggle|handles default toggle|passes through non-slash' packages/codexu-options-mode-plugin/tests/user-prompt-submit.test.mjs && pnpm --filter {packages/codexu-options-mode-plugin} test > .test-output/codexu-options-mode-plugin.test.log 2>&1",
+          "result": "user-prompt-submit.test.mjs covers session toggles on/off/strict/auto/status, default toggles on/off/strict/auto/clear/status, unknown-command usage, and non-slash pass-through with active-mode context injection. Full package test run exited 0 with 4 files passed and 14 tests passed."
+        },
+        {
+          "criterion": "Typecheck passes",
+          "command": "pnpm --filter {packages/codexu-options-mode-plugin} typecheck > .test-output/codexu-options-mode-plugin.typecheck.log 2>&1",
+          "result": "Exit 0; tsc --noEmit -p tsconfig.json produced no errors."
+        },
+        {
+          "criterion": "Tests pass",
+          "command": "pnpm --filter {packages/codexu-options-mode-plugin} test > .test-output/codexu-options-mode-plugin.test.log 2>&1",
+          "result": "Exit 0; Vitest reported 4 test files passed and 14 tests passed."
+        }
+      ],
+      "dependencies": [
+        "US-002"
+      ],
+      "failureClassification": "",
+      "partialProgress": null
+    },
+    {
+      "id": "US-004",
+      "title": "Rewrite stop.js for codex last_assistant_message + transcript scan",
+      "description": "As a Stop hook running under codex, I want to detect missing tag protocols against codex's pre-extracted last_assistant_message and codex JSONL transcript shape, returning byte-identical block/pass-through decisions to upstream Claude behavior.",
+      "acceptanceCriteria": [
+        "packages/codexu-options-mode-plugin/hooks/stop.js reads input.last_assistant_message and input.transcript_path directly as string | null (no object unwrap — NullableString is serde(transparent)).",
+        "Preserve `if (input.stop_hook_active === true) return;` early-return verbatim from upstream (NOT inverted; verified at codex-rs/core/src/session/turn.rs:366, 557).",
+        "Preserve `if (input.agent_id || input.agent_type) return;` from upstream.",
+        "Replace upstream parseTranscript() + normalizeAssistantContent() with: last_assistant_message direct read; if empty/null, scan transcript_path JSONL for the last function_call (payload.type:\"function_call\", name in FUNCTION_CALL_NAMES) after the last payload.type:\"message\" — pass-through if found.",
+        "Preserve counter-file loop logic byte-identically (SHA hash of transcript_path\\nkey, cap at 5).",
+        "Preserve mode-aware block reasons (on / strict / auto) byte-identically from upstream.",
+        "tests/stop.test.mjs covers AC-2: missing tag (on mode) → block.",
+        "tests/stop.test.mjs covers AC-3: no-question tag (on mode) → pass.",
+        "tests/stop.test.mjs covers AC-4: background tags (on/strict/auto) → pass.",
+        "tests/stop.test.mjs covers AC-5: no-question tag (strict mode) → block.",
+        "tests/stop.test.mjs covers AC-6: task-complete tag (auto mode) → pass.",
+        "tests/stop.test.mjs covers AC-7: no-question tag (auto mode) → block.",
+        "tests/stop.test.mjs covers AC-8: state off → pass-through regardless of message content.",
+        "tests/stop.test.mjs covers AC-9: empty last_assistant_message + trailing function_call (both request_user_input and ask_user_question names) → pass.",
+        "tests/stop.test.mjs covers AC-10: 6th call with same (transcript_path,last_assistant_message) hash → pass + WARN log entry.",
+        "tests/stop.test.mjs covers AC-11: stop_hook_active:true → early-return (empty stdout).",
+        "tests/stop.test.mjs covers AC-12: stop_hook_active:false → normal enforcement (NOT inverted).",
+        "All fixtures use plain string transcript_path and last_assistant_message (NOT object-wrapped).",
+        "Typecheck passes",
+        "Tests pass"
+      ],
+      "priority": 4,
+      "passes": true,
+      "blocked": false,
+      "notes": "Highest-risk story. Per INV-1, INV-2, INV-3: read NullableString fields as plain string|null; preserve stop_hook_active === true early-return unchanged; do NOT add PreToolUse fallback (no pre_tool_use_payload exists on codex). Per INV-5/INV-6: rely on codex-set CLAUDE_PLUGIN_ROOT and PLUGIN_DATA. AskUserQuestion detection scans for function_call with name in {request_user_input, ask_user_question} for forward-compat with potential rename.",
+      "verifiedEvidence": [
+        {
+          "criterion": "stop.js reads input.last_assistant_message and input.transcript_path directly as string|null",
+          "command": "grep -nE 'input\\.last_assistant_message|input\\.transcript_path|transcript_path\\.path|last_assistant_message\\.text' packages/codexu-options-mode-plugin/hooks/stop.js",
+          "result": "Lines 104 and 107-108 read input.transcript_path and input.last_assistant_message directly with typeof string checks; grep found no object unwrap patterns transcript_path.path or last_assistant_message.text."
+        },
+        {
+          "criterion": "Preserve if (input.stop_hook_active === true) return; early-return verbatim",
+          "command": "grep -n 'if (input.stop_hook_active === true) return;' packages/codexu-options-mode-plugin/hooks/stop.js",
+          "result": "Line 97 contains the upstream early-return exactly: if (input.stop_hook_active === true) return;"
+        },
+        {
+          "criterion": "Preserve if (input.agent_id || input.agent_type) return; from upstream",
+          "command": "grep -n 'if (input.agent_id || input.agent_type) return;' packages/codexu-options-mode-plugin/hooks/stop.js",
+          "result": "Line 98 contains the upstream agent/subagent early-return exactly."
+        },
+        {
+          "criterion": "Replace upstream transcript parsing with last_assistant_message direct read plus function_call JSONL fallback",
+          "command": "grep -nE 'hasTrailingFunctionCall|payload\\.type|FUNCTION_CALL_NAMES|input\\.last_assistant_message' packages/codexu-options-mode-plugin/hooks/stop.js && grep -RIn 'parseTranscript\\|normalizeAssistantContent' packages/codexu-options-mode-plugin/hooks/stop.js || true",
+          "result": "hasTrailingFunctionCall scans parsed JSONL payloads backwards, stops at payload.type message, and passes on payload.type function_call with name in FUNCTION_CALL_NAMES; main reads input.last_assistant_message directly. No parseTranscript or normalizeAssistantContent remains."
+        },
+        {
+          "criterion": "Preserve counter-file loop logic byte-identically (SHA hash of transcript_path\\nkey, cap at 5)",
+          "command": "grep -nE 'counterPath|sha256.*transcriptPath|count > 5|gave up after' packages/codexu-options-mode-plugin/hooks/stop.js",
+          "result": "counterPath hashes transcriptPath plus newline plus key with sha256 and 32-char suffix; incrementLoopCounter stores .options-stop-counter-* under PLUGIN_DATA; count > 5 logs WARN and passes through."
+        },
+        {
+          "criterion": "Preserve mode-aware block reasons (on / strict / auto) byte-identically from upstream",
+          "command": "grep -nE 'BLOCK_REASON|BLOCK_REASON_STRICT|Auto options mode' packages/codexu-options-mode-plugin/hooks/stop.js",
+          "result": "BLOCK_REASON, BLOCK_REASON_STRICT, and auto-mode reason strings are present in stop.js and match the upstream text used by tests."
+        },
+        {
+          "criterion": "tests/stop.test.mjs covers AC-2: missing tag (on mode) -> block",
+          "command": "grep -n 'blocks missing tag in on mode' packages/codexu-options-mode-plugin/tests/stop.test.mjs && pnpm --filter {packages/codexu-options-mode-plugin} test > .test-output/codexu-options-mode-plugin.test.log 2>&1",
+          "result": "Test 'blocks missing tag in on mode' exists and full Vitest run exited 0: 5 files passed, 26 tests passed."
+        },
+        {
+          "criterion": "tests/stop.test.mjs covers AC-3: no-question tag (on mode) -> pass",
+          "command": "grep -n 'passes no-question tag in on mode' packages/codexu-options-mode-plugin/tests/stop.test.mjs",
+          "result": "Test 'passes no-question tag in on mode' exists and asserts empty stdout pass-through."
+        },
+        {
+          "criterion": "tests/stop.test.mjs covers AC-4: background tags (on/strict/auto) -> pass",
+          "command": "grep -n 'passes background tags in on, strict, and auto modes' packages/codexu-options-mode-plugin/tests/stop.test.mjs",
+          "result": "Test covers background-task and background-agent pass-through for on, strict, and auto modes."
+        },
+        {
+          "criterion": "tests/stop.test.mjs covers AC-5: no-question tag (strict mode) -> block",
+          "command": "grep -n 'blocks no-question tag in strict mode' packages/codexu-options-mode-plugin/tests/stop.test.mjs",
+          "result": "Test exists and asserts block decision with BLOCK_REASON_STRICT."
+        },
+        {
+          "criterion": "tests/stop.test.mjs covers AC-6: task-complete tag (auto mode) -> pass",
+          "command": "grep -n 'passes task-complete tag in auto mode' packages/codexu-options-mode-plugin/tests/stop.test.mjs",
+          "result": "Test exists and asserts empty stdout for OPTIONS_TASK_COMPLETE_TAG in auto mode."
+        },
+        {
+          "criterion": "tests/stop.test.mjs covers AC-7: no-question tag (auto mode) -> block",
+          "command": "grep -n 'blocks no-question tag in auto mode' packages/codexu-options-mode-plugin/tests/stop.test.mjs",
+          "result": "Test exists and asserts block decision with the auto-mode upstream reason."
+        },
+        {
+          "criterion": "tests/stop.test.mjs covers AC-8: state off -> pass-through regardless of message content",
+          "command": "grep -n 'passes through when state is off regardless of message content' packages/codexu-options-mode-plugin/tests/stop.test.mjs",
+          "result": "Test exists and asserts plain prose passes through with session state off."
+        },
+        {
+          "criterion": "tests/stop.test.mjs covers AC-9: empty last_assistant_message + trailing function_call names -> pass",
+          "command": "grep -n 'passes empty last assistant message with trailing function calls' packages/codexu-options-mode-plugin/tests/stop.test.mjs",
+          "result": "Test exists and covers both request_user_input and ask_user_question with empty string and null last_assistant_message."
+        },
+        {
+          "criterion": "tests/stop.test.mjs covers AC-10: 6th call with same hash -> pass + WARN log entry",
+          "command": "grep -n 'sixth call with same transcript and message passes and logs warning' packages/codexu-options-mode-plugin/tests/stop.test.mjs",
+          "result": "Test exists and asserts five blocks, sixth pass-through, and options.log WARN containing gave up after 6 blocks for the transcript path."
+        },
+        {
+          "criterion": "tests/stop.test.mjs covers AC-11: stop_hook_active:true -> early-return empty stdout",
+          "command": "grep -n 'stop_hook_active true early-returns with empty stdout' packages/codexu-options-mode-plugin/tests/stop.test.mjs",
+          "result": "Test exists and asserts empty stdout when stop_hook_active is true."
+        },
+        {
+          "criterion": "tests/stop.test.mjs covers AC-12: stop_hook_active:false -> normal enforcement (NOT inverted)",
+          "command": "grep -n 'stop_hook_active false runs normal enforcement' packages/codexu-options-mode-plugin/tests/stop.test.mjs",
+          "result": "Test exists and asserts stop_hook_active false blocks plain prose in active on mode."
+        },
+        {
+          "criterion": "All fixtures use plain string transcript_path and last_assistant_message (NOT object-wrapped)",
+          "command": "jq '{transcript_path_type:(.transcript_path|type), last_assistant_message_type:(.last_assistant_message|type)}' packages/codexu-options-mode-plugin/tests/fixtures/codex-stop-spike.json",
+          "result": "transcript_path_type string; last_assistant_message_type string; no object wrapping. stop.test.mjs also asserts the same fixture shape."
+        },
+        {
+          "criterion": "Typecheck passes",
+          "command": "pnpm --filter {packages/codexu-options-mode-plugin} typecheck > .test-output/codexu-options-mode-plugin.typecheck.log 2>&1",
+          "result": "Exit 0 on committed HEAD a52d149b; tsc --noEmit -p tsconfig.json produced no errors. Metadata recorded exitCode 0 durationSec 10 at 2026-05-13T19:30:27Z."
+        },
+        {
+          "criterion": "Tests pass",
+          "command": "pnpm --filter {packages/codexu-options-mode-plugin} test > .test-output/codexu-options-mode-plugin.test.log 2>&1",
+          "result": "Exit 0 on committed HEAD a52d149b; Vitest reported 5 test files passed and 26 tests passed, including tests/stop.test.mjs with 12 tests."
+        }
+      ],
+      "dependencies": [
+        "US-002",
+        "US-003"
+      ],
+      "failureClassification": "",
+      "partialProgress": null
+    },
+    {
+      "id": "US-005",
+      "title": "Wire hooks.json and .codex-plugin/plugin.json",
+      "description": "As an operator, I want the plugin to register its 3 hooks (SessionStart, UserPromptSubmit, Stop) with codex so they actually fire during a session — no PreToolUse (codex request_user_input has no pre_tool_use_payload).",
+      "acceptanceCriteria": [
+        "packages/codexu-options-mode-plugin/hooks/hooks.json registers SessionStart (matcher 'startup|resume|compact|clear', timeout 5), UserPromptSubmit (no matcher, timeout 5), Stop (no matcher, timeout 35). Commands use node ${CLAUDE_PLUGIN_ROOT}/hooks/<hook>.js form (codex sets the env var per discovery.rs:181-186).",
+        "No PreToolUse entry in hooks.json — codex request_user_input handler has no pre_tool_use_payload (verified core/src/tools/handlers/request_user_input.rs).",
+        ".codex-plugin/plugin.json hooks field points at ./hooks/hooks.json (or relies on codex default discovery — Story 1 spike confirms which).",
+        "After codex plugin marketplace add packages/codexu-options-mode-plugin and starting codex, ~/.codex/log/codex-tui.log (or the appropriate plugin-load log per Story 1 spike) shows no warnings about missing hook files or unresolved ${CLAUDE_PLUGIN_ROOT} substitution (AC-16).",
+        "Manual trigger: agent ends a turn with prose only → Stop hook fires, codex shows continuation prompt with block reason.",
+        "Typecheck passes"
+      ],
+      "priority": 5,
+      "passes": true,
+      "blocked": false,
+      "notes": "Per INV-3 + INV-5: hooks.json drops the upstream PreToolUse-AskUserQuestion block and uses ${CLAUDE_PLUGIN_ROOT} (codex sets it as alias to PLUGIN_ROOT). Wiring is the end-to-end integration story; AC-16 verifies codex plugin discovery completes without warnings.",
+      "verifiedEvidence": [
+        {
+          "criterion": "hooks.json registers SessionStart, UserPromptSubmit, and Stop with Codex command forms and timeouts",
+          "command": "jq -e '(.hooks | has(\"PreToolUse\") | not) and (.hooks.SessionStart[0].matcher == \"startup|resume|compact|clear\") and (.hooks.SessionStart[0].hooks[0].command == \"node ${CLAUDE_PLUGIN_ROOT}/hooks/session-start.js\") and (.hooks.SessionStart[0].hooks[0].timeout == 5) and (.hooks.UserPromptSubmit[0].hooks[0].command == \"node ${CLAUDE_PLUGIN_ROOT}/hooks/user-prompt-submit.js\") and (.hooks.UserPromptSubmit[0].hooks[0].timeout == 5) and (.hooks.Stop[0].hooks[0].command == \"node ${CLAUDE_PLUGIN_ROOT}/hooks/stop.js\") and (.hooks.Stop[0].hooks[0].timeout == 35)' packages/codexu-options-mode-plugin/hooks/hooks.json",
+          "result": "Exit 0; hooks.json contains SessionStart matcher startup|resume|compact|clear timeout 5, UserPromptSubmit timeout 5, Stop timeout 35, all using node ${CLAUDE_PLUGIN_ROOT}/hooks/<hook>.js."
+        },
+        {
+          "criterion": "No PreToolUse entry in hooks.json; codex request_user_input has no pre_tool_use_payload",
+          "command": "jq -e '.hooks | has(\"PreToolUse\") | not' packages/codexu-options-mode-plugin/hooks/hooks.json && sed -n '1,110p' D:/harness-efforts/codexu/codex/external/repos/codex-patched/codex-rs/core/src/tools/handlers/request_user_input.rs | grep -n 'pre_tool_use_payload' || true",
+          "result": "jq returned true for no PreToolUse entry; grep produced no pre_tool_use_payload implementation in request_user_input.rs."
+        },
+        {
+          "criterion": ".codex-plugin/plugin.json hooks field points at ./hooks/hooks.json",
+          "command": "jq -r '.hooks' packages/codexu-options-mode-plugin/.codex-plugin/plugin.json",
+          "result": "Printed ./hooks/hooks.json."
+        },
+        {
+          "criterion": "After codex plugin marketplace add and starting codex, log shows no hook-file or unresolved ${CLAUDE_PLUGIN_ROOT} warnings (AC-16)",
+          "command": "codex plugin marketplace add ./packages/codexu-options-mode-plugin; jq -e <static hooks schema check>; tail -80 ~/.codex/log/codex-tui.log",
+          "result": "US-005:AC-004 SKIPPED: live Codex TUI startup is not available from this noninteractive Ralph run. Fallback result: codex plugin marketplace add exited 0 and registered source_type=local for this package; static hooks schema check exited 0; all referenced hook files exist; existing codex-tui.log had no current-run entries for this marketplace to inspect."
+        },
+        {
+          "criterion": "Manual trigger: agent ends a turn with prose only -> Stop hook fires and blocks",
+          "command": "PLUGIN_DATA=<temp> node inline script seeds mode=on, pipes prose-only StopCommandInput into hooks/stop.js",
+          "result": "US-005:AC-005 SKIPPED: live interactive Codex TUI trigger is not scriptable in this noninteractive run. Fallback result: direct Stop hook invocation exited 0 and printed {\"decision\":\"block\",\"reason\":\"Add <options-mode>no-question</options-mode> tag if this turn is not asking the user, or use AskUserQuestion with concrete choices.\"}; US-004 stop.test.mjs also covers the block payload shape."
+        },
+        {
+          "criterion": "Typecheck passes",
+          "command": "pnpm --filter {packages/codexu-options-mode-plugin} typecheck > .test-output/codexu-options-mode-plugin.typecheck.log 2>&1",
+          "result": "Exit 0 on committed HEAD 4eb1a9a9 with clean worktree metadata; tsc --noEmit -p tsconfig.json produced no errors."
+        },
+        {
+          "criterion": "Tests pass",
+          "command": "pnpm --filter {packages/codexu-options-mode-plugin} test > .test-output/codexu-options-mode-plugin.test.log 2>&1",
+          "result": "Exit 0 on committed HEAD 4eb1a9a9 with clean worktree metadata; Vitest reported 5 test files passed and 28 tests passed."
+        }
+      ],
+      "dependencies": [
+        "US-001",
+        "US-002",
+        "US-003",
+        "US-004"
+      ],
+      "criteriaWarnings": [
+        {
+          "storyId": "US-005",
+          "criterion": "Manual trigger: agent ends a turn with prose only → Stop hook fires, codex shows continuation prompt with block reason.",
+          "severity": "verifiability",
+          "warning": "US-005 manual trigger criterion requires live interactive codex TUI session; not scriptable from unit tests. Indirect coverage via US-004 stop.test.mjs unit tests (assert block payload shape). Fallback: record \"SKIPPED: live codex TUI unavailable\" if codex CLI not runnable.",
+          "source": "criteria-validator"
+        },
+        {
+          "storyId": "US-005",
+          "criterion": "After codex plugin marketplace add packages/codexu-options-mode-plugin and starting codex, ~/.codex/log/codex-tui.log (or the appropriate plugin-load log per Story 1 spike) shows no warnings about missing hook files or unresolved ${CLAUDE_PLUGIN_ROOT} substitution (AC-16).",
+          "severity": "tool-availability",
+          "warning": "Requires codex CLI installed + runnable in iteration env. Fallback if unavailable: static schema check of hooks.json + plugin.json parse.",
+          "source": "criteria-validator"
+        }
+      ],
+      "failureClassification": "",
+      "partialProgress": null
+    },
+    {
+      "id": "US-006",
+      "title": "Discoverability skill, README, CLAUDE.md, statusline scripts, roadmap closure",
+      "description": "As an operator, I want clear install/troubleshooting docs, a discoverability skill, deferred statusline scripts (forward-compat), and the roadmap updated to reflect Phase 3h closure plus the two Phase 3h-tail follow-ups.",
+      "acceptanceCriteria": [
+        "packages/codexu-options-mode-plugin/skills/options-mode/SKILL.md — documentation-only skill body (adapted from upstream .codex-plugin/skills/options-mode/SKILL.md). Remove the upstream 'no Stop hook on this surface' claim. Skill body tells agent/user to type /options-mode <args> (UserPromptSubmit hook intercepts).",
+        "packages/codexu-options-mode-plugin/apps/statusline/options-mode-statusline.ps1 and .sh — copies from upstream hooks/options-mode-statusline.{ps1,sh}. Not wired to manifest. Forward-compat only.",
+        "packages/codexu-options-mode-plugin/README.md — Install procedure with reproducible command sequence per AC-17; behavior matrix per mode; known gaps (statusline deferred, PreToolUse auto-intercept deferred); plugin-source-vs-cache developer-workflow note (delete ~/.codex/plugins/cache/codexu-options-mode/codexu-options-mode-plugin/<version>/ to pick up source edits); troubleshooting.",
+        "packages/codexu-options-mode-plugin/CLAUDE.md — Engine notes: NullableString serde(transparent) wire form; stop_hook_active semantics identical to Claude (NOT inverted); function_call name:request_user_input detection (with ask_user_question forward-compat); codex env var aliases (CLAUDE_PLUGIN_ROOT, PLUGIN_DATA); plugin-source-vs-cache divergence; common mistakes (\"don't restore Claude JSONL parsing in stop.js\"; \"don't add PreToolUse — codex request_user_input handler has no pre_tool_use_payload\").",
+        "plans/codexu-roadmap.md — Mark §Phase 3h done; add two Phase 3h-tail entries: (a) codex TUI statusline plugin slot; (b) codex request_user_input handler pre_tool_use_payload() override to enable AskUserQuestion auto-intercept.",
+        "End-to-end verification: a script at packages/codexu-options-mode-plugin/scripts/smoke.mjs (created in this story) runs the reproducible sequence: (a) seed PLUGIN_DATA state to mode=on, (b) pipe a fixture StopCommandInput with `last_assistant_message: \"plain prose\"` into hooks/stop.js → assert stdout JSON contains `{\"decision\":\"block\",\"reason\":...}` matching upstream BLOCK_REASON; (c) write per-session state off, re-invoke → assert stdout empty/`{}`; (d) restore state. Exit 0 on all assertions. README §Install ALSO documents the manual codex-CLI session sequence (`codex plugin marketplace add ...` → start `codex` → trigger turn without tag → observe continuation prompt → `/options-mode off` → re-trigger → observe pass-through) for human-driven verification.",
+        "AC-18 verification: /codexu-options-mode-plugin:options-mode skill appears in codex's skill listing (exact verification command confirmed during this story).",
+        "AC-19: single commit referencing 'Phase 3h'.",
+        "Typecheck passes"
+      ],
+      "priority": 6,
+      "passes": true,
+      "blocked": false,
+      "notes": "Per INV-7: README + CLAUDE.md must document plugin-source-vs-cache divergence (edits to source don't propagate to ~/.codex/plugins/cache/...; must delete cached version dir and re-add marketplace). AC-statusline + AC-auto-intercept relaxations are documented as Phase 3h-tail follow-ups — autonomous mode accepts both relaxations.",
+      "verifiedEvidence": [
+        {
+          "criterion": "packages/codexu-options-mode-plugin/skills/options-mode/SKILL.md documentation-only skill body",
+          "command": "grep -nE '^name: options-mode|documentation-only|/options-mode <args>|UserPromptSubmit hook intercepts|no Stop hook on this surface' packages/codexu-options-mode-plugin/skills/options-mode/SKILL.md",
+          "result": "SKILL.md exists with name options-mode, documents bare /options-mode <args>, states the skill is documentation-only and UserPromptSubmit intercepts the toggle. Grep found no upstream 'no Stop hook on this surface' claim."
+        },
+        {
+          "criterion": "statusline scripts copied from upstream and not wired to manifest",
+          "command": "diff -q --strip-trailing-cr /c/Users/evmitran/.claude/plugins/cache/ai-developer-toolkit/options-mode/0.16.12/hooks/options-mode-statusline.ps1 packages/codexu-options-mode-plugin/apps/statusline/options-mode-statusline.ps1 && diff -q --strip-trailing-cr /c/Users/evmitran/.claude/plugins/cache/ai-developer-toolkit/options-mode/0.16.12/hooks/options-mode-statusline.sh packages/codexu-options-mode-plugin/apps/statusline/options-mode-statusline.sh && grep -RIn 'apps/statusline|options-mode-statusline' packages/codexu-options-mode-plugin/.codex-plugin packages/codexu-options-mode-plugin/hooks/hooks.json || true",
+          "result": "Both statusline files are byte-identical to upstream after line-ending normalization. Manifest/hook grep produced no wiring references; README/CLAUDE document them as forward-compat only."
+        },
+        {
+          "criterion": "README install procedure, behavior matrix, known gaps, cache workflow, troubleshooting",
+          "command": "grep -nE '^## Install|pnpm --filter|scripts/smoke|codex plugin marketplace add|^## Modes|Statusline|PreToolUse|plugins/cache|^## Troubleshooting' packages/codexu-options-mode-plugin/README.md",
+          "result": "README contains the reproducible install/check sequence, manual Codex session sequence, mode behavior matrix, known gaps for statusline and PreToolUse auto-intercept, source-vs-cache workflow with cache deletion, and troubleshooting entries."
+        },
+        {
+          "criterion": "CLAUDE.md engine notes and common mistakes",
+          "command": "grep -nE 'NullableString|stop_hook_active|request_user_input|ask_user_question|CLAUDE_PLUGIN_ROOT|PLUGIN_DATA|plugins/cache|Do not restore Claude transcript parsing|Do not add a PreToolUse' packages/codexu-options-mode-plugin/CLAUDE.md",
+          "result": "CLAUDE.md records the plain string NullableString wire form, stop_hook_active semantics, function_call detection names, Codex env aliases, plugin cache divergence, and common mistakes to avoid."
+        },
+        {
+          "criterion": "plans/codexu-roadmap.md marks Phase 3h done and adds Phase 3h-tail entries",
+          "command": "grep -nE '3h-options|3h. options-mode plugin migration - DONE|Phase 3h-tail|statusline plugin slot|pre_tool_use_payload' plans/codexu-roadmap.md",
+          "result": "Roadmap marks 3h-options DONE 2026-05-13, marks §3h done, and lists Phase 3h-tail follow-ups for Codex TUI statusline plugin slot and request_user_input pre_tool_use_payload override. plans/overview.html and plans/parallel-assignments.md were updated in lockstep per roadmap skill."
+        },
+        {
+          "criterion": "End-to-end verification smoke script sequence",
+          "command": "node packages/codexu-options-mode-plugin/scripts/smoke.mjs > .test-output/codexu-options-mode-plugin.smoke.log 2>&1",
+          "result": "Exit 0 on committed HEAD 756d4290; smoke output: options-mode smoke passed: on blocks plain prose; off passes through; temp state removed. The script seeds PLUGIN_DATA mode=on, asserts prose-only Stop output decision=block with upstream BLOCK_REASON, sets per-session off, asserts empty stdout, then removes temp state."
+        },
+        {
+          "criterion": "AC-18 verification: /codexu-options-mode-plugin:options-mode skill appears in codex skill listing",
+          "command": "codex plugin marketplace add ./packages/codexu-options-mode-plugin; timeout 25 codex debug prompt-input \"list skills\" > .test-output/codexu-options-mode-plugin.prompt-input.json 2> .test-output/codexu-options-mode-plugin.prompt-input.err; grep -n 'codexu-options-mode-plugin:options-mode' .test-output/codexu-options-mode-plugin.prompt-input.json || true; test -f packages/codexu-options-mode-plugin/skills/options-mode/SKILL.md && grep -n '^name: options-mode' packages/codexu-options-mode-plugin/skills/options-mode/SKILL.md",
+          "result": "SKIPPED: noninteractive codex debug prompt-input exited 0 but did not enumerate the local marketplace plugin skill in this environment. Fallback static verification passed: marketplace add exited 0, SKILL.md exists, and frontmatter contains name: options-mode. README documents the live command and static fallback."
+        },
+        {
+          "criterion": "AC-19: single commit referencing Phase 3h",
+          "command": "git log -1 --format=%H%n%s%n%b",
+          "result": "Commit 756d4290 has subject feat: US-006 - Discoverability skill, README, CLAUDE.md, statusline scripts, roadmap closure and body trailer Constraint: Phase 3h statusline and auto-intercept remain engine follow-ups."
+        },
+        {
+          "criterion": "Typecheck passes",
+          "command": "pnpm --filter {packages/codexu-options-mode-plugin} typecheck > .test-output/codexu-options-mode-plugin.typecheck.log 2>&1",
+          "result": "Exit 0 on committed HEAD 756d4290; tsc --noEmit -p tsconfig.json produced no errors. Metadata recorded exitCode 0 in .test-output/codexu-options-mode-plugin.typecheck.meta.json."
+        },
+        {
+          "criterion": "Tests pass",
+          "command": "pnpm --filter {packages/codexu-options-mode-plugin} test > .test-output/codexu-options-mode-plugin.test.log 2>&1",
+          "result": "Exit 0 on committed HEAD 756d4290; Vitest reported 5 test files passed and 28 tests passed."
+        }
+      ],
+      "dependencies": [
+        "US-001",
+        "US-002",
+        "US-003",
+        "US-004",
+        "US-005"
+      ],
+      "criteriaWarnings": [
+        {
+          "storyId": "US-006",
+          "criterion": "AC-18 verification: /codexu-options-mode-plugin:options-mode skill appears in codex skill listing (exact verification command confirmed during this story).",
+          "severity": "tool-availability",
+          "warning": "Requires codex CLI + populated plugin cache. Fallback: static check that packages/codexu-options-mode-plugin/skills/options-mode/SKILL.md exists with valid frontmatter.",
+          "source": "criteria-validator"
+        }
+      ],
+      "failureClassification": "",
+      "partialProgress": null
+    }
+  ]
+}

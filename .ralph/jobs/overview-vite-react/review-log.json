@@ -1,0 +1,90 @@
+[
+  {
+    "finding_id": "F-001",
+    "duration_s": 106,
+    "status": "fixed",
+    "summary": "Corrected index.html script tag to relative path (./overview-data.js), specified that the custom Vite plugin implements both configureServer (dev middleware + HMR watcher) and transformIndexHtml with enforce:'pre' (build-time inlining of plans/overview-data.js before vite-plugin-singlefile runs), added two risk areas and a build-mode acceptance criterion verifying the data is inlined."
+  },
+  {
+    "finding_id": "F-002",
+    "duration_s": 180,
+    "status": "fixed",
+    "summary": "Renamed Vite entry to overview.html so natural build emits plans/overview.html (stage 8); added closeBundle rename hook gated on OVERVIEW_BUILD_SAFE_NAME=1 plus a new overview:build:preview root script that emits plans/overview.html.next for stage 7's safe-name review; updated vite.config.ts file entry, stages 7/8 wording, and static-build ACs accordingly."
+  },
+  {
+    "finding_id": "F-003",
+    "duration_s": 146,
+    "status": "fixed",
+    "summary": "Added missing UI surfaces (Toolbar with FilterChips, BulkCopyButton, KeyboardHelp, FreshnessHint, WhatsNewBanner, ParallelismSection, DependenciesSection, Footnote) plus supporting hooks (useMultiAxisFilter, useKeyboardShortcuts, useWhatsNewSinceLastVisit) to the component/hook file list, updated App.tsx layout description, and added 8 explicit parity ACs in the Dev mode section with `plans/overview.html` line refs."
+  },
+  {
+    "finding_id": "F-004",
+    "duration_s": 68,
+    "status": "fixed",
+    "summary": "Added vitest devDep, test script, and vitest.config.ts to the Files to Create list; tightened the unit-tests AC to invoke pnpm --filter ... test."
+  },
+  {
+    "finding_id": "F-005",
+    "duration_s": 116,
+    "status": "fixed",
+    "summary": "Picked option (c) (fetch-and-re-execute via new Function(text)()) and documented the HMR mechanism in three places: §Data flow > Dev mode bullet (with rejection notes for options a/b), the vite.config.ts plugin pseudo-code (server.watcher.on('change') -> server.ws.send custom event), and the useOverviewData hook description (import.meta.hot.on listener + cache-busted refetch + notify)."
+  },
+  {
+    "finding_id": "F-006",
+    "duration_s": 73,
+    "status": "unknown",
+    "summary": "No review-meta output"
+  },
+  {
+    "finding_id": "F-006",
+    "duration_s": 64,
+    "status": "fixed",
+    "summary": "Relaxed the dev-mode wording in the Overview section from 'React diff updates only the changed task within ~200 ms' to 'React diff updates without a full page reload' (option b from the finding), dropping the unverifiable 200ms timing claim while keeping the verifiable state-preservation guarantees. The Acceptance Criteria already used the relaxed wording."
+  },
+  {
+    "finding_id": "F-007",
+    "duration_s": 102,
+    "status": "fixed",
+    "summary": "Corrected Stage 6's TodayPanel description from the inaccurate 'running/blocked/paused/recently-shipped' to the actual buckets in plans/overview.html:988-995 (Running / Ready / On hold + Recently shipped 7d footer), confirming parity is the goal."
+  },
+  {
+    "phase": "soft-cap",
+    "iteration": 8,
+    "openCount": 5,
+    "severities": {
+      "Medium": 5
+    }
+  },
+  {
+    "finding_id": "F-008",
+    "duration_s": 101,
+    "status": "fixed",
+    "summary": "Moved tools/overview-viewer/README.md creation from stage 9 to stage 7 so the stage-8 approval reviewer has written context for the deliberate phase-tree deviation and safe-name build flow; SKILL.md and root README updates remain in stage 9; updated stage descriptions, US-007/US-009 story entries, and cluster file-overlap evidence accordingly."
+  },
+  {
+    "finding_id": "F-009",
+    "duration_s": 88,
+    "status": "fixed",
+    "summary": "Decomposed the single 'visual parity vs 9f81c1f8' AC in Dev mode into a per-surface nested checklist (toolbar, kanban columns/card count, phase tree blocks, command-list row count, Today panel buckets, runs log count, FreshnessHint, WhatsNewBanner, legend, URL-filter banner, Parallelism/Dependencies sections, Footnote, dark+light themes) so each surface is independently verifiable."
+  },
+  {
+    "finding_id": "F-010",
+    "duration_s": 84,
+    "status": "fixed",
+    "summary": "Expanded the 'All 13 enrichment behaviors' In Scope bullet into two bullets: (1) the 13 named applyEnrichments passes with explicit names, and (2) the top-level behaviors that live outside applyEnrichments — whats-new diff, freshness hint, keyboard-help modal, multi-axis filter toolbar wiring, URL/hash routing, and the static Parallelism/Dependencies/Footnote sections — each linked to its overview.html line range and target component/hook."
+  },
+  {
+    "finding_id": "F-011",
+    "duration_s": 70,
+    "status": "fixed",
+    "summary": "Dropped ?q= URL-backed search state from the State preservation bullet; now relies on React useState since the controlled input stays mounted across HMR data updates."
+  },
+  {
+    "phase": "soft-cap",
+    "iteration": 5,
+    "openCount": 1,
+    "severities": {
+      "Medium": 1
+    }
+  }
+]

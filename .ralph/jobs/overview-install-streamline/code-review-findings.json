@@ -1,0 +1,211 @@
+{
+  "planFile": "D:/harness-efforts/codexu/.ralph/jobs/overview-install-streamline/plan.md",
+  "repoDir": "D:/harness-efforts/codexu/.ralph/jobs/overview-install-streamline/worktree",
+  "reviewCycle": 3,
+  "findings": [
+    {
+      "id": "F-001",
+      "severity": "Medium",
+      "source": "claude",
+      "category": "Completeness",
+      "classification": "fixable",
+      "phase": "code",
+      "sectionRef": "Approach > Architecture > Copilot mirror generator",
+      "description": "scripts/generate-copilot-artifacts.mjs copies skills/*/SKILL.md verbatim into dist/copilot/ without applying the Ralph generator's substitution rules. The plan states the generator should 'adapt the Ralph plugin's transformation rules but change discovery'. As a result, mirrors such as dist/copilot/work-on/SKILL.md:180 still contain Claude-specific Skill(...) invocations like Skill(\"ralph-orchestration:implement-with-ralph\", args=\"resume my-job\") that would be invalid under Copilot. AC14 (mirror count parity) still passes because it only counts files, not content adaptation.",
+      "relevantFiles": [
+        "plugins/ralph-overview/scripts/generate-copilot-artifacts.mjs:11-35",
+        "plugins/ralph-overview/dist/copilot/work-on/SKILL.md:180"
+      ],
+      "suggestedFix": "Pipe each SKILL.md through an applySubstitutions() helper modeled on plugins/ralph/scripts/generate-copilot-artifacts.mjs SUBSTITUTIONS array (skill-dispatch, agent-dispatch, options-tags, mcp-tools, etc.). At minimum, the substitutions safe for ralph-overview mirrors are the ones that rewrite Skill(...) and Agent(...) into Copilot task() calls.",
+      "status": "fixed",
+      "fixedInIteration": 1
+    },
+    {
+      "id": "F-002",
+      "severity": "High",
+      "source": "consensus",
+      "detectedBy": [
+        "claude",
+        "codex",
+        "copilot"
+      ],
+      "category": "Correctness",
+      "classification": "fixable",
+      "phase": "code",
+      "sectionRef": "Approach > Architecture > install-server.ts reconciliation",
+      "description": "install-server.ts --print-only writes the engine result envelope (ok / filesPlanned / filesWritten / filesSkipped / errors / summary) to stdout rather than the planned server registration block (\".mcp.json + .claude/settings.json\" preview content). AC17 says --print-only 'prints the server registration block for the new .mcp.json + enabledMcpjsonServers shape', but the test (install-server.test.ts:84-91) only asserts the engine envelope, leaving the AC under-tested. Codex and Copilot both flagged this as a High break of the legacy --print-only contract for existing consumers; promoted to High via 3-way consensus.",
+      "relevantFiles": [
+        "plugins/ralph-overview/tools/overview-mcp/src/install-server.ts:38-43",
+        "plugins/ralph-overview/tools/overview-mcp/src/__tests__/install-server.test.ts:75-91"
+      ],
+      "suggestedFix": "Either (a) update install-server.ts to compute the planned .mcp.json and .claude/settings.json content (e.g., via previewSettings + an analogous previewMcp) and print those JSON blocks; or (b) loosen AC17 wording to describe the engine plan envelope. If (a), extend install-server.test.ts to assert mcpServers['ralph-overview'] and enabledMcpjsonServers inside stdout.",
+      "status": "fixed",
+      "fixedInIteration": 1
+    },
+    {
+      "id": "F-003",
+      "severity": "High",
+      "source": "consensus",
+      "detectedBy": [
+        "claude",
+        "codex",
+        "copilot"
+      ],
+      "category": "Correctness",
+      "classification": "fixable",
+      "phase": "code",
+      "sectionRef": "Approach > Architecture > engine step 6",
+      "description": "scripts/init-consumer.mjs planTemplate() treats any existing scaffold file as a successful 'exists' skip whenever force is false, regardless of whether the existing content matches the template. The architecture step 6 explicitly says 'refuses scaffold template targets ... that already exist with conflicting content unless force === true' and only existence-with-identical-content is a no-op skip. Today a half-set-up consumer with a malformed plans/overview-data.js silently passes init with ok: true and filesSkipped = ['plans/overview-data.js: exists'], masking a broken state. Matches plan-review finding F-019 and was flagged High by both Codex and Copilot; promoted to High via 3-way consensus.",
+      "relevantFiles": [
+        "plugins/ralph-overview/scripts/init-consumer.mjs:76-82"
+      ],
+      "suggestedFix": "Compare existing-file content against the template (read both, normalize newlines if needed). Skip on identical content; refuse with errors.push(`${target}: conflicting content, pass force to overwrite`) when the file exists but differs. Add a test case for the conflict path.",
+      "status": "fixed",
+      "fixedInIteration": 1
+    },
+    {
+      "id": "F-004",
+      "severity": "Medium",
+      "source": "claude",
+      "category": "Quality",
+      "classification": "fixable",
+      "phase": "code",
+      "sectionRef": "Approach > Architecture > AST mutator edited ranges",
+      "description": "scripts/lib/upsert-task-edit.mjs uses zero-width insertion edits (start === end) for both array-item insertion (formatArrayInsertion) and object-entry insertion (planObjectEntryInsertion). AC6b says edited ranges should 'cover only the appended task object plus exact new map entries'. A zero-width range does not actually cover the inserted bytes, so a downstream byte-identity test that uses editedRanges to decide which bytes to compare cannot easily verify the create path. The current test in upsert-task-edit.test.ts validates the create path via idempotency-on-rerun rather than by computing outside-bytes-equal under post-insertion offsets, so the gap is in coverage rather than in observable behavior.",
+      "relevantFiles": [
+        "plugins/ralph-overview/scripts/lib/upsert-task-edit.mjs:204-242",
+        "plugins/ralph-overview/tools/overview-mcp/src/__tests__/upsert-task-edit.test.ts:39-73"
+      ],
+      "suggestedFix": "Either (a) report insertion ranges as [insertionOffset, insertionOffset + replacement.length] in post-edit coordinates with a clearly documented coordinate-system contract; or (b) introduce a separate insertedRanges field on the result for create-style edits. Then extend upsert-task-edit.test.ts to assert outside-bytes-equal for the create path using the new range shape.",
+      "status": "fixed",
+      "fixedInIteration": 1
+    },
+    {
+      "id": "F-005",
+      "severity": "Medium",
+      "source": "claude",
+      "category": "Quality",
+      "classification": "fixable",
+      "phase": "code",
+      "sectionRef": "Acceptance Criteria > AC9 (cross-surface parity)",
+      "description": "init-consumer.test.ts:100-108 names a sub-block 'engine, MCP shim stub, and CLI JSON expose matching planning fields', but the 'shim' (overviewInitShim) is implemented at lines 153-155 as `return initConsumer(options)` — a direct passthrough that does not exercise the overview.init MCP tool. AC9 says all three surfaces (engine + MCP + CLI) must produce identical JSON, so cross-parity regressions in the MCP wrapper or its zod-strict casting would go undetected by this specific test. init-upsert-tools.test.ts:28-37 does exercise overviewInit() directly, so the regression surface is narrow but real.",
+      "relevantFiles": [
+        "plugins/ralph-overview/tools/overview-mcp/src/__tests__/init-consumer.test.ts:100-108",
+        "plugins/ralph-overview/tools/overview-mcp/src/__tests__/init-consumer.test.ts:153-155"
+      ],
+      "suggestedFix": "Replace the overviewInitShim stub with a call to overviewInit(context, options) from src/tools/init.ts, building a minimal ServerContext just for the test. Alternatively, add an explicit assertion in init-upsert-tools.test.ts that the MCP overviewInit() result is JSON-equal to the same engine call.",
+      "status": "fixed",
+      "fixedInIteration": 1
+    },
+    {
+      "id": "F-006",
+      "severity": "Medium",
+      "source": "claude",
+      "category": "Quality",
+      "classification": "fixable",
+      "phase": "code",
+      "sectionRef": "Approach > Architecture > MCP tool registration",
+      "description": "schemas.ts registers overviewInitInputSchema and overviewUpsertTaskInputSchema as plain object literals (no .strict()) for the SDK via asSdkInputSchema(). The separately exported overviewInitSchema / overviewUpsertTaskSchema have .strict(), and the unit test 'uses strict schemas for both tool inputs' (init-upsert-tools.test.ts:64-67) parses through those strict variants. The actual MCP tool registration path goes through the loose plain-object form, so unknown keys may be accepted at the protocol boundary even though strict semantics are documented and tested.",
+      "relevantFiles": [
+        "plugins/ralph-overview/tools/overview-mcp/src/schemas.ts:76-114",
+        "plugins/ralph-overview/tools/overview-mcp/src/schemas.ts:137-138",
+        "plugins/ralph-overview/tools/overview-mcp/src/tools/init.ts:11-19",
+        "plugins/ralph-overview/tools/overview-mcp/src/tools/upsert-task.ts:14-23"
+      ],
+      "suggestedFix": "Pass the strict schema variants (or a strict-wrapped shape) into registerTool, e.g. by changing the registration to use overviewInitSchema.shape (in zod v4) or by composing asSdkInputSchema to wrap with .strict() automatically. Add a regression test that calls the MCP tool with an extra key and asserts it is rejected at the SDK boundary.",
+      "status": "fixed",
+      "fixedInIteration": 1
+    },
+    {
+      "id": "F-007",
+      "severity": "Low",
+      "source": "claude",
+      "category": "Quality",
+      "classification": "fixable",
+      "phase": "code",
+      "sectionRef": "Approach > Architecture > engine step 4",
+      "description": "init-consumer.mjs PACKAGE_SCRIPTS names (overview, overview:build, sync-ralph-state, sync-ralph-state:watch) match the legacy codexu layout and the installation.md Step 5 documentation, but diverge from the architecture plan text which named them overview:sync and overview:dev. Since both the implementation and the customer-facing doc agree, this is a plan-vs-implementation naming drift rather than a contract break; recommend reconciling the plan or noting the divergence in CHANGELOG.",
+      "relevantFiles": [
+        "plugins/ralph-overview/scripts/init-consumer.mjs:8-13",
+        "plugins/ralph-overview/docs/installation.md:101-108"
+      ],
+      "suggestedFix": "If preserving legacy parity is the intent (likely), update plan.md Approach > Architecture step 4 to name the actual scripts. Otherwise rename to overview:sync / overview:dev in PACKAGE_SCRIPTS and update installation.md.",
+      "status": "fixed",
+      "fixedInIteration": 1
+    },
+    {
+      "id": "F-008",
+      "severity": "High",
+      "source": "copilot",
+      "category": "Correctness",
+      "classification": "fixable",
+      "phase": "code",
+      "sectionRef": "bin/ralph-overview.mjs cli subcommand",
+      "description": "bin/ralph-overview.mjs:50-52 routes the 'cli' subcommand unconditionally to scripts/sync-ralph-state.mjs, passing the remainder of argv (e.g. 'derive-next-command --task <id>') as arguments to the sync script. sync-ralph-state.mjs has no 'derive-next-command' subcommand and throws 'unknown argument: derive-next-command' on parse. This breaks the existing /work-on, /triage, and /blocker-report skills which all reference `ralph-overview cli derive-next-command` in their SKILL.md files (skills/work-on/SKILL.md:80,135; skills/triage/SKILL.md:90; skills/blocker-report/SKILL.md:102) and the regenerated Copilot mirrors under dist/copilot/. The v1.0.0 CHANGELOG describes the cli subcommand as a generic lib-CLI dispatcher; there is in fact a scripts/lib/derive-next-command-cli.mjs file that should be the target. Verified by Copilot review.",
+      "relevantFiles": [
+        "plugins/ralph-overview/bin/ralph-overview.mjs:50-53",
+        "plugins/ralph-overview/scripts/lib/derive-next-command-cli.mjs",
+        "plugins/ralph-overview/skills/work-on/SKILL.md:80",
+        "plugins/ralph-overview/skills/work-on/SKILL.md:135",
+        "plugins/ralph-overview/skills/triage/SKILL.md:90",
+        "plugins/ralph-overview/skills/blocker-report/SKILL.md:102"
+      ],
+      "suggestedFix": "Change the 'cli' branch to dispatch by subcommand name into scripts/lib/<name>-cli.mjs (e.g., when args.rest[0] === 'derive-next-command', spawn scripts/lib/derive-next-command-cli.mjs with the remaining args). Add a smoke test that invokes `node bin/ralph-overview.mjs cli derive-next-command --task TASK-1` against a fixture repo and asserts exit 0 + a JSON payload on stdout.",
+      "status": "fixed",
+      "fixedInIteration": 1
+    },
+    {
+      "id": "F-009",
+      "severity": "Medium",
+      "source": "copilot",
+      "category": "Completeness",
+      "classification": "fixable",
+      "phase": "code",
+      "sectionRef": "Approach > Architecture > overview.upsert_task return shape",
+      "description": "tools/upsert-task.ts:24-35 returns { ok, action, changed, editedRanges, sync } but the architecture text says 'Returns { ok, action, fieldsChanged[], editedRanges[], filePath }'. The missing filePath and fieldsChanged[] fields are minor in absolute terms (skills can compute them) but the plan explicitly committed to the richer shape, and they would help operator-driven flows see which fields were touched without re-reading the mutator's editedRanges labels.",
+      "relevantFiles": [
+        "plugins/ralph-overview/tools/overview-mcp/src/tools/upsert-task.ts:24-35",
+        "plugins/ralph-overview/plan.md (Approach > Architecture - overview.upsert_task return shape)"
+      ],
+      "suggestedFix": "Extend the return value to { ok, action, changed, fieldsChanged: editedRanges.map(r => r.label), editedRanges, filePath: context.config.dataFile, sync }. fieldsChanged is just a label projection so it does not require new mutator output. Add a test that asserts the new fields.",
+      "status": "fixed",
+      "fixedInIteration": 1
+    },
+    {
+      "id": "F-010",
+      "severity": "Medium",
+      "source": "copilot",
+      "category": "Quality",
+      "classification": "fixable",
+      "phase": "code",
+      "sectionRef": "Technical Constraints > CRLF preservation",
+      "description": "scripts/lib/upsert-task-edit.mjs:172-219 (formatArrayInsertion, planObjectEntryInsertion, formatObjectLiteral, formatJsonValue) hardcodes inserted structural newlines as '\\n'. The Technical Constraints section of plan.md says the mutator must preserve the source's existing newline style verbatim outside the target task, including Windows '\\r\\n'. Creating tasks or appending top-level map entries against a CRLF-style overview-data.js (which is what real consumer codexu repos use) will introduce LF-only lines among the surrounding CRLF, breaking the byte-identity claim outside the inserted region in a subtle way (the inserted region itself uses LF, but adjacent CRLF surrounding lines remain CRLF). The test fixture overview-data.rich.js uses LF endings, so this is not caught by existing tests.",
+      "relevantFiles": [
+        "plugins/ralph-overview/scripts/lib/upsert-task-edit.mjs:204-260",
+        "plugins/ralph-overview/test-fixtures/overview-data.rich.js"
+      ],
+      "suggestedFix": "Detect the source's dominant newline style at parse time (sniff for '\\r\\n' presence and use it as the literal newline elsewhere). Pass that style into formatArrayInsertion / planObjectEntryInsertion / formatObjectLiteral. Add a CRLF fixture variant and a test asserting both creation and update preserve '\\r\\n' in inserted regions.",
+      "status": "fixed",
+      "fixedInIteration": 1
+    },
+    {
+      "id": "F-011",
+      "severity": "Medium",
+      "source": "claude",
+      "category": "Quality",
+      "classification": "fixable",
+      "phase": "code",
+      "sectionRef": "Approach > Architecture > MCP tool registration pattern",
+      "description": "The F-006 fix changed tools/init.ts and tools/upsert-task.ts to pass the wrapped strict ZodObject (overviewInitSchema, overviewUpsertTaskSchema) directly as the registerTool inputSchema, while every other MCP tool in the codebase (10 sites in server.ts, plus build/dev-server/sync-now/sync-watch-status tools) still passes asSdkInputSchema(<raw-shape>). This works (the round-trip SDK-boundary test in init-upsert-tools.test.ts confirms unknown-key rejection), but it introduces a stylistic policy-consistency divergence: two parallel patterns for the same operation in adjacent files. Future maintainers reading the codebase have to discover that both work and why. No acceptance criterion is at risk; the diff is green; this is purely a code-uniformity concern.",
+      "relevantFiles": [
+        "plugins/ralph-overview/tools/overview-mcp/src/tools/init.ts:15",
+        "plugins/ralph-overview/tools/overview-mcp/src/tools/upsert-task.ts:19",
+        "plugins/ralph-overview/tools/overview-mcp/src/server.ts:64",
+        "plugins/ralph-overview/tools/overview-mcp/src/schemas.ts:168"
+      ],
+      "suggestedFix": "Pick one pattern across the package. Either (a) keep asSdkInputSchema(<raw-shape>) everywhere and rely on Zod runtime strictness inside the handler if needed, or (b) refactor asSdkInputSchema to accept a wrapped ZodObject and migrate all 10+ existing call-sites to the wrapped form. Option (a) is the smaller diff. Defer if a future SDK upgrade is likely to change the contract anyway.",
+      "status": "fixed",
+      "fixedInIteration": 2
+    }
+  ]
+}

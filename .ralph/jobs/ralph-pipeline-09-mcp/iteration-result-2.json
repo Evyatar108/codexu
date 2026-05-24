@@ -1,0 +1,56 @@
+{
+  "storyId": "US-002",
+  "verifiedEvidence": [
+    {
+      "criterion": "SnapshotReader class exposes getSnapshot(), getOverviewData(), start(), close()",
+      "evidenceKind": "passed",
+      "command": "grep -n 'class SnapshotReader' tools/overview-mcp/src/snapshot-reader.ts; grep -n 'getSnapshot' tools/overview-mcp/src/snapshot-reader.ts; grep -n 'getOverviewData' tools/overview-mcp/src/snapshot-reader.ts; grep -n 'start():' tools/overview-mcp/src/snapshot-reader.ts; grep -n 'close():' tools/overview-mcp/src/snapshot-reader.ts",
+      "result": "SnapshotReader is defined with start(), close(), getSnapshot(), and getOverviewData() at lines 17, 34, 58, 66, and 82."
+    },
+    {
+      "criterion": "Uses chokidar.watch() on config.outputs.snapshot and config.dataFile; on change events nulls caches; next get*() re-reads",
+      "evidenceKind": "passed",
+      "command": "grep -n 'chokidar.watch' tools/overview-mcp/src/snapshot-reader.ts; grep -n 'on(' tools/overview-mcp/src/snapshot-reader.ts; grep -n 'loaded = false' tools/overview-mcp/src/snapshot-reader.ts",
+      "result": "SnapshotReader watches config.outputs.snapshot and config.dataFile via chokidar.watch(); change/add/unlink handlers invalidate loaded cache flags, and tests confirm subsequent get*() calls refresh changed snapshot and overview-data files."
+    },
+    {
+      "criterion": "getSnapshot() returns null when the snapshot file is missing (no throw)",
+      "evidenceKind": "passed",
+      "command": "pnpm --filter @codexu/overview-mcp test",
+      "result": "Exit 0; Vitest case 'returns null when the snapshot file is missing' passed. Overall: 1 test file passed, 4 tests passed."
+    },
+    {
+      "criterion": "getOverviewData() reuses loadOverviewData() from scripts/lib/sync-core.mjs",
+      "evidenceKind": "passed",
+      "command": "grep -n loadOverviewData tools/overview-mcp/src/snapshot-reader.ts && pnpm --filter @codexu/overview-mcp test",
+      "result": "snapshot-reader.ts imports loadOverviewData from scripts/lib/sync-core.mjs and uses it in getOverviewData(); Vitest case 'reuses loadOverviewData and refreshes overview-data after file changes' passed."
+    },
+    {
+      "criterion": "Tolerates torn reads: on parse failure, schedule one 100 ms retry; if still failing, return cached value or null; log a single stderr warning per failure",
+      "evidenceKind": "passed",
+      "command": "grep -n 'delay(100)' tools/overview-mcp/src/snapshot-reader.ts; grep -n 'process.stderr.write' tools/overview-mcp/src/snapshot-reader.ts; grep -n 'previous' tools/overview-mcp/src/snapshot-reader.ts; pnpm --filter @codexu/overview-mcp test",
+      "result": "readWithRetry waits 100 ms after initial parse failure, retries once, logs one stderr warning, and returns previous cached value or null; Vitest torn-read recovery case passed."
+    },
+    {
+      "criterion": "Vitest fixture under a tmp dir: write snapshot -> read -> modify -> read -> assert refreshed; corrupt mid-write -> assert reader recovers",
+      "evidenceKind": "passed",
+      "command": "pnpm --filter @codexu/overview-mcp test",
+      "result": "Exit 0; snapshot-reader.test.ts uses fs.mkdtemp temp fixtures. Cases for snapshot refresh and corrupt mid-write recovery passed. Overall: 1 test file passed, 4 tests passed."
+    },
+    {
+      "criterion": "Typecheck passes",
+      "evidenceKind": "passed",
+      "command": "pnpm --filter @codexu/overview-mcp typecheck",
+      "result": "Exit 0; tsc --noEmit -p tsconfig.json completed without errors. Full log: .test-output/overview-mcp.typecheck.log."
+    },
+    {
+      "criterion": "Tests pass",
+      "evidenceKind": "passed",
+      "command": "pnpm --filter @codexu/overview-mcp test",
+      "result": "Exit 0; Vitest reported 1 test file passed and 4 tests passed. Full log: .test-output/overview-mcp.test.log."
+    }
+  ],
+  "skippedReasons": [],
+  "notTested": [],
+  "iterationSHA": "eff06107292214d5ef3b0fa1c7599606e7239af3"
+}

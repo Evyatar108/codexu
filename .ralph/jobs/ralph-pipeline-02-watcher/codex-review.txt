@@ -1,0 +1,25 @@
+### Completeness
+
+[High] `scripts/lib/watch-ralph-state.mjs:35` returns a `status` object with `currentState`, `pendingChanges`, `consecutiveFailures`, and `stopped`, but the plan requires `status()` returning `{ running, pendingSlugs, queueDepth, lastTickAt }`. This breaks the public watcher contract and downstream Plan 11 status tooling.
+
+[High] `scripts/sync-ralph-state.mjs:31` uses `processLabel: 'one-shot'`, but the plan requires lock metadata process labels to include `standalone-oneshot`. That invalidates the documented lock-content contract consumed by later plans.
+
+[High] `scripts/lib/sync-core.mjs:136-150` does not implement true per-slug incremental derivation. `deriveAffectedTaskUpdate` seeds `touched` from the full current state and then calls `readAllBundles`, so every change re-reads the full Ralph tree instead of “ONLY the files belonging to those bundles” as required.
+
+### Correctness
+
+[High] `scripts/lib/watch-ralph-state.mjs:143-166` can lose changes during startup. The watcher subscribes before the cold-start walk completes, and event handlers can schedule `flushPending`; if the debounce fires before `currentState` is assigned, `mergeAndWrite` is called with `currentState === undefined` and throws. The queued change is already cleared, so the write is not reconciled.
+
+[High] `scripts/lib/watch-ralph-state.mjs:77-91` drops retain updates entirely. For malformed JSON, it logs and increments counters but never calls `mergeAndWrite`, so the sidecar’s `unmatched` / `unmatchedSummary` are not refreshed with the parse-error fragment. This violates the acceptance criterion that incremental output match a full walk for parse-error cases while retaining the prior task entry.
+
+### Quality
+
+No issues found beyond the contract and correctness problems above.
+
+### Security
+
+No issues found.
+
+### Overall Assessment
+
+Not ready. The lock/watch surface is partially present, but several acceptance criteria are broken: public status shape, lock metadata label, true incremental processing, startup reconciliation, and parse-error sidecar refresh.

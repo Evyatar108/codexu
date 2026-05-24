@@ -1,0 +1,226 @@
+{
+  "planFile": "D:/harness-efforts/codexu/.ralph/jobs/.staging/20260517-100320/draft-plan.md",
+  "repoDir": "D:/harness-efforts/codexu",
+  "reviewCycle": 0,
+  "findings": [
+    {
+      "id": "F-001",
+      "severity": "High",
+      "source": "codex",
+      "category": "Feasibility",
+      "sectionRef": "Research Findings > Codebase Context; Approach > Implementation Strategy (US-003); Acceptance Criteria",
+      "description": "Task count is stale. Plan says '49 task entries' and US-003 says 'remaining 46 tasks'. Verified by grep -c '<details class=\"cmd\"' plans/overview.html = 51, data-plan-only=7, data-merge-commit=7. AC and US-003 must be updated: 51 entries total; US-003 ports 'remaining 48 tasks' (after US-002 ports 3). Also add an AC for no-duplicate-id check across tasks[].",
+      "status": "fixed",
+      "relevantFiles": [
+        "plans/overview.html"
+      ],
+      "suggestedFix": "Replace all '49' with '51' and 'remaining 46' with 'remaining 48' in Research Findings, US-003 description, and Acceptance Criteria. Add AC: 'No two tasks[] entries share the same id.'",
+      "fixedInIteration": 1,
+      "resolution": "Updated task counts to reflect verified grep result (51 total, 48 remaining after US-002 ports 3) in Research Findings, US-003, Risk Areas, and Acceptance Criteria; added a no-duplicate-id AC."
+    },
+    {
+      "id": "F-002",
+      "severity": "High",
+      "source": "codex",
+      "category": "Feasibility",
+      "sectionRef": "Research Findings > Codebase Context; Approach > Files to Create/Modify",
+      "description": "Plan's line range for the inline JSON block is wrong. Plan states 'roadmap-data JSON: 2180-3529' and 'Inline JS: 3530-3767'. Verified: <script type=\"application/json\" id=\"roadmap-data\"> spans lines 2180-2612 (closing </script> at line 2612). Main inline <script> block runs lines 2614-3767. If implementer follows the stated range literally, the deletion in US-001 would also delete most of the main script. Highest-risk error in the plan.",
+      "status": "fixed",
+      "relevantFiles": [
+        "plans/overview.html"
+      ],
+      "suggestedFix": "Update plan to: JSON block 2180-2612, main inline JS 2614-3767. Update US-001 'DELETE: <script type=\"application/json\" id=\"roadmap-data\"> block (2180-2612, ~430 lines)' (not ~1350).",
+      "fixedInIteration": 2,
+      "resolution": "Corrected line ranges throughout the plan: JSON block is 2180–2612 (~430 lines) not 2180–3529 (~1350 lines), and inline JS is 2614–3767 not 3530–3767. Updated Research Findings bullets and US-001 deletion in Files to Create/Modify."
+    },
+    {
+      "id": "F-003",
+      "severity": "High",
+      "source": "codex",
+      "category": "Feasibility",
+      "sectionRef": "Approach > Data schema; Approach > Implementation Strategy (US-001)",
+      "description": "Proposed schema wraps generatedAt/generatedFromCommit under meta:{...}, but the existing consumer at plans/overview.html line 3540 reads data.generatedFromCommit (top-level), not data.meta.generatedFromCommit. As written, US-001 would break the SHA-in-header and freshness-hint features unless the consumer is also rewritten in the same story.",
+      "status": "fixed",
+      "relevantFiles": [
+        "plans/overview.html"
+      ],
+      "suggestedFix": "Choose ONE: (a) keep generatedAt + generatedFromCommit at top level of OVERVIEW_DATA alongside tasks/phaseTree/runs/etc; or (b) introduce the meta:{} wrapper and rewrite the consumer at line 3540 within US-001. Recommend (a) for minimum-change.",
+      "fixedInIteration": 3,
+      "resolution": "Replaced meta:{} wrapper with top-level generatedAt/generatedFromCommit in the schema, Plan #3 contract, and US-001 strategy — preserves existing overview.html:3540/3543 consumers without same-story rewrite."
+    },
+    {
+      "id": "F-004",
+      "severity": "High",
+      "source": "codex",
+      "category": "Completeness",
+      "sectionRef": "Approach > Data schema (kanbanCards)",
+      "description": "kanbanCards[] schema with {column, titleHtml, subHtml} is insufficient for identical rendering. Verified: plans/overview.html has 33 .card-meta blocks with rich content (pills, icons, links, inline <code>), and at least one card carries class=\"card closed\" (extra class beyond .card). Inline-style border-color and opacity already documented. The current 3-field schema cannot round-trip card-meta, additional card class names, or inline pills.",
+      "status": "fixed",
+      "relevantFiles": [
+        "plans/overview.html"
+      ],
+      "suggestedFix": "Widen schema. Option A: kanbanCards[].{column, html} where html is the trusted full inner HTML of <div class=\"card\">. Option B: structured {column, cardClass: 'closed'|null, titleHtml, subHtml, metaHtml, inlineStyle: string|null}. Recommend A for minimum schema design; render emits <div class=\"card ${cardClass||''}\" style=\"${inlineStyle||''}\" data-task-id=\"...\">${html}</div>.",
+      "fixedInIteration": 4,
+      "resolution": "Widened kanbanCards[] schema to {column, cardClass, inlineStyle, html} (Option A from finding) so rich card-meta content, extra card classes like 'closed', and inline styles round-trip verbatim; updated DOM-contract bullet and renderTasks() emission description to match."
+    },
+    {
+      "id": "F-005",
+      "severity": "High",
+      "source": "codex",
+      "category": "Completeness",
+      "sectionRef": "Approach > Data schema (phaseTree)",
+      "description": "phaseTree[] tagged union ({kind: 'task-ref'|'bullet'|'sub-phase'}) is insufficient for identical rendering. Verified: plans/overview.html lines 1920-2009 use .phase-grid, .phase, .phase-head, .item-name with state classes 'open|deferred|donefade|closed', nested <details class=\"phase-subdetails\">, and inline styling. Tagged union can preserve structure but not the state classes or arbitrary inline content.",
+      "status": "fixed",
+      "relevantFiles": [
+        "plans/overview.html"
+      ],
+      "suggestedFix": "Use a richer node schema. Each phase: {id, title, headerHtml?, nodes: [{kind:'task-ref'|'raw', taskId?, state?: 'open'|'deferred'|'donefade'|'closed', html?}, ...], subPhases: recursive}. 'raw' carries trusted inner HTML; 'task-ref' carries taskId + state. Render emits the appropriate class names on .item-name.",
+      "fixedInIteration": 5,
+      "resolution": "Enriched phaseTree schema with state classes, raw-html nodes, headerHtml, and collapsible subdetails to round-trip the actual phase-tree HTML in overview.html:1920–2009; updated Risk Area #3 and US-004 to match."
+    },
+    {
+      "id": "F-006",
+      "severity": "High",
+      "source": "claude",
+      "category": "Criteria Quality",
+      "sectionRef": "Acceptance Criteria",
+      "description": "AC promises bookkeeper-workflow updates reflect in 'kanban placement, command-row badge, phase tree pill, and Today panel without further file edits' but does not include an explicit Today-panel verification step. If the data-driven render breaks Today-panel logic (which today walks DOM by class/data-attribute), the AC is unverifiable as a binary pass/fail.",
+      "status": "fixed",
+      "suggestedFix": "Add an AC: 'After data-file edit changing a task's phase to impl-in-progress, the Today panel's Running section includes that task within one page reload without console errors. Verified by manual reload on file://.'",
+      "fixedInIteration": 6,
+      "resolution": "Added explicit Today-panel AC: after data-file edit changing phase to impl-in-progress, single page reload places the task in #today-running with no console errors, confirming buildTodayPanel() still classifies the rendered DOM correctly."
+    },
+    {
+      "id": "F-007",
+      "severity": "High",
+      "source": "claude",
+      "category": "Criteria Quality",
+      "sectionRef": "Acceptance Criteria",
+      "description": "AC requires 'same prompt bodies copy-pasteable from the clipboard' but does not specify the decode/re-emit strategy. Risk Areas section identifies HTML-entity decoding as Risk #1 but the AC is silent on implementation. Without an explicit AC, an autonomous implementer may use innerHTML for prompt bodies and re-encode entities, producing copy-paste output that contains '&gt;' instead of '>'.",
+      "status": "wont_fix",
+      "suggestedFix": "Add an AC: 'Prompt bodies in <pre class=\"cmd-pre\"> render with HTML entities decoded to literal characters; render uses textContent (or DOM Node.textContent assignment), not innerHTML, for prompt strings. Verified by manual copy-paste check on first 3 + last 3 tasks: pasted text equals the JS string literal stored in tasks[].command.planPrompt.'",
+      "fixedInIteration": 8,
+      "resolution": "Plan line 230 already contains an AC matching (and stronger than) the suggested fix: it requires textContent assignment, forbids innerHTML/template-string interpolation, and specifies byte-for-byte copy-paste verification on first 3 + last 3 tasks against tasks[].command.planPrompt. Finding appears to reference an earlier draft."
+    },
+    {
+      "id": "F-008",
+      "severity": "High",
+      "source": "claude",
+      "category": "Criteria Quality",
+      "sectionRef": "Acceptance Criteria",
+      "description": "AC says 'Expanding a <details class=\"cmd\"> row, then re-firing the render preserves the open state' but lacks an explicit test procedure or interaction with the existing localStorage 'codexu-overview-details-state-v2' persistence (overview.html line 3106). An implementer might satisfy the snapshot/restore in-render but skip the localStorage re-apply, regressing cross-load persistence.",
+      "status": "fixed",
+      "suggestedFix": "Replace with: 'After renderTasks() rebuilds the DOM, all <details class=\"cmd\"> elements that were open before the re-render are still open. Additionally, the existing localStorage codexu-overview-details-state-v2 persistence still works: open 2 details, reload the page, the same 2 are open. Verified manually on file://.'",
+      "resolution": "Folded into US-002 acceptance criteria in stories-outline.md: open-state snapshot via document.querySelectorAll('details.cmd[open]') before wipe + re-apply by id after render, AND localStorage v2 reload check (open 2 details, reload, both still open).",
+      "fixedInIteration": 9
+    },
+    {
+      "id": "F-009",
+      "severity": "Medium",
+      "source": "codex",
+      "category": "Criteria Quality",
+      "sectionRef": "Acceptance Criteria",
+      "description": "'Renders identically' is unverifiable in its current form. Codex recommends concrete checks.",
+      "status": "fixed",
+      "suggestedFix": "Replace 'renders identically' with: '(1) Kanban column counts match pre-refactor (ready=N, soon=M, blocked=K); (2) Command row count = 51; (3) Every #cmd-<id> hash link jumps to a matching <details>; (4) ?tasks=<id1>,<id2> URL filter shows exactly those tasks; (5) Decoded .cmd-pre text content matches the pre-refactor HTML text content for first 3 + last 3 tasks; (6) Every kanban card retains its .card-meta block.'",
+      "resolution": "Folded into US-003 'Identical-render check' acceptance criterion (6 concrete checks: kanban column counts, command row count=51, hash-link match, ?tasks= filter behavior, decoded .cmd-pre matches pre-refactor for first/last 3, .card-meta retained); also reflected in plan.md Acceptance Criteria block.",
+      "fixedInIteration": 9
+    },
+    {
+      "id": "F-010",
+      "severity": "Medium",
+      "source": "codex",
+      "category": "Feasibility",
+      "sectionRef": "Approach > Architecture (render pipeline)",
+      "description": "Plan says 'add into the existing inline <script> near the top of DOMContentLoaded handling' but plans/overview.html has no DOMContentLoaded wrapper; IIFEs run immediately starting at line 2614. As written, an implementer might add a DOMContentLoaded wrapper that delays render past the IIFE timing.",
+      "status": "fixed",
+      "suggestedFix": "Replace 'near the top of DOMContentLoaded handling' with 'synchronously at the top of the main inline <script> block (line 2614+), before the first DOM-walking IIFE (PHASE_TO_ORDER_BUCKET / renderPhaseBadges / counts / filters)'.",
+      "resolution": "Folded into US-002 AC: 'renderTasks() runs synchronously at the top of the main inline <script> (line 2614+), BEFORE the first DOM-walking IIFE (PHASE_TO_ORDER_BUCKET / renderPhaseBadges / counts / filters)'. Plan Architecture section also updated.",
+      "fixedInIteration": 9
+    },
+    {
+      "id": "F-011",
+      "severity": "Medium",
+      "source": "codex",
+      "category": "Completeness",
+      "sectionRef": "Scope > In Scope / Out of Scope; Files to Create/Modify (US-005)",
+      "description": "plans/overview-vite-react.md is cited as the downstream contract but still documents URL filtering as '?id=foo,bar' (lines 66, 147), while overview.html uses ?tasks=. After this plan ships, the sibling plan would still be inconsistent.",
+      "status": "fixed",
+      "suggestedFix": "Add plans/overview-vite-react.md to US-005's modify list with the change: update ?id= references to ?tasks= at lines 66 and 147. Add to Acceptance Criteria: 'plans/overview-vite-react.md no longer references ?id= for URL filtering.'",
+      "resolution": "Resolved out-of-band in this conversation session: plans/overview-vite-react.md edited to replace ?id=foo,bar with ?tasks= at lines 66 and 147, and KanbanCard description updated to acknowledge trusted-HTML consumption. Also covered by US-005a 'docs sweep' acceptance criterion and plan AC.",
+      "fixedInIteration": 9
+    },
+    {
+      "id": "F-012",
+      "severity": "Medium",
+      "source": "codex",
+      "category": "Completeness",
+      "sectionRef": "Acceptance Criteria (grep verification); Files to Create/Modify (US-005)",
+      "description": "Stale-doc sweep target is too narrow. plans/parallel-assignments.md lines 225, 235 say 'bump the lastRanAt timestamp ... in plans/overview.html's roadmap-data JSON'; lines 242, 247 reference 'plans/overview.html roadmap-data JSON' for spawnedFrom and add-new-task instructions. Grepping only for 'edit plans/overview.html' misses these.",
+      "status": "fixed",
+      "suggestedFix": "Expand US-005 sweep + AC: grep for each of 'edit plans/overview.html', 'roadmap-data', 'lastRanAt timestamp', 'generatedFromCommit'. Each must be re-pointed at plans/overview-data.js. Update specific lines: plans/parallel-assignments.md 225, 235, 242, 247.",
+      "resolution": "Folded into US-005a broad-grep AC and plan AC: each of 'edit plans/overview.html', 'roadmap-data', 'lastRanAt timestamp' returns zero hits over .agents/ plans/ packages/ (with plans/overview.html excluded); 'generatedFromCommit' allowed only inside plans/overview-data.js. Stale phrasings at plans/parallel-assignments.md lines 225/235/242/247 named explicitly in US-005a scope.",
+      "fixedInIteration": 9
+    },
+    {
+      "id": "F-013",
+      "severity": "Medium",
+      "source": "codex",
+      "category": "Ordering",
+      "sectionRef": "Suggested Decomposition > docs-and-skill-rewrite cluster",
+      "description": "US-005 (docs-and-skill-rewrite) depends on representative-port (Phase 3) so it can run parallel with US-003/US-004. But Risk Areas section #7 says 'write SKILL.md AFTER US-003/US-004 finalize the schema'. Internal contradiction — if US-005 runs parallel with US-003/US-004, the SKILL example snippets would be drafted against the representative-only schema and may need rework once the full port settles.",
+      "status": "fixed",
+      "suggestedFix": "Move US-005 to Phase 4, depending on full-task-port AND phase-tree-port. Trades parallelism for correctness. Alternatively: split US-005 into 'US-005a docs-update' (parallel-safe in Phase 3) + 'US-005b SKILL rewrite' (Phase 4, depends on full schema).",
+      "resolution": "Resolved by splitting US-005 into US-005a (Phase 3 docs sweep, parallel-safe with US-003/US-004) and US-005b (Phase 4 SKILL rewrite, depends on US-003 AND US-004). Suggested-decomposition.json updated with two clusters: docs-sweep and skill-rewrite. Plan's Preliminary Story Decomposition + Suggested Decomposition sections rewritten.",
+      "fixedInIteration": 9
+    },
+    {
+      "id": "F-014",
+      "severity": "Medium",
+      "source": "codex",
+      "category": "Ordering",
+      "sectionRef": "Suggested Decomposition > full-task-port + phase-tree-port",
+      "description": "US-003 and US-004 both edit plans/overview.html (disjoint line ranges, fine) but both also extend window.OVERVIEW_DATA — US-003 fills tasks[], US-004 fills phaseTree[]. The single top-level object means parallel worktrees both rewrite the same braces. Without an explicit owner of the object skeleton, parallel merge can corrupt the file even if logically additive.",
+      "status": "fixed",
+      "suggestedFix": "US-001 creates the full skeleton with empty tasks: [] and empty phaseTree: [] already in place. US-002 fills the 3 representative tasks. US-003 only mutates the tasks: [] array body (append entries). US-004 only mutates the phaseTree: [] array body. Document this 'each story mutates only its array body' invariant in US-003/US-004 stories.",
+      "resolution": "Folded into US-001 AC (skeleton-ownership invariant stated in the schema-comment block of the data file) and US-003/US-004 ACs each declare 'mutates only its own array body'. Suggested-decomposition.json executionModeRationale strings reference the invariant. The plan's Risk Areas section also documents this isolation.",
+      "fixedInIteration": 9
+    },
+    {
+      "id": "F-015",
+      "severity": "Medium",
+      "source": "claude",
+      "category": "Ordering",
+      "sectionRef": "Suggested Decomposition > full-task-port + phase-tree-port (inline script coordination)",
+      "description": "Plan's inline render code lives in the same <script> block in overview.html. US-002 adds renderTasks(); US-004 will need to add renderPhaseTree(). The plan does not define explicit section markers, so two parallel worktrees may insert code at adjacent line positions and conflict.",
+      "status": "fixed",
+      "suggestedFix": "US-002 inserts BOTH section markers as comments (even if renderPhaseTree() is empty): '// ===== renderTasks() =====' and '// ===== renderPhaseTree() =====' near the top of the inline script. US-004 fills the renderPhaseTree() body inside its marker only. Document this convention in US-002 and US-004 stories.",
+      "resolution": "Folded into US-002 AC: 'Section markers // ===== renderTasks() ===== and // ===== renderPhaseTree() ===== exist near the top of the inline <script>; US-004 fills the phase-tree marker; this story emits an empty stub.' US-004 AC echoes: 'renderPhaseTree() body lives inside the section marker US-002 emitted; renderTasks() marker is not touched.'",
+      "fixedInIteration": 9
+    },
+    {
+      "id": "F-016",
+      "severity": "Medium",
+      "source": "claude",
+      "category": "Criteria Quality",
+      "sectionRef": "Acceptance Criteria (grep)",
+      "description": "AC says 'git grep -n \"edit plans/overview.html\" .agents/ plans/ packages/ returns zero non-historical hits'. The phrase is ambiguous: plans/overview.html itself contains a self-referential operator-warning comment that legitimately mentions itself. An autonomous verifier could read this AC as failing because of the legitimate hit.",
+      "status": "fixed",
+      "suggestedFix": "Clarify AC: 'git grep -n \"edit plans/overview.html\" -- :!plans/overview.html .agents/ plans/ packages/ returns zero hits' (exclude the file itself from the grep).",
+      "resolution": "Folded into plan AC: 'git grep -n \"edit plans/overview.html\" -- :!plans/overview.html .agents/ plans/ packages/ returns zero hits' (plans/overview.html excluded so its own self-warning comment doesn't false-positive). Echoed in US-005a 'narrow grep' AC.",
+      "fixedInIteration": 9
+    },
+    {
+      "id": "F-017",
+      "severity": "Medium",
+      "source": "codex",
+      "category": "Criteria Quality",
+      "sectionRef": "Acceptance Criteria",
+      "description": "AC says 'plans/overview.html no longer contains any kanban <div class=\"card\"> blocks'. After refactor the render JS may legitimately contain card markup as JS string templates, which a naive grep treats as a violation.",
+      "status": "fixed",
+      "suggestedFix": "Clarify AC: 'plans/overview.html contains no authored static <div class=\"card\"> elements in the document body; card markup may exist only inside JS string templates or DOM-construction code within the inline <script>.'",
+      "resolution": "Folded into plan AC and US-003 AC: 'plans/overview.html contains no authored static <div class=\"card\"> elements in the document body (card markup may exist only inside JS string templates or DOM-construction code within the inline <script>).'",
+      "fixedInIteration": 9
+    }
+  ]
+}

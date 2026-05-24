@@ -1,0 +1,48 @@
+{
+  "manifestPath": "D:/harness-efforts/codexu/.ralph/jobs/ralph-pipeline-09-mcp/iteration-result-6.json",
+  "iterationSHA": "a0992f1c02811665c60d40f3d9ee7fc720418ce6",
+  "storyId": "US-006",
+  "verdicts": [
+    {
+      "criterion": "Tool reuses discoverCrewSessions() with fresh inputs (Ralph state + OverviewData + config.crewsRoot)",
+      "verdict": "agree",
+      "reason": "Diff adds tools/overview-mcp/src/tools/list-crew-sessions.ts importing `discoverCrewSessions` from scripts/lib/crews-cross-walk.mjs, calling it with `{ repoRoot, ralphState, overviewData, crewsRoot: context.config.crewsRoot }` and computing `ralphState` via `readRalphState(...)` and `overviewData` via `snapshotReader.getOverviewData()`."
+    },
+    {
+      "criterion": "Caches the discovery result for 500 ms (single call serves all reads within the window)",
+      "verdict": "agree",
+      "reason": "Diff defines `const CACHE_MS = 500` and `const discoveryCache = new WeakMap<ServerContext, CacheEntry>()`, returning the cached entry when `cached.expiresAt > now`. Manifest's regression test exercises T1 -> cached T1 at 400 ms -> fresh T2 at 600 ms."
+    },
+    {
+      "criterion": "Defines local LiveCrewSession extending CrewSessionRef with manifest fields re-read from .crews/...; shared CrewSessionRef unchanged",
+      "verdict": "agree",
+      "reason": "Diff shows `interface LiveCrewSession extends CrewSessionRef` local to list-crew-sessions.ts populated by `readLiveManifest(...)`/`readManifest(...)`. The diff for scripts/lib/crews-cross-walk.d.mts and .mjs is empty, so the shared CrewSessionRef contract is unchanged."
+    },
+    {
+      "criterion": "Returns Array<LiveCrewSession & { taskId; stage; role: 'member' | 'lead' }>",
+      "verdict": "agree",
+      "reason": "Diff defines `type LiveCrewSessionResult = LiveCrewSession & { taskId: string; stage: RalphStage; role: 'member' | 'lead' }` and `flattenDiscoveredSessions` pushes one entry per (taskId, stage, role) tuple."
+    },
+    {
+      "criterion": "taskId filter is exact on the flattened result and does not import the private matchTaskId() heuristic",
+      "verdict": "agree",
+      "reason": "Filter predicate is `session.taskId === input.taskId` at line 47 of list-crew-sessions.ts. A grep for `matchTaskId` in the new file returns 0 hits, confirming the heuristic is not imported."
+    },
+    {
+      "criterion": "Live-read regression test: write T1, observe T1, advance 600 ms past cache, update to T2, observe T2",
+      "verdict": "agree",
+      "reason": "Diff adds tools/overview-mcp/src/__tests__/list-crew-sessions.test.ts with timestamps 2026-05-20T10:00:00.400Z (cached T1), .600Z (still cached), and 01.000Z (fresh T2 after the 500 ms window). Manifest reports 4 files / 24 tests passing."
+    },
+    {
+      "criterion": "Typecheck passes",
+      "verdict": "agree",
+      "reason": "Manifest cites `pnpm --filter @codexu/overview-mcp typecheck` exit 0. All new code lives under tools/overview-mcp/src/."
+    },
+    {
+      "criterion": "Tests pass",
+      "verdict": "agree",
+      "reason": "Manifest cites `pnpm --filter @codexu/overview-mcp test` exit 0 with 4 files and 24 tests passing."
+    }
+  ],
+  "warnings": []
+}

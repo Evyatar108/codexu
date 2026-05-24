@@ -1,0 +1,402 @@
+{
+  "project": "session-parent-link",
+  "description": "Add parentSessionId and spawnedChildren fields to the Session Metadata contract (app schema + CLI type mirror), a shared sync.ts normalizer, and storage helpers (getSessionParent, getSessionChildren). Read-side parity only — UI and CLI write-flow are deferred. Single commit on main.",
+  "deslop": true,
+  "iterationEngine": "codex",
+  "jobDir": "D:/harness-efforts/codexu/.ralph/jobs/session-parent-link",
+  "repoDir": "D:/harness-efforts/codexu",
+  "branch": {
+    "name": "main",
+    "created": false
+  },
+  "worktree": {
+    "path": "D:/harness-efforts/codexu",
+    "branch": "main",
+    "external": true
+  },
+  "planReviewContext": [
+    {
+      "id": "F-001",
+      "severity": "High",
+      "source": "consensus",
+      "category": "Simplicity",
+      "description": "The applySessions 'preserve spawnedChildren: undefined' merge block is wrong. Metadata is server-authoritative; preserving stale local spawnedChildren when server sends undefined would resurrect removed parent-child relationships and mask producer writes. The simpler correct approach: extend schema, normalize IDs on ingress, let metadata round-trip as-is. No special applySessions logic needed because there is no schema default that backfills [].",
+      "suggestedFix": "Do NOT add a preserve-undefined branch to applySessions. The schema uses .optional() (no default), so applySessions full-replace passes undefined through naturally. Acceptance criterion verifies field is undefined/absent after a server update without spawnedChildren — not that a stale local value persists."
+    },
+    {
+      "id": "F-002",
+      "severity": "High",
+      "source": "codex",
+      "category": "Completeness",
+      "description": "Plan defers CLI fork/spawn writer wiring (createSessionMetadata.ts, runCodex.ts, daemon/forkSession.ts HAPPY_FORKED_FROM_SESSION_ID, ops.ts machineForkSession). Without these, real user flows will not populate the new fields. Acknowledged as out-of-scope for this task; tracked as a separate spawn-flow follow-up in plans/parallel-assignments.md.",
+      "suggestedFix": "Do NOT attempt to wire CLI write surfaces in this commit. The follow-up task name in Open Questions #1 is 'session-parent-link-writer' (or similar)."
+    },
+    {
+      "id": "F-003",
+      "severity": "High",
+      "source": "codex",
+      "category": "Criteria Quality",
+      "description": "No acceptance criterion tests a real fork flow producing parentSessionId on a child session. Acknowledged — read-side parity verifies the contract independent of who writes the field; the spawn-flow task will own end-to-end fork verification.",
+      "suggestedFix": "Round-trip AC (Session built with both fields → applySessions → store read → simulated re-fetch → applySessions → fields unchanged) is sufficient for this commit's read-side scope."
+    }
+  ],
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Extend Metadata schema (app + CLI types)",
+      "description": "As the sync layer, I want the Metadata Zod schema and the CLI Metadata type to declare two new optional parent/child fields, so that the contract is in place before any wiring or helpers reference them.",
+      "acceptanceCriteria": [
+        "packages/happy-app/sources/sync/storageTypes.ts MetadataSchema includes parentSessionId: z.string().nullish() and spawnedChildren: z.array(z.string()).optional()",
+        "packages/happy-cli/src/api/types.ts Metadata type includes parentSessionId?: string | null and spawnedChildren?: string[]",
+        "Schema does NOT inject a default (no .default([])); undefined is preserved on round-trip",
+        "pnpm --filter happy-app typecheck passes",
+        "pnpm --filter happy-cli typecheck passes",
+        "pnpm --filter happy-wire typecheck passes (sanity — no change expected)",
+        "Typecheck passes"
+      ],
+      "priority": 1,
+      "passes": true,
+      "notes": "",
+      "verifiedEvidence": [
+        {
+          "criterion": "packages/happy-app/sources/sync/storageTypes.ts MetadataSchema includes parentSessionId: z.string().nullish() and spawnedChildren: z.array(z.string()).optional()",
+          "command": "grep -n -E 'parentSessionId|spawnedChildren' packages/happy-app/sources/sync/storageTypes.ts",
+          "result": "storageTypes.ts:43 parentSessionId: z.string().nullish(); storageTypes.ts:44 spawnedChildren: z.array(z.string()).optional()"
+        },
+        {
+          "criterion": "packages/happy-cli/src/api/types.ts Metadata type includes parentSessionId?: string | null and spawnedChildren?: string[]",
+          "command": "grep -n -E 'parentSessionId|spawnedChildren' packages/happy-cli/src/api/types.ts",
+          "result": "types.ts:291 parentSessionId?: string | null; types.ts:292 spawnedChildren?: string[]"
+        },
+        {
+          "criterion": "Schema does NOT inject a default (no .default([])); undefined is preserved on round-trip",
+          "command": "pnpm --filter \"{packages/happy-app}\" exec tsx -e \"import { MetadataSchema } from './sources/sync/storageTypes'; const parsed = MetadataSchema.parse({ path: '/tmp/project', host: 'dev', parentSessionId: null }); console.log(JSON.stringify({ parentSessionId: parsed.parentSessionId, spawnedChildrenIsUndefined: parsed.spawnedChildren === undefined, hasSpawnedChildren: Object.prototype.hasOwnProperty.call(parsed, 'spawnedChildren') }));\"",
+          "result": "{\"parentSessionId\":null,\"spawnedChildrenIsUndefined\":true,\"hasSpawnedChildren\":false}"
+        },
+        {
+          "criterion": "pnpm --filter happy-app typecheck passes",
+          "command": "pnpm --filter \"{packages/happy-app}\" typecheck > .test-output/happy-app.typecheck.log 2>&1",
+          "result": "PASS exit=0 duration=43s; tsc --noEmit completed with no errors"
+        },
+        {
+          "criterion": "pnpm --filter happy-cli typecheck passes",
+          "command": "pnpm --filter \"{packages/happy-cli}\" typecheck > .test-output/happy-cli.typecheck.log 2>&1",
+          "result": "PASS exit=0 duration=27s; tsc --noEmit completed with no errors"
+        },
+        {
+          "criterion": "pnpm --filter happy-wire typecheck passes (sanity - no change expected)",
+          "command": "pnpm --filter \"{packages/happy-wire}\" typecheck > .test-output/happy-wire.typecheck.log 2>&1",
+          "result": "PASS exit=0 duration=18s; tsc --noEmit completed with no errors"
+        },
+        {
+          "criterion": "Typecheck passes",
+          "command": "pnpm --filter \"{packages/happy-app}\" typecheck; pnpm --filter \"{packages/happy-cli}\" typecheck; pnpm --filter \"{packages/happy-wire}\" typecheck",
+          "result": "All required package typechecks passed: happy-app, happy-cli, happy-wire"
+        }
+      ],
+      "dependencies": [],
+      "failureClassification": "",
+      "partialProgress": null
+    },
+    {
+      "id": "US-002",
+      "title": "Shared composite-ID normalizer in sync.ts (toCompositeSession + update-session)",
+      "description": "As the sync ingress layer, I want a single private helper that promotes bare parent/child refs in raw metadata to composite IDs (idempotent, shape-guarded), and I want both toCompositeSession() and the update-session handler to call it, so that the two ingress paths cannot drift.",
+      "acceptanceCriteria": [
+        "packages/happy-app/sources/sync/sync.ts defines a private helper normalizeMetadataParentChildRefs(raw: unknown, machineId: string | null): unknown",
+        "Helper checks typeof rawMetadata === 'object', guards typeof parentSessionId === 'string' and Array.isArray(spawnedChildren); malformed entries pass through unchanged",
+        "Helper only promotes refs lacking ':'; already-composite refs pass through unchanged",
+        "Helper is idempotent: applying it twice yields the same result (deep-equal)",
+        "toCompositeSession() (near line 324) calls the helper after parsePlainJson and before assembling the composite session",
+        "update-session handler (near line 1816) calls the helper using machineId resolution order: (1) in-store session's metadata.machineId; (2) parseCompositeSessionId(sessionId).machineId; (3) skip promotion",
+        "Bare parentSessionId 'abc' becomes 'm1:abc' after normalization when machineId='m1'",
+        "Bare entries in spawnedChildren are promoted; already-composite entries pass through unchanged",
+        "Cross-machine ref parentSessionId 'm2:foo' in a session owned by m1 survives applySessions verbatim (not promoted, not rejected)",
+        "Non-string parentSessionId (e.g., the number 42) does not crash sync; it passes through and is dropped by MetadataSchema.parse downstream",
+        "Non-array spawnedChildren (e.g., the string 'not-an-array') does not crash sync",
+        "pnpm --filter happy-app typecheck passes",
+        "Typecheck passes",
+        "Unit tests pass: pnpm --filter happy-app test sources/sync/sync.test.ts — bare-ref promotion, cross-machine passthrough, idempotency, and malformed-shape cases all green"
+      ],
+      "priority": 2,
+      "passes": true,
+      "notes": "",
+      "verifiedEvidence": [
+        {
+          "criterion": "packages/happy-app/sources/sync/sync.ts defines a private helper normalizeMetadataParentChildRefs(raw: unknown, machineId: string | null): unknown",
+          "command": "grep -n 'function normalizeMetadataParentChildRefs' packages/happy-app/sources/sync/sync.ts",
+          "result": "sync.ts:121 defines function normalizeMetadataParentChildRefs(raw: unknown, machineId: string | null): unknown; it is not exported."
+        },
+        {
+          "criterion": "Helper checks typeof rawMetadata === 'object', guards typeof parentSessionId === 'string' and Array.isArray(spawnedChildren); malformed entries pass through unchanged",
+          "command": "grep -n 'typeof raw' packages/happy-app/sources/sync/sync.ts; grep -n 'parentSessionId' packages/happy-app/sources/sync/sync.ts; grep -n 'Array.isArray(rawMetadata.spawnedChildren)' packages/happy-app/sources/sync/sync.ts; pnpm --filter '{packages/happy-app}' test sources/sync/sync.test.ts",
+          "result": "sync.ts:122 guards non-object/array metadata; sync.ts:129 guards string parentSessionId; sync.ts:136 guards array spawnedChildren. Malformed-shape test passed."
+        },
+        {
+          "criterion": "Helper only promotes refs lacking ':'; already-composite refs pass through unchanged",
+          "command": "grep -n 'ref.includes' packages/happy-app/sources/sync/sync.ts; pnpm --filter '{packages/happy-app}' test sources/sync/sync.test.ts",
+          "result": "sync.ts:115 returns existing refs when ref.includes(':'). Tests preserve m2:parent and m2:child-b unchanged."
+        },
+        {
+          "criterion": "Helper is idempotent: applying it twice yields the same result (deep-equal)",
+          "command": "pnpm --filter '{packages/happy-app}' test sources/sync/sync.test.ts > .test-output/happy-app.sync-test.log 2>&1",
+          "result": "PASS exit=0; sync.test.ts idempotency assertions passed for update-session re-emit and fetch-path normalization."
+        },
+        {
+          "criterion": "toCompositeSession() (near line 324) calls the helper after parsePlainJson and before assembling the composite session",
+          "command": "grep -n 'toCompositeSession' packages/happy-app/sources/sync/sync.ts; grep -n 'normalizeMetadataParentChildRefs(session.metadata' packages/happy-app/sources/sync/sync.ts",
+          "result": "sync.ts:1212 passes parsed metadata into toCompositeSession; sync.ts:359 defines toCompositeSession; sync.ts:364 calls normalizeMetadataParentChildRefs before returning the composite session."
+        },
+        {
+          "criterion": "update-session handler (near line 1816) calls the helper using machineId resolution order: (1) in-store session's metadata.machineId; (2) parseCompositeSessionId(sessionId).machineId; (3) skip promotion",
+          "command": "grep -n 'parseCompositeSessionId(sessionId' packages/happy-app/sources/sync/sync.ts; grep -n 'metadataMachineId' packages/happy-app/sources/sync/sync.ts; grep -n 'normalizeMetadataParentChildRefs(metadata' packages/happy-app/sources/sync/sync.ts",
+          "result": "sync.ts:1864 parses composite session id with empty fallback; sync.ts:1865 uses session.metadata?.machineId first then parsedMachineId || null; sync.ts:1867 calls normalizeMetadataParentChildRefs(metadata, metadataMachineId)."
+        },
+        {
+          "criterion": "Bare parentSessionId 'abc' becomes 'm1:abc' after normalization when machineId='m1'",
+          "command": "pnpm --filter '{packages/happy-app}' test sources/sync/sync.test.ts > .test-output/happy-app.sync-test.log 2>&1",
+          "result": "PASS exit=0; update-session test asserts parentSessionId 'parent' becomes 'm1:parent'."
+        },
+        {
+          "criterion": "Bare entries in spawnedChildren are promoted; already-composite entries pass through unchanged",
+          "command": "pnpm --filter '{packages/happy-app}' test sources/sync/sync.test.ts > .test-output/happy-app.sync-test.log 2>&1",
+          "result": "PASS exit=0; update-session and fetch tests assert ['child-a','m2:child-b'] becomes ['m1:child-a','m2:child-b']."
+        },
+        {
+          "criterion": "Cross-machine ref parentSessionId 'm2:foo' in a session owned by m1 survives applySessions verbatim (not promoted, not rejected)",
+          "command": "pnpm --filter '{packages/happy-app}' test sources/sync/sync.test.ts > .test-output/happy-app.sync-test.log 2>&1",
+          "result": "PASS exit=0; cross-machine test asserts parentSessionId remains 'm2:parent'."
+        },
+        {
+          "criterion": "Non-string parentSessionId (e.g., the number 42) does not crash sync; it passes through and is dropped by MetadataSchema.parse downstream",
+          "command": "pnpm --filter '{packages/happy-app}' test sources/sync/sync.test.ts > .test-output/happy-app.sync-test.log 2>&1",
+          "result": "PASS exit=0; malformed-shape test resolves handleUpdate and observes parentSessionId: 42 passed through to applySessions for downstream schema handling."
+        },
+        {
+          "criterion": "Non-array spawnedChildren (e.g., the string 'not-an-array') does not crash sync",
+          "command": "pnpm --filter '{packages/happy-app}' test sources/sync/sync.test.ts > .test-output/happy-app.sync-test.log 2>&1",
+          "result": "PASS exit=0; malformed-shape test resolves handleUpdate and observes spawnedChildren: 'not-an-array' passed through."
+        },
+        {
+          "criterion": "pnpm --filter happy-app typecheck passes",
+          "command": "pnpm --filter '{packages/happy-app}' typecheck > .test-output/happy-app.typecheck.log 2>&1",
+          "result": "PASS exit=0 duration=18s; tsc --noEmit completed with no errors."
+        },
+        {
+          "criterion": "Typecheck passes",
+          "command": "pnpm --filter '{packages/happy-app}' typecheck > .test-output/happy-app.typecheck.log 2>&1",
+          "result": "PASS exit=0; happy-app typecheck passed for US-002 touched package."
+        },
+        {
+          "criterion": "Unit tests pass: pnpm --filter happy-app test sources/sync/sync.test.ts — bare-ref promotion, cross-machine passthrough, idempotency, and malformed-shape cases all green",
+          "command": "pnpm --filter '{packages/happy-app}' test sources/sync/sync.test.ts > .test-output/happy-app.sync-test.log 2>&1",
+          "result": "PASS exit=0; Test Files 1 passed; Tests 48 passed. New cases cover bare-ref promotion, composite/cross-machine passthrough, idempotency, malformed parentSessionId, malformed spawnedChildren, and fetch-path normalization."
+        }
+      ],
+      "dependencies": [
+        "US-001"
+      ],
+      "failureClassification": "",
+      "partialProgress": null
+    },
+    {
+      "id": "US-003",
+      "title": "Storage helpers: getSessionParent and getSessionChildren",
+      "description": "As a future tree-view consumer, I want pure top-level helpers that resolve a session's parent and children against the current store, so that I can navigate parent/child relationships without re-implementing lookup logic.",
+      "acceptanceCriteria": [
+        "packages/happy-app/sources/sync/storage.ts exports getSessionParent(sid: string): Session | null as a top-level function",
+        "packages/happy-app/sources/sync/storage.ts exports getSessionChildren(sid: string): Session[] as a top-level function",
+        "getSessionParent returns null when parentSessionId is null, undefined, or refers to a session not in the store",
+        "getSessionChildren returns resolved children in the order listed by spawnedChildren; missing children are filtered out (no placeholder); returns [] when spawnedChildren is undefined or empty",
+        "No changes to applySessions — metadata stays server-authoritative",
+        "Helpers are pure reads of storage.getState(); no side effects",
+        "pnpm --filter happy-app typecheck passes",
+        "Typecheck passes",
+        "Unit tests pass: pnpm --filter happy-app test sources/sync/storage.parent-children.spec.ts — happy path, missing-parent, missing-child filtering, undefined spawnedChildren, and null parentSessionId cases all green"
+      ],
+      "priority": 3,
+      "passes": true,
+      "notes": "",
+      "verifiedEvidence": [
+        {
+          "criterion": "packages/happy-app/sources/sync/storage.ts exports getSessionParent(sid: string): Session | null as a top-level function",
+          "command": "grep -n \"export function getSessionParent\" packages/happy-app/sources/sync/storage.ts",
+          "result": "storage.ts:1422 exports getSessionParent(sid: string): Session | null as a top-level function."
+        },
+        {
+          "criterion": "packages/happy-app/sources/sync/storage.ts exports getSessionChildren(sid: string): Session[] as a top-level function",
+          "command": "grep -n \"export function getSessionChildren\" packages/happy-app/sources/sync/storage.ts",
+          "result": "storage.ts:1428 exports getSessionChildren(sid: string): Session[] as a top-level function."
+        },
+        {
+          "criterion": "getSessionParent returns null when parentSessionId is null, undefined, or refers to a session not in the store",
+          "command": "pnpm --filter \"{packages/happy-app}\" test sources/sync/storage.parent-children.spec.ts > .test-output/happy-app.storage-parent-children-test.log 2>&1",
+          "result": "PASS exit=0; storage.parent-children.spec.ts covers null parentSessionId, explicit undefined parentSessionId, missing metadata field, missing parent in store, and unknown session id returning null."
+        },
+        {
+          "criterion": "getSessionChildren returns resolved children in the order listed by spawnedChildren; missing children are filtered out (no placeholder); returns [] when spawnedChildren is undefined or empty",
+          "command": "pnpm --filter \"{packages/happy-app}\" test sources/sync/storage.parent-children.spec.ts > .test-output/happy-app.storage-parent-children-test.log 2>&1",
+          "result": "PASS exit=0; tests assert spawnedChildren order is preserved, missing child ids are filtered, and missing/empty spawnedChildren returns []."
+        },
+        {
+          "criterion": "No changes to applySessions — metadata stays server-authoritative",
+          "command": "git diff -- packages/happy-app/sources/sync/storage.ts | grep -n \"applySessions\" || true",
+          "result": "No applySessions diff hunks or metadata merge logic changes in storage.ts; only top-level read helpers were added."
+        },
+        {
+          "criterion": "Helpers are pure reads of storage.getState(); no side effects",
+          "command": "pnpm --filter \"{packages/happy-app}\" test sources/sync/storage.parent-children.spec.ts > .test-output/happy-app.storage-parent-children-test.log 2>&1",
+          "result": "PASS exit=0; purity test captures storage.getState() before helper calls and verifies the same state object remains afterward."
+        },
+        {
+          "criterion": "pnpm --filter happy-app typecheck passes",
+          "command": "pnpm --filter \"{packages/happy-app}\" typecheck > .test-output/happy-app.typecheck.log 2>&1",
+          "result": "PASS exit=0 duration=81s; tsc --noEmit completed with no errors."
+        },
+        {
+          "criterion": "Typecheck passes",
+          "command": "pnpm --filter \"{packages/happy-app}\" typecheck > .test-output/happy-app.typecheck.log 2>&1",
+          "result": "PASS exit=0; happy-app typecheck passed for US-003 touched package."
+        },
+        {
+          "criterion": "Unit tests pass: pnpm --filter happy-app test sources/sync/storage.parent-children.spec.ts — happy path, missing-parent, missing-child filtering, undefined spawnedChildren, and null parentSessionId cases all green",
+          "command": "pnpm --filter \"{packages/happy-app}\" test sources/sync/storage.parent-children.spec.ts > .test-output/happy-app.storage-parent-children-test.log 2>&1",
+          "result": "PASS exit=0 duration=27s; Test Files 1 passed; Tests 4 passed. Cases cover happy path, missing parent, missing child filtering, undefined/empty spawnedChildren, null parentSessionId, and undefined parentSessionId."
+        }
+      ],
+      "dependencies": [
+        "US-001"
+      ],
+      "failureClassification": "",
+      "partialProgress": null
+    },
+    {
+      "id": "US-004",
+      "title": "Test coverage: schema, applySessions, helpers, sync normalization",
+      "description": "As CI, I want comprehensive Vitest coverage of the new schema, store helpers, applySessions no-preserve semantics, and sync.ts normalization (both fetch and update-session paths plus cross-machine, malformed, and idempotency cases), so that regressions are caught before they ship.",
+      "acceptanceCriteria": [
+        "packages/happy-app/sources/sync/storageTypes.spec.ts covers: Metadata with both fields parses and round-trips; absence of spawnedChildren yields undefined (not []); explicit parentSessionId: null is preserved",
+        "packages/happy-app/sources/sync/storage.applySessions.spec.ts covers: (a) incoming session with both fields persists into store; (b) incoming update with spawnedChildren omitted results in spawnedChildren === undefined (server-authoritative, no preservation, no [] backfill); (c) incoming parentSessionId: null is preserved",
+        "New file packages/happy-app/sources/sync/storage.parent-children.spec.ts covers getSessionParent and getSessionChildren: happy path; missing parent in store; missing children filtered out; spawnedChildren: undefined; parentSessionId: null; parentSessionId: undefined",
+        "packages/happy-app/sources/sync/sync.test.ts extends coverage near the update-session harness (~lines 652-703): (a) live update with bare parentSessionId is promoted to composite; (b) cross-machine 'm2:foo' survives unchanged; (c) non-string parentSessionId does not crash; (d) non-array spawnedChildren does not crash; (e) re-emit is idempotent. Same coverage for the initial-fetch toCompositeSession path",
+        "Round-trip test: build a Session with parentSessionId='m1:abc' and spawnedChildren=['m1:def','m1:ghi'], write through applySessions, read from store; simulate a subsequent fetch with the same metadata and write through applySessions again — both fields unchanged and helpers still resolve correctly. Persistence layer is NOT exercised",
+        "pnpm --filter happy-app test sources/sync/ passes (new + existing)",
+        "Typecheck passes",
+        "Tests pass"
+      ],
+      "priority": 4,
+      "passes": true,
+      "notes": "",
+      "verifiedEvidence": [
+        {
+          "criterion": "packages/happy-app/sources/sync/storageTypes.spec.ts covers: Metadata with both fields parses and round-trips; absence of spawnedChildren yields undefined (not []); explicit parentSessionId: null is preserved",
+          "command": "sed -n 93,112p packages/happy-app/sources/sync/storageTypes.spec.ts; pnpm --filter {packages/happy-app} test sources/sync/storageTypes.spec.ts",
+          "result": "PASS; storageTypes.spec.ts:93 adds the round-trip metadata test; lines 97-98 parse both fields, line 104 preserves parentSessionId: null, and lines 111-112 verify omitted spawnedChildren stays undefined/absent. Included in focused run: 4 files, 63 tests passed."
+        },
+        {
+          "criterion": "packages/happy-app/sources/sync/storage.applySessions.spec.ts covers: (a) incoming session with both fields persists into store; (b) incoming update with spawnedChildren omitted results in spawnedChildren === undefined (server-authoritative, no preservation, no [] backfill); (c) incoming parentSessionId: null is preserved",
+          "command": "sed -n 155,193p packages/happy-app/sources/sync/storage.applySessions.spec.ts; pnpm --filter {packages/happy-app} test sources/sync/storage.applySessions.spec.ts",
+          "result": "PASS; storage.applySessions.spec.ts:155 adds the server-authoritative metadata test; lines 169-170 assert both fields persist, lines 181-182 assert omitted spawnedChildren becomes undefined/absent, and lines 188/193 preserve parentSessionId: null."
+        },
+        {
+          "criterion": "New file packages/happy-app/sources/sync/storage.parent-children.spec.ts covers getSessionParent and getSessionChildren: happy path; missing parent in store; missing children filtered out; spawnedChildren: undefined; parentSessionId: null; parentSessionId: undefined",
+          "command": "sed -n 76,155p packages/happy-app/sources/sync/storage.parent-children.spec.ts; pnpm --filter {packages/happy-app} test sources/sync/storage.parent-children.spec.ts",
+          "result": "PASS; storage.parent-children.spec.ts covers helper happy path at line 76, null/undefined/unresolved parents at lines 98-109, missing-child filtering and missing/empty children at lines 120-140, plus no-side-effect reads at line 144."
+        },
+        {
+          "criterion": "packages/happy-app/sources/sync/sync.test.ts extends coverage near the update-session harness (~lines 652-703): (a) live update with bare parentSessionId is promoted to composite; (b) cross-machine m2:foo survives unchanged; (c) non-string parentSessionId does not crash; (d) non-array spawnedChildren does not crash; (e) re-emit is idempotent. Same coverage for the initial-fetch toCompositeSession path",
+          "command": "sed -n 705,886p packages/happy-app/sources/sync/sync.test.ts; pnpm --filter {packages/happy-app} test sources/sync/sync.test.ts",
+          "result": "PASS; sync.test.ts adds update-session coverage at lines 705, 765, and 803 for bare promotion, cross-machine/idempotency, and malformed shapes; fetch/toComposite coverage is at lines 837-886 and asserts idempotent normalization."
+        },
+        {
+          "criterion": "Round-trip test: build a Session with parentSessionId=m1:abc and spawnedChildren=[m1:def,m1:ghi], write through applySessions, read from store; simulate a subsequent fetch with the same metadata and write through applySessions again — both fields unchanged and helpers still resolve correctly. Persistence layer is NOT exercised",
+          "command": "sed -n 196,233p packages/happy-app/sources/sync/storage.applySessions.spec.ts; pnpm --filter {packages/happy-app} test sources/sync/storage.applySessions.spec.ts",
+          "result": "PASS; storage.applySessions.spec.ts:196 adds the in-memory round-trip test; lines 201-224 seed/read parent and children, lines 226-233 re-apply the same metadata and verify fields plus helper resolution unchanged."
+        },
+        {
+          "criterion": "pnpm --filter happy-app test sources/sync/ passes (new + existing)",
+          "command": "pnpm --filter {packages/happy-app} test sources/sync/ > .test-output/happy-app.sync-dir-test.log 2>&1",
+          "result": "PASS exit=0 duration=28s; Test Files 37 passed; Tests 437 passed. Full output: .test-output/happy-app.sync-dir-test.log"
+        },
+        {
+          "criterion": "Typecheck passes",
+          "command": "pnpm --filter {packages/happy-app} typecheck > .test-output/happy-app.typecheck.log 2>&1",
+          "result": "PASS exit=0 duration=43s; tsc --noEmit completed with no errors. Full output: .test-output/happy-app.typecheck.log"
+        },
+        {
+          "criterion": "Tests pass",
+          "command": "pnpm --filter {packages/happy-app} test sources/sync/ > .test-output/happy-app.sync-dir-test.log 2>&1",
+          "result": "PASS exit=0; full sync suite passed with 37 test files and 437 tests. Focused US-004 run also passed with 4 files and 63 tests."
+        }
+      ],
+      "dependencies": [
+        "US-001",
+        "US-002",
+        "US-003"
+      ],
+      "failureClassification": "",
+      "partialProgress": null
+    },
+    {
+      "id": "US-005",
+      "title": "Documentation, roadmap status flips, and single commit on main",
+      "description": "As an operator and future readers of the codebase, I want the new parent/child invariants documented in the app CLAUDE.md and the task status flipped to complete across all roadmap trackers, all delivered as a single commit on main.",
+      "acceptanceCriteria": [
+        "packages/happy-app/CLAUDE.md gains a short paragraph (3-6 lines) under sync invariants describing: (a) parent/child refs live in Metadata; (b) refs are composite IDs; (c) normalization happens at ingress via the shared helper; (d) metadata is server-authoritative — no client overlay; (e) cross-machine refs are preserved verbatim",
+        "plans/agent-view-research.md §6 session-parent-link task is flipped to complete (match the file's existing convention)",
+        "plans/parallel-assignments.md row for session-parent-link (lines 565-571) is flipped to complete",
+        "plans/overview.html session-parent-link task status attribute is updated from b-inflight to whatever the completed convention is in that file",
+        "All changes from US-001 through US-005 land as a single commit on main (no feature branch, no PR plumbing)",
+        "Typecheck passes"
+      ],
+      "priority": 5,
+      "passes": true,
+      "notes": "",
+      "verifiedEvidence": [
+        {
+          "criterion": "packages/happy-app/CLAUDE.md gains a short paragraph (3-6 lines) under sync invariants describing: (a) parent/child refs live in Metadata; (b) refs are composite IDs; (c) normalization happens at ingress via the shared helper; (d) metadata is server-authoritative - no client overlay; (e) cross-machine refs are preserved verbatim",
+          "command": "grep -n -A5 -B1 \"Session parent/child links\" packages/happy-app/CLAUDE.md",
+          "result": "PASS; packages/happy-app/CLAUDE.md:211-216 documents parent/child refs in Session.metadata, composite ids, sync.ts ingress normalization, server-authoritative metadata with no applySessions overlay, and cross-machine passthrough."
+        },
+        {
+          "criterion": "plans/agent-view-research.md section 6 session-parent-link task is flipped to complete (match the file convention)",
+          "command": "grep -n \"session-parent-link\" plans/agent-view-research.md | head -3",
+          "result": "PASS; plans/agent-view-research.md:196 shows session-parent-link with ✅ shipped and updated summary."
+        },
+        {
+          "criterion": "plans/parallel-assignments.md row for session-parent-link (lines 565-571) is flipped to complete",
+          "command": "grep -n \"session-parent-link.*✅ shipped\" plans/parallel-assignments.md",
+          "result": "PASS; plans/parallel-assignments.md:567 shows session-parent-link status ✅ shipped and commit cell this commit."
+        },
+        {
+          "criterion": "plans/overview.html session-parent-link task status attribute is updated from b-inflight to whatever the completed convention is in that file",
+          "command": "grep -n -A1 -B1 \"cmd-session-parent-link\" plans/overview.html && grep -n '\"session-parent-link/2026-05-13\"' plans/overview.html",
+          "result": "PASS; plans/overview.html:1608 has cmd-badge b-closed with ✅ shipped, and roadmap-data has run id session-parent-link/2026-05-13 at line 2058."
+        },
+        {
+          "criterion": "All changes from US-001 through US-005 land as a single commit on main (no feature branch, no PR plumbing)",
+          "command": "git branch --show-current && git show --stat --oneline -1 -- <story files>",
+          "result": "PASS; on main, commit 11c3eafb feat: [US-005] - Documentation, roadmap status flips, and single commit on main contains the 12 story files with 543 insertions and 12 deletions, including US-001 through US-005 code, tests, and docs."
+        },
+        {
+          "criterion": "Typecheck passes",
+          "command": "pnpm --filter \"{packages/happy-app}\" typecheck; pnpm --filter \"{packages/happy-cli}\" typecheck; pnpm --filter \"{packages/happy-wire}\" typecheck",
+          "result": "PASS; happy-app typecheck exit=0 duration=27s after final docs edit; happy-cli typecheck exit=0 duration=40s; happy-wire typecheck exit=0 duration=28s. Logs in .test-output/."
+        },
+        {
+          "criterion": "Tests pass",
+          "command": "pnpm --filter \"{packages/happy-app}\" test sources/sync/ > .test-output/happy-app.sync-dir-test.log 2>&1",
+          "result": "PASS; happy-app sources/sync/ test slice exit=0 duration=15s; Test Files 37 passed; Tests 437 passed."
+        }
+      ],
+      "dependencies": [
+        "US-001",
+        "US-002",
+        "US-003",
+        "US-004"
+      ],
+      "failureClassification": "",
+      "partialProgress": null
+    }
+  ]
+}

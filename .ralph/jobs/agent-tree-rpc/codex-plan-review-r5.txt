@@ -1,0 +1,25 @@
+### Feasibility
+
+No High/Critical issues found.
+
+[Low] `codex-rs/app-server/README.md` still documents the collab item as `collabToolCall`, but the generated protocol schema and Rust enum use `collabAgentToolCall`. The plan correctly uses `collabAgentToolCall`; implementers should rely on `codex-rs/app-server-protocol/src/protocol/v2/item.rs`, not the README wording.
+
+### Completeness
+
+[Medium] The dedup/metadata-merge rule can leave live clients with stale optional metadata. If v2 `node-added` emits first with `nickname`/`role` null, then legacy spawn-end later enriches the reducer snapshot without an emitted delta, already-mounted clients will not learn the richer metadata until they re-fetch. Either add a lightweight metadata/status delta for this merge or explicitly accept that live metadata may lag until snapshot refresh.
+
+### Ordering
+
+No issues found. The dependency order is sound: `happy-wire` types first, then CLI/server consumers, then runtime wiring/tests/docs.
+
+### Simplicity
+
+No issues found. The plan uses existing `RpcHandlerManager`, `CodexAppServerClient.setEventHandler`, `apiSession` socket emission, and `EventRouter` fan-out rather than inventing a separate transport.
+
+### Acceptance Criteria Quality
+
+[Medium] AC4 remains inherently flaky because it asks a real model to spawn child A and then have A spawn child B. The env gate and timeout are good, but the implementer should write the assertion as topology/event-shape tolerant and avoid relying on exact natural-language names unless the tool-call arguments expose stable nicknames.
+
+[Low] The RPC wording alternates between `sessionGetAgentTree(sessionId)` and the actual session-scoped RPC registration pattern `${sessionId}:sessionGetAgentTree`. The plan explains the routing correctly, but the AC should treat `sessionId` as the RPC scope, not a required handler parameter.
+
+Prior review amendments look adequate overall. I do not see any remaining High or Critical findings.

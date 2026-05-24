@@ -1,0 +1,92 @@
+{
+  "storyId": "US-001",
+  "verifiedEvidence": [
+    {
+      "criterion": "FilterAxis union in tools/overview-viewer/src/utils/filters.ts includes 'ralphStage'.",
+      "command": "grep -n \"FilterAxis\" tools/overview-viewer/src/utils/filters.ts",
+      "result": "Line 7: FilterAxis includes 'ralphStage'.",
+      "evidenceKind": "static-inspection"
+    },
+    {
+      "criterion": "createEmptyFilters() returns { ..., ralphStage: new Set<string>() }.",
+      "command": "grep -n \"ralphStage: new Set\" tools/overview-viewer/src/utils/filters.ts",
+      "result": "Line 17: createEmptyFilters includes ralphStage: new Set().",
+      "evidenceKind": "static-inspection"
+    },
+    {
+      "criterion": "cloneFilters(f) deep-clones ralphStage via new Set(filters.ralphStage).",
+      "command": "grep -n \"new Set(filters.ralphStage)\" tools/overview-viewer/src/utils/filters.ts",
+      "result": "Line 28: cloneFilters returns ralphStage: new Set(filters.ralphStage).",
+      "evidenceKind": "static-inspection"
+    },
+    {
+      "criterion": "getTaskSearchHaystack(task, data, ralphState) accepts ralphState: OverviewRalphState as a non-optional 3rd parameter and appends ralphState.byTaskId[task.id]?.stage / jobSlug / groupSlug to the haystack parts.",
+      "command": "grep -nE \"getTaskSearchHaystack|ralph?.stage|ralph?.jobSlug|ralph?.groupSlug\" tools/overview-viewer/src/utils/filters.ts",
+      "result": "Line 46 signature includes ralphState: OverviewRalphState; lines 59-61 append stage, jobSlug, and groupSlug.",
+      "evidenceKind": "static-inspection"
+    },
+    {
+      "criterion": "matchesTaskFilter and matchesKanbanFilter accept ralphState as a non-optional parameter and apply the predicate filters.ralphStage.size === 0 || filters.ralphStage.has(ralphState.byTaskId[task.id]?.stage ?? '__no_ralph__').",
+      "command": "grep -nE \"matchesTaskFilter|matchesKanbanFilter|ralphStageOk\" tools/overview-viewer/src/utils/filters.ts",
+      "result": "Line 75 and line 94 signatures include ralphState; lines 88 and 98 apply the ralphStage predicate with __no_ralph__ fallback.",
+      "evidenceKind": "static-inspection"
+    },
+    {
+      "criterion": "useMultiAxisFilter(data, taskIdFilter, ralphState) accepts ralphState as the third parameter, forwards it to filter helpers, and includes it in memo deps.",
+      "command": "grep -nE \"useMultiAxisFilter|matchesTaskFilter|matchesKanbanFilter|ralphState\" tools/overview-viewer/src/hooks/useMultiAxisFilter.ts",
+      "result": "Line 6 signature accepts ralphState; lines 13 and 21 forward it; lines 16 and 24 include ralphState in useMemo deps.",
+      "evidenceKind": "static-inspection"
+    },
+    {
+      "criterion": "useMultiAxisFilter returns an object containing { activeFilters, filters, setFilters, query, setQuery, toggleFilter, visibleTaskIds, visibleKanbanTaskIds }. filters aliases activeFilters; setFilters exposes the raw setActiveFilters state setter. (Required by Plan 04.)",
+      "command": "grep -nE \"filters: activeFilters|setFilters: setActiveFilters|visibleTaskIds|visibleKanbanTaskIds\" tools/overview-viewer/src/hooks/useMultiAxisFilter.ts",
+      "result": "Return object includes activeFilters, filters: activeFilters, setFilters: setActiveFilters, query, setQuery, toggleFilter, visibleKanbanTaskIds, and visibleTaskIds.",
+      "evidenceKind": "static-inspection"
+    },
+    {
+      "criterion": "App.tsx calls const [ralphState, setRalphState] = useState<OverviewRalphState>(getOverviewRalphState); and passes ralphState to useMultiAxisFilter(data, taskIdFilter, ralphState). Do NOT add reloadRalphState or the HMR useEffect yet — those are US-006.",
+      "command": "grep -nE \"getOverviewRalphState|useState<OverviewRalphState>|useMultiAxisFilter[(]data, taskIdFilter, ralphState[)]\" tools/overview-viewer/src/App.tsx",
+      "result": "Lines 21, 36, and 41 show getOverviewRalphState import, ralphState state initialization, and the hook call; no reloadRalphState or overview-ralph-state:update match is present.",
+      "evidenceKind": "static-inspection"
+    },
+    {
+      "criterion": "testData.ts exports NO_RALPH_STATE: OverviewRalphState = { generatedAt: '', generatedFromCommit: '', byTaskId: {} } and a loadRalphState() helper using the synthetic-window pattern: const w: { OVERVIEW_RALPH_STATE?: OverviewRalphState } = {}; new Function('window', script)(w); return w.OVERVIEW_RALPH_STATE ?? NO_RALPH_STATE; (mirrors loadOverviewData() at testData.ts:7).",
+      "command": "grep -nE \"NO_RALPH_STATE|loadRalphState|new Function[(]'window'|OVERVIEW_RALPH_STATE\" tools/overview-viewer/src/__tests__/testData.ts",
+      "result": "Line 7 exports NO_RALPH_STATE; lines 16-26 define loadRalphState with new Function('window', script)(windowValue) and NO_RALPH_STATE fallback.",
+      "evidenceKind": "static-inspection"
+    },
+    {
+      "criterion": "loadRalphState() returns NO_RALPH_STATE without throwing when plans/overview-ralph-state.js is missing.",
+      "command": "cd tools/overview-viewer && pnpm exec tsx -e \"loadRalphState in a temporary cwd with no plans/overview-ralph-state.js\"",
+      "result": "Exited 0 and printed {\"generatedAt\":\"\",\"generatedFromCommit\":\"\",\"byTaskId\":{}}.",
+      "evidenceKind": "command-output"
+    },
+    {
+      "criterion": "Direct filter-helper call sites updated: searchHaystack.test.ts, urlFilter.test.ts — every call to matchesTaskFilter / matchesKanbanFilter / getTaskSearchHaystack appends NO_RALPH_STATE as the new argument; existing assertions unchanged.",
+      "command": "grep -RIn \"matchesTaskFilter(.*NO_RALPH_STATE\" tools/overview-viewer/src/__tests__/searchHaystack.test.ts tools/overview-viewer/src/__tests__/urlFilter.test.ts",
+      "result": "All 15 direct matchesTaskFilter test calls in searchHaystack.test.ts and urlFilter.test.ts append NO_RALPH_STATE; existing assertions remain true/false as before.",
+      "evidenceKind": "static-inspection"
+    },
+    {
+      "criterion": "pnpm --filter @codexu/overview-viewer typecheck exits 0.",
+      "command": "pnpm --filter @codexu/overview-viewer typecheck > .test-output/overview-viewer.typecheck.log 2>&1",
+      "result": "Exited 0; tsc --noEmit completed with no errors.",
+      "evidenceKind": "typecheck"
+    },
+    {
+      "criterion": "pnpm --filter @codexu/overview-viewer test exits 0.",
+      "command": "pnpm --filter @codexu/overview-viewer test > .test-output/overview-viewer.test.log 2>&1",
+      "result": "Exited 0; Vitest reported 19 test files passed and 99 tests passed.",
+      "evidenceKind": "test"
+    },
+    {
+      "criterion": "Typecheck passes",
+      "command": "pnpm --filter @codexu/overview-viewer typecheck > .test-output/overview-viewer.typecheck.log 2>&1",
+      "result": "Exited 0; tsc --noEmit completed with no errors.",
+      "evidenceKind": "typecheck"
+    }
+  ],
+  "skippedReasons": [],
+  "notTested": [],
+  "iterationSHA": "9fd474126eca6667b72ec34f6af2406da7b114e4"
+}

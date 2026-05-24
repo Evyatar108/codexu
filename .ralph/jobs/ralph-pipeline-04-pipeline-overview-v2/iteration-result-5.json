@@ -1,0 +1,108 @@
+{
+  "storyId": "US-005",
+  "verifiedEvidence": [
+    {
+      "criterion": "tools/overview-viewer/src/utils/ralphStages.ts exports frozen RALPH_STAGE_ORDER and Toolbar/PipelineOverview import it",
+      "command": "pnpm --filter @codexu/overview-viewer test > .test-output/overview-viewer.test.log 2>&1; node --input-type=module static US-005 assertions",
+      "result": "PASS: overview-viewer Vitest passed 29 files/159 tests; static assertions confirmed Object.freeze stage order, 10 canonical stages, Toolbar uses RALPH_STAGE_ORDER.map, and PipelineOverview imports the shared order.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "tools/overview-viewer/src/components/PipelineOverview.tsx renders 10 buttons with counts and active class",
+      "command": "pnpm --filter @codexu/overview-viewer test > .test-output/overview-viewer.test.log 2>&1; node --input-type=module static US-005 assertions",
+      "result": "PASS: pipelineOverview.test.tsx asserts 10 chips and counts implementing=2, review-fix=1, blocked=0; static assertions confirmed pipeline-overview section, aria-label, stage classes, and active class path.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "PipelineOverview click handler is single-select REPLACE and clears active chip",
+      "command": "pnpm --filter @codexu/overview-viewer test > .test-output/overview-viewer.test.log 2>&1",
+      "result": "PASS: interactions/pipelineOverviewFilter.test.tsx asserts click implementing -> Set(['implementing']), click active -> empty Set, click shipped while implementing active -> Set(['shipped']).",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "PipelineOverview empty state renders No Ralph state tracked yet and class pipeline-overview-empty",
+      "command": "pnpm --filter @codexu/overview-viewer test > .test-output/overview-viewer.test.log 2>&1",
+      "result": "PASS: pipelineOverview.test.tsx asserts rendered output contains No Ralph state tracked yet and class=\"pipeline-overview-empty\".",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "App.tsx renders PipelineOverview between Toolbar and Kanban using useMultiAxisFilter state",
+      "command": "node --input-type=module static US-005 assertions",
+      "result": "PASS: static assertion found <Toolbar at offset 4887, <PipelineOverview at 5497, and <Kanban at 5856; props are ralphState={ralphState}, filters={filter.filters}, setFilters={filter.setFilters}.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "styles.css adds pipeline overview classes and reuses Ralph stage chip colors",
+      "command": "node --input-type=module static US-005 assertions",
+      "result": "PASS: static assertions confirmed .pipeline-overview, .pipeline-overview-chip, .pipeline-overview-chip.active, and .pipeline-overview-empty exist; component className includes ralph-stage-chip stage-${stage}.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "SSR PipelineOverview tests render counts and empty state",
+      "command": "pnpm --filter @codexu/overview-viewer test > .test-output/overview-viewer.test.log 2>&1",
+      "result": "PASS: overview-viewer suite passed 29 files/159 tests, including pipelineOverview.test.tsx coverage for canonical order, counts, and empty state.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "jsdom PipelineOverview interaction tests verify replace-not-add filtering",
+      "command": "pnpm --filter @codexu/overview-viewer test > .test-output/overview-viewer.test.log 2>&1",
+      "result": "PASS: overview-viewer suite passed 29 files/159 tests, including interactions/pipelineOverviewFilter.test.tsx single-select, clear, and replace cases.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "No tooltip DAG architecture remains for Plan 04 implementation",
+      "command": "grep -RIn \"inline tooltip DAG|tooltip DAG\" plans/ralph-pipeline-04-pipeline-overview.md tools/overview-viewer/src 2>/dev/null || true",
+      "result": "PASS: grep returned no matches after updating the Plan 04 line to say the dependency graph JSON is sufficient for downstream consumers.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "pnpm overview dev server shows the histogram between Toolbar and Kanban",
+      "command": "pnpm overview > .test-output/overview-dev.us005.log 2>&1; curl Vite URL > .test-output/overview-dev-index.us005.html; grep pipeline-overview plans/overview.html",
+      "result": "PASS: pnpm overview started Vite on http://127.0.0.1:5175/ and served the app shell; rebuilt plans/overview.html contains the PipelineOverview component and CSS between Toolbar and Kanban in the bundled renderer.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "pnpm overview:build produces plans/overview.html <= 526,372 bytes and commit records byte count",
+      "command": "pnpm overview:build > .test-output/overview-build.us005.log 2>&1; wc -c plans/overview.html; git show -s --format=%B ac922fc3",
+      "result": "PASS: build completed; wc -c reports 503020 plans/overview.html, under 526372; commit body records Constraint: overview.html byte count 503020 <= 526372.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "pnpm --filter @codexu/overview-viewer test (SSR + jsdom) passes",
+      "command": "pnpm --filter @codexu/overview-viewer test > .test-output/overview-viewer.test.log 2>&1",
+      "result": "PASS: Test Files 29 passed (29); Tests 159 passed (159).",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "pnpm --filter @codexu/overview-viewer typecheck passes",
+      "command": "pnpm --filter @codexu/overview-viewer typecheck > .test-output/overview-viewer.typecheck.log 2>&1",
+      "result": "PASS: tsc --noEmit completed with exit 0.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "US-005:AC-014 browser screenshot verification with dev-browser skill",
+      "command": "N/A - dev-browser skill/browser automation unavailable in this session",
+      "result": "SKIPPED: US-005:AC-014 dev-browser skill/browser automation unavailable; fallback DOM/state verification covered by SSR/jsdom tests, bundled artifact grep, and pnpm overview dev-server smoke.",
+      "evidenceKind": "skipped"
+    },
+    {
+      "criterion": "Typecheck passes",
+      "command": "pnpm --filter @codexu/overview-viewer typecheck > .test-output/overview-viewer.typecheck.log 2>&1",
+      "result": "PASS: tsc --noEmit completed with exit 0.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Tests pass",
+      "command": "pnpm test > .test-output/root.test.log 2>&1; pnpm --filter @codexu/overview-viewer test > .test-output/overview-viewer.test.log 2>&1",
+      "result": "PASS: root Vitest 11 files/62 tests passed; overview-viewer Vitest 29 files/159 tests passed.",
+      "evidenceKind": "passed"
+    }
+  ],
+  "skippedReasons": [
+    "missing_tool"
+  ],
+  "notTested": [
+    "browser automation; dev-browser skill unavailable, DOM/state fallback covered"
+  ],
+  "iterationSHA": "ac922fc30d24d41f1fb522fe5e6f5a7c90b3fe2e"
+}

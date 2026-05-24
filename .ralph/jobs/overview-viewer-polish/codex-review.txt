@@ -1,0 +1,31 @@
+### Completeness
+
+[High] `tools/overview-viewer/src/App.tsx:39` still calls `useHashNav(expandedControls.setTaskExpanded)` with only task expansion, and there is no bucket-state threading, `StickyFrame`, `LeftRail`, Popover filters, Checkbox rollout, responsive rail, or docs sweep in this diff. The submitted implementation only covers parts of Phases A, B, and C; it does not satisfy the plan’s full US-012 through US-019 acceptance criteria.
+
+[High] `tools/overview-viewer/package.json:10-11` adds Radix dependencies, but the diff does not include the required committed `pnpm-lock.yaml` update. The global acceptance criteria require lockfile regeneration in the same change as any dependency edit.
+
+[High] `tools/overview-viewer/src/components/TaskCommand.tsx:362-363` only highlights command name and description. US-002 requires visible task fields to wrap case-insensitive search matches; fields such as phase/status/scope/workstream can match the filter haystack but render with no `<mark>`.
+
+### Correctness
+
+[High] `tools/overview-viewer/src/hooks/useHashNav.ts:12-14` and `tools/overview-viewer/src/utils/commandNavigation.ts:36-38` always use smooth scrolling and always apply the flash class. The plan explicitly requires `prefers-reduced-motion: reduce` to make hash navigation instant and skip the flash pulse.
+
+[High] `tools/overview-viewer/src/styles.css:1030-1031` sets the details expand/collapse transition to `0.3s`, exceeding US-001’s `≤ 200ms` acceptance criterion.
+
+[Medium] `tools/overview-viewer/src/components/TaskCommand.tsx:142-150` jumps to kanban cards by setting `window.location.hash`, but it bypasses the shared `navigateToCommand`/flash behavior and does not add any equivalent focus/flash affordance to the kanban card. The quick-action works as a scroll, but it is less consistent than the plan’s “shared flash behavior” guidance for in-page jumps.
+
+### Quality
+
+[High] `tools/overview-viewer/package.json:11` specifies `@radix-ui/react-tooltip` as `^1.1.8`, which allows `1.2.x`; the plan explicitly says Radix primitives must be pinned to `^1.1.x`. This is a non-safety plan constraint divergence.
+
+[Medium] `tools/overview-viewer/src/components/TaskCommand.tsx:169-183` uses raw symbol/emoji text for quick-action controls (`🔗`, arrows, `◫`). The frontend guidance calls for familiar icon buttons, preferably lucide icons when available; these symbols are inconsistent and may render poorly on the e-ink target.
+
+[Medium] `tools/overview-viewer/src/styles.css:884-886` applies compact mode to every `.sub` on the page, not just command-row summary text. This can hide section-level explanatory text outside the command list and is broader than the density toggle’s row-spacing scope.
+
+### Security
+
+No issues found.
+
+### Overall Assessment
+
+Not ready for use against the stated plan. There is useful partial work here, but several acceptance criteria are unmet, and the implementation stops well before the planned IA/layout phases.

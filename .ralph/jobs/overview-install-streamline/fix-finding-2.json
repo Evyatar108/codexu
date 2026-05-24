@@ -1,0 +1,20 @@
+{
+  "id": "F-003",
+  "severity": "High",
+  "source": "consensus",
+  "detectedBy": [
+    "claude",
+    "codex",
+    "copilot"
+  ],
+  "category": "Correctness",
+  "classification": "fixable",
+  "phase": "code",
+  "sectionRef": "Approach > Architecture > engine step 6",
+  "description": "scripts/init-consumer.mjs planTemplate() treats any existing scaffold file as a successful 'exists' skip whenever force is false, regardless of whether the existing content matches the template. The architecture step 6 explicitly says 'refuses scaffold template targets ... that already exist with conflicting content unless force === true' and only existence-with-identical-content is a no-op skip. Today a half-set-up consumer with a malformed plans/overview-data.js silently passes init with ok: true and filesSkipped = ['plans/overview-data.js: exists'], masking a broken state. Matches plan-review finding F-019 and was flagged High by both Codex and Copilot; promoted to High via 3-way consensus.",
+  "relevantFiles": [
+    "plugins/ralph-overview/scripts/init-consumer.mjs:76-82"
+  ],
+  "suggestedFix": "Compare existing-file content against the template (read both, normalize newlines if needed). Skip on identical content; refuse with errors.push(`${target}: conflicting content, pass force to overwrite`) when the file exists but differs. Add a test case for the conflict path.",
+  "status": "open"
+}

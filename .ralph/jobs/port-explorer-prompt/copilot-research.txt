@@ -1,0 +1,85 @@
+I’m opening the attached file to see the task and then I’ll carry it through.
+
+I’ve got the task context; now I’m pulling the exact codex-role files, schema, and tests that constrain this plan.
+
+I found a likely planning gap around the codex fork’s patch-surface requirements, so I’m checking the exact docs before I conclude.
+
+Here’s the research analysis.
+
+### Codebase Architecture
+
+- **Top-level repo (`D:\harness-efforts\codexu`)** is a **pnpm monorepo** (`package.json`) with TypeScript/React Native packages (`packages\happy-*`, `packages\codexu-plugin`, `packages\codium`).
+- **`codex\`** is a **git submodule** pointing at `gim-home/codex`. The feature lives inside the Rust engine workspace at  
+  `codex\external\repos\codex-patched\codex-rs\`.
+- **`codex-rs`** is a large **Rust Cargo workspace** (`Cargo.toml`) with many crates; the important ones here are:
+  - `core\` — agent roles, role application, multi-agent spawning
+  - `config\` — config/TOML schema
+  - `cli\` / `exec\` — non-interactive `codex exec`
+- Build/test tooling in the codex submodule is **Cargo + just + Bazel** (per `codex\external\repos\codex-patched\AGENTS.md` and `codex\CLAUDE.md`).
+- Fork-specific strategy/docs live in:
+  - `plans\native-agent-parity.md`
+  - `plans\codexu-roadmap.md`
+  - `codex\CLAUDE.md`
+  - `codex\docs\implementation\patch-surface.md`
+
+### Feature-Relevant Code
+
+- **Primary target:**  
+  `codex\external\repos\codex-patched\codex-rs\core\src\agent\builtins\explorer.toml`  
+  This is currently an **empty stub**.
+- **Already wired; no new match arm needed:**  
+  `codex\external\repos\codex-patched\codex-rs\core\src\agent\role.rs`  
+  The built-in role table already declares `explorer`, and `config_file_contents()` already maps `"explorer.toml"` to `include_str!("builtins/explorer.toml")`.
+- **Why the stub is currently a no-op:**  
+  `role.rs` returns early when the role layer TOML is an empty table, so the empty `explorer.toml` currently applies no config.
+- **Role-file parsing/validation:**  
+  `codex\external\repos\codex-patched\codex-rs\core\src\config\agent_roles.rs`  
+  This contains `parse_agent_role_file_contents(...)` and the `developer_instructions` validation logic.
+- **Schema reference:**  
+  `codex\external\repos\codex-patched\codex-rs\config\src\config_toml.rs`  
+  `AgentRoleToml` defines role metadata (`description`, `config_file`, `nickname_candidates`), while the actual role file content is a normal `ConfigToml` layer.
+- **Existing tests that will be affected:**  
+  `codex\external\repos\codex-patched\codex-rs\core\src\agent\role_tests.rs`  
+  Notably `apply_empty_explorer_role_preserves_current_model_and_reasoning_effort()` assumes `explorer.toml` is empty/no-op.
+- **Existing explorer plumbing tests:**  
+  `codex\external\repos\codex-patched\codex-rs\core\src\tools\handlers\multi_agents_tests.rs`  
+  `spawn_agent_uses_explorer_role_and_preserves_approval_policy()` confirms the explorer role is already spawnable.
+- **Claude-doc fallback seam relevant to `omitClaudeMd`:**
+  - `codex\codex-rs-overlay\codex-copilot-launcher\src\config.rs`
+  - `codex\external\repos\codex-patched\codex-rs\config\src\config_toml.rs`
+  
+  The launcher injects `project_doc_fallback_filenames=["CLAUDE.md"]`; config arrays replace rather than merge, so a role layer can likely override this with `[]`.
+- **Planning/inspiration docs:**
+  - `plans\native-agent-parity.md` §2.1 and §4
+  - `plans\codexu-roadmap.md` “Codex changes — minimize upstream conflict surface”
+
+### Technical Constraints
+
+- This is an edit inside **upstream-canonical subtree code** (`external\repos\codex-patched\codex-rs`), so the repo’s guidance is to keep the delta as small as possible and do the work in a **codex submodule worktree**, then bump the codexu submodule pointer separately.
+- Because `explorer.toml` already exists and is already `include_str!`-ed, this feature should **not require `role.rs` changes** and likely **does not require `BUILD.bazel` changes**.
+- The feature request’s “no `role.rs` match-arm change” claim is accurate.
+- **Important nuance:** built-in role files are loaded in `role.rs` as raw config TOML, not through the normal discovered-role path in `agent_roles.rs`. That means the standalone-role validation for missing `developer_instructions` is **not automatically exercised for built-ins**. If you want that invariant guarded, add a tiny test.
+- If you want Claude Explore’s read-only contract to be real, the natural codex mechanism is `sandbox_mode = "read-only"` in `explorer.toml`, plus paraphrased instructions.
+- If you want Claude Explore’s `omitClaudeMd` behavior, the simplest codex-native analog is probably:
+  `project_doc_fallback_filenames = []`
+  inside `explorer.toml`, rather than new core plumbing.
+- **Smoke-test caveat:** `codex exec` in this repo is documented as problematic with **read-only + tool use** because exec runs with approval disabled. `docs\workflows\codex-cli-git-bash-diagnostic.md` explicitly says `codex exec --sandbox read-only` can fail silently for prompts that need file reads/shell. So the acceptance step needs a carefully chosen invocation; a plain non-interactive read-only exploration smoke is underspecified.
+- The license posture in `plans\native-agent-parity.md` is the key non-code constraint: preserve structure/behavior, but **rewrite the prose** and keep the operator review before commit.
+- I could not directly open `D:\harness-efforts\claude-code\worktrees\main\src\tools\AgentTool\built-in\exploreAgent.ts` from this session, so the actionable reference here is the repo’s own summary in `plans\native-agent-parity.md`.
+
+### Implementation Suggestions
+
+- **Smallest-delta implementation:** edit only  
+  `core\src\agent\builtins\explorer.toml`.
+- Put in that file:
+  - a **comment header** citing the Claude Explore prompt as inspiration,
+  - **paraphrased** `developer_instructions = """..."""`,
+  - likely `sandbox_mode = "read-only"`,
+  - optionally `project_doc_fallback_filenames = []` if you want the `omitClaudeMd` equivalent.
+- Do **not** change `core\src\agent\role.rs`; it is already wired correctly.
+- Reuse existing test seams instead of inventing new infrastructure:
+  1. Update `role_tests.rs` to stop assuming explorer is empty/no-op.
+  2. Add a tiny parse/config-layer test that proves the built-in `explorer.toml` is non-empty and its `developer_instructions` parse.
+- The plan should also explicitly decide whether this upstream-canonical prompt edit needs a companion note in  
+  `codex\docs\implementation\patch-surface.md`; the fork’s codex guidance expects upstream edits to be documented even when no new network-audit marker is involved.
+

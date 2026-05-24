@@ -1,0 +1,71 @@
+I’ll inspect the referenced temp path to see what task or data it contains.
+
+I’ll map the existing overview sync/viewer code so the research report is grounded in the actual integration points.
+
+The relevant files are under the overview viewer and sync sidecar; I’m narrowing to those concrete modules now.
+
+### Codebase Architecture
+
+Monorepo using **pnpm workspaces**. The relevant surfaces are:
+
+- `scripts/lib/*.mjs`: Node ESM Ralph sync/sidecar pipeline.
+- `tools/overview-viewer/`: Vite + React + TypeScript dashboard.
+- `plans/overview-data.js`: hand-edited dashboard source.
+- `plans/overview-ralph-state.js/json`, `plans/overview-snapshot.json`, `plans/overview-activity.jsonl`: generated Ralph artifacts.
+
+The Ralph sync flow is centered on `scripts/lib/sync-core.mjs`: `walkRalphState()` reads `.ralph/jobs`, `.ralph/job-groups`, and `.ralph/brainstorms`; `assembleStateFromBundles()` matches slugs to overview tasks; `toPipelineState()` builds `RalphPipelineState`; `mergeAndWrite()` diffs state and returns `activityEvents`; `writeSidecar()` emits sidecars and agent artifacts. `scripts/lib/watch-ralph-state.mjs` owns the lock window and appends activity events after `mergeAndWrite()`.
+
+The viewer reads `window.OVERVIEW_DATA` and `window.OVERVIEW_RALPH_STATE` in `tools/overview-viewer/src/App.tsx`, then renders command rows through `CommandList.tsx` → `TaskCommand.tsx` → `RalphStageChip.tsx`.
+
+### Feature-Relevant Code
+
+Key files:
+
+- `scripts/lib/sync-core.mjs`
+  - `readJobLikeBundles()` already reads `job-state.json`, `prd.json`, optional `group.json`, review findings.
+  - `toPipelineState()` is the natural place to add notepad/branch/PR-derived fields.
+  - `mergeAndWrite()` derives activity events after state diffing.
+- `scripts/lib/watch-ralph-state.mjs`
+  - Lines around activity append are the right place to also append journal entries inside the lock window.
+- `scripts/lib/emit-activity.mjs`
+  - Existing append/rotation style for durable JSONL events.
+- `scripts/lib/atomic-write.mjs`
+  - Existing atomic write helper to reuse for journal creation/update.
+- `tools/overview-viewer/src/types.ts`
+  - Defines `RalphPipelineState` and `ActivityEvent`; extend here.
+- `tools/overview-viewer/src/App.tsx`
+  - Already subscribes to `overview-ralph-state:update`; can host `useActivityEvents()` and render `RecentActivity`.
+- `tools/overview-viewer/src/components/TaskCommand.tsx`
+  - Currently calls `<RalphStageChip taskId={task.id} ralphState={ralphState} />`; this is the correct composition point for tooltip extras.
+- `tools/overview-viewer/src/components/RalphStageChip.tsx`
+  - Already supports `tooltipExtras?: ReactNode`; no contract change needed.
+- `tools/overview-viewer/src/utils/commandNavigation.ts`
+  - `navigateToCommand()` should be reused for RecentActivity clicks.
+- `tools/overview-viewer/vite.config.ts`
+  - Currently serves only `/overview-data.js` and `/overview-ralph-state.js`; serving `/overview-activity.jsonl` may be needed for dev/static-compatible fetching.
+
+### Technical Constraints
+
+- The requested Plan 07 worktree path did **not** exist during research, so implementation should first ensure work happens in `D:\harness-efforts\codexu\.ralph\jobs\ralph-pipeline-07-context\worktree\`, not directly on main.
+- The plugin-cache Appendix B file was not readable due permission restrictions; existing `.ralph/jobs/*/notepad.md` examples show the Deferred Questions table shape:
+  `| # | Question | Story ID | Iter Asked | Answer | Iter Answered | Auto-Resolved |`.
+- Overview-viewer imports root `scripts/lib/*.mjs` in tests require adjacent `*.d.mts` declarations when TypeScript needs typed imports.
+- `overview-activity.jsonl` parsing must tolerate a torn final line.
+- `writeSidecar()` is the single artifact emission integration point; watcher should not import artifact emitters directly.
+- `mergeAndWrite()` signature is expected to remain stable.
+- Copy UI should use existing `copyTextWithToast(...)`, not direct clipboard calls.
+
+### Implementation Suggestions
+
+Implement in this order:
+
+1. Add `parse-notepad.mjs` plus `.d.mts` and tests. Parse only the `## Deferred Questions` section, require a markdown header row containing `Question` and `Answer`, count rows where `Answer` is empty, truncate first unanswered question to 120 chars. Count `storyDoctorInterventions` from non-empty rows in `## Story Doctor Log`.
+2. Add `derive-pr-links.mjs` plus tests. Prefer `groupState.prUrl`; fallback to `git log -n 5 <branchName>` via `execFileSync`. Return GitHub PR URLs for direct URL matches or repo-derived `pull/N` URLs from `Closes #N` only if remote origin/fork URL can be resolved.
+3. Add `append-journal.mjs` using create-dir + append/fsync semantics similar to `emit-activity.mjs`.
+4. Wire `readJobLikeBundles()` to read `notepad.md`; wire `toPipelineState()` to include `branchName` from `prd.branch.name`, parsed notepad fields, `prUrl`, and `mergeCommit`.
+5. In `watch-ralph-state.mjs`, after each `appendActivity(...)`, append journal lines only for events with `changedFields` containing `stage`.
+6. Extend `RalphPipelineState`, snapshot schema, and script ambient declarations.
+7. Add `useActivityEvents.ts`; fetch `./overview-activity.jsonl`, parse JSONL defensively, refresh on `overview-ralph-state:update`.
+8. Add `RecentActivity.tsx` and render it from `App.tsx`, reusing `navigateToCommand(taskId, expandedControls.setTaskExpanded)`.
+9. Build tooltip extras in `TaskCommand.tsx` and pass to `RalphStageChip`; use existing toast/copy helper for `git checkout <branchName>`.
+

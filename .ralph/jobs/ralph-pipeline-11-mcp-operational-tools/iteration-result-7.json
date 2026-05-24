@@ -1,0 +1,68 @@
+{
+  "storyId": "US-007",
+  "verifiedEvidence": [
+    {
+      "criterion": "shutdown stopAll wiring",
+      "command": "nl -ba tools/overview-mcp/src/index.ts | sed -n '12,38p'",
+      "result": "PASS: shutdown closes snapshotReader, awaits context.processManager.stopAll() in a try/catch that logs to stderr, then closes server.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "no new signal handlers",
+      "command": "grep -n \"process.once\" tools/overview-mcp/src/index.ts",
+      "result": "PASS: only SIGINT and SIGTERM process.once handlers are present; both call the existing shutdown function.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "fast shutdown test",
+      "command": "pnpm --filter @codexu/overview-mcp exec vitest run src/__tests__/shutdown.test.ts src/__tests__/shutdown-vite.test.ts --passWithNoTests --reporter=verbose",
+      "result": "PASS: shutdown.test.ts passed with real node -e children for dev-server, build, and sync-now; shutdown-vite.test.ts skipped by env gate.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "real Vite Windows orphan test",
+      "command": "pnpm --filter @codexu/overview-mcp test",
+      "result": "SKIPPED: shutdown-vite.test.ts is gated by OVERVIEW_MCP_REAL_VITE=1 and win32; full suite reports one skipped test and keeps the manual check runnable.",
+      "evidenceKind": "skipped"
+    },
+    {
+      "criterion": "README operational docs",
+      "command": "grep -nE \"Operational Tools|overview.dev_server.start|overview.dev_server.stop|overview.dev_server.status|overview.dev_server.logs|overview.build|overview.sync.now|overview.sync.watch_status|tree-kill|ring buffer|stdio\" tools/overview-mcp/README.md",
+      "result": "PASS: README documents all seven operational tools plus lifecycle, stdio isolation, ring-buffer cap, tree-kill, and build single-flight behavior.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "tree-kill runtime dependency",
+      "command": "grep -n \"tree-kill\" -C 2 tools/overview-mcp/package.json",
+      "result": "PASS: tree-kill is listed under dependencies.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "cascade audit",
+      "command": "git show --stat --oneline HEAD; git show --format=%B --no-patch HEAD",
+      "result": "PASS: commit b0ecf02e updates package.json, README, index, Plan 02, Plan 09, and the plan index; commit body lists cascade diff summaries.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "17-tool stdio exact set",
+      "command": "grep -n \"returns 17 overview tools\" -A25 tools/overview-mcp/src/__tests__/stdio-tools-list.test.ts; pnpm --filter @codexu/overview-mcp test",
+      "result": "PASS: stdio smoke test asserts exact 17-tool set and full suite passed with 20 files passed, 1 skipped, 72 tests passed, 1 skipped.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "final checks and install",
+      "command": "pnpm --filter @codexu/overview-mcp typecheck; pnpm --filter @codexu/overview-mcp build; pnpm --filter @codexu/overview-mcp test; pnpm overview-mcp:install",
+      "result": "PASS: typecheck, build, test, and install all exited 0; logs persisted under .test-output/overview-mcp.*.log.",
+      "evidenceKind": "passed"
+    }
+  ],
+  "skippedReasons": [
+    {
+      "criterion": "real Vite Windows orphan test",
+      "reason": "manual-skip",
+      "detail": "Requires OVERVIEW_MCP_REAL_VITE=1 on Windows to start the real dev server and inspect port 5173."
+    }
+  ],
+  "notTested": [],
+  "iterationSHA": "b0ecf02e0d3b9c7d11161224c8aa580eb28bb7fa"
+}

@@ -1,0 +1,60 @@
+I’ll inspect the provided temp file to see what task it contains.
+
+The file is readable but needs chunked viewing, so I’ll load the relevant sections next.
+
+I’ll research the codexu overview pipeline and the referenced toolkit plugin examples, then return the requested plan analysis.
+
+I found the overview pipeline in this repo; I’ll inspect the extraction seams and toolkit manifest conventions before summarizing.
+
+Research complete: Plan 12 is feasible, but the current implementation still has several `codexu`-relative seams that must be generalized before the consumer tree can delete its local copies.
+
+### Codebase Architecture
+
+`D:\harness-efforts\codexu` is a pnpm monorepo (`pnpm@10.11.0`) with Happy packages plus two overview tools registered in both `package.json` and `pnpm-workspace.yaml`: `tools\overview-viewer` and `tools\overview-mcp`.
+
+The Ralph overview system is split into:
+
+- `scripts\lib\*.mjs`: ESM sync/generation layer. `resolve-config.mjs` loads `.ralph\overview-config.json`, `sync-core.mjs` derives sidecars/snapshots, `watch-ralph-state.mjs` owns chokidar watching and `.ralph\overview-sync.lock`.
+- `scripts\sync-ralph-state.mjs`: CLI wrapper for one-shot sync, watch mode, crew-session updates.
+- `tools\overview-viewer`: React 19 + Vite 8 + TypeScript dashboard consuming `window.OVERVIEW_DATA` from `plans\overview-data.js` and `window.OVERVIEW_RALPH_STATE` from generated sidecars.
+- `tools\overview-mcp`: NodeNext TypeScript MCP server using `@modelcontextprotocol/sdk`, exposing `overview.*` read/ops tools.
+- `.claude\skills\work-on`, `triage`, `blocker-report`: Markdown slash-command skills reading generated snapshot/recommendation artifacts.
+
+### Feature-Relevant Code
+
+Key extraction points:
+
+- `package.json`: root scripts `overview`, `overview:build`, `overview-mcp:*`, `sync-ralph-state`, `sync-ralph-state:watch` currently target local packages/files.
+- `pnpm-workspace.yaml`: includes `tools/overview-viewer` and `tools/overview-mcp`; both must be removed in the consumer migration.
+- `.ralph\overview-config.json` and `.ralph\overview-config.schema.json`: consumer-owned config/schema. Current schema title/id are codexu-specific and include shipped downstream keys: `crewsRoot`, `recommendations`, `recommendationsJson`, `dependencyGraphJson`, activity rotation.
+- `scripts\lib\default-config.mjs`: exports `codexuDefaultConfig`; rename/genericize for plugin use.
+- `tools\overview-viewer\vite.config.ts`: currently hardcodes `../../plans/*`, `../../scripts/lib/watch-ralph-state.mjs`, build `outDir: '../../plans'`, and `server.fs.allow: [__dirname, '../../plans']`.
+- `tools\overview-viewer\src\components\Toolbar.tsx`: `FILTER_GROUPS` hardcodes codexu workstream/scope chips.
+- `tools\overview-viewer\src\utils\filters.ts`: filter semantics already use `data.workstream`, `data.sizeBucket`, `data.cadence`, and `parseTaskScope`; this is the natural source for data-driven chips.
+- `tools\overview-mcp\src\context.ts`, `snapshot-reader.ts`, `tools\*.ts`: many imports reach into `../../../scripts/lib` or `../../../../scripts/lib`.
+- `tools\overview-mcp\src\tools\dev-server-start.ts`, `build.ts`, `sync-now.ts`: spawn `pnpm overview`, `pnpm overview:build`, and `node scripts/sync-ralph-state.mjs`; these need plugin CLI equivalents.
+- `tools\overview-mcp\src\install-server.ts`: registers `codexu-overview` pointing at `repoRoot\tools\overview-mcp\dist\index.js`; plugin install must point at plugin path.
+- `AGENTS.md`: contains the root overview-sync guidance. There is no root `CLAUDE.md` in this checkout.
+
+### Technical Constraints
+
+The external toolkit path `D:\ai-developer-toolkit` was not accessible from this session, so the exact `plugin.json` manifest shape still must be verified against `plugins\crews\plugin.json`, `plugins\ralph`, or toolkit docs before implementation.
+
+Do not migrate by copying only source files. The current packages rely on repo-relative TypeScript root widening and cross-package imports; plugin packaging should provide explicit module/CLI entry points and update all imports to plugin-local paths.
+
+The viewer cannot assume the plugin directory is two levels below the consumer repo. Vite config must resolve consumer `repoRoot`/config at runtime and serve/build configured output files.
+
+For `Toolbar.tsx`, pass `OverviewData` into `Toolbar`/`FilterChips`, derive workstream chips from non-empty unique `data.workstream` values, and derive scope chips via `parseTaskScope(data.tasks[].scope)`. Add tests with non-codexu values.
+
+Skills currently reference local commands such as `pnpm sync-ralph-state` and `node scripts/lib/derive-next-command-cli.mjs`; pluginized skills need updated commands or wrappers.
+
+### Implementation Suggestions
+
+First extract the sync library and define stable plugin CLIs: `ralph-overview sync`, `watch`, `dev`, `build`, `mcp`, and optionally `install-server`. Then update MCP operational tools to call those CLIs directly rather than consumer root scripts.
+
+Next generalize `vite.config.ts` around `loadConfig({ repoRoot, configPath })`, with plugin path used for app source and consumer config used for data/artifact paths.
+
+Move tests with the code they cover. Script/MCP/viewer tests that import `scripts\lib` should live in the plugin; codexu should retain only consumer fixture/config tests if needed.
+
+For the consumer migration, preserve `.ralph\overview-config.json`, `plans\overview-data.js`, generated artifacts, and `tasks\*\journal.md`; remove duplicated implementation code and keep only root convenience wrappers if desired. Update `AGENTS.md`, not root `CLAUDE.md`, unless a new root `CLAUDE.md` is intentionally introduced.
+

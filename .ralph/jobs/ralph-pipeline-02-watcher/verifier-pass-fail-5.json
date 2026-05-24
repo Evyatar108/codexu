@@ -1,0 +1,43 @@
+{
+  "manifestPath": "D:/harness-efforts/codexu/.ralph/jobs/ralph-pipeline-02-watcher/iteration-result-5.json",
+  "iterationSHA": "5d02569876fc1a50e4129c9c1093751ff8478273",
+  "storyId": "US-005",
+  "verdicts": [
+    {
+      "criterion": "tools/overview-viewer/vite.config.ts configureServer dynamic-imports scripts/lib/watch-ralph-state.mjs and calls start({ ..., processLabel: 'vite-plugin' }).",
+      "verdict": "agree",
+      "reason": "Evidence greps vite.config.ts for pathToFileURL/watch-ralph-state.mjs/watcher.start/processLabel 'vite-plugin'/ralphStateWatcherPlugin; result confirms all present."
+    },
+    {
+      "criterion": "On lock contention (\"another watcher holds lock\"), the plugin logs a warning via server.config.logger.warn and continues serving the app (does NOT crash pnpm overview).",
+      "verdict": "agree",
+      "reason": "Evidence greps for the literal warning text + logger.warn + try/catch handling; result confirms the contention path logs and continues serving."
+    },
+    {
+      "criterion": "server.httpServer?.on('close', ...) calls handle.stop().catch(() => {}).",
+      "verdict": "agree",
+      "reason": "Targeted grep against vite.config.ts for the exact tokens; result confirms registration of close handler with handle.stop().catch(() => {})."
+    },
+    {
+      "criterion": "onWrite fires server.ws.send({ type: 'custom', event: 'overview-ralph-state:update' }) exactly once per debounced write.",
+      "verdict": "agree",
+      "reason": "Evidence references named auto-start test that asserts the ws.send shape and one-call-per-debounced-write semantic; result confirms test asserts exactly that payload."
+    },
+    {
+      "criterion": "pnpm --filter @codexu/overview-viewer typecheck passes (the new .d.mts makes the dynamic import type-safe).",
+      "verdict": "agree",
+      "reason": "Evidence runs the typecheck command and records exit 0."
+    },
+    {
+      "criterion": "The vite-plugin auto-start path is covered by automated tests in tools/overview-viewer/src/__tests__/ralphWatcher.test.ts: a test named like \"vite-plugin auto-start fires overview-ralph-state:update on debounced write\" mocks Vite server.ws and asserts exactly one ws send per debounced write with payload { type: 'custom', event: 'overview-ralph-state:update' }; a second test named like \"vite-plugin tolerates lock contention\" simulates an existing fresh lock and asserts the plugin logs a warning via server.config.logger.warn and continues without throwing. pnpm --filter @codexu/overview-viewer test exits 0 with both named tests recorded as passing.",
+      "verdict": "agree",
+      "reason": "Evidence greps for both literal test names in ralphWatcher.test.ts and runs the overview-viewer test command; result confirms both named tests passed under the full suite exit 0."
+    },
+    {
+      "criterion": "Typecheck passes.",
+      "verdict": "agree",
+      "reason": "Evidence runs pnpm --filter @codexu/overview-viewer typecheck and records exit 0."
+    }
+  ],
+  "warnings": []
+}

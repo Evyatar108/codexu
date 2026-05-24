@@ -1,0 +1,20 @@
+### Completeness
+[High] `scripts/lib/resolve-config.mjs:76` rebuilds the resolved config with only known Plan 01 keys, dropping unknown keys. The plan explicitly says `loadConfig` should pass unknown keys through so downstream plans can add fields like `outputs.snapshot` without changing the resolver.
+
+[Medium] `scripts/lib/sync-core.mjs:281` never emits `hasPrdWorthy`, even though `tools/overview-viewer/src/types.ts:69` declares it and the plan calls it a derived pipeline field.
+
+[Medium] `scripts/lib/default-config.mjs:13` and `.ralph/overview-config.json:14` use `.ralph/overview-sync.lock`, while the provided plan’s default config specifies `plans/.overview-ralph-state.lock`.
+
+### Correctness
+[Medium] `scripts/lib/sync-core.mjs:192` only checks whether `group.json` exists, and `scripts/lib/sync-core.mjs:287` hardcodes every group as `isParallel: true`. The plan says `group.json` is metadata used for fields like `isParallel`; serial or differently configured groups will be represented incorrectly.
+
+[Medium] `scripts/lib/sync-core.mjs:182`, `scripts/lib/sync-core.mjs:206`, and `scripts/lib/sync-core.mjs:243` silently treat malformed `prd.json`, `brainstorm.json`, and findings files as absent. That can derive the wrong stage or drop an artifact instead of logging/marking a parse-error as the malformed-JSON handling requires.
+
+### Quality
+[Medium] Unknown/future phases are mapped to `implementing` in `scripts/lib/derive-ralph-stage.mjs:34`, but `sync-core` never logs the schema-drift warning required by the plan. The behavior is usable, but it removes the intended drift signal.
+
+### Security
+No issues found.
+
+### Overall Assessment
+Not ready as-is. Typecheck and the targeted new tests pass, but the resolver drops downstream config extensions and group/malformed-artifact handling is incomplete against the plan contract.

@@ -1,0 +1,30 @@
+I’ll inspect the provided temp file to determine the requested work.
+
+The file is a plan-review prompt. I’ll read the implementation plan and cross-check the referenced code paths before issuing findings.
+
+I’ve confirmed the plan matches the current MCP/server layout. I’ll check package scripts and module-resolution details for hidden feasibility gaps before finalizing the review.
+
+### Feasibility
+
+[High] The Vite ready regex is likely too strict. `tools/overview-viewer/package.json` runs Vite, whose banner commonly prints `➜  Local: ...`; the proposed `^\s*(?:\x1b...)*Local:\s+(\S+)` in `tools/overview-mcp/src/tools/dev-server-start.ts` would not match the arrow-prefixed line, causing `overview.dev_server.start` to time out while the server is actually running.
+
+[High] `scripts/lib/sync-lock.d.mts` must be updated. The plan adds `readLockStatus()` to `scripts/lib/sync-lock.mjs`, and `tools/overview-mcp` uses TypeScript `NodeNext` imports against existing `.d.mts` declarations. Without adding the exported type/function there, `pnpm --filter @codexu/overview-mcp typecheck` will fail.
+
+### Completeness
+
+[High] Concurrent `dev_server.start` during startup is underspecified. `ProcessManager.spawn()` registers a `starting` handle before spawn, and the second call returns `AlreadyRunning`, but `dev-server-start.ts` is specified to return `{ ok: true, alreadyRunning: true, url, pid, startedAt }`. During `starting`, `url` and possibly `pid` are not available, violating the tool contract. The plan should either await the first ready promise or return an explicit “starting” response.
+
+[High] Start failure cleanup is missing. If `onReady()` times out or exits before matching, the plan does not require `dev-server-start.ts` to stop/remove the registered `dev-server` process. That can leave a live but “not ready” process blocking future starts.
+
+### Ordering
+
+No issues found.
+
+### Simplicity
+
+[Medium] The shutdown integration test that starts the real Vite server via `dist/index.js` may be heavier/flakier than necessary because it depends on fixed port `5173` and real watcher startup. Keep it if Windows orphan detection is essential, but pair it with mocked subprocess lifecycle tests so most coverage does not require a live Vite server.
+
+### Acceptance Criteria Quality
+
+[Medium] The criteria should explicitly cover the startup race and timeout cleanup: second `start` while first is still starting, and failed ready detection must not leave an orphaned/registered child. Current ACs cover “already running” only after readiness.
+

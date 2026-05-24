@@ -1,0 +1,63 @@
+{
+  "manifestPath": "D:/harness-efforts/codexu/.ralph/jobs/overview-install-streamline/iteration-result-2.json",
+  "iterationSHA": "2dec5c107f0d666814cc30f51c5e422c213d1b85",
+  "storyId": "US-002",
+  "verdicts": [
+    {
+      "criterion": "Return shape",
+      "verdict": "agree",
+      "reason": "Diff adds scripts/lib/upsert-task-edit.mjs and __tests__/upsert-task-edit.test.ts; manifest cites 6/6 vitest pass asserting source/changed/action/editedRanges shape."
+    },
+    {
+      "criterion": "Task-object whitelist",
+      "verdict": "agree",
+      "reason": "Vitest pass cited covers allowed fields + ui.* rejection; consistent with upsert-task-edit.mjs added in the diff."
+    },
+    {
+      "criterion": "Top-level-map whitelist",
+      "verdict": "agree",
+      "reason": "Vitest test covers all seven maps populated and ui rejection; matches code added in this iteration."
+    },
+    {
+      "criterion": "Strict Zod schema with no extras",
+      "verdict": "agree",
+      "reason": "Vitest asserts Zod strict-object errors for unknown fields on both task-object and map sides."
+    },
+    {
+      "criterion": "Source bytes outside editedRanges are byte-identical",
+      "verdict": "agree",
+      "reason": "Diff adds test-fixtures/overview-data.rich.js; manifest cites the rich-fixture buffer-slice comparison test passing."
+    },
+    {
+      "criterion": "Refuses comments inside task ObjectExpression",
+      "verdict": "agree",
+      "reason": "Vitest covers inline-comment refusal with explicit error message; manifest result matches the implemented behavior in upsert-task-edit.mjs."
+    },
+    {
+      "criterion": "Idempotent rerun",
+      "verdict": "agree",
+      "reason": "Vitest asserts second-run returns noop/changed=false/editedRanges=[] and byte-identical source."
+    },
+    {
+      "criterion": "Preserves CRLF line endings inside string literals",
+      "verdict": "agree",
+      "reason": "Vitest asserts CRLF emitted as escaped \\r\\n in the output string literal."
+    },
+    {
+      "criterion": "Paired .d.mts declaration file exists",
+      "verdict": "agree",
+      "reason": "Diff adds scripts/lib/upsert-task-edit.mjs and scripts/lib/upsert-task-edit.d.mts; manifest test -f command confirms presence."
+    },
+    {
+      "criterion": "Required tests cover update/create/refusals/comments/byte identity",
+      "verdict": "agree",
+      "reason": "Vitest pass enumerates all required test cases; matches __tests__/upsert-task-edit.test.ts added in diff."
+    },
+    {
+      "criterion": "Typecheck passes",
+      "verdict": "agree",
+      "reason": "Manifest reports exit 0 with no diagnostics; only .mjs + tests + fixture were added, no .ts source touched."
+    }
+  ],
+  "warnings": []
+}

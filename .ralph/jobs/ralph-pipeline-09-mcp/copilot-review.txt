@@ -1,0 +1,27 @@
+I’ll inspect the referenced temp file to determine the task and then carry it through.
+
+I found this is a code-review brief. I’ll locate the diff sections and inspect the changed files against the plan.
+
+I’m checking the implementation against the existing shared library APIs now; a few review-relevant risks depend on actual exported names and artifact shapes.
+
+### Completeness
+
+- [High] `overview.get_task` does not meet US-003’s explicit `assertSafeTaskId` requirement. `tools/overview-mcp/src/tools/read-only.ts:56-67` looks up the task first and `readRecentJournal()` silently returns `[]` for unsafe paths instead of rejecting invalid `taskId`s with `{ ok: false, error }`.
+
+### Correctness
+
+- [High] `overview.add_journal_entry` exposes an out-of-contract `ts` input and writes it unescaped. `tools/overview-mcp/src/schemas.ts:63-67` plus `tools/overview-mcp/src/tools/add-journal-entry.ts:21-23` allow a caller to pass `ts` containing newlines, which can inject forged journal rows before `note:`. The public contract only includes `{ taskId, note }`.
+- [Medium] `overview.get_transcript` can throw instead of returning the documented JSON error envelope when a manifest points at a missing/unreadable transcript. `tools/overview-mcp/src/tools/get-transcript.ts:25-31` calls `tailTranscript()`, and `tools/overview-mcp/src/utils/transcript-tail.ts:27` uses `fs.openSync()` without a wrapper.
+
+### Quality
+
+- [Medium] `tools/overview-mcp/src/types.ts:1-106` duplicates overview/snapshot types instead of type-only importing the existing `tools/overview-viewer/src/types.ts` source noted in the plan. This works now but creates schema drift risk for the agent-facing MCP contract.
+
+### Security
+
+No issues found.
+
+### Overall Assessment
+
+Not ready yet: the core MCP package is broadly implemented, but `get_task` misses an acceptance criterion and `add_journal_entry` exposes a journal data-integrity footgun. Fix those before shipping.
+

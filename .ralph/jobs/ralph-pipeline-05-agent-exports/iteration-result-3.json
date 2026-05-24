@@ -1,0 +1,26 @@
+{
+  "storyId": "US-008",
+  "verifiedEvidence": [
+    {
+      "criterion": "scripts/lib/emit-snapshot.d.mts, emit-activity.d.mts, emit-tasks-index.d.mts, emit-snapshot-schema.d.mts created with accurate signatures.",
+      "command": "grep -R -nE \"buildSnapshot|appendActivity|rotateActivity|buildTasksIndex|SNAPSHOT_SCHEMA|writeSnapshotSchema|ActivityEvent|Snapshot\" scripts/lib/emit-*.d.mts",
+      "result": "emit-snapshot declares BuildSnapshotOptions and buildSnapshot(...): Snapshot; emit-activity imports ActivityEvent and declares appendActivity plus rotateActivity; emit-tasks-index declares buildTasksIndex(snapshot: Snapshot): string; emit-snapshot-schema declares SNAPSHOT_SCHEMA and writeSnapshotSchema(schemaPath).",
+      "evidenceKind": "file-inspection"
+    },
+    {
+      "criterion": "tools/overview-viewer/src/__tests__/scripts.d.ts adds ambient module declarations for the four new modules.",
+      "command": "grep -n \"declare module '../../../../scripts/lib/emit-\" tools/overview-viewer/src/__tests__/scripts.d.ts",
+      "result": "Lines 32, 47, 60, and 66 declare ambient modules for emit-snapshot.mjs, emit-activity.mjs, emit-tasks-index.mjs, and emit-snapshot-schema.mjs.",
+      "evidenceKind": "file-inspection"
+    },
+    {
+      "criterion": "Typecheck passes.",
+      "command": "pnpm --filter @codexu/overview-viewer typecheck > .test-output/overview-viewer.typecheck.log 2>&1",
+      "result": "PASS exit=0 duration=10s; tsc --noEmit completed with no errors. Package tests also passed: 27 files, 152 tests.",
+      "evidenceKind": "command-output"
+    }
+  ],
+  "skippedReasons": [],
+  "notTested": [],
+  "iterationSHA": "bd8195f3b737464b90fb59da16fa867cba6d1358"
+}

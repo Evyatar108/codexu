@@ -1,0 +1,56 @@
+{
+  "storyId": "US-007",
+  "verifiedEvidence": [
+    {
+      "criterion": "src/utils/transcript-tail.ts exposes tailTranscript({ transcriptPath, lastN, includeToolEvents }): Array<TranscriptTurn>",
+      "command": "grep -nE 'export function tailTranscript|TranscriptTurn|TailTranscriptOptions' tools/overview-mcp/src/utils/transcript-tail.ts",
+      "result": "tailTranscript is exported from tools/overview-mcp/src/utils/transcript-tail.ts with TailTranscriptOptions containing transcriptPath, lastN, and includeToolEvents; it returns TranscriptTurn[].",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Reads file backward in 64 KB chunks; stops when N complete lines collected or file exhausted; caps at 100 lastN",
+      "command": "grep -nE 'CHUNK_SIZE|MAX_LAST_N|result.length < limit|fs.readSync' tools/overview-mcp/src/utils/transcript-tail.ts",
+      "result": "CHUNK_SIZE is 64 * 1024, MAX_LAST_N is 100, the reverse scan uses fs.readSync while position > 0 && result.length < limit, and the test covers a lastN=200 call capped against a 50-line fixture.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Tolerates a malformed final line (torn write) - skip without warning; malformed interior lines log a single stderr warning per line",
+      "command": "pnpm --filter @codexu/overview-mcp test",
+      "result": "Exit 0; Vitest case 'skips malformed final torn lines without warning and warns once for malformed interior lines' passed, asserting two valid turns returned and exactly one stderr warning for the malformed interior line.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Filters tool_use / tool_result entries by default; includeToolEvents: true retains them",
+      "command": "pnpm --filter @codexu/overview-mcp test",
+      "result": "Exit 0; tailTranscript tests passed: default output contained only user/assistant entries, while includeToolEvents:true returned all 50 JSONL entries including tool_use and tool_result.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Tool resolves sessionId -> transcriptPath via cached discoverCrewSessions() result (or scans .crews/.../manifest.json directly); returns { ok: false, error: 'session not found' } for unknown sessionId",
+      "command": "grep -nE 'listCrewSessions|sessionId|session not found|resolveTranscriptPath' tools/overview-mcp/src/tools/get-transcript.ts && pnpm --filter @codexu/overview-mcp test",
+      "result": "getTranscript calls listCrewSessions(context, {}) to reuse the cached live crew discovery, matches candidate.sessionId to the input, resolves transcriptPath, and returns { ok: false, error: 'session not found' } when no session matches; Vitest covered both paths.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Test fixture: JSONL with 50 mixed entries; assert last 20 user/assistant turns by default; assert full set with includeToolEvents: true; assert torn-line tolerance",
+      "command": "grep -nE 'mixedTranscriptEntries|last 20|includeToolEvents|torn' tools/overview-mcp/src/__tests__/get-transcript.test.ts && pnpm --filter @codexu/overview-mcp test",
+      "result": "get-transcript.test.ts writes 50 mixed JSONL entries, asserts the default call equals the last 20 filtered user/assistant turns, asserts includeToolEvents:true returns 50 entries with tool events, and asserts torn-line tolerance; overview-mcp tests passed with 5 files and 29 tests.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Typecheck passes",
+      "command": "pnpm --filter @codexu/overview-mcp typecheck",
+      "result": "Exit 0; tsc --noEmit -p tsconfig.json completed without errors. Full log: .test-output/overview-mcp.typecheck.log.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Tests pass",
+      "command": "pnpm --filter @codexu/overview-mcp test",
+      "result": "Exit 0; Vitest reported 5 test files passed and 29 tests passed. Full log: .test-output/overview-mcp.test.log.",
+      "evidenceKind": "passed"
+    }
+  ],
+  "skippedReasons": [],
+  "notTested": [],
+  "iterationSHA": "b02f1ba0d658ee56cbffe67e8dc335aab1cc9f4d"
+}

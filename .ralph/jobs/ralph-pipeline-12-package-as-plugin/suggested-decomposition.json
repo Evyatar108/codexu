@@ -1,0 +1,95 @@
+{
+  "clusters": [
+    {
+      "name": "plugin-shell",
+      "stories": ["US-001"],
+      "phase": 1,
+      "dependsOn": [],
+      "fileOverlapEvidence": {
+        "sharedFiles": [],
+        "exclusiveFiles": [
+          "D:/ai-developer-toolkit/plugins/ralph-overview/.claude-plugin/plugin.json",
+          "D:/ai-developer-toolkit/plugins/ralph-overview/.mcp.json",
+          "D:/ai-developer-toolkit/plugins/ralph-overview/package.json",
+          "D:/ai-developer-toolkit/plugins/ralph-overview/bin/ralph-overview.mjs",
+          "D:/ai-developer-toolkit/plugins/ralph-overview/README.md",
+          "D:/ai-developer-toolkit/.claude-plugin/marketplace.json"
+        ],
+        "risk": "low"
+      },
+      "executionModeRationale": "Must complete first — defines plugin layout that all subsequent stories build under. Marketplace entry is an additive append to the plugins array so a single story owns it cleanly."
+    },
+    {
+      "name": "plugin-extraction",
+      "stories": ["US-002", "US-003", "US-004", "US-005", "US-006", "US-007"],
+      "phase": 2,
+      "dependsOn": ["plugin-shell"],
+      "fileOverlapEvidence": {
+        "sharedFiles": [
+          "D:/ai-developer-toolkit/plugins/ralph-overview/package.json"
+        ],
+        "exclusiveFiles": [
+          "D:/ai-developer-toolkit/plugins/ralph-overview/scripts/lib/**",
+          "D:/ai-developer-toolkit/plugins/ralph-overview/scripts/sync-ralph-state.mjs",
+          "D:/ai-developer-toolkit/plugins/ralph-overview/tools/overview-mcp/**",
+          "D:/ai-developer-toolkit/plugins/ralph-overview/tools/overview-viewer/src/App.tsx",
+          "D:/ai-developer-toolkit/plugins/ralph-overview/tools/overview-viewer/src/components/StaticSections.tsx",
+          "D:/ai-developer-toolkit/plugins/ralph-overview/tools/overview-viewer/src/components/TaskCommand.tsx",
+          "D:/ai-developer-toolkit/plugins/ralph-overview/tools/overview-viewer/src/components/PhaseTree.tsx",
+          "D:/ai-developer-toolkit/plugins/ralph-overview/tools/overview-viewer/src/data/copyPreambles.ts",
+          "D:/ai-developer-toolkit/plugins/ralph-overview/tools/overview-viewer/vite.config.ts",
+          "D:/ai-developer-toolkit/plugins/ralph-overview/tools/overview-viewer/package.json",
+          "D:/ai-developer-toolkit/plugins/ralph-overview/tools/overview-viewer/src/components/Toolbar.tsx",
+          "D:/ai-developer-toolkit/plugins/ralph-overview/tools/overview-viewer/src/components/Toolbar.test.tsx",
+          "D:/ai-developer-toolkit/plugins/ralph-overview/skills/work-on/SKILL.md",
+          "D:/ai-developer-toolkit/plugins/ralph-overview/skills/triage/SKILL.md",
+          "D:/ai-developer-toolkit/plugins/ralph-overview/skills/blocker-report/SKILL.md",
+          "D:/ai-developer-toolkit/plugins/ralph-overview/docs/**",
+          "D:/ai-developer-toolkit/plugins/ralph-overview/templates/**"
+        ],
+        "risk": "medium"
+      },
+      "executionModeRationale": "Stories operate on disjoint subdirectories (scripts/lib vs overview-mcp vs overview-viewer-base vs skills vs docs/templates) so they can run in parallel as phase 2a. US-005 (Toolbar refactor) modifies a file the US-004 viewer-base story copies — treat US-005 as subphase 2b, blocked on US-004. plugin package.json dependency merges are minor and can be reconciled at synthesis time."
+    },
+    {
+      "name": "plugin-smoke",
+      "stories": ["US-008"],
+      "phase": 3,
+      "dependsOn": ["plugin-extraction"],
+      "fileOverlapEvidence": {
+        "sharedFiles": [],
+        "exclusiveFiles": [
+          "D:/tmp/ralph-overview-test/**"
+        ],
+        "risk": "low"
+      },
+      "executionModeRationale": "End-to-end smoke test in a throwaway workspace. Must run after all extraction stories converge to validate the assembled plugin actually works (sync emits sidecar, dev server serves viewer, chips data-driven, MCP server registers)."
+    },
+    {
+      "name": "codexu-migration",
+      "stories": ["US-009", "US-010", "US-011", "US-012", "US-013"],
+      "phase": 4,
+      "dependsOn": ["plugin-smoke"],
+      "fileOverlapEvidence": {
+        "sharedFiles": [
+          "D:/harness-efforts/codexu/package.json",
+          "D:/harness-efforts/codexu/.claude/settings.json"
+        ],
+        "exclusiveFiles": [
+          "D:/harness-efforts/codexu/scripts/lib/** (deletions)",
+          "D:/harness-efforts/codexu/scripts/sync-ralph-state.mjs (deletion)",
+          "D:/harness-efforts/codexu/tools/overview-mcp/** (full deletion)",
+          "D:/harness-efforts/codexu/tools/overview-viewer/** (full deletion)",
+          "D:/harness-efforts/codexu/.claude/skills/work-on/** (full deletion)",
+          "D:/harness-efforts/codexu/.claude/skills/triage/** (full deletion)",
+          "D:/harness-efforts/codexu/.claude/skills/blocker-report/** (full deletion)",
+          "D:/harness-efforts/codexu/pnpm-workspace.yaml",
+          "D:/harness-efforts/codexu/pnpm-lock.yaml",
+          "D:/harness-efforts/codexu/AGENTS.md"
+        ],
+        "risk": "high"
+      },
+      "executionModeRationale": "Serial within cluster (US-009 → US-010 → US-011 → US-012 → US-013) — each story depends on the previous step's filesystem state. Plugin install must precede file removal must precede script wrapper update must precede doc update must precede verification. Cluster as a whole is gated on the plugin PR being merged to ai-developer-toolkit/main (cross-repo dependency)."
+    }
+  ]
+}

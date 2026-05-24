@@ -1,0 +1,922 @@
+{
+  "project": "codexu",
+  "description": "Plan 08 - Crews plugin integration: track which crew member's session worked on each phase of each Ralph task. Adds CrewSessionRef[] per RalphStage to RalphPipelineState, populated from a heuristic cross-walk of .crews/crews/*/members/* and .crews/crews/*/leads/* manifests plus explicit subcommand writes from /work-on --via-crew. Wires .crews/ events into the watcher, adds crewsRoot config plumbing with linked-worktree resolution against the main repo root, and renders crew session rows in the chip tooltip extras slot.",
+  "deslop": true,
+  "iterationEngine": "codex",
+  "planningEngine": "codex",
+  "jobDir": "D:/harness-efforts/codexu/.ralph/jobs/ralph-pipeline-08-crews",
+  "repoDir": "D:/harness-efforts/codexu",
+  "branch": {
+    "name": "ralph-pipeline-08-crews",
+    "created": true
+  },
+  "worktree": {
+    "path": "D:/harness-efforts/codexu/.ralph/jobs/ralph-pipeline-08-crews/worktree",
+    "branch": "ralph-pipeline-08-crews",
+    "startPoint": "main"
+  },
+  "baseBranch": "main",
+  "codexReview": "always",
+  "copilotReview": "always",
+  "planReviewContext": [
+    {
+      "id": "F-003",
+      "severity": "Critical",
+      "description": "parseWatchedPath() in scripts/lib/watch-ralph-state.mjs (lines ~273-304) has a hardcoded rootEntries array with three items (job, group, brainstorm). The plan says it will recognize a new 'crews' kind, but doesn't specify the code structure. Additionally, the flush handler currently maps every pending change to deriveAffectedTaskUpdate({ repoRoot, config, kind, slug, ... }). For kind='crews' with no slug, deriveAffectedTaskUpdate's behavior is undefined.",
+      "classification": "fixable",
+      "source": "consensus",
+      "category": "completeness",
+      "relevantFiles": [
+        "scripts/lib/watch-ralph-state.mjs",
+        "scripts/lib/sync-core.mjs"
+      ],
+      "suggestedFix": "In Story 6, specify: (a) parseWatchedPath() detects .crews/crews/ and .crews/sessions-configs/ paths BEFORE the Ralph rootEntries loop and returns {kind: 'crews'} with no slug; (b) the flush handler branches on kind==='crews' and invokes a new dedicated helper rescanCrewSessionsAndWrite(currentState, config, repoRoot, overviewData) instead of deriveAffectedTaskUpdate. This helper re-runs discoverCrewSessions, merges results into currentState.byTaskId[*].crewSessions (preserving _isExplicit entries), and calls writeSidecar() with no Ralph re-derivation."
+    },
+    {
+      "id": "F-005",
+      "severity": "Critical",
+      "description": ".ralph/overview-config.schema.json has additionalProperties: false at the top level. Adding crewsRoot to default-config.mjs without also adding it to the schema will cause schema-validated configs to be rejected.",
+      "classification": "fixable",
+      "source": "claude",
+      "category": "completeness",
+      "relevantFiles": [
+        ".ralph/overview-config.schema.json"
+      ],
+      "suggestedFix": "Story 2 must explicitly call out adding {\"crewsRoot\": {\"type\": \"string\"}} to the schema properties block, alongside dataFile/ralphRoot/lockFile/watcher. Acceptance criterion: schema validation of a config that sets crewsRoot succeeds."
+    },
+    {
+      "id": "F-000",
+      "severity": "Low",
+      "description": "# truncated 9 findings (sentinel: planReviewContext was capped at 500 tokens)"
+    }
+  ],
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Add CrewSessionRef types and snapshot schema",
+      "description": "As the overview viewer, I want a typed CrewSessionRef interface and RalphPipelineState.crewSessions?: Record<RalphStage, CrewSessionRef[]> field so downstream code (sync-core, viewer, schema validator) can manipulate crew-session entries with type safety.",
+      "acceptanceCriteria": [
+        "CrewSessionRef interface in tools/overview-viewer/src/types.ts with required fields (crewName, memberName, startedAt) and optional fields (sessionId, transcriptPath, endedAt, outcome, summary, _isExplicit, cwd).",
+        "RalphPipelineState.crewSessions?: Record<RalphStage, CrewSessionRef[]> field added.",
+        "scripts/lib/emit-snapshot-schema.mjs updated with explicit crewSessions JSON schema.",
+        "scripts/lib/emit-snapshot-schema.test.mjs adds a positive case (snapshot with crewSessions validates) and a negative case (snapshot with CrewSessionRef missing memberName fails Ajv validation).",
+        "pnpm --filter @codexu/overview-viewer typecheck passes.",
+        "pnpm test passes.",
+        "Typecheck passes."
+      ],
+      "priority": 1,
+      "passes": true,
+      "notes": "",
+      "verifiedEvidence": [
+        {
+          "criterion": "CrewSessionRef interface in tools/overview-viewer/src/types.ts with required fields (crewName, memberName, startedAt) and optional fields (sessionId, transcriptPath, endedAt, outcome, summary, _isExplicit, cwd).",
+          "command": "grep -En 'interface CrewSessionRef|crewSessions?: Record' tools/overview-viewer/src/types.ts",
+          "result": "PASS: lines 52 and 93 show CrewSessionRef and RalphPipelineState.crewSessions; interface fields include required crewName/memberName/startedAt plus the specified optional fields."
+        },
+        {
+          "criterion": "RalphPipelineState.crewSessions?: Record<RalphStage, CrewSessionRef[]> field added.",
+          "command": "grep -n 'crewSessions?: Record' tools/overview-viewer/src/types.ts",
+          "result": "PASS: line 93 contains crewSessions?: Record<RalphStage, CrewSessionRef[]>.",
+          "evidenceKind": "inspection"
+        },
+        {
+          "criterion": "scripts/lib/emit-snapshot-schema.mjs updated with explicit crewSessions JSON schema.",
+          "command": "grep -En 'CrewSessionRef|CrewSessionsByStage|crewSessions' scripts/lib/emit-snapshot-schema.mjs",
+          "result": "PASS: lines 106-175 define CrewSessionRef, CrewSessionsByStage, every RalphStage bucket, and RalphPipelineState.properties.crewSessions."
+        },
+        {
+          "criterion": "scripts/lib/emit-snapshot-schema.test.mjs adds a positive case (snapshot with crewSessions validates) and a negative case (snapshot with CrewSessionRef missing memberName fails Ajv validation).",
+          "command": "grep -En 'validates a sample Snapshot|rejects crew session refs' scripts/lib/emit-snapshot-schema.test.mjs && grep -n 'emit-snapshot-schema.test.mjs' .test-output/root.test.log | tail -3",
+          "result": "PASS: positive sample test starts at line 7, negative missing-memberName test starts at line 62, and root test log reports scripts/lib/emit-snapshot-schema.test.mjs (4 tests) passed."
+        },
+        {
+          "criterion": "pnpm --filter @codexu/overview-viewer typecheck passes.",
+          "command": "pnpm --filter @codexu/overview-viewer typecheck",
+          "result": "PASS: tsc --noEmit completed with exit 0; output saved to .test-output/overview-viewer.typecheck.log."
+        },
+        {
+          "criterion": "pnpm test passes.",
+          "command": "pnpm test",
+          "result": "PASS: 18 test files passed, 113 tests passed; output saved to .test-output/root.test.log."
+        },
+        {
+          "criterion": "Typecheck passes.",
+          "command": "pnpm --filter @codexu/overview-viewer typecheck",
+          "result": "PASS: tsc --noEmit completed with exit 0; output saved to .test-output/overview-viewer.typecheck.log."
+        }
+      ],
+      "dependencies": [],
+      "failureClassification": "",
+      "partialProgress": null
+    },
+    {
+      "id": "US-002",
+      "title": "Config plumbing for crewsRoot",
+      "description": "As an integrator, I want crewsRoot to be a first-class config field that resolves correctly under linked-worktree mode so the watcher and subcommands all reference the main repo's .crews/.",
+      "acceptanceCriteria": [
+        "crewsRoot added to .ralph/overview-config.schema.json (top-level properties.crewsRoot: { \"type\": \"string\" }).",
+        "scripts/lib/default-config.mjs sets crewsRoot: '.crews' default and adds chokidar ignore patterns for .crews/crews/*/members/*/mailbox.json, .crews/crews/*/members/*/outbox.jsonl, .crews/crews/*/leads/*/mailbox.json, .crews/crews/*/leads/*/outbox.jsonl, .crews/crews/*/inbox-history.jsonl.",
+        "scripts/lib/default-config.d.mts adds crewsRoot: string to RalphOverviewConfig.",
+        "scripts/lib/resolve-config.mjs destructures crewsRoot and returns it via a new resolveCrewsRoot() helper that resolves linked-worktree paths to the common repo root (when git rev-parse --git-common-dir differs from --git-dir, base is path.resolve(repoRoot, commonDir, '..')).",
+        "scripts/lib/sync-core.mjs normalizeConfigPaths() also resolves crewsRoot.",
+        "Tests in scripts/lib/resolve-config.test.mjs cover: schema validation, absolute override preserved, relative override resolved against repo root, linked-worktree mode resolves default '.crews' to main repo's .crews/.",
+        "Typecheck passes."
+      ],
+      "priority": 2,
+      "passes": true,
+      "notes": "",
+      "verifiedEvidence": [
+        {
+          "criterion": "crewsRoot added to .ralph/overview-config.schema.json (top-level properties.crewsRoot: { \"type\": \"string\" }).",
+          "evidenceKind": "passed",
+          "command": "grep -n '\"crewsRoot\"' .ralph/overview-config.schema.json",
+          "result": "PASS: line 11 contains top-level properties.crewsRoot with type string."
+        },
+        {
+          "criterion": "scripts/lib/default-config.mjs sets crewsRoot: '.crews' default and adds chokidar ignore patterns for .crews/crews/*/members/*/mailbox.json, .crews/crews/*/members/*/outbox.jsonl, .crews/crews/*/leads/*/mailbox.json, .crews/crews/*/leads/*/outbox.jsonl, .crews/crews/*/inbox-history.jsonl.",
+          "evidenceKind": "passed",
+          "command": "grep -En 'crewsRoot|mailbox.json|outbox.jsonl|inbox-history.jsonl' scripts/lib/default-config.mjs",
+          "result": "PASS: line 4 sets crewsRoot: '.crews'; lines 42-46 include all five requested .crews ignore patterns."
+        },
+        {
+          "criterion": "scripts/lib/default-config.d.mts adds crewsRoot: string to RalphOverviewConfig.",
+          "evidenceKind": "passed",
+          "command": "grep -n 'crewsRoot' scripts/lib/default-config.d.mts",
+          "result": "PASS: line 4 declares crewsRoot: string on RalphOverviewConfig."
+        },
+        {
+          "criterion": "scripts/lib/resolve-config.mjs destructures crewsRoot and returns it via a new resolveCrewsRoot() helper that resolves linked-worktree paths to the common repo root (when git rev-parse --git-common-dir differs from --git-dir, base is path.resolve(repoRoot, commonDir, '..')).",
+          "evidenceKind": "passed",
+          "command": "grep -n 'crewsRoot|resolveCrewsRoot|git-common-dir|git-dir' scripts/lib/resolve-config.mjs",
+          "result": "PASS: lines 79-80 destructure crewsRoot, line 109 returns it, lines 149-155 define resolveCrewsRoot, and lines 160-171 compare --git-dir/--git-common-dir and resolve the common-root base."
+        },
+        {
+          "criterion": "scripts/lib/sync-core.mjs normalizeConfigPaths() also resolves crewsRoot.",
+          "evidenceKind": "passed",
+          "command": "grep -n 'crewsRoot' scripts/lib/sync-core.mjs",
+          "result": "PASS: line 709 resolves config.crewsRoot through resolveMaybeAbsolute(repoRoot, ...)."
+        },
+        {
+          "criterion": "Tests in scripts/lib/resolve-config.test.mjs cover: schema validation, absolute override preserved, relative override resolved against repo root, linked-worktree mode resolves default '.crews' to main repo's .crews/.",
+          "evidenceKind": "passed",
+          "command": "grep -En 'schema accepts|preserves absolute|relative crewsRoot|linked worktree' scripts/lib/resolve-config.test.mjs && grep -n 'resolve-config.test.mjs' .test-output/root.test.log | tail -3",
+          "result": "PASS: test cases are present at lines 20, 28, 36, and 43; pnpm test log reports scripts/lib/resolve-config.test.mjs (4 tests) passed."
+        },
+        {
+          "criterion": "Typecheck passes.",
+          "evidenceKind": "passed",
+          "command": "pnpm --filter @codexu/overview-viewer typecheck",
+          "result": "PASS: tsc --noEmit completed with exit 0; output saved to .test-output/overview-viewer.typecheck.log."
+        },
+        {
+          "criterion": "Quality checks pass.",
+          "evidenceKind": "passed",
+          "command": "pnpm test",
+          "result": "PASS: 19 test files passed, 117 tests passed; output saved to .test-output/root.test.log."
+        }
+      ],
+      "dependencies": [
+        "US-001"
+      ],
+      "failureClassification": "",
+      "partialProgress": null
+    },
+    {
+      "id": "US-003",
+      "title": "Spawn-launcher parser",
+      "description": "As discoverCrewSessions, I want to extract the initial prompt from .crews/spawn-launchers/<member>-<ts>.ps1 so the medium-signal task-ID match works.",
+      "acceptanceCriteria": [
+        "scripts/lib/parse-spawn-launcher.mjs exports parseSpawnLauncher(absolutePath) -> { initialPrompt: string | null, memberName: string | null, crewName: string | null }.",
+        "Handles PowerShell single-quote escaping ('' -> ').",
+        "Extracts the FINAL single-quoted argument on the `claude ...` line as initialPrompt.",
+        "scripts/lib/parse-spawn-launcher.test.mjs covers: real-format launcher (D:/harness-efforts/codexu/.crews/spawn-launchers/alice-1778830606020.ps1), escaped-quote edge case, missing claude line, empty file.",
+        "Typecheck passes.",
+        "Tests pass."
+      ],
+      "priority": 3,
+      "passes": true,
+      "notes": "",
+      "verifiedEvidence": [
+        {
+          "criterion": "scripts/lib/parse-spawn-launcher.mjs exports parseSpawnLauncher(absolutePath) -> { initialPrompt: string | null, memberName: string | null, crewName: string | null }.",
+          "evidenceKind": "passed",
+          "command": "grep -En \"export function parseSpawnLauncher|function parseSingleQuotedStrings|function extractEnvValue|function extractMemberNameFromPath\" scripts/lib/parse-spawn-launcher.mjs",
+          "result": "PASS: line 4 exports parseSpawnLauncher; returned object fields are initialPrompt, memberName, and crewName; helper lines 55, 88, and 102 support quoted parsing and metadata extraction."
+        },
+        {
+          "criterion": "Handles PowerShell single-quote escaping ('' -> ').",
+          "evidenceKind": "passed",
+          "command": "pnpm vitest run scripts/lib/parse-spawn-launcher.test.mjs --reporter=verbose",
+          "result": "PASS: focused Vitest reports 4 tests passed, including the escaped quote case returning Don't stop on TASK-123."
+        },
+        {
+          "criterion": "Extracts the FINAL single-quoted argument on the `claude ...` line as initialPrompt.",
+          "evidenceKind": "passed",
+          "command": "grep -En \"PowerShell single-quote|afterCommand\" scripts/lib/parse-spawn-launcher.test.mjs",
+          "result": "PASS: test at line 28 verifies the final quoted claude argument is used; fixture includes a later quoted $afterCommand value that is ignored."
+        },
+        {
+          "criterion": "scripts/lib/parse-spawn-launcher.test.mjs covers: real-format launcher (D:/harness-efforts/codexu/.crews/spawn-launchers/alice-1778830606020.ps1), escaped-quote edge case, missing claude line, empty file.",
+          "evidenceKind": "passed",
+          "command": "grep -En \"real-format launcher|PowerShell single-quote|claude line is missing|empty file\" scripts/lib/parse-spawn-launcher.test.mjs && grep -n \"parse-spawn-launcher.test.mjs\" .test-output/root.test.log | tail -3",
+          "result": "PASS: tests exist at lines 18, 28, 48, and 63; root test log reports scripts/lib/parse-spawn-launcher.test.mjs (4 tests) passed."
+        },
+        {
+          "criterion": "Typecheck passes.",
+          "evidenceKind": "passed",
+          "command": "pnpm --filter @codexu/overview-viewer typecheck",
+          "result": "PASS: tsc --noEmit completed with exit 0; output saved to .test-output/overview-viewer.typecheck.log."
+        },
+        {
+          "criterion": "Tests pass.",
+          "evidenceKind": "passed",
+          "command": "pnpm test",
+          "result": "PASS: 20 test files passed, 121 tests passed; output saved to .test-output/root.test.log."
+        }
+      ],
+      "dependencies": [
+        "US-001"
+      ],
+      "failureClassification": "",
+      "partialProgress": null
+    },
+    {
+      "id": "US-004",
+      "title": "Crew cross-walk discovery",
+      "description": "As the watcher (and full sync), I want a discoverCrewSessions function that walks .crews/, matches members to tasks, derives the stage from current Ralph state, and emits a sparse map for merging.",
+      "acceptanceCriteria": [
+        "scripts/lib/crews-cross-walk.mjs exports discoverCrewSessions({ repoRoot, ralphState, overviewData, crewsRoot, now?, logger? }) -> Map<taskId, Record<RalphStage, CrewSessionRef[]>>.",
+        "Walks .crews/crews/*/members/*/manifest.json AND .crews/crews/*/leads/*/manifest.json.",
+        "Filters by cwd via path.relative(repoRoot, manifestCwd) accepting empty string (cwd === repoRoot), case-normalized on Windows; rejects ..-prefixed and absolute results.",
+        "Matches task ID in lastSummary via custom-boundary regex (?<![A-Za-z0-9_-])<id>(?![A-Za-z0-9_-]). Multi-match picks longest ID.",
+        "Fallback medium-signal: scans .crews/spawn-launchers/*.ps1 indexed by (crewName, memberName), tiebreaks by latest filename timestamp.",
+        "Reads stage from ralphState.byTaskId[taskId].stage at discovery time; entries stay under their recorded stage even if the task later advances.",
+        "Dedupes by sessionId, falling back to (crewName, memberName) for partial entries.",
+        "Stale detection: manifest.lastHeartbeatAt > 60min -> sets outcome: 'stopped' and endedAt: lastHeartbeatAt ONLY when the existing entry has no outcome (idempotency guard).",
+        "Stderr-logs unmatched and ambiguous matches.",
+        "scripts/lib/crews-cross-walk.test.mjs covers: positive match, stage assignment from ralphState, cwd === repoRoot acceptance, prefix-attack rejection (D:\\\\repo vs D:\\\\repo2), spawn-launcher fallback, multi-task ambiguity, stale detection (with idempotency), missing-manifest tolerance.",
+        "Typecheck passes.",
+        "Tests pass."
+      ],
+      "priority": 4,
+      "passes": true,
+      "notes": "",
+      "verifiedEvidence": [
+        {
+          "criterion": "scripts/lib/crews-cross-walk.mjs exports discoverCrewSessions({ repoRoot, ralphState, overviewData, crewsRoot, now?, logger? }) -> Map<taskId, Record<RalphStage, CrewSessionRef[]>>.",
+          "evidenceKind": "passed",
+          "command": "grep -En \"export function discoverCrewSessions\" scripts/lib/crews-cross-walk.mjs",
+          "result": "PASS: crews-cross-walk.mjs line 9 exports discoverCrewSessions with the requested options; crews-cross-walk.d.mts declares the typed Map return shape."
+        },
+        {
+          "criterion": "Walks .crews/crews/*/members/*/manifest.json AND .crews/crews/*/leads/*/manifest.json.",
+          "evidenceKind": "passed",
+          "command": "grep -En CREW_ROLES scripts/lib/crews-cross-walk.mjs && grep -n \"walks member and lead\" scripts/lib/crews-cross-walk.test.mjs",
+          "result": "PASS: CREW_ROLES includes members and leads, findManifestPaths walks both role directories, and the member/lead Vitest case passed."
+        },
+        {
+          "criterion": "Filters by cwd via path.relative(repoRoot, manifestCwd) accepting empty string (cwd === repoRoot), case-normalized on Windows; rejects ..-prefixed and absolute results.",
+          "evidenceKind": "passed",
+          "command": "grep -En \"isManifestCwdInsideRepo|pathImpl.relative\" scripts/lib/crews-cross-walk.mjs && grep -En \"accepts cwd|prefix attacks\" scripts/lib/crews-cross-walk.test.mjs",
+          "result": "PASS: isManifestCwdInsideRepo uses path.relative, accepts relative === empty string, lowercases win32 comparisons, and tests cover repo-root cwd plus repo-prefix rejection."
+        },
+        {
+          "criterion": "Matches task ID in lastSummary via custom-boundary regex (?<![A-Za-z0-9_-])<id>(?![A-Za-z0-9_-]). Multi-match picks longest ID.",
+          "evidenceKind": "passed",
+          "command": "grep -En \"taskIdRegex|longest task ID\" scripts/lib/crews-cross-walk.mjs scripts/lib/crews-cross-walk.test.mjs",
+          "result": "PASS: taskIdRegex builds the custom-boundary regex and the longest-ID Vitest case at line 120 passed."
+        },
+        {
+          "criterion": "Fallback medium-signal: scans .crews/spawn-launchers/*.ps1 indexed by (crewName, memberName), tiebreaks by latest filename timestamp.",
+          "evidenceKind": "passed",
+          "command": "grep -En \"indexSpawnLaunchers|launcherTimestamp|spawn-launcher prompt\" scripts/lib/crews-cross-walk.mjs scripts/lib/crews-cross-walk.test.mjs",
+          "result": "PASS: indexSpawnLaunchers parses .ps1 launchers, keys by crew/member, keeps the highest filename timestamp, and the fallback prompt test passed."
+        },
+        {
+          "criterion": "Reads stage from ralphState.byTaskId[taskId].stage at discovery time; entries stay under their recorded stage even if the task later advances.",
+          "evidenceKind": "passed",
+          "command": "grep -En \"existing.*stage|recorded stage|assigns the current Ralph stage\" scripts/lib/crews-cross-walk.mjs scripts/lib/crews-cross-walk.test.mjs",
+          "result": "PASS: new entries use ralphState.byTaskId[taskId].stage; existing entries keep their prior crewSessions bucket, verified by current-stage and recorded-stage tests."
+        },
+        {
+          "criterion": "Dedupes by sessionId, falling back to (crewName, memberName) for partial entries.",
+          "evidenceKind": "passed",
+          "command": "grep -En \"sameCrewSession|dedupes by sessionId\" scripts/lib/crews-cross-walk.mjs scripts/lib/crews-cross-walk.test.mjs",
+          "result": "PASS: sameCrewSession compares sessionId first and falls back to crewName/memberName; the member/lead test includes a duplicate actor with the same sessionId and passed."
+        },
+        {
+          "criterion": "Stale detection: manifest.lastHeartbeatAt > 60min -> sets outcome: 'stopped' and endedAt: lastHeartbeatAt ONLY when the existing entry has no outcome (idempotency guard).",
+          "evidenceKind": "passed",
+          "command": "grep -En \"STALE_AFTER_MS|existing.*outcome|sets stale sessions\" scripts/lib/crews-cross-walk.mjs scripts/lib/crews-cross-walk.test.mjs",
+          "result": "PASS: stale detection uses a 60-minute threshold and preserves existing outcome/endedAt; stale idempotency test passed."
+        },
+        {
+          "criterion": "Stderr-logs unmatched and ambiguous matches.",
+          "evidenceKind": "passed",
+          "command": "grep -En \"ambiguous task match|unmatched crew session|process.stderr.write\" scripts/lib/crews-cross-walk.mjs scripts/lib/crews-cross-walk.test.mjs",
+          "result": "PASS: unmatched and ambiguous paths call log(), which writes to stderr by default; Vitest asserts both warning cases via an injected logger."
+        },
+        {
+          "criterion": "scripts/lib/crews-cross-walk.test.mjs covers: positive match, stage assignment from ralphState, cwd === repoRoot acceptance, prefix-attack rejection (D:\\\\repo vs D:\\\\repo2), spawn-launcher fallback, multi-task ambiguity, stale detection (with idempotency), missing-manifest tolerance.",
+          "evidenceKind": "passed",
+          "command": "grep -En \"matches a manifest|accepts cwd|prefix attacks|spawn-launcher|ambiguous|stale|without manifest\" scripts/lib/crews-cross-walk.test.mjs && grep -n crews-cross-walk.test.mjs .test-output/root.test.log | tail -3",
+          "result": "PASS: required test cases are present and .test-output/root.test.log reports scripts/lib/crews-cross-walk.test.mjs (10 tests) passed."
+        },
+        {
+          "criterion": "Typecheck passes.",
+          "evidenceKind": "passed",
+          "command": "pnpm --filter @codexu/overview-viewer typecheck",
+          "result": "PASS: tsc --noEmit completed with exit 0 in 6s; output saved to .test-output/overview-viewer.typecheck.log."
+        },
+        {
+          "criterion": "Tests pass.",
+          "evidenceKind": "passed",
+          "command": "pnpm test",
+          "result": "PASS: 21 test files passed, 131 tests passed; output saved to .test-output/root.test.log."
+        }
+      ],
+      "dependencies": [
+        "US-001",
+        "US-002",
+        "US-003"
+      ],
+      "failureClassification": "",
+      "partialProgress": null
+    },
+    {
+      "id": "US-005",
+      "title": "Wire cross-walk into sync-core merge",
+      "description": "As walkRalphState / mergeAndWrite, I want crew-session discovery merged into byTaskId[*].crewSessions after Ralph-side derivation, preserving explicit entries across ticks.",
+      "acceptanceCriteria": [
+        "walkRalphState reads config.outputs.sidecarJson if it exists and threads priorCrewSessions into assembleStateFromBundles.",
+        "assembleStateFromBundles and mergeAndWrite invoke discoverCrewSessions AFTER per-slug Ralph derivation, passing priorCrewSessions for the explicit-preservation merge.",
+        "Merge identity: prefer sessionId; fall back to (crewName, memberName). Entries with _isExplicit: true survive intact (endedAt, outcome, summary preserved).",
+        "Partial explicit entries (no sessionId) get upgraded in place when heuristic discovery later supplies sessionId/transcriptPath; no duplicate entry is created.",
+        "Existing entries are matched across all RalphStage buckets and remain in their recorded bucket; a session first recorded under 'implementing' is not migrated or duplicated when the task later advances to 'reviewing'.",
+        "scripts/lib/sync-core.mjs exports rescanCrewSessionsAndWrite({ currentState, config, repoRoot, overviewData }) that re-runs discoverCrewSessions, merges into currentState.byTaskId[*].crewSessions, updates only crew-session data + generatedAt, calls writeSidecar() without re-reading or re-deriving Ralph bundles.",
+        "Vitest covers: heuristic adds new entries, explicit prior entries survive, partial entry upgrade in place, stage stickiness on task advancement, stale idempotency, crew-only rescan leaves non-crew Ralph fields unchanged.",
+        "Typecheck passes.",
+        "Tests pass."
+      ],
+      "priority": 5,
+      "passes": true,
+      "notes": "",
+      "verifiedEvidence": [
+        {
+          "criterion": "walkRalphState reads config.outputs.sidecarJson if it exists and threads priorCrewSessions into assembleStateFromBundles.",
+          "evidenceKind": "passed",
+          "command": "grep -En \"readPriorCrewSessions|assembleStateFromBundles|priorCrewSessions\" scripts/lib/sync-core.mjs",
+          "result": "PASS: walkRalphState reads prior crew sessions from the sidecar at line 54 and passes priorCrewSessions into assembleStateFromBundles at line 56; readPriorCrewSessions is implemented at line 317."
+        },
+        {
+          "criterion": "assembleStateFromBundles and mergeAndWrite invoke discoverCrewSessions AFTER per-slug Ralph derivation, passing priorCrewSessions for the explicit-preservation merge.",
+          "evidenceKind": "passed",
+          "command": "grep -En \"discoverCrewSessions|mergeDiscoveredCrewSessions|priorCrewSessions\" scripts/lib/sync-core.mjs",
+          "result": "PASS: assembleStateFromBundles builds the Ralph byTaskId state before mergeDiscoveredCrewSessions; mergeAndWrite builds merged Ralph state first, then calls mergeDiscoveredCrewSessions with collectCrewSessionsByTask(currentState); discoverCrewSessions is invoked inside that helper."
+        },
+        {
+          "criterion": "Merge identity: prefer sessionId; fall back to (crewName, memberName). Entries with _isExplicit: true survive intact (endedAt, outcome, summary preserved).",
+          "evidenceKind": "passed",
+          "command": "grep -En \"function sameCrewSession|function mergeCrewSessionEntry|preserves explicit\" scripts/lib/sync-core.mjs scripts/lib/sync-core.test.mjs",
+          "result": "PASS: sameCrewSession compares sessionId first and falls back to crewName/memberName; mergeCrewSessionEntry preserves explicit entries while filling missing session data; the explicit preservation Vitest case passed."
+        },
+        {
+          "criterion": "Partial explicit entries (no sessionId) get upgraded in place when heuristic discovery later supplies sessionId/transcriptPath; no duplicate entry is created.",
+          "evidenceKind": "passed",
+          "command": "grep -En \"partial explicit|sessionId: 'session-a'|toHaveLength\" scripts/lib/sync-core.test.mjs && grep -n \"sync-core.test.mjs\" .test-output/root.test.log | tail -3",
+          "result": "PASS: sync-core.test.mjs includes the partial explicit upgrade test and asserts a single upgraded entry; root test log reports scripts/lib/sync-core.test.mjs (29 tests) passed."
+        },
+        {
+          "criterion": "Existing entries are matched across all RalphStage buckets and remain in their recorded bucket; a session first recorded under 'implementing' is not migrated or duplicated when the task later advances to 'reviewing'.",
+          "evidenceKind": "passed",
+          "command": "grep -En \"recorded stage|not.toHaveProperty\" scripts/lib/sync-core.test.mjs",
+          "result": "PASS: the stage-stickiness test advances the task to reviewing and asserts the session remains under implementing with no reviewing bucket."
+        },
+        {
+          "criterion": "scripts/lib/sync-core.mjs exports rescanCrewSessionsAndWrite({ currentState, config, repoRoot, overviewData }) that re-runs discoverCrewSessions, merges into currentState.byTaskId[*].crewSessions, updates only crew-session data + generatedAt, calls writeSidecar() without re-reading or re-deriving Ralph bundles.",
+          "evidenceKind": "passed",
+          "command": "grep -En \"export async function rescanCrewSessionsAndWrite|discoverCrewSessions|writeSidecar|non-crew Ralph\" scripts/lib/sync-core.mjs scripts/lib/sync-core.test.mjs",
+          "result": "PASS: rescanCrewSessionsAndWrite is exported at line 300, calls mergeDiscoveredCrewSessions and writeSidecar without readAllBundles/assembleStateFromBundles, and the non-crew-field preservation test passed."
+        },
+        {
+          "criterion": "Vitest covers: heuristic adds new entries, explicit prior entries survive, partial entry upgrade in place, stage stickiness on task advancement, stale idempotency, crew-only rescan leaves non-crew Ralph fields unchanged.",
+          "evidenceKind": "passed",
+          "command": "grep -En \"heuristic crew sessions|preserves explicit|partial explicit|recorded stage|stale stopped|non-crew Ralph\" scripts/lib/sync-core.test.mjs && grep -n \"sync-core.test.mjs\" .test-output/root.test.log | tail -3",
+          "result": "PASS: all six named Vitest cases are present at lines 525, 554, 604, 647, 680, and 717; root test log reports scripts/lib/sync-core.test.mjs (29 tests) passed."
+        },
+        {
+          "criterion": "Typecheck passes.",
+          "evidenceKind": "passed",
+          "command": "pnpm --filter @codexu/overview-viewer typecheck",
+          "result": "PASS: tsc --noEmit completed with exit 0 in 7s; output saved to .test-output/overview-viewer.typecheck.log."
+        },
+        {
+          "criterion": "Tests pass.",
+          "evidenceKind": "passed",
+          "command": "pnpm test",
+          "result": "PASS: 21 test files passed, 137 tests passed; output saved to .test-output/root.test.log."
+        }
+      ],
+      "dependencies": [
+        "US-001",
+        "US-002",
+        "US-003",
+        "US-004"
+      ],
+      "failureClassification": "",
+      "partialProgress": null
+    },
+    {
+      "id": "US-006",
+      "title": "Watcher integration for .crews/ events",
+      "description": "As the watcher, I want .crews/ events to trigger a crew-only rescan without re-deriving Ralph state.",
+      "acceptanceCriteria": [
+        "getWatchRoots() in scripts/lib/watch-ralph-state.mjs returns <crewsRoot>/crews/ and <crewsRoot>/sessions-configs/ in addition to existing Ralph roots.",
+        "parseWatchedPath() detects paths under those .crews/ roots BEFORE the Ralph rootEntries loop; returns { kind: 'crews' } (no slug).",
+        "flushPending() branches on kind === 'crews' BEFORE calling deriveAffectedTaskUpdate(). Crew events route to rescanCrewSessionsAndWrite({ currentState, config, repoRoot, overviewData }).",
+        "rescanCrewSessionsAndWrite re-runs discoverCrewSessions, merges into currentState.byTaskId[*].crewSessions (preserving _isExplicit + stage buckets), updates only crew-session data + generatedAt, calls writeSidecar() without re-reading or re-deriving Ralph bundles.",
+        "Mixed-batch flushes apply Ralph mergeAndWrite first, then crew rescan.",
+        "Vitest covers: mailbox file change is ignored; manifest change triggers crew-only flush; debounce coalesces multiple .crews/ events; mixed batch ordering applies Ralph merge first then crew rescan; crew-only flush does not call deriveAffectedTaskUpdate.",
+        "Typecheck passes.",
+        "Tests pass."
+      ],
+      "priority": 6,
+      "passes": true,
+      "notes": "",
+      "verifiedEvidence": [
+        {
+          "criterion": "getWatchRoots() in scripts/lib/watch-ralph-state.mjs returns <crewsRoot>/crews/ and <crewsRoot>/sessions-configs/ in addition to existing Ralph roots.",
+          "evidenceKind": "passed",
+          "command": "nl -ba scripts/lib/watch-ralph-state.mjs | sed -n '290,297p'",
+          "result": "PASS: getWatchRoots returns the three Ralph roots plus path.join(config.crewsRoot, 'crews') and path.join(config.crewsRoot, 'sessions-configs') on lines 290-297."
+        },
+        {
+          "criterion": "parseWatchedPath() detects paths under those .crews/ roots BEFORE the Ralph rootEntries loop; returns { kind: 'crews' } (no slug).",
+          "evidenceKind": "passed",
+          "command": "nl -ba scripts/lib/watch-ralph-state.mjs | sed -n '300,317p'",
+          "result": "PASS: parseWatchedPath checks roots[3]/roots[4] on lines 302-312 and returns { kind: 'crews' } before rootEntries is declared on lines 313-317."
+        },
+        {
+          "criterion": "flushPending() branches on kind === 'crews' BEFORE calling deriveAffectedTaskUpdate(). Crew events route to rescanCrewSessionsAndWrite({ currentState, config, repoRoot, overviewData }).",
+          "evidenceKind": "passed",
+          "command": "nl -ba scripts/lib/watch-ralph-state.mjs | sed -n '104,168p'",
+          "result": "PASS: flushPending filters out kind === 'crews' before deriveAffectedTaskUpdate on lines 107-110, then routes crew batches to rescanCrewSessionsAndWrite with currentState/config/repoRoot/overviewData on lines 162-168."
+        },
+        {
+          "criterion": "rescanCrewSessionsAndWrite re-runs discoverCrewSessions, merges into currentState.byTaskId[*].crewSessions (preserving _isExplicit + stage buckets), updates only crew-session data + generatedAt, calls writeSidecar() without re-reading or re-deriving Ralph bundles.",
+          "evidenceKind": "passed",
+          "command": "nl -ba scripts/lib/sync-core.mjs | sed -n '300,314p'",
+          "result": "PASS: rescanCrewSessionsAndWrite updates generatedAt, calls mergeDiscoveredCrewSessions, and writes sidecar on lines 300-314; sync-core tests cover explicit preservation, recorded-stage stickiness, and non-crew Ralph field preservation."
+        },
+        {
+          "criterion": "Mixed-batch flushes apply Ralph mergeAndWrite first, then crew rescan.",
+          "evidenceKind": "passed",
+          "command": "nl -ba scripts/lib/watch-ralph-state.test.mjs | sed -n '279,320p' && grep -n \"watch-ralph-state.test.mjs\" .test-output/root.test.log | tail -3",
+          "result": "PASS: mixed-batch test emits a Ralph job change and crew manifest change, asserts the rescan sees the merged reviewing state, and verifies order ['merge', 'rescan']; root test log reports scripts/lib/watch-ralph-state.test.mjs (7 tests) passed."
+        },
+        {
+          "criterion": "Vitest covers: mailbox file change is ignored; manifest change triggers crew-only flush; debounce coalesces multiple .crews/ events; mixed batch ordering applies Ralph merge first then crew rescan; crew-only flush does not call deriveAffectedTaskUpdate.",
+          "evidenceKind": "passed",
+          "command": "nl -ba scripts/lib/watch-ralph-state.test.mjs | sed -n '216,320p' && grep -E \"Test Files|Tests\" .test-output/root.test.log",
+          "result": "PASS: watch-ralph-state crew-event tests cover mailbox ignore, manifest crew-only flush, no deriveAffectedTaskUpdate call, crew debounce coalescing, and mixed merge-before-rescan ordering; pnpm test reports 21 files passed / 141 tests passed."
+        },
+        {
+          "criterion": "Typecheck passes.",
+          "evidenceKind": "passed",
+          "command": "pnpm --filter @codexu/overview-viewer typecheck",
+          "result": "PASS: tsc --noEmit completed with exit 0; output saved to .test-output/overview-viewer.typecheck.log."
+        },
+        {
+          "criterion": "Tests pass.",
+          "evidenceKind": "passed",
+          "command": "pnpm test",
+          "result": "PASS: 21 test files passed, 141 tests passed; output saved to .test-output/root.test.log. Also ran pnpm --filter @codexu/overview-viewer test earlier: 33 files passed, 178 tests passed."
+        }
+      ],
+      "dependencies": [
+        "US-002",
+        "US-005"
+      ],
+      "failureClassification": "",
+      "partialProgress": null
+    },
+    {
+      "id": "US-007",
+      "title": "Subcommand modes for explicit writes",
+      "description": "As /work-on --via-crew, I want CLI subcommands to atomically write or finalize a CrewSessionRef under the watcher's shared lock contract.",
+      "acceptanceCriteria": [
+        "scripts/sync-ralph-state.mjs --update-crew-session <taskId> <stage> --json <ref-json> loads config.outputs.sidecarJson (Ralph sidecar shape: plans/overview-ralph-state.json), upserts into byTaskId[id].crewSessions[stage] with _isExplicit: true, calls writeSidecar().",
+        "scripts/sync-ralph-state.mjs --finalize-crew-session <taskId> <stage> --member <name> --outcome <s> [--summary <text>] loads the sidecar, finds the matching entry by (crewName, memberName) (or sessionId if provided), updates endedAt / outcome / summary in place, calls writeSidecar().",
+        "Both subcommands validate <stage> against the canonical RalphStage union and --outcome against ('completed'|'handed-off'|'stopped'|'failed'). Invalid input exits non-zero with a clear diagnostic.",
+        "Both subcommands acquire sync-lock.mjs; on contention with a running watcher, fail fast with the canonical `another sync in progress (pid <N>, process <label>, started <ts>)` diagnostic — no partial write.",
+        "Upsert identity matches the merge contract: sessionId when present, fallback (crewName, memberName) when partial.",
+        "Vitest covers: serialized invocations succeed; concurrent invocation against a watcher-held lock fails fast (no partial write); finalize updates an existing entry in place; invalid stage rejected; invalid outcome rejected.",
+        "Typecheck passes.",
+        "Tests pass."
+      ],
+      "priority": 7,
+      "passes": true,
+      "notes": "",
+      "verifiedEvidence": [
+        {
+          "criterion": "scripts/sync-ralph-state.mjs --update-crew-session <taskId> <stage> --json <ref-json> loads config.outputs.sidecarJson (Ralph sidecar shape: plans/overview-ralph-state.json), upserts into byTaskId[id].crewSessions[stage] with _isExplicit: true, calls writeSidecar().",
+          "evidenceKind": "passed",
+          "command": "nl -ba scripts/sync-ralph-state.mjs | sed -n '70,92p'",
+          "result": "PASS: runUpdateCrewSession validates stage/ref JSON, acquires the shared lock, reads the sidecar, upserts into byTaskId[taskId].crewSessions[stage] with _isExplicit: true, refreshes generatedAt, and calls writeSidecar."
+        },
+        {
+          "criterion": "scripts/sync-ralph-state.mjs --finalize-crew-session <taskId> <stage> --member <name> --outcome <s> [--summary <text>] loads the sidecar, finds the matching entry by (crewName, memberName) (or sessionId if provided), updates endedAt / outcome / summary in place, calls writeSidecar().",
+          "evidenceKind": "passed",
+          "command": "nl -ba scripts/sync-ralph-state.mjs | sed -n '95,125p'",
+          "result": "PASS: runFinalizeCrewSession loads the sidecar, matches the stage bucket by member plus optional crew/sessionId, updates endedAt/outcome/summary in place, preserves _isExplicit, and calls writeSidecar."
+        },
+        {
+          "criterion": "Both subcommands validate <stage> against the canonical RalphStage union and --outcome against ('completed'|'handed-off'|'stopped'|'failed'). Invalid input exits non-zero with a clear diagnostic.",
+          "evidenceKind": "passed",
+          "command": "nl -ba scripts/sync-ralph-state.mjs | sed -n '360,370p' && nl -ba scripts/sync-ralph-state.test.mjs | sed -n '190,214p'",
+          "result": "PASS: validateStage rejects unknown Ralph stages and validateOutcome rejects outcomes outside completed/handed-off/stopped/failed; Vitest asserts clear invalid stage/outcome diagnostics."
+        },
+        {
+          "criterion": "Both subcommands acquire sync-lock.mjs; on contention with a running watcher, fail fast with the canonical `another sync in progress (pid <N>, process <label>, started <ts>)` diagnostic — no partial write.",
+          "evidenceKind": "passed",
+          "command": "nl -ba scripts/sync-ralph-state.mjs | sed -n '70,125p' && nl -ba scripts/sync-ralph-state.test.mjs | sed -n '169,188p'",
+          "result": "PASS: both helpers acquire sync-lock before reading/mutating sidecar state; the watcher-held-lock test asserts the canonical diagnostic and verifies the sidecar remains unchanged."
+        },
+        {
+          "criterion": "Upsert identity matches the merge contract: sessionId when present, fallback (crewName, memberName) when partial.",
+          "evidenceKind": "passed",
+          "command": "nl -ba scripts/sync-ralph-state.mjs | sed -n '387,392p' && nl -ba scripts/sync-ralph-state.test.mjs | sed -n '116,145p'",
+          "result": "PASS: sameCrewSession compares sessionId first, then crewName/memberName; the serialized update test writes a partial explicit row then upgrades it with sessionId/transcriptPath without creating a duplicate."
+        },
+        {
+          "criterion": "Vitest covers: serialized invocations succeed; concurrent invocation against a watcher-held lock fails fast (no partial write); finalize updates an existing entry in place; invalid stage rejected; invalid outcome rejected.",
+          "evidenceKind": "passed",
+          "command": "grep -n 'sync-ralph-state.test.mjs' .test-output/root.test.log | tail -5 && grep -E 'Test Files|Tests' .test-output/root.test.log",
+          "result": "PASS: scripts/sync-ralph-state.test.mjs reports 5 tests passed, covering serialized update/finalize success, watcher-held lock failure with no mutation, finalize in-place update, invalid stage, invalid outcome, and subcommand parsing; root Vitest reports 21 files passed / 145 tests passed."
+        },
+        {
+          "criterion": "Typecheck passes.",
+          "evidenceKind": "passed",
+          "command": "pnpm --filter @codexu/overview-viewer typecheck",
+          "result": "PASS: tsc --noEmit completed with exit 0 in 16s; output saved to .test-output/overview-viewer.typecheck.log."
+        },
+        {
+          "criterion": "Tests pass.",
+          "evidenceKind": "passed",
+          "command": "pnpm test",
+          "result": "PASS: 21 test files passed, 145 tests passed; output saved to .test-output/root.test.log."
+        }
+      ],
+      "dependencies": [
+        "US-005"
+      ],
+      "failureClassification": "",
+      "partialProgress": null
+    },
+    {
+      "id": "US-008",
+      "title": "/work-on --via-crew skill branch",
+      "description": "As the lead orchestrator, I want /work-on <task> --via-crew <crewName> to spawn a crew member and record the session ref atomically.",
+      "acceptanceCriteria": [
+        ".claude/skills/work-on/SKILL.md replaces the Plan 06 --via-crew placeholder with the full flow.",
+        "Pseudocode covers: (a) lock preflight (read config.lockFile JSON, check PID liveness — abort before spawn if held); (b) `node scripts/lib/derive-next-command-cli.mjs <taskId>` to derive the prompt; (c) generate a unique member name; (d) invoke `node D:/ai-developer-toolkit/plugins/crews/tools/spawn-member.js <name> --crew <crewName> --cwd <main-repo-root> -- \"<prompt>\"`; (e) poll the member manifest for sessionId/transcriptPath (10s timeout, 500ms interval); (f) call `node scripts/sync-ralph-state.mjs --update-crew-session <taskId> <stage> --json <ref>` (recording partial entry with crewName/memberName/cwd/startedAt when manifest fields still absent); (g) print confirmation `Spawned <crew>/<member> for <taskId>:<stage>; session=<id|pending>`.",
+        "Lock preflight aborts BEFORE spawning if the watcher owns the lock — no orphan members.",
+        "Documents that Skill tool invocations cannot trigger the /spawn-member hook; the CLI mirror at D:/ai-developer-toolkit/plugins/crews/tools/spawn-member.js is REQUIRED.",
+        "Vitest covers: end-to-end happy path (mocked spawn), lock-contention preflight failure, manifest-race partial entry written when polling times out.",
+        "Typecheck passes.",
+        "Tests pass."
+      ],
+      "priority": 8,
+      "passes": true,
+      "notes": "",
+      "verifiedEvidence": [
+        {
+          "criterion": ".claude/skills/work-on/SKILL.md replaces the Plan 06 --via-crew placeholder with the full flow.",
+          "evidenceKind": "passed",
+          "command": "grep -n \"Via Crew\" .claude/skills/work-on/SKILL.md && ! grep -q \"crews delegation not yet implemented\" .claude/skills/work-on/SKILL.md",
+          "result": "PASS: the Via Crew section starts at line 102 and the old Plan 06 placeholder text is absent."
+        },
+        {
+          "criterion": "Pseudocode covers: (a) lock preflight (read config.lockFile JSON, check PID liveness — abort before spawn if held); (b) `node scripts/lib/derive-next-command-cli.mjs <taskId>` to derive the prompt; (c) generate a unique member name; (d) invoke `node D:/ai-developer-toolkit/plugins/crews/tools/spawn-member.js <name> --crew <crewName> --cwd <main-repo-root> -- \"<prompt>\"`; (e) poll the member manifest for sessionId/transcriptPath (10s timeout, 500ms interval); (f) call `node scripts/sync-ralph-state.mjs --update-crew-session <taskId> <stage> --json <ref>` (recording partial entry with crewName/memberName/cwd/startedAt when manifest fields still absent); (g) print confirmation `Spawned <crew>/<member> for <taskId>:<stage>; session=<id|pending>`.",
+          "evidenceKind": "passed",
+          "command": "nl -ba .claude/skills/work-on/SKILL.md | sed -n '111,165p'",
+          "result": "PASS: lines 111-165 document lock preflight, positional derive-next-command CLI, unique member naming, spawn-member CLI invocation, manifest polling with 10s/500ms, sync-ralph-state update with partial refs, and the confirmation string."
+        },
+        {
+          "criterion": "Lock preflight aborts BEFORE spawning if the watcher owns the lock — no orphan members.",
+          "evidenceKind": "passed",
+          "command": "nl -ba scripts/lib/work-on-via-crew.mjs | sed -n '31,43p;65,76p' && nl -ba scripts/lib/work-on-via-crew.test.mjs | sed -n '72,91p'",
+          "result": "PASS: runWorkOnViaCrew calls preflightWatcherLock before spawn-member; the watcher-owned-lock test asserts the canonical diagnostic and a spawn function that would throw is never called."
+        },
+        {
+          "criterion": "Documents that Skill tool invocations cannot trigger the /spawn-member hook; the CLI mirror at D:/ai-developer-toolkit/plugins/crews/tools/spawn-member.js is REQUIRED.",
+          "evidenceKind": "passed",
+          "command": "nl -ba .claude/skills/work-on/SKILL.md | sed -n '102,109p'",
+          "result": "PASS: lines 107-109 state Skill tool invocations cannot trigger the crews /spawn-member hook and require the D:/ai-developer-toolkit/plugins/crews/tools/spawn-member.js CLI mirror."
+        },
+        {
+          "criterion": "Vitest covers: end-to-end happy path (mocked spawn), lock-contention preflight failure, manifest-race partial entry written when polling times out.",
+          "evidenceKind": "passed",
+          "command": "nl -ba scripts/lib/work-on-via-crew.test.mjs | sed -n '17,125p' && grep -n \"work-on-via-crew.test.mjs\" .test-output/root.test.log",
+          "result": "PASS: work-on-via-crew.test.mjs covers mocked spawn happy path, watcher lock preflight failure, and manifest timeout partial ref; root test log reports scripts/lib/work-on-via-crew.test.mjs (3 tests) passed."
+        },
+        {
+          "criterion": "Typecheck passes.",
+          "evidenceKind": "passed",
+          "command": "pnpm --filter @codexu/overview-viewer typecheck",
+          "result": "PASS: tsc --noEmit completed with exit 0; output saved to .test-output/overview-viewer.typecheck.log."
+        },
+        {
+          "criterion": "Tests pass.",
+          "evidenceKind": "passed",
+          "command": "pnpm test",
+          "result": "PASS: 22 test files passed, 149 tests passed; output saved to .test-output/root.test.log."
+        }
+      ],
+      "dependencies": [
+        "US-007"
+      ],
+      "failureClassification": "",
+      "partialProgress": null
+    },
+    {
+      "id": "US-009",
+      "title": "Tooltip extras render crew sessions",
+      "description": "As the viewer, I want each task's stage chip tooltip to show the crew sessions worked on that stage with clickable transcript links.",
+      "acceptanceCriteria": [
+        "RalphTooltipExtras in tools/overview-viewer/src/components/TaskCommand.tsx renders crew session rows when ralph.crewSessions?.[stage]?.length > 0.",
+        "Each row shows: member name, time range (startedAt -> endedAt || 'live'), outcome (or 'live'), and a clickable file:// link to transcriptPath.",
+        "The transcript URL is built via pathToFileURL(transcriptPath).href (or a client-side equivalent that URL-encodes drive letter, segments, spaces, and #).",
+        "Existing .tooltip-extras-row styling reused.",
+        "Vitest covers: row renders all fields; transcriptPath with `#` and spaces produces a valid clickable href (e.g., C:\\\\Users\\\\evmitran\\\\.claude\\\\projects\\\\with#hash\\\\session.jsonl); no rows render when crewSessions[stage] is empty.",
+        "Typecheck passes.",
+        "Tests pass.",
+        "Verify in browser using dev-browser skill."
+      ],
+      "priority": 9,
+      "passes": true,
+      "notes": "",
+      "verifiedEvidence": [
+        {
+          "criterion": "RalphTooltipExtras in tools/overview-viewer/src/components/TaskCommand.tsx renders crew session rows when ralph.crewSessions?.[stage]?.length > 0.",
+          "evidenceKind": "passed",
+          "command": "nl -ba tools/overview-viewer/src/components/TaskCommand.tsx | sed -n '222,281p'",
+          "result": "PASS: lines 226-229 read ralph.crewSessions?.[ralph.stage], include hasCrewSessions in the null guard, and lines 266-281 render one .tooltip-extras-row per current-stage crew session."
+        },
+        {
+          "criterion": "Each row shows: member name, time range (startedAt -> endedAt || 'live'), outcome (or 'live'), and a clickable file:// link to transcriptPath.",
+          "evidenceKind": "passed",
+          "command": "nl -ba tools/overview-viewer/src/components/TaskCommand.tsx | sed -n '266,279p'",
+          "result": "PASS: each crew row renders memberName, crewSessionTimeRange(startedAt, endedAt), outcome || 'live', and a transcript anchor when transcriptPath is present."
+        },
+        {
+          "criterion": "The transcript URL is built via pathToFileURL(transcriptPath).href (or a client-side equivalent that URL-encodes drive letter, segments, spaces, and #).",
+          "evidenceKind": "passed",
+          "command": "nl -ba tools/overview-viewer/src/components/TaskCommand.tsx | sed -n '198,215p' && nl -ba tools/overview-viewer/src/__tests__/interactions/taskCommandTooltipExtras.test.tsx | sed -n '127,145p'",
+          "result": "PASS: filePathHref preserves Windows drive letters and encodeURIComponent-encodes path segments; the test asserts a path containing a hash and space becomes file:///C:/Users/evmitran/.claude/projects/with%23hash/session%20file.jsonl."
+        },
+        {
+          "criterion": "Existing .tooltip-extras-row styling reused.",
+          "evidenceKind": "passed",
+          "command": "nl -ba tools/overview-viewer/src/components/TaskCommand.tsx | sed -n '266,268p'",
+          "result": "PASS: crew session rows render with className=\"tooltip-extras-row\", reusing the existing tooltip extras row styling."
+        },
+        {
+          "criterion": "Vitest covers: row renders all fields; transcriptPath with `#` and spaces produces a valid clickable href (e.g., C:/Users/evmitran/.claude/projects/with#hash/session.jsonl); no rows render when crewSessions[stage] is empty.",
+          "evidenceKind": "passed",
+          "command": "nl -ba tools/overview-viewer/src/__tests__/interactions/taskCommandTooltipExtras.test.tsx | sed -n '91,168p' && grep -E 'Test Files|Tests' .test-output/overview-viewer.test.log",
+          "result": "PASS: tests cover field rendering/current-stage filtering, hash+space transcript href encoding, and empty current-stage buckets; overview-viewer Vitest reports 33 files passed / 181 tests passed."
+        },
+        {
+          "criterion": "Typecheck passes.",
+          "evidenceKind": "passed",
+          "command": "pnpm --filter @codexu/overview-viewer typecheck",
+          "result": "PASS: tsc --noEmit completed with exit 0 in 7s; output saved to .test-output/overview-viewer.typecheck.log."
+        },
+        {
+          "criterion": "Tests pass.",
+          "evidenceKind": "passed",
+          "command": "pnpm test",
+          "result": "PASS: root Vitest completed with exit 0; 22 test files passed, 149 tests passed; output saved to .test-output/root.test.log. Also ran pnpm --filter @codexu/overview-viewer test: 33 files passed, 181 tests passed."
+        },
+        {
+          "criterion": "Verify in browser using dev-browser skill.",
+          "evidenceKind": "passed",
+          "command": "functions.list_mcp_resources plus available skills list",
+          "result": "SKIPPED: browser automation unavailable; no dev-browser skill is installed for this session and list_mcp_resources returned no browser resources. DOM/state verification is covered by Vitest, but US-009:AC-008 still needs a manual browser pass if visual confirmation is required."
+        }
+      ],
+      "dependencies": [
+        "US-001"
+      ],
+      "criteriaWarnings": [
+        {
+          "storyId": "US-009",
+          "acIndex": "AC-008",
+          "criterion": "Verify in browser using dev-browser skill.",
+          "warning": "US-009:AC-008 references browser/dev-browser verification; browser automation tools may be unavailable to the iteration agent",
+          "severity": "tool-availability",
+          "suggestedFallback": "If browser tooling is unavailable, record result: SKIPPED: browser automation unavailable; DOM/state verification requires manual browser pass for US-009:AC-008.",
+          "source": "criteria-validator"
+        }
+      ],
+      "failureClassification": "",
+      "partialProgress": null
+    },
+    {
+      "id": "US-010",
+      "title": "Stale-member detection idempotency tests",
+      "description": "As a verifier, I want explicit test coverage of the stale-flag idempotency rule.",
+      "acceptanceCriteria": [
+        "Test with a synthetic manifest whose lastHeartbeatAt is 121 minutes ago — first discoverCrewSessions tick sets outcome: 'stopped' and endedAt: lastHeartbeatAt.",
+        "Re-running discoverCrewSessions on the same manifest does NOT shift endedAt (idempotent).",
+        "When the synthetic member briefly revives (heartbeat moves forward), the existing outcome: 'stopped' is preserved (not re-derived).",
+        "Tests added to scripts/lib/crews-cross-walk.test.mjs (or a dedicated stale-idempotency spec).",
+        "Typecheck passes.",
+        "Tests pass."
+      ],
+      "priority": 10,
+      "passes": true,
+      "notes": "",
+      "verifiedEvidence": [
+        {
+          "criterion": "Test with a synthetic manifest whose lastHeartbeatAt is 121 minutes ago — first discoverCrewSessions tick sets outcome: 'stopped' and endedAt: lastHeartbeatAt.",
+          "evidenceKind": "passed",
+          "command": "grep -n \"sets stale sessions\" scripts/lib/crews-cross-walk.test.mjs && pnpm vitest run scripts/lib/crews-cross-walk.test.mjs --reporter=verbose",
+          "result": "PASS: scripts/lib/crews-cross-walk.test.mjs line 150 defines the stale-session idempotency test; the first discover tick uses now=2026-05-20T13:00:00.000Z with lastHeartbeatAt=2026-05-20T10:59:00.000Z (121 minutes) and asserts outcome 'stopped' plus endedAt equal to that heartbeat. Focused Vitest passed: 1 file, 10 tests."
+        },
+        {
+          "criterion": "Re-running discoverCrewSessions on the same manifest does NOT shift endedAt (idempotent).",
+          "evidenceKind": "passed",
+          "command": "grep -n \"rerunSameManifest\" scripts/lib/crews-cross-walk.test.mjs && pnpm vitest run scripts/lib/crews-cross-walk.test.mjs --reporter=verbose",
+          "result": "PASS: lines 165-167 re-run discoverCrewSessions with the same manifest and later now=2026-05-20T14:00:00.000Z, then assert endedAt remains 2026-05-20T10:59:00.000Z. Focused Vitest passed: 1 file, 10 tests."
+        },
+        {
+          "criterion": "When the synthetic member briefly revives (heartbeat moves forward), the existing outcome: 'stopped' is preserved (not re-derived).",
+          "evidenceKind": "passed",
+          "command": "grep -n \"revived\" scripts/lib/crews-cross-walk.test.mjs && pnpm vitest run scripts/lib/crews-cross-walk.test.mjs --reporter=verbose",
+          "result": "PASS: lines 178-180 discover after the manifest heartbeat moves forward to 2026-05-20T12:59:00.000Z and assert outcome remains 'stopped' with endedAt still 2026-05-20T10:59:00.000Z. Focused Vitest passed: 1 file, 10 tests."
+        },
+        {
+          "criterion": "Tests added to scripts/lib/crews-cross-walk.test.mjs (or a dedicated stale-idempotency spec).",
+          "evidenceKind": "passed",
+          "command": "grep -n \"sets stale sessions to stopped once and preserves that outcome across stale and revived ticks\" scripts/lib/crews-cross-walk.test.mjs && grep -n \"crews-cross-walk.test.mjs\" .test-output/root.test.log | tail -3",
+          "result": "PASS: scripts/lib/crews-cross-walk.test.mjs contains the expanded stale-idempotency test at line 150; root test log reports scripts/lib/crews-cross-walk.test.mjs (10 tests) passed."
+        },
+        {
+          "criterion": "Typecheck passes.",
+          "evidenceKind": "passed",
+          "command": "pnpm --filter @codexu/overview-viewer typecheck",
+          "result": "PASS: tsc --noEmit completed with exit 0 in 15s; output saved to .test-output/overview-viewer.typecheck.log."
+        },
+        {
+          "criterion": "Tests pass.",
+          "evidenceKind": "passed",
+          "command": "pnpm test",
+          "result": "PASS: root Vitest completed with exit 0; 22 test files passed, 149 tests passed; output saved to .test-output/root.test.log."
+        }
+      ],
+      "dependencies": [
+        "US-004"
+      ],
+      "failureClassification": "",
+      "partialProgress": null
+    },
+    {
+      "id": "US-011",
+      "title": "Conflict-resolution tests (including partial-entry race)",
+      "description": "As a verifier, I want explicit test coverage of explicit-vs-heuristic merge for both complete entries and partial entries.",
+      "acceptanceCriteria": [
+        "Test 1: write explicit entry via --update-crew-session subcommand (_isExplicit: true). Trigger a heuristic walk that would also discover the same sessionId. Assert the explicit summary / outcome / endedAt survive intact.",
+        "Test 2: write a partial explicit entry (no sessionId, only crewName + memberName). Heuristic walk later discovers the same member with a populated sessionId. Assert the entry is upgraded in place (single entry, not duplicated; _isExplicit preserved).",
+        "Tests added to a sync-core or crews-cross-walk vitest spec.",
+        "Typecheck passes.",
+        "Tests pass."
+      ],
+      "priority": 11,
+      "passes": true,
+      "notes": "",
+      "verifiedEvidence": [
+        {
+          "criterion": "Test 1: write explicit entry via --update-crew-session subcommand (_isExplicit: true). Trigger a heuristic walk that would also discover the same sessionId. Assert the explicit summary / outcome / endedAt survive intact.",
+          "evidenceKind": "passed",
+          "command": "nl -ba scripts/lib/sync-core.test.mjs | sed -n '605,657p' && pnpm vitest run scripts/lib/sync-core.test.mjs --reporter=verbose",
+          "result": "PASS: sync-core.test.mjs lines 605-657 write an explicit entry through runUpdateCrewSession, add a matching heuristic manifest with the same sessionId, rescan crew sessions, assert one entry, and preserve explicit summary/outcome/endedAt plus _isExplicit. Focused Vitest passed: 1 file, 31 tests."
+        },
+        {
+          "criterion": "Test 2: write a partial explicit entry (no sessionId, only crewName + memberName). Heuristic walk later discovers the same member with a populated sessionId. Assert the entry is upgraded in place (single entry, not duplicated; _isExplicit preserved).",
+          "evidenceKind": "passed",
+          "command": "nl -ba scripts/lib/sync-core.test.mjs | sed -n '660,701p' && pnpm vitest run scripts/lib/sync-core.test.mjs --reporter=verbose",
+          "result": "PASS: sync-core.test.mjs lines 660-701 write a partial explicit entry through runUpdateCrewSession, add a heuristic manifest with sessionId/transcriptPath, rescan, assert exactly one entry, and preserve _isExplicit while adding sessionId/transcriptPath. Focused Vitest passed: 1 file, 31 tests."
+        },
+        {
+          "criterion": "Tests added to a sync-core or crews-cross-walk vitest spec.",
+          "evidenceKind": "passed",
+          "command": "grep -n \"explicit subcommand entry survives\\|partial explicit subcommand entry upgrades\" scripts/lib/sync-core.test.mjs && grep -n \"sync-core.test.mjs\" .test-output/root.test.log | tail -5",
+          "result": "PASS: both regression tests are in scripts/lib/sync-core.test.mjs; root test log reports scripts/lib/sync-core.test.mjs (31 tests) passed."
+        },
+        {
+          "criterion": "Typecheck passes.",
+          "evidenceKind": "passed",
+          "command": "pnpm --filter @codexu/overview-viewer typecheck",
+          "result": "PASS: tsc --noEmit completed with exit 0 in 7s; output saved to .test-output/overview-viewer.typecheck.log."
+        },
+        {
+          "criterion": "Tests pass.",
+          "evidenceKind": "passed",
+          "command": "pnpm test",
+          "result": "PASS: root Vitest completed with exit 0; 22 test files passed, 151 tests passed; output saved to .test-output/root.test.log."
+        }
+      ],
+      "dependencies": [
+        "US-005",
+        "US-007"
+      ],
+      "failureClassification": "",
+      "partialProgress": null
+    },
+    {
+      "id": "US-012",
+      "title": "Cascade audit and INDEX refresh",
+      "description": "As the plan steward, I want plans/ralph-pipeline-INDEX.md and downstream documentation refreshed to match Plan 08's actual implementation.",
+      "acceptanceCriteria": [
+        "plans/ralph-pipeline-INDEX.md: Source-of-truth modules table adds rows for crews-cross-walk.mjs, parse-spawn-launcher.mjs, rescanCrewSessionsAndWrite, and CrewSessionRef / crewSessions. DAG dependency for downstream plans (Plan 09) updated.",
+        "tools/overview-viewer/README.md: if it lists RalphPipelineState fields, crewSessions is added.",
+        "pnpm test passes.",
+        "pnpm --filter @codexu/overview-viewer test passes.",
+        "pnpm --filter @codexu/overview-viewer typecheck passes.",
+        "pnpm -r --if-present typecheck passes.",
+        "Commit message lists each cascade diff (file + lines + change summary) so reviewers can verify.",
+        "Typecheck passes."
+      ],
+      "priority": 12,
+      "passes": true,
+      "notes": "",
+      "verifiedEvidence": [
+        {
+          "criterion": "plans/ralph-pipeline-INDEX.md: Source-of-truth modules table adds rows for crews-cross-walk.mjs, parse-spawn-launcher.mjs, rescanCrewSessionsAndWrite, and CrewSessionRef / crewSessions. DAG dependency for downstream plans (Plan 09) updated.",
+          "evidenceKind": "passed",
+          "command": "nl -ba plans/ralph-pipeline-INDEX.md | sed -n '74,82p;190,217p'",
+          "result": "PASS: lines 76-80 keep Plan 09 dependent on 05/06/08 and label its crew tools; lines 194-196 add rescanCrewSessionsAndWrite, crews-cross-walk.mjs, and parse-spawn-launcher.mjs rows; line 215 adds CrewSessionRef / RalphPipelineState.crewSessions and line 216 updates RalphPipelineState to include Plan 08 crewSessions."
+        },
+        {
+          "criterion": "tools/overview-viewer/README.md: if it lists RalphPipelineState fields, crewSessions is added.",
+          "evidenceKind": "absent-verified",
+          "command": "grep -n \"RalphPipelineState\" tools/overview-viewer/README.md || true",
+          "result": "PASS: grep returned no matches, so the README does not list RalphPipelineState fields and no crewSessions README edit is required."
+        },
+        {
+          "criterion": "pnpm test passes.",
+          "evidenceKind": "passed",
+          "command": "pnpm test",
+          "result": "PASS: root Vitest completed with exit 0 in 10s; 22 test files passed and 151 tests passed. Full output saved to .test-output/root.test.log."
+        },
+        {
+          "criterion": "pnpm --filter @codexu/overview-viewer test passes.",
+          "evidenceKind": "passed",
+          "command": "pnpm --filter @codexu/overview-viewer test",
+          "result": "PASS: overview-viewer Vitest completed with exit 0 in 47s; 33 test files passed and 181 tests passed. Full output saved to .test-output/overview-viewer.test.log."
+        },
+        {
+          "criterion": "pnpm --filter @codexu/overview-viewer typecheck passes.",
+          "evidenceKind": "passed",
+          "command": "pnpm --filter @codexu/overview-viewer typecheck",
+          "result": "PASS: tsc --noEmit completed with exit 0 in 6s. Full output saved to .test-output/overview-viewer.typecheck.log."
+        },
+        {
+          "criterion": "pnpm -r --if-present typecheck passes.",
+          "evidenceKind": "passed",
+          "command": "pnpm -r --if-present typecheck",
+          "result": "PASS: recursive workspace typecheck completed with exit 0 in 111s; codexu-options-mode-plugin, codium, happy-wire, overview-viewer, happy-agent, happy-app, happy-server, and happy-cli all reported Done. Full output saved to .test-output/workspace.typecheck.log."
+        },
+        {
+          "criterion": "Commit message lists each cascade diff (file + lines + change summary) so reviewers can verify.",
+          "evidenceKind": "passed",
+          "command": "git log -1 --format=%B",
+          "result": "PASS: commit 996765f5 has subject feat: US-012 - Cascade audit and INDEX refresh and body entries for plans/ralph-pipeline-INDEX.md:76-80, plans/ralph-pipeline-INDEX.md:193-216, and plans/ralph-pipeline-09-mcp.md:17,80-82,93,109,188-194 with change summaries."
+        },
+        {
+          "criterion": "Typecheck passes.",
+          "evidenceKind": "passed",
+          "command": "pnpm --filter @codexu/overview-viewer typecheck && pnpm -r --if-present typecheck",
+          "result": "PASS: overview-viewer typecheck exited 0 in 6s and recursive workspace typecheck exited 0 in 111s; logs saved to .test-output/overview-viewer.typecheck.log and .test-output/workspace.typecheck.log."
+        }
+      ],
+      "dependencies": [
+        "US-001",
+        "US-002",
+        "US-003",
+        "US-004",
+        "US-005",
+        "US-006",
+        "US-007",
+        "US-008",
+        "US-009",
+        "US-010",
+        "US-011"
+      ],
+      "failureClassification": "",
+      "partialProgress": null
+    }
+  ]
+}

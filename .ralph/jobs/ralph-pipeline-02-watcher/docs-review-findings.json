@@ -1,0 +1,134 @@
+{
+  "planFile": "D:/harness-efforts/codexu/.ralph/jobs/ralph-pipeline-02-watcher/plan.md",
+  "repoDir": "D:/harness-efforts/codexu/.ralph/jobs/ralph-pipeline-02-watcher/worktree",
+  "findings": [
+    {
+      "id": "F-001",
+      "severity": "High",
+      "category": "Stale Documentation",
+      "classification": "fixable",
+      "phase": "docs",
+      "source": "docs",
+      "status": "fixed",
+      "description": "plans/ralph-pipeline-11-mcp-operational-tools.md line 51 declares lockHolderProcess?: 'one-shot' | 'standalone' | 'vite-plugin' | 'watcher' | 'unknown', but the shipped code in scripts/sync-ralph-state.mjs:36 calls acquireLock({ processLabel: 'standalone-oneshot' }), and plan.md AC line 182 commits to the lock-file contract { process: 'standalone' | 'standalone-oneshot' | 'vite-plugin' }. A Plan-11 MCP consumer that types its enum against this doc will never match a live one-shot sync — it expects 'one-shot' but the lock file contains 'standalone-oneshot'. The enum value must match what sync-lock.mjs/sync-ralph-state.mjs actually writes.",
+      "relevantFiles": [
+        "plans/ralph-pipeline-11-mcp-operational-tools.md"
+      ],
+      "suggestedFix": "Replace 'one-shot' with 'standalone-oneshot' in the lockHolderProcess enum on line 51, and update the corresponding bullet on line 132 (\"One-shot sync (pnpm sync-ralph-state) while it is actively walking/writing\") to reference the 'standalone-oneshot' processLabel explicitly. Optionally also harmonize the prose around line 141 (\"writes this metadata for one-shot, standalone watcher, and Vite-plugin watcher modes\") to clarify the three concrete process labels emitted today are 'standalone-oneshot', 'standalone', and 'vite-plugin' (plus 'watcher' as the start() default for direct callers).",
+      "fixedInIteration": 1,
+      "resolution": "Replaced one-shot with standalone-oneshot in lockHolderProcess enum on plan 11 line 51; clarified prose at lines 132 (one-shot uses standalone-oneshot label) and 141 (enumerated three concrete labels plus watcher default)."
+    },
+    {
+      "id": "F-002",
+      "severity": "High",
+      "category": "Stale Documentation",
+      "classification": "fixable",
+      "phase": "docs",
+      "source": "docs",
+      "status": "fixed",
+      "description": "plans/ralph-pipeline-02-watcher.md is the introducing plan for the watcher, but its acceptance-criteria-anchored API contract no longer matches the shipped module. Line 43 and AC line 131 both declare `start({ repoRoot, debounceMs, onWrite?, onError? }) -> { stop, status }`, while scripts/lib/watch-ralph-state.mjs:16 exports `start({ repoRoot, configPath, debounceMs = 2_000, processLabel = 'watcher', onWrite, onError })`. The `configPath` and `processLabel` parameters are load-bearing — `configPath` is how callers point at a non-default `.ralph/overview-config.json`, and `processLabel` is what propagates into the JSON lock-file `process` field that Plans 06/08/11 already document. A reader of Plan 02 alone would never know to pass them. Plan 02 is also the source-of-truth that plans/ralph-pipeline-INDEX.md:253 points at for the watcher contract.",
+      "relevantFiles": [
+        "plans/ralph-pipeline-02-watcher.md"
+      ],
+      "suggestedFix": "Update the `start(...)` signature in line 43 (Files » To create) and the matching acceptance-criterion line 131 to `start({ repoRoot, configPath, debounceMs, processLabel = 'watcher', onWrite?, onError? }) -> { stop, status }`. Add a one-line note that `processLabel` becomes the `process` field of the JSON lock file (default 'watcher'; callers should use 'standalone' for the CLI watch mode and 'vite-plugin' for the Vite plugin auto-start) and that `configPath` is forwarded to `loadConfig` for the override-config flow.",
+      "fixedInIteration": 2,
+      "resolution": "Updated start() signature on Plan 02 Files » To create bullet and AC bullet to include configPath, processLabel (default 'watcher'), and documented the standalone/vite-plugin overrides plus configPath -> loadConfig forwarding."
+    },
+    {
+      "id": "F-003",
+      "severity": "High",
+      "category": "Stale Documentation",
+      "classification": "fixable",
+      "phase": "docs",
+      "source": "docs",
+      "status": "fixed",
+      "description": "plans/ralph-pipeline-02-watcher.md AC line 132 commits to `scripts/lib/sync-core.mjs exports deriveOneSlug and mergeAndWrite in addition to the Plan 01 exports`, and the implementation strategy / verification sections (lines 51-52, 97, 103) repeatedly name `deriveOneSlug`. The shipped scripts/lib/sync-core.mjs does NOT export any symbol named `deriveOneSlug`; instead it exports `readBundleForSlug`, `assembleStateFromBundles`, and `deriveAffectedTaskUpdate` (see scripts/lib/sync-core.mjs:47, :86, :139 and the watcher's import at scripts/lib/watch-ralph-state.mjs:7). plans/ralph-pipeline-INDEX.md:247 already lists the actual exports, so the INDEX agrees with shipped code and Plan 02 is the divergent doc. A reader of Plan 02 looking for the named export will fail.",
+      "relevantFiles": [
+        "plans/ralph-pipeline-02-watcher.md"
+      ],
+      "suggestedFix": "Replace the `deriveOneSlug` references in Plan 02 with the shipped exports: in Files » To modify » sync-core.mjs (lines 51-53), describe `readBundleForSlug({ repoRoot, config, kind, slug })`, `assembleStateFromBundles({ bundles, repoRoot, config, generatedFromCommit })`, and `deriveAffectedTaskUpdate({ repoRoot, config, kind, slug, currentState, generatedFromCommit })` alongside `mergeAndWrite`. Update Implementation strategy step 1 (line 97) and step 2 (line 103) to reference `deriveAffectedTaskUpdate` (the per-slug re-derivation entry point) instead of `deriveOneSlug`. Update AC line 132 to enumerate the four actual exports.",
+      "fixedInIteration": 2,
+      "resolution": "Replaced deriveOneSlug references throughout Plan 02 with the shipped sync-core exports (readBundleForSlug, assembleStateFromBundles, deriveAffectedTaskUpdate, mergeAndWrite) in the Files » To modify bullet, Implementation strategy steps 1-2, error-handling clause, and AC bullet."
+    },
+    {
+      "id": "F-004",
+      "severity": "Medium",
+      "category": "Stale Documentation",
+      "classification": "fixable",
+      "phase": "docs",
+      "source": "docs",
+      "status": "fixed",
+      "description": "plans/ralph-pipeline-02-watcher.md Files » To create (lines 40-46) lists only `scripts/lib/watch-ralph-state.mjs`. The shipped change adds a SECOND new module, `scripts/lib/sync-lock.mjs`, which is now the canonical lock primitive shared by sync-ralph-state.mjs (one-shot mode at scripts/sync-ralph-state.mjs:36) and watch-ralph-state.mjs (scripts/lib/watch-ralph-state.mjs:8,28). The job's CLAUDE.md describes it explicitly as `shared sync-lock.mjs primitive consumed by both watch and one-shot modes`, plans/ralph-pipeline-INDEX.md:248 already has a `scripts/lib/sync-lock.mjs` row, and Plans 08/11 reference `sync-lock.mjs` by name in their updated bodies. Plan 02 is the only place where a reader cannot discover that this file was created here.",
+      "relevantFiles": [
+        "plans/ralph-pipeline-02-watcher.md"
+      ],
+      "suggestedFix": "Add a second bullet under Files » To create for `scripts/lib/sync-lock.mjs` describing the shared lock primitive: `acquireLock({ lockPath, processLabel, staleAfterMs })` writes JSON `{ pid, process, startedAt }` with the `wx` flag, surfaces the canonical `another sync in progress (pid <N>, process <label>, started <ts>)` diagnostic on contention, treats EPERM PID probes as alive, removes ESRCH/unparseable stale locks past 60s, and exposes `releaseLock` plus a `touch()` heartbeat hook used by the watcher. Cross-reference this is the file consumed by Plans 08 and 11.",
+      "fixedInIteration": 2,
+      "resolution": "Added Files » To create bullets for scripts/lib/sync-lock.mjs (+ .d.mts) detailing acquireLock/releaseLock/touch JSON-metadata contract and PID-liveness recovery, plus scripts/lib/path-utils.mjs (+ .d.mts) for the extracted helpers consumed by watch-ralph-state."
+    },
+    {
+      "id": "F-005",
+      "severity": "Medium",
+      "category": "Stale Documentation",
+      "classification": "fixable",
+      "phase": "docs",
+      "source": "docs",
+      "status": "fixed",
+      "description": "plans/ralph-pipeline-02-watcher.md describes lock acquisition as an in-line `fs.openSync(path, 'wx')` call inside watch-ralph-state.mjs (line 100 of the plan), with release via `fs.unlinkSync(lockPath)` in a `finally` (line 104), and Common Mistakes #4 (line 166) reinforces this `fs.openSync(... 'wx')` mental model. The shipped watch-ralph-state.mjs:28 instead delegates to the new `acquireLock`/`releaseLock` helpers in sync-lock.mjs (see F-004), which write JSON metadata, run a PID-liveness probe on EEXIST, and emit a canonical diagnostic. The plan's described lock contract — 0-byte sentinel, mtime-only staleness check, raw EEXIST 'another watcher holds lock' message — is no longer how the lock works. Downstream Plans 08 and 11 already document the JSON metadata contract; only Plan 02's narrative is stale.",
+      "relevantFiles": [
+        "plans/ralph-pipeline-02-watcher.md"
+      ],
+      "suggestedFix": "Rewrite Implementation strategy step 2 (lines 99-104) and Common mistakes #4 (line 166) to delegate lock semantics to scripts/lib/sync-lock.mjs: describe `await acquireLock({ lockPath: config.lockFile, processLabel })` returning a handle, the JSON `{ pid, process, startedAt }` payload, the 60s staleness threshold with PID-liveness probing (ESRCH means remove; EPERM means leave alone), the canonical `another sync in progress (pid ..., process ..., started ...)` diagnostic on contention, and `releaseLock(handle)` in a finally. Mention that the watcher maintains the lock for its full lifetime with a 30s mtime heartbeat instead of releasing between debounce ticks.",
+      "fixedInIteration": 2,
+      "resolution": "Rewrote Implementation strategy step 2 (acquireLock/releaseLock + JSON metadata + layered stale-recovery) and Common mistakes #4 (no inline fs.openSync/fs.unlinkSync; releaseLock in finally; PID-liveness probe; 30s heartbeat) to match the shipped sync-lock.mjs contract."
+    },
+    {
+      "id": "F-006",
+      "severity": "Medium",
+      "category": "Stale Documentation",
+      "classification": "fixable",
+      "phase": "docs",
+      "source": "docs",
+      "status": "fixed",
+      "description": "plans/ralph-pipeline-02-watcher.md never mentions the 30-second mtime heartbeat that the shipped scripts/lib/watch-ralph-state.mjs maintains (HEARTBEAT_MS = 30_000 at line 11, setInterval at lines 246-251 calling sync-lock.touch()). Plans 08 (line 90) and 11 (lines 170-172, 211 prose bullet 4) already document this 30s heartbeat as part of the cross-plan contract, and plans/ralph-pipeline-INDEX.md:253 names it explicitly: `uses a long-lived shared lock with a 30s heartbeat`. Plan 02 is the introducing plan for the watcher and is silent on the behavior that the downstream plans now require — so a reader of Plan 02 cannot tell whether the watcher refreshes the lock or relies on a single-write mtime, which directly affects the staleness window the downstream tools assume.",
+      "relevantFiles": [
+        "plans/ralph-pipeline-02-watcher.md"
+      ],
+      "suggestedFix": "Add a heartbeat acceptance criterion (e.g., between lines 134 and 135): `Lock file mtime is refreshed every ~30 s (HEARTBEAT_MS = 30_000) while the watcher runs, so the 60 s staleness window in sync-lock.mjs never triggers for a live watcher.` Mention the same 30 s cadence under Implementation strategy step 2 next to the lock-acquisition bullet. Optionally cross-reference INDEX.md and Plans 08/11 as the downstream consumers of this heartbeat contract.",
+      "fixedInIteration": 2,
+      "resolution": "Added a heartbeat AC bullet (HEARTBEAT_MS = 30_000 + touch(handle), cross-referenced INDEX/Plans 06/08/11) and a sibling sentence under Implementation strategy step 2."
+    },
+    {
+      "id": "F-007",
+      "severity": "Medium",
+      "category": "Stale Documentation",
+      "classification": "fixable",
+      "phase": "docs",
+      "source": "docs",
+      "status": "fixed",
+      "description": "plans/ralph-pipeline-02-watcher.md line 46 specifies tests added to `tools/overview-viewer/src/__tests__/ralphStage.test.ts`, and line 122 reinforces this with `add the 5 watcher cases to ralphStage.test.ts (or split into ralphWatcher.test.ts if it grows)`. The shipped change instead introduces dedicated new test files: tools/overview-viewer/src/__tests__/ralphWatcher.test.ts (582 lines), syncLock.test.ts (129 lines), and syncRalphStateCli.test.ts (116 lines), plus extensions to syncCore.test.ts. No new cases were appended to ralphStage.test.ts. The plan's `or split into ralphWatcher.test.ts if it grows` clause was the option that landed, but the AC-adjacent description still leads with the ralphStage.test.ts placement.",
+      "relevantFiles": [
+        "plans/ralph-pipeline-02-watcher.md"
+      ],
+      "suggestedFix": "Update the test-file callout on line 46 to read: `Tests added under tools/overview-viewer/src/__tests__/: ralphWatcher.test.ts (debounce, incremental, cold-start, lock collision, heartbeat, error resilience, deletion), syncLock.test.ts (acquire/contention/stale-PID/heartbeat), syncRalphStateCli.test.ts (CLI --watch + one-shot lock-share), plus new cases extending syncCore.test.ts for deriveAffectedTaskUpdate / mergeAndWrite.` Update Implementation strategy step 6 (lines 122-127) to match — drop the `ralphStage.test.ts` lead and describe the four test files as the shipped layout.",
+      "fixedInIteration": 2,
+      "resolution": "Updated the Files » To create test callout and Implementation strategy step 6 to enumerate the four shipped test files (ralphWatcher.test.ts, syncLock.test.ts, syncRalphStateCli.test.ts, syncCore.test.ts extensions) instead of ralphStage.test.ts."
+    },
+    {
+      "id": "F-008",
+      "severity": "Medium",
+      "category": "Stale Documentation",
+      "classification": "fixable",
+      "phase": "docs",
+      "source": "re-review",
+      "status": "open",
+      "description": "plans/ralph-pipeline-02-watcher.md line 46 claims sync-lock.mjs `Also exports releaseLock(handle) (used in a finally) and touch(handle) (used by the watcher heartbeat)`, and the same `touch(handle)` form is repeated in Implementation strategy step 2 (line 105), the syncLock.test.ts test list (line 129), AC line 140, and Common mistakes #4 (line 171). The shipped scripts/lib/sync-lock.mjs (and the matching .d.mts) does NOT export a top-level symbol named `touch`. The top-level exports are `acquireLock`, `releaseLock`, and `touchLock(handle)`. The heartbeat hook is instead exposed as the `touch()` METHOD on the LockHandle (sync-lock.d.mts:11; sync-lock.mjs:95-104). The watcher uses the method form `lockHandle.touch()` (watch-ralph-state.mjs:147, 236, 247), not a top-level `touch(handle)` call. A reader implementing against Plan 02 who writes `import { touch } from 'scripts/lib/sync-lock.mjs'` will fail with an undefined-export error; the correct top-level import is `touchLock`, or alternatively the handle method `handle.touch()`. plans/ralph-pipeline-INDEX.md:192 uses the accurate phrasing `supports touch() heartbeats` (method form), so the INDEX is consistent with shipped code and only Plan 02 carries the wrong top-level name.",
+      "relevantFiles": [
+        "plans/ralph-pipeline-02-watcher.md"
+      ],
+      "suggestedFix": "In plans/ralph-pipeline-02-watcher.md, rename the `touch(handle)` references to match the shipped API. Two options: (a) use the handle-method form throughout — line 46 `Also exports releaseLock(handle) ... and a touch() method on the returned handle (used by the watcher heartbeat)`; line 105 `calls handle.touch() to refresh the lock-file mtime`; line 129 `touch() updates mtime`; line 140 `via handle.touch() from sync-lock.mjs`; line 171 `30 s handle.touch() heartbeat`. Or (b) reference the top-level export by its real name `touchLock(handle)` in the same five locations. Either form keeps the contract honest; option (a) is closer to how the watcher actually consumes the helper.",
+      "fixedInIteration": null,
+      "resolution": null
+    }
+  ]
+}

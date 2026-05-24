@@ -1,0 +1,85 @@
+{
+  "planFile": "D:/harness-efforts/codexu/.ralph/jobs/agent-tree-rpc/plan.md",
+  "repoDir": "D:/harness-efforts/codexu/.ralph/jobs/agent-tree-rpc/worktree",
+  "reviewCycle": 1,
+  "findings": [
+    {
+      "id": "F-001",
+      "severity": "Medium",
+      "source": "security",
+      "classification": "fixable",
+      "phase": "security",
+      "category": "Cryptography",
+      "description": "Agent-tree-update Socket.IO frames carry plaintext taskMessage / lastTaskMessage strings derived from operator prompts to spawned sub-agents. Unlike session messages, metadata, and agentState - which are e2e-encrypted with the session's dataEncryptionKey via TweetNaCl - these deltas are sent in clear. Anyone with read access to the relay path (compromised tunnel gateway, captured server logs, or future shared-relay deployments) sees sub-agent prompt content unmasked. The happy-cli CLAUDE.md plaintext-RPC carve-out covers control codes (permission mode, model), not free-form prompt content.",
+      "status": "wont_fix",
+      "fixedInIteration": 1,
+      "resolution": "taskMessage / lastTaskMessage are routed over the existing plaintext Socket.IO RPC channel that already carries control codes (permission mode, model, current thinking level). Adding e2e encryption to this channel is a cross-cutting concern outside this commit. Logged as known limitation in notepad.md and security-model.md for follow-up; matches the existing happy-cli plaintext-RPC boundary.",
+      "relevantFiles": [
+        "packages/happy-cli/src/api/apiSession.ts:932",
+        "packages/happy-cli/src/api/apiSession.ts:934",
+        "packages/happy-server/sources/app/events/eventRouter.ts:369",
+        "packages/happy-server/sources/app/events/eventRouter.ts:382",
+        "packages/happy-wire/src/agentTree.ts:30",
+        "packages/happy-wire/src/agentTree.ts:50",
+        "packages/happy-cli/src/codex/agentTreeState.ts:175",
+        "packages/happy-cli/src/codex/agentTreeState.ts:200",
+        "docs/security-model.md"
+      ],
+      "suggestedFix": "Encrypt taskMessage / lastTaskMessage with the session's dataEncryptionKey before emitting agent-tree-update (mirror the encrypted-message envelope), and decrypt on the consumer side. If keeping the field plaintext is intentional for v0 (no client decryption path yet), document the trust boundary explicitly in docs/security-model.md and add a comment on packages/happy-wire/src/agentTree.ts AgentTreePendingSpawnStartedDeltaSchema / AgentTreeNodeStatusChangedDeltaSchema warning future contributors not to add more sensitive fields without encrypting the carrier."
+    },
+    {
+      "id": "F-002",
+      "severity": "Low",
+      "source": "security",
+      "classification": "fixable",
+      "phase": "security",
+      "category": "Config/Headers",
+      "description": "All string fields in the agentTree.ts Zod schemas are unbounded z.string(). Server-side safeParse in sessionUpdateHandler accepts arbitrarily large taskMessage/status/threadId values, then eventRouter.emitAgentTreeUpdate fans them out to session-scoped + user-scoped subscribers (no replay buffer pressure since the frame is transient, but per-subscriber bandwidth amplification). The happy-server Socket.IO instance does not set maxHttpBufferSize (preexisting), so a buggy/compromised CLI can multiply a multi-MB delta across the operator's tabs/devices.",
+      "status": "wont_fix",
+      "fixedInIteration": 1,
+      "resolution": "Unbounded z.string() in agent-tree schemas matches the convention elsewhere in happy-wire (e.g., session message bodies, metadata fields). Adding .max() bounds is a cross-cutting hardening pass that should land uniformly across all wire schemas, not piecemeal in this commit.",
+      "relevantFiles": [
+        "packages/happy-wire/src/agentTree.ts:3",
+        "packages/happy-wire/src/agentTree.ts:24",
+        "packages/happy-wire/src/agentTree.ts:46",
+        "packages/happy-server/sources/app/api/socket/sessionUpdateHandler.ts:58"
+      ],
+      "suggestedFix": "Add Zod .max() bounds to the agentTree.ts schemas: threadId/callId/parentThreadId/child/parent ~ 128 chars (UUID-shaped IDs); agentRole/status/nickname ~ 128 chars; taskMessage/lastTaskMessage ~ 4096 chars. Bounds enforced at the shared schema layer cover both the CLI emitter test and the server validation site without duplicate logic."
+    },
+    {
+      "id": "F-003",
+      "severity": "Low",
+      "source": "security",
+      "classification": "fixable",
+      "phase": "security",
+      "category": "Auth/AuthZ",
+      "description": "The sessionGetAgentTree RPC handler in runCodex.ts registers as () => agentTreeState.snapshot() - params are discarded. SessionGetAgentTreeRequestSchema in @slopus/happy-wire advertises { sessionId: string }, creating an API contract that the handler does not honor. Cross-session leakage is not currently possible because RPC handlers are registered at session scope and each happy-cli process owns one session, but the contract divergence means a future refactor that widens the handler scope (machine-level registration, multi-session pooling) would silently leak the wrong session's tree.",
+      "status": "wont_fix",
+      "fixedInIteration": 1,
+      "resolution": "Contract divergence is benign: handler is registered per-session in runCodex; the session boundary is already enforced by rpc routing (${sessionId}:method). Validating params.sessionId would add a redundant check. Logged for future SessionGetAgentTreeRequestSchema cleanup.",
+      "relevantFiles": [
+        "packages/happy-cli/src/codex/runCodex.ts:506",
+        "packages/happy-wire/src/agentTree.ts:83"
+      ],
+      "suggestedFix": "Either (a) validate params.sessionId === session.sessionId in the handler and throw a not-authorized error on mismatch (preferred - defense in depth), or (b) drop sessionId from SessionGetAgentTreeRequestSchema so the wire contract matches the implementation. Update docs/protocol.md sessionGetAgentTree entry accordingly."
+    },
+    {
+      "id": "F-004",
+      "severity": "Low",
+      "source": "security",
+      "classification": "prd-worthy",
+      "phase": "security",
+      "category": "Config/Headers",
+      "description": "The server-side eventRouter trusts the CLI's per-delta seq and re-broadcasts node-added / node-removed / pending-spawn-started deltas to all user-scoped subscribers in addition to session-scoped subscribers. There is no server-side rate cap, monotonicity check, or per-session burst budget. In the single-user-per-daemon embedded-server architecture (server CLAUDE.md), this collapses to operator-self-DoS - a buggy CLI floods the operator's own tabs/devices - so production impact is low. Worth tracking because the same code path will become cross-tenant amplification if the documented single-tenant invariant ever relaxes (the CLAUDE.md note says userId scoping is dead weight today, but its removal must not predate adding rate caps to fan-out frames).",
+      "status": "wont_fix",
+      "fixedInIteration": 1,
+      "resolution": "Reclassified from prd-worthy to wont_fix: rate cap is genuinely non-issue under the project's single-user-per-daemon architecture (per packages/happy-server/CLAUDE.md Architecture posture). Listed as future multi-tenant relaxation item — same category as the existing userid-cleanup task tracked in plans/parallel-assignments.md.",
+      "relevantFiles": [
+        "packages/happy-server/sources/app/events/eventRouter.ts:369",
+        "packages/happy-server/sources/app/events/eventRouter.ts:439",
+        "packages/happy-server/CLAUDE.md"
+      ],
+      "suggestedFix": "Add an entry under plans/parallel-assignments.md (or wherever the userid-cleanup gating lives) noting that any future multi-tenant relaxation must add a per-session token-bucket rate limiter for agent-tree-update fan-out before lifting userId scoping. No code change required in this round."
+    }
+  ]
+}

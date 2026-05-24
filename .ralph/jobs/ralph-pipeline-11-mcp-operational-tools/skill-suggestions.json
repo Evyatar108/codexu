@@ -1,0 +1,51 @@
+{
+  "candidates": [
+    {
+      "name": "mcp-subprocess-manager",
+      "description": "Scaffold and review a ProcessManager-backed MCP tool cluster (long-running + one-shot children) with ring-buffered logs, single-flight reserved names, ANSI-stripping ready detection, Windows tree-kill shutdown, and stopAll() wiring into the server's SIGINT/SIGTERM path.",
+      "triggers": [
+        "User adds MCP tools that spawn child processes (vite dev, build, sync scripts) under an existing MCP server.",
+        "Phrases like 'add overview MCP tool that runs', 'manage long-running subprocess from MCP', 'ProcessManager', 'tree-kill on Windows', 'one-shot vs persistent process tool'."
+      ],
+      "targetLocation": "plugins/ralph-orchestration/skills/mcp-subprocess-manager/SKILL.md",
+      "evidence": [
+        "progress.txt Codebase Patterns: top-level {ok,...} envelope for operational tools, reserved transient names 'build'/'sync-now', AlreadyRunning as the single-flight guard, Windows tree-kill ESRCH handling.",
+        "Commits 7532573a (US-001 ProcessManager foundation, 'Constraint: Windows shell:true subprocesses require tree-kill'), 55cfb916 (US-005, 'Rejected: module-level build flag | ProcessManager AlreadyRunning is the guard'), 44c12f8a (US-006), b0ecf02e (US-007 shutdown wiring).",
+        "plan-review-findings.json F-001 (arrow-prefixed Vite banner regex), F-002 (double-start race needs readyPromise), F-004 (transient build/sync-now untracked by stopAll), F-005 (Promise.all vs allSettled in stopAll), F-006 (hung-child must throw StopFailedError after SIGKILL), F-007 (start-failure cleanup), F-008 (exitPromise on ManagedProcess).",
+        "Job CLAUDE.md: stdio:['ignore','pipe','pipe'], pnpm {shell:true} on Windows, reserved names only, no module-level booleans."
+      ],
+      "rationale": "Five files (process-manager.ts, dev-server-*.ts, build.ts, sync-now.ts, index.ts) replicate the same six-part recipe and eight of twelve plan-review High findings were variations on this recipe being slightly wrong. No existing skill in the plugin or repo inventory covers MCP-server subprocess management."
+    },
+    {
+      "name": "ac-contract-string-audit",
+      "description": "Audit the three-way agreement between plan AC text, README/docs, and implementation for exact error strings, numeric clamps, and idempotent return shapes; surface mismatches before review.",
+      "triggers": [
+        "User completes an MCP tool, CLI command, or any feature with documented error contracts.",
+        "Phrases like 'match AC wording', 'error string contract', 'verify README matches implementation', or running post-implementation code review on a feature that defines exact error messages."
+      ],
+      "targetLocation": "plugins/ralph-orchestration/skills/ac-contract-string-audit/SKILL.md",
+      "evidence": [
+        "code-review-findings.json F-001 (dev_server.stop not idempotent: AC '{ok:true,stoppedAt}' vs impl '{ok:false,error:\"dev server is not running\"}'), F-002 (tailLogs 30 vs AC-required 10), F-003 ('sync already in progress' vs AC 'another sync in progress').",
+        "docs-review-findings.json F-001 (README line 142 'sync already in progress' drift), F-002 (README 'last 30 lines' vs impl slice(-10)).",
+        "Five follow-up fix commits: bd0a660f (F-001 idempotent stop), 33c860f1 (F-002 tail clamp 10), a32d8b02 (F-003 error string), 2771d150 (docs F-001), e1f5d11c (docs F-002)."
+      ],
+      "rationale": "The same drift class triggered findings in two reviewers (code + docs) and required five follow-up commits, despite all seven stories passing first try. Existing review-changes and simplify skills examine code quality but do not specifically diff acceptance-criteria literals against README and implementation literals."
+    },
+    {
+      "name": "mcp-stdio-tools-list-exact-set",
+      "description": "When adding or removing an MCP tool, update the stdio smoke test to assert the exact SET of tool names (not just the count) and bump the count assertion atomically; document the per-story expected tool count in the job CLAUDE.md.",
+      "triggers": [
+        "User adds a new tool to an MCP server via server.registerTool or tool-local registration.",
+        "Phrases like 'register MCP tool', 'stdio smoke test', 'tools/list assertion', or any diff that adds a file under src/tools/."
+      ],
+      "targetLocation": "plugins/ralph-orchestration/skills/mcp-stdio-tools-list-exact-set/SKILL.md",
+      "evidence": [
+        "progress.txt iteration logs explicitly track per-story tool counts: US-004 -> 14, US-005 -> 15, US-006 -> 17, US-007 confirms 17.",
+        "Job CLAUDE.md: 'Per-story stdio-tools-list count: US-004 -> 14, US-005 -> 15, US-006 -> 17, US-007 confirms 17. Assert the exact SET of tool names, not just the count.'",
+        "Files changed in US-004, US-005, US-006 all include src/__tests__/stdio-tools-list.test.ts (updated 4 times in 7 iterations).",
+        "prd.json.planReviewContext F-006: adding processManager to ServerContext cascades into helpers.ts and three direct context-literal tests, same atomic-cascade pattern."
+      ],
+      "rationale": "Small, mechanical, recurring co-modification pattern (src/tools/*.ts + schemas.ts + server.ts + __tests__/stdio-tools-list.test.ts + README, all in one commit). The plan reviewer explicitly cited the risk and the job CLAUDE.md preemptively documented it, which is exactly the shape of guidance that belongs in a skill rather than per-job CLAUDE.md duplication."
+    }
+  ]
+}

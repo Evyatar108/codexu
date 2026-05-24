@@ -1,0 +1,862 @@
+{
+  "project": "codexu",
+  "description": "Plan 07 — Context preservation: surface notepad Deferred Questions counts in chip tooltips, add per-task journals (one line per stage transition), render a RecentActivity right sidebar (last 5–10 events with click-through), and add PR/branch backlinks (copy `git checkout <branch>`, clickable PR URL). Six new optional fields on RalphPipelineState (branchName, deferredQuestionsCount, deferredQuestionsPreview, mergeCommit, prUrl, storyDoctorInterventions), three new Node helpers (parse-notepad, derive-pr-links, append-journal), Vite middleware for /overview-activity.jsonl, and tooltipExtras composition via Plan 03's RalphStageChip slot.",
+  "deslop": true,
+  "iterationEngine": "codex",
+  "planningEngine": "codex",
+  "jobDir": "D:/harness-efforts/codexu/.ralph/jobs/ralph-pipeline-07-context",
+  "repoDir": "D:/harness-efforts/codexu",
+  "branch": {
+    "name": "ralph-pipeline-07-context",
+    "created": true
+  },
+  "worktree": {
+    "path": "D:/harness-efforts/codexu/.ralph/jobs/ralph-pipeline-07-context/worktree",
+    "branch": "ralph-pipeline-07-context",
+    "startPoint": "main"
+  },
+  "baseBranch": "main",
+  "planReviewContext": [
+    {
+      "id": "F-001",
+      "severity": "High",
+      "description": "toPipelineState currently receives only `bundle` and does not carry repoRoot. Pass repoRoot to toPipelineState (second positional arg) and update the call site in assembleStateFromBundles.",
+      "classification": "prd-worthy",
+      "source": "consensus",
+      "category": "Feasibility",
+      "relevantFiles": [
+        "scripts/lib/sync-core.mjs"
+      ],
+      "suggestedFix": "Specify in the Modify section that the implementation passes `repoRoot` to `toPipelineState` (either as a second positional arg or by attaching `bundle.repoRoot` during bundle assembly). Update the call site in `assembleStateFromBundles`."
+    },
+    {
+      "id": "F-002",
+      "severity": "High",
+      "description": "mergeCommit derivation: pass `stage` into derivePRLinks; resolve mergeCommit only when stage==='shipped' via single-ref `git rev-parse <branchName>` (full SHA, shortened in JS via slice(0,8)).",
+      "classification": "prd-worthy",
+      "source": "consensus",
+      "category": "Feasibility",
+      "relevantFiles": [
+        "scripts/lib/derive-pr-links.mjs"
+      ],
+      "suggestedFix": "Pass `stage` into derivePRLinks and only resolve mergeCommit when stage==='shipped' via `git rev-parse <branchName>` (single ref, full SHA, shortened in JS)."
+    },
+    {
+      "id": "F-003",
+      "severity": "High",
+      "description": "derive-pr-links must wrap all execFileSync calls in try/catch. On any failure (missing branch, origin lookup throws, empty git log), return { branchName, prUrl: undefined, mergeCommit: undefined } instead of throwing.",
+      "classification": "prd-worthy",
+      "source": "consensus",
+      "category": "Feasibility",
+      "relevantFiles": [
+        "scripts/lib/derive-pr-links.mjs"
+      ],
+      "suggestedFix": "Wrap all `execFileSync` calls in try/catch; on failure return `{ branchName, prUrl: undefined, mergeCommit: undefined }`. Add AC sub-bullet: 'Handles missing/deleted branches and origin-resolution failures by returning undefined fields rather than throwing.' Add tests for: branch does not exist, `git remote get-url origin` fails, `git log` empty output."
+    },
+    {
+      "id": "F-004",
+      "severity": "High",
+      "description": "RecentActivity prop name must be `activityEvents` (not `events`) consistently across the component and App.tsx integration. Following inconsistent naming produces a TypeScript failure.",
+      "classification": "prd-worthy",
+      "source": "codex",
+      "category": "Completeness",
+      "relevantFiles": [
+        "tools/overview-viewer/src/components/RecentActivity.tsx",
+        "tools/overview-viewer/src/App.tsx"
+      ],
+      "suggestedFix": "Pick one prop name (`activityEvents` is more explicit) and use it consistently in both sections. Update App.tsx integration snippet to match."
+    }
+  ],
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "parse-notepad helper",
+      "description": "As a sync-pipeline maintainer, I want a pure markdown-table parser for the notepad's Deferred Questions section so that I can surface unanswered-question counts in the dashboard tooltip.",
+      "acceptanceCriteria": [
+        "`scripts/lib/parse-notepad.mjs` exports `parseNotepad(text) → { deferredQuestionsCount, deferredQuestionsPreview, storyDoctorInterventions }`",
+        "Counts rows with empty `Answer` column in `## Deferred Questions` section as unanswered",
+        "`deferredQuestionsPreview` is the first unanswered question text trimmed to ≤120 chars",
+        "`storyDoctorInterventions` counts non-empty data rows in `## Story Doctor Log` section",
+        "Malformed table → zero counts plus deduped stderr warn (never throws)",
+        "Vitest fixtures cover: empty input, no section present, 3-questions-2-answered (count=1), malformed table (zero counts + stderr warn observed), story-doctor row counting (2 non-empty rows → storyDoctorInterventions=2)",
+        "`scripts/lib/parse-notepad.d.mts` declarations file written",
+        "Typecheck passes (`pnpm --filter @codexu/overview-viewer typecheck`)"
+      ],
+      "priority": 1,
+      "passes": true,
+      "notes": "Pure function, no I/O. Lands first because integration step (US-005) depends on its export signature.",
+      "verifiedEvidence": [
+        {
+          "criterion": "`scripts/lib/parse-notepad.mjs` exports `parseNotepad(text) -> { deferredQuestionsCount, deferredQuestionsPreview, storyDoctorInterventions }`",
+          "command": "grep -n \"export function parseNotepad\" scripts/lib/parse-notepad.mjs && grep -n \"export function parseNotepad\" scripts/lib/parse-notepad.d.mts",
+          "result": "parse-notepad.mjs line 3 exports parseNotepad; parse-notepad.d.mts line 7 declares parseNotepad(text: string): ParsedNotepad."
+        },
+        {
+          "criterion": "Counts rows with empty `Answer` column in `## Deferred Questions` section as unanswered",
+          "command": "pnpm exec vitest run scripts/lib/parse-notepad.test.mjs",
+          "result": "PASS: 1 test file, 6 tests; includes fixture with 3 deferred questions / 2 answered / count=1."
+        },
+        {
+          "criterion": "`deferredQuestionsPreview` is the first unanswered question text trimmed to <=120 chars",
+          "command": "grep -n \"deferredQuestionsPreview\" scripts/lib/parse-notepad.test.mjs",
+          "result": "Tests assert first unanswered preview text and a 130-character question trimmed to exactly 120 characters."
+        },
+        {
+          "criterion": "`storyDoctorInterventions` counts non-empty data rows in `## Story Doctor Log` section",
+          "command": "pnpm exec vitest run scripts/lib/parse-notepad.test.mjs",
+          "result": "PASS: story-doctor fixture has 2 non-empty rows and expects storyDoctorInterventions=2."
+        },
+        {
+          "criterion": "Malformed table -> zero counts plus deduped stderr warn (never throws)",
+          "command": "pnpm exec vitest run scripts/lib/parse-notepad.test.mjs",
+          "result": "PASS: malformed-table test expects zero counts, invokes parse twice, and observes one stderr warning."
+        },
+        {
+          "criterion": "Vitest fixtures cover empty input, no section, 3-questions-2-answered, malformed table, story-doctor rows",
+          "command": "pnpm exec vitest run scripts/lib/parse-notepad.test.mjs",
+          "result": "PASS: scripts/lib/parse-notepad.test.mjs ran 6 tests, all passed."
+        },
+        {
+          "criterion": "`scripts/lib/parse-notepad.d.mts` declarations file written",
+          "command": "test -f scripts/lib/parse-notepad.d.mts && sed -n '1,20p' scripts/lib/parse-notepad.d.mts",
+          "result": "Declaration file exists and defines ParsedNotepad plus parseNotepad(text: string): ParsedNotepad."
+        },
+        {
+          "criterion": "Typecheck passes (`pnpm --filter @codexu/overview-viewer typecheck`)",
+          "command": "pnpm --filter @codexu/overview-viewer typecheck",
+          "result": "PASS: tsc --noEmit completed with exit=0."
+        }
+      ],
+      "dependencies": [],
+      "failureClassification": "",
+      "partialProgress": null
+    },
+    {
+      "id": "US-002",
+      "title": "derive-pr-links helper",
+      "description": "As a dashboard user, I want chip tooltips to show clickable PR URLs and merge SHAs so I can navigate from a task to its review.",
+      "acceptanceCriteria": [
+        "`scripts/lib/derive-pr-links.mjs` exports `derivePRLinks({ groupState?, repoRoot, branchName, stage, originUrl? }) → { branchName?, prUrl?, mergeCommit? }`",
+        "Reads `groupState.prUrl` defensively (returns undefined if absent — group.json does not currently carry it)",
+        "Falls back to `execFileSync('git', ['-C', repoRoot, 'log', '--format=%H%n%s%n%b', '-n', '5', branchName])` and regex-scans for `https://github.com/.../pull/N` or `Closes #N`",
+        "F-011: Skip git invocations entirely when `branchName` is falsy. Caller memoizes `git remote get-url origin` per sync pass and passes resolved `originUrl` in. Always wrap every git call in try/catch — never throw",
+        "F-002: `mergeCommit` resolved only when `stage === 'shipped'` via single-ref `execFileSync('git', ['-C', repoRoot, 'rev-parse', branchName])`, then shorten with JS `.slice(0, 8)`",
+        "`Closes #N` reconstruction only when `originUrl` is a parseable GitHub URL. Non-GitHub remotes → `prUrl=undefined`",
+        "F-003: Missing/deleted branches, empty git log output, and origin lookup failures return the known `branchName` with `prUrl` / `mergeCommit` left undefined (never throws)",
+        "Uses `execFileSync` exclusively — never shell-string interpolation (Windows safety + injection avoidance)",
+        "Vitest cases cover: direct URL match, resolvable `Closes #N` with GitHub origin, unresolvable `Closes #N`, no PR reference, missing branch where git log throws, empty git log output, origin lookup throwing, mergeCommit omitted for non-shipped stages, mergeCommit populated for shipped via rev-parse",
+        "`scripts/lib/derive-pr-links.d.mts` declarations file written",
+        "Typecheck passes"
+      ],
+      "priority": 2,
+      "passes": true,
+      "notes": "Pure function with execFileSync for git; mock in tests. Embeds F-002 (stage-aware mergeCommit), F-003 (graceful failure), F-011 (skip when branchName falsy, originUrl memoized by caller).",
+      "verifiedEvidence": [
+        {
+          "criterion": "`scripts/lib/derive-pr-links.mjs` exports `derivePRLinks({ groupState?, repoRoot, branchName, stage, originUrl? }) -> { branchName?, prUrl?, mergeCommit? }`",
+          "command": "grep -n \"export function derivePRLinks\" scripts/lib/derive-pr-links.mjs scripts/lib/derive-pr-links.d.mts",
+          "result": "PASS: derive-pr-links.mjs line 6 exports derivePRLinks with the requested object parameters; derive-pr-links.d.mts line 15 declares the typed return shape."
+        },
+        {
+          "criterion": "Reads `groupState.prUrl` defensively (returns undefined if absent -- group.json does not currently carry it)",
+          "command": "pnpm exec vitest run scripts/lib/derive-pr-links.test.mjs",
+          "result": "PASS: direct groupState.prUrl fixture returns the GitHub PR URL; fixtures without groupState.prUrl return no prUrl unless log discovery finds one."
+        },
+        {
+          "criterion": "Falls back to `execFileSync(git, [-C, repoRoot, log, --format=%H%n%s%n%b, -n, 5, branchName])` and regex-scans for PR URL or Closes #N",
+          "command": "grep -n \"execFileSync\" scripts/lib/derive-pr-links.mjs && pnpm exec vitest run scripts/lib/derive-pr-links.test.mjs",
+          "result": "PASS: line 25 uses git log with argv array; tests cover direct URL discovery and Closes #N reconstruction."
+        },
+        {
+          "criterion": "F-011: Skip git invocations entirely when `branchName` is falsy; caller may pass memoized `originUrl`; every git call wrapped in try/catch",
+          "command": "pnpm exec vitest run scripts/lib/derive-pr-links.test.mjs",
+          "result": "PASS: branchName-absent fixture asserts execFileSync was not called; source wraps log, remote origin, and rev-parse calls in try/catch."
+        },
+        {
+          "criterion": "F-002: `mergeCommit` resolved only when `stage === shipped` via single-ref rev-parse, shortened with `.slice(0, 8)`",
+          "command": "pnpm exec vitest run scripts/lib/derive-pr-links.test.mjs",
+          "result": "PASS: non-shipped fixture asserts no rev-parse; shipped fixture expects git rev-parse <branchName> and mergeCommit 12345678."
+        },
+        {
+          "criterion": "`Closes #N` reconstruction only when `originUrl` is a parseable GitHub URL; non-GitHub remotes yield undefined prUrl",
+          "command": "pnpm exec vitest run scripts/lib/derive-pr-links.test.mjs",
+          "result": "PASS: GitHub SSH origin reconstructs https://github.com/slopus/happy/pull/77; non-GitHub origin leaves prUrl undefined."
+        },
+        {
+          "criterion": "F-003: Missing/deleted branches, empty git log output, and origin lookup failures return known branchName with prUrl/mergeCommit undefined (never throws)",
+          "command": "pnpm exec vitest run scripts/lib/derive-pr-links.test.mjs",
+          "result": "PASS: tests cover git log throw, empty log, and origin lookup throw; each returns { branchName } without throwing."
+        },
+        {
+          "criterion": "Uses `execFileSync` exclusively -- never shell-string interpolation",
+          "command": "grep -n \"execFileSync\" scripts/lib/derive-pr-links.mjs",
+          "result": "PASS: all git invocations use execFileSync(git, [...]) argv arrays at lines 25, 37, and 69; no shell-string git execution is present."
+        },
+        {
+          "criterion": "Vitest cases cover direct URL, Closes #N, unresolved Closes, no reference, missing branch, empty log, origin throw, non-shipped merge omission, shipped merge population",
+          "command": "grep -nE \"direct GitHub|Closes #N|non-GitHub|no PR reference|missing branch|empty|origin lookup|non-shipped|shipped\" scripts/lib/derive-pr-links.test.mjs && pnpm exec vitest run scripts/lib/derive-pr-links.test.mjs",
+          "result": "PASS: scripts/lib/derive-pr-links.test.mjs ran 10 tests, all passed; grep showed all required case labels."
+        },
+        {
+          "criterion": "`scripts/lib/derive-pr-links.d.mts` declarations file written",
+          "command": "test -f scripts/lib/derive-pr-links.d.mts && sed -n 1,80p scripts/lib/derive-pr-links.d.mts",
+          "result": "PASS: declaration file exists and defines DerivePRLinksOptions, DerivedPRLinks, and derivePRLinks(options)."
+        },
+        {
+          "criterion": "Typecheck passes",
+          "command": "pnpm --filter @codexu/overview-viewer typecheck",
+          "result": "PASS: tsc --noEmit completed with exit=0; log captured at .test-output/overview-viewer.typecheck.log."
+        }
+      ],
+      "dependencies": [],
+      "failureClassification": "",
+      "partialProgress": null
+    },
+    {
+      "id": "US-003",
+      "title": "append-journal helper",
+      "description": "As a sync-pipeline maintainer, I want per-task journal lines appended atomically on stage transitions so the dashboard surface can later display them.",
+      "acceptanceCriteria": [
+        "F-008: `scripts/lib/append-journal.mjs` exports `appendJournalEntry({ repoRoot, taskId, ts, prevStage, newStage, slug })` taking semantic inputs (NOT a pre-formatted line) and formats internally",
+        "F-008: Also exports `formatJournalLine({ ts, prevStage, newStage, slug })` for test introspection",
+        "Internal format: `- <ISO ts>  stage: <prev> → <new>  (job: <slug>)\\n`",
+        "Atomic append via `fs.openSync(path, 'a')` + `writeSync` + `fsyncSync` + `closeSync` (mirror of `scripts/lib/emit-activity.mjs` lines 7–34)",
+        "Creates `tasks/<taskId>/` directory on first call (idempotent — second call does not fail)",
+        "Rejects taskIds containing `/`, `\\`, or `..` (path-traversal guard — throws)",
+        "Two consecutive calls produce two lines in `tasks/<taskId>/journal.md`",
+        "Vitest covers: normal append, directory creation idempotency, path-traversal rejection (taskId `../etc/passwd` throws), formatJournalLine exact-string output match",
+        "`scripts/lib/append-journal.d.mts` declarations file written",
+        "Typecheck passes"
+      ],
+      "priority": 3,
+      "passes": true,
+      "notes": "Mirror of emit-activity.mjs pattern. Embeds F-008 (semantic inputs, internal formatting, formatJournalLine export). Path-traversal guard is mandatory.",
+      "verifiedEvidence": [
+        {
+          "criterion": "F-008: appendJournalEntry exports semantic-input helper and formats internally",
+          "command": "grep -n \"export function appendJournalEntry\" scripts/lib/append-journal.mjs scripts/lib/append-journal.d.mts && pnpm exec vitest run scripts/lib/append-journal.test.mjs",
+          "result": "PASS: implementation export at append-journal.mjs:4 and declaration export at append-journal.d.mts:17; Vitest passed 4/4 tests including semantic-input append."
+        },
+        {
+          "criterion": "F-008: formatJournalLine export for test introspection",
+          "command": "grep -n \"export function formatJournalLine\" scripts/lib/append-journal.mjs scripts/lib/append-journal.d.mts",
+          "result": "PASS: formatJournalLine is exported from append-journal.mjs:27 and declared in append-journal.d.mts:19."
+        },
+        {
+          "criterion": "Internal format: `- <ISO ts>  stage: <prev> → <new>  (job: <slug>)\n`",
+          "command": "grep -n \"stage: .*→\" scripts/lib/append-journal.mjs scripts/lib/append-journal.test.mjs",
+          "result": "PASS: append-journal.mjs:28 formats the exact required line; test exact-string assertions cover planned→implementing and reviewing→shipped examples."
+        },
+        {
+          "criterion": "Atomic append via fs.openSync(path, 'a') + writeSync + fsyncSync + closeSync",
+          "command": "grep -nE \"fs.openSync|fs.writeSync|fs.fsyncSync|fs.closeSync\" scripts/lib/append-journal.mjs",
+          "result": "PASS: append-journal.mjs lines 17-22 use openSync('a'), writeSync, fsyncSync, and closeSync in a finally block."
+        },
+        {
+          "criterion": "Creates tasks/<taskId>/ directory on first call and remains idempotent",
+          "command": "grep -nE \"mkdirSync|creates the task directory idempotently\" scripts/lib/append-journal.mjs scripts/lib/append-journal.test.mjs && pnpm exec vitest run scripts/lib/append-journal.test.mjs",
+          "result": "PASS: append-journal.mjs:14 uses mkdirSync(..., { recursive: true }); Vitest passed the two-call idempotency test."
+        },
+        {
+          "criterion": "Rejects taskIds containing slash, backslash, or dot-dot",
+          "command": "grep -n \"taskId.includes\" scripts/lib/append-journal.mjs && grep -n \"../etc/passwd\" scripts/lib/append-journal.test.mjs",
+          "result": "PASS: append-journal.mjs:35 rejects slash, backslash, and dot-dot; test fixture asserts '../etc/passwd' throws invalid taskId."
+        },
+        {
+          "criterion": "Two consecutive calls produce two lines in tasks/<taskId>/journal.md",
+          "command": "pnpm exec vitest run scripts/lib/append-journal.test.mjs",
+          "result": "PASS: Vitest passed 4/4 tests; idempotency fixture appends two consecutive entries and asserts the two-line journal.md content."
+        },
+        {
+          "criterion": "Vitest covers normal append, directory creation idempotency, path-traversal rejection, exact formatJournalLine output",
+          "command": "grep -nE \"appends a journal line|creates the task directory idempotently|rejects path-traversal|formatJournalLine\" scripts/lib/append-journal.test.mjs && pnpm exec vitest run scripts/lib/append-journal.test.mjs",
+          "result": "PASS: test labels for all required cases are present; scripts/lib/append-journal.test.mjs passed 4/4 tests."
+        },
+        {
+          "criterion": "`scripts/lib/append-journal.d.mts` declarations file written",
+          "command": "test -f scripts/lib/append-journal.d.mts && sed -n '1,80p' scripts/lib/append-journal.d.mts",
+          "result": "PASS: declaration file exists and declares AppendJournalEntryOptions, FormatJournalLineOptions, appendJournalEntry, and formatJournalLine."
+        },
+        {
+          "criterion": "Typecheck passes",
+          "command": "pnpm --filter @codexu/overview-viewer typecheck",
+          "result": "PASS: tsc --noEmit completed with exit=0; log captured at .test-output/overview-viewer.typecheck.log."
+        }
+      ],
+      "dependencies": [],
+      "failureClassification": "",
+      "partialProgress": null
+    },
+    {
+      "id": "US-004",
+      "title": "Extend RalphPipelineState and snapshot schema",
+      "description": "As a TypeScript consumer of RalphPipelineState, I want the six new optional fields declared so the viewer can type-safely use them.",
+      "acceptanceCriteria": [
+        "`tools/overview-viewer/src/types.ts` extends `RalphPipelineState` (lines 61–75) with six new optional fields in alphabetical order to minimize Plan 06 merge friction: `branchName?: string`, `deferredQuestionsCount?: number`, `deferredQuestionsPreview?: string`, `mergeCommit?: string`, `prUrl?: string`, `storyDoctorInterventions?: number`",
+        "`scripts/lib/emit-snapshot-schema.mjs` declares the six fields as optional under `SNAPSHOT_SCHEMA.tasks[*].ralph`",
+        "All six fields are optional — existing snapshot consumers untouched (additive only)",
+        "`pnpm --filter @codexu/overview-viewer typecheck` passes",
+        "`pnpm test` for `scripts/lib/emit-snapshot.test.mjs` still passes (no schema regression)",
+        "An additional test asserts `validateSnapshot` does NOT reject a snapshot with the new optional fields populated",
+        "Typecheck passes"
+      ],
+      "priority": 4,
+      "passes": true,
+      "notes": "Additive only. Field ordering matters for parallel-safety with Plan 06's NextCommand addition.",
+      "verifiedEvidence": [
+        {
+          "criterion": "`tools/overview-viewer/src/types.ts` extends `RalphPipelineState` with six new optional fields in alphabetical order",
+          "command": "grep -nE 'branchName|deferredQuestionsCount|deferredQuestionsPreview|mergeCommit|prUrl|storyDoctorInterventions' tools/overview-viewer/src/types.ts",
+          "result": "PASS: lines 63-68 define branchName, deferredQuestionsCount, deferredQuestionsPreview, mergeCommit, prUrl, and storyDoctorInterventions as optional fields in the requested order."
+        },
+        {
+          "criterion": "`scripts/lib/emit-snapshot-schema.mjs` declares the six fields as optional under `SNAPSHOT_SCHEMA.tasks[*].ralph`",
+          "command": "grep -nE 'branchName|deferredQuestionsCount|deferredQuestionsPreview|mergeCommit|prUrl|storyDoctorInterventions' scripts/lib/emit-snapshot-schema.mjs",
+          "result": "PASS: RalphPipelineState schema properties include all six Plan 07 fields at lines 125-130."
+        },
+        {
+          "criterion": "All six fields are optional -- existing snapshot consumers untouched (additive only)",
+          "command": "pnpm exec vitest run scripts/lib/emit-snapshot-schema.test.mjs",
+          "result": "PASS: 1 test file, 3 tests; legacy minimal snapshot still validates, proving the new fields are optional/additive."
+        },
+        {
+          "criterion": "`pnpm --filter @codexu/overview-viewer typecheck` passes",
+          "command": "pnpm --filter @codexu/overview-viewer typecheck",
+          "result": "PASS: tsc --noEmit completed with exit=0; log captured at .test-output/overview-viewer.typecheck.log."
+        },
+        {
+          "criterion": "`pnpm test` for `scripts/lib/emit-snapshot.test.mjs` still passes (no schema regression)",
+          "command": "pnpm test -- scripts/lib/emit-snapshot.test.mjs",
+          "result": "PASS: command completed with exit=0; Vitest ran the scripts project and reported 15 test files passed, 90 tests passed, including scripts/lib/emit-snapshot.test.mjs (2 tests)."
+        },
+        {
+          "criterion": "An additional test asserts `validateSnapshot` does NOT reject a snapshot with the new optional fields populated",
+          "command": "grep -nE 'accepts Ralph state with Plan 07 optional context fields populated|branchName|storyDoctorInterventions' scripts/lib/emit-snapshot-schema.test.mjs && pnpm exec vitest run scripts/lib/emit-snapshot-schema.test.mjs",
+          "result": "PASS: new Ajv validation test is present at line 70 and populated fields at lines 83-88; schema test passed 3/3 tests."
+        },
+        {
+          "criterion": "Typecheck passes",
+          "command": "pnpm --filter @codexu/overview-viewer typecheck",
+          "result": "PASS: tsc --noEmit completed with exit=0; log captured at .test-output/overview-viewer.typecheck.log."
+        }
+      ],
+      "dependencies": [
+        "US-001",
+        "US-002",
+        "US-003"
+      ],
+      "failureClassification": "",
+      "partialProgress": null
+    },
+    {
+      "id": "US-005",
+      "title": "Wire helpers into sync-core, watcher, and one-shot CLI",
+      "description": "As the sync pipeline, I want to call the new helpers per bundle and append journals at the right lock window so the dashboard data plane stays consistent.",
+      "acceptanceCriteria": [
+        "`readJobLikeBundles()` in `scripts/lib/sync-core.mjs` reads `<bundle.dir>/notepad.md` (best-effort, missing file → empty string) and attaches as `bundle.notepadText`",
+        "F-001: `toPipelineState(bundle, repoRoot)` accepts `repoRoot` as second positional arg; `assembleStateFromBundles` updates its call site to pass the already-resolved `absoluteRepoRoot` into `toPipelineState(winner, absoluteRepoRoot)` when building `byTaskId`",
+        "`toPipelineState` calls `parseNotepad(bundle.notepadText ?? '')` and merges `deferredQuestionsCount`, `deferredQuestionsPreview`, `storyDoctorInterventions` into the returned state",
+        "After deriving `stage`, `toPipelineState` calls `derivePRLinks({ groupState: bundle.groupJson, repoRoot, branchName: bundle.prd?.branch?.name, stage, originUrl })` and merges `branchName`, `prUrl`, `mergeCommit`",
+        "F-011: `assembleStateFromBundles` memoizes `git remote get-url origin` once per sync pass (single `execFileSync` call wrapped in try/catch) and threads `originUrl` through to each `derivePRLinks` call",
+        "`scripts/lib/watch-ralph-state.mjs` invokes `appendJournalEntry({ repoRoot, taskId: event.taskId, ts, prevStage, newStage, slug })` for each activity event where `changedFields.includes('stage')`, inside the existing sync-lock window (before lock release)",
+        "`scripts/sync-ralph-state.mjs` (one-shot CLI) performs the same journal-append step, symmetrically",
+        "F-013: `scripts/lib/sync-core.d.mts` updated to include the optional `notepadText` field on the bundle shape (if a typed bundle shape is exported)",
+        "F-012: Unit tests in `scripts/lib/watch-ralph-state.test.mjs` and `scripts/sync-ralph-state.test.mjs` mock `appendJournalEntry` and assert it is invoked exactly once per stage-changed activity event with the expected `{repoRoot, taskId, prevStage, newStage, slug, ts}` arguments",
+        "F-007 (AC-6 split): Sync output (overview-snapshot.json) verified per sub-case: 6a notepad fields from 3-question fixture (count/preview/storyDoctorInterventions populated), 6b branchName from prd.branch.name, 6c prUrl from mocked `Closes #N` + resolvable origin, 6d mergeCommit populated only when stage='shipped', 6e no sync failure when branch absent in working repo",
+        "Existing tests remain green: `sync-core.test.mjs`, `emit-activity.test.mjs`, `plan05-acceptance.test.mjs`, `emit-snapshot.test.mjs`",
+        "Typecheck passes",
+        "Tests pass (`pnpm test` and `pnpm --filter @codexu/overview-viewer test`)"
+      ],
+      "priority": 5,
+      "passes": true,
+      "notes": "Largest story. Embeds F-001 (toPipelineState signature change + call-site update), F-007 (AC-6 split into 5 sub-cases), F-011 (origin memoization), F-012 (watcher+oneshot unit tests), F-013 (sync-core.d.mts update). Both call sites must be symmetric — future refactor could extract a shared helper.",
+      "verifiedEvidence": [
+        {
+          "criterion": "`readJobLikeBundles()` reads `<bundle.dir>/notepad.md` best-effort and attaches `bundle.notepadText`",
+          "command": "grep -nE 'notepadText|readTextFile' scripts/lib/sync-core.mjs scripts/lib/sync-core.d.mts && pnpm exec vitest run scripts/lib/sync-core.test.mjs",
+          "result": "PASS: sync-core.mjs reads notepad.md via readTextFile at line 507, attaches notepadText at line 524, and sync-core.d.mts declares notepadText; sync-core.test.mjs passed 23/23 tests including no-notepad legacy fixtures."
+        },
+        {
+          "criterion": "F-001: `toPipelineState(bundle, repoRoot)` accepts repoRoot and assembleStateFromBundles passes absoluteRepoRoot",
+          "command": "grep -nE 'toPipelineState(winner, absoluteRepoRoot|function toPipelineState(bundle, repoRoot' scripts/lib/sync-core.mjs",
+          "result": "PASS: assembleStateFromBundles calls toPipelineState(winner, absoluteRepoRoot, originUrl) at line 140; toPipelineState accepts repoRoot at line 617."
+        },
+        {
+          "criterion": "`toPipelineState` calls `parseNotepad(bundle.notepadText ?? '')` and merges deferred/story-doctor fields",
+          "command": "grep -nE 'parseNotepad|deferredQuestionsCount|deferredQuestionsPreview|storyDoctorInterventions' scripts/lib/sync-core.mjs scripts/lib/sync-core.test.mjs",
+          "result": "PASS: source calls parseNotepad at line 633 and returns deferredQuestionsCount, deferredQuestionsPreview, and storyDoctorInterventions; Plan 07 sync-core fixture asserts count=1, preview text, and storyDoctorInterventions=2."
+        },
+        {
+          "criterion": "After deriving stage, `toPipelineState` calls `derivePRLinks({ groupState, repoRoot, branchName, stage, originUrl })` and merges branchName/prUrl/mergeCommit",
+          "command": "grep -nE 'derivePRLinks|branchName: bundle.prd|mergeCommit|prUrl' scripts/lib/sync-core.mjs scripts/lib/sync-core.test.mjs",
+          "result": "PASS: source calls derivePRLinks with groupState, repoRoot, branchName, stage, and originUrl at lines 634-640 and merges branchName, prUrl, and mergeCommit; Plan 07 fixture asserts all three populated."
+        },
+        {
+          "criterion": "F-011: `assembleStateFromBundles` memoizes `git remote get-url origin` once per sync pass and threads `originUrl` through",
+          "command": "grep -nE 'const originUrl|resolveOriginUrl|originUrl,' scripts/lib/sync-core.mjs && pnpm exec vitest run scripts/lib/sync-core.test.mjs",
+          "result": "PASS: source computes a single originUrl before the byTaskId loop, resolveOriginUrl wraps execFileSync in try/catch, and sync-core tests passed 23/23 including missing-branch/no-sync-failure coverage."
+        },
+        {
+          "criterion": "`scripts/lib/watch-ralph-state.mjs` appends journals for stage-changed activity events inside the sync-lock window",
+          "command": "grep -nE 'appendJournalEntry|appendJournalForStageEvent' scripts/lib/watch-ralph-state.mjs scripts/lib/watch-ralph-state.test.mjs && pnpm exec vitest run scripts/lib/watch-ralph-state.test.mjs",
+          "result": "PASS: watcher imports appendJournalEntry and calls appendJournalForStageEvent immediately after appendActivity and before lock touch/release; watcher tests passed 3/3 and assert exactly one journal call for the stage-changed event."
+        },
+        {
+          "criterion": "`scripts/sync-ralph-state.mjs` one-shot CLI performs the same journal-append step symmetrically",
+          "command": "grep -nE 'appendJournalEntry|appendJournalForStageEvent' scripts/sync-ralph-state.mjs scripts/sync-ralph-state.test.mjs && pnpm exec vitest run scripts/sync-ralph-state.test.mjs",
+          "result": "PASS: one-shot CLI imports appendJournalEntry and calls appendJournalForStageEvent after appendActivity before releaseLock; scripts/sync-ralph-state.test.mjs passed 1/1 and asserts exactly one journal call for the stage-changed event."
+        },
+        {
+          "criterion": "F-013: `scripts/lib/sync-core.d.mts` includes optional `notepadText` on bundle shape",
+          "command": "grep -n 'notepadText' scripts/lib/sync-core.d.mts",
+          "result": "PASS: sync-core.d.mts declares `notepadText?: string` on RalphArtifactBundle."
+        },
+        {
+          "criterion": "F-012: watcher and one-shot unit tests mock `appendJournalEntry` and assert expected args exactly once per stage-changed event",
+          "command": "pnpm exec vitest run scripts/lib/watch-ralph-state.test.mjs scripts/sync-ralph-state.test.mjs",
+          "result": "PASS: 2 test files passed, 4 tests passed; watcher and one-shot fixtures each mock appendJournalEntry and assert one call with repoRoot, taskId, prevStage, newStage, slug, and ts."
+        },
+        {
+          "criterion": "F-007 AC-6 split: generated overview-snapshot carries notepad fields, branchName, prUrl, shipped-only mergeCommit, and missing branch does not fail sync",
+          "command": "pnpm exec vitest run scripts/lib/sync-core.test.mjs",
+          "result": "PASS: 1 test file passed, 23 tests passed; Plan 07 fixture writes overview-snapshot.json and asserts deferredQuestionsCount=1, preview, storyDoctorInterventions=2, branchName, Closes #77-derived prUrl, shipped mergeCommit, plus a missing-branch fixture with undefined prUrl/mergeCommit and no throw."
+        },
+        {
+          "criterion": "Existing tests remain green: `sync-core.test.mjs`, `emit-activity.test.mjs`, `plan05-acceptance.test.mjs`, `emit-snapshot.test.mjs`",
+          "command": "pnpm exec vitest run scripts/lib/sync-core.test.mjs scripts/lib/emit-activity.test.mjs scripts/lib/plan05-acceptance.test.mjs scripts/lib/emit-snapshot.test.mjs",
+          "result": "PASS: 4 test files passed, 37 tests passed."
+        },
+        {
+          "criterion": "Typecheck passes",
+          "command": "pnpm --filter @codexu/overview-viewer typecheck",
+          "result": "PASS: tsc --noEmit completed with exit=0."
+        },
+        {
+          "criterion": "Tests pass (`pnpm test` and `pnpm --filter @codexu/overview-viewer test`)",
+          "command": "pnpm test && pnpm --filter @codexu/overview-viewer test",
+          "result": "PASS: pnpm test reported 16 files / 93 tests passed; overview-viewer test reported 29 files / 159 tests passed."
+        }
+      ],
+      "dependencies": [
+        "US-001",
+        "US-002",
+        "US-003",
+        "US-004"
+      ],
+      "failureClassification": "",
+      "partialProgress": null
+    },
+    {
+      "id": "US-006",
+      "title": "useActivityEvents hook and Vite middleware",
+      "description": "As the viewer, I want a hook that fetches the activity JSONL and re-fetches on HMR so the RecentActivity sidebar stays fresh.",
+      "acceptanceCriteria": [
+        "`tools/overview-viewer/src/hooks/useActivityEvents.ts` fetches `./overview-activity.jsonl?t=<Date.now()>` (cache-bust) and parses JSONL line-by-line",
+        "On `JSON.parse` failure of the LAST line only: skip silently (torn-write tolerance)",
+        "On `JSON.parse` failure of an INTERIOR line: console.warn and skip (don't crash)",
+        "Subscribes to `import.meta.hot.on('overview-ralph-state:update', refetch)`; unsubscribes via `import.meta.hot?.off(...)` on unmount, including under React StrictMode double-invocation",
+        "Returns `ActivityEvent[]` newest-first",
+        "Tolerates missing file (returns empty array without crashing)",
+        "Tolerates `file://` open where fetch throws (returns empty array)",
+        "F-005: `tools/overview-viewer/vite.config.ts` adds a new `overviewActivityPlugin()` modelled on the existing `overviewRalphStatePlugin()` with `enforce: 'pre'`",
+        "F-005: The plugin's `configureServer` hook registers middleware for GET `/overview-activity.jsonl` serving from `plans/overview-activity.jsonl`",
+        "F-005: On ENOENT, responds `res.statusCode = 200; res.end('')` (NOT 404)",
+        "F-005: Plugin registered in `plugins:` BEFORE the SPA fallback (verify by curl `http://localhost:<port>/overview-activity.jsonl` returns JSONL or empty body, not the SPA HTML)",
+        "`tools/overview-viewer/src/__tests__/scripts.d.ts` updated alongside the new helpers (parser, PR-links, journal module shapes)",
+        "Vitest covers the hook: mock fetch returning multi-line JSONL, torn-last-line skip, interior parse-failure warn, ENOENT → empty array, fetch-throws → empty array",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill (HMR refresh triggers refetch after a `job-state.json` stage flip)"
+      ],
+      "priority": 6,
+      "passes": true,
+      "notes": "Embeds F-005 (new overviewActivityPlugin with enforce='pre', ENOENT → 200 '', registered before SPA fallback).",
+      "verifiedEvidence": [
+        {
+          "criterion": "Hook fetches cache-busted activity JSONL and parses line-by-line",
+          "command": "grep -nE \"overview-activity.jsonl|Date.now|parseActivityJsonl|JSON.parse\" tools/overview-viewer/src/hooks/useActivityEvents.ts && pnpm --filter @codexu/overview-viewer exec vitest run src/__tests__/interactions/useActivityEvents.test.tsx",
+          "result": "PASS: fetch uses ./overview-activity.jsonl?t=${Date.now()}; parseActivityJsonl parses each JSONL line; hook tests passed 5/5."
+        },
+        {
+          "criterion": "LAST-line JSON.parse failure is skipped silently",
+          "command": "pnpm --filter @codexu/overview-viewer exec vitest run src/__tests__/interactions/useActivityEvents.test.tsx",
+          "result": "PASS: torn final non-empty line fixture passed and asserted console.warn was not called."
+        },
+        {
+          "criterion": "INTERIOR-line JSON.parse failure warns and skips",
+          "command": "pnpm --filter @codexu/overview-viewer exec vitest run src/__tests__/interactions/useActivityEvents.test.tsx",
+          "result": "PASS: malformed interior fixture passed and asserted console.warn while retaining valid surrounding events."
+        },
+        {
+          "criterion": "HMR subscribe/unsubscribe on overview-ralph-state:update",
+          "command": "grep -nE \"import.meta.hot|overview-ralph-state:update|off?.\" tools/overview-viewer/src/hooks/useActivityEvents.ts && pnpm --filter @codexu/overview-viewer typecheck",
+          "result": "PASS: source registers import.meta.hot.on and cleanup calls import.meta.hot?.off?. with the same refetch callback; typecheck passed."
+        },
+        {
+          "criterion": "Returns ActivityEvent[] newest-first",
+          "command": "grep -n \"events.reverse\" tools/overview-viewer/src/hooks/useActivityEvents.ts && pnpm --filter @codexu/overview-viewer exec vitest run src/__tests__/interactions/useActivityEvents.test.tsx",
+          "result": "PASS: parser reverses events; test asserts newest-first task order [new, old]."
+        },
+        {
+          "criterion": "Missing activity file returns []",
+          "command": "pnpm --filter @codexu/overview-viewer exec vitest run src/__tests__/interactions/useActivityEvents.test.tsx",
+          "result": "PASS: non-ok fetch fixture returned an empty array without crashing."
+        },
+        {
+          "criterion": "file:// fetch throws returns []",
+          "command": "pnpm --filter @codexu/overview-viewer exec vitest run src/__tests__/interactions/useActivityEvents.test.tsx",
+          "result": "PASS: fetch TypeError fixture returned an empty array without crashing."
+        },
+        {
+          "criterion": "overviewActivityPlugin exists with enforce pre",
+          "command": "grep -nE \"overviewActivityPlugin|enforce: .pre.\" tools/overview-viewer/vite.config.ts tools/overview-viewer/src/__tests__/viteActivityPlugin.test.ts",
+          "result": "PASS: overviewActivityPlugin is exported, has enforce pre, and plugin test asserts that ordering contract."
+        },
+        {
+          "criterion": "Plugin middleware serves /overview-activity.jsonl from plans/overview-activity.jsonl",
+          "command": "grep -nE \"overviewActivityPath|server.middlewares.use(./overview-activity.jsonl\" tools/overview-viewer/vite.config.ts && pnpm --filter @codexu/overview-viewer exec vitest run src/__tests__/viteActivityPlugin.test.ts",
+          "result": "PASS: source resolves ../../plans/overview-activity.jsonl and registers /overview-activity.jsonl middleware; plugin tests passed 3/3."
+        },
+        {
+          "criterion": "ENOENT returns 200 empty body, not 404",
+          "command": "grep -nE \"ENOENT|statusCode = 200|res.end(.)\" tools/overview-viewer/vite.config.ts && pnpm --filter @codexu/overview-viewer exec vitest run src/__tests__/viteActivityPlugin.test.ts",
+          "result": "PASS: ENOENT branch sets statusCode 200 and empty body; plugin test asserted 200 with body \"\"."
+        },
+        {
+          "criterion": "Plugin registered before SPA fallback; curl endpoint is JSONL/empty, not HTML",
+          "command": "pnpm --dir tools/overview-viewer exec vite --host 127.0.0.1 --port 5187 + curl http://127.0.0.1:5187/overview-activity.jsonl",
+          "result": "PASS: curl returned HTTP 200, Content-Type application/x-ndjson, Content-Length 0, body size 0, and no SPA HTML."
+        },
+        {
+          "criterion": "scripts.d.ts updated for parser, PR-links, journal helpers",
+          "command": "grep -nE \"parse-notepad|derive-pr-links|append-journal|notepadText\" tools/overview-viewer/src/__tests__/scripts.d.ts",
+          "result": "PASS: scripts.d.ts declares parse-notepad, derive-pr-links, append-journal, and notepadText."
+        },
+        {
+          "criterion": "Vitest hook coverage for multi-line JSONL, torn-last-line, interior warn, ENOENT, fetch throws",
+          "command": "grep -nE \"cache-busted|newest-first|torn final|malformed interior|missing|fetch throws\" tools/overview-viewer/src/__tests__/interactions/useActivityEvents.test.tsx && pnpm --filter @codexu/overview-viewer exec vitest run src/__tests__/interactions/useActivityEvents.test.tsx",
+          "result": "PASS: required hook case labels are present and hook test file passed 5/5 tests."
+        },
+        {
+          "criterion": "Typecheck passes",
+          "command": "pnpm --filter @codexu/overview-viewer typecheck",
+          "result": "PASS: tsc --noEmit completed with exit=0; log captured at .test-output/overview-viewer.typecheck.log."
+        },
+        {
+          "criterion": "US-006:AC-015 browser HMR verification",
+          "command": "N/A",
+          "result": "SKIPPED: US-006:AC-015 browser automation unavailable; HMR refetch verification requires manual browser pass."
+        },
+        {
+          "criterion": "Full test commands pass",
+          "command": "pnpm test && pnpm --filter @codexu/overview-viewer test",
+          "result": "PASS: pnpm test reported 16 files / 93 tests passed; overview-viewer test reported 31 files / 167 tests passed."
+        }
+      ],
+      "dependencies": [
+        "US-004"
+      ],
+      "criteriaWarnings": [
+        {
+          "storyId": "US-006",
+          "acIndex": "AC-015",
+          "criterion": "Verify in browser using dev-browser skill (HMR refresh triggers refetch after a `job-state.json` stage flip)",
+          "warning": "US-006:AC-015 references browser/dev-browser verification; browser automation tools may be unavailable to the iteration agent",
+          "severity": "tool-availability",
+          "suggestedFallback": "If browser tooling is unavailable, record result: \"SKIPPED: browser automation unavailable; HMR refetch verification requires manual browser pass\" for US-006:AC-015.",
+          "source": "criteria-validator"
+        }
+      ],
+      "failureClassification": "",
+      "partialProgress": null
+    },
+    {
+      "id": "US-007",
+      "title": "RecentActivity sidebar, App integration, and styles",
+      "description": "As a dashboard user, I want a right-side panel showing the last 5–10 activity events with click-through navigation.",
+      "acceptanceCriteria": [
+        "F-009: `tools/overview-viewer/src/components/RecentActivity.tsx` accepts props `{ activityEvents: ActivityEvent[]; setFocusedTaskId: (id: string) => void; collapsed: boolean; onToggle: () => void }` (parent-controlled collapse)",
+        "F-004: Prop name is `activityEvents` (NOT `events`) consistently in component, types, and App.tsx integration",
+        "Renders the last 5–10 events newest-first; each entry is a clickable button",
+        "F-010: Render contract — when `newStage` is null, show `<taskId> removed`. Otherwise `<taskId> → <newStage>`. Vitest fixture-based render test covers null-newStage label",
+        "Each entry shows a relative timestamp",
+        "Empty state: `<aside className=\"recent-activity-sidebar empty\">No recent activity yet.</aside>`",
+        "`tools/overview-viewer/src/App.tsx` imports `RecentActivity` + `useActivityEvents` and renders `<RecentActivity activityEvents={useActivityEvents()} setFocusedTaskId={(id) => navigateToCommand(id, expandedControls.setTaskExpanded)} collapsed={collapsed} onToggle={...} />` in a new right column",
+        "Collapsed defaults to closed in compact density mode, open otherwise",
+        "Click-through navigation uses existing `tools/overview-viewer/src/utils/commandNavigation.ts` `navigateToCommand()` — no new plumbing",
+        "`tools/overview-viewer/src/styles.css` adds `.recent-activity-sidebar`, `.recent-activity-sidebar.empty`, `.tooltip-extras-row`, `.tooltip-extras-row a`",
+        "Vitest render test covers null-newStage label, empty-state render, click handler invocation",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill (sidebar renders newest-first, click navigates and expands task, empty state displays when JSONL absent, collapse toggle works)"
+      ],
+      "priority": 7,
+      "passes": true,
+      "notes": "Embeds F-004 (consistent activityEvents prop name), F-009 (parent-controlled collapse via collapsed+onToggle props), F-010 (null-newStage render contract).",
+      "verifiedEvidence": [
+        {
+          "criterion": "F-009: RecentActivity accepts activityEvents, setFocusedTaskId, collapsed, and onToggle props",
+          "command": "grep -nE \"export interface RecentActivityProps|activityEvents: ActivityEvent|setFocusedTaskId|collapsed: boolean|onToggle\" tools/overview-viewer/src/components/RecentActivity.tsx",
+          "result": "PASS: RecentActivityProps declares activityEvents, setFocusedTaskId, collapsed, and onToggle; component uses onToggle and setFocusedTaskId."
+        },
+        {
+          "criterion": "F-004: Prop name is activityEvents consistently in component, types, and App.tsx integration",
+          "command": "grep -nE \"activityEvents|RecentActivity|useActivityEvents|navigateToCommand|recentActivityCollapsed\" tools/overview-viewer/src/App.tsx tools/overview-viewer/src/components/RecentActivity.tsx",
+          "result": "PASS: App imports RecentActivity/useActivityEvents, stores activityEvents, and passes activityEvents={activityEvents}; no events prop was introduced."
+        },
+        {
+          "criterion": "Renders the last 5-10 events newest-first; each entry is a clickable button",
+          "command": "grep -nE \"sort((a, b)|slice(0, MAX_VISIBLE_EVENTS)|recent-activity-entry|newest-first\" tools/overview-viewer/src/components/RecentActivity.tsx tools/overview-viewer/src/__tests__/interactions/recentActivity.test.tsx && pnpm --filter @codexu/overview-viewer test",
+          "result": "PASS: component sorts by descending timestamp, slices to MAX_VISIBLE_EVENTS=10, renders button entries; overview tests passed 32 files / 174 tests."
+        },
+        {
+          "criterion": "F-010: null newStage label renders <taskId> removed; otherwise <taskId> -> <newStage>",
+          "command": "grep -nE \"activityLabel|removed|renders the null-newStage\" tools/overview-viewer/src/components/RecentActivity.tsx tools/overview-viewer/src/__tests__/interactions/recentActivity.test.tsx",
+          "result": "PASS: activityLabel returns \"deleted-task removed\" for null newStage and arrow labels otherwise; render test covers the null-newStage contract."
+        },
+        {
+          "criterion": "Each entry shows a relative timestamp",
+          "command": "grep -nE \"formatActivityRelativeTime|recent-activity-time|5 m ago|1 h ago\" tools/overview-viewer/src/components/RecentActivity.tsx tools/overview-viewer/src/__tests__/interactions/recentActivity.test.tsx",
+          "result": "PASS: entries render <time className=\"recent-activity-time\"> using formatActivityRelativeTime; tests assert 5 m ago and 1 h ago labels."
+        },
+        {
+          "criterion": "Empty state renders <aside className=\"recent-activity-sidebar empty\">No recent activity yet.</aside>",
+          "command": "grep -nE \"recent-activity-sidebar empty|No recent activity yet\" tools/overview-viewer/src/components/RecentActivity.tsx tools/overview-viewer/src/__tests__/interactions/recentActivity.test.tsx",
+          "result": "PASS: component returns the exact empty aside; test asserts container.innerHTML matches the required markup."
+        },
+        {
+          "criterion": "App imports RecentActivity + useActivityEvents and renders RecentActivity in a new right column",
+          "command": "grep -nE \"import { RecentActivity|useActivityEvents|<RecentActivity|overview-layout|overview-sidebar-column\" tools/overview-viewer/src/App.tsx tools/overview-viewer/src/components/TopLevelSurfaces.tsx tools/overview-viewer/src/styles.css",
+          "result": "PASS: App imports and renders RecentActivity with useActivityEvents output; Layout adds overview-main and overview-sidebar-column grid columns."
+        },
+        {
+          "criterion": "Collapsed defaults to closed in compact density mode, open otherwise",
+          "command": "grep -nE \"recentActivityCollapsed|defaults the sidebar open|defaults the sidebar collapsed\" tools/overview-viewer/src/App.tsx tools/overview-viewer/src/__tests__/interactions/recentActivity.test.tsx && pnpm --filter @codexu/overview-viewer test",
+          "result": "PASS: App initializes collapsed from density.density === \"compact\"; tests cover open default and compact collapsed default; overview tests passed 32 files / 174 tests."
+        },
+        {
+          "criterion": "Click-through navigation uses existing navigateToCommand()",
+          "command": "grep -nE \"setFocusedTaskId={(id) => navigateToCommand|invokes the click-through\" tools/overview-viewer/src/App.tsx tools/overview-viewer/src/__tests__/interactions/recentActivity.test.tsx",
+          "result": "PASS: App passes setFocusedTaskId through navigateToCommand(id, expandedControls.setTaskExpanded); test asserts entry clicks invoke the handler."
+        },
+        {
+          "criterion": "styles.css adds recent activity and tooltip extras classes",
+          "command": "grep -nE \"recent-activity-sidebar|recent-activity-sidebar.empty|tooltip-extras-row|tooltip-extras-row a\" tools/overview-viewer/src/styles.css",
+          "result": "PASS: styles.css defines .recent-activity-sidebar, .recent-activity-sidebar.empty, .tooltip-extras-row, and .tooltip-extras-row a."
+        },
+        {
+          "criterion": "Vitest render test covers null-newStage label, empty-state render, click handler invocation",
+          "command": "grep -nE \"renders the null-newStage|renders the empty state contract|invokes the click-through\" tools/overview-viewer/src/__tests__/interactions/recentActivity.test.tsx && pnpm --filter @codexu/overview-viewer test",
+          "result": "PASS: recentActivity.test.tsx contains all required cases; overview viewer suite passed 32 files / 174 tests."
+        },
+        {
+          "criterion": "Typecheck passes",
+          "command": "pnpm --filter @codexu/overview-viewer typecheck",
+          "result": "PASS: tsc --noEmit completed with exit=0; log captured at .test-output/overview-viewer.typecheck.log."
+        },
+        {
+          "criterion": "US-007:AC-013 browser sidebar verification",
+          "command": "N/A",
+          "result": "SKIPPED: browser automation unavailable; sidebar render/click/collapse verification requires manual browser pass"
+        },
+        {
+          "criterion": "Full regression tests and static overview build pass",
+          "command": "pnpm test && pnpm --filter @codexu/overview-viewer test && pnpm overview:build",
+          "result": "PASS: root tests passed 16 files / 93 tests; overview tests passed 32 files / 174 tests; overview:build emitted plans/overview.html successfully."
+        }
+      ],
+      "dependencies": [
+        "US-006"
+      ],
+      "criteriaWarnings": [
+        {
+          "storyId": "US-007",
+          "acIndex": "AC-013",
+          "criterion": "Verify in browser using dev-browser skill (sidebar renders newest-first, click navigates and expands task, empty state displays when JSONL absent, collapse toggle works)",
+          "warning": "US-007:AC-013 references browser/dev-browser verification; browser automation tools may be unavailable to the iteration agent",
+          "severity": "tool-availability",
+          "suggestedFallback": "If browser tooling is unavailable, record result: \"SKIPPED: browser automation unavailable; sidebar render/click/collapse verification requires manual browser pass\" for US-007:AC-013.",
+          "source": "criteria-validator"
+        }
+      ],
+      "failureClassification": "",
+      "partialProgress": null
+    },
+    {
+      "id": "US-008",
+      "title": "Tooltip extras composition in TaskCommand and E2E verification",
+      "description": "As a dashboard user, I want chip tooltips to show deferred-question count, branch name (with copy button), and PR URL.",
+      "acceptanceCriteria": [
+        "`tools/overview-viewer/src/components/TaskCommand.tsx` line 413 replaces `<RalphStageChip taskId={task.id} ralphState={ralphState} />` with a composed-extras version that builds a `tooltipExtras` JSX fragment",
+        "`deferredQuestionsCount > 0` → row `<span>📝 {n} open questions</span>` plus subline showing `deferredQuestionsPreview` if present (CSS-truncated)",
+        "`branchName` → row with branch text + existing `QuickCopyButton` that copies literal `git checkout <branchName>` via `copyTextWithToast` (helpers at TaskCommand.tsx lines 162–228)",
+        "`prUrl` → row with `<a href={prUrl} target=\"_blank\" rel=\"noopener noreferrer\">PR ↗</a>`",
+        "Passes JSX through `<RalphStageChip tooltipExtras={…} />` — does NOT modify `RalphStageChip.tsx` (Plan 03 slot is contract-stable)",
+        "When all three fields are absent, renders nothing extra — tooltip falls back to Plan 03 minimal content (stage, jobSlug, lastUpdatedAt). No broken rows. No console warnings",
+        "Vitest covers all permutations (none / one / two / all three) without broken markup",
+        "End-to-end: synthetic notepad fixture with 3 deferred questions (2 answered); run sync; hover the chip — tooltip shows `📝 1 open questions` plus preview ≤120 chars",
+        "Branch surfacing: for `prd.branch.name='ralph/overview-data-split/integration'`, chip tooltip shows that branch plus a QuickCopyButton whose copy text is exactly `git checkout ralph/overview-data-split/integration`; click confirms toast",
+        "`pnpm --filter @codexu/overview-viewer test` passes including all new tests",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill (hover chip, copy button toast, PR link opens new tab)"
+      ],
+      "priority": 8,
+      "passes": true,
+      "notes": "Final integration. Reuses existing QuickCopyButton/copyTextWithToast primitives from TaskCommand.tsx 162–228. Does NOT modify RalphStageChip.tsx — uses Plan 03's tooltipExtras slot.",
+      "verifiedEvidence": [
+        {
+          "criterion": "TaskCommand replaces RalphStageChip call with composed tooltipExtras JSX",
+          "command": "grep -nE \"function RalphTooltipExtras|tooltipExtras=\" tools/overview-viewer/src/components/TaskCommand.tsx",
+          "result": "PASS: TaskCommand defines RalphTooltipExtras at line 198 and passes tooltipExtras into RalphStageChip at line 461."
+        },
+        {
+          "criterion": "deferredQuestionsCount > 0 renders open-question row and preview subline",
+          "command": "pnpm --filter @codexu/overview-viewer exec vitest run src/__tests__/interactions/taskCommandTooltipExtras.test.tsx",
+          "result": "PASS: 1 test file / 4 tests passed; one-open-question fixture asserts the 📝 count row and tooltip-extras-subline preview text."
+        },
+        {
+          "criterion": "branchName renders branch text plus QuickCopyButton copying literal git checkout <branchName>",
+          "command": "grep -nE \"git checkout|Copy checkout command\" tools/overview-viewer/src/components/TaskCommand.tsx tools/overview-viewer/src/__tests__/interactions/taskCommandTooltipExtras.test.tsx",
+          "result": "PASS: TaskCommand copies text `git checkout ${ralph.branchName}`; test asserts writeText receives `git checkout ralph/overview-data-split/integration` and toast is shown."
+        },
+        {
+          "criterion": "prUrl renders external PR link",
+          "command": "grep -nE \"PR ↗|target=\\\"_blank\\\"|noopener noreferrer\" tools/overview-viewer/src/components/TaskCommand.tsx tools/overview-viewer/src/__tests__/interactions/taskCommandTooltipExtras.test.tsx",
+          "result": "PASS: TaskCommand renders PR ↗ with target=_blank and rel=noopener noreferrer; test asserts the PR link href."
+        },
+        {
+          "criterion": "Passes JSX through RalphStageChip tooltipExtras and does not modify RalphStageChip.tsx",
+          "command": "git diff --name-only -- tools/overview-viewer/src/components/RalphStageChip.tsx && grep -n \"tooltipExtras={tooltipExtras}\" tools/overview-viewer/src/components/TaskCommand.tsx",
+          "result": "PASS: no diff for RalphStageChip.tsx; TaskCommand line 461 passes tooltipExtras through the existing slot."
+        },
+        {
+          "criterion": "All three fields absent renders no extra rows and no console warnings",
+          "command": "pnpm --filter @codexu/overview-viewer exec vitest run src/__tests__/interactions/taskCommandTooltipExtras.test.tsx",
+          "result": "PASS: none-fixture asserts zero .tooltip-extras-row nodes, no undefined/null text, and console.warn not called."
+        },
+        {
+          "criterion": "Vitest covers none / one / two / all three permutations without broken markup",
+          "command": "grep -nE \"no extra rows|one open-question|branch and PR|all three extras\" tools/overview-viewer/src/__tests__/interactions/taskCommandTooltipExtras.test.tsx && pnpm --filter @codexu/overview-viewer exec vitest run src/__tests__/interactions/taskCommandTooltipExtras.test.tsx",
+          "result": "PASS: required case labels are present; taskCommandTooltipExtras.test.tsx passed 4/4 tests."
+        },
+        {
+          "criterion": "End-to-end synthetic notepad fixture surfaces open-question count and preview in chip tooltip",
+          "command": "pnpm exec vitest run scripts/lib/sync-core.test.mjs && pnpm --filter @codexu/overview-viewer exec vitest run src/__tests__/interactions/taskCommandTooltipExtras.test.tsx",
+          "result": "PASS: sync-core Plan 07 fixture populated notepad fields/branch/PR in 23/23 tests; jsdom hover test rendered 📝 open-question tooltip row and preview. Browser hover remains covered separately by US-008:AC-012 manual skip."
+        },
+        {
+          "criterion": "Branch surfacing uses exact checkout text and confirms toast",
+          "command": "pnpm --filter @codexu/overview-viewer exec vitest run src/__tests__/interactions/taskCommandTooltipExtras.test.tsx",
+          "result": "PASS: all-three fixture asserts branch `ralph/overview-data-split/integration`, copy text exactly `git checkout ralph/overview-data-split/integration`, and toast `Copied ... (0.1 KB)`."
+        },
+        {
+          "criterion": "pnpm --filter @codexu/overview-viewer test passes including all new tests",
+          "command": "pnpm --filter @codexu/overview-viewer test",
+          "result": "PASS: overview-viewer Vitest suite reported 33 files passed, 178 tests passed."
+        },
+        {
+          "criterion": "Typecheck passes",
+          "command": "pnpm --filter @codexu/overview-viewer typecheck",
+          "result": "PASS: tsc --noEmit completed with exit=0."
+        },
+        {
+          "criterion": "US-008:AC-012 browser tooltip hover/copy/PR-link verification",
+          "command": "N/A",
+          "result": "SKIPPED: browser automation unavailable; tooltip hover/copy-toast/PR-link verification requires manual browser pass"
+        },
+        {
+          "criterion": "Full regression tests and static overview build pass",
+          "command": "pnpm test && pnpm overview:build",
+          "result": "PASS: root tests reported 16 files / 93 tests passed; overview:build emitted plans/overview.html successfully."
+        }
+      ],
+      "dependencies": [
+        "US-005",
+        "US-007"
+      ],
+      "criteriaWarnings": [
+        {
+          "storyId": "US-008",
+          "acIndex": "AC-012",
+          "criterion": "Verify in browser using dev-browser skill (hover chip, copy button toast, PR link opens new tab)",
+          "warning": "US-008:AC-012 references browser/dev-browser verification; browser automation tools may be unavailable to the iteration agent",
+          "severity": "tool-availability",
+          "suggestedFallback": "If browser tooling is unavailable, record result: \"SKIPPED: browser automation unavailable; tooltip hover/copy-toast/PR-link verification requires manual browser pass\" for US-008:AC-012.",
+          "source": "criteria-validator"
+        }
+      ],
+      "failureClassification": "",
+      "partialProgress": null
+    },
+    {
+      "id": "US-009",
+      "title": "Cascade refresh of plans/ralph-pipeline-INDEX.md",
+      "description": "As a downstream-plan reader, I want plans/ralph-pipeline-INDEX.md to reflect Plan 07's new modules and types — but only when Plan 06 is not in flight, to avoid concurrent index edits.",
+      "acceptanceCriteria": [
+        "F-006: Before cascade, read `.ralph/jobs/ralph-pipeline-06-skills/progress.json`. Plan 06 is TERMINAL if `progress.terminal === true` OR the directory contains only `plan.md` (not yet started)",
+        "F-006: If `progress.json` exists with `terminal !== true`, DEFER cascade by appending entries to `<jobDir>/notepad.md` under `## Deferred Cascade` and leaving `plans/ralph-pipeline-INDEX.md` UNTOUCHED",
+        "If Plan 06 is terminal (or unstarted): update `plans/ralph-pipeline-INDEX.md` Source-of-truth modules table with the 5 new modules: `scripts/lib/parse-notepad.mjs`, `scripts/lib/derive-pr-links.mjs`, `scripts/lib/append-journal.mjs`, `tools/overview-viewer/src/hooks/useActivityEvents.ts`, `tools/overview-viewer/src/components/RecentActivity.tsx`",
+        "Extend the `RalphPipelineState` row in that table with the 6 new optional fields (branchName, deferredQuestionsCount, deferredQuestionsPreview, mergeCommit, prUrl, storyDoctorInterventions)",
+        "Verify the DAG diagram still reflects Plan 07's 'depends on Plan 05' edge",
+        "Update applied atomically in the final implementation commit; commit message lists each diff (file, lines, change) for reviewer verification",
+        "All other ACs (US-001 through US-008) pass before US-009 starts",
+        "Typecheck passes (markdown-only change — no source impact)"
+      ],
+      "priority": 9,
+      "passes": true,
+      "notes": "Embeds F-006 (concrete Plan 06 terminal-detection mechanism). Markdown-only change — no code impact. Defers cleanly to notepad if Plan 06 is mid-flight.",
+      "verifiedEvidence": [
+        {
+          "criterion": "F-006: Before cascade, read `.ralph/jobs/ralph-pipeline-06-skills/progress.json`. Plan 06 is TERMINAL if `progress.terminal === true` OR the directory contains only `plan.md` (not yet started)",
+          "command": "test ! -f .ralph/jobs/ralph-pipeline-06-skills/progress.json; jq -r .terminal,.terminalReason orchestrator-terminal.json; jq -r .status,.orchestrator.terminal,.storyCompletion.passed,.storyCompletion.total job-state.json",
+          "result": "PASS: progress.json was absent; Plan 06 terminal markers showed orchestrator-terminal terminal=true, terminalReason=complete, job-state status=COMPLETED, orchestrator.terminal=true, and 6/6 stories passed."
+        },
+        {
+          "criterion": "F-006: If `progress.json` exists with `terminal !== true`, DEFER cascade by appending entries to `<jobDir>/notepad.md` under `## Deferred Cascade` and leaving `plans/ralph-pipeline-INDEX.md` UNTOUCHED",
+          "command": "test ! -f .ralph/jobs/ralph-pipeline-06-skills/progress.json && git show --name-only --format=%B HEAD --",
+          "result": "PASS: deferral condition was false because progress.json did not exist and Plan 06 terminal markers showed complete; direct cascade touched only plans/ralph-pipeline-INDEX.md."
+        },
+        {
+          "criterion": "If Plan 06 is terminal (or unstarted): update `plans/ralph-pipeline-INDEX.md` Source-of-truth modules table with the 5 new modules",
+          "command": "grep -nE 'parse-notepad|derive-pr-links|append-journal|useActivityEvents|RecentActivity' plans/ralph-pipeline-INDEX.md",
+          "result": "PASS: Source-of-truth table contains the five Plan 07 module rows at lines 193-195 and 201-202."
+        },
+        {
+          "criterion": "Extend the `RalphPipelineState` row in that table with the 6 new optional fields",
+          "command": "grep -n 'RalphPipelineState' plans/ralph-pipeline-INDEX.md",
+          "result": "PASS: line 211 documents optional branchName, deferredQuestionsCount, deferredQuestionsPreview, mergeCommit, prUrl, and storyDoctorInterventions fields."
+        },
+        {
+          "criterion": "Verify the DAG diagram still reflects Plan 07's 'depends on Plan 05' edge",
+          "command": "grep -nE '07-context|depends on 05' plans/ralph-pipeline-INDEX.md",
+          "result": "PASS: DAG still shows 07-context under the Plan 05 branch, and the parallel-safe grouping states 07-context depends on 05 at line 137."
+        },
+        {
+          "criterion": "Update applied atomically in the final implementation commit; commit message lists each diff (file, lines, change) for reviewer verification",
+          "command": "git show --stat --format=%B --name-only HEAD --",
+          "result": "PASS: commit 72c002c0 has subject feat: US-009 - Cascade refresh..., touches only plans/ralph-pipeline-INDEX.md, and its body lists file/line summaries for lines 193-195, 201-202, and 211."
+        },
+        {
+          "criterion": "All other ACs (US-001 through US-008) pass before US-009 starts",
+          "command": "jq -r '.userStories[] | select(.id >= \"US-001\" and .id <= \"US-008\") | \"(.id)=(.passes)\"' prd.json",
+          "result": "PASS: canonical PRD showed US-001 through US-008 all passes=true before US-009 was updated."
+        },
+        {
+          "criterion": "Typecheck passes (markdown-only change -- no source impact)",
+          "command": "pnpm --filter @codexu/overview-viewer typecheck",
+          "result": "PASS: tsc --noEmit completed with exit=0; log captured at .test-output/overview-viewer.typecheck.log."
+        }
+      ],
+      "dependencies": [
+        "US-001",
+        "US-002",
+        "US-003",
+        "US-004",
+        "US-005",
+        "US-006",
+        "US-007",
+        "US-008"
+      ],
+      "failureClassification": "",
+      "partialProgress": null
+    }
+  ]
+}

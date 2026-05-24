@@ -1,0 +1,52 @@
+I’ll inspect the referenced temp path to see what task or artifact it contains.
+
+I found a research-mode plan prompt in the temp file. I’ll scan the codexu overview/plans surfaces it references and then return the requested analysis.
+
+I have the codexu-side context. I’ll quickly verify the referenced Ralph plugin schema/skill surfaces so the research report can call out version-specific constraints accurately.
+
+Research complete — this is a **doc-only handoff plan** in codexu, not an implementation of Ralph plugin patches.
+
+### Codebase Architecture
+
+`codexu` is a pnpm monorepo. The relevant subsystem is the roadmap overview dashboard:
+
+- `tools/overview-viewer/`: Vite + React + TypeScript dashboard renderer.
+- `plans/overview-data.js`: hand-curated task source of truth.
+- `plans/overview-ralph-state.{js,json}`: generated Ralph sidecar state.
+- `scripts/sync-ralph-state.mjs` + `scripts/lib/sync-core.mjs`: Node ESM sync pipeline that walks `.ralph/` and maps Ralph artifacts to overview task IDs.
+- `plans/ralph-pipeline-*.md`: implementation plan DAG; Plan 10 is the requested handoff doc.
+
+### Feature-Relevant Code
+
+Key files:
+
+- `plans/ralph-pipeline-10-ralph-handoff.md`: source plan for the requested deliverable `plans/ralph-overview-task-id.md`.
+- `plans/ralph-pipeline-01-foundation.md`: defines current consumer-side matching: `ralphOverrides[slug]`, then slug equality, then `unmatched[]`. It explicitly says `overviewTaskId` is future Plan 10 work.
+- `plans/ralph-pipeline-INDEX.md`: marks Plan 10 as standalone and parallel-safe; includes downstream refresh convention.
+- `tools/overview-viewer/src/types.ts`: already reserves `matchSource?: 'overviewTaskId' | 'override' | 'slug-default'`, but sync does not consume `overviewTaskId` yet.
+- `scripts/lib/sync-core.mjs`: `walkRalphState()` currently loads `overviewData.tasks`, `ralphOverrides`, resolves by slug/override, emits unmatched, and writes sidecars via `writeSidecar()`.
+- `plans/overview-data.js`: hand-curated data file; future Ralph-native IDs should match `OverviewTask.id`.
+
+### Technical Constraints
+
+- Deliverable is only `plans/ralph-overview-task-id.md`; do **not** patch `D:\ai-developer-toolkit\plugins\ralph\` in this repo cycle.
+- Existing sync behavior must remain slug/override based until a later codexu follow-up consumes `prd.overviewTaskId`, `group.json.overviewTaskId`, or `brainstorm.json.overviewTaskId`.
+- `overviewTaskId` must be optional everywhere; no automatic backfill and no required schema migration.
+- `plans/overview-data.js` is hand-curated; scripts must not overwrite it.
+- The doc should name ralph-orchestration **v5.30.0** and note that future implementers must patch the source plugin tree, not the cached install.
+- Referenced external cached Ralph plugin files were not readable in this environment due permission denial, so the doc should instruct the future Ralph cycle to re-verify schema/skill internals against the live plugin source.
+
+### Implementation Suggestions
+
+Create `plans/ralph-overview-task-id.md` from the Plan 10 template with the required sections: Context, Patches required, Back-compat, Out of scope, Acceptance criteria, Tests, and How to pick this up.
+
+The doc should pin the contract clearly:
+
+- Field name: `overviewTaskId`
+- JSON location: top-level field in `prd.json`, `group.json`, and `brainstorm.json`
+- Markdown location: YAML front matter in `selected-direction.md` and generated `plan.md`
+- CLI flag: `--overview-task-id <id>`
+- Handoff command: `/plan-with-ralph --improve D:\harness-efforts\codexu\plans\ralph-overview-task-id.md`
+
+Also clarify that any prompt listing `OverviewTask.id` values from `plans/overview-data.js` is a convenience, not hard validation; consumer-side sync remains responsible for surfacing unmatched IDs.
+

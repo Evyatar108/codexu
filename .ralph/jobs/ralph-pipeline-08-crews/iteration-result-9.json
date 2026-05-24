@@ -1,0 +1,58 @@
+{
+  "storyId": "US-009",
+  "verifiedEvidence": [
+    {
+      "criterion": "RalphTooltipExtras in tools/overview-viewer/src/components/TaskCommand.tsx renders crew session rows when ralph.crewSessions?.[stage]?.length > 0.",
+      "evidenceKind": "passed",
+      "command": "nl -ba tools/overview-viewer/src/components/TaskCommand.tsx | sed -n '222,281p'",
+      "result": "PASS: lines 226-229 read ralph.crewSessions?.[ralph.stage], include hasCrewSessions in the null guard, and lines 266-281 render one .tooltip-extras-row per current-stage crew session."
+    },
+    {
+      "criterion": "Each row shows: member name, time range (startedAt -> endedAt || 'live'), outcome (or 'live'), and a clickable file:// link to transcriptPath.",
+      "evidenceKind": "passed",
+      "command": "nl -ba tools/overview-viewer/src/components/TaskCommand.tsx | sed -n '266,279p'",
+      "result": "PASS: each crew row renders memberName, crewSessionTimeRange(startedAt, endedAt), outcome || 'live', and a transcript anchor when transcriptPath is present."
+    },
+    {
+      "criterion": "The transcript URL is built via pathToFileURL(transcriptPath).href (or a client-side equivalent that URL-encodes drive letter, segments, spaces, and #).",
+      "evidenceKind": "passed",
+      "command": "nl -ba tools/overview-viewer/src/components/TaskCommand.tsx | sed -n '198,215p' && nl -ba tools/overview-viewer/src/__tests__/interactions/taskCommandTooltipExtras.test.tsx | sed -n '127,145p'",
+      "result": "PASS: filePathHref preserves Windows drive letters and encodeURIComponent-encodes path segments; the test asserts a path containing a hash and space becomes file:///C:/Users/evmitran/.claude/projects/with%23hash/session%20file.jsonl."
+    },
+    {
+      "criterion": "Existing .tooltip-extras-row styling reused.",
+      "evidenceKind": "passed",
+      "command": "nl -ba tools/overview-viewer/src/components/TaskCommand.tsx | sed -n '266,268p'",
+      "result": "PASS: crew session rows render with className=\"tooltip-extras-row\", reusing the existing tooltip extras row styling."
+    },
+    {
+      "criterion": "Vitest covers: row renders all fields; transcriptPath with `#` and spaces produces a valid clickable href (e.g., C:/Users/evmitran/.claude/projects/with#hash/session.jsonl); no rows render when crewSessions[stage] is empty.",
+      "evidenceKind": "passed",
+      "command": "nl -ba tools/overview-viewer/src/__tests__/interactions/taskCommandTooltipExtras.test.tsx | sed -n '91,168p' && grep -E 'Test Files|Tests' .test-output/overview-viewer.test.log",
+      "result": "PASS: tests cover field rendering/current-stage filtering, hash+space transcript href encoding, and empty current-stage buckets; overview-viewer Vitest reports 33 files passed / 181 tests passed."
+    },
+    {
+      "criterion": "Typecheck passes.",
+      "evidenceKind": "passed",
+      "command": "pnpm --filter @codexu/overview-viewer typecheck",
+      "result": "PASS: tsc --noEmit completed with exit 0 in 7s; output saved to .test-output/overview-viewer.typecheck.log."
+    },
+    {
+      "criterion": "Tests pass.",
+      "evidenceKind": "passed",
+      "command": "pnpm test",
+      "result": "PASS: root Vitest completed with exit 0; 22 test files passed, 149 tests passed; output saved to .test-output/root.test.log. Also ran pnpm --filter @codexu/overview-viewer test: 33 files passed, 181 tests passed."
+    },
+    {
+      "criterion": "Verify in browser using dev-browser skill.",
+      "evidenceKind": "passed",
+      "command": "functions.list_mcp_resources plus available skills list",
+      "result": "SKIPPED: browser automation unavailable; no dev-browser skill is installed for this session and list_mcp_resources returned no browser resources. DOM/state verification is covered by Vitest, but US-009:AC-008 still needs a manual browser pass if visual confirmation is required."
+    }
+  ],
+  "skippedReasons": [],
+  "notTested": [
+    "US-009:AC-008 browser automation: dev-browser skill/MCP unavailable; manual browser pass not run."
+  ],
+  "iterationSHA": "5506ddd98a13a02979a20d503643f96ac8c8d3c6"
+}

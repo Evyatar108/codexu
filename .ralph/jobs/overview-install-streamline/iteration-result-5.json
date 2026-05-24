@@ -1,0 +1,62 @@
+{
+  "storyId": "US-005",
+  "verifiedEvidence": [
+    {
+      "criterion": "plugins/ralph-overview/CLAUDE.md documents init engine, upsert constraints, consumer-not-initialized, force semantics, and Copilot mirror",
+      "command": "grep -Hn -e init-consumer.mjs -e upsert_task -e consumer-not-initialized -e --force -e dist/copilot -e 19 tools plugins/ralph-overview/CLAUDE.md",
+      "result": "Found 19 tools plus v1.1.0 additions documenting init-consumer.mjs, force scaffold-only semantics, overview.upsert_task taskObjectFields/topLevelMapFields split, consumer-not-initialized response, and dist/copilot mirror regeneration.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "plugins/ralph-overview/docs/installation.md mentions the agent-driven flow as primary; manual install stays as fallback",
+      "command": "grep -Hn -e primary path is agent-driven -e /overview-init -e overview.init -e Manual fallback plugins/ralph-overview/docs/installation.md",
+      "result": "Found primary agent-driven setup text, /overview-init and overview.init instructions, and Manual fallback sections for config/data copying.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "D:/ai-developer-toolkit/CLAUDE.md Active Tools entry for ralph-overview is updated for new tools, skills, and v1.1.0",
+      "command": "grep -Hn -e Ralph Overview Plugin -e v1.1.0 -e 19-tool MCP -e /overview-init CLAUDE.md",
+      "result": "Active Tools now has a Ralph Overview Plugin entry describing v1.1.0, overview.init, overview.upsert_task, the 19-tool MCP server, seven skills, init semantics, and Copilot mirrors.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Tool-count references in README, MCP README, and plugin CLAUDE.md are updated from 17 to 19",
+      "command": "grep -RIn 17 tools plugins/ralph-overview/README.md plugins/ralph-overview/tools/overview-mcp/README.md plugins/ralph-overview/CLAUDE.md; grep -RIn 19 plugins/ralph-overview/README.md plugins/ralph-overview/tools/overview-mcp/README.md plugins/ralph-overview/CLAUDE.md",
+      "result": "No 17-tool references remain in the three files; grep found 19 MCP tools / 19 Model Context / 19 tools references in README, MCP README, and plugin CLAUDE.md.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "CHANGELOG 1.1.0 entry prepended to plugins/ralph-overview/CHANGELOG.md",
+      "command": "sed -n 1,28p plugins/ralph-overview/CHANGELOG.md",
+      "result": "Top of changelog contains [1.1.0] - 2026-05-23 immediately after [Unreleased], with Added and Changed bullets for init, upsert_task, consumer-not-initialized, new skills, install-server reconciliation, and 19 tools.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "/release-plugin atomically bumps plugin.json, marketplace indexes, creates commit, and pushes to all configured remotes",
+      "command": "grep -n release-plugin workflow steps; git rev-parse --short HEAD; git push origin ralph/overview-install-streamline; git push work ralph/overview-install-streamline",
+      "result": "Release-plugin workflow steps cover manifest/index/changelog/commit/push. Commit f84debcb was created with the story release changes, and pushes to both configured remotes origin and work returned exit code 0.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "All three marketplace indexes carry version 1.1.0 matching plugin.json",
+      "command": "jq version checks for plugin.json and three marketplace entries",
+      "result": "plugin.json version is 1.1.0; .claude-plugin/marketplace.json=1.1.0, .github/plugin/marketplace.json=1.1.0, .agents/plugins/marketplace.json=1.1.0.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Typecheck passes (tsc -p tools/overview-mcp/tsconfig.json)",
+      "command": "npx tsc -p tools/overview-mcp/tsconfig.json 2>&1 | tee D:/harness-efforts/codexu/.ralph/jobs/overview-install-streamline/test-output-us005-typecheck-rerun.log",
+      "result": "Exit code 0 with no TypeScript diagnostics; captured typecheck log is 0 bytes.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Workspace tests pass",
+      "command": "npm test --workspace=tools/overview-mcp 2>&1 | tee D:/harness-efforts/codexu/.ralph/jobs/overview-install-streamline/test-output-us005-npm-test-rerun.log",
+      "result": "Vitest summary: Test Files 23 passed | 1 skipped (24); Tests 93 passed | 1 skipped (94).",
+      "evidenceKind": "passed"
+    }
+  ],
+  "skippedReasons": [],
+  "notTested": [],
+  "iterationSHA": "f84debcb1fa59ad6335a9ce1d525274e741d23aa"
+}

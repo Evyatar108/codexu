@@ -1,0 +1,62 @@
+{
+  "storyId": "US-009",
+  "verifiedEvidence": [
+    {
+      "criterion": "CLI binary overview-mcp-install declared as package.json.bin -> dist/install-server.js",
+      "command": "jq -r '.bin[\"overview-mcp-install\"]' tools/overview-mcp/package.json && test -f tools/overview-mcp/dist/install-server.js && head -1 tools/overview-mcp/dist/install-server.js",
+      "result": "package.json maps overview-mcp-install to dist/install-server.js; after pnpm --filter @codexu/overview-mcp build, dist/install-server.js exists and starts with #!/usr/bin/env node.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Reads <repoRoot>/.claude/settings.local.json (creates {} if absent)",
+      "command": "pnpm --filter @codexu/overview-mcp test",
+      "result": "Exit 0; Vitest reported 6 test files passed and 37 tests passed, including install-server tests for preserving an existing settings.local.json and creating one from an absent file.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Merges under mcpServers.codexu-overview with node command and absolute forward-slash dist/index.js arg",
+      "command": "node tools/overview-mcp/dist/install-server.js --print-only from a temp repo containing tools/overview-mcp/dist/index.js",
+      "result": "Exit 0; printed JSON contained {\"command\":\"node\",\"args\":[\"C:/Users/evmitran/AppData/Local/Temp/<tmp>/tools/overview-mcp/dist/index.js\"]} under mcpServers.codexu-overview.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Writes atomically via atomicWriteFile() from scripts/lib/atomic-write.mjs",
+      "command": "grep -nE \"settings.local.json|mcpServers|codexu-overview|atomicWriteFile|printOnly|overview-mcp:build\" tools/overview-mcp/src/install-server.ts",
+      "result": "install-server.ts imports atomicWriteFile from scripts/lib/atomic-write.mjs and writes settings.local.json through atomicWriteFile when printOnly is false.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "--print-only flag emits the JSON to stdout without writing",
+      "command": "node tools/overview-mcp/dist/install-server.js --print-only from a temp repo; assert .claude/settings.local.json absent",
+      "result": "Exit 0; stdout was parseable settings JSON with codexu-overview registration, and the temp repo still had no .claude/settings.local.json file.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Errors clearly if dist/index.js is absent",
+      "command": "node tools/overview-mcp/dist/install-server.js from a temp repo without tools/overview-mcp/dist/index.js",
+      "result": "Exit 1; stderr said overview-mcp-install: Missing <temp>/tools/overview-mcp/dist/index.js; run pnpm overview-mcp:build first. No settings.local.json was written.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Test uses a temp dir as repoRoot; asserts file content after install; verifies idempotency",
+      "command": "grep -nE \"idempotent|creates settings|print-only|dist/index.js is absent|overview-mcp-install\" tools/overview-mcp/src/__tests__/install-server.test.ts && pnpm --filter @codexu/overview-mcp test",
+      "result": "install-server.test.ts uses fs.mkdtemp temp repo roots, asserts settings content after install, verifies running twice produces identical file content, and covers print-only plus missing dist/index.js. Vitest exit 0 with 37 tests.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Typecheck passes",
+      "command": "pnpm --filter @codexu/overview-mcp typecheck",
+      "result": "Exit 0; tsc --noEmit -p tsconfig.json completed without errors in 15s. Full log: .test-output/overview-mcp.typecheck.log.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Tests pass",
+      "command": "pnpm --filter @codexu/overview-mcp test",
+      "result": "Exit 0; Vitest reported 6 test files passed and 37 tests passed in 6.28s. Full log: .test-output/overview-mcp.test.log.",
+      "evidenceKind": "passed"
+    }
+  ],
+  "skippedReasons": [],
+  "notTested": [],
+  "iterationSHA": "db8037170ff31396c5f1970df21f0a92c63989b5"
+}

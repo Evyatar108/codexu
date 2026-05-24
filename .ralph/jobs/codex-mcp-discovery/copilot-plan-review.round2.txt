@@ -1,0 +1,31 @@
+I’m opening the attached file first to see the task and required context.
+
+The file is larger than a single view, so I’m reading the start and end to identify the request.
+
+I’ve identified this as a plan-review task; now I’m checking the referenced code and docs to verify the plan against the repo.
+
+I have the main plan context; I’m checking the existing codex test patterns and scripts for any plan mismatches before I write the review.
+
+I found a likely docs-sync risk, so I’m checking the roadmap/overview maintenance contract the plan cites.
+
+I found a possible schema mismatch in the plan itself, so I’m checking the codex-side config type it cites.
+
+I found a second documentation wrinkle in the CLI guide, so I’m checking the exact surrounding lines before finalizing the review.
+
+I found a possible test-isolation concern, so I’m checking whether this package already relies on `process.chdir()` in normal unit tests.
+
+### Feasibility
+- **[High] The proposed Zod schema does not actually enforce the `command` XOR `url` contract the plan itself calls out.** In `projectMcpConfig.ts`, the plan specifies `z.union([StdioEntry, HttpEntry])` with `.passthrough()` on both branches (`tmp.dwLXipx8LS:114-129`). That accepts entries containing **both** `command` and `url`, because each branch allows extra keys. But codex’s conversion logic explicitly rejects cross-transport fields (`codex\external\repos\codex-patched\codex-rs\config\src\mcp_types.rs:283-325`). As written, the loader would pass malformed dual-transport entries downstream instead of logging/skipping them. The plan needs an explicit XOR check (or branch refinements) and a test for “both `command` and `url` present”.
+
+### Completeness
+- **[Medium] The `plans/overview.html` update scope is underspecified and will leave the dashboard out of sync if implemented literally.** The plan only says to “flip the `mcp-discovery` row/card to delivered” (`tmp.dwLXipx8LS:174-179`, `229-230`), but the repo’s roadmap maintenance contract requires more than that: update the cmd badge, `lastTouched`, add a `runs[]` record for shipped tasks, and bump `generatedAt` / `generatedFromCommit` (`.agents\skills\roadmap-and-overview\SKILL.md:81-164`). `plans\overview.html` already stores `mcp-discovery` in the JSON block (`plans\overview.html:1900-1908`, `1944-1952`), so only changing the visible row would create UI/data drift.
+
+### Ordering
+- **[Medium] The plan’s “single atomic commit” requirement conflicts with the overview skill’s commit-derived metadata unless it explicitly includes an amend step.** The same skill requires shipped tasks to record the landing commit in `runs[].commits` and refresh `generatedFromCommit` (`.agents\skills\roadmap-and-overview\SKILL.md:139-164`), but those values are unknowable until the commit exists. The plan currently requires one atomic commit (`tmp.dwLXipx8LS:200`, `231`) without explaining how to satisfy those metadata fields. This is implementable, but only if the plan explicitly says “create the commit, then amend once with the resolved SHA” or relaxes the metadata expectation for this task.
+
+### Simplicity
+No issues found.
+
+### Acceptance Criteria Quality
+- **[Low] The validation command is not environment-robust for this repo’s Windows-first workflow.** Acceptance criterion 6 hardcodes `tee /tmp/codexu-mcp-disc.log` (`tmp.dwLXipx8LS:228`), which assumes a Bash-style `/tmp` path. In this repo, the execution environment is Windows, and even the package guidance calls out Windows/Git Bash as a special case rather than the default (`packages\happy-cli\CLAUDE.md`, Testing section). The criterion should use a repo-relative or Windows-safe log path so an autonomous agent can run it without guessing which shell semantics apply.
+

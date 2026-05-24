@@ -1,0 +1,75 @@
+{
+  "schemaVersion": 2,
+  "name": "overview-data-split",
+  "description": "Hoist all per-task definitions out of plans/overview.html into plans/overview-data.js sidecar; HTML becomes a thin render shell driven by window.OVERVIEW_DATA.",
+  "createdAt": "2026-05-17T18:03:35Z",
+  "updatedAt": "2026-05-17T19:51:00Z",
+  "status": "COMPLETED",
+  "baseBranch": "main",
+  "mergeStrategy": "sequential",
+  "concurrency": 4,
+  "jobs": [
+    {
+      "name": "foundation",
+      "phase": 1,
+      "dependsOn": [],
+      "status": "COMPLETED",
+      "jobDir": "D:/harness-efforts/codexu/.ralph/job-groups/overview-data-split/foundation",
+      "branch": "ralph/overview-data-split/foundation"
+    },
+    {
+      "name": "representative-port",
+      "phase": 2,
+      "dependsOn": [
+        "foundation"
+      ],
+      "status": "COMPLETED",
+      "jobDir": "D:/harness-efforts/codexu/.ralph/job-groups/overview-data-split/representative-port",
+      "branch": "ralph/overview-data-split/representative-port"
+    },
+    {
+      "name": "full-task-port",
+      "phase": 3,
+      "dependsOn": [
+        "representative-port"
+      ],
+      "status": "COMPLETED",
+      "jobDir": "D:/harness-efforts/codexu/.ralph/job-groups/overview-data-split/full-task-port",
+      "branch": "ralph/overview-data-split/full-task-port"
+    },
+    {
+      "name": "phase-tree-port",
+      "phase": 3,
+      "dependsOn": [
+        "representative-port"
+      ],
+      "status": "COMPLETED",
+      "jobDir": "D:/harness-efforts/codexu/.ralph/job-groups/overview-data-split/phase-tree-port",
+      "branch": "ralph/overview-data-split/phase-tree-port"
+    },
+    {
+      "name": "docs-sweep",
+      "phase": 3,
+      "dependsOn": [
+        "representative-port"
+      ],
+      "status": "COMPLETED",
+      "jobDir": "D:/harness-efforts/codexu/.ralph/job-groups/overview-data-split/docs-sweep",
+      "branch": "ralph/overview-data-split/docs-sweep"
+    },
+    {
+      "name": "skill-rewrite",
+      "phase": 4,
+      "dependsOn": [
+        "full-task-port",
+        "phase-tree-port"
+      ],
+      "status": "COMPLETED",
+      "jobDir": "D:/harness-efforts/codexu/.ralph/job-groups/overview-data-split/skill-rewrite",
+      "branch": "ralph/overview-data-split/skill-rewrite"
+    }
+  ],
+  "lastPhase": "done",
+  "lastPhaseTimestamp": "2026-05-17T19:51:00Z",
+  "completedAt": "2026-05-17T19:51:00Z"
+}

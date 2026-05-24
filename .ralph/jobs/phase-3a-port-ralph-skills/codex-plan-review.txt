@@ -1,0 +1,37 @@
+### Feasibility
+
+- [High] The planned spawn rewrite is not implementable as described. Codex spawn requires `message` and `task_name`, denies unknown fields, and rejects unsupported args per `plans/codexu-roadmap.md:1844-1850`. A mechanical `Agent(subagent_type="x", prompt="...")` → `agent.spawn({agent_type: "x", ...})` risks leaving `prompt` and `run_in_background` fields that codex will reject. The plan needs an explicit mapping: `prompt` → `message`, add stable `task_name`, remove/replace `run_in_background`.
+
+- [Medium] The plan’s occurrence inventory is inaccurate. In the source cache I found `Agent(` / `subagent_type` references in 4 skills, not 8, and 9 `Agent(` call sites / 13 `subagent_type` mentions, not 53. Relevant files include `brainstorm-with-ralph/SKILL.md`, `convert-to-ralph-prd/SKILL.md`, `implement-with-ralph/SKILL.md`, and `plan-with-ralph/SKILL.md`. This matters because some references are prose-only, not function-call text.
+
+- [Medium] The plan relies on `codex/core-plugins/src/manifest.rs` but the `codex` submodule is uninitialized in this checkout, so that file cannot be read. If the task requires fresh verification, `git submodule update --init codex` should be done before implementation, read-only.
+
+### Completeness
+
+- [High] The plan rewrites spawn calls but does not cover result collection. Several skills say to parse returned JSON or collect agent results after `Agent(...)`; codex spawn returns a task handle/nickname and needs wait/polling or filesystem artifact contracts. This is especially relevant in `implement-with-ralph/SKILL.md` around criteria validation, fixers, and DSAT analysis.
+
+- [Medium] The plan downgrades the original acceptance from “one user-invocable skill works end-to-end” to “starts execution.” That may be pragmatic, but it is not the same requirement. If full execution is impossible before Phase 3b-d, the plan should explicitly amend the scope instead of treating the weaker smoke test as equivalent.
+
+- [Low] Acceptance criterion 1 says `packages/codexu-plugin/skills/` contains “exactly 14” subdirectories. That is brittle in this repo because parallel Phase 3 work may add skills. Prefer “contains the 13 Ralph skill directories plus existing `hello-world`.”
+
+### Ordering
+
+- [Medium] Spawn schema verification should happen before the body rewrite, not after. The current order copies files, optionally smoke-tests discovery, then applies a regex-style rewrite. Since spawn syntax is the risky part, the implementation should first pin the codex spawn contract from roadmap/submodule and then edit call sites against that contract.
+
+- [Low] The optional intermediate smoke test after verbatim copy is useful, but it should not be interpreted as validating portability. It only validates plugin discovery; all Claude-specific body syntax would still be present at that point.
+
+### Simplicity
+
+- [Medium] A regex-style rewrite is too weak for this Markdown. The source has multiline calls, prose instructions like “Spawn via Agent tool with `subagent_type: Explore`,” and fields that need semantic remapping. A small structured manual pass over the 4 affected skills is simpler and safer than pretending this is a uniform regex transform.
+
+- [Low] Keeping `<plugin_root>` placeholders is reasonable. The plan correctly avoids expanding those paths during Phase 3a.
+
+### Acceptance Criteria Quality
+
+- [High] Criterion 8 is too vague and too weak: “begins skill execution” and “initial prose emitted” do not exercise the converted spawn syntax, script paths, or agent role references. Add a deterministic check that every converted `agent.spawn` example uses only supported fields: `agent_type`, `message`, `task_name`, and any verified optional fields.
+
+- [Medium] Criterion 11 has an arithmetic/wording error: it says “16 file changes” but lists 13 new + 2 modified + 0 deleted, which is 15. Remove the exact count or correct it.
+
+- [Medium] Criterion 5 should define how warnings are checked. “No `tracing::warn!` lines related to the plugin” is hard to verify unless logs are cleared first or filtered by timestamp/run.
+
+- [Low] The plan says two decisions were “user-approved,” but the review packet does not include the approval context. I would not block on that, but the implementation should preserve those decisions only if they are recorded in the job artifacts or roadmap.

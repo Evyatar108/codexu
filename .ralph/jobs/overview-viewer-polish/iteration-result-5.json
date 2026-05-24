@@ -1,0 +1,93 @@
+{
+  "storyId": "US-004",
+  "verifiedEvidence": [
+    {
+      "criterion": ".toolbar CSS uses animation-timeline: scroll() + animation-range: 0px 24px to fade box-shadow and backdrop-filter: blur(...) from 0% to 100% over the first 24px of scroll",
+      "command": "grep -n '.toolbar' -A38 tools/overview-viewer/src/styles.css | sed -n '1,60p'",
+      "result": "PASS: .toolbar has fallback box-shadow/backdrop-filter and an @supports (animation-timeline: scroll()) block with animation-timeline: scroll(), animation-range: 0px 24px, and toolbar-elevation keyframes fading box-shadow alpha 0 -> 0.12 and backdrop-filter blur(0) -> blur(8px).",
+      "evidenceKind": "inspection"
+    },
+    {
+      "criterion": "Older browsers (Safari < 18, Firefox without animation-timeline) keep the existing static shadow — no JS fallback",
+      "command": "grep -n '.toolbar' -A16 tools/overview-viewer/src/styles.css",
+      "result": "PASS: the default .toolbar rule keeps the static box-shadow outside @supports; the scroll animation is CSS-only and only applies inside @supports (animation-timeline: scroll()).",
+      "evidenceKind": "inspection"
+    },
+    {
+      "criterion": "Under prefers-reduced-motion the toolbar carries the static-shadow path (US-006 guard)",
+      "command": "grep -n '@media (prefers-reduced-motion: reduce)' -A5 tools/overview-viewer/src/styles.css; grep -n 'toolbar-elevation' -A20 tools/overview-viewer/src/styles.css",
+      "result": "PASS: the global reduced-motion guard disables animation; the toolbar-specific reduced-motion rule restores the static 0 4px 12px shadow and blur(8px).",
+      "evidenceKind": "inspection"
+    },
+    {
+      "criterion": "Typecheck passes (pnpm --filter @codexu/overview-viewer typecheck)",
+      "command": "pnpm --filter @codexu/overview-viewer typecheck > .test-output/overview-viewer.typecheck.log 2>&1",
+      "result": "PASS: tsc --noEmit completed with exit 0.",
+      "evidenceKind": "typecheck"
+    },
+    {
+      "criterion": "Tests pass (pnpm --filter @codexu/overview-viewer test)",
+      "command": "pnpm --filter @codexu/overview-viewer test > .test-output/overview-viewer.test.log 2>&1",
+      "result": "PASS: Vitest reported 12 test files passed, 44 tests passed.",
+      "evidenceKind": "test"
+    },
+    {
+      "criterion": "pnpm overview dev server starts and renders without console errors",
+      "command": "curl -fsS http://127.0.0.1:5173/overview.html > /tmp/overview.html.smoke && curl -fsS http://127.0.0.1:5173/overview-data.js > /tmp/overview-data.js.smoke && grep -q '<div id=\"root\"></div>' /tmp/overview.html.smoke && grep -q 'window.OVERVIEW_DATA' /tmp/overview-data.js.smoke",
+      "result": "HTTP smoke PASS: existing dev server served overview.html with root node and overview-data.js with window.OVERVIEW_DATA. SKIPPED: browser console verification unavailable because browser automation is not installed.",
+      "evidenceKind": "skipped"
+    },
+    {
+      "criterion": "pnpm overview:build succeeds; regenerated plans/overview.html opens cleanly under file://",
+      "command": "pnpm overview:build > .test-output/overview-viewer.build.log 2>&1; grep -nE '<script[^>]+src=|<link[^>]+href=' plans/overview.html || true; grep -n '<div id=\"root\"></div>' plans/overview.html",
+      "result": "Build PASS: Vite built plans/overview.html successfully; static artifact has root node and no external script/link refs. SKIPPED: live file:// browser open unavailable without browser automation.",
+      "evidenceKind": "build"
+    },
+    {
+      "criterion": "Bundle size of plans/overview.html stays under 500 KB",
+      "command": "stat -c%s plans/overview.html",
+      "result": "449870 bytes (< 500000).",
+      "evidenceKind": "command"
+    },
+    {
+      "criterion": "Three existing intentional deviations from 9f81c1f8 (deferred class, blocked/paused -> tail of phase bucket, lastTouchedAt-asc) still hold",
+      "command": "grep -RInE 'deferred|data-cmd-status|lastTouchedAt|sortTasksByLastTouchedAsc' tools/overview-viewer/src/components/PhaseTree.tsx tools/overview-viewer/src/components/CommandList.tsx tools/overview-viewer/src/styles.css",
+      "result": "PASS: PhaseTree still maps blocked/paused to deferred; styles.css still contains blocked/paused order tail rules; CommandList still exports and uses sortTasksByLastTouchedAsc.",
+      "evidenceKind": "inspection"
+    },
+    {
+      "criterion": "prefers-reduced-motion: reduce disables any animation added by the story",
+      "command": "grep -n '@media (prefers-reduced-motion: reduce)' -A5 tools/overview-viewer/src/styles.css && grep -n 'toolbar-elevation' -A20 tools/overview-viewer/src/styles.css",
+      "result": "PASS: this story adds toolbar-elevation animation; the global reduced-motion guard disables all animations with !important and the toolbar reduced-motion rule keeps the static elevation state.",
+      "evidenceKind": "inspection"
+    },
+    {
+      "criterion": "If tools/overview-viewer/package.json changes, workspace-root pnpm-lock.yaml is regenerated and committed in the same commit; pnpm install --frozen-lockfile from repo root must succeed",
+      "command": "git diff --name-only HEAD^ HEAD | grep -E 'tools/overview-viewer/package.json|pnpm-lock.yaml' || true; pnpm install --frozen-lockfile --offline > .test-output/pnpm-install-frozen.log 2>&1",
+      "result": "PASS: package.json and pnpm-lock.yaml were unchanged for this story; frozen offline install completed successfully. Postinstall happy-wire side-effect files were restored and not committed.",
+      "evidenceKind": "command"
+    },
+    {
+      "criterion": "Commit message references the story ID and lists affected files",
+      "command": "git log -1 --format=%H%n%s%n%b",
+      "result": "Commit 78a993a7de736bdf8c97ccf1623d0784a862e367 subject references US-004; body lists styles.css and plans/overview.html plus the CSS-only bundle constraint.",
+      "evidenceKind": "command"
+    }
+  ],
+  "skippedReasons": [
+    {
+      "reason": "tool_unavailable",
+      "criterion": "pnpm overview dev server starts and renders without console errors",
+      "detail": "Browser console verification unavailable; HTTP smoke passed."
+    },
+    {
+      "reason": "tool_unavailable",
+      "criterion": "pnpm overview:build succeeds; regenerated plans/overview.html opens cleanly under file://",
+      "detail": "file:// double-click browser validation unavailable; static artifact inspected."
+    }
+  ],
+  "notTested": [
+    "Live browser console and file:// double-click unavailable."
+  ],
+  "iterationSHA": "78a993a7de736bdf8c97ccf1623d0784a862e367"
+}

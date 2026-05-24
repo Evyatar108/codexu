@@ -1,0 +1,114 @@
+{
+  "planFile": "D:/harness-efforts/codexu/.ralph/jobs/ralph-pipeline-04-pipeline-overview-v2/plan.md",
+  "repoDir": "D:/harness-efforts/codexu/.ralph/jobs/ralph-pipeline-04-pipeline-overview-v2/worktree",
+  "reviewCycle": 2,
+  "findings": [
+    {
+      "id": "F-001",
+      "severity": "High",
+      "source": "claude",
+      "classification": "fixable",
+      "phase": "code",
+      "category": "Correctness",
+      "sectionRef": "Approach > Architecture > 4. Dependency graph schema",
+      "description": "deriveDependencyGraph iterates every key in overviewData.spawnedFrom without filtering metadata. plans/overview-data.js:1605 declares spawnedFrom._comment as a human-readable string description (NOT a parentTaskId). The result: a phantom story-typed node {id:'<comment-string>'} is added and a bogus spawn edge {from:'_comment', to:'<comment-string>', type:'spawn'} is emitted into plans/overview-dependency-graph.json on every sync. Same issue in collectTaskIds which Set-adds '_comment' as a real taskId.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Added childTaskId.startsWith('_') guard in spawn-edge loop and collectTaskIds; regression test added",
+      "relevantFiles": [
+        "scripts/lib/derive-dependency-graph.mjs:47-54",
+        "scripts/lib/derive-dependency-graph.mjs:71-77",
+        "plans/overview-data.js:1605"
+      ],
+      "suggestedFix": "Skip entries whose key starts with '_' (or whose value is not a string matching a known taskId). Apply consistently in both collectTaskIds() and the spawn-edge loop. Add a regression test in derive-dependency-graph.test.mjs with a fixture containing spawnedFrom._comment."
+    },
+    {
+      "id": "F-002",
+      "severity": "High",
+      "source": "claude",
+      "classification": "fixable",
+      "phase": "code",
+      "category": "Completeness",
+      "sectionRef": "Risk Areas > 3. Schema widening breaks existing consumers",
+      "description": "emit-snapshot-schema.mjs widens Recommendation and DependencyGraph but makes new fields STRICTLY required, violating the plan's additive/backward-compatible mandate. (a) Recommendation has `required: ['taskId', 'score', 'stage', 'reasons']` — plan says keep additionalProperties:true on Recommendation, implying the new fields stage/reasons should be additive not mandatory. (b) DependencyGraph nodes have `required: ['id', 'type']` — plan explicitly says 'relax node `required` (still requires `id`)'. (c) DependencyGraph edges have `required: ['from', 'to', 'type']` — plan explicitly says 'add edge `type` as an optional field'. This will reject legacy minimal snapshots that don't carry the new fields.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Restricted required arrays per plan: Recommendation [taskId,score]; node [id]; edge [from,to]. Legacy minimal snapshot test added",
+      "relevantFiles": [
+        "scripts/lib/emit-snapshot-schema.mjs:162-171",
+        "scripts/lib/emit-snapshot-schema.mjs:173-206"
+      ],
+      "suggestedFix": "Restrict Recommendation required to ['taskId','score']; restrict DependencyGraph node required to ['id']; restrict DependencyGraph edge required to ['from','to']. Add a unit test in emit-snapshot-schema.test.mjs that validates a legacy minimal snapshot {recommendations:[{taskId:'X',score:0.5}], dependencyGraph:{nodes:[{id:'X'}], edges:[{from:'A',to:'B'}]}} still passes."
+    },
+    {
+      "id": "F-003",
+      "severity": "Medium",
+      "source": "claude",
+      "classification": "fixable",
+      "phase": "code",
+      "category": "Correctness",
+      "sectionRef": "Acceptance Criteria > top topN (default 20)",
+      "description": "scoreRecommendations defaults topN to Number.POSITIVE_INFINITY when callers omit it, contradicting the plan AC 'top topN (default 20)'. The production path is safe because emit-derived-artifacts.mjs reads config.recommendations?.topN and the default-config.mjs sets it to 20, but any direct caller (tests, future MCP/skill consumers per plan's Hand-off section) gets the full unsorted-by-cap list. The function-level documented default is missing.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Replaced Number.POSITIVE_INFINITY default with 20; added unit test for topN undefined",
+      "relevantFiles": [
+        "scripts/lib/score-recommendations.mjs:24",
+        "scripts/lib/score-recommendations.mjs:28"
+      ],
+      "suggestedFix": "Replace `const limit = Number.isInteger(topN) && topN >= 0 ? topN : Number.POSITIVE_INFINITY` with `const limit = Number.isInteger(topN) && topN >= 0 ? topN : 20`. Add a unit test asserting that with topN undefined and 25 synthetic tasks, the returned array length is 20."
+    },
+    {
+      "id": "F-004",
+      "severity": "Medium",
+      "source": "claude",
+      "classification": "fixable",
+      "phase": "code",
+      "category": "Correctness",
+      "sectionRef": "Approach > Architecture > 3. Scoring rubric",
+      "description": "scoreRecommendations does not exclude tasks whose stage is 'shipped'. Stage urgency contributes 0 for shipped, but dependencyState (1.0 when no deps), freshness (1.0 if updated today), and priority (0.5 default) still yield score ~ 0.55 — which can outrank pending tasks. The plan calls the output 'next task to work on' (line 11) and 'ranked next task to work on' (line 14); a shipped task is by definition not actionable.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Filter applied via .filter(entry => entry.stage !== 'shipped'); exclusion test added",
+      "relevantFiles": [
+        "scripts/lib/score-recommendations.mjs:30-50",
+        "scripts/lib/score-recommendations.mjs:1-12"
+      ],
+      "suggestedFix": "After computing the score array, filter out entries with stage === 'shipped' before sorting and slicing. Add a unit test with a mix of shipped (unblocked + fresh) and pending tasks asserting that no shipped task appears in the top recommendations."
+    },
+    {
+      "id": "F-005",
+      "severity": "Medium",
+      "source": "claude",
+      "classification": "fixable",
+      "phase": "code",
+      "category": "Correctness",
+      "sectionRef": "Plan-review soft-cap residue > F-014 runDurations contract",
+      "description": "computeRunDurations in emit-derived-artifacts.mjs maps EVERY historical run of a task to the current job-state.json's createdAt/completedAt window. If overviewData.runs has three entries for the same taskId, all three runIds get the same duration value — even though only the most recent corresponds to the current job-state.json cycle. This produces misleading runDurations entries for older runs. Plan F-014 keys runDurations by runId, which implies per-cycle granularity is expected.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Rewrote computeRunDurations to keep only most-recent run per taskId; two-run fixture test added; JSDoc documents v1 design",
+      "relevantFiles": [
+        "scripts/lib/emit-derived-artifacts.mjs:54-67"
+      ],
+      "suggestedFix": "Either (a) only emit a runDuration for the MOST RECENT run per taskId (skip earlier run ids), or (b) match runs to historical job-state entries (if available in iteration-result-*.json) rather than the live job-state.json. Document the choice in the helper's JSDoc and add a test fixture with two runs for the same taskId."
+    },
+    {
+      "id": "F-006",
+      "severity": "Low",
+      "source": "claude",
+      "classification": "fixable",
+      "phase": "code",
+      "category": "Quality",
+      "sectionRef": "Approach > Architecture > 3. Scoring rubric",
+      "description": "scoreRecommendations silently maps unknown stages to urgency 0 via STAGE_URGENCY[stage] ?? 0 (score-recommendations.mjs:57). sync-core.mjs already has warnUnknownPhase telemetry for orchestrator phases — recommendation scoring lacks the same drift signal. A typo'd or newly added stage would silently rank lowest with no warning.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Added _warnedUnknownStages dedup Set + warnUnknownStage; mirrors warnUnknownPhase pattern",
+      "relevantFiles": [
+        "scripts/lib/score-recommendations.mjs:53-60"
+      ],
+      "suggestedFix": "When buildStageComponent encounters a stage not in STAGE_URGENCY, write a single deduped warning to stderr (mirror the warnUnknownPhase pattern in sync-core.mjs). Keep the 0 fallback for safety."
+    }
+  ]
+}

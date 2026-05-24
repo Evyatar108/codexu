@@ -1,0 +1,86 @@
+{
+  "storyId": "US-003",
+  "verifiedEvidence": [
+    {
+      "criterion": "Exports async start({ repoRoot, configPath?, debounceMs?, processLabel, onWrite?, onError? }) => Promise<{ stop, status }>; start() is async and resolves only after cold-start + chokidar subscription are both ready.",
+      "command": "grep -nE 'export async function start|watcher.on' scripts/lib/watch-ralph-state.mjs scripts/lib/watch-ralph-state.d.mts && pnpm --filter @codexu/overview-viewer test > .test-output/overview-viewer.test.log 2>&1",
+      "result": "PASS: start is exported by the implementation and .d.mts; ralphWatcher test 'runs one cold-start write after the chokidar subscription is ready' passed in the full suite (21 files / 118 tests).",
+      "evidenceKind": "test"
+    },
+    {
+      "criterion": "Uses acquireLock/releaseLock from scripts/lib/sync-lock.mjs (does NOT inline fs.writeFileSync for the lock).",
+      "command": "grep -nE 'acquireLock|releaseLock|writeFileSync' scripts/lib/watch-ralph-state.mjs",
+      "result": "PASS: watcher imports and calls acquireLock/releaseLock from sync-lock; no writeFileSync lock-writing path exists in watch-ralph-state.mjs.",
+      "evidenceKind": "inspection"
+    },
+    {
+      "criterion": "Schedules a 30 s .unref()-ed heartbeat via handle.touch(); cleared in stop() before releaseLock.",
+      "command": "grep -nE 'HEARTBEAT_MS|setInterval|touch|unref|clearInterval|releaseLock' scripts/lib/watch-ralph-state.mjs tools/overview-viewer/src/__tests__/ralphWatcher.test.ts && pnpm --filter @codexu/overview-viewer test > .test-output/overview-viewer.test.log 2>&1",
+      "result": "PASS: HEARTBEAT_MS is 30000, interval calls lockHandle.touch(), unrefs, stop clears interval before releaseLock; test 'touches the lock on a 30 second heartbeat and releases it on stop' passed.",
+      "evidenceKind": "test"
+    },
+    {
+      "criterion": "Cold-start runs walkRalphState once then writeSidecar; stores currentState in memory.",
+      "command": "grep -nE 'walkRalphState|writeSidecar|currentState' scripts/lib/watch-ralph-state.mjs tools/overview-viewer/src/__tests__/ralphWatcher.test.ts",
+      "result": "PASS: start awaits walkRalphState then writeSidecar and assigns currentState; cold-start test verified sidecar and status.currentState contain the implementing task.",
+      "evidenceKind": "inspection"
+    },
+    {
+      "criterion": "chokidar.watch resolves directory roots via config.ralphRoot joined with config.ralphSubdirs.{jobs,jobGroups,brainstorms} — NOT hardcoded subdir names (see F-006 in Open Questions); uses config.watcher.ignored, awaitWriteFinish: { stabilityThreshold: 200, pollInterval: 50 }, ignoreInitial: true.",
+      "command": "grep -nE 'getWatchRoots|ralphSubdirs|config.watcher.ignored|awaitWriteFinish|ignoreInitial' scripts/lib/watch-ralph-state.mjs tools/overview-viewer/src/__tests__/ralphWatcher.test.ts",
+      "result": "PASS: getWatchRoots reads resolved config.ralphSubdirs; test used custom roots .custom-ralph/{queued,teams,ideas}; watcher options include config.watcher.ignored, awaitWriteFinish 200/50, and ignoreInitial true.",
+      "evidenceKind": "test"
+    },
+    {
+      "criterion": "Path-to-slug parser handles Windows + POSIX separators; non-watched files are dropped silently.",
+      "command": "grep -nE 'parseWatchedPath|splitPath|toPosix|selected-direction|pendingChanges' scripts/lib/watch-ralph-state.mjs tools/overview-viewer/src/__tests__/ralphWatcher.test.ts",
+      "result": "PASS: parser normalizes split on both slash styles; tests emit a POSIX-normalized job path and verify selected-direction.md leaves pendingChanges empty with no write.",
+      "evidenceKind": "test"
+    },
+    {
+      "criterion": "Debounce default 2000 ms; processes pending (kind, slug) set on fire; passes TaskUpdate[] to mergeAndWrite; calls onWrite({ writtenAt, changedTaskIds }).",
+      "command": "grep -nE 'DEFAULT_DEBOUNCE_MS|pendingChanges|mergeAndWrite|onWrite|coalesces duplicate slug changes' scripts/lib/watch-ralph-state.mjs tools/overview-viewer/src/__tests__/ralphWatcher.test.ts",
+      "result": "PASS: default debounce is 2000 ms; pending map coalesces by kind:slug; mergeAndWrite receives derived updates; debounce test verified one onWrite with changedTaskIds ['task'].",
+      "evidenceKind": "test"
+    },
+    {
+      "criterion": "On retain result, increments consecutiveFailures per slug, logs to stderr; emits single 'watcher: <slug> failing repeatedly' warning at 10; resets on next non-retain.",
+      "command": "grep -nE 'consecutiveFailures|failing repeatedly|retains malformed JSON' scripts/lib/watch-ralph-state.mjs tools/overview-viewer/src/__tests__/ralphWatcher.test.ts",
+      "result": "PASS: retain path increments consecutiveFailures and emits one repeated-failure warning at 10; malformed JSON test verified count 10, zero onWrite calls, and exactly one repeated warning.",
+      "evidenceKind": "test"
+    },
+    {
+      "criterion": "stop() closes chokidar, clears timers, releases lock in finally.",
+      "command": "grep -nE 'const stop|clearTimeout|clearInterval|close|finally|releaseLock|releases it on stop' scripts/lib/watch-ralph-state.mjs tools/overview-viewer/src/__tests__/ralphWatcher.test.ts",
+      "result": "PASS: stop clears debounce and heartbeat timers, closes watcher, and releases lock in finally; heartbeat/stop test verified watcher.closed, lock removed, and status.stopped true.",
+      "evidenceKind": "test"
+    },
+    {
+      "criterion": "Touching .ralph/brainstorms/<slug>/selected-direction.md does not enqueue or fire onWrite.",
+      "command": "grep -nE 'selected-direction.md|pendingChanges|onWrite' tools/overview-viewer/src/__tests__/ralphWatcher.test.ts && pnpm --filter @codexu/overview-viewer test > .test-output/overview-viewer.test.log 2>&1",
+      "result": "PASS: selected-direction.md no-op test passed; it asserts pendingChanges remains [] and onWrite is not called.",
+      "evidenceKind": "test"
+    },
+    {
+      "criterion": "scripts/lib/watch-ralph-state.d.mts declares the module.",
+      "command": "grep -nE 'WatchWriteEvent|WatchStatus|WatchHandle|start' scripts/lib/watch-ralph-state.d.mts tools/overview-viewer/src/__tests__/scripts.d.ts",
+      "result": "PASS: root .d.mts and test-local ambient declarations expose WatchWriteEvent, WatchStatus, WatchHandle, and start().",
+      "evidenceKind": "inspection"
+    },
+    {
+      "criterion": "Watcher unit tests in tools/overview-viewer/src/__tests__/ralphWatcher.test.ts cover: debounce coalescing, cold-start runs once, lock-collision rejection, malformed-JSON retain + counter, deletion-only-job-state -> plan-ready re-derivation, cross-kind promotion on job delete, worktree-isolation ignore, selected-direction.md no-op.",
+      "command": "grep -nE 'cold-start|coalesces|rejects startup|retains malformed|plan-ready|promotes a brainstorm|worktree paths ignored|selected-direction' tools/overview-viewer/src/__tests__/ralphWatcher.test.ts && pnpm --filter @codexu/overview-viewer test > .test-output/overview-viewer.test.log 2>&1",
+      "result": "PASS: ralphWatcher.test.ts includes all named watcher behavior tests plus heartbeat/stop; full suite passed 21 files / 118 tests.",
+      "evidenceKind": "test"
+    },
+    {
+      "criterion": "Typecheck passes.",
+      "command": "pnpm --filter @codexu/overview-viewer typecheck > .test-output/overview-viewer.typecheck.log 2>&1",
+      "result": "PASS: tsc --noEmit completed with exit 0 in 9s.",
+      "evidenceKind": "typecheck"
+    }
+  ],
+  "skippedReasons": [],
+  "notTested": [],
+  "iterationSHA": "fcffa7dabf26e07e67002d33a1af405733887698"
+}

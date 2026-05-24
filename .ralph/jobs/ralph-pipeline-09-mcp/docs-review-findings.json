@@ -1,0 +1,54 @@
+{
+  "planFile": "D:/harness-efforts/codexu/.ralph/jobs/ralph-pipeline-09-mcp/plan.md",
+  "repoDir": "D:/harness-efforts/codexu/.ralph/jobs/ralph-pipeline-09-mcp/worktree",
+  "findings": [
+    {
+      "id": "F-001",
+      "severity": "Medium",
+      "category": "Stale Documentation",
+      "classification": "fixable",
+      "phase": "docs",
+      "source": "docs",
+      "description": "plans/ralph-pipeline-09-mcp.md line 71 documents the npm script as `\"overview-mcp:install\": \"pnpm --filter @codexu/overview-mcp install-server\"`, but the implementation in this diff added the script as `\"overview-mcp:install\": \"pnpm --filter @codexu/overview-mcp exec overview-mcp-install\"` in the root package.json. Future agents reading Plan 09 to extend or repair the install flow will look for a non-existent `install-server` package script. The README in tools/overview-mcp/README.md uses the correct `exec overview-mcp-install` form, so the source plan is the lone stale reference for this command.",
+      "relevantFiles": ["plans/ralph-pipeline-09-mcp.md"],
+      "suggestedFix": "Update plans/ralph-pipeline-09-mcp.md line 71 to read `\"overview-mcp:install\": \"pnpm --filter @codexu/overview-mcp exec overview-mcp-install\"` so it matches the actual root package.json script and the README installation flow.",
+      "status": "fixed"
+    },
+    {
+      "id": "F-002",
+      "severity": "Medium",
+      "category": "Stale Documentation",
+      "classification": "fixable",
+      "phase": "docs",
+      "source": "docs",
+      "description": "plans/ralph-pipeline-09-mcp.md line 56 documents the package `bin` entry as `overview-mcp` mapped to `dist/index.js`, but the diff registered the bin in tools/overview-mcp/package.json as `\"overview-mcp-install\": \"dist/install-server.js\"`. There is no `overview-mcp` bin entry, and the only bin maps the installer (not the server entrypoint). Plan 09's description misrepresents both the bin name and the target file, which will confuse anyone trying to invoke the server CLI based on the plan.",
+      "relevantFiles": ["plans/ralph-pipeline-09-mcp.md"],
+      "suggestedFix": "Update plans/ralph-pipeline-09-mcp.md line 56 to describe the actual bin entry: `bin` entry `overview-mcp-install` → `dist/install-server.js`, and clarify that the MCP server entrypoint at `dist/index.js` is invoked directly via `node` (per the README registration shape), not through a bin.",
+      "status": "fixed"
+    },
+    {
+      "id": "F-003",
+      "severity": "Medium",
+      "category": "Stale Documentation",
+      "classification": "fixable",
+      "phase": "docs",
+      "source": "docs",
+      "description": "plans/ralph-pipeline-09-mcp.md line 63 lists tests under `tools/overview-mcp/tests/*.test.ts`, but the implementation in this diff placed every test file under `tools/overview-mcp/src/__tests__/` (14 files including add-journal-entry.test.ts, get-task.test.ts, get-transcript.test.ts, install-server.test.ts, invoke-next.test.ts, list-blockers.test.ts, list-crew-sessions.test.ts, list-recommendations.test.ts, list-tasks.test.ts, next-command.test.ts, read-only-tools.test.ts, set-override.test.ts, snapshot-reader.test.ts, stdio-tools-list.test.ts). The `tools/overview-mcp/tests/` directory does not exist. This is the path future maintainers will use to locate or add tool tests.",
+      "relevantFiles": ["plans/ralph-pipeline-09-mcp.md"],
+      "suggestedFix": "Update plans/ralph-pipeline-09-mcp.md to reference `tools/overview-mcp/src/__tests__/*.test.ts` instead of `tools/overview-mcp/tests/*.test.ts` on line 63, and update the same path in any related `tests/process-manager.test.ts` style references in Plan 11 only if they apply (Plan 11 is a future plan and may legitimately propose a different layout).",
+      "status": "fixed"
+    },
+    {
+      "id": "F-004",
+      "severity": "Medium",
+      "category": "Stale Documentation",
+      "classification": "fixable",
+      "phase": "docs",
+      "source": "docs",
+      "description": "plans/ralph-pipeline-09-mcp.md line 102 (set_override implementation note step 4) says \"Serialize via `@babel/generator` configured to preserve whitespace and quoting.\" The diff deliberately implements set_override using AST locate + source-string splice and explicitly avoids `@babel/generator` — the worktree CLAUDE.md repeats this as a hard constraint (\"NEVER call `@babel/generator` — it reformats the whole file and breaks the byte-range confinement test\"). `@babel/generator` is not a dependency in tools/overview-mcp/package.json. The plan's set_override design step is now actively contradicted by the shipped behavior and by the job's recorded constraint.",
+      "relevantFiles": ["plans/ralph-pipeline-09-mcp.md"],
+      "suggestedFix": "Update plans/ralph-pipeline-09-mcp.md step 4 in the `overview.set_override` section (line 102) to describe the AST-locate + source-string splice approach actually used in tools/overview-mcp/src/utils/set-override-edit.ts: locate the `ralphOverrides` property's source byte range via @babel/parser, splice in a serialized object literal at that range, and write the result atomically. Add an explicit note that `@babel/generator` must not be used because it reformats the surrounding file and breaks byte-range confinement.",
+      "status": "fixed"
+    }
+  ]
+}

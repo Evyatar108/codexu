@@ -1,0 +1,32 @@
+{
+  "storyId": "US-003",
+  "verifiedEvidence": [
+    {
+      "criterion": "append-journal exports and declarations",
+      "command": "grep -nE \"export function appendJournalEntry|export function formatJournalLine\" scripts/lib/append-journal.mjs scripts/lib/append-journal.d.mts",
+      "result": "PASS: appendJournalEntry and formatJournalLine are exported by implementation and declaration files.",
+      "evidenceKind": "file-verified"
+    },
+    {
+      "criterion": "append-journal behavior coverage",
+      "command": "pnpm exec vitest run scripts/lib/append-journal.test.mjs",
+      "result": "PASS: 1 test file passed, 4 tests passed, covering normal append, idempotent directory creation, traversal rejection, and exact format output.",
+      "evidenceKind": "test-pass"
+    },
+    {
+      "criterion": "atomic append pattern",
+      "command": "grep -nE \"fs.openSync|fs.writeSync|fs.fsyncSync|fs.closeSync\" scripts/lib/append-journal.mjs",
+      "result": "PASS: source uses openSync('a'), writeSync, fsyncSync, and closeSync in finally.",
+      "evidenceKind": "file-verified"
+    },
+    {
+      "criterion": "Typecheck passes",
+      "command": "pnpm --filter @codexu/overview-viewer typecheck",
+      "result": "PASS: tsc --noEmit completed with exit 0; log captured at .test-output/overview-viewer.typecheck.log.",
+      "evidenceKind": "typecheck-pass"
+    }
+  ],
+  "skippedReasons": [],
+  "notTested": [],
+  "iterationSHA": "47de7038c59bfb658ec5b16232941ae2aad6a77c"
+}

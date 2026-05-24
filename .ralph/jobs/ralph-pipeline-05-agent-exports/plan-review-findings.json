@@ -1,0 +1,176 @@
+{
+  "planFile": "D:/harness-efforts/codexu/.ralph/jobs/.staging/20260519-052300/draft-plan.md",
+  "repoDir": "D:/harness-efforts/codexu",
+  "reviewCycle": 0,
+  "findings": [
+    {
+      "id": "F-001",
+      "severity": "High",
+      "source": "consensus",
+      "category": "Feasibility",
+      "sectionRef": "Snapshot schema",
+      "description": "Snapshot references Recommendation and DependencyGraph TypeScript types, but those types do not exist in tools/overview-viewer/src/types.ts and Plan 04 (which owns them) has not shipped. A literal implementation of the plan will not typecheck. The plan must either define minimal v1 shapes for Recommendation and DependencyGraph in types.ts as part of Plan 05's additions, or use inline structural types (e.g. unknown[] / Record<string, unknown>) until Plan 04 fills them in.",
+      "status": "fixed",
+      "relevantFiles": [
+        "tools/overview-viewer/src/types.ts"
+      ],
+      "suggestedFix": "In the Snapshot schema section and the Files-to-Modify list for types.ts, add: export interface Recommendation { /* TBD by Plan 04; v1 stub: */ taskId?: string; score?: number; rationale?: string } and export interface DependencyGraph { nodes: Array<{ id: string }>; edges: Array<{ from: string; to: string }> }. State that Plan 04 may extend or rename these; Plan 05 ships them as minimal v1 stubs so the Snapshot interface compiles.",
+      "fixedInIteration": 1,
+      "resolution": "Added v1 stub interfaces for Recommendation and DependencyGraph in the Snapshot schema TS block, and updated the types.ts Files-to-Modify entry plus US-006 story to declare them as Plan 05 additions, so the Snapshot interface typechecks before Plan 04 ships."
+    },
+    {
+      "id": "F-002",
+      "severity": "High",
+      "source": "consensus",
+      "category": "Completeness",
+      "sectionRef": "Activity log rotation; Files to Modify > Code",
+      "description": "Internal inconsistency in the activity-rotation config shape. The plan declares outputs.activity as a string path (peer of outputs.sidecarJs) but later says rotation is configurable via outputs.activity.maxLines. resolve-config.mjs treats known outputs as scalar paths (L76 area), so outputs.activity cannot be both a string and an object. Either drop the scalar-path shape and make outputs.activity an object ({ path, backupPath, maxLines }) everywhere, or keep it scalar and add a separate outputs.activityMaxLines numeric key.",
+      "status": "fixed",
+      "relevantFiles": [
+        "scripts/lib/default-config.mjs",
+        "scripts/lib/resolve-config.mjs",
+        ".ralph/overview-config.schema.json"
+      ],
+      "suggestedFix": "Pick option B (keep scalar paths, add outputs.activityMaxLines as a separate integer key default 1000). Update the Snapshot schema, default-config, resolve-config, .ralph/overview-config.json, .ralph/overview-config.schema.json, and the Activity-log-rotation section to use outputs.activityMaxLines consistently.",
+      "fixedInIteration": 2,
+      "resolution": "Adopted option B: replaced the inconsistent outputs.activity.maxLines (which clashed with resolve-config.mjs's scalar-path treatment of outputs.* keys) with a separate integer key outputs.activityMaxLines. Updated Phase A config-keys list, emit-activity description, Files-to-Modify (default-config/resolve-config/.ralph config and schema), Activity-log-rotation section, the types-and-config cluster story summary, the five-config-file acceptance criterion, and the config-key-naming Open Question to consistently reference outputs.activityMaxLines."
+    },
+    {
+      "id": "F-003",
+      "severity": "High",
+      "source": "codex",
+      "category": "Completeness",
+      "sectionRef": "Files to Modify - Cascade",
+      "description": "The cascade list omits plans/ralph-pipeline-04-pipeline-overview.md. Plan 04 currently states it adds OverviewRalphState.runDurations and emits recommendations/dep-graph directly from sync-core. Plan 05 contradicts that contract (snapshot absorbs Plan 04 outputs; runDurations lives in Snapshot, not OverviewRalphState). Without updating Plan 04, the two plans will disagree about where runDurations lives and who writes the recommendations/dep-graph files.",
+      "status": "fixed",
+      "relevantFiles": [
+        "plans/ralph-pipeline-04-pipeline-overview.md"
+      ],
+      "suggestedFix": "Add plans/ralph-pipeline-04-pipeline-overview.md to the cascade audit list and to the Acceptance Criteria cascade checklist. The cascade edit should: (1) move the runDurations type-home from OverviewRalphState into Snapshot in Plan 04's spec, (2) state that Plan 04 still emits overview-recommendations.json and overview-dependency-graph.json as separate files, which Plan 05's snapshot then absorbs, (3) reaffirm that snapshot stays derived (Plan 04 does not mutate the snapshot directly).",
+      "fixedInIteration": 3,
+      "resolution": "Added plans/ralph-pipeline-04-pipeline-overview.md to the cascade modify list with the three required contract corrections (move runDurations type-home into Snapshot, keep Plan 04's two sibling JSON artifacts, reaffirm snapshot stays derived), and added a matching entry to the Acceptance Criteria cascade audit checklist."
+    },
+    {
+      "id": "F-004",
+      "severity": "Medium",
+      "source": "consensus",
+      "category": "Simplicity",
+      "sectionRef": "Approach > Architecture; Implementation Strategy Phase D",
+      "description": "Watcher-side prevStateMap plumbing is more complex than necessary. mergeAndWrite already receives the full currentState and constructs the new state, so activity events (stage AND storyCompletion deltas) can be derived inside mergeAndWrite by comparing currentState.byTaskId vs the new state.byTaskId, with no slug-to-taskId resolution duplicated in the watcher and no separate prevStateMap argument. The watcher just consumes the returned activityEvents and appends them after the successful write.",
+      "status": "fixed",
+      "relevantFiles": [
+        "scripts/lib/sync-core.mjs",
+        "scripts/lib/watch-ralph-state.mjs"
+      ],
+      "suggestedFix": "Remove the prevStateMap argument from the mergeAndWrite signature change. Replace Phase C/D wording with: inside mergeAndWrite, after computing the new state, diff currentState.byTaskId vs state.byTaskId by taskId; emit ActivityEvents for any task whose stage or storyCompletion changed, plus removals (newStage: null) and first observations (prevStage: null). Watcher Phase D simplifies to: pass currentState as today, receive activityEvents on the return value, append after success.",
+      "fixedInIteration": 4,
+      "resolution": "Removed prevStateMap plumbing: mergeAndWrite now derives activityEvents internally by diffing currentState.byTaskId vs the new state.byTaskId (no signature change, no watcher-side slug-to-taskId resolution). Watcher Phase D simplifies to consuming result.activityEvents after a successful merge. Updated Architecture, Phases C/D, Files-to-Modify entries, clusters (watcher-wiring risk dropped to low, stories renumbered), Risk #1, and acceptance criteria accordingly."
+    },
+    {
+      "id": "F-005",
+      "severity": "Medium",
+      "source": "consensus",
+      "category": "Completeness",
+      "sectionRef": "Snapshot schema; Approach > Architecture",
+      "description": "Story-progress activity events are underspecified. The current architecture text mentions storyCompletion deltas in passing, and the prevStateMap shape (Map<taskId, RalphStage>) cannot carry storyCompletion. Tightly coupled with F-004's recommended fix.",
+      "status": "open",
+      "relevantFiles": [
+        "scripts/lib/sync-core.mjs"
+      ],
+      "suggestedFix": "Inside the F-004 fix in mergeAndWrite, explicitly enumerate the diff dimensions: (1) stage changed, (2) storyCompletion changed (either count or fraction differs), (3) task removed (newStage: null), (4) task first observed (prevStage: null). Each becomes one ActivityEvent with changedFields populated accordingly. Document these four cases under Activity log rotation or a new Activity event derivation subsection."
+    },
+    {
+      "id": "F-006",
+      "severity": "Medium",
+      "source": "consensus",
+      "category": "Criteria Quality",
+      "sectionRef": "Acceptance Criteria",
+      "description": "Acceptance criterion 'pnpm test green' is vague. Root package.json has no test script; vitest tests live under tools/overview-viewer (pnpm --filter @codexu/overview-viewer test) and there is a scripts/lib vitest path for sync-core.test.mjs. The criterion must name the exact verification commands.",
+      "status": "open",
+      "relevantFiles": [
+        "package.json",
+        "tools/overview-viewer/package.json"
+      ],
+      "suggestedFix": "Replace the line 'All existing tests pass; pnpm test (or the equivalent vitest command) green' with explicit commands: (a) pnpm --filter @codexu/overview-viewer typecheck, (b) pnpm --filter @codexu/overview-viewer test, (c) the command used to run scripts/lib vitest tests (verify the exact form during implementation; likely node --test or a dedicated vitest invocation). Verify package.json scripts and update the AC to the actual command names."
+    },
+    {
+      "id": "F-007",
+      "severity": "Medium",
+      "source": "codex",
+      "category": "Ordering",
+      "sectionRef": "Approach > Architecture; Implementation Strategy Phase C/D",
+      "description": "The plan gives two different owners for snapshot/schema/data-twin/tasks-index emission. The Architecture section says the watcher calls buildSnapshot, schema, data-twin, and tasks-index AFTER mergeAndWrite. Phase C of Implementation Strategy says writeSidecar emits them. mergeAndWrite already calls writeSidecar internally (sync-core L270 region), so both placements would either double-emit or contradict the existing wiring.",
+      "status": "open",
+      "relevantFiles": [
+        "scripts/lib/sync-core.mjs"
+      ],
+      "suggestedFix": "Pick writeSidecar (or an emitAgentArtifacts helper called from inside writeSidecar) as the single integration point for all durable artifacts (snapshot, schema, data-twin, tasks-index). Rewrite the Architecture section's bullet list (steps 4) to reflect: 'writeSidecar (still called by mergeAndWrite) emits all artifacts atomically.' The watcher's only Plan 05 responsibility becomes appending activity events from the returned activityEvents — no direct emitter calls."
+    },
+    {
+      "id": "F-008",
+      "severity": "Medium",
+      "source": "consensus",
+      "category": "Feasibility",
+      "sectionRef": "Acceptance Criteria; Open Questions inference 3",
+      "description": "The acceptance criterion 'npx ajv validate -s ... -d ... exits 0' will not work just by adding ajv + ajv-formats. The ajv package is the library; the CLI binary comes from ajv-cli. Inference 3 in Open Questions is therefore subtly wrong.",
+      "status": "open",
+      "relevantFiles": [
+        "package.json"
+      ],
+      "suggestedFix": "Update Open Questions inference 3 and the matching Acceptance Criterion. Pick ONE of: (a) Add ajv + ajv-formats + ajv-cli to devDependencies and keep the npx ajv validate criterion. (b) Drop the CLI criterion entirely and rely on a vitest test that imports ajv programmatically and validates plans/overview-snapshot.json against plans/overview-snapshot.schema.json — name this test in the AC. Recommend (b) for simplicity (fewer dev deps, same guarantee)."
+    },
+    {
+      "id": "F-009",
+      "severity": "Medium",
+      "source": "codex",
+      "category": "Criteria Quality",
+      "sectionRef": "Acceptance Criteria",
+      "description": "The criterion 'recommendations, dependencyGraph, and runDurations are present as empty containers when Plan 04 has not shipped, and populated correctly when it has' has no verifier for the populated case on the current branch. Plan 04 has not shipped, so 'populated correctly' is asserted against fixtures that do not exist.",
+      "status": "open",
+      "relevantFiles": [
+        "plans/overview-recommendations.json",
+        "plans/overview-dependency-graph.json"
+      ],
+      "suggestedFix": "Split the criterion into two: (1) 'When plans/overview-recommendations.json and plans/overview-dependency-graph.json are absent, Snapshot.recommendations is [] and Snapshot.dependencyGraph is { nodes: [], edges: [] } and Snapshot.runDurations is {}'; (2) 'When fixture overview-recommendations.json and overview-dependency-graph.json files are placed in plans/ during a test, Snapshot picks up their content unchanged. Verified by a unit test in scripts/lib/emit-snapshot.test.mjs that creates the fixtures and asserts the merged shape.'"
+    },
+    {
+      "id": "F-010",
+      "severity": "Medium",
+      "source": "copilot",
+      "category": "Ordering",
+      "sectionRef": "Suggested Decomposition",
+      "description": "The suggested decomposition places emitter-modules and types-and-config both in Phase 1 with no inter-dependency. But emitter .d.mts files (and likely the emitter sources themselves, since they construct Snapshot / ActivityEvent shapes) will reference the Snapshot / SnapshotTask / ActivityEvent types from types.ts. If emitter-modules lands without types-and-config, the typecheck breaks.",
+      "status": "open",
+      "relevantFiles": [
+        "suggested-decomposition.json"
+      ],
+      "suggestedFix": "Mark emitter-modules as dependsOn ['types-and-config'] (still Phase 1 in execution order but serialized). Alternatively, split emitter-modules into emitter-impls (.mjs files only, Phase 1, no type dep) and emitter-decls (.d.mts files, Phase 2, dependsOn types-and-config). Update both the markdown Suggested Decomposition section and suggested-decomposition.json sidecar atomically."
+    },
+    {
+      "id": "F-011",
+      "severity": "Medium",
+      "source": "copilot",
+      "category": "Completeness",
+      "sectionRef": "Open Questions inference 7; Acceptance Criteria",
+      "description": "The plan infers that one-shot sync-ralph-state produces snapshot/data/schema/tasks-index but NOT activity events. It does not specify whether the one-shot run creates an empty plans/overview-activity.jsonl file (so the file is guaranteed to exist after first sync) or whether the file's existence is only guaranteed after the first watcher event. Plan 06+ readers will hit either-or behavior unless this is nailed down.",
+      "status": "open",
+      "relevantFiles": [
+        "scripts/lib/sync-core.mjs"
+      ],
+      "suggestedFix": "State explicitly: 'writeSidecar ensures plans/overview-activity.jsonl exists (creates an empty file if absent) on every run, but does NOT append events during a one-shot sync. Activity events are only appended by the watcher after a successful mergeAndWrite.' Add an AC: 'After pnpm sync-ralph-state runs once on a fresh checkout, plans/overview-activity.jsonl exists and is empty (size 0).'"
+    },
+    {
+      "id": "F-012",
+      "severity": "Medium",
+      "source": "copilot",
+      "category": "Criteria Quality",
+      "sectionRef": "Acceptance Criteria",
+      "description": "Activity ACs only require a stage-transition line. The Snapshot schema and architecture support storyCompletion deltas, delete events (newStage: null), first-observed events (prevStage: null), and reader tolerance for a torn final line. None of these are exercised by the current ACs.",
+      "status": "open",
+      "relevantFiles": [
+        "scripts/lib/emit-activity.test.mjs"
+      ],
+      "suggestedFix": "Add four ACs to the Acceptance Criteria block: (1) 'Increment storyCompletion in a fixture job-state.json; watcher emits an ActivityEvent with changedFields containing storyCompletion.' (2) 'Delete a fixture job directory; watcher emits an event with newStage: null.' (3) 'A retain (no diff) tick emits zero events.' (4) 'A reader that JSON.parse-fails on the last line of activity.jsonl skips that line and continues — documented in AGENTS.md.' Cover via unit tests in emit-activity.test.mjs."
+    }
+  ]
+}

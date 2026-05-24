@@ -1,0 +1,82 @@
+I’m tracing the existing session metadata flow across app, wire, and server so I can map the exact integration points.
+
+**Recommended direction:** use the existing **metadata-only** path, not new DB columns. The current system already stores session metadata as an opaque encrypted JSON string and propagates it end-to-end; adding dedicated `parentSessionId` / `spawnedChildren` columns would require a Prisma migration plus duplicate projections for little benefit in this single-user embedded-server architecture.
+
+### Codebase Architecture
+- **Monorepo / tooling:** pnpm workspace, TypeScript, Vitest.
+- **Mobile app:** `packages/happy-app/` — React Native + Expo. Sync logic lives in `sources/sync/`.
+- **Server:** `packages/happy-server/` — Fastify + Prisma/Postgres. Session CRUD and socket updates live under `sources/app/`.
+- **Shared wire:** `packages/happy-wire/` — Zod schemas for shared update/message envelopes.
+- **CLI/daemon:** `packages/happy-cli/` — owns session creation, metadata writes, fork/spawn flows.
+
+### Feature-Relevant Code
+- **App types**
+  - `packages/happy-app/sources/sync/storageTypes.ts`
+    - `MetadataSchema` / `Metadata`
+    - `Session`
+- **App sync/store**
+  - `packages/happy-app/sources/sync/storage.ts`
+    - `applySessions(...)` merges incoming sessions into store
+    - no existing `getSessionChildren` / `getSessionParent`
+  - `packages/happy-app/sources/sync/sync.ts`
+    - `toCompositeSession(...)` converts server-local session ids into app-local composite ids and injects `metadata.machineId`
+    - `fetchSessions()` parses metadata JSON
+    - `handleUpdate(... 'update-session' ...)` parses metadata updates
+  - `packages/happy-app/sources/sync/ops.ts`
+    - `sessionUpdateMetadata(...)` is the app-side optimistic CAS metadata writer
+  - `packages/happy-app/sources/sync/machineSessionId.ts`
+    - `compositeSessionId(...)`, `parseCompositeSessionId(...)`
+- **Server**
+  - `packages/happy-server/prisma/schema.prisma`
+    - `Session.metadata` is a **String**, not structured columns/JSON fields
+  - `packages/happy-server/sources/app/api/routes/sessionRoutes.ts`
+    - `/v1/sessions`, `/v2/sessions*`, `POST /v1/sessions` all round-trip `metadata` unchanged
+  - `packages/happy-server/sources/app/api/socket/sessionUpdateHandler.ts`
+    - `update-metadata` does version-checked string replacement
+  - `packages/happy-server/sources/app/events/eventRouter.ts`
+    - `new-session` / `update-session` socket payloads carry metadata as opaque strings
+- **Shared wire**
+  - `packages/happy-wire/src/messages.ts`
+    - `UpdateSessionBodySchema` already models metadata as `VersionedEncryptedValue`
+    - no shared metadata schema here, so metadata-only does **not** require a happy-wire protocol change
+- **CLI**
+  - `packages/happy-cli/src/api/types.ts`
+    - CLI `Metadata` type must grow the new fields too
+  - `packages/happy-cli/src/utils/createSessionMetadata.ts`
+    - initial metadata factory
+  - `packages/happy-cli/src/api/api.ts`
+    - `getOrCreateSession(...)` sends metadata JSON to server
+  - `packages/happy-cli/src/api/apiSession.ts`
+    - `updateMetadata(...)` is the natural CAS write surface
+  - `packages/happy-cli/src/daemon/forkSession.ts`
+    - existing parent-session concept for fork RPCs, but machine-local and bare local ids
+
+### Technical Constraints
+- **Composite ids are app-local.** The app uses `${machineId}:${localSessionId}`; server/daemon RPCs use bare local ids. `ops.test.ts` already enforces stripping the composite prefix before `fork-into-worktree`.
+- **Server metadata is opaque.** Because `Session.metadata` is just a string, metadata-only is cheap; DB columns are expensive and require a human migration.
+- **Undefined vs empty matters.** The pitfall in the request is real: `spawnedChildren` must stay `undefined` when absent; don’t normalize old sessions to `[]`.
+- **No full session MMKV persistence exists today.** `packages/happy-app/sources/sync/persistence.ts` persists drafts/modes/replay seqs, not the full `sessions` map. So the acceptance line mentioning “MMKV” is broader than the current architecture unless it only means app-side merge/local overlay behavior.
+
+### Implementation Suggestions
+1. **Prefer metadata-only.** Extend:
+   - `packages/happy-cli/src/api/types.ts`
+   - `packages/happy-app/sources/sync/storageTypes.ts`
+2. **Normalize refs at the app sync boundary.**
+   - `sync.ts:toCompositeSession(...)` is the best place to map local ids to composite ids for `metadata.parentSessionId` / `metadata.spawnedChildren`.
+   - Reuse the same normalization in the `'update-session'` handler so live updates and refetches match.
+3. **Add store helpers in `storage.ts`.**
+   - `getSessionParent(sid)` should read the current session’s `metadata.parentSessionId`.
+   - `getSessionChildren(sid)` should resolve `metadata.spawnedChildren` against `state.sessions`.
+   - Keep them pure lookups; no list/UI changes yet.
+4. **CLI write point should be post-creation/post-spawn, not only initial metadata creation.**
+   - `createSessionMetadata.ts` can seed child `parentSessionId` only if the parent ref is already known.
+   - Parent `spawnedChildren` needs the child session id, so the natural surface is a later `ApiSessionClient.updateMetadata(...)` CAS update.
+5. **Tests to extend**
+   - `packages/happy-app/sources/sync/storageTypes.spec.ts`
+   - `packages/happy-app/sources/sync/storage.applySessions.spec.ts`
+   - add helper-focused store tests for parent/child lookup
+   - `packages/happy-app/sources/sync/sync.test.ts` for composite-id normalization on `update-session`
+   - CLI tests where metadata types/writes are updated
+
+**Bottom line:** the plan is feasible, and the natural implementation is **CLI metadata type + app metadata type + app sync normalization + store helpers**, while leaving happy-server/happy-wire structurally unchanged unless the operator explicitly wants queryable server-side parent/child columns.
+

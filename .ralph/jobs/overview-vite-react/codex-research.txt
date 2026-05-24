@@ -1,0 +1,42 @@
+**Codebase Architecture**
+`D:/harness-efforts/codexu` is a pnpm monorepo (`pnpm@10.11.0`). Workspace packages are explicitly listed in both [pnpm-workspace.yaml](D:/harness-efforts/codexu/pnpm-workspace.yaml:1) and root [package.json](D:/harness-efforts/codexu/package.json:21), so `tools/overview-viewer` should be added to both for consistency.
+
+Most packages are TypeScript. `happy-app` is Expo/React Native with React 19 and strict TS config. `codium` is the closest React/Vite reference: [packages/codium/electron.vite.config.ts](D:/harness-efforts/codexu/packages/codium/electron.vite.config.ts:1) uses React 19, `@vitejs/plugin-react`, Vite 8, and `moduleResolution: bundler`. Root `tools/` currently runs outside the workspace; [tools/render-roadmap.ts](D:/harness-efforts/codexu/tools/render-roadmap.ts:5) explicitly documents that pattern, but this feature should not copy it.
+
+The overview viewer is currently a static HTML app: [plans/overview.html](D:/harness-efforts/codexu/plans/overview.html:1284) loads [plans/overview-data.js](D:/harness-efforts/codexu/plans/overview-data.js:1), which assigns `window.OVERVIEW_DATA`, then inline JS renders from that global.
+
+**Feature-Relevant Code**
+The shipped data file has 49 tasks, 33 kanban cards, 17 runs, and 7 phase-tree blocks. Task keys are `id`, `scope`, `phase`, `status`, `lastTouchedAt`, optional `planOnly` / `mergeCommit`, `kanbanCards[]`, and `command`; there is no flat `title`. Card keys are `column`, `cardClass`, `inlineStyle`, `html`, optional `insertBeforeTaskId`, and `order`.
+
+Current renderer hotspots:
+
+- [plans/overview.html](D:/harness-efforts/codexu/plans/overview.html:1288) `renderTasks()` builds kanban cards and command `<details>`, preserves open rows, and calls enrichments.
+- [plans/overview.html](D:/harness-efforts/codexu/plans/overview.html:1386) sorts cards by numeric `order`; cards without numeric order use `insertBeforeTaskId` fallback in `insertKanbanCard()`.
+- [plans/overview.html](D:/harness-efforts/codexu/plans/overview.html:1401) `renderPhaseTree()` renders `raw` HTML nodes and derives task-ref CSS class from `task.phase`; the current data still includes legacy `state` fields on task-ref nodes, but the renderer ignores them.
+- [plans/overview.html](D:/harness-efforts/codexu/plans/overview.html:1482) phase-to-order/filter bucket maps are load-bearing for sorting, filtering, and Today panel behavior.
+- [plans/overview.html](D:/harness-efforts/codexu/plans/overview.html:1581) phase badge text/glyph map should move verbatim into `StatusBadge`.
+- [plans/overview.html](D:/harness-efforts/codexu/plans/overview.html:1851) `buildTodayPanel()` currently renders running, ready, on-hold, and recently-shipped footer behavior.
+- [plans/overview.html](D:/harness-efforts/codexu/plans/overview.html:2075) URL filtering uses `?tasks=foo,bar`.
+- [plans/overview.html](D:/harness-efforts/codexu/plans/overview.html:2524) `applyEnrichments()` lists the DOM passes that should become React components/hooks.
+
+**Technical Constraints**
+Keep `file://` compatibility. Do not fetch JSON; `overview-data.js` must stay a synchronous script global. In Vite dev, `plans/overview-data.js` is outside the package root, so the plugin must explicitly serve/watch it.
+
+The CSS token system in [plans/overview.html](D:/harness-efforts/codexu/plans/overview.html:7) should be ported verbatim, including light-theme overrides and phase badge classes around line 852. No Tailwind/CSS-in-JS.
+
+HTML fragments in data are trusted operator-authored content. Use `dangerouslySetInnerHTML` for `kanbanCards[].html`, `descriptionHtml`, `warnings[].html`, `phaseTree.raw.html`, and `trailingHtml`. Do not derive logic from line endings; current card HTML strings are mixed `\r\n` and `\n`.
+
+React cannot use `style="..."`; `card.inlineStyle` needs a small parser or a controlled ref-based attribute set.
+
+One important parity issue: current “Copy Command” injects scope preambles at copy time via [plans/overview.html](D:/harness-efforts/codexu/plans/overview.html:1770), so it is not byte-for-byte `planPrompt`. The PRD should explicitly decide whether to preserve that behavior or add a separate raw-copy affordance.
+
+`vite-plugin-singlefile` is not currently in the lockfile. `@codexu/overview-viewer` has no package-name collision.
+
+**Implementation Suggestions**
+Scaffold `tools/overview-viewer` as a private workspace package with React 19, Vite 8, `@vitejs/plugin-react`, strict TS, `base: './'`, `outDir: '../../plans'`, and `emptyOutDir: false`. Add root scripts `overview` and `overview:build`, then run root `pnpm install`.
+
+Use a custom Vite plugin that serves `/overview-data.js` from `plans/overview-data.js`, watches the absolute path, sends HMR payloads, and lets the client re-evaluate the trusted assignment before notifying `useSyncExternalStore`.
+
+Port in component slices: `StatusBadge`, `TaskCommand`, `KanbanColumn/Card`, `PhaseTree`, `TodayPanel`, `RunsLog`, filter/search/banner hooks, clipboard helpers, and `usePersistentExpanded` using existing key `codexu-overview-details-state-v2`.
+
+Add focused tests for schema loading, kanban ordering, phase-tree derivation, URL filter parsing, and copy text behavior. Use Playwright or screenshot comparison for static-vs-dev visual parity before replacing [plans/overview.html](D:/harness-efforts/codexu/plans/overview.html:1).

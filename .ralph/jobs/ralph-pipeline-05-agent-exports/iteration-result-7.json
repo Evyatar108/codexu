@@ -1,0 +1,44 @@
+{
+  "storyId": "US-004",
+  "verifiedEvidence": [
+    {
+      "criterion": "scripts/lib/emit-snapshot-schema.mjs exports SNAPSHOT_SCHEMA (constant) and writeSnapshotSchema(path).",
+      "command": "nl -ba scripts/lib/emit-snapshot-schema.mjs | sed -n '1,220p'",
+      "result": "Lines 4-211 export SNAPSHOT_SCHEMA; lines 213-220 export writeSnapshotSchema(schemaPath), create the destination directory, and write pretty JSON with a trailing newline.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Schema matches the Snapshot TS interface (v1).",
+      "command": "nl -ba scripts/lib/emit-snapshot-schema.mjs | sed -n '10,32p'; nl -ba scripts/lib/emit-snapshot-schema.mjs | sed -n '139,199p'",
+      "result": "Snapshot required fields match the v1 Snapshot interface: generatedAt, generatedFromCommit, schemaVersion const 1, tasks, runs, recommendations, dependencyGraph, runDurations, unmatched, and unmatchedSummary; SnapshotTask, RunRecord, Recommendation, and DependencyGraph definitions mirror the TypeScript shapes.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Schema allows additionalProperties: true on RalphPipelineState so Plans 07/08 can extend without breaking.",
+      "command": "nl -ba scripts/lib/emit-snapshot-schema.mjs | sed -n '107,110p'; nl -ba scripts/lib/emit-snapshot-schema.test.mjs | sed -n '24,42p'",
+      "result": "RalphPipelineState is defined with additionalProperties: true at lines 107-110; the test validates a sample ralph object carrying a future crewSessions extension and asserts the flag remains true.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Schema validates itself (meta-schema check via ajv imported programmatically -- not via ajv-cli).",
+      "command": "nl -ba scripts/lib/emit-snapshot-schema.test.mjs | sed -n '5,43p'; pnpm vitest run scripts/lib/emit-snapshot-schema.test.mjs > .test-output/emit-snapshot-schema.test.log 2>&1",
+      "result": "Test imports Ajv directly, calls ajv.compile(SNAPSHOT_SCHEMA), and validates a sample Snapshot. PASS exit=0 duration=7s; 1 test file passed, 2 tests passed.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Typecheck passes.",
+      "command": "pnpm --filter @codexu/overview-viewer typecheck > .test-output/overview-viewer.typecheck.log 2>&1",
+      "result": "PASS exit=0 duration=14s; tsc --noEmit completed with no errors.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Unit tests pass: `pnpm vitest run scripts/lib/emit-snapshot-schema.test.mjs` -- ajv.compile(SNAPSHOT_SCHEMA) succeeds, ajv validates a sample Snapshot instance, and `SNAPSHOT_SCHEMA.properties.schemaVersion.const === 1`.",
+      "command": "pnpm vitest run scripts/lib/emit-snapshot-schema.test.mjs > .test-output/emit-snapshot-schema.test.log 2>&1",
+      "result": "PASS exit=0 duration=7s; 1 test file passed, 2 tests passed; assertions cover schemaVersion.const === 1, Ajv compile/sample validation, additionalProperties on RalphPipelineState, and writeSnapshotSchema output. Package tests also passed: 27 files, 152 tests.",
+      "evidenceKind": "passed"
+    }
+  ],
+  "skippedReasons": [],
+  "notTested": [],
+  "iterationSHA": "7dd04c806605c95170b299309982903990dd242a"
+}

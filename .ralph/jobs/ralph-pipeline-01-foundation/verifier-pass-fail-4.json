@@ -1,0 +1,93 @@
+{
+  "manifestPath": "D:/harness-efforts/codexu/.ralph/jobs/ralph-pipeline-01-foundation/iteration-result-4.json",
+  "iterationSHA": "ea24d34492e1c3b6e189713cdcc5584b634b99d7",
+  "storyId": "US-004",
+  "verdicts": [
+    {
+      "criterion": "scripts/lib/sync-core.mjs exports walkRalphState({ repoRoot, config, generatedFromCommit }) -> Promise<OverviewRalphState>",
+      "verdict": "agree",
+      "reason": "Diff shows `export async function walkRalphState({ repoRoot, config, generatedFromCommit })` in sync-core.mjs and `Promise<OverviewRalphState>` signature in the new sync-core.d.mts; manifest grep cites both files."
+    },
+    {
+      "criterion": "Walk root is exactly <repoRoot>/<config.ralphRoot>/; walker NEVER recurses from <repoRoot> directly (would hit .worktrees/*/.ralph/)",
+      "verdict": "agree",
+      "reason": "Diff shows rootDir derived from normalizedConfig.ralphSubdirs and readDirectChildDirs(readdirSync(rootDir, ...)) — no recursion from repoRoot. Targeted syncCore.test (7 passed) covers this."
+    },
+    {
+      "criterion": "Walk reads direct children of <ralphRoot>/<ralphSubdirs.jobs>/ ... sets jobDirMarker: true when <slug>/ or <group>/ observed; does NOT recurse into <slug>/",
+      "verdict": "agree",
+      "reason": "Diff includes readJobLikeBundles reading job-state.json, prd.json, code-review-findings.json, docs-review-findings.json, group.json, brainstorm.json with `jobDirMarker: true` and no recursion. Manifest grep result confirms file tokens present."
+    },
+    {
+      "criterion": "Skips symlinks; skips paths matching any pattern in config.watcher.ignored (minimum patterns)",
+      "verdict": "agree",
+      "reason": "sync-core.mjs uses isSymbolicLink check and matchesIgnored helper; .ralph/overview-config.json diff contains .worktrees/**, **/.git/**, .ralph/jobs/*/worktree/**, .ralph/jobs/.staging/**, .ralph/telemetry/**, .crews/logs/**, .crews/spawn-launchers/**."
+    },
+    {
+      "criterion": "Nested <jobGroups>/<group>/<member>/job-state.json files do NOT produce per-task entries",
+      "verdict": "agree",
+      "reason": "syncCore.test.ts (in diff) asserts byTaskId.member is undefined for nested group member fixture."
+    },
+    {
+      "criterion": "Slug-heuristic matching resolves each artifact to OverviewTask.id (override / slug-default / no-matching-task-id)",
+      "verdict": "agree",
+      "reason": "Diff contains matchSource branches for 'override', 'slug-default', and unmatched.push with reason 'no-matching-task-id'; tests assert direct and aliased matches."
+    },
+    {
+      "criterion": "Within-kind duplicates: pick max jobState.updatedAt (fallback to directory mtime); losers -> unmatched[] with reason: 'duplicate-resolution'",
+      "verdict": "agree",
+      "reason": "pickMostRecentByMtime + getBundleTimestamp present in diff; targeted test asserts both timestamp modes and unmatched reason."
+    },
+    {
+      "criterion": "Cross-kind precedence: job > group > brainstorm; losers -> unmatched[] with reason: 'shadowed-by-<winning-kind>'; precedence applied BEFORE predicate",
+      "verdict": "agree",
+      "reason": "KIND_PRECEDENCE = ['job','group','brainstorm'] and resolveCrossKindPrecedence in diff; cross-kind collapse runs before deriveRalphStage call. Test asserts job shadows brainstorm."
+    },
+    {
+      "criterion": "Malformed job-state.json: log to stderr, append to unmatched[] with reason: 'parse-error', do NOT derive a stage from sibling files",
+      "verdict": "agree",
+      "reason": "Diff shows try/catch around JSON.parse with console.warn and unmatched.push({ reason: 'parse-error' }); test asserts byTaskId.broken is undefined."
+    },
+    {
+      "criterion": "reviewOpenCount.<phase> is undefined (NOT 0) when the corresponding findings file is missing",
+      "verdict": "agree",
+      "reason": "Diff: findings reader only sets reviewOpenCount[phase] when file exists; test asserts undefined and 'reviewing' stage."
+    },
+    {
+      "criterion": "Output is deterministically sorted: byTaskId keys alphabetical; unmatched[] sorted by kind then slug",
+      "verdict": "agree",
+      "reason": "Diff includes sortObjectByKey and sortUnmatched comparator; manifest cites smoke output [\"a\",\"b\"]."
+    },
+    {
+      "criterion": "Sync-core stamps generatedFromCommit and generatedAt = new Date().toISOString()",
+      "verdict": "agree",
+      "reason": "Diff sets generatedAt: new Date().toISOString() and propagates generatedFromCommit from input; manifest smoke confirmed both."
+    },
+    {
+      "criterion": "walkRalphState does NOT shell out to git (CLI owns git rev-parse)",
+      "verdict": "agree",
+      "reason": "Manifest evidenceKind is 'absent-verified' with a targeted grep for node:child_process|execFile|spawn(|rev-parse — a real negation test that would fail if the forbidden tokens were present. Diff of sync-core.mjs imports only fs, path, derive-ralph-stage."
+    },
+    {
+      "criterion": "Helper exports resolveCrossKindPrecedence and pickMostRecentByMtime for unit testing (signatures in scripts.d.ts)",
+      "verdict": "agree",
+      "reason": "sync-core.d.mts diff declares both helpers with RalphArtifactBundle; scripts.d.ts test ambient also exposes them."
+    },
+    {
+      "criterion": "Unit tests cover: cross-kind precedence, duplicate-by-mtime, malformed-JSON skip, slug-default vs ralphOverrides, group-as-job stage derivation",
+      "verdict": "agree",
+      "reason": "syncCore.test.ts diff adds 225 LOC with 7 tests; pnpm test log exit 0."
+    },
+    {
+      "criterion": "Tests pass",
+      "verdict": "agree",
+      "reason": "pnpm --filter @codexu/overview-viewer test exit 0, 19 files / 94 passed."
+    },
+    {
+      "criterion": "Typecheck passes",
+      "verdict": "agree",
+      "reason": "pnpm --filter @codexu/overview-viewer typecheck exit 0; tsc --noEmit no diagnostics."
+    }
+  ],
+  "warnings": []
+}

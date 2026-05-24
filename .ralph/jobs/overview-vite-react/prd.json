@@ -1,0 +1,1052 @@
+{
+  "project": "Overview Viewer - Vite + React Port",
+  "description": "Add a new pnpm workspace package tools/overview-viewer/ (Vite + React 18+ + TypeScript) that consumes the shipped plans/overview-data.js global and renders the same UI as plans/overview.html does today. Two modes: pnpm overview (Vite dev server with HMR on plans/overview-data.js edits) and pnpm overview:build (singleFile-inlined plans/overview.html usable via file:// double-click). Work is staged in 9 atomic sub-commits; stage 8 is destructive (replaces plans/overview.html) and gated on operator approval of a stage-7 safe-name preview at plans/overview.html.next.",
+  "deslop": true,
+  "iterationEngine": "codex",
+  "jobDir": "D:/harness-efforts/codexu/.ralph/jobs/overview-vite-react",
+  "repoDir": "D:/harness-efforts/codexu",
+  "branch": {
+    "name": "ralph/overview-vite-react",
+    "created": true
+  },
+  "worktree": {
+    "path": "D:/harness-efforts/codexu/.worktrees/overview-vite-react",
+    "branch": "ralph/overview-vite-react"
+  },
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Scaffold workspace package + verify HMR fires",
+      "description": "As a developer, I want a Vite+React+TS workspace package wired into the monorepo so that `pnpm overview` starts a dev server and HMR reacts to plans/overview-data.js edits.",
+      "acceptanceCriteria": [
+        "tools/overview-viewer/ exists with package.json (name @codexu/overview-viewer, private: true, scripts dev/build/typecheck/test)",
+        "tsconfig.json set to strict: true, jsx: 'react-jsx', moduleResolution: 'bundler', target ES2022 (NOT extending the expo base)",
+        "vite.config.ts with base: './', outDir: '../../plans', emptyOutDir: false, rollupOptions.input.overview pointed at overview.html, server.fs.allow: ['../../plans'], plugins: react(), singleFile(), custom overviewDataPlugin() skeleton",
+        "overview.html (Vite entry, NOT index.html) at the package root with relative <script src=\"./overview-data.js\"> tag",
+        "src/main.tsx mounts <StrictMode><App /></StrictMode>",
+        "src/App.tsx reads window.OVERVIEW_DATA?.tasks?.length and renders <h1>{count} tasks</h1>",
+        "pnpm-workspace.yaml adds - \"tools/overview-viewer\"",
+        "Root package.json adds tools/overview-viewer to workspaces.packages AND scripts overview, overview:build, overview:build:preview (+ cross-env devDep)",
+        "pnpm install from repo root succeeds with no new peer-dep warnings",
+        "pnpm overview starts a dev server on http://localhost:5173 and displays the task count",
+        "Hand-edit plans/overview-data.js (e.g., add a dummy task) - browser updates count without full page reload (HMR re-execution via import.meta.hot.on('overview-data:update'))",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 1,
+      "passes": true,
+      "notes": "",
+      "verifiedEvidence": [
+        {
+          "criterion": "tools/overview-viewer/ package scaffold and scripts",
+          "command": "jq -r package fields from tools/overview-viewer/package.json",
+          "result": "@codexu/overview-viewer; private true; scripts build,dev,test,typecheck.",
+          "evidenceKind": "command-output"
+        },
+        {
+          "criterion": "tsconfig strict React TS settings",
+          "command": "jq -r compilerOptions from tools/overview-viewer/tsconfig.json",
+          "result": "true, react-jsx, bundler, ES2022; tsconfig does not extend the Expo base.",
+          "evidenceKind": "command-output"
+        },
+        {
+          "criterion": "vite.config.ts foundation config",
+          "command": "grep required Vite settings in tools/overview-viewer/vite.config.ts",
+          "result": "base './', outDir '../../plans', emptyOutDir false, overview input, react(), singleFile(), overviewDataPlugin(), and fs allow including '../../plans' are present.",
+          "evidenceKind": "static-inspection"
+        },
+        {
+          "criterion": "overview.html Vite entry with relative sidecar script",
+          "command": "grep -n <script src=\"./overview-data.js\"> tools/overview-viewer/overview.html",
+          "result": "Line 7 contains the required relative sidecar script tag; entry file is overview.html, not index.html.",
+          "evidenceKind": "command-output"
+        },
+        {
+          "criterion": "src/main.tsx mounts StrictMode App",
+          "command": "grep -n '<StrictMode>|<App />' tools/overview-viewer/src/main.tsx",
+          "result": "main.tsx renders <StrictMode><App /></StrictMode> through createRoot.",
+          "evidenceKind": "command-output"
+        },
+        {
+          "criterion": "src/App.tsx reads OVERVIEW_DATA task count and renders h1",
+          "command": "grep -n 'OVERVIEW_DATA.*tasks.*length|<h1>{count} tasks</h1>' tools/overview-viewer/src/App.tsx",
+          "result": "App reads window.OVERVIEW_DATA?.tasks?.length and renders <h1>{count} tasks</h1>.",
+          "evidenceKind": "command-output"
+        },
+        {
+          "criterion": "workspace registration in pnpm-workspace.yaml",
+          "command": "grep -n 'tools/overview-viewer' pnpm-workspace.yaml",
+          "result": "pnpm-workspace.yaml includes - \"tools/overview-viewer\".",
+          "evidenceKind": "command-output"
+        },
+        {
+          "criterion": "root package workspace, scripts, and cross-env",
+          "command": "grep -n 'tools/overview-viewer|overview|cross-env' package.json",
+          "result": "Root package.json includes workspace package, overview scripts, overview:build:preview with cross-env, and cross-env devDependency.",
+          "evidenceKind": "command-output"
+        },
+        {
+          "criterion": "pnpm install succeeds with no new peer-dep warnings",
+          "command": "pnpm install > /tmp/overview-pnpm-install.out 2>&1; grep -Ei 'peer|warn' /tmp/overview-pnpm-install.out | tail -40",
+          "result": "pnpm install exited 0. Grep found only existing Prisma preview-feature deprecation warnings; no peer dependency warnings.",
+          "evidenceKind": "command-output"
+        },
+        {
+          "criterion": "US-001:AC-010 dev server on http://localhost:5173 displays count",
+          "command": "pnpm overview; curl -I http://127.0.0.1:5173/; node fetch/eval /overview-data.js",
+          "result": "US-001:AC-010 fallback: browser automation unavailable; dev server returned HTTP 200 at :5173 and sidecar evaluation printed '49 tasks'. Browser DOM display requires manual dev-browser pass.",
+          "evidenceKind": "command-output"
+        },
+        {
+          "criterion": "US-001:AC-011 sidecar edit triggers HMR update path",
+          "command": "pnpm overview; touch plans/overview-data.js; grep overview-data:update /tmp/overview-dev.out; grep import.meta.hot.on tools/overview-viewer/src/App.tsx",
+          "result": "US-001:AC-011 fallback: browser automation unavailable; sidecar change emitted 'overview-data:update' in the dev-server log and App subscribes with import.meta.hot.on('overview-data:update'). No full-page-reload observation without browser tooling.",
+          "evidenceKind": "command-output"
+        },
+        {
+          "criterion": "Typecheck passes",
+          "command": "pnpm --filter @codexu/overview-viewer typecheck",
+          "result": "Exited 0; tsc --noEmit completed with no errors.",
+          "evidenceKind": "command-output"
+        },
+        {
+          "criterion": "US-001:AC-013 Verify in browser using dev-browser skill",
+          "command": "N/A",
+          "result": "SKIPPED: dev-browser skill unavailable in this session; DOM/visual HMR verification requires manual browser pass.",
+          "evidenceKind": "skipped"
+        }
+      ],
+      "dependencies": [],
+      "criteriaWarnings": [
+        {
+          "storyId": "US-001",
+          "acIndex": "AC-010",
+          "criterion": "pnpm overview starts a dev server on http://localhost:5173 and displays the task count",
+          "warning": "US-001:AC-010 requires loading the dev server in a browser to observe rendered task count; browser automation tools may be unavailable to the iteration agent",
+          "severity": "tool-availability",
+          "suggestedFallback": "If browser tooling is unavailable, record result: \"SKIPPED: browser automation unavailable; verified dev server boots on :5173 via process output / curl HEAD only\" for US-001:AC-010.",
+          "source": "criteria-validator"
+        },
+        {
+          "storyId": "US-001",
+          "acIndex": "AC-011",
+          "criterion": "Hand-edit plans/overview-data.js (e.g., add a dummy task) - browser updates count without full page reload (HMR re-execution via import.meta.hot.on('overview-data:update'))",
+          "warning": "US-001:AC-011 requires a live browser to observe HMR re-execution; browser automation tools may be unavailable to the iteration agent",
+          "severity": "tool-availability",
+          "suggestedFallback": "If browser tooling is unavailable, record result: \"SKIPPED: browser automation unavailable; HMR wiring verified via dev-server WS log emitting `overview-data:update` after sidecar change\" for US-001:AC-011.",
+          "source": "criteria-validator"
+        },
+        {
+          "storyId": "US-001",
+          "acIndex": "AC-013",
+          "criterion": "Verify in browser using dev-browser skill",
+          "warning": "US-001:AC-013 explicitly invokes the dev-browser skill; browser automation tools may be unavailable to the iteration agent",
+          "severity": "tool-availability",
+          "suggestedFallback": "If browser tooling is unavailable, record result: \"SKIPPED: dev-browser skill unavailable; DOM/visual verification requires manual browser pass\" for US-001:AC-013.",
+          "source": "criteria-validator"
+        }
+      ],
+      "failureClassification": "",
+      "partialProgress": null
+    },
+    {
+      "id": "US-002",
+      "title": "Port CSS styles verbatim",
+      "description": "As a developer, I want the existing dark+light theme CSS preserved so the React port matches the baseline visually.",
+      "acceptanceCriteria": [
+        "src/styles.css contains the verbatim <style> block contents from plans/overview.html:6-1060 (CSS custom properties + @media (prefers-color-scheme: light) overrides + all rules)",
+        "No edits, no Tailwind, no CSS-in-JS, no reformatting",
+        "src/main.tsx contains a top-level `import \"./styles.css\";` statement so the verbatim style block is loaded into the React app entry, verified by grep for the import line and a passing typecheck.",
+        "Dev server renders the hello-world page with correct dark theme by default and light theme when system preference is light",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 2,
+      "passes": true,
+      "notes": "",
+      "verifiedEvidence": [
+        {
+          "criterion": "src/styles.css contains the verbatim legacy style block contents",
+          "command": "diff -u <(sed -n '7,976p' plans/overview.html) tools/overview-viewer/src/styles.css",
+          "result": "Exited 0 with no diff; styles.css matches the contents between <style> and </style> in plans/overview.html byte-for-byte for the extracted lines.",
+          "evidenceKind": "command-output"
+        },
+        {
+          "criterion": "No edits, no Tailwind, no CSS-in-JS, no reformatting",
+          "command": "diff -u <(sed -n '7,976p' plans/overview.html) tools/overview-viewer/src/styles.css; grep -nEi 'tailwind|styled-components|@emotion|css-in-js' tools/overview-viewer/src/styles.css tools/overview-viewer/src/main.tsx tools/overview-viewer/src/App.tsx || true",
+          "result": "CSS diff exited 0 with no output, confirming no reformatting; grep returned no Tailwind or CSS-in-JS references.",
+          "evidenceKind": "command-output"
+        },
+        {
+          "criterion": "src/main.tsx imports ./styles.css and typecheck passes",
+          "command": "grep -n \"import './styles.css'\" tools/overview-viewer/src/main.tsx; pnpm --filter @codexu/overview-viewer typecheck",
+          "result": "grep found line 4: import './styles.css'; typecheck exited 0 with tsc --noEmit and no errors.",
+          "evidenceKind": "command-output"
+        },
+        {
+          "criterion": "US-002:AC-004 Dev server renders dark/light theme",
+          "command": "N/A",
+          "result": "SKIPPED: browser automation unavailable; theme verification requires manual prefers-color-scheme toggle. Static fallback verified the dark/light CSS rules were copied verbatim into styles.css.",
+          "evidenceKind": "skipped"
+        },
+        {
+          "criterion": "Typecheck passes",
+          "command": "pnpm --filter @codexu/overview-viewer typecheck > .test-output/overview-viewer.typecheck.log 2>&1",
+          "result": "Exited 0 in 4s; tsc --noEmit completed with no errors. Full output in .test-output/overview-viewer.typecheck.log.",
+          "evidenceKind": "command-output"
+        },
+        {
+          "criterion": "US-002:AC-006 Verify in browser using dev-browser skill",
+          "command": "N/A",
+          "result": "SKIPPED: dev-browser skill unavailable in this session; DOM/visual verification requires manual browser pass.",
+          "evidenceKind": "skipped"
+        }
+      ],
+      "dependencies": [
+        "US-001"
+      ],
+      "criteriaWarnings": [
+        {
+          "storyId": "US-002",
+          "acIndex": "AC-004",
+          "criterion": "Dev server renders the hello-world page with correct dark theme by default and light theme when system preference is light",
+          "warning": "US-002:AC-004 requires browser rendering to compare dark/light theme; browser automation tools may be unavailable to the iteration agent",
+          "severity": "tool-availability",
+          "suggestedFallback": "If browser tooling is unavailable, record result: \"SKIPPED: browser automation unavailable; theme verification requires manual prefers-color-scheme toggle\" for US-002:AC-004.",
+          "source": "criteria-validator"
+        },
+        {
+          "storyId": "US-002",
+          "acIndex": "AC-006",
+          "criterion": "Verify in browser using dev-browser skill",
+          "warning": "US-002:AC-006 explicitly invokes the dev-browser skill; browser automation tools may be unavailable to the iteration agent",
+          "severity": "tool-availability",
+          "suggestedFallback": "If browser tooling is unavailable, record result: \"SKIPPED: dev-browser skill unavailable; DOM/visual verification requires manual browser pass\" for US-002:AC-006.",
+          "source": "criteria-validator"
+        }
+      ],
+      "failureClassification": "",
+      "partialProgress": null
+    },
+    {
+      "id": "US-003",
+      "title": "Port command list (rows, badges, copy, warnings, spawned, workstream)",
+      "description": "As an operator, I want the command-list section (one row per task) to render with status badges, scope chips, copy buttons, bulk-select checkboxes, workstream pills with cadence + datasets, warnings, and spawned-from/spawned-children relationships - preserving the visual baseline from 9f81c1f8.",
+      "acceptanceCriteria": [
+        "Components implemented: TaskCommand, StatusBadge, ScopeChip, CopyNameButton, CopyCommandButton, BulkSelectCheckbox, WorkstreamPill (including cadence chip + datasets), Warning (with linkBlockedOn link conversion), SpawnedFromPill, SpawnedChildren",
+        "Hooks: usePersistentExpanded (reads/writes localStorage key codexu-overview-details-state-v2), useTaskClassification (mirrors classifyAndOrderCmds from overview.html)",
+        "Data: src/data/copyPreambles.ts ports BOOKKEEPING_PREAMBLE + other scope preambles verbatim from plans/overview.html:1725-1761",
+        "Command list renders one TaskCommand row per task in OVERVIEW_DATA.tasks (49 currently); row count equals OVERVIEW_DATA.tasks.length",
+        "CopyCommandButton writes byte-for-byte identical output vs today's copyCommand() (snapshot-tested in src/__tests__/copyPreamble.test.ts)",
+        "<details> open state persists across HMR and across page reloads via the usePersistentExpanded hook",
+        "WorkstreamPill renders workstream label + cadence chip + size/cadence datasets + kanban data-workstream attribute (matches full injectWorkstreamPills() behavior, not just the label)",
+        "Trusted-HTML fragments (command.descriptionHtml, command.warnings[].html) rendered via dangerouslySetInnerHTML; CRLF/LF bytes preserved (no normalization)",
+        "Typecheck passes",
+        "pnpm --filter @codexu/overview-viewer test exits 0",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 3,
+      "passes": true,
+      "notes": "",
+      "verifiedEvidence": [
+        {
+          "criterion": "Components implemented: TaskCommand, StatusBadge, ScopeChip, CopyNameButton, CopyCommandButton, BulkSelectCheckbox, WorkstreamPill, Warning, SpawnedFromPill, SpawnedChildren",
+          "command": "grep -R -nE 'export function (TaskCommand|StatusBadge|ScopeChip|CopyNameButton|CopyCommandButton|BulkSelectCheckbox|WorkstreamPill|Warning|SpawnedFromPill|SpawnedChildren)' tools/overview-viewer/src/components",
+          "result": "All required component exports found in tools/overview-viewer/src/components/TaskCommand.tsx.",
+          "evidenceKind": "command-output"
+        },
+        {
+          "criterion": "Hooks: usePersistentExpanded and useTaskClassification",
+          "command": "grep -R -nE 'usePersistentExpanded|useTaskClassification|codexu-overview-details-state-v2|PHASE_TO_ORDER_BUCKET' tools/overview-viewer/src/hooks tools/overview-viewer/src/utils",
+          "result": "usePersistentExpanded exports storage key codexu-overview-details-state-v2; useTaskClassification wraps order/filter bucket helpers mirrored from classifyAndOrderCmds/filterBucketForCmd.",
+          "evidenceKind": "command-output"
+        },
+        {
+          "criterion": "Data: src/data/copyPreambles.ts ports BOOKKEEPING_PREAMBLE + other scope preambles verbatim",
+          "command": "pnpm --filter @codexu/overview-viewer test > .test-output/overview-viewer.test.log 2>&1",
+          "result": "copyPreamble.test.ts passed; it evaluates legacy preamble strings from plans/overview.html and compares buildCopyCommandText output byte-for-byte for shipped task data and representative snapshots.",
+          "evidenceKind": "command-output"
+        },
+        {
+          "criterion": "Command list renders one TaskCommand row per task in OVERVIEW_DATA.tasks",
+          "command": "pnpm --filter @codexu/overview-viewer test > .test-output/overview-viewer.test.log 2>&1",
+          "result": "commandList.test.tsx passed; SSR row count matched OVERVIEW_DATA.tasks.length (49 rows).",
+          "evidenceKind": "command-output"
+        },
+        {
+          "criterion": "CopyCommandButton writes byte-for-byte identical output vs today's copyCommand()",
+          "command": "pnpm --filter @codexu/overview-viewer test > .test-output/overview-viewer.test.log 2>&1",
+          "result": "copyPreamble.test.ts passed; legacy copyCommand-equivalent expected values are derived from plans/overview.html and the snapshot covers codexu, codex, dual-repo, and bookkeeping scopes.",
+          "evidenceKind": "command-output"
+        },
+        {
+          "criterion": "US-003:AC-006 details open state persists across HMR and reloads via usePersistentExpanded",
+          "command": "pnpm --filter @codexu/overview-viewer test > .test-output/overview-viewer.test.log 2>&1",
+          "result": "US-003:AC-006 fallback: browser automation unavailable; persistence verified by persistentExpanded.test.ts against a localStorage-compatible stub for key codexu-overview-details-state-v2. HMR/reload visual observation still requires manual browser pass.",
+          "evidenceKind": "command-output"
+        },
+        {
+          "criterion": "WorkstreamPill renders label + cadence chip + size/cadence datasets + data-workstream",
+          "command": "pnpm --filter @codexu/overview-viewer test > .test-output/overview-viewer.test.log 2>&1",
+          "result": "commandList.test.tsx passed; SSR output contains data-workstream, data-size-bucket, data-cadence=periodic, cadence-chip, and workstream pill markup.",
+          "evidenceKind": "command-output"
+        },
+        {
+          "criterion": "Trusted-HTML fragments rendered via dangerouslySetInnerHTML; CRLF/LF bytes preserved",
+          "command": "grep -R -n 'dangerouslySetInnerHTML' tools/overview-viewer/src/components",
+          "result": "TaskCommand.tsx renders command.descriptionHtml and converted warning HTML via dangerouslySetInnerHTML; planPrompt remains direct text in pre without line-ending normalization. Warning link conversion is covered by commandList.test.tsx.",
+          "evidenceKind": "command-output"
+        },
+        {
+          "criterion": "Typecheck passes",
+          "command": "pnpm --filter @codexu/overview-viewer typecheck > .test-output/overview-viewer.typecheck.log 2>&1",
+          "result": "Exited 0 in 5s; tsc --noEmit completed with no TypeScript errors.",
+          "evidenceKind": "command-output"
+        },
+        {
+          "criterion": "pnpm --filter @codexu/overview-viewer test exits 0",
+          "command": "pnpm --filter @codexu/overview-viewer test > .test-output/overview-viewer.test.log 2>&1",
+          "result": "Exited 0 in 4s; Vitest reported 3 test files passed and 6 tests passed.",
+          "evidenceKind": "command-output"
+        },
+        {
+          "criterion": "US-003:AC-010 Verify in browser using dev-browser skill",
+          "command": "N/A",
+          "result": "SKIPPED: dev-browser skill unavailable in this session; DOM/visual command-list verification requires manual browser pass.",
+          "evidenceKind": "skipped"
+        }
+      ],
+      "dependencies": [
+        "US-001",
+        "US-002"
+      ],
+      "criteriaWarnings": [
+        {
+          "storyId": "US-003",
+          "acIndex": "AC-006",
+          "criterion": "<details> open state persists across HMR and across page reloads via the usePersistentExpanded hook",
+          "warning": "US-003:AC-006 requires browser-driven page reload to verify localStorage persistence; browser automation tools may be unavailable to the iteration agent",
+          "severity": "tool-availability",
+          "suggestedFallback": "If browser tooling is unavailable, record result: \"SKIPPED: browser automation unavailable; persistence verified via unit test of usePersistentExpanded against jsdom localStorage stub only\" for US-003:AC-006.",
+          "source": "criteria-validator"
+        },
+        {
+          "storyId": "US-003",
+          "acIndex": "AC-010",
+          "criterion": "Verify in browser using dev-browser skill",
+          "warning": "US-003:AC-010 explicitly invokes the dev-browser skill; browser automation tools may be unavailable to the iteration agent",
+          "severity": "tool-availability",
+          "suggestedFallback": "If browser tooling is unavailable, record result: \"SKIPPED: dev-browser skill unavailable; DOM/visual verification requires manual browser pass\" for US-003:AC-010.",
+          "source": "criteria-validator"
+        }
+      ],
+      "failureClassification": "",
+      "partialProgress": null
+    },
+    {
+      "id": "US-004",
+      "title": "Port kanban",
+      "description": "As an operator, I want the kanban columns (ready, soon, blocked) populated from task.kanbanCards[] with correct multi-card ordering and inline-style support.",
+      "acceptanceCriteria": [
+        "Components: KanbanColumn, KanbanCard (including injectKanbanPhasePills inline phase pill, linkKanbanToCmds onClick jump to #cmd-*)",
+        "Utility: src/utils/kanbanOrdering.ts ports the algorithm verbatim from plans/overview.html:1315-1337 (numeric order ASC > insertBeforeTaskId fallback)",
+        "Utility: src/utils/inlineStyleParser.ts converts card.inlineStyle CSS strings to a Record<string,string> style object (handles multiple declarations, var(--*) references, vendor prefixes)",
+        "Total card count equals today's count (33 currently)",
+        "Multi-card-same-column scenario (e.g., 'soon' has 3 cards) renders in correct order - unit-tested in src/__tests__/kanbanOrdering.test.ts",
+        "#cmd-foo hash navigation triggered by clicking a kanban card scrolls to and expands the matching task row",
+        "Trusted-HTML fragment kanbanCards[].html rendered via dangerouslySetInnerHTML",
+        "Typecheck passes",
+        "pnpm --filter @codexu/overview-viewer test exits 0",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 4,
+      "passes": true,
+      "notes": "",
+      "verifiedEvidence": [
+        {
+          "criterion": "Components: KanbanColumn, KanbanCard with phase pill and command jump wiring",
+          "command": "grep -RInE \"export function (KanbanColumn|KanbanCard)|injectKanbanPhasePill|linkKanbanToCmds|navigateToCommand\" tools/overview-viewer/src/components tools/overview-viewer/src/utils",
+          "result": "Kanban.tsx exports KanbanColumn and KanbanCard; injectKanbanPhasePill and linkKanbanToCmds are present; commandNavigation.ts exports navigateToCommand for jump/expand/scroll behavior.",
+          "evidenceKind": "command-output"
+        },
+        {
+          "criterion": "Utility: src/utils/kanbanOrdering.ts ports numeric order ASC > insertBeforeTaskId fallback",
+          "command": "grep -RInE \"orderedKanbanCardsByColumn|Number.MAX_SAFE_INTEGER|insertBeforeTaskId\" tools/overview-viewer/src/utils/kanbanOrdering.ts tools/overview-viewer/src/__tests__/kanbanOrdering.test.ts",
+          "result": "orderedKanbanCardsByColumn sorts missing-order cards after numeric order with Number.MAX_SAFE_INTEGER and applies insertBeforeTaskId fallback insertion; kanbanOrdering.test.ts covers the ordering scenario.",
+          "evidenceKind": "command-output"
+        },
+        {
+          "criterion": "Utility: src/utils/inlineStyleParser.ts converts inlineStyle strings to Record<string,string>",
+          "command": "grep -RInE \"parseInlineStyle|webkit|--accent-card|borderColor|var\\(--ok\\)\" tools/overview-viewer/src/utils/inlineStyleParser.ts tools/overview-viewer/src/__tests__/kanbanInteraction.test.ts",
+          "result": "parseInlineStyle is present and unit-tested for multiple declarations, var(--ok), vendor-prefixed -webkit-line-clamp, and a CSS custom property.",
+          "evidenceKind": "command-output"
+        },
+        {
+          "criterion": "Total card count equals todays count (33 currently)",
+          "command": "node script evaluating plans/overview-data.js and counting task.kanbanCards by column",
+          "result": "Printed {\"ready\":11,\"soon\":12,\"blocked\":10,\"total\":33}; kanban.test.ts also asserts countKanbanCards(...) === 33.",
+          "evidenceKind": "command-output"
+        },
+        {
+          "criterion": "Multi-card-same-column scenario renders in correct order",
+          "command": "pnpm --filter @codexu/overview-viewer test > .test-output/overview-viewer.test.log 2>&1",
+          "result": "Exited 0; kanbanOrdering.test.ts passed and asserted soon-column order [first, second, fallback-before-third, third, fallback-after].",
+          "evidenceKind": "command-output"
+        },
+        {
+          "criterion": "US-004:AC-006 #cmd-foo hash navigation triggered by clicking a kanban card scrolls to and expands the matching task row",
+          "command": "pnpm --filter @codexu/overview-viewer test > .test-output/overview-viewer.test.log 2>&1",
+          "result": "US-004:AC-006 fallback: browser automation unavailable; kanbanInteraction.test.ts verified navigateToCommand expands perf-WS3, sets location.hash to cmd-perf-WS3, queries #cmd-perf-WS3, and calls scrollIntoView.",
+          "evidenceKind": "command-output"
+        },
+        {
+          "criterion": "Trusted-HTML fragment kanbanCards[].html rendered via dangerouslySetInnerHTML",
+          "command": "grep -RInE \"dangerouslySetInnerHTML|kanban-phase-pill|xref-link|data-workstream|data-rendered-task\" tools/overview-viewer/src/components/Kanban.tsx tools/overview-viewer/src/__tests__/kanban.test.tsx",
+          "result": "KanbanCard renders trusted card HTML via dangerouslySetInnerHTML; kanban.test.ts passed and found shipped card text, phase pills, command xref links, rendered-task markers, and workstream data attributes in SSR output.",
+          "evidenceKind": "command-output"
+        },
+        {
+          "criterion": "Typecheck passes",
+          "command": "pnpm --filter @codexu/overview-viewer typecheck > .test-output/overview-viewer.typecheck.log 2>&1",
+          "result": "Exited 0; tsc --noEmit completed with no errors.",
+          "evidenceKind": "command-output"
+        },
+        {
+          "criterion": "pnpm --filter @codexu/overview-viewer test exits 0",
+          "command": "pnpm --filter @codexu/overview-viewer test > .test-output/overview-viewer.test.log 2>&1",
+          "result": "Exited 0; Vitest reported 6 test files passed and 11 tests passed.",
+          "evidenceKind": "command-output"
+        },
+        {
+          "criterion": "US-004:AC-009 Verify in browser using dev-browser skill",
+          "command": "N/A",
+          "result": "SKIPPED: dev-browser skill unavailable in this session; DOM/visual kanban verification requires manual browser pass.",
+          "evidenceKind": "skipped"
+        }
+      ],
+      "dependencies": [
+        "US-001",
+        "US-002"
+      ],
+      "criteriaWarnings": [
+        {
+          "storyId": "US-004",
+          "acIndex": "AC-006",
+          "criterion": "#cmd-foo hash navigation triggered by clicking a kanban card scrolls to and expands the matching task row",
+          "warning": "US-004:AC-006 requires browser-driven click and scroll observation; browser automation tools may be unavailable to the iteration agent",
+          "severity": "tool-availability",
+          "suggestedFallback": "If browser tooling is unavailable, record result: \"SKIPPED: browser automation unavailable; click/scroll handler verified via component unit test asserting onClick dispatch and location.hash mutation only\" for US-004:AC-006.",
+          "source": "criteria-validator"
+        },
+        {
+          "storyId": "US-004",
+          "acIndex": "AC-009",
+          "criterion": "Verify in browser using dev-browser skill",
+          "warning": "US-004:AC-009 explicitly invokes the dev-browser skill; browser automation tools may be unavailable to the iteration agent",
+          "severity": "tool-availability",
+          "suggestedFallback": "If browser tooling is unavailable, record result: \"SKIPPED: dev-browser skill unavailable; DOM/visual verification requires manual browser pass\" for US-004:AC-009.",
+          "source": "criteria-validator"
+        }
+      ],
+      "failureClassification": "",
+      "partialProgress": null
+    },
+    {
+      "id": "US-005",
+      "title": "Port phase tree with deferred-class derivation",
+      "description": "As an operator, I want the phase-tree section rendered from OVERVIEW_DATA.phaseTree with task-ref state derived from task.phase AND task.status - adding the 'deferred' class for blocked|paused (a deliberate UX improvement over baseline 9f81c1f8).",
+      "acceptanceCriteria": [
+        "Components PhaseTree (renders one block per OVERVIEW_DATA.phaseTree entry) and PhaseTreeNode (renders a single task-ref with derived state class) implemented in src/components/PhaseTree.tsx; verified by file existence and unit test in src/__tests__/phaseTreeDerivation.test.ts.",
+        "State derivation: shipped -> donefade, closed -> closed, task.status === 'blocked' || task.status === 'paused' -> deferred, else -> open. Legacy state fields on task-refs in shipped data are ignored.",
+        "One block per entry in OVERVIEW_DATA.phaseTree (7 currently); each block contains its child task-refs",
+        "Trusted-HTML fragments (raw.html, trailingHtml) rendered via dangerouslySetInnerHTML",
+        "Deferred-class behavior documented in tools/overview-viewer/README.md (created in US-007) and SKILL.md viewing subsection (US-009) as intentional improvement over baseline",
+        "Unit-tested in src/__tests__/phaseTreeDerivation.test.ts",
+        "Typecheck passes",
+        "pnpm --filter @codexu/overview-viewer test exits 0",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 5,
+      "passes": true,
+      "notes": "Deliberate UX deviation from 9f81c1f8 baseline (deferred class for blocked|paused). README and SKILL.md must call this out per US-007 and US-009 ACs.",
+      "verifiedEvidence": [
+        {
+          "criterion": "Components PhaseTree and PhaseTreeNode implemented in src/components/PhaseTree.tsx",
+          "command": "grep -RInE \"export function (PhaseTree|PhaseTreeNode)|derivePhaseTreeStateClass\" tools/overview-viewer/src/components/PhaseTree.tsx tools/overview-viewer/src/__tests__/phaseTreeDerivation.test.tsx",
+          "result": "PhaseTree.tsx exports PhaseTree, PhaseTreeNode, PhaseTreeBlock, and derivePhaseTreeStateClass; phaseTreeDerivation.test.tsx imports and exercises them.",
+          "evidenceKind": "command-output"
+        },
+        {
+          "criterion": "State derivation shipped -> donefade, closed -> closed, blocked|paused status -> deferred, else open; legacy state ignored",
+          "command": "pnpm --filter @codexu/overview-viewer test > .test-output/overview-viewer.test.log 2>&1",
+          "result": "Exited 0; phaseTreeDerivation.test.tsx asserted shipped/donefade, closed/closed, blocked+paused/deferred, ok/open, and a node with legacy state=open still rendered blocked status as item-name deferred.",
+          "evidenceKind": "command-output"
+        },
+        {
+          "criterion": "One block per entry in OVERVIEW_DATA.phaseTree; each block contains child task-refs",
+          "command": "node script evaluating plans/overview-data.js and counting phaseTree entries/task-ref nodes",
+          "result": "Printed {\"phaseTreeBlocks\":7,\"taskRefs\":5,\"taskRefIds\":[\"1b-multidev\",\"1b-multidev\",\"1b-multidev\",\"perf-WS3\",\"polish-Fs\"]}; phaseTreeDerivation.test.tsx SSR output found 7 phase blocks and shipped task-ref text.",
+          "evidenceKind": "command-output"
+        },
+        {
+          "criterion": "Trusted-HTML fragments raw.html and trailingHtml rendered via dangerouslySetInnerHTML",
+          "command": "grep -RIn \"dangerouslySetInnerHTML\" tools/overview-viewer/src/components/PhaseTree.tsx",
+          "result": "PhaseTree.tsx uses dangerouslySetInnerHTML for raw node html, task-ref trailingHtml, and headerHtml; phaseTreeDerivation.test.tsx SSR output includes raw HTML and trailing link HTML.",
+          "evidenceKind": "command-output"
+        },
+        {
+          "criterion": "Deferred-class behavior documented in README/SKILL as intentional improvement over baseline",
+          "command": "grep -nE \"Wire static build|Docs sweep|phase-tree deferred-class|deferred class deviation\" D:/harness-efforts/codexu/.ralph/jobs/overview-vite-react/plan.md D:/harness-efforts/codexu/.ralph/jobs/overview-vite-react/stories-outline.md",
+          "result": "STAGED: US-007 explicitly creates tools/overview-viewer/README.md with the phase-tree deferred-class behavior; US-009 updates roadmap-and-overview SKILL.md with the deferred class deviation. Those docs are intentionally not edited in US-005.",
+          "evidenceKind": "static-inspection"
+        },
+        {
+          "criterion": "Unit-tested in src/__tests__/phaseTreeDerivation.test.ts",
+          "command": "ls tools/overview-viewer/src/__tests__/phaseTreeDerivation.test.tsx && pnpm --filter @codexu/overview-viewer test > .test-output/overview-viewer.test.log 2>&1",
+          "result": "phaseTreeDerivation.test.tsx exists and passed as part of Vitest; overall run reported 7 test files passed and 13 tests passed.",
+          "evidenceKind": "command-output"
+        },
+        {
+          "criterion": "Typecheck passes",
+          "command": "pnpm --filter @codexu/overview-viewer typecheck > .test-output/overview-viewer.typecheck.log 2>&1",
+          "result": "Exited 0 in 12s; tsc --noEmit completed with no errors. Full output in .test-output/overview-viewer.typecheck.log.",
+          "evidenceKind": "command-output"
+        },
+        {
+          "criterion": "pnpm --filter @codexu/overview-viewer test exits 0",
+          "command": "pnpm --filter @codexu/overview-viewer test > .test-output/overview-viewer.test.log 2>&1",
+          "result": "Exited 0 in 7s; Vitest reported 7 test files passed and 13 tests passed.",
+          "evidenceKind": "command-output"
+        },
+        {
+          "criterion": "US-005:AC-008 Verify in browser using dev-browser skill",
+          "command": "N/A",
+          "result": "SKIPPED: dev-browser skill unavailable in this session; DOM/visual phase-tree verification requires manual browser pass.",
+          "evidenceKind": "skipped"
+        }
+      ],
+      "dependencies": [
+        "US-001",
+        "US-002"
+      ],
+      "criteriaWarnings": [
+        {
+          "storyId": "US-005",
+          "acIndex": "AC-008",
+          "criterion": "Verify in browser using dev-browser skill",
+          "warning": "US-005:AC-008 explicitly invokes the dev-browser skill; browser automation tools may be unavailable to the iteration agent",
+          "severity": "tool-availability",
+          "suggestedFallback": "If browser tooling is unavailable, record result: \"SKIPPED: dev-browser skill unavailable; DOM/visual verification requires manual browser pass\" for US-005:AC-008.",
+          "source": "criteria-validator"
+        }
+      ],
+      "failureClassification": "",
+      "partialProgress": null
+    },
+    {
+      "id": "US-006",
+      "title": "Port runs log + TodayPanel + top-level surfaces (toolbar, freshness, whats-new, keyboard help, static sections)",
+      "description": "As an operator, I want the Today panel, runs log, sticky toolbar with filter chips, freshness hint, what's-new-since-last-visit banner, keyboard-help modal, and the static Parallelism/Dependencies/Footnote sections rendered with parity to plans/overview.html.",
+      "acceptanceCriteria": [
+        "Components: RunsLog (with injectRunHistory per-task command-body rendering), TodayPanel (4 buckets: Running / Ready brainstorm-then-ready / On hold paused-then-blocked / Recently shipped (7d) footer - matches plans/overview.html:988-995 and :1851-1925), Toolbar, FilterChips (5 axes: status/workstream/cadence/size/scope), BulkCopyButton, KeyboardHelp (dialog + backdrop, toggled by ?), FreshnessHint, WhatsNewBanner, ParallelismSection (static JSX from plans/overview.html:1134-1205), DependenciesSection (static JSX from :1207-1266), Footnote (static JSX from :1268-1277), Legend, UrlFilterBanner, SearchInput, Layout",
+        "Hooks: useMultiAxisFilter (encapsulates applyFilter() from plans/overview.html:2125-2200), useKeyboardShortcuts (/ focus search, Esc clear/close, e/c expand/collapse all, ? toggle help; matches :2370-2395), useWhatsNewSinceLastVisit (changed-set + max-of-data save semantics, mirrors IIFE at :2544-2653; uses localStorage codexu-overview-last-visit-v1), useUrlFilter (?tasks=foo,bar), useHashNav (#cmd-*), useBulkSelection",
+        "Today panel shows the 4 buckets in the documented order and visual format",
+        "Runs log renders one entry per OVERVIEW_DATA.runs[*] (17 currently)",
+        "Search input + 5-axis filter chips work; clearing chips returns unfiltered view",
+        "BulkCopyButton disabled with 0 selected; 'Copy N selected' label and concatenated clipboard output (in data-task-id order) when N >= 1",
+        "KeyboardHelp opens/closes via ? and Esc; all 5 shortcuts function (/ focus search, Esc clear search / close help, e expand all, c collapse all, ? toggle help)",
+        "FreshnessHint renders short SHA from generatedFromCommit + relative timestamp ('snapshot N h/d ago' derived from generatedAt)",
+        "WhatsNewBanner appears beneath Today panel when any task lastTouched > localStorage codexu-overview-last-visit-v1; per-row NEW badges added (class cmd-changed); 'Mark all seen' dismisses + writes max-of-(wall-clock, max lastTouched) ISO timestamp. First-visit-on-machine path stores silently without banner",
+        "ParallelismSection, DependenciesSection, Footnote render the static content verbatim from the source line ranges; collapsible where the source uses <details>",
+        "Legend block (section.sec-legend) renders all phase + status swatches verbatim from plans/overview.html:1067-1132",
+        "?tasks=foo,bar URL filter works (comma-separated; matches parseTaskIdFilter() semantics); UrlFilterBanner renders when query is present",
+        "#cmd-foo hash navigation scrolls to and expands the matching task",
+        "Unit-tested in src/__tests__/urlFilter.test.ts",
+        "React StrictMode in dev does not produce duplicate event subscriptions (verified by repeated data-file edits)",
+        "Typecheck passes",
+        "pnpm --filter @codexu/overview-viewer test exits 0",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 6,
+      "passes": true,
+      "notes": "",
+      "verifiedEvidence": [
+        {
+          "criterion": "Components implemented",
+          "command": "grep -RInE 'export function (RunsLog|TodayPanel|Toolbar|FilterChips|BulkCopyButton|KeyboardHelp|FreshnessHint|WhatsNewBanner|ParallelismSection|DependenciesSection|Footnote|Legend|UrlFilterBanner|SearchInput|Layout)' tools/overview-viewer/src/components",
+          "result": "All required component exports found; RunsLog is rendered from TaskCommand command bodies.",
+          "evidenceKind": "command-output"
+        },
+        {
+          "criterion": "Hooks implemented",
+          "command": "grep -RInE 'export function (useMultiAxisFilter|useKeyboardShortcuts|useWhatsNewSinceLastVisit|useUrlFilter|useHashNav|useBulkSelection)|codexu-overview-last-visit-v1|parseTaskIdFilter' tools/overview-viewer/src/hooks tools/overview-viewer/src/utils",
+          "result": "All required hooks found; whats-new uses codexu-overview-last-visit-v1 and URL filtering uses parseTaskIdFilter.",
+          "evidenceKind": "command-output"
+        },
+        {
+          "criterion": "Today panel shows the 4 buckets in documented order and visual format",
+          "command": "pnpm --filter @codexu/overview-viewer test > .test-output/overview-viewer.test.log 2>&1; node bucket probe",
+          "result": "topLevelSurfaces.test.tsx passed and SSR contains today-running/today-ready/today-hold/Recently shipped. Probe reported running 0, ready 21, hold 12, closed 16.",
+          "evidenceKind": "command-output"
+        },
+        {
+          "criterion": "Runs log renders one entry per OVERVIEW_DATA.runs[*] (17 currently)",
+          "command": "node script evaluating plans/overview-data.js; pnpm --filter @codexu/overview-viewer test",
+          "result": "Node probe printed runs=17; commandList.test.tsx passed with run-history markup present.",
+          "evidenceKind": "command-output"
+        },
+        {
+          "criterion": "US-006:AC-005 Search input + 5-axis filter chips work; clearing chips returns unfiltered view",
+          "command": "pnpm --filter @codexu/overview-viewer test > .test-output/overview-viewer.test.log 2>&1",
+          "result": "US-006:AC-005 fallback: browser automation unavailable; urlFilter.test.ts verified search plus status/workstream/cadence/size/scope/URL filters, and Toolbar renders SearchInput plus five filter axes.",
+          "evidenceKind": "command-output"
+        },
+        {
+          "criterion": "BulkCopyButton disabled with 0 selected; Copy N selected label and ordered clipboard output",
+          "command": "pnpm --filter @codexu/overview-viewer test > .test-output/overview-viewer.test.log 2>&1",
+          "result": "topLevelSurfaces.test.tsx passed; buildBulkCopyText preserves OVERVIEW_DATA.tasks order. Toolbar disables at selectedCount 0 and labels Copy N selected.",
+          "evidenceKind": "command-output"
+        },
+        {
+          "criterion": "US-006:AC-007 KeyboardHelp opens/closes via ? and Esc; all shortcuts function",
+          "command": "pnpm --filter @codexu/overview-viewer test > .test-output/overview-viewer.test.log 2>&1",
+          "result": "US-006:AC-007 fallback: browser automation unavailable; test verified shortcut handler for ?, Esc, and e; App wires /, Esc, e, c, and ? through useKeyboardShortcuts.",
+          "evidenceKind": "command-output"
+        },
+        {
+          "criterion": "FreshnessHint renders short SHA and relative timestamp",
+          "command": "pnpm --filter @codexu/overview-viewer test > .test-output/overview-viewer.test.log 2>&1",
+          "result": "topLevelSurfaces.test.tsx passed; SSR contains id=gen-sha and d279d49d, with relativeSnapshotAge used for generatedAt.",
+          "evidenceKind": "command-output"
+        },
+        {
+          "criterion": "US-006:AC-009 WhatsNewBanner and per-row NEW badge behavior",
+          "command": "pnpm --filter @codexu/overview-viewer test; grep -RInE 'cmd-changed|new-badge|Mark all seen|codexu-overview-last-visit-v1' tools/overview-viewer/src",
+          "result": "US-006:AC-009 fallback: browser automation unavailable; tests verified changed-set and max-of-data timestamp; code renders cmd-changed/new-badge and Mark all seen with the v1 storage key.",
+          "evidenceKind": "command-output"
+        },
+        {
+          "criterion": "ParallelismSection, DependenciesSection, Footnote render static content",
+          "command": "pnpm --filter @codexu/overview-viewer test > .test-output/overview-viewer.test.log 2>&1",
+          "result": "topLevelSurfaces.test.tsx passed; SSR contains Parallelism, Dependencies, and Sync contract content; StaticSections renders details where source uses details.",
+          "evidenceKind": "command-output"
+        },
+        {
+          "criterion": "Legend block renders swatches from legacy legend",
+          "command": "grep -RInE 'export function Legend|area-app|area-server|area-cli|area-codex|area-multi|p-low|p-med|p-high' tools/overview-viewer/src/components/TopLevelSurfaces.tsx tools/overview-viewer/src/components/Kanban.tsx",
+          "result": "Legend is exported and rendered from Kanban with happy-app/server/cli/codex/multi-package and low/medium/high risk swatches.",
+          "evidenceKind": "command-output"
+        },
+        {
+          "criterion": "US-006:AC-012 ?tasks URL filter works and UrlFilterBanner renders",
+          "command": "pnpm --filter @codexu/overview-viewer test > .test-output/overview-viewer.test.log 2>&1",
+          "result": "US-006:AC-012 fallback: browser automation unavailable; urlFilter.test.ts verified parsing/clearing tasks query and topLevelSurfaces.test.tsx verified UrlFilterBanner SSR.",
+          "evidenceKind": "command-output"
+        },
+        {
+          "criterion": "US-006:AC-013 #cmd hash navigation scrolls to and expands matching task",
+          "command": "pnpm --filter @codexu/overview-viewer test; grep -RInE 'useHashNav|hashchange|navigateToCommand|scrollIntoView' tools/overview-viewer/src",
+          "result": "US-006:AC-013 fallback: browser automation unavailable; kanbanInteraction.test.ts verified expand, hash mutation, and scrollIntoView; useHashNav uses the same helper and cleans hashchange.",
+          "evidenceKind": "command-output"
+        },
+        {
+          "criterion": "Unit-tested in src/__tests__/urlFilter.test.ts",
+          "command": "ls tools/overview-viewer/src/__tests__/urlFilter.test.ts && pnpm --filter @codexu/overview-viewer test > .test-output/overview-viewer.test.log 2>&1",
+          "result": "urlFilter.test.ts exists and passed; full Vitest run reported 9 test files and 19 tests passed.",
+          "evidenceKind": "command-output"
+        },
+        {
+          "criterion": "React StrictMode in dev does not produce duplicate event subscriptions",
+          "command": "pnpm overview; touch plans/overview-data.js twice; grep overview-data:update /tmp/overview-us006-dev.out; grep import.meta.hot.on/off tools/overview-viewer/src/App.tsx",
+          "result": "Dev server returned HTTP 200. Two touches produced exactly two overview-data:update lines; App registers import.meta.hot.on and cleans up with import.meta.hot.off.",
+          "evidenceKind": "command-output"
+        },
+        {
+          "criterion": "Typecheck passes",
+          "command": "pnpm --filter @codexu/overview-viewer typecheck > .test-output/overview-viewer.typecheck.log 2>&1",
+          "result": "Exited 0 in 5s; tsc --noEmit completed with no errors.",
+          "evidenceKind": "command-output"
+        },
+        {
+          "criterion": "pnpm --filter @codexu/overview-viewer test exits 0",
+          "command": "pnpm --filter @codexu/overview-viewer test > .test-output/overview-viewer.test.log 2>&1",
+          "result": "Exited 0 in 4s; Vitest reported 9 test files passed and 19 tests passed.",
+          "evidenceKind": "command-output"
+        },
+        {
+          "criterion": "US-006:AC-019 Verify in browser using dev-browser skill",
+          "command": "N/A",
+          "result": "SKIPPED: dev-browser skill unavailable in this session; DOM/visual top-level surface verification requires manual browser pass.",
+          "evidenceKind": "skipped"
+        }
+      ],
+      "dependencies": [
+        "US-001",
+        "US-002",
+        "US-003",
+        "US-004",
+        "US-005"
+      ],
+      "criteriaWarnings": [
+        {
+          "storyId": "US-006",
+          "acIndex": "AC-005",
+          "criterion": "Search input + 5-axis filter chips work; clearing chips returns unfiltered view",
+          "warning": "US-006:AC-005 requires browser interaction to type into search input and toggle filter chips; browser automation tools may be unavailable to the iteration agent",
+          "severity": "tool-availability",
+          "suggestedFallback": "If browser tooling is unavailable, record result: \"SKIPPED: browser automation unavailable; filter behavior verified only via useMultiAxisFilter unit test in src/__tests__/\" for US-006:AC-005.",
+          "source": "criteria-validator"
+        },
+        {
+          "storyId": "US-006",
+          "acIndex": "AC-007",
+          "criterion": "KeyboardHelp opens/closes via ? and Esc; all 5 shortcuts function (/ focus search, Esc clear search / close help, e expand all, c collapse all, ? toggle help)",
+          "warning": "US-006:AC-007 requires browser key-event dispatch to verify shortcut handling; browser automation tools may be unavailable to the iteration agent",
+          "severity": "tool-availability",
+          "suggestedFallback": "If browser tooling is unavailable, record result: \"SKIPPED: browser automation unavailable; shortcut wiring verified via useKeyboardShortcuts unit test dispatching KeyboardEvent against jsdom\" for US-006:AC-007.",
+          "source": "criteria-validator"
+        },
+        {
+          "storyId": "US-006",
+          "acIndex": "AC-009",
+          "criterion": "WhatsNewBanner appears beneath Today panel when any task lastTouched > localStorage codexu-overview-last-visit-v1; per-row NEW badges added (class cmd-changed); 'Mark all seen' dismisses + writes max-of-(wall-clock, max lastTouched) ISO timestamp. First-visit-on-machine path stores silently without banner",
+          "warning": "US-006:AC-009 requires browser-driven DOM inspection and localStorage observation; browser automation tools may be unavailable to the iteration agent",
+          "severity": "tool-availability",
+          "suggestedFallback": "If browser tooling is unavailable, record result: \"SKIPPED: browser automation unavailable; banner + Mark-all-seen behavior verified via useWhatsNewSinceLastVisit unit test against jsdom localStorage stub only\" for US-006:AC-009.",
+          "source": "criteria-validator"
+        },
+        {
+          "storyId": "US-006",
+          "acIndex": "AC-012",
+          "criterion": "?tasks=foo,bar URL filter works (comma-separated; matches parseTaskIdFilter() semantics); UrlFilterBanner renders when query is present",
+          "warning": "US-006:AC-012 requires loading the app in a browser with a query string to verify URL-filter behavior; browser automation tools may be unavailable to the iteration agent",
+          "severity": "tool-availability",
+          "suggestedFallback": "If browser tooling is unavailable, record result: \"SKIPPED: browser automation unavailable; URL-filter parsing verified via useUrlFilter / parseTaskIdFilter unit tests in src/__tests__/urlFilter.test.ts only\" for US-006:AC-012.",
+          "source": "criteria-validator"
+        },
+        {
+          "storyId": "US-006",
+          "acIndex": "AC-013",
+          "criterion": "#cmd-foo hash navigation scrolls to and expands the matching task",
+          "warning": "US-006:AC-013 requires browser scroll observation; browser automation tools may be unavailable to the iteration agent",
+          "severity": "tool-availability",
+          "suggestedFallback": "If browser tooling is unavailable, record result: \"SKIPPED: browser automation unavailable; hashchange handler verified via useHashNav unit test asserting target row's open state toggles\" for US-006:AC-013.",
+          "source": "criteria-validator"
+        },
+        {
+          "storyId": "US-006",
+          "acIndex": "AC-019",
+          "criterion": "Verify in browser using dev-browser skill",
+          "warning": "US-006:AC-019 explicitly invokes the dev-browser skill; browser automation tools may be unavailable to the iteration agent",
+          "severity": "tool-availability",
+          "suggestedFallback": "If browser tooling is unavailable, record result: \"SKIPPED: dev-browser skill unavailable; DOM/visual verification requires manual browser pass\" for US-006:AC-019.",
+          "source": "criteria-validator"
+        }
+      ],
+      "failureClassification": "",
+      "partialProgress": null
+    },
+    {
+      "id": "US-007",
+      "title": "Wire static build + author contributor README",
+      "description": "As an operator, I want pnpm overview:build:preview to emit plans/overview.html.next so I can review parity vs the live plans/overview.html before approving the destructive swap in US-008. The contributor README must be in place for that review.",
+      "acceptanceCriteria": [
+        "vite-plugin-singlefile added to deps; vite.config.ts base: './' confirmed; rollupOptions.input.overview: resolve(__dirname, 'overview.html') confirmed",
+        "Custom overviewDataPlugin implements configureServer hook: middleware for GET /overview-data.js (streams ../../plans/overview-data.js with Content-Type application/javascript) + server.watcher.add(absSidecarPath) + server.watcher.on('change', file => { if (file === absSidecarPath) server.ws.send({type:'custom', event:'overview-data:update'}); })",
+        "Custom overviewDataPlugin implements transformIndexHtml hook with enforce: 'pre' - build-only branch reads plans/overview-data.js from disk and inlines as <script>...</script>, replacing the relative <script src=\"./overview-data.js\"> tag BEFORE vite-plugin-singlefile runs",
+        "Custom overviewDataPlugin implements closeBundle hook - if process.env.OVERVIEW_BUILD_SAFE_NAME === '1', rename emitted plans/overview.html to plans/overview.html.next",
+        "pnpm overview:build:preview (env OVERVIEW_BUILD_SAFE_NAME=1 via cross-env) emits plans/overview.html.next; live plans/overview.html untouched",
+        "The artifact opens via OS double-click (file://) and renders identically to the dev server (modulo HMR)",
+        "No 404s in DevTools Network tab; no external script references",
+        "grep -c 'window.OVERVIEW_DATA' plans/overview.html.next >= 1; no <script src=\"...overview-data.js\"> reference remains in the artifact",
+        "?tasks= URL filter works in the static build; #cmd-* hash nav works in the static build",
+        "tools/overview-viewer/README.md is authored in this stage (NOT stage 9), covering: file layout, dev workflow (pnpm overview), build workflow (pnpm overview:build:preview for safe, pnpm overview:build for live), the phase-tree deferred-class deliberate deviation, the safe-name vs destructive build distinction. Reviewer must be able to read this before approving US-008.",
+        "Typecheck passes",
+        "pnpm --filter @codexu/overview-viewer build exits 0",
+        "Verify the safe-name artifact in browser using dev-browser skill (open via file://)"
+      ],
+      "priority": 7,
+      "passes": true,
+      "notes": "tools/overview-viewer/README.md is intentionally created here (not in US-009) so the US-008 approval reviewer has written context for the deliberate phase-tree deviation and the safe-name vs destructive build flow.",
+      "verifiedEvidence": [
+        {
+          "criterion": "vite-plugin-singlefile added to deps; base './'; overview input confirmed",
+          "command": "grep -RIn 'vite-plugin-singlefile|base: './'|overview: resolve' tools/overview-viewer/package.json tools/overview-viewer/vite.config.ts pnpm-lock.yaml",
+          "result": "vite-plugin-singlefile is present in package.json and pnpm-lock.yaml; vite.config.ts has base './' and rollupOptions.input.overview: resolve(__dirname, 'overview.html').",
+          "evidenceKind": "command-output"
+        },
+        {
+          "criterion": "Custom overviewDataPlugin configureServer hook",
+          "command": "grep -nE 'Content-Type|server.watcher.add|overview-data:update' tools/overview-viewer/vite.config.ts",
+          "result": "configureServer serves /overview-data.js with Content-Type application/javascript, adds overviewDataPath to the watcher, and sends custom event overview-data:update on matching file changes.",
+          "evidenceKind": "command-output"
+        },
+        {
+          "criterion": "Custom overviewDataPlugin transformIndexHtml hook with pre order and build-only inlining",
+          "command": "grep -nE 'enforce: pre|order: pre|transformIndexHtml|readFile overviewDataPath|sidecarScriptTag' tools/overview-viewer/vite.config.ts",
+          "result": "Plugin has enforce: 'pre'; transformIndexHtml has order: 'pre', returns unchanged HTML for ctx.server, reads plans/overview-data.js during build, and replaces the relative sidecar script tag with inline script contents before vite-plugin-singlefile runs.",
+          "evidenceKind": "command-output"
+        },
+        {
+          "criterion": "Custom overviewDataPlugin closeBundle safe-name rename",
+          "command": "grep -nE 'closeBundle|OVERVIEW_BUILD_SAFE_NAME|rename overviewHtmlPath overviewHtmlNextPath|writeFile overviewHtmlPath' tools/overview-viewer/vite.config.ts",
+          "result": "closeBundle only runs when OVERVIEW_BUILD_SAFE_NAME === '1', removes any stale .next, renames emitted plans/overview.html to plans/overview.html.next, and restores the captured live overview.html bytes.",
+          "evidenceKind": "command-output"
+        },
+        {
+          "criterion": "pnpm overview:build:preview emits plans/overview.html.next; live plans/overview.html untouched",
+          "command": "sha256sum plans/overview.html; pnpm overview:build:preview > .test-output/overview-viewer.build-preview.log 2>&1; sha256sum plans/overview.html plans/overview.html.next",
+          "result": "Exited 0 in 5s; live plans/overview.html SHA stayed bb71a1053ba1c5dd4d62d7f9ec22c986b1a9df1a547c26ff88499ba07efed922 before/after; plans/overview.html.next exists with SHA e081871ddd78d4bdd5fe57b27e81a44175a63059583291d02aefe6307565a93e.",
+          "evidenceKind": "command-output"
+        },
+        {
+          "criterion": "US-007:AC-006 artifact opens via OS double-click and renders identically",
+          "command": "N/A",
+          "result": "SKIPPED: browser automation unavailable; file:// parity must be confirmed by operator manual open of plans/overview.html.next before US-008 approval.",
+          "evidenceKind": "skipped"
+        },
+        {
+          "criterion": "US-007:AC-007 No 404s in DevTools Network tab; no external script references",
+          "command": "grep static refs in plans/overview.html.next",
+          "result": "US-007:AC-007 fallback: browser DevTools unavailable; static grep found script_src_count=0 and link_href_count=0 in plans/overview.html.next, so there are no external script/link URLs for the artifact to request.",
+          "evidenceKind": "command-output"
+        },
+        {
+          "criterion": "window.OVERVIEW_DATA is inlined and no overview-data.js script src remains",
+          "command": "grep -c 'window\\.OVERVIEW_DATA' plans/overview.html.next; grep -Ec '<script[^>]+src=[\"'\"'][^\"'\"']*overview-data\\.js' plans/overview.html.next",
+          "result": "window_count=2; overview_data_src_count=0. The sidecar assignment is inlined and no script src reference to overview-data.js remains.",
+          "evidenceKind": "command-output"
+        },
+        {
+          "criterion": "US-007:AC-009 ?tasks URL filter and #cmd-* hash nav work in static build",
+          "command": "pnpm --filter @codexu/overview-viewer test > .test-output/overview-viewer.test.log 2>&1",
+          "result": "US-007:AC-009 fallback: browser automation unavailable; Vitest exited 0 with 9 files and 19 tests passed, including urlFilter.test.ts and kanbanInteraction.test.ts for the same URL/hash hooks used by the inlined static artifact.",
+          "evidenceKind": "command-output"
+        },
+        {
+          "criterion": "tools/overview-viewer/README.md authored with required review context",
+          "command": "grep -nE 'pnpm overview|pnpm overview:build:preview|pnpm overview:build|deferred|OVERVIEW_BUILD_SAFE_NAME|plans/overview.html.next|File Layout' tools/overview-viewer/README.md",
+          "result": "README covers file layout, pnpm overview dev workflow, safe preview build, destructive live build, OVERVIEW_BUILD_SAFE_NAME, plans/overview.html.next, and the deliberate phase-tree deferred class deviation.",
+          "evidenceKind": "command-output"
+        },
+        {
+          "criterion": "Typecheck passes",
+          "command": "pnpm --filter @codexu/overview-viewer typecheck > .test-output/overview-viewer.typecheck.log 2>&1",
+          "result": "Exited 0 in 6s; tsc --noEmit completed with no errors.",
+          "evidenceKind": "command-output"
+        },
+        {
+          "criterion": "pnpm --filter @codexu/overview-viewer build exits 0",
+          "command": "pnpm overview:build:preview > .test-output/overview-viewer.build-preview.log 2>&1",
+          "result": "Exited 0 in 5s; preview command invoked pnpm --filter @codexu/overview-viewer build and Vite reported built in 630ms. The no-env live build was not run in US-007 because it is the destructive US-008 path.",
+          "evidenceKind": "command-output"
+        },
+        {
+          "criterion": "US-007:AC-012 Verify the safe-name artifact in browser using dev-browser skill",
+          "command": "N/A",
+          "result": "SKIPPED: dev-browser skill unavailable in this session; file:// safe-name preview must be opened manually by the operator before US-008 approval.",
+          "evidenceKind": "skipped"
+        }
+      ],
+      "dependencies": [
+        "US-001",
+        "US-002",
+        "US-003",
+        "US-004",
+        "US-005",
+        "US-006"
+      ],
+      "criteriaWarnings": [
+        {
+          "storyId": "US-007",
+          "acIndex": "AC-006",
+          "criterion": "The artifact opens via OS double-click (file://) and renders identically to the dev server (modulo HMR)",
+          "warning": "US-007:AC-006 requires opening the built artifact in a real browser via file://; browser automation tools may be unavailable to the iteration agent",
+          "severity": "tool-availability",
+          "suggestedFallback": "If browser tooling is unavailable, record result: \"SKIPPED: browser automation unavailable; file:// parity must be confirmed by operator manual open of plans/overview.html.next\" for US-007:AC-006.",
+          "source": "criteria-validator"
+        },
+        {
+          "storyId": "US-007",
+          "acIndex": "AC-007",
+          "criterion": "No 404s in DevTools Network tab; no external script references",
+          "warning": "US-007:AC-007 requires DevTools Network inspection in a browser; browser automation tools may be unavailable to the iteration agent",
+          "severity": "tool-availability",
+          "suggestedFallback": "If browser tooling is unavailable, fall back to a static check: grep the artifact for any `<script src=` / `<link href=` referencing non-inline URLs (expect zero matches) and record that result for US-007:AC-007.",
+          "source": "criteria-validator"
+        },
+        {
+          "storyId": "US-007",
+          "acIndex": "AC-009",
+          "criterion": "?tasks= URL filter works in the static build; #cmd-* hash nav works in the static build",
+          "warning": "US-007:AC-009 requires loading the static build in a browser with query/hash; browser automation tools may be unavailable to the iteration agent",
+          "severity": "tool-availability",
+          "suggestedFallback": "If browser tooling is unavailable, record result: \"SKIPPED: browser automation unavailable; URL/hash behavior verified only via unit tests against the same hooks used by the dev build\" for US-007:AC-009.",
+          "source": "criteria-validator"
+        },
+        {
+          "storyId": "US-007",
+          "acIndex": "AC-012",
+          "criterion": "Verify the safe-name artifact in browser using dev-browser skill (open via file://)",
+          "warning": "US-007:AC-012 explicitly invokes the dev-browser skill against a file:// URL; browser automation tools may be unavailable to the iteration agent",
+          "severity": "tool-availability",
+          "suggestedFallback": "If browser tooling is unavailable, record result: \"SKIPPED: dev-browser skill unavailable; file:// safe-name preview must be opened manually by the operator before US-008 approval\" for US-007:AC-012.",
+          "source": "criteria-validator"
+        }
+      ],
+      "failureClassification": "",
+      "partialProgress": null
+    },
+    {
+      "id": "US-008",
+      "title": "Replace static HTML (destructive)",
+      "description": "As an operator, after approving US-007's parity output, I want pnpm overview:build (no env flag) to replace plans/overview.html directly with the React build.",
+      "acceptanceCriteria": [
+        "Operator has reviewed plans/overview.html.next (from US-007) and approved its parity vs the live plans/overview.html (modulo phase-tree deferred class addition). The iteration agent MUST NOT proceed without recorded operator approval.",
+        "Existing plans/overview.html is deleted",
+        "pnpm overview:build (no env flag, so closeBundle rename is a no-op) emits the inlined artifact directly to plans/overview.html",
+        "Visual parity vs the 9f81c1f8 baseline (modulo the deferred-class addition from US-005)",
+        "Other plans/*.md files are untouched (emptyOutDir: false)",
+        "Cross-package typecheck for other packages (happy-app, codium, etc.) stays green",
+        "Typecheck passes",
+        "Verify the live artifact in browser using dev-browser skill (open via file://)"
+      ],
+      "priority": 8,
+      "passes": true,
+      "notes": "DESTRUCTIVE + GATED. Stage 8 deletes plans/overview.html and replaces it with the build artifact. The iteration agent MUST surface this gate, pause for explicit operator approval of plans/overview.html.next from US-007, and only proceed once approval is recorded. Irreversible without git revert. Operator approval was recorded in notepad PERMANENT before the destructive swap; live plans/overview.html now matches the approved .next artifact byte-for-byte.",
+      "verifiedEvidence": [
+        {
+          "criterion": "Operator approval recorded for destructive US-008 swap",
+          "command": "grep -n \"US-008 destructive gate APPROVED\" D:/harness-efforts/codexu/.ralph/jobs/overview-vite-react/notepad.md",
+          "result": "Notepad PERMANENT section records operator approval after opening plans/overview.html.next via file:// and confirming visual parity modulo the deferred-class addition; approval authorizes delete, emit live artifact, and commit.",
+          "evidenceKind": "command-output"
+        },
+        {
+          "criterion": "Existing plans/overview.html is deleted",
+          "command": "rm plans/overview.html; test ! -e plans/overview.html; pnpm overview:build",
+          "result": "The command printed deleted plans/overview.html with previous SHA bb71a1053ba1c5dd4d62d7f9ec22c986b1a9df1a547c26ff88499ba07efed922 before running the live build.",
+          "evidenceKind": "command-output"
+        },
+        {
+          "criterion": "pnpm overview:build emits the inlined artifact directly to plans/overview.html",
+          "command": "pnpm overview:build > .test-output/overview-viewer.live-build.log 2>&1; sha256sum plans/overview.html plans/overview.html.next; cmp -s plans/overview.html plans/overview.html.next",
+          "result": "Exited 0; Vite emitted ../../plans/overview.html at 446.14 kB. Live SHA e081871ddd78d4bdd5fe57b27e81a44175a63059583291d02aefe6307565a93e matched the approved .next artifact and cmp_exit=0.",
+          "evidenceKind": "command-output"
+        },
+        {
+          "criterion": "US-008:AC-004 Visual parity vs baseline modulo deferred-class addition",
+          "command": "Operator approval in notepad plus cmp of live artifact against approved .next",
+          "result": "US-008:AC-004 fallback: visual diff unavailable; relied on recorded operator approval of plans/overview.html.next parity, then verified the live artifact is byte-identical to that approved .next artifact.",
+          "evidenceKind": "command-output"
+        },
+        {
+          "criterion": "Other plans/*.md files are untouched",
+          "command": "git diff --name-only -- plans/*.md",
+          "result": "No output; no plans/*.md files changed. git status for plans shows only M plans/overview.html.",
+          "evidenceKind": "command-output"
+        },
+        {
+          "criterion": "Cross-package typecheck for other packages stays green",
+          "command": "pnpm --filter codium/happy-app/happy-wire/happy-server/happy-cli/happy-agent/codexu-options-mode-plugin typecheck with logs under .test-output/",
+          "result": "All exited 0: codium 28s, happy-app 59s, happy-wire 25s, happy-server 27s, happy-cli 27s, happy-agent 11s, codexu-options-mode-plugin 9s.",
+          "evidenceKind": "command-output"
+        },
+        {
+          "criterion": "Typecheck passes",
+          "command": "pnpm --filter @codexu/overview-viewer typecheck > .test-output/overview-viewer.typecheck.log 2>&1",
+          "result": "Exited 0 in 9s; tsc --noEmit completed with no errors.",
+          "evidenceKind": "command-output"
+        },
+        {
+          "criterion": "US-008:AC-008 Verify the live artifact in browser using dev-browser skill",
+          "command": "N/A",
+          "result": "SKIPPED: dev-browser skill unavailable in this session; live plans/overview.html artifact must be opened manually by the operator after destructive swap.",
+          "evidenceKind": "skipped"
+        }
+      ],
+      "dependencies": [
+        "US-001",
+        "US-002",
+        "US-003",
+        "US-004",
+        "US-005",
+        "US-006",
+        "US-007"
+      ],
+      "criteriaWarnings": [
+        {
+          "storyId": "US-008",
+          "acIndex": "AC-004",
+          "criterion": "Visual parity vs the 9f81c1f8 baseline (modulo the deferred-class addition from US-005)",
+          "warning": "US-008:AC-004 requires visual comparison of the built artifact against the baseline commit; browser automation tools may be unavailable to the iteration agent",
+          "severity": "tool-availability",
+          "suggestedFallback": "If browser tooling is unavailable, record result: \"SKIPPED: visual diff unavailable; rely on operator approval of plans/overview.html.next from US-007 (recorded in notes) as the parity gate\" for US-008:AC-004.",
+          "source": "criteria-validator"
+        },
+        {
+          "storyId": "US-008",
+          "acIndex": "AC-008",
+          "criterion": "Verify the live artifact in browser using dev-browser skill (open via file://)",
+          "warning": "US-008:AC-008 explicitly invokes the dev-browser skill against a file:// URL; browser automation tools may be unavailable to the iteration agent",
+          "severity": "tool-availability",
+          "suggestedFallback": "If browser tooling is unavailable, record result: \"SKIPPED: dev-browser skill unavailable; live plans/overview.html artifact must be opened manually by the operator after destructive swap\" for US-008:AC-008.",
+          "source": "criteria-validator"
+        }
+      ],
+      "failureClassification": "",
+      "partialProgress": null
+    },
+    {
+      "id": "US-009",
+      "title": "Docs sweep (SKILL.md + root README)",
+      "description": "As a bookkeeper, I want the roadmap-and-overview skill and root README updated to point at the new dev-server URL and build command.",
+      "acceptanceCriteria": [
+        ".agents/skills/roadmap-and-overview/SKILL.md viewing subsection additively updated to include: dev-server URL http://localhost:5173, pnpm overview:build command, and a note on the phase-tree 'deferred' class deviation. Do NOT rewrite the bookkeeper editing procedures - plan #2 already did that.",
+        "Root README.md has a new 'Roadmap viewer' subsection under the existing Roadmap section, with pnpm overview (dev) and pnpm overview:build (static) commands",
+        "tools/overview-viewer/README.md was already created in US-007 - this story does NOT touch it",
+        "Typecheck passes (no code changes; docs only)"
+      ],
+      "priority": 9,
+      "passes": true,
+      "notes": "",
+      "verifiedEvidence": [
+        {
+          "criterion": ".agents/skills/roadmap-and-overview/SKILL.md viewing subsection additively updated",
+          "command": "grep -nE 'http://localhost:5173|pnpm overview:build|deferred|9f81c1f8' .agents/skills/roadmap-and-overview/SKILL.md",
+          "result": "Found the new Viewing subsection lines for http://localhost:5173, pnpm overview:build, and the deliberate phase-tree deferred class deviation from 9f81c1f8; bookkeeping procedures were not rewritten.",
+          "evidenceKind": "command-output"
+        },
+        {
+          "criterion": "Root README.md has Roadmap viewer subsection with dev and static commands",
+          "command": "grep -nE 'Roadmap viewer|pnpm overview|pnpm overview:build|http://localhost:5173' README.md",
+          "result": "Found Roadmap viewer subsection under Roadmap with pnpm overview, http://localhost:5173, and pnpm overview:build.",
+          "evidenceKind": "command-output"
+        },
+        {
+          "criterion": "tools/overview-viewer/README.md was already created in US-007 and not touched",
+          "command": "git diff --name-only -- tools/overview-viewer/README.md",
+          "result": "No output; tools/overview-viewer/README.md has no diff in US-009.",
+          "evidenceKind": "command-output"
+        },
+        {
+          "criterion": "Typecheck passes (no code changes; docs only)",
+          "command": "pnpm --filter @codexu/overview-viewer typecheck > .test-output/overview-viewer.typecheck.log 2>&1",
+          "result": "Exited 0; tsc --noEmit completed with no errors.",
+          "evidenceKind": "command-output"
+        }
+      ],
+      "dependencies": [
+        "US-001",
+        "US-002",
+        "US-003",
+        "US-004",
+        "US-005",
+        "US-006",
+        "US-007",
+        "US-008"
+      ],
+      "failureClassification": "",
+      "partialProgress": null
+    }
+  ]
+}

@@ -1,0 +1,92 @@
+{
+  "recommendation": "CONTINUE",
+  "passCount": 9,
+  "storiesCompleted": [
+    {
+      "id": "US-001",
+      "sha": "64a6d38c5bf4dc009c93645c9570b4f443384384",
+      "evidenceValidation": "VALID"
+    },
+    {
+      "id": "US-002",
+      "sha": "75358df37b4dd85412f143a1657615ece15fbef1",
+      "evidenceValidation": "VALID"
+    },
+    {
+      "id": "US-003",
+      "sha": "649228400998b80e2943b88c3c447aa515f4fc09",
+      "evidenceValidation": "VALID"
+    },
+    {
+      "id": "US-004",
+      "sha": "12e7b109f37dad6bad5223d43a2772f51f2f936d",
+      "evidenceValidation": "VALID"
+    },
+    {
+      "id": "US-005",
+      "sha": "c775a2030e04d5330ebde30e78f54173efe8572e",
+      "evidenceValidation": "VALID"
+    },
+    {
+      "id": "US-006",
+      "sha": "33e320ab61f4710caa355352c5d8b5ef036fb9c6",
+      "evidenceValidation": "VALID"
+    },
+    {
+      "id": "US-007",
+      "sha": "fa58e6d8432f80acf58754bfd76f1ef8e5727565",
+      "evidenceValidation": "VALID"
+    },
+    {
+      "id": "US-008",
+      "sha": "123392596730e5bd936e8813b58a76bab29d3814",
+      "evidenceValidation": "VALID"
+    },
+    {
+      "id": "US-009",
+      "sha": "61c10cb4df25ce8841fd56328a278f42d666a3c5",
+      "evidenceValidation": "VALID"
+    }
+  ],
+  "storiesBlocked": [],
+  "storiesRemaining": [],
+  "storiesDependencyBlocked": [],
+  "deferredQuestions": [],
+  "storyDoctorActions": [],
+  "qualityGateResult": "pass",
+  "qualityGateDetails": {
+    "trigger": "cumulativeCompleted=9, frequency=1 (default)",
+    "typecheck": "exit 0 (pnpm --filter @codexu/overview-viewer typecheck re-run at HEAD 61c10cb4 — tsc --noEmit clean)",
+    "tests": "exit 0 (vitest 9 files / 19 tests passed; iteration evidence retained from preceding builds since US-009 is docs-only)",
+    "build": "not re-run (US-009 is docs-only — 2 files / 32 insertions to README.md and SKILL.md; no source changes since iter-8 build)"
+  },
+  "rollbackFailures": [],
+  "manifestVerifier": {
+    "status": "skipped",
+    "iterations": [
+      {
+        "iteration": 9,
+        "reason": "structural manifest validation failed; iteration-result-9.json uses legacy evidenceKind: \"command-output\" instead of v5.25 closed-enum (passed|skipped|manual-skip|fallback|absent-verified). Same legacy shape as iter-1..8; advisory only."
+      }
+    ]
+  },
+  "parityCheck": {
+    "status": "skipped",
+    "reason": "US-009 ACs use 'additively updated' / 'new subsection' but not the trigger keywords (mirror/parity/reuse)"
+  },
+  "refactoringPass": {
+    "status": "skipped",
+    "reason": "cumulativeCompleted=9 is not a multiple of refactorInterval=5; next trigger at 10 is beyond the 9-story PRD scope. Additionally, the iter-9 batch is docs-only (README.md + SKILL.md; 0 production files), which is the documented docs-only refactor skip."
+  },
+  "notTestedCandidates": [],
+  "operatorGate": {
+    "story": "US-008",
+    "type": "destructive-approval-required",
+    "status": "satisfied",
+    "note": "Operator approval recorded in notepad PERMANENT and verified at iter-8; iter-9 is non-destructive docs sweep."
+  },
+  "velocity": { "stories": 9, "iterations": 9, "rate": 1.0 },
+  "iteration": 9,
+  "batch": { "start": 9, "end": 9 },
+  "prdComplete": true
+}

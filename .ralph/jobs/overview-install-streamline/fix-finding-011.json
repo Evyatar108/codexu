@@ -1,0 +1,18 @@
+{
+  "id": "F-011",
+  "severity": "Medium",
+  "source": "claude",
+  "category": "Quality",
+  "classification": "fixable",
+  "phase": "code",
+  "sectionRef": "Approach > Architecture > MCP tool registration pattern",
+  "description": "The F-006 fix changed tools/init.ts and tools/upsert-task.ts to pass the wrapped strict ZodObject (overviewInitSchema, overviewUpsertTaskSchema) directly as the registerTool inputSchema, while every other MCP tool in the codebase (10 sites in server.ts, plus build/dev-server/sync-now/sync-watch-status tools) still passes asSdkInputSchema(<raw-shape>). This works (the round-trip SDK-boundary test in init-upsert-tools.test.ts confirms unknown-key rejection), but it introduces a stylistic policy-consistency divergence: two parallel patterns for the same operation in adjacent files. Future maintainers reading the codebase have to discover that both work and why. No acceptance criterion is at risk; the diff is green; this is purely a code-uniformity concern.",
+  "relevantFiles": [
+    "plugins/ralph-overview/tools/overview-mcp/src/tools/init.ts:15",
+    "plugins/ralph-overview/tools/overview-mcp/src/tools/upsert-task.ts:19",
+    "plugins/ralph-overview/tools/overview-mcp/src/server.ts:64",
+    "plugins/ralph-overview/tools/overview-mcp/src/schemas.ts:168"
+  ],
+  "suggestedFix": "Pick one pattern across the package. Either (a) keep asSdkInputSchema(<raw-shape>) everywhere and rely on Zod runtime strictness inside the handler if needed, or (b) refactor asSdkInputSchema to accept a wrapped ZodObject and migrate all 10+ existing call-sites to the wrapped form. Option (a) is the smaller diff. Defer if a future SDK upgrade is likely to change the contract anyway.",
+  "status": "open"
+}

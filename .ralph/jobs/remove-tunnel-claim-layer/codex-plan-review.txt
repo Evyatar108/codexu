@@ -1,0 +1,39 @@
+**Feasibility**
+
+[Critical] The storage migration path is wrong as written. If `AuthCredentials.tunnelClaim` is removed from new writes, `packages/happy-app/sources/auth/tokenStorage.ts:39-67` currently treats any credential without `tunnelClaim` as old shape and filters it out on load. That would make newly paired machines disappear unless `isOldShape()` is changed.
+
+[High] Server “auth no-op” is not enough because `packages/happy-server/sources/app/api/utils/requireAccountIdForTunnel.ts:6-10` still rejects tunnel requests without `request.accountId`. It is wired into `accountRoutes.ts:47-79` and `machineSelfRoutes.ts:23-26`, so `/v2/me/profile`, `/v2/me/settings`, and `/v2/me/machine` will 401 after claim removal unless that gate is removed or rewritten.
+
+[Medium] The plan is ambiguous about loopback auth. `api.ts:80-91`, `socket.ts:64-73`, and `happy-cli/src/daemon/daemonClient.ts:142` still implement `X-Loopback-Capability`. The plan says “socket middleware no-op” and “loopback locality is the implicit gate”, which could accidentally delete loopback capability auth even though the stated scope is only removing `X-Codexu-Authorization`.
+
+**Completeness**
+
+[High] `happy-agent` is significantly under-scoped. Claim fields and parsing are not only in `src/api.ts` and `src/machineRpc.ts`; they are also in `packages/happy-agent/src/auth.ts:289-313`, `credentials.ts:20-29`, `index.ts:10,71-76,280-387`, plus `auth.test.ts`, `credentials.test.ts`, `cli-smoke.test.ts`, `machineRpc.test.ts`, and integration tests. Acceptance greps will fail unless these are included.
+
+[Medium] App source call sites are missing. Removing `DeviceCodeExpired` / `ClaimExpired` affects `packages/happy-app/sources/sync/apiSocket.ts:6,219` and `packages/happy-app/sources/sync/sync.ts:4,372-378`, but the plan only calls out tests and `machineAuth.ts`.
+
+[Medium] Docs are under-scoped. Grep found stale claim docs in `docs/backend-architecture.md`, `docs/cli-architecture.md`, `docs/deployment.md`, `docs/encryption.md`, `docs/realtime-sync-and-rpc.md`, `docs/user-identity.md`, `docs/operations/BOOX-TESTING-HANDOFF.md`, `packages/happy-agent/CLAUDE.md`, `packages/happy-cli/src/daemon/CLAUDE.md`, and `packages/happy-app/CLAUDE.md:129`. The plan updates only a subset.
+
+[Medium] `packages/happy-agent` exports checked-in `dist` artifacts from `package.json`. Since acceptance greps all of `packages/`, the plan needs to require rebuilding and committing regenerated `dist/index.*`, or explicitly exclude generated artifacts from grep criteria.
+
+**Ordering**
+
+[High] US-002 deletes `tunnelClaim` from `/pair/complete` before app/agent clients stop calling refresh paths. Current app `refreshClaim.ts:56-84` and agent `api.ts:343-394` expect `machine.tunnelClaim`; intermediate deploys or cross-package tests can fail. If commits must stay green, client removals should land in the same commit as the response-shape change, or US-002 should not claim cross-package safety.
+
+[Medium] Docs last is fine, but acceptance asks for `plans/realtime-sync-perf.md` to point to “this plan’s commit hash”. That cannot be completed until after the implementation commit exists, so it needs to be a final amend step or changed to reference the plan/job path.
+
+**Simplicity**
+
+[Medium] The simpler server implementation is: keep `authenticate` and socket middleware structure, preserve loopback capability behavior, and make only the tunnel branch assign `request.userId = tofuConfig.localUserId` / `socket.data.userId = tofuConfig.localUserId`. Then remove `requireAccountIdForTunnel`. Avoid a broad “no-op middleware” rewrite.
+
+[Low] For app storage, the simplest safe migration is to remove live reads/writes but allow stale extra fields and change `isOldShape()` so missing `tunnelClaim` is not considered invalid.
+
+**Acceptance Criteria Quality**
+
+[High] Grepping only `packages/` for `X-Codexu-Authorization` misses stale docs. Add repo-wide greps for docs/plans/CLAUDE files, or explicitly list allowed historical plan/archive exceptions.
+
+[Medium] Test commands are too vague: “`pnpm typecheck` or per-package build” is not equivalent here, especially with `happy-agent` generated `dist`. Specify exact commands.
+
+[Low] The BOOX smoke check is human-only. Mark it as a manual acceptance gate so an autonomous agent does not treat it as CI-verifiable.
+
+No prior review-cycle amendments are included in the plan, so there are no claimed fixes to validate.

@@ -1,0 +1,32 @@
+I’ll inspect the referenced temp file to determine the requested task.
+
+The referenced file is large, so I’ll read the beginning first and then jump to relevant sections if needed.
+
+I’ve got the plan and file list; now I’ll inspect the implementation hotspots rather than the entire generated diff.
+
+The checked-out tree doesn’t contain the Plan 04 files directly, so I’ll continue reviewing from the supplied diff itself.
+
+Review found **blocking issues**; the Plan 04 implementation is not ready to merge.
+
+## Completeness
+
+- **[High] `scripts/lib/sync-core.mjs:17774-17803`** — `writeSidecar` now reloads `overviewData`, rebuilds `prdsByTaskId`, scores recommendations, derives the graph, and emits artifacts internally. Plan 04 required those derived payloads to be built before `writeSidecar`, with `writeSidecar` remaining only the sidecar writer.
+- **[Medium] `scripts/lib/sync-core.mjs:18086-18108`** — `runDurations` are keyed by `run.id`, but matched only by `taskId`. The plan required matching each `overviewData.runs[]` entry to the corresponding Ralph cycle timestamp and skipping non-matches.
+
+## Correctness
+
+- **[High] `scripts/lib/sync-core.mjs:17812`; `plans/overview-recommendations.json:6385`** — recommendations are emitted as a bare array. Plan verification expects an object with `.recommendations`, using sidecar metadata (`generatedAt`, `generatedFromCommit`). `jq '.recommendations[0:5]'` will fail.
+- **[Medium] `scripts/lib/score-recommendations.mjs`; `plans/overview-recommendations.json:6407-6445`** — shipped tasks appear in the top recommendation output. A “next-action” list should not recommend completed work unless explicitly intended.
+
+## Quality
+
+- **[Medium] `scripts/lib/sync-core.mjs:17774-17803`** — artifact derivation is hidden inside the writer, making the dataflow harder to test and maintain. This also weakens the intended separation between sidecar serialization and derived artifact generation.
+
+## Security
+
+No security issues found.
+
+## Overall Assessment
+
+Not ready. The UI histogram work appears aligned, but the sync/artifact contract is broken: recommendation output shape is wrong, duration matching can produce incorrect data, and `writeSidecar` owns responsibilities the plan explicitly kept outside it.
+

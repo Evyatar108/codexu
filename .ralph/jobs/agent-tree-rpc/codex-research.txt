@@ -1,0 +1,72 @@
+**Codebase Architecture**
+
+This is a pnpm monorepo with TypeScript packages plus a Rust codex submodule:
+
+- `packages/happy-cli`: local agent runner. `runCodex.ts` creates the Happy session, starts `CodexAppServerClient`, registers session-scoped RPC handlers, and forwards Codex events into Happy.
+- `packages/happy-server`: Fastify + Socket.IO server. Socket RPC is generic in `sources/app/api/socket/rpcHandler.ts`; event fan-out is centralized in `sources/app/events/eventRouter.ts`.
+- `packages/happy-app`: React Native/Expo client. Socket/RPC client lives in `sources/sync/apiSocket.ts`; update validation lives in `sources/sync/apiTypes.ts`.
+- `packages/happy-wire`: shared Zod/types package, the best home for reusable agent-tree wire schemas.
+- `codex/external/repos/codex-patched/...`: Rust codex source. For this task it should be treated as read-only reference.
+
+Build/test tooling is pnpm, TypeScript 5.9, Vitest, Socket.IO 4.x, Fastify 5, and Rust/Cargo inside the codex submodule.
+
+**Feature-Relevant Code**
+
+Codex data sources:
+
+- `codex/.../core/src/agent/registry.rs`: `AgentRegistry` owns `active_agents.agent_tree: HashMap<String, AgentMetadata>`. `AgentMetadata` has `agent_id`, `agent_path`, `agent_nickname`, `agent_role`, `last_task_message`. `live_agents()` excludes root.
+- `codex/.../core/src/agent/control.rs`: `subscribe_status(agent_id) -> watch::Receiver<AgentStatus>`, `list_agents()`, and status watcher usage around spawned children.
+- `codex/.../core/src/tools/handlers/multi_agents/spawn.rs` and `multi_agents_v2/spawn.rs`: emit `CollabAgentSpawnBeginEvent` before spawn and `CollabAgentSpawnEndEvent` after spawn. End contains `new_thread_id`, nickname, role, prompt, model, reasoning effort, status.
+- `codex/.../protocol/src/protocol.rs`: `EventMsg` is serde-tagged with snake_case; `AgentStatus` variants include `pending_init`, `running`, `interrupted`, `completed`, `errored`, `shutdown`, `not_found`.
+- `codex/.../app-server-protocol/src/protocol/event_mapping.rs`: app-server v2 maps collab spawn begin/end to `item/started` and `item/completed` with `ThreadItem::CollabAgentToolCall`.
+- Important gap: that v2 `CollabAgentToolCall` shape includes receiver thread ids and status, but not nickname/role. Those can be recovered from legacy raw `EventMsg` if available, or from `thread/read` / `thread/list` `Thread.agent_nickname` and `Thread.agent_role`.
+
+Happy CLI integration:
+
+- `packages/happy-cli/src/codex/codexAppServerClient.ts`: normalizes Codex app-server notifications. `handleRawNotification()` currently swallows unknown `item/*`; add parsing for `item.type === 'collabAgentToolCall'`.
+- `packages/happy-cli/src/codex/runCodex.ts`: natural owner for an in-memory `AgentTreeStore`, since it already registers `abort`/`killSession`, receives Codex events, knows `session.sessionId`, and has the root `client.threadId`.
+- `packages/happy-cli/src/api/apiSession.ts`: `RpcHandlerManager` already exposes session-scoped RPC. Add a socket helper like `sendAgentTreeUpdate(delta)` rather than persisting these as chat messages.
+
+Happy server integration:
+
+- `packages/happy-server/sources/app/api/socket/rpcHandler.ts`: already routes app RPC calls to session clients via method name `${sessionId}:method`.
+- `packages/happy-server/sources/app/api/socket/sessionUpdateHandler.ts`: add a CLI-origin socket handler for `agent-tree-update`.
+- `packages/happy-server/sources/app/events/eventRouter.ts`: fan-out primitive. It currently supports only `update` and `ephemeral`; extend it or add a small typed method to emit Socket.IO event `agent-tree-update` to `{ type: 'all-interested-in-session', sessionId }`.
+
+Happy app integration, if included now:
+
+- `packages/happy-app/sources/sync/apiSocket.ts`: `onAny` dispatch already allows `apiSocket.onMessage('agent-tree-update', handler)`.
+- `packages/happy-app/sources/sync/apiTypes.ts`: add Zod schemas if the app validates/stores these updates.
+
+**Technical Constraints**
+
+The requested `sessionGetAgentTree(sessionId)` should be a Happy session RPC, not a new HTTP route: app calls `apiSocket.forSession(sessionId).rpc('sessionGetAgentTree', params)`, server routes to `${localSessionId}:sessionGetAgentTree`.
+
+With codex source read-only, Happy CLI cannot literally access `AgentRegistry.agent_tree` or hold Rust `watch::Receiver`s. The practical design is a Happy-side mirror reconstructed from Codex app-server notifications, optionally enriched by `thread/read`/`thread/list`.
+
+Spawn begin has no child thread id. You need a pending map keyed by `call_id`; a real `{ parent, child }` edge cannot be emitted until spawn end. If acceptance requires a distinct “spawn-begin delta”, the delta union should include a pending-spawn/call-start shape, or the test should treat begin as a pending update, not `node-added`.
+
+Current `CodexAppServerClient` is on app-server v2 raw notifications. It handles command/file/agent-message items, but not `collabAgentToolCall`. Without adding that parser, `runCodex.ts` will never see spawn begin/end through the current path.
+
+`agent-tree-update` as a distinct Socket.IO event requires server changes because `EventRouter` only emits `update`/`ephemeral` today.
+
+**Implementation Suggestions**
+
+Add a focused helper, probably `packages/happy-cli/src/codex/agentTreeState.ts`, with shared types from `@slopus/happy-wire`:
+
+- `AgentTreeNode = { threadId, agentRole, nickname, status, lastTaskMessage, spawnedAt }`
+- `AgentTreeSnapshot = { nodes, edges }`
+- `AgentTreeDelta = node-added | node-status-changed | node-removed | pending-spawn-started` if begin must be observable.
+
+In `runCodex.ts`, create the store after thread start/resume, register:
+
+- `session.rpcHandlerManager.registerHandler('sessionGetAgentTree', async () => store.snapshot())`
+
+In the Codex event handler:
+
+- On spawn begin: store `{ callId, parent: senderThreadId, prompt, startedAt }`; emit pending delta only if accepted.
+- On spawn end: resolve pending call, add child node and edge, emit `node-added` with parent linkage.
+- On `collabAgentToolCall.agentsStates`, update node status.
+- On close end or `thread/status/changed` to not loaded, emit `node-removed` or final status.
+
+For tests, prioritize pure reducer coverage plus one bridge test: feed begin/end in order, assert two stream emissions if that remains acceptance, and assert final snapshot has both children with correct parent edges. Then add a server `eventRouter`/`sessionUpdateHandler` fan-out test for `agent-tree-update`.

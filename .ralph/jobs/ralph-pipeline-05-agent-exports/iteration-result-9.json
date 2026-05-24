@@ -1,0 +1,32 @@
+{
+  "storyId": "US-009",
+  "verifiedEvidence": [
+    {
+      "criterion": "The private loadOverviewData() in scripts/lib/sync-core.mjs is exported (renamed if necessary).",
+      "command": "nl -ba scripts/lib/sync-core.mjs | sed -n '566,577p'",
+      "result": "Line 571 now exports loadOverviewData(dataFile); the implementation body is unchanged and still returns {} for missing files or windowValue.OVERVIEW_DATA from the trusted sidecar.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "scripts/lib/sync-core.d.mts declares the export.",
+      "command": "nl -ba scripts/lib/sync-core.d.mts | sed -n '1,78p'",
+      "result": "Line 1 imports OverviewData and line 73 declares export function loadOverviewData(dataFile: string): OverviewData.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "No behavior change in existing callers.",
+      "command": "pnpm vitest run tools/overview-viewer/src/__tests__/syncCore.test.ts > .test-output/sync-core.test.log 2>&1",
+      "result": "PASS exit=0 duration=10s; 1 test file passed, 15 tests passed, including existing walk/merge/writeSidecar callers and a new exported parser assertion.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Typecheck passes.",
+      "command": "pnpm --filter @codexu/overview-viewer typecheck > .test-output/overview-viewer.typecheck.log 2>&1",
+      "result": "PASS exit=0 duration=14s; tsc --noEmit completed with no errors. Package tests also passed: 27 files, 153 tests.",
+      "evidenceKind": "passed"
+    }
+  ],
+  "skippedReasons": [],
+  "notTested": [],
+  "iterationSHA": "ddc4d0390e230416606543005085ae95076ab01a"
+}

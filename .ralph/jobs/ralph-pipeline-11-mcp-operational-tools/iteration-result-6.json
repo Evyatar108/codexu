@@ -1,0 +1,38 @@
+{
+  "storyId": "US-006",
+  "verifiedEvidence": [
+    {
+      "criterion": "overview.sync.now registration, ProcessManager spawn, and single-flight rejection",
+      "command": "nl -ba tools/overview-mcp/src/tools/sync-now.ts | sed -n '39,66p'; pnpm --filter @codexu/overview-mcp exec vitest run src/__tests__/sync-now.test.ts --passWithNoTests --reporter=verbose",
+      "result": "PASS: sync.now registers locally, spawns name sync-now with cmd node, script args, cwd context.repoRoot, oneShot true, and focused tests passed 5/5 including concurrent rejection.",
+      "evidenceKind": "test"
+    },
+    {
+      "criterion": "overview.sync.now parses success summary, reports lock holder metadata, and returns non-lock stderr tails",
+      "command": "pnpm --filter @codexu/overview-mcp exec vitest run src/__tests__/sync-now.test.ts --passWithNoTests --reporter=verbose",
+      "result": "PASS: sync-now.test.ts passed 5/5 covering real script summary emission, structured summary parsing, lock-held metadata re-read, concurrent rejection, and stderr tail failure.",
+      "evidenceKind": "test"
+    },
+    {
+      "criterion": "overview.sync.watch_status maps readLockStatus missing, active, stale, and alive-PID states",
+      "command": "pnpm --filter @codexu/overview-mcp exec vitest run src/__tests__/sync-watch-status.test.ts --passWithNoTests --reporter=verbose",
+      "result": "PASS: sync-watch-status.test.ts passed 5/5 covering missing, active, old dead-pid stale, unparseable stale, and old live-pid active locks.",
+      "evidenceKind": "test"
+    },
+    {
+      "criterion": "Stdio smoke test lists the exact 17-tool set after build",
+      "command": "pnpm --filter @codexu/overview-mcp build; pnpm --filter @codexu/overview-mcp exec vitest run src/__tests__/stdio-tools-list.test.ts --passWithNoTests --reporter=verbose",
+      "result": "PASS: build exited 0 and stdio smoke test passed with exact set equality for 17 tools including all seven operational tools.",
+      "evidenceKind": "test"
+    },
+    {
+      "criterion": "Typecheck and full @codexu/overview-mcp suite pass",
+      "command": "pnpm --filter @codexu/overview-mcp typecheck; pnpm --filter @codexu/overview-mcp test",
+      "result": "PASS: typecheck exited 0; full test suite exited 0 with Test Files 19 passed (19), Tests 71 passed (71). Logs are in .test-output/overview-mcp.{typecheck,test}.log.",
+      "evidenceKind": "test"
+    }
+  ],
+  "skippedReasons": [],
+  "notTested": [],
+  "iterationSHA": "44c12f8ad78ef6475857f75eaa57c3b4637d05ce"
+}

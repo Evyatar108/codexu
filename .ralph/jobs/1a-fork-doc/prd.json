@@ -1,0 +1,87 @@
+{
+  "project": "codexu",
+  "description": "Phase 1a — Codex fork strategy commit: lock the subtree-mirror + overlay-crates + submodule-pinning layout into three codex submodule docs (architecture.md, patch-surface.md, CLAUDE.md), then bump the codexu submodule pointer and record the decision in plans/codexu-roadmap.md. Doc-only; no code, no tests.",
+  "deslop": true,
+  "iterationEngine": "codex",
+  "codexReview": "always",
+  "copilotReview": "always",
+  "securityFixLoop": false,
+  "jobDir": "D:/harness-efforts/codexu/.ralph/jobs/1a-fork-doc",
+  "repoDir": "D:/harness-efforts/codexu",
+  "branch": {
+    "name": "1a-fork-doc-pointer-bump",
+    "base": "main",
+    "created": false
+  },
+  "worktree": null,
+  "notes": "Multi-repo, multi-worktree job. The plan operates across two repos (codex submodule + codexu) and explicitly creates its own worktrees as part of the workflow. Plan steps own worktree creation — do NOT let the orchestrator auto-create a worktree. branch.name='1a-fork-doc-pointer-bump' identifies the codexu-side topic branch; the codex submodule side uses its own topic branch '1a-fork-doc-strategy' (created by US-001 step 1 inside the codex worktree). Defaults applied autonomously: codexReview='always', copilotReview='always', securityFixLoop=false (doc-only, no security surface), iterationEngine='codex'. Tests/typecheck are N/A (markdown only) — acceptance criteria are grep-based assertions on the codex worktree.",
+  "metadata": {
+    "autonomousDecisions": [
+      "branch.name='1a-fork-doc-pointer-bump' (codexu-side topic branch from plan); codex-submodule-side branch '1a-fork-doc-strategy' is created by US-001 step 1 inside the codex worktree.",
+      "branch.base='main' (codexu main).",
+      "worktree=null — the plan explicitly creates two worktrees as part of US-001 (codex-worktree/) and US-002 (codexu-pointer-worktree/). Auto-managed worktree would conflict.",
+      "iterationEngine='codex' per orchestrator directive.",
+      "codexReview='always', copilotReview='always' per orchestrator directive.",
+      "securityFixLoop=false — doc-only change, no security surface.",
+      "US-001 NOT blocked — autonomously verifiable via grep + diff assertions in the codex worktree.",
+      "US-002 blocked=true — operator-gated push to gim-home/codex and codexu pointer bump; hard gate at plan step 8 (codex commit SHA reachable from origin/main of gim-home/codex) cannot be verified by an autonomous iteration.",
+      "Tests/typecheck NOT required in ACs (markdown only)."
+    ],
+    "planFile": "D:/harness-efforts/codexu/.ralph/jobs/1a-fork-doc/plan.md",
+    "storiesOutline": "D:/harness-efforts/codexu/.ralph/jobs/1a-fork-doc/stories-outline.md"
+  },
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Codex-side doc edits + local commit (autonomous-verifiable)",
+      "description": "As a future codex/codexu contributor, I want the codex submodule's docs to clearly describe the locked fork-layout strategy so I do not have to re-litigate it across architecture.md, patch-surface.md, and CLAUDE.md.",
+      "acceptanceCriteria": [
+        "Worktree exists at D:/harness-efforts/codexu/.ralph/jobs/1a-fork-doc/codex-worktree/ on branch 1a-fork-doc-strategy based on origin/main of gim-home/codex (created via `git -C D:/harness-efforts/codexu/codex worktree add -b 1a-fork-doc-strategy <path> origin/main`)",
+        "codex/docs/implementation/architecture.md has a new top-level `## Fork strategy` heading placed between `## Solution:` and `## Traffic flow`; verify `grep -nE \"^## (Solution|Fork strategy|Traffic flow)\" architecture.md` returns the three headings in that exact order",
+        "codex/docs/implementation/architecture.md TOC at L13-22 has a new `Fork strategy` entry positioned between Solution and Traffic flow; verify `grep -n \"Fork strategy\" architecture.md` returns >= 2 lines (TOC entry + heading)",
+        "The new architecture.md section contains: conditional opening `When this repository is consumed by codexu`, two-layer outer/inner description, overlay-crate names (`codex-copilot`, `codex-copilot-launcher`, `codex-invariant-tests`), placement-ranking pointer to `CLAUDE.md` tenets, prose cross-refs to codexu's `docs/plans/codex-fork-extension-strategy.md` Gates 1-3 + codexu's `plans/codexu-roadmap.md`, procedural-cadence note, W-5 non-preemption sentence, RPC-versioning-out-of-scope sentence; verify each with grep (`grep -c \"When this repository is consumed by codexu\"` >= 1, `grep -c \"Gates 1\"` >= 1, `grep -c \"W-5\"` >= 1 or `grep -c \"reduce-conflict-surface.md\"` >= 1, `grep -c \"RPC contract\"` >= 1 or `grep -c \"RPC versioning\"` >= 1, `grep -c \"codex-rs-overlay\"` >= 1)",
+        "codex/docs/implementation/patch-surface.md has a new `## 17. Upcoming roadmap-owned seams` section inserted AFTER §16 close (~L968) and BEFORE the appendix beginning with duplicate `## 11. TUI input latency …` (~L971); verify `grep -n \"^## \" patch-surface.md` shows the sequence `16. Plugin .mcp.json placeholder substitution -> 17. Upcoming roadmap-owned seams -> 11. TUI input latency`, and `grep -c \"17\\. Upcoming roadmap-owned seams\" patch-surface.md` = exactly 1",
+        "§17 contains: 1-paragraph advisory-only header note (mentions canonical backlog at codexu `plans/codexu-roadmap.md`); 3-row table with columns `Patch | Codexu phase | Default placement | Status | Notes` covering plugin scoping (Phase 2c), AskUserQuestion (Phase 2d), Claude-via-Copilot adapter (Phase 7), each marked `Upcoming`; closing sentence stating that each landing PR must add §14 invariant row + §15 rebase-replant entry + `// SANDBOX PATCH:` markers + invariant test in `codex-rs-overlay/codex-invariant-tests/`; verify `grep -c \"Phase 2c\\|Phase 2d\\|Phase 7\" patch-surface.md` within §17 returns >= 3",
+        "codex/CLAUDE.md §`Consumer: codexu` (~L25-31) has exactly one new paragraph appended that mentions `Phase 1a`, the architecture.md `Fork strategy` section, codexu's `plans/codexu-roadmap.md` §`Decisions made`, and `Gates 1-3`; verify `grep -c \"Phase 1a\" CLAUDE.md` >= 1 and `grep -c \"Gates 1\" CLAUDE.md` >= 1",
+        "codex/CLAUDE.md §`Core engineering tenants` section is UNCHANGED from origin/main (mirrors AGENTS.override.md); verify `git -C <codex-worktree> diff origin/main -- CLAUDE.md` shows hunks ONLY in the Consumer-codexu section",
+        "codex/AGENTS.override.md is unchanged from origin/main; verify `git -C <codex-worktree> diff origin/main -- AGENTS.override.md` is empty",
+        "All cross-references to codexu/* are prose pointers, NOT Markdown links; verify `grep -nE \"\\[.*\\]\\(codexu/\" architecture.md patch-surface.md CLAUDE.md` returns 0 matches",
+        "No content under codex/external/repos/codex-patched/ or codex/codex-rs-overlay/ is modified; verify `git -C <codex-worktree> diff --stat origin/main` shows EXACTLY 3 modified files: `docs/implementation/architecture.md`, `docs/implementation/patch-surface.md`, `CLAUDE.md`",
+        "Step-6 operator-review artifact saved at D:/harness-efforts/codexu/.ralph/jobs/1a-fork-doc/operator-review-diff.txt containing the `git diff --stat origin/main` output and the full `git diff origin/main` for the 3 files (autonomous-mode fallback per plan step 6)",
+        "Single commit exists on branch `1a-fork-doc-strategy` with message line 1 exactly `docs(fork-strategy): Phase 1a — lock subtree-mirror + overlay-crates layout`; verify `git -C <codex-worktree> show --stat HEAD` lists exactly the 3 expected paths and `git -C <codex-worktree> rev-list --count origin/main..HEAD` = 1",
+        "No Rust source files, scripts, or test files were added or modified; verify the diff stat shows only the 3 markdown paths above"
+      ],
+      "priority": 1,
+      "passes": true,
+      "blocked": false,
+      "notes": "Autonomously verifiable. All ACs are grep/diff assertions on the codex worktree created by step 1. Tests/typecheck are N/A — markdown only. Plan step 6 is the operator-review pause point; in autonomous mode the diff is logged to <job_dir>/operator-review-diff.txt and the iteration proceeds.",
+      "verifiedEvidence": [],
+      "dependencies": []
+    },
+    {
+      "id": "US-002",
+      "title": "Push codex commit + bump codexu submodule pointer + record roadmap decision (operator-gated)",
+      "description": "As the operator, I want the codex commit pushed to gim-home/codex, the codexu submodule pointer bumped, and the codexu roadmap updated under §`Decisions made` — all in coordinated commits that do not sweep up the parent worktree's existing dirty state.",
+      "acceptanceCriteria": [
+        "Topic branch `1a-fork-doc-strategy` pushed to `gim-home/codex` per operator's choice at plan step 8 (PR via `gh pr create --base main` OR direct fast-forward push); operator approval recorded",
+        "Hard gate satisfied: `git -C <codex-worktree> fetch origin && git -C <codex-worktree> merge-base --is-ancestor <commit-sha-from-US-001> origin/main` returns exit 0 BEFORE the pointer bump proceeds",
+        "Dedicated codexu pointer-bump worktree exists at D:/harness-efforts/codexu/.ralph/jobs/1a-fork-doc/codexu-pointer-worktree/ on branch `1a-fork-doc-pointer-bump` created from a clean `main` checkout via `git -C D:/harness-efforts/codexu worktree add -b 1a-fork-doc-pointer-bump <path> main` (NOT the dirty D:/harness-efforts/codexu/ working tree)",
+        "In the pointer-bump worktree, `git -C <codexu-pointer-worktree>/codex` HEAD is checked out to the commit SHA from US-001 (verified via `git -C <codexu-pointer-worktree>/codex rev-parse HEAD` matches the US-001 commit SHA)",
+        "In the pointer-bump worktree, `git diff --cached --stat` shows EXACTLY 2 paths staged: `codex` (gitlink, with new SHA) and `plans/codexu-roadmap.md`; no other paths",
+        "plans/codexu-roadmap.md §`Decisions made` gains a new entry dated 2026-05-13 for Phase 1a that names the locked strategy components (`subtree mirror`, `overlay crates`, `gim-home/codex`), mentions procedural-only cadence, cites the open `W-5` RFC + `RPC contract` versioning as out-of-scope, and references the three new codex doc anchors; verify `grep -cE \"Phase 1a — codex fork-layout strategy|Phase 1a \\(codex fork-layout strategy\\)\" plans/codexu-roadmap.md` >= 1, and the new entry contains each of `subtree mirror`, `overlay crates`, `gim-home/codex`, `W-5`, `RPC contract`",
+        "plans/codexu-roadmap.md §`Decisions still open #1` has a `RESOLVED 2026-05-13` forward-pointer line at the top of the entry; the original entry text is preserved below; verify by reading the section",
+        "Pointer-bump commit on codexu has message line 1 exactly `docs(roadmap): Phase 1a — record codex fork strategy + bump submodule pointer`, and `git show --stat HEAD` lists EXACTLY 2 paths (`codex` and `plans/codexu-roadmap.md`)",
+        "Topic branch `1a-fork-doc-pointer-bump` pushed/PR'd to codexu per operator choice at plan step 13; operator approval recorded",
+        "Both worktrees cleaned up after pushes land: `git -C D:/harness-efforts/codexu/codex worktree remove D:/harness-efforts/codexu/.ralph/jobs/1a-fork-doc/codex-worktree` and `git -C D:/harness-efforts/codexu worktree remove D:/harness-efforts/codexu/.ralph/jobs/1a-fork-doc/codexu-pointer-worktree` both succeed (or retention is recorded per ralph job policy)"
+      ],
+      "priority": 2,
+      "passes": true,
+      "blocked": false,
+      "notes": "Operator-gated push to `gim-home/codex` and codexu submodule pointer bump. Hard gate at step 8 (codex commit SHA reachable from `origin/main` of gim-home/codex) cannot be verified by an autonomous iteration. Requires operator at steps 8 and 13 of the plan.",
+      "verifiedEvidence": [],
+      "dependencies": [
+        "US-001"
+      ]
+    }
+  ]
+}

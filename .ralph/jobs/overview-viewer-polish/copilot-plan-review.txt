@@ -1,0 +1,61 @@
+I’m opening the provided file to see what needs to be done.
+
+I’ve confirmed this is a plan review. Next I’m checking the actual overview-viewer code and docs against the plan’s claims.
+
+I have the package layout and key constraints. I’m writing a short session plan, then checking the specific files the plan says it will touch.
+
+I’ve narrowed this to a few likely correctness and completeness gaps. I’m doing one critique pass to make sure I’m not missing a stronger issue before I write the review.
+
+Verified all five claims against the repo. Assessment below.
+
+## Per-finding assessment
+
+**F1 — US-012 breaks App.tsx:66-70 (workstream-pill → open filter). Severity: Blocking. STRONG.**
+Verified verbatim. Also worth tightening the framing: this is a *contract change*, not just a refactor — Toolbar currently exposes its open-state via a stable DOM selector (`.toolbar-filters` as an `HTMLDetailsElement`). Recommend the plan add a story or rider that lifts filter-open state into App (or passes an `openFilters` callback into `Toolbar`) so `activateWorkstream` keeps working. Without this, swapping in Radix Popover silently regresses the workstream-pill → filter-panel UX.
+
+**Bonus collateral to F1 (you missed it):** `App.tsx:58-64` `setAllDetails` calls `document.querySelectorAll('details').forEach(d => d.open = open)` for the "Expand all / Collapse all" keyboard shortcut. Today that incidentally closes the filter `<details>`. After US-012, it won't (Radix Popover isn't a `<details>`); after US-015 if bucket headers become Radix Collapsibles, the keyboard shortcut **silently stops collapsing the buckets** too. That's a real regression hiding in the same surface. Suggest flagging as a Blocking sub-issue of US-012/US-015.
+
+**F2 — US-013 indeterminate-without-buckets ordering. Severity: Blocking. STRONG.**
+Verified: `CommandList.tsx` is a flat `tasks.map(TaskCommand)`. "Bucket-level indeterminate" has no DOM home until US-015 lands. Either (a) reorder so US-015's bucket grouping precedes US-013, or (b) split US-013 into US-013a (Radix Checkbox swap, row-level only) and US-013b (bucket-level indeterminate, depends on US-015). Option (b) is cleaner because it keeps the Radix-primitives phase coherent.
+
+**F3 — pnpm-lock.yaml omission. Severity: Non-Blocking (downgrade from your Medium/High). WEAKER than you framed.**
+A coding agent running `pnpm add @radix-ui/...` will regenerate the lockfile mechanically; this is a build artifact, not a hand-authored file. The real risk is narrower and worth restating: this is a **pnpm workspace** (verified — root has `pnpm-lock.yaml`, package has no local lock), so the dep additions land in the **root** `pnpm-lock.yaml`, not under `tools/overview-viewer/`. If the plan's file list scopes acceptance to `tools/overview-viewer/**`, an agent might skip-commit the root lock change. Reframe as: "plan should explicitly note root `pnpm-lock.yaml` will be modified."
+
+**F4 — Verification underspecified for Radix interactions. Severity: Blocking. STRONG, and arguably your most important finding.**
+Verified `vitest.config.ts` is `environment: 'node'` and existing tests use `react-dom/server`. SSR cannot exercise Popover/Dialog open-close, focus trap, Escape-to-dismiss, portal mount points, or the <900px hamburger. For an autonomous executor "no console errors in `pnpm overview`" is not a falsifiable gate. Concrete recommendations to put in the plan:
+- Either add a second vitest project with `environment: 'jsdom'` + `@testing-library/react` + `@testing-library/user-event` for interaction tests, OR add a tiny Playwright smoke covering: popover open/close + Escape, dialog focus trap, hamburger toggle at 800px viewport, and `file://` load with zero console errors.
+- If switching to jsdom in the existing config, the 24 SSR tests need `// @vitest-environment node` pragmas or a split projects config — otherwise they regress. Worth calling out as a transition risk.
+
+**F5 — "New files (10)" vs 12 listed. Severity: Suggestion. WEAK / not material.**
+Counting error, harmless. Don't spend reviewer credibility on this one; mention it as a sentence, not a finding.
+
+## Material issues you're missing
+
+**M1 — Bundle-size budget vs. Radix surface. Severity: Non-Blocking, flag as risk.**
+Plan adds Popover + ToggleGroup (US-012) + Checkbox (US-013) and presumably Dialog/Tooltip elsewhere across phases A-E. Combined Radix primitives + their `@radix-ui/react-*` shared deps land roughly 40-70 KB gzipped; the singleFile build inlines everything (HTML+JS+CSS) into one base64-ish payload, which inflates the on-disk `plans/overview.html`. The 500KB acceptance criterion is **on the inlined artifact**, not gzipped JS — verify there's a measurement step in the plan and ideally a CI assertion (`stat plans/overview.html`).
+
+**M2 — Radix portals + `file://` + singleFile interaction. Severity: Non-Blocking, worth a one-line check in plan.**
+Radix Popover/Dialog mount via React portal to `document.body`. That's DOM-only so `file://` is fine in principle, but Radix's auto-focus-on-open and `aria-hidden` siblings sometimes trip CSP / sandboxed-iframe quirks. The plan's acceptance criterion "file:// build opens cleanly" is correct but the autonomous executor needs an explicit "open `plans/overview.html` via file://, open the popover, hit Escape, assert no console errors" step.
+
+**M3 — `useHashNav` + bucket collapse (US-015 "walk-up hash nav"). Severity: Non-Blocking, ordering risk.**
+`useHashNav` currently calls `expandedControls.setTaskExpanded`. If buckets are also collapsible-with-persisted-state, deep-linking to a task whose **bucket** is collapsed needs to walk up and open the bucket too. The plan title hints at this ("walk-up hash nav") but ensure US-015's acceptance criteria explicitly include: "loading `#task-<id>` where the parent bucket is persisted-collapsed opens both the bucket and the task." Easy to forget; produces a confusing dead-link bug.
+
+## Suggested final framing for your review
+
+Demote F3 to Non-Blocking with the workspace-lock reframing, drop F5 to a passing mention, promote F4 to your headline blocking finding alongside F1+F2, and add M1/M3 as new Non-Blocking risks. The F1 collateral (`setAllDetails` querying `details`) is your highest-leverage addition — it's the kind of silent regression that a coding agent will absolutely ship without it being called out.### Feasibility
+- [High] **US-012 is not implementable with the listed files alone.** `tools/overview-viewer/src/App.tsx` currently opens the filter UI by querying `.toolbar-filters` and mutating the native `HTMLDetailsElement.open` flag after a workstream-pill click, while `tools/overview-viewer/src/components/Toolbar.tsx` currently renders that UI as `<details className="toolbar-filters">`. If US-012 swaps Toolbar to Radix Popover without also changing `App.tsx`, the existing “click workstream pill, reveal the filters” behavior regresses. The plan’s file inventory explicitly says `App.tsx` is only touched in US-016/US-017/US-019, which makes this gap concrete.
+
+### Completeness
+- [Medium] **The dependency stories omit the workspace lockfile.** The plan calls out `tools/overview-viewer/package.json` for US-010..US-013, but this repo resolves dependencies through the root workspace lock at `D:\harness-efforts\codexu\pnpm-lock.yaml` (see the root `package.json` workspace config). Adding Radix packages will modify that root lockfile too. If the plan is meant to be followed literally, it should name `pnpm-lock.yaml` as part of the committed dependency change.
+
+### Ordering
+- [High] **US-013 is sequenced before the UI it depends on exists.** `tools/overview-viewer/src/components/CommandList.tsx` currently renders a flat `tasks.map(...)` list with no phase-bucket headers or bucket containers. The plan asks US-013 to add a “bucket-level indeterminate” checkbox, but those buckets are only introduced later in US-015. As written, US-013 either cannot deliver that acceptance criterion or must pull bucket-structure work forward. Split US-013 into row-level checkbox migration first and bucket-level indeterminate after US-015, or reorder the stories.
+
+### Simplicity
+No issues found.
+
+### Acceptance Criteria Quality
+- [High] **The verification plan is too vague for the Radix and responsive-layout stories.** `tools/overview-viewer/vitest.config.ts` runs in `environment: 'node'`; current tests such as `src/__tests__/topLevelSurfaces.test.tsx` and `src/__tests__/commandList.test.tsx` are SSR/string-render tests; and `tools/overview-viewer/README.md` explicitly says to avoid jsdom unless it is genuinely needed. That setup can confirm markup, but it cannot prove Popover/Dialog/Tooltip/Checkbox interaction, portal behavior, focus handling, Escape-to-dismiss, or the `<900px` hamburger flow in US-018. “Run `pnpm overview` and ensure no console errors / `file://` opens” is not a deterministic autonomous gate. The plan needs an explicit browser or jsdom-based verification path for those stories.
+
+I did one critique pass against the current code before finalizing this; it mainly strengthened the `App.tsx`/`Toolbar.tsx` contract issue and the missing interaction-verification path, which are the two blocking gaps here.
+

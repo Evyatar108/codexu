@@ -1,0 +1,43 @@
+{
+  "manifestPath": "D:/harness-efforts/codexu/.ralph/jobs/ralph-pipeline-07-context/iteration-result-4.json",
+  "iterationSHA": "a4cc7b2269fbff0730c7537178fbbc6f0e5e9912",
+  "storyId": "US-004",
+  "verdicts": [
+    {
+      "criterion": "tools/overview-viewer/src/types.ts extends RalphPipelineState with six optional fields",
+      "verdict": "agree",
+      "reason": "Diff adds 6 lines to tools/overview-viewer/src/types.ts; manifest grep cites lines 63-68 declaring the six fields."
+    },
+    {
+      "criterion": "scripts/lib/emit-snapshot-schema.mjs declares the six fields as optional",
+      "verdict": "agree",
+      "reason": "Diff adds 6 lines to scripts/lib/emit-snapshot-schema.mjs; manifest grep cites lines 125-130 with all six Plan 07 fields."
+    },
+    {
+      "criterion": "All six fields are optional (additive only)",
+      "verdict": "agree",
+      "reason": "Emit-snapshot test file added 33 lines; manifest asserts legacy minimal snapshot still validates alongside populated Plan 07 fields."
+    },
+    {
+      "criterion": "pnpm --filter @codexu/overview-viewer typecheck passes",
+      "verdict": "agree",
+      "reason": "Manifest cites tsc --noEmit exit=0."
+    },
+    {
+      "criterion": "pnpm test for emit-snapshot.test.mjs still passes",
+      "verdict": "agree",
+      "reason": "Manifest cites 15 files / 90 tests passed in scripts project."
+    },
+    {
+      "criterion": "Additional test asserts populated optional fields validate",
+      "verdict": "agree",
+      "reason": "emit-snapshot-schema.test.mjs +33 lines in diff; manifest reports 3 tests passing including populated Plan 07 fields."
+    },
+    {
+      "criterion": "Typecheck passes",
+      "verdict": "agree",
+      "reason": "Duplicate of overview typecheck criterion; manifest cites tsc --noEmit exit=0."
+    }
+  ],
+  "warnings": []
+}

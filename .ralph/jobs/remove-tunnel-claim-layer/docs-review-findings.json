@@ -1,0 +1,145 @@
+{
+  "planFile": "D:/harness-efforts/codexu/.ralph/jobs/remove-tunnel-claim-layer/plan.md",
+  "repoDir": "D:/harness-efforts/codexu/.ralph/jobs/remove-tunnel-claim-layer/worktree",
+  "reviewCycle": 2,
+  "findings": [
+    {
+      "id": "F-001",
+      "severity": "High",
+      "source": "docs",
+      "classification": "fixable",
+      "phase": "docs",
+      "category": "Stale Documentation",
+      "description": "docs/operations/BOOX-TESTING-HANDOFF.md:140 still tells the BOOX validator that 'The daemon mints a tunnel claim, the app stores it, you're paired.' This is the post-pair walkthrough step and contradicts the rest of the same doc (and the plan): tunnel claims are no longer minted or stored. The diff in this file updated the higher-up auth header bullet (line 17) and the US-004 line (line 39) but missed this Step 4 walkthrough sentence.",
+      "status": "fixed",
+      "relevantFiles": [
+        "docs/operations/BOOX-TESTING-HANDOFF.md"
+      ],
+      "suggestedFix": "Rewrite line 140 to drop the 'mints a tunnel claim' clause, e.g.: 'The app on the BOOX prompts \"Sign in with GitHub\" — complete the device flow on a browser. Pick the machine from the picker. The daemon validates Dev Tunnels gateway auth, returns machine metadata, and the app stores credentials — you're paired.'",
+      "fixedInIteration": 1,
+      "resolution": "Doc fix landed for F-001"
+    },
+    {
+      "id": "F-002",
+      "severity": "High",
+      "source": "docs",
+      "classification": "fixable",
+      "phase": "docs",
+      "category": "Stale Documentation",
+      "description": ".agents/skills/release/SKILL.md:170 still documents the retired daemon header: 'Pairing uses private tunnels plus `X-Tunnel-Authorization: tunnel <connect-jwt>` (Microsoft's gateway auth, stripped before backend) and `X-Codexu-Authorization: tunnel <happy-claim>` (custom header consumed by happy-server).' The remove-tunnel-claim-layer work deletes X-Codexu-Authorization across happy-server / happy-app / happy-cli / happy-agent, so the release skill is now telling release operators to verify a header that no longer exists in the build. This is a tracked .md file (`.agents/skills/` is under git ls-files) and the plan's US-006 sweep did not include it.",
+      "status": "fixed",
+      "relevantFiles": [
+        ".agents/skills/release/SKILL.md"
+      ],
+      "suggestedFix": "Drop the 'and `X-Codexu-Authorization: tunnel <happy-claim>` (custom header consumed by happy-server)' clause from the sentence on line 170, leaving only the Dev Tunnels gateway header. The surrounding note that 'The Sprint A spec had the header names backwards relative to the gateway's actual auth scheme — see sprint-a-gap.md ...' can remain or be reworded to mention the later remove-tunnel-claim-layer retirement of the daemon header.",
+      "fixedInIteration": 1,
+      "resolution": "Doc fix landed for F-002"
+    },
+    {
+      "id": "F-003",
+      "severity": "Medium",
+      "source": "docs",
+      "classification": "fixable",
+      "phase": "docs",
+      "category": "Stale Documentation",
+      "description": "docs/spikes/devtunnel-api-discovery-result.md:101 (the 'Sprint A Recommendation' section) still says 'the resulting numeric `githubUser.id` should be copied into the Happy-signed tunnel claim as optional `accountId` for backward compatibility.' The diff updates a similar earlier recommendation block at line 81 to mark it 'Historical recommendation ... obsolete after the remove-tunnel-claim-layer work', but the second recommendation block at the bottom of the same file was not touched and still endorses populating an `accountId` field on a signed tunnel claim that no longer exists.",
+      "status": "fixed",
+      "relevantFiles": [
+        "docs/spikes/devtunnel-api-discovery-result.md"
+      ],
+      "suggestedFix": "Apply the same historical-recommendation framing to line 101 as was applied to line 81 — e.g. prepend 'Historical Sprint A recommendation (obsolete after remove-tunnel-claim-layer):' and note that the Happy-signed tunnel claim and its `accountId` field have been removed; Dev Tunnels gateway auth is now the remote identity gate.",
+      "fixedInIteration": 1,
+      "resolution": "Doc fix landed for F-003"
+    },
+    {
+      "id": "F-004",
+      "severity": "Medium",
+      "source": "docs",
+      "classification": "fixable",
+      "phase": "docs",
+      "category": "Stale Documentation",
+      "description": "packages/happy-server/README.md:37 — the inline JSDoc-style comment on the `createHappyServer({ localUserId })` example reads `localUserId: \"local-user\",        // single-tenant user id baked into tunnel claims`. After the remove-tunnel-claim-layer work, `localUserId` is no longer baked into any signed tunnel-claim envelope; it is the value the auth decorator and socket middleware assign as `request.userId` / `socket.data.userId` directly. This is a tracked README example and was not in the US-006 sweep list.",
+      "status": "fixed",
+      "relevantFiles": [
+        "packages/happy-server/README.md"
+      ],
+      "suggestedFix": "Update the inline comment to describe current behavior, e.g.: `localUserId: \"local-user\",        // single-tenant user id assigned to tunnel-listener requests (after Dev Tunnels gateway auth)`. Do not invent a new claim concept — the field is now consumed by the auth decorator and socket middleware as the request/socket user id.",
+      "fixedInIteration": 1,
+      "resolution": "Doc fix landed for F-004"
+    },
+    {
+      "id": "F-005",
+      "severity": "High",
+      "source": "docs",
+      "classification": "fixable",
+      "phase": "docs",
+      "category": "Stale Documentation",
+      "description": "packages/happy-cli/CLAUDE.md:192 — the 'Security Considerations' bullet still describes the retired Happy tunnel claim layer as a current-state mechanism: 'Tunnel claims include a `jti` nonce and the embedded server rejects replayed `jti`s; mobile-pairing identity is established via GitHub device flow + Ed25519/X25519 TOFU pinning rather than CLI-signed challenges'. The remove-tunnel-claim-layer work deletes the entire Happy tunnel claim layer — there is no longer a `jti` nonce minted, no replay rejection on `jti`, and no embedded-server consumption of a Happy claim. The same file at line 50 already documents the retirement correctly, so this bullet is internally inconsistent within the same CLAUDE.md. The US-006 sweep updated line 50 but missed the Security Considerations bullet at line 192.",
+      "status": "fixed",
+      "relevantFiles": [
+        "packages/happy-cli/CLAUDE.md"
+      ],
+      "suggestedFix": "Rewrite line 192 to describe current-state security: drop the 'Tunnel claims include a `jti` nonce ...' clause and replace with a description of the surviving gates. Suggested: 'Remote callers are admitted by the Microsoft Dev Tunnels gateway via `X-Tunnel-Authorization: tunnel <connect-jwt>`; the prior Happy tunnel claim layer (with `jti` replay rejection) was retired by the remove-tunnel-claim-layer work. Mobile-pairing identity is established via GitHub device flow + Ed25519/X25519 TOFU pinning rather than CLI-signed challenges.' Cross-reference `docs/security-model.md` for the canonical contract.",
+      "fixedInIteration": 2,
+      "resolution": "Doc fix landed for F-005 in round 2"
+    },
+    {
+      "id": "F-006",
+      "severity": "Medium",
+      "source": "docs",
+      "classification": "fixable",
+      "phase": "docs",
+      "category": "Stale Documentation",
+      "description": "docs/plans/github-auth-via-vscode-tunnels.md is the active Sprint A planning doc ('Status: Sprint A foundation plan in implementation') and contains two forward-looking active-voice statements that no longer match reality: line 44 'Sprint A therefore keeps `/pair/connect` unchanged, extends the Happy tunnel claim with optional `accountId`, derives that `accountId` unconditionally from `/pair/status`'s GitHub identity result, and treats Dev Tunnels JWT verification as transport-access validation rather than account identity.' and line 240 'Use the in-scope `api.github.com/user` result from `/pair/status` as the source for numeric `accountId` in Happy claims.' Both still describe the Happy tunnel claim as the identity-binding mechanism. The remove-tunnel-claim-layer work deleted that layer end-to-end, and the companion spike file docs/spikes/devtunnel-api-discovery-result.md was already updated at lines 81 and 101 to mark its recommendations historical. This plan doc is now inconsistent with its own spike — a reader will believe the active direction is still 'extend the Happy tunnel claim'.",
+      "status": "fixed",
+      "relevantFiles": [
+        "docs/plans/github-auth-via-vscode-tunnels.md"
+      ],
+      "suggestedFix": "Add a historical disclaimer to lines 44 and 240 mirroring the framing used in docs/spikes/devtunnel-api-discovery-result.md:81 and :101. For line 44, prefix the paragraph with: 'Historical Sprint A direction (obsolete after remove-tunnel-claim-layer):' and add a trailing sentence noting that the Happy tunnel claim was deleted entirely, so the `accountId` extension never landed; Dev Tunnels gateway auth is now the sole remote identity gate and happy-server collapses identity to `tofuConfig.localUserId`. For line 240, similarly mark the bullet as historical and point readers to docs/security-model.md for the current contract.",
+      "fixedInIteration": 2,
+      "resolution": "Doc fix landed for F-006 in round 2"
+    },
+    {
+      "id": "F-007",
+      "severity": "High",
+      "source": "docs",
+      "classification": "fixable",
+      "phase": "docs",
+      "category": "Stale Documentation",
+      "description": "packages/happy-server/README.md:15 — the public 'Features' bullet for Cryptographic Auth still reads 'No passwords stored, only TOFU-pinned public keys + Dev Tunnel-scoped claims.' After remove-tunnel-claim-layer, happy-server no longer issues, persists, verifies, or scopes any Happy-specific 'Dev Tunnel-scoped claim'. Identity is set from `tofuConfig.localUserId` after the Microsoft Dev Tunnels gateway admits the request (gateway strips `X-Tunnel-Authorization`). The companion fix for F-004 in this same README updated only the inline `localUserId` comment at line 37; the high-visibility Features bullet at line 15 still advertises the retired claim layer as a current product feature, so a reader skimming the README will believe Happy still mints and verifies Dev-Tunnel-scoped claims. Tracked: `packages/happy-server/README.md` is under `git ls-files`.",
+      "status": "open",
+      "relevantFiles": [
+        "packages/happy-server/README.md"
+      ],
+      "suggestedFix": "Rewrite the Cryptographic Auth bullet to describe the current contract without 'Dev Tunnel-scoped claims', e.g.: '🔑 **Cryptographic Auth** - No passwords stored; remote callers are admitted by Microsoft Dev Tunnels gateway auth (`X-Tunnel-Authorization`), local callers by `X-Loopback-Capability`, and TOFU-pinned Ed25519/X25519 public keys back the per-machine pairing identity.' Then cross-reference `docs/security-model.md` for the canonical contract. Do not invent a new claim concept — the Happy-signed tunnel claim envelope was deleted end-to-end."
+    },
+    {
+      "id": "F-008",
+      "severity": "Medium",
+      "source": "docs",
+      "classification": "fixable",
+      "phase": "docs",
+      "category": "Stale Documentation",
+      "description": "docs/research/tunnel-transport-recommendation.md is marked `Status: implemented` and its 'Implementation status (2026-05-09)' checklist at line 15 still claims '✅ TOFU keypairs, Ed25519-signed claims, X25519 ECDH session keys' as confirmed-implemented components of the recommendation. The remove-tunnel-claim-layer diff deletes the Ed25519-signed Happy tunnel claim layer end-to-end (`packages/happy-server/sources/app/api/auth/tunnelClaim.ts`, `encodeTunnelClaim.test.ts`, `requireAccountIdForTunnel.ts`, and the matching app/CLI/agent call sites), so the 'Ed25519-signed claims' tick mark in this implemented-status doc is now factually wrong. (The 'X25519 ECDH session keys' tick mark is independently stale from Sprint D per docs/encryption.md:38 and docs/security-model.md:135, but that staleness is out of scope for this remove-tunnel-claim-layer review.) A reader of this recommendation will conclude that Ed25519-signed Happy claims are part of the shipped transport.",
+      "status": "open",
+      "relevantFiles": [
+        "docs/research/tunnel-transport-recommendation.md"
+      ],
+      "suggestedFix": "Update the 'Implementation status (2026-05-09)' bullet at line 15 to remove the 'Ed25519-signed claims' tick (the Happy-signed tunnel claim layer was retired by remove-tunnel-claim-layer). One option: replace with '✅ TOFU Ed25519/X25519 keypairs for per-machine pairing identity (Ed25519-signed Happy tunnel claims retired by remove-tunnel-claim-layer)'. Add a 'Status update (post-remove-tunnel-claim-layer)' note immediately under the checklist pointing readers to docs/security-model.md for the current contract. Leave the X25519 ECDH session-key item alone for this docs round — its staleness predates this diff and belongs to a Sprint D doc sweep."
+    },
+    {
+      "id": "F-009",
+      "severity": "Medium",
+      "source": "docs",
+      "classification": "fixable",
+      "phase": "docs",
+      "category": "Stale Documentation",
+      "description": "plans/realtime-sync-perf.md:72 — under the 'What the server already does (don't redo this work)' recap, the bullet still reads: '`/pair/complete` is the only mandatory HTTP call (pair + claim refresh) since the encryption removal in `1e02b09e`. Everything else *could* migrate to socket-only without losing functionality.' After remove-tunnel-claim-layer (US-002 deletes `tunnelClaim.ts`, US-003 deletes happy-app's `refreshClaim.ts` and the persisted `AuthCredentials.tunnelClaim`), `/pair/complete` no longer mints, returns, or refreshes a Happy tunnel claim — `packages/happy-server/CLAUDE.md:186` (updated in this diff) explicitly states `/pair/complete` 'does not mint or refresh a Happy-specific tunnel claim'. The same plan doc was already updated in this diff to mark Workstream 1 as OBSOLETED (lines 80–84), but the in-passing recap at line 72 still describes `/pair/complete` as a claim-refresh endpoint, contradicting the rest of its own file.",
+      "status": "open",
+      "relevantFiles": [
+        "plans/realtime-sync-perf.md"
+      ],
+      "suggestedFix": "Rewrite the line 72 bullet to drop the '(pair + claim refresh)' parenthetical, e.g.: '- `/pair/complete` is the only mandatory HTTP call (single-step pair; the prior per-request Happy claim refresh roundtrip was deleted by remove-tunnel-claim-layer) since the encryption removal in `1e02b09e`. Everything else *could* migrate to socket-only without losing functionality.' This keeps the line consistent with the same file's Workstream 1 OBSOLETED note and with `packages/happy-server/CLAUDE.md:186`."
+    }
+  ]
+}

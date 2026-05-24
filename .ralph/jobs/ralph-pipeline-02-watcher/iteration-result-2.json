@@ -1,0 +1,50 @@
+{
+  "storyId": "US-002",
+  "verifiedEvidence": [
+    {
+      "criterion": "scripts/lib/sync-lock.mjs exports acquireLock({ lockPath, processLabel, staleAfterMs }), releaseLock(handle), touchLock(handle); LockHandle exposes release() (ENOENT-tolerant unlink) and touch() (ENOENT-tolerant fs.utimes).",
+      "command": "grep -nE 'export async function|async release|async touch|fs.rm|fs.utimes' scripts/lib/sync-lock.mjs",
+      "result": "PASS: acquireLock/releaseLock/touchLock exports found; handle release() uses fs.rm force and touch() uses fs.utimes with ENOENT tolerance.",
+      "evidenceKind": "test"
+    },
+    {
+      "criterion": "Acquire writes JSON { pid, process, startedAt } with flag 'wx'.",
+      "command": "grep -nE 'pid: process.pid|writeLockFile|fs.writeFile' scripts/lib/sync-lock.mjs",
+      "result": "PASS: acquireLock builds { pid, process, startedAt } metadata and writes through fs.writeFile(..., flag: 'wx').",
+      "evidenceKind": "inspection"
+    },
+    {
+      "criterion": "On EEXIST with mtime age < staleAfterMs: throws Error(\"another sync in progress (pid <N>, process <label>, started <ts>)\") with the JSON parsed from disk.",
+      "command": "pnpm --filter @codexu/overview-viewer test > .test-output/overview-viewer.test.log 2>&1",
+      "result": "PASS: syncLock test \"fast-fails on a fresh lock with the canonical diagnostic\" passed; full suite 20 files / 109 tests passed.",
+      "evidenceKind": "test"
+    },
+    {
+      "criterion": "On EEXIST with mtime age >= staleAfterMs: runs process.kill(parsedPid, 0) - ESRCH/unparseable JSON => overwrite + 'stale lock removed (mtime <ms> ms, pid <N> not alive)' warning; alive/EPERM => throw the canonical fresh-lock diagnostic.",
+      "command": "grep -nE 'ageMs < staleAfterMs|formatLockDiagnostic|isLiveProcess|process.kill|ESRCH|stale lock removed|EPERM' scripts/lib/sync-lock.mjs tools/overview-viewer/src/__tests__/syncLock.test.ts && pnpm --filter @codexu/overview-viewer test > .test-output/overview-viewer.test.log 2>&1",
+      "result": "PASS: implementation probes process.kill(pid, 0); tests cover ESRCH stale overwrite, unparseable stale overwrite, and EPERM canonical diagnostic; full suite passed.",
+      "evidenceKind": "test"
+    },
+    {
+      "criterion": "scripts/lib/sync-lock.d.mts declares the matching types.",
+      "command": "grep -nE 'interface SyncLockMetadata|interface LockHandle|acquireLock|releaseLock|touchLock' scripts/lib/sync-lock.d.mts tools/overview-viewer/src/__tests__/scripts.d.ts",
+      "result": "PASS: sync-lock.d.mts declares SyncLockMetadata, LockHandle, acquireLock, releaseLock, and touchLock; test-local ambient declarations mirror them.",
+      "evidenceKind": "inspection"
+    },
+    {
+      "criterion": "Vitest fake-timer unit tests cover: acquire on missing file, fast-fail on fresh lock with diagnostic match, ESRCH stale-overwrite path, EPERM-alive path, touch refresh, release ENOENT tolerance.",
+      "command": "grep -nE 'acquires a missing lock|fast-fails|stale lock|EPERM|touch refreshes|release tolerates' tools/overview-viewer/src/__tests__/syncLock.test.ts && pnpm --filter @codexu/overview-viewer test > .test-output/overview-viewer.test.log 2>&1",
+      "result": "PASS: syncLock.test.ts contains the required fake-timer cases plus stale unparseable JSON; full suite passed 20 files / 109 tests.",
+      "evidenceKind": "test"
+    },
+    {
+      "criterion": "Typecheck passes.",
+      "command": "pnpm --filter @codexu/overview-viewer typecheck > .test-output/overview-viewer.typecheck.log 2>&1",
+      "result": "PASS: tsc --noEmit completed with exit 0 in 9s.",
+      "evidenceKind": "typecheck"
+    }
+  ],
+  "skippedReasons": [],
+  "notTested": [],
+  "iterationSHA": "9a03ced47dab95b96731a9ee1ce8caa5e51459ec"
+}

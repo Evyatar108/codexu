@@ -1,0 +1,65 @@
+I’m opening the attachment and checking what kind of task it contains.
+
+I found the review instructions; next I’m locating the embedded plan and diff so I can inspect the actual changes.
+
+I’ve got the plan/diff markers. Next I’m reading the plan and the actual branch state, then I’ll inspect the high-risk changed files.
+
+I’ve got the high-level plan. I’m reading the remaining acceptance details and pulling the actual branch diff so I can compare implementation vs. plan precisely.
+
+This is a large review, so I’m parallelizing: I’ve asked a code-review agent to inspect the branch while I read the highest-risk files mysI’ve got a few likely blockers; I’m asking a review agent for an independent pass to catch anything I may have missed.
+
+I'll review the implementation against the stated requirements. Let me start by understanding what's been implemented.Now let me examine the key implementation files to verify the requirements:I understand this is a different repository (codexu) than the happy fork context. Let me examine the key implementation files to verify requirements.Now let me check if bulk copy applies the same preambles as single-task copy:Let me check the test files to understand the expected behavior:Now I can see the critical issue. Let me verify by checking the actual useBulkSelection implementation again:Now let me check if there's a Legend component in the App or if it's missing:Let me now check the build output and verify the file:// support:Good! The static build has inlined the data. Now let me verify the Legend component is properly referenced:Good, the Legend is in the Kanban. Now let me check if there are tests for the requirements and run them:Let me check the critical issue I found - bulk copy not applying preambles. Let me trace through the code more carefully:Now let me verify if there are any other missing features by checking the tests:Let me check if there's an existing test for bulk copy with preambles:Now let me verify the implementation details of the TodayPanel and WhatsNew features to ensure they're complete:Let me verify the Kanban component has all required features:Perfect. Now I have a complete picture. Let me write my findings:
+
+## Issue: Bulk copy does not inject preambles
+**File:** D:\harness-efforts\codexu\.worktrees\overview-vite-react\tools\overview-viewer\src\hooks\useBulkSelection.ts:8
+**Severity:** High
+**Problem:** The `buildBulkCopyText` function concatenates raw `planPrompt` values without applying scope-based preambles (BOOKKEEPING_PREAMBLE, WORKTREE_PREAMBLE_CODEXU, etc.). This violates the stated requirement: "Bulk copy must concatenate the same preamble-injected copy-command output as per-row Copy Command."
+
+Per-row copy (line 113 in TaskCommand.tsx) correctly calls `buildCopyCommandText(raw, task.scope)` which injects preambles. Bulk copy (line 8 in useBulkSelection.ts) uses `task.command?.planPrompt ?? ''` directly, skipping preamble injection entirely.
+
+**Evidence:** 
+- Single-task copy path: `CopyCommandButton` → `buildCopyCommandText()` → preambles injected via `buildCopyPreamble(parseTaskScope(scope))`
+- Bulk copy path: `buildBulkCopyText()` → raw `planPrompt` → no preambles
+- Test coverage (topLevelSurfaces.test.tsx:52-57) only validates task ordering, NOT preamble injection
+
+**Suggested fix:** Import `buildCopyCommandText` and apply it per-task:
+```typescript
+.map((task) => `# === ${task.id} ===\n${buildCopyCommandText(task.command?.planPrompt ?? '', task.scope)}`)
+```### Completeness
+
+- [High] `tools/overview-viewer/src/App.tsx:79-117` never mounts the standalone runs-log surface required by the plan. `tools/overview-viewer/src/components/RunsLog.tsx:3-18` exists, but it is only used inside each command row at `tools/overview-viewer/src/components/TaskCommand.tsx:301`, so the page is missing the top-level section that should render every `OVERVIEW_DATA.runs[*]` entry.
+
+- [High] `tools/overview-viewer/src/components/TopLevelSurfaces.tsx:65-79` ports the old package/risk pill legend instead of the required phase/status legend, and `tools/overview-viewer/src/components/Kanban.tsx:99` renders it unchanged. The plan explicitly calls for the phase/status swatches from `plans/overview.html:1067-1132`, so this acceptance criterion is still unmet.
+
+### Correctness
+
+- [High] `tools/overview-viewer/src/hooks/useBulkSelection.ts:5-9` builds bulk-copy output from raw `planPrompt` text, while single-row copy in `tools/overview-viewer/src/components/TaskCommand.tsx:104-117` goes through `buildCopyCommandText(...)`. That means bulk copy drops the scope-specific preambles for `codexu`, `codex`, and bookkeeping tasks, so it does not match the required copy-command output and can send users the wrong command context.
+
+### Quality
+
+No issues found.
+
+### Security
+
+No issues found.
+
+### Overall Assessment
+
+This is **not ready** yet. The core viewer is in place, but it still misses required plan surfaces and one of the main operator workflows—bulk copy—produces incorrect output.
+
+he phase badges and blocked/paused status swatches from `plans/overview.html:1067-1132`, so operators lose the phase/status key entirely.
+
+### Correctness
+- [High] Bulk copy is not copy-command parity. Single-row copy goes through `buildCopyCommandText(...)` in `tools/overview-viewer/src/components/TaskCommand.tsx:111-113`, which injects the scope preambles, but bulk copy in `tools/overview-viewer/src/hooks/useBulkSelection.ts:5-9` concatenates raw `planPrompt` text and prepends custom `# === task ===` headers. That violates the explicit AC that bulk copy should emit the concatenated per-row copy-command output.
+- [High] The advertised multi-axis / URL filtering does not apply to kanban. `tools/overview-viewer/src/hooks/useMultiAxisFilter.ts:18-24` computes `visibleKanbanTaskIds` without the `taskIdFilter`, and `tools/overview-viewer/src/utils/filters.ts:58-64` only checks workstream + text for kanban cards. As a result, status/cadence/size/scope chips — and even `?tasks=foo,bar` — leave unrelated kanban cards visible, which breaks the toolbar and URL-filter behavior promised by the plan.
+- [High] `Esc` does not actually “clear search” unless focus is still inside an input. `tools/overview-viewer/src/hooks/useKeyboardShortcuts.ts:25-33` only calls `clearSearch()` when `inField` is true. After typing a query and clicking elsewhere, `Esc` no longer clears it, even though the help text in `tools/overview-viewer/src/components/TopLevelSurfaces.tsx:53-57` and the plan both promise global `Esc` clear-search behavior.
+
+### Quality
+No issues found.
+
+### Security
+No issues found.
+
+### Overall Assessment
+Not ready yet. The Vite/HMR/static-build foundation looks sound, but the current UI still misses explicit planned surfaces and several core interactions do not match the accepted behavior.
+

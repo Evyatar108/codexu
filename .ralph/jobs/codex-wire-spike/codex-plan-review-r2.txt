@@ -1,0 +1,21 @@
+### Feasibility
+
+[High] The isolated `CODEX_HOME` requirement will likely remove the operator’s existing Codex auth, so Q1 and Q3 model-backed probes may fail even on a logged-in machine. Codex defaults CLI auth to file storage under `CODEX_HOME/auth.json` per [config.schema.json](D:/harness-efforts/codexu/codex/external/repos/codex-patched/codex-rs/core/config.schema.json:3844) and tests confirm default `AuthCredentialsStoreMode::File` in [config_tests.rs](D:/harness-efforts/codexu/codex/external/repos/codex-patched/codex-rs/core/src/config/config_tests.rs:3518). The plan says no env setup beyond `codex` auth, but then starts app-server with a fresh tmp `CODEX_HOME`. It needs an auth-preserving isolation strategy, such as copying only auth material into the temp home while leaving config empty, or explicitly supporting `OPENAI_API_KEY`/keyring mode.
+
+[High] The Q3 rollout-file fallback oracle is based on a false premise. The plan says thread start serializes resolved config, including compact prompt, to the rollout header; the rollout `SessionMeta` does not contain `compact_prompt` in [protocol.rs](D:/harness-efforts/codexu/codex/external/repos/codex-patched/codex-rs/protocol/src/protocol.rs:2704), and `TurnContextItem` also omits it in [protocol.rs](D:/harness-efforts/codexu/codex/external/repos/codex-patched/codex-rs/protocol/src/protocol.rs:2808). `compact_prompt` is held in runtime session/turn context, e.g. [turn_context.rs](D:/harness-efforts/codexu/codex/external/repos/codex-patched/codex-rs/core/src/session/turn_context.rs:77), but not persisted as a thread-start header field. Without a working compaction/model call or another thread-scoped API, Q3 may remain unanswerable.
+
+### Completeness
+
+[High] The Q2 acceptance criteria still assume a list value can make `CLAUDE.md` beat `AGENTS.md` when both exist. Current codex-core always pushes built-in `.agents.md` and `AGENTS.md` before configured fallback filenames, then de-dupes, in [agents_md.rs](D:/harness-efforts/codexu/codex/external/repos/codex-patched/codex-rs/core/src/agents_md.rs:307). If Probe 3c shows AGENTS-first, the right implication is not “use `[<actual-winning-order>]`”; no `project_doc_fallback_filenames` ordering can make `CLAUDE.md` first while `AGENTS.md` is present. The plan needs an explicit “knob works only as fallback; Gap 2 needs another path for CLAUDE-first semantics” verdict.
+
+### Ordering
+
+No new High+ issues found.
+
+### Simplicity
+
+No new High+ issues found.
+
+### Acceptance Criteria Quality
+
+[High] Appendix C regresses the round-1 `config/read` fix. The §3 template still includes “`config/read` response (for each thread)” even though AC-3 correctly forbids `config/read` as a non-thread-scoped oracle. Since implementers often follow templates, this can directly produce invalid Q3 evidence. Remove that block or replace it with `thread/compact/start` event evidence / validated thread-scoped evidence only.

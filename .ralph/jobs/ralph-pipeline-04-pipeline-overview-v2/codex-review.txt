@@ -1,0 +1,23 @@
+### Completeness
+
+[High] `scripts/lib/score-recommendations.mjs:25` does not implement the required default `topN = 20`. When `topN` is omitted, it uses `Number.POSITIVE_INFINITY`, so direct callers can get every task instead of the plan’s capped top 20 recommendations.
+
+[High] `scripts/lib/emit-snapshot-schema.mjs:163`, `:179`, and `:188` make the widened recommendation and dependency graph fields required. The plan explicitly called for additive/backward-compatible schema widening, with dependency graph nodes still only requiring `id` and edge `type` optional. This will reject older valid snapshots.
+
+### Correctness
+
+[High] `scripts/lib/derive-dependency-graph.mjs:50` and `:68` iterate every `overviewData.spawnedFrom` entry as a real child task. The live data includes `_comment` metadata in that map, so this will emit bogus `_comment` nodes and a bogus `spawn` edge to the comment string unless underscore keys are ignored.
+
+[Medium] `scripts/lib/emit-derived-artifacts.mjs:50` computes `runDurations` by looking up the current task’s `job-state.json` for every historical `OverviewData.runs[]` entry. If a task has multiple runs, older run IDs will get the current job duration, which violates the run-id-specific duration contract.
+
+### Quality
+
+No issues found.
+
+### Security
+
+No issues found.
+
+### Overall Assessment
+
+Not ready yet. The UI path is mostly in shape, but the recommendation cap, schema compatibility, and dependency graph pollution are acceptance-level defects that should be fixed before this ships.

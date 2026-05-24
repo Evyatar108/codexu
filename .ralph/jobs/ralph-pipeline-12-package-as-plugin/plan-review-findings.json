@@ -1,0 +1,268 @@
+{
+  "planFile": "D:/harness-efforts/codexu/.ralph/jobs/.staging/20260521-050128/draft-plan.md",
+  "repoDir": "D:/harness-efforts/codexu",
+  "reviewCycle": 0,
+  "findings": [
+    {
+      "id": "F-001",
+      "severity": "Critical",
+      "source": "codex",
+      "category": "Completeness",
+      "sectionRef": "Files to Modify in D:/ai-developer-toolkit",
+      "description": "Marketplace registration is incomplete. ai-developer-toolkit/CLAUDE.md requires marketplace indexes to stay in sync across THREE files: .claude-plugin/marketplace.json, .github/plugin/marketplace.json, and .agents/plugins/marketplace.json. The plan only updates the first. Verify the constraint by reading D:/ai-developer-toolkit/CLAUDE.md and then expand the file list and acceptance criteria to register the new ralph-overview plugin in ALL THREE marketplaces.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Expanded the plan to register ralph-overview in all three ai-developer-toolkit marketplace indexes and verify their normalized fields stay in sync.",
+      "relevantFiles": [
+        "D:/ai-developer-toolkit/CLAUDE.md",
+        "D:/ai-developer-toolkit/.claude-plugin/marketplace.json",
+        "D:/ai-developer-toolkit/.github/plugin/marketplace.json",
+        "D:/ai-developer-toolkit/.agents/plugins/marketplace.json"
+      ],
+      "suggestedFix": "Update plan's 'Files to Modify in D:/ai-developer-toolkit' section to list all three marketplace files. Add an acceptance criterion: all three marketplace files contain a ralph-overview entry with identical name/source/description/version. Add a verification step that diffs the three files for divergence."
+    },
+    {
+      "id": "F-002",
+      "severity": "High",
+      "source": "consensus",
+      "category": "Feasibility",
+      "sectionRef": "Approach > Implementation Strategy step 5 + Toolbar refactor sections",
+      "description": "Toolbar data-driven refactor uses wrong data shape. All three reviewers confirm `data.workstream` is keyed by taskId (not by workstream name) — type Record<taskId, workstreamKey>. The plan's proposed `Object.keys(data.workstream ?? {})` returns task IDs as chip labels, not workstream names. Verified in tools/overview-viewer/src/utils/filters.ts (uses `data.workstream?.[task.id]`) and plans/overview-data.js comments ('map of taskId to dashboard workstream key').",
+      "status": "fixed",
+      "fixedInIteration": 2,
+      "resolution": "Updated the Toolbar refactor plan to derive unique workstream chip labels from data.workstream values rather than taskId keys, and aligned the tests, acceptance criteria, verification, and common mistakes guidance.",
+      "relevantFiles": [
+        "D:/harness-efforts/codexu/tools/overview-viewer/src/utils/filters.ts",
+        "D:/harness-efforts/codexu/tools/overview-viewer/src/components/Toolbar.tsx",
+        "D:/harness-efforts/codexu/plans/overview-data.js",
+        "D:/harness-efforts/codexu/tools/overview-mcp/src/types.ts"
+      ],
+      "suggestedFix": "Replace `Object.keys(data.workstream ?? {})` with `[...new Set(Object.values(data.workstream ?? {}))].sort()` so chips are unique workstream keys, not task IDs. Update the acceptance criterion and 'Common mistakes' line 6 accordingly. Update tests to verify chips render workstream VALUES, not keys."
+    },
+    {
+      "id": "F-003",
+      "severity": "High",
+      "source": "consensus",
+      "category": "Feasibility",
+      "sectionRef": "Approach > Implementation Strategy step 3 + Risk Areas > Critical",
+      "description": "MCP import path rewrite is based on a wrong premise. Codex+Copilot confirm: files directly under tools/overview-mcp/src/ (context.ts, snapshot-reader.ts, install-server.ts) use 3-level paths `../../../scripts/lib/...`. Files nested under tools/overview-mcp/src/tools/ use 4-level paths `../../../../scripts/lib/...`. Claude observed the same. The plan's blanket-rewrite to `../../../scripts/lib/` would BREAK every nested-tools-dir import. Post-extraction, since the plugin layout preserves the same nesting depth (plugins/ralph-overview/tools/overview-mcp/src/tools/), the imports should remain UNCHANGED — copy as-is.",
+      "status": "fixed",
+      "fixedInIteration": 3,
+      "resolution": "Updated the plan to preserve MCP import depths as copied and changed verification to confirm both valid depths exist.",
+      "relevantFiles": [
+        "D:/harness-efforts/codexu/tools/overview-mcp/src/context.ts",
+        "D:/harness-efforts/codexu/tools/overview-mcp/src/snapshot-reader.ts",
+        "D:/harness-efforts/codexu/tools/overview-mcp/src/install-server.ts",
+        "D:/harness-efforts/codexu/tools/overview-mcp/src/tools/"
+      ],
+      "suggestedFix": "Replace the 'Update relative imports from ../../../../scripts/lib/... → ../../../scripts/lib/...' instruction with: 'Preserve per-file import depth — files directly under src/ keep 3-level paths, files under src/tools/ keep 4-level paths. Both resolve correctly because the plugin layout preserves the same nesting.' Update the verifier grep to confirm both depths exist."
+    },
+    {
+      "id": "F-004",
+      "severity": "High",
+      "source": "consensus",
+      "category": "Feasibility",
+      "sectionRef": "Architecture + Approach > Implementation Strategy step 1",
+      "description": "Plugin build/install/runtime model is underspecified and likely nonfunctional. D:/ai-developer-toolkit has NO root package.json and NO pnpm-workspace.yaml (verified by reviewers). The plan's `pnpm --filter @ralph/overview-mcp build` verification assumes workspace-resident packages, but the toolkit's existing pattern (per Codex review of devui/cli-manager/seval) uses a root launch.cjs/launch.ps1 that builds and caches dist/, plus prebuilt binaries. The plan's `.mcp.json` points at `tools/overview-mcp/dist/index.js` but doesn't ensure `dist/` and `node_modules` exist after marketplace install.",
+      "status": "fixed",
+      "fixedInIteration": 4,
+      "resolution": "Amended the plan to replace workspace and PATH assumptions with the toolkit launcher model, including root launch.cjs MCP startup, plugin-local npm build verification, and absolute plugin-root CLI invocation.",
+      "relevantFiles": [
+        "D:/ai-developer-toolkit/plugins/seval/",
+        "D:/ai-developer-toolkit/plugins/devui/",
+        "D:/ai-developer-toolkit/plugins/cli-manager/",
+        "D:/ai-developer-toolkit/plugins/ralph/",
+        "D:/ai-developer-toolkit/plugins/crews/"
+      ],
+      "suggestedFix": "Read 2-3 toolkit plugins (especially seval which has an MCP server) and document their build/install/launch pattern. Replace the workspace+bin model with: (a) root launch.cjs/launch.ps1 that lazily builds tools/overview-mcp/dist on first invoke or ships pre-built dist via commit, (b) the `.mcp.json` invokes the launcher rather than node+args directly, (c) the bin/ralph-overview.mjs dispatcher delegates to plugin-local scripts via absolute paths derived from CLAUDE_PLUGIN_ROOT instead of relying on consumer PATH. Update Implementation Strategy step 1, acceptance criteria, and Verification section B accordingly."
+    },
+    {
+      "id": "F-005",
+      "severity": "High",
+      "source": "consensus",
+      "category": "Feasibility",
+      "sectionRef": "Approach > Implementation Strategy step 17 (codexu wrappers)",
+      "description": "Consumer scripts like `\"overview\": \"ralph-overview dev\"` assume the plugin's bin is on codexu's PATH. Claude plugin installation does not imply an npm global link — codexu's pnpm install will not auto-link the plugin's bin. The wrapper scripts will fail with 'ralph-overview: command not found'.",
+      "status": "fixed",
+      "fixedInIteration": 5,
+      "resolution": "Amended the plan so codexu package scripts call a repo-local bin/ralph-overview.mjs shim that resolves the installed plugin root and delegates by absolute Node path, with docs and verification updated accordingly.",
+      "relevantFiles": [
+        "D:/harness-efforts/codexu/package.json"
+      ],
+      "suggestedFix": "Change consumer wrapper scripts to invoke the plugin launcher via absolute path: `\"overview\": \"node $CLAUDE_PLUGIN_ROOT/ralph-overview/bin/ralph-overview.mjs dev\"` — OR provide a `bin/ralph-overview` shim in codexu that resolves the installed plugin path from the marketplace config. Document the exact mechanism in plugin docs/installation.md."
+    },
+    {
+      "id": "F-006",
+      "severity": "High",
+      "source": "consensus",
+      "category": "Completeness",
+      "sectionRef": "Files to Remove from codexu + Acceptance Criteria",
+      "description": "Script count is wrong. Plan claims 28 .mjs modules and 21 tests in scripts/lib/. Codex+Copilot confirm actual count is 25 non-test .mjs + 24 .d.mts + 22 .test.mjs. Plan also omits scripts/sync-ralph-state.d.mts and scripts/sync-ralph-state.test.mjs from the extraction list. The 28-module AC will fail forever or force phantom files.",
+      "status": "fixed",
+      "fixedInIteration": 6,
+      "resolution": "Amended the plan to remove hardcoded script counts, require execution-time enumeration of scripts/lib, correct current counts to 25 non-test .mjs + 24 .d.mts + 22 tests, and include sync-ralph-state.d.mts/test.mjs in copy/remove criteria.",
+      "relevantFiles": [
+        "D:/harness-efforts/codexu/scripts/lib/",
+        "D:/harness-efforts/codexu/scripts/sync-ralph-state.mjs",
+        "D:/harness-efforts/codexu/scripts/sync-ralph-state.d.mts",
+        "D:/harness-efforts/codexu/scripts/sync-ralph-state.test.mjs"
+      ],
+      "suggestedFix": "At plan-execution time (not plan-time), enumerate scripts/lib/ directly. Rewrite the AC to be `ls scripts/lib/*.mjs | wc -l` returning 0 in codexu post-migration AND the plugin tree's scripts/lib/ contains the same set of files that existed in codexu pre-migration. Add scripts/sync-ralph-state.d.mts and scripts/sync-ralph-state.test.mjs to the extract+remove lists. Drop the hardcoded '28' number."
+    },
+    {
+      "id": "F-007",
+      "severity": "High",
+      "source": "copilot",
+      "category": "Completeness",
+      "sectionRef": "Files to Modify in codexu",
+      "description": "Codexu root package.json has a `workspaces.packages` field that ALSO lists tools/overview-* — plan only removes them from pnpm-workspace.yaml but misses the package.json entry. Both registrations matter per pnpm's resolution.",
+      "status": "fixed",
+      "fixedInIteration": 7,
+      "resolution": "Added codexu package.json workspaces.packages removal for tools/overview-* alongside pnpm-workspace.yaml, with acceptance and verification checks.",
+      "relevantFiles": [
+        "D:/harness-efforts/codexu/package.json",
+        "D:/harness-efforts/codexu/pnpm-workspace.yaml"
+      ],
+      "suggestedFix": "Add explicit modification to package.json `workspaces.packages` removal alongside pnpm-workspace.yaml change. Verifier: `jq '.workspaces.packages[] | select(contains(\"overview\"))' codexu/package.json` returns nothing post-migration."
+    },
+    {
+      "id": "F-008",
+      "severity": "High",
+      "source": "copilot",
+      "category": "Completeness",
+      "sectionRef": "Approach > Implementation Strategy step 4 + Files to Create > tools/overview-viewer",
+      "description": "UI generalization misses real codexu-specific surfaces. The plan only audits App.tsx, StaticSections, TaskCommand, PhaseTree, copyPreambles. Copilot confirmed additional codexu copy/state lives in TopLevelSurfaces.tsx, CommandList.tsx, useDensity.ts, usePersistentExpanded.ts, utils/whatsNew.ts. Leaving these would ship a 'generic' plugin still loaded with codexu specifics.",
+      "status": "fixed",
+      "fixedInIteration": 8,
+      "resolution": "Expanded the overview-viewer generalization plan to audit all codexu/codex source hits, including TopLevelSurfaces, CommandList, persistent storage hooks, whatsNew, and styles.",
+      "relevantFiles": [
+        "D:/harness-efforts/codexu/tools/overview-viewer/src/components/TopLevelSurfaces.tsx",
+        "D:/harness-efforts/codexu/tools/overview-viewer/src/components/CommandList.tsx",
+        "D:/harness-efforts/codexu/tools/overview-viewer/src/hooks/useDensity.ts",
+        "D:/harness-efforts/codexu/tools/overview-viewer/src/hooks/usePersistentExpanded.ts",
+        "D:/harness-efforts/codexu/tools/overview-viewer/src/utils/whatsNew.ts"
+      ],
+      "suggestedFix": "Add an explicit step before US-004 ends: `grep -ril 'codexu\\|codex' tools/overview-viewer/src/` to enumerate ALL files containing codexu-specific strings, including persistent-state keys (localStorage prefix) and what's-new entries. Generalize each via config-driven defaults or `data.ui.*` overrides. Update plan with the full file list."
+    },
+    {
+      "id": "F-009",
+      "severity": "High",
+      "source": "copilot",
+      "category": "Completeness",
+      "sectionRef": "Files to Create > tools/overview-viewer + Approach > Implementation Strategy step 4",
+      "description": "Plan adds `data.ui?.title` style overrides but `OverviewData` has no `ui` field in tools/overview-mcp/src/types.ts (or wherever the canonical type lives). If App.tsx reads `data.ui?.title` without updating the type definition, templates, and tests, typecheck fails.",
+      "status": "fixed",
+      "fixedInIteration": 9,
+      "resolution": "Added the typed OverviewData.ui contract across viewer/MCP types, templates, tests, and codexu overview-data migration requirements so data.ui reads will typecheck.",
+      "relevantFiles": [
+        "D:/harness-efforts/codexu/tools/overview-mcp/src/types.ts",
+        "D:/harness-efforts/codexu/tools/overview-viewer/src/types.ts",
+        "D:/harness-efforts/codexu/plans/overview-data.js",
+        "D:/harness-efforts/codexu/.ralph/overview-config.schema.json"
+      ],
+      "suggestedFix": "Define a single typed `OverviewData.ui` object: `{ title?: string, labels?: { workstream?: Record<string, string>, scope?: Record<string, string> }, copyPreambles?: Record<string, string> }`. Update types.ts (both viewer and mcp), templates/overview-data.template.js, overview-config.schema.json, and tests. Route App title, scope labels, copy preambles through this single typed surface — addresses Copilot's 'simpler typed shape' Medium too."
+    },
+    {
+      "id": "F-010",
+      "severity": "High",
+      "source": "codex",
+      "category": "Ordering",
+      "sectionRef": "Approach > Implementation Strategy Phase B + Next Step",
+      "description": "Phase B installs the plugin and updates wrappers to call `ralph-overview`, but the plan never proves the binary is installed/resolvable before Phase B starts. Codex and Copilot both flag that the final 'Next Step' invokes one autonomous command, risking starting codexu migration before plugin is installable from toolkit main.",
+      "status": "fixed",
+      "fixedInIteration": 10,
+      "resolution": "Added a hard Phase A/B installability gate, a codexu-migration phase-precondition, and split Next Step commands so Phase B cannot start before the plugin is installable from toolkit main.",
+      "relevantFiles": [],
+      "suggestedFix": "Add a hard gate between Phase A and Phase B: 'Before starting Phase B, verify that the plugin is installable from ai-developer-toolkit/main. Run `claude-code plugin install ai-developer-toolkit:ralph-overview` in a throwaway directory and confirm the `ralph-overview` invocation works.' Update the 'Next Step' section to provide TWO commands: one for Phase A only, one for Phase B that includes a precondition check. In the codexu-migration cluster description, add a `phase-precondition` field documenting the merge-gate."
+    },
+    {
+      "id": "F-011",
+      "severity": "High",
+      "source": "codex",
+      "category": "Criteria Quality",
+      "sectionRef": "Acceptance Criteria",
+      "description": "`pnpm typecheck` is not a valid script in codexu's package.json. The AC 'Codexu typecheck passes (pnpm typecheck)' is invalid as written.",
+      "status": "fixed",
+      "fixedInIteration": 11,
+      "resolution": "Replaced the invalid `pnpm typecheck` references with `pnpm -r --if-present typecheck` in the amended plan temp file.",
+      "relevantFiles": [
+        "D:/harness-efforts/codexu/package.json"
+      ],
+      "suggestedFix": "Replace `pnpm typecheck` with the actual codexu typecheck command from package.json — likely `pnpm -r typecheck` or per-package: `pnpm --filter @codexu/overview-viewer typecheck && pnpm --filter @codexu/overview-mcp typecheck` (note: these filters are gone post-migration; plan would need to grep package.json scripts at execution time and use whatever's there)."
+    },
+    {
+      "id": "F-012",
+      "severity": "High",
+      "source": "consensus",
+      "category": "Criteria Quality",
+      "sectionRef": "Acceptance Criteria + Verification > F (codexu post-migration)",
+      "description": "AC 'Codexu pnpm overview brings up dashboard indistinguishable from pre-migration' is too vague for autonomous verification. Codex+Copilot both flag; requires concrete checks.",
+      "status": "fixed",
+      "fixedInIteration": 12,
+      "resolution": "Replaced the vague codexu post-migration dashboard acceptance check with concrete HTTP, chip-rendering, sidecar/schema, HMR, and grep-budget verification steps.",
+      "relevantFiles": [],
+      "suggestedFix": "Replace vague AC with concrete checks: (a) `curl http://localhost:5173/` returns HTTP 200 + viewer HTML, (b) viewer renders chips for codexu's 8 workstream values (perf|codex-spec|codex-parity|polish|cleanup|upstream|agent-arch|tooling) AND 3 scope values (codexu|codex|bookkeeping), (c) sidecar files plans/overview-ralph-state.{js,json} exist + match snapshot.schema.json, (d) HMR fires on plans/overview-data.js edit, (e) grep budget — `grep -ril 'codexu\\|codex' codexu/` allowed only in plans/, tasks/, .ralph/, package.json, AGENTS.md, and a small allowlist."
+    },
+    {
+      "id": "F-013",
+      "severity": "Medium",
+      "source": "codex",
+      "category": "Completeness",
+      "sectionRef": "Approach > Implementation Strategy step 3 (MCP operational tools)",
+      "description": "tools/overview-mcp/src/tools/build.ts hardcodes `plans/overview.html` as the output path. The plan genericizes Vite config but doesn't mention making build.ts use config-derived output paths.",
+      "status": "open",
+      "fixedInIteration": null,
+      "resolution": null,
+      "relevantFiles": [
+        "D:/harness-efforts/codexu/tools/overview-mcp/src/tools/build.ts"
+      ],
+      "suggestedFix": "Add explicit step to plan: 'Update build.ts to read viewer output path from resolved config (loadConfig + config.outputs.viewerHtml or similar) instead of hardcoded plans/overview.html.' Add to acceptance criteria."
+    },
+    {
+      "id": "F-014",
+      "severity": "Medium",
+      "source": "codex",
+      "category": "Simplicity",
+      "sectionRef": "Approach > Implementation Strategy step 17 (consumer wrappers)",
+      "description": "Plan keeps .claude/settings.json MCP registration as a manual consumer migration step even though plugin .mcp.json is the canonical mechanism. Codexu likely needs only `enabledPlugins` updated, not a duplicated raw mcpServers entry with plugin-root placeholders.",
+      "status": "open",
+      "fixedInIteration": null,
+      "resolution": null,
+      "relevantFiles": [
+        "D:/harness-efforts/codexu/.claude/settings.json",
+        "D:/ai-developer-toolkit/plugins/seval/.mcp.json"
+      ],
+      "suggestedFix": "Verify enabledPlugins mechanism by reading codexu's current .claude/settings.json. If `\"crews@ai-developer-toolkit\": true` is how crews is registered, then the migration step is simply add `\"ralph-overview@ai-developer-toolkit\": true`. Remove the duplicated raw mcpServers add. Update Implementation Strategy step 15 and AC accordingly."
+    },
+    {
+      "id": "F-015",
+      "severity": "Medium",
+      "source": "copilot",
+      "category": "Completeness",
+      "sectionRef": "Files to Create > scripts/ (emit-tasks-index)",
+      "description": "scripts/lib/emit-tasks-index.mjs writes a 'GENERATED by scripts/sync-ralph-state.mjs' header into the emitted tasks INDEX. After extraction, that header is stale and misleading (the script now lives inside the plugin).",
+      "status": "open",
+      "fixedInIteration": null,
+      "resolution": null,
+      "relevantFiles": [
+        "D:/harness-efforts/codexu/scripts/lib/emit-tasks-index.mjs"
+      ],
+      "suggestedFix": "Add step to plan: 'Update emit-tasks-index.mjs header from \"GENERATED by scripts/sync-ralph-state.mjs\" to \"GENERATED by ralph-overview plugin (ai-developer-toolkit)\" — or derive from the plugin's package.json name so it stays accurate.' Add as part of US-002."
+    },
+    {
+      "id": "F-016",
+      "severity": "Medium",
+      "source": "claude",
+      "category": "Criteria Quality",
+      "sectionRef": "Approach > Implementation Strategy step 12 (smoke test)",
+      "description": "Smoke test doesn't include running any extracted skill (e.g., /work-on) from the plugin's skills directory. The skills CLI command rewrite (step 7) is high-risk because they currently call codexu-specific commands; a smoke test of at least one skill would catch invocation failures.",
+      "status": "open",
+      "fixedInIteration": null,
+      "resolution": null,
+      "relevantFiles": [
+        "D:/harness-efforts/codexu/.claude/skills/work-on/SKILL.md"
+      ],
+      "suggestedFix": "Expand smoke test step 12 to include: 'From the test workspace, invoke at least one skill (e.g., /work-on with a fake task ID) and verify the skill's plugin-CLI invocations succeed (or produce expected no-data output).' Add as AC."
+    }
+  ]
+}

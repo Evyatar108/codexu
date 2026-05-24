@@ -1,0 +1,74 @@
+### Codebase Architecture
+
+This repo is a pnpm monorepo plus a Rust Codex submodule:
+
+- Root JS workspace: `package.json`, `pnpm-workspace.yaml`
+- App/server packages: `packages/happy-app`, `packages/happy-cli`, `packages/happy-server`, etc.
+- Existing Codex plugin scaffold: `packages/codexu-plugin/`
+  - `.codex-plugin/plugin.json`
+  - `.agents/plugins/marketplace.json`
+  - `skills/hello-world/SKILL.md`
+- Codex fork/submodule: `codex/external/repos/codex-patched/codex-rs/`
+  - Rust crates for config, hooks, plugin loading, TUI, rollout JSONL.
+
+I could not read `C:/ai-developer-toolkit/plugins/options-mode/`; PowerShell reports that path does not exist in this environment. Implementation needs that source copied/junctioned before preserving behavior byte-for-byte.
+
+### Feature-Relevant Code
+
+Key files for this migration:
+
+- `plans/codexu-roadmap.md` §3h: detailed options-mode migration notes and known transcript-shape risk.
+- `packages/codexu-plugin/.codex-plugin/plugin.json`: existing plugin manifest example.
+- `packages/codexu-plugin/.agents/plugins/marketplace.json`: current local marketplace catalog.
+- `codex/external/repos/codex-patched/codex-rs/core-plugins/src/manifest.rs`: plugin manifest fields: `skills`, `mcpServers`, `apps`, `hooks`, `interface`.
+- `codex/external/repos/codex-patched/codex-rs/core-plugins/src/loader.rs`: plugin hook discovery; default `hooks/hooks.json`, or manifest `hooks`.
+- `codex/external/repos/codex-patched/codex-rs/config/src/hook_config.rs`: hook config shape and `Stop` hook kind.
+- `codex/external/repos/codex-patched/codex-rs/hooks/src/schema.rs`: hook stdin/stdout JSON schemas.
+- `codex/external/repos/codex-patched/codex-rs/hooks/src/events/stop.rs`: `decision:"block"` + non-empty `reason` becomes continuation prompt.
+- `codex/external/repos/codex-patched/codex-rs/core/src/session/turn.rs`: `StopRequest` includes `last_assistant_message`; block loops the turn.
+- `codex/external/repos/codex-patched/codex-rs/rollout/src/recorder_tests.rs`: Codex JSONL transcript examples.
+- `codex/external/repos/codex-patched/codex-rs/tui/src/bottom_pane/chat_composer.rs`: unknown slash commands are rejected before submission.
+- `codex/external/repos/codex-patched/codex-rs/tui/src/bottom_pane/status_line_setup.rs`: statusline is built from Rust enum items, not plugin shell scripts.
+
+### Technical Constraints
+
+- Codex plugin hooks require plugin hooks enabled and the plugin installed/enabled. Bad manifest paths silently skip with warnings.
+- Manifest path fields must use `./...`.
+- Hook commands run in the user cwd, not the plugin root. Plugin env provides `PLUGIN_ROOT`, `PLUGIN_DATA`, plus Claude-compatible aliases.
+- On Windows, default hook shell is `cmd.exe /C`; avoid `$PLUGIN_ROOT` in hook commands. Prefer `node -e "require(process.env.PLUGIN_ROOT + '/apps/hooks/stop.cjs')"`.
+- Stop hook should not parse Claude transcript shape. Use `input.last_assistant_message` for tag detection.
+- Codex transcript lines are `type:"response_item"` with `payload.type:"message"` or `payload.type:"function_call"`.
+- Plugin `commands/*.toml` does not register native Codex slash commands. TUI rejects `/options-mode` as unrecognized before `UserPromptSubmit`, so true `/options-mode off` needs either a Codex TUI change or a skill/alternate command.
+- Plugin statusline scripts do not integrate with Codex statusline today. Strict “statusline shows state” requires a Codex core extension or accepting a non-statusline substitute.
+
+### Implementation Suggestions
+
+Use a separate plugin: `packages/codexu-options-mode-plugin/`. That keeps Phase 3h self-contained and avoids coupling it to `codexu-plugin`.
+
+Suggested layout:
+
+```text
+packages/codexu-options-mode-plugin/
+  .codex-plugin/plugin.json
+  hooks/hooks.json
+  apps/hooks/config.cjs
+  apps/hooks/session-start.cjs
+  apps/hooks/user-prompt-submit.cjs
+  apps/hooks/stop.cjs
+  skills/options-mode-toggle/SKILL.md
+  test/*.test.mjs
+```
+
+Recommended approach:
+
+- Put hook registrations in `hooks/hooks.json` and reference it from `plugin.json`.
+- Use `PLUGIN_DATA` for enabled/disabled state, falling back to `CODEX_HOME` or `~/.codex`.
+- Port `SessionStart` to emit `hookSpecificOutput.additionalContext` with the options-mode rules only when enabled.
+- Port `Stop` around `input.last_assistant_message`; preserve exact tag detection for `<options-mode>continue</options-mode>`.
+- For structured choice detection, scan `input.transcript_path` for recent `payload.type:"function_call"` with `name:"request_user_input"` or future `name:"ask_user_question"`.
+- For `/options-mode on|off|status`, either:
+  - implement as a skill now, because plugin slash commands are not native; or
+  - add a Codex TUI built-in slash command, which is larger and touches the submodule.
+- For statusline, surface the limitation to the operator. A real statusline badge is not plugin-only with current Codex.
+
+Tests should be Node `node --test` style hook tests with mocked stdin and mock Codex JSONL transcripts: enabled/no tag blocks, enabled/tag passes, disabled passes, function-call structured-choice passes, and toggle state changes.

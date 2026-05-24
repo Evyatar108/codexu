@@ -1,0 +1,62 @@
+{
+  "planFile": "D:/harness-efforts/codexu/.ralph/jobs/remove-tunnel-claim-layer/plan.md",
+  "repoDir": "D:/harness-efforts/codexu/.ralph/jobs/remove-tunnel-claim-layer/worktree",
+  "reviewCycle": 2,
+  "findings": [
+    {
+      "id": "F-001",
+      "severity": "Medium",
+      "source": "security",
+      "classification": "fixable",
+      "phase": "security",
+      "category": "Auth/AuthZ",
+      "description": "Tunnel-listener auth has collapsed to 'anyone who can connect to the tunnelPort is tofuConfig.localUserId'. The new authenticateTunnel decorator (api.ts:78-80) and socket middleware (socket.ts:87) inspect zero headers and unconditionally set request.userId = tofuConfig.localUserId. The safety property has moved from in-process auth (signed claim with single-use jti) to deployment-config: the listener binds to 127.0.0.1 (index.ts:174 default 'host: config.host || \"127.0.0.1\"', and dualListenerBinding.ts:36-69 not passing a host override). Concrete reach: packages/happy-cli/src/daemon/run.ts:714-717 calls http://127.0.0.1:${embeddedServerPort}/v1/sessions with no auth headers and is accepted. On a multi-user or shared-tenant host, any local process that can open a socket to 127.0.0.1:<tunnelPort> (other Unix users on the box, other containers sharing the host network namespace, malicious local code in another sandbox) acquires the full localUserId identity. There is no runtime warning or refusal if config.host is overridden to 0.0.0.0 or a public interface for debugging.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Security fix landed for F-001",
+      "relevantFiles": [
+        "packages/happy-server/sources/app/api/api.ts:78-80",
+        "packages/happy-server/sources/app/api/socket.ts:87",
+        "packages/happy-server/sources/index.ts:174",
+        "packages/happy-cli/src/daemon/dualListenerBinding.ts:56-69",
+        "packages/happy-cli/src/daemon/run.ts:714-717",
+        "docs/security-model.md"
+      ],
+      "suggestedFix": "Add a startup assertion in createApp() / createHappyServer() (packages/happy-server/sources/index.ts) that, when config.auth !== 'loopback' AND the resolved config.host is anything other than a loopback address (127.0.0.1, ::1, localhost), logs a Critical warning and ideally refuses to start. Document the new gate explicitly in docs/security-model.md as 'Operator Identity Gate = Dev Tunnels gateway + 127.0.0.1 bind'. Optional follow-up: move the tunnel listener from 127.0.0.1 to a Unix-domain socket on Linux/macOS to eliminate the local-port-share attack surface entirely."
+    },
+    {
+      "id": "F-002",
+      "severity": "Low",
+      "source": "security",
+      "classification": "fixable",
+      "phase": "security",
+      "category": "Cryptography",
+      "description": "Per-request anti-replay protection that previously lived in tunnelClaim.ts's seenJti cache (single-use jti, MAX_CLAIM_LIFETIME_SECONDS=3600) is gone with the deletion of packages/happy-server/sources/app/api/auth/tunnelClaim.ts. The new design correctly delegates replay protection to the Dev Tunnels gateway's connect-token validation — the backend never sees X-Tunnel-Authorization because the gateway strips it. This is acceptable under the new trust model, but docs/security-model.md does not state explicitly that per-request replay protection is now provided by Microsoft Dev Tunnels at the gateway layer. A future maintainer reviewing the auth surface will see the missing replay cache and may incorrectly conclude the property is gone entirely.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Security fix landed for F-002",
+      "relevantFiles": [
+        "docs/security-model.md"
+      ],
+      "suggestedFix": "Append a one-paragraph 'Replay Protection (post-claim removal)' subsection to docs/security-model.md documenting that per-request replay protection now lives at the Dev Tunnels gateway, no application-level cache is needed, and that backend code MUST NOT re-introduce its own replay cache without first re-introducing a verifiable backend-side claim. No code change required."
+    },
+    {
+      "id": "F-003",
+      "severity": "Low",
+      "source": "security",
+      "classification": "fixable",
+      "phase": "security",
+      "category": "Secrets",
+      "description": "Dead secret material is still wired through the server boot path. TofuPublicKeys.ed25519SecretKey?: Uint8Array is still declared (packages/happy-server/sources/index.ts:11 and packages/happy-server/sources/app/api/api.ts:38) and createApp() still forwards config.tofuPublicKeys?.ed25519SecretKey into the API config (index.ts:148). With tunnelClaim.ts deleted, no production code path consumes that secret any more. Operators following the existing config recipe will still be loading an Ed25519 private key from disk into the server process for no current functional purpose, violating least-privilege / least-secret-on-disk. Not exploitable today (no code accepts a claim signed by it), but it's a latent footgun: a future feature that re-introduces signed assertions could silently start trusting a key that has been sitting unused on production hosts for months.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Security fix landed for F-003",
+      "relevantFiles": [
+        "packages/happy-server/sources/index.ts:11-14",
+        "packages/happy-server/sources/index.ts:148",
+        "packages/happy-server/sources/app/api/api.ts:38"
+      ],
+      "suggestedFix": "Remove ed25519SecretKey from the TofuPublicKeys interface in both packages/happy-server/sources/index.ts and packages/happy-server/sources/app/api/api.ts (also drop the ed25519SecretKey: config.tofuPublicKeys?.ed25519SecretKey forwarding in index.ts:148), and stop loading it in the daemon's TOFU keypair loader for the embedded happy-server invocation. Keep x25519SecretKey — it is still used by pairRoutes.ts:100,102,135,137 for ECDH mobileSharedSecret."
+    }
+  ]
+}

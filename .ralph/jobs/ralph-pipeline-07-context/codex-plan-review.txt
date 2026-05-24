@@ -1,0 +1,33 @@
+### Feasibility
+
+[High] `scripts/lib/sync-core.mjs` does not currently give `toPipelineState(bundle)` access to `repoRoot`. The plan says `toPipelineState()` should call `derivePRLinks({ groupState, repoRoot, branchName })`, but today `toPipelineState` is called as `toPipelineState(winner)` from `assembleStateFromBundles()` and `repoRoot` is not on the bundle. The plan needs an explicit change: either pass `repoRoot` into `toPipelineState(bundle, repoRoot)` or attach it while assembling bundles.
+
+[High] `derive-pr-links.mjs` needs a required graceful-failure path for missing/stale branches. Current `.ralph/jobs/codex-mcp-discovery/prd.json` references `feat/codex-mcp-discovery`, and `git rev-parse --verify feat/codex-mcp-discovery` fails in this repo. If `git log -n 5 <branchName>` throws and the helper does not catch it, one stale Ralph job can break all sync output.
+
+[Medium] `mergeCommit` is underspecified. The helper signature has no `stage`, but the plan says `mergeCommit` is only for `stage === shipped`; the proposed `git rev-parse --short HEAD <branchName>` wording is also ambiguous because it can emit multiple revisions. Define the caller contract precisely, or defer `mergeCommit` from this plan.
+
+### Completeness
+
+[High] `RecentActivity` props are inconsistent. The create-file section defines props as `{ activityEvents, setFocusedTaskId }`, but the App integration says `<RecentActivity events={useActivityEvents()} ... />`. Following the plan literally produces a TypeScript failure in `tools/overview-viewer/src/App.tsx` / `RecentActivity.tsx`.
+
+[Medium] The plan makes `RecentActivity` effectively dev-server-only. `tools/overview-viewer/CLAUDE.md` says `plans/overview.html` is a single-file artifact intended to open via `file://`; the plan accepts fetch failure and empty state there. If that static artifact is a real user surface, the implementation should inline `overview-activity.jsonl` during `transformIndexHtml`, or the ACs should explicitly state RecentActivity is dev-server-only.
+
+[Medium] AC-7 requires journal entries in both watcher and one-shot modes, but verification is mostly manual. Add targeted tests around `scripts/lib/watch-ralph-state.mjs` and `scripts/sync-ralph-state.mjs` that mock `appendJournalEntry`, mirroring existing `appendActivity` tests.
+
+[Medium] `RecentActivity` rendering should handle removal events where `ActivityEvent.newStage` is `null`. `deriveActivityEvents()` emits stage changes for previous-only entries in `scripts/lib/sync-core.mjs`; rendering `<taskId> → <newStage>` will otherwise show a poor/null label.
+
+### Ordering
+
+No major ordering issues found. The serial order is reasonable once the `repoRoot` plumbing is added before PR-link integration.
+
+### Simplicity
+
+[Medium] The PR-link helper may be doing too much in the sync hot path. A simpler safe version is: always surface `branchName`; only attempt PR URL scrape when `branchName` resolves locally; catch all git failures and return no `prUrl`. That preserves dashboard sync reliability while still adding backlinks when available.
+
+### Acceptance Criteria Quality
+
+[High] AC-2 does not require git failure tolerance. Add cases for missing branch, deleted branch, and `git remote get-url origin` failure. Without this, AC-6 can be claimed while sync remains fragile on real repo state.
+
+[Medium] AC-6 is vague: “any task whose Ralph job has a notepad / PR / branch” mixes three independent enrichments. Split it into concrete checks: notepad fields from fixture, `branchName` from `prd.branch.name`, `prUrl` from mocked/synthetic commit evidence, and no sync failure when the branch is absent.
+
+[Medium] AC-15 is operationally specific but hard for an autonomous implementer to verify unless the plan defines how to detect Plan 06 terminal state. It points at `.ralph/jobs/ralph-pipeline-06-skills/` progress; specify the exact file/key to inspect.

@@ -1,0 +1,46 @@
+I’m opening the attached file first to see the exact task and context.
+
+I found the review prompt; next I’m locating the diff sections and the touched files so I can assess them against the plan.
+
+I’ve read the main diff; now I’m checking the surrounding types and call contracts to see if any of these changes violate the actual codex client expectations.
+
+The code paths are clear enough now; I’m doing one independent critique pass and checking whether these changes are present in the worktree so I can ground any findings.
+
+## Findings
+
+I checked `projectMcpConfig.ts`, the runCodex wiring, the existing `resumeThread`/`reconnectAndResumeThread` flows in `codexAppServerClient.ts`, the new acceptance tests, and the doc flips. The shape against the plan is correct: XOR is enforced (a `{command, url}` entry parses as `Stdio` then trips `superRefine`), per-entry skip works (sibling-broken test passes), the reserved name `'happy'` is filtered before the bridge spread, `type` is stripped, passthrough is preserved on both branches and on root, and `cwdAtStart` is shared between `startThread` and `resumeExistingThread`. Reconnect after a ws drop reuses `threadDefaults.mcpServers` set by `rememberThreadDefaults`, so the project servers do survive an automatic resume even though that path isn't directly asserted.
+
+### Blocking
+- None found. The implementation matches the plan and the wiring covers both new-thread start and explicit resume.
+
+### Non-blocking
+
+1. **Unknown-field passthrough collides with codex's `deny_unknown_fields`** — `packages/happy-cli/src/codex/projectMcpConfig.ts:11,16,29`. Both `StdioEntry`, `HttpEntry`, and the root use `.passthrough()`, but `RawMcpServerConfig` in `codex/external/repos/codex-patched/codex-rs/config/src/mcp_types.rs` is `#[schemars(deny_unknown_fields)]`. A user typo like `commnd` or a Claude-Code-only key (e.g. a future field) silently leaves our loader and then fails `thread/start` server-side with an opaque deserialize error rather than the structured per-entry skip + `logger.warn` the plan promises. Recommend tightening the schemas to the exact codex `RawMcpServerConfig` field set (or at minimum the documented stdio/http subsets) and treating unknowns as a per-entry validation failure routed through the existing `logger.warn` path.
+
+2. **HTTP `url` is `z.string()` rather than `z.string().url()`** — `projectMcpConfig.ts:14`. Empty string or `"not a url"` passes the loader and is sent to codex, which then either rejects the thread or attempts a malformed connection. Cheap to fix and matches the "skip malformed entries" intent.
+
+3. **Reserved-name check is case-sensitive on the literal `'happy'`** — `projectMcpConfig.ts:56`. `Happy`, `HAPPY`, or `" happy"` would slip past the guard, land in `projectMcpServers`, and then be overwritten only because the spread order favors the bridge. The bridge survives, but the project's similarly-named entry is silently dropped without a warn explaining why. Either lowercase-compare or also warn for confusable variants.
+
+### Suggestions
+
+4. **No test coverage for the `reconnectAndResumeThread` path** — `codexAppServerClient.ts:1192`. The wiring is correct (defaults memoized in `rememberThreadDefaults` at lines 1146/1181 and re-used by `resumeThread` via `defaults.mcpServers` at line 1172), but the acceptance suite only asserts the foreground `startThread`/`resumeThread` calls. A single test that calls `reconnectAndResumeThread` after a forced ws close and asserts the second `resumeThread` call still carries `paper` would lock in the parity guarantee mentioned in the closed roadmap bullet.
+
+5. **Stale commit reference in roadmap** — `plans/parallel-assignments.md` lists `mcp-discovery` as landed at `f5bdfe67`, which doesn't exist in this branch's history (actual commits are `1d3083ad`, `fa400e6e`, `4378ef3f`). Future readers using that hash to find the change will get nothing. Either drop the hash or update it after squash/merge.
+
+6. **`cwdAtStart` is captured before `client.connect()`** — `runCodex.ts:694`. That's intentional and matches Claude semantics, but note that on ws-mode reattach to a detached app-server the codex side's pre-existing `cwd` is what actually wins; if a user moves their session into a different cwd between Happy invocations, our loader reads `.mcp.json` from the new cwd while codex still reports the old one. Probably acceptable (matches the "per-cwd discovery" framing), but worth a one-line comment so future readers don't re-discover this.The critique surfaced one potentially real contract mismatch around unknown MCP fields, so I’m verifying that against the vendored codex schema before I finalize findings.
+
+### Completeness
+- [High] `packages/happy-cli/src/codex/projectMcpConfig.ts:6-24` only enforces `command` XOR `url`. The plan also called out codex’s transport-specific validation rules, but both schema branches are `.passthrough()`, so invalid hybrids like `{ command: "node", http_headers: {...} }` or `{ url: "http://...", args: ["x"] }` are accepted and forwarded. Codex rejects those at `thread/start`/`thread/resume`, so one bad project entry still aborts the whole session instead of being warned-and-skipped per entry as the plan requires.
+
+### Correctness
+No issues found.
+
+### Quality
+No issues found.
+
+### Security
+No issues found.
+
+### Overall Assessment
+Not ready yet. The main wiring and doc flips look solid, and an independent critique pass agreed the key remaining gap is transport-specific MCP validation: as written, some malformed `.mcp.json` entries will still break codex session startup/resume instead of degrading safely.
+

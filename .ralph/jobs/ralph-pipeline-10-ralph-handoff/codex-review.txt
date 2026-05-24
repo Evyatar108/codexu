@@ -1,0 +1,19 @@
+### Completeness
+
+[High] `plans/ralph-overview-task-id.md:112` and `plans/ralph-overview-task-id.md:120` make `selected-direction.md` metadata conditional on the Section 6.1 plan metadata choice. The plan explicitly requires `brainstorm-with-ralph` to add YAML front-matter to `selected-direction.md`; Section 6.1 only exists because `plan.md` can break `implement-with-ralph`’s first-line check. This doc allows a non-front-matter format for `selected-direction.md`, so the future Ralph patch could miss that acceptance criterion.
+
+### Correctness
+
+No issues found.
+
+### Quality
+
+[Medium] `plans/ralph-overview-task-id.md:208` lists the conditional `implement-with-ralph` patch as step 5 while saying it must “land this before steps 2-4.” That ordering is internally contradictory and could confuse the future patch cycle if YAML front-matter on `plan.md` is selected.
+
+### Security
+
+No issues found.
+
+### Overall Assessment
+
+Needs more work before use. The doc mostly covers the requested handoff, but the brainstorm metadata contract should be tightened back to required YAML front-matter, and the conditional landing order should be made unambiguous.

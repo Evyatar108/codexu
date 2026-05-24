@@ -1,0 +1,405 @@
+{
+  "project": "ralph-overview",
+  "description": "Overview Install Streamline — agent-driven init engine + ongoing bookkeeping for the ralph-overview plugin. Adds a shared scripts/init-consumer.mjs engine, overview.init + overview.upsert_task MCP tools, four slash skills, install-server reconciliation, and a v1.1.0 release so consumers can scaffold and edit overview data through agent calls instead of manual file editing.",
+  "deslop": true,
+  "iterationEngine": "codex",
+  "planningEngine": "codex",
+  "jobDir": "D:/harness-efforts/codexu/.ralph/jobs/overview-install-streamline",
+  "repoDir": "D:/ai-developer-toolkit",
+  "branch": {
+    "name": "ralph/overview-install-streamline",
+    "created": true
+  },
+  "worktree": {
+    "path": "D:/harness-efforts/codexu/.ralph/jobs/overview-install-streamline/worktree",
+    "branch": "ralph/overview-install-streamline"
+  },
+  "additionalDirs": [
+    "D:/harness-efforts/codexu/.ralph/jobs/overview-install-streamline"
+  ],
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Copilot mirror generator + init engine + template fix + CLI subcommand",
+      "description": "As a plugin maintainer, I want a shared `scripts/init-consumer.mjs` engine plus a `ralph-overview`-local Copilot mirror generator and a fixed `overview-config.template.json`, so that agent and CLI flows have one source of truth for scaffolding and so the v5.36.0 mirror-parity gate is satisfied before any new skills are added.",
+      "acceptanceCriteria": [
+        "`plugins/ralph-overview/scripts/generate-copilot-artifacts.mjs` exists, supports default drift-check mode and `--write`, and discovers `plugins/ralph-overview/skills/*/SKILL.md` (does not delegate to the Ralph plugin's generator).",
+        "`plugins/ralph-overview/scripts/init-consumer.mjs` exports `initConsumer({ cwd, dryRun = true, force = false, serverOnly = false, addPackageJsonScripts = false })` returning `{ ok, filesPlanned[], filesWritten[], filesSkipped[], errors[], summary }`.",
+        "`serverOnly: true` plans ONLY `.mcp.json` + `.claude/settings.json:enabledMcpjsonServers` mutations (skips scaffold templates).",
+        "`--force` overwrites scaffold templates (`plans/overview-data.js`, `.ralph/overview-config.json`) only; registration files (`.mcp.json`, `.claude/settings.json`) always safe-merge regardless of `--force`.",
+        "All writes route through `scripts/lib/atomic-write.mjs` (Windows EPERM/EACCES/EBUSY retry).",
+        "`bin/ralph-overview.mjs` gains an `init` subcommand: `node bin/ralph-overview.mjs init [--repo <path>|--cwd <path>] [--dry-run] [--force] [--server-only] [--json] [--add-package-json-scripts]`. `--repo` is primary, `--cwd` is alias.",
+        "`templates/overview-config.template.json` `watcher.ignored` ⊇ `scripts/lib/default-config.mjs:DEFAULT_IGNORED` (unit test imports both and asserts inclusion).",
+        "Paired `.d.mts` declaration file exists for `scripts/init-consumer.mjs`.",
+        "Tests cover: empty-repo init, repo-with-existing-`.mcp.json` safe-merge, codexu-like-partial-state idempotency, `--force` scaffold overwrite with registration safe-merge preserved, server-only registration-only mode, Windows EPERM atomic-write retry (mock).",
+        "All three surfaces (engine direct, MCP-tool-shim-stub for parity test, CLI `--json`) produce identical `{ filesPlanned, filesSkipped, errors }` JSON, including in `serverOnly` mode.",
+        "Typecheck passes (`tsc -p tools/overview-mcp/tsconfig.json`)."
+      ],
+      "priority": 1,
+      "passes": true,
+      "notes": "",
+      "verifiedEvidence": [
+        {
+          "criterion": "Copilot mirror generator exists, supports drift-check and --write, and discovers ralph-overview skills",
+          "command": "node plugins/ralph-overview/scripts/generate-copilot-artifacts.mjs --write && node plugins/ralph-overview/scripts/generate-copilot-artifacts.mjs; find plugins/ralph-overview/dist/copilot -name SKILL.md -print | sort",
+          "result": "Generator wrote mirrors, drift-check printed 'ok: Copilot skill mirrors match', and listed blocker-report/triage/work-on mirrors under plugins/ralph-overview/dist/copilot."
+        },
+        {
+          "criterion": "initConsumer export returns ok/filesPlanned/filesWritten/filesSkipped/errors/summary",
+          "command": "npx vitest run src/__tests__/init-consumer.test.ts",
+          "result": "1 test file passed, 8 tests passed; tests import initConsumer from scripts/init-consumer.mjs and assert the result shape and written file lists."
+        },
+        {
+          "criterion": "serverOnly plans only .mcp.json and .claude/settings.json enabledMcpjsonServers mutations",
+          "command": "tmp=$(mktemp -d); node plugins/ralph-overview/bin/ralph-overview.mjs init --repo \"$tmp\" --dry-run --server-only --json; rm -rf \"$tmp\"",
+          "result": "JSON output had filesPlanned [\".mcp.json\",\".claude/settings.json\"], filesWritten [], filesSkipped [], errors []."
+        },
+        {
+          "criterion": "--force overwrites scaffold templates only; registration files safe-merge regardless of --force",
+          "command": "npx vitest run src/__tests__/init-consumer.test.ts",
+          "result": "The force test overwrote plans/overview-data.js and .ralph/overview-config.json while preserving an existing .mcp.json server and adding ralph-overview."
+        },
+        {
+          "criterion": "All writes route through scripts/lib/atomic-write.mjs with Windows transient retry coverage",
+          "command": "grep -R \"atomicWriteFile\" -n plugins/ralph-overview/scripts/init-consumer.mjs plugins/ralph-overview/scripts/generate-copilot-artifacts.mjs plugins/ralph-overview/bin/ralph-overview.mjs; npx vitest run src/__tests__/init-consumer.test.ts",
+          "result": "Only atomicWriteFile appears in production write paths; Vitest EPERM retry test passed and observed renameSync called twice before writing ok."
+        },
+        {
+          "criterion": "bin/ralph-overview.mjs init subcommand supports repo/cwd/dry-run/force/server-only/json/add-package-json-scripts",
+          "command": "tmp=$(mktemp -d); node plugins/ralph-overview/bin/ralph-overview.mjs init --repo \"$tmp\" --dry-run --server-only --json; rm -rf \"$tmp\"",
+          "result": "CLI accepted init flags and returned ok JSON with server-only planned registration files; tests also execute the CLI JSON surface."
+        },
+        {
+          "criterion": "overview-config.template.json watcher.ignored includes DEFAULT_IGNORED",
+          "command": "node -e \"const cfg=require('./plugins/ralph-overview/templates/overview-config.template.json'); import('./plugins/ralph-overview/scripts/lib/default-config.mjs').then(({defaultOverviewConfig})=>{const missing=defaultOverviewConfig.watcher.ignored.filter(x=>!cfg.watcher.ignored.includes(x)); console.log(JSON.stringify({missing, templateCount: cfg.watcher.ignored.length, defaultCount: defaultOverviewConfig.watcher.ignored.length})); process.exit(missing.length?1:0);})\"",
+          "result": "Printed {\"missing\":[],\"templateCount\":15,\"defaultCount\":15}."
+        },
+        {
+          "criterion": "Paired .d.mts declaration exists for scripts/init-consumer.mjs",
+          "command": "ls plugins/ralph-overview/scripts/init-consumer.mjs plugins/ralph-overview/scripts/init-consumer.d.mts",
+          "result": "Both scripts/init-consumer.mjs and scripts/init-consumer.d.mts are present."
+        },
+        {
+          "criterion": "Tests cover empty init, .mcp safe-merge, codexu-like idempotency, force semantics, server-only, and EPERM retry",
+          "command": "npx vitest run src/__tests__/init-consumer.test.ts",
+          "result": "1 test file passed, 8 tests passed, covering all listed init and atomic-write retry cases."
+        },
+        {
+          "criterion": "Engine direct, MCP-tool-shim-stub, and CLI --json produce identical filesPlanned/filesSkipped/errors including serverOnly",
+          "command": "npx vitest run src/__tests__/init-consumer.test.ts",
+          "result": "Parity test passed: direct initConsumer, overviewInitShim, and CLI --json matched for filesPlanned/filesSkipped/errors in serverOnly mode."
+        },
+        {
+          "criterion": "Typecheck passes (tsc -p tools/overview-mcp/tsconfig.json)",
+          "command": "npx tsc -p tools/overview-mcp/tsconfig.json",
+          "result": "Exit code 0 with no TypeScript diagnostics."
+        }
+      ],
+      "dependencies": [],
+      "failureClassification": "",
+      "partialProgress": null
+    },
+    {
+      "id": "US-002",
+      "title": "AST mutator upsert-task-edit.mjs with byte-range splicing",
+      "description": "As an agent, I want a `scripts/lib/upsert-task-edit.mjs` module that mutates a single task in `plans/overview-data.js` (task ObjectExpression fields and exact entries in supported top-level maps) using `@babel/parser` byte-range splicing, so that ongoing bookkeeping never corrupts hand-curated rich data.",
+      "acceptanceCriteria": [
+        "`upsertTaskInSource(source, { id, taskObjectFields, topLevelMapFields })` returns `{ source, changed, action: 'created' | 'updated' | 'noop', editedRanges: Array<{start, end, label}> }`.",
+        "Task-object whitelist: `id` (required, immutable after create), `title`, `scope`, `status`, `phase`, `blockedBy`, `mergeCommit`, `lastTouchedAt`, `kanbanCards`, `command`, `runsAfter`, `notes`.",
+        "Top-level-map whitelist: `workstream`, `sizeBucket`, `risk`, `cadence`, `effort`, `periodic`, `spawnedFrom` (each keyed by task id).",
+        "Strict Zod schema with no `extras` escape hatch in v1 — unknown fields rejected.",
+        "Source bytes outside the union of `editedRanges` are byte-identical to input (assertion against `test-fixtures/overview-data.rich.js` sanitized codexu copy).",
+        "Refuses to mutate tasks containing leading/trailing comments inside the task ObjectExpression; returns a clear error.",
+        "Idempotent: re-running with the same payload returns `action: 'noop'` and `changed: false`; source is byte-identical to previous output.",
+        "Preserves `\\r\\n` line endings inside string literals.",
+        "Paired `.d.mts` declaration file exists for `upsert-task-edit.mjs`.",
+        "Tests cover: update existing task (AC6a), create new task with required-fields + map population + idempotency (AC6b), refuse `ui.*` mutation, refuse on inline comment, byte-identity outside edited ranges.",
+        "Typecheck passes (`tsc -p tools/overview-mcp/tsconfig.json`)."
+      ],
+      "priority": 2,
+      "passes": true,
+      "notes": "",
+      "verifiedEvidence": [
+        {
+          "criterion": "Return shape",
+          "command": "npx vitest run src/__tests__/upsert-task-edit.test.ts",
+          "result": "1 test file passed, 6 tests passed; assertions cover source, changed, action and editedRanges return shape for update/create/noop."
+        },
+        {
+          "criterion": "Task-object whitelist",
+          "command": "npx vitest run src/__tests__/upsert-task-edit.test.ts",
+          "result": "1 test file passed, 6 tests passed; allowed task fields are accepted and taskObjectFields.ui is rejected with Zod Unrecognized key."
+        },
+        {
+          "criterion": "Top-level-map whitelist",
+          "command": "npx vitest run src/__tests__/upsert-task-edit.test.ts",
+          "result": "1 test file passed, 6 tests passed; all seven allowed maps are populated and topLevelMapFields.ui is rejected with Zod Unrecognized key."
+        },
+        {
+          "criterion": "Strict Zod schema with no extras",
+          "command": "npx vitest run src/__tests__/upsert-task-edit.test.ts",
+          "result": "1 test file passed, 6 tests passed; unknown task-object and map fields throw Zod strict-object errors."
+        },
+        {
+          "criterion": "Source bytes outside editedRanges are byte-identical",
+          "command": "npx vitest run src/__tests__/upsert-task-edit.test.ts",
+          "result": "1 test file passed, 6 tests passed; rich fixture update compares Buffer slices before and after the single edited range."
+        },
+        {
+          "criterion": "Refuses comments inside task ObjectExpression",
+          "command": "npx vitest run src/__tests__/upsert-task-edit.test.ts",
+          "result": "1 test file passed, 6 tests passed; inline-comment fixture throws refusing to mutate task TASK-1: task object contains comments."
+        },
+        {
+          "criterion": "Idempotent rerun",
+          "command": "npx vitest run src/__tests__/upsert-task-edit.test.ts",
+          "result": "1 test file passed, 6 tests passed; rerunning the same create payload returns action noop, changed false, editedRanges [], and byte-identical source."
+        },
+        {
+          "criterion": "Preserves CRLF line endings inside string literals",
+          "command": "npx vitest run src/__tests__/upsert-task-edit.test.ts",
+          "result": "1 test file passed, 6 tests passed; notes payload containing CRLF is emitted as a string literal with escaped \r\n."
+        },
+        {
+          "criterion": "Paired .d.mts declaration file exists",
+          "command": "test -f plugins/ralph-overview/scripts/lib/upsert-task-edit.mjs && test -f plugins/ralph-overview/scripts/lib/upsert-task-edit.d.mts && printf present",
+          "result": "present"
+        },
+        {
+          "criterion": "Required tests cover update/create/refusals/comments/byte identity",
+          "command": "npx vitest run src/__tests__/upsert-task-edit.test.ts",
+          "result": "1 test file passed, 6 tests passed, covering update existing task, create with map population and idempotency, ui.* rejection, inline comment refusal, and byte identity outside edited range."
+        },
+        {
+          "criterion": "Typecheck passes",
+          "command": "npx tsc -p tools/overview-mcp/tsconfig.json",
+          "result": "Exit code 0 with no TypeScript diagnostics."
+        }
+      ],
+      "dependencies": [],
+      "failureClassification": "",
+      "partialProgress": null
+    },
+    {
+      "id": "US-003",
+      "title": "MCP tools + first-run probe + install-server reconcile + stale-test fixes",
+      "description": "As an agent, I want `overview.init` and `overview.upsert_task` MCP tools, a `consumer-not-initialized` first-run signal in consumer-reading tools, and a reconciled `install-server.ts` that preserves the `overview-mcp-install` package bin while writing the new `.mcp.json + enabledMcpjsonServers` shape, so that I can drive the full agent flow from one MCP server with no broken legacy contracts.",
+      "acceptanceCriteria": [
+        "`tools/overview-mcp/src/tools/init.ts` wraps `initConsumer()` and returns its result via MCP.",
+        "`tools/overview-mcp/src/tools/upsert-task.ts` reads `plans/overview-data.js`, calls `upsertTaskInSource()`, writes back via `atomicWriteFile()`, then calls `syncNow(context)`.",
+        "`tools/overview-mcp/src/schemas.ts` adds `overviewInitInputSchema` and `overviewUpsertTaskInputSchema` (strict, no extras).",
+        "`tools/overview-mcp/src/server.ts` registers both new tools.",
+        "`scripts/lib/check-initialized.mjs` exports `checkConsumerInitialized(repoRoot)` returning `{ initialized: boolean, missing: string[] }`; paired `.d.mts` declaration exists.",
+        "`overview.list_tasks` and `overview.dev_server.status` return `{ ok: false, code: 'consumer-not-initialized', suggestedTool: 'overview.init', missing }` when the probe fails.",
+        "`install-server.ts` rewired to call `initConsumer({ ..., serverOnly: true, force: true })`; preserves the exported `installServer(options)` API, the `overview-mcp-install` package bin, and `--print-only` (no-write preview).",
+        "`bin/ralph-overview.mjs install-server` continues delegating to the built installer (semantically equivalent to `init --server-only --force`).",
+        "Stale tests fixed: `install-server.test.ts` (`settings.local.json` → `settings.json`, `codexu-overview` → `ralph-overview`, new shape + `--print-only` no-write); `dev-server.test.ts` (stale `pnpm overview`); `build.test.ts` (stale `pnpm overview:build`); `stdio-tools-list.test.ts` (17 → 19, add new tool names); `read-only-tools.test.ts` (17 → 19, add new tool names).",
+        "`npm test --workspace=tools/overview-mcp` passes green.",
+        "Typecheck passes (`tsc -p tools/overview-mcp/tsconfig.json`)."
+      ],
+      "priority": 3,
+      "passes": true,
+      "notes": "",
+      "verifiedEvidence": [
+        {
+          "criterion": "tools/overview-mcp/src/tools/init.ts wraps initConsumer() and returns its result via MCP",
+          "command": "grep -RIn -E 'initConsumer|overview.init' plugins/ralph-overview/tools/overview-mcp/src/tools/init.ts plugins/ralph-overview/tools/overview-mcp/src/server.ts",
+          "result": "Found initConsumer import, overview.init registration, and return initConsumer({ cwd: context.repoRoot, ...input }) in tools/init.ts."
+        },
+        {
+          "criterion": "tools/overview-mcp/src/tools/upsert-task.ts reads overview-data.js, calls upsertTaskInSource(), writes via atomicWriteFile(), then calls syncNow(context)",
+          "command": "grep -RIn -E 'upsertTaskInSource|atomicWriteFile|syncNow|overview.upsert_task' plugins/ralph-overview/tools/overview-mcp/src/tools/upsert-task.ts plugins/ralph-overview/tools/overview-mcp/src/server.ts",
+          "result": "Found upsertTaskInSource, atomicWriteFile, and syncNow imports/calls in tools/upsert-task.ts plus overview.upsert_task registration; init-upsert-tools test passed."
+        },
+        {
+          "criterion": "tools/overview-mcp/src/schemas.ts adds overviewInitInputSchema and overviewUpsertTaskInputSchema (strict, no extras)",
+          "command": "grep -RIn -E 'overviewInitSchema|overviewUpsertTaskSchema|strict' plugins/ralph-overview/tools/overview-mcp/src/schemas.ts plugins/ralph-overview/tools/overview-mcp/src/__tests__/init-upsert-tools.test.ts",
+          "result": "Schemas include strict overviewInitSchema and overviewUpsertTaskSchema; tests assert extra and taskObjectFields.ui are rejected with Unrecognized key."
+        },
+        {
+          "criterion": "tools/overview-mcp/src/server.ts registers both new tools",
+          "command": "npm test --workspace=tools/overview-mcp",
+          "result": "Vitest passed 23 files / 93 tests; read-only-tools and stdio-tools-list exact-name tests include overview.init and overview.upsert_task in the 19 registered tools."
+        },
+        {
+          "criterion": "scripts/lib/check-initialized.mjs exports checkConsumerInitialized(repoRoot) returning initialized/missing; paired .d.mts exists",
+          "command": "test -f plugins/ralph-overview/scripts/lib/check-initialized.mjs && test -f plugins/ralph-overview/scripts/lib/check-initialized.d.mts && node -e \"import('./plugins/ralph-overview/scripts/lib/check-initialized.mjs').then(({checkConsumerInitialized})=>console.log(JSON.stringify(checkConsumerInitialized(process.cwd()))))\"",
+          "result": "Both files exist; command printed {\"initialized\":false,\"missing\":[\"plans/overview-data.js\",\".ralph/overview-config.json\",\".mcp.json:mcpServers.ralph-overview\",\".claude/settings.json:enabledMcpjsonServers\"]}."
+        },
+        {
+          "criterion": "overview.list_tasks and overview.dev_server.status return consumer-not-initialized with suggestedTool overview.init when the probe fails",
+          "command": "npm test --workspace=tools/overview-mcp; grep -RIn -E 'consumer-not-initialized|suggestedTool' plugins/ralph-overview/tools/overview-mcp/src/__tests__/list-tasks.test.ts plugins/ralph-overview/tools/overview-mcp/src/__tests__/dev-server.test.ts",
+          "result": "Vitest passed; list-tasks and dev-server tests assert { ok:false, code:\"consumer-not-initialized\", suggestedTool:\"overview.init\", missing:[...] }."
+        },
+        {
+          "criterion": "install-server.ts calls initConsumer({ serverOnly: true, force: true }) and preserves installServer API, package bin, and --print-only preview",
+          "command": "grep -RIn -E 'initConsumer|serverOnly: true|force: true|overview-mcp-install|printOnly' plugins/ralph-overview/tools/overview-mcp/src/install-server.ts plugins/ralph-overview/tools/overview-mcp/package.json plugins/ralph-overview/tools/overview-mcp/src/__tests__/install-server.test.ts",
+          "result": "install-server.ts calls initConsumer with dryRun from printOnly, serverOnly true, force true; package.json still exposes overview-mcp-install; tests cover settings.json, ralph-overview, and print-only no-write."
+        },
+        {
+          "criterion": "bin/ralph-overview.mjs install-server delegates to the built installer and is semantically equivalent to init --server-only --force",
+          "command": "tmp=$(mktemp -d); (cd \"$tmp\" && node /d/harness-efforts/codexu/.ralph/jobs/overview-install-streamline/worktree/plugins/ralph-overview/bin/ralph-overview.mjs install-server --print-only); rc=$?; rm -rf \"$tmp\"; exit $rc",
+          "result": "CLI printed ok JSON with filesPlanned [\".mcp.json\",\".claude/settings.json\"], filesWritten [], filesSkipped [], errors [], matching server-only dry-run registration behavior."
+        },
+        {
+          "criterion": "Stale tests fixed for install-server, dev-server, build, stdio-tools-list, and read-only-tools",
+          "command": "grep -RIn -E 'settings.json|ralph-overview|print-only|dispatcher build|ralph-overview.mjs.*dev|19 overview|overview.init|overview.upsert_task' plugins/ralph-overview/tools/overview-mcp/src/__tests__/install-server.test.ts plugins/ralph-overview/tools/overview-mcp/src/__tests__/dev-server.test.ts plugins/ralph-overview/tools/overview-mcp/src/__tests__/build.test.ts plugins/ralph-overview/tools/overview-mcp/src/__tests__/stdio-tools-list.test.ts plugins/ralph-overview/tools/overview-mcp/src/__tests__/read-only-tools.test.ts",
+          "result": "Tests now assert settings.json, ralph-overview registration, print-only no-write, dispatcher dev/build commands, and 19-tool exact lists with overview.init and overview.upsert_task."
+        },
+        {
+          "criterion": "npm test --workspace=tools/overview-mcp passes green",
+          "command": "npm test --workspace=tools/overview-mcp 2>&1 | tee D:/harness-efforts/codexu/.ralph/jobs/overview-install-streamline/test-output-us003-npm-test.log",
+          "result": "Vitest summary: Test Files 23 passed | 1 skipped (24); Tests 93 passed | 1 skipped (94)."
+        },
+        {
+          "criterion": "Typecheck passes (tsc -p tools/overview-mcp/tsconfig.json)",
+          "command": "npx tsc -p tools/overview-mcp/tsconfig.json 2>&1 | tee D:/harness-efforts/codexu/.ralph/jobs/overview-install-streamline/test-output-us003-typecheck.log",
+          "result": "Exit code 0; typecheck log length 0 bytes, no TypeScript diagnostics."
+        }
+      ],
+      "dependencies": [
+        "US-001",
+        "US-002"
+      ],
+      "failureClassification": "",
+      "partialProgress": null
+    },
+    {
+      "id": "US-004",
+      "title": "Slash skills + Copilot mirror regeneration",
+      "description": "As an operator, I want slash skills `/overview-init`, `/overview-add-task`, `/overview-edit-task`, and `/overview-set-status` plus regenerated Copilot mirrors under `dist/copilot/`, so that natural-language commands map to the MCP tools and the v5.36.0 parity gate is satisfied.",
+      "acceptanceCriteria": [
+        "Four new SKILL.md files under `plugins/ralph-overview/skills/`: `overview-init/SKILL.md`, `overview-add-task/SKILL.md`, `overview-edit-task/SKILL.md`, `overview-set-status/SKILL.md` — each with the `<!-- ralph-meta {...} -->` HTML-comment metadata block per Section 6.1 resolution B.",
+        "`/overview-init` instructs the agent to call `overview.init` (dry-run first, confirm, then force only if needed and explicitly confirmed).",
+        "`/overview-add-task`, `/overview-edit-task`, `/overview-set-status` are thin wrappers that call `overview.upsert_task` with opinionated field sets.",
+        "`node plugins/ralph-overview/scripts/generate-copilot-artifacts.mjs --write` regenerates `dist/copilot/<skill>/SKILL.md` for all 7 skills (3 existing + 4 new).",
+        "Copilot mirror count equals source skill count (7 = 7).",
+        "Generator drift-check mode (no `--write`) passes on a clean tree.",
+        "Typecheck passes (`tsc -p tools/overview-mcp/tsconfig.json`)."
+      ],
+      "priority": 4,
+      "passes": true,
+      "notes": "",
+      "verifiedEvidence": [
+        {
+          "criterion": "Four new SKILL.md files with ralph-meta metadata",
+          "command": "for f in plugins/ralph-overview/skills/overview-init/SKILL.md plugins/ralph-overview/skills/overview-add-task/SKILL.md plugins/ralph-overview/skills/overview-edit-task/SKILL.md plugins/ralph-overview/skills/overview-set-status/SKILL.md; do test -f $f || exit 1; done; grep -Hn '<!-- ralph-meta {.*} -->' plugins/ralph-overview/skills/overview-*/SKILL.md",
+          "result": "All four files exist; grep found ralph-meta metadata in overview-add-task, overview-edit-task, overview-init, and overview-set-status SKILL.md files."
+        },
+        {
+          "criterion": "/overview-init instructs overview.init dry-run first, confirm, force only when confirmed",
+          "command": "grep -Hn -e 'overview.init' -e 'dryRun' -e 'confirm' -e 'force' plugins/ralph-overview/skills/overview-init/SKILL.md",
+          "result": "Skill content calls overview.init, sets dryRun true first, requires confirmation before writing, and uses force true only after explicit scaffold overwrite confirmation."
+        },
+        {
+          "criterion": "/overview-add-task, /overview-edit-task, /overview-set-status are thin overview.upsert_task wrappers",
+          "command": "grep -Hn -e 'overview.upsert_task' -e 'taskObjectFields' -e 'topLevelMapFields' -e 'status' -e 'blockedBy' plugins/ralph-overview/skills/overview-add-task/SKILL.md plugins/ralph-overview/skills/overview-edit-task/SKILL.md plugins/ralph-overview/skills/overview-set-status/SKILL.md",
+          "result": "All three skills instruct a single overview.upsert_task call with opinionated taskObjectFields/topLevelMapFields or status-related field sets and direct-edit avoidance."
+        },
+        {
+          "criterion": "generate-copilot-artifacts --write regenerates mirrors for all 7 skills",
+          "command": "node plugins/ralph-overview/scripts/generate-copilot-artifacts.mjs --write; /usr/bin/find plugins/ralph-overview/dist/copilot -mindepth 2 -maxdepth 2 -name SKILL.md -printf '%P\n' | sort",
+          "result": "Generator printed ok and listed blocker-report, overview-add-task, overview-edit-task, overview-init, overview-set-status, triage, and work-on mirrors."
+        },
+        {
+          "criterion": "Copilot mirror count equals source skill count (7 = 7)",
+          "command": "src_count=$(/usr/bin/find plugins/ralph-overview/skills -mindepth 2 -maxdepth 2 -name SKILL.md | wc -l); mirror_count=$(/usr/bin/find plugins/ralph-overview/dist/copilot -mindepth 2 -maxdepth 2 -name SKILL.md | wc -l); printf 'source=%s mirror=%s\n' $src_count $mirror_count; test $src_count -eq 7; test $mirror_count -eq 7; test $src_count -eq $mirror_count",
+          "result": "Printed source=7 mirror=7 and all equality checks passed."
+        },
+        {
+          "criterion": "Generator drift-check mode passes on a clean tree",
+          "command": "node plugins/ralph-overview/scripts/generate-copilot-artifacts.mjs",
+          "result": "Printed ok: Copilot skill mirrors match."
+        },
+        {
+          "criterion": "Typecheck passes (tsc -p tools/overview-mcp/tsconfig.json)",
+          "command": "npx tsc -p tools/overview-mcp/tsconfig.json 2>&1 | tee D:/harness-efforts/codexu/.ralph/jobs/overview-install-streamline/test-output-us004-typecheck.log",
+          "result": "Exit code 0 with no TypeScript diagnostics; captured typecheck log is 0 bytes."
+        },
+        {
+          "criterion": "Workspace tests pass",
+          "command": "npm test --workspace=tools/overview-mcp 2>&1 | tee D:/harness-efforts/codexu/.ralph/jobs/overview-install-streamline/test-output-us004-npm-test.log",
+          "result": "Vitest summary: Test Files 23 passed | 1 skipped (24); Tests 93 passed | 1 skipped (94)."
+        }
+      ],
+      "dependencies": [
+        "US-001",
+        "US-002",
+        "US-003"
+      ],
+      "failureClassification": "",
+      "partialProgress": null
+    },
+    {
+      "id": "US-005",
+      "title": "Docs + version bump + marketplace + release",
+      "description": "As a maintainer, I want plugin `CLAUDE.md`/`docs/installation.md` updated, the toolkit-root `CLAUDE.md` entry refreshed, the plugin version bumped (1.0.0 → 1.1.0), and the three marketplace indexes synced atomically via `/release-plugin`, so that consumers pick up the new tools and skills via `/plugin update`.",
+      "acceptanceCriteria": [
+        "`plugins/ralph-overview/CLAUDE.md` documents the init engine, the upsert constraints (task-object vs top-level-map split), the `consumer-not-initialized` signal, `--force` scaffold-only semantics, and the regenerated `dist/copilot/` mirror.",
+        "`plugins/ralph-overview/docs/installation.md` mentions the agent-driven flow as primary; manual install stays as fallback.",
+        "`D:/ai-developer-toolkit/CLAUDE.md` Active Tools entry for `ralph-overview` is updated to reflect the new tools, skills, and v1.1.0 release.",
+        "Tool-count references in `plugins/ralph-overview/README.md`, `plugins/ralph-overview/tools/overview-mcp/README.md`, and `plugins/ralph-overview/CLAUDE.md` are updated from 17 to 19 wherever present.",
+        "CHANGELOG 1.1.0 entry prepended to `plugins/ralph-overview/CHANGELOG.md`.",
+        "`/release-plugin` atomically bumps `plugin.json`, the three marketplace indexes (`.claude-plugin/marketplace.json`, `.github/plugin/marketplace.json`, `.agents/plugins/marketplace.json`), creates the commit, and pushes to all configured remotes.",
+        "All three marketplace indexes carry version 1.1.0 matching `plugin.json`.",
+        "Typecheck passes (`tsc -p tools/overview-mcp/tsconfig.json`)."
+      ],
+      "priority": 5,
+      "passes": true,
+      "notes": "",
+      "verifiedEvidence": [
+        {
+          "criterion": "plugins/ralph-overview/CLAUDE.md documents init engine, upsert constraints, consumer-not-initialized, force semantics, and Copilot mirror",
+          "command": "grep -Hn -e init-consumer.mjs -e upsert_task -e consumer-not-initialized -e --force -e dist/copilot -e 19 tools plugins/ralph-overview/CLAUDE.md",
+          "result": "Found 19 tools plus v1.1.0 additions documenting init-consumer.mjs, force scaffold-only semantics, overview.upsert_task taskObjectFields/topLevelMapFields split, consumer-not-initialized response, and dist/copilot mirror regeneration."
+        },
+        {
+          "criterion": "plugins/ralph-overview/docs/installation.md mentions the agent-driven flow as primary; manual install stays as fallback",
+          "command": "grep -Hn -e primary path is agent-driven -e /overview-init -e overview.init -e Manual fallback plugins/ralph-overview/docs/installation.md",
+          "result": "Found primary agent-driven setup text, /overview-init and overview.init instructions, and Manual fallback sections for config/data copying."
+        },
+        {
+          "criterion": "D:/ai-developer-toolkit/CLAUDE.md Active Tools entry for ralph-overview is updated for new tools, skills, and v1.1.0",
+          "command": "grep -Hn -e Ralph Overview Plugin -e v1.1.0 -e 19-tool MCP -e /overview-init CLAUDE.md",
+          "result": "Active Tools now has a Ralph Overview Plugin entry describing v1.1.0, overview.init, overview.upsert_task, the 19-tool MCP server, seven skills, init semantics, and Copilot mirrors."
+        },
+        {
+          "criterion": "Tool-count references in README, MCP README, and plugin CLAUDE.md are updated from 17 to 19",
+          "command": "grep -RIn 17 tools plugins/ralph-overview/README.md plugins/ralph-overview/tools/overview-mcp/README.md plugins/ralph-overview/CLAUDE.md; grep -RIn 19 plugins/ralph-overview/README.md plugins/ralph-overview/tools/overview-mcp/README.md plugins/ralph-overview/CLAUDE.md",
+          "result": "No 17-tool references remain in the three files; grep found 19 MCP tools / 19 Model Context / 19 tools references in README, MCP README, and plugin CLAUDE.md."
+        },
+        {
+          "criterion": "CHANGELOG 1.1.0 entry prepended to plugins/ralph-overview/CHANGELOG.md",
+          "command": "sed -n 1,28p plugins/ralph-overview/CHANGELOG.md",
+          "result": "Top of changelog contains [1.1.0] - 2026-05-23 immediately after [Unreleased], with Added and Changed bullets for init, upsert_task, consumer-not-initialized, new skills, install-server reconciliation, and 19 tools."
+        },
+        {
+          "criterion": "/release-plugin atomically bumps plugin.json, marketplace indexes, creates commit, and pushes to all configured remotes",
+          "command": "grep -n release-plugin workflow steps; git rev-parse --short HEAD; git push origin ralph/overview-install-streamline; git push work ralph/overview-install-streamline",
+          "result": "Release-plugin workflow steps cover manifest/index/changelog/commit/push. Commit f84debcb was created with the story release changes, and pushes to both configured remotes origin and work returned exit code 0."
+        },
+        {
+          "criterion": "All three marketplace indexes carry version 1.1.0 matching plugin.json",
+          "command": "jq version checks for plugin.json and three marketplace entries",
+          "result": "plugin.json version is 1.1.0; .claude-plugin/marketplace.json=1.1.0, .github/plugin/marketplace.json=1.1.0, .agents/plugins/marketplace.json=1.1.0."
+        },
+        {
+          "criterion": "Typecheck passes (tsc -p tools/overview-mcp/tsconfig.json)",
+          "command": "npx tsc -p tools/overview-mcp/tsconfig.json 2>&1 | tee D:/harness-efforts/codexu/.ralph/jobs/overview-install-streamline/test-output-us005-typecheck-rerun.log",
+          "result": "Exit code 0 with no TypeScript diagnostics; captured typecheck log is 0 bytes."
+        },
+        {
+          "criterion": "Workspace tests pass",
+          "command": "npm test --workspace=tools/overview-mcp 2>&1 | tee D:/harness-efforts/codexu/.ralph/jobs/overview-install-streamline/test-output-us005-npm-test-rerun.log",
+          "result": "Vitest summary: Test Files 23 passed | 1 skipped (24); Tests 93 passed | 1 skipped (94)."
+        }
+      ],
+      "dependencies": [
+        "US-004"
+      ],
+      "failureClassification": "",
+      "partialProgress": null
+    }
+  ],
+  "securityFixLoop": false
+}

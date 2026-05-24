@@ -1,0 +1,18 @@
+{
+  "id": "F-007",
+  "severity": "Medium",
+  "source": "claude",
+  "classification": "fixable",
+  "phase": "code",
+  "category": "Quality",
+  "sectionRef": "Build script — fragile cross-package output flattening",
+  "description": "tools/overview-mcp/package.json build script uses 'tsc -p tsconfig.json && node -e \\\"...cpSync(\\'dist/overview-mcp/src\\', \\'dist\\', { recursive: true })\\\"'. The nested dist/overview-mcp/src/ directory only appears because the package imports ../../../scripts/lib/sync-lock.mjs and ../../../scripts/lib/resolve-config.mjs across the package boundary, which forces tsc to relocate rootDir to the repo root. There is no rootDir or compose path constraint that documents this. A future refactor that removes the cross-package imports (or adds an explicit rootDir) would silently change the build output layout and break the fix-up step. The plan did not call for this approach — it expected a plain tsc build.",
+  "status": "open",
+  "fixedInIteration": null,
+  "resolution": null,
+  "relevantFiles": [
+    "tools/overview-mcp/package.json:9",
+    "tools/overview-mcp/tsconfig.json"
+  ],
+  "suggestedFix": "Either (a) set rootDir explicitly in tsconfig.json to the package src/ and use 'composite' / TS project references to consume scripts/lib types without re-emitting, or (b) wrap the cross-package imports through a generated .d.ts shim under tools/overview-mcp/src/ so tsc only emits src files. Document the build-output expectation in README."
+}

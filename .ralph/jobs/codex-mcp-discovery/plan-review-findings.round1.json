@@ -1,0 +1,130 @@
+{
+  "planFile": "D:/harness-efforts/codexu/.ralph/jobs/.staging/20260513-110731/draft-plan.md",
+  "repoDir": "D:/harness-efforts/codexu",
+  "generatedAt": "2026-05-13",
+  "resolvedAt": "2026-05-13",
+  "resolutionMode": "orchestrator-direct-amend (single round, all consensus + high findings applied)",
+  "findings": [
+    {
+      "id": "F-001",
+      "severity": "Critical",
+      "category": "Feasibility",
+      "source": "consensus",
+      "reviewers": ["codex", "copilot"],
+      "section": "Approach > Implementation Strategy step 1 (Zod schema)",
+      "description": "Schema required `command: string`, rejecting HTTP-only entries like the repo's `paper` server.",
+      "status": "fixed",
+      "resolution": "Schema is now a `z.union([StdioEntry, HttpEntry]).passthrough()` — stdio requires `command`, http requires `url`. Acceptance test fixtures use the repo's actual HTTP shape."
+    },
+    {
+      "id": "F-002",
+      "severity": "High",
+      "category": "Completeness",
+      "source": "consensus",
+      "reviewers": ["codex", "copilot"],
+      "section": "Acceptance Criteria",
+      "description": "Missing resume-path test coverage.",
+      "status": "fixed",
+      "resolution": "Added 4th acceptance test (d) exercising `resumeThreadId` path and asserting `client.resumeThread` receives merged mcpServers."
+    },
+    {
+      "id": "F-003",
+      "severity": "High",
+      "category": "Criteria Quality",
+      "source": "codex",
+      "reviewers": ["codex"],
+      "section": "Acceptance Criteria 1-3",
+      "description": "Fixtures should be HTTP, matching repo's `.mcp.json`.",
+      "status": "fixed",
+      "resolution": "All four acceptance test fixtures now use `{ type: 'http', url: 'http://127.0.0.1:29979/mcp' }` — the actual paper shape."
+    },
+    {
+      "id": "F-004",
+      "severity": "High",
+      "category": "Completeness",
+      "source": "copilot",
+      "reviewers": ["copilot"],
+      "section": "Out of Scope",
+      "description": "AGENTS.md says mocked tests don't count as acceptance; tension must be acknowledged.",
+      "status": "fixed",
+      "resolution": "Out of Scope explicitly documents the AGENTS.md policy mismatch and flags integration-test coverage extension as an acknowledged follow-up."
+    },
+    {
+      "id": "F-005",
+      "severity": "High",
+      "category": "Feasibility",
+      "source": "claude",
+      "reviewers": ["claude"],
+      "section": "Research Findings > Codebase Context",
+      "description": "Transport security citation pointed at `daemon/CLAUDE.md` instead of main `packages/happy-cli/CLAUDE.md`.",
+      "status": "fixed",
+      "resolution": "Citation corrected to `packages/happy-cli/CLAUDE.md:282-310` with explicit note about the prior misattribution."
+    },
+    {
+      "id": "F-006",
+      "severity": "Medium",
+      "category": "Completeness",
+      "source": "codex",
+      "reviewers": ["codex"],
+      "section": "Approach > Implementation Strategy step 1",
+      "description": "Passthrough policy for Codex-supported extras (cwd, env_vars, http_headers, ...) needed explicit decision.",
+      "status": "fixed",
+      "resolution": "Technical Constraints + Implementation Strategy now explicitly call out `.passthrough()` for forward-compat with Codex-supported extras; helper unit test added for `http_headers`/`bearer_token_env_var` passthrough."
+    },
+    {
+      "id": "F-007",
+      "severity": "Medium",
+      "category": "Criteria Quality",
+      "source": "codex",
+      "reviewers": ["codex"],
+      "section": "Acceptance Criteria",
+      "description": "Tests should assert `type` is stripped.",
+      "status": "fixed",
+      "resolution": "Acceptance test (a) now explicitly asserts `type` is stripped on the merged entry; helper unit test for HTTP entry also asserts `type` is stripped."
+    },
+    {
+      "id": "F-008",
+      "severity": "Medium",
+      "category": "Simplicity",
+      "source": "codex",
+      "reviewers": ["codex"],
+      "section": "Approach > Implementation Strategy step 2",
+      "description": "cwdAtStart consistency: load and call-sites should use the same captured cwd.",
+      "status": "fixed",
+      "resolution": "Implementation Strategy now captures `cwdAtStart` once and uses it for the loader AND the `cwd:` args of both `resumeExistingThread` and `client.startThread`."
+    },
+    {
+      "id": "F-009",
+      "severity": "Medium",
+      "category": "Completeness",
+      "source": "claude",
+      "reviewers": ["claude"],
+      "section": "Preliminary Story Decomposition vs Scope",
+      "description": "Stories vs single-commit ambiguity.",
+      "status": "fixed",
+      "resolution": "Preliminary Story Decomposition prefaced with explicit note that slices are conceptual ordering, not separate commits — everything lands in one atomic commit per Acceptance Criterion 9."
+    },
+    {
+      "id": "F-010",
+      "severity": "Low",
+      "category": "Criteria Quality",
+      "source": "consensus",
+      "reviewers": ["codex", "copilot"],
+      "section": "Implementation Strategy step 4 (docs flip)",
+      "description": "`<sha>` placeholder in CLAUDE.md is impossible in a single commit.",
+      "status": "fixed",
+      "resolution": "Plan now explicitly says 'delivered 2026-05-13' with no `<sha>` placeholder."
+    },
+    {
+      "id": "F-011",
+      "severity": "Low",
+      "category": "Criteria Quality",
+      "source": "codex",
+      "reviewers": ["codex"],
+      "section": "Acceptance Criteria",
+      "description": "hasActiveThread() must return false in tests, fork.test.ts sets it true.",
+      "status": "fixed",
+      "resolution": "Tests section + Research Findings explicitly call out `hasActiveThread = vi.fn(() => false)` and a queued user batch as test-setup prerequisites."
+    }
+  ]
+}

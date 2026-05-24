@@ -1,0 +1,81 @@
+{
+  "clusters": [
+    {
+      "name": "foundation",
+      "stories": ["US-001", "US-002"],
+      "phase": 1,
+      "dependsOn": [],
+      "fileOverlapEvidence": {
+        "sharedFiles": [],
+        "exclusiveFiles": [
+          "plugins/ralph-overview/scripts/init-consumer.mjs",
+          "plugins/ralph-overview/templates/overview-config.template.json",
+          "plugins/ralph-overview/bin/ralph-overview.mjs",
+          "plugins/ralph-overview/scripts/lib/upsert-task-edit.mjs",
+          "plugins/ralph-overview/tools/overview-mcp/test-fixtures/overview-data.rich.js"
+        ],
+        "risk": "low"
+      },
+      "executionModeRationale": "Engine and AST mutator touch entirely disjoint files. Tests for each live in different test files. Parallel-safe."
+    },
+    {
+      "name": "mcp-and-reconcile",
+      "stories": ["US-003"],
+      "phase": 2,
+      "dependsOn": ["foundation"],
+      "fileOverlapEvidence": {
+        "sharedFiles": [
+          "plugins/ralph-overview/tools/overview-mcp/src/server.ts",
+          "plugins/ralph-overview/tools/overview-mcp/src/schemas.ts"
+        ],
+        "exclusiveFiles": [
+          "plugins/ralph-overview/tools/overview-mcp/src/tools/init.ts",
+          "plugins/ralph-overview/tools/overview-mcp/src/tools/upsert-task.ts",
+          "plugins/ralph-overview/tools/overview-mcp/src/install-server.ts",
+          "plugins/ralph-overview/scripts/lib/check-initialized.mjs"
+        ],
+        "risk": "medium"
+      },
+      "executionModeRationale": "Both new MCP tools register in server.ts and add schemas to schemas.ts; install-server reconcile and stale-test fixes share the same test directory. Serial."
+    },
+    {
+      "name": "skills",
+      "stories": ["US-004"],
+      "phase": 3,
+      "dependsOn": ["mcp-and-reconcile"],
+      "fileOverlapEvidence": {
+        "sharedFiles": [],
+        "exclusiveFiles": [
+          "plugins/ralph-overview/skills/overview-init/SKILL.md",
+          "plugins/ralph-overview/skills/overview-add-task/SKILL.md",
+          "plugins/ralph-overview/skills/overview-edit-task/SKILL.md",
+          "plugins/ralph-overview/skills/overview-set-status/SKILL.md",
+          "plugins/ralph-overview/dist/copilot/**"
+        ],
+        "risk": "low"
+      },
+      "executionModeRationale": "Four skill files plus mirror regeneration. Could parallelize per-skill but total LOC is small and the mirror generator output should be a single coherent regeneration. Serial."
+    },
+    {
+      "name": "release",
+      "stories": ["US-005"],
+      "phase": 4,
+      "dependsOn": ["skills"],
+      "fileOverlapEvidence": {
+        "sharedFiles": [],
+        "exclusiveFiles": [
+          "plugins/ralph-overview/.claude-plugin/plugin.json",
+          "plugins/ralph-overview/CHANGELOG.md",
+          "plugins/ralph-overview/CLAUDE.md",
+          "plugins/ralph-overview/docs/installation.md",
+          "CLAUDE.md",
+          ".claude-plugin/marketplace.json",
+          ".github/plugin/marketplace.json",
+          ".agents/plugins/marketplace.json"
+        ],
+        "risk": "low"
+      },
+      "executionModeRationale": "Documentation, version bump, and marketplace synchronization follow all feature work. Serial."
+    }
+  ]
+}

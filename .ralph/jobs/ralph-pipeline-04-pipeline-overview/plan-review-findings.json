@@ -1,0 +1,250 @@
+{
+  "planFile": "D:/harness-efforts/codexu/.ralph/jobs/.staging/20260519-061102/draft-plan.md",
+  "repoDir": "D:/harness-efforts/codexu",
+  "reviewCycle": 0,
+  "findings": [
+    {
+      "id": "F-001",
+      "severity": "High",
+      "source": "consensus",
+      "category": "Feasibility",
+      "sectionRef": "Approach > Architecture",
+      "description": "`writeSidecar({ repoRoot, config, state })` (scripts/lib/sync-core.mjs:289) takes only three args — no `overviewData`, no PRDs, no per-bundle `createdAt`/`completedAt`. The plan calls `emitDerivedArtifacts({ ..., overviewData })` from inside `writeSidecar`, but that data is not currently in scope. The plan is also self-contradictory: it says emitDerivedArtifacts runs AFTER the sidecar is durable but also says `state.runDurations` is attached BEFORE `writeSidecar` writes. With current signatures both cannot be true.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Amended the plan so derived data is computed before writeSidecar in assemble/merge paths, while writeSidecar only emits precomputed state artifacts.",
+      "relevantFiles": [
+        "scripts/lib/sync-core.mjs"
+      ],
+      "suggestedFix": "Enrich `state` inside `assembleStateFromBundles` (which already holds bundles + PRDs + timestamps) and `deriveAffectedTaskUpdate`/`mergeAndWrite` (which has overviewData). Compute `runDurations`, `recommendations`, `dependencyGraph` there and attach to state BEFORE `writeSidecar`. `writeSidecar` then only emits files (sidecar + recs + dep-graph). Change writeSidecar signature to optionally accept `{ recommendations, dependencyGraph }` or have writeSidecar read them from state."
+    },
+    {
+      "id": "F-002",
+      "severity": "High",
+      "source": "consensus",
+      "category": "Completeness",
+      "sectionRef": "Approach > Architecture / Files to Modify (types.ts)",
+      "description": "Plan emits standalone `plans/overview-recommendations.json` and `plans/overview-dependency-graph.json` AND adds `recommendations?` / `dependencyGraph?` fields to OverviewRalphState (claiming they 'travel inside overview-ralph-state.json'). The two contracts contradict each other — both reviewers flagged this.",
+      "status": "fixed",
+      "fixedInIteration": 2,
+      "resolution": "Removed the contradictory state-side recommendations/dependencyGraph contract and updated architecture, files-to-modify, and acceptance criteria to emit those as separate JSON artifacts.",
+      "relevantFiles": [
+        "tools/overview-viewer/src/types.ts",
+        "scripts/lib/sync-core.mjs"
+      ],
+      "suggestedFix": "Pick separate-file contract (matches Plan 06/09 expectations, Plan 04 in-scope text, and keeps the sidecar small). Remove `recommendations?` and `dependencyGraph?` from OverviewRalphState type. Keep `runDurations?` (it really is in the sidecar). Update the plan's Architecture section to drop the 'travel inside' language."
+    },
+    {
+      "id": "F-003",
+      "severity": "High",
+      "source": "codex",
+      "category": "Feasibility",
+      "sectionRef": "Approach > Architecture (Scoring rubric)",
+      "description": "`scoreRecommendations(byTaskId, overviewData, config?)` cannot evaluate the dependency-state dimension without PRD `userStories[].dependencies[]` and `passes`. `byTaskId` (RalphPipelineState) only has aggregate `storyCompletion` — no per-story dependency info.",
+      "status": "fixed",
+      "fixedInIteration": 3,
+      "resolution": "Updated the plan so prdsByTaskId is built from matched bundles and passed into scoreRecommendations as well as deriveDependencyGraph.",
+      "relevantFiles": [
+        "scripts/lib/score-recommendations.mjs (to create)"
+      ],
+      "suggestedFix": "Add `prdsByTaskId: Record<taskId, PrdJson>` to scoreRecommendations signature, parallel to deriveDependencyGraph. Build it once in assembleStateFromBundles and thread through to both scorers."
+    },
+    {
+      "id": "F-004",
+      "severity": "High",
+      "source": "consensus",
+      "category": "Ordering",
+      "sectionRef": "Implementation Strategy / Suggested Decomposition (sync-integration cluster)",
+      "description": "Story 5 wires `emitDerivedArtifacts` into writeSidecar; Story 6 adds runDurations computation. But runDurations must be on `state` BEFORE writeSidecar serializes the sidecar, so Story 6's enrichment must precede Story 5's emission wiring — not follow it. Codex flags ordering; Copilot flags that Story 5 cannot complete before deciding PRD/runDurations data-flow.",
+      "status": "fixed",
+      "fixedInIteration": 4,
+      "resolution": "Reordered sync-integration so US-005 performs state enrichment and incremental propagation before US-006 wires derived artifact emission, and updated the decomposition rationale to require that serial order.",
+      "relevantFiles": [
+        "scripts/lib/sync-core.mjs"
+      ],
+      "suggestedFix": "Reorder stories: (a) state enrichment in assembleStateFromBundles to add runDurations + prdsByTaskId carrier, (b) then emit helper hooked into writeSidecar. Or merge stories into one. Update Implementation Strategy and suggested-decomposition.json accordingly."
+    },
+    {
+      "id": "F-005",
+      "severity": "High",
+      "source": "codex",
+      "category": "Completeness",
+      "sectionRef": "Approach > Architecture (Dependency graph)",
+      "description": "`deriveDependencyGraph({ overviewData, byTaskId, prdsByTaskId })` is specified to return `{ generatedAt, generatedFromCommit, ... }` but `generatedFromCommit` is not in its input. Using `overviewData.generatedFromCommit` would diverge from the Ralph sidecar commit.",
+      "status": "fixed",
+      "fixedInIteration": 5,
+      "resolution": "Updated the dependency graph and artifact emission plan so generatedAt/generatedFromCommit come from the Ralph sidecar state instead of overviewData.",
+      "relevantFiles": [
+        "scripts/lib/derive-dependency-graph.mjs (to create)"
+      ],
+      "suggestedFix": "Add `generatedFromCommit: string` (and `generatedAt: string`) to deriveDependencyGraph input. Same fix applies to scoreRecommendations output if it carries generatedFromCommit."
+    },
+    {
+      "id": "F-006",
+      "severity": "High",
+      "source": "claude",
+      "category": "Completeness",
+      "sectionRef": "Files to Reference",
+      "description": "Plan references `tools/overview-viewer/src/__tests__/toolbarRalphStageFilter.test.tsx` but the actual file is `tools/overview-viewer/src/__tests__/interactions/toolbarRalphStageFilter.test.tsx`. Codex flagged the same issue at Low severity; Claude classified it High because incorrect reference would block an agent's lookup.",
+      "status": "fixed",
+      "fixedInIteration": 6,
+      "resolution": "Updated the toolbar test reference and PipelineOverview interaction test paths to use src/__tests__/interactions/.",
+      "relevantFiles": [
+        "tools/overview-viewer/src/__tests__/interactions/toolbarRalphStageFilter.test.tsx"
+      ],
+      "suggestedFix": "Update the path in the 'Files to Reference' list. Per Copilot's related finding (component test location), also note that interaction tests for PipelineOverview must live under `src/__tests__/interactions/` so they get the jsdom + userEvent setup."
+    },
+    {
+      "id": "F-007",
+      "severity": "High",
+      "source": "consensus",
+      "category": "Criteria Quality",
+      "sectionRef": "Acceptance Criteria (overview:build under 500 KB)",
+      "description": "AC says `pnpm overview:build` must produce overview.html 'under 500 KB' but the current committed `plans/overview.html` is already 501,307 bytes (> 500*1024 = 512,000 bytes is OK; > 500,000 bytes is not). Codex flags the threshold as ambiguous/already-failing. Also `plans/overview.html` is not in 'Files to Modify' — a UI change requires regenerating + committing it.",
+      "status": "fixed",
+      "fixedInIteration": 7,
+      "resolution": "Changed the build-size acceptance criterion to under 512000 bytes and added plans/overview.html as a generated artifact to regenerate via pnpm overview:build and commit.",
+      "relevantFiles": [
+        "plans/overview.html"
+      ],
+      "suggestedFix": "Tighten threshold to '< 512000 bytes' (512 KB) AND add `plans/overview.html` to Files to Modify with explicit 'regenerate via `pnpm overview:build` and commit' instruction. Or raise the budget — but 501,307 bytes is already over 500*1000, so the round number is the problem; pick 512000."
+    },
+    {
+      "id": "F-008",
+      "severity": "High",
+      "source": "copilot",
+      "category": "Criteria Quality",
+      "sectionRef": "Acceptance Criteria (downstream plan refresh)",
+      "description": "AC #12 requires the commit message to list each downstream-plan diff. Commit messages aren't reliably preserved through squash/rebase and aren't programmatically verifiable. The verifiable artifact should be the updated plan files themselves.",
+      "status": "fixed",
+      "fixedInIteration": 8,
+      "resolution": "Replaced commit-message-based downstream diff verification with an in-repo refresh changelog artifact included alongside the updated plan files.",
+      "relevantFiles": [],
+      "suggestedFix": "Replace the 'commit message lists diffs' clause with: (a) the updated plan files must be in the same final commit, AND (b) the plan refresh story writes a `plans/ralph-pipeline-04-refresh-changelog.md` (or similar in-repo file) listing each diff. The presence of that file plus its diff listing is the verifiable artifact."
+    },
+    {
+      "id": "F-009",
+      "severity": "Medium",
+      "source": "consensus",
+      "category": "Completeness",
+      "sectionRef": "Files to Create / Acceptance Criteria #2 / Verification H",
+      "description": "Plan says `.ralph/overview-config.json` 'does not exist yet' and lists it under 'Files to Create' — but the file exists (631 bytes, committed). It needs to be modified in place to add `recommendations.weights` etc., not created. Also Verification H tests against this file; Claude flagged the modify-in-place vs sandboxed-fixture ambiguity.",
+      "status": "open",
+      "fixedInIteration": null,
+      "resolution": null,
+      "relevantFiles": [
+        ".ralph/overview-config.json"
+      ],
+      "suggestedFix": "Move `.ralph/overview-config.json` from 'Files to Create' to 'Files to Modify' (add `recommendations` block, keep existing keys). For Verification H, use a temporary copy + env override instead of mutating the committed file — or run the scorer with an explicit config-override fixture in the unit test."
+    },
+    {
+      "id": "F-010",
+      "severity": "Medium",
+      "source": "consensus",
+      "category": "Completeness",
+      "sectionRef": "Files to Modify / AC #2",
+      "description": "Plan mentions 'existing resolve-config.test.mjs (if present)' but `scripts/lib/resolve-config.test.mjs` does not exist. Current config test coverage is at `tools/overview-viewer/src/__tests__/config.test.ts`. Claude + Codex both noted this.",
+      "status": "open",
+      "fixedInIteration": null,
+      "resolution": null,
+      "relevantFiles": [
+        "tools/overview-viewer/src/__tests__/config.test.ts",
+        "scripts/lib/resolve-config.mjs"
+      ],
+      "suggestedFix": "Replace 'existing resolve-config.test.mjs' with the real path `tools/overview-viewer/src/__tests__/config.test.ts`. Add a new `scripts/lib/resolve-config.test.mjs` only if vitest setup supports `.mjs` script tests (it does — sync-core has `.test.mjs` siblings)."
+    },
+    {
+      "id": "F-011",
+      "severity": "Medium",
+      "source": "copilot",
+      "category": "Completeness",
+      "sectionRef": "Approach > Architecture (Config)",
+      "description": "Plan implies schema validation by adding keys to `.ralph/overview-config.schema.json`, but the current loader (`scripts/lib/load-config.mjs` / `resolve-config.mjs`) does not validate against the schema — it only merges and resolves. If schema acceptance is part of AC #2, either add a validation pass or limit the AC to schema documentation + resolver behavior.",
+      "status": "open",
+      "fixedInIteration": null,
+      "resolution": null,
+      "relevantFiles": [
+        "scripts/lib/resolve-config.mjs",
+        ".ralph/overview-config.schema.json"
+      ],
+      "suggestedFix": "Clarify the AC: schema is documentation only; tests assert resolver behavior (defaults + override merge + path resolution) rather than schema validation. Or add an explicit ajv-based validator in resolve-config.mjs with its own test."
+    },
+    {
+      "id": "F-012",
+      "severity": "Medium",
+      "source": "consensus",
+      "category": "Simplicity",
+      "sectionRef": "Files to Modify (types.ts)",
+      "description": "Plan adds `aggregateStages?: Record<RalphStage, number>` to OverviewRalphState but the agreed design derives this client-side. Adding the type field creates an unowned contract — both Codex and Copilot flagged this.",
+      "status": "open",
+      "fixedInIteration": null,
+      "resolution": null,
+      "relevantFiles": [
+        "tools/overview-viewer/src/types.ts"
+      ],
+      "suggestedFix": "Drop `aggregateStages?` from OverviewRalphState. Derive counts in PipelineOverview from `ralphState.byTaskId` directly."
+    },
+    {
+      "id": "F-013",
+      "severity": "Medium",
+      "source": "copilot",
+      "category": "Completeness",
+      "sectionRef": "Files to Create / Implementation Strategy",
+      "description": "Planned `tools/overview-viewer/src/__tests__/pipelineOverview.test.tsx` runs in node SSR project, but click-behavior tests need jsdom + @testing-library/react + userEvent. The reference pattern (`toolbarRalphStageFilter.test.tsx`) actually lives in `src/__tests__/interactions/`.",
+      "status": "open",
+      "fixedInIteration": null,
+      "resolution": null,
+      "relevantFiles": [
+        "tools/overview-viewer/src/__tests__/interactions/pipelineOverview.test.tsx"
+      ],
+      "suggestedFix": "Place interaction tests at `tools/overview-viewer/src/__tests__/interactions/pipelineOverview.test.tsx`. If a pure render test is also desired (no interaction), it can live at `src/__tests__/pipelineOverview.test.tsx`, but click-to-filter tests must be in `interactions/`."
+    },
+    {
+      "id": "F-014",
+      "severity": "Medium",
+      "source": "codex",
+      "category": "Ordering",
+      "sectionRef": "Risk Areas (Plan 05 merge)",
+      "description": "Plan 05 conflict mitigation under-specifies what 'Plan 04 lands first' means as a guard. Plan 05 PRD exists and already names overlapping types/config surfaces. The 'rebase contingency' belongs in Stories 1–2 and 5, not only the final story.",
+      "status": "open",
+      "fixedInIteration": null,
+      "resolution": null,
+      "relevantFiles": [
+        "plans/ralph-pipeline-05-agent-exports.md",
+        ".ralph/jobs/ralph-pipeline-05-agent-exports/prd.json"
+      ],
+      "suggestedFix": "Add an explicit pre-merge rebase check to Stories 1, 2, and 5: 'Before opening a PR for this story, run `git fetch origin main && git rebase origin/main`; if Plan 05 has merged, follow the rebase notes in this plan's Risk Areas section to relocate the type/sync-core edits.' Document the relocation rules concretely (where runDurations moves, etc.)."
+    },
+    {
+      "id": "F-015",
+      "severity": "Medium",
+      "source": "consensus",
+      "category": "Criteria Quality",
+      "sectionRef": "Verification H / AC config override",
+      "description": "Verification H ('top recommendation shifts to higher-priority task' after config override) is brittle: depends on bookkeeper-populated priority values that may not exist in current data. Codex calls it brittle; Claude noted ambiguity over whether the file is mutated vs sandboxed.",
+      "status": "open",
+      "fixedInIteration": null,
+      "resolution": null,
+      "relevantFiles": [
+        "scripts/lib/score-recommendations.test.mjs (to create)"
+      ],
+      "suggestedFix": "Replace Verification H with a fixture-based unit test in `score-recommendations.test.mjs`: feed synthetic byTaskId + overviewData, run scorer with default weights, then with `weights.priority = 50`, assert the ranking changes deterministically. Drop the manual `.ralph/overview-config.json` mutation step."
+    },
+    {
+      "id": "F-016",
+      "severity": "Medium",
+      "source": "consensus",
+      "category": "Criteria Quality",
+      "sectionRef": "Verification B (watcher emission)",
+      "description": "AC and Verification B for 'watcher path emits' is underspecified — current watcher plumbing has lock/HMR/debounce behavior that manual testing easily skips. Codex + Copilot both flag this.",
+      "status": "open",
+      "fixedInIteration": null,
+      "resolution": null,
+      "relevantFiles": [
+        "scripts/lib/watch-ralph-state.mjs",
+        "scripts/lib/sync-core.test.mjs"
+      ],
+      "suggestedFix": "Add an automated test: call the watcher start/cold-start path in a temp repo (or use the existing sync-core test harness), assert `plans/overview-recommendations.json` and `plans/overview-dependency-graph.json` appear with valid JSON shapes. Acceptance criterion should reference the test by name."
+    }
+  ]
+}

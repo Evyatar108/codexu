@@ -1,0 +1,28 @@
+I’m opening the attached file first to see the exact task and context.
+
+I’ve got the plan; now I’m checking the referenced files to verify whether the proposal matches the codebase.
+
+I found one likely schema mismatch in the plan, so I’m verifying the actual MCP config shapes before I write the review.
+
+### Feasibility
+
+- [Critical] The proposed loader schema is too strict for the configs this repo already uses. The plan’s Step 1 requires each server entry to have `command: string`, but the checked-in project config at `.mcp.json:2-6` is an HTTP server with only `type` + `url`. Happy’s Claude-side tests also treat `{ type: 'http', url: ... }` as valid (`packages/happy-cli/src/claude/utils/queryInitMetadata.test.ts:110-126`), and Codex’s own migration/loader code treats `command` and `url` as alternative branches, not a required pair (`codex/.../external-agent-migration/src/lib.rs:356-393`, `codex/.../core-plugins/src/loader.rs:1042-1054`). If implemented as written, the new feature would reject the repo’s own `.mcp.json` and fail the main parity goal.
+
+### Completeness
+
+- [High] The plan’s acceptance story conflicts with the repo’s explicit testing contract. `packages/happy-cli/AGENTS.md:5-15,27-49` says Codex’s primary acceptance file is `packages/happy-cli/src/codex/codex.integration.test.ts` and that mocked tests do **not** count as acceptance. The plan explicitly makes mocked sibling tests the acceptance bar and marks `codex.integration.test.ts` out of scope. That leaves the work “done” by the plan’s standards while still missing the repository’s required acceptance surface.
+
+- [Medium] The plan says the fix must reach both `client.startThread(...)` and `resumeExistingThread(...)`, and those are indeed separate call paths in `packages/happy-cli/src/codex/runCodex.ts:718-725` and `:788-795`, with forwarding in `packages/happy-cli/src/codex/resumeExistingThread.ts:20-33`. But the listed acceptance tests only assert the `startThread` path. A dedicated resume-path check is missing, so the plan does not fully cover the behavior it claims to implement.
+
+### Ordering
+
+No issues found.
+
+### Simplicity
+
+No issues found.
+
+### Acceptance Criteria Quality
+
+- [Low] The documentation step is not fully actionable as written. The implementation section suggests annotating `packages/happy-cli/CLAUDE.md` with “delivered 2026-05-13 (commit `<sha>`)” while also requiring a single commit. That SHA does not exist until after the commit is created, so this is not a clean pre-commit acceptance target. The criterion should require “mark delivered” and make the commit SHA optional/post-commit.
+

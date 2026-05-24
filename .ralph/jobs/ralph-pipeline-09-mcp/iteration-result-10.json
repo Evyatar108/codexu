@@ -1,0 +1,44 @@
+{
+  "storyId": "US-010",
+  "verifiedEvidence": [
+    {
+      "criterion": "tools/overview-mcp/README.md covers install, registration, verification, per-tool contract, mutation/error behavior, and Windows PowerShell commands",
+      "evidenceKind": "passed",
+      "command": "grep -nE 'pnpm overview-mcp:build|pnpm overview-mcp:install|mcpServers|/mcp|overview[.]list_tasks|overview[.]set_override|PowerShell|Start-Process' tools/overview-mcp/README.md",
+      "result": "README includes install commands at lines 12-13, registration JSON at lines 26-31, /mcp verification at line 39, PowerShell verification and startup commands at lines 41-61, and the per-tool contract table for overview.list_tasks through overview.set_override at lines 71-86."
+    },
+    {
+      "criterion": "plans/ralph-pipeline-INDEX.md lists tools/overview-mcp/ and appendJournalNote export; DAG diagram shows Plan 09 dependency edges",
+      "evidenceKind": "passed",
+      "command": "grep -nE 'tools/overview-mcp|appendJournalNote|overview.add_journal_entry|depends on 05, 06, 07, 08' plans/ralph-pipeline-INDEX.md",
+      "result": "INDEX shows Plan 09 depends on 05, 06, 07, 08 in the DAG and parallel grouping at lines 76 and 140, documents appendJournalNote/assertSafeTaskId on line 199, and lists tools/overview-mcp/ in the source-of-truth modules table on line 222."
+    },
+    {
+      "criterion": "plans/ralph-pipeline-10-ralph-handoff.md mentions the MCP package using the correct filename",
+      "evidenceKind": "passed",
+      "command": "grep -nE 'tools/overview-mcp|overview.set_override|overview.add_journal_entry|Plan 09 MCP' plans/ralph-pipeline-10-ralph-handoff.md",
+      "result": "The handoff plan at plans/ralph-pipeline-10-ralph-handoff.md mentions tools/overview-mcp plus overview.set_override and overview.add_journal_entry at line 15, and references the Plan 09 MCP set_override fallback at lines 35 and 100."
+    },
+    {
+      "criterion": "Atomic final commit; commit message lists each diff for reviewer audit",
+      "evidenceKind": "passed",
+      "command": "git show --stat --format=fuller --no-renames HEAD -- tools/overview-mcp/README.md plans/ralph-pipeline-INDEX.md plans/ralph-pipeline-10-ralph-handoff.md",
+      "result": "Commit 027e882bd2dbf49dda92aaeb8f88c24d55176c9d has subject 'feat: US-010 - README + final INDEX refresh + downstream-plan audit', contains exactly the 3 documentation files, and its body lists each changed file with line areas and what changed. Stat: 100 insertions, 13 deletions."
+    },
+    {
+      "criterion": "Typecheck across the workspace passes",
+      "evidenceKind": "passed",
+      "command": "pnpm -r --if-present typecheck > .test-output/workspace.typecheck.log 2>&1",
+      "result": "Exit 0 in 126s. Workspace typecheck ran 10 of 11 projects and completed packages/codexu-options-mode-plugin, happy-wire, codium, tools/overview-mcp, tools/overview-viewer, happy-agent, happy-server, happy-app, and happy-cli without TypeScript errors."
+    },
+    {
+      "criterion": "Full test suite passes",
+      "evidenceKind": "passed",
+      "command": "pnpm test > .test-output/workspace.test.log 2>&1",
+      "result": "Exit 0 in 19s. Vitest reported 22 test files passed and 160 tests passed. Full log: .test-output/workspace.test.log."
+    }
+  ],
+  "skippedReasons": [],
+  "notTested": [],
+  "iterationSHA": "027e882bd2dbf49dda92aaeb8f88c24d55176c9d"
+}

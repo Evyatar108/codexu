@@ -1,0 +1,44 @@
+{
+  "storyId": "US-004",
+  "verifiedEvidence": [
+    {
+      "criterion": "ServerContext includes ProcessManager and tests can inject it",
+      "command": "nl -ba tools/overview-mcp/src/context.ts | sed -n '1,40p'; nl -ba tools/overview-mcp/src/__tests__/helpers.ts | sed -n '109,130p'",
+      "result": "PASS: context.ts includes processManager and buildContext constructs it; helpers.ts accepts options.processManager with a default ProcessManager.",
+      "evidenceKind": "inspection"
+    },
+    {
+      "criterion": "Dev-server tools register through tool-local server.registerTool calls",
+      "command": "grep -R 'registerTool(' -n tools/overview-mcp/src/tools/dev-server-*.ts",
+      "result": "PASS: four dev-server tool files register overview.dev_server.start, stop, status, and logs.",
+      "evidenceKind": "inspection"
+    },
+    {
+      "criterion": "Vite ready parsing, lifecycle, AlreadyRunning, startup race, failure retry, and log clamp coverage",
+      "command": "pnpm --filter @codexu/overview-mcp exec vitest run src/__tests__/dev-server.test.ts --passWithNoTests --reporter=verbose",
+      "result": "PASS: 1 file passed, 6 tests passed, covering the required dev-server behavior.",
+      "evidenceKind": "test"
+    },
+    {
+      "criterion": "Stdio smoke test lists the exact 14-tool set after build",
+      "command": "pnpm --filter @codexu/overview-mcp build && pnpm --filter @codexu/overview-mcp exec vitest run src/__tests__/stdio-tools-list.test.ts --passWithNoTests --reporter=verbose",
+      "result": "PASS: build exited 0; stdio smoke test passed with overview.dev_server.start/stop/status/logs included in exact set equality.",
+      "evidenceKind": "test"
+    },
+    {
+      "criterion": "Typecheck passes for @codexu/overview-mcp",
+      "command": "pnpm --filter @codexu/overview-mcp typecheck",
+      "result": "PASS: tsc --noEmit -p tsconfig.json exited 0; log .test-output/overview-mcp.typecheck.log.",
+      "evidenceKind": "typecheck"
+    },
+    {
+      "criterion": "Full @codexu/overview-mcp test suite passes",
+      "command": "pnpm --filter @codexu/overview-mcp test",
+      "result": "PASS: Test Files 17 passed (17), Tests 58 passed (58); log .test-output/overview-mcp.test.log.",
+      "evidenceKind": "test"
+    }
+  ],
+  "skippedReasons": [],
+  "notTested": [],
+  "iterationSHA": "cbdde97161ed9f61065255eafcfe5ee636e55217"
+}

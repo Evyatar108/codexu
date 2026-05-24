@@ -1,0 +1,103 @@
+{
+  "clusters": [
+    {
+      "name": "emitter-modules",
+      "stories": ["US-001", "US-002", "US-003", "US-004", "US-005"],
+      "phase": 1,
+      "dependsOn": [],
+      "fileOverlapEvidence": {
+        "sharedFiles": [],
+        "exclusiveFiles": [
+          "scripts/lib/emit-snapshot.mjs",
+          "scripts/lib/emit-snapshot.d.mts",
+          "scripts/lib/emit-snapshot.test.mjs",
+          "scripts/lib/emit-activity.mjs",
+          "scripts/lib/emit-activity.d.mts",
+          "scripts/lib/emit-activity.test.mjs",
+          "scripts/lib/emit-tasks-index.mjs",
+          "scripts/lib/emit-tasks-index.d.mts",
+          "scripts/lib/emit-tasks-index.test.mjs",
+          "scripts/lib/emit-snapshot-schema.mjs",
+          "scripts/lib/emit-snapshot-schema.d.mts",
+          "scripts/lib/emit-snapshot-schema.test.mjs"
+        ],
+        "risk": "low"
+      },
+      "executionModeRationale": "Each emitter is an isolated new file with no shared code paths or existing dependencies. Bundled as one cluster to keep the test surface coherent, but could be parallelized further if desired."
+    },
+    {
+      "name": "types-and-config",
+      "stories": ["US-006", "US-007", "US-008"],
+      "phase": 1,
+      "dependsOn": [],
+      "fileOverlapEvidence": {
+        "sharedFiles": [],
+        "exclusiveFiles": [
+          "tools/overview-viewer/src/types.ts",
+          "scripts/lib/default-config.mjs",
+          "scripts/lib/default-config.d.mts",
+          "scripts/lib/resolve-config.mjs",
+          ".ralph/overview-config.json",
+          ".ralph/overview-config.schema.json",
+          "tools/overview-viewer/src/__tests__/scripts.d.ts",
+          "tools/overview-viewer/src/__tests__/config.test.ts"
+        ],
+        "risk": "low"
+      },
+      "executionModeRationale": "Pure additive type and config plumbing. types.ts edits are appended at file end and do not collide with Plan 03 (which edits utils/filters.ts). Can run in parallel with emitter-modules — no file overlap."
+    },
+    {
+      "name": "sync-core-wiring",
+      "stories": ["US-009", "US-010", "US-011"],
+      "phase": 2,
+      "dependsOn": ["emitter-modules", "types-and-config"],
+      "fileOverlapEvidence": {
+        "sharedFiles": [],
+        "exclusiveFiles": [
+          "scripts/lib/sync-core.mjs",
+          "scripts/lib/sync-core.test.mjs"
+        ],
+        "risk": "medium"
+      },
+      "executionModeRationale": "Must serialize after emitter-modules (their exports must exist) and types-and-config (config keys must resolve). Touches the same module Plan 02 stabilized; must preserve atomicWriteFile semantics, lock window, and existing fixtures."
+    },
+    {
+      "name": "watcher-wiring",
+      "stories": ["US-012", "US-013"],
+      "phase": 3,
+      "dependsOn": ["sync-core-wiring"],
+      "fileOverlapEvidence": {
+        "sharedFiles": [],
+        "exclusiveFiles": [
+          "scripts/lib/watch-ralph-state.mjs",
+          "scripts/lib/watch-ralph-state.test.mjs"
+        ],
+        "risk": "low"
+      },
+      "executionModeRationale": "Requires the extended mergeAndWrite return shape from sync-core-wiring (signature itself is unchanged). The watcher call site is unchanged; only the post-merge consumption of result.activityEvents is new. Serialized to keep the lock-window invariant intact."
+    },
+    {
+      "name": "docs-and-cascade",
+      "stories": ["US-014", "US-015", "US-016", "US-017"],
+      "phase": 4,
+      "dependsOn": ["watcher-wiring"],
+      "fileOverlapEvidence": {
+        "sharedFiles": [],
+        "exclusiveFiles": [
+          "AGENTS.md",
+          "tools/overview-viewer/CLAUDE.md",
+          "plans/ralph-pipeline-06-skills.md",
+          "plans/ralph-pipeline-07-context.md",
+          "plans/ralph-pipeline-08-crews.md",
+          "plans/ralph-pipeline-09-mcp.md",
+          "plans/ralph-pipeline-10-ralph-handoff.md",
+          "plans/ralph-pipeline-11-mcp-operational-tools.md",
+          "plans/ralph-pipeline-12-package-as-plugin.md",
+          "plans/ralph-pipeline-INDEX.md"
+        ],
+        "risk": "low"
+      },
+      "executionModeRationale": "Docs and cascade audit are sequential by nature (single editor traversing the downstream plans). End-to-end acceptance run requires the watcher to be fully wired, hence Phase 4."
+    }
+  ]
+}

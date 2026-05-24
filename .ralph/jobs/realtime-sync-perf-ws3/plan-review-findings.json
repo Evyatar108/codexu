@@ -1,0 +1,288 @@
+{
+  "planFile": "D:/harness-efforts/codexu/.ralph/jobs/.staging/20260513-055941/draft-plan.md",
+  "repoDir": "D:/harness-efforts/codexu",
+  "reviewCycle": 0,
+  "findings": [
+    {
+      "id": "F-001",
+      "severity": "High",
+      "source": "consensus",
+      "category": "Completeness",
+      "sectionRef": "Approach > Architecture / Files to Create/Modify > Client > sync.ts",
+      "description": "Persistence hook is too narrow and unsafe for paths that don't reach apply* sinks. new-session (sync.ts ~1765-1799) and delete-session call sessionsSync.invalidate() (fire-and-forget), NOT applySessions / applyMachines / applyProfile. Persisting lastSeenUpdateSeq before the async fetch completes can permanently skip the update on next reconnect. Fix: persist exactly once per successfully handled update (after the entire handleUpdate body succeeds and at a known-safe point), not only after the listed apply* sites; and for events that defer to invalidate(), persist only after the invalidate resolves successfully.",
+      "status": "fixed",
+      "relevantFiles": [
+        "packages/happy-app/sources/sync/sync.ts"
+      ],
+      "suggestedFix": "Move the persist call to a single location at the successful tail of handleUpdate. For new-session / delete-session paths that defer to sessionsSync.invalidate(), either await the invalidate (use invalidateAndAwait()) before persisting OR persist inside a .then() callback on the existing invalidate path. Document the constraint in a comment.",
+      "fixedInIteration": 1,
+      "resolution": "Replaced narrow per-apply* persist with a tail-of-handleUpdate persist that splits into synchronous-apply branches (persist directly) and invalidate-deferred branches (switch to invalidateAndAwait and chain persist via .then); added Risk Area #8, two new acceptance criteria, and a new sync.test.ts case asserting persist is deferred until the invalidate promise resolves."
+    },
+    {
+      "id": "F-002",
+      "severity": "High",
+      "source": "consensus",
+      "category": "Criteria Quality",
+      "sectionRef": "Open Questions / Acceptance Criteria > Client",
+      "description": "Plan self-contradicts on the no-stored-seq (first-connect) reconnect path. Open Questions §3 says to retain sessionsSync.invalidate() when lastSeenUpdateSeqByMachineId[machineId] is undefined; the Files-to-Modify section and the acceptance test for onReconnected state the unconditional invalidate is removed. An autonomous implementer can satisfy the test and still violate the decided behavior. Fix: commit one design in the Approach section, mirror it in Files-to-Modify, and assert it in the acceptance criterion.",
+      "status": "fixed",
+      "relevantFiles": [
+        "packages/happy-app/sources/sync/sync.ts"
+      ],
+      "suggestedFix": "Decide: onReconnected(machineId) calls sessionsSync.invalidate() if storage.getState().lastSeenUpdateSeqByMachineId[machineId] is undefined; otherwise no-op (replay path is silent, replay-overflow path triggers fallback). Add a spy-based unit test asserting BOTH branches.",
+      "fixedInIteration": 2,
+      "resolution": "Committed onReconnected design (invalidate iff stored lastSeenSeq is undefined) in Approach, mirrored it in Files-to-Modify sync.ts bullet and Scope, and split the acceptance test into two spy-based assertions covering both branches; updated Open Questions §3 to mark the decision as resolved."
+    },
+    {
+      "id": "F-003",
+      "severity": "High",
+      "source": "codex",
+      "category": "Feasibility",
+      "sectionRef": "Approach > Architecture / Files to Create/Modify > Server > eventRouter.ts",
+      "description": "Buffer type Map<userId, UpdatePayload[]> is insufficient. Replay must respect recipientFilter — private session/machine-scoped updates must not be re-emitted to a reconnecting socket that the original filter excluded. Plan references recipientFilterFromConnection but no such abstraction exists. Buffer entries must include the original recipientFilter; emitting requires a new helper (e.g., doesFilterMatchConnection(filter, connection)) that uses the same matching logic as the existing private getRoomsForFilter() path.",
+      "status": "wont_fix",
+      "relevantFiles": [
+        "packages/happy-server/sources/app/events/eventRouter.ts"
+      ],
+      "suggestedFix": "Buffer entry shape: { payload: UpdatePayload, recipientFilter?: RecipientFilter, createdAt: number }. Add a private doesFilterMatchConnection(filter, connection) helper inside EventRouterSink that reuses the existing room-derivation logic. Replay loops over entries and emits only those whose filter matches the reconnecting connection.",
+      "fixedInIteration": 4,
+      "resolution": "Plan already addresses the finding in full: BufferedUpdate includes recipientFilter and createdAt; a private doesFilterMatchConnection helper mirroring getRoomsForFilter is specified with the exact per-filter-type mapping the finding requests; replay loop emits only filter-matched entries; the connection is passed from socket.ts; test (d) covers the connection-type × filter-type matrix; Risk #4 enforces the helper/getRoomsForFilter lockstep invariant. The 'recipientFilterFromConnection' string referenced in the finding's description does not appear in the current plan."
+    },
+    {
+      "id": "F-004",
+      "severity": "High",
+      "source": "codex",
+      "category": "Completeness",
+      "sectionRef": "Files to Create/Modify > Client > sync.ts",
+      "description": "Client handleUpdate is async and currently not awaited by the socket dispatch path. A replay burst of seq 6..10 can complete out of order, so a blind setter that writes update.seq can regress lastSeenUpdateSeqByMachineId[machineId]. Setter must be monotonic.",
+      "status": "fixed",
+      "relevantFiles": [
+        "packages/happy-app/sources/sync/storage.ts",
+        "packages/happy-app/sources/sync/sync.ts"
+      ],
+      "suggestedFix": "Implement setLastSeenUpdateSeq(machineId, seq) as: state.lastSeenUpdateSeqByMachineId[machineId] = Math.max(state.lastSeenUpdateSeqByMachineId[machineId] ?? 0, seq). Add a unit test asserting that writing seq 10 then seq 6 leaves the stored value at 10.",
+      "fixedInIteration": 5,
+      "resolution": "Storage setLastSeenUpdateSeq is now specified as monotonic via Math.max with central guard for all callers; added Risk #9 describing the async out-of-order race and a dedicated acceptance-criteria test asserting that writing seq 10 then seq 6 leaves stored value at 10 and skips the regressing MMKV write."
+    },
+    {
+      "id": "F-005",
+      "severity": "High",
+      "source": "codex",
+      "category": "Feasibility",
+      "sectionRef": "Risk Areas > #7 / Approach > Architecture",
+      "description": "The daemon-restart mitigation (lastSeenSeq > currentSeq → replay-overflow) requires tracking currentSeq per user even when the replay buffer is empty or fully age-evicted. A buffer-only Map<userId, UpdatePayload[]> cannot reliably compute this. Plan describes the mitigation in Risk #7 prose but the implementation section (Architecture / Files-to-Modify) does not specify the supporting state.",
+      "status": "fixed",
+      "relevantFiles": [
+        "packages/happy-server/sources/app/events/eventRouter.ts"
+      ],
+      "suggestedFix": "Add a parallel Map<userId, number> currentSeqByUser updated on every emitUpdate (currentSeqByUser[userId] = payload.seq). getReplayForUser returns overflow when (a) buffer non-empty AND lastSeenSeq < oldestBufferedSeq, OR (b) lastSeenSeq > currentSeqByUser[userId] ?? 0 (daemon-restart case). Empty buffer + lastSeenSeq <= currentSeq is a no-op.",
+      "resolution": "Substantively fixed in plan (currentSeqByUser parallel Map<userId,number> design specified in Approach §Architecture line 40-41, eventRouter.ts modify bullet line 63, Empty-buffer/Daemon-restart Risk #6+#7 lines 122-123, Risk #10 line 126, and acceptance tests lines 132-134 covering both buffer-non-empty and buffer-empty restart cases). The wont_fix/skipped marker reflects the F-005 fix-agent failing to emit <review-meta> on 2 consecutive iterations; the substance was applied earlier in the loop and the post-loop plan inspection confirms it. See ## Plan Review Failure section.",
+      "fixedInIteration": 6
+    },
+    {
+      "id": "F-006",
+      "severity": "High",
+      "source": "copilot",
+      "category": "Feasibility",
+      "sectionRef": "Approach > Architecture / Open Questions",
+      "description": "Overflow rule lastSeenSeq < oldestBufferedSeq is correct only when the daemon serves exactly one user. allocateUserSeq is module-global (ignores accountId at seq.ts:6-15), so on a multi-user daemon a single user's seqs are sparse (interleaved with other users' seqs). oldestBufferedSeq stored per-user can jump far ahead of that user's last-seen seq even when no events for that user were lost. Plan must either explicitly state/enforce the one-user-per-daemon invariant or change the comparison to a trim-watermark scheme.",
+      "status": "fixed",
+      "relevantFiles": [
+        "packages/happy-server/sources/app/events/eventRouter.ts",
+        "packages/happy-server/sources/storage/seq.ts",
+        "plans/realtime-sync-perf.md"
+      ],
+      "suggestedFix": "Document the one-user-per-daemon invariant in CLAUDE.md and the plan; reference packages/happy-cli/src/daemon/dualListenerBinding.ts as the empirical basis. Empty buffer + lastSeenSeq > currentSeq fallback covers the cross-user case implicitly because cross-user events do not advance currentSeqByUser[thisUser]. The per-user buffer + per-user currentSeq approach (F-005) sidesteps the sparseness concern as long as we measure per-user, not global.",
+      "fixedInIteration": 8,
+      "resolution": "Documented the one-user-per-daemon invariant (empirical basis: dualListenerBinding.ts pinning + pair-protocol gating) as the precondition that licenses per-user cap-overflow math given global allocateUserSeq; added Risk #10, Technical-constraints bullet, CLAUDE.md update requirement, inline-comment requirement at module-scoped maps, Open Question follow-up, and explicit trim-watermark/per-account-refactor escape hatch if the invariant is ever relaxed."
+    },
+    {
+      "id": "F-007",
+      "severity": "High",
+      "source": "consensus",
+      "category": "Criteria Quality",
+      "sectionRef": "Files to Create/Modify > Server / Acceptance Criteria > Server",
+      "description": "Plan marks socket.spec.ts handshake assertions 'optional', but the new replay behavior is only useful if connect-time parsing of auth.lastSeenSeq actually triggers the replay path. eventRouter.test.ts alone tests selection logic; it does not prove the wiring in socket.ts:156-236. Make socket.spec.ts coverage mandatory: assert that a connection with auth.lastSeenSeq triggers replay or overflow emit, and a connection without it does not.",
+      "status": "fixed",
+      "relevantFiles": [
+        "packages/happy-server/sources/app/api/socket.ts",
+        "packages/happy-server/sources/app/api/socket.spec.ts"
+      ],
+      "suggestedFix": "Promote the socket.spec.ts modification from optional to required. Add at least two test cases: (1) handshake with auth.lastSeenSeq=N triggers eventRouter.replay path; (2) handshake without it triggers no replay attempt.",
+      "fixedInIteration": 9,
+      "resolution": "Promoted socket.spec.ts handshake coverage from optional to mandatory: added a new MODIFY bullet in Files-to-Modify > Server specifying two test cases (handshake with lastSeenSeq triggers getReplayForUser + update emit; handshake without it skips dispatch; oversized lastSeenSeq triggers replay-overflow emit); updated US-002 reference to mark socket.spec.ts mandatory; added a corresponding acceptance criterion in the Server section with concrete spy assertions. Applied via targeted edit after the auto-loop hit cap."
+    },
+    {
+      "id": "F-008",
+      "severity": "High",
+      "source": "claude",
+      "category": "Feasibility",
+      "sectionRef": "Architecture > Client storage state",
+      "description": "Plan calls storage.setLastSeenUpdateSeq(machineId, seq) on every handleUpdate, producing one MMKV write per applied event. Existing applyMachines/applySessions batch multiple changes into one set() call. The plan does not state whether this write cost is accepted, debounced, or batched.",
+      "status": "open",
+      "relevantFiles": [
+        "packages/happy-app/sources/sync/storage.ts",
+        "packages/happy-app/sources/sync/persistence.ts"
+      ],
+      "suggestedFix": "Pick one and document: (a) Accept the write cost (MMKV is optimized for frequent small writes); document rationale in CLAUDE.md. (b) Debounce: collect in-memory and flush every K ms or on app background. Recommend (a) for v1 simplicity unless instrumentation shows a regression."
+    },
+    {
+      "id": "F-009",
+      "severity": "High",
+      "source": "claude",
+      "category": "Feasibility",
+      "sectionRef": "Open Questions / Approach > Reconnect gating",
+      "description": "The 'first-connect HTTP refresh' decision is parked in Open Questions but is load-bearing for correctness (without it, a fresh user with no stored seq sees nothing until something happens). Move from Open Questions to a committed design decision in the Approach section.",
+      "status": "fixed",
+      "relevantFiles": [
+        "packages/happy-app/sources/sync/sync.ts"
+      ],
+      "suggestedFix": "Same fix as F-002. Commit the design: onReconnected calls invalidate iff storage slot is undefined.",
+      "fixedInIteration": 2,
+      "resolution": "Resolved by the same commit as F-002 (which this finding effectively duplicated). Plan Open Questions §3 line 175 explicitly marked RESOLVED with the committed design: onReconnected calls sessionsSync.invalidate() iff stored lastSeenSeq for that machineId is undefined. Mirrored at Approach line 45, Files-to-Modify line 80, Scope line 103, and acceptance criteria lines 145-146."
+    },
+    {
+      "id": "F-010",
+      "severity": "Medium",
+      "source": "codex",
+      "category": "Completeness",
+      "sectionRef": "Approach > Architecture / Files to Create/Modify > Server",
+      "description": "Plan keeps opportunistic 60s age eviction at append time but also advertises 'cap-only retention'. Two mechanisms add complexity and test flake risk for no clear benefit at the stated 1024-event scale. Either remove age eviction entirely or include explicit acceptance criteria + fake-timer tests for it.",
+      "status": "open",
+      "relevantFiles": [
+        "packages/happy-server/sources/app/events/eventRouter.ts"
+      ],
+      "suggestedFix": "Remove age eviction. Cap-only at 1024 entries per user is sufficient. Document that buffer survives until daemon restart; multi-day backgrounded reconnects naturally trigger overflow."
+    },
+    {
+      "id": "F-011",
+      "severity": "Medium",
+      "source": "codex",
+      "category": "Simplicity",
+      "sectionRef": "Approach > Architecture / Files to Create/Modify > Server",
+      "description": "Separate getReplayForUser(userId, lastSeenSeq, recipientFilter) API is awkward; replay filtering is connection-based, not filter-derived. Cleaner: replayUpdatesForConnection(userId, connection, lastSeenSeq): { events, overflow, currentSeq } with filter matching internal.",
+      "status": "open",
+      "relevantFiles": [
+        "packages/happy-server/sources/app/events/eventRouter.ts",
+        "packages/happy-server/sources/app/api/socket.ts"
+      ],
+      "suggestedFix": "Expose replayUpdatesForConnection(userId, connection, lastSeenSeq) on the EventRouter interface. Internally uses doesFilterMatchConnection helper. socket.ts calls eventRouter.replayUpdatesForConnection(...) and emits the results."
+    },
+    {
+      "id": "F-012",
+      "severity": "Medium",
+      "source": "codex",
+      "category": "Criteria Quality",
+      "sectionRef": "Acceptance Criteria > Client",
+      "description": "'handleUpdate 3 times' criterion does not specify update types. At minimum include one locally-applied event (e.g., new-message) AND one fetch-backed event (e.g., new-session) since their safe persistence points differ.",
+      "status": "open",
+      "relevantFiles": [
+        "packages/happy-app/sources/sync/sync.test.ts"
+      ],
+      "suggestedFix": "Update acceptance criterion to require coverage of at least new-message (apply* sink path) and new-session (sessionsSync.invalidate() path)."
+    },
+    {
+      "id": "F-013",
+      "severity": "Medium",
+      "source": "claude",
+      "category": "Feasibility",
+      "sectionRef": "Approach > Architecture / Files to Create/Modify > Client > sync.ts",
+      "description": "Replay-overflow handler updates lastSeenUpdateSeqByMachineId only after invalidateAndAwait() succeeds is implied, but plan doesn't specify behavior on invalidate failure. If invalidate rejects, should the seq update be skipped (correct) or applied anyway (drops on the floor)?",
+      "status": "open",
+      "relevantFiles": [
+        "packages/happy-app/sources/sync/sync.ts"
+      ],
+      "suggestedFix": "Specify: on invalidateAndAwait() rejection, do NOT update lastSeenUpdateSeqByMachineId — leave it as-is so the next reconnect retries. Log the error. Document in Approach section."
+    },
+    {
+      "id": "F-014",
+      "severity": "Medium",
+      "source": "consensus",
+      "category": "Criteria Quality",
+      "sectionRef": "Acceptance Criteria > Combined test command",
+      "description": "Combined test command writes to /tmp/codexu-ws3.log via tee. Environment is win32; /tmp/ exists in Git Bash but is not a Windows-native path and the path may differ between cmd/PowerShell and bash invocations.",
+      "status": "open",
+      "relevantFiles": [],
+      "suggestedFix": "Replace /tmp/codexu-ws3.log with a repo-relative path like ./tmp/codexu-ws3.log (and add tmp/ to .gitignore if not already), or invoke the command explicitly from Git Bash and document it. Recommended: ./tmp/codexu-ws3.log so it works on both shells."
+    },
+    {
+      "id": "F-015",
+      "severity": "Medium",
+      "source": "copilot",
+      "category": "Completeness",
+      "sectionRef": "Acceptance Criteria > Client",
+      "description": "apiSocket.ts wiring is under-tested. Plan tests buildTunnelSocketOptions in isolation but does not assert that apiSocket reads the right MMKV slot per machine on connect. Since apiSocket.connect() loops over connections Map, machine A and machine B should send different auth.lastSeenSeq values.",
+      "status": "open",
+      "relevantFiles": [
+        "packages/happy-app/sources/sync/apiSocket.ts",
+        "packages/happy-app/sources/sync/apiSocket.test.ts"
+      ],
+      "suggestedFix": "Add a test case in apiSocket.test.ts: initialize two MachineConnections with machineId A and B; populate storage.lastSeenUpdateSeqByMachineId = { A: 10, B: 20 }; call connect(); assert each socket's buildTunnelSocketOptions was called with the correct per-machine seq."
+    },
+    {
+      "id": "F-016",
+      "severity": "Medium",
+      "source": "claude",
+      "category": "Criteria Quality",
+      "sectionRef": "Acceptance Criteria > Server",
+      "description": "'no other socket receives them' is underspecified. Test should explicitly verify: (a) only the reconnecting socket gets replay; (b) other connections for same user get nothing; (c) different users' sockets get nothing.",
+      "status": "open",
+      "relevantFiles": [
+        "packages/happy-server/sources/app/events/eventRouter.test.ts"
+      ],
+      "suggestedFix": "Expand the test setup to create two sockets for user u1 plus one socket for user u2; assert replay is delivered only to the reconnecting u1 socket."
+    },
+    {
+      "id": "F-017",
+      "severity": "Medium",
+      "source": "copilot",
+      "category": "Criteria Quality",
+      "sectionRef": "Files to Create/Modify > Client > sync.ts",
+      "description": "Implementation step 'if (!isReplay || idempotentReplayPath)' references an idempotentReplayPath concept that does not exist in sync.ts. Vague directive; an implementer cannot mechanically follow it.",
+      "status": "open",
+      "relevantFiles": [
+        "packages/happy-app/sources/sync/sync.ts"
+      ],
+      "suggestedFix": "Rewrite the directive concretely: persist lastSeenUpdateSeqByMachineId[sourceMachineId] = updateData.seq at the successful tail of handleUpdate, including when isReplay is true (replayed events count as seen). Remove the idempotentReplayPath placeholder."
+    },
+    {
+      "id": "F-018",
+      "severity": "Medium",
+      "source": "codex",
+      "category": "Completeness",
+      "sectionRef": "Architecture > Client overflow handling",
+      "description": "Overflow handler only calls sessionsSync.invalidateAndAwait(). update-machine and delete-machine can be among missed events. Plan keeps machinesSync.invalidate() in onReconnected, which may not run on a per-machine-socket overflow event. Specify explicitly whether overflow handler also refreshes machines, or rely on the unconditional onReconnected.machinesSync.invalidate().",
+      "status": "open",
+      "relevantFiles": [
+        "packages/happy-app/sources/sync/sync.ts"
+      ],
+      "suggestedFix": "Add machinesSync.invalidate() (or invalidateAndAwait) inside the replay-overflow handler alongside sessionsSync.invalidateAndAwait(). Both should complete before the seq update."
+    },
+    {
+      "id": "F-019",
+      "severity": "Medium",
+      "source": "codex",
+      "category": "Criteria Quality",
+      "sectionRef": "Acceptance Criteria > Server",
+      "description": "Overflow acceptance criterion does not include the empty-buffer + daemon-restart case. Spec needs: lastSeenSeq > currentSeq AND buffer is empty → still emit replay-overflow.",
+      "status": "open",
+      "relevantFiles": [
+        "packages/happy-server/sources/app/events/eventRouter.test.ts"
+      ],
+      "suggestedFix": "Add a test case: fresh eventRouter (empty buffer, currentSeqByUser[u1]=0). Simulate a reconnect handshake with auth.lastSeenSeq=500. Assert replay-overflow event with currentSeq=0 is emitted."
+    },
+    {
+      "id": "F-020",
+      "severity": "Low",
+      "source": "codex",
+      "category": "Completeness",
+      "sectionRef": "Open Questions",
+      "description": "Stale lastSeenUpdateSeqByMachineId entries persist when a machine is removed. Harmless metadata bloat. Plan should either explicitly accept this or include cleanup.",
+      "status": "open",
+      "relevantFiles": [
+        "packages/happy-app/sources/sync/storage.ts"
+      ],
+      "suggestedFix": "Document as accepted bloat in Open Questions OR add cleanup at the machine-removal site (whatever already prunes credentials)."
+    }
+  ]
+}

@@ -1,0 +1,148 @@
+{
+  "project": "codexu",
+  "description": "foundation (overview-data-split Phase 1): scaffold plans/overview-data.js sidecar with the top-level window.OVERVIEW_DATA skeleton, relocate all map metadata verbatim from the inline roadmap-data block, delete the inline JSON from plans/overview.html, add a <script src> before the main inline <script>, and rewire getRoadmapData(). Establishes the skeleton-ownership invariant for downstream parallel jobs.",
+  "deslop": true,
+  "iterationEngine": "codex",
+  "jobDir": "D:/harness-efforts/codexu/.ralph/job-groups/overview-data-split/foundation",
+  "repoDir": "D:/harness-efforts/codexu",
+  "branch": {
+    "name": "ralph/overview-data-split/foundation",
+    "created": true
+  },
+  "worktree": {
+    "path": "D:/harness-efforts/codexu/.ralph/job-groups/overview-data-split/foundation/worktree",
+    "branch": "ralph/overview-data-split/foundation",
+    "external": true
+  },
+  "group": {
+    "name": "overview-data-split",
+    "groupDir": "D:/harness-efforts/codexu/.ralph/job-groups/overview-data-split"
+  },
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Scaffold overview-data.js with full top-level skeleton",
+      "description": "As a bookkeeper, I want a plans/overview-data.js sidecar that holds the entire current inline JSON verbatim plus empty tasks: [] and empty phaseTree: [] arrays, so that downstream stories can append into a stable skeleton without contending for the top-level braces.",
+      "acceptanceCriteria": [
+        "plans/overview-data.js exists. Top of file: schema comment block describing every field. Body: single `window.OVERVIEW_DATA = { ... };` assignment, no IIFE, no conditionals.",
+        "Top-level fields include generatedAt, generatedFromCommit, tasks: [], phaseTree: [], runs, periodic, cadence, lastTouched, effort, risk, workstream, sizeBucket, spawnedFrom (NOT under a meta:{} wrapper).",
+        "runs, periodic, cadence, lastTouched, effort, risk, workstream, sizeBucket, spawnedFrom, generatedAt, generatedFromCommit are character-for-character copies of the matching keys in the existing <script type=\"application/json\" id=\"roadmap-data\"> block at plans/overview.html lines 2180-2612.",
+        "plans/overview.html no longer contains the <script type=\"application/json\" id=\"roadmap-data\"> block (lines 2180-2612, ~430 lines).",
+        "plans/overview.html contains <script src=\"overview-data.js\"></script> immediately before the main inline <script> block (at line 2614 pre-refactor).",
+        "getRoadmapData() in plans/overview.html is rewired to return window.OVERVIEW_DATA.",
+        "Opening the page on file:// shows #freshness-hint and #gen-sha populated correctly (consumers at plans/overview.html lines 3540-3543 read data.generatedFromCommit and data.generatedAt at top level).",
+        "Page renders identically: all 49 task rows + kanban cards + phase tree still authored inline in HTML (this story only relocates JSON; counts: 49 <details class=\"cmd\"> rows).",
+        "Skeleton-ownership invariant established: tasks: [] and phaseTree: [] are present (empty arrays) inside the top-level OVERVIEW_DATA object. The schema-comment block at the top of plans/overview-data.js explicitly states: 'Each downstream story mutates only its own array body (US-002/US-003 append to tasks[]; US-004 appends to phaseTree[]). The top-level object skeleton — braces, key order, comma layout — must not be re-formatted by downstream stories. This isolation lets US-003 and US-004 run in parallel worktrees without merge conflicts on the object literal.'",
+        "Typecheck passes (root pnpm workspace installs/builds successfully)."
+      ],
+      "priority": 1,
+      "passes": true,
+      "notes": "",
+      "verifiedEvidence": [
+        {
+          "criterion": "plans/overview-data.js exists with schema comment and single assignment",
+          "command": "test -f plans/overview-data.js; node VM checks assignment_count/no conditionals/comment invariant",
+          "result": "plans/overview-data.js exists; assignment_count=1; iife_or_conditionals=false; schema comment describes all top-level fields.",
+          "evidenceKind": "command-output"
+        },
+        {
+          "criterion": "Top-level fields include generatedAt/generatedFromCommit/tasks/phaseTree/maps with no meta wrapper",
+          "command": "node VM evaluate plans/overview-data.js and print Object.keys/tasks/phaseTree/has_meta",
+          "result": "keys=generatedAt,generatedFromCommit,tasks,phaseTree,lastTouched,periodic,cadence,runs,effort,risk,workstream,sizeBucket,spawnedFrom; tasks=[]; phaseTree=[]; has_meta=false.",
+          "evidenceKind": "command-output"
+        },
+        {
+          "criterion": "Metadata maps copied character-for-character from original inline JSON",
+          "command": "node compare git show HEAD:plans/overview.html roadmap-data JSON to plans/overview-data.js after removing tasks/phaseTree",
+          "result": "metadata_text_equal_after_removing_tasks_phaseTree=true; original_len=25840; current_without_extras_len=25840.",
+          "evidenceKind": "command-output"
+        },
+        {
+          "criterion": "plans/overview.html no longer contains roadmap-data JSON script",
+          "command": "grep -c '<script type=\"application/json\" id=\"roadmap-data\"' plans/overview.html",
+          "result": "0 matches.",
+          "evidenceKind": "absent-verified"
+        },
+        {
+          "criterion": "plans/overview.html loads overview-data.js immediately before main inline script",
+          "command": "grep -n script tags; node check sidecar index before main script and bytes between",
+          "result": "overview-data.js script at line 2180; main inline script at line 2182; sidecar_before_main=true; only blank line between tags.",
+          "evidenceKind": "command-output"
+        },
+        {
+          "criterion": "getRoadmapData() returns window.OVERVIEW_DATA",
+          "command": "sed -n '3093,3101p' plans/overview.html",
+          "result": "Function body is exactly return window.OVERVIEW_DATA;.",
+          "evidenceKind": "static-inspection"
+        },
+        {
+          "criterion": "#freshness-hint and #gen-sha populate from top-level generated fields",
+          "command": "node VM executes plans/overview-data.js plus exact getRoadmapData/freshness snippet with fake DOM elements",
+          "result": "gen-sha=d279d49d; freshness-hint=(snapshot 3 d ago). Browser automation unavailable, so this is a DOM-snippet fallback for file:// behavior.",
+          "evidenceKind": "command-output"
+        },
+        {
+          "criterion": "Rows, kanban cards, and phase tree remain authored inline with unchanged counts",
+          "command": "grep counts in current file and git show HEAD:plans/overview.html",
+          "result": "current_cmd=51; head_cmd=51; current_cards=99; head_cards=99; current_phase=7; head_phase=7.",
+          "evidenceKind": "command-output"
+        },
+        {
+          "criterion": "Skeleton-ownership invariant documented and empty arrays present",
+          "command": "node VM checks tasks/phaseTree arrays and exact invariant string in plans/overview-data.js",
+          "result": "tasks=[]; phaseTree=[]; comment_has_invariant=true with the required downstream-story ownership text.",
+          "evidenceKind": "command-output"
+        },
+        {
+          "criterion": "Typecheck passes (root pnpm workspace installs/builds successfully)",
+          "command": "pnpm install --frozen-lockfile; pnpm -r --if-present typecheck; git diff --check",
+          "result": "pnpm install exit=0 (Done in 3m 40.8s); workspace typecheck exit=0 across 8 of 9 workspace projects; git diff --check exit=0 with only Git CRLF warnings.",
+          "evidenceKind": "command-output"
+        }
+      ],
+      "dependencies": [],
+      "failureClassification": "",
+      "partialProgress": null
+    }
+  ],
+  "planReviewContext": [
+    {
+      "id": "F-002",
+      "severity": "High",
+      "source": "codex",
+      "category": "Feasibility",
+      "description": "Line ranges in the plan were wrong. Verified: <script type=\"application/json\" id=\"roadmap-data\"> spans plans/overview.html lines 2180-2612 (closing </script> at 2612). Main inline <script> runs 2614-3767. If the deletion follows the wrong stated range it would also delete most of the main script — highest-risk error.",
+      "relevantFiles": [
+        "plans/overview.html"
+      ],
+      "suggestedFix": "Delete only lines 2180-2612 (~430 lines); preserve main inline JS at 2614-3767."
+    },
+    {
+      "id": "F-003",
+      "severity": "High",
+      "source": "codex",
+      "category": "Feasibility",
+      "description": "Do NOT wrap generatedAt/generatedFromCommit under meta:{}. Consumer at plans/overview.html:3540 reads data.generatedFromCommit (top-level) and :3543 reads data.generatedAt. A meta:{} wrapper without simultaneous consumer rewrite breaks #freshness-hint and #gen-sha.",
+      "relevantFiles": [
+        "plans/overview.html"
+      ],
+      "suggestedFix": "Keep generatedAt and generatedFromCommit at the top level of OVERVIEW_DATA alongside tasks/phaseTree/runs/etc."
+    },
+    {
+      "id": "F-001",
+      "severity": "High",
+      "source": "codex",
+      "category": "Feasibility",
+      "description": "Task count is 51 (not 49). Verified: grep -c '<details class=\"cmd\"' plans/overview.html = 51, data-plan-only=7, data-merge-commit=7. Downstream stories port 48 tasks (51 - 3 representatives).",
+      "relevantFiles": [
+        "plans/overview.html"
+      ],
+      "suggestedFix": "Anchor any counts/checks on 51 total command rows."
+    },
+    {
+      "id": "F-000",
+      "severity": "Low",
+      "description": "# truncated 5 findings (sentinel: planReviewContext was capped at 500 tokens)"
+    }
+  ]
+}

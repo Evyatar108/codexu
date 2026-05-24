@@ -1,0 +1,29 @@
+{
+  "recommendation": "BLOCKED",
+  "passCount": 11,
+  "storiesCompleted": [
+    {"id": "US-010", "sha": "2f00499182eaac70cea4590c187a48cc93f376b7", "iteration": 10, "evidence": "VALID"},
+    {"id": "US-011", "sha": "a6ddb4ffbf64c54fe35cb3c98f9020d8d809b8c0", "iteration": 11, "evidence": "VALID"}
+  ],
+  "storiesBlocked": [
+    {"id": "US-012", "iteration": 12, "reason": "bundle_exceeded: plans/overview.html 506901 bytes > 500000 ceiling (+6901)", "partialBranch": "partial/US-012", "partialSha": "7bc7bb9f"}
+  ],
+  "storiesRemaining": [
+    "US-013", "US-014", "US-015", "US-016", "US-017", "US-018", "US-019"
+  ],
+  "deferredQuestions": [],
+  "storyDoctorActions": [],
+  "qualityGateResult": "pass",
+  "rollbackFailures": [],
+  "notes": [
+    "Batch range: iterations 10-12 (this_run_iterations=3). pass-count-before=9, now=11. US-012 honestly blocked (passes=false, blocked=true) by the Phase C bundle hard gate; not an unverified-pass condition, so no auto-rollback was executed.",
+    "US-010 and US-011 landed with full 1:1 AC:evidence coverage. Bundles 472965 / 495479 bytes (< 500 KB ceiling; only 4521 bytes of headroom remaining after US-011). US-010 also installed the Phase C verification harness (option a: split Vitest projects, jsdom + Testing Library + user-event) that US-011 used and that US-013/US-014/US-018 rely on.",
+    "US-012 attempt: Radix Popover + ToggleGroup; passed typecheck + 17 files / 67 tests including jsdom interaction coverage, but the static build produced plans/overview.html at 506901 bytes (+6901 over the 500 KB ceiling). Implementation preserved on partial/US-012 at commit 7bc7bb9f. Story marked blocked, not retried.",
+    "Manifest verifier (advisory, v5.25): iter 10/11/12 manifests fail closed-enum structural validation (Codex still emits domain evidenceKind = typecheck/test/inspection/command/build/skipped and string skippedReasons). Advisory only; no rollbacks. Dashboard verifier block replaced with iter 10/11/12 skipped entries.",
+    "Quality Gate (frequency default 1, cumulative 11; multiples 10/11 crossed): PASS based on iter-11 manifest evidence — typecheck OK, vitest 16 files / 63 tests, build OK, bundle 495479 B < 500 KB, frozen-lockfile install OK. Parity spot-check: US-011 AC 'Existing .kbd-help CSS reused via [role=dialog] selector' triggers `reused` but is a single-surface retention (no source/mirror file pair) — logged-and-continued.",
+    "Recurring failures: no new PERMANENT promotions this batch (iter 10's notTested falls under existing PERMANENT family a5ea5d3c..., append-only). Three new first-occurrence Not-tested candidates appended to Working Notes: e46ebcb6... (US-010 jsdom-harness phrasing), 13b4fc83... (US-011 file:// Dialog validation), cdbc4e09... (US-012 install/smoke/AC not run after bundle gate).",
+    "Retry gate: US-012 has only 1 failed run; Story Doctor requires 2+ consecutive runs before escalating. Additionally, the failure is design_flaw / scope (bundle budget exhausted) — retrying the same scope cannot succeed. Operator action required to unblock.",
+    "Refactoring Pass (interval default 5, cumulative 11; multiple 10 crossed): TRIGGERED but DEFERRED. Phase C is halted; running a cross-story refactor while the next priority is bundle reduction is risky and points the wrong direction. Opportunity carried forward; revisit after either a bundle-reduction story restores >= 6902 bytes of headroom or replan removes the blocked Phase C extension stories.",
+    "Recommended next steps (operator decision): (a) replan Phase C — drop or defer US-012/US-013/US-014 and advance Phase D (US-015..US-016) + Phase E (US-017..US-018) which do not depend on Popover/ToggleGroup; (b) insert a bundle-reduction story (tree-shake Radix imports, prune unused CSS, split overview-data.js out of the single-file bundle, etc.) to recover >= 6902 bytes and re-land partial/US-012; or (c) project owner raises the 500 KB ceiling explicitly."
+  ]
+}

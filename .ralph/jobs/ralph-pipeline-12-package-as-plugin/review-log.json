@@ -1,0 +1,82 @@
+[
+  {
+    "finding_id": "F-001",
+    "duration_s": 137,
+    "status": "fixed",
+    "summary": "Expanded the plan to register ralph-overview in all three ai-developer-toolkit marketplace indexes and verify their normalized fields stay in sync."
+  },
+  {
+    "finding_id": "F-002",
+    "duration_s": 105,
+    "status": "fixed",
+    "summary": "Updated the Toolbar refactor plan to derive unique workstream chip labels from data.workstream values rather than taskId keys, and aligned the tests, acceptance criteria, verification, and common mistakes guidance."
+  },
+  {
+    "finding_id": "F-003",
+    "duration_s": 107,
+    "status": "fixed",
+    "summary": "Updated the plan to preserve MCP import depths as copied and changed verification to confirm both valid depths exist."
+  },
+  {
+    "finding_id": "F-004",
+    "duration_s": 372,
+    "status": "fixed",
+    "summary": "Amended the plan to replace workspace and PATH assumptions with the toolkit launcher model, including root launch.cjs MCP startup, plugin-local npm build verification, and absolute plugin-root CLI invocation."
+  },
+  {
+    "finding_id": "F-005",
+    "duration_s": 159,
+    "status": "fixed",
+    "summary": "Amended the plan so codexu package scripts call a repo-local bin/ralph-overview.mjs shim that resolves the installed plugin root and delegates by absolute Node path, with docs and verification updated accordingly."
+  },
+  {
+    "finding_id": "F-006",
+    "duration_s": 130,
+    "status": "fixed",
+    "summary": "Amended the plan to remove hardcoded script counts, require execution-time enumeration of scripts/lib, correct current counts to 25 non-test .mjs + 24 .d.mts + 22 tests, and include sync-ralph-state.d.mts/test.mjs in copy/remove criteria."
+  },
+  {
+    "finding_id": "F-007",
+    "duration_s": 91,
+    "status": "fixed",
+    "summary": "Added codexu package.json workspaces.packages removal for tools/overview-* alongside pnpm-workspace.yaml, with acceptance and verification checks."
+  },
+  {
+    "finding_id": "F-008",
+    "duration_s": 182,
+    "status": "fixed",
+    "summary": "Expanded the overview-viewer generalization plan to audit all codexu/codex source hits, including TopLevelSurfaces, CommandList, persistent storage hooks, whatsNew, and styles."
+  },
+  {
+    "finding_id": "F-009",
+    "duration_s": 231,
+    "status": "fixed",
+    "summary": "Added the typed OverviewData.ui contract across viewer/MCP types, templates, tests, and codexu overview-data migration requirements so data.ui reads will typecheck."
+  },
+  {
+    "finding_id": "F-010",
+    "duration_s": 157,
+    "status": "fixed",
+    "summary": "Added a hard Phase A/B installability gate, a codexu-migration phase-precondition, and split Next Step commands so Phase B cannot start before the plugin is installable from toolkit main."
+  },
+  {
+    "finding_id": "F-011",
+    "duration_s": 85,
+    "status": "fixed",
+    "summary": "Replaced the invalid `pnpm typecheck` references with `pnpm -r --if-present typecheck` in the amended plan temp file."
+  },
+  {
+    "finding_id": "F-012",
+    "duration_s": 214,
+    "status": "fixed",
+    "summary": "Replaced the vague codexu post-migration dashboard acceptance check with concrete HTTP, chip-rendering, sidecar/schema, HMR, and grep-budget verification steps."
+  },
+  {
+    "phase": "soft-cap",
+    "iteration": 13,
+    "openCount": 4,
+    "severities": {
+      "Medium": 4
+    }
+  }
+]

@@ -1,0 +1,23 @@
+I’m opening the attached task file and the relevant repo guidance first.
+
+I’ve confirmed this is a plan-review task; next I’m validating the plan against the actual repo files it references.
+
+I found **several blocking issues** in the plan as written.
+
+### Feasibility
+- [High] **The static data-loading path is incompatible with the stated `file://` + single-file build goal.** The current viewer loads the sidecar with a **relative** script tag (`plans/overview.html:1284` → `overview-data.js`). The plan instead proposes `tools/overview-viewer/index.html` with **`<script src="/overview-data.js">`** (`tmp.zLKBYlpDMX:294`). Under `file://`, that absolute path resolves to the filesystem root, and `vite-plugin-singlefile` will not automatically inline an external sidecar/global script. The plan needs an explicit dev/build strategy for `plans/overview-data.js` (for example: dev serves the sidecar, build injects its contents into the emitted HTML).
+- [High] **The artifact naming in stages 7–8 is not implementable with the declared Vite setup.** The plan defines an `index.html` entry plus `outDir: '../../plans'` (`tmp.zLKBYlpDMX:293-294`) but then requires stage 7 to emit `plans/overview.html.next` and stage 8 to emit `plans/overview.html` (`tmp.zLKBYlpDMX:284-285`, `372`). With that setup, Vite will emit `plans/index.html` unless the plan adds a rename/post-build step or uses a differently named HTML entry. Right now the safe-name review flow cannot happen as described.
+
+### Completeness
+- [High] **The plan drops multiple existing UI surfaces even though the headline requirement is “the same UI as `plans/overview.html` does today.”** The current page includes the sticky toolbar and filter chips, bulk-copy button, keyboard-help affordance, freshness hint, and “What’s new since last visit” banner (`plans/overview.html:983-1056`, `2125-2185`, `2403-2417`, `2544-2653`). The proposed component list and acceptance criteria only cover legend, URL-filter banner, search input, Today panel, kanban, commands, phase tree, and runs log (`tmp.zLKBYlpDMX:297-303`, `363-391`). Unless these existing surfaces are explicitly marked out of scope, an autonomous implementer is likely to ship a regression.
+- [Medium] **The test harness is underspecified.** The plan requires four unit tests to pass (`tmp.zLKBYlpDMX:303`, `386`) but the proposed package manifest only lists `dev`, `build`, and `typecheck` plus React/Vite/TS deps (`tmp.zLKBYlpDMX:291`). Repo precedent uses explicit Vitest setup (`tools/vitest.config.ts:1-9`, `packages/codium/vitest.config.ts:1-12`, `packages/happy-wire/package.json:54,68`). The plan should say whether `tools/overview-viewer` adds its own `vitest` dependency/config and a `test` script, or reuses an existing shared config.
+
+### Ordering
+No issues found.
+
+### Simplicity
+- [Medium] **The new `?q=` URL-backed search state is unnecessary extra scope.** The current viewer already preserves search during normal interaction without any `?q=` contract; its URL behavior today is the `?tasks=` filter plus hash navigation (`plans/overview.html:2075-2095`, `2125-2180`). The plan adds `?q=` purely as an implementation detail for HMR preservation (`tmp.zLKBYlpDMX:272`) even though React state/ref preservation would meet the requirement with less surface area and no new URL semantics.
+
+### Acceptance Criteria Quality
+- [High] **The plan is internally inconsistent about TodayPanel parity.** Research correctly identifies the current buckets as **running / ready / hold / recently shipped** (`tmp.zLKBYlpDMX:222`; `plans/overview.html:988-995`, `1851-1910`), and the AC says first-load render should match the current page except for the phase-tree deferred-state improvement (`tmp.zLKBYlpDMX:363`, `378-380`). But stage 6 simultaneously proposes a **different** TodayPanel model: **running / blocked / paused / recently-shipped** (`tmp.zLKBYlpDMX:283`). That is a second UX change, not parity. The AC needs to say clearly whether TodayPanel must stay byte-for-byte compatible with current behavior or whether this redesign is also intentional.
+

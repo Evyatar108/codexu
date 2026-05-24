@@ -1,0 +1,140 @@
+{
+  "storyId": "US-008",
+  "verifiedEvidence": [
+    {
+      "criterion": "cmd-actions quick-action strip",
+      "command": "grep QuickActions TaskCommand.tsx; pnpm --filter @codexu/overview-viewer test",
+      "result": "PASS: .quick-actions strip renders QuickCopyButton/QuickNavButton; tests passed 13 files / 54 tests.",
+      "evidenceKind": "test"
+    },
+    {
+      "criterion": "Copy markdown link",
+      "command": "grep overviewMarkdownLink TaskCommand.tsx",
+      "result": "PASS: always-rendered Copy markdown link uses overviewMarkdownLink and copyTextWithToast/showToast; file:// static URL path is used when opened from file://.",
+      "evidenceKind": "inspection"
+    },
+    {
+      "criterion": "Copy ID + status",
+      "command": "grep taskStatusLabel TaskCommand.tsx",
+      "result": "PASS: always-rendered Copy ID and status emits task.id plus [phase/status].",
+      "evidenceKind": "inspection"
+    },
+    {
+      "criterion": "Parent quick action",
+      "command": "grep 'Jump to parent' TaskCommand.tsx; pnpm --filter @codexu/overview-viewer test",
+      "result": "PASS: parent button is conditional on parentId and calls navigateToCommand(parentId), which sets #cmd-parentId; SSR test covers a real parent.",
+      "evidenceKind": "test"
+    },
+    {
+      "criterion": "Children quick action",
+      "command": "grep 'Jump to first child' TaskCommand.tsx; pnpm --filter @codexu/overview-viewer test",
+      "result": "PASS: child button is conditional on childrenByParent[task.id], displays child count, and navigates to first child; SSR test covers a real child.",
+      "evidenceKind": "test"
+    },
+    {
+      "criterion": "Kanban quick action",
+      "command": "grep 'Jump to kanban card' TaskCommand.tsx; grep kanban-card- Kanban.tsx; pnpm --filter @codexu/overview-viewer test",
+      "result": "PASS: kanban button is conditional on kanbanCards length and targets stable kanban-card-taskId-0 IDs; kanban test verifies IDs.",
+      "evidenceKind": "test"
+    },
+    {
+      "criterion": "aria-label and keyboard focus",
+      "command": "grep 'aria-label={ariaLabel}' TaskCommand.tsx",
+      "result": "PASS: quick actions are native button elements with aria-labels, so they are keyboard focusable in tab order.",
+      "evidenceKind": "inspection"
+    },
+    {
+      "criterion": "Hidden until hover/focus-within",
+      "command": "grep -nE 'quick-actions|focus-within|opacity: 0|visibility: hidden' styles.css; pnpm --filter @codexu/overview-viewer test",
+      "result": "PASS: CSS hides .quick-actions by default and reveals on .cmd:hover or .cmd:focus-within; static test covers the contract. SKIPPED: live computed-style browser check unavailable.",
+      "evidenceKind": "test"
+    },
+    {
+      "criterion": "Reuse toast singleton",
+      "command": "grep -RInE 'QuickCopyButton|copyTextWithToast|showToast' TaskCommand.tsx CommandList.tsx App.tsx",
+      "result": "PASS: QuickCopyButton receives threaded showToast and calls copyTextWithToast, reusing App's single toast pipeline.",
+      "evidenceKind": "inspection"
+    },
+    {
+      "criterion": "title attributes",
+      "command": "grep -RInE 'title=|Copy markdown link|Copy ID and status|Jump to parent|Jump to first child|Jump to kanban card' TaskCommand.tsx commandList.test.tsx",
+      "result": "PASS: every icon-only quick action passes a title prop; SSR test asserts copy-action titles.",
+      "evidenceKind": "inspection"
+    },
+    {
+      "criterion": "Typecheck",
+      "command": "pnpm --filter @codexu/overview-viewer typecheck > .test-output/overview-viewer.typecheck.log 2>&1",
+      "result": "PASS: tsc --noEmit completed with exit 0.",
+      "evidenceKind": "typecheck"
+    },
+    {
+      "criterion": "Tests",
+      "command": "pnpm --filter @codexu/overview-viewer test > .test-output/overview-viewer.test.log 2>&1",
+      "result": "PASS: Vitest reported 13 test files passed, 54 tests passed.",
+      "evidenceKind": "test"
+    },
+    {
+      "criterion": "Dev server smoke",
+      "command": "curl -fsS http://127.0.0.1:5173/overview.html; curl -fsS http://127.0.0.1:5173/overview-data.js",
+      "result": "HTTP smoke PASS: root HTML and window.OVERVIEW_DATA served. SKIPPED: browser console verification unavailable.",
+      "evidenceKind": "skipped"
+    },
+    {
+      "criterion": "Build and file artifact",
+      "command": "pnpm overview:build > .test-output/overview-viewer.build.log 2>&1; grep root/external refs plans/overview.html",
+      "result": "Build PASS: Vite regenerated plans/overview.html; root node present and no external script/link refs. SKIPPED: live file:// browser open unavailable.",
+      "evidenceKind": "build"
+    },
+    {
+      "criterion": "Bundle size",
+      "command": "stat -c%s plans/overview.html",
+      "result": "455647 bytes (< 500000).",
+      "evidenceKind": "command"
+    },
+    {
+      "criterion": "Intentional deviations preserved",
+      "command": "grep -RInE 'deferred|data-cmd-status|lastTouchedAt|sortTasksByLastTouchedAsc' PhaseTree.tsx CommandList.tsx styles.css",
+      "result": "PASS: deferred class, blocked/paused tail ordering, and lastTouchedAt ascending sort remain present.",
+      "evidenceKind": "inspection"
+    },
+    {
+      "criterion": "Reduced motion",
+      "command": "grep -n '@media (prefers-reduced-motion: reduce)' -A5 styles.css; grep 'transition: opacity 0.12s' styles.css",
+      "result": "PASS: story adds an opacity transition; global reduced-motion guard disables all transitions with !important.",
+      "evidenceKind": "inspection"
+    },
+    {
+      "criterion": "Package lock handling",
+      "command": "git diff --name-only -- tools/overview-viewer/package.json pnpm-lock.yaml || true; pnpm install --frozen-lockfile --offline",
+      "result": "PASS: package.json and pnpm-lock.yaml unchanged; frozen offline install passed. happy-wire postinstall side effects restored and not committed.",
+      "evidenceKind": "command"
+    },
+    {
+      "criterion": "Commit message",
+      "command": "git log -1 --format=%H%n%s%n%b --name-only",
+      "result": "PASS: commit 9a90b06c1a827ecfd75f41db9dee6bfd3c8edb3d references US-008 and lists affected files.",
+      "evidenceKind": "command"
+    }
+  ],
+  "skippedReasons": [
+    {
+      "reason": "browser_automation_unavailable",
+      "criterion": "Hidden until hover/focus-within",
+      "detail": "Live computed-style browser check unavailable; static CSS/test used."
+    },
+    {
+      "reason": "browser_automation_unavailable",
+      "criterion": "Dev server smoke",
+      "detail": "Browser console verification unavailable; HTTP smoke used."
+    },
+    {
+      "reason": "browser_automation_unavailable",
+      "criterion": "Build and file artifact",
+      "detail": "Live file:// browser open unavailable; static artifact checks used."
+    }
+  ],
+  "notTested": [
+    "live browser hover/focus and file:// checks unavailable; static and HTTP fallback used"
+  ],
+  "iterationSHA": "9a90b06c1a827ecfd75f41db9dee6bfd3c8edb3d"
+}

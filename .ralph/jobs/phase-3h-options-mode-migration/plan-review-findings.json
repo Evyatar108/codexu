@@ -1,0 +1,33 @@
+{
+  "planFile": "D:/harness-efforts/codexu/.ralph/jobs/.staging/20260513-110934/draft-plan.md",
+  "repoDir": "D:/harness-efforts/codexu",
+  "resolution": "manual-inline-edits",
+  "resolvedAt": "2026-05-13",
+  "findings": [
+    {"id":"F-001","severity":"Critical","source":"consensus","reviewers":["claude","codex","copilot"],"category":"Feasibility","title":"NullableString wire format is wrong","status":"fixed","resolution":"Plan Technical Constraints #8 + Risk #6 + all Stop hook ACs rewritten to use plain string|null. Verified at schema.rs:34-35."},
+    {"id":"F-002","severity":"Critical","source":"consensus","reviewers":["claude","codex","copilot"],"category":"Feasibility","title":"stop_hook_active inversion is wrong","status":"fixed","resolution":"Plan Technical Constraints #9 + Risk #5 corrected. Upstream's stop.js line ported unchanged. AC-11 + AC-12 added to codify behavior. Verified at turn.rs:366, 557."},
+    {"id":"F-003","severity":"High","source":"codex","category":"Feasibility","title":"PreToolUse AskUserQuestion intercept not implementable","status":"fixed","resolution":"Dropped pre-tool-use.js port from scope. Added Phase 3h-tail entry. AC-auto-intercept marked deferred. Verified by grep at request_user_input.rs."},
+    {"id":"F-004","severity":"High","source":"copilot","category":"Simplicity","title":"TUI does not reject unknown slash commands","status":"fixed","resolution":"UserPromptSubmit hook is now primary toggle (Technical Constraints #3). Skill is secondary/docs-only. Verified at chat_composer.rs:2797-2823."},
+    {"id":"F-005","severity":"High","source":"codex","category":"Feasibility","title":"Skill toggle underspecified","status":"fixed","resolution":"Skill body is now documentation only — no --cmd flag, no shell-out. Tells user/agent to type /options-mode <args> directly."},
+    {"id":"F-006","severity":"High","source":"consensus","reviewers":["codex","copilot"],"category":"Completeness","title":"Marketplace registration missing","status":"fixed","resolution":"Added .agents/plugins/marketplace.json to Story 1 file list with template content."},
+    {"id":"F-007","severity":"High","source":"copilot","category":"Completeness","title":"typecheck for JS-only package not addressed","status":"fixed","resolution":"Added tsconfig.json (allowJs/checkJs:false/noEmit) to Story 1 file list. AC-1 typecheck passes trivially."},
+    {"id":"F-008","severity":"High","source":"claude","category":"Criteria Quality","title":"AC-15 verification command vague","status":"fixed","resolution":"AC-16 now specifies reproducible command sequence; AC-18 marks exact verification command as Story 6 spike output."},
+    {"id":"F-009","severity":"Medium","source":"codex","category":"Completeness","title":"Root package.json workspaces not updated","status":"fixed","resolution":"Added root package.json workspaces.packages to Story 1 file modifications."},
+    {"id":"F-010","severity":"Medium","source":"codex","category":"Criteria Quality","title":"AC-16 install steps not reproducible","status":"fixed","resolution":"AC-17 now includes 7-step reproducible install + smoke test sequence."},
+    {"id":"F-011","severity":"Medium","source":"claude","category":"Feasibility","title":"function_call name uncertainty","status":"fixed","resolution":"Plan Technical Constraints #2 documents request_user_input as current name; ask_user_question scanned for forward-compat. Fixture covers both."},
+    {"id":"F-012","severity":"Medium","source":"codex","category":"Ordering","title":"Wire-contract spike must precede fixture writing","status":"fixed","resolution":"Story 1 now includes codex-stop-spike.json wire-contract fixture before remaining fixtures."},
+    {"id":"F-013","severity":"Low","source":"codex","category":"Simplicity","title":"Counter-file fallback location ambiguous","status":"fixed","resolution":"Technical Constraints #6 + Approach now fail-loud on missing PLUGIN_DATA. No fallback."},
+    {"id":"F-014","severity":"Low","source":"claude","category":"Ordering","title":"Files table order does not match implementation order","status":"fixed","resolution":"Files to Create/Modify section now organized by Story (Story 1 → Story 6)."},
+    {"id":"F-015","severity":"Medium","source":"codex/CLAUDE.md","category":"Completeness","title":"Plugin source vs marketplace cache divergence","status":"fixed","resolution":"Added Technical Constraints #11. README + CLAUDE.md must document. Risk Areas #9 + Approach Strategy reference the developer workflow note."}
+  ],
+  "summary": {
+    "total": 15,
+    "critical": 2,
+    "high": 6,
+    "medium": 5,
+    "low": 2,
+    "fixed": 15,
+    "open": 0,
+    "wont_fix": 0
+  }
+}

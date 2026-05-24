@@ -1,0 +1,52 @@
+[
+  {
+    "finding_id": "F-001",
+    "duration_s": 115,
+    "status": "fixed",
+    "summary": "Amended the plan to route runDurations as a separate parameter through emitDerivedArtifacts, writeSidecar, emitAgentArtifacts, and buildSnapshot without mutating state."
+  },
+  {
+    "finding_id": "F-002",
+    "duration_s": 124,
+    "status": "fixed",
+    "summary": "Amended the plan so the PRD carrier preserves root dependencies plus userStories[].dependencies and userStories[].passes, with matching US-001 and acceptance-criteria coverage."
+  },
+  {
+    "finding_id": "F-003",
+    "duration_s": 92,
+    "status": "fixed",
+    "summary": "Amended the plan so US-004 replaces hardcoded Plan 04 artifact reads with configured output paths and adds override coverage in tests, acceptance criteria, and verification."
+  },
+  {
+    "finding_id": "F-004",
+    "duration_s": 83,
+    "status": "fixed",
+    "summary": "Updated the plan to walk .ralph/jobs/*/prd.json and .ralph/job-groups/*/*/prd.json, and added US-001 test coverage for grouped member PRDs appearing in prdsByTaskId."
+  },
+  {
+    "finding_id": "F-005",
+    "duration_s": 110,
+    "status": "fixed",
+    "summary": "Updated the dependency graph plan so story nodes use globally unique `${taskId}:${storyId}` ids and US-003 tests assert duplicate PRD story ids do not collapse."
+  },
+  {
+    "finding_id": "F-006",
+    "duration_s": 85,
+    "status": "fixed",
+    "summary": "Added the missing optional OverviewTask.priority field to the plan's type widening story and tied the scoring rubric, tests, scope, files, and acceptance criteria to the documented 0.5 fallback."
+  },
+  {
+    "finding_id": "F-007",
+    "duration_s": 85,
+    "status": "fixed",
+    "summary": "Reworded the snapshot freshness acceptance criterion to compare snapshot.recommendations against the recommendations array inside the wrapped recommendations file, and snapshot.dependencyGraph against the unwrapped graph file."
+  },
+  {
+    "phase": "soft-cap",
+    "iteration": 8,
+    "openCount": 13,
+    "severities": {
+      "Medium": 13
+    }
+  }
+]

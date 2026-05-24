@@ -1,0 +1,44 @@
+{
+  "storyId": "US-001",
+  "verifiedEvidence": [
+    {
+      "criterion": "tools/overview-viewer/src/types.ts declares Recommendation, DependencyGraph, DependencyNode, DependencyEdge interfaces.",
+      "command": "sed -n '24,115p' tools/overview-viewer/src/types.ts",
+      "result": "PASS: snippet shows exported interfaces Recommendation, DependencyNode, DependencyEdge, and DependencyGraph.",
+      "evidenceKind": "inspection"
+    },
+    {
+      "criterion": "OverviewTask has optional blocks: string[] and priority: number fields.",
+      "command": "sed -n '24,38p' tools/overview-viewer/src/types.ts",
+      "result": "PASS: OverviewTask includes blocks?: string[] and priority?: number.",
+      "evidenceKind": "inspection"
+    },
+    {
+      "criterion": "OverviewRalphState has optional runDurations: Record<string, number> (hours). Do NOT add aggregateStages? — derived client-side per F-012.",
+      "command": "sed -n '101,113p' tools/overview-viewer/src/types.ts && grep -n aggregateStages tools/overview-viewer/src/types.ts || true",
+      "result": "PASS: OverviewRalphState includes runDurations?: Record<string, number>; grep found no aggregateStages field.",
+      "evidenceKind": "inspection"
+    },
+    {
+      "criterion": "Before opening PR: run `git fetch origin main && git rebase origin/main`; if Plan 05 has merged and runDurations moved to Snapshot, relocate this change per the plan's Risk Areas guidance.",
+      "command": "git fetch origin main && git rebase origin/main; resolve conflicts; GIT_EDITOR=true git rebase --continue",
+      "result": "PASS: fetched origin/main; rebase initially stopped on existing overview viewer conflicts, resolved by preserving combined watcher/sidecar behavior, then completed successfully. HEAD b33d7e7d.",
+      "evidenceKind": "command"
+    },
+    {
+      "criterion": "pnpm --filter @codexu/overview-viewer typecheck passes.",
+      "command": "pnpm --filter @codexu/overview-viewer typecheck",
+      "result": "PASS: tsc --noEmit completed with exit 0.",
+      "evidenceKind": "typecheck"
+    },
+    {
+      "criterion": "Typecheck passes.",
+      "command": "pnpm --filter @codexu/overview-viewer typecheck",
+      "result": "PASS: @codexu/overview-viewer typecheck passed after rebase.",
+      "evidenceKind": "typecheck"
+    }
+  ],
+  "skippedReasons": [],
+  "notTested": [],
+  "iterationSHA": "b33d7e7da40d26ef7e0fc2b1fb1531cdfade594e"
+}

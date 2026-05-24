@@ -1,0 +1,78 @@
+{
+  "storyId": "US-001",
+  "verifiedEvidence": [
+    {
+      "criterion": "AC-001 phase badge CSS classes",
+      "command": "grep phase badge selectors in plans/overview.html",
+      "result": "phase_class_count=10; CSS defines all 10 phase classes with non-transparent rgba backgrounds.",
+      "evidenceKind": "command-output"
+    },
+    {
+      "criterion": "AC-002 status modifier class",
+      "command": "grep .cmd-status-mod plans/overview.html",
+      "result": "status_mod_count=5; .cmd-status-mod plus blocked/paused variants are defined.",
+      "evidenceKind": "command-output"
+    },
+    {
+      "criterion": "AC-003/AC-004 phase bucket constants",
+      "command": "grep PHASE_TO_ORDER_BUCKET and PHASE_TO_FILTER_BUCKET plans/overview.html",
+      "result": "PHASE_TO_ORDER_BUCKET keeps shipped and closed distinct; PHASE_TO_FILTER_BUCKET collapses both to closed.",
+      "evidenceKind": "static-inspection"
+    },
+    {
+      "criterion": "AC-005/AC-006 classifier consumers",
+      "command": "sed inspected classifyAndOrderCmds, classifyCmd, filterBucketForCmd, and applyFilter",
+      "result": "Order uses phase only; filter and Today use data-task-status blocked/paused before phase with legacy fallback.",
+      "evidenceKind": "static-inspection"
+    },
+    {
+      "criterion": "AC-007/AC-008/AC-009 render and scope injection order",
+      "command": "grep renderPhaseBadges and injectTaskScopeChips plans/overview.html",
+      "result": "renderPhaseBadges appears at line 2714 before injectTaskScopeChips at line 2756; scope cluster appends badge then modifier.",
+      "evidenceKind": "static-inspection"
+    },
+    {
+      "criterion": "AC-010 populateKanbanCount",
+      "command": "sed -n 3067,3079p plans/overview.html",
+      "result": "populateKanbanCount still counts per-column .card lists only.",
+      "evidenceKind": "static-inspection"
+    },
+    {
+      "criterion": "AC-011 kanban matchers",
+      "command": "grep title.textContent.indexOf plans/overview.html || true",
+      "result": "No title.textContent.indexOf matchers remain; kanban workstream and command links read card.dataset.taskId.",
+      "evidenceKind": "absent-verified"
+    },
+    {
+      "criterion": "AC-012 legacy aliases",
+      "command": "grep legacy b-* aliases and b-plan-ready CSS plans/overview.html",
+      "result": "All five legacy b-* aliases remain; b-plan-ready matches b-ready colors and legacy b-ready maps to ready.",
+      "evidenceKind": "static-inspection"
+    },
+    {
+      "criterion": "AC-013 browser console errors",
+      "command": "node require checks for playwright and jsdom",
+      "result": "SKIPPED: browser automation unavailable; console-error check requires manual browser pass.",
+      "evidenceKind": "skipped"
+    },
+    {
+      "criterion": "AC-014 dev-browser visual verification",
+      "command": "N/A",
+      "result": "SKIPPED: browser automation unavailable; dev-browser verification requires manual browser pass.",
+      "evidenceKind": "skipped"
+    },
+    {
+      "criterion": "AC-015 typecheck / JS syntax",
+      "command": "awk extract main script; node --check /tmp/overview-main.js; git diff --check",
+      "result": "node --check exited 0 with no syntax errors; git diff --check exited 0 with only Git line-ending warning.",
+      "evidenceKind": "command-output"
+    }
+  ],
+  "skippedReasons": [
+    "missing_tool"
+  ],
+  "notTested": [
+    "Browser console/visual pass requires dev-browser tooling"
+  ],
+  "iterationSHA": "41ffa8768f23eaae3b5241ebebdd1e2503245ee8"
+}

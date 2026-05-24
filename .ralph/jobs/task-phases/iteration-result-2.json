@@ -1,0 +1,84 @@
+{
+  "storyId": "US-002",
+  "verifiedEvidence": [
+    {
+      "criterion": "AC-001 all command rows carry phase/status",
+      "command": "node validation of details.cmd data-task-phase/status attributes",
+      "result": "details=49; all rows have data-task-phase in the allowed enum and data-task-status in ok|blocked|paused.",
+      "evidenceKind": "command-output"
+    },
+    {
+      "criterion": "AC-002 exact data-task-phase count",
+      "command": "grep -c 'data-task-phase=\"' plans/overview.html",
+      "result": "49",
+      "evidenceKind": "command-output"
+    },
+    {
+      "criterion": "AC-003 exact data-task-status count",
+      "command": "grep -c 'data-task-status=\"' plans/overview.html",
+      "result": "49",
+      "evidenceKind": "command-output"
+    },
+    {
+      "criterion": "AC-004 allowed enum values only",
+      "command": "grep -o data-task-phase/status values | sort -u",
+      "result": "phase values present: closed, plan-ready, shipped; status values present: blocked, ok, paused. All are allowed enum values.",
+      "evidenceKind": "command-output"
+    },
+    {
+      "criterion": "AC-005 pinned Migration Mapping match",
+      "command": "node exact mapping comparison keyed by data-task-id",
+      "result": "rows=49; mapping_mismatches=0.",
+      "evidenceKind": "command-output"
+    },
+    {
+      "criterion": "AC-006 optional artifact attributes",
+      "command": "node artifact attribute validation for plan-only and merge commits",
+      "result": "artifact_mismatches=0; required plan-only and merge-commit attributes are present.",
+      "evidenceKind": "command-output"
+    },
+    {
+      "criterion": "AC-007 DevTools badge assertion snippet",
+      "command": "node require checks for playwright/jsdom; node --check extracted main script",
+      "result": "SKIPPED: browser automation unavailable; DevTools console snippet requires manual browser pass. Fallback node --check passed.",
+      "evidenceKind": "skipped"
+    },
+    {
+      "criterion": "AC-008 kanban cards carry matching task ids",
+      "command": "node validation of .kanban .card data-task-id values against details.cmd ids",
+      "result": "kanban_cards=33; missing_or_unmatched_task_ids=0.",
+      "evidenceKind": "command-output"
+    },
+    {
+      "criterion": "AC-009 cards display phase pill from command row phase",
+      "command": "grep injectKanbanPhasePills / kanban-phase-pill in plans/overview.html",
+      "result": "injectKanbanPhasePills builds cmd-badge b-<phase> kanban-phase-pill from the linked command row's data-task-phase.",
+      "evidenceKind": "static-inspection"
+    },
+    {
+      "criterion": "AC-010 data-task-id matchers and jump links",
+      "command": "grep card.dataset.taskId/linkKanbanToCmds; node validation of card ids",
+      "result": "SKIPPED: browser automation unavailable; console-error and jump-link verification requires manual browser pass. Fallback static checks show dataset-based consumers and all card ids resolve to commands.",
+      "evidenceKind": "skipped"
+    },
+    {
+      "criterion": "AC-011 typecheck / JS syntax",
+      "command": "awk extract main script; node --check /tmp/overview-main.js; git diff --check",
+      "result": "node --check exited 0 with no syntax errors; git diff --check exited 0 with only Git line-ending warning.",
+      "evidenceKind": "command-output"
+    },
+    {
+      "criterion": "AC-012 dev-browser visual verification",
+      "command": "node require checks for playwright and jsdom",
+      "result": "SKIPPED: browser automation unavailable; dev-browser verification requires manual browser pass.",
+      "evidenceKind": "skipped"
+    }
+  ],
+  "skippedReasons": [
+    "missing_tool"
+  ],
+  "notTested": [
+    "Browser-only DevTools assertions and visual verification unavailable in this environment"
+  ],
+  "iterationSHA": "1290ac5028d5c58fbc6b81249db7fc26c4a1fc35"
+}

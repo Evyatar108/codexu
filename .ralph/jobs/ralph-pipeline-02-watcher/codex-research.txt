@@ -1,0 +1,105 @@
+**Codebase Architecture**
+
+The repo is a pnpm monorepo with the overview viewer under `tools/overview-viewer/` and Ralph sync scripts under `scripts/`.
+
+Key pieces:
+
+- `tools/overview-viewer/`: React 19 + Vite 8 + TypeScript dashboard.
+- `tools/overview-viewer/vite.config.ts`: custom `overviewDataPlugin` serves and watches `plans/overview-data.js`, then emits `overview-data:update`.
+- `tools/overview-viewer/src/App.tsx`: subscribes to `overview-data:update` and reloads `window.OVERVIEW_DATA`.
+- `tools/overview-viewer/src/types.ts`: already defines `RalphStage`, `RalphPipelineState`, `OverviewRalphState`, and `getOverviewRalphState()`. Current stage union has 10 values, including `replan-pending`.
+- `scripts/sync-ralph-state.mjs`: current one-shot CLI only. Supports `--repo` and `--config`; no `--watch`, no lock yet.
+- `scripts/lib/sync-core.mjs`: current Plan 01 core. Exports `walkRalphState`, `writeSidecar`, `resolveCrossKindPrecedence`, `pickMostRecentByMtime`, `_resetUnknownPhaseWarnings`.
+- `scripts/lib/derive-ralph-stage.mjs`: canonical stage predicate. Already maps `terminalReason === 'replan'` to `replan-pending`.
+- `scripts/lib/resolve-config.mjs` + `scripts/lib/default-config.mjs`: config loader and defaults. `config.lockFile` exists and resolves to `.ralph/overview-sync.lock`.
+- `.ralph/overview-config.json` and `.ralph/overview-config.schema.json`: committed config/schema, including `lockFile` and `watcher.ignored`.
+
+Build/test tooling:
+
+- Root scripts include `overview`, `overview:build`, and `sync-ralph-state`.
+- Overview tests run via `pnpm --filter @codexu/overview-viewer test`.
+- Current server-side sync coverage lives mostly in `tools/overview-viewer/src/__tests__/syncCore.test.ts`; `scripts/lib/sync-core.test.mjs` exists but no root test script appears to run it.
+
+**Feature-Relevant Code**
+
+Existing Plan 02 file exists at `plans/ralph-pipeline-02-watcher.md`. The worktree directive is already updated to:
+
+`D:\harness-efforts\codexu\.ralph\jobs\ralph-pipeline-02-watcher\worktree\`
+
+The worktree itself does not currently exist, which is expected before implementation.
+
+Important current contracts:
+
+- `scripts/lib/sync-core.mjs`
+  - Full walk performs direct-child reads under configured `.ralph/jobs`, `.ralph/job-groups`, `.ralph/brainstorms`.
+  - It handles parse errors by pushing `unmatched` entries and omitting the bad bundle.
+  - It resolves matches through task IDs and `overviewData.ralphOverrides`.
+  - It collapses duplicates within kind by mtime/`updatedAt`.
+  - It applies cross-kind precedence: `job > group > brainstorm`.
+  - It writes both `plans/overview-ralph-state.js` and `.json` atomically via tmp + rename retry.
+
+- `scripts/lib/default-config.mjs`
+  - Current `watcher.ignored` includes the Plan 02 ignores plus later `.crews/logs/**` and `.crews/spawn-launchers/**`. Plan 02 should treat config as authoritative, not hardcode a smaller ignore list.
+
+- `tools/overview-viewer/vite.config.ts`
+  - There is no direct chokidar pattern here. Vite’s internal watcher is used via `server.watcher.add(overviewDataPath)`.
+  - The plan’s “existing chokidar usage pattern” wording is stale.
+
+- `tools/overview-viewer/src/__tests__/scripts.d.ts` and `scripts/lib/sync-core.d.mts`
+  - These must be updated if Plan 02 adds `deriveOneSlug`, `mergeAndWrite`, or imports `watch-ralph-state.mjs` from TS tests.
+
+- `tools/overview-viewer/package.json`
+  - No direct `chokidar` dependency.
+  - `require.resolve('chokidar')` works today through transitive deps, but Plan 02 should add a direct dependency to avoid relying on hoisting/transitives. The resolved version is `chokidar@5.0.0`, ESM.
+
+Reference file check:
+
+- `C:\Users\evmitran\.claude\plugins\cache\ai-developer-toolkit\ralph-orchestration\5.30.0\lib\sync_job_statuses.sh` exists.
+- Its stale RUNNING mtime threshold is currently 30 minutes, not 60. The plan should correct that reference.
+
+**Technical Constraints**
+
+Several Plan 02 assumptions need tightening:
+
+- `start()` cannot both “return immediately” and complete a cold-start full walk before watching unless it returns a handle with a `ready` promise. Prefer `async start(...) -> Promise<WatchHandle>`.
+- The current plan double-runs cold start: CLI says run one-shot then call `start`, while watcher `start` also cold-starts. Pick one. Better: `start()` owns lock + cold-start + watcher setup; CLI `--watch` only calls `start`.
+- Lock semantics are inconsistent. Plan says watcher releases lock only on stop, but verification says one-shot may acquire “between watcher ticks.” With lifetime watcher lock, one-shot should fail fast while watcher is running. This also aligns better with Plan 11 `sync.watch_status`.
+- If Plan 11 needs `sync.watch_status`, Plan 02 should strongly consider writing JSON lock content now: `{ pid, process: 'standalone' | 'vite-plugin', startedAt }`, using `config.lockFile`.
+- Incremental “one slug” updates are not safe if implemented as a naive `Map<slug, RalphPipelineState | null>`. Full sync has within-kind duplicate collapse and cross-kind precedence. If a winning job is deleted, a shadowed group/brainstorm may need promotion. Incremental logic must recompute the affected task’s candidate set or maintain a bundle cache and re-run the same collapse logic.
+- File deletion behavior in the plan is too broad. Deleting `job-state.json` should not always remove the task; if `prd.json` remains, full sync would derive `plan-ready`. Only deleting the slug directory or all meaningful files should remove the entry.
+- Tests should not be added to `ralphStage.test.ts` unless they only test stage derivation. Watcher tests deserve `tools/overview-viewer/src/__tests__/ralphWatcher.test.ts` or similar, under the node/SSR Vitest project.
+- `tools/overview-viewer/vite.config.ts` is TypeScript and included in typecheck. Dynamic import of a root `.mjs` module may need a `.d.mts` declaration for `watch-ralph-state.mjs`.
+
+**Implementation Suggestions**
+
+Recommended plan refinements:
+
+1. Add a shared sync helper in `scripts/sync-ralph-state.mjs` or `sync-core.mjs` so one-shot and watcher share `loadConfig`, `generatedFromCommit`, `walkRalphState`, unmatched logging, sidecar write, and lock acquisition.
+
+2. In `sync-core.mjs`, refactor internals around reusable bundle assembly:
+   - `readBundleForSlug({ kind, slug })`
+   - `buildStateFromBundles(...)`
+   - `deriveAffectedTaskUpdate(...)`
+   
+   This is safer than a simplistic `deriveOneSlug`, because it preserves duplicate resolution and `job > group > brainstorm`.
+
+3. Make `watch-ralph-state.mjs` own:
+   - `async start({ repoRoot, configPath?, debounceMs, processLabel, onWrite, onError })`
+   - lock acquire/write metadata
+   - cold-start full walk/write
+   - `chokidar.watch(..., { ignoreInitial: true, awaitWriteFinish: ... })`
+   - debounced changed-slug processing
+   - `unlink` and `unlinkDir`
+   - clean `stop()` that closes watcher, clears timers, unlinks only its own lock
+
+4. Use config-derived watch roots and ignored globs. Keep the plan’s watched files as defaults, but map paths relative to `config.ralphRoot` and normalize Windows separators.
+
+5. Update acceptance criteria to be directly verifiable:
+   - CLI `--watch` performs exactly one cold-start write.
+   - A fresh lock blocks a second watcher and one-shot sync.
+   - Stale lock older than 60s is replaced with warning.
+   - Malformed JSON keeps prior state in watcher mode and recovers after valid JSON.
+   - Deleting only `job-state.json` rederives from remaining files; deleting the slug directory removes/promotes according to full-walk precedence.
+   - Incremental tests include duplicate/cross-kind promotion.
+
+6. Keep the downstream cascade requirement, but broaden it per the user request: after Phase 6 review converges, audit Plans 03-12 and `plans/ralph-pipeline-INDEX.md`, not only the hand-off list.

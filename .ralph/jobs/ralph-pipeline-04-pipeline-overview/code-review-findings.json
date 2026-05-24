@@ -1,0 +1,96 @@
+{
+  "planFile": "D:/harness-efforts/codexu/.ralph/jobs/ralph-pipeline-04-pipeline-overview/plan.md",
+  "repoDir": "D:/harness-efforts/codexu/.ralph/jobs/ralph-pipeline-04-pipeline-overview/worktree",
+  "findings": [
+    {
+      "id": "F-001",
+      "severity": "Medium",
+      "source": "claude",
+      "category": "Correctness",
+      "classification": "fixable",
+      "phase": "code",
+      "sectionRef": "Run durations derivation",
+      "description": "deriveRunDurations() in scripts/lib/sync-core.mjs builds completedDurationsByTaskId keyed by taskId (one duration per task, last bundle wins), then assigns that single duration to every run.id whose run.taskId matches. This means multiple historical runs for the same task all receive the SAME duration value (the latest completed bundle's duration), rather than each run.id mapping to its own bundle's createdAt/completedAt. Plan line 138 specifies per-run mapping: 'For each entry in overviewData.runs[], look up matching Ralph cycles via bundle.jobState.createdAt and bundle.jobState.completedAt'. With dedup keeping only one bundle per task, prior runs have no bundle and should be omitted; instead they get the latest bundle's duration. Result is semantically misleading but does not break AC #6 (entries without both timestamps are still omitted because the lookup returns undefined when no bundle exists for the task).",
+      "relevantFiles": [
+        "scripts/lib/sync-core.mjs:628-650"
+      ],
+      "suggestedFix": "Either (a) reframe semantics so the runDurations map represents 'latest known duration per task, keyed by every run.id of that task' and document this in CLAUDE.md, or (b) match runs to bundles by run.ranAt being closest to bundle.jobState.completedAt and only emit when a specific bundle matches a specific run.id.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Documented runDurations semantics in tools/overview-viewer/CLAUDE.md as latest-known per-task duration keyed by run.id"
+    },
+    {
+      "id": "F-002",
+      "severity": "Medium",
+      "source": "claude",
+      "category": "ContractDivergence",
+      "classification": "fixable",
+      "phase": "code",
+      "sectionRef": "DependencyEdge shape",
+      "description": "Plan.md line 124 declares edges as { from: string, to: string, kind: 'spawn' | 'blocks' | 'depends-on-story' }. Implementation (types.ts:67-71, derive-dependency-graph.mjs:111, emitted plans/overview-dependency-graph.json:479-500) uses { source, target, kind } instead. TypeScript types, the derived module, and the emitted JSON are all self-consistent, but the plan spec is wrong relative to what is shipped. The Plan 04 refresh changelog (plans/ralph-pipeline-04-refresh-changelog.md) does not mention this naming divergence, so downstream Plan 06 / Plan 09 consumers who follow the plan literally will get edge.from === undefined.",
+      "relevantFiles": [
+        "plan.md:124",
+        "tools/overview-viewer/src/types.ts:67-71",
+        "scripts/lib/derive-dependency-graph.mjs:109-111",
+        "plans/overview-dependency-graph.json:479-500",
+        "plans/ralph-pipeline-04-refresh-changelog.md"
+      ],
+      "suggestedFix": "Either rename to { from, to } to match plan + AC, or add an explicit changelog entry noting the deliberate change to { source, target } (common GraphViz / D3 convention) so Plan 06 / Plan 09 implementers update their reader code.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Updated plan.md line 124 to use source/target (D3 convention); refresh-changelog notes the divergence for Plan 06/09 consumers"
+    },
+    {
+      "id": "F-003",
+      "severity": "Low",
+      "source": "claude",
+      "category": "Quality",
+      "classification": "fixable",
+      "phase": "code",
+      "sectionRef": "PipelineOverview re-export",
+      "description": "tools/overview-viewer/src/components/PipelineOverview.tsx re-exports RALPH_STAGE_ORDER (line 62) even though it imports it from utils/ralphStages.ts. The canonical location is now utils/ralphStages.ts per the CLAUDE.md note ('Canonical Ralph stage order lives in src/utils/ralphStages.ts'). The component-level re-export creates two import paths for the same constant and invites drift; downstream consumers may not know which import path is canonical.",
+      "relevantFiles": [
+        "tools/overview-viewer/src/components/PipelineOverview.tsx:62",
+        "tools/overview-viewer/src/utils/ralphStages.ts"
+      ],
+      "suggestedFix": "Drop the re-export from PipelineOverview.tsx. Consumers should import RALPH_STAGE_ORDER directly from utils/ralphStages.ts.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Removed RALPH_STAGE_ORDER re-export from PipelineOverview.tsx; canonical import remains utils/ralphStages.ts"
+    },
+    {
+      "id": "F-004",
+      "severity": "Low",
+      "source": "claude",
+      "category": "Quality",
+      "classification": "fixable",
+      "phase": "code",
+      "sectionRef": "atomicWriteFile error message",
+      "description": "scripts/lib/sync-core.mjs:540 — atomicWriteFile throws 'writeSidecar requires configured output paths' when finalPath is missing, but the helper is exported and now used by emitDerivedArtifacts for recommendations and dependency graph paths as well. The error message names the wrong caller and will mislead debugging when the missing path is outputs.recommendationsJson or outputs.dependencyGraphJson.",
+      "relevantFiles": [
+        "scripts/lib/sync-core.mjs:540"
+      ],
+      "suggestedFix": "Change to 'atomicWriteFile requires a finalPath' or include the caller in the message.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Error message corrected to atomicWriteFile requires a finalPath (committed in 795379d1 with F-005)"
+    },
+    {
+      "id": "F-005",
+      "severity": "Low",
+      "source": "claude",
+      "category": "Quality",
+      "classification": "fixable",
+      "phase": "code",
+      "sectionRef": "mergeAndWrite full-overwrite of runDurations and prdsByTaskId",
+      "description": "scripts/lib/sync-core.mjs mergeAndWrite() overwrites runDurations and prdsByTaskId entirely on every update (let runDurations = update.runDurations). This is functionally correct because each update fragment is itself the result of a full walk via assembleStateFromBundles, but the assignment is misleading — it looks like an incremental merge while actually being a wholesale replacement. If a future change makes deriveAffectedTaskUpdate emit partial fragments, this code will silently lose entries.",
+      "relevantFiles": [
+        "scripts/lib/sync-core.mjs:264-279"
+      ],
+      "suggestedFix": "Either rename the update field to reflect 'full snapshot' semantics (e.g. runDurationsSnapshot) or add an inline comment explaining that update.runDurations is always a full map from the most recent walk.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Added inline comments in mergeAndWrite clarifying wholesale-replacement semantics for runDurations + prdsByTaskId"
+    }
+  ]
+}

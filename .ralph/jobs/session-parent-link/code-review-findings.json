@@ -1,0 +1,199 @@
+{
+  "planFile": "D:/harness-efforts/codexu/.ralph/jobs/session-parent-link/plan.md",
+  "repoDir": "D:/harness-efforts/codexu",
+  "reviewCycle": 2,
+  "findings": [
+    {
+      "id": "F-001",
+      "severity": "High",
+      "source": "claude",
+      "classification": "fixable",
+      "phase": "code",
+      "category": "Correctness",
+      "sectionRef": "Risk Areas > Malformed metadata",
+      "description": "Malformed parent/child refs reach storage and crash getSessionChildren. Plan & job CLAUDE.md state malformed shapes 'pass through unchanged; downstream MetadataSchema.parse decides whether to drop them' — but MetadataSchema.parse is never invoked on ingress in sync.ts. parsePlainJson returns the raw object; normalizeMetadataParentChildRefs leaves non-array spawnedChildren as the original value; applySessions spreads it into store state. Then getSessionChildren (packages/happy-app/sources/sync/storage.ts:1428-1436) does `if (!spawnedChildren?.length) return []; return spawnedChildren.map(...).filter(...)`. If spawnedChildren is e.g. the string 'not-an-array', `.length === 12` is truthy and `.map` throws TypeError: spawnedChildren.map is not a function. The sync.test.ts test at lines 803-833 codifies this unsafe behavior by asserting `parentSessionId: 42` and `spawnedChildren: 'not-an-array'` are persisted as-is. Two independent reviewers (Codex Medium, Copilot High) flagged the same hole.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Added drop-on-invalid logic in normalizeMetadataParentChildRefs (sync.ts:121-157) for parentSessionId (non-string) and spawnedChildren (non-array); added typeof string / Array.isArray backstop guards in getSessionParent/getSessionChildren (storage.ts:1422-1440); updated sync.test.ts:803-833 to assert dropped fields. Re-verified by review-changes round 2: 48 sync tests pass; typecheck clean; helpers can no longer be reached with malformed shapes from either ingress site.",
+      "relevantFiles": [
+        "packages/happy-app/sources/sync/sync.ts:121-157",
+        "packages/happy-app/sources/sync/sync.ts:1864-1881",
+        "packages/happy-app/sources/sync/storage.ts:1422-1440",
+        "packages/happy-app/sources/sync/sync.test.ts:803-833"
+      ],
+      "suggestedFix": "Add defensive shape guards in normalizeMetadataParentChildRefs that DROP non-string parentSessionId and non-array spawnedChildren (rather than passing them through), OR add the same guards inside getSessionParent/getSessionChildren before reading .length/.map. Update sync.test.ts:803-833 to assert that malformed fields are stripped (parentSessionId === undefined, spawnedChildren === undefined) in the call to applySessions, not preserved as 42 / 'not-an-array'. Either approach satisfies the plan's defensive acceptance criterion and prevents the helper crash."
+    },
+    {
+      "id": "F-002",
+      "severity": "Low",
+      "source": "claude",
+      "classification": "fixable",
+      "phase": "code",
+      "category": "Completeness",
+      "sectionRef": "Acceptance Criteria > initial-fetch malformed",
+      "description": "The initial-fetch (toCompositeSession) path lacks malformed-shape coverage. sync.test.ts:845-887 only covers happy-path normalization and idempotency for the fetch path; the malformed parentSessionId/spawnedChildren case is only tested for the live update-session handler (lines 803-833). Plan AC requires defensive behavior on both ingress paths through the same shared helper, but only one is exercised end-to-end.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Added initial-fetch malformed-shape test in sync.test.ts:889-922 asserting toCompositeSession path drops invalid parentSessionId/spawnedChildren via .not.toHaveProperty assertions. 48 tests pass. Re-verified round 2.",
+      "relevantFiles": [
+        "packages/happy-app/sources/sync/sync.test.ts:889-922"
+      ],
+      "suggestedFix": "Add a fetchSessions test case where the server returns `metadata: JSON.stringify({ ..., parentSessionId: 42, spawnedChildren: 'not-an-array' })` and assert the malformed fields are dropped/handled (final shape depends on the F-001 fix direction)."
+    },
+    {
+      "id": "F-003",
+      "severity": "Low",
+      "source": "claude",
+      "classification": "fixable",
+      "phase": "code",
+      "category": "Quality",
+      "sectionRef": "sync.ts update-session handler",
+      "description": "The metadataPathChanged ternary in sync.ts (~lines 1869-1873) became a nested type-guarding ternary that is functionally equivalent to the pre-patch expression `metadata?.path !== session.metadata?.path` but considerably harder to read. The new nested form handles the case where normalizedMetadata is not a plain object, but the fallback (`session.metadata?.path !== undefined`) yields the same boolean as the original optional-chain comparison in that case.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Replaced nested ternary in metadataPathChanged with normalizedMetadata?.path !== session.metadata?.path at sync.ts:1879-1881. 48 tests + typecheck pass. Re-verified round 2.",
+      "relevantFiles": [
+        "packages/happy-app/sources/sync/sync.ts:1879-1881"
+      ],
+      "suggestedFix": "Restore the original `normalizedMetadata?.path !== session.metadata?.path` style — coerce normalizedMetadata to a Record<string, unknown> | null once after the normalize call, then access `.path` via optional chaining. Drops the nested ternary and is behaviorally equivalent."
+    },
+    {
+      "id": "F-004",
+      "severity": "Low",
+      "source": "claude",
+      "classification": "fixable",
+      "phase": "code",
+      "category": "Quality",
+      "sectionRef": "plans/overview.html roadmap-data",
+      "description": "plans/overview.html rolls `generatedAt` backwards from 2026-05-14T11:00:00Z to 2026-05-13T20:00:00Z and `generatedFromCommit` from 345c3f80 to 9a85a320, while many lastTouched entries remain on 2026-05-14. The new run record `session-parent-link/2026-05-13` has `commits: []`. Result: the roadmap JSON is internally inconsistent — it claims to be generated from a commit older than several of its lastTouched timestamps. (Also flagged by Codex.)",
+      "status": "wont_fix",
+      "fixedInIteration": 1,
+      "resolution": "Already resolved by commit 35bc26f6: generatedAt=2026-05-14T12:00:00Z, generatedFromCommit=11c3eafb, run record session-parent-link/2026-05-14 with commits=[11c3eafb]. JSON parses cleanly.",
+      "relevantFiles": [
+        "plans/overview.html:2002-2007",
+        "plans/overview.html:2062"
+      ],
+      "suggestedFix": "Set generatedAt to the actual generation time (>= max lastTouched), set generatedFromCommit to the landing commit (11c3eafb), and populate the run.commits array with `[\"11c3eafb\"]`."
+    },
+    {
+      "id": "F-005",
+      "severity": "Low",
+      "source": "consensus",
+      "detectedBy": [
+        "codex",
+        "copilot"
+      ],
+      "classification": "fixable",
+      "phase": "code",
+      "category": "Completeness",
+      "sectionRef": null,
+      "description": "[packages/happy-app/sources/sync/sync.test.ts:845](D:/harness-efforts/codexu/packages/happy-app/sources/sync/sync.test.ts:845) covers initial-fetch promotion/idempotency, but not the plan's required malformed-shape coverage for the initial-fetch path. The malformed case is only tested for live `update-session` at line 803.",
+      "status": "fixed",
+      "fixedInIteration": 2,
+      "resolution": "Resolved by the same change that fixed F-002: malformed initial-fetch test added at sync.test.ts:889-922 (parentSessionId=42, spawnedChildren='not-an-array' both dropped). External reviewers skipped this re-review round per --re-review flag, but the underlying gap is closed and matches the criterion these reviewers flagged.",
+      "relevantFiles": [
+        "packages/happy-app/sources/sync/sync.test.ts:889-922"
+      ],
+      "suggestedFix": null
+    },
+    {
+      "id": "F-006",
+      "severity": "Medium",
+      "source": "codex",
+      "detectedBy": [
+        "codex"
+      ],
+      "classification": "fixable",
+      "phase": "code",
+      "category": "Correctness",
+      "sectionRef": null,
+      "description": "[packages/happy-app/sources/sync/sync.ts:1861](D:/harness-efforts/codexu/packages/happy-app/sources/sync/sync.ts:1861) parses metadata, normalizes it, casts it to `Session['metadata']`, and applies it without validation. The test at [sync.test.ts:826](D:/harness-efforts/codexu/packages/happy-app/sources/sync/sync.test.ts:826) explicitly asserts invalid known fields (`parentSessionId: 42`, `spawnedChildren: 'not-an-array'`) are stored. `MetadataSchema` would not 'drop' those fields; Zod strips unknown keys, but invalid known keys throw. This violates the defensive acceptance criterion and can leave helpers operating on invalid metadata.",
+      "status": "fixed",
+      "fixedInIteration": 2,
+      "resolution": "Resolved by the same change that fixed F-001: normalizer now drops non-string parentSessionId and non-array spawnedChildren at the ingress site (sync.ts:121-157) and helpers have Array.isArray/typeof string backstops (storage.ts:1422-1440). The drop semantics live at the normalizer rather than at MetadataSchema.parse; the AC's intent (helpers never see invalid shapes) is preserved. External reviewers skipped this re-review round per --re-review flag.",
+      "relevantFiles": [
+        "packages/happy-app/sources/sync/sync.ts:121-157",
+        "packages/happy-app/sources/sync/storage.ts:1422-1440"
+      ],
+      "suggestedFix": null
+    },
+    {
+      "id": "F-007",
+      "severity": "Low",
+      "source": "codex",
+      "detectedBy": [
+        "codex"
+      ],
+      "classification": "fixable",
+      "phase": "code",
+      "category": "Quality",
+      "sectionRef": null,
+      "description": "[plans/overview.html:2002](D:/harness-efforts/codexu/plans/overview.html:2002) rolls `generatedAt` / `generatedFromCommit` backward while many `lastTouched` entries remain on 2026-05-14, and the new run has `\"commits\": []` at [plans/overview.html:2062](D:/harness-efforts/codexu/plans/overview.html:2062). The roadmap JSON is now internally stale/ambiguous; it should keep current generated metadata and record the actual commit when closed.",
+      "status": "wont_fix",
+      "fixedInIteration": 2,
+      "resolution": "Duplicate of F-004 — already resolved by commit 35bc26f6 prior to this review round.",
+      "relevantFiles": [
+        "plans/overview.html:2002",
+        "plans/overview.html:2062"
+      ],
+      "suggestedFix": null
+    },
+    {
+      "id": "F-008",
+      "severity": "High",
+      "source": "copilot",
+      "detectedBy": [
+        "copilot"
+      ],
+      "classification": "fixable",
+      "phase": "code",
+      "category": "Correctness",
+      "sectionRef": null,
+      "description": "`packages/happy-app/sources/sync/sync.ts:121-146` deliberately preserves malformed `spawnedChildren` values, but `packages/happy-app/sources/sync/storage.ts:1428-1436` then assumes `spawnedChildren` is an array and calls `.map(...)`. The new test at `packages/happy-app/sources/sync/sync.test.ts:803-833` even codifies this by expecting `'not-an-array'` to reach `applySessions()`. That means a bad wire payload can still enter the store, and any consumer of `getSessionChildren()` will crash with `map is not a function` instead of safely dropping the invalid field as the plan intended.",
+      "status": "fixed",
+      "fixedInIteration": 2,
+      "resolution": "Resolved by the same change that fixed F-001 — duplicate of that finding. Normalizer drops malformed shapes (sync.ts:121-157) and helpers carry Array.isArray/typeof string guards (storage.ts:1422-1440). External reviewers skipped this re-review round per --re-review flag.",
+      "relevantFiles": [
+        "packages/happy-app/sources/sync/sync.ts:121-157",
+        "packages/happy-app/sources/sync/storage.ts:1422-1440",
+        "packages/happy-app/sources/sync/sync.test.ts:803-833"
+      ],
+      "suggestedFix": null
+    },
+    {
+      "id": "F-009",
+      "severity": "Low",
+      "source": "claude",
+      "classification": "fixable",
+      "phase": "code",
+      "category": "Quality",
+      "sectionRef": "sync.test.ts update-session malformed-shape assertion",
+      "description": "The update-session malformed-shape test assertion at sync.test.ts:826-833 uses `expect.not.objectContaining({ parentSessionId: expect.anything(), spawnedChildren: expect.anything() })`. `objectContaining` semantics match when ALL listed keys are present, so `.not.objectContaining({a, b})` passes whenever a OR b is absent — it would still pass if `spawnedChildren` accidentally leaked through but `parentSessionId` was dropped. This makes the assertion a strictly weaker contract than intended; the parallel initial-fetch test at sync.test.ts:920-921 uses two `not.toHaveProperty(...)` calls (a strict AND) and correctly catches a partial regression. The behavior under test is currently correct (normalizer drops both fields), so this is a test-strength issue, not a behavioral bug.",
+      "status": "fixed",
+      "fixedInIteration": 2,
+      "resolution": "Replaced weak objectContaining negation with two not.toHaveProperty assertions in sync.test.ts:826-833. 49 tests pass.",
+      "relevantFiles": [
+        "packages/happy-app/sources/sync/sync.test.ts:826-833"
+      ],
+      "suggestedFix": "Replace the single `expect.not.objectContaining({ parentSessionId: expect.anything(), spawnedChildren: expect.anything() })` with two separate `.toMatchObject` + `.not.toHaveProperty` assertions, mirroring the initial-fetch test at lines 920-921: read the captured `applySessions` call's first session metadata directly and assert `expect(meta).not.toHaveProperty('parentSessionId'); expect(meta).not.toHaveProperty('spawnedChildren');`. Equivalent strength to the fetch-path test and catches single-field regressions."
+    },
+    {
+      "id": "F-010",
+      "severity": "Low",
+      "source": "claude",
+      "classification": "fixable",
+      "phase": "code",
+      "category": "Quality",
+      "sectionRef": "packages/happy-app/CLAUDE.md sync invariants paragraph",
+      "description": "packages/happy-app/CLAUDE.md (lines 211-216, per US-005 evidence) and the job-level CLAUDE.md (lines 14-15) both describe the normalizer as relying on 'downstream MetadataSchema.parse' to drop malformed values. The F-001 fix moved that responsibility to the normalizer itself (drop-on-invalid in sync.ts:121-157), so the docs claim no longer matches the code. This is the same root cause documented in code-review-context.md's 'Cross-cutting concern: no Zod parse on metadata ingress' section. Informational only — the invariant the docs describe (helpers never see invalid shapes) still holds; only the *mechanism* changed.",
+      "status": "fixed",
+      "fixedInIteration": 2,
+      "resolution": "Updated packages/happy-app/CLAUDE.md sync-invariants paragraph to describe normalizer drop-on-invalid mechanism and helper backstops; removed stale MetadataSchema.parse reference. Job-level CLAUDE.md left frozen.",
+      "relevantFiles": [
+        "packages/happy-app/CLAUDE.md:211-216",
+        ".ralph/jobs/session-parent-link/CLAUDE.md:14-15"
+      ],
+      "suggestedFix": "Replace 'downstream MetadataSchema.parse decides whether to drop them' with 'the ingress normalizer drops non-string parentSessionId and non-array spawnedChildren before applySessions sees them; helpers carry Array.isArray/typeof string backstops as defense-in-depth'. Keep the rest of the paragraph (server-authoritative, cross-machine passthrough, composite-id ingress) unchanged."
+    }
+  ]
+}

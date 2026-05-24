@@ -1,0 +1,38 @@
+{
+  "planFile": "D:/harness-efforts/codexu/.ralph/jobs/ralph-pipeline-11-mcp-operational-tools/plan.md",
+  "repoDir": "D:/harness-efforts/codexu/.ralph/jobs/ralph-pipeline-11-mcp-operational-tools/worktree",
+  "findings": [
+    {
+      "id": "F-001",
+      "severity": "High",
+      "category": "Stale Documentation",
+      "classification": "fixable",
+      "phase": "docs",
+      "source": "docs",
+      "status": "fixed",
+      "description": "tools/overview-mcp/README.md (line 142) claims that concurrent overview.sync.now calls return `{ ok: false, error: 'sync already in progress' }`, but the implementation in tools/overview-mcp/src/tools/sync-now.ts (line 62) returns `'another sync in progress'`. Agents that string-match on the documented error message (or the AC text in plan.md) will not detect the single-flight rejection.",
+      "relevantFiles": [
+        "tools/overview-mcp/README.md"
+      ],
+      "suggestedFix": "Replace the string 'sync already in progress' on line 142 of tools/overview-mcp/README.md with 'another sync in progress' so the documented error matches the actual return value in src/tools/sync-now.ts.",
+      "fixedInIteration": 1,
+      "resolution": "Replaced \"sync already in progress\" with \"another sync in progress\" on README line 142 to match sync-now.ts."
+    },
+    {
+      "id": "F-002",
+      "severity": "Medium",
+      "category": "Stale Documentation",
+      "classification": "fixable",
+      "phase": "docs",
+      "source": "docs",
+      "status": "fixed",
+      "description": "tools/overview-mcp/README.md (line 112) states that overview.dev_server.status `Returns the current ProcessManager snapshot and the last 30 lines from each stream.` However, the implementation in tools/overview-mcp/src/tools/dev-server-status.ts (lines 51-53, function `tailLogs`) slices the last 10 lines per stream (`logs.stdout.slice(-10)` / `logs.stderr.slice(-10)`), not 30. Operators relying on the doc to size their log buffers will see 1/3 of the expected output.",
+      "relevantFiles": [
+        "tools/overview-mcp/README.md"
+      ],
+      "suggestedFix": "Change 'the last 30 lines from each stream' to 'the last 10 lines from each stream' on line 112 of tools/overview-mcp/README.md, or alternatively update tailLogs in src/tools/dev-server-status.ts to slice -30. The README change is the docs-scope fix; the code change is a separate scope decision.",
+      "fixedInIteration": 1,
+      "resolution": "Changed \"the last 30 lines\" to \"the last 10 lines\" on README line 112 to match tailLogs slice(-10)."
+    }
+  ]
+}

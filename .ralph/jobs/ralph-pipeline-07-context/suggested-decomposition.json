@@ -1,0 +1,29 @@
+{
+  "clusters": [
+    {
+      "name": "plan07-context-serial",
+      "stories": ["US-001", "US-002", "US-003", "US-004", "US-005", "US-006", "US-007", "US-008", "US-009"],
+      "phase": 1,
+      "dependsOn": [],
+      "fileOverlapEvidence": {
+        "sharedFiles": [
+          "tools/overview-viewer/src/types.ts",
+          "scripts/lib/sync-core.mjs",
+          "tools/overview-viewer/src/App.tsx",
+          "tools/overview-viewer/src/components/TaskCommand.tsx",
+          "tools/overview-viewer/src/styles.css",
+          "tools/overview-viewer/vite.config.ts"
+        ],
+        "exclusiveFiles": [
+          "scripts/lib/parse-notepad.mjs",
+          "scripts/lib/derive-pr-links.mjs",
+          "scripts/lib/append-journal.mjs",
+          "tools/overview-viewer/src/components/RecentActivity.tsx",
+          "tools/overview-viewer/src/hooks/useActivityEvents.ts"
+        ],
+        "risk": "medium"
+      },
+      "executionModeRationale": "Each story's tests depend on types/exports introduced by the previous story (US-005 imports from US-001/002/003; US-008 depends on US-005's wiring). Splitting into parallel clusters would require synthetic dependency edges across nearly every pair. Total footprint ~10 hours sequential — orchestration overhead of parallelism outweighs the gain."
+    }
+  ]
+}

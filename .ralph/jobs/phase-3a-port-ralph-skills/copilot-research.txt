@@ -1,0 +1,76 @@
+I’m opening the provided file to see the task details, then I’ll carry it through.
+
+I’ve got the feature scope; now I’m pulling the roadmap, scaffold, manifest, and source skills to ground the analysis.
+
+I’ve hit the repo-local scaffold; next I’m checking the roadmap sections, workspace shape, and whether the Ralph source/codex manifest are actually present here.
+
+I have the roadmap excerpts; I’m filling in repo structure and checking whether the codex submodule files are available locally or only referenced by roadmap.
+
+I can see the submodule is checked out, so I’m reading the manifest definition and the repo-level docs rather than relying only on roadmap notes.
+
+The roadmap references a manifest file path that’s stale, so I’m locating the current schema definitions in the codex submodule before I summarize constraints.
+
+I’m checking the actual codex submodule layout now; the earlier file path and symbol names don’t match what’s checked out.
+
+The submodule looks empty to file tools, so I’m confirming whether it’s a gitlink-only checkout or a path issue.
+
+I’m sanity-checking the manifest usage pattern in this repo, especially whether `skills` is a single root path versus an array or per-skill entries.
+
+I’m looking for local skill examples beyond hello-world so the implementation advice can point to concrete formatting patterns already in this repo.
+
+I found local Claude-format and codex-visible skill examples; I’m reading one of each so the porting guidance is based on existing patterns, not guesswork.
+
+**Codebase architecture**
+
+This is a **pnpm monorepo** rooted at `D:\harness-efforts\codexu`, with app/runtime packages under `packages/` and a personal codex plugin at `packages/codexu-plugin` (`README.md`, `package.json`, `pnpm-workspace.yaml`, repo root `README.md`). The repo is mostly **TypeScript/JavaScript + Markdown/JSON**; the codex engine is pinned as a **git submodule** at `codex/` and is Rust-based per the repo docs (`.gitmodules`, root `README.md`).
+
+For this feature, the only package that matters directly is `packages/codexu-plugin/`, which is a content bundle, not app code:
+- `.codex-plugin/plugin.json` — codex plugin manifest
+- `skills/<name>/SKILL.md` — skill payloads
+- `.agents/plugins/marketplace.json` — local marketplace catalog
+- `README.md` — install/smoke-test instructions
+
+**Feature-relevant code**
+
+Most relevant files:
+- `packages/codexu-plugin/.codex-plugin/plugin.json` — current scaffold uses `"skills": "./skills"` as a **single skill-root path**, not per-skill entries.
+- `packages/codexu-plugin/skills/hello-world/SKILL.md` — best in-repo template for codex plugin skill layout/frontmatter.
+- `packages/codexu-plugin/README.md` — Phase 1c scaffold context and install flow (`codex plugin marketplace add`, TUI enablement, `codex debug prompt-input` smoke test).
+- `packages/codexu-plugin/.agents/plugins/marketplace.json` — marketplace metadata used by `codex plugin marketplace add/upgrade`.
+- `plans/codexu-roadmap.md:455-483` — Phase 2b finding: manifest `skills` supports only **one** plugin-root-relative path.
+- `plans/codexu-roadmap.md:510-532` — Phase 1c scaffold status and TUI enablement caveat.
+- `plans/codexu-roadmap.md:1706-1740` — Phase 3a conversion checklist for Ralph skills.
+- `plans/codexu-roadmap.md:1149-1189` and `2635-2645` — manifest/layout/path constraints and silent-skip behavior.
+- `plans/parallel-assignments.md:33-36` — exact task wording now being researched.
+- `.claude/skills/agent-browser/SKILL.md` — concrete local example of Claude-only frontmatter like `allowed-tools`.
+- `.agents/skills/dev/SKILL.md` — concrete local example of codex-visible skill style/body structure.
+
+I could not read `C:\ai-developer-toolkit\plugins\ralph\skills\...` from this environment, so body-specific rewrite advice below is based on the roadmap’s audited notes rather than the source files themselves.
+
+**Technical constraints**
+
+1. **Do not turn `plugin.json` into a per-skill array.** The scaffold and roadmap both say codex expects a single root path (`"skills": "./skills"`), and Phase 2b explicitly says only one path is supported.
+2. **All manifest paths must be plugin-root-relative and start with `./`** (`plans/codexu-roadmap.md:1149-1154`, `2635-2645`).
+3. **Plugin install is marketplace-based**, not `codex plugin install <path>`; acceptance depends on `codex plugin marketplace upgrade codexu` plus re-enabling in the TUI (`README.md`, Phase 1c).
+4. **Unknown/extra manifest fields can silently skip**, so malformed `plugin.json` is easy to miss; keep the manifest minimal.
+5. **Claude-only frontmatter is tolerated but unnecessary**; `allowed-tools` should be stripped during porting.
+6. **Skill body rewrites are likely needed.** Phase 3a notes that Claude `Task({subagent_type: ...})` references must be rewritten to codex-native agent-role language, and options-mode-specific gating must not be carried forward into this phase.
+7. There is a **spec inconsistency**: the task prompt suggests `/list-jobs` as the end-to-end user-invocable smoke test, but the roadmap classifies `list-jobs` as **internal** (`user-invocable: false`). That should be resolved before implementation.
+
+**Implementation suggestions**
+
+Natural integration point: keep `packages/codexu-plugin` as the single codex plugin bundle and add the 13 Ralph skills under `packages/codexu-plugin\skills\<skill-name>\SKILL.md`, modeled on `skills\hello-world\SKILL.md`.
+
+Recommended approach:
+1. **Keep `plugin.json` structurally unchanged** except for any metadata cleanup; leave `"skills": "./skills"` alone.
+2. **Create one directory per Ralph skill** under `packages/codexu-plugin\skills\`.
+3. For each `SKILL.md`:
+   - preserve `name`, `description`, and `model` if present
+   - preserve `user-invocable`
+   - remove Claude-only fields like `allowed-tools`
+   - review body text for Claude-specific concepts and rewrite to codex-native terminology
+4. **Do not port options-mode behavior** here; only remove/rephrase references if a skill assumes it.
+5. Keep `packages/codexu-plugin\.agents\plugins\marketplace.json` as the marketplace anchor; Phase 3a likely does **not** need catalog changes unless plugin naming/versioning changes.
+
+For the acceptance smoke test, pick one of the roadmap-confirmed user-invocable skills (`brainstorm-with-ralph`, `plan-with-ralph`, `implement-with-ralph`, or `review-plan-with-ralph`) unless the source Ralph skill files prove `list-jobs` was later changed.
+

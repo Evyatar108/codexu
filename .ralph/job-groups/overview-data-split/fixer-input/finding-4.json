@@ -1,0 +1,18 @@
+{
+  "id": "F-005",
+  "severity": "Low",
+  "source": "claude",
+  "classification": "fixable",
+  "phase": "code",
+  "category": "Quality",
+  "sectionRef": "Acceptance Criteria > task count",
+  "description": "The plan and acceptance criteria state '51 task entries' (set in plan-review F-001). The actual original `plans/overview.html` on `origin/main` contains 51 `<details class=\"cmd\">` elements but only 49 unique `data-task-id` attributes — the two extra `<details class=\"cmd\">` literals are inside CSS comments and JS comments (lines 851 and 2799 of the original), not real rows. The ported file correctly has 49 unique task entries with zero duplicates. The AC text is wrong, not the implementation. Codex raised this as High based on the AC count vs. delivered count, but in practice the delivery is correct and the AC text drifted during plan-review iteration F-001.",
+  "status": "open",
+  "fixedInIteration": null,
+  "resolution": null,
+  "relevantFiles": [
+    "plans/overview-data.js",
+    ".ralph/job-groups/overview-data-split/plan.md"
+  ],
+  "suggestedFix": "Update plan.md Acceptance Criteria from '51 task entries' to '49 task entries' (or 'every task entry from the pre-split `<details class=\"cmd\">[data-task-id]` set on origin/main, deduplicated by `data-task-id`'). Leave the data file as-is."
+}

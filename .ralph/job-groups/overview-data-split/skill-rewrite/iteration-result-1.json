@@ -1,0 +1,62 @@
+{
+  "storyId": "US-001",
+  "verifiedEvidence": [
+    {
+      "criterion": "Procedures A-G describe data-file edits instead of multi-file HTML edits",
+      "command": "grep Procedure headings and data-file source lines in .agents/skills/roadmap-and-overview/SKILL.md",
+      "result": "Lines 122, 196, 237, 249, 266, 314, and 325 define Procedures A-G. Lines 26, 37, and 38 state overview-data.js is the primary single-assignment data file and overview.html is not edited for normal status changes.",
+      "evidenceKind": "file-snippet"
+    },
+    {
+      "criterion": "Procedure A includes working 1b-multidev example with required task fields and matching lastTouched",
+      "command": "grep required example fields in .agents/skills/roadmap-and-overview/SKILL.md",
+      "result": "Procedure A example includes id at line 146, title/scope/phase/status at lines 147-150, kanbanCards at line 151, summaryHtml at line 179, descriptionHtml at line 180, warnings at line 181, planPrompt at line 187, lastTouchedAt at line 189, and matching OVERVIEW_DATA.lastTouched at line 193.",
+      "evidenceKind": "file-snippet"
+    },
+    {
+      "criterion": "Procedure B calls out lastTouched dual-update invariant",
+      "command": "grep lastTouched invariant text in .agents/skills/roadmap-and-overview/SKILL.md",
+      "result": "Procedure B lines 224-226 state that tasks[x].lastTouchedAt and OVERVIEW_DATA.lastTouched[<id>] must be updated to the same ISO in the same edit and drift invalidates freshness/order.",
+      "evidenceKind": "file-snippet"
+    },
+    {
+      "criterion": "Procedure D calls out lastTouched dual-update invariant",
+      "command": "grep lastTouched invariant text in .agents/skills/roadmap-and-overview/SKILL.md",
+      "result": "Procedure D lines 260-262 repeat the same dual-update invariant for paused/blocked changes.",
+      "evidenceKind": "file-snippet"
+    },
+    {
+      "criterion": "Phase-tree procedure references final node schema and worked task-ref state edit",
+      "command": "grep phase-tree schema and worked example lines in .agents/skills/roadmap-and-overview/SKILL.md",
+      "result": "Procedure E lines 268-270 reference {kind: 'task-ref'|'raw', taskId?, state?, html?}; lines 289-309 show removing a raw node and changing a task-ref state to donefade.",
+      "evidenceKind": "file-snippet"
+    },
+    {
+      "criterion": "localStorage details key drift fixed to v2",
+      "command": "grep -n 'codexu-overview-details-state' .agents/skills/roadmap-and-overview/SKILL.md plans/overview.html",
+      "result": "SKILL.md documents codexu-overview-details-state-v2 at line 336; plans/overview.html uses the same v2 key at line 1965. v1 appears only as an old key not to resurrect.",
+      "evidenceKind": "file-snippet"
+    },
+    {
+      "criterion": "Pitfalls include JS escaping, lastTouched dual-update, and skeleton ownership",
+      "command": "grep Pitfalls headings in .agents/skills/roadmap-and-overview/SKILL.md",
+      "result": "Pitfalls include JS string escaping at line 340, lastTouched dual-update at line 347, and Skeleton-ownership at line 352.",
+      "evidenceKind": "file-snippet"
+    },
+    {
+      "criterion": "Only SKILL.md changed in the committed code diff",
+      "command": "git diff --name-only HEAD~1..HEAD",
+      "result": "Only .agents/skills/roadmap-and-overview/SKILL.md changed in commit 9b1e1076.",
+      "evidenceKind": "command-output"
+    },
+    {
+      "criterion": "Root install/build and workspace typecheck pass",
+      "command": "pnpm install --frozen-lockfile; pnpm -r --if-present typecheck",
+      "result": "Install/postinstall passed in 215s using pnpm v10.11.0. Workspace typecheck passed in 27s across 8 projects, including codexu-options-mode-plugin, codium, happy-wire, happy-agent, happy-app, happy-server, and happy-cli.",
+      "evidenceKind": "test-output"
+    }
+  ],
+  "skippedReasons": [],
+  "notTested": [],
+  "iterationSHA": "9b1e10769db6f453c4c09d1a2fc4126ec77dd8e1"
+}

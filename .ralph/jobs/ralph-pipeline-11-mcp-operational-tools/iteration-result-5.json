@@ -1,0 +1,38 @@
+{
+  "storyId": "US-005",
+  "verifiedEvidence": [
+    {
+      "criterion": "overview.build registration and ProcessManager spawn options",
+      "command": "nl -ba tools/overview-mcp/src/tools/build.ts | sed -n '24,52p'; pnpm --filter @codexu/overview-mcp exec vitest run src/__tests__/build.test.ts --passWithNoTests --reporter=verbose",
+      "result": "PASS: overview.build registers through server.registerTool and spawns name 'build' with pnpm overview:build, cwd context.repoRoot, oneShot true; focused suite passed 4 tests.",
+      "evidenceKind": "test"
+    },
+    {
+      "criterion": "Build success, failure, concurrent rejection, and stopAll transient behavior",
+      "command": "pnpm --filter @codexu/overview-mcp exec vitest run src/__tests__/build.test.ts --passWithNoTests --reporter=verbose",
+      "result": "PASS: 1 file passed, 4 tests passed, covering success artifact size, non-zero stderr tail, AlreadyRunning rejection, and SIGTERM via stopAll.",
+      "evidenceKind": "test"
+    },
+    {
+      "criterion": "Stdio smoke test lists exact 15-tool set including overview.build",
+      "command": "pnpm --filter @codexu/overview-mcp build; pnpm --filter @codexu/overview-mcp exec vitest run src/__tests__/stdio-tools-list.test.ts --passWithNoTests --reporter=verbose",
+      "result": "PASS: build exited 0 and stdio smoke test passed with the exact 15-tool set including overview.build.",
+      "evidenceKind": "test"
+    },
+    {
+      "criterion": "Typecheck passes for @codexu/overview-mcp",
+      "command": "pnpm --filter @codexu/overview-mcp typecheck",
+      "result": "PASS: tsc --noEmit -p tsconfig.json exited 0; log .test-output/overview-mcp.typecheck.log.",
+      "evidenceKind": "typecheck"
+    },
+    {
+      "criterion": "Full @codexu/overview-mcp test suite passes",
+      "command": "pnpm --filter @codexu/overview-mcp test",
+      "result": "PASS: Test Files 18 passed (18), Tests 62 passed (62); log .test-output/overview-mcp.test.log.",
+      "evidenceKind": "test"
+    }
+  ],
+  "skippedReasons": [],
+  "notTested": [],
+  "iterationSHA": "55cfb916a1d238c5928ed0cb955f264b2793bb4f"
+}

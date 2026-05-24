@@ -1,0 +1,34 @@
+I’m opening the attached file first so I can see what needs to be done.
+
+I found the plan; now I’m checking the cited files so I can validate whether the proposed steps and acceptance criteria match the actual codebase.
+
+I found a likely contradiction in the plan, so I’m checking the role-loading code and config merge behavior before I write the review.
+
+I’m down to precedence and merge details now; I need that to decide whether the `project_doc_fallback_filenames = []` part of the plan is actually sound.
+
+I have enough code context; I’m doing one quick repo-state check to confirm whether the plan’s submodule-pointer warning reflects the current checkout.
+
+### Feasibility
+
+- [High] The plan is internally contradictory about the header comment. In **Architecture**, it proposes `# Inspired by the design of Claude Code's built-in Explore subagent...` inside `codex-rs/core/src/agent/builtins/explorer.toml`, but the acceptance criteria also require that **no `Claude Code` substring appear anywhere in that file**. As written, both cannot be true; either the header text or that acceptance criterion must change.
+
+- [Low] The research section points at `codex-rs/config/src/config_toml.rs:668-681` (`AgentRoleToml`) as the relevant schema, but `core/src/agent/role.rs` loads built-in role files as a plain config layer (`toml::from_str` + `deserialize_config_toml_with_base`), i.e. `ConfigToml`-shaped content like `developer_instructions`, `sandbox_mode`, etc. The implementation sketch is mostly fine, but the cited schema is the wrong one and could mislead the implementer.
+
+### Completeness
+
+- [High] The doc/update scope is too small for an edit under `codex/external/repos/codex-patched/codex-rs/`. `codex/CLAUDE.md` says every upstream-canonical edit must be paired with `docs/implementation/patch-surface.md` documentation of the invariant/rebase surface. The plan only calls for an “optional one-line patch-surface doc note” in `codex/docs/implementation/patch-surface.md`, which is materially below the documented bar for this repo.
+
+- [Medium] The plan says `codex-rs/core/src/agent/role_tests.rs:770-775` “continues to apply unchanged,” but `built_in_config_file_contents_resolves_explorer_only` currently only asserts that `missing.toml` returns `None`; it does **not** verify explorer resolution at all. That means the plan is missing an obvious test cleanup/update in addition to the new invariant test.
+
+### Ordering
+
+- [High] `US-007` allows the patch-surface doc change to land “alongside US-006 or as immediate follow-up,” but `codex/CLAUDE.md` requires the patch-surface update in the **same commit as the code change**. The plan should move the patch-surface work before the codex commit is finalized, not leave room for a follow-up commit.
+
+### Simplicity
+
+No issues found.
+
+### Acceptance Criteria Quality
+
+- [Medium] Several criteria are not specific enough for autonomous execution: “operator approval recorded in implementation log” does not define the log/artifact path; “manual operator spot-check” is not machine-verifiable; and the smoke criterion says the explorer should return a “sensible exploration summary,” which is subjective. These should be rewritten as explicit artifacts or observable outputs.
+

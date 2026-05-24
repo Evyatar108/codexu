@@ -1,0 +1,54 @@
+{
+  "storyId": "US-003",
+  "verifiedEvidence": [
+    {
+      "criterion": "CommandList accepts and forwards ralphState",
+      "command": "grep -n ralphState tools/overview-viewer/src/components/CommandList.tsx",
+      "result": "Lines 83 and 119 show CommandList requires ralphState and forwards it to TaskCommand.",
+      "evidenceKind": "source-inspection"
+    },
+    {
+      "criterion": "TaskCommand accepts ralphState and renders RalphStageChip next to WorkstreamPill",
+      "command": "grep -nE 'ralphState|WorkstreamPill|RalphStageChip' tools/overview-viewer/src/components/TaskCommand.tsx",
+      "result": "Line 55 requires ralphState; lines 412-413 render WorkstreamPill followed by RalphStageChip.",
+      "evidenceKind": "source-inspection"
+    },
+    {
+      "criterion": "App passes ralphState to command rows",
+      "command": "grep -n 'ralphState={ralphState}' tools/overview-viewer/src/App.tsx",
+      "result": "Line 124 passes ralphState to CommandList; line 116 passes it through the Kanban render contract.",
+      "evidenceKind": "source-inspection"
+    },
+    {
+      "criterion": "No chip for untracked tasks",
+      "command": "pnpm --filter @codexu/overview-viewer test > .test-output/overview-viewer.test.log 2>&1",
+      "result": "Exited 0; interactions/commandListRalphStageChip.test.tsx verifies querySelectorAll('[data-task-id=...] .ralph-stage-chip') length 0 for NO_RALPH_STATE.",
+      "evidenceKind": "absent-verified"
+    },
+    {
+      "criterion": "Component render tests pass with NO_RALPH_STATE props",
+      "command": "pnpm --filter @codexu/overview-viewer test > .test-output/overview-viewer.test.log 2>&1",
+      "result": "Exited 0; Vitest reported 22 test files passed and 116 tests passed.",
+      "evidenceKind": "test-output"
+    },
+    {
+      "criterion": "Typecheck passes",
+      "command": "pnpm --filter @codexu/overview-viewer typecheck > .test-output/overview-viewer.typecheck.log 2>&1",
+      "result": "Exited 0; tsc --noEmit completed with no errors.",
+      "evidenceKind": "typecheck"
+    },
+    {
+      "criterion": "US-003:AC-009 browser verification",
+      "command": "N/A",
+      "result": "SKIPPED: dev-browser skill/browser automation unavailable in this session; wiring is covered by SSR render assertions and jsdom DOM verification.",
+      "evidenceKind": "skipped"
+    }
+  ],
+  "skippedReasons": [
+    "tool_unavailable"
+  ],
+  "notTested": [
+    "live browser verification; dev-browser tooling unavailable"
+  ],
+  "iterationSHA": "6cebd1df28610e8ee7ce7c1203b4afaa736324e7"
+}

@@ -1,0 +1,31 @@
+I’ll inspect the referenced temp item to determine what needs to be done.
+
+I’ll research the overview viewer and Ralph sync pipeline so the plan review is grounded in the current code.
+
+Research complete: Plan 04 is feasible, but its sync integration should be tightened before implementation.
+
+### Codebase Architecture
+- Monorepo with `pnpm`; overview app is `tools/overview-viewer` using Vite + React + TypeScript + Vitest.
+- Ralph sync pipeline is ESM scripts under `scripts/lib/*.mjs`; CLI entry is `scripts/sync-ralph-state.mjs`.
+- Dashboard source data is hand-edited `plans/overview-data.js`; Ralph state is generated to `plans/overview-ralph-state.{js,json}`.
+
+### Feature-Relevant Code
+- `tools/overview-viewer/src/App.tsx` already owns `ralphState` and `useMultiAxisFilter(...)`; natural place to insert `<PipelineOverview>` after `Toolbar`.
+- `tools/overview-viewer/src/utils/filters.ts` already exports `cloneFilters`, `ActiveFilters`, and `FilterAxis` with `ralphStage`.
+- `tools/overview-viewer/src/components/Toolbar.tsx` has the 10 Ralph stage labels/order.
+- `scripts/lib/sync-core.mjs` owns `walkRalphState`, `mergeAndWrite`, `writeSidecar`, private `atomicWriteFile`, and existing `loadOverviewData`.
+- `scripts/sync-ralph-state.mjs` one-shot path calls `walkRalphState` then `writeSidecar`; watcher path calls `mergeAndWrite`.
+
+### Technical Constraints
+- Plan 04 must emit artifacts from a path shared by both one-shot and watcher. If only `mergeAndWrite` writes recommendations/graph, `pnpm sync-ralph-state` one-shot will miss them.
+- `.ralph/overview-config.schema.json` currently has `additionalProperties: false`; adding `recommendations.weights` requires schema/default/config type updates.
+- `OverviewTask.priority` does not currently exist in `types.ts` or `overview-data.js`; either add it explicitly or define fallback behavior clearly.
+- PRD dependencies are story-local IDs (`US-001`), not task IDs, so dependency graph edge semantics need explicit source/target IDs like `jobSlug:storyId`.
+
+### Implementation Suggestions
+- Prefer adding a small shared artifact-emission helper called from `writeSidecar`, so one-shot, cold-start watcher, and incremental watcher all emit consistently.
+- Export or extract `atomicWriteFile` instead of duplicating rename/fsync logic.
+- Define output shapes concretely: e.g. `{ generatedAt, recommendations }` and `{ generatedAt, nodes, edges }`.
+- Build `PipelineOverview` with a local exported `RALPH_STAGE_ORDER` shared with tests; optionally later dedupe Toolbar’s hardcoded stage list.
+- Add script-level tests near existing `syncCore.test.ts` plus component SSR/jsdom tests for histogram and click behavior.
+

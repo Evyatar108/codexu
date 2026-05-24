@@ -1,0 +1,44 @@
+{
+  "storyId": "US-003",
+  "verifiedEvidence": [
+    {
+      "criterion": "scripts/lib/parse-spawn-launcher.mjs exports parseSpawnLauncher(absolutePath) -> { initialPrompt: string | null, memberName: string | null, crewName: string | null }.",
+      "evidenceKind": "passed",
+      "command": "grep -En \"export function parseSpawnLauncher|function parseSingleQuotedStrings|function extractEnvValue|function extractMemberNameFromPath\" scripts/lib/parse-spawn-launcher.mjs",
+      "result": "PASS: line 4 exports parseSpawnLauncher; returned object fields are initialPrompt, memberName, and crewName; helper lines 55, 88, and 102 support quoted parsing and metadata extraction."
+    },
+    {
+      "criterion": "Handles PowerShell single-quote escaping ('' -> ').",
+      "evidenceKind": "passed",
+      "command": "pnpm vitest run scripts/lib/parse-spawn-launcher.test.mjs --reporter=verbose",
+      "result": "PASS: focused Vitest reports 4 tests passed, including the escaped quote case returning Don't stop on TASK-123."
+    },
+    {
+      "criterion": "Extracts the FINAL single-quoted argument on the `claude ...` line as initialPrompt.",
+      "evidenceKind": "passed",
+      "command": "grep -En \"PowerShell single-quote|afterCommand\" scripts/lib/parse-spawn-launcher.test.mjs",
+      "result": "PASS: test at line 28 verifies the final quoted claude argument is used; fixture includes a later quoted $afterCommand value that is ignored."
+    },
+    {
+      "criterion": "scripts/lib/parse-spawn-launcher.test.mjs covers: real-format launcher (D:/harness-efforts/codexu/.crews/spawn-launchers/alice-1778830606020.ps1), escaped-quote edge case, missing claude line, empty file.",
+      "evidenceKind": "passed",
+      "command": "grep -En \"real-format launcher|PowerShell single-quote|claude line is missing|empty file\" scripts/lib/parse-spawn-launcher.test.mjs && grep -n \"parse-spawn-launcher.test.mjs\" .test-output/root.test.log | tail -3",
+      "result": "PASS: tests exist at lines 18, 28, 48, and 63; root test log reports scripts/lib/parse-spawn-launcher.test.mjs (4 tests) passed."
+    },
+    {
+      "criterion": "Typecheck passes.",
+      "evidenceKind": "passed",
+      "command": "pnpm --filter @codexu/overview-viewer typecheck",
+      "result": "PASS: tsc --noEmit completed with exit 0; output saved to .test-output/overview-viewer.typecheck.log."
+    },
+    {
+      "criterion": "Tests pass.",
+      "evidenceKind": "passed",
+      "command": "pnpm test",
+      "result": "PASS: 20 test files passed, 121 tests passed; output saved to .test-output/root.test.log."
+    }
+  ],
+  "skippedReasons": [],
+  "notTested": [],
+  "iterationSHA": "05056e3e19db0f979c4795ca94dd97b86634ceb5"
+}

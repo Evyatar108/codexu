@@ -1,0 +1,53 @@
+{
+  "manifestPath": "D:/harness-efforts/codexu/.ralph/jobs/ralph-pipeline-01-foundation/iteration-result-3.json",
+  "iterationSHA": "07be1dfda46c8fa0ce50ad4e8223af1dbf5fdd33",
+  "storyId": "US-003",
+  "verdicts": [
+    {
+      "criterion": "scripts/lib/derive-ralph-stage.mjs exports deriveRalphStage(bundle) -> RalphStage accepting { jobState?, prd?, brainstormJson?, reviewOpenCount?, jobDirMarker? }; no filesystem access; no list inputs",
+      "verdict": "agree",
+      "reason": "Diff adds scripts/lib/derive-ralph-stage.mjs with `export function deriveRalphStage(bundle = {})` and JSDoc parameter object accepting exactly {jobState?, prd?, brainstormJson?, reviewOpenCount?, jobDirMarker?}; derive-ralph-stage.d.mts mirrors the same signature returning RalphStage. No `node:fs`/`fs.` import or call appears in the file. Inputs are a single bundle object, not lists."
+    },
+    {
+      "criterion": "Predicate-set constants defined once: REVIEW_PHASES = ['5a','5b','5.5','6'] and IMPLEMENTING_PHASES = ['1','2','3','4','5c']",
+      "verdict": "agree",
+      "reason": "Diff line 1 defines `export const REVIEW_PHASES = Object.freeze(['5a','5b','5.5','6'])` and line 2 defines `export const IMPLEMENTING_PHASES = Object.freeze(['1','2','3','4','5c'])`. Test file imports IMPLEMENTING_PHASES from the module via `it.each(IMPLEMENTING_PHASES)` rather than redefining the list."
+    },
+    {
+      "criterion": "All 10 predicates from the plan's stage-derivation table are implemented in order (first match wins): shipped, blocked, replan-pending, review-fix, reviewing, implementing, plan-ready, planning, brainstorm-ready, brainstorming",
+      "verdict": "agree",
+      "reason": "Diff shows the 10 return statements in the documented order: 'shipped' (terminal=true && terminalReason=complete), 'blocked' (status=BLOCKED || terminal=true && terminalReason=blocked), 'replan-pending' (terminal=true && terminalReason=replan), 'review-fix' / 'reviewing' (phase in REVIEW_PHASES branch with hasOpenReviewFindings split), 'implementing' (jobState+orchestrator present), 'plan-ready' (prd && !jobState), 'planning' (jobDirMarker=true && !prd && !jobState), 'brainstorm-ready' (brainstormJson.recommendedDirection), 'brainstorming' (final). First-match-wins is enforced by sequential early returns."
+    },
+    {
+      "criterion": "Unknown/future phase values map to implementing via predicate #6 (never fall through to plan-ready/planning)",
+      "verdict": "agree",
+      "reason": "When phase is a non-REVIEW string and jobState+orchestrator are present and !terminal, control bypasses the review block and hits `return 'implementing'` (predicate #6). ralphStage.test.ts it.each(['4.5','7']) confirms both unknown phases map to 'implementing'. Manifest cites targeted test run exit 0."
+    },
+    {
+      "criterion": "tools/overview-viewer/src/__tests__/scripts.d.ts declares all three .mjs modules (derive-ralph-stage.mjs, sync-core.mjs, resolve-config.mjs) using explicit relative-path module specifiers (e.g., '../../../../scripts/lib/<file>.mjs'); NOT wildcard patterns",
+      "verdict": "agree",
+      "reason": "Diff in scripts.d.ts contains four `declare module` blocks with explicit specifiers: '../../../../scripts/lib/default-config.mjs', '../../../../scripts/lib/resolve-config.mjs', '../../../../scripts/lib/derive-ralph-stage.mjs', '../../../../scripts/lib/sync-core.mjs'. No `*` wildcard appears in any specifier."
+    },
+    {
+      "criterion": "tools/overview-viewer/src/__tests__/ralphStage.test.ts includes: 10 stage cases (one per RalphStage), 1 case for reviewOpenCount.<phase> === undefined mapping to reviewing (NOT review-fix), 1 case per IMPLEMENTING_PHASES value via it.each, 1 case for unknown phase string ('4.5','7') mapping to implementing, 1 case for jobDirMarker: true (no prd/jobState) mapping to planning",
+      "verdict": "agree",
+      "reason": "Diff shows ralphStage.test.ts with: (a) it.each table containing all 10 stages [shipped, blocked, replan-pending, review-fix, reviewing, implementing, plan-ready, planning, brainstorm-ready, brainstorming]; (b) `keeps missing review findings as reviewing, not review-fix` test using phase '6' with no reviewOpenCount; (c) `it.each(IMPLEMENTING_PHASES)` block; (d) `it.each(['4.5','7'])` unknown-phase block; (e) `maps a directory marker without prd or job state to planning` with `{ jobDirMarker: true }`. Manifest cites 19 tests passed in this file."
+    },
+    {
+      "criterion": "pnpm --filter @codexu/overview-viewer test src/__tests__/ralphStage.test.ts exits 0",
+      "verdict": "agree",
+      "reason": "Manifest result for this criterion: 'Exit 0. Log shows Test Files 1 passed and Tests 19 passed.' Log path .test-output/overview-viewer.ralphStage.test.log persisted. Consistent with the 19 cases enumerated above (10 stages + 1 missing-findings + 5 implementing phases + 2 unknown phases + 1 jobDirMarker = 19)."
+    },
+    {
+      "criterion": "Tests pass",
+      "verdict": "agree",
+      "reason": "Manifest cites pnpm --filter @codexu/overview-viewer test exit 0 with Test Files 18 passed and Tests 87 passed, log persisted to .test-output/overview-viewer.test.log. The 18->17+1 and 87->68+19 deltas align with adding ralphStage.test.ts on top of the US-002 baseline."
+    },
+    {
+      "criterion": "Typecheck passes",
+      "verdict": "agree",
+      "reason": "Manifest cites pnpm --filter @codexu/overview-viewer typecheck exit 0 with `tsc --noEmit` and no diagnostics. Diff scope (new .mjs/.d.mts pair + ambient module declarations + new test file using imported types) is consistent with a clean typecheck."
+    }
+  ],
+  "warnings": []
+}

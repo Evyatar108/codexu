@@ -1,0 +1,51 @@
+{
+  "recommendation": "CONTINUE",
+  "passCount": 3,
+  "storiesCompleted": [
+    {
+      "id": "US-001",
+      "sha": "00f733f172309f638ee5b7a49752142fbe19a915"
+    },
+    {
+      "id": "US-002",
+      "sha": "2dec5c107f0d666814cc30f51c5e422c213d1b85"
+    },
+    {
+      "id": "US-003",
+      "sha": "8c8e0b3951543dcd22ca4861e69a4b2140bd8c60"
+    }
+  ],
+  "storiesBlocked": [],
+  "storiesRemaining": ["US-004"],
+  "dependencyBlocked": ["US-005"],
+  "unverifiedPasses": [],
+  "evidenceValidation": [
+    {"id": "US-001", "result": "VALID"},
+    {"id": "US-002", "result": "VALID"},
+    {"id": "US-003", "result": "VALID"}
+  ],
+  "manifestVerifier": {
+    "iterationsChecked": [1, 2, 3],
+    "disagreements": [],
+    "warnings": [],
+    "summary": "All verdicts agree across 33 acceptance criteria (11 per iteration); no warnings."
+  },
+  "deferredQuestions": [],
+  "storyDoctorActions": [],
+  "qualityGateResult": "pass",
+  "qualityGateDetails": {
+    "tests": "npm test --workspace=tools/overview-mcp: 93 passed | 1 skipped (94 total)",
+    "typecheck": "tsc -p tools/overview-mcp/tsconfig.json: exit 0, no diagnostics",
+    "paritySpotCheck": "US-001 mirror/parity: 3 source SKILL.md = 3 dist/copilot SKILL.md; drift-check pass"
+  },
+  "refactoringPass": "skipped (completedCount=3, refactorInterval=5)",
+  "rollbackFailures": [],
+  "recurringFailures": {
+    "promotedToPermanent": [],
+    "notTestedCandidates": [
+      "full mcp workspace suite; known stale tests are assigned to us-003",
+      "full overview-mcp suite; stale tests are scoped to us-003"
+    ]
+  },
+  "velocity": "3 stories in 3 iterations (1.0 stories/iter)"
+}

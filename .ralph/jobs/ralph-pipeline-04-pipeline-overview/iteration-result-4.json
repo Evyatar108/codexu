@@ -1,0 +1,62 @@
+{
+  "storyId": "US-004",
+  "verifiedEvidence": [
+    {
+      "criterion": "scripts/lib/derive-dependency-graph.mjs exports deriveDependencyGraph({ generatedAt, generatedFromCommit, overviewData, byTaskId, prdsByTaskId }).",
+      "command": "grep -n \"export function deriveDependencyGraph\" scripts/lib/derive-dependency-graph.mjs scripts/lib/derive-dependency-graph.d.mts",
+      "result": "Exit 0; derive-dependency-graph.mjs line 1 exports deriveDependencyGraph with generatedAt, generatedFromCommit, overviewData, byTaskId, and prdsByTaskId inputs; the declaration file line 14 declares the export.",
+      "evidenceKind": "source-inspection"
+    },
+    {
+      "criterion": "Nodes carry { id: string, kind: 'task' | 'story', taskId: string, storyId?: string, stage?: RalphStage }. Story node IDs use the namespaced form ${taskId}:${storyId}.",
+      "command": "pnpm exec vitest run scripts/lib/derive-dependency-graph.test.mjs --root .",
+      "result": "Exit 0; focused Vitest reported 1 test file passed and 5 tests passed, including task node shape and namespaced story node assertions such as task:US-001 and task:US-002.",
+      "evidenceKind": "test"
+    },
+    {
+      "criterion": "Edge kinds: spawn (from overviewData.spawnedFrom[child] = parent producing parent -> child), blocks (task-level from OverviewTask.blocks[]), depends-on-story (PRD userStories[i].dependencies[] -> ${taskId}:${depStoryId} -> ${taskId}:${storyId}).",
+      "command": "pnpm exec vitest run scripts/lib/derive-dependency-graph.test.mjs --root .",
+      "result": "Exit 0; focused Vitest reported 5 tests passed covering spawn parent->child, blocks task->blocked task, and depends-on-story dependency story->dependent story edges.",
+      "evidenceKind": "test"
+    },
+    {
+      "criterion": "Output's generatedAt and generatedFromCommit come from the input arguments (the Ralph sidecar state), NOT from overviewData (per F-005).",
+      "command": "pnpm exec vitest run scripts/lib/derive-dependency-graph.test.mjs --root .",
+      "result": "Exit 0; metadata passthrough test passed while overviewData included ignored generatedAt/generatedFromCommit values.",
+      "evidenceKind": "test"
+    },
+    {
+      "criterion": "Cycle detection: emit a process.stderr.write warning; do NOT throw.",
+      "command": "pnpm exec vitest run scripts/lib/derive-dependency-graph.test.mjs --root .",
+      "result": "Exit 0; cycle-warning test passed, asserting process.stderr.write received a dependency cycle warning and the graph was still returned.",
+      "evidenceKind": "test"
+    },
+    {
+      "criterion": "scripts/lib/derive-dependency-graph.d.mts declares the export.",
+      "command": "grep -n \"export function deriveDependencyGraph\" scripts/lib/derive-dependency-graph.d.mts",
+      "result": "Exit 0; declaration file line 14 declares export function deriveDependencyGraph(options: DependencyGraphOptions): DependencyGraph.",
+      "evidenceKind": "source-inspection"
+    },
+    {
+      "criterion": "scripts/lib/derive-dependency-graph.test.mjs (vitest) covers each edge kind, cycle warning, namespaced story IDs, and explicit sidecar-metadata passthrough.",
+      "command": "pnpm exec vitest run scripts/lib/derive-dependency-graph.test.mjs --root .",
+      "result": "Exit 0; Vitest reported 1 test file passed and 5 tests passed covering all listed graph cases.",
+      "evidenceKind": "test"
+    },
+    {
+      "criterion": "Typecheck passes.",
+      "command": "pnpm --filter @codexu/overview-viewer typecheck > .test-output/overview-viewer.typecheck.log 2>&1",
+      "result": "Exit 0; tsc --noEmit completed with no errors. Output captured in .test-output/overview-viewer.typecheck.log.",
+      "evidenceKind": "typecheck"
+    },
+    {
+      "criterion": "Tests pass.",
+      "command": "pnpm --filter @codexu/overview-viewer test > .test-output/overview-viewer.test.log 2>&1; pnpm exec vitest run scripts/lib/derive-dependency-graph.test.mjs --root .",
+      "result": "Exit 0; overview-viewer Vitest reported 27 test files passed and 151 tests passed; focused dependency graph Vitest reported 1 test file passed and 5 tests passed.",
+      "evidenceKind": "test"
+    }
+  ],
+  "skippedReasons": [],
+  "notTested": [],
+  "iterationSHA": "73b833a68a52e925dbed47c136c3e728cf5f2ffb"
+}

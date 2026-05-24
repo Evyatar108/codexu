@@ -1,0 +1,77 @@
+### Codebase Architecture
+
+This is a pnpm monorepo with packages including `happy-app`, `happy-server`, `happy-cli`, `happy-agent`, and `happy-wire`. The relevant app is `packages/happy-app`, an Expo React Native + TypeScript app using Vitest, path alias `@/* -> sources/*`, and sync/auth code split mainly across:
+
+- `packages/happy-app/sources/auth/`
+- `packages/happy-app/sources/sync/`
+- `packages/happy-app/sources/utils/`
+
+Realtime sync uses Socket.IO plus tunneled HTTP. Tunneling currently has two auth layers:
+
+- `X-Tunnel-Authorization: tunnel <connect-jwt>` for Microsoft Dev Tunnels gateway auth.
+- `X-Codexu-Authorization: tunnel <happy-claim>` for happy-server auth.
+
+The server side is Fastify + Socket.IO under `packages/happy-server/sources/app/api/`.
+
+### Feature-Relevant Code
+
+Key files:
+
+- `packages/happy-app/sources/sync/refreshClaim.ts`
+  - `MIN_REFRESH_INTERVAL_MS = 12_000`
+  - `refreshTunnelClaimOnce(...)` currently always calls `ensureFreshConnectToken(...)`, waits on the min interval, then `POST`s to `${credentials.tunnelUrl}/pair/complete`.
+  - `validateFreshClaim(...)` already decodes the signed-claim envelope but duplicates parsing logic.
+
+- `packages/happy-app/sources/auth/pairing.ts`
+  - `completePair(...)` uses the same `/pair/complete` endpoint.
+  - `parseTunnelClaimPayload(...)` at lines 202-205 is the requested parser.
+
+- `packages/happy-app/sources/auth/machineAuth.ts`
+  - `getMachineAuthHeaders(...)` calls `ensureFreshConnectToken(...)` and then `refreshTunnelClaim(...)` for every tunneled call.
+  - `tunnelFetch(...)` is the central HTTP wrapper.
+
+- `packages/happy-app/sources/auth/connectTokenRefresh.ts`
+  - Caches Dev Tunnels connect tokens with a 60s skew.
+
+- `packages/happy-server/sources/app/api/routes/pairRoutes.ts`
+  - `buildTunnelClaimPayload(...)` issues claims with `exp = iat + 3600` and a `jti`.
+  - `/pair/complete` is the current pair + refresh endpoint.
+
+- `packages/happy-server/sources/app/api/auth/tunnelClaim.ts`
+  - Important: `verifyTunnelClaim(...)` records `jti` values and rejects reused claims as `tunnel_claim_replayed`.
+
+- Docs to update after implementation:
+  - `plans/realtime-sync-perf.md`
+  - `docs/validation/devtunnels-boox-result.md`
+
+### Technical Constraints
+
+The main constraint is that the requested optimization conflicts with current server replay protection. `pairRoutes.ts` always mints claims with a `jti`, and `tunnelClaim.ts` rejects the same `jti` on second use. A client-only “reuse cached claim while `exp` is valid” change can therefore make the second API call fail with `tunnel_claim_replayed`.
+
+There is also cache persistence friction: `refreshTunnelClaim(...)` returns a fresh claim but does not update `TokenStorage`. So even if replay protection were relaxed, the app would keep parsing the original `credentials.tunnelClaim` unless the fresh claim is persisted or cached elsewhere.
+
+The targeted test baseline is currently not green. I ran:
+
+`pnpm --filter '{packages/happy-app}' exec vitest run sources/sync/refreshClaim.test.ts`
+
+Result: 6 failed, 5 passed. The failures are stale expectations from the older `/pair/status` and `X-Tunnel-Connect` contract, while current implementation uses `/pair/complete` and `X-Tunnel-Authorization`/`X-Codexu-Authorization`.
+
+One more test concern: importing `parseTunnelClaimPayload` from `auth/pairing.ts` may pull in `expo-web-browser` and `tunnelProvider` at module load. `pairing.test.ts` mocks that explicitly; `refreshClaim.test.ts` currently does not.
+
+### Implementation Suggestions
+
+Do not implement the skip as a purely local client change until the `jti` replay contract is resolved. The natural safe options are:
+
+1. Change the server claim semantics to allow multi-use claims until `exp`, then update `tunnelClaim.ts` tests/docs accordingly.
+2. Keep one-time `jti` semantics and do not skip `/pair/complete`; instead optimize elsewhere, because one cached claim cannot safely authorize multiple calls.
+
+If the server contract is intentionally changed to multi-use claims, then the app-side integration point is `refreshTunnelClaimOnce(...)` in `packages/happy-app/sources/sync/refreshClaim.ts`, before `ensureFreshConnectToken(...)` and before the `MIN_REFRESH_INTERVAL_MS` wait:
+
+- Add `SAFETY_WINDOW_S` around 90 seconds.
+- Use `parseTunnelClaimPayload(credentials.tunnelClaim)`.
+- If `typeof exp === 'number' && exp - now > SAFETY_WINDOW_S`, return `credentials.tunnelClaim`.
+- Catch parse errors and fall through to refresh.
+- Keep `MIN_REFRESH_INTERVAL_MS` only on the real POST path.
+- Consider persisting fresh returned claims via `TokenStorage.updateMachineCredentials(machineId, { tunnelClaim })` if the optimization should keep working after the original paired claim approaches expiry.
+
+The requested new test should use a valid encoded claim with future `exp`, call `refreshTunnelClaim(...)`, and assert `global.fetch` was not called. But it should be paired with a server-side replay-semantics decision; otherwise the test would bless behavior that the current server rejects.

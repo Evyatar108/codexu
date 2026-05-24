@@ -1,0 +1,30 @@
+I’ll inspect the provided temp path to see what task or inputs it contains.
+
+The temp file is a plan-review prompt. I’ll verify the referenced code and plan details before producing the review.
+
+I have the plan content; now I’m checking the actual implementation surfaces it references for mismatches.
+
+### Feasibility
+
+- [High] `Snapshot` references `Recommendation` and `DependencyGraph`, but those types do not exist in `tools/overview-viewer/src/types.ts`, and Plan 04 files are absent. The plan only says to add `Snapshot`, `SnapshotTask`, and `ActivityEvent`, so following it literally will fail typecheck. Add minimal v1 types or inline these shapes.
+- [Medium] The AJV CLI path is wrong: adding `ajv`/`ajv-formats` does not provide `npx ajv validate`; that executable comes from `ajv-cli`. Either add `ajv-cli` explicitly or make the programmatic Vitest validation the only acceptance path.
+
+### Completeness
+
+- [High] Activity rotation config is internally inconsistent. The plan defines `outputs.activity` as a path string, then says rotation is configurable via `outputs.activity.maxLines`. That cannot work with the planned config schema/types. Add a separate numeric key such as `outputs.activityMaxLines` or make `activity` an object everywhere.
+- [Medium] `prevStateMap: Map<taskId, RalphStage>` is insufficiently specified for `storyCompletion` deltas, and the watcher does not currently have an exported slug-to-task helper. Either derive events inside `mergeAndWrite` by comparing existing `currentState.byTaskId` to the new state, or explicitly add/export the needed resolver and previous story-completion snapshot.
+- [Medium] The plan expects `plans/overview-activity.jsonl` to exist, but one-shot sync is inferred not to append activity events. Specify whether `writeSidecar` creates an empty log file or whether existence is only required after the first watcher event.
+
+### Ordering
+
+- [Medium] The suggested parallel decomposition lets emitter modules land independently from `types-and-config`, but emitter `.d.mts` files will likely depend on the new `Snapshot`/`ActivityEvent` types. Make `emitter-modules` depend on type exports, or split pure JS emitters before declarations.
+
+### Simplicity
+
+- [Medium] The watcher-side `prevStateMap` plumbing is more complex than necessary. Since `mergeAndWrite` already receives `currentState` and constructs the new `state`, activity events can be derived there by comparing old/new entries, avoiding watcher slug resolution and covering `storyCompletion` naturally.
+
+### Acceptance Criteria Quality
+
+- [Medium] `pnpm test` is not a root script in `package.json`; the AC should name the actual commands, e.g. overview-viewer typecheck/test plus the relevant Vitest script tests.
+- [Medium] Activity ACs only require a stage transition. Add explicit ACs for `storyCompletion` changes, delete events (`newStage: null`), retain/no-diff producing no event, and final torn-line tolerance if readers are expected to handle it.
+

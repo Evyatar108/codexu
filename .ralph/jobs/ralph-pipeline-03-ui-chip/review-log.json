@@ -1,0 +1,34 @@
+[
+  {
+    "finding_id": "F-001",
+    "duration_s": 112,
+    "status": "fixed",
+    "summary": "Moved useMultiAxisFilter return-shape decision out of Open Questions and into Architecture + Files-to-modify + Acceptance Criteria: hook now explicitly exposes filters (alias of activeFilters) and setFilters (raw useState setter) alongside existing keys, satisfying Plan 04's contract; return remains an object, not a tuple."
+  },
+  {
+    "finding_id": "F-002",
+    "duration_s": 83,
+    "status": "fixed",
+    "summary": "Specified loadRalphState() must use the new Function('window', script)(windowValue) synthetic-window pattern mirroring loadOverviewData() at testData.ts:7, with full helper code inline, explanation of why the bare new Function(text)() form throws ReferenceError in Node SSR, and a new acceptance criterion verifying the no-ReferenceError contract."
+  },
+  {
+    "finding_id": "F-003",
+    "duration_s": 118,
+    "status": "fixed",
+    "summary": "Split the test-update enumeration into two explicit subsections — direct filter-helper call sites (searchHaystack.test.ts, urlFilter.test.ts) and component render tests with a new required ralphState prop (commandList.test.tsx, kanban.test.tsx) — and dropped the misleading 'five existing test files' phrasing from Technical Constraints, Scope, and Acceptance Criteria."
+  },
+  {
+    "finding_id": "F-004",
+    "duration_s": 79,
+    "status": "fixed",
+    "summary": "Moved minimal App.tsx ralphState useState + useMultiAxisFilter call-site update into US-001 (option a) so typecheck passes at end of US-001; left reloadRalphState helper and HMR useEffect in US-006 since they depend on US-005's Vite sidecar plugin. Updated Implementation Strategy items 1 & 6 plus the US-001/US-006 lines in Preliminary Story Decomposition."
+  },
+  {
+    "phase": "soft-cap",
+    "iteration": 5,
+    "openCount": 7,
+    "severities": {
+      "Medium": 7
+    }
+  }
+]

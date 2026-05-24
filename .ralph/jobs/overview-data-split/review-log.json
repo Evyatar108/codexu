@@ -1,0 +1,50 @@
+[
+  {
+    "finding_id": "F-001",
+    "duration_s": 106,
+    "status": "fixed",
+    "summary": "Updated task counts to reflect verified grep result (51 total, 48 remaining after US-002 ports 3) in Research Findings, US-003, Risk Areas, and Acceptance Criteria; added a no-duplicate-id AC."
+  },
+  {
+    "finding_id": "F-002",
+    "duration_s": 79,
+    "status": "fixed",
+    "summary": "Corrected line ranges throughout the plan: JSON block is 2180–2612 (~430 lines) not 2180–3529 (~1350 lines), and inline JS is 2614–3767 not 3530–3767. Updated Research Findings bullets and US-001 deletion in Files to Create/Modify."
+  },
+  {
+    "finding_id": "F-003",
+    "duration_s": 85,
+    "status": "fixed",
+    "summary": "Replaced meta:{} wrapper with top-level generatedAt/generatedFromCommit in the schema, Plan #3 contract, and US-001 strategy — preserves existing overview.html:3540/3543 consumers without same-story rewrite."
+  },
+  {
+    "finding_id": "F-004",
+    "duration_s": 96,
+    "status": "fixed",
+    "summary": "Widened kanbanCards[] schema to {column, cardClass, inlineStyle, html} (Option A from finding) so rich card-meta content, extra card classes like 'closed', and inline styles round-trip verbatim; updated DOM-contract bullet and renderTasks() emission description to match."
+  },
+  {
+    "finding_id": "F-005",
+    "duration_s": 109,
+    "status": "fixed",
+    "summary": "Enriched phaseTree schema with state classes, raw-html nodes, headerHtml, and collapsible subdetails to round-trip the actual phase-tree HTML in overview.html:1920–2009; updated Risk Area #3 and US-004 to match."
+  },
+  {
+    "finding_id": "F-006",
+    "duration_s": 64,
+    "status": "fixed",
+    "summary": "Added explicit Today-panel AC: after data-file edit changing phase to impl-in-progress, single page reload places the task in #today-running with no console errors, confirming buildTodayPanel() still classifies the rendered DOM correctly."
+  },
+  {
+    "finding_id": "F-007",
+    "duration_s": 68,
+    "status": "unknown",
+    "summary": "No review-meta output"
+  },
+  {
+    "finding_id": "F-007",
+    "duration_s": 36,
+    "status": "wont_fix",
+    "summary": "Plan line 230 already contains an AC matching (and stronger than) the suggested fix: it requires textContent assignment, forbids innerHTML/template-string interpolation, and specifies byte-for-byte copy-paste verification on first 3 + last 3 tasks against tasks[].command.planPrompt. Finding appears to reference an earlier draft."
+  }
+]

@@ -1,0 +1,13 @@
+{
+  "storyId": "US-003",
+  "iterationSHA": "05056e3e19db0f979c4795ca94dd97b86634ceb5",
+  "verdicts": [
+    { "criterion": "parseSpawnLauncher exported from scripts/lib/parse-spawn-launcher.mjs returning { initialPrompt, memberName, crewName }", "verdict": "agree", "notes": "New file scripts/lib/parse-spawn-launcher.mjs added; evidence cites exported function and return shape." },
+    { "criterion": "Handles PowerShell single-quote escaping ('' -> ')", "verdict": "agree", "notes": "Evidence cites focused Vitest case verifying escaped quotes return Don't stop on TASK-123." },
+    { "criterion": "Extracts the FINAL single-quoted argument on the `claude ...` line as initialPrompt", "verdict": "agree", "notes": "Evidence cites test verifying final quoted claude argument is used and later $afterCommand value is ignored." },
+    { "criterion": "parse-spawn-launcher.test.mjs covers real launcher / escaped quote / missing claude / empty file", "verdict": "agree", "notes": "Evidence cites four test cases at lines 18/28/48/63." },
+    { "criterion": "Typecheck passes", "verdict": "agree", "notes": "Evidence cites overview-viewer typecheck exit 0." },
+    { "criterion": "Tests pass", "verdict": "agree", "notes": "Evidence cites pnpm test 20 files / 121 tests." }
+  ],
+  "warnings": []
+}

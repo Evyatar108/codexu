@@ -1,0 +1,68 @@
+{
+  "storyId": "US-006",
+  "verifiedEvidence": [
+    {
+      "criterion": "scripts/sync-ralph-state.mjs exists; resolves repo root via child_process.execFileSync('git', ['rev-parse', '--show-toplevel'])",
+      "command": "ls scripts/sync-ralph-state.mjs && grep -n \"execFileSync('git', ['rev-parse', '--show-toplevel']\" scripts/sync-ralph-state.mjs",
+      "result": "scripts/sync-ralph-state.mjs exists; grep found resolveRepoRoot using execFileSync('git', ['rev-parse', '--show-toplevel'], { encoding: 'utf8' }) at line 48.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Computes generatedFromCommit via child_process.execFileSync('git', ['rev-parse', '--short', 'HEAD'], { cwd: repoRoot }); any thrown error or non-zero exit (detached HEAD, missing .git, unresolvable HEAD, git not on PATH) is caught, emits stderr warning 'sync-ralph-state: could not resolve HEAD short SHA, using unknown', and sets generatedFromCommit = 'unknown'; never crashes",
+      "command": "grep -nE \"--short', 'HEAD|HEAD_WARNING|generatedFromCommit\" scripts/sync-ralph-state.mjs; node scripts/sync-ralph-state.mjs --repo <temp-no-git>",
+      "result": "grep found the HEAD execFileSync path and HEAD_WARNING; no-git temp repo run exited 0, stderr included exactly 'sync-ralph-state: could not resolve HEAD short SHA, using unknown', and the sidecar contained generatedFromCommit:'unknown'.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Accepts --repo <path> (override repo root) and --config <path> (override config path) flags; --config value threaded into loadConfig({ repoRoot, configPath })",
+      "command": "node scripts/sync-ralph-state.mjs --repo <temp> --config <temp>/custom-config.json; grep -nE \"--repo|--config|loadConfig\" scripts/sync-ralph-state.mjs",
+      "result": "Custom-config smoke exited 0 and wrote <temp>/custom-plans/state.json while not writing the default plans/overview-ralph-state.json, proving --repo and --config were honored. grep found flag parsing and loadConfig({ repoRoot, configPath: args.config }).",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Pipeline: loadConfig -> walkRalphState({ config, repoRoot, generatedFromCommit }) -> writeSidecar({ config, repoRoot, state })",
+      "command": "grep -nE \"loadConfig|walkRalphState|writeSidecar\" scripts/sync-ralph-state.mjs",
+      "result": "scripts/sync-ralph-state.mjs imports the three functions at lines 5-6 and calls loadConfig at line 15, walkRalphState at line 16, then writeSidecar at line 22.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Prints state.unmatched[] to stderr (one line per entry)",
+      "command": "pnpm sync-ralph-state > .test-output/sync-ralph-state.live.stdout.log 2> .test-output/sync-ralph-state.live.stderr.log; wc -l .test-output/sync-ralph-state.live.stderr.log; tail -20 .test-output/sync-ralph-state.live.stderr.log",
+      "result": "Live run exited 0 and stderr contained 13 one-line unmatched entries like 'sync-ralph-state: unmatched job/ralph-pipeline-01-foundation: no-matching-task-id'.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Exits 0 on success, 1 on hard error",
+      "command": "pnpm sync-ralph-state; node scripts/sync-ralph-state.mjs --repo",
+      "result": "Live pnpm sync-ralph-state exited 0. Hard-error smoke with missing --repo value exited 1 and wrote 'sync-ralph-state: --repo requires a value' to stderr.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Root package.json has `\"sync-ralph-state\": \"node scripts/sync-ralph-state.mjs\"` in scripts block",
+      "command": "grep -nF '\"sync-ralph-state\": \"node scripts/sync-ralph-state.mjs\"' package.json",
+      "result": "package.json line 12 contains the sync-ralph-state script.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "pnpm sync-ralph-state from D:/harness-efforts/codexu exits 0 against current .ralph/ and produces non-empty plans/overview-ralph-state.{js,json} whose byTaskId is a valid (possibly empty) object",
+      "command": "pnpm sync-ralph-state; node -e \"inspect plans/overview-ralph-state.{js,json}\"",
+      "result": "Live run exited 0. Sidecar inspection reported jsBytes=3352, jsonBytes=3321, wrapper=true, samePayload=true, byTaskIdIsObject=true, byTaskIdCount=6.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Running with a clean checkout where .ralph/ is absent: exit 0; sidecar contains byTaskId: {} and unmatched: []",
+      "command": "tmp=$(mktemp -d); node scripts/sync-ralph-state.mjs --repo \"$tmp\"; node -e \"inspect $tmp/plans/overview-ralph-state.json\"",
+      "result": "Temp repo without .ralph exited 0; sidecar inspection printed byTaskId:{}, unmatched:[], generatedFromCommit:'unknown'. Missing Ralph subdir warnings were emitted, but the command did not fail.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Typecheck passes",
+      "command": "pnpm --filter @codexu/overview-viewer typecheck > .test-output/overview-viewer.typecheck.log 2>&1",
+      "result": "Exit 0; tsc --noEmit completed with no diagnostics. Full overview-viewer tests also passed: 19 files, 97 tests.",
+      "evidenceKind": "passed"
+    }
+  ],
+  "skippedReasons": [],
+  "notTested": [],
+  "iterationSHA": "01ffda361db4807af0e01121dc596b32506d49c9"
+}

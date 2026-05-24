@@ -1,0 +1,70 @@
+{
+  "planFile": "D:/harness-efforts/codexu/.ralph/jobs/port-explorer-prompt/plan.md",
+  "repoDir": "D:/harness-efforts/codexu",
+  "convergence": "All High findings resolved across 6 review rounds. Round 6 (final verification) reports: 'No High issues remain.'",
+  "rounds": [
+    {
+      "round": 1,
+      "reviewers": ["claude", "codex", "copilot"],
+      "high_found": 4,
+      "high_resolved": 4,
+      "findings": [
+        { "id": "F-001", "severity": "High",   "source": "consensus", "status": "fixed",    "summary": "Comment header contradicts AC re: brand strings",                                  "resolution": "AC scoped to developer_instructions body only; header exempt" },
+        { "id": "F-002", "severity": "High",   "source": "consensus", "status": "fixed",    "summary": "patch-surface.md must be same-commit, not optional",                               "resolution": "Made mandatory; specific format required" },
+        { "id": "F-003", "severity": "High",   "source": "codex",     "status": "fixed",    "summary": "Push lacks explicit approval gate",                                                  "resolution": "Added push-approval gate + artifact" },
+        { "id": "F-004", "severity": "High",   "source": "codex",     "status": "fixed",    "summary": "sandbox_mode='read-only' default may break smoke",                                  "resolution": "Removed default; deferred to follow-up PR" }
+      ]
+    },
+    {
+      "round": 2,
+      "reviewers": ["claude", "codex", "copilot"],
+      "high_found": 3,
+      "high_resolved": 3,
+      "findings": [
+        { "id": "F-201", "severity": "High",   "source": "codex",                              "status": "fixed", "summary": "Path convention uses cargo-root paths without saying so",                                  "resolution": "Three-view path header + per-step working directory annotations" },
+        { "id": "F-202", "severity": "High",   "source": "codex",                              "status": "fixed", "summary": "Pre-flight stash -u too broad",                                                            "resolution": "Round 2: changed to path-scoped (later replaced entirely in R4)" },
+        { "id": "F-203", "severity": "High",   "source": "consensus (codex+copilot)",          "status": "fixed", "summary": "Missing SANDBOX PATCH markers per codex/CLAUDE.md line 21",                                "resolution": "Markers required on TOML line 2 and each test fn line; AC enforces" }
+      ]
+    },
+    {
+      "round": 3,
+      "reviewers": ["claude", "codex", "copilot"],
+      "high_found": 6,
+      "high_resolved": 6,
+      "findings": [
+        { "id": "F-301", "severity": "High",   "source": "claude",                             "status": "fixed", "summary": "§14/§15 section refs don't match actual patch-surface.md structure",                       "resolution": "Renamed to new §17 section + row in §14 invariant table" },
+        { "id": "F-302", "severity": "High",   "source": "claude (incorrect — file IS 0 bytes)", "status": "dismissed", "summary": "Claude thought explorer.toml was 84 bytes",                                              "resolution": "Verified via git show HEAD:...: file IS 0 bytes; finding invalidated" },
+        { "id": "F-303", "severity": "High",   "source": "claude",                             "status": "fixed", "summary": "Validation seam analysis missing",                                                          "resolution": "Documented: built-ins skip parse_agent_role_file_contents; our test is the only guard; §14 row formalizes" },
+        { "id": "F-304", "severity": "High",   "source": "claude",                             "status": "fixed", "summary": "Smoke 'explorer output' undefined",                                                          "resolution": "Defined explorer output = parent stdout post-spawn; pre-pass spawn-failure scan added" },
+        { "id": "F-305", "severity": "High",   "source": "codex+copilot",                      "status": "fixed", "summary": "Smoke may use installed codex on PATH, not worktree build",                                "resolution": "Required worktree-built binary, absolute path recorded, build cmd specified" },
+        { "id": "F-306", "severity": "High",   "source": "codex",                              "status": "fixed", "summary": "project_doc_fallback_filenames test had false positive (ConfigToml defaults to Some(vec![]))", "resolution": "Round 3: required EITHER raw-TOML check OR seed-then-clear (further tightened in R4 to raw-TOML only)" },
+        { "id": "F-307", "severity": "High",   "source": "codex",                              "status": "fixed", "summary": "git add codex records main checkout SHA, not worktree HEAD",                               "resolution": "Multi-step pointer bump: fetch + checkout topic SHA in main codex before git add" }
+      ]
+    },
+    {
+      "round": 4,
+      "reviewers": ["claude", "codex"],
+      "high_found": 2,
+      "high_resolved": 2,
+      "findings": [
+        { "id": "F-401", "severity": "High",   "source": "codex (reproduced in throwaway repo)", "status": "fixed", "summary": "git stash push -- codex does NOT stash unstaged submodule gitlink",                       "resolution": "Replaced with SHA-record-then-checkout pattern; preflight-stash.md becomes a SHA capture file" },
+        { "id": "F-402", "severity": "High",   "source": "codex",                              "status": "fixed", "summary": "Seed-then-clear alternative is also false positive (apply_role rebuilds from layer stack)", "resolution": "Required ONLY raw toml::Value explicit-key assertion; dropped seed alternative" }
+      ]
+    },
+    {
+      "round": 5,
+      "reviewers": ["claude"],
+      "high_found": 1,
+      "high_resolved": 1,
+      "findings": [
+        { "id": "F-501", "severity": "High",   "source": "claude",                             "status": "fixed", "summary": "AC line 210 had stale 'row 19' while plan body said 'row 21'",                              "resolution": "Updated AC to 'row 21' with explanatory note" }
+      ]
+    },
+    {
+      "round": 6,
+      "reviewers": ["claude"],
+      "high_found": 0,
+      "verdict": "No High issues remain."
+    }
+  ]
+}

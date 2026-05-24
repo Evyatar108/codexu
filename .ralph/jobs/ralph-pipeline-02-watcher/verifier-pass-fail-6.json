@@ -1,0 +1,33 @@
+{
+  "manifestPath": "D:/harness-efforts/codexu/.ralph/jobs/ralph-pipeline-02-watcher/iteration-result-6.json",
+  "iterationSHA": "43c4bce3cae401a131697a23e63a5c3500af3dcb",
+  "storyId": "US-006",
+  "verdicts": [
+    {
+      "criterion": "tools/overview-viewer/src/__tests__/ralphWatcher.test.ts exists under the ssr Vitest project (Node env).",
+      "verdict": "agree",
+      "reason": "Evidence greps vitest.config.ts for ssr project + node env + include pattern, then tests ralphWatcher.test.ts presence; result confirms both."
+    },
+    {
+      "criterion": "Tests A-H from the plan Verification section have automated counterparts (or are explicitly tagged as manual-only with a why-not-automated note).",
+      "verdict": "agree",
+      "reason": "Evidence greps for token patterns covering A-H (cold-start, debounce coalesce, mergeAndWrite, fails one-shot sync, vite-plugin auto-start, retains, ...); result enumerates each correspondence."
+    },
+    {
+      "criterion": "Fake-timer tests cover debounce coalescing, fresh-lock diagnostic message format, stale-lock heartbeat refresh (Test G2), PID-liveness gate (Test G3), malformed-JSON counter, cross-kind promotion.",
+      "verdict": "agree",
+      "reason": "Evidence greps for fake-timer test names covering each listed scenario across ralphWatcher/syncLock/syncCore tests; result confirms presence of every listed coverage."
+    },
+    {
+      "criterion": "All tests pass under pnpm --filter @codexu/overview-viewer test.",
+      "verdict": "agree",
+      "reason": "Evidence runs the overview-viewer test suite and records 22 files / 126 tests passed with exit 0."
+    },
+    {
+      "criterion": "Typecheck passes.",
+      "verdict": "agree",
+      "reason": "Evidence runs pnpm --filter @codexu/overview-viewer typecheck and records exit 0."
+    }
+  ],
+  "warnings": []
+}

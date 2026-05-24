@@ -1,0 +1,32 @@
+**Feasibility**
+[High] The `runDurations` mutation plan contradicts the sidecar persistence AC. `writeSidecar()` currently calls `JSON.stringify(state)` after `emitAgentArtifacts()` in `scripts/lib/sync-core.mjs`, so adding enumerable `state.runDurations` before that will persist it in `plans/overview-ralph-state.json`. TypeScript not declaring the field does not affect runtime serialization. Fix by passing `runDurations` separately into `emitAgentArtifacts()` / `buildSnapshot()`, or stripping it before sidecar serialization.
+
+[High] `load-prds-by-task-id` is specified to return only `{ userStories: [{ id, dependencies }] }`, but `scoreRecommendations()` needs story `passes` to compute dependency state, and `deriveDependencyGraph()` needs PRD-level dependencies for the fallback path. The PRD shape in `.ralph/jobs/*/prd.json` includes `passes`, but the planned carrier drops it.
+
+[High] Story node IDs in the dependency graph are not globally unique. PRDs commonly use `US-001`, `US-002`, etc.; using `node.id = storyId` will collapse stories from different tasks into one node. Use IDs like `${taskId}:${storyId}` and keep `storyId` as metadata.
+
+[Low] The plan says the viewer is React 18, but `tools/overview-viewer/package.json` uses React `19.2.0`. This likely does not block the work, but the architecture note is inaccurate.
+
+**Completeness**
+[High] The plan adds `outputs.recommendationsJson` and `outputs.dependencyGraphJson`, but `emitAgentArtifacts()` currently reads hardcoded `PLAN_04_RECOMMENDATIONS_PATH` / `PLAN_04_DEPENDENCY_GRAPH_PATH` in `scripts/lib/sync-core.mjs`. If derived artifacts write to configured paths but snapshot reads the constants, output-path overrides silently break. Update both writer and reader to use the normalized config outputs.
+
+[High] The TypeScript test declarations are missing from the file list. `tools/overview-viewer/src/__tests__/scripts.d.ts` declares `RalphOverviewConfig`; if `scripts/lib/default-config.d.mts` gains new outputs and `recommendations`, this ambient declaration should be kept in sync or overview-viewer typecheck can drift/fail.
+
+[Medium] The overview claims a “small inline DAG in tooltips,” but no story, component, prop, test, or acceptance criterion implements any tooltip/DAG UI. Either add it explicitly or remove that promise from scope.
+
+**Ordering**
+[Medium] US-006’s concurrent-job scan must exclude the current job directory. As written, scanning any `.ralph/jobs/*/job-state.json` with `status: "RUNNING"` and `orchestrator.terminal !== true` can detect the current implementation job and force a false defer.
+
+[Medium] The `writeSidecar()` pseudocode passes `generatedFromCommit` into `emitDerivedArtifacts()`, but `writeSidecar()` has no such parameter today. Use `state.generatedFromCommit` or explicitly widen the signature and declarations.
+
+**Simplicity**
+[Medium] Avoid a new module importing `atomicWriteFile` or `resolveTaskMatch` from `sync-core.mjs` while `sync-core.mjs` imports that module. That circular ESM shape may work if only called after initialization, but it is fragile. Prefer moving shared helpers to a small utility module or passing `atomicWriteFile` into `emitDerivedArtifacts()`.
+
+[Medium] The histogram should not duplicate the Ralph stage order hidden inside `Toolbar.tsx`. Extract a shared `RALPH_STAGE_ORDER` / chip metadata constant so `Toolbar` and `PipelineOverview` cannot drift.
+
+**Acceptance Criteria Quality**
+[High] “`snapshot.recommendations` equals the freshly emitted `overview-recommendations.json`” is inconsistent with the planned file shape `{ recommendations }`. The AC should compare `snapshot.recommendations` to `overview-recommendations.json.recommendations`.
+
+[Medium] `runDurations` lacks a key contract and precision rule. Define whether it is `Record<taskId, hours>`, `Record<jobSlug, hours>`, or something else, and specify rounding.
+
+[Medium] Dependency graph AC should define edge direction for each type. For example, for `depends-on-story`, clarify whether `from` is the dependent story or the prerequisite story. This matters for downstream Plan 09 consumers.

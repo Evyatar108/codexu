@@ -1,0 +1,18 @@
+{
+  "id": "F-009",
+  "severity": "High",
+  "source": "copilot",
+  "detectedBy": [
+    "copilot"
+  ],
+  "classification": "fixable",
+  "phase": "code",
+  "category": "Correctness",
+  "sectionRef": null,
+  "description": "`plans/overview.html:1421-1428` renders phase-tree task refs from static `node.state` / `visibleText`, and those states are hardcoded in `plans/overview-data.js:1060-1062,1142,1149`. So flipping a task’s `phase` in `tasks[]` updates the command row, but **does not update the corresponding phase-tree entry** without a second manual edit in `phaseTree[]`. That breaks the promised one-entry “bookkeeper workflow” acceptance criterion.",
+  "status": "open",
+  "fixedInIteration": null,
+  "resolution": null,
+  "relevantFiles": [],
+  "suggestedFix": null
+}

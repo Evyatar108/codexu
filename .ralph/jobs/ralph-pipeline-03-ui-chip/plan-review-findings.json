@@ -1,0 +1,178 @@
+{
+  "planFile": "D:/harness-efforts/codexu/.ralph/jobs/.staging/20260519-031552/draft-plan.md",
+  "repoDir": "D:/harness-efforts/codexu",
+  "reviewCycle": 0,
+  "findings": [
+    {
+      "id": "F-001",
+      "severity": "High",
+      "source": "consensus",
+      "category": "Completeness",
+      "sectionRef": "Approach > Architecture, Files to modify > useMultiAxisFilter, Open Questions",
+      "description": "Plan 04 (plans/ralph-pipeline-04-pipeline-overview.md line 58) already requires useMultiAxisFilter to expose setFilters: '<PipelineOverview ... setFilters={setFilters} />'. The current hook returns only an object without setFilters. The plan defers this to US-007 cascade audit, but all three reviewers flagged that this must be decided up-front: Plan 03 should explicitly extend the hook's return object with setFilters (or rename setActiveFilters to setFilters) NOW. Remove the deferral from Open Questions and add an explicit acceptance criterion + Files-to-modify edit. The hook returns an object (named properties), so keep it that shape — do NOT switch to a tuple.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Moved useMultiAxisFilter return-shape decision out of Open Questions and into Architecture + Files-to-modify + Acceptance Criteria: hook now explicitly exposes filters (alias of activeFilters) and setFilters (raw useState setter) alongside existing keys, satisfying Plan 04's contract; return remains an object, not a tuple.",
+      "relevantFiles": [
+        "tools/overview-viewer/src/hooks/useMultiAxisFilter.ts",
+        "plans/ralph-pipeline-04-pipeline-overview.md"
+      ],
+      "suggestedFix": "In useMultiAxisFilter.ts, extend the returned object with `setFilters: setActiveFilters` (or rename the existing state setter). Add an acceptance criterion: 'useMultiAxisFilter returns { activeFilters, filters, setFilters, query, setQuery, toggleFilter, visibleTaskIds, visibleKanbanTaskIds }'. Move out of Open Questions; into Approach > Architecture and the Files-to-modify list."
+    },
+    {
+      "id": "F-002",
+      "severity": "High",
+      "source": "consensus",
+      "category": "Feasibility",
+      "sectionRef": "Files to modify > testData.ts, Acceptance Criteria > Tests",
+      "description": "The plan specifies `loadRalphState()` uses `new Function(text)()`, but `plans/overview-ralph-state.js` assigns to `window.OVERVIEW_RALPH_STATE`. Node SSR tests have no `window` global, so the bare `new Function(text)()` pattern will throw `ReferenceError: window is not defined`. The existing `loadOverviewData()` in testData.ts (line 7) passes a synthetic `window` argument via `new Function('window', script)(windowValue)` and returns `windowValue.OVERVIEW_DATA`. `loadRalphState()` must mirror that exact pattern. Both copilot and codex flagged this.",
+      "status": "fixed",
+      "fixedInIteration": 2,
+      "resolution": "Specified loadRalphState() must use the new Function('window', script)(windowValue) synthetic-window pattern mirroring loadOverviewData() at testData.ts:7, with full helper code inline, explanation of why the bare new Function(text)() form throws ReferenceError in Node SSR, and a new acceptance criterion verifying the no-ReferenceError contract.",
+      "relevantFiles": [
+        "tools/overview-viewer/src/__tests__/testData.ts"
+      ],
+      "suggestedFix": "Specify loadRalphState() as: `const w: { OVERVIEW_RALPH_STATE?: OverviewRalphState } = {}; new Function('window', script)(w); return w.OVERVIEW_RALPH_STATE ?? NO_RALPH_STATE;`. Add an acceptance criterion that loadRalphState() works in Node test env without ReferenceError. Reference the existing loadOverviewData() pattern in testData.ts:7 explicitly in the Files-to-modify section."
+    },
+    {
+      "id": "F-003",
+      "severity": "High",
+      "source": "consensus",
+      "category": "Completeness",
+      "sectionRef": "Files to modify > test files, Implementation Strategy",
+      "description": "The plan's claim of 'five existing test files needing parameter updates' is misleading and conflates two cases: (a) tests that directly call matchesTaskFilter/matchesKanbanFilter/getTaskSearchHaystack — `searchHaystack.test.ts` and `urlFilter.test.ts`; (b) tests that render React components (`kanban.test.tsx`, `commandList.test.tsx`) which gain a new required `ralphState` prop. Both need updates, but the framing should be explicit. In particular `commandList.test.tsx` renders `<CommandList data={data} expandedControls={...} />` without `ralphState` — once CommandList gains a required prop, those render call sites break. Plan must explicitly enumerate each test file with the kind of update needed (filter-helper call vs component render).",
+      "status": "fixed",
+      "fixedInIteration": 3,
+      "resolution": "Split the test-update enumeration into two explicit subsections — direct filter-helper call sites (searchHaystack.test.ts, urlFilter.test.ts) and component render tests with a new required ralphState prop (commandList.test.tsx, kanban.test.tsx) — and dropped the misleading 'five existing test files' phrasing from Technical Constraints, Scope, and Acceptance Criteria.",
+      "relevantFiles": [
+        "tools/overview-viewer/src/__tests__/searchHaystack.test.ts",
+        "tools/overview-viewer/src/__tests__/urlFilter.test.ts",
+        "tools/overview-viewer/src/__tests__/kanban.test.tsx",
+        "tools/overview-viewer/src/__tests__/commandList.test.tsx"
+      ],
+      "suggestedFix": "Rewrite the test-update list as two subsections: 'Direct filter-helper call sites' (searchHaystack.test.ts, urlFilter.test.ts — append NO_RALPH_STATE arg) and 'Component render tests with new required prop' (kanban.test.tsx, commandList.test.tsx — pass `ralphState={NO_RALPH_STATE}` in JSX). Drop the 'five existing test files' phrasing."
+    },
+    {
+      "id": "F-004",
+      "severity": "High",
+      "source": "codex",
+      "category": "Ordering",
+      "sectionRef": "Preliminary Story Decomposition > US-001, Implementation Strategy",
+      "description": "US-001 ('Filter threading + test updates — no UI yet') changes useMultiAxisFilter's signature to require ralphState, but App.tsx is not updated until US-006. Current App.tsx (line 39) calls `useMultiAxisFilter(data, taskIdFilter)`. As ordered, running typecheck after US-001 will fail because App.tsx will be one argument short. Either (a) move the minimal `const [ralphState, setRalphState] = useState(getOverviewRalphState)` into US-001 so the App.tsx call site can be updated atomically with the hook signature change, or (b) defer making the parameter non-optional until US-006 (less clean). Option (a) is preferred — the App.tsx state init is small and self-contained.",
+      "status": "fixed",
+      "fixedInIteration": 4,
+      "resolution": "Moved minimal App.tsx ralphState useState + useMultiAxisFilter call-site update into US-001 (option a) so typecheck passes at end of US-001; left reloadRalphState helper and HMR useEffect in US-006 since they depend on US-005's Vite sidecar plugin. Updated Implementation Strategy items 1 & 6 plus the US-001/US-006 lines in Preliminary Story Decomposition.",
+      "relevantFiles": [
+        "tools/overview-viewer/src/App.tsx",
+        "tools/overview-viewer/src/hooks/useMultiAxisFilter.ts"
+      ],
+      "suggestedFix": "Move the App.tsx minimal ralphState init (const [ralphState, setRalphState] = useState(getOverviewRalphState); pass to useMultiAxisFilter) into US-001. Keep the reloadRalphState helper + useEffect HMR subscription in US-006 — that's the part that genuinely depends on the Vite sidecar plugin (US-005). Restate US-001 acceptance: typecheck must pass at end of US-001."
+    },
+    {
+      "id": "F-005",
+      "severity": "Medium",
+      "source": "consensus",
+      "category": "Feasibility",
+      "sectionRef": "Files to modify > vite.config.ts overviewRalphStatePlugin",
+      "description": "The new `transformIndexHtml` handler does a silent `html.replace(ralphSidecarScriptTag, ...)`. If the script tag is missing or has drifted (e.g., someone removes the tag from overview.html), the replace is a no-op and the static build produces an html that still references the external `./overview-ralph-state.js`, which fails under file://. The existing overviewDataPlugin (vite.config.ts line ~61) throws if the equivalent tag is missing — Plan 03 should mirror that guard exactly. Both copilot and codex flagged.",
+      "status": "open",
+      "fixedInIteration": null,
+      "resolution": null,
+      "relevantFiles": [
+        "tools/overview-viewer/vite.config.ts"
+      ],
+      "suggestedFix": "In the proposed overviewRalphStatePlugin code in 'Files to modify', add: `if (!html.includes(ralphSidecarScriptTag)) { throw new Error('overview.html missing <script src=\"./overview-ralph-state.js\"> tag'); }` before the replace. Mirror the wording of the existing guard in overviewDataPlugin (find it via grep)."
+    },
+    {
+      "id": "F-006",
+      "severity": "Medium",
+      "source": "consensus",
+      "category": "Simplicity",
+      "sectionRef": "Approach > Architecture > RalphStageChip, Acceptance Criteria",
+      "description": "Plan specifies `<span role=\"button\" tabIndex={0}>` for the chip trigger but the chip has no click action (it's an informational tooltip trigger). `role=\"button\"` advertises activation semantics that don't exist, which is misleading for screen readers. Inside a <summary> element (a TaskCommand row), a focusable span may also accidentally toggle the row on click unless propagation is stopped. Either (a) make it a real button with an explicit action — e.g., clicking it adds the stage to filters.ralphStage — or (b) drop `role=\"button\"`, keep `tabIndex={0}`, and add an `aria-label` like 'Ralph stage: implementing' so it's announced clearly. Option (b) is simpler and matches the WorkstreamPill pattern which is a real <a>.",
+      "status": "open",
+      "fixedInIteration": null,
+      "resolution": null,
+      "relevantFiles": [
+        "tools/overview-viewer/src/components/RalphStageChip.tsx",
+        "tools/overview-viewer/src/components/TaskCommand.tsx"
+      ],
+      "suggestedFix": "Change the trigger to a focusable span without role=button: `<span class=\"ralph-stage-chip stage-<stage>\" tabIndex={0} aria-label={`Ralph stage: ${stage}`} onClick={e => e.stopPropagation()}>…</span>`. The onClick stops the parent <summary> from toggling. Update acceptance criteria accordingly. If a click-to-filter is desired later, that's a follow-up plan."
+    },
+    {
+      "id": "F-007",
+      "severity": "Medium",
+      "source": "codex",
+      "category": "Completeness",
+      "sectionRef": "Acceptance Criteria > Tests",
+      "description": "The plan covers backward-compatibility (existing tests pass NO_RALPH_STATE and assertions unchanged) but does NOT require positive coverage that `filters.ralphStage` actually filters rows when set. An autonomous implementer could ship code that ignores `filters.ralphStage.has(stage)` and the existing tests would still pass. Add explicit unit tests against `matchesTaskFilter` and `matchesKanbanFilter` with a populated OverviewRalphState that exercise the positive path (filter set, task matches => included; filter set, task doesn't match => excluded).",
+      "status": "open",
+      "fixedInIteration": null,
+      "resolution": null,
+      "relevantFiles": [
+        "tools/overview-viewer/src/__tests__/searchHaystack.test.ts",
+        "tools/overview-viewer/src/__tests__/urlFilter.test.ts"
+      ],
+      "suggestedFix": "Add an acceptance criterion + concrete test cases under the new `ralphStageFilter.test.ts` (or extend `urlFilter.test.ts`): given an OverviewRalphState with taskA in stage 'implementing' and taskB in stage 'shipped', `matchesTaskFilter(taskA, ..., filters={ralphStage: new Set(['implementing'])}, ..., ralphState)` returns true and the same call against taskB returns false. Mirror for matchesKanbanFilter."
+    },
+    {
+      "id": "F-008",
+      "severity": "Medium",
+      "source": "codex",
+      "category": "Ordering",
+      "sectionRef": "Preliminary Story Decomposition > US-007",
+      "description": "US-007 (downstream cascade audit) is positioned last, AFTER all UI/Vite work commits. But Plan 04 has a concrete contract dependency on `useMultiAxisFilter` exposing `setFilters` (see F-001). Discovering this only in US-007 risks implementing the hook API twice — once in US-001 (without setFilters) then again in US-007. Either move the Plan-04-coupled portion (the useMultiAxisFilter return-shape audit) into US-001, or run a fast 'read Plan 04 first' step at the start of US-001.",
+      "status": "open",
+      "fixedInIteration": null,
+      "resolution": null,
+      "relevantFiles": [
+        "plans/ralph-pipeline-04-pipeline-overview.md"
+      ],
+      "suggestedFix": "Add a pre-US-001 prerequisite line: 'Before starting US-001, read plans/ralph-pipeline-04-pipeline-overview.md to confirm setFilters is the expected return name and the hook should return an object with named members.' Note: if F-001 is applied, this becomes redundant. Combine resolution with F-001."
+    },
+    {
+      "id": "F-009",
+      "severity": "Medium",
+      "source": "codex",
+      "category": "Criteria Quality",
+      "sectionRef": "Acceptance Criteria > Manual / dev verification",
+      "description": "AC 'tasks without ralph state are visually byte-identical to pre-feature' is not autonomously verifiable. An autonomous agent cannot literally diff pixel-level rendering. Replace with concrete, testable assertions: (a) for a task with no `ralphState.byTaskId[id]`, `RalphStageChip` returns null (already covered); (b) no `.ralph-stage-chip` DOM element appears for that task row; (c) existing command row tests (commandList, kanban) pass with no snapshot changes.",
+      "status": "open",
+      "fixedInIteration": null,
+      "resolution": null,
+      "relevantFiles": [],
+      "suggestedFix": "Replace the 'visually byte-identical' bullet with: 'For a task whose id is not in ralphState.byTaskId, `document.querySelectorAll('[data-task-id=\"<id>\"] .ralph-stage-chip').length === 0`. Existing commandList/kanban snapshot tests remain unchanged.'"
+    },
+    {
+      "id": "F-010",
+      "severity": "Medium",
+      "source": "codex",
+      "category": "Criteria Quality",
+      "sectionRef": "Acceptance Criteria > Vite + static-build",
+      "description": "The dev-server curl criterion hardcodes port 5173: `curl -s http://127.0.0.1:5173/overview-ralph-state.js`. Vite chooses a different port if 5173 is busy unless `strictPort` is set. The viewer's package.json uses `vite --host 127.0.0.1 --port 5173` which sets the preferred port but not strictPort. The criterion should either (a) require strictPort, or (b) reword to 'against the dev-server URL printed by `pnpm overview`'.",
+      "status": "open",
+      "fixedInIteration": null,
+      "resolution": null,
+      "relevantFiles": [
+        "tools/overview-viewer/vite.config.ts",
+        "tools/overview-viewer/package.json"
+      ],
+      "suggestedFix": "Reword the AC to: 'When `pnpm overview` is running, fetching `<dev-server-url>/overview-ralph-state.js` (using the URL the dev server prints on startup) returns a non-empty JS body containing `window.OVERVIEW_RALPH_STATE = `.' Alternatively, add `strictPort: true` to vite.config.ts server config to make port 5173 a hard requirement, but that's a separate concern."
+    },
+    {
+      "id": "F-011",
+      "severity": "Medium",
+      "source": "claude",
+      "category": "Completeness",
+      "sectionRef": "Files to modify > testData.ts",
+      "description": "The plan says 'Add `loadRalphState()` helper' but doesn't specify when tests call it (setup vs per-test) or what the helper returns when the on-disk sidecar is missing. This creates ambiguity about the test fixture contract — does it throw, return NO_RALPH_STATE, or return empty? Combined with F-002's Node-window issue, this should be tightened.",
+      "status": "open",
+      "fixedInIteration": null,
+      "resolution": null,
+      "relevantFiles": [
+        "tools/overview-viewer/src/__tests__/testData.ts"
+      ],
+      "suggestedFix": "Specify in the Files-to-modify entry: 'loadRalphState() reads plans/overview-ralph-state.js synchronously from disk using readFileSync, executes it via the synthetic-window pattern (see F-002), and returns the resulting OverviewRalphState. If the file is missing, returns NO_RALPH_STATE. Used in test setup, not per-test.' Add an AC: 'loadRalphState() returns NO_RALPH_STATE without throwing when the on-disk sidecar is missing.'"
+    }
+  ]
+}

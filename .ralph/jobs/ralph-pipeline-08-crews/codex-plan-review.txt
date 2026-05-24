@@ -1,0 +1,30 @@
+**Feasibility**
+- [High] The cwd filter constraint is wrong as written. `path.relative(repoRoot, manifestCwd)` returns `''` when the crew member cwd is exactly the repo root, and real manifests use `cwd: "D:\\harness-efforts\\codexu"`. Requiring the result to be “non-empty” would exclude the primary happy path. In `scripts/lib/crews-cross-walk.mjs`, accept `relative === ''` as inside the repo.
+
+- [High] Story 7 says subcommands “load current snapshot → apply mutation → call `writeSidecar()`”, but `writeSidecar()` in `scripts/lib/sync-core.mjs` expects Ralph sidecar state with top-level `byTaskId`, not `plans/overview-snapshot.json` with `tasks[].ralph`. Implementing this literally can wipe Ralph data from emitted artifacts. The mutation source should be `config.outputs.sidecarJson` (`plans/overview-ralph-state.json`) or an explicit snapshot-to-sidecar conversion.
+
+- [High] The plan says `.crews/` must resolve from the main repo root, not the implementation worktree, but the proposed default `crewsRoot = path.join(repoRoot, '.crews')` violates that when running inside `.ralph/jobs/ralph-pipeline-08-crews/worktree/`. `scripts/lib/resolve-config.mjs` needs a concrete main-root resolution rule or an absolute/local overlay strategy.
+
+**Completeness**
+- [High] Partial explicit entries cannot be filled later under the stated merge rule. If `/work-on --via-crew` times out before `sessionId`/`transcriptPath`, the entry has no `sessionId`; later heuristic discovery dedupes “by `sessionId`”, so it will likely create a duplicate instead of filling the explicit partial. Add a fallback identity such as `(crew, memberName, cwd)` or manifest path.
+
+- [Medium] Spawn-launcher prompt matching is underspecified. The plan creates `scripts/lib/parse-spawn-launcher.mjs`, but `discoverCrewSessions()` only says it walks manifests. It needs to scan `.crews/spawn-launchers/*.ps1`, index by parsed `(crewName, memberName)`, and define tie-breaking for multiple launchers per member.
+
+- [Medium] Crew-only watcher events need a concrete write path. Current `scripts/lib/watch-ralph-state.mjs` assumes every pending change has `{ kind, slug }` and calls `deriveAffectedTaskUpdate()`. A `{ kind: 'crews' }` event needs either a separate `rescanCrewSessionsAndWrite()` helper or a clearly defined synthetic update path.
+
+- [Medium] Subcommands should validate `stage` and `outcome`. Otherwise `scripts/sync-ralph-state.mjs --update-crew-session <id> <stage>` can write invalid stage keys that `TaskCommand.tsx` will never render.
+
+**Ordering**
+- [Medium] `/work-on --via-crew` spawns the member before discovering whether the sync lock is held. With `pnpm overview` running, the update subcommand fails after the external spawn side effect, leaving an unrecorded or only heuristically discovered member. Add a fast lock preflight before spawning, or document and test this exact failure mode.
+
+**Simplicity**
+- [Low] Story 8 should reuse the existing CLI helper `scripts/lib/derive-next-command-cli.mjs`, matching `.claude/skills/work-on/SKILL.md`, instead of implying the skill should call/import `derive-next-command.mjs` directly.
+
+**Acceptance Criteria Quality**
+- [Medium] `CrewSessionRef` is not fully specified. The AC should name required/optional fields and outcome values, e.g. `memberName`, `crewName`, `cwd`, `sessionId?`, `transcriptPath?`, `startedAt`, `endedAt?`, `outcome?`, `summary?`, `_isExplicit?`.
+
+- [Medium] The file-link AC is too loose. “Convert Windows backslashes to forward slashes” is not enough for correct `file://` URLs. Require `pathToFileURL(transcriptPath).href` or equivalent, otherwise drive letters, spaces, and `#` can break links in `tools/overview-viewer/src/components/TaskCommand.tsx`.
+
+- [Medium] The verification AC says “typecheck across packages” but the root `package.json` has no root `typecheck` script. Specify executable commands, for example `pnpm test`, `pnpm --filter @codexu/overview-viewer test`, `pnpm --filter @codexu/overview-viewer typecheck`, and `pnpm -r --if-present typecheck`.
+
+The substring-collision amendment is adequate. The `_isExplicit` amendment fixes persistence for complete explicit entries, but not the partial-entry race described above.

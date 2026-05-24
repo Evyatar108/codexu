@@ -1,0 +1,53 @@
+{
+  "manifestPath": "D:/harness-efforts/codexu/.ralph/jobs/ralph-pipeline-08-crews/iteration-result-5.json",
+  "iterationSHA": "f6eda0473d188503c57e2e4953b742293271717b",
+  "storyId": "US-005",
+  "verdicts": [
+    {
+      "criterion": "walkRalphState reads config.outputs.sidecarJson if it exists and threads priorCrewSessions into assembleStateFromBundles.",
+      "verdict": "agree",
+      "reason": "Diff at sync-core.mjs line 1131 calls readPriorCrewSessions(...) and threads priorCrewSessions into assembleStateFromBundles at line 1134."
+    },
+    {
+      "criterion": "assembleStateFromBundles and mergeAndWrite invoke discoverCrewSessions AFTER per-slug Ralph derivation, passing priorCrewSessions for the explicit-preservation merge.",
+      "verdict": "agree",
+      "reason": "assembleStateFromBundles returns mergeDiscoveredCrewSessions(...) after Ralph derivation (line 1159); mergeAndWrite collects priorCrewSessions via collectCrewSessionsByTask(currentState) and calls mergeDiscoveredCrewSessions (lines 1167-1181)."
+    },
+    {
+      "criterion": "Merge identity: prefer sessionId; fall back to (crewName, memberName). Entries with _isExplicit: true survive intact (endedAt, outcome, summary preserved).",
+      "verdict": "agree",
+      "reason": "sameCrewSession at line 1296 prefers sessionId then falls back to crewName/memberName; the merge branch at line 1304 skips overwrite when existing._isExplicit, preserving the explicit entry."
+    },
+    {
+      "criterion": "Partial explicit entries (no sessionId) get upgraded in place when heuristic discovery later supplies sessionId/transcriptPath; no duplicate entry is created.",
+      "verdict": "agree",
+      "reason": "Vitest 'mergeAndWrite upgrades a partial explicit entry in place' (line 1442) asserts a single entry with sessionId 'session-a' and transcriptPath, confirming in-place upgrade and no duplicate."
+    },
+    {
+      "criterion": "Existing entries are matched across all RalphStage buckets and remain in their recorded bucket; a session first recorded under 'implementing' is not migrated or duplicated when the task later advances to 'reviewing'.",
+      "verdict": "agree",
+      "reason": "Vitest 'mergeAndWrite keeps an existing crew session in its recorded stage when the task advances' (line 1485) asserts the recorded stage is preserved through a task advancement."
+    },
+    {
+      "criterion": "scripts/lib/sync-core.mjs exports rescanCrewSessionsAndWrite({ currentState, config, repoRoot, overviewData }) that re-runs discoverCrewSessions, merges into currentState.byTaskId[*].crewSessions, updates only crew-session data + generatedAt, calls writeSidecar() without re-reading or re-deriving Ralph bundles.",
+      "verdict": "agree",
+      "reason": "Diff line 1188 exports rescanCrewSessionsAndWrite with the documented signature; the body calls mergeDiscoveredCrewSessions and writeSidecar without re-loading Ralph bundles."
+    },
+    {
+      "criterion": "Vitest covers: heuristic adds new entries, explicit prior entries survive, partial entry upgrade in place, stage stickiness on task advancement, stale idempotency, crew-only rescan leaves non-crew Ralph fields unchanged.",
+      "verdict": "agree",
+      "reason": "Tests for partial-explicit upgrade (line 1442), stage stickiness (line 1485), stale-stopped idempotency (line 1518), and a non-crew Ralph field preservation case are all present in the diff."
+    },
+    {
+      "criterion": "Typecheck passes.",
+      "verdict": "agree",
+      "reason": "Manifest cites pnpm --filter @codexu/overview-viewer typecheck exit 0 with .test-output/overview-viewer.typecheck.log artifact."
+    },
+    {
+      "criterion": "Tests pass.",
+      "verdict": "agree",
+      "reason": "Manifest cites pnpm test = 21 files / 137 tests passed; .test-output/root.test.log is referenced."
+    }
+  ],
+  "warnings": []
+}

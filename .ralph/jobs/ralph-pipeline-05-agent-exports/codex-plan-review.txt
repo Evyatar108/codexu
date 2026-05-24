@@ -1,0 +1,29 @@
+### Feasibility
+
+[High] `Snapshot` references `Recommendation` and `DependencyGraph`, but those types do not exist in current `tools/overview-viewer/src/types.ts`. The plan only says to append `Snapshot`, `SnapshotTask`, and `ActivityEvent`, so a literal implementation will not typecheck unless Plan 05 also defines placeholder/exported v1 shapes for `Recommendation` and `DependencyGraph`, or uses `unknown`/structural inline types.
+
+[Medium] The `npx ajv validate` path is not fixed by adding `ajv` + `ajv-formats`. The `ajv` package is the library; the CLI binary comes from `ajv-cli`. Current root `package.json` has no Ajv dependency. Either add `ajv-cli` explicitly or make the programmatic Vitest validation path the only acceptance route.
+
+[Medium] `outputs.activity.maxLines` conflicts with the proposed config model. The plan defines `outputs.activity` as a string path, but later says rotation is configurable via `outputs.activity.maxLines`. Current config resolution treats known outputs as scalar paths in `scripts/lib/resolve-config.mjs:76`; the plan needs a separate key such as `outputs.activityMaxLines`, or an object shape for activity outputs.
+
+### Completeness
+
+[High] The cascade omits `plans/ralph-pipeline-04-pipeline-overview.md`, which currently still says Plan 04 adds `OverviewRalphState.runDurations` and emits recommendations/graph directly from `sync-core` before Plan 05 absorbs them. Since Plan 05 explicitly changes that contract, Plan 04 must be updated too, not just Plans 06–12 and `plans/ralph-pipeline-INDEX.md`.
+
+[Medium] Story-progress activity events are underspecified. The plan’s `prevStateMap` only stores `Map<taskId, RalphStage>`, but it also wants `storyCompletion` deltas. `mergeAndWrite` already receives `currentState` and builds the next state in `scripts/lib/sync-core.mjs:232`, so the plan should say to compare previous and next `RalphPipelineState.storyCompletion`, or pass a full previous pipeline-state map.
+
+### Ordering
+
+[Medium] The plan gives two different owners for snapshot/schema/data/tasks-index emission. The architecture section says the watcher calls `buildSnapshot`, schema, data JSON, and tasks index after `mergeAndWrite`; Phase C says `writeSidecar` emits them; Phase D says the watcher only appends activity. Since `mergeAndWrite` already calls `writeSidecar` in `scripts/lib/sync-core.mjs:270`, choose one durable-artifact integration point, preferably `writeSidecar`, and leave watcher-specific work to activity append after successful merge.
+
+### Simplicity
+
+[Medium] The watcher does not need to resolve slug-to-taskId itself for `prevStage`. The matching helpers are private in `scripts/lib/sync-core.mjs:663`, and duplicating that logic in `watch-ralph-state.mjs` risks drift. Simpler: pass the unchanged `currentState` into `mergeAndWrite` as today and derive activity events there from previous vs next `byTaskId`.
+
+### Acceptance Criteria Quality
+
+[Medium] “Populated correctly when Plan 04 has shipped” is not directly verifiable on the current branch because Plan 04 artifacts and type shapes are absent. Add fixture-based criteria: create temporary `overview-recommendations.json`, `overview-dependency-graph.json`, and a run-duration source, then assert exact snapshot fields.
+
+[Medium] “`pnpm test` green” is vague for this repo. Root `package.json` has no `test` script; overview tests live under `tools/overview-viewer` with `pnpm --filter @codexu/overview-viewer test`. Name the exact verification commands.
+
+The refinement fixes several earlier drift points correctly, especially `AGENTS.md` vs root `CLAUDE.md`, `FilterAxis` location, and Plan 02 reuse. The remaining blockers are mostly contract clarity around types, config shape, and where emission happens.

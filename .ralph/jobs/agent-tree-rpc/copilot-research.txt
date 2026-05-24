@@ -1,0 +1,121 @@
+I’m inspecting the relevant packages and plan docs first, then I’ll synthesize the implementation guidance against the actual code.
+
+## Codebase Architecture
+
+This is a monorepo with four relevant layers:
+
+- **`packages/happy-cli/`**: TypeScript/Node 20 CLI daemon/agent runtime. It owns Codex process control, session-scoped RPC registration, and the Socket.IO client connection to happy-server.
+- **`packages/happy-server/`**: TypeScript/Fastify + Socket.IO relay. It fans out session/user/machine events to connected clients and routes RPC calls to the owning CLI/daemon socket.
+- **`packages/happy-app/`**: React Native/Expo mobile/web client. It already has session-scoped RPC plumbing and an `/session/[id]/agents` screen, but that screen currently shows only static `metadata.agents`.
+- **`codex/external/repos/codex-patched/codex-rs/`**: read-only Rust Codex subtree. It already tracks live subagents internally.
+
+Build/test stack is **pnpm + TypeScript + Vitest** on the Happy side, and Rust/Cargo inside Codex. The fork guidance is explicit: **treat Codex source as read-only and minimize conflict surface**.
+
+## Feature-Relevant Code
+
+### Codex internals (read-only reference)
+- **`codex/.../core/src/agent/registry.rs`**
+  - `ActiveAgents.agent_tree`
+  - `AgentMetadata { agent_id, agent_path, agent_nickname, agent_role, last_task_message }`
+  - `live_agents()`
+- **`codex/.../core/src/agent/control.rs`**
+  - `subscribe_status(...)` at ~832
+  - `list_agents(...)` at ~864, which already assembles **live status + last_task_message**
+- **`codex/.../protocol/src/protocol.rs`**
+  - `CollabAgentSpawnBeginEvent`
+  - `CollabAgentSpawnEndEvent`
+  - `SubAgentSource::ThreadSpawn { parent_thread_id, depth, agent_path, agent_nickname, agent_role }`
+
+### Codex app-server surfaces already available to happy-cli
+- **`codex/.../app-server/src/bespoke_event_handling.rs`**
+  - forwards `CollabAgentSpawnBegin/End` into app-server notifications
+- **`codex/.../app-server-protocol/src/protocol/event_mapping.rs`**
+  - maps spawn begin/end to `ThreadItem::CollabAgentToolCall`
+- **`codex/.../app-server-protocol/src/protocol/v2/item.rs`**
+  - `CollabAgentToolCall`
+  - `CollabAgentState`
+- **`codex/.../app-server-protocol/src/protocol/v2/thread_data.rs`**
+  - `Thread { session_id, source, status, agent_nickname, agent_role, ... }`
+- **`codex/.../app-server-protocol/src/protocol/v2/thread.rs`**
+  - `ThreadReadParams/Response`
+  - `ThreadLoadedListResponse`
+  - `ThreadStatusChangedNotification`
+
+### Happy CLI
+- **`packages/happy-cli/src/codex/codexAppServerClient.ts`**
+  - `handleNotification(...)` already receives legacy `codex/event` payloads
+  - `CollabAgentSpawnBegin/End` can already reach `runCodex` via the existing `eventHandler`
+  - `startThread(...)` currently sends `experimentalRawEvents: false`
+  - raw v2 notifications are only partially interpreted today (`thread/status/changed`, `thread/started`, file/command items)
+- **`packages/happy-cli/src/codex/runCodex.ts`**
+  - owns the long-lived Codex client instance
+  - already registers session RPCs (`abort`, kill)
+  - already has the main `client.setEventHandler(...)` integration seam
+  - already maintains per-session in-memory subagent-ish state for session-protocol envelopes, but **not** a real spawn tree
+- **`packages/happy-cli/src/api/rpc/RpcHandlerManager.ts`**
+  - natural seam for a new session-scoped RPC handler
+
+### Happy server
+- **`packages/happy-server/sources/app/api/socket/rpcHandler.ts`**
+  - routes session/machine RPC calls over Socket.IO rooms
+- **`packages/happy-server/sources/app/events/eventRouter.ts`**
+  - current fan-out primitive
+  - only supports **`'update'`** and **`'ephemeral'`**
+  - replay buffer exists only for **updates**, not ephemerals/custom events
+- **`packages/happy-server/sources/app/api/socket.ts`**
+  - typed socket event surface; currently no `agent-tree-update`
+
+### Happy app
+- **`packages/happy-app/sources/sync/apiSocket.ts`**
+  - `apiSocket.forSession(sessionId).rpc(...)` is the correct client RPC seam
+- **`packages/happy-app/sources/app/(app)/session/[id]/agents.tsx`**
+  - existing screen for “Agents”
+  - currently reads `session.metadata.agents` (static catalog), not live spawned agents
+
+## Technical Constraints
+
+1. **No Codex edits**: the prompt and repo guidance both push this work to happy-cli/server.
+2. **Current server fan-out is not generic**: `eventRouter` is hard-coded to `'update' | 'ephemeral'`. A literal `'agent-tree-update'` event is a cross-package socket contract change.
+3. **Replay behavior matters**: only `emitUpdate(...)` is replayable. A custom stream event will not survive reconnects unless clients re-query via RPC.
+4. **`lastTaskMessage` is the hardest field**:
+   - Codex core has it (`registry.rs`, `control.rs:list_agents`)
+   - app-server protocol does **not** currently expose it directly
+   - without Codex changes, happy-cli will need to derive/best-effort cache it from observed spawn prompts / later correlated events
+5. **Session RPC routing already exists**: app should call through `apiSocket.forSession(sessionId)`, which prefixes the local session id automatically.
+6. **The existing mobile Agents screen is misleadingly close but wrong**: it is a static capability catalog, not the live spawn tree.
+
+## Implementation Suggestions
+
+1. **Put the bridge in `runCodex.ts`**, not in server code.
+   - Create a long-lived in-memory `AgentTreeBridge` keyed by the Happy session / Codex thread.
+   - Register a new session RPC handler via `session.rpcHandlerManager.registerHandler(...)` for the tree query.
+
+2. **Feed that bridge from existing Codex notifications**.
+   - Minimum input: legacy `CollabAgentSpawnBegin/End` already reaching `client.setEventHandler(...)`.
+   - Also consume `thread/started` / `thread/status/changed` if you need post-spawn status transitions; that likely requires extending `CodexAppServerClient` to surface those notifications to callers, because today it mostly uses them internally.
+
+3. **Use RPC for snapshot, stream for deltas**.
+   - This matches the server’s current capabilities well.
+   - Because custom stream events are not replayed, clients should call `sessionGetAgentTree` on screen mount/reconnect and treat `agent-tree-update` as incremental-only.
+
+4. **Server-side fan-out should extend the existing socket contract deliberately**.
+   - Add `agent-tree-update` to the socket event typings in:
+     - `packages/happy-server/sources/app/api/socket.ts`
+     - `packages/happy-cli/src/api/types.ts`
+     - the app socket client layer if mobile will subscribe directly
+   - If you want replay, model it as an `update` payload instead; otherwise keep it transient and rely on the query RPC.
+
+5. **The natural mobile integration point is the existing Agents route**.
+   - Replace `session.metadata.agents` usage in `packages/happy-app/sources/app/(app)/session/[id]/agents.tsx`
+   - Fetch initial tree via `apiSocket.forSession(sessionId).rpc(...)`
+   - Subscribe to the new socket stream for live updates
+
+6. **Best no-Codex-edit fallback for node shape**:
+   - `threadId`, `agentRole`, `nickname`: available from spawn events / thread source
+   - `status`: track from `thread/status/changed` or spawn-end state
+   - `spawnedAt`: from spawn begin/end timestamps
+   - `parent`: from `sender_thread_id` / `parent_thread_id`
+   - `lastTaskMessage`: likely best-effort from spawn prompt unless you later find an app-server-accessible live source
+
+Overall, the plan is feasible **on the Happy side**, but the key caveat is that **`lastTaskMessage` is not presently exposed by the Codex app-server protocol**, so that field is the main place where the no-Codex-edit constraint bites.
+

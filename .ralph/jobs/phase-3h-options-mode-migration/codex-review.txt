@@ -1,0 +1,27 @@
+### Completeness
+
+[High] [hooks/session-start.js](/D:/harness-efforts/codexu/.ralph/jobs/phase-3h-options-mode-migration/worktree/packages/codexu-options-mode-plugin/hooks/session-start.js:32) writes raw text instead of a Codex hook JSON payload with `hookSpecificOutput.additionalContext`. AC-13 requires `additionalContext`; as written, the rules/status prefix may be ignored or treated as invalid hook output, so the agent will not reliably receive options-mode instructions.
+
+[Low] [tests/fixtures/codex-stop-spike.json](/D:/harness-efforts/codexu/.ralph/jobs/phase-3h-options-mode-migration/worktree/packages/codexu-options-mode-plugin/tests/fixtures/codex-stop-spike.json:1) is the only committed Stop fixture. The plan explicitly called for separate codex-shape fixtures for tag-present, tag-missing, disabled, strict, auto, function-call, loop-counter, first-run, and continuation cases. Dynamic tests cover some behavior, but the fixture-based acceptance surface is incomplete.
+
+### Correctness
+
+[High] [hooks/stop.js](/D:/harness-efforts/codexu/.ralph/jobs/phase-3h-options-mode-migration/worktree/packages/codexu-options-mode-plugin/hooks/stop.js:104) returns pass-through whenever `transcript_path` is missing or does not exist, before checking `last_assistant_message`. AC-2 only needs `last_assistant_message` to block missing tags; transcript reading is only needed for function-call bypass. This disables enforcement for valid Stop payloads with an unavailable transcript path.
+
+[High] [hooks/stop.js](/D:/harness-efforts/codexu/.ralph/jobs/phase-3h-options-mode-migration/worktree/packages/codexu-options-mode-plugin/hooks/stop.js:111) only scans for trailing `request_user_input` / `ask_user_question` calls when `last_assistant_message` is empty. Codex can report the assistant text before a trailing function call as `last_assistant_message`; that valid AskUserQuestion turn will then be blocked by the tag checks at lines 122-125. The function-call scan should run before missing-tag enforcement whenever a transcript is available.
+
+[Medium] [hooks/stop.js](/D:/harness-efforts/codexu/.ralph/jobs/phase-3h-options-mode-migration/worktree/packages/codexu-options-mode-plugin/hooks/stop.js:111) also passes through an empty/null `last_assistant_message` when no trailing function call exists. In active modes that is still missing every accepted terminal state, so it should block rather than silently allowing a non-compliant turn.
+
+[Medium] [hooks/config.js](/D:/harness-efforts/codexu/.ralph/jobs/phase-3h-options-mode-migration/worktree/packages/codexu-options-mode-plugin/hooks/config.js:53) and [hooks/stop.js](/D:/harness-efforts/codexu/.ralph/jobs/phase-3h-options-mode-migration/worktree/packages/codexu-options-mode-plugin/hooks/stop.js:119) still tell the agent/user that the auto-mode hook auto-responds to AskUserQuestion. The plan explicitly defers that PreToolUse auto-intercept, so auto mode can now wait on an absent user while the injected rules say it will proceed autonomously.
+
+### Quality
+
+[Low] [hooks/user-prompt-submit.js](/D:/harness-efforts/codexu/.ralph/jobs/phase-3h-options-mode-migration/worktree/packages/codexu-options-mode-plugin/hooks/user-prompt-submit.js:37) uses `lower.startsWith('/options-mode')`, so prompts like `/options-modeful` or `/options-mode-off` are intercepted as plugin commands. Match exactly `/options-mode` or `/options-mode\s+...` to avoid blocking unrelated slash-like text.
+
+### Security
+
+No issues found.
+
+### Overall Assessment
+
+Not ready yet. The scaffold is close, but Stop enforcement has pass-through and false-block edge cases, and SessionStart does not appear to emit the required `additionalContext` hook payload.

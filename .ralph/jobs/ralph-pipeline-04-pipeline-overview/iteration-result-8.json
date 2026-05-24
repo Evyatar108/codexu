@@ -1,0 +1,48 @@
+{
+  "storyId": "US-008",
+  "verifiedEvidence": [
+    {
+      "criterion": "App renders PipelineOverview between Toolbar and Kanban.",
+      "command": "grep -n PipelineOverview tools/overview-viewer/src/App.tsx",
+      "result": "Exit 0; App.tsx imports PipelineOverview and renders it at line 135 immediately after Toolbar/CopyToast and before the mental-model paragraph plus Kanban, passing ralphState, filter.activeFilters, and filter.setFilters.",
+      "evidenceKind": "source-inspection"
+    },
+    {
+      "criterion": "overview-ralph-state:update HMR still refreshes ralphState.",
+      "command": "grep -n overview-ralph-state:update tools/overview-viewer/src/App.tsx && grep -n setRalphState tools/overview-viewer/src/App.tsx",
+      "result": "Exit 0; reloadRalphState still fetches overview-ralph-state.js, executes it, and calls setRalphState(getOverviewRalphState()); App still subscribes to import.meta.hot.on('overview-ralph-state:update', reloadRalphState), so PipelineOverview receives updated ralphState through React state without page reload.",
+      "evidenceKind": "source-inspection"
+    },
+    {
+      "criterion": "Focused pipelineOverview test covers App fixture and review-fix click selection.",
+      "command": "pnpm --filter @codexu/overview-viewer test -- pipelineOverview",
+      "result": "Exit 0; Vitest reported 28 test files passed and 160 tests passed. The App fixture test renders 10 PipelineOverview chips, verifies review-fix count, clicks it, observes aria-pressed=true, and verifies the implementing card receives card-hidden while the review-fix card remains visible.",
+      "evidenceKind": "test"
+    },
+    {
+      "criterion": "Typecheck passes.",
+      "command": "pnpm --filter @codexu/overview-viewer typecheck > .test-output/overview-viewer.typecheck.log 2>&1",
+      "result": "Exit 0; tsc --noEmit completed with no errors.",
+      "evidenceKind": "typecheck"
+    },
+    {
+      "criterion": "US-008:AC-004 browser verification warning handled.",
+      "command": "N/A",
+      "result": "SKIPPED: browser automation unavailable for US-008:AC-004; no dev-browser skill or browser MCP/tool is available in this session, so the deterministic fixture-based pipelineOverview App test is the verifiable fallback surface.",
+      "evidenceKind": "command"
+    },
+    {
+      "criterion": "Tests pass.",
+      "command": "pnpm --filter @codexu/overview-viewer test > .test-output/overview-viewer.test.log 2>&1",
+      "result": "Exit 0 on rerun without concurrent typecheck; Vitest reported 28 test files passed and 160 tests passed. The first concurrent full-suite run hit a single copyPreamble 5s timeout, then passed when rerun alone.",
+      "evidenceKind": "test"
+    }
+  ],
+  "skippedReasons": [
+    "tool_unavailable"
+  ],
+  "notTested": [
+    "Manual browser verification for US-008:AC-004; browser automation/dev-browser tooling unavailable."
+  ],
+  "iterationSHA": "d69f9f16b1d1b9a0772ba6c0e7d798f6255193d4"
+}

@@ -1,0 +1,82 @@
+I’ll inspect the referenced temp file to see what task or content it contains.
+
+The file is large enough that I’ll read it in sections and extract the actionable request.
+
+I’ll research the current watcher/export code and downstream plan files, then summarize plan corrections without editing files.
+
+I found the Plan 02 watcher code is already present; I’m checking the concrete export points and downstream plan references now.
+
+### Codebase Architecture
+
+Codexu is a pnpm monorepo. The Ralph overview system is split between:
+
+- `scripts/sync-ralph-state.mjs` — CLI entry for one-shot and watch mode.
+- `scripts/lib/sync-core.mjs` — current source of truth for Ralph state assembly, matching, incremental updates, sidecar writes.
+- `scripts/lib/watch-ralph-state.mjs` — Plan 02 chokidar watcher with long-lived lock, debounce, cold-start full walk, and `deriveAffectedTaskUpdate` / `mergeAndWrite`.
+- `scripts/lib/resolve-config.mjs`, `default-config.mjs`, `.ralph/overview-config*.json` — config-driven paths.
+- `tools/overview-viewer/` — Vite + React viewer consuming `plans/overview-data.js` and `plans/overview-ralph-state.{js,json}`.
+- `plans/ralph-pipeline-06+*.md` and `plans/ralph-pipeline-INDEX.md` — downstream specs that must be cascaded after Plan 05 changes.
+
+Plan 02 is present on `main`; do not add a new polling loop.
+
+### Feature-Relevant Code
+
+Key verified files:
+
+- `scripts/lib/sync-core.mjs`
+  - Exports `readBundleForSlug`, `assembleStateFromBundles`, `deriveAffectedTaskUpdate`, `mergeAndWrite`, `writeSidecar`.
+  - `writeSidecar` currently only writes `plans/overview-ralph-state.json` and `.js`.
+  - `loadOverviewData()` exists but is private; Plan 05 should extract/export a reusable parser before emitting `overview-data.json`.
+- `scripts/lib/watch-ralph-state.mjs`
+  - Debounced `pendingChanges` holds `{ kind, slug }`.
+  - Flush derives updates, calls `mergeAndWrite`, then `onWrite`.
+  - Activity events should be derived from `currentState` before merge plus `result.state` / `updates` after merge.
+- `tools/overview-viewer/src/types.ts`
+  - Current `OverviewRalphState` has no `runDurations` on `main`.
+  - Add `Snapshot`, `SnapshotTask`, `ActivityEvent` here.
+- `tools/overview-viewer/src/utils/filters.ts`
+  - `FilterAxis` currently lives here, not in `types.ts`; Plan 03 owns the `ralphStage` filter edits.
+- `.ralph/overview-config.schema.json`
+  - Currently only permits sidecar outputs. Plan 05 must extend config/schema if new output paths become configurable.
+- Root `CLAUDE.md` does not exist; root guidance is `AGENTS.md`. Replace the plan’s root `CLAUDE.md` edit with `AGENTS.md`, plus update `tools/overview-viewer/CLAUDE.md`.
+
+### Technical Constraints
+
+- **Worktree constraint:** refined Plan 05 should remove “merged to `main` after Phase 6” wording. The request says all work stays on branch `ralph-pipeline-05-agent-exports` in `D:\harness-efforts\codexu\.ralph\jobs\ralph-pipeline-05-agent-exports\worktree\`; nothing lands on `main`.
+- **Plan 02 dependency:** Plan 05 is no longer independent of 02. It must reuse the watcher/sync-core contract.
+- **Plan 03 coexistence:** Plan 05 should only append snapshot/activity types in `types.ts` and migrate `runDurations` when present; Plan 03 owns `FilterAxis`/UI chip changes.
+- **Activity derivation:** stage/story-progress events are derivable from `deriveAffectedTaskUpdate` plus previous `currentState`. Run start/finish is not fully derivable unless Plan 04’s duration/run metadata is present or Plan 05 adds explicit metadata.
+- **Generated markdown twin:** existing Plan 05 creates `tasks/INDEX.md` but no JSON twin. Add `tasks/INDEX.json` or equivalent to satisfy “dual JSON twin” criteria.
+- **Atomic writes:** reuse `atomicWriteFile`/tmp/fsync/rename retry patterns; do not add broad fallbacks.
+- **Tests/declarations:** update `scripts/lib/*.d.mts` and `tools/overview-viewer/src/__tests__/scripts.d.ts` for new exports.
+
+### Implementation Suggestions
+
+Refine Plan 05 to create/modify these concrete paths:
+
+- Create:
+  - `scripts/lib/emit-snapshot.mjs`
+  - `scripts/lib/emit-activity.mjs`
+  - `scripts/lib/emit-tasks-index.mjs`
+  - `scripts/lib/emit-snapshot-schema.mjs`
+  - `plans/overview-snapshot.json`
+  - `plans/overview-activity.jsonl`
+  - `plans/overview-snapshot.schema.json`
+  - `plans/overview-data.json`
+  - `tasks/INDEX.md`
+  - `tasks/INDEX.json`
+- Modify:
+  - `scripts/lib/sync-core.mjs`
+  - `scripts/lib/watch-ralph-state.mjs`
+  - `scripts/sync-ralph-state.mjs`
+  - `scripts/lib/default-config.mjs`
+  - `scripts/lib/resolve-config.mjs`
+  - `.ralph/overview-config.json`
+  - `.ralph/overview-config.schema.json`
+  - `tools/overview-viewer/src/types.ts`
+  - `AGENTS.md`
+  - `tools/overview-viewer/CLAUDE.md`
+  - downstream `plans/ralph-pipeline-06*.md` through `12*.md` plus `plans/ralph-pipeline-INDEX.md`.
+
+Recommended flow: compute snapshot from `OverviewData + OverviewRalphState`; write sidecar, snapshot, data twin, schema, and task indexes under the existing sync lock; derive activity diffs from previous/current state and append after a successful persisted write. This avoids false activity events if sidecar/snapshot writes fail while still preserving `prevStage`.
+

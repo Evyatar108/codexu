@@ -1,0 +1,33 @@
+## Feasibility
+
+[High] The test mock plan is incomplete for importing `SessionItem` from `D:/harness-efforts/codexu/packages/happy-app/sources/components/SessionsList.tsx`. That module imports `expo-router`, `react-native-safe-area-context`, `useVisibleSessionListViewData`, `useIsTablet`, `requestReview`, and `UpdateBanner` at module scope. Even if the test only renders `SessionItem`, Vitest still evaluates the whole module, so `SessionsList.test.tsx` should mock or safely stub those imports.
+
+[High] `theme.colors.permission[code]` will likely fail typecheck under `strict: true` because `code` is `string` and `permission` has fixed keys. Existing code maps explicitly in `AgentInput.tsx` for `bypassPermissions`, `read-only`, and `safe-yolo`. Reuse that local mapping shape instead of raw dynamic indexing.
+
+[Medium] The plan says direct permission color lookup, but real metadata codes include `bypassPermissions`, `read-only`, and `safe-yolo`; theme keys are `bypass`, `readOnly`, and `safeYolo`. Without a mapper, common modes fall back to `permission.default`, weakening the stated color-coded behavior.
+
+[Low] The overview says all changes target `packages/happy-app/`, but the plan also updates `D:/harness-efforts/codexu/plans/parallel-assignments.md`. That is fine operationally, but the plan is internally inconsistent.
+
+## Completeness
+
+[Medium] The plan should require pill row layout constraints: `minWidth: 0`, `flexShrink`, `numberOfLines={1}`, and `ellipsizeMode` on pill text. `SessionItem` is fixed height and narrow mobile rows are likely; “adjust if wraps” is too late for an autonomous implementation.
+
+[Medium] The flavor icon pill test may not be “identifiable” in a snapshot unless the component adds stable `testID` or accessibility labels, or the test mocks `NewSessionAgentIcons` to stable values. Text pills are easy to assert; an image-only pill is not.
+
+[Low] The plan creates a broad snapshot as the first external snapshot file for this component. Existing `ActiveSessionsGroupCompact.test.tsx` favors structural assertions. A smaller structural test that finds pill texts and icon `Image` is less brittle than a full `SessionItem` snapshot.
+
+## Ordering
+
+No issues found.
+
+## Simplicity
+
+[Medium] A local `permissionColorForCode()` helper should be specified. It is simpler and safer than direct theme indexing and already matches the conditional mapping in `D:/harness-efforts/codexu/packages/happy-app/sources/components/AgentInput.tsx`.
+
+[Low] Exporting `SessionItem` only for testing is acceptable, but the test could alternatively render `SessionsList` with mocked `useVisibleSessionListViewData`. The named export is simpler for a focused test, so this is not a blocker.
+
+## Acceptance Criteria Quality
+
+[Medium] “Snapshot contains three identifiable pill elements” is vague unless the implementation defines stable identifiers. Add criteria like: model pill renders text `codex`, permission pill renders text `plan`, and flavor pill renders one `Image` with `testID="session-role-pill-flavor"`.
+
+[Low] “Single commit on main branch” is process-oriented, not a functional acceptance criterion. Keep it as release workflow guidance, but don’t mix it with implementation verification.

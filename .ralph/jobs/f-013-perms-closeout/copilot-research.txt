@@ -1,0 +1,111 @@
+I’m opening the provided file to see the requested task and relevant context.
+
+I’ve got the request; next I’m locating the permission-mode docs, implementation, and tests to ground the analysis.
+
+I found the repo-level context; now I’m locating the actual permission handler file and the existing tests around it.
+
+I located the real implementation under `src/claude/utils`; I’m reading that flow and its tests so the analysis can name the actual fix point and likely latent path.
+
+I’ve narrowed the bug to the handler’s response path; I’m checking the shared permission-mode type and launcher wiring so the plan can call out the exact contract mismatch.
+
+I found the schema-level type mismatch too; I’m reading the exact permission-response schema and the generic base handler for comparison before summarizing.
+
+I’ve got enough of the contract; I’m doing one last pass over where live config changes feed `handleModeChange` so the suggested fix doesn’t miss the only active write paths.
+
+I’ve confirmed the only inconsistent write is the response path inside `PermissionHandler`; I’m reading the launcher callback wiring just to reference it accurately in the final analysis.
+
+I’ve identified the likely one-line behavioral fix; I’m checking the logged permissions payload type so the plan doesn’t accidentally narrow or broaden a separate contract.
+
+I found one adjacent type that also assumes the 4-mode subset; I’m reading it to decide whether the plan should call it out as part of the same bug or leave it alone.
+
+I found one nearby logging type that could be affected depending on where normalization happens, so I’m checking whether `completedRequests.mode` is consumed anywhere else before I lock in the recommendation.
+
+**Codebase architecture**
+
+This is a **pnpm workspace monorepo** (`package.json`, `pnpm-workspace.yaml`) with TypeScript packages under `packages/`, including `happy-cli`, `happy-app`, `happy-server`, and `happy-wire`. The feature lives in **`packages/happy-cli`**, which is a Node/TypeScript package using the Claude SDK, Zod, Vitest, and pkgroll (`packages/happy-cli/package.json`).
+
+Inside `packages/happy-cli`, the Claude-specific code is organized under **`src/claude/`**:
+- runtime/orchestration: `runClaude.ts`, `claudeRemote.ts`, `claudeRemoteLauncher.ts`, `session.ts`
+- permission utilities: `src/claude/utils/permissionMode.ts`, `permissionHandler.ts`, `sessionAllowlist.ts`
+- colocated tests: `src/claude/utils/*.test.ts`, plus the primary agent integration file `src/claude/claude.integration.test.ts`
+
+One immediate correction to the draft scope: the likely fix point is **not** `packages/happy-cli/src/claude/permissions.ts` (that file does not exist here). The real mapping helper is **`packages/happy-cli/src/claude/utils/permissionMode.ts`**.
+
+**Feature-relevant code**
+
+The key files are:
+
+- **`packages/happy-cli/CLAUDE.md`**  
+  The “Permission Mode Protocol” section is the governing contract: Happy wire uses **7 modes** (`default`, `acceptEdits`, `bypassPermissions`, `plan`, `read-only`, `safe-yolo`, `yolo`), while Claude SDK only supports **4 modes**. It explicitly says Claude-side mapping belongs in `src/claude/permissions.ts` / in practice here **`src/claude/utils/permissionMode.ts`**. It also says session approvals persist in `Session.permissionAllowlist`.
+
+- **`packages/happy-cli/src/api/types.ts`**  
+  `PermissionMode` is the shared 7-mode union, and `AgentState.completedRequests[*].mode` is typed as `PermissionMode`. That means wire/state can legitimately contain `yolo`, `safe-yolo`, or `read-only`.
+
+- **`packages/happy-cli/src/claude/utils/permissionMode.ts`**  
+  `mapToClaudeMode()` is the authoritative 7→4 mapping:
+  - `yolo -> bypassPermissions`
+  - `safe-yolo -> default`
+  - `read-only -> default`
+
+- **`packages/happy-cli/src/claude/utils/permissionHandler.ts`**  
+  This is the real bug surface. `handleModeChange(mode: PermissionMode)` correctly maps via `mapToClaudeMode(mode)`, but `handlePermissionResponse(...)` currently does:
+  ```ts
+  if (response.mode) {
+      this.permissionMode = response.mode;
+  }
+  ```
+  and `PermissionResponse.mode` is typed only as the 4-mode Claude enum. That is inconsistent with the shared wire contract and creates the latent override path.
+
+- **`packages/happy-cli/src/claude/claudeRemoteLauncher.ts`**  
+  Shows the intended runtime flow: queued message modes call `permissionHandler.handleModeChange(...)`, and the launcher rehydrates `session.permissionAllowlist` from `agentState.completedRequests` before constructing the handler.
+
+- **`packages/happy-cli/src/claude/utils/sessionAllowlist.ts`**  
+  Persists session-long approvals (`allowTools`, `acceptEdits`) and rehydrates from `completedRequests`. This matters for persistence, but it is **not** the primary fix point for the override bug.
+
+- **Existing tests**
+  - `src/claude/utils/permissionMode.test.ts` already covers the mapping helper.
+  - `src/claude/utils/permissionHandler.test.ts` covers `handleModeChange(...)`, allowlist persistence, and resets.
+  - `src/claude/utils/sessionAllowlist.test.ts` covers rehydration semantics.
+  - `src/claude/runClaudePublishMode.test.ts` covers metadata publication, which already looks correct.
+
+**Technical constraints**
+
+1. **7-mode wire vs 4-mode SDK is a hard contract.**  
+   Any fix must preserve that boundary: internal Claude SDK state should be normalized to 4 modes, but app/session-facing data may still carry 7-mode values.
+
+2. **The latent bug is in the response path, not the message path.**  
+   `runClaude.ts` and `claudeRemote.ts` already treat queued/user configuration as 7-mode data and map at the SDK boundary. The inconsistent path is permission RPC response handling in `PermissionHandler`.
+
+3. **`sessionAllowlist.ts` is secondary.**  
+   It only interprets `acceptEdits` specially and otherwise stores `allowTools`. If a plan centers the fix there, it is probably targeting the wrong layer.
+
+4. **Be careful if widening types.**  
+   Adjacent types in `claudeRemoteLauncher.ts` (`PermissionsField.mode`) and `sdkToLogConverter.ts` currently assume the 4-mode subset. A clean fix should likely normalize for Claude-internal behavior without accidentally widening unrelated logging/output types unless that is intentional.
+
+5. **Testing placement matters.**  
+   Per `packages/happy-cli/agents.md`, narrow utility tests next to the helper are acceptable. This regression belongs naturally in **`src/claude/utils/permissionHandler.test.ts`**, not the primary `claude.integration.test.ts`.
+
+6. **Validation commands are slightly underspecified.**  
+   `packages/happy-cli/package.json` has `typecheck` and `test` scripts, but the monorepo root has no obvious single root `typecheck` script. The implementation plan should name the exact existing commands it intends to use.
+
+**Implementation suggestions**
+
+The natural fix is:
+
+1. **Correct the response contract in `permissionHandler.ts`.**  
+   Treat `PermissionResponse.mode` as the shared **wire `PermissionMode`**, not the narrowed Claude-only enum.
+
+2. **Normalize before mutating Claude runtime state.**  
+   In `handlePermissionResponse(...)`, change the `response.mode` assignment path to use `mapToClaudeMode(response.mode)` before writing `this.permissionMode`. That is the likely root-cause fix for F-013.
+
+3. **Keep persistence semantics explicit.**  
+   If you want `completedRequests.mode` to preserve the raw app-selected mode (`yolo`, etc.), normalize only the handler’s internal `permissionMode`. If instead you normalize the stored response object too, audit `claudeRemoteLauncher.ts` and `sdkToLogConverter.ts` so their types stay correct.
+
+4. **Add the missing regression test in `src/claude/utils/permissionHandler.test.ts`.**  
+   The best test is: start in `default`, simulate a permission RPC response with `approved: true` and `mode: 'yolo'`, then assert the **next** dangerous tool call auto-allows because the handler normalized that override to `bypassPermissions`. That directly exercises the previously-latent path.
+
+5. **Do not plan extra metadata work unless you verify a failure.**  
+   `publishPermissionModeIfChanged(...)` and `runClaude.ts` already follow the documented mutation contract and look unrelated to this bug.
+
+Overall: the plan should target **`packages/happy-cli/src/claude/utils/permissionHandler.ts`** first, with a regression test in **`packages/happy-cli/src/claude/utils/permissionHandler.test.ts`**. The notepad is missing, but the reverse-engineered bug is credible and specific from the current code.
+

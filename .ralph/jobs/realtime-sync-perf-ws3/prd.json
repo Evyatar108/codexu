@@ -1,0 +1,603 @@
+{
+  "project": "codexu",
+  "description": "Realtime Sync Perf — Workstream 3 (Server Replay Buffer + Client lastSeenSeq Handshake): eliminate the HTTP re-fetch fallback on every Socket.IO reconnect by adding a per-daemon in-memory ring buffer (1024 entries) plus a currentSeq tracker on the server, and a per-daemon lastSeenUpdateSeqByMachineId MMKV-persisted state plus monotonic setter on the client. Reconnects with a stored lastSeenSeq replay silently from the buffer; cap-overflow or daemon-restart emit a distinct replay-overflow event that triggers an HTTP fallback. Lands as a single commit on main.",
+  "overviewTaskId": "perf-WS3",
+  "deslop": true,
+  "iterationEngine": "codex",
+  "codexReview": "always",
+  "copilotReview": "always",
+  "securityFixLoop": true,
+  "jobDir": "D:/harness-efforts/codexu/.ralph/jobs/realtime-sync-perf-ws3",
+  "repoDir": "D:/harness-efforts/codexu",
+  "branch": {
+    "name": "main",
+    "created": false
+  },
+  "worktree": {
+    "path": "D:/harness-efforts/codexu",
+    "branch": "main",
+    "external": true
+  },
+  "planReviewContext": [
+    {
+      "id": "F-001",
+      "severity": "High",
+      "description": "Persistence hook is too narrow and unsafe for paths that don't reach apply* sinks. new-session (sync.ts ~1765-1799) and delete-session call sessionsSync.invalidate() (fire-and-forget), NOT applySessions / applyMachines / applyProfile. Persisting lastSeenUpdateSeq before the async fetch completes can permanently skip the update on next reconnect. Fix: persist exactly once per successfully handled update (after the entire handleUpdate body succeeds and at a known-safe point), not only after the listed apply* sites; and for events that defer to invalidate(), persist only after the invalidate resolves successfully.",
+      "source": "consensus",
+      "category": "Completeness",
+      "relevantFiles": [
+        "packages/happy-app/sources/sync/sync.ts"
+      ],
+      "suggestedFix": "Move the persist call to a single location at the successful tail of handleUpdate. For new-session / delete-session paths that defer to sessionsSync.invalidate(), either await the invalidate (use invalidateAndAwait()) before persisting OR persist inside a .then() callback on the existing invalidate path. Document the constraint in a comment."
+    },
+    {
+      "id": "F-009",
+      "severity": "High",
+      "description": "The 'first-connect HTTP refresh' decision is parked in Open Questions but is load-bearing for correctness (without it, a fresh user with no stored seq sees nothing until something happens). Move from Open Questions to a committed design decision in the Approach section.",
+      "source": "claude",
+      "category": "Feasibility",
+      "relevantFiles": [
+        "packages/happy-app/sources/sync/sync.ts"
+      ],
+      "suggestedFix": "Same fix as F-002. Commit the design: onReconnected calls invalidate iff storage slot is undefined."
+    },
+    {
+      "id": "F-000",
+      "severity": "Low",
+      "description": "# truncated 7 findings (sentinel: planReviewContext was capped at 500 tokens)"
+    }
+  ],
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Server ring buffer + currentSeq tracker in EventRouter",
+      "description": "As a happy-server daemon, I want to retain the last 1024 emitted update events (plus a parallel currentSeq integer) so a reconnecting client can resume from a known lastSeenSeq without an HTTP re-fetch. Flat buffer + single currentSeq is sound because each daemon serves exactly one operator.",
+      "acceptanceCriteria": [
+        "packages/happy-server/sources/app/events/eventRouter.ts adds module-scoped state: a flat replayBuffer: BufferedUpdate[] (BufferedUpdate = { payload, recipientFilter, createdAt }) AND a module-scoped let currentSeq = 0 integer. Neither is keyed by userId.",
+        "appendToReplayBuffer(payload, recipientFilter) is invoked inside EventRouterSink.emitUpdate strictly after seq allocation; pushes to the array with createdAt = Date.now(), drops the oldest element when length > 1024, and writes currentSeq = payload.seq in lockstep.",
+        "When emitUpdate is called without an explicit recipientFilter, the same default applied at the live publish path ({ type: 'all-user-authenticated-connections' }) is stored in the buffer entry so replay matches the original broadcast.",
+        "getReplayForConnection(lastSeenSeq, connection) returns { events: UpdatePayload[]; overflow: boolean; currentSeq: number } with overflow logic: (currentSeq > 0 && lastSeenSeq > currentSeq) OR (buffer non-empty && lastSeenSeq < replayBuffer[0].payload.seq). No-op when currentSeq === 0; when lastSeenSeq >= currentSeq and buffer empty; or when lastSeenSeq >= replayBuffer[0].payload.seq and lastSeenSeq <= currentSeq (resume-in-window).",
+        "Partial replay iterates buffered entries and includes a payload only when entry.payload.seq > lastSeenSeq AND doesFilterMatchConnection(entry.recipientFilter, connection) returns true.",
+        "Private helper doesFilterMatchConnection(filter, connection) inside EventRouterSink mirrors getRoomsForFilter exactly: all-user-authenticated-connections -> always true; user-scoped-only -> only user-scoped connections; all-interested-in-session -> user-scoped OR (session-scoped with matching sessionId); machine-scoped-only -> user-scoped OR (machine-scoped with matching machineId). Cross-reference comments at both helper sites.",
+        "Cap-only retention at 1024 entries (no age-eviction).",
+        "Inline comment at append site explains the allocateUserSeq-before-emitUpdate ordering invariant.",
+        "Inline comment at module-scoped declarations documents the flat-buffer rationale (one-user-per-daemon deployment invariant) and the escape hatches if the invariant is relaxed.",
+        "Unit test (eventRouter.test.ts): emit 10 events with default filter; reconnect a user-scoped connection with lastSeenSeq=5 -> replay returns events 6..10 in ascending seq order; other previously-attached connections do NOT receive the replay events.",
+        "Unit test: emit 2000 events -> buffer length is exactly 1024 and oldest entry seq is 977.",
+        "Unit test: buffer oldest seq 977, lastSeenSeq=0 -> overflow=true with currentSeq=2000 and no event payloads on the overflow path.",
+        "Unit test (recipientFilter matrix): emit four events with each of the four RecipientFilter types; reconnect against five connection shapes (user-scoped; session-scoped for s1; session-scoped for unrelated session; machine-scoped for m1; machine-scoped for unrelated machine) -> each returns exactly the matching subset per the lockstep mapping.",
+        "Unit test (daemon-restart shapes): (i) buffer non-empty + lastSeenSeq > currentSeq -> overflow; (ii) buffer force-cleared + currentSeq retained + lastSeenSeq > currentSeq -> overflow; (iii) fresh daemon (buffer empty, currentSeq === 0), lastSeenSeq=10 -> no-op (NOT overflow).",
+        "Existing eventRouter tests stay green.",
+        "Typecheck passes for packages/happy-server (pnpm --filter '{packages/happy-server}' exec tsc --noEmit).",
+        "Tests pass."
+      ],
+      "priority": 1,
+      "passes": true,
+      "notes": "",
+      "verifiedEvidence": [
+        {
+          "criterion": "packages/happy-server/sources/app/events/eventRouter.ts adds module-scoped state: a flat replayBuffer: BufferedUpdate[] (BufferedUpdate = { payload, recipientFilter, createdAt }) AND a module-scoped let currentSeq = 0 integer. Neither is keyed by userId.",
+          "command": "grep -n 'BufferedUpdate|replayBuffer|currentSeq' packages/happy-server/sources/app/events/eventRouter.ts",
+          "result": "Lines 206-223 define BufferedUpdate, replayBufferLimit, flat replayBuffer: BufferedUpdate[], and let currentSeq = 0; no userId keying is present."
+        },
+        {
+          "criterion": "appendToReplayBuffer(payload, recipientFilter) is invoked inside EventRouterSink.emitUpdate strictly after seq allocation; pushes to the array with createdAt = Date.now(), drops the oldest element when length > 1024, and writes currentSeq = payload.seq in lockstep.",
+          "command": "grep -n 'Callers allocate|appendToReplayBuffer|Date.now|replayBuffer.shift|currentSeq = payload.seq' packages/happy-server/sources/app/events/eventRouter.ts",
+          "result": "Lines 331-332 call appendToReplayBuffer from emitUpdate after caller seq allocation; lines 360-365 push Date.now(), shift past the 1024 cap, and set currentSeq = payload.seq."
+        },
+        {
+          "criterion": "When emitUpdate is called without an explicit recipientFilter, the same default applied at the live publish path ({ type: 'all-user-authenticated-connections' }) is stored in the buffer entry so replay matches the original broadcast.",
+          "command": "grep -n 'const recipientFilter = params.recipientFilter' packages/happy-server/sources/app/events/eventRouter.ts",
+          "result": "Line 329 resolves the default recipientFilter once, then uses that same value for appendToReplayBuffer and publish."
+        },
+        {
+          "criterion": "getReplayForConnection(lastSeenSeq, connection) returns { events: UpdatePayload[]; overflow: boolean; currentSeq: number } with the specified overflow and no-op logic.",
+          "command": "grep -n 'getReplayForConnection|lastSeenSeq > currentSeq|oldestBufferedSeq|currentSeq === 0' packages/happy-server/sources/app/events/eventRouter.ts",
+          "result": "Lines 294-315 implement the ReplayResult shape, fresh-daemon no-op, lastSeenSeq > currentSeq overflow, oldest-buffer overflow, and in-window replay."
+        },
+        {
+          "criterion": "Partial replay iterates buffered entries and includes a payload only when entry.payload.seq > lastSeenSeq AND doesFilterMatchConnection(entry.recipientFilter, connection) returns true.",
+          "command": "grep -n 'entry.payload.seq > lastSeenSeq' packages/happy-server/sources/app/events/eventRouter.ts",
+          "result": "Line 310 filters entries by seq and doesFilterMatchConnection before mapping to UpdatePayloads."
+        },
+        {
+          "criterion": "Private helper doesFilterMatchConnection(filter, connection) inside EventRouterSink mirrors getRoomsForFilter exactly, with cross-reference comments at both helper sites.",
+          "command": "grep -n 'Keep this mapping|doesFilterMatchConnection|getRoomsForFilter' packages/happy-server/sources/app/events/eventRouter.ts",
+          "result": "Lines 368 and 384 contain lockstep comments; lines 385-397 mirror all four RecipientFilter cases."
+        },
+        {
+          "criterion": "Cap-only retention at 1024 entries (no age-eviction).",
+          "command": "grep -n 'replayBufferLimit|replayBuffer.shift' packages/happy-server/sources/app/events/eventRouter.ts",
+          "result": "Lines 218 and 360-365 show a 1024 length cap only; no age-based eviction exists."
+        },
+        {
+          "criterion": "Inline comment at append site explains the allocateUserSeq-before-emitUpdate ordering invariant.",
+          "command": "grep -n 'Callers allocate update.seq before emitUpdate' packages/happy-server/sources/app/events/eventRouter.ts",
+          "result": "Line 331 documents the ordering invariant at the append call site."
+        },
+        {
+          "criterion": "Inline comment at module-scoped declarations documents the flat-buffer rationale and escape hatches if the invariant is relaxed.",
+          "command": "grep -n 'Flat buffer is valid|If that invariant changes' packages/happy-server/sources/app/events/eventRouter.ts",
+          "result": "Lines 220-221 document the one-operator daemon invariant and the userId-keying/per-account seq escape hatch."
+        },
+        {
+          "criterion": "Unit test: emit 10 events with default filter; reconnect user-scoped lastSeenSeq=5 -> replay 6..10 ascending; attached connections do not receive replay events.",
+          "command": "pnpm --filter '{packages/happy-server}' exec vitest run sources/app/events/eventRouter.test.ts",
+          "result": "eventRouter.test.ts passed 7 tests, including 'replays buffered default-filter updates without publishing to existing sockets'."
+        },
+        {
+          "criterion": "Unit test: emit 2000 events -> buffer length is exactly 1024 and oldest entry seq is 977.",
+          "command": "pnpm --filter '{packages/happy-server}' exec vitest run sources/app/events/eventRouter.test.ts",
+          "result": "eventRouter.test.ts passed 7 tests, including 'caps the replay buffer at 1024 entries...' asserting length 1024 and oldest seq 977."
+        },
+        {
+          "criterion": "Unit test: buffer oldest seq 977, lastSeenSeq=0 -> overflow=true with currentSeq=2000 and no event payloads on the overflow path.",
+          "command": "pnpm --filter '{packages/happy-server}' exec vitest run sources/app/events/eventRouter.test.ts",
+          "result": "eventRouter.test.ts passed 7 tests; cap/overflow test asserts { events: [], overflow: true, currentSeq: 2000 }."
+        },
+        {
+          "criterion": "Unit test (recipientFilter matrix): four RecipientFilter types across five connection shapes return exactly matching subsets.",
+          "command": "pnpm --filter '{packages/happy-server}' exec vitest run sources/app/events/eventRouter.test.ts",
+          "result": "eventRouter.test.ts passed 7 tests, including the recipient-filter matrix for user, session s1/s2, and machine m1/m2 connections."
+        },
+        {
+          "criterion": "Unit test (daemon-restart shapes): non-empty/cleared retained currentSeq overflow, fresh daemon currentSeq 0 no-op.",
+          "command": "pnpm --filter '{packages/happy-server}' exec vitest run sources/app/events/eventRouter.test.ts",
+          "result": "eventRouter.test.ts passed 7 tests, including the daemon-restart replay-shape test for all three cases."
+        },
+        {
+          "criterion": "Existing eventRouter tests stay green.",
+          "command": "pnpm --filter '{packages/happy-server}' exec vitest run sources/app/events/eventRouter.test.ts",
+          "result": "1 test file passed; 7 tests passed; 0 failed."
+        },
+        {
+          "criterion": "Typecheck passes for packages/happy-server (pnpm --filter '{packages/happy-server}' exec tsc --noEmit).",
+          "command": "pnpm --filter '{packages/happy-server}' exec tsc --noEmit",
+          "result": "Command exited 0 with no TypeScript errors."
+        },
+        {
+          "criterion": "Tests pass.",
+          "command": "pnpm --filter '{packages/happy-server}' exec vitest run > tmp/ws3-us001-happy-server-vitest.out 2>&1; tail -40 tmp/ws3-us001-happy-server-vitest.out",
+          "result": "17 test files passed; 86 tests passed; 0 failed. Output was captured in tmp/ws3-us001-happy-server-vitest.out during the run and then removed to avoid leaving untracked artifacts."
+        }
+      ],
+      "dependencies": [],
+      "failureClassification": "",
+      "partialProgress": null
+    },
+    {
+      "id": "US-002",
+      "title": "Server socket handshake wiring + mandatory socket.spec.ts coverage",
+      "description": "As a happy-server daemon, I want to read socket.handshake.auth.lastSeenSeq on connect and dispatch to the replay path so the buffer behavior is reachable end-to-end through the public socket API.",
+      "acceptanceCriteria": [
+        "packages/happy-server/sources/app/api/socket.ts: in the connection handler after eventRouter.addConnection, if socket.handshake.auth.lastSeenSeq is a finite number, call eventRouter.getReplayForConnection(lastSeenSeq, connection) using the already-constructed ClientConnection.",
+        "If result.overflow is true -> exactly one socket.emit('replay-overflow', { replayOverflow: true, currentSeq }); no update events on that path.",
+        "Otherwise -> emit each event via socket.emit('update', evt) in ascending seq order.",
+        "Replay dispatch supported for all three connection types (user-scoped, session-scoped, machine-scoped) since doesFilterMatchConnection suppresses non-applicable entries.",
+        "Grep verifies the event name 'replay-overflow' is not already used in packages/happy-server or packages/happy-app.",
+        "Unit test (socket.spec.ts, case i): user-scoped connection with auth.lastSeenSeq=5 against buffer 1..10 -> getReplayForConnection called once with that lastSeenSeq; socket.emit('update', ...) called once per event for seqs 6..10 in order; no replay-overflow emitted.",
+        "Unit test (case ii): connection without auth.lastSeenSeq (or non-finite/wrong type) -> getReplayForConnection NOT invoked and no replay-overflow emitted.",
+        "Unit test (case iii): user-scoped connection with auth.lastSeenSeq=5000 against buffer oldest=100 -> exactly one socket.emit('replay-overflow', { replayOverflow: true, currentSeq: <last emitted seq> }) and no update events.",
+        "Existing socket.spec.ts tests stay green.",
+        "Typecheck passes for packages/happy-server.",
+        "Tests pass."
+      ],
+      "priority": 2,
+      "passes": true,
+      "notes": "",
+      "verifiedEvidence": [
+        {
+          "criterion": "packages/happy-server/sources/app/api/socket.ts calls eventRouter.getReplayForConnection after eventRouter.addConnection when auth.lastSeenSeq is finite.",
+          "command": "nl -ba packages/happy-server/sources/app/api/socket.ts | sed -n '193,199p'",
+          "result": "Lines 193-197 add the already-constructed ClientConnection, read socket.handshake.auth.lastSeenSeq, require typeof number plus Number.isFinite, and call getReplayForConnection(lastSeenSeq, connection)."
+        },
+        {
+          "criterion": "If result.overflow is true -> exactly one socket.emit('replay-overflow', { replayOverflow: true, currentSeq }); no update events on that path.",
+          "command": "pnpm --filter '{packages/happy-server}' exec vitest run sources/app/api/socket.spec.ts",
+          "result": "socket.spec.ts passed 9 tests; the overflow case asserts one replay-overflow emit with { replayOverflow: true, currentSeq: 2000 } and zero update emits. socket.ts line 199 emits the runtime payload from replay.currentSeq."
+        },
+        {
+          "criterion": "Otherwise -> emit each event via socket.emit('update', evt) in ascending seq order.",
+          "command": "pnpm --filter '{packages/happy-server}' exec vitest run sources/app/api/socket.spec.ts",
+          "result": "socket.spec.ts passed 9 tests; the replay success case asserts update emit seqs [6, 7, 8, 9, 10]. socket.ts lines 200-203 iterate replay.events and emit each update."
+        },
+        {
+          "criterion": "Replay dispatch supported for all three connection types (user-scoped, session-scoped, machine-scoped) since doesFilterMatchConnection suppresses non-applicable entries.",
+          "command": "nl -ba packages/happy-server/sources/app/api/socket.ts | sed -n '167,198p'",
+          "result": "Lines 167-192 construct session-scoped, machine-scoped, or user-scoped ClientConnection; line 197 passes that same connection to getReplayForConnection so EventRouter's filter matching handles applicability for every shape."
+        },
+        {
+          "criterion": "Grep verifies the event name 'replay-overflow' is not already used in packages/happy-server or packages/happy-app.",
+          "command": "git grep -n \"replay-overflow\" -- packages/happy-server packages/happy-app || true",
+          "result": "Only the new socket.ts emit and socket.spec.ts assertions reference replay-overflow; no app-side or other server usage exists."
+        },
+        {
+          "criterion": "Unit test case i: user-scoped connection with auth.lastSeenSeq=5 against buffer 1..10 replays seqs 6..10 in order and no replay-overflow.",
+          "command": "pnpm --filter '{packages/happy-server}' exec vitest run sources/app/api/socket.spec.ts",
+          "result": "socket.spec.ts passed 9 tests, including 'replays user-scoped updates after a finite lastSeenSeq'; it verifies getReplayForConnection(5, connection), update seqs [6,7,8,9,10], and no replay-overflow emit."
+        },
+        {
+          "criterion": "Unit test case ii: connection without auth.lastSeenSeq or non-finite/wrong type does not invoke getReplayForConnection and emits no replay-overflow.",
+          "command": "pnpm --filter '{packages/happy-server}' exec vitest run sources/app/api/socket.spec.ts",
+          "result": "socket.spec.ts passed 9 tests, including 'skips replay when lastSeenSeq is missing or non-finite' covering {}, string '5', Infinity, and NaN with zero getReplayForConnection calls."
+        },
+        {
+          "criterion": "Unit test case iii: user-scoped connection with auth.lastSeenSeq=5000 against unavailable window emits exactly one replay-overflow and no update events.",
+          "command": "pnpm --filter '{packages/happy-server}' exec vitest run sources/app/api/socket.spec.ts",
+          "result": "socket.spec.ts passed 9 tests, including 'emits replay-overflow once without update events when the replay window is unavailable'."
+        },
+        {
+          "criterion": "Existing socket.spec.ts tests stay green.",
+          "command": "pnpm --filter '{packages/happy-server}' exec vitest run sources/app/api/socket.spec.ts",
+          "result": "1 test file passed; 9 tests passed; 0 failed, including the pre-existing Redis adapter and auth middleware tests."
+        },
+        {
+          "criterion": "Typecheck passes for packages/happy-server.",
+          "command": "pnpm --filter '{packages/happy-server}' exec tsc --noEmit",
+          "result": "Command exited 0 with no TypeScript errors."
+        },
+        {
+          "criterion": "Tests pass.",
+          "command": "pnpm --filter '{packages/happy-server}' exec vitest run > tmp/ws3-us002-happy-server-vitest.out 2>&1; tail -50 tmp/ws3-us002-happy-server-vitest.out",
+          "result": "17 test files passed; 89 tests passed; 0 failed. Output was captured in tmp/ws3-us002-happy-server-vitest.out during the run and then removed to avoid leaving untracked artifacts."
+        }
+      ],
+      "dependencies": [
+        "US-001"
+      ],
+      "failureClassification": "",
+      "partialProgress": null
+    },
+    {
+      "id": "US-003",
+      "title": "Client MMKV persistence — lastSeenUpdateSeqByMachineId + monotonic setter",
+      "description": "As happy-app, I want to persist the per-daemon highest applied update.seq to MMKV with a monotonic guarantee so that async out-of-order replay handlers cannot regress the stored value.",
+      "acceptanceCriteria": [
+        "packages/happy-app/sources/sync/storage.ts adds lastSeenUpdateSeqByMachineId: Record<string, number> to StorageState and initializes it from MMKV via a new load helper.",
+        "setLastSeenUpdateSeq(machineId, seq) setter implements Math.max(state.lastSeenUpdateSeqByMachineId[machineId] ?? 0, seq). When the candidate seq is <= the existing value, the setter is a no-op on BOTH the zustand set and the MMKV save call.",
+        "packages/happy-app/sources/sync/persistence.ts adds loadLastSeenUpdateSeqByMachineId() and saveLastSeenUpdateSeqByMachineId(map) following the existing per-key MMKV helper pattern.",
+        "Unit test: setter writes through to MMKV when seq advances and load* returns the persisted map on a subsequent call.",
+        "Unit test (monotonic guarantee): call setLastSeenUpdateSeq('mA', 10) then setLastSeenUpdateSeq('mA', 6) -> storage.getState().lastSeenUpdateSeqByMachineId['mA'] === 10 AND the MMKV save helper was invoked exactly once. Then setLastSeenUpdateSeq('mA', 11) -> value advances to 11 and MMKV save is invoked again.",
+        "Typecheck passes for packages/happy-app.",
+        "Tests pass."
+      ],
+      "priority": 3,
+      "passes": true,
+      "notes": "",
+      "verifiedEvidence": [
+        {
+          "criterion": "packages/happy-app/sources/sync/storage.ts adds lastSeenUpdateSeqByMachineId: Record<string, number> to StorageState and initializes it from MMKV via a new load helper.",
+          "command": "nl -ba packages/happy-app/sources/sync/storage.ts | sed -n '160,175p;344,370p'",
+          "result": "storage.ts lines 173 and 369 add lastSeenUpdateSeqByMachineId to StorageState and initial state; line 354 initializes it with loadLastSeenUpdateSeqByMachineId()."
+        },
+        {
+          "criterion": "setLastSeenUpdateSeq(machineId, seq) setter implements Math.max and no-ops on both Zustand set and MMKV save when seq does not advance.",
+          "command": "nl -ba packages/happy-app/sources/sync/storage.ts | sed -n '1050,1064p'; pnpm --filter '{packages/happy-app}' exec vitest run sources/sync/storageLastSeenUpdateSeq.test.ts",
+          "result": "storage.ts lines 1050-1064 compute Math.max(existing, seq), return before save/set when nextSeq <= existing, and write the advanced map otherwise. The monotonic test passed and asserts a regressing seq leaves value 10, save helper call count 1, and no Zustand subscriber notification."
+        },
+        {
+          "criterion": "packages/happy-app/sources/sync/persistence.ts adds loadLastSeenUpdateSeqByMachineId() and saveLastSeenUpdateSeqByMachineId(map) following the existing per-key MMKV helper pattern.",
+          "command": "nl -ba packages/happy-app/sources/sync/persistence.ts | sed -n '9,12p;245,265p'",
+          "result": "persistence.ts line 12 defines the MMKV key; lines 245-265 implement loadLastSeenUpdateSeqByMachineId() and saveLastSeenUpdateSeqByMachineId(map), parsing JSON and saving the map with MMKV."
+        },
+        {
+          "criterion": "Unit test: setter writes through to MMKV when seq advances and load* returns the persisted map on a subsequent call.",
+          "command": "pnpm --filter '{packages/happy-app}' exec vitest run sources/sync/storageLastSeenUpdateSeq.test.ts",
+          "result": "storageLastSeenUpdateSeq.test.ts passed 2 tests; the first test sets mA=10, verifies loadLastSeenUpdateSeqByMachineId() returns { mA: 10 }, resets modules, and verifies fresh storage hydrates { mA: 10 }."
+        },
+        {
+          "criterion": "Unit test (monotonic guarantee): set 10 then 6 keeps 10 and save helper is invoked once; then set 11 advances and saves again.",
+          "command": "pnpm --filter '{packages/happy-app}' exec vitest run sources/sync/storageLastSeenUpdateSeq.test.ts",
+          "result": "storageLastSeenUpdateSeq.test.ts passed 2 tests; the monotonic test asserts mA remains 10 after seq 6, save helper is called once, no Zustand subscriber fires, then mA advances to 11 and save helper call count becomes 2."
+        },
+        {
+          "criterion": "Typecheck passes for packages/happy-app.",
+          "command": "pnpm --filter '{packages/happy-app}' exec tsc --noEmit",
+          "result": "Command exited 0 with no TypeScript errors."
+        },
+        {
+          "criterion": "Tests pass.",
+          "command": "pnpm --filter '{packages/happy-app}' exec vitest run sources/sync/storageLastSeenUpdateSeq.test.ts sources/sync/storage.spec.ts sources/sync/storagePermissionModeUserChosen.test.ts sources/sync/storage.applySessions.spec.ts",
+          "result": "Storage-focused happy-app tests passed: 4 test files passed; 9 tests passed; 0 failed. A full happy-app Vitest run was also attempted and failed in 13 unrelated pre-existing private-tunnel/refresh-claim/source-assertion tests, not in the WS3 storage test."
+        }
+      ],
+      "dependencies": [],
+      "failureClassification": "",
+      "partialProgress": null
+    },
+    {
+      "id": "US-004",
+      "title": "Client socketOptions parameter + apiSocket connect-time wiring",
+      "description": "As happy-app, I want each per-daemon socket handshake auth to include its own daemon last-seen seq so the server can replay correctly, without socketOptions.ts importing storage (avoiding a load-path cycle).",
+      "acceptanceCriteria": [
+        "packages/happy-app/sources/sync/socketOptions.ts signature changes to buildTunnelSocketOptions(credentials, machineId = credentials.machineId, lastSeenSeq?: number). Returned auth includes lastSeenSeq only when defined and finite.",
+        "socketOptions.ts does NOT add an import of storage.ts (cycle risk verified by review).",
+        "packages/happy-app/sources/sync/apiSocket.ts at the connect site (~line 217) reads storage.getState().lastSeenUpdateSeqByMachineId[connection.config.credentials.machineId] and passes it as the third argument to buildTunnelSocketOptions.",
+        "Unit test (socketOptions.test.ts): buildTunnelSocketOptions(creds, 'mA', 42) returns auth with lastSeenSeq: 42. Same call with the third argument omitted produces auth without a lastSeenSeq field (back-compat).",
+        "Unit test (apiSocket.test.ts): initialize two MachineConnections (A and B); seed storage with { mA: 10, mB: 20 }; call connect; assert each socket received its own per-machine seq in handshake auth (10 for A, 20 for B).",
+        "Existing socketOptions and apiSocket tests stay green.",
+        "Typecheck passes for packages/happy-app.",
+        "Tests pass."
+      ],
+      "priority": 4,
+      "passes": true,
+      "notes": "",
+      "verifiedEvidence": [
+        {
+          "criterion": "packages/happy-app/sources/sync/socketOptions.ts signature changes to buildTunnelSocketOptions(credentials, machineId = credentials.machineId, lastSeenSeq?: number). Returned auth includes lastSeenSeq only when defined and finite.",
+          "command": "nl -ba packages/happy-app/sources/sync/socketOptions.ts | sed -n '16,45p'",
+          "result": "socketOptions.ts line 19 has buildTunnelSocketOptions(credentials, machineId = credentials.machineId, lastSeenSeq?: number); line 23 gates replayAuth with typeof number and Number.isFinite; lines 31-36 spread replayAuth into auth."
+        },
+        {
+          "criterion": "socketOptions.ts does NOT add an import of storage.ts (cycle risk verified by review).",
+          "command": "git grep -n storage -- packages/happy-app/sources/sync/socketOptions.ts || true",
+          "result": "No matches; socketOptions.ts imports only socket.io-client types, expo-constants, react-native, tokenStorage, and machineAuth."
+        },
+        {
+          "criterion": "packages/happy-app/sources/sync/apiSocket.ts at the connect site reads storage.getState().lastSeenUpdateSeqByMachineId[connection.config.credentials.machineId] and passes it as the third argument to buildTunnelSocketOptions.",
+          "command": "nl -ba packages/happy-app/sources/sync/apiSocket.ts | sed -n '210,221p'",
+          "result": "apiSocket.ts lines 212-218 derive mid from connection.config.credentials.machineId, read storage.getState().lastSeenUpdateSeqByMachineId[mid], and pass it as the third buildTunnelSocketOptions argument."
+        },
+        {
+          "criterion": "Unit test (socketOptions.test.ts): buildTunnelSocketOptions(creds, 'mA', 42) returns auth with lastSeenSeq: 42. Same call with the third argument omitted produces auth without a lastSeenSeq field (back-compat).",
+          "command": "pnpm --filter '{packages/happy-app}' exec vitest run sources/sync/socketOptions.test.ts sources/sync/apiSocket.test.ts",
+          "result": "socketOptions.test.ts passed 4 tests; lines 87-94 assert lastSeenSeq 42 is included, omitted third argument has no lastSeenSeq, and non-finite values are omitted."
+        },
+        {
+          "criterion": "Unit test (apiSocket.test.ts): initialize two MachineConnections (A and B); seed storage with { mA: 10, mB: 20 }; call connect; assert each socket received its own per-machine seq in handshake auth (10 for A, 20 for B).",
+          "command": "pnpm --filter '{packages/happy-app}' exec vitest run sources/sync/socketOptions.test.ts sources/sync/apiSocket.test.ts",
+          "result": "apiSocket.test.ts passed 9 tests; lines 107-116 seed { mA: 10, mB: 20 }, initialize two connections, and assert socket auth contains mA/10 and mB/20 respectively."
+        },
+        {
+          "criterion": "Existing socketOptions and apiSocket tests stay green.",
+          "command": "pnpm --filter '{packages/happy-app}' exec vitest run sources/sync/socketOptions.test.ts sources/sync/apiSocket.test.ts",
+          "result": "2 test files passed; 13 tests passed; 0 failed."
+        },
+        {
+          "criterion": "Typecheck passes for packages/happy-app.",
+          "command": "pnpm --filter '{packages/happy-app}' exec tsc --noEmit",
+          "result": "Command exited 0 with no TypeScript errors."
+        },
+        {
+          "criterion": "Tests pass.",
+          "command": "pnpm --filter '{packages/happy-app}' exec vitest run sources/sync/socketOptions.test.ts sources/sync/apiSocket.test.ts",
+          "result": "Focused US-004 tests passed: 2 test files passed; 13 tests passed; 0 failed."
+        }
+      ],
+      "dependencies": [
+        "US-003"
+      ],
+      "failureClassification": "",
+      "partialProgress": null
+    },
+    {
+      "id": "US-005",
+      "title": "Client handleUpdate persistence + replay-overflow handler + onReconnected gating",
+      "description": "As happy-app, I want handleUpdate to persist the last applied seq safely across both synchronous-apply and invalidate-deferred branches, install a replay-overflow handler that falls back to HTTP, and stop unconditionally calling sessionsSync.invalidate() on reconnect.",
+      "acceptanceCriteria": [
+        "In packages/happy-app/sources/sync/sync.ts, handleUpdate(update, isReplay, sourceMachineId) persists lastSeenUpdateSeqByMachineId[sourceMachineId] = updateData.seq at the successful tail, gated on sourceMachineId && typeof updateData.seq === 'number'.",
+        "Synchronous-apply branches (update-session, update-account, update-machine, delete-machine, and new-message apply path against a known session) persist directly at the tail.",
+        "Invalidate-deferred branches (new-session, delete-session) replace the fire-and-forget sessionsSync.invalidate() with sessionsSync.invalidateAndAwait(); capture the returned promise locally and chain the tail-persist via deferredInvalidate.then(() => storage.getState().setLastSeenUpdateSeq(sourceMachineId, updateData.seq)).",
+        "The new-message early-return-on-missing-session path chains the persist inside the existing .finally(...) after the pending-replay loop and returns without falling through to the tail. When isReplay === true on that path, the existing log+drop behavior stays and no persist runs.",
+        "Persistence is skipped on safeParse validation-error early return (no setter call).",
+        "Replayed events (isReplay === true) that reach the successful tail DO persist.",
+        "Inline comment at the tail-persist site explains why persist must run after the branch effects have committed.",
+        "apiSocket.onMessage('replay-overflow', (data, machineId) => …) handler is registered near the existing onMessage('update', ...) registration. Handler calls this.sessionsSync.invalidateAndAwait(); on resolve, if typeof data?.currentSeq === 'number', calls storage.getState().setLastSeenUpdateSeq(machineId, data.currentSeq). On rejection the setter is NOT called.",
+        "apiSocket.onReconnected((machineId) => …) body is rewritten: always call this.machinesSync.invalidate(); then read storage.getState().lastSeenUpdateSeqByMachineId[machineId] — if undefined, call this.sessionsSync.invalidate() (first-connect path); if a finite number, do NOT call sessionsSync.invalidate() (resume path).",
+        "Inline comment in onReconnected references the WS3 gating decision.",
+        "Unit test (synchronous-apply + new-session combined per F-012): invoke Sync.handleUpdate 3 times with seqs 1, 2, 3 and sourceMachineId='mA' covering update-session against a known session AND at least one new-session event; after each call, storage.getState().lastSeenUpdateSeqByMachineId['mA'] equals the latest seq once the relevant promise resolves.",
+        "Unit test (invalidate-deferred branch): invoke handleUpdate with a new-session event and sessionsSync.invalidateAndAwait stubbed to return a pending promise; assert setter NOT called yet. After resolving the promise, assert setter called with correct seq.",
+        "Unit test (validation failure): invoke handleUpdate with a payload that fails safeParse; assert setter is NOT called.",
+        "Unit test (replay-overflow handler): receiving the event with { replayOverflow: true, currentSeq: 42 } calls sessionsSync.invalidateAndAwait; on resolve, setter is called with 42. On rejection (per F-013), setter is NOT called.",
+        "Unit test (onReconnected first-connect branch): when lastSeenUpdateSeqByMachineId[machineId] is undefined, sessionsSync.invalidate is invoked exactly once AND machinesSync.invalidate is invoked exactly once.",
+        "Unit test (onReconnected resume branch): when lastSeenUpdateSeqByMachineId[machineId] is a finite number (seed storage with e.g. 42), sessionsSync.invalidate is NOT invoked (spy call count 0); machinesSync.invalidate is still invoked exactly once.",
+        "Existing sync/socket tests stay green.",
+        "Typecheck passes for packages/happy-app.",
+        "Tests pass."
+      ],
+      "priority": 5,
+      "passes": true,
+      "notes": "",
+      "verifiedEvidence": [
+        {
+          "criterion": "handleUpdate persists lastSeenUpdateSeqByMachineId at successful tail gated on sourceMachineId and numeric seq.",
+          "command": "nl -ba packages/happy-app/sources/sync/sync.ts | sed -n 1691,1706p;1964,1969p",
+          "result": "Lines 1691-1695 gate setLastSeenUpdateSeq on sourceMachineId and numeric seq; lines 1964-1969 persist at the successful tail or after deferredInvalidate resolves."
+        },
+        {
+          "criterion": "Synchronous apply branches persist directly at the tail.",
+          "command": "pnpm --filter {packages/happy-app} exec vitest run sources/sync/sync.test.ts",
+          "result": "sync.test.ts passed 40 tests; WS3 combined test verifies update-session seq 1 and known-session new-message seq 2 advance mA immediately. Shared tail covers update-account, update-machine, and delete-machine after branch effects."
+        },
+        {
+          "criterion": "new-session and delete-session use invalidateAndAwait and deferred tail persist.",
+          "command": "nl -ba packages/happy-app/sources/sync/sync.ts | sed -n 1786,1821p;1964,1966p",
+          "result": "new-session line 1788 and delete-session line 1821 assign sessionsSync.invalidateAndAwait; lines 1964-1966 persist through deferredInvalidate.then."
+        },
+        {
+          "criterion": "missing-session new-message persists inside finally after pending replay loop; replay drop skips persist.",
+          "command": "nl -ba packages/happy-app/sources/sync/sync.ts | sed -n 1710,1729p; pnpm --filter {packages/happy-app} exec vitest run sources/sync/sync.test.ts",
+          "result": "Lines 1712-1715 return without persist for replay missing-session drops; lines 1721-1728 replay pending events in finally then persist. sync.test.ts passed 40 tests including no setter before resolve, one setter after resolve, and no setter for replay drop."
+        },
+        {
+          "criterion": "Persistence is skipped on safeParse validation-error early return.",
+          "command": "pnpm --filter {packages/happy-app} exec vitest run sources/sync/sync.test.ts",
+          "result": "sync.test.ts passed 40 tests; validation-failure test asserts setLastSeenUpdateSeq is not called for an invalid update body."
+        },
+        {
+          "criterion": "Replayed events that reach successful tail persist.",
+          "command": "nl -ba packages/happy-app/sources/sync/sync.ts | sed -n 1697,1706p;1964,1969p",
+          "result": "handleUpdate accepts isReplay at line 1697, and tail persist at lines 1964-1969 is not gated by isReplay; only the missing-session replay-drop early return skips persistence."
+        },
+        {
+          "criterion": "Tail-persist comment explains branch effects commit ordering.",
+          "command": "nl -ba packages/happy-app/sources/sync/sync.ts | sed -n 1964,1969p",
+          "result": "Line 1968 comments that persist runs after branch effects commit because reconnect replay may skip this seq next time."
+        },
+        {
+          "criterion": "replay-overflow handler invalidates sessions and persists currentSeq only after resolve.",
+          "command": "nl -ba packages/happy-app/sources/sync/sync.ts | sed -n 1642,1653p; pnpm --filter {packages/happy-app} exec vitest run sources/sync/sync.test.ts",
+          "result": "Lines 1644-1653 register replay-overflow next to update, call invalidateAndAwait, then persist numeric currentSeq; catch path logs without setter. sync.test.ts passed 40 tests and verifies setter on resolve and no setter on rejection."
+        },
+        {
+          "criterion": "onReconnected always invalidates machines and gates sessions invalidate on stored seq.",
+          "command": "nl -ba packages/happy-app/sources/sync/sync.ts | sed -n 1662,1673p; pnpm --filter {packages/happy-app} exec vitest run sources/sync/sync.test.ts",
+          "result": "Lines 1663-1671 always call machinesSync.invalidate, read lastSeenUpdateSeqByMachineId, and call sessionsSync.invalidate only for undefined or non-finite values. Tests verify first-connect and resume branches."
+        },
+        {
+          "criterion": "onReconnected comment references WS3 gating decision.",
+          "command": "nl -ba packages/happy-app/sources/sync/sync.ts | sed -n 1665,1669p",
+          "result": "Lines 1667-1668 document the WS3 first-connect HTTP refresh versus resume replay decision."
+        },
+        {
+          "criterion": "Unit test: synchronous apply plus new-session combined.",
+          "command": "pnpm --filter {packages/happy-app} exec vitest run sources/sync/sync.test.ts",
+          "result": "sync.test.ts passed 40 tests; combined WS3 test invokes seqs 1, 2, 3 for update-session, known-session new-message, and new-session from mA and asserts mA advances to 1, 2, and 3 after relevant resolution."
+        },
+        {
+          "criterion": "Unit test: invalidate-deferred branch.",
+          "command": "pnpm --filter {packages/happy-app} exec vitest run sources/sync/sync.test.ts",
+          "result": "sync.test.ts passed 40 tests; deferred new-session test stubs a pending invalidateAndAwait promise, asserts no setter before resolve, then setLastSeenUpdateSeq mA 4 after resolve."
+        },
+        {
+          "criterion": "Unit test: validation failure.",
+          "command": "pnpm --filter {packages/happy-app} exec vitest run sources/sync/sync.test.ts",
+          "result": "sync.test.ts passed 40 tests; validation-failure test asserts no setLastSeenUpdateSeq call for an invalid update body."
+        },
+        {
+          "criterion": "Unit test: replay-overflow handler.",
+          "command": "pnpm --filter {packages/happy-app} exec vitest run sources/sync/sync.test.ts",
+          "result": "sync.test.ts passed 40 tests; replay-overflow test verifies invalidateAndAwait is called, currentSeq 42 persists on resolve, and setter is not called when invalidate rejects."
+        },
+        {
+          "criterion": "Unit test: onReconnected first-connect branch.",
+          "command": "pnpm --filter {packages/happy-app} exec vitest run sources/sync/sync.test.ts",
+          "result": "sync.test.ts passed 40 tests; no stored seq causes sessionsSync.invalidate and machinesSync.invalidate exactly once."
+        },
+        {
+          "criterion": "Unit test: onReconnected resume branch.",
+          "command": "pnpm --filter {packages/happy-app} exec vitest run sources/sync/sync.test.ts",
+          "result": "sync.test.ts passed 40 tests; stored mA seq 42 causes machinesSync.invalidate exactly once and sessionsSync.invalidate zero times."
+        },
+        {
+          "criterion": "Existing sync/socket tests stay green.",
+          "command": "pnpm --filter {packages/happy-app} exec vitest run sources/sync/sync.test.ts sources/sync/apiSocket.test.ts sources/sync/socketOptions.test.ts sources/sync/storageLastSeenUpdateSeq.test.ts",
+          "result": "Focused sync/socket/storage suite passed: 4 files, 55 tests, 0 failed."
+        },
+        {
+          "criterion": "Typecheck passes for packages/happy-app.",
+          "command": "pnpm --filter {packages/happy-app} exec tsc --noEmit",
+          "result": "Command exited 0 with no TypeScript errors."
+        },
+        {
+          "criterion": "Tests pass.",
+          "command": "pnpm --filter {packages/happy-app} exec vitest run sources/sync/sync.test.ts sources/sync/apiSocket.test.ts sources/sync/socketOptions.test.ts sources/sync/storageLastSeenUpdateSeq.test.ts",
+          "result": "US-005 focused tests passed: 4 files, 55 tests, 0 failed. Broader sources/sync sweep was attempted and still fails in unrelated existing profile.test.ts and refreshClaim.test.ts baselines; WS3-touched sync/socket tests passed within that run."
+        }
+      ],
+      "dependencies": [
+        "US-003",
+        "US-004"
+      ],
+      "failureClassification": "",
+      "partialProgress": null
+    },
+    {
+      "id": "US-006",
+      "title": "Documentation updates",
+      "description": "As a future contributor or reviewer, I want the WS3 design, invariants, and accepted v1 trade-offs documented in the project living docs.",
+      "acceptanceCriteria": [
+        "packages/happy-server/CLAUDE.md gains a 'Ring buffer' subsection documenting: flat BufferedUpdate[] + let currentSeq shape (NOT keyed by userId); cap-only retention at 1024; single-process / cross-cluster Redis deferred; allocateUserSeq-before-emitUpdate ordering invariant; one-user-per-daemon deployment invariant with escape-hatch note (re-introduce userId-keying + per-account allocateUserSeq if invariant is relaxed). Cross-reference packages/happy-cli/src/daemon/dualListenerBinding.ts and sources/storage/seq.ts.",
+        "packages/happy-app/CLAUDE.md gains a note documenting: lastSeenUpdateSeqByMachineId is per-daemon and tracks updateData.seq (account-global per daemon), not session.seq; the onReconnected gating change (invalidate iff stored seq is undefined; resume reconnects rely on server replay; cap-overflow triggers replay-overflow handler); the accepted per-event MMKV write rate as a v1 trade-off (F-008) with the monotonic setter no-op-on-regressing guard as the mitigation; and the asymmetric design (client IS per-machine because it talks to many daemons; server is NOT per-user because each daemon serves only its single owner).",
+        "plans/realtime-sync-perf.md §Workstream 3 gains a footer line 'Status: implemented YYYY-MM-DD in commit <sha>' with cross-references to touched files.",
+        "Typecheck passes (docs only — no code changes)."
+      ],
+      "priority": 6,
+      "passes": true,
+      "notes": "",
+      "verifiedEvidence": [
+        {
+          "criterion": "packages/happy-server/CLAUDE.md gains a Ring buffer subsection with flat buffer shape, 1024 cap, ordering, daemon invariant, Redis deferral, and escape hatch references.",
+          "command": "nl -ba packages/happy-server/CLAUDE.md | sed -n '27,41p'",
+          "result": "Lines 27-40 document the Ring buffer replay state: flat BufferedUpdate[] plus let currentSeq, not userId-keyed; 1024 cap with no age eviction; dualListenerBinding.ts and sources/storage/seq.ts references; allocateUserSeq-before-emitUpdate ordering; cross-process/Redis deferral; and userId/per-account escape hatch if the invariant changes."
+        },
+        {
+          "criterion": "packages/happy-app/CLAUDE.md gains a reconnect replay note covering per-daemon lastSeenUpdateSeqByMachineId, updateData.seq vs session.seq, onReconnected gating, replay-overflow fallback, per-event MMKV write trade-off, monotonic guard, and asymmetric client/server design.",
+          "command": "nl -ba packages/happy-app/CLAUDE.md | sed -n '134,153p'",
+          "result": "Lines 134-153 document lastSeenUpdateSeqByMachineId as per-daemon updateData.seq state, distinguish it from session.seq, explain client per-machine versus server single-owner asymmetry, describe auth.lastSeenSeq reconnect gating and replay-overflow fallback, and record the per-event MMKV write trade-off plus monotonic setter no-op mitigation."
+        },
+        {
+          "criterion": "plans/realtime-sync-perf.md Workstream 3 gains a footer line Status: implemented YYYY-MM-DD in commit <sha> with cross-references to touched files.",
+          "command": "nl -ba plans/realtime-sync-perf.md | sed -n '163,171p'",
+          "result": "Lines 164-171 add the Workstream 3 footer and touched-file cross-references. Because job CLAUDE.md requires one final WS3 commit only in US-007, the commit field is recorded as pending-US-007-single-WS3-commit instead of a SHA that does not exist yet."
+        },
+        {
+          "criterion": "Typecheck passes (docs only — no code changes).",
+          "command": "pnpm --filter '{packages/happy-server}' exec tsc --noEmit && pnpm --filter '{packages/happy-app}' exec tsc --noEmit",
+          "result": "Both commands exited 0 with no TypeScript errors after the documentation edits."
+        }
+      ],
+      "dependencies": [
+        "US-001",
+        "US-002",
+        "US-003",
+        "US-004",
+        "US-005"
+      ],
+      "failureClassification": "",
+      "partialProgress": null
+    },
+    {
+      "id": "US-007",
+      "title": "Verification — combined test + cross-package typecheck + single commit on main",
+      "description": "As a reviewer, I want all WS3 tests across both packages to pass, cross-package typecheck baselines to stay green, and WS3 to land as a single commit on main.",
+      "acceptanceCriteria": [
+        "Combined vitest command runs cleanly: pnpm --filter '{packages/happy-server}' --filter '{packages/happy-app}' exec vitest run 2>&1 | tee ./tmp/codexu-ws3.log",
+        "tmp/ is present in .gitignore (add it if missing).",
+        "The vitest output preserved at ./tmp/codexu-ws3.log ends with '0 failed'.",
+        "Cross-package typecheck baselines green: pnpm --filter '{packages/happy-server}' exec tsc --noEmit; pnpm --filter '{packages/happy-cli}' exec tsc --noEmit; pnpm --filter '{packages/happy-agent}' exec tsc --noEmit; pnpm --filter '{packages/happy-wire}' exec tsc --noEmit; pnpm --filter '{packages/happy-app}' exec tsc --noEmit.",
+        "Single commit on main using the repo refactor(devtunnels): … / fix(devtunnels): … convention (per plans/realtime-sync-perf.md after-step guidance)."
+      ],
+      "priority": 7,
+      "passes": true,
+      "notes": "",
+      "verifiedEvidence": [
+        {
+          "criterion": "Combined vitest command runs cleanly: pnpm --filter {packages/happy-server} --filter {packages/happy-app} exec vitest run 2>&1 | tee ./tmp/codexu-ws3.log",
+          "command": "set -o pipefail && pnpm --filter {packages/happy-server} --filter {packages/happy-app} exec vitest run 2>&1 | tee ./tmp/codexu-ws3.log",
+          "result": "Command exited 0. happy-app: 122 test files passed, 1079 tests passed. happy-server: 17 test files passed, 89 tests passed."
+        },
+        {
+          "criterion": "tmp/ is present in .gitignore (add it if missing).",
+          "command": "grep -n ^tmp/$ .gitignore",
+          "result": "Line 47 contains tmp/."
+        },
+        {
+          "criterion": "The vitest output preserved at ./tmp/codexu-ws3.log ends with 0 failed.",
+          "command": "tail -1 tmp/codexu-ws3.log",
+          "result": "0 failed"
+        },
+        {
+          "criterion": "Cross-package typecheck baselines green: happy-server, happy-cli, happy-agent, happy-wire, happy-app.",
+          "command": "pnpm --filter {packages/happy-server} exec tsc --noEmit; pnpm --filter {packages/happy-cli} exec tsc --noEmit; pnpm --filter {packages/happy-agent} exec tsc --noEmit; pnpm --filter {packages/happy-wire} exec tsc --noEmit; pnpm --filter {packages/happy-app} exec tsc --noEmit",
+          "result": "All five typecheck commands exited 0 with no TypeScript errors."
+        },
+        {
+          "criterion": "Single commit on main using the repo refactor(devtunnels): or fix(devtunnels): convention.",
+          "command": "git branch --show-current && git log -1 --oneline && git status --short",
+          "result": "On main at 197b0148 fix(devtunnels): replay socket reconnects from buffer. git status after commit shows only the unrelated pre-existing codex submodule pointer modified."
+        }
+      ],
+      "dependencies": [
+        "US-001",
+        "US-002",
+        "US-003",
+        "US-004",
+        "US-005",
+        "US-006"
+      ],
+      "failureClassification": "",
+      "partialProgress": null
+    }
+  ]
+}

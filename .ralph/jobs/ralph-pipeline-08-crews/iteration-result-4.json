@@ -1,0 +1,80 @@
+{
+  "storyId": "US-004",
+  "verifiedEvidence": [
+    {
+      "criterion": "scripts/lib/crews-cross-walk.mjs exports discoverCrewSessions({ repoRoot, ralphState, overviewData, crewsRoot, now?, logger? }) -> Map<taskId, Record<RalphStage, CrewSessionRef[]>>.",
+      "evidenceKind": "passed",
+      "command": "grep -En \"export function discoverCrewSessions\" scripts/lib/crews-cross-walk.mjs",
+      "result": "PASS: crews-cross-walk.mjs line 9 exports discoverCrewSessions with the requested options; crews-cross-walk.d.mts declares the typed Map return shape."
+    },
+    {
+      "criterion": "Walks .crews/crews/*/members/*/manifest.json AND .crews/crews/*/leads/*/manifest.json.",
+      "evidenceKind": "passed",
+      "command": "grep -En CREW_ROLES scripts/lib/crews-cross-walk.mjs && grep -n \"walks member and lead\" scripts/lib/crews-cross-walk.test.mjs",
+      "result": "PASS: CREW_ROLES includes members and leads, findManifestPaths walks both role directories, and the member/lead Vitest case passed."
+    },
+    {
+      "criterion": "Filters by cwd via path.relative(repoRoot, manifestCwd) accepting empty string (cwd === repoRoot), case-normalized on Windows; rejects ..-prefixed and absolute results.",
+      "evidenceKind": "passed",
+      "command": "grep -En \"isManifestCwdInsideRepo|pathImpl.relative\" scripts/lib/crews-cross-walk.mjs && grep -En \"accepts cwd|prefix attacks\" scripts/lib/crews-cross-walk.test.mjs",
+      "result": "PASS: isManifestCwdInsideRepo uses path.relative, accepts relative === empty string, lowercases win32 comparisons, and tests cover repo-root cwd plus repo-prefix rejection."
+    },
+    {
+      "criterion": "Matches task ID in lastSummary via custom-boundary regex (?<![A-Za-z0-9_-])<id>(?![A-Za-z0-9_-]). Multi-match picks longest ID.",
+      "evidenceKind": "passed",
+      "command": "grep -En \"taskIdRegex|longest task ID\" scripts/lib/crews-cross-walk.mjs scripts/lib/crews-cross-walk.test.mjs",
+      "result": "PASS: taskIdRegex builds the custom-boundary regex and the longest-ID Vitest case at line 120 passed."
+    },
+    {
+      "criterion": "Fallback medium-signal: scans .crews/spawn-launchers/*.ps1 indexed by (crewName, memberName), tiebreaks by latest filename timestamp.",
+      "evidenceKind": "passed",
+      "command": "grep -En \"indexSpawnLaunchers|launcherTimestamp|spawn-launcher prompt\" scripts/lib/crews-cross-walk.mjs scripts/lib/crews-cross-walk.test.mjs",
+      "result": "PASS: indexSpawnLaunchers parses .ps1 launchers, keys by crew/member, keeps the highest filename timestamp, and the fallback prompt test passed."
+    },
+    {
+      "criterion": "Reads stage from ralphState.byTaskId[taskId].stage at discovery time; entries stay under their recorded stage even if the task later advances.",
+      "evidenceKind": "passed",
+      "command": "grep -En \"existing.*stage|recorded stage|assigns the current Ralph stage\" scripts/lib/crews-cross-walk.mjs scripts/lib/crews-cross-walk.test.mjs",
+      "result": "PASS: new entries use ralphState.byTaskId[taskId].stage; existing entries keep their prior crewSessions bucket, verified by current-stage and recorded-stage tests."
+    },
+    {
+      "criterion": "Dedupes by sessionId, falling back to (crewName, memberName) for partial entries.",
+      "evidenceKind": "passed",
+      "command": "grep -En \"sameCrewSession|dedupes by sessionId\" scripts/lib/crews-cross-walk.mjs scripts/lib/crews-cross-walk.test.mjs",
+      "result": "PASS: sameCrewSession compares sessionId first and falls back to crewName/memberName; the member/lead test includes a duplicate actor with the same sessionId and passed."
+    },
+    {
+      "criterion": "Stale detection: manifest.lastHeartbeatAt > 60min -> sets outcome: 'stopped' and endedAt: lastHeartbeatAt ONLY when the existing entry has no outcome (idempotency guard).",
+      "evidenceKind": "passed",
+      "command": "grep -En \"STALE_AFTER_MS|existing.*outcome|sets stale sessions\" scripts/lib/crews-cross-walk.mjs scripts/lib/crews-cross-walk.test.mjs",
+      "result": "PASS: stale detection uses a 60-minute threshold and preserves existing outcome/endedAt; stale idempotency test passed."
+    },
+    {
+      "criterion": "Stderr-logs unmatched and ambiguous matches.",
+      "evidenceKind": "passed",
+      "command": "grep -En \"ambiguous task match|unmatched crew session|process.stderr.write\" scripts/lib/crews-cross-walk.mjs scripts/lib/crews-cross-walk.test.mjs",
+      "result": "PASS: unmatched and ambiguous paths call log(), which writes to stderr by default; Vitest asserts both warning cases via an injected logger."
+    },
+    {
+      "criterion": "scripts/lib/crews-cross-walk.test.mjs covers the requested discovery cases.",
+      "evidenceKind": "passed",
+      "command": "grep -n crews-cross-walk.test.mjs .test-output/root.test.log | tail -3",
+      "result": "PASS: .test-output/root.test.log reports scripts/lib/crews-cross-walk.test.mjs (10 tests) passed."
+    },
+    {
+      "criterion": "Typecheck passes.",
+      "evidenceKind": "passed",
+      "command": "pnpm --filter @codexu/overview-viewer typecheck",
+      "result": "PASS: tsc --noEmit completed with exit 0 in 6s; output saved to .test-output/overview-viewer.typecheck.log."
+    },
+    {
+      "criterion": "Tests pass.",
+      "evidenceKind": "passed",
+      "command": "pnpm test",
+      "result": "PASS: 21 test files passed, 131 tests passed; output saved to .test-output/root.test.log."
+    }
+  ],
+  "skippedReasons": [],
+  "notTested": [],
+  "iterationSHA": "9c66faf7f20a27e66bde423b5459aeceb51ecbcb"
+}

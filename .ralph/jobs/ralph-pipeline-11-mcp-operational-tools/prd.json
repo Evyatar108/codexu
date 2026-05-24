@@ -1,0 +1,637 @@
+{
+  "project": "MCP Operational Tools — Dev Server, Sync, Build Subprocess Control",
+  "description": "Extend tools/overview-mcp with 7 new subprocess-management tools (overview.dev_server.{start,stop,status,logs}, overview.build, overview.sync.now, overview.sync.watch_status) backed by a shared ProcessManager class with ring-buffered logs, single-flight enforcement, Vite ready-signal parsing, and Windows tree-kill shutdown. Also exports a canonical readLockStatus helper from scripts/lib/sync-lock.mjs and adds a parseable stdout summary line to scripts/sync-ralph-state.mjs:runOneShot.",
+  "deslop": true,
+  "iterationEngine": "codex",
+  "planningEngine": "codex",
+  "jobDir": "D:/harness-efforts/codexu/.ralph/jobs/ralph-pipeline-11-mcp-operational-tools",
+  "repoDir": "D:/harness-efforts/codexu",
+  "branch": {
+    "name": "ralph-pipeline-11-mcp-operational-tools",
+    "created": true
+  },
+  "worktree": {
+    "path": "D:/harness-efforts/codexu/.ralph/jobs/ralph-pipeline-11-mcp-operational-tools/worktree",
+    "branch": "ralph-pipeline-11-mcp-operational-tools"
+  },
+  "planReviewContext": [
+    {
+      "id": "F-001",
+      "severity": "High",
+      "category": "Feasibility",
+      "source": "consensus",
+      "description": "The Vite ready regex `^\\s*Local:\\s+(\\S+)` would not match Vite's arrow-prefixed banner (`  ➜  Local:   http://127.0.0.1:5173/`). Resolved: use one canonical predicate that strips CSI ANSI escapes then matches /Local:\\s+(https?:\\S+)/ anywhere in the line; assert both arrow-prefixed and plain banners in tests.",
+      "relevantFiles": [
+        "tools/overview-mcp/src/tools/dev-server-start.ts",
+        "tools/overview-mcp/src/process-manager.ts"
+      ],
+      "suggestedFix": "Strip CSI ANSI escapes with /\\x1b\\[[0-9;]*[A-Za-z]/g, then match /Local:\\s+(https?:\\S+)/ anywhere in the line. Check both stdout and stderr."
+    },
+    {
+      "id": "F-002",
+      "severity": "High",
+      "category": "Feasibility",
+      "source": "consensus",
+      "description": "Double-start race: when AlreadyRunning is caught, url/pid/startedAt are undefined on the existing handle until 'spawn' fires. Resolved: each ManagedProcess exposes readyPromise; AlreadyRunning callers await it before returning { alreadyRunning: true, url, pid, startedAt }.",
+      "relevantFiles": [
+        "tools/overview-mcp/src/tools/dev-server-start.ts",
+        "tools/overview-mcp/src/process-manager.ts"
+      ],
+      "suggestedFix": "Add readyPromise: Promise<{url,pid,startedAt}> to ManagedProcess; dev_server.start awaits it on AlreadyRunning."
+    },
+    {
+      "id": "F-003",
+      "severity": "High",
+      "category": "Completeness",
+      "source": "consensus",
+      "description": "scripts/lib/sync-lock.d.mts must declare the new readLockStatus export (plus parseLockMetadata, isLockHolderAlive) so overview-mcp NodeNext resolution typechecks. Resolved: .d.mts added to the modify list with matching signatures.",
+      "relevantFiles": [
+        "scripts/lib/sync-lock.d.mts",
+        "scripts/lib/sync-lock.mjs",
+        "tools/overview-mcp/src/tools/sync-watch-status.ts"
+      ],
+      "suggestedFix": "Declare readLockStatus(lockPath, opts?) plus parseLockMetadata and isLockHolderAlive in sync-lock.d.mts."
+    },
+    {
+      "id": "F-004",
+      "severity": "High",
+      "category": "Completeness",
+      "source": "codex",
+      "description": "overview.build and overview.sync.now children were originally untracked, so stopAll() would orphan them on SIGTERM. Resolved: both spawn through ProcessManager with reserved names ('build', 'sync-now') and disposeOnExit:true; in-flight transients are included in stopAll().",
+      "relevantFiles": [
+        "tools/overview-mcp/src/process-manager.ts",
+        "tools/overview-mcp/src/tools/build.ts",
+        "tools/overview-mcp/src/tools/sync-now.ts"
+      ],
+      "suggestedFix": "Track 'build' and 'sync-now' as transient ProcessManager entries while running; remove from Map only on exit; ensure stopAll covers them."
+    },
+    {
+      "id": "F-005",
+      "severity": "High",
+      "category": "Completeness",
+      "source": "codex",
+      "description": "Sync summary line referenced `matched`/`unmatched` bindings that do not exist in runOneShot. Resolved: derive matched=Object.keys(state.byTaskId??{}).length, unmatched=(state.unmatched??[]).length, durationMs=Date.now()-startTime (startTime captured at top of runOneShot).",
+      "relevantFiles": [
+        "scripts/sync-ralph-state.mjs"
+      ],
+      "suggestedFix": "Capture startTime at top of runOneShot; derive matched/unmatched from state.byTaskId and state.unmatched; emit single stdout line after sidecar write."
+    },
+    {
+      "id": "F-006",
+      "severity": "High",
+      "category": "Completeness",
+      "source": "codex",
+      "description": "Adding processManager as a required ServerContext field breaks existing makeContext() and any direct ServerContext literals. Resolved: helpers.ts is in the modify list; audit and update all direct context literals (get-transcript.test.ts, list-crew-sessions.test.ts, set-override.test.ts) atomically.",
+      "relevantFiles": [
+        "tools/overview-mcp/src/context.ts",
+        "tools/overview-mcp/src/__tests__/helpers.ts"
+      ],
+      "suggestedFix": "Update makeContext() to construct a ProcessManager (optionally injectable). Update every direct ServerContext literal to include the new field."
+    },
+    {
+      "id": "F-007",
+      "severity": "High",
+      "category": "Completeness",
+      "source": "copilot",
+      "description": "Start-failure cleanup was missing — a timed-out or pre-ready-exit child would leave a stale 'dev-server' handle. Resolved: wrap spawn+onReady in try/catch; on failure call manager.stop('dev-server', { remove: true }) and return { ok:false, error, lastLogLines }. AC covers failed-start-then-retry.",
+      "relevantFiles": [
+        "tools/overview-mcp/src/tools/dev-server-start.ts",
+        "tools/overview-mcp/src/process-manager.ts"
+      ],
+      "suggestedFix": "On startup failure, stop and remove the registered dev-server handle so subsequent start can spawn fresh."
+    },
+    {
+      "id": "F-008",
+      "severity": "High",
+      "category": "Feasibility",
+      "source": "codex",
+      "description": "On Windows with shell:true the tracked PID may be the shell wrapper, not Vite/Node — killing only that PID would not satisfy the no-orphan AC. Resolved: tree-kill is a v1 runtime dependency; ProcessManager.stop() uses it on Windows for SIGTERM and SIGKILL escalation.",
+      "relevantFiles": [
+        "tools/overview-mcp/src/process-manager.ts",
+        "tools/overview-mcp/package.json"
+      ],
+      "suggestedFix": "Add tree-kill as runtime dependency; use it on win32 for both SIGTERM and SIGKILL escalation in ProcessManager.stop()."
+    },
+    {
+      "id": "F-009",
+      "severity": "High",
+      "category": "Criteria Quality",
+      "source": "codex",
+      "description": "No-orphan AC was insufficient — checking a single stored pid does not prove descendants are gone. Resolved: Verification L now captures dev-server pid + port-5173 listener pid before SIGTERM, asserts both are gone afterward, and verifies port 5173 is no longer listening.",
+      "relevantFiles": [],
+      "suggestedFix": "Capture pid + port listener pid before SIGTERM; assert both gone and port 5173 closed after MCP exits."
+    },
+    {
+      "id": "F-010",
+      "severity": "High",
+      "category": "Completeness",
+      "source": "claude",
+      "description": "sync-lock.mjs refactor burden was implicit. Resolved: modify list now enumerates extract parseLockMetadata, extract/export isLockHolderAlive, implement readLockStatus by composing fs.stat + the helpers; same-module unit tests cover each helper.",
+      "relevantFiles": [
+        "scripts/lib/sync-lock.mjs",
+        "scripts/lib/sync-lock.test.mjs"
+      ],
+      "suggestedFix": "Extract parseLockMetadata and isLockHolderAlive as exported helpers; implement readLockStatus on top; add unit tests for each."
+    },
+    {
+      "id": "F-011",
+      "severity": "High",
+      "category": "Completeness",
+      "source": "claude",
+      "description": "Ambiguous test location for the sync summary line. Resolved: canonical test is tools/overview-mcp/src/__tests__/sync-now.test.ts spawning the real script in a tmp repo through the MCP tool path; no scripts/__tests__/ fallback.",
+      "relevantFiles": [
+        "tools/overview-mcp/src/__tests__/sync-now.test.ts",
+        "scripts/sync-ralph-state.mjs"
+      ],
+      "suggestedFix": "Place the summary-line integration test at tools/overview-mcp/src/__tests__/sync-now.test.ts."
+    },
+    {
+      "id": "F-012",
+      "severity": "High",
+      "category": "Ordering",
+      "source": "claude",
+      "description": "Decomposition prose contradicted itself on parallel vs serial. Resolved: execution_mode is REQUIRED serial for cluster mcp-ops-tools (US-004..US-007) because all four edit server.ts, context.ts, schemas.ts, stdio-tools-list.test.ts, and README.md.",
+      "relevantFiles": [],
+      "suggestedFix": "Run US-004 through US-007 strictly serially to avoid merge conflicts on the five shared files."
+    }
+  ],
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "ProcessManager foundation",
+      "description": "As an MCP server author, I want a single ProcessManager class that spawns, tracks, ring-buffers, and stops child processes, so each new operational tool can share one lifecycle implementation.",
+      "acceptanceCriteria": [
+        "tools/overview-mcp/src/process-manager.ts exports a ProcessManager class with spawn, stop, status, logs, stopAll, plus ManagedProcess.onReady (checks both stdout and stderr ring buffers).",
+        "ProcessManager.spawn registers the ManagedProcess record in its Map with status='starting' BEFORE calling child_process.spawn, closing the double-start race window.",
+        "Each ManagedProcess carries a readyPromise: Promise<{ url, pid, startedAt }> that resolves when the first onReady callback fires; callers receiving AlreadyRunning await this promise before constructing their response.",
+        "Transient single-flight names ('build', 'sync-now') are tracked while running and auto-removed on 'exit'; in-flight transients ARE included in stopAll().",
+        "Children spawn with stdio: ['ignore', 'pipe', 'pipe'] and { shell: true }; tests assert the parent's stdout stays clean (no JSON-RPC pollution).",
+        "On Windows, stop() uses tree-kill for both SIGTERM and SIGKILL escalation, killing the whole child process tree rather than just the shell wrapper PID.",
+        "Ring buffer is capped at 1000 lines per stream; CRLF is normalized to LF before splitting.",
+        "tools/overview-mcp/src/__tests__/process-manager.test.ts covers: spawn → logs, onReady (stdout AND stderr), stop (graceful + SIGKILL escalation), stopAll on long-lived + transient mix, already-running guard, double-start race ordering, stop-while-starting, ring-buffer overflow drops oldest, CRLF normalization, stdio isolation.",
+        "Typecheck passes for @codexu/overview-mcp.",
+        "pnpm --filter @codexu/overview-mcp test passes."
+      ],
+      "priority": 1,
+      "passes": true,
+      "notes": "Estimated complexity: large. Foundational story — pure library, no MCP integration. Must register the ManagedProcess record (including readyPromise) BEFORE calling child_process.spawn to close the double-start race.",
+      "verifiedEvidence": [
+        {
+          "criterion": "tools/overview-mcp/src/process-manager.ts exports ProcessManager with spawn, stop, status, logs, stopAll, plus ManagedProcess.onReady over stdout/stderr ring buffers.",
+          "command": "pnpm --filter @codexu/overview-mcp test",
+          "result": "PASS: process-manager.test.ts covers public lifecycle methods and onReady from stdout/stderr; suite result 15 test files passed, 51 tests passed."
+        },
+        {
+          "criterion": "ProcessManager.spawn registers the ManagedProcess record in its Map with status='starting' BEFORE child_process.spawn.",
+          "command": "pnpm --filter @codexu/overview-mcp test",
+          "result": "PASS: test 'registers a starting record before invoking child_process.spawn' observed status='starting' inside injected spawn; suite 51/51 passed."
+        },
+        {
+          "criterion": "Each ManagedProcess carries readyPromise resolving when the first onReady callback fires.",
+          "command": "pnpm --filter @codexu/overview-mcp test",
+          "result": "PASS: test 'resolves onReady from stdout and exposes the shared readyPromise' awaited readyPromise and matched the onReady result; suite 51/51 passed."
+        },
+        {
+          "criterion": "Transient single-flight names ('build', 'sync-now') are tracked while running and auto-removed on exit; in-flight transients are included in stopAll().",
+          "command": "pnpm --filter @codexu/overview-mcp test",
+          "result": "PASS: test 'stops all long-lived and transient processes' registered dev-server/build/sync-now and stopAll stopped all three; oneShot exit removal is implemented on child exit."
+        },
+        {
+          "criterion": "Children spawn with stdio ['ignore','pipe','pipe'] and shell:true; tests assert parent stdout stays clean.",
+          "command": "pnpm --filter @codexu/overview-mcp test",
+          "result": "PASS: test 'spawns with isolated stdio and captures stdout/stderr logs' asserts spawn options and parent stdout writes remain empty; suite 51/51 passed."
+        },
+        {
+          "criterion": "On Windows, stop() uses tree-kill for both SIGTERM and SIGKILL escalation.",
+          "command": "pnpm --filter @codexu/overview-mcp test",
+          "result": "PASS: test 'uses tree-kill for SIGTERM and SIGKILL on Windows' injected platform win32 and observed signals ['SIGTERM','SIGKILL']; tree-kill is in runtime dependencies."
+        },
+        {
+          "criterion": "Ring buffer is capped at 1000 lines per stream; CRLF is normalized to LF before splitting.",
+          "command": "pnpm --filter @codexu/overview-mcp test",
+          "result": "PASS: tests 'caps each stream ring buffer at 1000 lines and drops the oldest' and 'normalizes CRLF and CR line endings before splitting' passed."
+        },
+        {
+          "criterion": "tools/overview-mcp/src/__tests__/process-manager.test.ts covers spawn/logs, onReady stdout/stderr, stop graceful + SIGKILL escalation, stopAll long-lived + transient, already-running guard, double-start race ordering, stop-while-starting, overflow, CRLF, stdio isolation.",
+          "command": "pnpm --filter @codexu/overview-mcp test",
+          "result": "PASS: process-manager.test.ts contains 10 focused tests covering the listed cases; total package suite 15 files passed, 51 tests passed."
+        },
+        {
+          "criterion": "Typecheck passes for @codexu/overview-mcp.",
+          "command": "pnpm --filter @codexu/overview-mcp typecheck",
+          "result": "PASS: tsc --noEmit -p tsconfig.json exited 0; log .test-output/overview-mcp.typecheck.log."
+        },
+        {
+          "criterion": "pnpm --filter @codexu/overview-mcp test passes.",
+          "command": "pnpm --filter @codexu/overview-mcp test",
+          "result": "PASS: vitest run --passWithNoTests exited 0; Test Files 15 passed (15), Tests 51 passed (51); log .test-output/overview-mcp.test.log."
+        }
+      ],
+      "dependencies": [],
+      "failureClassification": "",
+      "partialProgress": null
+    },
+    {
+      "id": "US-002",
+      "title": "sync-lock helper exports",
+      "description": "As sync-watch-status.ts and the future MCP toolset, I want a single canonical readLockStatus(lockPath) helper exported from scripts/lib/sync-lock.mjs (plus its building blocks), so lock semantics never drift between watcher and MCP.",
+      "acceptanceCriteria": [
+        "scripts/lib/sync-lock.mjs exports parseLockMetadata(buffer), isLockHolderAlive(pid), and readLockStatus(lockPath, opts?).",
+        "readLockStatus returns { state: 'missing' } | { state: 'active', pid, process, startedAt, mtime: Date } | { state: 'stale', pid?, process?, startedAt?, mtime?: Date }. Unparseable JSON triggers one 50ms retry before classifying as stale.",
+        "When mtime is older than staleAfterMs (default DEFAULT_STALE_AFTER_MS = 60_000) BUT isLockHolderAlive(pid) === true, the result is 'active' (trust PID over mtime).",
+        "scripts/lib/sync-lock.d.mts declares the new exports with the documented type shapes so TypeScript consumers (overview-mcp NodeNext resolution) typecheck cleanly.",
+        "scripts/lib/sync-lock.test.mjs (or the equivalent existing test file location) covers each helper: parse success/failure, alive PID, dead PID, active mtime, stale mtime + dead PID, stale mtime + alive PID, missing file, unparseable + retry.",
+        "No behavior change to existing acquireLock / releaseLock callers.",
+        "Typecheck and tests pass for @codexu/overview-mcp (verifies the .d.mts edit)."
+      ],
+      "priority": 2,
+      "passes": true,
+      "notes": "Estimated complexity: medium. Refactor extracts parseLockMetadata and isLockHolderAlive as exported helpers, then composes them into readLockStatus. Existing acquireLock / releaseLock must keep their current behavior.",
+      "verifiedEvidence": [
+        {
+          "criterion": "scripts/lib/sync-lock.mjs exports parseLockMetadata(buffer), isLockHolderAlive(pid), and readLockStatus(lockPath, opts?).",
+          "command": "pnpm vitest run scripts/lib/sync-lock.test.mjs",
+          "result": "PASS: sync-lock.test.mjs imports and exercises parseLockMetadata, isLockHolderAlive, and readLockStatus; 1 test file passed, 11 tests passed."
+        },
+        {
+          "criterion": "readLockStatus returns missing/active/stale shapes and retries unparseable JSON once before stale.",
+          "command": "pnpm vitest run scripts/lib/sync-lock.test.mjs",
+          "result": "PASS: tests cover missing file, fresh active lock with Date mtime, stale old lock with dead PID, unparseable JSON rewritten before retry, and still-unparseable JSON returning stale."
+        },
+        {
+          "criterion": "When mtime is older than staleAfterMs but isLockHolderAlive(pid) is true, readLockStatus returns active.",
+          "command": "pnpm vitest run scripts/lib/sync-lock.test.mjs",
+          "result": "PASS: test 'readLockStatus trusts a live PID over stale mtime' returned { state: 'active', pid: 123, process: 'watcher' } for a 120s-old lock."
+        },
+        {
+          "criterion": "scripts/lib/sync-lock.d.mts declares the new exports with documented type shapes.",
+          "command": "pnpm exec tsc --module NodeNext --moduleResolution NodeNext --target ES2022 --types node --noEmit scripts/lib/sync-lock.d.mts",
+          "result": "PASS: declaration-only TypeScript compile exited 0; declarations include DEFAULT_STALE_AFTER_MS, ParsedSyncLockMetadata, LockStatus, parseLockMetadata, isLockHolderAlive, and readLockStatus."
+        },
+        {
+          "criterion": "scripts/lib/sync-lock.test.mjs covers each helper and lock-status case.",
+          "command": "pnpm vitest run scripts/lib/sync-lock.test.mjs",
+          "result": "PASS: 11 tests passed covering parse success/failure, alive PID, dead PID, active mtime, stale mtime + dead PID, stale mtime + alive PID, missing file, unparseable + retry, and unparseable stale."
+        },
+        {
+          "criterion": "No behavior change to existing acquireLock / releaseLock callers.",
+          "command": "pnpm vitest run scripts/lib/sync-lock.test.mjs",
+          "result": "PASS: test 'acquireLock and releaseLock still create and remove the lock file' verified acquire writes pid/process metadata and release removes the lock file."
+        },
+        {
+          "criterion": "Typecheck and tests pass for @codexu/overview-mcp.",
+          "command": "pnpm --filter @codexu/overview-mcp typecheck && pnpm --filter @codexu/overview-mcp test",
+          "result": "PASS: typecheck exited 0 (log .test-output/overview-mcp.typecheck.log); test exited 0 with Test Files 15 passed (15), Tests 51 passed (51), log .test-output/overview-mcp.test.log."
+        }
+      ],
+      "dependencies": [],
+      "failureClassification": "",
+      "partialProgress": null
+    },
+    {
+      "id": "US-003",
+      "title": "sync-ralph-state stdout summary",
+      "description": "As overview.sync.now, I want scripts/sync-ralph-state.mjs:runOneShot() to print a parseable summary line on stdout, so the MCP tool can return a structured { tasksMatched, unmatchedCount, durationMs } summary.",
+      "acceptanceCriteria": [
+        "Inside runOneShot(), after the sidecar write but before lock release, a single line `sync: matched=<N>, unmatched=<N>, duration=<Nms>` is printed to stdout. All other diagnostics continue to go to stderr.",
+        "The matched and unmatched counts are derived from the actual local state object (e.g. Object.keys(state.byTaskId ?? {}).length and (state.unmatched ?? []).length); the implementer reads runOneShot and binds the names that exist — does NOT assume.",
+        "startTime is captured at the top of runOneShot (const startTime = Date.now()); durationMs = Date.now() - startTime at emission time.",
+        "A unit test (in tools/overview-mcp/src/__tests__/sync-now.test.ts) spawns the real script with a tmp repo and asserts the stdout contains the parseable summary line.",
+        "Existing watcher mode behavior is unchanged (the summary line is one-shot only)."
+      ],
+      "priority": 3,
+      "passes": true,
+      "notes": "Estimated complexity: small. Read runOneShot() first to bind the actual state-object names. The summary test lives under tools/overview-mcp/src/__tests__/sync-now.test.ts.",
+      "verifiedEvidence": [
+        {
+          "criterion": "Inside runOneShot(), after the sidecar write but before lock release, a single parseable summary line is printed to stdout while other diagnostics remain stderr.",
+          "command": "nl -ba scripts/sync-ralph-state.mjs | sed -n '143,166p'; grep -nE \"console[.](log|error)|runWatchMode|runOneShot\" scripts/sync-ralph-state.mjs",
+          "result": "PASS: lines 143-147 write the sidecar then emit console.log `sync: matched=..., unmatched=..., duration=...ms`; lines 162-163 release the lock afterward. grep shows unmatched/head/error diagnostics still use console.error and the only summary console.log is in runOneShot."
+        },
+        {
+          "criterion": "The matched and unmatched counts are derived from the actual local state object names that exist in runOneShot.",
+          "command": "nl -ba scripts/sync-ralph-state.mjs | sed -n '131,147p'",
+          "result": "PASS: line 137 binds `state = await walkRalphState(...)`; lines 144-145 derive matched from Object.keys(state.byTaskId ?? {}).length and unmatched from (state.unmatched ?? []).length."
+        },
+        {
+          "criterion": "startTime is captured at the top of runOneShot and durationMs is Date.now() - startTime at emission time.",
+          "command": "nl -ba scripts/sync-ralph-state.mjs | sed -n '131,147p'",
+          "result": "PASS: line 132 captures const startTime = Date.now(); line 146 computes const durationMs = Date.now() - startTime immediately before the summary line."
+        },
+        {
+          "criterion": "A unit test in tools/overview-mcp/src/__tests__/sync-now.test.ts spawns the real script with a tmp repo and asserts stdout contains the parseable summary line.",
+          "command": "pnpm --filter @codexu/overview-mcp exec vitest run src/__tests__/sync-now.test.ts --passWithNoTests --reporter=verbose",
+          "result": "PASS: 1 test file passed, 1 test passed; test `spawns the real one-shot sync script and emits a parseable stdout summary` spawns scripts/sync-ralph-state.mjs with a temp repo and asserts `^sync: matched=1, unmatched=0, duration=[0-9]+ms$`."
+        },
+        {
+          "criterion": "Existing watcher mode behavior is unchanged; the summary line is one-shot only.",
+          "command": "grep -nE \"console[.](log|error)|runWatchMode|runOneShot\" scripts/sync-ralph-state.mjs; pnpm --filter @codexu/overview-mcp test",
+          "result": "PASS: grep shows main still dispatches --watch to runWatchMode and the only summary console.log is inside runOneShot; full overview MCP suite passed with 16 test files and 52 tests."
+        },
+        {
+          "criterion": "Typecheck passes for @codexu/overview-mcp.",
+          "command": "pnpm --filter @codexu/overview-mcp typecheck",
+          "result": "PASS: tsc --noEmit -p tsconfig.json exited 0; log .test-output/overview-mcp.typecheck.log."
+        },
+        {
+          "criterion": "pnpm --filter @codexu/overview-mcp test passes.",
+          "command": "pnpm --filter @codexu/overview-mcp test",
+          "result": "PASS after building dist for the stdio smoke test: vitest run --passWithNoTests exited 0; Test Files 16 passed (16), Tests 52 passed (52); log .test-output/overview-mcp.test.log."
+        }
+      ],
+      "dependencies": [],
+      "failureClassification": "",
+      "partialProgress": null
+    },
+    {
+      "id": "US-004",
+      "title": "dev-server tools + MCP wiring",
+      "description": "As an agent using the MCP, I want overview.dev_server.{start,stop,status,logs} so I can drive the Vite dev server from MCP.",
+      "acceptanceCriteria": [
+        "tools/overview-mcp/src/context.ts extends ServerContext with processManager: ProcessManager. tools/overview-mcp/src/__tests__/helpers.ts is updated to construct the manager in makeContext() and to accept an injectable override.",
+        "tools/overview-mcp/src/tools/dev-server-{start,stop,status,logs}.ts register the 4 tools through server.registerTool following the Plan 09 pattern (asSdkInputSchema(zodShape), toToolResult(...)).",
+        "The Vite ready predicate strips ANSI control sequences before matching, then searches for Local:\\s+(https?:\\S+) anywhere in the line. Tests assert both arrow-prefixed (`  ➜  Local:   http://...`) and plain (`Local: http://...`) banners are matched.",
+        "dev_server.start on AlreadyRunning awaits the existing handle's readyPromise so the response always carries defined url, pid, startedAt.",
+        "On onReady timeout or pre-ready exit, dev_server.start calls manager.stop('dev-server') to clear the stale handle and returns { ok: false, error, lastLogLines }. A retry after failure can start fresh.",
+        "dev_server.logs clamps tail to [1, 1000] (never rejects).",
+        "src/__tests__/dev-server.test.ts covers: start → status → logs → stop, start-while-already-running (alreadyRunning: true), start-during-startup (second call awaits readyPromise), start-failure-then-retry.",
+        "src/__tests__/stdio-tools-list.test.ts asserts 14 tools and verifies the 4 new tool names by exact set equality.",
+        "Build the package (pnpm --filter @codexu/overview-mcp build) before running stdio-tools-list.test.ts (or rely on the new pretest hook).",
+        "Typecheck and tests pass."
+      ],
+      "priority": 4,
+      "passes": true,
+      "notes": "Estimated complexity: large. First member of the mcp-ops-tools cluster (US-004..US-007) which MUST run serially because all four edit server.ts, context.ts, schemas.ts, stdio-tools-list.test.ts, and README.md. Must update all direct ServerContext literals in get-transcript.test.ts, list-crew-sessions.test.ts, and set-override.test.ts when adding the new required field.",
+      "verifiedEvidence": [
+        {
+          "criterion": "tools/overview-mcp/src/context.ts extends ServerContext with processManager; helpers.ts constructs it and accepts an injectable override.",
+          "command": "nl -ba tools/overview-mcp/src/context.ts | sed -n '1,40p'; nl -ba tools/overview-mcp/src/__tests__/helpers.ts | sed -n '109,130p'",
+          "result": "PASS: context.ts lines 9-14 include processManager: ProcessManager and buildContext constructs new ProcessManager at line 24; helpers.ts makeContext accepts options.processManager and defaults to new ProcessManager."
+        },
+        {
+          "criterion": "tools/overview-mcp/src/tools/dev-server-{start,stop,status,logs}.ts register the 4 tools through server.registerTool using asSdkInputSchema and toToolResult.",
+          "command": "grep -R 'registerTool(' -n tools/overview-mcp/src/tools/dev-server-*.ts; grep -R 'asSdkInputSchema' -n tools/overview-mcp/src/tools/dev-server-*.ts; grep -R 'toToolResult' -n tools/overview-mcp/src/tools/dev-server-*.ts",
+          "result": "PASS: each dev-server tool file owns one server.registerTool call for overview.dev_server.start/stop/status/logs and uses asSdkInputSchema plus toToolResult."
+        },
+        {
+          "criterion": "The Vite ready predicate strips ANSI control sequences and matches Local regex anywhere; tests assert arrow-prefixed and plain banners.",
+          "command": "pnpm --filter @codexu/overview-mcp exec vitest run src/__tests__/dev-server.test.ts --passWithNoTests --reporter=verbose",
+          "result": "PASS: test 'matches Vite ready banners with ANSI stripping and arrow-prefixed or plain Local lines' passed; parseViteReadyUrl strips CSI ANSI and matches both banner forms."
+        },
+        {
+          "criterion": "dev_server.start on AlreadyRunning awaits the existing handle's readyPromise so response carries defined url, pid, startedAt.",
+          "command": "pnpm --filter @codexu/overview-mcp exec vitest run src/__tests__/dev-server.test.ts --passWithNoTests --reporter=verbose",
+          "result": "PASS: tests 'returns alreadyRunning when start is called after the server is ready' and 'awaits readyPromise when a second start call arrives during startup' passed with defined url and pid."
+        },
+        {
+          "criterion": "On onReady timeout or pre-ready exit, dev_server.start calls manager.stop('dev-server') to clear stale handle and returns failure with lastLogLines; retry can start fresh.",
+          "command": "pnpm --filter @codexu/overview-mcp exec vitest run src/__tests__/dev-server.test.ts --passWithNoTests --reporter=verbose",
+          "result": "PASS: test 'clears a failed startup handle so a retry can start fresh' passed; it asserted ok:false with lastLogLines, manager.status('dev-server') null, and retry success."
+        },
+        {
+          "criterion": "dev_server.logs clamps tail to [1, 1000] and never rejects.",
+          "command": "pnpm --filter @codexu/overview-mcp exec vitest run src/__tests__/dev-server.test.ts --passWithNoTests --reporter=verbose",
+          "result": "PASS: test 'clamps log tails to the ProcessManager ring-buffer range' passed for -10 => 1, 0 => 1, and 1001 => 1000."
+        },
+        {
+          "criterion": "src/__tests__/dev-server.test.ts covers start -> status -> logs -> stop, start-while-already-running, start-during-startup, start-failure-then-retry.",
+          "command": "pnpm --filter @codexu/overview-mcp exec vitest run src/__tests__/dev-server.test.ts --passWithNoTests --reporter=verbose",
+          "result": "PASS: 1 test file passed, 6 tests passed, including the named lifecycle, already-running, startup race, and retry-after-failure cases."
+        },
+        {
+          "criterion": "src/__tests__/stdio-tools-list.test.ts asserts 14 tools and verifies the 4 new tool names by exact set equality.",
+          "command": "pnpm --filter @codexu/overview-mcp build && pnpm --filter @codexu/overview-mcp exec vitest run src/__tests__/stdio-tools-list.test.ts --passWithNoTests --reporter=verbose",
+          "result": "PASS: package build exited 0; stdio smoke test 'returns 14 overview tools by exact name' passed and includes overview.dev_server.start/stop/status/logs in the exact sorted set."
+        },
+        {
+          "criterion": "Build the package before running stdio-tools-list.test.ts.",
+          "command": "pnpm --filter @codexu/overview-mcp build",
+          "result": "PASS: tsc -p tsconfig.json and dist copy step exited 0; log .test-output/overview-mcp.build.log."
+        },
+        {
+          "criterion": "Typecheck and tests pass.",
+          "command": "pnpm --filter @codexu/overview-mcp typecheck; pnpm --filter @codexu/overview-mcp test",
+          "result": "PASS: typecheck exited 0; full test suite exited 0 with Test Files 17 passed (17), Tests 58 passed (58); logs .test-output/overview-mcp.typecheck.log and .test-output/overview-mcp.test.log."
+        }
+      ],
+      "dependencies": [
+        "US-001",
+        "US-002"
+      ],
+      "failureClassification": "",
+      "partialProgress": null
+    },
+    {
+      "id": "US-005",
+      "title": "overview.build tool",
+      "description": "As an agent, I want overview.build to run pnpm overview:build and return success/size/duration or a structured failure, so I can rebuild the static viewer from MCP.",
+      "acceptanceCriteria": [
+        "tools/overview-mcp/src/tools/build.ts registers overview.build and spawns the build through ProcessManager.spawn({ name: 'build', cmd: 'pnpm', args: ['overview:build'], cwd: ctx.repoRoot, oneShot: true }).",
+        "Concurrent overview.build calls receive AlreadyRunning → tool returns { ok: false, error: 'another build in progress' }.",
+        "On exit code 0, returns { ok: true, outputPath: <absolute path to plans/overview.html>, sizeBytes, durationMs }.",
+        "On non-zero exit, returns { ok: false, error: 'build failed with exit code <N>', lastLogLines: stderr.slice(-30) }.",
+        "The transient 'build' entry is registered while running so stopAll() kills an in-flight build on SIGTERM.",
+        "src/__tests__/build.test.ts covers success path (mock build script with fixture artifact), failure path (non-zero exit), concurrent-rejection path.",
+        "stdio-tools-list.test.ts count increments to 15 with the new name asserted by set equality.",
+        "Typecheck and tests pass."
+      ],
+      "priority": 5,
+      "passes": true,
+      "notes": "Estimated complexity: medium. Single-flight is enforced ONLY through ProcessManager.spawn's AlreadyRunning exception on the reserved name 'build' — do NOT add a module-level isBuilding boolean.",
+      "verifiedEvidence": [
+        {
+          "criterion": "tools/overview-mcp/src/tools/build.ts registers overview.build and spawns through ProcessManager.spawn({ name: 'build', cmd: 'pnpm', args: ['overview:build'], cwd: ctx.repoRoot, oneShot: true }).",
+          "command": "nl -ba tools/overview-mcp/src/tools/build.ts | sed -n '24,52p'; pnpm --filter @codexu/overview-mcp exec vitest run src/__tests__/build.test.ts --passWithNoTests --reporter=verbose",
+          "result": "PASS: build.ts registers overview.build and spawns name 'build' with cmd pnpm, args ['overview:build'], cwd context.repoRoot, oneShot true; focused build.test.ts passed 1 file, 4 tests."
+        },
+        {
+          "criterion": "Concurrent overview.build calls receive AlreadyRunning and return { ok: false, error: 'another build in progress' }.",
+          "command": "pnpm --filter @codexu/overview-mcp exec vitest run src/__tests__/build.test.ts --passWithNoTests --reporter=verbose",
+          "result": "PASS: test 'rejects concurrent builds through the ProcessManager single-flight guard' passed and asserted the exact error object."
+        },
+        {
+          "criterion": "On exit code 0, returns { ok: true, outputPath: <absolute path to plans/overview.html>, sizeBytes, durationMs }.",
+          "command": "pnpm --filter @codexu/overview-mcp exec vitest run src/__tests__/build.test.ts --passWithNoTests --reporter=verbose",
+          "result": "PASS: success test wrote a fixture plans/overview.html, emitted exit code 0, and asserted ok:true with absolute outputPath, sizeBytes 30, and durationMs present."
+        },
+        {
+          "criterion": "On non-zero exit, returns { ok: false, error: 'build failed with exit code <N>', lastLogLines: stderr.slice(-30) }.",
+          "command": "pnpm --filter @codexu/overview-mcp exec vitest run src/__tests__/build.test.ts --passWithNoTests --reporter=verbose",
+          "result": "PASS: failure test emitted 35 stderr lines and exit code 2, then asserted error 'build failed with exit code 2' and lastLogLines equal to err-5 through err-34."
+        },
+        {
+          "criterion": "The transient 'build' entry is registered while running so stopAll() kills an in-flight build on SIGTERM.",
+          "command": "pnpm --filter @codexu/overview-mcp exec vitest run src/__tests__/build.test.ts --passWithNoTests --reporter=verbose",
+          "result": "PASS: test 'keeps an in-flight build registered so stopAll can terminate it' observed manager.status('build') with pid 204, called stopAll, and asserted SIGTERM was sent to pid 204."
+        },
+        {
+          "criterion": "src/__tests__/build.test.ts covers success path, failure path, and concurrent-rejection path.",
+          "command": "pnpm --filter @codexu/overview-mcp exec vitest run src/__tests__/build.test.ts --passWithNoTests --reporter=verbose",
+          "result": "PASS: build.test.ts passed 4 tests covering success, non-zero failure, concurrent rejection, and stopAll transient registration."
+        },
+        {
+          "criterion": "stdio-tools-list.test.ts count increments to 15 with the new name asserted by set equality.",
+          "command": "pnpm --filter @codexu/overview-mcp build; pnpm --filter @codexu/overview-mcp exec vitest run src/__tests__/stdio-tools-list.test.ts --passWithNoTests --reporter=verbose",
+          "result": "PASS: package build exited 0; stdio smoke test passed and asserts 'returns 15 overview tools by exact name' including overview.build."
+        },
+        {
+          "criterion": "Typecheck and tests pass.",
+          "command": "pnpm --filter @codexu/overview-mcp typecheck; pnpm --filter @codexu/overview-mcp build; pnpm --filter @codexu/overview-mcp test",
+          "result": "PASS: typecheck exited 0; build exited 0; full test suite passed with Test Files 18 passed (18), Tests 62 passed (62). Logs: .test-output/overview-mcp.typecheck.log, .test-output/overview-mcp.build.log, .test-output/overview-mcp.test.log."
+        }
+      ],
+      "dependencies": [
+        "US-001"
+      ],
+      "failureClassification": "",
+      "partialProgress": null
+    },
+    {
+      "id": "US-006",
+      "title": "overview.sync.now and overview.sync.watch_status",
+      "description": "As an agent, I want overview.sync.now to run the one-shot sync and overview.sync.watch_status to inspect the lock file holder, so I can drive and observe the sync pipeline from MCP.",
+      "acceptanceCriteria": [
+        "tools/overview-mcp/src/tools/sync-now.ts registers overview.sync.now and spawns node scripts/sync-ralph-state.mjs through ProcessManager.spawn({ name: 'sync-now', oneShot: true }). Concurrent calls receive AlreadyRunning → returns { ok: false, error: 'sync already in progress' }.",
+        "On exit code 0, the tool parses the stdout summary line and returns { ok: true, summary: { tasksMatched, unmatchedCount, durationMs } }.",
+        "If the underlying script fails because the lock is held by another holder (vite-plugin / standalone / etc.), the tool reads readLockStatus(ctx.config.lockFile) and returns { ok: false, error: 'sync lock held by <process>', lockHolderProcess, lockHolderPid }.",
+        "On other non-zero exits, returns { ok: false, error, lastLogLines: stderr.slice(-30) }.",
+        "tools/overview-mcp/src/tools/sync-watch-status.ts registers overview.sync.watch_status, calls readLockStatus(ctx.config.lockFile), and maps the result to { running, lockHolderPid?, lockHolderProcess?, startedAt?, lastHeartbeatAt?, staleLock?: boolean }.",
+        "src/__tests__/sync-watch-status.test.ts covers: missing lock, active lock, stale (old mtime + dead pid), stale (unparseable JSON), active (old mtime + ALIVE pid → still active).",
+        "src/__tests__/sync-now.test.ts covers: parses the summary line; vite-plugin-lock-held path returns the lock-held error with metadata; concurrent call returns 'another sync in progress'.",
+        "stdio-tools-list.test.ts count increments to 17 with all 7 new names asserted by set equality.",
+        "Typecheck and tests pass."
+      ],
+      "priority": 6,
+      "passes": true,
+      "notes": "Estimated complexity: large. Adds two tools (sync.now and sync.watch_status). The lock-held error path requires re-reading the lock via readLockStatus after a non-zero exit so the caller can see which holder owns the lock.",
+      "verifiedEvidence": [
+        {
+          "criterion": "tools/overview-mcp/src/tools/sync-now.ts registers overview.sync.now and spawns node scripts/sync-ralph-state.mjs through ProcessManager.spawn({ name: 'sync-now', oneShot: true }); concurrent calls return sync already in progress.",
+          "command": "nl -ba tools/overview-mcp/src/tools/sync-now.ts | sed -n '39,66p'; pnpm --filter @codexu/overview-mcp exec vitest run src/__tests__/sync-now.test.ts --passWithNoTests --reporter=verbose",
+          "result": "PASS: lines 39-47 register overview.sync.now with asSdkInputSchema/toToolResult; lines 54-60 spawn name sync-now with cmd node, script args, cwd context.repoRoot, oneShot true; focused test passed 5/5 including concurrent rejection with error 'sync already in progress'."
+        },
+        {
+          "criterion": "On exit code 0, overview.sync.now parses the stdout summary line and returns { ok: true, summary: { tasksMatched, unmatchedCount, durationMs } }.",
+          "command": "pnpm --filter @codexu/overview-mcp exec vitest run src/__tests__/sync-now.test.ts --passWithNoTests --reporter=verbose",
+          "result": "PASS: sync-now.test.ts passed 5/5; test 'parses the stdout summary line into structured counts' asserted { tasksMatched: 7, unmatchedCount: 2, durationMs: 34 }. The script integration test also spawned the real script and matched the parseable summary line."
+        },
+        {
+          "criterion": "If the underlying script fails because the lock is held, overview.sync.now reads readLockStatus(ctx.config.lockFile) and returns lock holder metadata.",
+          "command": "pnpm --filter @codexu/overview-mcp exec vitest run src/__tests__/sync-now.test.ts --passWithNoTests --reporter=verbose",
+          "result": "PASS: test 'returns lock holder metadata when the one-shot script reports a held sync lock' wrote an active lock for process vite-plugin and asserted { ok:false, error:'sync lock held by vite-plugin', lockHolderProcess:'vite-plugin', lockHolderPid:process.pid }."
+        },
+        {
+          "criterion": "On other non-zero exits, overview.sync.now returns { ok: false, error, lastLogLines: stderr.slice(-30) }.",
+          "command": "pnpm --filter @codexu/overview-mcp exec vitest run src/__tests__/sync-now.test.ts --passWithNoTests --reporter=verbose",
+          "result": "PASS: test 'returns stderr tail for non-lock sync failures' emitted 35 stderr lines and exit code 3, then asserted error 'sync failed with exit code 3' and lastLogLines err-5 through err-34."
+        },
+        {
+          "criterion": "tools/overview-mcp/src/tools/sync-watch-status.ts registers overview.sync.watch_status, calls readLockStatus(ctx.config.lockFile), and maps to running/holder/heartbeat/staleLock fields.",
+          "command": "nl -ba tools/overview-mcp/src/tools/sync-watch-status.ts | sed -n '18,53p'; pnpm --filter @codexu/overview-mcp exec vitest run src/__tests__/sync-watch-status.test.ts --passWithNoTests --reporter=verbose",
+          "result": "PASS: lines 18-26 register overview.sync.watch_status with asSdkInputSchema/toToolResult; line 30 calls readLockStatus(context.config.lockFile); lines 31-52 map missing/stale/active states. Focused test passed 5/5."
+        },
+        {
+          "criterion": "src/__tests__/sync-watch-status.test.ts covers missing lock, active lock, stale old mtime + dead pid, stale unparseable JSON, and active old mtime + alive pid.",
+          "command": "pnpm --filter @codexu/overview-mcp exec vitest run src/__tests__/sync-watch-status.test.ts --passWithNoTests --reporter=verbose",
+          "result": "PASS: 1 test file passed, 5 tests passed covering the five required lock states."
+        },
+        {
+          "criterion": "src/__tests__/sync-now.test.ts covers parsing the summary line, vite-plugin-lock-held metadata, and concurrent sync rejection.",
+          "command": "pnpm --filter @codexu/overview-mcp exec vitest run src/__tests__/sync-now.test.ts --passWithNoTests --reporter=verbose",
+          "result": "PASS: 1 test file passed, 5 tests passed covering real script summary emission, structured summary parsing, vite-plugin lock-held metadata, concurrent rejection, and non-lock failure stderr tail."
+        },
+        {
+          "criterion": "stdio-tools-list.test.ts count increments to 17 with all 7 new names asserted by exact set equality.",
+          "command": "pnpm --filter @codexu/overview-mcp build; pnpm --filter @codexu/overview-mcp exec vitest run src/__tests__/stdio-tools-list.test.ts --passWithNoTests --reporter=verbose",
+          "result": "PASS: build exited 0; stdio smoke test passed with test 'returns 17 overview tools by exact name', including overview.dev_server.start/stop/status/logs, overview.build, overview.sync.now, and overview.sync.watch_status."
+        },
+        {
+          "criterion": "Typecheck and tests pass.",
+          "command": "pnpm --filter @codexu/overview-mcp typecheck; pnpm --filter @codexu/overview-mcp test",
+          "result": "PASS: typecheck exited 0; full test suite exited 0 with Test Files 19 passed (19), Tests 71 passed (71). Logs: .test-output/overview-mcp.typecheck.log and .test-output/overview-mcp.test.log. Build log: .test-output/overview-mcp.build.log."
+        }
+      ],
+      "dependencies": [
+        "US-001",
+        "US-002",
+        "US-003"
+      ],
+      "failureClassification": "",
+      "partialProgress": null
+    },
+    {
+      "id": "US-007",
+      "title": "Shutdown wiring + README + downstream cascade",
+      "description": "As the MCP server, I want ProcessManager.stopAll() invoked inside the existing shutdown() so all spawned children (long-lived and transient) die when SIGTERM arrives. Documentation must reflect the new operational surface, and downstream plans/INDEX references must be refreshed.",
+      "acceptanceCriteria": [
+        "tools/overview-mcp/src/index.ts shutdown() awaits context.processManager.stopAll() between snapshotReader.close() and server.close(), inside a try/catch that logs to stderr so a hung child cannot block the rest of shutdown.",
+        "No new SIGTERM/SIGINT/exit handlers are added. The existing handlers (Plan 09) are extended in place.",
+        "src/__tests__/shutdown.test.ts (fast) uses real node -e 'setInterval(() => {}, 1000)' children to verify ProcessManager.stopAll() kills BOTH long-lived ('dev-server') and transient ('build', 'sync-now') registered entries within the SIGTERM + SIGKILL window.",
+        "src/__tests__/shutdown-vite.test.ts (or describe.skipIf(!process.env.OVERVIEW_MCP_REAL_VITE) block) covers the real-Vite Windows orphan check from verification step L — runnable manually but skipped in CI to avoid flakiness.",
+        "tools/overview-mcp/README.md documents the 7 new tools (one section per tool with input/output schema), the lifecycle constraint (children die with MCP), the build single-flight rejection, the ring-buffer cap, the tree-kill Windows dependency, and the dev-server stdio isolation guarantee.",
+        "tools/overview-mcp/package.json declares tree-kill as a runtime dependency (or devDependency if only used in tests — the plan uses it in ProcessManager.stop(), so runtime).",
+        "Cascade audit: plans/ralph-pipeline-INDEX.md's 'Source-of-truth modules' table and DAG diagram are updated for the new files: tools/overview-mcp/src/process-manager.ts, the 7 new tool files, the new test files, and the modifications to scripts/lib/sync-lock.mjs + scripts/sync-ralph-state.mjs. Plans 02 and 09 are reviewed for any references that drifted (file paths, type signatures, export names, behavior contracts) and updated atomically in the final implementation commit. The commit message lists each diff (file, lines, change) so reviewers can verify the cascade.",
+        "All 17 tools are listed in the stdio smoke test by exact set equality.",
+        "Final typecheck + test run passes; pnpm overview-mcp:install (and equivalent CI scripts) continue to succeed."
+      ],
+      "priority": 7,
+      "passes": true,
+      "notes": "Estimated complexity: medium. Final story in the mcp-ops-tools cluster. Extends the EXISTING shutdown() in src/index.ts — do not add new signal handlers. The cascade audit must update plans/ralph-pipeline-INDEX.md plus any drifted references in Plans 02 and 09 atomically in the final implementation commit.",
+      "verifiedEvidence": [
+        {
+          "criterion": "tools/overview-mcp/src/index.ts shutdown() awaits context.processManager.stopAll() between snapshotReader.close() and server.close(), inside try/catch that logs to stderr.",
+          "command": "nl -ba tools/overview-mcp/src/index.ts | sed -n '12,38p'",
+          "result": "PASS: lines 21-28 close snapshotReader, try/await context.processManager.stopAll(), log failures to stderr, then await server.close()."
+        },
+        {
+          "criterion": "No new SIGTERM/SIGINT/exit handlers are added; existing handlers are extended in place.",
+          "command": "grep -n \"process.once\" tools/overview-mcp/src/index.ts",
+          "result": "PASS: only existing process.once handlers remain at lines 32 and 36 for SIGINT and SIGTERM; no process.on/exit handler was added."
+        },
+        {
+          "criterion": "src/__tests__/shutdown.test.ts uses real node -e children to verify ProcessManager.stopAll() kills long-lived dev-server and transient build/sync-now entries.",
+          "command": "pnpm --filter @codexu/overview-mcp exec vitest run src/__tests__/shutdown.test.ts src/__tests__/shutdown-vite.test.ts --passWithNoTests --reporter=verbose",
+          "result": "PASS: shutdown.test.ts passed; it spawned real node -e setInterval children for dev-server, build, and sync-now, stopAll returned all three names, manager.status() became [], and each PID was gone. shutdown-vite.test.ts was skipped by env gate."
+        },
+        {
+          "criterion": "src/__tests__/shutdown-vite.test.ts covers the real-Vite Windows orphan check and is skipped in CI unless explicitly enabled.",
+          "command": "nl -ba tools/overview-mcp/src/__tests__/shutdown-vite.test.ts | sed -n '1,180p'; pnpm --filter @codexu/overview-mcp test",
+          "result": "PASS/SKIPPED: lines 10-35 gate the Windows real-Vite orphan check on OVERVIEW_MCP_REAL_VITE=1 and win32; full test run reported 20 files passed, 1 skipped, 72 tests passed, 1 skipped."
+        },
+        {
+          "criterion": "tools/overview-mcp/README.md documents the 7 new tools, lifecycle constraint, build single-flight rejection, ring-buffer cap, tree-kill Windows dependency, and dev-server stdio isolation guarantee.",
+          "command": "grep -nE \"Operational Tools|overview.dev_server.start|overview.dev_server.stop|overview.dev_server.status|overview.dev_server.logs|overview.build|overview.sync.now|overview.sync.watch_status|tree-kill|ring buffer|stdio\" tools/overview-mcp/README.md",
+          "result": "PASS: README lines 82-149 include one section per operational tool; line 84 documents stdio isolation, MCP-lifetime cleanup, 1000-line ring buffers, and Windows tree-kill; line 130 documents build single-flight rejection."
+        },
+        {
+          "criterion": "tools/overview-mcp/package.json declares tree-kill as a runtime dependency.",
+          "command": "grep -n \"tree-kill\" -C 2 tools/overview-mcp/package.json",
+          "result": "PASS: tree-kill ^1.2.2 is listed under dependencies, not devDependencies."
+        },
+        {
+          "criterion": "Cascade audit updates plans/ralph-pipeline-INDEX.md plus Plans 02 and 09 for new modules, tests, sync-lock/sync summary contracts, and shutdown behavior.",
+          "command": "git show --stat --oneline HEAD; git show --format=%B --no-patch HEAD",
+          "result": "PASS: commit b0ecf02e includes package.json, plans/ralph-pipeline-02-watcher.md, plans/ralph-pipeline-09-mcp.md, plans/ralph-pipeline-INDEX.md, README, shutdown/process-manager code, and shutdown tests. Commit body lists each cascade diff and line-area summary."
+        },
+        {
+          "criterion": "All 17 tools are listed in the stdio smoke test by exact set equality.",
+          "command": "grep -n \"returns 17 overview tools\" -A25 tools/overview-mcp/src/__tests__/stdio-tools-list.test.ts; pnpm --filter @codexu/overview-mcp test",
+          "result": "PASS: stdio-tools-list.test.ts asserts exact sorted set of 17 names including all seven operational tools; full test run passed with 20 files passed, 1 skipped, 72 tests passed, 1 skipped."
+        },
+        {
+          "criterion": "Final typecheck + test run passes; pnpm overview-mcp:install and equivalent CI scripts continue to succeed.",
+          "command": "pnpm --filter @codexu/overview-mcp typecheck; pnpm --filter @codexu/overview-mcp build; pnpm --filter @codexu/overview-mcp test; pnpm overview-mcp:install",
+          "result": "PASS: typecheck exited 0; build exited 0; test exited 0 with Test Files 20 passed and 1 skipped, Tests 72 passed and 1 skipped; pnpm overview-mcp:install exited 0 after package.json was fixed to run node dist/install-server.js. Logs in .test-output/overview-mcp.{typecheck,build,test,install}.log."
+        }
+      ],
+      "dependencies": [
+        "US-001",
+        "US-004",
+        "US-005",
+        "US-006"
+      ],
+      "failureClassification": "",
+      "partialProgress": null
+    }
+  ]
+}

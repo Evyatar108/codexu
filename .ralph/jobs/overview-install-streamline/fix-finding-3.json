@@ -1,0 +1,16 @@
+{
+  "id": "F-004",
+  "severity": "Medium",
+  "source": "claude",
+  "category": "Quality",
+  "classification": "fixable",
+  "phase": "code",
+  "sectionRef": "Approach > Architecture > AST mutator edited ranges",
+  "description": "scripts/lib/upsert-task-edit.mjs uses zero-width insertion edits (start === end) for both array-item insertion (formatArrayInsertion) and object-entry insertion (planObjectEntryInsertion). AC6b says edited ranges should 'cover only the appended task object plus exact new map entries'. A zero-width range does not actually cover the inserted bytes, so a downstream byte-identity test that uses editedRanges to decide which bytes to compare cannot easily verify the create path. The current test in upsert-task-edit.test.ts validates the create path via idempotency-on-rerun rather than by computing outside-bytes-equal under post-insertion offsets, so the gap is in coverage rather than in observable behavior.",
+  "relevantFiles": [
+    "plugins/ralph-overview/scripts/lib/upsert-task-edit.mjs:204-242",
+    "plugins/ralph-overview/tools/overview-mcp/src/__tests__/upsert-task-edit.test.ts:39-73"
+  ],
+  "suggestedFix": "Either (a) report insertion ranges as [insertionOffset, insertionOffset + replacement.length] in post-edit coordinates with a clearly documented coordinate-system contract; or (b) introduce a separate insertedRanges field on the result for create-style edits. Then extend upsert-task-edit.test.ts to assert outside-bytes-equal for the create path using the new range shape.",
+  "status": "open"
+}

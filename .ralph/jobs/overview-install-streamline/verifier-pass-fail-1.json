@@ -1,0 +1,63 @@
+{
+  "manifestPath": "D:/harness-efforts/codexu/.ralph/jobs/overview-install-streamline/iteration-result-1.json",
+  "iterationSHA": "00f733f172309f638ee5b7a49752142fbe19a915",
+  "storyId": "US-001",
+  "verdicts": [
+    {
+      "criterion": "Copilot mirror generator exists, supports drift-check and --write, and discovers ralph-overview skills",
+      "verdict": "agree",
+      "reason": "Diff adds plugins/ralph-overview/scripts/generate-copilot-artifacts.mjs and three dist/copilot/*/SKILL.md mirrors; manifest command runs --write then drift-check and lists the mirror paths."
+    },
+    {
+      "criterion": "initConsumer export returns ok/filesPlanned/filesWritten/filesSkipped/errors/summary",
+      "verdict": "agree",
+      "reason": "Diff adds scripts/init-consumer.mjs and a matching init-consumer.test.ts; manifest cites 8/8 vitest pass asserting the result shape."
+    },
+    {
+      "criterion": "serverOnly plans only .mcp.json and .claude/settings.json enabledMcpjsonServers mutations",
+      "verdict": "agree",
+      "reason": "Manifest command runs the CLI in --dry-run --server-only --json mode and reports filesPlanned=[.mcp.json,.claude/settings.json]; consistent with init-consumer.mjs change in diff."
+    },
+    {
+      "criterion": "--force overwrites scaffold templates only; registration files safe-merge regardless of --force",
+      "verdict": "agree",
+      "reason": "Vitest pass cited in manifest covers the force/safe-merge case; diff includes init-consumer.mjs and the test fixture for it."
+    },
+    {
+      "criterion": "All writes route through scripts/lib/atomic-write.mjs with Windows transient retry coverage",
+      "verdict": "agree",
+      "reason": "Grep command in manifest restricts to the three write-site files; EPERM retry vitest cited; this is consistent with init-consumer.mjs touched in the diff."
+    },
+    {
+      "criterion": "bin/ralph-overview.mjs init subcommand supports repo/cwd/dry-run/force/server-only/json/add-package-json-scripts",
+      "verdict": "agree",
+      "reason": "Diff adds plugins/ralph-overview/bin/ralph-overview.mjs; manifest exercises CLI with --repo, --dry-run, --server-only, --json."
+    },
+    {
+      "criterion": "overview-config.template.json watcher.ignored includes DEFAULT_IGNORED",
+      "verdict": "agree",
+      "reason": "Diff modifies templates/overview-config.template.json; manifest command compares against default-config.mjs ignored list and reports missing:[] with counts 15/15."
+    },
+    {
+      "criterion": "Paired .d.mts declaration exists for scripts/init-consumer.mjs",
+      "verdict": "agree",
+      "reason": "Diff adds both scripts/init-consumer.mjs and scripts/init-consumer.d.mts."
+    },
+    {
+      "criterion": "Tests cover empty init, .mcp safe-merge, codexu-like idempotency, force semantics, server-only, and EPERM retry",
+      "verdict": "agree",
+      "reason": "Diff adds tools/overview-mcp/src/__tests__/init-consumer.test.ts; manifest cites 8/8 vitest pass covering enumerated cases."
+    },
+    {
+      "criterion": "Engine direct, MCP-tool-shim-stub, and CLI --json produce identical filesPlanned/filesSkipped/errors including serverOnly",
+      "verdict": "agree",
+      "reason": "Manifest cites the parity test inside init-consumer.test.ts which is present in the diff."
+    },
+    {
+      "criterion": "Typecheck passes (tsc -p tools/overview-mcp/tsconfig.json)",
+      "verdict": "agree",
+      "reason": "Manifest reports exit 0 with no diagnostics; no TS source changed in this iteration's diff (only tests + scripts + template + dist mirrors)."
+    }
+  ],
+  "warnings": []
+}

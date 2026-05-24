@@ -1,0 +1,33 @@
+### Feasibility
+
+[High] US-001 cannot typecheck as ordered. It changes `useMultiAxisFilter(data, taskIdFilter)` to require `ralphState`, but `App.tsx` is not updated until US-006. Current call is [App.tsx](/D:/harness-efforts/codexu/tools/overview-viewer/src/App.tsx:39). Either move minimal `ralphState` state/init into US-001 or make the parameter optional temporarily.
+
+[High] The `setFilters` downstream note is inaccurate for the current hook shape. `useMultiAxisFilter` returns an object, not a tuple, at [useMultiAxisFilter.ts](/D:/harness-efforts/codexu/tools/overview-viewer/src/hooks/useMultiAxisFilter.ts:26). Plan 04 explicitly expects `filters`/`setFilters` from this hook at [ralph-pipeline-04-pipeline-overview.md](/D:/harness-efforts/codexu/plans/ralph-pipeline-04-pipeline-overview.md:58). The plan should specify named object returns, e.g. `filters: activeFilters`, `setFilters: setActiveFilters`.
+
+[High] The `loadRalphState()` instruction is easy to implement incorrectly. Node tests cannot use bare `new Function(text)()` because `overview-ralph-state.js` assigns to `window`. Current `loadOverviewData()` passes a synthetic window at [testData.ts](/D:/harness-efforts/codexu/tools/overview-viewer/src/__tests__/testData.ts:7). The plan should require `new Function('window', script)(windowValue)` for tests.
+
+### Completeness
+
+[High] The plan does not explicitly update existing `CommandList` SSR test renders to pass `ralphState`. Current tests render `<CommandList data={data} expandedControls={...} />` at [commandList.test.tsx](/D:/harness-efforts/codexu/tools/overview-viewer/src/__tests__/commandList.test.tsx:15). If `ralphState` is non-optional, those test call sites must pass `NO_RALPH_STATE` or `CommandList` must default it.
+
+[Medium] Missing automated positive coverage for the central filter behavior. Updating old tests with `NO_RALPH_STATE` proves compatibility, but not that `filters.ralphStage` filters command rows and kanban. Add unit tests around `matchesTaskFilter`/`matchesKanbanFilter` with a real `OverviewRalphState`, plus one toolbar/hook integration test if feasible.
+
+[Medium] `RalphStageChip` is planned as `role="button"` with no described action. Inside a `<summary>`, clicking a focusable span may toggle the row unless propagation is handled. Either make it a real button with a defined action, or keep it as a focusable tooltip trigger without button semantics and stop row-toggle clicks if needed.
+
+### Ordering
+
+[High] Move the `App.tsx` `ralphState` initialization before or into US-001. The current US-001 “signature changes only, no UI yet” conflicts with its own “run typecheck after each story” rule.
+
+[Medium] US-007 should happen before final verification, not after all implementation commits are otherwise complete, because Plan 04 already has a concrete contract dependency on `setFilters`. Leaving that decision to the end risks implementing the hook API twice.
+
+### Simplicity
+
+[Medium] Avoid the “return tuple” idea entirely. The existing hook/object pattern is already used by `App.tsx`; extend it with named properties instead of changing consumers to a new API shape.
+
+[Low] The new Vite plugin should copy the existing `transformIndexHtml` guard from [vite.config.ts](/D:/harness-efforts/codexu/tools/overview-viewer/vite.config.ts:61): fail the build if the `overview-ralph-state.js` tag is missing. The plan’s replacement silently no-ops on tag drift.
+
+### Acceptance Criteria Quality
+
+[Medium] “Tasks without are visually byte-identical to pre-feature” is not specific enough for autonomous verification. Replace it with concrete assertions: `RalphStageChip` returns `null`, no `.ralph-stage-chip` appears for untracked tasks, and existing command row tests remain unchanged except expected prop setup.
+
+[Medium] The dev-server curl criterion hardcodes port `5173`. Vite can choose a different port if busy unless strict port is set. Acceptance should say “use the printed dev-server URL” or require strict port behavior.

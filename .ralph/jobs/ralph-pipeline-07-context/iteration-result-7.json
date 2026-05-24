@@ -1,0 +1,96 @@
+{
+  "storyId": "US-007",
+  "verifiedEvidence": [
+    {
+      "criterion": "F-009: RecentActivity accepts activityEvents, setFocusedTaskId, collapsed, and onToggle props",
+      "command": "grep -nE \"export interface RecentActivityProps|activityEvents: ActivityEvent|setFocusedTaskId|collapsed: boolean|onToggle\" tools/overview-viewer/src/components/RecentActivity.tsx",
+      "result": "PASS: RecentActivityProps declares activityEvents, setFocusedTaskId, collapsed, and onToggle; component uses onToggle and setFocusedTaskId.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "F-004: Prop name is activityEvents consistently in component, types, and App.tsx integration",
+      "command": "grep -nE \"activityEvents|RecentActivity|useActivityEvents|navigateToCommand|recentActivityCollapsed\" tools/overview-viewer/src/App.tsx tools/overview-viewer/src/components/RecentActivity.tsx",
+      "result": "PASS: App imports RecentActivity/useActivityEvents, stores activityEvents, and passes activityEvents={activityEvents}; no events prop was introduced.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Renders the last 5-10 events newest-first; each entry is a clickable button",
+      "command": "grep -nE \"sort((a, b)|slice(0, MAX_VISIBLE_EVENTS)|recent-activity-entry|newest-first\" tools/overview-viewer/src/components/RecentActivity.tsx tools/overview-viewer/src/__tests__/interactions/recentActivity.test.tsx && pnpm --filter @codexu/overview-viewer test",
+      "result": "PASS: component sorts by descending timestamp, slices to MAX_VISIBLE_EVENTS=10, renders button entries; overview tests passed 32 files / 174 tests.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "F-010: null newStage label renders <taskId> removed; otherwise <taskId> -> <newStage>",
+      "command": "grep -nE \"activityLabel|removed|renders the null-newStage\" tools/overview-viewer/src/components/RecentActivity.tsx tools/overview-viewer/src/__tests__/interactions/recentActivity.test.tsx",
+      "result": "PASS: activityLabel returns \"deleted-task removed\" for null newStage and arrow labels otherwise; render test covers the null-newStage contract.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Each entry shows a relative timestamp",
+      "command": "grep -nE \"formatActivityRelativeTime|recent-activity-time|5 m ago|1 h ago\" tools/overview-viewer/src/components/RecentActivity.tsx tools/overview-viewer/src/__tests__/interactions/recentActivity.test.tsx",
+      "result": "PASS: entries render <time className=\"recent-activity-time\"> using formatActivityRelativeTime; tests assert 5 m ago and 1 h ago labels.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Empty state renders <aside className=\"recent-activity-sidebar empty\">No recent activity yet.</aside>",
+      "command": "grep -nE \"recent-activity-sidebar empty|No recent activity yet\" tools/overview-viewer/src/components/RecentActivity.tsx tools/overview-viewer/src/__tests__/interactions/recentActivity.test.tsx",
+      "result": "PASS: component returns the exact empty aside; test asserts container.innerHTML matches the required markup.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "App imports RecentActivity + useActivityEvents and renders RecentActivity in a new right column",
+      "command": "grep -nE \"import { RecentActivity|useActivityEvents|<RecentActivity|overview-layout|overview-sidebar-column\" tools/overview-viewer/src/App.tsx tools/overview-viewer/src/components/TopLevelSurfaces.tsx tools/overview-viewer/src/styles.css",
+      "result": "PASS: App imports and renders RecentActivity with useActivityEvents output; Layout adds overview-main and overview-sidebar-column grid columns.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Collapsed defaults to closed in compact density mode, open otherwise",
+      "command": "grep -nE \"recentActivityCollapsed|defaults the sidebar open|defaults the sidebar collapsed\" tools/overview-viewer/src/App.tsx tools/overview-viewer/src/__tests__/interactions/recentActivity.test.tsx && pnpm --filter @codexu/overview-viewer test",
+      "result": "PASS: App initializes collapsed from density.density === \"compact\"; tests cover open default and compact collapsed default; overview tests passed 32 files / 174 tests.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Click-through navigation uses existing navigateToCommand()",
+      "command": "grep -nE \"setFocusedTaskId={(id) => navigateToCommand|invokes the click-through\" tools/overview-viewer/src/App.tsx tools/overview-viewer/src/__tests__/interactions/recentActivity.test.tsx",
+      "result": "PASS: App passes setFocusedTaskId through navigateToCommand(id, expandedControls.setTaskExpanded); test asserts entry clicks invoke the handler.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "styles.css adds recent activity and tooltip extras classes",
+      "command": "grep -nE \"recent-activity-sidebar|recent-activity-sidebar.empty|tooltip-extras-row|tooltip-extras-row a\" tools/overview-viewer/src/styles.css",
+      "result": "PASS: styles.css defines .recent-activity-sidebar, .recent-activity-sidebar.empty, .tooltip-extras-row, and .tooltip-extras-row a.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Vitest render test covers null-newStage label, empty-state render, click handler invocation",
+      "command": "grep -nE \"renders the null-newStage|renders the empty state contract|invokes the click-through\" tools/overview-viewer/src/__tests__/interactions/recentActivity.test.tsx && pnpm --filter @codexu/overview-viewer test",
+      "result": "PASS: recentActivity.test.tsx contains all required cases; overview viewer suite passed 32 files / 174 tests.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Typecheck passes",
+      "command": "pnpm --filter @codexu/overview-viewer typecheck",
+      "result": "PASS: tsc --noEmit completed with exit=0; log captured at .test-output/overview-viewer.typecheck.log.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "US-007:AC-013 browser sidebar verification",
+      "command": "N/A",
+      "result": "SKIPPED: browser automation unavailable; sidebar render/click/collapse verification requires manual browser pass",
+      "evidenceKind": "manual-skip"
+    },
+    {
+      "criterion": "Full regression tests and static overview build pass",
+      "command": "pnpm test && pnpm --filter @codexu/overview-viewer test && pnpm overview:build",
+      "result": "PASS: root tests passed 16 files / 93 tests; overview tests passed 32 files / 174 tests; overview:build emitted plans/overview.html successfully.",
+      "evidenceKind": "passed"
+    }
+  ],
+  "skippedReasons": [
+    "browser_automation_unavailable"
+  ],
+  "notTested": [
+    "Browser sidebar verification; no dev-browser tool available"
+  ],
+  "iterationSHA": "256acbb361cc16fb5825b507c8cfcc2c900fcd00"
+}

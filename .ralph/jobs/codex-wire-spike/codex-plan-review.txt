@@ -1,0 +1,29 @@
+### Feasibility
+
+[High] AC-3’s verification path is not valid. `config/read` cannot read per-thread `thread/start.config` overrides. `ConfigReadParams` only has `include_layers` and `cwd` in `codex/.../protocol/v2/config.rs`, and the handler reads effective config layers, not the loaded thread’s session config. The override is applied during `thread/start` via `thread_processor.rs` `load_with_overrides(...)`. So `config/read` will not prove whether top-level `compactPrompt` vs `config.compact_prompt` affected that thread. The plan needs a different Q3 oracle, such as triggering `thread/compact/start` and capturing `thread/compacted` / rollout evidence, or another thread-specific read path.
+
+[Medium] The planned `initialize` payload omits `capabilities: { experimentalApi: true }`, while `packages/happy-cli/src/codex/codexAppServerClient.ts` sends it during real client startup. Several relevant protocol surfaces are marked experimental or nested experimental. The spike should match Happy’s initialization shape to avoid false failures or filtered fields.
+
+[Medium] Q1’s proposed evidence is incomplete. `turn/completed` is lifecycle status, not assistant content. The assistant text arrives through raw notifications such as `item/agentMessage/delta` in `codex/.../protocol/common.rs`, or legacy `codex/event` depending on protocol mode. The script must capture these message deltas/completions; otherwise it cannot distinguish “image accepted” from “turn completed but image ignored.”
+
+### Completeness
+
+[High] The Q2 ordering conclusion is under-tested and likely based on a wrong assumption. `codex/.../core/src/agents_md.rs` prepends built-in candidates before configured fallbacks: local AGENTS, `AGENTS.md`, then `project_doc_fallback_filenames`. That means `["CLAUDE.md", "AGENTS.md"]` does not make `CLAUDE.md` win when `AGENTS.md` is present. The spike must create both files and inspect `instruction_sources`; a CLAUDE-only test cannot resolve the “CLAUDE-first vs AGENTS-first” question.
+
+[Low] The plan says `tasks/spikes/codex-wire-spike-output.json` is “kept for evidence reference but git-ignored,” but no `.gitignore` change is in scope and `tasks/` is currently untracked. Decide whether the JSON output is committed under `tasks/spikes/` or fully inlined in the audit doc; don’t leave AC-5 ambiguous.
+
+### Ordering
+
+[Medium] The Q3 story should not be implemented after assuming `config/read` works as an oracle. Build the harness first, then validate the available compact/thread inspection path before writing AC-3 doc requirements. Otherwise the implementer may spend time producing a script that cannot satisfy its own acceptance criteria.
+
+### Simplicity
+
+[Low] The fallback from `turn/start` to `sendUserTurn` adds little value. The current schema and Happy client both use `turn/start` (`packages/happy-cli/src/codex/codexAppServerClient.ts`, protocol `ClientRequest.ts`). If `turn/start` fails, that is itself a useful spike result; trying an obsolete method may muddy the evidence.
+
+### Acceptance Criteria Quality
+
+[High] AC-3 is not independently verifiable as written because it requires `config/read` to show live `compact_prompt` “for each thread,” but that RPC is not thread-scoped. Rewrite AC-3 around a real observable effect or a thread-specific API.
+
+[Medium] AC-2 asks the spike to resolve ordering, but the required evidence only shows a config request and `instruction_sources` for the config case. It should explicitly require a temp dir containing both `CLAUDE.md` and `AGENTS.md`, with canaries in each, and record which path/content wins.
+
+[Medium] AC-1’s verdict labels include “data URL silently dropped,” but the required evidence does not require capturing assistant message deltas or model/API error details. Add `item/agentMessage/delta`, `item/completed`, `error`, and `turn/completed` capture to make the verdict testable.
