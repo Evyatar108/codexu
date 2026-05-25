@@ -4,6 +4,7 @@
  */
 
 import { apiSocket } from './apiSocket';
+import { compositeSessionId } from './machineSessionId';
 import { storage } from './storage';
 import type { MachineMetadata, Metadata } from './storageTypes';
 
@@ -150,13 +151,15 @@ export type SpawnSessionResult =
     | { type: 'requestToApproveDirectoryCreation'; directory: string }
     | { type: 'error'; errorMessage: string };
 
+export type SupportedAgent = 'codex' | 'claude' | 'gemini' | 'openclaw';
+
 // Options for spawning a session
 export interface SpawnSessionOptions {
     machineId: string;
     directory: string;
     approvedNewDirectoryCreation?: boolean;
     token?: string;
-    agent?: 'codex' | 'claude' | 'gemini' | 'openclaw';
+    agent?: SupportedAgent;
 }
 
 export interface ResumeSessionOptions {
@@ -171,6 +174,14 @@ export interface ForkSessionOptions {
     model?: string;
     permissionMode?: string;
     effortLevel?: string;
+}
+
+export interface SpawnSessionFromSessionConfig {
+    agent: SupportedAgent;
+    permissionMode?: string;
+    model?: string;
+    effortLevel?: string;
+    initialMessage?: string;
 }
 
 // Exported session operation functions
@@ -241,6 +252,34 @@ export async function machineForkSession(options: ForkSessionOptions): Promise<S
         return {
             type: 'error',
             errorMessage: error instanceof Error ? error.message : 'Failed to fork session',
+        };
+    }
+}
+
+export async function machineSpawnSessionFromSession(
+    parentSid: string,
+    config: SpawnSessionFromSessionConfig,
+): Promise<SpawnSessionResult> {
+    try {
+        const scope = apiSocket.forSession(parentSid);
+        const result = await scope.machineRpc<SpawnSessionResult, {
+            parentSessionId: string;
+            config: SpawnSessionFromSessionConfig;
+        }>(
+            'spawn-session-from-session',
+            { parentSessionId: scope.ref.localSessionId, config },
+        );
+        if (result.type !== 'success') {
+            return result;
+        }
+        return {
+            ...result,
+            sessionId: compositeSessionId(scope.ref.machineId, result.sessionId),
+        };
+    } catch (error) {
+        return {
+            type: 'error',
+            errorMessage: error instanceof Error ? error.message : 'Failed to spawn child session',
         };
     }
 }

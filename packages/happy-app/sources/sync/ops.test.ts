@@ -52,7 +52,7 @@ vi.mock('./storage', () => ({
 }));
 
 import { apiSocket } from './apiSocket';
-import { cancelPendingSwitch, machineForkSession, requestSwitch, sessionEmitAgentConfiguration, sessionUpdateMetadata, sessionWriteFile } from './ops';
+import { cancelPendingSwitch, machineForkSession, machineSpawnSessionFromSession, requestSwitch, sessionEmitAgentConfiguration, sessionUpdateMetadata, sessionWriteFile } from './ops';
 
 describe('sessionUpdateMetadata', () => {
     const initialSessionMetadata: Metadata = {
@@ -272,6 +272,35 @@ describe('machineForkSession', () => {
         });
         const payload = sessionScope.machineRpc.mock.calls[0][1] as { parentSessionId: string };
         expect(payload.parentSessionId).not.toContain(':');
+    });
+});
+
+describe('machineSpawnSessionFromSession', () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
+
+    it('routes by composite parent id, sends the bare parent id, and returns a composite child id', async () => {
+        sessionScope.machineRpc.mockResolvedValue({ type: 'success', sessionId: 'childLocal' });
+
+        const config = {
+            agent: 'codex' as const,
+            model: 'gpt-5.2',
+            permissionMode: 'safe-yolo',
+            effortLevel: 'high',
+            initialMessage: 'continue here',
+        };
+        const result = await machineSpawnSessionFromSession('m1:parentLocal', config);
+
+        expect(result).toEqual({ type: 'success', sessionId: 'm1:childLocal' });
+        expect(apiSocket.forSession).toHaveBeenCalledWith('m1:parentLocal');
+        expect(sessionScope.machineRpc).toHaveBeenCalledWith('spawn-session-from-session', {
+            parentSessionId: 'parentLocal',
+            config,
+        });
+        const payload = sessionScope.machineRpc.mock.calls[0][1] as { parentSessionId: string; config: Record<string, unknown> };
+        expect(payload.parentSessionId).not.toContain(':');
+        expect(payload.config).not.toHaveProperty('path');
     });
 });
 
