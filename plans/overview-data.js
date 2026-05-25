@@ -772,9 +772,10 @@ window.OVERVIEW_DATA = {
         {
               "id": "mobile-tree-view",
               "scope": "codexu",
-              "phase": "plan-ready",
+              "phase": "shipped",
               "status": "ok",
-              "lastTouchedAt": "2026-05-14T06:00:00Z",
+              "lastTouchedAt": "2026-05-25T13:55:00Z",
+              "mergeCommit": "5fea5583",
               "kanbanCards": [],
               "command": {
                     "name": "mobile-tree-view",
