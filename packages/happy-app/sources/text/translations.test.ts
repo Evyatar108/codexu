@@ -95,6 +95,32 @@ const REQUIRED_FORK_COMPOSER_KEYS = [
     'forkComposer.errors.createWorktreeFailed',
 ] as const;
 
+const REQUIRED_SPAWN_CHILD_KEYS = [
+    'drawer.spawnChild.action',
+    'spawnChild.title',
+    'spawnChild.parentLabel',
+    'spawnChild.submit',
+    'spawnChild.spawning',
+    'spawnChild.machine',
+    'spawnChild.project',
+    'spawnChild.agent',
+    'spawnChild.defaultModel',
+    'spawnChild.defaultPermission',
+    'spawnChild.defaultEffort',
+    'spawnChild.initialMessage',
+    'spawnChild.initialMessagePlaceholder',
+    'spawnChild.searchAgents',
+    'spawnChild.searchModels',
+    'spawnChild.searchPermissions',
+    'spawnChild.searchEffort',
+    'spawnChild.agents.claude',
+    'spawnChild.agents.codex',
+    'spawnChild.agents.openclaw',
+    'spawnChild.agents.gemini',
+    'spawnChild.errors.parentMissing',
+    'spawnChild.errors.spawnFailed',
+] as const;
+
 const REQUIRED_ATTACHMENT_KEYS = [
     'errors.attachmentPerFileTooLarge',
     'errors.attachmentTotalTooLarge',
@@ -188,6 +214,21 @@ describe('translations', () => {
     it('keeps the fork composer strings present in every locale', () => {
         for (const [language, dictionary] of Object.entries(translations)) {
             for (const key of REQUIRED_FORK_COMPOSER_KEYS) {
+                const value = getByPath(dictionary, key);
+                const sourceValue = getByPath(en, key);
+
+                expect(value, `${language}.${key}`).toBeDefined();
+                expect(typeof value, `${language}.${key}`).toBe(typeof sourceValue);
+                if (typeof value === 'string') {
+                    expect(value.trim(), `${language}.${key}`).not.toBe('');
+                }
+            }
+        }
+    });
+
+    it('keeps the spawn child strings present in every locale', () => {
+        for (const [language, dictionary] of Object.entries(translations)) {
+            for (const key of REQUIRED_SPAWN_CHILD_KEYS) {
                 const value = getByPath(dictionary, key);
                 const sourceValue = getByPath(en, key);
 

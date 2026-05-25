@@ -157,6 +157,10 @@ export function useSessionQuickActions(
         router.push(`/session/${session.id}/fork-composer`);
     }, [router, session.id]);
 
+    const spawnChildSession = React.useCallback(() => {
+        router.push(`/session/${session.id}/spawn-child`);
+    }, [router, session.id]);
+
     const canCopySessionMetadata = __DEV__ || devModeEnabled;
 
     const actionItems = React.useMemo<SessionActionItem[]>(() => {
@@ -171,6 +175,8 @@ export function useSessionQuickActions(
         if (canFork) {
             items.push({ id: 'fork', icon: 'git-branch-outline', label: t('drawer.fork.action'), onPress: forkSession });
         }
+
+        items.push({ id: 'spawn-child', icon: 'git-network-outline', label: t('drawer.spawnChild.action'), onPress: spawnChildSession });
 
         if (canCopySessionMetadata) {
             items.push({ id: 'copy-metadata', icon: 'bug-outline', label: t('sessionInfo.copyMetadata'), onPress: copySessionMetadata });
@@ -190,6 +196,7 @@ export function useSessionQuickActions(
         openDetails,
         resumeAvailability.canShowResume,
         resumeSession,
+        spawnChildSession,
     ]);
 
     const showActionAlert = React.useCallback(() => {
@@ -217,6 +224,7 @@ export function useSessionQuickActions(
         forkSession,
         openDetails,
         resumeSession,
+        spawnChildSession,
         resumeSessionInline,
         resumeAvailability,
         resumeSessionSubtitle: resumeAvailability.subtitle,

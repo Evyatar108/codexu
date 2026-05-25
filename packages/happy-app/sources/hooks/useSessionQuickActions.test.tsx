@@ -305,6 +305,21 @@ describe('useSessionQuickActions resume permission mode copy', () => {
 
         expect(shared.latestActionItems.some((item) => item.id === 'fork')).toBe(false);
     });
+
+    it('shows the spawn-child action and navigates to the spawn child screen', async () => {
+        await act(async () => {
+            TestRenderer.create(<Harness session={createSession(false)} />);
+        });
+
+        const spawnChildAction = shared.latestActionItems.find((item) => item.id === 'spawn-child');
+
+        expect(spawnChildAction).toBeDefined();
+        expect(spawnChildAction?.label).toBe('translated:drawer.spawnChild.action');
+        act(() => {
+            spawnChildAction!.onPress();
+        });
+        expect(shared.routerPushMock).toHaveBeenCalledWith('/session/source-session/spawn-child');
+    });
 });
 
 describe('useSessionQuickActions archive confirmation', () => {

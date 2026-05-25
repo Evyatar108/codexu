@@ -1174,6 +1174,7 @@ describe('sync.sendMessage call-site audit', () => {
         expect([...new Set(matchingFiles)].sort()).toEqual([
             'packages/happy-app/sources/-session/SessionView.tsx',
             'packages/happy-app/sources/app/(app)/new/index.tsx',
+            'packages/happy-app/sources/app/(app)/session/[id]/spawn-child.tsx',
             'packages/happy-app/sources/components/MessageView.tsx',
         ].sort());
     }, 30_000);
