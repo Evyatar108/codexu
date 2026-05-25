@@ -8,7 +8,7 @@ import { logger } from '@/ui/logger';
 import { configuration } from '@/configuration';
 import * as daemonClient from '@/daemon/daemonClient';
 import { MachineMetadata, DaemonState, Machine, Update, UpdateMachineBody } from './types';
-import { isSupportedAgent, registerCommonHandlers, SpawnInWorktreeOptions, SpawnSessionOptions, SpawnSessionResult } from '../modules/common/registerCommonHandlers';
+import { isSupportedAgent, registerCommonHandlers, SpawnInWorktreeOptions, SpawnSessionOptions, SpawnSessionResult, SupportedAgent } from '../modules/common/registerCommonHandlers';
 import { encodeBase64, decodeBase64, encrypt, decrypt } from './encryption';
 import { backoff } from '@/utils/time';
 import { RpcHandlerManager } from './rpc/RpcHandlerManager';
@@ -78,6 +78,7 @@ interface DaemonToServerEvents {
 type MachineRpcHandlers = {
     spawnSession: (options: SpawnSessionOptions) => Promise<SpawnSessionResult>;
     spawnInWorktree?: (options: SpawnInWorktreeOptions) => Promise<SpawnSessionResult>;
+    spawnSessionFromSession?: (options: SpawnSessionFromSessionRpcOptions) => Promise<SpawnSessionResult>;
     resumeSession?: (sessionId: string, options?: { model?: string; permissionMode?: string }) => Promise<SpawnSessionResult>;
     forkSession?: (options: ForkSessionOptions) => Promise<SpawnSessionResult>;
     stopSession: (sessionId: string) => boolean | Promise<boolean>;
@@ -90,6 +91,18 @@ export type ForkSessionOptions = {
     model?: string;
     permissionMode?: string;
     effortLevel?: string;
+};
+
+export type SpawnSessionFromSessionRpcOptions = {
+    parentSessionId: string;
+    config: {
+        agent: SupportedAgent;
+        path?: string;
+        model?: string;
+        permissionMode?: string;
+        effortLevel?: string;
+        initialMessage?: string;
+    };
 };
 
 const PARENT_SESSION_ID_MAX_LENGTH = 128;
@@ -139,6 +152,7 @@ export class ApiMachineClient {
     setRPCHandlers({
         spawnSession,
         spawnInWorktree,
+        spawnSessionFromSession,
         resumeSession,
         forkSession,
         stopSession,
@@ -200,6 +214,59 @@ export class ApiMachineClient {
                 runId: runId ?? undefined,
                 agent,
                 token,
+            });
+        });
+
+        this.rpcHandlerManager.registerHandler('spawn-session-from-session', async (params: any) => {
+            const { parentSessionId, config } = params || {};
+
+            if (!parentSessionId || typeof parentSessionId !== 'string') {
+                return { type: 'error', errorMessage: 'Parent session ID is required' };
+            }
+            if (parentSessionId.includes(':')) {
+                const [parsedMachineId] = parentSessionId.split(':', 1);
+                if (parsedMachineId && parsedMachineId !== this.machine.id) {
+                    return { type: 'error', errorMessage: 'parent session not on this machine' };
+                }
+                return { type: 'error', errorMessage: 'parentSessionId must be a bare local session id' };
+            }
+            if (parentSessionId.length > PARENT_SESSION_ID_MAX_LENGTH || !PARENT_SESSION_ID_SHAPE.test(parentSessionId)) {
+                return { type: 'error', errorMessage: 'parentSessionId must be 1-128 characters of [A-Za-z0-9_-]' };
+            }
+            if (!config || typeof config !== 'object') {
+                return { type: 'error', errorMessage: 'config is required' };
+            }
+            if (!isSupportedAgent(config.agent)) {
+                return { type: 'error', errorMessage: 'agent must be one of: claude, codex, gemini, openclaw' };
+            }
+            for (const field of ['path', 'model', 'permissionMode', 'effortLevel', 'initialMessage'] as const) {
+                const value = config[field];
+                if (value !== undefined && value !== null && typeof value !== 'string') {
+                    return { type: 'error', errorMessage: `${field} must be a string when provided` };
+                }
+            }
+            if (config.model === '' || config.permissionMode === '' || config.effortLevel === '') {
+                return { type: 'error', errorMessage: 'model, permissionMode, and effortLevel must be non-empty when provided' };
+            }
+            if (config.effortLevel !== undefined && config.effortLevel !== null && !isValidCodexEffortLevel(config.effortLevel)) {
+                return { type: 'error', errorMessage: 'effortLevel must be one of: none, minimal, low, medium, high, xhigh' };
+            }
+
+            const handler = spawnSessionFromSession;
+            if (!handler) {
+                return { type: 'error', errorMessage: 'Spawn-from-session handler not available' };
+            }
+
+            return handler({
+                parentSessionId,
+                config: {
+                    agent: config.agent,
+                    path: config.path ?? undefined,
+                    model: config.model ?? undefined,
+                    permissionMode: config.permissionMode ?? undefined,
+                    effortLevel: config.effortLevel ?? undefined,
+                    initialMessage: config.initialMessage ?? undefined,
+                },
             });
         });
 

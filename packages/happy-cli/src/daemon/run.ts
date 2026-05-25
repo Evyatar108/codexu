@@ -6,7 +6,7 @@ import axios from 'axios';
 
 import { ApiClient } from '@/api/api';
 import { bootstrapMachineForEmbedded } from 'happy-server';
-import type { ForkSessionOptions } from '@/api/apiMachine';
+import type { ForkSessionOptions, SpawnSessionFromSessionRpcOptions } from '@/api/apiMachine';
 import { TrackedSession, SessionEncryptionData } from './types';
 import { MachineMetadata, DaemonState, Metadata } from '@/api/types';
 import { SpawnInWorktreeOptions, SpawnSessionOptions, SpawnSessionResult } from '@/modules/common/registerCommonHandlers';
@@ -36,12 +36,14 @@ import { loadOrCreateTofuKeypairs } from '@/tofu/keypairManager';
 import { TunnelManager } from '@/tunnel/tunnelManager';
 import { DevTunnelsDaemonProvider } from '@/tunnel/devTunnelsDaemonProvider';
 import { forkSession } from './forkSession';
+import { spawnSessionFromSession } from './spawnSessionFromSession';
 import { spawnInWorktree } from './spawnInWorktree';
 import { recoverPending } from './worktreeTransactions';
 import { stopTrackedSession } from './stopTrackedSession';
 import { loopbackCapabilityPath } from './loopbackCapability';
 import { getLocalMachine } from './getLocalMachine';
 import { bindListenersAndWriteCapability } from './bindListenersAndWriteCapability';
+import { buildDaemonSpawnArgs, createSpawnFromSessionMetadataUpdater, daemonSpawnWindowName } from './runSpawnHelpers';
 
 // Prepare initial metadata
 // Suffix host with `-dev` for the HAPPY_VARIANT=dev variant so the dev daemon
@@ -473,16 +475,14 @@ export async function startDaemon(): Promise<void> {
 
           // Construct command for the CLI
           const cliPath = join(projectPath(), 'dist', 'index.mjs');
-          // Determine agent command - support claude, codex, and gemini
-          const agent = options.agent === 'gemini' ? 'gemini' : (options.agent === 'codex' ? 'codex' : (options.agent === 'openclaw' ? 'openclaw' : 'claude'));
-          const fullCommand = `node --no-warnings --no-deprecation ${cliPath} ${agent} --happy-starting-mode remote --started-by daemon`;
+          const fullCommand = `node --no-warnings --no-deprecation ${cliPath} ${buildDaemonSpawnArgs(options).join(' ')}`;
 
           // Spawn in tmux with environment variables
           // IMPORTANT: Pass complete environment (process.env + extraEnv) because:
           // 1. tmux sessions need daemon's expanded auth variables (e.g., ANTHROPIC_AUTH_TOKEN)
           // 2. Regular spawn uses env: { ...process.env, ...extraEnv }
           // 3. tmux needs explicit environment via -e flags to ensure all variables are available
-          const windowName = `happy-${Date.now()}-${agent}`;
+          const windowName = daemonSpawnWindowName(options.agent);
           const tmuxEnv: Record<string, string> = {};
 
           // Add all daemon environment variables (filtering out undefined)
@@ -557,33 +557,7 @@ export async function startDaemon(): Promise<void> {
         if (!useTmux) {
           logger.debug(`[DAEMON RUN] Using regular process spawning`);
 
-          // Construct arguments for the CLI - support claude, codex, and gemini
-          let agentCommand: string;
-          switch (options.agent) {
-            case 'claude':
-            case undefined:
-              agentCommand = 'claude';
-              break;
-            case 'codex':
-              agentCommand = 'codex';
-              break;
-            case 'gemini':
-              agentCommand = 'gemini';
-              break;
-            case 'openclaw':
-              agentCommand = 'openclaw';
-              break;
-            default:
-              return {
-                type: 'error',
-                errorMessage: `Unsupported agent type: '${options.agent}'. Please update your CLI to the latest version.`
-              };
-          }
-          const args = [
-            agentCommand,
-            '--happy-starting-mode', 'remote',
-            '--started-by', 'daemon'
-          ];
+          const args = buildDaemonSpawnArgs(options);
 
           // TODO: In future, sessionId could be used with --resume to continue existing sessions
           // For now, we ignore it - each spawn creates a new session
@@ -919,6 +893,25 @@ export async function startDaemon(): Promise<void> {
 
     // Create API client
     const api = await ApiClient.create(credentials);
+    const updateParentMetadata = createSpawnFromSessionMetadataUpdater(api);
+
+    const spawnSessionFromSessionHandler = (options: SpawnSessionFromSessionRpcOptions): Promise<SpawnSessionResult> => spawnSessionFromSession({
+      parentLocalId: options.parentSessionId,
+      machineId,
+      config: {
+        agent: options.config.agent,
+        path: options.config.path,
+        model: options.config.model,
+        permissionMode: options.config.permissionMode,
+        effortLevel: options.config.effortLevel,
+        initialMessage: options.config.initialMessage,
+      },
+    }, {
+      getTrackedSession: findTrackedSessionById,
+      spawnSession,
+      updateParentMetadata,
+      stat: fs.stat,
+    });
 
     // Create realtime machine session
     const apiMachine = api.machineSyncClient(machine);
@@ -927,6 +920,7 @@ export async function startDaemon(): Promise<void> {
     apiMachine.setRPCHandlers({
       spawnSession,
       spawnInWorktree: spawnInWorktreeHandler,
+      spawnSessionFromSession: spawnSessionFromSessionHandler,
       resumeSession,
       forkSession: forkSessionHandler,
       stopSession,

@@ -6,6 +6,7 @@ const metadataEnvKeys = [
     'HAPPY_PROJECT_PATH',
     'HAPPY_WORKTREE_PATH',
     'HAPPY_SPAWN_RUN_ID',
+    'HAPPY_PARENT_SESSION_ID',
 ] as const;
 
 const originalMetadataEnv = Object.fromEntries(
@@ -96,6 +97,7 @@ describe('createSessionMetadata', () => {
         process.env.HAPPY_PROJECT_PATH = '/repo/root';
         process.env.HAPPY_WORKTREE_PATH = '/repo/root/.dev/worktree/ralph-12345678';
         process.env.HAPPY_SPAWN_RUN_ID = 'run-123';
+        process.env.HAPPY_PARENT_SESSION_ID = 'machine-1:parent-local';
 
         const { metadata } = createSessionMetadata({
             flavor: 'codex',
@@ -106,6 +108,7 @@ describe('createSessionMetadata', () => {
             projectPath: '/repo/root',
             worktreePath: '/repo/root/.dev/worktree/ralph-12345678',
             runId: 'run-123',
+            parentSessionId: 'machine-1:parent-local',
             flavor: 'codex',
         });
     });

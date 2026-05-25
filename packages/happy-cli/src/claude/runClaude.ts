@@ -33,6 +33,7 @@ import type { Session as ApiSession } from '@/api/types';
 import type { AgentConfiguration } from '@/api/apiSession';
 import type { MessageDelivery } from '@/utils/MessageQueue2';
 import type { LedgerRecord } from '@slopus/happy-wire';
+import { HAPPY_PARENT_SESSION_ID } from '@/utils/envNames';
 
 /** JavaScript runtime to use for spawning Claude Code */
 export type JsRuntime = 'node' | 'bun'
@@ -106,6 +107,7 @@ export async function runClaude(credentials: Credentials, options: StartOptions 
     }
     logger.debug(`Using machineId: ${machineId}`);
 
+    const parentSessionId = process.env[HAPPY_PARENT_SESSION_ID];
     let metadata: Metadata = {
         path: workingDirectory,
         host: os.hostname(),
@@ -126,6 +128,7 @@ export async function runClaude(credentials: Credentials, options: StartOptions 
         sandbox: sandboxConfig?.enabled ? sandboxConfig : null,
         dangerouslySkipPermissions,
         currentPermissionModeCode: initialPermissionMode,
+        ...(parentSessionId ? { parentSessionId } : {}),
     };
 
     // Check for session reconnection env vars (set by daemon for resume-in-place)

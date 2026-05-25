@@ -125,6 +125,9 @@ export interface SpawnSessionOptions {
     agent?: SupportedAgent;
     environmentVariables?: Record<string, string>;
     token?: string;
+    model?: string;
+    permissionMode?: string;
+    effortLevel?: string;
 }
 
 export const SUPPORTED_AGENTS = ['claude', 'codex', 'gemini', 'openclaw'] as const;

@@ -14,6 +14,7 @@ import type { AgentState, Metadata } from '@/api/types';
 import { configuration } from '@/configuration';
 import { projectPath } from '@/projectPath';
 import type { SandboxConfig } from '@/persistence';
+import { HAPPY_PARENT_SESSION_ID } from './envNames';
 import packageJson from '../../package.json';
 
 /**
@@ -68,6 +69,7 @@ export interface SessionMetadataResult {
  * ```
  */
 export function createSessionMetadata(opts: CreateSessionMetadataOptions): SessionMetadataResult {
+    const parentSessionId = process.env[HAPPY_PARENT_SESSION_ID];
     const state: AgentState = {
         controlledByUser: false,
     };
@@ -93,6 +95,7 @@ export function createSessionMetadata(opts: CreateSessionMetadataOptions): Sessi
         flavor: opts.flavor,
         sandbox: opts.sandbox?.enabled ? opts.sandbox : null,
         dangerouslySkipPermissions: opts.dangerouslySkipPermissions ?? null,
+        ...(parentSessionId ? { parentSessionId } : {}),
     };
 
     return { state, metadata };
