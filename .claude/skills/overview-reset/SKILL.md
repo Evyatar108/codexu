@@ -5,12 +5,24 @@ description: Hard-reset the ralph-overview watcher state when sessions get tangl
 
 # Skill: overview-reset
 
-Run this when the ralph-overview watcher state is wedged — typically symptoms:
+Operator-facing **emergency** skill for the bookkeeper/scrum-master lead
+(see `D:/harness-efforts/codexu/CLAUDE.md`). Run this when the ralph-overview
+watcher state is wedged — typically symptoms:
 
 - `overview_dev_server_start` returns `EOWNER: another watcher already owns this repo`
 - `overview-data.json` (removed in plugin v2.0.1) keeps reappearing in `plans/`
 - Sync results stale despite editing `.ralph/jobs/*/job-state.json`
 - Two or more `sync-ralph-state.mjs` processes visible in `tasklist`/`ps`
+- `mcp__ralph-overview__overview_parallel_ready_tasks` returns a `snapshotStaleSince`
+  timestamp older than the most recent member terminal write (watcher froze
+  mid-tick)
+
+This skill resets the WATCHER. It does NOT touch `plans/overview-data.js` —
+that's hand-curated by the bookkeeper lead. If your symptom is "task entries
+in `overview-data.js` are stale (still say `phase: plan-ready` after a ship)",
+that's a bookkeeper-update miss, not a watcher problem; see the bookkeeper
+duties in `CLAUDE.md` and the `feedback_bookkeeper_updates_overview_data`
+auto-memory entry.
 
 The plugin's own auto-cleanup (per-MCP-pid heartbeat + preflight reclaim, v2.0.2+) handles the common cases. This skill is the manual escape hatch when auto-cleanup fails — e.g. watchers spawned outside MCP (`pnpm sync-ralph-state:watch` manually), or watchers whose cmdline doesn't match the conservative `--repo <this-repo>` criteria.
 

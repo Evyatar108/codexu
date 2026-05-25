@@ -540,9 +540,10 @@ window.OVERVIEW_DATA = {
         {
               "id": "userid-cleanup",
               "scope": "codexu",
-              "phase": "plan-ready",
+              "phase": "shipped",
               "status": "ok",
-              "lastTouchedAt": "2026-05-13T21:45:00Z",
+              "lastTouchedAt": "2026-05-25T11:00:00Z",
+              "mergeCommit": "25b9a573",
               "kanbanCards": [
                     {
                           "column": "blocked",
@@ -1020,9 +1021,10 @@ window.OVERVIEW_DATA = {
         {
               "id": "codex-base-prompt-safety-rails",
               "scope": "codex",
-              "phase": "plan-ready",
+              "phase": "shipped",
               "status": "ok",
-              "lastTouchedAt": "2026-05-14T17:00:00Z",
+              "lastTouchedAt": "2026-05-25T12:00:00Z",
+              "mergeCommit": "9fe9b81,b0e55a72",
               "kanbanCards": [
                     {
                           "column": "blocked",

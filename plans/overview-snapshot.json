@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-05-24T21:55:41.880Z",
-  "generatedFromCommit": "5d934db3",
+  "generatedAt": "2026-05-25T12:33:30.970Z",
+  "generatedFromCommit": "b0e55a72",
   "schemaVersion": 1,
   "tasks": [
     {
@@ -48,7 +48,7 @@
         },
         "terminalReason": "complete",
         "lastUpdatedAt": "2026-05-13T16:02:32Z",
-        "mergeCommit": "5d934db3",
+        "mergeCommit": "b0e55a72",
         "storyDoctorInterventions": 0
       }
     },
@@ -385,7 +385,7 @@
       "planOnly": true,
       "mergeCommit": "7fa6ff3b",
       "ralph": {
-        "stage": "implementing",
+        "stage": "shipped",
         "branchName": "1a-fork-doc-pointer-bump",
         "deferredQuestionsCount": 0,
         "artifacts": {
@@ -400,8 +400,13 @@
           "blocked": 0,
           "remaining": 0
         },
-        "reviewOpenCount": {},
-        "lastUpdatedAt": "2026-05-13T19:23:58Z",
+        "reviewOpenCount": {
+          "code": 0,
+          "docs": 0
+        },
+        "terminalReason": "complete",
+        "lastUpdatedAt": "2026-05-24T22:01:23Z",
+        "mergeCommit": "7fa6ff3b",
         "storyDoctorInterventions": 0,
         "crewSessions": {
           "implementing": [
@@ -411,7 +416,7 @@
               "startedAt": "2026-05-24T21:54:59.289Z",
               "sessionId": "e1a4455a-e65c-4c36-9b19-6763f2fe3252",
               "transcriptPath": "C:\\Users\\evmitran\\.claude\\projects\\D--harness-efforts-codexu\\e1a4455a-e65c-4c36-9b19-6763f2fe3252.jsonl",
-              "summary": null,
+              "summary": "1a-fork-doc terminal: complete (empty-diff short-circuit, work was pre-merged 2026-05-13)",
               "cwd": "D:\\harness-efforts\\codexu"
             }
           ]
@@ -595,6 +600,40 @@
           }
         ],
         "planPrompt": "/plan-with-ralph \"Drop multi-tenant userId scoping from happy-server. Per plans/codexu-roadmap.md 'Drop userId scoping in happy-server' bullet. Context: happy-server is now embedded inside the per-user daemon (Sprint A createHappyServer() + dualListenerBinding); exactly ONE user per process. Multi-tenant userId scoping (~140 refs across packages/happy-server/sources/) is dead weight. Scope: remove userId from request decorators (api.ts:88, loopbackCapability.ts:34); drop userId from Prisma queries on Session / SessionMessage / Machine; simplify eventRouter (packages/happy-server/sources/app/events/eventRouter.ts) to single-user fan-out (no per-user partition); drop allocateUserSeq's userId scoping (becomes process-global seq). Keep Prisma columns themselves — schema migration is OUT OF SCOPE; only code paths change. PREREQUISITE: perf-WS3 must already be on main; WS3's per-user ring buffer's userId partition gets stripped as part of this commit (mention this in commit body referencing the WS3 commit). Read packages/happy-server/CLAUDE.md before starting. Acceptance: cross-package typecheck green (happy-server + happy-cli + happy-app); all happy-server tests green; commit body lists every userId code path removed with file:line counts. Test command: pnpm --filter '{packages/happy-server}' exec vitest run 2>&1 | tee /tmp/codexu-userid-cleanup.log; cross-package: pnpm --filter '{packages/happy-server}' --filter '{packages/happy-cli}' --filter '{packages/happy-app}' exec tsc --noEmit 2>&1 | tee /tmp/codexu-userid-tc.log. Single commit on main. Pitfall: socket auth payload — clients still send a token; resolve it once at process start to the single-user identity, don't strip the auth layer.\""
+      },
+      "ralph": {
+        "stage": "shipped",
+        "branchName": "ralph/userid-cleanup",
+        "deferredQuestionsCount": 0,
+        "artifacts": {
+          "jobDir": ".ralph/jobs/userid-cleanup",
+          "prdFile": ".ralph/jobs/userid-cleanup/prd.json"
+        },
+        "jobSlug": "userid-cleanup",
+        "matchSource": "overviewTaskId",
+        "storyCompletion": {
+          "total": 1,
+          "passed": 1,
+          "blocked": 0,
+          "remaining": 0
+        },
+        "reviewOpenCount": {},
+        "terminalReason": "complete",
+        "lastUpdatedAt": "2026-05-25T11:01:44Z",
+        "storyDoctorInterventions": 0,
+        "crewSessions": {
+          "planning": [
+            {
+              "crewName": "ralph-pipeline",
+              "memberName": "impl-userid-cleanup",
+              "startedAt": "2026-05-25T10:11:39.099Z",
+              "sessionId": "561a9e61-ae62-4c0a-8039-c8e053b63bba",
+              "transcriptPath": "C:\\Users\\evmitran\\.claude\\projects\\D--harness-efforts-codexu\\561a9e61-ae62-4c0a-8039-c8e053b63bba.jsonl",
+              "summary": "worktree created; ralph.sh 3-iter run launched (bg bvqg4pikl)",
+              "cwd": "D:\\harness-efforts\\codexu"
+            }
+          ]
+        }
       }
     },
     {
@@ -847,7 +886,7 @@
         },
         "terminalReason": "complete",
         "lastUpdatedAt": "2026-05-13T20:26:04Z",
-        "mergeCommit": "5d934db3",
+        "mergeCommit": "b0e55a72",
         "storyDoctorInterventions": 0
       }
     },
@@ -863,6 +902,26 @@
         "descriptionHtml": "Tree-style happy-app session list with depth indentation + expand/collapse — unblocked 2026-05-14 (session-parent-link shipped <code>11c3eafb</code>). Spawned by <code>agent-view-research</code>.",
         "warnings": [],
         "planPrompt": "/plan-with-ralph \"Convert the happy-app session list from flat-with-date-groups to a tree with depth indentation + expand/collapse. Per plans/agent-view-research.md §6 task `mobile-tree-view`. PREREQUISITE: session-parent-link must have landed so Session.metadata.parentSessionId + spawnedChildren are queryable. Files: packages/happy-app/sources/sync/storage.ts:250-343 buildSessionListViewData — change from flat SessionListViewItem[] to depth-tagged flattened-tree (each item carries `depth: number` and `hasChildren: boolean`). packages/happy-app/sources/components/SessionsList.tsx:193-333 FlatList — keep FlatList but consume the new depth-tagged data; SessionsList.tsx:342-463 SessionItem memo — render depth-based left indent (e.g., depth × 20px) + chevron icon when hasChildren; toggle expanded state in a new MMKV-persisted Map<sid, boolean>. Active-vs-inactive grouping: when a parent is in the active group, render its children inline beneath it (still in the active group); otherwise children appear inside their date group, indented under parent if the parent is in the SAME date group, otherwise as orphans (rare). Read packages/happy-app/CLAUDE.md sync invariants — renderWindow + seq-based pagination must not be touched. Acceptance: vitest snapshot of buildSessionListViewData with mocked parent + 2 children → correct depth ordering; manual smoke: cold-launch with synthetic parentSessionId data → tree renders, chevron toggles expand/collapse, persists across refresh. Cross-package typecheck green. Single commit on main. Pitfall: SessionItem memo must include depth + expanded in its keyExtractor / memo deps, or stale rows will render at wrong depth on tree mutations.\""
+      },
+      "ralph": {
+        "stage": "implementing",
+        "branchName": "ralph/mobile-tree-view",
+        "deferredQuestionsCount": 0,
+        "artifacts": {
+          "jobDir": ".ralph/jobs/mobile-tree-view",
+          "prdFile": ".ralph/jobs/mobile-tree-view/prd.json"
+        },
+        "jobSlug": "mobile-tree-view",
+        "matchSource": "slug-default",
+        "storyCompletion": {
+          "total": 7,
+          "passed": 5,
+          "blocked": 0,
+          "remaining": 2
+        },
+        "reviewOpenCount": {},
+        "lastUpdatedAt": "2026-05-25T12:26:08Z",
+        "storyDoctorInterventions": 0
       }
     },
     {
@@ -1077,7 +1136,7 @@
       },
       "mergeCommit": "e9fa64a0,d279d49d",
       "ralph": {
-        "stage": "implementing",
+        "stage": "blocked",
         "branchName": "port-explorer-prompt-pointer-bump",
         "deferredQuestionsCount": 0,
         "artifacts": {
@@ -1088,12 +1147,16 @@
         "matchSource": "slug-default",
         "storyCompletion": {
           "total": 10,
-          "passed": 8,
-          "blocked": 2,
+          "passed": 9,
+          "blocked": 1,
           "remaining": 0
         },
-        "reviewOpenCount": {},
-        "lastUpdatedAt": "2026-05-13T21:59:27Z",
+        "reviewOpenCount": {
+          "code": 0,
+          "docs": 0
+        },
+        "terminalReason": "blocked",
+        "lastUpdatedAt": "2026-05-25T00:00:00Z",
         "storyDoctorInterventions": 0,
         "crewSessions": {
           "implementing": [
@@ -1114,7 +1177,29 @@
               "startedAt": "2026-05-24T21:55:07.054Z",
               "sessionId": "d6f905b8-402c-4c9a-b231-7a295357f4a5",
               "transcriptPath": "C:\\Users\\evmitran\\.claude\\projects\\D--harness-efforts-codexu\\d6f905b8-402c-4c9a-b231-7a295357f4a5.jsonl",
-              "summary": null,
+              "summary": "port-explorer-prompt worktree is 274 commits behind main; allow stale-base override to run finalization, or abort?",
+              "cwd": "D:\\harness-efforts\\codexu\\.worktrees\\port-explorer-prompt",
+              "endedAt": "2026-05-24T23:04:28.271Z",
+              "outcome": "stopped"
+            },
+            {
+              "crewName": "ralph-pipeline",
+              "memberName": "impl-port-explorer-prompt-v2",
+              "startedAt": "2026-05-25T09:57:15.091Z",
+              "sessionId": "1bd664b1-b706-49b9-857f-e498b0df6b2c",
+              "transcriptPath": "C:\\Users\\evmitran\\.claude\\projects\\D--harness-efforts-codexu\\1bd664b1-b706-49b9-857f-e498b0df6b2c.jsonl",
+              "summary": "terminal:blocked confirmed; shutting down",
+              "cwd": "D:\\harness-efforts\\codexu"
+            }
+          ],
+          "blocked": [
+            {
+              "crewName": "ralph-pipeline",
+              "memberName": "overview-bookkeeper",
+              "startedAt": "2026-05-19T07:39:23.132Z",
+              "sessionId": "61598f1c-1ec5-4b0f-ae33-2b06d5c6ae30",
+              "transcriptPath": "C:\\Users\\evmitran\\.claude\\projects\\D--harness-efforts-codexu\\61598f1c-1ec5-4b0f-ae33-2b06d5c6ae30.jsonl",
+              "summary": "port-explorer-prompt terminal artifacts committed+pushed (a27e359e); spawned impl-userid-cleanup + impl-codex-base-prompt-safety-rails for next parallel batch",
               "cwd": "D:\\harness-efforts\\codexu"
             }
           ]
@@ -1211,6 +1296,28 @@
         "descriptionHtml": "Inject Claude's safety rails ('NEVER create files...' + 'NEVER proactively create docs...') into codex base prompt via launcher additional_instructions. Spawned by <code>audit-general-purpose-vs-worker</code>.",
         "warnings": [],
         "planPrompt": "/plan-with-ralph \"Inject Claude's two safety rails into codex's main-agent base prompt as launcher-injected additional_instructions (overlay path per AGENTS.override.md tenet 1). Per audit-general-purpose-vs-worker finding (plans/native-agent-parity.md §2.4). Gap: Claude's general-purpose prompt has 'NEVER create files unless absolutely necessary' + 'NEVER proactively create *.md / README files' (D:/harness-efforts/claude-code/worktrees/main/src/tools/AgentTool/built-in/generalPurposeAgent.ts:15-16); codex's main-agent base prompt at codex/external/repos/codex-patched/codex-rs/core/prompts/gpt_5_2_prompt.md:156,158 has only weak abstract analogues ('surgical precision', 'don't gold-plate'). The audit established the correct fix-site is launcher-injected additional_instructions (NOT a worker-only TOML — that would skip the main-agent flow). Implementation: investigate the codex launcher seam — likely codex/codex-rs-overlay/codex-copilot-launcher/ (the precedent overlay crate) is the right place to add a `--additional-instructions` or equivalent flag that codex-core threads into the base prompt. Paraphrase the rule text (do NOT copy verbatim — license posture per plans/native-agent-parity.md §4); cite inspiration in the launcher's docs/source comment. Workflow (codex submodule): worktree at .ralph/jobs/<job-name>/codex-worktree/ pointed at gim-home/codex's main; commit on topic branch; push to gim-home/codex; bump the codexu submodule pointer as a separate commit on codexu main. PREREQUISITE INVESTIGATION: confirm whether codex already exposes an additional_instructions plumbing point, or whether the overlay crate needs to add one. Surface the choice (overlay-vs-upstream-patch) to operator BEFORE landing. Acceptance: cargo build --workspace green; new test asserting the additional_instructions reach the model's system prompt at session start; smoke 'codex exec' with a prompt asking to create a doc verifies the agent declines or asks first. NO happy-cli or happy-app changes — purely codex-submodule + the launcher overlay.\""
+      },
+      "ralph": {
+        "stage": "shipped",
+        "branchName": "main",
+        "deferredQuestionsCount": 0,
+        "artifacts": {
+          "jobDir": ".ralph/jobs/codex-base-prompt-safety-rails",
+          "prdFile": ".ralph/jobs/codex-base-prompt-safety-rails/prd.json"
+        },
+        "jobSlug": "codex-base-prompt-safety-rails",
+        "matchSource": "overviewTaskId",
+        "storyCompletion": {
+          "total": 8,
+          "passed": 8,
+          "blocked": 0,
+          "remaining": 0
+        },
+        "reviewOpenCount": {},
+        "terminalReason": "complete",
+        "lastUpdatedAt": "2026-05-25T12:01:32Z",
+        "mergeCommit": "b0e55a72",
+        "storyDoctorInterventions": 0
       }
     },
     {
@@ -1503,23 +1610,23 @@
   ],
   "recommendations": [
     {
-      "taskId": "1a-fork-doc",
-      "score": 0.6345327535612536,
+      "taskId": "mobile-tree-view",
+      "score": 0.64,
       "stage": "implementing",
       "reasons": [
-        "unblocked",
         "implementing stage",
-        "default priority"
+        "updated today",
+        "partially blocked"
       ]
     },
     {
       "taskId": "port-explorer-prompt",
-      "score": 0.4861939002849003,
-      "stage": "implementing",
+      "score": 0.6,
+      "stage": "blocked",
       "reasons": [
-        "implementing stage",
-        "partially blocked",
-        "default priority"
+        "blocked stage",
+        "updated today",
+        "partially blocked"
       ]
     }
   ],
@@ -1529,7 +1636,7 @@
         "id": "1a-fork-doc",
         "type": "task",
         "taskId": "1a-fork-doc",
-        "stage": "implementing"
+        "stage": "shipped"
       },
       {
         "id": "1a-fork-doc:US-001",
@@ -1670,7 +1777,56 @@
       {
         "id": "codex-base-prompt-safety-rails",
         "type": "task",
-        "taskId": "codex-base-prompt-safety-rails"
+        "taskId": "codex-base-prompt-safety-rails",
+        "stage": "shipped"
+      },
+      {
+        "id": "codex-base-prompt-safety-rails:US-001",
+        "type": "story",
+        "taskId": "codex-base-prompt-safety-rails",
+        "storyId": "US-001"
+      },
+      {
+        "id": "codex-base-prompt-safety-rails:US-002",
+        "type": "story",
+        "taskId": "codex-base-prompt-safety-rails",
+        "storyId": "US-002"
+      },
+      {
+        "id": "codex-base-prompt-safety-rails:US-003",
+        "type": "story",
+        "taskId": "codex-base-prompt-safety-rails",
+        "storyId": "US-003"
+      },
+      {
+        "id": "codex-base-prompt-safety-rails:US-004",
+        "type": "story",
+        "taskId": "codex-base-prompt-safety-rails",
+        "storyId": "US-004"
+      },
+      {
+        "id": "codex-base-prompt-safety-rails:US-005",
+        "type": "story",
+        "taskId": "codex-base-prompt-safety-rails",
+        "storyId": "US-005"
+      },
+      {
+        "id": "codex-base-prompt-safety-rails:US-006",
+        "type": "story",
+        "taskId": "codex-base-prompt-safety-rails",
+        "storyId": "US-006"
+      },
+      {
+        "id": "codex-base-prompt-safety-rails:US-007",
+        "type": "story",
+        "taskId": "codex-base-prompt-safety-rails",
+        "storyId": "US-007"
+      },
+      {
+        "id": "codex-base-prompt-safety-rails:US-008",
+        "type": "story",
+        "taskId": "codex-base-prompt-safety-rails",
+        "storyId": "US-008"
       },
       {
         "id": "codex-channels",
@@ -1775,7 +1931,50 @@
       {
         "id": "mobile-tree-view",
         "type": "task",
-        "taskId": "mobile-tree-view"
+        "taskId": "mobile-tree-view",
+        "stage": "implementing"
+      },
+      {
+        "id": "mobile-tree-view:US-001",
+        "type": "story",
+        "taskId": "mobile-tree-view",
+        "storyId": "US-001"
+      },
+      {
+        "id": "mobile-tree-view:US-002",
+        "type": "story",
+        "taskId": "mobile-tree-view",
+        "storyId": "US-002"
+      },
+      {
+        "id": "mobile-tree-view:US-003",
+        "type": "story",
+        "taskId": "mobile-tree-view",
+        "storyId": "US-003"
+      },
+      {
+        "id": "mobile-tree-view:US-004",
+        "type": "story",
+        "taskId": "mobile-tree-view",
+        "storyId": "US-004"
+      },
+      {
+        "id": "mobile-tree-view:US-005",
+        "type": "story",
+        "taskId": "mobile-tree-view",
+        "storyId": "US-005"
+      },
+      {
+        "id": "mobile-tree-view:US-006",
+        "type": "story",
+        "taskId": "mobile-tree-view",
+        "storyId": "US-006"
+      },
+      {
+        "id": "mobile-tree-view:US-007",
+        "type": "story",
+        "taskId": "mobile-tree-view",
+        "storyId": "US-007"
       },
       {
         "id": "native-agent-parity",
@@ -1812,7 +2011,7 @@
         "id": "port-explorer-prompt",
         "type": "task",
         "taskId": "port-explorer-prompt",
-        "stage": "implementing"
+        "stage": "blocked"
       },
       {
         "id": "port-explorer-prompt:US-001",
@@ -1957,7 +2156,14 @@
       {
         "id": "userid-cleanup",
         "type": "task",
-        "taskId": "userid-cleanup"
+        "taskId": "userid-cleanup",
+        "stage": "shipped"
+      },
+      {
+        "id": "userid-cleanup:US-001",
+        "type": "story",
+        "taskId": "userid-cleanup",
+        "storyId": "US-001"
       }
     ],
     "edges": [
@@ -2047,6 +2253,146 @@
         "type": "depends-on-story"
       },
       {
+        "from": "codex-base-prompt-safety-rails:US-002",
+        "to": "codex-base-prompt-safety-rails:US-001",
+        "type": "depends-on-story"
+      },
+      {
+        "from": "codex-base-prompt-safety-rails:US-003",
+        "to": "codex-base-prompt-safety-rails:US-001",
+        "type": "depends-on-story"
+      },
+      {
+        "from": "codex-base-prompt-safety-rails:US-003",
+        "to": "codex-base-prompt-safety-rails:US-002",
+        "type": "depends-on-story"
+      },
+      {
+        "from": "codex-base-prompt-safety-rails:US-004",
+        "to": "codex-base-prompt-safety-rails:US-001",
+        "type": "depends-on-story"
+      },
+      {
+        "from": "codex-base-prompt-safety-rails:US-004",
+        "to": "codex-base-prompt-safety-rails:US-002",
+        "type": "depends-on-story"
+      },
+      {
+        "from": "codex-base-prompt-safety-rails:US-004",
+        "to": "codex-base-prompt-safety-rails:US-003",
+        "type": "depends-on-story"
+      },
+      {
+        "from": "codex-base-prompt-safety-rails:US-005",
+        "to": "codex-base-prompt-safety-rails:US-001",
+        "type": "depends-on-story"
+      },
+      {
+        "from": "codex-base-prompt-safety-rails:US-005",
+        "to": "codex-base-prompt-safety-rails:US-002",
+        "type": "depends-on-story"
+      },
+      {
+        "from": "codex-base-prompt-safety-rails:US-005",
+        "to": "codex-base-prompt-safety-rails:US-003",
+        "type": "depends-on-story"
+      },
+      {
+        "from": "codex-base-prompt-safety-rails:US-005",
+        "to": "codex-base-prompt-safety-rails:US-004",
+        "type": "depends-on-story"
+      },
+      {
+        "from": "codex-base-prompt-safety-rails:US-006",
+        "to": "codex-base-prompt-safety-rails:US-001",
+        "type": "depends-on-story"
+      },
+      {
+        "from": "codex-base-prompt-safety-rails:US-006",
+        "to": "codex-base-prompt-safety-rails:US-002",
+        "type": "depends-on-story"
+      },
+      {
+        "from": "codex-base-prompt-safety-rails:US-006",
+        "to": "codex-base-prompt-safety-rails:US-003",
+        "type": "depends-on-story"
+      },
+      {
+        "from": "codex-base-prompt-safety-rails:US-006",
+        "to": "codex-base-prompt-safety-rails:US-004",
+        "type": "depends-on-story"
+      },
+      {
+        "from": "codex-base-prompt-safety-rails:US-006",
+        "to": "codex-base-prompt-safety-rails:US-005",
+        "type": "depends-on-story"
+      },
+      {
+        "from": "codex-base-prompt-safety-rails:US-007",
+        "to": "codex-base-prompt-safety-rails:US-001",
+        "type": "depends-on-story"
+      },
+      {
+        "from": "codex-base-prompt-safety-rails:US-007",
+        "to": "codex-base-prompt-safety-rails:US-002",
+        "type": "depends-on-story"
+      },
+      {
+        "from": "codex-base-prompt-safety-rails:US-007",
+        "to": "codex-base-prompt-safety-rails:US-003",
+        "type": "depends-on-story"
+      },
+      {
+        "from": "codex-base-prompt-safety-rails:US-007",
+        "to": "codex-base-prompt-safety-rails:US-004",
+        "type": "depends-on-story"
+      },
+      {
+        "from": "codex-base-prompt-safety-rails:US-007",
+        "to": "codex-base-prompt-safety-rails:US-005",
+        "type": "depends-on-story"
+      },
+      {
+        "from": "codex-base-prompt-safety-rails:US-007",
+        "to": "codex-base-prompt-safety-rails:US-006",
+        "type": "depends-on-story"
+      },
+      {
+        "from": "codex-base-prompt-safety-rails:US-008",
+        "to": "codex-base-prompt-safety-rails:US-001",
+        "type": "depends-on-story"
+      },
+      {
+        "from": "codex-base-prompt-safety-rails:US-008",
+        "to": "codex-base-prompt-safety-rails:US-002",
+        "type": "depends-on-story"
+      },
+      {
+        "from": "codex-base-prompt-safety-rails:US-008",
+        "to": "codex-base-prompt-safety-rails:US-003",
+        "type": "depends-on-story"
+      },
+      {
+        "from": "codex-base-prompt-safety-rails:US-008",
+        "to": "codex-base-prompt-safety-rails:US-004",
+        "type": "depends-on-story"
+      },
+      {
+        "from": "codex-base-prompt-safety-rails:US-008",
+        "to": "codex-base-prompt-safety-rails:US-005",
+        "type": "depends-on-story"
+      },
+      {
+        "from": "codex-base-prompt-safety-rails:US-008",
+        "to": "codex-base-prompt-safety-rails:US-006",
+        "type": "depends-on-story"
+      },
+      {
+        "from": "codex-base-prompt-safety-rails:US-008",
+        "to": "codex-base-prompt-safety-rails:US-007",
+        "type": "depends-on-story"
+      },
+      {
         "from": "codex-wire-spike:US-002",
         "to": "codex-wire-spike:US-001",
         "type": "depends-on-story"
@@ -2059,6 +2405,86 @@
       {
         "from": "codex-wire-spike:US-003",
         "to": "codex-wire-spike:US-002",
+        "type": "depends-on-story"
+      },
+      {
+        "from": "mobile-tree-view:US-002",
+        "to": "mobile-tree-view:US-001",
+        "type": "depends-on-story"
+      },
+      {
+        "from": "mobile-tree-view:US-004",
+        "to": "mobile-tree-view:US-001",
+        "type": "depends-on-story"
+      },
+      {
+        "from": "mobile-tree-view:US-004",
+        "to": "mobile-tree-view:US-002",
+        "type": "depends-on-story"
+      },
+      {
+        "from": "mobile-tree-view:US-004",
+        "to": "mobile-tree-view:US-003",
+        "type": "depends-on-story"
+      },
+      {
+        "from": "mobile-tree-view:US-005",
+        "to": "mobile-tree-view:US-001",
+        "type": "depends-on-story"
+      },
+      {
+        "from": "mobile-tree-view:US-005",
+        "to": "mobile-tree-view:US-002",
+        "type": "depends-on-story"
+      },
+      {
+        "from": "mobile-tree-view:US-005",
+        "to": "mobile-tree-view:US-003",
+        "type": "depends-on-story"
+      },
+      {
+        "from": "mobile-tree-view:US-006",
+        "to": "mobile-tree-view:US-001",
+        "type": "depends-on-story"
+      },
+      {
+        "from": "mobile-tree-view:US-006",
+        "to": "mobile-tree-view:US-002",
+        "type": "depends-on-story"
+      },
+      {
+        "from": "mobile-tree-view:US-006",
+        "to": "mobile-tree-view:US-003",
+        "type": "depends-on-story"
+      },
+      {
+        "from": "mobile-tree-view:US-007",
+        "to": "mobile-tree-view:US-001",
+        "type": "depends-on-story"
+      },
+      {
+        "from": "mobile-tree-view:US-007",
+        "to": "mobile-tree-view:US-002",
+        "type": "depends-on-story"
+      },
+      {
+        "from": "mobile-tree-view:US-007",
+        "to": "mobile-tree-view:US-003",
+        "type": "depends-on-story"
+      },
+      {
+        "from": "mobile-tree-view:US-007",
+        "to": "mobile-tree-view:US-004",
+        "type": "depends-on-story"
+      },
+      {
+        "from": "mobile-tree-view:US-007",
+        "to": "mobile-tree-view:US-005",
+        "type": "depends-on-story"
+      },
+      {
+        "from": "mobile-tree-view:US-007",
+        "to": "mobile-tree-view:US-006",
         "type": "depends-on-story"
       },
       {
@@ -2284,12 +2710,13 @@
     ]
   },
   "runDurations": {
-    "1a-fork-doc/2026-05-14": 0.7,
+    "1a-fork-doc/2026-05-14": 267.3,
     "3h-options/2026-05-14": 1.1,
     "agent-tree-rpc/2026-05-13": 1.4,
     "codex-wire-spike/2026-05-14": 0.6,
     "mcp-discovery/2026-05-13": 0.6,
     "perf-WS3/2026-05-13": 1.2,
+    "port-explorer-prompt/2026-05-14": 267.3,
     "session-parent-link/2026-05-14": 0.6,
     "session-role-pill/2026-05-14": 0.6
   },

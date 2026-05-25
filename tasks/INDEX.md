@@ -2,8 +2,8 @@
 
 # Ralph Tasks Index
 
-Generated: 2026-05-24T21:55:41.880Z
-Source commit: 5d934db3
+Generated: 2026-05-25T12:33:30.970Z
+Source commit: b0e55a72
 
 ## perf-WS3
 - Stage: shipped
@@ -66,9 +66,9 @@ Source commit: 5d934db3
 - Dashboard: [perf-WS2](../plans/overview.html#cmd-perf-WS2)
 
 ## 1a-fork-doc
-- Stage: implementing
+- Stage: shipped
 - jobDir: `.ralph/jobs/1a-fork-doc`
-- Last activity: 2026-05-14T07:00:00Z (1a-fork-doc/2026-05-14) completed - Phase 1a — Codex fork strategy committed. Locks the codex submodule fork model: gim-home/codex as the submodule, openai/codex tracked as a subtree mirror under external/repos/codex-patched/codex-rs/, divergence work in codex-rs-overlay/ as overlay crates (precedent: codex-copilot, codex-copilot-launcher, codex-invariant-tests). Submodule-pointer bumps on codexu main are separate commits after the codex-side commit lands on gim-home/codex. Doc set: codex/docs/implementation/architecture.md (Fork strategy section), codex/docs/implementation/patch-surface.md (upcoming patches catalog — Phase 2c plugin scoping, Phase 2d AskUserQuestion, Phase 7 Claude-via-Copilot), codex/CLAUDE.md (top-level pointer + minimize-conflict-surface tenet). codexu submodule pointer bumped in commit 7fa6ff3b; roadmap §Decisions made entry added.
+- Last activity: 2026-05-24T22:01:23Z Ralph update
 - Dashboard: [1a-fork-doc](../plans/overview.html#cmd-1a-fork-doc)
 
 ## 3b-agents
@@ -102,9 +102,9 @@ Source commit: 5d934db3
 - Dashboard: [3h-options](../plans/overview.html#cmd-3h-options)
 
 ## userid-cleanup
-- Stage: untracked
-- jobDir: n/a
-- Last activity: 2026-05-13T21:45:00Z task touch
+- Stage: shipped
+- jobDir: `.ralph/jobs/userid-cleanup`
+- Last activity: 2026-05-25T11:01:44Z Ralph update
 - Dashboard: [userid-cleanup](../plans/overview.html#cmd-userid-cleanup)
 
 ## happy-upstream-sync
@@ -174,9 +174,9 @@ Source commit: 5d934db3
 - Dashboard: [session-parent-link](../plans/overview.html#cmd-session-parent-link)
 
 ## mobile-tree-view
-- Stage: untracked
-- jobDir: n/a
-- Last activity: 2026-05-14T06:00:00Z task touch
+- Stage: implementing
+- jobDir: `.ralph/jobs/mobile-tree-view`
+- Last activity: 2026-05-25T12:26:08Z Ralph update
 - Dashboard: [mobile-tree-view](../plans/overview.html#cmd-mobile-tree-view)
 
 ## session-role-pill
@@ -228,9 +228,9 @@ Source commit: 5d934db3
 - Dashboard: [codex-hooks-parity](../plans/overview.html#cmd-codex-hooks-parity)
 
 ## port-explorer-prompt
-- Stage: implementing
+- Stage: blocked
 - jobDir: `.ralph/jobs/port-explorer-prompt`
-- Last activity: 2026-05-14T20:00:00Z (port-explorer-prompt/2026-05-14) completed - Filled the previously empty explorer.toml stub at codex/external/repos/codex-patched/codex-rs/core/src/agent/builtins/explorer.toml with a paraphrased Explore prompt (1538 chars, no brand strings, no 6-word verbatim spans from Claude's source — license review approved per plans/native-agent-parity.md §4 posture). Codex-side commit e9fa64a0 on feat/explorer-role-prompt: 3 files +108/-7 — explorer.toml content, role_tests.rs updated (renamed test + new invariant test + session-flags assert + SANDBOX PATCH markers), codex/docs/implementation/patch-surface.md §17 new + §14 row 21. codexu pointer-bump d279d49d (1 file, +1/-1) bumping codex submodule from 17999363 → e9fa64a0. 9 of 10 stories closed (US-006 smoke deferred to post-publish workflow — local rebuild needs LLVM/xwin/V8 env; will be covered by /publish-sandbox-patch + /verify when run). License posture verified at <job_dir>/license-review-approval.md. First piece of the native-agent-parity follow-up wave to ship — no role.rs match-arm change needed (file already wired).
+- Last activity: 2026-05-25T00:00:00Z Ralph update
 - Dashboard: [port-explorer-prompt](../plans/overview.html#cmd-port-explorer-prompt)
 
 ## port-plan-and-verification-roles
@@ -258,9 +258,9 @@ Source commit: 5d934db3
 - Dashboard: [session-parent-link-writer](../plans/overview.html#cmd-session-parent-link-writer)
 
 ## codex-base-prompt-safety-rails
-- Stage: untracked
-- jobDir: n/a
-- Last activity: 2026-05-14T17:00:00Z task touch
+- Stage: shipped
+- jobDir: `.ralph/jobs/codex-base-prompt-safety-rails`
+- Last activity: 2026-05-25T12:01:32Z Ralph update
 - Dashboard: [codex-base-prompt-safety-rails](../plans/overview.html#cmd-codex-base-prompt-safety-rails)
 
 ## codex-child-spawn-tools
