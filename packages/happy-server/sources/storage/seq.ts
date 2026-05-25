@@ -9,7 +9,7 @@ function resolveClient(tx?: SeqClient) {
     return tx ?? db;
 }
 
-export async function allocateUserSeq(_accountId: string) {
+export async function allocateUpdateSeq() {
     updateSeq += 1;
     return updateSeq;
 }

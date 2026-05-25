@@ -133,7 +133,6 @@ function createFakeConnectedSocket(auth: Record<string, unknown> = {}) {
     return {
         id: "socket-1",
         data: {
-            userId: "user-1",
             clientType: "user-scoped",
             happyClient: "test-client/1.0.0",
         },
@@ -199,7 +198,7 @@ describe("createSocketAuthMiddleware — AC-A10 loopback vs tunnel auth", () => 
         await middleware(socket, next);
 
         expect(next).toHaveBeenCalledWith();
-        expect(socket.data.userId).toBe("daemon-user");
+        expect(socket.data.clientType).toBeUndefined();
     });
 
     it("loopback: rejects a tunnel auth header (cross-presented)", async () => {
@@ -224,7 +223,7 @@ describe("createSocketAuthMiddleware — AC-A10 loopback vs tunnel auth", () => 
         await middleware(socket, next);
 
         expect(next).toHaveBeenCalledWith();
-        expect(socket.data.userId).toBe(tunnelConfig.localUserId);
+        expect(socket.data.clientType).toBeUndefined();
     });
 
     it("tunnel: ignores a capability header", async () => {
@@ -236,7 +235,7 @@ describe("createSocketAuthMiddleware — AC-A10 loopback vs tunnel auth", () => 
         await middleware(socket, next);
 
         expect(next).toHaveBeenCalledWith();
-        expect(socket.data.userId).toBe(tunnelConfig.localUserId);
+        expect(socket.data.clientType).toBeUndefined();
     });
 });
 
@@ -261,7 +260,7 @@ describe("startSocket replay handshake", () => {
         const { socket } = connectWithReplay({ lastSeenSeq: 5 }, eventRouter);
 
         expect(eventRouter.addConnection).toHaveBeenCalledOnce();
-        const connection = eventRouter.addConnection.mock.calls[0][1];
+        const connection = eventRouter.addConnection.mock.calls[0][0];
         expect(eventRouter.getReplayForConnection).toHaveBeenCalledWith(5, connection);
         expect(socket.emit.mock.calls.filter(([eventName]) => eventName === "update").map(([, event]) => event.seq)).toEqual([6, 7, 8, 9, 10]);
         expect(socket.emit).not.toHaveBeenCalledWith("replay-overflow", expect.anything());

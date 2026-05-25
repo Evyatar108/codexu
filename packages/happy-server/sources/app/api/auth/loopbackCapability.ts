@@ -22,7 +22,7 @@ export function makeLoopbackTokenReader(paths: LoopbackCapabilityPaths = {}) {
     };
 }
 
-export function verifyLoopbackCapability(paths: LoopbackCapabilityPaths = {}, localUserId: string = "") {
+export function verifyLoopbackCapability(paths: LoopbackCapabilityPaths = {}) {
     const readCapability = makeLoopbackTokenReader(paths);
 
     return async function verifyLoopbackCapabilityDecorator(request: any, reply: any) {
@@ -31,7 +31,6 @@ export function verifyLoopbackCapability(paths: LoopbackCapabilityPaths = {}, lo
         if (!expectedToken || !actualToken || actualToken !== expectedToken) {
             return reply.code(401).send({ error: "invalid_loopback_capability" });
         }
-        request.userId = localUserId;
     };
 }
 

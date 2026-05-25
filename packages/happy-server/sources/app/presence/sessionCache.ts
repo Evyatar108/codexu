@@ -6,14 +6,12 @@ interface SessionCacheEntry {
     validUntil: number;
     lastUpdateSent: number;
     pendingUpdate: number | null;
-    userId: string;
 }
 
 interface MachineCacheEntry {
     validUntil: number;
     lastUpdateSent: number;
     pendingUpdate: number | null;
-    userId: string;
 }
 
 class ActivityCache {
@@ -53,12 +51,12 @@ class ActivityCache {
         }, this.BATCH_INTERVAL);
     }
 
-    async isSessionValid(sessionId: string, userId: string): Promise<boolean> {
+    async isSessionValid(sessionId: string): Promise<boolean> {
         const now = Date.now();
         const cached = this.sessionCache.get(sessionId);
 
         // Check cache first
-        if (cached && cached.validUntil > now && cached.userId === userId) {
+        if (cached && cached.validUntil > now) {
             sessionCacheCounter.inc({ operation: 'session_validation', result: 'hit' });
             return true;
         }
@@ -76,8 +74,7 @@ class ActivityCache {
                 this.sessionCache.set(sessionId, {
                     validUntil: now + this.CACHE_TTL,
                     lastUpdateSent: session.lastActiveAt.getTime(),
-                    pendingUpdate: null,
-                    userId
+                    pendingUpdate: null
                 });
                 return true;
             }
@@ -89,12 +86,12 @@ class ActivityCache {
         }
     }
 
-    async isMachineValid(machineId: string, userId: string): Promise<boolean> {
+    async isMachineValid(machineId: string): Promise<boolean> {
         const now = Date.now();
         const cached = this.machineCache.get(machineId);
 
         // Check cache first
-        if (cached && cached.validUntil > now && cached.userId === userId) {
+        if (cached && cached.validUntil > now) {
             sessionCacheCounter.inc({ operation: 'machine_validation', result: 'hit' });
             return true;
         }
@@ -114,8 +111,7 @@ class ActivityCache {
                 this.machineCache.set(machineId, {
                     validUntil: now + this.CACHE_TTL,
                     lastUpdateSent: machine.lastActiveAt?.getTime() || 0,
-                    pendingUpdate: null,
-                    userId
+                    pendingUpdate: null
                 });
                 return true;
             }

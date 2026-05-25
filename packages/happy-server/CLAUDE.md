@@ -9,16 +9,11 @@ standalone multi-tenant service. The codexu fork dropped the public hosted
 deployment after Sprint A landed `createHappyServer()` + `dualListenerBinding()`
 in happy-cli's daemon. There is **exactly one user per process**.
 
-Consequence for the code surface: the multi-tenant `userId` scoping that
-remains throughout `sources/` (request decorators, Prisma WHERE clauses,
-`eventRouter` per-user fan-out keys, `allocateUserSeq`'s userId partition —
-~140 references total) is dead weight. A tracked cleanup is queued as
-`userid-cleanup` in `plans/parallel-assignments.md`, sequenced after
-`perf-WS3` lands (WS3 currently spec's a per-user replay-buffer ring; in
-single-user mode that partition is trivial and gets stripped as part of
-the cleanup commit). Until that lands, treat `userId` plumbing as
-deprecated-but-functional — don't add new `userId` scoping in new code,
-but don't strip existing scoping ad-hoc either.
+Consequence for the code surface: request decorators, socket handlers,
+`eventRouter` fan-out, presence validation, and update sequence allocation are
+single-process surfaces. Do not reintroduce per-request or per-socket `userId`
+threading in `sources/`; auth still validates the operator boundary, but route
+and socket code should not carry a tenant identity just to scope updates.
 
 The "Local Development" section below still describes how to run the server
 in standalone mode for testing; production use is via the embedded path in
@@ -28,16 +23,20 @@ the daemon.
 
 Reconnect replay in `sources/app/events/eventRouter.ts` uses a flat
 `BufferedUpdate[]` plus a module-scoped `let currentSeq`, not a map keyed by
-`userId`. The buffer retains only the latest 1024 update events; there is no
-age eviction. This is valid because `packages/happy-cli/src/daemon/dualListenerBinding.ts`
-runs one embedded happy-server daemon per operator, and `sources/storage/seq.ts`
+`userId`. Socket.IO rooms are process-scoped (`session:<id>`, `machine:<id>`,
+`user-scoped`, plus the internal authenticated broadcast room), and the buffer
+retains only the latest 1024 update events; there is no age eviction. This is
+valid because `packages/happy-cli/src/daemon/dualListenerBinding.ts` runs one
+embedded happy-server daemon per operator, and `sources/storage/seq.ts`
 currently allocates a process-local update sequence for that daemon.
 
-`allocateUserSeq(...)` must run before `EventRouterSink.emitUpdate(...)`, and
+`allocateUpdateSeq()` must run before `EventRouterSink.emitUpdate(...)`, and
 `emitUpdate(...)` appends to the replay buffer only after the payload's `seq`
-exists. Cross-process or cross-cluster replay is intentionally deferred; if the
-daemon deployment invariant is relaxed, re-introduce userId-keyed buffers and
-per-account `allocateUserSeq` state, or move the replay window into shared Redis.
+exists. Cross-process or cross-cluster replay is intentionally deferred. If the
+daemon deployment invariant is relaxed, re-introduce userId checks together in
+the presence cache, eventRouter room scheme, replay buffer partitioning, and
+update sequence allocation; changing only one of those surfaces creates a false
+sense of tenant isolation.
 
 ## Project Overview
 

@@ -30,7 +30,7 @@ import { log } from "@/utils/log";
  * Range validation failures (toSeq < fromSeq, limit outside 1..200) collapse
  * to a single invalid_range error code.
  */
-export function sessionMessageRangeHandler(_userId: string, socket: Socket) {
+export function sessionMessageRangeHandler(socket: Socket) {
     socket.on('session-message-range', async (data: unknown, callback?: (response: SessionMessageRangeResponse) => void) => {
         if (typeof callback !== 'function') {
             return;

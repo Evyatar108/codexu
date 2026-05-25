@@ -73,10 +73,8 @@ export function configureApi(app: any, tofuConfig: TofuHandshakeConfig = { local
     // Enable features
     enableMonitoring(typed);
     enableErrorHandlers(typed);
-    typed.decorate('verifyLoopbackCapability', verifyLoopbackCapability(options.paths, tofuConfig.localUserId));
-    typed.decorate('authenticateTunnel', async function (request: any) {
-        request.userId = tofuConfig.localUserId;
-    });
+    typed.decorate('verifyLoopbackCapability', verifyLoopbackCapability(options.paths));
+    typed.decorate('authenticateTunnel', async function (_request: any) {});
     typed.decorate('authenticate', options.auth === "loopback" ? typed.verifyLoopbackCapability : typed.authenticateTunnel);
 
     // Serve local files when using local storage
@@ -109,7 +107,7 @@ export function configureApi(app: any, tofuConfig: TofuHandshakeConfig = { local
     if (options.auth !== "loopback") {
         pairRoutes(typed, tofuConfig, options.paths);
         pushRoutes(typed, tofuConfig);
-        sessionRoutes(typed, eventRouter);
+    sessionRoutes(typed, eventRouter, { localMachineId: tofuConfig.localUserId });
         devRoutes(typed);
         versionRoutes(typed);
         v3SessionRoutes(typed, eventRouter);

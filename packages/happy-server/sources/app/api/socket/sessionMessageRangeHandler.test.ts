@@ -228,7 +228,7 @@ describe("sessionMessageRangeHandler", () => {
         seedSession({ id: "session-1", accountId: "user-A" });
 
         socket = createSocket();
-        sessionMessageRangeHandler("user-B", socket as any);
+        sessionMessageRangeHandler(socket as any);
         const neverExisted = await callHandler(socket, {
             requestId: "req-1",
             sessionId: "missing-session",
@@ -257,7 +257,7 @@ describe("sessionMessageRangeHandler", () => {
         seedMessage({ sessionId: "session-1", seq: 201 });
 
         socket = createSocket();
-        sessionMessageRangeHandler("user-1", socket as any);
+        sessionMessageRangeHandler(socket as any);
 
         const response = await callHandler(socket, {
             requestId: "req-empty",
@@ -285,7 +285,7 @@ describe("sessionMessageRangeHandler", () => {
     it("rejects invalid_range for toSeq < fromSeq, limit = 0, and limit = 201", async () => {
         seedSession({ id: "session-1", accountId: "user-1" });
         socket = createSocket();
-        sessionMessageRangeHandler("user-1", socket as any);
+        sessionMessageRangeHandler(socket as any);
 
         const cases: Array<{ label: string; payload: any }> = [
             {
@@ -346,7 +346,7 @@ describe("sessionMessageRangeHandler", () => {
         }
 
         socket = createSocket();
-        sessionMessageRangeHandler("user-1", socket as any);
+        sessionMessageRangeHandler(socket as any);
 
         const response = await callHandler(socket, {
             requestId: "req-happy",
@@ -386,7 +386,7 @@ describe("sessionMessageRangeHandler", () => {
         }
 
         socket = createSocket();
-        sessionMessageRangeHandler("user-1", socket as any);
+        sessionMessageRangeHandler(socket as any);
 
         const response = await callHandler(socket, {
             requestId: "req-A",
@@ -417,7 +417,7 @@ describe("sessionMessageRangeHandler", () => {
         }
 
         socket = createSocket();
-        sessionMessageRangeHandler("user-1", socket as any);
+        sessionMessageRangeHandler(socket as any);
 
         const response = await callHandler(socket, {
             requestId: "req-B",
@@ -443,7 +443,7 @@ describe("sessionMessageRangeHandler", () => {
         }
 
         socket = createSocket();
-        sessionMessageRangeHandler("user-1", socket as any);
+        sessionMessageRangeHandler(socket as any);
 
         const response = await callHandler(socket, {
             requestId: "req-C",
@@ -469,7 +469,7 @@ describe("sessionMessageRangeHandler", () => {
         }
 
         socket = createSocket();
-        sessionMessageRangeHandler("user-1", socket as any);
+        sessionMessageRangeHandler(socket as any);
 
         const response = await callHandler(socket, {
             requestId: "req-D",
@@ -492,7 +492,7 @@ describe("sessionMessageRangeHandler", () => {
         }
 
         socket = createSocket();
-        sessionMessageRangeHandler("user-1", socket as any);
+        sessionMessageRangeHandler(socket as any);
 
         const response = await callHandler(socket, {
             requestId: "req-fit",

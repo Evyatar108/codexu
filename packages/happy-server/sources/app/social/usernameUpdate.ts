@@ -1,16 +1,15 @@
-import { Context } from "@/context";
-import { allocateUserSeq } from "@/storage/seq";
+import { allocateUpdateSeq } from "@/storage/seq";
 import { buildUpdateAccountUpdate, type EventRouter } from "@/app/events/eventRouter";
 import { randomKeyNaked } from "@/utils/randomKeyNaked";
 
-export async function usernameUpdate(ctx: Context, username: string, eventRouter: EventRouter): Promise<void> {
-    const userId = ctx.uid;
+const LOCAL_ACCOUNT_ID = "local-user";
 
+export async function usernameUpdate(username: string, eventRouter: EventRouter): Promise<void> {
     // Send account update to all user connections
-    const updSeq = await allocateUserSeq(userId);
-    const updatePayload = buildUpdateAccountUpdate(userId, { username: username }, updSeq, randomKeyNaked(12));
+    const updSeq = await allocateUpdateSeq();
+    const updatePayload = buildUpdateAccountUpdate(LOCAL_ACCOUNT_ID, { username: username }, updSeq, randomKeyNaked(12));
     eventRouter.emitUpdate({
-        userId, payload: updatePayload,
+        payload: updatePayload,
         recipientFilter: { type: 'user-scoped-only' }
     });
 }

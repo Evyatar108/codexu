@@ -5,18 +5,16 @@ import { z } from "zod";
 import { Prisma } from "@prisma/client";
 import { log } from "@/utils/log";
 import { randomKeyNaked } from "@/utils/randomKeyNaked";
-import { allocateUserSeq } from "@/storage/seq";
+import { allocateUpdateSeq } from "@/storage/seq";
 import { sessionDelete } from "@/app/session/sessionDelete";
 import { sendSessionPushEvent } from "@/app/push/pushNotifications";
 
-export function sessionRoutes(app: Fastify, eventRouter: EventRouter) {
+export function sessionRoutes(app: Fastify, eventRouter: EventRouter, options: { localMachineId: string }) {
 
     // Sessions API
     app.get('/v1/sessions', {
         preHandler: app.authenticate,
     }, async (request, reply) => {
-        const userId = request.userId;
-
         const sessions = await db.session.findMany({
             where: {},
             orderBy: { updatedAt: 'desc' },
@@ -80,7 +78,6 @@ export function sessionRoutes(app: Fastify, eventRouter: EventRouter) {
             }).optional()
         }
     }, async (request, reply) => {
-        const userId = request.userId;
         const limit = request.query?.limit || 150;
 
         const sessions = await db.session.findMany({
@@ -133,7 +130,6 @@ export function sessionRoutes(app: Fastify, eventRouter: EventRouter) {
             }).optional()
         }
     }, async (request, reply) => {
-        const userId = request.userId;
         const { cursor, limit = 50, changedSince } = request.query || {};
 
         // Decode cursor - simple ID-based cursor
@@ -227,7 +223,6 @@ export function sessionRoutes(app: Fastify, eventRouter: EventRouter) {
         },
         preHandler: app.authenticate
     }, async (request, reply) => {
-        const userId = request.userId;
         const { tag, metadata, dataEncryptionKey } = request.body;
 
         const session = await db.session.findFirst({
@@ -236,7 +231,7 @@ export function sessionRoutes(app: Fastify, eventRouter: EventRouter) {
             }
         });
         if (session) {
-            log({ module: 'session-create', sessionId: session.id, userId, tag }, `Found existing session: ${session.id} for tag ${tag}`);
+            log({ module: 'session-create', sessionId: session.id, tag }, `Found existing session: ${session.id} for tag ${tag}`);
             return reply.send({
                 session: {
                     id: session.id,
@@ -256,10 +251,10 @@ export function sessionRoutes(app: Fastify, eventRouter: EventRouter) {
         } else {
 
             // Resolve seq
-            const updSeq = await allocateUserSeq(userId);
+            const updSeq = await allocateUpdateSeq();
 
             // Create session
-            log({ module: 'session-create', userId, tag }, `Creating new session for user ${userId} with tag ${tag}`);
+            log({ module: 'session-create', tag }, `Creating new session with tag ${tag}`);
             const session = await db.session.create({
                 data: {
                     tag: tag,
@@ -267,25 +262,23 @@ export function sessionRoutes(app: Fastify, eventRouter: EventRouter) {
                     dataEncryptionKey: dataEncryptionKey ? new Uint8Array(Buffer.from(dataEncryptionKey, 'base64')) : undefined
                 }
             });
-            log({ module: 'session-create', sessionId: session.id, userId }, `Session created: ${session.id}`);
+            log({ module: 'session-create', sessionId: session.id }, `Session created: ${session.id}`);
 
             // Emit new session update
             const updatePayload = buildNewSessionUpdate(session, updSeq, randomKeyNaked(12));
             log({
                 module: 'session-create',
-                userId,
                 sessionId: session.id,
                 updateType: 'new-session',
                 updatePayload: JSON.stringify(updatePayload)
             }, `Emitting new-session update to user-scoped connections`);
             eventRouter.emitUpdate({
-                userId,
                 payload: updatePayload,
                 recipientFilter: { type: 'user-scoped-only' }
             });
 
             await sendSessionPushEvent({
-                machineId: userId,
+                machineId: options.localMachineId,
                 sessionId: session.id,
                 kind: "new-session",
                 summary: "New session created",
@@ -318,7 +311,6 @@ export function sessionRoutes(app: Fastify, eventRouter: EventRouter) {
         },
         preHandler: app.authenticate
     }, async (request, reply) => {
-        const userId = request.userId;
         const { sessionId } = request.params;
 
         // Verify session belongs to user
@@ -367,7 +359,6 @@ export function sessionRoutes(app: Fastify, eventRouter: EventRouter) {
         },
         preHandler: app.authenticate
     }, async (request, reply) => {
-        const userId = request.userId;
         const { sessionId } = request.params;
 
         const result = await db.session.updateMany({
@@ -382,7 +373,6 @@ export function sessionRoutes(app: Fastify, eventRouter: EventRouter) {
         // Notify all clients about the session deactivation
         const sessionActivity = buildSessionActivityEphemeral(sessionId, false, Date.now(), false);
         eventRouter.emitEphemeral({
-            userId,
             payload: sessionActivity,
             recipientFilter: { type: 'user-scoped-only' }
         });
@@ -399,10 +389,9 @@ export function sessionRoutes(app: Fastify, eventRouter: EventRouter) {
         },
         preHandler: app.authenticate
     }, async (request, reply) => {
-        const userId = request.userId;
         const { sessionId } = request.params;
 
-        const deleted = await sessionDelete({ uid: userId }, sessionId, eventRouter);
+        const deleted = await sessionDelete(sessionId, eventRouter);
 
         if (!deleted) {
             return reply.code(404).send({ error: 'Session not found or not owned by user' });

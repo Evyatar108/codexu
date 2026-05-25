@@ -1,7 +1,6 @@
-import { Context } from "@/context";
 import { inTx, afterTx } from "@/storage/inTx";
 import { buildDeleteSessionUpdate, type EventRouter } from "@/app/events/eventRouter";
-import { allocateUserSeq } from "@/storage/seq";
+import { allocateUpdateSeq } from "@/storage/seq";
 import { randomKeyNaked } from "@/utils/randomKeyNaked";
 import { log } from "@/utils/log";
 
@@ -12,11 +11,10 @@ import { log } from "@/utils/log";
  * - Deleting the session itself
  * - Sending socket notification to all connected clients
  *
- * @param ctx - Context with user information
  * @param sessionId - ID of the session to delete
  * @returns true if deletion was successful, false if the session was not found
  */
-export async function sessionDelete(ctx: Context, sessionId: string, eventRouter: EventRouter): Promise<boolean> {
+export async function sessionDelete(sessionId: string, eventRouter: EventRouter): Promise<boolean> {
     return await inTx(async (tx) => {
         // Verify session exists and belongs to the user
         const session = await tx.session.findFirst({
@@ -57,7 +55,7 @@ export async function sessionDelete(ctx: Context, sessionId: string, eventRouter
 
         // Send notification after transaction commits
         afterTx(tx, async () => {
-            const updSeq = await allocateUserSeq(ctx.uid);
+            const updSeq = await allocateUpdateSeq();
             const updatePayload = buildDeleteSessionUpdate(sessionId, updSeq, randomKeyNaked(12));
 
             log({
@@ -68,7 +66,6 @@ export async function sessionDelete(ctx: Context, sessionId: string, eventRouter
             }, `Emitting delete-session update to user-scoped connections`);
 
             eventRouter.emitUpdate({
-                userId: ctx.uid,
                 payload: updatePayload,
                 recipientFilter: { type: 'user-scoped-only' }
             });

@@ -4,8 +4,8 @@ import type { RemoteSocket } from "socket.io";
 import type { DefaultEventsMap } from "socket.io/dist/typed-events";
 import { Counter, Histogram, register } from 'prom-client';
 
-// RPC routing uses Socket.IO rooms. A daemon registering method M for user U
-// joins room `rpc:U:M`. Callers look the daemon up cross-replica via
+// RPC routing uses Socket.IO rooms. A daemon registering method M joins room
+// `rpc:M`. Callers look the daemon up cross-replica via
 // io.in(room).fetchSockets() — supplied by the cluster adapter (the streams
 // adapter inherits from ClusterAdapterWithHeartbeat, which implements both
 // fetchSockets-cross-replica and broadcast-ack-cross-replica).
@@ -63,8 +63,8 @@ const rpcFetchSocketsTimeouts = new Counter({
     registers: [register]
 });
 
-function rpcRoom(userId: string, method: string): string {
-    return `${RPC_ROOM_PREFIX}${userId}:${method}`;
+function rpcRoom(method: string): string {
+    return `${RPC_ROOM_PREFIX}${method}`;
 }
 
 /**
@@ -125,7 +125,7 @@ async function waitForRoomMember(io: Server, room: string, maxMs: number, metric
     }
 }
 
-export function rpcHandler(userId: string, socket: Socket, io: Server) {
+export function rpcHandler(socket: Socket, io: Server) {
 
     socket.on('rpc-register', (data: any) => {
         try {
@@ -134,7 +134,7 @@ export function rpcHandler(userId: string, socket: Socket, io: Server) {
                 socket.emit('rpc-error', { type: 'register', error: 'Invalid method name' });
                 return;
             }
-            socket.join(rpcRoom(userId, method));
+            socket.join(rpcRoom(method));
             socket.emit('rpc-registered', { method });
         } catch (error) {
             log({ module: 'websocket', level: 'error' }, `Error in rpc-register: ${error}`);
@@ -149,7 +149,7 @@ export function rpcHandler(userId: string, socket: Socket, io: Server) {
                 socket.emit('rpc-error', { type: 'unregister', error: 'Invalid method name' });
                 return;
             }
-            socket.leave(rpcRoom(userId, method));
+            socket.leave(rpcRoom(method));
             socket.emit('rpc-unregistered', { method });
         } catch (error) {
             log({ module: 'websocket', level: 'error' }, `Error in rpc-unregister: ${error}`);
@@ -179,7 +179,7 @@ export function rpcHandler(userId: string, socket: Socket, io: Server) {
             // If the room is empty OR fetchSockets fails (peer replica
             // unresponsive — fetchRoomSockets logs and returns []) fall
             // through to the wait-for-reconnect grace window.
-            const room = rpcRoom(userId, method);
+            const room = rpcRoom(method);
             let targets = await fetchRoomSockets(io, room, RPC_LOOKUP_FETCH_TIMEOUTS_MS[0]);
             if (targets.length === 0) {
                 targets = await waitForRoomMember(io, room, RPC_RECONNECT_GRACE_MS, baseMethodName(method));

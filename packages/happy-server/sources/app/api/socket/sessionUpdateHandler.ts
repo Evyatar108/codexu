@@ -2,7 +2,7 @@ import { getMetricsLabelsFromSocket, sessionAliveEventsCounter, websocketEventsC
 import { activityCache } from "@/app/presence/sessionCache";
 import { buildNewMessageUpdate, buildSessionActivityEphemeral, buildUpdateSessionUpdate, ClientConnection, type EventRouter } from "@/app/events/eventRouter";
 import { db } from "@/storage/db";
-import { allocateSessionSeq, allocateUserSeq } from "@/storage/seq";
+import { allocateSessionSeq, allocateUpdateSeq } from "@/storage/seq";
 import { AsyncLock } from "@/utils/lock";
 import { log } from "@/utils/log";
 import { randomKeyNaked } from "@/utils/randomKeyNaked";
@@ -10,9 +10,8 @@ import { sendSessionPushEvent } from "@/app/push/pushNotifications";
 import { Socket } from "socket.io";
 import { AgentTreeUpdateInboundPayloadSchema } from "@slopus/happy-wire";
 
-export function sessionUpdateHandler(userId: string, socket: Socket, connection: ClientConnection, eventRouter: EventRouter) {
+export function sessionUpdateHandler(socket: Socket, connection: ClientConnection, eventRouter: EventRouter, machineId: string) {
     const labels = getMetricsLabelsFromSocket(socket);
-    const machineId = userId;
 
     socket.on('push-event', async (data: {
         sid: string;
@@ -61,7 +60,6 @@ export function sessionUpdateHandler(userId: string, socket: Socket, connection:
         }
 
         eventRouter.emitAgentTreeUpdate({
-            userId,
             sessionId: connection.sessionId,
             delta: parsed.data.delta
         });
@@ -107,14 +105,13 @@ export function sessionUpdateHandler(userId: string, socket: Socket, connection:
             }
 
             // Generate session metadata update
-            const updSeq = await allocateUserSeq(userId);
+            const updSeq = await allocateUpdateSeq();
             const metadataUpdate = {
                 value: metadata,
                 version: expectedVersion + 1
             };
             const updatePayload = buildUpdateSessionUpdate(sid, updSeq, randomKeyNaked(12), metadataUpdate);
             eventRouter.emitUpdate({
-                userId,
                 payload: updatePayload,
                 recipientFilter: { type: 'all-interested-in-session', sessionId: sid }
             });
@@ -179,14 +176,13 @@ export function sessionUpdateHandler(userId: string, socket: Socket, connection:
             }
 
             // Generate session agent state update
-            const updSeq = await allocateUserSeq(userId);
+            const updSeq = await allocateUpdateSeq();
             const agentStateUpdate = {
                 value: agentState,
                 version: expectedVersion + 1
             };
             const updatePayload = buildUpdateSessionUpdate(sid, updSeq, randomKeyNaked(12), undefined, agentStateUpdate);
             eventRouter.emitUpdate({
-                userId,
                 payload: updatePayload,
                 recipientFilter: { type: 'all-interested-in-session', sessionId: sid }
             });
@@ -233,7 +229,7 @@ export function sessionUpdateHandler(userId: string, socket: Socket, connection:
             const { sid, thinking } = data;
 
             // Check session validity using cache
-            const isValid = await activityCache.isSessionValid(sid, userId);
+            const isValid = await activityCache.isSessionValid(sid);
             if (!isValid) {
                 return;
             }
@@ -244,7 +240,6 @@ export function sessionUpdateHandler(userId: string, socket: Socket, connection:
             // Emit session activity update
             const sessionActivity = buildSessionActivityEphemeral(sid, true, t, thinking || false);
             eventRouter.emitEphemeral({
-                userId,
                 payload: sessionActivity,
                 recipientFilter: { type: 'user-scoped-only' }
             });
@@ -278,7 +273,7 @@ export function sessionUpdateHandler(userId: string, socket: Socket, connection:
                 };
 
                 // Resolve seq
-                const updSeq = await allocateUserSeq(userId);
+                const updSeq = await allocateUpdateSeq();
                 const msgSeq = await allocateSessionSeq(sid);
 
                 // Check if message already exists
@@ -304,7 +299,6 @@ export function sessionUpdateHandler(userId: string, socket: Socket, connection:
                 // Emit new message update to relevant clients
                 const updatePayload = buildNewMessageUpdate(msg, sid, updSeq, randomKeyNaked(12));
                 eventRouter.emitUpdate({
-                    userId,
                     payload: updatePayload,
                     recipientFilter: { type: 'all-interested-in-session', sessionId: sid },
                     skipSenderConnection: connection
@@ -356,7 +350,6 @@ export function sessionUpdateHandler(userId: string, socket: Socket, connection:
             // Emit session activity update
             const sessionActivity = buildSessionActivityEphemeral(sid, false, t, false);
             eventRouter.emitEphemeral({
-                userId,
                 payload: sessionActivity,
                 recipientFilter: { type: 'user-scoped-only' }
             });

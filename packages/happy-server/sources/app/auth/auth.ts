@@ -3,20 +3,16 @@ import { log } from "@/utils/log";
 
 /** Cache entries expire after 24 hours */
 const TOKEN_CACHE_TTL = 24 * 60 * 60 * 1000;
-/** Hard cap to prevent unbounded growth */
-const MAX_CACHE_SIZE = 10_000;
 /** Run cleanup every 10 minutes */
 const CLEANUP_INTERVAL = 10 * 60 * 1000;
 
 interface TokenCacheEntry {
-    userId: string;
     extras?: any;
     cachedAt: number;
 }
 
 interface AuthTokens {
     generator: Awaited<ReturnType<typeof privacyKit.createPersistentTokenGenerator>>;
-    verifier: Awaited<ReturnType<typeof privacyKit.createPersistentTokenVerifier>>;
     githubVerifier: Awaited<ReturnType<typeof privacyKit.createEphemeralTokenVerifier>>;
     githubGenerator: Awaited<ReturnType<typeof privacyKit.createEphemeralTokenGenerator>>;
 }
@@ -39,11 +35,6 @@ class AuthModule {
         });
 
 
-        const verifier = await privacyKit.createPersistentTokenVerifier({
-            service: 'handy',
-            publicKey: Uint8Array.from(generator.publicKey)
-        });
-
         const githubGenerator = await privacyKit.createEphemeralTokenGenerator({
             service: 'github-happy',
             seed: process.env.HANDY_MASTER_SECRET!,
@@ -55,8 +46,7 @@ class AuthModule {
             publicKey: Uint8Array.from(githubGenerator.publicKey),
         });
 
-
-        this.tokens = { generator, verifier, githubVerifier, githubGenerator };
+        this.tokens = { generator, githubVerifier, githubGenerator };
 
         // Start periodic cleanup of expired cache entries
         this.cleanupTimer = setInterval(() => this.cleanup(), CLEANUP_INTERVAL);
@@ -78,76 +68,11 @@ class AuthModule {
         
         // Cache the token immediately
         this.tokenCache.set(token, {
-            userId,
             extras,
             cachedAt: Date.now()
         });
         
         return token;
-    }
-    
-    async verifyToken(token: string): Promise<{ userId: string; extras?: any } | null> {
-        // Check cache first (with TTL)
-        const cached = this.tokenCache.get(token);
-        if (cached) {
-            if (Date.now() - cached.cachedAt > TOKEN_CACHE_TTL) {
-                this.tokenCache.delete(token);
-            } else {
-                return {
-                    userId: cached.userId,
-                    extras: cached.extras
-                };
-            }
-        }
-        
-        // Cache miss - verify token
-        if (!this.tokens) {
-            throw new Error('Auth module not initialized');
-        }
-        
-        try {
-            const verified = await this.tokens.verifier.verify(token);
-            if (!verified) {
-                return null;
-            }
-            
-            const userId = verified.user as string;
-            const extras = verified.extras;
-            
-            // Evict oldest entries if cache is at capacity
-            if (this.tokenCache.size >= MAX_CACHE_SIZE) {
-                const oldest = [...this.tokenCache.entries()]
-                    .sort((a, b) => a[1].cachedAt - b[1].cachedAt)
-                    .slice(0, Math.floor(MAX_CACHE_SIZE * 0.2));
-                for (const [key] of oldest) {
-                    this.tokenCache.delete(key);
-                }
-            }
-
-            this.tokenCache.set(token, {
-                userId,
-                extras,
-                cachedAt: Date.now()
-            });
-            
-            return { userId, extras };
-            
-        } catch (error) {
-            log({ module: 'auth', level: 'error' }, `Token verification failed: ${error}`);
-            return null;
-        }
-    }
-    
-    invalidateUserTokens(userId: string): void {
-        // Remove all tokens for a specific user
-        // This is expensive but rarely needed
-        for (const [token, entry] of this.tokenCache.entries()) {
-            if (entry.userId === userId) {
-                this.tokenCache.delete(token);
-            }
-        }
-        
-        log({ module: 'auth' }, `Invalidated tokens for user: ${userId}`);
     }
     
     invalidateToken(token: string): void {

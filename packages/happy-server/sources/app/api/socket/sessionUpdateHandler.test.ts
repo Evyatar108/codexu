@@ -22,7 +22,7 @@ vi.mock("@/storage/db", () => ({
 
 vi.mock("@/storage/seq", () => ({
     allocateSessionSeq: vi.fn(),
-    allocateUserSeq: vi.fn()
+    allocateUpdateSeq: vi.fn()
 }));
 
 vi.mock("@/utils/lock", () => ({
@@ -90,11 +90,10 @@ describe("sessionUpdateHandler agent-tree-update", () => {
         const eventRouter = createEventRouter();
         const connection: ClientConnection = {
             connectionType: "user-scoped",
-            socket: socket as any,
-            userId: "user-1"
+            socket: socket as any
         };
 
-        sessionUpdateHandler("user-1", socket as any, connection, eventRouter);
+        sessionUpdateHandler(socket as any, connection, eventRouter, "machine-1");
         socket.handlers.get("agent-tree-update")?.({ delta: createDelta() });
 
         expect(eventRouter.emitAgentTreeUpdate).not.toHaveBeenCalled();
@@ -106,18 +105,16 @@ describe("sessionUpdateHandler agent-tree-update", () => {
         const connection: ClientConnection = {
             connectionType: "session-scoped",
             socket: socket as any,
-            userId: "user-1",
             sessionId: "trusted-session"
         };
         const delta = createDelta();
 
-        sessionUpdateHandler("user-1", socket as any, connection, eventRouter);
+        sessionUpdateHandler(socket as any, connection, eventRouter, "machine-1");
         socket.handlers.get("agent-tree-update")?.({ sessionId: "forged-session", delta });
         socket.handlers.get("agent-tree-update")?.({ delta: { type: "unknown", seq: 2 } });
 
         expect(eventRouter.emitAgentTreeUpdate).toHaveBeenCalledTimes(1);
         expect(eventRouter.emitAgentTreeUpdate).toHaveBeenCalledWith({
-            userId: "user-1",
             sessionId: "trusted-session",
             delta
         });

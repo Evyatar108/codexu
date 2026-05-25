@@ -4,10 +4,10 @@ import { buildMachineActivityEphemeral, buildUpdateMachineUpdate, type EventRout
 import { log } from "@/utils/log";
 import { db } from "@/storage/db";
 import { Socket } from "socket.io";
-import { allocateUserSeq } from "@/storage/seq";
+import { allocateUpdateSeq } from "@/storage/seq";
 import { randomKeyNaked } from "@/utils/randomKeyNaked";
 
-export function machineUpdateHandler(userId: string, socket: Socket, eventRouter: EventRouter) {
+export function machineUpdateHandler(socket: Socket, eventRouter: EventRouter) {
     const labels = getMetricsLabelsFromSocket(socket);
 
     socket.on('machine-alive', async (data: {
@@ -33,7 +33,7 @@ export function machineUpdateHandler(userId: string, socket: Socket, eventRouter
             }
 
             // Check machine validity using cache
-            const isValid = await activityCache.isMachineValid(data.machineId, userId);
+            const isValid = await activityCache.isMachineValid(data.machineId);
             if (!isValid) {
                 return;
             }
@@ -43,7 +43,6 @@ export function machineUpdateHandler(userId: string, socket: Socket, eventRouter
 
             const machineActivity = buildMachineActivityEphemeral(data.machineId, true, t);
             eventRouter.emitEphemeral({
-                userId,
                 payload: machineActivity,
                 recipientFilter: { type: 'user-scoped-only' }
             });
@@ -117,14 +116,13 @@ export function machineUpdateHandler(userId: string, socket: Socket, eventRouter
             }
 
             // Generate machine metadata update
-            const updSeq = await allocateUserSeq(userId);
+            const updSeq = await allocateUpdateSeq();
             const metadataUpdate = {
                 value: metadata,
                 version: expectedVersion + 1
             };
             const updatePayload = buildUpdateMachineUpdate(machineId, updSeq, randomKeyNaked(12), metadataUpdate);
             eventRouter.emitUpdate({
-                userId,
                 payload: updatePayload,
                 recipientFilter: { type: 'machine-scoped-only', machineId }
             });
@@ -209,14 +207,13 @@ export function machineUpdateHandler(userId: string, socket: Socket, eventRouter
             }
 
             // Generate machine daemon state update
-            const updSeq = await allocateUserSeq(userId);
+            const updSeq = await allocateUpdateSeq();
             const daemonStateUpdate = {
                 value: daemonState,
                 version: expectedVersion + 1
             };
             const updatePayload = buildUpdateMachineUpdate(machineId, updSeq, randomKeyNaked(12), undefined, daemonStateUpdate);
             eventRouter.emitUpdate({
-                userId,
                 payload: updatePayload,
                 recipientFilter: { type: 'machine-scoped-only', machineId }
             });

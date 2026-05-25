@@ -5,7 +5,6 @@ import { type Fastify } from "../types";
 
 type SessionRecord = {
     id: string;
-    accountId: string;
     seq: number;
 };
 
@@ -30,7 +29,6 @@ const {
     const state = {
         sessions: [] as SessionRecord[],
         messages: [] as MessageRecord[],
-        accountSeqById: new Map<string, number>(),
         nextMessageId: 1,
         nowMs: 1700000000000
     };
@@ -38,20 +36,15 @@ const {
     const resetState = () => {
         state.sessions = [];
         state.messages = [];
-        state.accountSeqById = new Map<string, number>();
         state.nextMessageId = 1;
         state.nowMs = 1700000000000;
     };
 
-    const seedSession = (input: Partial<SessionRecord> & Pick<SessionRecord, "id" | "accountId">) => {
+    const seedSession = (input: Partial<SessionRecord> & Pick<SessionRecord, "id">) => {
         state.sessions.push({
             id: input.id,
-            accountId: input.accountId,
             seq: input.seq ?? 0
         });
-        if (!state.accountSeqById.has(input.accountId)) {
-            state.accountSeqById.set(input.accountId, 0);
-        }
     };
 
     const seedMessage = (input: {
@@ -108,15 +101,6 @@ const {
         return selectFields(session as unknown as Record<string, unknown>, args?.select);
     });
 
-    const accountUpdate = vi.fn(async (args: any) => {
-        const accountId = args?.where?.id as string;
-        const current = state.accountSeqById.get(accountId) ?? 0;
-        const increment = args?.data?.seq?.increment ?? 0;
-        const next = current + increment;
-        state.accountSeqById.set(accountId, next);
-        return selectFields({ seq: next }, args?.select);
-    });
-
     const sessionMessageFindMany = vi.fn(async (args: any) => {
         let rows = [...state.messages];
 
@@ -168,18 +152,12 @@ const {
             findMany: sessionMessageFindMany,
             create: sessionMessageCreate
         },
-        account: {
-            update: accountUpdate
-        }
     };
 
     const dbMock = {
         session: {
             findFirst: sessionFindFirst,
             update: sessionUpdate
-        },
-        account: {
-            update: accountUpdate
         },
         sessionMessage: {
             findMany: sessionMessageFindMany,
@@ -230,11 +208,10 @@ async function createApp() {
     const typed = app.withTypeProvider<ZodTypeProvider>() as unknown as Fastify;
 
     typed.decorate("authenticate", async (request: any, reply: any) => {
-        const userId = request.headers["x-user-id"];
-        if (typeof userId !== "string") {
+        const authHeader = request.headers["x-user-id"];
+        if (typeof authHeader !== "string") {
             return reply.code(401).send({ error: "Unauthorized" });
         }
-        request.userId = userId;
     });
 
     v3SessionRoutes(typed, {
@@ -265,7 +242,7 @@ describe("v3SessionRoutes", () => {
     });
 
     it("reads messages in seq order from the beginning", async () => {
-        seedSession({ id: "session-1", accountId: "user-1" });
+        seedSession({ id: "session-1" });
         seedMessage({ sessionId: "session-1", seq: 2, localId: "l2", content: { t: "encrypted", c: "b" } });
         seedMessage({ sessionId: "session-1", seq: 1, localId: "l1", content: { t: "encrypted", c: "a" } });
 
@@ -283,7 +260,7 @@ describe("v3SessionRoutes", () => {
     });
 
     it("supports cursor pagination with hasMore", async () => {
-        seedSession({ id: "session-1", accountId: "user-1" });
+        seedSession({ id: "session-1" });
         for (let seq = 1; seq <= 5; seq += 1) {
             seedMessage({ sessionId: "session-1", seq, localId: `l${seq}`, content: { t: "encrypted", c: String(seq) } });
         }
@@ -318,7 +295,7 @@ describe("v3SessionRoutes", () => {
     });
 
     it("returns empty results for empty sessions and after_seq beyond latest", async () => {
-        seedSession({ id: "session-1", accountId: "user-1" });
+        seedSession({ id: "session-1" });
         seedMessage({ sessionId: "session-1", seq: 1, localId: "l1", content: { t: "encrypted", c: "a" } });
 
         app = await createApp();
@@ -335,7 +312,7 @@ describe("v3SessionRoutes", () => {
     });
 
     it("enforces read query bounds, auth, and session existence", async () => {
-        seedSession({ id: "session-1", accountId: "owner-user" });
+        seedSession({ id: "session-1" });
         app = await createApp();
 
         const invalidLimit = await app.inject({
@@ -367,7 +344,7 @@ describe("v3SessionRoutes", () => {
     });
 
     it("sends a single message and emits a new-message update", async () => {
-        seedSession({ id: "session-1", accountId: "user-1", seq: 0 });
+        seedSession({ id: "session-1", seq: 0 });
 
         app = await createApp();
         const response = await app.inject({
@@ -393,7 +370,7 @@ describe("v3SessionRoutes", () => {
     });
 
     it("sends multiple messages with sequential seq numbers", async () => {
-        seedSession({ id: "session-1", accountId: "user-1", seq: 0 });
+        seedSession({ id: "session-1", seq: 0 });
 
         app = await createApp();
         const response = await app.inject({
@@ -416,7 +393,7 @@ describe("v3SessionRoutes", () => {
     });
 
     it("deduplicates by localId and returns mixed existing/new messages sorted by seq", async () => {
-        seedSession({ id: "session-1", accountId: "user-1", seq: 1 });
+        seedSession({ id: "session-1", seq: 1 });
         seedMessage({ sessionId: "session-1", seq: 1, localId: "existing", content: { t: "encrypted", c: "old" } });
 
         app = await createApp();
@@ -441,7 +418,7 @@ describe("v3SessionRoutes", () => {
     });
 
     it("enforces send validation limits, auth, and session existence", async () => {
-        seedSession({ id: "session-1", accountId: "owner-user" });
+        seedSession({ id: "session-1" });
         app = await createApp();
 
         const emptyBatch = await app.inject({

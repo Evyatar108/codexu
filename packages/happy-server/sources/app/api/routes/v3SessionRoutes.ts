@@ -1,6 +1,6 @@
 import { buildNewMessageUpdate, type EventRouter } from "@/app/events/eventRouter";
 import { db } from "@/storage/db";
-import { allocateSessionSeqBatch, allocateUserSeq } from "@/storage/seq";
+import { allocateSessionSeqBatch, allocateUpdateSeq } from "@/storage/seq";
 import { randomKeyNaked } from "@/utils/randomKeyNaked";
 import { z } from "zod";
 import { type Fastify } from "../types";
@@ -106,7 +106,6 @@ export function v3SessionRoutes(app: Fastify, eventRouter: EventRouter) {
             body: sendMessagesBodySchema
         }
     }, async (request, reply) => {
-        const userId = request.userId;
         const { sessionId } = request.params;
         const { messages } = request.body;
 
@@ -195,7 +194,7 @@ export function v3SessionRoutes(app: Fastify, eventRouter: EventRouter) {
             if (!content) {
                 continue;
             }
-            const updSeq = await allocateUserSeq(userId);
+            const updSeq = await allocateUpdateSeq();
             const updatePayload = buildNewMessageUpdate({
                 ...message,
                 content: {
@@ -205,7 +204,6 @@ export function v3SessionRoutes(app: Fastify, eventRouter: EventRouter) {
             }, sessionId, updSeq, randomKeyNaked(12));
 
             eventRouter.emitUpdate({
-                userId,
                 payload: updatePayload,
                 recipientFilter: { type: 'all-interested-in-session', sessionId }
             });

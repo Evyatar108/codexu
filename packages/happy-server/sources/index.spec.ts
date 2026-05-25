@@ -149,7 +149,7 @@ async function triggerMachineUpdateState(machineId: string, encryptedDaemonState
         on: (event: string, handler: (...args: any[]) => void) => handlers.set(event, handler),
     } as any;
     const eventRouter = { emitEphemeral: () => undefined, emitUpdate: () => undefined } as any;
-    machineUpdateHandler("local-user", socket, eventRouter);
+    machineUpdateHandler(socket, eventRouter);
     const handler = handlers.get("machine-update-state");
     if (!handler) throw new Error("machine-update-state handler was not registered");
 

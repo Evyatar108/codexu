@@ -95,8 +95,7 @@ function createAgentTreeDelta(seq: number): AgentTreeDelta {
 function userConnection(socket: FakeSocket): ClientConnection {
     return {
         connectionType: "user-scoped",
-        socket: socket as any,
-        userId: "user-1"
+        socket: socket as any
     };
 }
 
@@ -104,7 +103,6 @@ function sessionConnection(socket: FakeSocket, sessionId: string): ClientConnect
     return {
         connectionType: "session-scoped",
         socket: socket as any,
-        userId: "user-1",
         sessionId
     };
 }
@@ -113,7 +111,6 @@ function machineConnection(socket: FakeSocket, machineId: string): ClientConnect
     return {
         connectionType: "machine-scoped",
         socket: socket as any,
-        userId: "user-1",
         machineId
     };
 }
@@ -132,19 +129,16 @@ describe("createEventRouter", () => {
         const socket1 = createSocket("listener-1-user", io1);
         const socket2 = createSocket("listener-2-user", io2);
 
-        router1.addConnection("user-1", {
+        router1.addConnection({
             connectionType: "user-scoped",
-            socket: socket1 as any,
-            userId: "user-1"
+            socket: socket1 as any
         });
-        router2.addConnection("user-1", {
+        router2.addConnection({
             connectionType: "user-scoped",
-            socket: socket2 as any,
-            userId: "user-1"
+            socket: socket2 as any
         });
 
         router1.emitUpdate({
-            userId: "user-1",
             payload: {
                 id: "update-1",
                 seq: 1,
@@ -174,21 +168,18 @@ describe("createEventRouter", () => {
         const remote = createSocket("remote", io2);
 
         for (const [router, socket] of [[router1, sender], [router1, peer], [router2, remote]] as const) {
-            router.addConnection("user-1", {
+            router.addConnection({
                 connectionType: "user-scoped",
-                socket: socket as any,
-                userId: "user-1"
+                socket: socket as any
             });
         }
 
         router1.emitEphemeral({
-            userId: "user-1",
             payload: { type: "usage", id: "session-1", key: "tokens", tokens: {}, cost: {}, timestamp: 1700000000000 },
             recipientFilter: { type: "user-scoped-only" },
             skipSenderConnection: {
                 connectionType: "user-scoped",
-                socket: sender as any,
-                userId: "user-1"
+                socket: sender as any
             }
         });
 
@@ -206,7 +197,7 @@ describe("createEventRouter", () => {
         const machineUpdateHandler = readFileSync(resolve(root, "app/api/socket/machineUpdateHandler.ts"), "utf8");
 
         expect(v3SessionRoutes).toContain("export function v3SessionRoutes(app: Fastify, eventRouter: EventRouter)");
-        expect(machineUpdateHandler).toContain("export function machineUpdateHandler(userId: string, socket: Socket, eventRouter: EventRouter)");
+        expect(machineUpdateHandler).toContain("export function machineUpdateHandler(socket: Socket, eventRouter: EventRouter)");
         expect(v3SessionRoutes).not.toContain("import { buildNewMessageUpdate, eventRouter }");
         expect(machineUpdateHandler).not.toContain("import { eventRouter }");
     });
@@ -218,11 +209,10 @@ describe("createEventRouter", () => {
         const attached = createSocket("attached", io);
         const reconnecting = createSocket("reconnecting", io);
 
-        router.addConnection("user-1", userConnection(attached));
+        router.addConnection(userConnection(attached));
 
         for (let seq = 1; seq <= 10; seq += 1) {
             router.emitUpdate({
-                userId: "user-1",
                 payload: createUpdatePayload(seq)
             });
         }
@@ -246,7 +236,6 @@ describe("createEventRouter", () => {
 
         for (let seq = 1; seq <= 2000; seq += 1) {
             router.emitUpdate({
-                userId: "user-1",
                 payload: createUpdatePayload(seq)
             });
         }
@@ -271,10 +260,9 @@ describe("createEventRouter", () => {
             { type: "machine-scoped-only", machineId: "m1" }
         ];
 
-        router.emitUpdate({ userId: "user-1", payload: createUpdatePayload(1) });
+        router.emitUpdate({ payload: createUpdatePayload(1) });
         filters.forEach((recipientFilter, index) => {
             router.emitUpdate({
-                userId: "user-1",
                 payload: createUpdatePayload(index + 2),
                 recipientFilter
             });
@@ -306,12 +294,11 @@ describe("createEventRouter", () => {
         const machineSocket = createSocket("machine-other", io);
         const delta = createAgentTreeDelta(1);
 
-        router.addConnection("user-1", sessionConnection(sessionSocket, "s1"));
-        router.addConnection("user-1", userConnection(userSocket));
-        router.addConnection("user-1", machineConnection(machineSocket, "machine-other"));
+        router.addConnection(sessionConnection(sessionSocket, "s1"));
+        router.addConnection(userConnection(userSocket));
+        router.addConnection(machineConnection(machineSocket, "machine-other"));
 
         router.emitAgentTreeUpdate({
-            userId: "user-1",
             sessionId: "s1",
             delta
         });

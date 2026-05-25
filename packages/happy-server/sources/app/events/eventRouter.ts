@@ -11,20 +11,17 @@ import type { AgentTreeDelta, SessionMessageContent } from "@slopus/happy-wire";
 export interface SessionScopedConnection {
     connectionType: 'session-scoped';
     socket: Socket;
-    userId: string;
     sessionId: string;
 }
 
 export interface UserScopedConnection {
     connectionType: 'user-scoped';
     socket: Socket;
-    userId: string;
 }
 
 export interface MachineScopedConnection {
     connectionType: 'machine-scoped';
     socket: Socket;
-    userId: string;
     machineId: string;
 }
 
@@ -221,9 +218,10 @@ export interface ReplayResult {
 }
 
 const replayBufferLimit = 1024;
+const authenticatedRoom = 'authenticated';
 
 // Flat buffer is valid because each daemon process serves exactly one operator.
-// If that invariant changes, re-introduce userId-keying and per-account allocateUserSeq state.
+// If that invariant changes, re-introduce userId-keying and per-account allocateUpdateSeq state.
 const replayBuffer: BufferedUpdate[] = [];
 let currentSeq = 0;
 
@@ -231,7 +229,6 @@ let currentSeq = 0;
 
 type RoutedSocketEvent = {
     sourceId: string;
-    userId: string;
     eventName: 'update' | 'ephemeral' | 'agent-tree-update';
     payload: any;
     recipientFilter: RecipientFilter;
@@ -241,23 +238,20 @@ type RoutedSocketEvent = {
 export type EventRouterBus = EventEmitter;
 
 export interface EventRouter {
-    addConnection(userId: string, connection: ClientConnection): void;
-    removeConnection(userId: string, connection: ClientConnection): void;
+    addConnection(connection: ClientConnection): void;
+    removeConnection(connection: ClientConnection): void;
     getReplayForConnection(lastSeenSeq: number, connection: ClientConnection): ReplayResult;
     emitUpdate(params: {
-        userId: string;
         payload: UpdatePayload;
         recipientFilter?: RecipientFilter;
         skipSenderConnection?: ClientConnection;
     }): void;
     emitEphemeral(params: {
-        userId: string;
         payload: EphemeralPayload;
         recipientFilter?: RecipientFilter;
         skipSenderConnection?: ClientConnection;
     }): void;
     emitAgentTreeUpdate(params: {
-        userId: string;
         sessionId: string;
         delta: AgentTreeDelta;
         skipSenderConnection?: ClientConnection;
@@ -281,24 +275,24 @@ class EventRouterSink implements EventRouter {
 
     // === CONNECTION MANAGEMENT (via Socket.IO rooms) ===
 
-    addConnection(userId: string, connection: ClientConnection): void {
+    addConnection(connection: ClientConnection): void {
         const socket = connection.socket;
-        socket.join(`user:${userId}`);
+        socket.join(authenticatedRoom);
 
         switch (connection.connectionType) {
             case 'user-scoped':
-                socket.join(`user:${userId}:user-scoped`);
+                socket.join('user-scoped');
                 break;
             case 'session-scoped':
-                socket.join(`user:${userId}:session:${connection.sessionId}`);
+                socket.join(`session:${connection.sessionId}`);
                 break;
             case 'machine-scoped':
-                socket.join(`user:${userId}:machine:${connection.machineId}`);
+                socket.join(`machine:${connection.machineId}`);
                 break;
         }
     }
 
-    removeConnection(userId: string, connection: ClientConnection): void {
+    removeConnection(_connection: ClientConnection): void {
         // Socket.IO automatically removes sockets from all rooms on disconnect
     }
 
@@ -332,7 +326,6 @@ class EventRouterSink implements EventRouter {
     // === EVENT EMISSION METHODS ===
 
     emitUpdate(params: {
-        userId: string;
         payload: UpdatePayload;
         recipientFilter?: RecipientFilter;
         skipSenderConnection?: ClientConnection;
@@ -343,7 +336,6 @@ class EventRouterSink implements EventRouter {
         this.appendToReplayBuffer(params.payload, recipientFilter);
 
         this.publish({
-            userId: params.userId,
             eventName: 'update',
             payload: params.payload,
             recipientFilter,
@@ -352,13 +344,11 @@ class EventRouterSink implements EventRouter {
     }
 
     emitEphemeral(params: {
-        userId: string;
         payload: EphemeralPayload;
         recipientFilter?: RecipientFilter;
         skipSenderConnection?: ClientConnection;
     }): void {
         this.publish({
-            userId: params.userId,
             eventName: 'ephemeral',
             payload: params.payload,
             recipientFilter: params.recipientFilter || { type: 'all-user-authenticated-connections' },
@@ -367,13 +357,11 @@ class EventRouterSink implements EventRouter {
     }
 
     emitAgentTreeUpdate(params: {
-        userId: string;
         sessionId: string;
         delta: AgentTreeDelta;
         skipSenderConnection?: ClientConnection;
     }): void {
         this.publish({
-            userId: params.userId,
             eventName: 'agent-tree-update',
             payload: { sessionId: params.sessionId, delta: params.delta },
             recipientFilter: { type: 'all-interested-in-session', sessionId: params.sessionId },
@@ -392,18 +380,18 @@ class EventRouterSink implements EventRouter {
     }
 
     // Keep this mapping in lockstep with doesFilterMatchConnection.
-    private getRoomsForFilter(userId: string, filter: RecipientFilter): string[] {
+    private getRoomsForFilter(filter: RecipientFilter): string[] {
         switch (filter.type) {
             case 'all-user-authenticated-connections':
-                return [`user:${userId}`];
+                return [authenticatedRoom];
             case 'user-scoped-only':
-                return [`user:${userId}:user-scoped`];
+                return ['user-scoped'];
             case 'all-interested-in-session':
                 // Union: session watchers + user-scoped (Socket.IO deduplicates)
-                return [`user:${userId}:session:${filter.sessionId}`, `user:${userId}:user-scoped`];
+                return [`session:${filter.sessionId}`, 'user-scoped'];
             case 'machine-scoped-only':
                 // Union: specific machine + user-scoped
-                return [`user:${userId}:machine:${filter.machineId}`, `user:${userId}:user-scoped`];
+                return [`machine:${filter.machineId}`, 'user-scoped'];
         }
     }
 
@@ -424,7 +412,6 @@ class EventRouterSink implements EventRouter {
     }
 
     private publish(params: {
-        userId: string;
         eventName: 'update' | 'ephemeral' | 'agent-tree-update';
         payload: any;
         recipientFilter: RecipientFilter;
@@ -437,7 +424,7 @@ class EventRouterSink implements EventRouter {
     }
 
     private emitToLocalSink(params: RoutedSocketEvent): void {
-        const rooms = this.getRoomsForFilter(params.userId, params.recipientFilter);
+        const rooms = this.getRoomsForFilter(params.recipientFilter);
 
         if (params.sourceId === this.id && params.skipSenderConnection) {
             params.skipSenderConnection.socket.broadcast.to(rooms).emit(params.eventName, params.payload);

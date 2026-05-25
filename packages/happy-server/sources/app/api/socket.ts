@@ -84,7 +84,6 @@ export function createSocketAuthMiddleware(tofuConfig: TofuHandshakeConfig, sock
             return;
         }
 
-        socket.data.userId = tofuConfig.localUserId;
         socket.data.clientType = clientType;
         socket.data.sessionId = sessionId;
         socket.data.machineId = machineId;
@@ -137,13 +136,12 @@ export function startSocket(app: Fastify, tofuConfig: TofuHandshakeConfig = { lo
     io.use(createSocketAuthMiddleware(tofuConfig, socketOptions));
 
     io.on("connection", (socket) => {
-        const userId = socket.data.userId as string;
         const clientType = socket.data.clientType as 'session-scoped' | 'user-scoped' | 'machine-scoped' | undefined;
         const sessionId = socket.data.sessionId as string | undefined;
         const machineId = socket.data.machineId as string | undefined;
         const labels = getMetricsLabelsFromSocket(socket);
 
-        log({ module: 'websocket' }, `TOFU handshake accepted: ${userId}, clientType: ${clientType || 'user-scoped'}, client: ${labels.client}, sessionId: ${sessionId || 'none'}, machineId: ${machineId || 'none'}, socketId: ${socket.id}`);
+        log({ module: 'websocket' }, `TOFU handshake accepted: clientType: ${clientType || 'user-scoped'}, client: ${labels.client}, sessionId: ${sessionId || 'none'}, machineId: ${machineId || 'none'}, socketId: ${socket.id}`);
 
         if (tofuConfig.tofuPublicKeys) {
             socket.emit('tofu-pubkeys', tofuConfig.tofuPublicKeys);
@@ -156,21 +154,18 @@ export function startSocket(app: Fastify, tofuConfig: TofuHandshakeConfig = { lo
             connection = {
                 connectionType: 'session-scoped',
                 socket,
-                userId,
                 sessionId
             };
         } else if (metadata.clientType === 'machine-scoped' && machineId) {
             connection = {
                 connectionType: 'machine-scoped',
                 socket,
-                userId,
                 machineId
             };
         } else {
             connection = {
                 connectionType: 'user-scoped',
-                socket,
-                userId
+                socket
             };
         }
         const lastSeenSeq = socket.handshake.auth.lastSeenSeq;
@@ -178,7 +173,7 @@ export function startSocket(app: Fastify, tofuConfig: TofuHandshakeConfig = { lo
             ? eventRouter.getReplayForConnection(lastSeenSeq, connection)
             : null;
 
-        eventRouter.addConnection(userId, connection);
+        eventRouter.addConnection(connection);
 
         if (replay !== null) {
             if (replay.overflow) {
@@ -197,7 +192,6 @@ export function startSocket(app: Fastify, tofuConfig: TofuHandshakeConfig = { lo
             // Broadcast daemon online
             const machineActivity = buildMachineActivityEphemeral(machineId!, true, Date.now());
             eventRouter.emitEphemeral({
-                userId,
                 payload: machineActivity,
                 recipientFilter: { type: 'user-scoped-only' }
             });
@@ -207,16 +201,15 @@ export function startSocket(app: Fastify, tofuConfig: TofuHandshakeConfig = { lo
             websocketEventsCounter.inc({ event_type: 'disconnect', ...labels });
 
             // Cleanup connections
-            eventRouter.removeConnection(userId, connection);
+            eventRouter.removeConnection(connection);
             websocketConnectionsGauge.dec({ type: connection.connectionType, ...labels });
 
-            log({ module: 'websocket' }, `User disconnected: ${userId}`);
+            log({ module: 'websocket' }, `Socket disconnected: ${socket.id}`);
 
             // Broadcast daemon offline status
             if (connection.connectionType === 'machine-scoped') {
                 const machineActivity = buildMachineActivityEphemeral(connection.machineId, false, Date.now());
                 eventRouter.emitEphemeral({
-                    userId,
                     payload: machineActivity,
                     recipientFilter: { type: 'user-scoped-only' }
                 });
@@ -224,14 +217,14 @@ export function startSocket(app: Fastify, tofuConfig: TofuHandshakeConfig = { lo
         });
 
         // Handlers
-        rpcHandler(userId, socket, io);
-        sessionUpdateHandler(userId, socket, connection, eventRouter);
+        rpcHandler(socket, io);
+        sessionUpdateHandler(socket, connection, eventRouter, tofuConfig.localUserId);
         pingHandler(socket);
-        machineUpdateHandler(userId, socket, eventRouter);
-        sessionMessageRangeHandler(userId, socket);
+        machineUpdateHandler(socket, eventRouter);
+        sessionMessageRangeHandler(socket);
 
         // Ready
-        log({ module: 'websocket' }, `User connected: ${userId}`);
+        log({ module: 'websocket' }, `Socket connected: ${socket.id}`);
     });
 
     onShutdown('api', async () => {
