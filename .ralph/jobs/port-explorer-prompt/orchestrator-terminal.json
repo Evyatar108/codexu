@@ -1,0 +1,20 @@
+{
+  "terminal": true,
+  "terminalReason": "blocked",
+  "lastExitReason": "phase-6-complete",
+  "completedAt": "2026-05-25T00:00:00Z",
+  "storyCompletion": {
+    "total": 10,
+    "passed": 9,
+    "blocked": 1,
+    "remaining": 0
+  },
+  "blockedStories": [
+    {
+      "id": "US-006",
+      "reason": "deferred-by-design",
+      "detail": "Post-publish operator workflow per notepad line 37. Smoke against the installed codex binary cannot pick up the new explorer.toml because include_str! is compile-time, and local rebuild requires LLVM/xwin/V8 env not available on this machine. End-to-end smoke is intentionally deferred to the /publish-sandbox-patch → /verify workflow."
+    }
+  ],
+  "notes": "Resumed under crews v1.5.6 by member impl-port-explorer-prompt-v2 (predecessor impl-port-explorer-prompt was context-poisoned by an earlier crews deadlock loop and stopped). Phase 5a/5b/5.5 short-circuited with zero-finding manifests per the empty-diff pattern established by sibling job impl-1a-fork-doc. US-010 flipped to passed via codexu commit 5d934db3 (W-5 subtree→submodule landing, codex pointer at b3db233 downstream of US-007 commit e9fa64a). terminalReason='blocked' is accurate-by-design: US-006 is the only blocked story and is deferred-by-design to the post-publish workflow."
+}

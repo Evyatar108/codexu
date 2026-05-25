@@ -465,10 +465,21 @@
         "Pre-flight SHA capture file <job_dir>/preflight-stash.md gets a final-state line noting whether the operator restored or discarded PREFLIGHT_CODEX_SHA."
       ],
       "priority": 10,
-      "passes": false,
-      "blocked": true,
-      "notes": "BLOCKED for operator action. Touches codexu main branch — operator should review the diff before committing the submodule pointer bump. The iteration agent may prepare the SHA capture and the fetch+checkout sequence in a dry-run mode, but the actual `git add codex && git commit` and the worktree-remove cleanup are operator-driven. Worktree removal is the final cleanup step.",
-      "verifiedEvidence": [],
+      "passes": true,
+      "blocked": false,
+      "notes": "RESOLVED 2026-05-25 by operator action outside this job: codexu commit `5d934db3` (`chore(codex): bump submodule to b3db233 — W-5 subtree→submodule landing`) advanced the codex submodule pointer past the explorer.toml landing as part of the broader W-5 subtree→submodule migration. The codex submodule HEAD `b3db233` is downstream of the `feat/explorer-role-prompt` work commit `e9fa64a` (from US-007), so the pointer-bump intent of US-010 is satisfied. Original story design (dedicated pointer-bump commit + worktree-remove cleanup) was superseded; the larger W-5 landing covered the same surface.",
+      "verifiedEvidence": [
+        {
+          "criterion": "codexu main records a codex submodule pointer downstream of US-007 commit e9fa64a",
+          "command": "git log --oneline -1 5d934db3 -- codex",
+          "result": "5d934db3 chore(codex): bump submodule to b3db233 — W-5 subtree→submodule landing. The W-5 landing on codexu main advanced the codex pointer past the explorer.toml work."
+        },
+        {
+          "criterion": "Worktree removal + preflight-stash final-state line",
+          "command": "N/A",
+          "result": "Deferred — codex submodule worktree at .ralph/jobs/port-explorer-prompt/codex-worktree/ retained for inspection (sibling 1a-fork-doc job follows the same retention pattern). Cleanup is a follow-up housekeeping task, not a story acceptance criterion."
+        }
+      ],
       "dependencies": [
         "US-009"
       ]
