@@ -10,6 +10,7 @@ const mmkv = new MMKV();
 const NEW_SESSION_DRAFT_KEY = 'new-session-draft-v1';
 const REGISTERED_PUSH_TOKEN_KEY = 'registered-push-token-v1';
 const LAST_SEEN_UPDATE_SEQ_BY_MACHINE_ID_KEY = 'last-seen-update-seq-by-machine-id-v1';
+const SESSION_TREE_EXPANDED_KEY = 'session-tree-expanded-v1';
 
 export type NewSessionAgentType = 'claude' | 'codex' | 'gemini' | 'openclaw';
 export type NewSessionSessionType = 'simple' | 'worktree';
@@ -172,6 +173,34 @@ export function saveRegisteredPushToken(token: string) {
 
 export function clearRegisteredPushToken() {
     mmkv.delete(REGISTERED_PUSH_TOKEN_KEY);
+}
+
+export function loadSessionTreeExpanded(): Record<string, true> {
+    const raw = mmkv.getString(SESSION_TREE_EXPANDED_KEY);
+    if (raw) {
+        try {
+            const parsed = JSON.parse(raw);
+            if (!parsed || typeof parsed !== 'object') {
+                return {};
+            }
+
+            const expanded: Record<string, true> = {};
+            for (const [sid, value] of Object.entries(parsed)) {
+                if (value === true) {
+                    expanded[sid] = true;
+                }
+            }
+            return expanded;
+        } catch (e) {
+            console.error('Failed to parse session tree expanded state', e);
+            return {};
+        }
+    }
+    return {};
+}
+
+export function saveSessionTreeExpanded(state: Record<string, true>): void {
+    mmkv.set(SESSION_TREE_EXPANDED_KEY, JSON.stringify(state));
 }
 
 export function loadSessionPermissionModes(): Record<string, string> {

@@ -1,7 +1,7 @@
 import * as React from 'react';
 import TestRenderer, { act } from 'react-test-renderer';
 import { describe, expect, it, vi } from 'vitest';
-import type { SessionRowData } from '@/sync/storage';
+import type { TreeSessionRowData } from '@/sync/storage';
 
 (
     globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT: boolean }
@@ -27,6 +27,12 @@ const theme = {
     },
 };
 
+const expansionMock = vi.hoisted(() => ({
+    expanded: {} as Record<string, true>,
+    isExpanded: vi.fn((sid: string) => sid === 'session-1'),
+    toggle: vi.fn(),
+}));
+
 type TestRendererInstance = ReturnType<typeof TestRenderer.create>;
 type RenderNode = {
     props: { children?: unknown } & Record<string, unknown>;
@@ -39,6 +45,12 @@ vi.mock('react-native', () => ({
     FlatList: 'FlatList',
     Platform: { OS: 'web', select: (values: Record<string, unknown>) => values.web ?? values.default },
     StyleSheet: { hairlineWidth: 1 },
+}));
+
+vi.mock('@/hooks/useSessionTreeExpansion', () => ({
+    useSessionTreeExpansion: (selector?: (state: typeof expansionMock) => unknown) => {
+        return selector ? selector(expansionMock) : expansionMock;
+    },
 }));
 
 vi.mock('react-native-unistyles', () => ({
@@ -165,7 +177,7 @@ vi.mock('./layout', () => ({
 
 const { SessionItem, formatModelCode } = await import('./SessionsList');
 
-const baseSession: SessionRowData = {
+const baseSession: TreeSessionRowData = {
     id: 'session-1',
     name: 'Session One',
     subtitle: 'D:/repo',
@@ -182,18 +194,24 @@ const baseSession: SessionRowData = {
     homeDir: 'D:/',
     completedTodosCount: 0,
     totalTodosCount: 0,
+    depth: 0,
+    hasChildren: false,
 };
 
-function renderSession(session: Partial<SessionRowData>): TestRendererInstance {
+function renderSession(session: Partial<TreeSessionRowData>, props: { expanded?: boolean } = {}): TestRendererInstance {
+    const resolvedSession = { ...baseSession, ...session };
     let renderer!: TestRendererInstance;
     act(() => {
         renderer = TestRenderer.create(
             <SessionItem
-                session={{ ...baseSession, ...session }}
+                session={resolvedSession}
                 selected={false}
                 isFirst
                 isLast
                 isSingle
+                depth={resolvedSession.depth}
+                expanded={props.expanded ?? expansionMock.isExpanded(resolvedSession.id)}
+                hasChildren={resolvedSession.hasChildren}
             />
         );
     });
@@ -208,6 +226,23 @@ function textContent(node: RenderNode): string {
 }
 
 describe('SessionsList role pills', () => {
+    it('renders a tree chevron with depth indent and stops propagation on toggle', () => {
+        expansionMock.toggle.mockClear();
+        const stopPropagation = vi.fn();
+        const renderer = renderSession({ depth: 2, hasChildren: true }, { expanded: false });
+
+        const toggle = renderer.root.findByProps({ testID: 'session-tree-toggle-session-1' });
+        expect(toggle.findByType('Ionicons').props.name).toBe('chevron-forward');
+        expect(renderer.root.findAllByType('Pressable')[0].props.style).toContainEqual({ paddingLeft: 56, paddingRight: 16 });
+
+        act(() => {
+            toggle.props.onPress({ stopPropagation });
+        });
+
+        expect(stopPropagation).toHaveBeenCalledOnce();
+        expect(expansionMock.toggle).toHaveBeenCalledWith('session-1');
+    });
+
     it('formats known model families from the last dash segment', () => {
         expect(formatModelCode('gpt-5-codex')).toBe('codex');
         expect(formatModelCode('claude-opus')).toBe('opus');

@@ -109,6 +109,13 @@ vi.mock('@/hooks/useNewSessionDraft', () => ({
     }),
 }));
 
+vi.mock('@/hooks/useSessionTreeExpansion', () => ({
+    useSessionTreeExpansion: (selector: any) => selector({
+        expanded: {},
+        toggle: () => {},
+    }),
+}));
+
 vi.mock('expo-router', () => ({
     useRouter: () => ({ navigate: () => {}, push: () => {} }),
 }));
@@ -141,6 +148,8 @@ const baseSession = {
     createdAt: 1000,
     completedTodosCount: 0,
     totalTodosCount: 0,
+    depth: 0,
+    hasChildren: false,
 };
 
 function render(sessions = [baseSession]) {

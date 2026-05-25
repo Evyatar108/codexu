@@ -133,7 +133,7 @@ The plugin-scoping piece is already tracked as task `plugin-scope-agents` in `pl
 
 ## 5. What concepts we'd want to bring to the happy/codexu mobile app UI
 
-Today the mobile app is a **flat list** with date-grouped inactive sessions and a single "active sessions" group at the top (`packages/happy-app/sources/components/SessionsList.tsx` — see the `SessionsList` function). Every Session is a peer; no parent-child relationships, no in-app spawn affordance. Agent-role surfacing (flavor + model + permission-mode pills) landed via the `session-role-pill` task; tree-depth indentation is still pending the `mobile-tree-view` task.
+Today the mobile app is a **flat list** with date-grouped inactive sessions and a single "active sessions" group at the top (`packages/happy-app/sources/components/SessionsList.tsx` — see the `SessionsList` function). Every Session is a peer; no parent-child relationships, no in-app spawn affordance. Agent-role surfacing (flavor + model + permission-mode pills) landed via the `session-role-pill` task; tree-depth indentation + expand/collapse shipped via the `mobile-tree-view` task (this branch) — `buildSessionListViewData` now emits depth-tagged DFS rows and `SessionsList.tsx` + `ActiveSessionsGroupCompact.tsx` render chevron + indent, with MMKV-persisted expand/collapse state in `useSessionTreeExpansion` (`session-tree-expanded-v1`).
 
 ### Today's data model (relevant gaps)
 
@@ -173,7 +173,7 @@ Any UI work for agent-view-style features must respect:
 
 - **Data model** — `packages/happy-app/sources/sync/storageTypes.ts` (Session + Metadata extension), `packages/happy-server/sources/app/` (wire shape if backend tracks parent links)
 - **List builder** — `packages/happy-app/sources/sync/storage.ts:250-343` (`buildSessionListViewData`) and `:395-570` (`applySessions` reducer) for tree construction
-- **List UI** — `packages/happy-app/sources/components/SessionsList.tsx` `SessionsList` function (FlatList → tree, pending `mobile-tree-view`), `SessionItem` memo (already has role pills via `session-role-pill`; tree-view will add depth indent).
+- **List UI** — `packages/happy-app/sources/components/SessionsList.tsx` `SessionsList` function (FlatList → tree, shipped via `mobile-tree-view` on this branch — depth-tagged rows + chevron + indent), `SessionItem` memo (role pills via `session-role-pill`; depth indent + chevron via `mobile-tree-view`).
 - **Mutation** — `packages/happy-app/sources/sync/ops.ts` (`machineSpawnNewSession` neighbour, add `spawnSessionFromSession`)
 - **CLI side** — `packages/happy-cli/src/api/apiMachine.ts` / `apiSession.ts` (new spawn-child-of-session RPC handler)
 
@@ -194,7 +194,7 @@ Six follow-ups emerge from this research. All are tagged `spawnedFrom=agent-view
 |---|---|---|---|---|---|---|
 | `agent-tree-rpc` | (a) | 8h | medium | medium | ✅ delivered (branch `agent-tree-rpc`) | App-server RPC exposing codex's live spawn tree as `sessionGetAgentTree` plus live `agent-tree-update` deltas through happy-cli and happy-server |
 | `session-parent-link` | (b) | 4h | medium | small | ✅ shipped | Add `parentSessionId` + `spawnedChildren[]` to `Session` metadata; read-side contract, ingress normalization, storage helpers, and tests landed |
-| `mobile-tree-view` | (b) | 12h | medium | large | `session-parent-link` | Tree-style session list with depth indentation + expand/collapse |
+| `mobile-tree-view` | (b) | 12h | medium | large | ✅ shipped (branch `ralph/mobile-tree-view`) | Tree-style session list with depth indentation + expand/collapse |
 | `session-role-pill` | (b) | 3h | low | small | — | Surface `metadata.flavor` + `currentModelCode` + `currentPermissionModeCode` inline in session row (parallel-safe, no schema changes) |
 | `spawn-from-app` | (c) | 8h | medium | medium | `session-parent-link` | "Spawn child session" affordance + new `spawnSessionFromSession` RPC end-to-end |
 | `agent-status-stream` | (c) | 10h | high | large | `agent-tree-rpc` | Bridge codex's `CollabAgentSpawnBegin/EndEvent` + `subscribe_status` through happy-cli → happy-server → happy-app as a live "active teammates" overlay |

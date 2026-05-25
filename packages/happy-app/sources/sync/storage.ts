@@ -108,6 +108,8 @@ export interface SessionRowData {
     totalTodosCount: number;
 }
 
+export type TreeSessionRowData = SessionRowData & { depth: number; hasChildren: boolean };
+
 function buildSessionRowData(session: Session, machines: Record<string, Machine> = {}): SessionRowData {
     const isOnline = session.presence === "online";
     const hasPermissions = !!(session.agentState?.requests && Object.keys(session.agentState.requests).length > 0);
@@ -150,13 +152,66 @@ function buildSessionRowData(session: Session, machines: Record<string, Machine>
     };
 }
 
+const ACTIVE_SESSION_GROUP_KEY = 'active';
+
+function getSessionMachineId(session: Session): string | null {
+    return (session.metadata?.machineId ?? parseCompositeSessionId(session.id, '').machineId) || null;
+}
+
+function getSessionProjectPath(session: Session): string | null {
+    return session.metadata?.path ?? null;
+}
+
+function getInactiveSessionGroupKey(session: Session): string {
+    return `date:${new Date(session.createdAt).toDateString()}`;
+}
+
+function getNaturalSessionGroupKey(session: Session): string {
+    return isSessionActive(session) ? ACTIVE_SESSION_GROUP_KEY : getInactiveSessionGroupKey(session);
+}
+
+function getInactiveGroupHeaderTitle(groupKey: string, today: Date, yesterday: Date): string {
+    const groupDate = new Date(groupKey.slice('date:'.length));
+    const sessionDateOnly = new Date(groupDate.getFullYear(), groupDate.getMonth(), groupDate.getDate());
+
+    if (sessionDateOnly.getTime() === today.getTime()) {
+        return 'Today';
+    }
+    if (sessionDateOnly.getTime() === yesterday.getTime()) {
+        return 'Yesterday';
+    }
+
+    const diffTime = today.getTime() - sessionDateOnly.getTime();
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+    return `${diffDays} days ago`;
+}
+
+function canNestSessionChild(parent: Session, child: Session, parentGroupKey: string): boolean {
+    if (getSessionMachineId(parent) !== getSessionMachineId(child)) {
+        return false;
+    }
+    if (getSessionProjectPath(parent) !== getSessionProjectPath(child)) {
+        return false;
+    }
+    if (parentGroupKey === ACTIVE_SESSION_GROUP_KEY) {
+        return true;
+    }
+    // Parent is in an inactive date group. An active child belongs in the
+    // active group regardless of same-date overlap; promote it to a depth-0
+    // orphan in its natural group (plan AC #1 cross-group rule).
+    if (isSessionActive(child)) {
+        return false;
+    }
+    return parentGroupKey === getInactiveSessionGroupKey(child);
+}
+
 // Unified list item type for SessionsList component
 export type SessionListViewItem =
     | { type: 'header'; title: string }
-    | { type: 'active-sessions'; sessions: SessionRowData[] }
+    | { type: 'active-sessions'; sessions: TreeSessionRowData[] }
     | { type: 'archive-toggle'; hidden: boolean }
     | { type: 'project-group'; displayPath: string; machine: Machine }
-    | { type: 'session'; session: SessionRowData };
+    | { type: 'session'; session: TreeSessionRowData };
 
 // Legacy type for backward compatibility - to be removed
 export type SessionListItem = string | Session;
@@ -255,92 +310,170 @@ function buildSessionListViewData(
     sessions: Record<string, Session>,
     machines: Record<string, Machine> = {}
 ): SessionListViewItem[] {
-    // Separate active and inactive sessions
-    const activeSessions: Session[] = [];
-    const inactiveSessions: Session[] = [];
-
-    Object.values(sessions).forEach(session => {
-        if (isSessionActive(session)) {
-            activeSessions.push(session);
-        } else {
-            inactiveSessions.push(session);
+    // Sort by createdAt DESC (plan §Pass 3); updatedAt is a tiebreaker for stable ordering.
+    // ActiveSessionsGroupCompact applies its own ordering for the active group later.
+    const sortedSessions = Object.values(sessions).sort((a, b) => {
+        if (b.createdAt !== a.createdAt) {
+            return b.createdAt - a.createdAt;
         }
+        return b.updatedAt - a.updatedAt;
     });
+    const childrenByParent = new Map<string, Set<string>>();
+    const indexedParentsByChild = new Map<string, string>();
 
-    activeSessions.sort((a, b) => b.updatedAt - a.updatedAt);
-    inactiveSessions.sort((a, b) => b.updatedAt - a.updatedAt);
+    const addParentChildLink = (parentId: string | null | undefined, childId: string) => {
+        if (!parentId || parentId === childId || !sessions[parentId] || !sessions[childId]) {
+            return;
+        }
+        let children = childrenByParent.get(parentId);
+        if (!children) {
+            children = new Set<string>();
+            childrenByParent.set(parentId, children);
+        }
+        children.add(childId);
+        if (!indexedParentsByChild.has(childId)) {
+            indexedParentsByChild.set(childId, parentId);
+        }
+    };
 
-    // Build unified list view data
-    const listData: SessionListViewItem[] = [];
-
-    // Add active sessions as a single item at the top (if any)
-    if (activeSessions.length > 0) {
-        listData.push({ type: 'active-sessions', sessions: activeSessions.map(session => buildSessionRowData(session, machines)) });
+    // Pass 1: build the parent->children index from both parentSessionId and spawnedChildren.
+    for (let i = sortedSessions.length - 1; i >= 0; i -= 1) {
+        const session = sortedSessions[i];
+        addParentChildLink(session.metadata?.parentSessionId, session.id);
+    }
+    for (const session of sortedSessions) {
+        for (const childId of session.metadata?.spawnedChildren ?? []) {
+            addParentChildLink(session.id, childId);
+        }
     }
 
-    // Group inactive sessions by date
+    type PlacedSession = {
+        session: Session;
+        groupKey: string;
+        depth: number;
+    };
+
+    const placedSessions = new Map<string, PlacedSession>();
+    const actualParentsByChild = new Map<string, string>();
+    const groupRows = new Map<string, PlacedSession[]>();
+    const groupOrder: string[] = [];
+    const visiting = new Set<string>();
+
+    const placeSession = (session: Session, groupKey: string, depth: number) => {
+        if (placedSessions.has(session.id)) {
+            return;
+        }
+        const placed = { session, groupKey, depth };
+        placedSessions.set(session.id, placed);
+        if (!groupRows.has(groupKey)) {
+            groupRows.set(groupKey, []);
+            groupOrder.push(groupKey);
+        }
+        groupRows.get(groupKey)!.push(placed);
+    };
+
+    const visitSession = (session: Session, groupKey: string, depth: number, parentId: string | null) => {
+        if (visiting.has(session.id)) {
+            console.warn(`mobile-tree-view: cycle, emitting ${session.id} as orphan`);
+            return;
+        }
+        if (placedSessions.has(session.id)) {
+            return;
+        }
+
+        visiting.add(session.id);
+        if (parentId) {
+            actualParentsByChild.set(session.id, parentId);
+        }
+        placeSession(session, groupKey, depth);
+
+        const children = childrenByParent.get(session.id);
+        if (children) {
+            for (const childId of children) {
+                const child = sessions[childId];
+                if (!child) {
+                    continue;
+                }
+                if (visiting.has(child.id)) {
+                    console.warn(`mobile-tree-view: cycle, emitting ${child.id} as orphan`);
+                    continue;
+                }
+                if (placedSessions.has(child.id)) {
+                    continue;
+                }
+                if (canNestSessionChild(session, child, groupKey)) {
+                    visitSession(child, groupKey, depth + 1, session.id);
+                } else {
+                    visitSession(child, getNaturalSessionGroupKey(child), 0, null);
+                }
+            }
+        }
+
+        visiting.delete(session.id);
+    };
+
+    // Pass 2: DFS from roots, keeping parent-before-children adjacency within each group.
+    for (const session of sortedSessions) {
+        if (!indexedParentsByChild.has(session.id)) {
+            visitSession(session, getNaturalSessionGroupKey(session), 0, null);
+        }
+    }
+
+    // Final sweep: rootless-cycle sessions are unreachable from the root DFS.
+    // Per plan AC #1, every member of a rootless cycle must emit as a depth-0
+    // orphan with hasChildren:false. We deliberately call placeSession directly
+    // here instead of visitSession to avoid recursing into the child set —
+    // recursing would nest cycle partners under whichever member happens to be
+    // visited first, which contradicts the orphan contract.
+    for (const session of sortedSessions) {
+        if (!placedSessions.has(session.id)) {
+            console.warn(`mobile-tree-view: rootless cycle, emitting ${session.id} as orphan`);
+            placeSession(session, getNaturalSessionGroupKey(session), 0);
+        }
+    }
+
+    const hasSameGroupChildren = (placed: PlacedSession): boolean => {
+        const children = childrenByParent.get(placed.session.id);
+        if (!children) {
+            return false;
+        }
+        for (const childId of children) {
+            if (actualParentsByChild.get(childId) === placed.session.id && placedSessions.get(childId)?.groupKey === placed.groupKey) {
+                return true;
+            }
+        }
+        return false;
+    };
+
+    const toTreeSessionRowData = (placed: PlacedSession): TreeSessionRowData => ({
+        ...buildSessionRowData(placed.session, machines),
+        depth: Math.max(0, placed.depth),
+        hasChildren: hasSameGroupChildren(placed),
+    });
+
     const now = new Date();
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const yesterday = new Date(today.getTime() - 24 * 60 * 60 * 1000);
+    const listData: SessionListViewItem[] = [];
 
-    let currentDateGroup: Session[] = [];
-    let currentDateString: string | null = null;
-
-    for (const session of inactiveSessions) {
-        const sessionDate = new Date(session.createdAt);
-        const dateString = sessionDate.toDateString();
-
-        if (currentDateString !== dateString) {
-            // Process previous group
-            if (currentDateGroup.length > 0 && currentDateString) {
-                const groupDate = new Date(currentDateString);
-                const sessionDateOnly = new Date(groupDate.getFullYear(), groupDate.getMonth(), groupDate.getDate());
-
-                let headerTitle: string;
-                if (sessionDateOnly.getTime() === today.getTime()) {
-                    headerTitle = 'Today';
-                } else if (sessionDateOnly.getTime() === yesterday.getTime()) {
-                    headerTitle = 'Yesterday';
-                } else {
-                    const diffTime = today.getTime() - sessionDateOnly.getTime();
-                    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-                    headerTitle = `${diffDays} days ago`;
-                }
-
-                listData.push({ type: 'header', title: headerTitle });
-                currentDateGroup.forEach(sess => {
-                    listData.push({ type: 'session', session: buildSessionRowData(sess, machines) });
-                });
-            }
-
-            // Start new group
-            currentDateString = dateString;
-            currentDateGroup = [session];
-        } else {
-            currentDateGroup.push(session);
-        }
+    // Pass 3: flatten the emitted DFS rows into the existing SessionListViewItem shape.
+    const activeRows = groupRows.get(ACTIVE_SESSION_GROUP_KEY);
+    if (activeRows?.length) {
+        listData.push({ type: 'active-sessions', sessions: activeRows.map(toTreeSessionRowData) });
     }
 
-    // Process final group
-    if (currentDateGroup.length > 0 && currentDateString) {
-        const groupDate = new Date(currentDateString);
-        const sessionDateOnly = new Date(groupDate.getFullYear(), groupDate.getMonth(), groupDate.getDate());
-
-        let headerTitle: string;
-        if (sessionDateOnly.getTime() === today.getTime()) {
-            headerTitle = 'Today';
-        } else if (sessionDateOnly.getTime() === yesterday.getTime()) {
-            headerTitle = 'Yesterday';
-        } else {
-            const diffTime = today.getTime() - sessionDateOnly.getTime();
-            const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-            headerTitle = `${diffDays} days ago`;
+    for (const groupKey of groupOrder) {
+        if (groupKey === ACTIVE_SESSION_GROUP_KEY) {
+            continue;
         }
-
-        listData.push({ type: 'header', title: headerTitle });
-        currentDateGroup.forEach(sess => {
-            listData.push({ type: 'session', session: buildSessionRowData(sess, machines) });
-        });
+        const rows = groupRows.get(groupKey);
+        if (!rows?.length) {
+            continue;
+        }
+        listData.push({ type: 'header', title: getInactiveGroupHeaderTitle(groupKey, today, yesterday) });
+        for (const row of rows) {
+            listData.push({ type: 'session', session: toTreeSessionRowData(row) });
+        }
     }
 
     return listData;

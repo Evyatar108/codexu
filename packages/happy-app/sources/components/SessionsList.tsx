@@ -1,9 +1,9 @@
 import React from 'react';
-import { View, Pressable, FlatList, Platform } from 'react-native';
+import { View, Pressable, FlatList, Platform, type GestureResponderEvent } from 'react-native';
 import { Text } from '@/components/StyledText';
 import { usePathname } from 'expo-router';
 import { Image } from 'expo-image';
-import { SessionListViewItem, SessionRowData } from '@/sync/storage';
+import { SessionListViewItem, TreeSessionRowData } from '@/sync/storage';
 import { Ionicons } from '@expo/vector-icons';
 import { type SessionState, formatLastSeen, vibingMessages } from '@/utils/sessionUtils';
 import { Avatar } from './Avatar';
@@ -20,6 +20,7 @@ import { layout } from './layout';
 import { useNavigateToSession } from '@/hooks/useNavigateToSession';
 import { SessionActionsAnchor, SessionActionsPopover } from './SessionActionsPopover';
 import { useSessionActionAlert } from '@/hooks/useSessionQuickActions';
+import { useSessionTreeExpansion } from '@/hooks/useSessionTreeExpansion';
 import { useSettingMutable } from '@/sync/storage';
 import { t } from '@/text';
 import { newSessionAgentIcons } from './NewSessionAgentIcons';
@@ -150,6 +151,16 @@ const stylesheet = StyleSheet.create((theme) => ({
     sessionItemSelected: {
         backgroundColor: theme.colors.surfaceSelected,
     },
+    sessionTreeToggle: {
+        width: 28,
+        height: 48,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    sessionTreeTogglePlaceholder: {
+        width: 28,
+        height: 48,
+    },
     sessionContent: {
         flex: 1,
         marginLeft: 16,
@@ -267,6 +278,8 @@ export function SessionsList() {
     const data = useVisibleSessionListViewData();
     const pathname = usePathname();
     const isTablet = useIsTablet();
+    const expandedSessionTree = useSessionTreeExpansion(state => state.expanded);
+    const isSessionTreeExpanded = useSessionTreeExpansion(state => state.isExpanded);
     const [hideInactiveSessions, setHideInactiveSessions] = useSettingMutable('hideInactiveSessions');
     const toggleArchived = React.useCallback(() => {
         setHideInactiveSessions(!hideInactiveSessions);
@@ -368,10 +381,13 @@ export function SessionsList() {
                         isFirst={isFirst}
                         isLast={isLast}
                         isSingle={isSingle}
+                        depth={item.session.depth}
+                        expanded={isSessionTreeExpanded(item.session.id)}
+                        hasChildren={item.session.hasChildren}
                     />
                 );
         }
-    }, [pathname, dataWithSelected, toggleArchived]);
+    }, [pathname, dataWithSelected, toggleArchived, expandedSessionTree, isSessionTreeExpanded]);
 
 
     // Remove this section as we'll use FlatList for all items now
@@ -410,16 +426,20 @@ const STATUS_CONFIG: Record<SessionState, { color: string; dotColor: string; isP
     permission_required: { color: '#FF9500', dotColor: '#FF9500', isPulsing: true, isConnected: true },
 };
 
-export const SessionItem = React.memo(({ session, selected, isFirst, isLast, isSingle }: {
-    session: SessionRowData;
+export const SessionItem = React.memo(({ session, selected, isFirst, isLast, isSingle, depth, expanded, hasChildren }: {
+    session: TreeSessionRowData;
     selected?: boolean;
     isFirst?: boolean;
     isLast?: boolean;
     isSingle?: boolean;
+    depth: number;
+    expanded: boolean;
+    hasChildren: boolean;
 }) => {
     const styles = stylesheet;
     const { theme } = useUnistyles();
     const navigateToSession = useNavigateToSession();
+    const toggleSessionTreeNode = useSessionTreeExpansion(state => state.toggle);
     const [actionsAnchor, setActionsAnchor] = React.useState<SessionActionsAnchor | null>(null);
     const status = STATUS_CONFIG[session.state];
     const flavorIcon = knownAgentIconForFlavor(session.flavor);
@@ -442,6 +462,11 @@ export const SessionItem = React.memo(({ session, selected, isFirst, isLast, isS
     const handlePress = React.useCallback(() => {
         navigateToSession(session.id);
     }, [navigateToSession, session.id]);
+
+    const handleTreeTogglePress = React.useCallback((event: GestureResponderEvent) => {
+        event.stopPropagation();
+        toggleSessionTreeNode(session.id);
+    }, [toggleSessionTreeNode, session.id]);
 
     const handleContextMenu = React.useCallback((event: any) => {
         event.preventDefault?.();
@@ -473,11 +498,30 @@ export const SessionItem = React.memo(({ session, selected, isFirst, isLast, isS
                 selected && styles.sessionItemSelected,
                 isSingle ? styles.sessionItemSingle :
                     isFirst ? styles.sessionItemFirst :
-                        isLast ? styles.sessionItemLast : {}
+                        isLast ? styles.sessionItemLast : {},
+                { paddingLeft: 16 + depth * 20, paddingRight: 16 }
             ]}
             onPress={handlePress}
             {...menuProps}
         >
+            {hasChildren ? (
+                <Pressable
+                    onPress={handleTreeTogglePress}
+                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                    style={styles.sessionTreeToggle}
+                    testID={`session-tree-toggle-${session.id}`}
+                >
+                    <Ionicons
+                        name={expanded ? 'chevron-down' : 'chevron-forward'}
+                        size={18}
+                        color={theme.colors.textSecondary}
+                    />
+                </Pressable>
+            ) : (
+                // F-008: reserve chevron-width slot on leaf rows so titles align under
+                // their parent's title baseline. Width matches sessionTreeToggle.
+                <View style={styles.sessionTreeTogglePlaceholder} pointerEvents="none" />
+            )}
             <View style={styles.avatarContainer}>
                 <Avatar
                     id={session.avatarId}

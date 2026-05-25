@@ -1,9 +1,9 @@
 import React from 'react';
-import { View, Pressable, Platform } from 'react-native';
+import { View, Pressable, Platform, type GestureResponderEvent } from 'react-native';
 import { Swipeable } from 'react-native-gesture-handler';
 import { Text } from '@/components/StyledText';
 import { Machine, Session } from '@/sync/storageTypes';
-import { SessionRowData } from '@/sync/storage';
+import { SessionRowData, TreeSessionRowData } from '@/sync/storage';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { type SessionState, formatPathRelativeToHome, vibingMessages, formatLastSeen } from '@/utils/sessionUtils';
 import { Avatar } from './Avatar';
@@ -17,6 +17,7 @@ import { SessionActionsAnchor, SessionActionsPopover } from './SessionActionsPop
 import { useSessionActionAlert, useSessionQuickActions } from '@/hooks/useSessionQuickActions';
 import { isWorktreePath, getRepoPath, getWorktreeName } from '@/utils/worktree';
 import { useNewSessionDraft } from '@/hooks/useNewSessionDraft';
+import { useSessionTreeExpansion } from '@/hooks/useSessionTreeExpansion';
 import { useRouter } from 'expo-router';
 import {
     applyOrderToProjectEntries,
@@ -33,7 +34,7 @@ const STATUS_CONFIG: Record<SessionState, { color: string; dotColor: string; isP
 };
 
 interface ActiveSessionsGroupProps {
-    sessions: SessionRowData[];
+    sessions: TreeSessionRowData[];
     selectedSessionId?: string;
 }
 
@@ -181,6 +182,7 @@ export function ActiveSessionsGroupCompact({ sessions, selectedSessionId }: Acti
     const styles = stylesheet;
     const { theme } = useUnistyles();
     const machines = useAllMachines();
+    const expandedSessionTree = useSessionTreeExpansion(state => state.expanded);
     const [sessionGroupOrder, setSessionGroupOrder] = useSettingMutable('sessionGroupOrder');
     const [draggingKey, setDraggingKey] = React.useState<string | null>(null);
     const [dragOverKey, setDragOverKey] = React.useState<string | null>(null);
@@ -201,7 +203,7 @@ export function ActiveSessionsGroupCompact({ sessions, selectedSessionId }: Acti
             machineName: string;
             projects: Map<string, {
                 displayPath: string;
-                sessions: SessionRowData[];
+                sessions: TreeSessionRowData[];
             }>;
         }>();
 
@@ -227,13 +229,6 @@ export function ActiveSessionsGroupCompact({ sessions, selectedSessionId }: Acti
             }
 
             projectGroup.sessions.push(session);
-        });
-
-        // Sort sessions within each project group
-        byMachine.forEach(mg => {
-            mg.projects.forEach(pg => {
-                pg.sessions.sort((a, b) => (b.createdAt ?? 0) - (a.createdAt ?? 0));
-            });
         });
 
         const sorted = Array.from(byMachine.values()).sort((a, b) =>
@@ -360,6 +355,9 @@ export function ActiveSessionsGroupCompact({ sessions, selectedSessionId }: Acti
                                                 session={session}
                                                 selected={selectedSessionId === session.id}
                                                 showBorder={index < projectGroup.sessions.length - 1}
+                                                depth={session.depth}
+                                                expanded={!!expandedSessionTree[session.id]}
+                                                hasChildren={session.hasChildren}
                                             />
                                         ))}
                                     </View>
@@ -419,17 +417,30 @@ const CompactSessionRowSwipe = ({ sessionId, children }: { sessionId: string; ch
 };
 
 // Compact session row with status dot indicator
-const CompactSessionRow = React.memo(({ session, selected, showBorder }: { session: SessionRowData; selected?: boolean; showBorder?: boolean }) => {
+const CompactSessionRow = React.memo(({ session, selected, showBorder, depth, expanded, hasChildren }: {
+    session: TreeSessionRowData;
+    selected?: boolean;
+    showBorder?: boolean;
+    depth: number;
+    expanded: boolean;
+    hasChildren: boolean;
+}) => {
     const styles = stylesheet;
     const { theme } = useUnistyles();
-    const status = STATUS_CONFIG[session.state];
+    const status = STATUS_CONFIG[session.active ? session.state : 'disconnected'];
     const navigateToSession = useNavigateToSession();
+    const toggleSessionTreeNode = useSessionTreeExpansion(state => state.toggle);
     const swipeEnabled = Platform.OS !== 'web';
     const [actionsAnchor, setActionsAnchor] = React.useState<SessionActionsAnchor | null>(null);
 
     const handlePress = React.useCallback(() => {
         navigateToSession(session.id);
     }, [navigateToSession, session.id]);
+
+    const handleTreeTogglePress = React.useCallback((event: GestureResponderEvent) => {
+        event.stopPropagation();
+        toggleSessionTreeNode(session.id);
+    }, [toggleSessionTreeNode, session.id]);
 
     const handleContextMenu = React.useCallback((event: any) => {
         event.preventDefault?.();
@@ -453,14 +464,40 @@ const CompactSessionRow = React.memo(({ session, selected, showBorder }: { sessi
             style={[
                 styles.sessionRow,
                 showBorder && styles.sessionRowWithBorder,
-                selected && styles.sessionRowSelected
+                selected && styles.sessionRowSelected,
+                { paddingLeft: 16 + depth * 20, paddingRight: 16 }
             ]}
             onPress={handlePress}
             {...menuProps}
         >
+            {hasChildren ? (
+                <Pressable
+                    onPress={handleTreeTogglePress}
+                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                    style={styles.sessionTreeToggle}
+                    testID={`compact-session-tree-toggle-${session.id}`}
+                >
+                    <Ionicons
+                        name={expanded ? 'chevron-down' : 'chevron-forward'}
+                        size={18}
+                        color={theme.colors.textSecondary}
+                    />
+                </Pressable>
+            ) : (
+                // F-008: reserve chevron-width slot on leaf rows so titles align under
+                // their parent's title baseline. Width must match sessionTreeToggle (28+4).
+                <View style={styles.sessionTreeTogglePlaceholder} pointerEvents="none" />
+            )}
             <View style={styles.sessionContent}>
                 <View style={styles.sessionTitleRow}>
                     {(() => {
+                        // F-007: inactive children rendered inline in the active group must
+                        // show the disconnected styling regardless of session.state — a
+                        // live "waiting"/"thinking" icon would be visually misleading.
+                        if (!session.active) {
+                            return null;
+                        }
+
                         if (session.state === 'waiting' && session.hasDraft) {
                             return (
                                 <Ionicons
@@ -649,8 +686,19 @@ const stylesheet = StyleSheet.create((theme) => ({
         height: 56,
         flexDirection: 'row',
         alignItems: 'center',
-        paddingHorizontal: 16,
         backgroundColor: theme.colors.surface,
+    },
+    sessionTreeToggle: {
+        width: 28,
+        height: 28,
+        marginRight: 4,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    sessionTreeTogglePlaceholder: {
+        width: 28,
+        height: 28,
+        marginRight: 4,
     },
     sessionRowWithBorder: {
         borderBottomWidth: StyleSheet.hairlineWidth,
