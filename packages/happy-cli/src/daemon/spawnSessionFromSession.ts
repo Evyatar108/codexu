@@ -8,8 +8,10 @@ import type { TrackedSession } from './types';
 /**
  * v1 spawn-from-session limits: reparenting is out of scope, cross-machine
  * ancestors are invisible to the daemon-local cycle check, and ancestry depth
- * limiting is added by the follow-up story.
+ * is capped at 10 parent links.
  */
+
+export const MAX_SPAWN_DEPTH = 10;
 
 export type SpawnFromSessionConfig = {
   agent: SupportedAgent;
@@ -45,6 +47,44 @@ export function appendSpawnedChild(metadata: Metadata, childCompositeSid: string
   };
 }
 
+export function validateSpawnAncestry(
+  parentLocalId: string,
+  machineId: string,
+  getTrackedSession: SpawnSessionFromSessionDeps['getTrackedSession'],
+): { type: 'success' } | { type: 'error'; errorMessage: string } {
+  let currentLocalId = parentLocalId;
+  let depth = 0;
+
+  while (true) {
+    const current = getTrackedSession(currentLocalId);
+    const parentSessionId = current?.happySessionMetadataFromLocalWebhook?.parentSessionId;
+    if (!parentSessionId || typeof parentSessionId !== 'string') {
+      return { type: 'success' };
+    }
+
+    const separatorIndex = parentSessionId.indexOf(':');
+    if (separatorIndex <= 0 || separatorIndex === parentSessionId.length - 1) {
+      return { type: 'success' };
+    }
+
+    const ancestorMachineId = parentSessionId.slice(0, separatorIndex);
+    const ancestorLocalId = parentSessionId.slice(separatorIndex + 1);
+    if (ancestorMachineId !== machineId) {
+      return { type: 'success' };
+    }
+    if (ancestorLocalId === currentLocalId) {
+      return { type: 'error', errorMessage: `Session ${currentLocalId} metadata parentSessionId references itself.` };
+    }
+
+    depth += 1;
+    if (depth >= MAX_SPAWN_DEPTH) {
+      return { type: 'error', errorMessage: `Spawn ancestry exceeds depth cap of ${MAX_SPAWN_DEPTH}.` };
+    }
+
+    currentLocalId = ancestorLocalId;
+  }
+}
+
 export async function spawnSessionFromSession(
   options: SpawnSessionFromSessionOptions,
   deps: SpawnSessionFromSessionDeps,
@@ -57,6 +97,11 @@ export async function spawnSessionFromSession(
   const parentMetadata = tracked.happySessionMetadataFromLocalWebhook;
   if (!parentMetadata) {
     return { type: 'error', errorMessage: `Session ${options.parentLocalId} has no metadata. Cannot spawn child.` };
+  }
+
+  const ancestry = validateSpawnAncestry(options.parentLocalId, options.machineId, deps.getTrackedSession);
+  if (ancestry.type === 'error') {
+    return ancestry;
   }
 
   const resolvedPath = options.config.path ?? parentMetadata.path;

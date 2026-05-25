@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import type { Metadata } from '@/api/types';
 import { HAPPY_PARENT_SESSION_ID } from '@/utils/envNames';
 import type { TrackedSession } from './types';
-import { appendSpawnedChild, spawnSessionFromSession } from './spawnSessionFromSession';
+import { appendSpawnedChild, MAX_SPAWN_DEPTH, spawnSessionFromSession } from './spawnSessionFromSession';
 
 function metadata(overrides: Partial<Metadata> = {}): Metadata {
   return {
@@ -32,6 +32,27 @@ function tracked(parentMetadata: Metadata = metadata()): TrackedSession {
     },
     pid: 42,
   };
+}
+
+function trackedByLocalId(parentLinks: Record<string, string | undefined>): Map<string, TrackedSession> {
+  const sessions = new Map<string, TrackedSession>();
+  for (const [localId, parentSessionId] of Object.entries(parentLinks)) {
+    sessions.set(localId, {
+      ...tracked(metadata(parentSessionId ? { parentSessionId } : {})),
+      happySessionId: localId,
+    });
+  }
+  return sessions;
+}
+
+function ancestryLinks(machineId: string, depth: number): Record<string, string | undefined> {
+  const links: Record<string, string | undefined> = {};
+  for (let index = 0; index < depth; index += 1) {
+    const localId = index === 0 ? 'parent-local' : `ancestor-${index}`;
+    links[localId] = `${machineId}:ancestor-${index + 1}`;
+  }
+  links[`ancestor-${depth}`] = undefined;
+  return links;
 }
 
 describe('spawnSessionFromSession', () => {
@@ -140,5 +161,87 @@ describe('spawnSessionFromSession', () => {
     expect(appendSpawnedChild(metadata({ spawnedChildren: ['machine-1:child'] }), 'machine-1:child')).toMatchObject({
       spawnedChildren: ['machine-1:child'],
     });
+  });
+
+  it('allows local ancestry depth below the cap', async () => {
+    const sessions = trackedByLocalId(ancestryLinks('machine-1', MAX_SPAWN_DEPTH - 1));
+    const spawnSession = vi.fn().mockResolvedValue({ type: 'success', sessionId: 'child-local' });
+
+    const result = await spawnSessionFromSession({
+      parentLocalId: 'parent-local',
+      machineId: 'machine-1',
+      config: { agent: 'claude' },
+    }, {
+      getTrackedSession: vi.fn((localId: string) => sessions.get(localId)),
+      spawnSession,
+      updateParentMetadata: vi.fn().mockResolvedValue(undefined),
+      stat: vi.fn().mockResolvedValue({ isDirectory: () => true }),
+    });
+
+    expect(result).toEqual({ type: 'success', sessionId: 'child-local' });
+    expect(spawnSession).toHaveBeenCalledTimes(1);
+  });
+
+  it('rejects local ancestry depth at the cap before spawning or updating metadata', async () => {
+    const sessions = trackedByLocalId(ancestryLinks('machine-1', MAX_SPAWN_DEPTH));
+    const spawnSession = vi.fn();
+    const updateParentMetadata = vi.fn();
+
+    const result = await spawnSessionFromSession({
+      parentLocalId: 'parent-local',
+      machineId: 'machine-1',
+      config: { agent: 'claude' },
+    }, {
+      getTrackedSession: vi.fn((localId: string) => sessions.get(localId)),
+      spawnSession,
+      updateParentMetadata,
+      stat: vi.fn().mockResolvedValue({ isDirectory: () => true }),
+    });
+
+    expect(result).toMatchObject({ type: 'error', errorMessage: expect.stringContaining('depth cap') });
+    expect(spawnSession).not.toHaveBeenCalled();
+    expect(updateParentMetadata).not.toHaveBeenCalled();
+  });
+
+  it('rejects self-referencing parent metadata before spawning', async () => {
+    const spawnSession = vi.fn();
+    const updateParentMetadata = vi.fn();
+
+    const result = await spawnSessionFromSession({
+      parentLocalId: 'parent-local',
+      machineId: 'machine-1',
+      config: { agent: 'claude' },
+    }, {
+      getTrackedSession: vi.fn().mockReturnValue(tracked(metadata({ parentSessionId: 'machine-1:parent-local' }))),
+      spawnSession,
+      updateParentMetadata,
+      stat: vi.fn().mockResolvedValue({ isDirectory: () => true }),
+    });
+
+    expect(result).toMatchObject({ type: 'error', errorMessage: expect.stringContaining('references itself') });
+    expect(spawnSession).not.toHaveBeenCalled();
+    expect(updateParentMetadata).not.toHaveBeenCalled();
+  });
+
+  it('does not walk cross-machine ancestors', async () => {
+    const spawnSession = vi.fn().mockResolvedValue({ type: 'success', sessionId: 'child-local' });
+    const getTrackedSession = vi.fn((localId: string) => localId === 'parent-local'
+      ? tracked(metadata({ parentSessionId: 'other-machine:missing-ancestor' }))
+      : undefined);
+
+    const result = await spawnSessionFromSession({
+      parentLocalId: 'parent-local',
+      machineId: 'machine-1',
+      config: { agent: 'claude' },
+    }, {
+      getTrackedSession,
+      spawnSession,
+      updateParentMetadata: vi.fn().mockResolvedValue(undefined),
+      stat: vi.fn().mockResolvedValue({ isDirectory: () => true }),
+    });
+
+    expect(result).toEqual({ type: 'success', sessionId: 'child-local' });
+    expect(getTrackedSession).toHaveBeenCalledTimes(2);
+    expect(getTrackedSession).not.toHaveBeenCalledWith('missing-ancestor');
   });
 });
