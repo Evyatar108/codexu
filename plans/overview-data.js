@@ -618,7 +618,7 @@ window.OVERVIEW_DATA = {
               "kanbanCards": [],
               "command": {
                     "name": "ralph-overview-multi-mcp-v210",
-                    "descriptionHtml": "ralph-overview v2.1.0 — cooperative-lease watcher (N concurrent MCPs in same repo → 1 active watcher + N-1 passive consumers); dev server moved out of MCP (operator launches via <code>pnpm overview:dev</code>); new <code>overview_watcher_status</code> MCP tool; hostname cross-machine guard. ai-developer-toolkit branch <code>ralph/ralph-overview-multi-mcp-v210</code> HEAD <code>42bdb8b7</code> (pushed to Evyatar108 fork; pending PR to gim-home). codexu side cherry-picked onto main as <code>d0a700d0</code>.",
+                    "descriptionHtml": "ralph-overview v2.1.0 — cooperative-lease watcher (N concurrent MCPs in same repo → 1 active watcher + N-1 passive consumers); dev server moved out of MCP (operator launches via <code>pnpm overview:dev</code>); new <code>overview_watcher_status</code> MCP tool; hostname cross-machine guard. ai-developer-toolkit branch <code>ralph/ralph-overview-multi-mcp-v210</code> HEAD <code>42bdb8b7</code> merged to ai-developer-toolkit/main via merge commit <code>e65e8161</code> (pushed to both Evyatar108 fork and gim-home). codexu side cherry-picked onto main as <code>d0a700d0</code>.",
                     "warnings": [],
                     "planPrompt": "(shipped — see plans/ralph-overview-multi-mcp-coordination-brainstorm.md and .ralph/jobs/ralph-overview-multi-mcp-v210/plan.md)"
               }
@@ -633,7 +633,7 @@ window.OVERVIEW_DATA = {
               "kanbanCards": [],
               "command": {
                     "name": "crews-review-mid-turn-v160",
-                    "descriptionHtml": "crews v1.6.0 — PostToolUse advisory injection closes the mid-turn review-required gap. Fires after 30s grace, once per <code>lastReviewRequiredSeq</code> bump; <code>progress</code> dropped from <code>DEFAULT_REVIEW_KINDS</code> (Stop no longer blocks on unread progress envelopes). Uniform lead+member. Cross-plugin coexistence test passes (agent-peers verified safe). ai-developer-toolkit branch <code>ralph/crews-review-mid-turn-v160</code> HEAD <code>bd94fc67</code> (pushed to Evyatar108 fork; pending PR to gim-home). 22 commits = 9 stories + 7 Phase 5a code fixes + 6 Phase 5b docs fixes.",
+                    "descriptionHtml": "crews v1.6.0 — PostToolUse advisory injection closes the mid-turn review-required gap. Fires after 30s grace, once per <code>lastReviewRequiredSeq</code> bump; <code>progress</code> dropped from <code>DEFAULT_REVIEW_KINDS</code> (Stop no longer blocks on unread progress envelopes). Uniform lead+member. Cross-plugin coexistence test passes (agent-peers verified safe). ai-developer-toolkit branch <code>ralph/crews-review-mid-turn-v160</code> HEAD <code>bd94fc67</code> merged to ai-developer-toolkit/main via merge commit <code>e65e8161</code> (pushed to both Evyatar108 fork and gim-home). 22 commits = 9 stories + 7 Phase 5a code fixes + 6 Phase 5b docs fixes.",
                     "warnings": [],
                     "planPrompt": "(shipped — see plans/crews-review-required-mid-turn-brainstorm.md and plans/crews-review-mid-turn-v160-plan.md)"
               }
