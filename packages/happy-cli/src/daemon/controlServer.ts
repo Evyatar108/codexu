@@ -224,19 +224,20 @@ export function startDaemonControlServer({
           config: spawnSessionFromSessionConfigSchema,
         }),
         response: {
-          200: z.object({
-            type: z.literal('success'),
-            sessionId: z.string(),
-          }),
-          500: z.object({
-            type: z.literal('error'),
-            errorMessage: z.string(),
-          })
+          200: z.discriminatedUnion('type', [
+            z.object({
+              type: z.literal('success'),
+              sessionId: z.string(),
+            }),
+            z.object({
+              type: z.literal('error'),
+              errorMessage: z.string(),
+            }),
+          ]),
         }
       }
     }, async (request, reply) => {
       if (!spawnSessionFromSession) {
-        reply.code(500);
         return { type: 'error' as const, errorMessage: 'Spawn-from-session handler not available' };
       }
 
@@ -246,7 +247,6 @@ export function startDaemonControlServer({
         return result;
       }
 
-      reply.code(500);
       if (result.type === 'requestToApproveDirectoryCreation') {
         return {
           type: 'error' as const,

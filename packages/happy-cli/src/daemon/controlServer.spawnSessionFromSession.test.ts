@@ -84,7 +84,7 @@ describe('daemon control server spawn-session-from-session route', () => {
 
     const response = await post(port, { parentSessionId: 'parent-local-id', config: { agent: 'claude' } });
 
-    expect(response.status).toBe(500);
+    expect(response.status).toBe(200);
     await expect(response.json()).resolves.toEqual({ type: 'error', errorMessage: 'parent not tracked' });
   });
 });
