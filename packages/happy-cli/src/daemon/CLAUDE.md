@@ -106,6 +106,7 @@ Local HTTP server (127.0.0.1 only) provides:
 - `/list` - returns tracked sessions
 - `/stop-session` - terminates specific session
 - `/spawn-session` - creates new session (used by integration tests)
+- `/spawn-session-from-session` - clone-style spawn that links the child to a same-machine parent via `HAPPY_PARENT_SESSION_ID`; validates `parentSessionId` shape (`^[A-Za-z0-9_-]{1,128}$`) and dispatches to the daemon `spawnSessionFromSessionHandler`. Used today by Codex's Rust-native `spawn_top_level_session` tool; the TypeScript helper `spawnDaemonSessionFromSession` in `controlClient.ts` is test-only until F-009 resolves the daemonPost envelope.
 - `/stop` - graceful daemon shutdown
 
 ## 4. Process Discovery and Cleanup
