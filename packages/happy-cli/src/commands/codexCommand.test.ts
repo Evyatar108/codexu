@@ -6,6 +6,7 @@ const mocks = vi.hoisted(() => ({
   mockExtractCodexEffortFlag: vi.fn(),
   mockExtractCodexModelFlag: vi.fn(),
   mockExtractCodexPermissionModeFlag: vi.fn(),
+  mockExtractCodexProjectDocFlag: vi.fn(),
   mockExtractCodexResumeFlag: vi.fn(),
   mockExtractCodexTransportFlag: vi.fn(),
   mockExtractNoSandboxFlag: vi.fn(),
@@ -24,6 +25,7 @@ vi.mock('@/codex/cliArgs', () => ({
   extractCodexEffortFlag: mocks.mockExtractCodexEffortFlag,
   extractCodexModelFlag: mocks.mockExtractCodexModelFlag,
   extractCodexPermissionModeFlag: mocks.mockExtractCodexPermissionModeFlag,
+  extractCodexProjectDocFlag: mocks.mockExtractCodexProjectDocFlag,
   extractCodexResumeFlag: mocks.mockExtractCodexResumeFlag,
   extractCodexTransportFlag: mocks.mockExtractCodexTransportFlag,
 }))
@@ -64,6 +66,10 @@ describe('handleCodexCommand', () => {
       permissionMode: undefined,
       args,
     }))
+    mocks.mockExtractCodexProjectDocFlag.mockImplementation((args: string[]) => ({
+      projectDocFallback: [],
+      args,
+    }))
     mocks.mockExtractCodexTransportFlag.mockImplementation((args: string[]) => ({
       transport: undefined,
       args,
@@ -84,6 +90,7 @@ describe('handleCodexCommand', () => {
       effortLevel: undefined,
       model: undefined,
       permissionMode: undefined,
+      projectDocFallback: undefined,
       codexTransport: undefined,
     })
     expect(
@@ -110,6 +117,10 @@ describe('handleCodexCommand', () => {
     })
     mocks.mockExtractCodexPermissionModeFlag.mockReturnValue({
       permissionMode: 'safe-yolo',
+      args: ['--codex-project-doc', 'PROJECT.md', '--codex-transport', 'ws', '--started-by', 'daemon'],
+    })
+    mocks.mockExtractCodexProjectDocFlag.mockReturnValue({
+      projectDocFallback: ['PROJECT.md'],
       args: ['--codex-transport', 'ws', '--started-by', 'daemon'],
     })
     mocks.mockExtractCodexTransportFlag.mockReturnValue({
@@ -127,7 +138,18 @@ describe('handleCodexCommand', () => {
       effortLevel: 'high',
       model: 'o3',
       permissionMode: 'safe-yolo',
+      projectDocFallback: ['PROJECT.md'],
       codexTransport: 'ws',
     })
+
+    expect(mocks.mockExtractCodexProjectDocFlag).toHaveBeenCalledWith([
+      '--codex-project-doc',
+      'PROJECT.md',
+      '--codex-transport',
+      'ws',
+      '--started-by',
+      'daemon',
+    ])
+    expect(mocks.mockExtractCodexTransportFlag).toHaveBeenCalledWith(['--codex-transport', 'ws', '--started-by', 'daemon'])
   })
 })

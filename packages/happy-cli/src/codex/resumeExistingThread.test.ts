@@ -37,6 +37,8 @@ describe('resumeExistingThread', () => {
             cwd: '/tmp/project',
             mcpServers: { happy: { command: 'happy-mcp' } },
         });
+        expect(client.resumeThread.mock.calls[0][0].projectDocFallback).toBeUndefined();
+        expect(client.resumeThread.mock.calls[0][0]).not.toHaveProperty('projectDocFallback');
         expect(metadataHandlers).toHaveLength(1);
         expect(metadataHandlers[0]({ existing: true })).toEqual({
             existing: true,
@@ -46,6 +48,39 @@ describe('resumeExistingThread', () => {
         expect(session.sendSessionEvent).toHaveBeenCalledWith({
             type: 'message',
             message: 'Resumed Codex thread 019ccca2-1a77-7481-9873-de72f3464372',
+        });
+    });
+
+    it('forwards project doc fallback when resuming a thread', async () => {
+        const client = {
+            resumeThread: vi.fn().mockResolvedValue({
+                threadId: '019ccca2-1a77-7481-9873-de72f3464372',
+                model: 'gpt-5.4',
+            }),
+        };
+        const session = {
+            updateMetadata: vi.fn(),
+            sendSessionEvent: vi.fn(),
+        };
+        const messageBuffer = {
+            addMessage: vi.fn(),
+        };
+
+        await resumeExistingThread({
+            client,
+            session,
+            messageBuffer,
+            threadId: '019ccca2-1a77-7481-9873-de72f3464372',
+            cwd: '/tmp/project',
+            mcpServers: { happy: { command: 'happy-mcp' } },
+            projectDocFallback: ['PROJECT.md', 'CLAUDE.md'],
+        });
+
+        expect(client.resumeThread).toHaveBeenCalledWith({
+            threadId: '019ccca2-1a77-7481-9873-de72f3464372',
+            cwd: '/tmp/project',
+            mcpServers: { happy: { command: 'happy-mcp' } },
+            projectDocFallback: ['PROJECT.md', 'CLAUDE.md'],
         });
     });
 

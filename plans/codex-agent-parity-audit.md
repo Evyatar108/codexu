@@ -85,6 +85,8 @@ Every proposed fix-site below explicitly states the tier and why.
 
 ## Gap 2 — Project-cwd `CLAUDE.md` auto-load
 
+**Status:** Shipped 907cb671 2026-05-26 — CLAUDE-only-wins; mixed-file deferred (see wire-spike 3c at lines 475-490). Codex-core's `agents_md.rs:305-319` hardcodes `AGENTS.override.md` → `AGENTS.md` → fallback list precedence, so the shipped happy-cli config field cannot make same-directory `CLAUDE.md` beat `AGENTS.md`.
+
 **Gap.** Claude Code auto-loads `<cwd>/CLAUDE.md` as a project doc; the codex app-server invocation does NOT, even though codex-core's `project_doc_fallback_filenames` config knob exists and the codex-copilot launcher already understands it.
 
 **Current state.**

@@ -443,6 +443,47 @@ describe('CodexAppServerClient sandbox integration', () => {
         await client.disconnect({ terminateAppServer: true });
     });
 
+    it('passes mcp servers and project-doc fallback in start thread config', async () => {
+        let capturedStart: MockRpcMessage | undefined;
+        await mockNextAppServer('stdio', {
+            onRequest: (msg, send) => {
+                if (msg.method === 'thread/start' && msg.id != null) {
+                    capturedStart = msg;
+                    send({
+                        id: msg.id,
+                        result: {
+                            thread: { id: 'thread-config', path: '/tmp/thread-config' },
+                            model: 'gpt-test',
+                            modelProvider: 'openai',
+                            cwd: '/tmp/project',
+                            approvalPolicy: 'never',
+                            sandbox: null,
+                            reasoningEffort: null,
+                        },
+                    });
+                }
+            },
+        });
+
+        const { CodexAppServerClient } = await import('./codexAppServerClient');
+        const client = new CodexAppServerClient(undefined, { transport: 'stdio' });
+
+        await client.connect();
+        await client.startThread({
+            model: 'gpt-test',
+            cwd: '/tmp/project',
+            mcpServers: { local: { command: 'happy-mcp' } },
+            projectDocFallback: ['CLAUDE.md', 'AGENTS.md'],
+        });
+
+        expect(capturedStart?.params.config).toEqual({
+            mcp_servers: { local: { command: 'happy-mcp' } },
+            project_doc_fallback_filenames: ['CLAUDE.md', 'AGENTS.md'],
+        });
+
+        await client.disconnect({ terminateAppServer: true });
+    });
+
     it('writes a discovery record after successful ws initialize', async () => {
         Object.defineProperty(process, 'platform', { value: 'win32' });
         const capturedHeaders: IncomingHttpHeaders[] = [];

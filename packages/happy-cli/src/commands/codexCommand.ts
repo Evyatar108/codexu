@@ -1,6 +1,13 @@
 import { authAndSetupMachineIfNeeded } from '@/ui/auth'
 import { runCodex } from '@/codex/runCodex'
-import { extractCodexEffortFlag, extractCodexModelFlag, extractCodexPermissionModeFlag, extractCodexResumeFlag, extractCodexTransportFlag } from '@/codex/cliArgs'
+import {
+  extractCodexEffortFlag,
+  extractCodexModelFlag,
+  extractCodexPermissionModeFlag,
+  extractCodexProjectDocFlag,
+  extractCodexResumeFlag,
+  extractCodexTransportFlag,
+} from '@/codex/cliArgs'
 import { extractNoSandboxFlag } from '@/utils/sandboxFlags'
 import { ensureDaemonRunning } from '@/daemon/ensureDaemonRunning'
 
@@ -11,7 +18,8 @@ export async function handleCodexCommand(args: string[]): Promise<void> {
   const effortArgs = extractCodexEffortFlag(resumeArgs.args)
   const modelArgs = extractCodexModelFlag(effortArgs.args)
   const permissionModeArgs = extractCodexPermissionModeFlag(modelArgs.args)
-  const codexArgs = extractCodexTransportFlag(permissionModeArgs.args)
+  const projectDocArgs = extractCodexProjectDocFlag(permissionModeArgs.args)
+  const codexArgs = extractCodexTransportFlag(projectDocArgs.args)
 
   for (let i = 0; i < codexArgs.args.length; i++) {
     if (codexArgs.args[i] === '--started-by') {
@@ -30,6 +38,7 @@ export async function handleCodexCommand(args: string[]): Promise<void> {
     effortLevel: effortArgs.effortLevel,
     model: modelArgs.model,
     permissionMode: permissionModeArgs.permissionMode,
+    projectDocFallback: projectDocArgs.projectDocFallback.length > 0 ? projectDocArgs.projectDocFallback : undefined,
     codexTransport: codexArgs.transport,
   })
 }
