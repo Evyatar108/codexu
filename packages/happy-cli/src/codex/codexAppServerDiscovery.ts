@@ -28,7 +28,6 @@ export interface CodexDiscoveryRecord {
     capabilityToken: string;
     capabilityTokenSha256: string;
     transport: 'ws';
-    happySessionId?: string;
 }
 
 export type DiscoveryLock = {
@@ -45,7 +44,6 @@ const CodexDiscoveryRecordSchema = z.object({
     capabilityToken: z.string(),
     capabilityTokenSha256: z.string(),
     transport: z.literal('ws'),
-    happySessionId: z.string().optional(),
 }).strict();
 
 export function cwdHash(cwd?: string): string {

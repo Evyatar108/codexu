@@ -320,7 +320,6 @@ sequenceDiagram
 - `/list` (list active sessions)
 - `/stop-session`
 - `/spawn-session`
-- `/spawn-session-from-session` (parent-session spawn used by Codex `spawn_top_level_session` and future TypeScript callers; validates `parentSessionId` against `^[A-Za-z0-9_-]{1,128}$`)
 - `/stop` (shutdown daemon)
 - `/session-started` (session self-report)
 

@@ -10,7 +10,7 @@ import { DiffProcessor } from './utils/diffProcessor';
 import { randomUUID } from 'node:crypto';
 import { execSync } from 'node:child_process';
 import { logger } from '@/ui/logger';
-import { Credentials, readDaemonState, readSettings } from '@/persistence';
+import { Credentials, readSettings } from '@/persistence';
 import { configuration } from '@/configuration';
 import packageJson from '../../package.json';
 import { MessageQueue2 } from '@/utils/MessageQueue2';
@@ -38,7 +38,7 @@ import { mapCodexMcpMessageToSessionEnvelopes, mapCodexProcessorMessageToSession
 import { resumeExistingThread } from './resumeExistingThread';
 import { emitReadyIfIdle } from './emitReadyIfIdle';
 import type { ReasoningEffort } from './codexAppServerTypes';
-import { HAPPY_CURRENT_SESSION_ID, HAPPY_DAEMON_CONTROL_URL, HAPPY_FORKED_FROM_SESSION_ID } from '@/utils/envNames';
+import { HAPPY_FORKED_FROM_SESSION_ID } from '@/utils/envNames';
 import { createCodexPatchApprovalInput } from './codexApprovalSnapshot';
 import type { LedgerRecord } from '@slopus/happy-wire';
 import { loadProjectMcpServers } from './projectMcpConfig';
@@ -723,16 +723,8 @@ export async function runCodex(opts: {
     let first = true;
 
     try {
-        const daemonState = await readDaemonState();
-        const codexAppServerEnv: Record<string, string> = {
-            [HAPPY_CURRENT_SESSION_ID]: session.sessionId,
-        };
-        if (daemonState?.httpPort) {
-            codexAppServerEnv[HAPPY_DAEMON_CONTROL_URL] = `http://127.0.0.1:${daemonState.httpPort}`;
-        }
-
         logger.debug('[codex]: client.connect begin');
-        await client.connect({ extraEnv: codexAppServerEnv });
+        await client.connect();
         logger.debug('[codex]: client.connect done');
 
         if (client.sandboxEnabled) {

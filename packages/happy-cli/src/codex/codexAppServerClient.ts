@@ -57,7 +57,6 @@ import {
     writeDiscoveryRecord,
 } from './codexAppServerDiscovery';
 import { snapshotCodexFileChanges } from './codexApprovalSnapshot';
-import { HAPPY_CURRENT_SESSION_ID } from '@/utils/envNames';
 
 type PendingRequest = {
     resolve: (result: unknown) => void;
@@ -80,7 +79,6 @@ export type CodexAppServerClientOptions = {
 type ConnectOptions = {
     skipDiscovery?: boolean;
     heldLock?: DiscoveryLock;
-    extraEnv?: Record<string, string>;
 };
 
 type ReconnectOptions = {
@@ -797,7 +795,7 @@ export class CodexAppServerClient {
         });
     }
 
-    private async tryReattach(initParams: InitializeParams, extraEnv: Record<string, string>): Promise<boolean> {
+    private async tryReattach(initParams: InitializeParams): Promise<boolean> {
         const record = readDiscoveryRecord(discoveryFilePath());
         if (!record) return false;
 
@@ -807,13 +805,6 @@ export class CodexAppServerClient {
 
         if (!isPidAlive(record.pid)) {
             deleteStaleRecord();
-            return false;
-        }
-
-        const incomingSessionId = extraEnv[HAPPY_CURRENT_SESSION_ID];
-        if (incomingSessionId !== undefined && record.happySessionId !== undefined && record.happySessionId !== incomingSessionId) {
-            logger.debug('[CodexAppServer] Session ID mismatch on reattach; terminating stale server to spawn fresh');
-            await this.terminateAttachedAppServer(record);
             return false;
         }
 
@@ -943,7 +934,6 @@ export class CodexAppServerClient {
         for (const [key, value] of Object.entries(process.env)) {
             if (typeof value === 'string') env[key] = value;
         }
-        Object.assign(env, opts?.extraEnv ?? {});
         // Mute noisy rollout list logging
         const filter = 'codex_core::rollout::list=off';
         if (!env.RUST_LOG) {
@@ -978,7 +968,7 @@ export class CodexAppServerClient {
         let failureAlreadyCleanedUp = false;
         try {
             if (transport === 'ws') {
-                if (!skipDiscovery && await this.tryReattach(initParams, opts?.extraEnv ?? {})) {
+                if (!skipDiscovery && await this.tryReattach(initParams)) {
                     return;
                 }
 
@@ -1011,9 +1001,6 @@ export class CodexAppServerClient {
                             capabilityToken: wsAuthToken,
                             capabilityTokenSha256: wsTokenSha256,
                             transport: 'ws',
-                            ...(opts?.extraEnv?.[HAPPY_CURRENT_SESSION_ID] !== undefined
-                                ? { happySessionId: opts.extraEnv[HAPPY_CURRENT_SESSION_ID] }
-                                : {}),
                         };
                         break;
                     } catch (error) {

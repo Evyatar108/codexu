@@ -244,7 +244,3 @@ Operator should review this doc and decide which of the six follow-ups to schedu
 3. **Promote Phase 6 to active** in `codexu-roadmap.md` once first-wave tasks land.
 
 Do NOT open any follow-up code tasks until operator has signed off on this doc.
-
----
-
-Status: implemented (scope.agent axis shipped 2026-05-26)

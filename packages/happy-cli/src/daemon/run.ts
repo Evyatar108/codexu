@@ -829,17 +829,11 @@ export async function startDaemon(): Promise<void> {
       pidToTrackedSession.delete(pid);
     };
 
-    let resolveSpawnSessionFromSessionHandler!: (handler: (options: SpawnSessionFromSessionRpcOptions) => Promise<SpawnSessionResult>) => void;
-    const spawnSessionFromSessionHandlerReady = new Promise<(options: SpawnSessionFromSessionRpcOptions) => Promise<SpawnSessionResult>>(
-      (resolve) => { resolveSpawnSessionFromSessionHandler = resolve; }
-    );
-
     // Start control server
     const { port: controlPort, stop: stopControlServer } = await startDaemonControlServer({
       getChildren: getCurrentChildren,
       stopSession,
       spawnSession,
-      spawnSessionFromSession: (options) => spawnSessionFromSessionHandlerReady.then(handler => handler(options)),
       requestShutdown: () => requestShutdown('happy-cli'),
       onHappySessionWebhook
     });
@@ -918,7 +912,6 @@ export async function startDaemon(): Promise<void> {
       updateParentMetadata,
       stat: fs.stat,
     });
-    resolveSpawnSessionFromSessionHandler(spawnSessionFromSessionHandler);
 
     // Create realtime machine session
     const apiMachine = api.machineSyncClient(machine);
