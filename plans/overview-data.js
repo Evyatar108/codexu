@@ -862,9 +862,10 @@ window.OVERVIEW_DATA = {
         {
               "id": "codex-claude-md-autoload",
               "scope": "codexu",
-              "phase": "plan-ready",
+              "phase": "shipped",
               "status": "ok",
-              "lastTouchedAt": "2026-05-14T08:30:00Z",
+              "lastTouchedAt": "2026-05-26T04:58:00Z",
+              "mergeCommit": "cb37724d",
               "kanbanCards": [],
               "command": {
                     "name": "codex-claude-md-autoload",
