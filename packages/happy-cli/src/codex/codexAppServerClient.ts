@@ -57,6 +57,7 @@ import {
     writeDiscoveryRecord,
 } from './codexAppServerDiscovery';
 import { snapshotCodexFileChanges } from './codexApprovalSnapshot';
+import { HAPPY_CURRENT_SESSION_ID } from '@/utils/envNames';
 
 type PendingRequest = {
     resolve: (result: unknown) => void;
@@ -796,7 +797,7 @@ export class CodexAppServerClient {
         });
     }
 
-    private async tryReattach(initParams: InitializeParams): Promise<boolean> {
+    private async tryReattach(initParams: InitializeParams, extraEnv: Record<string, string>): Promise<boolean> {
         const record = readDiscoveryRecord(discoveryFilePath());
         if (!record) return false;
 
@@ -806,6 +807,13 @@ export class CodexAppServerClient {
 
         if (!isPidAlive(record.pid)) {
             deleteStaleRecord();
+            return false;
+        }
+
+        const incomingSessionId = extraEnv[HAPPY_CURRENT_SESSION_ID];
+        if (incomingSessionId !== undefined && record.happySessionId !== undefined && record.happySessionId !== incomingSessionId) {
+            logger.debug('[CodexAppServer] Session ID mismatch on reattach; terminating stale server to spawn fresh');
+            await this.terminateAttachedAppServer(record);
             return false;
         }
 
@@ -970,7 +978,7 @@ export class CodexAppServerClient {
         let failureAlreadyCleanedUp = false;
         try {
             if (transport === 'ws') {
-                if (!skipDiscovery && await this.tryReattach(initParams)) {
+                if (!skipDiscovery && await this.tryReattach(initParams, opts?.extraEnv ?? {})) {
                     return;
                 }
 
@@ -1003,6 +1011,9 @@ export class CodexAppServerClient {
                             capabilityToken: wsAuthToken,
                             capabilityTokenSha256: wsTokenSha256,
                             transport: 'ws',
+                            ...(opts?.extraEnv?.[HAPPY_CURRENT_SESSION_ID] !== undefined
+                                ? { happySessionId: opts.extraEnv[HAPPY_CURRENT_SESSION_ID] }
+                                : {}),
                         };
                         break;
                     } catch (error) {
