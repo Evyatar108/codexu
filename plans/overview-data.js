@@ -883,8 +883,8 @@ window.OVERVIEW_DATA = {
               "id": "codex-attachments",
               "scope": "codexu",
               "phase": "plan-ready",
-              "status": "ok",
-              "lastTouchedAt": "2026-05-14T18:00:00Z",
+              "status": "paused",
+              "lastTouchedAt": "2026-05-26T06:00:00Z",
               "kanbanCards": [],
               "command": {
                     "name": "codex-attachments",
