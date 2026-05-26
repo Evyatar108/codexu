@@ -1,15 +1,14 @@
 ---
 name: overview-reset
-description: Hard-reset the ralph-overview watcher state when sessions get tangled. Kills any orphan sync-ralph-state.mjs watcher process for THIS repo, removes the owner-marker lease at .ralph/overview-watcher.owner, and prepares for a clean MCP/dev-server restart. Use when overview_dev_server_start fails with EOWNER, when overview-data.json (or other stale outputs) keep getting re-emitted by an old watcher, or when /list-jobs / overview_parallel_ready_tasks return stale data after a session restart.
+description: Hard-reset the ralph-overview watcher state when sessions get tangled. Kills any orphan sync-ralph-state.mjs watcher process for THIS repo, removes the owner-marker lease at .ralph/overview-watcher.owner, and prepares for a clean MCP watcher or operator-launched dev-server restart. Use when stale outputs keep getting re-emitted by an old watcher, or when /list-jobs / overview_parallel_ready_tasks return stale data after a session restart.
 ---
 
 # Skill: overview-reset
 
 Operator-facing **emergency** skill for the bookkeeper/scrum-master lead
-(see `D:/harness-efforts/codexu/CLAUDE.md`). Run this when the ralph-overview
+(see `D:/harness-efforts/codexu-multi-mcp/CLAUDE.md`). Run this when the ralph-overview
 watcher state is wedged — typically symptoms:
 
-- `overview_dev_server_start` returns `EOWNER: another watcher already owns this repo`
 - `overview-data.json` (removed in plugin v2.0.1) keeps reappearing in `plans/`
 - Sync results stale despite editing `.ralph/jobs/*/job-state.json`
 - Two or more `sync-ralph-state.mjs` processes visible in `tasklist`/`ps`
@@ -24,19 +23,11 @@ that's a bookkeeper-update miss, not a watcher problem; see the bookkeeper
 duties in `CLAUDE.md` and the `feedback_bookkeeper_updates_overview_data`
 auto-memory entry.
 
-The plugin's own auto-cleanup (per-MCP-pid heartbeat + preflight reclaim, v2.0.2+) handles the common cases. This skill is the manual escape hatch when auto-cleanup fails — e.g. watchers spawned outside MCP (`pnpm sync-ralph-state:watch` manually), or watchers whose cmdline doesn't match the conservative `--repo <this-repo>` criteria.
+The plugin's own auto-cleanup (cooperative lease, per-MCP-pid heartbeat, and orphan-only reclaim in v2.1.0+) handles the common MCP peer-collision cases. This skill is the manual escape hatch when auto-cleanup cannot prove ownership — e.g. watchers spawned outside MCP (`pnpm sync-ralph-state:watch` manually), or watchers whose cmdline doesn't match the conservative `--repo <this-repo>` criteria.
 
 ## Run these steps in order:
 
-### 1. Stop any MCP-managed dev server
-
-```
-mcp__ralph-overview__overview_dev_server_stop
-```
-
-(Skip if the dev server isn't running. The MCP server itself keeps running — only the dev-server child is stopped.)
-
-### 2. Find every sync-ralph-state.mjs process for THIS repo and kill them
+### 1. Find every sync-ralph-state.mjs process for THIS repo and kill them
 
 Windows (PowerShell):
 
@@ -64,7 +55,7 @@ ps -ef | grep '[s]ync-ralph-state\.mjs' | grep -F -- "--repo $REPO" | awk '{prin
 
 The `--repo <this-repo>` filter is critical — don't kill watchers for OTHER repos open in different Claude Code sessions.
 
-### 3. Remove the owner-marker lease
+### 2. Remove the owner-marker lease
 
 ```
 rm .ralph/overview-watcher.owner
@@ -72,9 +63,9 @@ rm .ralph/overview-watcher.owner
 
 (The MCP server's preflight reclaim usually cleans this up, but the file may stay if cleanup failed.)
 
-### 4. Optionally sweep orphan parent-heartbeat files
+### 3. Optionally sweep orphan parent-heartbeat files
 
-The plugin v2.0.2+ does this on every MCP startup, but you can force it now:
+The plugin v2.1.0+ does this on every MCP startup, but you can force it now:
 
 Windows:
 ```powershell
@@ -98,12 +89,12 @@ for f in ~/.cache/ralph-overview-mcp/watcher-parent-*.owner; do
 done
 ```
 
-### 5. Restart the watcher / dev server
+### 4. Restart the watcher / dev server
 
 Either:
 - Wait ~10s and the MCP server will auto-respawn the watcher (it polls for the owner-marker going stale)
-- OR call `mcp__ralph-overview__overview_dev_server_start` to start a fresh dev server (which also spawns a watcher)
-- OR call `mcp__ralph-overview__overview_sync_now` to trigger a one-shot sync without a long-running watcher
+- OR run `pnpm overview:dev` from the codexu root to start the operator-managed viewer dev server
+- OR run `pnpm sync-ralph-state` to trigger a one-shot sync without a long-running watcher
 
 ## When NOT to use this skill
 
@@ -113,5 +104,5 @@ Either:
 
 ## Implementation notes
 
-- **Dev-server-vs-MCP watcher contention is resolved as of plugin v2.0.3.** The dev server now detects EOWNER (and the older "another sync in progress" lock condition) thrown by the watcher's `claimOwnerHeartbeat()` and falls back to **file-only HMR** — Vite's built-in chokidar watches `plans/overview-ralph-state.js` and emits `overview-ralph-state:update` when the foreign watcher rewrites it. The MCP supervisor's watcher becomes the sole writer of sidecars; the dev server is a pure consumer in this mode. If you're on a cache older than v2.0.3, you'll still hit `EOWNER: another watcher already owns this repo` when starting the dev server while MCP is running — restart Claude Code to pull the latest cached version.
+- **v2.1.0 boundary:** MCP peers now coordinate with a cooperative owner marker, so a 3-MCP peer-collision cascade should leave one active watcher and passive consumers instead of requiring this reset skill. Use this skill for stale non-MCP-spawned watchers such as manual `pnpm sync-ralph-state:watch` processes, or for orphan cases that the supervisor cannot prove safely. The operator-launched dev server still has the v2.0.3 file-only HMR fallback when another watcher holds the lease; it is a consumer in that mode, not the sidecar writer.
 - The owner-marker uses an mtime + heartbeat scheme. The `OWNER_FRESH_MS` is 10s (in `watch-ralph-state.mjs`); a stale marker is auto-evicted on next claim attempt.
