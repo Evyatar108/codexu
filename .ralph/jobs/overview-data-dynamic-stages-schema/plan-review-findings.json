@@ -1,0 +1,102 @@
+{
+  "planFile": "D:/harness-efforts/codexu/.ralph/jobs/.staging/20260526-151543/draft-plan.md",
+  "repoDir": "D:/harness-efforts/codexu",
+  "reviewCycle": 1,
+  "findings": [
+    {
+      "id": "F-001",
+      "severity": "High",
+      "source": "claude",
+      "category": "Completeness",
+      "sectionRef": "Approach > Implementation Strategy (step 5) and Acceptance Criteria > B4",
+      "description": "The plan referenced `scripts/sync-ralph-state.mjs:40-58` as where `runUpdateCrewSession` lives, but did not spec how the proposed `--phase` and `--regression-reason` CLI flags integrate with the function's existing signature. Need to clarify CLI flag parsing, argument forwarding, and which write site stamps regressionReason.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Manual fix (review-loop.sh fix-engine broken on Windows — codex CLI spawn ENOENT): plan step 5 now spells out (a) `--phase` is parsed into `args.phase` and threaded through `runUpdateCrewSession({ ..., phase })`, merged into the explicit CrewSessionRef before insertion at sync-ralph-state.mjs:84-90; (b) `--regression-reason` is a NEW top-level mode `args.command === 'recordRegression'` (sibling of updateCrewSession / finalizeCrewSession) with handler `runRecordRegression` that sets `state.byTaskId[taskId].regressionReason` and writes the sidecar; (c) AC B4 is split into B4a and B4b matching the two integration points.",
+      "relevantFiles": [
+        "D:/ai-developer-toolkit/plugins/ralph-overview/scripts/sync-ralph-state.mjs",
+        "D:/ai-developer-toolkit/plugins/ralph-overview/scripts/lib/crews-cross-walk.mjs",
+        "D:/ai-developer-toolkit/plugins/ralph-overview/scripts/lib/sync-core.mjs"
+      ],
+      "suggestedFix": "Inspect runUpdateCrewSession and the regression-reason write path; spell out exact CLI flag parsing, argument forwarding, and which RalphPipelineState write site stamps regressionReason."
+    },
+    {
+      "id": "F-002",
+      "severity": "High",
+      "source": "claude",
+      "category": "Feasibility",
+      "sectionRef": "Approach > Implementation Strategy (step 6) and Files to Create/Modify > sync-core.mjs",
+      "description": "Plan said `scripts/lib/sync-core.mjs` applies the read-side fallback when loading overview-data.js, but did not identify the exact function. sync-core.mjs is 1022 lines; the fallback must be applied at the load/normalize point.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Manual fix: plan step 6 now names `loadOverviewData(dataFile)` at sync-core.mjs:818-827 as the choke point; specifies that the function delegates to the field-agnostic `parseOverviewData` AST-walker in parse-overview-data.mjs (do NOT modify) and that the normalization (lifecycle/prompts fallback + `mapLegacyPhaseToLifecycle` helper) is applied after parse, before returning `data`. Calls out the 6 downstream consumer sites (lines 103, 294, 317, 518, 547, 933) that all transitively pick up the normalized shape.",
+      "relevantFiles": [
+        "D:/ai-developer-toolkit/plugins/ralph-overview/scripts/lib/sync-core.mjs",
+        "D:/ai-developer-toolkit/plugins/ralph-overview/scripts/lib/parse-overview-data.mjs"
+      ],
+      "suggestedFix": "Name the specific loader/normalizer function in sync-core.mjs that reads overview-data.js entries and apply the fallback there."
+    },
+    {
+      "id": "F-003",
+      "severity": "High",
+      "source": "claude",
+      "category": "Criteria Quality",
+      "sectionRef": "Acceptance Criteria > E1",
+      "description": "E1 said `grep -c '\"phase\":' plans/overview-data.js` should return 0 \"against the OverviewTask scope\" — phrasing was ambiguous since CrewSessionRef.phase is also a JSON key with the same string.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Manual fix: E1 rewritten to state that overview-data.js is hand-curated and contains only OverviewTask shapes (never CrewSessionRef — those are watcher-derived in plans/overview-ralph-state.json). The grep is now a clean zero check without scope disambiguation. Added an explicit pre-flight scan command (`grep -oE '\"phase\":\\s*\"[^\"]+\"' plans/overview-data.js | sort -u`) to enumerate distinct values for exhaustive mapping.",
+      "relevantFiles": [
+        "D:/harness-efforts/codexu/plans/overview-data.js"
+      ],
+      "suggestedFix": "Rewrite E1 to be unambiguous: grep returns 0 after rewrite; CrewSessionRef.phase occurrences are in a different sidecar file."
+    },
+    {
+      "id": "F-004",
+      "severity": "High",
+      "source": "claude",
+      "category": "Ordering",
+      "sectionRef": "Approach > Implementation Strategy",
+      "description": "Step 6 (sync-core.mjs read fallback) precedes steps 7-10 (viewer + tests), but the dependency relationship was not called out. Parallel impl members could run step 7 before step 6.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Manual fix: Implementation Strategy now opens with an explicit Ordering Constraint paragraph stating that steps 1-2 (types + schema) MUST land before any other step starts; step 6 (sync-core.mjs loadOverviewData fallback) MUST land before steps 7-10 finalize; steps 6-10 are sequenced inside a single impl member. The sync-and-viewer cluster rationale in suggested-decomposition.json is updated to mirror the constraint and explicitly forbid cross-member parallelism.",
+      "relevantFiles": [
+        "D:/harness-efforts/codexu/.ralph/jobs/.staging/20260526-151543/draft-plan.md",
+        "D:/harness-efforts/codexu/.ralph/jobs/.staging/20260526-151543/suggested-decomposition.json"
+      ],
+      "suggestedFix": "Add an explicit ordering note in the Implementation Strategy section and mirror in suggested-decomposition.json."
+    },
+    {
+      "id": "F-005",
+      "severity": "Medium",
+      "source": "claude",
+      "category": "Simplicity",
+      "sectionRef": "Acceptance Criteria > C2 and Open Questions item 3",
+      "description": "AC C2 should explicitly enumerate the required PHASE_TO_BADGE_TEXT keys so the impl member doesn't drop the legacy ones thinking they're dead code.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Manual fix: AC C2 now enumerates the required keys (`tracked`, `merged`, `archived` plus legacy `plan-ready`, `shipped`, `closed` plus any additional legacy values discovered during the AC E1 exhaustive scan); states the v2.3.0 retention rationale and v2.4.0 removal timing explicitly.",
+      "relevantFiles": [
+        "D:/ai-developer-toolkit/plugins/ralph-overview/tools/overview-viewer/src/utils/taskClassification.ts"
+      ],
+      "suggestedFix": "Rewrite C2 to enumerate keys."
+    },
+    {
+      "id": "F-006",
+      "severity": "Low",
+      "source": "claude",
+      "category": "Feasibility",
+      "sectionRef": "Approach > Implementation Strategy (step 8) and US-006",
+      "description": "The plan referenced `parallel-ready-tasks.ts:93-98` for the deriveNextCommand call site, but did not state the exact current call shape vs. expected post-change shape.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Manual fix: US-006 now confirms that `parallel-ready-tasks.ts:93-98` already calls `deriveNextCommand(task.ralph, task)` — the second `task` argument was reserved for the seed-prompt fallback per the existing inline comment, so no signature change at the call site is required. Only the runtime behavior inside deriveNextCommand changes (Change C path).",
+      "relevantFiles": [
+        "D:/ai-developer-toolkit/plugins/ralph-overview/tools/overview-mcp/src/tools/parallel-ready-tasks.ts",
+        "D:/ai-developer-toolkit/plugins/ralph-overview/scripts/lib/derive-next-command.mjs"
+      ],
+      "suggestedFix": "Specify in US-006 the exact current and expected call shape."
+    }
+  ]
+}
