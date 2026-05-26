@@ -609,6 +609,25 @@ window.OVERVIEW_DATA = {
               "planOnly": true
         },
         {
+              "id": "codex-sandbox-setup-release",
+              "scope": "codex",
+              "phase": "plan-ready",
+              "status": "ok",
+              "lastTouchedAt": "2026-05-26T11:30:00Z",
+              "kanbanCards": [],
+              "command": {
+                    "name": "codex-sandbox-setup-release",
+                    "descriptionHtml": "Bug — <code>codex-windows-sandbox-setup.exe</code> isn't published in the codex release tarball. Without it, non-<code>--yolo</code> runs fail because the sandbox installer can't be located. The binary builds from <code>windows-sandbox-rs/src/bin/setup_main.rs</code> (target name <code>codex-windows-sandbox-setup</code>) but the publish workflow only builds <code>codex</code> + <code>codex-core</code> bins.",
+                    "warnings": [
+                          {
+                                "className": "cmd-warn",
+                                "html": "⚠️ codex submodule change — touches <code>.github/workflows/publish-npm.yml</code> in <code>codex/</code> (gim-home/codex repo). Verify the binary target name with <code>cargo metadata</code> first; the workspace crate is <code>codex-windows-sandbox-rs</code> but the bin name may differ (likely <code>codex-windows-sandbox-setup</code>). Test by tagging a release and confirming the published tarball under GitHub Packages + GitHub Release bundle contains the new exe."
+                          }
+                    ],
+                    "planPrompt": "/plan-with-ralph \"Bug fix — the gim-home/codex fork's publish workflow (.github/workflows/publish-npm.yml) builds and ships codex.exe + codex-core.exe + rg.exe but NOT codex-windows-sandbox-setup.exe. The sandbox-setup binary is built from external/repos/codex-patched/codex-rs/windows-sandbox-rs/src/bin/setup_main.rs (likely bin target name 'codex-windows-sandbox-setup', verify via cargo metadata). When users run codex without the --yolo flag (the default), the codex CLI tries to invoke the sandbox-setup binary, can't find it because it wasn't packaged, and fails.\n\nFix (3 edits to .github/workflows/publish-npm.yml in the codex submodule):\n\n1. **Build step** (~lines 126-128): add `--bin codex-windows-sandbox-setup` to the `cargo build --release` invocation alongside the existing `--bin codex --bin codex-core` (verify the exact bin name first).\n\n2. **Vendor layout assembly** (~lines 130-149): after the existing `cp $REL/codex-core.exe $VENDOR/codex/codex-core.exe`, add `cp $REL/codex-windows-sandbox-setup.exe $VENDOR/codex/codex-windows-sandbox-setup.exe`. Place it in the same $VENDOR/codex/ directory as codex.exe + codex-core.exe so the launcher's discovery logic finds it via the same path.\n\n3. **Release bundle** (~lines 224-248): the bundle tarball stage merges $GITHUB_WORKSPACE/stage-platform/vendor into the staging dir; verify the new exe gets carried through. Likely no edit needed there if step 2 placed it inside $VENDOR/codex/ — confirm by inspecting the produced tarball.\n\nAlso check whether the launcher (codex-rs-overlay/codex-copilot-launcher/) or the install scripts (external/repos/codex-patched/scripts/install/install.ps1) need to know about the new binary's path — they shouldn't if it's colocated with codex.exe, but verify.\n\nPrereq verification: run `cargo metadata --manifest-path external/repos/codex-patched/codex-rs/Cargo.toml --format-version 1 | jq -r '.packages[] | select(.name | test(\\\"windows-sandbox\\\")) | .targets[] | select(.kind | index(\\\"bin\\\")) | .name'` to confirm the bin target name.\n\nAcceptance: (1) tag a test release in gim-home/codex; (2) verify the published GitHub Packages tarball + GitHub Release bundle both contain codex-windows-sandbox-setup.exe under vendor/x86_64-pc-windows-msvc/codex/; (3) smoke-test by installing fresh from the release bundle and running codex without --yolo — should NOT fail with 'cannot find sandbox-setup binary'. Single commit on a ralph branch in the codex submodule; CI on gim-home/codex runs invariant-check.yml on push (no local cargo build needed per fork's no-local-cargo convention).\""
+              }
+        },
+        {
               "id": "ralph-overview-multi-mcp-v210",
               "scope": "ralph-overview",
               "phase": "shipped",
