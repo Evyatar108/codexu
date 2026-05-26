@@ -1,0 +1,96 @@
+{
+  "clusters": [
+    {
+      "name": "schema-foundation",
+      "stories": ["US-001"],
+      "phase": 1,
+      "dependsOn": [],
+      "fileOverlapEvidence": {
+        "sharedFiles": [
+          "tools/overview-viewer/src/types.ts",
+          "scripts/lib/emit-snapshot-schema.mjs"
+        ],
+        "exclusiveFiles": [
+          "tools/overview-viewer/src/types.ts",
+          "scripts/lib/emit-snapshot-schema.mjs"
+        ],
+        "risk": "medium"
+      },
+      "executionModeRationale": "Foundational schema must land first and serially. Every downstream story imports from types.ts; parallel execution would force speculative type definitions that could shift as the schema settles."
+    },
+    {
+      "name": "sync-and-viewer",
+      "stories": ["US-002", "US-003", "US-004", "US-006"],
+      "phase": 2,
+      "dependsOn": ["schema-foundation"],
+      "fileOverlapEvidence": {
+        "sharedFiles": [
+          "tools/overview-viewer/src/__tests__/"
+        ],
+        "exclusiveFiles": [
+          "scripts/lib/crews-cross-walk.mjs",
+          "scripts/lib/derive-next-command.mjs",
+          "scripts/lib/sync-core.mjs",
+          "scripts/sync-ralph-state.mjs",
+          "tools/overview-viewer/src/components/TaskCommand.tsx",
+          "tools/overview-viewer/src/components/Toolbar.tsx",
+          "tools/overview-viewer/src/utils/filters.ts",
+          "tools/overview-viewer/src/utils/taskClassification.ts",
+          "tools/overview-mcp/src/tools/*.ts"
+        ],
+        "risk": "low"
+      },
+      "executionModeRationale": "Stories have disjoint source files but share the __tests__/ directory and the CHANGELOG. Critical ordering constraint: US-002 (sync layer; sync-core.mjs loadOverviewData fallback) MUST land before US-003 (viewer) and US-004 (tests) finalize — viewer fixtures assert end-to-end fallback behavior through the sync layer, so parallel execution risks flaky test failures whenever US-002 lands after US-003. Recommend single impl member sequencing US-002 → US-003 → US-006 → US-004 inside this cluster; do NOT parallelize across members."
+    },
+    {
+      "name": "docs-and-version",
+      "stories": ["US-005"],
+      "phase": 3,
+      "dependsOn": ["sync-and-viewer"],
+      "fileOverlapEvidence": {
+        "sharedFiles": [
+          "CHANGELOG.md",
+          "package.json"
+        ],
+        "exclusiveFiles": [
+          "CLAUDE.md",
+          "README.md",
+          "tools/overview-viewer/CLAUDE.md"
+        ],
+        "risk": "low"
+      },
+      "executionModeRationale": "Runs last in PR #1 because the version bump and CHANGELOG entry summarize what landed."
+    },
+    {
+      "name": "codexu-rewrite",
+      "stories": ["US-007", "US-008", "US-009"],
+      "phase": 4,
+      "dependsOn": ["docs-and-version"],
+      "fileOverlapEvidence": {
+        "sharedFiles": [],
+        "exclusiveFiles": [
+          "plans/overview-data.js",
+          "plans/codexu-roadmap.md",
+          "CLAUDE.md"
+        ],
+        "risk": "low"
+      },
+      "executionModeRationale": "PR #2 in the codexu repo runs only after PR #1 is merged to ai-developer-toolkit main so the viewer can already read the new shape via the v2.3.0 alias. Three small docs/data edits with no file overlap; a single member sequences them."
+    },
+    {
+      "name": "memory-updates",
+      "stories": ["US-010"],
+      "phase": 5,
+      "dependsOn": ["codexu-rewrite"],
+      "fileOverlapEvidence": {
+        "sharedFiles": [],
+        "exclusiveFiles": [
+          "C:/Users/evmitran/.claude/projects/D--harness-efforts-codexu/memory/feedback_bookkeeper_updates_overview_data.md",
+          "C:/Users/evmitran/.claude/projects/D--harness-efforts-codexu/memory/feedback_phase_discipline_separate_members.md"
+        ],
+        "risk": "trivial"
+      },
+      "executionModeRationale": "Operator-local; runs last because it documents the conventions just established in PR #1 + PR #2."
+    }
+  ]
+}
