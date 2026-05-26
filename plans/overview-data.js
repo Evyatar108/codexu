@@ -1046,9 +1046,10 @@ window.OVERVIEW_DATA = {
         {
               "id": "codex-child-spawn-tools",
               "scope": "codexu",
-              "phase": "plan-ready",
+              "phase": "shipped",
               "status": "ok",
-              "lastTouchedAt": "2026-05-14T19:30:00Z",
+              "lastTouchedAt": "2026-05-26T04:25:00Z",
+              "mergeCommit": "23d43f93",
               "kanbanCards": [],
               "command": {
                     "name": "codex-child-spawn-tools",
