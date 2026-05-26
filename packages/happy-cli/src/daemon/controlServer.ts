@@ -10,19 +10,34 @@ import { logger } from '@/ui/logger';
 import { Metadata } from '@/api/types';
 import { decodeBase64 } from '@/api/encryption';
 import { TrackedSession, SessionEncryptionData } from './types';
-import { SpawnSessionOptions, SpawnSessionResult } from '@/modules/common/registerCommonHandlers';
+import { isSupportedAgent, SpawnSessionOptions, SpawnSessionResult } from '@/modules/common/registerCommonHandlers';
 import { STOP_SESSION_ID_MAX_LENGTH, STOP_SESSION_PID_SUFFIX_SHAPE } from './stopTrackedSession';
+import type { SpawnSessionFromSessionRpcOptions } from '@/api/apiMachine';
+
+const PARENT_SESSION_ID_MAX_LENGTH = 128;
+const PARENT_SESSION_ID_SHAPE = /^[A-Za-z0-9_-]+$/;
+
+const spawnSessionFromSessionConfigSchema = z.object({
+  agent: z.string().refine(isSupportedAgent, { message: 'agent must be one of: claude, codex, gemini, openclaw' }),
+  path: z.string().optional(),
+  model: z.string().min(1).optional(),
+  permissionMode: z.string().min(1).optional(),
+  effortLevel: z.string().min(1).optional(),
+  initialMessage: z.string().optional(),
+});
 
 export function startDaemonControlServer({
   getChildren,
   stopSession,
   spawnSession,
+  spawnSessionFromSession,
   requestShutdown,
   onHappySessionWebhook
 }: {
   getChildren: () => TrackedSession[];
   stopSession: (sessionId: string) => boolean | Promise<boolean>;
   spawnSession: (options: SpawnSessionOptions) => Promise<SpawnSessionResult>;
+  spawnSessionFromSession?: (options: SpawnSessionFromSessionRpcOptions) => Promise<SpawnSessionResult>;
   requestShutdown: () => void;
   onHappySessionWebhook: (sessionId: string, metadata: Metadata, encryption?: SessionEncryptionData) => void;
 }): Promise<{ port: number; stop: () => Promise<void> }> {
@@ -195,6 +210,50 @@ export function startDaemonControlServer({
             error: result.errorMessage
           };
       }
+    });
+
+    typed.post('/spawn-session-from-session', {
+      schema: {
+        body: z.object({
+          parentSessionId: z.string()
+            .min(1)
+            .max(PARENT_SESSION_ID_MAX_LENGTH)
+            .refine(value => PARENT_SESSION_ID_SHAPE.test(value), {
+              message: 'parentSessionId must be 1-128 characters of [A-Za-z0-9_-]'
+            }),
+          config: spawnSessionFromSessionConfigSchema,
+        }),
+        response: {
+          200: z.discriminatedUnion('type', [
+            z.object({
+              type: z.literal('success'),
+              sessionId: z.string(),
+            }),
+            z.object({
+              type: z.literal('error'),
+              errorMessage: z.string(),
+            }),
+          ]),
+        }
+      }
+    }, async (request, reply) => {
+      if (!spawnSessionFromSession) {
+        return { type: 'error' as const, errorMessage: 'Spawn-from-session handler not available' };
+      }
+
+      logger.debug(`[CONTROL SERVER] Spawn session from parent request: parentSessionId=${request.body.parentSessionId}, agent=${request.body.config.agent}`);
+      const result = await spawnSessionFromSession(request.body as SpawnSessionFromSessionRpcOptions);
+      if (result.type === 'success') {
+        return result;
+      }
+
+      if (result.type === 'requestToApproveDirectoryCreation') {
+        return {
+          type: 'error' as const,
+          errorMessage: `Directory creation approval is not supported for spawn-from-session: ${result.directory}`,
+        };
+      }
+      return result;
     });
 
     // Stop daemon

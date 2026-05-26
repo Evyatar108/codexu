@@ -611,10 +611,9 @@ window.OVERVIEW_DATA = {
         {
               "id": "plugin-scope-agents",
               "scope": "codex|codexu",
-              "phase": "shipped",
+              "phase": "plan-ready",
               "status": "ok",
-              "lastTouchedAt": "2026-05-26T10:14:44Z",
-              "mergeCommit": "9d89ca43",
+              "lastTouchedAt": "2026-05-26T06:47:00Z",
               "kanbanCards": [
                     {
                           "column": "blocked",

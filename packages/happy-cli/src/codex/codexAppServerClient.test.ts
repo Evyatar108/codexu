@@ -484,6 +484,33 @@ describe('CodexAppServerClient sandbox integration', () => {
         await client.disconnect({ terminateAppServer: true });
     });
 
+    it('passes explicit extra env to the app-server child process', async () => {
+        await mockNextAppServer('stdio');
+
+        const { CodexAppServerClient } = await import('./codexAppServerClient');
+        const client = new CodexAppServerClient(undefined, { transport: 'stdio' });
+
+        await client.connect({
+            extraEnv: {
+                HAPPY_CURRENT_SESSION_ID: 'happy-session-1',
+                HAPPY_DAEMON_CONTROL_URL: 'http://127.0.0.1:45678',
+            },
+        });
+
+        expect(mockSpawn).toHaveBeenCalledWith(
+            'codex',
+            ['app-server', '--listen', 'stdio://'],
+            expect.objectContaining({
+                env: expect.objectContaining({
+                    HAPPY_CURRENT_SESSION_ID: 'happy-session-1',
+                    HAPPY_DAEMON_CONTROL_URL: 'http://127.0.0.1:45678',
+                }),
+            }),
+        );
+
+        await client.disconnect({ terminateAppServer: true });
+    });
+
     it('writes a discovery record after successful ws initialize', async () => {
         Object.defineProperty(process, 'platform', { value: 'win32' });
         const capturedHeaders: IncomingHttpHeaders[] = [];
@@ -778,6 +805,92 @@ describe('CodexAppServerClient sandbox integration', () => {
 
         expect(mockSpawn).toHaveBeenCalledTimes(1);
         expect(readDiscoveryRecord(discoveryFilePath())?.pid).toBe(4331);
+
+        await client.disconnect({ terminateAppServer: true });
+        killSpy.mockRestore();
+    });
+
+    it('refuses reattach and spawns fresh when discovery record happySessionId does not match extraEnv session id', async () => {
+        Object.defineProperty(process, 'platform', { value: 'win32' });
+        const attached = await createMockWsAppServer({ pid: 4341 });
+        const record = testDiscoveryRecord({
+            pid: 4341,
+            port: (attached.wss.address() as AddressInfo).port,
+            happySessionId: 'session-A',
+        });
+        writeDiscoveryRecord(discoveryFilePath(), record);
+        let terminated = false;
+        const killSpy = vi.spyOn(process, 'kill').mockImplementation(((pid: number, signal?: string | number) => {
+            if (pid !== record.pid) return true;
+            if (signal === 'SIGTERM') {
+                terminated = true;
+                return true;
+            }
+            if (signal === 0 && terminated) {
+                const error = new Error('dead') as NodeJS.ErrnoException;
+                error.code = 'ESRCH';
+                throw error;
+            }
+            return true;
+        }) as typeof process.kill);
+        const spawnedRequests: MockRpcMessage[] = [];
+        await mockNextAppServer('ws', { pid: 4342, onRequest: (msg) => spawnedRequests.push(msg) });
+
+        const { CodexAppServerClient } = await import('./codexAppServerClient');
+        const client = new CodexAppServerClient(undefined, { transport: 'ws' });
+
+        await client.connect({ extraEnv: { HAPPY_CURRENT_SESSION_ID: 'session-B' } });
+
+        expect(killSpy).toHaveBeenCalledWith(record.pid, 'SIGTERM');
+        expect(mockSpawn).toHaveBeenCalledTimes(1);
+        expect(spawnedRequests.filter((msg) => msg.method === 'initialize')).toHaveLength(1);
+        expect(readDiscoveryRecord(discoveryFilePath())?.pid).toBe(4342);
+        expect(readDiscoveryRecord(discoveryFilePath())?.happySessionId).toBe('session-B');
+
+        await client.disconnect({ terminateAppServer: true });
+        killSpy.mockRestore();
+    });
+
+    it('reattaches when discovery record happySessionId matches extraEnv session id', async () => {
+        Object.defineProperty(process, 'platform', { value: 'win32' });
+        const requests: MockRpcMessage[] = [];
+        const token = 'persisted-token-session-match';
+        const { wss } = await createMockWsAppServer({
+            pid: 4343,
+            verifyClient: (info, done) => done(bearerToken(info.req.headers) === token),
+            onRequest: (msg) => requests.push(msg),
+        });
+        const record = testDiscoveryRecord({
+            pid: 4343,
+            port: (wss.address() as AddressInfo).port,
+            capabilityToken: token,
+            capabilityTokenSha256: sha256hex(token),
+            happySessionId: 'session-C',
+        });
+        writeDiscoveryRecord(discoveryFilePath(), record);
+        let terminated = false;
+        const killSpy = vi.spyOn(process, 'kill').mockImplementation(((pid: number, signal?: string | number) => {
+            if (pid !== record.pid) return true;
+            if (signal === 'SIGTERM') {
+                terminated = true;
+                return true;
+            }
+            if (signal === 0 && terminated) {
+                const error = new Error('dead') as NodeJS.ErrnoException;
+                error.code = 'ESRCH';
+                throw error;
+            }
+            return true;
+        }) as typeof process.kill);
+
+        const { CodexAppServerClient } = await import('./codexAppServerClient');
+        const client = new CodexAppServerClient(undefined, { transport: 'ws' });
+
+        await client.connect({ extraEnv: { HAPPY_CURRENT_SESSION_ID: 'session-C' } });
+
+        expect(mockSpawn).not.toHaveBeenCalled();
+        expect(requests.filter((msg) => msg.method === 'initialize')).toHaveLength(1);
+        expect((client as any).wsAppServerOwner).toBe('attached');
 
         await client.disconnect({ terminateAppServer: true });
         killSpy.mockRestore();

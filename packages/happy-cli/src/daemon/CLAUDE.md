@@ -106,6 +106,7 @@ Local HTTP server (127.0.0.1 only) provides:
 - `/list` - returns tracked sessions
 - `/stop-session` - terminates specific session
 - `/spawn-session` - creates new session (used by integration tests)
+- `/spawn-session-from-session` - clone-style spawn that links the child to a same-machine parent via `HAPPY_PARENT_SESSION_ID`; validates `parentSessionId` shape (`^[A-Za-z0-9_-]{1,128}$`) and dispatches to the daemon `spawnSessionFromSessionHandler`. Used today by Codex's Rust-native `spawn_top_level_session` tool; the TypeScript helper `spawnDaemonSessionFromSession` in `controlClient.ts` is test-only until F-009 resolves the daemonPost envelope.
 - `/stop` - graceful daemon shutdown
 
 ## 4. Process Discovery and Cleanup
@@ -215,6 +216,7 @@ I do not like how
 
 - posts helpers for daemon do not return typed results
 - I don't like that daemonPost returns either response from daemon or { error: ... }. We should have consistent envelope type
+  - `spawnDaemonSessionFromSession` (controlClient.ts) inherits this inconsistency: its `Promise<any>` return can be either the daemon's `{type: 'error', errorMessage}` payload or a `daemonPost`-level `{error}` envelope, and callers cannot distinguish the two. The Rust `spawn_top_level_session` handler posts directly to `/spawn-session-from-session` via reqwest and bypasses this helper entirely, so the inconsistency is currently contained. `spawnDaemonSessionFromSession` is only used by tests and future TypeScript callers; do not route the Rust handler through it until the `daemonPost` envelope is typed (F-009).
 
 - we loose track of children processes when daemon exits / restarts - we should write them to the same state file? At least the pids should be there for doctor & cleanup
 
