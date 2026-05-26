@@ -821,7 +821,10 @@ operator says "continue"
   → lead: mcp.overview_parallel_ready_tasks → readyTasks[]
   → lead: pick 2-3 disjoint-surface tasks
   → lead: spawn-member impl-<id> with seed planPrompt + autonomous directives
-  → [member: /plan-with-ralph → /implement-with-ralph --autonomous → push]
+  → [member: /plan-with-ralph → /implement-with-ralph --autonomous]
+    → Phase 4 (ralph.sh stories) → Phase 5a (code review-fix convergence)
+    → Phase 5b (docs review-fix) → Phase 5.5 (retrospective) → Phase 6 terminal:complete
+    → ONLY then: fast-forward main + push
   → member: kind=done report → mailbox
   → lead: review-mail → verify commit on origin/main
   → lead: EDIT plans/overview-data.js (phase, mergeCommit, lastTouchedAt)
@@ -830,6 +833,17 @@ operator says "continue"
   → lead: /crews:stop-member impl-<id>
   → lead: loop back to overview_parallel_ready_tasks
 ```
+
+**Spawn-prompt invariant: never let a member shortcut Phase 5a/5b.**
+Observed regression 2026-05-26 (`impl-spawn-from-app`): a member shipped 4
+commits to main after Phase 4 alone, leaving 4 Medium plan-review findings
+unaddressed, because the spawn prompt said "when terminal:complete,
+fast-forward main and push" without disambiguating that "terminal" means
+*Phase 6* terminal (after Phase 5a/5b review-fix convergence). Compare with
+`impl-mobile-tree-view` same session — 3 rounds of Phase 5a caught 2 High
+findings that pre-impl review missed. Always include explicit Phase 5a/5b
+language in the spawn prompt (see `feedback_spawn_prompt_must_require_review_fix`
+in the lead's auto-memory).
 
 If the member surfaces `kind=question`, the lead decides whether to relay to
 the operator (significant choices, ambiguity, real toolchain blockers) or to

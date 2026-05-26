@@ -802,9 +802,10 @@ window.OVERVIEW_DATA = {
         {
               "id": "spawn-from-app",
               "scope": "codexu",
-              "phase": "plan-ready",
+              "phase": "shipped",
               "status": "ok",
-              "lastTouchedAt": "2026-05-14T06:00:00Z",
+              "lastTouchedAt": "2026-05-26T03:55:00Z",
+              "mergeCommit": "e7d297ca,0ed8d958,45347d40,f8a082fb",
               "kanbanCards": [],
               "command": {
                     "name": "spawn-from-app",
