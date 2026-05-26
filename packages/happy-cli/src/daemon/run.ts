@@ -829,19 +829,17 @@ export async function startDaemon(): Promise<void> {
       pidToTrackedSession.delete(pid);
     };
 
-    let spawnSessionFromSessionHandler: ((options: SpawnSessionFromSessionRpcOptions) => Promise<SpawnSessionResult>) | null = null;
+    let resolveSpawnSessionFromSessionHandler!: (handler: (options: SpawnSessionFromSessionRpcOptions) => Promise<SpawnSessionResult>) => void;
+    const spawnSessionFromSessionHandlerReady = new Promise<(options: SpawnSessionFromSessionRpcOptions) => Promise<SpawnSessionResult>>(
+      (resolve) => { resolveSpawnSessionFromSessionHandler = resolve; }
+    );
 
     // Start control server
     const { port: controlPort, stop: stopControlServer } = await startDaemonControlServer({
       getChildren: getCurrentChildren,
       stopSession,
       spawnSession,
-      spawnSessionFromSession: (options) => {
-        if (!spawnSessionFromSessionHandler) {
-          return Promise.resolve({ type: 'error', errorMessage: 'Spawn-from-session handler not available' });
-        }
-        return spawnSessionFromSessionHandler(options);
-      },
+      spawnSessionFromSession: (options) => spawnSessionFromSessionHandlerReady.then(handler => handler(options)),
       requestShutdown: () => requestShutdown('happy-cli'),
       onHappySessionWebhook
     });
@@ -903,7 +901,7 @@ export async function startDaemon(): Promise<void> {
     const api = await ApiClient.create(credentials);
     const updateParentMetadata = createSpawnFromSessionMetadataUpdater(api);
 
-    spawnSessionFromSessionHandler = (options: SpawnSessionFromSessionRpcOptions): Promise<SpawnSessionResult> => spawnSessionFromSession({
+    const spawnSessionFromSessionHandler = (options: SpawnSessionFromSessionRpcOptions): Promise<SpawnSessionResult> => spawnSessionFromSession({
       parentLocalId: options.parentSessionId,
       machineId,
       config: {
@@ -920,6 +918,7 @@ export async function startDaemon(): Promise<void> {
       updateParentMetadata,
       stat: fs.stat,
     });
+    resolveSpawnSessionFromSessionHandler(spawnSessionFromSessionHandler);
 
     // Create realtime machine session
     const apiMachine = api.machineSyncClient(machine);
