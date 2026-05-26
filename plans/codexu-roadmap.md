@@ -1778,6 +1778,13 @@ an RFC" — host-vs-spawned-agent semantics are fork-specific.
 - Update `C:/ai-developer-toolkit/plugins/ralph-orchestration/.codex-plugin/plugin.json`
   to declare the nested manifest field `"scope": { "agent": "top-level" }` after the
   corresponding toolkit plugin branch is ready to consume the shipped codex `scope.agent` axis.
+- **[F-005] `scope.agent='subagent'` top-level filter (deferred).** The `Subagent` value is
+  parsed and accepted; `apply_subagent_plugin_filter` emits a one-time `tracing::warn!` when it
+  encounters a subagent-scoped plugin during a subagent spawn. However a `scope.agent = "subagent"`
+  plugin still loads in top-level sessions because the symmetric top-level filter callsite has not
+  been added. Implementing it requires a seam at the upstream `Config::load` path (broader surface
+  than the single `build_agent_shared_config` seam used for top-level-only filtering). Prerequisite:
+  audit all `Config::load` call sites and choose the least-conflict insertion point.
 
 **Highest-risk phase** because cache identity correctness is subtle
 and threading scope through every `plugins_for_config` call site is
