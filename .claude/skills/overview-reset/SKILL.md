@@ -113,5 +113,5 @@ Either:
 
 ## Implementation notes
 
-- The dev server (Vite) and the MCP server both want to BE the watcher. They contend on the same `.ralph/overview-watcher.owner` lease. Currently one must yield to the other; there's no "MCP watcher emits state, dev server consumes" path. Future plugin work may add that — meanwhile, killing the MCP watcher is the way to let the dev server take over.
+- **Dev-server-vs-MCP watcher contention is resolved as of plugin v2.0.3.** The dev server now detects EOWNER (and the older "another sync in progress" lock condition) thrown by the watcher's `claimOwnerHeartbeat()` and falls back to **file-only HMR** — Vite's built-in chokidar watches `plans/overview-ralph-state.js` and emits `overview-ralph-state:update` when the foreign watcher rewrites it. The MCP supervisor's watcher becomes the sole writer of sidecars; the dev server is a pure consumer in this mode. If you're on a cache older than v2.0.3, you'll still hit `EOWNER: another watcher already owns this repo` when starting the dev server while MCP is running — restart Claude Code to pull the latest cached version.
 - The owner-marker uses an mtime + heartbeat scheme. The `OWNER_FRESH_MS` is 10s (in `watch-ralph-state.mjs`); a stale marker is auto-evicted on next claim attempt.
