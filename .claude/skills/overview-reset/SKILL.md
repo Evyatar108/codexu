@@ -6,7 +6,7 @@ description: Hard-reset the ralph-overview watcher state when sessions get tangl
 # Skill: overview-reset
 
 Operator-facing **emergency** skill for the bookkeeper/scrum-master lead
-(see `D:/harness-efforts/codexu-multi-mcp/CLAUDE.md`). Run this when the ralph-overview
+(see `D:/harness-efforts/codexu/CLAUDE.md`). Run this when the ralph-overview
 watcher state is wedged — typically symptoms:
 
 - `overview-data.json` (removed in plugin v2.0.1) keeps reappearing in `plans/`
