@@ -624,6 +624,21 @@ window.OVERVIEW_DATA = {
               }
         },
         {
+              "id": "crews-review-mid-turn-v160",
+              "scope": "crews",
+              "phase": "shipped",
+              "status": "ok",
+              "lastTouchedAt": "2026-05-26T11:06:47Z",
+              "mergeCommit": "bd94fc67",
+              "kanbanCards": [],
+              "command": {
+                    "name": "crews-review-mid-turn-v160",
+                    "descriptionHtml": "crews v1.6.0 — PostToolUse advisory injection closes the mid-turn review-required gap. Fires after 30s grace, once per <code>lastReviewRequiredSeq</code> bump; <code>progress</code> dropped from <code>DEFAULT_REVIEW_KINDS</code> (Stop no longer blocks on unread progress envelopes). Uniform lead+member. Cross-plugin coexistence test passes (agent-peers verified safe). ai-developer-toolkit branch <code>ralph/crews-review-mid-turn-v160</code> HEAD <code>bd94fc67</code> (pushed to Evyatar108 fork; pending PR to gim-home). 22 commits = 9 stories + 7 Phase 5a code fixes + 6 Phase 5b docs fixes.",
+                    "warnings": [],
+                    "planPrompt": "(shipped — see plans/crews-review-required-mid-turn-brainstorm.md and plans/crews-review-mid-turn-v160-plan.md)"
+              }
+        },
+        {
               "id": "plugin-scope-agents",
               "scope": "codex|codexu",
               "phase": "shipped",
