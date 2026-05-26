@@ -1,0 +1,145 @@
+{
+  "planFile": "D:/harness-efforts/codexu/.ralph/jobs/.staging/20260526-151527/draft-plan.md",
+  "repoDir": "D:/harness-efforts/codexu",
+  "reviewCycle": 0,
+  "findings": [
+    {
+      "id": "F-001",
+      "severity": "High",
+      "source": "consensus",
+      "category": "Completeness",
+      "sectionRef": "Approach > Implementation Strategy step 2; Risk Areas; Acceptance Criteria US-001; Open Questions",
+      "description": "codex-command-runner is invoked at runtime on the non-yolo path (find_runner_exe in windows-sandbox-rs/src/elevated/runner_pipe.rs:43-44 calls resolve_helper_for_launch(HelperExecutable::CommandRunner, ...); runner_client.rs:231 calls find_runner_exe). The plan frames its inclusion as a decision point requiring an impl-phase grep, but the source code already answers the question: it MUST be included. Leaving it deferred risks shipping a half-fix where the non-yolo elevated path still breaks because the runner binary is missing, which US-001's smoke test does not exercise strongly enough to catch.",
+      "status": "fixed",
+      "relevantFiles": [
+        "codex/external/repos/codex-patched/codex-rs/windows-sandbox-rs/src/elevated/runner_pipe.rs",
+        "codex/external/repos/codex-patched/codex-rs/windows-sandbox-rs/src/elevated/runner_client.rs",
+        "codex/external/repos/codex-patched/codex-rs/windows-sandbox-rs/src/helper_materialization.rs"
+      ],
+      "suggestedFix": "Remove the 'optional / decide later' framing for codex-command-runner. Make both `--bin codex-windows-sandbox-setup` AND `--bin codex-command-runner` in-scope from the plan. Update Implementation Strategy (remove step 2's decision; replace with a one-line citation), Files to Create/Modify (both bin flags + both cp lines mandatory), Acceptance Criteria US-001 (criterion #2 lists both bins, #5 lists both files in the tarball, #6 smoke-test should cover the elevated path), Open Questions (remove the command-runner question; replace with the source-code citation).",
+      "fixedInIteration": 1,
+      "resolution": "Removed the 'optional / decide later' framing for codex-command-runner across Overview, Research Findings, Implementation Strategy (steps 2/3/4/6), Files to Create/Modify, In Scope, Risk Areas, Acceptance Criteria US-001 (criteria 1/2/3/5/6, with criterion 6 explicitly exercising the elevated path), and Open Questions; replaced the deferral with a source-code citation to runner_pipe.rs:43-44 and runner_client.rs:231 that puts both bins in-scope mandatorily."
+    },
+    {
+      "id": "F-002",
+      "severity": "High",
+      "source": "copilot",
+      "category": "Feasibility",
+      "sectionRef": "Implementation Strategy step 5; Open Questions §4; Acceptance Criteria US-001 #4; Risk Areas",
+      "description": "publish-npm.yml:32-45 strictly enforces TAG == \"v${VERSION_CONTENT}\" where VERSION_CONTENT is parsed from external/repos/codex-patched/codex-rs/Cargo.toml workspace.package.version. The plan's suggested test-tag scheme (e.g., v0.X.Y-sandbox-test.1) will fail this gate immediately on push, because the submodule's Cargo.toml is not bumped to match. The acceptance gate as written is therefore unreachable without an explicit version-bump step. The plan downgrades this to 'Open Questions §4 — operational detail' but it is actually a blocker for US-001 acceptance.",
+      "status": "fixed",
+      "relevantFiles": [
+        "codex/.github/workflows/publish-npm.yml",
+        "codex/external/repos/codex-patched/codex-rs/Cargo.toml"
+      ],
+      "suggestedFix": "Promote the version-bump path into Implementation Strategy as an explicit step preceding 'Push branch + tag'. State that the impl member either (a) delegates to the existing /publish-sandbox-patch skill (authoritative source for the version-bump policy, per codex/CLAUDE.md), which produces a normal release tag rather than a test-suffixed tag, OR (b) bumps external/repos/codex-patched/codex-rs/Cargo.toml workspace.package.version (a submodule commit) AND updates the wrapper gitlink (a separate wrapper commit). Update Open Questions §4 to reflect that this is not optional. Replace 'v0.X.Y-sandbox-test.1' examples in the plan with a 'next release version produced by /publish-sandbox-patch' framing, and acknowledge that this means the verification happens against the actual release, not a throwaway test tag — adjusting the acceptance flow accordingly.",
+      "fixedInIteration": 2,
+      "resolution": "Promoted the Cargo.toml version-bump-via-/publish-sandbox-patch step into Implementation Strategy as mandatory (citing the publish-npm.yml lines 32-46 tag-vs-version gate), replaced all -sandbox-test.N test-tag examples with v<NEW_VERSION> framing across Architecture/Scope/Implementation/Risk Areas/Acceptance Criteria/Open Questions, expanded the Technical Constraints CI bullet to document the gate, and reframed Open Questions §4 from 'operational detail' to 'not an open question — verification runs against the real release'."
+    },
+    {
+      "id": "F-003",
+      "severity": "Medium",
+      "source": "copilot",
+      "category": "Completeness",
+      "sectionRef": "Research Findings > Upstream codex release model; Files to Create/Modify > sandbox-setup-platform-matrix.md > section 2",
+      "description": "Plan asserts that upstream Linux ships 'bwrap (bubblewrap, sourced externally, not a Rust crate)' and contrasts this with the fork's codex-linux-sandbox Rust crate. But external/repos/codex-patched/.github/workflows/rust-release.yml:264 runs `cargo build --target ... --release --bin bwrap` — bwrap IS compiled from a Rust crate in the upstream workspace, not externally sourced. If the Part B doc inherits this miscitation, the upstream-model section is wrong, and the 'concrete delta' section that builds on it (specifically the bwrap-equivalent-vs-codex-linux-sandbox comparison) is also wrong. Part B's value rests entirely on citation accuracy.",
+      "status": "fixed",
+      "relevantFiles": [
+        "codex/external/repos/codex-patched/.github/workflows/rust-release.yml"
+      ],
+      "suggestedFix": "Update Research Findings > 'Upstream openai/codex release model' to state: upstream ships `bwrap` on Linux as a Rust-built binary (cite `rust-release.yml:264` with `cargo build --bin bwrap`). Drop 'externally sourced, not a Rust crate'. Re-frame the codex-linux-sandbox relationship: it is a fork-specific *replacement* of upstream's `bwrap` bin target (not a replacement of an external dependency). Echo the same correction into the Part B sandbox-setup-platform-matrix.md sub-deliverable spec under section 2 (Upstream release model).",
+      "fixedInIteration": 3,
+      "resolution": "Corrected the upstream-release-model citation in three places (Research Findings line 55+58, Files to Create/Modify section 2 spec, and the matching US-002 acceptance criterion) to accurately describe bwrap as a Rust workspace bin target built from the codex-bwrap crate via cargo build --bin bwrap (rust-release.yml:258-274), dropped the inaccurate 'externally sourced, not a Rust crate' framing, and re-framed codex-linux-sandbox as a separate upstream landlock+seccomp crate distinct from bwrap rather than a fork-specific replacement."
+    },
+    {
+      "id": "F-004",
+      "severity": "Medium",
+      "source": "copilot",
+      "category": "Completeness",
+      "sectionRef": "Files to Create/Modify > sandbox-setup-platform-matrix.md > section 3",
+      "description": "build_npm_package.py:77 declares codex-win32-arm64 with the full Windows component list (codex, rg, codex-windows-sandbox-setup, codex-command-runner), and install.ps1's copyMap is target-agnostic. Both consumers are already prepared for a Windows-arm64 build. publish-npm.yml:13 hardcodes RELEASE_TARGET = x86_64-pc-windows-msvc and runs-on windows-latest only. Part B's 'concrete delta' section is scoped to Linux + macOS expansion; Windows-arm64 is at least as cheap an expansion (same toolchain, same install script) and is silently elided from the doc.",
+      "status": "fixed",
+      "relevantFiles": [
+        "codex/external/repos/codex-patched/codex-cli/scripts/build_npm_package.py",
+        "codex/external/repos/codex-patched/scripts/install/install.ps1",
+        "codex/.github/workflows/publish-npm.yml"
+      ],
+      "suggestedFix": "Add Windows-arm64 to Part B's section 3 (concrete delta) as a third platform expansion candidate alongside Linux + macOS. Cite that consumers are already ready (`build_npm_package.py:77`, `install.ps1` target-agnostic copyMap). Note: arm64 needs LLVM/xwin for cross-compile to `aarch64-pc-windows-msvc` from windows-latest, OR a separate `windows-11-arm` runner once GitHub-hosted runners offer one. This may shift Part B's recommendation from 'two-platform expansion' to 'multi-platform-incl-Windows-arm64 expansion'.",
+      "fixedInIteration": 4,
+      "resolution": "Added Windows-arm64 as a third platform expansion candidate in Part B section 3 (per-platform bin build, target-agnostic install.ps1, codex-win32-arm64 npm suffix, LLVM/xwin vs windows-11-arm toolchain note) and extended the matching acceptance criterion."
+    },
+    {
+      "id": "F-005",
+      "severity": "Medium",
+      "source": "claude",
+      "category": "Acceptance Criteria Quality",
+      "sectionRef": "Acceptance Criteria US-001 #6",
+      "description": "Smoke test 'codex exec \"echo hello\" without --yolo' does not specify the trigger condition for find_setup_exe. The function in setup_orchestrator.rs:558-578 is only invoked when sandbox setup is actually needed — typically first-run-of-the-installation when Windows firewall rules / security tokens haven't been installed yet. An autonomous agent running the smoke test on a machine where setup previously ran (or where the firewall path short-circuits) could see a clean exit and incorrectly conclude the binary is reachable. The criterion is verifiable but verifies a weaker property than the bug requires.",
+      "status": "fixed",
+      "relevantFiles": [
+        "codex/external/repos/codex-patched/codex-rs/windows-sandbox-rs/src/setup_orchestrator.rs"
+      ],
+      "suggestedFix": "Tighten US-001 AC #6 to require a clean install on a Windows machine with no prior ~/.codex-copilot/ state and no prior firewall rules (delete those before testing, OR use a fresh VM/sandbox). Add an explicit assertion: post-install, run `<install-dir>\\codex-resources\\codex-windows-sandbox-setup.exe --help` (or whatever the bin's minimal invocation is) directly, to verify it is on disk and executes. Promote AC #5 (tar tzf shows the binary in the tarball) to the *primary* verifier with #6 as a secondary confirmation of runtime behavior, since #5 is the hard, deterministic check.",
+      "fixedInIteration": 5,
+      "resolution": "Applied manually after review-loop soft-cap exit (post-iteration 4); see plan diff."
+    },
+    {
+      "id": "F-006",
+      "severity": "Medium",
+      "source": "claude",
+      "category": "Edit-Recipe Completeness",
+      "sectionRef": "Files to Create/Modify > codex/.github/workflows/publish-npm.yml",
+      "description": "The plan says 'insertion after line 138' for the vendor copy but does not specify YAML indentation (10 spaces matching the preceding cp lines) or whether a blank line separates the insertion. An impl member could insert at wrong indentation and silently produce a YAML syntax error or change script step boundaries.",
+      "status": "fixed",
+      "relevantFiles": [
+        "codex/.github/workflows/publish-npm.yml"
+      ],
+      "suggestedFix": "Update Files to Create/Modify with explicit indentation: 'Insert immediately after line 138 with the same 10-space indentation as the preceding `cp` lines, no blank line separating them.' Optionally provide a multi-line diff context like:\n```\n  cp \"$REL/codex.exe\" \"$VENDOR/codex/codex.exe\"\n  cp \"$REL/codex-core.exe\" \"$VENDOR/codex/codex-core.exe\"\n+ cp \"$REL/codex-windows-sandbox-setup.exe\" \"$VENDOR/codex/codex-windows-sandbox-setup.exe\"\n+ cp \"$REL/codex-command-runner.exe\" \"$VENDOR/codex/codex-command-runner.exe\"\n```",
+      "fixedInIteration": 5,
+      "resolution": "Applied manually after review-loop soft-cap exit (post-iteration 4); see plan diff."
+    },
+    {
+      "id": "F-007",
+      "severity": "Medium",
+      "source": "claude",
+      "category": "Technical Correctness",
+      "sectionRef": "Cross-references to fork-level conventions; Files to Create/Modify > codex/CLAUDE.md",
+      "description": "The plan claims the codex/CLAUDE.md Distribution section reads 'It builds: codex.exe, codex-core.exe, rg.exe'. The actual text at codex/CLAUDE.md:104-110 is: a heading '### Distribution' followed by '`.github/workflows/publish-npm.yml` builds:' and then a bulleted list of codex.exe / codex-core.exe / rg.exe. The plan's misquote makes the impl member's grep for 'It builds:' yield no result and risks mis-targeting the edit.",
+      "status": "fixed",
+      "relevantFiles": [
+        "codex/CLAUDE.md"
+      ],
+      "suggestedFix": "Update both 'Cross-references to fork-level conventions' and 'Files to Create/Modify' to quote the actual text: 'In the `## Core concepts` → `### Distribution` section (codex/CLAUDE.md lines 104-112), which currently lists three bullets (`codex.exe`, `codex-core.exe`, `rg.exe`) under the lead line `\\`.github/workflows/publish-npm.yml\\` builds:`, add a new bullet entry for each new binary in scope.'",
+      "fixedInIteration": 5,
+      "resolution": "Applied manually after review-loop soft-cap exit (post-iteration 4); see plan diff."
+    },
+    {
+      "id": "F-008",
+      "severity": "Low",
+      "source": "copilot",
+      "category": "Technical Correctness",
+      "sectionRef": "Research Findings; Risk Areas; Cross-references to fork-level conventions",
+      "description": "Plan refers to the Windows-sandbox crate by its directory name 'windows-sandbox-rs' in multiple places, but the actual package name (from Cargo.toml line 5) is 'codex-windows-sandbox'. Additionally, codex-command-runner's [[bin]] block is at lines 17-19, not 16-19 as the plan asserts (line 16 is blank). Both are minor citation precision issues that don't affect correctness of the fix but reduce planning rigor.",
+      "status": "fixed",
+      "relevantFiles": [
+        "codex/external/repos/codex-patched/codex-rs/windows-sandbox-rs/Cargo.toml"
+      ],
+      "suggestedFix": "When referring to the crate, use 'codex-windows-sandbox (directory: windows-sandbox-rs)' on first mention, then either form afterwards. Fix the line citation for codex-command-runner's [[bin]] block to '17-19' wherever 16-19 appears.",
+      "fixedInIteration": 5,
+      "resolution": "Applied manually after review-loop soft-cap exit (post-iteration 4); see plan diff."
+    },
+    {
+      "id": "F-009",
+      "severity": "Low",
+      "source": "claude",
+      "category": "Scope Discipline",
+      "sectionRef": "Next Step",
+      "description": "Plan's 'Next Step' section ends with a Skill() invocation for /implement-with-ralph immediately followed by a footnote saying 'this plan is handed off to a fresh impl-phase ralph member spawned by the bookkeeper'. The bookkeeper does the spawning; the plan member does not invoke /implement-with-ralph directly. The redundant invocation block may confuse a reader.",
+      "status": "fixed",
+      "relevantFiles": [],
+      "suggestedFix": "Either remove the Skill() invocation block (leaving only the bookkeeper-handoff footnote), or keep both but make the relationship explicit: the Skill() block is the canonical command a developer or bookkeeper would run; the footnote clarifies who runs it (bookkeeper, not the plan member).",
+      "fixedInIteration": 5,
+      "resolution": "Applied manually after review-loop soft-cap exit (post-iteration 4); see plan diff."
+    }
+  ]
+}

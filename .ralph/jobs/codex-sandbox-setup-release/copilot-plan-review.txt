@@ -1,0 +1,59 @@
+I'll review this implementation plan. Let me first verify the key claims by checking the actual files referenced.
+
+Let me verify a couple more key claims before writing the review.
+
+I have enough verification. Let me write the review.
+
+---
+
+# Plan Review: codex-sandbox-setup-release
+
+## Feasibility
+
+**[High] Test-tag suffix scheme will fail the workflow's tag verification gate.** `codex/.github/workflows/publish-npm.yml:32-45` enforces `GITHUB_REF_NAME == "v${VERSION_CONTENT}"` where `VERSION_CONTENT` is `external/repos/codex-patched/codex-rs/Cargo.toml` `workspace.package.version`. The plan repeatedly suggests pushing a tag like `v0.X.Y-sandbox-test.1` (Open Questions §4, AC #4, Risk Areas row "Test tag pollutes…"), but unless the submodule's `Cargo.toml` is bumped to that exact suffixed value first, the very first workflow step exits 1 with `Tag '...' does not match Cargo.toml workspace.package.version`. This blocks the entire acceptance gate as written. The plan must either (a) require an explicit submodule version bump (which is an *upstream-canonical surface* edit governed by `patch-surface.md §15` cadence — a much bigger scope) or (b) use a normal release-version bump driven by `/publish-sandbox-patch` rather than a pre-release suffix. Open Questions §4 hints at this complexity but downgrades it to "operational detail"; it is actually the acceptance blocker.
+
+**[Low] Cargo.toml line citations are off by one.** `codex/external/repos/codex-patched/codex-rs/windows-sandbox-rs/Cargo.toml` has `codex-windows-sandbox-setup` at lines 13–15 (correct) but `codex-command-runner` at lines 17–19, not 16–19 (line 16 is blank). Also note the *package* `name` at line 5 is `codex-windows-sandbox`, not `windows-sandbox-rs`; the plan refers to the crate by its directory name in several places. The `cargo metadata | jq` probe in Implementation Strategy step 1 still works because the `test("windows-sandbox")` filter matches both the package name and the bin names.
+
+## Completeness
+
+**[High] `codex-command-runner` should be in-scope from the plan, not deferred.** Runtime invocation is unambiguous in the source: `windows-sandbox-rs/src/elevated/runner_client.rs:235` falls back to `"codex-command-runner.exe"` as the runner-process cmdline, and `helper_materialization.rs:28` declares `HelperExecutable::CommandRunner => "codex-command-runner.exe"` with materialization logic that the elevated-runner flow relies on. The elevated runner is on the non-yolo execution path. The plan's Risk Areas table tags this Medium-likelihood and Implementation Strategy step 2 punts the decision to an impl-phase grep, but the grep result is already determined: it must be included. Leaving the decision open will produce a story that ships a half-fix — the non-yolo path still breaks because the runner binary is missing — and US-001's smoke test does not exercise that path enough to catch it (see AC Quality below).
+
+**[Medium] Part B mischaracterizes upstream `bwrap` packaging.** Plan asserts that upstream Linux ships "`bwrap` (bubblewrap, sourced externally, not a Rust crate)" and uses this as a contrast point. But `external/repos/codex-patched/.github/workflows/rust-release.yml:264` runs `cargo build --target "$target" --release --timings --bin bwrap` — it *is* compiled from a Rust crate in the upstream workspace, not externally sourced. If the Part B doc repeats this miscitation, the upstream-model section (and therefore the "concrete delta" section that builds on it) is wrong. Part B's value is precisely the citation quality.
+
+**[Medium] Windows-arm64 packaging gap is not surfaced.** `build_npm_package.py:77` declares `codex-win32-arm64` with `["codex", "rg", "codex-windows-sandbox-setup", "codex-command-runner"]`, and `install.ps1`'s copyMap is target-agnostic — both consumers are already ready for a Windows-arm64 build. But `publish-npm.yml:13` hardcodes `RELEASE_TARGET: x86_64-pc-windows-msvc` and runs only on `windows-latest`. Part B's "concrete delta" section is scoped to Linux + macOS expansion; Windows-arm64 is at least as cheap an expansion (same toolchain, same install script) and is silently elided. The platform-matrix doc should at minimum acknowledge it.
+
+**[Low] No invariant or guard prevents the gap reappearing.** Once the workflow ships both bins, nothing in `scripts/audit_invariants.sh` or `patch-surface.md` enforces that future workflow edits keep the cargo build flags and the vendor cp lines in sync with `build_npm_package.py`'s `PACKAGE_NATIVE_COMPONENTS`. A drift here is what produced the current bug. A grep-guard in `scripts/audit_*` that asserts every Windows bin in `PACKAGE_NATIVE_COMPONENTS["codex-win32-x64"]` appears in `publish-npm.yml` would be cheap and would prevent the exact regression class being fixed. Not strictly required to ship the fix, but worth noting given codex/CLAUDE.md tenant 3 ("Test invariants in-tree…add the test/guard when introducing the invariant — not after the first rebase regression").
+
+## Ordering
+
+**[Medium] Implementation Strategy step 5 ("Push branch + tag") implicitly depends on a submodule version bump that no step owns.** As noted in Feasibility above. Step 5 must be preceded by an explicit step that either (a) bumps `external/repos/codex-patched/codex-rs/Cargo.toml` workspace.package.version inside the submodule and produces both a submodule commit and a wrapper gitlink bump, or (b) delegates to `/publish-sandbox-patch`. The current plan jumps from "edit workflow + CLAUDE.md" directly to "push tag" with no version-management step.
+
+**Otherwise: No issues found.** Stories are independent; US-001 and US-002 can be done in either order; the prereq grep / `cargo metadata` checks correctly precede edits.
+
+## Simplicity
+
+**[Low] Decision ceremony around `codex-command-runner` is over-engineered.** Implementation Strategy step 2 prescribes a grep, a read of `setup_orchestrator.rs`, a decision matrix, and a record-the-finding-in-commit-message step — to answer a question that one read of `runner_client.rs:235` already settles. Just include the bin and the cp. This removes step 2 entirely, simplifies AC #1, #2, #5, and eliminates Open Questions §1.
+
+**[Low] Part B's "Bundle vs Split" recommendation is opinionated but reversible.** This is fine, but the doc-structure machinery (four required sections, recommendation gate, follow-up-task naming convention) is heavy for a research deliverable that exists primarily so the impl member can write a follow-up plan with concrete citations. Could be a single section ("Platform matrix + delta + recommendation") with the same content. Not blocking.
+
+## Acceptance Criteria Quality
+
+**[Medium] US-001 AC #6 (smoke test) does not specify the trigger condition for `find_setup_exe`.** The function in `setup_orchestrator.rs:558-578` is only invoked when sandbox setup is actually needed — typically first-run-of-the-installation when Windows Firewall rules / security tokens haven't been installed yet. An autonomous agent running `codex exec "echo hello"` on a machine where setup previously ran (or on a machine where the firewall path short-circuits) will get a success exit and incorrectly conclude the bin is reachable. AC should specify: clean install on a machine with no prior `~/.codex-copilot/` state and no prior firewall rules, AND/OR ack #5 (`tar tzf` presence in tarball) should be promoted to the primary verifier with #6 as confirmation. The current AC is verifiable but verifies a weaker property than the bug requires.
+
+**[Medium] US-001 AC #1 (cargo-metadata bin-name confirmation) is satisfied trivially by code that already exists.** The ground truth is already verified at plan-time (this review confirmed it). Treating it as an AC adds zero implementation work and risks the impl member checking a box without actually re-running the probe on the worktree they edit. Either keep it as a prerequisite check (not an AC) or upgrade it to "evidence of the command's output appears in the implementation log / commit message."
+
+**[Low] US-002 AC #2-4 are well-shaped.** Each is independently verifiable from the file contents. AC #3's "literal additions" requirement is concrete enough that a reviewer can grep for `runs-on`, target triples, and `--bin` lines without ambiguity.
+
+**[Low] Open Questions are correctly tagged "no blocker" except §4.** Open Questions §4 should be promoted from "operational detail" to either a Critical or High AC because it gates whether the entire US-001 acceptance can run. See Feasibility above.
+
+---
+
+## Summary
+
+The core technical analysis (binary discovery chain, vendor layout, install.ps1 copyMap, recursive bundle copy) is accurate and well-cited. Two structural issues prevent the plan from being ready as-written:
+
+1. **Version-bump / tag-verification path is undefined** — High blocker for US-001 acceptance.
+2. **`codex-command-runner` should be in-scope, not deferred** — High completeness gap; the source code already answers the open question.
+
+Fix both, add a sentence to Part B about Windows-arm64 and correct the upstream-bwrap characterization, tighten AC #6's smoke-test conditions, and the plan is ready for `/implement-with-ralph --from-plan --autonomous`.
+

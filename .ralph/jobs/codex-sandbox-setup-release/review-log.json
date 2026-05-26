@@ -1,0 +1,104 @@
+[
+  {
+    "iteration": 1,
+    "finding_id": "F-001",
+    "duration_s": 213,
+    "status": "fixed",
+    "summary": "Removed the 'optional / decide later' framing for codex-command-runner across Overview, Research Findings, Implementation Strategy (steps 2/3/4/6), Files to Create/Modify, In Scope, Risk Areas, Acceptance Criteria US-001 (criteria 1/2/3/5/6, with criterion 6 explicitly exercising the elevated path), and Open Questions; replaced the deferral with a source-code citation to runner_pipe.rs:43-44 and runner_client.rs:231 that puts both bins in-scope mandatorily.",
+    "openFindingsBefore": [
+      "F-001",
+      "F-002",
+      "F-003",
+      "F-004",
+      "F-005",
+      "F-006",
+      "F-007"
+    ],
+    "openFindingsAfter": [
+      "F-002",
+      "F-003",
+      "F-004",
+      "F-005",
+      "F-006",
+      "F-007"
+    ],
+    "agentExitCode": 0,
+    "timestamp": "2026-05-26T15:36:49Z"
+  },
+  {
+    "iteration": 2,
+    "finding_id": "F-002",
+    "duration_s": 164,
+    "status": "fixed",
+    "summary": "Promoted the Cargo.toml version-bump-via-/publish-sandbox-patch step into Implementation Strategy as mandatory (citing the publish-npm.yml lines 32-46 tag-vs-version gate), replaced all -sandbox-test.N test-tag examples with v<NEW_VERSION> framing across Architecture/Scope/Implementation/Risk Areas/Acceptance Criteria/Open Questions, expanded the Technical Constraints CI bullet to document the gate, and reframed Open Questions §4 from 'operational detail' to 'not an open question — verification runs against the real release'.",
+    "openFindingsBefore": [
+      "F-002",
+      "F-003",
+      "F-004",
+      "F-005",
+      "F-006",
+      "F-007"
+    ],
+    "openFindingsAfter": [
+      "F-003",
+      "F-004",
+      "F-005",
+      "F-006",
+      "F-007"
+    ],
+    "agentExitCode": 0,
+    "timestamp": "2026-05-26T15:39:33Z"
+  },
+  {
+    "iteration": 3,
+    "finding_id": "F-003",
+    "duration_s": 165,
+    "status": "fixed",
+    "summary": "Corrected the upstream-release-model citation in three places (Research Findings line 55+58, Files to Create/Modify section 2 spec, and the matching US-002 acceptance criterion) to accurately describe bwrap as a Rust workspace bin target built from the codex-bwrap crate via cargo build --bin bwrap (rust-release.yml:258-274), dropped the inaccurate 'externally sourced, not a Rust crate' framing, and re-framed codex-linux-sandbox as a separate upstream landlock+seccomp crate distinct from bwrap rather than a fork-specific replacement.",
+    "openFindingsBefore": [
+      "F-003",
+      "F-004",
+      "F-005",
+      "F-006",
+      "F-007"
+    ],
+    "openFindingsAfter": [
+      "F-004",
+      "F-005",
+      "F-006",
+      "F-007"
+    ],
+    "agentExitCode": 0,
+    "timestamp": "2026-05-26T15:42:18Z"
+  },
+  {
+    "iteration": 4,
+    "finding_id": "F-004",
+    "duration_s": 103,
+    "status": "fixed",
+    "summary": "Added Windows-arm64 as a third platform expansion candidate in Part B section 3 (per-platform bin build, target-agnostic install.ps1, codex-win32-arm64 npm suffix, LLVM/xwin vs windows-11-arm toolchain note) and extended the matching acceptance criterion.",
+    "openFindingsBefore": [
+      "F-004",
+      "F-005",
+      "F-006",
+      "F-007"
+    ],
+    "openFindingsAfter": [
+      "F-005",
+      "F-006",
+      "F-007"
+    ],
+    "agentExitCode": 0,
+    "timestamp": "2026-05-26T15:44:02Z"
+  },
+  {
+    "phase": "soft-cap",
+    "iteration": 5,
+    "openMediumCount": 3,
+    "openCount": 3,
+    "severities": {
+      "Medium": 3
+    },
+    "timestamp": "2026-05-26T15:44:02Z"
+  }
+]

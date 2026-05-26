@@ -1,0 +1,20 @@
+{
+  "clusters": [
+    {
+      "name": "sandbox-setup-windows",
+      "stories": ["US-001", "US-002"],
+      "phase": 1,
+      "dependsOn": [],
+      "fileOverlapEvidence": {
+        "sharedFiles": [],
+        "exclusiveFiles": [
+          "codex/.github/workflows/publish-npm.yml",
+          "codex/CLAUDE.md",
+          "codex/docs/implementation/sandbox-setup-platform-matrix.md"
+        ],
+        "risk": "low"
+      },
+      "executionModeRationale": "A single impl-phase ralph member edits two small files in the codex submodule (one workflow change for Part A, one new doc for Part B) plus a one-line CLAUDE.md update. Parallelism adds coordination cost with no throughput benefit at this size; the natural shape is sequential within one member."
+    }
+  ]
+}
