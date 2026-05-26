@@ -209,6 +209,7 @@ export class CodexAppServerClient {
         approvalPolicy?: ApprovalPolicy;
         sandbox?: SandboxMode;
         mcpServers?: Record<string, unknown>;
+        projectDocFallback?: string[];
     } | null = null;
 
     // Turn completion tracking for the currently active sendTurnAndWait call.
@@ -1210,8 +1211,15 @@ export class CodexAppServerClient {
         await this.disconnectInternal(opts);
     }
 
-    private buildThreadConfig(mcpServers?: Record<string, unknown>): Record<string, unknown> | null {
-        return mcpServers ? { mcp_servers: mcpServers } : null;
+    private buildThreadConfig(mcpServers?: Record<string, unknown>, projectDocFallback?: string[]): Record<string, unknown> | null {
+        const config: Record<string, unknown> = {};
+        if (mcpServers) {
+            config.mcp_servers = mcpServers;
+        }
+        if (projectDocFallback && projectDocFallback.length > 0) {
+            config.project_doc_fallback_filenames = projectDocFallback;
+        }
+        return Object.keys(config).length > 0 ? config : null;
     }
 
     private rememberThreadDefaults(opts: {
@@ -1220,6 +1228,7 @@ export class CodexAppServerClient {
         approvalPolicy?: ApprovalPolicy;
         sandbox?: SandboxMode;
         mcpServers?: Record<string, unknown>;
+        projectDocFallback?: string[];
     }): void {
         this.threadDefaults = {
             model: opts.model,
@@ -1227,6 +1236,7 @@ export class CodexAppServerClient {
             approvalPolicy: opts.approvalPolicy,
             sandbox: opts.sandbox,
             mcpServers: opts.mcpServers,
+            projectDocFallback: opts.projectDocFallback,
         };
     }
 
@@ -1238,6 +1248,7 @@ export class CodexAppServerClient {
         approvalPolicy?: ApprovalPolicy;
         sandbox?: SandboxMode;
         mcpServers?: Record<string, unknown>;
+        projectDocFallback?: string[];
     }): Promise<{ threadId: string; model: string }> {
         const params: NewConversationParams = {
             model: opts.model ?? null,
@@ -1246,7 +1257,7 @@ export class CodexAppServerClient {
             cwd: opts.cwd ?? process.cwd(),
             approvalPolicy: opts.approvalPolicy ?? null,
             sandbox: opts.sandbox ?? null,
-            config: this.buildThreadConfig(opts.mcpServers),
+            config: this.buildThreadConfig(opts.mcpServers, opts.projectDocFallback),
             baseInstructions: null,
             developerInstructions: null,
             compactPrompt: null,
@@ -1270,6 +1281,7 @@ export class CodexAppServerClient {
         approvalPolicy?: ApprovalPolicy;
         sandbox?: SandboxMode;
         mcpServers?: Record<string, unknown>;
+        projectDocFallback?: string[];
     }): Promise<{ threadId: string; model: string }> {
         const threadId = opts?.threadId ?? this._threadId;
         if (!threadId) {
@@ -1284,7 +1296,10 @@ export class CodexAppServerClient {
             cwd: opts?.cwd ?? defaults.cwd ?? process.cwd(),
             approvalPolicy: opts?.approvalPolicy ?? defaults.approvalPolicy ?? null,
             sandbox: opts?.sandbox ?? defaults.sandbox ?? null,
-            config: this.buildThreadConfig(opts?.mcpServers ?? defaults.mcpServers),
+            config: this.buildThreadConfig(
+                opts?.mcpServers ?? defaults.mcpServers,
+                opts?.projectDocFallback ?? defaults.projectDocFallback,
+            ),
             baseInstructions: null,
             developerInstructions: null,
             persistExtendedHistory: true,
@@ -1299,6 +1314,7 @@ export class CodexAppServerClient {
             approvalPolicy: opts?.approvalPolicy ?? defaults.approvalPolicy,
             sandbox: opts?.sandbox ?? defaults.sandbox,
             mcpServers: opts?.mcpServers ?? defaults.mcpServers,
+            projectDocFallback: opts?.projectDocFallback ?? defaults.projectDocFallback,
         });
         logger.debug('[CodexAppServer] Thread resumed:', this._threadId);
         return { threadId: result.thread.id, model: result.model };

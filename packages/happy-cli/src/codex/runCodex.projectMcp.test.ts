@@ -228,6 +228,14 @@ describe('runCodex project .mcp.json discovery', () => {
         expect(startArgs.mcpServers.happy).toEqual(expect.objectContaining({
             command: process.execPath,
         }));
+        expect(startArgs.projectDocFallback).toEqual(['CLAUDE.md', 'AGENTS.md']);
+    });
+
+    it('passes caller project-doc fallbacks to startThread without appending defaults', async () => {
+        await runCodex({ credentials: { token: 'token' } as any, projectDocFallback: ['PROJECT.md'] });
+
+        const startArgs = mocks.getLastCodexClient().startThread.mock.calls[0][0];
+        expect(startArgs.projectDocFallback).toEqual(['PROJECT.md']);
     });
 
     it('warns and falls back to only the Happy bridge when project MCP JSON is broken', async () => {
@@ -261,6 +269,7 @@ describe('runCodex project .mcp.json discovery', () => {
                     args: expect.arrayContaining(['--url', 'http://127.0.0.1:3000/mcp']),
                 }),
             },
+            projectDocFallback: ['CLAUDE.md', 'AGENTS.md'],
         });
     });
 });

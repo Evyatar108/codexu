@@ -203,6 +203,43 @@ export function extractCodexPermissionModeFlag(args: string[]): { permissionMode
     };
 }
 
+export function extractCodexProjectDocFlag(args: string[]): { projectDocFallback: string[]; args: string[] } {
+    const remainingArgs: string[] = [];
+    const projectDocFallback: string[] = [];
+
+    for (let i = 0; i < args.length; i++) {
+        const arg = args[i];
+
+        if (arg === '--codex-project-doc') {
+            const nextArg = args[i + 1];
+            if (!nextArg || nextArg.startsWith('-')) {
+                throw new Error('Codex project-doc requires a value: happy codex --codex-project-doc <name>');
+            }
+
+            projectDocFallback.push(nextArg);
+            i++;
+            continue;
+        }
+
+        if (arg.startsWith('--codex-project-doc=')) {
+            const value = arg.slice('--codex-project-doc='.length).trim();
+            if (!value) {
+                throw new Error('Codex project-doc requires a value: happy codex --codex-project-doc <name>');
+            }
+
+            projectDocFallback.push(value);
+            continue;
+        }
+
+        remainingArgs.push(arg);
+    }
+
+    return {
+        projectDocFallback,
+        args: remainingArgs,
+    };
+}
+
 export function extractCodexTransportFlag(args: string[]): { transport: CodexTransportFlag | undefined; args: string[] } {
     const remainingArgs: string[] = [];
     let transport: CodexTransportFlag | undefined = undefined;

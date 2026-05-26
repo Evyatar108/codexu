@@ -76,8 +76,11 @@ export async function runCodex(opts: {
     effortLevel?: ReasoningEffort;
     model?: string;
     permissionMode?: string;
+    projectDocFallback?: string[];
     codexTransport?: CodexTransportFlag | undefined;
 }): Promise<void> {
+    const projectDocFallback = opts.projectDocFallback ?? ['CLAUDE.md', 'AGENTS.md'];
+
     // Early check: ensure Codex CLI is installed before proceeding
     try {
         execSync('codex --version', { encoding: 'utf8', stdio: 'pipe', windowsHide: true });
@@ -737,6 +740,7 @@ export async function runCodex(opts: {
                 threadId: opts.resumeThreadId,
                 cwd: cwdAtStart,
                 mcpServers,
+                projectDocFallback,
             });
             if (forkedFromSessionId) {
                 await session.sendContextBoundary({
@@ -806,6 +810,7 @@ export async function runCodex(opts: {
                         approvalPolicy: executionPolicy.approvalPolicy,
                         sandbox: executionPolicy.sandbox,
                         mcpServers,
+                        projectDocFallback,
                     });
                     session.updateMetadata((currentMetadata) => ({
                         ...currentMetadata,

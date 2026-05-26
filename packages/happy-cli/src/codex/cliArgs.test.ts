@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
-import { extractCodexEffortFlag, extractCodexResumeFlag, extractCodexTransportFlag } from './cliArgs';
+import {
+    extractCodexEffortFlag,
+    extractCodexProjectDocFlag,
+    extractCodexResumeFlag,
+    extractCodexTransportFlag,
+} from './cliArgs';
 
 describe('extractCodexResumeFlag', () => {
     it('returns null and preserves args when resume flag is absent', () => {
@@ -117,6 +122,52 @@ describe('extractCodexTransportFlag', () => {
     it('throws when transport flag is missing a value', () => {
         expect(() => extractCodexTransportFlag(['--codex-transport'])).toThrow(
             'Codex transport requires a value: happy codex --codex-transport <stdio|ws>',
+        );
+    });
+});
+
+describe('extractCodexProjectDocFlag', () => {
+    it('returns an empty fallback and preserves args when project-doc flag is absent', () => {
+        const parsed = extractCodexProjectDocFlag(['--started-by', 'terminal']);
+
+        expect(parsed.projectDocFallback).toEqual([]);
+        expect(parsed.args).toEqual(['--started-by', 'terminal']);
+    });
+
+    it('extracts a single project-doc fallback', () => {
+        const parsed = extractCodexProjectDocFlag(['--codex-project-doc', 'CLAUDE.md', '--started-by', 'daemon']);
+
+        expect(parsed.projectDocFallback).toEqual(['CLAUDE.md']);
+        expect(parsed.args).toEqual(['--started-by', 'daemon']);
+    });
+
+    it('preserves repeatable project-doc fallback order', () => {
+        const parsed = extractCodexProjectDocFlag([
+            '--codex-project-doc',
+            'CLAUDE.md',
+            '--codex-project-doc',
+            'AGENTS.md',
+            '--codex-project-doc',
+            'README.md',
+        ]);
+
+        expect(parsed.projectDocFallback).toEqual(['CLAUDE.md', 'AGENTS.md', 'README.md']);
+        expect(parsed.args).toEqual([]);
+    });
+
+    it('supports equals syntax', () => {
+        const parsed = extractCodexProjectDocFlag(['--codex-project-doc=CLAUDE.md', '--started-by', 'terminal']);
+
+        expect(parsed.projectDocFallback).toEqual(['CLAUDE.md']);
+        expect(parsed.args).toEqual(['--started-by', 'terminal']);
+    });
+
+    it('throws when project-doc flag is missing a value', () => {
+        expect(() => extractCodexProjectDocFlag(['--codex-project-doc'])).toThrow(
+            'Codex project-doc requires a value: happy codex --codex-project-doc <name>',
+        );
+        expect(() => extractCodexProjectDocFlag(['--codex-project-doc='])).toThrow(
+            'Codex project-doc requires a value: happy codex --codex-project-doc <name>',
         );
     });
 });
