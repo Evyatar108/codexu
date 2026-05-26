@@ -79,6 +79,7 @@ export type CodexAppServerClientOptions = {
 type ConnectOptions = {
     skipDiscovery?: boolean;
     heldLock?: DiscoveryLock;
+    extraEnv?: Record<string, string>;
 };
 
 type ReconnectOptions = {
@@ -934,6 +935,7 @@ export class CodexAppServerClient {
         for (const [key, value] of Object.entries(process.env)) {
             if (typeof value === 'string') env[key] = value;
         }
+        Object.assign(env, opts?.extraEnv ?? {});
         // Mute noisy rollout list logging
         const filter = 'codex_core::rollout::list=off';
         if (!env.RUST_LOG) {

@@ -484,6 +484,33 @@ describe('CodexAppServerClient sandbox integration', () => {
         await client.disconnect({ terminateAppServer: true });
     });
 
+    it('passes explicit extra env to the app-server child process', async () => {
+        await mockNextAppServer('stdio');
+
+        const { CodexAppServerClient } = await import('./codexAppServerClient');
+        const client = new CodexAppServerClient(undefined, { transport: 'stdio' });
+
+        await client.connect({
+            extraEnv: {
+                HAPPY_CURRENT_SESSION_ID: 'happy-session-1',
+                HAPPY_DAEMON_CONTROL_URL: 'http://127.0.0.1:45678',
+            },
+        });
+
+        expect(mockSpawn).toHaveBeenCalledWith(
+            'codex',
+            ['app-server', '--listen', 'stdio://'],
+            expect.objectContaining({
+                env: expect.objectContaining({
+                    HAPPY_CURRENT_SESSION_ID: 'happy-session-1',
+                    HAPPY_DAEMON_CONTROL_URL: 'http://127.0.0.1:45678',
+                }),
+            }),
+        );
+
+        await client.disconnect({ terminateAppServer: true });
+    });
+
     it('writes a discovery record after successful ws initialize', async () => {
         Object.defineProperty(process, 'platform', { value: 'win32' });
         const capturedHeaders: IncomingHttpHeaders[] = [];

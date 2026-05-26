@@ -829,11 +829,19 @@ export async function startDaemon(): Promise<void> {
       pidToTrackedSession.delete(pid);
     };
 
+    let spawnSessionFromSessionHandler: ((options: SpawnSessionFromSessionRpcOptions) => Promise<SpawnSessionResult>) | null = null;
+
     // Start control server
     const { port: controlPort, stop: stopControlServer } = await startDaemonControlServer({
       getChildren: getCurrentChildren,
       stopSession,
       spawnSession,
+      spawnSessionFromSession: (options) => {
+        if (!spawnSessionFromSessionHandler) {
+          return Promise.resolve({ type: 'error', errorMessage: 'Spawn-from-session handler not available' });
+        }
+        return spawnSessionFromSessionHandler(options);
+      },
       requestShutdown: () => requestShutdown('happy-cli'),
       onHappySessionWebhook
     });
@@ -895,7 +903,7 @@ export async function startDaemon(): Promise<void> {
     const api = await ApiClient.create(credentials);
     const updateParentMetadata = createSpawnFromSessionMetadataUpdater(api);
 
-    const spawnSessionFromSessionHandler = (options: SpawnSessionFromSessionRpcOptions): Promise<SpawnSessionResult> => spawnSessionFromSession({
+    spawnSessionFromSessionHandler = (options: SpawnSessionFromSessionRpcOptions): Promise<SpawnSessionResult> => spawnSessionFromSession({
       parentLocalId: options.parentSessionId,
       machineId,
       config: {

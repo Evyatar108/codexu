@@ -7,6 +7,7 @@ import { logger } from '@/ui/logger';
 import { clearDaemonState, readDaemonState } from '@/persistence';
 import { Metadata } from '@/api/types';
 import { configuration } from '@/configuration';
+import type { SpawnSessionFromSessionRpcOptions } from '@/api/apiMachine';
 
 async function daemonPost(path: string, body?: any): Promise<{ error?: string } | any> {
   const state = await readDaemonState();
@@ -103,6 +104,10 @@ export async function stopDaemonSession(sessionId: string): Promise<boolean> {
 export async function spawnDaemonSession(directory: string, sessionId?: string): Promise<any> {
   const result = await daemonPost('/spawn-session', { directory, sessionId });
   return result;
+}
+
+export async function spawnDaemonSessionFromSession(options: SpawnSessionFromSessionRpcOptions): Promise<any> {
+  return daemonPost('/spawn-session-from-session', options);
 }
 
 export async function stopDaemonHttp(): Promise<void> {
