@@ -820,19 +820,71 @@ See `D:/ai-developer-toolkit/plugins/crews/CLAUDE.md` for the full protocol.
 operator says "continue"
   → lead: mcp.overview_parallel_ready_tasks → readyTasks[]
   → lead: pick 2-3 disjoint-surface tasks
-  → lead: spawn-member impl-<id> with seed planPrompt + autonomous directives
-  → [member: /plan-with-ralph → /implement-with-ralph --autonomous]
-    → Phase 4 (ralph.sh stories) → Phase 5a (code review-fix convergence)
-    → Phase 5b (docs review-fix) → Phase 5.5 (retrospective) → Phase 6 terminal:complete
-    → ONLY then: fast-forward main + push
+  → lead: for EACH task, determine current phase + next-phase action
+       (brainstorm / plan / impl)  [see "Phase discipline" below]
+  → lead: spawn ONE fresh member per task per phase
+       (e.g., plan-<id>; NOT impl-<id> until plan ships)
+  → [phase member: /brainstorm-with-ralph OR /plan-with-ralph OR
+                   /implement-with-ralph --autonomous (exactly one phase)]
+    → impl members specifically must drive:
+      Phase 4 (ralph.sh stories) → Phase 5a (code review-fix convergence)
+      → Phase 5b (docs review-fix) → Phase 5.5 (retrospective)
+      → Phase 6 terminal:complete → ONLY then: fast-forward main + push
   → member: kind=done report → mailbox
   → lead: review-mail → verify commit on origin/main
-  → lead: EDIT plans/overview-data.js (phase, mergeCommit, lastTouchedAt)
-  → lead: commit "chore(plans): update overview-data.js for shipped tasks"
-  → lead: push
-  → lead: /crews:stop-member impl-<id>
-  → lead: loop back to overview_parallel_ready_tasks
+  → lead: /crews:stop-member <name> (do NOT chain into the next phase)
+  → lead: if this was the FINAL phase (impl ship), EDIT plans/overview-data.js
+       (phase → "shipped", mergeCommit, lastTouchedAt) + commit + push
+  → lead: loop back to overview_parallel_ready_tasks; if same task needs
+       a follow-up phase, spawn a NEW fresh member next round
 ```
+
+### Phase discipline — one member per ralph phase
+
+Each ralph phase (brainstorm / plan / impl) gets its OWN fresh crew member.
+Never chain phases inside a single member session. See
+`feedback_phase_discipline_separate_members` in the lead's auto-memory.
+
+**Why:** each phase has its own context-poisoning risk (long debug loops,
+dead-end explorations, intermediate-state assumptions baked into later
+work). Fresh members start with a clean context window and only the
+*deliverable* from the prior phase (committed brainstorm doc or plan.md),
+not the prior member's reasoning history. Validated by 2026-05-26 ships:
+`plugin-scope-agents-v2`, `ralph-overview-multi-mcp-v210`, and
+`crews-review-mid-turn-v160` each used 2-3 separate members across
+brainstorm → plan → impl and shipped cleanly with autonomous Phase 5a/5b
+convergence.
+
+**Phase determination per task:**
+
+1. **Brainstorm exists?** Check `.ralph/brainstorms/<task-id>/brainstorm.json`
+   for `recommendedDirection`.
+2. **Plan exists?** Check `.ralph/jobs/<task-id>/plan.md` committed to
+   `origin/main`.
+3. **Impl in flight?** Check `.ralph/jobs/<task-id>/job-state.json`
+   `orchestrator.terminal`.
+
+**Next-phase decision tree (per task):**
+
+- No brainstorm + fuzzy goal (multiple competing approaches, unknown
+  conflict surface, design not settled) → spawn `brainstorm-<task>`
+  running `/brainstorm-with-ralph`.
+- No brainstorm + concrete seed (file paths + specific edits identified
+  in the `planPrompt` field of `overview-data.js`) → skip brainstorm;
+  spawn `plan-<task>` running `/plan-with-ralph`.
+- Brainstorm committed + reviewed → spawn `plan-<task>` running
+  `/plan-with-ralph --from-brainstorm <brainstormDir>`.
+- plan.md committed + reviewed → spawn `impl-<task>` running
+  `/implement-with-ralph --from-plan <plan.md> --autonomous`. The impl
+  member is the one that runs Phase 5a/5b convergence internally.
+
+**When recommending tasks to the operator, ALWAYS surface phase +
+next-action.** Don't say "this task is ready"; say "this task needs
+planning next; spawn `plan-<task>` member." Phase 5a/5b convergence
+remains internal to the impl member (per
+`feedback_spawn_prompt_must_require_review_fix`) — the
+one-member-per-phase rule applies to the brainstorm/plan/impl axis, not
+to sub-phases inside impl.
 
 **Spawn-prompt invariant: never let a member shortcut Phase 5a/5b.**
 Observed regression 2026-05-26 (`impl-spawn-from-app`): a member shipped 4
