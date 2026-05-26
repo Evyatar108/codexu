@@ -609,6 +609,21 @@ window.OVERVIEW_DATA = {
               "planOnly": true
         },
         {
+              "id": "ralph-overview-multi-mcp-v210",
+              "scope": "ralph-overview",
+              "phase": "shipped",
+              "status": "ok",
+              "lastTouchedAt": "2026-05-26T10:29:34Z",
+              "mergeCommit": "d0a700d0",
+              "kanbanCards": [],
+              "command": {
+                    "name": "ralph-overview-multi-mcp-v210",
+                    "descriptionHtml": "ralph-overview v2.1.0 — cooperative-lease watcher (N concurrent MCPs in same repo → 1 active watcher + N-1 passive consumers); dev server moved out of MCP (operator launches via <code>pnpm overview:dev</code>); new <code>overview_watcher_status</code> MCP tool; hostname cross-machine guard. ai-developer-toolkit branch <code>ralph/ralph-overview-multi-mcp-v210</code> HEAD <code>42bdb8b7</code> (pushed to Evyatar108 fork; pending PR to gim-home). codexu side cherry-picked onto main as <code>d0a700d0</code>.",
+                    "warnings": [],
+                    "planPrompt": "(shipped — see plans/ralph-overview-multi-mcp-coordination-brainstorm.md and .ralph/jobs/ralph-overview-multi-mcp-v210/plan.md)"
+              }
+        },
+        {
               "id": "plugin-scope-agents",
               "scope": "codex|codexu",
               "phase": "shipped",
