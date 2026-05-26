@@ -1774,6 +1774,11 @@ first; gauge maintainer interest. Code in our fork either way.
 Codex reviewer gauges upstream interest as "uncertain to weak without
 an RFC" — host-vs-spawned-agent semantics are fork-specific.
 
+**Phase 2c follow-ups (2026-05-26):**
+- Update `C:/ai-developer-toolkit/plugins/ralph-orchestration/.codex-plugin/plugin.json`
+  to declare the nested manifest field `"scope": { "agent": "top-level" }` after the
+  corresponding toolkit plugin branch is ready to consume the shipped codex `scope.agent` axis.
+
 **Highest-risk phase** because cache identity correctness is subtle
 and threading scope through every `plugins_for_config` call site is
 broad (sessions, turn context, MCP, handlers, skills watcher, tools).
