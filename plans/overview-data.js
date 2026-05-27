@@ -612,9 +612,10 @@ window.OVERVIEW_DATA = {
         {
               "id": "overview-data-dynamic-stages-schema",
               "scope": "codexu|ralph-overview",
-              "lifecycle": "tracked",
+              "lifecycle": "merged",
               "status": "ok",
-              "lastTouchedAt": "2026-05-26T13:10:00Z",
+              "lastTouchedAt": "2026-05-27T17:30:00Z",
+              "mergeCommit": "ada908c6,c2a05d35",
               "kanbanCards": [],
               "command": {
                     "name": "overview-data-dynamic-stages-schema",
