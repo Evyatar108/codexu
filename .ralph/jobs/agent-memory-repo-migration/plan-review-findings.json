@@ -1,0 +1,127 @@
+{
+  "planFile": "D:/harness-efforts/codexu/.ralph/jobs/.staging/20260527-230838/draft-plan.md",
+  "repoDir": "D:/harness-efforts/codexu",
+  "reviewCycle": 1,
+  "findings": [
+    {
+      "id": "F-001",
+      "severity": "Critical",
+      "source": "consensus",
+      "category": "Completeness",
+      "sectionRef": "Acceptance Criteria > US-003",
+      "description": "US-003 missing pre-swap parity check. Concurrent auto-memory writes between US-001 and US-003 could cause data loss when memory.bak is deleted.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "US-003 AC now requires Compare-Object (Name, Hash) parity check immediately before Rename-Item AND immediately before Remove-Item memory.bak. Halt on diff.",
+      "relevantFiles": ["draft-plan.md"]
+    },
+    {
+      "id": "F-002",
+      "severity": "High",
+      "source": "consensus",
+      "category": "Criteria Quality",
+      "sectionRef": "Acceptance Criteria > US-001",
+      "description": "Byte-identity check underspecified. Compare-Object on FileHashInfo objects compares Path field, which always differs.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "US-001 AC rewritten to build (Name, Hash) pscustomobjects explicitly and compare on those properties. Fallback to certutil/git hash-object documented.",
+      "relevantFiles": ["draft-plan.md"]
+    },
+    {
+      "id": "F-003",
+      "severity": "High",
+      "source": "consensus",
+      "category": "Feasibility",
+      "sectionRef": "Files to Create/Modify > docs/fork-notes.md",
+      "description": "Junction recipe in docs/fork-notes.md unsafe — rmdir+mklink two-liner contradicts the safer US-003 backup-first flow and would tempt a future operator to wipe user-dir before verifying.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "docs/fork-notes.md recipe now mirrors the full safe flow: backup → compare → junction → verify → delete backup.",
+      "relevantFiles": ["draft-plan.md"]
+    },
+    {
+      "id": "F-004",
+      "severity": "High",
+      "source": "claude",
+      "category": "Completeness",
+      "sectionRef": "Files to Create/Modify > AGENTS.md",
+      "description": "AGENTS.md describes the happy fork; adding ## Auto-memory without scope language could mislead happy-side readers into thinking memories apply to happy-app/server.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Section title now `## Auto-memory (codexu bookkeeper-scope)` with explicit codexu-bookkeeper / ralph-pipeline scope intro. CLAUDE.md mirror gets same scope tag.",
+      "relevantFiles": ["draft-plan.md"]
+    },
+    {
+      "id": "F-005",
+      "severity": "High",
+      "source": "copilot",
+      "category": "Completeness",
+      "sectionRef": "Acceptance Criteria > US-001",
+      "description": "Moving per-developer memory into tracked git history is a privacy boundary change; no secret/privacy scan required before commit.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "US-001 AC adds mandatory pre-commit privacy/secret scan with explicit checks for metadata.originSessionId and any embedded paths/tokens.",
+      "relevantFiles": ["draft-plan.md"]
+    },
+    {
+      "id": "F-006",
+      "severity": "Medium",
+      "source": "consensus",
+      "category": "Completeness",
+      "sectionRef": "Files to Create/Modify > plans/codexu-roadmap.md",
+      "description": "plans/codexu-roadmap.md:851-853 stale user-dir reference left deferrable. Active operating manual; misleads future readers about source of truth.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Promoted into US-002 (not deferred). US-002 AC + commit message include the file.",
+      "relevantFiles": ["draft-plan.md"]
+    },
+    {
+      "id": "F-007",
+      "severity": "Medium",
+      "source": "claude",
+      "category": "Criteria Quality",
+      "sectionRef": "Acceptance Criteria > US-002",
+      "description": "Gitignored CLAUDE.md change can't be verified by git; no handoff mechanism specified.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "US-002 AC mandates the impl member emit the post-edit Select-String '## Auto-memory' output in its mailbox report.",
+      "relevantFiles": ["draft-plan.md"]
+    },
+    {
+      "id": "F-008",
+      "severity": "Medium",
+      "source": "consensus",
+      "category": "Criteria Quality",
+      "sectionRef": "Acceptance Criteria > US-003",
+      "description": "Fresh-session smoke test too vague — 'recall a memory by slug' doesn't name a slug or expected text.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "US-003 AC now names feedback_phase_discipline_separate_members as the test slug and requires response to mention 'one fresh ralph member per phase' or equivalent 'never chain phases' guidance.",
+      "relevantFiles": ["draft-plan.md"]
+    },
+    {
+      "id": "F-009",
+      "severity": "Medium",
+      "source": "consensus",
+      "category": "Criteria Quality",
+      "sectionRef": "Acceptance Criteria > US-001, US-003",
+      "description": "'18 files' vs '17 entries' phrasing inconsistent; risks implementer confusion.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Standardized to '18 files = MEMORY.md index + 17 memory entries' across acceptance criteria.",
+      "relevantFiles": ["draft-plan.md"]
+    },
+    {
+      "id": "F-010",
+      "severity": "Medium",
+      "source": "codex",
+      "category": "Simplicity",
+      "sectionRef": "Acceptance Criteria > US-003",
+      "description": "US-003 multi-step manual recipe; idempotent PowerShell script would reduce risk.",
+      "status": "wont_fix",
+      "fixedInIteration": null,
+      "resolution": "Deferred — inline AC checklist now mirrors safe sequence. Script is nice-to-have but adds maintenance burden. Operator can author one out-of-band if desired.",
+      "relevantFiles": []
+    }
+  ]
+}

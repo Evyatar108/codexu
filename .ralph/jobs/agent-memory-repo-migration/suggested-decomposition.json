@@ -1,0 +1,40 @@
+{
+  "clusters": [
+    {
+      "name": "memory-files-move",
+      "stories": ["US-001"],
+      "phase": 1,
+      "dependsOn": [],
+      "fileOverlapEvidence": {
+        "sharedFiles": [],
+        "exclusiveFiles": [".agents/memory/MEMORY.md", ".agents/memory/feedback_*.md", ".agents/memory/project_*.md"],
+        "risk": "low"
+      },
+      "executionModeRationale": "Pure file additions under .agents/memory/. No overlap with US-002 or US-003 surfaces. Can run independently in phase 1."
+    },
+    {
+      "name": "auto-load-wiring",
+      "stories": ["US-002"],
+      "phase": 2,
+      "dependsOn": ["memory-files-move"],
+      "fileOverlapEvidence": {
+        "sharedFiles": [],
+        "exclusiveFiles": ["AGENTS.md", "CLAUDE.md", "docs/fork-notes.md"],
+        "risk": "low"
+      },
+      "executionModeRationale": "Edits root-level guidance files (AGENTS.md, CLAUDE.md, docs/fork-notes.md). Depends on US-001 so the TOC entries point at files that actually exist."
+    },
+    {
+      "name": "user-dir-cleanup",
+      "stories": ["US-003"],
+      "phase": 3,
+      "dependsOn": ["auto-load-wiring"],
+      "fileOverlapEvidence": {
+        "sharedFiles": [],
+        "exclusiveFiles": ["C:/Users/evmitran/.claude/projects/D--harness-efforts-codexu/memory (out-of-tree)"],
+        "risk": "medium"
+      },
+      "executionModeRationale": "Touches an out-of-tree user-dir path with a Windows junction. Must run after US-001/US-002 so the migrated content is verifiable before the original is removed. Independently deferrable per the operator's request."
+    }
+  ]
+}
