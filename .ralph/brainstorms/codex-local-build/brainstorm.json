@@ -1,0 +1,39 @@
+{
+  "brainstormName": "codex-local-build",
+  "idea": "How do we make the codex submodule's Rust workspace compile cleanly on this Windows dev box (and on any contributor's machine) so impl members can verify before push, instead of deferring to CI on tag-push?",
+  "availableLenses": ["codex", "copilot", "devils-advocate"],
+  "missingLenses": [],
+  "candidateDirections": [
+    {
+      "id": "D-001",
+      "name": "Overlay-coordination audit guard + spawn-preflight (architecture fix)",
+      "summary": "Generalize scripts/audit_invariants.sh to enumerate ALL codex-rs-overlay/* workspace members from the submodule's Cargo.toml and verify each directory exists; optionally add a codex_workspace_preflight.sh that runs cargo metadata --no-deps and surfaces parse errors. CI-enforced invariant that prevents this class of coordination gap from recurring for any future overlay crate.",
+      "contributingLenses": ["codex", "devils-advocate"]
+    },
+    {
+      "id": "D-002",
+      "name": "Commit faithful codex-plugin-scope overlay scaffold + ratify cargo check as Phase 5a gate (immediate fix)",
+      "summary": "Create codex-rs-overlay/codex-plugin-scope/{Cargo.toml,src/lib.rs,src/parser.rs} with API-faithful stubs matching call sites in core/src/tools/handlers/multi_agents_common.rs:243,248 and multi_agents_tests.rs. Update stale auto-memory feedback_codex_fork_no_local_cargo so impl members know cargo check --workspace is the documented Phase 5a gate (per codex/CLAUDE.md).",
+      "contributingLenses": ["codex", "copilot", "devils-advocate"]
+    },
+    {
+      "id": "D-003",
+      "name": "Sub-2-min PR-time cargo check GitHub Action on Linux (CI-as-source-of-truth done right)",
+      "summary": "Add a quick-check.yml workflow that runs cargo check --workspace on ubuntu-latest only (excluding crates that need rusty_v8/xwin), targets typo-class regressions, runs in <5 min, blocks merge. Pairs with codex/CLAUDE.md's documented cargo-check-as-gate policy. Zero local-install commitment for contributors.",
+      "contributingLenses": ["copilot", "devils-advocate"]
+    },
+    {
+      "id": "D-004",
+      "name": "Hermetic Windows release-build bootstrap for contributors (P2-only, release-operators-only)",
+      "summary": "Package the publish-sandbox-patch.md preconditions (xwin splat, LLVM, rusty_v8 cached lib) into a setup_windows_release_toolchain.ps1 script plus verification probe. Lower priority because codex/CLAUDE.md already establishes release builds are CI's job for iteration.",
+      "contributingLenses": ["codex", "copilot"]
+    }
+  ],
+  "recommendedDirection": "D-001",
+  "questionsForSynthesis": [
+    "Should audit_invariants.sh's overlay-existence check be authoritative (block submodule pin bumps that reference missing overlays) or advisory (warn and continue)?",
+    "Is the matching overlay scaffold for codex-plugin-scope a deliverable of the lead's in-flight plugin-scope-agents-v2 branch, OR should this brainstorm's follow-up plan/impl create it?",
+    "Is the lead willing to retire/update auto-memory feedback_codex_fork_no_local_cargo to reflect that cargo IS installed and cargo check --workspace IS the documented gate?",
+    "For D-003 (quick-check.yml), add a new workflow or extend invariant-check.yml with a fast-path job?"
+  ]
+}
