@@ -1,0 +1,31 @@
+### Feasibility
+
+[High] The MCP registration path is not proven feasible as written. `plugins/ralph-overview/.mcp.json` uses `args: ["${CLAUDE_PLUGIN_ROOT}/launch.cjs"]`, which is Claude-specific. The plan assumes Copilot expands both `${CLAUDE_PLUGIN_ROOT}` and `${PLUGIN_ROOT}`, but the existing Copilot manifests in `plugins/ralph/.github/plugin/plugin.json` and `plugins/crews/.github/plugin/plugin.json` do not show an `mcpServers` precedent. If Copilot does not expand `CLAUDE_PLUGIN_ROOT`, the core MCP feature ships broken. Make Copilot MCP verification blocking before release, and be ready to use an inline Copilot-specific server entry with the variable Copilot actually supports.
+
+[High] The mirrored skills may be discoverable but not usable. `plugins/ralph-overview/skills/work-on/SKILL.md` invokes `ralph-overview sync` and `ralph-overview cli derive-next-command`, and `triage` / `blocker-report` reference the same CLI path. But `plugins/ralph-overview/README.md` explicitly says the plugin does not put `ralph-overview` on the consumer PATH. Leaving this out of scope conflicts with the stated goal that Copilot sessions can use the 4 skills.
+
+### Completeness
+
+[High] The planned README Copilot install command is incomplete. `copilot plugin install ralph-overview@ai-developer-toolkit` only works after the marketplace is registered; `copilot plugin install --help` says marketplace installs require a registered marketplace. The new section in `plugins/ralph-overview/README.md` should include the Copilot marketplace add step, analogous to the current Claude install docs.
+
+[Medium] The plan does not include any validation that the new Copilot manifest schema is accepted before committing the final form. The acceptance criterion only checks that `mcpServers` is non-empty in `plugins/ralph-overview/.github/plugin/plugin.json`; that would pass for a schema Copilot ignores.
+
+[Medium] Existing tests already assert MCP tool listing in `plugins/ralph-overview/tools/overview-mcp/src/__tests__/stdio-tools-list.test.ts`, but the plan does not require running that focused test after documenting the tool surface. Add it as verification if README lists exact tools.
+
+### Ordering
+
+No issues found. The generator refactor before generation, manifest before version bump, and verification last are sensible.
+
+### Simplicity
+
+[Medium] Reusing `.mcp.json` as the single MCP source may be oversimplified because that file currently contains Claude-specific `${CLAUDE_PLUGIN_ROOT}`. A small inline `mcpServers` object in `plugins/ralph-overview/.github/plugin/plugin.json` using Copilot’s supported plugin-root variable may be simpler and safer than forcing one file to serve both hosts.
+
+[Low] `plugins/ralph-overview/.copilot-plugin/parity-exceptions.json` is likely unnecessary unless the overview generator will actually consume it. It is harmless, but it adds a convention without current enforcement.
+
+### Acceptance Criteria Quality
+
+[High] “Manual cross-engine check executed by operator after merge” is too late for a core acceptance criterion. Copilot install, skill discovery, and MCP listing are the feature. This should be a blocking pre-merge verification step, or the plan should explicitly mark the release blocked when Copilot is unavailable.
+
+[Medium] `grep -r "dist/copilot" plugins/ralph-overview/` is too broad and currently hits historical text in `plugins/ralph-overview/CHANGELOG.md`. Either explicitly update that historical line or scope the grep to live docs/generated files and exclude `node_modules`, `dist`, and history sections.
+
+[Medium] “README lists the actual MCP tools registered in `server.ts`” is directionally good but vague for autonomous verification. Require deriving names from `tools/overview-mcp/src/__tests__/stdio-tools-list.test.ts` or from a stdio `tools/list` smoke test, then matching the README list.

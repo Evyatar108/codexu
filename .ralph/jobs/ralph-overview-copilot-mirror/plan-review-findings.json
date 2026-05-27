@@ -1,0 +1,155 @@
+{
+  "planFile": "D:/harness-efforts/codexu/.ralph/jobs/.staging/20260527-230704/draft-plan.md",
+  "repoDir": "D:/harness-efforts/codexu",
+  "reviewCycle": 0,
+  "findings": [
+    {
+      "id": "F-001",
+      "severity": "Critical",
+      "category": "Feasibility",
+      "source": "consensus",
+      "sectionRef": "Approach > Architecture; Files to Create item 9",
+      "description": "The proposed Copilot MCP registration (both string-path form '\"mcpServers\": \".mcp.json\"' and inline-fallback) ultimately resolves to 'node ${CLAUDE_PLUGIN_ROOT}/launch.cjs'. CLAUDE_PLUGIN_ROOT is Claude-specific; if Copilot does not expand it (or uses a different variable like ${PLUGIN_ROOT}), MCP install ships broken. Codex and Copilot reviewers both flagged this as High; no existing toolkit plugin declares mcpServers in its Copilot manifest, so there is no precedent to copy.",
+      "status": "fixed",
+      "relevantFiles": [
+        "D:/ai-developer-toolkit/plugins/ralph-overview/.mcp.json",
+        "D:/ai-developer-toolkit/plugins/ralph-overview/launch.cjs",
+        "D:/ai-developer-toolkit/plugins/ralph/.github/plugin/plugin.json",
+        "D:/ai-developer-toolkit/plugins/crews/.github/plugin/plugin.json"
+      ],
+      "suggestedFix": "Make the Copilot MCP smoke (`copilot mcp list --json` showing ralph-overview with the resolved command pointing at a launchable path) a blocking pre-merge acceptance criterion. Promote the Open Question #2 inline-mcpServers option to a first-class fallback path: if the string form fails, switch to an inline object. Also: investigate whether Copilot uses ${PLUGIN_ROOT} or another token; if so, prepare a Copilot-only variant of the launch invocation that does NOT depend on CLAUDE_PLUGIN_ROOT. The acceptance criteria must require a runtime verification, not just a non-empty field check.",
+      "fixedInIteration": 1,
+      "resolution": "Updated the plan to require blocking Copilot MCP runtime verification and a Copilot-only inline fallback using a verified launch token/path if the shared .mcp.json form does not resolve correctly."
+    },
+    {
+      "id": "F-002",
+      "severity": "High",
+      "category": "Acceptance Criteria Quality",
+      "source": "consensus",
+      "sectionRef": "Acceptance Criteria; In Scope vs Out of Scope",
+      "description": "The manual cross-engine check is described as 'executed by operator after merge.' Both codex and copilot reviewers flagged this as High: plugin discovery + MCP registration ARE the deliverable; verifying them post-merge defeats the gate. Additionally, 'Manifest contains a non-empty mcpServers field' is too weak — a malformed schema Copilot silently ignores would still pass.",
+      "status": "fixed",
+      "relevantFiles": [],
+      "suggestedFix": "Reword US-007 as a pre-merge blocking gate. Strengthen acceptance criteria: require `copilot plugin list` to show 'ralph-overview' AND `copilot mcp list --json` to show the MCP server with a resolved (launchable) command path AND each of the 4 skills (work-on, triage, blocker-report, overview-init) callable from a Copilot session. If Copilot isn't available on a given impl host, explicitly mark the release blocked rather than deferring.",
+      "fixedInIteration": 2,
+      "resolution": "Strengthened the plan so Copilot plugin discovery, resolved MCP registration, MCP runtime launch, and all four skill invocations are required before merge, with release blocked if Copilot is unavailable."
+    },
+    {
+      "id": "F-003",
+      "severity": "High",
+      "category": "Acceptance Criteria Quality",
+      "source": "consensus",
+      "sectionRef": "Acceptance Criteria — `grep -r \"dist/copilot\" plugins/ralph-overview/` check",
+      "description": "The acceptance criterion `grep -r \"dist/copilot\" plugins/ralph-overview/ returns no matches` is impossible as written. The plan ITSELF adds a v2.4.0 CHANGELOG entry that mentions `dist/copilot/`; the existing CHANGELOG also has historical references. Both codex and copilot flagged this as High.",
+      "status": "fixed",
+      "relevantFiles": [
+        "D:/ai-developer-toolkit/plugins/ralph-overview/CHANGELOG.md"
+      ],
+      "suggestedFix": "Scope the grep to live source + runtime docs only: e.g. `grep -r \"dist/copilot\" plugins/ralph-overview/ --exclude=CHANGELOG.md --exclude-dir=node_modules --exclude-dir=dist`. Alternatively, require that no SOURCE file (skills/, scripts/, tools/, bin/, README.md, CLAUDE.md) references `dist/copilot` while leaving the CHANGELOG to mention it historically. Phrase the AC to match what's actually checkable.",
+      "fixedInIteration": 3,
+      "resolution": "Scoped the dist/copilot acceptance grep to exclude CHANGELOG.md and generated/vendor directories so historical changelog references do not make the criterion impossible."
+    },
+    {
+      "id": "F-004",
+      "severity": "High",
+      "category": "Completeness",
+      "source": "codex",
+      "sectionRef": "Approach step 7 (README update)",
+      "description": "The README install command `copilot plugin install ralph-overview@ai-developer-toolkit` only works after the user has registered the toolkit's Copilot marketplace. Codex says `copilot plugin install --help` confirms marketplace installs require the marketplace to be registered first. The README section as planned is incomplete and will produce 'plugin not found' errors for fresh installs.",
+      "status": "fixed",
+      "relevantFiles": [
+        "D:/ai-developer-toolkit/.github/plugin/marketplace.json",
+        "D:/ai-developer-toolkit/plugins/ralph-overview/README.md"
+      ],
+      "suggestedFix": "Add a 'marketplace add' step before the plugin install. Document the `copilot plugin marketplace add gim-home/ai-developer-toolkit` (or the actual command Copilot uses; verify with `copilot plugin --help`). Mirror whatever step the existing Claude install docs follow (compare to the README's claude-code install section). Acceptance criterion should test the full install flow including marketplace add.",
+      "fixedInIteration": 4,
+      "resolution": "Added the required Copilot marketplace registration step to the plan's README docs, migration note, and install smoke acceptance criteria."
+    },
+    {
+      "id": "F-005",
+      "severity": "High",
+      "category": "Ordering",
+      "source": "copilot",
+      "sectionRef": "Suggested Decomposition — cluster order; Preliminary Story Decomposition",
+      "description": "US-005 runs the `dist/copilot` deletion + grep verification BEFORE US-006 updates docs. If US-006 modifies CHANGELOG to mention `dist/copilot/` (per plan step 6), the grep verification timing becomes inconsistent. Copilot flagged this as a High ordering issue.",
+      "status": "fixed",
+      "relevantFiles": [],
+      "suggestedFix": "Move docs updates (US-006) before US-005's grep verification, OR redefine US-005's grep scope to exclude CHANGELOG.md (combine with F-003 fix). Updating the AC scope per F-003 also resolves this ordering tension.",
+      "fixedInIteration": 5,
+      "resolution": "Scoped the dist/copilot verification in US-005 and related notes to exclude CHANGELOG.md historical/migration references, resolving the ordering conflict with US-006 documentation updates."
+    },
+    {
+      "id": "F-006",
+      "severity": "High",
+      "category": "Feasibility",
+      "source": "codex",
+      "sectionRef": "Out of Scope; Open Questions item 4",
+      "description": "Skills `work-on`, `triage`, `blocker-report` reference `ralph-overview sync` / `ralph-overview cli derive-next-command` as if it's on PATH, but the plugin README explicitly says the binary is NOT placed on consumer PATH. Generating Copilot mirrors of these skills will produce skills that LOOK discoverable but FAIL when invoked. Codex flagged as High: leaving this Out of Scope conflicts with the goal that Copilot sessions can USE the 4 skills.",
+      "status": "fixed",
+      "relevantFiles": [
+        "D:/ai-developer-toolkit/plugins/ralph-overview/skills/work-on/SKILL.md",
+        "D:/ai-developer-toolkit/plugins/ralph-overview/skills/triage/SKILL.md",
+        "D:/ai-developer-toolkit/plugins/ralph-overview/skills/blocker-report/SKILL.md",
+        "D:/ai-developer-toolkit/plugins/ralph-overview/README.md"
+      ],
+      "suggestedFix": "Either (a) bring skill-body refactoring INTO scope: change `ralph-overview sync` -> `node ${RALPH_OVERVIEW_PLUGIN_ROOT}/bin/ralph-overview.mjs sync` (or whatever variable resolves on both engines) in the source skills, so the generated copilot variants inherit the working invocation; OR (b) document that v2.4.0 ships Copilot skills that REQUIRE the user to add `ralph-overview` to PATH first, with explicit setup instructions in README. Option (a) is the better choice — without it, US-007 acceptance will fail (skills callable but tasks broken).",
+      "fixedInIteration": 6,
+      "resolution": "Moved source skill CLI invocation refactoring into scope so generated Copilot skills use the plugin dispatcher path instead of assuming ralph-overview is on PATH."
+    },
+    {
+      "id": "F-007",
+      "severity": "High",
+      "category": "Approach > Generator refactor (Approach step 1)",
+      "source": "claude",
+      "sectionRef": "Approach step 1; scripts/generate-copilot-artifacts.mjs:25",
+      "description": "The hardcoded path string at line 25 of the generator contains BOTH the canonical path AND a glob fallback pattern; both reference `plugins/ralph-overview/dist/copilot/${name}/SKILL.md`. The plan says to update line 25 but doesn't explicitly call out that the glob pattern on the same line ALSO needs updating. An impl member who updates only the canonical path will leave a stale glob fallback that resolves to the (deleted) `dist/copilot/` tree, producing mirrors that LOOK fixed but fail under glob fallback.",
+      "status": "fixed",
+      "relevantFiles": [
+        "D:/ai-developer-toolkit/plugins/ralph-overview/scripts/generate-copilot-artifacts.mjs"
+      ],
+      "suggestedFix": "Plan step 1 must explicitly say: update BOTH path occurrences in line 25's template string — the canonical path AND the glob pattern. Recommend deriving them from a single constant to prevent future drift. Also: consider asserting in the generator that the path inside the substitution prompt matches the actual `target` path; otherwise the same drift can re-introduce.",
+      "fixedInIteration": 7,
+      "resolution": "Updated the generator-refactor plan text to call out both canonical and glob fallback path replacements and require a shared path helper plus consistency assertion."
+    },
+    {
+      "id": "F-008",
+      "severity": "Medium",
+      "category": "Approach > Generator refactor",
+      "source": "claude",
+      "sectionRef": "Approach step 1 — forbidden tokens",
+      "description": "Plan says 'add a FORBIDDEN token list mirroring ralph's generator' but does NOT enumerate the exact list. Ralph's is broader than what ralph-overview needs. Impl member must guess.",
+      "status": "open",
+      "relevantFiles": [
+        "D:/ai-developer-toolkit/plugins/ralph/scripts/generate-copilot-artifacts.mjs"
+      ],
+      "suggestedFix": "Enumerate the forbidden-token list explicitly in plan step 1: minimum `['Skill(', 'Agent(', 'BashOutput', 'run_in_background', 'EnterPlanMode', 'ExitPlanMode']`. Skip `<options-mode>` and `mcp__` since the substitution rules already transform those — adding them to FORBIDDEN would trigger false positives on un-substituted source."
+    },
+    {
+      "id": "F-009",
+      "severity": "Medium",
+      "category": "Completeness",
+      "source": "codex",
+      "sectionRef": "Acceptance Criteria — Claude-code regression",
+      "description": "Existing test `plugins/ralph-overview/tools/overview-mcp/src/__tests__/stdio-tools-list.test.ts` already asserts the MCP tool listing. The plan does not require running this test after documenting the tool surface. Without it, the README tool list could drift from server.ts without detection.",
+      "status": "open",
+      "relevantFiles": [
+        "D:/ai-developer-toolkit/plugins/ralph-overview/tools/overview-mcp/src/__tests__/stdio-tools-list.test.ts"
+      ],
+      "suggestedFix": "Add acceptance criterion: `npm test --workspace=tools/overview-mcp` (or the targeted `stdio-tools-list.test.ts` subset) passes, AND the README's documented MCP tool list matches the test's expected list. Specify the verification command explicitly so impl member doesn't hardcode the plan's 5-tool list."
+    },
+    {
+      "id": "F-010",
+      "severity": "Medium",
+      "category": "Simplicity",
+      "source": "codex",
+      "sectionRef": "Files to Create item 10 (.copilot-plugin/parity-exceptions.json)",
+      "description": "parity-exceptions.json is unnecessary unless something actually consumes it. Ralph has a parity checker; ralph-overview's generator does not. Adding an empty file with no enforcement is convention without value.",
+      "status": "open",
+      "relevantFiles": [
+        "D:/ai-developer-toolkit/plugins/ralph-overview/.copilot-plugin/parity-exceptions.json",
+        "D:/ai-developer-toolkit/plugins/ralph-overview/scripts/generate-copilot-artifacts.mjs"
+      ],
+      "suggestedFix": "Drop the parity-exceptions.json creation from US-003 unless the generator is enhanced to consume it. If kept as a future-hook, justify it briefly in the plan or include the generator code that reads it."
+    }
+  ]
+}

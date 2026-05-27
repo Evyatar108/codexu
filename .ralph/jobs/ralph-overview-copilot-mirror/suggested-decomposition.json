@@ -1,0 +1,56 @@
+{
+  "clusters": [
+    {
+      "name": "generator-and-artifacts",
+      "stories": ["US-001", "US-002", "US-005"],
+      "phase": 1,
+      "dependsOn": [],
+      "fileOverlapEvidence": {
+        "sharedFiles": [
+          "plugins/ralph-overview/scripts/generate-copilot-artifacts.mjs",
+          "plugins/ralph-overview/.copilot-plugin/copilot-skills/**",
+          "plugins/ralph-overview/dist/copilot/**"
+        ],
+        "exclusiveFiles": [],
+        "risk": "medium"
+      },
+      "executionModeRationale": "Serial within the cluster because US-002 reads the changed generator and US-005 verifies the post-delete state. The cluster as a whole runs first because every other change depends on the generator's new output location."
+    },
+    {
+      "name": "manifest-and-versions",
+      "stories": ["US-003", "US-004"],
+      "phase": 2,
+      "dependsOn": ["generator-and-artifacts"],
+      "fileOverlapEvidence": {
+        "sharedFiles": [
+          "plugins/ralph-overview/.github/plugin/plugin.json"
+        ],
+        "exclusiveFiles": [
+          "plugins/ralph-overview/.claude-plugin/plugin.json",
+          ".claude-plugin/marketplace.json",
+          ".github/plugin/marketplace.json",
+          ".agents/plugins/marketplace.json",
+          "plugins/ralph-overview/.copilot-plugin/parity-exceptions.json"
+        ],
+        "risk": "low"
+      },
+      "executionModeRationale": "Serial because US-004 sets the version field in the manifest that US-003 creates. Could be a single story; split for clean commit boundaries."
+    },
+    {
+      "name": "docs-and-verification",
+      "stories": ["US-006", "US-007"],
+      "phase": 3,
+      "dependsOn": ["manifest-and-versions"],
+      "fileOverlapEvidence": {
+        "sharedFiles": [],
+        "exclusiveFiles": [
+          "plugins/ralph-overview/CHANGELOG.md",
+          "plugins/ralph-overview/README.md",
+          "plugins/ralph-overview/CLAUDE.md"
+        ],
+        "risk": "low"
+      },
+      "executionModeRationale": "US-006 doc updates land before US-007 verification. US-007 needs an actual Copilot install to validate the manifest shape and is the final gate."
+    }
+  ]
+}
