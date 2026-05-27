@@ -630,9 +630,10 @@ window.OVERVIEW_DATA = {
         {
               "id": "crews-stop-listener-arm-gate",
               "scope": "crews",
-              "phase": "plan-ready",
+              "phase": "shipped",
               "status": "ok",
-              "lastTouchedAt": "2026-05-27T14:35:00Z",
+              "lastTouchedAt": "2026-05-27T17:18:00Z",
+              "mergeCommit": "0a3464e4",
               "kanbanCards": [],
               "command": {
                     "name": "crews-stop-listener-arm-gate",
