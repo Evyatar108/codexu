@@ -764,21 +764,6 @@ export async function startDaemon(): Promise<void> {
       }
     };
 
-    const forkSessionHandler = (options: ForkSessionOptions): Promise<SpawnSessionResult> => forkSession(options, {
-      findTrackedSessionById,
-      fetchServerSessionMetadata,
-      spawnTrackedHappyProcess,
-      stat: fs.stat,
-      realpath: fs.realpath,
-      runGit: (cwd, args) => new Promise<string>((resolve, reject) => {
-        execFile('git', args, { cwd, encoding: 'utf8', windowsHide: true }, (err, stdout) => {
-          if (err) reject(err);
-          else resolve(stdout);
-        });
-      }),
-      baseEnv: process.env,
-    });
-
     const spawnInWorktreeHandler = (options: SpawnInWorktreeOptions): Promise<SpawnSessionResult> => spawnInWorktree(options, {
       daemonHome: configuration.happyHomeDir,
       machineId,
@@ -900,6 +885,23 @@ export async function startDaemon(): Promise<void> {
     // Create API client
     const api = await ApiClient.create(credentials);
     const updateParentMetadata = createSpawnFromSessionMetadataUpdater(api);
+
+    const forkSessionHandler = (options: ForkSessionOptions): Promise<SpawnSessionResult> => forkSession(options, {
+      findTrackedSessionById,
+      fetchServerSessionMetadata,
+      spawnTrackedHappyProcess,
+      stat: fs.stat,
+      realpath: fs.realpath,
+      runGit: (cwd, args) => new Promise<string>((resolve, reject) => {
+        execFile('git', args, { cwd, encoding: 'utf8', windowsHide: true }, (err, stdout) => {
+          if (err) reject(err);
+          else resolve(stdout);
+        });
+      }),
+      baseEnv: process.env,
+      machineId,
+      updateParentMetadata,
+    });
 
     const spawnSessionFromSessionHandler = (options: SpawnSessionFromSessionRpcOptions): Promise<SpawnSessionResult> => spawnSessionFromSession({
       parentLocalId: options.parentSessionId,

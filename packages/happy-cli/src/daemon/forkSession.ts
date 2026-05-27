@@ -5,7 +5,8 @@ import type { Metadata } from '@/api/types';
 import type { SpawnSessionResult } from '@/modules/common/registerCommonHandlers';
 import { buildResumeLaunch } from '@/resume/handleResumeCommand';
 import { logger } from '@/ui/logger';
-import { HAPPY_FORKED_FROM_SESSION_ID } from '@/utils/envNames';
+import { HAPPY_FORKED_FROM_SESSION_ID, HAPPY_PARENT_SESSION_ID } from '@/utils/envNames';
+import { appendSpawnedChild, validateSpawnAncestry } from './spawnSessionFromSession';
 import type { TrackedSession } from './types';
 
 /**
@@ -33,6 +34,12 @@ export type ForkSessionDeps = {
   realpath: (path: string) => Promise<string>;
   runGit: (cwd: string, args: string[]) => Promise<string>;
   baseEnv: NodeJS.ProcessEnv;
+  machineId: string;
+  updateParentMetadata: (
+    parentLocalId: string,
+    tracked: TrackedSession,
+    patchFn: (metadata: Metadata) => Metadata,
+  ) => Promise<void>;
 };
 
 function isPathPrefixDescendant(child: string, parent: string): boolean {
@@ -89,6 +96,11 @@ export async function forkSession(options: ForkSessionOptions, deps: ForkSession
     if (serverMetadata) {
       metadata = serverMetadata;
       tracked.happySessionMetadataFromLocalWebhook = serverMetadata;
+    }
+
+    const ancestry = validateSpawnAncestry(parentSessionId, deps.machineId, deps.findTrackedSessionById);
+    if (ancestry.type === 'error') {
+      return ancestry;
     }
 
     if (!isAbsolute(worktreePath)) {
@@ -175,12 +187,20 @@ export async function forkSession(options: ForkSessionOptions, deps: ForkSession
       }
     }
     env[HAPPY_FORKED_FROM_SESSION_ID] = parentSessionId;
+    env[HAPPY_PARENT_SESSION_ID] = `${deps.machineId}:${parentSessionId}`;
 
-    return deps.spawnTrackedHappyProcess({
+    const result = await deps.spawnTrackedHappyProcess({
       args: launch.args,
       cwd: canonicalWorktreePath,
       env,
     });
+
+    if (result.type === 'success') {
+      const childCompositeSid = `${deps.machineId}:${result.sessionId}`;
+      await deps.updateParentMetadata(parentSessionId, tracked, m => appendSpawnedChild(m, childCompositeSid));
+    }
+
+    return result;
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : (error && typeof error === 'object' ? JSON.stringify(error) : String(error));
     logger.debug(`[DAEMON RUN] Failed to fork session: ${errorMessage}`, error instanceof Error ? error.stack : undefined);
