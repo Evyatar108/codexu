@@ -1,0 +1,59 @@
+**Codebase Architecture**
+
+`/d/ai-developer-toolkit` is a plugin repository, organized as `plugins/<name>/`. There is no root `package.json`; each substantial plugin owns its own runtime. `plugins/ralph-overview/` is a Node 20+ ESM package with npm workspaces:
+
+- `tools/overview-mcp/`: TypeScript MCP server using `@modelcontextprotocol/sdk`, `zod`, `vitest`.
+- `tools/overview-viewer/`: React 19 + Vite 8 dashboard.
+- `scripts/`: ESM CLI/sync/init/generator scripts.
+- `skills/*/SKILL.md`: Claude-side source skills.
+- `.claude-plugin/plugin.json` + `.mcp.json`: Claude plugin metadata and MCP registration.
+- `launch.cjs`: first-launch build/cache wrapper for the MCP server.
+
+Copilot CLI plugin precedent is separate: `plugins/ralph/.github/plugin/plugin.json` and `plugins/crews/.github/plugin/plugin.json` are the Copilot manifests. Generated Copilot skills live under `.copilot-plugin/copilot-skills/`.
+
+**Feature-Relevant Code**
+
+`ralph-overview` already has a Copilot skill generator at `plugins/ralph-overview/scripts/generate-copilot-artifacts.mjs` and generated mirrors at `plugins/ralph-overview/dist/copilot/{work-on,triage,blocker-report,overview-init}/SKILL.md`. The missing part is Copilot discovery: those files are not under `.copilot-plugin/copilot-skills/`, and there is no `plugins/ralph-overview/.github/plugin/plugin.json`.
+
+Use these existing patterns:
+
+- `plugins/ralph/scripts/generate-copilot-artifacts.mjs`: mature generator pattern.
+- `plugins/ralph/.github/plugin/plugin.json`: Copilot manifest with `"skills": ".copilot-plugin/copilot-skills/"`.
+- `plugins/crews/.github/plugin/plugin.json`: manifest with skills + hooks.
+- `plugins/ralph-overview/.mcp.json`: existing MCP registration.
+- `plugins/ralph-overview/tools/overview-mcp/src/server.ts`: registered tools.
+- `plugins/ralph-overview/tools/overview-viewer/vite.config.ts`: Vite-side watcher plugin.
+- Root indexes: `.claude-plugin/marketplace.json`, `.github/plugin/marketplace.json`, `.agents/plugins/marketplace.json`.
+
+At `0493680c`, `ralph-overview` is v2.3.0 and registers these MCP tools: `overview.init`, `overview.validate_data`, `overview.parallel_ready_tasks`, `overview.watcher_status`. `overview.dev_server.start` is already removed in v2.1.0.
+
+**Technical Constraints**
+
+Do not add `.copilot-plugin/plugin.json`; Copilot’s plugin manifest is `.github/plugin/plugin.json`.
+
+Copilot CLI MCP config sources are, per `copilot mcp --help`: user `~/.copilot/mcp-config.json`, workspace `.mcp.json`, and installed plugins with MCP servers. This host already shows workspace `.mcp.json` working for codexu via `copilot mcp list --json`.
+
+For plugin-installed MCP registration, prefer adding `"mcpServers": ".mcp.json"` to the new Copilot manifest. The local Copilot CLI bundle supports manifest `mcpServers` and expands `${CLAUDE_PLUGIN_ROOT}` / `${PLUGIN_ROOT}`.
+
+The acceptance criteria should use current tool reality: no `overview_dev_server_start` in v2.3.0; include `overview.watcher_status` instead unless the feature intentionally reintroduces dev-server MCP control.
+
+**Implementation Suggestions**
+
+Extend, don’t hand-fork. Update `plugins/ralph-overview/scripts/generate-copilot-artifacts.mjs` to emit discoverable files under:
+
+`plugins/ralph-overview/.copilot-plugin/copilot-skills/<skill>/SKILL.md`
+
+Also update generated self-dispatch prompts from `dist/copilot/...` to `.copilot-plugin/copilot-skills/...`. Keeping `dist/copilot` as a compatibility output is optional, but it doubles generated artifact surface.
+
+Add `plugins/ralph-overview/.github/plugin/plugin.json` with version `2.4.0`, `"skills": ".copilot-plugin/copilot-skills/"`, and `"mcpServers": ".mcp.json"`. Then bump `.claude-plugin/plugin.json`, `package.json`, likely `package-lock.json`, the new Copilot manifest, and all three marketplace indexes to `2.4.0`.
+
+Document Copilot CLI install with:
+
+`copilot plugin install ralph-overview@ai-developer-toolkit`
+
+and verification with:
+
+`copilot plugin list`  
+`copilot mcp list --json`
+
+For regression checks, run the generator `--check`, MCP workspace tests, and a Copilot smoke with `--plugin-dir plugins/ralph-overview` to confirm `/work-on`, `/triage`, `/blocker-report`, and `/overview-init` are discoverable.

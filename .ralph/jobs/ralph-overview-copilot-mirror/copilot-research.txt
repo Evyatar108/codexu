@@ -1,0 +1,60 @@
+I’ll read the referenced prompt and then carry out the requested work.
+
+I found this is a research-mode plan analysis, so I’m going to inspect the related plugin structures and existing Copilot mirrors before reporting recommendations.
+
+The existing plugin already has partial Copilot support (`dist/copilot` skill mirrors), so I’m checking the Copilot-specific registration surface rather than assuming the requested `.copilot-plugin` layout is sufficient.
+
+Research complete: **ralph-overview already has partial Copilot support, but not an installable Copilot plugin mirror**. I inspected `D:\ai-developer-toolkit` at local HEAD `bd94fc67`, which is newer than the prompt’s referenced `0493680c`.
+
+### Codebase Architecture
+
+`plugins\ralph-overview\` is a Node/TypeScript plugin package with:
+
+- `.claude-plugin\plugin.json` — Claude plugin metadata.
+- `.mcp.json` + `launch.cjs` — stdio MCP registration and build-on-first-launch launcher.
+- `bin\ralph-overview.mjs` — dispatcher for `init|sync|watch|dev|build|mcp|install-server|cli`.
+- `scripts\` — sync engine, consumer init, Copilot mirror generator.
+- `tools\overview-mcp\` — TypeScript MCP server using `@modelcontextprotocol/sdk`.
+- `tools\overview-viewer\` — React 19 + Vite 8 dashboard.
+- `skills\*\SKILL.md` — source skills.
+- `dist\copilot\*\SKILL.md` — current generated Copilot skill mirrors.
+
+Existing Copilot plugin examples are `plugins\ralph\` and `plugins\crews\`. Their Copilot manifests are **not** `.copilot-plugin\plugin.json`; they use `.github\plugin\plugin.json`, with `"skills": ".copilot-plugin/copilot-skills/"`. Ralph also has `.copilot-plugin\agents\`, `.copilot-plugin\internal-workflows\`, and `.copilot-plugin\copilot-skills\`.
+
+### Feature-Relevant Code
+
+Key files:
+
+- `plugins\ralph-overview\scripts\generate-copilot-artifacts.mjs` already exists. It mirrors `skills\*\SKILL.md` into `dist\copilot\*\SKILL.md`, applies substitutions for `Skill(...)`, `<options-mode>`, and `mcp__...`, but does **not** create `.copilot-plugin\`.
+- `plugins\ralph\scripts\generate-copilot-artifacts.mjs` is the stronger pattern: hardcoded agent/workflow/user-skill sources, writes into `.copilot-plugin\...`, and asserts forbidden Claude-only tokens are absent.
+- `plugins\ralph\.github\plugin\plugin.json` and `plugins\crews\.github\plugin\plugin.json` define the Copilot plugin metadata and skills path.
+- `plugins\ralph-overview\tools\overview-mcp\src\server.ts` registers 5 tools: `overview.init`, `overview.validate_data`, `overview.parallel_ready_tasks`, `overview.dev_server.start`, `overview.dev_server.stop`.
+- `plugins\ralph-overview\tools\overview-mcp\src\index.ts` starts `WatcherSupervisor` on MCP boot, so watcher auto-start is not Vite-only.
+- `plugins\ralph-overview\tools\overview-viewer\vite.config.ts` also starts/falls back around a watcher when the Vite dev server runs.
+- `plugins\ralph-overview\scripts\init-consumer.mjs` currently writes `.mcp.json` and `.claude/settings.json`; it has no Copilot-specific registration path.
+- Version surfaces include `.claude-plugin\plugin.json`, package files, and marketplace indexes at `.claude-plugin\marketplace.json`, `.github\plugin\marketplace.json`, `.agents\plugins\marketplace.json`.
+
+### Technical Constraints
+
+Copilot plugin packaging should follow `.github\plugin\plugin.json`, not the prompt’s proposed `.copilot-plugin\plugin.json`.
+
+The current MCP surface is **5 tools**, not 4; acceptance should include `overview.dev_server.stop`. Tool names in MCP source are dotted; Copilot may expose them with CLI-safe names, so smoke tests should verify actual names after install.
+
+The current `dist\copilot` mirrors are insufficient for plugin discovery because existing Copilot plugins use `.copilot-plugin\copilot-skills\`. Keeping `dist\copilot` for backward compatibility is fine, but the installable mirror should target `.copilot-plugin`.
+
+Several skill bodies still mention `ralph-overview sync` / `ralph-overview cli`; docs say the plugin does not put `ralph-overview` on PATH. Copilot variants should either use `node <pluginRoot>\bin\ralph-overview.mjs ...` or document the required resolver/wrapper.
+
+`init-consumer.mjs` and package script templates are Claude-specific via `.claude/settings.json` and `$CLAUDE_PLUGIN_ROOT`. Copilot setup needs separate handling or explicit `/mcp` instructions; Copilot CLI help confirms `/mcp` and `/plugin` commands but does not expose a repo file format in the loaded docs.
+
+### Implementation Suggestions
+
+Port the Ralph generator pattern, but adapt it: have `plugins\ralph-overview\scripts\generate-copilot-artifacts.mjs` write `.copilot-plugin\copilot-skills\{work-on,triage,blocker-report,overview-init}\SKILL.md`, keep `dist\copilot` only if existing docs/tests depend on it, and add forbidden-token assertions like Ralph’s generator.
+
+Add `plugins\ralph-overview\.github\plugin\plugin.json` with `"skills": ".copilot-plugin/copilot-skills/"`. A hooks file is unnecessary unless Copilot needs sessionStart registration behavior later.
+
+Update docs to describe Copilot separately from Claude: install via `/plugin`, verify skills, then configure MCP via the supported Copilot `/mcp` flow or a tested one-time installer. Do not assume `.claude/settings.json` affects Copilot.
+
+For v2.4.0, update all version stamps: `.claude-plugin\plugin.json`, new `.github\plugin\plugin.json`, three marketplace indexes, and package/package-lock only if the package version is intentionally aligned.
+
+Validation should include generator `--write` then check mode, no forbidden tokens under `.copilot-plugin`, MCP server stdio tool list, Claude regression through existing `.mcp.json`, and a real Copilot install smoke where `/work-on`, `/triage`, `/blocker-report`, `/overview-init`, and all 5 MCP tools are visible.
+

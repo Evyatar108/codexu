@@ -1,0 +1,30 @@
+I’ll read the referenced prompt file first, then carry out the requested work end-to-end.
+
+I’ll verify the plan’s file/path assumptions against the target plugin repo before writing the review.
+
+The plan is mostly implementable, but I’d fix these blockers before handing it to an autonomous implementer.
+
+### Feasibility
+
+- **[High]** The acceptance criterion `grep -r "dist/copilot" plugins/ralph-overview/ returns no matches` is impossible as written. The plan itself adds a v2.4.0 CHANGELOG entry mentioning `dist/copilot/`, and existing `CHANGELOG.md` already has historical `dist/copilot/` references. Narrow this check to live docs/source/runtime surfaces, or explicitly exclude `CHANGELOG.md`.
+
+- **[High]** The MCP registration fallback is incomplete. Both the proposed `.mcp.json` reference and inline fallback use `${CLAUDE_PLUGIN_ROOT}/launch.cjs`; if Copilot does not define/expand `CLAUDE_PLUGIN_ROOT`, switching from string `mcpServers` to inline object will not fix install. The plan should include a verified fallback using Copilot’s plugin-root token or a relative command form.
+
+### Completeness
+
+- **[High]** The core Copilot install verification is described as “executed by operator after merge.” That is too late for this feature: plugin discovery + MCP registration are the main deliverable. Make US-007 a pre-merge gate, even if manual.
+
+### Ordering
+
+- **[High]** US-005 runs the `dist/copilot` deletion/no-reference check before US-006 updates docs. Either move doc updates before the final grep, or define the grep as a focused runtime/source check that excludes historical changelog references.
+
+### Simplicity
+
+No issues found. Reusing the existing generator and a single `.mcp.json` is the right shape if Copilot’s loader supports it.
+
+### Acceptance Criteria Quality
+
+- **[High]** “Manifest contains a non-empty `mcpServers` field” is too weak. It should require `copilot mcp list --json` to show `ralph-overview` and prove the resolved command points at a launchable plugin path.
+
+- **[Medium]** The “actual MCP tools registered in `server.ts`” criterion is good, but should name the verification command or script so the implementer does not hard-code the five-tool list from the plan when source has drifted.
+
