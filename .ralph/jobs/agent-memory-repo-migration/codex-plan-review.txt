@@ -1,0 +1,29 @@
+**Feasibility**
+
+[High] The US-001 hash-verification command is not runnable in this environment. `powershell.exe` reports PS 5.1, but `Get-FileHash` is not available, so the acceptance check comparing `.agents/memory/*.md` to `C:/Users/evmitran/.claude/projects/D--harness-efforts-codexu/memory/*.md` will fail before proving anything. Use `sha256sum`, `certutil -hashfile`, or `git hash-object`, keyed by basename.
+
+[High] The `docs/fork-notes.md` junction recipe is not feasible against the current source directory because `cmd /c rmdir "...\memory"` will fail while the directory contains the current 18 files. It also contradicts the safer US-003 sequence that renames the directory to `memory.bak` first.
+
+**Completeness**
+
+[Critical] US-003 does not require a final source-vs-repo parity check immediately before replacing the user-dir with a junction. The plan notes concurrent memory edits as a risk, but the acceptance criteria go straight from “verify readers” to `Rename-Item` and later `Remove-Item -Recurse memory.bak`. If any memory file changes after US-001, following the plan can drop that update when the backup is deleted. Add a blocking hash/name comparison between `C:/Users/evmitran/.claude/projects/D--harness-efforts-codexu/memory/` and `D:/harness-efforts/codexu/.agents/memory/` immediately before the rename, and stop on any diff.
+
+[Medium] `plans/codexu-roadmap.md:852` is marked deferrable, but it is an active repo doc reference to the old source-of-truth path. Since the migration’s purpose is to make `.agents/memory/` canonical, this should be included in US-002 or explicitly accepted as a known stale reference.
+
+**Ordering**
+
+[High] The safe ordering for US-003 is incomplete. The plan should insert “reconcile/check for diffs” after US-001/US-002 and before `Rename-Item`; otherwise the deferred timing of US-003 makes the copied repo state potentially stale.
+
+**Simplicity**
+
+[Medium] The filesystem migration is currently a manual multi-step recipe despite this repo’s `AGENTS.md` preference for scripting setup tasks with several steps. A small idempotent PowerShell script, or at least a stricter copy/paste block with backup, compare, junction creation, and rollback checks, would reduce the risky parts of US-003.
+
+**Acceptance Criteria Quality**
+
+[High] US-001’s “byte-identical” evidence is underspecified and currently broken. It should compare `(relative filename, hash)` pairs, not just globbed hash output, and should use a command available on this machine.
+
+[Medium] “Exactly 18 files” and “lists all 17 entries” are brittle if auto-memory writes a new file before implementation. Better criterion: destination file set exactly matches the source file set at migration time, with the current 18-file inventory as expected evidence.
+
+[Medium] US-003’s fresh-session checks are vague: “ask the session to recall a memory by slug” does not name the slug or expected text. Pick a concrete file such as `feedback_phase_discipline_separate_members.md` and require a specific phrase from its body.
+
+No prior review-cycle amendments were cited in the plan.

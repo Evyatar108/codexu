@@ -1,0 +1,43 @@
+I’ll read the referenced prompt file first, then carry out the requested work.
+
+I’ll inspect the repository layout and the files that would own this migration so the research report is grounded in actual paths.
+
+### Codebase Architecture
+
+Codexu is a pnpm monorepo (`pnpm@10.11.0`) with TypeScript/React Native/Node packages under `packages\`, a `codex\` git submodule, Ralph orchestration state under `.ralph\` and `plans\`, and agent-facing repo conventions under `.agents\`. The existing `.agents\skills\` and `.agents\agents\` directories are tracked, so `.agents\memory\` fits the current structure.
+
+### Feature-Relevant Code
+
+Key files/dirs:
+
+| Path | Relevance |
+|---|---|
+| `C:\Users\evmitran\.claude\projects\D--harness-efforts-codexu\memory\` | Current source memory store. It currently contains `MEMORY.md` plus **17** memory files, so the prompt’s “17 files total” count appears off by one. |
+| `.agents\memory\` | Recommended new tracked target; does not exist yet. |
+| `AGENTS.md` | Tracked fork-level agent guidance. Best place to add the Auto-memory section for Copilot and other agents. |
+| `CLAUDE.md` | Local bookkeeper manual, but root `CLAUDE.md` is gitignored and not tracked. Mirror the section locally, but do not force-add it. |
+| `.gitignore` | Ignores `CLAUDE.md`, `.claude\*.lock`, `.worktrees\`, etc.; does **not** ignore `.agents\memory\`. |
+| `docs\fork-notes.md` / `plans\codexu-roadmap.md` | Onboarding/operating docs. `plans\codexu-roadmap.md` still references the old user-dir memory path at lines 851-853. |
+| `plans\overview-data.js` / `plans\overview-snapshot.json` | Overview task data, but no existing `agent-memory-repo-migration` task entry was found. |
+
+### Technical Constraints
+
+- Root `CLAUDE.md` is intentionally gitignored; only `AGENTS.md` can carry the tracked auto-memory guidance.
+- The source directory count should be resolved in the plan: inventory shows 18 total files (`MEMORY.md` + 17 entries), not 17 total.
+- `MEMORY.md` links are normal relative Markdown links like `(feedback_async_events_design_generic_primitive.md)`, so moving all files together preserves link resolution.
+- No existing evidence in repo confirms `AGENTS.md` `@`-include directive support; the plan should not depend on it.
+- Mode (a), move-and-link, preserves Claude Code’s current auto-load contract. On Windows, replacing the old directory with a directory symlink/junction may require developer mode/admin privileges; keep this as the deferrable US003.
+- `plans\overview-ralph-state.*`, `plans\overview-snapshot.json`, and generated overview artifacts should not be hand-edited.
+
+### Implementation Suggestions
+
+Recommend **mode (a) move-and-link** unless `AGENTS.md` include support is externally confirmed. It preserves Claude Code’s existing memory discovery while making the canonical content tracked and readable by Copilot.
+
+Suggested plan:
+
+1. **US001 — move-files-and-index:** create `.agents\memory\`, move/copy the full source inventory (`MEMORY.md` plus all 17 memory entries), verify links, and commit tracked files.
+2. **US002 — wire guidance:** add an Auto-memory section to `AGENTS.md` with a short TOC for high-value entries: phase discipline, bookkeeper overview-data updates, crews state-cwd override, gitignored `CLAUDE.md`, spawn review-fix, codex build/toolchain, worktree/ref trap. Mirror the same section in local `CLAUDE.md`, but do not force-track it. Update `docs\fork-notes.md` or `plans\codexu-roadmap.md` to replace the old user-dir convention with `.agents\memory\`.
+3. **US003 — user-dir cleanup:** after US001/US002 are merged, replace `C:\Users\evmitran\.claude\projects\D--harness-efforts-codexu\memory\` with a symlink/junction to `D:\harness-efforts\codexu\.agents\memory\`, then verify both Copilot file reads and Claude Code auto-load behavior.
+
+Plan should explicitly surface two operator decisions: **move-and-link vs replace** and **whether `AGENTS.md` include directives are confirmed**.
+

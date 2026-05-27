@@ -1,0 +1,51 @@
+**Codebase Architecture**
+
+This is a pnpm monorepo with Node/TypeScript tooling and Happy app/server packages under `packages/`. Relevant root structure:
+
+- [package.json](/d/harness-efforts/codexu/package.json:1): pnpm workspace scripts, Vitest, overview tooling.
+- [AGENTS.md](/d/harness-efforts/codexu/AGENTS.md:1): tracked cross-agent fork/workspace guidance.
+- [CLAUDE.md](/d/harness-efforts/codexu/CLAUDE.md:1): local Claude Code bookkeeper manual, present but gitignored.
+- `.agents/`: tracked repo-local agent assets. Existing tracked convention is `.agents/skills/<name>/SKILL.md` plus `.agents/agents/`.
+- `.claude/`: local Claude-specific state and skill pointers.
+- `plans/`, `tasks/`, `.ralph/`: Ralph overview/bookkeeper state. Several files here are generated and should not be touched for this migration.
+
+The feature is mostly documentation and file-placement work; no package code, build step, or app/server test suite should be needed.
+
+**Feature-Relevant Code**
+
+- [AGENTS.md](/d/harness-efforts/codexu/AGENTS.md:5): already says root `AGENTS.md` exists because root `CLAUDE.md` is ignored, and modern agent tooling auto-loads it.
+- [AGENTS.md](/d/harness-efforts/codexu/AGENTS.md:47): already establishes “documentation close to code” and `.agents/skills/` as portable agent context.
+- [CLAUDE.md](/d/harness-efforts/codexu/CLAUDE.md:20): already references auto-memory entries by slug, so it should be mirrored with the new `.agents/memory/` location.
+- [CLAUDE.md](/d/harness-efforts/codexu/CLAUDE.md:190): explicitly says recurring patterns should be saved as `feedback_*` auto-memory entries.
+- [.gitignore](/d/harness-efforts/codexu/.gitignore:66): ignores `CLAUDE.md`, so the CLAUDE mirror is local-only and will not travel with git.
+- `.agents/skills/`: tracked canonical repo-local skills. `.agents/memory/` is a natural sibling.
+- Current source: `/c/Users/evmitran/.claude/projects/D--harness-efforts-codexu/memory/`.
+
+I counted 18 markdown files in the current source, not 17: `MEMORY.md` plus 17 memory files. The feature request’s inventory includes 18 names, so the plan should update acceptance wording to avoid dropping `project_crews_v153_stale_armed_fix.md`.
+
+**Technical Constraints**
+
+- `.agents/memory/MEMORY.md` is not ignored by `.gitignore`; it should be tracked normally.
+- `CLAUDE.md` is ignored, so only `AGENTS.md`, `.agents/memory/**`, and a docs file such as [docs/fork-notes.md](/d/harness-efforts/codexu/docs/fork-notes.md:1) can satisfy portable/git-tracked acceptance.
+- Existing `MEMORY.md` uses relative Markdown links like `(feedback_phase_discipline_separate_members.md)`. Internal memory files also contain `[[wikilinks]]`, including both underscore and hyphen slug forms. Moving all files together preserves basename-based resolution, but plain Markdown readers will not auto-resolve wikilinks.
+- I found no existing `@./...` include-directive precedent in `AGENTS.md`, `CLAUDE.md`, `.agents`, or `docs`. Do not make the migration depend on AGENTS include support unless separately confirmed.
+- The worktree is dirty with many unrelated `.ralph`, `plans`, `tasks`, and submodule changes. Implementation should stage only `.agents/memory/**`, `AGENTS.md`, `docs/fork-notes.md`, and optionally local-only `CLAUDE.md`.
+- Windows symlink creation is the riskiest step. Git Bash `ln -s` can be unreliable depending on MSYS settings. Prefer PowerShell `New-Item -ItemType SymbolicLink` if available, or an NTFS directory junction via `cmd /c mklink /J` as a practical equivalent for Claude Code’s directory reads.
+
+**Implementation Suggestions**
+
+Recommend `.agents/memory/` and migration mode **(a) move-and-link**.
+
+Reason: it makes the repo the source of truth while preserving Claude Code’s existing user-dir auto-memory contract. Mode (c) depends on unconfirmed behavior: whether Claude Code treats `.agents/memory/MEMORY.md` as a memory store through `AGENTS.md`/`CLAUDE.md`, or merely sees a pointer that the model may or may not follow.
+
+Suggested order:
+
+1. Create `.agents/memory/` and copy all 18 markdown files there. Verify count and diff content before touching the user-dir.
+2. Update [AGENTS.md](/d/harness-efforts/codexu/AGENTS.md:1) with an “Auto-memory” section pointing to `.agents/memory/MEMORY.md`, with a short inline TOC for the highest-priority entries.
+3. Mirror the same section in local [CLAUDE.md](/d/harness-efforts/codexu/CLAUDE.md:1), knowing it is ignored.
+4. Add a short convention note to [docs/fork-notes.md](/d/harness-efforts/codexu/docs/fork-notes.md:1) or another contributor onboarding doc.
+5. Commit the tracked files. Push only after explicit operator approval.
+6. In deferred cleanup, rename the old user-dir as a backup, then create a directory link from `/c/Users/evmitran/.claude/projects/D--harness-efforts-codexu/memory` to `D:\harness-efforts\codexu\.agents\memory`.
+7. Verify with file reads from both paths and with a fresh Claude Code session. Copilot verification is just standard repo file readability through `AGENTS.md` plus `.agents/memory/MEMORY.md`.
+
+Do not add ongoing sync scripts. A short one-time migration script is optional, but ongoing copy-and-sync contradicts the operator’s rejected option.

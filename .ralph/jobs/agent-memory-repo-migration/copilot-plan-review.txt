@@ -1,0 +1,34 @@
+I’ll read the referenced prompt file first, then carry out the requested repo work end-to-end.
+
+The prompt is long, so I’ll read it in chunks and extract the actionable instructions before editing.
+
+I’ll verify the plan’s file/path assumptions against the repo and the current user-dir before judging feasibility and gaps.
+
+### Feasibility
+
+[High] US-001’s byte-identity check is likely not feasible as written. `Compare-Object (Get-FileHash dest\*.md) (Get-FileHash source\*.md)` compares `FileHashInfo` objects that include different `Path` values, so it can report differences even when hashes match. Make the AC compare `(Name, Hash)` pairs explicitly.
+
+### Completeness
+
+[High] The plan commits user-dir auto-memory verbatim without a required secret/privacy review. Moving personal Claude memory into tracked git history is a security/privacy boundary change; add a mandatory scan/manual review before `git add .agents\memory`.
+
+[Critical] US-003 acknowledges possible divergence between the old user-dir and `.agents\memory`, but the acceptance path never checks for it before deleting `memory.bak`. Add a pre-swap and pre-delete hash/content comparison, and abort if any file differs or exists only in the backup.
+
+[High] The `docs\fork-notes.md` junction recipe is unsafe/incomplete if copied literally: it says `rmdir` then `mklink /J`, while US-003’s safe path is backup → compare → junction → verify → delete backup. The docs should mirror the safe workflow or explicitly say the short recipe is only for replacing an already-empty/junction path.
+
+[Medium] `plans\codexu-roadmap.md:851-853` is identified as stale but left deferrable. Since that section is an operating manual and points future agents at the old source of truth, update it in US-002 rather than later.
+
+### Ordering
+
+[High] US-003 should perform the final user-dir-vs-repo comparison immediately before `Rename-Item`, not just rely on US-001’s earlier copy verification. The plan’s own concurrent-edit risk makes the earlier verification stale by design.
+
+### Simplicity
+
+No issues found.
+
+### Acceptance Criteria Quality
+
+[Medium] “Ask a fresh claude-code session to recall a memory by slug” is not a precise autonomous verification. Prefer filesystem-contract checks for the junction (`Get-Item`, target path, file count/hash) plus a clearly labeled manual smoke test if interactive Claude recall is required.
+
+[Low] The plan alternates between “18 files” and “17 entries.” That distinction is valid (`MEMORY.md` plus 17 linked entries), but the ACs should consistently say “18 files / 17 index entries” to avoid implementer confusion.
+
