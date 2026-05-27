@@ -97,7 +97,7 @@ Body (the skill's own prose, written for Claude to execute):
 
 4. **Look up Ralph state:**
    - `ralphState = snapshot.tasks[matched].ralph`
-   - If undefined and `OverviewTask.command.planPrompt` is set, fall back to the seed prompt (the bookkeeper-authored plan-with-ralph invocation). Inform the user this is the seed, not a resume.
+   - If undefined and the matching `OverviewTask.command.prompts?.<key>` is set, fall back to the seed prompt (the bookkeeper-authored invocation). The chosen prompt key should match `OverviewTask.command.initialStage`: `initialStage === 'brainstorming'` falls back to `prompts.brainstorm`; `'planning'` falls back to `prompts.plan`; `'implementing'` falls back to `prompts.impl`. Inform the user this is the seed, not a resume.
    - If both are missing, error with guidance.
 
 5. **Derive next command via the CLI wrapper at `scripts/lib/derive-next-command-cli.mjs`:**
@@ -174,7 +174,7 @@ B. **`/work-on` dry-run smoke:** for a task in `plan-ready` stage, `/work-on <ta
 
 C. **`/work-on` ambiguity:** for a task-id prefix that matches multiple tasks, the skill presents a picker.
 
-D. **`/work-on` no-state fallback:** for a task with no `ralph` entry but a `command.planPrompt`, the skill prints the seed prompt with a note that it's the seed, not a resume.
+D. **`/work-on` no-state fallback:** for a task with no `ralph` entry but a `command.prompts?.<key>` matching its `command.initialStage` (e.g. `prompts.plan` when `initialStage === 'planning'`), the skill prints the seed prompt with a note that it's the seed, not a resume.
 
 E. **`/triage` populated:** with `overview-snapshot.json` carrying 5+ recommendations (or the Plan 04 fallback file populated), `/triage` lists top 5 with reasons.
 
