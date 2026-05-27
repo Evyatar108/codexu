@@ -1,0 +1,61 @@
+{
+  "projectName": "codex-sandbox-setup-release",
+  "description": "Vendor codex-windows-sandbox-setup.exe and codex-command-runner.exe into publish-npm.yml so the Windows release tarball ships both sandbox bins. Companion docs file inventories per-platform sandbox-binary landscape.",
+  "repoDir": "D:/harness-efforts/codexu/codex",
+  "baseBranch": "main",
+  "iterationEngine": "codex",
+  "planningEngine": "codex",
+  "codexReview": "always",
+  "copilotReview": "always",
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Windows publish-npm.yml ships codex-windows-sandbox-setup + codex-command-runner",
+      "description": "Edit codex/.github/workflows/publish-npm.yml so the cargo build invocation builds both windows-sandbox bin targets, and the vendor-assembly step copies both .exe files into vendor/x86_64-pc-windows-msvc/codex/. Update codex/CLAUDE.md §Distribution to reflect the new bins. Per the codexu fork's 'no local cargo, CI is truth' rule, build verification is deferred to a separate /publish-sandbox-patch release-cut run by the operator; this story ships the workflow edit and the documentation update.",
+      "acceptanceCriteria": [
+        "cargo metadata on external/repos/codex-patched/codex-rs/Cargo.toml confirms bin target names are exactly 'codex-windows-sandbox-setup' and 'codex-command-runner' (verified)",
+        "codex/.github/workflows/publish-npm.yml line 126-130 (cargo build invocation) includes --bin codex-windows-sandbox-setup and --bin codex-command-runner",
+        "codex/.github/workflows/publish-npm.yml after the existing two cp lines (around line 138) has two new cp lines: cp \"$REL/codex-windows-sandbox-setup.exe\" \"$VENDOR/codex/codex-windows-sandbox-setup.exe\" and cp \"$REL/codex-command-runner.exe\" \"$VENDOR/codex/codex-command-runner.exe\"",
+        "codex/.github/workflows/publish-npm.yml release-bundle step (line 224-248) is unchanged; line 231 cp -R recursively carries the new files",
+        "codex/CLAUDE.md §Distribution bullet list includes 'codex-windows-sandbox-setup.exe' and 'codex-command-runner.exe' in addition to codex.exe / codex-core.exe / rg.exe",
+        "All changes commit cleanly to a branch on gim-home/codex (origin); release-tag-cut + invariant-check.yml CI verification deferred to operator via /publish-sandbox-patch"
+      ],
+      "priority": 1,
+      "passes": true,
+      "blocked": false,
+      "notes": "Release-cut acceptance criteria (Cargo.toml version bump + v<NEW_VERSION> tag push + publish-npm.yml CI run + tar tzf bundle inspection + clean Windows VM smoke test) are operator-blocked per the codexu fork's 'codex fork: no local cargo, CI is truth' rule. Spawn prompt explicitly overrides 'cargo build green' AC and defers tag-cut to operator-driven /publish-sandbox-patch run.",
+      "verifiedEvidence": [
+        { "criterion": "cargo metadata bin names", "command": "cargo metadata --manifest-path external/repos/codex-patched/codex-rs/Cargo.toml --format-version 1 | jq -r '.packages[] | select(.name | test(\"windows-sandbox\")) | .targets[] | select(.kind | index(\"bin\")) | .name'", "result": "codex-command-runner\\ncodex-windows-sandbox-setup" },
+        { "criterion": "publish-npm.yml cargo build extended", "command": "grep -c 'codex-windows-sandbox-setup\\|codex-command-runner' codex/.github/workflows/publish-npm.yml", "result": "4 (2 in cargo build, 2 in cp vendor lines)" },
+        { "criterion": "CLAUDE.md Distribution updated", "command": "grep -c 'codex-windows-sandbox-setup.exe\\|codex-command-runner.exe' codex/CLAUDE.md", "result": ">=2" }
+      ],
+      "dependencies": []
+    },
+    {
+      "id": "US-002",
+      "title": "Cross-platform sandbox-binary inventory doc",
+      "description": "Create codex/docs/implementation/sandbox-setup-platform-matrix.md inventorying the per-platform sandbox-binary landscape, citing upstream openai/codex's release model, writing the concrete delta vs current Windows-only publish-npm.yml, and giving a Split-vs-Bundle recommendation. Plan-ready seed for any future codex-cross-platform-publish task.",
+      "acceptanceCriteria": [
+        "codex/docs/implementation/sandbox-setup-platform-matrix.md exists",
+        "Section 1 'Per-platform sandbox-setup binary inventory' includes a table with Windows/Linux/macOS rows; cites windows-sandbox-rs/Cargo.toml:13-19, linux-sandbox/Cargo.toml:7-9, seatbelt.rs:30",
+        "Section 2 'Upstream openai/codex release model' cites rust-release.yml:74,86,99,111,258-274; explicitly notes that upstream does NOT ship Windows, that bwrap is a Rust workspace bin (codex-bwrap/Cargo.toml:7-9), that codex-linux-sandbox is NOT in upstream's shipped binaries",
+        "Section 3 'Concrete delta vs current publish-npm.yml' lists matrix declaration, per-platform bin-build invocations, per-platform vendor layout, per-platform install script paths, per-platform npm package suffixes; explicitly notes that build_npm_package.py:77 already declares codex-win32-arm64 with full sandbox component list and that install.ps1 copyMap is target-agnostic; calls out the LLVM/xwin vs windows-11-arm toolchain choice for aarch64-pc-windows-msvc",
+        "Section 4 'Recommendation' picks one of Split or Bundle with stated reasons; if Split, names the follow-up task as codex-cross-platform-publish and references this doc as the seed"
+      ],
+      "priority": 2,
+      "passes": true,
+      "blocked": false,
+      "notes": "Docs-only deliverable. No code changes. Cross-referenced by codexu plans/overview-data.js when codex-cross-platform-publish follow-up task is filed by the operator.",
+      "verifiedEvidence": [
+        { "criterion": "doc file exists", "command": "test -f codex/docs/implementation/sandbox-setup-platform-matrix.md && echo OK", "result": "OK" },
+        { "criterion": "all 4 required sections present", "command": "grep -c '^## ' codex/docs/implementation/sandbox-setup-platform-matrix.md", "result": "4" },
+        { "criterion": "recommendation is Split", "command": "grep -c 'Recommended: Split' codex/docs/implementation/sandbox-setup-platform-matrix.md", "result": "1" }
+      ],
+      "dependencies": []
+    }
+  ],
+  "branch": {
+    "create": false,
+    "name": "ralph/plugin-scope-agents-v2"
+  }
+}

@@ -1,0 +1,290 @@
+diff --git a/.github/workflows/publish-npm.yml b/.github/workflows/publish-npm.yml
+index b962bd9..010bce1 100644
+--- a/.github/workflows/publish-npm.yml
++++ b/.github/workflows/publish-npm.yml
+@@ -125,7 +125,9 @@ jobs:
+           cd external/repos/codex-patched/codex-rs
+           cargo build --release \
+             --bin codex \
+-            --bin codex-core
++            --bin codex-core \
++            --bin codex-windows-sandbox-setup \
++            --bin codex-command-runner
+ 
+       - name: Assemble vendor layout
+         run: |
+@@ -136,6 +138,8 @@ jobs:
+           mkdir -p "$VENDOR/codex" "$VENDOR/path"
+           cp "$REL/codex.exe" "$VENDOR/codex/codex.exe"
+           cp "$REL/codex-core.exe" "$VENDOR/codex/codex-core.exe"
++          cp "$REL/codex-windows-sandbox-setup.exe" "$VENDOR/codex/codex-windows-sandbox-setup.exe"
++          cp "$REL/codex-command-runner.exe" "$VENDOR/codex/codex-command-runner.exe"
+           RG_VERSION="${RIPGREP_VERSION}"
+           RG_ZIP="ripgrep-${RG_VERSION}-x86_64-pc-windows-msvc.zip"
+           curl -fL -o "$RG_ZIP" "https://github.com/BurntSushi/ripgrep/releases/download/${RG_VERSION}/${RG_ZIP}"
+diff --git a/CLAUDE.md b/CLAUDE.md
+index f5f0fcd..8e09a17 100644
+--- a/CLAUDE.md
++++ b/CLAUDE.md
+@@ -108,6 +108,8 @@ On first interactive run it:
+ - `codex.exe`
+ - `codex-core.exe`
+ - `rg.exe`
++- `codex-windows-sandbox-setup.exe`
++- `codex-command-runner.exe`
+ 
+ It publishes the npm packages to GitHub Packages and uploads a merged release bundle tarball to the GitHub Release.
+ 
+diff --git a/docs/implementation/sandbox-setup-platform-matrix.md b/docs/implementation/sandbox-setup-platform-matrix.md
+new file mode 100644
+index 0000000..3e8d397
+--- /dev/null
++++ b/docs/implementation/sandbox-setup-platform-matrix.md
+@@ -0,0 +1,247 @@
++# Sandbox-setup platform matrix
++
++This doc inventories the per-platform sandbox-binary landscape across the
++codex workspace, summarizes the upstream openai/codex release model, and writes
++out the concrete delta that the fork's Windows-only `publish-npm.yml` would need
++to grow into a multi-platform release pipeline. The fourth section records the
++recommendation (split vs bundle) for the follow-up work.
++
++This is companion documentation for the W-5 fork's sandbox-setup release fix
++(see `.github/workflows/publish-npm.yml` history and the
++`codex-sandbox-setup-release` job in the codexu repo's `plans/overview-data.js`).
++Use this doc as the plan-ready seed for any future cross-platform expansion.
++
++Repository conventions used below:
++
++- `codex-patched/` is shorthand for `external/repos/codex-patched/` (the patched
++  upstream submodule).
++- `codex-rs/` is shorthand for `external/repos/codex-patched/codex-rs/` (the
++  Rust workspace inside the submodule).
++- Line numbers are pinned to the gitlink at the time of writing; re-verify with
++  `git blame` if the upstream tag has rolled forward.
++
++## 1. Per-platform sandbox-setup binary inventory
++
++| Platform | Sandbox crate | Bin targets | Cargo.toml reference |
++|---|---|---|---|
++| Windows (x64, arm64) | `codex-windows-sandbox` (directory: `codex-rs/windows-sandbox-rs/`) | `codex-windows-sandbox-setup`, `codex-command-runner` | `codex-rs/windows-sandbox-rs/Cargo.toml:13-19` |
++| Linux (x64, arm64 musl) | `codex-linux-sandbox` (directory: `codex-rs/linux-sandbox/`) | `codex-linux-sandbox` | `codex-rs/linux-sandbox/Cargo.toml:7-9` |
++| macOS (x64, arm64) | _(none)_ — uses system `sandbox-exec` | _(none)_ | `codex-rs/sandboxing/src/seatbelt.rs:30` (`MACOS_PATH_TO_SEATBELT_EXECUTABLE = "/usr/bin/sandbox-exec"`) |
++
++Notes:
++
++- The Windows crate's package name is `codex-windows-sandbox`; the on-disk
++  directory is `windows-sandbox-rs/`. Both bins are declared as `[[bin]]`
++  entries at lines 13-15 and 17-19 of its `Cargo.toml`.
++- `codex-windows-sandbox-setup` is invoked from `codex-core` at runtime via
++  the discovery chain in `codex-rs/windows-sandbox-rs/src/setup_orchestrator.rs`
++  (`find_setup_exe()` probes (1) `current_exe()` dir, (2)
++  `<exe-dir>/codex-resources/codex-windows-sandbox-setup.exe`, (3) PATH).
++- `codex-command-runner` is the elevated (non-yolo) request runner; resolved
++  via `codex-rs/windows-sandbox-rs/src/elevated/runner_pipe.rs::find_runner_exe`
++  and invoked from `runner_client.rs::launch`. The helper-name mapping lives
++  in `codex-rs/windows-sandbox-rs/src/elevated/helper_materialization.rs`
++  (`HelperExecutable::CommandRunner` → `"codex-command-runner.exe"`).
++- The Linux crate ships a single bin target named `codex-linux-sandbox`. It
++  is a landlock + seccomp sandbox, **distinct** from the bubblewrap binary
++  shipped under the `codex-bwrap` crate (see §2 for the bwrap details).
++  `codex-linux-sandbox` is NOT in upstream's shipped-binaries list for any
++  platform; see §2 for the implications.
++- macOS uses the system-installed `/usr/bin/sandbox-exec`. No Rust binary is
++  bundled. The hardcoded path in `seatbelt.rs:30` is deliberate: trusting only
++  the system-managed `/usr/bin/sandbox-exec` prevents `PATH`-shadowing attacks
++  against a sandbox executor.
++
++## 2. Upstream openai/codex release model
++
++Upstream's release workflow lives at
++`codex-patched/.github/workflows/rust-release.yml` (this is the fork's vendored
++copy of upstream's workflow; the gim-home fork does not consume it directly).
++
++The matrix declares per-platform `binaries` strings that the workflow consumes
++during the `Cargo build` step:
++
++- macOS aarch64 (primary): `codex codex-responses-api-proxy`
++  (`rust-release.yml:74`). No sandbox binary — relies on system
++  `sandbox-exec`.
++- macOS x86_64 (primary): `codex codex-responses-api-proxy`
++  (`rust-release.yml:86`). Same; no sandbox binary.
++- Linux x86_64 (musl, primary): `codex codex-responses-api-proxy bwrap`
++  (`rust-release.yml:99`).
++- Linux aarch64 (musl, primary): `codex codex-responses-api-proxy bwrap`
++  (`rust-release.yml:111`).
++- Windows: upstream does NOT ship Windows. The gim-home fork added
++  `codex/.github/workflows/publish-npm.yml` for Windows distribution.
++
++The `bwrap` binary on Linux is the bubblewrap sandbox. Despite the C-source
++provenance, **the `bwrap` binary upstream ships is a Rust workspace bin
++target**: the `codex-bwrap` crate declares `[[bin]] name = "bwrap"` at
++`codex-rs/bwrap/Cargo.toml:7-9`, and the dedicated `Build bwrap and export
++digest` step at `rust-release.yml:258-274` invokes
++`cargo build --target "$target" --release --timings --bin bwrap` for primary
++Linux targets only. The crate's `build.rs` statically links vendored
++bubblewrap C sources at `codex-rs/vendor/bubblewrap/` via `cc` + `pkg-config`,
++but the produced binary is part of the Rust workspace's `cargo build`
++output, not an externally sourced binary. The post-build step computes a
++SHA-256 digest and exports it via `$GITHUB_ENV` so downstream packaging steps
++can verify integrity.
++
++Note that the upstream workspace also contains a separate `codex-linux-sandbox`
++crate (landlock + seccomp sandbox) at `codex-rs/linux-sandbox/`. **This crate
++is NOT in upstream's shipped-binaries list for any platform** — only `bwrap` is.
++Both crates exist in the workspace, but only `bwrap` is built and shipped by
++`rust-release.yml`.
++
++A separate `app-server` matrix arm at `rust-release.yml:80, 92, 105, 117` ships
++`codex-app-server` for each platform; this is an internal IPC server binary,
++not a sandbox tool, and is out of scope for this matrix.
++
++## 3. Concrete delta vs current `publish-npm.yml`
++
++The current `publish-npm.yml` is Windows-x64 only. To grow it into a
++multi-platform release pipeline, the workflow would need:
++
++### Matrix declaration
++
++Add a `strategy.matrix` over `{ runner, target, package }` triples, replacing
++the current implicit single-target setup:
++
++```yaml
++strategy:
++  matrix:
++    include:
++      - runner: ubuntu-24.04
++        target: x86_64-unknown-linux-musl
++        package: codex-linux-x64
++      - runner: ubuntu-24.04-arm
++        target: aarch64-unknown-linux-musl
++        package: codex-linux-arm64
++      - runner: macos-15-xlarge
++        target: x86_64-apple-darwin
++        package: codex-darwin-x64
++      - runner: macos-15-xlarge
++        target: aarch64-apple-darwin
++        package: codex-darwin-arm64
++      - runner: windows-latest
++        target: x86_64-pc-windows-msvc
++        package: codex-win32-x64
++      - runner: windows-latest  # or windows-11-arm when GHA-hosted
++        target: aarch64-pc-windows-msvc
++        package: codex-win32-arm64
++```
++
++### Per-platform bin-build invocations
++
++Each platform builds a different bin set. The current Windows build (post-fix)
++runs `cargo build --release --bin codex --bin codex-core --bin
++codex-windows-sandbox-setup --bin codex-command-runner`. The cross-platform
++equivalents:
++
++- Linux x64 / arm64: `cargo build --release --target $target --bin codex --bin codex-core --bin bwrap`
++  (build `bwrap` from `codex-bwrap`, not `codex-linux-sandbox`, to match upstream's
++  shipped-binary policy).
++- macOS x64 / arm64: `cargo build --release --target $target --bin codex --bin codex-core`
++  (no sandbox binary; relies on `/usr/bin/sandbox-exec`).
++- Windows x64 / arm64 (post-fix): `cargo build --release --target $target
++  --bin codex --bin codex-core --bin codex-windows-sandbox-setup --bin codex-command-runner`.
++
++### Per-platform vendor layout
++
++The Windows-only step currently writes `vendor/x86_64-pc-windows-msvc/codex/<bin>.exe`.
++For each target, the assemble step writes `vendor/$target/codex/<bin>` for the
++platform-specific binaries. Targets to support:
++
++- `vendor/x86_64-unknown-linux-musl/codex/codex`, `codex-core`
++- `vendor/x86_64-unknown-linux-musl/codex-resources/bwrap` (bwrap goes in
++  `codex-resources/` per Linux install.sh discovery)
++- `vendor/aarch64-unknown-linux-musl/...` (analogous)
++- `vendor/x86_64-apple-darwin/codex/codex`, `codex-core`
++- `vendor/aarch64-apple-darwin/...` (analogous)
++- `vendor/x86_64-pc-windows-msvc/codex/codex.exe`, `codex-core.exe`,
++  `codex-windows-sandbox-setup.exe`, `codex-command-runner.exe` (current target,
++  post-fix)
++- `vendor/aarch64-pc-windows-msvc/...` (analogous)
++
++### Per-platform install scripts
++
++- `install.sh` already exists at
++  `codex-patched/scripts/install/install.sh`. Its `stage_release` function (around
++  lines 594-602) handles `codex`, `codex-resources/rg`, and conditional
++  `codex-resources/bwrap`. It already iterates target-agnostically so no edits
++  are needed there for adding new Linux/macOS targets — it consumes `$vendor_root/<rel>`
++  for whatever target is being installed.
++- `install.ps1`'s copyMap at lines 673-678 is target-agnostic — it joins
++  copy-source paths under `$vendorRoot = Join-Path $extractDir "package/vendor/$target"`,
++  so adding a new `aarch64-pc-windows-msvc` target tarball needs no script edit.
++  The Windows copyMap covers all four bins: `codex.exe`,
++  `codex-command-runner.exe`, `codex-windows-sandbox-setup.exe`, `rg.exe`.
++
++### Per-platform npm package suffixes
++
++`build_npm_package.py` (`codex-patched/codex-cli/scripts/build_npm_package.py`)
++already declares all of the targets the workflow would need:
++
++- `codex-linux-x64`: `["bwrap", "codex", "rg"]` (line 72)
++- `codex-linux-arm64`: `["bwrap", "codex", "rg"]` (line 73)
++- `codex-darwin-x64`: `["codex", "rg"]` (line 74)
++- `codex-darwin-arm64`: `["codex", "rg"]` (line 75)
++- `codex-win32-x64`: `["codex", "rg", "codex-windows-sandbox-setup", "codex-command-runner"]` (line 76)
++- `codex-win32-arm64`: `["codex", "rg", "codex-windows-sandbox-setup", "codex-command-runner"]` (line 77)
++
++`COMPONENT_DEST_DIR` at lines 89-96 maps each component to its `codex/`,
++`codex-resources/`, or `path/` subdirectory. The Windows entries (`codex-windows-sandbox-setup`
++and `codex-command-runner`) map to `"codex"`; `bwrap` maps to `"codex-resources"`.
++**The npm-packaging side is ready** — the only change required to declare an
++`codex-win32-arm64` npm publish is the workflow matrix above, since the Python
++script already understands the package shape.
++
++### Open toolchain choice (Windows arm64)
++
++`aarch64-pc-windows-msvc` does not have a stock GitHub-hosted runner with a
++native MSVC toolchain. Two viable approaches:
++
++- **LLVM/xwin cross-compile from `windows-latest`**: same toolchain family as
++  the current x64 build (`/publish-sandbox-patch.md` documents the LLVM
++  clang-cl + lld-link + xwin staged Windows SDK env). Wiring an aarch64 cross
++  needs an `xwin --arch aarch64` stage and `CARGO_TARGET_AARCH64_PC_WINDOWS_MSVC_LINKER`
++  + per-arch `LIB`/`INCLUDE` env vars. Compatible with the existing
++  publish-npm.yml shape — same runner, same toolchain, just a second target.
++- **`windows-11-arm` GHA-hosted runner**: once available widely on GitHub-hosted
++  runners, native compilation removes the xwin staging cost. Faster builds,
++  but adds a new runner SKU to provision and a new toolchain to validate.
++
++Pick one when the cross-platform-publish task is planned. Both are buildable;
++the choice is a maintenance-cost tradeoff against incremental complexity in
++the Windows runner setup.
++
++## 4. Recommendation
++
++**Recommended: Split.** Cross-platform publish should ship as a separate task
++(`codex-cross-platform-publish` in `codexu/plans/overview-data.js`) and not be
++bundled into the current sandbox-setup release fix.
++
++Reasons:
++
++- The current fix (the workflow edit and CLAUDE.md update that ship alongside
++  this doc) is a 3-line addition to `publish-npm.yml` plus a 2-line bullet
++  addition to `CLAUDE.md`. Its blast radius is one runner, one target, one
++  install layout.
++- Cross-platform expansion introduces five new build targets (Linux x64/arm64,
++  macOS x64/arm64, Windows arm64), each with its own runner SKU, toolchain
++  decisions (xwin vs windows-11-arm for Windows arm64), and per-platform
++  install-script touch-points. Even though the npm-packaging side is ready
++  and install scripts are largely target-agnostic, the CI matrix grows from
++  one job to six, multiplying review surface and CI minutes.
++- Keeping the Windows sandbox-setup fix isolated lets it tag-and-publish on a
++  fast clock (via `/publish-sandbox-patch`) without waiting for the much
++  larger multi-platform CI work to land. Users hitting the missing-binary
++  failure mode on `codex exec` without `--yolo` get unblocked sooner.
++- Risk of bundling: a single PR that touches both the current Windows fix and
++  a five-target matrix change would require holding the Windows fix until the
++  full matrix passes CI. If macOS or Linux CI hit unrelated environment issues
++  the Windows fix would be held hostage. Splitting decouples them.
++
++This doc is the plan-ready seed for the follow-up task. When
++`codex-cross-platform-publish` is created in `plans/overview-data.js`, set its
++`planPrompt` to reference this doc's §3 (concrete delta) as the implementation
++contract.
