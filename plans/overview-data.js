@@ -1174,9 +1174,10 @@ window.OVERVIEW_DATA = {
         {
               "id": "session-parent-link-writer",
               "scope": "codexu",
-              "phase": "plan-ready",
+              "phase": "shipped",
               "status": "ok",
-              "lastTouchedAt": "2026-05-14T17:00:00Z",
+              "lastTouchedAt": "2026-05-27T07:47:00Z",
+              "mergeCommit": "cc32aa13,86562252",
               "kanbanCards": [],
               "command": {
                     "name": "session-parent-link-writer",
