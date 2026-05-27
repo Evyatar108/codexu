@@ -649,9 +649,10 @@ window.OVERVIEW_DATA = {
         {
               "id": "ralph-orchestration-codex-exec-windows-spawn",
               "scope": "ralph-orchestration",
-              "phase": "plan-ready",
+              "phase": "shipped",
               "status": "ok",
-              "lastTouchedAt": "2026-05-27T10:25:00Z",
+              "lastTouchedAt": "2026-05-27T14:38:00Z",
+              "mergeCommit": "686dd7ee",
               "kanbanCards": [],
               "command": {
                     "name": "ralph-orchestration-codex-exec-windows-spawn",
