@@ -172,12 +172,15 @@ polish.
   helper, etc.).
 - Upstream-derived doc/skill references to "Happy Coder", `slopus/happy`,
   and `happy.engineering` are HISTORICAL and stay as-is.
-- **Task phase model:** roadmap command rows are rendered from
-  `plans/overview-data.js` and split durable lifecycle from temporary
-  availability: `data-task-phase` uses the 10-value enum documented in
-  `plans/parallel-assignments.md`, while `data-task-status` is only `ok` /
-  `blocked` / `paused`. Phase controls ordering; blocked/paused status
-  overrides filter and Today-panel buckets.
+- **Task state model:** roadmap command rows are rendered from
+  `plans/overview-data.js` and intentionally separate three phase-like
+  axes. `OverviewTask.lifecycle` is the bookkeeper-owned status
+  (`tracked`, `merged`, `archived`). `RalphPipelineState.stage` is the
+  watcher runtime state (`brainstorming` through `shipped`, plus
+  `blocked`). `CrewSessionRef.phase` is the crew member's spawn intent
+  (`brainstorm`, `plan`, `impl`, or `null`). Temporary availability stays
+  in `status: "ok" | "blocked" | "paused"`; blocked/paused status
+  overrides filter and Today-panel buckets without changing lifecycle.
 
 ### In-flight ralph jobs (2026-05-13)
 
@@ -735,7 +738,7 @@ on significant questions the lead can't decide autonomously.
 | Spawn a Ralph member per task | `node <plugin>/tools/crews.js spawn-member <name> --crew ralph-pipeline --cwd D:/harness-efforts/codexu --state-cwd D:/harness-efforts/codexu --as overview-bookkeeper -- <prompt>` |
 | Watch the member mailbox | armed listener; on `messages` envelope, `/crews:review-mail` |
 | Relay operator decisions on `kind=question` | `/crews:send-to-member` |
-| **Update `plans/overview-data.js` when a task ships** | Edit `phase` → `"shipped"` (or `"blocked"` for terminal:blocked); add `mergeCommit`; refresh `lastTouchedAt` |
+| **Update `plans/overview-data.js` when a task ships** | Edit `lifecycle` → `"merged"` (or `"archived"` for closed/superseded work); add `mergeCommit`; refresh `lastTouchedAt` |
 | Commit + push the bookkeeping update | `chore(plans): update overview-data.js for shipped tasks` |
 | Stop the member cleanly | `/crews:stop-member <name>` |
 
@@ -744,13 +747,23 @@ on significant questions the lead can't decide autonomously.
 Two files describe task state; they coexist and must not be conflated.
 
 **`plans/overview-data.js` — hand-curated, lead-owned.** Stable task
-definitions: `id`, `scope`, `phase`, `status`, `lastTouchedAt`,
-`mergeCommit`, `kanbanCards`, `command{name, descriptionHtml, warnings,
-planPrompt}`. This is what the operator and lead use to plan: it carries
-the *intent* (planPrompt seeds, kanban cards, warnings about file-conflict
-surfaces). The lead **must** flip `phase` and add `mergeCommit` when a
-task lands on `origin/main`. Two-SHA tasks (codex topic + codexu pointer-bump)
-use comma-separated `mergeCommit` like `"e9fa64a0,d279d49d"`.
+definitions: `id`, `scope`, `lifecycle`, `status`, `lastTouchedAt`,
+`mergeCommit`, `kanbanCards`, and `command{name, descriptionHtml,
+warnings, prompts}`. This is what the operator and lead use to plan: it
+carries the *intent* (`prompts.brainstorm`, `prompts.plan`, and
+`prompts.impl` seeds, kanban cards, warnings about file-conflict surfaces).
+The lead **must** flip `lifecycle` to `"merged"` and add `mergeCommit`
+when a task lands on `origin/main`; closed-without-merge work becomes
+`"archived"`. Two-SHA tasks (codex topic + codexu pointer-bump) use
+comma-separated `mergeCommit` like `"e9fa64a0,d279d49d"`.
+
+The three phase-like axes are deliberately separate:
+
+| Axis | Owner | Values | Meaning |
+|---|---|---|---|
+| `OverviewTask.lifecycle` | Bookkeeper data in `overview-data.js` | `tracked`, `merged`, `archived` | Durable backlog/merge/archive status |
+| `RalphPipelineState.stage` | Ralph watcher snapshot | `brainstorming`, `brainstorm-ready`, `planning`, `plan-ready`, `implementing`, `reviewing`, `shipped`, `blocked` | Runtime position in the state machine |
+| `CrewSessionRef.phase` | Crew session reference | `brainstorm`, `plan`, `impl`, `null` | Intent of the member when it was spawned |
 
 **`plans/overview-ralph-state.{js,json}` — watcher-generated.** Auto-emitted by
 `D:/ai-developer-toolkit/plugins/ralph-overview/scripts/sync-ralph-state.mjs --watch`
@@ -834,12 +847,12 @@ operator says "continue"
   → lead: review-mail → verify commit on origin/main
   → lead: /crews:stop-member <name> (do NOT chain into the next phase)
   → lead: if this was the FINAL phase (impl ship), EDIT plans/overview-data.js
-       (phase → "shipped", mergeCommit, lastTouchedAt) + commit + push
+       (lifecycle → "merged", mergeCommit, lastTouchedAt) + commit + push
   → lead: loop back to overview_parallel_ready_tasks; if same task needs
        a follow-up phase, spawn a NEW fresh member next round
 ```
 
-### Phase discipline — one member per ralph phase
+### Phase discipline — state machine + one member per ralph phase
 
 Each ralph phase (brainstorm / plan / impl) gets its OWN fresh crew member.
 Never chain phases inside a single member session. See
@@ -854,6 +867,20 @@ not the prior member's reasoning history. Validated by 2026-05-26 ships:
 `crews-review-mid-turn-v160` each used 2-3 separate members across
 brainstorm → plan → impl and shipped cleanly with autonomous Phase 5a/5b
 convergence.
+
+Ralph is a state machine, not a one-way checklist. Normal forward movement
+is `brainstorming` → `brainstorm-ready` → `planning` → `plan-ready` →
+`implementing` → `reviewing` → `shipped`. A task can regress from any stage back to
+`brainstorming` or `planning` when review finds a design gap, scope change,
+or stale assumption. Every regression must carry a short `regressionReason`
+in the watcher state so the operator can see why the task moved backward.
+
+Regression does not reuse the old member. It spawns a FRESH member for the
+regressed-to phase, using the matching seed in `plans/overview-data.js`:
+`prompts.brainstorm` for brainstorming, `prompts.plan` for planning, and
+`prompts.impl` for implementation. If the relevant prompt is missing, the
+task is not actionable until the bookkeeper adds one or chooses a different
+initial stage.
 
 **Phase determination per task:**
 
@@ -870,7 +897,7 @@ convergence.
   conflict surface, design not settled) → spawn `brainstorm-<task>`
   running `/brainstorm-with-ralph`.
 - No brainstorm + concrete seed (file paths + specific edits identified
-  in the `planPrompt` field of `overview-data.js`) → skip brainstorm;
+  in `command.prompts.plan` in `overview-data.js`) → skip brainstorm;
   spawn `plan-<task>` running `/plan-with-ralph`.
 - Brainstorm committed + reviewed → spawn `plan-<task>` running
   `/plan-with-ralph --from-brainstorm <brainstormDir>`.

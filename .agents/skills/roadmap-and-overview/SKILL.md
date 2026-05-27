@@ -94,7 +94,7 @@ window.OVERVIEW_DATA = {
     {
       id: 'task-id',
       scope: 'codexu',
-      phase: 'plan-ready',
+      lifecycle: 'tracked',
       status: 'ok',
       lastTouchedAt: '2026-05-13T19:30:00Z',
       mergeCommit: null,
@@ -106,7 +106,8 @@ window.OVERVIEW_DATA = {
         name: 'task-id',
         descriptionHtml: 'Description fragment shown in the command row',
         warnings: [],
-        planPrompt: '/plan-with-ralph "..."'
+        initialStage: 'planning',
+        prompts: { plan: '/plan-with-ralph "..."' }
       }
     }
   ],
@@ -140,11 +141,27 @@ Notes:
 - `scope` is a free string consumed by copy-time preambles. Known values are
   `codexu`, `codex`, `codex|codexu`, `bookkeeping`, and
   `bookkeeping|codexu`.
-- `phase` uses the 10-value phase enum from `plans/parallel-assignments.md`.
-  `status` is `ok`, `blocked`, or `paused`.
-- `command.planPrompt` is a decoded shell string. The renderer writes it with
-  `textContent`, so do not HTML-encode `2>&1`, `<`, or `>` inside the data
-  file.
+- Three phase-like axes are deliberately separate and live in different
+  files. `OverviewTask.lifecycle` is the bookkeeper-owned durable status
+  (`tracked`, `merged`, `archived`). `RalphPipelineState.stage` is the
+  watcher-emitted runtime state (`brainstorming`, `brainstorm-ready`,
+  `planning`, `plan-ready`, `implementing`, `reviewing`, `shipped`,
+  `blocked`) in `plans/overview-ralph-state.json`. `CrewSessionRef.phase`
+  is the crew member's spawn intent (`brainstorm`, `plan`, `impl`, or
+  `null`). See `plans/codexu-roadmap.md` §"Two-file split" for the full
+  comparison table. `status` is `ok`, `blocked`, or `paused`; status is a
+  temporary availability modifier that overrides filter/Today-panel
+  buckets without changing `lifecycle`.
+- v2.3.0 schema rewrite (this PR): legacy `phase: 'plan-ready'` → `lifecycle:
+  'tracked'`, `phase: 'shipped'` → `lifecycle: 'merged'`, `phase: 'closed'` →
+  `lifecycle: 'archived'`. Legacy `command.planPrompt: '...'` →
+  `command.prompts.plan: '...'` (with sibling `prompts.brainstorm` and
+  `prompts.impl` keys when applicable). `command.initialStage` was added so
+  the watcher can derive the correct kickoff stage when no Ralph state
+  exists yet.
+- `command.prompts.plan` (and `.brainstorm` / `.impl`) is a decoded shell
+  string. The renderer writes it with `textContent`, so do not HTML-encode
+  `2>&1`, `<`, or `>` inside the data file.
 - Rich HTML fragments in `descriptionHtml`, `warnings[].html`,
   `kanbanCards[].html`, `phaseTree[].headerHtml`, and `phaseTree raw.html`
   are trusted operator-authored fragments.
@@ -156,9 +173,11 @@ Notes:
 
 ### A. Adding a new ralph task
 
-1. Pick metadata: `id`, `title`, `scope`, `phase`, `status`, `workstream`,
-   `sizeBucket`, `risk`, `effort`, optional `cadence`, optional `periodic`,
-   optional `spawnedFrom`, and a single ISO timestamp for the edit.
+1. Pick metadata: `id`, `title`, `scope`, `lifecycle` (usually `tracked`
+   for new entries), `status`, `workstream`, `sizeBucket`, `risk`, `effort`,
+   optional `command.initialStage` (`brainstorming` / `planning` /
+   `implementing`), optional `cadence`, optional `periodic`, optional
+   `spawnedFrom`, and a single ISO timestamp for the edit.
 2. Add one object to `OVERVIEW_DATA.tasks[]`. Keep the surrounding array
    formatting style; do not reformat the top-level object.
 3. Add the same task id to `OVERVIEW_DATA.lastTouched`, `effort`, `risk`,
@@ -179,7 +198,7 @@ Working example based on the current `1b-multidev` entry in
 {
   "id": "1b-multidev",
   "scope": "codexu",
-  "phase": "plan-ready",
+  "lifecycle": "tracked",
   "status": "ok",
   "lastTouchedAt": "2026-05-13T19:30:00Z",
   "kanbanCards": [
@@ -217,7 +236,8 @@ Working example based on the current `1b-multidev` entry in
         "html": "⚠️ Conflicts with <code>mcp-discovery</code> (both touch <code>runCodex.ts</code>). Land mcp-discovery first, then 1b-multidev rebases trivially."
       }
     ],
-    "planPrompt": "/plan-with-ralph \"Phase 1b sub-task 3 + 4 - multi-device discoverability hint and multi-client approval fan-out. Per plans/codexu-roadmap.md §Phase 1b sub-tasks 3-4 + docs/plans/codex-seamless-multi-device.md sub-tasks 3-4. Sub-task 3: terminal-startup hint when codex starts in a cwd that already has a discoverable app-server, pointing user at phone attach option. Files: packages/happy-cli/src/codex/codexAppServerClient.ts (discovery + startup messaging) + packages/happy-cli/src/ui/start.ts or equivalent. Sub-task 4: when multiple clients are attached (laptop TUI + phone via tunnel), an approval prompt from codex must fan out to all attached clients; first-answer-wins; remaining clients see resolution. Files: packages/happy-cli/src/codex/runCodex.ts + packages/happy-cli/src/codex/codexAppServerClient.ts approval-handler plumbing. CRITICAL CONTEXT: re-read docs/plans/codex-seamless-multi-device.md against the finalized post-Sprint-E tunnel protocol - the spec was drafted assuming relay-forwarded phone path, but tunnels attach phone DIRECTLY to CLI's local Socket.IO server (no relay). Specifically read the 'Walkthrough Step 5 fan-out semantics shift layer' note in roadmap §Phase 1b. Decide whether codex app-server's native fan-out covers tunneled clients OR whether CLI's lifted rpcHandler must broadcast - verify by tracing one approval event from codex → CLI → tunneled phone. Read packages/happy-cli/CLAUDE.md and packages/happy-cli/src/daemon/CLAUDE.md first. Acceptance: integration test for sub-task 3 (mock discovery file existence, assert hint message); integration test for sub-task 4 (mock two attached clients, fire approval, assert both receive + first-answer wins). Test command: pnpm --filter '{packages/happy-cli}' exec vitest run 2>&1 | tee /tmp/codexu-1b34.log. Single commit per sub-task (two commits).\""
+    "initialStage": "planning",
+    "prompts": { "plan": "/plan-with-ralph \"Phase 1b sub-task 3 + 4 - multi-device discoverability hint and multi-client approval fan-out. Per plans/codexu-roadmap.md §Phase 1b sub-tasks 3-4 + docs/plans/codex-seamless-multi-device.md sub-tasks 3-4. Sub-task 3: terminal-startup hint when codex starts in a cwd that already has a discoverable app-server, pointing user at phone attach option. Files: packages/happy-cli/src/codex/codexAppServerClient.ts (discovery + startup messaging) + packages/happy-cli/src/ui/start.ts or equivalent. Sub-task 4: when multiple clients are attached (laptop TUI + phone via tunnel), an approval prompt from codex must fan out to all attached clients; first-answer-wins; remaining clients see resolution. Files: packages/happy-cli/src/codex/runCodex.ts + packages/happy-cli/src/codex/codexAppServerClient.ts approval-handler plumbing. CRITICAL CONTEXT: re-read docs/plans/codex-seamless-multi-device.md against the finalized post-Sprint-E tunnel protocol - the spec was drafted assuming relay-forwarded phone path, but tunnels attach phone DIRECTLY to CLI's local Socket.IO server (no relay). Specifically read the 'Walkthrough Step 5 fan-out semantics shift layer' note in roadmap §Phase 1b. Decide whether codex app-server's native fan-out covers tunneled clients OR whether CLI's lifted rpcHandler must broadcast - verify by tracing one approval event from codex → CLI → tunneled phone. Read packages/happy-cli/CLAUDE.md and packages/happy-cli/src/daemon/CLAUDE.md first. Acceptance: integration test for sub-task 3 (mock discovery file existence, assert hint message); integration test for sub-task 4 (mock two attached clients, fire approval, assert both receive + first-answer wins). Test command: pnpm --filter '{packages/happy-cli}' exec vitest run 2>&1 | tee /tmp/codexu-1b34.log. Single commit per sub-task (two commits).\"" }
   }
 }
 
@@ -229,8 +249,9 @@ OVERVIEW_DATA.lastTouched["1b-multidev"] = "2026-05-13T19:30:00Z";
 
 1. Find the landing commit(s) with `git log --oneline -10` and capture the
    short SHA plus commit ISO timestamp.
-2. In the task object, set `phase: 'shipped'`, usually set `status: 'ok'`,
-   and set `mergeCommit` when the shipped artifact has a merge SHA.
+2. In the task object, set `lifecycle: 'merged'` (or `'archived'` for
+   closed-without-merge work), usually set `status: 'ok'`, and set
+   `mergeCommit` when the shipped artifact has a merge SHA.
 3. Update `command.descriptionHtml` so the command row says what shipped and
    includes the commit. Remove stale blocked/paused warnings.
 4. Update each relevant `kanbanCards[]` entry. Typical shipped card style is
@@ -270,8 +291,8 @@ Multi-commit rules:
 
 Use procedure B for the `runs[]` entry, then update periodic scheduling:
 
-1. Keep the durable task `phase` at the phase it should return to after the
-   run, usually `plan-ready`.
+1. Keep the durable task `lifecycle` at the value it should return to after
+   the run, usually `tracked`.
 2. Set `periodic[taskId].lastRunId` to the new run id.
 3. Recompute `periodic[taskId].nextDueAt = ranAt + intervalDays`.
 4. Set `cadence[taskId] = 'periodic'` if missing.
@@ -280,8 +301,8 @@ Use procedure B for the `runs[]` entry, then update periodic scheduling:
 
 ### D. Marking a task paused / blocked
 
-1. Keep `phase` as the durable lifecycle state and set `status: 'paused'` or
-   `status: 'blocked'`.
+1. Keep `lifecycle` as the durable bookkeeper status (usually `tracked`)
+   and set `status: 'paused'` or `status: 'blocked'`.
 2. Add or update `command.warnings[]` with a clear operator-facing reason.
    Use `className: 'cmd-warn'` for paused and `className: 'cmd-warn blocked'`
    for hard blockers.
@@ -416,9 +437,11 @@ change would be lost on the next `pnpm overview:build`.
 - **`data-task-id` and `id="cmd-<taskId>"` are load-bearing.** Rendered command
   rows must emit both. URL hash navigation, filters, copy-name buttons, run
   history, and spawned-from pills depend on them.
-- **Phase/status separation is load-bearing.** `phase` is durable lifecycle;
-  `status` is a temporary availability modifier. Do not turn a blocked task
-  into a fake phase.
+- **Lifecycle/status separation is load-bearing.** `lifecycle` is the
+  durable bookkeeper status (`tracked` / `merged` / `archived`); `status`
+  is a temporary availability modifier (`ok` / `blocked` / `paused`). Do
+  not turn a blocked task into a fake lifecycle value, and do not conflate
+  bookkeeper `lifecycle` with watcher-emitted `RalphPipelineState.stage`.
 - **Multiple kanban cards per task are normal.** Do not collapse
   `kanbanCards[]` to a single column field.
 - **`spawnedFrom` is one-directional and flat.** Store child -> parent. The
