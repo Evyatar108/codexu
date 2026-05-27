@@ -629,7 +629,7 @@ window.OVERVIEW_DATA = {
         },
         {
               "id": "codex-local-build",
-              "scope": "codex|codexu",
+              "scope": "codex",
               "phase": "plan-ready",
               "status": "ok",
               "lastTouchedAt": "2026-05-27T07:55:00Z",
