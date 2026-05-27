@@ -1,0 +1,29 @@
+### Feasibility
+
+[High] The plan’s root-cause path is not concrete enough to satisfy AC-1. It admits the reported bug may be stale `listenerState='armed'`, but allows the implementer to “declare the narrowing sufficient.” If `hooks/actor-state.js::deriveListenerState()` still returns `armed`, `hooks/listener-protocol.js::requireReachableForStop()` will not block terminal kinds after sync review-mail. The stale-armed reproduction needs to be an acceptance criterion with expected pass/fail evidence, not just a notepad task.
+
+[Medium] `CREWS_REVIEW_MODE=off` is described as disabling both review-required and listener gates, but `hooks/stop.js` only uses it around the review-required block. The listener-armed gate runs later regardless. This is an inaccurate constraint and could lead to an accidental behavior change.
+
+### Completeness
+
+[High] Version bump scope is incomplete. `plugins/crews/scripts/bump-version.js` updates six files, not five: it also rewrites `plugins/crews/tests/version.test.js`. The plan says `version.test.js` reads runtime plugin.json and “auto-passes,” but it has a pinned `const VERSION = '1.6.0'`. If that file is not included/committed, the suite fails.
+
+[High] The `buildListenerCommand()` swap affects more surfaces than the plan’s test list covers. It is used by `hooks/pre-tool-use.js`, `hooks/stop.js`, `hooks/commands/resume-crew.js`, `tests/mark-arm-intent.test.js`, and multiple assertions in `tests/listener-protocol.test.js`. The plan names only the listener-protocol tests, so it may miss regressions in pre-tool-use block prose and resume/continuation arm prose.
+
+[Medium] AC-6 is asserted as “structurally guaranteed” but has no verification path. If it remains an AC, specify a minimal fixture or remove it as out-of-scope documentation.
+
+### Ordering
+
+[Medium] The listener gate currently runs before `findPendingConsumedEntries()` / `evaluateConsumedResolutions()` in `hooks/stop.js`. The plan mentions using unresolved consumed count, but the story order does not explicitly require moving or duplicating that computation before `decideStopBlock()`. Without that reorder/signature change, AC-2 cannot be implemented correctly.
+
+### Simplicity
+
+[Medium] Adding a broad `queueDepth` abstraction may be more than needed. The natural integration is a narrow predicate such as “listener required unless `kind === 'progress' && resolution.unresolved.length === 0`,” computed in `hooks/stop.js` before calling `decideStopBlock()`. Avoid deriving or naming broader outbox depth unless a test requires it.
+
+### Acceptance Criteria Quality
+
+[High] AC-1 is not independently testable as written because “after a synchronous review-mail” is not tied to a concrete fixture that proves stale listener detection. Add an explicit test that seeds post-review-mail manifest state and verifies terminal `done/question/blocked` blocks when the listener process is not reachable.
+
+[Medium] AC-2 says “passes the Stop hook without listener-state check,” which is hard to observe. Reframe as observable behavior: `getListenerState()`/`requireReachableForStop()` is not called in a unit test, or a manifest with `listenerState: 'never-armed'` and `kind=progress` exits without listener block.
+
+[Low] No prior review-cycle amendments were referenced beyond the v1.6.x history, so there are no amendment fixes or regressions to assess.

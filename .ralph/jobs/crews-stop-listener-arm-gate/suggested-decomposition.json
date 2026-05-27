@@ -1,0 +1,45 @@
+{
+  "clusters": [
+    {
+      "name": "hook-and-tests",
+      "stories": ["US-001", "US-002"],
+      "phase": 1,
+      "dependsOn": [],
+      "fileOverlapEvidence": {
+        "sharedFiles": [
+          "D:/ai-developer-toolkit/plugins/crews/hooks/stop.js"
+        ],
+        "exclusiveFiles": [
+          "D:/ai-developer-toolkit/plugins/crews/hooks/listener-protocol.js",
+          "D:/ai-developer-toolkit/plugins/crews/hooks/actor-state.js",
+          "D:/ai-developer-toolkit/plugins/crews/tests/stop-decision.test.js",
+          "D:/ai-developer-toolkit/plugins/crews/tests/first-turn-listener-guard.test.js",
+          "D:/ai-developer-toolkit/plugins/crews/tests/listener-protocol.test.js",
+          "D:/ai-developer-toolkit/plugins/crews/tests/listener-protocol-shell-tools.test.js"
+        ],
+        "risk": "medium"
+      },
+      "executionModeRationale": "US-001 implements the narrowed gate + buildListenerCommand swap in hooks/stop.js and hooks/listener-protocol.js. US-002 adds AC-4 fixtures and inverts CASE 4 in tests/. Both stories share hooks/stop.js (US-001 writes signature, US-002 tests against it). Run serially within a single impl member; parallel split would race on hooks/stop.js history."
+    },
+    {
+      "name": "docs-and-version",
+      "stories": ["US-003"],
+      "phase": 2,
+      "dependsOn": ["hook-and-tests"],
+      "fileOverlapEvidence": {
+        "sharedFiles": [],
+        "exclusiveFiles": [
+          "D:/ai-developer-toolkit/plugins/crews/CLAUDE.md",
+          "D:/ai-developer-toolkit/plugins/crews/CHANGELOG.md",
+          "D:/ai-developer-toolkit/plugins/crews/.claude-plugin/plugin.json",
+          "D:/ai-developer-toolkit/plugins/crews/.github/plugin/plugin.json",
+          "D:/ai-developer-toolkit/.claude-plugin/marketplace.json",
+          "D:/ai-developer-toolkit/.github/plugin/marketplace.json",
+          "D:/ai-developer-toolkit/.agents/plugins/marketplace.json"
+        ],
+        "risk": "low"
+      },
+      "executionModeRationale": "Docs + version bump cannot ship until the hook+tests cluster is green. No file overlap with cluster 1. Single small story."
+    }
+  ]
+}
