@@ -1,0 +1,64 @@
+**Codebase Architecture**
+
+The relevant code is in `D:/ai-developer-toolkit`, a plugin marketplace repo. The `crews` plugin is plain Node.js/CommonJS, no package-level build step. Hook entrypoints live under `plugins/crews/hooks/`, CLI dispatch under `plugins/crews/tools/crews.js`, long-running listener logic under `plugins/crews/lib/listener-loop.js`, and tests are standalone Node files run by `node plugins/crews/tests/run.js`.
+
+State is file-backed under `<workspace>/.crews/`: actor manifests, mailbox JSON/JSONL, send history, outbox, and logs. Copilot support is via shim hooks in `hooks/copilot-*.js` plus `.github/plugin/plugin.json` / `.github/plugin/hooks.json`; Claude plugin metadata is `.claude-plugin/plugin.json`.
+
+**Feature-Relevant Code**
+
+Key files:
+
+- `plugins/crews/hooks/stop.js`
+  - `handleInput()` is the Stop hook pipeline.
+  - Existing order: session ownership check → opportunistic mailbox consume if listener not armed → review-required gate → parse report tag → listener gate via `decideStopBlock()` → strict ack/resolution → append outbox.
+  - `decideStopBlock(ctx, state)` currently calls `requireReachableForStop()` and blocks any unarmed active lead/member after a kind tag, including `progress`.
+
+- `plugins/crews/hooks/listener-protocol.js`
+  - `requireReachableForStop()` reads manifest state and returns the listener block decision.
+  - `buildListenerCommand()` currently emits the legacy `node '<plugin>/tools/wait-for-message.js' ...` form.
+  - `isListenerArmCall()` / `isListenerArmToolCall()` already recognize `node .../tools/crews.js arm ...`, but the detector does not explicitly support `--name`; it relies on positional/env identity.
+
+- `plugins/crews/hooks/actor-state.js`
+  - `getListenerState()` is the effective listener-state reader used by PreToolUse.
+  - It treats stale `listenerState: "armed"` as `exited` when heartbeat/PID proves it dead. This is the right source, not a raw `manifest.listenerState` read.
+
+- `plugins/crews/hooks/pre-tool-use.js`
+  - Allows `review-mail` even when listener is exited.
+  - Re-arms only when another tool call occurs, which is the gap described in the request.
+
+- `plugins/crews/hooks/protocol/review-gate.js`
+  - `reviewRequiredReason()` builds the synchronous review-mail block.
+  - Uses `buildReviewMailCommand()` and advances only when review-mail changes `manifest.lastReviewedSeq`.
+
+- `plugins/crews/hooks/protocol/review-required.js`
+  - Default review-required kinds are `done`, `question`, `blocked`; `progress` is intentionally excluded in v1.6.0.
+
+- `plugins/crews/lib/listener-loop.js`
+  - `crews.js arm` subcommand implementation.
+  - Usage supports positional name/crew, `--crew`, `--cwd`, `--session-id`; `--name` is not declared, though it happens to work in the loop parser because unknown `--name` is skipped and its value becomes positional.
+
+- Tests:
+  - `plugins/crews/tests/stop-decision.test.js` directly covers `decideStopBlock()`.
+  - `plugins/crews/tests/review-gate.test.js` covers sync review-mail cursor advancement and Stop behavior.
+  - `plugins/crews/tests/first-turn-listener-guard.test.js` currently asserts `kind=progress` with no listener blocks, which conflicts with AC-2 and must be updated.
+  - `plugins/crews/tests/listener-protocol*.test.js` pin arm command recognition.
+
+**Technical Constraints**
+
+The current checkout already has a Stop listener gate, but it is too broad for AC-2: it blocks `progress` too. The requested work is best modeled as narrowing/reshaping the existing gate, not adding a wholly new independent check.
+
+There is no `queueDepth` or “mailbox audit” helper in the canonical plugin or visible worktrees. If the plan depends on `queueDepth > 0`, it must define where that value comes from. Existing primitives are `readOutbox()`, `readSendHistoryTail()`, mailbox history, and actor send-history files.
+
+Hook blocks are emitted as JSON to stdout, usually `{ "decision": "block", "reason": "..." }`; tests expect process exit 0 for hook blocks. Do not implement literal hook `process.exit(2)` unless the target hook framework actually requires it.
+
+Version bump is broader than the requested `.claude-plugin/plugin.json`: `plugins/crews/scripts/bump-version.js` updates both plugin manifests, three marketplace indexes, and `plugins/crews/tests/version.test.js`. Current version is `1.6.0`. No `plugins/crews/CHANGELOG.md` exists in this checkout; release guidance says skip if absent, but the feature request asks for one, so creating it is a deliberate new artifact.
+
+**Implementation Suggestions**
+
+Add a small predicate in `stop.js`, e.g. `shouldRequireArmedListener({ role, kind, queueDepth })`, returning true for active `lead`/`member` when kind is `done`, `question`, `blocked`, or `queueDepth > 0`; false for `progress` with zero queue depth. Call `decideStopBlock()` only when that predicate is true.
+
+Keep using `getListenerState(name, crew, cwd, { role, manifest })` through `requireReachableForStop()` so stale armed listeners are treated as exited.
+
+Replace or extend `buildListenerCommand()` to emit the dispatcher form requested by the ACs: `node '<plugin>/tools/crews.js' arm ...`, and update listener-protocol tests. If the canonical message must contain `--name`, add explicit `name` flag support to both `listener-loop.js::parseListenerArgs()` and `listener-protocol.js::parseArmIdentity()` so PreToolUse accepts the exact command it prints.
+
+Update tests beyond the three requested fixtures: `first-turn-listener-guard.test.js` and any Stop-decision expectations that currently say all kinds require listeners need to align with the progress exemption. Use `node plugins/crews/tests/run.js stop-decision.test.js review-gate.test.js first-turn-listener-guard.test.js listener-protocol.test.js listener-protocol-shell-tools.test.js` first, then the broader suite if time allows.
