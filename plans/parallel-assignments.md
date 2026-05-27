@@ -2,11 +2,11 @@
 
 Self-contained `/plan-with-ralph` prompts for parallel-safe tasks. Drop into a fresh Claude session.
 
-Task phase conventions: rendered command rows use `data-task-phase` for lifecycle position and `data-task-status` for temporary modifiers. Phase is one of `brainstorm-ready`, `brainstorm-in-progress`, `brainstorm-review`, `plan-ready`, `plan-in-progress`, `plan-review`, `impl-ready`, `impl-in-progress`, `shipped`, or `closed`. Status is one of `ok`, `blocked`, or `paused`; blocked/paused override phase for filter and Today-panel buckets, while phase alone controls command-row ordering.
+Task state conventions: see `plans/codexu-roadmap.md` §"Task state model" for the canonical three-axis model that supersedes the old single `phase` enum. The three axes are `OverviewTask.lifecycle` (`tracked` / `merged` / `archived`, bookkeeper-owned in `plans/overview-data.js`), `RalphPipelineState.stage` (watcher-generated runtime state in `plans/overview-ralph-state.{js,json}`, e.g. `brainstorming` through `shipped`, plus `blocked`), and `CrewSessionRef.phase` (the crew member's spawn intent — `brainstorm`, `plan`, `impl`, or `null`). Temporary availability stays in `status: "ok" | "blocked" | "paused"`; blocked/paused override filter and Today-panel buckets without changing lifecycle.
 
 Roadmap task state lives in `plans/overview-data.js`. The status table at the bottom of this file is a derived tracker for humans and should stay in sync with the data file.
 
-Optional artifact fields on command rows are `data-plan-only`, `data-plan-source`, `data-plan-source-ref`, `data-brainstorm-job-id`, `data-plan-job-id`, `data-implement-job-id`, `data-plan-review-iterations`, and `data-merge-commit`. The status table below mirrors the durable phase/status values and records plan-only/source/job context when known; `Commit` remains the landing or close-out reference.
+Optional artifact fields on command rows are `data-plan-only`, `data-plan-source`, `data-plan-source-ref`, `data-brainstorm-job-id`, `data-plan-job-id`, `data-implement-job-id`, `data-plan-review-iterations`, and `data-merge-commit`. The status table below records plan-only/source/job context when known; `Commit` remains the landing or close-out reference.
 
 **Batch 1 (six tasks below) are pairwise safe to run together.** Don't add a "perf WS2" agent yet — it must wait until B (WS3) lands, because both touch `storage.ts` and WS3 changes WS2's scope.
 
@@ -560,6 +560,8 @@ These need manual operator action; ralph won't help.
 
 Mark each row when the agent's commit lands on `origin/main`. Refresh `plans/overview-data.js` after.
 
+> **Note on the "Phase" column:** legacy values below (`shipped`, `closed`, `plan-ready`, etc.) predate v2.3.0's three-axis model and are kept verbatim for historical continuity. New rows should track `OverviewTask.lifecycle` (`tracked` / `merged` / `archived`) per `plans/codexu-roadmap.md` §"Task state model"; the watcher-generated `RalphPipelineState.stage` lives in `plans/overview-ralph-state.{js,json}` and is not duplicated here.
+
 | Tab title | Task | Phase | Status | Plan source | Plan job | Commit |
 |---|---|---|---|---|---|---|
 | ~~`perf-WS1`~~ | Realtime perf — refresh-skip | `closed` | `ok` | — | — | 188cfd9c |
@@ -615,3 +617,7 @@ Mark each row when the agent's commit lands on `origin/main`. Refresh `plans/ove
 🟡 = in progress (agent actively working, not yet committed). Refresh after each landing.
 
 When all of the above land, the roadmap's next gate is **Phase 4 — Coexistence verification** (13 integration sub-items 4a-4m). Those run sequentially per environment, not parallel, so they're not in this file.
+
+---
+
+_Last updated: 2026-05-27 (refreshed for v2.3.0 three-axis Task state model)._
