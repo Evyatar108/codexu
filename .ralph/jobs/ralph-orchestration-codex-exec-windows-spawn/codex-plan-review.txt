@@ -1,0 +1,29 @@
+No prior review cycles or amendments were referenced.
+
+### Feasibility
+
+[High] The blanket `shell: true` patch is not feasible for `plugins/ralph/src/ralph.mjs:1095`. `runChild` is called at `ralph.mjs:967` with args containing values like `"## prd.json"` and `"## progress tail (last 300 lines)"`. With `shell: true`, Node builds a shell command string, so these args are split; on POSIX `#` can also begin a comment. This can break every Ralph iteration. Do not add `shell: true` to the `bash` wrapper spawn unless args are explicitly shell-quoted.
+
+[High] Adding `shell: true` to `plugins/ralph/src/git.mjs:8` is also unsafe. `runGit` relies on argv preservation, including commit messages from `ralph.mjs:706` such as `ralph: iteration ... (pass)`. Shell parsing can split or reinterpret those arguments. The Windows ENOENT issue targets `.cmd`/`.bat` shims like `codex` and `copilot`, not `git.exe`.
+
+[High] The review-loop test plan is not implementable as written. `plugins/ralph/src/review-loop.mjs:542` exports `spawnAsPromise`, but it does not accept an injectable spawn function. `spawnEngineWithStreaming` at `review-loop.mjs:889` is private and also has no injection point. Merely exporting it is insufficient to assert the options bag; the plan needs a small dependency-injection refactor or a different test strategy.
+
+### Completeness
+
+[High] The plan claims “every production `spawn` / `spawnSync` / `execFileSync` call site in `src/*.mjs`”, but omits `plugins/ralph/src/path-utils.mjs:112`, which calls `execFileSync("git", ...)`. Either include it in the inventory or narrow the stated scope to the actual vulnerable CLI-shim sites.
+
+[Critical] Story 3 requires pushing to both `origin` and `work`. The repo instructions explicitly say to ask before pushing to remotes. The plan must add a human approval gate before any `git push`; autonomous implementation must stop before that external action.
+
+### Ordering
+
+[Critical] The push step is ordered as a normal final implementation step. It must be separated from local changes/tests/version bumps and performed only after explicit user approval.
+
+### Simplicity
+
+[High] Option A is overbroad. The simpler, safer fix is to patch only the vulnerable npm-installed CLI invocations: `plugins/ralph/src/codex-exec.mjs:63` and `plugins/ralph/src/copilot-exec.mjs:243`, or introduce a small wrapper for Windows `.cmd` resolution. Extending `shell: true` to `bash` and `git` creates argument-parsing risk without addressing the reported failure mode.
+
+### Acceptance Criteria Quality
+
+[High] Story 1’s grep-based AC is inconsistent. `grep -nE "spawn\\(|spawnSync\\(|execFileSync\\(" plugins/ralph/src/*.mjs` will not catch `spawnCommand(...)` in `plugins/ralph/src/copilot-exec.mjs:243`, but will catch the omitted `path-utils.mjs:112`. It cannot verify the stated call-site set.
+
+[Medium] The clean-install and POSIX-regression ACs are partly post-release/environment-dependent. They should be split into pre-merge verification that can run from the topic branch, and post-publish verification after approval and release.

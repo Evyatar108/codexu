@@ -1,0 +1,114 @@
+{
+  "planFile": "D:/harness-efforts/codexu/.ralph/jobs/.staging/20260527-150711/draft-plan.md",
+  "repoDir": "D:/ai-developer-toolkit",
+  "findings": [
+    {
+      "id": "F-001",
+      "severity": "High",
+      "source": "consensus",
+      "category": "completeness",
+      "summary": "Stale-armed reproduction must be an explicit AC, not Open Question. Operator's bug may persist after narrowing if deriveListenerState() returns stale 'armed' post-sync-review-mail.",
+      "location": "Open Questions #1; AC-1; US-001 investigation",
+      "suggestedAmendment": "Promote stale-armed handling to a hard AC (new AC-9): 'After a synchronous review-mail call mutates the manifest, deriveListenerState() must return non-armed when the listener process is dead, even if heartbeat was just touched.' Add a test fixture that seeds post-review-mail manifest state with stale-armed AND verifies that decideStopBlock returns a block. If actor-state hardening is required, fold it into US-001.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Promoted the post-review-mail stale-armed reproduction into AC-9, added required stop-decision coverage, made actor-state hardening in-scope for US-001, and removed it from Open Questions."
+    },
+    {
+      "id": "F-002",
+      "severity": "High",
+      "source": "codex",
+      "category": "completeness",
+      "summary": "buildListenerCommand() swap affects far more surfaces than the plan covers. Callers: hooks/pre-tool-use.js:440, hooks/stop.js:346, hooks/commands/resume-crew.js:353. Tests pinning the old form: briefing-render.test.js, continuation-briefing.test.js, copilot-listener-arm-detection.test.js, copilot-briefing.test.js, briefing-structure.test.js, mark-arm-intent.test.js. Plan listed only listener-protocol.test.js and listener-protocol-shell-tools.test.js.",
+      "location": "draft-plan.md Files to Modify (tests); Risk Areas",
+      "suggestedAmendment": "Add all callers and pinned-test files to US-001/US-002 file lists. Add a risk note for back-compat across the 6+ test files. The LISTENER_REL_PATH constant at hooks/paths.js:28 also references 'wait-for-message.js' — assess whether that needs to change too (it points to the file that still exists for shim purposes; likely NO change needed, but document).",
+      "status": "fixed",
+      "fixedInIteration": 2,
+      "resolution": "Amended the plan to include all buildListenerCommand callers, the six additional pinned tests, a back-compat risk note, and a documented assessment of hooks/paths.js LISTENER_REL_PATH."
+    },
+    {
+      "id": "F-003",
+      "severity": "High",
+      "source": "codex",
+      "category": "completeness",
+      "summary": "Version-bump scope incomplete. bump-version.js touches 6 files, not 5. tests/version.test.js has a pinned 'const VERSION = 1.6.0' that the script rewrites (lines 65-72 of bump-version.js).",
+      "location": "draft-plan.md Files to Create/Modify (version-bump); AC-8",
+      "suggestedAmendment": "Add tests/version.test.js to the list of files touched by bump-version.js. Update the Out-of-Scope note that incorrectly claims 'tests/version.test.js auto-passes' — it is auto-rewritten, not auto-passed.",
+      "status": "fixed",
+      "fixedInIteration": 3,
+      "resolution": "Added tests/version.test.js to the bump-version plan scope and clarified that bump-version.js rewrites its pinned VERSION literal."
+    },
+    {
+      "id": "F-004",
+      "severity": "High",
+      "source": "claude",
+      "category": "AC-verifiability",
+      "summary": "AC-1 wording 'containing the exact arm command' does not explicitly state that <name> is positional. Without this clarification, an implementer may add --name flag support to listener-loop.js instead of swapping the command form. Spec literally says '--name <name>' which is misleading.",
+      "location": "draft-plan.md AC-1 (line ~123); feature-request.txt line 19",
+      "suggestedAmendment": "Rewrite AC-1 to explicitly call out the exact command literal: 'node <plugin>/tools/crews.js arm <name> --crew <crew> --cwd <cwd> --session-id <session-id> where <name> is POSITIONAL (NOT --name <name>). The arm subcommand parser in lib/listener-loop.js does not declare a --name flag. Spec example is informal and inaccurate.'",
+      "status": "fixed",
+      "fixedInIteration": 4,
+      "resolution": "Clarified AC-1 to require the exact positional `crews.js arm <name>` command literal and note that `--name` is not supported by the parser."
+    },
+    {
+      "id": "F-005",
+      "severity": "Medium",
+      "source": "codex",
+      "category": "correctness",
+      "summary": "Plan claims CREWS_REVIEW_MODE=off disables BOTH the review-required AND listener-armed gates. This is incorrect: hooks/stop.js only consults reviewMode around the review-required block (lines 602-614); the listener-armed gate runs later regardless of CREWS_REVIEW_MODE.",
+      "location": "draft-plan.md Out of Scope ('existing CREWS_REVIEW_MODE=off knob already disables both...')",
+      "suggestedAmendment": "Remove the inaccurate claim. State accurately: 'No new env-var knob is added. CREWS_REVIEW_MODE=off disables ONLY the review-required gate (not the listener-armed gate). If a debug-bypass knob for the listener-armed gate is desired, it requires its own env var — defer to a follow-up task.'",
+      "status": "open"
+    },
+    {
+      "id": "F-006",
+      "severity": "Medium",
+      "source": "codex",
+      "category": "decomposition",
+      "summary": "Ordering: findPendingConsumedEntries() runs at stop.js:710, AFTER decideStopBlock() at stop.js:654. To use unresolved.length for queueDepth in the gate, code must be reordered OR the computation duplicated.",
+      "location": "draft-plan.md Implementation Strategy; US-001 acceptance criteria",
+      "suggestedAmendment": "Add explicit subtask in US-001: 'reorder or extract the findPendingConsumedEntries() + evaluateConsumedResolutions() computation to run BEFORE decideStopBlock(), or pass the count into decideStopBlock() as a parameter.' Note in Risk #7 that the reorder must preserve the existing strict-ack behavior at stop.js:710-734.",
+      "status": "open"
+    },
+    {
+      "id": "F-007",
+      "severity": "Medium",
+      "source": "claude",
+      "category": "testing",
+      "summary": "AC-4 fixtures may not be constructible with current stop-decision.test.js harness if it can only inject manifest fields (not inbox-history mailbox entries). Without realistic mailbox state, queueDepth=0 cannot be tested distinctly from kind-only gating.",
+      "location": "draft-plan.md AC-4; US-002 acceptance criteria",
+      "suggestedAmendment": "Clarify AC-4: 'Fixtures must construct realistic inbox-history state via mailbox helpers (e.g., appendInboxHistory, consumeMailbox) to verify queueDepth derivation. If cfg.ensureActorDir cannot wire up inbox-history, the fixture must call the lower-level helpers directly. Document the fixture-setup helper in the test comment.'",
+      "status": "open"
+    },
+    {
+      "id": "F-008",
+      "severity": "Medium",
+      "source": "claude",
+      "category": "risk",
+      "summary": "Missing risk on in-turn queueDepth staleness. If findPendingConsumedEntries() is called naively without first computing same-turn resolutions, progress turns that resolved consumed entries via current <|report|> tags will be over-blocked.",
+      "location": "draft-plan.md Risk Areas (currently 7 risks)",
+      "suggestedAmendment": "Add Risk #8: 'Stale queueDepth in same-turn resolutions. The new gate MUST call evaluateConsumedResolutions() FIRST and use resolution.unresolved.length as queueDepth — not the raw findPendingConsumedEntries().length. Mitigation: reuse the existing computation at stop.js:711 (move it earlier or duplicate-cheap).'",
+      "status": "open"
+    },
+    {
+      "id": "F-009",
+      "severity": "Medium",
+      "source": "codex",
+      "category": "AC-verifiability",
+      "summary": "AC-6 ('cross-plugin coexistence') is asserted as 'structurally guaranteed' but has no verification path. Either add a fixture or drop AC-6.",
+      "location": "draft-plan.md AC-6",
+      "suggestedAmendment": "Either (a) add a fixture that runs the Stop hook in a workspace where another plugin's hook directory exists and asserts no spurious block, OR (b) demote AC-6 from acceptance criterion to documentation note in Out-of-Scope ('agent-peers has no Stop hook; no cross-plugin coexistence verification needed').",
+      "status": "open"
+    },
+    {
+      "id": "F-010",
+      "severity": "Medium",
+      "source": "codex",
+      "category": "AC-verifiability",
+      "summary": "AC-2 wording 'passes the Stop hook without listener-state check' is hard to observe. The check is internal; from outside, you can only observe whether a block was emitted.",
+      "location": "draft-plan.md AC-2",
+      "suggestedAmendment": "Reframe AC-2 as observable behavior: 'A turn ending with kind=progress AND zero unresolved consumed entries (queueDepth=0) does NOT produce a JSON block on stdout with a reason mentioning listener/arm — the Stop hook exits without emitting any block (or emits a block for unrelated reasons only).'",
+      "status": "open"
+    }
+  ]
+}

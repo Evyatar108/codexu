@@ -1,0 +1,83 @@
+{
+  "planFile": "D:/harness-efforts/codexu/.ralph/jobs/.staging/20260527-053249/draft-plan.md",
+  "repoDir": "D:/ai-developer-toolkit",
+  "findings": [
+    {
+      "id": "F-001",
+      "source": "consensus",
+      "category": "Feasibility",
+      "severity": "Critical",
+      "status": "resolved",
+      "resolution": "Plan rewritten to narrow fix scope to codex-exec.mjs:63 + copilot-exec.mjs:243 only. Other 8 sites explicitly marked SKIP-WITH-REASON in the Bug Surface Audit table.",
+      "summary": "Option A (`shell: true` universally) breaks argv quoting on POSIX for ralph.mjs and review-loop.mjs sites that pass `## section` headers and commit messages with spaces.",
+      "rationale": "ralph.mjs:967 passes literal strings like `\"## prd.json\"`, `\"## progress tail (last 300 lines)\"`, `\"## notepad\"` as positional `--section HEADER PATH` args to bash. review-loop.mjs:588 and :827 do the same. With `shell: true`, Node joins argv with spaces and passes a single string to `/bin/sh -c`; the shell would treat `##` as a comment marker, dropping the rest of the line. git.mjs:8 has the same risk with multi-word commit messages passed to git from ralph.mjs:706. Codex and Copilot reviewers flagged this independently.",
+      "remediation": "Narrow the fix to only the spawn sites that target Windows .cmd shims: `src/codex-exec.mjs:63` and `src/copilot-exec.mjs:243`. Leave bash/git spawns alone — `.exe` binaries are resolved by Windows CreateProcess without shell, and the section-header argv would be corrupted under shell quoting."
+    },
+    {
+      "id": "F-002",
+      "source": "consensus",
+      "category": "Completeness",
+      "severity": "High",
+      "status": "resolved",
+      "resolution": "path-utils.mjs:112 added to the audit table as a SKIP site (target git.exe, works without shell).",
+      "summary": "Plan omits `src/path-utils.mjs:112` (a 10th production execFileSync site).",
+      "rationale": "All three reviewers (Claude, Codex, Copilot) flagged this. `path-utils.mjs` has its own `runGit` helper at line 102-117 using `execFileSync(\"git\", args, ...)`. Verified by reading origin/main:plugins/ralph/src/path-utils.mjs.",
+      "remediation": "Include path-utils.mjs:112 in the audit table. Under the revised narrow-fix approach (F-001), it remains SKIP-WITH-REASON (target is git.exe, works without shell)."
+    },
+    {
+      "id": "F-003",
+      "source": "consensus",
+      "category": "Completeness",
+      "severity": "High",
+      "status": "resolved",
+      "resolution": "review-loop.mjs spawn sites are no longer patched (per F-001 narrow scope), so the missing DI seam is moot. Flagged as separate cleanup PR in Out of Scope.",
+      "summary": "Proposed test seam for `spawnEngineWithStreaming` (review-loop.mjs:889) is not implementable — function is private and captures module-level `spawn`.",
+      "rationale": "Codex and Copilot both noted: `spawnEngineWithStreaming` does not accept an injectable spawn argument. Exporting it is insufficient; the function references the module-imported `spawn` directly. A test seam would require either a dependency-injection refactor or test-through-`main(...)` integration coverage.",
+      "remediation": "Under the revised narrow-fix approach (F-001), review-loop.mjs is NOT patched, so this test work is dropped from scope. If a future fix patches review-loop, plan must include the DI refactor as a prerequisite story."
+    },
+    {
+      "id": "F-004",
+      "source": "consensus",
+      "category": "Acceptance Criteria Quality",
+      "severity": "High",
+      "status": "resolved",
+      "resolution": "Story 1/US-002 AC rewritten to enumerate the two patched files by file:line explicitly. Grep-as-completeness-check dropped in favor of file:line citations. Negative AC added: 'no changes to the other src/*.mjs files' guards against scope creep.",
+      "summary": "Story 1 grep AC won't match `spawnCommand(` in copilot-exec.mjs, and the 'nine call sites' count is inaccurate (true count is 10 including path-utils.mjs:112).",
+      "rationale": "Codex flagged the grep would miss the `spawnCommand(` alias in copilot-exec.mjs:243 — the call would be invisible to the grep regex `spawn\\(|spawnSync\\(|execFileSync\\(`. Copilot flagged the count inaccuracy.",
+      "remediation": "Rewrite Story 1 AC to enumerate the two patched files explicitly by file:line. Drop the grep-as-completeness-check; use explicit file:line citations instead. Update count from 'nine' to 'two' under the revised narrow-fix scope."
+    },
+    {
+      "id": "F-005",
+      "source": "copilot",
+      "category": "Ordering",
+      "severity": "High",
+      "status": "resolved",
+      "resolution": "Stories reordered to tests-first (US-001) → patch (US-002) → release (US-003). US-001 AC includes the failing-first contract: pre-patch test run fails the shell:true assertions.",
+      "summary": "Tests should land before patches to detect regression in section-header argv path.",
+      "rationale": "Copilot recommends adding failing tests for section labels, paths with spaces, and git commit messages before applying the spawn change. Under the revised narrow-fix approach this is less critical (we're only patching codex-exec/copilot-exec, which don't pass section headers), but a smoke test for paths-with-spaces in the prompt path argv would still surface the quoting risk.",
+      "remediation": "Reorder stories: US-001 = test additions (assert shell:true on the two patched spawn sites + path-with-spaces smoke for codex-exec); US-002 = apply the patches; US-003 = CHANGELOG + version bump + push. Keep the dependency chain US-001 → US-002 → US-003."
+    },
+    {
+      "id": "F-006",
+      "source": "codex",
+      "category": "Ordering",
+      "severity": "Medium",
+      "status": "resolved",
+      "resolution": "Push authorization explicitly noted in plan Overview: 'The seed acceptance criteria explicitly authorize pushing to BOTH origin (Evyatar108) and work (gim-home) remotes. This is a pre-authorized external action.' Downgraded from blocker per the seed's explicit AC.",
+      "summary": "Push to both remotes ordered as routine implementation step; the workspace generally requires user approval before pushing.",
+      "rationale": "Codex flagged this as Critical, but the seed prompt explicitly authorizes pushing to both ai-developer-toolkit remotes (`origin` = Evyatar108, `work` = gim-home) as an acceptance criterion. The user pre-authorized this scope.",
+      "remediation": "Add an explicit note in the plan's Approach / Implementation Strategy section confirming the push is pre-authorized by the seed acceptance criteria. Downgrade from blocker to documented assumption."
+    },
+    {
+      "id": "F-007",
+      "source": "copilot",
+      "category": "Risk",
+      "severity": "Medium",
+      "status": "resolved",
+      "resolution": "Path-with-spaces smoke promoted from Open Question to required US-001 acceptance criterion in both test-codex-exec.mjs and test-copilot-exec.mjs.",
+      "summary": "Paths-with-spaces risk is downgraded to optional reviewer ask; should be a blocking acceptance criterion.",
+      "rationale": "Copilot recommends elevating from Open Question to required AC because `shell: true` reintroduces shell quoting that previously was not relevant. Under the narrow-fix approach this only affects the prompt-path and output-path argv passed to codex/copilot, which today are constructed inside the plugin from .ralph/jobs/<slug>/ paths.",
+      "remediation": "Add a Story 1 AC: a unit test in test-codex-exec.mjs and test-copilot-exec.mjs that invokes the entry point with a prompt path containing a space, asserts no exec error, and asserts the spawn argv as captured by the mock preserves the path intact."
+    }
+  ]
+}

@@ -1,0 +1,67 @@
+I’ll read the provided prompt file and then carry out its instructions end-to-end.
+
+I found the prompt is a research-mode plan analysis, so I’ll inspect the crews plugin surfaces relevant to the Stop hook invariant.
+
+### Codebase Architecture
+
+`D:\ai-developer-toolkit\plugins\crews` is a plain Node.js CommonJS plugin with no local `package.json`; tests run via the custom `node tests/run.js` runner. Core layout:
+
+| Area | Purpose |
+|---|---|
+| `hooks\*.js` | Claude/Copilot lifecycle hooks: Stop, PreToolUse, PostToolUse, SessionStart |
+| `hooks\protocol\*.js` | manifest schema, review-required predicates, report tags |
+| `hooks\mailbox.js`, `hooks\actors.js` | file-locked actor/mailbox state under `.crews\` |
+| `tools\crews.js` | unified CLI dispatcher, including `arm` |
+| `lib\listener-loop.js` | listener arm loop and heartbeat |
+| `tests\*.test.js` | standalone Node tests using `tests\lib\assert.js` |
+
+### Feature-Relevant Code
+
+Key integration points:
+
+- `hooks\stop.js`
+  - `handleInput()` parses Stop payload, consumes mailbox if listener is unarmed, enforces review-required, parses `<|report kind="..."|>`, then calls `decideStopBlock()`.
+  - `decideStopBlock()` currently calls `requireReachableForStop()` and blocks **all** kinds when listener is not reachable.
+- `hooks\listener-protocol.js`
+  - `requireReachableForStop()` reads manifest listener state through `getListenerState()`.
+  - `buildListenerCommand()` currently emits deprecated `tools\wait-for-message.js`, not `tools\crews.js arm`.
+- `hooks\actor-state.js`
+  - `deriveListenerState()` is the canonical listener-state reader, including stale heartbeat / dead PID detection.
+- `hooks\protocol\review-gate.js`
+  - Stop review-required gate uses `lastReviewRequiredSeq > lastReviewedSeq`.
+  - `review-mail` advances `lastReviewedSeq`, creating the reported gap.
+- `hooks\protocol\review-required.js`
+  - Default review-required kinds are already narrowed to `done`, `question`, `blocked`; `progress` is exempt.
+- `hooks\mailbox.js`
+  - `consumeMailbox()` updates `lastReviewRequiredSeq`.
+  - `readSendHistoryTail()` exists, but there is no `queueDepth` helper/field.
+- Tests to update:
+  - `tests\stop-decision.test.js`
+  - `tests\first-turn-listener-guard.test.js` currently asserts `kind=progress` unarmed **blocks**, which conflicts with AC-2.
+  - `tests\listener-protocol.test.js` pins the old `buildListenerCommand()` output.
+- Version/docs:
+  - `.claude-plugin\plugin.json`
+  - `.github\plugin\plugin.json`
+  - root marketplace indexes via `scripts\bump-version.js`
+  - `tests\version.test.js`
+  - `CLAUDE.md`
+  - `CHANGELOG.md` does **not** currently exist at `plugins\crews\CHANGELOG.md`.
+
+### Technical Constraints
+
+The requested exact command shape uses `arm --name <name>`, but `lib\listener-loop.js` only supports positional `arm [name] [crew]`, `--crew`, `--cwd`, and `--session-id`. `hooks\listener-protocol.js::isCrewsArmCall()` also does not parse `--name`. Either emit the existing supported form:
+
+```text
+node '<plugin>/tools/crews.js' arm <name> --crew <crew> --cwd <cwd> --session-id <session-id>
+```
+
+or add `--name` support in both parser and detector.
+
+There is no existing `queueDepth` implementation. If AC requires “pending outbound messages awaiting reply,” add a small helper using existing `readSendHistoryTail()`, inbox history, and reply IDs, or pass an explicit `queueDepth` into `decideStopBlock()` for unit tests while computing it in `handleInput()`.
+
+### Implementation Suggestions
+
+Keep the change centered in `stop.js`: after parsing tags and after review-required clears, only call the listener reachability block when `tags.kind` is `done`, `question`, or `blocked`, or when derived outbound reply `queueDepth > 0`. Let `progress` with zero pending replies skip this gate.
+
+Update `buildListenerCommand()` to emit `tools\crews.js arm` and adjust `listener-protocol.test.js`, or add a new arm-command builder if preserving legacy detection is safer. Add stop-decision fixtures for done/progress/queueDepth, update the conflicting first-turn progress assertion, run targeted `node tests\run.js stop-decision.test.js first-turn-listener-guard.test.js listener-protocol.test.js`, then use `scripts\bump-version.js 1.6.2` for manifest/index/test version consistency.
+

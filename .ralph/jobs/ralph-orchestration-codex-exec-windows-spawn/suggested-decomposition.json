@@ -1,0 +1,27 @@
+{
+  "clusters": [
+    {
+      "name": "windows-cmd-shim-shell-fix",
+      "stories": ["US-001", "US-002", "US-003"],
+      "phase": 1,
+      "dependsOn": [],
+      "fileOverlapEvidence": {
+        "sharedFiles": [],
+        "exclusiveFiles": [
+          "plugins/ralph/tests/test-codex-exec.mjs",
+          "plugins/ralph/tests/test-copilot-exec.mjs",
+          "plugins/ralph/src/codex-exec.mjs",
+          "plugins/ralph/src/copilot-exec.mjs",
+          "plugins/ralph/CHANGELOG.md",
+          "plugins/ralph/.claude-plugin/plugin.json",
+          "plugins/ralph/.github/plugin/plugin.json",
+          ".claude-plugin/marketplace.json",
+          ".github/plugin/marketplace.json",
+          ".agents/plugins/marketplace.json"
+        ],
+        "risk": "low"
+      },
+      "executionModeRationale": "All three stories converge on the same topic branch. The dependency chain (tests fail → patch makes them pass → release stamps) is intrinsic to the failing-first contract. Parallelizing would force unnecessary worktree merges for ~10-line diffs."
+    }
+  ]
+}

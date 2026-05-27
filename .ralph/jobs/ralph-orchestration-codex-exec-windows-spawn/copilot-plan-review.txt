@@ -1,0 +1,34 @@
+I’ll read the provided prompt file first, then carry out its instructions end-to-end.
+
+The prompt is larger than the viewer’s single-read limit, so I’m reading it in chunks before making changes.
+
+I’m going to verify the plan against the target plugin source rather than relying on the line-number claims in the plan.
+
+The first search pattern didn’t match the external checkout layout/tool glob semantics, so I’m checking the directory shape directly.
+
+### Feasibility
+
+[High] The core “add `shell: true` everywhere” approach is not feasible as a minimal diff. `src/ralph.mjs:948-967` passes args like `--section`, `"## prd.json"`, and `"## progress tail (last 300 lines)"`; `src/git.mjs` is used by `src/ralph.mjs:706` with a commit message containing spaces. With `shell: true`, Node flattens argv through the shell, so spaces and `#` are reinterpreted unless explicitly quoted. The plan needs either a safe quoting layer or a narrower Windows-only `.cmd` resolution strategy.
+
+[High] The call-site inventory is incomplete. `src/path-utils.mjs:112` has a production `execFileSync("git", ...)` call, but the plan lists “all nine” call sites and omits this one. The proposed grep acceptance check would expose the miss.
+
+### Completeness
+
+[High] The test strategy for `spawnEngineWithStreaming` is underspecified. `src/review-loop.mjs:889` is private and captures the module-level `spawn`; simply exporting it does not allow “inject a stub spawn” as described. The plan must add a test seam or cover it through `main(...)` with observable behavior.
+
+[Medium] The plan flags path-with-space risk but does not make it required. Because this is the main correctness hazard introduced by `shell: true`, it should be a blocking acceptance criterion, not an optional reviewer request.
+
+### Ordering
+
+[High] Story 1 should not precede tests as written, because the first implementation step can break normal engine invocation before coverage exists for shell quoting. Add failing tests for section labels, paths with spaces, and git commit messages before applying the spawn change.
+
+### Simplicity
+
+[Medium] A simpler and safer fix is likely to apply `shell: true` only where the command may be a Windows `.cmd` shim, or to resolve `codex`/`copilot` with a Windows-aware helper. Applying shell mode to all git/bash invocations increases quoting surface without addressing the actual `.cmd` root cause.
+
+### Acceptance Criteria Quality
+
+[High] “All nine production call sites” is inaccurate because there are at least ten matching production sites including `src/path-utils.mjs:112`.
+
+[Medium] The clean-install and push-to-both-remotes criteria mix implementation, release, and external publication. They are verifiable, but they should be separated from the code patch criteria so an autonomous implementer does not treat remote publication as required before review.
+

@@ -629,11 +629,32 @@ window.OVERVIEW_DATA = {
               }
         },
         {
+              "id": "crews-stop-listener-arm-gate",
+              "scope": "crews",
+              "lifecycle": "merged",
+              "status": "ok",
+              "lastTouchedAt": "2026-05-27T17:18:00Z",
+              "mergeCommit": "0a3464e4",
+              "kanbanCards": [],
+              "command": {
+                    "name": "crews-stop-listener-arm-gate",
+                    "descriptionHtml": "<strong>Stop hook gap.</strong> When a Stop-hook-forced synchronous <code>review-mail</code> satisfies the unreviewed-mail invariant and the next response is text-only, the turn ends cleanly with NO listener armed. The next inbound message goes unwatched until the agent's next tool-call attempt fires the PreToolUse re-arm block. The Stop hook should ALSO gate on listener-state (block turn-end when the listener isn't armed), parallel to the unreviewed-mail / missing-kind-tag invariants already enforced.",
+                    "warnings": [
+                          {
+                                "className": "cmd-warn",
+                                "html": "⚠️ <strong>crews plugin fix.</strong> Lives in <code>ai-developer-toolkit/plugins/crews/hooks/stop.js</code>. Verify the existing Stop-hook invariants enumerate cleanly (missing kind, unreviewed mail, strict-ack unresolved). Add a listener-state check that reads the manifest's <code>listenerState</code> field and blocks turn-end when it's not <code>armed</code>. Provide the same self-healing exit message pattern the PreToolUse hook uses ('Run this Bash tool call: …arm…'). Bundle as crews v1.6.2 (patch) alongside whatever else lands."
+                          }
+                    ],
+                    "prompts": { "plan": "/plan-with-ralph \"Add a listener-armed invariant check to the crews Stop hook.\n\n## Problem\n\nObserved 2026-05-27 in the overview-bookkeeper session: when the Stop hook forces a synchronous review-mail (because lastReviewRequiredSeq > lastReviewedSeq), the cursor advances and the unreviewed-mail gate clears. If the agent then ends its turn with a text-only response (no further tool calls), the Stop hook accepts the turn-end and the listener is NOT re-armed. The next inbound message arrives with no watcher attached. The PreToolUse hook only re-arms when the agent attempts a tool call, so the gap persists until the agent acts on its own initiative.\n\nThis is symmetric to the bug the crews-review-mid-turn-v160 task was fixing (mid-turn review-required not enforced) but on the Stop side: 'turn-end without armed listener' should be blocked, just like 'turn-end with unreviewed mail' is blocked today.\n\n## Fix\n\nIn `plugins/crews/hooks/stop.js`:\n\n1. Read the actor's manifest.json `listenerState` field (canonical source — same field the PreToolUse hook reads).\n2. If `listenerState !== 'armed'` (i.e. 'exited', 'unknown', missing, or stale per heartbeat), emit the same exit-code-2 blocking-error pattern used elsewhere:\n   ```\n   ReviewRequiredError: turn-end without armed listener for name \\\"<name>\\\" (crew=\\\"<crew>\\\").\n   \n   Run this Bash tool call now:\n     command: node '<plugin>/tools/crews.js' arm --name <name> --crew <crew> --cwd <cwd> --session-id <session-id>\n     run_in_background: true\n   ```\n   (Use the v1.6.0+ `crews.js arm` form, NOT the deprecated `wait-for-message.js`.)\n3. Honor the existing v1.6.0 progress-envelope exemption — Stop hook should NOT block when the actor has only emitted a `kind=progress` envelope and there's no inbound mail expected (otherwise every progress-only turn would forever require a listener). The check should fire when:\n   - The actor's role is `lead` OR `member` (any active actor).\n   - The kind tag is one of `done`, `question`, `blocked` (terminal-ish kinds expect a sender response).\n   - OR the actor has pending outbound messages awaiting reply (queueDepth > 0 in mailbox audit).\n\n## Files to touch\n\n1. `ai-developer-toolkit/plugins/crews/hooks/stop.js` — the fix.\n2. `ai-developer-toolkit/plugins/crews/CLAUDE.md` (and copilot-plugin/agents-plugin mirrors) — document the new Stop-hook invariant.\n3. `ai-developer-toolkit/plugins/crews/tests/stop-decision.test.js` — extend with a 'unarmed-after-sync-review-mail' fixture asserting the block.\n4. `ai-developer-toolkit/plugins/crews/.claude-plugin/plugin.json` + version bump (v1.6.2).\n5. `ai-developer-toolkit/plugins/crews/CHANGELOG.md` — v1.6.2 entry.\n\n## Acceptance\n\n- AC-1: After a synchronous review-mail that advances the cursor, if the agent attempts to end the turn WITHOUT an armed listener, the Stop hook emits the canonical block error containing the exact arm command.\n- AC-2: A turn that ends with `kind=progress` AND zero pending outbound replies passes the Stop hook without listener-state check (no false-positive nag for idle progress-only turns).\n- AC-3: A turn that ends with `kind=done` / `question` / `blocked` REQUIRES an armed listener — the actor is expected to await the orchestrator's response.\n- AC-4: stop-decision.test.js adds 3 fixtures: kind=done unarmed (BLOCKED), kind=progress unarmed (OK), kind=done unarmed + queueDepth=0 (BLOCKED).\n- AC-5: Existing Stop-hook tests (missing kind, unreviewed mail, strict-ack) still pass.\n- AC-6: Cross-plugin coexistence still OK (agent-peers + other plugins not affected).\n\n## Workflow\n\nConcrete enough to skip /brainstorm-with-ralph. Run /plan-with-ralph directly. Probably decomposes into 3 stories (hook check + tests + docs+version). Phase 5a/5b internal.\n\nVersion bump: v1.6.2 (patch — defensive invariant addition). Branch + multi-remote push (Evyatar108 + gim-home).\"" }
+              }
+        },
+        {
               "id": "ralph-orchestration-codex-exec-windows-spawn",
               "scope": "ralph-orchestration",
-              "lifecycle": "tracked",
+              "lifecycle": "merged",
               "status": "ok",
-              "lastTouchedAt": "2026-05-27T10:25:00Z",
+              "lastTouchedAt": "2026-05-27T14:38:00Z",
+              "mergeCommit": "686dd7ee",
               "kanbanCards": [],
               "command": {
                     "name": "ralph-orchestration-codex-exec-windows-spawn",
