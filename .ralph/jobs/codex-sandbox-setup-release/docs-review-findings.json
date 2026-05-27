@@ -1,0 +1,103 @@
+{
+  "planFile": "D:/harness-efforts/codexu/.ralph/jobs/codex-sandbox-setup-release/plan.md",
+  "repoDir": "D:/harness-efforts/codexu/codex",
+  "findings": [
+    {
+      "id": "F-001",
+      "severity": "High",
+      "category": "Stale Documentation",
+      "classification": "fixable",
+      "phase": "docs",
+      "status": "fixed",
+      "source": "docs",
+      "description": "AGENTS.override.md `### Distribution` section (lines 70-78) lists only `codex.exe`, `codex-core.exe`, and `rg.exe` as binaries built by `.github/workflows/publish-npm.yml`. CLAUDE.md was updated by US-001 to add `codex-windows-sandbox-setup.exe` and `codex-command-runner.exe`, but AGENTS.override.md — the parallel agent-facing override — was not. These two files are intentionally kept in lock-step (per the AGENTS-override scanner break invariant referenced in CLAUDE.md §Confusion points) and divergence here will mislead agents reading AGENTS.override.md for the canonical binary list.",
+      "relevantFiles": [
+        "AGENTS.override.md"
+      ],
+      "suggestedFix": "In AGENTS.override.md lines 72-76, append two bullets after `- rg.exe`:\n- `codex-windows-sandbox-setup.exe`\n- `codex-command-runner.exe`\nMatch the exact ordering used in CLAUDE.md lines 108-112 to keep the two files diff-clean against each other.",
+      "fixedInIteration": 2,
+      "resolution": "Applied suggestedFix verbatim; verified in re-review."
+    },
+    {
+      "id": "F-002",
+      "severity": "High",
+      "category": "Stale Documentation",
+      "classification": "fixable",
+      "phase": "docs",
+      "status": "fixed",
+      "source": "docs",
+      "description": "docs/workflows/install.md `## Vendor layout` (lines 44-46 for the main package and lines 53-55 for the platform tarball) lists three files under `vendor/x86_64-pc-windows-msvc/codex/...`: `codex.exe`, `codex-core.exe`, and `rg.exe`. After publish-npm.yml lines 138-143 stage `codex-windows-sandbox-setup.exe` and `codex-command-runner.exe` into the same `$VENDOR/codex/` directory, install.md's vendor inventory is incomplete. A user verifying their install (or running the `codex.exe not found after install` troubleshooter at line 149-151) will not know to look for the two sandbox-setup binaries that the runtime needs for non-yolo `codex exec` and the `codex-command-runner` elevation path described in `docs/implementation/sandbox-setup-platform-matrix.md`.",
+      "relevantFiles": [
+        "docs/workflows/install.md"
+      ],
+      "suggestedFix": "After line 45 (and again after line 54 for the platform tarball block), insert:\n`$(npm root -g)/@gim-home/codex/vendor/x86_64-pc-windows-msvc/codex/codex-windows-sandbox-setup.exe`\n`$(npm root -g)/@gim-home/codex/vendor/x86_64-pc-windows-msvc/codex/codex-command-runner.exe`\nThen update line 151 to read: `If \\`codex.exe\\`, \\`codex-core.exe\\`, \\`codex-windows-sandbox-setup.exe\\`, or \\`codex-command-runner.exe\\` is missing, reinstall the package.`",
+      "fixedInIteration": 2,
+      "resolution": "Applied suggestedFix verbatim; verified in re-review."
+    },
+    {
+      "id": "F-003",
+      "severity": "Medium",
+      "category": "Stale Documentation",
+      "classification": "fixable",
+      "phase": "docs",
+      "status": "fixed",
+      "source": "docs",
+      "description": "docs/README.md `### .github/workflows/publish-npm.yml` (lines 46-50) describes the workflow as building only `codex.exe` and `codex-core.exe`. This bullet was already stale (rg.exe was bundled but never listed), and the US-001 diff that added `codex-windows-sandbox-setup.exe` + `codex-command-runner.exe` to the cargo build and vendor-stage steps widens the gap. Anyone scanning docs/README.md as the docs index to understand what the release ships will undercount the binary set.",
+      "relevantFiles": [
+        "docs/README.md"
+      ],
+      "suggestedFix": "Replace the line `- builds \\`codex.exe\\` and \\`codex-core.exe\\`` with `- builds \\`codex.exe\\`, \\`codex-core.exe\\`, \\`rg.exe\\`, \\`codex-windows-sandbox-setup.exe\\`, and \\`codex-command-runner.exe\\`` so the docs index matches the actual workflow output and stays in sync with CLAUDE.md §Distribution.",
+      "fixedInIteration": 2,
+      "resolution": "Applied suggestedFix verbatim; verified in re-review."
+    },
+    {
+      "id": "F-004",
+      "severity": "Medium",
+      "category": "Stale Documentation",
+      "classification": "fixable",
+      "phase": "docs",
+      "status": "fixed",
+      "source": "docs",
+      "description": ".claude/commands/rebase-upstream.md `## Build step` lines 130 and 145 give the post-env build command as `cargo build --release --bin codex --bin codex-core`, prefaced with `Set the env and build (identical to .github/workflows/publish-npm.yml)`. After US-001 the workflow now invokes `--bin codex --bin codex-core --bin codex-windows-sandbox-setup --bin codex-command-runner`, so the rebase-upstream skill is no longer identical to the workflow it claims parity with. Additionally, the `## Manual publish notes` section lines 154-159 lists the Windows vendor layout as only `codex.exe`, `codex-core.exe`, `rg.exe`. A rebase agent following this skill will produce a build that lacks the new sandbox-setup binaries, then stage a vendor tree missing them.",
+      "relevantFiles": [
+        ".claude/commands/rebase-upstream.md"
+      ],
+      "suggestedFix": "1. Update the cargo build commands on lines 130 (the prose claim) and 145 (the code block) to `cargo build --release --bin codex --bin codex-core --bin codex-windows-sandbox-setup --bin codex-command-runner`.\n2. In the `## Manual publish notes` block (lines 154-159), extend the vendor list with `- codex-windows-sandbox-setup.exe` and `- codex-command-runner.exe`, and reword the `## Manual publish notes` warning at line 160 (`do not add a third local model-service binary back into the bundle`) to clarify the two new sandbox binaries are part of the bundle while no model-service binary should be reintroduced.",
+      "fixedInIteration": 2,
+      "resolution": "Applied suggestedFix verbatim; verified in re-review."
+    },
+    {
+      "id": "F-005",
+      "severity": "Medium",
+      "category": "Stale Documentation",
+      "classification": "fixable",
+      "phase": "docs",
+      "status": "fixed",
+      "source": "docs",
+      "description": ".claude/commands/publish-sandbox-patch.md `## 2. Build` block at line 86 runs `cargo build --release --bin codex --bin codex-core`, then line 91-96 reads `Confirm both shipped binaries report the new version: ... codex.exe --version / codex-core.exe --version`. After US-001 the publish workflow ships four bins (not two), and the `Confirm` step `both` wording is now wrong. The publish skill is the authoritative env-and-build reference (CLAUDE.md cites it at line 156 and the new doc `docs/implementation/sandbox-setup-platform-matrix.md` references it in §3); leaving it stale will produce releases missing the sandbox-setup binaries when the operator runs the manual build path documented here.",
+      "relevantFiles": [
+        ".claude/commands/publish-sandbox-patch.md"
+      ],
+      "suggestedFix": "1. Replace the build command at line 86 with `cargo build --release --bin codex --bin codex-core --bin codex-windows-sandbox-setup --bin codex-command-runner`.\n2. Change line 91 to `Confirm all four shipped binaries report the new version:` and extend the code block (lines 93-96) with `./target/release/codex-windows-sandbox-setup.exe --version` and `./target/release/codex-command-runner.exe --version`.",
+      "fixedInIteration": 2,
+      "resolution": "Applied suggestedFix verbatim; verified in re-review."
+    },
+    {
+      "id": "F-006",
+      "severity": "Medium",
+      "category": "Stale Documentation",
+      "classification": "fixable",
+      "phase": "docs",
+      "status": "fixed",
+      "source": "re-review",
+      "description": "Two tracked docs were content-edited by the round-1 fixes for F-002 and F-003 but their `**Last Updated**` header was not bumped, leaving the dated claim factually stale relative to the actual last edit. docs/README.md line 3 still reads `**Last Updated**: 2026-05-21`, but lines 46-50 were modified to add `rg.exe`, `codex-windows-sandbox-setup.exe`, and `codex-command-runner.exe` to the publish-npm.yml binary bullet on a commit dated 2026-05-26+. docs/workflows/install.md line 3 still reads `**Last Updated**: 2026-04-20`, but lines 44-58 had two new vendor-layout entries inserted in both the main-package and platform-tarball blocks, and line 152 was rewritten to extend the troubleshooter binary list — also on a 2026-05-26+ commit. The repo's prior commit `8151e2e` (`fix: [F-006] bump docs/README.md Last Updated to 2026-05-21`) established the convention that substantive content edits to a doc with a `**Last Updated**` header must bump that date. The current date in the iteration header is 2026-05-27, both header dates predate today, and the diff contains material content changes — meeting both conditions of the docs-reviewer environment-date rubric.",
+      "relevantFiles": [
+        "docs/README.md",
+        "docs/workflows/install.md"
+      ],
+      "suggestedFix": "1. In `docs/README.md` line 3, replace `**Last Updated**: 2026-05-21` with `**Last Updated**: 2026-05-27` to reflect the F-003 binary-list edit on line 48.\n2. In `docs/workflows/install.md` line 3, replace `**Last Updated**: 2026-04-20` with `**Last Updated**: 2026-05-27` to reflect the F-002 vendor-layout and troubleshooter edits on lines 46-58 and 152. Use the same `YYYY-MM-DD` format as the existing headers; do not change any other content.",
+      "fixedInIteration": 2,
+      "resolution": "Applied suggestedFix verbatim; verified in re-review."
+    }
+  ]
+}
