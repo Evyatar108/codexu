@@ -1,0 +1,62 @@
+[
+  {
+    "id": "F-001",
+    "severity": "High",
+    "category": "Criteria Quality",
+    "source": "consensus",
+    "section": "Strategy step 4 + Acceptance Criteria + Open Question #3",
+    "description": "Plan proposed log+swallow semantics for post-spawn updateParentMetadata, claiming this matches spawnSessionFromSession. Verification at spawnSessionFromSession.ts:143-144 shows updateParentMetadata is awaited WITHOUT try-catch — failures propagate. Both Claude and Copilot reviewers flagged the same inconsistency. The 'returns SUCCESS when update throws' acceptance criterion contradicted the 'match spawnSessionFromSession' approach.",
+    "status": "resolved",
+    "resolution": "Plan revised to match spawnSessionFromSession exactly: await without try-catch; failures propagate through forkSession's outer try-catch (forkSession.ts:184-191) → RPC error response. Acceptance criterion rewritten. Open Question #3 marked RESOLVED. Rationale documented.",
+    "planFile": "D:/harness-efforts/codexu/.ralph/jobs/.staging/20260526-151506/draft-plan.md",
+    "repoDir": "D:/harness-efforts/codexu"
+  },
+  {
+    "id": "F-002",
+    "severity": "Medium",
+    "category": "Ordering",
+    "source": "copilot",
+    "section": "Strategy step 2 (Pre-spawn validation)",
+    "description": "Ancestry validation ordering was underspecified. forkSession.ts:83-92 fetches server metadata and writes it back to tracked.happySessionMetadataFromLocalWebhook; validateSpawnAncestry reads that same field. If validation ran before the refresh, it would walk stale local cache.",
+    "status": "resolved",
+    "resolution": "Plan revised with explicit ordering: validation runs AFTER server-metadata refresh (line ~92) and BEFORE worktree stat/realpath/runGit/spawn (line ~98+). Tests assert no worktree work runs on ancestry rejection.",
+    "planFile": "D:/harness-efforts/codexu/.ralph/jobs/.staging/20260526-151506/draft-plan.md",
+    "repoDir": "D:/harness-efforts/codexu"
+  },
+  {
+    "id": "F-003",
+    "severity": "Medium",
+    "category": "Completeness",
+    "source": "copilot",
+    "section": "Strategy step 6 (Tests)",
+    "description": "Test plan omitted the requestToApproveDirectoryCreation result path (forkSession.test.ts:224-235 covers a related path today). The plan only said 'no metadata update on spawn error' — should also cover the approval-request branch.",
+    "status": "resolved",
+    "resolution": "Test plan expanded: added approval-request defensive test asserting updateParentMetadata is NOT called when spawnTrackedHappyProcess returns requestToApproveDirectoryCreation. Strategy step 4 also notes this branch isn't expected to fire in fork-into-worktree today (pre-validated worktree directory exists at line 98-101).",
+    "planFile": "D:/harness-efforts/codexu/.ralph/jobs/.staging/20260526-151506/draft-plan.md",
+    "repoDir": "D:/harness-efforts/codexu"
+  },
+  {
+    "id": "F-004",
+    "severity": "Medium",
+    "category": "Completeness",
+    "source": "claude",
+    "section": "Open Question #2 (spawn-in-worktree parity)",
+    "description": "Plan defers spawn-in-worktree parity as out-of-scope without concrete evidence either way. Reviewer asked for affirmative confirmation about whether the mobile app passes parentSessionId today.",
+    "status": "resolved",
+    "resolution": "Open Question #2 tightened with a concrete grep command (against spawnInWorktree.ts, apiMachine.ts, packages/happy-app/sources/sync/) the implementer or bookkeeper must run before closing. Scope is held tight: do NOT change spawnInWorktree.ts even if candidates surface.",
+    "planFile": "D:/harness-efforts/codexu/.ralph/jobs/.staging/20260526-151506/draft-plan.md",
+    "repoDir": "D:/harness-efforts/codexu"
+  },
+  {
+    "id": "F-005",
+    "severity": "Low",
+    "category": "Simplicity",
+    "source": "copilot",
+    "section": "Strategy step 1 (ForkSessionDeps)",
+    "description": "Plan added a separate getTrackedSession dep that duplicates existing findTrackedSessionById (same signature). Adds wiring + test churn for no benefit.",
+    "status": "resolved",
+    "resolution": "Plan revised: drop the new getTrackedSession dep. Reuse the existing findTrackedSessionById directly when passing to validateSpawnAncestry — same signature. ForkSessionDeps gains only machineId and updateParentMetadata.",
+    "planFile": "D:/harness-efforts/codexu/.ralph/jobs/.staging/20260526-151506/draft-plan.md",
+    "repoDir": "D:/harness-efforts/codexu"
+  }
+]
