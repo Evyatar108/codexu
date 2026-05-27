@@ -1,0 +1,30 @@
+I’ll read the provided prompt file and then carry out the requested work.
+
+The prompt is a long task spec, so I’m going to read it in chunks before making changes.
+
+I’ll verify the plan against the actual daemon code and tests so the review findings are grounded in current files.
+
+I’ve confirmed the core wiring exists; I’m checking the test/dependency details now for any plan-level gaps.
+
+### Feasibility
+
+[High] The plan’s failure-semantics claim is inaccurate. It says swallowing `updateParentMetadata` failures would “match” `spawnSessionFromSession`, but `packages/happy-cli/src/daemon/spawnSessionFromSession.ts:143-145` awaits `deps.updateParentMetadata(...)` without a catch, so failures propagate. Either document fork-specific intentional divergence and update docs/tests accordingly, or mirror existing behavior and remove the “returns SUCCESS when update throws” acceptance criterion.
+
+[Medium] Ancestry validation ordering is underspecified relative to fresh metadata. `forkSession.ts:83-92` fetches server metadata and writes it back to `tracked.happySessionMetadataFromLocalWebhook`; `validateSpawnAncestry` reads that local webhook field via `getTrackedSession` (`spawnSessionFromSession.ts:59-60`). The plan should require validation after the server metadata refresh, but before worktree/git/spawn work, or tests may pass while stale local parent links bypass/falsely reject cycles.
+
+### Completeness
+
+[Medium] The test plan says no metadata update on spawn `error`, but omits the existing `requestToApproveDirectoryCreation` result path covered in `forkSession.test.ts:224-235`. Since only `success` has a real child session id, add an assertion that approval-request results also do not call `updateParentMetadata`.
+
+### Ordering
+
+[Medium] Same as above: place ancestry validation after parent tracked/encryption/flavor checks and the fresh server metadata attempt, but before `stat`, `realpath`, `runGit`, and child spawn. The current wording only says “before worktree git work or child spawn,” leaving room for a stale-metadata implementation.
+
+### Simplicity
+
+[Low] Adding a separate `getTrackedSession` dep duplicates the existing `findTrackedSessionById` dep in `ForkSessionDeps` (`forkSession.ts:22-36`). Passing `deps.findTrackedSessionById` directly to `validateSpawnAncestry` would reduce wiring and test churn unless parity naming is required.
+
+### Acceptance Criteria Quality
+
+[High] The criterion “If `updateParentMetadata` throws, the fork RPC still returns SUCCESS” conflicts with the stated “match `spawnSessionFromSession`” approach and current implementation behavior. Make the expected semantics explicit and consistent before handing this to an autonomous implementer.
+

@@ -1,0 +1,22 @@
+{
+  "clusters": [
+    {
+      "name": "forkSession-parent-link-writer-cluster",
+      "stories": ["US-001", "US-002", "US-003", "US-004"],
+      "phase": 1,
+      "dependsOn": [],
+      "fileOverlapEvidence": {
+        "sharedFiles": [
+          "packages/happy-cli/src/daemon/forkSession.ts"
+        ],
+        "exclusiveFiles": [
+          "packages/happy-cli/src/daemon/forkSession.test.ts",
+          "packages/happy-cli/src/daemon/run.ts",
+          "packages/happy-cli/CLAUDE.md"
+        ],
+        "risk": "low"
+      },
+      "executionModeRationale": "All stories operate on a single tightly-scoped file set (forkSession.ts plus three immediate downstream files: its test file, daemon/run.ts wiring, and CLAUDE.md docs). Parallelizing would create merge conflicts in forkSession.ts and offers no wall-clock advantage on ~80 LoC of work. Serial execution is the right mode."
+    }
+  ]
+}
