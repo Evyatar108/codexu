@@ -70,43 +70,55 @@ history sections (above the v5.46.0 entry) as historical record; refresh the
 forward-looking "current architecture" prose so a new contributor reading top-down sees
 `node src/<name>.mjs` end-to-end.
 
-**Scope (files / lines):** authoritative `git grep -nE 'codex-exec\.sh|copilot-exec\.sh'
-plugins/ralph/CLAUDE.md` (run from `D:/ai-developer-toolkit-worktrees/ralph-exec-sh-
-wrapper-removal-changelog/` against branch `ralph/ralph-exec-sh-wrapper-removal-changelog`
-at HEAD = `origin/main` + this task's branch tip) produced the following matches:
+**Scope (files / lines):** the authoritative grep is
+`git grep -nE 'codex-exec\.sh|copilot-exec\.sh' plugins/ralph/CLAUDE.md` (run from
+`D:/ai-developer-toolkit-worktrees/ralph-exec-sh-wrapper-removal-changelog/` against
+branch `ralph/ralph-exec-sh-wrapper-removal-changelog` at HEAD = `origin/main` + this
+task's branch tip). The follow-up surface (lines the next planning member edits) is the
+STALE-FORWARD set in the **Classification notes** subsection below; the KEEP set is listed
+there for context and explicitly NOT in scope.
 
-- `plugins/ralph/CLAUDE.md:24` — v5.46.0 enumeration (KEEP AS-IS — historically accurate).
-- `plugins/ralph/CLAUDE.md:52,53` — "Runtime body" table rows. KEEP (these describe the deletion accurately).
-- `plugins/ralph/CLAUDE.md:69` — v5.34.0-era "Phase 3" prose. STALE: v5.46.0 deleted the thin shims described here.
-- `plugins/ralph/CLAUDE.md:83,84` — "Backward-compatible shim only" table rows. STALE: shims removed in v5.46.0.
-- `plugins/ralph/CLAUDE.md:179` — v5.33.0 release note describing the four claude → copilot-exec.sh re-routes. STALE FORWARD: the runtime path is now `node src/copilot-exec.mjs`.
-- `plugins/ralph/CLAUDE.md:187` — v5.33.0 schema-prose snippet. STALE FORWARD.
-- `plugins/ralph/CLAUDE.md:189` — v5.33.0 `copilot-exec.sh --model` description. STALE FORWARD.
-- `plugins/ralph/CLAUDE.md:195` — v5.33.0 prompts/copilot.md note referencing `copilot-exec.sh`. STALE FORWARD.
-- `plugins/ralph/CLAUDE.md:204,205` — v5.34.0 review-loop / plan-reviewer Codex-path description. STALE FORWARD.
-- `plugins/ralph/CLAUDE.md:210` — test description still naming `.sh` scripts. STALE FORWARD.
-- `plugins/ralph/CLAUDE.md:221,224` — v5.32.0 `copilot-exec.sh` parity-bump note. KEEP as version history.
-- `plugins/ralph/CLAUDE.md:230,232` — v5.31.0 multi-model-investigate skill description. STALE FORWARD.
-- `plugins/ralph/CLAUDE.md:279` — severity-rubric two-way operationalization. STALE FORWARD.
-- `plugins/ralph/CLAUDE.md:325,326,346,347` — v5.21.0 / v5.22.0 release-note Codex bumps. KEEP as version history.
-- `plugins/ralph/CLAUDE.md:388` — v5.34.0 review-loop commit-attribution note. STALE FORWARD.
-- `plugins/ralph/CLAUDE.md:417` — `prompts/copilot.md` description. STALE FORWARD.
-- `plugins/ralph/CLAUDE.md:671,672` — Appendix D iteration engine descriptions (same content as `skills/implement-with-ralph/SKILL.md:1624,1625`). STALE FORWARD.
-- `plugins/ralph/CLAUDE.md:789,790` — "Plugin files" table rows still describing the deleted shims as "Thin bash shim". STALE FORWARD.
-- `plugins/ralph/CLAUDE.md:806,807,808,809` — agent prompt copy-target table rows. STALE FORWARD.
-- `plugins/ralph/CLAUDE.md:860,862,887` — plan-with-ralph Phase 2/4 + prompt-template descriptions. STALE FORWARD.
-- `plugins/ralph/CLAUDE.md:996` — `jq` prerequisites note that lists the deleted shims. STALE FORWARD.
+- `plugins/ralph/CLAUDE.md:417` — `prompts/copilot.md` description in "What's in this plugin" section.
+- `plugins/ralph/CLAUDE.md:671,672` — Appendix D iteration-engine descriptions (mirror `skills/implement-with-ralph/SKILL.md:1624,1625`).
+- `plugins/ralph/CLAUDE.md:789,790` — "Key files" table rows describing the removed shims as "Thin bash shim".
+- `plugins/ralph/CLAUDE.md:806,807,808,809` — "Key files" agent-prompt copy-target rows referencing `codex-exec.sh` / `copilot-exec.sh`.
+- `plugins/ralph/CLAUDE.md:860,862` — "Multi-model planning" Phase 2/4 wrapper-invocation prose.
+- `plugins/ralph/CLAUDE.md:887` — "Multi-model review" prompt-template note referencing the removed shims.
+- `plugins/ralph/CLAUDE.md:996` — "Prerequisites" `jq` line listing the deleted shims as exceptions.
 
-The rule of thumb for the follow-up: lines INSIDE a `## v5.<N>.0` release-note block
-ABOVE v5.46.0 stay as version history. Lines OUTSIDE the release-note blocks (current
-architecture tables, Appendix D, file-purpose tables, prerequisites) get updated to the
-post-v5.46.0 `.mjs` reality.
+**Classification notes (rule + per-line verdicts):**
+
+Rule of thumb: lines INSIDE any pre-v5.46.0 release-note block (`## v5.<N>.<N>
+Behavioral Additions`, irrespective of physical position in the reverse-chronological
+file) describe what shipped in that release and stay as historical record. Lines OUTSIDE
+all release-note blocks (the architectural sections "What's in this plugin", "Key files",
+"Multi-model planning", "Multi-model review", "Prerequisites", etc.) describe current
+behavior and get updated to the post-v5.46.0 `.mjs` reality.
+
+KEEP-as-historical (do NOT edit in the follow-up):
+
+- `:24` — v5.46.0 enumeration of the eleven removed shims; canonical and current.
+- `:52,53` — v5.46.0 "Key Files Addendum" rows describing the deletion accurately.
+- `:69` — inside v5.45.0 block (file lines 65-89); describes the v5.45.0 thin-shim state.
+- `:83,84` — inside v5.45.0 block; "Backward-compatible shim only" rows accurate at v5.45.0.
+- `:179,187,189,195` — inside v5.35.0 block (file lines 177-200); v5.35.0 release prose.
+- `:204,205,210` — inside v5.34.0 block (file lines 201-212); v5.34.0 release prose.
+- `:221,224` — inside v5.32.0 block (file lines 219-227); v5.32.0 parity bump.
+- `:230,232` — inside v5.31.0 block (file lines 228-234); v5.31.0 skill release prose.
+- `:279` — inside v5.26.0 block (file lines 277-285); v5.26.0 severity-rubric release.
+- `:325,326,346,347` — inside v5.23.0 / v5.21.0 blocks; release-note bumps.
+- `:388` — inside v5.16.0 block (file lines 385-390); v5.16.0 release prose.
+
+STALE-FORWARD (DO update in the follow-up): the lines enumerated in the bullet list
+above. All sit in architectural sections OUTSIDE any release-note block. Verify via
+`awk '/^## v5\\./ {print NR": "$0}' plugins/ralph/CLAUDE.md` — release-note blocks span
+file lines 15 through ~390; lines 391+ are architectural sections.
 
 **Cross-reference:** `caller-sweep.md` (sibling); `audit-report.md` Batch 3 row.
 
 **Suggested seed (for overview-data.js prompts.plan):**
 
-> /plan-with-ralph "Refresh `D:/ai-developer-toolkit/plugins/ralph/CLAUDE.md` post-v5.46.0 so plugin-architecture sections (file-purpose tables, Appendix D iteration-engine prose, prerequisites) describe the `.mjs`-only runtime. Preserve release-note blocks above v5.46.0 verbatim as version history. Lines to update (from `D:/harness-efforts/codexu/.ralph/jobs/ralph-exec-sh-wrapper-removal-changelog/follow-ups.md` STALE-FORWARD enumeration): 69, 83-84, 179, 187, 189, 195, 204-205, 210, 230, 232, 279, 388, 417, 671-672, 789-790, 806-809, 860, 862, 887, 996. Lines to KEEP as historical record: 24, 52-53, 221, 224, 325-326, 346-347. Verify with `git grep -nE 'codex-exec\.sh|copilot-exec\.sh' plugins/ralph/CLAUDE.md` reporting only the KEEP-lines (and the v5.46.0 BREAKING CHANGE prose if added). Multi-remote push (origin + work). Phase 5a/5b internal to /implement-with-ralph."
+> /plan-with-ralph "Refresh `D:/ai-developer-toolkit/plugins/ralph/CLAUDE.md` post-v5.46.0 so the architectural sections OUTSIDE any release-note block (file-purpose tables, Appendix D iteration-engine prose, Prerequisites) describe the `.mjs`-only runtime. Preserve every pre-v5.46.0 release-note block verbatim as historical record — those blocks describe what shipped at each prior release. Lines to UPDATE (STALE-FORWARD, all in architectural sections, see `D:/harness-efforts/codexu/.ralph/jobs/ralph-exec-sh-wrapper-removal-changelog/follow-ups.md` Scope subsection): 417, 671-672, 789-790, 806-809, 860, 862, 887, 996. Lines to KEEP as historical record (inside release-note blocks; do NOT edit): 24, 52-53, 69, 83-84, 179, 187, 189, 195, 204-205, 210, 221, 224, 230, 232, 279, 325-326, 346-347, 388. Verify the architectural-section flip with `awk '/^## v5\\./ {print NR}' plugins/ralph/CLAUDE.md | tail -1` (last release-note block starts before file line ~390; lines >390 are architectural) and `git grep -nE 'codex-exec\\.sh|copilot-exec\\.sh' plugins/ralph/CLAUDE.md` should drop to only the KEEP-line set (plus any v5.46.0 BREAKING CHANGE prose added in lockstep with the CLAUDE.md refresh). Multi-remote push (origin + work). Phase 5a/5b internal to /implement-with-ralph."
 
 ## codexu-roadmap-stale-sh-refs
 
