@@ -1,0 +1,33 @@
+### Feasibility
+
+[Critical] US-005 / AC-12 violates the repo rule requiring confirmation before `git push`. The plan says to push `ralph/ralph-implement-with-ralph-copilot-mirror-regenerate` to every configured remote, but the repo instructions explicitly say to ask before pushing. Add an explicit approval gate before any `git push`, or make push verification a manual post-implementation step.
+
+[High] US-003’s test design is not implementable against the current `plugins/ralph/scripts/check-copilot-parity.mjs` shape. That script is `process.cwd()`-bound, exports nothing, and unconditionally runs `main()`, so `tests/test-no-stale-sh-refs.mjs` cannot import and fixture-test `assertNoStaleShRefs()` as described. The plan should require refactoring the parity script to export the assertion and guard CLI execution like `generate-copilot-artifacts.mjs` already does.
+
+[High] The Assertion F snippet does not match the existing script imports. `check-copilot-parity.mjs` imports `fs/promises`, but the snippet calls `fs.readFileSync`, which would fail if copied directly. Specify async `await fs.readFile(...)` or add a separate sync import.
+
+[Medium] The plan says to verify CI runs Assertion F, but `D:/ai-developer-toolkit` currently has no tracked `.github/workflows/*` files. Either add a workflow invocation if CI coverage is required, or remove “watch CI” as an implementation expectation.
+
+### Completeness
+
+[Medium] The required worktree path `D:/ai-developer-toolkit/.worktrees/...` is not ignored by `D:/ai-developer-toolkit/.gitignore`; the main tree already shows `?? .worktrees/`. The plan should add or require an ignore rule, or warn implementers not to stage from the parent checkout.
+
+[Medium] AC-11 does not actually prove the branch was forked from `origin/main`; `git diff --name-only origin/main..HEAD` only proves changed paths. Add `git fetch --all --prune` and a merge-base check such as `git merge-base HEAD origin/main` equals `origin/main`.
+
+[Low] The future allowlist guidance says to add a “sibling JSON comment,” but `parity-exceptions.json` is strict JSON. If justifications are desired, make `staleShAllowList` an array of objects or add a separate structured reasons field.
+
+### Ordering
+
+No issues found with the core story ordering: source cleanup, mirror cleanup, parity gate, release stamps, then final verification is the right sequence. The only ordering amendment is that push approval must occur before US-005.
+
+### Simplicity
+
+[Medium] The simplest robust path for US-003 is to extract a pure exported function from `check-copilot-parity.mjs`, then have both `main()` and the new node:test call it. Testing the whole parity CLI against synthetic fixture repos would be more brittle and larger than needed.
+
+### Acceptance Criteria Quality
+
+[Medium] AC-13 is not specific enough for autonomous verification. “Phase 5a code review and Phase 5b docs review per feedback” should name the exact Ralph commands/artifacts expected and where resolved Critical/High findings are recorded.
+
+[Low] AC-1, AC-2, and AC-10 partially duplicate the same `.sh\b` grep evidence. That is harmless, but AC-10 can be folded into AC-1 unless the audit command path must be preserved verbatim.
+
+The plan’s main content fix is otherwise grounded: the stated files exist, `implement-with-ralph` is excluded from generated `USER_SKILLS`, and the current stale-hit counts match 38 in the Claude source and 33 in the Copilot mirror.
