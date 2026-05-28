@@ -1,0 +1,60 @@
+I’ll read the referenced prompt and then carry out its instructions.
+
+I’ll inspect the repo surfaces that mention the audit task, Copilot execution, crews, Ralph, and overview tooling so the research report is grounded in actual files.
+
+The broad searches hit repo size limits, so I’m narrowing to the overview, Ralph, plugin, and task metadata directories.
+
+The requested audit targets installed plugins, so I’m expanding from the consumer repo to the local plugin checkout that codexu resolves through `bin\ralph-overview.mjs` and `.mcp.json`.
+
+The active plugin source checkout is older than the requested versions, so I’m checking the installed plugin cache to identify the exact code an audit would need to target.
+
+### Codebase Architecture
+
+`D:\harness-efforts\codexu` is the consumer/bookkeeper repo. Relevant local state lives in `.ralph\jobs\*`, `.ralph\overview-config.json`, and generated `plans\overview-*.json/js`; root `package.json` delegates overview commands through `bin\ralph-overview.mjs`.
+
+The audited plugin code is mainly outside this repo in `D:\ai-developer-toolkit\plugins\`:
+
+- `crews`: CommonJS hooks, command registry, generated Claude/Copilot skills, Copilot hooks manifest.
+- `ralph`: ESM orchestration scripts plus SKILL.md workflows and generated `.copilot-plugin` mirrors.
+- `ralph-overview`: Node/TS MCP server, sync watcher, React/Vite viewer, generated Copilot skill mirrors.
+
+### Feature-Relevant Code
+
+- **crews**
+  - `plugins\crews\hooks\actors.js`: `normalizeEngine`, `buildLauncherCommand`, `spawnMember`; current launcher supports `--engine copilot`.
+  - `plugins\crews\hooks\copilot-*.js`: Copilot shims for `sessionStart`, `preToolUse`, `postToolUse`, `agentStop`, `userPromptSubmit`.
+  - `plugins\crews\hooks\copilot-shim.js`: maps Copilot camelCase hook payloads to Claude-style hook inputs.
+  - `plugins\crews\hooks\pre-tool-use.js`, `post-tool-use.js`, `stop.js`: listener gate, mid-turn review nag, kind-tag parsing/Stop behavior.
+  - `plugins\crews\hooks\commands\spawn-member.js`, `review-mail.js`, `send-to-member.js`, `stop-member.js`: command behavior.
+  - `plugins\crews\.github\plugin\hooks.json` and `.copilot-plugin\copilot-skills\*`: Copilot integration surface.
+
+- **ralph**
+  - `plugins\ralph\skills\plan-with-ralph\SKILL.md` and `implement-with-ralph\SKILL.md`: Copilot mirrors exist under `.copilot-plugin\copilot-skills`.
+  - `plugins\ralph\scripts\generate-copilot-artifacts.mjs` and `check-copilot-parity.mjs`: mirror generation/parity checks.
+  - `plugins\ralph\src\ralph.mjs`, `src\review-loop.mjs`: current local orchestration entry points.
+  - `plugins\ralph\codex-exec.sh`, `copilot-exec.sh`: current local exec wrappers. The requested `src\codex-exec.mjs` / `src\copilot-exec.mjs` are **not present** in the visible checkout.
+
+- **ralph-overview**
+  - `plugins\ralph-overview\bin\ralph-overview.mjs`: dispatcher for `sync`, `watch`, `dev`, `build`, `mcp`, `init`.
+  - `plugins\ralph-overview\launch.cjs`: MCP launch/build-cache entry.
+  - `plugins\ralph-overview\tools\overview-mcp\src\server.ts`: registers `overview.init`, `overview.validate_data`, `overview.parallel_ready_tasks`, `overview.dev_server.start`, `overview.dev_server.stop`.
+  - `tools\overview-mcp\src\watcher-supervisor.ts`: auto-starts/supervises sync watcher.
+  - `scripts\sync-ralph-state.mjs`: watcher/one-shot state emitter.
+  - `scripts\generate-copilot-artifacts.mjs`: currently emits `dist\copilot`, not `.copilot-plugin`.
+
+### Technical Constraints
+
+The visible toolkits are not at the requested target versions: `crews` manifests/cache top out at `1.6.0`, `ralph` local manifest is `5.44.0` and cache top out is `5.45.0`, and the local `ralph-overview` has no `.copilot-plugin` or `.github\plugin\plugin.json` yet. The audit plan must first pin/fetch/install the actual `crews v1.7.1`, `ralph v5.46.0`, and landed `ralph-overview-copilot-mirror` artifacts.
+
+Copilot command names differ from Claude: crews generated skills use `/crews-spawn-member`, `/crews-send-to-member`, etc.; `review-mail` intentionally has no skill mirror and must run via typed slash interception or CLI mirror (`node ...\tools\crews.js review-mail ...`).
+
+Current ralph-overview MCP tools are callable from this Copilot session, but watcher state reports stale/failure, so the audit should include watcher reset/status handling before judging parity.
+
+### Implementation Suggestions
+
+Structure the audit as four stories: crews, ralph, ralph-overview, aggregation. First story should record exact plugin source commit, manifest version, cache path, and Copilot plugin install state; do not test older local checkouts by accident.
+
+Use a scratch crew/state cwd and a scratch Ralph job so the audit can exercise real Copilot sessions without mutating codexu’s active bookkeeper state. For each check, capture command, observed output, PASS/FAIL/NOT-TESTED, and failing file:line in `.ralph\jobs\plugins-copilot-cross-engine-audit\audit-report.md`.
+
+Reuse existing tests and probes as scaffolding, but require at least one end-to-end Copilot run per plugin: crews spawn/listener/review-mail/stop loop, ralph plan + implement smoke with Copilot subagents and exec wrappers, and ralph-overview Copilot plugin install + MCP tool call + watcher startup.
+

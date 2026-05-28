@@ -1,0 +1,56 @@
+{
+  "clusters": [
+    {
+      "name": "audit-preflight",
+      "stories": ["US-000"],
+      "phase": 0,
+      "dependsOn": [],
+      "fileOverlapEvidence": {
+        "sharedFiles": [],
+        "exclusiveFiles": [
+          ".ralph/jobs/plugins-copilot-cross-engine-audit/preflight.json",
+          "D:/ai-developer-toolkit/.worktrees/audit-main-crews/",
+          "D:/ai-developer-toolkit/.worktrees/audit-main-ralph/"
+        ],
+        "risk": "low"
+      },
+      "executionModeRationale": "Pure serial gate. Writes preflight.json, creates two ai-developer-toolkit worktrees at origin/main, and cuts the topic branch ralph/plugins-copilot-cross-engine-audit. Must complete before any audit story so all three audit stories read the same SHA/version snapshot and operate against the same copilotPluginListBefore baseline."
+    },
+    {
+      "name": "audit-per-plugin",
+      "stories": ["US-001", "US-002", "US-003"],
+      "phase": 1,
+      "dependsOn": ["audit-preflight"],
+      "fileOverlapEvidence": {
+        "sharedFiles": [],
+        "exclusiveFiles": [
+          ".ralph/jobs/plugins-copilot-cross-engine-audit/crews-findings.md",
+          ".ralph/jobs/plugins-copilot-cross-engine-audit/ralph-findings.md",
+          ".ralph/jobs/plugins-copilot-cross-engine-audit/ralph-overview-findings.md",
+          ".ralph/jobs/plugins-copilot-cross-engine-audit/scratch-crew/",
+          ".ralph/jobs/plugins-copilot-cross-engine-audit/scratch-ralph-prompt/",
+          ".ralph/jobs/plugins-copilot-cross-engine-audit/scratch-mcp-session/",
+          "D:/ai-developer-toolkit/.worktrees/audit-main-crews/",
+          "D:/ai-developer-toolkit/.worktrees/audit-main-ralph/",
+          "<operator copilot plugin cache (US-003 only)>"
+        ],
+        "risk": "low"
+      },
+      "executionModeRationale": "Zero file overlap on the codexu side. Each story reads its own source-of-truth path: US-001 reads the audit-main-crews worktree, US-002 reads the audit-main-ralph worktree, US-003 reads the installed Copilot plugin cache. preflight.json is read-only in this phase. The Copilot plugin cache is mutated by US-003 only; US-001 and US-002 only consume preflight.json.copilotPluginInstallPath. Each story writes a distinct findings file and a distinct evidence/ subdir under the job dir. Safe to parallelize."
+    },
+    {
+      "name": "audit-aggregation",
+      "stories": ["US-004"],
+      "phase": 2,
+      "dependsOn": ["audit-per-plugin"],
+      "fileOverlapEvidence": {
+        "sharedFiles": [],
+        "exclusiveFiles": [
+          ".ralph/jobs/plugins-copilot-cross-engine-audit/audit-report.md"
+        ],
+        "risk": "low"
+      },
+      "executionModeRationale": "Single-story cluster. Reads the three findings files plus evidence/ and produces a single audit-report.md. Sequential by definition."
+    }
+  ]
+}
