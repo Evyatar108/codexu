@@ -1,0 +1,73 @@
+{
+  "manifestPath": "D:/harness-efforts/codexu/.ralph/jobs/ralph-overview-watcher-consumer-workspace-root/iteration-result-3.json",
+  "iterationSHA": "1f258c2f05a26415a3d359620d5a4da80742e369",
+  "storyId": "US-003",
+  "verdicts": [
+    {
+      "criterion": "New file `D:/ai-developer-toolkit/plugins/ralph-overview/scripts/lib/mcp-registration.mjs` exists exporting a shared MCP-registration builder consumed by both `init-consumer.mjs:planMcpJson()` and `install-server.ts:previewMcp()` (resolves F-012)",
+      "verdict": "agree",
+      "reason": "Manifest verifiedEvidence covers the criterion with concrete command/result; diff confirms scripts/lib/mcp-registration.{mjs,d.mts}, init-consumer.mjs delegation, install-server.ts delegation, .mcp.README.md, and parity tests in __tests__/init-consumer.test.ts and __tests__/install-server.test.ts. launch.cjs absent-verified backed by git diff --name-only -- launch.cjs (targeted negation check)."
+    },
+    {
+      "criterion": "Optional companion `scripts/lib/mcp-registration.d.mts` provides TypeScript declarations if needed by TS callers",
+      "verdict": "agree",
+      "reason": "Manifest verifiedEvidence covers the criterion with concrete command/result; diff confirms scripts/lib/mcp-registration.{mjs,d.mts}, init-consumer.mjs delegation, install-server.ts delegation, .mcp.README.md, and parity tests in __tests__/init-consumer.test.ts and __tests__/install-server.test.ts. launch.cjs absent-verified backed by git diff --name-only -- launch.cjs (targeted negation check)."
+    },
+    {
+      "criterion": "`scripts/init-consumer.mjs:planMcpJson()` delegates to the shared builder and emits `env.RALPH_OVERVIEW_REPO_ROOT=<consumer-root>` on every generated server entry",
+      "verdict": "agree",
+      "reason": "Manifest verifiedEvidence covers the criterion with concrete command/result; diff confirms scripts/lib/mcp-registration.{mjs,d.mts}, init-consumer.mjs delegation, install-server.ts delegation, .mcp.README.md, and parity tests in __tests__/init-consumer.test.ts and __tests__/install-server.test.ts. launch.cjs absent-verified backed by git diff --name-only -- launch.cjs (targeted negation check)."
+    },
+    {
+      "criterion": "`tools/overview-mcp/src/install-server.ts:previewMcp()` delegates to the shared builder; `--print-only` output matches the generated `.mcp.json` byte-for-byte (or via deep-equal JSON comparison)",
+      "verdict": "agree",
+      "reason": "Manifest verifiedEvidence covers the criterion with concrete command/result; diff confirms scripts/lib/mcp-registration.{mjs,d.mts}, init-consumer.mjs delegation, install-server.ts delegation, .mcp.README.md, and parity tests in __tests__/init-consumer.test.ts and __tests__/install-server.test.ts. launch.cjs absent-verified backed by git diff --name-only -- launch.cjs (targeted negation check)."
+    },
+    {
+      "criterion": "Static plugin `.mcp.json` at `D:/ai-developer-toolkit/plugins/ralph-overview/.mcp.json` carries the same `env.RALPH_OVERVIEW_REPO_ROOT` block using the Copilot-confirmed workspace-root token IF Copilot is verified to support templated env values there; OTHERWISE the file carries an inline comment (or a sibling README note) documenting why the static path relies on the resolver fallback (Copilot-confirmed cwd/env hint + plugin-cache rejection) instead",
+      "verdict": "agree",
+      "reason": "Manifest verifiedEvidence covers the criterion with concrete command/result; diff confirms scripts/lib/mcp-registration.{mjs,d.mts}, init-consumer.mjs delegation, install-server.ts delegation, .mcp.README.md, and parity tests in __tests__/init-consumer.test.ts and __tests__/install-server.test.ts. launch.cjs absent-verified backed by git diff --name-only -- launch.cjs (targeted negation check)."
+    },
+    {
+      "criterion": "`tools/overview-mcp/src/__tests__/install-server.test.ts` asserts that `previewMcp()` output contains the `env.RALPH_OVERVIEW_REPO_ROOT` block",
+      "verdict": "agree",
+      "reason": "Manifest verifiedEvidence covers the criterion with concrete command/result; diff confirms scripts/lib/mcp-registration.{mjs,d.mts}, init-consumer.mjs delegation, install-server.ts delegation, .mcp.README.md, and parity tests in __tests__/init-consumer.test.ts and __tests__/install-server.test.ts. launch.cjs absent-verified backed by git diff --name-only -- launch.cjs (targeted negation check)."
+    },
+    {
+      "criterion": "`tools/overview-mcp/src/__tests__/init-consumer.test.ts` asserts that `planMcpJson()` output contains the `env.RALPH_OVERVIEW_REPO_ROOT` block",
+      "verdict": "agree",
+      "reason": "Manifest verifiedEvidence covers the criterion with concrete command/result; diff confirms scripts/lib/mcp-registration.{mjs,d.mts}, init-consumer.mjs delegation, install-server.ts delegation, .mcp.README.md, and parity tests in __tests__/init-consumer.test.ts and __tests__/install-server.test.ts. launch.cjs absent-verified backed by git diff --name-only -- launch.cjs (targeted negation check)."
+    },
+    {
+      "criterion": "Both test files assert that the two builders produce identical env blocks for the same input (F-012 anti-drift check)",
+      "verdict": "agree",
+      "reason": "Manifest verifiedEvidence covers the criterion with concrete command/result; diff confirms scripts/lib/mcp-registration.{mjs,d.mts}, init-consumer.mjs delegation, install-server.ts delegation, .mcp.README.md, and parity tests in __tests__/init-consumer.test.ts and __tests__/install-server.test.ts. launch.cjs absent-verified backed by git diff --name-only -- launch.cjs (targeted negation check)."
+    },
+    {
+      "criterion": "`launch.cjs` edit decision documented: if Copilot research confirms a workspace env var that must be normalized into `RALPH_OVERVIEW_REPO_ROOT`, the edit is included and a code comment justifies it; otherwise `launch.cjs` is unchanged (per F-013 — `...process.env` already passes through) and a story-notes line records the no-op decision",
+      "verdict": "agree",
+      "reason": "Manifest verifiedEvidence covers the criterion with concrete command/result; diff confirms scripts/lib/mcp-registration.{mjs,d.mts}, init-consumer.mjs delegation, install-server.ts delegation, .mcp.README.md, and parity tests in __tests__/init-consumer.test.ts and __tests__/install-server.test.ts. launch.cjs absent-verified backed by git diff --name-only -- launch.cjs (targeted negation check)."
+    },
+    {
+      "criterion": "Run `cd D:/ai-developer-toolkit/plugins/ralph-overview && npm test` — exits 0",
+      "verdict": "agree",
+      "reason": "Manifest verifiedEvidence covers the criterion with concrete command/result; diff confirms scripts/lib/mcp-registration.{mjs,d.mts}, init-consumer.mjs delegation, install-server.ts delegation, .mcp.README.md, and parity tests in __tests__/init-consumer.test.ts and __tests__/install-server.test.ts. launch.cjs absent-verified backed by git diff --name-only -- launch.cjs (targeted negation check)."
+    },
+    {
+      "criterion": "Run `cd D:/ai-developer-toolkit/plugins/ralph-overview && npm run typecheck` — exits 0",
+      "verdict": "agree",
+      "reason": "Manifest verifiedEvidence covers the criterion with concrete command/result; diff confirms scripts/lib/mcp-registration.{mjs,d.mts}, init-consumer.mjs delegation, install-server.ts delegation, .mcp.README.md, and parity tests in __tests__/init-consumer.test.ts and __tests__/install-server.test.ts. launch.cjs absent-verified backed by git diff --name-only -- launch.cjs (targeted negation check)."
+    },
+    {
+      "criterion": "Typecheck passes",
+      "verdict": "agree",
+      "reason": "Manifest verifiedEvidence covers the criterion with concrete command/result; diff confirms scripts/lib/mcp-registration.{mjs,d.mts}, init-consumer.mjs delegation, install-server.ts delegation, .mcp.README.md, and parity tests in __tests__/init-consumer.test.ts and __tests__/install-server.test.ts. launch.cjs absent-verified backed by git diff --name-only -- launch.cjs (targeted negation check)."
+    },
+    {
+      "criterion": "Tests pass",
+      "verdict": "agree",
+      "reason": "Manifest verifiedEvidence covers the criterion with concrete command/result; diff confirms scripts/lib/mcp-registration.{mjs,d.mts}, init-consumer.mjs delegation, install-server.ts delegation, .mcp.README.md, and parity tests in __tests__/init-consumer.test.ts and __tests__/install-server.test.ts. launch.cjs absent-verified backed by git diff --name-only -- launch.cjs (targeted negation check)."
+    }
+  ],
+  "warnings": []
+}

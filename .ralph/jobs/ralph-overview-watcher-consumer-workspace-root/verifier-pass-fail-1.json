@@ -1,0 +1,93 @@
+{
+  "manifestPath": "D:/harness-efforts/codexu/.ralph/jobs/ralph-overview-watcher-consumer-workspace-root/iteration-result-1.json",
+  "iterationSHA": "92ac99daee292b75aaafe20354a1917e4c22cae8",
+  "storyId": "US-001",
+  "verdicts": [
+    {
+      "criterion": "File `D:/ai-developer-toolkit/plugins/ralph-overview/scripts/lib/repo-root.mjs` exists and exports `resolveRepoRootFromEnv`, `resolveCopilotWorkspaceRoot`, `isPluginCachePath`, `findRalphAncestor`, and `resolveRepoRootDefault`",
+      "verdict": "agree",
+      "reason": "Manifest verifiedEvidence has a matching entry with concrete command and explicit result; diff against startCommit shows the cited file edits."
+    },
+    {
+      "criterion": "File `D:/ai-developer-toolkit/plugins/ralph-overview/scripts/lib/repo-root.d.mts` provides TypeScript declarations consumable from `tools/overview-mcp/src/` and documents that the resolver returns an absolute path with OS-native separators",
+      "verdict": "agree",
+      "reason": "Manifest verifiedEvidence has a matching entry with concrete command and explicit result; diff against startCommit shows the cited file edits."
+    },
+    {
+      "criterion": "File `D:/ai-developer-toolkit/plugins/ralph-overview/scripts/lib/repo-root.test.mjs` covers: env precedence (`RALPH_OVERVIEW_REPO_ROOT` beats `OVERVIEW_REPO_ROOT` beats walk-up/git/cwd)",
+      "verdict": "agree",
+      "reason": "Manifest verifiedEvidence has a matching entry with concrete command and explicit result; diff against startCommit shows the cited file edits."
+    },
+    {
+      "criterion": "Resolver test covers Copilot workspace hint precedence (after explicit env vars, before walk-up) using whichever Copilot env/cwd signal implementation verifies (document the chosen signal in the test header comment)",
+      "verdict": "agree",
+      "reason": "Manifest verifiedEvidence has a matching entry with concrete command and explicit result; diff against startCommit shows the cited file edits."
+    },
+    {
+      "criterion": "Resolver test covers plugin-cache rejection for paths containing `installed-plugins/_direct/ralph-overview`, paths under `RALPH_OVERVIEW_PLUGIN_ROOT`, and staged MCP build-cache paths",
+      "verdict": "agree",
+      "reason": "Manifest verifiedEvidence has a matching entry with concrete command and explicit result; diff against startCommit shows the cited file edits."
+    },
+    {
+      "criterion": "Resolver test covers walk-up returning the nearest `.ralph/` ancestor",
+      "verdict": "agree",
+      "reason": "Manifest verifiedEvidence has a matching entry with concrete command and explicit result; diff against startCommit shows the cited file edits."
+    },
+    {
+      "criterion": "Resolver test covers walk-up halting at `os.homedir()` and at the filesystem root",
+      "verdict": "agree",
+      "reason": "Manifest verifiedEvidence has a matching entry with concrete command and explicit result; diff against startCommit shows the cited file edits."
+    },
+    {
+      "criterion": "Resolver test covers git fallback when no env, no `.ralph/`",
+      "verdict": "agree",
+      "reason": "Manifest verifiedEvidence has a matching entry with concrete command and explicit result; diff against startCommit shows the cited file edits."
+    },
+    {
+      "criterion": "Resolver test covers cwd fallback when no env, no `.ralph/`, no git",
+      "verdict": "agree",
+      "reason": "Manifest verifiedEvidence has a matching entry with concrete command and explicit result; diff against startCommit shows the cited file edits."
+    },
+    {
+      "criterion": "Resolver tests assert path equality using `path.resolve` on both sides of every equality assertion (F-010 Windows path normalization)",
+      "verdict": "agree",
+      "reason": "Manifest verifiedEvidence has a matching entry with concrete command and explicit result; diff against startCommit shows the cited file edits."
+    },
+    {
+      "criterion": "`package.json` has a `test:lib` script that runs `vitest run scripts/lib/repo-root.test.mjs`",
+      "verdict": "agree",
+      "reason": "Manifest verifiedEvidence has a matching entry with concrete command and explicit result; diff against startCommit shows the cited file edits."
+    },
+    {
+      "criterion": "Root `test` script runs the new resolver tests as part of the standard plugin `npm test` invocation",
+      "verdict": "agree",
+      "reason": "Manifest verifiedEvidence has a matching entry with concrete command and explicit result; diff against startCommit shows the cited file edits."
+    },
+    {
+      "criterion": "Run `cd D:/ai-developer-toolkit/plugins/ralph-overview && npm run test:lib` — exits 0",
+      "verdict": "agree",
+      "reason": "Manifest verifiedEvidence has a matching entry with concrete command and explicit result; diff against startCommit shows the cited file edits."
+    },
+    {
+      "criterion": "Run `cd D:/ai-developer-toolkit/plugins/ralph-overview && npm test` — exits 0 (AC-5)",
+      "verdict": "agree",
+      "reason": "Manifest verifiedEvidence has a matching entry with concrete command and explicit result; diff against startCommit shows the cited file edits."
+    },
+    {
+      "criterion": "Run `cd D:/ai-developer-toolkit/plugins/ralph-overview && npm run typecheck` (or workspace equivalent) — exits 0 (AC-6)",
+      "verdict": "agree",
+      "reason": "Manifest verifiedEvidence has a matching entry with concrete command and explicit result; diff against startCommit shows the cited file edits."
+    },
+    {
+      "criterion": "Typecheck passes",
+      "verdict": "agree",
+      "reason": "Manifest verifiedEvidence has a matching entry with concrete command and explicit result; diff against startCommit shows the cited file edits."
+    },
+    {
+      "criterion": "Tests pass",
+      "verdict": "agree",
+      "reason": "Manifest verifiedEvidence has a matching entry with concrete command and explicit result; diff against startCommit shows the cited file edits."
+    }
+  ],
+  "warnings": []
+}
