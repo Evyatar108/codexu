@@ -1,0 +1,35 @@
+{
+  "clusters": [
+    {
+      "name": "ai-developer-toolkit-changelog-and-headers",
+      "stories": ["US-001", "US-002"],
+      "phase": 1,
+      "dependsOn": [],
+      "fileOverlapEvidence": {
+        "sharedFiles": [],
+        "exclusiveFiles": [
+          "D:/ai-developer-toolkit/plugins/ralph/CHANGELOG.md",
+          "D:/ai-developer-toolkit/plugins/ralph/src/codex-exec.mjs",
+          "D:/ai-developer-toolkit/plugins/ralph/src/copilot-exec.mjs"
+        ],
+        "risk": "low"
+      },
+      "executionModeRationale": "US-001 (CHANGELOG promotion) and US-002 (header comments) both touch ai-developer-toolkit only and have no file overlap. US-002 cites the CHANGELOG anchor produced by US-001, so US-001 should commit first inside the same topic branch; a single impl member should own both."
+    },
+    {
+      "name": "codexu-audit-and-followups",
+      "stories": ["US-003", "US-004"],
+      "phase": 1,
+      "dependsOn": [],
+      "fileOverlapEvidence": {
+        "sharedFiles": [],
+        "exclusiveFiles": [
+          "D:/harness-efforts/codexu/.ralph/jobs/ralph-exec-sh-wrapper-removal-changelog/caller-sweep.md",
+          "D:/harness-efforts/codexu/.ralph/jobs/ralph-exec-sh-wrapper-removal-changelog/follow-ups.md"
+        ],
+        "risk": "low"
+      },
+      "executionModeRationale": "US-003 produces the audit report; US-004 produces the follow-up backlog. Both are new files in the same codexu job dir; no file overlap; a single impl member can drive both. No dependency on Cluster 1 — the audit report cites the CHANGELOG by path so the two repo PRs can land in either order."
+    }
+  ]
+}

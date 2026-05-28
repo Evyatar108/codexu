@@ -1,0 +1,24 @@
+I’ll read the provided prompt file first, then carry out the requested work.
+
+I’m switching from prompt intake to verifying the plan against the referenced repos and files before writing the review.
+
+### Feasibility
+
+[Critical] The plan requires pushing to `origin` and `work` in `D:\ai-developer-toolkit` and `origin` in codexu, but `D:\harness-efforts\codexu\AGENTS.md:39-43` explicitly says to ask before pushing to remotes. Change the plan so implementation stops after local commits unless operator approval for each push is already explicit.
+
+### Completeness
+
+[High] `follow-ups.md` scope omits `plugins/ralph/CLAUDE.md`, even though the plan says stale sections there are deferred. Local grep shows stale `codex-exec.sh` / `copilot-exec.sh` references in `plugins/ralph/CLAUDE.md:69`, `:83-84`, `:179`, etc. Add it to the stale-prose follow-up cluster or the US-004 acceptance criteria will be incomplete.
+
+### Ordering
+
+[Medium] The worktree command uses local `main` after `git fetch`, but does not update `main` or branch from `origin/main` / `work/main`. If local `main` is stale, the topic branch is not based on the fetched tip. Use an explicit remote-tracking ref or update local `main` before `git worktree add`.
+
+### Simplicity
+
+No issues found.
+
+### Acceptance Criteria Quality
+
+[Medium] CHANGELOG scope conflicts: “Files to Modify” requires the “full path list” of all removed shims, while AC only requires `codex-exec.sh` and `copilot-exec.sh` at minimum. Pick one requirement so the implementer and reviewer do not disagree on pass/fail.
+
