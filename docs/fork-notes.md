@@ -377,6 +377,21 @@ Back up `C:\Users\evmitran\.cloudflared\<tunnel-UUID>.json` somewhere durable (p
 
 Deferred work lives in `docs/fork-roadmap.md` — prioritised backlog for the fork.
 
+### Agent auto-memory (codexu bookkeeper)
+
+Codexu bookkeeper and ralph-pipeline operating lessons live in the repo-tracked `.agents/memory/` directory so future claude-code, Codex, and Copilot sessions can read the same guidance from git. This memory set is scoped to codexu orchestration conventions, not Happy app or server implementation details. Start with the Auto-memory section in `AGENTS.md`, then open `.agents/memory/MEMORY.md` for the full index.
+
+Safe junction setup for moving the Claude Code user-dir memory path to the repo copy:
+
+1. Re-run a pre-swap parity check between `C:/Users/evmitran/.claude/projects/D--harness-efforts-codexu/memory/` and `D:/harness-efforts/codexu/.agents/memory/` using `(Name, Hash)` rows from SHA-256 file hashes. Stop if any file differs or exists only on one side.
+2. Backup-rename the user-dir with `Rename-Item 'C:/Users/evmitran/.claude/projects/D--harness-efforts-codexu/memory' 'C:/Users/evmitran/.claude/projects/D--harness-efforts-codexu/memory.bak'`.
+3. Create the junction with `cmd /c mklink /J "C:\Users\evmitran\.claude\projects\D--harness-efforts-codexu\memory" "D:\harness-efforts\codexu\.agents\memory"`.
+4. Verify `Get-Item 'C:/Users/evmitran/.claude/projects/D--harness-efforts-codexu/memory' | Select-Object FullName, LinkType, Target` reports `LinkType` as `Junction` and the target as `D:\harness-efforts\codexu\.agents\memory`.
+5. Read `MEMORY.md` through both the repo path and the junction path, then repeat the `(Name, Hash)` parity check between the junction-resolved `memory/` and `memory.bak/`.
+6. Delete the backup only after verification succeeds: `Remove-Item -Recurse -Force 'C:/Users/evmitran/.claude/projects/D--harness-efforts-codexu/memory.bak'`.
+
+Do not use a delete-then-link shortcut for this migration; it skips the verified backup path and can lose new memories written after the initial copy.
+
 ## Known debt (not yet addressed)
 
 - ~~**i18n:** pre-2026-04-22 strings in the `feature/tablet-sidebar-toggle` branch~~ — **resolved on 2026-04-24** (commit `8ab002e7`). All sidebar a11y labels now go through `t('sidebar.*')` with keys in `_default.ts` + 10 locales. `% of default` lives only in the old branch; the slider on `main` uses `settingsAppearance.*` keys.

@@ -87,3 +87,20 @@ Everything on `main` targets upstream eventually. Keep PRs self-contained (don't
 Lifecycle boundaries (`/clear`, `/compact`, autocompact, plan-mode enter/exit, and `/resume` forks) are represented by the shared `@slopus/happy-wire` `context-boundary` session event. CLI producers must use `ApiSessionClient.sendContextBoundary()`, which dual-emits the typed envelope first and a legacy compatibility event second with `meta.contextBoundaryFallback: true`, while also updating encrypted `metadata.latestBoundary` for cold starts.
 
 App consumers treat the typed event as authoritative, suppress any legacy fallback carrying `meta.contextBoundaryFallback === true`, render loaded boundary rows through `BoundaryDivider`, and use the metadata side channel only for out-of-window pagination and cross-device advisory state. Keep all boundary UI static for the e-ink tablet target.
+
+## Auto-memory (codexu bookkeeper-scope)
+
+The repo-tracked auto-memory store at `.agents/memory/` covers codexu bookkeeper and ralph-pipeline operating lessons: Ralph phase discipline, overview bookkeeping, crew coordination, and codexu-specific repo conventions. It is NOT happy-app/happy-server implementation guidance; use the package-level docs and skills for those areas.
+
+Index: [.agents/memory/MEMORY.md](.agents/memory/MEMORY.md)
+
+Curated high-priority entries:
+
+- [Phase discipline: separate member per ralph phase](.agents/memory/feedback_phase_discipline_separate_members.md)
+- [Bookkeeper updates overview-data.js as tasks ship](.agents/memory/feedback_bookkeeper_updates_overview_data.md)
+- [Spawn prompt must require Phase 5a/5b review-fix](.agents/memory/feedback_spawn_prompt_must_require_review_fix.md)
+- [Cross-repo impl spawns need worktrees in EVERY shared repo](.agents/memory/feedback_cross_repo_impl_worktree_mandate.md)
+- [codexu root CLAUDE.md is gitignored](.agents/memory/feedback_codexu_claude_md_gitignored.md)
+- [Impl members commit to topic branch off main, NOT lead's branch](.agents/memory/feedback_impl_topic_branch_vs_lead_branch.md)
+
+This TOC is a curated subset for fast orientation. See [.agents/memory/MEMORY.md](.agents/memory/MEMORY.md) for the full list.

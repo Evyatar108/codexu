@@ -928,8 +928,8 @@ If the member surfaces `kind=question`, the lead decides whether to relay to
 the operator (significant choices, ambiguity, real toolchain blockers) or to
 answer autonomously (false blockers per the gotchas above, follow-up
 clarifications). Recurring lessons are saved as `feedback_*` entries in the
-lead's `C:/Users/evmitran/.claude/projects/D--harness-efforts-codexu/memory/`
-so future lead sessions inherit them.
+repo-tracked `.agents/memory/` directory so future lead, Codex, and Copilot
+sessions inherit them from git.
 
 For the in-flight `overview-install-streamline` brainstorm — that work will
 add agent-callable MCP tools (`overview.init`, `overview.upsert_task`,
