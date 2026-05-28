@@ -672,9 +672,10 @@ window.OVERVIEW_DATA = {
         {
               "id": "agent-memory-repo-migration",
               "scope": "codexu|bookkeeping",
-              "lifecycle": "tracked",
+              "lifecycle": "merged",
               "status": "ok",
-              "lastTouchedAt": "2026-05-27T17:55:00Z",
+              "lastTouchedAt": "2026-05-28T08:50:00Z",
+              "mergeCommit": "78abec33,fec74989,f592aec4",
               "kanbanCards": [],
               "command": {
                     "name": "agent-memory-repo-migration",
