@@ -857,9 +857,10 @@ window.OVERVIEW_DATA = {
         {
               "id": "ralph-implement-with-ralph-copilot-mirror-regenerate",
               "scope": "ralph-orchestration",
-              "lifecycle": "tracked",
+              "lifecycle": "merged",
               "status": "ok",
-              "lastTouchedAt": "2026-05-28T15:50:00Z",
+              "lastTouchedAt": "2026-05-28T20:38:00Z",
+              "mergeCommit": "c183326a",
               "kanbanCards": [],
               "command": {
                     "name": "ralph-implement-with-ralph-copilot-mirror-regenerate",
