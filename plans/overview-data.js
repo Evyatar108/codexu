@@ -709,6 +709,54 @@ window.OVERVIEW_DATA = {
               }
         },
         {
+              "id": "crews-review-mail-summary-payload-fallback",
+              "scope": "crews",
+              "lifecycle": "tracked",
+              "status": "ok",
+              "lastTouchedAt": "2026-05-28T21:42:00Z",
+              "kanbanCards": [],
+              "command": {
+                    "name": "crews-review-mail-summary-payload-fallback",
+                    "descriptionHtml": "Surfaced by <code>investigate-crews-summary-drop</code> (79752a65). Single-line read-path fix in <code>plugins/crews/hooks/commands/review-mail.js:111</code>: read <code>row.summary ?? row.payload?.summary</code> instead of bare <code>row.summary</code>. The bug silently drops long summary attributes on system-routed envelopes (member-reply + proactive-report) emitted by <code>hooks/stop.js:831-842</code> + <code>:858-882</code>, which nest summary inside <code>payload</code>. Ships as crews v1.7.3 patch.",
+                    "warnings": [],
+                    "prompts": { "plan": "/plan-with-ralph \"Fix the crews review-mail summary-attribute drop bug for system-routed envelopes.\n\n## Problem\n\nObserved 2026-05-28 in overview-bookkeeper session: a member's kind=question with a long summary= attribute returned summary: null when the lead called crews.js review-mail. Investigation .ralph/investigations/crews-summary-attribute-drop/INVESTIGATION-RESULT.md (commit 79752a65) confirmed: the kind-tag parser correctly captures the full summary into the outbox envelope's payload.summary; hooks/stop.js routes member-reply and proactive-report envelopes through appendSystemMailbox which writes to inbox-history.jsonl with summary nested in payload only (no top-level summary field); hooks/commands/review-mail.js:111 reads row.summary (top-level) which is undefined for these system-routed rows.\n\n## Fix\n\nOne-line read-path fallback in review-mail.js:111: change `summary: row.summary,` to `summary: row.summary ?? row.payload?.summary,`.\n\n## Files to touch\n\n1. ai-developer-toolkit/plugins/crews/hooks/commands/review-mail.js — the one-line fallback.\n2. ai-developer-toolkit/plugins/crews/tests/review-mail-command.test.js — fixture seeding an inbox-history row shaped like a member-reply envelope (no top-level summary; populated payload.summary); assert returned entry has summary === payload.summary.\n3. ai-developer-toolkit/plugins/crews/tests/member-reply-notify.test.js:88 — add an assertion that the surfaced envelope (after formatReviewMailEntry) returns the summary.\n4. CHANGELOG.md v1.7.3 entry citing the failing scenario.\n5. 5 release stamps to v1.7.3 across plugin manifests + marketplace indexes.\n\n## Acceptance\n\n- formatReviewMailEntry returns summary === payload.summary for an inbox-history row with only nested summary. Regression test added.\n- member-reply-notify.test.js asserts the formatter-surfaced summary, not just the raw envelope payload.\n- CHANGELOG entry under v1.7.3 cites the failing scenario.\n- npm test green.\n- Manual repro from investigation §1 returns the long summary.\n\nVersion bump: v1.7.3 patch. Multi-remote push (Evyatar108 + gim-home). Local-main FF + push-main pattern per operator preference.\"" }
+              }
+        },
+        {
+              "id": "crews-system-envelope-summary-top-level",
+              "scope": "crews",
+              "lifecycle": "tracked",
+              "status": "ok",
+              "lastTouchedAt": "2026-05-28T21:42:00Z",
+              "kanbanCards": [],
+              "command": {
+                    "name": "crews-system-envelope-summary-top-level",
+                    "descriptionHtml": "Defense-in-depth companion to <code>crews-review-mail-summary-payload-fallback</code>. Mirror <code>effectiveSummary</code> to the top-level envelope key at the two <code>appendSystemMailbox</code> call sites in <code>hooks/stop.js</code> (member-reply L831-842; proactive-report L878-882). Keeps <code>payload.summary</code> for back-compat. Aligns system-routed envelope shape with direct-send envelope shape so future producers don't recreate the drift. Could bundle into v1.7.3 alongside the read-path fix OR ship as v1.7.4 separately.",
+                    "warnings": [
+                          {
+                                "className": "cmd-warn",
+                                "html": "⚠️ Could be combined into the v1.7.3 fix as a single coordinated patch instead of a separate v1.7.4. Plan member should evaluate that bundling decision."
+                          }
+                    ],
+                    "prompts": { "plan": "/plan-with-ralph \"Lift summary to the top-level envelope key at the appendSystemMailbox call sites in crews hooks/stop.js — defense-in-depth companion to the read-path fallback fix.\n\n## Problem\n\nThe read-path fix (crews-review-mail-summary-payload-fallback v1.7.3) makes review-mail.js resilient to the nested payload.summary shape. But the underlying schema asymmetry remains: system-routed envelopes (member-reply, proactive-report) write summary ONLY inside payload while direct-sent envelopes write summary at the top level. Future consumers reading row.summary will hit the same drop.\n\n## Fix\n\nAt hooks/stop.js:831-842 (member-reply appendSystemMailbox call) and hooks/stop.js:858-882 (proactive-report appendSystemMailbox call), pass effectiveSummary to BOTH: payload.summary (preserves existing readers) and top-level summary key (new; matches direct-send shape).\n\n## Files to touch\n\n1. ai-developer-toolkit/plugins/crews/hooks/stop.js — both appendSystemMailbox call sites; lift summary to top level.\n2. ai-developer-toolkit/plugins/crews/tests/*.test.js — add at least one test asserting top-level summary on a member-reply envelope after stop.\n3. Update test goldens if any.\n4. CHANGELOG entry + version bump.\n\n## Sequencing decision (plan member's call)\n\nOption A: ship together with v1.7.3 as one coordinated v1.7.3 patch (read + write both fixed).\nOption B: ship as v1.7.4 patch separately.\n\nOption A is simpler (1 ship instead of 2); Option B is more granular for bisection.\n\n## Acceptance\n\n- appendSystemMailbox envelopes for member-reply and proactive-report carry both summary and payload.summary.\n- Existing tests still pass; one new test asserts top-level summary on the system envelope.\n- CHANGELOG entry cites the schema-uniformity rationale.\n\nMulti-remote push.\"" }
+              }
+        },
+        {
+              "id": "crews-summary-rendering-audit",
+              "scope": "crews",
+              "lifecycle": "tracked",
+              "status": "ok",
+              "lastTouchedAt": "2026-05-28T21:42:00Z",
+              "initialStage": "brainstorming",
+              "kanbanCards": [],
+              "command": {
+                    "name": "crews-summary-rendering-audit",
+                    "descriptionHtml": "<strong>Brainstorm-first.</strong> Surfaced by <code>investigate-crews-summary-drop</code> as a forward-looking audit. Catalog every crews-plugin consumer that surfaces an envelope <code>summary</code> field, document which ones read top-level vs <code>payload</code>, and identify OTHER fields with similar producer/consumer drift (candidates: <code>kind</code>, <code>replyTo</code>, <code>progressTail</code>). Output is a markdown audit doc + optional follow-up tasks per drifted field.",
+                    "warnings": [],
+                    "prompts": { "brainstorm": "/brainstorm-with-ralph \"Audit every crews-plugin consumer that reads envelope summary and catalog where the producer/consumer schema may drift on other fields.\n\n## Why\n\nThe summary-drop bug (investigation 79752a65) was caused by a producer/consumer mismatch: hooks/stop.js writes envelopes with nested payload.summary while hooks/commands/review-mail.js reads top-level row.summary. The two were drifted apart silently. Same drift may exist on other fields (kind, replyTo, progressTail, etc).\n\n## Investigation scope\n\n### Phase 1 — enumerate consumers\n\nGrep all crews-plugin code that reads an envelope summary: review-mail.js (already known), format-progress-tail.js, briefing renderer, formatOutboxEntries, /list-members view code, spawn-launchers (do any echo summary?), copilot mirror hooks/commands.\n\nFor each: document file:line of the read, top-level vs payload, and what surface it renders to.\n\n### Phase 2 — enumerate producers\n\nGrep all crews-plugin code that WRITES envelope summary: hooks/stop.js (already known: appendSystemMailbox vs direct send), hooks/commands/send-to-member.js, hooks/commands/send-to-thread.js, format-report-tag.js, copilot mirror hook write paths.\n\nFor each: document file:line of the write, top-level / payload / both.\n\n### Phase 3 — find drift\n\nFor each (producer, consumer) pair: do they agree on schema? If not, that's a drift candidate.\n\nAlso check OTHER envelope fields (not just summary): kind, replyTo, decision, ack, progressTail, reviewedSeq, bodyResolution.\n\n### Lenses\n\nFeasibility (codex) — can the audit be automated via a one-time grep pass + diff?\nDevil's-advocate — is the schema asymmetry intentional (e.g. payload IS the canonical envelope shape; top-level is a flattened convenience)? If yes, the read-path fallback is the better fix than the write-path mirror.\nSimplification — could we replace the dual-path schema with a single canonical envelope type defined in TypeScript that all producers + consumers use?\n\n## Deliverable\n\n.ralph/brainstorms/crews-summary-rendering-audit/selected-direction.md with: catalog of (consumer file:line → reads top-level vs payload) pairs for summary; catalog of producer file:line write shapes; drift findings (which producer/consumer pairs disagree); other field surveys (kind, replyTo, progressTail, etc); recommended approach (read-fallback / write-mirror / canonical-type / hybrid); per-field follow-up tasks for the bookkeeper to add (one per drifted field).\"" }
+              }
+        },
+        {
               "id": "ralph-overview-watcher-copilot-cli-env-verify",
               "scope": "ralph-overview",
               "lifecycle": "tracked",
