@@ -748,11 +748,73 @@ window.OVERVIEW_DATA = {
               }
         },
         {
-              "id": "plugins-copilot-cross-engine-audit",
-              "scope": "ralph-overview|crews|ralph-orchestration",
+              "id": "ralph-exec-help-contract",
+              "scope": "ralph-orchestration",
               "lifecycle": "tracked",
               "status": "ok",
-              "lastTouchedAt": "2026-05-27T17:55:00Z",
+              "lastTouchedAt": "2026-05-28T15:50:00Z",
+              "kanbanCards": [],
+              "command": {
+                    "name": "ralph-exec-help-contract",
+                    "descriptionHtml": "Surfaced by <code>plugins-copilot-cross-engine-audit</code> (f4d63067) — Batch 3 follow-up. Both <code>src/codex-exec.mjs</code> and <code>src/copilot-exec.mjs</code> return exit 1 + 'unknown argument: --help' when probed with <code>--help</code>. Audit/verifier scripts that exercise the help contract see a non-zero exit and can't trust the wrapper for parity checks. Add proper <code>--help</code> handling at both call sites (audit cites <code>codex-exec.mjs:148</code> and corresponding line in copilot-exec.mjs).",
+                    "warnings": [],
+                    "prompts": { "plan": "/plan-with-ralph \"Fix the --help contract on ralph v5.46.0's codex-exec.mjs and copilot-exec.mjs Node wrappers.\n\n## Problem\n\nAudit plugins-copilot-cross-engine-audit (f4d63067) found:\n- `node plugins/ralph/src/codex-exec.mjs --help` returns exit 1 + 'Error: unknown argument: --help'.\n- Same shape on `copilot-exec.mjs`.\n- Audit/verifier scripts that probe wrapper sanity via --help fail before they can check anything.\n\n## Fix\n\nAdd a `--help` handler in both files that prints usage + exits 0. Mirror whatever the v5.45.x bash wrappers did (or what the ralph plugin's other v5.46.0 ports do). Don't invent new help text — match the existing convention.\n\n## Files to touch\n\n1. `ai-developer-toolkit/plugins/ralph/src/codex-exec.mjs` — add --help handling (~codex-exec.mjs:148 per audit).\n2. `ai-developer-toolkit/plugins/ralph/src/copilot-exec.mjs` — same fix.\n3. Tests in `plugins/ralph/tests/` — add a test that `--help` exits 0 with non-empty stdout for each wrapper.\n4. `plugins/ralph/CHANGELOG.md` + version bump (v5.46.1 patch).\n\n## Acceptance\n\n- `node codex-exec.mjs --help` exits 0 with usage text.\n- `node copilot-exec.mjs --help` exits 0 with usage text.\n- New tests pass.\n- Existing tests still pass.\n\nVersion: v5.46.1 patch. Multi-remote push.\"" }
+              }
+        },
+        {
+              "id": "ralph-exec-sh-wrapper-removal-changelog",
+              "scope": "ralph-orchestration",
+              "lifecycle": "tracked",
+              "status": "ok",
+              "lastTouchedAt": "2026-05-28T15:50:00Z",
+              "kanbanCards": [],
+              "command": {
+                    "name": "ralph-exec-sh-wrapper-removal-changelog",
+                    "descriptionHtml": "Surfaced by <code>plugins-copilot-cross-engine-audit</code> (f4d63067) — Batch 3 follow-up. v5.46.0 removed <code>codex-exec.sh</code> + <code>copilot-exec.sh</code> bash shims (Phase 4/5 of the all-Node migration), but the v5.46.0 CHANGELOG doesn't explicitly call out the breaking-change risk to external callers that reference the shims by path. Audit also flagged: need a caller-sweep across the broader fork ecosystem to confirm no consumer still expects them. Doc-only fix + audit sweep.",
+                    "warnings": [],
+                    "prompts": { "plan": "/plan-with-ralph \"Document the v5.46.0 codex-exec.sh + copilot-exec.sh shim removal in CHANGELOG with explicit breaking-change advisory, plus run a caller-sweep audit across known consumers.\n\n## Problem\n\nv5.46.0 removed the codex-exec.sh + copilot-exec.sh bash entry-shims as part of the shell-to-Node migration. The change IS listed in the existing CHANGELOG but framed as a migration line item without an explicit 'BREAKING — external callers must migrate' advisory. Audit plugins-copilot-cross-engine-audit (f4d63067) flagged: any caller invoking these shims by path will fail with 'no such file or directory'.\n\n## Fix\n\n1. Update plugins/ralph/CHANGELOG.md v5.46.0 entry: promote the shim-removal bullet to a 'BREAKING CHANGE' subsection with: (a) list of removed shim paths, (b) the migration alternative `node plugins/ralph/src/<name>.mjs ...`, (c) hermetic-test stub note (CODEX_EXEC_SCRIPT / COPILOT_EXEC_SCRIPT env vars still work for .sh stubs).\n\n2. Caller-sweep: grep across known consumers for 'codex-exec.sh' or 'copilot-exec.sh' string references:\n   - This codexu repo: search plans/, docs/, scripts/, AGENTS.md, CLAUDE.md, .ralph/jobs/*/plan.md, .agents/memory/, packages/.\n   - The ai-developer-toolkit repo: search other plugins (devui, seval, etc.) for cross-plugin references to ralph's shims.\n   - Document any findings as additional follow-up tasks.\n\n3. If the caller-sweep finds active consumers (other than the env-var-honored bash stubs), file each as a separate fix task.\n\n## Files to touch\n\n1. `ai-developer-toolkit/plugins/ralph/CHANGELOG.md` — promote shim-removal to BREAKING CHANGE section.\n2. `ai-developer-toolkit/plugins/ralph/src/codex-exec.mjs` (header comment) — add a one-line note pointing at the BREAKING CHANGE.\n3. (Optionally) `ai-developer-toolkit/plugins/ralph/README.md` — migration notes.\n4. Audit report at `.ralph/jobs/ralph-exec-sh-wrapper-removal-changelog/caller-sweep.md` — captures grep results.\n\n## Acceptance\n\n- CHANGELOG has a clearly-labeled BREAKING CHANGE subsection for shim removal.\n- caller-sweep.md captures the search command + zero-or-more findings.\n- Each genuine caller (if found) has a follow-up task filed.\n- No version bump needed (doc-only); OR bump to v5.46.1 if combined with the --help contract fix above.\n\nMulti-remote push.\"" }
+              }
+        },
+        {
+              "id": "ralph-overview-watcher-consumer-workspace-root",
+              "scope": "ralph-overview",
+              "lifecycle": "tracked",
+              "status": "ok",
+              "lastTouchedAt": "2026-05-28T15:50:00Z",
+              "kanbanCards": [],
+              "command": {
+                    "name": "ralph-overview-watcher-consumer-workspace-root",
+                    "descriptionHtml": "Surfaced by <code>plugins-copilot-cross-engine-audit</code> (f4d63067) — Batch 3 follow-up. The ralph-overview watcher's owner-marker state roots inside the installed plugin cache instead of the consumer workspace, breaking the auto-start path under Copilot dev mode. A copilot session running <code>pnpm overview</code> via the workspace MCP launches against the wrong workspace root. Fix: have the watcher derive its repo root from the consumer workspace (cwd / nearest <code>.ralph/</code> ancestor), not from the plugin's own install dir.",
+                    "warnings": [
+                          {
+                                "className": "cmd-warn",
+                                "html": "⚠️ Audit cites this as the primary blocker for Copilot lead-session migration (one of the 4 defer reasons). Fix unblocks (B) safe-with-impact path on the migration go/no-go."
+                          }
+                    ],
+                    "prompts": { "plan": "/plan-with-ralph \"Fix ralph-overview watcher to root its owner-marker state in the consumer workspace, not the plugin's installed cache directory.\n\n## Problem\n\nAudit plugins-copilot-cross-engine-audit (f4d63067) audit-report.md row 'ralph-overview: dev-server-watcher-autostart' FAIL:\n\n> Watcher owner is rooted in plugin cache instead of consumer workspace.\n\nUnder Copilot dev mode, when the workspace MCP launches the ralph-overview server, the watcher derives its repo root from the plugin's installed directory (C:/Users/<user>/.copilot/.../ralph-overview/<ver>/) instead of the consumer workspace (D:/harness-efforts/codexu/). The owner-marker, sidecar writes, and dev-server hot-reload all anchor at the wrong root — making auto-start non-functional from Copilot.\n\n## Fix\n\nThe watcher's repo-root resolution should prefer (in order):\n1. Explicit env var (RALPH_OVERVIEW_REPO_ROOT or similar)\n2. Nearest .ralph/ ancestor walking up from process.cwd()\n3. Existing fallback (plugin install dir) — keep as last resort for non-workspace scenarios\n\nFiles likely affected (verify via grep):\n- `plugins/ralph-overview/scripts/sync-ralph-state.mjs` — owner-marker write path\n- `plugins/ralph-overview/scripts/lib/repo-root.mjs` (or wherever detectRepoRoot lives)\n- `plugins/ralph-overview/tools/overview-viewer/vite.config.ts` — dev server plugin auto-start integration\n- `plugins/ralph-overview/tools/overview-mcp/src/index.ts` — MCP server's working-dir handling\n\n## Acceptance\n\n- AC-1: Watcher launched from a Copilot session via the MCP server writes its owner-marker into the consumer workspace's .ralph/, NOT the plugin cache.\n- AC-2: `pnpm overview` from inside a codexu worktree continues to work (regression check for claude-code path).\n- AC-3: Audit's dev-server-watcher-autostart FAIL row flips to PASS when re-tested after this fix.\n- AC-4: New test fixture exercises the repo-root resolution priority order.\n\nVersion bump: ralph-overview v2.4.1 patch. Multi-remote push.\"" }
+              }
+        },
+        {
+              "id": "ralph-implement-with-ralph-copilot-mirror-regenerate",
+              "scope": "ralph-orchestration",
+              "lifecycle": "tracked",
+              "status": "ok",
+              "lastTouchedAt": "2026-05-28T15:50:00Z",
+              "kanbanCards": [],
+              "command": {
+                    "name": "ralph-implement-with-ralph-copilot-mirror-regenerate",
+                    "descriptionHtml": "Surfaced by <code>plugins-copilot-cross-engine-audit</code> (f4d63067) — Batch 3 follow-up. The Copilot mirror of <code>implement-with-ralph</code> SKILL.md still carries stale shell-shim guidance from before the v5.46.0 all-Node migration. Operators following the mirror's prose hit dead instructions referring to <code>bash codex-exec.sh</code> etc. Regenerate the mirror via <code>plugins/ralph/scripts/generate-copilot-artifacts.mjs --write</code>, or hand-edit if the generator doesn't cover this file.",
+                    "warnings": [],
+                    "prompts": { "plan": "/plan-with-ralph \"Regenerate the implement-with-ralph Copilot skill mirror to drop stale .sh prose.\n\n## Problem\n\nAudit plugins-copilot-cross-engine-audit (f4d63067) row 'ralph: copilot-skill-mirror-parity' FAIL:\n\n> Stale Copilot mirror prose can mislead operators during migration.\n\nThe v5.46.0 all-Node migration deleted codex-exec.sh + copilot-exec.sh bash shims but the implement-with-ralph Copilot mirror at plugins/ralph/.copilot-plugin/copilot-skills/implement-with-ralph/SKILL.md still references them in prose. Operators copying the mirror's example commands will hit 'no such file or directory'.\n\n## Fix\n\n1. Run plugins/ralph/scripts/generate-copilot-artifacts.mjs --write to regenerate from the canonical source.\n2. If the generator doesn't fully regenerate this mirror (it's flagged as a 'hand-fork' in the v5.46.0 CHANGELOG), hand-edit to drop bash prose and reference the .mjs ports instead.\n3. Verify by grepping the regenerated mirror for 'codex-exec.sh' / 'copilot-exec.sh' / 'bash <plugin>' — should be zero matches.\n4. Add a test or check-script that prevents future drift (similar to the audit's slash-commands-copilot check).\n\n## Files to touch\n\n1. plugins/ralph/.copilot-plugin/copilot-skills/implement-with-ralph/SKILL.md — regenerated.\n2. plugins/ralph/scripts/generate-copilot-artifacts.mjs — if hand-fork pattern needs to change to auto-regenerable.\n3. plugins/ralph/tests/test-copilot-generator.mjs (or similar) — add staleness check.\n4. CHANGELOG entry + v5.46.x patch bump.\n\n## Acceptance\n\n- Regenerated mirror has zero references to .sh shims.\n- generator --check passes without manual fixup.\n- Audit's copilot-skill-mirror-parity FAIL row flips to PASS when re-tested.\n\nMulti-remote push.\"" }
+              }
+        },
+        {
+              "id": "plugins-copilot-cross-engine-audit",
+              "scope": "ralph-overview|crews|ralph-orchestration",
+              "lifecycle": "merged",
+              "status": "ok",
+              "lastTouchedAt": "2026-05-28T15:47:00Z",
+              "mergeCommit": "f4d63067",
               "kanbanCards": [],
               "command": {
                     "name": "plugins-copilot-cross-engine-audit",
