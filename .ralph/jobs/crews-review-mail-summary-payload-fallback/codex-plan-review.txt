@@ -1,0 +1,23 @@
+### Feasibility
+
+No issues found. The referenced files and functions exist in `D:/ai-developer-toolkit/plugins/crews/`, and the core diagnosis matches the current code: `hooks/commands/review-mail.js` reads only `row.summary`, while `hooks/stop.js` puts system-routed summaries only under `payload.summary`.
+
+### Completeness
+
+[Medium] `tests/member-reply-notify.test.js` does not currently exercise `hooks/stop.js`; it manually calls `cfg.appendSystemMailbox(...)`. The plan calls this a “post-stop envelope” formatter integration test, but an implementer could satisfy it by updating the test fixture while leaving the real `stop.js` member-reply call site untested. Add a real stop-hook assertion in `tests/integration/review-flow.test.js` or `tests/integration/send-receive-reply-cycle.test.js` for `row.summary` / `review.entries[0].summary`.
+
+[Medium] AC 8’s stale-version grep is too broad: it includes `plugins/crews/CHANGELOG.md` and `plugins/crews/CLAUDE.md`, which should retain historical `1.7.2` references. The “returns 0 hits modulo expected references” wording is ambiguous. Use a targeted grep over the 5 stamp files plus `tests/version.test.js`, or explicitly exclude docs/history.
+
+### Ordering
+
+No issues found. The plan correctly sequences release/docs after product and test changes, and it notes that the two `hooks/stop.js` edits should be serialized despite being logically independent.
+
+### Simplicity
+
+[Low] US-004 can be simpler and stronger by reusing existing real-flow tests instead of importing `formatReviewMailEntry` into `tests/member-reply-notify.test.js`. `tests/integration/review-flow.test.js` already runs stop, listener delivery, and `review-mail`; adding `equal(review.entries[0].summary, 'finished the task')` would cover the end-to-end path directly.
+
+### Acceptance Criteria Quality
+
+[Medium] AC 12 is not autonomous as written: “Manual repro from Investigation §1” references a section not present in the plan and says the lead performs it post-merge. Either mark it explicitly as a human release check or replace it with an automated scenario using the existing integration harness.
+
+[Low] AC 2 and AC 3 are inspection-only. They are precise enough, but pairing each with automated assertions on produced mailbox/history rows would make the criteria less dependent on human diff review.
