@@ -789,9 +789,10 @@ window.OVERVIEW_DATA = {
         {
               "id": "ralph-exec-help-contract",
               "scope": "ralph-orchestration",
-              "lifecycle": "tracked",
+              "lifecycle": "merged",
               "status": "ok",
-              "lastTouchedAt": "2026-05-28T15:50:00Z",
+              "lastTouchedAt": "2026-05-28T18:13:00Z",
+              "mergeCommit": "d0682c89",
               "kanbanCards": [],
               "command": {
                     "name": "ralph-exec-help-contract",
