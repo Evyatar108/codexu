@@ -103,4 +103,4 @@ Curated high-priority entries:
 - [codexu root CLAUDE.md is gitignored](.agents/memory/feedback_codexu_claude_md_gitignored.md)
 - [Impl members commit to topic branch off main, NOT lead's branch](.agents/memory/feedback_impl_topic_branch_vs_lead_branch.md)
 
-This TOC is a curated subset for fast orientation. See [.agents/memory/MEMORY.md](.agents/memory/MEMORY.md) for the full list.
+This TOC is a curated subset for fast orientation; see [.agents/memory/MEMORY.md](.agents/memory/MEMORY.md) for the full list (17 entries total; 18 files including the MEMORY.md index).
