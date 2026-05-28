@@ -1,0 +1,36 @@
+I’ll read the provided prompt file first, then carry out the requested work end-to-end.
+
+The prompt is too large for a single read, so I’ll inspect it in ranges and then execute the instructions it contains.
+
+I’ll verify the plan’s referenced files and current implementation shape so the review can flag concrete feasibility or completeness issues rather than relying on the plan text alone.
+
+I’ve found a concrete risk in the plan’s assumptions: the current installed/plugin-cache path already has its own `.ralph`, so a walk-up resolver alone can still select the wrong root unless the consumer workspace is passed explicitly. I’ll check the MCP entrypoint shape before finalizing the review.
+
+### Feasibility
+
+- [High] The walk-up fallback does not solve the reported Copilot failure by itself. If Copilot launches from `C:/Users/<user>/.copilot/installed-plugins/_direct/ralph-overview/`, that cache can already contain its own `.ralph/`, so `findRalphAncestor()` would still choose the plugin cache before reaching any consumer workspace. Existing `D:/harness-efforts/codexu/.mcp.json` also has no `env` block, so AC-1/AC-3 depend on regenerating workspace registration, not just the shared resolver.
+
+- [High] AC-7 references `.claude-plugin/marketplace.json` and `.github/plugin/marketplace.json`, but those files do not exist in `D:/ai-developer-toolkit/plugins/ralph-overview/`. The version-bump criterion is impossible as written unless the files are created intentionally or the AC is corrected to the real manifest set.
+
+### Completeness
+
+- [High] The plan does not include a concrete publish/reinstall/cache-refresh step before US-005, yet AC-3 requires testing a scratch Copilot workspace with upgraded v2.4.1. Without explicitly reinstalling the updated plugin and rerunning `overview.init` or otherwise updating `.mcp.json`, the audit can still exercise stale v2.4.0 or stale registration.
+
+- [Medium] `tools/overview-mcp/src/install-server.ts:56-69` has a separate `previewMcp()` implementation that constructs `.mcp.json` without calling `planMcpJson()`. Updating only `scripts/init-consumer.mjs` leaves `install-server --print-only` stale, and existing exact-object tests in `install-server.test.ts` / `init-consumer.test.ts` must be updated for the new `env` block.
+
+- [High] Flipping `.ralph/jobs/plugins-copilot-cross-engine-audit/audit-report.md` from FAIL to PASS conflicts with that job’s audit-only role and the report’s `ralph-overview v2.4.0` section. Better evidence would be a new v2.4.1 follow-up audit/evidence entry, not rewriting the original v2.4.0 failure as passed.
+
+### Ordering
+
+- [High] US-005 is ordered after the source/version bump, but it also depends on an installed v2.4.1 artifact and regenerated consumer MCP config. Add explicit steps between US-004 and US-005 for installing the updated plugin and refreshing the scratch/current workspace `.mcp.json`.
+
+### Simplicity
+
+No issues found.
+
+### Acceptance Criteria Quality
+
+- [High] AC-1 should specify the exact launch path being verified: existing workspace `.mcp.json`, regenerated `.mcp.json` with `env.RALPH_OVERVIEW_REPO_ROOT`, or plugin-manifest MCP discovery. These paths have different behavior, and the current wording lets an implementer pass only the easiest regenerated-config case.
+
+- [Medium] AC-3 should require preserving the old v2.4.0 failure evidence and adding new v2.4.1 evidence, rather than simply flipping the historical audit row.
+
