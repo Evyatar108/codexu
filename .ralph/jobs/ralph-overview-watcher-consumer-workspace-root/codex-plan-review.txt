@@ -1,0 +1,35 @@
+### Feasibility
+
+- [High] The plan does not establish how Copilot gets the consumer repo root. `D:/ai-developer-toolkit/plugins/ralph-overview/.github/plugin/plugin.json` points at plugin-local `.mcp.json`, and that file currently launches `${CLAUDE_PLUGIN_ROOT}/launch.cjs` with no repo env. Updating `scripts/init-consumer.mjs` only affects consumer-generated `.mcp.json`; it does not affect `copilot plugin add` unless the audit path explicitly uses that generated registration. From a plugin-cache `cwd`, env-missing `env -> walk-up -> git -> cwd` still cannot infer the consumer workspace.
+
+- [High] The version-bump target list references files that do not exist: `D:/ai-developer-toolkit/plugins/ralph-overview/.claude-plugin/marketplace.json` and `D:/ai-developer-toolkit/plugins/ralph-overview/.github/plugin/marketplace.json`. AC-7’s “all five manifest files” is therefore not implementable as written.
+
+- [High] `scripts/lib/repo-root.test.mjs` will not be run by the stated verification command. Root `package.json` runs `npm run test --workspaces --if-present`, while `tools/overview-mcp/vitest.config.ts` includes only `src/__tests__/**/*.test.ts` and `tools/overview-viewer/vitest.config.ts` includes only viewer `src/__tests__`. Existing `scripts/lib/*.test.mjs` are outside those globs.
+
+### Completeness
+
+- [High] The plan omits `D:/ai-developer-toolkit/plugins/ralph-overview/.mcp.json`, the static MCP registration used by the plugin manifest. If Copilot consumes that registration, this is the critical integration point for AC-1/AC-3.
+
+- [Medium] `tools/overview-mcp/src/install-server.ts` has its own `previewMcp()` registration builder. The plan updates `scripts/init-consumer.mjs:planMcpJson()` but does not explicitly require the `--print-only` preview path and `tools/overview-mcp/src/__tests__/install-server.test.ts` to include the new env block.
+
+- [Medium] The plan says “ship ralph-overview v2.4.1” but only lists source/docs/version edits. It lacks an explicit publish/install step for the Copilot scratch workspace before flipping codexu audit evidence.
+
+### Ordering
+
+- [High] US-005 depends on an upgraded Copilot-installed plugin, but the preceding cluster ends at version bump/docs. Add a required release/install/cache-refresh step before the codexu audit row can legitimately flip PASS.
+
+- [Medium] US-001 creates tests in `scripts/lib`, but the plan waits until AC-5 to discover they are not wired into the test runner. Test-runner wiring should be part of US-001.
+
+### Simplicity
+
+- [Low] `launch.cjs` already uses `env: { ...process.env, RALPH_OVERVIEW_PLUGIN_ROOT: pluginDir }`, so parent `RALPH_OVERVIEW_REPO_ROOT` and `OVERVIEW_REPO_ROOT` are already passed through. Only add code there if it derives or normalizes a value.
+
+- [Medium] The plan preserves duplicated MCP registration builders in `scripts/init-consumer.mjs` and `tools/overview-mcp/src/install-server.ts`. Extracting a small shared registration helper would reduce drift, which is the same class of bug this plan is fixing.
+
+### Acceptance Criteria Quality
+
+- [High] AC-1 and AC-3 are underspecified for Copilot mode. They must state exactly whether the test uses plugin-local `.mcp.json`, consumer `.mcp.json` from `overview.init`, or a Copilot-supported workspace variable/env mechanism.
+
+- [High] AC-5 claims `npm test --workspaces --if-present` proves the new resolver tests pass, but the current configs do not include `scripts/lib/repo-root.test.mjs`.
+
+- [Medium] AC-7 should name only real files, or say “if present” for marketplace manifests. As written, it requires nonexistent files to report `2.4.1`.

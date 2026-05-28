@@ -1,0 +1,51 @@
+{
+  "clusters": [
+    {
+      "name": "ralph-overview-source-fix",
+      "stories": ["US-001", "US-002", "US-003", "US-004"],
+      "phase": 1,
+      "dependsOn": [],
+      "fileOverlapEvidence": {
+        "sharedFiles": [
+          "D:/ai-developer-toolkit/plugins/ralph-overview/CHANGELOG.md",
+          "D:/ai-developer-toolkit/plugins/ralph-overview/.claude-plugin/plugin.json",
+          "D:/ai-developer-toolkit/plugins/ralph-overview/.github/plugin/plugin.json"
+        ],
+        "exclusiveFiles": [
+          "D:/ai-developer-toolkit/plugins/ralph-overview/scripts/lib/repo-root.mjs",
+          "D:/ai-developer-toolkit/plugins/ralph-overview/scripts/lib/repo-root.d.mts",
+          "D:/ai-developer-toolkit/plugins/ralph-overview/scripts/lib/repo-root.test.mjs",
+          "D:/ai-developer-toolkit/plugins/ralph-overview/tools/overview-mcp/src/context.ts",
+          "D:/ai-developer-toolkit/plugins/ralph-overview/tools/overview-mcp/src/install-server.ts",
+          "D:/ai-developer-toolkit/plugins/ralph-overview/tools/overview-viewer/vite.config.ts",
+          "D:/ai-developer-toolkit/plugins/ralph-overview/scripts/sync-ralph-state.mjs",
+          "D:/ai-developer-toolkit/plugins/ralph-overview/launch.cjs",
+          "D:/ai-developer-toolkit/plugins/ralph-overview/scripts/init-consumer.mjs",
+          "D:/ai-developer-toolkit/plugins/ralph-overview/.claude-plugin/marketplace.json",
+          "D:/ai-developer-toolkit/plugins/ralph-overview/.github/plugin/marketplace.json",
+          "D:/ai-developer-toolkit/.agents/plugins/marketplace.json",
+          "D:/ai-developer-toolkit/plugins/ralph-overview/CLAUDE.md",
+          "D:/ai-developer-toolkit/plugins/ralph-overview/docs/configuration.md"
+        ],
+        "risk": "medium"
+      },
+      "executionModeRationale": "Stories serialize within the cluster: US-002 imports the module that US-001 creates, and US-004 edits the same CHANGELOG and version manifests that US-002 and US-003 also touch. Single-implementer Ralph pass."
+    },
+    {
+      "name": "codexu-audit-flip",
+      "stories": ["US-005"],
+      "phase": 2,
+      "dependsOn": ["ralph-overview-source-fix"],
+      "fileOverlapEvidence": {
+        "sharedFiles": [],
+        "exclusiveFiles": [
+          "D:/harness-efforts/codexu/.ralph/jobs/plugins-copilot-cross-engine-audit/audit-report.md",
+          "D:/harness-efforts/codexu/.ralph/jobs/plugins-copilot-cross-engine-audit/evidence/ralph-overview-owner-path.txt",
+          "D:/harness-efforts/codexu/.ralph/jobs/plugins-copilot-cross-engine-audit/evidence/ralph-overview-owner-snapshot.txt"
+        ],
+        "risk": "low"
+      },
+      "executionModeRationale": "Must run after v2.4.1 ships because AC-3 requires the upgraded plugin to be installed and probed. Single-story cluster, runs serially after the source-fix cluster."
+    }
+  ]
+}

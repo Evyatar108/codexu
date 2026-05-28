@@ -1,0 +1,69 @@
+I'll read the provided prompt file and carry out the requested work.
+
+I’ll inspect the consumer repo references and the local ralph-overview plugin source to ground the research findings.
+
+### Codebase Architecture
+
+`ralph-overview` lives under `D:\ai-developer-toolkit\plugins\ralph-overview`, not directly in codexu. It is a Node >=20 ESM plugin with npm workspaces:
+
+- `scripts\sync-ralph-state.mjs` and `scripts\lib\*.mjs`: Ralph state sync, watcher, config loading, owner-marker lease.
+- `tools\overview-mcp\src\*.ts`: MCP server, watcher supervisor, process management.
+- `tools\overview-viewer\vite.config.ts`: React/Vite viewer config plus dev-server watcher auto-start.
+- `bin\ralph-overview.mjs`: plugin dispatcher for `sync|watch|dev|build|mcp|init`.
+- `launch.cjs`: Copilot/Claude MCP launcher that stages/builds the MCP server into `~\.cache\ralph-overview-mcp\build\<version>\`.
+
+Codexu consumes it through `D:\harness-efforts\codexu\bin\ralph-overview.mjs`, `package.json` scripts, and `.mcp.json`.
+
+### Feature-Relevant Code
+
+The root bug is repo-root detection drifting to the plugin install/cache root.
+
+Key files:
+
+- `scripts\sync-ralph-state.mjs`
+  - `main()` uses `args.repo ? path.resolve(args.repo) : resolveRepoRoot()`.
+  - `resolveRepoRoot()` currently only runs `git rev-parse --show-toplevel` from current cwd.
+- `scripts\lib\watch-ralph-state.mjs`
+  - `start({ repoRoot })` requires caller-supplied repo root.
+  - `getWatcherOwnerPath(repoRoot)` writes `<repoRoot>\.ralph\overview-watcher.owner`.
+- `tools\overview-mcp\src\context.ts`
+  - `buildContext(repoRoot = resolveRepoRoot(process.cwd()))`.
+  - Current `resolveRepoRoot(cwd)` uses git root or cwd, so Copilot launching from plugin cache resolves the plugin/cache as the repo.
+- `tools\overview-mcp\src\watcher-supervisor.ts`
+  - Defaults `ownerPath` from `getWatcherOwnerPath(context.repoRoot)`.
+  - Spawns `bin\ralph-overview.mjs sync --repo <context.repoRoot> --watch`.
+- `tools\overview-viewer\vite.config.ts`
+  - Has another local `resolveRepoRoot()`: `OVERVIEW_REPO_ROOT`, then git root, then cwd.
+  - `ralphStateWatcherPlugin()` defaults watcher repo root through that local helper.
+- `launch.cjs`
+  - Preserves `cwd: process.cwd()` when spawning MCP dist, but Copilot may set cwd to the installed plugin/cache path.
+- `D:\harness-efforts\codexu\bin\ralph-overview.mjs`
+  - Already injects `--repo <consumer git root>` for `pnpm overview`, which protects the Claude/manual path.
+
+### Technical Constraints
+
+`loadConfig({ repoRoot })` requires a repo root and defaults to `<repoRoot>\.ralph\overview-config.json`; if repo root is wrong, config and outputs all point wrong. Missing Ralph subdirs only warn, so wrong-root startup can still proceed far enough to write owner markers/sidecars in plugin cache.
+
+Owner marker semantics are important: the watcher child must atomically claim `<repoRoot>\.ralph\overview-watcher.owner`; the MCP supervisor should not pre-write it. Existing multi-MCP coordination tests depend on `openSync('wx')`, `.claim` files, and passive peer behavior.
+
+There is no existing `scripts\lib\repo-root.mjs`; repo-root logic is duplicated in `sync-ralph-state.mjs`, `context.ts`, `vite.config.ts`, and `install-server.ts`.
+
+### Implementation Suggestions
+
+Add a shared resolver, e.g. `scripts\lib\repo-root.mjs`, with priority:
+
+1. `RALPH_OVERVIEW_REPO_ROOT`, then existing `OVERVIEW_REPO_ROOT`.
+2. Nearest ancestor of `process.cwd()` containing `.ralph\`.
+3. Existing fallback behavior, but only last: git root/cwd.
+
+Then wire it into:
+
+- `sync-ralph-state.mjs`: use resolver when `--repo` is absent.
+- `tools\overview-mcp\src\context.ts`: use resolver for default `buildContext()` root.
+- `tools\overview-viewer\vite.config.ts`: replace local resolver with shared helper.
+- Optionally `launch.cjs`: set `RALPH_OVERVIEW_REPO_ROOT` when it can resolve a consumer `.ralph` from cwd, but MCP context must still be robust without it.
+
+Add tests for env priority, `.ralph` ancestor walking from nested cwd, fallback behavior, and MCP `buildContext()` defaulting to the consumer fixture root. Keep `pnpm overview` covered because codexu’s wrapper already passes `--repo`.
+
+Version bump plugin manifests from `2.4.0` to `2.4.1` in `.claude-plugin\plugin.json` and `.github\plugin\plugin.json`; document the fix in `CHANGELOG.md`.
+

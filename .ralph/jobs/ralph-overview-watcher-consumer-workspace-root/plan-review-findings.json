@@ -1,0 +1,206 @@
+{
+  "planFile": "D:/harness-efforts/codexu/.ralph/jobs/.staging/20260528-161908/draft-plan.md",
+  "repoDir": "D:/harness-efforts/codexu",
+  "reviewCycle": 0,
+  "findings": [
+    {
+      "id": "F-001",
+      "severity": "High",
+      "source": "consensus",
+      "category": "Feasibility",
+      "sectionRef": "Approach > Architecture",
+      "description": "Walk-up resolver alone may not fix Copilot. The plugin install cache directory (C:/Users/<user>/.copilot/installed-plugins/_direct/ralph-overview/) already contains a .ralph/ subdirectory created by the v2.4.0 bug itself, so findRalphAncestor(process.cwd()) starting from the plugin cache will still return the plugin cache rather than walking past it. The plan needs an explicit mechanism for the MCP server to discover the CONSUMER workspace when launched by Copilot from the plugin cache: either (a) an env var Copilot passes (investigate COPILOT_WORKSPACE_FOLDER, MCP_WORKSPACE_ROOT, or similar — see if Copilot docs / D:/ai-developer-toolkit/plugins/crews evidence reveals one), (b) the plugin's own static D:/ai-developer-toolkit/plugins/ralph-overview/.mcp.json (or .copilot-plugin/.mcp.json) carries a cwd/env directive Copilot honors, OR (c) the resolver explicitly REJECTS .ralph/ ancestors detected inside known plugin-cache paths (e.g., paths containing 'installed-plugins/_direct' or matching RALPH_OVERVIEW_PLUGIN_ROOT).",
+      "status": "fixed",
+      "relevantFiles": [
+        "D:/ai-developer-toolkit/plugins/ralph-overview/.mcp.json",
+        "D:/ai-developer-toolkit/plugins/ralph-overview/.copilot-plugin/.mcp.json",
+        "D:/ai-developer-toolkit/plugins/ralph-overview/launch.cjs",
+        "D:/ai-developer-toolkit/plugins/ralph-overview/tools/overview-mcp/src/context.ts"
+      ],
+      "suggestedFix": "Investigate Copilot CLI's MCP launch contract (does it pass workspace cwd/env?). Add resolver guard rejecting .ralph/ ancestors inside RALPH_OVERVIEW_PLUGIN_ROOT or matching install-cache patterns. Update the plugin's static .mcp.json template (if Copilot consumes it) to declare env={RALPH_OVERVIEW_REPO_ROOT:'${workspaceFolder}'} or similar. Rework the plan's resolver-precedence section to call out all three layers and add a 'plugin-cache rejection' priority before walk-up.",
+      "fixedInIteration": 1,
+      "resolution": "Updated the resolver architecture, scope, risks, and AC-4 tests to require verified Copilot workspace-root handling and explicit rejection of plugin-cache .ralph ancestors."
+    },
+    {
+      "id": "F-002",
+      "severity": "High",
+      "source": "consensus",
+      "category": "Feasibility",
+      "sectionRef": "Files to Create/Modify; Acceptance Criteria > AC-7",
+      "description": "AC-7 lists five manifest files to bump but only the two plugin.json files exist; D:/ai-developer-toolkit/plugins/ralph-overview/.claude-plugin/marketplace.json and D:/ai-developer-toolkit/plugins/ralph-overview/.github/plugin/marketplace.json do NOT exist in the plugin directory. The .agents/plugins/marketplace.json in the toolkit root uses source.path and has no version field per plugin entry. AC-7 is not implementable as written.",
+      "status": "fixed",
+      "relevantFiles": [
+        "D:/ai-developer-toolkit/plugins/ralph-overview/.claude-plugin/plugin.json",
+        "D:/ai-developer-toolkit/plugins/ralph-overview/.github/plugin/plugin.json",
+        "D:/ai-developer-toolkit/.claude-plugin/marketplace.json",
+        "D:/ai-developer-toolkit/.github/marketplace.json",
+        "D:/ai-developer-toolkit/.agents/plugins/marketplace.json"
+      ],
+      "suggestedFix": "Run `ls D:/ai-developer-toolkit/plugins/ralph-overview/.claude-plugin/ .github/plugin/` and locate the actual marketplace.json files (likely at the TOOLKIT root, not the plugin subdir). Update AC-7 and the Files to Modify list to name the real files. If the toolkit-root marketplace.json pins ralph-overview's version, bump it there; the plan's expansion to '.agents/plugins/marketplace.json' may be wrong too — verify.",
+      "fixedInIteration": 2,
+      "resolution": "Updated the plan to reference the real toolkit-root marketplace manifests and clarified AC-7's version-bump requirement."
+    },
+    {
+      "id": "F-003",
+      "severity": "High",
+      "source": "consensus",
+      "category": "Completeness",
+      "sectionRef": "Acceptance Criteria > AC-3; Scope; Out of Scope",
+      "description": "AC-3 says to flip the existing audit row in plugins-copilot-cross-engine-audit/audit-report.md from FAIL to PASS, but Codex+Copilot reviewers note the audit is historical to v2.4.0 — rewriting that row destroys evidence of the original bug. The correct artifact is an additive 'v2.4.1 verification' evidence file (e.g., evidence/ralph-overview-owner-path-v2_4_1.txt and a new audit-report section) that documents the post-fix probe result. Also, no concrete capture command is given.",
+      "status": "fixed",
+      "relevantFiles": [
+        "D:/harness-efforts/codexu/.ralph/jobs/plugins-copilot-cross-engine-audit/audit-report.md",
+        "D:/harness-efforts/codexu/.ralph/jobs/plugins-copilot-cross-engine-audit/evidence/"
+      ],
+      "suggestedFix": "Rewrite AC-3 to: 'Add a v2.4.1 follow-up section to audit-report.md (preserving the original FAIL evidence for v2.4.0) AND a new evidence file proving the owner-marker lives under the consumer workspace. Capture via the exact audit probe: `copilot -p \"call overview.watcher_status\" --allow-all --silent --no-custom-instructions --disable-builtin-mcps` run from a scratch workspace. Evidence must include (a) the overview.watcher_status response, (b) the file path of the owner marker, (c) a directory listing showing the marker is NOT in the plugin cache.'",
+      "fixedInIteration": 3,
+      "resolution": "Rewrote AC-3 and related scope/story language so verification adds a v2.4.1 audit section and new evidence file while preserving the original v2.4.0 FAIL evidence."
+    },
+    {
+      "id": "F-004",
+      "severity": "High",
+      "source": "consensus",
+      "category": "Completeness",
+      "sectionRef": "Approach > Implementation Strategy; Files to Create/Modify",
+      "description": "tools/overview-mcp/src/install-server.ts has its own previewMcp() registration builder (around L56-69) that the plan does not list. If the plan only updates scripts/init-consumer.mjs:planMcpJson(), the install-server --print-only path will emit a stale registration. Both builders must carry the new env block, and tools/overview-mcp/src/__tests__/install-server.test.ts must assert the env block.",
+      "status": "fixed",
+      "relevantFiles": [
+        "D:/ai-developer-toolkit/plugins/ralph-overview/tools/overview-mcp/src/install-server.ts",
+        "D:/ai-developer-toolkit/plugins/ralph-overview/tools/overview-mcp/src/__tests__/install-server.test.ts",
+        "D:/ai-developer-toolkit/plugins/ralph-overview/tools/overview-mcp/src/__tests__/init-consumer.test.ts"
+      ],
+      "suggestedFix": "Add install-server.ts:previewMcp() to the Files to Modify list. Update both __tests__/install-server.test.ts and __tests__/init-consumer.test.ts to assert the new env block. Consider extracting a shared registration builder (matches codex's 'simplicity' note about duplication being exactly the kind of drift this plan fixes).",
+      "fixedInIteration": 4,
+      "resolution": "Amended the plan to cover install-server.ts previewMcp(), require env-block assertions in install-server and init-consumer tests, and align scope, ACs, and story ownership."
+    },
+    {
+      "id": "F-005",
+      "severity": "High",
+      "source": "consensus",
+      "category": "Criteria Quality",
+      "sectionRef": "Acceptance Criteria > AC-1, AC-3",
+      "description": "AC-1 and AC-3 do not specify which launch path is being exercised: (a) plugin-local static .mcp.json discovered by Copilot via plugin manifest, (b) consumer workspace .mcp.json freshly regenerated by overview.init, or (c) an existing pre-fix .mcp.json. Each path has different behavior (env block present or absent) and an implementer could pass only the easiest case.",
+      "status": "fixed",
+      "relevantFiles": [
+        "D:/ai-developer-toolkit/plugins/ralph-overview/.mcp.json",
+        "D:/harness-efforts/codexu/.mcp.json",
+        "D:/ai-developer-toolkit/plugins/ralph-overview/.github/plugin/plugin.json"
+      ],
+      "suggestedFix": "Split AC-1 into two sub-ACs: AC-1a — fresh consumer .mcp.json regenerated post-fix carries the env block and the watcher writes to the consumer workspace; AC-1b — pre-fix consumer .mcp.json (no env block, simulating a non-upgraded consumer) still results in the watcher writing to the consumer workspace via the walk-up + plugin-cache-rejection resolver fallback. AC-3 follows the same split: probe must verify BOTH paths.",
+      "fixedInIteration": 5,
+      "resolution": "Split the acceptance criteria so regenerated consumer .mcp.json and no-env pre-fix/static launch paths must both prove the watcher writes to the consumer workspace."
+    },
+    {
+      "id": "F-006",
+      "severity": "High",
+      "source": "codex",
+      "category": "Feasibility",
+      "sectionRef": "Acceptance Criteria > AC-5; Preliminary Story Decomposition > US-001",
+      "description": "AC-5 claims `npm test --workspaces --if-present` proves the new resolver tests pass, but the current vitest configs only include `src/__tests__/**/*.test.ts` (overview-mcp) and viewer src tests. `scripts/lib/repo-root.test.mjs` will NOT be picked up by any existing runner. The plan must add a new vitest config (or extend an existing one), or place the test under a covered glob, or add an npm script that runs `vitest run scripts/lib/repo-root.test.mjs`.",
+      "status": "fixed",
+      "relevantFiles": [
+        "D:/ai-developer-toolkit/plugins/ralph-overview/package.json",
+        "D:/ai-developer-toolkit/plugins/ralph-overview/tools/overview-mcp/vitest.config.ts",
+        "D:/ai-developer-toolkit/plugins/ralph-overview/tools/overview-viewer/vitest.config.ts",
+        "D:/ai-developer-toolkit/plugins/ralph-overview/scripts/sync-ralph-state.test.mjs"
+      ],
+      "suggestedFix": "Inspect how scripts/sync-ralph-state.test.mjs is currently run (it exists and presumably passes). Either (a) add a top-level vitest.config.mjs at the plugin root that includes scripts/lib/**/*.test.mjs, (b) co-locate the new test next to an existing covered test, or (c) add an npm script `test:lib` and call it from CI. Move US-001 acceptance: 'tests run as part of the standard plugin test invocation' from AC-5 into US-001 itself.",
+      "fixedInIteration": 6,
+      "resolution": "Amended the plan so the new repo-root Vitest fixture is wired into the plugin root npm test command via test:lib, and updated AC-5, US-001, and file ownership accordingly."
+    },
+    {
+      "id": "F-007",
+      "severity": "High",
+      "source": "codex",
+      "category": "Completeness",
+      "sectionRef": "Files to Create/Modify",
+      "description": "The plan omits D:/ai-developer-toolkit/plugins/ralph-overview/.mcp.json — the STATIC MCP registration referenced by the plugin manifest. If Copilot consumes this file when installing the plugin, it's the critical integration point for AC-1 (Copilot path). Also relevant: the .copilot-plugin/ directory may contain another mcpServers reference.",
+      "status": "fixed",
+      "relevantFiles": [
+        "D:/ai-developer-toolkit/plugins/ralph-overview/.mcp.json",
+        "D:/ai-developer-toolkit/plugins/ralph-overview/.copilot-plugin/",
+        "D:/ai-developer-toolkit/plugins/ralph-overview/.github/plugin/plugin.json"
+      ],
+      "suggestedFix": "Read D:/ai-developer-toolkit/plugins/ralph-overview/.mcp.json and add it to the Files to Modify list with the same env-block update. Map the discovery flow: plugin.json -> mcpServers field -> static .mcp.json -> Copilot reads and registers. Decide whether to add env={RALPH_OVERVIEW_REPO_ROOT:'${workspaceFolder}'} or rely on Copilot honoring a cwd field (investigate first).",
+      "fixedInIteration": 7,
+      "resolution": "Added the plugin static .mcp.json registration to the plan with the manifest discovery flow and env-block ownership for US-003."
+    },
+    {
+      "id": "F-008",
+      "severity": "High",
+      "source": "consensus",
+      "category": "Ordering",
+      "sectionRef": "Preliminary Story Decomposition; Suggested Decomposition > codexu-audit-flip",
+      "description": "US-005 depends on an installed v2.4.1 plugin in a scratch Copilot workspace, but the source-fix cluster ends at 'commit + push'. There's no explicit publish/install/cache-refresh step. Without it, the audit probe still exercises stale v2.4.0 from Copilot's plugin install cache.",
+      "status": "fixed",
+      "relevantFiles": [],
+      "suggestedFix": "Insert an explicit US-005a 'Publish and reinstall v2.4.1' step BEFORE the audit-row update. Document the exact commands: (a) commit + push toolkit changes to origin, (b) `copilot plugin remove ralph-overview && copilot plugin add <toolkit-path>/plugins/ralph-overview/` (or equivalent), (c) verify the installed cache reflects v2.4.1 via inspecting .claude-plugin/plugin.json. Only then run the audit probe.",
+      "fixedInIteration": 8,
+      "resolution": "Added explicit US-005a publish/reinstall/cache verification before the v2.4.1 audit evidence step."
+    },
+    {
+      "id": "F-009",
+      "severity": "Medium",
+      "source": "claude",
+      "category": "Ordering",
+      "sectionRef": "Preliminary Story Decomposition > Cluster ralph-overview-source-fix",
+      "description": "The cluster's executionModeRationale says stories serialize within the cluster but doesn't explicitly constrain US-002 vs US-003 ordering, only US-001 before US-002. If decompose-plan or Ralph interprets US-002 and US-003 as parallel, they could conflict on CHANGELOG.md or version manifests. US-004 must run last; US-002 and US-003 share no source files but US-004 touches files US-002/US-003 may have committed.",
+      "status": "open",
+      "relevantFiles": [],
+      "suggestedFix": "Make the serial order explicit in the executionModeRationale: 'US-001 → US-002 → US-003 → US-004 in strict serial order. US-004 always runs last to consolidate version+changelog edits. US-002 and US-003 do not share source files but US-004 amends CHANGELOG.md, version manifests, CLAUDE.md, and docs/configuration.md after both have landed.' Also reflect this in suggested-decomposition.json executionModeRationale."
+    },
+    {
+      "id": "F-010",
+      "severity": "Medium",
+      "source": "claude",
+      "category": "Criteria Quality",
+      "sectionRef": "Acceptance Criteria > AC-4",
+      "description": "AC-4 enumerates test scenarios but omits Windows path-normalization assertions. The resolver returns paths via path.join (OS-native separators) but git rev-parse and other sources may return forward slashes. Tests must assert path equality with normalization (e.g., path.resolve both sides) so the suite passes on both POSIX and Windows.",
+      "status": "open",
+      "relevantFiles": [
+        "D:/ai-developer-toolkit/plugins/ralph-overview/scripts/lib/path-utils.mjs"
+      ],
+      "suggestedFix": "Add to AC-4: 'All resolver tests assert path equality using `path.resolve` on both sides. The resolver's contract is that it returns an absolute path with OS-native separators; document this in the .d.mts stub.'"
+    },
+    {
+      "id": "F-011",
+      "severity": "Medium",
+      "source": "claude",
+      "category": "Completeness",
+      "sectionRef": "Approach > Architecture; Files to Modify",
+      "description": "CLAUDE.md update (currently bundled in US-004) is described as 'extending the line on OVERVIEW_REPO_ROOT'. The plan does not give a concrete diff target. The rule should explicitly enumerate the new precedence (RALPH_OVERVIEW_REPO_ROOT > OVERVIEW_REPO_ROOT > walk-up > git > cwd) and reference the shared resolver lib.",
+      "status": "open",
+      "relevantFiles": [
+        "D:/ai-developer-toolkit/plugins/ralph-overview/CLAUDE.md"
+      ],
+      "suggestedFix": "Add to US-004 acceptance: 'CLAUDE.md L78 area updated to: \"Consumer repoRoot flows through the shared resolver scripts/lib/repo-root.mjs: explicit RALPH_OVERVIEW_REPO_ROOT or OVERVIEW_REPO_ROOT env, else the nearest .ralph/ ancestor of process.cwd() (stopping at homedir, rejecting plugin-cache paths), else git toplevel, else process.cwd().\"'"
+    },
+    {
+      "id": "F-012",
+      "severity": "Medium",
+      "source": "codex",
+      "category": "Simplicity",
+      "sectionRef": "Approach > Architecture",
+      "description": "The plan preserves duplicated MCP registration builders in scripts/init-consumer.mjs:planMcpJson() and tools/overview-mcp/src/install-server.ts:previewMcp(). That's the same drift-class bug that caused the four resolveRepoRoot duplications this plan fixes.",
+      "status": "open",
+      "relevantFiles": [
+        "D:/ai-developer-toolkit/plugins/ralph-overview/scripts/init-consumer.mjs",
+        "D:/ai-developer-toolkit/plugins/ralph-overview/tools/overview-mcp/src/install-server.ts"
+      ],
+      "suggestedFix": "Either extract a shared mcp-registration builder into scripts/lib/mcp-registration.mjs (with .d.mts) and have both call sites delegate, OR explicitly call out in the plan that the duplication is accepted for v2.4.1 and create a follow-up task for v2.4.2. Recommend extraction since the diff is small and prevents future drift."
+    },
+    {
+      "id": "F-013",
+      "severity": "Medium",
+      "source": "codex",
+      "category": "Simplicity",
+      "sectionRef": "Files to Create/Modify > launch.cjs",
+      "description": "launch.cjs already spreads `...process.env` into the spawn env, so RALPH_OVERVIEW_REPO_ROOT and OVERVIEW_REPO_ROOT pass through automatically without modification. The plan's claim that launch.cjs needs an env-add is partly wrong — it only needs work if it derives or normalizes a value (e.g., resolving a relative path to absolute, or computing the consumer workspace from a Copilot-specific env var).",
+      "status": "open",
+      "relevantFiles": [
+        "D:/ai-developer-toolkit/plugins/ralph-overview/launch.cjs"
+      ],
+      "suggestedFix": "Either drop the launch.cjs modification from the plan (env passthrough already works) OR clarify that launch.cjs should detect a Copilot-specific workspace env var (e.g., COPILOT_WORKSPACE_FOLDER if it exists) and SET RALPH_OVERVIEW_REPO_ROOT to it before spawning the child. The second option only makes sense if such a var actually exists — research first."
+    }
+  ]
+}

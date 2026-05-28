@@ -1,0 +1,66 @@
+**Codebase Architecture**
+`ralph-overview` source is not in `D:/harness-efforts/codexu`; it lives at `D:/ai-developer-toolkit/plugins/ralph-overview`. Codexu is the consumer workspace with `.ralph/overview-config.json`, `plans/overview-data.js`, generated sidecars, and `.mcp.json`.
+
+The plugin is organized as:
+
+- `scripts/`: ESM Node scripts for sync, watcher, config, sidecar generation.
+- `tools/overview-mcp/`: TypeScript MCP server using `@modelcontextprotocol/sdk`, `zod`, `tsc`, `vitest`.
+- `tools/overview-viewer/`: React 19 + Vite 8 dashboard, with a Vite plugin that can auto-start the Ralph watcher.
+- `bin/ralph-overview.mjs`: consumer-facing dispatcher.
+- `launch.cjs`: MCP launcher used from installed plugin/cache locations; stages/builds MCP server into `~/.cache/ralph-overview-mcp/build/<version>/`.
+- Plugin versions live in `.claude-plugin/plugin.json`, `.github/plugin/plugin.json`, and marketplace indexes, not root `package.json` which stays private `1.0.0`.
+
+**Feature-Relevant Code**
+Root cause is repo-root resolution, not watcher writing. Once the watcher receives the right `repoRoot`, it writes to the right place.
+
+Relevant files:
+
+- `plugins/ralph-overview/launch.cjs`
+  Spawns the MCP server with `cwd: process.cwd()` and only sets `RALPH_OVERVIEW_PLUGIN_ROOT`. In Copilot, `process.cwd()` can be the installed plugin cache, so the MCP server inherits the wrong root.
+
+- `plugins/ralph-overview/tools/overview-mcp/src/context.ts`
+  `buildContext(repoRoot = resolveRepoRoot(process.cwd()))` is the main MCP root decision. `resolveRepoRoot()` only does `git -C cwd rev-parse --show-toplevel`, then falls back to `cwd`. It ignores the documented `OVERVIEW_REPO_ROOT` and does not walk for `.ralph`.
+
+- `plugins/ralph-overview/tools/overview-mcp/src/watcher-supervisor.ts`
+  Uses `getWatcherOwnerPath(context.repoRoot)` and spawns:
+  `node <pluginRoot>/bin/ralph-overview.mjs sync --repo <context.repoRoot> --watch`.
+  This is correct if `context.repoRoot` is correct.
+
+- `plugins/ralph-overview/scripts/lib/watch-ralph-state.mjs`
+  `getWatcherOwnerPath(repoRoot)` returns `<repoRoot>/.ralph/overview-watcher.owner`; `start()` requires a repoRoot and writes the owner marker there.
+
+- `plugins/ralph-overview/scripts/sync-ralph-state.mjs`
+  CLI fallback root detection is duplicated: `args.repo ? path.resolve(args.repo) : resolveRepoRoot()`, and `resolveRepoRoot()` only uses git.
+
+- `plugins/ralph-overview/tools/overview-viewer/vite.config.ts`
+  Has another duplicated resolver: `OVERVIEW_REPO_ROOT` → git toplevel → `process.cwd()`. Needs the same priority order for dev-server watcher autostart.
+
+- `plugins/ralph-overview/scripts/init-consumer.mjs`
+  `planMcpJson()` writes `.mcp.json` without any explicit repo-root env or `--repo` argument. If a host launches MCP processes from plugin cwd, generated registrations do not protect the consumer root.
+
+- Tests to extend:
+  `tools/overview-mcp/src/__tests__/watcher-supervisor.test.ts`, `tools/overview-mcp/src/__tests__/init-consumer.test.ts`, add a focused context/root resolver test, plus script-level tests near `scripts/lib/*test.mjs`.
+
+**Technical Constraints**
+The repo already treats `repoRoot` and `pluginRoot` as separate load-bearing concepts. `pluginRoot` is resolved via `RALPH_OVERVIEW_PLUGIN_ROOT`; `repoRoot` should not be inferred from plugin location except as last resort.
+
+Docs already claim MCP reads `OVERVIEW_REPO_ROOT`, but `context.ts` does not. Existing code uses `OVERVIEW_REPO_ROOT`; the requested `RALPH_OVERVIEW_REPO_ROOT` should be added as an alias rather than replacing it.
+
+If TypeScript imports a new `.mjs` helper from `tools/overview-mcp/src`, add a matching `.d.mts` declaration.
+
+The audit row name is stale: v2.4.0 no longer exposes `overview.dev_server.start`; MCP boot now auto-starts the watcher and `overview.watcher_status` verifies it.
+
+Version bump should update `.claude-plugin/plugin.json`, `.github/plugin/plugin.json`, `.claude-plugin/marketplace.json`, `.github/plugin/marketplace.json`, `.agents/plugins/marketplace.json`, and `CHANGELOG.md` to `2.4.1`.
+
+**Implementation Suggestions**
+Create a shared resolver, likely `scripts/lib/repo-root.mjs`, with tests for AC-4:
+
+1. Explicit env wins: `RALPH_OVERVIEW_REPO_ROOT`, then existing `OVERVIEW_REPO_ROOT`, optionally `OVERVIEW_MCP_REPO_ROOT` for current test drift.
+2. Walk upward from `cwd` until a directory containing `.ralph/` is found.
+3. Fall back to current behavior/plugin install root only last.
+
+Then wire it into `context.ts`, `sync-ralph-state.mjs`, and `vite.config.ts`.
+
+For Copilot specifically, root resolution alone may not be enough if Copilot starts `launch.cjs` with cwd already set to the plugin cache. Update `launch.cjs` and generated `.mcp.json` to carry an explicit repo root, preferably by adding `--repo <consumerRoot>` or env in `scripts/init-consumer.mjs`. `launch.cjs` should parse that value, set both `RALPH_OVERVIEW_REPO_ROOT` and `OVERVIEW_REPO_ROOT`, and spawn the MCP child with `cwd` set to the resolved consumer root.
+
+Regression checks: `npm test --workspace=tools/overview-mcp`, targeted viewer watcher tests, `npm run typecheck --workspaces --if-present`, then reinstall/clear Copilot plugin cache and rerun the audit probe.
