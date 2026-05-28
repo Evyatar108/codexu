@@ -1,0 +1,122 @@
+[
+  {
+    "id": "F-001",
+    "severity": "critical",
+    "source": "consensus",
+    "category": "feasibility",
+    "section": "Cross-cutting AC + Implementation Strategy",
+    "summary": "Plan mandated pushes without operator approval; codexu AGENTS.md requires asking",
+    "status": "fixed",
+    "resolution": "Implementation Strategy now requires preparing push commands and surfacing them in kind=done; pushes await operator approval. Cross-cutting AC updated accordingly."
+  },
+  {
+    "id": "F-002",
+    "severity": "critical",
+    "source": "codex",
+    "category": "feasibility",
+    "section": "Implementation Strategy",
+    "summary": "git worktree -B can reset existing branch pointer",
+    "status": "fixed",
+    "resolution": "Switched to `-b` off `origin/main` with branch-existence preflight; impl halts kind=question on collision."
+  },
+  {
+    "id": "F-003",
+    "severity": "high",
+    "source": "consensus",
+    "category": "completeness",
+    "section": "US-004 follow-ups",
+    "summary": "follow-ups.md omitted CLAUDE.md stale prose",
+    "status": "fixed",
+    "resolution": "Added `ralph-claude-stale-sh-prose-cleanup` follow-up section; AC requires fresh git grep enumeration."
+  },
+  {
+    "id": "F-004",
+    "severity": "high",
+    "source": "claude",
+    "category": "feasibility",
+    "section": "Overview line 7 + CHANGELOG citation",
+    "summary": "Audit SHA f4d63067 not findable in ai-developer-toolkit",
+    "status": "fixed",
+    "resolution": "Replaced SHA with audit-report.md path in Overview and in CHANGELOG-bullet content."
+  },
+  {
+    "id": "F-005",
+    "severity": "medium",
+    "source": "consensus",
+    "category": "acceptance-criteria-quality",
+    "section": "Files to Modify vs AC US-001",
+    "summary": "'full path list' vs 'at minimum' CHANGELOG scope conflict",
+    "status": "fixed",
+    "resolution": "Bullet text names codex-exec.sh + copilot-exec.sh explicitly; cross-references line-7 bullet for the nine other Phase 2/3 shims; no path-list duplication."
+  },
+  {
+    "id": "F-006",
+    "severity": "medium",
+    "source": "consensus",
+    "category": "acceptance-criteria-quality",
+    "section": "US-004 / Open Q #3",
+    "summary": "follow-ups.md format unresolved",
+    "status": "fixed",
+    "resolution": "Explicit markdown schema added (Summary / Scope / Cross-reference / Suggested seed); AC requires this exact schema."
+  },
+  {
+    "id": "F-007",
+    "severity": "medium",
+    "source": "claude",
+    "category": "acceptance-criteria-quality",
+    "section": "AC US-001 + Open Q #2",
+    "summary": "CHANGELOG format flexibility (subsection vs bullet)",
+    "status": "fixed",
+    "resolution": "Committed to bold-led top bullet; matches established v5.36-v5.45 style; subsection alternative removed from AC and Open Questions."
+  },
+  {
+    "id": "F-008",
+    "severity": "medium",
+    "source": "codex",
+    "category": "completeness",
+    "section": "AC US-003 caller-sweep",
+    "summary": "Findings-table boundary unclear (noisy or under-specified)",
+    "status": "fixed",
+    "resolution": "Added explicit EXCLUDE list (CHANGELOG, memory feedback, job artifacts, fixtures, generated sidecars, test mocks) and INCLUDE list (skills, agents, schemas, app scripts, hand-edited docs, roadmap)."
+  },
+  {
+    "id": "F-009",
+    "severity": "medium",
+    "source": "codex",
+    "category": "simplicity",
+    "section": "US-002 header style",
+    "summary": "`//` top-of-file comment inconsistent with existing JSDoc",
+    "status": "fixed",
+    "resolution": "US-002 now extends the existing JSDoc header with an `@see` line; no separate `//` comment prepended."
+  },
+  {
+    "id": "F-010",
+    "severity": "medium",
+    "source": "codex",
+    "category": "acceptance-criteria-quality",
+    "section": "Open Q #1",
+    "summary": "Version-bump open while AC require no bump",
+    "status": "fixed",
+    "resolution": "Resolved: standalone, no version bump. Help-contract bundling out of scope; that PR owns its own bump if shipped."
+  },
+  {
+    "id": "F-011",
+    "severity": "medium",
+    "source": "copilot",
+    "category": "ordering",
+    "section": "Implementation Strategy",
+    "summary": "Worktree branched from possibly-stale local main",
+    "status": "fixed",
+    "resolution": "Added fetch + ff-only of local main from origin/main; worktree branches from `origin/main`."
+  },
+  {
+    "id": "F-012",
+    "severity": "medium",
+    "source": "claude",
+    "category": "criteria-quality",
+    "section": "Cross-cutting AC",
+    "summary": "'Working off current main' not elevated to AC",
+    "status": "fixed",
+    "resolution": "Added as first cross-cutting AC: fetch + ff + verification SHA match before any worktree-add."
+  }
+]

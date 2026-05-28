@@ -1,0 +1,29 @@
+### Feasibility
+
+[Critical] The plan’s cross-cutting acceptance criteria require pushing topic branches to remotes, including both `origin` and `work` in `D:/ai-developer-toolkit`. That conflicts with the repo instruction in `D:/harness-efforts/codexu/AGENTS.md` to ask before pushing to remotes. Amend the plan to require “prepare push commands and request operator approval before pushing,” or explicitly record approval before `/implement-with-ralph`.
+
+[Critical] The worktree command uses `git worktree add ... -B ralph/ralph-exec-sh-wrapper-removal-changelog main`. `-B` can reset an existing branch pointer if the topic branch already exists. That violates the repo’s non-destructive worktree rules. Use a preflight `git branch --list ralph/...` check and then `git worktree add -b ralph/... main`, or require the operator to resolve an existing branch.
+
+[Low] The referenced files mostly exist and match the plan: `D:/ai-developer-toolkit/plugins/ralph/CHANGELOG.md`, `src/codex-exec.mjs`, `src/copilot-exec.mjs`; `plugins/ralph/README.md` is absent; remotes are `origin` and `work` in `D:/ai-developer-toolkit`, and only `origin` in codexu.
+
+### Completeness
+
+[High] US-004’s follow-up list omits known stale prose in `D:/ai-developer-toolkit/plugins/ralph/CLAUDE.md`. `git grep` shows many stale `codex-exec.sh` / `copilot-exec.sh` references there, including active-sounding sections around lines 204, 205, 671, 672, 789, 790, 806-809, 860, 862, and 887. The plan says `CLAUDE.md` stale sections are deferred, but `follow-ups.md` only lists Copilot skill mirrors, `skills/*`, `schemas/prd-schema.json`, and codexu roadmap/overview files. Add a `ralph-claude-stale-sh-prose-cleanup` follow-up or explicitly classify the stale `CLAUDE.md` matches as historical and non-actionable.
+
+[Medium] The caller sweep acceptance says the findings table “covers all matches,” but the raw `git grep` surface includes generated or historical artifacts such as `plugins/ralph/tests/fixtures/regression-smoke-phase-4/pre-flight-caller-surface.txt`, `plans/overview-snapshot.json`, `plans/overview.html`, and `.ralph/job-groups/.../staging/diff.txt`. The plan needs an explicit include/exclude list for generated sidecars and baseline fixtures, otherwise US-003 is either noisy or under-specified.
+
+[Medium] The CHANGELOG requirements conflict: “full path list of removed shims” is required in the file-modification section, but the acceptance criterion only requires `plugins/ralph/codex-exec.sh` and `plugins/ralph/copilot-exec.sh` “at minimum.” Pick one. If this is a v5.46.0 breaking-change block for all eleven deleted shims, require all eleven paths.
+
+### Ordering
+
+No issues found.
+
+### Simplicity
+
+[Medium] Adding top-of-file `// BREAKING CHANGE` comments to `src/codex-exec.mjs` and `src/copilot-exec.mjs` is a documentation pointer inside non-deprecated runtime code. The plan itself notes the style mismatch. A simpler, lower-drift approach is to keep the prominent CHANGELOG block plus caller-sweep artifact, or fold the note into the existing opening JSDoc rather than prepend a separate comment.
+
+### Acceptance Criteria Quality
+
+[Medium] `follow-ups.md` is required to be in “a format the bookkeeper can copy into plans/overview-data.js,” while Open Question 3 leaves markdown vs JSON unresolved. For autonomous implementation, specify the exact markdown fields expected, using the precedent in `.ralph/jobs/ralph-overview-copilot-mirror/deferred-us008-followup.md`.
+
+[Medium] The version-bump question is unresolved while the acceptance criteria require no version bump. If bundling with `ralph-exec-help-contract` remains possible, the plan should split that into a separate operator decision before implementation, not leave it open during execution.

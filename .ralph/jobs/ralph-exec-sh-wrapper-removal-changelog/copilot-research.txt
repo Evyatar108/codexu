@@ -1,0 +1,39 @@
+I’ll read the referenced prompt file first, then carry out the requested work from it.
+
+I’ll inspect the Ralph plugin files and sweep both repositories for shim references so the research report can cite concrete paths.
+
+The first sweep was too broad for the job history directories, so I’m narrowing it to the requested surfaces and the Ralph plugin structure.
+
+### Codebase Architecture
+
+`codexu` is a pnpm monorepo (`package.json`, `packages/*`, `plans/*`) that also tracks Ralph job artifacts under `.ralph/jobs/*`. The relevant implementation target is the sibling repo `D:\ai-developer-toolkit`, specifically the skills-only `plugins/ralph` plugin. Ralph v5.46.0 is mostly Node ESM now: runtime entrypoints live under `plugins/ralph/src/*.mjs`, utility CLIs under `plugins/ralph/scripts/*.mjs`, tests under `plugins/ralph/tests/`, and plugin docs/state in `CHANGELOG.md`, `CLAUDE.md`, `skills/`, `agents/`, and `.copilot-plugin/`.
+
+### Feature-Relevant Code
+
+Key files:
+
+- `D:\ai-developer-toolkit\plugins\ralph\CHANGELOG.md` — v5.46.0 already has a “Breaking change advisory” bullet, but not a clearly labeled `BREAKING CHANGE` subsection. Lines 5-24 are the target area.
+- `D:\ai-developer-toolkit\plugins\ralph\src\codex-exec.mjs` and `src\copilot-exec.mjs` — Node replacement wrappers. Header comments describe Phase 3 porting contracts but do not point to the v5.46.0 breaking-change note.
+- `src\ralph.mjs:978-994` and `src\review-loop.mjs:838-852,1068-1084` — default to `src/codex-exec.mjs` / `src/copilot-exec.mjs`; `engineSpawnCommand()` runs `.mjs` via `node`, otherwise via `bash`, preserving `.sh` env-override stubs.
+- `plugins\ralph\CLAUDE.md:20-63` and `docs\copilot-quickstart.md:14` — already document the all-Node runtime surface.
+- No `plugins\ralph\README.md` exists, so the optional README note should probably be skipped unless intentionally creating a new root README.
+
+Caller sweep findings:
+
+- No `codex-exec.sh` or `copilot-exec.sh` files remain under `plugins\ralph`.
+- Other `ai-developer-toolkit` plugins: only `plugins\crews\CLAUDE.md:657`, a historical v1.3.2 review note; not an active caller.
+- Ralph plugin stale prose remains in `skills\review-plan-with-ralph\SKILL.md:9-11`, `skills\multi-model-investigate\SKILL.md:146`, `skills\implement-with-ralph\SKILL.md:1621-1640`, and mirrored `.copilot-plugin` files. Commands nearby generally use `node ...src/*.mjs`; these are docs/prose issues, not active path invocations.
+- `codexu` has historical/backlog references in `plans\codexu-roadmap.md`, `plans\overview-data.js`, `.agents\memory\feedback_codex_exec_v545_windows_spawn.md`, and old `.ralph/jobs/*` artifacts. The only concrete failed caller evidence is already captured in `.ralph\jobs\plugins-copilot-cross-engine-audit\audit-report.md:87-95`, where `bash .../codex-exec.sh` and `bash .../copilot-exec.sh` failed and direct `node src/*.mjs` succeeded.
+
+### Technical Constraints
+
+The migration alternative must be explicit and exact: `node plugins/ralph/src/codex-exec.mjs ...` and `node plugins/ralph/src/copilot-exec.mjs ...`. Env overrides remain valid only because `CODEX_EXEC_SCRIPT` / `COPILOT_EXEC_SCRIPT` are extension-detected; `.sh` override stubs still run through `bash`, but deleted default shim paths do not exist.
+
+If touching generated/mirrored skill prose, update `.copilot-plugin` mirrors in lockstep or run/check `scripts/check-copilot-parity.mjs`.
+
+### Implementation Suggestions
+
+Promote the existing v5.46.0 CHANGELOG bullet into `### BREAKING CHANGE: codex-exec.sh and copilot-exec.sh shims removed`, listing both removed paths, direct Node replacements, and the hermetic-test env-override exception. Add a one-line header note to `src/codex-exec.mjs` and preferably `src/copilot-exec.mjs` for symmetry.
+
+Create `.ralph/jobs/ralph-exec-sh-wrapper-removal-changelog/caller-sweep.md` with the exact grep commands and categorized findings. Suggested follow-ups: update stale Ralph skill/mirror prose, update codexu backlog text that says `codex-exec.sh` remains in tree, and supersede the v5.45 Windows workaround memory.
+

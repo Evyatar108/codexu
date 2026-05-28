@@ -1,0 +1,75 @@
+### Codebase Architecture
+
+`D:\harness-efforts\codexu` is a pnpm monorepo fork of `slopus/happy`, with TypeScript/React Native/Node packages under `packages/`, orchestration/docs under `plans/`, `.ralph/jobs/`, `tasks/`, and repo-specific guidance in `AGENTS.md` plus `docs/fork-notes.md`.
+
+The directly affected implementation lives in the sibling repo `D:\ai-developer-toolkit`, specifically `plugins/ralph/`. Ralph is a plugin-style Node ESM codebase, not a package-managed app. Key structure:
+
+- `plugins/ralph/src/*.mjs`: runtime Node ESM entrypoints and helpers.
+- `plugins/ralph/scripts/*.mjs`: auxiliary Node scripts.
+- `plugins/ralph/skills/**/SKILL.md`, `agents/*.md`, `.copilot-plugin/**`: Claude/Copilot-facing orchestration prose.
+- `plugins/ralph/tests/`: mix of `node:test` `.mjs` tests and surviving bash tests.
+- `plugins/ralph/.claude-plugin/plugin.json`: plugin manifest, currently `5.46.0`.
+- `plugins/ralph/CHANGELOG.md` and `CLAUDE.md`: main release notes and maintainer guidance.
+
+### Feature-Relevant Code
+
+Primary touch points:
+
+- `D:/ai-developer-toolkit/plugins/ralph/CHANGELOG.md`
+  - v5.46.0 already says `.sh` shims were deleted.
+  - It also already has a bullet titled “Breaking change advisory”, but it is buried as a normal bullet. The requested change should promote this into a clear `BREAKING CHANGE` subsection near the shim-removal bullet.
+- `D:/ai-developer-toolkit/plugins/ralph/src/codex-exec.mjs`
+  - Header currently describes the Phase 3 porting contract only. Add the requested one-line note pointing to the v5.46.0 breaking-change advisory.
+- `D:/ai-developer-toolkit/plugins/ralph/src/copilot-exec.mjs`
+  - Same conceptual surface, though not listed as required to touch.
+- `D:/ai-developer-toolkit/plugins/ralph/src/ralph.mjs`
+  - `resolveEngineScript()` defaults to `src/<engine>-exec.mjs`.
+  - `engineSpawnCommand()` runs `node` for `.mjs`, `bash` otherwise, preserving `CODEX_EXEC_SCRIPT` / `COPILOT_EXEC_SCRIPT` test stubs.
+- `D:/ai-developer-toolkit/plugins/ralph/src/review-loop.mjs`
+  - Same `.mjs` default and extension-detected env override pattern.
+- `D:/ai-developer-toolkit/plugins/ralph/CLAUDE.md`
+  - Already documents v5.46.0 “zero `.sh` at runtime”, but still contains older stale prose later in the file.
+- `D:/ai-developer-toolkit/plugins/ralph/docs/copilot-quickstart.md`
+  - Already says Node 20+ and no `.sh` entry shims remain.
+- `D:/ai-developer-toolkit/plugins/ralph/README.md`
+  - Does not exist. Optional README migration notes would require creating a new file or choosing an existing doc instead.
+
+Caller-sweep findings worth classifying:
+
+- Codexu tracked search found many references in `plans/codexu-roadmap.md`, `plans/overview-data.js`, `plans/overview-snapshot.json`, `plans/overview.html`, `plans/parallel-assignments.md`; these are roadmap/generated planning prose, not active shell callers.
+- Tracked `.ralph/jobs/*/plan.md` hits include `plugins-copilot-cross-engine-audit/plan.md`, which still described running `bash .../codex-exec.sh` and `copilot-exec.sh`; this is historical job-plan evidence, not live code.
+- Toolkit other-plugin search found `plugins/crews/CLAUDE.md:657`, a historical changelog sentence mentioning 3-way review via Ralph shims.
+- Internal Ralph search still finds active/stale prose in:
+  - `plugins/ralph/.copilot-plugin/copilot-skills/implement-with-ralph/SKILL.md:1662`
+  - `plugins/ralph/.copilot-plugin/copilot-skills/multi-model-investigate/SKILL.md:146`
+  - `plugins/ralph/schemas/prd-schema.json:21,27`
+  - later historical/stale sections of `plugins/ralph/CLAUDE.md`
+- Test-created `codex-exec.sh` / `copilot-exec.sh` stubs under mock dirs are expected and should not be filed as breaking callers.
+
+### Technical Constraints
+
+- Runtime is now Node ESM. Normal migration target is:
+  - `node plugins/ralph/src/codex-exec.mjs ...`
+  - `node plugins/ralph/src/copilot-exec.mjs ...`
+- Hermetic test env overrides remain valid:
+  - `CODEX_EXEC_SCRIPT=/path/to/stub-codex.sh`
+  - `COPILOT_EXEC_SCRIPT=/path/to/stub-copilot.sh`
+  - Ralph detects extension and runs `.sh` overrides via bash.
+- `tools/ralph.js` intentionally remains narrow (`--help`, `--version`) and should not become the migration entrypoint.
+- No version bump is needed for doc-only work. If combined with a behavioral `--help` contract fix, version bumping would need the plugin manifests/indexes kept in sync.
+- The work spans two repos: codexu for the audit report, ai-developer-toolkit for Ralph docs/code comments. Both worktrees are currently dirty, so implementation must avoid overwriting unrelated changes.
+- `rg` was unavailable in this shell; `git grep` works well for tracked audit scopes.
+
+### Implementation Suggestions
+
+Use a small doc-first patch:
+
+1. In `plugins/ralph/CHANGELOG.md`, replace or move the existing v5.46.0 shim-removal/advisory bullets into a clear subsection such as `### BREAKING CHANGE: Bash engine shims removed`.
+2. Explicitly list:
+   - `plugins/ralph/codex-exec.sh`
+   - `plugins/ralph/copilot-exec.sh`
+   - migration alternatives using `node plugins/ralph/src/<name>.mjs ...`
+   - env-stub exception for `CODEX_EXEC_SCRIPT` / `COPILOT_EXEC_SCRIPT`.
+3. Add one line to `src/codex-exec.mjs` header pointing to the v5.46.0 breaking-change advisory.
+4. Create `.ralph/jobs/ralph-exec-sh-wrapper-removal-changelog/caller-sweep.md` in codexu with exact commands and findings.
+5. File follow-ups for genuine active-prose callers, especially the stale Ralph Copilot skill/schema references, rather than treating historical roadmap/changelog mentions as runtime consumers.
