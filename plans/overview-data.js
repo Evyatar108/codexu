@@ -709,6 +709,25 @@ window.OVERVIEW_DATA = {
               }
         },
         {
+              "id": "ralph-rubric-fixture-drift-3-tests",
+              "scope": "ralph-orchestration",
+              "lifecycle": "tracked",
+              "status": "ok",
+              "lastTouchedAt": "2026-05-28T18:10:00Z",
+              "kanbanCards": [],
+              "command": {
+                    "name": "ralph-rubric-fixture-drift-3-tests",
+                    "descriptionHtml": "Surfaced by <code>impl-ralph-exec-help-contract</code> during Phase 5a smoke-check verification on ai-developer-toolkit main (<code>b2e4913d</code>). Three pre-existing test failures exist on origin/main without any of today's Batch 3 changes — all rooted in the same rubric-fixture drift: <code>codex-exec-stdin.txt</code> fixture (and dependent regression-smoke fixtures) no longer match the current <code>docs/severity-rubric.md</code>. Affected tests: <code>test-codex-exec.mjs::'mixed body assembly pins assembled stdin byte shape'</code>, <code>test-regression-smoke-phase-3.mjs</code>, <code>test-regression-smoke-phase-4.mjs</code>. Regenerate the fixtures from the current rubric, OR back the rubric off to match the fixtures.",
+                    "warnings": [
+                          {
+                                "className": "cmd-warn",
+                                "html": "⚠️ Test failures masquerade as 'pre-existing baseline noise' which causes future Phase 5a reviewers to spend cycles disentangling regression-from-baseline. Fix soon to keep the green-baseline assertion meaningful."
+                          }
+                    ],
+                    "prompts": { "plan": "/plan-with-ralph \"Fix the 3 pre-existing test failures on ralph plugin's ai-developer-toolkit main caused by rubric-fixture drift.\n\n## Problem\n\nThe impl-ralph-exec-help-contract member (Batch 3 Round 1) flagged 3 pre-existing test failures on ai-developer-toolkit origin/main b2e4913d:\n- plugins/ralph/tests/test-codex-exec.mjs::'mixed body assembly pins assembled stdin byte shape' — codex-exec-stdin.txt fixture stale vs current docs/severity-rubric.md.\n- plugins/ralph/tests/test-regression-smoke-phase-3.mjs — same root cause.\n- plugins/ralph/tests/test-regression-smoke-phase-4.mjs — same root cause.\n\nThe failures are unrelated to today's --help fix but they pollute the test-baseline assertion ('tests remain green'). Future Phase 5a reviewers will keep wasting cycles confirming the failures are pre-existing.\n\n## Investigation step (mandatory before fix)\n\nDetermine which side of the drift is canonical:\n- Read docs/severity-rubric.md current state.\n- Read codex-exec-stdin.txt fixture.\n- Run the failing tests + capture the actual diff between expected and observed.\n- Decide: regenerate fixture from rubric, OR roll rubric back to match the fixture (likely the former — rubric is the source of truth).\n\n## Fix\n\nIf the rubric is canonical:\n1. Run whatever fixture-generation script the plugin uses (search scripts/ for codex-exec-stdin generator).\n2. If no generator, hand-update the fixture to match the current rubric's byte-shape.\n3. Re-run the 3 failing tests + adjacent tests to confirm no regression.\n4. Verify regression-smoke-phase-3 and -phase-4 also pass after the fixture update (they cite the same root cause so a single fixture update should fix all 3).\n\nIf the rubric drifted accidentally:\n1. Identify which rubric edit broke fixture parity.\n2. Decide whether the rubric edit was intentional (then update fixtures) or accidental (then revert).\n\n## Files to touch\n\nLikely:\n- plugins/ralph/tests/fixtures/codex-exec-stdin.txt — regenerated.\n- plugins/ralph/docs/severity-rubric.md — possibly amended.\n- plugins/ralph/tests/fixtures/regression-smoke-phase-*/ — possibly regenerated.\n\n## Acceptance\n\n- All 3 named tests pass on a fresh checkout of main.\n- No new test failures introduced.\n- CHANGELOG entry noting the fixture-baseline restoration.\n\nVersion bump: ralph v5.46.2 patch (test-only fix). Local main merge + push to both remotes per operator workflow.\"" }
+              }
+        },
+        {
               "id": "agent-memory-repo-migration",
               "scope": "codexu|bookkeeping",
               "lifecycle": "merged",
