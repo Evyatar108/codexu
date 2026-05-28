@@ -1,0 +1,81 @@
+## Codebase Architecture
+
+`D:/ai-developer-toolkit/plugins/crews` is a pure Node.js CommonJS plugin. There is no plugin-local `package.json`; tests run through the custom runner at `plugins/crews/tests/run.js`, not `npm test`.
+
+Key structure:
+
+- `hooks/*.js`: engine hook entrypoints, especially [stop.js](D:/ai-developer-toolkit/plugins/crews/hooks/stop.js).
+- `hooks/commands/*.js`: slash/CLI command handlers, including [review-mail.js](D:/ai-developer-toolkit/plugins/crews/hooks/commands/review-mail.js).
+- `hooks/mailbox.js`: mailbox/outbox/history primitives, re-exported through `hooks/config.js`.
+- `tools/*.js` and `tools/crews.js`: CLI shims/dispatcher.
+- `tests/*.test.js` and `tests/integration/*.test.js`: direct unit-ish tests plus scenario harness in `tests/integration/lib/scenario.js`.
+- State model is file-based under `.crews/crews/<crew>/members|leads/<actor>/`, with `mailbox.json`, `mailbox-history.jsonl`, `outbox.jsonl`, manifests, and send history.
+
+## Feature-Relevant Code
+
+The read bug is in [review-mail.js](D:/ai-developer-toolkit/plugins/crews/hooks/commands/review-mail.js): `formatReviewMailEntry()` currently returns:
+
+```js
+summary: row && row.summary !== undefined ? row.summary : null,
+```
+
+This ignores `row.payload.summary`.
+
+The write-side asymmetry is in [stop.js](D:/ai-developer-toolkit/plugins/crews/hooks/stop.js):
+
+- member reply path around `appendSystemMailbox(... { kind: tags.kind, message, payload: { ... summary: effectiveSummary } } ...)`
+- proactive report path around `appendSystemMailbox(... { kind: tags.kind, message, payload } ...)`
+
+[mailbox.js](D:/ai-developer-toolkit/plugins/crews/hooks/mailbox.js) preserves arbitrary envelope fields passed to `appendSystemMailbox()`, then `consumeMailbox()` copies the envelope into `mailbox-history.jsonl` with `seq`, `receivedAt`, `consumedAt`, and `via`. So the correct write-side integration point is the two `stop.js` call sites, not `mailbox.js`.
+
+Note: `D:/ai-developer-toolkit/plugins/crews/hooks/lib/inbox-history.js` does not exist in this checkout. The relevant implementation is `hooks/mailbox.js`.
+
+Relevant tests:
+
+- [review-mail-command.test.js](D:/ai-developer-toolkit/plugins/crews/tests/review-mail-command.test.js) already has a cross-actor system-routed fixture with `payload.summary` but does not assert `entry.summary`.
+- [member-reply-notify.test.js](D:/ai-developer-toolkit/plugins/crews/tests/member-reply-notify.test.js) asserts `note.payload.summary` only.
+- [review-flow.test.js](D:/ai-developer-toolkit/plugins/crews/tests/integration/review-flow.test.js) and [send-receive-reply-cycle.test.js](D:/ai-developer-toolkit/plugins/crews/tests/integration/send-receive-reply-cycle.test.js) already exercise real Stop-hook `member-reply` routing.
+- [proactive-report-progress-tail.test.js](D:/ai-developer-toolkit/plugins/crews/tests/integration/proactive-report-progress-tail.test.js) and [cli-spawn-proactive-report.test.js](D:/ai-developer-toolkit/plugins/crews/tests/integration/cli-spawn-proactive-report.test.js) cover proactive reports.
+
+Docs grep found `review-mail` schema text in [README.md](D:/ai-developer-toolkit/plugins/crews/README.md), especially the Mailboxes section. No docs currently mention `payload.summary`.
+
+Release/version touchpoints:
+
+- `plugins/crews/.claude-plugin/plugin.json`
+- `plugins/crews/.github/plugin/plugin.json`
+- `.claude-plugin/marketplace.json`
+- `.github/plugin/marketplace.json`
+- `.agents/plugins/marketplace.json`
+- plus `plugins/crews/tests/version.test.js`
+
+Use `node plugins/crews/scripts/bump-version.js 1.7.3` from `D:/ai-developer-toolkit`.
+
+## Technical Constraints
+
+Choose Option A: ship read-path fallback plus write-side mirror together as v1.7.3. It is backward-compatible, fixes historical rows, and makes future system-routed rows match direct-send shape.
+
+Use `row.summary ?? row.payload?.summary`, not `||`, so explicit empty string remains explicit.
+
+Keep `payload.summary`; existing body resolution and tests use `payload.memberName`, `payload.outboxSeq`, and adjacent payload fields.
+
+Do not touch direct-send paths. They already write top-level `summary`.
+
+Do not change `mailbox.js` unless a test proves unavoidable; it already preserves extra envelope fields.
+
+The stated “npm test in plugins/crews” criterion does not match this checkout. Verification should be `cd D:/ai-developer-toolkit/plugins/crews && node tests/run.js`.
+
+Remotes in this repo are `origin = Evyatar108/ai-developer-toolkit` and `work = gim-home/ai-developer-toolkit`. Pushes are externally visible and should remain explicit/confirmed.
+
+## Implementation Suggestions
+
+Recommended story split:
+
+1. Read-path regression: update `formatReviewMailEntry()` and add/assert a payload-only summary fixture in `review-mail-command.test.js`.
+2. Write-side mirror: add `summary: effectiveSummary` beside `kind` and `message` in both `appendSystemMailbox()` envelopes in `stop.js`; assert at least member-reply, ideally proactive too.
+3. Docs/release: add v1.7.3 changelog entry, update README mailbox schema/review-mail wording, run bump script, run full test runner.
+
+Natural test additions:
+
+- In `review-mail-command.test.js`, extend the existing system-routed fixture or add a member-reply-shaped row with no top-level `summary`; assert `entry.summary === payload.summary`.
+- In `member-reply-notify.test.js`, import `review-mail` command and assert `formatReviewMailEntry(note, { crew, stateCwd: cwd }).summary`.
+- In `review-flow.test.js` or `send-receive-reply-cycle.test.js`, assert `leadMailbox[0].summary === 'finished the task'` or `'answered 2+2'` after real Stop routing.

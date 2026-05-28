@@ -1,0 +1,56 @@
+{
+  "clusters": [
+    {
+      "name": "read-path",
+      "stories": ["US-001"],
+      "phase": 1,
+      "dependsOn": [],
+      "fileOverlapEvidence": {
+        "sharedFiles": [],
+        "exclusiveFiles": [
+          "plugins/crews/hooks/commands/review-mail.js",
+          "plugins/crews/tests/review-mail-command.test.js"
+        ],
+        "risk": "low"
+      },
+      "executionModeRationale": "Independent file set; only touches review-mail.js and its unit test. Runs in parallel with the write-side cluster."
+    },
+    {
+      "name": "write-side",
+      "stories": ["US-002", "US-003", "US-004"],
+      "phase": 1,
+      "dependsOn": [],
+      "fileOverlapEvidence": {
+        "sharedFiles": [
+          "plugins/crews/hooks/stop.js",
+          "plugins/crews/tests/member-reply-notify.test.js",
+          "plugins/crews/tests/proactive-report-notify.test.js"
+        ],
+        "exclusiveFiles": [],
+        "risk": "medium"
+      },
+      "executionModeRationale": "US-002 and US-003 both edit hooks/stop.js at non-overlapping call sites; US-004 depends on both write-side stories landing first. Cluster runs serially internally but in parallel with the read-path cluster."
+    },
+    {
+      "name": "release",
+      "stories": ["US-005"],
+      "phase": 2,
+      "dependsOn": ["read-path", "write-side"],
+      "fileOverlapEvidence": {
+        "sharedFiles": [],
+        "exclusiveFiles": [
+          "plugins/crews/.claude-plugin/plugin.json",
+          "plugins/crews/.github/plugin/plugin.json",
+          ".claude-plugin/marketplace.json",
+          ".github/plugin/marketplace.json",
+          ".agents/plugins/marketplace.json",
+          "plugins/crews/tests/version.test.js",
+          "plugins/crews/CHANGELOG.md",
+          "plugins/crews/CLAUDE.md"
+        ],
+        "risk": "low"
+      },
+      "executionModeRationale": "Finalization checkpoint after both code clusters land so the version stamp aligns with all shipped code under v1.7.3."
+    }
+  ]
+}

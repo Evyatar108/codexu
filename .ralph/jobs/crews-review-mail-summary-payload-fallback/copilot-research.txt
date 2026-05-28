@@ -1,0 +1,76 @@
+I’ll read the provided prompt file first, then carry out the requested work end-to-end.
+
+I’ll inspect the crews plugin files, tests, release metadata, and the prior investigation so the plan research is grounded in the actual code.
+
+### Codebase Architecture
+
+`D:\ai-developer-toolkit\plugins\crews` is a CommonJS Node plugin with no plugin-local `package.json`; validation uses the custom runner `node tests\run.js`. Key structure:
+
+| Area | Files |
+|---|---|
+| Command surfaces | `hooks\commands\*.js`, dispatcher via `tools\crews.js` |
+| Stop/report routing | `hooks\stop.js` |
+| Mailbox persistence | `hooks\mailbox.js`, re-exported by `hooks\config.js` |
+| Review gating | `hooks\protocol\review-required.js`, `hooks\protocol\review-gate.js` |
+| Tests | `tests\*.test.js`, `tests\integration\*.test.js`, `tests\run.js` |
+| Release metadata | two plugin manifests + three marketplace indexes |
+
+Important correction: `hooks\lib\inbox-history.js` does **not** exist. Inbox-history read/write logic lives in `hooks\mailbox.js` (`consumeMailbox`, `readInboxHistoryTail`, `readInboxHistorySince`) and is re-exported from `hooks\config.js`.
+
+### Feature-Relevant Code
+
+- `hooks\commands\review-mail.js`
+  - `formatReviewMailEntry()` currently returns `summary: row && row.summary !== undefined ? row.summary : null`.
+  - This is the read-path bug: system-routed rows have `payload.summary`, not top-level `summary`.
+  - Function is exported, so tests can call it directly.
+
+- `hooks\stop.js`
+  - Member reply path: `appendSystemMailbox(...)` at the member-reply block around lines 831-842.
+  - Proactive report path: `appendSystemMailbox(...)` around lines 858-882.
+  - `effectiveSummary` is already computed and stored in the member outbox and manifest; the write-side fix should add `summary: effectiveSummary` at both system-envelope call sites while preserving `payload.summary`.
+
+- `hooks\mailbox.js`
+  - `appendSystemMailbox()` clones the supplied envelope and delegates to `appendMailboxWithSender()`.
+  - `consumeMailbox()` persists the envelope into `mailbox-history.jsonl` with `Object.assign({}, envelope, ...)`, so top-level `summary` must be present before append/consume.
+
+- `hooks\resolve-body.js`
+  - `formatReviewMailEntry()` uses this to resolve body text from member outbox via `payload.memberName + payload.outboxSeq`. The summary fix should not alter this body-resolution behavior.
+
+- Tests to extend:
+  - `tests\review-mail-command.test.js`: existing fixture `row()` always has top-level `summary`; add a fixture with only `payload.summary`. The existing cross-read test around line 296 already has this shape and can also assert `entry.summary`.
+  - `tests\member-reply-notify.test.js`: currently asserts only `note.payload.summary`; add top-level `summary` and formatter-surfaced summary coverage.
+  - `tests\auto-derive-replyTo-same-turn.test.js` or `tests\force-response-replyTo-passes.test.js`: already exercises real `stop.js` member-reply routing and is a natural place to assert post-stop top-level summary.
+  - `tests\proactive-report-notify.test.js`: natural place to assert proactive-report top-level summary.
+
+### Technical Constraints
+
+Choose **Option A**: read fallback + write-side mirror in one v1.7.3 patch. It is small, backward-compatible, and removes schema drift immediately.
+
+Use `??`, not `||`, in the reader: `row.summary ?? row.payload?.summary ?? null`, preserving explicit empty-string summaries.
+
+Do not modify direct-send paths; they already write top-level summaries. Do not modify `appendSystemMailbox()` globally or invent `hooks\lib\inbox-history.js`; keep the lift at the two `stop.js` call sites where `effectiveSummary` is in scope.
+
+Version stamps to bump to `1.7.3`:
+
+1. `plugins\crews\.claude-plugin\plugin.json`
+2. `plugins\crews\.github\plugin\plugin.json`
+3. `.claude-plugin\marketplace.json`
+4. `.github\plugin\marketplace.json`
+5. `.agents\plugins\marketplace.json`
+
+Also update `plugins\crews\CHANGELOG.md`; consider adding a top entry to `plugins\crews\CLAUDE.md` because recent releases document operator-critical plugin behavior there.
+
+Validation command should be `cd D:\ai-developer-toolkit\plugins\crews && node tests\run.js`; the prompt’s `npm test` criterion is stale unless a package script is added.
+
+### Implementation Suggestions
+
+Implement in this order:
+
+1. Change `review-mail.js` summary read to `row.summary ?? row.payload?.summary ?? null`.
+2. Add regression coverage in `review-mail-command.test.js` for historical rows with only `payload.summary`.
+3. Add `summary: effectiveSummary` to both `appendSystemMailbox()` envelopes in `stop.js`.
+4. Extend member-reply/proactive tests to assert top-level `summary` after real stop routing.
+5. Update changelog/docs and bump all five release metadata files.
+
+Manual repro should use a member `kind=question summary="long text" reply-to="<lead message id>"`, then consume/review lead mail and verify `/crews:review-mail` returns the full summary.
+

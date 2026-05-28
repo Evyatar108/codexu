@@ -1,0 +1,28 @@
+I’ll read the prompt file and use it as the task specification.
+
+The prompt is larger than the single-read limit, so I’ll read it in sections.
+
+I’ll validate the plan against the actual crews plugin files so the review is grounded in current code, not just the plan text.
+
+### Feasibility
+
+No issues found. The referenced files and call sites exist, `formatReviewMailEntry` is exported, `appendSystemMailbox` preserves extra top-level envelope fields, and `bump-version.js` covers the five manifest/marketplace stamps plus `tests/version.test.js`.
+
+### Completeness
+
+[High] The `member-reply-notify.test.js` guidance is not enough to prove the `hooks/stop.js` producer path. That test currently manually calls `cfg.appendSystemMailbox(...)` at `plugins/crews/tests/member-reply-notify.test.js:65`, so simply importing `formatReviewMailEntry` near line 88 would only verify a hand-built fixture, not the actual stop-hook call site at `plugins/crews/hooks/stop.js:831`. To satisfy AC #5, the plan should explicitly run `hooks/stop.js` with a transcript after a consumed lead message, then assert the resulting lead mailbox envelope has top-level `summary` and formats correctly.
+
+### Ordering
+
+No issues found.
+
+### Simplicity
+
+No issues found. The plan correctly avoids changing `appendSystemMailbox` or direct-send paths and keeps the fix to the reader plus two producer call sites.
+
+### Acceptance Criteria Quality
+
+[Medium] AC #12 is not self-contained for an autonomous implementer: it references “Investigation §1” but the reproduced setup/commands are not included in the plan. Either replace it with exact repro steps or mark it as a post-merge lead/operator check rather than an implementation acceptance criterion.
+
+[Low] AC #8 says the `git grep -n "1.7.2"` command returns 0 hits “modulo expected references in CHANGELOG history,” but the command as written includes `plugins/crews/CHANGELOG.md`, which should still contain historical `v1.7.2` text. Clarify the grep excludes changelog/history files, or state that remaining hits in changelog are expected.
+
