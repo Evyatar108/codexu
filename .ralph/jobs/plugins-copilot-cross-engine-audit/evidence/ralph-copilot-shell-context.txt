@@ -1,0 +1,20 @@
+245:  return new Promise((resolveCode) => {
+246:    let settled = false;
+247:    // shell:true required so Windows CreateProcess resolves .cmd shims (codex/copilot).
+248:    // Argv path elements (parsed.outputFile / @<tempPromptPath> / parsed.prompt) cross
+249:    // the shell boundary; path-bearing positions are double-quoted below to survive
+250:    // cmd.exe / /bin/sh re-parsing.
+251:    // Do NOT extend this option to spawn sites that pass `## section-header` argv.
+252:    const child = spawnCommand(command, args, {
+253:      cwd,
+254:      env,
+255:      shell: true,
+256:      stdio: ["ignore", outFd, "inherit"],
+257:    });
+258:
+259:    const settle = (code) => {
+260:      if (!settled) {
+261:        settled = true;
+262:        resolveCode(code);
+263:      }
+264:    };

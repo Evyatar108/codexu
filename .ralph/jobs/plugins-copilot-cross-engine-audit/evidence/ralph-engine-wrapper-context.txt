@@ -1,0 +1,116 @@
+880:  let engine = cliEngine || prdEngine || "codex";
+881:  if (engine === "claude") {
+882:    return {
+883:      engine: "copilot",
+884:      warning:
+885:        "Warning: iterationEngine='claude' is deprecated; routing through copilot-exec.mjs (model claude-opus-4.7-1m-internal).",
+886:    };
+887:  }
+888:  if (!["codex", "copilot"].includes(engine)) {
+889:    return {
+890:      engine,
+891:      error: `Error: iterationEngine must be one of: codex, copilot, claude (got '${engine}')`,
+892:    };
+893:  }
+894:  return { engine };
+895:}
+896:
+897:function runEnginePreflight(engine, env, commandExists) {
+898:  if (engine === "codex") {
+899:    if (env.CODEX_EXEC_SCRIPT) {
+900:      return "";
+901:    }
+902:    if (!commandExists("codex")) {
+903:      return "Error: iterationEngine=codex but 'codex' CLI not found in PATH. Install Codex CLI or set iterationEngine=copilot in prd.json (or pass --engine copilot).";
+904:    }
+905:    return "";
+906:  }
+907:
+908:  if (env.COPILOT_EXEC_SCRIPT) {
+909:    return "";
+910:  }
+911:  if (!commandExists("copilot")) {
+912:    return "Error: iterationEngine=copilot but 'copilot' CLI not found in PATH. Install GitHub Copilot CLI or set iterationEngine=codex in prd.json (or pass --engine codex).";
+913:  }
+914:  return "";
+915:}
+916:
+917:async function runEngineIteration({
+918:  engine,
+919:  iteration,
+920:  jobDir,
+921:  workDir,
+922:  prdFile,
+923:  header,
+924:  env,
+925:  stderr,
+926:  spawn,
+927:  streamPollMs,
+928:}) {
+929:  const iterOut = join(jobDir, engine === "codex" ? `.codex_iter_${iteration}.tmp` : `.copilot_iter_${iteration}.tmp`);
+930:  const progressTailFile = join(jobDir, ".progress_tail.tmp");
+931:  const promptFile = join(PLUGIN_DIR, "prompts", `${engine}.md`);
+932:  const scriptPath = resolveEngineScript(engine, env);
+933:  let output = "";
+934:
+935:  try {
+936:    mkdirSync(jobDir, { recursive: true });
+937:    writeFileSync(iterOut, "", "utf8");
+938:
+939:    const args = [
+940:      "--prompt",
+941:      promptFile,
+942:      "--output",
+943:      iterOut,
+944:    ];
+945:    if (engine === "copilot") {
+946:      args.push("--model", "claude-opus-4.7-1m-internal");
+947:    }
+948:    args.push(
+949:      "--effort",
+950:      ITERATION_EFFORT,
+951:      "--text",
+952:      header,
+953:      "--section",
+954:      "## prd.json",
+955:      prdFile,
+956:    );
+957:
+958:    if (existsSync(join(jobDir, "progress.txt"))) {
+959:      writeFileSync(progressTailFile, tailLines(join(jobDir, "progress.txt"), 300), "utf8");
+960:      args.push("--section", "## progress tail (last 300 lines)", progressTailFile);
+961:    }
+962:    if (existsSync(join(jobDir, "notepad.md"))) {
+963:      args.push("--section", "## notepad", join(jobDir, "notepad.md"));
+964:    }
+965:
+966:    const streamer = streamLiveFile(iterOut, stderr, { pollMs: streamPollMs });
+967:    const { command, commandArgs } = engineSpawnCommand(scriptPath, args);
+968:    const exitCode = await runChild(spawn, command, commandArgs, { cwd: workDir, env }, stderr);
+969:    await streamer.stop();
+970:    output = existsSync(iterOut) ? readFileSync(iterOut, "utf8") : "";
+971:    return { exitCode, output };
+972:  } finally {
+973:    tryUnlink(progressTailFile);
+974:    tryUnlink(iterOut);
+975:  }
+976:}
+977:
+978:function resolveEngineScript(engine, env) {
+979:  if (engine === "codex" && env.CODEX_EXEC_SCRIPT) {
+980:    return env.CODEX_EXEC_SCRIPT;
+981:  }
+982:  if (engine === "copilot" && env.COPILOT_EXEC_SCRIPT) {
+983:    return env.COPILOT_EXEC_SCRIPT;
+984:  }
+985:  return join(PLUGIN_DIR, "src", `${engine}-exec.mjs`);
+986:}
+987:
+988:function engineSpawnCommand(scriptPath, args) {
+989:  const ext = extname(normalize(scriptPath)).toLowerCase();
+990:  if (ext === ".mjs") {
+991:    return { command: "node", commandArgs: [scriptPath, ...args] };
+992:  }
+993:  return { command: "bash", commandArgs: [scriptPath, ...args] };
+994:}
+995:

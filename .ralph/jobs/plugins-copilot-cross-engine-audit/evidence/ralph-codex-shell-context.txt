@@ -1,0 +1,20 @@
+64:    quoteShellArg(parsed.outputFile),
+65:  ];
+66:
+67:  // shell:true required so Windows CreateProcess resolves .cmd shims (codex/copilot).
+68:  // Argv path elements (parsed.outputFile / @<tempPromptPath> / parsed.prompt) cross
+69:  // the shell boundary; path-bearing positions are double-quoted below to survive
+70:  // cmd.exe / /bin/sh re-parsing.
+71:  // Do NOT extend this option to spawn sites that pass `## section-header` argv.
+72:  const child = spawn("codex", args, {
+73:    env,
+74:    shell: true,
+75:    stdio: ["pipe", "inherit", "inherit"],
+76:  });
+77:
+78:  try {
+79:    child.stdin.write(body);
+80:  } finally {
+81:    child.stdin.end();
+82:  }
+83:

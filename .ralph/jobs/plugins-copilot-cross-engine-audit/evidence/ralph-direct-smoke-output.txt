@@ -1,0 +1,43 @@
+## minimal-codex-exec-smoke direct .mjs fallback
+node D:/ai-developer-toolkit/.worktrees/audit-main-ralph/plugins/ralph/src/codex-exec.mjs --prompt .ralph/jobs/plugins-copilot-cross-engine-audit/scratch-ralph-prompt/prompt.txt --output .ralph/jobs/plugins-copilot-cross-engine-audit/scratch-ralph-prompt/codex-direct-output.txt --effort low --text 'echo hello'
+OpenAI Codex v0.125.0-copilot-api.8 (research preview)
+--------
+workdir: D:\harness-efforts\codexu\.worktrees\plugins-copilot-cross-engine-audit
+model: gpt-5.5
+provider: copilot
+approval: never
+sandbox: danger-full-access
+reasoning effort: low
+reasoning summaries: none
+session id: 019e6f05-33e5-72c2-94bb-9039a6d4b04e
+--------
+user
+You are running a minimal Ralph engine-wrapper smoke test.
+Return a short plain text response.
+Do not edit files.
+Do not run tools.
+Say exactly: hello from smoke
+This prompt intentionally stays small.
+It is used only for Copilot parity audit evidence.
+The expected result is any non-empty wrapper output.
+No project state should be changed.
+End.
+
+
+echo hello
+2026-05-28T14:38:01.465409Z ERROR rmcp::transport::worker: worker quit with fatal: Transport channel closed, when Client(HttpRequest(HttpRequest("http/request failed: error sending request for url (http://127.0.0.1:29979/mcp)")))
+codex
+hello from smoke
+tokens used
+14,860
+hello from smoke
+exit=0
+output-bytes=16
+hello from smoke
+## minimal-copilot-exec-smoke direct .mjs fallback
+node D:/ai-developer-toolkit/.worktrees/audit-main-ralph/plugins/ralph/src/copilot-exec.mjs --prompt .ralph/jobs/plugins-copilot-cross-engine-audit/scratch-ralph-prompt/prompt.txt --output .ralph/jobs/plugins-copilot-cross-engine-audit/scratch-ralph-prompt/copilot-direct-output.txt --effort low --text 'echo hello'
+exit=0
+output-bytes=107
+I’ll read the task prompt, then inspect the relevant repo area before making changes.
+
+hello from smoke
