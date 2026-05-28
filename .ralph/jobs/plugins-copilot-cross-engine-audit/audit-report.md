@@ -9,10 +9,14 @@
 | crews: posttooluse-30s-nag | PASS | Mid-turn review nag behavior survives Copilot hooks. |
 | crews: slash-commands-copilot | PASS | Required Copilot skill mirrors and review-mail fallback are usable. |
 | crews: sessionid-pointer-restart | PASS | Session pointer restart works without `CREWS_STATE_CWD`. |
-| ralph: codex-exec-shell-true | FAIL | Help contract mismatch should be fixed before migration automation relies on it. |
-| ralph: copilot-exec-shell-true | FAIL | Help contract mismatch should be fixed before Copilot wrapper checks are trusted. |
-| ralph: minimal-codex-exec-smoke | PASS | Direct Node Codex smoke succeeds. |
-| ralph: minimal-copilot-exec-smoke | PASS | Direct Node Copilot smoke succeeds. |
+| ralph: codex-exec-shell-true | PASS | `shell: true` is present at the Codex spawn site; Windows `.cmd` shim path is covered. |
+| ralph: codex-exec-help-contract | FAIL | `--help` flag returns exit 1; help contract mismatch should be fixed before migration automation relies on it. |
+| ralph: copilot-exec-shell-true | PASS | `shell: true` is present at the Copilot spawn site; Windows `.cmd` shim path is covered. |
+| ralph: copilot-exec-help-contract | FAIL | `--help` flag returns exit 1; help contract mismatch should be fixed before Copilot wrapper checks are trusted. |
+| ralph: codex-exec-node-smoke | PASS | Direct Node Codex smoke succeeds. |
+| ralph: codex-exec-sh-wrapper-absent | FAIL | `codex-exec.sh` bash shim is absent in v5.46.0; callers expecting the shim will fail. |
+| ralph: copilot-exec-node-smoke | PASS | Direct Node Copilot smoke succeeds. |
+| ralph: copilot-exec-sh-wrapper-absent | FAIL | `copilot-exec.sh` bash shim is absent in v5.46.0; callers expecting the shim will fail. |
 | ralph: ralph-mjs-iterates-codex | PASS | Main iterator resolves `.mjs` engine scripts correctly. |
 | ralph: copilot-skill-mirror-parity | FAIL | Stale Copilot mirror prose can mislead operators during migration. |
 | ralph: optional-e2e-plan-with-ralph-smoke | NOT-TESTED | Full lead E2E remains a residual confidence gap. |
