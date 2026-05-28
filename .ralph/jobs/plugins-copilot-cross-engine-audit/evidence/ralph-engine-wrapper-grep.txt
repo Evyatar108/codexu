@@ -1,1 +1,9 @@
+# regrep performed during Phase 5a fix-loop (F-003); toolkit SHA b2e4913d6862b03f79843942b615f4231aeebbfe
+# source: D:/ai-developer-toolkit/plugins/ralph/src/ralph.mjs
+# command: grep -nE "(codex-exec\.mjs|copilot-exec\.mjs)" D:/ai-developer-toolkit/plugins/ralph/src/ralph.mjs
+#
+# NOTE: resolveEngineScript() at lines 978-986 constructs the exec script path via
+# `${engine}-exec.mjs` template literal rather than hardcoding the literal filenames,
+# so those call sites do not match this grep. The one literal hit below is a deprecation
+# warning string. The actual call-site evidence is in ralph-engine-wrapper-context.txt.
 885:        "Warning: iterationEngine='claude' is deprecated; routing through copilot-exec.mjs (model claude-opus-4.7-1m-internal).",

@@ -129,8 +129,8 @@
 **Follow-up:** Batch 3: document v5.46.0 wrapper-removal in CHANGELOG and verify no remaining callers expect `copilot-exec.sh`.
 
 ### ralph-mjs-iterates-codex
-**Command:** `node D:/ai-developer-toolkit/.worktrees/audit-main-ralph/plugins/ralph/src/ralph.mjs --help`; inspect `resolveEngineScript()` / `engineSpawnCommand()` in `src/ralph.mjs`
-**Observed:** `ralph.mjs --help` returned exit 0. `resolveEngineScript()` defaults to `join(PLUGIN_DIR, "src", `${engine}-exec.mjs`)`, and `engineSpawnCommand()` dispatches `.mjs` scripts through `node`; non-`.mjs` env overrides still dispatch through `bash`.
+**Command:** `node D:/ai-developer-toolkit/.worktrees/audit-main-ralph/plugins/ralph/src/ralph.mjs --help`; inspect `resolveEngineScript()` / `engineSpawnCommand()` in `src/ralph.mjs`; `grep -nE "(codex-exec\.mjs|copilot-exec\.mjs)" D:/ai-developer-toolkit/plugins/ralph/src/ralph.mjs` (re-run against origin/main at b2e4913d during F-003 fix)
+**Observed:** `ralph.mjs --help` returned exit 0. `resolveEngineScript()` defaults to `join(PLUGIN_DIR, "src", `${engine}-exec.mjs`)`, and `engineSpawnCommand()` dispatches `.mjs` scripts through `node`; non-`.mjs` env overrides still dispatch through `bash`. The grep against origin/main returned only one literal hit (line 885, a deprecation warning string); `resolveEngineScript()` at lines 978-986 constructs the exec path via a `${engine}-exec.mjs` template literal rather than hardcoding the filenames, so those call sites are in ralph-engine-wrapper-context.txt.
 **Evidence file:** `.ralph/jobs/plugins-copilot-cross-engine-audit/evidence/ralph-ralph-help-output.txt`; `.ralph/jobs/plugins-copilot-cross-engine-audit/evidence/ralph-engine-wrapper-context.txt`; `.ralph/jobs/plugins-copilot-cross-engine-audit/evidence/ralph-engine-wrapper-grep.txt`
 **Status:** PASS
 
