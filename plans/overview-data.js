@@ -709,11 +709,31 @@ window.OVERVIEW_DATA = {
               }
         },
         {
-              "id": "ralph-overview-copilot-mirror",
+              "id": "ralph-overview-copilot-smoke-deferred",
               "scope": "ralph-overview",
               "lifecycle": "tracked",
+              "status": "blocked",
+              "lastTouchedAt": "2026-05-28T11:35:00Z",
+              "kanbanCards": [],
+              "command": {
+                    "name": "ralph-overview-copilot-smoke-deferred",
+                    "descriptionHtml": "Deferred US-008 follow-up from ralph-overview v2.4.0 ship (<code>ad4938fc</code>). End-to-end Copilot smoke gate (marketplace install + <code>copilot mcp list</code> + 4 skill invocations) couldn't run pre-merge due to TWO external constraints: (a) marketplace pins published v2.3.0 — must wait for v2.4.0 publish; (b) Copilot CLI 1.0.55 doesn't expose plugin-manifest <code>mcpServers</code> in <code>copilot mcp list --json</code> — must wait for Copilot CLI version that does. Full brief at <code>.ralph/jobs/ralph-overview-copilot-mirror/deferred-us008-followup.md</code>.",
+                    "warnings": [
+                          {
+                                "className": "cmd-warn",
+                                "html": "⚠️ <strong>Blocked on TWO external prerequisites:</strong> (a) v2.4.0 published to <code>ai-developer-toolkit</code> marketplace AND (b) Copilot CLI version that surfaces plugin-manifest <code>mcpServers</code> in <code>copilot mcp list --json</code>. Track Copilot CLI release notes; consider opening an upstream issue if (b) persists. Not actionable until BOTH conditions hold. If step 3 of the verification (mcp list) still misses the plugin MCP after CLI updates, the manifest may need to switch from <code>&quot;mcpServers&quot;: &quot;.mcp.json&quot;</code> to a Copilot-only inline form with a verified plugin-root token — treat that as part of the follow-up scope."
+                          }
+                    ],
+                    "prompts": { "impl": "/implement-with-ralph \"Run the deferred US-008 end-to-end Copilot smoke gate for ralph-overview v2.4.0.\n\n## Pre-flight: verify both unblock conditions hold\n\n1. v2.4.0+ of ralph-overview is PUBLISHED to the ai-developer-toolkit marketplace (`copilot plugin install ralph-overview@ai-developer-toolkit` resolves to v2.4.0 or later — not v2.3.0). If still v2.3.0, abort and notify operator: the unblock condition (a) is not yet met.\n2. Copilot CLI version exposes plugin-manifest mcpServers in `copilot mcp list --json` output. Test by running `copilot mcp list --json` against a workspace with a plugin installed that declares mcpServers in its manifest. If plugin MCPs are still invisible (only workspace `.mcp.json` MCPs show), abort and notify operator: condition (b) is not yet met.\n\nIf either condition is unmet, file an updated status note at `.ralph/jobs/<this-job>/blocked-status.md` and report kind=blocked. Do NOT proceed with the smoke verification.\n\n## Verification checklist (run in fresh workspace when unblocked)\n\nPer `.ralph/jobs/ralph-overview-copilot-mirror/deferred-us008-followup.md` § What still needs to happen:\n\n1. `copilot plugin marketplace add gim-home/ai-developer-toolkit` (idempotent).\n2. `copilot plugin install ralph-overview@ai-developer-toolkit` — verify `copilot plugin list` shows ralph-overview at the current published version (≥ 2.4.0).\n3. `copilot mcp list --json` — verify the ralph-overview plugin-sourced MCP server is listed with a resolved, launchable command/args path pointing at an existing `launch.cjs`. No literal `${CLAUDE_PLUGIN_ROOT}` token unless Copilot demonstrably expands it. If the launch path is unresolved, switch the manifest from `\\\"mcpServers\\\": \\\".mcp.json\\\"` to a Copilot-only inline object using Copilot's verified plugin-root token, then re-verify.\n4. Invoke `overview.parallel_ready_tasks` from a Copilot session and confirm the MCP server starts (capture transcript).\n5. Verify each of `/work-on`, `/triage`, `/blocker-report`, `/overview-init` is callable from a Copilot session.\n6. Verify at least one Copilot skill path runs `sync` or `cli derive-next-command` through `node <pluginRoot>/bin/ralph-overview.mjs` (no bare-`ralph-overview` PATH lookup).\n7. Capture command + assertion + PASS/FAIL into a refreshed `.ralph/jobs/<this-job>/copilot-skill-smoke.log` and require 4/4 PASS rows for the four skills.\n\n## If smoke fails\n\nIf any step fails despite both unblock conditions holding, the failure path likely points at a manifest-form bug (string-path vs inline-object mcpServers) — file a follow-up patch task against the ralph-overview plugin with the precise failing step and expected fix.\n\n## Acceptance\n\n- 4/4 PASS rows in copilot-skill-smoke.log for the four skills.\n- overview.parallel_ready_tasks transcript captured showing successful MCP server invocation.\n- No remaining mention of US-008 as 'deferred' in CHANGELOG / README / migration docs (lift the deferred-status notes).\n- Optional: if a manifest patch was needed, ship that as a follow-on PR with its own version bump.\n\nNo code changes are anticipated unless step 3 surfaces a manifest-form bug. This task is verification-driven; if all steps pass cleanly, the only deliverable is the smoke log + lifting the deferred-status notes in v2.4.x docs (commit + PR).\"" }
+              }
+        },
+        {
+              "id": "ralph-overview-copilot-mirror",
+              "scope": "ralph-overview",
+              "lifecycle": "merged",
               "status": "ok",
-              "lastTouchedAt": "2026-05-27T17:55:00Z",
+              "lastTouchedAt": "2026-05-28T11:34:00Z",
+              "mergeCommit": "ad4938fc",
               "kanbanCards": [],
               "command": {
                     "name": "ralph-overview-copilot-mirror",
