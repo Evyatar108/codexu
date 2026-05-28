@@ -1,0 +1,16 @@
+   108
+   109	  log(`build complete -> ${distEntry}`);
+   110	} else {
+   111	  log(`warm launch (dist exists)`);
+   112	}
+   113
+   114	// Spawn the MCP server. Pass through stdin/stdout for MCP stdio transport;
+   115	// pipe stderr to our log so the parent only sees MCP frames on stdout.
+   116	log(`spawn ${distEntry}`);
+   117	// Preserve the consumer workspace cwd so the MCP server's resolveRepoRoot(process.cwd())
+   118	// finds the repo's .ralph/ structure, not the plugin's build cache dir.
+   119	const child = spawn("node", [distEntry], {
+   120	  stdio: ["inherit", "inherit", "pipe"],
+   121	  cwd: process.cwd(),
+   122	  env: { ...process.env, RALPH_OVERVIEW_PLUGIN_ROOT: pluginDir },
+   123	});
