@@ -1,0 +1,29 @@
+{
+  "clusters": [
+    {
+      "name": "serial-mirror-regenerate",
+      "stories": ["US-001", "US-002", "US-003", "US-004", "US-005"],
+      "phase": 1,
+      "dependsOn": [],
+      "fileOverlapEvidence": {
+        "sharedFiles": [
+          "plugins/ralph/skills/implement-with-ralph/SKILL.md",
+          "plugins/ralph/.copilot-plugin/copilot-skills/implement-with-ralph/SKILL.md",
+          "plugins/ralph/scripts/check-copilot-parity.mjs",
+          "plugins/ralph/.copilot-plugin/parity-exceptions.json",
+          "plugins/ralph/CHANGELOG.md",
+          "plugins/ralph/.claude-plugin/plugin.json",
+          "plugins/ralph/.github/plugin/plugin.json",
+          ".claude-plugin/marketplace.json",
+          ".github/plugin/marketplace.json",
+          ".agents/plugins/marketplace.json"
+        ],
+        "exclusiveFiles": [
+          "plugins/ralph/tests/test-no-stale-sh-refs.mjs"
+        ],
+        "risk": "high"
+      },
+      "executionModeRationale": "Single-cluster serial execution. US-002 reads the source-of-truth structure produced by US-001 to keep the hand-fork mirror in lockstep; US-003's parity gate test exercises both surfaces from US-001/US-002; US-004 stamps the v5.46.1 release across five manifests; US-005 pushes. Tier-1 risk per docs/parallel-safety.md — plugin state files and release stamps are strictly serial."
+    }
+  ]
+}
