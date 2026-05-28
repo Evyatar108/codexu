@@ -15,7 +15,7 @@ Audit target: `D:/ai-developer-toolkit/.worktrees/audit-main-ralph/plugins/ralph
 **Observed:** `codex-exec.mjs --help` returned exit 1 with usage plus `Error: unknown argument: --help`. The `--help` flag is not handled; audit/verifier scripts that probe the help contract will see a non-zero exit.
 **Evidence file:** `evidence/ralph-help-output.txt`
 **Status:** FAIL
-**File:** `D:/ai-developer-toolkit/.worktrees/audit-main-ralph/plugins/ralph/src/codex-exec.mjs:148`
+**File:** D:/ai-developer-toolkit/.worktrees/audit-main-ralph/plugins/ralph/src/codex-exec.mjs:148
 **Follow-up:** Batch 3: align codex-exec --help contract with audit/verifier expectations.
 
 ### copilot-exec-shell-true
@@ -31,7 +31,7 @@ Audit target: `D:/ai-developer-toolkit/.worktrees/audit-main-ralph/plugins/ralph
 **Observed:** `copilot-exec.mjs --help` returned exit 1 with usage plus `Error: unknown argument: --help`. The `--help` flag is not handled; audit/verifier scripts that probe the help contract will see a non-zero exit.
 **Evidence file:** `evidence/ralph-help-output.txt`
 **Status:** FAIL
-**File:** `D:/ai-developer-toolkit/.worktrees/audit-main-ralph/plugins/ralph/src/copilot-exec.mjs:196`
+**File:** D:/ai-developer-toolkit/.worktrees/audit-main-ralph/plugins/ralph/src/copilot-exec.mjs:196
 **Follow-up:** Batch 3: align copilot-exec --help contract with audit/verifier expectations.
 
 ### codex-exec-node-smoke
@@ -47,7 +47,7 @@ Audit target: `D:/ai-developer-toolkit/.worktrees/audit-main-ralph/plugins/ralph
 **Observed:** The bash shim command failed with exit 127 because `codex-exec.sh` is absent in v5.46.0. Any caller that references the `.sh` wrapper by path will fail with command-not-found.
 **Evidence file:** `evidence/ralph-smoke-output.txt`; `evidence/ralph-root-listing.txt`
 **Status:** FAIL
-**File:** `D:/ai-developer-toolkit/.worktrees/audit-main-ralph/plugins/ralph`
+**File:** D:/ai-developer-toolkit/.worktrees/audit-main-ralph/plugins/ralph
 **Follow-up:** Batch 3: document v5.46.0 wrapper-removal in CHANGELOG and verify no remaining callers expect `codex-exec.sh`.
 
 ### copilot-exec-node-smoke
@@ -63,7 +63,7 @@ Audit target: `D:/ai-developer-toolkit/.worktrees/audit-main-ralph/plugins/ralph
 **Observed:** The bash shim command failed with exit 127 because `copilot-exec.sh` is absent in v5.46.0. Any caller that references the `.sh` wrapper by path will fail with command-not-found.
 **Evidence file:** `evidence/ralph-smoke-output.txt`; `evidence/ralph-root-listing.txt`
 **Status:** FAIL
-**File:** `D:/ai-developer-toolkit/.worktrees/audit-main-ralph/plugins/ralph`
+**File:** D:/ai-developer-toolkit/.worktrees/audit-main-ralph/plugins/ralph
 **Follow-up:** Batch 3: document v5.46.0 wrapper-removal in CHANGELOG and verify no remaining callers expect `copilot-exec.sh`.
 
 ### ralph-mjs-iterates-codex
@@ -79,7 +79,7 @@ Audit target: `D:/ai-developer-toolkit/.worktrees/audit-main-ralph/plugins/ralph
 **Observed:** The generator parity script passed all assertions, but the `implement-with-ralph` Copilot mirror still contains 33 `.sh` references including `ralph.sh`, `codex-exec.sh`, `drain-cascade.sh`, and `parse-not-tested-trailers.sh` prose. The plan says any `.sh` hit in this mirror is a FAIL row.
 **Evidence file:** `evidence/ralph-parity-output.txt`; `evidence/ralph-implement-skill-sh-grep.txt`
 **Status:** FAIL
-**File:** `D:/ai-developer-toolkit/.worktrees/audit-main-ralph/plugins/ralph/.copilot-plugin/copilot-skills/implement-with-ralph/SKILL.md:15`
+**File:** D:/ai-developer-toolkit/.worktrees/audit-main-ralph/plugins/ralph/.copilot-plugin/copilot-skills/implement-with-ralph/SKILL.md:15
 **Follow-up:** Batch 3: ralph-implement-skill-mirror-regenerate-2026-05-28.
 
 ### optional-e2e-plan-with-ralph-smoke
