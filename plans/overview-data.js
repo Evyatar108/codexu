@@ -804,9 +804,10 @@ window.OVERVIEW_DATA = {
         {
               "id": "ralph-exec-sh-wrapper-removal-changelog",
               "scope": "ralph-orchestration",
-              "lifecycle": "tracked",
+              "lifecycle": "merged",
               "status": "ok",
-              "lastTouchedAt": "2026-05-28T15:50:00Z",
+              "lastTouchedAt": "2026-05-28T18:36:00Z",
+              "mergeCommit": "2ed09a99,e8724534",
               "kanbanCards": [],
               "command": {
                     "name": "ralph-exec-sh-wrapper-removal-changelog",
