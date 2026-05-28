@@ -838,9 +838,10 @@ window.OVERVIEW_DATA = {
         {
               "id": "ralph-overview-watcher-consumer-workspace-root",
               "scope": "ralph-overview",
-              "lifecycle": "tracked",
+              "lifecycle": "merged",
               "status": "ok",
-              "lastTouchedAt": "2026-05-28T15:50:00Z",
+              "lastTouchedAt": "2026-05-28T21:38:00Z",
+              "mergeCommit": "ebd1fca2",
               "kanbanCards": [],
               "command": {
                     "name": "ralph-overview-watcher-consumer-workspace-root",
