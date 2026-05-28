@@ -35,13 +35,15 @@ This job ships ralph-overview v2.4.0 (Copilot mirror) to the **ai-developer-tool
 
 ## Working Notes
 
-- Mode: autonomous; batch size: 3; cumulative completed: 6.
-- Pass count: 6 (US-001 .. US-006). Remaining: 2 (US-007 docs, US-008 pre-merge Copilot install gate). Blocked: 0 (US-008 is dependency-blocked behind US-007 until US-007 passes).
-- Manifest verifier (advisory, iters 4-6): all verdicts=agree on every AC, no warnings. Earlier iter 3 warning (extra `Plugin tests pass` evidence) carries over without effect.
-- Quality Gate (this batch): not executed in analyze-iteration this run (no subagent-spawn tool available in analyzer environment); evidence validation + manifest-verifier covered the same surface (typecheck + plugin tests run in-iteration per AC). Operator should run Quality Gate manually if a deslop scan is desired.
-- Parity spot-check (this batch): no AC in US-004/US-005/US-006 triggers parity keywords on the AC text itself — skipped (no warning).
-- Refactoring Pass: cumulative completed 6 crosses multiple of 5; skipped this run for the same subagent-spawn reason. Batch is not test-only (production manifests/marketplace JSONs + generator changed), so a future Refactoring Pass on iteration 10 should be honored.
-- Auto-rollback: none (all 6 stories VALID).
-- Story Doctor: none (no story has 2+ consecutive failed runs).
-- Deferred questions: none detected in progress.txt for iters 4-6.
-- Next: US-007 (docs: CHANGELOG/README/plugin CLAUDE.md) — now unblocked since dep US-005 passes. Then US-008 (pre-merge Copilot install + MCP runtime gate).
+- Mode: autonomous; batch size: 3; cumulative completed: 7.
+- Pass count: 7 (US-001..US-007). Blocked: 1 (US-008, external-dependency). Remaining (actionable): 0.
+- Job status: COMPLETED per job-state.json (iter 8 terminal). All 8 stories addressed.
+- Manifest verifier (this batch, iters 7-8): subagent-spawn tool unavailable in analyzer environment; structural validation passed on both manifests. Iter 7 manifest = 5 verifiedEvidence (US-007). Iter 8 manifest = 10 verifiedEvidence + 3 skippedReasons + 2 notTested (US-008, all skipped/fallback evidence justified by external-dependency).
+- Quality Gate (this batch): SKIPPED — subagent-spawn unavailable in analyzer environment. In-iteration typecheck + plugin tests recorded in verifiedEvidence cover the surface (US-007: overview-mcp 96/96, overview-viewer 256 passed/5 skipped, typecheck clean; US-008: typecheck clean, overview-mcp 96/96).
+- Parity spot-check (this batch): US-007 AC text does not contain `mirror|parity|reuse` keywords on the documentation surface; US-008 AC text does not match either. Skipped (no triggers, no warning).
+- Refactoring Pass: cumulative completed 7 does not cross multiple of 5; not triggered this run. Next trigger at completion 10.
+- Auto-rollback: none (US-007 evidence VALID; US-008 is operator-blocked with notes, not an unverified pass).
+- Retry Gate (US-008): classification `external-dependency` (Copilot CLI 1.0.55 MCP-registration gap + marketplace v2.3.0 lag). 0 retries — not retryable by ralph; needs operator action (publish v2.4.0 marketplace entry; re-verify on a Copilot CLI build that exposes plugin MCP servers OR adjust manifest to whatever schema Copilot honors).
+- Story Doctor: not triggered (US-008 has only 1 failed run; failure is environmental, not story-design).
+- Deferred questions: none detected in iter 7/8 manifests.
+- Next operator action: ship US-007 docs (already committed as `ad5fe390`). For US-008 see `deferred-us008-followup.md` in job dir — gate must be re-run after marketplace publication.

@@ -1,0 +1,251 @@
+## US-008 Copilot skill smoke log
+2026-05-28T03:45:38-07:00
+
+## copilot plugin marketplace add gim-home/ai-developer-toolkit
+Failed to add marketplace: Marketplace "ai-developer-toolkit" already registered
+
+## copilot plugin install ralph-overview@ai-developer-toolkit
+Plugin "ralph-overview" installed successfully. Installed 4 skills.
+
+## copilot plugin list
+Installed plugins:
+  • ralph-orchestration@ai-developer-toolkit (v5.27.0)
+  • devui@ai-developer-toolkit (v2.7.0)
+  • ralph-overview@ai-developer-toolkit (v2.3.0)
+
+## copilot mcp list --json
+{
+  "mcpServers": {
+    "seval": {
+      "tools": [
+        "*"
+      ],
+      "type": "stdio",
+      "command": "plugins/seval/launch.cmd",
+      "args": [],
+      "source": "workspace",
+      "sourcePath": "D:\\ai-developer-toolkit\\.worktrees\\ralph-overview-copilot-mirror\\.mcp.json"
+    },
+    "devui": {
+      "tools": [
+        "*"
+      ],
+      "type": "stdio",
+      "command": "cmd",
+      "args": [
+        "/c",
+        "npx",
+        "-y",
+        "./plugins/devui"
+      ],
+      "source": "workspace",
+      "sourcePath": "D:\\ai-developer-toolkit\\.worktrees\\ralph-overview-copilot-mirror\\.mcp.json"
+    },
+    "vs-debugger": {
+      "tools": [
+        "*"
+      ],
+      "type": "stdio",
+      "command": "plugins/dotnet/launch.cmd",
+      "args": [
+        "vs-debugger"
+      ],
+      "source": "workspace",
+      "sourcePath": "D:\\ai-developer-toolkit\\.worktrees\\ralph-overview-copilot-mirror\\.mcp.json"
+    },
+    "roslyn-dev-tools": {
+      "tools": [
+        "*"
+      ],
+      "type": "stdio",
+      "command": "plugins/dotnet/launch.cmd",
+      "args": [
+        "roslyn-dev-tools"
+      ],
+      "source": "workspace",
+      "sourcePath": "D:\\ai-developer-toolkit\\.worktrees\\ralph-overview-copilot-mirror\\.mcp.json"
+    },
+    "edge-browser": {
+      "tools": [
+        "*"
+      ],
+      "type": "stdio",
+      "command": "plugins/edge-browser/launch.cmd",
+      "args": [],
+      "source": "workspace",
+      "sourcePath": "D:\\ai-developer-toolkit\\.worktrees\\ralph-overview-copilot-mirror\\.mcp.json"
+    },
+    "teams": {
+      "tools": [
+        "*"
+      ],
+      "type": "stdio",
+      "command": "plugins/teams/launch.cmd",
+      "args": [],
+      "source": "workspace",
+      "sourcePath": "D:\\ai-developer-toolkit\\.worktrees\\ralph-overview-copilot-mirror\\.mcp.json"
+    },
+    "agent-peers": {
+      "tools": [
+        "*"
+      ],
+      "type": "stdio",
+      "command": "cmd",
+      "args": [
+        "/c",
+        "npx",
+        "-y",
+        "./plugins/agent-peers"
+      ],
+      "source": "workspace",
+      "sourcePath": "D:\\ai-developer-toolkit\\.worktrees\\ralph-overview-copilot-mirror\\.mcp.json"
+    }
+  }
+}
+
+## local worktree install probe: uninstall ralph-overview
+Plugin "ralph-overview" uninstalled successfully.
+
+## local worktree install probe: copilot plugin install ./plugins/ralph-overview
+Plugin "ralph-overview" installed successfully. Installed 4 skills.
+
+⚠️  Warning: Direct plugin installs (repos, URLs, local paths) are deprecated. Only plugin@marketplace installs will be supported in a future release.
+
+## plugin list after local install
+Installed plugins:
+  • ralph-orchestration@ai-developer-toolkit (v5.27.0)
+  • devui@ai-developer-toolkit (v2.7.0)
+  • ralph-overview (v2.4.0)
+
+## mcp list after local install
+{
+  "mcpServers": {
+    "seval": {
+      "tools": [
+        "*"
+      ],
+      "type": "stdio",
+      "command": "plugins/seval/launch.cmd",
+      "args": [],
+      "source": "workspace",
+      "sourcePath": "D:\\ai-developer-toolkit\\.worktrees\\ralph-overview-copilot-mirror\\.mcp.json"
+    },
+    "devui": {
+      "tools": [
+        "*"
+      ],
+      "type": "stdio",
+      "command": "cmd",
+      "args": [
+        "/c",
+        "npx",
+        "-y",
+        "./plugins/devui"
+      ],
+      "source": "workspace",
+      "sourcePath": "D:\\ai-developer-toolkit\\.worktrees\\ralph-overview-copilot-mirror\\.mcp.json"
+    },
+    "vs-debugger": {
+      "tools": [
+        "*"
+      ],
+      "type": "stdio",
+      "command": "plugins/dotnet/launch.cmd",
+      "args": [
+        "vs-debugger"
+      ],
+      "source": "workspace",
+      "sourcePath": "D:\\ai-developer-toolkit\\.worktrees\\ralph-overview-copilot-mirror\\.mcp.json"
+    },
+    "roslyn-dev-tools": {
+      "tools": [
+        "*"
+      ],
+      "type": "stdio",
+      "command": "plugins/dotnet/launch.cmd",
+      "args": [
+        "roslyn-dev-tools"
+      ],
+      "source": "workspace",
+      "sourcePath": "D:\\ai-developer-toolkit\\.worktrees\\ralph-overview-copilot-mirror\\.mcp.json"
+    },
+    "edge-browser": {
+      "tools": [
+        "*"
+      ],
+      "type": "stdio",
+      "command": "plugins/edge-browser/launch.cmd",
+      "args": [],
+      "source": "workspace",
+      "sourcePath": "D:\\ai-developer-toolkit\\.worktrees\\ralph-overview-copilot-mirror\\.mcp.json"
+    },
+    "teams": {
+      "tools": [
+        "*"
+      ],
+      "type": "stdio",
+      "command": "plugins/teams/launch.cmd",
+      "args": [],
+      "source": "workspace",
+      "sourcePath": "D:\\ai-developer-toolkit\\.worktrees\\ralph-overview-copilot-mirror\\.mcp.json"
+    },
+    "agent-peers": {
+      "tools": [
+        "*"
+      ],
+      "type": "stdio",
+      "command": "cmd",
+      "args": [
+        "/c",
+        "npx",
+        "-y",
+        "./plugins/agent-peers"
+      ],
+      "source": "workspace",
+      "sourcePath": "D:\\ai-developer-toolkit\\.worktrees\\ralph-overview-copilot-mirror\\.mcp.json"
+    }
+  }
+}
+\n## non-interactive slash command: /skills list
+Available skills in this session:
+
+**Ralph orchestration (plugin)**
+- `analyze-iteration` – Post-iteration analysis (Progress Analyst, rollback, Story Doctor, Quality Gate, Refactoring Pass)
+- `brainstorm-with-ralph` – Multi-model brainstorming before planning
+- `convert-to-ralph-prd` – Convert existing PRDs to Ralph's prd.json format
+- `create-prd` – Generate a PRD for a new feature
+- `decompose-plan` – Break an implementation plan into parallel job group
+- `edit-prd` – Interactively edit an existing prd.json
+- `implement-with-ralph` – End-to-end implementation workflow (plan → PRD → Ralph loop → review)
+- `list-jobs` – Browse Ralph jobs for the current repo
+- `parallel-ralph` – Parallel execution orchestrator for job groups
+- `plan-with-ralph` – Parallel codebase research + multi-model planning
+- `review-changes` – Code + security review of Ralph changes
+- `review-plan-with-ralph` – Review and iteratively fix an implementation plan
+- `run-ralph` – Run the Ralph autonomous agent loop
+
+**DevUI (plugin)**
+- `debug-conversation` – Debug a Sydney/TuringBot conversation
+- `send-and-debug` – Send a chat request to Sydney and debug telemetry
+- `setup-config` – Create/fork a chat request config for local debugging
+
+**Ralph overview (plugin)**
+- `blocker-report` – Surface blocked tasks / open findings / deferred questions
+- `overview-init` – Initialize a repo for ralph-overview via MCP
+- `triage` – Rank Ralph-tracked tasks needing attention
+- `work-on` – Resume a Ralph-tracked task by id
+
+**Project skills (this repo)**
+- `publish-packages` – Publish TypeScript MCP server plugins via GitHub Releases
+- `release-plugin` – Ship a new version of a plugin (bumps manifest, indexes, changelog, pushes to remotes)
+- `sync-options-mode` – Sync standalone Evyatar108/options-mode repo from monorepo
+
+**Built-in**
+- `customize-cloud-agent` – Configure Copilot cloud agent / copilot-setup-steps.yml
+
+Invoke any of these by name (e.g. `/triage`, `/list-jobs`, `/implement-with-ralph`).
+
+\n## non-interactive slash command: /env
+\n## non-interactive MCP invocation attempt: overview.parallel_ready_tasks
+Succeeded: yes. First task id: none (no ready tasks).
+

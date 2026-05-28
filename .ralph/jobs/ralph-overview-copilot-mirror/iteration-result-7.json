@@ -1,0 +1,38 @@
+{
+  "storyId": "US-007",
+  "verifiedEvidence": [
+    {
+      "criterion": "plugins/ralph-overview/CHANGELOG.md has a `## [2.4.0] — 2026-05-27` block in Keep-a-Changelog format with `### Added`, `### Changed`, `### Removed`, and `### Migration` subsections",
+      "evidenceKind": "passed",
+      "command": "grep -nE '^## \\[2\\.4\\.0\\] — 2026-05-27$|^### (Added|Changed|Removed|Migration)$' plugins/ralph-overview/CHANGELOG.md",
+      "result": "Found the v2.4.0 heading at line 9 with Added line 11, Changed line 16, Removed line 21, and Migration line 24."
+    },
+    {
+      "criterion": "plugins/ralph-overview/README.md has a `## Copilot CLI Installation` section with marketplace add, install, verification commands, 4 skills, and actual MCP tools derived from source/test",
+      "evidenceKind": "passed",
+      "command": "copilot plugin marketplace --help | grep -E 'add \\[options\\] <source>'; grep -nE '^## Copilot CLI Installation$|copilot plugin marketplace add gim-home/ai-developer-toolkit|copilot plugin install ralph-overview@ai-developer-toolkit|copilot plugin list|copilot mcp list --json|/work-on|/triage|/blocker-report|/overview-init|overview\\.init|overview\\.parallel_ready_tasks|overview\\.validate_data|overview\\.watcher_status' plugins/ralph-overview/README.md; grep -nE 'overview\\.(init|parallel_ready_tasks|validate_data|watcher_status)' plugins/ralph-overview/tools/overview-mcp/src/__tests__/stdio-tools-list.test.ts",
+      "result": "Copilot help shows add [options] <source>. README line 48 has the Copilot section; lines 51-54 show marketplace-add, install, plugin list, and mcp list --json; lines 66-69 list all 4 skills; lines 73-76 list the 4 MCP tools. stdio-tools-list.test.ts lines 26-36 asserts the same tool names and descriptions."
+    },
+    {
+      "criterion": "plugins/ralph-overview/CLAUDE.md no longer says `dist/copilot/` is the mirror destination; updated to `.copilot-plugin/copilot-skills/`",
+      "evidenceKind": "absent-verified",
+      "command": "grep -n 'dist/copilot' plugins/ralph-overview/CLAUDE.md; printf 'dist_grep_exit=%s\\n' \"$?\"; grep -n '.copilot-plugin/copilot-skills' plugins/ralph-overview/CLAUDE.md",
+      "result": "No dist/copilot matches in CLAUDE.md (dist_grep_exit=1). Line 70 documents .copilot-plugin/copilot-skills/ as the generated mirror destination."
+    },
+    {
+      "criterion": "Migration section in CHANGELOG explicitly tells Copilot users about the marketplace-add prereq",
+      "evidenceKind": "passed",
+      "command": "grep -nE '### Migration|copilot plugin marketplace add gim-home/ai-developer-toolkit|copilot plugin install ralph-overview@ai-developer-toolkit' plugins/ralph-overview/CHANGELOG.md",
+      "result": "The v2.4.0 Migration section starts at line 24; line 25 tells Copilot users to run copilot plugin marketplace add gim-home/ai-developer-toolkit before copilot plugin install ralph-overview@ai-developer-toolkit."
+    },
+    {
+      "criterion": "Typecheck passes",
+      "evidenceKind": "passed",
+      "command": "cd plugins/ralph-overview && npm run typecheck",
+      "result": "Typecheck exited 0: root workspace ran tsc --noEmit -p tsconfig.json and tsc --noEmit for both workspaces with no errors."
+    }
+  ],
+  "skippedReasons": [],
+  "notTested": [],
+  "iterationSHA": "ad5fe390bbd012c389b775cccacaa8df9b1259ed"
+}

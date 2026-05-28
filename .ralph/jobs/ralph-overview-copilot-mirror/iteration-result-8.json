@@ -1,0 +1,93 @@
+{
+  "storyId": "US-008",
+  "verifiedEvidence": [
+    {
+      "criterion": "Fresh Copilot CLI install on this Windows host",
+      "evidenceKind": "fallback",
+      "command": "copilot plugin marketplace add gim-home/ai-developer-toolkit; copilot plugin install ralph-overview@ai-developer-toolkit",
+      "result": "Marketplace command path ran, but install resolved ralph-overview@ai-developer-toolkit v2.3.0 instead of v2.4.0."
+    },
+    {
+      "criterion": "copilot plugin list shows ralph-overview at v2.4.0",
+      "evidenceKind": "fallback",
+      "command": "copilot plugin list after marketplace install and local direct install",
+      "result": "Marketplace install showed v2.3.0; local direct install of ./plugins/ralph-overview showed v2.4.0."
+    },
+    {
+      "criterion": "copilot mcp list --json shows resolved ralph-overview launch.cjs",
+      "evidenceKind": "skipped",
+      "command": "copilot mcp list --json; copilot mcp get ralph-overview --json; temp plugin marketplace probes",
+      "result": "SKIPPED: blocked because Copilot CLI 1.0.55 did not surface plugin MCP servers for string-path or inline mcpServers forms."
+    },
+    {
+      "criterion": "Copilot starts overview.parallel_ready_tasks from plugin MCP",
+      "evidenceKind": "fallback",
+      "command": "cd D:/harness-efforts/codexu && copilot -p MCP prompt --allow-all --silent --disable-builtin-mcps",
+      "result": "Workspace MCP fallback succeeded, but plugin MCP registration remains unverified because codexu .mcp.json supplied the server."
+    },
+    {
+      "criterion": "4 Copilot skills discoverable and callable",
+      "evidenceKind": "fallback",
+      "command": "copilot -p /skills list --allow-all --silent --no-custom-instructions --disable-builtin-mcps",
+      "result": "Skill list showed blocker-report, overview-init, triage, and work-on after local v2.4.0 install; callable 4/4 PASS rows were not completed due plugin MCP blocker."
+    },
+    {
+      "criterion": "PATH-free Copilot skill dispatcher invocation",
+      "evidenceKind": "skipped",
+      "command": "Not run",
+      "result": "SKIPPED: downstream callable skill transcript blocked by plugin MCP registration failure."
+    },
+    {
+      "criterion": "Claude Code regression MCP call",
+      "evidenceKind": "manual-skip",
+      "command": "Not available",
+      "result": "SKIPPED: no fresh Claude Code session-spawn tool is available in this Codex iteration environment."
+    },
+    {
+      "criterion": "npm test --workspace=tools/overview-mcp passes",
+      "evidenceKind": "passed",
+      "command": "cd plugins/ralph-overview && npm test --workspace=tools/overview-mcp",
+      "result": "Passed: 11 test files, 96 tests."
+    },
+    {
+      "criterion": "Copilot CLI install/auth gate",
+      "evidenceKind": "passed",
+      "command": "copilot --version; copilot plugin install ralph-overview@ai-developer-toolkit",
+      "result": "Copilot CLI 1.0.55-7 is installed/authenticated and install command runs; release remains blocked for version/MCP-registration reasons."
+    },
+    {
+      "criterion": "Typecheck passes",
+      "evidenceKind": "passed",
+      "command": "cd plugins/ralph-overview && npm run typecheck",
+      "result": "Passed: overview-mcp and overview-viewer tsc --noEmit completed with no errors."
+    }
+  ],
+  "skippedReasons": [
+    {
+      "criterion": "Plugin MCP registration via copilot mcp list",
+      "reason": "external-dependency",
+      "detail": "Copilot CLI 1.0.55 did not expose plugin MCP servers from documented mcpServers path or inline forms in temp marketplace probes."
+    },
+    {
+      "criterion": "Marketplace v2.4.0 install",
+      "reason": "external-dependency",
+      "detail": "Published ai-developer-toolkit marketplace currently installs ralph-overview v2.3.0, not the local v2.4.0 branch."
+    },
+    {
+      "criterion": "Claude Code regression",
+      "reason": "tool-unavailable",
+      "detail": "This Codex run cannot spawn a fresh Claude Code session or call Claude Code MCP tools directly."
+    }
+  ],
+  "notTested": [
+    {
+      "criterion": "4/4 callable Copilot skill PASS rows",
+      "detail": "Not completed because plugin MCP registration failed before runtime skill transcript verification."
+    },
+    {
+      "criterion": "Plugin-provided overview.parallel_ready_tasks MCP call",
+      "detail": "Only workspace .mcp.json fallback was verified; plugin MCP was absent from Copilot mcp list."
+    }
+  ],
+  "iterationSHA": "ad5fe390bbd012c389b775cccacaa8df9b1259ed"
+}

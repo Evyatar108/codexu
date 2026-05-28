@@ -1,39 +1,53 @@
 {
-  "recommendation": "CONTINUE",
-  "passCount": 6,
+  "recommendation": "BLOCKED",
+  "passCount": 7,
   "storiesCompleted": [
-    { "id": "US-001", "commit": "78b9a65f7d6d0c044f1c8cdaffbceb9ffbf6d059", "verifierVerdict": "agree", "evidence": "VALID" },
-    { "id": "US-002", "commit": "a5aa2b64e63d1cad5a5a9ae6fefa7fcde6eb3dfa", "verifierVerdict": "agree", "evidence": "VALID" },
-    { "id": "US-003", "commit": "3e8d85eaa0216b712ca0b0355d9489300fd9539b", "verifierVerdict": "agree", "evidence": "VALID" },
-    { "id": "US-004", "commit": "09a43dd15723baa4a207441038a526f8897331ae", "verifierVerdict": "agree", "evidence": "VALID" },
-    { "id": "US-005", "commit": "60c4d67eb92dfb5d7870f07836f296d5170b2632", "verifierVerdict": "agree", "evidence": "VALID" },
-    { "id": "US-006", "commit": "00be927bff4976347ad281647d8f32d2016a192d", "verifierVerdict": "agree", "evidence": "VALID" }
+    { "id": "US-001", "commit": "78b9a65f7d6d0c044f1c8cdaffbceb9ffbf6d059", "evidence": "VALID" },
+    { "id": "US-002", "commit": "a5aa2b64e63d1cad5a5a9ae6fefa7fcde6eb3dfa", "evidence": "VALID" },
+    { "id": "US-003", "commit": "3e8d85eaa0216b712ca0b0355d9489300fd9539b", "evidence": "VALID" },
+    { "id": "US-004", "commit": "09a43dd15723baa4a207441038a526f8897331ae", "evidence": "VALID" },
+    { "id": "US-005", "commit": "60c4d67eb92dfb5d7870f07836f296d5170b2632", "evidence": "VALID" },
+    { "id": "US-006", "commit": "00be927bff4976347ad281647d8f32d2016a192d", "evidence": "VALID" },
+    { "id": "US-007", "commit": "ad5fe390bbd012c389b775cccacaa8df9b1259ed", "evidence": "VALID" }
   ],
-  "storiesBlocked": [],
-  "storiesRemaining": [
-    { "id": "US-007", "dependsOn": [], "status": "actionable" },
-    { "id": "US-008", "dependsOn": ["US-007"], "status": "dependency-blocked-on-US-007" }
+  "storiesBlocked": [
+    {
+      "id": "US-008",
+      "classification": "external-dependency",
+      "blocker": "Copilot marketplace install resolves ralph-overview@ai-developer-toolkit to v2.3.0 (not the v2.4.0 in this worktree); copilot mcp list --json does not surface plugin-provided MCP servers on Copilot CLI 1.0.55 from documented mcpServers string-path or inline forms",
+      "remediation": "publish/merge v2.4.0 marketplace entry; re-run gate on Copilot CLI build/configuration that exposes plugin MCP registrations OR update manifest to whatever schema Copilot honors",
+      "deferredFollowupDoc": ".ralph/jobs/ralph-overview-copilot-mirror/deferred-us008-followup.md"
+    }
   ],
+  "storiesRemaining": [],
   "deferredQuestions": [],
   "storyDoctorActions": [],
   "qualityGateResult": "skipped",
-  "qualityGateSkipReason": "analyzer environment lacks subagent-spawn tool; in-iteration typecheck + plugin tests recorded in verifiedEvidence cover the same surface",
+  "qualityGateSkipReason": "analyzer environment lacks subagent-spawn tool; in-iteration typecheck + plugin tests recorded in verifiedEvidence cover the same surface (US-007: overview-mcp 96/96, overview-viewer 256 passed/5 skipped; US-008: typecheck clean, overview-mcp 96/96)",
   "refactoringPassResult": "skipped",
-  "refactoringPassSkipReason": "subagent-spawn tool unavailable; batch is not test-only (production manifests/marketplace JSONs + generator changed), so a future cumulative-10 trigger should run this normally",
+  "refactoringPassSkipReason": "cumulative completed 7 does not cross multiple of refactorInterval=5 this iteration (next trigger at 10); also subagent-spawn unavailable in analyzer environment",
   "rollbackFailures": [],
+  "retryGate": {
+    "US-008": { "classification": "external-dependency", "retriesAllowed": 0, "decision": "escalate-out-of-band", "reason": "not ralph-actionable; needs marketplace publication + Copilot CLI behavior change" }
+  },
   "manifestVerifier": {
-    "iterations": [1, 2, 3, 4, 5, 6],
-    "iterationsThisRun": [4, 5, 6],
-    "allVerdictsAgree": true,
+    "iterations": [1, 2, 3, 4, 5, 6, 7, 8],
+    "iterationsThisRun": [7, 8],
+    "thisRunVerdict": "skipped",
+    "thisRunSkipReason": "subagent-spawn tool unavailable in analyzer environment; structural validation passed both manifests",
+    "priorRunsVerdictAgree": true,
     "warnings": [
-      "iter 3 only: extra 'Plugin tests pass' evidence beyond AC list (advisory, non-blocking)"
+      "iter 3 only: extra 'Plugin tests pass' evidence beyond AC list (advisory, non-blocking, carries over)"
     ]
   },
   "notes": [
-    "Manifest verifier (Step 0.5, advisory) ran on iters 4-6 this run; every AC verdict was 'agree' with zero warnings. Iters 1-3 verdicts preserved from prior run.",
-    "All 6 completed stories show plausible evidence with full criteria coverage. No unverified passes, no evidence ISSUES.",
-    "Parity spot-check this batch: no AC in US-004/US-005/US-006 triggered parity keywords on AC text — skipped without warning.",
-    "Refactoring Pass + Quality Gate skipped this run due to lack of subagent-spawn tool in analyzer environment; per-story typecheck + tests already covered.",
-    "Velocity: 3 stories in 3 iterations this run (6/6 cumulative). Branch ralph/ralph-overview-copilot-mirror has 6 commits on top of 0493680c."
+    "Job status COMPLETED per job-state.json. 7/8 passed; US-008 operator-blocked.",
+    "Step 0.5 manifest verifier (iters 7-8): subagent-spawn tool unavailable in analyzer environment; structural validation passed on both manifests. Iters 1-6 verdicts preserved from prior runs.",
+    "All 7 passes have non-empty verifiedEvidence with criteria coverage; no unverified passes; no evidence ISSUES; no auto-rollback needed.",
+    "US-008 evidence array shows 4 passed + 4 fallback + 1 skipped + 1 manual-skip with documented skippedReasons (external-dependency, tool-unavailable). The story is operator-blocked, not falsely passing — no rollback applied.",
+    "Quality Gate + Refactoring Pass skipped this run due to analyzer-environment limitation; cumulative=7 does not cross refactorInterval=5 multiple this iteration in any case.",
+    "Recurring failures: US-008 single occurrence (external-dependency). Not promoted to PERMANENT (requires occurrences=2).",
+    "Velocity this run: 2 iterations (US-007 pass + US-008 blocked). Cumulative: 7 passes / 8 stories.",
+    "Branch ralph/ralph-overview-copilot-mirror on D:/ai-developer-toolkit/.worktrees/ralph-overview-copilot-mirror — 8 commits on top of 0493680c (including 02ae3f70 deferred US-008 followup doc). Worktree has uncommitted plugins/agent-peers/bootstrap.cjs mod unrelated to this job."
   ]
 }

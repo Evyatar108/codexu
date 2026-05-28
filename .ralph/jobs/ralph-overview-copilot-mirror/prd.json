@@ -379,12 +379,40 @@
         "Typecheck passes"
       ],
       "priority": 7,
-      "passes": false,
+      "passes": true,
       "notes": "Per F-009 (Medium, open): the README's MCP tool list MUST be derived from server.ts / the stdio-tools-list.test.ts test at impl time, not hardcoded from this plan's 5-tool list. Open Question #1: codex flagged that v2.3.0 may have removed dev_server.start/stop in favor of watcher_status; verify against the worktree's actual server.ts at impl time.",
-      "verifiedEvidence": [],
+      "verifiedEvidence": [
+        {
+          "criterion": "plugins/ralph-overview/CHANGELOG.md has a `## [2.4.0] — 2026-05-27` block in Keep-a-Changelog format with `### Added`, `### Changed`, `### Removed`, and `### Migration` subsections",
+          "command": "grep -nF \"## [2.4.0] — 2026-05-27\" plugins/ralph-overview/CHANGELOG.md; grep -nF \"### Added\" plugins/ralph-overview/CHANGELOG.md; grep -nF \"### Changed\" plugins/ralph-overview/CHANGELOG.md; grep -nF \"### Removed\" plugins/ralph-overview/CHANGELOG.md; grep -nF \"### Migration\" plugins/ralph-overview/CHANGELOG.md",
+          "result": "Found the v2.4.0 heading at line 9 with Added line 11, Changed line 16, Removed line 21, and Migration line 24."
+        },
+        {
+          "criterion": "plugins/ralph-overview/README.md has a `## Copilot CLI Installation` section with marketplace add, install, verification commands, 4 skills, and actual MCP tools derived from source/test",
+          "command": "copilot plugin marketplace --help | grep -F \"add [options] <source>\"; grep -nF \"## Copilot CLI Installation\" plugins/ralph-overview/README.md; grep -nF \"copilot plugin marketplace add gim-home/ai-developer-toolkit\" plugins/ralph-overview/README.md; grep -nF \"copilot plugin install ralph-overview@ai-developer-toolkit\" plugins/ralph-overview/README.md; grep -nF \"copilot plugin list\" plugins/ralph-overview/README.md; grep -nF \"copilot mcp list --json\" plugins/ralph-overview/README.md; grep -nF \"/work-on\" plugins/ralph-overview/README.md; grep -nF \"/triage\" plugins/ralph-overview/README.md; grep -nF \"/blocker-report\" plugins/ralph-overview/README.md; grep -nF \"/overview-init\" plugins/ralph-overview/README.md; grep -nF \"overview.watcher_status\" plugins/ralph-overview/tools/overview-mcp/src/__tests__/stdio-tools-list.test.ts",
+          "result": "Copilot help shows add [options] <source>. README line 48 has the Copilot section; lines 51-54 show marketplace-add, install, plugin list, and mcp list --json; lines 66-69 list all 4 skills; lines 73-76 list the 4 MCP tools. stdio-tools-list.test.ts lines 26-36 asserts the same tool names and descriptions."
+        },
+        {
+          "criterion": "plugins/ralph-overview/CLAUDE.md no longer says `dist/copilot/` is the mirror destination; updated to `.copilot-plugin/copilot-skills/`",
+          "command": "grep -nF \"dist/copilot\" plugins/ralph-overview/CLAUDE.md; printf \"dist_grep_exit=%s\n\" \"$?\"; grep -nF \".copilot-plugin/copilot-skills\" plugins/ralph-overview/CLAUDE.md",
+          "result": "No dist/copilot matches in CLAUDE.md (dist_grep_exit=1). Line 70 documents .copilot-plugin/copilot-skills/ as the generated mirror destination."
+        },
+        {
+          "criterion": "Migration section in CHANGELOG explicitly tells Copilot users about the marketplace-add prereq",
+          "command": "grep -nF \"### Migration\" plugins/ralph-overview/CHANGELOG.md; grep -nF \"copilot plugin marketplace add gim-home/ai-developer-toolkit\" plugins/ralph-overview/CHANGELOG.md",
+          "result": "The v2.4.0 Migration section starts at line 24; line 25 tells Copilot users to run copilot plugin marketplace add gim-home/ai-developer-toolkit before copilot plugin install ralph-overview@ai-developer-toolkit."
+        },
+        {
+          "criterion": "Typecheck passes",
+          "command": "cd plugins/ralph-overview && npm run typecheck",
+          "result": "Typecheck exited 0: root workspace ran tsc --noEmit -p tsconfig.json and tsc --noEmit for both workspaces with no errors."
+        }
+      ],
       "dependencies": [
         "US-005"
-      ]
+      ],
+      "failureClassification": "",
+      "partialProgress": null
     },
     {
       "id": "US-008",
@@ -404,11 +432,63 @@
       ],
       "priority": 8,
       "passes": false,
-      "notes": "This is the blocking pre-merge gate per F-001 / F-002 resolution. If the string-path mcpServers form fails the resolved-launch test, US-004's manifest must be re-edited to use a Copilot-only inline object using Copilot's verified plugin-root token/path (not ${CLAUDE_PLUGIN_ROOT}), and US-008 re-run.",
-      "verifiedEvidence": [],
+      "notes": "BLOCKED 2026-05-28: Required Copilot marketplace install does not install this v2.4.0 worktree; copilot plugin install ralph-overview@ai-developer-toolkit installs v2.3.0 from the published marketplace. A local v2.4.0 direct install installs all 4 skills, but copilot mcp list --json does not include plugin-provided MCP servers. Temp marketplace probes with root plugin.json and both mcpServers: \".mcp.json\" and inline mcpServers object also failed to surface MCP servers in Copilot CLI 1.0.55. Required action: publish/merge the v2.4.0 marketplace entry and re-run the gate on a Copilot CLI build that exposes plugin MCP registrations, or update the manifest to the verified Copilot MCP registration form if GitHub changes the schema.",
+      "verifiedEvidence": [
+        {
+          "criterion": "Fresh Copilot CLI install on this Windows host: marketplace add then install succeeds",
+          "command": "copilot plugin marketplace add gim-home/ai-developer-toolkit; copilot plugin install ralph-overview@ai-developer-toolkit",
+          "result": "BLOCKED: marketplace add reported already registered; marketplace install succeeded but installed ralph-overview@ai-developer-toolkit v2.3.0, not this v2.4.0 worktree."
+        },
+        {
+          "criterion": "copilot plugin list shows ralph-overview at v2.4.0",
+          "command": "copilot plugin list after marketplace install, then after local direct install ./plugins/ralph-overview",
+          "result": "Marketplace install listed ralph-overview@ai-developer-toolkit (v2.3.0). Local direct install listed ralph-overview (v2.4.0), proving the worktree version installs locally but not from the published marketplace."
+        },
+        {
+          "criterion": "copilot mcp list --json shows ralph-overview MCP server with resolved launch.cjs path",
+          "command": "copilot mcp list --json; copilot mcp get ralph-overview --json; temp marketplace probes for mcpServers string-path and inline object forms",
+          "result": "BLOCKED: no ralph-overview plugin MCP entry appeared. copilot mcp get ralph-overview returned Server not found; temp plugins with root plugin.json and mcpServers .mcp.json or inline object also did not appear in copilot mcp list."
+        },
+        {
+          "criterion": "Copilot actually starts the MCP server via overview.parallel_ready_tasks",
+          "command": "cd D:/harness-efforts/codexu && copilot -p 'Use the ralph-overview MCP tool overview.parallel_ready_tasks once...' --allow-all --silent --disable-builtin-mcps",
+          "result": "Fallback workspace MCP smoke succeeded with 'Succeeded: yes. First task id: none', but this used codexu's workspace .mcp.json, not plugin MCP registration; plugin MCP remains blocked."
+        },
+        {
+          "criterion": "Each of the 4 Copilot skills is discoverable and callable; smoke log has 4/4 PASS rows",
+          "command": "copilot -p '/skills list' --allow-all --silent --no-custom-instructions --disable-builtin-mcps",
+          "result": "BLOCKED: /skills list output in copilot-skill-smoke.log showed blocker-report, overview-init, triage, and work-on under Ralph overview after local v2.4.0 install, but the required marketplace install was v2.3.0 and the 4/4 callable PASS transcript was not completed because MCP registration failed."
+        },
+        {
+          "criterion": "At least one Copilot skill path runs sync or cli derive-next-command through node <pluginRoot>/bin/ralph-overview.mjs without PATH",
+          "command": "Not run after MCP registration failure; source/mirror dispatcher path was already verified in US-002/US-003",
+          "result": "SKIPPED: downstream runtime gate blocked before callable skill transcript; no new PATH-free Copilot skill invocation evidence collected in this iteration."
+        },
+        {
+          "criterion": "Claude-code regression: fresh Claude Code session mcp__ralph-overview__overview_parallel_ready_tasks still works",
+          "command": "Not available from this Codex iteration environment",
+          "result": "SKIPPED: no Claude Code session-spawn tool is available in this Codex run; direct Copilot workspace MCP smoke in codexu succeeded, but it is not the requested Claude Code regression."
+        },
+        {
+          "criterion": "npm test --workspace=tools/overview-mcp passes",
+          "command": "cd plugins/ralph-overview && npm test --workspace=tools/overview-mcp",
+          "result": "Passed: 11 test files, 96 tests."
+        },
+        {
+          "criterion": "If Copilot CLI is not installable/unauthenticated, release is BLOCKED",
+          "command": "copilot --version; copilot plugin install ralph-overview@ai-developer-toolkit; copilot mcp list --json",
+          "result": "Copilot CLI is installed/authenticated (1.0.55-7) and plugin install runs, but the gate is BLOCKED because marketplace install resolves v2.3.0 and plugin MCP registration is not visible through Copilot's mcp list."
+        },
+        {
+          "criterion": "Typecheck passes",
+          "command": "cd plugins/ralph-overview && npm run typecheck",
+          "result": "Passed: both overview-mcp and overview-viewer workspaces ran tsc --noEmit with no errors."
+        }
+      ],
       "dependencies": [
         "US-007"
-      ]
+      ],
+      "blocked": true
     }
   ],
   "openQuestions": [
