@@ -1,0 +1,433 @@
+{
+  "project": "ralph-overview Copilot Mirror",
+  "description": "Add a discoverable Copilot plugin mirror to plugins/ralph-overview/ so GitHub Copilot CLI sessions can install the plugin, see the 4 user skills (work-on, triage, blocker-report, overview-init), and use the ralph-overview MCP tools. Refactors the existing skill generator to emit .copilot-plugin/copilot-skills/ instead of dist/copilot/, fixes source-skill CLI invocations so generated Copilot mirrors do not depend on ralph-overview being on PATH, adds a .github/plugin/plugin.json Copilot manifest with skills + mcpServers declarations, bumps the version to 2.4.0 across all version-bearing files, and documents Copilot installation. Additive: Claude Code consumers see no behavior change.",
+  "deslop": true,
+  "iterationEngine": "codex",
+  "planningEngine": "codex",
+  "overviewTaskId": "ralph-overview-copilot-mirror",
+  "jobDir": "D:/harness-efforts/codexu/.ralph/jobs/ralph-overview-copilot-mirror",
+  "repoDir": "D:/ai-developer-toolkit/.worktrees/ralph-overview-copilot-mirror",
+  "baseBranch": "main",
+  "branch": {
+    "name": "ralph/ralph-overview-copilot-mirror",
+    "created": true
+  },
+  "worktree": {
+    "path": "D:/ai-developer-toolkit/.worktrees/ralph-overview-copilot-mirror",
+    "branch": "ralph/ralph-overview-copilot-mirror",
+    "startPoint": "origin/main",
+    "external": true
+  },
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Refactor generator output paths and add forbidden-token assertion",
+      "description": "As a plugin maintainer, I want scripts/generate-copilot-artifacts.mjs to emit Copilot mirrors under .copilot-plugin/copilot-skills/ (not dist/copilot/) and to refuse Claude-only API leakage, so the generated artifacts are discoverable by Copilot and safe to ship.",
+      "acceptanceCriteria": [
+        "discoverSkillMirrors writes targets under <pluginRoot>/.copilot-plugin/copilot-skills/<skill>/SKILL.md",
+        "renderLocalSkillDispatch updates BOTH path occurrences in its prompt template (canonical path + glob fallback), derived from one shared helper/constant to prevent drift",
+        "Generator includes a path-consistency self-check: the embedded prompt path equals the actual output target",
+        "Forbidden-token assertion rejects any of ['Skill(', 'Agent(', 'BashOutput', 'run_in_background', 'EnterPlanMode', 'ExitPlanMode'] in post-substitution output (per F-008 resolution; do NOT include <options-mode> or mcp__ which are transformed by substitution rules)",
+        "--check mode reports skill name + target path on drift",
+        "Existing RALPH_OVERVIEW_PLUGIN_ROOT env precedence is preserved",
+        "Existing lib/atomic-write.mjs usage is preserved",
+        "Any existing generator unit tests pass",
+        "Typecheck passes"
+      ],
+      "priority": 1,
+      "passes": true,
+      "notes": "Reference impl: plugins/ralph/scripts/generate-copilot-artifacts.mjs lines 33, 197-216, 246-263. Hardcoded paths to fix are at plugins/ralph-overview/scripts/generate-copilot-artifacts.mjs line 25 (BOTH occurrences in renderLocalSkillDispatch template string) and line 58 (discoverSkillMirrors).",
+      "verifiedEvidence": [
+        {
+          "criterion": "discoverSkillMirrors writes targets under <pluginRoot>/.copilot-plugin/copilot-skills/<skill>/SKILL.md",
+          "command": "node -e \"import('./plugins/ralph-overview/scripts/generate-copilot-artifacts.mjs').then(async m => { const outputs = await m.discoverSkillMirrors('plugins/ralph-overview'); for (const o of outputs) console.log(o.skill + ' -> ' + o.target); })\"",
+          "result": "blocker-report, overview-init, triage, and work-on targets all resolved under plugins\ralph-overview.copilot-plugincopilot-skills<skill>SKILL.md"
+        },
+        {
+          "criterion": "renderLocalSkillDispatch updates BOTH path occurrences in its prompt template (canonical path + glob fallback), derived from one shared helper/constant to prevent drift",
+          "command": "node -e \"import('./plugins/ralph-overview/scripts/generate-copilot-artifacts.mjs').then(m => { const out = m.applySubstitutions('Skill(\\\"work-on\\\", args=\\\"demo\\\")'); const matches = out.match(/plugins/ralph-overview/.copilot-plugin/copilot-skills/work-on/SKILL.md/g) || []; console.log('pathOccurrences=' + matches.length); })\"",
+          "result": "pathOccurrences=2 for plugins/ralph-overview/.copilot-plugin/copilot-skills/work-on/SKILL.md"
+        },
+        {
+          "criterion": "Generator includes a path-consistency self-check: the embedded prompt path equals the actual output target",
+          "command": "grep -nE 'assertLocalSkillDispatchPathConsistency|assertPathConsistency|localSkillMirror(Target|PromptPath|RelativePath)' plugins/ralph-overview/scripts/generate-copilot-artifacts.mjs",
+          "result": "Self-check functions are present and wired: localSkillMirrorRelativePath, localSkillMirrorPromptPath, localSkillMirrorTarget, assertLocalSkillDispatchPathConsistency, and assertPathConsistency."
+        },
+        {
+          "criterion": "Forbidden-token assertion rejects any of ['Skill(', 'Agent(', 'BashOutput', 'run_in_background', 'EnterPlanMode', 'ExitPlanMode'] in post-substitution output",
+          "command": "node -e \"import('./plugins/ralph-overview/scripts/generate-copilot-artifacts.mjs').then(m => { for (const token of ['Skill(', 'Agent(', 'BashOutput', 'run_in_background', 'EnterPlanMode', 'ExitPlanMode']) { try { m.applySubstitutions(token); console.log('UNEXPECTED ' + token); process.exitCode = 1; } catch (e) { console.log('rejected ' + token + ': ' + e.message); } } })\"",
+          "result": "All six forbidden tokens were rejected with Forbidden Copilot token remains after substitution messages; <options-mode> and mcp__ are not in the forbidden list."
+        },
+        {
+          "criterion": "--check mode reports skill name + target path on drift",
+          "command": "set +e; out=$(node plugins/ralph-overview/scripts/generate-copilot-artifacts.mjs 2>&1); status=$?; printf '%s\nexit=%s\n' \"$out\" \"$status\"",
+          "result": "Exit 1 before generated files exist; output names each skill and target path, e.g. missing copilot mirror for blocker-report: .copilot-plugincopilot-skills\blocker-reportSKILL.md."
+        },
+        {
+          "criterion": "Existing RALPH_OVERVIEW_PLUGIN_ROOT env precedence is preserved",
+          "command": "RALPH_OVERVIEW_PLUGIN_ROOT=\"$PWD/plugins/ralph-overview\" node -e \"import('node:path').then(path => import('./plugins/ralph-overview/scripts/generate-copilot-artifacts.mjs').then(async m => { const outputs = await m.discoverSkillMirrors(); const root = path.default.resolve(process.env.RALPH_OVERVIEW_PLUGIN_ROOT); console.log(outputs.every(o => path.default.resolve(o.target).startsWith(root)) ? 'envRootUsed=true' : 'envRootUsed=false'); }))\"",
+          "result": "envRootUsed=true"
+        },
+        {
+          "criterion": "Existing lib/atomic-write.mjs usage is preserved",
+          "command": "grep -nE 'atomicWriteFile|from .*/lib/atomic-write' plugins/ralph-overview/scripts/generate-copilot-artifacts.mjs",
+          "result": "Import remains at line 7 and writeCopilotArtifacts still calls atomicWriteFile at line 148."
+        },
+        {
+          "criterion": "Any existing generator unit tests pass",
+          "command": "find plugins/ralph-overview -path '*/node_modules/*' -prune -o -iname '*generate-copilot-artifacts*.test.*' -print; npm test",
+          "result": "No generator-specific test files exist. Full plugin workspace tests passed: overview-mcp 11 files/96 tests, overview-viewer 49 files/256 passed and 5 skipped."
+        },
+        {
+          "criterion": "Typecheck passes",
+          "command": "npm run typecheck",
+          "result": "Typecheck passed for both workspaces: tsc --noEmit -p tsconfig.json and tsc --noEmit exited 0."
+        }
+      ],
+      "dependencies": [],
+      "failureClassification": "",
+      "partialProgress": null
+    },
+    {
+      "id": "US-002",
+      "title": "Refactor source skills to use plugin-dispatcher path (no PATH lookup)",
+      "description": "As a Copilot user, I want /work-on, /triage, and /blocker-report to invoke ralph-overview via node <pluginRoot>/bin/ralph-overview.mjs ... --repo <repo-root> so the skills work without requiring the binary on PATH.",
+      "acceptanceCriteria": [
+        "skills/work-on/SKILL.md, skills/triage/SKILL.md, skills/blocker-report/SKILL.md no longer contain bare `ralph-overview sync` or `ralph-overview cli` invocations as runnable commands",
+        "All shell-out invocations use the dispatcher path with the resolved plugin root token recognized by both Claude (CLAUDE_PLUGIN_ROOT or RALPH_OVERVIEW_PLUGIN_ROOT) and Copilot",
+        "--repo <repo-root> is passed explicitly to every sync and cli derive-next-command invocation",
+        "Claude-code regression smoke (deterministic): from codexu repo root, run `node D:/ai-developer-toolkit/plugins/ralph-overview/bin/ralph-overview.mjs sync --repo D:/harness-efforts/codexu` and assert exit 0 plus mtime advance on `plans/overview-snapshot.json`. Additionally `grep -RInE 'CLAUDE_PLUGIN_ROOT|RALPH_OVERVIEW_PLUGIN_ROOT' plugins/ralph-overview/skills/{work-on,triage,blocker-report}/SKILL.md` must return at least one match per file (confirming resolved-root token is wired up).",
+        "Grep verification: `grep -RInE '(^|[^/[:alnum:]_-])ralph-overview (sync|cli)' plugins/ralph-overview/skills/{work-on,triage,blocker-report}/SKILL.md` returns no live (non-comment) matches",
+        "Typecheck passes"
+      ],
+      "priority": 2,
+      "passes": true,
+      "notes": "Per F-006 resolution this work is in-scope for v2.4.0. skills/overview-init/SKILL.md is reference only unless grep finds the same PATH-assumption pattern there. Parallel-safe with US-001 in principle, but must complete before US-003 generator run so the Copilot mirrors inherit the dispatcher fix.",
+      "verifiedEvidence": [
+        {
+          "criterion": "skills/work-on/SKILL.md, skills/triage/SKILL.md, skills/blocker-report/SKILL.md no longer contain bare `ralph-overview sync` or `ralph-overview cli` invocations as runnable commands",
+          "command": "grep -RInE \"(^|[^/[:alnum:]_-])ralph-overview (sync|cli)\" plugins/ralph-overview/skills/work-on/SKILL.md plugins/ralph-overview/skills/triage/SKILL.md plugins/ralph-overview/skills/blocker-report/SKILL.md",
+          "result": "No matches; grep exited 1, confirming no bare ralph-overview sync or cli invocations remain in the three source skills."
+        },
+        {
+          "criterion": "All shell-out invocations use the dispatcher path with the resolved plugin root token recognized by both Claude (CLAUDE_PLUGIN_ROOT or RALPH_OVERVIEW_PLUGIN_ROOT) and Copilot",
+          "command": "grep -RInE \"RALPH_OVERVIEW_PLUGIN_ROOT|CLAUDE_PLUGIN_ROOT|node \\\\\\\"\\$plugin_?root/bin/ralph-overview\\.mjs\\\\\\\"|node \\\\\\\"\\$pluginRoot/bin/ralph-overview\\.mjs\\\\\\\"\" plugins/ralph-overview/skills/work-on/SKILL.md plugins/ralph-overview/skills/triage/SKILL.md plugins/ralph-overview/skills/blocker-report/SKILL.md",
+          "result": "Each file references RALPH_OVERVIEW_PLUGIN_ROOT or CLAUDE_PLUGIN_ROOT; all displayed command paths use node \"$plugin_root/bin/ralph-overview.mjs\" or node \"$pluginRoot/bin/ralph-overview.mjs\"."
+        },
+        {
+          "criterion": "--repo <repo-root> is passed explicitly to every sync and cli derive-next-command invocation",
+          "command": "grep -RInE \"node \\\\\\\"\\$plugin_?root/bin/ralph-overview\\.mjs\\\\\\\" (sync|cli derive-next-command).*--repo|node \\\\\\\"\\$pluginRoot/bin/ralph-overview\\.mjs\\\\\\\" (sync|cli derive-next-command).*--repo\" plugins/ralph-overview/skills/work-on/SKILL.md plugins/ralph-overview/skills/triage/SKILL.md plugins/ralph-overview/skills/blocker-report/SKILL.md",
+          "result": "All sync and cli derive-next-command command lines found in work-on, triage, and blocker-report include --repo."
+        },
+        {
+          "criterion": "Claude-code regression smoke (deterministic): dispatcher sync exits 0 and advances plans/overview-snapshot.json mtime; env-token grep returns at least one match per file",
+          "command": "before=$(stat -c %Y D:/harness-efforts/codexu/plans/overview-snapshot.json); node D:/ai-developer-toolkit/plugins/ralph-overview/bin/ralph-overview.mjs sync --repo D:/harness-efforts/codexu; after=$(stat -c %Y D:/harness-efforts/codexu/plans/overview-snapshot.json); grep -RInE \"CLAUDE_PLUGIN_ROOT|RALPH_OVERVIEW_PLUGIN_ROOT\" plugins/ralph-overview/skills/work-on/SKILL.md plugins/ralph-overview/skills/triage/SKILL.md plugins/ralph-overview/skills/blocker-report/SKILL.md",
+          "result": "Dispatcher sync exited 0; overview-snapshot.json mtime advanced from 1779923439 to 1779961962. Env-token grep matched work-on lines 52/106/153, triage lines 34/35, and blocker-report lines 23/24."
+        },
+        {
+          "criterion": "Grep verification: grep for bare `ralph-overview (sync|cli)` in work-on, triage, and blocker-report returns no live matches",
+          "command": "grep -RInE \"(^|[^/[:alnum:]_-])ralph-overview (sync|cli)\" plugins/ralph-overview/skills/work-on/SKILL.md plugins/ralph-overview/skills/triage/SKILL.md plugins/ralph-overview/skills/blocker-report/SKILL.md",
+          "result": "No matches; grep exited 1."
+        },
+        {
+          "criterion": "Typecheck passes",
+          "command": "cd plugins/ralph-overview && npm run typecheck",
+          "result": "Typecheck passed for both workspaces: tsc --noEmit -p tsconfig.json and tsc --noEmit exited 0."
+        }
+      ],
+      "dependencies": [],
+      "failureClassification": "",
+      "partialProgress": null
+    },
+    {
+      "id": "US-003",
+      "title": "Generate Copilot skill mirrors under .copilot-plugin/copilot-skills/",
+      "description": "As a Copilot user, I want the 4 user skills mirrored at .copilot-plugin/copilot-skills/{work-on,triage,blocker-report,overview-init}/SKILL.md so Copilot can discover them.",
+      "acceptanceCriteria": [
+        "node plugins/ralph-overview/scripts/generate-copilot-artifacts.mjs --write produces all 4 SKILL.md files under .copilot-plugin/copilot-skills/",
+        "Re-running --write is idempotent (no git diff after second run)",
+        "Default --check mode exits 0 after committing the generated files",
+        "None of the 4 generated files contain any forbidden Claude-only token (verified by the generator's assertion AND by `grep -l -E 'Skill\\(|Agent\\(|BashOutput|run_in_background|EnterPlanMode|ExitPlanMode' plugins/ralph-overview/.copilot-plugin/copilot-skills/*/SKILL.md` returning no matches)",
+        "Generated files inherit the PATH-free dispatcher invocation from US-002: grep for bare `ralph-overview (sync|cli)` in generated files returns no matches",
+        "Typecheck passes"
+      ],
+      "priority": 3,
+      "passes": true,
+      "notes": "Depends on US-001 (new output target) and US-002 (source-skill dispatcher fix) so mirrors are both at the right location and contain the working invocation. Generated files are emitted by the generator; do NOT hand-edit.",
+      "verifiedEvidence": [
+        {
+          "criterion": "node plugins/ralph-overview/scripts/generate-copilot-artifacts.mjs --write produces all 4 SKILL.md files under .copilot-plugin/copilot-skills/",
+          "command": "node plugins/ralph-overview/scripts/generate-copilot-artifacts.mjs --write && find plugins/ralph-overview/.copilot-plugin/copilot-skills -maxdepth 2 -type f -name SKILL.md -print | sort",
+          "result": "Generator exited 0 with ok: Copilot skill mirrors written and listed blocker-report, overview-init, triage, and work-on SKILL.md files under plugins/ralph-overview/.copilot-plugin/copilot-skills/."
+        },
+        {
+          "criterion": "Re-running --write is idempotent (no git diff after second run)",
+          "command": "hash files before and after node plugins/ralph-overview/scripts/generate-copilot-artifacts.mjs --write, then run git diff --exit-code -- plugins/ralph-overview/.copilot-plugin/copilot-skills",
+          "result": "Second --write exited 0, printed idempotent=true, and git diff --exit-code found no content changes. Git emitted only CRLF normalization warnings for three Markdown files."
+        },
+        {
+          "criterion": "Default --check mode exits 0 after committing the generated files",
+          "command": "node plugins/ralph-overview/scripts/generate-copilot-artifacts.mjs && git status --short",
+          "result": "Post-commit check exited 0 with ok: Copilot skill mirrors match; git status --short printed no changes."
+        },
+        {
+          "criterion": "None of the 4 generated files contain any forbidden Claude-only token (verified by the generator's assertion AND by grep)",
+          "command": "node plugins/ralph-overview/scripts/generate-copilot-artifacts.mjs && grep -l -E 'Skill[(]|Agent[(]|BashOutput|run_in_background|EnterPlanMode|ExitPlanMode' plugins/ralph-overview/.copilot-plugin/copilot-skills/*/SKILL.md; echo grep_exit=$?",
+          "result": "Generator check exited 0, so its forbidden-token assertion passed. Grep printed no file paths and returned grep_exit=1, confirming no forbidden tokens in the generated mirrors."
+        },
+        {
+          "criterion": "Generated files inherit the PATH-free dispatcher invocation from US-002: grep for bare `ralph-overview (sync|cli)` in generated files returns no matches",
+          "command": "grep -RInE '(^|[^/[:alnum:]_-])ralph-overview (sync|cli)' plugins/ralph-overview/.copilot-plugin/copilot-skills/*/SKILL.md; echo grep_exit=$?",
+          "result": "Grep printed no matches and returned grep_exit=1; generated command examples use plugin-root dispatcher paths instead of bare ralph-overview sync or cli commands."
+        },
+        {
+          "criterion": "Typecheck passes",
+          "command": "cd plugins/ralph-overview && npm run typecheck",
+          "result": "Typecheck exited 0 for both workspaces: tsc --noEmit -p tsconfig.json and tsc --noEmit."
+        },
+        {
+          "criterion": "Plugin tests pass",
+          "command": "cd plugins/ralph-overview && npm test -- --no-file-parallelism --maxWorkers=1",
+          "result": "Full plugin test run exited 0: overview-mcp 11 files / 96 tests passed; overview-viewer 49 files / 256 tests passed and 5 skipped. Earlier default runs hit the known Windows three-mcp-integration flake; the isolated file then passed 2/2."
+        }
+      ],
+      "dependencies": [
+        "US-001",
+        "US-002"
+      ],
+      "failureClassification": "",
+      "partialProgress": null
+    },
+    {
+      "id": "US-004",
+      "title": "Add Copilot manifest at .github/plugin/plugin.json (+ parity-exceptions decision)",
+      "description": "As a Copilot CLI user, I want plugins/ralph-overview/.github/plugin/plugin.json to declare the plugin, its skills directory, and its MCP server, so `copilot plugin install ralph-overview@ai-developer-toolkit` discovers everything.",
+      "acceptanceCriteria": [
+        "plugins/ralph-overview/.github/plugin/plugin.json exists with v2.4.0 and the schema fields: name, description, version, author, license, homepage, repository, keywords, `\"skills\": \".copilot-plugin/copilot-skills/\"`, mcpServers",
+        "Initial mcpServers value: `\".mcp.json\"` (string-path form). If US-008 verification reveals Copilot does not resolve the resulting command to a launchable path, switch to a Copilot-only inline object whose launch token works under Copilot (do NOT preserve `${CLAUDE_PLUGIN_ROOT}` in the inline fallback)",
+        "JSON parses successfully: `node -e \"JSON.parse(require('fs').readFileSync('plugins/ralph-overview/.github/plugin/plugin.json'))\"` exits 0",
+        ".copilot-plugin/parity-exceptions.json is EITHER created with a one-line justification (future-hook for parity-checker consumption) OR omitted entirely per F-010 resolution. Decision documented in CHANGELOG",
+        "Typecheck passes"
+      ],
+      "priority": 4,
+      "passes": true,
+      "notes": "Reference manifests: plugins/ralph/.github/plugin/plugin.json and plugins/crews/.github/plugin/plugin.json. F-010 (Medium, open): parity-exceptions.json adds no value unless the generator consumes it; recommended default is to drop, but the impl can keep it as a documented future-hook.",
+      "verifiedEvidence": [
+        {
+          "criterion": "plugins/ralph-overview/.github/plugin/plugin.json exists with v2.4.0 and required schema fields",
+          "command": "jq -r '[.name,.description,.version,.author.name,.license,.homepage,.repository,(.keywords|join(\",\")),.skills,(.mcpServers|tostring)] | @tsv' plugins/ralph-overview/.github/plugin/plugin.json",
+          "result": "ralph-overview manifest parsed with description, version 2.4.0, author Evyatar Mitrani, MIT license, homepage/repository https://github.com/gim-home/ai-developer-toolkit, keywords ralph,overview,dashboard,pipeline-state,mcp,copilot-cli, skills .copilot-plugin/copilot-skills/, and mcpServers .mcp.json."
+        },
+        {
+          "criterion": "Initial mcpServers value is .mcp.json string-path form",
+          "command": "jq -r '.mcpServers' plugins/ralph-overview/.github/plugin/plugin.json",
+          "result": ".mcp.json"
+        },
+        {
+          "criterion": "JSON parses successfully",
+          "command": "node -e \"JSON.parse(require('fs').readFileSync('plugins/ralph-overview/.github/plugin/plugin.json')); console.log('json-ok')\"",
+          "result": "json-ok"
+        },
+        {
+          "criterion": ".copilot-plugin/parity-exceptions.json is omitted per F-010 and decision documented in CHANGELOG",
+          "command": "test ! -e plugins/ralph-overview/.copilot-plugin/parity-exceptions.json && grep -n \"Omitted .*parity-exceptions\" plugins/ralph-overview/CHANGELOG.md",
+          "result": "parity-exceptions.json is absent; CHANGELOG line 13 documents omission because no parity checker consumes it yet."
+        },
+        {
+          "criterion": "Typecheck passes",
+          "command": "cd plugins/ralph-overview && npm run typecheck",
+          "result": "Typecheck exited 0 for both workspaces: tsc --noEmit -p tsconfig.json and tsc --noEmit."
+        }
+      ],
+      "dependencies": [
+        "US-003"
+      ],
+      "failureClassification": "",
+      "partialProgress": null
+    },
+    {
+      "id": "US-005",
+      "title": "Version bumps across all version-bearing files (v2.4.0)",
+      "description": "As a plugin maintainer, I want v2.4.0 reflected in the Claude manifest, the new Copilot manifest, and all three marketplace indexes so installs see the new version.",
+      "acceptanceCriteria": [
+        "plugins/ralph-overview/.claude-plugin/plugin.json has `\"version\": \"2.4.0\"`",
+        "plugins/ralph-overview/.github/plugin/plugin.json has `\"version\": \"2.4.0\"` (set at creation in US-004)",
+        ".claude-plugin/marketplace.json ralph-overview entry: `\"version\": \"2.4.0\"`",
+        ".github/plugin/marketplace.json ralph-overview entry: `\"version\": \"2.4.0\"`",
+        ".agents/plugins/marketplace.json ralph-overview entry: `\"version\": \"2.4.0\"`",
+        "Root plugins/ralph-overview/package.json left at 1.0.0 (intentional, documented in CHANGELOG)",
+        "All 5 version-bearing JSON files parse successfully (`jq . <file>` exits 0 for each)",
+        "Typecheck passes"
+      ],
+      "priority": 5,
+      "passes": true,
+      "notes": "Existing version is 2.0.3. Marketplace entries: .claude-plugin/marketplace.json ~line 89, .github/plugin/marketplace.json ~line 89, .agents/plugins/marketplace.json lines 168-179 (different schema with policy block).",
+      "verifiedEvidence": [
+        {
+          "criterion": "plugins/ralph-overview/.claude-plugin/plugin.json has version 2.4.0",
+          "command": "jq -r .version plugins/ralph-overview/.claude-plugin/plugin.json",
+          "result": "2.4.0"
+        },
+        {
+          "criterion": "plugins/ralph-overview/.github/plugin/plugin.json has version 2.4.0",
+          "command": "jq -r .version plugins/ralph-overview/.github/plugin/plugin.json",
+          "result": "2.4.0"
+        },
+        {
+          "criterion": ".claude-plugin/marketplace.json ralph-overview entry has version 2.4.0",
+          "command": "jq -r .plugins[] | select(.name==\"ralph-overview\") | .version .claude-plugin/marketplace.json",
+          "result": "2.4.0"
+        },
+        {
+          "criterion": ".github/plugin/marketplace.json ralph-overview entry has version 2.4.0",
+          "command": "jq -r .plugins[] | select(.name==\"ralph-overview\") | .version .github/plugin/marketplace.json",
+          "result": "2.4.0"
+        },
+        {
+          "criterion": ".agents/plugins/marketplace.json ralph-overview entry has version 2.4.0",
+          "command": "jq -r .plugins[] | select(.name==\"ralph-overview\") | .version .agents/plugins/marketplace.json",
+          "result": "2.4.0"
+        },
+        {
+          "criterion": "Root plugins/ralph-overview/package.json left at 1.0.0 and documented in CHANGELOG",
+          "command": "jq -r .version plugins/ralph-overview/package.json && grep -n root npm workspace package remains `1.0.0` plugins/ralph-overview/CHANGELOG.md",
+          "result": "package.json printed 1.0.0; CHANGELOG line 14 documents that the root npm workspace package remains 1.0.0 because it is private staging metadata, not the installer-facing plugin version."
+        },
+        {
+          "criterion": "All 5 version-bearing JSON files parse successfully",
+          "command": "for f in plugins/ralph-overview/.claude-plugin/plugin.json plugins/ralph-overview/.github/plugin/plugin.json .claude-plugin/marketplace.json .github/plugin/marketplace.json .agents/plugins/marketplace.json; do jq empty \"$f\" || exit 1; echo \"parse-ok $f\"; done",
+          "result": "parse-ok printed for all five files: Claude manifest, Copilot manifest, Claude marketplace, Copilot marketplace, and Codex marketplace."
+        },
+        {
+          "criterion": "Typecheck passes",
+          "command": "cd plugins/ralph-overview && npm run typecheck",
+          "result": "Typecheck exited 0: root workspace @gim-home/ralph-overview@1.0.0 ran tsc --noEmit -p tsconfig.json and tsc --noEmit for both workspaces with no errors."
+        },
+        {
+          "criterion": "Plugin tests pass",
+          "command": "cd plugins/ralph-overview && npm test -- --no-file-parallelism --maxWorkers=1",
+          "result": "Serialized plugin test run exited 0: overview-mcp 11 files / 96 tests passed; overview-viewer 49 files / 256 tests passed and 5 skipped."
+        }
+      ],
+      "dependencies": [
+        "US-004"
+      ],
+      "failureClassification": "",
+      "partialProgress": null
+    },
+    {
+      "id": "US-006",
+      "title": "Drop dist/copilot/ subtree cleanup",
+      "description": "As a plugin maintainer, I want dist/copilot/ removed to prevent confusion over which Copilot mirror is canonical.",
+      "acceptanceCriteria": [
+        "Pre-deletion grep `grep -r \"dist/copilot\" D:/ai-developer-toolkit/plugins/ralph-overview/ --exclude=CHANGELOG.md --exclude-dir=node_modules --exclude-dir=dist` returns NO matches in live source",
+        "Same grep with same exclusions at toolkit root returns no live-source matches",
+        "plugins/ralph-overview/dist/copilot/ directory no longer exists (verify `! test -d plugins/ralph-overview/dist/copilot`)",
+        "node plugins/ralph-overview/scripts/generate-copilot-artifacts.mjs (--check mode) still exits 0 after deletion",
+        "Typecheck passes"
+      ],
+      "priority": 6,
+      "passes": true,
+      "notes": "Scope per F-003/F-005 resolution: exclude CHANGELOG.md from grep (historical/migration references stay) and exclude node_modules + dist. CLAUDE.md update is part of US-007, not here.",
+      "verifiedEvidence": [
+        {
+          "criterion": "Pre-deletion grep `grep -r \"dist/copilot\" D:/ai-developer-toolkit/plugins/ralph-overview/ --exclude=CHANGELOG.md --exclude-dir=node_modules --exclude-dir=dist` returns NO matches in live source",
+          "command": "grep -r \"dist/copilot\" plugins/ralph-overview/ --exclude=CHANGELOG.md --exclude-dir=node_modules --exclude-dir=dist; printf 'grep_exit=%s\n' \"$?\"",
+          "result": "No matches in the worktree plugin path; command printed grep_exit=1. The pre-fix run found live references in CLAUDE.md and the generator guard, which were updated before deletion so the final live-source check is clean."
+        },
+        {
+          "criterion": "Same grep with same exclusions at toolkit root returns no live-source matches",
+          "command": "grep -r \"dist/copilot\" . --exclude=CHANGELOG.md --exclude-dir=node_modules --exclude-dir=dist --exclude-dir=.git; printf 'grep_exit=%s\n' \"$?\"",
+          "result": "No matches from the worktree repo root; command printed grep_exit=1."
+        },
+        {
+          "criterion": "plugins/ralph-overview/dist/copilot/ directory no longer exists",
+          "command": "test ! -d plugins/ralph-overview/dist/copilot; printf 'test_exit=%s\n' \"$?\"",
+          "result": "test_exit=0; the legacy generated mirror directory is absent."
+        },
+        {
+          "criterion": "node plugins/ralph-overview/scripts/generate-copilot-artifacts.mjs (--check mode) still exits 0 after deletion",
+          "command": "node plugins/ralph-overview/scripts/generate-copilot-artifacts.mjs",
+          "result": "Generator check exited 0 and printed: ok: Copilot skill mirrors match."
+        },
+        {
+          "criterion": "Typecheck passes",
+          "command": "cd plugins/ralph-overview && npm run typecheck",
+          "result": "Typecheck exited 0 for both workspaces: tsc --noEmit -p tsconfig.json and tsc --noEmit."
+        },
+        {
+          "criterion": "Plugin tests pass",
+          "command": "cd plugins/ralph-overview && npm test -- --no-file-parallelism --maxWorkers=1",
+          "result": "Serialized plugin test run exited 0: overview-mcp 11 files / 96 tests passed; overview-viewer 49 files / 256 tests passed and 5 skipped."
+        }
+      ],
+      "dependencies": [
+        "US-003"
+      ],
+      "failureClassification": "",
+      "partialProgress": null
+    },
+    {
+      "id": "US-007",
+      "title": "Documentation updates (CHANGELOG, README, plugin CLAUDE.md)",
+      "description": "As a Copilot user (and a future maintainer), I want clear v2.4.0 docs covering install, install verification, and the new mirror location.",
+      "acceptanceCriteria": [
+        "plugins/ralph-overview/CHANGELOG.md has a `## [2.4.0] — 2026-05-27` block in Keep-a-Changelog format with `### Added`, `### Changed`, `### Removed`, and `### Migration` subsections",
+        "plugins/ralph-overview/README.md has a `## Copilot CLI Installation` section that: (a) shows the marketplace-add step (e.g. `copilot plugin marketplace add gim-home/ai-developer-toolkit`, exact command verified against `copilot plugin --help`), (b) shows `copilot plugin install ralph-overview@ai-developer-toolkit`, (c) shows verification (`copilot plugin list`, `copilot mcp list --json`), (d) lists the 4 skills (/work-on, /triage, /blocker-report, /overview-init), and (e) lists the actual MCP tools derived from server.ts / the stdio-tools-list.test.ts test (NOT hardcoded from the plan)",
+        "plugins/ralph-overview/CLAUDE.md no longer says `dist/copilot/` is the mirror destination; updated to `.copilot-plugin/copilot-skills/` (grep `dist/copilot` in CLAUDE.md returns no matches)",
+        "Migration section in CHANGELOG explicitly tells Copilot users about the marketplace-add prereq (per F-004 resolution)",
+        "Typecheck passes"
+      ],
+      "priority": 7,
+      "passes": false,
+      "notes": "Per F-009 (Medium, open): the README's MCP tool list MUST be derived from server.ts / the stdio-tools-list.test.ts test at impl time, not hardcoded from this plan's 5-tool list. Open Question #1: codex flagged that v2.3.0 may have removed dev_server.start/stop in favor of watcher_status; verify against the worktree's actual server.ts at impl time.",
+      "verifiedEvidence": [],
+      "dependencies": [
+        "US-005"
+      ]
+    },
+    {
+      "id": "US-008",
+      "title": "Pre-merge Copilot install + MCP runtime verification (blocking gate)",
+      "description": "As the operator, I want pre-merge proof that Copilot CLI actually loads the plugin and starts the MCP server, otherwise the release is blocked.",
+      "acceptanceCriteria": [
+        "Fresh Copilot CLI install on this Windows host: `copilot plugin marketplace add gim-home/ai-developer-toolkit` succeeds, then `copilot plugin install ralph-overview@ai-developer-toolkit` succeeds",
+        "`copilot plugin list` shows `ralph-overview` at v2.4.0",
+        "`copilot mcp list --json` shows the `ralph-overview` MCP server with a resolved `command` + `args` pointing at a real existing `launch.cjs` path (no unresolved `${CLAUDE_PLUGIN_ROOT}` or other token in the output, unless Copilot demonstrably expands it at runtime)",
+        "Copilot actually starts the MCP server: invoking a ralph-overview MCP tool (e.g. overview.parallel_ready_tasks) from a Copilot session succeeds",
+        "Each of the 4 Copilot skills (/work-on, /triage, /blocker-report, /overview-init) is discoverable AND callable under Copilot CLI. Verification: `copilot plugin list` output (captured to `.ralph/jobs/ralph-overview-copilot-mirror/copilot-skill-smoke.log`) MUST list ralph-overview; `copilot --help` or `copilot skill list` output (whichever Copilot CLI 1.0.55+ supports for skill enumeration) MUST mention each of the 4 skill names; and at least one skill — concretely `/work-on` — MUST be invoked via the Copilot CLI's documented non-interactive entry-point against a recorded fixture (or, if no non-interactive entry-point exists in Copilot CLI 1.0.55, capture a manual transcript of one successful skill invocation per skill into the same log with PASS markers). Require 4/4 PASS rows in the log.",
+        "At least one Copilot skill path successfully runs `sync` or `cli derive-next-command` through `node <pluginRoot>/bin/ralph-overview.mjs` without requiring `ralph-overview` on PATH",
+        "Claude-code regression: in codexu, `mcp__ralph-overview__overview_parallel_ready_tasks` still works (test by spawning a fresh Claude Code session and calling the tool)",
+        "`npm test --workspace=tools/overview-mcp` passes (catches MCP-tool-list drift between source, the test, and the README — per F-009 resolution)",
+        "If Copilot CLI is not installable/unauthenticated on the impl host, the release is BLOCKED — do not merge with this gate deferred to a post-merge operator check",
+        "Typecheck passes"
+      ],
+      "priority": 8,
+      "passes": false,
+      "notes": "This is the blocking pre-merge gate per F-001 / F-002 resolution. If the string-path mcpServers form fails the resolved-launch test, US-004's manifest must be re-edited to use a Copilot-only inline object using Copilot's verified plugin-root token/path (not ${CLAUDE_PLUGIN_ROOT}), and US-008 re-run.",
+      "verifiedEvidence": [],
+      "dependencies": [
+        "US-007"
+      ]
+    }
+  ],
+  "openQuestions": [
+    "dev_server.* vs watcher_status MCP tool surface: codex flagged that v2.3.0 may have removed dev_server.start/stop. Local HEAD bd94fc67 (and the worktree's start point origin/main at 0493680c) is v2.0.3 and still has both. The impl member must verify the actual MCP tool list against the worktree's server.ts at impl time and update README/acceptance to match reality.",
+    "Copilot manifest mcpServers declaration form and plugin-root token: start with `\"mcpServers\": \".mcp.json\"` per codex's reading of `copilot mcp --help`, but treat unverified until the blocking smoke (US-008) proves the resolved command is launchable. If Copilot expects an inline object or does not expand ${CLAUDE_PLUGIN_ROOT}, investigate Copilot's plugin-root token (illustrative: ${PLUGIN_ROOT}) and switch to a Copilot-only inline form. Do not ship an inline fallback preserving ${CLAUDE_PLUGIN_ROOT}.",
+    "Keep dist/copilot/ as compat? Plan drops it. If any external consumer reads from there, keep it for one release with a deprecation warning. Default: drop. Confirmed via grep pre-impl.",
+    "Multi-remote push: ai-developer-toolkit has multiple remotes. Impl member to verify which remote(s) the v2.4.0 commit should land on per repo policy.",
+    "F-008 (Medium, plan-review remaining): forbidden-token list explicitly enumerated above — encoded into US-001's acceptance criteria.",
+    "F-009 (Medium, plan-review remaining): tools/overview-mcp test as MCP-list verification — encoded into US-007 notes and US-008 acceptance.",
+    "F-010 (Medium, plan-review remaining): parity-exceptions.json may be dropped unless impl member adds generator code consuming it — encoded into US-004 acceptance."
+  ],
+  "risks": [
+    "MCP tool drift: codex research suggests v2.3.0 dropped dev_server.* in favor of watcher_status. Local HEAD still has 5 tools per server.ts. Impl member must verify against the worktree it operates on, not against this plan's text.",
+    "dist/copilot/ deletion regression: removing it could break downstream automation. Mitigated by mandatory pre-removal grep scoped to live references.",
+    "Copilot manifest schema and plugin-root token unknowns: mcpServers declaration form is inferred and unverified. Mitigated by blocking US-008 runtime smoke.",
+    "Hardcoded paths in renderLocalSkillDispatch: easy to miss because canonical path and glob fallback share one string template. Mitigated by deriving both from a single helper/constant + path-consistency assertion.",
+    "Skill PATH regression: source skill prose contains runnable bare `ralph-overview sync` / `ralph-overview cli` commands while README says binary is not on PATH. Mitigated by US-002 fixing source skills before US-003 generates mirrors.",
+    "Cross-engine watcher contention: two MCP servers (Claude + Copilot) starting concurrently both try to take the watcher lease. Lease guard in sync-lock.mjs handles, but re-validate in US-008.",
+    "Plugin install ordering: Copilot may cache an old .copilot-plugin/copilot-skills/ shape; fresh install on Windows may need `copilot plugin remove ralph-overview` + reinstall. Document in README.",
+    "Doc-only path leakage: skill bodies may include literal `dist/copilot/` in code fences or comments not caught by substitution regex. Mitigated by pre-impl grep of source skills."
+  ]
+}

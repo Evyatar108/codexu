@@ -1,0 +1,53 @@
+{
+  "manifestPath": "D:/harness-efforts/codexu/.ralph/jobs/ralph-overview-copilot-mirror/iteration-result-1.json",
+  "iterationSHA": "78b9a65f7d6d0c044f1c8cdaffbceb9ffbf6d059",
+  "storyId": "US-001",
+  "verdicts": [
+    {
+      "criterion": "discoverSkillMirrors writes targets under <pluginRoot>/.copilot-plugin/copilot-skills/<skill>/SKILL.md",
+      "verdict": "agree",
+      "reason": "Diff replaces target with localSkillMirrorTarget(root, name) which joins COPILOT_SKILLS_RELATIVE_DIR=['.copilot-plugin','copilot-skills'] + name + 'SKILL.md'. Command output enumerates all four mirrored skills resolving to plugins/ralph-overview/.copilot-plugin/copilot-skills/<skill>/SKILL.md."
+    },
+    {
+      "criterion": "renderLocalSkillDispatch updates BOTH path occurrences in its prompt template (canonical path + glob fallback), derived from one shared helper/constant to prevent drift",
+      "verdict": "agree",
+      "reason": "Diff shows promptPath = localSkillMirrorPromptPath(name) used twice in the template (canonical path and **/${promptPath} glob), with assertLocalSkillDispatchPathConsistency enforcing equality. Command counts 2 occurrences of the canonical path for work-on, matching the helper-derived shared value."
+    },
+    {
+      "criterion": "Generator includes a path-consistency self-check: the embedded prompt path equals the actual output target",
+      "verdict": "agree",
+      "reason": "Diff adds both assertLocalSkillDispatchPathConsistency (prompt-path vs helper) and assertPathConsistency (output.target vs localSkillMirrorTarget plus a stale dist/copilot scan), invoked from discoverSkillMirrors. grep result confirms both functions exist and are wired."
+    },
+    {
+      "criterion": "Forbidden-token assertion rejects any of ['Skill(', 'Agent(', 'BashOutput', 'run_in_background', 'EnterPlanMode', 'ExitPlanMode'] in post-substitution output (per F-008 resolution; do NOT include <options-mode> or mcp__ which are transformed by substitution rules)",
+      "verdict": "agree",
+      "reason": "Diff defines FORBIDDEN exactly as the six tokens, adds assertNoForbidden invoked from applySubstitutions, and excludes <options-mode>/mcp__. Command exercises each token and reports all six rejected; failure message text matches the diff's thrown Error."
+    },
+    {
+      "criterion": "--check mode reports skill name + target path on drift",
+      "verdict": "agree",
+      "reason": "Diff changes the ENOENT branch message from 'missing copilot mirror: ${rel}' to 'missing copilot mirror for ${output.skill}: ${rel}' and the drift branch similarly. Command output cites a 'missing copilot mirror for blocker-report: ...SKILL.md' message confirming skill name + target path on drift."
+    },
+    {
+      "criterion": "Existing RALPH_OVERVIEW_PLUGIN_ROOT env precedence is preserved",
+      "verdict": "agree",
+      "reason": "Diff context shows pluginRoot still reads process.env.RALPH_OVERVIEW_PLUGIN_ROOT first, falling back to relative resolution. Command sets the env var, calls discoverSkillMirrors with no args, and asserts every target resolves under that root (envRootUsed=true)."
+    },
+    {
+      "criterion": "Existing lib/atomic-write.mjs usage is preserved",
+      "verdict": "agree",
+      "reason": "Diff does not remove the existing import or the writeCopilotArtifacts atomicWriteFile call. Grep result cites the import at line 7 and the call at line 148 still present."
+    },
+    {
+      "criterion": "Any existing generator unit tests pass",
+      "verdict": "agree",
+      "reason": "find returns no generator-specific tests; the report runs the broader npm test (overview-mcp 11 files/96 tests pass, overview-viewer 49 files/256 pass + 5 skipped) which is a stronger fallback than the literal AC, and no generator-test regression is implied by the diff."
+    },
+    {
+      "criterion": "Typecheck passes",
+      "verdict": "agree",
+      "reason": "npm run typecheck exited 0 across both workspaces (tsc --noEmit -p tsconfig.json and tsc --noEmit) per the cited command result."
+    }
+  ],
+  "warnings": []
+}

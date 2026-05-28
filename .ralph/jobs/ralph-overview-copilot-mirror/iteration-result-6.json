@@ -1,0 +1,44 @@
+{
+  "storyId": "US-006",
+  "verifiedEvidence": [
+    {
+      "criterion": "Pre-deletion grep `grep -r \"dist/copilot\" D:/ai-developer-toolkit/plugins/ralph-overview/ --exclude=CHANGELOG.md --exclude-dir=node_modules --exclude-dir=dist` returns NO matches in live source",
+      "evidenceKind": "absent-verified",
+      "command": "grep -r \"dist/copilot\" plugins/ralph-overview/ --exclude=CHANGELOG.md --exclude-dir=node_modules --exclude-dir=dist; printf 'grep_exit=%s\\n' \"$?\"",
+      "result": "No matches in the worktree plugin path; command printed grep_exit=1. The pre-fix run found live references in CLAUDE.md and the generator guard, which were updated before deletion so the final live-source check is clean."
+    },
+    {
+      "criterion": "Same grep with same exclusions at toolkit root returns no live-source matches",
+      "evidenceKind": "absent-verified",
+      "command": "grep -r \"dist/copilot\" . --exclude=CHANGELOG.md --exclude-dir=node_modules --exclude-dir=dist --exclude-dir=.git; printf 'grep_exit=%s\\n' \"$?\"",
+      "result": "No matches from the worktree repo root; command printed grep_exit=1."
+    },
+    {
+      "criterion": "plugins/ralph-overview/dist/copilot/ directory no longer exists",
+      "evidenceKind": "absent-verified",
+      "command": "test ! -d plugins/ralph-overview/dist/copilot; printf 'test_exit=%s\\n' \"$?\"",
+      "result": "test_exit=0; the legacy generated mirror directory is absent."
+    },
+    {
+      "criterion": "node plugins/ralph-overview/scripts/generate-copilot-artifacts.mjs (--check mode) still exits 0 after deletion",
+      "evidenceKind": "passed",
+      "command": "node plugins/ralph-overview/scripts/generate-copilot-artifacts.mjs",
+      "result": "Generator check exited 0 and printed: ok: Copilot skill mirrors match."
+    },
+    {
+      "criterion": "Typecheck passes",
+      "evidenceKind": "passed",
+      "command": "cd plugins/ralph-overview && npm run typecheck",
+      "result": "Typecheck exited 0 for both workspaces: tsc --noEmit -p tsconfig.json and tsc --noEmit."
+    },
+    {
+      "criterion": "Plugin tests pass",
+      "evidenceKind": "passed",
+      "command": "cd plugins/ralph-overview && npm test -- --no-file-parallelism --maxWorkers=1",
+      "result": "Serialized plugin test run exited 0: overview-mcp 11 files / 96 tests passed; overview-viewer 49 files / 256 tests passed and 5 skipped."
+    }
+  ],
+  "skippedReasons": [],
+  "notTested": [],
+  "iterationSHA": "00be927bff4976347ad281647d8f32d2016a192d"
+}

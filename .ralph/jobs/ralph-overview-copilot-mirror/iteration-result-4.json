@@ -1,0 +1,38 @@
+{
+  "storyId": "US-004",
+  "verifiedEvidence": [
+    {
+      "criterion": "plugins/ralph-overview/.github/plugin/plugin.json exists with v2.4.0 and required schema fields",
+      "evidenceKind": "passed",
+      "command": "jq -r '[.name,.description,.version,.author.name,.license,.homepage,.repository,(.keywords|join(\",\")),.skills,(.mcpServers|tostring)] | @tsv' plugins/ralph-overview/.github/plugin/plugin.json",
+      "result": "ralph-overview manifest parsed with description, version 2.4.0, author Evyatar Mitrani, MIT license, homepage/repository https://github.com/gim-home/ai-developer-toolkit, keywords ralph,overview,dashboard,pipeline-state,mcp,copilot-cli, skills .copilot-plugin/copilot-skills/, and mcpServers .mcp.json."
+    },
+    {
+      "criterion": "Initial mcpServers value is .mcp.json string-path form",
+      "evidenceKind": "passed",
+      "command": "jq -r '.mcpServers' plugins/ralph-overview/.github/plugin/plugin.json",
+      "result": ".mcp.json"
+    },
+    {
+      "criterion": "JSON parses successfully",
+      "evidenceKind": "passed",
+      "command": "node -e \"JSON.parse(require('fs').readFileSync('plugins/ralph-overview/.github/plugin/plugin.json')); console.log('json-ok')\"",
+      "result": "json-ok"
+    },
+    {
+      "criterion": ".copilot-plugin/parity-exceptions.json is omitted per F-010 and decision documented in CHANGELOG",
+      "evidenceKind": "absent-verified",
+      "command": "test ! -e plugins/ralph-overview/.copilot-plugin/parity-exceptions.json && grep -n \"Omitted .*parity-exceptions\" plugins/ralph-overview/CHANGELOG.md",
+      "result": "parity-exceptions.json is absent; CHANGELOG line 13 documents omission because no parity checker consumes it yet."
+    },
+    {
+      "criterion": "Typecheck passes",
+      "evidenceKind": "passed",
+      "command": "cd plugins/ralph-overview && npm run typecheck",
+      "result": "Typecheck exited 0 for both workspaces: tsc --noEmit -p tsconfig.json and tsc --noEmit."
+    }
+  ],
+  "skippedReasons": [],
+  "notTested": [],
+  "iterationSHA": "09a43dd15723baa4a207441038a526f8897331ae"
+}

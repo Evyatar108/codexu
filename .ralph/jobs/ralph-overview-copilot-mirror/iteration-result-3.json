@@ -1,0 +1,50 @@
+{
+  "storyId": "US-003",
+  "verifiedEvidence": [
+    {
+      "criterion": "node plugins/ralph-overview/scripts/generate-copilot-artifacts.mjs --write produces all 4 SKILL.md files under .copilot-plugin/copilot-skills/",
+      "evidenceKind": "passed",
+      "command": "node plugins/ralph-overview/scripts/generate-copilot-artifacts.mjs --write && find plugins/ralph-overview/.copilot-plugin/copilot-skills -maxdepth 2 -type f -name SKILL.md -print | sort",
+      "result": "Generator exited 0 with ok: Copilot skill mirrors written and listed blocker-report, overview-init, triage, and work-on SKILL.md files under plugins/ralph-overview/.copilot-plugin/copilot-skills/."
+    },
+    {
+      "criterion": "Re-running --write is idempotent (no git diff after second run)",
+      "evidenceKind": "passed",
+      "command": "hash files before and after node plugins/ralph-overview/scripts/generate-copilot-artifacts.mjs --write, then run git diff --exit-code -- plugins/ralph-overview/.copilot-plugin/copilot-skills",
+      "result": "Second --write exited 0, printed idempotent=true, and git diff --exit-code found no content changes. Git emitted only CRLF normalization warnings for three Markdown files."
+    },
+    {
+      "criterion": "Default --check mode exits 0 after committing the generated files",
+      "evidenceKind": "passed",
+      "command": "node plugins/ralph-overview/scripts/generate-copilot-artifacts.mjs && git status --short",
+      "result": "Post-commit check exited 0 with ok: Copilot skill mirrors match; git status --short printed no changes."
+    },
+    {
+      "criterion": "None of the 4 generated files contain any forbidden Claude-only token (verified by the generator's assertion AND by grep)",
+      "evidenceKind": "absent-verified",
+      "command": "node plugins/ralph-overview/scripts/generate-copilot-artifacts.mjs && grep -l -E 'Skill[(]|Agent[(]|BashOutput|run_in_background|EnterPlanMode|ExitPlanMode' plugins/ralph-overview/.copilot-plugin/copilot-skills/*/SKILL.md; echo grep_exit=$?",
+      "result": "Generator check exited 0, so its forbidden-token assertion passed. Grep printed no file paths and returned grep_exit=1, confirming no forbidden tokens in the generated mirrors."
+    },
+    {
+      "criterion": "Generated files inherit the PATH-free dispatcher invocation from US-002: grep for bare `ralph-overview (sync|cli)` in generated files returns no matches",
+      "evidenceKind": "absent-verified",
+      "command": "grep -RInE '(^|[^/[:alnum:]_-])ralph-overview (sync|cli)' plugins/ralph-overview/.copilot-plugin/copilot-skills/*/SKILL.md; echo grep_exit=$?",
+      "result": "Grep printed no matches and returned grep_exit=1; generated command examples use plugin-root dispatcher paths instead of bare ralph-overview sync or cli commands."
+    },
+    {
+      "criterion": "Typecheck passes",
+      "evidenceKind": "passed",
+      "command": "cd plugins/ralph-overview && npm run typecheck",
+      "result": "Typecheck exited 0 for both workspaces: tsc --noEmit -p tsconfig.json and tsc --noEmit."
+    },
+    {
+      "criterion": "Plugin tests pass",
+      "evidenceKind": "passed",
+      "command": "cd plugins/ralph-overview && npm test -- --no-file-parallelism --maxWorkers=1",
+      "result": "Full plugin test run exited 0: overview-mcp 11 files / 96 tests passed; overview-viewer 49 files / 256 tests passed and 5 skipped. Earlier default runs hit the known Windows three-mcp-integration flake; the isolated file then passed 2/2."
+    }
+  ],
+  "skippedReasons": [],
+  "notTested": [],
+  "iterationSHA": "3e8d85eaa0216b712ca0b0355d9489300fd9539b"
+}

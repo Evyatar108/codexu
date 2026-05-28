@@ -1,0 +1,103 @@
+
+> @gim-home/ralph-overview@2.3.0 test
+> npm run test --workspaces --if-present
+
+
+> test
+> vitest run --passWithNoTests
+
+
+ RUN  v4.1.7 D:/ai-developer-toolkit/.worktrees/ralph-overview-copilot-mirror/plugins/ralph-overview/tools/overview-mcp
+
+overview-mcp: watcher already running at pid 8101; skipping managed spawn
+overview-mcp: watcher already running at pid 8303; skipping managed spawn
+overview-mcp: watcher already running at pid 1101; skipping managed spawn
+overview-mcp: watcher already running at pid 8303; skipping managed spawn
+overview-mcp: watcher already running at pid 1101; skipping managed spawn
+overview-mcp: watcher already running at pid 9999; skipping managed spawn
+overview-mcp: external watcher owner marker gone stale; attempting takeover
+overview-mcp: watcher owner marker is orphaned at pid 4333; sending SIGTERM
+overview-mcp: watcher already running at pid 4441; skipping managed spawn
+overview-mcp: watcher owner marker is orphaned at pid 4451; sending SIGTERM
+ ❯ src/__tests__/three-mcp-integration.test.ts (2 tests | 2 failed) 21295ms
+     × elects one active watcher owner and leaves the other supervisors passive 6031ms
+     × passive supervisor takes over when the active watcher dies 15262ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/__tests__/three-mcp-integration.test.ts > three MCP supervisor coordination > elects one active watcher owner and leaves the other supervisors passive
+AssertionError: expected false to be true // Object.is equality
+
+- Expected
++ Received
+
+- true
++ false
+
+ ❯ waitUntil src/__tests__/three-mcp-integration.test.ts:175:23
+    173|     await new Promise((resolve) => setTimeout(resolve, 10));
+    174|   }
+    175|   expect(predicate()).toBe(true);
+       |                       ^
+    176| }
+    177|
+ ❯ src/__tests__/three-mcp-integration.test.ts:53:5
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  src/__tests__/three-mcp-integration.test.ts > three MCP supervisor coordination > passive supervisor takes over when the active watcher dies
+AssertionError: expected false to be true // Object.is equality
+
+- Expected
++ Received
+
+- true
++ false
+
+ ❯ waitUntil src/__tests__/three-mcp-integration.test.ts:175:23
+    173|     await new Promise((resolve) => setTimeout(resolve, 10));
+    174|   }
+    175|   expect(predicate()).toBe(true);
+       |                       ^
+    176| }
+    177|
+ ❯ src/__tests__/three-mcp-integration.test.ts:135:5
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+
+ Test Files  1 failed | 10 passed (11)
+      Tests  2 failed | 94 passed (96)
+   Start at  03:00:36
+   Duration  39.67s (transform 10.82s, setup 0ms, import 21.13s, tests 77.37s, environment 3ms)
+
+npm ERR! Lifecycle script `test` failed with error: 
+npm ERR! Error: command failed 
+npm ERR!   in workspace: @gim-home/ralph-overview-mcp 
+npm ERR!   at location: D:\ai-developer-toolkit\.worktrees\ralph-overview-copilot-mirror\plugins\ralph-overview\tools\overview-mcp 
+
+> test
+> vitest run --passWithNoTests
+
+
+ RUN  v4.1.7 D:/ai-developer-toolkit/.worktrees/ralph-overview-copilot-mirror/plugins/ralph-overview/tools/overview-viewer
+
+watch-ralph-state: could not resolve HEAD short SHA, using unknown
+watch-ralph-state: could not resolve HEAD short SHA, using unknown
+watch-ralph-state: could not resolve HEAD short SHA, using unknown
+watch-ralph-state: could not resolve HEAD short SHA, using unknown
+watch-ralph-state: could not resolve HEAD short SHA, using unknown
+watch-ralph-state: could not resolve HEAD short SHA, using unknown
+watch-ralph-state: could not resolve HEAD short SHA, using unknown
+watch-ralph-state: could not resolve HEAD short SHA, using unknown
+watch-ralph-state: could not resolve HEAD short SHA, using unknown
+watch-ralph-state: could not resolve HEAD short SHA, using unknown
+watch-ralph-state: could not resolve HEAD short SHA, using unknown
+watch-ralph-state: could not resolve HEAD short SHA, using unknown
+watch-ralph-state: could not resolve HEAD short SHA, using unknown
+
+ Test Files  49 passed (49)
+      Tests  256 passed | 5 skipped (261)
+   Start at  03:01:22
+   Duration  19.48s (transform 8.62s, setup 0ms, import 62.51s, tests 33.37s, environment 103.74s)
+

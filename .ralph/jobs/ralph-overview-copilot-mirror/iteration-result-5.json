@@ -1,0 +1,62 @@
+{
+  "storyId": "US-005",
+  "verifiedEvidence": [
+    {
+      "criterion": "plugins/ralph-overview/.claude-plugin/plugin.json has version 2.4.0",
+      "evidenceKind": "passed",
+      "command": "jq -r '.version' plugins/ralph-overview/.claude-plugin/plugin.json",
+      "result": "2.4.0"
+    },
+    {
+      "criterion": "plugins/ralph-overview/.github/plugin/plugin.json has version 2.4.0",
+      "evidenceKind": "passed",
+      "command": "jq -r '.version' plugins/ralph-overview/.github/plugin/plugin.json",
+      "result": "2.4.0"
+    },
+    {
+      "criterion": ".claude-plugin/marketplace.json ralph-overview entry has version 2.4.0",
+      "evidenceKind": "passed",
+      "command": "jq -r '.plugins[] | select(.name==\"ralph-overview\") | .version' .claude-plugin/marketplace.json",
+      "result": "2.4.0"
+    },
+    {
+      "criterion": ".github/plugin/marketplace.json ralph-overview entry has version 2.4.0",
+      "evidenceKind": "passed",
+      "command": "jq -r '.plugins[] | select(.name==\"ralph-overview\") | .version' .github/plugin/marketplace.json",
+      "result": "2.4.0"
+    },
+    {
+      "criterion": ".agents/plugins/marketplace.json ralph-overview entry has version 2.4.0",
+      "evidenceKind": "passed",
+      "command": "jq -r '.plugins[] | select(.name==\"ralph-overview\") | .version' .agents/plugins/marketplace.json",
+      "result": "2.4.0"
+    },
+    {
+      "criterion": "Root plugins/ralph-overview/package.json left at 1.0.0 and documented in CHANGELOG",
+      "evidenceKind": "passed",
+      "command": "jq -r '.version' plugins/ralph-overview/package.json && grep -n 'root npm workspace package remains `1.0.0`' plugins/ralph-overview/CHANGELOG.md",
+      "result": "package.json printed 1.0.0; CHANGELOG line 14 documents that the root npm workspace package remains 1.0.0 because it is private staging metadata, not the installer-facing plugin version."
+    },
+    {
+      "criterion": "All 5 version-bearing JSON files parse successfully",
+      "evidenceKind": "passed",
+      "command": "for f in plugins/ralph-overview/.claude-plugin/plugin.json plugins/ralph-overview/.github/plugin/plugin.json .claude-plugin/marketplace.json .github/plugin/marketplace.json .agents/plugins/marketplace.json; do jq empty \"$f\" || exit 1; echo \"parse-ok $f\"; done",
+      "result": "parse-ok printed for all five files: Claude manifest, Copilot manifest, Claude marketplace, Copilot marketplace, and Codex marketplace."
+    },
+    {
+      "criterion": "Typecheck passes",
+      "evidenceKind": "passed",
+      "command": "cd plugins/ralph-overview && npm run typecheck",
+      "result": "Typecheck exited 0: root workspace @gim-home/ralph-overview@1.0.0 ran tsc --noEmit -p tsconfig.json and tsc --noEmit for both workspaces with no errors."
+    },
+    {
+      "criterion": "Plugin tests pass",
+      "evidenceKind": "passed",
+      "command": "cd plugins/ralph-overview && npm test -- --no-file-parallelism --maxWorkers=1",
+      "result": "Serialized plugin test run exited 0: overview-mcp 11 files / 96 tests passed; overview-viewer 49 files / 256 tests passed and 5 skipped."
+    }
+  ],
+  "skippedReasons": [],
+  "notTested": [],
+  "iterationSHA": "60c4d67eb92dfb5d7870f07836f296d5170b2632"
+}

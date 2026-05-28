@@ -1,0 +1,44 @@
+{
+  "storyId": "US-002",
+  "verifiedEvidence": [
+    {
+      "criterion": "skills/work-on/SKILL.md, skills/triage/SKILL.md, skills/blocker-report/SKILL.md no longer contain bare `ralph-overview sync` or `ralph-overview cli` invocations as runnable commands",
+      "command": "grep -RInE \"(^|[^/[:alnum:]_-])ralph-overview (sync|cli)\" plugins/ralph-overview/skills/work-on/SKILL.md plugins/ralph-overview/skills/triage/SKILL.md plugins/ralph-overview/skills/blocker-report/SKILL.md",
+      "result": "No matches; grep exited 1, confirming no bare ralph-overview sync or cli invocations remain in the three source skills.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "All shell-out invocations use the dispatcher path with the resolved plugin root token recognized by both Claude (CLAUDE_PLUGIN_ROOT or RALPH_OVERVIEW_PLUGIN_ROOT) and Copilot",
+      "command": "grep -RInE \"RALPH_OVERVIEW_PLUGIN_ROOT|CLAUDE_PLUGIN_ROOT|node \\\\\\\"\\$plugin_?root/bin/ralph-overview\\.mjs\\\\\\\"|node \\\\\\\"\\$pluginRoot/bin/ralph-overview\\.mjs\\\\\\\"\" plugins/ralph-overview/skills/work-on/SKILL.md plugins/ralph-overview/skills/triage/SKILL.md plugins/ralph-overview/skills/blocker-report/SKILL.md",
+      "result": "Each file references RALPH_OVERVIEW_PLUGIN_ROOT or CLAUDE_PLUGIN_ROOT; all displayed command paths use node \"$plugin_root/bin/ralph-overview.mjs\" or node \"$pluginRoot/bin/ralph-overview.mjs\".",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "--repo <repo-root> is passed explicitly to every sync and cli derive-next-command invocation",
+      "command": "grep -RInE \"node \\\\\\\"\\$plugin_?root/bin/ralph-overview\\.mjs\\\\\\\" (sync|cli derive-next-command).*--repo|node \\\\\\\"\\$pluginRoot/bin/ralph-overview\\.mjs\\\\\\\" (sync|cli derive-next-command).*--repo\" plugins/ralph-overview/skills/work-on/SKILL.md plugins/ralph-overview/skills/triage/SKILL.md plugins/ralph-overview/skills/blocker-report/SKILL.md",
+      "result": "All sync and cli derive-next-command command lines found in work-on, triage, and blocker-report include --repo.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Claude-code regression smoke (deterministic): dispatcher sync exits 0 and advances plans/overview-snapshot.json mtime; env-token grep returns at least one match per file",
+      "command": "before=$(stat -c %Y D:/harness-efforts/codexu/plans/overview-snapshot.json); node D:/ai-developer-toolkit/plugins/ralph-overview/bin/ralph-overview.mjs sync --repo D:/harness-efforts/codexu; after=$(stat -c %Y D:/harness-efforts/codexu/plans/overview-snapshot.json); grep -RInE \"CLAUDE_PLUGIN_ROOT|RALPH_OVERVIEW_PLUGIN_ROOT\" plugins/ralph-overview/skills/work-on/SKILL.md plugins/ralph-overview/skills/triage/SKILL.md plugins/ralph-overview/skills/blocker-report/SKILL.md",
+      "result": "Dispatcher sync exited 0; overview-snapshot.json mtime advanced from 1779923439 to 1779961962. Env-token grep matched work-on lines 52/106/153, triage lines 34/35, and blocker-report lines 23/24.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Grep verification: grep for bare `ralph-overview (sync|cli)` in work-on, triage, and blocker-report returns no live matches",
+      "command": "grep -RInE \"(^|[^/[:alnum:]_-])ralph-overview (sync|cli)\" plugins/ralph-overview/skills/work-on/SKILL.md plugins/ralph-overview/skills/triage/SKILL.md plugins/ralph-overview/skills/blocker-report/SKILL.md",
+      "result": "No matches; grep exited 1.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Typecheck passes",
+      "command": "cd plugins/ralph-overview && npm run typecheck",
+      "result": "Typecheck passed for both workspaces: tsc --noEmit -p tsconfig.json and tsc --noEmit exited 0.",
+      "evidenceKind": "passed"
+    }
+  ],
+  "skippedReasons": [],
+  "notTested": [],
+  "iterationSHA": "a5aa2b64e63d1cad5a5a9ae6fefa7fcde6eb3dfa"
+}

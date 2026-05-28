@@ -1,0 +1,62 @@
+{
+  "storyId": "US-001",
+  "verifiedEvidence": [
+    {
+      "criterion": "discoverSkillMirrors writes targets under <pluginRoot>/.copilot-plugin/copilot-skills/<skill>/SKILL.md",
+      "evidenceKind": "passed",
+      "command": "node -e \"import('./plugins/ralph-overview/scripts/generate-copilot-artifacts.mjs').then(async m => { const outputs = await m.discoverSkillMirrors('plugins/ralph-overview'); for (const o of outputs) console.log(o.skill + ' -> ' + o.target); })\"",
+      "result": "blocker-report, overview-init, triage, and work-on targets all resolved under plugins\\ralph-overview\\.copilot-plugin\\copilot-skills\\<skill>\\SKILL.md"
+    },
+    {
+      "criterion": "renderLocalSkillDispatch updates BOTH path occurrences in its prompt template (canonical path + glob fallback), derived from one shared helper/constant to prevent drift",
+      "evidenceKind": "passed",
+      "command": "node -e \"import('./plugins/ralph-overview/scripts/generate-copilot-artifacts.mjs').then(m => { const out = m.applySubstitutions('Skill(\\\"work-on\\\", args=\\\"demo\\\")'); const matches = out.match(/plugins\\/ralph-overview\\/\\.copilot-plugin\\/copilot-skills\\/work-on\\/SKILL\\.md/g) || []; console.log('pathOccurrences=' + matches.length); })\"",
+      "result": "pathOccurrences=2 for plugins/ralph-overview/.copilot-plugin/copilot-skills/work-on/SKILL.md"
+    },
+    {
+      "criterion": "Generator includes a path-consistency self-check: the embedded prompt path equals the actual output target",
+      "evidenceKind": "passed",
+      "command": "grep -nE 'assertLocalSkillDispatchPathConsistency|assertPathConsistency|localSkillMirror(Target|PromptPath|RelativePath)' plugins/ralph-overview/scripts/generate-copilot-artifacts.mjs",
+      "result": "Self-check functions are present and wired: localSkillMirrorRelativePath, localSkillMirrorPromptPath, localSkillMirrorTarget, assertLocalSkillDispatchPathConsistency, and assertPathConsistency."
+    },
+    {
+      "criterion": "Forbidden-token assertion rejects any of ['Skill(', 'Agent(', 'BashOutput', 'run_in_background', 'EnterPlanMode', 'ExitPlanMode'] in post-substitution output",
+      "evidenceKind": "passed",
+      "command": "node -e \"import('./plugins/ralph-overview/scripts/generate-copilot-artifacts.mjs').then(m => { for (const token of ['Skill(', 'Agent(', 'BashOutput', 'run_in_background', 'EnterPlanMode', 'ExitPlanMode']) { try { m.applySubstitutions(token); console.log('UNEXPECTED ' + token); process.exitCode = 1; } catch (e) { console.log('rejected ' + token + ': ' + e.message); } } })\"",
+      "result": "All six forbidden tokens were rejected with Forbidden Copilot token remains after substitution messages; <options-mode> and mcp__ are not in the forbidden list."
+    },
+    {
+      "criterion": "--check mode reports skill name + target path on drift",
+      "evidenceKind": "passed",
+      "command": "set +e; out=$(node plugins/ralph-overview/scripts/generate-copilot-artifacts.mjs 2>&1); status=$?; printf '%s\\nexit=%s\\n' \"$out\" \"$status\"",
+      "result": "Exit 1 before generated files exist; output names each skill and target path, e.g. missing copilot mirror for blocker-report: .copilot-plugin\\copilot-skills\\blocker-report\\SKILL.md."
+    },
+    {
+      "criterion": "Existing RALPH_OVERVIEW_PLUGIN_ROOT env precedence is preserved",
+      "evidenceKind": "passed",
+      "command": "RALPH_OVERVIEW_PLUGIN_ROOT=\"$PWD/plugins/ralph-overview\" node -e \"import('node:path').then(path => import('./plugins/ralph-overview/scripts/generate-copilot-artifacts.mjs').then(async m => { const outputs = await m.discoverSkillMirrors(); const root = path.default.resolve(process.env.RALPH_OVERVIEW_PLUGIN_ROOT); console.log(outputs.every(o => path.default.resolve(o.target).startsWith(root)) ? 'envRootUsed=true' : 'envRootUsed=false'); }))\"",
+      "result": "envRootUsed=true"
+    },
+    {
+      "criterion": "Existing lib/atomic-write.mjs usage is preserved",
+      "evidenceKind": "passed",
+      "command": "grep -nE 'atomicWriteFile|from .*/lib/atomic-write' plugins/ralph-overview/scripts/generate-copilot-artifacts.mjs",
+      "result": "Import remains at line 7 and writeCopilotArtifacts still calls atomicWriteFile at line 148."
+    },
+    {
+      "criterion": "Any existing generator unit tests pass",
+      "evidenceKind": "passed",
+      "command": "find plugins/ralph-overview -path '*/node_modules/*' -prune -o -iname '*generate-copilot-artifacts*.test.*' -print; npm test",
+      "result": "No generator-specific test files exist. Full plugin workspace tests passed: overview-mcp 11 files/96 tests, overview-viewer 49 files/256 passed and 5 skipped."
+    },
+    {
+      "criterion": "Typecheck passes",
+      "evidenceKind": "passed",
+      "command": "npm run typecheck",
+      "result": "Typecheck passed for both workspaces: tsc --noEmit -p tsconfig.json and tsc --noEmit exited 0."
+    }
+  ],
+  "skippedReasons": [],
+  "notTested": [],
+  "iterationSHA": "78b9a65f7d6d0c044f1c8cdaffbceb9ffbf6d059"
+}

@@ -1,0 +1,38 @@
+{
+  "manifestPath": "D:/harness-efforts/codexu/.ralph/jobs/ralph-overview-copilot-mirror/iteration-result-2.json",
+  "iterationSHA": "a5aa2b64e63d1cad5a5a9ae6fefa7fcde6eb3dfa",
+  "storyId": "US-002",
+  "verdicts": [
+    {
+      "criterion": "skills/work-on/SKILL.md, skills/triage/SKILL.md, skills/blocker-report/SKILL.md no longer contain bare `ralph-overview sync` or `ralph-overview cli` invocations as runnable commands",
+      "verdict": "agree",
+      "reason": "Diff modifies all three skill files (per +++ b/ headers) replacing bare invocations with node \"$plugin_root/bin/ralph-overview.mjs\" form. Targeted grep with the documented anchored pattern returned no live matches (exit 1) for the three files."
+    },
+    {
+      "criterion": "All shell-out invocations use the dispatcher path with the resolved plugin root token recognized by both Claude (CLAUDE_PLUGIN_ROOT or RALPH_OVERVIEW_PLUGIN_ROOT) and Copilot",
+      "verdict": "agree",
+      "reason": "Grep result confirms each of the three files references CLAUDE_PLUGIN_ROOT or RALPH_OVERVIEW_PLUGIN_ROOT and that displayed command paths use node \"$plugin_root/bin/ralph-overview.mjs\" or node \"$pluginRoot/bin/ralph-overview.mjs\". Consistent with diff changes in skill files."
+    },
+    {
+      "criterion": "--repo <repo-root> is passed explicitly to every sync and cli derive-next-command invocation",
+      "verdict": "agree",
+      "reason": "Pattern grep requires both the dispatcher path AND --repo on the same line and reports all sync and cli derive-next-command lines matched in work-on, triage, and blocker-report. The diff scope (three SKILL.md files) is consistent with that result."
+    },
+    {
+      "criterion": "Claude-code regression smoke (deterministic): from codexu repo root, run `node D:/ai-developer-toolkit/plugins/ralph-overview/bin/ralph-overview.mjs sync --repo D:/harness-efforts/codexu` and assert exit 0 plus mtime advance on `plans/overview-snapshot.json`. Additionally `grep -RInE 'CLAUDE_PLUGIN_ROOT|RALPH_OVERVIEW_PLUGIN_ROOT' plugins/ralph-overview/skills/{work-on,triage,blocker-report}/SKILL.md` must return at least one match per file.",
+      "verdict": "agree",
+      "reason": "Result records before/after mtime values that advanced (1779923439 -> 1779961962) after a successful exit-0 sync, and reports per-file env-token grep matches (work-on lines 52/106/153, triage lines 34/35, blocker-report lines 23/24), satisfying both halves of the AC."
+    },
+    {
+      "criterion": "Grep verification: `grep -RInE '(^|[^/[:alnum:]_-])ralph-overview (sync|cli)' plugins/ralph-overview/skills/{work-on,triage,blocker-report}/SKILL.md` returns no live (non-comment) matches",
+      "verdict": "agree",
+      "reason": "Command in result is exactly the AC pattern (with -E word-boundary anchor) and returned no matches (grep exited 1) across all three files."
+    },
+    {
+      "criterion": "Typecheck passes",
+      "verdict": "agree",
+      "reason": "cd plugins/ralph-overview && npm run typecheck exited 0 for both workspaces per the cited result."
+    }
+  ],
+  "warnings": []
+}

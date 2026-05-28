@@ -1,0 +1,33 @@
+{
+  "manifestPath": "D:/harness-efforts/codexu/.ralph/jobs/ralph-overview-copilot-mirror/iteration-result-4.json",
+  "iterationSHA": "09a43dd15723baa4a207441038a526f8897331ae",
+  "storyId": "US-004",
+  "verdicts": [
+    {
+      "criterion": "plugins/ralph-overview/.github/plugin/plugin.json exists with v2.4.0 and the schema fields: name, description, version, author, license, homepage, repository, keywords, \"skills\": \".copilot-plugin/copilot-skills/\", mcpServers",
+      "verdict": "agree",
+      "reason": "Diff adds the new manifest with name, description, version 2.4.0, author, MIT license, homepage/repository, six keywords, skills=.copilot-plugin/copilot-skills/, and mcpServers=.mcp.json. Manifest evidence command lists the same fields in matching order."
+    },
+    {
+      "criterion": "Initial mcpServers value: \".mcp.json\" (string-path form). If US-008 verification reveals Copilot does not resolve the resulting command to a launchable path, switch to a Copilot-only inline object whose launch token works under Copilot (do NOT preserve ${CLAUDE_PLUGIN_ROOT} in the inline fallback)",
+      "verdict": "agree",
+      "reason": "Diff sets \"mcpServers\": \".mcp.json\". The US-008 conditional fallback is forward-looking and not yet triggered; current state satisfies the initial-form requirement."
+    },
+    {
+      "criterion": "JSON parses successfully: node -e \"JSON.parse(require('fs').readFileSync('plugins/ralph-overview/.github/plugin/plugin.json'))\" exits 0",
+      "verdict": "agree",
+      "reason": "Evidence runs the exact node -e JSON.parse command and prints 'json-ok' (exit 0)."
+    },
+    {
+      "criterion": ".copilot-plugin/parity-exceptions.json is EITHER created with a one-line justification (future-hook for parity-checker consumption) OR omitted entirely per F-010 resolution. Decision documented in CHANGELOG",
+      "verdict": "agree",
+      "reason": "absent-verified evidence runs `test ! -e ... && grep -n 'Omitted .*parity-exceptions' CHANGELOG.md`, which is a targeted negation-test that fails if the file is present. Diff confirms CHANGELOG ### Changed bullet documents omission. Acceptable per absent-verified rules."
+    },
+    {
+      "criterion": "Typecheck passes",
+      "verdict": "agree",
+      "reason": "Evidence runs `npm run typecheck` in the plugin workspace and reports exit 0 for both tsconfig.json and root."
+    }
+  ],
+  "warnings": []
+}
