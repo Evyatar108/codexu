@@ -1,0 +1,123 @@
+{
+  "planFile": "D:/harness-efforts/codexu/.ralph/jobs/.staging/20260528-161858/draft-plan.md",
+  "repoDir": "D:/harness-efforts/codexu",
+  "reviewCycle": 0,
+  "findings": [
+    {
+      "id": "F-001",
+      "severity": "Critical",
+      "source": "consensus",
+      "category": "Completeness",
+      "sectionRef": "Acceptance Criteria",
+      "description": "Acceptance criteria require the impl member to push to BOTH origin and work remotes as a hard step. Repo CLAUDE.md / global harness rules require explicit operator confirmation before any push to a shared remote. As stated, an autonomous impl member would push without asking. Both Codex and Copilot flag this as Critical.",
+      "status": "fixed",
+      "relevantFiles": [
+        "D:/harness-efforts/codexu/.ralph/jobs/.staging/20260528-161858/draft-plan.md"
+      ],
+      "suggestedFix": "Re-phrase the multi-remote push acceptance criterion as: impl member produces a verified topic branch ready to push, but STOPS at the push step and surfaces a kind=question / handoff to the operator for explicit confirmation before pushing to origin AND work. Move push out of the AC checklist and into a clearly-labeled 'Release Handoff' section that says the impl member must NOT push autonomously.",
+      "fixedInIteration": 1,
+      "resolution": "Changed the push requirement into an operator-confirmed release handoff and removed autonomous multi-remote push from acceptance criteria."
+    },
+    {
+      "id": "F-002",
+      "severity": "High",
+      "source": "consensus",
+      "category": "Feasibility",
+      "sectionRef": "Approach > Architecture",
+      "description": "The proposed help-check placement is not implementable as written. In codex-exec.mjs, parseArgs() calls validateConfig(config, opts) before returning (~line 152). In copilot-exec.mjs, required-arg validation (--prompt, --output) runs at the end of parseArgs() (~line 200). Checking config.showHelp ONLY in main() after parseArgs() would still error out on missing required args because validation already ran. The plan must explicitly say either (a) make parseArgs() return a help sentinel before validation runs, OR (b) make validateConfig() / parseArgs() help-aware (early-return / skip required-arg checks when showHelp is set). Both Codex and Copilot flag this.",
+      "status": "fixed",
+      "relevantFiles": [
+        "D:/ai-developer-toolkit/plugins/ralph/src/codex-exec.mjs",
+        "D:/ai-developer-toolkit/plugins/ralph/src/copilot-exec.mjs"
+      ],
+      "suggestedFix": "Update the Approach > Architecture and Implementation Strategy sections to specify: in parseArgs(), as the first switch case, set config.showHelp = true AND return the config immediately (or set a flag that validateConfig() consults). Document that validation is bypassed when showHelp is set. Mirror the review-loop.mjs / scan-reviewer-bullets.mjs pattern of returning { help: true } before validation runs. Add to acceptance criteria that the impl test invokes --help with NO other args (no --prompt, no --output) and asserts exit 0.",
+      "fixedInIteration": 2,
+      "resolution": "Amended the plan to require parseArgs help handling to return before required-argument validation, and added no-args help test acceptance coverage."
+    },
+    {
+      "id": "F-003",
+      "severity": "High",
+      "source": "consensus",
+      "category": "Criteria Quality",
+      "sectionRef": "Acceptance Criteria",
+      "description": "The AC 'Running --help does NOT create a temp directory, does NOT open or truncate the output file' is not testable with the proposed test approach. A spawn spy alone does not prove that mkdtempSync() / fs.openSync(outputFile, 'w') were not called earlier in main(). Codex flags High; Copilot flags Medium. Treat as High per consensus floor and AC-anchored rule.",
+      "status": "fixed",
+      "relevantFiles": [
+        "D:/ai-developer-toolkit/plugins/ralph/src/copilot-exec.mjs",
+        "D:/ai-developer-toolkit/plugins/ralph/tests/test-copilot-exec.mjs"
+      ],
+      "suggestedFix": "Strengthen the side-effect-free assertions: add a copilot-exec test that passes `['--help', '--output', <pre-existing-file-with-known-contents>]` and asserts the file's contents AND mtime are unchanged after main() returns 0. Optionally also assert no temp directory was created by snapshotting `os.tmpdir()` listing before and after. Alternatively, reframe the AC as code-review based ('help short-circuit fires before any fs side effect in main()') and document the specific line in the impl where the check sits.",
+      "fixedInIteration": 3,
+      "resolution": "Strengthened the plan to require copilot help tests that assert output contents and mtime remain unchanged and mkdtempSync is not reached via an invalid temp base."
+    },
+    {
+      "id": "F-004",
+      "severity": "High",
+      "source": "claude",
+      "category": "Completeness",
+      "sectionRef": "Acceptance Criteria",
+      "description": "The version-bump verification grep commands are incomplete and Windows-fragile. The plan only greps 2 files for `\"version\": \"5.46.1\"` (the plugin.json pair) but the five-release-stamp list also includes three marketplace.json files. The plan's separate grep for `5.46.1` on marketplace.json files lacks word-boundary anchors and could match unrelated plugin entries (e.g. another plugin happening to be at 5.46.1).",
+      "status": "fixed",
+      "relevantFiles": [
+        "D:/harness-efforts/codexu/.ralph/jobs/.staging/20260528-161858/draft-plan.md"
+      ],
+      "suggestedFix": "Replace the AC verification commands with: (1) a single explicit grep over all 5 files: `grep -nE '\"version\"\\s*:\\s*\"5\\.46\\.1\"' plugins/ralph/.claude-plugin/plugin.json plugins/ralph/.github/plugin/plugin.json` and a JSON-aware check (e.g. `jq -r '.plugins[] | select(.name == \"ralph\") | .version'`) for each of the three marketplace.json files. (2) Also add an inverse check: `grep -nE '\"version\"\\s*:\\s*\"5\\.46\\.0\"' <same 5 files>` returns no matches. Use ripgrep (rg) where available for portability, or document that PowerShell Select-String is acceptable on Windows.",
+      "fixedInIteration": 4,
+      "resolution": "Replaced fragile broad version greps with anchored plugin manifest checks, jq checks targeting the ralph-orchestration marketplace entries, and an explicit inverse 5.46.0 check across all five stamp files."
+    },
+    {
+      "id": "F-005",
+      "severity": "Medium",
+      "source": "consensus",
+      "category": "Criteria Quality",
+      "sectionRef": "Acceptance Criteria",
+      "description": "The marketplace.json grep verification can pass on an unrelated plugin entry at 5.46.1 because the regex is not scoped to the ralph entry. Codex and Copilot independently flag this.",
+      "status": "open",
+      "relevantFiles": [
+        "D:/ai-developer-toolkit/.claude-plugin/marketplace.json",
+        "D:/ai-developer-toolkit/.github/plugin/marketplace.json",
+        "D:/ai-developer-toolkit/.agents/plugins/marketplace.json"
+      ],
+      "suggestedFix": "Verify the ralph entry specifically using jq: `jq -r '.plugins[] | select(.name == \"ralph\") | .version' <marketplace.json>` must output `5.46.1`. Run for all 3 marketplace files."
+    },
+    {
+      "id": "F-006",
+      "severity": "Medium",
+      "source": "claude",
+      "category": "Simplicity",
+      "sectionRef": "Approach > Architecture",
+      "description": "A simpler alternative (top-of-main() early check via `process.argv.includes('--help') || process.argv.includes('-h')`) is not explored. This would avoid threading a config.showHelp flag through parseArgs() and would eliminate the test-harness opts-widening for a stdout sink. The plan should at least mention why the chosen mirror-review-loop pattern was preferred (consistency with in-tree precedent vs minimal-change).",
+      "status": "open",
+      "relevantFiles": [
+        "D:/harness-efforts/codexu/.ralph/jobs/.staging/20260528-161858/draft-plan.md"
+      ],
+      "suggestedFix": "Add a brief 'Alternatives Considered' note to Approach > Architecture: state that an early `process.argv.includes('--help')` check at top of main() is simpler but breaks the in-tree convention (review-loop.mjs, ralph.mjs, scan-reviewer-bullets.mjs all use the parseArgs-flag pattern), and the consistency benefit outweighs the slightly larger surface change. Confirms the chosen approach was deliberate."
+    },
+    {
+      "id": "F-007",
+      "severity": "Medium",
+      "source": "codex",
+      "category": "Criteria Quality",
+      "sectionRef": "Acceptance Criteria",
+      "description": "The acceptance criterion `-h behaves identically` is vague. Spell out the same observable assertions (exit 0, stdout contains Usage:, stderr empty, no spawn, no fs side effect) for the -h test, not just '--help test passes'.",
+      "status": "open",
+      "relevantFiles": [
+        "D:/harness-efforts/codexu/.ralph/jobs/.staging/20260528-161858/draft-plan.md"
+      ],
+      "suggestedFix": "Replace the two '-h behaves identically' criteria with their fully-spelled-out equivalents matching the --help criteria: exit 0, non-empty stdout containing 'Usage:', empty stderr, spawn not called, no temp directory created, no output file truncated."
+    },
+    {
+      "id": "F-008",
+      "severity": "Medium",
+      "source": "copilot",
+      "category": "Feasibility",
+      "sectionRef": "Research Findings > Codebase Context",
+      "description": "The plan describes review-loop.mjs as 'help check runs before validateConfig()' but in review-loop.mjs validateConfig() is itself help-aware (early-returns when showHelp is set). This is a minor doc inaccuracy but worth fixing so impl reads the precedent correctly.",
+      "status": "open",
+      "relevantFiles": [
+        "D:/ai-developer-toolkit/plugins/ralph/src/review-loop.mjs"
+      ],
+      "suggestedFix": "Correct the Research Findings note: review-loop.mjs's pattern is 'parseArgs() sets showHelp; validateConfig() and/or main() are help-aware and skip required-arg checks when showHelp is true.' Recommend impl follow whichever variant fits each wrapper's structure."
+    }
+  ]
+}

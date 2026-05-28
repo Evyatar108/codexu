@@ -1,0 +1,28 @@
+I’ll read the referenced prompt file first, then carry out the requested work.
+
+I’ll verify the plan against the actual ralph plugin code and test harness, then return a focused review with severities.
+
+I found the key implementation surfaces. I’ll check the remaining test helpers, version files, and repo/remotes because the plan’s release and worktree requirements depend on those details.
+
+### Feasibility
+
+- [High] The implementation recipe misses where validation currently happens. `codex-exec.mjs` calls `validateConfig(config, opts)` inside `parseArgs()`, and `copilot-exec.mjs` enforces `--prompt` / `--output` at the end of `parseArgs()`. Simply checking `showHelp` in `main()` after `parseArgs()` would still fail `--help`. Amend the plan to skip/return before those validations when help is requested.
+- [Medium] The `review-loop.mjs` precedent is described inaccurately: it calls `validateConfig()` before the help write, but `validateConfig()` is help-aware. Not blocking, but the plan should cite that pattern correctly.
+
+### Completeness
+
+- [Critical] AC #321 requires pushing to `origin` and `work`, but repo/operator rules require explicit confirmation before remote pushes. Change the release step to stop for approval after verification, or make the invoking prompt explicitly grant push permission.
+- [Medium] The suggested help tests do not fully prove “does NOT open or truncate the output file.” Add a `copilot-exec.mjs` help test with an existing `--output <file>` marker and assert it remains unchanged.
+
+### Ordering
+
+No issues found after the validation-bypass correction; source/test changes before version bump is the right order.
+
+### Simplicity
+
+No issues found.
+
+### Acceptance Criteria Quality
+
+- [Medium] The grep-based version checks are Windows-fragile. Prefer `rg` or PowerShell `Select-String` in the AC verification commands, with the same explicit five-file list.
+
