@@ -1,0 +1,100 @@
+**Codebase Architecture**
+The relevant repo is `D:/ai-developer-toolkit`, not the current `codexu` repo. It is a multi-plugin toolkit with plugin manifests and marketplace indexes at the repo root. Ralph lives under `plugins/ralph/`.
+
+Ralph v5.46.0 is now mostly zero-dependency Node ESM:
+
+- Runtime modules: `plugins/ralph/src/*.mjs`
+- Standalone utility scripts: `plugins/ralph/scripts/*.mjs`
+- CLI dispatcher: `plugins/ralph/tools/ralph.js`
+- Tests: `plugins/ralph/tests/`
+- Plugin manifests: `plugins/ralph/.claude-plugin/plugin.json`, `plugins/ralph/.github/plugin/plugin.json`
+- Marketplace indexes: `.claude-plugin/marketplace.json`, `.github/plugin/marketplace.json`, `.agents/plugins/marketplace.json`
+
+Tests use built-in `node:test`; `plugins/ralph/tests/run.mjs` auto-discovers `test-*.mjs`. Some surviving shell tests still require Git Bash/WSL, but this feature can stay in Node tests.
+
+**Feature-Relevant Code**
+Direct targets:
+
+- `plugins/ralph/src/codex-exec.mjs`
+  - `main(argv, opts)` parses args, assembles prompt, spawns `codex`.
+  - `parseArgs(argv, opts)` currently treats `--help` as unknown.
+  - Existing `usage()` already has the right usage text.
+  - `main` currently accepts `stderr`, `spawn`, `env`; it does not accept `stdout`.
+
+- `plugins/ralph/src/copilot-exec.mjs`
+  - `main(argv, opts)` parses args, creates temp prompt file, opens output fd, spawns `copilot`.
+  - `parseArgs(argv, opts)` currently treats `--help` as unknown.
+  - Existing `USAGE` already has the right usage text.
+  - `main` currently accepts `stderr`, `cwd`, `env`, `process`, `spawn`, etc.; it does not accept `stdout`.
+
+Existing help conventions to mirror:
+
+- `plugins/ralph/src/ralph.mjs` writes usage to stdout and returns `0`.
+- `plugins/ralph/src/review-loop.mjs` writes usage to stdout and returns `0`.
+- `plugins/ralph/src/scan-reviewer-bullets.mjs` writes `USAGE` to stdout and returns `0`.
+- Some `scripts/*.mjs` write help to stderr for bash parity, but the acceptance criteria here explicitly expect non-empty stdout.
+
+Tests to extend:
+
+- `plugins/ralph/tests/test-codex-exec.mjs`
+  - Has `runMain()` helper that captures stderr and spawn calls.
+  - Add stdout capture and a `--help` test asserting code `0`, non-empty stdout, no stderr, no spawn.
+
+- `plugins/ralph/tests/test-copilot-exec.mjs`
+  - Uses `sink()` and `failSpawn`.
+  - Add a `--help` test with stdout sink, `spawn: failSpawn`, and no temp/output side effects.
+
+Version/changelog files:
+
+- `plugins/ralph/CHANGELOG.md`
+- `plugins/ralph/.claude-plugin/plugin.json`
+- `plugins/ralph/.github/plugin/plugin.json`
+- `.claude-plugin/marketplace.json`
+- `.github/plugin/marketplace.json`
+- `.agents/plugins/marketplace.json`
+
+The previous v5.46.0 version bump touched exactly those five version-bearing files.
+
+**Technical Constraints**
+Use the existing usage strings exactly; do not author new copy.
+
+Help must short-circuit before required argument validation. Otherwise `--help` will still fail on missing `--prompt` / `--output`.
+
+Help must also short-circuit before side effects:
+
+- `codex-exec.mjs`: no prompt read, no stdin assembly, no `codex` spawn.
+- `copilot-exec.mjs`: no temp dir, no output file open/truncate, no `copilot` spawn.
+
+Do not disturb exact negative stderr fixtures. Existing tests pin unknown-argument and missing-argument output, so `--unknown`, no args, bad effort, and missing files must keep current behavior.
+
+Ralph is ESM and dependency-free here. Use `node:test` and `node:assert/strict`; no new test framework.
+
+The working copy has untracked worktree directories, but the relevant tracked files appear clean. Remotes are `origin` = `Evyatar108/ai-developer-toolkit` and `work` = `gim-home/ai-developer-toolkit`; “multi-remote push” likely means both, but pushing should be a separate confirmed release step.
+
+**Implementation Suggestions**
+Implement this as a narrow parser/main change in both wrappers:
+
+- Add `const stdout = opts.stdout ?? process.stdout;` in each `main`.
+- Add a `help` / `showHelp` flag in each parsed config.
+- In `parseArgs`, handle `--help` and probably `-h` for consistency with other v5.46 ports.
+- Skip validation when help is set.
+- In `main`, after parsing, write `usage()` / `USAGE` to stdout and return `0`.
+
+For tests, add one focused test per wrapper in the existing test files. Assert:
+
+- exit code is `0`
+- stdout contains `Usage:` and is non-empty
+- stderr is empty
+- spawn is not called
+
+Verification should include:
+
+```bash
+node --test plugins/ralph/tests/test-codex-exec.mjs
+node --test plugins/ralph/tests/test-copilot-exec.mjs
+node plugins/ralph/tests/run.mjs
+node plugins/ralph/src/codex-exec.mjs --help
+node plugins/ralph/src/copilot-exec.mjs --help
+```
+
+Then prepend `v5.46.1` in `plugins/ralph/CHANGELOG.md` and bump the five release stamps from `5.46.0` to `5.46.1`.

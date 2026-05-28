@@ -1,0 +1,25 @@
+I’ll read the provided prompt file and execute the requested task from it.
+
+I found this is a research-mode plan analysis, so I’ll inspect the Ralph plugin wrapper files and test layout before reporting.
+
+### Codebase Architecture
+
+Target code lives in `D:\ai-developer-toolkit\plugins\ralph`, not this `codexu` repo. Ralph v5.46.0 is a zero-dependency Node ESM plugin: runtime entrypoints are in `plugins/ralph/src\*.mjs`, utility scripts in `plugins/ralph/scripts`, and tests in `plugins/ralph/tests`. Tests use Node’s built-in `node:test`; `plugins/ralph/tests/run.mjs` auto-discovers `test-*.mjs`.
+
+### Feature-Relevant Code
+
+- `plugins/ralph/src/codex-exec.mjs`: `parseArgs()` treats unknown args as usage errors; `--help` currently falls into `default` and exits 1. Existing `usage()` already returns the right single-line help text.
+- `plugins/ralph/src/copilot-exec.mjs`: same issue; existing `USAGE` constant is the help text to reuse.
+- `plugins/ralph/tests/test-codex-exec.mjs` and `plugins/ralph/tests/test-copilot-exec.mjs`: add one help test per wrapper. Best coverage is `spawnSync(process.execPath, [wrapperPath, "--help"], { encoding: "utf8" })`, asserting status 0, non-empty stdout, empty stderr.
+- Version/docs: update `plugins/ralph/CHANGELOG.md`, `plugins/ralph/.claude-plugin/plugin.json`, `plugins/ralph/.github/plugin/plugin.json`, plus marketplace indexes such as `D:\ai-developer-toolkit\.claude-plugin\marketplace.json` and `D:\ai-developer-toolkit\.github\plugin\marketplace.json`.
+
+### Technical Constraints
+
+Keep the help text unchanged: use `usage()` in `codex-exec.mjs` and `USAGE` in `copilot-exec.mjs`. Help must short-circuit before required `--prompt`/`--output` validation and before spawning Codex/Copilot. Existing style returns numeric exit codes from `main()` and avoids `process.exit()` except top-level `process.exitCode`.
+
+### Implementation Suggestions
+
+Add `const stdout = opts.stdout ?? process.stdout` in both `main()` functions, then handle `--help` (and preferably `-h`, matching other Ralph ports) before `parseArgs()`: write usage to stdout and return 0. Do not route help through `UsageError`, because current error handling writes to stderr and returns 1.
+
+Run `node plugins/ralph/tests/run.mjs` from `D:\ai-developer-toolkit`; for focused iteration, run `node --test plugins/ralph/tests/test-codex-exec.mjs` and `node --test plugins/ralph/tests/test-copilot-exec.mjs`.
+

@@ -1,0 +1,53 @@
+{
+  "clusters": [
+    {
+      "name": "codex-exec-help",
+      "stories": ["US-001"],
+      "phase": 1,
+      "dependsOn": [],
+      "fileOverlapEvidence": {
+        "sharedFiles": [],
+        "exclusiveFiles": [
+          "plugins/ralph/src/codex-exec.mjs",
+          "plugins/ralph/tests/test-codex-exec.mjs"
+        ],
+        "risk": "low"
+      },
+      "executionModeRationale": "Touches only the codex wrapper and its test file; disjoint from copilot-exec and version-stamp files."
+    },
+    {
+      "name": "copilot-exec-help",
+      "stories": ["US-002"],
+      "phase": 1,
+      "dependsOn": [],
+      "fileOverlapEvidence": {
+        "sharedFiles": [],
+        "exclusiveFiles": [
+          "plugins/ralph/src/copilot-exec.mjs",
+          "plugins/ralph/tests/test-copilot-exec.mjs"
+        ],
+        "risk": "low"
+      },
+      "executionModeRationale": "Touches only the copilot wrapper and its test file; disjoint from US-001's surface."
+    },
+    {
+      "name": "release-stamp-bump",
+      "stories": ["US-003"],
+      "phase": 2,
+      "dependsOn": ["codex-exec-help", "copilot-exec-help"],
+      "fileOverlapEvidence": {
+        "sharedFiles": [],
+        "exclusiveFiles": [
+          "plugins/ralph/.claude-plugin/plugin.json",
+          "plugins/ralph/.github/plugin/plugin.json",
+          ".claude-plugin/marketplace.json",
+          ".github/plugin/marketplace.json",
+          ".agents/plugins/marketplace.json",
+          "plugins/ralph/CHANGELOG.md"
+        ],
+        "risk": "medium"
+      },
+      "executionModeRationale": "Version stamp must reflect already-merged behavior changes from US-001 and US-002. Marketplace.json files are globally read; bumping is low-risk in isolation but must run after both impl clusters."
+    }
+  ]
+}

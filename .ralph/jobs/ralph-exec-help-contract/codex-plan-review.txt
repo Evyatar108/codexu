@@ -1,0 +1,27 @@
+**Feasibility**
+
+[High] The help short-circuit placement is described inaccurately. In [codex-exec.mjs](</d/ai-developer-toolkit/plugins/ralph/src/codex-exec.mjs:152>), `parseArgs()` calls `validateConfig()` before returning. In [copilot-exec.mjs](</d/ai-developer-toolkit/plugins/ralph/src/copilot-exec.mjs:200>), required-arg validation is also inside `parseArgs()`. So “check `config.showHelp` in `main()` before validation” is not implementable as written unless the plan also says to move validation out of `parseArgs()` or make `parseArgs()`/validation explicitly skip validation when help is requested. Literal implementation would still fail `--help` with missing `--prompt`.
+
+[Critical] The plan’s acceptance criteria require the impl member to push to both `origin` and `work`. The repo instructions say to ask before pushing to remotes. The plan’s risk section mentions operator control, but the actual AC still makes push part of implementation completion. This should be changed to “prepare verified branch and ask before push” or “push only after explicit operator approval.”
+
+**Completeness**
+
+[High] The “no temp directory / no output truncate” requirement is not covered by the proposed tests. A spawn spy only proves no child process starts; it does not prove [copilot-exec.mjs](</d/ai-developer-toolkit/plugins/ralph/src/copilot-exec.mjs:87>) did not call `mkdtempSync()` or [copilot-exec.mjs](</d/ai-developer-toolkit/plugins/ralph/src/copilot-exec.mjs:93>) did not `openSync(parsed.outputFile, "w")`. Add a test such as `["--output", existingFile, "--help"]` or `["--help", "--output", existingFile]` that asserts the existing file contents are unchanged, plus either code-review evidence or injectable fs hooks if temp-dir creation must be mechanically asserted.
+
+[Medium] The marketplace verification commands are weakly scoped. `grep -n '5.46.1' .claude-plugin/marketplace.json ...` can pass on an unrelated plugin entry. The plan should require checking the `ralph-orchestration` entry specifically, or use JSON-aware checks for the relevant object.
+
+**Ordering**
+
+[High] The source-change order should first decide the parse/validation contract, then patch both wrappers. Because validation currently happens inside `parseArgs()` in both files, adding `showHelp` in the switch and checking it only in `main()` is dependency-inverted. The first implementation step should be “make parseArgs return a help sentinel without running required-arg validation, matching either `review-loop.mjs`’s `validateConfig(config)` skip or `scan-reviewer-bullets.mjs`’s early `{ help: true }` return.”
+
+[Critical] Push is ordered as a normal end-of-impl step. Given the repo rule, it must be split after verification and gated on explicit confirmation.
+
+**Simplicity**
+
+No issues found. The proposed fix is appropriately small and reuses existing usage strings and in-process tests.
+
+**Acceptance Criteria Quality**
+
+[High] “Running `--help` does NOT create a temp directory” is currently not testable with the stated evidence. Either make the AC code-review-based (“help check occurs before temp/output setup”) or add test seams/instrumentation.
+
+[Medium] “behaves identically” for `-h` is vague. Spell out the same observable assertions as `--help`: exit 0, stdout contains `Usage:`, stderr empty, no spawn, no output mutation.
