@@ -1,0 +1,30 @@
+I’ll read the provided prompt file first, then carry out the requested work.
+
+The prompt file is large, so I’m reading it in chunks to capture the full instruction before acting.
+
+I’m going to verify the plan’s key file/version assumptions against the local and plugin checkouts before producing the review.
+
+### Feasibility
+
+- [High] The plan’s implementation command points at `D:\harness-efforts\codexu\.ralph\jobs\plugins-copilot-cross-engine-audit\plan.md`, but that job directory does not exist in this checkout. `/implement-with-ralph --from-plan ...` will fail unless the plan is first materialized there.
+- [High] The target crews version is stale. The plan requires `crewsVersion == "1.7.1"` in AC-8, but `D:\ai-developer-toolkit\plugins\crews\.github\plugin\plugin.json:4` is currently `1.7.2`, with `CHANGELOG.md:3` showing v1.7.2. As written, the audit must stop before testing crews on `origin/main`. Either pin a v1.7.1 commit/tag or update the plan and ACs to v1.7.2.
+- [High] US-003 can produce a false PASS for plugin-manifest MCP discovery unless the plugin-manifest test runs from a scratch workspace with **no** workspace `.mcp.json`. The codexu repo has `D:\harness-efforts\codexu\.mcp.json`, and the plan only says “scratch MCP session,” not that the manifest-only path must exclude workspace fallback.
+
+### Completeness
+
+- [High] AC-11 is not valid on the stated branch. `git diff --name-only origin/main...HEAD` already contains many unrelated files on `ralph/plugin-scope-agents-v2`, so it cannot verify “NO files outside `.ralph/jobs/plugins-copilot-cross-engine-audit/` were modified.” Use a clean dedicated branch/worktree or capture a pre-run baseline diff and compare against that.
+- [Medium] The plan does not define how to capture durable evidence before AC-10 deletes scratch areas. If logs/outputs are only inside `scratch-*`, teardown can erase proof needed for `audit-report.md`. Require each story to copy relevant command output into its findings file or a retained evidence subdir.
+
+### Ordering
+
+- [High] The suggested parallel decomposition claims `shared=[]`, but US-001..003 all read/write `.ralph/jobs/plugins-copilot-cross-engine-audit/preflight.json`. That creates a race and can mix evidence if `origin/main` or installed plugin state changes mid-run. Make preflight a serial US-000 dependency, or write per-story preflight files and aggregate them explicitly.
+
+### Simplicity
+
+- [Medium] US-002 may be heavier than needed: running both `/plan-with-ralph` and `/implement-with-ralph` “from inside a Copilot lead session” plus interrupting after Phase 1 is brittle and underspecified. A smaller smoke that invokes the Copilot skill mirror and `src\ralph.mjs` directly against a tiny scratch PRD would verify the same Node/runtime surfaces with less risk.
+
+### Acceptance Criteria Quality
+
+- [High] Several verification commands are POSIX-specific despite Windows being load-bearing: `wc`, `grep`, `test ! -e`, and `jq` in AC-1/2/3/8/10. Specify Git Bash as the required shell or provide PowerShell/Node equivalents.
+- [Medium] AC-1 and AC-9 use line-count thresholds (`audit-report.md` ≥ 200 lines, findings ≥ 50 lines). These are weak proxies and can incentivize filler. Prefer coverage checks keyed to the required behavior IDs and status rows.
+

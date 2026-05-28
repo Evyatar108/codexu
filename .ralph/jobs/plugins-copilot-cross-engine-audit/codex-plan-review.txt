@@ -1,0 +1,37 @@
+### Feasibility
+
+[High] The plan’s target version for crews is already stale. `D:/ai-developer-toolkit` `origin/main` reports `plugins/crews/.claude-plugin/plugin.json` and `plugins/crews/.github/plugin/plugin.json` as `version: "1.7.2"`, but the plan, section headings, and AC-8 require `1.7.1`. As written, a compliant implementer must stop before auditing. Pin a specific commit/tag containing crews `1.7.1`, or update the plan/ACs to audit `1.7.2`.
+
+[High] AC-11 is not currently satisfiable on `D:/harness-efforts/codexu`. `git diff --name-only origin/main...HEAD` already includes many files outside `.ralph/jobs/plugins-copilot-cross-engine-audit/`, because the branch has prior Ralph artifacts. The plan needs either a fresh branch/worktree for this audit or a narrower verification such as `git diff --name-only <pre-audit-commit>...HEAD`.
+
+[High] US-002 and US-003 depend on invoking Copilot lead-session slash skills and MCP tools, but the plan does not specify concrete non-interactive commands for “run `/plan-with-ralph` from inside a Copilot lead session” or “invoke `overview.parallel_ready_tasks` via Copilot.” Without exact invocation mechanics, an autonomous implementer may only be able to inspect files, not verify runtime behavior.
+
+### Completeness
+
+[High] `copilot plugin install` may mutate the operator’s Copilot plugin cache/registry, but the plan only isolates scratch crew/Ralph/MCP state. US-003 should capture existing Copilot plugin state and restore it, or run with an isolated Copilot config/cache if the CLI supports that. Otherwise the audit can perturb the very bookkeeper environment it is meant not to affect.
+
+[Medium] The plan says `preflight.json` is captured once, but US-001 through US-003 may run in parallel and “whichever story runs first writes it.” There is no lock, no atomic write rule, and no requirement that all stories use the same toolkit SHA. Add a US-000 preflight dependency or require each story to record and compare the same pinned SHA before proceeding.
+
+[Medium] The plan expects scratch areas to be torn down but also relies on observed command output and runtime evidence. It should require findings files to include copied logs/output snippets before cleanup, especially for `scratch-mcp-session/` and watcher heartbeat evidence.
+
+### Ordering
+
+[High] Parallelizing US-001 through US-003 conflicts with the shared `preflight.json` contract and shared Copilot plugin installation. US-000 preflight plus plugin install/setup should run first, then the three plugin audits can run against immutable captured paths/SHAs.
+
+[Medium] US-004 depends on normalized findings structure, but US-001 through US-003 only say “writes findings” in prose. Add a required subsection template so aggregation does not have to infer status/evidence/follow-up formatting from three independently written files.
+
+### Simplicity
+
+[Medium] The report-size requirements (`audit-report.md` >= 200 lines, each findings file >= 50 lines) are arbitrary and encourage filler. Better acceptance criteria would count required behavior rows and evidence fields, not lines.
+
+[Low] The plan has both “recommended serial” and “parallel handoff” guidance while also carrying shared-state risks. Choosing serial execution after a single preflight would be simpler and safer for an audit whose runtime is dominated by external CLI behavior.
+
+### Acceptance Criteria Quality
+
+[High] AC-8 hard-codes crews `1.7.1`, which currently contradicts `origin/main`. This will block implementation unless the target tree is changed from `origin/main` to an older pinned commit.
+
+[Medium] AC-2, AC-3, AC-5, and AC-6 verification commands refer to `audit-report.md` without the `.ralph/jobs/plugins-copilot-cross-engine-audit/` path, despite saying verification assumes cwd `D:/harness-efforts/codexu/`. Literal execution will fail unless the user cd’s into the job directory.
+
+[Medium] AC-4 says “for each FAIL the next 5 lines contain both `**File:**` and `**Follow-up:**`,” but gives no executable verifier and may fail for readable markdown that wraps evidence. Require a simple machine-checkable row format or JSON sidecar.
+
+[Medium] AC-10 requires removing all scratch worktrees, but AC-12 asks for clean status “inside each audit worktree” before removal. The plan should require recording that clean-status evidence in findings before deleting the worktrees.

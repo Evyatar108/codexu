@@ -1,0 +1,74 @@
+**Codebase Architecture**
+
+`D:\harness-efforts\codexu` is mainly the consumer/orchestration repo for this audit, not the plugin source. Relevant local state/config lives in `.ralph/jobs/`, `.crews/`, `plans/overview-data.js`, `plans/overview-snapshot.json`, `.ralph/overview-config.json`, `.claude/settings.json`, and `.mcp.json`.
+
+Plugin implementation source is in `D:\ai-developer-toolkit`:
+
+- `plugins/crews`: Node/CommonJS plugin. Hook handlers live in `hooks/*.js`, CLI dispatch in `tools/crews.js`, commands in `hooks/commands/`, generated Copilot artifacts under `.github/plugin/` and `.copilot-plugin/`.
+- `plugins/ralph`: Node ESM orchestration in `src/*.mjs`, generated Copilot mirror in `.copilot-plugin/`, parity generators/checkers in `scripts/`.
+- `plugins/ralph-overview`: Node/TypeScript MCP server plus React/Vite overview viewer. Main launcher is `launch.cjs`; CLI wrapper is `bin/ralph-overview.mjs`; MCP source is `tools/overview-mcp/src/`.
+
+Important local constraint: `D:/ai-developer-toolkit` working tree is dirty and on a stale feature branch. Its working manifests show old versions, but `origin/main` has the target versions: crews `1.7.1`, ralph `5.46.0`, ralph-overview `2.4.0`. The audit plan should use an isolated `origin/main` worktree or verified installed plugin cache, not the current working tree.
+
+**Feature-Relevant Code**
+
+For `crews v1.7.1`:
+
+- `plugins/crews/.github/plugin/hooks.json` declares Copilot hook events: `sessionStart`, `agentStop`, `preToolUse`, `postToolUse`, `userPromptSubmit`.
+- `plugins/crews/hooks/copilot-shim.js` translates Copilot hook payloads into Claude-shape inputs: `sessionId -> session_id`, `toolName/toolArgs -> tool_name/tool_input`, and maps decisions back per hook surface.
+- `plugins/crews/hooks/lib/session-env.js` reads `CLAUDE_CODE_SESSION_ID` or `COPILOT_AGENT_SESSION_ID`, with `COPILOT_CLI=1` taking Copilot precedence.
+- `plugins/crews/hooks/state-cwd-locator.js`, `plugins/crews/hooks/pointer.js`, and `plugins/crews/hooks/session-start.js` implement the v1.7.1 sessionId pointer index and restart recovery path.
+- `plugins/crews/hooks/actors.js` owns `buildLauncherCommand()` and `spawnMember()`. Copilot launch uses `copilot --name ... --allow-all-tools --plugin-dir ...`, stamps `CREWS_ENGINE`, `CREWS_STATE_CWD`, and scrubs the opposite engine’s session env vars.
+- `plugins/crews/hooks/pre-tool-use.js` enforces listener-arm-first and recognizes Copilot async bash shape.
+- `plugins/crews/hooks/stop.js` contains the listener-armed Stop gate and kind-tag enforcement.
+- `plugins/crews/hooks/post-tool-use.js` contains the 30s default mid-turn review-required nag.
+- `plugins/crews/hooks/commands/registry.js` is the natural place to verify `/review-mail`, `/send-to-member`, `/stop-member`, `/spawn-member` command exposure.
+- `plugins/crews/docs/smoke-runbook.md` already has manual Claude/Copilot smoke steps and should be reused.
+
+For `ralph v5.46.0`:
+
+- `plugins/ralph/src/ralph.mjs` replaces `ralph.sh` as the main story-iteration runner.
+- `plugins/ralph/src/review-loop.mjs` replaces `review-loop.sh`.
+- `plugins/ralph/src/codex-exec.mjs` uses `spawn("codex", ..., { shell: true })` for Windows `.cmd` shim resolution.
+- `plugins/ralph/src/copilot-exec.mjs` uses `spawn(command, ..., { shell: true })` for the same reason.
+- `plugins/ralph/scripts/generate-copilot-artifacts.mjs` and `plugins/ralph/scripts/check-copilot-parity.mjs` are static parity gates.
+- `plugins/ralph/.copilot-plugin/copilot-skills/plan-with-ralph/SKILL.md` and `plugins/ralph/.copilot-plugin/copilot-skills/implement-with-ralph/SKILL.md` are critical runtime surfaces. Static grep shows many stale `ralph.sh`, `review-loop.sh`, and `codex-exec.sh` references remain in generated Copilot mirror prose, especially `implement-with-ralph`; runtime verification is required.
+
+For `ralph-overview current`:
+
+- `plugins/ralph-overview/.github/plugin/plugin.json` declares Copilot skills and `mcpServers: ".mcp.json"`.
+- `plugins/ralph-overview/.mcp.json` registers the MCP server.
+- `plugins/ralph-overview/launch.cjs` builds/launches the MCP server and passes `RALPH_OVERVIEW_PLUGIN_ROOT`.
+- `plugins/ralph-overview/bin/ralph-overview.mjs` dispatches `init`, `sync`, `watch`, `dev`, `build`, `mcp`, `install-server`, and `cli`.
+- `plugins/ralph-overview/tools/overview-mcp/src/index.ts` starts `WatcherSupervisor` before connecting stdio MCP.
+- `plugins/ralph-overview/tools/overview-mcp/src/tools/parallel-ready-tasks.ts` exposes `overview.parallel_ready_tasks`.
+- `plugins/ralph-overview/CHANGELOG.md` documents a known Copilot gap: Copilot CLI `1.0.55` does not surface plugin-manifest `mcpServers`; workspace `.mcp.json` fallback works.
+
+Codexu integration:
+
+- `.claude/settings.json` enables `crews@ai-developer-toolkit` and `enabledMcpjsonServers: ["ralph-overview"]`.
+- `.mcp.json` points `ralph-overview` to `node D:/ai-developer-toolkit/plugins/ralph-overview/launch.cjs`, which is risky unless that checkout is moved to the intended version.
+
+**Technical Constraints**
+
+The audit must begin with version resolution. Current local plugin working trees are not trustworthy for this feature because they are stale/dirty. Record `git rev-parse origin/main`, plugin manifest versions, `copilot --version`, and `node --version`.
+
+This cannot be proved by unit tests alone. The core claims depend on Copilot’s actual hook payloads, slash-command equivalent behavior, plugin loading, MCP discovery, and Windows process spawning. Targeted tests are useful supporting evidence, but the report needs real Copilot sessions.
+
+Windows behavior is load-bearing. Ralph’s v5.45.1 fix is specifically `shell: true` for `codex`/`copilot` shim spawning, so the audit should run on Windows, not only POSIX.
+
+Ralph-overview has a known MCP registration limitation under Copilot CLI `1.0.55`: plugin-manifest MCP discovery may fail while codexu workspace `.mcp.json` fallback succeeds. Treat these as separate checks.
+
+**Implementation Suggestions**
+
+Use a four-story audit plan: crews, ralph, ralph-overview, then report aggregation.
+
+Start with preflight: create/use an isolated toolkit worktree at `origin/main`, verify versions, verify installed Copilot plugin source/cache, and capture environment versions in `.ralph/jobs/plugins-copilot-cross-engine-audit/audit-report.md`.
+
+For crews, use a disposable crew/state cwd. First inspect generated launcher with no-launch/static mode if available, then run a real Copilot lead/member session to exercise SessionStart, PreToolUse listener arm, Stop listener gate, PostToolUse nag, command dispatch, kind-tag parsing, and resume via `COPILOT_AGENT_SESSION_ID`.
+
+For ralph, run generator parity checks, then execute minimal Copilot-driven `/plan-with-ralph` and `/implement-with-ralph` jobs with `--pause-after 1` or equivalent tiny scope. Specifically verify `src/ralph.mjs`, `src/review-loop.mjs`, `src/codex-exec.mjs`, and `src/copilot-exec.mjs` are the actual invoked paths.
+
+For ralph-overview, verify both workspace `.mcp.json` fallback and plugin-manifest MCP registration separately. Check `overview.parallel_ready_tasks`, `overview.watcher_status`, `.ralph/overview-watcher.owner`, and snapshot freshness after MCP boot.
+
+Recommendation gate: do not migrate the bookkeeper lead to Copilot until crews and ralph pass end-to-end, and ralph-overview’s MCP path is either verified through Copilot plugin registration or explicitly accepted as workspace `.mcp.json` fallback only.
