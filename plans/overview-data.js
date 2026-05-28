@@ -711,9 +711,10 @@ window.OVERVIEW_DATA = {
         {
               "id": "crews-review-mail-summary-payload-fallback",
               "scope": "crews",
-              "lifecycle": "tracked",
+              "lifecycle": "merged",
               "status": "ok",
-              "lastTouchedAt": "2026-05-28T21:42:00Z",
+              "lastTouchedAt": "2026-05-28T23:46:00Z",
+              "mergeCommit": "05ef339d",
               "kanbanCards": [],
               "command": {
                     "name": "crews-review-mail-summary-payload-fallback",
@@ -725,9 +726,10 @@ window.OVERVIEW_DATA = {
         {
               "id": "crews-system-envelope-summary-top-level",
               "scope": "crews",
-              "lifecycle": "tracked",
+              "lifecycle": "merged",
               "status": "ok",
-              "lastTouchedAt": "2026-05-28T21:42:00Z",
+              "lastTouchedAt": "2026-05-28T23:46:00Z",
+              "mergeCommit": "05ef339d",
               "kanbanCards": [],
               "command": {
                     "name": "crews-system-envelope-summary-top-level",
