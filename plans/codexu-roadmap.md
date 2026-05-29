@@ -1304,6 +1304,36 @@ without new evidence:
   canonical in `AGENTS.md`. Local-machine notes can still go in
   `CLAUDE.md` below the pointer; nothing load-bearing should.
 
+- **crews-plugin hook recognition: validate at ACTION time, not at
+  RECOGNITION time.** The Copilot-on-Windows bookkeeper-smoke run on
+  2026-05-29 surfaced a four-deep bug stack in `pre-tool-use.js`'s
+  arm-recognition path (toolCalls array shape v1.8.7, trailing
+  `| Out-String` pipe v1.8.8, `2>&1` redirect parse v1.8.9 attempted,
+  async-mode gate v1.8.10). Each fix was a regex on top of the previous
+  regex; we were re-implementing a shell parser inside a hook.
+  The architectural pivot codified in **v1.8.9 + v1.8.10** (toolkit
+  commits `cab9cad3`, `afaca7f1`): the hook's job is binary — "does this
+  look like an arm attempt." Validation of WHETHER the arm actually
+  worked (session-mismatch check, plugin-identity check, foreground vs
+  background) moves to ACTION time inside the listener process
+  (`markArmed` in `actors.js`). A false positive at the hook layer
+  grants exactly one tool call before the next manifest read blocks
+  again — self-healing. Net change: ~150 LOC of shell-parsing helpers
+  deleted (`shellWords`, `splitSubCommands`, `parseArmIdentity`,
+  `parseFlagValue`, `resolveScriptPath`, `isCrewsScriptPath`,
+  `hasCrewsPluginIdentity`, `isCrewsArmCall`, etc.) replaced by two
+  regexes. Future hook design in this plugin (and others) should follow
+  the same principle: hooks recognize intent, action-time code
+  validates outcome.
+
+- **Block-message wording is engine + platform aware.** `pre-tool-use.js`
+  block-instruction text now distinguishes Copilot-on-Windows
+  (`powershell: <cmd>`) from Copilot-on-Linux-or-Mac (`bash: <cmd>`)
+  via `process.platform`. Shipped in toolkit commit `cab9cad3`. Prior
+  versions always said `bash:` for Copilot regardless of OS, producing
+  confusing copy-paste instructions on Windows where the Copilot shell
+  tool is literally named `powershell`.
+
 ## Decisions still open
 
 Two shapes intermixed below: **decision matrices** (multiple named
