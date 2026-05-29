@@ -1,1 +1,2 @@
 - 2026-05-22T12:39:13.857Z  stage: null → shipped  (job: phase-3h-options-mode-migration)
+- 2026-05-29T23:07:22.299Z  stage: null → shipped  (job: phase-3h-options-mode-migration)

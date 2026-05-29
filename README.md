@@ -61,7 +61,7 @@ The big picture lives in
 ### Roadmap viewer
 
 The interactive roadmap viewer is generated from
-[`plans/overview-data.js`](plans/overview-data.js). For local development with
+[`.ralph-overview/data.json`](.ralph-overview/data.json). For local development with
 Vite/HMR, run:
 
 ```bash
@@ -69,7 +69,7 @@ pnpm overview
 ```
 
 The dev server listens on `http://localhost:5173`. To rebuild the static
-single-file artifact at [`plans/overview.html`](plans/overview.html), run:
+single-file artifact at [`.ralph-overview/generated/overview.html`](.ralph-overview/generated/overview.html), run:
 
 ```bash
 pnpm overview:build

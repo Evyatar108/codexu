@@ -4,7 +4,7 @@
 
 ## Why
 
-The codexu bookkeeping convention today tracks one row per task in `plans/overview.html` and `plans/parallel-assignments.md`, with a single status badge collapsing THREE distinct operator actions:
+The codexu bookkeeping convention today tracks one row per task in `.ralph-overview/generated/overview.html` and `plans/parallel-assignments.md`, with a single status badge collapsing THREE distinct operator actions:
 
 1. `/brainstorm-with-ralph "..."` — multi-model brainstorming for fuzzy ideas before planning. Writes `selected-direction.md` per the `ralph-orchestration:brainstorm-with-ralph` skill. Optional; most concrete tasks skip this and start at plan.
 2. `/plan-with-ralph "..."` (or `/plan-with-ralph --from-brainstorm`) — drafts a PRD + plan under `.ralph/jobs/<auto-named>/`.
@@ -146,13 +146,13 @@ Default everything else to `plan-ready` (the most common starting state).
 
 ## Files to change
 
-- `plans/overview.html` — primary change surface:
+- `.ralph-overview/generated/overview.html` — primary change surface:
   - CSS badge classes: add `.b-brainstorm-ready`, `.b-brainstorm-in-progress`, `.b-brainstorm-review`, `.b-plan-ready`, `.b-plan-in-progress`, `.b-plan-review`, `.b-impl-ready`, `.b-impl-in-progress`, `.b-shipped` next to the existing `.b-now`/`.b-soon`/`.b-block`. Pick a color palette that visually distinguishes the three phase families: brainstorm-phase (purple — maps to existing `--purple` token), plan-phase (cool blue — maps to `--info`/`--accent`), impl-phase (warm yellow/orange — maps to `--warn`), terminal (muted — maps to `--ok` for shipped, `--done` for closed). Each phase family has 3 intensity levels (ready / in-progress / review) — vary saturation or use a small status dot.
   - Status modifier sub-badge for blocked/paused (small pill rendered alongside the phase badge).
   - Kanban columns: decide whether to keep the existing 3-column layout (Ready / Soon / Blocked) and surface phase as a pill on each card, OR re-column by phase (Plan-ready / Plan-review / Impl-ready / Impl-in-progress / Shipped). Recommend the former — fewer columns, phase-as-pill scales better with task count.
   - Phase tree section: phase pills also surface there per node.
   - Existing line ranges to read first: lines ~76-110 (badge CSS), ~1043-1180 (kanban cards), ~1400-2150 (commands `<details>` rows), ~76-90 (badge color CSS vars).
-- `plans/overview.html` `<script type="application/json" id="roadmap-data">` block (line ~2155): no changes here — phase is a per-task field, not a per-run field. The `runs` log stays as-is.
+- `.ralph-overview/generated/overview.html` `<script type="application/json" id="roadmap-data">` block (line ~2155): no changes here — phase is a per-task field, not a per-run field. The `runs` log stays as-is.
 - `plans/parallel-assignments.md` — document the phase enum in the front-matter conventions section (lines 1-22). Update the per-task table at the bottom of the file (after the lane sections) to include phase + status columns.
 - `plans/codexu-roadmap.md` — add a "Task phase model" entry under the "Standing rules" section (lines ~163-175). One-paragraph description with a link to `plans/parallel-assignments.md` for the full enum.
 
@@ -165,7 +165,7 @@ Default everything else to `plan-ready` (the most common starting state).
 
 ## Acceptance
 
-- Every existing task entry in `plans/overview.html` and the corresponding row in `plans/parallel-assignments.md` carries an explicit phase value. No `b-ready` ambiguity remains.
+- Every existing task entry in `.ralph-overview/generated/overview.html` and the corresponding row in `plans/parallel-assignments.md` carries an explicit phase value. No `b-ready` ambiguity remains.
 - New CSS badge classes render with visually distinct colors in both dark and light theme variants (the overview.html has `@media (prefers-color-scheme: light)` blocks at line ~22-38 that must be updated in parallel).
 - The phase enum is documented in `plans/parallel-assignments.md` and `plans/codexu-roadmap.md`.
 - One end-to-end smoke per progression path:

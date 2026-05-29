@@ -102,6 +102,21 @@
             "$ref": "#/$defs/OverviewWarning"
           }
         },
+        "prompts": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "brainstorm": {
+              "type": "string"
+            },
+            "plan": {
+              "type": "string"
+            },
+            "impl": {
+              "type": "string"
+            }
+          }
+        },
         "planPrompt": {
           "anyOf": [
             {
@@ -169,6 +184,9 @@
         "scope": {
           "type": "string"
         },
+        "lifecycle": {
+          "type": "string"
+        },
         "phase": {
           "type": "string"
         },
@@ -189,6 +207,26 @@
           "items": {
             "type": "string"
           }
+        },
+        "members": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "initialStage": {
+          "enum": [
+            "brainstorming",
+            "brainstorm-ready",
+            "planning",
+            "plan-ready",
+            "implementing",
+            "reviewing",
+            "review-fix",
+            "replan-pending",
+            "shipped",
+            "blocked"
+          ]
         },
         "priority": {
           "type": "number"
@@ -266,6 +304,20 @@
         },
         "memberName": {
           "type": "string"
+        },
+        "phase": {
+          "anyOf": [
+            {
+              "enum": [
+                "brainstorm",
+                "plan",
+                "impl"
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ]
         },
         "startedAt": {
           "type": "string"
@@ -379,6 +431,9 @@
             "shipped",
             "blocked"
           ]
+        },
+        "regressionReason": {
+          "type": "string"
         },
         "branchName": {
           "type": "string"

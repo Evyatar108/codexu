@@ -2,10 +2,10 @@
 
 *Living doc. First captured 2026-05-02. Holistic 3-way review (Claude × Claude × Codex) applied 2026-05-02. Project rename to "codexu" attempted 2026-05-02; **package-level rebrand REVERTED 2026-05-03** to enable clean upstream merge with `slopus/happy`. Update as decisions land or evidence shifts.*
 
-> **🔄 Companion snapshot:** `plans/overview.html` is a visual kanban + phase-tree
-> snapshot of this roadmap, backed by `plans/overview-data.js`. **When you edit
+> **🔄 Companion snapshot:** `.ralph-overview/generated/overview.html` is a visual kanban + phase-tree
+> snapshot of this roadmap, backed by `.ralph-overview/data.json`. **When you edit
 > this file in a way that changes assignment readiness, blocks, or phase status,
-> refresh `plans/overview-data.js` in the same commit.** The HTML is a derivative
+> refresh `.ralph-overview/data.json` in the same commit.** The HTML is a derivative
 > view — the markdown and data file are authoritative.
 
 ## 🚀 Status — fresh agents start here
@@ -173,7 +173,7 @@ polish.
 - Upstream-derived doc/skill references to "Happy Coder", `slopus/happy`,
   and `happy.engineering` are HISTORICAL and stay as-is.
 - **Task state model:** roadmap command rows are rendered from
-  `plans/overview-data.js` and intentionally separate three phase-like
+  `.ralph-overview/data.json` and intentionally separate three phase-like
   axes. `OverviewTask.lifecycle` is the bookkeeper-owned status
   (`tracked`, `merged`, `archived`). `RalphPipelineState.stage` is the
   watcher runtime state (`brainstorming` through `shipped`, plus
@@ -471,11 +471,11 @@ conflict-surface analysis) at `.ralph/jobs/devtunnels-commands.md`.
     (`tools/overview-viewer/src/components/Toolbar.tsx` plus the
     workstream label map in
     `tools/overview-viewer/src/components/TaskCommand.tsx`); rebuild
-    with `pnpm overview:build` to regenerate `plans/overview.html`.
+    with `pnpm overview:build` to regenerate `.ralph-overview/generated/overview.html`.
   - **Tooling workstream (new, 2026-05-14):** roadmap-meta automation —
     a plugin in `packages/codexu-plugin/` that lets agents manage the
-    roadmap (`plans/overview-data.js` + `plans/parallel-assignments.md`,
-    surfaced via the overview viewer at `plans/overview.html`)
+    roadmap (`.ralph-overview/data.json` + `plans/parallel-assignments.md`,
+    surfaced via the overview viewer at `.ralph-overview/generated/overview.html`)
     programmatically via skill commands and/or an MCP server. Tools:
     `add-task`, `update-status`, `record-run`, `take-task` (the last
     spawns a top-level agent with the task's ralph command + flips the
@@ -488,7 +488,7 @@ conflict-surface analysis) at `.ralph/jobs/devtunnels-commands.md`.
     (`tools/overview-viewer/src/components/Toolbar.tsx` plus the
     workstream label map in
     `tools/overview-viewer/src/components/TaskCommand.tsx`); rebuild
-    with `pnpm overview:build` to regenerate `plans/overview.html`.
+    with `pnpm overview:build` to regenerate `.ralph-overview/generated/overview.html`.
     Initial task: `roadmap-plugin`.
   - **Periodic upstream sync (new workstream, 2026-05-13):** added two
     periodic-cadence maintenance tasks that should cycle every ~4 weeks:
@@ -497,7 +497,7 @@ conflict-surface analysis) at `.ralph/jobs/devtunnels-commands.md`.
     skill at `.agents/skills/happy-upstream-sync/SKILL.md`) and
     `codex-upstream-rebase` (rebase the codex submodule on
     openai/codex via the codex-side `rebase-upstream` skill). Tracked
-    on the overview viewer (built to `plans/overview.html`) with a 🔄
+    on the overview viewer (built to `.ralph-overview/generated/overview.html`) with a 🔄
     cadence indicator + new "Upstream sync" workstream + new "Cadence"
     filter axis (filter chips in
     `tools/overview-viewer/src/components/Toolbar.tsx`, workstream
@@ -755,19 +755,19 @@ on significant questions the lead can't decide autonomously.
 
 | Duty | Mechanism |
 |---|---|
-| Pick the next parallel batch | `mcp__ralph-overview__overview_parallel_ready_tasks` + `plans/overview-snapshot.json` |
+| Pick the next parallel batch | `mcp__ralph-overview__overview_parallel_ready_tasks` + `.ralph-overview/generated/snapshot.json` |
 | Spawn a Ralph member per task | `node <plugin>/tools/crews.js spawn-member <name> --crew ralph-pipeline --cwd D:/harness-efforts/codexu --state-cwd D:/harness-efforts/codexu --as overview-bookkeeper -- <prompt>` |
 | Watch the member mailbox | armed listener; on `messages` envelope, `/crews:review-mail` |
 | Relay operator decisions on `kind=question` | `/crews:send-to-member` |
-| **Update `plans/overview-data.js` when a task ships** | Edit `lifecycle` → `"merged"` (or `"archived"` for closed/superseded work); add `mergeCommit`; refresh `lastTouchedAt` |
-| Commit + push the bookkeeping update | `chore(plans): update overview-data.js for shipped tasks` |
+| **Update `.ralph-overview/data.json` when a task ships** | Edit `lifecycle` → `"merged"` (or `"archived"` for closed/superseded work); add `mergeCommit`; refresh `lastTouchedAt` |
+| Commit + push the bookkeeping update | `chore(overview): update data for shipped tasks` |
 | Stop the member cleanly | `/crews:stop-member <name>` |
 
 ### Overview data — two-file split (READ THIS)
 
 Two files describe task state; they coexist and must not be conflated.
 
-**`plans/overview-data.js` — hand-curated, lead-owned.** Stable task
+**`.ralph-overview/data.json` — hand-curated, lead-owned.** Stable task
 definitions: `id`, `scope`, `lifecycle`, `status`, `lastTouchedAt`,
 `mergeCommit`, `kanbanCards`, and `command{name, descriptionHtml,
 warnings, prompts}`. This is what the operator and lead use to plan: it
@@ -782,11 +782,11 @@ The three phase-like axes are deliberately separate:
 
 | Axis | Owner | Values | Meaning |
 |---|---|---|---|
-| `OverviewTask.lifecycle` | Bookkeeper data in `overview-data.js` | `tracked`, `merged`, `archived` | Durable backlog/merge/archive status |
+| `OverviewTask.lifecycle` | Bookkeeper data in `.ralph-overview/data.json` | `tracked`, `merged`, `archived` | Durable backlog/merge/archive status |
 | `RalphPipelineState.stage` | Ralph watcher snapshot | `brainstorming`, `brainstorm-ready`, `planning`, `plan-ready`, `implementing`, `reviewing`, `shipped`, `blocked` | Runtime position in the state machine |
 | `CrewSessionRef.phase` | Crew session reference | `brainstorm`, `plan`, `impl`, `null` | Intent of the member when it was spawned |
 
-**`plans/overview-ralph-state.{js,json}` — watcher-generated.** Auto-emitted by
+**`.ralph-overview/generated/ralph-state.{js,json}` — watcher-generated.** Auto-emitted by
 `D:/ai-developer-toolkit/plugins/ralph-overview/scripts/sync-ralph-state.mjs --watch`
 based on `.ralph/jobs/<slug>/job-state.json`. Carries the dynamic state:
 `stage`, `terminalReason`, `storyCompletion`, `crewSessions`, `branchName`,
@@ -795,15 +795,15 @@ watcher has crashed; see `.claude/skills/overview-reset`.
 
 The React viewer (`tools/overview-viewer/`) renders both sidecars merged.
 The MCP server reads the watcher-generated snapshot. Agents querying the
-canonical task list should read `plans/overview-snapshot.json` (the merged
+canonical task list should read `.ralph-overview/generated/snapshot.json` (the merged
 form generated by the watcher's per-tick aggregation pass).
 
 Generated files the watcher owns (don't hand-edit):
-- `plans/overview-snapshot.json` — aggregated snapshot for agents
-- `plans/overview-recommendations.json` — ranked next-task list
-- `plans/overview-dependency-graph.json` — DAG
-- `plans/overview-activity.jsonl` — append-only audit log (gitignored)
-- `plans/overview.html{,.next}` — static viewer build
+- `.ralph-overview/generated/snapshot.json` — aggregated snapshot for agents
+- `.ralph-overview/generated/recommendations.json` — ranked next-task list
+- `.ralph-overview/generated/dependency-graph.json` — DAG
+- `.ralph-overview/generated/activity.jsonl` — append-only audit log (gitignored)
+- `.ralph-overview/generated/overview.html{,.next}` — static viewer build
 - `tasks/INDEX.md` — regenerated per-task index
 
 ### Operating gotchas the lead inherits
@@ -826,7 +826,7 @@ Generated files the watcher owns (don't hand-edit):
    `.ralph/jobs/<slug>/` directory. Verify with `git status` from the repo
    root before assuming a member's terminal write landed on the right branch.
 
-4. **Don't extend `overview-data.js` with Ralph state** and **don't hand-edit
+4. **Don't extend `.ralph-overview/data.json` with Ralph state** and **don't hand-edit
    `overview-ralph-state.js`**. The sidecar split (R4 in the original plan
    doc) was chosen specifically to avoid race conditions between hand-editing
    and watcher writes.
@@ -867,7 +867,7 @@ operator says "continue"
   → member: kind=done report → mailbox
   → lead: review-mail → verify commit on origin/main
   → lead: /crews:stop-member <name> (do NOT chain into the next phase)
-  → lead: if this was the FINAL phase (impl ship), EDIT plans/overview-data.js
+  → lead: if this was the FINAL phase (impl ship), EDIT .ralph-overview/data.json
        (lifecycle → "merged", mergeCommit, lastTouchedAt) + commit + push
   → lead: loop back to overview_parallel_ready_tasks; if same task needs
        a follow-up phase, spawn a NEW fresh member next round
@@ -897,7 +897,7 @@ or stale assumption. Every regression must carry a short `regressionReason`
 in the watcher state so the operator can see why the task moved backward.
 
 Regression does not reuse the old member. It spawns a FRESH member for the
-regressed-to phase, using the matching seed in `plans/overview-data.js`:
+regressed-to phase, using the matching seed in `.ralph-overview/data.json`:
 `prompts.brainstorm` for brainstorming, `prompts.plan` for planning, and
 `prompts.impl` for implementation. If the relevant prompt is missing, the
 task is not actionable until the bookkeeper adds one or chooses a different
@@ -918,7 +918,7 @@ initial stage.
   conflict surface, design not settled) → spawn `brainstorm-<task>`
   running `/brainstorm-with-ralph`.
 - No brainstorm + concrete seed (file paths + specific edits identified
-  in `command.prompts.plan` in `overview-data.js`) → skip brainstorm;
+  in `command.prompts.plan` in `.ralph-overview/data.json`) → skip brainstorm;
   spawn `plan-<task>` running `/plan-with-ralph`.
 - Brainstorm committed + reviewed → spawn `plan-<task>` running
   `/plan-with-ralph --from-brainstorm <brainstormDir>`.

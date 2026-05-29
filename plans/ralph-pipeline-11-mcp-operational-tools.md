@@ -65,9 +65,9 @@ All under the `codexu-overview` MCP server namespace (same server as Plan 09).
 - **`tools/overview-mcp/src/tools/dev-server-stop.ts`** — registers `overview.dev_server.stop`. Calls `ProcessManager.stop('dev-server')`.
 - **`tools/overview-mcp/src/tools/dev-server-status.ts`** — registers `overview.dev_server.status`. Reads from `ProcessManager`.
 - **`tools/overview-mcp/src/tools/dev-server-logs.ts`** — registers `overview.dev_server.logs`. Reads from the ring buffer.
-- **`tools/overview-mcp/src/tools/build.ts`** — registers `overview.build`. Spawns `pnpm overview:build` (one-shot — not a long-lived child). Waits for exit. On exit code 0, stats `plans/overview.html` for `outputPath` and `sizeBytes`, returns success. On non-zero, returns failure with last 30 log lines from stderr.
+- **`tools/overview-mcp/src/tools/build.ts`** — registers `overview.build`. Spawns `pnpm overview:build` (one-shot — not a long-lived child). Waits for exit. On exit code 0, stats `.ralph-overview/generated/overview.html` for `outputPath` and `sizeBytes`, returns success. On non-zero, returns failure with last 30 log lines from stderr.
 - **`tools/overview-mcp/src/tools/sync-now.ts`** — registers `overview.sync.now`. Spawns `node scripts/sync-ralph-state.mjs` (one-shot, no `--watch`). On success, parses stdout for the unmatched summary line (the sync script should emit one).
-- **`tools/overview-mcp/src/tools/sync-watch-status.ts`** — registers `overview.sync.watch_status`. Resolves `config.lockFile` (Plan 01 default: `.ralph/overview-sync.lock`) via the shared config loader and reads Plan 02's JSON lock metadata `{ pid, process, startedAt }`. If the lock is present and fresh, return that holder info directly. Stale handling and PID-liveness rules are documented under "Lock holder detection" below.
+- **`tools/overview-mcp/src/tools/sync-watch-status.ts`** — registers `overview.sync.watch_status`. Resolves `config.lockFile` (Plan 01 default: `.ralph-overview/generated/.lock/sync.lock`) via the shared config loader and reads Plan 02's JSON lock metadata `{ pid, process, startedAt }`. If the lock is present and fresh, return that holder info directly. Stale handling and PID-liveness rules are documented under "Lock holder detection" below.
 - **`tools/overview-mcp/tests/process-manager.test.ts`** — covers spawn/stop/status/logs/stopAll cycle.
 - **`tools/overview-mcp/tests/dev-server.test.ts`** — covers start (spawn-and-wait-for-Vite-line), status, stop. Mock the spawned process via a stub that emits the expected output pattern.
 - **`tools/overview-mcp/tests/build.test.ts`** — covers success + failure paths.
@@ -127,7 +127,7 @@ interface ManagedProcess {
 
 ## Lock holder detection (for `sync.watch_status`)
 
-The lock file at `config.lockFile` (default `.ralph/overview-sync.lock`) from Plan 02 indicates a running one-shot sync or watcher. `sync-watch-status.ts` resolves the path through the shared config loader rather than hard-coding it, so any adopter override flows through. The lock holder can be:
+The lock file at `config.lockFile` (default `.ralph-overview/generated/.lock/sync.lock`) from Plan 02 indicates a running one-shot sync or watcher. `sync-watch-status.ts` resolves the path through the shared config loader rather than hard-coding it, so any adopter override flows through. The lock holder can be:
 
 - **One-shot sync** (`pnpm sync-ralph-state`) while it is actively walking/writing — writes `process: 'standalone-oneshot'`.
 - **Vite-plugin-embedded watcher** (auto-started by `pnpm overview` per Plan 02).
@@ -173,7 +173,7 @@ The user runs Windows 11.
 - [ ] `dev_server.stop` terminates the child within 5s (SIGTERM) or 7s (escalated SIGKILL).
 - [ ] `dev_server.status` correctly reflects running / exited state.
 - [ ] `dev_server.logs` returns the last N lines per stream from the ring buffer.
-- [ ] `overview.build` returns `{ ok: true, outputPath: 'plans/overview.html', sizeBytes: N, durationMs: M }` on success.
+- [ ] `overview.build` returns `{ ok: true, outputPath: '.ralph-overview/generated/overview.html', sizeBytes: N, durationMs: M }` on success.
 - [ ] `overview.build` returns `{ ok: false, error, lastLogLines }` on non-zero exit.
 - [ ] `overview.sync.now` runs the one-shot sync and returns the parsed summary.
 - [ ] `overview.sync.watch_status` distinguishes one-shot / Vite-plugin / standalone / stale-or-unknown lock holders.
@@ -200,7 +200,7 @@ D. **Logs:** `dev_server.logs({ tail: 20 })` returns the last 20 stdout lines in
 
 E. **Stop:** `dev_server.stop` terminates the child within 5s. Re-running `status` shows `running: false`.
 
-F. **Build:** `overview.build` runs `pnpm overview:build`. Returns `{ ok: true, outputPath: 'D:/harness-efforts/codexu/plans/overview.html', sizeBytes: <500000, durationMs: ... }`.
+F. **Build:** `overview.build` runs `pnpm overview:build`. Returns `{ ok: true, outputPath: 'D:/harness-efforts/codexu/.ralph-overview/generated/overview.html', sizeBytes: <500000, durationMs: ... }`.
 
 G. **Build failure path:** introduce a temporary syntax error in `tools/overview-viewer/src/App.tsx`. `overview.build` returns `{ ok: false, error: 'build failed with exit code N', lastLogLines: [...] }`. Revert the error.
 

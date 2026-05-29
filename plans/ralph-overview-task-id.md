@@ -5,7 +5,7 @@
 
 ## 1. Context
 
-The codexu overview dashboard (`tools/overview-viewer/`) associates Ralph artifacts with `OverviewTask.id` entries from `plans/overview-data.js`. Today that association relies on `ralphOverrides` and slug equality. A first-class `overviewTaskId` field gives new Ralph artifacts a direct, high-confidence match key.
+The codexu overview dashboard (`tools/overview-viewer/`) associates Ralph artifacts with `OverviewTask.id` entries from `.ralph-overview/data.json`. Today that association relies on `ralphOverrides` and slug equality. A first-class `overviewTaskId` field gives new Ralph artifacts a direct, high-confidence match key.
 
 This document is the handoff spec for a future Ralph plugin patch cycle. It does not patch the plugin from this repo. Run the future patch cycle from the Ralph plugin source tree at `D:/ai-developer-toolkit/plugins/ralph/`.
 
@@ -50,8 +50,8 @@ CLI and prompt behavior:
 - Add `--overview-task-id <id>` for both batch and interactive modes.
 - Treat `--overview-task-id` as canonical. If it is present, use it without lookup or prompt.
 - If the flag is absent in interactive mode, prompt for a free-form string and offer skip/null. Free-form prompt is the default behavior in any repo.
-- Any consumer-config-driven lookup, such as reading task IDs from a path that eventually resolves to `plans/overview-data.js`, must be opt-in. For example, a future plugin patch may read `.ralph/overview-config.json` or another consumer-defined config that points at a task-ID source. If that config is absent, unreadable, invalid, or the referenced file is missing, fall back to the free-form prompt. Lookup must not block PRD creation.
-- Do not hardcode `<repo_root>/plans/overview-data.js`; that file is codexu-specific and Ralph must stay project-agnostic.
+- Any consumer-config-driven lookup, such as reading task IDs from a path that eventually resolves to `.ralph-overview/data.json`, must be opt-in. For example, a future plugin patch may read `.ralph-overview/config.json` or another consumer-defined config that points at a task-ID source. If that config is absent, unreadable, invalid, or the referenced file is missing, fall back to the free-form prompt. Lookup must not block PRD creation.
+- Do not hardcode `<repo_root>/.ralph-overview/data.json`; that file is codexu-specific and Ralph must stay project-agnostic.
 
 Write location:
 
@@ -169,7 +169,7 @@ No automatic backfill belongs in the Ralph plugin patch. Backfilling old codexu 
 
 - Editing Ralph plugin source from this codexu worktree.
 - Backfilling old `.ralph/jobs/*/prd.json`, `.ralph/job-groups/*/group.json`, or `.ralph/brainstorms/*/brainstorm.json` artifacts.
-- Validating `overviewTaskId` against codexu `plans/overview-data.js` inside the Ralph plugin.
+- Validating `overviewTaskId` against codexu `.ralph-overview/data.json` inside the Ralph plugin.
 - Adding codexu consumer matching for `overviewTaskId`; that is a follow-up after Ralph writes the field.
 - Changing the overview dashboard UI.
 - Adding a mandatory dependency on `yq` unless the future patch cycle explicitly chooses it and updates plugin prerequisites.

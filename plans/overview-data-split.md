@@ -4,7 +4,7 @@
 
 ## Why
 
-`plans/overview.html` is 3770 lines (post-`task-phases` merge). Roughly:
+`.ralph-overview/generated/overview.html` is 3770 lines (post-`task-phases` merge). Roughly:
 
 - ~1000 lines header + styles + scripts (now includes 10 phase-badge CSS classes at lines ~852-880 + `.cmd-status-mod` modifier)
 - ~150 lines kanban cards (3 columns × ~5-15 cards each), each carrying `data-task-id` (post-`task-phases`)
@@ -19,11 +19,11 @@ A `<script type="application/json" id="roadmap-data">` block already exists (lin
 
 ## What changes
 
-Single sidecar file: `plans/overview-data.js` (NOT `.json`).
+Single sidecar file: `.ralph-overview/data.json` (NOT `.json`).
 
 ```js
-// plans/overview-data.js — single source of truth for the overview viewer
-// Edit this file to change task state; do NOT edit plans/overview.html directly.
+// .ralph-overview/data.json — single source of truth for the overview viewer
+// Edit this file to change task state; do NOT edit .ralph-overview/generated/overview.html directly.
 window.OVERVIEW_DATA = {
   meta: {
     generatedAt: "2026-05-17T...",
@@ -78,7 +78,7 @@ window.OVERVIEW_DATA = {
 };
 ```
 
-`plans/overview.html` body becomes mostly empty containers:
+`.ralph-overview/generated/overview.html` body becomes mostly empty containers:
 
 ```html
 <div id="kanban-ready"></div>
@@ -103,8 +103,8 @@ window.OVERVIEW_DATA = {
 
 ## Files to change
 
-- `plans/overview-data.js` — NEW. ~3000-4000 lines including all task entries + runs log. Start with a top-of-file comment block documenting the schema (copy from this plan's "What changes" section).
-- `plans/overview.html` — major reduction:
+- `.ralph-overview/data.json` — NEW. ~3000-4000 lines including all task entries + runs log. Start with a top-of-file comment block documenting the schema (copy from this plan's "What changes" section).
+- `.ralph-overview/generated/overview.html` — major reduction:
   - DELETE: all ~50 `<details class="cmd">` blocks (lines ~1442-1915 post-`task-phases`).
   - DELETE: all kanban `<div class="card">` blocks inside `.col` containers (lines ~1061-1395; each card now carries `data-task-id`, easy to walk).
   - DELETE: all phase tree cards (lines ~2000s — verify exact range).
@@ -115,32 +115,32 @@ window.OVERVIEW_DATA = {
   - ADD: `<script src="overview-data.js"></script>` near the bottom, before the existing render JS.
   - EXPAND: the existing render JS to walk `OVERVIEW_DATA.tasks` and emit DOM. The filter/search/URL-banner/hash-nav logic should be parameterizable so it works against the data-driven DOM. Today's filter/Today logic reads `data-task-phase` + `data-task-status` from DOM; refactor to read `task.phase` + `task.status` from the data array instead, then re-emit the data attributes on the rendered DOM (so external JS that reads them still works, and so the URL filter / search continues to function).
   - PRESERVE: all `<style>` blocks, the section headers, the legend, the URL filter banner DOM, the search input.
-- `.agents/skills/roadmap-and-overview/SKILL.md` — MUST be updated in the same commit. Replace every reference to "edit `data-task-phase` attribute on the row" / "update kanban card" / "bump `lastTouched` JSON" with "edit the corresponding task entry in `plans/overview-data.js`". The skill is ~548 lines today; this is a non-trivial update. Key sections to rewrite:
+- `.agents/skills/roadmap-and-overview/SKILL.md` — MUST be updated in the same commit. Replace every reference to "edit `data-task-phase` attribute on the row" / "update kanban card" / "bump `lastTouched` JSON" with "edit the corresponding task entry in `.ralph-overview/data.json`". The skill is ~548 lines today; this is a non-trivial update. Key sections to rewrite:
   - "Procedure A — add a task" (currently lines ~141-180-ish): replace multi-step HTML edits with a single JSON entry append.
   - "Procedure B — close out" (currently around line 207+): replace `data-task-phase="shipped"` edits with `phase: "shipped"` field updates in the data file.
   - "Procedure for paused / blocked" (around line 255): same.
   - "Pitfalls" section: drop the "data-task-id is load-bearing" pitfall (still true but the data file's `id` field is the new load-bearing point); add a new pitfall about JS string escaping for prompt bodies (see "Common mistakes" #1 below).
-- `plans/parallel-assignments.md` — add bookkeeper edit-rules section near the top: "Task state lives in `plans/overview-data.js`. Edit that file; the HTML renders from it. Never edit `plans/overview.html` for task state changes." Also: keep the bottom status table OR drop it in favor of the data file. Recommend keeping it (markdown is easier to grep than JSON-in-JS), but it becomes a derived view; add a note that drift between table and data file means data file wins.
+- `plans/parallel-assignments.md` — add bookkeeper edit-rules section near the top: "Task state lives in `.ralph-overview/data.json`. Edit that file; the HTML renders from it. Never edit `.ralph-overview/generated/overview.html` for task state changes." Also: keep the bottom status table OR drop it in favor of the data file. Recommend keeping it (markdown is easier to grep than JSON-in-JS), but it becomes a derived view; add a note that drift between table and data file means data file wins.
 - `plans/codexu-roadmap.md` — update the "Task phase model" standing rule (currently around line 175) to point at the new data file as the source of truth. Also update the "Companion snapshot" callout (lines 5-9) noting the data file location.
-- `tools/overview/validate.mjs` — NEW (optional but recommended). Schema check script. Pure Node, no deps. Reads `plans/overview-data.js` via `vm.runInNewContext` with a stub `window` object, validates structure, validates cross-refs (`blockedBy` ids exist, `spawnedFrom` points at a real task), validates parity with the `parallel-assignments.md` status table if kept, exits non-zero on error. Wire into pre-commit hook or `pnpm overview:validate`.
+- `tools/overview/validate.mjs` — NEW (optional but recommended). Schema check script. Pure Node, no deps. Reads `.ralph-overview/data.json` via `vm.runInNewContext` with a stub `window` object, validates structure, validates cross-refs (`blockedBy` ids exist, `spawnedFrom` points at a real task), validates parity with the `parallel-assignments.md` status table if kept, exits non-zero on error. Wire into pre-commit hook or `pnpm overview:validate`.
 
 ## Files to read as reference (do NOT edit beyond what's listed above)
 
-- `plans/overview.html` end-to-end at least once before starting — agent needs full mental model of current structure.
-- `plans/overview.html` lines ~2180 onward for the existing `roadmap-data` JSON shape (move verbatim into the new file's `runs` / `periodic` / `cadence` / `lastTouched` fields).
-- `plans/overview.html` for the `document.getElementById('roadmap-data')` consumption pattern (grep for it; line numbers shift). The data-driven render must replace this.
-- `plans/overview.html` filter/search/URL-banner state management — grep for `url-filter-banner` and `URLSearchParams` to find the block. The render expansion must preserve this.
-- `plans/overview.html` lines ~1442-1915 for command row template (extract template, parametrize). Every row already carries `data-task-id`, `data-task-phase`, `data-task-status`, optionally `data-plan-only` / `data-merge-commit` — these become structured fields in the data file.
-- `plans/overview.html` lines ~852-880 for the 10 phase-badge CSS classes + `.cmd-status-mod` styles — preserve verbatim.
-- `plans/overview.html` `renderPhaseBadges()` function in inline JS — read to understand how phase → badge text/glyph mapping works today; the new render JS folds this logic in. The function emits badges with class `cmd-badge b-<phase>` and a leading glyph (📋, ✅, 🚫, etc.) keyed off the phase enum.
+- `.ralph-overview/generated/overview.html` end-to-end at least once before starting — agent needs full mental model of current structure.
+- `.ralph-overview/generated/overview.html` lines ~2180 onward for the existing `roadmap-data` JSON shape (move verbatim into the new file's `runs` / `periodic` / `cadence` / `lastTouched` fields).
+- `.ralph-overview/generated/overview.html` for the `document.getElementById('roadmap-data')` consumption pattern (grep for it; line numbers shift). The data-driven render must replace this.
+- `.ralph-overview/generated/overview.html` filter/search/URL-banner state management — grep for `url-filter-banner` and `URLSearchParams` to find the block. The render expansion must preserve this.
+- `.ralph-overview/generated/overview.html` lines ~1442-1915 for command row template (extract template, parametrize). Every row already carries `data-task-id`, `data-task-phase`, `data-task-status`, optionally `data-plan-only` / `data-merge-commit` — these become structured fields in the data file.
+- `.ralph-overview/generated/overview.html` lines ~852-880 for the 10 phase-badge CSS classes + `.cmd-status-mod` styles — preserve verbatim.
+- `.ralph-overview/generated/overview.html` `renderPhaseBadges()` function in inline JS — read to understand how phase → badge text/glyph mapping works today; the new render JS folds this logic in. The function emits badges with class `cmd-badge b-<phase>` and a leading glyph (📋, ✅, 🚫, etc.) keyed off the phase enum.
 - `plans/parallel-assignments.md` end-to-end — to understand per-task prompt body conventions AND the bottom status table (lines ~561+ with `Phase | Status | Plan source | Plan job | Commit` columns). The data file extraction can sanity-check against this table.
 - `.agents/skills/roadmap-and-overview/SKILL.md` (548 lines) — the canonical bookkeeper procedure as it stands today. Read end-to-end before drafting the data-file-era replacement procedure.
 - `plans/task-phases.md` (sibling plan) for the phase enum and the input/output field definitions.
 
 ## Acceptance
 
-- `plans/overview-data.js` exists with all ~50 task entries ported verbatim from the HTML. Wording, warnings, custom border colors, prompt bodies preserved character-for-character (modulo escaping for JS string literals).
-- Opening `plans/overview.html` from `file://` (double-click) renders the page identically to the pre-refactor version: same kanban columns + cards, same phase tree, same commands list with expandable `<details>` rows, same filter/search/URL-banner behavior.
+- `.ralph-overview/data.json` exists with all ~50 task entries ported verbatim from the HTML. Wording, warnings, custom border colors, prompt bodies preserved character-for-character (modulo escaping for JS string literals).
+- Opening `.ralph-overview/generated/overview.html` from `file://` (double-click) renders the page identically to the pre-refactor version: same kanban columns + cards, same phase tree, same commands list with expandable `<details>` rows, same filter/search/URL-banner behavior.
 - Bookkeeper workflow change: flipping one task's phase from `impl-in-progress` to `shipped` requires editing exactly one block in `overview-data.js`, no edits to `overview.html`.
 - `tools/overview/validate.mjs` (if shipped) passes with zero errors on the freshly-migrated data file.
 - The previous `roadmap-data` JSON block is removed from `overview.html` (its contents moved to the new file's `runs`/`periodic`/`cadence`/`lastTouched` fields).

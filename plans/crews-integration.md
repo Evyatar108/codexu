@@ -1,6 +1,6 @@
 # Codexu integration with the `crews` plugin
 
-**Goal**: when `crews` 1.0 ships (see `D:/ai-developer-toolkit/plugins/assigned-roles/PLAN-1.0-crews.md`), use it here to run a team-lead session that manages `plans/overview-data.js` (the task/run data source) and the roadmap, and spawns ralph members for individual stories instead of running ralph runs manually in detached tabs.
+**Goal**: when `crews` 1.0 ships (see `D:/ai-developer-toolkit/plugins/assigned-roles/PLAN-1.0-crews.md`), use it here to run a team-lead session that manages `.ralph-overview/data.json` (the task/run data source) and the roadmap, and spawns ralph members for individual stories instead of running ralph runs manually in detached tabs.
 
 **Scope**: this doc covers only the codexu-side changes needed to adopt crews. The plugin itself is workspace-agnostic; nothing in this doc requires changes to the plugin.
 
@@ -71,9 +71,9 @@ To read an individual member's full outbox (their turn-by-turn reports):
 /read-member <story-id>
 ```
 
-### 5. Update `plans/overview-data.js` workflow
+### 5. Update `.ralph-overview/data.json` workflow
 
-Task state is stored in `OVERVIEW_DATA.tasks[]` in `plans/overview-data.js` (the data source); `plans/overview.html` is the rendered view that reads from it. The lead's job is to translate `/list-members` output into edits to `plans/overview-data.js`.
+Task state is stored in `OVERVIEW_DATA.tasks[]` in `.ralph-overview/data.json` (the data source); `.ralph-overview/generated/overview.html` is the rendered view that reads from it. The lead's job is to translate `/list-members` output into edits to `.ralph-overview/data.json`.
 
 **New workflow**:
 1. Run `/list-members` to see the live picture.
@@ -82,9 +82,9 @@ Task state is stored in `OVERVIEW_DATA.tasks[]` in `plans/overview-data.js` (the
    - Done (`done`) → flip the task's `phase` to `shipped` or `closed` based on whether the PR landed.
    - Blocked (`blocked`) → set `status` to `blocked`, surface the blocker from the summary.
    - Question (`question`) → flag so you can `/send-to-member <story-id> "<answer>"` to unblock.
-3. Save `plans/overview-data.js`; the dev viewer (`pnpm overview`) will reflect the changes on reload via the custom Vite HMR plugin. To update the static `plans/overview.html` artifact, run `pnpm overview:build`.
+3. Save `.ralph-overview/data.json`; the dev viewer (`pnpm overview`) will reflect the changes on reload via the custom Vite HMR plugin. To update the static `.ralph-overview/generated/overview.html` artifact, run `pnpm overview:build`.
 
-The data plane is `plans/overview-data.js`; do not hand-edit the HTML directly.
+The data plane is `.ralph-overview/data.json`; do not hand-edit the HTML directly.
 
 ### 6. `roadmap.md` workflow
 
@@ -129,14 +129,14 @@ I grepped codexu for references to the old plugin and ralph orchestration patter
 **Skill that does need updating**: `D:/harness-efforts/codexu/.agents/skills/roadmap-and-overview/SKILL.md`. This is the bookkeeping-spine skill that runs `procedure B` (mark-task-shipped). It has 28 mentions of "ralph" baked into its current workflow:
 
 - "Fresh-agent orientation" section frames the operator as running many ralph agents in parallel and the skill as cleaning up their landing reports.
-- "Scan `plans/overview-data.js` (`OVERVIEW_DATA.tasks[]`) for tasks whose `phase` ends in `-in-progress`" — this discovery step changes: under crews, the lead queries `/list-members` for live state instead.
+- "Scan `.ralph-overview/data.json` (`OVERVIEW_DATA.tasks[]`) for tasks whose `phase` ends in `-in-progress`" — this discovery step changes: under crews, the lead queries `/list-members` for live state instead.
 - Procedure B references landing reports arriving as ad-hoc operator pastes. Under crews, members emit `kind=done` envelopes with the same content; the skill should consume `/read-member <story-id>` as the canonical source.
 - The "operator runs many ralph agents" memory reference is correct in spirit but the orchestration mechanic is now `/spawn-member` instead of manual wt-new-tabs.
 
 **Edits to `roadmap-and-overview/SKILL.md`** (do these once crews 1.0 ships and the workflow has been validated for ~1 week):
 
 1. **"Fresh-agent orientation" → add crews framing**: the bookkeeping agent IS the lead session itself. Peer-member bookkeepers are not viable in 1.0 — `/list-members` returns only `{crew, name, role, lastHeartbeatAt, liveness}` to `--allow-peers` members, which is insufficient for driving overview-data.js / roadmap.md updates (needs `lastKind` + `lastSummary` + outbox seq, which only the lead view exposes). Splitting bookkeeping out to a dedicated peer member is parked until the plugin either exposes those fields to peers or ships `/grant-cap` for selective full-visibility (1.1+).
-2. **Step 3 of "First five things to do"**: replace "scan `OVERVIEW_DATA.tasks[]` in `plans/overview-data.js` for tasks whose `phase` ends in `-in-progress` or that have a `blocked` status" with "run `/list-members --crew codexu` to see live status of all in-flight ralph members, then reconcile against `plans/overview-data.js`."
+2. **Step 3 of "First five things to do"**: replace "scan `OVERVIEW_DATA.tasks[]` in `.ralph-overview/data.json` for tasks whose `phase` ends in `-in-progress` or that have a `blocked` status" with "run `/list-members --crew codexu` to see live status of all in-flight ralph members, then reconcile against `.ralph-overview/data.json`."
 3. **Procedure B** (mark-task-shipped) intake: the canonical landing report becomes the member's outbox under `crews/codexu/members/<story-id>/outbox.jsonl`. Each turn the member did is one outbox line; the most recent `kind=done` entry is the close-out report. Skill should `Read` this directly rather than wait for operator paste.
 4. **Pitfalls section**: add "stale member state — if a member emitted `kind=done` but their wt-tab is still alive, the lead should confirm the merge landed (via `git log` on the relevant branch) before flipping the badge."
 
@@ -153,7 +153,7 @@ I grepped codexu for references to the old plugin and ralph orchestration patter
 
 - `overview.html` format and layout (rendered view — do not edit directly).
 - `roadmap.md` structure.
-- The story/area/status taxonomy defined in `plans/overview-data.js` and rendered by `overview.html`.
+- The story/area/status taxonomy defined in `.ralph-overview/data.json` and rendered by `overview.html`.
 - Ralph commands themselves (`/ralph-plan`, etc.). They run unchanged inside a member session.
 - The codexu-roadmap.md schema.
 
@@ -171,7 +171,7 @@ I grepped codexu for references to the old plugin and ralph orchestration patter
 ## Sequencing
 
 - **Today (pre-1.0)**: this doc, no code changes. Keep using 0.8.0 `assigned-roles` or no plugin.
-- **When crews 1.0 ships**: do the install + lead-assignment + cleanup steps. The first day will involve manually editing `plans/overview-data.js` via the new `/list-members` flow to confirm it feels right.
+- **When crews 1.0 ships**: do the install + lead-assignment + cleanup steps. The first day will involve manually editing `.ralph-overview/data.json` via the new `/list-members` flow to confirm it feels right.
 - **After ~1 week of real use**: revisit this doc with notes on what's clunky. Likely changes: threads we want auto-created, conventions around member naming for sub-stories, anything missing from `/list-members` that you find yourself wanting.
 
 ---
@@ -180,5 +180,5 @@ I grepped codexu for references to the old plugin and ralph orchestration patter
 
 - `D:/ai-developer-toolkit/plugins/assigned-roles/PLAN-1.0-crews.md` — the plugin's own 1.0 plan.
 - `D:/ai-developer-toolkit/plugins/assigned-roles/ROADMAP-1.1-and-beyond.md` — items deferred from 1.0 (notably `/rename`, recursive crew-leading, capability mutation).
-- `D:/harness-efforts/codexu/plans/overview.html` — the dashboard.
+- `D:/harness-efforts/codexu/.ralph-overview/generated/overview.html` — the dashboard.
 - `D:/harness-efforts/codexu/plans/codexu-roadmap.md` — the roadmap.

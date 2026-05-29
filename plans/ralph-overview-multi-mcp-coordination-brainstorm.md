@@ -279,7 +279,7 @@ The "Bash sessions default to codex submodule" and "watcher generates ralph-stat
   **A:** Yes — and that's already true in v2.0.3 when the cmdline check fails (e.g., manual `pnpm sync-ralph-state:watch` invocation). The `overview-reset` skill remains as the manual escape hatch for this case. The redesign does not regress this; it narrows the kill window from "kills peers too" to "doesn't kill peers".
 
 - **Q:** "Does adding `parentMcpPid` to the marker leak info into git-checked-in state?"
-  **A:** No. `.ralph/overview-watcher.owner` is local-only — created at runtime, gitignored alongside the rest of `.ralph/`. Existing fields already include `pid` and `hostname`; adding `parentMcpPid` is the same privacy class.
+  **A:** No. `.ralph-overview/generated/.lock/watcher.owner` is local-only — created at runtime, gitignored alongside the rest of `.ralph/`. Existing fields already include `pid` and `hostname`; adding `parentMcpPid` is the same privacy class.
 
 - **Q:** "What about cross-machine NFS mounts of a shared repo? Pids are meaningless across hosts."
   **A:** The marker carries `hostname`. Add a guard: if marker `hostname !== os.hostname()`, treat it as `{kind:'foreign-host'}` and defer (do not kill, do not try to take over). v2.0.3 already records hostname but does not use it — this is a low-cost defensive widening.

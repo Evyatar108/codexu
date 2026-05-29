@@ -13,13 +13,13 @@
 
 Full fork context, branches, build workflow, and "things that bit us" catalogue are in **`docs/fork-notes.md`** — read that before touching any fork-local setup.
 
-Agent-readable Ralph pipeline state is generated at `plans/overview-snapshot.json`; recent transitions append to `plans/overview-activity.jsonl`. Artifacts are emitted by the **`ralph-overview` plugin** (installed via the `gim-home/ai-developer-toolkit` marketplace as of Plan 12). The plugin's watcher runs inside the Vite dev server during `pnpm overview` (delegating through `bin/ralph-overview.mjs dev`), or as a standalone process via `pnpm sync-ralph-state:watch` (delegating to `ralph-overview watch`). Both paths share the same `.ralph/overview-sync.lock` and emit the same set of files. See `bin/ralph-overview.mjs` for the resolver wrapper that locates the installed plugin.
+Agent-readable Ralph pipeline state is generated at `.ralph-overview/generated/snapshot.json`; recent transitions append to `.ralph-overview/generated/activity.jsonl`. Artifacts are emitted by the **`ralph-overview` plugin** (installed via the `gim-home/ai-developer-toolkit` marketplace as of Plan 12). The plugin's watcher runs inside the Vite dev server during `pnpm overview` (delegating through `bin/ralph-overview.mjs dev`), or as a standalone process via `pnpm sync-ralph-state:watch` (delegating to `ralph-overview watch`). Both paths share the same `.ralph-overview/generated/.lock/sync.lock` and emit the same set of files. See `bin/ralph-overview.mjs` for the resolver wrapper that locates the installed plugin.
 
 **Plugin resolution.** The resolver wrapper (`bin/ralph-overview.mjs` — **tracked in git as of the codexu-bin-ralph-overview-wrapper-retirement task**; previously gitignored / per-machine) checks (in order): `$RALPH_OVERVIEW_PLUGIN_ROOT` env, `$CLAUDE_PLUGIN_ROOT/ralph-overview/`, `$CLAUDE_PLUGIN_ROOT/cache/ai-developer-toolkit/ralph-overview/<latest>/`, `~/.claude/plugins/cache/ai-developer-toolkit/ralph-overview/<latest>/`, **`~/.copilot/installed-plugins/ai-developer-toolkit/ralph-overview/`** (Copilot CLI install layout — single live copy, no per-version subdir), then the local-dev fallback `D:/ai-developer-toolkit/plugins/ralph-overview/`. Because the wrapper is now tracked, a fresh clone of codexu under EITHER Claude Code OR Copilot CLI gets a working `pnpm sync-ralph-state` / `pnpm overview` out of the box — no per-machine wrapper-copy or shell-rc setup. For local development against an unmerged plugin branch, set `RALPH_OVERVIEW_PLUGIN_ROOT` to point at the toolkit checkout. **Done:** the codexu install now uses the marketplace plugin registration (`enabledPlugins["ralph-overview@ai-developer-toolkit"]` in `.claude/settings.json` for Claude Code and the equivalent block in `~/.copilot/settings.json` for Copilot CLI); the old local-path `.mcp.json` entry and `enabledMcpjsonServers["ralph-overview"]` have been removed.
 
-**Cross-engine manual smoke test (the wrapper).** To verify the wrapper resolves to the engine-appropriate install path on this machine, from `D:/harness-efforts/codexu` (or any subdir) run `pnpm sync-ralph-state` under each engine. Exit 0 + an updated `plans/overview-snapshot.json` (only `generatedAt` changed) confirms resolution worked. To inspect which install path was chosen, watch for the `RALPH_OVERVIEW_PLUGIN_ROOT=<path>` line in stderr or set `RALPH_OVERVIEW_PLUGIN_ROOT=` empty + run with `node --trace-warnings bin/ralph-overview.mjs sync` and the cascade is visible. Reference smoke-test record: `.ralph/jobs/codexu-bin-ralph-overview-wrapper-retirement/smoke-test.md`.
+**Cross-engine manual smoke test (the wrapper).** To verify the wrapper resolves to the engine-appropriate install path on this machine, from `D:/harness-efforts/codexu` (or any subdir) run `pnpm sync-ralph-state` under each engine. Exit 0 + an updated `.ralph-overview/generated/snapshot.json` (only `generatedAt` changed) confirms resolution worked. To inspect which install path was chosen, watch for the `RALPH_OVERVIEW_PLUGIN_ROOT=<path>` line in stderr or set `RALPH_OVERVIEW_PLUGIN_ROOT=` empty + run with `node --trace-warnings bin/ralph-overview.mjs sync` and the cascade is visible. Reference smoke-test record: `.ralph/jobs/codexu-bin-ralph-overview-wrapper-retirement/smoke-test.md`.
 
-Codexu owns: `plans/overview-data.js` (hand-curated tasks + `ui` overrides for codexu-specific copy), `.ralph/overview-config.json` (consumer config + JSON schema), and the generated sidecars / snapshot / activity / `tasks/INDEX.md` under `plans/` and `tasks/`. The plugin owns: the sync library, the watcher, the MCP server, the React viewer, and the `/work-on` / `/triage` / `/blocker-report` skills.
+Codexu owns: `.ralph-overview/data.json` (hand-curated tasks + `ui` overrides for codexu-specific copy), `.ralph-overview/config.json` (consumer config + JSON schema), generated sidecars under `.ralph-overview/generated/`, and `tasks/INDEX.md`. The plugin owns: the sync library, the watcher, the MCP server, the React viewer, and the `/work-on` / `/triage` / `/blocker-report` skills.
 
 Activity-log readers MUST tolerate a final torn line: if `JSON.parse` fails on the last line, skip that line and keep the earlier parsed events.
 
@@ -107,12 +107,12 @@ current.
 
 | Duty | Mechanism |
 |---|---|
-| Pick the next parallel batch from the backlog | `mcp__ralph-overview__overview_parallel_ready_tasks` + `plans/overview-snapshot.json` |
+| Pick the next parallel batch from the backlog | `mcp__ralph-overview__overview_parallel_ready_tasks` + `.ralph-overview/generated/snapshot.json` |
 | Spawn a Ralph member per task | `node <plugin>/tools/crews.js spawn-member <name> --crew ralph-pipeline --cwd D:/harness-efforts/codexu --state-cwd D:/harness-efforts/codexu --as overview-bookkeeper -- <prompt>` |
 | Watch the member mailbox | armed listener; on `messages` envelope, `/crews:review-mail` |
 | Relay operator decisions when members surface `kind=question` | `/crews:send-to-member` |
-| **Update `plans/overview-data.js` when a task ships** | Edit `lifecycle` → `"merged"` (or `"archived"` for closed/superseded work); add `mergeCommit`; refresh `lastTouchedAt` |
-| Commit + push the bookkeeping update | `chore(plans): update overview-data.js for shipped tasks` |
+| **Update `.ralph-overview/data.json` when a task ships** | Edit `lifecycle` → `"merged"` (or `"archived"` for closed/superseded work); add `mergeCommit`; refresh `lastTouchedAt` |
+| Commit + push the bookkeeping update | `chore(overview): update data for shipped tasks` |
 | Stop the member cleanly | `/crews:stop-member <name>` |
 
 ### Phase discipline - state machine + one member per ralph phase
@@ -130,7 +130,7 @@ change, or stale assumption. Every regression must carry a short
 moved backward.
 
 Regression does not reuse the old member. It spawns a FRESH member for the
-regressed-to phase, using the matching seed in `plans/overview-data.js`:
+regressed-to phase, using the matching seed in `.ralph-overview/data.json`:
 `prompts.brainstorm` for brainstorming, `prompts.plan` for planning, and
 `prompts.impl` for implementation. If the relevant prompt is missing, the task
 is not actionable until the bookkeeper adds one or chooses a different initial
@@ -154,7 +154,7 @@ When picking the next batch:
 
 Two files describe task state; they coexist and must not be conflated.
 
-### `plans/overview-data.js` — hand-curated, lead-owned
+### `.ralph-overview/data.json` — hand-curated, lead-owned
 
 Stable task definitions: `id`, `scope`, `lifecycle`, `status`,
 `lastTouchedAt`, `mergeCommit`, `kanbanCards`, and `command{name,
@@ -169,11 +169,11 @@ The three phase-like axes are deliberately separate:
 
 | Axis | Owner | Values | Meaning |
 |---|---|---|---|
-| `OverviewTask.lifecycle` | Bookkeeper data in `overview-data.js` | `tracked`, `merged`, `archived` | Durable backlog/merge/archive status |
+| `OverviewTask.lifecycle` | Bookkeeper data in `.ralph-overview/data.json` | `tracked`, `merged`, `archived` | Durable backlog/merge/archive status |
 | `RalphPipelineState.stage` | Ralph watcher snapshot | `brainstorming`, `brainstorm-ready`, `planning`, `plan-ready`, `implementing`, `reviewing`, `shipped`, `blocked` | Runtime position in the state machine |
 | `CrewSessionRef.phase` | Crew session reference | `brainstorm`, `plan`, `impl`, `null` | Intent of the member when it was spawned |
 
-### `plans/overview-ralph-state.{js,json}` — watcher-generated
+### `.ralph-overview/generated/ralph-state.{js,json}` — watcher-generated
 
 Auto-emitted by `D:/ai-developer-toolkit/plugins/ralph-overview/scripts/sync-ralph-state.mjs --watch`
 based on `.ralph/jobs/<slug>/job-state.json`. Carries the dynamic
@@ -184,15 +184,15 @@ If it's stale, the watcher has crashed; see `.claude/skills/overview-reset`.
 The React viewer (`tools/overview-viewer/`) renders both sidecars merged.
 The MCP server (`mcp__ralph-overview__*`) reads the watcher-generated
 snapshot. Agents querying the canonical task list should read
-`plans/overview-snapshot.json` (the merged form).
+`.ralph-overview/generated/snapshot.json` (the merged form).
 
 ### Other generated files (don't hand-edit)
 
-- `plans/overview-snapshot.json` — aggregated snapshot for agents
-- `plans/overview-recommendations.json` — ranked next-task list
-- `plans/overview-dependency-graph.json` — DAG
-- `plans/overview-activity.jsonl` — append-only audit log (gitignored)
-- `plans/overview.html{,.next}` — static viewer build
+- `.ralph-overview/generated/snapshot.json` — aggregated snapshot for agents
+- `.ralph-overview/generated/recommendations.json` — ranked next-task list
+- `.ralph-overview/generated/dependency-graph.json` — DAG
+- `.ralph-overview/generated/activity.jsonl` — append-only audit log
+- `.ralph-overview/generated/overview.html{,.next}` — static viewer build
 - `tasks/INDEX.md` — regenerated per-task index
 
 ## Common confusion points
@@ -226,7 +226,7 @@ snapshot. Agents querying the canonical task list should read
    `git status` from the repo root before assuming a member's commit landed
    on the right branch.
 
-5. **Two-file split is intentional.** Do NOT extend `overview-data.js` with
+5. **Two-file split is intentional.** Do NOT extend `.ralph-overview/data.json` with
    Ralph state, and do NOT hand-edit `overview-ralph-state.js`. The original
    plan (`C:/Users/evmitran/.claude/plans/glistening-wondering-llama.md` Part 1
    R4) chose the sidecar split specifically to avoid race conditions between
@@ -289,10 +289,10 @@ lead: review-mail → verify commit on origin/main
    ↓
 lead: /crews:stop-member <name> (do NOT chain into the next phase)
    ↓
-lead: if this was the FINAL phase (impl ship), EDIT plans/overview-data.js
+lead: if this was the FINAL phase (impl ship), EDIT .ralph-overview/data.json
      (lifecycle → "merged", mergeCommit, lastTouchedAt)
    ↓
-lead: commit "chore(plans): update overview-data.js for shipped tasks"
+lead: commit "chore(overview): update data for shipped tasks"
    ↓
 lead: push
    ↓
@@ -508,7 +508,7 @@ this doc.
   the plugin's own `scripts/init-consumer.mjs` (so future consumers do not
   each need a copy of this wrapper) is tracked as
   `ralph-overview-init-consumer-cross-engine-wrapper` in
-  `plans/overview-data.js`. An external Copilot CLI feature request for
+  `.ralph-overview/data.json`. An external Copilot CLI feature request for
   per-plugin env-var parity with Claude Code's `$CLAUDE_PLUGIN_ROOT` is
   drafted in the plan's Reference Artifacts section
   (`.ralph/jobs/codexu-bin-ralph-overview-wrapper-retirement/plan.md`)
@@ -532,15 +532,15 @@ this doc.
 
 ### Bookkeeper operational practice
 
-- **Update `plans/overview-data.js` the same turn a task ships.** When a
+- **Update `.ralph-overview/data.json` the same turn a task ships.** When a
   ralph member terminates clean (`terminal:complete`) and the work is on
   `origin/main`, flip `lifecycle: "tracked"` → `"merged"` (or `"archived"`
   for closed/superseded work), add `mergeCommit: "<sha>"` (comma-separated
   for dual-repo work — e.g., `"e9fa64a0,d279d49d"`), and refresh
   `lastTouchedAt`. Bundle multiple ships into one
-  `chore(plans): update overview-data.js for shipped tasks` commit per
+  `chore(overview): update data for shipped tasks` commit per
   batch. The watcher updates the sidecar automatically, but
-  overview-data.js is hand-curated and goes stale otherwise — future
+  .ralph-overview/data.json is hand-curated and goes stale otherwise — future
   agents querying it directly (not through the snapshot) see stale state.
 
 - **Don't flip `lifecycle` until the work is actually on `origin/main`.**

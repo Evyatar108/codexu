@@ -47,7 +47,7 @@ None for the doc itself. (The doc DESCRIBES patches that, once landed in ralph-o
 
   The codexu workspace's overview dashboard (`tools/overview-viewer/`) needs to associate each
   Ralph artifact (job, group, brainstorm) with an `OverviewTask.id` entry in
-  `plans/overview-data.js`. Today the association uses a slug-equality heuristic plus an
+  `.ralph-overview/data.json`. Today the association uses a slug-equality heuristic plus an
   optional `ralphOverrides` map in the hand-curated data file. Adding a first-class
   `overviewTaskId` field to Ralph artifacts eliminates this brittleness for new jobs.
 
@@ -60,7 +60,7 @@ None for the doc itself. (The doc DESCRIBES patches that, once landed in ralph-o
 
   - Accept `--overview-task-id <id>` flag.
   - In interactive mode: if the flag is absent, prompt the user with the list of valid
-    `OverviewTask.id` values read from `<repo_root>/plans/overview-data.js`. Provide a
+    `OverviewTask.id` values read from `<repo_root>/.ralph-overview/data.json`. Provide a
     "skip / no overview task" option.
   - Write the result to `prd.json` as a top-level `overviewTaskId` field (string or null).
   - Update `schemas/prd-schema.json` to include `overviewTaskId: { type: ['string','null'] }`

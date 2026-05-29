@@ -97,9 +97,12 @@ docs/competition/opencode/traces/
 # corresponding sibling repo and would balloon git history immediately.
 .ralph/**/*-worktree/
 .ralph/overview-config.local.json
-# Per-process runtime lease — written by the ralph-overview watcher
-# supervisor (sync-ralph-state.mjs) to claim per-repo ownership. Never tracked.
-.ralph/overview-watcher.owner
+.ralph-overview/config.local.json
+# Per-process runtime leases — written by the ralph-overview watcher
+# supervisor to claim per-repo ownership. Never tracked.
+.ralph-overview/generated/.lock/*.lock
+.ralph-overview/generated/.lock/*.owner
+.ralph-overview/generated/.lock/*.claim
 
 # Crews coordination plugin state — per-session mailboxes, manifests, locks.
 # Direct writes are forbidden by the PreToolUse guard; tracking would also
@@ -112,10 +115,6 @@ docs/competition/opencode/traces/
 
 # One-off backup tarballs (ad-hoc snapshots; not part of the source tree).
 *.tgz
-
-# Ralph-overview append-only activity log (rotated at 1000 lines by the
-# watcher — high-churn audit trail, not a checkable artifact).
-plans/overview-activity.jsonl
 
 # happy-server runtime log directory (rich pino logs from the running service).
 # Contents are time-stamped per-process; not source-controlled.

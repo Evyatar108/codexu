@@ -1,0 +1,47 @@
+{
+  "$schema": "../.ralph/overview-config.schema.json",
+  "dataFile": ".ralph-overview/data.json",
+  "ralphRoot": ".ralph",
+  "ralphSubdirs": {
+    "jobs": "jobs",
+    "jobGroups": "job-groups",
+    "brainstorms": "brainstorms"
+  },
+  "outputs": {
+    "sidecarJs": ".ralph-overview/generated/ralph-state.js",
+    "sidecarJson": ".ralph-overview/generated/ralph-state.json",
+    "snapshot": ".ralph-overview/generated/snapshot.json",
+    "activity": ".ralph-overview/generated/activity.jsonl",
+    "activityBackup": ".ralph-overview/generated/activity.1.jsonl",
+    "snapshotSchema": ".ralph-overview/generated/snapshot.schema.json",
+    "tasksIndex": "tasks/INDEX.md",
+    "recommendationsJson": ".ralph-overview/generated/recommendations.json",
+    "dependencyGraphJson": ".ralph-overview/generated/dependency-graph.json",
+    "viewerHtml": ".ralph-overview/generated/overview.html",
+    "activityMaxLines": 1000
+  },
+  "recommendations": {
+    "weights": {
+      "stageUrgency": 40,
+      "dependencyState": 30,
+      "freshness": 20,
+      "priority": 10
+    },
+    "topN": 20
+  },
+  "lockFile": ".ralph-overview/generated/.lock/sync.lock",
+  "watcher": {
+    "ignored": [
+      ".worktrees/**",
+      "**/.git/**",
+      "**/node_modules/**",
+      ".ralph/jobs/*/worktree/**",
+      ".ralph/jobs/*/*-worktree/**",
+      ".ralph/jobs/*/tasks/**",
+      ".ralph/jobs/.staging/**",
+      ".ralph/telemetry/**",
+      ".crews/logs/**",
+      ".crews/spawn-launchers/**"
+    ]
+  }
+}

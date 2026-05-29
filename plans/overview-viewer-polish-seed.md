@@ -50,9 +50,9 @@ Adopt **headless primitives** (no theme engine to fight, no runtime CSS injectio
 ## Existing constraints from the workspace
 
 - `pnpm-workspace.yaml` AND root `package.json` → `workspaces.packages` BOTH list `tools/overview-viewer` (drop either → silent breakage).
-- Vite entry is `overview.html` (NOT `index.html`) so the natural build emits to `plans/overview.html`.
+- Vite entry is `overview.html` (NOT `index.html`) so the natural build emits to `.ralph-overview/generated/overview.html`.
 - HMR mechanism is option (c) — fetch-and-re-execute via `import.meta.hot.on('overview-data:update')` + `new Function(text)()`. **Do not switch to ws-payload or virtual-module without operator approval.**
-- US-008 destructive swap landed `plans/overview.html` as a generated artifact. **Never hand-edit it.**
+- US-008 destructive swap landed `.ralph-overview/generated/overview.html` as a generated artifact. **Never hand-edit it.**
 
 ## Reference files to read
 
@@ -65,7 +65,7 @@ Adopt **headless primitives** (no theme engine to fight, no runtime CSS injectio
 | `tools/overview-viewer/src/styles.css` | ~1060 lines, dark/light themes, all visual rules |
 | `tools/overview-viewer/src/hooks/usePersistentExpanded.ts` | localStorage pattern for expanded-state persistence |
 | `tools/overview-viewer/src/utils/filters.ts` | Search haystack + filter logic (recently widened for F-011) |
-| `plans/overview-data.js` | Data file shape (hand-edited; reference only) |
+| `.ralph-overview/data.json` | Data file shape (hand-edited; reference only) |
 | `.agents/skills/roadmap-and-overview/SKILL.md` | Bookkeeper Procedures F + G describe what operators actually do |
 | `.ralph/jobs/overview-vite-react/plan.md` | The plan that built the current viewer; useful as a structural reference |
 

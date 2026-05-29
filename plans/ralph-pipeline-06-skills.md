@@ -6,13 +6,13 @@
 
 ## Context
 
-The user runs Claude Code with various plugins (ralph-orchestration, crews, etc.). When picking up a task mid-stream, they currently have to remember which command to run: `/plan-with-ralph --from-brainstorm <dir>` vs `/plan-with-ralph --improve <plan>` vs `/implement-with-ralph --from-plan <plan>` vs `/implement-with-ralph resume <name>`, etc. This plan adds three repo-local skills that consume `plans/overview-snapshot.json` and let the user (or an agent) say "work on task X" without command memorization.
+The user runs Claude Code with various plugins (ralph-orchestration, crews, etc.). When picking up a task mid-stream, they currently have to remember which command to run: `/plan-with-ralph --from-brainstorm <dir>` vs `/plan-with-ralph --improve <plan>` vs `/implement-with-ralph --from-plan <plan>` vs `/implement-with-ralph resume <name>`, etc. This plan adds three repo-local skills that consume `.ralph-overview/generated/snapshot.json` and let the user (or an agent) say "work on task X" without command memorization.
 
 Per the user's preference, the skills live in `D:\harness-efforts\codexu\.claude\skills/` (repo-local), not user-global.
 
 ## Dependencies
 
-- **Plan 05 (Agent exports)** — required. `/work-on` and `/blocker-report` read `plans/overview-snapshot.json` as their primary state input.
+- **Plan 05 (Agent exports)** — required. `/work-on` and `/blocker-report` read `.ralph-overview/generated/snapshot.json` as their primary state input.
 - **Plan 04 (Pipeline overview)** — recommended. `/triage` reads the Plan 04 recommendation data surfaced by Plan 05; without Plan 04 recommendations, `/triage` degrades to "no recommendations available."
 
 ## Scope
@@ -33,7 +33,7 @@ Per the user's preference, the skills live in `D:\harness-efforts\codexu\.claude
 ### To create
 
 - **`scripts/lib/derive-next-command.mjs`** — pure function `deriveNextCommand(ralphPipelineState, task) -> NextCommand | null`. Returns `null` for stage `shipped` (unless `terminalReason === 'replan'`). Outputs `{ label, command, icon? }`.
-- **`scripts/lib/derive-next-command-cli.mjs`** — thin Node CLI wrapper around `deriveNextCommand`. Resolves `repoRoot` via `git rev-parse --show-toplevel`, reads `plans/overview-snapshot.json` (override path with `--snapshot <file>`), finds the task whose `id` matches the required `--task <id>` flag (case-insensitive), and prints the resulting `NextCommand | null` as JSON on stdout. Errors (missing flag, unknown task, unreadable snapshot, git failure) go to stderr with a non-zero exit. This is the integration shape skills consume — they shell out to this CLI rather than dynamically importing the ESM module from their markdown prose.
+- **`scripts/lib/derive-next-command-cli.mjs`** — thin Node CLI wrapper around `deriveNextCommand`. Resolves `repoRoot` via `git rev-parse --show-toplevel`, reads `.ralph-overview/generated/snapshot.json` (override path with `--snapshot <file>`), finds the task whose `id` matches the required `--task <id>` flag (case-insensitive), and prints the resulting `NextCommand | null` as JSON on stdout. Errors (missing flag, unknown task, unreadable snapshot, git failure) go to stderr with a non-zero exit. This is the integration shape skills consume — they shell out to this CLI rather than dynamically importing the ESM module from their markdown prose.
 - **`scripts/lib/derive-next-command.test.mjs`** (one case per stage value, flat layout per repo convention) plus **`scripts/lib/derive-next-command-cli.test.mjs`** for the CLI wrapper — 10 stages on the pure-function side. One case asserts that a task in the `replan-pending` stage (emitted by `derive-ralph-stage.mjs` when `orchestrator.terminal === true && terminalReason === 'replan'`) returns the `/plan-with-ralph --improve <jobDir>/plan.md` command. The CLI test spawns the wrapper against a fixture snapshot under `scripts/lib/fixtures/` and covers: happy path (prints `NextCommand` JSON), `null` result (stage `shipped`), missing `--task`, unknown task id, and unreadable snapshot path.
 - **`.claude/skills/work-on/SKILL.md`** — implementation details below.
 - **`.claude/skills/triage/SKILL.md`** — implementation details below.
@@ -75,7 +75,7 @@ Path: `D:\harness-efforts\codexu\.claude\skills\work-on\SKILL.md`
 Frontmatter:
 ```yaml
 ---
-description: Resume work on a Ralph-tracked task. Reads plans/overview-snapshot.json, picks the right Ralph skill based on current stage, and invokes it. Usage: /work-on <task-id> [--dry-run]
+description: Resume work on a Ralph-tracked task. Reads .ralph-overview/generated/snapshot.json, picks the right Ralph skill based on current stage, and invokes it. Usage: /work-on <task-id> [--dry-run]
 ---
 ```
 
@@ -88,7 +88,7 @@ Body (the skill's own prose, written for Claude to execute):
 
 2. **Locate the snapshot:**
    - `repo_root = git rev-parse --show-toplevel`
-   - Read `<repo_root>/plans/overview-snapshot.json`. If missing or stale (>2 min old), inspect Plan 02's JSON sync lock at `config.lockFile` (`{ pid, process, startedAt }`, heartbeat via mtime) before warning. A fresh `standalone` or `vite-plugin` lock means the watcher should refresh soon; no lock or a stale/dead PID should suggest running `pnpm sync-ralph-state`.
+   - Read `<repo_root>/.ralph-overview/generated/snapshot.json`. If missing or stale (>2 min old), inspect Plan 02's JSON sync lock at `config.lockFile` (`{ pid, process, startedAt }`, heartbeat via mtime) before warning. A fresh `standalone` or `vite-plugin` lock means the watcher should refresh soon; no lock or a stale/dead PID should suggest running `pnpm sync-ralph-state`.
 
 3. **Resolve the target task:**
    - Search `snapshot.tasks[]` for matching id / slug.
@@ -115,7 +115,7 @@ Body (the skill's own prose, written for Claude to execute):
 
 Path: `D:\harness-efforts\codexu\.claude\skills\triage\SKILL.md`
 
-1. Read recommendation data from `plans/overview-snapshot.json` (`snapshot.recommendations`, an array of `{ taskId, score, stage, reasons }`) and fall back to `plans/overview-recommendations.json` (`{ recommendations, generatedAt, generatedFromCommit }`) for compatibility with Plan 04-only checkouts. If both are missing or empty, suggest running `pnpm sync-ralph-state` (or that Plan 04 hasn't shipped).
+1. Read recommendation data from `.ralph-overview/generated/snapshot.json` (`snapshot.recommendations`, an array of `{ taskId, score, stage, reasons }`) and fall back to `.ralph-overview/generated/recommendations.json` (`{ recommendations, generatedAt, generatedFromCommit }`) for compatibility with Plan 04-only checkouts. If both are missing or empty, suggest running `pnpm sync-ralph-state` (or that Plan 04 hasn't shipped).
 2. Take top N (default 5; `--limit N` flag).
 3. Optional `--filter stage=<stage>` narrows by stage.
 4. Render a numbered list:
@@ -130,7 +130,7 @@ Path: `D:\harness-efforts\codexu\.claude\skills\triage\SKILL.md`
 
 Path: `D:\harness-efforts\codexu\.claude\skills\blocker-report\SKILL.md`
 
-1. Read `plans/overview-snapshot.json`.
+1. Read `.ralph-overview/generated/snapshot.json`.
 2. Filter `snapshot.tasks` for:
    - `ralph.stage === 'blocked'`
    - `ralph.reviewOpenCount.code > 0` OR `ralph.reviewOpenCount.docs > 0` AND `ralph.stage === 'review-fix'` (open Critical/High findings — requires Plan 07 for the detailed surface but works on basic count without)

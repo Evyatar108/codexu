@@ -1,6 +1,6 @@
 ---
 name: overview-reset
-description: Hard-reset the ralph-overview watcher state when sessions get tangled. Kills any orphan sync-ralph-state.mjs watcher process for THIS repo, removes the owner-marker lease at .ralph/overview-watcher.owner, and prepares for a clean MCP watcher or operator-launched dev-server restart. Use when stale outputs keep getting re-emitted by an old watcher, or when /list-jobs / overview_parallel_ready_tasks return stale data after a session restart.
+description: Hard-reset the ralph-overview watcher state when sessions get tangled. Kills any orphan sync-ralph-state.mjs watcher process for THIS repo, removes the owner-marker lease at .ralph-overview/generated/.lock/watcher.owner, and prepares for a clean MCP watcher or operator-launched dev-server restart. Use when stale outputs keep getting re-emitted by an old watcher, or when /list-jobs / overview_parallel_ready_tasks return stale data after a session restart.
 ---
 
 # Skill: overview-reset
@@ -16,9 +16,9 @@ watcher state is wedged — typically symptoms:
   timestamp older than the most recent member terminal write (watcher froze
   mid-tick)
 
-This skill resets the WATCHER. It does NOT touch `plans/overview-data.js` —
+This skill resets the WATCHER. It does NOT touch `.ralph-overview/data.json` —
 that's hand-curated by the bookkeeper lead. If your symptom is "task entries
-in `overview-data.js` are stale (still say `phase: plan-ready` after a ship)",
+in `.ralph-overview/data.json` are stale (still say `phase: plan-ready` after a ship)",
 that's a bookkeeper-update miss, not a watcher problem; see the bookkeeper
 duties in `CLAUDE.md` and the `feedback_bookkeeper_updates_overview_data`
 auto-memory entry.
@@ -58,7 +58,7 @@ The `--repo <this-repo>` filter is critical — don't kill watchers for OTHER re
 ### 2. Remove the owner-marker lease
 
 ```
-rm .ralph/overview-watcher.owner
+rm .ralph-overview/generated/.lock/watcher.owner
 ```
 
 (The MCP server's preflight reclaim usually cleans this up, but the file may stay if cleanup failed.)

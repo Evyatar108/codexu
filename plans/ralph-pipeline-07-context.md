@@ -10,12 +10,12 @@ Plans 01–06 give the user (and agents) a way to see and pick the right action 
 
 1. **Notepad surfacing** — parse `<jobDir>/notepad.md`'s Deferred Questions table. Surface `deferredQuestionsCount` and a preview.
 2. **Per-task journal** — auto-append a one-liner to `tasks/<id>/journal.md` on every stage transition.
-3. **RecentActivity sidebar** — render the last 5–10 entries from `plans/overview-activity.jsonl` (from Plan 05) in a right-side panel.
+3. **RecentActivity sidebar** — render the last 5–10 entries from `.ralph-overview/generated/activity.jsonl` (from Plan 05) in a right-side panel.
 4. **Git/PR backlinks** — populate `RalphPipelineState.branchName`, `prUrl`, `mergeCommit`.
 
 ## Dependencies
 
-- **Plan 05 (Agent exports)** — required. RecentActivity reads `plans/overview-activity.jsonl`; activity events are appended only after a successful `mergeAndWrite`/artifact write and before the watcher releases the lock.
+- **Plan 05 (Agent exports)** — required. RecentActivity reads `.ralph-overview/generated/activity.jsonl`; activity events are appended only after a successful `mergeAndWrite`/artifact write and before the watcher releases the lock.
 
 ## Scope
 
@@ -24,7 +24,7 @@ Plans 01–06 give the user (and agents) a way to see and pick the right action 
 - Implement notepad parser in `scripts/lib/parse-notepad.mjs` reading the Deferred Questions table format from `implement-with-ralph` Appendix B.
 - Implement PR URL scraping in `scripts/lib/derive-pr-links.mjs`. Sources: `group.json.prUrl` for parallel groups; for single-job tasks, scrape the latest commit message in `prd.json.branch.name` for `Closes #N` / GitHub URL patterns.
 - Auto-append journal entries on stage transitions: `scripts/lib/append-journal.mjs`. Output: `tasks/<id>/journal.md` (new file per task on first transition).
-- New `tools/overview-viewer/src/components/RecentActivity.tsx` — collapsible right-side panel rendering the last N activity events. Reads `plans/overview-activity.jsonl` (the viewer needs a way to load it — see Implementation).
+- New `tools/overview-viewer/src/components/RecentActivity.tsx` — collapsible right-side panel rendering the last N activity events. Reads `.ralph-overview/generated/activity.jsonl` (the viewer needs a way to load it — see Implementation).
 - Tooltip extras for `RalphStageChip` — compose `deferredQuestionsCount`, `prUrl` link, and `branchName` copy UI in the command-row layer and pass it through the `tooltipExtras` prop introduced in Plan 03. Keep the base chip generic: it owns stage/slug/timestamp rendering and renders the supplied slot below those rows.
 
 **Out of scope (other plans):**
@@ -40,7 +40,7 @@ Plans 01–06 give the user (and agents) a way to see and pick the right action 
 - **`scripts/lib/derive-pr-links.mjs`** — exports `derivePRLinks({ groupState?, repoRoot, branchName }) -> { prUrl?, mergeCommit? }`. Reads `groupState.prUrl` directly if present. Otherwise: `git log --pretty=%H%n%s%n%b -n 5 <branchName>` → scan for `Closes #N` / `https://github.com/.../pull/N` pattern. Return the first match. `mergeCommit` is the short SHA of `HEAD` of the merged branch when stage is `shipped`.
 - **`scripts/lib/append-journal.mjs`** — exports `appendJournalEntry({ repoRoot, taskId, line })`. Atomic append to `tasks/<taskId>/journal.md`. Creates the directory + file on first call. Line format: `- <ISO timestamp>  <text>` (matches the comprehensive plan's format).
 - **`tools/overview-viewer/src/components/RecentActivity.tsx`** — props: `{ activityEvents: ActivityEvent[]; setFocusedTaskId: (id: string) => void }`. Renders the last 5–10 events with timestamps; each entry is clickable to scroll the command list to that task (reuses `navigateToCommand` helper).
-- **`tools/overview-viewer/src/hooks/useActivityEvents.ts`** — React hook that fetches `plans/overview-activity.jsonl` once on mount and re-fetches on the `overview-ralph-state:update` HMR event (the same event the sidecar uses). Parses JSONL into `ActivityEvent[]`.
+- **`tools/overview-viewer/src/hooks/useActivityEvents.ts`** — React hook that fetches `.ralph-overview/generated/activity.jsonl` once on mount and re-fetches on the `overview-ralph-state:update` HMR event (the same event the sidecar uses). Parses JSONL into `ActivityEvent[]`.
 
 ### To modify
 
@@ -93,7 +93,7 @@ Plans 01–06 give the user (and agents) a way to see and pick the right action 
 - [ ] `RalphPipelineState` carries the 6 new optional fields.
 - [ ] Sync output snapshot includes the new fields populated for any task whose Ralph job has a notepad / PR / branch.
 - [ ] Journal entries appear in `tasks/<id>/journal.md` on stage transitions.
-- [ ] `RecentActivity.tsx` renders the last 5–10 events from `plans/overview-activity.jsonl`. Clicking an entry scrolls to the task.
+- [ ] `RecentActivity.tsx` renders the last 5–10 events from `.ralph-overview/generated/activity.jsonl`. Clicking an entry scrolls to the task.
 - [ ] `TaskCommand` passes `tooltipExtras` to `RalphStageChip`, and the chip tooltip shows deferred-questions count, branch name (with copy), PR URL (if present) below the Plan 03 stage/slug/timestamp rows.
 - [ ] `pnpm --filter @codexu/overview-viewer test` passes including new tests for parse-notepad fixtures.
 - [ ] Existing tests unchanged.
@@ -104,7 +104,7 @@ Plans 01–06 give the user (and agents) a way to see and pick the right action 
 
 A. **Notepad parser fixtures:** unit tests cover (i) empty notepad, (ii) notepad with no deferred questions, (iii) 3 questions with 2 answered → count is 1, (iv) malformed table → graceful degradation (return zero count).
 
-B. **PR scraping:** for a task whose `prd.branch.name` has a merge commit with `Closes #42`, `cat plans/overview-snapshot.json | jq '.tasks[<i>].ralph.prUrl'` returns the GitHub URL.
+B. **PR scraping:** for a task whose `prd.branch.name` has a merge commit with `Closes #42`, `cat .ralph-overview/generated/snapshot.json | jq '.tasks[<i>].ralph.prUrl'` returns the GitHub URL.
 
 C. **Branch surfacing:** for a task with `prd.branch.name = 'ralph/overview-data-split/integration'`, the chip tooltip shows the branch name with a copy-to-clipboard button for `git checkout <branchName>`.
 

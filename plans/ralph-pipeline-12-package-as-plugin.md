@@ -11,7 +11,7 @@ The two changes ship as separate commits in separate repos. Land the plugin firs
 
 ## Context
 
-Plans 01–11 build the Ralph pipeline state feature inside the codexu workspace. Plan 01 introduced a config-driven layer (`.ralph/overview-config.json` + `scripts/lib/resolve-config.mjs`) so all paths and commands are parameterizable. With that in place, the entire system can be extracted into a reusable plugin that any Ralph-using project can install.
+Plans 01–11 build the Ralph pipeline state feature inside the codexu workspace. Plan 01 introduced a config-driven layer (`.ralph-overview/config.json` + `scripts/lib/resolve-config.mjs`) so all paths and commands are parameterizable. With that in place, the entire system can be extracted into a reusable plugin that any Ralph-using project can install.
 
 The user-stated goal:
 > "I think we should make it generic so we can later make it a plugin we can reuse for other projects"
@@ -37,12 +37,12 @@ Plans 02 (watcher), 03 (UI chip), 04 (PipelineOverview), 06 (skills), 07 (contex
   - `tools/overview-viewer/` — extracted React app.
   - `skills/work-on/`, `skills/triage/`, `skills/blocker-report/` — extracted from codexu's `.claude/skills/`.
   - `docs/` — installation guide, configuration reference, contributor notes.
-  - `templates/` — `.ralph/overview-config.json` template + `plans/overview-data.js` minimal example for new adopters.
+  - `templates/` — `.ralph-overview/config.json` template + `.ralph-overview/data.json` minimal example for new adopters.
 - Codexu consumer-side migration:
   - Remove the now-extracted `scripts/lib/*`, `scripts/sync-ralph-state.mjs`, `tools/overview-mcp/`, `tools/overview-viewer/`, `.claude/skills/{work-on,triage,blocker-report}/` from the codexu tree.
   - Add the plugin to codexu's plugin marketplace install: typically via `claude-code plugin add ai-developer-toolkit:ralph-overview` (or whatever the actual install command is for the ai-developer-toolkit toolkit).
   - Update root `package.json` scripts to point at the installed plugin's binaries (or remove them if the plugin exposes its own slash commands).
-  - Confirm `.ralph/overview-config.json` still applies — it stays in the consumer workspace, not in the plugin.
+  - Confirm `.ralph-overview/config.json` still applies — it stays in the consumer workspace, not in the plugin.
 - Tests:
   - Plugin-level: install the plugin into a fresh test workspace (could be a temporary directory) and run the full lifecycle: sync, dev server start via MCP, chip renders. Validates that the plugin works without codexu-specific dependencies.
   - Codexu-level: after migration, all existing tests still pass — `pnpm --filter @codexu/overview-viewer test` (now `--filter @ralph/overview-viewer` post-rename, or run via the plugin's own test command).
@@ -72,7 +72,7 @@ Plans 02 (watcher), 03 (UI chip), 04 (PipelineOverview), 06 (skills), 07 (contex
           }
       },
       "consumerSetup": {
-          "configFile": ".ralph/overview-config.json",
+          "configFile": ".ralph-overview/config.json",
           "configSchema": "${pluginPath}/templates/overview-config.schema.json",
           "configTemplate": "${pluginPath}/templates/overview-config.template.json"
       }
@@ -82,14 +82,14 @@ Plans 02 (watcher), 03 (UI chip), 04 (PipelineOverview), 06 (skills), 07 (contex
 - **`README.md`** — installation guide, configuration reference, three-paragraph "what is this" intro.
 - **`docs/installation.md`** — step-by-step:
   1. `claude-code plugin add ai-developer-toolkit:ralph-overview`
-  2. Copy `templates/overview-config.template.json` to `<repoRoot>/.ralph/overview-config.json` and edit.
+  2. Copy `templates/overview-config.template.json` to `<repoRoot>/.ralph-overview/config.json` and edit.
   3. Run `pnpm install` to pick up the plugin's MCP server deps (if the plugin uses pnpm) or `npm install` per the plugin's package manager.
   4. Register the MCP server in `.claude/settings.local.json` (often auto-registered by the plugin manifest; manual fallback documented).
   5. First sync: `<plugin-cli> sync` (or invoke via `pnpm sync-ralph-state` if the consumer has wired the script).
 - **`docs/configuration.md`** — every config field documented with examples. References the JSON Schema.
 - **`docs/extending.md`** — how to add a new MCP tool, a new skill, a new stage; how to bump the stage predicate when Ralph plugin changes its schema.
-- **`templates/overview-config.template.json`** — config skeleton for new adopters. It should contain the Plan-01 keys only (`dataFile`, `ralphRoot`, `ralphSubdirs`, `outputs`, `lockFile`, `watcher.ignored`) plus any downstream keys that have actually shipped by extraction time. Use placeholder paths (`plans/overview-data.js`, etc.) matching the most common convention and explicitly document "adjust to your layout."
-- **`templates/overview-config.schema.json`** — copied from the consumer-side `.ralph/overview-config.schema.json` and extended only for downstream emitted artifacts that exist by extraction time. The schema is a plugin template, while the consumer's `.ralph/overview-config.json` remains in the consumer workspace.
+- **`templates/overview-config.template.json`** — config skeleton for new adopters. It should contain the Plan-01 keys only (`dataFile`, `ralphRoot`, `ralphSubdirs`, `outputs`, `lockFile`, `watcher.ignored`) plus any downstream keys that have actually shipped by extraction time. Use placeholder paths (`.ralph-overview/data.json`, etc.) matching the most common convention and explicitly document "adjust to your layout."
+- **`templates/overview-config.schema.json`** — copied from the consumer-side `.ralph/overview-config.schema.json` and extended only for downstream emitted artifacts that exist by extraction time. The schema is a plugin template, while the consumer's `.ralph-overview/config.json` remains in the consumer workspace.
 - **`templates/overview-data.template.js`** — minimal `OverviewData` example so a new adopter can see what the data file should look like.
 - **`scripts/`** — copy from codexu's `scripts/lib/*`, sibling `.d.mts` declarations, and `scripts/sync-ralph-state.mjs`. All file paths inside use the resolved config (no hardcoded paths remain). Preserve Plan 02's shared `sync-lock.mjs` JSON lock contract, watcher heartbeat, `sync-ralph-state:watch` behavior, and Vite-plugin `overview-ralph-state:update` event wiring.
 - **`tools/overview-mcp/`** — copy from codexu. Rename `@codexu/overview-mcp` → `@ralph/overview-mcp` in `package.json`.
@@ -105,9 +105,9 @@ Plans 02 (watcher), 03 (UI chip), 04 (PipelineOverview), 06 (skills), 07 (contex
   - `tools/overview-viewer/` (extracted; bookkeepers now run the plugin's dev server).
   - `.claude/skills/work-on/`, `.claude/skills/triage/`, `.claude/skills/blocker-report/`.
 - **Keep** in codexu:
-  - `plans/overview-data.js` — the actual task data (codexu-specific content, not plugin code).
-  - `.ralph/overview-config.json` — codexu's config (codexu-specific paths, not plugin code). Initial content is identical to `plugins/ralph-overview/templates/overview-config.template.json` (the codexu defaults).
-  - Generated artifacts: `plans/overview-ralph-state.{js,json}`, `plans/overview-snapshot.json`, `plans/overview-activity.jsonl`, `plans/overview-snapshot.schema.json`, `plans/overview-data.json`, and `tasks/INDEX.md` — these are still emitted to codexu's configured output paths.
+  - `.ralph-overview/data.json` — the actual task data (codexu-specific content, not plugin code).
+  - `.ralph-overview/config.json` — codexu's config (codexu-specific paths, not plugin code). Initial content is identical to `plugins/ralph-overview/templates/overview-config.template.json` (the codexu defaults).
+  - Generated artifacts: `.ralph-overview/generated/ralph-state.{js,json}`, `.ralph-overview/generated/snapshot.json`, `.ralph-overview/generated/activity.jsonl`, `.ralph-overview/generated/snapshot.schema.json`, `.ralph-overview/data.json`, and `tasks/INDEX.md` — these are still emitted to codexu's configured output paths.
   - `tasks/<id>/journal.md` per-task journals.
 - **Update root `package.json` scripts:**
   - Remove `"sync-ralph-state"`, `"sync-ralph-state:watch"`, `"overview-mcp:build"`, `"overview-mcp:install"`, `"overview"`, `"overview:build"` if the plugin provides equivalent CLI commands.
@@ -132,7 +132,7 @@ The extraction is a "lift and shift" plus a "rename and re-target." Recommend:
 3. **Copy code** from codexu into the plugin tree. Preserve the `scripts/lib/*` and `tools/*` layouts.
 4. **Rename packages:** `@codexu/overview-mcp` → `@ralph/overview-mcp`, `@codexu/overview-viewer` → `@ralph/overview-viewer`. Update internal imports.
 5. **Update `Toolbar.tsx`** to data-drive the workstream + scope chips.
-6. **Test the plugin in isolation:** create a throwaway test workspace, install the plugin, create a minimal `.ralph/overview-config.json` + `plans/overview-data.js`, run sync, start dev server via MCP, verify chips render.
+6. **Test the plugin in isolation:** create a throwaway test workspace, install the plugin, create a minimal `.ralph-overview/config.json` + `.ralph-overview/data.json`, run sync, start dev server via MCP, verify chips render.
 7. **Migrate codexu:** in a single PR, remove the extracted files, install the plugin, update scripts, verify all codexu tests still pass + the dashboard still renders.
 8. **Verify no codexu tests reference removed files.** Update any imports that pointed at `scripts/lib/...` to now import from the plugin's exported entry point (or remove the references if they're no longer needed in codexu).
 
@@ -149,7 +149,7 @@ The codexu migration is one PR; the plugin lives in its own commit history in th
 - [ ] All existing codexu tests pass post-migration (whether the test suite stays in codexu or moves to the plugin — recommend moving anything overview-viewer-specific to the plugin and keeping codexu-specific test fixtures in codexu).
 - [ ] Plugin docs (`README.md`, `docs/installation.md`, `docs/configuration.md`, `docs/extending.md`) are complete and a new adopter can install + run in ~10 minutes.
 - [ ] `templates/overview-config.template.json` is a clean starting point — paths are placeholder-commented.
-- [ ] `.ralph/overview-config.json` in codexu is preserved (not deleted by the migration — it's the consumer's config).
+- [ ] `.ralph-overview/config.json` in codexu is preserved (not deleted by the migration — it's the consumer's config).
 
 ## Verification
 
@@ -160,17 +160,17 @@ B. **Plugin install dry-run:** in a throwaway directory:
 mkdir /tmp/plugin-test && cd /tmp/plugin-test
 git init
 claude-code plugin add ai-developer-toolkit:ralph-overview     # (or whatever the actual command is)
-cp <plugin>/templates/overview-config.template.json .ralph/overview-config.json
-cp <plugin>/templates/overview-data.template.js plans/overview-data.js
+cp <plugin>/templates/overview-config.template.json .ralph-overview/config.json
+cp <plugin>/templates/overview-data.template.js .ralph-overview/data.json
 mkdir .ralph .ralph/jobs    # empty Ralph state
 # run sync
 <plugin-cli> sync   # or pnpm overview-sync if wrapper script aliased
-ls plans/overview-ralph-state.json    # should exist
+ls .ralph-overview/generated/ralph-state.json    # should exist
 ```
 
 C. **Plugin MCP smoke:** from the test workspace, the MCP server registers via plugin manifest. Invoke `overview.list_tasks` — returns `[]` for empty data. Invoke `overview.dev_server.start` — spawns the React app from the plugin's installed path.
 
-D. **Filter chips data-driven:** in the plugin's `tools/overview-viewer/`, set `plans/overview-data.js` workstream values to e.g. `{ "task-a": "marketing", "task-b": "engineering" }`. Open the dashboard. Toolbar shows chips for "marketing" and "engineering" — NOT codexu's "Codex spec / Codex parity / etc.".
+D. **Filter chips data-driven:** in the plugin's `tools/overview-viewer/`, set `.ralph-overview/data.json` workstream values to e.g. `{ "task-a": "marketing", "task-b": "engineering" }`. Open the dashboard. Toolbar shows chips for "marketing" and "engineering" — NOT codexu's "Codex spec / Codex parity / etc.".
 
 E. **Codexu migration verification:** in `D:\harness-efforts\codexu`, after the migration PR:
    - `ls scripts/lib/` — does NOT contain the extracted `.mjs` files.
@@ -185,12 +185,12 @@ G. **No dual ownership:** `git log --follow scripts/lib/derive-ralph-stage.mjs` 
 
 ## Common mistakes / confusion points
 
-1. **`.ralph/overview-config.json` stays in the consumer workspace.** It's the user's config, not the plugin's. The plugin ships `templates/overview-config.template.json`; the consumer copies and edits.
-2. **`plans/overview-data.js` stays in the consumer workspace.** Bookkeeper-curated content is project-specific.
+1. **`.ralph-overview/config.json` stays in the consumer workspace.** It's the user's config, not the plugin's. The plugin ships `templates/overview-config.template.json`; the consumer copies and edits.
+2. **`.ralph-overview/data.json` stays in the consumer workspace.** Bookkeeper-curated content is project-specific.
 3. **Generated artifacts** (legacy sidecar, snapshot, activity JSONL, snapshot schema, data JSON twin, tasks index, journal) live in the consumer's filesystem at consumer-config-specified paths. The plugin emits them but doesn't own them.
 4. **MCP server runs from the plugin's installed path.** The plugin manifest's `mcpServers.command` resolves the path. Don't hardcode codexu paths anywhere.
 5. **Don't duplicate code across plugin and consumer.** Once extracted, codexu does NOT keep copies of `scripts/lib/*`. Imports flow from consumer → plugin via the plugin's exported entry points. If codexu still references `scripts/lib/x.mjs` after migration, the migration is incomplete.
-6. **Test fixtures placement:** tests covering plugin code move to the plugin. Tests covering codexu-specific behavior (e.g. specific task IDs, codexu kanban layout) stay in codexu. Use the existing test fixture loader pattern but reading from `plans/overview-data.js` (consumer-curated).
+6. **Test fixtures placement:** tests covering plugin code move to the plugin. Tests covering codexu-specific behavior (e.g. specific task IDs, codexu kanban layout) stay in codexu. Use the existing test fixture loader pattern but reading from `.ralph-overview/data.json` (consumer-curated).
 7. **`Toolbar.tsx` was previously codexu-specific.** The data-driven refactor is part of this plan, not a "TODO." Don't ship the plugin with codexu-hardcoded workstream chips.
 8. **Plugin version bumps follow semver.** v1.0.0 is the initial extraction. Adding new tools or fields = minor. Breaking the config schema = major. Document the version pin alongside the ralph-orchestration version pin in `derive-next-command.mjs`.
 9. **Cross-platform paths:** the plugin runs on Windows (the user's environment), macOS, and Linux. Use `path.posix.join` for plugin-internal paths emitted into JSON; let Node handle the consumer-side paths via `path.join`.

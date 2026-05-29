@@ -85,7 +85,7 @@ This PRD is derived directly from the plan at `D:/harness-efforts/codexu/.ralph/
 **Acceptance Criteria:**
 - [ ] `tools/overview-mcp/src/tools/build.ts` registers `overview.build` and spawns the build through `ProcessManager.spawn({ name: 'build', cmd: 'pnpm', args: ['overview:build'], cwd: ctx.repoRoot, oneShot: true })`.
 - [ ] Concurrent `overview.build` calls receive `AlreadyRunning` → tool returns `{ ok: false, error: 'another build in progress' }`.
-- [ ] On exit code 0, returns `{ ok: true, outputPath: <absolute path to plans/overview.html>, sizeBytes, durationMs }`.
+- [ ] On exit code 0, returns `{ ok: true, outputPath: <absolute path to .ralph-overview/generated/overview.html>, sizeBytes, durationMs }`.
 - [ ] On non-zero exit, returns `{ ok: false, error: 'build failed with exit code <N>', lastLogLines: stderr.slice(-30) }`.
 - [ ] The transient `'build'` entry is registered while running so `stopAll()` kills an in-flight build on SIGTERM.
 - [ ] `src/__tests__/build.test.ts` covers success path (mock build script with fixture artifact), failure path (non-zero exit), concurrent-rejection path.
@@ -137,7 +137,7 @@ This PRD is derived directly from the plan at `D:/harness-efforts/codexu/.ralph/
 - FR-11: `overview.dev_server.stop` terminates the child within 5s (SIGTERM) or 7s (escalated SIGKILL); returns `{ ok: true, stoppedAt }` even when no child exists (idempotent).
 - FR-12: `overview.dev_server.status` returns `{ running, url?, pid?, startedAt?, lastReadyAt?, lastLogTail: { stdout: string[≤10], stderr: string[≤10] } }`.
 - FR-13: `overview.dev_server.logs` validates inputs via zod (`tail` integer default 100, `stream` enum default `'both'`) and CLAMPS `tail` to `[1, 1000]` at runtime — out-of-range values are clamped, never rejected.
-- FR-14: `overview.build` spawns `pnpm overview:build` through `ProcessManager` with reserved name `'build'`; on exit code 0 returns `{ ok: true, outputPath: <absolute path to plans/overview.html>, sizeBytes, durationMs }`; on non-zero exit returns `{ ok: false, error: 'build failed with exit code N', lastLogLines: stderr.slice(-30) }`; concurrent calls return `{ ok: false, error: 'another build in progress' }`.
+- FR-14: `overview.build` spawns `pnpm overview:build` through `ProcessManager` with reserved name `'build'`; on exit code 0 returns `{ ok: true, outputPath: <absolute path to .ralph-overview/generated/overview.html>, sizeBytes, durationMs }`; on non-zero exit returns `{ ok: false, error: 'build failed with exit code N', lastLogLines: stderr.slice(-30) }`; concurrent calls return `{ ok: false, error: 'another build in progress' }`.
 - FR-15: `overview.sync.now` spawns `node scripts/sync-ralph-state.mjs` through `ProcessManager` with reserved name `'sync-now'`; on success it parses the stdout summary line `sync: matched=<N>, unmatched=<N>, duration=<Nms>` and returns `{ ok: true, summary: { tasksMatched, unmatchedCount, durationMs } }`.
 - FR-16: When `sync.now` exits non-zero because the lock is held by another holder, the tool calls `readLockStatus(ctx.config.lockFile)` and returns `{ ok: false, error: 'sync lock held by <process>', lockHolderProcess, lockHolderPid }`.
 - FR-17: `overview.sync.watch_status` calls `readLockStatus(ctx.config.lockFile)` and maps the result to `{ running, lockHolderPid?, lockHolderProcess?, startedAt?, lastHeartbeatAt?, staleLock?: boolean }`. Returns `{ running: false, staleLock: true }` on unparseable JSON (after one 50ms retry).

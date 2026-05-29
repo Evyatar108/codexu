@@ -22,7 +22,7 @@ Translates to: chokidar watch, debounce window (default 2s), per-slug incrementa
 **In scope:**
 - New `scripts/lib/watch-ralph-state.mjs` — chokidar-based watcher exposing `{ start, stop, status }`.
 - Extension of `scripts/sync-ralph-state.mjs` to accept `--watch [--debounce-ms <N>]` flag.
-- Lock file from `config.lockFile` (Plan 01 default: `.ralph/overview-sync.lock`) shared by one-shot and watch modes.
+- Lock file from `config.lockFile` (Plan 01 default: `.ralph-overview/generated/.lock/sync.lock`) shared by one-shot and watch modes.
 - npm script `sync-ralph-state:watch` in root `package.json`.
 - Vite plugin auto-start: extension of `tools/overview-viewer/vite.config.ts` `overviewDataPlugin` to spawn the watcher at `configureServer` time and call its `stop()` on teardown.
 - Cold-start full walk before event-driven watching begins.
@@ -136,7 +136,7 @@ Ordered steps:
 - [ ] `scripts/lib/sync-core.mjs` exports `readBundleForSlug`, `assembleStateFromBundles`, `deriveAffectedTaskUpdate`, and `mergeAndWrite` in addition to the Plan 01 exports.
 - [ ] `pnpm sync-ralph-state:watch` runs continuously and writes the sidecar atomically on file changes.
 - [ ] Default debounce is 2000 ms; `--debounce-ms <N>` clamps to `[500, 30000]`.
-- [ ] Lock file at `config.lockFile` (default `.ralph/overview-sync.lock`) is managed by `scripts/lib/sync-lock.mjs` with a JSON `{ pid, process, startedAt }` payload. Second instance startup fails fast with the canonical `another sync in progress (pid ..., process ..., started ...)` diagnostic if a live lock exists; stale lock (>60s and ESRCH/unparseable on `process.kill(pid, 0)`) is overwritten with a warning.
+- [ ] Lock file at `config.lockFile` (default `.ralph-overview/generated/.lock/sync.lock`) is managed by `scripts/lib/sync-lock.mjs` with a JSON `{ pid, process, startedAt }` payload. Second instance startup fails fast with the canonical `another sync in progress (pid ..., process ..., started ...)` diagnostic if a live lock exists; stale lock (>60s and ESRCH/unparseable on `process.kill(pid, 0)`) is overwritten with a warning.
 - [ ] Lock-file mtime is refreshed every ~30 s (`HEARTBEAT_MS = 30_000`) via `touchLock(handle)` from `sync-lock.mjs`, so the 60 s staleness window never triggers for a live watcher. This heartbeat is the cross-plan contract relied on by Plans 06 / 08 / 11 and recorded in `plans/ralph-pipeline-INDEX.md`.
 - [ ] `pnpm overview` auto-starts the watcher (verifiable: kill `pnpm overview`, run again, the lock file appears within ~5s).
 - [ ] All Plan 01 acceptance criteria continue to pass (one-shot mode unchanged).
@@ -147,9 +147,9 @@ Ordered steps:
 
 ## Verification
 
-A. **Cold-start walk:** `pnpm sync-ralph-state:watch` runs once → cold-start walk → write sidecar → start watching. `cat plans/overview-ralph-state.json | jq '.generatedAt'` matches startup time.
+A. **Cold-start walk:** `pnpm sync-ralph-state:watch` runs once → cold-start walk → write sidecar → start watching. `cat .ralph-overview/generated/ralph-state.json | jq '.generatedAt'` matches startup time.
 
-B. **Debounce behavior:** in another terminal, `touch .ralph/jobs/<test>/job-state.json` three times within 1 second. Confirm `plans/overview-ralph-state.js` mtime updates exactly once ~2 seconds later. `cat plans/overview-ralph-state.json | jq '.generatedAt'` updated once.
+B. **Debounce behavior:** in another terminal, `touch .ralph/jobs/<test>/job-state.json` three times within 1 second. Confirm `.ralph-overview/generated/ralph-state.js` mtime updates exactly once ~2 seconds later. `cat .ralph-overview/generated/ralph-state.json | jq '.generatedAt'` updated once.
 
 C. **Incremental processing:** modify `.ralph/jobs/<test>/job-state.json` (change `status`). Confirm only that task's `byTaskId[<taskId>]` entry changes; `diff <sidecar before> <sidecar after>` shows only the one task's section diffing (plus `generatedAt`).
 
@@ -167,7 +167,7 @@ H. **Deletion handling:** `rm -rf .ralph/jobs/<test>/`. After debounce window, `
 
 1. **Don't re-implement the stage predicate.** Import `deriveRalphStage` from `scripts/lib/derive-ralph-stage.mjs` — never inline a duplicate. The single-source-of-truth rule from Plan 01 carries forward.
 2. **Watcher write is atomic-or-nothing.** Always tmp + rename for BOTH `.js` and `.json`. A torn write to either crashes consumers.
-3. **The watcher emits the HMR event directly when it writes.** Don't also configure the Vite plugin to watch `plans/overview-ralph-state.js` itself for changes — that would double-tick (watcher writes → Vite picks up → fires event again). The watcher → `onWrite` callback → `server.ws.send` is the only event path.
+3. **The watcher emits the HMR event directly when it writes.** Don't also configure the Vite plugin to watch `.ralph-overview/generated/ralph-state.js` itself for changes — that would double-tick (watcher writes → Vite picks up → fires event again). The watcher → `onWrite` callback → `server.ws.send` is the only event path.
 4. **Lock release flows through `releaseLock(handle)` in a `finally`.** Do NOT inline `fs.openSync(path, 'wx')` + `fs.unlinkSync(path)` — the canonical primitive lives in `scripts/lib/sync-lock.mjs` and writes JSON metadata `{ pid, process, startedAt }`, not a 0-byte sentinel. Recovery from a crash relies on the layered stale check (60 s mtime threshold combined with a `process.kill(pid, 0)` liveness probe): ESRCH or unparseable JSON past the window removes the lock; EPERM treats it as still alive. Design the happy path to release reliably via `releaseLock`, and run the 30 s `touchLock(handle)` heartbeat so a live watcher's lock never falls into the stale window.
 5. **`chokidar.watch()` with `awaitWriteFinish: true`** is essential — Ralph's tmp+rename pattern means a file may briefly look incomplete. Chokidar's `awaitWriteFinish` debounces individual file events until the file stabilizes, eliminating spurious "torn read" errors.
 6. **Don't watch `.crews/`** in this plan. Plan 08 adds the `.crews/` cross-walk. Adding it here without the rest of Plan 08's protocol creates entries that have nowhere to go.

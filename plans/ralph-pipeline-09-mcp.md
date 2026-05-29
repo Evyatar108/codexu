@@ -12,7 +12,7 @@ This is the "north star" interface. Skills (Plan 06) remain the user-facing surf
 
 ## Dependencies
 
-- **Plan 05 (Agent exports)** — required. The MCP server reads `plans/overview-snapshot.json` as primary input.
+- **Plan 05 (Agent exports)** — required. The MCP server reads `.ralph-overview/generated/snapshot.json` as primary input.
 - **Plan 06 (Skills)** — required. The server shares `scripts/lib/derive-next-command.mjs` with the skills.
 - **Plan 08 (Crews)** — required for `overview.invoke_next` with `viaCrewMember` and `overview.list_crew_sessions`. It provides `CrewSessionRef`, `RalphPipelineState.crewSessions`, `.crews/` cross-walk discovery, the crews CLI mirror path, and lock-protected explicit sidecar subcommands. Without 08, those tools are stubs.
 
@@ -42,7 +42,7 @@ Plans 02, 04, 07 are recommended but not strictly required (they enrich the snap
 | `overview.get_task` | `{ taskId }` | full merged `SnapshotTask` (OverviewTask + RalphPipelineState) + last 3 journal entries | no |
 | `overview.next_command` | `{ taskId }` | `NextCommand \| null` from `deriveNextCommand` | no |
 | `overview.invoke_next` | `{ taskId, viaCrewMember?: { crewName, memberName? } }` | `{ ok: true, sessionRef?: CrewSessionRef } \| { ok: false, error: string }` | yes (invokes a Ralph skill or spawns a crew member) |
-| `overview.list_recommendations` | `{ limit?: number, stageFilter?: RalphStage }` | `Array<{ taskId, score, stage, reasons }>` read from `snapshot.recommendations`; applies the filter and may fall back to `plans/overview-recommendations.json` | no |
+| `overview.list_recommendations` | `{ limit?: number, stageFilter?: RalphStage }` | `Array<{ taskId, score, stage, reasons }>` read from `snapshot.recommendations`; applies the filter and may fall back to `.ralph-overview/generated/recommendations.json` | no |
 | `overview.list_blockers` | `{}` | tasks with `stage === 'blocked'` OR `reviewOpenCount > 0` OR `deferredQuestionsCount > 0` | no |
 | `overview.set_override` | `{ slug, taskId }` | writes `OverviewData.ralphOverrides[slug] = taskId` in `overview-data.js` via structured edit | **yes — single field** |
 | `overview.add_journal_entry` | `{ taskId, note }` | appends to `tasks/<id>/journal.md` via `scripts/lib/append-journal.mjs` | yes (append-only) |
@@ -56,7 +56,7 @@ Plans 02, 04, 07 are recommended but not strictly required (they enrich the snap
 - **`tools/overview-mcp/package.json`** — declares `@codexu/overview-mcp`, depends on `@modelcontextprotocol/sdk`, `chokidar` (for snapshot watching), and dev-deps `typescript`, `tsx`. `bin` entry `overview-mcp-install` → `dist/install-server.js`. The MCP server entrypoint at `dist/index.js` is invoked directly via `node` (per the README's `mcpServers.codexu-overview.command = "node"` registration shape), not through a `bin`.
 - **`tools/overview-mcp/tsconfig.json`** — extends the workspace's TS config; output dir `dist`.
 - **`tools/overview-mcp/src/index.ts`** — MCP server entry. Sets up stdio transport and owns the existing SIGINT/SIGTERM shutdown hooks. Plan 11 extends this shutdown path to call `context.processManager.stopAll()` between `snapshotReader.close()` and `server.close()`.
-- **`tools/overview-mcp/src/snapshot-reader.ts`** — `SnapshotReader` class. Watches `plans/overview-snapshot.json` via chokidar; reads on demand; validates against `plans/overview-snapshot.schema.json` when present; caches the parsed `Snapshot` object in memory. All tool handlers query through this.
+- **`tools/overview-mcp/src/snapshot-reader.ts`** — `SnapshotReader` class. Watches `.ralph-overview/generated/snapshot.json` via chokidar; reads on demand; validates against `.ralph-overview/generated/snapshot.schema.json` when present; caches the parsed `Snapshot` object in memory. All tool handlers query through this.
 - **`tools/overview-mcp/src/tools/list-tasks.ts`**, **`get-task.ts`**, **`next-command.ts`**, **`invoke-next.ts`**, **`list-recommendations.ts`**, **`list-blockers.ts`**, **`set-override.ts`**, **`add-journal-entry.ts`**, **`list-crew-sessions.ts`**, **`get-transcript.ts`** — one file per tool, each exporting a registration function.
 - **`tools/overview-mcp/src/utils/set-override-edit.ts`** — structured edit for `overview-data.js`. Parses the JS object literal via a permissive parser (e.g. `@babel/parser` or hand-written for the simple object-literal grammar), mutates only the `ralphOverrides` key, serializes back with the surrounding code byte-identical.
 - **`tools/overview-mcp/src/install-server.ts`** — adds the server entry to `.claude/settings.local.json` (or prints the JSON for manual addition).
@@ -73,13 +73,13 @@ Plans 02, 04, 07 are recommended but not strictly required (they enrich the snap
 ### Read for reference
 
 - `scripts/lib/derive-ralph-stage.mjs`, `scripts/lib/derive-next-command.mjs`, `scripts/lib/score-recommendations.mjs`, `scripts/lib/append-journal.mjs`, `scripts/lib/derive-pr-links.mjs` — imported by the server as the single source of truth. `score-recommendations.mjs` exports `scoreRecommendations({ byTaskId, overviewData, prdsByTaskId, weights, topN, now? })` for callers that need to recompute, but `overview.list_recommendations` should prefer the precomputed snapshot field.
-- `plans/overview-snapshot.json` — primary data input, parsed as the TypeScript `Snapshot` shape from the shared overview types.
-- `plans/overview-snapshot.schema.json` — runtime validation contract for snapshot JSON. Do not import the schema as TypeScript types.
-- `plans/overview-recommendations.json` — compatibility fallback for `list_recommendations`; the file is a Plan 04 wrapper `{ recommendations, generatedAt, generatedFromCommit }`, while the snapshot field is the primary array when present.
-- `plans/overview-dependency-graph.json` — Plan 04 unwrapped dependency graph `{ nodes, edges }`; story node ids are `${taskId}:${storyId}`, and all edge types use dependent -> prerequisite direction.
+- `.ralph-overview/generated/snapshot.json` — primary data input, parsed as the TypeScript `Snapshot` shape from the shared overview types.
+- `.ralph-overview/generated/snapshot.schema.json` — runtime validation contract for snapshot JSON. Do not import the schema as TypeScript types.
+- `.ralph-overview/generated/recommendations.json` — compatibility fallback for `list_recommendations`; the file is a Plan 04 wrapper `{ recommendations, generatedAt, generatedFromCommit }`, while the snapshot field is the primary array when present.
+- `.ralph-overview/generated/dependency-graph.json` — Plan 04 unwrapped dependency graph `{ nodes, edges }`; story node ids are `${taskId}:${storyId}`, and all edge types use dependent -> prerequisite direction.
 - `.crews/crews/*/members/*/manifest.json` and `.crews/crews/*/leads/*/manifest.json` — re-read live by `list_crew_sessions` for fresh status.
 - `scripts/lib/crews-cross-walk.mjs` and `scripts/lib/parse-spawn-launcher.mjs` — Plan 08 crew-session discovery helpers; reuse their matching and launcher-parsing contracts instead of reimplementing task-id heuristics in the MCP package.
-- `scripts/sync-ralph-state.mjs --update-crew-session` and `--finalize-crew-session` — lock-protected explicit write/finalize surface for `CrewSessionRef` rows in `plans/overview-ralph-state.json`.
+- `scripts/sync-ralph-state.mjs --update-crew-session` and `--finalize-crew-session` — lock-protected explicit write/finalize surface for `CrewSessionRef` rows in `.ralph-overview/generated/ralph-state.json`.
 - `D:\ai-developer-toolkit\plugins\seval\` (or any existing MCP server in the toolkit) — TypeScript pattern reference for stdio transport + tool registration.
 
 ## Tool implementation notes
@@ -132,7 +132,7 @@ Alternatively, the install script just prints the JSON for the user to paste man
 ## Implementation strategy
 
 1. **Scaffold the package** — `tools/overview-mcp/{package.json, tsconfig.json, src/index.ts}`. Register in workspace.
-2. **Build `SnapshotReader`** — chokidar watch on `plans/overview-snapshot.json`, in-memory cache, async `getSnapshot()` accessor.
+2. **Build `SnapshotReader`** — chokidar watch on `.ralph-overview/generated/snapshot.json`, in-memory cache, async `getSnapshot()` accessor.
 3. **Implement read-only tools first** — `list_tasks`, `get_task`, `next_command`, `list_recommendations`, `list_blockers`. Each is a thin wrapper around the snapshot.
 4. **Implement `add_journal_entry`** — wraps `scripts/lib/append-journal.mjs`. Atomic.
 5. **Implement `list_crew_sessions` + `get_transcript`** — live manifest re-read for the former; jsonl tail for the latter.
@@ -147,7 +147,7 @@ Alternatively, the install script just prints the JSON for the user to paste man
 - [ ] `tools/overview-mcp/` registered in workspace; `pnpm --filter @codexu/overview-mcp build` succeeds.
 - [ ] All 10 tools registered and callable via stdio transport.
 - [ ] `SnapshotReader` watches the snapshot file and serves fresh data after writes.
-- [ ] `set_override` writes ONLY the `ralphOverrides` field; `git diff plans/overview-data.js` shows changes confined to that key.
+- [ ] `set_override` writes ONLY the `ralphOverrides` field; `git diff .ralph-overview/data.json` shows changes confined to that key.
 - [ ] `list_crew_sessions` reads live `.crews/.../manifest.json` (verify: kill a member's heartbeat, the tool reflects the change within seconds without re-running sync).
 - [ ] `invoke_next` default mode returns `{ ok: true, command, invocationGuidance }`; caller-side invocation is documented in the README.
 - [ ] `get_transcript` returns the last 20 turns by default.
@@ -173,7 +173,7 @@ F. **`overview.get_task`:** with a specific taskId. Returns merged data + last 3
 
 G. **`overview.next_command`:** matches the output of `derive-next-command.mjs` for the same task.
 
-H. **`overview.set_override`:** invoke with `{ slug: 'test-slug', taskId: 'test-task' }`. `git diff plans/overview-data.js` shows ONLY the `ralphOverrides` field added/modified. All other content byte-identical (use `git diff --stat` to confirm).
+H. **`overview.set_override`:** invoke with `{ slug: 'test-slug', taskId: 'test-task' }`. `git diff .ralph-overview/data.json` shows ONLY the `ralphOverrides` field added/modified. All other content byte-identical (use `git diff --stat` to confirm).
 
 I. **`overview.list_crew_sessions`:** with at least one active crew member. Returns sessions with live `lastHeartbeatAt` (not cached).
 
@@ -189,7 +189,7 @@ K. **`overview.add_journal_entry`:** appends a line. `tail tasks/<id>/journal.md
 4. **Settings.local.json, not settings.json.** Machine-specific paths shouldn't pollute committed config.
 5. **Don't import from `tools/overview-viewer/`.** The MCP server and the React viewer share `scripts/lib/` modules ONLY. Importing React/Vite code from the MCP server creates a circular workspace dep.
 6. **`SnapshotReader` cache invalidation.** chokidar fires on writes; the reader re-reads. Don't add additional polling — single source of cache invalidation.
-7. **Keep TypeScript types and JSON Schema roles separate.** Import TypeScript shapes from the shared overview types; use `plans/overview-snapshot.schema.json` only for runtime JSON validation and MCP schema composition.
+7. **Keep TypeScript types and JSON Schema roles separate.** Import TypeScript shapes from the shared overview types; use `.ralph-overview/generated/snapshot.schema.json` only for runtime JSON validation and MCP schema composition.
 8. **Backwards compatibility.** v1 tool contracts are committed once shipped. Adding a tool is non-breaking; changing an existing tool's input or output is breaking and requires a new tool or a versioned variant (`overview.list_tasks_v2`).
 9. **`invoke_next` with `viaCrewMember`** assumes Plan 08 is shipped. Use the CLI mirror at `D:/ai-developer-toolkit/plugins/crews/tools/spawn-member.js` and persist refs through `scripts/sync-ralph-state.mjs --update-crew-session`; do not write ad-hoc queued spawn files. Without Plan 08, the tool returns an error; document this dependency in the README.
 

@@ -13,7 +13,7 @@
 // `node bin/ralph-overview.mjs <subcommand>` and have it just work under
 // either engine.
 //
-// Resolution order (first existing wins):
+// Resolution order (first usable install wins):
 //   1. RALPH_OVERVIEW_PLUGIN_ROOT env var
 //   2. CLAUDE_PLUGIN_ROOT/ralph-overview (Claude Code harness-set)
 //   3. CLAUDE_PLUGIN_ROOT/cache/ai-developer-toolkit/ralph-overview/<latest>
@@ -35,7 +35,7 @@
 // See the long-term plan to push this resolution upstream into the plugin's
 // own `scripts/init-consumer.mjs` so future consumers do not each need a
 // copy of this wrapper: `ralph-overview-init-consumer-cross-engine-wrapper`
-// in `plans/overview-data.js`.
+// in `.ralph-overview/data.json`.
 
 import { execFileSync, spawn } from 'node:child_process'
 import fs from 'node:fs'
@@ -45,9 +45,11 @@ import process from 'node:process'
 
 const PLUGIN_NAME = 'ralph-overview'
 const MANIFEST_REL = '.claude-plugin/plugin.json'
+const REQUIRED_NODE_MODULES = ['chokidar']
 
 function existsPluginAt(dir) {
     return fs.existsSync(path.join(dir, MANIFEST_REL))
+        && REQUIRED_NODE_MODULES.every((name) => fs.existsSync(path.join(dir, 'node_modules', name)))
 }
 
 function newestVersionedSubdir(base) {
@@ -66,7 +68,7 @@ function resolvePluginRoot() {
     if (process.env.RALPH_OVERVIEW_PLUGIN_ROOT) {
         const explicit = process.env.RALPH_OVERVIEW_PLUGIN_ROOT
         if (existsPluginAt(explicit)) return explicit
-        process.stderr.write(`bin/ralph-overview.mjs: RALPH_OVERVIEW_PLUGIN_ROOT=${explicit} but no ${MANIFEST_REL} found there\n`)
+        process.stderr.write(`bin/ralph-overview.mjs: RALPH_OVERVIEW_PLUGIN_ROOT=${explicit} is not a usable plugin install (missing ${MANIFEST_REL} or node_modules)\n`)
     }
 
     const claudePluginRoot = process.env.CLAUDE_PLUGIN_ROOT
@@ -129,12 +131,31 @@ if (!fs.existsSync(dispatcher)) {
 // in any subdir of the consumer repo still target the right repoRoot.
 const argv = process.argv.slice(2)
 const hasRepo = argv.some((a) => a === '--repo')
-const finalArgs = hasRepo ? argv : [argv[0], '--repo', gitRepoRoot(), ...argv.slice(1)]
+const repoRoot = hasRepo ? argv[argv.indexOf('--repo') + 1] : gitRepoRoot()
+const finalArgs = withCodexuCliDefaults(hasRepo ? argv : [argv[0], '--repo', repoRoot, ...argv.slice(1)], repoRoot)
 
+const configPath = path.join(repoRoot, '.ralph-overview', 'config.json')
 const child = spawn(process.execPath, [dispatcher, ...finalArgs], {
     stdio: 'inherit',
-    env: { ...process.env, RALPH_OVERVIEW_PLUGIN_ROOT: pluginRoot },
+    env: {
+        ...process.env,
+        RALPH_OVERVIEW_PLUGIN_ROOT: pluginRoot,
+        ...(fs.existsSync(configPath) ? { OVERVIEW_CONFIG_PATH: configPath } : {}),
+    },
 })
 child.on('exit', (code, sig) => process.exit(code ?? (sig ? 1 : 0)))
 process.on('SIGINT', () => child.kill('SIGINT'))
 process.on('SIGTERM', () => child.kill('SIGTERM'))
+
+function withCodexuCliDefaults(args, repoRoot) {
+    if (args[0] !== 'cli' || !args.includes('derive-next-command') || args.includes('--snapshot')) {
+        return args
+    }
+
+    const snapshotPath = path.join(repoRoot, '.ralph-overview', 'generated', 'snapshot.json')
+    if (!fs.existsSync(snapshotPath)) {
+        return args
+    }
+
+    return [...args, '--snapshot', snapshotPath]
+}
