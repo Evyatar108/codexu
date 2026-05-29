@@ -269,7 +269,7 @@ Goal: reduce visual bloat, improve scanability, and make high-priority work easi
 - When drag ordering ships, record a web video showing the interaction. Deferred by the user-approved scope downgrade; PR review may rely on code review and manual browser notes for this batch.
 - Confirm that session grouping and archive actions still work after the layout changes. Manual PR-review check retained; the explicit archive-confirm validation step is PR-review-only until archive confirmation is in scope.
 - Verify that markdown image syntax using local absolute paths renders an actual inline preview in a real web session.
-- Drag-ordering implementation reference: `packages/happy-app/CHANGELOG.md` Version 29 entry, the `sessionGroupOrder` paragraph in `packages/happy-app/CLAUDE.md`, and the pure helper at `packages/happy-app/sources/sync/sessionGroupOrdering.ts`.
+- Drag-ordering implementation reference: `packages/happy-app/CHANGELOG.md` Version 29 entry, the `sessionGroupOrder` paragraph in `packages/happy-app/AGENTS.md`, and the pure helper at `packages/happy-app/sources/sync/sessionGroupOrdering.ts`.
 
 ## P4. File links, changed-files review, and attachments
 

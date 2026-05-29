@@ -57,7 +57,7 @@ This is the natural answer to "deferred local→remote switch when Claude is pau
 If you've just been handed this plan and the prior conversation is gone, read in this order to bootstrap:
 
 1. **This whole file** end-to-end (~10 min). Don't skip the verification scripts or the failure modes — they capture context that would otherwise be lost.
-2. **`packages/happy-cli/CLAUDE.md`** — fork-wide architecture overview. Especially the **"Codex exclusion"** paragraph and the existing daemon/release/iteration skill memos. The "v1 limitation — pendingSwitch" note in the Claude section is the failure case this plan supersedes.
+2. **`packages/happy-cli/AGENTS.md`** — fork-wide architecture overview. Especially the **"Codex exclusion"** paragraph and the existing daemon/release/iteration skill memos. The "v1 limitation — pendingSwitch" note in the Claude section is the failure case this plan supersedes.
 3. **`packages/happy-cli/src/codex/runCodex.ts`** — main entrypoint for `happy codex`. Read top-to-bottom; ~700 lines. Pay attention to `abortInProgress` (lines 258-296), `permissionHandler` registration, the lifecycle teardown around lines 538-703 (this is where Phase 1's persistent-app-server change concentrates), and the `client.disconnect()` calls at 330 and 676.
 4. **`packages/happy-cli/src/codex/codexAppServerClient.ts`** — JSON-RPC client. Skim the file-header comment for the protocol overview, then grep `handleServerRequest` for approval routing. After Phase 1b sub-task 1 there is no static `--listen stdio://` in the spawn site — args are built inside `CodexAppServerClient.connect()` per resolved transport. To trace the spawn flow, grep these symbols (line numbers drift; rely on names):
    - `CodexAppServerClient.connect()` — single entry point that resolves the effective transport, then dispatches to either the ws spawn loop or the stdio branch.
@@ -674,8 +674,8 @@ Sub-task 5: 1 day, including bug-fixing.
 
 ### Phase 3 — Documentation and dogfood
 
-- Update `packages/happy-cli/CLAUDE.md` with the multi-device session model
-- Update `packages/happy-app/CLAUDE.md` with what app users should expect
+- Update `packages/happy-cli/AGENTS.md` with the multi-device session model
+- Update `packages/happy-app/AGENTS.md` with what app users should expect
 - Write user-facing docs covering "your session lives across devices"
 - Compare/contrast section: Claude's deferred-switch limits vs. Codex's seamless model — guide users on which to choose
 
@@ -690,7 +690,7 @@ Sub-task 5: 1 day, including bug-fixing.
 
 ### Test invocation
 
-Per `packages/happy-cli/CLAUDE.md`:
+Per `packages/happy-cli/AGENTS.md`:
 - File-scoped: `pnpm --filter happy exec vitest run src/codex/...`
 - Full package: `npm_config_script_shell=bash pnpm --filter happy test` (note the env var; required on Windows for `$npm_execpath` to expand)
 
@@ -747,7 +747,7 @@ Symptoms: `happy codex` startup hangs trying to connect to a stale port.
 
 Root cause: the discovery file at `${configuration.happyHomeDir}/codex-active-${cwdHash}.json` wasn't cleaned up on a previous abnormal exit (kill -9, OOM, system crash).
 
-Fix: the reattach logic should treat connection refusal as "stale; spawn fresh." If it doesn't (Phase 1 bug), the user can manually delete the discovery file. Document in `packages/happy-cli/CLAUDE.md` post-Phase-1.
+Fix: the reattach logic should treat connection refusal as "stale; spawn fresh." If it doesn't (Phase 1 bug), the user can manually delete the discovery file. Document in `packages/happy-cli/AGENTS.md` post-Phase-1.
 
 ### Background tasks not surviving client disconnect
 
@@ -792,7 +792,7 @@ Verify with: spawn a `sleep 60` background bash via Codex; observe `thread/backg
 - `packages/happy-cli/src/claude/claudeLocal.ts:295` — `stdio: ['inherit', ...]` is the root cause of Claude's local-mode constraints
 - `packages/happy-cli/src/claude/claudeLocalLauncher.ts` — kill-and-restart launcher pattern that Codex doesn't have
 - `packages/happy-cli/src/claude/claudeRemoteLauncher.ts:337-345` — lazy SDK startup (`waitForMessagesAndGetAsString`); the structural reason Claude's deferred switch fails for in-flight prompts
-- `packages/happy-cli/CLAUDE.md` — "v1 limitation — pendingSwitch" note documenting the Claude gap this plan supersedes for Codex
+- `packages/happy-cli/AGENTS.md` — "v1 limitation — pendingSwitch" note documenting the Claude gap this plan supersedes for Codex
 
 ### Conversation context
 

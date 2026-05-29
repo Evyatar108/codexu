@@ -154,7 +154,7 @@ For each phase:
 - Run the steps
 - Capture evidence:
   - Screenshots: `adb exec-out screencap -p > evidence/phase-N-<step>.png`
-  - **WARNING**: screencap captures the full-color framebuffer, NOT what the e-ink panel actually renders after quantization. If contrast is barely visible in the screencap, it's invisible on the device. See "User Message Styling" in `packages/happy-app/CLAUDE.md` for e-ink contrast guidance.
+  - **WARNING**: screencap captures the full-color framebuffer, NOT what the e-ink panel actually renders after quantization. If contrast is barely visible in the screencap, it's invisible on the device. See "User Message Styling" in `packages/happy-app/AGENTS.md` for e-ink contrast guidance.
   - Log snippets: pull from `~/.happy/logs/` on the daemon machine, or from the app's debug console
 - Fill in `PASS | FAIL | SKIPPED` and the Evidence section per phase
 - Save the markdown
@@ -257,7 +257,7 @@ Operator decision 2026-05-12. Do NOT add `--allow-anonymous` to `tunnelManager.t
 
 ### E-ink contrast for screenshots
 
-`adb exec-out screencap -p` captures the full-color framebuffer. On color e-ink BOOX panels, the quantizer washes light grays to pure white. Barely-visible in the screencap = definitely invisible on the device. Use this when iterating contrast issues. See `packages/happy-app/CLAUDE.md` "User Message Styling" + "Tappable Options on Color E-Ink" for full guidance.
+`adb exec-out screencap -p` captures the full-color framebuffer. On color e-ink BOOX panels, the quantizer washes light grays to pure white. Barely-visible in the screencap = definitely invisible on the device. Use this when iterating contrast issues. See `packages/happy-app/AGENTS.md` "User Message Styling" + "Tappable Options on Color E-Ink" for full guidance.
 
 ### Windows-specific Android build pitfalls
 
@@ -310,8 +310,8 @@ The daemon runs an embedded happy-server. You don't need a separate happy-server
 5. `.ralph/jobs/devtunnels-E-cleanup/plan.md` — Sprint E full plan (the original PRD reference)
 6. `.ralph/jobs/devtunnels-E-cleanup/notepad.md` — Sprint E deferred findings + reasoning
 7. `.ralph/jobs/devtunnels-commands.md` — orchestration sheet (5-sprint dependency chain + post-Sprint-A constraints + Sprint E command + cutover merge chain)
-8. `packages/happy-app/CLAUDE.md` — happy-app conventions, BOOX e-ink rendering invariants
-9. `packages/happy-cli/CLAUDE.md` — happy-cli conventions, daemon architecture
+8. `packages/happy-app/AGENTS.md` — happy-app conventions, BOOX e-ink rendering invariants
+9. `packages/happy-cli/AGENTS.md` — happy-cli conventions, daemon architecture
 10. `.agents/skills/happy-tablet-iterate/SKILL.md` — full Metro iteration loop (reload commands, hot-reload behavior)
 11. `.agents/skills/happy-app-playstore-release/SKILL.md` — full APK release procedure + Common pitfalls
 12. `docs/security-model.md` — Option A RPC payload contract (Sprint A US-A3)

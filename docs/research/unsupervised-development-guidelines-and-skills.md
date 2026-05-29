@@ -23,9 +23,9 @@ The strongest documentation in this repository is about runtime behavior, not op
 
 There are also package-level agent instruction files:
 
-- [`../../packages/happy-cli/CLAUDE.md`](../../packages/happy-cli/CLAUDE.md)
-- [`../../packages/happy-app/CLAUDE.md`](../../packages/happy-app/CLAUDE.md)
-- [`../../packages/happy-server/CLAUDE.md`](../../packages/happy-server/CLAUDE.md)
+- [`../../packages/happy-cli/AGENTS.md`](../../packages/happy-cli/AGENTS.md)
+- [`../../packages/happy-app/AGENTS.md`](../../packages/happy-app/AGENTS.md)
+- [`../../packages/happy-server/AGENTS.md`](../../packages/happy-server/AGENTS.md)
 
 These are useful as local coding guidance, but they are not a coherent unsupervised-development handbook. In practice, the CLI one is also stale enough to still refer to `handy-cli`, so it should not be treated as the canonical source for current behavior.
 

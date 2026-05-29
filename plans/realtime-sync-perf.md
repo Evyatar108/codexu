@@ -5,7 +5,7 @@
 **Related history:**
 - `docs/validation/devtunnels-boox-result.md` "Realtime sync perf (deferred)" subsection — empirical symptoms that motivated this work
 - `packages/happy-app/scripts/sprint-a-gap.md` "R-D18 path (b) implementation log" — historical gateway/header design these calls run on top of
-- `packages/happy-app/CLAUDE.md` — read the "Session/machine-scoped network calls MUST go through `apiSocket.forSession(sid)` …" invariant. The new scope-builder API is the baseline. There is **no** `apiSocket.request` / `apiSocket.emitWithAck` / `apiSocket.sessionRPC` / `apiSocket.machineRPC` / `apiSocket.requestForSession`. Any code this plan asks you to add to `apiSocket.ts` MUST follow the scope builder pattern.
+- `packages/happy-app/AGENTS.md` — read the "Session/machine-scoped network calls MUST go through `apiSocket.forSession(sid)` …" invariant. The new scope-builder API is the baseline. There is **no** `apiSocket.request` / `apiSocket.emitWithAck` / `apiSocket.sessionRPC` / `apiSocket.machineRPC` / `apiSocket.requestForSession`. Any code this plan asks you to add to `apiSocket.ts` MUST follow the scope builder pattern.
 
 ## Baseline state (verified 2026-05-13)
 

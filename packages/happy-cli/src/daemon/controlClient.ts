@@ -106,7 +106,7 @@ export async function spawnDaemonSession(directory: string, sessionId?: string):
   return result;
 }
 
-// TODO(F-009): inherits daemonPost envelope-vs-error inconsistency; see packages/happy-cli/src/daemon/CLAUDE.md
+// TODO(F-009): inherits daemonPost envelope-vs-error inconsistency; see packages/happy-cli/src/daemon/AGENTS.md
 export async function spawnDaemonSessionFromSession(options: SpawnSessionFromSessionRpcOptions): Promise<any> {
   return daemonPost('/spawn-session-from-session', options);
 }

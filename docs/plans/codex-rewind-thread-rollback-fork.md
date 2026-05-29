@@ -93,7 +93,7 @@ For full context on the Claude side:
 - **Claude Code TUI has rewind** (escape key in the terminal UI), but it's a UI-layer feature.
 - **The Claude Code SDK Happy uses** (`@anthropic-ai/claude-code`) does not expose any rewind primitive — no `truncate`, `fork`, `rollback`, `branch`, or equivalent. Verified by inspecting Happy's SDK usage paths.
 - **Workaround would be a hack:** truncate the JSONL session file at `~/.claude/projects/<projectId>/<sessionId>.jsonl` to a turn boundary, then spawn `claude --resume <sessionId>`. This would work but:
-  - Creates a NEW session ID with all historical message `sessionId` fields rewritten (per `packages/happy-cli/CLAUDE.md` "Session Forking" section). Each rewind hits a known fragile area in Happy's mapper / scanner / metadata code paths.
+  - Creates a NEW session ID with all historical message `sessionId` fields rewritten (per `packages/happy-cli/AGENTS.md` "Session Forking" section). Each rewind hits a known fragile area in Happy's mapper / scanner / metadata code paths.
   - Requires careful turn-boundary detection — `reducer.ts:78-97` keeps "pending tool results so older lazy-loaded tool calls can still attach newer results"; truncating mid-tool would orphan results.
   - Requires atomic file ops (truncate to temp, fsync, rename) since the JSONL is read by a live process.
   - Has no upstream path to replace it short of Anthropic adding a programmatic rewind primitive to the SDK.
@@ -206,7 +206,7 @@ Codex's own docstring is explicit: rollback does not revert local file changes. 
 ### Step 7 — Docs
 
 - Update `docs/plans/codex-fork-extension-strategy.md` "What doesn't work / known gaps" table — flip the Rewind row from gap to shipped, add a back-link to this doc.
-- Add a brief note in `packages/happy-cli/CLAUDE.md` describing the new RPC surface.
+- Add a brief note in `packages/happy-cli/AGENTS.md` describing the new RPC surface.
 - Update `docs/protocol.md` (or wherever the Happy session-protocol RPC list lives — confirm in implementation) with the new `rewind` RPC and the `'rewound'` AgentEvent type.
 - Add a Claude Code parity gap entry in `docs/fork-notes.md` (or wherever provider-parity gaps are tracked) noting "rewind is Codex-only; Claude Code SDK lacks the primitive."
 
@@ -222,7 +222,7 @@ Two reasonable detection paths:
 - **Version probe at startup.** `initialize` already returns `userAgent` containing the Codex version string; parse it and gate the rewind UI on `>= 0.121`.
 - **Capability probe.** First time rewind is invoked, attempt `thread/rollback` and on `MethodNotFound` (or equivalent), surface a one-time toast: "Rewind requires Codex >= 0.121. Update your `codex` CLI." Cache the result per session.
 
-Either way: never crash, never leave the UI in a half-broken state. Document the version requirement in `packages/happy-cli/CLAUDE.md` and the user-facing release notes.
+Either way: never crash, never leave the UI in a half-broken state. Document the version requirement in `packages/happy-cli/AGENTS.md` and the user-facing release notes.
 
 ### Reconciliation pattern: always re-list turns after rollback
 
@@ -305,7 +305,7 @@ Files to touch (in approximate dependency order):
 10. `packages/happy-app/sources/-session/SessionView.tsx` — long-press / context-menu UI.
 11. `packages/happy-app/sources/components/MessageView.tsx` (or similar — confirm) — render the rewind marker.
 12. `docs/plans/codex-fork-extension-strategy.md` — flip the gap row, link this doc.
-13. `packages/happy-cli/CLAUDE.md` — note new RPC surface.
+13. `packages/happy-cli/AGENTS.md` — note new RPC surface.
 14. `docs/protocol.md` (and/or `docs/session-protocol.md`) — add `rewind` RPC + `'rewound'` event.
 15. `docs/fork-notes.md` (or equivalent) — Claude parity gap entry.
 
@@ -326,5 +326,5 @@ If file-state reconciliation (Option B/C from Step 5) is in scope, add another 2
 - `docs/plans/codex-app-server-migration.md` — current Codex integration architecture.
 - `.ralph/brainstorms/preserve-turn-on-mode-switch/deferred-codex-thread-attach.md` — adjacent deferred Codex work; both touch `runCodex.ts` and the protocol surface.
 - Upstream Codex `ThreadRollbackParams` / `ThreadForkParams` schemas, copied verbatim above.
-- `packages/happy-cli/CLAUDE.md` "Session Forking" section — documents Claude Code's `--resume` session-ID-rewriting behavior, which is why the JSONL-truncate hack on the Claude side is fragile.
+- `packages/happy-cli/AGENTS.md` "Session Forking" section — documents Claude Code's `--resume` session-ID-rewriting behavior, which is why the JSONL-truncate hack on the Claude side is fragile.
 - Project memory note: user is on Android e-ink tablet — UX choices should account for low refresh / high contrast.

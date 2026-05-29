@@ -55,7 +55,7 @@ delta is the upload destination.
   The upstream `release:build:appstore`, `release:build:developer`,
   `ota`, `ota:production` scripts in `packages/happy-app/package.json`
   are dead-but-present (per memory `release_via_github.md` and the
-  fork's `packages/happy-app/CLAUDE.md`). **Do not run them.**
+  fork's `packages/happy-app/AGENTS.md`). **Do not run them.**
 - **OTA is disabled.** The upstream `updates.url`
   (`https://u.expo.dev/4558dd3d-...`) was removed from `app.config.js`.
   `expo-updates` is a no-op at runtime; auto-update happens via the

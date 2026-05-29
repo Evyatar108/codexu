@@ -90,7 +90,7 @@ Every proposed fix-site below explicitly states the tier and why.
 **Gap.** Claude Code auto-loads `<cwd>/CLAUDE.md` as a project doc; the codex app-server invocation does NOT, even though codex-core's `project_doc_fallback_filenames` config knob exists and the codex-copilot launcher already understands it.
 
 **Current state.**
-- *Claude side:* Claude Code SDK natively reads `<cwd>/CLAUDE.md` at session start. happy-cli does no special plumbing — it just sets `cwd` correctly via the spawn working directory. The presence of `D:\harness-efforts\codexu\CLAUDE.md` (and `packages/happy-cli/CLAUDE.md` for the nested package) on the Claude path is automatic.
+- *Claude side:* Claude Code SDK natively reads `<cwd>/CLAUDE.md` at session start. happy-cli does no special plumbing — it just sets `cwd` correctly via the spawn working directory. The presence of `D:\harness-efforts\codexu\CLAUDE.md` (and `packages/happy-cli/AGENTS.md` for the nested package) on the Claude path is automatic.
 - *Codex side:* The codex-copilot launcher (`codex/codex-rs-overlay/codex-copilot-launcher/`) gates this behavior behind `auto_load_claude_md` in `~/.codex-copilot/config.toml` and, when true, appends `-c project_doc_fallback_filenames=["CLAUDE.md"]` to its codex-core child argv (see `codex/CLAUDE.md` confusion-points table). **happy-cli spawns `codex app-server` directly** — via `crossSpawn('codex', ['app-server', '--listen', ...])` in `packages/happy-cli/src/codex/codexAppServerClient.ts` — **bypassing the codex-copilot-launcher** and therefore bypassing the `-c project_doc_fallback_filenames=...` injection. Codex's native default project-doc filename remains `AGENTS.md`; users with only `CLAUDE.md` get no project doc.
 - *Wire protocol*: `NewConversationParams.config: Record<string, unknown> | null` (`codexAppServerTypes.ts:26`) and `ResumeConversationParams.config` (line 56) accept config overrides. happy-cli currently passes `null` for both (never set).
 
@@ -138,12 +138,12 @@ Every proposed fix-site below explicitly states the tier and why.
   - `onCompactHook` (PostCompact, `trigger: 'auto'`) → emits `sendContextBoundary({ kind: 'autocompact', ... })`.
   - `onUserPromptSubmitHook` → `session.onTurnStarted()` (local-mode turn lifecycle).
   - `onStopHook` → `session.onTurnCompleted()` (fires deferred switch).
-  - `onNotificationHook` → `session.onNotification()` (permission/idle prompts also fire deferred switch — fixes v1 stall gap, see `packages/happy-cli/CLAUDE.md` "pendingSwitch clear paths").
+  - `onNotificationHook` → `session.onNotification()` (permission/idle prompts also fire deferred switch — fixes v1 stall gap, see `packages/happy-cli/AGENTS.md` "pendingSwitch clear paths").
 - *Codex side:* No hook plumbing. `runCodex.ts` infers turn lifecycle from `task_started` / `task_complete` / `turn_aborted` events on the JSON-RPC stream (lines 605-642). Compact boundaries are NOT emitted (codex has a `compactPrompt` field on `NewConversationParams` at `codexAppServerTypes.ts:29` and a `/compact` semantic in codex-core but happy-cli never plumbs it — see Gap 5). `SessionStart` has no analog because codex's threadId is returned synchronously from `client.startThread` — happy-cli already has it without a hook.
 
 **Proposed fix site.** (a) happy-cli. **Most Claude hooks have direct JSON-RPC equivalents on the codex side already**; the gap is that happy-cli doesn't fan those events to the same downstream handlers (`onTurnStarted` / `onTurnCompleted` / `onNotification` / `sendContextBoundary({ kind: 'autocompact' })`). Concretely:
   - `task_started` → equivalent to `UserPromptSubmit`'s turn-start. Codex path already toggles `thinking = true` (runCodex.ts:628-633) but does NOT call any equivalent of `session.onTurnStarted()`.
-  - `task_complete` / `turn_aborted` → equivalent to `Stop`. Codex path does NOT fire any deferred-switch-equivalent (the codex path has no Claude-style deferred-switch protocol; see `packages/happy-cli/CLAUDE.md` "Codex exclusion" — but the operator may want it later, tracked in `.ralph/jobs/preserve-turn-on-mode-switch/plan.md` open Codex question).
+  - `task_complete` / `turn_aborted` → equivalent to `Stop`. Codex path does NOT fire any deferred-switch-equivalent (the codex path has no Claude-style deferred-switch protocol; see `packages/happy-cli/AGENTS.md` "Codex exclusion" — but the operator may want it later, tracked in `.ralph/jobs/preserve-turn-on-mode-switch/plan.md` open Codex question).
   - Permission-request events (codex's `client.setApprovalHandler` path at `runCodex.ts:563-583`) → equivalent to `Notification`. The codex permission handler already manages this internally but doesn't emit a context-boundary-style signal.
   - Auto-compact: codex has `turn_diff` and compact RPC semantics, but happy-cli doesn't emit `sendContextBoundary({ kind: 'autocompact', ... })` on the codex side. Today there's no codex-side trigger for auto-compact in happy-cli (codex-core handles its own compaction internally without notifying the client).
 
@@ -162,7 +162,7 @@ Every proposed fix-site below explicitly states the tier and why.
 **Gap.** happy-cli intercepts `/clear` and `/compact` for Claude (both inbound and JSONL-replay detection); on the codex path nothing parses the user message text for slash commands and `compactPrompt`/clear-context semantics never reach codex-core.
 
 **Current state.**
-- *Claude side:* `packages/happy-cli/src/claude/runClaude.ts:541-577` calls `parseSpecialCommand(message.content.text)` and special-cases `/compact` and `/clear` — for `/compact`, the message is pushed with `pushIsolateAndClear` so it forms its own isolation batch; for `/clear`, the SDK is asked to reset session. Wrapped form `<command-name>/clear</command-name>` is also handled in `sessionProtocolMapper.ts` (`detectWrappedSlashCommandBoundary`) for the JSONL-replay path. See `packages/happy-cli/CLAUDE.md` "Wrapped-slash-command detection (F-012 / F-013)".
+- *Claude side:* `packages/happy-cli/src/claude/runClaude.ts:541-577` calls `parseSpecialCommand(message.content.text)` and special-cases `/compact` and `/clear` — for `/compact`, the message is pushed with `pushIsolateAndClear` so it forms its own isolation batch; for `/clear`, the SDK is asked to reset session. Wrapped form `<command-name>/clear</command-name>` is also handled in `sessionProtocolMapper.ts` (`detectWrappedSlashCommandBoundary`) for the JSONL-replay path. See `packages/happy-cli/AGENTS.md` "Wrapped-slash-command detection (F-012 / F-013)".
 - *Codex side:* `runCodex.ts:280-334` (`session.onUserMessage`) pushes the message text into `messageQueue` with no slash-command parsing. `parseSpecialCommand` is never imported in the codex path. Even if a user types `/compact` on a codex session, codex-core sees it as a literal string `/compact` in the user turn — codex-core's own slash-command handling may or may not fire (this is plugin-loaded into codex-core; outside the scope of happy-cli wire protocol).
 - Codex's wire surface supports compact through nested config plus `thread/compact/start`, not through happy-cli's current top-level type. The wire spike found `NewConversationParams.compactPrompt: string | null` (`codexAppServerTypes.ts:29`) is silently dropped by installed codex app-server, while `config: { compact_prompt: ... }` is honored. Fix both the stale type in `packages/happy-cli/src/codex/codexAppServerTypes.ts:29` and the start-thread/request plumbing in `packages/happy-cli/src/codex/codexAppServerClient.ts:1137`.
 
@@ -254,7 +254,7 @@ Optionally (b) overlay-crate enhancement if codex doesn't natively understand `/
 - *Claude side:* `runClaude.ts` accepts `claudeArgs` and forwards them to `claudeLocal.ts:224-225` (`args.push(...opts.claudeArgs)`) and to the SDK config.
 - *Codex side:* `runCodex.ts` options accept only `noSandbox`, `resumeThreadId`, `effortLevel`, `model`, `permissionMode`, `codexTransport`. There's no `codexArgs` passthrough to the `codex app-server` spawn.
 
-**Proposed fix site.** (a) happy-cli. Add `--codex-arg <flag>` (repeatable) to the codex command parser and forward to the `codex app-server` spawn. Document in `packages/happy-cli/CLAUDE.md` that this is escape-hatch territory — most users should use the structured flags.
+**Proposed fix site.** (a) happy-cli. Add `--codex-arg <flag>` (repeatable) to the codex command parser and forward to the `codex app-server` spawn. Document in `packages/happy-cli/AGENTS.md` that this is escape-hatch territory — most users should use the structured flags.
 
 **Effort.** Quick (~30 min).
 
@@ -277,7 +277,7 @@ Optionally (b) overlay-crate enhancement if codex doesn't natively understand `/
 
 **Proposed fix site.** None at the happy-cli layer. **Document the category mismatch** so future audits don't flag it as a happy-cli bug. The actual cross-format port is tracked elsewhere (Phase 3a `3a-skills` ralph job — paused 2026-05-13 pending prerequisite re-establishment).
 
-**Effort.** Small (~30 min) — just document the mismatch in `packages/happy-cli/CLAUDE.md` "Codex Agent Feature Parity" section.
+**Effort.** Small (~30 min) — just document the mismatch in `packages/happy-cli/AGENTS.md` "Codex Agent Feature Parity" section.
 
 **Severity.** Low. Not a happy-cli issue; the operator already has Phase 3a as the workstream that addresses this.
 
@@ -348,7 +348,7 @@ In order of recommended landing:
 6. **Gap 5 — `codex-slash-commands`** — depends on Gap 4's auto-compact emission.
 7. **Gap 6 — `codex-plan-mode-defensive`** — defensive only; v2 overlay deferred.
 8. Gaps 8, 9, 11, 12 are all small and can land in a single polish PR if desired.
-9. Gap 10 is docs-only; bundle with whichever PR rewrites `packages/happy-cli/CLAUDE.md` next.
+9. Gap 10 is docs-only; bundle with whichever PR rewrites `packages/happy-cli/AGENTS.md` next.
 
 **Cross-cutting verification.** Completed by the [Wire spike results](#wire-spike-results-2026-05-13-codex-cli-01250-copilot-api8) against a real `codex app-server` build.
 

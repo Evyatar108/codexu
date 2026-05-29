@@ -62,7 +62,7 @@ function ExpandToggleButton(props: {
 
 // Note: this component previously had a 4px-wide left-edge bar in theme.colors.text
 // (black/white) borrowed from the e-ink-friendly tappable-options pattern in
-// packages/happy-app/CLAUDE.md. The pattern is intended for <options>/AskUserQuestion
+// packages/happy-app/AGENTS.md. The pattern is intended for <options>/AskUserQuestion
 // choice cards where ambiguity-of-tappability is the concern. The diff toggle is a
 // single button with an obvious surrounding border + filled background — the 1D
 // accent stripe was redundant and rendered as a "black stripe" artifact on standard

@@ -77,7 +77,7 @@ Notes on the registry shape:
 - `ReceiverRegexFactory.buildInlineRe()` / `buildStandaloneLineRe()` MUST return fresh `RegExp` instances per call because the receiver consumes `/gi`-flagged regexes whose `lastIndex` is stateful.
 - Extended thinking blocks are renderable user value and MUST stay on the wire — there is an explicit no-op comment in `nonRenderablePolicy.ts` forbidding a thinking-block entry, paired with a unit test (see also `docs/plans/render-extended-thinking-optional.md`).
 
-For consumer-side details see `packages/happy-cli/CLAUDE.md` and `packages/happy-wire/README.md`.
+For consumer-side details see `packages/happy-cli/AGENTS.md` and `packages/happy-wire/README.md`.
 
 ### 5. Ledger record schemas
 

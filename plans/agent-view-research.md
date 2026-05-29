@@ -147,7 +147,7 @@ Today the mobile app is a **flat list** with date-grouped inactive sessions and 
 - `machineSpawnNewSession(machine, path, agent, permission, model)` — creates a top-level session
 - No `spawnSessionFromSession(parentSid, childConfig)` — can't spawn child from app
 
-### Sync invariants the app honors (from `packages/happy-app/CLAUDE.md`)
+### Sync invariants the app honors (from `packages/happy-app/AGENTS.md`)
 
 Any UI work for agent-view-style features must respect:
 

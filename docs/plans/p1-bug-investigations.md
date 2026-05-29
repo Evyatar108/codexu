@@ -14,7 +14,7 @@ Working notes from investigating P1 bugs in `docs/experimental/roadmap.md`. Each
 
 H1 (toolUseID mismatch) was the actual root cause and is fixed in this PR. The Claude SDK's `toolUseID` passed to `canUseTool` does not always match the `id` field on the `ExitPlanMode` / `exit_plan_mode` tool envelope in the JSONL stream, so Phase 0 of the reducer attached the pending permission to one synthetic tool message while Phase 4 created a second tool message at the real id with no permission attached. The PermissionFooter render gate in `ToolView.tsx` then had nothing to render against.
 
-The fix is reducer-only and lives in `packages/happy-app/sources/sync/reducer/reducer.ts`: a new `isExitPlanModeTool` helper plus `findMatchingExitPlanToolMessageId` correlator now match plan-exit permissions to the existing tool message by tool name (`ExitPlanMode` / `exit_plan_mode`) and input shape, and map both ids (the permission request id and the tool envelope id) to the same reducer message id via `toolIdToMessageId`. A new note in `packages/happy-app/CLAUDE.md` ("ExitPlanMode permission UI is reducer-owned…") records the boundary so future fixes don't drift back into `ExitPlanToolView.tsx`, `knownTools.tsx`, or `PermissionFooter.tsx`.
+The fix is reducer-only and lives in `packages/happy-app/sources/sync/reducer/reducer.ts`: a new `isExitPlanModeTool` helper plus `findMatchingExitPlanToolMessageId` correlator now match plan-exit permissions to the existing tool message by tool name (`ExitPlanMode` / `exit_plan_mode`) and input shape, and map both ids (the permission request id and the tool envelope id) to the same reducer message id via `toolIdToMessageId`. A new note in `packages/happy-app/AGENTS.md` ("ExitPlanMode permission UI is reducer-owned…") records the boundary so future fixes don't drift back into `ExitPlanToolView.tsx`, `knownTools.tsx`, or `PermissionFooter.tsx`.
 
 The pre-fix code paths and hypotheses below are preserved as a historical investigation snapshot. Line numbers point at pre-fix code on `main` and no longer match the current files.
 
@@ -47,7 +47,7 @@ The pre-fix code paths and hypotheses below are preserved as a historical invest
 
 **Symptom:** A black stripe appears at the left edge of the "Show N more lines / Collapse" toggle button on file-edit tool calls (Edit, MultiEdit) longer than 10 lines.
 
-**Root cause:** `CollapsibleDiffPreview.tsx` had a 4px-wide accent bar (`toggleAccent`) using `theme.colors.text` (black in light mode, white in dark) borrowed from the e-ink-friendly tappable-options pattern documented in `packages/happy-app/CLAUDE.md`. That pattern is meant for `<options>`/AskUserQuestion choice cards where tappability is ambiguous — it's overkill for a single show/hide toggle that already has an obvious 2px border + filled background.
+**Root cause:** `CollapsibleDiffPreview.tsx` had a 4px-wide accent bar (`toggleAccent`) using `theme.colors.text` (black in light mode, white in dark) borrowed from the e-ink-friendly tappable-options pattern documented in `packages/happy-app/AGENTS.md`. That pattern is meant for `<options>`/AskUserQuestion choice cards where tappability is ambiguous — it's overkill for a single show/hide toggle that already has an obvious 2px border + filled background.
 
 **Fix:** Removed `toggleAccent` view and its style. Toggle now relies on the existing border + background fill, which is sufficient on standard displays. Added an inline comment explaining why the e-ink pattern was deliberately not reused here, in case a future reader is tempted to re-add it.
 

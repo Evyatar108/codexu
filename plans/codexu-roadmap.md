@@ -348,7 +348,7 @@ conflict-surface analysis) at `.ralph/jobs/devtunnels-commands.md`.
   - **US-006** docs sweep: `security-model.md`, `api.md`,
     `backend-architecture.md`, `cli-architecture.md`, `happy-wire`,
     `protocol.md`, `deployment.md` all updated;
-    `packages/happy-agent/CLAUDE.md` created
+    `packages/happy-agent/AGENTS.md` created
   - **US-005** BOOX hardware Phase 1 (pairing + machine discovery)
     **PASS 2026-05-13** after substantial design corrections. Phases 2–6
     (chat round-trip, refresh-per-request, token revocation, multi-device

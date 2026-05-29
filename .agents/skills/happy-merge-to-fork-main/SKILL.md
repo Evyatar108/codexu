@@ -43,7 +43,7 @@ one commit or discoverability decays.
   `## Version N - YYYY-MM-DD` entries).
 - In-app changelog JSON (generated): `packages/happy-app/sources/changelog/changelog.json`.
 - Regenerator: `packages/happy-app/sources/scripts/parseChangelog.ts`.
-- Changelog style rules: `packages/happy-app/CLAUDE.md` → "Changelog Management".
+- Changelog style rules: `packages/happy-app/AGENTS.md` → "Changelog Management".
 - Skill files the fork carries: `.agents/skills/happy-*/SKILL.md`.
 
 ## Procedure
@@ -116,7 +116,7 @@ All three docs move together or the fork decays.
 
 **`packages/happy-app/CHANGELOG.md`**
 - Increment version: check latest `## Version N - ...`, add +1.
-- Use the format from `packages/happy-app/CLAUDE.md` "Changelog
+- Use the format from `packages/happy-app/AGENTS.md` "Changelog
   Management": ISO date, user-facing perspective, verb-first bullets,
   brief summary paragraph before the bullets, header
   `## Version N - YYYY-MM-DD`.
@@ -205,7 +205,7 @@ Only push once the user confirms or after the tablet round is done.
 - `docs/fork-notes.md` — canonical branch state and the
   "what's on main after..." sections you just updated.
 - `docs/fork-roadmap.md` — shipped / near-term / further-out log.
-- `packages/happy-app/CLAUDE.md` → "Changelog Management" — the format
+- `packages/happy-app/AGENTS.md` → "Changelog Management" — the format
   rules and the `parseChangelog.ts` step.
 - `.agents/skills/happy-triage-upstream-prs/SKILL.md` — sibling, inverse
   direction (pulling FROM `slopus/happy` upstream into this fork).

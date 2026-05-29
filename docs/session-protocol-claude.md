@@ -14,7 +14,7 @@ This document explains how Claude launcher paths emit the unified session protoc
   - `sendClaudeSessionMessage(...)` first calls `findSenderDropEntry(body)` from `@slopus/happy-wire` and silently drops known non-renderable raw user messages (skill-body and standalone `<local-command-caveat>`) before doing anything else; surviving records are then mapped into session envelopes and sent.
   - `closeClaudeSessionTurn(status)` emits `turn-end` with `completed|failed|cancelled`.
 - `packages/happy-wire/src/nonRenderablePolicy.ts`
-  - Shared non-renderable-content registry. Exposes `findSenderDropEntry(...)` to the CLI sender and the receiver-side regex factories used as defense-in-depth. See `packages/happy-cli/CLAUDE.md` for the empirical v0 policy table and the registry shape.
+  - Shared non-renderable-content registry. Exposes `findSenderDropEntry(...)` to the CLI sender and the receiver-side regex factories used as defense-in-depth. See `packages/happy-cli/AGENTS.md` for the empirical v0 policy table and the registry shape.
 - `packages/happy-cli/src/claude/utils/sessionProtocolMapper.ts`
   - Claude RawJSONLines -> session-protocol envelopes.
   - Maintains `currentTurnId` state.

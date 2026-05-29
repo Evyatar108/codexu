@@ -1,6 +1,6 @@
 # AGENTS.md (fork-level)
 
-> Fork-specific guidance for AI agents working in this repo. Per-package guidance lives in `packages/happy-app/CLAUDE.md`, `packages/happy-server/CLAUDE.md`, etc. (mostly upstream). This file covers what's different about the fork.
+> Fork-specific guidance for AI agents working in this repo. Per-package guidance lives in `packages/happy-app/AGENTS.md`, `packages/happy-server/AGENTS.md`, etc. (mostly upstream). This file covers what's different about the fork.
 >
 > Filed as `AGENTS.md` rather than `CLAUDE.md` because the upstream repo's `.gitignore` excludes root-level `CLAUDE.md` (treated as per-developer personal context). Modern agent tooling (Claude Code, Cursor, Aider) auto-loads `AGENTS.md` in addition to `CLAUDE.md` files.
 

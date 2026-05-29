@@ -55,7 +55,7 @@ export async function publishPermissionModeIfChanged(
  * The optimistic in-place mutation of `metadata` BEFORE awaiting
  * `client.updateMetadata(...)` is intentional and follows the same
  * offline-reconnect mutation contract documented in
- * `packages/happy-cli/CLAUDE.md` for `publishPermissionModeIfChanged`:
+ * `packages/happy-cli/AGENTS.md` for `publishPermissionModeIfChanged`:
  * reconnect paths reuse the same metadata object by reference as the session
  * seed, so the runner-local copy must reflect the pending update while the
  * server round-trip is in flight. Do not reorder the mutation behind the

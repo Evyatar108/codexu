@@ -823,7 +823,7 @@ const style = StyleSheet.create((theme) => ({
         // E-ink visibility: surfaceHighest (#f0f0f0) and divider (#eaeaea) both
         // quantize to pure white on color e-ink panels, making the options card
         // disappear into the page background. userMessageBackground (#d4d4d4)
-        // is the proven-visible value documented in packages/happy-app/CLAUDE.md;
+        // is the proven-visible value documented in packages/happy-app/AGENTS.md;
         // 2px textSecondary border survives quantization where 1px divider does not.
         position: 'relative',
         overflow: 'hidden',

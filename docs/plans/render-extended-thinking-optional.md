@@ -47,14 +47,14 @@ The reducer currently writes `text: \`*${c.thinking}*\`` (italic markdown) plus 
 
 **Option B (recommended for ship):** wrap the thinking message in a distinct container with a clear visual marker. Looking at the existing patterns in `packages/happy-app/sources/components/MessageView.tsx`, the cleanest path is to introduce a small `ThinkingBlock` component sibling to `AgentTextBlock` that renders inside the same `agentMessageContainer` but adds:
 - a "Thinking" header label (small, secondary text)
-- a left-edge accent bar (4px wide, `theme.colors.textSecondary`) — this matches the existing e-ink-safe option pattern documented in `packages/happy-app/CLAUDE.md` "Tappable Options on Color E-Ink"
+- a left-edge accent bar (4px wide, `theme.colors.textSecondary`) — this matches the existing e-ink-safe option pattern documented in `packages/happy-app/AGENTS.md` "Tappable Options on Color E-Ink"
 - italic body text (the existing wrap is already italic — the markdown renderer handles it)
 - collapsible-by-default would be nice but is not required for v0
 
 Recommend Option B. Option A is acceptable as a v0 if Option B turns out to be more work than expected.
 
 ### E-ink considerations (for the BOOX tablets)
-The maintainer's primary devices are color e-ink panels that quantize light values toward white. Per `packages/happy-app/CLAUDE.md` "User Message Styling (Chat View)" and "Tappable Options on Color E-Ink":
+The maintainer's primary devices are color e-ink panels that quantize light values toward white. Per `packages/happy-app/AGENTS.md` "User Message Styling (Chat View)" and "Tappable Options on Color E-Ink":
 - DO NOT use `theme.colors.surfaceHigh` / `surfaceHighest` / `divider` for the thinking-block fill or border — they vanish on e-ink.
 - DO use a 2px `theme.colors.textSecondary` border or the 4px `theme.colors.text` left accent bar pattern. Hard 1D edges survive quantization; subtle background tints do not.
 - A "Thinking" text label above the body is the most reliable visual cue across both LCD and e-ink — do not rely on color or italic styling alone.
@@ -72,7 +72,7 @@ Renderer:
 
 Translations (every locale + canonical shape + parity test):
 - `packages/happy-app/sources/text/_default.ts` — add the canonical key shape.
-- `packages/happy-app/sources/text/translations/*.ts` — add translations to all locale files: `en`, `ru`, `pl`, `es`, `ca`, `it`, `pt`, `ja`, `zh-Hans`, `zh-Hant`. Use the i18n-translator agent (per the project's i18n rules in `packages/happy-app/CLAUDE.md`).
+- `packages/happy-app/sources/text/translations/*.ts` — add translations to all locale files: `en`, `ru`, `pl`, `es`, `ca`, `it`, `pt`, `ja`, `zh-Hans`, `zh-Hant`. Use the i18n-translator agent (per the project's i18n rules in `packages/happy-app/AGENTS.md`).
 - `packages/happy-app/sources/text/translations.test.ts` — extend the required-key list if the test gates on feature-specific keys.
 
 Tests:
@@ -100,8 +100,8 @@ Cross-link with storage-bloat-reduction work:
 - `D:/harness-efforts/happy/.ralph/brainstorms/storage-bloat-reduction/selected-direction.md` — the brainstorm that explicitly carved thinking out of scope to keep this plan viable
 
 ## Documentation updates
-- `packages/happy-app/CLAUDE.md` — under "Important Files" or a new short section, note the `showExtendedThinking` setting and the deliberate choice to ship it as opt-in. Reference the conditional in `MessageView.tsx`. Reinforce that the wire MUST keep delivering thinking blocks unconditionally — no sender-side filter.
-- `CHANGELOG.md` — add a user-facing entry describing the new "Show Extended Thinking" setting under the next version. Then re-run `npx tsx sources/scripts/parseChangelog.ts` per the changelog rules in `packages/happy-app/CLAUDE.md`.
+- `packages/happy-app/AGENTS.md` — under "Important Files" or a new short section, note the `showExtendedThinking` setting and the deliberate choice to ship it as opt-in. Reference the conditional in `MessageView.tsx`. Reinforce that the wire MUST keep delivering thinking blocks unconditionally — no sender-side filter.
+- `CHANGELOG.md` — add a user-facing entry describing the new "Show Extended Thinking" setting under the next version. Then re-run `npx tsx sources/scripts/parseChangelog.ts` per the changelog rules in `packages/happy-app/AGENTS.md`.
 
 ## Common mistakes / confusion points for future agents
 - **Do NOT remove the receiver-side wire-format support for thinking.** The reducer must keep matching `c.type === 'thinking'` and producing `ReducerMessage { isThinking: true, text: '*${c.thinking}*' }`. The setting flips the RENDER, not the ingestion.

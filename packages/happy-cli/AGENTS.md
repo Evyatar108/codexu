@@ -118,7 +118,7 @@ Absence of `currentPermissionModeCode` is meaningful: it represents "no opinion 
 
 **Codex fork-into-worktree RPC:** `ApiMachineClient` registers `fork-into-worktree` for Codex-only session forks. The daemon validates that the selected worktree already exists, fetches the parent server metadata, builds a fresh `happy codex --resume ...` launch with the chosen cwd/model/permission/effort, and spawns a new tracked Happy process. This is clone semantics, not reconnect semantics: strip every env var matching `FORK_ENV_DENYLIST_PATTERN` (`/^HAPPY_(RECONNECT|DAEMON_PRIVATE)_/`) in `src/daemon/forkSession.ts` from the child process and set both `HAPPY_FORKED_FROM_SESSION_ID=<parent local Happy session id>` (bare local id, for fork attribution) and `HAPPY_PARENT_SESSION_ID=<machineId>:<parent local id>` (composite sid, so the child's `metadata.parentSessionId` round-trips through the same read helpers as `spawn-session-from-session`). Both env vars coexist on a fork. Before spawning, the daemon calls `validateSpawnAncestry(parentSessionId, machineId, findTrackedSessionById)` (imported from `spawnSessionFromSession.ts`) AFTER the server-metadata refresh and BEFORE the worktree stat — `MAX_SPAWN_DEPTH = 10` applies to forks identically. After `spawnTrackedHappyProcess` returns success, the daemon awaits `updateParentMetadata(parentLocalId, tracked, m => appendSpawnedChild(m, '<machineId>:<childLocalId>'))` to append the child's composite sid to the parent's `metadata.spawnedChildren`; this reuses the same `createSpawnFromSessionMetadataUpdater(api)` factory instance constructed once for `spawnSessionFromSession` in `src/daemon/run.ts` — do NOT call the factory a second time. The await is intentionally NOT wrapped in a try-catch: failures propagate to the outer try-catch and surface as RPC errors (matches `spawnSessionFromSession.ts:143-144`). When introducing any new env prefix scoped to the daemon process or to a reconnect path, extend `FORK_ENV_DENYLIST_PATTERN` so fork children continue to be spawned with a clone-clean env.
 
-**Multi-agent spawn-in-worktree RPC:** `ApiMachineClient` also registers `spawn-in-worktree` (`packages/happy-cli/src/api/apiMachine.ts:168-194`) as the atomic worktree-creating spawn RPC for fan-out across all `SUPPORTED_AGENTS` (claude/codex/gemini/openclaw). Unlike Codex-only `fork-into-worktree`, which resumes into an existing worktree, `spawn-in-worktree` creates a fresh UUID-named worktree on the daemon side via `packages/happy-cli/src/daemon/spawnInWorktree.ts` and records `worktreeCreated -> processSpawned -> sessionRegistered` through the worktree transaction record so crash recovery can roll back partial state. See `packages/happy-cli/src/daemon/CLAUDE.md` -> "Worktree Spawn Transactions" for the transaction state machine and recovery contract.
+**Multi-agent spawn-in-worktree RPC:** `ApiMachineClient` also registers `spawn-in-worktree` (`packages/happy-cli/src/api/apiMachine.ts:168-194`) as the atomic worktree-creating spawn RPC for fan-out across all `SUPPORTED_AGENTS` (claude/codex/gemini/openclaw). Unlike Codex-only `fork-into-worktree`, which resumes into an existing worktree, `spawn-in-worktree` creates a fresh UUID-named worktree on the daemon side via `packages/happy-cli/src/daemon/spawnInWorktree.ts` and records `worktreeCreated -> processSpawned -> sessionRegistered` through the worktree transaction record so crash recovery can roll back partial state. See `packages/happy-cli/src/daemon/AGENTS.md` -> "Worktree Spawn Transactions" for the transaction state machine and recovery contract.
 
 **Spawn-from-session parent links:** `spawn-session-from-session` is clone-style multi-agent spawn, not resume. The daemon writes the composite parent id through `HAPPY_PARENT_SESSION_ID`; both `createSessionMetadata.ts` and `runClaude.ts` must read that env into `metadata.parentSessionId`. Parent `metadata.spawnedChildren` updates go through a short-lived `ApiSessionClient` built from the tracked session encryption fields and closed after `updateMetadata(...)`.
 Spawn-from-session ancestry validation is daemon-local only: it walks same-machine `metadata.parentSessionId` links through tracked sessions, stops at cross-machine ancestors, rejects self-references, and caps local parent depth at `MAX_SPAWN_DEPTH = 10`.
@@ -378,3 +378,58 @@ When using --resume:
 3. All context preserved but under new session identity
 4. Session ID in stream-json output will be the new one, not the resumed one
 5. After `system.init.session_id` confirms the new sid, emit `kind: 'session-fork-resume'` through `ApiSessionClient.sendContextBoundary()` with `forkedFromSid` set to the previous sid. This preserves the standard dual-emit contract: typed `context-boundary` first, legacy fallback second with `meta.contextBoundaryFallback: true`, plus `metadata.latestBoundary` for clients that cold-start outside the boundary row window.
+
+
+# Agent Integration Tests (Layer 1)
+
+## Layer 1 Rules
+
+- one primary integration test file per agent
+- keep that file next to the agent code
+- use 2-3 long integration tests per agent
+- mocked tests do not count as acceptance
+- do not build a generic layer-1 framework directory
+- test the real agent surface directly
+
+## Primary Files
+
+- `packages/happy-cli/src/codex/codex.integration.test.ts`
+- `packages/happy-cli/src/claude/claude.integration.test.ts`
+- `packages/happy-cli/src/gemini/gemini.integration.test.ts`
+- `packages/happy-cli/src/openclaw/openclaw.integration.test.ts`
+
+If an agent has extra integration-style files, only one file is the primary
+acceptance test. The rest are support checks.
+
+Per-utility integration tests may live colocated with the utility
+(e.g., `src/claude/utils/<helper>.integration.test.ts`) when their scope is
+narrow and independent of agent-level integration. These are not primary
+acceptance tests and do not replace the primary files listed above.
+
+## What Each Primary Test Must Cover
+
+Every primary agent integration file must cover:
+
+1. basic turn + multi-turn context
+2. permissions + model switching + sandboxing
+3. interrupt + stop + failure handling
+
+If an agent does not support part of that surface, the test should assert the
+real limitation directly.
+
+## Test Shape
+
+Keep it simple:
+
+- one file per agent
+- a few long tests
+- real CLI
+- real auth
+- real permission flow
+- real interruption
+
+No mocks as the main proof.
+
+## Release Checklist
+
+- Before each `cli-v` release, manually verify shadow-session behavior against a dev account and confirm zero tokens were consumed in the usage dashboard during a local-mode happy session.
