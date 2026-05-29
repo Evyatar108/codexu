@@ -672,9 +672,10 @@ window.OVERVIEW_DATA = {
         {
                     "id": "codexu-bin-ralph-overview-wrapper-retirement",
                     "scope": "codexu",
-                    "lifecycle": "tracked",
+                    "lifecycle": "merged",
                     "status": "ok",
-                    "lastTouchedAt": "2026-05-29T17:05:00Z",
+                    "lastTouchedAt": "2026-05-29T19:32:00Z",
+                    "mergeCommit": "8dd10101",
                     "initialStage": "planning",
                     "kanbanCards": [],
                     "command": {
@@ -692,9 +693,10 @@ window.OVERVIEW_DATA = {
         {
               "id": "crews-stop-member-hard-terminate-no-envelope",
               "scope": "crews",
-              "lifecycle": "tracked",
+              "lifecycle": "merged",
               "status": "ok",
-              "lastTouchedAt": "2026-05-29T17:25:00Z",
+              "lastTouchedAt": "2026-05-29T20:00:00Z",
+              "mergeCommit": "f39d609a",
               "initialStage": "planning",
               "kanbanCards": [],
               "command": {
