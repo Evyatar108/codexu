@@ -1,0 +1,46 @@
+I’ll read the referenced prompt file first, then carry out the requested work.
+
+I’m checking the prompt file now.
+
+I’ve found this is a plan-review prompt; I’ll verify the referenced crews files before issuing findings.
+
+I’ll verify the plan against the actual crews plugin code paths and tests before writing the review findings.
+
+I’m checking the plan against the actual crews plugin surfaces and repo instructions so the review findings are grounded in current code.
+
+I’m checking the plan against the actual crews plugin surfaces and repo instructions so the review findings are grounded in current code.
+
+I found the core stop/briefing code already has role-aware lead handling, so I’m checking the tests and durable docs for gaps the plan would miss.
+
+I’m comparing the plan text, existing tests, and durable instructions now; this should expose whether the plan misses required docs/test surfaces.
+
+I’ve verified the plan against the actual crews implementation and tests; I’m checking the exact plan clauses now so the review can stay tied to the requested rubric. 
+
+
+? It seems I wrote commentary plus tool, ok but duplicated? There are two assistant commentary? Actually first multi_tool failed? Let's read output. 
+
+
+## Feasibility
+
+[High] **AC-6 conflicts with the planned empty-turn guard.** The plan says a lead emitting “only” `<|report ack=...|>` should pass Stop, but the same plan keeps the empty-body/no-summary block and requires lead prose. As written, AC-6 is either unimplementable or would force weakening the empty-turn guard. Reword it to require normal prose plus an ack metadata tag without `kind`, or a metadata tag with `summary`.
+
+## Completeness
+
+[High] **Codexu guidance is incorrectly marked “no change.”** The local `D:\harness-efforts\codexu\CLAUDE.md` still says “The lead’s turn must end with `<|report kind=...|>`,” directly contradicting the new v1.7.4 behavior. The plan should update or supersede that durable bookkeeper instruction; otherwise lead sessions may keep being prompted to add the noisy footer even after the plugin briefing changes.
+
+[Medium] **AC-7 is over-specific and conflicts with the clearer implementation shape.** The current implementation keeps a lead-specific `footer-tag` section that explicitly says not to append routine kind footers and explains metadata-only use for mailbox resolution. The plan’s “silent omission” requirement is riskier because it leaves leads without an explicit rule during transition. Prefer acceptance wording based on user-visible content: lead briefing must not require or show mandatory kind footer examples, but may include a short “no routine footer required” note.
+
+## Ordering
+
+No issues found. The serial ordering is appropriate: Stop/template behavior first, tests/goldens second, docs/version last.
+
+## Simplicity
+
+No issues found. The `effectiveTurnKind(role, parsedKind)` approach is the right minimal seam and avoids schema/display churn.
+
+## Acceptance Criteria Quality
+
+[High] **AC-6 needs correction before implementation.** Its “only ack tag passes” wording contradicts AC-1/AC-3 and the empty-body guard. Make it: “A lead turn with prose plus `<|report ack="<id>" reason="..."|>` and no `kind` resolves the message and passes Stop.”
+
+[Medium] **AC-7 should not require deleting the entire footer-tag section.** Require absence of mandatory-kind instructions for leads, not absence of a section ID. That preserves freedom to keep explicit transition guidance like “Do NOT append a routine `<|report kind=...|>` footer.”
+

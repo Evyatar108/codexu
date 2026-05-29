@@ -1,0 +1,33 @@
+Reviewed against `D:/ai-developer-toolkit/plugins/crews`. The referenced files exist, and the dirty worktree already contains the pre-applied edits the plan mentions.
+
+### Feasibility
+
+[Critical] AC-11 conflicts with repo rules. The plan treats pushing to both `Evyatar108` and `gim-home` remotes, plus merging to `main`, as already authorized. The provided repo instructions explicitly say to ask before pushing to remotes or doing visible external actions. AC-11 should become “prepare branch and request approval before push/merge.”
+
+[High] AC-6 is not implementable as written without changing the empty-body rule. `hooks/mailbox.js:781-784` strips all `<|report ...|>` tags from `body`, and `hooks/stop.js:692-730` blocks when there is no body and no summary. A turn containing only `<|report ack="..." ...|>` will still block. Either AC-6 must require prose plus an ack tag, or the plan must explicitly relax the empty-body gate for lead ack/reply metadata-only turns.
+
+[High] The plan says it is ready, but Q1 is still a real blocker. `D:/ai-developer-toolkit` has modified files, including unrelated `plugins/crews/hooks/commands/resume-crew.js`. An autonomous implementation cannot safely discard or accept those edits without an explicit choice, especially since `git restore` would revert changes the implementer did not make.
+
+### Completeness
+
+[High] The plan omits a lead-specific update for the listener-block reason in `hooks/stop.js:478`. For leads with unresolved consumed mail and no active listener, `hooks/stop.js:684-688` can block before the unresolved-mail branch and tell the lead to “re-emit your prose + kind tag.” That preserves the exact footer-tag noise the feature is trying to remove, and can also prevent AC-5’s tailored unresolved-mail message from appearing.
+
+[Medium] AC-7 is ambiguous about “tag examples.” Leads still need ack/reply metadata syntax to satisfy AC-5 and AC-6. The plan should say “omit kind-tag examples” while preserving metadata tag examples, or explicitly choose the silent-omission option from Q3. As written, AC-7 can be read as removing all `<|report ...|>` examples from lead briefing, which under-documents required mailbox resolution.
+
+[Medium] The unrelated `resume-crew.js` contamination is called out in risk text, but it should be an explicit implementation step before tests/review if Q1 chooses to keep Copilot’s edits. Otherwise a scoped feature can accidentally ship an unrelated command fix.
+
+### Ordering
+
+[Medium] AC-5’s fixture needs a stated listener precondition. Because the listener gate runs before unresolved-mail enforcement, a never-armed or exited lead can block on listener reachability instead of the lead-tailored unresolved-mail reason. The plan should require the test fixture to mark the listener reachable, or adjust hook ordering intentionally.
+
+### Simplicity
+
+No issues found.
+
+### Acceptance Criteria Quality
+
+[High] AC-6 is internally inconsistent with the stated empty-body behavior. Rewrite it as “lead emits prose plus `<|report ack=...|>` without `kind`” unless metadata-only turns are deliberately allowed.
+
+[High] AC-11 is not a valid autonomous acceptance criterion under the repo rules. It must include an approval checkpoint before any remote push or merge.
+
+[Medium] AC-7 should distinguish kind footer content from ack/reply metadata content, and should resolve Q3 instead of leaving “silent omission” versus “explicit no-footer note” open.
