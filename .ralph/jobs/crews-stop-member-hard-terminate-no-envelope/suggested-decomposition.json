@@ -1,0 +1,93 @@
+{
+  "version": 1,
+  "task": "crews-stop-member-hard-terminate-no-envelope",
+  "note": "Single-job, three-story serial decomposition. Surface is small, stories are tightly coupled, parallelism saves nothing and costs review attention. Bookkeeper should spawn ONE impl member that lands US-01, US-02, US-03 in order on a single branch.",
+  "jobs": [
+    {
+      "name": "job-1-crews-hard-terminate",
+      "repo": "ai-developer-toolkit",
+      "repoPath": "D:/ai-developer-toolkit/plugins/crews",
+      "branch": "ralph/crews-stop-member-hard-terminate-no-envelope",
+      "baseBranch": "main",
+      "remote": "Evyatar108/ai-developer-toolkit",
+      "shipTarget": "main + marketplace registration; bump crews plugin to v1.9.0",
+      "executionRecommendation": "serial-single-member",
+      "executionRationale": "Three small stories sharing the stop-member surface. US-02 surfaces US-01; US-03 documents both. Parallelism would just add merge work on the same two source files.",
+      "clusters": [
+        {
+          "name": "core-kill",
+          "stories": ["US-01"],
+          "phase": 1,
+          "dependsOn": [],
+          "fileOverlapEvidence": {
+            "sharedFiles": [],
+            "exclusiveFiles": [
+              "hooks/actors.js",
+              "hooks/config.js",
+              "hooks/protocol/manifest.js",
+              "tests/stop-member-hard-terminate.test.js",
+              "tests/stop-member-hard-terminate-wt-server-survives.test.js"
+            ],
+            "risk": "medium"
+          },
+          "executionModeRationale": "Foundation story. The inline pwsh BFS descendant walk is the most delicate piece; impl member should land this commit on its own so the test signal isolates kill-correctness regressions from CLI-surface regressions."
+        },
+        {
+          "name": "cli-default-flip",
+          "stories": ["US-02"],
+          "phase": 2,
+          "dependsOn": ["core-kill"],
+          "fileOverlapEvidence": {
+            "sharedFiles": [
+              "hooks/actors.js (re-touched only if US-01 left stopMemberAsLead/stopMemberByOperator without the {soft} option threaded through; the plan calls for threading it in US-01)"
+            ],
+            "exclusiveFiles": [
+              "hooks/commands/stop-member.js",
+              "tests/stop-member-cli.test.js"
+            ],
+            "risk": "low"
+          },
+          "executionModeRationale": "Pure surface-layer. Depends on US-01's helper + opts threading. Cannot run in parallel with US-01 because parityVector tests need the new default behaviour wired up."
+        },
+        {
+          "name": "audit-and-docs",
+          "stories": ["US-03"],
+          "phase": 3,
+          "dependsOn": ["core-kill", "cli-default-flip"],
+          "fileOverlapEvidence": {
+            "sharedFiles": [
+              "hooks/protocol/manifest.js (JSDoc only — US-01 added the schema fields; US-03 documents them)",
+              "tests/stop-member-cli.test.js (divergenceCases addition; US-02 added the parityVectors)"
+            ],
+            "exclusiveFiles": [
+              "CHANGELOG.md",
+              "AGENTS.md"
+            ],
+            "risk": "low"
+          },
+          "executionModeRationale": "Release-gate. Must land LAST so the CHANGELOG accurately reflects everything in the commit chain. Cannot parallelize with US-02 because divergenceCases test exercises the same parityVectors US-02 just added."
+        }
+      ]
+    }
+  ],
+  "followUps": [
+    {
+      "proposedId": "crews-soft-stop-no-exit-fix",
+      "scope": "crews",
+      "summary": "Drop `-NoExit` from spawnMember's wt argv so soft-stop tabs also close cleanly instead of persisting as empty pwsh prompts. One-line change; eliminates the operator's 'empty placeholder' observation for the legacy code path too.",
+      "blockedBy": "none (independent; could land in v1.9.0 alongside the hard-terminate work if impl member has bandwidth)"
+    },
+    {
+      "proposedId": "crews-cross-platform-hard-terminate",
+      "scope": "crews",
+      "summary": "Add macOS (osascript / process-group kill) and Linux (setsid + kill -PGID) branches for `applyHardStopMember`. Currently throws 'not-yet-implemented' on non-Windows.",
+      "blockedBy": "v1.9.0 Windows API ship (this plan)"
+    },
+    {
+      "proposedId": "codexu-agents-md-stop-member-update",
+      "scope": "codexu",
+      "summary": "Update codexu/AGENTS.md workflow diagram + 'Crews-plugin invariants' section to reflect the new stop-member default (hard) and the safety guarantee. One-line change in the duty table + a short paragraph in invariants. Consumer-side, not part of the plugin PR.",
+      "blockedBy": "v1.9.0 plugin ship"
+    }
+  ]
+}
