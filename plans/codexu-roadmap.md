@@ -722,6 +722,27 @@ verification — not blocking other roadmap items.
 
 ## Bookkeeper / scrum-master workflow (autonomous lead role)
 
+> **This section has been retired in favor of `AGENTS.md` at the repo root.**
+>
+> The canonical operating manual for the `overview-bookkeeper` lead and the
+> `ralph-pipeline` crew now lives in **[`AGENTS.md` → "Codexu — Bookkeeper /
+> Scrum-Master Workspace"](../AGENTS.md)** at the repo root, with all
+> load-bearing invariants codified under **"Bookkeeper operating invariants"**
+> (commits `8881263f`, `8a09c20a`).
+>
+> Both Claude Code and Copilot CLI auto-load `AGENTS.md`, so it's the single
+> source of truth. The duplicate section that used to live here was stale on
+> several points (crews v1.5.6 → now v1.8.7, "codex doesn't build locally" →
+> corrected, "lead can be on any branch" → now codified as main-only) and
+> kept silently drifting from AGENTS.md.
+>
+> If you're a fresh agent picking up the bookkeeper role, open `AGENTS.md`
+> at the repo root and read from "Codexu — Bookkeeper / Scrum-Master
+> Workspace" onward.
+
+<details>
+<summary>Original section (preserved for git-history readers)</summary>
+
 This repo is driven by an autonomous **bookkeeper + scrum-master** Claude
 Code session (the `overview-bookkeeper` lead in crew `ralph-pipeline`).
 The lead picks the next parallel batch of tasks from the backlog, spawns
@@ -935,6 +956,8 @@ For the in-flight `overview-install-streamline` brainstorm — that work will
 add agent-callable MCP tools (`overview.init`, `overview.upsert_task`,
 `overview.mark_shipped`) that automate the bookkeeper duties this section
 describes. Until then, this section is the operating manual.
+
+</details>
 
 ---
 
@@ -1251,6 +1274,35 @@ without new evidence:
 - **Plugin scoping (host vs agent context) is required new feature.**
   Without it, ralph plugin's skills load inside spawned worker agents
   and create recursion / context bloat.
+
+### 2026-05-29 decisions
+
+- **Auto-memory mechanism RETIRED.** The `.agents/memory/` repo-tracked
+  store (added in commits `78abec33,fec74989,f592aec4`) and the user-dir
+  NTFS junction are deleted. All load-bearing bookkeeper invariants now
+  live inline in **`AGENTS.md` → "Bookkeeper operating invariants"**
+  (commits `8881263f`, `8a09c20a`). Rationale: zero indirection, no
+  auto-load mechanism to maintain across engines, no risk of memory
+  entries silently drifting from current code. Future operating rules
+  go directly into AGENTS.md, not into a memory store.
+- **Lead's primary working dir (`D:/harness-efforts/codexu`) STAYS on
+  `main`.** Do not check out a scratch/topic/feature branch in the
+  primary dir; use a worktree (`git worktree add ../codexu-<slug>`)
+  instead. The earlier inverted arrangement — primary on a scratch
+  branch, `codexu-plans-view` worktree holding main — was a historical
+  accident, not a design choice. With the lead on main directly,
+  plan-phase members commit to main and the cherry-pick relay step is
+  eliminated. (Codified in AGENTS.md → invariants; executed `8a09c20a`,
+  worktree flip done in this session.)
+- **`codexu-plans-view` worktree retired.** Was load-bearing only
+  because of the inverted dir arrangement above. Removed in this
+  session along with `codexu-multi-mcp` and the `codexu-worktrees/`
+  parent dir. Future scratch worktrees go under `D:/harness-efforts/`
+  with `codexu-<purpose-slug>` names on demand.
+- **CLAUDE.md (gitignored) reduced to a pointer at AGENTS.md.** The
+  duplicated operating manual that used to live in both files is now
+  canonical in `AGENTS.md`. Local-machine notes can still go in
+  `CLAUDE.md` below the pointer; nothing load-bearing should.
 
 ## Decisions still open
 
