@@ -763,11 +763,97 @@ window.OVERVIEW_DATA = {
               }
         },
         {
-              "id": "crews-summary-rendering-audit",
+              "id": "crews-protocol-envelope-canonical-fields",
               "scope": "crews",
               "lifecycle": "tracked",
               "status": "ok",
-              "lastTouchedAt": "2026-05-28T21:42:00Z",
+              "lastTouchedAt": "2026-05-29T00:15:00Z",
+              "kanbanCards": [],
+              "command": {
+                    "name": "crews-protocol-envelope-canonical-fields",
+                    "descriptionHtml": "D-001 from <code>brainstorm-crews-summary-rendering-audit</code> (c52c0360). Make <code>hooks/protocol/envelope.js</code>'s existing <code>validateEnvelope()</code>/<code>buildEnvelope()</code> framework load-bearing by defining canonical addresses per envelope field and enforcing via <code>CREWS_STRICT_SCHEMA=1</code> on every producer. Today the schema framework exists but has ZERO production call-sites — dead code that allowed v1.7.2 summary-drop to ship. Plan defines canonical addresses (proposed: summary top-level, kind top-level, replyTo top-level on outbox + payload.replyToId on system-mailbox kept as asymmetry, progressTail payload-nested), CI round-trip test design, and migration steps.",
+                    "warnings": [
+                          {
+                                "className": "cmd-warn",
+                                "html": "⚠️ Depends on (or is bundled with) two prerequisite tasks: <code>crews-protocol-buildenvelope-adoption</code> (route producers through buildEnvelope) + <code>crews-protocol-strict-schema-ci</code> (enable strict schema in CI). The brainstorm noted these prereqs are required for D-001's validation rules to have any teeth. Plan should decide whether to bundle all 3 into one ship or sequence."
+                          }
+                    ],
+                    "prompts": { "plan": "/plan-with-ralph \"Implement D-001 from crews-summary-rendering-audit brainstorm: make hooks/protocol/envelope.js's existing schema framework load-bearing, define canonical addresses per envelope field, and enforce via CREWS_STRICT_SCHEMA=1 on every producer.\n\n## Why\n\nBrainstorm (c52c0360, .ralph/brainstorms/crews-summary-rendering-audit/selected-direction.md) discovered hooks/protocol/envelope.js ships a validateEnvelope/buildEnvelope framework that has ZERO production call-sites. The schema validator exists but is dead code. This is the root cause that allowed v1.7.2 summary-drop to ship: the schema framework was built but producers construct envelope objects ad-hoc.\n\n## Scope\n\n1. Define the canonical envelope schema in hooks/protocol/envelope.js with explicit per-field addresses:\n   - summary: top-level (post-v1.7.3 normalization)\n   - kind: top-level (report kind, distinct from row.from.routingKind)\n   - replyTo: top-level on outbox + payload.replyToId on system-mailbox (intentional asymmetry; document it)\n   - progressTail: payload-nested\n   - decision, ack, bodyResolution, reviewedSeq: TBD per audit catalog (.ralph/brainstorms/.../selected-direction.md §Other envelope-field surveys)\n\n2. Update validateEnvelope() to enforce the schema with CREWS_STRICT_SCHEMA=1.\n\n3. Add a node:test round-trip test: write an envelope via buildEnvelope() → read via review-mail formatter → assert all fields surface at their canonical addresses.\n\n4. Coordinate with prereq tasks crews-protocol-buildenvelope-adoption (route producers through buildEnvelope; otherwise validation has no teeth) and crews-protocol-strict-schema-ci (enable strict mode in CI workflow). Plan decides whether to bundle these or sequence.\n\n## Files to touch\n\n1. ai-developer-toolkit/plugins/crews/hooks/protocol/envelope.js — define canonical schema, harden validateEnvelope, add fixtures.\n2. ai-developer-toolkit/plugins/crews/tests/protocol-envelope-canonical-fields.test.js — round-trip tests.\n3. ai-developer-toolkit/plugins/crews/CHANGELOG.md + version bump (v1.8.0 minor — additive schema enforcement).\n4. ai-developer-toolkit/plugins/crews/CLAUDE.md — document the schema contract for future contributors.\n\n## Acceptance\n\n- validateEnvelope rejects envelope with summary at unexpected address.\n- CREWS_STRICT_SCHEMA=1 causes buildEnvelope to throw on schema violations.\n- Round-trip test passes for all 7 canonical fields (summary, kind, replyTo, decision, ack, bodyResolution, reviewedSeq).\n- Existing producer call sites that use the new buildEnvelope path don't regress.\n- Tests pass: cd plugins/crews && node tests/run.js\n\n## Workflow\n\nPlan-direct. v1.8.0 minor patch. Multi-remote push via local-main FF + push-main per operator pattern. May bundle with prereqs into single ship at plan's discretion.\"" }
+              }
+        },
+        {
+              "id": "crews-protocol-strict-schema-ci",
+              "scope": "crews",
+              "lifecycle": "tracked",
+              "status": "ok",
+              "lastTouchedAt": "2026-05-29T00:15:00Z",
+              "kanbanCards": [],
+              "command": {
+                    "name": "crews-protocol-strict-schema-ci",
+                    "descriptionHtml": "Fast-follow from <code>brainstorm-crews-summary-rendering-audit</code> (c52c0360). Enable <code>CREWS_STRICT_SCHEMA=1</code> in the crews-plugin CI workflow. Smallest standalone follow-up; prerequisite for <code>crews-protocol-envelope-canonical-fields</code> (D-001).",
+                    "warnings": [],
+                    "prompts": { "plan": "/plan-with-ralph \"Enable CREWS_STRICT_SCHEMA=1 in crews-plugin CI workflow so the existing validateEnvelope() framework starts catching schema violations on every PR.\n\n## Why\n\nbrainstorm c52c0360 identified that hooks/protocol/envelope.js ships a validateEnvelope/buildEnvelope framework with CREWS_STRICT_SCHEMA=1 support — but the env var is never set in CI. So no test ever exercises the strict-mode path, and schema-drift bugs like v1.7.2 summary-drop escape detection.\n\n## Pre-flight check (per brainstorm Disconfirming observation)\n\nIs CREWS_STRICT_SCHEMA=1 ALREADY set in any crews-plugin CI workflow today? Check .github/workflows/*.yml at canonical crews source. If yes, audit why v1.7.2 summary-drop still escaped before doing more work. If no, proceed.\n\n## Fix\n\n1. Find the crews-plugin test invocation in CI (.github/workflows/*.yml or wherever the crews tests are run).\n2. Add CREWS_STRICT_SCHEMA=1 to the env: block.\n3. Verify all existing tests still pass under strict mode (some may need adjustment if they depend on lax-mode behavior).\n4. CHANGELOG entry + version bump.\n\n## Files to touch\n\n1. ai-developer-toolkit/.github/workflows/*.yml — add CREWS_STRICT_SCHEMA=1 env.\n2. plugins/crews/CHANGELOG.md + version bump (v1.7.4 patch — additive CI hardening).\n3. plugins/crews/CLAUDE.md — document the CI invariant.\n\n## Acceptance\n\n- CI env block has CREWS_STRICT_SCHEMA=1.\n- All existing crews tests pass under strict mode.\n- New synthetic test verifies strict-mode catches a bad envelope.\n\n## Workflow\n\nPlan-direct. Small standalone patch. v1.7.4 OR bundle with crews-protocol-buildenvelope-adoption + crews-protocol-envelope-canonical-fields into v1.8.0.\"" }
+              }
+        },
+        {
+              "id": "crews-protocol-buildenvelope-adoption",
+              "scope": "crews",
+              "lifecycle": "tracked",
+              "status": "ok",
+              "lastTouchedAt": "2026-05-29T00:15:00Z",
+              "kanbanCards": [],
+              "command": {
+                    "name": "crews-protocol-buildenvelope-adoption",
+                    "descriptionHtml": "Prerequisite for <code>crews-protocol-envelope-canonical-fields</code> (D-001) from brainstorm c52c0360. Route all producer call sites (<code>stop.js:782 appendOutbox</code>, <code>stop.js:831 appendSystemMailbox</code>, <code>send-to-member.js:95 appendMailbox</code>, <code>send-to-thread.js</code> writes) through the existing <code>buildEnvelope()</code> factory so D-001's validation rules have teeth.",
+                    "warnings": [],
+                    "prompts": { "plan": "/plan-with-ralph \"Route all crews-plugin envelope writers through hooks/protocol/envelope.js's buildEnvelope() factory so the existing validation framework has teeth.\n\n## Why\n\nbrainstorm c52c0360 found 4 production call sites that construct envelopes ad-hoc instead of using buildEnvelope(): stop.js:782 (appendOutbox), stop.js:831 (appendSystemMailbox), send-to-member.js:95 (appendMailbox), send-to-thread.js writes. Without routing through buildEnvelope(), the validateEnvelope() framework is dead code — any future schema fix has no enforcement.\n\n## Fix\n\nFor each call site:\n1. Replace ad-hoc { kind, summary, body, ... } object literal with buildEnvelope({ ... }).\n2. Verify buildEnvelope() produces the same envelope shape as today (back-compat — should produce identical bytes for existing tests).\n3. If buildEnvelope() doesn't support all the fields currently written, extend it (this is part of the schema-formalization work).\n\n## Files to touch\n\n1. plugins/crews/hooks/stop.js — 2 call sites (lines 782 + 831 per brainstorm).\n2. plugins/crews/hooks/commands/send-to-member.js — 1 call site (~line 95).\n3. plugins/crews/hooks/commands/send-to-thread.js — 1+ call sites.\n4. plugins/crews/hooks/protocol/envelope.js — extend buildEnvelope to support all field combinations the existing ad-hoc writers use.\n5. plugins/crews/tests/ — existing tests should pass unchanged; add a test that asserts each producer routes through buildEnvelope.\n6. CHANGELOG + version bump.\n\n## Acceptance\n\n- All 4+ producer call sites use buildEnvelope().\n- Existing tests pass: cd plugins/crews && node tests/run.js\n- New test confirms buildEnvelope is the only envelope-creation path from production code.\n- No envelope-shape changes (byte-identical envelopes for current behavior).\n\n## Workflow\n\nPlan-direct. v1.7.5 patch OR bundle with crews-protocol-envelope-canonical-fields into v1.8.0.\"" }
+              }
+        },
+        {
+              "id": "crews-envelope-summary-canonical-cleanup",
+              "scope": "crews",
+              "lifecycle": "tracked",
+              "status": "ok",
+              "lastTouchedAt": "2026-05-29T00:15:00Z",
+              "kanbanCards": [],
+              "command": {
+                    "name": "crews-envelope-summary-canonical-cleanup",
+                    "descriptionHtml": "Post-<code>crews-protocol-envelope-canonical-fields</code> cleanup from brainstorm c52c0360. Once D-001 picks a canonical address for <code>summary</code> (recommend: top-level), remove the OTHER half of v1.7.3's defensive fix. Either delete the consumer fallback in <code>review-mail.js:111</code> OR delete the producer mirror in <code>stop.js:840</code>. Not both. Owner-decision required.",
+                    "warnings": [
+                          {
+                                "className": "cmd-warn",
+                                "html": "⚠️ Blocked on <code>crews-protocol-envelope-canonical-fields</code> shipping AND CREWS_STRICT_SCHEMA validation being load-bearing across all producers (so removing one defensive layer doesn't reintroduce silent drop). Operator confirmed v1.7.3 keeps BOTH layers through v1.8.x; remove ONE in v1.9.x."
+                          }
+                    ],
+                    "prompts": { "plan": "/plan-with-ralph \"After crews-protocol-envelope-canonical-fields ships D-001's canonical schema contract, remove one of v1.7.3's two defensive layers (read-fallback OR write-mirror) for summary so the canonical address is the only path.\n\n## Why\n\nv1.7.3 shipped Option A: read-fallback (review-mail.js:111: row.summary ?? row.payload?.summary) AND write-mirror (stop.js:840: lift summary to top-level). Both layers defend against schema-drift. After D-001 enforces a canonical address, one defensive layer becomes redundant.\n\nOperator preference (recorded 2026-05-28): keep BOTH through v1.8.x, remove ONE in v1.9.x.\n\n## Decision\n\nRecommended canonical address: top-level summary.\nRemove: consumer fallback OR producer mirror?\n\n- Remove consumer fallback (review-mail.js:111 reverts to row.summary): producers MUST emit summary at top-level OR the consumer drops it. Strict; producer-side enforcement via CREWS_STRICT_SCHEMA is the safety net.\n- Remove producer mirror (stop.js:840 stops lifting summary to top-level): summary stays nested in payload; consumer fallback handles it. This means top-level is ONLY for direct sends; system-routed keeps the nested form.\n\nThe first option is cleaner; the second preserves the producer's freedom to use the historical schema. Plan picks one with rationale.\n\n## Acceptance\n\n- One of the two defensive layers removed.\n- v1.7.2 reproduce test (the original summary-drop fixture) still passes via the remaining defensive layer + validateEnvelope strict-mode.\n- CHANGELOG entry citing the canonical-address decision.\n- v1.9.0 minor (intentional behavior tightening).\n\n## Workflow\n\nBLOCKED on crews-protocol-envelope-canonical-fields + crews-protocol-buildenvelope-adoption shipping. Then plan-direct.\"" }
+              }
+        },
+        {
+              "id": "crews-protocol-v200-envelope-renames",
+              "scope": "crews",
+              "lifecycle": "tracked",
+              "status": "ok",
+              "lastTouchedAt": "2026-05-29T00:15:00Z",
+              "kanbanCards": [],
+              "command": {
+                    "name": "crews-protocol-v200-envelope-renames",
+                    "descriptionHtml": "Two breaking-change renames bundled for v2.0.0 from brainstorm c52c0360. (a) Rename <code>row.from.kind</code> → <code>row.from.routingKind</code> so it's never confused with <code>row.kind</code> (report kind). (b) Rename <code>payload.replyToId</code> → <code>payload.replyTo</code> to match the outbox top-level field name. Both surface clarity wins; both require a coordinated migration of all consumers.",
+                    "warnings": [
+                          {
+                                "className": "cmd-warn",
+                                "html": "⚠️ <strong>BREAKING CHANGE → v2.0.0 major</strong>. Combined here because both have the same audience (envelope-schema awareness) + same migration profile + same major bump. Could split if needed but no clear benefit. Coordinate with the v2.0.0 release schedule (no rush; ship after D-001 stabilizes)."
+                          }
+                    ],
+                    "prompts": { "plan": "/plan-with-ralph \"Combine two breaking-change envelope-schema renames into a single v2.0.0 ship.\n\n## Why\n\nbrainstorm c52c0360 identified two surface-confusion bugs that need rename-class fixes:\n\n1. **row.from.kind vs row.kind**: row.from.kind is a routing kind (lead/member/etc.) that's syntactically identical to row.kind which is the report kind (done/question/blocked). Future maintainers confuse them. Rename row.from.kind → row.from.routingKind everywhere.\n\n2. **payload.replyToId vs replyTo**: outbox envelopes carry replyTo at top-level; system-mailbox envelopes carry payload.replyToId. Rename payload.replyToId → payload.replyTo to match the outbox name. (The asymmetry between top-level vs payload-nested is intentional per the brainstorm — only the field NAME unifies.)\n\nBoth are breaking changes that affect every consumer reading these fields. Bundle into v2.0.0 to ship once.\n\n## Files to touch\n\n1. plugins/crews/hooks/stop.js — both write sites.\n2. plugins/crews/hooks/commands/review-mail.js:85 — row.from.kind read.\n3. plugins/crews/hooks/lib/mailbox.js — wherever inbox-history writes the fields.\n4. plugins/crews/hooks/commands/send-to-member.js / send-to-thread.js — replyTo handling.\n5. All test files that reference either field — grep + update.\n6. CHANGELOG with prominent BREAKING CHANGE section.\n7. Bump major to v2.0.0 across all 6 stamps.\n\n## Migration story for external consumers\n\nIf any downstream code reads row.from.kind or payload.replyToId, document migration in CHANGELOG + provide a release-notes section. Probably also surface in the v2.0.0 announcement.\n\n## Acceptance\n\n- Zero references to row.from.kind or payload.replyToId in plugins/crews/ (excluding CHANGELOG historical refs).\n- All tests pass under new names.\n- CHANGELOG BREAKING CHANGE section enumerates the renames with from→to mappings.\n- Major bump to v2.0.0.\n\n## Workflow\n\nBLOCKED on crews-protocol-envelope-canonical-fields shipping (don't rename fields whose canonical addresses are still being decided). Then plan-direct. Multi-remote push.\"" }
+              }
+        },
+        {
+              "id": "crews-summary-rendering-audit",
+              "scope": "crews",
+              "lifecycle": "merged",
+              "status": "ok",
+              "lastTouchedAt": "2026-05-29T00:13:00Z",
+              "mergeCommit": "c52c0360",
               "initialStage": "brainstorming",
               "kanbanCards": [],
               "command": {
