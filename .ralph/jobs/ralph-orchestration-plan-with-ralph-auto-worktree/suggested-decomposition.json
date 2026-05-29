@@ -1,0 +1,63 @@
+{
+  "clusters": [
+    {
+      "name": "helper-and-impl-refactor",
+      "stories": ["US-001", "US-002"],
+      "phase": 1,
+      "dependsOn": [],
+      "fileOverlapEvidence": {
+        "sharedFiles": [
+          "D:/ai-developer-toolkit/plugins/ralph/src/worktree-create.mjs",
+          "D:/ai-developer-toolkit/plugins/ralph/skills/convert-to-ralph-prd/SKILL.md",
+          "D:/ai-developer-toolkit/plugins/ralph/.copilot-plugin/copilot-skills/convert-to-ralph-prd/SKILL.md"
+        ],
+        "exclusiveFiles": [],
+        "risk": "high"
+      },
+      "executionModeRationale": "Serial. US-002 depends on US-001 (refactor cannot land before the helper exists). Behavior-preserving refactor of the impl path; keeping it as a single cluster makes regression easy to bisect."
+    },
+    {
+      "name": "plan-skill-changes",
+      "stories": ["US-003", "US-004"],
+      "phase": 2,
+      "dependsOn": ["helper-and-impl-refactor"],
+      "fileOverlapEvidence": {
+        "sharedFiles": [
+          "D:/ai-developer-toolkit/plugins/ralph/skills/plan-with-ralph/SKILL.md",
+          "D:/ai-developer-toolkit/plugins/ralph/.copilot-plugin/copilot-skills/plan-with-ralph/SKILL.md"
+        ],
+        "exclusiveFiles": [],
+        "risk": "medium"
+      },
+      "executionModeRationale": "Serial within cluster — both stories edit the same skill file, and the cleanup subcommand needs the Phase 1B branch-naming logic from US-003 to know what to delete. Depends on Phase 1 cluster because Phase 1B calls the helper extracted in US-001."
+    },
+    {
+      "name": "mirror-and-docs",
+      "stories": ["US-005", "US-006"],
+      "phase": 3,
+      "dependsOn": ["plan-skill-changes"],
+      "fileOverlapEvidence": {
+        "sharedFiles": [],
+        "exclusiveFiles": [
+          "D:/harness-efforts/codexu/AGENTS.md",
+          "D:/ai-developer-toolkit/plugins/ralph/.copilot-plugin/copilot-skills/plan-with-ralph/SKILL.md",
+          "D:/ai-developer-toolkit/plugins/ralph/.copilot-plugin/copilot-skills/convert-to-ralph-prd/SKILL.md"
+        ],
+        "risk": "low"
+      },
+      "executionModeRationale": "Parallel-safe. US-005 lives entirely in the toolkit repo's .copilot-plugin/ subtree; US-006 lives entirely in codexu. No file overlap. Two impl members can run concurrently in separate worktrees in their respective repos."
+    },
+    {
+      "name": "e2e-smoke",
+      "stories": ["US-007"],
+      "phase": 4,
+      "dependsOn": ["mirror-and-docs"],
+      "fileOverlapEvidence": {
+        "sharedFiles": [],
+        "exclusiveFiles": [],
+        "risk": "low"
+      },
+      "executionModeRationale": "Single story; smoke test consumes the merged change end-to-end. Must run after the helper, plan-skill changes, and docs all land."
+    }
+  ]
+}
