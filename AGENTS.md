@@ -322,30 +322,68 @@ this doc.
   in the first place. With the lead on main directly, that workaround is
   retired — there is no separate "plans view" needed.
 
-- **If the lead needs a scratch/topic branch (rare):** add a worktree for
-  it instead. Pattern: `git worktree add ../codexu-<purpose-slug>
-  <branch-name>`. Examples: `../codexu-staging` for in-flight bookkeeping
-  experiments, `../codexu-<feature>` for any feature-branch work the lead
-  itself drives. Never `git checkout <other-branch>` in the primary dir.
+- **Worktree placement convention (codified 2026-05-29):** every worktree
+  has exactly one correct home depending on who creates it and why. NEVER
+  use sibling-of-repo paths like `../codexu-<slug>` — they clutter
+  `D:/harness-efforts/` and don't survive routine `git worktree list`
+  cleanup hygiene without explicit operator awareness. The 2026-05-29
+  smoke-test session created three sibling-of-repo worktrees by mistake
+  (`codexu-plan-wrapper-retirement`, `codexu-plan-hard-terminate`,
+  `codexu-plan-hard-terminate-v2`) following the now-obsolete pattern
+  this section USED to recommend. The correct mapping:
 
-- **Plan-phase members commit to `main` directly** (because the lead is
-  already on main). The lead reviews and pushes. The earlier "commit to
-  lead's branch then cherry-pick" workaround is OBSOLETE — that pattern
-  existed only because the lead's primary dir was historically pinned to a
-  scratch branch. Don't propagate it forward.
+  | Case | Where the worktree lives | Owner |
+  |---|---|---|
+  | **Ralph-skill spawn** (`/plan-with-ralph`, `/implement-with-ralph`, `/brainstorm-with-ralph`) | `.ralph/jobs/<task-id>/worktree/` (or a `plan/` / `impl/` subdir if both phases are open at once) | The ralph skill itself manages it. Lead spawn-prompts should NOT include a manual `git worktree add ...` — that bypasses the skill's own setup and may create duplicate state. |
+  | **Lead-driven scratch work** (rare; non-ralph-skill) | `D:/harness-efforts/codexu/.worktrees/<purpose-slug>/` | Lead creates manually. Matches every existing operator worktree (see `git worktree list`). |
+  | **Cross-repo impl** (touches a sibling repo like `D:/ai-developer-toolkit/`) | `D:/<sibling-repo>/.worktrees/<task-id>/` — INSIDE the sibling repo | Lead/impl-member creates manually before editing. The worktree lives in the repo it works on, not in the parent dir nor in codexu's state tree. |
+  | **NEVER** | `../codexu-<slug>/`, `D:/codexu-<slug>/`, `D:/<sibling-repo>-<slug>/` — all sibling-of-repo paths | — |
+
+  Caveat: `/plan-with-ralph` does NOT currently auto-manage a worktree
+  (observed 2026-05-29). Until the skill is fixed (tracked as
+  `ralph-orchestration-plan-with-ralph-auto-worktree`), lead spawn-prompts
+  for plan members MUST explicitly instruct the member to create a worktree
+  at `.ralph/jobs/<task-id>/worktree/plan/` — never at sibling paths.
+
+- **Plan-phase members commit on a topic branch in a worktree, NOT on
+  local main directly.** Earlier guidance ("plan-phase members commit to
+  `main` directly because the lead is already on main") created a real
+  concurrency hazard observed 2026-05-29: the plan-member's working dir
+  is the same as the lead's primary dir, and any `git checkout` the
+  member runs flips the lead's branch out from under the lead. Use the
+  worktree-and-topic-branch flow instead: member creates a worktree at
+  the right placement (per the table above) on a `ralph/plan-<task-id>`
+  topic branch, commits there, pushes the topic branch to `origin`, and
+  reports the commit SHA + branch + worktree path to the lead. The lead
+  reviews, FF-merges (or cherry-picks if siblings landed in the wrong
+  order), pushes main, and cleans up the worktree + topic branch after
+  merge. This matches the impl-phase pattern (next bullet) and avoids
+  the dual-writer hazard entirely.
 
 - **Impl-phase members still commit to a topic branch off `origin/main`.**
   Ralph's impl flow uses its own worktree convention and expects a
   `ralph/<task-id>` topic branch. The lead merges (fast-forward or PR) at
   ship time. This rule is unchanged from before the flip.
 
+- **Only the lead merges to main.** Members commit + push their topic
+  branches; the lead FF/cherry-picks to `main` and pushes. Members must
+  NOT push directly to `origin/main` even via their worktree. The lead
+  is also responsible for post-merge cleanup: `git worktree remove
+  <path>`, `git push origin --delete <topic-branch>`, and (locally)
+  `git branch -D <topic-branch>` for branches whose work has fully
+  landed. Stale topic branches on origin cause `git fetch origin
+  --prune` noise and clutter `git ls-remote` output.
+
 - **Cross-repo impl spawns need worktrees in EVERY shared repo.** When two
   or more impl members touch the same sibling repo (e.g., both edit
   `D:/ai-developer-toolkit`), each needs its own worktree in that repo so
   they don't stomp each other's uncommitted state. The mandate is per-repo,
-  not per-task. Default pattern: `git -C <repo> worktree add <repo>-<slug>
-  -b ralph/<slug> main`. Enumerate every sibling repo the plan touches
-  before spawning; check `list-members` + manifest cwd for co-residents.
+  not per-task. **Correct pattern:** `git -C <repo> worktree add
+  <repo>/.worktrees/<task-id> -b ralph/<task-id> main`. (The older
+  recommended pattern `<repo>-<slug>` as a sibling-of-repo path was
+  retired 2026-05-29 — see the worktree placement convention table
+  above.) Enumerate every sibling repo the plan touches before spawning;
+  check `list-members` + manifest cwd for co-residents.
 
 - **Never `git update-ref` to fast-forward a worktree's branch.** It moves
   HEAD but leaves stale working-tree files; the next `git add` + commit
