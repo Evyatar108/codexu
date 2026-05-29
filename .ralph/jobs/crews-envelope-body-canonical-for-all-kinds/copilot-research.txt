@@ -1,0 +1,57 @@
+I’ll read the referenced prompt and then carry out its instructions.
+
+The prompt is research-mode for the crews plugin, so I’ll inspect that plugin’s structure, hooks, docs, and tests before summarizing implementation guidance.
+
+Threaded tools complete: 4 results.
+
+Threaded tools complete: 5 results.
+
+Threaded tools complete: 5 results.
+
+Threaded tools complete: 4 results.
+
+Threaded tools complete: 4 results.
+
+Research complete: the best implementation point is **`hooks/stop.js`**, before outbox persistence. `summary` should remain a quick-look label; `message: tags.body` is already the durable canonical report body.
+
+## 1. Codebase Architecture
+
+`hooks/mailbox.js` parses `<|report ...|>` tags via `parseTurnTags(rawText)`, strips report/listening tags, and returns `{ kind, summary, body, ... }`. It also synthesizes a summary from body when omitted.
+
+`hooks/stop.js` is the protocol gate: it validates the final report, writes `appendOutbox(... { summary, message: tags.body })`, and sends proactive review-required notifications to the lead for `done/question/blocked`.
+
+Review surfacing later reads outbox rows, so enforcing at `review-mail` would be too late: empty canonical messages would already be persisted and notification metadata would already be weak.
+
+## 2. Feature-Relevant Code
+
+Current behavior allows summary-only reports because `stop.js` treats either `tags.body` or `tags.summary` as satisfying the report requirement. That is the core behavior to change.
+
+Relevant files:
+- `hooks/stop.js`: enforce canonical body for `done`, `question`, `blocked`.
+- `hooks/mailbox.js`: keep parser/synthesis behavior; optionally export a small body-normalization helper.
+- `hooks/briefing/template.js`, `README.md`, `CLAUDE.md`: document prose body as canonical.
+- `tests/stop-decision.test.js`: add regression coverage.
+- `tests/golden/briefing-*.md`: update via existing briefing flow if template changes.
+- Version pins: bump to `1.8.0` for a hard behavioral gate, or `1.7.4` for docs/warn-only.
+
+## 3. Technical Constraints
+
+Do **not** enforce this inside `appendOutbox`; programmatic sends and `progress` reports may legitimately be terse.
+
+Keep `progress` exempt by default. Since v1.6.x, review-required defaults are `done`, `question`, `blocked`; gating `progress` would create noisy false positives for idle/status turns.
+
+Historical outbox rows may have empty `message`; readers should remain backward-compatible.
+
+## 4. Implementation Suggestions
+
+Add a Stop-hook helper like `requiresCanonicalBody(kind)` for `done/question/blocked`, plus a conservative `hasSubstantiveBody(body, summary)` check. At minimum, summary-only reports must block. Prefer also blocking obvious stub bodies when the summary carries the real content.
+
+Good tests:
+- `done` with summary only blocks and writes no outbox row.
+- `question` / `blocked` summary-only blocks.
+- `done` with body and no summary passes; summary is synthesized.
+- `progress` summary-only still passes.
+- Long summary plus stub body blocks.
+
+Error copy should tell the agent exactly how to fix it: put the durable report details in prose before the footer tag, and keep `summary` short.
+

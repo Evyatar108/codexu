@@ -1,0 +1,58 @@
+{
+  "clusters": [
+    {
+      "name": "helper-and-gate",
+      "stories": ["US-001", "US-002", "US-002b", "US-003"],
+      "phase": 1,
+      "dependsOn": [],
+      "fileOverlapEvidence": {
+        "sharedFiles": [
+          "hooks/protocol/report-tags.js",
+          "hooks/stop.js",
+          "tests/stop-body-canonical.test.js",
+          "tests/protocol-report-tags.test.js",
+          "tests/lib/force-response.js"
+        ],
+        "exclusiveFiles": [],
+        "risk": "high"
+      },
+      "executionModeRationale": "Sequential US-001 -> US-002 -> US-003. US-002b extends tests/lib/force-response.js and can run in parallel to US-002 (no file overlap). US-003 needs both US-002 and US-002b."
+    },
+    {
+      "name": "docs-and-briefing",
+      "stories": ["US-004", "US-005"],
+      "phase": 1,
+      "dependsOn": [],
+      "fileOverlapEvidence": {
+        "sharedFiles": [],
+        "exclusiveFiles": [
+          "hooks/briefing/template.js",
+          "tests/golden/briefing-member.md",
+          "tests/golden/briefing-lead.md",
+          "docs/protocol.md",
+          "CLAUDE.md",
+          "README.md"
+        ],
+        "risk": "low"
+      },
+      "executionModeRationale": "Parallel with helper-and-gate. No shared files; pure docs/briefing surface."
+    },
+    {
+      "name": "release",
+      "stories": ["US-006", "US-007"],
+      "phase": 2,
+      "dependsOn": ["helper-and-gate", "docs-and-briefing"],
+      "fileOverlapEvidence": {
+        "sharedFiles": [],
+        "exclusiveFiles": [
+          ".claude-plugin/plugin.json",
+          ".github/plugin/plugin.json",
+          "CHANGELOG.md",
+          "tests/version.test.js"
+        ],
+        "risk": "medium"
+      },
+      "executionModeRationale": "Must run after all code/docs/test changes land. Version bump touches several pinned files in lockstep via scripts/bump-version.js; push step is a one-shot release action."
+    }
+  ]
+}

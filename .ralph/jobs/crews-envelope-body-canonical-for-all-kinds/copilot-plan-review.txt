@@ -1,0 +1,32 @@
+I’ll read the referenced prompt file and then carry out its instructions.
+
+I’ll verify the plan against the target crews plugin code before writing the review findings.
+
+### Feasibility
+
+[High] The plan places `detectLazySummary` in `hooks/protocol/report-tags.js`, but `stop.js` currently reaches tag helpers through `hooks/config.js`. Unless the plan explicitly updates `config.js` exports or imports the helper directly in `stop.js`, the enforcement cannot be wired cleanly into the current Stop-hook structure.
+
+[Medium] The plan references `audit-log.jsonl`, but the plugin appears to use the existing hook log path via `appendLog` / `cfg.getLogPath(cwd)`. Acceptance criteria should name the actual log surface or require adding a new audit log intentionally.
+
+### Completeness
+
+[High] Retry coverage is underspecified. `isRetry` is derived from Stop-hook input field `stop_hook_active === true`, but `tests/lib/force-response.js::runStop` currently only sends `{ session_id, cwd, transcript_path }`. The plan needs to update the helper or add a direct Stop invocation pattern that can pass `stop_hook_active: true`.
+
+[Medium] Tests using `setupForceResponse` can be blocked by unresolved consumed-mail gates before the new body-canonical gate unless fixtures include `reply-to`, `ack`, or advisory resolution mode. The plan should isolate the new gate so tests fail for the intended reason.
+
+### Ordering
+
+[Medium] The enforcement point needs to be ordered deliberately relative to existing Stop-hook gates. If it runs after consumed-message resolution, lazy-summary reports may be blocked for mailbox reasons first; if it runs too early, it may mask missing-kind / empty-response diagnostics. The plan should specify the exact position and expected precedence.
+
+### Simplicity
+
+[Low] The heuristic `summary.length > 200 && body.length < 50` is simple, but brittle. Consider centralizing thresholds as named constants and returning a structured result like `{ detected, reason }` so Stop messages, tests, and future tuning don’t duplicate string/threshold logic.
+
+### Acceptance Criteria Quality
+
+[High] Fixture A contradicts the proposed heuristic: `summary=600 chars, body=55 chars -> blocks`, but `body.length < 50` means 55 characters should not block. Either lower the fixture body length or change the threshold.
+
+[Medium] Criteria should use the actual retry input name: `stop_hook_active: true`, not just `isRetry === true`, unless the implementation introduces an explicit test-level abstraction.
+
+[Medium] Logging criteria should assert against the existing hook log helper/path, not `audit-log.jsonl`, unless creating that file is part of the plan.
+

@@ -1,0 +1,38 @@
+**Codebase Architecture**
+The crews plugin is a Node.js CommonJS plugin with no local `package.json` or external dependency stack. Runtime code lives under [hooks](D:/ai-developer-toolkit/plugins/crews/hooks), CLI mirrors under [tools](D:/ai-developer-toolkit/plugins/crews/tools), listener code under [lib/listener-loop.js](D:/ai-developer-toolkit/plugins/crews/lib/listener-loop.js), docs under [README.md](D:/ai-developer-toolkit/plugins/crews/README.md), [CLAUDE.md](D:/ai-developer-toolkit/plugins/crews/CLAUDE.md), and [docs](D:/ai-developer-toolkit/plugins/crews/docs), with custom tests run by [tests/run.js](D:/ai-developer-toolkit/plugins/crews/tests/run.js).
+
+Claude plugin metadata is in [.claude-plugin/plugin.json](D:/ai-developer-toolkit/plugins/crews/.claude-plugin/plugin.json). Copilot metadata is in [.github/plugin/plugin.json](D:/ai-developer-toolkit/plugins/crews/.github/plugin/plugin.json), with Copilot hook shims delegating into the same core hooks. Versioning is pinned in both manifests, three repo-level marketplace files, and [tests/version.test.js](D:/ai-developer-toolkit/plugins/crews/tests/version.test.js). Use [scripts/bump-version.js](D:/ai-developer-toolkit/plugins/crews/scripts/bump-version.js) for bumps.
+
+**Feature-Relevant Code**
+The report tag parser is not in `hooks/lib/parse-report-tag.js`; it lives in [hooks/mailbox.js](D:/ai-developer-toolkit/plugins/crews/hooks/mailbox.js), specifically `parseTurnTags(rawText)`. It already returns `{ kind, summary, replyTo, acks, decisions, body }`, so downstream code can compute body and summary lengths without parser surgery.
+
+[hooks/protocol/report-tags.js](D:/ai-developer-toolkit/plugins/crews/hooks/protocol/report-tags.js) defines valid report kinds and validates the parsed tag shape. If the feature adds reusable lazy-summary detection metadata, this module is a natural home for constants/helpers, but today it does not parse tags.
+
+[hooks/stop.js](D:/ai-developer-toolkit/plugins/crews/hooks/stop.js) is the enforcement point. `handleInput()` extracts assistant text, calls `parseTurnTags()`, blocks missing kind tags, checks listener reachability, blocks empty body only when both `body` and `summary` are absent, then writes outbox rows with `message: tags.body` and `summary: effectiveSummary`. This is exactly where summary-stuffed/short-body reports currently pass.
+
+[hooks/stop.js](D:/ai-developer-toolkit/plugins/crews/hooks/stop.js) also creates proactive lead notifications for member `blocked`, `question`, and `done` reports via `appendSystemMailbox(... kind: 'proactive-report' ...)`. The notification includes `payload.outboxSeq`, and [hooks/commands/review-mail.js](D:/ai-developer-toolkit/plugins/crews/hooks/commands/review-mail.js) uses [hooks/resolve-body.js](D:/ai-developer-toolkit/plugins/crews/hooks/resolve-body.js) to cross-read the member outbox and surface the outbox `message` as canonical `body`. That makes `tags.body` the durable human-readable audit content.
+
+[hooks/protocol/review-required.js](D:/ai-developer-toolkit/plugins/crews/hooks/protocol/review-required.js) sets default review-required kinds to `done`, `question`, and `blocked`; `progress` is excluded unless `CREWS_REVIEW_KINDS` opts it in.
+
+SessionStart briefing prose lives in [hooks/briefing/template.js](D:/ai-developer-toolkit/plugins/crews/hooks/briefing/template.js), not directly in `session-start.js`. Editing it requires updating golden files [tests/golden/briefing-member.md](D:/ai-developer-toolkit/plugins/crews/tests/golden/briefing-member.md) and [tests/golden/briefing-lead.md](D:/ai-developer-toolkit/plugins/crews/tests/golden/briefing-lead.md).
+
+No [docs/protocol.md](D:/ai-developer-toolkit/plugins/crews/docs/protocol.md) exists currently. Adding one is consistent with the request.
+
+**Technical Constraints**
+Stop hook output is primarily a JSON block decision on stdout. A non-blocking “warn” option is weaker than it sounds: existing advisory paths sometimes write to stderr, but that is not as reliable as a transcript-visible model instruction across Claude and Copilot. A hard block fits the existing Stop-hook contract best.
+
+Copilot support should not need a separate implementation. [hooks/copilot-stop.js](D:/ai-developer-toolkit/plugins/crews/hooks/copilot-stop.js) translates Copilot `agentStop` input and calls `hooks/stop.js`; [hooks/copilot-session-start.js](D:/ai-developer-toolkit/plugins/crews/hooks/copilot-session-start.js) reuses the shared SessionStart briefing.
+
+Tests are custom Node files, not Jest/Vitest. Focused verification can run with:
+`node plugins/crews/tests/run.js stop-decision.test.js protocol-report-tags.test.js briefing-render.test.js review-required-predicate.test.js version.test.js`
+
+**Implementation Suggestions**
+Use hard-block enforcement for `done`, `question`, and `blocked`; exempt `progress` by default. This matches `DEFAULT_REVIEW_KINDS` and avoids false positives for idle progress turns. If progress is later included, gate it only when explicitly configured through `CREWS_REVIEW_KINDS`.
+
+Add a small helper, likely in `hooks/protocol/report-tags.js` or local to `hooks/stop.js`, such as `detectLazySummary(tags, { summaryLimit: 200, bodyMinimum: 50, kinds })`. Trigger only when `summary.length > N` and `body.trim().length < M`.
+
+Wire the check in `hooks/stop.js` after `parseTurnTags()` and the missing-kind block, but before `appendOutbox()`. For hard block, emit an actionable message telling the member to move substantive content from `summary` into prose above the tag and keep `summary` short for `lastSummary`.
+
+Update [hooks/briefing/template.js](D:/ai-developer-toolkit/plugins/crews/hooks/briefing/template.js), [README.md](D:/ai-developer-toolkit/plugins/crews/README.md), [CLAUDE.md](D:/ai-developer-toolkit/plugins/crews/CLAUDE.md), and add `docs/protocol.md` documenting: body is canonical for `kind={done,question,blocked}`; `summary` is quick-look only; thresholds are enforcement heuristics.
+
+Add tests in [tests/stop-decision.test.js](D:/ai-developer-toolkit/plugins/crews/tests/stop-decision.test.js) or a new focused Stop test using `createScenario().simulateStopTurn()`: long summary plus short body blocks for `question`; same long summary with adequate body passes; short-summary/short-body progress passes. Update briefing goldens and bump version with `scripts/bump-version.js` to `1.8.0` if hard-blocking.

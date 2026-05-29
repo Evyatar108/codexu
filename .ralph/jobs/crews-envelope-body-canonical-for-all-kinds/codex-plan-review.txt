@@ -1,0 +1,31 @@
+### Feasibility
+
+[High] The threshold plan does not catch the stated reproducer. The gate is defined as `summary.length > 200 && body.length < 50`, but Acceptance Fixture A says `summary=600` and `body=55` should block. That condition evaluates false. Either raise the default `bodyFloor` above 55 or change the fixture/reproducer expectation.
+
+[High] The plan refers to logging retry bypasses to `audit-log.jsonl`, but the crews plugin has no such sink. `appendLog()` in `hooks/mailbox.js` writes to `cfg.getLogPath(cwd)`, which resolves to `.crews/logs/crews.log` via `hooks/paths.js`. Tests and docs should target that existing log path unless the plan intentionally adds a new audit file.
+
+[Critical] The “multi-remote push” acceptance criterion is unsafe as written. This repo currently has `origin` and `work` remotes, where `work` points at `gim-home/ai-developer-toolkit`. The plan says to push branch/main to all configured remotes without an explicit approval step. That conflicts with the provided repo guidance to ask before pushing to remotes and could publish to an unintended upstream remote.
+
+### Completeness
+
+[High] The Stop-hook integration plan does not mention isolating the new body-canonical tests from existing Stop gates. `hooks/stop.js` also enforces listener reachability and unresolved consumed-mail ack/reply rules. If tests use `tests/lib/force-response.js` defaults, a consumed mailbox message is seeded and allowed fixtures will block later on strict-ack unless the test passes `messages: []` or includes `ack`/`reply-to`.
+
+[Medium] The plan says to test `isRetry === true` via the `tests/lib/force-response.js` pattern, but `runStop(cwd, sessionId, transcript, env)` currently cannot set `stop_hook_active`; it only passes `session_id`, `cwd`, and `transcript_path`. The plan should either include a helper update or direct use of `cliHarness.stop`.
+
+[Medium] The new hard-block path should likely call `bumpBlockCount()` like other Stop hard blocks in `hooks/stop.js` (`missing kind`, `empty body`, listener gate, unresolved consumed mail). The plan only requires `appendLog()`. Without the counter, engines that fail to set retry state lose the existing circuit-breaker protection.
+
+### Ordering
+
+[Medium] The plan’s gate-placement guidance needs to be more precise: insert after `parseTurnTags()` and the member missing-kind block, but before `decideStopBlock()` and before the empty-body block. In current `hooks/stop.js`, the listener-arm gate runs before the empty-body gate, so “before empty-body and listener-arm” is only correct if the implementation places it before `decideStopBlock()`.
+
+### Simplicity
+
+No issues found.
+
+### Acceptance Criteria Quality
+
+[High] AC #7 Fixture A is internally inconsistent with AC #2’s threshold rule, as noted above (`body=55` cannot block with `bodyFloor=50`).
+
+[High] AC #10 requires pushing to all remotes and pushing `main`; this is not a verifiable code acceptance criterion and needs an explicit human approval checkpoint plus named remotes/branches.
+
+[Medium] “No logging” for `CREWS_BODY_CANONICAL=off` should be scoped to body-canonical logging only. Other Stop-hook logs may still occur from unrelated gates, so the test should assert absence of the body-canonical marker, not absence of all log output.
