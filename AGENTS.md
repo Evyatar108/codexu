@@ -310,25 +310,33 @@ this doc.
 
 ### Branch + worktree discipline
 
-- **Codexu root `CLAUDE.md` is gitignored.** Fork-level guidance goes in this
-  AGENTS.md. The bookkeeper's local `CLAUDE.md` is an operator-only file. When
-  spawning a codexu-touching impl member, the spawn prompt MUST explicitly note
-  this so the member doesn't `git add CLAUDE.md`. When cherry-picking impl
-  branches onto main, scan the diff for `CLAUDE.md` adds and reject them —
-  those edits belong in `AGENTS.md`.
+- **The lead's primary working dir (`D:/harness-efforts/codexu`) STAYS on
+  `main`.** Do not `git checkout` a scratch/topic/feature branch in the
+  primary dir. Any experimental or scratch work the lead needs goes in a
+  worktree — never in the primary dir. Rationale: the primary dir is what
+  every new agent session, every Copilot/Claude tab, every editor's
+  recent-files window, and the auto-loaded `AGENTS.md`/`.crews/` state
+  point at by default. Checking out a scratch branch there is what made the
+  old `codexu-plans-view` worktree (the "view on main" workaround) load-bearing
+  in the first place. With the lead on main directly, that workaround is
+  retired — there is no separate "plans view" needed.
 
-- **Plan-phase members commit to whatever branch the lead is on; the lead
-  cherry-picks the plan commit to `main`.** The lead's cwd holds `.crews/`
-  and `.ralph/jobs/<other>/` state read by sibling members — `git checkout
-  main` mid-session would disrupt them. Cherry-pick from the
-  `codexu-plans-view` worktree (which IS always on `main`) instead. Write
-  the spawn prompt as "commit + push to wherever your cwd is checked out;
-  lead will cherry-pick to main" — never "push to origin/main".
+- **If the lead needs a scratch/topic branch (rare):** add a worktree for
+  it instead. Pattern: `git worktree add ../codexu-<purpose-slug>
+  <branch-name>`. Examples: `../codexu-staging` for in-flight bookkeeping
+  experiments, `../codexu-<feature>` for any feature-branch work the lead
+  itself drives. Never `git checkout <other-branch>` in the primary dir.
 
-- **Impl-phase members commit to a topic branch off `origin/main`, NOT to
-  the lead's branch.** Ralph's impl flow uses its own worktree convention and
-  expects a `ralph/<task-id>` topic branch. The plan-phase "commit to lead's
-  branch" pattern explicitly does NOT carry over to impl.
+- **Plan-phase members commit to `main` directly** (because the lead is
+  already on main). The lead reviews and pushes. The earlier "commit to
+  lead's branch then cherry-pick" workaround is OBSOLETE — that pattern
+  existed only because the lead's primary dir was historically pinned to a
+  scratch branch. Don't propagate it forward.
+
+- **Impl-phase members still commit to a topic branch off `origin/main`.**
+  Ralph's impl flow uses its own worktree convention and expects a
+  `ralph/<task-id>` topic branch. The lead merges (fast-forward or PR) at
+  ship time. This rule is unchanged from before the flip.
 
 - **Cross-repo impl spawns need worktrees in EVERY shared repo.** When two
   or more impl members touch the same sibling repo (e.g., both edit
@@ -342,6 +350,13 @@ this doc.
   HEAD but leaves stale working-tree files; the next `git add` + commit
   records a diff that effectively reverts the fast-forwarded commits. Use
   `git -C <worktree> merge --ff-only <sha>` from inside the worktree.
+
+- **Codexu root `CLAUDE.md` is gitignored.** Fork-level guidance goes in this
+  AGENTS.md. The bookkeeper's local `CLAUDE.md` is an operator-only file
+  (now just a pointer to AGENTS.md). When spawning a codexu-touching impl
+  member, the spawn prompt MUST explicitly note this so the member doesn't
+  `git add CLAUDE.md`. When merging impl branches into main, scan the diff
+  for `CLAUDE.md` adds and reject them — those edits belong in `AGENTS.md`.
 
 ### Spawn-prompt invariants
 
