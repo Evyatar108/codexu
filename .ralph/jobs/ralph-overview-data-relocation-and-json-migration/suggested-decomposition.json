@@ -1,0 +1,221 @@
+{
+  "version": 1,
+  "task": "ralph-overview-data-relocation-and-json-migration",
+  "note": "CROSS-REPO migration shipped as TWO impl jobs in sequence. Job 1 (plugin v2.5.0) MUST ship before Job 2 (codexu adoption). See plan.md 'Sequencing' for the why. The bookkeeper lead should spawn impl members job-by-job, not story-by-story across both jobs at once.",
+  "jobs": [
+    {
+      "name": "job-1-plugin-migration",
+      "repo": "ai-developer-toolkit",
+      "repoPath": "D:/ai-developer-toolkit/plugins/ralph-overview",
+      "branch": "ralph/ralph-overview-data-relocation-and-json-migration-plugin",
+      "baseBranch": "main",
+      "remote": "Evyatar108/ai-developer-toolkit",
+      "shipTarget": "main + marketplace registration; bump to v2.5.0",
+      "executionRecommendation": "serial-single-member",
+      "executionRationale": "Cross-story shared-file risk on scripts/lib/parse-overview-data.mjs (US-A1) and scripts/lib/default-config.mjs (US-A2) with downstream readers in US-A3, US-A6. Serial keeps merges trivial; parallel saves wall-clock but burns review attention.",
+      "clusters": [
+        {
+          "name": "foundation",
+          "stories": ["US-A1", "US-A2"],
+          "phase": 1,
+          "dependsOn": [],
+          "fileOverlapEvidence": {
+            "sharedFiles": [],
+            "exclusiveFiles": [
+              "scripts/lib/parse-overview-data.mjs",
+              "scripts/lib/parse-overview-data.d.mts",
+              "scripts/lib/default-config.mjs",
+              "scripts/lib/default-config.d.mts",
+              "scripts/lib/resolve-config.mjs",
+              "templates/overview-config.template.json",
+              "templates/overview-data.template.json",
+              "scripts/init-consumer.mjs",
+              "scripts/lib/__tests__/parseOverviewData.test.mjs",
+              "scripts/lib/__tests__/resolveConfig.legacyFallback.test.mjs",
+              "scripts/lib/__tests__/resolveConfig.envOverride.test.mjs",
+              "scripts/lib/__tests__/defaultConfig.newPaths.test.mjs",
+              "test-fixtures/overview-data.rich.json"
+            ],
+            "risk": "low"
+          },
+          "executionModeRationale": "US-A1 and US-A2 are file-disjoint. Safe to run in parallel inside one impl member, but recommend serial for low cognitive load — both are foundation primitives needed by US-A3 and US-A4. Serial lands cleanly in 2 commits."
+        },
+        {
+          "name": "watcher",
+          "stories": ["US-A3"],
+          "phase": 2,
+          "dependsOn": ["foundation"],
+          "fileOverlapEvidence": {
+            "sharedFiles": [
+              "tools/overview-mcp/src/__tests__/three-mcp-integration.test.ts (also touched by viewer if viewer needs MCP integration test updates — unlikely; should be exclusive to this cluster)"
+            ],
+            "exclusiveFiles": [
+              "scripts/lib/watch-ralph-state.mjs",
+              "scripts/lib/sync-lock.mjs",
+              "tools/overview-mcp/src/watcher-supervisor.ts",
+              "tools/overview-mcp/src/tools/watcher-status.ts",
+              "scripts/lib/__tests__/watcherOwnerMarker.test.mjs"
+            ],
+            "risk": "medium"
+          },
+          "executionModeRationale": "Depends on US-A2 (new default lockFile path). File-disjoint from viewer (US-A4); can run in parallel with viewer cluster inside phase 2 if running parallel impl members; otherwise serial in single member."
+        },
+        {
+          "name": "viewer",
+          "stories": ["US-A4"],
+          "phase": 2,
+          "dependsOn": ["foundation"],
+          "fileOverlapEvidence": {
+            "sharedFiles": [],
+            "exclusiveFiles": [
+              "tools/overview-viewer/overview.html",
+              "tools/overview-viewer/vite.config.ts",
+              "tools/overview-viewer/src/main.tsx",
+              "tools/overview-viewer/src/bootstrap.ts",
+              "tools/overview-viewer/src/overviewData.ts",
+              "tools/overview-viewer/src/__tests__/bootstrap.test.ts",
+              "tools/overview-viewer/src/__tests__/bootstrap.errorHandling.test.ts",
+              "tools/overview-viewer/src/__tests__/devServerHtml.test.ts"
+            ],
+            "risk": "medium"
+          },
+          "executionModeRationale": "Depends on US-A2 (new outputs paths). Independent of US-A3 (watcher cluster). Parallel-safe with watcher inside phase 2. Largest single story by surface area."
+        },
+        {
+          "name": "skills",
+          "stories": ["US-A5"],
+          "phase": 3,
+          "dependsOn": ["foundation"],
+          "fileOverlapEvidence": {
+            "sharedFiles": [],
+            "exclusiveFiles": [
+              "skills/work-on/SKILL.md",
+              "skills/triage/SKILL.md",
+              "skills/blocker-report/SKILL.md",
+              ".copilot-plugin/copilot-skills/work-on/SKILL.md",
+              ".copilot-plugin/copilot-skills/triage/SKILL.md",
+              ".copilot-plugin/copilot-skills/blocker-report/SKILL.md",
+              "scripts/lib/__tests__/skillForbiddenTokens.test.mjs"
+            ],
+            "risk": "low"
+          },
+          "executionModeRationale": "Depends on US-A2 (skills reference new defaults). Independent of US-A3 and US-A4 file surfaces. Parallel-safe with tests-and-docs cluster inside phase 3."
+        },
+        {
+          "name": "tests-and-docs",
+          "stories": ["US-A6", "US-A7"],
+          "phase": 3,
+          "dependsOn": ["foundation", "watcher", "viewer", "skills"],
+          "fileOverlapEvidence": {
+            "sharedFiles": [],
+            "exclusiveFiles": [
+              "scripts/lib/__tests__/forbiddenTokens.test.mjs",
+              "CHANGELOG.md",
+              "docs/migration-v2.4-to-v2.5.md",
+              "docs/configuration.md",
+              "docs/extending.md",
+              "docs/migration-v1-to-v2.md",
+              "AGENTS.md",
+              "README.md",
+              "tools/overview-mcp/README.md",
+              "tools/overview-viewer/AGENTS.md",
+              ".claude-plugin/plugin.json",
+              ".copilot-plugin/plugin.json"
+            ],
+            "risk": "low"
+          },
+          "executionModeRationale": "US-A6 (cross-cutting tests) depends on all earlier stories being implemented. US-A7 (CHANGELOG + docs + version bump) must land LAST in the job — it's the release-readiness gate. US-A6 can run in parallel with US-A5 if the impl member is comfortable resolving any test-file additions; otherwise serial."
+        }
+      ]
+    },
+    {
+      "name": "job-2-codexu-adoption",
+      "repo": "codexu",
+      "repoPath": "D:/harness-efforts/codexu",
+      "branch": "ralph/ralph-overview-data-relocation-and-json-migration-codexu",
+      "baseBranch": "main",
+      "remote": "Evyatar108/codexu",
+      "shipTarget": "main",
+      "executionRecommendation": "serial-single-member",
+      "executionRationale": "Strictly mechanical work plus verification. Stories build on each other (B2 needs B1's converted files; B3 needs B2's deletes; B4 needs all three). Parallelism would only add coordination overhead with zero throughput gain.",
+      "precondition": "Job 1 (plugin v2.5.0) must be SHIPPED and the local plugin install must reflect v2.5.0 (verify with `node bin/ralph-overview.mjs --version` or equivalent).",
+      "clusters": [
+        {
+          "name": "migrate-data",
+          "stories": ["US-B1", "US-B2"],
+          "phase": 1,
+          "dependsOn": [],
+          "fileOverlapEvidence": {
+            "sharedFiles": [],
+            "exclusiveFiles": [
+              ".ralph-overview/config.json",
+              ".ralph-overview/data.json",
+              ".ralph-overview/SCHEMA.md",
+              ".ralph-overview/generated/.gitkeep",
+              ".ralph-overview/generated/.lock/.gitkeep",
+              "plans/overview-data.js (deleted)",
+              "plans/overview-snapshot.json (deleted)",
+              "plans/overview-snapshot.schema.json (deleted)",
+              "plans/overview-ralph-state.js (deleted)",
+              "plans/overview-ralph-state.json (deleted)",
+              "plans/overview-recommendations.json (deleted)",
+              "plans/overview-dependency-graph.json (deleted)",
+              "plans/overview-activity.jsonl (deleted)",
+              "plans/overview.html (deleted)",
+              "plans/overview.html.next (deleted)",
+              ".ralph/overview-config.json (deleted)",
+              ".gitignore (modified)"
+            ],
+            "risk": "medium"
+          },
+          "executionModeRationale": "Strictly serial. US-B1 creates the new layout; US-B2 verifies via sync and then deletes the old files. Cannot be parallelized — atomicity matters."
+        },
+        {
+          "name": "docs",
+          "stories": ["US-B3"],
+          "phase": 2,
+          "dependsOn": ["migrate-data"],
+          "fileOverlapEvidence": {
+            "sharedFiles": [],
+            "exclusiveFiles": [
+              "AGENTS.md",
+              "docs/fork-roadmap.md",
+              "docs/fork-notes.md",
+              "plans/overview-data-split.md",
+              "plans/overview-viewer-polish-seed.md",
+              "plans/overview-vite-react.md"
+            ],
+            "risk": "low"
+          },
+          "executionModeRationale": "Mechanical find-and-replace. Depends on US-B2 so the docs match reality."
+        },
+        {
+          "name": "smoke",
+          "stories": ["US-B4"],
+          "phase": 3,
+          "dependsOn": ["docs"],
+          "fileOverlapEvidence": {
+            "sharedFiles": [],
+            "exclusiveFiles": [],
+            "risk": "low"
+          },
+          "executionModeRationale": "Verification only — no code commit expected unless smoke gates surface a small follow-up. Final gate before ship."
+        }
+      ]
+    }
+  ],
+  "followUps": [
+    {
+      "proposedId": "ralph-overview-mcp-snapshot-task-tools",
+      "scope": "ralph-overview",
+      "summary": "Add overview.snapshot, overview.task, overview.sidecar_diagnostics MCP tools so skills can flip to MCP-only (currently hybrid MCP-first + config-aware fallback per OQ #3 of the migration plan).",
+      "blockedBy": "ralph-overview-data-relocation-and-json-migration (job 1)"
+    },
+    {
+      "proposedId": "ralph-overview-resolver-wrapper-retirement",
+      "scope": "ralph-overview",
+      "summary": "Retire codexu's gitignored bin/ralph-overview.mjs resolver wrapper in favor of direct $CLAUDE_PLUGIN_ROOT / $COPILOT_HOME paths in package.json scripts (OQ #6 of the migration plan).",
+      "blockedBy": "none (independent of migration; can land separately)"
+    }
+  ]
+}
