@@ -15,7 +15,9 @@ Full fork context, branches, build workflow, and "things that bit us" catalogue 
 
 Agent-readable Ralph pipeline state is generated at `plans/overview-snapshot.json`; recent transitions append to `plans/overview-activity.jsonl`. Artifacts are emitted by the **`ralph-overview` plugin** (installed via the `gim-home/ai-developer-toolkit` marketplace as of Plan 12). The plugin's watcher runs inside the Vite dev server during `pnpm overview` (delegating through `bin/ralph-overview.mjs dev`), or as a standalone process via `pnpm sync-ralph-state:watch` (delegating to `ralph-overview watch`). Both paths share the same `.ralph/overview-sync.lock` and emit the same set of files. See `bin/ralph-overview.mjs` for the resolver wrapper that locates the installed plugin.
 
-**Plugin resolution.** The resolver wrapper checks (in order): `$RALPH_OVERVIEW_PLUGIN_ROOT` env, `$CLAUDE_PLUGIN_ROOT/ralph-overview/`, `$CLAUDE_PLUGIN_ROOT/cache/ai-developer-toolkit/ralph-overview/<latest>/`, `~/.claude/plugins/cache/ai-developer-toolkit/ralph-overview/<latest>/`, **`~/.copilot/installed-plugins/ai-developer-toolkit/ralph-overview/`** (Copilot CLI install layout — single live copy, no per-version subdir), then the local-dev fallback `D:/ai-developer-toolkit/plugins/ralph-overview/`. For local development against an unmerged plugin branch, set `RALPH_OVERVIEW_PLUGIN_ROOT` to point at the toolkit checkout. **Done:** the codexu install now uses the marketplace plugin registration (`enabledPlugins["ralph-overview@ai-developer-toolkit"]` in `.claude/settings.json` for Claude Code and the equivalent block in `~/.copilot/settings.json` for Copilot CLI); the old local-path `.mcp.json` entry and `enabledMcpjsonServers["ralph-overview"]` have been removed.
+**Plugin resolution.** The resolver wrapper (`bin/ralph-overview.mjs` — **tracked in git as of the codexu-bin-ralph-overview-wrapper-retirement task**; previously gitignored / per-machine) checks (in order): `$RALPH_OVERVIEW_PLUGIN_ROOT` env, `$CLAUDE_PLUGIN_ROOT/ralph-overview/`, `$CLAUDE_PLUGIN_ROOT/cache/ai-developer-toolkit/ralph-overview/<latest>/`, `~/.claude/plugins/cache/ai-developer-toolkit/ralph-overview/<latest>/`, **`~/.copilot/installed-plugins/ai-developer-toolkit/ralph-overview/`** (Copilot CLI install layout — single live copy, no per-version subdir), then the local-dev fallback `D:/ai-developer-toolkit/plugins/ralph-overview/`. Because the wrapper is now tracked, a fresh clone of codexu under EITHER Claude Code OR Copilot CLI gets a working `pnpm sync-ralph-state` / `pnpm overview` out of the box — no per-machine wrapper-copy or shell-rc setup. For local development against an unmerged plugin branch, set `RALPH_OVERVIEW_PLUGIN_ROOT` to point at the toolkit checkout. **Done:** the codexu install now uses the marketplace plugin registration (`enabledPlugins["ralph-overview@ai-developer-toolkit"]` in `.claude/settings.json` for Claude Code and the equivalent block in `~/.copilot/settings.json` for Copilot CLI); the old local-path `.mcp.json` entry and `enabledMcpjsonServers["ralph-overview"]` have been removed.
+
+**Cross-engine manual smoke test (the wrapper).** To verify the wrapper resolves to the engine-appropriate install path on this machine, from `D:/harness-efforts/codexu` (or any subdir) run `pnpm sync-ralph-state` under each engine. Exit 0 + an updated `plans/overview-snapshot.json` (only `generatedAt` changed) confirms resolution worked. To inspect which install path was chosen, watch for the `RALPH_OVERVIEW_PLUGIN_ROOT=<path>` line in stderr or set `RALPH_OVERVIEW_PLUGIN_ROOT=` empty + run with `node --trace-warnings bin/ralph-overview.mjs sync` and the cascade is visible. Reference smoke-test record: `.ralph/jobs/codexu-bin-ralph-overview-wrapper-retirement/smoke-test.md`.
 
 Codexu owns: `plans/overview-data.js` (hand-curated tasks + `ui` overrides for codexu-specific copy), `.ralph/overview-config.json` (consumer config + JSON schema), and the generated sidecars / snapshot / activity / `tasks/INDEX.md` under `plans/` and `tasks/`. The plugin owns: the sync library, the watcher, the MCP server, the React viewer, and the `/work-on` / `/triage` / `/blocker-report` skills.
 
@@ -460,18 +462,24 @@ this doc.
   (c) `stop-member <name> bare positional reason text` rejected with
   `unexpected arg`; either accept trailing positionals or document
   `--reason` as mandatory for non-empty reasons.
-  (d) `bin/ralph-overview.mjs` in codexu is a gitignored legacy resolver
-  wrapper (predates the plugin's modern direct-`$CLAUDE_PLUGIN_ROOT` script
-  pattern from `scripts/init-consumer.mjs`). Its hard-coded path cascade
-  checks Claude install layouts but not `~/.copilot/installed-plugins/...`.
-  On THIS machine the local-dev fallback (`D:/ai-developer-toolkit/...`)
-  saves it, but a fresh Copilot-only clone would fail. Two clean fixes:
-  re-run `overview-init` to regenerate `package.json` scripts in the
-  modern direct-path form (obsoleting the wrapper), OR add `~/.copilot/installed-plugins/ai-developer-toolkit/<plugin>/`
-  to the wrapper's cascade and consider un-ignoring `bin/` so the fix is
-  portable. Right now the wrapper is patched in-place on this machine
-  (lines 18, 67-77, 104 of `bin/ralph-overview.mjs`) but the edit is
-  per-machine only.
+  (d) **RESOLVED (`codexu-bin-ralph-overview-wrapper-retirement`).** The
+  `bin/ralph-overview.mjs` resolver wrapper is now tracked in git (the
+  `/bin/` line was removed from `.gitignore`) and includes the Copilot
+  CLI install-path probe (`~/.copilot/installed-plugins/ai-developer-toolkit/ralph-overview/`)
+  in its cascade. A fresh clone of codexu — under EITHER Claude Code or
+  Copilot CLI — now gets a working `pnpm sync-ralph-state` and
+  `pnpm overview` out of the box, no per-machine wrapper-copy or shell-rc
+  required. See "Plugin resolution" above and the cross-engine smoke-test
+  record at `.ralph/jobs/codexu-bin-ralph-overview-wrapper-retirement/smoke-test.md`.
+  The longer-term plan to push the cross-engine resolution UPSTREAM into
+  the plugin's own `scripts/init-consumer.mjs` (so future consumers do not
+  each need a copy of this wrapper) is tracked as
+  `ralph-overview-init-consumer-cross-engine-wrapper` in
+  `plans/overview-data.js`. An external Copilot CLI feature request for
+  per-plugin env-var parity with Claude Code's `$CLAUDE_PLUGIN_ROOT` is
+  drafted in the plan's Reference Artifacts section
+  (`.ralph/jobs/codexu-bin-ralph-overview-wrapper-retirement/plan.md`)
+  and pending operator decision on when/whether to file.
 
 ### Codex submodule build situation
 
