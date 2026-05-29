@@ -695,8 +695,8 @@ window.OVERVIEW_DATA = {
               "scope": "crews",
               "lifecycle": "merged",
               "status": "ok",
-              "lastTouchedAt": "2026-05-29T20:00:00Z",
-              "mergeCommit": "f39d609a",
+              "lastTouchedAt": "2026-05-29T22:30:00Z",
+              "mergeCommit": "f39d609a,92e4dcd6,f8cdcc90",
               "initialStage": "planning",
               "kanbanCards": [],
               "command": {

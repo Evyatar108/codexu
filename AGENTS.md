@@ -232,13 +232,16 @@ snapshot. Agents querying the canonical task list should read
    R4) chose the sidecar split specifically to avoid race conditions between
    hand-editing and watcher writes.
 
-## Crews-plugin invariants (v1.6.0)
+## Crews-plugin invariants (v1.9.2)
 
 The lead and members coordinate via the **crews** plugin (Claude Code + Copilot CLI cross-engine compatible since v1.3.0; default member engine inherits from caller CLI since v1.8.11). Key behaviors:
 
 - **Listener arming**: lead and member sessions must keep a background
   listener armed (`node $CREWS_BIN arm` or `wait-for-message.js`). The
-  PreToolUse hook blocks non-arm tools when the listener is exited.
+  PreToolUse hook blocks non-arm tools when the listener is exited. As of
+  `06f75ec5`, the missing-kind-tag Stop block no longer mentions
+  listener-arming — that error focuses solely on the report-tag protocol;
+  listener gaps surface via PreToolUse instead.
 - **Stop hook gates** turn completion on: missing kind tag, unreviewed mail
   (`lastReviewRequiredSeq > lastReviewedSeq`), strict-ack unresolved consumed
   messages. Stop hook strict; PostToolUse runs an advisory nag at >30s mid-turn.
@@ -247,9 +250,18 @@ The lead and members coordinate via the **crews** plugin (Claude Code + Copilot 
 - **`/crews:review-mail`** advances the cursor under the manifest lock
   (monotonic; v1.5.6 guarantees no rollback). Side effect is the single
   source of truth for "agent reviewed."
-- **`/crews:spawn-member`** launches a new `wt.exe` tab. Member auto-registers
-  via SessionStart within ~5-10s. The lead's outbox carries an initial
-  `spawn-prompt` envelope for forensics.
+- **`/crews:spawn-member`** launches a new `wt.exe` tab in the CURRENT
+  Windows Terminal window (not a new window — `--new-window` flag was
+  retired in v1.8.13). Member auto-registers via SessionStart within
+  ~5-10s. The lead's outbox carries an initial `spawn-prompt` envelope
+  for forensics.
+- **`/crews:stop-member` is HARD-TERMINATE by default as of v1.9.x.** Node-
+  side WMI captures the inner Copilot/Claude CLI PID at spawn time (v1.9.2);
+  stop kills ONLY that inner PID, which lets the launcher's inline `&`
+  return → `exit 0` → wt closes the tab cleanly under default `closeOnExit:
+  graceful`. The legacy soft mailbox-ack flow is opt-in via `--soft`.
+  Killing the inner PID never touches the wt.exe server (which hosts every
+  tab in the window — killing it is catastrophic).
 
 See `D:/ai-developer-toolkit/plugins/crews/CLAUDE.md` for the full protocol.
 
@@ -469,13 +481,17 @@ this doc.
   (see "Plugin resolution" above) — both engines work on the same workspace
   without conflict.
 - **Known follow-ups surfaced by the smoke test** (none blocking):
-  (a) Stale assertions in `tests/engine-env-bootstrap.test.js` reference
-  the pre-patch "bash tool" block message; should be updated to "powershell
-  tool" alongside the v1.8.x hook patch.
-  (b) `parseOverviewData` in the ralph-overview plugin requires exactly 1
-  top-level statement; `plans/overview-data.js` has 2 (a `globalThis.window`
-  polyfill + the assignment), blocking `pnpm sync-ralph-state` even on a
-  clean checkout. Either drop the polyfill or relax the parser.
+  (a) **RESOLVED (crews v1.8.11, commit `2c658b23`).** Stale assertions in
+  `tests/engine-env-bootstrap.test.js` referenced the pre-patch "bash tool"
+  block message; the platform-aware F-016 fix updated them to "powershell
+  tool" wording alongside the hook patch.
+  (b) **RESOLVED (ralph-overview v2.5.0, commit `d7200aee`).** The
+  `parseOverviewData` 1-statement strictness was relaxed by the data-
+  relocation Job 1 ship: the loader now auto-detects by extension
+  (`.json` → `JSON.parse`; `.js` → AST path with the 1-statement constraint
+  retained for back-compat). The remaining adoption work (move codexu's data
+  to `.ralph-overview/data.json`) is tracked as
+  `ralph-overview-data-relocation-and-json-migration` Job 2.
   (c) `stop-member <name> bare positional reason text` rejected with
   `unexpected arg`; either accept trailing positionals or document
   `--reason` as mandatory for non-empty reasons.
