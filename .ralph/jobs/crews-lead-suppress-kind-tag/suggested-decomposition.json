@@ -1,0 +1,47 @@
+{
+  "clusters": [
+    {
+      "name": "implementation-and-tests",
+      "stories": ["US-001", "US-002"],
+      "phase": 1,
+      "dependsOn": [],
+      "fileOverlapEvidence": {
+        "sharedFiles": [
+          "plugins/crews/hooks/stop.js",
+          "plugins/crews/hooks/briefing/template.js"
+        ],
+        "exclusiveFiles": [
+          "plugins/crews/tests/golden/briefing-lead.md",
+          "plugins/crews/tests/golden/briefing-member.md",
+          "plugins/crews/tests/briefing-structure.test.js",
+          "plugins/crews/tests/briefing-render.test.js",
+          "plugins/crews/tests/copilot-briefing.test.js",
+          "plugins/crews/tests/role-gate.test.js"
+        ],
+        "risk": "high"
+      },
+      "executionModeRationale": "US-001 changes code; US-002 updates fixtures and goldens that exercise that code. Splitting across parallel jobs would create a transient where tests fail against unmodified code. Serialize."
+    },
+    {
+      "name": "docs-and-version",
+      "stories": ["US-003"],
+      "phase": 2,
+      "dependsOn": ["implementation-and-tests"],
+      "fileOverlapEvidence": {
+        "sharedFiles": [],
+        "exclusiveFiles": [
+          "plugins/crews/CLAUDE.md",
+          "plugins/crews/CHANGELOG.md",
+          "plugins/crews/.claude-plugin/plugin.json",
+          "plugins/crews/.github/plugin/plugin.json",
+          ".agents/plugins/marketplace.json",
+          ".claude-plugin/marketplace.json",
+          ".github/plugin/marketplace.json",
+          "plugins/crews/tests/version.test.js"
+        ],
+        "risk": "low"
+      },
+      "executionModeRationale": "Must run after implementation-and-tests so the version stamp accompanies a green test suite. No technical reason it cannot be folded into the first cluster; kept separate for review-loop hygiene."
+    }
+  ]
+}

@@ -1,0 +1,111 @@
+{
+  "planFile": "D:/harness-efforts/codexu/.ralph/jobs/.staging/20260529-000133-lead-suppress-kind-tag/draft-plan.md",
+  "repoDir": "D:/ai-developer-toolkit",
+  "reviewCycle": 1,
+  "findings": [
+    {
+      "id": "F-001",
+      "severity": "High",
+      "source": "codex",
+      "category": "Criteria Quality",
+      "sectionRef": "Acceptance Criteria > AC-11",
+      "description": "AC-11 treats multi-remote push (Evyatar108 + gim-home) + direct merge to main as already authorized without referencing the authorization. Reviewer flagged Critical for repo-rule divergence. Operator spawn prompt (2026-05-28) DID explicitly pre-authorize: 'Multi-remote push (Evyatar108 + gim-home). Member-driven direct merge authorized per recent precedent.' — so the authorization exists but the plan must cite it so impl member + reviewer can audit.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "AC-11 amended to cite the spawn-prompt pre-authorization explicitly. Severity reduced from Critical to High since pre-auth exists; final acceptance text references the precedent.",
+      "relevantFiles": ["draft-plan.md"],
+      "suggestedFix": "Append '(per operator pre-authorization in 2026-05-28 spawn prompt: \"Multi-remote push (Evyatar108 + gim-home). Member-driven direct merge authorized per recent precedent.\")' to AC-11."
+    },
+    {
+      "id": "F-002",
+      "severity": "High",
+      "source": "consensus",
+      "category": "Feasibility",
+      "sectionRef": "Acceptance Criteria > AC-6",
+      "description": "AC-6 as written says a lead emitting 'only <|report ack=...|>' (no kind) resolves the message and passes Stop. But parseTurnTags (mailbox.js:781-784) strips all <|report ...|> tags from body; the resulting empty body + null summary triggers the existing empty-body block at stop.js:692-730. Codex + Copilot both flagged.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "AC-6 rewritten: 'A lead turn with prose + <|report ack=\"<id>\" reason=\"...\"|> (no kind) resolves the acked message and passes Stop.' The fixture in US-002 must include non-trivial prose alongside the ack tag.",
+      "relevantFiles": ["draft-plan.md", "plugins/crews/hooks/mailbox.js", "plugins/crews/hooks/stop.js"],
+      "suggestedFix": "Reword AC-6 to require prose alongside the ack metadata tag."
+    },
+    {
+      "id": "F-003",
+      "severity": "High",
+      "source": "codex",
+      "category": "Completeness",
+      "sectionRef": "Approach > Architecture (Stop hook)",
+      "description": "Listener-block reason at hooks/stop.js:478 still says 're-emit your prose + kind tag' (or equivalent). For leads, this contradicts the new role-asymmetric behavior — the lead would be told to add the very footer the change is removing. Plan does not enumerate this file:line as a touchpoint.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Added explicit edit to US-001: tailor the listener-block reason at hooks/stop.js:478 for leads (replace 'kind tag' wording with 'turn-end metadata' or similar role-neutral wording, or branch on state.role). Added file-edit bullet under 'Files to Create/Modify'.",
+      "relevantFiles": ["plugins/crews/hooks/stop.js"],
+      "suggestedFix": "Branch the listener-block reason string on state.role: members keep 're-emit your prose + kind tag'; leads see 're-emit your prose (kind tag is optional for leads)' or similar."
+    },
+    {
+      "id": "F-004",
+      "severity": "Medium",
+      "source": "codex",
+      "category": "Feasibility",
+      "sectionRef": "Open Questions > Q1",
+      "description": "Q1 (accept Copilot's pre-applied edits or implement fresh) is flagged as a real blocker for autonomous impl. Reviewer is correct that autonomous impl cannot safely make this choice. However, the choice belongs to the impl-phase bookkeeper, not the plan member. Plan should pin a default + note operator can override.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Q1 promoted out of Open Questions into the plan's 'Impl phase prerequisites' section with a default of Option A (discard Copilot's uncommitted edits via 'git -C D:/ai-developer-toolkit restore -- plugins/crews .agents/plugins .claude-plugin .github/plugin' before impl member starts). Operator may override at impl spawn. The unrelated resume-crew.js edit MUST be discarded regardless.",
+      "relevantFiles": ["draft-plan.md"],
+      "suggestedFix": "Default to Option A; document the exact git restore command; explicitly call out that resume-crew.js belongs to a different task."
+    },
+    {
+      "id": "F-005",
+      "severity": "Medium",
+      "source": "copilot",
+      "category": "Completeness",
+      "sectionRef": "Files to Create/Modify > codexu repo",
+      "description": "Copilot flagged that D:/harness-efforts/codexu/CLAUDE.md lines 143-147 says 'The lead's turn must end with <|report kind=\"<kind>\" summary=\"...\"|>' — contradicting the new v1.7.4 lead behavior. Verified true. However, codexu/CLAUDE.md is gitignored (per .gitignore line 67 and auto-memory feedback_codexu_claude_md_gitignored). Cannot be updated via the v1.7.4 ship. Per auto-memory rule, fork-level guidance goes in AGENTS.md. The codexu/AGENTS.md does NOT currently contain the kind-tag wording, so no update needed there.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Plan now explicitly notes codexu/CLAUDE.md (gitignored) carries a stale lead-end-with-kind-tag instruction at line 147; this is a known local-operator-surface and is out of scope for the v1.7.4 ship but must be flagged in the ship report so the operator can hand-update their local CLAUDE.md.",
+      "relevantFiles": ["D:/harness-efforts/codexu/CLAUDE.md (gitignored)"],
+      "suggestedFix": "Note codexu/CLAUDE.md staleness in Out-of-Scope and add an explicit 'post-ship operator action' note in the Open Questions section."
+    },
+    {
+      "id": "F-006",
+      "severity": "Medium",
+      "source": "consensus",
+      "category": "Criteria Quality",
+      "sectionRef": "Acceptance Criteria > AC-7 / Open Questions > Q3",
+      "description": "AC-7 says lead briefing 'OMITS the footer-tag section, the tag examples, the resume-protocol tag-end line, and the kind-tag line in rules.' Both Codex and Copilot note ambiguity: leads still need <|report ack=...|> and <|report reply-to=...|> metadata tag examples to satisfy AC-5/AC-6. Plus, the silent-omission choice (Q3) leaves leads without an explicit 'no routine footer required' rule during the v1.7.3 → v1.7.4 transition.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "AC-7 rewritten to: 'Lead SessionStart briefing OMITS mandatory kind-tag instructions and kind-tag-only examples, but PRESERVES ack/reply metadata tag syntax + examples + a short explicit clause stating leads do NOT need to emit a routine kind tag. Member briefing remains byte-identical to v1.7.3.' Q3 resolved in favor of explicit short note (not silent omission).",
+      "relevantFiles": ["draft-plan.md", "plugins/crews/hooks/briefing/template.js", "plugins/crews/tests/golden/briefing-lead.md"],
+      "suggestedFix": "Distinguish kind footer content from ack/reply metadata content; pick explicit no-footer note over silent omission."
+    },
+    {
+      "id": "F-007",
+      "severity": "Medium",
+      "source": "codex",
+      "category": "Ordering",
+      "sectionRef": "Acceptance Criteria > AC-5 (fixture)",
+      "description": "Listener gate runs before unresolved-mail enforcement. A test fixture for AC-5 (lead with unresolved consumed mail still blocks) without an armed/reachable listener would block on listener reachability instead of the lead-tailored unresolved-mail reason — false-positive coverage.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "AC-5 fixture explicitly requires the lead manifest to set listenerState='armed' + a recent lastListenerSpawnAt before driving the unresolved-mail scenario. Documented in US-002 + AC-5.",
+      "relevantFiles": ["draft-plan.md", "plugins/crews/tests/role-gate.test.js"],
+      "suggestedFix": "Add 'listener armed' precondition to the AC-5 fixture setup."
+    },
+    {
+      "id": "F-008",
+      "severity": "Medium",
+      "source": "codex",
+      "category": "Completeness",
+      "sectionRef": "Out of Scope / Implementation Strategy",
+      "description": "The unrelated hooks/commands/resume-crew.js PowerShell PID-verification fix Copilot pre-applied is mentioned in risk text but not promoted to an explicit pre-implementation step. If the impl member adopts Option B (keep Copilot's edits as starting point), they may inadvertently ship the unrelated change with v1.7.4.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Added explicit pre-implementation step: regardless of Q1 outcome, the impl member MUST run 'git -C D:/ai-developer-toolkit restore -- plugins/crews/hooks/commands/resume-crew.js' as the very first action before any code edits. This guarantees the v1.7.4 ship does not contain the unrelated resume-crew.js change.",
+      "relevantFiles": ["plugins/crews/hooks/commands/resume-crew.js"],
+      "suggestedFix": "Explicit git restore step at the top of US-001."
+    }
+  ]
+}

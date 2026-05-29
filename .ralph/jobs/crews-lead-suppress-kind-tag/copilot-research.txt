@@ -1,0 +1,70 @@
+I’ll read the prompt file to identify the requested task, then carry it through.
+
+Need wait for tool results.
+
+I’ll inspect the crews plugin surfaces named in the feature request and map the current hook/test/docs behavior.
+
+I’ll continue from the prior research, verify the exact acceptance details, then implement the role-specific Stop/briefing behavior in the crews plugin.
+
+I found the implementation splits cleanly between the briefing renderer and Stop hook. I’m applying the role-asymmetric behavior now, with leads defaulting missing kinds to `progress` internally so list/status output stays explicit.
+
+The code changes are in place; I’m switching to focused tests now so I can catch any syntax/golden drift before updating docs and version stamps.
+
+We need wait? multi_tool maybe powershell output not shown? Actually result missing? Let's see.
+
+Wait output missing? Need maybe individual?
+
+The focused behavior tests pass. I’m updating the release notes, role-specific operating docs, and version stamps next.
+
+Again mixed? Let's see.
+
+Need response? multi_tool weird maybe not. We used maybe no output? Let's call separately? Need not report intent? Already did earlier in first tool? We attempted? It didn't show maybe report not call? Developer says report with other tools first after user; we did eventually only powershell without report? Actually report call via multi maybe maybe swallowed? We see no output. But okay? Need maybe list sessions? Let's run targeted maybe.
+
+Again no output? Is multi_tool silence? Maybe tool calls not shown? It seems not executing? Maybe multi_tool not allowed? Wait commentary output blank. Maybe in this interface multi_tool calls with functions? It should output. Maybe I called two multi_tool but no result due to issue. Use individual.
+
+Docs and version stamps are in place. I’m running the full crews suite now to catch regressions outside the focused tests.
+
+Multi no output. Use separate? Need report? Hm.
+
+The full suite exposed failures outside the touched assertions, so I’m inspecting whether these are caused by the new Stop-hook semantics or by an existing harness/environment issue.
+
+Again multi? no. Use single view/rg.
+
+The failures were due to the active crew environment leaking into the test runner (`CREWS_STATE_CWD` pointed at this codexu session). I’m rerunning the suite with the crews env scrubbed.
+
+With the crew env scrubbed, 235/236 passed and the only remaining failure is an orphan-listener timing test unrelated to the footer change. I’m rerunning that test in isolation to confirm whether it’s flaky.
+
+The isolated orphan-kill test passed, confirming the prior full-run failure was a timing flake. I’m doing one final lower-concurrency full-suite run with the env scrubbed for a clean end-to-end result.
+
+Multi no. individual.
+
+The new Stop-hook coverage now also verifies lead mailbox `ack` metadata works without a `kind`. I’m doing final diff and whitespace checks before wrapping up.
+
+Multi no; use individual.
+
+Multi failing due report? Let's call view only? But need report intent with other in same batch using multi? It failed? Actually no output? Since multi tool issue? Let's use functions individually? report already in previous failed multi? It didn't execute? For report, need with other. Could use multi only functions? It failed because? Maybe it did not show? Let's not call report? Already initial. Now new phase yes but not required maybe. use view.
+
+Targeted coverage is clean. I’m running the scrubbed full crews suite once more; if the known runner-only orphan-listener case still fails, I’ll report it separately from this change.
+
+The scrubbed full suite still has the single runner-specific orphan-listener failure. I’m checking whether that test can be made deterministic without changing the lead/member footer behavior.
+
+No output? Maybe multi error? It is weird; maybe multi tool not returning? Wait there is no result. Did it hang? It should. Maybe tool call suppressed? I see commentary no result. Maybe multi isn't supported? It should be. Did I use absolute paths with D:\ causing JSON backslashes okay. Let's wait?
+
+The suite failure comes from the test runner’s fake `USERPROFILE`: shelling through `cmd.exe` makes the Windows PID check time out, so the orphan kill is skipped. I’m switching that check to invoke PowerShell directly.
+
+Again no output. Hmm perhaps multi_tool_use not yielding because recipient_name? Is namespace correct? It accepts "functions.rg"; should. Maybe UI not showing? Maybe ignore. Need apply_patch.
+
+The runner-only orphan-listener failure is fixed and now passes through the suite runner. I’m rerunning the scrubbed full suite to confirm the entire plugin is green.
+
+The remaining flake is timing: under the full runner, PowerShell PID verification starts in just over two seconds with the isolated profile, so the two-second timeout is too aggressive. I’m widening only that fallback timeout.
+
+The full crews suite is green now. I’m doing final diff hygiene and status checks.
+
+One more cleanup: the direct PowerShell fallback works, but it emits a startup blip under the isolated test profile. I’m adding non-interactive/no-logo flags to keep runner output clean.
+
+Implemented in `D:\ai-developer-toolkit\plugins\crews`.
+
+Leads are now prose-first and no longer blocked for missing `<|report kind=...|>`, while members still require it. Lead no-kind turns record an internal `progress` kind, summary fallback still works, and lead `ack`/`reply-to` metadata can resolve consumed mail without a kind. Docs, goldens, tests, and version metadata are updated to `1.7.4`.
+
+Also hardened `resume-crew` PID verification so the full runner is stable. Final scrubbed suite: `236/236 tests passed`.
+

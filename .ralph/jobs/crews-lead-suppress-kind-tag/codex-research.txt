@@ -1,0 +1,72 @@
+**Codebase Architecture**
+
+`D:/ai-developer-toolkit/plugins/crews` is a standalone CommonJS Node plugin, not a package with its own `package.json`. Hooks are executable JS scripts under `hooks/`; CLI commands route through `tools/crews.js` and `hooks/commands/registry.js`; persistent crew state lives in the consuming workspace under `.crews/` as JSON/JSONL manifests, mailboxes, outboxes, cursors, and session flags.
+
+Key split modules:
+- `hooks/session-start.js`: Claude SessionStart hook, role env bootstrap, manifest updates, briefing output.
+- `hooks/copilot-session-start.js`: Copilot shim, delegates to `session-start.js`.
+- `hooks/stop.js`: Stop hook enforcement, report tag parsing, listener gate, strict mailbox-resolution gate, outbox + manifest update.
+- `hooks/briefing/template.js`, `hooks/briefing/render.js`, `hooks/briefing/context.js`: shared briefing renderer for lead/member and Claude/Copilot wording.
+- `hooks/mailbox.js`: `parseTurnTags`, `appendOutbox`, `synthesizeSummary`.
+- `hooks/actors.js` and `hooks/crews.js`: actor listings, manifests, `list-members` formatting/snapshots.
+- Tests use the custom runner `tests/run.js`, with plain Node test files.
+
+**Feature-Relevant Code**
+
+The footer-tag requirement is mainly in `hooks/briefing/template.js`. The `footer-tag`, `examples`, `resume-protocol`, and `rules` sections currently tell both roles to end with a kind tag because `hooks/briefing/render.js` renders every section for every role. `hooks/session-start.js` calls `memberContext(...)` or `leadContext(...)`; Copilot uses the same text through `hooks/copilot-session-start.js`, so one shared briefing change covers both engines.
+
+The missing-kind Stop block is in `hooks/stop.js` after:
+
+```js
+const text = lastTurnAssistantText(data.transcript_path);
+const tags = parseTurnTags(text);
+
+if (!tags.kind) { ... block ... }
+```
+
+`decideStopBlock` is exported from `hooks/stop.js`; there is no `hooks/lib/decide-stop.js` in this checkout.
+
+Manifest/listing behavior:
+- `hooks/mailbox.js::synthesizeSummary` already derives first-line summaries.
+- `hooks/protocol/manifest.js` allows `manifest.lastKind` to be `null` or one of `progress/question/done/blocked`.
+- `hooks/crews.js::snapshotCrew` maps missing `lastKind` to `null`.
+- `hooks/actors.js::formatMemberList` renders null as `-`, not broken.
+- `hooks/commands/list-members.js` delegates to `snapshotCrew`/`formatMemberList`.
+
+Relevant tests:
+- `tests/briefing-render.test.js` compares `tests/golden/briefing-lead.md` and `briefing-member.md`.
+- `tests/briefing-structure.test.js` currently expects the `footer-tag` section globally.
+- `tests/copilot-briefing.test.js` checks lead/member briefing wording by engine.
+- `tests/stop-decision.test.js` covers `decideStopBlock`, not the missing-kind block.
+- `tests/role-gate.test.js` already exercises lead Stop with a tag and asserts lead outbox writes.
+- `tests/version.test.js` pins `1.7.3` across release metadata.
+
+**Technical Constraints**
+
+Simply skipping the missing-kind block for leads is insufficient for AC-3: today the manifest update happens later in the successful outbox-write path, which depends on `tags.kind`. A lead prose-only turn needs either a synthetic kind or a new manifest-update path.
+
+The simplest low-risk choice is to default missing lead kind to `progress` internally. That preserves the existing append-outbox/update-manifest flow, keeps `lastKind` schema-valid, and lets `lastSummary` use the existing `synthesizeSummary(tags.body)` fallback. Null is tolerated by manifest/list-members, but would require more branching and more downstream audit.
+
+Strict mailbox-resolution is separate from the kind requirement. If a lead consumed non-exempt mail, Stop should still block until it is acked/replied; only the missing-kind block should become member-only.
+
+Version bump should use `plugins/crews/scripts/bump-version.js 1.7.4`; it updates the two plugin manifests plus three marketplace indexes and `tests/version.test.js`.
+
+**Implementation Suggestions**
+
+In `hooks/stop.js`, after `parseTurnTags(text)`, change behavior to:
+
+- if `!tags.kind && state.role === 'member'`: keep existing block unchanged.
+- if `!tags.kind && state.role === 'lead'`: set `tags.kind = 'progress'` and continue through the existing success path.
+
+That gives prose-only lead turns clean Stop success, writes lead outbox as before, sets `manifest.lastKind = 'progress'`, and sets `manifest.lastSummary` from the first prose line.
+
+In `hooks/briefing/template.js`, make sections role-aware rather than duplicating SessionStart logic. Add an `include` predicate or make lead-specific sections return alternate text. Member briefing should remain byte-for-byte except intentional updates; lead briefing should omit footer-tag instructions, tag examples, and “end with kind tag” lines in `resume-protocol`/`rules`.
+
+Update tests/goldens:
+- `briefing-lead.md` should lose the footer requirement.
+- `briefing-member.md` should remain unchanged.
+- Add full Stop-hook fixtures, preferably in `tests/role-gate.test.js` or a new `tests/lead-footer-tag.test.js`; `tests/stop-decision.test.js` is not the natural home unless it calls `handleInput` with a transcript.
+- Add member no-tag regression asserting the existing block message.
+- Add lead no-tag assertion for manifest `lastSummary`.
+
+Docs to update: `README.md` “Turn-End Reports”, `CLAUDE.md` with v1.7.4 guidance, `CHANGELOG.md`, and optionally `.github/plugin/hooks.json` comments that currently imply uniform footer enforcement.
