@@ -376,6 +376,23 @@ this doc.
   landed. Stale topic branches on origin cause `git fetch origin
   --prune` noise and clutter `git ls-remote` output.
 
+- **Always push main to ALL configured remotes after every merge.** Both
+  codexu and `D:/ai-developer-toolkit` have multiple remotes that must
+  stay in lockstep — leaving any of them stale is operator surprise the
+  next time they `git fetch` or try a `copilot plugin update`. The
+  bookkeeper duty is: after `git merge --ff-only <sha>` or
+  `git cherry-pick`, run `git remote | ForEach-Object { git push $_ main }`
+  (or the equivalent loop) and verify every remote's `main` HEAD matches
+  local. Surface any push failure (auth, permission denied, protected
+  branch) immediately rather than silently leaving the remote behind.
+  Codexu remotes today: `origin` (evmitran_microsoft), `personal`
+  (Evyatar108). Toolkit remotes today: `origin` (evmitran_microsoft),
+  `gim-home` (the marketplace source — `copilot plugin update` pulls
+  from here), `personal` (Evyatar108). **`copilot plugin update`
+  depends on `gim-home/main` being current**, so a sync miss there
+  silently leaves every other consumer machine running the old plugin
+  even after the operator runs `copilot plugin update`.
+
 - **Cross-repo impl spawns need worktrees in EVERY shared repo.** When two
   or more impl members touch the same sibling repo (e.g., both edit
   `D:/ai-developer-toolkit`), each needs its own worktree in that repo so
