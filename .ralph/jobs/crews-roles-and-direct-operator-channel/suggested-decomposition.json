@@ -1,0 +1,128 @@
+{
+  "clusters": [
+    {
+      "name": "foundation",
+      "stories": ["US-001"],
+      "phase": 1,
+      "dependsOn": [],
+      "fileOverlapEvidence": {
+        "sharedFiles": [],
+        "exclusiveFiles": [
+          "hooks/commands/auth-policies.js",
+          "hooks/protocol/review-required.js",
+          "tests/operator-cli-auth-policy.test.js",
+          "tests/review-required-new-kinds.test.js"
+        ],
+        "risk": "low"
+      },
+      "executionModeRationale": "Foundation cluster, runs alone in phase 1. Sets up the auth policy stub and review-required protocol so downstream stories can use them without re-touching."
+    },
+    {
+      "name": "envelope-and-identity",
+      "stories": ["US-002", "US-006"],
+      "phase": 2,
+      "dependsOn": ["foundation"],
+      "fileOverlapEvidence": {
+        "sharedFiles": [],
+        "exclusiveFiles": [
+          "hooks/mailbox.js (write-path: appendMailboxWithSender, appendOperatorMailbox)",
+          "hooks/lib/operator-identity.js",
+          "tests/operator-mailbox-writepath.test.js",
+          "tests/operator-identity.test.js",
+          "tests/valid-kinds-unchanged.test.js"
+        ],
+        "risk": "low"
+      },
+      "executionModeRationale": "US-002 and US-006 are file-disjoint and both build foundation primitives required by US-003 and US-004. Can run in parallel inside phase 2; safe to run serially inside one implementer member."
+    },
+    {
+      "name": "member-tag-and-hooks",
+      "stories": ["US-005"],
+      "phase": 2,
+      "dependsOn": ["foundation"],
+      "fileOverlapEvidence": {
+        "sharedFiles": [
+          "hooks/mailbox.js (read-path: parseTurnTags, consumeMailbox manifest patch — distinct from envelope-and-identity's write-path edits)"
+        ],
+        "exclusiveFiles": [
+          "hooks/stop.js",
+          "hooks/copilot-stop.js",
+          "hooks/copilot-shim.js",
+          "hooks/lib/operator-direct-nag.js",
+          "tests/operator-direct-summary-tag.test.js",
+          "tests/lasturnmeta-operator-direct.test.js"
+        ],
+        "risk": "medium"
+      },
+      "executionModeRationale": "Can run in parallel with envelope-and-identity because hooks/mailbox.js edits target different functions (parseTurnTags + consumeMailbox vs appendMailboxWithSender). Recommend SERIAL inside one impl member for safety; PARALLEL only if implementer is willing to handle a focused mailbox.js merge."
+    },
+    {
+      "name": "operator-cli",
+      "stories": ["US-003"],
+      "phase": 3,
+      "dependsOn": ["envelope-and-identity"],
+      "fileOverlapEvidence": {
+        "sharedFiles": [
+          "hooks/commands/registry.js (3 new entries; also touched by escalate-slash)"
+        ],
+        "exclusiveFiles": [
+          "hooks/commands/operator-message.js",
+          "hooks/commands/notify-lead.js",
+          "hooks/commands/inbox.js",
+          ".copilot-plugin/copilot-skills/operator-message/SKILL.md",
+          ".copilot-plugin/copilot-skills/notify-lead/SKILL.md",
+          ".copilot-plugin/copilot-skills/inbox/SKILL.md",
+          "tests/operator-message-cli.test.js",
+          "tests/notify-lead-cli.test.js",
+          "tests/inbox-cli.test.js"
+        ],
+        "risk": "medium"
+      },
+      "executionModeRationale": "Depends on envelope-and-identity. Shares registry.js with escalate-slash. Recommend SERIAL with escalate-slash to avoid a 4-entry merge conflict in registry.js, or accept the small conflict and resolve manually if running parallel."
+    },
+    {
+      "name": "escalate-slash",
+      "stories": ["US-004"],
+      "phase": 3,
+      "dependsOn": ["envelope-and-identity"],
+      "fileOverlapEvidence": {
+        "sharedFiles": [
+          "hooks/commands/registry.js"
+        ],
+        "exclusiveFiles": [
+          "hooks/commands/escalate-to-operator.js",
+          ".copilot-plugin/copilot-skills/escalate-to-operator/SKILL.md",
+          "tests/escalate-to-operator-cli.test.js"
+        ],
+        "risk": "medium"
+      },
+      "executionModeRationale": "Same dependency surface as operator-cli. Could run in parallel with operator-cli inside phase 3 IF the implementer is comfortable resolving the registry.js merge. Recommend SERIAL after operator-cli for low-risk implementation."
+    },
+    {
+      "name": "integration-tail",
+      "stories": ["US-007"],
+      "phase": 4,
+      "dependsOn": ["operator-cli", "escalate-slash", "member-tag-and-hooks"],
+      "fileOverlapEvidence": {
+        "sharedFiles": [],
+        "exclusiveFiles": [
+          "hooks/commands/list-members.js",
+          "hooks/commands/review-mail.js",
+          "hooks/actors.js",
+          "hooks/crews.js",
+          "hooks/lib/envelope-kind-prefix.js",
+          ".claude-plugin/plugin.json",
+          "README.md",
+          "AGENTS.md",
+          "CHANGELOG.md",
+          "tests/list-members-operator-column.test.js",
+          "tests/review-mail-prefixes.test.js",
+          "tests/backwards-compat-v18x-reader.test.js",
+          "AGENTS.md (codexu)"
+        ],
+        "risk": "low"
+      },
+      "executionModeRationale": "Must run last because (a) visual prefixes need the new envelope kinds to exist, (b) cross-engine hook test needs US-005's stop-hook changes, (c) backwards-compat smoke needs the full v1.9.x writer surface, (d) docs reference all earlier-phase changes."
+    }
+  ]
+}
