@@ -348,31 +348,36 @@ this doc.
 
   | Case | Where the worktree lives | Owner |
   |---|---|---|
-  | **Ralph-skill spawn** (`/plan-with-ralph`, `/implement-with-ralph`, `/brainstorm-with-ralph`) | `.ralph/jobs/<task-id>/worktree/` (or a `plan/` / `impl/` subdir if both phases are open at once) | The ralph skill itself manages it. Lead spawn-prompts should NOT include a manual `git worktree add ...` — that bypasses the skill's own setup and may create duplicate state. |
+  | **Ralph-skill spawn** (`/plan-with-ralph`, `/implement-with-ralph`, `/brainstorm-with-ralph`) | `.ralph/jobs/<task-id>/worktree/` (with `/plan-with-ralph` using `worktree/plan/`; `/implement-with-ralph` keeps its historical `worktree/` layout) | The ralph skill itself manages it. Lead spawn-prompts should NOT include a manual `git worktree add ...` — that bypasses the skill's own setup and may create duplicate state. Run `/plan-with-ralph`; it auto-manages its plan worktree. |
   | **Lead-driven scratch work** (rare; non-ralph-skill) | `D:/harness-efforts/codexu/.worktrees/<purpose-slug>/` | Lead creates manually. Matches every existing operator worktree (see `git worktree list`). |
   | **Cross-repo impl** (touches a sibling repo like `D:/ai-developer-toolkit/`) | `D:/<sibling-repo>/.worktrees/<task-id>/` — INSIDE the sibling repo | Lead/impl-member creates manually before editing. The worktree lives in the repo it works on, not in the parent dir nor in codexu's state tree. |
   | **NEVER** | `../codexu-<slug>/`, `D:/codexu-<slug>/`, `D:/<sibling-repo>-<slug>/` — all sibling-of-repo paths | — |
-
-  Caveat: `/plan-with-ralph` does NOT currently auto-manage a worktree
-  (observed 2026-05-29). Until the skill is fixed (tracked as
-  `ralph-orchestration-plan-with-ralph-auto-worktree`), lead spawn-prompts
-  for plan members MUST explicitly instruct the member to create a worktree
-  at `.ralph/jobs/<task-id>/worktree/plan/` — never at sibling paths.
 
 - **Plan-phase members commit on a topic branch in a worktree, NOT on
   local main directly.** Earlier guidance ("plan-phase members commit to
   `main` directly because the lead is already on main") created a real
   concurrency hazard observed 2026-05-29: the plan-member's working dir
   is the same as the lead's primary dir, and any `git checkout` the
-  member runs flips the lead's branch out from under the lead. Use the
-  worktree-and-topic-branch flow instead: member creates a worktree at
-  the right placement (per the table above) on a `ralph/plan-<task-id>`
-  topic branch, commits there, pushes the topic branch to `origin`, and
-  reports the commit SHA + branch + worktree path to the lead. The lead
+  member runs flips the lead's branch out from under the lead.
+  `/plan-with-ralph` now owns the safe flow: it creates
+  `.ralph/jobs/<task-id>/worktree/plan/` on `ralph/plan-<task-id>`,
+  commits the plan deliverables there, pushes the topic branch to
+  `origin`, and reports the commit SHA + branch + worktree path to the
+  lead. Spawn prompts should simply say "run `/plan-with-ralph`"; do not
+  paste a manual WORKTREE MANDATE or `git worktree add` snippet. The lead
   reviews, FF-merges (or cherry-picks if siblings landed in the wrong
-  order), pushes main, and cleans up the worktree + topic branch after
-  merge. This matches the impl-phase pattern (next bullet) and avoids
-  the dual-writer hazard entirely.
+  order), pushes main, and cleans up with `/plan-with-ralph cleanup
+  <task-id>` after merge. This matches the impl-phase pattern (next
+  bullet) and avoids the dual-writer hazard entirely.
+
+- **Lead post-FF flow for plan branches.** After a plan member reports a
+  clean plan commit, the lead reviews the branch and then runs the three
+  post-ship steps from the lead's primary codexu checkout: `git merge
+  --ff-only <sha>`, push `main` to the configured remotes, then
+  `/plan-with-ralph cleanup <task-id>`. Add `--prune-remote` only when the
+  operator intentionally wants the remote topic branch deleted; the
+  cleanup command leaves the origin branch intact by default as an audit
+  trail.
 
 - **Impl-phase members still commit to a topic branch off `origin/main`.**
   Ralph's impl flow uses its own worktree convention and expects a
