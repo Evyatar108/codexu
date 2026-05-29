@@ -916,8 +916,8 @@ window.OVERVIEW_DATA = {
               "id": "ralph-overview-watcher-copilot-cli-env-verify",
               "scope": "ralph-overview",
               "lifecycle": "tracked",
-              "status": "blocked",
-              "lastTouchedAt": "2026-05-28T20:00:00Z",
+              "status": "ok",
+              "lastTouchedAt": "2026-05-29T04:00:00Z",
               "kanbanCards": [],
               "command": {
                     "name": "ralph-overview-watcher-copilot-cli-env-verify",
@@ -974,8 +974,8 @@ window.OVERVIEW_DATA = {
               "id": "ralph-overview-copilot-smoke-deferred",
               "scope": "ralph-overview",
               "lifecycle": "tracked",
-              "status": "blocked",
-              "lastTouchedAt": "2026-05-28T11:35:00Z",
+              "status": "ok",
+              "lastTouchedAt": "2026-05-29T04:00:00Z",
               "kanbanCards": [],
               "command": {
                     "name": "ralph-overview-copilot-smoke-deferred",
