@@ -1,0 +1,45 @@
+{
+  "brainstormName": "crews-summary-rendering-audit",
+  "idea": "Audit every crews-plugin consumer that reads envelope summary and catalog where the producer/consumer schema may drift on other fields (kind, replyTo, decision, ack, progressTail, reviewedSeq, bodyResolution). Recommend read-fallback / write-mirror / canonical-type / hybrid.",
+  "availableLenses": ["codex", "copilot", "devils-advocate"],
+  "missingLenses": [],
+  "candidateDirections": [
+    {
+      "id": "D-001",
+      "name": "Runtime schema contract + CI round-trip test (leveraging hooks/protocol/*.js)",
+      "summary": "Extend existing hooks/protocol/*.js runtime schema to declare canonical-per-field addresses + one CI round-trip test per producer/consumer pair.",
+      "contributingLenses": ["codex", "copilot", "devils-advocate"]
+    },
+    {
+      "id": "D-002",
+      "name": "Pick canonical-per-field, delete the mirror, share via envelope module",
+      "summary": "Eliminate the dual-address pattern: choose one canonical address per field (payload-nested for system-mailbox, top-level for outbox), delete mirror writes + v1.7.3 read fallback, centralize via hooks/protocol/envelope.js.",
+      "contributingLenses": ["copilot", "devils-advocate"]
+    },
+    {
+      "id": "D-003",
+      "name": "Targeted audit ranked by operator-visible failure surface",
+      "summary": "Perform the grep-pass deliverable the spawn prompt asked for, but rank findings by operator-visible impact (review-mail render, stop-hook gate, routing lookup) instead of treating all fields symmetrically.",
+      "contributingLenses": ["codex", "copilot"]
+    },
+    {
+      "id": "D-004",
+      "name": "Central consumer normalizer with field-aware read fallbacks",
+      "summary": "Extend the v1.7.3 review-mail.js:111 fallback pattern to every consumer via a centralized hooks/protocol/envelope-view.js reader.",
+      "contributingLenses": ["codex"]
+    },
+    {
+      "id": "D-005",
+      "name": "Contract-first: write the envelope spec before the audit",
+      "summary": "Write docs/envelope-contract.md declaring canonical address per field; any deviation is then by-definition a bug. Audit-or-not, spec ahead of grep survives field additions.",
+      "contributingLenses": ["devils-advocate"]
+    }
+  ],
+  "recommendedDirection": "D-001",
+  "questionsForSynthesis": [
+    "Is hooks/protocol/*.js schema validation already enforced in CI under CREWS_STRICT_SCHEMA=1? If yes, why did the v1.7.2 summary-drop bug escape it?",
+    "Should canonical address be the SAME across appendOutbox and appendSystemMailbox (one global rule) or PER-ENVELOPE-TYPE (outbox top-level, system-mailbox payload-nested)?",
+    "Does v1.7.3 keeping BOTH read-fallback AND write-mirror create a third drift source? Should one be reverted in v1.7.4 once the audit picks a winner?",
+    "Are row.kind (report kind) and row.from.kind (routing kind) two semantically distinct fields, or one drift candidate?"
+  ]
+}
