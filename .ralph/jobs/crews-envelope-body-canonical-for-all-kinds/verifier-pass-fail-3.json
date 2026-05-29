@@ -1,0 +1,28 @@
+{
+  "manifestPath": "D:/harness-efforts/codexu/.ralph/jobs/crews-envelope-body-canonical-for-all-kinds/iteration-result-3.json",
+  "iterationSHA": "c1a36d2bb20f8e70d1ed25fb5de0477941e6f59d",
+  "storyId": "US-002b",
+  "verdicts": [
+    {
+      "criterion": "tests/lib/force-response.js::runStop accepts an optional parameter that, when truthy, sets stop_hook_active: true in the Stop-hook JSON input.",
+      "verdict": "agree",
+      "reason": "Manifest cites lines 74-82 adding stopHookActive parameter and conditionally setting stop_hook_active; diff shows +8 lines on tests/lib/force-response.js consistent with that change."
+    },
+    {
+      "criterion": "Default behavior unchanged when the parameter is omitted; all existing call sites still pass.",
+      "verdict": "agree",
+      "reason": "Manifest cites grep of existing runStop call sites continuing to omit the new arg, plus focused stop-decision suite passing 1/1."
+    },
+    {
+      "criterion": "node tests/run.js stop-decision.test.js still passes.",
+      "verdict": "agree",
+      "reason": "Manifest records 'ok stop-decision.test.js; 1/1 tests passed' as concrete result."
+    },
+    {
+      "criterion": "Typecheck passes.",
+      "verdict": "agree",
+      "reason": "Manifest records `node --check` against both changed files with exit 0."
+    }
+  ],
+  "warnings": []
+}

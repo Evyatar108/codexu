@@ -1,0 +1,43 @@
+{
+  "manifestPath": "D:/harness-efforts/codexu/.ralph/jobs/crews-envelope-body-canonical-for-all-kinds/iteration-result-1.json",
+  "iterationSHA": "79d0ff79d94c2f464e3aaf31b5edbc042fdfb528",
+  "storyId": "US-001",
+  "verdicts": [
+    {
+      "criterion": "hooks/protocol/report-tags.js exports detectLazySummary(tags, opts), BODY_CANONICAL_KINDS (frozen ['done','question','blocked']), and DEFAULT_BODY_CANONICAL_THRESHOLDS ({ summaryLimit: 200, bodyFloor: 50 }).",
+      "verdict": "agree",
+      "reason": "Manifest cites concrete line ranges (4-5, 37-59, 61-69) in hooks/protocol/report-tags.js; diff shows +36 lines on that file consistent with adding the helper, frozen kinds, and threshold constants."
+    },
+    {
+      "criterion": "detectLazySummary returns null when not triggered, or { summaryLen, bodyLen, threshold } when triggered (summary length > summaryLimit AND body length < bodyFloor AND kind in BODY_CANONICAL_KINDS).",
+      "verdict": "agree",
+      "reason": "Evidence cites strict comparison at lines 55-56 and threshold-boundary tests at 37-60 of the test file; diff shows +75 lines on tests/protocol-report-tags.test.js covering those boundaries."
+    },
+    {
+      "criterion": "kind=progress always returns null regardless of thresholds.",
+      "verdict": "agree",
+      "reason": "Manifest cites pre-threshold progress short-circuit at lines 37-49 and dedicated progress-exemption tests at 62-75."
+    },
+    {
+      "criterion": "Opts merge with defaults; missing opts use DEFAULT_BODY_CANONICAL_THRESHOLDS.",
+      "verdict": "agree",
+      "reason": "Manifest cites merge logic at lines 40-48 and override/merge tests at 77-85; consistent with frozen defaults pattern."
+    },
+    {
+      "criterion": "Unit tests in tests/protocol-report-tags.test.js cover threshold boundaries (at-limit, +/-1 char, kind-exempt, opts-override).",
+      "verdict": "agree",
+      "reason": "Manifest cites lines 28-85 of the test file covering all four boundary classes; diff shows +75 new lines."
+    },
+    {
+      "criterion": "node tests/run.js protocol-report-tags.test.js exits 0.",
+      "verdict": "agree",
+      "reason": "Manifest records 'ok protocol-report-tags.test.js; 1/1 tests passed' as concrete result; command is a runnable test invocation."
+    },
+    {
+      "criterion": "Typecheck passes.",
+      "verdict": "agree",
+      "reason": "Manifest records `node --check` against both changed files with exit 0; per plugin convention this is the project's typecheck."
+    }
+  ],
+  "warnings": []
+}

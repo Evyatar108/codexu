@@ -1,0 +1,53 @@
+{
+  "manifestPath": "D:/harness-efforts/codexu/.ralph/jobs/crews-envelope-body-canonical-for-all-kinds/iteration-result-2.json",
+  "iterationSHA": "193bb8a501e8eab119101a9d413632a56044e9d0",
+  "storyId": "US-002",
+  "verdicts": [
+    {
+      "criterion": "hooks/stop.js requires { detectLazySummary, BODY_CANONICAL_KINDS, DEFAULT_BODY_CANONICAL_THRESHOLDS } directly from ./protocol/report-tags.",
+      "verdict": "agree",
+      "reason": "Manifest cites require at lines 42-46 of hooks/stop.js; diff shows +62 lines on hooks/stop.js consistent with the require + gate."
+    },
+    {
+      "criterion": "Gate placed AFTER parseTurnTags(), AFTER the missing-kind block, AFTER the consumed-inbox eval, and BEFORE decideStopBlock() (the listener-arm gate).",
+      "verdict": "agree",
+      "reason": "Manifest cites concrete line ordering 673-674 (parseTurnTags), 676-688 (missing-kind), 690-694 (consumed-inbox eval), 696-715 (body-canonical gate), 717 (listener-arm gate start) — strictly ordered."
+    },
+    {
+      "criterion": "Env vars honored: CREWS_BODY_CANONICAL (set to 'off' to disable entirely), CREWS_BODY_CANONICAL_SUMMARY_CAP (integer override), CREWS_BODY_CANONICAL_BODY_FLOOR (integer override). Invalid env values fall back to defaults.",
+      "verdict": "agree",
+      "reason": "Manifest cites integer-parsing fallback at lines 78-84, env reads at 86-96, 'off' disable at 99-100, and gate consumption at 696-697 — covers all three vars + invalid-fallback."
+    },
+    {
+      "criterion": "On detection AND data.stop_hook_active !== true: call bumpBlockCount(state.name, crew, cwd, state.role, 'body not canonical'); call appendLog with a line containing the literal substring 'body-canonical: block'; write { decision: 'block', reason } to stdout; return.",
+      "verdict": "agree",
+      "reason": "Manifest cites lines 704-712 doing bumpBlockCount with 'body not canonical', appending the literal log substring, writing block JSON, and returning; backed by fixture asserts at test lines 145-155."
+    },
+    {
+      "criterion": "On detection AND data.stop_hook_active === true: call appendLog with a line containing the literal substring 'body-canonical: bypassed-on-retry'; do NOT block; fall through.",
+      "verdict": "agree",
+      "reason": "Manifest cites lines 699-703 logging the bypass substring without stdout/return; control falls through past 715."
+    },
+    {
+      "criterion": "Block reason text instructs the member to move substantive content from summary into prose above the tag and includes a brief inline example.",
+      "verdict": "agree",
+      "reason": "Manifest cites reason builder at lines 103-111 and fixture asserts at 147-150 verifying both the remediation phrase and inline example."
+    },
+    {
+      "criterion": "No outbox.jsonl row is written when blocked (verified by reading the file after a blocked fixture).",
+      "verdict": "agree",
+      "reason": "Manifest cites test lines 151-154 reading the outbox file and asserting empty content; focused stop-decision suite passed 1/1."
+    },
+    {
+      "criterion": "node tests/run.js stop-decision.test.js still passes (existing listener-arm gate unchanged).",
+      "verdict": "agree",
+      "reason": "Manifest records 'ok stop-decision.test.js; 1/1 tests passed' from the suite invocation."
+    },
+    {
+      "criterion": "Typecheck passes.",
+      "verdict": "agree",
+      "reason": "Manifest records `node --check` against both changed files with exit 0."
+    }
+  ],
+  "warnings": []
+}

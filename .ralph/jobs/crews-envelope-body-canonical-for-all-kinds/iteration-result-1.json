@@ -1,0 +1,50 @@
+{
+  "storyId": "US-001",
+  "verifiedEvidence": [
+    {
+      "criterion": "hooks/protocol/report-tags.js exports detectLazySummary(tags, opts), BODY_CANONICAL_KINDS (frozen ['done','question','blocked']), and DEFAULT_BODY_CANONICAL_THRESHOLDS ({ summaryLimit: 200, bodyFloor: 50 }).",
+      "command": "nl -ba hooks/protocol/report-tags.js | sed -n '3,69p'",
+      "result": "Lines 4-5 define frozen BODY_CANONICAL_KINDS and DEFAULT_BODY_CANONICAL_THRESHOLDS; lines 37-59 define detectLazySummary; lines 61-69 export all three.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "detectLazySummary returns null when not triggered, or { summaryLen, bodyLen, threshold } when triggered (summary length > summaryLimit AND body length < bodyFloor AND kind in BODY_CANONICAL_KINDS).",
+      "command": "nl -ba hooks/protocol/report-tags.js | sed -n '37,59p' && nl -ba tests/protocol-report-tags.test.js | sed -n '37,60p'",
+      "result": "Implementation checks strict summary/body thresholds at lines 55-56 and returns { summaryLen, bodyLen, threshold }; tests verify null at summary=200/body=49, trigger at summary=201/body=49, and null at body=50/51.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "kind=progress always returns null regardless of thresholds.",
+      "command": "nl -ba hooks/protocol/report-tags.js | sed -n '37,49p' && nl -ba tests/protocol-report-tags.test.js | sed -n '62,75p'",
+      "result": "Implementation returns null for tags.kind === 'progress' before thresholds/kinds checks; tests verify progress null with aggressive thresholds, custom kinds including progress, and defaults.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Opts merge with defaults; missing opts use DEFAULT_BODY_CANONICAL_THRESHOLDS.",
+      "command": "nl -ba hooks/protocol/report-tags.js | sed -n '40,48p' && nl -ba tests/protocol-report-tags.test.js | sed -n '77,85p'",
+      "result": "Implementation fills summaryLimit/bodyFloor from opts when defined and otherwise DEFAULT_BODY_CANONICAL_THRESHOLDS; tests verify full override triggers and partial bodyFloor override merges with default summaryLimit.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Unit tests in tests/protocol-report-tags.test.js cover threshold boundaries (at-limit, +/-1 char, kind-exempt, opts-override).",
+      "command": "nl -ba tests/protocol-report-tags.test.js | sed -n '28,85p'",
+      "result": "Test file covers frozen constants, summary at limit, summary +/-1, body at floor and +1, progress exemption, aggressive thresholds, custom progress kinds, full opts override, and partial opts merge.",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "node tests/run.js protocol-report-tags.test.js exits 0.",
+      "command": "node tests/run.js protocol-report-tags.test.js 2>&1 | tee /d/harness-efforts/codexu/.ralph/jobs/crews-envelope-body-canonical-for-all-kinds/test-output-us001-protocol.log",
+      "result": "ok protocol-report-tags.test.js; 1/1 tests passed (wall=0.3s, concurrency=10).",
+      "evidenceKind": "passed"
+    },
+    {
+      "criterion": "Typecheck passes.",
+      "command": "node --check hooks/protocol/report-tags.js && node --check tests/protocol-report-tags.test.js",
+      "result": "Exit 0 with no diagnostics; plugin has no package-level package.json, tsconfig.json, or jsconfig.json.",
+      "evidenceKind": "passed"
+    }
+  ],
+  "skippedReasons": [],
+  "notTested": [],
+  "iterationSHA": "79d0ff79d94c2f464e3aaf31b5edbc042fdfb528"
+}

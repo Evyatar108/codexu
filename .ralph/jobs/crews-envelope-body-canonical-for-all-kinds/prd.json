@@ -1,0 +1,292 @@
+{
+  "project": "crews-envelope-body-canonical-for-all-kinds",
+  "description": "Crews v1.8.0 — body-canonical enforcement for review-surfacing kind tags. Adds a Stop-hook hard-block when a `<|report kind=done|question|blocked|>` tag has a long `summary` attribute and a short prose body, plus SessionStart briefing + docs/protocol.md clarifying the rule. Progress kind unconditionally exempt; `stop_hook_active=true` is a retry safety-valve.",
+  "deslop": true,
+  "iterationEngine": "codex",
+  "planningEngine": "codex",
+  "jobDir": "D:/harness-efforts/codexu/.ralph/jobs/crews-envelope-body-canonical-for-all-kinds",
+  "repoDir": "D:/ai-developer-toolkit/.worktrees/crews-envelope-body-canonical-for-all-kinds",
+  "branch": {
+    "name": "ralph/crews-envelope-body-canonical-for-all-kinds",
+    "created": true
+  },
+  "worktree": {
+    "path": "D:/ai-developer-toolkit/.worktrees/crews-envelope-body-canonical-for-all-kinds",
+    "branch": "ralph/crews-envelope-body-canonical-for-all-kinds",
+    "startPoint": "origin/main",
+    "external": true
+  },
+  "baseBranch": "main",
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Add detectLazySummary helper + canonical constants",
+      "description": "As a crews-plugin maintainer, I want a pure helper that detects lazy-summary envelopes so the Stop hook can hard-block them.",
+      "acceptanceCriteria": [
+        "hooks/protocol/report-tags.js exports detectLazySummary(tags, opts), BODY_CANONICAL_KINDS (frozen ['done','question','blocked']), and DEFAULT_BODY_CANONICAL_THRESHOLDS ({ summaryLimit: 200, bodyFloor: 50 }).",
+        "detectLazySummary returns null when not triggered, or { summaryLen, bodyLen, threshold } when triggered (summary length > summaryLimit AND body length < bodyFloor AND kind in BODY_CANONICAL_KINDS).",
+        "kind=progress always returns null regardless of thresholds.",
+        "Opts merge with defaults; missing opts use DEFAULT_BODY_CANONICAL_THRESHOLDS.",
+        "Unit tests in tests/protocol-report-tags.test.js cover threshold boundaries (at-limit, +/-1 char, kind-exempt, opts-override).",
+        "node tests/run.js protocol-report-tags.test.js exits 0.",
+        "Typecheck passes."
+      ],
+      "priority": 1,
+      "passes": true,
+      "notes": "",
+      "verifiedEvidence": [
+        {
+          "criterion": "hooks/protocol/report-tags.js exports detectLazySummary(tags, opts), BODY_CANONICAL_KINDS (frozen ['done','question','blocked']), and DEFAULT_BODY_CANONICAL_THRESHOLDS ({ summaryLimit: 200, bodyFloor: 50 }).",
+          "command": "nl -ba hooks/protocol/report-tags.js | sed -n '3,69p'",
+          "result": "Lines 4-5 define frozen BODY_CANONICAL_KINDS and DEFAULT_BODY_CANONICAL_THRESHOLDS; lines 37-59 define detectLazySummary; lines 61-69 export all three."
+        },
+        {
+          "criterion": "detectLazySummary returns null when not triggered, or { summaryLen, bodyLen, threshold } when triggered (summary length > summaryLimit AND body length < bodyFloor AND kind in BODY_CANONICAL_KINDS).",
+          "command": "nl -ba hooks/protocol/report-tags.js | sed -n '37,59p' && nl -ba tests/protocol-report-tags.test.js | sed -n '37,60p'",
+          "result": "Implementation checks strict summary/body thresholds at lines 55-56 and returns { summaryLen, bodyLen, threshold }; tests verify null at summary=200/body=49, trigger at summary=201/body=49, and null at body=50/51."
+        },
+        {
+          "criterion": "kind=progress always returns null regardless of thresholds.",
+          "command": "nl -ba hooks/protocol/report-tags.js | sed -n '37,49p' && nl -ba tests/protocol-report-tags.test.js | sed -n '62,75p'",
+          "result": "Implementation returns null for tags.kind === 'progress' before thresholds/kinds checks; tests verify progress null with aggressive thresholds, custom kinds including progress, and defaults."
+        },
+        {
+          "criterion": "Opts merge with defaults; missing opts use DEFAULT_BODY_CANONICAL_THRESHOLDS.",
+          "command": "nl -ba hooks/protocol/report-tags.js | sed -n '40,48p' && nl -ba tests/protocol-report-tags.test.js | sed -n '77,85p'",
+          "result": "Implementation fills summaryLimit/bodyFloor from opts when defined and otherwise DEFAULT_BODY_CANONICAL_THRESHOLDS; tests verify full override triggers and partial bodyFloor override merges with default summaryLimit."
+        },
+        {
+          "criterion": "Unit tests in tests/protocol-report-tags.test.js cover threshold boundaries (at-limit, +/-1 char, kind-exempt, opts-override).",
+          "command": "nl -ba tests/protocol-report-tags.test.js | sed -n '28,85p'",
+          "result": "Test file covers frozen constants, summary at limit, summary +/-1, body at floor and +1, progress exemption, aggressive thresholds, custom progress kinds, full opts override, and partial opts merge."
+        },
+        {
+          "criterion": "node tests/run.js protocol-report-tags.test.js exits 0.",
+          "command": "node tests/run.js protocol-report-tags.test.js 2>&1 | tee /d/harness-efforts/codexu/.ralph/jobs/crews-envelope-body-canonical-for-all-kinds/test-output-us001-protocol.log",
+          "result": "ok protocol-report-tags.test.js; 1/1 tests passed (wall=0.3s, concurrency=10)."
+        },
+        {
+          "criterion": "Typecheck passes.",
+          "command": "node --check hooks/protocol/report-tags.js && node --check tests/protocol-report-tags.test.js",
+          "result": "Exit 0 with no diagnostics; plugin has no package-level package.json, tsconfig.json, or jsconfig.json."
+        }
+      ],
+      "dependencies": [],
+      "failureClassification": "",
+      "partialProgress": null
+    },
+    {
+      "id": "US-002",
+      "title": "Wire the body-canonical gate into hooks/stop.js",
+      "description": "As a crews-plugin maintainer, I want the Stop hook to hard-block lazy-summary envelopes for review-surfacing kinds with a retry safety-valve.",
+      "acceptanceCriteria": [
+        "hooks/stop.js requires { detectLazySummary, BODY_CANONICAL_KINDS, DEFAULT_BODY_CANONICAL_THRESHOLDS } directly from ./protocol/report-tags.",
+        "Gate placed AFTER parseTurnTags(), AFTER the missing-kind block, AFTER the consumed-inbox eval, and BEFORE decideStopBlock() (the listener-arm gate).",
+        "Env vars honored: CREWS_BODY_CANONICAL (set to 'off' to disable entirely), CREWS_BODY_CANONICAL_SUMMARY_CAP (integer override), CREWS_BODY_CANONICAL_BODY_FLOOR (integer override). Invalid env values fall back to defaults.",
+        "On detection AND data.stop_hook_active !== true: call bumpBlockCount(state.name, crew, cwd, state.role, 'body not canonical'); call appendLog with a line containing the literal substring 'body-canonical: block'; write { decision: 'block', reason } to stdout; return.",
+        "On detection AND data.stop_hook_active === true: call appendLog with a line containing the literal substring 'body-canonical: bypassed-on-retry'; do NOT block; fall through.",
+        "Block reason text instructs the member to move substantive content from summary into prose above the tag and includes a brief inline example.",
+        "No outbox.jsonl row is written when blocked (verified by reading the file after a blocked fixture).",
+        "node tests/run.js stop-decision.test.js still passes (existing listener-arm gate unchanged).",
+        "Typecheck passes."
+      ],
+      "priority": 2,
+      "passes": true,
+      "notes": "",
+      "verifiedEvidence": [
+        {
+          "criterion": "hooks/stop.js requires { detectLazySummary, BODY_CANONICAL_KINDS, DEFAULT_BODY_CANONICAL_THRESHOLDS } directly from ./protocol/report-tags.",
+          "command": "nl -ba hooks/stop.js | sed -n '39,46p'",
+          "result": "Lines 42-46 directly require detectLazySummary, BODY_CANONICAL_KINDS, and DEFAULT_BODY_CANONICAL_THRESHOLDS from ./protocol/report-tags."
+        },
+        {
+          "criterion": "Gate placed AFTER parseTurnTags(), AFTER the missing-kind block, AFTER the consumed-inbox eval, and BEFORE decideStopBlock() (the listener-arm gate).",
+          "command": "nl -ba hooks/stop.js | sed -n '673,717p'",
+          "result": "parseTurnTags runs at lines 673-674; missing-kind block is lines 676-688; consumed-inbox evaluation is lines 690-694; body-canonical gate is lines 696-715; listener-arm gate begins at line 717 and calls decideStopBlock after this block."
+        },
+        {
+          "criterion": "Env vars honored: CREWS_BODY_CANONICAL (set to 'off' to disable entirely), CREWS_BODY_CANONICAL_SUMMARY_CAP (integer override), CREWS_BODY_CANONICAL_BODY_FLOOR (integer override). Invalid env values fall back to defaults.",
+          "command": "nl -ba hooks/stop.js | sed -n '78,100p' && nl -ba hooks/stop.js | sed -n '696,697p'",
+          "result": "Lines 78-84 parse only safe integer env values and return fallback defaults for missing/invalid values; lines 86-96 read CREWS_BODY_CANONICAL_SUMMARY_CAP and CREWS_BODY_CANONICAL_BODY_FLOOR; lines 99-100 disable when CREWS_BODY_CANONICAL is 'off'; lines 696-697 apply these settings before detectLazySummary."
+        },
+        {
+          "criterion": "On detection AND data.stop_hook_active !== true: call bumpBlockCount(state.name, crew, cwd, state.role, 'body not canonical'); call appendLog with a line containing the literal substring 'body-canonical: block'; write { decision: 'block', reason } to stdout; return.",
+          "command": "nl -ba hooks/stop.js | sed -n '704,712p' && nl -ba tests/stop-decision.test.js | sed -n '145,155p'",
+          "result": "Lines 704-712 build the reason, bump with 'body not canonical', append a log line containing 'body-canonical: block', write {decision:'block', reason}, and return. Passing fixture lines 145-155 assert block decision, log substring, empty outbox, and manifest lastStopBlockReason."
+        },
+        {
+          "criterion": "On detection AND data.stop_hook_active === true: call appendLog with a line containing the literal substring 'body-canonical: bypassed-on-retry'; do NOT block; fall through.",
+          "command": "nl -ba hooks/stop.js | sed -n '696,715p'",
+          "result": "Lines 699-703 handle isRetry by appending a log line containing 'body-canonical: bypassed-on-retry' and do not write a block response or return; control falls through after line 715."
+        },
+        {
+          "criterion": "Block reason text instructs the member to move substantive content from summary into prose above the tag and includes a brief inline example.",
+          "command": "nl -ba hooks/stop.js | sed -n '103,111p' && nl -ba tests/stop-decision.test.js | sed -n '147,150p'",
+          "result": "Reason builder lines 103-111 instruct moving substantive content from summary into prose above the tag and include an Example block; test lines 147-150 assert the remediation phrase and inline example are present in the block reason."
+        },
+        {
+          "criterion": "No outbox.jsonl row is written when blocked (verified by reading the file after a blocked fixture).",
+          "command": "nl -ba tests/stop-decision.test.js | sed -n '151,154p' && node tests/run.js stop-decision.test.js 2>&1 | tee /d/harness-efforts/codexu/.ralph/jobs/crews-envelope-body-canonical-for-all-kinds/test-output-us002-stop-decision.log",
+          "result": "Test lines 151-154 read the blocked fixture's outbox path and assert the file content is empty; focused test run passed 1/1."
+        },
+        {
+          "criterion": "node tests/run.js stop-decision.test.js still passes (existing listener-arm gate unchanged).",
+          "command": "node tests/run.js stop-decision.test.js 2>&1 | tee /d/harness-efforts/codexu/.ralph/jobs/crews-envelope-body-canonical-for-all-kinds/test-output-us002-stop-decision.log",
+          "result": "ok stop-decision.test.js; 1/1 tests passed (wall=2.1s, concurrency=10)."
+        },
+        {
+          "criterion": "Typecheck passes.",
+          "command": "node --check hooks/stop.js && node --check tests/stop-decision.test.js",
+          "result": "Exit 0 with no diagnostics."
+        }
+      ],
+      "dependencies": [
+        "US-001"
+      ],
+      "failureClassification": "",
+      "partialProgress": null
+    },
+    {
+      "id": "US-002b",
+      "title": "Extend runStop test harness for stop_hook_active",
+      "description": "As a test author, I want runStop to accept an optional stopHookActive flag so retry-path fixtures can exercise the safety-valve branch.",
+      "acceptanceCriteria": [
+        "tests/lib/force-response.js::runStop accepts an optional parameter that, when truthy, sets stop_hook_active: true in the Stop-hook JSON input.",
+        "Default behavior unchanged when the parameter is omitted; all existing call sites still pass.",
+        "node tests/run.js stop-decision.test.js still passes.",
+        "Typecheck passes."
+      ],
+      "priority": 3,
+      "passes": true,
+      "notes": "",
+      "verifiedEvidence": [
+        {
+          "criterion": "tests/lib/force-response.js::runStop accepts an optional parameter that, when truthy, sets stop_hook_active: true in the Stop-hook JSON input.",
+          "command": "nl -ba tests/lib/force-response.js | sed -n '70,91p'",
+          "result": "Lines 74-82 add the stopHookActive parameter, build the Stop-hook input object, and set input.stop_hook_active = true only when stopHookActive is truthy; lines 83-87 serialize that input to hooks/stop.js."
+        },
+        {
+          "criterion": "Default behavior unchanged when the parameter is omitted; all existing call sites still pass.",
+          "command": "grep -R \"runStop(fixture.cwd\" -n tests | head -40 && node tests/run.js stop-decision.test.js 2>&1 | tee D:/harness-efforts/codexu/.ralph/jobs/crews-envelope-body-canonical-for-all-kinds/test-output-us002b-stop-decision.log",
+          "result": "Existing call sites continue to omit the new parameter or pass only env as the fourth argument; focused stop-decision suite passed 1/1."
+        },
+        {
+          "criterion": "node tests/run.js stop-decision.test.js still passes.",
+          "command": "node tests/run.js stop-decision.test.js 2>&1 | tee D:/harness-efforts/codexu/.ralph/jobs/crews-envelope-body-canonical-for-all-kinds/test-output-us002b-stop-decision.log",
+          "result": "ok stop-decision.test.js; 1/1 tests passed (wall=2.3s, concurrency=10)."
+        },
+        {
+          "criterion": "Typecheck passes.",
+          "command": "node --check tests/lib/force-response.js && node --check tests/stop-decision.test.js",
+          "result": "Exit 0 with no diagnostics."
+        }
+      ],
+      "dependencies": [],
+      "failureClassification": "",
+      "partialProgress": null
+    },
+    {
+      "id": "US-003",
+      "title": "Integration tests in new tests/stop-body-canonical.test.js",
+      "description": "As a crews-plugin maintainer, I want exhaustive fixtures verifying the body-canonical gate fires when (and only when) intended.",
+      "acceptanceCriteria": [
+        "New file tests/stop-body-canonical.test.js exists; all fixtures pass messages: [] to setupForceResponse so the consumed-inbox / strict-ack gate does not pre-empt.",
+        "Fixture A (summary=600 chars, body=45 chars, kind=question): blocks; outbox.jsonl empty after.",
+        "Fixture A2 boundary: (summary=201, body=49, kind=question) blocks; (summary=200, body=49, kind=question) allows (cap is strict >); (summary=201, body=50, kind=question) allows (floor is strict <).",
+        "Fixture B (summary=250, body=300, kind=done): allows; outbox row written with body as message.",
+        "Fixture C (summary=20, body=10, kind=done): allows; legitimate ack-only.",
+        "Fixture D (summary=400, body=5, kind=progress): allows.",
+        "Fixture D2 (Fixture D inputs + env CREWS_BODY_CANONICAL_SUMMARY_CAP=0 CREWS_BODY_CANONICAL_BODY_FLOOR=100000): allows (progress exemption unconditional).",
+        "Fixture E (summary=300, body=20, kind=blocked): blocks on first invocation; second invocation with stopHookActive=true allows; .crews/logs/crews.log contains a line with 'body-canonical: block' for the first run AND a line with 'body-canonical: bypassed-on-retry' for the second.",
+        "Fixture F (summary=300, body=20, kind=question, env CREWS_BODY_CANONICAL=off): allows; .crews/logs/crews.log contains no line with substring 'body-canonical' for this fixture's run.",
+        "node tests/run.js stop-body-canonical.test.js exits 0.",
+        "Typecheck passes."
+      ],
+      "priority": 4,
+      "passes": false,
+      "notes": "",
+      "verifiedEvidence": [],
+      "dependencies": [
+        "US-001",
+        "US-002",
+        "US-002b"
+      ]
+    },
+    {
+      "id": "US-004",
+      "title": "SessionStart briefing + goldens",
+      "description": "As an operator, I want every new member session briefed that the prose body is canonical for review-surfacing kinds.",
+      "acceptanceCriteria": [
+        "hooks/briefing/template.js footer-tag section has a new bullet (after the existing summary-attribute description) stating the body-canonical rule for done/question/blocked, naming the default thresholds (200 summary cap / 50 body floor), and noting Stop-hook hard-block.",
+        "tests/golden/briefing-member.md regenerated to match.",
+        "tests/golden/briefing-lead.md regenerated to match.",
+        "node tests/run.js briefing-render.test.js exits 0 (byte-compare passes).",
+        "Typecheck passes."
+      ],
+      "priority": 5,
+      "passes": false,
+      "notes": "",
+      "verifiedEvidence": [],
+      "dependencies": []
+    },
+    {
+      "id": "US-005",
+      "title": "Docs: CLAUDE.md, README.md, new docs/protocol.md",
+      "description": "As an operator and maintainer, I want the rule, thresholds, env overrides, and safety-valve documented in the canonical places.",
+      "acceptanceCriteria": [
+        "New file plugins/crews/docs/protocol.md documents: tag kinds and review-surfacing semantics, body-canonical rule for done/question/blocked, summary-attribute usage, enforcement thresholds + the three env overrides (CREWS_BODY_CANONICAL, CREWS_BODY_CANONICAL_SUMMARY_CAP, CREWS_BODY_CANONICAL_BODY_FLOOR), progress-exemption rationale, stop_hook_active safety-valve.",
+        "plugins/crews/CLAUDE.md has a new v1.8.0 section pointing to docs/protocol.md, naming env vars and defaults, cross-referencing the v1.6.2 listener-arm gate precedent.",
+        "plugins/crews/README.md has a short paragraph pointing to docs/protocol.md from the protocol section.",
+        "Typecheck passes."
+      ],
+      "priority": 6,
+      "passes": false,
+      "notes": "",
+      "verifiedEvidence": [],
+      "dependencies": []
+    },
+    {
+      "id": "US-006",
+      "title": "Version bump to v1.8.0 + CHANGELOG",
+      "description": "As a release manager, I want all version-bearing files pinned to 1.8.0 and CHANGELOG describing the behavioral change.",
+      "acceptanceCriteria": [
+        "node scripts/bump-version.js 1.8.0 run from the plugins/crews directory; all pinned files updated: .claude-plugin/plugin.json, .github/plugin/plugin.json, three repo-level marketplace files, tests/version.test.js.",
+        "CHANGELOG.md has a v1.8.0 entry naming: behavioral change (Stop hook hard-blocks lazy-summary envelopes for review-surfacing kinds), new env vars + default thresholds, progress exemption, stop_hook_active retry behavior, link to docs/protocol.md.",
+        "node tests/run.js version.test.js exits 0.",
+        "Typecheck passes."
+      ],
+      "priority": 7,
+      "passes": false,
+      "notes": "",
+      "verifiedEvidence": [],
+      "dependencies": [
+        "US-001",
+        "US-002",
+        "US-002b",
+        "US-003",
+        "US-004",
+        "US-005"
+      ]
+    },
+    {
+      "id": "US-007",
+      "title": "Full-suite green + named-remote push",
+      "description": "As a release manager, I want a clean full test run and a push to the two named remotes only.",
+      "acceptanceCriteria": [
+        "node tests/run.js (full suite) exits 0; tests/stop-decision.test.js, tests/stop-body-canonical.test.js, tests/protocol-report-tags.test.js, tests/briefing-render.test.js, tests/version.test.js all pass.",
+        "A commit lands on ralph/crews-envelope-body-canonical-for-all-kinds with a message referencing the v1.8.0 behavioral change.",
+        "Branch pushed to remotes origin AND work only (the two pre-existing configured remotes on D:/ai-developer-toolkit).",
+        "If any uncertainty (CI failure, unexpected diff, version-pin drift), the implementer surfaces a kind=question envelope to the operator before any main-branch fast-forward.",
+        "NO git push --force, NO pushing to any remote other than origin / work without explicit operator approval.",
+        "Typecheck passes."
+      ],
+      "priority": 8,
+      "passes": false,
+      "notes": "",
+      "verifiedEvidence": [],
+      "dependencies": [
+        "US-006"
+      ]
+    }
+  ]
+}

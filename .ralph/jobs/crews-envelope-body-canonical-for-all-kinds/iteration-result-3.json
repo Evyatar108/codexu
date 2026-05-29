@@ -1,0 +1,32 @@
+{
+  "storyId": "US-002b",
+  "verifiedEvidence": [
+    {
+      "criterion": "tests/lib/force-response.js::runStop accepts an optional parameter that sets stop_hook_active when truthy.",
+      "evidenceKind": "passed",
+      "command": "nl -ba tests/lib/force-response.js | sed -n '70,91p'",
+      "result": "Lines 74-82 add stopHookActive, build the Stop-hook input object, and set stop_hook_active: true only when the parameter is truthy."
+    },
+    {
+      "criterion": "Default behavior unchanged when the parameter is omitted; existing call sites still pass.",
+      "evidenceKind": "passed",
+      "command": "grep -R \"runStop(fixture.cwd\" -n tests | head -40 && node tests/run.js stop-decision.test.js 2>&1 | tee D:/harness-efforts/codexu/.ralph/jobs/crews-envelope-body-canonical-for-all-kinds/test-output-us002b-stop-decision.log",
+      "result": "Existing call sites continue to omit the new parameter or pass only env as the fourth argument; focused stop-decision suite passed 1/1."
+    },
+    {
+      "criterion": "node tests/run.js stop-decision.test.js still passes.",
+      "evidenceKind": "passed",
+      "command": "node tests/run.js stop-decision.test.js 2>&1 | tee D:/harness-efforts/codexu/.ralph/jobs/crews-envelope-body-canonical-for-all-kinds/test-output-us002b-stop-decision.log",
+      "result": "ok stop-decision.test.js; 1/1 tests passed (wall=2.3s, concurrency=10)."
+    },
+    {
+      "criterion": "Typecheck passes.",
+      "evidenceKind": "passed",
+      "command": "node --check tests/lib/force-response.js && node --check tests/stop-decision.test.js",
+      "result": "Exit 0 with no diagnostics."
+    }
+  ],
+  "skippedReasons": [],
+  "notTested": [],
+  "iterationSHA": "c1a36d2bb20f8e70d1ed25fb5de0477941e6f59d"
+}

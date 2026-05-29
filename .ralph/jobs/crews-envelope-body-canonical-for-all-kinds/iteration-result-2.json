@@ -1,0 +1,62 @@
+{
+  "storyId": "US-002",
+  "verifiedEvidence": [
+    {
+      "criterion": "hooks/stop.js requires detectLazySummary constants directly from ./protocol/report-tags.",
+      "evidenceKind": "passed",
+      "command": "nl -ba hooks/stop.js | sed -n '39,46p'",
+      "result": "Lines 42-46 directly require detectLazySummary, BODY_CANONICAL_KINDS, and DEFAULT_BODY_CANONICAL_THRESHOLDS from ./protocol/report-tags."
+    },
+    {
+      "criterion": "Gate ordering is after parse/missing-kind/consumed eval and before decideStopBlock.",
+      "evidenceKind": "passed",
+      "command": "nl -ba hooks/stop.js | sed -n '673,717p'",
+      "result": "parseTurnTags is lines 673-674; missing-kind block is 676-688; consumed eval is 690-694; body-canonical gate is 696-715; listener gate starts at 717."
+    },
+    {
+      "criterion": "Env vars and invalid fallback behavior are wired.",
+      "evidenceKind": "passed",
+      "command": "nl -ba hooks/stop.js | sed -n '78,100p' && nl -ba hooks/stop.js | sed -n '696,697p'",
+      "result": "Integer override parsing falls back on missing/invalid values; CREWS_BODY_CANONICAL='off' disables; thresholds feed detectLazySummary."
+    },
+    {
+      "criterion": "First detection blocks, bumps count, logs body-canonical: block, writes block JSON, and returns.",
+      "evidenceKind": "passed",
+      "command": "nl -ba hooks/stop.js | sed -n '704,712p' && nl -ba tests/stop-decision.test.js | sed -n '145,155p'",
+      "result": "Implementation performs the required block path; passing fixture asserts block decision, log substring, empty outbox, and lastStopBlockReason."
+    },
+    {
+      "criterion": "Retry detection logs body-canonical: bypassed-on-retry and falls through.",
+      "evidenceKind": "passed",
+      "command": "nl -ba hooks/stop.js | sed -n '696,715p'",
+      "result": "Retry branch logs the bypass substring without writing stdout or returning; execution continues past the gate."
+    },
+    {
+      "criterion": "Block reason instructs moving content into prose and includes an example.",
+      "evidenceKind": "passed",
+      "command": "nl -ba hooks/stop.js | sed -n '103,111p' && nl -ba tests/stop-decision.test.js | sed -n '147,150p'",
+      "result": "Reason builder contains the remediation instruction and example; focused fixture asserts both strings are present."
+    },
+    {
+      "criterion": "No outbox row is written when blocked.",
+      "evidenceKind": "passed",
+      "command": "nl -ba tests/stop-decision.test.js | sed -n '151,154p' && node tests/run.js stop-decision.test.js 2>&1 | tee /d/harness-efforts/codexu/.ralph/jobs/crews-envelope-body-canonical-for-all-kinds/test-output-us002-stop-decision.log",
+      "result": "Fixture reads the blocked actor outbox and asserts empty content; focused test run passed 1/1."
+    },
+    {
+      "criterion": "node tests/run.js stop-decision.test.js still passes.",
+      "evidenceKind": "passed",
+      "command": "node tests/run.js stop-decision.test.js 2>&1 | tee /d/harness-efforts/codexu/.ralph/jobs/crews-envelope-body-canonical-for-all-kinds/test-output-us002-stop-decision.log",
+      "result": "ok stop-decision.test.js; 1/1 tests passed (wall=2.1s, concurrency=10)."
+    },
+    {
+      "criterion": "Typecheck passes.",
+      "evidenceKind": "passed",
+      "command": "node --check hooks/stop.js && node --check tests/stop-decision.test.js",
+      "result": "Exit 0 with no diagnostics."
+    }
+  ],
+  "skippedReasons": [],
+  "notTested": [],
+  "iterationSHA": "193bb8a501e8eab119101a9d413632a56044e9d0"
+}
