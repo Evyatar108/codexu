@@ -88,23 +88,6 @@ Lifecycle boundaries (`/clear`, `/compact`, autocompact, plan-mode enter/exit, a
 
 App consumers treat the typed event as authoritative, suppress any legacy fallback carrying `meta.contextBoundaryFallback === true`, render loaded boundary rows through `BoundaryDivider`, and use the metadata side channel only for out-of-window pagination and cross-device advisory state. Keep all boundary UI static for the e-ink tablet target.
 
-## Auto-memory (codexu bookkeeper-scope)
-
-The repo-tracked auto-memory store at `.agents/memory/` covers codexu bookkeeper and ralph-pipeline operating lessons: Ralph phase discipline, overview bookkeeping, crew coordination, and codexu-specific repo conventions. It is NOT happy-app/happy-server implementation guidance; use the package-level docs and skills for those areas.
-
-Index: [.agents/memory/MEMORY.md](.agents/memory/MEMORY.md)
-
-Curated high-priority entries:
-
-- [Phase discipline: separate member per ralph phase](.agents/memory/feedback_phase_discipline_separate_members.md)
-- [Bookkeeper updates overview-data.js as tasks ship](.agents/memory/feedback_bookkeeper_updates_overview_data.md)
-- [Spawn prompt must require Phase 5a/5b review-fix](.agents/memory/feedback_spawn_prompt_must_require_review_fix.md)
-- [Cross-repo impl spawns need worktrees in EVERY shared repo](.agents/memory/feedback_cross_repo_impl_worktree_mandate.md)
-- [codexu root CLAUDE.md is gitignored](.agents/memory/feedback_codexu_claude_md_gitignored.md)
-- [Impl members commit to topic branch off main, NOT lead's branch](.agents/memory/feedback_impl_topic_branch_vs_lead_branch.md)
-
-This TOC is a curated subset for fast orientation; see [.agents/memory/MEMORY.md](.agents/memory/MEMORY.md) for the full list (17 entries total; 18 files including the MEMORY.md index).
-
 ---
 
 <!-- Bookkeeper / Scrum-Master operating manual — appended 2026-05-29 for copilot auto-load compatibility. The same content lives in the gitignored CLAUDE.md for any local claude-code session habit. -->
@@ -131,8 +114,8 @@ the overview data — the team's single source of truth — current.
 ### Phase discipline - state machine + one member per ralph phase
 
 Each ralph phase gets its OWN fresh member. Never chain brainstorm -> plan ->
-impl inside a single member session. See
-`feedback_phase_discipline_separate_members` in auto-memory for the rule.
+impl inside a single member session. The rule is codified below under
+"Bookkeeper operating invariants."
 
 Ralph is a state machine, not a one-way checklist. Normal forward movement is
 `brainstorming` -> `brainstorm-ready` -> `planning` -> `plan-ready` ->
@@ -161,7 +144,7 @@ When picking the next batch:
    - `plan.md` committed + reviewed -> spawn `impl-<task>` (`/implement-with-ralph --from-plan --autonomous`)
 3. Surface stage + next action when recommending tasks. Say "stage planning; spawn plan-<task>", not just "ready".
 4. When a member ships `kind=done`, stop it cleanly via `/crews:stop-member`. Do NOT keep it alive across phases. The next-phase member reads the committed deliverable from `origin/main`, not from a chained mailbox handoff.
-5. Phase 5a/5b convergence is INTERNAL to the impl member (per `feedback_spawn_prompt_must_require_review_fix`) - the one-member-per-phase rule applies to the brainstorm/plan/impl axis, not to sub-phases inside impl.
+5. Phase 5a/5b convergence is INTERNAL to the impl member (see invariants below) - the one-member-per-phase rule applies to the brainstorm/plan/impl axis, not to sub-phases inside impl.
 
 ## Overview data — two-file split
 
@@ -175,9 +158,8 @@ descriptionHtml, warnings, prompts}`. This is what the operator and lead use
 to plan: it carries the *intent* (`prompts.brainstorm`, `prompts.plan`, and
 `prompts.impl` seeds, kanban cards, dependency notes in warnings). The lead
 **must** flip `lifecycle` to `"merged"` and add `mergeCommit` when a task
-lands on `origin/main`; closed-without-merge work becomes `"archived"`. See
-`feedback_bookkeeper_updates_overview_data` in the lead's auto-memory for the
-rule.
+lands on `origin/main`; closed-without-merge work becomes `"archived"`. The
+full rule is codified below under "Bookkeeper operating invariants."
 
 The three phase-like axes are deliberately separate:
 
@@ -214,16 +196,19 @@ snapshot. Agents querying the canonical task list should read
 1. **Bash sessions default to `D:/harness-efforts/codexu/codex/`** (the codex
    submodule), not the repo root. Always pass `--state-cwd D:/harness-efforts/codexu`
    + `--as overview-bookkeeper` to any `crews.js` CLI call to override the
-   auto-resolution. See `feedback_crews_spawn_state_cwd_override`.
+   auto-resolution.
 
-2. **The codex submodule (`codex/`) does NOT build locally on this Windows box.**
-   Local cargo is intentionally unavailable — the publish path
-   (`codex/.claude/commands/publish-sandbox-patch.md`) installs xwin + LLVM
-   + V8 lib for release cuts only. Daily iteration **defers Rust verification
-   to CI on push** (`.github/workflows/invariant-check.yml`). When spawning a
-   member for any codex-submodule task, override the seed's "cargo build green"
-   acceptance criterion; tell the member to push and let CI verify. See
-   `feedback_codex_fork_no_local_cargo`.
+2. **The codex submodule (`codex/`) DOES support local typecheck (corrected
+   2026-05-27).** `rustup` + `cargo` are installed at `~/.cargo/bin/`; `cargo
+   check --workspace` (~6 min) is the documented Phase-5a gate per
+   `codex/CLAUDE.md`. Only `cargo build --release` is deferred to CI — that
+   needs the heavy publish toolchain (xwin + LLVM + V8 lib) installed by
+   `codex/.claude/commands/publish-sandbox-patch.md`. The earlier "no local
+   cargo" framing was stale and led members to skip valid local verification.
+   Before spawning a codex-touching impl, run `cd codex/external/repos/codex-patched/codex-rs
+   && cargo metadata --no-deps --format-version 1` as a workspace-parse
+   preflight; non-zero exit signals a mid-flight overlay-coordination gap
+   that the member would otherwise burn iterations chasing.
 
 3. **`.ralph/jobs/<slug>/codex-worktree/` and `codexu-pointer-worktree/`** are
    multi-GB sibling-repo checkouts. They're gitignored (added in `chore(gitignore)`
@@ -301,9 +286,10 @@ lead: loop back to overview_parallel_ready_tasks
 
 If the member surfaces `kind=question`, the lead **must** decide whether to
 relay to the operator (significant choices, ambiguity, blocked-on-toolchain)
-or to answer autonomously (false blockers, follow-up clarifications). Save
-recurring patterns as `feedback_*` auto-memory entries so future sessions
-inherit the lessons.
+or to answer autonomously (false blockers, follow-up clarifications). When
+you notice a recurring pattern worth capturing for future sessions, propose
+adding it to the "Bookkeeper operating invariants" section below; this
+document is the canonical store, not auto-memory.
 
 ## Skills
 
@@ -314,25 +300,146 @@ inherit the lessons.
   `.agents/skills/<name>/` which is the canonical location for cross-machine
   skill content.
 
-## Auto-memory (codexu bookkeeper-scope)
+## Bookkeeper operating invariants
 
-The repo-tracked auto-memory store at `.agents/memory/` covers codexu bookkeeper and ralph-pipeline operating lessons: Ralph phase discipline, overview bookkeeping, crew coordination, and codexu-specific repo conventions. It is NOT happy-app/happy-server implementation guidance; use the package-level docs and skills for those areas.
+These are the load-bearing rules for the `overview-bookkeeper` lead session
+and the `ralph-pipeline` crew. Previously they lived as `.agents/memory/`
+auto-memory entries; they're now inlined here so every agent (Claude, Copilot,
+others) sees them on session start through the same channel as the rest of
+this doc.
 
-Index: [.agents/memory/MEMORY.md](.agents/memory/MEMORY.md)
+### Branch + worktree discipline
 
-Curated high-priority entries:
+- **Codexu root `CLAUDE.md` is gitignored.** Fork-level guidance goes in this
+  AGENTS.md. The bookkeeper's local `CLAUDE.md` is an operator-only file. When
+  spawning a codexu-touching impl member, the spawn prompt MUST explicitly note
+  this so the member doesn't `git add CLAUDE.md`. When cherry-picking impl
+  branches onto main, scan the diff for `CLAUDE.md` adds and reject them —
+  those edits belong in `AGENTS.md`.
 
-- [Phase discipline: separate member per ralph phase](.agents/memory/feedback_phase_discipline_separate_members.md)
-- [Bookkeeper updates overview-data.js as tasks ship](.agents/memory/feedback_bookkeeper_updates_overview_data.md)
-- [Spawn prompt must require Phase 5a/5b review-fix](.agents/memory/feedback_spawn_prompt_must_require_review_fix.md)
-- [Cross-repo impl spawns need worktrees in EVERY shared repo](.agents/memory/feedback_cross_repo_impl_worktree_mandate.md)
-- [codexu root CLAUDE.md is gitignored](.agents/memory/feedback_codexu_claude_md_gitignored.md)
-- [Impl members commit to topic branch off main, NOT lead's branch](.agents/memory/feedback_impl_topic_branch_vs_lead_branch.md)
+- **Plan-phase members commit to whatever branch the lead is on; the lead
+  cherry-picks the plan commit to `main`.** The lead's cwd holds `.crews/`
+  and `.ralph/jobs/<other>/` state read by sibling members — `git checkout
+  main` mid-session would disrupt them. Cherry-pick from the
+  `codexu-plans-view` worktree (which IS always on `main`) instead. Write
+  the spawn prompt as "commit + push to wherever your cwd is checked out;
+  lead will cherry-pick to main" — never "push to origin/main".
 
-This TOC is a curated subset for fast orientation. See [.agents/memory/MEMORY.md](.agents/memory/MEMORY.md) for the full list.
+- **Impl-phase members commit to a topic branch off `origin/main`, NOT to
+  the lead's branch.** Ralph's impl flow uses its own worktree convention and
+  expects a `ralph/<task-id>` topic branch. The plan-phase "commit to lead's
+  branch" pattern explicitly does NOT carry over to impl.
+
+- **Cross-repo impl spawns need worktrees in EVERY shared repo.** When two
+  or more impl members touch the same sibling repo (e.g., both edit
+  `D:/ai-developer-toolkit`), each needs its own worktree in that repo so
+  they don't stomp each other's uncommitted state. The mandate is per-repo,
+  not per-task. Default pattern: `git -C <repo> worktree add <repo>-<slug>
+  -b ralph/<slug> main`. Enumerate every sibling repo the plan touches
+  before spawning; check `list-members` + manifest cwd for co-residents.
+
+- **Never `git update-ref` to fast-forward a worktree's branch.** It moves
+  HEAD but leaves stale working-tree files; the next `git add` + commit
+  records a diff that effectively reverts the fast-forwarded commits. Use
+  `git -C <worktree> merge --ff-only <sha>` from inside the worktree.
+
+### Spawn-prompt invariants
+
+- **Always pass `--state-cwd D:/harness-efforts/codexu` and
+  `--as overview-bookkeeper`** to every `crews.js` CLI call. Bash sessions
+  default to the `codex/` submodule path; auto-resolution picks the wrong
+  state-cwd and the spawn fails with `SenderNotFoundError: sender "null" not
+  found in crew "ralph-pipeline"`.
+
+- **Every implement-driving spawn prompt must hard-code Phase 5a (code
+  review-fix convergence — multiple rounds if needed) and Phase 5b (docs
+  review-fix convergence) before fast-forward and push.** Don't trust members
+  to infer "drive to terminal" as the full Phase 6 terminal-clean; they read
+  it as "Phase 4 (stories pass) done" and skip the post-impl review where
+  reviewers historically catch Highs that pre-impl review missed. Phase
+  5a/5b must reach `review: {code: 'clean', docs: 'clean'}` before merge.
+  Exceptions: empty-diff short-circuits (work already on main), explicit
+  operator hotfix instruction, and research-only docs that hit 4-way
+  reviewer consensus + citation verification.
+
+### Codex submodule build situation
+
+- **`rustup` + `cargo` ARE installed locally.** `cargo check --workspace`
+  (~6 min) is the standard Phase-5a typecheck gate per `codex/CLAUDE.md`.
+  Impl members can and should run it locally.
+- **`cargo build --release` IS deferred to CI** — that needs the heavy
+  publish toolchain (xwin + LLVM + V8 lib) installed only by
+  `codex/.claude/commands/publish-sandbox-patch.md`.
+- **Workspace-parse preflight** before any codex-touching spawn:
+  `cd codex/external/repos/codex-patched/codex-rs && cargo metadata --no-deps
+  --format-version 1`. Non-zero exit signals an overlay-coordination gap on
+  the current branch; impl members would otherwise burn iterations
+  attributing inherited breakage to their own edits.
+- **`origin/main` always parses cleanly.** Feature-branch overlay gaps are
+  mid-flight artifacts, not steady-state issues.
+
+### Bookkeeper operational practice
+
+- **Update `plans/overview-data.js` the same turn a task ships.** When a
+  ralph member terminates clean (`terminal:complete`) and the work is on
+  `origin/main`, flip `lifecycle: "tracked"` → `"merged"` (or `"archived"`
+  for closed/superseded work), add `mergeCommit: "<sha>"` (comma-separated
+  for dual-repo work — e.g., `"e9fa64a0,d279d49d"`), and refresh
+  `lastTouchedAt`. Bundle multiple ships into one
+  `chore(plans): update overview-data.js for shipped tasks` commit per
+  batch. The watcher updates the sidecar automatically, but
+  overview-data.js is hand-curated and goes stale otherwise — future
+  agents querying it directly (not through the snapshot) see stale state.
+
+- **Don't flip `lifecycle` until the work is actually on `origin/main`.**
+  A member reporting `kind=done` but only pushed to a topic branch (or with
+  CI still in flight) stays `tracked` with a comment about the in-flight
+  state. Wait for the actual main-side commit before bookkeeping.
+
+- **Peek the mailbox between tool-call clusters.** During extended
+  investigations (debugging, multi-step setup) that exceed ~6–8 tool calls
+  without a natural turn boundary, run `review-mail --peek` between
+  sub-tasks. The Stop-hook is a backstop, not a primary signal — relying
+  on it can miss a `kind=question` that arrives mid-investigation.
+
+- **Don't re-arm the listener on every empty timeout cycle.** When the
+  listener exits via timeout (not message delivery) and the conversation
+  is idle (no mailbox content, no pending member checkpoint, no operator
+  instruction), don't immediately re-arm and emit a content-free
+  "Idle." turn. Each empty re-arm cycle burns a model invocation. Exception:
+  when a member is mid-task and could checkpoint any moment, the re-arm
+  is worth it.
+
+### Architectural-fix preference
+
+- **When a long-running coordination component (MCP server, watcher,
+  daemon) misbehaves in normal multi-session use, propose an architectural
+  fix — NOT a process-kill workaround.** "Kill the conflicting watchers and
+  retry" is the wrong default; the assumption "one session per repo" is
+  wrong, N concurrent sessions is legitimate use. The fix belongs in the
+  component's cooperative-lease / passive-consumer code, not in operator
+  muscle memory. Surface multi-session coordination bugs as candidate
+  brainstorm or `/plan-with-ralph` tasks.
+
+- **Dual-repo plans don't chain into `/implement-with-ralph` blindly.**
+  When a finalized plan touches two repo roots, names two branch names in
+  two repos, or has a phase-precondition gated on another repo's PR merge,
+  pause the chain. `/implement-with-ralph` generates one PRD per repo; a
+  dual-repo plan can't be expressed as one PRD without silently dropping
+  half the stories. Offer: (a) planning-only result, (b) phase A manually +
+  phase B later, (c) two separate Ralph jobs.
+
+### Crews stop-hook semantics (for reference)
+
+The lead session is exempt from the member kind-tag requirement (v1.8.1+):
+lead prose-only turns pass Stop. Members still must emit a `<|report
+kind="..." summary="..."|>` final-line tag every turn. The body-canonical
+gate (v1.8.0+) hard-blocks `done`/`question`/`blocked` reports that put
+substantive content in `summary` instead of the prose body
+(default: `summary > 200` chars + body `< 50` chars triggers the block;
+`CREWS_BODY_CANONICAL=off` disables it).
 
 For the in-flight `overview-install-streamline` brainstorm — that work will
 add agent-callable MCP tools (`overview.init`, `overview.upsert_task`,
 `overview.mark_shipped`) that automate the bookkeeper duties this doc
-describes. Until then, this CLAUDE.md is the operating manual.
->>>>>>> 8c2a16bf (docs: append bookkeeper operating manual to AGENTS.md for copilot auto-load)
+describes. Until then, this AGENTS.md is the operating manual.
