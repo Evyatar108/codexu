@@ -709,6 +709,39 @@ window.OVERVIEW_DATA = {
               }
         },
         {
+              "id": "ralph-plan-with-ralph-copilot-cli-read-only-research",
+              "scope": "ralph-orchestration",
+              "lifecycle": "tracked",
+              "status": "ok",
+              "lastTouchedAt": "2026-05-29T01:30:00Z",
+              "kanbanCards": [],
+              "command": {
+                    "name": "ralph-plan-with-ralph-copilot-cli-read-only-research",
+                    "descriptionHtml": "Surfaced by <code>plan-crews-lead-suppress-kind-tag</code> (2d31eb4a) on 2026-05-28: the Copilot CLI invoked in research-mode by <code>/plan-with-ralph</code>'s Phase 2 (or Phase 4 review) overflowed and made 16 uncommitted edits to <code>D:/ai-developer-toolkit</code> working tree on main, including <code>plugins/crews/hooks/stop.js</code>, <code>plugins/crews/CHANGELOG.md</code>, version stamps, and tests. The Copilot CLI should treat plan-with-ralph research invocations as READ-ONLY — it must not write to source files. The diff happened to match the plan's design which is why it wasn't actively harmful, but on a different invocation could land random partial-implementation noise on a developer's checkout. Bookkeeper stashed the edits via 'git stash push' for recovery; impl member will redo the work cleanly per plan's Q1 default.",
+                    "warnings": [
+                          {
+                                "className": "cmd-warn",
+                                "html": "⚠️ <strong>Could conflict with operator's other in-flight work</strong> on the affected repo. Fix should: (a) constrain Copilot CLI invocation flags to prevent file edits in research-mode, OR (b) wrap the Copilot research in a temp dir / read-only filesystem layer, OR (c) validate working-tree state pre+post and surface diffs as a kind=question instead of silently leaving them. Touches plugins/ralph/src/copilot-exec.mjs + the research-dispatching code in plan-with-ralph / brainstorm-with-ralph / review-changes."
+                          }
+                    ],
+                    "prompts": { "plan": "/plan-with-ralph \"Constrain Copilot CLI in research-mode invocations to read-only to prevent accidental file edits during plan-with-ralph / brainstorm-with-ralph / review-changes phases.\n\n## Problem\n\nObserved 2026-05-28 during plan-crews-lead-suppress-kind-tag: the Copilot CLI invoked for Phase 2 research (or Phase 4 review) on this Windows host overflowed beyond reading source and ACTUALLY EDITED 16 files in the operator's D:/ai-developer-toolkit working tree, including plugins/crews/hooks/stop.js, CHANGELOG, version manifests, and test files. The edits happened to match the design the plan was researching, but on a different invocation could have landed random partial-implementation noise that compromises operator's working tree integrity.\n\n## Root cause hypotheses\n\n- Copilot CLI defaults to interactive file-edit mode unless explicitly constrained.\n- ralph-orchestration's research-invocation flags (in plugins/ralph/src/copilot-exec.mjs + agents/copilot-*-prompt.md) may pass arguments that allow file edits.\n- Copilot CLI doesn't differentiate research vs implementation modes — it always acts.\n\n## Fix options\n\n(a) Pass flags that constrain Copilot to read-only (--no-edit, --read-only, or equivalent — verify against Copilot CLI docs).\n(b) Run Copilot research inside a temp directory / read-only bind-mount so writes are sandboxed.\n(c) Snapshot working-tree state pre+post; if any source file changed, surface as a kind=question to the spawning agent and DISCARD the changes by default.\n\n## Investigation step (before picking option)\n\nRead Copilot CLI 1.0.55+ docs / --help for read-only mode flags. Test the chosen mechanism manually before proposing in plan.\n\n## Acceptance\n\n- /plan-with-ralph research subprocess invoked against any plugin source CANNOT modify any file outside its job_dir / staging.\n- New test fixture demonstrates Copilot CLI running in research-mode + asserting zero source file diffs.\n- CHANGELOG entry cites the failure pattern.\n\nVersion bump: ralph v5.46.3 patch. Multi-remote push per operator pattern.\"" }
+              }
+        },
+        {
+              "id": "ralph-plan-staging-unique-path-per-member",
+              "scope": "ralph-orchestration",
+              "lifecycle": "tracked",
+              "status": "ok",
+              "lastTouchedAt": "2026-05-29T01:30:00Z",
+              "kanbanCards": [],
+              "command": {
+                    "name": "ralph-plan-staging-unique-path-per-member",
+                    "descriptionHtml": "Surfaced by <code>plan-crews-lead-suppress-kind-tag</code> (2d31eb4a) on 2026-05-28: when two plan-phase members run concurrently in the same crew, they share a staging directory at <code>&lt;JOBS_BASE&gt;/.staging/&lt;session_id&gt;/</code> — but the session_id slug uses second-granularity timestamps, so two members spawning within the same second collide and overwrite each other's <code>feature-request.txt</code>. The concurrent member overwrote the staging mid-Phase-2; the affected member recovered by switching to a uniquely-suffixed staging path. Fix: include member-name in the staging-dir slug, OR use a millisecond/PID suffix.",
+                    "warnings": [],
+                    "prompts": { "plan": "/plan-with-ralph \"Make ralph plan-with-ralph / brainstorm-with-ralph staging directories unique-per-member to prevent same-second collision when multiple plan members spawn concurrently in the same crew.\n\n## Problem\n\nObserved 2026-05-28 during 3 concurrent plan-member spawns in the overview-bookkeeper crew: plan-crews-envelope-body-canonical-for-all-kinds and plan-crews-lead-suppress-kind-tag both happened to spawn within the same wall-clock second and write to overlapping staging paths. The later member overwrote the earlier one's feature-request.txt mid-Phase-2, causing the earlier's Codex+Copilot research to receive corrupt content. The earlier member recovered by switching to a uniquely-suffixed path, but the recovery wasn't free.\n\n## Root cause\n\nThe staging path is computed as <JOBS_BASE>/.staging/<session_id>/ where session_id is a bare timestamp slug at second-granularity. Two members spawning within the same second produce the same slug.\n\n## Fix options\n\n(a) Append member-name (kebab-case) to the slug: <JOBS_BASE>/.staging/<timestamp>-<member-name>/\n(b) Append PID: <JOBS_BASE>/.staging/<timestamp>-<pid>/\n(c) Append nanosecond timestamp: <JOBS_BASE>/.staging/<timestamp-ns>/\n(d) Add random suffix: <JOBS_BASE>/.staging/<timestamp>-<random4>/\n\nRecommended: (a) for human-readability + uniqueness.\n\n## Acceptance\n\n- Two plan-with-ralph members spawning within the same wall-clock second produce distinct staging paths.\n- Test fixture demonstrates the collision-free guarantee.\n- CHANGELOG cites the failure pattern.\n\nVersion bump: ralph v5.46.3 patch (could bundle with ralph-plan-with-ralph-copilot-cli-read-only-research). Multi-remote push.\"" }
+              }
+        },
+        {
               "id": "crews-review-mail-summary-payload-fallback",
               "scope": "crews",
               "lifecycle": "merged",
