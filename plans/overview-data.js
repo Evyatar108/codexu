@@ -634,7 +634,7 @@ window.OVERVIEW_DATA = {
               "scope": "crews",
               "lifecycle": "tracked",
               "status": "ok",
-              "lastTouchedAt": "2026-05-28T15:55:00Z",
+              "lastTouchedAt": "2026-05-29T15:17:00Z",
               "initialStage": "brainstorming",
               "kanbanCards": [],
               "command": {
