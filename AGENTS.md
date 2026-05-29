@@ -2,7 +2,7 @@
 
 > Fork-specific guidance for AI agents working in this repo. Per-package guidance lives in `packages/happy-app/AGENTS.md`, `packages/happy-server/AGENTS.md`, etc. (mostly upstream). This file covers what's different about the fork.
 >
-> Filed as `AGENTS.md` rather than `CLAUDE.md` because the upstream repo's `.gitignore` excludes root-level `CLAUDE.md` (treated as per-developer personal context). Modern agent tooling (Claude Code, Cursor, Aider) auto-loads `AGENTS.md` in addition to `CLAUDE.md` files.
+> Filed as `AGENTS.md` rather than `CLAUDE.md` because the upstream repo's `.gitignore` excludes root-level `CLAUDE.md` (treated as per-developer personal context). Modern agent tooling (Claude Code, **Copilot CLI**, Cursor, Aider) auto-loads `AGENTS.md` in addition to `CLAUDE.md` files.
 
 ## Fork context
 
@@ -15,7 +15,7 @@ Full fork context, branches, build workflow, and "things that bit us" catalogue 
 
 Agent-readable Ralph pipeline state is generated at `plans/overview-snapshot.json`; recent transitions append to `plans/overview-activity.jsonl`. Artifacts are emitted by the **`ralph-overview` plugin** (installed via the `gim-home/ai-developer-toolkit` marketplace as of Plan 12). The plugin's watcher runs inside the Vite dev server during `pnpm overview` (delegating through `bin/ralph-overview.mjs dev`), or as a standalone process via `pnpm sync-ralph-state:watch` (delegating to `ralph-overview watch`). Both paths share the same `.ralph/overview-sync.lock` and emit the same set of files. See `bin/ralph-overview.mjs` for the resolver wrapper that locates the installed plugin.
 
-**Plugin resolution.** The resolver wrapper checks (in order): `$RALPH_OVERVIEW_PLUGIN_ROOT` env, `$CLAUDE_PLUGIN_ROOT/ralph-overview/`, `$CLAUDE_PLUGIN_ROOT/cache/ai-developer-toolkit/ralph-overview/<latest>/`, `~/.claude/plugins/cache/ai-developer-toolkit/ralph-overview/<latest>/`, then the local-dev fallback `D:/ai-developer-toolkit/plugins/ralph-overview/`. For local development against an unmerged plugin branch, set `RALPH_OVERVIEW_PLUGIN_ROOT` to point at the toolkit checkout. **Done:** the codexu install now uses the marketplace plugin registration (`enabledPlugins["ralph-overview@ai-developer-toolkit"]` in `.claude/settings.json`); the old local-path `.mcp.json` entry and `enabledMcpjsonServers["ralph-overview"]` have been removed.
+**Plugin resolution.** The resolver wrapper checks (in order): `$RALPH_OVERVIEW_PLUGIN_ROOT` env, `$CLAUDE_PLUGIN_ROOT/ralph-overview/`, `$CLAUDE_PLUGIN_ROOT/cache/ai-developer-toolkit/ralph-overview/<latest>/`, `~/.claude/plugins/cache/ai-developer-toolkit/ralph-overview/<latest>/`, **`~/.copilot/installed-plugins/ai-developer-toolkit/ralph-overview/`** (Copilot CLI install layout — single live copy, no per-version subdir), then the local-dev fallback `D:/ai-developer-toolkit/plugins/ralph-overview/`. For local development against an unmerged plugin branch, set `RALPH_OVERVIEW_PLUGIN_ROOT` to point at the toolkit checkout. **Done:** the codexu install now uses the marketplace plugin registration (`enabledPlugins["ralph-overview@ai-developer-toolkit"]` in `.claude/settings.json` for Claude Code and the equivalent block in `~/.copilot/settings.json` for Copilot CLI); the old local-path `.mcp.json` entry and `enabledMcpjsonServers["ralph-overview"]` have been removed.
 
 Codexu owns: `plans/overview-data.js` (hand-curated tasks + `ui` overrides for codexu-specific copy), `.ralph/overview-config.json` (consumer config + JSON schema), and the generated sidecars / snapshot / activity / `tasks/INDEX.md` under `plans/` and `tasks/`. The plugin owns: the sync library, the watcher, the MCP server, the React viewer, and the `/work-on` / `/triage` / `/blocker-report` skills.
 
@@ -94,10 +94,12 @@ App consumers treat the typed event as authoritative, suppress any legacy fallba
 
 # Codexu — Bookkeeper / Scrum-Master Workspace
 
-This repo is driven by an autonomous **bookkeeper + scrum-master** Claude Code
-session (the `overview-bookkeeper` lead in crew `ralph-pipeline`). The lead
-spawns Ralph workers, monitors their mailboxes, merges their work, and keeps
-the overview data — the team's single source of truth — current.
+This repo is driven by an autonomous **bookkeeper + scrum-master** session
+(Copilot CLI as of 2026-05-29; Claude Code still supported — see the
+"Engine choice" note in the Copilot migration milestone block below).
+The lead spawns Ralph workers, monitors their mailboxes, merges their
+work, and keeps the overview data — the team's single source of truth —
+current.
 
 ## The lead's job
 
@@ -230,8 +232,7 @@ snapshot. Agents querying the canonical task list should read
 
 ## Crews-plugin invariants (v1.6.0)
 
-The lead and members coordinate via the **crews** Claude Code plugin
-(`gim-home/ai-developer-toolkit`, version 1.6.0+). Key behaviors:
+The lead and members coordinate via the **crews** plugin (Claude Code + Copilot CLI cross-engine compatible since v1.3.0; default member engine inherits from caller CLI since v1.8.11). Key behaviors:
 
 - **Listener arming**: lead and member sessions must keep a background
   listener armed (`node $CREWS_BIN arm` or `wait-for-message.js`). The
@@ -366,6 +367,13 @@ this doc.
   state-cwd and the spawn fails with `SenderNotFoundError: sender "null" not
   found in crew "ralph-pipeline"`.
 
+- **`--engine` is OPTIONAL as of crews v1.8.11.** The default member engine
+  now mirrors the caller-CLI engine (Copilot lead → Copilot member; Claude
+  lead → Claude member) instead of always defaulting to `claude`. Pass
+  `--engine <other>` only when you intentionally want a cross-engine spawn.
+  Old AGENTS.md guidance to "always pass `--engine copilot` from a Copilot
+  lead" is now obsolete — it still works but is redundant noise.
+
 - **Every implement-driving spawn prompt must hard-code Phase 5a (code
   review-fix convergence — multiple rounds if needed) and Phase 5b (docs
   review-fix convergence) before fast-forward and push.** Don't trust members
@@ -376,6 +384,56 @@ this doc.
   Exceptions: empty-diff short-circuits (work already on main), explicit
   operator hotfix instruction, and research-only docs that hit 4-way
   reviewer consensus + citation verification.
+
+### Copilot migration milestone (2026-05-29)
+
+- **Bookkeeper lead now runs under Copilot CLI by default.** End-to-end
+  smoke test on 2026-05-29 ran a full brainstorm + plan cycle for the
+  `crews-roles-and-direct-operator-channel` task entirely under Copilot:
+  spawn → SessionStart → listener-arm → multi-min work → kind=done →
+  review-mail → stop → FF to main, twice in succession. Brainstorm shipped
+  as `fc9012f5`, plan as `23546aee`. Engine-specific failures: zero (after
+  one in-session PreToolUse hook patch landed in crews v1.8.x to recognize
+  `powershell` as the Copilot shell-tool name alongside `bash`).
+- **`crews` plugin v1.8.11** (`fix/crews-spawn-default-engine-from-caller`
+  on `evmitran_microsoft/ai-developer-toolkit`) shipped during that smoke
+  test. `spawnMember()` now reads the caller-CLI session-env vars
+  (`CLAUDECODE=1+CLAUDE_CODE_SESSION_ID` / `COPILOT_CLI=1+COPILOT_AGENT_SESSION_ID`)
+  as the engine-default when no explicit `--engine` and no `CREWS_ENGINE`
+  are present. Precedence (top wins): explicit `options.engine` > env
+  `CREWS_ENGINE` > caller-CLI detection > `'claude'` (legacy fallback for
+  non-CLI shells / scripted use).
+- **Engine choice.** Either CLI is supported as the bookkeeper-lead; the
+  trade-offs are roughly: Copilot is now the default driver (skills load
+  from `~/.copilot/installed-plugins/...`, settings at `~/.copilot/settings.json`);
+  Claude Code remains usable (skills load from `~/.claude/plugins/cache/...`,
+  settings at `~/.claude/settings.json`) and was the historical default.
+  The `bin/ralph-overview.mjs` resolver checks BOTH install layouts
+  (see "Plugin resolution" above) — both engines work on the same workspace
+  without conflict.
+- **Known follow-ups surfaced by the smoke test** (none blocking):
+  (a) Stale assertions in `tests/engine-env-bootstrap.test.js` reference
+  the pre-patch "bash tool" block message; should be updated to "powershell
+  tool" alongside the v1.8.x hook patch.
+  (b) `parseOverviewData` in the ralph-overview plugin requires exactly 1
+  top-level statement; `plans/overview-data.js` has 2 (a `globalThis.window`
+  polyfill + the assignment), blocking `pnpm sync-ralph-state` even on a
+  clean checkout. Either drop the polyfill or relax the parser.
+  (c) `stop-member <name> bare positional reason text` rejected with
+  `unexpected arg`; either accept trailing positionals or document
+  `--reason` as mandatory for non-empty reasons.
+  (d) `bin/ralph-overview.mjs` in codexu is a gitignored legacy resolver
+  wrapper (predates the plugin's modern direct-`$CLAUDE_PLUGIN_ROOT` script
+  pattern from `scripts/init-consumer.mjs`). Its hard-coded path cascade
+  checks Claude install layouts but not `~/.copilot/installed-plugins/...`.
+  On THIS machine the local-dev fallback (`D:/ai-developer-toolkit/...`)
+  saves it, but a fresh Copilot-only clone would fail. Two clean fixes:
+  re-run `overview-init` to regenerate `package.json` scripts in the
+  modern direct-path form (obsoleting the wrapper), OR add `~/.copilot/installed-plugins/ai-developer-toolkit/<plugin>/`
+  to the wrapper's cascade and consider un-ignoring `bin/` so the fix is
+  portable. Right now the wrapper is patched in-place on this machine
+  (lines 18, 67-77, 104 of `bin/ralph-overview.mjs`) but the edit is
+  per-machine only.
 
 ### Codex submodule build situation
 
