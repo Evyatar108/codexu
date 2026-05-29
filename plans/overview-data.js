@@ -650,11 +650,26 @@ window.OVERVIEW_DATA = {
               }
         },
         {
-              "id": "crews-lead-suppress-kind-tag",
+              "id": "crews-stop-tests-jsonparse-empty-2-tests",
               "scope": "crews",
               "lifecycle": "tracked",
               "status": "ok",
-              "lastTouchedAt": "2026-05-28T09:35:00Z",
+              "lastTouchedAt": "2026-05-29T03:40:00Z",
+              "kanbanCards": [],
+              "command": {
+                    "name": "crews-stop-tests-jsonparse-empty-2-tests",
+                    "descriptionHtml": "Surfaced by <code>impl-crews-lead-suppress-kind-tag</code> during Phase 5a verification on ai-developer-toolkit main (<code>2a22b20e</code>): two pre-existing tests fail with <code>JSON.parse('')</code> env-level errors — <code>tests/stop-circuit-breaker.test.js</code> + <code>tests/stop-hook-consumes-when-listener-exited.test.js</code>. Failures reproduce on plain main without any in-flight changes. Sibling task to <code>ralph-rubric-fixture-drift-3-tests</code> — pre-existing test flakiness that pollutes the green-baseline assertion.",
+                    "warnings": [],
+                    "prompts": { "plan": "/plan-with-ralph \"Fix the 2 pre-existing crews-plugin test failures that fail with JSON.parse('') env-level errors on ai-developer-toolkit main.\n\n## Problem\n\nimpl-crews-lead-suppress-kind-tag confirmed two test files fail at base commit 2a22b20e without any in-flight changes: plugins/crews/tests/stop-circuit-breaker.test.js + plugins/crews/tests/stop-hook-consumes-when-listener-exited.test.js. Both fail with JSON.parse('') env-level errors. These failures pollute the 'tests remain green' baseline for every future Phase 5a reviewer.\n\n## Investigation\n\nRun each test in isolation, capture the JSON.parse stack trace, identify the empty-string source: missing test fixture, missing env var, or genuine Stop-hook code bug that doesn't gate input parsing.\n\n## Acceptance\n\n- Both tests pass on a fresh checkout of main.\n- If a code change was needed, regression test added.\n- CHANGELOG note (if code change) cites the failure pattern.\n\nVersion bump: crews v1.8.2 patch (test-only fix if no code change).\"" }
+              }
+        },
+        {
+              "id": "crews-lead-suppress-kind-tag",
+              "scope": "crews",
+              "lifecycle": "merged",
+              "status": "ok",
+              "lastTouchedAt": "2026-05-29T03:39:00Z",
+              "mergeCommit": "a7ad750a",
               "kanbanCards": [],
               "command": {
                     "name": "crews-lead-suppress-kind-tag",
