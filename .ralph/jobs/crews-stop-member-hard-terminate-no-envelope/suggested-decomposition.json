@@ -1,7 +1,12 @@
 {
-  "version": 1,
+  "version": 2,
   "task": "crews-stop-member-hard-terminate-no-envelope",
-  "note": "Single-job, three-story serial decomposition. Surface is small, stories are tightly coupled, parallelism saves nothing and costs review attention. Bookkeeper should spawn ONE impl member that lands US-01, US-02, US-03 in order on a single branch.",
+  "supersedes": {
+    "previousVersion": 1,
+    "previousCommit": "33326b6a",
+    "reason": "v1 strategy killed the launcher pwsh, which left a [process exited with code 1] placeholder tab under WT's default closeOnExit:graceful. Operator caught it via direct visual inspection. v2 corrects by killing only the inner CLI subtree and refactoring the launcher script to exit with code 0 after WaitForExit returns."
+  },
+  "note": "Single-job, three-story serial decomposition. US-01 surface grew vs v1 because it now ALSO refactors the launcher script (drop -NoExit, capture inner.pid via Start-Process -PassThru, end with exit 0). The Start-Process REPL UX verification is the single largest impl risk; if it fails, fall back to research-brief Option 5B (Node-side WMI polling, keep `& copilot` inline).",
   "jobs": [
     {
       "name": "job-1-crews-hard-terminate",
@@ -10,12 +15,12 @@
       "branch": "ralph/crews-stop-member-hard-terminate-no-envelope",
       "baseBranch": "main",
       "remote": "Evyatar108/ai-developer-toolkit",
-      "shipTarget": "main + marketplace registration; bump crews plugin to v1.9.0",
+      "shipTarget": "main + marketplace registration; crews plugin v1.9.0",
       "executionRecommendation": "serial-single-member",
-      "executionRationale": "Three small stories sharing the stop-member surface. US-02 surfaces US-01; US-03 documents both. Parallelism would just add merge work on the same two source files.",
+      "executionRationale": "Three stories. US-01 grew vs v1 (launcher refactor + Start-Process UX verification + kill helper); US-02 surfaces it; US-03 documents both. Parallelism would just add merge work on the same hooks/actors.js + hooks/commands/stop-member.js.",
       "clusters": [
         {
-          "name": "core-kill",
+          "name": "core-kill-and-launcher",
           "stories": ["US-01"],
           "phase": 1,
           "dependsOn": [],
@@ -25,35 +30,34 @@
               "hooks/actors.js",
               "hooks/config.js",
               "hooks/protocol/manifest.js",
+              "tests/spawn-member-launcher-template.test.js",
               "tests/stop-member-hard-terminate.test.js",
-              "tests/stop-member-hard-terminate-wt-server-survives.test.js"
+              "tests/stop-member-hard-terminate-wt-tab-closes.test.js"
             ],
-            "risk": "medium"
+            "risk": "high"
           },
-          "executionModeRationale": "Foundation story. The inline pwsh BFS descendant walk is the most delicate piece; impl member should land this commit on its own so the test signal isolates kill-correctness regressions from CLI-surface regressions."
+          "executionModeRationale": "Foundation. Three coupled changes (launcher refactor, kill helper, interactive UX verification of Start-Process -NoNewWindow -PassThru). Land alone so test signal isolates kill-correctness regressions from CLI-surface regressions. The Start-Process REPL UX risk is described in plan Q3 + research-brief §5 Option 5A; impl MUST run the manual interactive sanity check before shipping."
         },
         {
           "name": "cli-default-flip",
           "stories": ["US-02"],
           "phase": 2,
-          "dependsOn": ["core-kill"],
+          "dependsOn": ["core-kill-and-launcher"],
           "fileOverlapEvidence": {
-            "sharedFiles": [
-              "hooks/actors.js (re-touched only if US-01 left stopMemberAsLead/stopMemberByOperator without the {soft} option threaded through; the plan calls for threading it in US-01)"
-            ],
+            "sharedFiles": [],
             "exclusiveFiles": [
               "hooks/commands/stop-member.js",
               "tests/stop-member-cli.test.js"
             ],
             "risk": "low"
           },
-          "executionModeRationale": "Pure surface-layer. Depends on US-01's helper + opts threading. Cannot run in parallel with US-01 because parityVector tests need the new default behaviour wired up."
+          "executionModeRationale": "Pure surface-layer. Depends on US-01's helper + opts threading. Cannot parallelize with US-01."
         },
         {
           "name": "audit-and-docs",
           "stories": ["US-03"],
           "phase": 3,
-          "dependsOn": ["core-kill", "cli-default-flip"],
+          "dependsOn": ["core-kill-and-launcher", "cli-default-flip"],
           "fileOverlapEvidence": {
             "sharedFiles": [
               "hooks/protocol/manifest.js (JSDoc only — US-01 added the schema fields; US-03 documents them)",
@@ -65,29 +69,35 @@
             ],
             "risk": "low"
           },
-          "executionModeRationale": "Release-gate. Must land LAST so the CHANGELOG accurately reflects everything in the commit chain. Cannot parallelize with US-02 because divergenceCases test exercises the same parityVectors US-02 just added."
+          "executionModeRationale": "Release-gate. Must land last for CHANGELOG accuracy. The v1 → v2 correction story is important for future maintainers and must be in the CHANGELOG, not just the research brief."
         }
       ]
     }
   ],
   "followUps": [
     {
-      "proposedId": "crews-soft-stop-no-exit-fix",
+      "proposedId": "crews-soft-stop-placeholder-cleanup",
       "scope": "crews",
-      "summary": "Drop `-NoExit` from spawnMember's wt argv so soft-stop tabs also close cleanly instead of persisting as empty pwsh prompts. One-line change; eliminates the operator's 'empty placeholder' observation for the legacy code path too.",
-      "blockedBy": "none (independent; could land in v1.9.0 alongside the hard-terminate work if impl member has bandwidth)"
+      "summary": "Even with -NoExit dropped, soft-stop's two-envelope ack flow still has the round-trip cost we're avoiding. Investigate retiring the soft path entirely in v2.0 if no usage materializes by then.",
+      "blockedBy": "v1.9.0 ship + 1-2 release cycles of soft-mode usage observation"
     },
     {
       "proposedId": "crews-cross-platform-hard-terminate",
       "scope": "crews",
-      "summary": "Add macOS (osascript / process-group kill) and Linux (setsid + kill -PGID) branches for `applyHardStopMember`. Currently throws 'not-yet-implemented' on non-Windows.",
-      "blockedBy": "v1.9.0 Windows API ship (this plan)"
+      "summary": "macOS (osascript / process-group kill) + Linux (setsid + kill -PGID) branches for applyHardStopMember. Currently throws 'not-yet-implemented' on non-Windows.",
+      "blockedBy": "v1.9.0 Windows ship"
     },
     {
       "proposedId": "codexu-agents-md-stop-member-update",
       "scope": "codexu",
-      "summary": "Update codexu/AGENTS.md workflow diagram + 'Crews-plugin invariants' section to reflect the new stop-member default (hard) and the safety guarantee. One-line change in the duty table + a short paragraph in invariants. Consumer-side, not part of the plugin PR.",
+      "summary": "Update codexu/AGENTS.md workflow-diagram + Crews-plugin invariants to reflect the new stop-member default + safety guarantee. One-line change in the duty table + short paragraph in invariants. Separate consumer-side commit, NOT this plugin PR.",
       "blockedBy": "v1.9.0 plugin ship"
+    },
+    {
+      "proposedId": "crews-wt-tab-close-direct-api",
+      "scope": "crews",
+      "summary": "If a future Windows Terminal version adds 'wt close-tab --tabid <id>' or equivalent stable-identity tab close, switch from the 'launcher exits 0 + closeOnExit:graceful' strategy to a direct CLI close. Currently INFEASIBLE in WT 1.24 — verified that all close-tab / focus-tab --title / close-pane invocations silently no-op.",
+      "blockedBy": "Microsoft adding the wt CLI surface"
     }
   ]
 }

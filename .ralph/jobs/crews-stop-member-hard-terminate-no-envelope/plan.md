@@ -1,57 +1,64 @@
-# Plan — crews stop-member hard-terminate
+# Plan — crews stop-member hard-terminate (v2, corrected)
+
+> **v2 supersedes the v1 plan at commit `33326b6a`.** The v1 strategy was
+> empirically wrong about the kill target — operator caught it via direct
+> visual inspection of a live test tab. v2 captures the corrected
+> strategy (kill the INNER CLI, NOT the launcher; require the launcher
+> to end with explicit `exit 0`; drop `-NoExit`).
+>
+> Branch for this rewrite:
+> `ralph/plan-crews-stop-member-hard-terminate-no-envelope-v2`.
+> Lead should FF this into main and re-emit a `33326b6a`-equivalent
+> bookkeeping update marking the original task `replan-pending → plan-ready`
+> against v2.
 
 **Task.** Replace the current soft-stop ack round-trip in `crews stop-member`
-with a hard-terminate path that kills the per-tab child process tree and
-closes the tab visually, without ever touching the shared
-`WindowsTerminal.exe` server. Eliminate the redundant second `kind=done`
-envelope that the lead has to consume after every clean stop.
+with a hard-terminate path that kills the inner CLI's process subtree and
+lets the launcher pwsh exit cleanly with `exit 0` so the tab visually
+closes (no `[process exited]` placeholder). The shared
+`WindowsTerminal.exe` server is never targeted.
 
 **Repo.** `Evyatar108/ai-developer-toolkit`, plugin `plugins/crews`.
 
-**Branch.** `ralph/plan-crews-stop-member-hard-terminate-no-envelope` (this
-plan), then impl on `ralph/crews-stop-member-hard-terminate-no-envelope`.
+**Branch (impl).** `ralph/crews-stop-member-hard-terminate-no-envelope`.
 
-**Version bump.** Crews plugin **v1.9.0** (minor — adds new behaviour AND
-flips the default of an existing command, even though backwards-compatible
-via `--soft`).
+**Version bump.** Crews plugin **v1.9.0**.
 
-**Phase discipline.** This is the plan-only deliverable. No code edits in
-this commit beyond the four files under `.ralph/jobs/<task>/`.
+**Phase discipline.** Plan-only deliverable. No code edits in this branch
+beyond the four files under `.ralph/jobs/<task>/`.
 
 ---
 
-## 1. Operator-facing intent recap
+## 1. Operator-facing intent
 
-The current `/crews-stop-member <name>`:
-1. Sets `manifest.shutdownRequested = true`, marks listener exited.
+Current `/crews-stop-member <name>` (soft):
+1. Sets `manifest.shutdownRequested=true`, marks listener exited.
 2. Appends a `stop-request` envelope to the member's mailbox.
-3. The member reads the envelope, emits a `kind=done` "ok, dying" turn.
-4. The Stop hook lets that turn end; the engine (Copilot CLI / Claude Code)
-   may then exit and the launcher pwsh stays at an empty `-NoExit` prompt,
-   producing the "empty placeholder tab" the operator observed.
+3. Member reads the envelope, emits a `kind=done` ack turn.
+4. Stop hook authorizes the turn end; the CLI may exit. Launcher pwsh's
+   `-NoExit` keeps the tab open at an empty prompt = placeholder.
 
-The new behaviour, for the common case (member has already shipped its
-real work):
-1. Lead invokes `/crews-stop-member <name>` (no flag — hard is the new
-   default; the operator's existing muscle memory keeps working with
-   strictly better behaviour).
-2. Manifest is updated to `shutdownRequested=true`, `listenerState='exited'`,
-   `actorState='cleared'`, plus new audit fields
-   (`terminatedAt`, `terminationKind='hard'`, `terminationReason`,
-   `terminatedPids={ launcher, descendants:[…], wtServerPid }`).
-3. `manifest.launcherPid` (already captured by `spawnMember` to
-   `<memberDir>/launcher.pid`) is read; we walk its descendant subtree and
-   `Stop-Process -Force` everything bottom-up — strictly NOT including
-   `WindowsTerminal.exe` or any ancestor of `launcherPid`.
-4. The launcher pwsh dies, `WindowsTerminal.exe` reaps the paired
-   `OpenConsole.exe`, the tab visually disappears.
-5. NO `stop-request` envelope is appended; the member never gets a chance
-   to emit a follow-up `kind=done`.
+New default behaviour (hard):
+1. Lead invokes `/crews-stop-member <name>` (no flag).
+2. Manifest updated (`shutdownRequested=true`, `listenerState='exited'`,
+   `actorState='cleared'`, `terminationKind='hard'`, `terminatedAt`,
+   `terminatedPids`).
+3. Read `<memberDir>/inner.pid` (captured at spawn — see §3 spawn-side
+   change). Verify the PID is alive AND that its CommandLine contains
+   the engine binary name (`copilot.exe` / `claude.exe`) AND that its
+   parent PID matches `<memberDir>/launcher.pid` — recycled-PID guard.
+4. `taskkill /T /F /PID <innerCliPid>` — kills the inner CLI subtree
+   (the CLI itself + Node descendants + any tool-call pwsh shells).
+5. Launcher pwsh sees its `$crewsInner.WaitForExit()` return; runs the
+   next line `exit 0`; pwsh exits 0; `closeOnExit: graceful` closes the
+   tab visually (no placeholder).
+6. WT server PID untouched (structurally — the kill subtree never
+   reaches it).
+7. NO `stop-request` envelope appended; member never emits a second
+   `kind=done` ack.
 
-For the rare case where the lead wants the legacy soft-stop semantics
-(e.g., the member is mid-tool-call and the operator wants graceful
-shutdown), `/crews-stop-member <name> --soft` falls back to the existing
-mailbox-envelope path verbatim. CLI mirror takes `--soft` too.
+Rare-case soft path (`--soft`): preserves current behaviour verbatim for
+callers who explicitly need it.
 
 ---
 
@@ -59,16 +66,17 @@ mailbox-envelope path verbatim. CLI mirror takes `--soft` too.
 
 | File | Change |
 |---|---|
-| `hooks/actors.js` | New `hardTerminateMemberByLaunchPid(launcherPid, opts)` helper; new `applyHardStopMember(target, lead, cwd, opts)` parallel to existing `applyStopMember`; `stopMemberAsLead` / `stopMemberByOperator` gain `opts.soft` switch. |
-| `hooks/commands/stop-member.js` | Slash parser accepts `--soft` (everything else is `reasonText`); CLI parser adds `--soft` boolean flag. Default = hard. Usage docs updated. |
-| `hooks/protocol/manifest.js` | New optional fields: `terminationKind`, `terminationReason`, `terminatedAt`, `terminatedPids`. Schema-additive only. |
-| `hooks/config.js` | Re-export `hardTerminateMemberByLaunchPid` if any caller needs the primitive directly (tests will). |
-| `tests/stop-member-hard-terminate.test.js` | NEW: portable test, spawns a no-launch member (`CREWS_NO_LAUNCH=1`), writes a fake `launcher.pid` pointing at a `setTimeout(…, 600_000)` Node child we spawn ourselves, invokes the new code path, asserts manifest mutations + that the child PID is dead. Cross-platform skip if not Windows. |
-| `tests/stop-member-hard-terminate-wt-server-survives.test.js` | NEW (Windows-only, optional in CI): does a REAL `wt.exe` spawn with `CREWS_NO_LAUNCH=0`, captures the WT server PID by walking up from the launcher's PPID, hard-terminates, asserts WT server PID is still alive after the kill. Gated behind `CREWS_WT_LIVE_TESTS=1` so CI without a real WT install skips cleanly. |
-| `tests/stop-member-cli.test.js` | EXTEND: assert `--soft` flag parses to `softStop=true`; assert default invocation routes to hard path; assert `parityVectors` updated. |
-| `CHANGELOG.md` | New `## v1.9.0` section: round-trip-cost rationale; explicit safety guarantee (WT server untouched); `--soft` opt-in for legacy semantics; pointers to research-brief. |
-| `AGENTS.md` (plugin) | Update §"Stop a member" with new default + safety paragraph. |
-| `codexu AGENTS.md` (separate consumer-side commit, NOT this repo) | One-line update to the workflow diagram + duty table noting "stop-member is hard by default; kills only the per-tab child tree, never the WT server". Listed as a follow-up impl-time task, not part of this plugin PR. |
+| `hooks/actors.js` (`spawnMember`, launcher script generation) | (a) drop `-NoExit` from `wtArgs`; (b) refactor launcher script tail to `Start-Process -PassThru` the inner CLI, capture inner PID to `<memberDir>/inner.pid`, `WaitForExit`, then explicit `exit 0`; (c) add `hardTerminateMemberByInnerPid(innerPid, opts)` helper; (d) add `applyHardStopMember(target, lead, cwd, opts)` parallel to existing `applyStopMember`; (e) thread `opts.soft` through `stopMemberAsLead` / `stopMemberByOperator`. |
+| `hooks/commands/stop-member.js` | Slash + CLI parsers accept `--soft` (default = hard). Usage docs + parityVectors updated. |
+| `hooks/protocol/manifest.js` | Additive fields: `terminationKind`, `terminationReason`, `terminatedAt`, `terminatedPids` (object: `innerCli`, `descendants`, `launcherPwsh` unkilled, `wtServerPid` unkilled). |
+| `hooks/config.js` | Re-export `hardTerminateMemberByInnerPid`. |
+| `tests/stop-member-hard-terminate.test.js` (NEW; cross-platform skip) | Portable: spawn a no-launch member (`CREWS_NO_LAUNCH=1`), fake `inner.pid` pointing at a Node sleep child; invoke kill helper; assert child PID dead + manifest fields written. |
+| `tests/stop-member-hard-terminate-wt-tab-closes.test.js` (NEW; gated by `CREWS_WT_LIVE_TESTS=1`) | Windows-only, real wt spawn. Verifies (a) WT server PID unchanged; (b) tab actually closes (assertion path: capture WT window count / tab count via UIA OR poll for the spawned tab's title disappearing from `wt`'s named-pipe-listing if accessible; see §4 below for the exact assertion mechanism). |
+| `tests/stop-member-cli.test.js` (EXTEND) | Assert `--soft` parses; default routes to hard handler; parityVectors updated. |
+| `tests/spawn-member-launcher-template.test.js` (NEW or extend if exists) | Snapshot test for the refactored launcher script: contains `Start-Process … -PassThru`, captures `inner.pid`, ends with `exit 0`, no `-NoExit` in the wt args. |
+| `CHANGELOG.md` | `## v1.9.0` section: round-trip-cost rationale; **explicit safety guarantee** (WT server untouched); explicit dependency on `closeOnExit: graceful` (the WT default; warning logged if user overrides to `never`); `--soft` opt-in; `CREWS_KEEP_TAB_OPEN=1` debug escape hatch. |
+| `AGENTS.md` (plugin) | Update "Stop a member" section. |
+| `codexu AGENTS.md` (separate consumer commit) | One-line workflow-diagram update. Listed as a follow-up; NOT this PR. |
 
 ---
 
@@ -76,280 +84,265 @@ mailbox-envelope path verbatim. CLI mirror takes `--soft` too.
 
 ### Q1 — API shape: **Option C (flip default + `--soft` opt-in)**
 
-| Option | Decision |
-|---|---|
-| A — new `kill-member` subcommand | REJECTED. Two commands for very similar intent confuses the bookkeeper's mental model; the operator's existing muscle memory (`/crews-stop-member <name>` every time a member ships) is correct and shouldn't be retrained. |
-| B — `--hard` flag on existing `stop-member` | REJECTED. The flag will be forgotten 90% of the time; the round-trip cost will silently persist as a tax. The operator explicitly stated hard is the common case. |
-| **C — flip the default, add `--soft` opt-in** | **PICKED.** Matches operator intent; preserves the legacy path for callers who genuinely want it; existing `/crews-stop-member <name>` invocations get the round-trip-cost fix with zero migration. |
+Unchanged from v1. Hard is the operator's common case; `--soft`
+preserves legacy for any caller that needs it. No real consumer of the
+soft ack-flow surfaced in either AGENTS.md or the crews test suite.
 
-**Migration risk for option C.** Scanned codexu's `AGENTS.md` and the
-fork-notes for any caller that depends on the soft-stop ack envelope:
+### Q2 — Hard-terminate mechanism: **`taskkill /T /F /PID <innerCliPid>` (NOT the launcher pwsh)**
 
-- `codexu AGENTS.md` workflow diagram (`lead: /crews:stop-member <name>`)
-  — the lead reads the second `kind=done` only to acknowledge it; nothing
-  downstream depends on it.
-- Tests in `tests/stop-member-wake.test.js` — exercise the wake-on-mailbox
-  path that fires when a member is asleep and a stop-request envelope
-  arrives. This test stays valid because it exercises `--soft`; we update
-  the test invocation to pass `--soft` explicitly.
-- Tests in `tests/stop-decision.test.js` — exercise Stop-hook authorization
-  when `shutdownRequested=true`. Hard path also sets `shutdownRequested=true`
-  so this test is invariant.
+**v1 ROUTE WAS WRONG.** v1 said kill the launcher pwsh with a
+PowerShell descendant BFS. The operator's direct visual verification
+showed this leaves a `[process exited with code 1]` placeholder tab.
+The corrected route kills the INNER CLI (`copilot.exe` /
+`claude.exe`) and its descendants, leaving the launcher pwsh alive to
+hit its `exit 0` line — verified working in research-brief §2.2.
 
-**No real consumer of the ack flow.** Deprecation timeline: `--soft` stays
-in v1.9.0 with no deprecation warning. Soft mode reconsidered in v2.0 if
-no real-world usage surfaces by then.
+Steps:
 
-### Q2 — Hard-terminate mechanism: **PowerShell descendant walk over `Stop-Process -Force`**
+1. Read `<memberDir>/inner.pid` (JSON `{ pid, startedAt }`); if missing
+   or empty, wait up to 5 s for it to be written, then fall back to
+   killing the launcher pwsh + accept the placeholder (extremely rare
+   race; logged as warning).
+2. Recycled-PID guard:
+   - `(Get-CimInstance Win32_Process -Filter "ProcessId=$innerPid").Name`
+     must match the engine binary (`copilot.exe` or `claude.exe`).
+   - `(Get-CimInstance Win32_Process -Filter
+     "ProcessId=$innerPid").ParentProcessId` must equal the value in
+     `launcher.pid`.
+   - If either mismatch, refuse to kill, surface
+     `PidRecycledRefuseToKillError`.
+3. Compute `wtServerPid` = `Get-CimInstance Win32_Process -Filter
+   "ProcessId=$launcherPid").ParentProcessId`. **Record only — never
+   killed.**
+4. `taskkill /T /F /PID $innerPid` (or PowerShell BFS-and-stop
+   equivalent; both produce identical results).
+5. Wait up to 3 s for the launcher pwsh PID to exit naturally (it runs
+   `exit 0` after `WaitForExit` returns). If still alive after 3 s,
+   log a WARNING (the launcher's `exit 0` line may have been clobbered
+   by a custom script template), then `taskkill /F /PID <launcherPid>`
+   as last-resort cleanup — accept the placeholder.
+6. Return `{ inner: <pid>, descendants: [<pids killed by /T>],
+   launcherPwsh: <pid, marked 'exited naturally' or 'force-killed'>,
+   wtServerPid: <pid, 'survived'> }` for manifest audit.
 
-Empirical findings (see `research-brief.md` §2 and §3):
+### Q3 — Spawn-side launcher refactor: required for v2
 
-- `Stop-Process -Id <launcherPid> -Force` alone leaves orphaned descendant
-  processes (including `copilot.exe` and its Node children). REJECTED in
-  isolation.
-- `taskkill /T /F /PID <launcherPid>` cascades correctly. Valid option but
-  introduces a `cmd.exe` dependency in `hooks/actors.js` which currently
-  uses pure Node `child_process.spawn`.
-- **PICKED: BFS walk via `Get-CimInstance Win32_Process | Where-Object
-  ParentProcessId -eq $pid` recursively, then `Stop-Process -Force`
-  bottom-up.** Equivalent semantics to `taskkill /T /F`, no `cmd.exe`
-  dependency, gives us the descendant list to record in
-  `manifest.terminatedPids.descendants` for audit. Implemented in JS using
-  `child_process.spawnSync('pwsh', ['-NoProfile', '-Command', '<inline
-  script>'])` — pwsh is required by `spawnMember` already, so no new
-  prereq.
-
-**Safety boundary.** The walk ALWAYS starts at `launcherPid` and traverses
-downward only. It NEVER consults the launcher's PPID; that ancestor is the
-`WindowsTerminal.exe` server, which we record (as
-`manifest.terminatedPids.wtServerPid`) for forensic confirmation but never
-kill. The implementation is explicit:
+The current launcher tail:
 
 ```pwsh
-$launcherPid = <number>
-$wtServerPid = (Get-CimInstance Win32_Process -Filter "ProcessId=$launcherPid").ParentProcessId
-$descendants = @()
-$frontier = ,$launcherPid
-while ($frontier.Count -gt 0) {
-  $children = Get-CimInstance Win32_Process | Where-Object { $frontier -contains $_.ParentProcessId }
-  $childPids = $children | ForEach-Object { $_.ProcessId }
-  $descendants += $childPids
-  $frontier = $childPids
-}
-# Kill bottom-up. Launcher itself is killed last so OS doesn't reparent its descendants mid-walk.
-($descendants + $launcherPid) | Sort-Object -Unique | ForEach-Object {
-  try { Stop-Process -Id $_ -Force -ErrorAction Stop } catch { Write-Warning "could not stop pid=$_ : $($_.Exception.Message)" }
-}
-# wtServerPid is NEVER in the kill set. Asserted post-walk in tests.
+copilot --name '...' --allow-all -i '<prompt>'
 ```
 
-**Edge cases handled** (all matched against §5 of research brief):
+must become:
 
-- Launcher PID file missing → soft-fail with `terminatedReason="missing
-  launcher.pid; member never started or was already cleared"`; still update
-  manifest state to `cleared`.
-- Launcher PID dead → record empty `terminatedPids.descendants`, mark
-  manifest cleared, no error.
-- Launcher PID recycled (current PID belongs to an unrelated process) →
-  defensive guard: confirm `(Get-CimInstance Win32_Process -Filter
-  "ProcessId=$launcherPid").CommandLine -match
-  '<expected spawn-launcher script path>'` before killing. If mismatch,
-  refuse to kill and surface error
-  (`PidRecycledRefuseToKillError`).
-- WT tab already closed by operator → launcher PID lookup returns nothing,
-  no-op kill, manifest updated.
-- Multi-WT-server (Stable + Preview both installed) → walking UP from
-  launcher PPID identifies OUR WT server PID specifically; the kill set
-  contains only descendants of OUR launcher, so any other WT server is
-  trivially untouched.
-- Multiple wt windows under one server → walking DOWN from launcher reaches
-  only ITS tab's processes; sibling tabs are unaffected. Confirmed
-  empirically (research brief §2: 8 sibling OpenConsole.exe processes
-  survived the test kill).
+```pwsh
+$crewsInner = Start-Process -FilePath copilot -ArgumentList @('--name','...','--allow-all','-i','<prompt>') -NoNewWindow -PassThru
+[ordered]@{ pid = $crewsInner.Id; startedAt = (Get-Date).ToUniversalTime().ToString('o') } | ConvertTo-Json -Compress | Set-Content -LiteralPath '<inner.pid>' -Encoding ascii
+$crewsInner.WaitForExit()
+exit 0
+```
 
-### Q3 — Mac / Linux sketch (out of scope for v1)
+AND `wtArgs` must drop `-NoExit`:
 
-`spawnMember` currently errors on non-Windows. For future cross-platform
-parity, the hard-terminate API surface should look the same:
+```js
+const wtArgs = options.newWindow
+  ? ['new-tab', '--title', tabTitle, 'pwsh', '-File', scriptPath]
+  : ['-w', windowName, 'new-tab', '--title', tabTitle, 'pwsh', '-File', scriptPath];
+```
 
-- **macOS.** `osascript -e 'tell app "Terminal" to close window id <wid>'`
-  closes the entire window; for per-tab close, `osascript` against
-  `Terminal.app`'s `tab` object addressed by index. Equivalent of our
-  launcher PID is the Terminal.app shell process pid (obtainable via
-  AppleScript: `do script` returns a tab whose `tty` we can correlate to
-  a Unix pid).
-- **Linux.** No standard terminal-multiplexer CLI. Options: `tmux kill-pane
-  -t <id>` if the user runs tmux; gnome-terminal-server has no documented
-  per-tab kill CLI. Pragmatic plan: spawn each crews member in its own
-  process group (`setsid`), record the pgid, and `kill -- -<pgid>` to
-  terminate the whole group. Tab cleanup is then the terminal's
-  responsibility (gnome-terminal closes the tab when its shell exits).
+(For the engine=claude branch, `buildLauncherCommand` already produces
+an engine-specific arglist; the Start-Process refactor needs to be
+applied to BOTH branches.)
 
-The plugin v1.9.0 API surface is identical across platforms; only the
-implementation under `applyHardStopMember` branches on `process.platform`.
-For v1.9.0 the non-Windows branches throw `not-yet-implemented` with a
-pointer to the existing "spawn-member currently requires Windows" guard.
+**Open question for impl (high priority).** Does `Start-Process
+-NoNewWindow -PassThru copilot.exe` preserve interactive REPL UX
+identically to `& copilot.exe`? Impl member MUST verify this BEFORE
+shipping by spawning ONE real member, typing a multi-line prompt at
+the copilot REPL, confirming echo + line-editing + colour rendering
++ tool-call output match the current `& copilot` path. If anything
+differs, fall back to research-brief Option 5B (Node-side WMI polling
+to capture the inner PID) and revert the launcher to `& copilot`.
 
-### Q4 — Manifest state + audit log
+**`CREWS_KEEP_TAB_OPEN=1` env var.** As a debugging escape hatch for
+operators who currently rely on `-NoExit` to inspect failed launchers,
+the spawn script checks the env var at run time and emits a final
+`if (-not $env:CREWS_KEEP_TAB_OPEN) { exit 0 } else { Read-Host
+'press enter to close' }` instead of bare `exit 0`. Default behaviour
+(no env var) is `exit 0` — tab closes. With `CREWS_KEEP_TAB_OPEN=1`,
+the tab stays at a "press enter" prompt for inspection.
 
-The manifest gains four additive fields (no schema break — all optional):
+### Q4 — Manifest state + audit log (revised)
 
 ```jsonc
 {
   // existing fields unchanged …
-  "shutdownRequested": true,                     // unchanged (set by both soft and hard)
-  "shutdownRequestedAt": "2026-…",               // unchanged
-  "shutdownRequestedBy": "<lead-name>",          // unchanged
-  "shutdownReason": "<reason or null>",          // unchanged
-  "lastListenerExitedAt": "2026-…",              // unchanged
+  "shutdownRequested": true,
+  "shutdownRequestedAt": "2026-…",
+  "shutdownRequestedBy": "<lead>",
+  "shutdownReason": "<reason or null>",
+  "lastListenerExitedAt": "2026-…",
 
   // NEW (hard-only):
-  "terminationKind": "hard",                     // | "soft" (omitted on legacy or soft path)
-  "terminatedAt": "2026-…",                      // when applyHardStopMember finished
+  "terminationKind": "hard",
+  "terminatedAt": "2026-…",
   "terminatedPids": {
-    "launcher": 202132,
-    "descendants": [181704, 85216 /* …copilot + tool-call descendants */],
-    "wtServerPid": 32460                         // recorded for forensic proof we stopped at the boundary
+    "innerCli": 181704,                       // killed (+ tree via /T)
+    "descendants": [85216, /* …others… */],   // killed
+    "launcherPwsh": {
+      "pid": 202132,
+      "fate": "exited-naturally"              // | "force-killed-fallback"
+    },
+    "wtServerPid": 32460                      // recorded, NEVER killed
   },
-  "actorState": "cleared"                        // flipped automatically on hard (was 'active')
+  "actorState": "cleared"
 }
 ```
 
-`clear-member` becomes redundant for hard-terminated members. Plan keeps the
-two commands separate (`clear-member` ALSO archives mailbox history; that's
-a distinct, hard-to-undo data operation), but documents that hard-stop +
-clear-member's mailbox archival can be invoked in a chain by callers who
-want the full cleanup.
+### Q5 — Edge cases (revised)
 
-### Q5 — Edge cases
+| Edge case | Behaviour |
+|---|---|
+| `inner.pid` file missing (just-spawned member; race) | Wait up to 5 s; if still missing, fall back to launcher-pwsh kill + accept placeholder. Log WARNING. |
+| `inner.pid` present but PID dead (CLI crashed) | No-op kill; record `launcherPwsh.fate='exited-naturally'` after waiting for it; mark manifest cleared. |
+| `inner.pid` recycled (alive but wrong process) | `PidRecycledRefuseToKillError`; manifest NOT updated to `cleared`. |
+| Member mid-tool-call (active model inference, child pwsh.exe running a Bash tool) | Kill anyway; `/T` cascades to the child pwsh. Output truncated mid-call; documented risk. |
+| wt tab manually closed by operator (Ctrl+W) | Inner-PID lookup returns nothing; no-op kill; mark cleared. |
+| Multi-WT-server (Stable + Preview both installed) | `wtServerPid` walk identifies OUR server (launcher's PPID); kill set never includes any WT server PID. |
+| `closeOnExit: never` overridden by user | Tab persists after `exit 0`; logged WARNING at spawn time. UX nit, not correctness. |
+| `CREWS_KEEP_TAB_OPEN=1` set | Launcher waits at "press enter" prompt instead of `exit 0`; tab stays open until operator dismisses. Hard-terminate still kills the inner CLI cleanly; just doesn't auto-close the tab. |
 
-All addressed in §3.Q2 above; tests assert each one.
+### Q6 — AGENTS.md updates
 
-### Q6 — AGENTS.md updates (plugin + consumer)
+Plugin AGENTS.md "Stop a member" section gets:
 
-**Plugin `AGENTS.md`** (in this PR): update the "Stop a member" section
-with:
+> v1.9.0+: `stop-member` defaults to HARD-terminate. The inner CLI
+> (`copilot.exe` / `claude.exe`) and its descendants are killed with
+> `taskkill /T /F`. The launcher pwsh's `WaitForExit` returns, the
+> script hits `exit 0`, pwsh exits 0, and Windows Terminal's
+> `closeOnExit: graceful` default closes the tab cleanly (no
+> `[process exited]` placeholder).
+>
+> The `WindowsTerminal.exe` server PID is NEVER targeted — every
+> other tab in every wt window survives. The launcher pwsh itself
+> survives the kill (it dies as a result of its own `exit 0`, not
+> because we killed it).
+>
+> Pass `--soft` for the legacy mailbox-envelope ack flow. Set
+> `CREWS_KEEP_TAB_OPEN=1` to keep tabs open after hard-terminate for
+> debugging (re-enables the v1-era `-NoExit` placeholder behaviour
+> as an opt-in).
+>
+> See `.ralph/jobs/crews-stop-member-hard-terminate-no-envelope/research-brief.md`
+> for empirical basis (including operator-visual verification of the
+> v1 → v2 strategy correction).
 
-> v1.9.0+: `stop-member` defaults to HARD-terminate. This kills the per-tab
-> child process tree (launcher pwsh + Copilot/Claude CLI + their
-> descendants) and lets Windows Terminal close the tab. The
-> `WindowsTerminal.exe` server PID is NEVER targeted — every other tab in
-> every window survives. Pass `--soft` for the legacy mailbox-envelope
-> ack flow. See `.ralph/jobs/crews-stop-member-hard-terminate-no-envelope/research-brief.md`
-> for the empirical basis.
-
-**Consumer `codexu/AGENTS.md`** (NOT in this PR — separate codexu commit
-referenced as a follow-up below): one-line change in the workflow diagram
-duty table:
-
-> Stop the member cleanly | `/crews:stop-member <name>` (hard-terminate; pass `--soft` for legacy ack flow)
-
-…plus a safety note in the "Crews-plugin invariants" section pointing at
-the same research-brief.
+Codexu AGENTS.md gets a one-line workflow-diagram update — separate
+consumer-side commit, NOT this PR.
 
 ---
 
 ## 4. Tests + verification gates
 
 ### Local typecheck / lint
-- `node --check hooks/commands/stop-member.js` (per repo convention)
-- `node tests/run-all.test.js` or whatever the crews suite entry is (impl
-  member to verify) — must pass after the new tests are added.
+- `node --check hooks/commands/stop-member.js`, `hooks/actors.js`,
+  `hooks/protocol/manifest.js`.
+- `node tests/run-all.test.js` (or whatever the crews suite entry is).
 
 ### Test coverage matrix
 
 | Story | Test file | What's asserted |
 |---|---|---|
-| US-01 | `tests/stop-member-hard-terminate.test.js` (NEW) | (a) descendant Node child killed; (b) manifest fields written; (c) `actorState='cleared'`; (d) cross-platform skip on non-Windows. |
-| US-01 | `tests/stop-member-hard-terminate-wt-server-survives.test.js` (NEW, gated `CREWS_WT_LIVE_TESTS=1`) | After hard-terminate, WT server PID survives + the launcher.pid file's pid is dead. |
-| US-02 | `tests/stop-member-cli.test.js` (EXTEND) | `--soft` flag parses; default routes to hard handler; parityVectors include both. |
-| US-03 | `tests/stop-decision.test.js` (verify unchanged) | Stop hook still recognizes `shutdownRequested=true` regardless of hard/soft path. Hard path sets the same authorization signal. |
-| US-04 (follow-up, see §6) | n/a — separate plan if pursued | Drop `-NoExit` from spawnMember wtArgs; verify soft path also closes tabs. |
+| US-01 | `tests/spawn-member-launcher-template.test.js` (NEW or extend) | Refactored launcher contains `Start-Process … -PassThru`, captures `<memberDir>/inner.pid`, ends with `exit 0`. `wtArgs` does NOT contain `-NoExit`. |
+| US-01 | `tests/stop-member-hard-terminate.test.js` (NEW; cross-platform skip) | Spawn no-launch member; write fake `inner.pid` pointing at a Node `setTimeout(…, 600000)` child; invoke `hardTerminateMemberByInnerPid`; assert child PID dead within 3 s + manifest fields set. |
+| US-01 | `tests/stop-member-hard-terminate-wt-tab-closes.test.js` (NEW; gated `CREWS_WT_LIVE_TESTS=1`) | Real wt spawn. Capture WT server PID (launcher's PPID). After hard-terminate: (a) WT server PID still alive; (b) tab gone — verified by polling `wt`'s tab-list named-pipe IF exposed, OR by UIA traversal of WT window descendants, OR (lowest-tech fallback) by asserting the launcher pwsh PID exited and that NO `pwsh.exe` whose CommandLine matches our launcher script path is alive. The OperatorCount-delta proxy MUST NOT be used (v1 used it and was wrong). |
+| US-02 | `tests/stop-member-cli.test.js` (EXTEND) | `--soft` parses; default routes to hard; parityVectors updated. |
+| US-03 | `tests/stop-decision.test.js` (verify unchanged) | Stop-hook authorization still works on `shutdownRequested=true`. |
 
-### Manual verification by impl member (one-time)
-1. With a fresh `pnpm overview` watcher running, spawn a test member with
-   `node tools/crews.js spawn-member …`. Observe the new tab.
-2. `node tools/crews.js stop-member <test-name> --crew <crew> --as <lead>`.
-3. Confirm the tab visually disappears (not placeholder), the
-   `WindowsTerminal.exe` PID (`Get-CimInstance Win32_Process -Filter
-   "Name='WindowsTerminal.exe'" | Select ProcessId`) is unchanged, and
-   manifest.json has the new audit fields populated.
-4. Repeat with `--soft`; confirm the legacy two-envelope flow still works
-   and the tab persists as a `-NoExit` placeholder (this is the legacy
-   behaviour we're preserving for soft mode).
+### Manual verification (impl member, before shipping)
+
+1. Spawn an interactive member via the refactored launcher.
+2. Type a multi-line prompt at the copilot REPL. Verify echo,
+   line-editing, colour, and tool-call output behave identically to
+   pre-v1.9.0 spawn (this is the `Start-Process -NoNewWindow` UX
+   verification from Q3).
+3. From the lead, run `/crews-stop-member <test-name>`.
+4. Confirm visually that the tab DISAPPEARS (no `[process exited]`
+   placeholder), `WindowsTerminal.exe` PID unchanged, manifest contains
+   the new audit fields with `terminatedPids.launcherPwsh.fate=
+   'exited-naturally'`.
+5. Repeat with `--soft`; confirm legacy two-envelope flow still works.
+6. Repeat with `CREWS_KEEP_TAB_OPEN=1` in the spawn env; confirm tab
+   stays at "press enter" prompt after kill (debugging escape hatch).
 
 ---
 
-## 5. Sequencing (single-job, three stories serial)
+## 5. Sequencing (single-job, three stories, partial parallelism)
 
-| Phase | Cluster | Stories | Why serial |
+| Phase | Cluster | Stories | Note |
 |---|---|---|---|
-| 1 | `core-kill` | US-01 | Foundation; everything else depends on the helper. |
-| 2 | `cli-default-flip` | US-02 | Surfaces US-01 to slash + CLI. |
-| 3 | `audit-and-docs` | US-03 | Manifest schema + CHANGELOG + plugin AGENTS.md tightly coupled to US-01/US-02 wording. |
+| 1 | `core-kill-and-launcher` | US-01 | Foundation. Touches both `spawnMember` launcher generation AND the new kill helper. Must land first. |
+| 2 | `cli-default-flip` | US-02 | Surface change. Cannot run before US-01 (default route uses the helper). |
+| 3 | `audit-and-docs` | US-03 | CHANGELOG, AGENTS.md, manifest JSDoc. Must land last for accurate CHANGELOG copy. |
 
-Single impl member, serial: estimated 2-3 commits total, low merge risk
-since the kill helper is the only meaningful logic and it lives in
-`hooks/actors.js` which neither US-02 nor US-03 modifies on its own.
-
-Parallelism opportunity: **none recommended.** Story surface is small;
-coordination overhead > parallel speedup.
+Estimated 3-5 commits, single impl member, serial. The Start-Process
+UX verification (Q3 open question) is the only meaningful risk; if it
+fails, impl falls back to research-brief Option 5B (heavier change,
+Node-side WMI polling) and US-01's scope grows by ~150 lines.
 
 ---
 
 ## 6. Follow-ups (separate tasks, NOT in this PR)
 
-| ID | Scope | Summary | Why deferred |
-|---|---|---|---|
-| crews-soft-stop-no-exit-fix | crews | Drop `-NoExit` from `spawnMember`'s wt argv so soft-stop also closes its tab. One-line change. | Out of scope of THIS plan (the hard-terminate path doesn't need it). Documented for completeness; eligible to land in v1.9.0 too if impl member has bandwidth. |
-| crews-cross-platform-hard-terminate | crews | Implement macOS (osascript) + Linux (setsid + kill -PGID) branches of `applyHardStopMember`. | Spawn is Windows-only today; this follow-up unblocks Mac/Linux parity. |
-| codexu-agents-md-stop-member-update | codexu | Update `AGENTS.md` workflow diagram + invariants to reflect new stop-member default + safety guarantee. | One-line change in consumer repo; not this PR's surface. |
+| ID | Scope | Summary |
+|---|---|---|
+| `crews-soft-stop-placeholder-cleanup` | crews | Even with `-NoExit` dropped, soft-stop's two-envelope flow still has the round-trip cost we're avoiding. Investigate retiring the soft path in v2.0 if no usage materializes. |
+| `crews-cross-platform-hard-terminate` | crews | macOS (osascript / process-group kill) + Linux (`setsid` + `kill -PGID`). Currently throws "not-yet-implemented" on non-Windows. |
+| `codexu-agents-md-stop-member-update` | codexu | Workflow-diagram + invariants one-liner. Separate from plugin PR. |
+| `crews-wt-tab-close-direct-api` | crews | If Microsoft adds `wt close-tab --tabid <id>` in a future WT version, switch from "exit 0 + closeOnExit" to direct CLI close. Currently INFEASIBLE (verified WT 1.24). |
 
 ---
 
 ## 7. Acceptance criteria for the impl member
 
-1. `node tools/crews.js stop-member <name> --crew <crew> --as <lead>`
-   (default, no flag) kills the launcher pwsh tree, the tab disappears,
-   no `stop-request` envelope is appended to the member's mailbox, and
-   the `WindowsTerminal.exe` server PID is unchanged.
-2. `node tools/crews.js stop-member <name> --crew <crew> --as <lead>
-   --soft` exhibits the EXACT pre-v1.9.0 behaviour (manifest mutation,
-   mailbox envelope, member's `kind=done` round-trip). Behavioural
-   equivalence verified by `tests/stop-member-wake.test.js` (existing) +
-   parityVectors in `tests/stop-member-cli.test.js`.
-3. Manifest after hard stop contains: `terminationKind='hard'`,
-   `terminatedAt` ISO string, `terminatedPids.launcher` (number),
-   `terminatedPids.descendants` (array of numbers including the Copilot
-   CLI PID), `terminatedPids.wtServerPid` (number), `actorState='cleared'`.
-4. The new `tests/stop-member-hard-terminate.test.js` runs on Windows + is
-   skipped cleanly on non-Windows; it asserts (a) descendant Node child
-   PID is dead after the kill, (b) manifest mutations as above, (c)
-   `wtServerPid` field is set to a non-zero number and that PID is alive
-   AFTER the kill (asserted in the gated live-WT test).
-5. `CHANGELOG.md` has a `## v1.9.0` section that explicitly states:
-   (a) round-trip-cost rationale + smoke-test reference, (b) safety
-   guarantee that `WindowsTerminal.exe` server is never targeted, (c)
-   `--soft` opt-in for legacy semantics + deprecation timeline ("not
-   scheduled; reconsider in v2.0 if no usage surfaces").
-6. Plugin `AGENTS.md` "Stop a member" section updated.
-7. No regression in `tests/stop-decision.test.js`, `tests/stop-member-wake.test.js`,
-   `tests/stop-member-cli.test.js` (the latter extended, not regressed).
-8. Optional, gated by `CREWS_WT_LIVE_TESTS=1` env: a real `wt.exe` spawn
-   test asserts the WT server PID survives a hard-terminate. Tests
-   register skip if env is unset.
+1. `/crews-stop-member <name>` (no flag) kills the inner CLI subtree
+   (NOT the launcher pwsh), the launcher pwsh exits 0 cleanly, the tab
+   visually disappears (no `[process exited]` placeholder),
+   `WindowsTerminal.exe` server PID is unchanged, NO `stop-request`
+   envelope is appended to the member's mailbox.
+2. `--soft` exhibits the exact pre-v1.9.0 behaviour (manifest mutation,
+   mailbox envelope, member ack-round-trip).
+3. Manifest after hard stop has: `terminationKind='hard'`, `terminatedAt`,
+   `terminatedPids.innerCli` (number), `terminatedPids.descendants`
+   (array), `terminatedPids.launcherPwsh={pid, fate:'exited-naturally'|
+   'force-killed-fallback'}`, `terminatedPids.wtServerPid` (number, alive
+   after kill), `actorState='cleared'`.
+4. `spawnMember`'s wt argv does NOT contain `-NoExit`; launcher script
+   contains `Start-Process … -PassThru` + captures `inner.pid` +
+   ends with `exit 0` (unless `CREWS_KEEP_TAB_OPEN=1`, in which case it
+   waits at "press enter" prompt).
+5. Interactive UX of the inner CLI is verified unchanged from
+   pre-v1.9.0 (Q3 open question above; impl member runs the manual
+   check).
+6. The new `tests/stop-member-hard-terminate.test.js` passes on Windows,
+   skips cleanly on non-Windows. The gated live-WT test passes when
+   `CREWS_WT_LIVE_TESTS=1` is set on a Windows dev box.
+7. CHANGELOG.md v1.9.0 entry includes: round-trip-cost rationale; the
+   v1 → v2 correction story (operator caught the wrong kill target);
+   explicit dependency on `closeOnExit: graceful` + behaviour on
+   `never` override; `--soft` opt-in; `CREWS_KEEP_TAB_OPEN=1` env var.
+8. Plugin `AGENTS.md` "Stop a member" section updated.
+9. No regression in `tests/stop-decision.test.js`,
+   `tests/stop-member-wake.test.js`, `tests/stop-member-cli.test.js`.
 
 ---
 
 ## 8. Reporting back from impl
 
-When the impl member ships, the bookkeeper-lead expects:
+The impl member's `kind=done` body must include:
 
-- Commit SHA on `Evyatar108/ai-developer-toolkit:main`.
-- Confirmation that v1.9.0 marketplace registration includes the updated
-  plugin (so `~/.copilot/installed-plugins/ai-developer-toolkit/crews/`
-  picks up the new code on next install).
-- Outcome of the gated live-WT test if the impl member ran it locally:
-  WT server PID before vs. after, OC count before vs. after.
-- Any deviation from this plan (e.g., if impl picked `taskkill /T /F`
-  over the PowerShell BFS), with rationale.
+- Commit SHA(s) on `Evyatar108/ai-developer-toolkit:main`.
+- Outcome of the Q3 Start-Process UX verification (passed unchanged, or
+  fell back to Option 5B).
+- Outcome of the gated live-WT regression test (WT server PID before vs.
+  after; tab-closure verification method used).
+- Any deviation from the plan with rationale.
