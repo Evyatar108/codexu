@@ -1,0 +1,116 @@
+{
+  "planFile": "D:/harness-efforts/codexu/.ralph/jobs/.staging/20260529-000133/draft-plan.md",
+  "repoDir": "D:/harness-efforts/codexu",
+  "findings": [
+    {
+      "id": "F-001",
+      "severity": "high",
+      "category": "criteria-quality",
+      "source": "consensus",
+      "section": "Acceptance Criteria > Item 7 > Fixture A",
+      "description": "Fixture A specifies body=55 chars, but the gate is summary>200 AND body<50. 55 does not satisfy body<50 — the fixture would NOT block under the stated threshold.",
+      "status": "resolved",
+      "resolution": "Fixture A body changed to 45 (unambiguously < 50). Added Fixture A2 boundary case testing 200/49 (block), 200/49 with summary=200 (allows — strict >), and 201/50 (allows — strict <)."
+    },
+    {
+      "id": "F-002",
+      "severity": "high",
+      "category": "feasibility",
+      "source": "consensus",
+      "section": "Approach > Implementation Strategy + Acceptance Criteria > Item 4",
+      "description": "Plan referenced logging to `audit-log.jsonl`, but the codebase logs via `appendLog()` to `.crews/logs/crews.log`. No `audit-log.jsonl` sink exists.",
+      "status": "resolved",
+      "resolution": "Replaced all audit-log.jsonl references with appendLog to crews.log. Specified literal markers `body-canonical: block` and `body-canonical: bypassed-on-retry` for grep-based assertions."
+    },
+    {
+      "id": "F-003",
+      "severity": "critical",
+      "category": "safety",
+      "source": "codex",
+      "section": "Acceptance Criteria > Item 10",
+      "description": "Multi-remote push acceptance criterion was unsafe: 'push to all configured remotes' without naming them or requiring approval.",
+      "status": "resolved",
+      "resolution": "AC#10 now names exact remotes (`origin`, `work`). Mandates kind=question to operator before pushing main if uncertainty exists. Hard prohibition on git push --force or pushing to unnamed remotes without approval. Referenced auto-memory feedback_fix_architecture_not_workarounds."
+    },
+    {
+      "id": "F-004",
+      "severity": "high",
+      "category": "feasibility",
+      "source": "claude",
+      "section": "Research Findings > Stop hook (line numbers)",
+      "description": "Line citations were stale by ~8 lines (parseTurnTags actually at 641, not 633; listener-arm gate at 684-690, not 675-681; appendOutbox at 797, not 782-789).",
+      "status": "resolved",
+      "resolution": "Updated line citations to nominal v1.7.3 values with explicit note that implementer re-verifies at implementation time as the file is edited frequently."
+    },
+    {
+      "id": "F-005",
+      "severity": "high",
+      "category": "completeness",
+      "source": "consensus",
+      "section": "Approach > Implementation Strategy > Story 2",
+      "description": "New hard-block path missed `bumpBlockCount()` call (existing Stop hard-blocks all call it; without it, v1.4.x circuit-breaker protection is bypassed).",
+      "status": "resolved",
+      "resolution": "US-002 now explicitly calls `bumpBlockCount(state.name, crew, cwd, state.role, 'body not canonical')` before the block-decision write. Added as AC#2 bullet."
+    },
+    {
+      "id": "F-006",
+      "severity": "high",
+      "category": "completeness",
+      "source": "consensus",
+      "section": "Acceptance Criteria > Item 4 + Tests",
+      "description": "`isRetry` derives from `stop_hook_active`, but runStop test harness can't set the field. Tests as written cannot exercise the retry path.",
+      "status": "resolved",
+      "resolution": "Added new story US-002b: extend runStop to accept optional stopHookActive param. Renamed AC#4 from 'isRetry' to actual input field 'stop_hook_active === true'. Fixture E updated."
+    },
+    {
+      "id": "F-007",
+      "severity": "high",
+      "category": "completeness",
+      "source": "consensus",
+      "section": "Tests",
+      "description": "setupForceResponse default fixtures seed a consumed mailbox message that would block on strict-ack gate BEFORE the body-canonical gate, masking the intended test reasons.",
+      "status": "resolved",
+      "resolution": "AC#7 now explicitly requires `setupForceResponse({ messages: [], ... })` in every fixture. Also called out in US-003 instructions."
+    },
+    {
+      "id": "F-008",
+      "severity": "medium",
+      "category": "simplicity",
+      "source": "consensus",
+      "section": "Approach > Implementation Strategy > Story 1 + Story 2",
+      "description": "Import path for helper was ambiguous (direct vs via config.js re-export). BODY_CANONICAL_KINDS overlap with tagKindEnum.",
+      "status": "resolved",
+      "resolution": "US-001 clarifies BODY_CANONICAL_KINDS is a strict-subset frozen array kept separate from tagKindEnum for intent clarity. US-002 specifies direct require from `./protocol/report-tags` (mirrors the parseTurnTags import pattern)."
+    },
+    {
+      "id": "F-009",
+      "severity": "medium",
+      "category": "completeness",
+      "source": "claude",
+      "section": "Acceptance Criteria > Item 3",
+      "description": "Progress-exemption AC didn't explicitly state exemption is unconditional regardless of thresholds.",
+      "status": "resolved",
+      "resolution": "AC#3 strengthened: progress NEVER triggers regardless of summary.length, body.length, or env-overridden thresholds. Added Fixture D2 with adversarial thresholds (cap=0, floor=100000) confirming exemption holds."
+    },
+    {
+      "id": "F-010",
+      "severity": "medium",
+      "category": "ordering",
+      "source": "consensus",
+      "section": "Approach > Implementation Strategy > Story 2",
+      "description": "Gate placement was ambiguously specified as 'before empty-body and listener-arm' though those are themselves sequential.",
+      "status": "resolved",
+      "resolution": "US-002 now specifies exact position: AFTER missing-kind block AND consumed-inbox eval, BEFORE `decideStopBlock()` listener-arm gate. Rationale documented."
+    },
+    {
+      "id": "F-011",
+      "severity": "medium",
+      "category": "criteria-quality",
+      "source": "codex",
+      "section": "Acceptance Criteria > Item 5",
+      "description": "'no logging' on CREWS_BODY_CANONICAL=off was too broad; other Stop-hook gates may still log.",
+      "status": "resolved",
+      "resolution": "AC#5 reworded: assert absence of literal substring `body-canonical` from crews.log for the fixture's run; other unrelated log lines may still appear."
+    }
+  ]
+}
