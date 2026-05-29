@@ -779,9 +779,10 @@ window.OVERVIEW_DATA = {
         {
               "id": "crews-envelope-body-canonical-for-all-kinds",
               "scope": "crews",
-              "lifecycle": "tracked",
+              "lifecycle": "merged",
               "status": "ok",
-              "lastTouchedAt": "2026-05-28T21:55:00Z",
+              "lastTouchedAt": "2026-05-29T02:19:00Z",
+              "mergeCommit": "2a22b20e",
               "kanbanCards": [],
               "command": {
                     "name": "crews-envelope-body-canonical-for-all-kinds",
