@@ -654,7 +654,7 @@ window.OVERVIEW_DATA = {
                     "scope": "ralph-overview",
               "lifecycle": "tracked",
                     "status": "ok",
-                    "lastTouchedAt": "2026-05-29T16:50:00Z",
+                    "lastTouchedAt": "2026-05-29T18:46:00Z",
                     "initialStage": "planning",
                     "kanbanCards": [],
                     "command": {
