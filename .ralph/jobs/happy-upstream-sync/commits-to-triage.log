@@ -1,0 +1,160 @@
+21c6ced0 Enforce publish-time package checks
+b042d834 Add configurable agent defaults
+c2b9e16a Fix initial socket reconnect handling
+d2d2f730 Split self-host server package
+4a64c66a chore(app): add macOS signing entitlements
+b7297317 fix(app): stabilize compact session indicators
+17aa703f feat(app): surface build metadata in settings
+904c9417 Release CLI version 1.1.10-beta.6
+00725d20 fix(cli): load bundled server Prisma engine from dependency
+0bfb7041 chore(skills): add /sessions skill (vendored from EveryInc compound-engineering ce-sessions)
+a28b9a94 fix(app): clear chat input on send under Fabric
+30e9ba3b docs(skill): capture in-app release-notes methodology
+849ce4fc docs(changelog): May 15 — cleaner, steadier chat
+05d2e723 Release CLI version 1.1.10-beta.5
+511917e1 Integrate Codium projects and agents
+e1f2dca9 Remove unused project manager
+58d5ecb8 Set webapp zoom default to 1x
+18635e57 Estimate all database record metrics
+512e1b8d Use estimated message count in metrics
+31a6e4df fix(server): sync pino streams so the bun-compiled bundle starts
+17f37337 fix(cli): resolve webappUrl from settings.json like serverUrl
+9c55a763 docs(skill): require pnpm publish, document transient TLS retry
+5e6e28b2 Release CLI version 1.1.10-beta.4
+972bcef1 fix(app): apply chat-title metadata that raced session-key init (#1251)
+70ba5a67 docs(daemon): explain shell-init auto-start and the macOS launchd auth gotcha (#1221)
+c1cd0fb6 fix(doctor): show usage for `doctor clean --help` instead of running clean (#1220)
+ab4696a3 feat(app): taller chat + new-session input on web/desktop
+3ccbd713 docs(skill): factual comment voice + spam handling in maintain skill
+6f669691 fix(app): default groupToolCalls to off
+cb2fc38b fix(app): force grayscale font smoothing to fix Safari text under zoom
+64125285 fix: pass HAPPY_SERVER_URL build arg to Dockerfile.webapp (#1102)
+3caa51b4 fix(app): RN Blob polyfill rejects ArrayBuffer in S3 POST attachment upload (#1260)
+3204dd2f fix(app): render slash commands as a chip, drop raw command echo
+03ca2219 feat(app): settings toggle for tool call grouping
+22181f79 fix(server): stop sending per-message push notifications
+5981a899 feat: happy server self-host (CLI subcommand + bundled artifacts)
+266c0072 feat(app): collapse consecutive tool calls into grouped containers
+ba7b2294 perf+fix(app): chat scroll, changes-page re-renders, diff overlay reliability
+75c928b7 docs(skill): add desktop-app rebuild instructions to dev skill
+0f8aa14f chore(cli): bump version to 1.1.10-beta.1
+8cd3054e docs(app): changelog entry for pagination & performance
+a038957d fix(cli): propagate SDK isSynthetic as isMeta so skill prompts get hidden
+1744ff03 fix(cli): drop SDK-injected isMeta user messages in chat envelope mapper
+76caca3a fix(agent-input): show more autocomplete items + keep selection in view
+2327f49c feat(message-view): parse Claude SDK local-command wrappers into chips
+f8c0c0db fix(cli): clear orphaned permission requests on session resume
+e7453263 feat(agent-input): accept image file drops in addition to paste
+36b23d57 fix(cli): don't replay JSONL history when scanner learns session id late
+514ef3f1 perf(agent-input): uncontrolled textarea + transitioned derived state
+c4b82fc6 docs(plan): rename to happy server, add 3-layer analytics kill switch
+68ca7357 docs(skill): wrap control-flow examples in txt fences
+76564260 fix(app): session retention note in changelog + bold typography
+f9fa2aff fix(cli): use cross-spawn in runClaudeCli for Windows shim support
+81318411 docs: add tauri desktop packaging plan
+68607b55 Adjust probe settings in handy.yaml
+11209ec0 fix(app): remove folder icons from sidebar and header titles
+f5e2d87a fix(app): open external links in system browser on Tauri
+2a0694e3 Merge origin/main into feat/app-polish
+5c7bf0fd fix(app): show whats-new banner on changelog migration
+93fec60f fix(app): wait for session sync before dropping messages
+f749b436 Clean up file tree rows
+ab588cfd Add local agent skills and self-host plan
+6c262b75 Tune desktop header and default zoom
+096adeda chore(app): remove test changelog entry
+cef3fa7f fix(app): proper bullet rendering with nesting support in MarkdownView
+fa88ac70 fix: comment out image upload item instead of deleting
+5cc918ca fix(app): hide image upload from settings — broken, next release
+a944cbd4 fix(app): restore changelog card style with summaries and MarkdownView
+2e6f7e35 refactor(app): simplify changelog to single markdown file with MarkdownView
+5a914a20 perf(messages): lazy-load history + parallel AES decrypt + backward pagination
+753e5fe3 style(files-sidebar): show vertical scrollbar so long lists are scannable
+2a530732 fix(file-view): restore opaque overlay surface so chat doesn't bleed through
+2e474cc2 style(file-view): drop editor/preview backgrounds; ignore .supervibe
+d4342bbc style(session): match file overlay + sidebar selection to chat surface
+284a14ba feat(session): consolidate diff/file viewer headers into chat header
+96c59a3f perf: snap zen-mode toggle on web; isolate chat message state
+70cce6d2 perf(new-session): decouple typing from screen-wide re-renders
+8e4cba87 perf(chat): stabilize AgentInput props to stop typing-induced re-renders
+11d80fb2 perf(sidebar): stop cloning session list on every navigation
+9ab7fa78 feat(active-sessions): show folder icon + basename in section header
+4533ef56 fix: skip preact CJS patch gracefully when not hoisted
+5b5c49ca chore(cli): bump version to 1.1.9-beta.0
+b7c9e668 chore(app): add Version 11 changelog for desktop UI overhaul
+5cfa0172 fix: remove one more debug console.log from useAttachmentImage
+e60816ed fix: simplify push notifications, fix shell injection & path traversal, remove debug logs
+61ac7ee1 fix(app): show Resume button above textarea for any disconnected session
+738b07b9 fix(cli): synchronously deactivate session on Ctrl-C so app sees it offline
+baf9e6d3 fix(cli): don't archive on Ctrl-C — leave the session resumable
+03d8eb06 feat(cli): forward terminal-typed prompts back into Happy via JSONL scanner
+b5d0a710 feat(cli): keep agent's response when duplicating from a user message
+0fa8220f fix(app,cli): make duplicate-from-message inclusive + refresh sessions before navigate
+a2a888f5 fix(app,cli): list rewind points from disk so live-typed user messages aren't disabled
+9c35a6d1 fix(cli): backfill JSONL into forked Happy session before SDK starts
+f563e01b feat(app): allow fork on active sessions + sidebar pcm/long-press
+e7c4d644 feat(app): gate fork/duplicate UI behind expResumeSession toggle
+6cf1d47b chore(app): translations + changelog for session fork/duplicate
+1fd27ee4 feat(app): fork/duplicate UI on session-info and long-press in chat
+4aff0d53 feat(app): DuplicateSheet picker for rewinding a session
+6a9a0e11 feat(app): claude fork ops + claudeUuid plumbing + lineage metadata
+934ffede feat(cli): wire session-fork RPC + spawn resume into daemon
+6582bebd feat(cli): claude session fork + truncate utility
+6f005e09 feat(cli): plumb claudeUuid through sessionProtocolMapper
+2c96ceba feat(wire): add optional claudeUuid to session envelope
+a4fc45c2 fix(cli): tag SDK-launched Claude with non-filtered entrypoint (closes #1202)
+46c2cf94 fix(cli): make file-event thumbhash optional to match app-side schema
+9af67641 chore: instrument encrypt/decrypt blob path on both app and cli
+aecbf1ac fix(app): replace Blob upload body with standalone ArrayBuffer copy
+4cc2e139 chore(app): instrument attachment decrypt path for iOS debugging
+8a963d5a fix(server): metrics port collision no longer kills the API
+24b20401 fix(app): always render attachments inline, even when image{} dims missing
+86c7c9fd fix(cli): detect Claude image media_type from magic bytes, not wire mimeType
+b705be72 fix(app): inline image render works for iOS-sent attachments
+94e0d1f8 fix(app): rewrite loopback host on attachment URLs to the reachable server
+f8b1ab75 fix(app): ATS exception for self-hosted dev + better attachment fetch errors
+ef18aefc fix(server): local-mode upload URL uses request host, not localhost
+fddd17cf fix(app): derived blob key uses standalone 32-byte ArrayBuffer (iOS attachments)
+67fbbd7b feat(app,cli): wire effort selector through to Claude/Codex SDKs
+e110a636 fix(app): show Claude effort selector regardless of model
+d443634c fix(app): bound FileViewPanel body width to match chat/changes column
+f6116c2c fix(app): match file viewer layout to chat/changes — bounded body, full-width header
+60d8e6db fix(app): close out file-event tool-call so chat spinner stops
+931ac08c docs(server): document S3 bucket lifecycle rule + SSE for self-hosting
+0fda3ede feat(app): aes.web.ts via crypto.subtle for explicit web AES path
+f2207190 feat(server,app,cli): POST request-download endpoint per design spec
+0c40d3b9 test(server): vitest coverage for attachmentRoutes
+54a004c2 fix(server,app): presigned POST with content-length-range to enforce 10MB
+c71399ff fix(cli): per-message attachment ownership to kill late-image race
+1f72db29 fix(app): warn on attachments to non-Claude sessions, drop them
+23546985 fix(server): per-user rate-limit on attachment request-upload
+1077f4cd fix(app): scope composer paste to focused inputs + alert on upload failure
+687a58c4 fix(server,app): hardcode .enc, drop unused mimeType, presigned TTL=15min
+26f465bd fix(app): chunk base64 encoding to handle multi-MB image buffers
+5a570448 fix(app): platform-specific thumbhash decode helper
+a1c05cdb fix(app): size composer attachment thumbnails inline, not via Unistyles
+31274595 fix(app): inline full-image rendering for chat attachments
+a0fccb87 fix(server): octet-stream parser + PUT in CORS for local-mode attachments
+26d29eaa fix(cli): forward signals to native claude binary in launcher
+50439047 fix(cli): force blocking stdin before claude spawn + diagnostic logs
+62da7974 fix(cli): keep raw mode on during stdin drain on remote→local switch
+8fe04a51 fix(cli): drain stdin on remote→local switch to fix garbled input
+700b1c09 ci: retrigger after transient electron postinstall 502
+4e249786 feat(happy-server): Phase 8 — delete attachment blobs on session delete
+32c4b9f0 fix(happy-cli): Phase 7 review fixes — race condition, path traversal, validation
+ca763b43 feat(happy-cli): Phase 7 — CLI download, decrypt, and pass images to Claude API
+dc07c115 feat(happy-app): Phase 6 — image upload UI
+fc4cb41e feat(happy-app): Phase 5 — attachment upload pipeline
+5768fdeb fix(happy-app): address Phase 4 review issues in useImagePicker + thumbhash
+7e2ec9cb feat(happy-app): Phase 4 — useImagePicker hook + thumbhash generation
+aeeb1cc5 feat(happy-app): add blob encryption for image attachments
+a6e982c4 feat(happy-server): add attachment upload/download endpoints
+23d46136 feat(happy-app): add expImageUpload feature flag
+8e4118b0 feat(app): tauri linux support — screen.orientation polyfill, larger window
+cab7b37a feat(app): chat header back button + 'New chat' placeholder
+2db77937 feat(push): server-side routing, turn-origin tracking, web tab title
+0c58ea71 feat(push): smart push notification routing by active device
+f3f9f72a feat(app): file conflict detection — polling + Pierre diff on save conflict
+f9e48b68 feat(app): file viewer/editor with All Files sidebar tab
+01e1e35a feat(app): desktop UI improvements — header redesign, nav history, all-files diff, git status consolidation
+fac135bd fix(sync): resolve deadlock in fetchMessages preventing old session history from loading
+4a5f91dc feat(app): Codex-style sidebar, zen mode, unread tracking, unified header
