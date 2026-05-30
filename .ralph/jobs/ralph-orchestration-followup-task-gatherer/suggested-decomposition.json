@@ -1,0 +1,66 @@
+{
+  "planFile": ".ralph/jobs/ralph-orchestration-followup-task-gatherer/plan.md",
+  "stories": [
+    {
+      "id": "S1",
+      "title": "Add followup-suggestions JSON Schema + schema validation test",
+      "files": [
+        "plugins/ralph/schemas/followup-suggestions-schema.json",
+        "plugins/ralph/tests/test-followup-suggestions-schema.mjs"
+      ],
+      "dependsOn": [],
+      "approxLoc": 150
+    },
+    {
+      "id": "S2",
+      "title": "Add followup-task-gatherer agent definition",
+      "files": [
+        "plugins/ralph/agents/followup-task-gatherer.md"
+      ],
+      "dependsOn": [],
+      "approxLoc": 180
+    },
+    {
+      "id": "S3",
+      "title": "Wire Phase 5.5 parallel batch (single-job + group mode) + notepad/dashboard counts",
+      "files": [
+        "plugins/ralph/skills/implement-with-ralph/SKILL.md"
+      ],
+      "dependsOn": ["S2"],
+      "approxLoc": 60
+    },
+    {
+      "id": "S4",
+      "title": "Add 5 fixtures (empty, wont-fix-only, open-question, story-doctor-skip, group-mode)",
+      "files": [
+        "plugins/ralph/tests/fixtures/followup-task-gatherer/empty/**",
+        "plugins/ralph/tests/fixtures/followup-task-gatherer/wont-fix-only/**",
+        "plugins/ralph/tests/fixtures/followup-task-gatherer/open-question/**",
+        "plugins/ralph/tests/fixtures/followup-task-gatherer/story-doctor-skip/**",
+        "plugins/ralph/tests/fixtures/followup-task-gatherer/group-mode/**"
+      ],
+      "dependsOn": [],
+      "approxLoc": 250
+    },
+    {
+      "id": "S5",
+      "title": "Version bump to v5.47.0 + CHANGELOG entry",
+      "files": [
+        "plugins/ralph/.claude-plugin/plugin.json",
+        "plugins/ralph/.copilot-plugin/plugin.json",
+        "plugins/ralph/package.json",
+        "plugins/ralph/CHANGELOG.md"
+      ],
+      "dependsOn": ["S1", "S2", "S3", "S4"],
+      "approxLoc": 40
+    }
+  ],
+  "parallelBatches": [
+    ["S1", "S2", "S4"],
+    ["S3"],
+    ["S5"]
+  ],
+  "targetRepo": "ai-developer-toolkit",
+  "targetBranch": "ralph/ralph-orchestration-followup-task-gatherer",
+  "totalApproxLoc": 680
+}
