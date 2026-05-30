@@ -1,0 +1,47 @@
+{
+  "clusters": [
+    {
+      "name": "staging-helper-and-skills",
+      "stories": ["US-001"],
+      "phase": 1,
+      "dependsOn": [],
+      "fileOverlapEvidence": {
+        "sharedFiles": [],
+        "exclusiveFiles": [
+          "plugins/ralph/src/staging-session.mjs",
+          "plugins/ralph/skills/plan-with-ralph/SKILL.md",
+          "plugins/ralph/skills/brainstorm-with-ralph/SKILL.md",
+          "plugins/ralph/.copilot-plugin/copilot-skills/plan-with-ralph/SKILL.md",
+          "plugins/ralph/.copilot-plugin/copilot-skills/brainstorm-with-ralph/SKILL.md"
+        ],
+        "risk": "medium"
+      },
+      "executionModeRationale": "This cluster owns the runtime contract and both caller surfaces; it should land before tests/changelog so the assertions target a stable helper API."
+    },
+    {
+      "name": "tests-and-release-notes",
+      "stories": ["US-002"],
+      "phase": 2,
+      "dependsOn": ["staging-helper-and-skills"],
+      "fileOverlapEvidence": {
+        "sharedFiles": [
+          "plugins/ralph/src/staging-session.mjs",
+          "plugins/ralph/skills/plan-with-ralph/SKILL.md",
+          "plugins/ralph/skills/brainstorm-with-ralph/SKILL.md"
+        ],
+        "exclusiveFiles": [
+          "plugins/ralph/tests/test-staging-session.mjs",
+          "plugins/ralph/tests/test-plan-staging-session-contract.mjs",
+          "plugins/ralph/CHANGELOG.md",
+          "plugins/ralph/.claude-plugin/plugin.json",
+          "plugins/ralph/.github/plugin/plugin.json",
+          ".claude-plugin/marketplace.json",
+          ".github/plugin/marketplace.json"
+        ],
+        "risk": "medium"
+      },
+      "executionModeRationale": "Tests and release metadata depend on the helper shape and skill wording, so this should run after the implementation cluster rather than in parallel."
+    }
+  ]
+}
+
