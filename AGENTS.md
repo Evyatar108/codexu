@@ -600,3 +600,7 @@ For the in-flight `overview-install-streamline` brainstorm — that work will
 add agent-callable MCP tools (`overview.init`, `overview.upsert_task`,
 `overview.mark_shipped`) that automate the bookkeeper duties this doc
 describes. Until then, this AGENTS.md is the operating manual.
+
+### Crews protocol v2.0.0 report rows
+
+Crews v2 writes one member outbox JSONL row per kind-bearing report tag, not one envelope per assistant turn. Multi-report turns can produce multiple review-mail entries in one terminal-gated batch. Metadata-only report tags (ack/reply-to/decision without kind) are folded into the nearest kind-bearing row, including their prose body, and are not standalone outbox rows. Progress-only rows update member state and remain inspectable with `/crews:read-member <name> --all`, but do not wake the lead until a done/question/blocked row appears on the proactive non-reply path; rows with reply-to addressed to a lead still emit per-row member-reply notifications. `payload.progressTail` is retired; consumers should read the delivered `payload.entries` batch and must not assume `kind`/`summary` summarize a whole turn. Expanded review-mail rows keep the mailbox envelope id as the actionable ack/reply id, expose the member outbox row as outboxId/reportId, use entry.seq for the outbox seq, and include inboxSeq for the consumed mailbox-history seq.
