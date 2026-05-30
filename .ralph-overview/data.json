@@ -1046,6 +1046,21 @@
       }
     },
     {
+      "id": "crews-ack-loop-fix",
+      "scope": "crews",
+      "lifecycle": "merged",
+      "status": "ok",
+      "mergeCommit": "c514b97b",
+      "lastTouchedAt": "2026-05-30T20:48:00Z",
+      "kanbanCards": [],
+      "command": {
+        "name": "crews-ack-loop-fix",
+        "descriptionHtml": "Critical fix for the silent-censor ack-loop bug observed on <code>impl-codex-upstream-rebase</code> 2026-05-30. <code>stop.js:898</code> unresolved-consumed gate fired BEFORE the <code>stop.js:937</code> outbox-write auto-derive — asymmetric ordering meant a member's new <code>kind=question</code> with reply-to never satisfied the gate, turn rolled back, content silently censored. Fix: implicit-replyTo pre-gate pass with <code>alreadyResolved</code> guard preserving explicit <code>decision=\"deferred\"/\"unable\"/\"ack-no-action\"</code> overrides. Research brief at <code>.ralph/jobs/crews-ack-loop-bug/research-brief.md</code> (81a5d9e1).",
+        "warnings": [],
+        "prompts": {}
+      }
+    },
+    {
       "id": "crews-protocol-envelope-canonical-fields",
       "scope": "crews",
       "lifecycle": "merged",
