@@ -9,8 +9,10 @@
         "sharedFiles": [],
         "exclusiveFiles": [
           "hooks/commands/auth-policies.js",
+          "hooks/protocol/envelope.js",
           "hooks/protocol/review-required.js",
           "tests/operator-cli-auth-policy.test.js",
+          "tests/operator-envelope-kinds.test.js",
           "tests/review-required-new-kinds.test.js"
         ],
         "risk": "low"
@@ -117,12 +119,12 @@
           "CHANGELOG.md",
           "tests/list-members-operator-column.test.js",
           "tests/review-mail-prefixes.test.js",
-          "tests/backwards-compat-v18x-reader.test.js",
+          "tests/backwards-compat-v22x-reader.test.js",
           "AGENTS.md (codexu)"
         ],
         "risk": "low"
       },
-      "executionModeRationale": "Must run last because (a) visual prefixes need the new envelope kinds to exist, (b) cross-engine hook test needs US-005's stop-hook changes, (c) backwards-compat smoke needs the full v1.9.x writer surface, (d) docs reference all earlier-phase changes."
+      "executionModeRationale": "Must run last because (a) visual prefixes need the new envelope kinds to exist, (b) cross-engine hook test needs US-005's stop-hook changes, (c) backwards-compat smoke needs the full v2.3.x writer surface, (d) docs reference all earlier-phase changes."
     }
   ]
 }

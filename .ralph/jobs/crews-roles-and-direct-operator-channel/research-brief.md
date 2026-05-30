@@ -9,7 +9,7 @@ Phase 2 of the canonical `/plan-with-ralph` skill runs four parallel agents (res
 ## Researcher Findings
 
 **Plugin layout:**
-- `D:/ai-developer-toolkit/plugins/crews/` — version `1.8.10` (per `.claude-plugin/plugin.json`).
+- `D:/ai-developer-toolkit/plugins/crews/` — live checkout currently reports version `2.1.0` (per `.claude-plugin/plugin.json`). A concurrent `orchestrator-tab-rename` implementation is expected to ship v2.2.0 and touch `hooks/commands/assign-role.js` plus `hooks/session-start.js`; the operator-direct plan targets v2.3.0+ and should rebase after that work lands.
 - `hooks/` — runtime hooks and shared library (mailbox, manifest, locks, paths, actors, stop, post-tool-use, etc.).
 - `hooks/commands/` — slash + CLI command handlers (one file per command, registered via `registry.js`).
 - `hooks/protocol/` — small protocol primitives (`review-required.js`, `report-tags.js`, `manifest.js`, `envelope.js`, `flag.js`, `capabilities.js`, `review-gate.js`).
@@ -19,6 +19,7 @@ Phase 2 of the canonical `/plan-with-ralph` skill runs four parallel agents (res
 - `tests/` — unit + integration tests; pattern is `tests/<scenario>.test.js`.
 
 **Envelope-write hot paths (in `hooks/mailbox.js`):**
+- `hooks/protocol/envelope.js` — strict envelope `kindEnum` and `validateEnvelope()`/`buildEnvelope()` gate. Add `operator-direct`, `operator-direct-summary`, and `escalate-to-operator` here.
 - `appendMailboxWithSender(name, crew, cwd, message, sender, opts)` — canonical write path; persists `{ id, seq, sentAt, from, replyTo, hops, kind, summary, message }`.
 - `appendSystemMailbox(name, crew, cwd, msg, opts)` — bypasses sender-actor-flag (used for `thread-fanout`).
 - `appendActorSendHistory(sender, to, envelope, cwd)` — appends to the sender's send-history JSONL; skipped when `sender.role` is not `'lead'` or `'member'`.
@@ -44,7 +45,7 @@ Phase 2 of the canonical `/plan-with-ralph` skill runs four parallel agents (res
 ## Architect Analysis
 
 **Integration points:**
-1. **Envelope-kind extension** — three new kinds (`operator-direct`, `operator-direct-summary`, `escalate-to-operator`) are additive. They are NOT turn-tag kinds (do NOT touch `VALID_KINDS`). They ARE review-required kinds (extend `DEFAULT_REVIEW_KINDS` in `hooks/protocol/review-required.js`).
+1. **Envelope-kind extension** — three new kinds (`operator-direct`, `operator-direct-summary`, `escalate-to-operator`) are additive. They are NOT turn-tag kinds (do NOT touch `VALID_KINDS`). They ARE strict envelope kinds (extend `kindEnum` in `hooks/protocol/envelope.js`) and review-required kinds (extend `DEFAULT_REVIEW_KINDS` in `hooks/protocol/review-required.js`).
 2. **Envelope-field extension** — `operatorId` + `operatorOriginCwd` ride on the envelope alongside `from`. Persisted by `appendMailboxWithSender` and surfaced by `formatReviewMailEntry`.
 3. **Auth-policy extension** — new `'operator-cli'` policy, no actor-flag requirement, resolves `operatorId` via the new `hooks/lib/operator-identity.js` helper.
 4. **CLI surface** — three new operator-source commands (`crews-operator-message`, `crews-notify-lead`, `crews-inbox`), one new lead-source slash + CLI (`/crews-escalate-to-operator`). All four register in `hooks/commands/registry.js`.
@@ -59,10 +60,10 @@ Phase 2 of the canonical `/plan-with-ralph` skill runs four parallel agents (res
 - US-003 + US-004 + US-005 → US-007 (visual + docs + backwards-compat)
 
 **Technical constraints:**
-- `VALID_KINDS` is the TURN-TAG enum and MUST NOT be extended. The brainstorm wording about "extending the allowed-kind enum" refers conceptually to envelope-kind acceptance, which today is open-coded rather than a discrete enum. The discrete enum that DOES need extension is `DEFAULT_REVIEW_KINDS`.
+- `VALID_KINDS` is the TURN-TAG enum and MUST NOT be extended. Envelope-kind acceptance is now gated by `hooks/protocol/envelope.js` `kindEnum`, which DOES need extension. The review-required enum (`DEFAULT_REVIEW_KINDS`) also needs extension.
 - Cross-engine PostToolUse/Stop hook parity. Centralize the `lastTurnMeta.operatorDirect` write in `consumeMailbox` (engine-agnostic) and treat the stop-hook advisory-nag as the only engine-specific surface.
 - `operatorId` privacy: default to opaque UUID at `~/.crews/operator-id`; never read `git config user.email` by default.
-- Backwards-compat: v1.7.x/v1.8.x readers must not crash on v1.9.x envelopes. Existing `review-mail` "unknown kind" handling already renders kind + body verbatim, so the risk is low but a fixture test is mandatory.
+- Backwards-compat: v2.1.x/v2.2.x readers must not crash on v2.3.x envelopes. Existing `review-mail` "unknown kind" handling already renders kind + body verbatim, so the risk is low but a fixture test is mandatory.
 
 **Risk areas:** see plan §"Risk Areas" — 9 enumerated risks with mitigations.
 
@@ -78,6 +79,7 @@ Not run (same reasoning as Codex above; the planning member IS the Copilot engin
 
 **Files to modify (plugin repo):**
 - `D:/ai-developer-toolkit/plugins/crews/hooks/mailbox.js`
+- `D:/ai-developer-toolkit/plugins/crews/hooks/protocol/envelope.js`
 - `D:/ai-developer-toolkit/plugins/crews/hooks/protocol/review-required.js`
 - `D:/ai-developer-toolkit/plugins/crews/hooks/commands/auth-policies.js`
 - `D:/ai-developer-toolkit/plugins/crews/hooks/commands/registry.js`

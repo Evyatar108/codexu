@@ -2,13 +2,14 @@
 
 *Preliminary decomposition from `/plan-with-ralph --from-brainstorm`. Feed to `/implement-with-ralph --from-plan` for PRD generation.*
 
-## US-001: Foundation — auth policy + review-required protocol additions
-**Description:** As an implementer, I want the `'operator-cli'` auth policy and the three new envelope kinds (`operator-direct`, `operator-direct-summary`, `escalate-to-operator`) registered in the review-required protocol, so that all downstream stories can rely on these primitives without touching them again.
+## US-001: Foundation — auth policy + envelope/review protocol additions
+**Description:** As an implementer, I want the `'operator-cli'` auth policy and the three new envelope kinds (`operator-direct`, `operator-direct-summary`, `escalate-to-operator`) registered in both the strict envelope schema and the review-required protocol, so that all downstream stories can rely on these primitives without touching them again.
 **Acceptance Criteria:**
 - [ ] `hooks/commands/auth-policies.js` exports `'operator-cli'` in `AUTH_POLICIES`. The policy resolves `operatorId` via the helper (added in US-006) lazily; for US-001 it's a no-op stub that simply does not require an actor session.
+- [ ] `hooks/protocol/envelope.js` `kindEnum` includes `'operator-direct'`, `'operator-direct-summary'`, and `'escalate-to-operator'`; `validateEnvelope()` accepts fixtures for all three in strict mode.
 - [ ] `hooks/protocol/review-required.js` `DEFAULT_REVIEW_KINDS` includes `'operator-direct'`, `'operator-direct-summary'`, `'escalate-to-operator'` in addition to the existing `'done'`, `'question'`, `'blocked'`.
 - [ ] Existing tests pass: `pnpm --filter crews test` exits 0 with no regressions in `tests/protocol-envelope.test.js`, `tests/review-mail-command.test.js`, `tests/send-to-member-authz.test.js`.
-- [ ] New test: a fixture envelope with `kind: 'operator-direct'` and target role `'member'` returns `true` from `isReviewRequiredEnvelope`. Same for `'operator-direct-summary'` → `'lead'` and `'escalate-to-operator'` → both.
+- [ ] New test: a fixture envelope with `kind: 'operator-direct'` passes `validateEnvelope()` and target role `'member'` returns `true` from `isReviewRequiredEnvelope`. Same for `'operator-direct-summary'` → `'lead'` and `'escalate-to-operator'` → both.
 - [ ] Typecheck passes.
 **Dependencies:** None
 **Estimated complexity:** small
@@ -16,7 +17,7 @@
 ## US-002: Envelope schema + operator-source write path
 **Description:** As an implementer, I want envelopes to persist `operatorId` and `operatorOriginCwd` fields end-to-end, and I want an `appendOperatorMailbox` helper for operator-source writes that bypass the actor-session check (analogous to the existing `appendSystemMailbox`), so that the operator-CLI commands have a write path.
 **Acceptance Criteria:**
-- [ ] `appendMailboxWithSender` accepts and persists `operatorId` and `operatorOriginCwd` on the envelope (they live on the envelope alongside `from`, NOT inside `from`).
+- [ ] `appendMailboxWithSender` accepts and persists `operatorId` and `operatorOriginCwd` on the envelope (they live on the envelope/payload consistently with `hooks/protocol/envelope.js`, NOT only inside `from`).
 - [ ] New `appendOperatorMailbox(name, crew, cwd, envelope, opts)` exported from `hooks/mailbox.js`. It sets `from: { role: 'operator', operatorId: opts.operatorId }`, stamps `operatorOriginCwd` on the envelope, and bypasses the `deriveSenderIdentity` flag check (same trust model as `appendSystemMailbox`).
 - [ ] `appendActorSendHistory` is NOT called for operator-source writes (the operator has no manifest, no send-history file). Confirm this is correct via test fixture.
 - [ ] `guard test`: `VALID_KINDS` is unchanged — still `['progress','done','question','blocked']`. New `tests/valid-kinds-unchanged.test.js` or extension to `tests/protocol-envelope.test.js`.
@@ -82,16 +83,16 @@
 **Estimated complexity:** large
 
 ## US-007: Visual surfacing + backwards-compat smoke + docs + version bump
-**Description:** As a lead/operator, I want the new envelope kinds visually flagged in `review-mail` and `list-members`, and I want plugin docs + version metadata to reflect the new 1.9.0 surface, and I want a backwards-compat smoke test to prove v1.8.x readers don't crash on v1.9.x envelopes.
+**Description:** As a lead/operator, I want the new envelope kinds visually flagged in `review-mail` and `list-members`, and I want plugin docs + version metadata to reflect the new v2.3.0+ surface, and I want a backwards-compat smoke test to prove v2.1.x/v2.2.x readers don't crash on v2.3.x envelopes.
 **Acceptance Criteria:**
 - [ ] New `hooks/lib/envelope-kind-prefix.js` exports `envelopeKindPrefix(kind)` returning `'[op-direct]'`, `'[op-brief]'`, `'[escalate]'`, or `''`.
 - [ ] `hooks/commands/review-mail.js` calls the helper. `formatReviewMailEntry` returns a new `displayPrefix: string` field (empty string when no prefix). `formatSuccess` concatenates `displayPrefix + ' ' + summary` for human display while leaving `summary` clean for JSON consumers.
 - [ ] `hooks/crews.js` `snapshotCrew` reads `lastOperatorDirectAt` from each member's manifest.
 - [ ] `hooks/actors.js` `formatMemberList` adds a "Last op-direct" column to the pretty-print table. JSON output (`pretty=false`) includes the field automatically.
 - [ ] Cross-engine hook parity test: simulated turn run through both stop-hook entry points produces identical stderr advisory output. (Test file may be the same as US-005's `tests/lasturnmeta-operator-direct.test.js`.)
-- [ ] Backwards-compat smoke: `tests/backwards-compat-v18x-reader.test.js` writes a fixture mailbox containing one envelope of each new kind using the v1.9.x writer, then runs the v1.8.x `consumeMailbox` and `formatReviewMailEntry` code paths against it. Asserts: no exception, body intact, `review-mail` rows include each new kind string. (Practically: import the current code at HEAD as the "writer" and import the v1.8.x code via a vendored fixture or git-show-pinned dependency — implementer's call which approach is cleanest.)
-- [ ] `.claude-plugin/plugin.json` version bumped to `1.9.0`.
-- [ ] `CHANGELOG.md` has a `## 1.9.0` entry summarizing: new envelope kinds, new CLI commands, new lead slash, new manifest fields, new tag attribute, no breaking changes, additive backwards-compat with v1.7.x/v1.8.x readers.
+- [ ] Backwards-compat smoke: `tests/backwards-compat-v22x-reader.test.js` writes a fixture mailbox containing one envelope of each new kind using the v2.3.x writer, then runs the v2.2.x/v2.1.x `consumeMailbox` and `formatReviewMailEntry` code paths against it. Asserts: no exception, body intact, `review-mail` rows include each new kind string. (Practically: import the current code at HEAD as the "writer" and import the older code via a vendored fixture or git-show-pinned dependency — implementer's call which approach is cleanest.)
+- [ ] `.claude-plugin/plugin.json` version bumped to `2.3.0` (or the next minor after the concurrent v2.2.0 `orchestrator-tab-rename` release).
+- [ ] `CHANGELOG.md` has a matching `## 2.3.0` entry summarizing: new envelope kinds, new CLI commands, new lead slash, new manifest fields, new tag attribute, no breaking changes, additive backwards-compat with v2.1.x/v2.2.x readers.
 - [ ] `README.md` has a new "Operator-direct interaction" section between "Turn-End Reports" and "STRICT-ACK contract & decision verbs" sections. Covers the three CLI commands, the lead slash, the named-trigger enum, the tag attribute, and the `[op-*]` prefixes. Includes a privacy note about `operatorId`.
 - [ ] Plugin `AGENTS.md` and codexu `D:/harness-efforts/codexu/AGENTS.md` updated per the plan's "Modified files" list.
 - [ ] Tests pass; typecheck passes; no regressions on existing tests.
