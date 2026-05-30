@@ -1555,6 +1555,90 @@ describe('CodexAppServerClient sandbox integration', () => {
     });
 
     it.each([{ transport: 'stdio' as const }, { transport: 'ws' as const }])(
+        'fans out v2 thread/compacted notifications as legacy context_compacted events over $transport',
+        async ({ transport }) => {
+            await mockNextAppServer(transport, {
+                pid: 3050,
+                onRequest: (msg, send) => {
+                    if (msg.method === 'thread/start' && msg.id != null) {
+                        setTimeout(() => {
+                            send({
+                                id: msg.id,
+                                result: {
+                                    thread: { id: 'thread-compact-1', path: '/tmp/thread-compact-1' },
+                                    model: 'gpt-test',
+                                    modelProvider: 'openai',
+                                    cwd: '/tmp/project',
+                                    approvalPolicy: 'never',
+                                    sandbox: { type: 'dangerFullAccess' },
+                                    reasoningEffort: null,
+                                },
+                            });
+                        }, 0);
+                    }
+
+                    if (msg.method === 'turn/start' && msg.id != null) {
+                        setTimeout(() => {
+                            send({ id: msg.id, result: { turn: { id: 'turn-compact-1', items: [], status: 'inProgress', error: null } } });
+                            send({
+                                method: 'turn/started',
+                                params: {
+                                    threadId: 'thread-compact-1',
+                                    turn: { id: 'turn-compact-1', items: [], status: 'inProgress', error: null },
+                                },
+                            });
+                            // The v2 wire surface for codex auto/manual compaction.
+                            // Body shape per
+                            // codex/external/repos/codex-patched/codex-rs/app-server-protocol/schema/json/codex_app_server_protocol.v2.schemas.json
+                            // ContextCompactedNotification: { threadId, turnId }.
+                            send({
+                                method: 'thread/compacted',
+                                params: { threadId: 'thread-compact-1', turnId: 'turn-compact-1' },
+                            });
+                            send({
+                                method: 'turn/completed',
+                                params: {
+                                    threadId: 'thread-compact-1',
+                                    turn: { id: 'turn-compact-1', items: [], status: 'completed', error: null },
+                                },
+                            });
+                        }, 0);
+                    }
+                },
+            });
+
+            const { CodexAppServerClient } = await import('./codexAppServerClient');
+            const client = new CodexAppServerClient(undefined, { transport });
+            const events: Array<Record<string, unknown>> = [];
+            client.setEventHandler((msg) => {
+                events.push(msg as Record<string, unknown>);
+            });
+
+            await client.connect();
+            await client.startThread({
+                model: 'gpt-test',
+                cwd: '/tmp/project',
+                approvalPolicy: 'never',
+                sandbox: 'danger-full-access',
+            });
+
+            await expect(client.sendTurnAndWait('drive compaction')).resolves.toEqual({ aborted: false });
+
+            const compactEvents = events.filter((event) => event.type === 'context_compacted');
+            expect(compactEvents).toHaveLength(1);
+            expect(compactEvents[0]).toEqual({
+                type: 'context_compacted',
+                thread_id: 'thread-compact-1',
+                threadId: 'thread-compact-1',
+                turn_id: 'turn-compact-1',
+                turnId: 'turn-compact-1',
+            });
+
+            await client.disconnect({ terminateAppServer: true });
+        },
+    );
+
+    it.each([{ transport: 'stdio' as const }, { transport: 'ws' as const }])(
         'maps raw item notifications into legacy events and deduplicates turn completion over $transport',
         async ({ transport }) => {
         const requests: MockRpcMessage[] = [];

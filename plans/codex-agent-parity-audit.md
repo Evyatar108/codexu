@@ -130,6 +130,8 @@ Every proposed fix-site below explicitly states the tier and why.
 
 ## Gap 4 — Hook system parity (`SessionStart`/`Stop`/`UserPromptSubmit`/`Notification`/`PreCompact`/`PostCompact`)
 
+**Status:** Auto-compact context-boundary parity SHIPPED (commit on `ralph/codex-hooks-parity`). Turn-lifecycle (`onTurnStarted`/`onTurnCompleted`) and `Notification`-permission parity remain deferred per the codex deferred-switch exclusion in `packages/happy-cli/AGENTS.md` — see "Remaining sub-gaps" below.
+
 **Gap.** happy-cli wires six Claude Code hooks to drive turn-active tracking, auto-compact boundaries, idle detection, and `pendingSwitch` resolution. The codex path has none of these primitives — events are inferred from the codex JSON-RPC stream instead.
 
 **Current state.**
@@ -139,17 +141,17 @@ Every proposed fix-site below explicitly states the tier and why.
   - `onUserPromptSubmitHook` → `session.onTurnStarted()` (local-mode turn lifecycle).
   - `onStopHook` → `session.onTurnCompleted()` (fires deferred switch).
   - `onNotificationHook` → `session.onNotification()` (permission/idle prompts also fire deferred switch — fixes v1 stall gap, see `packages/happy-cli/AGENTS.md` "pendingSwitch clear paths").
-- *Codex side:* No hook plumbing. `runCodex.ts` infers turn lifecycle from `task_started` / `task_complete` / `turn_aborted` events on the JSON-RPC stream (lines 605-642). Compact boundaries are NOT emitted (codex has a `compactPrompt` field on `NewConversationParams` at `codexAppServerTypes.ts:29` and a `/compact` semantic in codex-core but happy-cli never plumbs it — see Gap 5). `SessionStart` has no analog because codex's threadId is returned synchronously from `client.startThread` — happy-cli already has it without a hook.
+- *Codex side, post-ship:* `runCodex.ts` event handler now fans `context_compacted` events through `session.sendContextBoundary({ kind: 'autocompact', triggeredBy: 'system', at: Date.now() })`. The fan-out is wire-protocol-version-agnostic: `codexAppServerClient.handleRawNotification` translates the v2 `thread/compacted` notification (body `{ threadId, turnId }`) into a legacy-shape `{ type: 'context_compacted', thread_id, threadId, turn_id, turnId }` event, and the legacy `codex/event` path forwards `EventMsg::ContextCompacted` (wire tag `context_compacted`) verbatim. Both paths reach the same `sendContextBoundary` call site. Turn-lifecycle (task_started/task_complete) still only toggles `thinking`; no `session.onTurnStarted()`/`onTurnCompleted()` analog is wired because codex has no Claude-style `Session` deferred-switch object (see "Codex exclusion" in `packages/happy-cli/AGENTS.md`). Permission-request events still flow only through `setApprovalHandler` without a separate `sendContextBoundary` signal because the existing `permission-prompt` schema does not exist in `sessionContextBoundaryKindSchema`.
 
-**Proposed fix site.** (a) happy-cli. **Most Claude hooks have direct JSON-RPC equivalents on the codex side already**; the gap is that happy-cli doesn't fan those events to the same downstream handlers (`onTurnStarted` / `onTurnCompleted` / `onNotification` / `sendContextBoundary({ kind: 'autocompact' })`). Concretely:
-  - `task_started` → equivalent to `UserPromptSubmit`'s turn-start. Codex path already toggles `thinking = true` (runCodex.ts:628-633) but does NOT call any equivalent of `session.onTurnStarted()`.
-  - `task_complete` / `turn_aborted` → equivalent to `Stop`. Codex path does NOT fire any deferred-switch-equivalent (the codex path has no Claude-style deferred-switch protocol; see `packages/happy-cli/AGENTS.md` "Codex exclusion" — but the operator may want it later, tracked in `.ralph/jobs/preserve-turn-on-mode-switch/plan.md` open Codex question).
-  - Permission-request events (codex's `client.setApprovalHandler` path at `runCodex.ts:563-583`) → equivalent to `Notification`. The codex permission handler already manages this internally but doesn't emit a context-boundary-style signal.
-  - Auto-compact: codex has `turn_diff` and compact RPC semantics, but happy-cli doesn't emit `sendContextBoundary({ kind: 'autocompact', ... })` on the codex side. Today there's no codex-side trigger for auto-compact in happy-cli (codex-core handles its own compaction internally without notifying the client).
+**Remaining sub-gaps (deferred).**
+- **Turn lifecycle (`onTurnStarted`/`onTurnCompleted`).** Out of scope here. Codex has no Claude-style local-launcher/Session split, so the deferred-switch protocol does not apply. Tracked under the Codex open question in `.ralph/jobs/preserve-turn-on-mode-switch/plan.md`.
+- **Permission-request `Notification` parity.** Out of scope here. Today's `sessionContextBoundaryKindSchema` enum has no `permission-prompt`-like kind; introducing one would touch the wire protocol and the app UI's `BoundaryDivider` renderer. A purpose-built notification path can land later (would also benefit Claude — current Claude `Notification` hook drives `Session.onNotification` for deferred-switch only, not a renderable boundary). Tracked alongside the same deferred-switch open question.
 
-**Effort.** Medium (~6–10h). Split into: turn-lifecycle parity (~2h), context-boundary auto-compact emission (~3h — requires understanding codex's internal compaction signal), `Notification`-equivalent permission-request boundary (~1h), tests (~2h).
+**Proposed fix site (historical).** (a) happy-cli. **Most Claude hooks have direct JSON-RPC equivalents on the codex side already**; the gap was that happy-cli didn't fan those events to the same downstream handlers. The auto-compact half is now wired; the deferred-switch half is intentionally Claude-only per the exclusion above.
 
-**Severity.** Medium. The `UserPromptSubmit`/`Stop` parity is mostly a v2 concern (no codex deferred-switch protocol yet), but the missing auto-compact context boundary means codexu's UI doesn't get the same "context compacted" visual signal for codex sessions that it does for Claude.
+**Effort.** Auto-compact shipped (~2h). Remaining sub-gaps deferred.
+
+**Severity.** Medium → Low post-ship for the auto-compact signal; deferred-switch parity stays Medium for v2.
 
 **Ralph-command shape.**
 > `codex-hooks-parity — fan codex events to happy turn-lifecycle handlers`

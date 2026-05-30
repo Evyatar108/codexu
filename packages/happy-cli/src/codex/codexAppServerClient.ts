@@ -294,6 +294,7 @@ export class CodexAppServerClient {
             || method === 'turn/completed'
             || method === 'thread/status/changed'
             || method === 'thread/tokenUsage/updated'
+            || method === 'thread/compacted'
             || method.startsWith('item/');
 
         if (!isRawNotification) {
@@ -477,6 +478,22 @@ export class CodexAppServerClient {
                     ...tokenUsage,
                 });
             }
+            return true;
+        }
+
+        if (method === 'thread/compacted') {
+            // v2 notification body shape: { threadId, turnId }. Fan out as a
+            // legacy `context_compacted` EventMsg so the runCodex.ts event handler
+            // can treat both wire-protocol versions uniformly (parity with Claude's
+            // PostCompact trigger=auto hook — see Gap 4 in
+            // plans/codex-agent-parity-audit.md).
+            const threadId = typeof params?.threadId === 'string' ? params.threadId : undefined;
+            const turnId = typeof params?.turnId === 'string' ? params.turnId : undefined;
+            this.eventHandler?.({
+                type: 'context_compacted',
+                ...(threadId ? { thread_id: threadId, threadId } : {}),
+                ...(turnId ? { turn_id: turnId, turnId } : {}),
+            });
             return true;
         }
 

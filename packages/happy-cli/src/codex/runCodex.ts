@@ -684,6 +684,23 @@ export async function runCodex(opts: {
                 diffProcessor.processDiff((msg as any).unified_diff);
             }
         }
+        if (msg.type === 'context_compacted') {
+            // Codex auto/manual compaction parity with Claude's PostCompact
+            // trigger=auto hook (see runClaude.ts onCompactHook). Emit the typed
+            // `autocompact` context boundary so app clients render the same
+            // "context compacted" divider for codex sessions. Codex's
+            // ContextCompactedEvent is a unit struct (no fields distinguishing
+            // auto vs manual), so we tag every emission as `autocompact` —
+            // explicit `/compact` slash-command boundaries are Gap 5 territory
+            // and route through parseSpecialCommand separately when they land.
+            void session.sendContextBoundary({
+                kind: 'autocompact',
+                triggeredBy: 'system',
+                at: Date.now(),
+            }).catch((err: unknown) => {
+                logger.debug('[Codex] Failed to emit autocompact context boundary:', err);
+            });
+        }
 
         // Convert events into the unified session-protocol envelope stream.
         // Reasoning deltas are handled by ReasoningProcessor to avoid duplicate text output.
