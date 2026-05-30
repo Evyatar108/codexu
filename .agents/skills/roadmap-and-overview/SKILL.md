@@ -2,16 +2,16 @@
 name: roadmap-and-overview
 description: >
   Procedure for maintaining the codexu roadmap visualization. The
-  dashboard is rendered by the React/Vite app under
-  `tools/overview-viewer/` and ships as a generated `.ralph-overview/generated/overview.html`
-  artifact backed by the sidecar data file `.ralph-overview/data.json`. Use
+  dashboard is rendered by the ralph-overview plugin's React/Vite app and
+  ships as a generated `.ralph-overview/generated/overview.html` artifact
+  backed by the sidecar data file `.ralph-overview/data.json`. Use
   when adding a new task, changing a task's status, recording a
   run/completion, adding a workstream category, or extending the
   visualization with a new feature. The dashboard renders from
-  `window.OVERVIEW_DATA`; edit `.ralph-overview/data.json` for normal
-  bookkeeping, and for renderer/UI changes edit
-  `tools/overview-viewer/src/` and rebuild via `pnpm overview:build`
-  (never hand-edit `.ralph-overview/generated/overview.html`).
+  inlined JSON generated from `.ralph-overview/data.json`; edit that file for normal
+  bookkeeping; for renderer/UI changes edit the `ralph-overview` plugin
+  source and rebuild via `pnpm overview:build` (never hand-edit
+  `.ralph-overview/generated/overview.html`).
 ---
 
 # /roadmap-and-overview - maintain the codexu roadmap dashboard
@@ -28,14 +28,14 @@ Start every session by reading:
 1. `.ralph-overview/data.json` - source of truth for task rows, kanban cards,
    phase tree, run history, metadata maps, and freshness timestamps.
 2. `.ralph-overview/generated/overview.html` - generated build artifact produced by
-   `pnpm overview:build` from `tools/overview-viewer/`. Do not hand-edit;
-   renderer/UI changes go to `tools/overview-viewer/src/` (see procedures
-   F and G).
+   `pnpm overview:build` from the installed `ralph-overview` plugin renderer.
+   Do not hand-edit; renderer/UI changes go to the plugin source (see
+   procedures F and G).
 3. `plans/parallel-assignments.md` and `plans/codexu-roadmap.md` - context
    for phase/status definitions and long-form roadmap meaning.
-4. `tools/overview-viewer/` - React/Vite renderer source and tests. Read
-   this only when you need renderer context for procedure F or G; normal
-   bookkeeping never touches it.
+4. The `ralph-overview` plugin renderer source and tests. Read this only when
+   you need renderer context for procedure F or G; normal bookkeeping never
+   touches it.
 
 Before editing, run `git status` and confirm the current branch is the
 bookkeeping branch you intend to commit on. If you are doing parent-repo
@@ -47,10 +47,9 @@ bookkeeping, `main` should usually be checked out.
   pure JSON and should parse with `JSON.parse`.
 - `.ralph-overview/generated/overview.html` - generated build artifact emitted by
   `pnpm overview:build`. Do not hand-edit; regenerate it after renderer
-  changes in `tools/overview-viewer/`.
-- `tools/overview-viewer/src/` - React/Vite renderer source. All UI,
-  component, hook, util, and `styles.css` changes live here (see procedures
-  F and G). Tests live under `tools/overview-viewer/src/__tests__/`.
+  changes in the `ralph-overview` plugin source.
+- `ralph-overview` plugin renderer source - all UI, component, hook, util, and
+  `styles.css` changes live in the plugin repo/source (see procedures F and G).
 - `plans/parallel-assignments.md` - derived operator-facing command list and
   status table. Update when the operator expects markdown tracking to stay in
   sync, but never treat it as the canonical data source.
@@ -86,55 +85,55 @@ to the tail. The baseline used DOM source order with no secondary key.
 
 `.ralph-overview/data.json` owns this shape:
 
-```js
-window.OVERVIEW_DATA = {
-  generatedAt: '2026-05-14T20:00:00Z',
-  generatedFromCommit: 'd279d49d',
-  tasks: [
+```json
+{
+  "generatedAt": "2026-05-14T20:00:00Z",
+  "generatedFromCommit": "d279d49d",
+  "tasks": [
     {
-      id: 'task-id',
-      scope: 'codexu',
-      lifecycle: 'tracked',
-      status: 'ok',
-      lastTouchedAt: '2026-05-13T19:30:00Z',
-      mergeCommit: null,
-      kanbanCards: [
-        { column: 'ready', cardClass: null, inlineStyle: null, html: '...', order: 10 }
-        // order-authoring note: `order` (numeric) takes precedence; `insertBeforeTaskId` is the fallback anchor only for cards that omit `order`. Do not set both on the same card.
+      "id": "task-id",
+      "scope": "codexu",
+      "lifecycle": "tracked",
+      "status": "ok",
+      "lastTouchedAt": "2026-05-13T19:30:00Z",
+      "kanbanCards": [
+        { "column": "ready", "cardClass": null, "inlineStyle": null, "html": "...", "order": 10 }
       ],
-      command: {
-        name: 'task-id',
-        descriptionHtml: 'Description fragment shown in the command row',
-        warnings: [],
-        initialStage: 'planning',
-        prompts: { plan: '/plan-with-ralph "..."' }
-      }
+      "command": {
+        "name": "task-id",
+        "descriptionHtml": "Description fragment shown in the command row",
+        "warnings": [],
+        "prompts": { "plan": "/plan-with-ralph \"...\"" }
+      },
+      "initialStage": "planning"
     }
   ],
-  phaseTree: [
+  "phaseTree": [
     {
-      id: 'phase-1',
-      title: 'Phase 1 - Foundations',
-      headerHtml: 'Phase 1 - Foundations <span class="ptag">parallel</span>',
-      collapsible: false,
-      collapsibleSummary: null,
-      nodes: [
-        { kind: 'task-ref', taskId: 'task-id', visibleText: 'Task label', state: 'open', trailingHtml: ' - context' },
-        { kind: 'raw', html: '<span class="item-name deferred">Non-task bullet</span> - context' }
+      "id": "phase-1",
+      "title": "Phase 1 - Foundations",
+      "headerHtml": "Phase 1 - Foundations <span class=\"ptag\">parallel</span>",
+      "collapsible": false,
+      "collapsibleSummary": null,
+      "nodes": [
+        { "kind": "task-ref", "taskId": "task-id", "visibleText": "Task label", "state": "open", "trailingHtml": " - context" },
+        { "kind": "raw", "html": "<span class=\"item-name deferred\">Non-task bullet</span> - context" }
       ]
     }
   ],
-  runs: [],
-  periodic: {},
-  cadence: {},
-  lastTouched: { 'task-id': '2026-05-13T19:30:00Z' },
-  effort: { 'task-id': 2 },
-  risk: { 'task-id': 'medium' },
-  workstream: { 'task-id': 'codex-spec' },
-  sizeBucket: { 'task-id': 'small' },
-  spawnedFrom: {}
-};
+  "runs": [],
+  "periodic": {},
+  "cadence": {},
+  "lastTouched": { "task-id": "2026-05-13T19:30:00Z" },
+  "effort": { "task-id": 2 },
+  "risk": { "task-id": "medium" },
+  "workstream": { "task-id": "codex-spec" },
+  "sizeBucket": { "task-id": "small" },
+  "spawnedFrom": {}
+}
 ```
+
+Omit `shipManifest` for unshipped tasks. For shipped rows, add `"shipManifest": { "shippedAt": "...", "summary": "...", "commits": [{ "sha": "...", "oneLine": "...", "repo": "codexu" }] }`.
 
 Notes:
 
@@ -152,13 +151,13 @@ Notes:
   comparison table. `status` is `ok`, `blocked`, or `paused`; status is a
   temporary availability modifier that overrides filter/Today-panel
   buckets without changing `lifecycle`.
-- v2.3.0 schema rewrite (this PR): legacy `phase: 'plan-ready'` → `lifecycle:
-  'tracked'`, `phase: 'shipped'` → `lifecycle: 'merged'`, `phase: 'closed'` →
-  `lifecycle: 'archived'`. Legacy `command.planPrompt: '...'` →
-  `command.prompts.plan: '...'` (with sibling `prompts.brainstorm` and
-  `prompts.impl` keys when applicable). `command.initialStage` was added so
-  the watcher can derive the correct kickoff stage when no Ralph state
-  exists yet.
+- v2.3.0 schema rewrite (historical): legacy `phase: "plan-ready"` →
+  `lifecycle: "tracked"`, `phase: "shipped"` → `lifecycle: "merged"`,
+  `phase: "closed"` → `lifecycle: "archived"`. Legacy
+  `command.planPrompt: "..."` → `command.prompts.plan: "..."` (with sibling
+  `prompts.brainstorm` and `prompts.impl` keys when applicable). Top-level
+  `initialStage` lets the watcher derive the correct kickoff stage when no
+  Ralph state exists yet.
 - `command.prompts.plan` (and `.brainstorm` / `.impl`) is a decoded shell
   string. The renderer writes it with `textContent`, so do not HTML-encode
   `2>&1`, `<`, or `>` inside the data file.
@@ -175,14 +174,14 @@ Notes:
 
 1. Pick metadata: `id`, `title`, `scope`, `lifecycle` (usually `tracked`
    for new entries), `status`, `workstream`, `sizeBucket`, `risk`, `effort`,
-   optional `command.initialStage` (`brainstorming` / `planning` /
+   optional top-level `initialStage` (`brainstorming` / `planning` /
    `implementing`), optional `cadence`, optional `periodic`, optional
    `spawnedFrom`, and a single ISO timestamp for the edit.
-2. Add one object to `OVERVIEW_DATA.tasks[]`. Keep the surrounding array
+2. Add one object to `.tasks[]`. Keep the surrounding array
    formatting style; do not reformat the top-level object.
-3. Add the same task id to `OVERVIEW_DATA.lastTouched`, `effort`, `risk`,
-   `workstream`, and `sizeBucket`. If it was spawned by research, also add
-   `OVERVIEW_DATA.spawnedFrom[childId] = parentId`.
+3. Add the same task id to `lastTouched`, `effort`, `risk`, `workstream`, and
+   `sizeBucket`. If it was spawned by research, also add
+   `spawnedFrom[childId] = parentId`.
 4. If the task is periodic, add `cadence[id] = 'periodic'` and a
    `periodic[id]` schedule with `intervalDays`, `lastRunId`, and `nextDueAt`.
 5. Add zero or more `kanbanCards[]` entries. Multiple cards per task are valid
@@ -194,7 +193,7 @@ Notes:
 Working example based on the current `1b-multidev` entry in
 `.ralph-overview/data.json`:
 
-```js
+```json
 {
   "id": "1b-multidev",
   "scope": "codexu",
@@ -236,30 +235,33 @@ Working example based on the current `1b-multidev` entry in
         "html": "⚠️ Conflicts with <code>mcp-discovery</code> (both touch <code>runCodex.ts</code>). Land mcp-discovery first, then 1b-multidev rebases trivially."
       }
     ],
-    "initialStage": "planning",
-    "prompts": { "plan": "/plan-with-ralph \"Phase 1b sub-task 3 + 4 - multi-device discoverability hint and multi-client approval fan-out. Per plans/codexu-roadmap.md §Phase 1b sub-tasks 3-4 + docs/plans/codex-seamless-multi-device.md sub-tasks 3-4. Sub-task 3: terminal-startup hint when codex starts in a cwd that already has a discoverable app-server, pointing user at phone attach option. Files: packages/happy-cli/src/codex/codexAppServerClient.ts (discovery + startup messaging) + packages/happy-cli/src/ui/start.ts or equivalent. Sub-task 4: when multiple clients are attached (laptop TUI + phone via tunnel), an approval prompt from codex must fan out to all attached clients; first-answer-wins; remaining clients see resolution. Files: packages/happy-cli/src/codex/runCodex.ts + packages/happy-cli/src/codex/codexAppServerClient.ts approval-handler plumbing. CRITICAL CONTEXT: re-read docs/plans/codex-seamless-multi-device.md against the finalized post-Sprint-E tunnel protocol - the spec was drafted assuming relay-forwarded phone path, but tunnels attach phone DIRECTLY to CLI's local Socket.IO server (no relay). Specifically read the 'Walkthrough Step 5 fan-out semantics shift layer' note in roadmap §Phase 1b. Decide whether codex app-server's native fan-out covers tunneled clients OR whether CLI's lifted rpcHandler must broadcast - verify by tracing one approval event from codex → CLI → tunneled phone. Read packages/happy-cli/AGENTS.md and packages/happy-cli/src/daemon/AGENTS.md first. Acceptance: integration test for sub-task 3 (mock discovery file existence, assert hint message); integration test for sub-task 4 (mock two attached clients, fire approval, assert both receive + first-answer wins). Test command: pnpm --filter '{packages/happy-cli}' exec vitest run 2>&1 | tee /tmp/codexu-1b34.log. Single commit per sub-task (two commits).\"" }
-  }
+    "prompts": { "plan": "/plan-with-ralph \"Phase 1b sub-task 3 + 4 - multi-device discoverability hint and multi-client approval fan-out. Per plans/codexu-roadmap.md §Phase 1b sub-tasks 3-4 + docs/plans/codex-seamless-multi-device.md sub-tasks 3-4. Sub-task 3: terminal-startup hint when codex starts in a cwd that already has a discoverable app-server, pointing user at phone attach option. Files: packages/happy-cli/src/codex/codexAppServerClient.ts (discovery + startup messaging) + packages/happy-cli/src/ui/start.ts or equivalent. Sub-task 4: when multiple clients are attached (laptop TUI + phone via tunnel), an approval prompt from codex must fan out to all attached clients; first-answer-wins; remaining clients see resolution. Files: packages/happy-cli/src/codex/runCodex.ts + packages/happy-cli/src/codex/codexAppServerClient.ts approval-handler plumbing. CRITICAL CONTEXT: re-read docs/plans/codex-seamless-multi-device.md against the finalized post-Sprint-E tunnel protocol - the spec was drafted assuming relay-forwarded phone path, but tunnels attach phone DIRECTLY to CLI's local Socket.IO server (no relay). Specifically read the 'Walkthrough Step 5 fan-out semantics shift layer' note in roadmap §Phase 1b. Decide whether codex app-server's native fan-out covers tunneled clients OR whether CLI's lifted rpcHandler must broadcast - verify by tracing one approval event from codex → CLI → tunneled phone. Read packages/happy-cli/AGENTS.md and packages/happy-cli/src/daemon/AGENTS.md first. Acceptance: integration test for sub-task 3 (mock discovery file existence, assert hint message); integration test for sub-task 4 (mock two attached clients, fire approval, assert both receive + first-answer wins). Test command: pnpm --filter '{packages/happy-cli}' exec vitest run 2>&1 | tee .ralph/jobs/1b-multidev/happy-cli-vitest.log. Single commit per sub-task (two commits).\"" }
+  },
+  "initialStage": "planning"
 }
-
-// Same edit, same timestamp:
-OVERVIEW_DATA.lastTouched["1b-multidev"] = "2026-05-13T19:30:00Z";
 ```
+
+In the same edit, set `"lastTouched": { "1b-multidev": "2026-05-13T19:30:00Z" }`
+or update the existing `lastTouched` map entry to that timestamp.
 
 ### B. Marking a task as shipped
 
 1. Find the landing commit(s) with `git log --oneline -10` and capture the
    short SHA plus commit ISO timestamp.
-2. In the task object, set `lifecycle: 'merged'` (or `'archived'` for
-   closed-without-merge work), usually set `status: 'ok'`, and set
-   `mergeCommit` when the shipped artifact has a merge SHA.
-3. Update `command.descriptionHtml` so the command row says what shipped and
-   includes the commit. Remove stale blocked/paused warnings.
+2. In the task object, set `lifecycle: "merged"` (or `"archived"` for
+   closed-without-merge work), usually set `status: "ok"`, and set
+   `shipManifest: { shippedAt, summary, commits: [{ sha, oneLine, repo? }] }`.
+   `summary` is human-written ship context; `repo` is optional for codexu-only
+   work and should be set for sibling-repo or dual-repo commits. `mergeCommit`
+   is a legacy fallback for older rows only.
+3. Update `command.descriptionHtml` so the command row says what shipped.
+   Remove stale blocked/paused warnings.
 4. Update each relevant `kanbanCards[]` entry. Typical shipped card style is
-   `inlineStyle: 'border-color: var(--ok); opacity: 0.8;'`; update the card
-   body to mention the shipped commit.
+   `   `inlineStyle: "border-color: var(--ok); opacity: 0.8;"`; update the card
+   body to mention the shipped artifact.
 5. Append a `runs[]` record:
 
-```js
+```json
 {
   "id": "<taskId>/<YYYY-MM-DD>",
   "taskId": "<taskId>",
@@ -275,15 +277,15 @@ OVERVIEW_DATA.lastTouched["1b-multidev"] = "2026-05-13T19:30:00Z";
    `status: 'ok'`, remove the warning, update its description, and bump its
    timestamp too.
 7. When you set `tasks[x].lastTouchedAt = <new ISO>`, also set
-   `OVERVIEW_DATA.lastTouched[<id>] = <new ISO>` in the same edit. The data
-   file is invalid if these drift; the page freshness hint and ordering will
-   be wrong until corrected.
+   `lastTouched[<id>] = <new ISO>` in the same edit. The data file is invalid
+   if these drift; the page freshness hint and ordering will be wrong until
+   corrected.
 8. Bump `generatedAt` and `generatedFromCommit`.
 
 Multi-commit rules:
 
 - Codex-submodule tasks: list the codex-side content commit first and the
-  codexu pointer-bump commit second.
+  codexu pointer-bump commit second, with `repo` labels distinguishing them.
 - Topic-branch landings: list the topic branch tip first and the merge SHA
   second, e.g. `['756d4290', 'merge e71497eb']`.
 
@@ -301,8 +303,8 @@ Use procedure B for the `runs[]` entry, then update periodic scheduling:
 
 ### D. Marking a task paused / blocked
 
-1. Keep `lifecycle` as the durable bookkeeper status (usually `tracked`)
-   and set `status: 'paused'` or `status: 'blocked'`.
+1. Keep `lifecycle` as the durable bookkeeper status (usually `"tracked"`)
+   and set `status: "paused"` or `status: "blocked"`.
 2. Add or update `command.warnings[]` with a clear operator-facing reason.
    Use `className: 'cmd-warn'` for paused and `className: 'cmd-warn blocked'`
    for hard blockers.
@@ -311,29 +313,29 @@ Use procedure B for the `runs[]` entry, then update periodic scheduling:
 4. If the task has a kanban card, update `inlineStyle` or `html` to show the
    state without moving unrelated cards.
 5. When you set `tasks[x].lastTouchedAt = <new ISO>`, also set
-   `OVERVIEW_DATA.lastTouched[<id>] = <new ISO>` in the same edit. The data
+   `lastTouched[<id>] = <new ISO>` in the same edit. The data
    file is invalid if these drift; the page freshness hint and ordering will
    be wrong until corrected.
 6. Bump `generatedAt` and `generatedFromCommit`.
 
 ### E. Editing the phase tree
 
-`OVERVIEW_DATA.phaseTree[]` is not derived from `tasks[]`; it is a curated
-roadmap outline. The final node schema is `{kind: 'task-ref'|'raw', taskId?,
-state?, html?}` with `visibleText` and `trailingHtml` allowed on task-ref
+`phaseTree[]` is not derived from `tasks[]`; it is a curated roadmap outline.
+The final node schema is `{kind: "task-ref"|"raw", taskId?, state?, html?}`
+with `visibleText` and `trailingHtml` allowed on task-ref
 nodes when the rendered label/tail needs to preserve authored wording. Node
 examples:
 
-```js
-{ kind: 'task-ref', taskId: '1b-multidev', visibleText: '1b.3 Multi-device discoverability hint', state: 'open', trailingHtml: ' - unblocked, re-read' }
-{ kind: 'raw', html: '<span class="item-name deferred">4a-4m Coexistence verification</span> - gated' }
+```json
+{ "kind": "task-ref", "taskId": "1b-multidev", "visibleText": "1b.3 Multi-device discoverability hint", "state": "open", "trailingHtml": " - unblocked, re-read" }
+{ "kind": "raw", "html": "<span class=\"item-name deferred\">4a-4m Coexistence verification</span> - gated" }
 ```
 
-- `kind: 'task-ref'` links to an existing task. `state` is the CSS state class
+- `kind: "task-ref"` links to an existing task. `state` is the CSS state class
   for the phase-tree label: `open`, `deferred`, `donefade`, or `closed`.
   `visibleText` is the stable label to render if the task has no `title`.
   `trailingHtml` is trusted rich text after the item label.
-- `kind: 'raw'` is for non-task bullets, composite bullets with multiple item
+- `kind: "raw"` is for non-task bullets, composite bullets with multiple item
   names, inline styles, or anything too irregular for `task-ref`.
 - A phase can carry `headerHtml` for headers with `<span class="ptag">...`.
   `collapsible: true` wraps nodes in `<details class="phase-subdetails">`
@@ -341,8 +343,9 @@ examples:
 
 Worked edit example:
 
-```js
-// Before
+Before:
+
+```json
 {
   "id": "phase-1",
   "title": "Phase 1 - Foundations",
@@ -352,8 +355,11 @@ Worked edit example:
     { "kind": "task-ref", "taskId": "1b-multidev", "visibleText": "1b.3 Multi-device discoverability hint", "state": "open", "trailingHtml": " - unblocked, re-read" }
   ]
 }
+```
 
-// After shipping 1b-multidev and removing an obsolete raw bullet
+After shipping `1b-multidev` and removing an obsolete raw bullet:
+
+```json
 {
   "id": "phase-1",
   "title": "Phase 1 - Foundations",
@@ -367,30 +373,26 @@ Worked edit example:
 ### F. Adding a new workstream
 
 1. Add the new workstream key to each relevant task in
-   `OVERVIEW_DATA.workstream`.
-2. In `tools/overview-viewer/src/components/Toolbar.tsx`, add a chip entry
-   to the `workstream` group inside `FILTER_GROUPS`, and add a matching
-   display label to the `WORKSTREAM_LABELS` map in
-   `tools/overview-viewer/src/components/TaskCommand.tsx`.
+   `workstream`.
+2. In `.ralph-overview/data.json`, add a display label under
+   `ui.labels.workstream[<key>]`. The filter chip and workstream pill are
+   data-driven from the JSON labels.
 3. Run `pnpm overview:build` so the inlined `.ralph-overview/generated/overview.html` artifact
    picks up the renderer change, and verify the filter chip, workstream pill,
    and URL filter still compose.
 
-This is one of the few normal procedures that touches both the data file and
-the React renderer source, because filter labels are renderer UI. Do not
-hand-edit `.ralph-overview/generated/overview.html`; it is a generated build artifact and your
-change would be lost on the next `pnpm overview:build`.
+Do not hand-edit `.ralph-overview/generated/overview.html`; it is a generated
+build artifact and your change would be lost on the next `pnpm overview:build`.
 
 ### G. Adding a visualization feature
 
 1. Decide whether the feature is data-only or renderer/UI. Data-only fields go
-   into `.ralph-overview/data.json`; renderer/UI changes go into
-   `tools/overview-viewer/src/` (TSX components, hooks, utils, and
+   into `.ralph-overview/data.json`; renderer/UI changes go into the
+   `ralph-overview` plugin source (TSX components, hooks, utils, and
    `styles.css`), then rebuild via `pnpm overview:build` to regenerate
    `.ralph-overview/generated/overview.html`. Do not hand-edit `.ralph-overview/generated/overview.html`; it is a
    generated build artifact and your change would be lost on the next
-   `pnpm overview:build` (and would also bypass the test suite under
-   `tools/overview-viewer/src/__tests__/`).
+   `pnpm overview:build` (and would also bypass the plugin renderer test suite).
 2. Preserve `file://` compatibility for the built artifact. The build inlines
    `.ralph-overview/data.json` as JSON bootstrap data.
 3. Keep `.ralph-overview/data.json` as pure JSON. No comments, wrapper
@@ -411,13 +413,12 @@ change would be lost on the next `pnpm overview:build`.
 
 - **String escaping in `.ralph-overview/data.json`.** Decode HTML entities exactly
   once when porting prompt text (`&lt;`, `&gt;`, `&amp;` become `<`, `>`, `&`).
-  Store prompt text as JS string data and let the renderer write it with
-  `textContent`; never re-encode entities in render. Prefer single-quoted or
-  JSON-style double-quoted literals with explicit backslash escapes for the
-  surrounding quote. Avoid template literals for prompt bodies because prompts
-  contain markdown backticks and shell fragments.
+  Store prompt text as JSON string data and let the renderer write it with
+  `textContent`; never re-encode entities in render. Use JSON-style
+  double-quoted literals with explicit backslash escapes for the surrounding
+  quote.
 - **lastTouched dual-update invariant.** Every status/metadata edit must update
-  both `task.lastTouchedAt` and `OVERVIEW_DATA.lastTouched[task.id]` to the
+  both `task.lastTouchedAt` and `lastTouched[task.id]` to the
   same ISO timestamp. Common mistake: changing `task.lastTouchedAt` during a
   shipped close-out but leaving `lastTouched[taskId]` at the old value; the UI
   then sorts and highlights by stale data.
@@ -483,39 +484,30 @@ links depend on them.
 ├── data.json
 ├── config.json
 └── generated/
-    └── overview.html        # generated artifact - see tools/overview-viewer/
+    └── overview.html        # generated artifact - see ralph-overview plugin
 
 plans/
 ├── codexu-roadmap.md
 ├── parallel-assignments.md
 └── realtime-sync-perf.md
 
-tools/overview-viewer/
-├── README.md
-├── overview.html        # Vite entry (NOT the artifact in plans/)
-├── package.json
-├── vite.config.ts
-└── src/
-    ├── App.tsx
-    ├── components/
-    ├── hooks/
-    ├── utils/
-    └── styles.css
+ralph-overview plugin renderer source
+└── tools/overview-viewer/ (in the plugin repo/source, not codexu)
 
 .agents/skills/
 └── roadmap-and-overview/
     └── SKILL.md
 ```
 
-`.ralph-overview/generated/overview.html` is generated from `tools/overview-viewer/` via
-`pnpm overview:build`.
+`.ralph-overview/generated/overview.html` is generated from the installed
+`ralph-overview` plugin renderer via `pnpm overview:build`.
 
 ## When NOT to use this skill
 
 - If you are implementing a product feature, follow the ralph task prompt
   instead. This skill is for maintaining the dashboard and roadmap data.
 - If you are trying to regenerate the whole dashboard from scratch, stop and
-  read `tools/overview-viewer/src/` (App.tsx + components + hooks) and
-  `.ralph-overview/data.json` end-to-end first; `.ralph-overview/generated/overview.html` is a
+  read the `ralph-overview` plugin renderer source and `.ralph-overview/data.json`
+  end-to-end first; `.ralph-overview/generated/overview.html` is a
   generated artifact and is not a useful study target. Keep normal bookkeeping
   patch-based.

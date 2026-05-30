@@ -6,7 +6,7 @@ Task state conventions: see `plans/codexu-roadmap.md` §"Task state model" for t
 
 Roadmap task state lives in `.ralph-overview/data.json`. The status table at the bottom of this file is a derived tracker for humans and should stay in sync with the data file.
 
-Optional artifact fields on command rows are `data-plan-only`, `data-plan-source`, `data-plan-source-ref`, `data-brainstorm-job-id`, `data-plan-job-id`, `data-implement-job-id`, `data-plan-review-iterations`, and `data-merge-commit`. The status table below records plan-only/source/job context when known; `Commit` remains the landing or close-out reference.
+Optional artifact fields on command rows are `data-plan-only`, `data-plan-source`, `data-plan-source-ref`, `data-brainstorm-job-id`, `data-plan-job-id`, `data-implement-job-id`, and `data-plan-review-iterations`. Shipped provenance now lives in `shipManifest` (`shippedAt`, `summary`, `commits[{sha, oneLine, repo?}]`); legacy `data-merge-commit` / `mergeCommit` remains readable for older rows only. The status table below records plan-only/source/job context when known; `Commit` remains the landing or close-out reference.
 
 **Batch 1 (six tasks below) are pairwise safe to run together.** Don't add a "perf WS2" agent yet — it must wait until B (WS3) lands, because both touch `storage.ts` and WS3 changes WS2's scope.
 
@@ -349,8 +349,8 @@ TWO INTERFACE SURFACES — surface design choice to operator before scoping the 
 2. MCP server (richer, agent-callable without slash commands). Stdio MCP server registered via packages/codexu-plugin/.codex-plugin/plugin.json's mcp_servers field. Tools exposed: roadmap.list, roadmap.addTask, roadmap.updateStatus, roadmap.recordRun, roadmap.takeTask. Server lives in packages/codexu-plugin/mcp-roadmap/ (new Node/TS subdir; can reuse @slopus/happy-wire for any shared types).
 
 CORE OPERATIONS (regardless of surface):
-- add-task: takes task metadata (id, phase, status, workstream, sizeBucket, risk, effort, cadence?, ralphCommand string, optional blockedOn list). Writes the task record and metadata maps in .ralph-overview/data.json + a new lettered section in plans/parallel-assignments.md. Validates against the data model documented in .agents/skills/roadmap-and-overview/SKILL.md.
-- update-status: takes (taskId, newPhase, newStatus, optional commit sha + summary if phase becomes shipped/closed). Updates the task phase/status and lastTouched in .ralph-overview/data.json; updates parallel-assignments.md Phase/Status cells; if phase='shipped' appends a run record to runs[].
+- add-task: takes task metadata (id, lifecycle, status, workstream, sizeBucket, risk, effort, cadence?, ralphCommand string, optional blockedOn list). Writes the task record and metadata maps in .ralph-overview/data.json + a new lettered section in plans/parallel-assignments.md. Validates against the data model documented in .agents/skills/roadmap-and-overview/SKILL.md.
+- update-status: takes (taskId, newLifecycle, newStatus, optional shipManifest + run summary if lifecycle becomes merged/archived). Updates the task lifecycle/status and lastTouched in .ralph-overview/data.json; updates parallel-assignments.md Phase/Status cells; if lifecycle='merged' appends a run record to runs[]. `shipManifest` must include shippedAt, summary, and commits[{sha, oneLine, repo?}].
 - record-run: takes (taskId, ranAt ISO, outcome, commits[], summary). Appends to runs[]. If task is periodic, recomputes periodic[taskId].lastRunId + nextDueAt.
 - take-task: spawns a top-level agent session running the task's ralph command, then calls update-status to flip the task to in-progress. Spawn integration: call happy-cli's existing spawn-happy-session RPC. The MCP server (which runs as a stdio child of codex) needs to reach the daemon — via daemon's HTTP control surface at 127.0.0.1:<httpPort> (read from ~/.happy/daemon.state.json) OR via the daemon's existing socket. Surface this integration choice to operator.
 

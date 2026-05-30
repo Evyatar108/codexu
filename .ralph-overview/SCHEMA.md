@@ -1,10 +1,10 @@
 # OVERVIEW_DATA schema
 
-Renders into `.ralph-overview/generated/overview.html` as of ralph-overview plugin v2.5.0.
+Renders into `.ralph-overview/generated/overview.html` as of ralph-overview plugin v2.6.0.
 
 - `generatedAt`: ISO 8601 timestamp for the dashboard data snapshot.
 - `generatedFromCommit`: short git SHA that the dashboard was generated against.
-- `tasks`: task-row data owned by downstream task-port stories; empty in this foundation story.
+- `tasks`: task-row data owned by downstream task-port stories. Each task must have `id`; common fields include `scope`, `lifecycle`, `status`, `lastTouchedAt`, `kanbanCards`, and `command`.
 - `phaseTree`: phase-tree data owned by downstream phase-tree stories; empty in this foundation story.
 - `lastTouched`: map of taskId to ISO timestamp for the last metadata or status edit.
 - `periodic`: map of periodic taskId to intervalDays, lastRunId, and nextDueAt scheduling metadata.
@@ -15,6 +15,25 @@ Renders into `.ralph-overview/generated/overview.html` as of ralph-overview plug
 - `workstream`: map of taskId to dashboard workstream key.
 - `sizeBucket`: map of taskId to quick, small, medium, or large estimate bucket.
 - `spawnedFrom`: map of childTaskId to parentTaskId for research/audit follow-up lineage.
+
+## Ship manifest convention
+
+Merged tasks should use structured provenance:
+
+```json
+"shipManifest": {
+  "shippedAt": "2026-05-30T16:30:00Z",
+  "summary": "Human-written summary of what shipped and why.",
+  "commits": [
+    { "sha": "abc1234", "oneLine": "feat: add structured ship manifest", "repo": "codexu" }
+  ]
+}
+```
+
+- `shippedAt`: ISO 8601 timestamp for when the lead verified the work on `origin/main`.
+- `summary`: human-written 1-3 paragraph ship note for future bookkeepers.
+- `commits`: one or more shipped commits. `repo` is optional and defaults semantically to this codexu repo when omitted; use it for sibling-repo or dual-repo ships.
+- `mergeCommit` is deprecated and retained only for historical rows. When both `shipManifest` and `mergeCommit` exist, `shipManifest` is authoritative for rendering and search.
 
 ## Codexu UI override convention
 

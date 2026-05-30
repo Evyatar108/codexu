@@ -2003,6 +2003,22 @@
         "prompts": {
           "plan": "/plan-with-ralph \"Wire the CLI writer side for the parentSessionId + spawnedChildren[] metadata fields shipped by session-parent-link (commit 11c3eafb, read path only). Today the schema accepts those fields and the helpers (getSessionParent, getSessionChildren) work end-to-end — but no code populates them on the wire, so the storage round-trips empty/null defaults forever. Per the session-parent-link plan's Open Questions, the writer side was explicitly deferred to this task. Touch points (per the plan + agent-view-research.md §6): (1) packages/happy-app/sources/sync/ops.ts createSessionMetadata — when the app spawns a new session that has a logical parent (e.g., via spawn-from-app), set parentSessionId on creation; (2) packages/happy-cli/src/daemon/forkSession.ts — when a session is forked via HAPPY_FORKED_FROM_SESSION_ID, set parentSessionId on the child + add the child's sid to the parent's spawnedChildren via apiSession.updateMetadata; (3) packages/happy-cli/src/codex/runCodex.ts — when codex spawns a sub-agent (via multi_agents_v2/spawn.rs) the new thread that gets a happy session should carry the parent's compositeSessionId; (4) packages/happy-cli/src/api/apiSession.ts updateMetadata — ensure the path can write parentSessionId/spawnedChildren without overwriting other fields. Cycle prevention: when setting parentSessionId, walk up the parent chain (max-depth hop counter, e.g., 16) to reject cycles; document the limit. Read packages/happy-app/AGENTS.md sync invariants (composite-id rules via machineSessionId.ts must be respected). Read the session-parent-link run record in .ralph-overview/data.json — OVERVIEW_DATA.runs[] filtered to taskId='session-parent-link' for the existing read-path landing's scope. Workflow: codexu worktree at .worktrees/session-parent-link-writer/ on a topic branch ralph/session-parent-link-writer off origin/main. Acceptance: integration test in happy-cli — fork a session via HAPPY_FORKED_FROM_SESSION_ID, assert new session has parentSessionId set + parent's metadata.spawnedChildren includes the new sid; cycle test — try to set parent on a session that's already a transitive ancestor, assert rejection. Cross-package typecheck stays green. Single commit on topic branch; push; surface for merge.\""
         }
+      },
+      "shipManifest": {
+        "shippedAt": "2026-05-27T07:47:00Z",
+        "summary": "Wired fork-session parent-link metadata so child sessions record their logical parent and parent sessions can track spawned children. Added daemon documentation for the parent-link postconditions that future fork/spawn work relies on.",
+        "commits": [
+          {
+            "sha": "cc32aa13",
+            "oneLine": "feat: [US-001..US-004] - Wire forkSession parent-link metadata",
+            "repo": "codexu"
+          },
+          {
+            "sha": "86562252",
+            "oneLine": "docs(happy-cli/daemon): surface fork-into-worktree parent-link postconditions",
+            "repo": "codexu"
+          }
+        ]
       }
     },
     {
@@ -2045,6 +2061,17 @@
         "prompts": {
           "plan": "/plan-with-ralph \"Investigation spike — surfaced by agent-tree-rpc's unmet US-006 AC4 (commit 11bc1ff4; see .ralph-overview/data.json OVERVIEW_DATA.runs[] filtered to taskId='agent-tree-rpc'). The agent-tree-rpc agent tried to test nested A→B spawn (codex top-level spawns child, child spawns grandchild) and discovered the pinned codex submodule does NOT expose spawn_agent / wait_agent in child agents' tool surface. Investigate: (1) Is this an upstream codex design choice or an artifact of the pinned version? Look in codex/external/repos/codex-patched/codex-rs/multi_agents_v2/ for the tool-registration site (spawn.rs + the parent/child role distinction). (2) If upstream HEAD exposes these tools to children, recommend a submodule bump (and surface scope to operator). If not, design an overlay crate (codex/codex-rs-overlay/codex-child-spawn-tools/?) that enables them — sketch the registration seam + permission-profile implications. (3) Decision context: does codexu's roadmap actually need child→grandchild spawning, or is top-level-only spawning sufficient? Cross-reference plans/agent-view-research.md §6 (the agent-view-research follow-ups assume parent→child works) and plans/codexu-roadmap.md §Phase 2c (plugin-scope-agents) — if plugin-scope-agents adopts the agent-spawner pattern (one designated top-level agent spawns top-level sessions for the operator), child-spawn-tools may be unnecessary; if agent-comms Scope C (parent-spawned-child) needs in-session spawning, child-spawn-tools is required. Output: new doc plans/codex-child-spawn-tools.md with (a) factual findings (what upstream codex does, what pinned codex does, where the divergence is), (b) decision matrix for our roadmap (top-level-only vs child-can-spawn — affects plugin-scope-agents AND agent-comms scope), (c) recommended path (bump, overlay, or accept). Surface to operator BEFORE plugin-scope-agents fires — plugin-scope-agents is currently parallel-safe but its scoping model depends on this. NO code changes — research only. The ralph job for this spike should NOT require codex-submodule edits; reading is fine. ~2-4h.\""
         }
+      },
+      "shipManifest": {
+        "shippedAt": "2026-05-26T04:25:00Z",
+        "summary": "Documented the child-agent spawn-tool research spike and decision matrix for whether codex child agents need their own spawn_agent/wait_agent surface. The shipped artifact informs plugin-scope-agents and agent-comms planning without changing runtime code.",
+        "commits": [
+          {
+            "sha": "23d43f93",
+            "oneLine": "docs(plans): codex-child-spawn-tools research spike",
+            "repo": "codexu"
+          }
+        ]
       }
     },
     {

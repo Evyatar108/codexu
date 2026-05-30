@@ -13,7 +13,7 @@
 
 Full fork context, branches, build workflow, and "things that bit us" catalogue are in **`docs/fork-notes.md`** — read that before touching any fork-local setup.
 
-Agent-readable Ralph pipeline state is generated at `.ralph-overview/generated/snapshot.json`; recent transitions append to `.ralph-overview/generated/activity.jsonl`. Artifacts are emitted by the **`ralph-overview` plugin** (installed via the `gim-home/ai-developer-toolkit` marketplace as of Plan 12). The plugin's watcher runs inside the Vite dev server during `pnpm overview` (delegating through `bin/ralph-overview.mjs dev`), or as a standalone process via `pnpm sync-ralph-state:watch` (delegating to `ralph-overview watch`). Both paths share the same `.ralph-overview/generated/.lock/sync.lock` and emit the same set of files. See `bin/ralph-overview.mjs` for the resolver wrapper that locates the installed plugin.
+Agent-readable Ralph pipeline state is emitted as `.ralph-overview/generated/ralph-state.{json,js}`; `.ralph-overview/generated/snapshot.json` is the merged aggregate snapshot for agents, and recent transitions append to `.ralph-overview/generated/activity.jsonl`. Artifacts are emitted by the **`ralph-overview` plugin** (installed via the `gim-home/ai-developer-toolkit` marketplace as of Plan 12). The plugin's watcher runs inside the Vite dev server during `pnpm overview` (delegating through `bin/ralph-overview.mjs dev`), or as a standalone process via `pnpm sync-ralph-state:watch` (delegating to `ralph-overview watch`). Both paths share the same `.ralph-overview/generated/.lock/sync.lock` and emit the same set of files. See `bin/ralph-overview.mjs` for the resolver wrapper that locates the installed plugin.
 
 **Plugin resolution.** The resolver wrapper (`bin/ralph-overview.mjs` — **tracked in git as of the codexu-bin-ralph-overview-wrapper-retirement task**; previously gitignored / per-machine) checks (in order): `$RALPH_OVERVIEW_PLUGIN_ROOT` env, `$CLAUDE_PLUGIN_ROOT/ralph-overview/`, `$CLAUDE_PLUGIN_ROOT/cache/ai-developer-toolkit/ralph-overview/<latest>/`, `~/.claude/plugins/cache/ai-developer-toolkit/ralph-overview/<latest>/`, **`~/.copilot/installed-plugins/ai-developer-toolkit/ralph-overview/`** (Copilot CLI install layout — single live copy, no per-version subdir), then the local-dev fallback `D:/ai-developer-toolkit/plugins/ralph-overview/`. Because the wrapper is now tracked, a fresh clone of codexu under EITHER Claude Code OR Copilot CLI gets a working `pnpm sync-ralph-state` / `pnpm overview` out of the box — no per-machine wrapper-copy or shell-rc setup. For local development against an unmerged plugin branch, set `RALPH_OVERVIEW_PLUGIN_ROOT` to point at the toolkit checkout. **Done:** the codexu install now uses the marketplace plugin registration (`enabledPlugins["ralph-overview@ai-developer-toolkit"]` in `.claude/settings.json` for Claude Code and the equivalent block in `~/.copilot/settings.json` for Copilot CLI); the old local-path `.mcp.json` entry and `enabledMcpjsonServers["ralph-overview"]` have been removed.
 
@@ -111,7 +111,7 @@ current.
 | Spawn a Ralph member per task | `node <plugin>/tools/crews.js spawn-member <name> --crew ralph-pipeline --cwd D:/harness-efforts/codexu --state-cwd D:/harness-efforts/codexu --as overview-bookkeeper -- <prompt>` |
 | Watch the member mailbox | armed listener; on `messages` envelope, `/crews:review-mail` |
 | Relay operator decisions when members surface `kind=question` | `/crews:send-to-member` |
-| **Update `.ralph-overview/data.json` when a task ships** | Edit `lifecycle` → `"merged"` (or `"archived"` for closed/superseded work); add `mergeCommit`; refresh `lastTouchedAt` |
+| **Update `.ralph-overview/data.json` when a task ships** | Edit `lifecycle` → `"merged"` (or `"archived"` for closed/superseded work); add `shipManifest` with shippedAt, summary, and commit rows; refresh `lastTouchedAt` |
 | Commit + push the bookkeeping update | `chore(overview): update data for shipped tasks` |
 | Stop the member cleanly | `/crews:stop-member <name>` |
 
@@ -157,12 +157,14 @@ Two files describe task state; they coexist and must not be conflated.
 ### `.ralph-overview/data.json` — hand-curated, lead-owned
 
 Stable task definitions: `id`, `scope`, `lifecycle`, `status`,
-`lastTouchedAt`, `mergeCommit`, `kanbanCards`, and `command{name,
+`lastTouchedAt`, `shipManifest`, legacy `mergeCommit`, `kanbanCards`, and `command{name,
 descriptionHtml, warnings, prompts}`. This is what the operator and lead use
 to plan: it carries the *intent* (`prompts.brainstorm`, `prompts.plan`, and
 `prompts.impl` seeds, kanban cards, dependency notes in warnings). The lead
-**must** flip `lifecycle` to `"merged"` and add `mergeCommit` when a task
-lands on `origin/main`; closed-without-merge work becomes `"archived"`. The
+**must** flip `lifecycle` to `"merged"` and add `shipManifest` when a task
+lands on `origin/main`; closed-without-merge work becomes `"archived"`. `mergeCommit`
+is a deprecated read alias for old rows only; when both fields exist,
+`shipManifest` is authoritative. The
 full rule is codified below under "Bookkeeper operating invariants."
 
 The three phase-like axes are deliberately separate:
@@ -175,13 +177,14 @@ The three phase-like axes are deliberately separate:
 
 ### `.ralph-overview/generated/ralph-state.{js,json}` — watcher-generated
 
-Auto-emitted by `D:/ai-developer-toolkit/plugins/ralph-overview/scripts/sync-ralph-state.mjs --watch`
-based on `.ralph/jobs/<slug>/job-state.json`. Carries the dynamic
+Auto-emitted by `pnpm sync-ralph-state:watch` (or
+`node bin/ralph-overview.mjs watch`) based on `.ralph/jobs/<slug>/job-state.json`. Carries the dynamic
 state: `stage`, `terminalReason`, `storyCompletion`, `crewSessions`,
 `branchName`, etc. **Do not hand-edit** — the watcher overwrites it.
 If it's stale, the watcher has crashed; see `.claude/skills/overview-reset`.
 
-The React viewer (`tools/overview-viewer/`) renders both sidecars merged.
+The React viewer is owned by the installed/local `ralph-overview` plugin and
+renders both sidecars merged into `.ralph-overview/generated/overview.html`.
 The MCP server (`mcp__ralph-overview__*`) reads the watcher-generated
 snapshot. Agents querying the canonical task list should read
 `.ralph-overview/generated/snapshot.json` (the merged form).
@@ -227,7 +230,7 @@ snapshot. Agents querying the canonical task list should read
    on the right branch.
 
 5. **Two-file split is intentional.** Do NOT extend `.ralph-overview/data.json` with
-   Ralph state, and do NOT hand-edit `overview-ralph-state.js`. The original
+   Ralph state, and do NOT hand-edit `.ralph-overview/generated/ralph-state.js`. The original
    plan (`C:/Users/evmitran/.claude/plans/glistening-wondering-llama.md` Part 1
    R4) chose the sidecar split specifically to avoid race conditions between
    hand-editing and watcher writes.
@@ -290,7 +293,7 @@ lead: review-mail → verify commit on origin/main
 lead: /crews:stop-member <name> (do NOT chain into the next phase)
    ↓
 lead: if this was the FINAL phase (impl ship), EDIT .ralph-overview/data.json
-     (lifecycle → "merged", mergeCommit, lastTouchedAt)
+     (lifecycle → "merged", shipManifest, lastTouchedAt)
    ↓
 lead: commit "chore(overview): update data for shipped tasks"
    ↓
@@ -540,13 +543,16 @@ this doc.
 - **Update `.ralph-overview/data.json` the same turn a task ships.** When a
   ralph member terminates clean (`terminal:complete`) and the work is on
   `origin/main`, flip `lifecycle: "tracked"` → `"merged"` (or `"archived"`
-  for closed/superseded work), add `mergeCommit: "<sha>"` (comma-separated
-  for dual-repo work — e.g., `"e9fa64a0,d279d49d"`), and refresh
+  for closed/superseded work), add `shipManifest` with `shippedAt`, a
+  human-written 1-3 paragraph `summary`, and `commits[]` rows shaped as
+  `{ sha, oneLine, repo? }`, and refresh
   `lastTouchedAt`. Bundle multiple ships into one
   `chore(overview): update data for shipped tasks` commit per
   batch. The watcher updates the sidecar automatically, but
   .ralph-overview/data.json is hand-curated and goes stale otherwise — future
   agents querying it directly (not through the snapshot) see stale state.
+  Keep historical `mergeCommit` values for back-compat, but do not add it to
+  new ship rows unless you are preserving an already-authored legacy alias.
 
 - **Don't flip `lifecycle` until the work is actually on `origin/main`.**
   A member reporting `kind=done` but only pushed to a topic branch (or with

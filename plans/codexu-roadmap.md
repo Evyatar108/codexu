@@ -759,7 +759,7 @@ on significant questions the lead can't decide autonomously.
 | Spawn a Ralph member per task | `node <plugin>/tools/crews.js spawn-member <name> --crew ralph-pipeline --cwd D:/harness-efforts/codexu --state-cwd D:/harness-efforts/codexu --as overview-bookkeeper -- <prompt>` |
 | Watch the member mailbox | armed listener; on `messages` envelope, `/crews:review-mail` |
 | Relay operator decisions on `kind=question` | `/crews:send-to-member` |
-| **Update `.ralph-overview/data.json` when a task ships** | Edit `lifecycle` → `"merged"` (or `"archived"` for closed/superseded work); add `mergeCommit`; refresh `lastTouchedAt` |
+| **Update `.ralph-overview/data.json` when a task ships** | Edit `lifecycle` → `"merged"` (or `"archived"` for closed/superseded work); add `shipManifest`; refresh `lastTouchedAt` |
 | Commit + push the bookkeeping update | `chore(overview): update data for shipped tasks` |
 | Stop the member cleanly | `/crews:stop-member <name>` |
 
@@ -769,14 +769,16 @@ Two files describe task state; they coexist and must not be conflated.
 
 **`.ralph-overview/data.json` — hand-curated, lead-owned.** Stable task
 definitions: `id`, `scope`, `lifecycle`, `status`, `lastTouchedAt`,
-`mergeCommit`, `kanbanCards`, and `command{name, descriptionHtml,
+`shipManifest`, legacy `mergeCommit`, `kanbanCards`, and `command{name, descriptionHtml,
 warnings, prompts}`. This is what the operator and lead use to plan: it
 carries the *intent* (`prompts.brainstorm`, `prompts.plan`, and
 `prompts.impl` seeds, kanban cards, warnings about file-conflict surfaces).
-The lead **must** flip `lifecycle` to `"merged"` and add `mergeCommit`
+The lead **must** flip `lifecycle` to `"merged"` and add `shipManifest`
 when a task lands on `origin/main`; closed-without-merge work becomes
-`"archived"`. Two-SHA tasks (codex topic + codexu pointer-bump) use
-comma-separated `mergeCommit` like `"e9fa64a0,d279d49d"`.
+`"archived"`. `shipManifest` records `shippedAt`, a human summary, and
+`commits[]` rows shaped as `{ sha, oneLine, repo? }`; dual-repo ships use
+multiple commit rows with the repo label set. Legacy `mergeCommit` is retained
+only for older rows, and `shipManifest` wins when both are present.
 
 The three phase-like axes are deliberately separate:
 
@@ -827,7 +829,7 @@ Generated files the watcher owns (don't hand-edit):
    root before assuming a member's terminal write landed on the right branch.
 
 4. **Don't extend `.ralph-overview/data.json` with Ralph state** and **don't hand-edit
-   `overview-ralph-state.js`**. The sidecar split (R4 in the original plan
+   `.ralph-overview/generated/ralph-state.js`**. The sidecar split (R4 in the original plan
    doc) was chosen specifically to avoid race conditions between hand-editing
    and watcher writes.
 
@@ -868,7 +870,7 @@ operator says "continue"
   → lead: review-mail → verify commit on origin/main
   → lead: /crews:stop-member <name> (do NOT chain into the next phase)
   → lead: if this was the FINAL phase (impl ship), EDIT .ralph-overview/data.json
-       (lifecycle → "merged", mergeCommit, lastTouchedAt) + commit + push
+       (lifecycle → "merged", shipManifest, lastTouchedAt) + commit + push
   → lead: loop back to overview_parallel_ready_tasks; if same task needs
        a follow-up phase, spawn a NEW fresh member next round
 ```

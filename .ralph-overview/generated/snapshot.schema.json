@@ -171,6 +171,49 @@
         }
       }
     },
+    "ShipManifestCommit": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "sha",
+        "oneLine"
+      ],
+      "properties": {
+        "sha": {
+          "type": "string"
+        },
+        "oneLine": {
+          "type": "string"
+        },
+        "repo": {
+          "type": "string"
+        }
+      }
+    },
+    "ShipManifest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "shippedAt",
+        "summary",
+        "commits"
+      ],
+      "properties": {
+        "shippedAt": {
+          "type": "string"
+        },
+        "summary": {
+          "type": "string"
+        },
+        "commits": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/ShipManifestCommit"
+          }
+        }
+      }
+    },
     "OverviewTask": {
       "type": "object",
       "additionalProperties": true,
@@ -198,6 +241,9 @@
         },
         "planOnly": {
           "type": "boolean"
+        },
+        "shipManifest": {
+          "$ref": "#/$defs/ShipManifest"
         },
         "mergeCommit": {
           "type": "string"
