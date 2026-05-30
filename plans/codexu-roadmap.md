@@ -91,6 +91,44 @@ references in docs/skills** intentionally **left as-is** — those carry
 runtime + wire-compat with existing user installs and need per-symbol
 review before renaming.
 
+---
+
+### Bookkeeper session 2026-05-30 (Copilot CLI overview-bookkeeper lead)
+
+**Ten ships landed this session**, all on `Evyatar108/codexu@main` + `gim-home/ai-developer-toolkit@main` as appropriate. Listed in chronological order with merge SHAs:
+
+| # | Task | Repo / Branch | Merge SHA | Notes |
+|---|------|---|---|---|
+| 1 | `crews-stop-tests-jsonparse-empty-2-tests` | codexu | archive `9d0e7ac4` | Empty-diff archive (tests pass on v2.0.0+) |
+| 2 | `ralph-plan-staging-unique-path-per-member` plan | codexu | `131dbd14` | 2-story plan |
+| 3 | `overview-data-ship-manifest` plan | codexu | `c1e3dd41` | 4-story plan (cherry-picked) |
+| 4 | `ralph-plan-staging-unique-path-per-member` impl | toolkit/ralph | `6a9da6a4` | v5.46.3 — member-aware staging slug helper + fix hash-suffix collision |
+| 5 | `ralph-rubric-fixture-drift-3-tests` | ralph-orchestration | archive (empty-diff) | All 3 tests pass on main with git-bash on PATH; original observation was from broken WSL bash |
+| 6 | `crews-protocol-envelope-canonical-fields` | toolkit/crews | `6be4e3ce` | v2.3.0 — canonical-address schema, silent-drop guard, 7 stories |
+| 7 | **`crews-ack-loop-fix`** | toolkit/crews | `c514b97b` | v2.3.1 — **CRITICAL silent-censor bug fix**: stop.js unresolved-consumed gate auto-derives replyTo symmetrically with outbox-write path. Spawned mid-session after research diagnosed root cause; without it members can lose entire kind=question turns to a stale consumed-ack |
+| 8 | `overview-data-ship-manifest` impl | dual-repo: codexu `746ef280` + toolkit `0d725e4d` | shipManifest schema + dashboard tooltip rendering |
+| 9 | `codex-upstream-rebase` | tri-repo: codex-patched `03fe64287` + wrapper `f4551c95` + codexu `5d26cc93` | **rust-v0.135.0 absorbed** — 588 upstream commits / 26 conflicts resolved. Phase 1 = cleanup latent SHA-unreachability + 13 wrapper-side feature commits → main; Phase 2a = feature→sandbox-patches merge; Phase 2b = upstream squash with hotspot resolution per CLAUDE.md (remote_control, ExecParams, disable_paste_burst, history_cell.rs kept HEAD-side, Bearer set_sensitive replant). Local `cargo check --workspace` blocked by 1.95-toolchain disk-space issue on C:; pushed for CI verification per CLAUDE.md skill guidance |
+| 10 | `ralph-orchestration-followup-task-gatherer` | toolkit/ralph | `35ef177c` | v5.47.0 — Phase 5.5 retrospective subagent (sibling to dsat-analyst, skill-suggester); reads wont_fix + open-question + story-doctor-skip artifacts, emits `followup-suggestions.json` for bookkeeper |
+| 11 | `crews-protocol-buildenvelope-adoption` | toolkit/crews | `bb7f1aff` | v2.3.2 — `appendMailbox` self-validating chokepoint + enforcement test (drives 7 producer paths) |
+
+**Operator preferences cemented this session:**
+- 🟦 **Install toolchains to D: drive** — C: has ~15 GB free; D: has space. Apply via `RUSTUP_HOME=D:\.rustup`, `CARGO_HOME=D:\.cargo`, `xwin --output D:\.xwin`. Stored as user memory.
+- 🦀 **Codex changes: minimize upstream conflict surface** — prefer overlay crates under `codex-rs-overlay/` over direct edits to `codex-rs/` files. Reaffirmed twice. See §"Codex changes — minimize upstream conflict surface" below.
+- ⏸ **happy-upstream-sync postponed** — operator electing to diverge from `slopus/happy` rather than absorb; plan `8bcc527e` landed but no impl batches will be spawned. 160 commits / 3-batch decomposition is documented if/when sync resumes.
+
+**Plugin versions active (post-session):** crews v2.3.2 · ralph-orchestration v5.47.0 · ralph-overview v2.6.0. Run `copilot plugin update --all` after killing any `launch.cjs` processes holding ralph-overview's plugin dir (EBUSY).
+
+**Five new follow-up tracked tasks added** (all surfaced by codex rebase): `codex-rebase-rusty-v8-archive-fetch`, `codex-rebase-rustup-1-95-install-d-drive`, `codex-rebase-history-cell-forward-port`, `codex-rebase-phase-5a-5b-ci-closeout`, `happy-skill-md-roadmap-path-correction`. See `.ralph-overview/data.json`.
+
+**In-flight at session-state checkpoint (handed off to fresh bookkeeper):**
+- `impl-codex-hooks-parity` — codexu TS, Gap 4 from codex-parity-audit (autocompact/permission-prompt JSON-RPC fan-out)
+- `impl-ralph-overview-watcher-copilot-cli-env-verify` — toolkit/ralph-overview small smoke gate (AC-1a/AC-1b deferred from v2.4.1)
+
+**Critical session lesson — the ack-loop bug:** members spawned pre-v2.3.1 can lose entire `kind=question/done/blocked` turns when they consume a mailbox message and emit a new kind-bearing report with `reply-to` on the same turn. The Stop hook gates on consumed-message resolution BEFORE the outbox-write path auto-derives the replyTo, so the gate fires, the turn rolls back, and content is silently censored. Workaround for any in-flight pre-v2.3.1 member: put substantive content in PROSE BODY with `kind=progress` footer (progress survives the gate). Members spawned post-v2.3.1 don't need the workaround.
+
+---
+
+
 ### What's where
 
 | Component | Location | Repo |

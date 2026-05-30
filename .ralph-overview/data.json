@@ -1102,9 +1102,10 @@
     {
       "id": "crews-protocol-buildenvelope-adoption",
       "scope": "crews",
-      "lifecycle": "tracked",
+      "lifecycle": "merged",
       "status": "ok",
-      "lastTouchedAt": "2026-05-30T21:25:00Z",
+      "mergeCommit": "bb7f1aff",
+      "lastTouchedAt": "2026-05-30T21:44:00Z",
       "kanbanCards": [],
       "command": {
         "name": "crews-protocol-buildenvelope-adoption",
@@ -2197,6 +2198,86 @@
         ],
         "prompts": {
           "plan": "/plan-with-ralph \"Design + implement Claude-Code-parity 'channels' on top of mcp-server-notifications: capability key experimental['codex/channel'] advertised by participating MCP servers, notification methods notifications/codex/channel and notifications/codex/channel/permission mirroring Claude Code's wire shape at D:/harness-efforts/claude-code/worktrees/main/src/services/mcp/channelNotification.ts:37-316. Agent-loop policy: when a channel message arrives between turns, enqueue as a prompt with priority:'next' semantics; when one arrives during an LLM call, buffer until the call completes (matches Claude Code's non-preemption behaviour). Permission half is out of scope for first cut — codex doesn't have a real-time permission dialog with race resolution to relay to. Use codex/ namespace, not claude/ (cross-vendor experimental keys aren't coordinated). READ plans/channels-research.md §6.2 FIRST — it has the full design. READ-ONLY on codex/external/repos/codex-patched/ per minimize-conflict-surface tenet. Effort estimate per plans/channels-research.md §6.5: ~1.5-2 d on top of mcp-server-notifications. SURFACE TO OPERATOR FIRST whether channels (as opposed to plain notifications) are wanted for the intended use cases — channels are specifically the 'external-user pipes messages into prompt queue' shape and may be narrower than the operator needs.\""
+        }
+      }
+    },
+    {
+      "id": "codex-rebase-rusty-v8-archive-fetch",
+      "scope": "codex",
+      "lifecycle": "tracked",
+      "status": "ok",
+      "lastTouchedAt": "2026-05-30T21:45:00Z",
+      "kanbanCards": [],
+      "command": {
+        "name": "codex-rebase-rusty-v8-archive-fetch",
+        "descriptionHtml": "Surfaced by <code>impl-codex-upstream-rebase-v2</code> (2026-05-30). Upstream <code>rust-v0.135.0</code> bumped <code>v8 = \"=147.4.0\"</code> from <code>146.4.0</code>. Local cache at <code>~/.cargo/.rusty_v8/</code> has only <code>v146.4.0.lib</code>; <code>v147.4.0</code> missing. Blocks <code>cargo build --release -p codex-cli</code> (publish path). Per operator: fetch into <strong>D: drive cache</strong>, not C:.",
+        "warnings": [],
+        "prompts": {
+          "impl": "Fetch rusty_v8_release_x86_64-pc-windows-msvc.lib.gz from https://github.com/denoland/rusty_v8/releases/download/v147.4.0/rusty_v8_release_x86_64-pc-windows-msvc.lib.gz — decompress to ~/.cargo/.rusty_v8/rusty_v8_release_x86_64-pc-windows-msvc_v147.4.0.lib. If CARGO_HOME is on C: but space-constrained, redirect to D:/.cargo via env. Single 1-command task; can be done by operator directly or scripted into codexu fork-setup scripts."
+        }
+      }
+    },
+    {
+      "id": "codex-rebase-rustup-1-95-install-d-drive",
+      "scope": "codex",
+      "lifecycle": "tracked",
+      "status": "ok",
+      "lastTouchedAt": "2026-05-30T21:45:00Z",
+      "kanbanCards": [],
+      "command": {
+        "name": "codex-rebase-rustup-1-95-install-d-drive",
+        "descriptionHtml": "Surfaced by <code>impl-codex-upstream-rebase-v2</code> (2026-05-30). <code>codex-rs/rust-toolchain.toml</code> now pins <code>channel = \"1.95.0\"</code> (post-v0.135 rebase). <code>rustup toolchain install 1.95.0-x86_64-pc-windows-msvc</code> failed with <em>Insufficient system resources (os error 1450)</em> mid-rename — C: drive had 14.8 GB free. Blocks <code>cargo check --workspace</code> + <code>/publish-sandbox-patch</code> local verify. Falling back to 1.93 fails because <code>sqlx 0.9.0</code> requires rustc ≥1.94.",
+        "warnings": [],
+        "prompts": {
+          "impl": "Set RUSTUP_HOME=D:\\.rustup + CARGO_HOME=D:\\.cargo (preserving any existing local toolchains via copy if needed). Then: rustup toolchain install 1.95.0-x86_64-pc-windows-msvc. Verify with rustup show. If CARGO_HOME relocation is too invasive, just symlink ~/.rustup to a D: path. Document the env var pinning in scripts/fork-setup/."
+        }
+      }
+    },
+    {
+      "id": "codex-rebase-history-cell-forward-port",
+      "scope": "codex",
+      "lifecycle": "tracked",
+      "status": "ok",
+      "lastTouchedAt": "2026-05-30T21:45:00Z",
+      "kanbanCards": [],
+      "command": {
+        "name": "codex-rebase-history-cell-forward-port",
+        "descriptionHtml": "Surfaced by <code>impl-codex-upstream-rebase-v2</code> (2026-05-30) Phase 2b. We kept HEAD's <code>tui/src/history_cell.rs</code> file against upstream's deletion in <code>rust-v0.135.0</code> (still referenced by <code>tui/src/lib.rs:135 mod history_cell;</code>). Upstream moved this content to PR #21278 (<em>Move message history out of core</em>). Next rebase will hit the same deletion conflict unless we forward-port now. Patch is 'no-op when Style::default() carries no bg' per CLAUDE.md, so low-risk migration — but cleanest to migrate when upstream's new layout stabilizes. Per minimize-conflict-surface tenet: prefer overlay crate over sandbox-patch if upstream's new home allows it.",
+        "warnings": [],
+        "prompts": {
+          "plan": "/plan-with-ralph \"Forward-port the SANDBOX PATCH content of codex-rs/tui/src/history_cell.rs to upstream PR #21278's new home (Move message history out of core). Read codex/CLAUDE.md history_cell entry first. Survey upstream PR #21278 to find where message-history rendering moved. Choose overlay-crate path (preferred per minimize-conflict-surface) or sandbox-patch on the new file. Test in codex/external/repos/codex-patched/codex-rs/ — cargo check + tui smoke. Lead-FF-then-cherry-pick the wrapper gitlink bump to codex/main.\""
+        }
+      }
+    },
+    {
+      "id": "codex-rebase-phase-5a-5b-ci-closeout",
+      "scope": "codex",
+      "lifecycle": "tracked",
+      "status": "ok",
+      "lastTouchedAt": "2026-05-30T21:45:00Z",
+      "kanbanCards": [],
+      "command": {
+        "name": "codex-rebase-phase-5a-5b-ci-closeout",
+        "descriptionHtml": "Surfaced by <code>impl-codex-upstream-rebase-v2</code> (2026-05-30). The Phase 2 rebase (codexu <code>5d26cc93</code> / wrapper <code>f4551c95</code> / codex-patched <code>03fe64287</code>) shipped without local Phase 5a/5b convergence because <code>cargo check --workspace</code> couldn't run on this box (1.95 toolchain blocker). CI (<code>.github/workflows/invariant-check.yml</code> on ubuntu-latest + windows-latest) is the canonical workspace-test gate. <strong>Action:</strong> watch first post-push CI run on <code>sandbox-patches</code> and <code>codex/main</code>; if type-drift fixes needed, force-push fix on top.",
+        "warnings": [],
+        "prompts": {
+          "plan": "/plan-with-ralph \"Monitor CI on the post-rebase commits (codex-patched 03fe64287 on sandbox-patches, codex wrapper f4551c95 on gim-home/codex@main). If CI is green, mark this task merged with no follow-up. If CI surfaces type-drift fixes (compiler errors in HEAD-side code triggered by upstream's API changes in v0.135.0), apply the fix in a force-push to sandbox-patches per the skill convention (sandbox-patches lives through force-with-lease resets). Re-bump the wrapper gitlink + codexu submodule pointer on a small follow-up commit.\""
+        }
+      }
+    },
+    {
+      "id": "happy-skill-md-roadmap-path-correction",
+      "scope": "bookkeeping",
+      "lifecycle": "tracked",
+      "status": "ok",
+      "lastTouchedAt": "2026-05-30T21:45:00Z",
+      "kanbanCards": [],
+      "command": {
+        "name": "happy-skill-md-roadmap-path-correction",
+        "descriptionHtml": "Surfaced by <code>plan-happy-upstream-sync</code> (2026-05-30). The <code>.agents/skills/happy-upstream-sync/SKILL.md</code> references <code>plans/codexu-roadmap.md</code> when bumping the upstream-merge bullet, but the happy fork's correct path is <code>docs/fork-roadmap.md</code>. Small doc-only fix; surfaced post-postponement of the actual happy-sync work (operator chose to diverge from upstream, so sync is paused — but the SKILL.md correction stands regardless if/when sync resumes).",
+        "warnings": [],
+        "prompts": {
+          "impl": "Edit .agents/skills/happy-upstream-sync/SKILL.md in the happy repo (D:/harness-efforts/happy) — replace all references to plans/codexu-roadmap.md with docs/fork-roadmap.md (the happy fork's actual file). Single commit on a topic branch off main; push to happy-fork remote; PR or direct push per fork conventions. NOT urgent since happy-sync is postponed."
         }
       }
     }
