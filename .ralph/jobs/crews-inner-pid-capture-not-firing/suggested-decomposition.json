@@ -1,0 +1,58 @@
+{
+  "clusters": [
+    {
+      "name": "capture-diagnostics",
+      "stories": ["US-001"],
+      "phase": 1,
+      "dependsOn": [],
+      "fileOverlapEvidence": {
+        "sharedFiles": [
+          "plugins/crews/hooks/actors.js"
+        ],
+        "exclusiveFiles": [
+          "plugins/crews/tools/diagnose-inner-pid-capture.js"
+        ],
+        "risk": "medium"
+      },
+      "executionModeRationale": "Diagnostics should land before the ownership move so the implementation can prove the current failure axis. It touches the capture script generator used by later stories, so it should not run in parallel."
+    },
+    {
+      "name": "launcher-owned-capture",
+      "stories": ["US-002"],
+      "phase": 2,
+      "dependsOn": ["capture-diagnostics"],
+      "fileOverlapEvidence": {
+        "sharedFiles": [
+          "plugins/crews/hooks/actors.js",
+          "plugins/crews/hooks/config.js",
+          "plugins/crews/tests/launcher-pid.test.js",
+          "plugins/crews/tests/inner-pid-capture-live.test.js"
+        ],
+        "exclusiveFiles": [],
+        "risk": "high"
+      },
+      "executionModeRationale": "This is the structural fix and highest-risk change. It depends on the trace vocabulary from US-001 and must be validated before stop UX and docs are finalized."
+    },
+    {
+      "name": "fallback-ux-and-release",
+      "stories": ["US-003", "US-004"],
+      "phase": 3,
+      "dependsOn": ["launcher-owned-capture"],
+      "fileOverlapEvidence": {
+        "sharedFiles": [
+          "plugins/crews/hooks/commands/stop-member.js",
+          "plugins/crews/tests/stop-member-hard-terminate.test.js",
+          "plugins/crews/CHANGELOG.md",
+          "plugins/crews/AGENTS.md",
+          "plugins/crews/.claude-plugin/plugin.json",
+          ".github/plugin/marketplace.json"
+        ],
+        "exclusiveFiles": [
+          "plugins/crews/tests/inner-pid-capture-real-copilot-live.test.js"
+        ],
+        "risk": "medium"
+      },
+      "executionModeRationale": "UX wording, live-smoke hardening, docs, and version metadata depend on the final payload marker and fallback behavior chosen by the structural fix."
+    }
+  ]
+}
