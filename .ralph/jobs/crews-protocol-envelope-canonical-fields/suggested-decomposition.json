@@ -1,0 +1,38 @@
+{
+  "$schema": "https://raw.githubusercontent.com/Evyatar108/ai-developer-toolkit/main/plugins/ralph-orchestration/schemas/suggested-decomposition.schema.json",
+  "overviewTaskId": "crews-protocol-envelope-canonical-fields",
+  "planPath": ".ralph/jobs/crews-protocol-envelope-canonical-fields/plan.md",
+  "rationale": "Linear dependency chain: validator must exist (A) before producers can call it (B), and producer wrapping must land before CI can flip to fail-closed strict mode (C), and the final test count is needed for CHANGELOG/version (D). Parallelism only inside groups B and C.",
+  "groups": [
+    {
+      "id": "A",
+      "stories": ["S1"],
+      "dependsOn": [],
+      "description": "Validator extension + buildOutboxRow factory + per-rule unit tests. No producer changes."
+    },
+    {
+      "id": "B",
+      "stories": ["S2", "S3"],
+      "dependsOn": ["A"],
+      "description": "Route 11 producer call-sites through buildEnvelope / buildOutboxRow. S2 covers 7 via the appendSystemMailbox chokepoint; S3 covers the remaining 4 individually. Internally parallelizable (different files)."
+    },
+    {
+      "id": "C",
+      "stories": ["S4", "S5", "S6"],
+      "dependsOn": ["B"],
+      "description": "Flip CREWS_STRICT_SCHEMA=1 in tests/run.js (S4), add round-trip contract tests per producer/consumer pair (S5), add v1.7.2 summary-drop regression test (S6, can fold into S5 commit). S5 and S6 are independent of S4 ordering."
+    },
+    {
+      "id": "D",
+      "stories": ["S7"],
+      "dependsOn": ["C"],
+      "description": "Documentation updates (docs/protocol.md, README.md, CHANGELOG.md), version bump via scripts/bump-version.js 2.3.0, optional GitHub Actions workflow (stretch, operator-confirmed)."
+    }
+  ],
+  "notes": [
+    "Dependency chain is shallow; serial implementation is also fine.",
+    "Risk R1 (existing producer tests with malformed envelopes) may surface during S4; the impl member should backport any real-bug fixes to S2/S3 and add per-test opt-outs for intentional-malformed-input tests.",
+    "Stretch goal in S7 (.github/workflows/crews-tests.yml) is operator-opt-in only.",
+    "Out-of-scope follow-ups already seeded by the brainstorm: crews-envelope-summary-canonical-cleanup, crews-envelope-replyto-field-name-unification, crews-envelope-kind-routing-rename."
+  ]
+}
