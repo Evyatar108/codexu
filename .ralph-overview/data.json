@@ -1913,11 +1913,11 @@
       "scope": "codexu",
       "lifecycle": "tracked",
       "status": "ok",
-      "lastTouchedAt": "2026-05-14T08:30:00Z",
+      "lastTouchedAt": "2026-05-30T22:15:00Z",
       "kanbanCards": [],
       "command": {
         "name": "codex-hooks-parity",
-        "descriptionHtml": "Gap 4 — fan codex JSON-RPC events to happy turn-lifecycle handlers (autocompact context-boundary, permission-prompt notification). Spawned by <code>codex-parity-audit</code>.",
+        "descriptionHtml": "Gap 4 — fan codex JSON-RPC events to happy turn-lifecycle handlers (autocompact context-boundary, permission-prompt notification). Spawned by <code>codex-parity-audit</code>. <strong>PARTIAL SHIP 2026-05-30 (commit 34cc5238/codexu 620d31a8):</strong> autocompact half wired — codex <code>thread/compacted</code> v2 + legacy <code>context_compacted</code> events both fan to <code>session.sendContextBoundary({kind:'autocompact', triggeredBy:'system'})</code>. Tests 203/203 in src/codex/. <strong>Still deferred:</strong> turn-lifecycle (<code>onTurnStarted</code>/<code>onTurnCompleted</code>) per the deferred-switch-protocol operator open item, and permission-prompt <code>Notification</code> half per the codex-exclusion documented in packages/happy-cli/AGENTS.md (codex has no Session/local-launcher/remote-launcher split, and sessionContextBoundaryKindSchema has no <code>permission-prompt</code> kind without a wire-protocol change).",
         "warnings": [
           {
             "className": "cmd-warn",
