@@ -1,0 +1,53 @@
+{
+  "clusters": [
+    {
+      "name": "title-helper",
+      "stories": ["US-001"],
+      "phase": 1,
+      "dependsOn": [],
+      "fileOverlapEvidence": {
+        "sharedFiles": [],
+        "exclusiveFiles": [
+          "plugins/crews/hooks/terminal-title.js",
+          "plugins/crews/tests/assign-role-tab-title.test.js"
+        ],
+        "risk": "medium"
+      },
+      "executionModeRationale": "The helper defines the formatting, OSC, WT guard, logging, and test seams used by all runtime entry points. Build it first so subsequent wiring has a stable API."
+    },
+    {
+      "name": "lead-wiring",
+      "stories": ["US-002"],
+      "phase": 2,
+      "dependsOn": ["title-helper"],
+      "fileOverlapEvidence": {
+        "sharedFiles": [
+          "plugins/crews/tests/assign-role-tab-title.test.js"
+        ],
+        "exclusiveFiles": [
+          "plugins/crews/hooks/commands/assign-role.js",
+          "plugins/crews/hooks/session-start.js",
+          "plugins/crews/tests/session-start-lead-bootstrap.test.js"
+        ],
+        "risk": "medium"
+      },
+      "executionModeRationale": "The assignment and SessionStart paths must share the same helper and title policy. Running this before the helper would create avoidable API churn."
+    },
+    {
+      "name": "release-docs",
+      "stories": ["US-003"],
+      "phase": 3,
+      "dependsOn": ["lead-wiring"],
+      "fileOverlapEvidence": {
+        "sharedFiles": [],
+        "exclusiveFiles": [
+          "plugins/crews/.claude-plugin/plugin.json",
+          "plugins/crews/.github/plugin/plugin.json",
+          "plugins/crews/CHANGELOG.md"
+        ],
+        "risk": "low"
+      },
+      "executionModeRationale": "Version and changelog changes should be finalized after runtime behavior and smoke-test results are known."
+    }
+  ]
+}
