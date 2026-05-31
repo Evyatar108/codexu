@@ -2283,6 +2283,21 @@
       }
     },
     {
+      "id": "codex-rebase-debt-fix-app-server-client-brace",
+      "scope": "codex",
+      "lifecycle": "merged",
+      "status": "ok",
+      "mergeCommit": "1560e120b,f2350375d,0c3e47ec",
+      "lastTouchedAt": "2026-05-31T23:32:00Z",
+      "kanbanCards": [],
+      "command": {
+        "name": "codex-rebase-debt-fix-app-server-client-brace",
+        "descriptionHtml": "Surfaced 2026-05-31 by <code>build-codex-release-exe-r2</code> Phase 5 cargo build. v0.135.0 rebase merge <code>03fe64287</code> dropped 1 closing brace from <code>app-server-client/src/remote.rs::pub async fn connect()</code> — match arms closed but fn body never closed before next pub fn started. Pure syntax error, +1 brace fix. Shipped + cargo check -p codex-app-server-client clean + no sibling brace issues found in the same rebase commit.",
+        "warnings": [],
+        "prompts": {}
+      }
+    },
+    {
       "id": "codex-rebase-debt-fix-app-server-plugin-share-context",
       "scope": "codex",
       "lifecycle": "merged",
