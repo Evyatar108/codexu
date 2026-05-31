@@ -270,8 +270,6 @@ function installWs3SyncHarness() {
     (sync as any).sessionsSync = sessionsSync;
     (sync as any).machinesSync = machinesSync;
     (sync as any).sendSync = new Map();
-    (sync as any).pendingNewMessages = new Map();
-    (sync as any).sessionInitInFlight = new Set();
     (sync as any).prefetchPendingPromises = new Map();
     return { sessionsSync, machinesSync };
 }
@@ -902,13 +900,13 @@ describe('sync WS3 last-seen update seq persistence', () => {
         vi.spyOn(sync as any, 'getMessagesSync').mockReturnValue({ invalidate: vi.fn() });
         vi.spyOn(sync as any, 'onSessionVisible').mockImplementation(() => undefined);
 
-        await (sync as any).handleUpdate(makeUpdate(1, { t: 'update-session', id: 'session-1' }), false, 'mA');
+        await (sync as any).handleUpdate(makeUpdate(1, { t: 'update-session', id: 'session-1' }), 'mA');
         expect(mocks.storageState.lastSeenUpdateSeqByMachineId.mA).toBe(1);
 
         await (sync as any).handleUpdate(makePlainUpdate({
             role: 'session',
             content: { id: 'msg-2', time: 100, role: 'agent', turn: 'turn-1', ev: { t: 'turn-start' } },
-        }, 2), false, 'mA');
+        }, 2), 'mA');
         expect(mocks.storageState.lastSeenUpdateSeqByMachineId.mA).toBe(2);
 
         await (sync as any).handleUpdate(makeUpdate(3, {
@@ -916,7 +914,7 @@ describe('sync WS3 last-seen update seq persistence', () => {
             id: 'session-2',
             createdAt: 203,
             updatedAt: 203,
-        }), false, 'mA');
+        }), 'mA');
         await flushPromises();
 
         expect((sync as any).sessionsSync.invalidateAndAwait).toHaveBeenCalledOnce();
@@ -933,7 +931,7 @@ describe('sync WS3 last-seen update seq persistence', () => {
             id: 'session-2',
             createdAt: 204,
             updatedAt: 204,
-        }), false, 'mA');
+        }), 'mA');
 
         expect(mocks.storageState.setLastSeenUpdateSeq).not.toHaveBeenCalled();
 
@@ -944,50 +942,61 @@ describe('sync WS3 last-seen update seq persistence', () => {
         expect(mocks.storageState.setLastSeenUpdateSeq).toHaveBeenCalledWith('mA', 4);
     });
 
-    it('does NOT persist when invalidateAndAwait resolves but session is still missing post-refetch', async () => {
-        let resolveInvalidate!: () => void;
-        const pending = new Promise<void>(resolve => { resolveInvalidate = resolve; });
-        (sync as any).sessionsSync.invalidateAndAwait.mockReturnValueOnce(pending);
+    it('WS2: synthesizes placeholder + persists seq immediately on new-message for unknown sid', async () => {
+        // WS2 (perf-WS2) replaced the previous queue + invalidateAndAwait
+        // + replay path with a synchronous optimistic placeholder. The
+        // message is now applied at T+0 — `setLastSeenUpdateSeq` fires in
+        // the same tick, NOT after `invalidateAndAwait` resolves.
+        vi.spyOn(sync as any, 'getMessagesSync').mockReturnValue({ invalidate: vi.fn() });
+        vi.spyOn(sync as any, 'onSessionVisible').mockImplementation(() => undefined);
 
         await (sync as any).handleUpdate(makePlainUpdate({
             role: 'session',
             content: { id: 'msg-5', time: 100, role: 'agent', turn: 'turn-1', ev: { t: 'turn-start' } },
-        }, 5), false, 'mA');
+        }, 5), 'mA');
 
-        expect(mocks.storageState.setLastSeenUpdateSeq).not.toHaveBeenCalled();
-
-        resolveInvalidate();
-        await pending;
-        await flushPromises();
-
-        expect(mocks.storageState.setLastSeenUpdateSeq).not.toHaveBeenCalled();
+        // Placeholder inserted -> sessions[sid] now populated by applySessions mock.
+        expect(mocks.storageState.sessions['mA:session-1']).toBeDefined();
+        // Non-blocking back-fill kicked off; NOT invalidateAndAwait.
+        expect((sync as any).sessionsSync.invalidate).toHaveBeenCalled();
+        // Seq persisted synchronously — no wait on a sessions re-fetch.
+        expect(mocks.storageState.setLastSeenUpdateSeq).toHaveBeenCalledWith('mA', 5);
     });
 
-    it('persists when invalidateAndAwait resolves and session IS present post-refetch', async () => {
+    it('WS2: subsequent fetchSessions response overwrites the placeholder via applySessions', async () => {
+        // The placeholder lives in `sessions[sid]` until `sessionsSync`
+        // fires `applySessions(...)` with real metadata; `applySessions`
+        // replaces (not merges) the row keyed by id, so the back-fill is
+        // atomic and there is no field-level diffing window.
         vi.spyOn(sync as any, 'getMessagesSync').mockReturnValue({ invalidate: vi.fn() });
         vi.spyOn(sync as any, 'onSessionVisible').mockImplementation(() => undefined);
-
-        let resolveInvalidate!: () => void;
-        const pending = new Promise<void>(resolve => { resolveInvalidate = resolve; });
-        (sync as any).sessionsSync.invalidateAndAwait.mockReturnValueOnce(pending);
 
         await (sync as any).handleUpdate(makePlainUpdate({
             role: 'session',
             content: { id: 'msg-7', time: 100, role: 'agent', turn: 'turn-1', ev: { t: 'turn-start' } },
-        }, 7), false, 'mA');
+        }, 7), 'mA');
 
-        expect(mocks.storageState.setLastSeenUpdateSeq).not.toHaveBeenCalled();
+        const placeholder = mocks.storageState.sessions['mA:session-1'];
+        expect(placeholder).toBeDefined();
+        expect(placeholder.metadata).toEqual({ path: '', host: '', machineId: 'mA' });
+        expect(placeholder.seq).toBe(0);
 
-        mocks.storageState.sessions['mA:session-1'] = makeSession({ id: 'mA:session-1' });
-        resolveInvalidate();
-        await pending;
-        await flushPromises();
+        // Simulate the real session arriving via fetchSessions ->
+        // applySessions (the back-fill path).
+        const realSession = makeSession({
+            id: 'mA:session-1',
+            seq: 42,
+            metadata: { flavor: 'claude', path: '/repo/real', host: 'real-host', machineId: 'mA' },
+        });
+        mocks.storageState.applySessions([realSession]);
 
-        expect(mocks.storageState.setLastSeenUpdateSeq).toHaveBeenCalledWith('mA', 7);
+        // Placeholder is replaced atomically.
+        expect(mocks.storageState.sessions['mA:session-1'].metadata.path).toBe('/repo/real');
+        expect(mocks.storageState.sessions['mA:session-1'].seq).toBe(42);
     });
 
     it('does not persist invalid update payloads', async () => {
-        await (sync as any).handleUpdate({ id: 'bad-update', seq: 5, createdAt: 205, body: { t: 'unknown' } }, false, 'mA');
+        await (sync as any).handleUpdate({ id: 'bad-update', seq: 5, createdAt: 205, body: { t: 'unknown' } }, 'mA');
 
         expect(mocks.storageState.setLastSeenUpdateSeq).not.toHaveBeenCalled();
     });

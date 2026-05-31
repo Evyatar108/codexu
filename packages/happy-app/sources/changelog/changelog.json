@@ -1,6 +1,15 @@
 {
   "entries": [
     {
+      "version": 32,
+      "date": "2026-05-31",
+      "summary": "New messages from sessions your device hasn't seen yet now appear instantly instead of waiting on a background session refresh. We swapped the old blocking re-fetch for an optimistic placeholder that fills in real session details a moment later — on slower e-ink tablets this can shave several seconds off perceived chat latency.",
+      "changes": [
+        "Improved real-time message arrival for brand-new sessions: messages render immediately and the session row back-fills in the background, instead of blocking on a `/v1/sessions` round-trip."
+      ],
+      "rawMarkdown": "## Version 32 - 2026-05-31\n\n\nNew messages from sessions your device hasn't seen yet now appear instantly instead of waiting on a background session refresh. We swapped the old blocking re-fetch for an optimistic placeholder that fills in real session details a moment later — on slower e-ink tablets this can shave several seconds off perceived chat latency.\n\n- Improved real-time message arrival for brand-new sessions: messages render immediately and the session row back-fills in the background, instead of blocking on a `/v1/sessions` round-trip."
+    },
+    {
       "version": 31,
       "date": "2026-05-12",
       "summary": "Pairing is now done by signing in with your GitHub account instead of scanning a QR code, and you can pair multiple computers and switch between them right from the machine picker in chat. We also retired the experimental voice and realtime features and tightened how the app authenticates each request, so reconnects are quicker and the app re-pairs cleanly if your GitHub token is ever revoked.",
@@ -360,5 +369,5 @@
       "rawMarkdown": "## Version 1 - 2025-05-12\n\n\nWelcome to Happy - your secure, encrypted mobile companion for Claude Code. This inaugural release establishes the foundation for private, powerful AI interactions on the go.\n\n- Implemented end-to-end encrypted session management ensuring complete privacy\n- Integrated intelligent voice assistant with natural conversation capabilities\n- Added experimental file manager with syntax highlighting and tree navigation\n- Built seamless real-time synchronization across all your devices\n- Established native support for iOS, Android, and responsive web interfaces"
     }
   ],
-  "latestVersion": 31
+  "latestVersion": 32
 }

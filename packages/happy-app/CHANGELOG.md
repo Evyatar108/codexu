@@ -1,5 +1,11 @@
 # Changelog
 
+## Version 32 - 2026-05-31
+
+New messages from sessions your device hasn't seen yet now appear instantly instead of waiting on a background session refresh. We swapped the old blocking re-fetch for an optimistic placeholder that fills in real session details a moment later — on slower e-ink tablets this can shave several seconds off perceived chat latency.
+
+- Improved real-time message arrival for brand-new sessions: messages render immediately and the session row back-fills in the background, instead of blocking on a `/v1/sessions` round-trip.
+
 ## Version 31 - 2026-05-12
 
 Pairing is now done by signing in with your GitHub account instead of scanning a QR code, and you can pair multiple computers and switch between them right from the machine picker in chat. We also retired the experimental voice and realtime features and tightened how the app authenticates each request, so reconnects are quicker and the app re-pairs cleanly if your GitHub token is ever revoked.

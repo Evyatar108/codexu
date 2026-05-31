@@ -230,9 +230,10 @@ class Sync {
     private pendingOutbox = new Map<string, OutboxMessage[]>();
     private sessionMessageQueue = new Map<string, NormalizedMessage[]>();
     private sessionQueueProcessing = new Set<string>();
-    // Queue of raw `new-message` socket events that arrived before the session row loaded.
-    private pendingNewMessages = new Map<string, unknown[]>();
-    private sessionInitInFlight = new Set<string>();
+    // WS2 (perf-WS2): `pendingNewMessages` / `sessionInitInFlight` retired in
+    // favor of synchronous placeholder Session inserts. See
+    // `synthesizePlaceholderSession` and the unknown-sid branch in
+    // `handleUpdate` for the new flow.
     private deferredSwitchRequests = new Set<string>();
     private sessionMessageLocks = new Map<string, AsyncLock>();
     private settingsSync: InvalidateSync;
@@ -1662,7 +1663,7 @@ class Sync {
 
     private subscribeToUpdates = () => {
         // Subscribe to message updates
-        apiSocket.onMessage('update', (update, machineId) => this.handleUpdate(update, false, machineId));
+        apiSocket.onMessage('update', (update, machineId) => this.handleUpdate(update, machineId));
         apiSocket.onMessage('replay-overflow', (data, machineId) => {
             if (
                 data?.replayOverflow !== true
@@ -1720,7 +1721,54 @@ class Sync {
         }
     }
 
-    private handleUpdate = async (update: unknown, isReplay = false, sourceMachineId?: string) => {
+    /**
+     * WS2 (perf-WS2): Synthesize a minimal placeholder Session for a `sid`
+     * that arrived via a `new-message` socket event before the session row
+     * was loaded into storage. Inserting this synchronously via
+     * `applySessions(...)` lets us skip the previous "queue + blocking
+     * `/v1/sessions` re-fetch + replay" path, so the message renders at
+     * T+0 instead of T+sessions-fetch-RTT.
+     *
+     * The next `sessionsSync.invalidate()` (kicked off by the caller) will
+     * overwrite this placeholder atomically with the real session metadata
+     * — `storage.applySessions` rewrites the row keyed by id, not merges,
+     * so there is no UI flicker from partial fields.
+     *
+     * Keep this helper isolated; `sync.ts` is a hot file vs upstream
+     * slopus/happy and surgical diffs reduce the rebase surface.
+     */
+    private synthesizePlaceholderSession(
+        sid: string,
+        sourceMachineId: string | undefined,
+        createdAt: number,
+    ): Omit<Session, 'presence' | 'permissionModeUserChosen'> {
+        return {
+            id: sid,
+            // Intentionally 0: `seq` is session-local (server-side
+            // `allocateSessionSeq`); we have no authoritative value yet, and
+            // the next `fetchSessions` response will overwrite it. Do NOT
+            // write `updateData.seq` (account-global) here — that would
+            // corrupt pagination math (see `typesRaw.ts` invariants).
+            seq: 0,
+            createdAt,
+            updatedAt: createdAt,
+            active: true,
+            activeAt: createdAt,
+            // Minimal metadata: enough for `getSessionMachineId`,
+            // `getSessionProjectPath`, and `buildSessionRowData` to read
+            // without crashing. Real values arrive with the back-fill.
+            metadata: sourceMachineId
+                ? { path: '', host: '', machineId: sourceMachineId }
+                : null,
+            metadataVersion: 0,
+            agentState: null,
+            agentStateVersion: 0,
+            thinking: false,
+            thinkingAt: 0,
+        };
+    }
+
+    private handleUpdate = async (update: unknown, sourceMachineId?: string) => {
         const validatedUpdate = ApiUpdateContainerSchema.safeParse(update);
         if (!validatedUpdate.success) {
             console.log('❌ Sync: Invalid update received:', validatedUpdate.error);
@@ -1735,32 +1783,26 @@ class Sync {
 
             const sid = sourceMachineId ? compositeSessionId(sourceMachineId, updateData.body.sid) : updateData.body.sid;
             if (!storage.getState().sessions[sid]) {
-                if (isReplay) {
-                    console.error(`Session ${sid} still missing after sessions refetch; dropping new-message event`);
-                    return;
-                }
-                const queue = this.pendingNewMessages.get(sid) ?? [];
-                queue.push(update);
-                this.pendingNewMessages.set(sid, queue);
-                if (!this.sessionInitInFlight.has(sid)) {
-                    this.sessionInitInFlight.add(sid);
-                    this.sessionsSync.invalidateAndAwait().then(() => {
-                        this.sessionInitInFlight.delete(sid);
-                        const pending = this.pendingNewMessages.get(sid) ?? [];
-                        this.pendingNewMessages.delete(sid);
-                        const sessionLoadedAfterRefetch = !!storage.getState().sessions[sid];
-                        for (const evt of pending) {
-                            void this.handleUpdate(evt, true, sourceMachineId);
-                        }
-                        if (sessionLoadedAfterRefetch) {
-                            this.persistLastSeenUpdateSeq(sourceMachineId, updateData.seq);
-                        }
-                    }).catch(() => {
-                        this.sessionInitInFlight.delete(sid);
-                        this.pendingNewMessages.delete(sid);
-                    });
-                }
-                return;
+                // WS2 (perf-WS2): optimistic placeholder so the message
+                // renders at T+0 instead of after a blocking
+                // `/v1/sessions` re-fetch. The placeholder is overwritten
+                // atomically by the next `sessionsSync.invalidate()`
+                // response (kicked off below); meanwhile the synchronous
+                // new-message handling below applies the message itself.
+                //
+                // Earlier design queued events in `pendingNewMessages` and
+                // awaited `invalidateAndAwait()` before replay; that path
+                // was the dominant source of perceived new-message
+                // latency on the BOOX tablet (~1 fetch RTT, often 5–60s).
+                // The replacement does NOT silently drop messages because
+                // the placeholder synchronously satisfies the
+                // `storage.getState().sessions[sid]` precondition for the
+                // fall-through code below.
+                this.applySessions([
+                    this.synthesizePlaceholderSession(sid, sourceMachineId, updateData.createdAt),
+                ]);
+                this.sessionsSync.invalidate();
+                // Fall through to the standard new-message handler below.
             }
 
             let lastMessage: NormalizedMessage | null = null;
@@ -1837,8 +1879,7 @@ class Sync {
             this.sessionMessageLocks.delete(sessionId);
             this.sessionMessageQueue.delete(sessionId);
             this.sessionQueueProcessing.delete(sessionId);
-            this.pendingNewMessages.delete(sessionId);
-            this.sessionInitInFlight.delete(sessionId);
+            // WS2: `pendingNewMessages` / `sessionInitInFlight` removed.
             // US-006: prefetch state cleanup, mirroring onActiveSessionChanged.
             // `abandonInFlight` performs the manager-side flush
             // (bump generation + clearActivePrefetch + settle orphaned
