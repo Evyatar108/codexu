@@ -62,8 +62,19 @@ The discoverability skill at `/codexu-options-mode-plugin:options-mode` document
 ## Known Gaps
 
 - Statusline shell scripts are copied under `apps/statusline/` for forward compatibility only. They are not wired to the manifest because Codex does not currently expose a plugin statusline slot.
-- PreToolUse AskUserQuestion auto-intercept is deferred. Codex's current `request_user_input` handler has no `pre_tool_use_payload()` override, so the plugin does not register a PreToolUse hook.
 - Auto mode still enforces the final state in Stop: bare prose blocks, trailing `request_user_input` or `ask_user_question` function calls pass, and `<options-mode>task-complete</options-mode>` signals clean completion.
+
+## Auto mode
+
+In `auto` mode the plugin's PreToolUse hook intercepts `request_user_input` calls and answers on behalf of the missing human by picking the first option of each question. The codex tool dispatcher short-circuits the handler and surfaces the synthetic response to the model as if the tool had succeeded normally, so the agent loop continues without stalling on a prompt no one will answer.
+
+Behavior:
+
+- `mode === 'auto'` + every question has `options[0].label` → emit `hookSpecificOutput.syntheticResponse = { answers: { <id>: { answers: [<first label>] } } }`.
+- `mode === 'auto'` + any question lacks options → no-op + WARN in `options.log`, so the call falls back to the human-input path.
+- `mode !== 'auto'` → no-op.
+
+The synthetic-response wire shape requires codex submodule pin `gim-home/codex` ≥ `516d2cd96` (Phase 3h-tail). Older codex versions will not recognize `hookSpecificOutput.syntheticResponse` and will reject the hook output with a `deny_unknown_fields` schema error. The pin is enforced via the marketplace plugin version (`0.2.0`).
 
 ## Developer Workflow
 

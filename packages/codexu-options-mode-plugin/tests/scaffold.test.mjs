@@ -15,17 +15,17 @@ describe("codex Stop hook fixture", () => {
 });
 
 describe("Codex hook registry", () => {
-  test("registers only SessionStart, UserPromptSubmit, and Stop hooks", async () => {
+  test("registers SessionStart, UserPromptSubmit, PreToolUse, and Stop hooks", async () => {
     const registry = JSON.parse(
       await readFile(new URL("../hooks/hooks.json", import.meta.url), "utf8"),
     );
 
     expect(Object.keys(registry.hooks).sort()).toEqual([
+      "PreToolUse",
       "SessionStart",
       "Stop",
       "UserPromptSubmit",
     ]);
-    expect(registry.hooks).not.toHaveProperty("PreToolUse");
 
     expect(registry.hooks.SessionStart).toEqual([
       {
@@ -45,6 +45,18 @@ describe("Codex hook registry", () => {
           {
             type: "command",
             command: "node ${CLAUDE_PLUGIN_ROOT}/hooks/user-prompt-submit.js",
+            timeout: 5,
+          },
+        ],
+      },
+    ]);
+    expect(registry.hooks.PreToolUse).toEqual([
+      {
+        matcher: "request_user_input",
+        hooks: [
+          {
+            type: "command",
+            command: "node ${CLAUDE_PLUGIN_ROOT}/hooks/pre-tool-use.js",
             timeout: 5,
           },
         ],

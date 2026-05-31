@@ -52,7 +52,44 @@ try {
   assert.equal(passed.status, 0, passed.stderr);
   assert.equal(passed.stdout, '');
 
-  console.log('options-mode smoke passed: on blocks plain prose; off passes through; temp state removed');
+  // PreToolUse request_user_input auto-respond (Phase 3h-tail).
+  config.setOptionsMode(sessionId, 'auto');
+  const preToolUse = spawnSync(process.execPath, [path.join(pluginRoot, 'hooks', 'pre-tool-use.js')], {
+    cwd: pluginRoot,
+    env: { ...process.env, PLUGIN_DATA: tempRoot },
+    input: JSON.stringify({
+      hook_event_name: 'PreToolUse',
+      session_id: sessionId,
+      tool_name: 'request_user_input',
+      tool_use_id: 'tu-smoke',
+      tool_input: {
+        questions: [
+          {
+            id: 'q1',
+            header: 'Pick',
+            question: 'Which?',
+            options: [
+              { label: 'Recommended', description: 'Default' },
+              { label: 'Other', description: 'Alt' }
+            ]
+          }
+        ]
+      }
+    }),
+    encoding: 'utf8'
+  });
+  assert.equal(preToolUse.status, 0, preToolUse.stderr);
+  const syntheticEnvelope = JSON.parse(preToolUse.stdout);
+  assert.deepEqual(syntheticEnvelope, {
+    hookSpecificOutput: {
+      hookEventName: 'PreToolUse',
+      syntheticResponse: {
+        answers: { q1: { answers: ['Recommended'] } }
+      }
+    }
+  });
+
+  console.log('options-mode smoke passed: on blocks plain prose; off passes through; auto returns syntheticResponse; temp state removed');
 } finally {
   rmSync(tempRoot, { recursive: true, force: true });
 }
