@@ -42,6 +42,7 @@ import type { ReasoningEffort } from './codexAppServerTypes';
 import { HAPPY_CURRENT_SESSION_ID, HAPPY_DAEMON_CONTROL_URL, HAPPY_FORKED_FROM_SESSION_ID } from '@/utils/envNames';
 import { createCodexPatchApprovalInput } from './codexApprovalSnapshot';
 import type { LedgerRecord } from '@slopus/happy-wire';
+import { createEnvelope } from '@slopus/happy-wire';
 import { loadProjectMcpServers } from './projectMcpConfig';
 import { createAgentTreeState, type AgentTreeEvent } from './agentTreeState';
 
@@ -258,13 +259,40 @@ export async function runCodex(opts: {
 
     // Valid Codex permission modes from remote messages. Restricted to the
     // native Codex modes exposed by the mobile UI (see modelModeOptions.ts:
-    // getCodexPermissionModes). Anything outside this set is silently ignored —
+    // getCodexPermissionModes) PLUS 'plan' for cross-agent (Claude → Codex)
+    // session handoffs. Anything outside this set is silently ignored —
     // the previous code blindly cast `message.meta.permissionMode as PermissionMode`
     // at runtime, meaning a crafted value like `'totally_unsafe'` would be
     // accepted and then fall through to the `default` branch in
     // resolveCodexExecutionPolicy() — or worse, an attacker-chosen valid value
     // could escalate sandbox scope (issue #1092).
     const VALID_REMOTE_PERMISSION_MODES: readonly PermissionMode[] = VALID_CODEX_REMOTE_PERMISSION_MODES;
+
+    // Gap 6 (codex-agent-parity-audit.md) v1 defensive plan-mode mapping: codex
+    // has no native plan mode or `ExitPlanMode` tool. When the mobile UI hands
+    // a Claude session in plan mode off to codex (or the user picks 'plan'
+    // through a future codex picker), executionPolicy.ts coerces plan →
+    // { approval: never, sandbox: read-only } so the agent runs unattended but
+    // cannot write. The user sees a one-time service-message hint so they
+    // understand the approximation. v2 (codex-plan-mode-overlay) will ship a
+    // real overlay crate with an exit_plan_mode tool.
+    let planModeHintSent = false;
+    const PLAN_MODE_HINT_TEXT = 'Plan mode on codex is approximated as read-only; the ExitPlanMode tool is not available. The agent will read freely but cannot write or run mutating commands until you change the mode.';
+    const maybeSendPlanModeHint = (mode: PermissionMode | undefined): void => {
+        if (mode !== 'plan' || planModeHintSent || closing) return;
+        planModeHintSent = true;
+        try {
+            session.sendSessionProtocolMessage(createEnvelope('agent', {
+                t: 'service',
+                text: PLAN_MODE_HINT_TEXT,
+            }));
+        } catch (err) {
+            logger.debug('[Codex] Failed to emit plan-mode hint', err);
+        }
+    };
+
+    // Fire the hint immediately if startup options already specify plan mode.
+    maybeSendPlanModeHint(currentPermissionMode);
 
     if (typeof session.onAgentConfiguration === 'function') {
         session.onAgentConfiguration((configuration: AgentConfiguration) => {
@@ -274,6 +302,7 @@ export async function runCodex(opts: {
                 if (incoming === undefined || VALID_REMOTE_PERMISSION_MODES.includes(incoming)) {
                     currentPermissionMode = incoming;
                     void publishPermissionModeIfChanged(session, metadata, currentPermissionMode, lastPublishedPermissionModeCode);
+                    maybeSendPlanModeHint(currentPermissionMode);
                     logger.debug(`[Codex] Permission mode updated from live configuration for next turn: ${currentPermissionMode ?? 'default (effective)'}`);
                 } else {
                     logger.debug(`[Codex] Ignoring invalid permission mode from live configuration: ${String(configuration.permissionMode)}`);
@@ -305,6 +334,7 @@ export async function runCodex(opts: {
                 currentPermissionMode = messagePermissionMode;
                 logger.debug(`[Codex] Permission mode updated from user message to: ${currentPermissionMode}`);
                 void publishPermissionModeIfChanged(session, metadata, messagePermissionMode, lastPublishedPermissionModeCode);
+                maybeSendPlanModeHint(messagePermissionMode);
             } else {
                 logger.debug(`[Codex] Ignoring invalid permission mode from user message: ${String(message.meta.permissionMode)}`);
             }

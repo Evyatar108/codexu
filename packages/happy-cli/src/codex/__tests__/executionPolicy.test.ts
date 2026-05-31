@@ -36,11 +36,15 @@ describe('resolveCodexExecutionPolicy', () => {
         ['read-only', 'never', 'read-only'],
         ['safe-yolo', 'on-failure', 'workspace-write'],
         ['yolo', 'on-failure', 'danger-full-access'],
+        // Gap 6 (codex-agent-parity-audit.md) v1 defensive plan-mode mapping:
+        // 'plan' is approximated as never+read-only (agent runs unattended but
+        // cannot write). v2 overlay-crate work is deferred.
+        ['plan', 'never', 'read-only'],
     ] as const)('maps %s to the expected Codex policy without managed sandbox', (mode, approvalPolicy, sandbox) => {
         expect(resolveCodexExecutionPolicy(mode, false)).toEqual({ approvalPolicy, sandbox });
     });
 
-    it.each(['default', 'read-only', 'safe-yolo', 'yolo'] as const)(
+    it.each(['default', 'read-only', 'safe-yolo', 'yolo', 'plan'] as const)(
         'lets the Happy-managed sandbox own enforcement for %s',
         (mode) => {
             expect(resolveCodexExecutionPolicy(mode, true)).toEqual({

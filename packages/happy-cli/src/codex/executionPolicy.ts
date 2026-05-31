@@ -21,7 +21,14 @@ export function resolveCodexExecutionPolicy(
             // Defensive fallback for Claude-specific modes (backward compatibility)
             case 'bypassPermissions': return 'on-failure';         // Full access: map to yolo behavior
             case 'acceptEdits': return 'on-request';               // Let model decide (closest to auto-approve edits)
-            case 'plan': return 'untrusted';                       // Conservative: ask for non-trusted
+            // Gap 6 (codex-agent-parity-audit.md) v1 defensive mapping: 'plan' has
+            // no native codex equivalent (no ExitPlanMode tool). Approximate plan
+            // semantics by combining 'never' approval with 'read-only' sandbox
+            // below — the agent runs without prompting but cannot write. v2 will
+            // ship a `codex-plan-mode` overlay crate with a real exit_plan_mode
+            // tool; until then runCodex.ts also emits a one-time UI hint so users
+            // know plan mode is approximated, not native.
+            case 'plan': return 'never';                           // Read-only enforced by sandbox below
             default: return 'untrusted';                           // Safe fallback
         }
     })();
@@ -36,7 +43,8 @@ export function resolveCodexExecutionPolicy(
             // Defensive fallback for Claude-specific modes
             case 'bypassPermissions': return 'danger-full-access'; // Full access: map to yolo
             case 'acceptEdits': return 'workspace-write';          // Can edit files in workspace
-            case 'plan': return 'workspace-write';                 // Can write for planning
+            // Gap 6 v1 defensive mapping: plan mode is approximated as read-only.
+            case 'plan': return 'read-only';                       // Plan: read but no writes
             default: return 'workspace-write';                     // Safe default
         }
     })();

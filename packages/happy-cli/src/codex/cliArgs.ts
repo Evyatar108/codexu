@@ -10,6 +10,14 @@ export const VALID_CODEX_REMOTE_PERMISSION_MODES: readonly PermissionMode[] = [
     'read-only',
     'safe-yolo',
     'yolo',
+    // Gap 6 (codex-agent-parity-audit.md) v1: accept 'plan' from the mobile UI
+    // so a Claude → Codex session handoff that carries `meta.permissionMode:
+    // 'plan'` is not silently dropped. The defensive mapping in
+    // executionPolicy.ts coerces plan → { never approval, read-only sandbox };
+    // runCodex.ts emits a one-time UI hint on first plan-mode activation so the
+    // user knows ExitPlanMode is unavailable. v2 (codex-plan-mode-overlay) will
+    // land an overlay crate with a real exit_plan_mode tool.
+    'plan',
 ];
 
 export function isValidCodexEffortLevel(value: unknown): value is ReasoningEffort {
