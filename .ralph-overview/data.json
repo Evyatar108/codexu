@@ -2283,6 +2283,21 @@
       }
     },
     {
+      "id": "codex-rebase-debt-fix-app-server-plugin-share-context",
+      "scope": "codex",
+      "lifecycle": "merged",
+      "status": "ok",
+      "mergeCommit": "652db37de,22435d0d0,39b2ca72",
+      "lastTouchedAt": "2026-05-31T22:40:00Z",
+      "kanbanCards": [],
+      "command": {
+        "name": "codex-rebase-debt-fix-app-server-plugin-share-context",
+        "descriptionHtml": "Surfaced 2026-05-31 by <code>build-codex-release-exe</code> Phase 5 cargo build. Yet another v0.135.0 rebase-debt dangling reference: <code>app-server/src/request_processors/plugins.rs:919</code> calls <code>codex_core_plugins::remote::fetch_remote_plugin_share_context(&cfg, auth, &id).await</code> — async, network-fetch from chatgpt backend with auth. Function never defined in workspace (only sync local-only sibling <code>remote_plugin_share_context</code> exists with different signature). Shipped as SANDBOX-PATCH stub returning <code>Ok(None)</code> mirroring the existing <code>fetch_remote_installed_plugins</code> pattern + the prior <code>494219ed4 group_remote_installed_plugins_by_marketplaces</code> fix. Preserves network-suppression invariant per codex CLAUDE.md §1; <code>Ok(None)</code> drives caller's existing fallback path (locally-computed PluginShareContext + warn log).",
+        "warnings": [],
+        "prompts": {}
+      }
+    },
+    {
       "id": "codex-rebase-resume-proper",
       "scope": "codex",
       "lifecycle": "merged",
