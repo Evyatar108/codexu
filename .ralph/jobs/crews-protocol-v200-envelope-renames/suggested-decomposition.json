@@ -1,0 +1,26 @@
+{
+  "clusters": [
+    {
+      "name": "rename-bundle-serial",
+      "stories": ["US-001", "US-002", "US-003", "US-004"],
+      "phase": 1,
+      "dependsOn": [],
+      "fileOverlapEvidence": {
+        "sharedFiles": ["D:/ai-developer-toolkit/plugins/crews/hooks/protocol/envelope.js"],
+        "exclusiveFiles": [
+          "D:/ai-developer-toolkit/plugins/crews/hooks/stop.js",
+          "D:/ai-developer-toolkit/plugins/crews/hooks/commands/review-mail.js",
+          "D:/ai-developer-toolkit/plugins/crews/hooks/protocol/review-required.js",
+          "D:/ai-developer-toolkit/plugins/crews/tests/**",
+          "D:/ai-developer-toolkit/plugins/crews/docs/protocol.md",
+          "D:/ai-developer-toolkit/plugins/crews/AGENTS.md",
+          "D:/ai-developer-toolkit/plugins/crews/CHANGELOG.md",
+          "D:/ai-developer-toolkit/plugins/crews/.claude-plugin/plugin.json",
+          "D:/ai-developer-toolkit/.claude-plugin/marketplace.json"
+        ],
+        "risk": "medium"
+      },
+      "executionModeRationale": "Atomic breaking-change semver bump forbids partial intermediate states — every consumer must be on the new shape before strict-mode CI passes. Parallel sub-clusters would observe broken intermediate states. Serial execution within a single worktree, single commit, single PR is the only safe shape."
+    }
+  ]
+}

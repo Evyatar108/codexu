@@ -1,0 +1,31 @@
+### Feasibility
+
+[High] The plan misses the central `from.kind` producer: [hooks/mailbox.js](D:/ai-developer-toolkit/plugins/crews/hooks/mailbox.js:501). `appendSystemMailbox()` constructs `from: { role: 'system', kind: opts.kind ... }` and also pre-validates with `from: { role: 'system', kind: opts.kind ... }`. Updating only `stop.js`, `review-mail.js`, and `review-required.js` will leave every system mailbox producer emitting the old field.
+
+[High] The “reject old names” claim is not implementable as written unless the schema adds explicit forbidden-field checks. [hooks/protocol/envelope.js](D:/ai-developer-toolkit/plugins/crews/hooks/protocol/envelope.js:145) validates known `from.*` subfields but does not reject unknown fields, and `PAYLOAD_RULES` currently only requires fields, it does not forbid extra payload keys. After renaming, stale `from.kind` and dual-emitted `payload.replyToId` could still pass unless the plan explicitly adds rejection rules.
+
+[Medium] The plan says bump from `2.4.0`, but actual plugin and marketplace versions are `2.4.1` in [plugin.json](D:/ai-developer-toolkit/plugins/crews/.claude-plugin/plugin.json:4) and [marketplace.json](D:/ai-developer-toolkit/.claude-plugin/marketplace.json:83). Targeting `3.0.0` is fine, but the plan’s baseline is stale.
+
+### Completeness
+
+[High] The test migration list is incomplete because it only tracks many dotted references, not object-literal `from: { kind: ... }` fixtures or `appendSystemMailbox(..., { kind: ... })` paths. Additional relevant files include `tests/review-required-predicate.test.js`, `tests/review-mail-command.test.js`, `tests/progress-tail-render.test.js`, `tests/mailbox.test.js`, `tests/cli-env-auto-resolve.test.js`, `tests/peek-mailbox-authz.test.js`, and `tests/lib/force-response.js`.
+
+[High] The grep acceptance criteria conflict with the plan’s “do not rewrite historical artifacts” guidance. Existing historical references already exist in [CHANGELOG.md](D:/ai-developer-toolkit/plugins/crews/CHANGELOG.md:187) and [PLAN-1.0-crews.md](D:/ai-developer-toolkit/plugins/crews/PLAN-1.0-crews.md:838). AC-3/AC-4 say only negative tests and the v3.0.0 changelog may match, so leaving those historical references intact will fail acceptance.
+
+[Medium] Documentation surface omits `README.md` as a verification target. It does not currently contain the old fields directly, but it does describe the strict schema/protocol contract and links to `docs/protocol.md`; a final doc grep should include all plugin markdown, not only selected files.
+
+### Ordering
+
+No issues found. The schema and producer/consumer updates need to happen before the test pass, and the serial single-worktree ordering is appropriate for this breaking rename.
+
+### Simplicity
+
+[Medium] The enforcement strategy is more complicated than needed if it only inspects produced rows. The simpler and stronger approach is to add schema-level negative tests in `protocol-envelope-canonical.test.js` or `protocol-envelope-roundtrip.test.js` proving strict mode rejects `from.kind` and `payload.replyToId`, plus producer-row assertions in `protocol-envelope-enforcement.test.js`.
+
+### Acceptance Criteria Quality
+
+[High] AC-3 is too weak and too strict at the same time: `grep -rn "from\.kind"` misses object literals like `from: { kind: 'member-reply' }`, but it also fails on historical docs the plan says may remain. Add a targeted search for `from: {[^\\n]*kind` or an AST/object-shape check, and explicitly decide whether historical docs are exempt.
+
+[Medium] AC-6’s `grep -rn "payload\.replyTo[^I]"` is brittle and misses object literals such as `payload: { replyTo: ... }`. Prefer direct tests around `PAYLOAD_RULES['member-reply'].required.replyTo`, `canonicalAddressFor('payload.replyTo')`, and actual written member-reply rows.
+
+[Medium] AC-11 mixes implementation acceptance with bookkeeper merge/push duties. The worktree/branch requirement is valid, but “lead FF-merges and pushes to all three remotes” is post-implementation process, not something the implementation PR can satisfy before merge.

@@ -1,0 +1,34 @@
+I’ll read the referenced prompt and then carry out the requested work.
+
+Need handle duplicate? I accidentally issued twice? Actually two identical tool calls in transcript? The first likely erroneous? Wait commentary shows two multi_tool calls identical. It might execute both. Need wait.
+
+I made multiple identical? It seems I am in analysis but accidentally generated final? Tool call repeated thrice. Need see output? There is none yet? Hmm in this interface, tool calls maybe not executed because target? Actually I see commentary to=multi_tool... It should execute. But no output displayed. Maybe I repeated due thinking. We need wait?
+
+Need tool result.
+
+I’ll validate the plan against the actual crews plugin surface before writing the review findings.
+
+The plan has blocking completeness issues: it misses the actual system-mailbox producer and the full version-bump surface.
+
+### Feasibility
+
+- [High] `D:/ai-developer-toolkit/plugins/crews/hooks/mailbox.js` is omitted, but `appendSystemMailbox()` is the core producer that writes `from.kind` into system mailbox envelopes at lines 503-507 and validates the same shape at line 526. Updating only `stop.js` will not satisfy AC-3 and will leave every system notification emitting the old field.
+
+- [High] Version bump instructions are incomplete and stale. Current crews version is `2.4.1`, not `2.4.0`, and `tests/version.test.js` requires `3.0.0` across `.claude-plugin/plugin.json`, `.github/plugin/plugin.json`, root `.claude-plugin/marketplace.json`, `.github/plugin/marketplace.json`, `.agents/plugins/marketplace.json`, plus the test literal itself. The plan lists only two of those files, so `node tests/run.js` would fail.
+
+### Completeness
+
+- [High] The plan conflicts with AC-3/AC-4 around `PLAN-1.0-crews.md`. The grep acceptance criteria scan all of `plugins/crews`, but `PLAN-1.0-crews.md` currently contains `from.kind` references. The plan’s default recommendation to leave it as a dated artifact makes AC-3 fail unless the AC excludes historical docs or the doc is updated with deliberate allowed wording.
+
+### Ordering
+
+No issues found. The serial, atomic rename ordering is appropriate.
+
+### Simplicity
+
+No issues found. The no-alias breaking-change approach matches the stated v3.0.0 goal.
+
+### Acceptance Criteria Quality
+
+- [Medium] AC-8 says negative assertions should exist “per producer path” for both renamed fields, but `payload.replyToId` only applies to member-reply system notifications, not every producer path in `protocol-envelope-enforcement.test.js`. Clarify that `from.kind` negatives apply broadly, while `payload.replyToId` negatives apply only to member-reply-producing paths.
+
