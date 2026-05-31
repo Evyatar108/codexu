@@ -2230,6 +2230,22 @@
       }
     },
     {
+      "id": "task-expansion-skill",
+      "scope": "ralph-overview|bookkeeping",
+      "lifecycle": "tracked",
+      "status": "ok",
+      "lastTouchedAt": "2026-05-31T15:50:00Z",
+      "kanbanCards": [],
+      "command": {
+        "name": "task-expansion-skill",
+        "descriptionHtml": "Operator-favored task-overview format proven useful 2026-05-31. Bookkeeper produced an ad-hoc expansion of <code>impl-mcp-server-notifications</code> + <code>plan-port-plan-and-verification-roles</code> using a 4-section template: <strong>What it is</strong> (concrete scope), <strong>Why it matters</strong> (downstream impact), <strong>Upstream-conflict surface</strong> (per-file/per-seam rebase liability with mitigation), <strong>What unblocks it / what it unblocks</strong> (prerequisite work + downstream dependents). Operator response: \"I really like this overview... we should make it into a skill.\" Build as a reusable skill so bookkeeper sessions (and other agents picking tasks) emit consistent task-expansion analyses for any backlog item. Likely lives in ralph-overview plugin or a new dedicated skill under D:/ai-developer-toolkit/plugins/.",
+        "warnings": [],
+        "prompts": {
+          "brainstorm": "/brainstorm-with-ralph \"Design a reusable 'task-expansion' skill that, given a tracked task id (or set of ids), produces a structured Markdown overview with these required sections: (1) What it is — concrete user-facing + technical scope, cite source files where relevant; (2) Why it matters — downstream impact, user-perceived value, what gets unblocked once shipped; (3) Upstream-conflict surface — for fork-relevant code (codex/, packages/happy-{cli,app,server,wire}/), per-file rebase liability, overlay-vs-canonical mitigation, recent rebase pain points if any; (4) Prerequisites — what previous work unblocked this task (look at lifecycle=merged tasks with shipped commits that touched relevant files); (5) Unblocks — what downstream tasks become spawn-ready once this lands.\\n\\nData sources to consult: .ralph-overview/data.json (task descriptionHtml, warnings, prompts.brainstorm/plan/impl, kanbanCards.column), .ralph/jobs/<id>/plan.md if it exists, git log --grep='<task-id>' across codexu + ai-developer-toolkit + codex submodule, codex/CLAUDE.md for the minimize-conflict-surface tenet, and operator preferences from .agents/memory or AGENTS.md.\\n\\nKey design questions to surface: (a) where does the skill live — new plugin vs extend ralph-overview vs extend crews? (b) is it an MCP tool (callable by any agent) or a CLI/skill invocation? (c) how does it auto-discover prerequisites — git log heuristic, plan-doc reference scan, or operator-curated 'unblocks' field in data.json schema? (d) does it write a sidecar (e.g. .ralph-overview/generated/task-expansions/<id>.md) or only emit on-demand? (e) skill output format: pure Markdown for terminal/chat vs structured JSON for programmatic consumers vs both?\\n\\nProduce selected-direction.md with the chosen approach and the operator-mandate 'always show 5 sections' contract.\""
+        }
+      }
+    },
+    {
       "id": "codex-rebase-rusty-v8-archive-fetch",
       "scope": "codex",
       "lifecycle": "tracked",
