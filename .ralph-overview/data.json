@@ -2283,6 +2283,38 @@
       }
     },
     {
+      "id": "codex-mcp-server-notifications-patch-surface-docs",
+      "scope": "codex",
+      "lifecycle": "tracked",
+      "status": "ok",
+      "lastTouchedAt": "2026-05-31T17:32:00Z",
+      "kanbanCards": [],
+      "command": {
+        "name": "codex-mcp-server-notifications-patch-surface-docs",
+        "descriptionHtml": "Surfaced by <code>impl-mcp-server-notifications</code> ship (2026-05-31). The 7 <code>// SANDBOX PATCH: invariant 25</code> markers are in place across 5 functional seams in the codex inner submodule (bd98f77), but the corresponding <code>codex/docs/implementation/patch-surface.md</code> §14/§15 entries for invariants 25, 25a, 25b, 25c, 25d were NOT added during the ship. Small docs-only follow-up; reference table of intended invariants + enforcing tests is in the impl member's done report.",
+        "warnings": [],
+        "prompts": {
+          "impl": "Add 5 invariant rows to codex/docs/implementation/patch-surface.md §14 (invariants 25, 25a, 25b, 25c, 25d per the impl-mcp-server-notifications done-report reference table) + add §15 replant recipe entry for the SANDBOX PATCH: invariant 25 markers across rmcp-client/{logging_client_handler.rs, elicitation_client_service.rs, rmcp_client.rs}, codex-mcp/{rmcp_client.rs, connection_manager.rs}. Docs-only commit on a small topic branch in gim-home/codex; FF to wrapper main; codexu submodule pointer bump in a sibling commit on codexu main."
+        }
+      }
+    },
+    {
+      "id": "codex-rebase-spec-plan-malformed-function",
+      "scope": "codex",
+      "lifecycle": "tracked",
+      "status": "ok",
+      "lastTouchedAt": "2026-05-31T17:31:00Z",
+      "kanbanCards": [],
+      "command": {
+        "name": "codex-rebase-spec-plan-malformed-function",
+        "descriptionHtml": "Surfaced 2026-05-31 by <code>impl-mcp-server-notifications</code> Phase 5a workspace gate. <code>core/src/tools/spec_plan.rs:658-714</code> has ~57 lines of stray code that reference <code>config</code> and <code>builder</code> (vars not in scope) sitting BELOW the closing brace of <code>add_core_utility_tools</code> and ABOVE <code>add_mcp_runtime_tools</code> — clearly a mid-merge artifact from the v0.135.0 rebase that left <code>add_core_utility_tools</code> malformed. <strong>Fork-architecture call:</strong> deleting the stray block requires understanding which collab-tools / agent-jobs / spawn-top-level-session handler registrations are still wanted.",
+        "warnings": [],
+        "prompts": {
+          "plan": "/plan-with-ralph \"Reconcile the spec_plan.rs:658-714 stray block left by the v0.135.0 rebase. Survey: which collab-tools / agent-jobs / spawn-top-level-session handler registrations does the fork still want vs which were upstream-removed? The stray block references config and builder vars that are no longer in scope, but the registration intent may still be load-bearing. Plan should: (a) identify each registration in the stray block; (b) cross-reference upstream's current spec_plan.rs to see whether the registrations moved elsewhere; (c) decide per-registration whether to delete (upstream-canonical) or re-implant in the correct scope (fork-canonical); (d) verify codex-core builds after fix.\""
+        }
+      }
+    },
+    {
       "id": "codex-rebase-core-plugins-manager-dangling-call",
       "scope": "codex",
       "lifecycle": "tracked",
