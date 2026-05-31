@@ -6,6 +6,8 @@ type ResumeThreadClient = {
         cwd: string;
         mcpServers: Record<string, unknown>;
         projectDocFallback?: string[];
+        baseInstructions?: string;
+        developerInstructions?: string;
     }) => Promise<{ threadId: string; model: string }>;
 };
 
@@ -26,6 +28,8 @@ export async function resumeExistingThread(opts: {
     cwd: string;
     mcpServers: Record<string, unknown>;
     projectDocFallback?: string[];
+    baseInstructions?: string;
+    developerInstructions?: string;
 }): Promise<{ threadId: string; model: string }> {
     try {
         const resumedThread = await opts.client.resumeThread({
@@ -33,6 +37,8 @@ export async function resumeExistingThread(opts: {
             cwd: opts.cwd,
             mcpServers: opts.mcpServers,
             ...(opts.projectDocFallback === undefined ? {} : { projectDocFallback: opts.projectDocFallback }),
+            ...(opts.baseInstructions === undefined ? {} : { baseInstructions: opts.baseInstructions }),
+            ...(opts.developerInstructions === undefined ? {} : { developerInstructions: opts.developerInstructions }),
         });
 
         opts.session.updateMetadata((currentMetadata) => ({

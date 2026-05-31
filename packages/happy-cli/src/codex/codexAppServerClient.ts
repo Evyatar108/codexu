@@ -213,6 +213,8 @@ export class CodexAppServerClient {
         mcpServers?: Record<string, unknown>;
         projectDocFallback?: string[];
         compactPrompt?: string;
+        baseInstructions?: string;
+        developerInstructions?: string;
     } | null = null;
 
     // Turn completion tracking for the currently active sendTurnAndWait call.
@@ -1271,6 +1273,8 @@ export class CodexAppServerClient {
         mcpServers?: Record<string, unknown>;
         projectDocFallback?: string[];
         compactPrompt?: string;
+        baseInstructions?: string;
+        developerInstructions?: string;
     }): void {
         this.threadDefaults = {
             model: opts.model,
@@ -1280,6 +1284,8 @@ export class CodexAppServerClient {
             mcpServers: opts.mcpServers,
             projectDocFallback: opts.projectDocFallback,
             compactPrompt: opts.compactPrompt,
+            baseInstructions: opts.baseInstructions,
+            developerInstructions: opts.developerInstructions,
         };
     }
 
@@ -1293,6 +1299,8 @@ export class CodexAppServerClient {
         mcpServers?: Record<string, unknown>;
         projectDocFallback?: string[];
         compactPrompt?: string;
+        baseInstructions?: string;
+        developerInstructions?: string;
     }): Promise<{ threadId: string; model: string }> {
         const params: NewConversationParams = {
             model: opts.model ?? null,
@@ -1302,8 +1310,12 @@ export class CodexAppServerClient {
             approvalPolicy: opts.approvalPolicy ?? null,
             sandbox: opts.sandbox ?? null,
             config: this.buildThreadConfig(opts.mcpServers, opts.projectDocFallback, opts.compactPrompt),
-            baseInstructions: null,
-            developerInstructions: null,
+            // Gap 7 (codex-agent-parity-audit.md): customSystemPrompt/appendSystemPrompt
+            // from per-message meta on the runCodex side map to baseInstructions /
+            // developerInstructions on the wire. Mid-session changes are deferred to
+            // the next thread start (matches Claude's "next turn only" semantics).
+            baseInstructions: opts.baseInstructions ?? null,
+            developerInstructions: opts.developerInstructions ?? null,
             // Top-level field is silently dropped by the installed codex app-server
             // (see codexAppServerTypes.ts deprecation note); the live value is
             // routed through nested `config.compact_prompt` by buildThreadConfig.
@@ -1330,6 +1342,8 @@ export class CodexAppServerClient {
         mcpServers?: Record<string, unknown>;
         projectDocFallback?: string[];
         compactPrompt?: string;
+        baseInstructions?: string;
+        developerInstructions?: string;
     }): Promise<{ threadId: string; model: string }> {
         const threadId = opts?.threadId ?? this._threadId;
         if (!threadId) {
@@ -1349,8 +1363,11 @@ export class CodexAppServerClient {
                 opts?.projectDocFallback ?? defaults.projectDocFallback,
                 opts?.compactPrompt ?? defaults.compactPrompt,
             ),
-            baseInstructions: null,
-            developerInstructions: null,
+            // Gap 7: preserve user-set system prompts across transport reconnects by
+            // persisting them in threadDefaults; cf. startThread for the wire-mapping
+            // contract.
+            baseInstructions: opts?.baseInstructions ?? defaults.baseInstructions ?? null,
+            developerInstructions: opts?.developerInstructions ?? defaults.developerInstructions ?? null,
             persistExtendedHistory: true,
         };
 
@@ -1365,6 +1382,8 @@ export class CodexAppServerClient {
             mcpServers: opts?.mcpServers ?? defaults.mcpServers,
             projectDocFallback: opts?.projectDocFallback ?? defaults.projectDocFallback,
             compactPrompt: opts?.compactPrompt ?? defaults.compactPrompt,
+            baseInstructions: opts?.baseInstructions ?? defaults.baseInstructions,
+            developerInstructions: opts?.developerInstructions ?? defaults.developerInstructions,
         });
         logger.debug('[CodexAppServer] Thread resumed:', this._threadId);
         return { threadId: result.thread.id, model: result.model };

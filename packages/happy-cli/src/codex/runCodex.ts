@@ -103,6 +103,8 @@ export async function runCodex(opts: {
         permissionMode: PermissionMode;
         model?: string;
         thinkingLevel?: ReasoningEffort;
+        customSystemPrompt?: string;
+        appendSystemPrompt?: string;
     }
 
     //
@@ -238,6 +240,8 @@ export async function runCodex(opts: {
         permissionMode: mode.permissionMode,
         model: mode.model,
         thinkingLevel: mode.thinkingLevel,
+        customSystemPrompt: mode.customSystemPrompt,
+        appendSystemPrompt: mode.appendSystemPrompt,
     }));
 
     // Track current overrides to apply per message
@@ -245,6 +249,12 @@ export async function runCodex(opts: {
     let currentPermissionMode: import('@/api/types').PermissionMode | undefined = opts.permissionMode as import('@/api/types').PermissionMode | undefined;
     let currentModel: string | undefined = opts.model;
     let currentThinkingLevel: ReasoningEffort | undefined = opts.effortLevel;
+    // Gap 7 (codex-agent-parity-audit.md): codex now mirrors Claude's per-message
+    // customSystemPrompt / appendSystemPrompt tracking. Values are applied to the
+    // NEXT thread start (or resume) — mid-session changes do NOT restart an
+    // already-active thread, matching Claude's "next turn only" semantics.
+    let currentCustomSystemPrompt: string | undefined = undefined;
+    let currentAppendSystemPrompt: string | undefined = undefined;
 
     // Valid Codex permission modes from remote messages. Restricted to the
     // native Codex modes exposed by the mobile UI (see modelModeOptions.ts:
@@ -319,10 +329,28 @@ export async function runCodex(opts: {
             logger.debug(`[Codex] Thinking level updated from user message: ${messageThinkingLevel || 'reset to default'}`);
         }
 
+        // Resolve custom system prompt - use message.meta.customSystemPrompt if provided, otherwise use current
+        let messageCustomSystemPrompt = currentCustomSystemPrompt;
+        if (message.meta && Object.prototype.hasOwnProperty.call(message.meta, 'customSystemPrompt')) {
+            messageCustomSystemPrompt = message.meta.customSystemPrompt || undefined; // null becomes undefined
+            currentCustomSystemPrompt = messageCustomSystemPrompt;
+            logger.debug(`[Codex] Custom system prompt updated from user message: ${messageCustomSystemPrompt ? 'set' : 'reset to none'}`);
+        }
+
+        // Resolve append system prompt - use message.meta.appendSystemPrompt if provided, otherwise use current
+        let messageAppendSystemPrompt = currentAppendSystemPrompt;
+        if (message.meta && Object.prototype.hasOwnProperty.call(message.meta, 'appendSystemPrompt')) {
+            messageAppendSystemPrompt = message.meta.appendSystemPrompt || undefined; // null becomes undefined
+            currentAppendSystemPrompt = messageAppendSystemPrompt;
+            logger.debug(`[Codex] Append system prompt updated from user message: ${messageAppendSystemPrompt ? 'set' : 'reset to none'}`);
+        }
+
         const enhancedMode: EnhancedMode = {
             permissionMode: messagePermissionMode || 'default',
             model: messageModel,
             thinkingLevel: messageThinkingLevel,
+            customSystemPrompt: messageCustomSystemPrompt,
+            appendSystemPrompt: messageAppendSystemPrompt,
         };
         // Slash commands (`/clear`, `/compact`) must not be newline-joined with
         // sibling user text; isolation lets the loop body dispatch them through
@@ -787,6 +815,8 @@ export async function runCodex(opts: {
                 cwd: cwdAtStart,
                 mcpServers,
                 projectDocFallback,
+                baseInstructions: currentCustomSystemPrompt,
+                developerInstructions: currentAppendSystemPrompt,
             });
             if (forkedFromSessionId) {
                 await session.sendContextBoundary({
@@ -909,6 +939,8 @@ export async function runCodex(opts: {
                         sandbox: executionPolicy.sandbox,
                         mcpServers,
                         projectDocFallback,
+                        baseInstructions: message.mode.customSystemPrompt,
+                        developerInstructions: message.mode.appendSystemPrompt,
                     });
                     session.updateMetadata((currentMetadata) => ({
                         ...currentMetadata,

@@ -212,6 +212,8 @@ Optionally (b) overlay-crate enhancement if codex doesn't natively understand `/
 
 ## Gap 7 — Custom / appended system prompts not plumbed
 
+**Status: SHIPPED 2026-05-31** (commit on `ralph/codex-system-prompts`). The codex `EnhancedMode` now tracks `customSystemPrompt` and `appendSystemPrompt` per-message (mirroring `runClaude.ts`); they flow into `client.startThread({ baseInstructions, developerInstructions })` on first turn and into `resumeExistingThread({ baseInstructions, developerInstructions })` on resume, with the values also persisted in `threadDefaults` so transport reconnects preserve them. Mid-session changes apply on the NEXT thread start (matches Claude's "next turn only" semantics). Test: `packages/happy-cli/src/codex/runCodex.systemPrompts.test.ts`.
+
 **Gap.** The Claude path lets the mobile UI inject `customSystemPrompt` and `appendSystemPrompt` per-message; the codex wire protocol has `baseInstructions` / `developerInstructions` fields that map cleanly, but happy-cli never sets them.
 
 **Current state.**
