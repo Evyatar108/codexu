@@ -128,6 +128,47 @@ review before renaming.
 
 ---
 
+### Bookkeeper session 2026-05-30/31 — continuation (Copilot CLI overview-bookkeeper lead)
+
+**Additional ten ships landed** continuing from the prior 11-ship table above. Listed in chronological order with merge SHAs on `Evyatar108/codexu@main` + `gim-home/ai-developer-toolkit@main` (+ `Evyatar108/codex-openai-fork` / `gim-home/codex` for codex-side ships):
+
+| # | Task | Repo / Branch | Merge SHA | Notes |
+|---|------|---|---|---|
+| 12 | `crews-protocol-buildenvelope-adoption` | toolkit/crews | `bb7f1aff` | v2.3.2 — `appendMailbox` self-validating chokepoint + enforcement test (drives 7 producer paths) |
+| 13 | `ralph-overview-watcher-copilot-cli-env-verify` | toolkit/ralph-overview | `fea7520e` | AC-1a PASS evidence files + CHANGELOG; AC-1b defensive-fail by design (correct behavior) |
+| 14 | `crews-protocol-strict-schema-ci` | toolkit/crews | `87e5dcc1` | v2.4.0 — `CREWS_STRICT_SCHEMA=1` default in CI; bonus: caught + fixed a real `member-left payload.archived` schema bug (declared `boolean`, actually a count); every `/leave-crew` had been silently logging `schema-warning:` in production |
+| 15 | `codex-hooks-parity` (partial) | codexu | `620d31a8` | Gap 4 autocompact half — codex `thread/compacted` v2 + legacy `context_compacted` events fan to `session.sendContextBoundary({kind:'autocompact', triggeredBy:'system'})`. Turn-lifecycle + permission-prompt halves still deferred per codex-exclusion in `packages/happy-cli/AGENTS.md` |
+| 16 | `codex-sandbox-setup-release` | tri-repo: codex-patched (n/a) + wrapper `558cd1388` + codexu `a36dd48c` | Bug fix found pre-shipped on `feature/sandbox-setup-release` topic branch from 2026-05-27 — cherry-picked `89f504a78` to gim-home/codex@main + submodule bump on codexu. `publish-npm.yml` now ships `codex-windows-sandbox-setup.exe` + `codex-command-runner.exe`; cross-platform investigation doc landed at `codex/docs/implementation/sandbox-setup-platform-matrix.md` |
+| 17 | `crews-envelope-summary-canonical-cleanup` | toolkit/crews | `85a4d146` | v2.4.1 — retired v1.7.3 consumer fallback at `review-mail.js:110`; kept producer mirror as transitional bridge. Plan member's bonus survey found `payload.kind` write-mirrored at `stop.js:1087/1123` with ZERO production reader — separate backlog candidate |
+| 18 | `codex-slash-commands` | codexu | `a3f3d60e` | Gap 5 — `/clear` and `/compact` codex parity. `/compact` uses a `userTriggeredCompactInFlight` flag to disambiguate from the Gap 4 autocompact path (codex wire surface doesn't tag origin) |
+| 19 | `crews-protocol-v200-envelope-renames` | toolkit/crews | `02af9994` | **v3.0.0 BREAKING:** atomic bundled rename `row.from.kind` → `row.from.routingKind` + `payload.replyToId` → `payload.replyTo` (eliminates documented v2 asymmetry). 6 stories, 45 files, 173/251 tests = origin/main baseline (zero net regressions). 3-reviewer (Claude+Codex+Copilot) pass caught + fixed 3 critical gaps (missed `appendSystemMailbox` producer; 6 version files not 2; lax schema rejection) before commit |
+| 20 | `codex-system-prompts` | codexu | `dcb0dc8a` | Gap 7 — `customSystemPrompt` + `appendSystemPrompt` parity on codex path. Wire fields `baseInstructions` + `developerInstructions` (`NewConversationParams` + `ResumeConversationParams`) now populated from per-message meta; persisted in `threadDefaults` so transport reconnects preserve them |
+| 21 | `ralph-orchestration-followup-task-gatherer` | toolkit/ralph | `35ef177c` | v5.47.0 — Phase 5.5 retrospective subagent (sibling to dsat-analyst + skill-suggester). Reads wont_fix findings + open-question + story-doctor-skip + commit-trailer artifacts; emits `followup-suggestions.json` schema-validated for bookkeeper to hand-curate into `.ralph-overview/data.json` |
+| 22 | `codex-plan-mode-defensive` (v1) | codexu | `48fac386` | Gap 6 v1 — `'plan'` mode maps to `{approvalPolicy:'never', sandbox:'read-only'}` defensively; one-time `service` envelope hint: "Plan mode on codex is approximated as read-only; the ExitPlanMode tool is not available…". Mid-session changes deferred to next thread start (matches Claude semantics). v2 overlay-crate version remains deferred |
+| 23 | `3h-tail` (Item 2 only) | tri-repo: codex-patched `24a222825` + wrapper `516d2cd96` + codexu `38d6e175,6acae155` | **Item 2 shipped** end-to-end: `PreToolUseHookResult::SyntheticResponse(Value)` variant + wire/parser/event/registry plumbing in codex-patched; codexu-options-mode-plugin 0.2.0 adds `hooks/pre-tool-use.js` (D3 = no-op + WARN on empty options) + `hooks.json` PreToolUse matcher for `request_user_input`. **Item 1 (TUI statusline plugin slot) DEFERRED per operator D1** — overlay-only not mechanically viable (closed enum + 25 snapshot tests + `footer.rs` high-touch). CI verification on gim-home/codex pending. Operator decisions: D2=`SyntheticResponse` (vs `SyntheticToolResult`), D3=no-op+warning, D4=ship in next `v0.135.x-copilot-api.N` release window via `publish-sandbox-patch` |
+| 24 | `codex-polish-lows` | codexu | `a7107e44,60f770c7,d79186e1` | Gaps 8/9/11/12 bundled — Gap 9 `--codex-arg=` passthrough (appended after sandbox wrap on stdio + after `--ws-token-sha256` on ws); Gap 8 partial tool gating (`allowedTools`/`disallowedTools` with whole-server pattern `'happy.*'`; new `mcpServerGating.ts` helper); Gap 11/12 SDK init-metadata mirror via new `metadata.codexSession` write (model + modelProvider + approvalPolicy + sandbox + reasoningEffort from handshake) + `synthesizeCodexTools()` populating `metadata.tools` for app statusline. Gap 10 explicitly scope-deferred (separate workstream). happy-app schema gained explicit `codexSession` field with `.passthrough()` inner shape. 1109/1109 happy-app tests + 238/238 happy-cli codex tests pass |
+
+**Codex parity status after this session block:** Gaps 3/4-remaining-halves still open; Gaps 4-partial/5/6-v1/7/8/9/11/12 all SHIPPED; Gap 10 scope-deferred. Plus codex-side: `3h-tail` Item 2 SHIPPED (Item 1 deferred), `codex-sandbox-setup-release` SHIPPED, `codex-upstream-rebase` to `rust-v0.135.0` SHIPPED.
+
+**Crews protocol arc — fully complete this session:** v2.3.0 → v2.3.1 (ack-loop fix) → v2.3.2 → v2.4.0 → v2.4.1 → **v3.0.0**. All six versions installed in the lead session via `copilot plugin update`. The protocol mini-pipeline started from `brainstorm-crews-summary-rendering-audit` (`c52c0360`) is now closed; remaining residual items are doc-only or backlog (e.g. `payload.kind` write-mirror with no reader, surfaced as separate candidate).
+
+**Five additional tracked tasks added during the second block** (post-impl follow-ups, all on codexu/data.json):
+- `codexu-mcp-config-regenerate-with-env-block` (surfaced by ralph-overview smoke verify; bookkeeping/codexu)
+- (codex-rebase follow-ups were added in the first block already)
+
+**Pending operator decisions / actions on session-end:**
+- 4 operator decisions on `3h-tail` plan locked in pre-impl (D1=defer Item 1, D2=`SyntheticResponse`, D3=no-op+warning, D4=next v0.135.x release window via `/publish-sandbox-patch`).
+- CI verification pending on `gim-home/codex@main` for the codex-rebase rust-v0.135.0 push (codex-patched `03fe64287` + wrapper `f4551c95e` from first block, plus 3h-tail `24a222825/516d2cd96` from this block).
+- 3 operator-runnable env tasks remain: D-drive `rusty_v8` v147.4.0 archive fetch; D-drive `rustup 1.95.0` toolchain install (env vars `RUSTUP_HOME=D:\.rustup` + `CARGO_HOME=D:\.cargo`); re-run `overview.init` in codexu to regenerate `.mcp.json` with `env.RALPH_OVERVIEW_REPO_ROOT` block.
+
+**Plugin versions active end-of-session:** crews **v3.0.0** · ralph-orchestration **v5.47.0** · ralph-overview **v2.6.0**.
+
+**Postponed by operator (still tracked):** `happy-upstream-sync` (operator chose to diverge from `slopus/happy`), `impl-ralph-overview-copilot-smoke-deferred`, `impl-codex-attachments` (Gap 3), `ralph-overview-init-consumer-cross-engine-wrapper`, `crews-roles-and-direct-operator-channel`, `ai-developer-toolkit-submodule`, `agent-comms`, `async-events-design`, `agent-status-stream`, `roadmap-plugin`, Phase 3 cleanups (`3a-skills`, `3b-agents`, `3c-hooks`, `3d-workers`, `3fg-package`).
+
+**Total session ships: 24 across two sub-sessions (11 + 13).**
+
+---
+
 
 ### What's where
 
