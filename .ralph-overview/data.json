@@ -2281,6 +2281,27 @@
       }
     },
     {
+      "id": "codex-rebase-core-plugins-manager-dangling-call",
+      "scope": "codex",
+      "lifecycle": "tracked",
+      "status": "ok",
+      "lastTouchedAt": "2026-05-31T17:05:00Z",
+      "kanbanCards": [],
+      "command": {
+        "name": "codex-rebase-core-plugins-manager-dangling-call",
+        "descriptionHtml": "Surfaced 2026-05-31 by <code>impl-port-plan-and-verification-roles</code>. v0.135.0 rebase accepted upstream's new caller in <code>core-plugins/src/manager.rs</code> (<code>crate::remote::group_remote_installed_plugins_by_marketplaces(...)</code>, 2 call sites) but kept HEAD's network-suppressed <code>remote.rs</code> (empty stubs per the rebase commit's documented decision). Result: dangling reference blocking <code>cargo check --workspace</code>. <strong>Security-sensitive</strong> — per codex CLAUDE.md §1 network-suppression invariant, <code>/ps/plugins/*</code> HTTP must stay disabled. 3 options: (i) stub the function locally in remote.rs to preserve invariant, (ii) re-port upstream's fn with network-suppression treatment applied, (iii) modify manager.rs to not call it. Each needs review against patch-surface §1.",
+        "warnings": [
+          {
+            "className": "cmd-warn",
+            "html": "🔒 Security-sensitive: touches the codex network-suppression invariant. Plan member must review patch-surface §1 + the existing 4-conflict-region resolution in remote.rs before recommending an option."
+          }
+        ],
+        "prompts": {
+          "plan": "/plan-with-ralph \"core-plugins/src/manager.rs has a dangling call to crate::remote::group_remote_installed_plugins_by_marketplaces (introduced by v0.135.0 upstream rebase, dropped by the HEAD-side network-suppression treatment of remote.rs). Workspace cargo check fails on this. Survey the 3 options: (i) stub the function locally in remote.rs to preserve the network-suppression invariant, (ii) re-port upstream's function body with the network-suppression treatment applied (return Vec::new() / AuthRequired equivalents), (iii) modify manager.rs's 2 call sites to not call it. Read codex/CLAUDE.md §1 (network suppression) + the existing 4-conflict-region resolution that the rebase commit message describes (kept HEAD's empty Vec::new() / AuthRequired stubs). Per minimize-conflict-surface tenet: SANDBOX PATCH with §15 replant recipe is acceptable here since remote.rs is already a heavy patch surface; overlay crate is unlikely viable for this seam. Recommend the safest option that preserves invariant + minimizes future-rebase churn. Plan should also probe whether there are OTHER similar dangling-caller cases beyond this one that the rebase missed.\""
+        }
+      }
+    },
+    {
       "id": "codex-rebase-history-cell-forward-port",
       "scope": "codex",
       "lifecycle": "tracked",
