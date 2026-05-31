@@ -2283,6 +2283,27 @@
       }
     },
     {
+      "id": "codex-rebase-debt-reconciliation",
+      "scope": "codex",
+      "lifecycle": "tracked",
+      "status": "ok",
+      "lastTouchedAt": "2026-05-31T17:46:00Z",
+      "kanbanCards": [],
+      "command": {
+        "name": "codex-rebase-debt-reconciliation",
+        "descriptionHtml": "Coordinated reconciliation of all pre-existing rebase debt from the v0.135.0 codex upstream rebase (shipped 2026-05-30). Multiple impl members have hit per-crate blockers; this task is a single coordinated effort to make <code>cargo check --workspace</code> GREEN. Survey-categorize-fix approach: (a) mechanical fixes applied autonomously with <code>rebase-debt-fix-followup:</code> commit tags, (b) fork-architecture calls surfaced as <code>kind=question</code> with options, (c) security-sensitive items (network-suppression invariant per CLAUDE.md §1) require pause-points. Subsumes (or partially subsumes) the 2 existing followup tasks <code>codex-rebase-core-plugins-manager-dangling-call</code> + <code>codex-rebase-spec-plan-malformed-function</code>.",
+        "warnings": [
+          {
+            "className": "cmd-warn",
+            "html": "🔒 Touches security-sensitive surfaces (network-suppression invariant in core-plugins/remote.rs). Expect 1+ kind=question pause-points during the fix phase."
+          }
+        ],
+        "prompts": {
+          "impl": "See spawn-prompt for impl-codex-rebase-debt-reconciliation (2026-05-31). Survey-categorize-fix approach: cargo check --workspace baseline → categorize each error as (a) mechanical / (b) fork-architecture / (c) security-sensitive → fix all (a) autonomously, surface (b)/(c) as kind=question → re-verify workspace GREEN → push topic branch to gim-home/codex (lead does wrapper FF + codexu submodule bump). Every edit gets a // SANDBOX PATCH: rebase-debt-fix v0.135.0 marker + §15 replant recipe entry."
+        }
+      }
+    },
+    {
       "id": "codex-mcp-server-notifications-patch-surface-docs",
       "scope": "codex",
       "lifecycle": "tracked",
