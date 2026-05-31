@@ -1,0 +1,80 @@
+**Codebase Architecture**
+
+`D:/ai-developer-toolkit/plugins/crews` is a plain Node/CommonJS plugin, currently `2.4.0` in [.claude-plugin/plugin.json](/d/ai-developer-toolkit/plugins/crews/.claude-plugin/plugin.json:1). There is no plugin-local `package.json`. Runtime code is under `hooks/`, CLI wrappers under `tools/`, user-facing skill docs under `skills/`, protocol docs under `docs/`, and tests under `tests/` with the custom runner [tests/run.js](/d/ai-developer-toolkit/plugins/crews/tests/run.js:1).
+
+The wire protocol is file-backed JSON/JSONL under `.crews`: mailboxes, inbox history, outbox rows, manifests, and decision rows. Schema enforcement is centralized in [hooks/protocol/envelope.js](/d/ai-developer-toolkit/plugins/crews/hooks/protocol/envelope.js:1).
+
+**Consumer Survey**
+
+Counts below are literal matches in active source/config/docs, excluding `.git`, `node_modules`, worktrees, generated snapshots, and live runtime mailbox state.
+
+| Repo | `from.kind` | `replyToId` | `routing.kind` |
+|---|---:|---:|---:|
+| `D:/ai-developer-toolkit/plugins/crews` | 70 | 36 | 0 |
+| `D:/harness-efforts/codexu` active docs/config | 7 | 8 | 0 |
+| `D:/ai-developer-toolkit/plugins/ralph` | 0 | 0 | 0 |
+| `D:/ai-developer-toolkit/plugins/ralph-overview` source | 0 | 0 | 0 |
+| Other `D:/ai-developer-toolkit/plugins/*` checked | 0 | 0 | 0 |
+
+There is no `plugins/ralph-orchestration` directory in this checkout; `plugins/ralph` is the available orchestration plugin and has no matches. In codexu, matches are backlog/task text in `.ralph-overview/data.json`, not runtime consumers.
+
+**Feature-Relevant Code**
+
+Primary schema locations:
+
+- [hooks/protocol/envelope.js](/d/ai-developer-toolkit/plugins/crews/hooks/protocol/envelope.js:68): `PAYLOAD_RULES.member-reply.required.replyToId`.
+- [hooks/protocol/envelope.js](/d/ai-developer-toolkit/plugins/crews/hooks/protocol/envelope.js:105): `CANONICAL_ADDRESSES` maps `from.kind` and `payload.replyToId`.
+- [hooks/protocol/envelope.js](/d/ai-developer-toolkit/plugins/crews/hooks/protocol/envelope.js:139): `validateFromSubfields()` validates `from.kind`.
+- [hooks/protocol/envelope.js](/d/ai-developer-toolkit/plugins/crews/hooks/protocol/envelope.js:171): payload-rule dispatch reads `env.from.kind`.
+
+Producer/consumer chokepoints:
+
+- [hooks/mailbox.js](/d/ai-developer-toolkit/plugins/crews/hooks/mailbox.js:501): `appendSystemMailbox()` synthesizes `from.kind`.
+- [hooks/stop.js](/d/ai-developer-toolkit/plugins/crews/hooks/stop.js:1077): member reply notifications write `payload.replyToId`.
+- [hooks/commands/review-mail.js](/d/ai-developer-toolkit/plugins/crews/hooks/commands/review-mail.js:84): fallback reader uses `row.from.kind`.
+- [hooks/protocol/review-required.js](/d/ai-developer-toolkit/plugins/crews/hooks/protocol/review-required.js:14): review gating uses `envelope.from.kind`.
+- [hooks/stop.js](/d/ai-developer-toolkit/plugins/crews/hooks/stop.js:208): strict-ack exemptions and system ack-only reply logic use `entry.from.kind`.
+
+Tests to extend/update:
+
+- [tests/protocol-envelope-canonical.test.js](/d/ai-developer-toolkit/plugins/crews/tests/protocol-envelope-canonical.test.js:1)
+- [tests/protocol-envelope-roundtrip.test.js](/d/ai-developer-toolkit/plugins/crews/tests/protocol-envelope-roundtrip.test.js:1)
+- [tests/protocol-envelope-enforcement.test.js](/d/ai-developer-toolkit/plugins/crews/tests/protocol-envelope-enforcement.test.js:1)
+- Existing fixtures/assertions in `member-reply-notify`, `spawn-prompt-notify`, `send-receive-reply-cycle`, `pretooluse-ask-user-question`, `fanout`, `system-mailbox`, `review-flow`, and stop-member tests.
+
+**Technical Constraints**
+
+`CREWS_STRICT_SCHEMA=1` and `CREWS_STRICT_ENVELOPE=1` are enabled by default in the test runner, so schema changes must be atomic with tests. Production is warn-only unless strict env vars are set.
+
+The canonical schema is code, not JSON Schema. Update `PAYLOAD_RULES`, `CANONICAL_ADDRESSES`, `validateFromSubfields()`, and `validatePayloadRules()` together.
+
+A pure rename is not enough: if `from.kind` remains allowed as an unknown extra field, stale rows can still pass. Add explicit stale-field rejection for `from.kind` and `payload.replyToId` in strict validation.
+
+**Implementation Suggestions**
+
+Use one bundled `v3.0.0` breaking ship, not split releases. The external consumer count is effectively zero; the affected surface is concentrated in crews tests/docs plus codexu backlog text. A deprecated alias period would preserve the confusing dual names and weaken the schema tests.
+
+New wire shape:
+
+```js
+from: {
+  role: 'system',
+  routingKind: 'member-reply',
+  triggeredBy: 'alice',
+  name: 'system',
+  crew: 'demo'
+}
+
+payload: {
+  replyTo: 'sent-9',
+  memberName: 'alice',
+  outboxSeq: 1,
+  outboxId: 'out-1'
+}
+```
+
+Update docs atomically: `docs/protocol.md`, `CHANGELOG.md`, `AGENTS.md`, and the local gitignored `CLAUDE.md` if present. I did not find a `CLAUDE.md` in the crews checkout.
+
+Migration tests should assert both positive and negative shape: every emitter writes `from.routingKind` and never `from.kind`; member-reply writes `payload.replyTo` and never `payload.replyToId`; strict validation rejects old names. Also extend the producer/consumer matrix beyond “factory was called” to inspect actual written mailbox rows.
+
+No tests were run; this was static codebase research.
