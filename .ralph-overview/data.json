@@ -2283,6 +2283,35 @@
       }
     },
     {
+      "id": "codex-rebase-resume-proper",
+      "scope": "codex",
+      "lifecycle": "tracked",
+      "status": "ok",
+      "lastTouchedAt": "2026-05-31T18:30:00Z",
+      "kanbanCards": [
+        {
+          "column": "ready",
+          "cardClass": null,
+          "inlineStyle": null,
+          "html": "\n      <div class=\"card-title\">Resume the v0.135.0 codex rebase properly</div>\n      <div class=\"sub\">v0.135.0 squash silently dropped producer-side modules (PlannedTools type + add_collaboration_tools fn + likely more). impl-codex-rebase-debt-reconciliation surfaced this after 3 fix commits; cargo check workspace remains broken on 30 errors all rooted in deeper rebase incompleteness. Multi-day scope.</div>\n      <div class=\"card-meta\">\n        <span class=\"pill area-codex\">codex submodule</span>\n        <span class=\"pill p-high\">high effort</span>\n        <span>~1-2 days</span>\n      </div>\n    ",
+          "order": 10
+        }
+      ],
+      "command": {
+        "name": "codex-rebase-resume-proper",
+        "descriptionHtml": "Surfaced 2026-05-31 by <code>impl-codex-rebase-debt-reconciliation</code> after 3 fix commits unblocked partial workspace compilation. The v0.135.0 codex upstream rebase (shipped 2026-05-30) silently dropped producer-side modules during the squash: <code>PlannedTools</code> type + <code>add_collaboration_tools</code> fn are referenced throughout <code>spec_plan.rs</code> but defined NOWHERE in the workspace. Plus 4 fork/upstream files need trait migration (old <code>ToolHandler::handle()</code> shape vs new <code>CoreToolRuntime</code> trait). Full inventory + recommended <code>/rebase-upstream rust-v0.135.0</code> resume-discipline approach + base SHAs documented at <code>.ralph/jobs/codex-rebase-debt-reconciliation/handoff.md</code>. <strong>Multi-day scope</strong> (~1-2 days per the prior member's estimate). Build on top of 3 fix commits already pushed at <code>Evyatar108/codex-openai-fork@ralph/rebase-debt-reconciliation-impl</code> tip <code>5726e6f08</code>.",
+        "warnings": [
+          {
+            "className": "cmd-warn",
+            "html": "🚧 Multi-day scope. Read handoff.md FIRST. Recommended approach: /rebase-upstream rust-v0.135.0 discipline → git diff bd98f7751..rust-v0.135.0 to identify ALL dropped files → import → re-apply the 3 existing fix commits on top → verify cargo check --workspace GREEN."
+          }
+        ],
+        "prompts": {
+          "plan": "/plan-with-ralph \"Resume the v0.135.0 codex upstream rebase to make cargo check --workspace GREEN. The prior reconciliation member (impl-codex-rebase-debt-reconciliation) shipped 3 valuable fix commits on Evyatar108/codex-openai-fork@ralph/rebase-debt-reconciliation-impl (tip 5726e6f08) and surfaced that the squash silently dropped producer-side modules. Full inventory + recommended approach at .ralph/jobs/codex-rebase-debt-reconciliation/handoff.md. Plan: (a) survey the 30 remaining errors in codex-core per the handoff Z/C/A categories; (b) decide between /rebase-upstream rust-v0.135.0 discipline (fresh fetch + diff against pre-rebase 93d915e66 to identify ALL dropped files) vs surgical recovery of just PlannedTools + add_collaboration_tools; (c) base the new work on the existing ralph/rebase-debt-reconciliation-impl tip 5726e6f08 (don't rebase or revert the 3 fix commits); (d) plan for Z3 + C1 + C2 ToolHandler-to-CoreToolRuntime trait migration; (e) plan for A1-A4 dropped definitions (mod.rs re-exports, config_profile orphan, truncation_policy field). Workflow: codex worktree + topic branch + push to gim-home/codex + wrapper FF + codexu submodule bump after lead approval per AGENTS.md only-lead-merges discipline.\""
+        }
+      }
+    },
+    {
       "id": "codex-rebase-debt-reconciliation",
       "scope": "codex",
       "lifecycle": "tracked",
@@ -2324,7 +2353,8 @@
       "scope": "codex",
       "lifecycle": "tracked",
       "status": "ok",
-      "lastTouchedAt": "2026-05-31T17:31:00Z",
+      "mergeCommit": "partially-addressed-by-5726e6f08",
+      "lastTouchedAt": "2026-05-31T18:30:00Z",
       "kanbanCards": [],
       "command": {
         "name": "codex-rebase-spec-plan-malformed-function",
@@ -2340,7 +2370,8 @@
       "scope": "codex",
       "lifecycle": "tracked",
       "status": "ok",
-      "lastTouchedAt": "2026-05-31T17:05:00Z",
+      "mergeCommit": "partially-addressed-by-494219ed4",
+      "lastTouchedAt": "2026-05-31T18:30:00Z",
       "kanbanCards": [],
       "command": {
         "name": "codex-rebase-core-plugins-manager-dangling-call",
