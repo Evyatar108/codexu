@@ -274,6 +274,8 @@ Optionally (b) overlay-crate enhancement if codex doesn't natively understand `/
 > `codex-args-passthrough — --codex-arg passthrough flag`
 > Add repeatable `--codex-arg <flag>` to the codex CLI parser. Forward to `codex app-server` spawn argv. Acceptance: `happy codex --codex-arg --some-flag --codex-arg value` results in `--some-flag value` appearing in the spawned `codex app-server` argv.
 
+**SHIPPED** (Gap 9 — codex-polish-lows). `extractCodexArgFlag` in `cliArgs.ts` collects repeated `--codex-arg <value>` / `--codex-arg=<value>` tokens; `handleCodexCommand` threads them through `runCodex` opts into `CodexAppServerClient`'s new `extraAppServerArgs` option. `connect()` appends them verbatim to BOTH the stdio spawn argv (after the sandbox `wrapForMcpTransport` wrap, so seatbelt doesn't strip them) and the ws spawn argv (after `--ws-token-sha256`). Power-user escape hatch; structured flags remain preferred.
+
 ---
 
 ## Gap 10 — `.claude/skills/` discovery

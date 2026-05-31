@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+    extractCodexArgFlag,
     extractCodexEffortFlag,
     extractCodexProjectDocFlag,
     extractCodexResumeFlag,
@@ -169,5 +170,50 @@ describe('extractCodexProjectDocFlag', () => {
         expect(() => extractCodexProjectDocFlag(['--codex-project-doc='])).toThrow(
             'Codex project-doc requires a value: happy codex --codex-project-doc <name>',
         );
+    });
+});
+
+
+describe('extractCodexArgFlag (Gap 9)', () => {
+    it('returns empty array and preserves args when flag is absent', () => {
+        const parsed = extractCodexArgFlag(['--effort', 'high']);
+        expect(parsed.codexArgs).toEqual([]);
+        expect(parsed.args).toEqual(['--effort', 'high']);
+    });
+
+    it('collects a single space-separated flag', () => {
+        const parsed = extractCodexArgFlag(['--codex-arg', '--some-flag']);
+        expect(parsed.codexArgs).toEqual(['--some-flag']);
+        expect(parsed.args).toEqual([]);
+    });
+
+    it('collects multiple flags in argv order', () => {
+        const parsed = extractCodexArgFlag([
+            '--codex-arg', '--flag-a',
+            '--effort', 'low',
+            '--codex-arg', 'value-b',
+            '--codex-arg=flag-c',
+        ]);
+        expect(parsed.codexArgs).toEqual(['--flag-a', 'value-b', 'flag-c']);
+        expect(parsed.args).toEqual(['--effort', 'low']);
+    });
+
+    it('accepts equals syntax', () => {
+        const parsed = extractCodexArgFlag(['--codex-arg=--rust-log=debug']);
+        expect(parsed.codexArgs).toEqual(['--rust-log=debug']);
+        expect(parsed.args).toEqual([]);
+    });
+
+    it('throws when --codex-arg has no value', () => {
+        expect(() => extractCodexArgFlag(['--codex-arg'])).toThrow(/Codex-arg requires a value/);
+        expect(() => extractCodexArgFlag(['--codex-arg='])).toThrow(/Codex-arg requires a value/);
+    });
+
+    it('preserves leading-dash values (does NOT treat them as missing)', () => {
+        // Unlike the structured flags (e.g. --effort), --codex-arg is a verbatim
+        // passthrough and MUST accept values that start with '-' so users can
+        // forward things like `--codex-arg --some-codex-flag`.
+        const parsed = extractCodexArgFlag(['--codex-arg', '--leading-dash']);
+        expect(parsed.codexArgs).toEqual(['--leading-dash']);
     });
 });

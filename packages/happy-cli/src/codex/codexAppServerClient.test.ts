@@ -511,6 +511,51 @@ describe('CodexAppServerClient sandbox integration', () => {
         await client.disconnect({ terminateAppServer: true });
     });
 
+    // Gap 9 (codex-agent-parity-audit.md): --codex-arg passthrough
+    it('appends extraAppServerArgs verbatim to the stdio spawn argv', async () => {
+        await mockNextAppServer('stdio');
+
+        const { CodexAppServerClient } = await import('./codexAppServerClient');
+        const client = new CodexAppServerClient(undefined, {
+            transport: 'stdio',
+            extraAppServerArgs: ['--rust-log=debug', '--some-flag', 'value'],
+        });
+
+        await client.connect();
+
+        expect(mockSpawn).toHaveBeenCalledWith(
+            'codex',
+            ['app-server', '--listen', 'stdio://', '--rust-log=debug', '--some-flag', 'value'],
+            expect.any(Object),
+        );
+
+        await client.disconnect({ terminateAppServer: true });
+    });
+
+    it('appends extraAppServerArgs verbatim to the ws spawn argv', async () => {
+        Object.defineProperty(process, 'platform', { value: 'win32' });
+        const { proc, wss } = await createMockWsAppServer({ pid: 4399 });
+        const port = (wss.address() as AddressInfo).port;
+        mockPickFreeLoopbackPort.mockResolvedValueOnce(port);
+        mockSpawn.mockImplementationOnce(() => proc);
+
+        const { CodexAppServerClient } = await import('./codexAppServerClient');
+        const client = new CodexAppServerClient(undefined, {
+            transport: 'ws',
+            extraAppServerArgs: ['--extra-a', '--extra-b=val'],
+        });
+
+        await client.connect();
+
+        const args = mockSpawn.mock.calls[0]?.[1] as string[];
+        expect(args.slice(-2)).toEqual(['--extra-a', '--extra-b=val']);
+        // The base ws args must precede the extras and remain unchanged.
+        expect(args.slice(0, 3)).toEqual(['app-server', '--listen', `ws://127.0.0.1:${port}`]);
+        expect(args).toContain('--ws-auth');
+
+        await client.disconnect({ terminateAppServer: true });
+    });
+
     it('writes a discovery record after successful ws initialize', async () => {
         Object.defineProperty(process, 'platform', { value: 'win32' });
         const capturedHeaders: IncomingHttpHeaders[] = [];

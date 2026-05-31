@@ -75,6 +75,14 @@ export type CodexAppServerClientOptions = {
     transport?: CodexAppServerTransport;
     transportSource?: CodexAppServerTransportSource;
     logFilePath?: string;
+    /**
+     * Gap 9 (codex-agent-parity-audit.md): extra argv tokens appended to the
+     * spawned `codex app-server` invocation in argv order. Wired from
+     * `happy codex --codex-arg <flag>` (repeatable). Applied to BOTH stdio
+     * and ws spawn paths — including the sandbox-wrapped stdio path so
+     * `wrapForMcpTransport` doesn't strip them.
+     */
+    extraAppServerArgs?: string[];
 };
 
 type ConnectOptions = {
@@ -244,12 +252,14 @@ export class CodexAppServerClient {
     private wsChildExitHandlers = new Set<() => void>();
     private wsAuthProbeResult: boolean | null = null;
     private wsAuthFallbackWarned = false;
+    private extraAppServerArgs: string[];
 
     constructor(sandboxConfig?: SandboxConfig, options: CodexAppServerClientOptions = {}) {
         this.sandboxConfig = sandboxConfig;
         this.transport = options.transport ?? 'ws';
         this.transportSource = options.transportSource ?? (options.transport ? 'explicit' : 'default');
         this.logFilePath = options.logFilePath;
+        this.extraAppServerArgs = options.extraAppServerArgs ? [...options.extraAppServerArgs] : [];
     }
 
     private resolveEffectiveTransport(): 'stdio' | 'ws' {
@@ -958,6 +968,15 @@ export class CodexAppServerClient {
             }
         }
 
+        // Gap 9: append --codex-arg passthrough flags AFTER the sandbox wrap
+        // so they reach `codex app-server` argv and aren't swallowed by the
+        // seatbelt wrapper. Applied uniformly to stdio (both sandbox-wrapped
+        // and plain) and ws (where the ws-mode loop below builds its own
+        // args list and re-applies the same suffix).
+        if (this.extraAppServerArgs.length > 0) {
+            args = [...args, ...this.extraAppServerArgs];
+        }
+
         // Build env — same filtering as the old MCP client
         const env: Record<string, string> = {};
         for (const [key, value] of Object.entries(process.env)) {
@@ -1009,6 +1028,9 @@ export class CodexAppServerClient {
                     const wsAuthToken = randomBytes(32).toString('base64url');
                     const wsTokenSha256 = sha256hex(wsAuthToken);
                     args = ['app-server', '--listen', listenUrl, '--ws-auth', 'capability-token', '--ws-token-sha256', wsTokenSha256];
+                    if (this.extraAppServerArgs.length > 0) {
+                        args = [...args, ...this.extraAppServerArgs];
+                    }
                     logger.debug(`[CodexAppServer] Spawning (attempt ${attempt}): ${command} ${args.join(' ')}`);
                     const candidate = this.createWsConnection(command, args, env, logFilePath, listenUrl, wsAuthToken);
                     const epoch = ++this.processEpoch;

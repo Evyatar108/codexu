@@ -80,6 +80,14 @@ export async function runCodex(opts: {
     permissionMode?: string;
     projectDocFallback?: string[];
     codexTransport?: CodexTransportFlag | undefined;
+    /**
+     * Gap 9 (codex-agent-parity-audit.md): mirror Claude's `--claude-arg`
+     * escape hatch. These flags are appended verbatim to the spawned
+     * `codex app-server` argv. Power-user territory; prefer structured
+     * codex flags (`--effort`, `--model`, `--permission-mode`,
+     * `--codex-transport`) when possible.
+     */
+    codexAppServerArgs?: string[];
 }): Promise<void> {
     const projectDocFallback = opts.projectDocFallback ?? ['CLAUDE.md', 'AGENTS.md'];
 
@@ -629,6 +637,7 @@ export async function runCodex(opts: {
         transport: opts.codexTransport ?? 'ws',
         transportSource: opts.codexTransport ? 'explicit' : 'default',
         logFilePath: join(configuration.logsDir, `codex-app-server-${sessionTag}.log`),
+        extraAppServerArgs: opts.codexAppServerArgs,
     });
 
     permissionHandler = new CodexPermissionHandler(session);

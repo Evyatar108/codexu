@@ -248,6 +248,49 @@ export function extractCodexProjectDocFlag(args: string[]): { projectDocFallback
     };
 }
 
+/**
+ * Gap 9 (codex-agent-parity-audit.md): mirror Claude's `--claude-arg` escape
+ * hatch. Collects every occurrence of `--codex-arg <value>` (or
+ * `--codex-arg=<value>`) and returns them in argv order so they can be
+ * appended verbatim to the spawned `codex app-server` invocation. This is
+ * power-user territory — most users should stick to the structured codex
+ * flags (`--effort`, `--model`, `--permission-mode`, `--codex-transport`).
+ */
+export function extractCodexArgFlag(args: string[]): { codexArgs: string[]; args: string[] } {
+    const remainingArgs: string[] = [];
+    const codexArgs: string[] = [];
+
+    for (let i = 0; i < args.length; i++) {
+        const arg = args[i];
+
+        if (arg === '--codex-arg') {
+            const nextArg = args[i + 1];
+            if (nextArg === undefined) {
+                throw new Error('Codex-arg requires a value: happy codex --codex-arg <flag>');
+            }
+            codexArgs.push(nextArg);
+            i++;
+            continue;
+        }
+
+        if (arg.startsWith('--codex-arg=')) {
+            const value = arg.slice('--codex-arg='.length);
+            if (value.length === 0) {
+                throw new Error('Codex-arg requires a value: happy codex --codex-arg <flag>');
+            }
+            codexArgs.push(value);
+            continue;
+        }
+
+        remainingArgs.push(arg);
+    }
+
+    return {
+        codexArgs,
+        args: remainingArgs,
+    };
+}
+
 export function extractCodexTransportFlag(args: string[]): { transport: CodexTransportFlag | undefined; args: string[] } {
     const remainingArgs: string[] = [];
     let transport: CodexTransportFlag | undefined = undefined;

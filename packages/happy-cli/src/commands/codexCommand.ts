@@ -1,6 +1,7 @@
 import { authAndSetupMachineIfNeeded } from '@/ui/auth'
 import { runCodex } from '@/codex/runCodex'
 import {
+  extractCodexArgFlag,
   extractCodexEffortFlag,
   extractCodexModelFlag,
   extractCodexPermissionModeFlag,
@@ -19,7 +20,8 @@ export async function handleCodexCommand(args: string[]): Promise<void> {
   const modelArgs = extractCodexModelFlag(effortArgs.args)
   const permissionModeArgs = extractCodexPermissionModeFlag(modelArgs.args)
   const projectDocArgs = extractCodexProjectDocFlag(permissionModeArgs.args)
-  const codexArgs = extractCodexTransportFlag(projectDocArgs.args)
+  const transportArgs = extractCodexTransportFlag(projectDocArgs.args)
+  const codexArgs = extractCodexArgFlag(transportArgs.args)
 
   for (let i = 0; i < codexArgs.args.length; i++) {
     if (codexArgs.args[i] === '--started-by') {
@@ -39,6 +41,7 @@ export async function handleCodexCommand(args: string[]): Promise<void> {
     model: modelArgs.model,
     permissionMode: permissionModeArgs.permissionMode,
     projectDocFallback: projectDocArgs.projectDocFallback.length > 0 ? projectDocArgs.projectDocFallback : undefined,
-    codexTransport: codexArgs.transport,
+    codexTransport: transportArgs.transport,
+    codexAppServerArgs: codexArgs.codexArgs.length > 0 ? codexArgs.codexArgs : undefined,
   })
 }
