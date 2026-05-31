@@ -1,4 +1,15 @@
 import { trimIdent } from '@/utils/trimIdent';
+import { synthesizeCodexTools } from './codexToolsList';
+import type { ApprovalPolicy, ReasoningEffort } from './codexAppServerTypes';
+
+type ResumedThread = {
+    threadId: string;
+    model: string;
+    modelProvider: string;
+    approvalPolicy: ApprovalPolicy;
+    sandbox: unknown;
+    reasoningEffort: ReasoningEffort | null;
+};
 
 type ResumeThreadClient = {
     resumeThread: (opts: {
@@ -8,7 +19,7 @@ type ResumeThreadClient = {
         projectDocFallback?: string[];
         baseInstructions?: string;
         developerInstructions?: string;
-    }) => Promise<{ threadId: string; model: string }>;
+    }) => Promise<ResumedThread>;
 };
 
 type ResumeThreadSession = {
@@ -30,7 +41,7 @@ export async function resumeExistingThread(opts: {
     projectDocFallback?: string[];
     baseInstructions?: string;
     developerInstructions?: string;
-}): Promise<{ threadId: string; model: string }> {
+}): Promise<ResumedThread> {
     try {
         const resumedThread = await opts.client.resumeThread({
             threadId: opts.threadId,
@@ -41,9 +52,23 @@ export async function resumeExistingThread(opts: {
             ...(opts.developerInstructions === undefined ? {} : { developerInstructions: opts.developerInstructions }),
         });
 
+        // Gap 11 + Gap 12 (codex-agent-parity-audit.md): mirror codex's
+        // ResumeConversationResponse into session metadata for statusline
+        // parity (Gap 11) and synthesize tools[] from the resolved
+        // mcpServers + codex built-ins (Gap 12). Mirrors the first-turn
+        // startThread metadata write in runCodex.ts.
+        const synthesizedTools = synthesizeCodexTools(opts.mcpServers);
         opts.session.updateMetadata((currentMetadata) => ({
             ...currentMetadata,
             codexThreadId: resumedThread.threadId,
+            codexSession: {
+                model: resumedThread.model,
+                modelProvider: resumedThread.modelProvider,
+                approvalPolicy: resumedThread.approvalPolicy,
+                sandbox: resumedThread.sandbox,
+                reasoningEffort: resumedThread.reasoningEffort,
+            },
+            tools: synthesizedTools,
         }));
         opts.messageBuffer.addMessage(`Resumed thread ${trimIdent(resumedThread.threadId)}`, 'status');
         opts.session.sendSessionEvent({

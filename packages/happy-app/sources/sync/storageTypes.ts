@@ -44,6 +44,18 @@ export const MetadataSchema = z.object({
     spawnedChildren: z.array(z.string()).optional(),
     claudeSessionId: z.string().optional(), // Claude Code session ID
     codexThreadId: z.string().optional(), // Codex app-server thread ID
+    // Gap 11 (codex-agent-parity-audit.md): codex thread handshake metadata
+    // mirrored from `client.startThread` / `client.resumeThread` so the
+    // statusline can render model/effort/sandbox/approvalPolicy with the
+    // same visual treatment as Claude. Strip-by-default tolerates older
+    // CLIs that don't write this field.
+    codexSession: z.object({
+        model: z.string().optional(),
+        modelProvider: z.string().optional(),
+        approvalPolicy: z.string().optional(),
+        sandbox: z.unknown().optional(),
+        reasoningEffort: z.string().nullable().optional(),
+    }).passthrough().optional(),
     tools: z.array(z.string()).optional(),
     slashCommands: z.array(z.string()).optional(),
     skills: z.array(z.string()).optional(),

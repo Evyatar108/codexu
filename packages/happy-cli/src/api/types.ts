@@ -301,6 +301,21 @@ export type Metadata = {
     forkedFromSid?: string
   },
   codexThreadId?: string, // Codex app-server thread ID
+  /**
+   * Gap 11 (codex-agent-parity-audit.md): the codex thread handshake
+   * metadata mirrored from `client.startThread` /
+   * `client.resumeThread` (NewConversationResponse). Statusline-relevant
+   * fields kept verbatim from the wire so the app can render them with
+   * the same visual treatment as Claude's `mergeSDKInitMetadata` output.
+   * Optional everywhere — only populated for codex-flavor sessions.
+   */
+  codexSession?: {
+    model?: string,
+    modelProvider?: string,
+    approvalPolicy?: string,
+    sandbox?: unknown,
+    reasoningEffort?: string | null,
+  },
   tools?: string[],
   slashCommands?: string[],
   skills?: SDKSystemMessage['skills'],

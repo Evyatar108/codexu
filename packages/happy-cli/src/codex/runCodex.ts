@@ -45,6 +45,7 @@ import type { LedgerRecord } from '@slopus/happy-wire';
 import { createEnvelope } from '@slopus/happy-wire';
 import { loadProjectMcpServers } from './projectMcpConfig';
 import { filterMcpServersByToolGating } from './mcpServerGating';
+import { synthesizeCodexTools } from './codexToolsList';
 import { createAgentTreeState, type AgentTreeEvent } from './agentTreeState';
 
 function getMessageDelivery(message: { messageId?: string; seq?: number }): MessageDelivery | undefined {
@@ -1037,9 +1038,25 @@ export async function runCodex(opts: {
                         baseInstructions: message.mode.customSystemPrompt,
                         developerInstructions: message.mode.appendSystemPrompt,
                     });
+                    // Gap 11 + Gap 12 (codex-agent-parity-audit.md): mirror
+                    // the codex thread handshake into session metadata so the
+                    // statusline can render model / reasoningEffort / sandbox
+                    // / approvalPolicy (Gap 11), and synthesize a tools[] list
+                    // from the filtered mcpServers keys plus codex built-ins
+                    // (Gap 12) since codex's wire surface has no tools[]
+                    // enumeration of its own.
+                    const synthesizedTools = synthesizeCodexTools(startThreadMcpServers);
                     session.updateMetadata((currentMetadata) => ({
                         ...currentMetadata,
                         codexThreadId: startedThread.threadId,
+                        codexSession: {
+                            model: startedThread.model,
+                            modelProvider: startedThread.modelProvider,
+                            approvalPolicy: startedThread.approvalPolicy,
+                            sandbox: startedThread.sandbox,
+                            reasoningEffort: startedThread.reasoningEffort,
+                        },
+                        tools: synthesizedTools,
                     }));
                 }
 

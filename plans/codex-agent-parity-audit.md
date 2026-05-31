@@ -318,6 +318,8 @@ Optionally (b) overlay-crate enhancement if codex doesn't natively understand `/
 > `codex-statusline-parity — propagate codex thread metadata to session metadata`
 > Extend metadata-merge in `runCodex.ts:796-800` and `resumeExistingThread.ts` to write `model`, `modelProvider`, `approvalPolicy`, `sandbox`, `reasoningEffort` from `NewConversationResponse` / `ResumeConversationResponse`. Acceptance: a fresh codex session shows the resolved model + reasoningEffort in the statusline (same visual treatment as Claude); resumed sessions show the same.
 
+**SHIPPED** (Gap 11 — codex-polish-lows). `CodexAppServerClient.startThread` / `resumeThread` now return the full `CodexThreadHandshake` (`threadId`, `model`, `modelProvider`, `approvalPolicy`, `sandbox`, `reasoningEffort`) — previously only `{threadId, model}` were surfaced. `runCodex.ts` (post-startThread) and `resumeExistingThread.ts` (post-resume) write `metadata.codexSession = {model, modelProvider, approvalPolicy, sandbox, reasoningEffort}` so the app statusline can render them with the same visual treatment as Claude. The nested object keeps the namespace tidy and avoids name collisions with `metadata.currentModelCode` (which remains the user-pick-or-CLI-arg-driven visible model code, not the codex-resolved default). Schema additions: `packages/happy-cli/src/api/types.ts` `Metadata` + `packages/happy-app/sources/sync/storageTypes.ts` `MetadataSchema` both add `codexSession`. Tool/slash-command enumeration is handled by Gap 12 below; codex's `initialize` RPC does not expose server capabilities or a tool catalog of its own.
+
 ---
 
 ## Gap 12 — SDK init-metadata mirror (tools list, slash-command list)
@@ -337,6 +339,8 @@ Optionally (b) overlay-crate enhancement if codex doesn't natively understand `/
 **Ralph-command shape.**
 > `codex-init-metadata-mirror — synthesize tools[] for codex sessions`
 > In `runCodex.ts` after `client.startThread`, synthesize a `tools[]` metadata field from the resolved `mcpServers` keys plus a hardcoded list of codex built-ins (`shell`, `apply_patch`, `update_plan` if exposed, etc.). Defer slash-commands until codex exposes an enumeration RPC. Acceptance: a fresh codex session's metadata includes a `tools[]` field with at least `happy` (the bridge) plus codex built-ins.
+
+**SHIPPED** (Gap 12 — codex-polish-lows). `codexToolsList.ts` exports `synthesizeCodexTools(mcpServers)` which returns the codex built-ins (`shell`, `apply_patch`, `update_plan`) followed by the resolved mcpServers keys sorted lexically (deterministic for metadata diffing). The synthesis is called at BOTH the first-turn `startThread` site in `runCodex.ts` AND the `resumeExistingThread.ts` resume site, AFTER Gap 8's tool-gating filter — so `tools[]` reflects what the model can actually call, not the unfiltered server set. The synthesized list is written to `metadata.tools` (the field already exists for Claude parity). Slash-command enumeration remains deferred until codex exposes an RPC; happy-cli has no enumeration path today.
 
 ---
 

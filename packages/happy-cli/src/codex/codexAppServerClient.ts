@@ -71,6 +71,22 @@ type LegacyPatchChanges = Record<string, Record<string, unknown>>;
 export type CodexAppServerTransport = 'stdio' | 'ws';
 export type CodexAppServerTransportSource = 'explicit' | 'default';
 
+/**
+ * Gap 11 (codex-agent-parity-audit.md): the full thread-handshake result
+ * surfaced by `startThread` / `resumeThread`. Mirrors the codex
+ * `NewConversationResponse` / `ResumeConversationResponse` fields that
+ * runCodex needs to merge into session metadata for statusline parity
+ * with Claude's `mergeSDKInitMetadata` semantics.
+ */
+export type CodexThreadHandshake = {
+    threadId: string;
+    model: string;
+    modelProvider: string;
+    approvalPolicy: ApprovalPolicy;
+    sandbox: unknown;
+    reasoningEffort: ReasoningEffort | null;
+};
+
 export type CodexAppServerClientOptions = {
     transport?: CodexAppServerTransport;
     transportSource?: CodexAppServerTransportSource;
@@ -1323,7 +1339,7 @@ export class CodexAppServerClient {
         compactPrompt?: string;
         baseInstructions?: string;
         developerInstructions?: string;
-    }): Promise<{ threadId: string; model: string }> {
+    }): Promise<CodexThreadHandshake> {
         const params: NewConversationParams = {
             model: opts.model ?? null,
             modelProvider: null,
@@ -1352,7 +1368,18 @@ export class CodexAppServerClient {
         this._turnId = null;
         this.rememberThreadDefaults(opts);
         logger.debug('[CodexAppServer] Thread started:', this._threadId);
-        return { threadId: result.thread.id, model: result.model };
+        // Gap 11 (codex-agent-parity-audit.md): expose the full resolved
+        // handshake (model defaults + sandbox + reasoningEffort) so runCodex
+        // can mirror it into session metadata for statusline parity with
+        // Claude's mergeSDKInitMetadata semantics.
+        return {
+            threadId: result.thread.id,
+            model: result.model,
+            modelProvider: result.modelProvider,
+            approvalPolicy: result.approvalPolicy,
+            sandbox: result.sandbox,
+            reasoningEffort: result.reasoningEffort,
+        };
     }
 
     async resumeThread(opts?: {
@@ -1366,7 +1393,7 @@ export class CodexAppServerClient {
         compactPrompt?: string;
         baseInstructions?: string;
         developerInstructions?: string;
-    }): Promise<{ threadId: string; model: string }> {
+    }): Promise<CodexThreadHandshake> {
         const threadId = opts?.threadId ?? this._threadId;
         if (!threadId) {
             throw new Error('No thread available to resume.');
@@ -1408,7 +1435,14 @@ export class CodexAppServerClient {
             developerInstructions: opts?.developerInstructions ?? defaults.developerInstructions,
         });
         logger.debug('[CodexAppServer] Thread resumed:', this._threadId);
-        return { threadId: result.thread.id, model: result.model };
+        return {
+            threadId: result.thread.id,
+            model: result.model,
+            modelProvider: result.modelProvider,
+            approvalPolicy: result.approvalPolicy,
+            sandbox: result.sandbox,
+            reasoningEffort: result.reasoningEffort,
+        };
     }
 
     /**
