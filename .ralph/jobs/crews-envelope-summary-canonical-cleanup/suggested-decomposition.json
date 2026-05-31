@@ -1,0 +1,26 @@
+{
+  "clusters": [
+    {
+      "name": "summary-fallback-retirement",
+      "stories": ["US-001"],
+      "phase": 1,
+      "dependsOn": [],
+      "fileOverlapEvidence": {
+        "sharedFiles": [],
+        "exclusiveFiles": [
+          "plugins/crews/hooks/commands/review-mail.js",
+          "plugins/crews/tests/review-mail-command.test.js",
+          "plugins/crews/tests/protocol-envelope-roundtrip.test.js",
+          "plugins/crews/hooks/protocol/envelope.js",
+          "plugins/crews/CHANGELOG.md",
+          "plugins/crews/.claude-plugin/plugin.json",
+          "plugins/crews/.github/plugin/plugin.json",
+          "plugins/crews/CLAUDE.md",
+          "plugins/crews/tests/version.test.js"
+        ],
+        "risk": "low"
+      },
+      "executionModeRationale": "Single trivially-scoped story (~30 LoC across one production file, two test files, three metadata files, and one CHANGELOG). No internal dependency graph; parallel decomposition would add coordination overhead without wall-clock benefit."
+    }
+  ]
+}
