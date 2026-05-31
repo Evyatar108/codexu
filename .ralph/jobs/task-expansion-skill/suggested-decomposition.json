@@ -1,0 +1,43 @@
+{
+  "clusters": [
+    {
+      "name": "codexu-template",
+      "stories": ["US-001"],
+      "phase": 1,
+      "dependsOn": [],
+      "fileOverlapEvidence": {
+        "sharedFiles": [],
+        "exclusiveFiles": ["codexu/.ralph-overview/task-expansion-template.md"],
+        "risk": "low"
+      },
+      "executionModeRationale": "Pure codexu markdown, zero dependencies. Independent of the plugin cluster — the tool returns templatePath:null + caveat when the template is absent (explicitly tested in US-004), so the plugin cluster doesn't block on this landing first. Can run in parallel with the plugin cluster."
+    },
+    {
+      "name": "plugin-tool-skill-and-validation",
+      "stories": ["US-002", "US-003", "US-004", "US-005", "US-006"],
+      "phase": 1,
+      "dependsOn": [],
+      "fileOverlapEvidence": {
+        "sharedFiles": [
+          "ai-developer-toolkit/plugins/ralph-overview/tools/overview-mcp/src/schemas.ts",
+          "ai-developer-toolkit/plugins/ralph-overview/tools/overview-mcp/src/server.ts",
+          "ai-developer-toolkit/plugins/ralph-overview/tools/overview-mcp/src/tools/expand-task-context.ts"
+        ],
+        "exclusiveFiles": [
+          "ai-developer-toolkit/plugins/ralph-overview/tools/overview-mcp/src/__tests__/expand-task-context.test.ts",
+          "ai-developer-toolkit/plugins/ralph-overview/tools/overview-mcp/docs/example-expansion.md",
+          "ai-developer-toolkit/plugins/ralph-overview/skills/expand-task/SKILL.md",
+          "ai-developer-toolkit/plugins/ralph-overview/.copilot-plugin/copilot-skills/expand-task/SKILL.md",
+          "ai-developer-toolkit/plugins/ralph-overview/.claude-plugin/plugin.json",
+          "ai-developer-toolkit/plugins/ralph-overview/.github/plugin/plugin.json",
+          "ai-developer-toolkit/plugins/ralph-overview/CHANGELOG.md",
+          "ai-developer-toolkit/.claude-plugin/marketplace.json",
+          "ai-developer-toolkit/.github/plugin/marketplace.json",
+          "ai-developer-toolkit/.agents/plugins/marketplace.json"
+        ],
+        "risk": "medium"
+      },
+      "executionModeRationale": "All five stories iteratively touch the same expand-task-context.ts and surrounding metadata; US-006 invokes the local-dev build via RALPH_OVERVIEW_PLUGIN_ROOT before publish so the AC-8 noise-rate gate fires pre-merge. Must run serial inside one impl-with-ralph member; AC-8 IS the merge gate — kind=question halts before any push to plugin main."
+    }
+  ]
+}
