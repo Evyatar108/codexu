@@ -34,6 +34,7 @@ import { publishAgentConfigurationMetadataIfChanged, publishPermissionModeIfChan
 import { appendLedgerRecord } from '@/ledger/writer';
 import type { AgentConfiguration, ApiSessionClient } from '@/api/apiSession';
 import { resolveCodexExecutionPolicy } from './executionPolicy';
+import { parseSpecialCommand } from '@/parsers/specialCommands';
 import { mapCodexMcpMessageToSessionEnvelopes, mapCodexProcessorMessageToSessionEnvelopes } from './utils/sessionProtocolMapper';
 import { resumeExistingThread } from './resumeExistingThread';
 import { emitReadyIfIdle } from './emitReadyIfIdle';
@@ -323,7 +324,19 @@ export async function runCodex(opts: {
             model: messageModel,
             thinkingLevel: messageThinkingLevel,
         };
-        messageQueue.push(message.content.text, enhancedMode, getMessageDelivery(message));
+        // Slash commands (`/clear`, `/compact`) must not be newline-joined with
+        // sibling user text; isolation lets the loop body dispatch them through
+        // the dedicated codex RPC paths without dragging accidentally-batched
+        // text into the same handling. Detection here intentionally mirrors the
+        // loop-body parse so the wrapped-form contract (F-012 / F-013 — see
+        // packages/happy-cli/AGENTS.md "Wrapped-slash-command detection") stays
+        // single-sourced through parseSpecialCommand.
+        const inboundSpecial = parseSpecialCommand(message.content.text);
+        if (inboundSpecial.type === 'clear' || inboundSpecial.type === 'compact') {
+            messageQueue.pushIsolateAndClear(message.content.text, enhancedMode, getMessageDelivery(message));
+        } else {
+            messageQueue.push(message.content.text, enhancedMode, getMessageDelivery(message));
+        }
         if (ledgerRunId) {
             appendSessionLedgerRecord({
                 runId: ledgerRunId,
@@ -342,6 +355,12 @@ export async function runCodex(opts: {
     let codexStartedSubagents = new Set<string>();
     let codexActiveSubagents = new Set<string>();
     let codexProviderSubagentToSessionSubagent = new Map<string, string>();
+    // Tracks whether the most recent `thread/compact/start` was driven by a
+    // `/compact` slash command from the user. The context_compacted event
+    // handler (see below) consumes this flag to distinguish the manual `compact`
+    // boundary from the automatic `autocompact` boundary — codex's wire surface
+    // does not tag the `thread/compacted` notification with origin.
+    let userTriggeredCompactInFlight = false;
     session.keepAlive(thinking, 'remote');
     // Periodic keep-alive; store handle so we can clear on exit
     const keepAliveInterval = setInterval(() => {
@@ -685,20 +704,22 @@ export async function runCodex(opts: {
             }
         }
         if (msg.type === 'context_compacted') {
-            // Codex auto/manual compaction parity with Claude's PostCompact
-            // trigger=auto hook (see runClaude.ts onCompactHook). Emit the typed
-            // `autocompact` context boundary so app clients render the same
-            // "context compacted" divider for codex sessions. Codex's
-            // ContextCompactedEvent is a unit struct (no fields distinguishing
-            // auto vs manual), so we tag every emission as `autocompact` —
-            // explicit `/compact` slash-command boundaries are Gap 5 territory
-            // and route through parseSpecialCommand separately when they land.
+            // Codex auto/manual compaction parity with Claude's PostCompact hook.
+            // Codex's ContextCompactedEvent is a unit struct (no fields distinguish
+            // auto from manual), so runCodex tracks whether the most recent
+            // `thread/compact/start` was driven by a `/compact` slash command via
+            // the `userTriggeredCompactInFlight` flag. When the flag is set, emit
+            // `kind: 'compact', triggeredBy: 'user'` (parity with Claude's manual
+            // /compact path) and consume the flag so the next auto compaction
+            // emits `kind: 'autocompact', triggeredBy: 'system'` again.
+            const userTriggered = userTriggeredCompactInFlight;
+            userTriggeredCompactInFlight = false;
             void session.sendContextBoundary({
-                kind: 'autocompact',
-                triggeredBy: 'system',
+                kind: userTriggered ? 'compact' : 'autocompact',
+                triggeredBy: userTriggered ? 'user' : 'system',
                 at: Date.now(),
             }).catch((err: unknown) => {
-                logger.debug('[Codex] Failed to emit autocompact context boundary:', err);
+                logger.debug('[Codex] Failed to emit context_compacted boundary:', err);
             });
         }
 
@@ -817,6 +838,58 @@ export async function runCodex(opts: {
 
             // Display user messages in the UI
             messageBuffer.addMessage(message.message, 'user');
+
+            // Intercept happy-cli-side slash commands BEFORE dispatching to codex.
+            // The codex app-server does not natively interpret `/clear` or
+            // `/compact` typed in user-turn text; we drive the equivalent codex
+            // actions via dedicated JSON-RPCs and emit typed context-boundary
+            // envelopes for app rendering parity with the Claude path (see
+            // Gap 5 in plans/codex-agent-parity-audit.md and the wrapped-form
+            // contract in packages/happy-cli/AGENTS.md "Wrapped-slash-command
+            // detection (F-012 / F-013)").
+            const specialCommand = parseSpecialCommand(message.message);
+            if (specialCommand.type === 'clear') {
+                logger.debug('[Codex] Detected /clear command');
+                const hadThread = client.hasActiveThread();
+                client.clearActiveThread();
+                // Drop the stale thread id from session metadata so subsequent
+                // metadata reads (e.g., reconnect / fork) don't resurrect a
+                // thread that no longer represents the live context.
+                session.updateMetadata((currentMetadata) => ({
+                    ...currentMetadata,
+                    codexThreadId: undefined,
+                }));
+                if (hadThread) {
+                    void session.sendContextBoundary({
+                        kind: 'clear',
+                        triggeredBy: 'user',
+                        at: Date.now(),
+                    }).catch((err: unknown) => {
+                        logger.debug('[Codex] Failed to emit clear context boundary:', err);
+                    });
+                }
+                messageBuffer.addMessage('Context cleared. The next message will start a fresh codex thread.', 'status');
+                continue;
+            }
+            if (specialCommand.type === 'compact') {
+                logger.debug('[Codex] Detected /compact command');
+                if (!client.hasActiveThread()) {
+                    messageBuffer.addMessage('No active codex thread to compact.', 'status');
+                    continue;
+                }
+                userTriggeredCompactInFlight = true;
+                try {
+                    await client.compactThread();
+                } catch (error) {
+                    // RPC failure means no compaction happened; release the flag
+                    // so the next legitimate context_compacted event still emits
+                    // the autocompact boundary correctly.
+                    userTriggeredCompactInFlight = false;
+                    logger.warn('[Codex] /compact RPC failed:', error);
+                    messageBuffer.addMessage('Failed to compact context. Try again later.', 'status');
+                }
+                continue;
+            }
 
             try {
                 // Map permission mode to approval policy and sandbox.

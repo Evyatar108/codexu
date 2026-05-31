@@ -1638,6 +1638,147 @@ describe('CodexAppServerClient sandbox integration', () => {
         },
     );
 
+    it('routes thread/compact/start with the active thread id and resolves on the empty response', async () => {
+        const requests: MockRpcMessage[] = [];
+        await mockNextAppServer('stdio', {
+            onRequest: (msg, send) => {
+                requests.push(msg);
+                if (msg.method === 'thread/start' && msg.id != null) {
+                    send({
+                        id: msg.id,
+                        result: {
+                            thread: { id: 'thread-manual-compact', path: '/tmp/thread-manual-compact' },
+                            model: 'gpt-test',
+                            modelProvider: 'openai',
+                            cwd: '/tmp/project',
+                            approvalPolicy: 'never',
+                            sandbox: null,
+                            reasoningEffort: null,
+                        },
+                    });
+                }
+                if (msg.method === 'thread/compact/start' && msg.id != null) {
+                    // Codex's ThreadCompactStartResponse is the empty object `{}` —
+                    // success is signaled by the absence of an `error` field, and
+                    // the live compaction continues asynchronously via the
+                    // `thread/compacted` notification (covered by the fan-out
+                    // test above).
+                    send({ id: msg.id, result: {} });
+                }
+            },
+        });
+
+        const { CodexAppServerClient } = await import('./codexAppServerClient');
+        const client = new CodexAppServerClient(undefined, { transport: 'stdio' });
+
+        await client.connect();
+        await client.startThread({ model: 'gpt-test', approvalPolicy: 'never', sandbox: 'danger-full-access' });
+
+        await expect(client.compactThread()).resolves.toBeUndefined();
+
+        const compactRequest = requests.find((req) => req.method === 'thread/compact/start');
+        expect(compactRequest).toBeDefined();
+        expect(compactRequest!.params).toEqual({ threadId: 'thread-manual-compact' });
+
+        await client.disconnect({ terminateAppServer: true });
+    });
+
+    it('rejects compactThread when no active thread is registered', async () => {
+        await mockNextAppServer('stdio');
+        const { CodexAppServerClient } = await import('./codexAppServerClient');
+        const client = new CodexAppServerClient(undefined, { transport: 'stdio' });
+
+        await client.connect();
+        // No startThread call — the codex protocol has no thread-less compact RPC,
+        // so the client must fail-fast at the happy-cli layer rather than dispatch
+        // an obviously-invalid request.
+        await expect(client.compactThread()).rejects.toThrow(/No active thread/);
+
+        await client.disconnect({ terminateAppServer: true });
+    });
+
+    it('clearActiveThread drops in-memory thread state without disconnecting the transport', async () => {
+        await mockNextAppServer('stdio', {
+            onRequest: (msg, send) => {
+                if (msg.method === 'thread/start' && msg.id != null) {
+                    send({
+                        id: msg.id,
+                        result: {
+                            thread: { id: 'thread-to-clear', path: '/tmp/thread-to-clear' },
+                            model: 'gpt-test',
+                            modelProvider: 'openai',
+                            cwd: '/tmp/project',
+                            approvalPolicy: 'never',
+                            sandbox: null,
+                            reasoningEffort: null,
+                        },
+                    });
+                }
+            },
+        });
+
+        const { CodexAppServerClient } = await import('./codexAppServerClient');
+        const client = new CodexAppServerClient(undefined, { transport: 'stdio' });
+
+        await client.connect();
+        await client.startThread({ model: 'gpt-test', approvalPolicy: 'never', sandbox: 'danger-full-access' });
+        expect(client.hasActiveThread()).toBe(true);
+
+        client.clearActiveThread();
+
+        expect(client.hasActiveThread()).toBe(false);
+        // resumeThread now has no thread id to fall back on — proves the
+        // remembered defaults were dropped alongside _threadId.
+        await expect(client.resumeThread()).rejects.toThrow(/No thread available to resume/);
+
+        await client.disconnect({ terminateAppServer: true });
+    });
+
+    it('routes compactPrompt through nested config.compact_prompt instead of the dead top-level field', async () => {
+        let capturedStart: MockRpcMessage | undefined;
+        await mockNextAppServer('stdio', {
+            onRequest: (msg, send) => {
+                if (msg.method === 'thread/start' && msg.id != null) {
+                    capturedStart = msg;
+                    send({
+                        id: msg.id,
+                        result: {
+                            thread: { id: 'thread-compact-prompt', path: '/tmp/thread-compact-prompt' },
+                            model: 'gpt-test',
+                            modelProvider: 'openai',
+                            cwd: '/tmp/project',
+                            approvalPolicy: 'never',
+                            sandbox: null,
+                            reasoningEffort: null,
+                        },
+                    });
+                }
+            },
+        });
+
+        const { CodexAppServerClient } = await import('./codexAppServerClient');
+        const client = new CodexAppServerClient(undefined, { transport: 'stdio' });
+
+        await client.connect();
+        await client.startThread({
+            model: 'gpt-test',
+            cwd: '/tmp/project',
+            compactPrompt: 'Summarize ignoring secrets.',
+        });
+
+        // Nested placement is the only honored placement — see the wire spike
+        // documented in plans/codex-agent-parity-audit.md §3 and the deprecation
+        // note in codexAppServerTypes.ts.
+        expect(capturedStart?.params.config).toEqual({
+            compact_prompt: 'Summarize ignoring secrets.',
+        });
+        // Top-level field is still sent (the wire schema requires it) but kept
+        // null so installed codex servers that honor it would also no-op safely.
+        expect(capturedStart?.params.compactPrompt).toBe(null);
+
+        await client.disconnect({ terminateAppServer: true });
+    });
+
     it.each([{ transport: 'stdio' as const }, { transport: 'ws' as const }])(
         'maps raw item notifications into legacy events and deduplicates turn completion over $transport',
         async ({ transport }) => {

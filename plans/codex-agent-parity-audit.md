@@ -161,6 +161,8 @@ Every proposed fix-site below explicitly states the tier and why.
 
 ## Gap 5 — Slash commands (`/clear`, `/compact`) ignored on codex path
 
+**Status:** SHIPPED (commit on `ralph/codex-slash-commands`, depends on Gap 4's `context_compacted` plumbing). Happy-cli now intercepts `/clear` and `/compact` (and their `<command-name>` wrapped forms — `parseSpecialCommand` covers both) before dispatching to codex, drives the codex `thread/compact/start` JSON-RPC for `/compact`, resets in-memory thread state via `clearActiveThread()` for `/clear`, and emits the typed `context-boundary` envelopes that the app uses to render the divider (parity with Claude's `runClaude.ts` `/clear` + `/compact` handling). The `compactPrompt` placement was also fixed: nested `config.compact_prompt` is the only honored placement, so `buildThreadConfig` now routes the prompt through `config`, with the top-level `compactPrompt` field forced to `null` and documented as deprecated in `codexAppServerTypes.ts`. The `context_compacted` event handler distinguishes the manual `/compact` boundary (`kind: 'compact', triggeredBy: 'user'`) from the auto-compact boundary (`kind: 'autocompact', triggeredBy: 'system'`) using a per-runCodex `userTriggeredCompactInFlight` flag — codex's wire surface does not tag the `thread/compacted` notification with origin.
+
 **Gap.** happy-cli intercepts `/clear` and `/compact` for Claude (both inbound and JSONL-replay detection); on the codex path nothing parses the user message text for slash commands and `compactPrompt`/clear-context semantics never reach codex-core.
 
 **Current state.**

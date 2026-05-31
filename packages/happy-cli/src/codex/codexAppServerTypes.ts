@@ -26,6 +26,14 @@ export type NewConversationParams = {
     config: Record<string, unknown> | null;
     baseInstructions: string | null;
     developerInstructions: string | null;
+    /**
+     * Top-level compactPrompt is silently dropped by the installed codex app-server
+     * (verified by the wire spike documented in plans/codex-agent-parity-audit.md §3
+     * — "Top-level `compactPrompt` is silently dropped … nested `config.compact_prompt`
+     * is honored"). Kept here only because the field still exists in the wire schema;
+     * happy-cli always sends `null` and routes the live value through
+     * `config.compact_prompt` via `buildThreadConfig` in `codexAppServerClient.ts`.
+     */
     compactPrompt: string | null;
     includeApplyPatchTool: boolean | null;
     experimentalRawEvents: boolean;

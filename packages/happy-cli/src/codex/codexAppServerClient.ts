@@ -212,6 +212,7 @@ export class CodexAppServerClient {
         sandbox?: SandboxMode;
         mcpServers?: Record<string, unknown>;
         projectDocFallback?: string[];
+        compactPrompt?: string;
     } | null = null;
 
     // Turn completion tracking for the currently active sendTurnAndWait call.
@@ -1241,13 +1242,23 @@ export class CodexAppServerClient {
         await this.disconnectInternal(opts);
     }
 
-    private buildThreadConfig(mcpServers?: Record<string, unknown>, projectDocFallback?: string[]): Record<string, unknown> | null {
+    private buildThreadConfig(
+        mcpServers?: Record<string, unknown>,
+        projectDocFallback?: string[],
+        compactPrompt?: string,
+    ): Record<string, unknown> | null {
         const config: Record<string, unknown> = {};
         if (mcpServers) {
             config.mcp_servers = mcpServers;
         }
         if (projectDocFallback && projectDocFallback.length > 0) {
             config.project_doc_fallback_filenames = projectDocFallback;
+        }
+        // Nested `config.compact_prompt` is the only honored placement — top-level
+        // `compactPrompt` on NewConversationParams is silently dropped by the
+        // installed codex app-server. See plans/codex-agent-parity-audit.md §3.
+        if (typeof compactPrompt === 'string' && compactPrompt.length > 0) {
+            config.compact_prompt = compactPrompt;
         }
         return Object.keys(config).length > 0 ? config : null;
     }
@@ -1259,6 +1270,7 @@ export class CodexAppServerClient {
         sandbox?: SandboxMode;
         mcpServers?: Record<string, unknown>;
         projectDocFallback?: string[];
+        compactPrompt?: string;
     }): void {
         this.threadDefaults = {
             model: opts.model,
@@ -1267,6 +1279,7 @@ export class CodexAppServerClient {
             sandbox: opts.sandbox,
             mcpServers: opts.mcpServers,
             projectDocFallback: opts.projectDocFallback,
+            compactPrompt: opts.compactPrompt,
         };
     }
 
@@ -1279,6 +1292,7 @@ export class CodexAppServerClient {
         sandbox?: SandboxMode;
         mcpServers?: Record<string, unknown>;
         projectDocFallback?: string[];
+        compactPrompt?: string;
     }): Promise<{ threadId: string; model: string }> {
         const params: NewConversationParams = {
             model: opts.model ?? null,
@@ -1287,9 +1301,12 @@ export class CodexAppServerClient {
             cwd: opts.cwd ?? process.cwd(),
             approvalPolicy: opts.approvalPolicy ?? null,
             sandbox: opts.sandbox ?? null,
-            config: this.buildThreadConfig(opts.mcpServers, opts.projectDocFallback),
+            config: this.buildThreadConfig(opts.mcpServers, opts.projectDocFallback, opts.compactPrompt),
             baseInstructions: null,
             developerInstructions: null,
+            // Top-level field is silently dropped by the installed codex app-server
+            // (see codexAppServerTypes.ts deprecation note); the live value is
+            // routed through nested `config.compact_prompt` by buildThreadConfig.
             compactPrompt: null,
             includeApplyPatchTool: null,
             experimentalRawEvents: false,
@@ -1312,6 +1329,7 @@ export class CodexAppServerClient {
         sandbox?: SandboxMode;
         mcpServers?: Record<string, unknown>;
         projectDocFallback?: string[];
+        compactPrompt?: string;
     }): Promise<{ threadId: string; model: string }> {
         const threadId = opts?.threadId ?? this._threadId;
         if (!threadId) {
@@ -1329,6 +1347,7 @@ export class CodexAppServerClient {
             config: this.buildThreadConfig(
                 opts?.mcpServers ?? defaults.mcpServers,
                 opts?.projectDocFallback ?? defaults.projectDocFallback,
+                opts?.compactPrompt ?? defaults.compactPrompt,
             ),
             baseInstructions: null,
             developerInstructions: null,
@@ -1345,9 +1364,48 @@ export class CodexAppServerClient {
             sandbox: opts?.sandbox ?? defaults.sandbox,
             mcpServers: opts?.mcpServers ?? defaults.mcpServers,
             projectDocFallback: opts?.projectDocFallback ?? defaults.projectDocFallback,
+            compactPrompt: opts?.compactPrompt ?? defaults.compactPrompt,
         });
         logger.debug('[CodexAppServer] Thread resumed:', this._threadId);
         return { threadId: result.thread.id, model: result.model };
+    }
+
+    /**
+     * Drive codex's compact RPC for the currently active thread. Emits a
+     * `thread/compacted` notification on success which the client fans out as a
+     * legacy `context_compacted` EventMsg. Caller is responsible for distinguishing
+     * user-triggered vs auto compaction at the runCodex event-handler layer
+     * (codex's wire surface does not tag the compacted notification with origin).
+     *
+     * @throws if no active thread is registered (the codex protocol has no
+     *   thread-less compact). Callers that may be in a thread-less state must guard
+     *   with `hasActiveThread()` first.
+     */
+    async compactThread(): Promise<void> {
+        if (!this._threadId) {
+            throw new Error('No active thread. Call startThread first.');
+        }
+        const params = { threadId: this._threadId };
+        await this.request('thread/compact/start', params);
+    }
+
+    /**
+     * Reset in-memory thread state without disconnecting the underlying app-server.
+     * The next `startThread()` call will request a fresh codex thread; subsequent
+     * `resumeThread()` calls will reject until a new thread is started. Used by
+     * runCodex's `/clear` slash-command path (Gap 5 in
+     * plans/codex-agent-parity-audit.md).
+     *
+     * Does NOT touch the transport, the discovery record, or `sandboxEnabled` —
+     * those are owned by the connect/disconnect lifecycle.
+     */
+    clearActiveThread(): void {
+        if (this._threadId) {
+            logger.debug('[CodexAppServer] Clearing active thread:', this._threadId);
+        }
+        this._threadId = null;
+        this._turnId = null;
+        this.threadDefaults = null;
     }
 
     async reconnectAndResumeThread(opts?: ReconnectOptions): Promise<boolean> {
