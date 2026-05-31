@@ -1,0 +1,50 @@
+{
+  "brainstormName": "task-expansion-skill",
+  "overviewTaskId": "task-expansion-skill",
+  "idea": "Design a reusable task-expansion skill that, given a tracked task id, produces a 5-section structured overview (what it is / why it matters / upstream-conflict surface / prerequisites / unblocks) consistently across agent sessions. Resolve open design questions: (a) where it lives, (b) invocation surface, (c) prerequisite auto-discovery strategy, (d) output handling / caching, (e) output format.",
+  "availableLenses": ["devils-advocate"],
+  "missingLenses": [
+    {"lens": "codex", "reason": "external CLI lens not dispatched in this brainstorm run; feasibility framing represented inline by synthesizer from concrete plugin layout context"},
+    {"lens": "copilot", "reason": "external CLI lens not dispatched in this brainstorm run; product-reality framing represented inline by synthesizer from operator workflow context"}
+  ],
+  "candidateDirections": [
+    {
+      "id": "D-001",
+      "name": "Zero-code template doc",
+      "summary": "Checked-in 5-section template document; no code, no MCP tool; agents read it before each expansion.",
+      "contributingLenses": ["devils-advocate"]
+    },
+    {
+      "id": "D-002",
+      "name": "Extend ralph-overview with MCP tool + thin skill (full prose generation in-tool)",
+      "summary": "Add overview.expand_task(taskId) MCP tool that authors the 5-section Markdown itself from data.json + git log + snapshot.",
+      "contributingLenses": ["feasibility"]
+    },
+    {
+      "id": "D-003",
+      "name": "New dedicated plugin under D:/ai-developer-toolkit/plugins/task-expansion/",
+      "summary": "Standalone plugin with its own MCP server, skills, and data.json reader.",
+      "contributingLenses": ["feasibility"]
+    },
+    {
+      "id": "D-004",
+      "name": "Hybrid — checked-in template + thin context-bundling MCP tool (no prose generation in code)",
+      "summary": "Template owns format; MCP tool returns structured context bundle (task entry + auto-derived prerequisite candidates + git log + snapshot + plan/brainstorm pointers); agent does prose synthesis.",
+      "contributingLenses": ["devils-advocate", "feasibility", "product-reality"]
+    },
+    {
+      "id": "D-005",
+      "name": "Curated metadata only — extend TaskSchema with unblocks/unblockedBy fields, no MCP tool",
+      "summary": "Add two optional string[] fields to TaskSchema; operator curates; agents read data.json directly with a template.",
+      "contributingLenses": ["devils-advocate"]
+    }
+  ],
+  "recommendedDirection": "D-004",
+  "questionsForSynthesis": [
+    "Which exact decisions does the expansion improve — task selection, spawn prompt quality, rebase-risk awareness, or operator confidence?",
+    "When auto-discovery (git log heuristic) conflicts with operator-curated data.json, which side wins? v1 answer: curated wins; auto-discovery is labeled 'candidates'.",
+    "Does the tool enforce schema/evidence, or merely generate best-effort prose? v1 answer: template enforces structure (agent-side); tool only bundles context.",
+    "If cached expansions are ever added, what invalidates them and who owns regeneration? v1 answer: no cache.",
+    "How does the auto-discovery heuristic decide 'this commit unblocked this task' — task-id match in commit message, same-file touches, or both? v1 answer: both, both labeled as candidates."
+  ]
+}
