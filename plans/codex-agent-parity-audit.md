@@ -254,6 +254,8 @@ Optionally (b) overlay-crate enhancement if codex doesn't natively understand `/
 > `codex-tool-gating-partial — partial allowedTools parity on codex path`
 > Track `allowedTools`/`disallowedTools` in codex `EnhancedMode`; at startThread, filter `mcpServers` entries (whole-server granularity). Defer per-tool-within-server filtering to a follow-up overlay crate. Acceptance: `meta.disallowedTools: ['happy.*']` results in the `happy` MCP bridge being omitted from `client.startThread`'s mcpServers; the model can't call any `happy.*` tool.
 
+**SHIPPED** (Gap 8 partial — codex-polish-lows). `EnhancedMode` now carries `allowedTools` / `disallowedTools` and the per-message tracker (sentinel-style, mirroring `customSystemPrompt`) updates them from `message.meta`. `mcpServerGating.ts` exposes `filterMcpServersByToolGating`: drops whole servers matched by `<server>` or `<server>.*` in `disallowedTools`; when `allowedTools` is set, drops servers not mentioned by any pattern (`<server>`, `<server>.*`, or `<server>.<anything>`). Per-tool-within-server patterns intentionally do NOT drop the whole server in the deny case (would over-restrict) and DO preserve the server in the allow case (tool stays reachable). The filter is applied at both first-turn `startThread` and `--resume` paths in `runCodex.ts`. True per-tool filtering inside an MCP server remains deferred to a follow-up overlay crate.
+
 ---
 
 ## Gap 9 — `claudeArgs`-style passthrough for codex CLI

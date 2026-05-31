@@ -44,6 +44,7 @@ import { createCodexPatchApprovalInput } from './codexApprovalSnapshot';
 import type { LedgerRecord } from '@slopus/happy-wire';
 import { createEnvelope } from '@slopus/happy-wire';
 import { loadProjectMcpServers } from './projectMcpConfig';
+import { filterMcpServersByToolGating } from './mcpServerGating';
 import { createAgentTreeState, type AgentTreeEvent } from './agentTreeState';
 
 function getMessageDelivery(message: { messageId?: string; seq?: number }): MessageDelivery | undefined {
@@ -114,6 +115,12 @@ export async function runCodex(opts: {
         thinkingLevel?: ReasoningEffort;
         customSystemPrompt?: string;
         appendSystemPrompt?: string;
+        // Gap 8 (codex-agent-parity-audit.md): partial parity for
+        // per-message tool gating. Whole-server granularity; the
+        // filter is applied to mcpServers at startThread / resume
+        // sites. See mcpServerGating.ts.
+        allowedTools?: string[];
+        disallowedTools?: string[];
     }
 
     //
@@ -251,6 +258,8 @@ export async function runCodex(opts: {
         thinkingLevel: mode.thinkingLevel,
         customSystemPrompt: mode.customSystemPrompt,
         appendSystemPrompt: mode.appendSystemPrompt,
+        allowedTools: mode.allowedTools,
+        disallowedTools: mode.disallowedTools,
     }));
 
     // Track current overrides to apply per message
@@ -264,6 +273,12 @@ export async function runCodex(opts: {
     // already-active thread, matching Claude's "next turn only" semantics.
     let currentCustomSystemPrompt: string | undefined = undefined;
     let currentAppendSystemPrompt: string | undefined = undefined;
+    // Gap 8 (codex-agent-parity-audit.md): partial codex-side parity for
+    // per-message tool gating. Values are applied at the NEXT thread
+    // start / resume — codex has no per-turn tool allowlist, so the
+    // filter operates on the mcpServers config handed to startThread.
+    let currentAllowedTools: string[] | undefined = undefined;
+    let currentDisallowedTools: string[] | undefined = undefined;
 
     // Valid Codex permission modes from remote messages. Restricted to the
     // native Codex modes exposed by the mobile UI (see modelModeOptions.ts:
@@ -383,12 +398,34 @@ export async function runCodex(opts: {
             logger.debug(`[Codex] Append system prompt updated from user message: ${messageAppendSystemPrompt ? 'set' : 'reset to none'}`);
         }
 
+        // Gap 8: resolve allowedTools / disallowedTools per-message. Same
+        // sentinel pattern as customSystemPrompt — explicit null/empty
+        // resets to "no constraint". Stored on the EnhancedMode so a
+        // change forces a new isolation key (the next thread start picks
+        // them up via the filtered mcpServers).
+        let messageAllowedTools = currentAllowedTools;
+        if (message.meta && Object.prototype.hasOwnProperty.call(message.meta, 'allowedTools')) {
+            const raw = (message.meta as { allowedTools?: unknown }).allowedTools;
+            messageAllowedTools = Array.isArray(raw) ? raw.filter((v): v is string => typeof v === 'string') : undefined;
+            currentAllowedTools = messageAllowedTools;
+            logger.debug(`[Codex] allowedTools updated from user message: ${messageAllowedTools ? messageAllowedTools.join(',') : 'reset to none'}`);
+        }
+        let messageDisallowedTools = currentDisallowedTools;
+        if (message.meta && Object.prototype.hasOwnProperty.call(message.meta, 'disallowedTools')) {
+            const raw = (message.meta as { disallowedTools?: unknown }).disallowedTools;
+            messageDisallowedTools = Array.isArray(raw) ? raw.filter((v): v is string => typeof v === 'string') : undefined;
+            currentDisallowedTools = messageDisallowedTools;
+            logger.debug(`[Codex] disallowedTools updated from user message: ${messageDisallowedTools ? messageDisallowedTools.join(',') : 'reset to none'}`);
+        }
+
         const enhancedMode: EnhancedMode = {
             permissionMode: messagePermissionMode || 'default',
             model: messageModel,
             thinkingLevel: messageThinkingLevel,
             customSystemPrompt: messageCustomSystemPrompt,
             appendSystemPrompt: messageAppendSystemPrompt,
+            allowedTools: messageAllowedTools,
+            disallowedTools: messageDisallowedTools,
         };
         // Slash commands (`/clear`, `/compact`) must not be newline-joined with
         // sibling user text; isolation lets the loop body dispatch them through
@@ -846,13 +883,22 @@ export async function runCodex(opts: {
         }
 
         if (opts.resumeThreadId) {
+            // Gap 8: apply allowedTools/disallowedTools at resume too —
+            // the codex thread re-startup picks up the filtered mcpServers
+            // for the resumed turn. Uses the current (CLI-startup) values;
+            // per-message overrides arrive after this branch and apply at
+            // the next startThread.
+            const resumeMcpServers = filterMcpServersByToolGating(mcpServers, {
+                allowedTools: currentAllowedTools,
+                disallowedTools: currentDisallowedTools,
+            });
             await resumeExistingThread({
                 client,
                 session,
                 messageBuffer,
                 threadId: opts.resumeThreadId,
                 cwd: cwdAtStart,
-                mcpServers,
+                mcpServers: resumeMcpServers,
                 projectDocFallback,
                 baseInstructions: currentCustomSystemPrompt,
                 developerInstructions: currentAppendSystemPrompt,
@@ -971,12 +1017,22 @@ export async function runCodex(opts: {
 
                 // Start thread on first turn (thread persists across mode changes)
                 if (!client.hasActiveThread()) {
+                    // Gap 8 (codex-agent-parity-audit.md): partial codex-side
+                    // tool gating. Whole-server granularity — patterns
+                    // matching a server (bare name or `X.*`) in disallowedTools
+                    // drop the whole server; when allowedTools is set, only
+                    // servers it mentions survive. Per-tool-within-server
+                    // filtering is deferred to a follow-up overlay crate.
+                    const startThreadMcpServers = filterMcpServersByToolGating(mcpServers, {
+                        allowedTools: message.mode.allowedTools,
+                        disallowedTools: message.mode.disallowedTools,
+                    });
                     const startedThread = await client.startThread({
                         model: message.mode.model,
                         cwd: cwdAtStart,
                         approvalPolicy: executionPolicy.approvalPolicy,
                         sandbox: executionPolicy.sandbox,
-                        mcpServers,
+                        mcpServers: startThreadMcpServers,
                         projectDocFallback,
                         baseInstructions: message.mode.customSystemPrompt,
                         developerInstructions: message.mode.appendSystemPrompt,
