@@ -2331,6 +2331,22 @@
       }
     },
     {
+      "id": "codex-rs-iteration-profile-lto-bypass-doc-fix",
+      "scope": "codex",
+      "lifecycle": "tracked",
+      "status": "ok",
+      "lastTouchedAt": "2026-06-01T14:52:00Z",
+      "kanbanCards": [],
+      "command": {
+        "name": "codex-rs-iteration-profile-lto-bypass-doc-fix",
+        "descriptionHtml": "Surfaced 2026-06-01 by <code>benchmark-codex-rs-build-perf</code> (artifacts at <code>.ralph/jobs/codex-rs-build-perf-baseline-measurement/benchmark-results.md</code>, F-1 HIGH finding). The Stage A iteration-env.sh + build-perf.md framing implies switching LTO between iterations causes cache invalidation (LTO IS a cache key). The real behavior measured in benchmark: <strong>sccache wrapper-side BYPASSES rustc invocations entirely under LTO=thin</strong> — lto-change scenario recompiled 939 crates with 0 sccache requests despite on-disk cache growing from ~1 GiB → 2.25 GiB. This means switching to LTO=thin loses sccache benefit on EVERY future build until switched back, not just the first. Small docs fix to <code>iteration-env.sh</code> banner + <code>build-perf.md</code> §LTO discussion. Also: F-2 cold-cache 53m vs ≤45m target (suggest reset to ~55m or promote Defender exclusion to RECOMMENDED). Also: F-3/F-4 warm-cache + jobs-change scenarios as written are pure relink floors (cargo doesn't recompile anything because only the bin was deleted) — rename or redesign.",
+        "warnings": [],
+        "prompts": {
+          "impl": "Small docs+script fix. Edit codex/scripts/iteration-env.sh banner to add a WARNING about LTO=thin bypassing sccache (cite F-1 finding). Edit codex/docs/implementation/build-perf.md to: (a) correct §LTO mechanism description per F-1; (b) reset cold-cache target from ≤45m to ~55m per F-2; (c) promote Defender exclusion from OPTIONAL to RECOMMENDED; (d) rename or redesign warm-cache + jobs-change scenarios per F-3/F-4 (they're pure relink floors as currently written). Wrapper-only commit on gim-home/codex; lead bumps codexu submodule pointer. Single commit + Phase 5b docs convergence."
+        }
+      }
+    },
+    {
       "id": "codex-rs-build-perf-baseline-measurement",
       "scope": "codex",
       "lifecycle": "merged",
