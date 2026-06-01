@@ -2283,6 +2283,21 @@
       }
     },
     {
+      "id": "codex-mcp-server-eventmsg-match-arms-fix",
+      "scope": "codex",
+      "lifecycle": "merged",
+      "status": "ok",
+      "mergeCommit": "22eceaab1,8a54ce213,f5a97ab4",
+      "lastTouchedAt": "2026-06-01T00:04:00Z",
+      "kanbanCards": [],
+      "command": {
+        "name": "codex-mcp-server-eventmsg-match-arms-fix",
+        "descriptionHtml": "Fork-introduced regression from today's Stage A mcp-server-notifications ship (bd98f77). Stage A added new <code>EventMsg::McpServerNotification</code> + <code>McpSamplingRequest</code> variants and fanned out the exhaustive-match update to <code>rollout/src/policy.rs</code> + <code>rollout-trace/src/protocol_event.rs</code>, but missed the 3rd match site at <code>mcp-server/src/codex_tool_runner.rs:224</code>. Shipped + cargo check -p codex-mcp-server clean + audit confirmed no other missed match sites.",
+        "warnings": [],
+        "prompts": {}
+      }
+    },
+    {
       "id": "codex-rebase-debt-fix-app-server-client-brace",
       "scope": "codex",
       "lifecycle": "merged",
