@@ -2283,6 +2283,21 @@
       }
     },
     {
+      "id": "codex-rebase-debt-fix-tui-and-exec",
+      "scope": "codex",
+      "lifecycle": "merged",
+      "status": "ok",
+      "mergeCommit": "ec91d8da6,769bc4d59,590b50759,6b371e2b1,2d2e9bce",
+      "lastTouchedAt": "2026-06-01T01:12:00Z",
+      "kanbanCards": [],
+      "command": {
+        "name": "codex-rebase-debt-fix-tui-and-exec",
+        "descriptionHtml": "Bundled fix for 3 v0.135.0 rebase-debt issues in codex-tui + codex-exec surfaced by build-codex-release-exe-r4: (1) duplicate <code>history_cell</code> module file (both .rs and mod.rs existed — kept upstream's mod.rs structure + forward-ported the 1 fork-side patch); (2) unresolved git merge marker <code>>>>>>>> f4a628f40</code> committed mid-merge into <code>tui/src/style.rs:255</code>, resolved 4 conflict regions per the original rebase commit's documented intent; (3) <code>codex-exec/lib.rs:403</code> ConfigOverrides initializer missing new required <code>additional_instructions</code> field. cargo check -p codex-tui -p codex-exec GREEN. Audit-grep confirmed no other unresolved merge markers anywhere in codex-rs/. <strong>Subsumes followup task</strong> codex-rebase-history-cell-forward-port.",
+        "warnings": [],
+        "prompts": {}
+      }
+    },
+    {
       "id": "codex-mcp-server-eventmsg-match-arms-fix",
       "scope": "codex",
       "lifecycle": "merged",
@@ -2439,8 +2454,9 @@
     {
       "id": "codex-rebase-history-cell-forward-port",
       "scope": "codex",
-      "lifecycle": "tracked",
+      "lifecycle": "archived",
       "status": "ok",
+      "mergeCommit": "subsumed-by-codex-rebase-debt-fix-tui-and-exec-ec91d8da6+769bc4d59",
       "lastTouchedAt": "2026-05-30T21:45:00Z",
       "kanbanCards": [],
       "command": {
