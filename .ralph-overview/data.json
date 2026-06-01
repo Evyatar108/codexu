@@ -2399,6 +2399,22 @@
       }
     },
     {
+      "id": "codex-rs-measure-build-includes-launcher",
+      "scope": "codex",
+      "lifecycle": "tracked",
+      "status": "ok",
+      "lastTouchedAt": "2026-06-01T19:52:00Z",
+      "kanbanCards": [],
+      "command": {
+        "name": "codex-rs-measure-build-includes-launcher",
+        "descriptionHtml": "Surfaced 2026-06-01 by operator: after the jobs-sweep + sccache-race benchmark passes the <code>codex.exe</code> launcher was gone from <code>target/release/</code>, leaving only <code>codex-core.exe</code> (the main 294 MB binary). Cause: <code>codex/scripts/measure-build.ps1:151</code> invokes <code>cargo build --release -p codex-cli --bin codex-core --timings</code> — it explicitly builds ONLY the codex-core bin, never the small <code>codex</code> launcher. Every cold-cache scenario also runs <code>cargo clean</code> beforehand, which wipes the launcher and never regenerates it. Net effect: a successful benchmark run leaves the workspace in a \"core binary exists but cannot be invoked\" state, which is misleading both for users following docs and for follow-up smoke tests. Two-line fix: change line 151 to <code>cargo build --release -p codex-cli --bin codex-core --bin codex --timings</code> (or build the whole codex-cli package). Wall-time delta should be near-zero (launcher is small + cheap once dependencies are built). Also note in <code>build-perf.md</code> that the benchmark builds the full launcher artifact, not just the heavy bin.",
+        "warnings": [],
+        "prompts": {
+          "impl": "/implement-with-ralph --autonomous \"Tiny wrapper-only fix in codex/scripts/measure-build.ps1 (and brief docs callout in codex/docs/implementation/build-perf.md). Surfaced 2026-06-01: benchmark script only builds codex-core, never the codex launcher, so every cold-cache scenario leaves the launcher missing. Fix:\\n\\n1. codex/scripts/measure-build.ps1 line 151: change\\n     & cargo build --release -p codex-cli --bin codex-core --timings\\n   to\\n     & cargo build --release -p codex-cli --bin codex-core --bin codex --timings\\n   (Verify the launcher target name with: cd codex/external/repos/codex-patched/codex-rs && cargo metadata --no-deps --format-version 1 | jq \\\".packages[] | select(.name==\\\"codex-cli\\\") | .targets[] | select(.kind[0]==\\\"bin\\\") | .name\\\" — adjust the second --bin arg to match.) Also update the .SYNOPSIS / first-line .DESCRIPTION block at the top of the script to note the launcher is included.\\n\\n2. codex/docs/implementation/build-perf.md: add a short note under §Methodology that benchmark scenarios build the full launcher artifact (so the workspace state after a benchmark run is invocable, not just core-bin-only).\\n\\nValidation: after edit, source iteration-env.sh and run the script with -ParseOnly to confirm syntax still parses. No actual build needed for the fix — wall-time impact is negligible (launcher builds in <30s once core is fresh).\\n\\nWrapper-only commit on gim-home/codex. Lead bumps codexu submodule pointer separately. Single commit. Topic branch ralph/measure-build-includes-launcher. Body-canonical report.\""
+        }
+      }
+    },
+    {
       "id": "codex-rs-build-perf-jobs-sweep-with-defender",
       "scope": "codex",
       "lifecycle": "merged",
