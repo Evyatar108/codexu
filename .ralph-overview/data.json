@@ -2328,6 +2328,27 @@
       }
     },
     {
+      "id": "codex-rs-build-perf-baseline-measurement",
+      "scope": "codex",
+      "lifecycle": "tracked",
+      "status": "ok",
+      "lastTouchedAt": "2026-06-01T12:30:00Z",
+      "kanbanCards": [],
+      "command": {
+        "name": "codex-rs-build-perf-baseline-measurement",
+        "descriptionHtml": "Operator-driven follow-up to <code>codex-rs-build-time-and-cache-resilience</code> (which shipped the methodology + tooling but not the recorded numbers). Run the four scenarios documented in <code>codex/docs/implementation/build-perf.md</code> — <code>cold-cache</code>, <code>warm-cache</code>, <code>jobs-change</code>, <code>lto-change</code> — using <code>codex/scripts/measure-build.ps1</code> after sourcing <code>codex/scripts/iteration-env.sh</code>. Each scenario takes 30 min to a few hours; the full matrix is multi-hour and requires a clean machine state (kill running codex/codex-core processes; optionally apply the Defender exclusion from the publish-sandbox-patch.md Preconditions). Copy the resulting CSV rows from <code>codex/docs/implementation/build-perf-artifacts/&lt;runId&gt;.csv</code> into the empty 'Recorded measurements → Treatment' table in <code>build-perf.md</code> and commit. Confirms AC-2 (warm-cache ≤ 5 min target), AC-3 (jobs-change ≤ 6 min target), AC-4 (LTO-change documented as expected miss), AC-5 (treatment cold-cache row recorded).",
+        "warnings": [
+          {
+            "className": "cmd-warn",
+            "html": "Operator-only — autonomous impl members cannot reliably finish multi-hour release builds. Best run on a quiet day with the dev box not doing other heavy work."
+          }
+        ],
+        "prompts": {
+          "impl": "Operator-driven benchmark recording. Step 1: kill any running codex / codex-core processes (powershell `Get-Process | Where-Object { $_.ProcessName -match 'codex' } | Stop-Process -Force`). Step 2 (optional, recommended): from elevated PowerShell, `Add-MpPreference -ExclusionPath D:\\codex-sccache` and `Add-MpPreference -ExclusionPath D:\\harness-efforts\\codexu\\codex\\external\\repos\\codex-patched\\codex-rs\\target`. Step 3: open Git Bash, `cd D:/harness-efforts/codexu` and `source codex/scripts/iteration-env.sh` — confirm the FROZEN ITERATION PROFILE ACTIVE banner. Step 4: for each scenario in `codex/docs/implementation/build-perf.md` (cold-cache, warm-cache, jobs-change, lto-change) run `sccache --zero-stats` then `pwsh -NoProfile -File codex/scripts/measure-build.ps1 -Scenario <name>`. Use a fresh `CARGO_TARGET_DIR` per scenario per the methodology to keep cache resets unambiguous. Step 5: open the resulting CSV rows under `codex/docs/implementation/build-perf-artifacts/` and copy the relevant numbers (wallSeconds, peakRssMB, sccache hits/misses/stores) into the empty 'Recorded measurements → Treatment' table in `build-perf.md`. Step 6: commit `docs(codex): record build-perf baseline measurements` on a topic branch and push for lead FF-merge."
+        }
+      }
+    },
+    {
       "id": "codex-rebase-debt-fix-tui-and-exec",
       "scope": "codex",
       "lifecycle": "merged",
