@@ -2283,6 +2283,22 @@
       }
     },
     {
+      "id": "codex-rs-build-time-and-cache-resilience",
+      "scope": "codex",
+      "lifecycle": "tracked",
+      "status": "ok",
+      "lastTouchedAt": "2026-06-01T04:39:00Z",
+      "kanbanCards": [],
+      "command": {
+        "name": "codex-rs-build-time-and-cache-resilience",
+        "descriptionHtml": "Surfaced 2026-06-01 by <code>build-codex-release-exe-r6</code> after 2h 47m cold-cache build of codex.exe. Build-iteration pain: env-var changes (LTO=thin→off, jobs=2→1) invalidate cargo cache wholesale. Ranked highest-leverage fixes per member: (1) install + wire <code>sccache</code> as <code>RUSTC_WRAPPER</code> with cache dir on D: — would have made r6 a ~3-min rebuild instead of 2h 47m; (2) codify a frozen 'iteration profile' in codex/CLAUDE.md (LTO + codegen-units + jobs values that don't change round-to-round); (3) raise jobs back to 4-6 with LTO=off confirmed not to OOM; (4) Windows pagefile ≥32 GB; (5) <code>RUSTFLAGS=\"-C debuginfo=0\"</code> for try-it builds (~30% less RAM, ~20% less wall-time).",
+        "warnings": [],
+        "prompts": {
+          "plan": "/plan-with-ralph \"Improve codex-rs local build time + cache resilience after the build-codex-release-exe-r6 retrospective (2h 47m cold build burned by env-var-induced cache invalidation). 5 ranked fixes per the r6 member: (1) sccache install + RUSTC_WRAPPER wire-up with cache dir on D: drive (highest-leverage); (2) frozen iteration profile in codex/CLAUDE.md so LTO/codegen-units/jobs don't drift round-to-round; (3) jobs=4-6 with LTO=off (currently jobs=1 leaves 15 cores idle); (4) Windows pagefile ≥32 GB; (5) RUSTFLAGS=-C debuginfo=0 for local 'try-it' builds. Plan should decide bundle-vs-split, verify sccache supports the LLVM cross-toolchain we use, and pin a benchmark methodology (build A: before fixes, build B: after; measure both cold and warm cache).\""
+        }
+      }
+    },
+    {
       "id": "codex-rebase-debt-fix-tui-and-exec",
       "scope": "codex",
       "lifecycle": "merged",
