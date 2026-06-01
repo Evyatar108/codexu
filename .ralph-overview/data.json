@@ -2401,9 +2401,9 @@
     {
       "id": "codex-rs-measure-build-includes-launcher",
       "scope": "codex",
-      "lifecycle": "tracked",
+      "lifecycle": "merged",
       "status": "ok",
-      "lastTouchedAt": "2026-06-01T19:52:00Z",
+      "lastTouchedAt": "2026-06-01T20:06:00Z",
       "kanbanCards": [],
       "command": {
         "name": "codex-rs-measure-build-includes-launcher",
@@ -2412,6 +2412,22 @@
         "prompts": {
           "impl": "/implement-with-ralph --autonomous \"Tiny wrapper-only fix in codex/scripts/measure-build.ps1 (and brief docs callout in codex/docs/implementation/build-perf.md). Surfaced 2026-06-01: benchmark script only builds codex-core, never the codex launcher, so every cold-cache scenario leaves the launcher missing. Fix:\\n\\n1. codex/scripts/measure-build.ps1 line 151: change\\n     & cargo build --release -p codex-cli --bin codex-core --timings\\n   to\\n     & cargo build --release -p codex-cli --bin codex-core --bin codex --timings\\n   (Verify the launcher target name with: cd codex/external/repos/codex-patched/codex-rs && cargo metadata --no-deps --format-version 1 | jq \\\".packages[] | select(.name==\\\"codex-cli\\\") | .targets[] | select(.kind[0]==\\\"bin\\\") | .name\\\" — adjust the second --bin arg to match.) Also update the .SYNOPSIS / first-line .DESCRIPTION block at the top of the script to note the launcher is included.\\n\\n2. codex/docs/implementation/build-perf.md: add a short note under §Methodology that benchmark scenarios build the full launcher artifact (so the workspace state after a benchmark run is invocable, not just core-bin-only).\\n\\nValidation: after edit, source iteration-env.sh and run the script with -ParseOnly to confirm syntax still parses. No actual build needed for the fix — wall-time impact is negligible (launcher builds in <30s once core is fresh).\\n\\nWrapper-only commit on gim-home/codex. Lead bumps codexu submodule pointer separately. Single commit. Topic branch ralph/measure-build-includes-launcher. Body-canonical report.\""
         }
+      },
+      "shipManifest": {
+        "shippedAt": "2026-06-01T20:06:00Z",
+        "summary": "Wrapper-only +22/-6 across 4 files: measure-build.ps1:157 cargo invocation now builds both shipped bins (-p codex-cli --bin codex-core -p codex-copilot-launcher --bin codex --timings) so cold-cache scenarios no longer leave the workspace launcher-less; script .SYNOPSIS/.DESCRIPTION updated to explain the launcher bin lives in a separate package; build-perf.md Methodology gained a bullet noting both bins are built per scenario with <30s wall-time impact. Bonus scope (added mid-flight via mailbox msg): CLAUDE.md + AGENTS.override.md confusion-point bullet corrected -- previously claimed -p codex-cli --bin codex --bin codex-core works, but cargo rejects --bin codex under that -p because codex-copilot-launcher owns the launcher bin target. Both files now show the correct two-package invocation. Verified by lead via cargo metadata + actual 7m55s rebuild producing both binaries (codex.exe 763 KB + codex-core.exe 309 MB, codex-cli 0.135.0-copilot-api.1 runnable).",
+        "commits": [
+          {
+            "sha": "e78e29e3",
+            "oneLine": "docs+fix(measure-build): build launcher too + correct cargo-cmd bullet in CLAUDE.md/AGENTS.override.md",
+            "repo": "gim-home/codex"
+          },
+          {
+            "sha": "ac331dfe",
+            "oneLine": "chore(codex): bump pointer to e78e29e3",
+            "repo": "Evyatar108/codexu"
+          }
+        ]
       }
     },
     {
