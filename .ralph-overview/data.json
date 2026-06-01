@@ -2436,9 +2436,9 @@
     {
       "id": "codex-rs-iteration-profile-lto-bypass-doc-fix",
       "scope": "codex",
-      "lifecycle": "tracked",
+      "lifecycle": "merged",
       "status": "ok",
-      "lastTouchedAt": "2026-06-01T19:18:00Z",
+      "lastTouchedAt": "2026-06-01T19:30:00Z",
       "kanbanCards": [],
       "command": {
         "name": "codex-rs-iteration-profile-lto-bypass-doc-fix",
@@ -2447,6 +2447,22 @@
         "prompts": {
           "impl": "Consolidated docs-only convergence for 2026-06-01 build-perf benchmarks. Wrapper-only edits on gim-home/codex (codex/scripts/iteration-env.sh + codex/docs/implementation/*.md + codex/CLAUDE.md + codex/AGENTS.override.md + codex/.claude/commands/publish-sandbox-patch.md). Lead bumps codexu submodule pointer separately. NO inner submodule changes, NO codex Rust source changes.\n\nFix scope:\n\n1. codex/CLAUDE.md:160 + codex/AGENTS.override.md:127 -- UPDATE the \"only lever is LTO=off/thin/fat\" sentence to also note: sccache wrapper BYPASSES rustc invocations entirely under LTO=thin (F-1 finding 2026-06-01) -- switching to LTO=thin loses sccache benefit on every future build until switched back, not just the first. LTO=off is the only profile under which sccache actually wraps rustc on this workspace.\n\n2. codex/.claude/commands/publish-sandbox-patch.md:\n   - Lines 28-30 (Defender exclusion): downgrade from \"OPTIONAL Defender exclusion\" recommendation to a no-measurable-benefit note. Cite F-6 (2026-06-01 jobs-sweep benchmark, 56:26 with exclusions vs 53:00 baseline -- within noise; even slightly slower).\n   - Line 85: change \"CARGO_BUILD_JOBS=4 (safe to override -- NOT in cache key)\" to reflect the new jobs=8 default after 2026-06-01 jobs-sweep (winner 50:12 cold vs 56:26 at jobs=4 on this 16-thread / 64 GB box). Also any other lingering jobs=4 mentions in step 2a or the frozen-env block.\n\n3. codex/docs/implementation/build-perf.md -- substantial rewrite:\n   - LTO mechanism section: rewrite per F-1 (sccache wrapper bypass under thin; LTO=off is the only sccache-effective profile).\n   - Scenarios table: rewrite jobs-change row (remove 4 to 2 framing; explain why warm-cache + jobs-change as written are pure relink floors per F-3/F-4 -- only bin was deleted, cargo does not recompile).\n   - Treatment results table (currently empty): fill with three rows -- (a) baseline 2026-06-01 cold 53m / warm 1m08s / lto-change 58m (from baseline-measurement); (b) jobs-sweep 2026-06-01 jobs=4 56:26 / jobs=6 51:16 / jobs=8 50:12 WINNER / jobs=12 49:22 (from jobs-sweep-with-defender); (c) post-sccache-race-fix expected ~45m at jobs=8 (per shipped d8e4dad15 + winner combo, awaiting measurement on next cold cycle).\n   - Add Defender exclusion subsection: F-6 callout (tested 2026-06-01 -- no measurable benefit at jobs=4; listed in publish-sandbox-patch.md preconditions but downgraded to non-recommended).\n   - Add sccache + LTO interaction subsection: F-1 callout standalone with cross-link to CLAUDE.md / AGENTS.override.md.\n   - Reset cold-cache target from <=45m to ~50m per F-2 (we just landed jobs=8 winner -- measure once before adjusting further).\n\n4. codex/scripts/iteration-env.sh -- banner already updated by d8e4dad15 for jobs=8 + sccache poll. Confirm no further changes needed; if banner still mentions any stale value, fix it.\n\nPhase 5b docs convergence: after edits, reviewer round should verify zero remaining \"jobs=4\" references in the script, every doc cross-link is consistent (CLAUDE.md <-> AGENTS.override.md <-> publish-sandbox-patch.md <-> build-perf.md), and the build-perf.md treatment table actually matches the .ralph/jobs/ benchmark artifacts.\n\nSingle commit OK (docs-only, focused). Topic branch ralph/iteration-profile-lto-bypass-doc-fix off gim-home/codex main. Push to gim-home/codex. Body-canonical report: prose body substantive, summary <= 200 chars."
         }
+      },
+      "shipManifest": {
+        "shippedAt": "2026-06-01T19:30:00Z",
+        "summary": "Consolidated docs-only convergence for 2026-06-01 build-perf benchmarks. Single commit on gim-home/codex (+156/-36 across 4 files): CLAUDE.md + AGENTS.override.md sccache-cache-key bullet extended with F-1 trapdoor note (sccache wrapper inspects -Clto and bypasses caching entirely under any non-off LTO; LTO=off is the only sccache-effective profile; 939 crates / 57m 57s / 0 sccache requests cited); publish-sandbox-patch.md Defender preconditions downgraded from OPTIONAL-recommended to NOT-recommended per F-6 (56:26 with exclusions vs 53:00 baseline -- within noise), CARGO_BUILD_JOBS default 4->8 per jobs-sweep winner; build-perf.md substantial rewrite (background + scenarios table per F-3/F-4 + filled treatment results table with 10 rows from both benchmark passes + new sccache+LTO interaction section + new Defender no-measurable-benefit section + cold-cache target reset 45m->50m per F-2); iteration-env.sh confirmed already correct from d8e4dad15. Phase 5b cross-link verification passed.",
+        "commits": [
+          {
+            "sha": "712d3d369",
+            "oneLine": "docs(build-perf): consolidate 2026-06-01 benchmark findings",
+            "repo": "gim-home/codex"
+          },
+          {
+            "sha": "a5c9b064",
+            "oneLine": "chore(codex): bump pointer to 712d3d369",
+            "repo": "Evyatar108/codexu"
+          }
+        ]
       }
     },
     {

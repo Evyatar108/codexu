@@ -169,6 +169,58 @@ review before renaming.
 
 ---
 
+### Bookkeeper session 2026-05-31 / 2026-06-01 — codex-rebase-debt cleanup + first working codex.exe + build-perf arc (Copilot CLI overview-bookkeeper lead)
+
+**~15 additional ships landed** continuing from the prior 24-ship table above. Chronological order with merge SHAs on `Evyatar108/codexu@main` + `gim-home/codex@main` + `gim-home/ai-developer-toolkit@main` as appropriate. The dominant arc this block was reconciling rebase debt from the `rust-v0.135.0` upstream merge (which had punted `cargo check --workspace` verification to CI) and producing the first locally-built `codex.exe` since the rebase, followed by a build-performance optimization sub-arc.
+
+| # | Task | Repo / Branch | Merge SHA | Notes |
+|---|------|---|---|---|
+| 25 | `codex-mcp-server-notifications` (Stage A) | tri-repo (overlay crate in codex-patched + wrapper + codexu submodule bump) | `b371db56d` (inner) | ~800 LoC overlay crate, 5 functional canonical seams, `Feature::McpServerNotifications` flag gated. Added `EventMsg::McpServerNotification` variant + `EventMsg::McpServerNotificationFanout` arm — **fork additions, not upstream** (verified against `openai/codex@rust-v0.135.0`). Stage B (full Rust) reframed to Option B (thin TS notifications-to-prompt-queue) — see #34 below. |
+| 26 | `task-expansion-skill` | toolkit/ralph-overview | (v2.7.0) | New `overview.expand_task_context` MCP tool — operator-praised 5-section format reusable across tasks. |
+| 27 | `port-plan-and-verification-roles` | 3 repos | 4 SHAs | (carry-over from prior block continuation; verified shipped) |
+| 28-32 | `codex-rebase-debt` series (5 sequential fix members) | codex-patched on sandbox-patches | `e423b8c7e`+`13558dfb9`+`9a2753ed7` (resume-proper) → `652db37de` (plugin-share-context) → `1560e120b` (app-server-client brace from literal merge marker) → `22eceaab1` (mcp-server EventMsg arms from our own Stage A!) → `590b50759` (codex-tui + codex-exec ConfigOverrides + history_cell duplicate + tui/style.rs git-merge markers) | **Pattern**: every fix landed exposed the NEXT crate's rebase debt; 5+ sequential members chased the long tail. **All in upstream-canonical or fork-side SANDBOX PATCH files needing trait migration**; zero overlay-crate debt (minimize-conflict-surface mandate working as designed). |
+| 33 | First working `codex.exe` produced | n/a (local build) | n/a | Path: `D:\harness-efforts\codexu\codex\external\repos\codex-patched\codex-rs\target\release\codex.exe` (`codex-cli 0.135.0-copilot-api.1`, 0.73 MB launcher + 294 MB codex-core.exe). r6 winning config: `jobs=1 + LTO=off + PowerShell` in 2h 47m after 5 failed attempts (r1-r5: OOM, blocker, OOM-clear-but-blocker, rustc OOM at jobs=2 codex-tui). |
+| 34 | `codex-channels` reframed → `codex-channels-option-b` (plan only) | codexu | `635248c6` | Original task archived. Plan-lite ships 3 stories, ~150-250 LoC TS, zero codex/ Rust touches — thin notifications-to-prompt-queue layer on existing Stage A. Impl deferred. |
+| 35 | `patch-surface-mcp-server-notifications-docs` | wrapper + codexu | `3f7d53e35` + `cb9bc687` | `codex/docs/implementation/patch-surface.md` §14 invariants 25/25a-d for Stage A + §15 replant recipes for all SANDBOX PATCH markers. |
+| 36 | `codex-rs-build-time-and-cache-resilience` | wrapper + codexu | `2f2f402a1` + `edb6ef2e` | sccache wire-up + `scripts/iteration-env.sh` frozen iteration profile (LTO=off / codegen-units=16 / jobs=4 / CARGO_INCREMENTAL=0) + `scripts/measure-build.ps1` + `docs/implementation/build-perf.md`. |
+| 37 | `codex-rs-build-perf-baseline-measurement` | codexu | (artifacts at `.ralph/jobs/...`) | 4-scenario benchmark: cold 53m, warm 1m08s, jobs-change 9s, lto-change 58m. **3.16× speedup vs r6 baseline.** F-1 (HIGH): sccache wrapper BYPASSES LTO=thin entirely (0 cache requests during 939-crate recompile). F-2/F-3/F-4 lower-priority findings. |
+| 38 | `codex-rs-build-perf-jobs-sweep-with-defender` | codexu | `a0a64939` + 2 followup-filing commits | Sweep CARGO_BUILD_JOBS 4/6/8/12 under operator-applied Defender exclusions. **Winner: jobs=8 at 50:12** (vs jobs=4 56:26). Peak RSS 8.1→8.3 GB. F-5 (HIGH): sccache `--start-server` race at jobs=6/12 → 21 cache requests vs 1705 (transient post-restart unreachability). F-6 (MED): Defender exclusions delivered **NO measurable benefit** (within noise, even slightly slower). F-7 (MED): sub-45m floor needs feature pruning, not concurrency. |
+| 39 | `escalate-gim-home-actions-policy` (ops; filed as blocked) | n/a | n/a | **gim-home/codex CI has been all `startup_failure` since 2026-04-07** — org-level Actions policy blocks ALL workflow dispatches. Zero code fix possible; requires gim-home org admin at https://github.com/organizations/gim-home/settings/actions to fix allowed-actions allowlist OR selected-repos allowlist OR repo-level Actions enable. |
+| 40 | `codex-rs-iteration-env-sccache-race-and-jobs-default` | wrapper + codexu | `d8e4dad15` + `7142353e` | F-5 fix: 15s poll loop (30 × 0.5s) after `sccache --start-server` waits for `sccache --show-stats` to respond; WARN-not-fail fallback. Jobs default 4→8 (sweep winner). Single-file wrapper-only edit on `codex/scripts/iteration-env.sh` (+21 −4). Expected ~5m cold-build savings on next cold cycle. |
+| 41 | `codex-rs-iteration-profile-lto-bypass-doc-fix` | wrapper + codexu | `712d3d369` + `a5c9b064` | Consolidated docs convergence (+156/-36 across 4 files): `CLAUDE.md` + `AGENTS.override.md` sccache-cache-key bullet extended with F-1 LTO trapdoor (sccache wrapper inspects `-Clto` and bypasses caching entirely under any non-off LTO; LTO=off is the only sccache-effective profile on this workspace); `publish-sandbox-patch.md` Defender preconditions downgraded NOT-recommended per F-6, `CARGO_BUILD_JOBS=4→8`; `build-perf.md` substantial rewrite (background + scenarios per F-3/F-4 + filled treatment results table with 10 benchmark rows + sccache+LTO interaction section + Defender no-benefit section + cold target reset 45m→50m per F-2). |
+
+**Codex-rebase-debt lesson (codified as a critical operational principle):** the `rust-v0.135.0` rebase commit message explicitly punted `cargo check --workspace` verification to CI. Every codex Rust crate `cargo` touched after that surfaced another rebase-debt artifact: dangling fn refs (`group_remote_installed_plugins_by_marketplaces`, `fetch_remote_plugin_share_context`), brace mismatch from a literal merge marker in `tui/style.rs`, missing struct field (`truncation_policy`, `default_service_tier`, `additional_instructions`), missing `EventMsg::McpServerNotification` match arms (including in `mcp-server/src/codex_tool_runner.rs` — debt from our OWN Stage A work that hadn't been verified workspace-wide). **Future rebase policy:** `cargo check --workspace` MUST run as a hard gate before sandbox-patches push. Split into "merge upstream (incomplete)" + "post-merge reconciliation (workspace green)" commits if needed. This is now memory-stored.
+
+**Build-perf arc summary** (all measurements 2026-06-01 on 16-thread / 64 GB box):
+
+| Stage | Wall time | Peak RSS | Notes |
+|---|---|---|---|
+| r6 baseline (pre-sccache, jobs=1, LTO=off) | 2h 47m | n/a | What it took to produce the first working codex.exe |
+| Treatment cold (sccache + LTO=off + jobs=4) | 53m | 7.8 GB | 3.16× speedup vs r6 |
+| Jobs-sweep winner cold (sccache + LTO=off + **jobs=8**) | **50:12** | 8.2 GB | Active default after #40 |
+| Jobs-sweep cold jobs=12 | 49:22 | 8.3 GB | Marginal gain, more RSS pressure |
+| Warm-cache rebuild (link-only after deleting `codex-core.exe`) | 45s-1m08s | 0.24 GB | sccache n/a (link step uncacheable) |
+| Sub-45m floor target | n/a (deferred) | n/a | Needs feature pruning per F-7; tracked as `codex-rs-feature-pruning-for-sub-45m-cold` |
+
+**Newly tracked tasks (followups from this block):**
+- `codex-rs-iteration-env-sccache-race-and-jobs-default` (MERGED #40)
+- `codex-rs-iteration-profile-lto-bypass-doc-fix` (MERGED #41, scope expanded mid-session to consolidate all 2026-06-01 build-perf doc gaps)
+- `codex-rs-defender-exclusions-procmon-verify` (tracked) — F-6 deeper verification via Procmon to confirm no scanning on excluded dirs
+- `codex-rs-feature-pruning-for-sub-45m-cold` (tracked) — F-7 path to AC-5 sub-45m target via cargo feature pruning (image / lalrpop / aws-lc-rs dep trees); touches upstream-canonical Cargo.toml so minimize-conflict-surface mandate applies (prefer `CARGO_FEATURES_TO_DISABLE` env over `default-features` edits)
+- `escalate-gim-home-actions-policy` (blocked) — operator-only org admin action
+- `codex-channels-option-b` (tracked plan-only) — 3 stories, ~150-250 LoC TS, zero Rust touches
+
+**Pending operator actions:**
+- Fix gim-home/codex Actions org policy (#39 escalate) — blocks ALL workflow dispatches
+- Optional: Procmon-verify Defender exclusions if curious about the F-6 no-op verdict
+- Optional: run `codex.exe` from `D:\harness-efforts\codexu\codex\external\repos\codex-patched\codex-rs\target\release\codex.exe` to smoke-test the rebased v0.135.0 build
+
+**Plugin versions active end-of-session block:** crews **v3.0.0** · ralph-orchestration **v5.47.0** · ralph-overview **v2.7.0** (gained `overview.expand_task_context`).
+
+**Total session ships across all three sub-sessions: ~41 (11 + 13 + ~17).**
+
+---
+
 
 ### What's where
 
