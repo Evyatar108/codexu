@@ -1,0 +1,2287 @@
+=== B-jobs6-cold (jobs=6, cold=True) runId=bench-B-jobs6-cold-20260601T160912Z ===
+
+[09:09:12] Scenario: B-jobs6-cold  Jobs: 6  Cold: True
+[09:09:13] Disk D free GB: 463.8
+[09:09:13] Cold cache: stopping sccache server, wiping D:\codex-sccache, wiping target/release...
+Stopping sccache server...
+Compile requests                   1705
+Compile requests executed          1509
+Cache hits                            5
+Cache hits (C/C++)                    5
+Cache misses                       1495
+Cache misses (C/C++)                460
+Cache misses (Rust)                1035
+Cache hits rate                    0.33 %
+Cache hits rate (C/C++)            1.08 %
+Cache hits rate (Rust)             0.00 %
+Cache timeouts                        0
+Cache read errors                     0
+Forced recaches                       0
+Cache write errors                    0
+Cache errors                          0
+Compilations                       1495
+Compilation failures                  9
+Non-cacheable compilations            0
+Non-cacheable calls                 188
+Non-compilation calls                 8
+Unsupported compiler calls            0
+Average cache write               0.006 s
+Average compiler                  3.606 s
+Average cache read hit            0.052 s
+Failed distributed compilations       0
+
+Non-cacheable reasons:
+crate-type                          169
+missing input                         8
+-                                     7
+-o                                    3
+missing emit                          1
+
+Cache location                  Local disk: "D:\\codex-sccache"
+Base directories                (none)
+Use direct/preprocessor mode?   yes
+Version (client)                0.15.0
+Cache size                            1 GiB
+Max cache size                       50 GiB
+[09:09:17] Removing D:\harness-efforts\codexu\codex\external\repos\codex-patched\codex-rs\target\release ...
+[09:09:27] Cold-cache wipe complete.
+[09:09:27] Disk D free GB after wipe: 470.6
+[09:09:27] Invoking bash to run iteration-env + measure-build...
+[iteration-env] Reconciling sccache: active cache 'D:\\codex-sccache' != intended 'D:\codex-sccache' — restarting server.
+===================================================================
+  FROZEN ITERATION PROFILE ACTIVE
+  LTO=off  codegen-units=16  jobs=6  incremental=0
+  RUSTC_WRAPPER=sccache  SCCACHE_DIR=D:\codex-sccache  size=50G
+  Do NOT change LTO / codegen-units / RUSTFLAGS round-to-round.
+  Build command (note: -p codex-cli --bin codex-core, NOT -p codex-core):
+    cargo build --release -p codex-cli --bin codex-core
+===================================================================
+---ENV AFTER SOURCE---
+CARGO_BUILD_JOBS=6
+RUSTC_WRAPPER=sccache
+SCCACHE_DIR=D:\codex-sccache
+CARGO_PROFILE_RELEASE_LTO=off
+CARGO_PROFILE_RELEASE_CODEGEN_UNITS=16
+PATH-first-3:
+/c/Program Files/LLVM/bin
+/mingw64/bin
+/usr/bin
+Statistics zeroed.
+---STARTING MEASURE-BUILD---
+[measure-build] runId=bench-B-jobs6-cold-20260601T160912Z  scenario=B-jobs6-cold  parseOnly=False
+[measure-build] codex-rs dir: D:\harness-efforts\codexu\codex\external\repos\codex-patched\codex-rs
+   Compiling unicode-ident v1.0.22
+   Compiling proc-macro2 v1.0.106
+   Compiling quote v1.0.44
+   Compiling serde v1.0.228
+   Compiling cfg-if v1.0.4
+   Compiling serde_core v1.0.228
+   Compiling windows-link v0.2.1
+   Compiling memchr v2.7.6
+   Compiling windows-sys v0.61.2
+   Compiling itoa v1.0.17
+   Compiling parking_lot_core v0.9.12
+   Compiling version_check v0.9.5
+   Compiling portable-atomic v1.13.1
+   Compiling critical-section v1.2.0
+   Compiling allocator-api2 v0.2.21
+   Compiling equivalent v1.0.2
+   Compiling scopeguard v1.2.0
+   Compiling lock_api v0.4.14
+   Compiling pin-project-lite v0.2.16
+   Compiling syn v2.0.114
+   Compiling foldhash v0.2.0
+   Compiling once_cell v1.21.3
+   Compiling getrandom v0.2.17
+   Compiling hashbrown v0.16.1
+   Compiling shlex v1.3.0
+   Compiling getrandom v0.3.4
+   Compiling find-msvc-tools v0.1.9
+   Compiling windows_x86_64_msvc v0.53.1
+   Compiling log v0.4.29
+   Compiling subtle v2.6.1
+   Compiling futures-core v0.3.32
+   Compiling thiserror v2.0.18
+   Compiling jobserver v0.1.34
+   Compiling bytes v1.11.1
+   Compiling indexmap v2.13.0
+   Compiling cc v1.2.55
+   Compiling generic-array v0.14.7
+   Compiling rand_core v0.6.4
+   Compiling typenum v1.20.1
+   Compiling windows-targets v0.53.5
+   Compiling stable_deref_trait v1.2.1
+   Compiling windows-sys v0.60.2
+   Compiling zmij v1.0.19
+   Compiling autocfg v1.5.0
+   Compiling const-oid v0.9.6
+   Compiling serde_derive v1.0.228
+   Compiling zeroize_derive v1.4.3
+   Compiling synstructure v0.13.2
+   Compiling thiserror-impl v2.0.18
+   Compiling zeroize v1.8.2
+   Compiling displaydoc v0.2.5
+   Compiling zerofrom-derive v0.1.6
+   Compiling yoke-derive v0.8.2
+   Compiling zerovec-derive v0.11.3
+   Compiling tracing-attributes v0.1.31
+   Compiling mio v1.1.1
+   Compiling crypto-common v0.1.7
+   Compiling socket2 v0.6.2
+   Compiling tokio-macros v2.6.0
+   Compiling futures-sink v0.3.32
+   Compiling tracing-core v0.1.36
+   Compiling smallvec v1.15.1
+   Compiling block-buffer v0.10.4
+   Compiling regex-syntax v0.8.8
+   Compiling slab v0.4.12
+   Compiling futures-io v0.3.32
+   Compiling digest v0.10.7
+   Compiling tracing v0.1.44
+   Compiling futures-channel v0.3.32
+   Compiling futures-macro v0.3.32
+   Compiling aho-corasick v1.1.4
+   Compiling parking_lot v0.12.5
+   Compiling futures-task v0.3.32
+   Compiling cpufeatures v0.2.17
+   Compiling zerofrom v0.1.6
+   Compiling serde_json v1.0.149
+   Compiling futures-util v0.3.32
+   Compiling yoke v0.8.2
+   Compiling tokio v1.49.0
+   Compiling zerovec v0.11.6
+   Compiling percent-encoding v2.3.2
+   Compiling regex-automata v0.4.13
+   Compiling num-conv v0.2.0
+   Compiling time-core v0.1.8
+   Compiling tinystr v0.8.3
+   Compiling time-macros v0.2.27
+   Compiling http v1.4.0
+   Compiling num-traits v0.2.19
+   Compiling powerfmt v0.2.0
+   Compiling writeable v0.6.2
+   Compiling deranged v0.5.5
+   Compiling fnv v1.0.7
+   Compiling http-body v1.0.1
+   Compiling fastrand v2.3.0
+   Compiling zerocopy v0.8.37
+   Compiling time v0.3.47
+   Compiling icu_properties_data v2.2.0
+   Compiling bitflags v2.10.0
+   Compiling icu_normalizer_data v2.2.0
+   Compiling potential_utf v0.1.4
+   Compiling litemap v0.8.1
+   Compiling libc v0.2.182
+   Compiling icu_locale_core v2.2.0
+   Compiling zerotrie v0.2.4
+   Compiling base64 v0.22.1
+   Compiling tokio-util v0.7.18
+   Compiling http-body-util v0.1.3
+   Compiling utf8_iter v1.0.4
+   Compiling form_urlencoded v1.2.2
+   Compiling icu_collections v2.2.0
+   Compiling icu_provider v2.2.0
+   Compiling either v1.15.0
+   Compiling pkg-config v0.3.32
+   Compiling crc32fast v1.5.0
+   Compiling cmake v0.1.57
+   Compiling dunce v1.0.5
+   Compiling fs_extra v1.3.0
+   Compiling ryu v1.0.22
+   Compiling ring v0.17.14
+   Compiling ipnet v2.11.0
+   Compiling aws-lc-sys v0.39.0
+   Compiling ppv-lite86 v0.2.21
+   Compiling bstr v1.12.1
+   Compiling aws-lc-rs v1.16.2
+   Compiling icu_normalizer v2.2.0
+   Compiling untrusted v0.9.0
+   Compiling rustls-pki-types v1.14.0
+   Compiling sync_wrapper v1.0.2
+   Compiling sha1_smol v1.0.1
+   Compiling icu_properties v2.2.0
+   Compiling pin-utils v0.1.0
+   Compiling httpdate v1.0.3
+   Compiling untrusted v0.7.1
+   Compiling uuid v1.20.0
+   Compiling windows-strings v0.5.1
+   Compiling windows-result v0.4.1
+   Compiling httparse v1.10.1
+   Compiling tinyvec_macros v0.1.1
+   Compiling idna_adapter v1.2.1
+   Compiling tinyvec v1.10.0
+   Compiling rustls v0.23.36
+   Compiling idna v1.1.0
+   Compiling byteorder v1.5.0
+   Compiling sha2 v0.10.9
+   Compiling url v2.5.8
+   Compiling rand_core v0.9.5
+   Compiling atomic-waker v1.1.2
+   Compiling try-lock v0.2.5
+   Compiling rand_chacha v0.9.0
+   Compiling num-integer v0.1.46
+   Compiling want v0.3.1
+   Compiling sha1 v0.10.6
+   Compiling h2 v0.4.13
+   Compiling rand v0.9.3
+   Compiling schannel v0.1.28
+   Compiling tower-service v0.3.3
+   Compiling crossbeam-utils v0.8.21
+   Compiling mime v0.3.17
+   Compiling windows-registry v0.6.1
+   Compiling futures-executor v0.3.32
+   Compiling rustls-native-certs v0.8.3
+   Compiling hex v0.4.3
+   Compiling rustversion v1.0.22
+   Compiling heck v0.5.0
+   Compiling thiserror v1.0.69
+   Compiling vcpkg v0.2.15
+   Compiling tower-layer v0.3.3
+   Compiling windows_x86_64_msvc v0.52.6
+   Compiling webpki-roots v1.0.5
+   Compiling thiserror-impl v1.0.69
+   Compiling hyper v1.8.1
+   Compiling unicode-xid v0.2.6
+   Compiling strsim v0.11.1
+   Compiling tower v0.5.3
+   Compiling ahash v0.8.12
+   Compiling psl-types v2.0.11
+   Compiling windows-targets v0.52.6
+   Compiling ident_case v1.0.1
+   Compiling futures v0.3.31
+   Compiling regex v1.12.3
+   Compiling hyper-util v0.1.20
+   Compiling winapi-util v0.1.11
+   Compiling lazy_static v1.5.0
+   Compiling anyhow v1.0.101
+   Compiling winnow v0.7.14
+   Compiling toml_datetime v0.7.5+spec-1.1.0
+   Compiling nibble_vec v0.1.0
+   Compiling toml_parser v1.0.6+spec-1.1.0
+   Compiling async-trait v0.1.89
+   Compiling unicase v2.9.0
+   Compiling winapi v0.3.9
+   Compiling minimal-lexical v0.2.1
+   Compiling toml_edit v0.23.10+spec-1.0.0
+   Compiling mime_guess v2.0.5
+   Compiling nom v7.1.3
+   Compiling const_format_proc_macros v0.2.34
+   Compiling simd-adler32 v0.3.8
+   Compiling proc-macro-crate v3.4.0
+   Compiling const_format v0.2.35
+   Compiling rama-macros v0.3.0-alpha.4
+   Compiling libz-sys v1.1.23
+   Compiling wildcard v0.3.0
+   Compiling spin v0.9.8
+   Compiling data-encoding v2.10.0
+   Compiling iri-string v0.7.10
+   Compiling syn v1.0.109
+   Compiling smol_str v0.3.5
+   Compiling flume v0.12.0
+   Compiling rama-utils v0.3.0-alpha.4
+   Compiling crossbeam-epoch v0.9.18
+   Compiling tokio-stream v0.1.18
+   Compiling tokio-graceful v0.2.2
+   Compiling asynk-strim v0.1.5
+   Compiling rama-error v0.3.0-alpha.4
+   Compiling native-tls v0.2.14
+   Compiling adler2 v2.0.1
+   Compiling rama-core v0.3.0-alpha.4
+   Compiling miniz_oxide v0.8.9
+   Compiling num-bigint v0.4.6
+   Compiling serde_derive_internals v0.29.1
+   Compiling cookie v0.18.1
+   Compiling nom v8.0.0
+   Compiling unicode-segmentation v1.12.0
+   Compiling windows_x86_64_msvc v0.48.5
+   Compiling endian-type v0.2.0
+   Compiling flate2 v1.1.8
+   Compiling radix_trie v0.3.0
+   Compiling windows-sys v0.52.0
+   Compiling psl v2.1.184
+   Compiling rama-http-types v0.3.0-alpha.4
+   Compiling itertools v0.14.0
+   Compiling chrono v0.4.43
+   Compiling md5 v0.8.0
+   Compiling unicode-width v0.1.14
+   Compiling litrs v1.0.0
+   Compiling tokio-native-tls v0.3.1
+   Compiling rama-net v0.3.0-alpha.4
+   Compiling document-features v0.2.12
+   Compiling publicsuffix v2.3.0
+   Compiling serde_urlencoded v0.7.1
+   Compiling encoding_rs v0.8.35
+   Compiling option-ext v0.2.0
+   Compiling dyn-clone v1.0.20
+   Compiling dirs-sys v0.5.0
+   Compiling cookie_store v0.22.1
+   Compiling windows-targets v0.48.5
+   Compiling hyper-tls v0.6.0
+   Compiling tower-http v0.6.8
+   Compiling dirs-sys-next v0.1.2
+   Compiling termcolor v1.4.1
+   Compiling crossbeam-channel v0.5.15
+   Compiling paste v1.0.15
+   Compiling crunchy v0.2.4
+   Compiling utf8parse v0.2.2
+   Compiling once_cell_polyfill v1.70.2
+   Compiling schemars v0.8.22
+   Compiling anstyle v1.0.13
+   Compiling anstyle-parse v0.2.7
+   Compiling ts-rs-macros v11.1.0
+   Compiling anstyle-wincon v3.0.11
+   Compiling dirs-next v2.0.0
+   Compiling windows-sys v0.48.0
+   Compiling dirs v6.0.0
+   Compiling schemars_derive v0.8.22
+   Compiling anstyle-query v1.1.5
+   Compiling icu_locale_data v2.2.0
+   Compiling tiny-keccak v2.0.2
+   Compiling ipconfig v0.3.2
+   Compiling is_terminal_polyfill v1.70.2
+   Compiling colorchoice v1.0.4
+   Compiling siphasher v1.0.2
+   Compiling regex-syntax v0.6.29
+   Compiling anstream v0.6.21
+   Compiling phf_shared v0.11.3
+   Compiling winreg v0.50.0
+   Compiling ts-rs v11.1.0
+   Compiling term v0.7.0
+   Compiling socket2 v0.5.10
+   Compiling rusticata-macros v4.1.0
+   Compiling enum-as-inner v0.6.1
+   Compiling itertools v0.13.0
+   Compiling terminal_size v0.4.3
+   Compiling asn1-rs-derive v0.6.0
+   Compiling asn1-rs-impl v0.2.0
+   Compiling dupe_derive v0.9.1
+   Compiling regex-lite v0.1.8
+   Compiling clap_lex v1.0.0
+   Compiling new_debug_unreachable v1.0.6
+   Compiling bit-vec v0.6.3
+   Compiling fixedbitset v0.4.2
+   Compiling tagptr v0.2.0
+   Compiling static_assertions v1.1.0
+   Compiling bumpalo v3.19.1
+   Compiling precomputed-hash v0.1.1
+   Compiling widestring v1.2.1
+   Compiling moka v0.12.13
+   Compiling string_cache v0.8.9
+   Compiling petgraph v0.6.5
+   Compiling bit-set v0.5.3
+   Compiling clap_builder v4.5.58
+   Compiling asn1-rs v0.7.1
+   Compiling same-file v1.0.6
+   Compiling hickory-proto v0.25.2
+   Compiling codex-utils-absolute-path v0.135.0-copilot-api.1 (D:\harness-efforts\codexu\codex\external\repos\codex-patched\codex-rs\utils\absolute-path)
+   Compiling ascii-canvas v3.0.0
+   Compiling lalrpop-util v0.19.12
+   Compiling ena v0.14.3
+   Compiling itertools v0.10.5
+   Compiling clap_derive v4.5.55
+   Compiling is-terminal v0.4.17
+   Compiling serde_repr v0.1.20
+   Compiling diff v0.1.13
+   Compiling bitflags v1.3.2
+   Compiling resolv-conf v0.7.6
+   Compiling allocative v0.3.4
+   Compiling ref-cast v1.0.25
+   Compiling rama-http-headers v0.3.0-alpha.4
+   Compiling oid-registry v0.8.1
+   Compiling hickory-resolver v0.25.2
+   Compiling lalrpop v0.19.12
+   Compiling clap v4.5.58
+   Compiling icu_locale v2.2.0
+   Compiling Inflector v0.11.4
+   Compiling walkdir v2.5.0
+   Compiling convert_case v0.6.0
+   Compiling ctor v0.1.26
+   Compiling darling_core v0.21.3
+   Compiling schemafy_core v0.5.2
+   Compiling hashbrown v0.14.5
+   Compiling fxhash v0.2.1
+   Compiling allocative_derive v0.3.3
+   Compiling ref-cast-impl v1.0.25
+   Compiling csv-core v0.1.13
+   Compiling indenter v0.3.4
+   Compiling error-code v3.3.2
+   Compiling starlark_map v0.13.0
+   Compiling beef v0.5.2
+   Compiling clipboard-win v5.4.1
+   Compiling logos-derive v0.12.1
+   Compiling csv v1.4.0
+   Compiling darling_macro v0.21.3
+   Compiling starlark_syntax v0.13.0
+   Compiling schemafy_lib v0.5.2
+   Compiling rama-dns v0.3.0-alpha.4
+   Compiling derive_more-impl v1.0.0
+   Compiling der-parser v10.0.0
+   Compiling dupe v0.9.1
+   Compiling fdeflate v0.3.7
+   Compiling windows-sys v0.59.0
+   Compiling serde_html_form v0.3.2
+   Compiling pem v3.0.6
+   Compiling pxfm v0.1.27
+   Compiling memoffset v0.6.5
+   Compiling weezl v0.1.12
+   Compiling byteorder-lite v0.1.0
+   Compiling matchit v0.9.1
+   Compiling http-range-header v0.4.2
+   Compiling quick-error v2.0.1
+   Compiling zune-core v0.5.1
+   Compiling color_quant v1.1.0
+   Compiling endian-type v0.1.2
+   Compiling rama-http v0.3.0-alpha.4
+   Compiling radix_trie v0.2.1
+   Compiling zune-jpeg v0.5.12
+   Compiling gif v0.14.1
+   Compiling image-webp v0.2.4
+   Compiling rama-tcp v0.3.0-alpha.4
+   Compiling derive_more v1.0.0
+   Compiling fd-lock v4.0.4
+   Compiling png v0.18.0
+   Compiling schemafy v0.5.2
+   Compiling logos v0.12.1
+   Compiling moxcms v0.7.11
+   Compiling darling v0.21.3
+   Compiling lsp-types v0.94.1
+   Compiling annotate-snippets v0.9.2
+   Compiling derivative v2.2.0
+   Compiling tokio-test v0.4.5
+   Compiling globset v0.4.18
+   Compiling yasna v0.5.2
+   Compiling quick-xml v0.38.4
+   Compiling home v0.5.12
+   Compiling icu_decimal_data v2.2.0
+   Compiling bytemuck v1.25.0
+   Compiling starlark v0.13.0
+   Compiling rustyline v14.0.0
+   Compiling rama-http-core v0.3.0-alpha.4
+   Compiling starlark_derive v0.13.0
+   Compiling image v0.25.9
+   Compiling serde_with_macros v3.17.0
+   Compiling debugserver-types v0.5.0
+   Compiling display_container v0.9.0
+   Compiling rama-udp v0.3.0-alpha.4
+   Compiling codex-utils-home-dir v0.135.0-copilot-api.1 (D:\harness-efforts\codexu\codex\external\repos\codex-patched\codex-rs\utils\home-dir)
+   Compiling textwrap v0.11.0
+   Compiling erased-serde v0.3.31
+   Compiling lru v0.16.3
+   Compiling inventory v0.3.21
+   Compiling strsim v0.10.0
+   Compiling maplit v1.0.2
+   Compiling cmp_any v0.8.1
+   Compiling codex-utils-cache v0.135.0-copilot-api.1 (D:\harness-efforts\codexu\codex\external\repos\codex-patched\codex-rs\utils\cache)
+   Compiling rama-socks5 v0.3.0-alpha.4
+   Compiling serde_with v3.17.0
+   Compiling strum_macros v0.27.2
+   Compiling rama-http-backend v0.3.0-alpha.4
+   Compiling fixed_decimal v0.7.2
+   Compiling multimap v0.10.1
+   Compiling gix-trace v0.1.18
+   Compiling icu_decimal v2.2.0
+   Compiling strum v0.27.2
+   Compiling codex-utils-image v0.135.0-copilot-api.1 (D:\harness-efforts\codexu\codex\external\repos\codex-patched\codex-rs\utils\image)
+   Compiling codex-utils-string v0.135.0-copilot-api.1 (D:\harness-efforts\codexu\codex\external\repos\codex-patched\codex-rs\utils\string)
+   Compiling chardetng v0.1.17
+   Compiling codex-async-utils v0.135.0-copilot-api.1 (D:\harness-efforts\codexu\codex\external\repos\codex-patched\codex-rs\async-utils)
+   Compiling strum_macros v0.28.0
+   Compiling gix-validate v0.11.0
+   Compiling sys-locale v0.3.2
+   Compiling wildmatch v2.6.1
+   Compiling unicode-normalization v0.1.25
+   Compiling gix-path v0.11.2
+   Compiling concurrent-queue v2.5.0
+   Compiling prodash v31.0.0
+   Compiling gix-utils v0.3.1
+   Compiling zlib-rs v0.6.3
+   Compiling parking v2.2.1
+   Compiling heapless v0.8.0
+   Compiling hash32 v0.3.1
+   Compiling nu-ansi-term v0.50.3
+   Compiling sharded-slab v0.1.7
+   Compiling gix-features v0.46.2
+   Compiling gix-error v0.2.1
+   Compiling matchers v0.2.0
+   Compiling tracing-log v0.2.0
+   Compiling tracing-serde v0.2.0
+   Compiling thread_local v1.1.9
+   Compiling faster-hex v0.10.0
+   Compiling darling_core v0.23.0
+   Compiling tracing-subscriber v0.3.22
+   Compiling semver v1.0.27
+   Compiling rustc_version v0.4.1
+   Compiling event-listener v5.4.1
+   Compiling rand_chacha v0.3.1
+   Compiling windows-implement v0.60.2
+   Compiling windows-interface v0.59.3
+   Compiling tree-sitter-language v0.1.7
+   Compiling darling_macro v0.23.0
+   Compiling rand v0.8.5
+   Compiling windows-core v0.62.2
+   Compiling darling v0.23.0
+   Compiling sha1-checked v0.10.0
+   Compiling zstd-sys v2.0.16+zstd.1.5.7
+   Compiling headers-core v0.3.0
+   Compiling opentelemetry v0.31.0
+   Compiling jiff-tzdb v0.1.6
+   Compiling headers v0.4.1
+   Compiling jiff-tzdb-platform v0.1.3
+   Compiling gix-hash v0.23.0
+   Compiling utf-8 v0.7.6
+   Compiling jiff v0.2.23
+   Compiling tempfile v3.27.0
+   Compiling zstd-safe v7.2.4
+   Compiling tree-sitter v0.25.10
+   Compiling tree-sitter-bash v0.25.1
+   Compiling windows-threading v0.2.1
+   Compiling env_home v0.1.0
+   Compiling winsafe v0.0.19
+   Compiling windows-future v0.3.2
+   Compiling which v8.0.0
+   Compiling gix-date v0.15.1
+   Compiling gix-actor v0.40.0
+   Compiling gix-hashtable v0.13.0
+   Compiling windows-collections v0.3.2
+   Compiling windows-numerics v0.3.1
+   Compiling codex-execpolicy v0.135.0-copilot-api.1 (D:\harness-efforts\codexu\codex\external\repos\codex-patched\codex-rs\execpolicy)
+   Compiling event-listener-strategy v0.5.4
+   Compiling serde_path_to_error v0.1.20
+   Compiling streaming-iterator v0.1.9
+   Compiling async-channel v2.5.0
+   Compiling windows v0.62.2
+   Compiling gix-object v0.58.0
+   Compiling schemars_derive v1.2.1
+   Compiling axum-core v0.5.6
+   Compiling memmap2 v0.9.10
+   Compiling rmcp v0.15.0
+   Compiling shell-words v1.1.1
+   Compiling matchit v0.8.4
+   Compiling process-wrap v9.0.1
+   Compiling schemars v1.2.1
+   Compiling tracing-opentelemetry v0.32.1
+   Compiling rmcp-macros v0.15.0
+   Compiling eventsource-stream v0.2.3
+   Compiling sse-stream v0.2.1
+   Compiling pastey v0.2.1
+   Compiling pin-project-internal v1.1.10
+   Compiling gix-fs v0.19.2
+   Compiling prost-derive v0.14.3
+   Compiling pin-project v1.1.10
+   Compiling codex-experimental-api-macros v0.135.0-copilot-api.1 (D:\harness-efforts\codexu\codex\external\repos\codex-patched\codex-rs\codex-experimental-api-macros)
+   Compiling base64ct v1.8.3
+   Compiling gix-chunk v0.7.0
+   Compiling prost v0.14.3
+   Compiling inout v0.1.4
+   Compiling pem-rfc7468 v0.7.0
+   Compiling toml_writer v1.0.6+spec-1.1.0
+   Compiling nonempty v0.12.0
+   Compiling der v0.7.10
+   Compiling cipher v0.4.4
+   Compiling gix-tempfile v21.0.2
+   Compiling hyper-timeout v0.5.2
+   Compiling arc-swap v1.9.0
+   Compiling serde_spanned v1.0.4
+   Compiling toml v0.9.11+spec-1.1.0
+   Compiling gix-lock v21.0.2
+   Compiling gix-commitgraph v0.35.0
+   Compiling opentelemetry_sdk v0.31.0
+   Compiling spki v0.7.3
+   Compiling pkcs8 v0.10.2
+   Compiling gix-quote v0.7.0
+   Compiling gix-sec v0.13.2
+   Compiling const-hex v1.17.0
+   Compiling os_info v3.14.0
+   Compiling gix-revwalk v0.29.0
+   Compiling gix-ref v0.61.0
+   Compiling http v0.2.12
+   Compiling outref v0.5.2
+   Compiling vsimd v0.8.0
+   Compiling http-body v0.4.6
+   Compiling base64-simd v0.8.0
+   Compiling gix-command v0.8.0
+   Compiling opentelemetry-appender-tracing v0.31.1
+   Compiling curve25519-dalek v4.1.3
+   Compiling gix-packetline v0.21.2
+   Compiling gix-glob v0.24.0
+   Compiling gix-url v0.35.2
+   Compiling bytes-utils v0.1.4
+   Compiling hmac v0.12.1
+   Compiling universal-hash v0.5.1
+   Compiling clru v0.6.3
+   Compiling gethostname v1.1.0
+   Compiling opentelemetry-semantic-conventions v0.31.0
+   Compiling urlencoding v2.1.3
+   Compiling opaque-debug v0.3.1
+   Compiling gix-transport v0.55.1
+   Compiling gix-pack v0.68.0
+   Compiling aws-smithy-types v1.4.7
+   Compiling poly1305 v0.8.0
+   Compiling gix-revision v0.43.0
+   Compiling gix-shallow v0.10.0
+   Compiling gix-config-value v0.17.1
+   Compiling signature v2.2.0
+   Compiling aead v0.5.2
+   Compiling curve25519-dalek-derive v0.1.1
+   Compiling maybe-async v0.2.10
+   Compiling unicode-bom v2.0.3
+   Compiling similar v2.7.0
+   Compiling gix-protocol v0.59.0
+   Compiling gix-config v0.54.0
+   Compiling gix-odb v0.78.0
+   Compiling gix-refspec v0.39.0
+   Compiling gix-discover v0.49.0
+   Compiling gix-traverse v0.55.0
+   Compiling salsa20 v0.10.2
+   Compiling gix-diff v0.61.0
+   Compiling aws-smithy-async v1.2.14
+   Compiling aws-smithy-runtime-api-macros v1.0.0
+   Compiling gix v0.81.0
+   Compiling toml_edit v0.24.0+spec-1.1.0
+   Compiling aws-smithy-runtime-api v1.12.0
+   Compiling zstd v0.13.3
+   Compiling codex-utils-path v0.135.0-copilot-api.1 (D:\harness-efforts\codexu\codex\external\repos\codex-patched\codex-rs\utils\path-utils)
+   Compiling keyring v3.6.3
+   Compiling serde_ignored v0.1.14
+   Compiling ascii v1.1.0
+   Compiling cfg_aliases v0.1.1
+   Compiling chunked_transfer v1.5.0
+   Compiling codex-keyring-store v0.135.0-copilot-api.1 (D:\harness-efforts\codexu\codex\external\repos\codex-patched\codex-rs\keyring-store)
+   Compiling nix v0.28.0
+   Compiling crypto_secretbox v0.1.1
+   Compiling tiny_http v0.12.0
+   Compiling ed25519 v2.2.3
+   Compiling simple_asn1 v0.6.4
+   Compiling blake2 v0.10.6
+   Compiling winreg v0.10.1
+   Compiling ed25519-dalek v2.2.0
+   Compiling crypto_box v0.9.1
+   Compiling jsonwebtoken v9.3.1
+   Compiling webbrowser v1.0.6
+   Compiling filedescriptor v0.8.3
+   Compiling serial2 v0.2.33
+   Compiling shared_library v0.1.9
+   Compiling codex-terminal-detection v0.135.0-copilot-api.1 (D:\harness-efforts\codexu\codex\external\repos\codex-patched\codex-rs\terminal-detection)
+   Compiling downcast-rs v1.2.1
+   Compiling codex-utils-template v0.135.0-copilot-api.1 (D:\harness-efforts\codexu\codex\external\repos\codex-patched\codex-rs\utils\template)
+   Compiling aws-credential-types v1.2.11
+   Compiling aws-smithy-http v0.62.6
+   Compiling portable-pty v0.9.0
+   Compiling aws-types v1.3.11
+   Compiling aws-smithy-observability v0.1.5
+   Compiling debugid v0.8.0
+   Compiling rustc-hash v2.1.1
+   Compiling codex-utils-pty v0.135.0-copilot-api.1 (D:\harness-efforts\codexu\codex\external\repos\codex-patched\codex-rs\utils\pty)
+   Compiling sentry-types v0.46.1
+   Compiling aws-sigv4 v1.3.7
+   Compiling ff v0.13.1
+   Compiling base16ct v0.2.0
+   Compiling group v0.13.0
+   Compiling aws-smithy-json v0.61.9
+   Compiling sec1 v0.7.3
+   Compiling crypto-bigint v0.5.5
+   Compiling rustc-demangle v0.1.27
+   Compiling libm v0.2.16
+   Compiling backtrace v0.3.76
+   Compiling findshlibs v0.10.2
+   Compiling elliptic-curve v0.13.8
+   Compiling sentry-core v0.46.1
+   Compiling rfc6979 v0.4.0
+   Compiling sentry-contexts v0.46.1
+   Compiling libsqlite3-sys v0.30.1
+   Compiling glob v0.3.3
+   Compiling xmlparser v0.13.6
+   Compiling clang-sys v1.8.1
+   Compiling core_maths v0.1.1
+   Compiling aws-smithy-xml v0.60.13
+   Compiling sentry-backtrace v0.46.1
+   Compiling ecdsa v0.16.9
+   Compiling primeorder v0.13.6
+   Compiling aws-smithy-query v0.60.9
+   Compiling hostname v0.4.2
+   Compiling crc-catalog v2.4.0
+   Compiling prettyplease v0.2.37
+   Compiling crc v3.4.0
+   Compiling sentry-debug-images v0.46.1
+   Compiling p256 v0.13.2
+   Compiling sentry-panic v0.46.1
+   Compiling calendrical_calculations v0.2.4
+   Compiling icu_calendar_data v2.2.0
+   Compiling rustls-webpki v0.103.13
+   Compiling libloading v0.8.9
+   Compiling resb v0.1.2
+   Compiling codex-collaboration-mode-templates v0.135.0-copilot-api.1 (D:\harness-efforts\codexu\codex\external\repos\codex-patched\codex-rs\collaboration-mode-templates)
+   Compiling bindgen v0.72.1
+   Compiling zoneinfo64 v0.3.0
+   Compiling cexpr v0.6.0
+   Compiling crossbeam-queue v0.3.12
+   Compiling futures-intrusive v0.5.0
+   Compiling hashlink v0.11.0
+   Compiling strck v1.0.0
+   Compiling foldhash v0.1.5
+   Compiling is_ci v1.2.0
+   Compiling sqlx-core v0.9.0
+   Compiling hashbrown v0.15.5
+   Compiling diplomat_core v0.15.0
+   Compiling which v6.0.3
+   Compiling icu_calendar v2.2.1
+   Compiling gzip-header v1.0.0
+   Compiling timezone_provider v0.2.3
+   Compiling atoi v2.0.0
+   Compiling crossbeam-deque v0.8.6
+   Compiling fslock v0.2.1
+   Compiling owo-colors v4.3.0
+   Compiling ixdtf v0.6.4
+   Compiling rayon-core v1.13.0
+   Compiling supports-color v2.1.0
+   Compiling v8 v147.4.0
+   Compiling sqlx-sqlite v0.9.0
+   Compiling diplomat v0.15.0
+   Compiling supports-color v3.0.2
+   Compiling pbkdf2 v0.12.2
+   Compiling temporal_rs v0.2.3
+   Compiling lzma-sys v0.1.20
+   Compiling bzip2-sys v0.1.13+1.0.8
+   Compiling dotenvy v0.15.7
+   Compiling diplomat-runtime v0.15.1
+   Compiling sqlx-macros-core v0.9.0
+   Compiling temporal_capi v0.2.3
+   Compiling darling_core v0.20.11
+   Compiling rayon v1.11.0
+   Compiling darling_macro v0.20.11
+   Compiling sqlx-macros v0.9.0
+   Compiling nucleo-matcher v0.3.1 (https://github.com/helix-editor/nucleo.git?rev=4253de9faabb4e5c6d81d946a5e35a90f87347ee#4253de9f)
+   Compiling windows-result v0.2.0
+   Compiling include_dir_macros v0.7.4
+   Compiling zip v2.4.2
+   Compiling deno_core_icudata v0.77.0
+   Compiling unsafe-libyaml v0.2.11
+   Compiling codex-skills v0.135.0-copilot-api.1 (D:\harness-efforts\codexu\codex\external\repos\codex-patched\codex-rs\skills)
+   Compiling include_dir v0.7.4
+   Compiling nucleo v0.5.0 (https://github.com/helix-editor/nucleo.git?rev=4253de9faabb4e5c6d81d946a5e35a90f87347ee#4253de9f)
+   Compiling windows-strings v0.1.0
+   Compiling serde_yaml v0.9.34+deprecated
+   Compiling bzip2 v0.5.2
+   Compiling darling v0.20.11
+   Compiling ignore v0.4.25
+   Compiling lzma-rs v0.3.0
+   Compiling aes v0.8.4
+   Compiling zopfli v0.8.3
+   Compiling stop-words v0.9.0
+   Compiling windows-interface v0.58.0
+   Compiling windows-implement v0.58.0
+   Compiling constant_time_eq v0.3.1
+   Compiling deflate64 v0.1.10
+   Compiling windows-core v0.58.0
+   Compiling codex-file-search v0.135.0-copilot-api.1 (D:\harness-efforts\codexu\codex\external\repos\codex-patched\codex-rs\file-search)
+   Compiling cached_proc_macro v0.25.0
+   Compiling filetime v0.2.27
+   Compiling jsonptr v0.7.1
+   Compiling web-time v1.1.0
+   Compiling cached_proc_macro_types v0.1.1
+   Compiling tar v0.4.45
+   Compiling cached v0.56.0
+   Compiling windows v0.58.0
+   Compiling tracing-appender v0.2.4
+   Compiling codex-install-context v0.135.0-copilot-api.1 (D:\harness-efforts\codexu\codex\external\repos\codex-patched\codex-rs\install-context)
+   Compiling rust-stemmers v1.2.0
+   Compiling deunicode v1.6.2
+   Compiling iana-time-zone v0.1.65
+   Compiling whoami v1.6.1
+   Compiling codex-utils-stream-parser v0.135.0-copilot-api.1 (D:\harness-efforts\codexu\codex\external\repos\codex-patched\codex-rs\utils\stream-parser)
+   Compiling bm25 v2.3.2
+   Compiling unic-langid-impl v0.9.6
+   Compiling unic-langid v0.9.6
+   Compiling type-map v0.5.1
+   Compiling toml v0.5.11
+   Compiling basic-toml v0.1.10
+   Compiling rust-embed-utils v8.11.0
+   Compiling self_cell v1.2.2
+   Compiling rust-embed-impl v8.11.0
+   Compiling self_cell v0.10.3
+   Compiling find-crate v0.6.3
+   Compiling i18n-config v0.4.8
+   Compiling intl-memoizer v0.5.3
+   Compiling fluent-langneg v0.13.1
+   Compiling intl_pluralrules v7.0.2
+   Compiling fluent-syntax v0.11.1
+   Compiling memoffset v0.9.1
+   Compiling rustix v1.1.4
+   Compiling rustc-hash v1.1.0
+   Compiling i18n-embed-impl v0.8.4
+   Compiling fluent-bundle v0.15.3
+   Compiling errno v0.3.14
+   Compiling async-io v2.6.0
+   Compiling fluent v0.16.1
+   Compiling rust-embed v8.11.0
+   Compiling chacha20 v0.9.1
+   Compiling polling v3.11.0
+   Compiling codex-backend-openapi-models v0.135.0-copilot-api.1 (D:\harness-efforts\codexu\codex\external\repos\codex-patched\codex-rs\codex-backend-openapi-models)
+   Compiling futures-lite v2.6.1
+   Compiling proc-macro-error-attr2 v2.0.0
+   Compiling proc-macro-error2 v2.0.1
+   Compiling i18n-embed v0.15.4
+   Compiling chacha20poly1305 v0.10.1
+   Compiling uds_windows v1.1.0
+   Compiling hkdf v0.12.4
+   Compiling cookie-factory v0.3.3
+   Compiling secrecy v0.10.3
+   Compiling base64 v0.21.7
+   Compiling unicode-width v0.2.1
+   Compiling io_tee v0.1.1
+   Compiling codex-linux-sandbox v0.135.0-copilot-api.1 (D:\harness-efforts\codexu\codex\external\repos\codex-patched\codex-rs\linux-sandbox)
+   Compiling codex-uds v0.135.0-copilot-api.1 (D:\harness-efforts\codexu\codex\external\repos\codex-patched\codex-rs\uds)
+   Compiling age-core v0.11.0
+   Compiling i18n-embed-fl v0.9.4
+   Compiling scrypt v0.11.0
+   Compiling x25519-dalek v2.0.1
+   Compiling bech32 v0.9.1
+   Compiling instability v0.3.11
+   Compiling crossterm_winapi v0.9.1
+   Compiling age v0.11.2
+   Compiling castaway v0.2.4
+   Compiling strum_macros v0.26.4
+   Compiling onig_sys v69.9.1
+   Compiling notify-types v2.1.0
+   Compiling num_cpus v1.17.0
+   Compiling indoc v2.0.7
+   Compiling deadpool-runtime v0.1.4
+   Compiling deadpool v0.12.3
+   Compiling strum v0.26.3
+   Compiling notify v8.2.0
+   Compiling crossterm v0.28.1 (https://github.com/nornagon/crossterm?rev=87db8bfa6dc99427fd3b071681b07fc31c6ce995#87db8bfa)
+   Compiling x509-parser v0.18.1
+   Compiling compact_str v0.8.1
+   Compiling lru v0.12.5
+   Compiling codex-utils-json-to-toml v0.135.0-copilot-api.1 (D:\harness-efforts\codexu\codex\external\repos\codex-patched\codex-rs\utils\json-to-toml)
+   Compiling unicode-truncate v1.1.0
+   Compiling rcgen v0.14.7
+   Compiling assert-json-diff v2.0.2
+   Compiling async-stream-impl v0.3.6
+   Compiling cassowary v0.3.0
+   Compiling async-stream v0.3.6
+   Compiling ratatui v0.29.0 (https://github.com/nornagon/ratatui?rev=9b2ad1298408c45918ee9f8241a6f95498cdbed2#9b2ad129)
+   Compiling wiremock v0.6.5
+   Compiling codex-file-watcher v0.135.0-copilot-api.1 (D:\harness-efforts\codexu\codex\external\repos\codex-patched\codex-rs\file-watcher)
+   Compiling windows-result v0.1.2
+   Compiling eyre v0.6.12
+   Compiling tokio-rustls v0.26.4
+   Compiling codex-utils-rustls-provider v0.135.0-copilot-api.1 (D:\harness-efforts\codexu\codex\external\repos\codex-patched\codex-rs\utils\rustls-provider)
+   Compiling tungstenite v0.27.0 (https://github.com/openai-oss-forks/tungstenite-rs?rev=9200079d3b54a1ff51072e24d81fd354f085156f#9200079d)
+   Compiling hyper-rustls v0.27.7
+   Compiling rama-tls-rustls v0.3.0-alpha.4
+   Compiling reqwest v0.12.28
+   Compiling tonic v0.14.3
+   Compiling tokio-tungstenite v0.28.0 (https://github.com/openai-oss-forks/tokio-tungstenite?rev=132f5b39c862e3a970f731d709608b3e6276d5f6#132f5b39)
+   Compiling codex-network-proxy v0.135.0-copilot-api.1 (D:\harness-efforts\codexu\codex\external\repos\codex-patched\codex-rs\network-proxy)
+   Compiling axum v0.8.8
+   Compiling oauth2 v5.0.0
+   Compiling codex-client v0.135.0-copilot-api.1 (D:\harness-efforts\codexu\codex\external\repos\codex-patched\codex-rs\codex-client)
+   Compiling codex-copilot v0.135.0-copilot-api.1 (D:\harness-efforts\codexu\codex\codex-rs-overlay\codex-copilot)
+   Compiling tonic-prost v0.14.3
+   Compiling opentelemetry-proto v0.31.0
+   Compiling opentelemetry-http v0.31.0
+   Compiling codex-protocol v0.135.0-copilot-api.1 (D:\harness-efforts\codexu\codex\external\repos\codex-patched\codex-rs\protocol)
+   Compiling aws-smithy-http-client v1.1.12
+   Compiling opentelemetry-otlp v0.31.0
+   Compiling aws-smithy-runtime v1.9.5
+   Compiling sentry v0.46.1
+   Compiling xz2 v0.1.7
+   Compiling aws-runtime v1.5.17
+   Compiling linked-hash-map v0.5.6
+   Compiling color-spantrace v0.3.0
+   Compiling yaml-rust v0.4.5
+   Compiling onig v6.5.1
+   Compiling aws-sdk-sts v1.95.0
+   Compiling aws-sdk-sso v1.91.0
+   Compiling aws-sdk-ssooidc v1.93.0
+   Compiling aws-sdk-signin v1.2.0
+   Compiling sqlx v0.9.0
+   Compiling windows-core v0.54.0
+   Compiling tracing-error v0.2.1
+   Compiling plist v1.8.0
+   Compiling convert_case v0.10.0
+   Compiling aws-config v1.8.12
+   Compiling bincode v1.3.3
+   Compiling simdutf8 v0.1.5
+   Compiling pulldown-cmark v0.10.3
+   Compiling cpal v0.15.3
+   Compiling syntect v5.3.0
+   Compiling derive_more-impl v2.1.1
+   Compiling ansi-to-tui v7.0.0
+   Compiling windows v0.54.0
+   Compiling getopts v0.2.24
+   Compiling diffy v0.4.2
+   Compiling codex-shell-command v0.135.0-copilot-api.1 (D:\harness-efforts\codexu\codex\external\repos\codex-patched\codex-rs\shell-command)
+   Compiling codex-api v0.135.0-copilot-api.1 (D:\harness-efforts\codexu\codex\external\repos\codex-patched\codex-rs\codex-api)
+   Compiling codex-file-system v0.135.0-copilot-api.1 (D:\harness-efforts\codexu\codex\external\repos\codex-patched\codex-rs\file-system)
+   Compiling codex-agent-identity v0.135.0-copilot-api.1 (D:\harness-efforts\codexu\codex\external\repos\codex-patched\codex-rs\agent-identity)
+   Compiling codex-git-utils v0.135.0-copilot-api.1 (D:\harness-efforts\codexu\codex\external\repos\codex-patched\codex-rs\git-utils)
+   Compiling codex-app-server-protocol v0.135.0-copilot-api.1 (D:\harness-efforts\codexu\codex\external\repos\codex-patched\codex-rs\app-server-protocol)
+   Compiling codex-utils-output-truncation v0.135.0-copilot-api.1 (D:\harness-efforts\codexu\codex\external\repos\codex-patched\codex-rs\utils\output-truncation)
+   Compiling codex-sandboxing v0.135.0-copilot-api.1 (D:\harness-efforts\codexu\codex\external\repos\codex-patched\codex-rs\sandboxing)
+   Compiling codex-aws-auth v0.135.0-copilot-api.1 (D:\harness-efforts\codexu\codex\external\repos\codex-patched\codex-rs\aws-auth)
+   Compiling codex-code-mode v0.135.0-copilot-api.1 (D:\harness-efforts\codexu\codex\external\repos\codex-patched\codex-rs\code-mode)
+   Compiling codex-mcp-notification-bridge v0.135.0-copilot-api.1 (D:\harness-efforts\codexu\codex\codex-rs-overlay\codex-mcp-notification-bridge)
+   Compiling codex-state v0.135.0-copilot-api.1 (D:\harness-efforts\codexu\codex\external\repos\codex-patched\codex-rs\state)
+   Compiling codex-response-debug-context v0.135.0-copilot-api.1 (D:\harness-efforts\codexu\codex\external\repos\codex-patched\codex-rs\response-debug-context)
+   Compiling codex-memories-read v0.135.0-copilot-api.1 (D:\harness-efforts\codexu\codex\external\repos\codex-patched\codex-rs\memories\read)
+   Compiling codex-utils-cli v0.135.0-copilot-api.1 (D:\harness-efforts\codexu\codex\external\repos\codex-patched\codex-rs\utils\cli)
+   Compiling codex-rollout-trace v0.135.0-copilot-api.1 (D:\harness-efforts\codexu\codex\external\repos\codex-patched\codex-rs\rollout-trace)
+   Compiling codex-shell-escalation v0.135.0-copilot-api.1 (D:\harness-efforts\codexu\codex\external\repos\codex-patched\codex-rs\shell-escalation)
+   Compiling codex-secrets v0.135.0-copilot-api.1 (D:\harness-efforts\codexu\codex\external\repos\codex-patched\codex-rs\secrets)
+   Compiling codex-external-agent-sessions v0.135.0-copilot-api.1 (D:\harness-efforts\codexu\codex\external\repos\codex-patched\codex-rs\external-agent-sessions)
+   Compiling pulldown-cmark-escape v0.10.1
+   Compiling smawk v0.3.2
+   Compiling unicode-linebreak v0.1.5
+   Compiling dasp_sample v0.11.0
+   Compiling dtor-proc-macro v0.0.6
+   Compiling textwrap v0.16.2
+   Compiling dtor v0.1.1
+   Compiling two-face v0.5.1
+   Compiling codex-utils-approval-presets v0.135.0-copilot-api.1 (D:\harness-efforts\codexu\codex\external\repos\codex-patched\codex-rs\utils\approval-presets)
+   Compiling color-eyre v0.6.5
+   Compiling codex-ansi-escape v0.135.0-copilot-api.1 (D:\harness-efforts\codexu\codex\external\repos\codex-patched\codex-rs\ansi-escape)
+   Compiling derive_more v2.1.1
+   Compiling ratatui-macros v0.6.0
+   Compiling arboard v3.6.1
+   Compiling codex-realtime-webrtc v0.135.0-copilot-api.1 (D:\harness-efforts\codexu\codex\external\repos\codex-patched\codex-rs\realtime-webrtc)
+   Compiling codex-utils-sleep-inhibitor v0.135.0-copilot-api.1 (D:\harness-efforts\codexu\codex\external\repos\codex-patched\codex-rs\utils\sleep-inhibitor)
+   Compiling pathdiff v0.2.3
+   Compiling winsplit v0.1.0
+   Compiling ctor-proc-macro v0.0.7
+   Compiling codex-utils-fuzzy-match v0.135.0-copilot-api.1 (D:\harness-efforts\codexu\codex\external\repos\codex-patched\codex-rs\utils\fuzzy-match)
+   Compiling codex-utils-elapsed v0.135.0-copilot-api.1 (D:\harness-efforts\codexu\codex\external\repos\codex-patched\codex-rs\utils\elapsed)
+   Compiling codex-process-hardening v0.135.0-copilot-api.1 (D:\harness-efforts\codexu\codex\external\repos\codex-patched\codex-rs\process-hardening)
+   Compiling codex-cli v0.135.0-copilot-api.1 (D:\harness-efforts\codexu\codex\external\repos\codex-patched\codex-rs\cli)
+   Compiling codex-stdio-to-uds v0.135.0-copilot-api.1 (D:\harness-efforts\codexu\codex\external\repos\codex-patched\codex-rs\stdio-to-uds)
+   Compiling clap_complete v4.5.65
+   Compiling ctor v0.6.3
+   Compiling codex-responses-api-proxy v0.135.0-copilot-api.1 (D:\harness-efforts\codexu\codex\external\repos\codex-patched\codex-rs\responses-api-proxy)
+   Compiling codex-otel v0.135.0-copilot-api.1 (D:\harness-efforts\codexu\codex\external\repos\codex-patched\codex-rs\otel)
+   Compiling codex-model-provider-info v0.135.0-copilot-api.1 (D:\harness-efforts\codexu\codex\external\repos\codex-patched\codex-rs\model-provider-info)
+   Compiling codex-exec-server v0.135.0-copilot-api.1 (D:\harness-efforts\codexu\codex\external\repos\codex-patched\codex-rs\exec-server)
+   Compiling codex-connectors v0.135.0-copilot-api.1 (D:\harness-efforts\codexu\codex\external\repos\codex-patched\codex-rs\connectors)
+   Compiling codex-features v0.135.0-copilot-api.1 (D:\harness-efforts\codexu\codex\external\repos\codex-patched\codex-rs\features)
+   Compiling codex-windows-sandbox v0.135.0-copilot-api.1 (D:\harness-efforts\codexu\codex\external\repos\codex-patched\codex-rs\windows-sandbox-rs)
+   Compiling codex-config v0.135.0-copilot-api.1 (D:\harness-efforts\codexu\codex\external\repos\codex-patched\codex-rs\config)
+   Compiling codex-tools v0.135.0-copilot-api.1 (D:\harness-efforts\codexu\codex\external\repos\codex-patched\codex-rs\tools)
+warning: struct `ToolsConfig` is never constructed
+   --> tools\src\tool_config.rs:136:12
+    |
+136 | pub struct ToolsConfig {
+    |            ^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: struct `ToolsConfigParams` is never constructed
+   --> tools\src\tool_config.rs:173:12
+    |
+173 | pub struct ToolsConfigParams<'a> {
+    |            ^^^^^^^^^^^^^^^^^
+
+warning: multiple associated items are never used
+   --> tools\src\tool_config.rs:206:12
+    |
+205 | impl ToolsConfig {
+    | ---------------- associated items in this implementation
+206 |     pub fn new(params: &ToolsConfigParams<'_>) -> Self {
+    |            ^^^
+...
+327 |     pub fn with_agent_type_description(mut self, agent_type_description: String) -> Self {
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+332 |     pub fn with_namespace_tools_capability(mut self, namespace_tools: bool) -> Self {
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+339 |     pub fn with_image_generation_capability(mut self, image_generation: bool) -> Self {
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+346 |     pub fn with_web_search_capability(mut self, web_search: bool) -> Self {
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+353 |     pub fn with_spawn_agent_usage_hint(mut self, spawn_agent_usage_hint: bool) -> Self {
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+358 |     pub fn with_spawn_agent_usage_hint_text(
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+366 |     pub fn with_hide_spawn_agent_metadata(mut self, hide_spawn_agent_metadata: bool) -> Self {
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+371 |     pub fn with_goal_tools_allowed(mut self, allowed: bool) -> Self {
+    |            ^^^^^^^^^^^^^^^^^^^^^^^
+...
+376 |     pub fn with_max_concurrent_threads_per_session(
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+384 |     pub fn with_wait_agent_min_timeout_ms(
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+392 |     pub fn with_allow_login_shell(mut self, allow_login_shell: bool) -> Self {
+    |            ^^^^^^^^^^^^^^^^^^^^^^
+...
+397 |     pub fn with_environment_mode(mut self, environment_mode: ToolEnvironmentMode) -> Self {
+    |            ^^^^^^^^^^^^^^^^^^^^^
+...
+402 |     pub fn with_unified_exec_shell_mode(
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+410 |     pub fn with_unified_exec_shell_mode_for_session(
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+425 |     pub fn with_web_search_config(mut self, web_search_config: Option<WebSearchConfig>) -> Self {
+    |            ^^^^^^^^^^^^^^^^^^^^^^
+...
+430 |     pub fn for_code_mode_nested_tools(&self) -> Self {
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `supports_image_generation` is never used
+   --> tools\src\tool_config.rs:438:4
+    |
+438 | fn supports_image_generation(model_info: &ModelInfo) -> bool {
+    |    ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: `codex-tools` (lib) generated 4 warnings
+   Compiling codex-extension-api v0.135.0-copilot-api.1 (D:\harness-efforts\codexu\codex\external\repos\codex-patched\codex-rs\ext\extension-api)
+   Compiling codex-apply-patch v0.135.0-copilot-api.1 (D:\harness-efforts\codexu\codex\external\repos\codex-patched\codex-rs\apply-patch)
+   Compiling codex-arg0 v0.135.0-copilot-api.1 (D:\harness-efforts\codexu\codex\external\repos\codex-patched\codex-rs\arg0)
+   Compiling codex-login v0.135.0-copilot-api.1 (D:\harness-efforts\codexu\codex\external\repos\codex-patched\codex-rs\login)
+   Compiling codex-rmcp-client v0.135.0-copilot-api.1 (D:\harness-efforts\codexu\codex\external\repos\codex-patched\codex-rs\rmcp-client)
+   Compiling codex-message-history v0.135.0-copilot-api.1 (D:\harness-efforts\codexu\codex\external\repos\codex-patched\codex-rs\message-history)
+warning: field `refresh_lock` is never read
+    --> login\src\auth\manager.rs:1261:5
+     |
+1253 | pub struct AuthManager {
+     |            ----------- field in this struct
+...
+1261 |     refresh_lock: Semaphore,
+     |     ^^^^^^^^^^^^
+     |
+     = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `codex-login` (lib) generated 1 warning
+   Compiling codex-feedback v0.135.0-copilot-api.1 (D:\harness-efforts\codexu\codex\external\repos\codex-patched\codex-rs\feedback)
+   Compiling codex-models-manager v0.135.0-copilot-api.1 (D:\harness-efforts\codexu\codex\external\repos\codex-patched\codex-rs\models-manager)
+   Compiling codex-utils-plugins v0.135.0-copilot-api.1 (D:\harness-efforts\codexu\codex\external\repos\codex-patched\codex-rs\utils\plugins)
+   Compiling codex-rollout v0.135.0-copilot-api.1 (D:\harness-efforts\codexu\codex\external\repos\codex-patched\codex-rs\rollout)
+   Compiling codex-plugin v0.135.0-copilot-api.1 (D:\harness-efforts\codexu\codex\external\repos\codex-patched\codex-rs\plugin)
+   Compiling codex-hooks v0.135.0-copilot-api.1 (D:\harness-efforts\codexu\codex\external\repos\codex-patched\codex-rs\hooks)
+   Compiling codex-plugin-scope v0.135.0-copilot-api.1 (D:\harness-efforts\codexu\codex\codex-rs-overlay\codex-plugin-scope)
+   Compiling codex-model-provider v0.135.0-copilot-api.1 (D:\harness-efforts\codexu\codex\external\repos\codex-patched\codex-rs\model-provider)
+   Compiling codex-external-agent-migration v0.135.0-copilot-api.1 (D:\harness-efforts\codexu\codex\external\repos\codex-patched\codex-rs\external-agent-migration)
+warning: unexpected `cfg` condition value: `test-support`
+   --> model-provider\src\copilot.rs:174:21
+    |
+174 |     #[cfg(any(test, feature = "test-support"))]
+    |                     ^^^^^^^^^^^^^^^^^^^^^^^^ help: remove the condition
+    |
+    = note: no expected values for `feature`
+    = help: consider adding `test-support` as a feature in `Cargo.toml`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+    = note: `#[warn(unexpected_cfgs)]` on by default
+
+warning: unexpected `cfg` condition value: `test-support`
+   --> model-provider\src\provider.rs:147:21
+    |
+147 |     #[cfg(any(test, feature = "test-support"))]
+    |                     ^^^^^^^^^^^^^^^^^^^^^^^^ help: remove the condition
+    |
+    = note: no expected values for `feature`
+    = help: consider adding `test-support` as a feature in `Cargo.toml`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+
+   Compiling codex-analytics v0.135.0-copilot-api.1 (D:\harness-efforts\codexu\codex\external\repos\codex-patched\codex-rs\analytics)
+   Compiling codex-mcp v0.135.0-copilot-api.1 (D:\harness-efforts\codexu\codex\external\repos\codex-patched\codex-rs\codex-mcp)
+   Compiling codex-backend-client v0.135.0-copilot-api.1 (D:\harness-efforts\codexu\codex\external\repos\codex-patched\codex-rs\backend-client)
+warning: `codex-model-provider` (lib) generated 2 warnings
+   Compiling codex-cloud-tasks-client v0.135.0-copilot-api.1 (D:\harness-efforts\codexu\codex\external\repos\codex-patched\codex-rs\cloud-tasks-client)
+warning: function `serialize_enum_as_string` is never used
+  --> analytics\src\lib.rs:69:15
+   |
+69 | pub(crate) fn serialize_enum_as_string<T: serde::Serialize>(value: &T) -> Option<String> {
+   |               ^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `usize_to_u64` is never used
+  --> analytics\src\lib.rs:75:15
+   |
+75 | pub(crate) fn usize_to_u64(value: usize) -> u64 {
+   |               ^^^^^^^^^^^^
+
+warning: function `option_i64_to_u64` is never used
+  --> analytics\src\lib.rs:79:15
+   |
+79 | pub(crate) fn option_i64_to_u64(value: Option<i64>) -> Option<u64> {
+   |               ^^^^^^^^^^^^^^^^^
+
+warning: struct `AcceptedLineFingerprintEventInput` is never constructed
+  --> analytics\src\accepted_lines.rs:17:19
+   |
+17 | pub(crate) struct AcceptedLineFingerprintEventInput {
+   |                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `accepted_line_fingerprint_event_requests` is never used
+  --> analytics\src\accepted_lines.rs:94:15
+   |
+94 | pub(crate) fn accepted_line_fingerprint_event_requests(
+   |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `accepted_line_repo_hash_for_cwd` is never used
+   --> analytics\src\accepted_lines.rs:131:14
+    |
+131 | pub async fn accepted_line_repo_hash_for_cwd(cwd: &Path) -> Option<String> {
+    |              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: multiple variants are never constructed
+  --> analytics\src\events.rs:58:5
+   |
+57 | pub(crate) enum TrackEventRequest {
+   |                 ----------------- variants in this enum
+58 |     SkillInvocation(SkillInvocationEventRequest),
+   |     ^^^^^^^^^^^^^^^
+59 |     ThreadInitialized(ThreadInitializedEvent),
+   |     ^^^^^^^^^^^^^^^^^
+60 |     GuardianReview(Box<GuardianReviewEventRequest>),
+   |     ^^^^^^^^^^^^^^
+61 |     AppMentioned(CodexAppMentionedEventRequest),
+   |     ^^^^^^^^^^^^
+62 |     AppUsed(CodexAppUsedEventRequest),
+   |     ^^^^^^^
+63 |     HookRun(CodexHookRunEventRequest),
+   |     ^^^^^^^
+64 |     Compaction(Box<CodexCompactionEventRequest>),
+   |     ^^^^^^^^^^
+65 |     TurnEvent(Box<CodexTurnEventRequest>),
+   |     ^^^^^^^^^
+66 |     TurnSteer(CodexTurnSteerEventRequest),
+   |     ^^^^^^^^^
+67 |     CommandExecution(CodexCommandExecutionEventRequest),
+   |     ^^^^^^^^^^^^^^^^
+68 |     FileChange(CodexFileChangeEventRequest),
+   |     ^^^^^^^^^^
+69 |     McpToolCall(CodexMcpToolCallEventRequest),
+   |     ^^^^^^^^^^^
+70 |     DynamicToolCall(CodexDynamicToolCallEventRequest),
+   |     ^^^^^^^^^^^^^^^
+71 |     CollabAgentToolCall(CodexCollabAgentToolCallEventRequest),
+   |     ^^^^^^^^^^^^^^^^^^^
+72 |     WebSearch(CodexWebSearchEventRequest),
+   |     ^^^^^^^^^
+73 |     ImageGeneration(CodexImageGenerationEventRequest),
+   |     ^^^^^^^^^^^^^^^
+74 |     AcceptedLineFingerprints(Box<CodexAcceptedLineFingerprintsEventRequest>),
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^
+...
+77 |     PluginUsed(CodexPluginUsedEventRequest),
+   |     ^^^^^^^^^^
+78 |     PluginInstalled(CodexPluginEventRequest),
+   |     ^^^^^^^^^^^^^^^
+79 |     PluginUninstalled(CodexPluginEventRequest),
+   |     ^^^^^^^^^^^^^^^^^
+80 |     PluginEnabled(CodexPluginEventRequest),
+   |     ^^^^^^^^^^^^^
+81 |     PluginDisabled(CodexPluginEventRequest),
+   |     ^^^^^^^^^^^^^^
+
+warning: function `plugin_state_event_type` is never used
+   --> analytics\src\events.rs:880:15
+    |
+880 | pub(crate) fn plugin_state_event_type(state: PluginState) -> &'static str {
+    |               ^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `codex_app_metadata` is never used
+   --> analytics\src\events.rs:889:15
+    |
+889 | pub(crate) fn codex_app_metadata(
+    |               ^^^^^^^^^^^^^^^^^^
+
+warning: function `codex_plugin_metadata` is never used
+   --> analytics\src\events.rs:904:15
+    |
+904 | pub(crate) fn codex_plugin_metadata(plugin: PluginTelemetryMetadata) -> CodexPluginMetadata {
+    |               ^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `codex_compaction_event_params` is never used
+   --> analytics\src\events.rs:932:15
+    |
+932 | pub(crate) fn codex_compaction_event_params(
+    |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `codex_plugin_used_metadata` is never used
+   --> analytics\src\events.rs:965:15
+    |
+965 | pub(crate) fn codex_plugin_used_metadata(
+    |               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `codex_hook_run_metadata` is never used
+   --> analytics\src\events.rs:977:15
+    |
+977 | pub(crate) fn codex_hook_run_metadata(
+    |               ^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `analytics_hook_event_name` is never used
+   --> analytics\src\events.rs:991:4
+    |
+991 | fn analytics_hook_event_name(event_name: HookEventName) -> &'static str {
+    |    ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `analytics_hook_source` is never used
+    --> analytics\src\events.rs:1006:4
+     |
+1006 | fn analytics_hook_source(source: HookSource) -> &'static str {
+     |    ^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `subagent_thread_started_event_request` is never used
+    --> analytics\src\events.rs:1031:15
+     |
+1031 | pub(crate) fn subagent_thread_started_event_request(
+     |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `subagent_source_name` is never used
+    --> analytics\src\events.rs:1061:15
+     |
+1061 | pub(crate) fn subagent_source_name(subagent_source: &SubAgentSource) -> String {
+     |               ^^^^^^^^^^^^^^^^^^^^
+
+warning: function `subagent_parent_thread_id` is never used
+    --> analytics\src\events.rs:1071:15
+     |
+1071 | pub(crate) fn subagent_parent_thread_id(subagent_source: &SubAgentSource) -> Option<String> {
+     |               ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `analytics_hook_status` is never used
+    --> analytics\src\events.rs:1080:4
+     |
+1080 | fn analytics_hook_status(status: HookRunStatus) -> HookRunStatus {
+     |    ^^^^^^^^^^^^^^^^^^^^^
+
+warning: field `0` is never read
+   --> analytics\src\facts.rs:327:27
+    |
+327 |     SubAgentThreadStarted(SubAgentThreadStartedInput),
+    |     --------------------- ^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |     |
+    |     field in this variant
+    |
+help: consider changing the field to be of unit type to suppress this warning while preserving the field numbering, or remove the field
+    |
+327 -     SubAgentThreadStarted(SubAgentThreadStartedInput),
+327 +     SubAgentThreadStarted(()),
+    |
+
+warning: field `0` is never read
+   --> analytics\src\facts.rs:328:16
+    |
+328 |     Compaction(Box<CodexCompactionEvent>),
+    |     ---------- ^^^^^^^^^^^^^^^^^^^^^^^^^
+    |     |
+    |     field in this variant
+    |
+help: consider changing the field to be of unit type to suppress this warning while preserving the field numbering, or remove the field
+    |
+328 -     Compaction(Box<CodexCompactionEvent>),
+328 +     Compaction(()),
+    |
+
+warning: field `0` is never read
+   --> analytics\src\facts.rs:329:20
+    |
+329 |     GuardianReview(Box<GuardianReviewEventParams>),
+    |     -------------- ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |     |
+    |     field in this variant
+    |
+help: consider changing the field to be of unit type to suppress this warning while preserving the field numbering, or remove the field
+    |
+329 -     GuardianReview(Box<GuardianReviewEventParams>),
+329 +     GuardianReview(()),
+    |
+
+warning: field `0` is never read
+   --> analytics\src\facts.rs:330:24
+    |
+330 |     TurnResolvedConfig(Box<TurnResolvedConfigFact>),
+    |     ------------------ ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |     |
+    |     field in this variant
+    |
+help: consider changing the field to be of unit type to suppress this warning while preserving the field numbering, or remove the field
+    |
+330 -     TurnResolvedConfig(Box<TurnResolvedConfigFact>),
+330 +     TurnResolvedConfig(()),
+    |
+
+warning: field `0` is never read
+   --> analytics\src\facts.rs:331:20
+    |
+331 |     TurnTokenUsage(Box<TurnTokenUsageFact>),
+    |     -------------- ^^^^^^^^^^^^^^^^^^^^^^^
+    |     |
+    |     field in this variant
+    |
+help: consider changing the field to be of unit type to suppress this warning while preserving the field numbering, or remove the field
+    |
+331 -     TurnTokenUsage(Box<TurnTokenUsageFact>),
+331 +     TurnTokenUsage(()),
+    |
+
+warning: field `0` is never read
+   --> analytics\src\facts.rs:332:18
+    |
+332 |     SkillInvoked(SkillInvokedInput),
+    |     ------------ ^^^^^^^^^^^^^^^^^
+    |     |
+    |     field in this variant
+    |
+help: consider changing the field to be of unit type to suppress this warning while preserving the field numbering, or remove the field
+    |
+332 -     SkillInvoked(SkillInvokedInput),
+332 +     SkillInvoked(()),
+    |
+
+warning: field `0` is never read
+   --> analytics\src\facts.rs:333:18
+    |
+333 |     AppMentioned(AppMentionedInput),
+    |     ------------ ^^^^^^^^^^^^^^^^^
+    |     |
+    |     field in this variant
+    |
+help: consider changing the field to be of unit type to suppress this warning while preserving the field numbering, or remove the field
+    |
+333 -     AppMentioned(AppMentionedInput),
+333 +     AppMentioned(()),
+    |
+
+warning: field `0` is never read
+   --> analytics\src\facts.rs:334:13
+    |
+334 |     AppUsed(AppUsedInput),
+    |     ------- ^^^^^^^^^^^^
+    |     |
+    |     field in this variant
+    |
+help: consider changing the field to be of unit type to suppress this warning while preserving the field numbering, or remove the field
+    |
+334 -     AppUsed(AppUsedInput),
+334 +     AppUsed(()),
+    |
+
+warning: field `0` is never read
+   --> analytics\src\facts.rs:335:13
+    |
+335 |     HookRun(HookRunInput),
+    |     ------- ^^^^^^^^^^^^
+    |     |
+    |     field in this variant
+    |
+help: consider changing the field to be of unit type to suppress this warning while preserving the field numbering, or remove the field
+    |
+335 -     HookRun(HookRunInput),
+335 +     HookRun(()),
+    |
+
+warning: field `0` is never read
+   --> analytics\src\facts.rs:336:16
+    |
+336 |     PluginUsed(PluginUsedInput),
+    |     ---------- ^^^^^^^^^^^^^^^
+    |     |
+    |     field in this variant
+    |
+help: consider changing the field to be of unit type to suppress this warning while preserving the field numbering, or remove the field
+    |
+336 -     PluginUsed(PluginUsedInput),
+336 +     PluginUsed(()),
+    |
+
+warning: field `0` is never read
+   --> analytics\src\facts.rs:337:24
+    |
+337 |     PluginStateChanged(PluginStateChangedInput),
+    |     ------------------ ^^^^^^^^^^^^^^^^^^^^^^^
+    |     |
+    |     field in this variant
+    |
+help: consider changing the field to be of unit type to suppress this warning while preserving the field numbering, or remove the field
+    |
+337 -     PluginStateChanged(PluginStateChangedInput),
+337 +     PluginStateChanged(()),
+    |
+
+warning: fields `tracking` and `invocations` are never read
+   --> analytics\src\facts.rs:341:9
+    |
+340 | pub(crate) struct SkillInvokedInput {
+    |                   ----------------- fields in this struct
+341 |     pub tracking: TrackEventsContext,
+    |         ^^^^^^^^
+342 |     pub invocations: Vec<SkillInvocation>,
+    |         ^^^^^^^^^^^
+
+warning: fields `tracking` and `mentions` are never read
+   --> analytics\src\facts.rs:346:9
+    |
+345 | pub(crate) struct AppMentionedInput {
+    |                   ----------------- fields in this struct
+346 |     pub tracking: TrackEventsContext,
+    |         ^^^^^^^^
+347 |     pub mentions: Vec<AppInvocation>,
+    |         ^^^^^^^^
+
+warning: fields `tracking` and `app` are never read
+   --> analytics\src\facts.rs:351:9
+    |
+350 | pub(crate) struct AppUsedInput {
+    |                   ------------ fields in this struct
+351 |     pub tracking: TrackEventsContext,
+    |         ^^^^^^^^
+352 |     pub app: AppInvocation,
+    |         ^^^
+
+warning: fields `tracking` and `hook` are never read
+   --> analytics\src\facts.rs:356:9
+    |
+355 | pub(crate) struct HookRunInput {
+    |                   ------------ fields in this struct
+356 |     pub tracking: TrackEventsContext,
+    |         ^^^^^^^^
+357 |     pub hook: HookRunFact,
+    |         ^^^^
+
+warning: fields `tracking` and `plugin` are never read
+   --> analytics\src\facts.rs:367:9
+    |
+366 | pub(crate) struct PluginUsedInput {
+    |                   --------------- fields in this struct
+367 |     pub tracking: TrackEventsContext,
+    |         ^^^^^^^^
+368 |     pub plugin: PluginTelemetryMetadata,
+    |         ^^^^^^
+
+warning: fields `plugin` and `state` are never read
+   --> analytics\src\facts.rs:372:9
+    |
+371 | pub(crate) struct PluginStateChangedInput {
+    |                   ----------------------- fields in this struct
+372 |     pub plugin: PluginTelemetryMetadata,
+    |         ^^^^^^
+373 |     pub state: PluginState,
+    |         ^^^^^
+
+warning: struct `AnalyticsReducer` is never constructed
+   --> analytics\src\reducer.rs:131:19
+    |
+131 | pub(crate) struct AnalyticsReducer {
+    |                   ^^^^^^^^^^^^^^^^
+
+warning: struct `ConnectionState` is never constructed
+   --> analytics\src\reducer.rs:141:8
+    |
+141 | struct ConnectionState {
+    |        ^^^^^^^^^^^^^^^
+
+warning: struct `ThreadAnalyticsState` is never constructed
+   --> analytics\src\reducer.rs:147:8
+    |
+147 | struct ThreadAnalyticsState {
+    |        ^^^^^^^^^^^^^^^^^^^^
+
+warning: struct `AnalyticsDropSite` is never constructed
+   --> analytics\src\reducer.rs:153:8
+    |
+153 | struct AnalyticsDropSite<'a> {
+    |        ^^^^^^^^^^^^^^^^^
+
+warning: associated functions `guardian`, `review`, `compaction`, `tool_item`, `turn_steer`, and `turn` are never used
+   --> analytics\src\reducer.rs:162:8
+    |
+161 | impl<'a> AnalyticsDropSite<'a> {
+    | ------------------------------ associated functions in this implementation
+162 |     fn guardian(input: &'a GuardianReviewEventParams) -> Self {
+    |        ^^^^^^^^
+...
+172 |     fn review(input: &'a PendingReviewState) -> Self {
+    |        ^^^^^^
+...
+182 |     fn compaction(input: &'a CodexCompactionEvent) -> Self {
+    |        ^^^^^^^^^^
+...
+192 |     fn tool_item(
+    |        ^^^^^^^^^
+...
+205 |     fn turn_steer(thread_id: &'a str) -> Self {
+    |        ^^^^^^^^^^
+...
+215 |     fn turn(thread_id: &'a str, turn_id: &'a str) -> Self {
+    |        ^^^^
+
+warning: enum `MissingAnalyticsContext` is never used
+   --> analytics\src\reducer.rs:226:6
+    |
+226 | enum MissingAnalyticsContext {
+    |      ^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: struct `PendingReviewState` is never constructed
+   --> analytics\src\reducer.rs:233:8
+    |
+233 | struct PendingReviewState {
+    |        ^^^^^^^^^^^^^^^^^^
+
+warning: struct `ItemReviewSummary` is never constructed
+   --> analytics\src\reducer.rs:247:8
+    |
+247 | struct ItemReviewSummary {
+    |        ^^^^^^^^^^^^^^^^^
+
+warning: struct `ThreadMetadataState` is never constructed
+   --> analytics\src\reducer.rs:257:8
+    |
+257 | struct ThreadMetadataState {
+    |        ^^^^^^^^^^^^^^^^^^^
+
+warning: associated function `from_thread_metadata` is never used
+   --> analytics\src\reducer.rs:266:8
+    |
+265 | impl ThreadMetadataState {
+    | ------------------------ associated function in this implementation
+266 |     fn from_thread_metadata(
+    |        ^^^^^^^^^^^^^^^^^^^^
+
+warning: enum `RequestState` is never used
+   --> analytics\src\reducer.rs:295:6
+    |
+295 | enum RequestState {
+    |      ^^^^^^^^^^^^
+
+warning: struct `PendingTurnStartState` is never constructed
+   --> analytics\src\reducer.rs:300:8
+    |
+300 | struct PendingTurnStartState {
+    |        ^^^^^^^^^^^^^^^^^^^^^
+
+warning: struct `PendingTurnSteerState` is never constructed
+   --> analytics\src\reducer.rs:305:8
+    |
+305 | struct PendingTurnSteerState {
+    |        ^^^^^^^^^^^^^^^^^^^^^
+
+warning: struct `CompletedTurnState` is never constructed
+   --> analytics\src\reducer.rs:313:8
+    |
+313 | struct CompletedTurnState {
+    |        ^^^^^^^^^^^^^^^^^^
+
+warning: struct `TurnState` is never constructed
+   --> analytics\src\reducer.rs:320:8
+    |
+320 | struct TurnState {
+    |        ^^^^^^^^^
+
+warning: struct `ToolItemKey` is never constructed
+   --> analytics\src\reducer.rs:334:8
+    |
+334 | struct ToolItemKey {
+    |        ^^^^^^^^^^^
+
+warning: struct `TurnToolCounts` is never constructed
+   --> analytics\src\reducer.rs:341:8
+    |
+341 | struct TurnToolCounts {
+    |        ^^^^^^^^^^^^^^
+
+warning: method `record` is never used
+   --> analytics\src\reducer.rs:353:8
+    |
+352 | impl TurnToolCounts {
+    | ------------------- method in this implementation
+353 |     fn record(&mut self, item: &ThreadItem) {
+    |        ^^^^^^
+
+warning: multiple methods are never used
+    --> analytics\src\reducer.rs:377:25
+     |
+ 376 | impl AnalyticsReducer {
+     | --------------------- methods in this implementation
+ 377 |     pub(crate) async fn ingest(&mut self, input: AnalyticsFact, out: &mut Vec<TrackEventRequest>) {
+     |                         ^^^^^^
+...
+ 489 |     fn ingest_initialize(
+     |        ^^^^^^^^^^^^^^^^^
+...
+ 514 |     fn ingest_subagent_thread_started(
+     |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+ 545 |     fn ingest_guardian_review(
+     |        ^^^^^^^^^^^^^^^^^^^^^^
+...
+ 568 |     fn ingest_request(
+     |        ^^^^^^^^^^^^^^
+...
+ 599 |     async fn ingest_turn_resolved_config(
+     |              ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+ 625 |     async fn ingest_turn_token_usage(
+     |              ^^^^^^^^^^^^^^^^^^^^^^^
+...
+ 648 |     async fn ingest_skill_invoked(
+     |              ^^^^^^^^^^^^^^^^^^^^
+...
+ 698 |     fn ingest_app_mentioned(&mut self, input: AppMentionedInput, out: &mut Vec<TrackEventRequest>) {
+     |        ^^^^^^^^^^^^^^^^^^^^
+...
+ 709 |     fn ingest_app_used(&mut self, input: AppUsedInput, out: &mut Vec<TrackEventRequest>) {
+     |        ^^^^^^^^^^^^^^^
+...
+ 718 |     fn ingest_hook_run(&mut self, input: HookRunInput, out: &mut Vec<TrackEventRequest>) {
+     |        ^^^^^^^^^^^^^^^
+...
+ 726 |     fn ingest_plugin_used(&mut self, input: PluginUsedInput, out: &mut Vec<TrackEventRequest>) {
+     |        ^^^^^^^^^^^^^^^^^^
+...
+ 734 |     fn ingest_plugin_state_changed(
+     |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+ 752 |     async fn ingest_response(
+     |              ^^^^^^^^^^^^^^^
+...
+ 823 |     fn ingest_server_request(&mut self, _connection_id: u64, request: ServerRequest) {
+     |        ^^^^^^^^^^^^^^^^^^^^^
+...
+ 939 |     fn ingest_server_response(
+     |        ^^^^^^^^^^^^^^^^^^^^^^
+...
+ 984 |     fn ingest_effective_permissions_approval_response(
+     |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+1005 |     fn ingest_server_request_aborted(
+     |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+1024 |     fn ingest_error_response(
+     |        ^^^^^^^^^^^^^^^^^^^^^
+...
+1037 |     fn ingest_request_error_response(
+     |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+1057 |     fn ingest_turn_steer_error_response(
+     |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+1074 |     async fn ingest_notification(
+     |              ^^^^^^^^^^^^^^^^^^^
+...
+1230 |     fn emit_thread_initialized(
+     |        ^^^^^^^^^^^^^^^^^^^^^^^
+...
+1277 |     fn ingest_compaction(&mut self, input: CodexCompactionEvent, out: &mut Vec<TrackEventRequest>) {
+     |        ^^^^^^^^^^^^^^^^^
+...
+1299 |     fn ingest_guardian_review_completed(
+     |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+1341 |     fn ingest_turn_steer_response(
+     |        ^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+1366 |     fn emit_turn_steer_event(
+     |        ^^^^^^^^^^^^^^^^^^^^^
+...
+1407 |     fn emit_review_event(
+     |        ^^^^^^^^^^^^^^^^^
+...
+1455 |     fn record_item_review_summary(
+     |        ^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+1474 |     async fn maybe_emit_turn_event(&mut self, turn_id: &str, out: &mut Vec<TrackEventRequest>) {
+     |              ^^^^^^^^^^^^^^^^^^^^^
+...
+1527 |     fn thread_connection_or_warn(
+     |        ^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+1549 |     fn thread_context_or_warn(
+     |        ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `warn_missing_analytics_context` is never used
+    --> analytics\src\reducer.rs:1566:4
+     |
+1566 | fn warn_missing_analytics_context(
+     |    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `tracked_tool_item_id` is never used
+    --> analytics\src\reducer.rs:1589:4
+     |
+1589 | fn tracked_tool_item_id(item: &ThreadItem) -> Option<&str> {
+     |    ^^^^^^^^^^^^^^^^^^^^
+
+warning: function `item_review_summary_key` is never used
+    --> analytics\src\reducer.rs:1610:4
+     |
+1610 | fn item_review_summary_key(pending_review: &PendingReviewState) -> Option<ToolItemKey> {
+     |    ^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: struct `ToolItemEventInput` is never constructed
+    --> analytics\src\reducer.rs:1623:8
+     |
+1623 | struct ToolItemEventInput<'a> {
+     |        ^^^^^^^^^^^^^^^^^^
+
+warning: function `tool_item_event` is never used
+    --> analytics\src\reducer.rs:1634:4
+     |
+1634 | fn tool_item_event(input: ToolItemEventInput<'_>) -> Option<TrackEventRequest> {
+     |    ^^^^^^^^^^^^^^^
+
+warning: struct `ToolItemOutcome` is never constructed
+    --> analytics\src\reducer.rs:1949:8
+     |
+1949 | struct ToolItemOutcome {
+     |        ^^^^^^^^^^^^^^^
+
+warning: struct `CommandActionCounts` is never constructed
+    --> analytics\src\reducer.rs:1956:8
+     |
+1956 | struct CommandActionCounts {
+     |        ^^^^^^^^^^^^^^^^^^^
+
+warning: function `command_action_counts` is never used
+    --> analytics\src\reducer.rs:1964:4
+     |
+1964 | fn command_action_counts(command_actions: &[CommandAction]) -> CommandActionCounts {
+     |    ^^^^^^^^^^^^^^^^^^^^^
+
+warning: struct `ToolItemContext` is never constructed
+    --> analytics\src\reducer.rs:1981:8
+     |
+1981 | struct ToolItemContext<'a> {
+     |        ^^^^^^^^^^^^^^^
+
+warning: function `tool_item_base` is never used
+    --> analytics\src\reducer.rs:1989:4
+     |
+1989 | fn tool_item_base(
+     |    ^^^^^^^^^^^^^^
+
+warning: function `observed_duration_ms` is never used
+    --> analytics\src\reducer.rs:2029:4
+     |
+2029 | fn observed_duration_ms(started_at_ms: u64, completed_at_ms: u64) -> Option<u64> {
+     |    ^^^^^^^^^^^^^^^^^^^^
+
+warning: function `user_review_id` is never used
+    --> analytics\src\reducer.rs:2033:4
+     |
+2033 | fn user_review_id(request_id: &RequestId) -> String {
+     |    ^^^^^^^^^^^^^^
+
+warning: function `command_execution_review_result` is never used
+    --> analytics\src\reducer.rs:2037:4
+     |
+2037 | fn command_execution_review_result(
+     |    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `file_change_review_result` is never used
+    --> analytics\src\reducer.rs:2068:4
+     |
+2068 | fn file_change_review_result(
+     |    ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `effective_permissions_review_result` is never used
+    --> analytics\src\reducer.rs:2081:4
+     |
+2081 | fn effective_permissions_review_result(
+     |    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `guardian_review_result` is never used
+    --> analytics\src\reducer.rs:2096:4
+     |
+2096 | fn guardian_review_result(
+     |    ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `guardian_review_subject_metadata` is never used
+    --> analytics\src\reducer.rs:2116:4
+     |
+2116 | fn guardian_review_subject_metadata(
+     |    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `guardian_review_requested_additional_permissions` is never used
+    --> analytics\src\reducer.rs:2167:4
+     |
+2167 | fn guardian_review_requested_additional_permissions(action: &GuardianApprovalReviewAction) -> bool {
+     |    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `guardian_review_requested_network_access` is never used
+    --> analytics\src\reducer.rs:2181:4
+     |
+2181 | fn guardian_review_requested_network_access(action: &GuardianApprovalReviewAction) -> bool {
+     |    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `guardian_review_request_permissions_network_enabled` is never used
+    --> analytics\src\reducer.rs:2194:4
+     |
+2194 | fn guardian_review_request_permissions_network_enabled(
+     |    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `final_approval_outcome` is never used
+    --> analytics\src\reducer.rs:2204:4
+     |
+2204 | fn final_approval_outcome(
+     |    ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `command_execution_tool_name` is never used
+    --> analytics\src\reducer.rs:2222:4
+     |
+2222 | fn command_execution_tool_name(source: CommandExecutionSource) -> &'static str {
+     |    ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `command_execution_outcome` is never used
+    --> analytics\src\reducer.rs:2231:4
+     |
+2231 | fn command_execution_outcome(
+     |    ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `patch_apply_outcome` is never used
+    --> analytics\src\reducer.rs:2248:4
+     |
+2248 | fn patch_apply_outcome(
+     |    ^^^^^^^^^^^^^^^^^^^
+
+warning: function `mcp_tool_call_outcome` is never used
+    --> analytics\src\reducer.rs:2265:4
+     |
+2265 | fn mcp_tool_call_outcome(
+     |    ^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `dynamic_tool_call_outcome` is never used
+    --> analytics\src\reducer.rs:2278:4
+     |
+2278 | fn dynamic_tool_call_outcome(
+     |    ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `collab_tool_call_outcome` is never used
+    --> analytics\src\reducer.rs:2291:4
+     |
+2291 | fn collab_tool_call_outcome(
+     |    ^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `image_generation_outcome` is never used
+    --> analytics\src\reducer.rs:2304:4
+     |
+2304 | fn image_generation_outcome(status: &str) -> (ToolItemTerminalStatus, Option<ToolItemFailureKind>) {
+     |    ^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `collab_agent_tool_name` is never used
+    --> analytics\src\reducer.rs:2314:4
+     |
+2314 | fn collab_agent_tool_name(tool: &CollabAgentTool) -> &'static str {
+     |    ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: struct `FileChangeCounts` is never constructed
+    --> analytics\src\reducer.rs:2325:8
+     |
+2325 | struct FileChangeCounts {
+     |        ^^^^^^^^^^^^^^^^
+
+warning: function `file_change_counts` is never used
+    --> analytics\src\reducer.rs:2332:4
+     |
+2332 | fn file_change_counts(changes: &[codex_app_server_protocol::FileUpdateChange]) -> FileChangeCounts {
+     |    ^^^^^^^^^^^^^^^^^^
+
+warning: struct `DynamicContentCounts` is never constructed
+    --> analytics\src\reducer.rs:2346:8
+     |
+2346 | struct DynamicContentCounts {
+     |        ^^^^^^^^^^^^^^^^^^^^
+
+warning: function `dynamic_content_counts` is never used
+    --> analytics\src\reducer.rs:2352:4
+     |
+2352 | fn dynamic_content_counts(items: &[DynamicToolCallOutputContentItem]) -> DynamicContentCounts {
+     |    ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `web_search_action_kind` is never used
+    --> analytics\src\reducer.rs:2368:4
+     |
+2368 | fn web_search_action_kind(action: &WebSearchAction) -> WebSearchActionKind {
+     |    ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `web_search_query_count` is never used
+    --> analytics\src\reducer.rs:2377:4
+     |
+2377 | fn web_search_query_count(query: &str, action: Option<&WebSearchAction>) -> Option<u64> {
+     |    ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `accepted_line_event_input` is never used
+    --> analytics\src\reducer.rs:2390:4
+     |
+2390 | fn accepted_line_event_input(
+     |    ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `codex_turn_event_params` is never used
+    --> analytics\src\reducer.rs:2420:4
+     |
+2420 | fn codex_turn_event_params(
+     |    ^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `sandbox_policy_mode` is never used
+    --> analytics\src\reducer.rs:2520:4
+     |
+2520 | fn sandbox_policy_mode(permission_profile: &PermissionProfile, cwd: &Path) -> &'static str {
+     |    ^^^^^^^^^^^^^^^^^^^
+
+warning: function `collaboration_mode_mode` is never used
+    --> analytics\src\reducer.rs:2544:4
+     |
+2544 | fn collaboration_mode_mode(mode: ModeKind) -> &'static str {
+     |    ^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `reasoning_summary_mode` is never used
+    --> analytics\src\reducer.rs:2551:4
+     |
+2551 | fn reasoning_summary_mode(summary: Option<ReasoningSummary>) -> Option<String> {
+     |    ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `personality_mode` is never used
+    --> analytics\src\reducer.rs:2558:4
+     |
+2558 | fn personality_mode(personality: Option<Personality>) -> Option<String> {
+     |    ^^^^^^^^^^^^^^^^
+
+warning: function `analytics_turn_status` is never used
+    --> analytics\src\reducer.rs:2565:4
+     |
+2565 | fn analytics_turn_status(status: codex_app_server_protocol::TurnStatus) -> Option<TurnStatus> {
+     |    ^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `num_input_images` is never used
+    --> analytics\src\reducer.rs:2574:4
+     |
+2574 | fn num_input_images(input: &[UserInput]) -> usize {
+     |    ^^^^^^^^^^^^^^^^
+
+warning: function `rejection_reason_from_error_type` is never used
+    --> analytics\src\reducer.rs:2581:4
+     |
+2581 | fn rejection_reason_from_error_type(
+     |    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `skill_id_for_local_skill` is never used
+    --> analytics\src\reducer.rs:2590:15
+     |
+2590 | pub(crate) fn skill_id_for_local_skill(
+     |               ^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `normalize_path_for_skill_id` is never used
+    --> analytics\src\reducer.rs:2612:15
+     |
+2612 | pub(crate) fn normalize_path_for_skill_id(
+     |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+   Compiling codex-core-skills v0.135.0-copilot-api.1 (D:\harness-efforts\codexu\codex\external\repos\codex-patched\codex-rs\core-skills)
+warning: `codex-analytics` (lib) generated 101 warnings
+   Compiling codex-cloud-tasks-mock-client v0.135.0-copilot-api.1 (D:\harness-efforts\codexu\codex\external\repos\codex-patched\codex-rs\cloud-tasks-mock-client)
+   Compiling codex-core-plugins v0.135.0-copilot-api.1 (D:\harness-efforts\codexu\codex\external\repos\codex-patched\codex-rs\core-plugins)
+   Compiling codex-thread-store v0.135.0-copilot-api.1 (D:\harness-efforts\codexu\codex\external\repos\codex-patched\codex-rs\thread-store)
+warning: constant `REMOTE_INSTALLED_MARKETPLACE_DISPLAY_ORDER` is never used
+  --> core-plugins\src\remote.rs:68:7
+   |
+68 | const REMOTE_INSTALLED_MARKETPLACE_DISPLAY_ORDER: [(&str, &str); 5] = [
+   |       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: associated items `marketplace_name`, `marketplace_display_name`, and `from_marketplace_name` are never used
+   --> core-plugins\src\remote.rs:312:8
+    |
+304 | impl RemotePluginScope {
+    | ---------------------- associated items in this implementation
+...
+312 |     fn marketplace_name(self) -> &'static str {
+    |        ^^^^^^^^^^^^^^^^
+...
+319 |     fn marketplace_display_name(self) -> &'static str {
+    |        ^^^^^^^^^^^^^^^^^^^^^^^^
+...
+326 |     fn from_marketplace_name(name: &str) -> Option<Self> {
+    |        ^^^^^^^^^^^^^^^^^^^^^
+
+warning: struct `RemotePluginSkillDetailResponse` is never constructed
+   --> core-plugins\src\remote.rs:361:8
+    |
+361 | struct RemotePluginSkillDetailResponse {
+    |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `fetch_remote_plugin_detail_with_download_url_option` is never used
+   --> core-plugins\src\remote.rs:644:10
+    |
+644 | async fn fetch_remote_plugin_detail_with_download_url_option(
+    |          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `build_remote_plugin_detail` is never used
+   --> core-plugins\src\remote.rs:662:10
+    |
+662 | async fn build_remote_plugin_detail(
+    |          ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `remove_remote_plugin_cache` is never used
+   --> core-plugins\src\remote.rs:755:4
+    |
+755 | fn remove_remote_plugin_cache(
+    |    ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `remote_installed_plugin_to_cache_entry` is never used
+   --> core-plugins\src\remote.rs:856:4
+    |
+856 | fn remote_installed_plugin_to_cache_entry(
+    |    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `remote_skill_interface_to_info` is never used
+   --> core-plugins\src\remote.rs:919:4
+    |
+919 | fn remote_skill_interface_to_info(
+    |    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `fetch_directory_plugins_for_scope` is never used
+   --> core-plugins\src\remote.rs:974:10
+    |
+974 | async fn fetch_directory_plugins_for_scope(
+    |          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `fetch_shared_workspace_plugins` is never used
+    --> core-plugins\src\remote.rs:1021:10
+     |
+1021 | async fn fetch_shared_workspace_plugins(
+     |          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `get_remote_shared_workspace_plugins_page` is never used
+    --> core-plugins\src\remote.rs:1098:10
+     |
+1098 | async fn get_remote_shared_workspace_plugins_page(
+     |          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `fetch_plugin_detail` is never used
+    --> core-plugins\src\remote.rs:1135:10
+     |
+1135 | async fn fetch_plugin_detail(
+     |          ^^^^^^^^^^^^^^^^^^^
+
+warning: function `remote_plugin_skill_detail_url` is never used
+    --> core-plugins\src\remote.rs:1151:4
+     |
+1151 | fn remote_plugin_skill_detail_url(
+     |    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: constant `REMOTE_PLUGIN_FETCH_TIMEOUT` is never used
+  --> core-plugins\src\remote_legacy.rs:10:7
+   |
+10 | const REMOTE_PLUGIN_FETCH_TIMEOUT: Duration = Duration::from_secs(30);
+   |       ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: constant `REMOTE_FEATURED_PLUGIN_FETCH_TIMEOUT` is never used
+  --> core-plugins\src\remote_legacy.rs:11:7
+   |
+11 | const REMOTE_FEATURED_PLUGIN_FETCH_TIMEOUT: Duration = Duration::from_secs(10);
+   |       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: constant `REMOTE_PLUGIN_MUTATION_TIMEOUT` is never used
+  --> core-plugins\src\remote_legacy.rs:12:7
+   |
+12 | const REMOTE_PLUGIN_MUTATION_TIMEOUT: Duration = Duration::from_secs(30);
+   |       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: struct `RemotePluginMutationResponse` is never constructed
+  --> core-plugins\src\remote_legacy.rs:24:8
+   |
+24 | struct RemotePluginMutationResponse {
+   |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `ensure_codex_backend_auth` is never used
+   --> core-plugins\src\remote_legacy.rs:155:4
+    |
+155 | fn ensure_codex_backend_auth(
+    |    ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `post_remote_plugin_mutation` is never used
+   --> core-plugins\src\remote_legacy.rs:171:10
+    |
+171 | async fn post_remote_plugin_mutation(
+    |          ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `remote_plugin_mutation_url` is never used
+   --> core-plugins\src\remote_legacy.rs:221:4
+    |
+221 | fn remote_plugin_mutation_url(
+    |    ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: `codex-core-plugins` (lib) generated 20 warnings
+   Compiling codex-core v0.135.0-copilot-api.1 (D:\harness-efforts\codexu\codex\external\repos\codex-patched\codex-rs\core)
+   Compiling codex-app-server-transport v0.135.0-copilot-api.1 (D:\harness-efforts\codexu\codex\external\repos\codex-patched\codex-rs\app-server-transport)
+   Compiling codex-web-search-extension v0.135.0-copilot-api.1 (D:\harness-efforts\codexu\codex\external\repos\codex-patched\codex-rs\ext\web-search)
+   Compiling codex-chatgpt v0.135.0-copilot-api.1 (D:\harness-efforts\codexu\codex\external\repos\codex-patched\codex-rs\chatgpt)
+   Compiling codex-cloud-requirements v0.135.0-copilot-api.1 (D:\harness-efforts\codexu\codex\external\repos\codex-patched\codex-rs\cloud-requirements)
+   Compiling codex-memories-write v0.135.0-copilot-api.1 (D:\harness-efforts\codexu\codex\external\repos\codex-patched\codex-rs\memories\write)
+   Compiling codex-guardian v0.135.0-copilot-api.1 (D:\harness-efforts\codexu\codex\external\repos\codex-patched\codex-rs\ext\guardian)
+   Compiling codex-memories-extension v0.135.0-copilot-api.1 (D:\harness-efforts\codexu\codex\external\repos\codex-patched\codex-rs\ext\memories)
+   Compiling codex-lmstudio v0.135.0-copilot-api.1 (D:\harness-efforts\codexu\codex\external\repos\codex-patched\codex-rs\lmstudio)
+warning: unused import: `codex_backend_client::Client as BackendClient`
+  --> cloud-requirements\src\lib.rs:17:5
+   |
+17 | use codex_backend_client::Client as BackendClient;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: variants `BackendClientInit` and `Request` are never constructed
+  --> cloud-requirements\src\lib.rs:79:5
+   |
+78 | enum RetryableFailureKind {
+   |      -------------------- variants in this enum
+79 |     BackendClientInit,
+   |     ^^^^^^^^^^^^^^^^^
+80 |     Request { status_code: Option<u16> },
+   |     ^^^^^^^
+   |
+   = note: `RetryableFailureKind` has derived impls for the traits `Debug` and `Clone`, but these are intentionally ignored during dead code analysis
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: variants `Retryable` and `Unauthorized` are never constructed
+  --> cloud-requirements\src\lib.rs:94:5
+   |
+93 | enum FetchAttemptError {
+   |      ----------------- variants in this enum
+94 |     Retryable(RetryableFailureKind),
+   |     ^^^^^^^^^
+95 |     Unauthorized {
+   |     ^^^^^^^^^^^^
+   |
+   = note: `FetchAttemptError` has derived impls for the traits `Debug` and `Clone`, but these are intentionally ignored during dead code analysis
+
+warning: field `base_url` is never read
+   --> cloud-requirements\src\lib.rs:210:5
+    |
+209 | struct BackendRequirementsFetcher {
+    |        -------------------------- field in this struct
+210 |     base_url: String,
+    |     ^^^^^^^^
+
+warning: `codex-cloud-requirements` (lib) generated 4 warnings (run `cargo fix --lib -p codex-cloud-requirements` to apply 1 suggestion)
+   Compiling codex-ollama v0.135.0-copilot-api.1 (D:\harness-efforts\codexu\codex\external\repos\codex-patched\codex-rs\ollama)
+   Compiling codex-utils-sandbox-summary v0.135.0-copilot-api.1 (D:\harness-efforts\codexu\codex\external\repos\codex-patched\codex-rs\utils\sandbox-summary)
+   Compiling codex-app-server-test-client v0.135.0-copilot-api.1 (D:\harness-efforts\codexu\codex\external\repos\codex-patched\codex-rs\app-server-test-client)
+   Compiling codex-utils-oss v0.135.0-copilot-api.1 (D:\harness-efforts\codexu\codex\external\repos\codex-patched\codex-rs\utils\oss)
+warning: unused import: `self::protocol::normalize_remote_control_url`
+  --> app-server-transport\src\transport\remote_control\mod.rs:14:5
+   |
+14 | use self::protocol::normalize_remote_control_url;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: `codex-app-server-transport` (lib) generated 1 warning (run `cargo fix --lib -p codex-app-server-transport` to apply 1 suggestion)
+   Compiling codex-app-server-daemon v0.135.0-copilot-api.1 (D:\harness-efforts\codexu\codex\external\repos\codex-patched\codex-rs\app-server-daemon)
+   Compiling codex-mcp-server v0.135.0-copilot-api.1 (D:\harness-efforts\codexu\codex\external\repos\codex-patched\codex-rs\mcp-server)
+   Compiling codex-app-server v0.135.0-copilot-api.1 (D:\harness-efforts\codexu\codex\external\repos\codex-patched\codex-rs\app-server)
+   Compiling codex-app-server-client v0.135.0-copilot-api.1 (D:\harness-efforts\codexu\codex\external\repos\codex-patched\codex-rs\app-server-client)
+   Compiling codex-tui v0.135.0-copilot-api.1 (D:\harness-efforts\codexu\codex\external\repos\codex-patched\codex-rs\tui)
+   Compiling codex-exec v0.135.0-copilot-api.1 (D:\harness-efforts\codexu\codex\external\repos\codex-patched\codex-rs\exec)
+warning: unused import: `ratatui::widgets::Block`
+   --> tui\src\bottom_pane\chat_composer.rs:153:5
+    |
+153 | use ratatui::widgets::Block;
+    |     ^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `crate::style::user_message_style`
+  --> tui\src\bottom_pane\selection_popup_common.rs:20:5
+   |
+20 | use crate::style::user_message_style;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused variable: `textarea_style`
+    --> tui\src\bottom_pane\chat_composer.rs:4257:13
+     |
+4257 |         let textarea_style = style.fg(ratatui::style::Color::Reset);
+     |             ^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_textarea_style`
+     |
+     = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `user_message_bg` is never used
+   --> tui\src\style.rs:114:8
+    |
+114 | pub fn user_message_bg(terminal_bg: (u8, u8, u8)) -> Color {
+    |        ^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `proposed_plan_bg` is never used
+   --> tui\src\style.rs:171:8
+    |
+171 | pub fn proposed_plan_bg(terminal_bg: (u8, u8, u8)) -> Color {
+    |        ^^^^^^^^^^^^^^^^
+
+warning: function `is_newer` is never used
+ --> tui\src\update_versions.rs:1:15
+  |
+1 | pub(crate) fn is_newer(latest: &str, current: &str) -> Option<bool> {
+  |               ^^^^^^^^
+
+   Compiling codex-cloud-tasks v0.135.0-copilot-api.1 (D:\harness-efforts\codexu\codex\external\repos\codex-patched\codex-rs\cloud-tasks)
+warning: `codex-tui` (lib) generated 6 warnings (run `cargo fix --lib -p codex-tui` to apply 3 suggestions)
+      Timing report saved to D:\harness-efforts\codexu\codex\external\repos\codex-patched\codex-rs\target\cargo-timings\cargo-timing-20260601T160938128Z-c724884bb40384d7.html
+    Finished `release` profile [optimized] target(s) in 51m 15s
+
+[measure-build] ===== result =====
+
+[32;1mrunId         : [0mbench-B-jobs6-cold-20260601T160912Z
+[32;1mscenario      : [0mB-jobs6-cold
+[32;1mwallSeconds   : [0m3076.2
+[32;1mpeakRssMB     : [0m8290
+[32;1msccacheHits   : [0m0
+[32;1msccacheMisses : [0m20
+[32;1msccacheStores : [0m20
+[32;1mcargoExitCode : [0m0
+[32;1mlto           : [0moff
+[32;1mcodegenUnits  : [0m16
+[32;1mjobs          : [0m6
+[32;1mrustflags     : [0m
+
+[measure-build] CSV: D:\harness-efforts\codexu\codex\docs\implementation\build-perf-artifacts\bench-B-jobs6-cold-20260601T160912Z.csv
+---AFTER MEASURE-BUILD (exit 0)---
+Compile requests                      21
+Compile requests executed             20
+Cache hits                             0
+Cache misses                          20
+Cache misses (Rust)                   20
+Cache hits rate                     0.00 %
+Cache hits rate (Rust)              0.00 %
+Cache timeouts                         0
+Cache read errors                      0
+Forced recaches                        0
+Cache write errors                     0
+Cache errors                           0
+Compilations                          20
+Compilation failures                   0
+Non-cacheable compilations             0
+Non-cacheable calls                    1
+Non-compilation calls                  0
+Unsupported compiler calls             0
+Average cache write                0.029 s
+Average compiler                  78.271 s
+Average cache read hit             0.000 s
+Failed distributed compilations        0
+
+Non-cacheable reasons:
+crate-type                             1
+
+Cache location                  Local disk: "D:\\codex-sccache"
+Base directories                (none)
+Use direct/preprocessor mode?   yes
+Version (client)                0.15.0
+Cache size                             1 GiB
+Max cache size                        50 GiB
+[10:00:54] bash exit: 0  wall-time-this-script: 51.45 min
+[10:00:54] CSV copied: D:\harness-efforts\codexu\.ralph\jobs\codex-rs-build-perf-jobs-sweep-with-defender\B-jobs6-cold.csv
+[10:00:54]   CSV: "runId","scenario","wallSeconds","peakRssMB","sccacheHits","sccacheMisses","sccacheStores","cargoExitCode","lto","codegenUnits","jobs","rustflags"
+[10:00:54]   CSV: "bench-B-jobs6-cold-20260601T160912Z","B-jobs6-cold","3076.2","8290","0","20","20","0","off","16","6",
+[10:00:54] === B-jobs6-cold DONE (exit=0) ===
