@@ -1,0 +1,44 @@
+I’ll read the referenced prompt file first, then execute the requested work from it.
+
+I found this is a research-mode plan analysis, so I’ll inspect the Codex workspace docs/build scripts and current sccache guidance before writing the assessment.
+
+I have enough high-level context; I’m narrowing on the publish workflow/env contract and host pagefile details that the plan has to preserve.
+
+### Codebase Architecture
+
+The relevant repo is `codex\`, a wrapper around a patched Codex submodule at `codex\external\repos\codex-patched\`. Rust code lives in `codex-rs`; fork-only extensions live in `codex-rs-overlay` to minimize upstream conflict. Release/build procedure is documentation- and workflow-driven, not source-code-driven.
+
+Build tooling is Rust/Cargo, GitHub Actions, Bash/Git Bash, and PowerShell on Windows. The release binary build uses `stable-x86_64-pc-windows-msvc`, LLVM `clang-cl`/`llvm-lib`/`lld-link`, xwin-staged Windows SDK via `LIB`/`INCLUDE`, and a predownloaded `RUSTY_V8_ARCHIVE`.
+
+### Feature-Relevant Code
+
+Key files:
+
+| Path | Relevance |
+|---|---|
+| `codex\.claude\commands\publish-sandbox-patch.md` | Canonical local release instructions and env vars. Current profile: `CARGO_PROFILE_RELEASE_LTO=thin`, `CARGO_PROFILE_RELEASE_CODEGEN_UNITS=16`; build command at lines 74-87; OOM note at lines 387-388. |
+| `codex\.claude\commands\rebase-upstream.md` | Mirrors the same LLVM/xwin/rusty_v8 env for rebase validation. |
+| `codex\.github\workflows\publish-npm.yml` | CI reference for release build env, `rust-cache`, `rusty_v8` cache, and build command. |
+| `codex\external\repos\codex-patched\codex-rs\Cargo.toml` | Upstream release defaults are expensive: `[profile.release] lto = "fat"`, `codegen-units = 1`, `debug = "full"`. Env vars override these today. |
+| `codex\docs\implementation\patch-surface.md` | Documents local-vs-CI split and LLVM/xwin trust boundaries; warns release builds are expensive locally. |
+| `codex\external\repos\codex-patched\.github\workflows\rust-ci-full*.yml` | Upstream already has sccache patterns: `SCCACHE_CACHE_SIZE`, `SCCACHE_DIR`, `RUSTC_WRAPPER`, `CARGO_BUILD_RUSTC_WRAPPER`, and `CARGO_INCREMENTAL=0`. |
+| `codex\external\repos\codex-patched\.github\workflows\v8-canary.yml` | Builds rusty_v8 from source with sccache, useful compatibility precedent. |
+
+Current host findings: pagefile is already ~52 GB (`C:\pagefile.sys` allocated 52945 MB), RAM is ~64 GB, `D:` has ~488 GB free, and `sccache` is not currently on PATH.
+
+### Technical Constraints
+
+sccache works as `RUSTC_WRAPPER` and supports Rust plus clang/MSVC-style C/C++ compilation. Its Rust docs matter: Cargo-style rustc invocations are cacheable, but crates invoking the system linker (`bin`, `dylib`, `cdylib`, `proc-macro`) are not cached; linker steps and the final `codex-core` link remain expensive. Rust incremental must be disabled, so set `CARGO_INCREMENTAL=0`.
+
+Do not oversell “env-var thrash” resilience. Changing `CARGO_BUILD_JOBS` should not affect rustc cache keys. Changing `LTO`, `codegen-units`, or `RUSTFLAGS=-C debuginfo=0` changes compiler arguments and should be expected to miss or require a versioned cache/profile. The real fix is sccache plus a frozen profile, not sccache alone.
+
+`RUSTY_V8_ARCHIVE` points at a prebuilt `.lib`; sccache will not cache the archive itself, but it should coexist with it because Cargo/rustc consume it during build/link. Verification should prove no wrapper/linker/path issue with `clang-cl`, `lld-link`, xwin `LIB`/`INCLUDE`, and the archive.
+
+### Implementation Suggestions
+
+Use `publish-sandbox-patch.md` as the canonical frozen iteration profile because it is the authoritative release flow. Mirror only a short “do not drift these vars” rule in `codex\CLAUDE.md` and `rebase-upstream.md`; avoid putting this in `codex\external\repos\codex-patched\AGENTS.md` because it is generic submodule guidance, not fork release policy.
+
+Recommended profile: install/use sccache from a D:-backed location, set `SCCACHE_DIR=D:\codex-sccache`, `SCCACHE_CACHE_SIZE` generously, `RUSTC_WRAPPER=sccache`, `CARGO_BUILD_RUSTC_WRAPPER=sccache`, `CARGO_INCREMENTAL=0`, frozen `LTO=off` or `thin` after benchmark, frozen `CODEGEN_UNITS`, and chosen `CARGO_BUILD_JOBS=4` or `6`. Add a separate “try-it only” snippet for `RUSTFLAGS="-C debuginfo=0"`; keep CI/release symbols unchanged.
+
+Benchmark split should be one PR: docs/scripted env + sccache + profile + benchmark methodology are one coherent release-build resilience change. Do not edit Rust source. Measure cold baseline, sccache cold treatment, warm rebuild, jobs-only env change, and LTO/debuginfo change separately; expect only the last category to miss by design.
+

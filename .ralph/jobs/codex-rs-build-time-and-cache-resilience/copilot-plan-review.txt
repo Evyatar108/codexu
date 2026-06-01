@@ -1,0 +1,28 @@
+I’ll read the provided prompt file and then carry out its instructions.
+
+I’ll verify the referenced codex wrapper files and constraints before writing the review findings.
+
+I found one policy conflict and I’m checking the exact Cargo target shape so the review is anchored to the repo, not just the plan text.
+
+### Feasibility
+
+- [High] The plan’s AC-2/AC-3/AC-5 require fresh cold/warm release-build benchmark runs and recorded timings in `codex/docs/implementation/build-perf.md`, but the plan also says these are “operator-driven.” An autonomous implementation member cannot satisfy those ACs unless the operator runs multi-hour builds and returns results. Split benchmark tooling/docs from benchmark-result recording, or mark results as a manual follow-up.
+- [High] The plan’s release-build examples use `cargo build --release --bin codex-core`. In this fork, `codex-core.exe` is the `codex-cli` package binary (`codex/external/repos/codex-patched/codex-rs/cli/Cargo.toml`), while `codex-rs/core/Cargo.toml` is the `codex-core` library package. Existing `codex/CLAUDE.md` explicitly warns that package-target confusion leaves stale binaries. The plan should use `cargo build --release -p codex-cli --bin codex-core` where it specifically benchmarks `codex-core.exe`.
+
+### Completeness
+
+- [Medium] The plan creates `codex/scripts/iteration-env.sh`, but does not specify whether it must be sourced from `codex/` or `codex/external/repos/codex-patched/codex-rs/`. Because the script needs paths to LLVM, xwin, `RUSTY_V8_ARCHIVE`, and the inner Cargo workspace, it should define/validate a canonical invocation directory or compute paths relative to the script.
+- [Medium] `measure-build.ps1` records sccache deltas, but the plan does not require the script to verify `SCCACHE_DIR`/`RUSTC_WRAPPER` are active before building. Without a fail-fast check, the benchmark can silently record non-sccache runs and make AC-2/AC-3 evidence misleading.
+
+### Ordering
+
+No issues found.
+
+### Simplicity
+
+- [Medium] Committing exact cold/warm benchmark results in `codex/docs/implementation/build-perf.md` may create stale machine-specific documentation. A simpler, safer deliverable is the benchmark script plus a documented “latest local measurement” template, with actual run output kept as an artifact unless the operator explicitly wants machine-specific numbers committed.
+
+### Acceptance Criteria Quality
+
+- [High] AC-2/AC-3/AC-5 are not fully autonomous: they require long-running local release builds and operator-provided results, while also saying missed targets “do NOT fail the story.” That makes pass/fail ambiguous for Ralph. Reframe them as either hard verifiable ACs run by the implementer, or manual post-merge validation criteria that do not block implementation.
+

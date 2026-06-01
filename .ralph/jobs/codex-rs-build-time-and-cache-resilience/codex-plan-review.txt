@@ -1,0 +1,33 @@
+### Feasibility
+
+[High] AC-2 and AC-3 do not prove sccache behavior as written. Removing only `target/release/codex-core.exe` may mostly exercise Cargo’s existing `target/` artifacts and the final link path, not a dependency rebuild through `RUSTC_WRAPPER=sccache`. The claimed “sccache hit rate ≥ 90%” and jobs-cache-key resilience should instead rebuild after clearing `target/` or using a fresh `CARGO_TARGET_DIR` while preserving `SCCACHE_DIR`.
+
+[High] The plan asks the autonomous implementation member to install `sccache`, add Defender exclusions, and record fresh cold/warm benchmark runs. That conflicts with `codex/.claude/commands/rebase-upstream.md`, which says agents verify local build artifacts only and the operator runs install commands. `Add-MpPreference` also usually needs elevated PowerShell. Make this an operator preflight or explicitly mark benchmark ACs as blocked until the operator performs setup.
+
+[Medium] AC-1 runs `source codex/scripts/iteration-env.sh` from the codexu root, while existing runbooks in `codex/.claude/commands/publish-sandbox-patch.md` and `rebase-upstream.md` assume paths relative to the `codex/` wrapper root. The plan should require `iteration-env.sh` to resolve paths via its own location, not `$PWD`.
+
+### Completeness
+
+[High] The plan says wrapper edits can commit directly to `gim-home/codex` with “no submodule-bump dance,” but from `D:/harness-efforts/codexu`, `codex/` is itself a nested git repo/submodule. If codexu `main` is meant to retain this change, the plan needs an explicit parent gitlink update/check, separate from the inner `external/repos/codex-patched` submodule.
+
+[Medium] `codex/scripts/measure-build.ps1` has no syntax or smoke-test acceptance check. Add at least a PowerShell parse/help-mode check so a broken script does not pass purely because benchmark rows were hand-written in `codex/docs/implementation/build-perf.md`.
+
+[Medium] Defender exclusion guidance is incomplete. `codex/.claude/commands/publish-sandbox-patch.md` should say exclusions require elevated PowerShell and are optional performance tuning, otherwise an autonomous agent may treat a failed exclusion command as a failed story.
+
+### Ordering
+
+[Medium] US-3 depends not only on US-1, but also on operator-installed `sccache`, an initialized `D:\codex-sccache`, and a deliberate cache/target reset protocol. The current ordering lists US-3 after US-1/US-2, but misses those external prerequisites.
+
+[Medium] The next-step instruction says to run `cargo check --workspace` after every docs/scripts story. For US-2 and US-4 this is expensive and unrelated. A single final `cargo metadata`/workspace parse check plus script syntax checks would fit the scope better.
+
+### Simplicity
+
+[Medium] The benchmark matrix can be simpler and more reliable if it uses fresh `CARGO_TARGET_DIR` directories per scenario while keeping one `SCCACHE_DIR`. That avoids destructive target cleanup ambiguity and makes “cold target, warm sccache” explicit.
+
+### Acceptance Criteria Quality
+
+[High] AC-8 only checks `git -C codex diff --stat origin/main..HEAD ...`, which misses uncommitted or staged Rust changes. Add working-tree and index checks, for example `git -C codex diff --stat -- '*.rs'` and `git -C codex diff --cached --stat -- '*.rs'`.
+
+[High] AC-2/AC-3 are not valid cache acceptance criteria because the rebuild trigger is underspecified and may not invoke rustc enough to measure sccache hits. They need exact target/cache reset commands and expected `sccache --show-stats` deltas.
+
+[Medium] Several timing targets are called “Acceptance Criteria” but also “not hard fail thresholds.” That is ambiguous for autonomous implementation. Split them into required evidence rows versus non-blocking performance observations.
