@@ -2331,6 +2331,59 @@
       }
     },
     {
+      "id": "codex-rs-iteration-env-sccache-race-and-jobs-default",
+      "scope": "codex",
+      "lifecycle": "tracked",
+      "status": "ok",
+      "lastTouchedAt": "2026-06-01T19:03:00Z",
+      "kanbanCards": [],
+      "command": {
+        "name": "codex-rs-iteration-env-sccache-race-and-jobs-default",
+        "descriptionHtml": "Combined fix from F-5 + jobs-sweep winner (benchmark-codex-rs-jobs-sweep-with-defender, artifacts at .ralph/jobs/codex-rs-build-perf-jobs-sweep-with-defender/results.md). Two changes to <code>codex/scripts/iteration-env.sh</code>: (1) <strong>F-5 sccache race</strong>: current <code>sccache --stop-server && --start-server</code> reconciliation leaves the server transiently unreachable for ~5m of build time; jobs=6/12 cold runs registered only 21 sccache requests vs 1705 in jobs=4/8 same setup. Fix: poll <code>sccache --show-stats</code> until ready (server-version line present, exit 0) before returning from reconciliation. (2) <strong>jobs default 4 → 8</strong>: benchmark winner at 50:12 cold (vs 56:26 at jobs=4) with sccache wrapper active and 8.2 GB peak RSS (56 GB headroom on 64 GB box).",
+        "warnings": [],
+        "prompts": {
+          "impl": "Two changes to D:/harness-efforts/codexu/codex/scripts/iteration-env.sh: (1) F-5 sccache race fix — after the existing sccache --stop-server / --start-server reconciliation, add a poll loop: `for i in {1..30}; do sccache --show-stats >/dev/null 2>&1 && break; sleep 0.5; done`. Time-box to 15s. If still not ready after timeout, emit a WARNING (don't fail — fall back to no-sccache build). (2) Change CARGO_BUILD_JOBS default from 4 to 8 — update both the export line and the FROZEN ITERATION PROFILE ACTIVE banner. Single docs-tier commit on wrapper repo (gim-home/codex). Lead bumps codexu submodule pointer. Phase 5b docs convergence."
+        }
+      }
+    },
+    {
+      "id": "codex-rs-defender-exclusions-procmon-verify",
+      "scope": "codex",
+      "lifecycle": "tracked",
+      "status": "ok",
+      "lastTouchedAt": "2026-06-01T19:03:00Z",
+      "kanbanCards": [],
+      "command": {
+        "name": "codex-rs-defender-exclusions-procmon-verify",
+        "descriptionHtml": "F-6 finding from benchmark-codex-rs-jobs-sweep-with-defender. Defender exclusions (path: target/, sccache cache, .cargo, .rustup, .xwin, .rusty_v8, codex wrapper; process: rustc.exe cargo.exe sccache.exe link.exe lld-link.exe clang-cl.exe) delivered NO measurable build-perf benefit at jobs=4 (56:26 with vs 53:00 without — within noise, actually slightly slower). Per benchmark recommendation: run Procmon on jobs=8 cold to verify MpEng.exe isn't still touching D:\\codex-sccache despite exclusions. If genuinely no-op, drop exclusions to reduce machine-state divergence. If exclusions ARE being applied but other Defender component (real-time AMSI, cloud-protection, etc.) is the culprit, document the root cause.",
+        "warnings": [],
+        "prompts": {
+          "impl": "Operator-driven Procmon capture. (1) Launch Procmon, set filters: Path contains 'codex-sccache' OR 'codex-rs/target' OR 'sccache.exe', AND Process Name is MpEng.exe (or any Defender process). (2) Run scripts/measure-build.ps1 with the jobs=8 frozen iteration profile for ~5-10 min (don't need full cold; partial run is sufficient to capture pattern). (3) Stop Procmon, save .pml. (4) Analyze: are MpEng.exe operations on the excluded paths zero (exclusions working) or non-zero (exclusions ignored)? (5) If zero: file followup to remove the Defender exclusions from publish-sandbox-patch.md OPTIONAL preconditions since they're no-op on this hardware. If non-zero: investigate why exclusions are ignored (admin context? GPO override? cloud-delivered protection?)."
+        }
+      }
+    },
+    {
+      "id": "codex-rs-feature-pruning-for-sub-45m-cold",
+      "scope": "codex",
+      "lifecycle": "tracked",
+      "status": "ok",
+      "lastTouchedAt": "2026-06-01T19:03:00Z",
+      "kanbanCards": [],
+      "command": {
+        "name": "codex-rs-feature-pruning-for-sub-45m-cold",
+        "descriptionHtml": "F-7 finding from benchmark-codex-rs-jobs-sweep-with-defender. Sub-45m cold target requires reducing TOTAL compile work, not more concurrency — 4×→12× concurrency only bought 7% (56:26 → 49:22). Bottleneck is the late-stage critical path: codex-tui + codex-app-server + codex-core LTO link. Candidate: prune unused codex-rs cargo features (image, lalrpop, aws-lc-rs dep trees). Survey + measure before/after. <strong>Touches upstream-canonical Cargo.toml files</strong> — minimize-conflict-surface mandate applies; prefer disabling features via cargo flags over editing default-features in workspace Cargo.toml.",
+        "warnings": [
+          {
+            "className": "cmd-warn",
+            "html": "⚠️ Touches upstream-canonical Cargo.toml. Per minimize-conflict-surface mandate: prefer disabling features via cargo flags (CARGO_FEATURES_TO_DISABLE=...) over editing default-features in workspace Cargo.toml. If feature toggles require workspace-level Cargo.toml edits, mark with SANDBOX PATCH + §15 replant recipe."
+          }
+        ],
+        "prompts": {
+          "plan": "/plan-with-ralph \"Survey codex-rs workspace for cargo features that can be disabled without breaking the 4 produced bins (codex, codex-core, codex-windows-sandbox-setup, codex-command-runner). Candidates per F-7 finding: image, lalrpop, aws-lc-rs dep trees. Measurement methodology: cold-cache build per scripts/measure-build.ps1, before vs after feature-disable. Goal: cold-cache ≤45m AC-5 target. Per minimize-conflict-surface mandate: prefer CARGO_FEATURES_TO_DISABLE env or --no-default-features + explicit features list over editing workspace Cargo.toml default-features. If Cargo.toml edits required, mark with SANDBOX PATCH + §15 replant recipe. Plan should identify which features the 4 bins actually need (cargo tree --depth 1 + grep for #[cfg(feature)] gates), propose disable set, estimate the saved compile work, and gate impl on a verification build proving no functional regression.\""
+        }
+      }
+    },
+    {
       "id": "codex-rs-iteration-profile-lto-bypass-doc-fix",
       "scope": "codex",
       "lifecycle": "tracked",
