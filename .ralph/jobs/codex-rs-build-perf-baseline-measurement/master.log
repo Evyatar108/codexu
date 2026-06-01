@@ -1,0 +1,90 @@
+[iteration-env] Reconciling sccache: active cache 'D:\\codex-sccache' != intended 'D:\codex-sccache' — restarting server.
+===================================================================
+  FROZEN ITERATION PROFILE ACTIVE
+  LTO=off  codegen-units=16  jobs=4  incremental=0
+  RUSTC_WRAPPER=sccache  SCCACHE_DIR=D:\codex-sccache  size=50G
+  Do NOT change LTO / codegen-units / RUSTFLAGS round-to-round.
+  Build command (note: -p codex-cli --bin codex-core, NOT -p codex-core):
+    cargo build --release -p codex-cli --bin codex-core
+===================================================================
+[run-benchmark] ERROR: RUSTC_WRAPPER != sccache
+[iteration-env] Reconciling sccache: active cache 'D:\\codex-sccache' != intended 'D:\codex-sccache' — restarting server.
+===================================================================
+  FROZEN ITERATION PROFILE ACTIVE
+  LTO=off  codegen-units=16  jobs=4  incremental=0
+  RUSTC_WRAPPER=sccache  SCCACHE_DIR=D:\codex-sccache  size=50G
+  Do NOT change LTO / codegen-units / RUSTFLAGS round-to-round.
+  Build command (note: -p codex-cli --bin codex-core, NOT -p codex-core):
+    cargo build --release -p codex-cli --bin codex-core
+===================================================================
+==================================================================
+[run-benchmark] Starting benchmark batch at 2026-06-01T12:52:05Z
+  RESULTS_DIR=D:/harness-efforts/codexu/.ralph/jobs/codex-rs-build-perf-baseline-measurement
+  CODEX_RS_DIR=D:/harness-efforts/codexu/codex/external/repos/codex-patched/codex-rs
+==================================================================
+
+==================================================================
+[run-benchmark] SCENARIO: cold-cache  jobs=4  LTO=off
+[run-benchmark] log: D:/harness-efforts/codexu/.ralph/jobs/codex-rs-build-perf-baseline-measurement/cold-cache.log
+==================================================================
+[run-benchmark] cleanup: rm -rf 'D:/harness-efforts/codexu/codex/external/repos/codex-patched/codex-rs/target/release' 2>/dev/null; sccache --stop-server >/dev/null 2>&1 || true; rm -rf 'D:/codex-sccache' 2>/dev/null; mkdir -p 'D:/codex-sccache'; sccache --start-server >/dev/null 2>&1 || true
+[run-benchmark] START cold-cache at 2026-06-01T12:52:22Z
+[run-benchmark] END cold-cache at 2026-06-01T13:45:27Z  rc=0  elapsed_sec=3184
+[run-benchmark] CSV row:
+"runId","scenario","wallSeconds","peakRssMB","sccacheHits","sccacheMisses","sccacheStores","cargoExitCode","lto","codegenUnits","jobs","rustflags"
+"cold-cache-2026-06-01T125222Z","cold-cache","3181.4","8616","5","1495","1495","0","off","16","4",
+[run-benchmark] codex-core.exe size: 294.6 MB
+
+==================================================================
+[run-benchmark] SCENARIO: warm-cache  jobs=4  LTO=off
+[run-benchmark] log: D:/harness-efforts/codexu/.ralph/jobs/codex-rs-build-perf-baseline-measurement/warm-cache.log
+==================================================================
+[run-benchmark] cleanup: rm -f 'D:/harness-efforts/codexu/codex/external/repos/codex-patched/codex-rs/target/release/codex-core.exe' 2>/dev/null; true
+[run-benchmark] START warm-cache at 2026-06-01T13:45:29Z
+[run-benchmark] END warm-cache at 2026-06-01T13:46:38Z  rc=0  elapsed_sec=68
+[run-benchmark] CSV row:
+"runId","scenario","wallSeconds","peakRssMB","sccacheHits","sccacheMisses","sccacheStores","cargoExitCode","lto","codegenUnits","jobs","rustflags"
+"warm-cache-2026-06-01T134529Z","warm-cache","65.8","244","0","0","0","0","off","16","4",
+[run-benchmark] codex-core.exe size: 294.6 MB
+
+==================================================================
+[run-benchmark] SCENARIO: jobs-change  jobs=2  LTO=off
+[run-benchmark] log: D:/harness-efforts/codexu/.ralph/jobs/codex-rs-build-perf-baseline-measurement/jobs-change.log
+==================================================================
+[run-benchmark] cleanup: rm -f 'D:/harness-efforts/codexu/codex/external/repos/codex-patched/codex-rs/target/release/codex-core.exe' 2>/dev/null; true
+[run-benchmark] START jobs-change at 2026-06-01T13:46:40Z
+[run-benchmark] END jobs-change at 2026-06-01T13:46:49Z  rc=0  elapsed_sec=9
+[run-benchmark] CSV row:
+"runId","scenario","wallSeconds","peakRssMB","sccacheHits","sccacheMisses","sccacheStores","cargoExitCode","lto","codegenUnits","jobs","rustflags"
+"jobs-change-2026-06-01T134640Z","jobs-change","6.6","244","0","0","0","0","off","16","2",
+[run-benchmark] codex-core.exe size: 294.6 MB
+
+==================================================================
+[run-benchmark] SCENARIO: lto-change  jobs=4  LTO=thin
+[run-benchmark] log: D:/harness-efforts/codexu/.ralph/jobs/codex-rs-build-perf-baseline-measurement/lto-change.log
+==================================================================
+[run-benchmark] cleanup: rm -f 'D:/harness-efforts/codexu/codex/external/repos/codex-patched/codex-rs/target/release/codex-core.exe' 2>/dev/null; true
+[run-benchmark] START lto-change at 2026-06-01T13:46:51Z
+[run-benchmark] END lto-change at 2026-06-01T14:44:56Z  rc=0  elapsed_sec=3485
+[run-benchmark] CSV row:
+"runId","scenario","wallSeconds","peakRssMB","sccacheHits","sccacheMisses","sccacheStores","cargoExitCode","lto","codegenUnits","jobs","rustflags"
+"lto-change-2026-06-01T134651Z","lto-change","3480","7096","0","0","0","0","thin","16","4",
+[run-benchmark] codex-core.exe size: 281.5 MB
+
+==================================================================
+[run-benchmark] All scenarios complete at 2026-06-01T14:44:59Z
+==================================================================
+
+[run-benchmark] CSV SUMMARY:
+--- cold-cache ---
+"runId","scenario","wallSeconds","peakRssMB","sccacheHits","sccacheMisses","sccacheStores","cargoExitCode","lto","codegenUnits","jobs","rustflags"
+"cold-cache-2026-06-01T125222Z","cold-cache","3181.4","8616","5","1495","1495","0","off","16","4",
+--- warm-cache ---
+"runId","scenario","wallSeconds","peakRssMB","sccacheHits","sccacheMisses","sccacheStores","cargoExitCode","lto","codegenUnits","jobs","rustflags"
+"warm-cache-2026-06-01T134529Z","warm-cache","65.8","244","0","0","0","0","off","16","4",
+--- jobs-change ---
+"runId","scenario","wallSeconds","peakRssMB","sccacheHits","sccacheMisses","sccacheStores","cargoExitCode","lto","codegenUnits","jobs","rustflags"
+"jobs-change-2026-06-01T134640Z","jobs-change","6.6","244","0","0","0","0","off","16","2",
+--- lto-change ---
+"runId","scenario","wallSeconds","peakRssMB","sccacheHits","sccacheMisses","sccacheStores","cargoExitCode","lto","codegenUnits","jobs","rustflags"
+"lto-change-2026-06-01T134651Z","lto-change","3480","7096","0","0","0","0","thin","16","4",
