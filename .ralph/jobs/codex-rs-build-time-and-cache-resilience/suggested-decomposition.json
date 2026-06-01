@@ -1,0 +1,26 @@
+{
+  "clusters": [
+    {
+      "name": "iteration-profile-and-sccache",
+      "stories": ["US-1", "US-2", "US-3a", "US-4"],
+      "phase": 1,
+      "dependsOn": [],
+      "fileOverlapEvidence": {
+        "sharedFiles": [
+          "codex/.claude/commands/publish-sandbox-patch.md",
+          "codex/CLAUDE.md"
+        ],
+        "exclusiveFiles": [
+          "codex/scripts/iteration-env.sh",
+          "codex/scripts/measure-build.ps1",
+          "codex/docs/implementation/build-perf.md",
+          "codex/.claude/commands/rebase-upstream.md",
+          "codex/.gitignore"
+        ],
+        "risk": "low"
+      },
+      "executionModeRationale": "All four stories edit the same two markdown files (publish-sandbox-patch.md, CLAUDE.md). Parallel execution would force merge resolution on every story for trivial gains. Serial execution in US-1 -> US-2 -> US-3a -> US-4 order avoids merge conflicts and keeps the change reviewable as a single coherent PR. US-3b (recorded benchmark numbers) is split out as an operator-driven follow-up task (codex-rs-build-perf-baseline-measurement) and is NOT part of this plan."
+    }
+  ]
+}
+

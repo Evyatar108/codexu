@@ -1,0 +1,92 @@
+**Codebase Architecture**
+The feature lives under the `codex/` wrapper repo inside codexu, not the Happy app packages.
+
+Key structure:
+
+- `codex/CLAUDE.md`: fork-level engineering rules, release/build confusion points, and the current pointer to the authoritative release env.
+- `codex/external/repos/codex-patched/`: upstream Codex submodule.
+- `codex/external/repos/codex-patched/codex-rs/`: Rust Cargo workspace, Rust `1.95.0`, many crates, release profile defaults.
+- `codex/codex-rs-overlay/`: fork-owned overlay crates preferred for source changes, but this feature should not need Rust changes.
+- `codex/.claude/commands/publish-sandbox-patch.md`: current manual release procedure and most important integration point.
+- `codex/.claude/commands/rebase-upstream.md`: mirrors the same LLVM/xwin/rusty_v8 build env.
+- `codex/.github/workflows/publish-npm.yml`: CI reference for the Windows release env.
+- `codex/external/repos/codex-patched/.github/workflows/*.yml`: upstream Codex workflows; several already use `sccache`.
+
+Languages/tools: Rust/Cargo, Bash, PowerShell, GitHub Actions, Node/npm packaging. The build path uses Git Bash on Windows with LLVM `clang-cl`, `llvm-lib`, `lld-link`, xwin-staged SDK, and `RUSTY_V8_ARCHIVE`.
+
+**Feature-Relevant Code**
+Directly relevant files:
+
+- `codex/.claude/commands/publish-sandbox-patch.md`: hard-codes release env:
+  `CARGO_PROFILE_RELEASE_LTO=thin`, `CARGO_PROFILE_RELEASE_CODEGEN_UNITS=16`, LLVM/xwin vars, `RUSTY_V8_ARCHIVE`, and the shipped binary selector build.
+- `codex/.claude/commands/rebase-upstream.md`: same build env, so profile changes must stay synchronized or point to one canonical source.
+- `codex/CLAUDE.md`: already says `publish-sandbox-patch.md` is authoritative for LLVM/xwin/rusty_v8 env vars and documents release build traps.
+- `codex/external/repos/codex-patched/codex-rs/Cargo.toml`: release profile defaults are `lto = "fat"` and `codegen-units = 1`; the command env intentionally overrides these. Current workspace version is `0.135.0-copilot-api.1`; `v8 = "=147.4.0"`.
+- `codex/external/repos/codex-patched/codex-rs/rust-toolchain.toml`: Rust `1.95.0`.
+- `codex/.github/workflows/publish-npm.yml`: CI uses the same thin-LTO env and `Swatinem/rust-cache@v2`.
+- `codex/external/repos/codex-patched/.github/workflows/rust-ci-full.yml` and `rust-ci-full-nextest-platform.yml`: install `sccache`, set `SCCACHE_DIR`, set `RUSTC_WRAPPER`, restore/save cache, show stats.
+- `codex/external/repos/codex-patched/.github/workflows/v8-canary.yml`: uses `sccache` while building upstream `rusty_v8` from source; useful compatibility precedent.
+- `codex/docs/implementation/patch-surface.md`: local-vs-CI warning that full release builds are expensive and local agents should avoid broad release builds casually.
+
+External survey notes:
+
+- Mozilla sccache docs support Rust via `RUSTC_WRAPPER`, local disk cache via `SCCACHE_DIR`, stats via `sccache --show-stats`, and MSVC/clang support.
+- Important caveat: sccache’s Rust key includes parsed rustc arguments. LTO and `RUSTFLAGS=-C debuginfo=0` changes create different cache keys. `CARGO_BUILD_JOBS` should not.
+- sccache does not cache crates that invoke the system linker: `bin`, `dylib`, `cdylib`, `proc-macro`. Final `codex`/`codex-core` linking and rusty_v8 link consumption still need measurement.
+- Current sampled Tauri workflows use `Swatinem/rust-cache@v2` and `CARGO_PROFILE_DEV_DEBUG=0`, not obvious `RUSTC_WRAPPER` sccache wiring.
+
+**Technical Constraints**
+Do not edit Rust source for this feature. Prefer wrapper-owned docs/scripts over `external/repos/codex-patched/AGENTS.md`, because that file is upstream-canonical and high-conflict.
+
+The canonical profile should probably live in `codex/.claude/commands/publish-sandbox-patch.md`, with `codex/CLAUDE.md` summarizing and pointing to it. Avoid making `codex/external/repos/codex-patched/AGENTS.md` the source of truth.
+
+Current machine facts:
+
+- 64 GB RAM, 16 logical CPUs.
+- Active pagefile usage reports `C:\pagefile.sys` allocated about 52.9 GB, current 6.9 GB, peak 14.4 GB.
+- Registry config says `d:\pagefile.sys 0 0`, `TempPageFile=true`; so size is currently above 32 GB, but the active temp pagefile is on C, not D.
+- Free space: C about 34 GB, D about 454 GB. Put `SCCACHE_DIR` on D.
+
+**Implementation Suggestions**
+Add a wrapper-owned script or documented env block that sets the frozen local iteration profile:
+
+```bash
+export PATH="/c/Program Files/LLVM/bin:$PATH"
+export RUSTUP_TOOLCHAIN=stable-x86_64-pc-windows-msvc
+export CC=clang-cl CXX=clang-cl AR=llvm-lib
+export CARGO_TARGET_X86_64_PC_WINDOWS_MSVC_LINKER=lld-link
+export CARGO_PROFILE_RELEASE_LTO=off
+export CARGO_PROFILE_RELEASE_CODEGEN_UNITS=16
+export CARGO_BUILD_JOBS=4
+export RUSTFLAGS=
+```
+
+Then add optional try-it override:
+
+```bash
+export RUSTFLAGS="-C debuginfo=0"
+```
+
+For sccache, mirror upstream workflow patterns:
+
+```bash
+export SCCACHE_DIR="D:\\sccache\\codex-rs"
+export SCCACHE_CACHE_SIZE=50G
+wrapper="$(cygpath -w "$(command -v sccache)")"
+export RUSTC_WRAPPER="$wrapper"
+export CARGO_BUILD_RUSTC_WRAPPER="$wrapper"
+sccache --start-server
+sccache --zero-stats
+```
+
+Verification should explicitly test:
+
+- Same frozen profile, clean `target`, warm sccache: expect high cache hits except linker/bin/proc-macro limits.
+- Change only `CARGO_BUILD_JOBS`: expect cache reuse.
+- Change LTO or `RUSTFLAGS`: expect misses or separate cache profile; document this as “version the cache/profile,” not normal iteration.
+- rusty_v8 archive path present and final binaries build/link with `RUSTY_V8_ARCHIVE`.
+- `sccache --show-stats` before/after each run.
+
+For jobs/OOM, script a PowerShell sampler around `cargo build --release --timings ...` and try jobs `4`, then `6`; record wall time, peak commit/RSS from `Get-Process`, and sccache stats. Highest safe value becomes the documented default.
+
+Bundle recommendation: one PR for docs plus helper script/env snippets, because the changes are tightly coupled and wrapper-owned. Keep benchmark results as an appended record; if jobs=6/pagefile findings need machine-specific follow-up, split only that measurement update.
