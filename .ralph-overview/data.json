@@ -2196,9 +2196,11 @@
     {
       "id": "codex-channels",
       "scope": "codex",
-      "lifecycle": "tracked",
-      "status": "blocked",
-      "lastTouchedAt": "2026-05-14T09:00:00Z",
+      "lifecycle": "archived",
+      "status": "ok",
+      "mergeCommit": "deferred-stage-b-2026-06-01-option-B-chosen-instead",
+      "lastTouchedAt": "2026-06-01T13:32:00Z",
+      "regressionReason": "Option B chosen 2026-06-01 (plan 635248c6/bbc49ceb). Stage A mcp-server-notifications (bd98f77/7a51ef8c/2d5a4864) already delivers state-change push for the named use cases (file watcher, dynamic tools) via EventMsg::McpServerNotification. Channels framing is specifically for external-user-message ingress (Slack/Telegram/SMS bridge) — narrower applicability, no concrete chat-bridge proposal on roadmap. Reopen if such use case lands. Replacement: codex-channels-option-b (notifications-to-prompt-queue on Stage A, happy-cli only, zero codex Rust touches).",
       "kanbanCards": [],
       "command": {
         "name": "codex-channels",
@@ -2464,8 +2466,9 @@
     {
       "id": "codex-mcp-server-notifications-patch-surface-docs",
       "scope": "codex",
-      "lifecycle": "tracked",
+      "lifecycle": "merged",
       "status": "ok",
+      "mergeCommit": "3f7d53e35,cb9bc687",
       "lastTouchedAt": "2026-05-31T17:32:00Z",
       "kanbanCards": [],
       "command": {
