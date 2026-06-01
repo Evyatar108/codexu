@@ -2283,6 +2283,35 @@
       }
     },
     {
+      "id": "escalate-gim-home-actions-policy",
+      "scope": "codex|ops",
+      "lifecycle": "tracked",
+      "status": "blocked",
+      "lastTouchedAt": "2026-06-01T12:25:00Z",
+      "kanbanCards": [
+        {
+          "column": "blocked",
+          "cardClass": null,
+          "inlineStyle": null,
+          "html": "\n      <div class=\"card-title\">Unblock gim-home/codex GitHub Actions (org policy escalation)</div>\n      <div class=\"sub\">100/100 recent CI runs exit startup_failure since at least 2026-04-07. Diagnosed as org-level Actions policy refusal — not code. Operator/org-admin action only.</div>\n      <div class=\"card-meta\">\n        <span class=\"pill area-ops\">ops</span>\n        <span class=\"pill p-high\">blocked on org-admin</span>\n      </div>\n    ",
+          "order": 5
+        }
+      ],
+      "command": {
+        "name": "escalate-gim-home-actions-policy",
+        "descriptionHtml": "Surfaced 2026-06-01 by <code>diagnose-codex-ci-startup-failure-r2</code>. <strong>Root cause</strong>: org-level GitHub Actions policy on <code>gim-home</code> blocks ALL workflow dispatches on <code>gim-home/codex</code> repo. 100/100 recent runs are zero-job non-rerequestable startup_failure (the canonical fingerprint of org-policy rejection at dispatch time, NOT YAML/runner/secrets issues). Pattern goes back to at least 2026-04-07 (last successful run was 2026-04-07 'blob-size-policy' — likely pre-policy-tightening). <strong>Fix is ops-only</strong>; no code change possible. Three hypotheses (likelihood order): (1) allowed-actions allowlist excludes third-party actions like <code>dtolnay/rust-toolchain</code> + <code>Swatinem/rust-cache</code>; (2) selected-repos allowlist doesn't include <code>gim-home/codex</code>; (3) repo-level Actions disabled (<code>has_actions:null</code> is suspicious). <strong>Blocks</strong>: every CI workflow on gim-home/codex including <code>publish-npm</code> (means no new codex.exe releases ship from this fork until fixed) + <code>invariant-check</code> + Dependabot.",
+        "warnings": [
+          {
+            "className": "cmd-warn blocked",
+            "html": "🔒 <strong>Blocked on org admin</strong>. Operator must visit <code>https://github.com/organizations/gim-home/settings/actions</code> to either: (a) update the allowed-actions allowlist to include <code>dtolnay/rust-toolchain@*, Swatinem/rust-cache@*, actions/*</code> etc., OR (b) add <code>gim-home/codex</code> to selected-repos allowlist, OR (c) enable repo-level Actions via Settings → Actions → General. If org won't move: workaround is relocating publish workflow to a non-gim-home repo."
+          }
+        ],
+        "prompts": {
+          "impl": "OPS-ONLY task — no impl member to spawn. Operator escalates to gim-home org admin to fix the GitHub Actions policy per the description. After fix, verify with: gh run list --repo gim-home/codex --limit 3 (should show queued/in_progress/success status instead of startup_failure for the next workflow trigger). Then mark this task merged with mergeCommit: org-policy-fix-applied-YYYY-MM-DD."
+        }
+      }
+    },
+    {
       "id": "codex-rs-build-time-and-cache-resilience",
       "scope": "codex",
       "lifecycle": "tracked",
