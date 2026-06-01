@@ -2272,7 +2272,6 @@
       "lifecycle": "archived",
       "status": "ok",
       "mergeCommit": "resolved-rustup-1-95-already-installed-locally",
-      "lastTouchedAt": "2026-05-31T15:25:00Z",
       "lastTouchedAt": "2026-05-30T21:45:00Z",
       "kanbanCards": [],
       "command": {
@@ -2333,9 +2332,9 @@
     {
       "id": "codex-rs-iteration-env-sccache-race-and-jobs-default",
       "scope": "codex",
-      "lifecycle": "tracked",
+      "lifecycle": "merged",
       "status": "ok",
-      "lastTouchedAt": "2026-06-01T19:03:00Z",
+      "lastTouchedAt": "2026-06-01T19:14:00Z",
       "kanbanCards": [],
       "command": {
         "name": "codex-rs-iteration-env-sccache-race-and-jobs-default",
@@ -2344,6 +2343,22 @@
         "prompts": {
           "impl": "Two changes to D:/harness-efforts/codexu/codex/scripts/iteration-env.sh: (1) F-5 sccache race fix — after the existing sccache --stop-server / --start-server reconciliation, add a poll loop: `for i in {1..30}; do sccache --show-stats >/dev/null 2>&1 && break; sleep 0.5; done`. Time-box to 15s. If still not ready after timeout, emit a WARNING (don't fail — fall back to no-sccache build). (2) Change CARGO_BUILD_JOBS default from 4 to 8 — update both the export line and the FROZEN ITERATION PROFILE ACTIVE banner. Single docs-tier commit on wrapper repo (gim-home/codex). Lead bumps codexu submodule pointer. Phase 5b docs convergence."
         }
+      },
+      "shipManifest": {
+        "shippedAt": "2026-06-01T19:14:00Z",
+        "summary": "Fixed two issues found in jobs-sweep benchmark: (1) F-5 sccache --start-server race where server was transiently unreachable post-restart, causing jobs=6/jobs=12 cold runs to register only 21 sccache requests vs 1705 for jobs=4/jobs=8 — added a 15s poll loop (30 × 0.5s) that waits for sccache --show-stats to respond, with WARN-not-fail fallback. (2) Bumped CARGO_BUILD_JOBS default 4→8 to match the jobs-sweep winner (50:12 cold, 8.2 GB peak RSS — 56 GB headroom on the 64 GB box). Banner already interpolated  dynamically so no banner-text edit needed; header comment + inline rationale updated. Single-file wrapper-only edit on codex/scripts/iteration-env.sh (+21 −4). Phase 5b docs verified: zero remaining jobs=4 references in script. Codexu submodule pointer bumped to d8e4dad15. Expected impact: ~5m cold-build savings (50m → ~45m) once the new defaults exercise on the next cold cycle, plus elimination of the non-deterministic sccache-bypass flake at higher jobs counts.",
+        "commits": [
+          {
+            "sha": "d8e4dad151dbe8e9be9f11cce05b6f93ea648111",
+            "oneLine": "fix(iteration-env): poll sccache server post-restart + jobs default 4->8",
+            "repo": "gim-home/codex"
+          },
+          {
+            "sha": "7142353e",
+            "oneLine": "chore(codex): bump pointer to d8e4dad15",
+            "repo": "Evyatar108/codexu"
+          }
+        ]
       }
     },
     {
@@ -2384,18 +2399,53 @@
       }
     },
     {
+      "id": "codex-rs-build-perf-jobs-sweep-with-defender",
+      "scope": "codex",
+      "lifecycle": "merged",
+      "status": "ok",
+      "lastTouchedAt": "2026-06-01T17:00:00Z",
+      "kanbanCards": [],
+      "shipManifest": {
+        "shippedAt": "2026-06-01T17:00:00Z",
+        "summary": "CARGO_BUILD_JOBS sweep (4/6/8/12) under Defender exclusions to identify the cold-cache wall-time optimum on the 16-thread / 64 GB dev box. Results: jobs=4 56:26, jobs=6 51:16, jobs=8 50:12 (WINNER), jobs=12 49:22. Peak RSS scaled 8.1->8.3 GB (negligible). Defender exclusions delivered NO measurable benefit at jobs=4 (56:26 vs prior 53:00 baseline -- within noise; F-6). Two HIGH findings: F-5 sccache --start-server race causes jobs=6/jobs=12 to register only 21 cache requests vs 1705 for jobs=4/jobs=8 (transient post-restart unreachability); F-7 sub-45m floor needs feature pruning, not more concurrency (4x->12x only bought 7%). Artifacts at .ralph/jobs/codex-rs-build-perf-jobs-sweep-with-defender/ (master.log + per-scenario csv/log/sccache-stats + results.md).",
+        "commits": [
+          {
+            "sha": "a0a64939",
+            "oneLine": "chore(perf): commit jobs-sweep + defender benchmark artifacts",
+            "repo": "Evyatar108/codexu"
+          },
+          {
+            "sha": "e59e4303",
+            "oneLine": "chore(overview): file 3 followups from jobs-sweep findings",
+            "repo": "Evyatar108/codexu"
+          },
+          {
+            "sha": "df85850b",
+            "oneLine": "chore(overview): add remaining 2 followups (defender-procmon + feature-pruning)",
+            "repo": "Evyatar108/codexu"
+          }
+        ]
+      },
+      "command": {
+        "name": "codex-rs-build-perf-jobs-sweep-with-defender",
+        "descriptionHtml": "Benchmark task -- completed 2026-06-01. Sweep CARGO_BUILD_JOBS 4/6/8/12 under Defender exclusions to find the cold-cache wall-time optimum. Winner: jobs=8 at 50:12 (vs jobs=4 baseline 56:26). See shipManifest.summary for full findings. Surfaced 3 followups: <code>codex-rs-iteration-env-sccache-race-and-jobs-default</code> (F-5, now MERGED), <code>codex-rs-defender-exclusions-procmon-verify</code> (F-6), <code>codex-rs-feature-pruning-for-sub-45m-cold</code> (F-7).",
+        "warnings": [],
+        "prompts": {}
+      }
+    },
+    {
       "id": "codex-rs-iteration-profile-lto-bypass-doc-fix",
       "scope": "codex",
       "lifecycle": "tracked",
       "status": "ok",
-      "lastTouchedAt": "2026-06-01T14:52:00Z",
+      "lastTouchedAt": "2026-06-01T19:18:00Z",
       "kanbanCards": [],
       "command": {
         "name": "codex-rs-iteration-profile-lto-bypass-doc-fix",
-        "descriptionHtml": "Surfaced 2026-06-01 by <code>benchmark-codex-rs-build-perf</code> (artifacts at <code>.ralph/jobs/codex-rs-build-perf-baseline-measurement/benchmark-results.md</code>, F-1 HIGH finding). The Stage A iteration-env.sh + build-perf.md framing implies switching LTO between iterations causes cache invalidation (LTO IS a cache key). The real behavior measured in benchmark: <strong>sccache wrapper-side BYPASSES rustc invocations entirely under LTO=thin</strong> — lto-change scenario recompiled 939 crates with 0 sccache requests despite on-disk cache growing from ~1 GiB → 2.25 GiB. This means switching to LTO=thin loses sccache benefit on EVERY future build until switched back, not just the first. Small docs fix to <code>iteration-env.sh</code> banner + <code>build-perf.md</code> §LTO discussion. Also: F-2 cold-cache 53m vs ≤45m target (suggest reset to ~55m or promote Defender exclusion to RECOMMENDED). Also: F-3/F-4 warm-cache + jobs-change scenarios as written are pure relink floors (cargo doesn't recompile anything because only the bin was deleted) — rename or redesign.",
+        "descriptionHtml": "Consolidated docs-fix bundle for the 2026-06-01 build-perf benchmarks (baseline-measurement + jobs-sweep-with-defender). Multiple stale claims in codex-build documentation contradicted by measured findings: <strong>F-1 (HIGH):</strong> sccache wrapper BYPASSES LTO=thin entirely (0 cache requests in lto-change scenario despite cache growth -- losing benefit on EVERY future LTO=thin build, not just first). <strong>F-3/F-4 (LOW):</strong> warm-cache + jobs-change scenarios as written are pure relink floors (cargo does not recompile because only the bin was deleted). <strong>F-5 (HIGH, code-fixed already at d8e4dad15):</strong> sccache --start-server race at jobs=6/12 caused 0 cache hits on those runs. <strong>F-6 (MED):</strong> Defender exclusions delivered no measurable benefit -- downgrade publish-sandbox-patch.md recommendation. <strong>Jobs default 4-&gt;8:</strong> sweep winner. Files to fix: <code>codex/CLAUDE.md:160</code> + <code>codex/AGENTS.override.md:127</code> (LTO mechanism wording), <code>codex/.claude/commands/publish-sandbox-patch.md:28-30,85</code> (Defender downgrade + jobs=4-&gt;8), <code>codex/docs/implementation/build-perf.md</code> (rewrite scenarios per F-3/F-4 + fill treatment results table with baseline + sweep + sccache-race-fix numbers + F-1 LTO bypass section + F-6 Defender callout).",
         "warnings": [],
         "prompts": {
-          "impl": "Small docs+script fix. Edit codex/scripts/iteration-env.sh banner to add a WARNING about LTO=thin bypassing sccache (cite F-1 finding). Edit codex/docs/implementation/build-perf.md to: (a) correct §LTO mechanism description per F-1; (b) reset cold-cache target from ≤45m to ~55m per F-2; (c) promote Defender exclusion from OPTIONAL to RECOMMENDED; (d) rename or redesign warm-cache + jobs-change scenarios per F-3/F-4 (they're pure relink floors as currently written). Wrapper-only commit on gim-home/codex; lead bumps codexu submodule pointer. Single commit + Phase 5b docs convergence."
+          "impl": "Consolidated docs-only convergence for 2026-06-01 build-perf benchmarks. Wrapper-only edits on gim-home/codex (codex/scripts/iteration-env.sh + codex/docs/implementation/*.md + codex/CLAUDE.md + codex/AGENTS.override.md + codex/.claude/commands/publish-sandbox-patch.md). Lead bumps codexu submodule pointer separately. NO inner submodule changes, NO codex Rust source changes.\n\nFix scope:\n\n1. codex/CLAUDE.md:160 + codex/AGENTS.override.md:127 -- UPDATE the \"only lever is LTO=off/thin/fat\" sentence to also note: sccache wrapper BYPASSES rustc invocations entirely under LTO=thin (F-1 finding 2026-06-01) -- switching to LTO=thin loses sccache benefit on every future build until switched back, not just the first. LTO=off is the only profile under which sccache actually wraps rustc on this workspace.\n\n2. codex/.claude/commands/publish-sandbox-patch.md:\n   - Lines 28-30 (Defender exclusion): downgrade from \"OPTIONAL Defender exclusion\" recommendation to a no-measurable-benefit note. Cite F-6 (2026-06-01 jobs-sweep benchmark, 56:26 with exclusions vs 53:00 baseline -- within noise; even slightly slower).\n   - Line 85: change \"CARGO_BUILD_JOBS=4 (safe to override -- NOT in cache key)\" to reflect the new jobs=8 default after 2026-06-01 jobs-sweep (winner 50:12 cold vs 56:26 at jobs=4 on this 16-thread / 64 GB box). Also any other lingering jobs=4 mentions in step 2a or the frozen-env block.\n\n3. codex/docs/implementation/build-perf.md -- substantial rewrite:\n   - LTO mechanism section: rewrite per F-1 (sccache wrapper bypass under thin; LTO=off is the only sccache-effective profile).\n   - Scenarios table: rewrite jobs-change row (remove 4 to 2 framing; explain why warm-cache + jobs-change as written are pure relink floors per F-3/F-4 -- only bin was deleted, cargo does not recompile).\n   - Treatment results table (currently empty): fill with three rows -- (a) baseline 2026-06-01 cold 53m / warm 1m08s / lto-change 58m (from baseline-measurement); (b) jobs-sweep 2026-06-01 jobs=4 56:26 / jobs=6 51:16 / jobs=8 50:12 WINNER / jobs=12 49:22 (from jobs-sweep-with-defender); (c) post-sccache-race-fix expected ~45m at jobs=8 (per shipped d8e4dad15 + winner combo, awaiting measurement on next cold cycle).\n   - Add Defender exclusion subsection: F-6 callout (tested 2026-06-01 -- no measurable benefit at jobs=4; listed in publish-sandbox-patch.md preconditions but downgraded to non-recommended).\n   - Add sccache + LTO interaction subsection: F-1 callout standalone with cross-link to CLAUDE.md / AGENTS.override.md.\n   - Reset cold-cache target from <=45m to ~50m per F-2 (we just landed jobs=8 winner -- measure once before adjusting further).\n\n4. codex/scripts/iteration-env.sh -- banner already updated by d8e4dad15 for jobs=8 + sccache poll. Confirm no further changes needed; if banner still mentions any stale value, fix it.\n\nPhase 5b docs convergence: after edits, reviewer round should verify zero remaining \"jobs=4\" references in the script, every doc cross-link is consistent (CLAUDE.md <-> AGENTS.override.md <-> publish-sandbox-patch.md <-> build-perf.md), and the build-perf.md treatment table actually matches the .ralph/jobs/ benchmark artifacts.\n\nSingle commit OK (docs-only, focused). Topic branch ralph/iteration-profile-lto-bypass-doc-fix off gim-home/codex main. Push to gim-home/codex. Body-canonical report: prose body substantive, summary <= 200 chars."
         }
       }
     },
@@ -2571,7 +2621,6 @@
       "scope": "codex",
       "lifecycle": "merged",
       "status": "ok",
-      "mergeCommit": "fully-resolved-by-e423b8c7e",
       "mergeCommit": "partially-addressed-by-5726e6f08",
       "lastTouchedAt": "2026-05-31T18:30:00Z",
       "kanbanCards": [],
@@ -2589,7 +2638,6 @@
       "scope": "codex",
       "lifecycle": "merged",
       "status": "ok",
-      "mergeCommit": "fully-resolved-by-494219ed4-plus-resume-proper-chain",
       "mergeCommit": "partially-addressed-by-494219ed4",
       "lastTouchedAt": "2026-05-31T18:30:00Z",
       "kanbanCards": [],
