@@ -2333,9 +2333,10 @@
     {
       "id": "codex-rs-build-perf-baseline-measurement",
       "scope": "codex",
-      "lifecycle": "tracked",
+      "lifecycle": "merged",
       "status": "ok",
-      "lastTouchedAt": "2026-06-01T12:30:00Z",
+      "mergeCommit": "ea4b852c",
+      "lastTouchedAt": "2026-06-01T14:52:00Z",
       "kanbanCards": [],
       "command": {
         "name": "codex-rs-build-perf-baseline-measurement",
@@ -2460,6 +2461,22 @@
         ],
         "prompts": {
           "impl": "See spawn-prompt for impl-codex-rebase-debt-reconciliation (2026-05-31). Survey-categorize-fix approach: cargo check --workspace baseline → categorize each error as (a) mechanical / (b) fork-architecture / (c) security-sensitive → fix all (a) autonomously, surface (b)/(c) as kind=question → re-verify workspace GREEN → push topic branch to gim-home/codex (lead does wrapper FF + codexu submodule bump). Every edit gets a // SANDBOX PATCH: rebase-debt-fix v0.135.0 marker + §15 replant recipe entry."
+        }
+      }
+    },
+    {
+      "id": "codex-channels-option-b",
+      "scope": "codexu",
+      "lifecycle": "tracked",
+      "status": "ok",
+      "lastTouchedAt": "2026-06-01T13:32:00Z",
+      "kanbanCards": [],
+      "command": {
+        "name": "codex-channels-option-b",
+        "descriptionHtml": "Replacement for <code>codex-channels</code> after operator chose Option B 2026-06-01. Thin notifications-to-prompt-queue impl on Stage A's existing <code>EventMsg::McpServerNotification</code> surface. happy-cli only; ZERO codex/ Rust touches. 3 stories, ~150-250 LoC TS. Plan at <code>.ralph/jobs/codex-channels-option-b/plan.md</code> (commit bbc49ceb). Includes mcp_sampling_request log-and-ignore handling.",
+        "warnings": [],
+        "prompts": {
+          "impl": "Read .ralph/jobs/codex-channels-option-b/plan.md. 3-story decomposition: (1) subscribe happy-cli's EventMsg consumer to McpServerNotification + McpSamplingRequest events; (2) routing config that maps notification kinds to display-only vs enqueue-as-prompt-input; (3) integration with existing input queue (priority handling, mid-LLM-call buffering). Tests: vitest fixtures per kind. Single commit OK on ralph/codex-channels-option-b off codexu origin/main. Push to origin + personal. Phase 5a+5b convergence."
         }
       }
     },
