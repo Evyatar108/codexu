@@ -2400,8 +2400,13 @@
       "scope": "codex",
       "lifecycle": "tracked",
       "status": "ok",
-      "lastTouchedAt": "2026-06-01T19:03:00Z",
-      "kanbanCards": [],
+      "lastTouchedAt": "2026-06-02T05:30:00Z",
+      "kanbanCards": [
+        {
+          "className": "cmd-info",
+          "html": "<strong>Plan shipped 2026-06-01</strong> (commit <code>bf2c89be</code> via cherry-pick from <code>6fe40c3c</code>). 5 user stories in 4 clusters / 3 phases. Multi-model review (Claude+Codex+Copilot) found 15 findings; all 6 Highs fixed in plan; 8 Mediums + 1 Low deferred as Open Questions. <strong>Key correction:</strong> seed prompt assumed wrapper-only CARGO_FEATURES_TO_DISABLE env would work; cargo --no-default-features -p codex-cli does NOT propagate to codex-tui/codex-utils-image defaults. Plan now requires per-package [features] blocks + dep-edge default-features=false forwarding through cli/Cargo.toml + core/Cargo.toml. F-7 lalrpop lever dropped (not present in checkout). Recommended impl flow: <code>/implement-with-ralph --from-plan ... --parallel --suggested-decomposition ... --autonomous</code>."
+        }
+      ],
       "command": {
         "name": "codex-rs-feature-pruning-for-sub-45m-cold",
         "descriptionHtml": "F-7 finding from benchmark-codex-rs-jobs-sweep-with-defender. Sub-45m cold target requires reducing TOTAL compile work, not more concurrency — 4×→12× concurrency only bought 7% (56:26 → 49:22). Bottleneck is the late-stage critical path: codex-tui + codex-app-server + codex-core LTO link. Candidate: prune unused codex-rs cargo features (image, lalrpop, aws-lc-rs dep trees). Survey + measure before/after. <strong>Touches upstream-canonical Cargo.toml files</strong> — minimize-conflict-surface mandate applies; prefer disabling features via cargo flags over editing default-features in workspace Cargo.toml.",
@@ -2412,7 +2417,8 @@
           }
         ],
         "prompts": {
-          "plan": "/plan-with-ralph \"Survey codex-rs workspace for cargo features that can be disabled without breaking the 4 produced bins (codex, codex-core, codex-windows-sandbox-setup, codex-command-runner). Candidates per F-7 finding: image, lalrpop, aws-lc-rs dep trees. Measurement methodology: cold-cache build per scripts/measure-build.ps1, before vs after feature-disable. Goal: cold-cache ≤45m AC-5 target. Per minimize-conflict-surface mandate: prefer CARGO_FEATURES_TO_DISABLE env or --no-default-features + explicit features list over editing workspace Cargo.toml default-features. If Cargo.toml edits required, mark with SANDBOX PATCH + §15 replant recipe. Plan should identify which features the 4 bins actually need (cargo tree --depth 1 + grep for #[cfg(feature)] gates), propose disable set, estimate the saved compile work, and gate impl on a verification build proving no functional regression.\""
+          "plan": "/plan-with-ralph \"Survey codex-rs workspace for cargo features that can be disabled without breaking the 4 produced bins (codex, codex-core, codex-windows-sandbox-setup, codex-command-runner). Candidates per F-7 finding: image, lalrpop, aws-lc-rs dep trees. Measurement methodology: cold-cache build per scripts/measure-build.ps1, before vs after feature-disable. Goal: cold-cache ≤45m AC-5 target. Per minimize-conflict-surface mandate: prefer CARGO_FEATURES_TO_DISABLE env or --no-default-features + explicit features list over editing workspace Cargo.toml default-features. If Cargo.toml edits required, mark with SANDBOX PATCH + §15 replant recipe. Plan should identify which features the 4 bins actually need (cargo tree --depth 1 + grep for #[cfg(feature)] gates), propose disable set, estimate the saved compile work, and gate impl on a verification build proving no functional regression.\"",
+          "impl": "/implement-with-ralph --from-plan .ralph/jobs/codex-rs-feature-pruning-for-sub-45m-cold/plan.md --parallel --suggested-decomposition .ralph/jobs/codex-rs-feature-pruning-for-sub-45m-cold/suggested-decomposition.json --autonomous"
         }
       }
     },
