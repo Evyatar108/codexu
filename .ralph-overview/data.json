@@ -49,6 +49,27 @@
   "generatedFromCommit": "d279d49d",
   "tasks": [
     {
+      "id": "crews-implement-with-ralph-parallel-outbox-silent-loss",
+      "scope": "crews",
+      "lifecycle": "tracked",
+      "status": "blocked",
+      "lastTouchedAt": "2026-06-02T16:17:00Z",
+      "kanbanCards": [
+        {
+          "className": "cmd-warn",
+          "html": "<strong>Bug surfaced 2026-06-02T15:11Z</strong>: <code>impl-ai-developer-toolkit-submodule</code> spawned with <code>/implement-with-ralph --from-plan ... --parallel --suggested-decomposition ... --autonomous</code> on crews v3.0.0; member alive + heartbeating for 1h 44m, but <code>outbox.jsonl</code> = 0 bytes since spawn time (14:28:14). Zero report-tag envelopes persisted. Operator screenshot shows member trying multiple report-tag forms including minimal-attribute <code>&lt;|report kind=\"blocked\" summary=\"...\"|&gt;</code>; none reached the lead. Other members today (channels-option-b, hooks-parity, feature-pruning, rebase-impl) all on v3.0.0 shipped cleanly with serial <code>--autonomous</code>. Only difference is <code>--parallel --suggested-decomposition</code>. Hypothesis cluster: (a) --parallel orchestrates all stories inside ONE Copilot turn that never reaches Stop event so the Stop hook never fires; (b) report tags wrapped in markdown code-fences by member for self-debugging visibility, parser strips them; (c) crews v3.0.0 strict-schema rejection silently swallowing envelopes during validation."
+        }
+      ],
+      "command": {
+        "name": "crews-implement-with-ralph-parallel-outbox-silent-loss",
+        "descriptionHtml": "Investigate why <code>impl-ai-developer-toolkit-submodule</code> (spawned with <code>/implement-with-ralph --parallel --suggested-decomposition</code>) has produced ZERO report-tag envelopes in 1h 44m of work despite the member process being alive + listener heartbeating. The on-disk state is preserved: <code>D:/harness-efforts/codexu/.crews/crews/ralph-pipeline/members/impl-ai-developer-toolkit-submodule/</code>. Compare against a known-good shipped member (e.g., <code>impl-codex-channels-option-b</code> at the same path with <code>impl-codex-channels-option-b</code>) which ran successfully on the same crews v3.0.0 with serial <code>--autonomous</code>. Goal: identify root cause + recommended fix. Bug report deliverable goes to <code>.ralph/investigations/crews-implement-with-ralph-parallel-outbox-silent-loss/findings.md</code>.",
+        "warnings": [],
+        "prompts": {
+          "investigate": "Diagnostic investigation. Use /multi-model-investigate if useful."
+        }
+      }
+    },
+    {
       "id": "perf-WS3",
       "scope": "codexu",
       "lifecycle": "merged",
