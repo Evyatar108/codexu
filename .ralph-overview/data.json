@@ -1499,27 +1499,10 @@
     {
       "id": "ai-developer-toolkit-submodule",
       "scope": "codexu",
-      "lifecycle": "tracked",
+      "lifecycle": "merged",
       "status": "ok",
-      "lastTouchedAt": "2026-06-02T15:31:32Z",
-      "kanbanCards": [
-        {
-          "className": "cmd-info",
-          "html": "<strong>Plan shipped 2026-06-01</strong> (commit <code>ff08932f</code>). 7 user stories / 4 phases. Multi-model review: 13 findings, 7 fixed (1 Critical + 6 Highs), 6 Mediums in Open Questions."
-        },
-        {
-          "className": "cmd-info",
-          "html": "<strong>Operator preflight approval recorded 2026-06-02T14:21Z</strong> (resolves US-001 pre-implementation gate): (1) <strong>Remote-sync DONE</strong> -- all 3 ai-developer-toolkit remotes now at d7e01874 (origin / personal FF-synced up to gim-home HEAD which was 1 commit AHEAD with crews v3.0.1 fix, not behind as the plan member assumed). Verified via git ls-remote on all 3 remotes. (2) <strong>Pin SHA selected: d7e01874385c13e7e833a6935d7de11ea2e565f7</strong> -- the now-aligned HEAD across all 3 remotes. (3) <strong>OVERRIDE: source remote URL = evmitran_microsoft, NOT gim-home.</strong> Impl must use <code>git submodule add https://github.com/evmitran_microsoft/ai-developer-toolkit.git ai-developer-toolkit</code> and the CI invariant script + AC #135 must verify that URL, not the gim-home URL. Rationale: evmitran_microsoft is the canonical source for codexu (its own origin remote points there); using the same org for the toolkit submodule keeps source-of-truth consistent."
-        },
-        {
-          "className": "cmd-warn",
-          "html": "<strong>Impl member spawn-prompt MUST include the operator-decision-replay above</strong>: the plan.md still references gim-home throughout (26 hits in AC #135, US-001 submodule-add command, CI invariant verification, risk-mitigation prose). Impl must treat the kanban override as authoritative -- replace gim-home with evmitran_microsoft in (a) <code>.gitmodules url</code>, (b) AC #135 verification text, (c) <code>tools/check-toolkit-submodule-invariants.mjs</code> URL check, (d) any AGENTS.md / CLAUDE.md cross-refs introduced. The \"gim-home is INTERNAL/private + GIM_HOME_PAT\" CI-auth subsection is now OBSOLETE -- evmitran_microsoft is also private but uses the existing repo CI credentials; CI invariant stays metadata-only by default."
-        },
-        {
-          "className": "cmd-warn",
-          "html": "<strong>2026-06-02T16:33Z -- DO NOT respawn with --parallel.</strong> The original spawn 1h 44m of silent-outbox loss was caused by a crews v3.0.0 Stop hook circuit-breaker bug triggered by --parallel notification storm (see <code>crews-implement-with-ralph-parallel-outbox-silent-loss</code> findings + <code>.ralph/investigations/crews-implement-with-ralph-parallel-outbox-silent-loss/findings.md</code>). Salvage path: 5/7 cluster branches are clean on <code>ralph/ai-developer-toolkit-submodule/integration</code>; resolver-wrapper has a 1-line AGENTS.md conflict (operating-manual broader rewrite + resolver-wrapper submodule-relative phrasing); smoke-and-rollback never launched (needs fresh serial impl spawn). Do NOT use <code>--parallel</code> for any impl-spawn until <code>crews-stop-circuit-breaker-recoverable</code> ships. Impl prompt now strips --parallel and --suggested-decomposition; serial <code>--autonomous</code> only."
-        }
-      ],
+      "lastTouchedAt": "2026-06-02T18:55:00Z",
+      "kanbanCards": [],
       "command": {
         "name": "ai-developer-toolkit-submodule",
         "descriptionHtml": "Integrate <code>ai-developer-toolkit</code> as a git submodule of codexu, mirroring the existing <code>codex/</code> submodule pattern. Today the toolkit lives at <code>D:/ai-developer-toolkit</code> (sibling repo, two remotes: Evyatar108 + gim-home) and is referenced from codexu via absolute paths in spawn-launcher scripts, CLAUDE.md instructions, bookkeeper memory, plan documents, and ad-hoc Bash commands. This is fragile (breaks on a different machine layout) and prevents codexu from version-pinning the toolkit commit it depends on. Add as submodule at <code>./ai-developer-toolkit/</code>, migrate absolute path references to relative, and add a CI invariant that the submodule pointer + toolkit's ralph-overview / crews plugin versions stay in sync with codexu's CLAUDE.md doc references.",
@@ -1533,6 +1516,57 @@
           "plan": "/plan-with-ralph \"Integrate ai-developer-toolkit as a git submodule of codexu. Today the toolkit lives at ./ai-developer-toolkit as a sibling repo with two remotes (Evyatar108 origin + gim-home work). Codexu references it via absolute paths in spawn-launcher scripts, CLAUDE.md instructions, bookkeeper memory, plan documents, and ad-hoc commands. This is fragile (breaks on a different machine layout) and prevents codexu from version-pinning the toolkit commit it depends on.\n\n## Target structure\n\n```\nD:/harness-efforts/codexu/\n├── .gitmodules                  # add new submodule entry\n├── ai-developer-toolkit/        # NEW submodule (was: ./ai-developer-toolkit/)\n│   ├── plugins/\n│   │   ├── ralph-overview/\n│   │   ├── crews/\n│   │   └── ralph-orchestration/\n│   └── ...\n├── codex/                       # existing submodule (gim-home/codex)\n├── plans/\n├── tools/\n├── packages/\n└── ...\n```\n\n## Submodule remote URL\n\nUse `https://github.com/gim-home/ai-developer-toolkit.git` per the codex/ submodule precedent (already uses gim-home). The local checkout's `origin` (Evyatar108) becomes a non-default remote that the operator adds manually for the push-to-both convention.\n\n## Migration steps\n\n### Pre-flight\n\n1. **Verify upstream toolkit state.** Confirm both Evyatar108/ai-developer-toolkit and gim-home/ai-developer-toolkit point at the same main HEAD (the last merge commit was `e65e8161` per recent bookkeeping). If they diverge, sync first.\n2. **Snapshot the current absolute paths.** Run `grep -rn './ai-developer-toolkit\\|D:\\\\ai-developer-toolkit' D:/harness-efforts/codexu/ --include='*.md' --include='*.js' --include='*.mjs' --include='*.ts' --include='*.tsx' --include='*.ps1' --include='*.json' --include='*.txt'` to enumerate every reference. Save the list.\n3. **Check the user .claude/settings.json MCP server registration.** If `mcpServers.ralph-overview` references `./ai-developer-toolkit/` directly (vs the cached plugin location), it'll need update — but verify this is in scope; the published-plugin cache at `C:/Users/evmitran/.claude/plugins/cache/ai-developer-toolkit/ralph-overview/<ver>/` is separate from a dev-mode source reference.\n\n### Submodule add\n\n4. **Add submodule from inside codexu.** \n   ```\n   cd D:/harness-efforts/codexu\n   git submodule add https://github.com/gim-home/ai-developer-toolkit.git ai-developer-toolkit\n   git submodule update --init\n   ```\n   This creates `./ai-developer-toolkit/` checkout, adds `.gitmodules` entry, and stages a submodule pointer commit at the current main HEAD.\n\n5. **Add Evyatar108 remote to the local submodule checkout.** Without this, the operator can't push to the personal fork.\n   ```\n   cd ai-developer-toolkit\n   git remote add evyatar108 https://github.com/Evyatar108/ai-developer-toolkit.git\n   cd ..\n   ```\n\n6. **Commit the submodule pointer.** Single commit in codexu: `chore: add ai-developer-toolkit submodule at <SHA>`.\n\n### Path rewrite\n\n7. **Rewrite the absolute paths captured in step 2.** For each file in the snapshot:\n   - `./ai-developer-toolkit/...` → `./ai-developer-toolkit/...` (or relative to file location: `../ai-developer-toolkit/...` if needed).\n   - Backslash variants: `D:\\\\ai-developer-toolkit\\\\...` → forward-slash relative form.\n   - Spawn launchers under `.crews/spawn-launchers/*.ps1` contain `Set-Location './ai-developer-toolkit'`-style lines that pin the toolkit absolute path — update to `Set-Location '$PSScriptRoot/../../ai-developer-toolkit'` or equivalent.\n   - DO NOT rewrite paths inside `ai-developer-toolkit/` itself (those are the toolkit's own repo content, not codexu's).\n   - DO NOT rewrite paths inside cached plugin locations at `C:/Users/evmitran/.claude/plugins/cache/` (those are the published artifact, not source).\n   - DO update bookkeeper memory entries at `C:/Users/evmitran/.claude/projects/D--harness-efforts-codexu/memory/*.md` — these are codexu-scoped memories and reference toolkit paths.\n\n8. **Verify each rewrite still works.** Particular care for:\n   - `.crews/spawn-launchers/*.ps1` — these are auto-generated by crews plugin spawnMember; check that the next spawn-member call produces a launcher with the relative path.\n   - `D:/harness-efforts/codexu/CLAUDE.md` (untracked) — update the bookkeeper operating manual.\n   - `plans/codexu-roadmap.md` — update doc references.\n   - In-flight task plan.md files under `.ralph/jobs/*/plan.md` — leave as-is (those are in-flight committed state).\n\n### Crew spawn pattern\n\n9. **Spawn-member command in CLAUDE.md.** The current invocation is:\n   ```\n   node <plugin>/tools/crews.js spawn-member <name> --crew ralph-pipeline --cwd D:/harness-efforts/codexu --state-cwd D:/harness-efforts/codexu --as overview-bookkeeper -- <prompt>\n   ```\n   The `<plugin>` placeholder is the cached plugin path. With submodule integration, dev-mode (uncached) spawn-member calls could use `./ai-developer-toolkit/plugins/crews/tools/crews.js`. Update the CLAUDE.md guidance to clarify when to use cached-plugin path vs in-tree submodule path — likely the cached path stays canonical for production use, while the submodule path is for dev-mode editing.\n\n10. **Verify member auto-resolution.** Spawned members rely on `--state-cwd` to find `.crews/`. Confirm members work with the submodule-integrated layout.\n\n### CI invariant\n\n11. **Add invariant check.** A pre-commit hook or CI workflow that checks codexu's CLAUDE.md / docs references to ralph-overview / crews plugin versions match the in-tree submodule version. Prevents drift between 'doc says version X' and 'submodule has version Y'.\n   - Specifically: `D:/harness-efforts/codexu/CLAUDE.md` mentions crews v1.6.0, ralph-overview v2.1.0. After submodule integration, the version is whatever's at `./ai-developer-toolkit/plugins/<plugin>/package.json` or `plugin.json`. CI lints for the version-string match.\n\n### Bookkeeper memory updates\n\n12. **Update bookkeeper auto-memory:**\n   - `feedback_cross_repo_impl_worktree_mandate.md` — describes 'sibling repo' cross-repo coordination. With ai-developer-toolkit as a submodule, the 'sibling' framing changes. Update to reflect that ai-developer-toolkit lives INSIDE codexu now, and worktree mandates are scoped accordingly.\n   - `feedback_crews_spawn_state_cwd_override.md` — the --state-cwd flag rule. Update example paths.\n   - `feedback_plan_member_branch_cherry_pick.md` — if the cherry-pick worktree pattern changes for submodule edits, update.\n   - Any memory referencing `./ai-developer-toolkit/...` — sweep + update.\n\n### Acceptance\n\n- `.gitmodules` lists ai-developer-toolkit submodule at `./ai-developer-toolkit/` with gim-home URL.\n- `git submodule update --init` brings the toolkit in cleanly.\n- Zero `./ai-developer-toolkit` or `D:\\\\ai-developer-toolkit` references remain in tracked codexu files (excluding .ralph/jobs/*/plan.md historical artifacts and the cached plugin location).\n- Crew spawn-member works with the new layout (verify by spawning a test member).\n- MCP server registration unchanged (cache path still works) OR updated if dev-mode needs in-tree path.\n- Bookkeeper docs (CLAUDE.md, codexu-roadmap.md) describe the submodule integration; spawn-member examples use relative paths or the cached path with a note about the new option.\n- 4+ bookkeeper memory entries updated.\n- CI invariant check passes (versions match).\n- ai-developer-toolkit's own git history is untouched (no commits made inside the submodule as part of this task).\n\n## Sequencing relative to other in-flight work\n\nThe 4 overview-data-* tasks (dynamic-stages-schema, ship-manifest, context-scalability, naming-rebrand) all reference ./ai-developer-toolkit paths in their planPrompts. Two options the planner should evaluate:\n\n- **Land submodule FIRST** — then the 4 overview-data-* tasks naturally use relative paths in any new content they write. Path rewrite churn is concentrated in this task.\n- **Land submodule LAST** — keep absolute paths stable while the in-flight tasks finish. Single sweep at the end.\n\nLikely answer: depends on impl-overview-data-dynamic-stages-schema status. If it's not yet spawned, do submodule FIRST (cleaner). If it's mid-flight, do submodule LAST. Surface this decision to operator during plan phase.\n\n## Workflow\n\nConcrete enough to skip /brainstorm-with-ralph (operator has chosen 'submodule' approach). Run /plan-with-ralph directly. Probably decomposes into 4-6 user stories (submodule add + path rewrite + spawn launcher pattern + memory update + CI invariant + docs).\n\nNo version bump required for codexu (it's a structural change, not a feature release). Single PR to main. ai-developer-toolkit itself untouched.\"",
           "impl": "/implement-with-ralph --from-plan .ralph/jobs/ai-developer-toolkit-submodule/plan.md --autonomous"
         }
+      },
+      "shipManifest": {
+        "shippedAt": "2026-06-02T18:55:00Z",
+        "summary": "Shipped via 7-story salvage after the crews v3.0.0 --parallel circuit-breaker bug lost ~1h 44m of work on the original spawn (see crews-implement-with-ralph-parallel-outbox-silent-loss findings.md). The salvage path: 5/7 cluster branches were preserved clean on the integration branch; lead manually resolved 1-line AGENTS.md conflict between operating-manual and resolver-wrapper (kept operating-manual broader rewrite per findings.md recommendation); spawned a fresh serial impl member (no --parallel) for the missing US-007 story; member shipped exemplary work with 2-reviewer convergence catching a Critical deinit-ordering bug + an AGENTS.md pnpm-vs-npm drift folded in. Final FF chain: integration into main via merge commit a7dbec2 (non-FF due to bookkeeping commits diverging during salvage). Operator preflight overrides: pin SHA d7e01874385c13e7e833a6935d7de11ea2e565f7 (all 3 ai-developer-toolkit remotes synced -- gim-home was actually 1 commit AHEAD with crews v3.0.1 fix, lead FF-pushed origin+personal up); submodule remote URL = evmitran_microsoft (NOT gim-home as the plan originally specified). Codexu now has ai-developer-toolkit/ as a real submodule alongside codex/. Includes rollback runbook at docs/submodule-rollback.md + smoke transcript at .ralph/jobs/ai-developer-toolkit-submodule/smoke-test.md + CI invariant at .github/workflows/toolkit-submodule-invariant.yml + tools/check-toolkit-submodule-invariants.mjs (metadata-only required, deep-mode optional with PAT) + 30+ file path-rewrite (D:/ai-developer-toolkit -> ./ai-developer-toolkit) + AGENTS.md active-plugin-versions block + AGENTS.md two-load-bearing-submodules fresh-clone guidance + bookkeeper memory updates.",
+        "commits": [
+          {
+            "sha": "32fdb9de",
+            "oneLine": "feat: US-001 add ai-developer-toolkit submodule",
+            "repo": "Evyatar108/codexu (cluster topic branch, landed via integration)"
+          },
+          {
+            "sha": "65283323",
+            "oneLine": "feat: US-002 resolver-wrapper path rewrite + script-relative fallback",
+            "repo": "Evyatar108/codexu"
+          },
+          {
+            "sha": "d9242a48",
+            "oneLine": "feat: US-003 AGENTS.md + README operating manual updates",
+            "repo": "Evyatar108/codexu"
+          },
+          {
+            "sha": "bff0ad2f",
+            "oneLine": "feat: US-004 .agents/memory + plans/*.md path rewrites",
+            "repo": "Evyatar108/codexu"
+          },
+          {
+            "sha": "fb70f169",
+            "oneLine": "chore(overview): rewrite tracked-task prompts to submodule-relative paths",
+            "repo": "Evyatar108/codexu"
+          },
+          {
+            "sha": "e8354131",
+            "oneLine": "feat: US-006 CI invariant check (metadata-only required, deep-mode optional with PAT)",
+            "repo": "Evyatar108/codexu"
+          },
+          {
+            "sha": "c1198cfb",
+            "oneLine": "feat: US-007 end-to-end smoke test + rollback documentation (deinit-ordering fix + pnpm->npm fold-in)",
+            "repo": "Evyatar108/codexu"
+          },
+          {
+            "sha": "421da572",
+            "oneLine": "Merge resolver-wrapper into integration (lead manual AGENTS.md conflict resolve)",
+            "repo": "Evyatar108/codexu"
+          },
+          {
+            "sha": "a7dbec28",
+            "oneLine": "Merge ai-developer-toolkit-submodule integration into main",
+            "repo": "Evyatar108/codexu"
+          }
+        ]
       }
     },
     {
