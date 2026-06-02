@@ -31,6 +31,16 @@ The table above is the CI invariant's source of truth. Update it in the same
 commit as any `ai-developer-toolkit` submodule pointer bump that changes one of
 those plugin manifests.
 
+If the submodule integration ever needs to be backed out (a pinned plugin
+version introduces a regression that cannot be forward-fixed in the
+expected response window, or the submodule remote becomes inaccessible),
+the rollback procedure lives at [`docs/submodule-rollback.md`](docs/submodule-rollback.md).
+It walks through the revert commit-by-commit, the `git submodule deinit`
+steps, the post-revert sibling-checkout restoration, and verifies what
+state is preserved vs. cleared. The end-to-end smoke transcript for this
+integration is at
+[`.ralph/jobs/ai-developer-toolkit-submodule/smoke-test.md`](.ralph/jobs/ai-developer-toolkit-submodule/smoke-test.md).
+
 ## After a fresh clone of codexu
 
 Run `git submodule update --init --recursive` before using the repo. Codexu has
@@ -46,16 +56,22 @@ Toolkit edits use a two-commit flow: first commit inside the submodule, then
 commit the resulting `ai-developer-toolkit` pointer bump in codexu.
 
 For dev-mode plugin execution from the submodule checkout, install dependencies
-inside the plugin packages you run locally, for example:
+inside the plugin packages you run locally. The toolkit plugins use **npm
+workspaces**, and `pnpm install` from inside a codexu checkout gets captured
+by codexu's `pnpm-workspace.yaml` and hoists deps into codexu's `node_modules/`
+instead of the plugin's own — which leaves the wrapper's
+`existsPluginAt(<plugin>)` check failing because it looks for
+`node_modules/chokidar` inside the plugin dir. Use `npm install` (or each
+plugin's documented canonical command) instead:
 
 ```bash
-cd ai-developer-toolkit/plugins/ralph-overview && pnpm install
-cd ../crews && pnpm install
-cd ../ralph && pnpm install
+cd ai-developer-toolkit/plugins/ralph-overview && npm install
+cd ../crews                                                  # crews has no package.json today; skip install
+cd ../ralph                                                  # ralph has no package.json today; skip install
 ```
 
-Some plugins have no `package.json`; skip `pnpm install` there unless the plugin
-adds one.
+Some plugins have no `package.json`; skip the install step there unless the
+plugin adds one.
 
 **Cross-engine manual smoke test (the wrapper).** To verify the wrapper resolves to the engine-appropriate install path on this machine, from `D:/harness-efforts/codexu` (or any subdir) run `pnpm sync-ralph-state` under each engine. Exit 0 + an updated `.ralph-overview/generated/snapshot.json` (only `generatedAt` changed) confirms resolution worked. To inspect which install path was chosen, watch for the `RALPH_OVERVIEW_PLUGIN_ROOT=<path>` line in stderr or set `RALPH_OVERVIEW_PLUGIN_ROOT=` empty + run with `node --trace-warnings bin/ralph-overview.mjs sync` and the cascade is visible. Reference smoke-test record: `.ralph/jobs/codexu-bin-ralph-overview-wrapper-retirement/smoke-test.md`.
 
@@ -73,6 +89,7 @@ Activity-log readers MUST tolerate a final torn line: if `JSON.parse` fails on t
 | Day-to-day service ops (restart, logs, failure modes) | `.agents/skills/happy-service-manage/SKILL.md` |
 | JS-only edit-reload loop on the tablet | `.agents/skills/happy-tablet-iterate/SKILL.md` |
 | Claude Code metadata-tag discovery for `MarkdownView` | `.agents/skills/happy-discover-metadata-tags/SKILL.md` |
+| Submodule rollback / emergency recovery (`ai-developer-toolkit`) | `docs/submodule-rollback.md` |
 
 ## Working preferences (learned from real sessions)
 
