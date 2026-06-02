@@ -14,4 +14,4 @@ When a long-running coordination component (MCP supervisor, watcher, daemon) rep
 **How to apply:**
 - Before recommending a process-kill workaround for a coordination-component failure, ask: "Is this failure mode the system was designed to handle?" If no, the right next step is design work, not a kludge.
 - Multi-session coordination bugs (in ralph-overview, crews, or any future shared-watcher design) should be surfaced as candidate brainstorm/plan-with-ralph tasks — not silent operator burden.
-- See [[gaps-from-2026-05-25-26-session]] in `D:/ai-developer-toolkit/` for the running list of similar gaps.
+- See [[gaps-from-2026-05-25-26-session]] in `./ai-developer-toolkit/` for the running list of similar gaps.

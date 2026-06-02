@@ -1,6 +1,6 @@
 # Codexu integration with the `crews` plugin
 
-**Goal**: when `crews` 1.0 ships (see `D:/ai-developer-toolkit/plugins/assigned-roles/PLAN-1.0-crews.md`), use it here to run a team-lead session that manages `.ralph-overview/data.json` (the task/run data source) and the roadmap, and spawns ralph members for individual stories instead of running ralph runs manually in detached tabs.
+**Goal**: when `crews` 1.0 ships (see `./ai-developer-toolkit/plugins/assigned-roles/PLAN-1.0-crews.md`), use it here to run a team-lead session that manages `.ralph-overview/data.json` (the task/run data source) and the roadmap, and spawns ralph members for individual stories instead of running ralph runs manually in detached tabs.
 
 **Scope**: this doc covers only the codexu-side changes needed to adopt crews. The plugin itself is workspace-agnostic; nothing in this doc requires changes to the plugin.
 
@@ -178,7 +178,7 @@ I grepped codexu for references to the old plugin and ralph orchestration patter
 
 ## Related docs
 
-- `D:/ai-developer-toolkit/plugins/assigned-roles/PLAN-1.0-crews.md` — the plugin's own 1.0 plan.
-- `D:/ai-developer-toolkit/plugins/assigned-roles/ROADMAP-1.1-and-beyond.md` — items deferred from 1.0 (notably `/rename`, recursive crew-leading, capability mutation).
+- `./ai-developer-toolkit/plugins/assigned-roles/PLAN-1.0-crews.md` — the plugin's own 1.0 plan.
+- `./ai-developer-toolkit/plugins/assigned-roles/ROADMAP-1.1-and-beyond.md` — items deferred from 1.0 (notably `/rename`, recursive crew-leading, capability mutation).
 - `D:/harness-efforts/codexu/.ralph-overview/generated/overview.html` — the dashboard.
 - `D:/harness-efforts/codexu/plans/codexu-roadmap.md` — the roadmap.

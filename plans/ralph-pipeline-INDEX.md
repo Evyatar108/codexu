@@ -128,7 +128,7 @@ If you want a strict linear order (single agent, no parallelism), this minimizes
 9. **09-mcp** — MCP server with 10 typed tools (list_tasks, get_task, next_command, recommendations, blockers, journal append, override edit, crew sessions, transcripts, invoke-next). Depends on 05/06/07/08 for snapshot exports, command derivation, journal writes, and crew discovery.
 10. **11-mcp-operational-tools** — MCP subprocess control: `dev_server.start/stop/status/logs`, `build`, `sync.now`, `sync.watch_status`. Lets an agent drive the dev server lifecycle from MCP. *(Plan number is 11; comes after 09 in dependency order. Plan 10 ships independently — see below.)*
 11. **10-ralph-handoff** — write the doc that a separate `/plan-with-ralph` cycle picks up to patch Ralph itself with `overviewTaskId`. Can be done any time, including before any other plan.
-12. **12-package-as-plugin** — extract everything (sync core, watcher, MCP server, React viewer, skills) into a reusable plugin at `D:\ai-developer-toolkit\plugins\ralph-overview\`. Migrate codexu to consume the plugin. Make the pre-existing `Toolbar.tsx` filter chips data-driven (the last codexu-specific holdout). Ship after 01–11 are stable.
+12. **12-package-as-plugin** — extract everything (sync core, watcher, MCP server, React viewer, skills) into a reusable plugin at `./ai-developer-toolkit/plugins/ralph-overview/`. Migrate codexu to consume the plugin. Make the pre-existing `Toolbar.tsx` filter chips data-driven (the last codexu-specific holdout). Ship after 01–11 are stable.
 
 ## Parallel-safe groupings
 

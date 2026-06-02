@@ -1,13 +1,13 @@
 # Ralph plugin patches: add `overviewTaskId` across PRD, group, and brainstorm artifacts
 
 > Researched against cached `ralph-orchestration` v5.32.0 at `C:/Users/evmitran/.claude/plugins/cache/ai-developer-toolkit/ralph-orchestration/5.32.0/`.
-> The source tree at `D:/ai-developer-toolkit/plugins/ralph/` is v5.35.0. Before patching, reconcile drift between the cached facts below and current source.
+> The source tree at `./ai-developer-toolkit/plugins/ralph/` is v5.35.0. Before patching, reconcile drift between the cached facts below and current source.
 
 ## 1. Context
 
 The codexu overview dashboard (`tools/overview-viewer/`) associates Ralph artifacts with `OverviewTask.id` entries from `.ralph-overview/data.json`. Today that association relies on `ralphOverrides` and slug equality. A first-class `overviewTaskId` field gives new Ralph artifacts a direct, high-confidence match key.
 
-This document is the handoff spec for a future Ralph plugin patch cycle. It does not patch the plugin from this repo. Run the future patch cycle from the Ralph plugin source tree at `D:/ai-developer-toolkit/plugins/ralph/`.
+This document is the handoff spec for a future Ralph plugin patch cycle. It does not patch the plugin from this repo. Run the future patch cycle from the Ralph plugin source tree at `./ai-developer-toolkit/plugins/ralph/`.
 
 Consumer-side context:
 
@@ -193,7 +193,7 @@ Do not silently pick a metadata format that breaks `/implement-with-ralph --from
 
 ### 6.3 Cache-vs-source dance
 
-The installed cache at `~/.claude/plugins/cache/ai-developer-toolkit/ralph-orchestration/...` is a downstream copy. Patch the source tree at `D:/ai-developer-toolkit/plugins/ralph/`, then invalidate the relevant `~/.claude/plugins/cache/...` copy before integration testing so Claude Code runs the patched plugin rather than stale cached files.
+The installed cache at `~/.claude/plugins/cache/ai-developer-toolkit/ralph-orchestration/...` is a downstream copy. Patch the source tree at `./ai-developer-toolkit/plugins/ralph/`, then invalidate the relevant `~/.claude/plugins/cache/...` copy before integration testing so Claude Code runs the patched plugin rather than stale cached files.
 
 ## 7. Suggested landing order
 
@@ -241,7 +241,7 @@ Recommended tests for the future Ralph plugin patch cycle:
 From the Ralph plugin source tree:
 
 ```text
-cd D:\ai-developer-toolkit\plugins\ralph
+cd ./ai-developer-toolkit/plugins/ralph
 /plan-with-ralph --improve D:\harness-efforts\codexu\plans\ralph-overview-task-id.md
 ```
 
