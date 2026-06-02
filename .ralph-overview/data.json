@@ -1433,11 +1433,19 @@
       "scope": "codexu",
       "lifecycle": "tracked",
       "status": "ok",
-      "lastTouchedAt": "2026-06-02T05:41:00Z",
+      "lastTouchedAt": "2026-06-02T14:21:00Z",
       "kanbanCards": [
         {
+          "className": "cmd-info",
+          "html": "<strong>Plan shipped 2026-06-01</strong> (commit <code>ff08932f</code>). 7 user stories / 4 phases. Multi-model review: 13 findings, 7 fixed (1 Critical + 6 Highs), 6 Mediums in Open Questions."
+        },
+        {
+          "className": "cmd-info",
+          "html": "<strong>Operator preflight approval recorded 2026-06-02T14:21Z</strong> (resolves US-001 pre-implementation gate): (1) <strong>Remote-sync DONE</strong> -- all 3 ai-developer-toolkit remotes now at d7e01874 (origin / personal FF-synced up to gim-home HEAD which was 1 commit AHEAD with crews v3.0.1 fix, not behind as the plan member assumed). Verified via git ls-remote on all 3 remotes. (2) <strong>Pin SHA selected: d7e01874385c13e7e833a6935d7de11ea2e565f7</strong> -- the now-aligned HEAD across all 3 remotes. (3) <strong>OVERRIDE: source remote URL = evmitran_microsoft, NOT gim-home.</strong> Impl must use <code>git submodule add https://github.com/evmitran_microsoft/ai-developer-toolkit.git ai-developer-toolkit</code> and the CI invariant script + AC #135 must verify that URL, not the gim-home URL. Rationale: evmitran_microsoft is the canonical source for codexu (its own origin remote points there); using the same org for the toolkit submodule keeps source-of-truth consistent."
+        },
+        {
           "className": "cmd-warn",
-          "html": "<strong>Plan shipped 2026-06-01</strong> (commit <code>ff08932f</code> via cherry-pick from <code>acd8267a</code>). 7 user stories / 4 phases. Multi-model review: 13 findings, 7 fixed (1 Critical + 6 Highs), 6 Mediums in Open Questions (soft-cap). <strong>BLOCKING operator-gate before impl:</strong> (1) gim-home/ai-developer-toolkit main lags origin+personal: <code>d7e01874</code> vs <code>0c8047f</code>; (2) gim-home/ai-developer-toolkit is INTERNAL/private (default GITHUB_TOKEN cannot fetch -- CI invariant uses metadata-only mode by default; deep mode needs GIM_HOME_PAT secret); (3) operator must pick SHA to pin (recommended: sync gim-home -> 0c8047f first) AND approve <code>git push gim-home main</code> per AGENTS.md ask-before-push rule. Impl spawn-prompt must include explicit operator-decision-replay context."
+          "html": "<strong>Impl member spawn-prompt MUST include the operator-decision-replay above</strong>: the plan.md still references gim-home throughout (26 hits in AC #135, US-001 submodule-add command, CI invariant verification, risk-mitigation prose). Impl must treat the kanban override as authoritative -- replace gim-home with evmitran_microsoft in (a) <code>.gitmodules url</code>, (b) AC #135 verification text, (c) <code>tools/check-toolkit-submodule-invariants.mjs</code> URL check, (d) any AGENTS.md / CLAUDE.md cross-refs introduced. The \"gim-home is INTERNAL/private + GIM_HOME_PAT\" CI-auth subsection is now OBSOLETE -- evmitran_microsoft is also private but uses the existing repo CI credentials; CI invariant stays metadata-only by default."
         }
       ],
       "command": {
