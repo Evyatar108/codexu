@@ -2253,9 +2253,9 @@
     {
       "id": "codex-rebase-rusty-v8-archive-fetch",
       "scope": "codex",
-      "lifecycle": "tracked",
+      "lifecycle": "merged",
       "status": "ok",
-      "lastTouchedAt": "2026-05-30T21:45:00Z",
+      "lastTouchedAt": "2026-06-02T03:05:00Z",
       "kanbanCards": [],
       "command": {
         "name": "codex-rebase-rusty-v8-archive-fetch",
@@ -2264,6 +2264,11 @@
         "prompts": {
           "impl": "Fetch rusty_v8_release_x86_64-pc-windows-msvc.lib.gz from https://github.com/denoland/rusty_v8/releases/download/v147.4.0/rusty_v8_release_x86_64-pc-windows-msvc.lib.gz — decompress to ~/.cargo/.rusty_v8/rusty_v8_release_x86_64-pc-windows-msvc_v147.4.0.lib. If CARGO_HOME is on C: but space-constrained, redirect to D:/.cargo via env. Single 1-command task; can be done by operator directly or scripted into codexu fork-setup scripts."
         }
+      },
+      "shipManifest": {
+        "shippedAt": "2026-06-02T03:05:00Z",
+        "summary": "Effectively-done on arrival: the rusty_v8_release_x86_64-pc-windows-msvc_v147.4.0.lib artifact was already present at ~/.cargo/.rusty_v8/ (193.8 MB, dated 2026-05-31) -- prior r6 build that produced the first working codex.exe pre-fetched the v147 pin during its setup. Verified by lead 2026-06-01T20:05Z via Get-ChildItem. No code commits required; task was overtaken by events. v146.4.0 archive also present (192.6 MB, dated 2026-05-30) -- safe to retain as fallback or delete once the v0.135.0 pin is fully stable.",
+        "commits": []
       }
     },
     {
