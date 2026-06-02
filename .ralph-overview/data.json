@@ -90,11 +90,15 @@
       "scope": "crews",
       "lifecycle": "tracked",
       "status": "ok",
-      "lastTouchedAt": "2026-06-02T16:33:00Z",
+      "lastTouchedAt": "2026-06-02T18:16:00Z",
       "kanbanCards": [
         {
           "className": "cmd-info",
           "html": "<strong>Surfaced 2026-06-02</strong> by <code>crews-implement-with-ralph-parallel-outbox-silent-loss</code> investigation. Root cause: <code>hooks/stop.js:585</code> circuit breaker fires after 5 consecutive missing-kind-tag blocks, RESETS counters, calls <code>clearFlag(sessionId)</code> -- and the session is PERMANENTLY disengaged. No recovery path. Member keeps running but no envelope ever reaches the lead again."
+        },
+        {
+          "className": "cmd-info",
+          "html": "<strong>Plan shipped 2026-06-02T18:16Z</strong> (commit <code>9876c9c3</code>, 1050 LoC plan at <code>.ralph/jobs/crews-stop-circuit-breaker-recoverable/plan.md</code>). 7 serial stories: preflight worktree -> Option A (lastUserBoundaryEnvelope helper + isSystemNotificationBoundary predicate, exempt notification-boundary turns at hooks/stop.js:763) -> Option B (replace clearFlag() with breakerMutedUntil=now+60s, tunable via CREWS_BREAKER_MUTE_MS, mute-gate early-return after role-guard, clear field on successful outbox write) -> tests for both -> version bump 3.0.1 -> 3.1.0 + CHANGELOG -> end-to-end repro + commit + push to all 3 remotes. Rubber-duck pass adopted 3 fixes incl HIGH on review-gate.test.js:440-451 (encoded old contract). Impl invocation: <code>/implement-with-ralph --from-plan .ralph/jobs/crews-stop-circuit-breaker-recoverable/plan.md --autonomous</code> (serial only -- --parallel is exactly the bug being fixed)."
         }
       ],
       "command": {
@@ -107,7 +111,8 @@
           }
         ],
         "prompts": {
-          "plan": "/plan-with-ralph \"Fix the crews v3.0.0 Stop hook circuit-breaker root cause discovered 2026-06-02 (see .ralph/investigations/crews-implement-with-ralph-parallel-outbox-silent-loss/findings.md for full diagnosis). Two-part fix: Option A exempt notification-driven turn-ends from kind-tag requirement at hooks/stop.js:763 -- system.notification -> agentStop is sub-agent activity, not a user-facing turn boundary. Option B make clearFlag() recoverable via a breakerMutedUntil timestamp -- breaker mutes outbox writes temporarily (60s) instead of permanently. Ship both for defense-in-depth. Must include vitest coverage for both paths. Crews source repo: D:/ai-developer-toolkit/plugins/crews. Plan must cover the case where the ai-developer-toolkit-submodule task has shipped first (edit through codexu submodule) AND the case where it has not (edit D:/ai-developer-toolkit/ directly).\""
+          "plan": "/plan-with-ralph \"Fix the crews v3.0.0 Stop hook circuit-breaker root cause discovered 2026-06-02 (see .ralph/investigations/crews-implement-with-ralph-parallel-outbox-silent-loss/findings.md for full diagnosis). Two-part fix: Option A exempt notification-driven turn-ends from kind-tag requirement at hooks/stop.js:763 -- system.notification -> agentStop is sub-agent activity, not a user-facing turn boundary. Option B make clearFlag() recoverable via a breakerMutedUntil timestamp -- breaker mutes outbox writes temporarily (60s) instead of permanently. Ship both for defense-in-depth. Must include vitest coverage for both paths. Crews source repo: D:/ai-developer-toolkit/plugins/crews. Plan must cover the case where the ai-developer-toolkit-submodule task has shipped first (edit through codexu submodule) AND the case where it has not (edit D:/ai-developer-toolkit/ directly).\"",
+          "impl": "/implement-with-ralph --from-plan .ralph/jobs/crews-stop-circuit-breaker-recoverable/plan.md --autonomous"
         }
       }
     },
