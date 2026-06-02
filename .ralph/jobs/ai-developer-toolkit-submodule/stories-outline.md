@@ -2,22 +2,24 @@
 
 *Preliminary decomposition from `/plan-with-ralph`. Feed to `/implement-with-ralph --from-plan` for PRD generation.*
 
+> **OPERATOR PREFLIGHT OVERRIDE APPLIED (2026-06-02).** See `preflight-approval.md`. Submodule URL is `https://github.com/evmitran_microsoft/ai-developer-toolkit.git`; pin SHA is `d7e01874385c13e7e833a6935d7de11ea2e565f7`; all 3 toolkit remotes are pre-synced; no `git push` to any toolkit remote is in scope. US-001 HARD-GATE acceptance criteria below are SATISFIED before impl start.
+
 ## US-001: Pre-flight sync + submodule add
 **Description:** As the bookkeeper, I want the ai-developer-toolkit added as a git submodule of codexu at an operator-confirmed SHA so that codexu can version-pin its toolkit dependency without violating the AGENTS.md "ask before push" rule.
 
 **Acceptance Criteria:**
-- [ ] Local `D:/ai-developer-toolkit` working tree is clean (no uncommitted changes, no unpushed commits on tracked branches) — verified before any push.
-- [ ] **HARD GATE**: operator is asked which SHA to pin BEFORE any `git push` to gim-home. The question includes the current remote divergence: gim-home/main=`d7e01874`, origin/personal=`0c8047f`.
-- [ ] If gim-home/main needs syncing, operator approves the specific push command BEFORE it runs.
-- [ ] The chosen SHA + approval source + timestamp + approval-channel reference is recorded in `.ralph/jobs/ai-developer-toolkit-submodule/preflight-approval.md`.
-- [ ] `git submodule add https://github.com/gim-home/ai-developer-toolkit.git ai-developer-toolkit` succeeds.
+- [ ] Local `D:/ai-developer-toolkit` working tree is clean (no uncommitted changes) — verified as a defensive check; does NOT gate the submodule-add since the lead pre-aligned all 3 remotes to the pin SHA.
+- [x] **HARD GATE SATISFIED (2026-06-02 by lead, see `preflight-approval.md`):** the pin SHA decision was made before impl start; no `git push` to any toolkit remote is needed; all 3 remotes already at the pin SHA.
+- [x] **Push approval SATISFIED**: no toolkit-remote `git push` is in scope under the operator override; this AC is vacuously satisfied.
+- [x] `preflight-approval.md` was authored at impl start and records the pin SHA `d7e01874385c13e7e833a6935d7de11ea2e565f7`, the evmitran_microsoft URL override, and the approval source/timestamp.
+- [ ] `git submodule add https://github.com/evmitran_microsoft/ai-developer-toolkit.git ai-developer-toolkit` succeeds.
 - [ ] `git submodule update --init` brings the toolkit in cleanly.
-- [ ] `git -C ai-developer-toolkit rev-parse HEAD` matches the operator-approved SHA.
-- [ ] Single commit lands on the impl branch: `chore: add ai-developer-toolkit submodule at <SHA>`.
-- [ ] No commits are made INSIDE `ai-developer-toolkit/` as part of this story (toolkit history untouched aside from the pre-flight gim-home sync if approved).
+- [ ] `git -C ai-developer-toolkit rev-parse HEAD` equals `d7e01874385c13e7e833a6935d7de11ea2e565f7`.
+- [ ] Single commit lands on the impl branch: `chore: add ai-developer-toolkit submodule at d7e01874385c13e7e833a6935d7de11ea2e565f7` (or short form `chore: add ai-developer-toolkit submodule at d7e01874`).
+- [ ] No commits are made INSIDE `ai-developer-toolkit/` as part of this story (toolkit history is untouched by this impl — the pre-flight remote sync was already done by the lead before impl start).
 
 **Dependencies:** None (foundation; every other story depends on this).
-**Estimated complexity:** small (when pre-flight is clean) / medium (if gim-home push approval is denied or remote divergence requires extra coordination).
+**Estimated complexity:** small. Preflight is resolved, so the original "medium when sync is blocked" scenario does not apply.
 
 ## US-002: Update bin/ralph-overview.mjs + delete .mcp.json + fix .claude/settings.json
 **Description:** As any agent running codexu's overview tooling, I want the resolver wrapper's local-dev fallback to resolve to the in-tree submodule (script-relative) AND the Claude config to be internally consistent with AGENTS.md so that fresh clones work and no tracked file references a deleted MCP server.
@@ -82,15 +84,15 @@
 
 **Acceptance Criteria:**
 - [ ] `tools/check-toolkit-submodule-invariants.mjs` exists. Default (metadata-only) mode reads:
-  - `.gitmodules` (verifies the `ai-developer-toolkit` entry has `url = https://github.com/gim-home/ai-developer-toolkit.git` and `path = ai-developer-toolkit`).
+  - `.gitmodules` (verifies the `ai-developer-toolkit` entry has `url = https://github.com/evmitran_microsoft/ai-developer-toolkit.git` and `path = ai-developer-toolkit`).
   - The submodule's pinned SHA via `git ls-tree HEAD ai-developer-toolkit` (verifies the gitlink is well-formed; no submodule fetch required).
   - AGENTS.md `<!-- BEGIN: active-plugin-versions -->` / `<!-- END: active-plugin-versions -->` block (verifies the block exists and lists ralph-overview, crews, ralph with well-formed semver strings).
   - Exits 0 on consistency; exits non-zero with a diff message on mismatch.
-- [ ] Optional `--deep` mode additionally reads `ai-developer-toolkit/plugins/{ralph-overview,crews,ralph}/.claude-plugin/plugin.json` and compares versions; only runs when the submodule is initialized (i.e., when checkout was run with `submodules: true` AND a GIM_HOME_PAT was provided to fetch the private submodule).
+- [ ] Optional `--deep` mode additionally reads `ai-developer-toolkit/plugins/{ralph-overview,crews,ralph}/.claude-plugin/plugin.json` and compares versions against the AGENTS.md block; runs only when the submodule is initialized (i.e., a developer ran `git submodule update --init` locally). Under the 2026-06-02 operator override CI does NOT invoke `--deep`; it is a local-dev affordance only.
 - [ ] `package.json` `scripts` includes `"check:toolkit-submodule": "node tools/check-toolkit-submodule-invariants.mjs"`.
 - [ ] A new dedicated workflow `.github/workflows/toolkit-submodule-invariant.yml` exists with `paths:` trigger including `.gitmodules`, `AGENTS.md`, `ai-developer-toolkit` (the gitlink), `tools/check-toolkit-submodule-invariants.mjs`. The job runs `pnpm check:toolkit-submodule` (metadata-only mode, no submodule fetch required, no PAT needed).
 - [ ] `.github/workflows/typecheck.yml` is NOT touched (kept happy-app-scoped per F-013 simplicity finding).
-- [ ] Optional deep-mode CI job is documented in the workflow with a clear "skipped without GIM_HOME_PAT secret" message; the metadata-only job is the required gate.
+- [ ] No deep-mode CI job is added under the 2026-06-02 operator override; the metadata-only job is the required gate, and CI requires no `GIM_HOME_PAT` (or equivalent) secret.
 
 **Dependencies:** US-001 (needs submodule pointer to exist), US-003 (needs AGENTS.md "Active plugin versions" block to exist).
 **Estimated complexity:** medium (Node script + new workflow file + AGENTS.md "Active plugin versions" block addition).
