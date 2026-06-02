@@ -1,0 +1,192 @@
+{
+  "planFile": "D:/harness-efforts/codexu/.ralph/jobs/.staging/20260602T043939Z-plan-ai-developer-toolkit-submodule-036bc5fe/draft-plan.md",
+  "repoDir": "D:/harness-efforts/codexu/.ralph/jobs/ai-developer-toolkit-submodule/worktree/plan",
+  "reviewCycle": 0,
+  "findings": [
+    {
+      "id": "F-001",
+      "severity": "Critical",
+      "source": "consensus",
+      "category": "Feasibility",
+      "sectionRef": "US-001 > Pre-flight sync + submodule add",
+      "description": "Plan tells impl to push missing commits from evmitran_microsoft to gim-home unless push is denied. AGENTS.md explicitly requires operator approval BEFORE any git push (not after failure). US-001 must mandate an explicit operator question/approval step before pushing to gim-home, with the resolved SHA recorded as durable evidence. Pre-flight SHA divergence is verified: gim-home/main=d7e01874, origin/personal main=0c8047f.",
+      "relevantFiles": [
+        "AGENTS.md"
+      ],
+      "suggestedFix": "Rewrite US-001 to: (1) STOP and ASK operator which SHA to pin (gim-home's d7e01874 vs origin/personal 0c8047f). (2) If the operator chooses to sync gim-home, STOP and ASK before the push command. (3) Record the approved SHA and approval source (operator message id / timestamp) in .ralph/jobs/ai-developer-toolkit-submodule/preflight-approval.md. (4) Only then run git submodule add. Surface this as a hard gate at the top of US-001 acceptance criteria.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Amended US-001 and related acceptance/risk text to require operator SHA selection, explicit approval before any gim-home push, and durable recording in preflight-approval.md before submodule add."
+    },
+    {
+      "id": "F-002",
+      "severity": "High",
+      "source": "consensus",
+      "category": "Completeness",
+      "sectionRef": "US-006 > CI invariant check",
+      "description": "GitHub Actions workflow path filters `ai-developer-toolkit/plugins/*/.claude-plugin/plugin.json` will NOT trigger on submodule pointer updates because the superproject diff path is the gitlink `ai-developer-toolkit`, not files inside the submodule. Codex and Copilot reviews both flagged this independently. Include the exact `ai-developer-toolkit` path (gitlink) in the paths filter, or the invariant will not run when the submodule pointer changes.",
+      "relevantFiles": [
+        ".github/workflows/typecheck.yml",
+        "tools/check-toolkit-submodule-invariants.mjs"
+      ],
+      "suggestedFix": "Update the workflow `paths:` trigger list to: `.gitmodules`, `AGENTS.md`, `ai-developer-toolkit` (the gitlink itself), `tools/check-toolkit-submodule-invariants.mjs`. Drop the `ai-developer-toolkit/plugins/*/.claude-plugin/plugin.json` glob because GitHub path filters do not match inside submodules.",
+      "status": "fixed",
+      "fixedInIteration": 2,
+      "resolution": "Updated US-006 CI trigger guidance so workflow path filters include the ai-developer-toolkit gitlink path instead of submodule-internal plugin manifest globs."
+    },
+    {
+      "id": "F-003",
+      "severity": "High",
+      "source": "codex",
+      "category": "Completeness",
+      "sectionRef": "US-002 > .mcp.json deletion",
+      "description": "Plan deletes .mcp.json but does not touch the tracked .claude/settings.json, which currently contains `\"enabledMcpjsonServers\": [\"ralph-overview\"]` and only `\"enabledPlugins\": { \"crews@ai-developer-toolkit\": true }` (NO ralph-overview marketplace registration). Deleting .mcp.json without removing the enabledMcpjsonServers entry leaves the tracked Claude config pointing at a removed MCP server. AGENTS.md line 18 claims the marketplace registration already replaced the local-path entry, but the tracked .claude/settings.json proves that's WRONG.",
+      "relevantFiles": [
+        ".claude/settings.json",
+        ".mcp.json",
+        "AGENTS.md"
+      ],
+      "suggestedFix": "Add to US-002: edit .claude/settings.json to (1) remove `\"ralph-overview\"` from `enabledMcpjsonServers` (or remove the array entirely if empty after), (2) add `\"ralph-overview@ai-developer-toolkit\": true` to `enabledPlugins`. Then delete .mcp.json. Also: fix AGENTS.md line 18 to accurately describe the current state — the claim that both `.mcp.json` and `enabledMcpjsonServers` were 'removed' was wrong; this PR makes the claim accurate.",
+      "status": "fixed",
+      "fixedInIteration": 3,
+      "resolution": "Added plan requirements to remove the stale enabledMcpjsonServers entry, add the ralph-overview marketplace plugin registration, delete .mcp.json, and correct the inaccurate AGENTS.md claim."
+    },
+    {
+      "id": "F-004",
+      "severity": "High",
+      "source": "codex",
+      "category": "Completeness",
+      "sectionRef": "Approach > Files to Create/Modify; Acceptance Criteria > zero-reference grep",
+      "description": "Plan covers only `D:/ai-developer-toolkit` and `D:\\ai-developer-toolkit` rewrite forms. Tracked files also contain `C:/ai-developer-toolkit` references (verified: .ralph-overview/data.json:233, plans/codexu-roadmap.md:261, plans/parallel-assignments.md:46, and others). The acceptance criteria could pass while leaving active machine-specific paths.",
+      "relevantFiles": [
+        ".ralph-overview/data.json",
+        "plans/codexu-roadmap.md",
+        "plans/parallel-assignments.md"
+      ],
+      "suggestedFix": "Expand the rewrite scope and final verification grep to include all four drive-qualified forms: `D:/ai-developer-toolkit`, `D:\\\\ai-developer-toolkit`, `C:/ai-developer-toolkit`, `C:\\\\ai-developer-toolkit`. Update US-002, US-004, US-005, and US-007 accordingly. The final-verification grep in US-007 should be: `git grep -nI -E '[DC]:[/\\\\]ai-developer-toolkit' -- ':(exclude).ralph/jobs/*' ':(exclude).ralph/brainstorms/*' ':(exclude).ralph/investigations/*' ':(exclude)ai-developer-toolkit/*'`.",
+      "status": "fixed",
+      "fixedInIteration": 4,
+      "resolution": "Expanded the plan's rewrite scope, affected user stories, and final verification grep to cover C: and D: drive-qualified ai-developer-toolkit references."
+    },
+    {
+      "id": "F-005",
+      "severity": "High",
+      "source": "consensus",
+      "category": "Criteria Quality",
+      "sectionRef": "Acceptance Criteria > zero-reference grep; US-004",
+      "description": "Plan says some plans/*.md and .agents/memory/*.md files MAY be left as historical (US-004 per-file judgment). But the acceptance criteria 'zero D:/ai-developer-toolkit references in tracked files' only excludes .ralph/jobs/**, .ralph/brainstorms/**, .ralph/investigations/**, ai-developer-toolkit/**, and merged/archived data.json entries. Any intentionally-unrewritten historical plan or memory file would fail the AC. Either rewrite ALL plans/memory hits OR enumerate exempt files explicitly. Flagged by all three reviewers.",
+      "relevantFiles": [
+        "plans/*.md",
+        ".agents/memory/*.md"
+      ],
+      "suggestedFix": "Resolve by COMMITTING to rewriting all tracked plans/*.md and .agents/memory/*.md hits (no per-file historical exemption). These are CURRENT tracked codexu files; the 'historical record' argument only applies to in-flight committed state under .ralph/jobs/, .ralph/brainstorms/, .ralph/investigations/. Update US-004 to mandate rewrite of every file in those directories that matches the grep; update AC to match.",
+      "status": "fixed",
+      "fixedInIteration": 5,
+      "resolution": "Updated the plan so all matching tracked plans/*.md and .agents/memory/*.md files must be rewritten, with explicit empty-grep acceptance checks and no per-file historical exemption."
+    },
+    {
+      "id": "F-006",
+      "severity": "High",
+      "source": "copilot",
+      "category": "Completeness",
+      "sectionRef": "US-005 > regenerate snapshot.json; Acceptance Criteria",
+      "description": "Generated snapshot.json currently includes merged/archived task text. If data.json's merged/archived task seeds are preserved as historical record (per US-005), the regenerated snapshot.json will continue to include D:/ai-developer-toolkit references. The acceptance criterion 'no D:/ai-developer-toolkit references in the regenerated snapshot' contradicts the data.json historical-record rule.",
+      "relevantFiles": [
+        ".ralph-overview/data.json",
+        ".ralph-overview/generated/snapshot.json"
+      ],
+      "suggestedFix": "Resolve by scoping the snapshot AC: 'no D:/ai-developer-toolkit references in the regenerated snapshot's lifecycle: tracked task entries' (i.e., the AC matches the rewrite scope from US-005). Add explicit verification command: `node -e \"const s=require('./.ralph-overview/generated/snapshot.json');const re=/[DC]:[\\\\/\\\\\\\\]ai-developer-toolkit/i;for(const t of s.tasks){if(t.lifecycle==='tracked'){const text=JSON.stringify(t.prompts||{})+JSON.stringify(t.kanbanCards||[]);if(re.test(text))console.error('STILL HAS',t.id);process.exitCode=1;}}\"` and require this exits 0.",
+      "status": "fixed",
+      "fixedInIteration": 6,
+      "resolution": "Scoped the regenerated snapshot acceptance criterion and US-005 verification command to lifecycle: tracked task entries, with the command now exiting non-zero on remaining tracked-task references."
+    },
+    {
+      "id": "F-007",
+      "severity": "High",
+      "source": "copilot",
+      "category": "Feasibility",
+      "sectionRef": "US-006 > CI invariant",
+      "description": "gim-home/ai-developer-toolkit is INTERNAL/private (verified via `gh repo view gim-home/ai-developer-toolkit --json visibility,isPrivate` → {isPrivate: true, visibility: 'INTERNAL'}). GitHub Actions default GITHUB_TOKEN typically cannot fetch private cross-org submodules. README.md already states the codex/ submodule requires authenticated gim-home access. The plan needs a CI auth strategy or a fallback invariant path that does NOT require fetching the submodule.",
+      "relevantFiles": [
+        ".github/workflows/typecheck.yml",
+        "README.md"
+      ],
+      "suggestedFix": "Choose one of: (A) Design the CI invariant to NOT require submodule fetch — read only .gitmodules + AGENTS.md + the submodule's pinned SHA (available via `git ls-tree HEAD ai-developer-toolkit`), and verify the documented versions in AGENTS.md are well-formed (no actual cross-check against plugin.json since plugin.json is inside the submodule). Plan additional 'optional deep check' job that requires PAT, gated on a secret being present. (B) Configure `actions/checkout@v4` with `submodules: true` AND `token: ${{ secrets.GIM_HOME_PAT }}` (the operator must provision the secret). Document the choice in US-006 and explain the failure mode if the secret is missing.",
+      "status": "fixed",
+      "fixedInIteration": 7,
+      "resolution": "Updated the CI invariant strategy so required CI validates .gitmodules, the gitlink SHA, and a well-formed AGENTS.md version block without fetching the private ai-developer-toolkit submodule, with only optional PAT-gated manifest checks."
+    },
+    {
+      "id": "F-008",
+      "severity": "Medium",
+      "source": "claude",
+      "category": "Completeness",
+      "sectionRef": "US-002 > bin/ralph-overview.mjs",
+      "description": "Plan says to use `import.meta.url`-relative resolution in bin/ralph-overview.mjs, but the file currently imports only child_process, fs, os, path, process (lines 40-44). The ESM URL-to-path conversion (`fileURLToPath` from 'node:url') is not imported. The plan should explicitly include this import addition.",
+      "relevantFiles": [
+        "bin/ralph-overview.mjs"
+      ],
+      "suggestedFix": "Update US-002 task list to explicitly include: 'Add `import { fileURLToPath } from \\'node:url\\'` to the imports block at lines 40-44 of bin/ralph-overview.mjs. Then resolve the local-dev fallback path via `path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'ai-developer-toolkit', 'plugins', 'ralph-overview')`.'",
+      "status": "open"
+    },
+    {
+      "id": "F-009",
+      "severity": "Medium",
+      "source": "claude",
+      "category": "Feasibility",
+      "sectionRef": "US-006 > CI invariant; Open Questions Q6",
+      "description": "Plan still says 'plugins/ralph/.claude-plugin/plugin.json (or whichever directory matches… verify)' for the ralph-orchestration plugin. The actual directory IS `plugins/ralph` (verified: `ls D:/ai-developer-toolkit/plugins/` shows `ralph`, alongside `ralph-overview` and `crews`). The plan should commit to the specific path and remove Q6 from Open Questions.",
+      "relevantFiles": [
+        "ai-developer-toolkit/plugins/ralph/.claude-plugin/plugin.json"
+      ],
+      "suggestedFix": "Replace 'plugins/ralph/.claude-plugin/plugin.json (or whichever directory matches… verify)' with the specific path `ai-developer-toolkit/plugins/ralph/.claude-plugin/plugin.json` throughout US-006. Remove Q6 from Open Questions (it's resolved).",
+      "status": "open"
+    },
+    {
+      "id": "F-010",
+      "severity": "Medium",
+      "source": "consensus",
+      "category": "Criteria Quality",
+      "sectionRef": "Acceptance Criteria; US-007 smoke test",
+      "description": "`pnpm overview` is a dev-server/watch command, not a bounded smoke test. The acceptance criterion 'pnpm overview runs successfully' cannot be auto-verified without a timeout/readiness check. Flagged by both Codex and Copilot.",
+      "relevantFiles": [
+        "package.json"
+      ],
+      "suggestedFix": "Replace `pnpm overview` with `pnpm overview:build` (a bounded build command) in the smoke test acceptance criterion. Verify the command exists in package.json (or specify the exact bounded check, e.g., 'pnpm sync-ralph-state' which is already bounded). If `overview:build` does not exist, document the timeout/readiness method (start `pnpm overview` in background, wait up to 60s for `Ready` marker, kill).",
+      "status": "open"
+    },
+    {
+      "id": "F-011",
+      "severity": "Medium",
+      "source": "codex",
+      "category": "Criteria Quality",
+      "sectionRef": "Acceptance Criteria > 'Runs under both Claude Code and Copilot CLI'",
+      "description": "The criterion 'pnpm sync-ralph-state runs successfully under both Claude Code and Copilot CLI' cannot be auto-verified unless the implementation environment can invoke both engines. The criterion should scope to whichever engines are available in the impl environment.",
+      "suggestedFix": "Reword to: 'pnpm sync-ralph-state runs successfully under each engine that is installed in the impl environment (currently Copilot CLI per AGENTS.md migration milestone; Claude Code if available). For uninstalled engines, the smoke-test.md artifact must explicitly state \"not tested — engine not present\".'",
+      "status": "open"
+    },
+    {
+      "id": "F-012",
+      "severity": "Medium",
+      "source": "codex",
+      "category": "Criteria Quality",
+      "sectionRef": "Acceptance Criteria > 'Operator confirms this'",
+      "description": "Criterion 'The pinned submodule SHA matches the operator-confirmed gim-home/main HEAD (operator confirms this before the submodule-add commit lands)' lacks a durable evidence requirement. An autonomous reviewer cannot verify the confirmation happened.",
+      "suggestedFix": "Add concrete evidence requirement: 'The approved SHA + approval source (operator message id, timestamp, or mailbox message reference) is recorded in `.ralph/jobs/ai-developer-toolkit-submodule/preflight-approval.md` before the submodule-add commit. The file must contain: (1) chosen SHA, (2) which remote it came from, (3) operator approval timestamp, (4) approval-channel reference.'",
+      "status": "open"
+    },
+    {
+      "id": "F-013",
+      "severity": "Medium",
+      "source": "copilot",
+      "category": "Simplicity",
+      "sectionRef": "US-006 > workflow extension",
+      "description": "Extending .github/workflows/typecheck.yml (an Expo-app-scoped workflow) for a lightweight submodule-version invariant is unnecessarily coupled. A dedicated small workflow would avoid running unrelated happy-app typecheck on documentation/submodule-pointer changes.",
+      "relevantFiles": [
+        ".github/workflows/typecheck.yml"
+      ],
+      "suggestedFix": "Switch to a dedicated workflow at `.github/workflows/toolkit-submodule-invariant.yml` with its own `paths:` trigger (`.gitmodules`, `AGENTS.md`, `ai-developer-toolkit`, `tools/check-toolkit-submodule-invariants.mjs`) and a single job: checkout (with submodule fetch per F-007 decision) → setup node → `pnpm check:toolkit-submodule`. Keeps the existing typecheck.yml unchanged.",
+      "status": "open"
+    }
+  ]
+}

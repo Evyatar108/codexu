@@ -1,0 +1,31 @@
+### Feasibility
+
+[Critical] US-001 says to push missing commits from `evmitran_microsoft` to `gim-home` unless push is denied, but repo instructions in `AGENTS.md` explicitly require asking before any `git push`. This plan must require operator approval before pushing `gim-home/main`, not only after a denial.
+
+[High] The `.mcp.json` deletion plan is incomplete. Tracked `.claude/settings.json` still has `"enabledMcpjsonServers": ["ralph-overview"]` and does not enable `"ralph-overview@ai-developer-toolkit"`; deleting [.mcp.json](D:/harness-efforts/codexu/.ralph/jobs/ai-developer-toolkit-submodule/worktree/plan/.mcp.json) would leave the tracked Claude config pointing at a removed MCP server.
+
+[High] The CI trigger design is not valid for submodule internals. `.github/workflows/typecheck.yml` paths like `ai-developer-toolkit/plugins/*/.claude-plugin/plugin.json` will not reliably trigger on submodule pointer updates, because the superproject diff path is the gitlink `ai-developer-toolkit`, not files inside the submodule. Add `ai-developer-toolkit` itself to path filters, or run the invariant on broader PR/push triggers.
+
+### Completeness
+
+[High] The rewrite and final grep only cover `D:/ai-developer-toolkit` / `D:\\ai-developer-toolkit`, but tracked files also contain `C:/ai-developer-toolkit`, including [.ralph-overview/data.json](D:/harness-efforts/codexu/.ralph/jobs/ai-developer-toolkit-submodule/worktree/plan/.ralph-overview/data.json:233), [plans/codexu-roadmap.md](D:/harness-efforts/codexu/.ralph/jobs/ai-developer-toolkit-submodule/worktree/plan/plans/codexu-roadmap.md:261), and [plans/parallel-assignments.md](D:/harness-efforts/codexu/.ralph/jobs/ai-developer-toolkit-submodule/worktree/plan/plans/parallel-assignments.md:46). The acceptance criteria could pass while leaving active machine-specific paths.
+
+[High] `.claude/settings.json` is missing from “Files to Create/Modify”. Since it currently contradicts `AGENTS.md` and depends on `.mcp.json`, the implementation must update it or explicitly justify why it remains unchanged.
+
+[Medium] `pnpm overview` is listed as a smoke test, but that command starts the dev/watch flow rather than a naturally terminating check. The plan should specify a bounded readiness condition and cleanup, or use a finite build command like `pnpm overview:build` where appropriate.
+
+### Ordering
+
+[High] The plan is marked ready for implementation while Q1 and Q2 are still operator-impacting decisions: remote push target and `.mcp.json` delete vs repoint. Those must be resolved before US-001/US-002, especially because one involves pushing to a remote and the other may break tracked Claude config.
+
+### Simplicity
+
+No major issues found. The submodule plus resolver fallback is a reasonable shape for the stated goal. The CI invariant is slightly heavy, but it is justified if the “Active plugin versions” block is intended to be contractual.
+
+### Acceptance Criteria Quality
+
+[High] The “zero absolute references” criteria are under-specified because they omit `C:/ai-developer-toolkit` and `C:\\ai-developer-toolkit`. Include all drive-qualified toolkit path forms, then apply the same historical exclusions.
+
+[Medium] “Runs successfully under both Claude Code and Copilot CLI” is not fully autonomous unless the implementation environment can invoke both engines. The criterion should allow recorded evidence for whichever engines are available and explicitly mark unavailable engines as not tested.
+
+[Medium] “Operator confirms this before the submodule-add commit lands” needs a durable evidence requirement, such as recording the approved SHA and approval source in the smoke-test artifact.

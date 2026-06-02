@@ -1,0 +1,38 @@
+I’ll read the referenced prompt file first, then carry out the requested work.
+
+The prompt is slightly over the single-read limit, so I’m loading it in ranges.
+
+I found this is a plan review prompt, not an implementation request; I’ll review the remaining plan text and then produce findings only.
+
+The broad repo scans were too expensive, so I’m switching to focused reads of the files the plan names.
+
+I have enough of the plan to review the named integration points; I’m checking a few concrete repo facts before writing findings.
+
+One plan contradiction is emerging around generated snapshot contents, so I’m checking whether the current snapshot includes historical merged/archived task text.
+
+The current generated files are large, so I’m narrowing to counts and task lifecycle classification instead of printing matching lines.
+
+### Feasibility
+
+[High] `.github/workflows/typecheck.yml` cannot safely add `submodules: true` without addressing credentials for private `gim-home/*` submodules. `README.md` already says the existing `codex/` submodule requires authenticated `gim-home` access; Actions’ default token usually cannot fetch private cross-org submodules. The plan needs a CI auth strategy or a fallback invariant path.
+
+### Completeness
+
+[High] The workflow trigger plan uses `ai-developer-toolkit/plugins/*/.claude-plugin/plugin.json`, but GitHub path filters for a submodule update see the gitlink path, not files inside the submodule. Include the exact `ai-developer-toolkit` path, or the invariant will not run when the submodule pointer changes.
+
+[High] The path-rewrite scope is internally inconsistent. The plan says some `plans/*.md` may be left as historical, but final grep criteria allow no remaining hits outside `.ralph/**`, `ai-developer-toolkit/**`, and historical `data.json` entries. Either rewrite all tracked `plans/*.md` hits or explicitly exempt historical plan docs in the acceptance criteria.
+
+[High] The generated snapshot criterion conflicts with the `data.json` historical-record rule. Current `snapshot.json` includes merged/archived task text, so preserving historical `D:/ai-developer-toolkit` references in `data.json` will continue to regenerate those references into `snapshot.json`.
+
+### Ordering
+
+No issues found.
+
+### Simplicity
+
+[Medium] Extending the Expo app typecheck workflow for a lightweight submodule-version invariant is unnecessarily coupled. A dedicated small workflow/job for `tools/check-toolkit-submodule-invariants.mjs` would avoid running unrelated happy-app typecheck on documentation/submodule-pointer changes.
+
+### Acceptance Criteria Quality
+
+[Medium] `pnpm overview` is a dev-server command, not a bounded verification command. The acceptance criterion should specify how to run it with a timeout/readiness check, or use `pnpm overview:build` for a deterministic smoke test.
+

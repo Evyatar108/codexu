@@ -1,0 +1,106 @@
+{
+  "clusters": [
+    {
+      "name": "submodule-add",
+      "stories": ["US-001"],
+      "phase": 1,
+      "dependsOn": [],
+      "fileOverlapEvidence": {
+        "sharedFiles": [],
+        "exclusiveFiles": [".gitmodules", "ai-developer-toolkit/"],
+        "risk": "low"
+      },
+      "executionModeRationale": "This cluster MUST run first and alone — every subsequent cluster needs ai-developer-toolkit/ to exist in the working tree. Single commit, low-risk pure git operation."
+    },
+    {
+      "name": "resolver-wrapper",
+      "stories": ["US-002"],
+      "phase": 2,
+      "dependsOn": ["submodule-add"],
+      "fileOverlapEvidence": {
+        "sharedFiles": [],
+        "exclusiveFiles": ["bin/ralph-overview.mjs", ".mcp.json"],
+        "risk": "medium"
+      },
+      "executionModeRationale": "Touches only the resolver wrapper and the stale .mcp.json. Disjoint from other phase-2 clusters. Risk is medium because the resolver wrapper is on the hot path for pnpm overview / pnpm sync-ralph-state; needs sync-ralph-state smoke verification."
+    },
+    {
+      "name": "operating-manual",
+      "stories": ["US-003"],
+      "phase": 2,
+      "dependsOn": ["submodule-add"],
+      "fileOverlapEvidence": {
+        "sharedFiles": [],
+        "exclusiveFiles": ["AGENTS.md", "README.md"],
+        "risk": "low"
+      },
+      "executionModeRationale": "Docs-only edits to AGENTS.md and README.md. Kept separate from auto-memory-and-plans cluster because AGENTS.md is the load-bearing operating manual (high-touch, deserves dedicated review). US-006 depends on this cluster adding the 'Active plugin versions' block."
+    },
+    {
+      "name": "auto-memory-and-plans",
+      "stories": ["US-004"],
+      "phase": 2,
+      "dependsOn": ["submodule-add"],
+      "fileOverlapEvidence": {
+        "sharedFiles": [],
+        "exclusiveFiles": [".agents/memory/*.md", "plans/*.md"],
+        "risk": "low"
+      },
+      "executionModeRationale": "Docs-only edits across ~13 files. No overlap with other phase-2 clusters. Per-file judgment required (current-doc vs historical)."
+    },
+    {
+      "name": "data-and-prompts",
+      "stories": ["US-005"],
+      "phase": 2,
+      "dependsOn": ["submodule-add"],
+      "fileOverlapEvidence": {
+        "sharedFiles": [],
+        "exclusiveFiles": [
+          ".ralph-overview/data.json",
+          ".ralph-overview/generated/snapshot.json",
+          ".ralph-overview/generated/overview.html",
+          ".ralph-overview/generated/overview.html.next"
+        ],
+        "risk": "medium"
+      },
+      "executionModeRationale": "Scripted bulk-rewrite of 16 task prompts + regeneration of overview sidecars via pnpm sync-ralph-state. Touches generated files (regenerated automatically). Risk is medium because sync regeneration could surface unexpected schema issues if data.json is malformed mid-edit; the impl should rewrite + validate JSON before running sync."
+    },
+    {
+      "name": "ci-invariant",
+      "stories": ["US-006"],
+      "phase": 3,
+      "dependsOn": ["submodule-add", "operating-manual"],
+      "fileOverlapEvidence": {
+        "sharedFiles": ["AGENTS.md"],
+        "exclusiveFiles": [
+          "tools/check-toolkit-submodule-invariants.mjs",
+          "package.json",
+          ".github/workflows/typecheck.yml"
+        ],
+        "risk": "low"
+      },
+      "executionModeRationale": "Depends on operating-manual having added the AGENTS.md 'Active plugin versions' block (the invariant's source of truth). Serialized to phase 3 to make the ordering dependency explicit; the AGENTS.md overlap is read-only from this cluster's perspective."
+    },
+    {
+      "name": "smoke-and-rollback",
+      "stories": ["US-007"],
+      "phase": 4,
+      "dependsOn": [
+        "resolver-wrapper",
+        "operating-manual",
+        "auto-memory-and-plans",
+        "data-and-prompts",
+        "ci-invariant"
+      ],
+      "fileOverlapEvidence": {
+        "sharedFiles": ["AGENTS.md"],
+        "exclusiveFiles": [
+          ".ralph/jobs/ai-developer-toolkit-submodule/smoke-test.md",
+          "docs/submodule-rollback.md"
+        ],
+        "risk": "low"
+      },
+      "executionModeRationale": "Smoke test exercises the full integrated system, so it must run last. Rollback docs reference the structural changes from earlier phases, so they're written last. The AGENTS.md overlap is for adding a rollback subsection; phase 2's operating-manual cluster has completed its AGENTS.md edits by then, so the access is safe sequentially."
+    }
+  ]
+}

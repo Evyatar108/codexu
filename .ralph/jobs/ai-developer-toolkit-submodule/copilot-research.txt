@@ -1,0 +1,52 @@
+I’ll read the provided prompt file first, then act on its instructions.
+
+The prompt is larger than a single read window, so I’m loading it in sections.
+
+I’m going to inspect the repository structure and the files called out by the prompt so the research report is grounded in the current codebase.
+
+Some broad searches hit the large worktree size, so I’m narrowing to tracked-file queries and targeted reads.
+
+I found the relevant tracked-file set and am reading the core config files plus summarized path-reference counts.
+
+I’m also checking the existing sibling toolkit checkout because the migration depends on its remote and plugin layout.
+
+The sibling checkout is clean on `main` locally; I’m checking remote HEAD parity and the plugin tree shape to capture the pre-flight constraints accurately.
+
+One important pre-flight finding: the gim-home toolkit remote is not at the same main SHA as origin/personal, so a plan must sync that before adding a gim-home-backed submodule.
+
+I’m reading the tracked task seed itself and the remaining plugin manifest needed for version-invariant details.
+
+I have enough for the migration-specific findings; I’m doing one last narrow check of existing CI/script locations for the invariant recommendation.
+
+### Codebase Architecture
+
+`codexu` is a pnpm monorepo with workspaces under `packages/*`, plus an existing `codex/` git submodule. Root scripts in `package.json` drive Happy packages and Ralph overview tooling through `bin/ralph-overview.mjs`. Ralph task state is split between hand-curated `.ralph-overview/data.json` and generated `.ralph-overview/generated/*`; generated outputs should not be edited manually.
+
+### Feature-Relevant Code
+
+Key files for this migration:
+
+- `.gitmodules`: currently only lists `codex` with `https://github.com/gim-home/codex.git`; add `ai-developer-toolkit`.
+- `bin/ralph-overview.mjs`: resolver fallback still hardcodes `D:/ai-developer-toolkit/plugins/ralph-overview`.
+- `.mcp.json`: still tracked and points at `D:/ai-developer-toolkit/plugins/ralph-overview/launch.cjs`, despite `AGENTS.md` saying the old local-path entry was removed.
+- `AGENTS.md`: plugin-resolution, crews protocol, worktree/remotes, and fresh-clone guidance need updating.
+- `.ralph-overview/data.json`: includes the tracked `ai-developer-toolkit-submodule` task seed and many toolkit path references.
+- `.agents/memory/*.md`, especially `feedback_cross_repo_impl_worktree_mandate.md`, `feedback_crews_spawn_state_cwd_override.md`, and `feedback_plan_member_branch_cherry_pick.md`.
+- `plans/codexu-roadmap.md` and several `plans/*.md`.
+
+A tracked-file grep, excluding `codex`, `.ralph/jobs`, and generated overview files, found 26 current `D:/ai-developer-toolkit` / `D:\\ai-developer-toolkit` references.
+
+### Technical Constraints
+
+Most important pre-flight issue: the toolkit remotes are not currently aligned. `origin` and `personal` main both resolve to `0c8047f325a2a6c90acde935d650790bf243448f`, while `gim-home` main resolves to `d7e01874385c13e7e833a6935d7de11ea2e565f7`. Since `.gitmodules` should use `gim-home`, syncing that remote first is required or the new submodule will pin the wrong toolkit state.
+
+The toolkit is a separate repo with plugin manifests under `plugins/*/.claude-plugin/plugin.json`; current relevant versions are `ralph-overview` 2.7.0, `crews` 3.0.0, and `ralph-orchestration` 5.47.0. `ai-developer-toolkit/` is not ignored by codexu, so the submodule path is addable.
+
+### Implementation Suggestions
+
+Use the existing `codex/` submodule pattern: add `.gitmodules` entry with `path = ai-developer-toolkit` and URL `https://github.com/gim-home/ai-developer-toolkit.git`, after syncing `gim-home/main`.
+
+Rewrite load-bearing paths to repo-relative forms, but do not edit toolkit internals, cached plugin install paths, `.ralph/jobs/*` historical artifacts, or generated `.ralph-overview/generated/*`. Update `.mcp.json` deliberately: either delete it if it is confirmed stale, or repoint it to the in-tree dev-mode path with the existing repo-root env.
+
+For the invariant check, add a small Node script under `tools/` that reads `ai-developer-toolkit/plugins/{ralph-overview,crews,ralph}/.claude-plugin/plugin.json` and compares versions against documented active-version blocks in `AGENTS.md` / `plans/codexu-roadmap.md`; wire it into an existing workflow such as `.github/workflows/typecheck.yml`.
+

@@ -1,0 +1,55 @@
+**Codebase Architecture**
+
+Codexu is a pnpm monorepo (`packageManager: pnpm@10.11.0`) with workspaces under `packages/*`, plus a pinned `codex/` git submodule. `.gitmodules` currently only has:
+
+`codex -> https://github.com/gim-home/codex.git`
+
+The Ralph/bookkeeper system is split between codexu-owned data and toolkit-owned plugin code:
+
+- Codexu-owned: `.ralph-overview/data.json`, `.ralph-overview/config.json`, tracked generated outputs under `.ralph-overview/generated/`, `tasks/INDEX.md`.
+- Toolkit-owned: `ralph-overview`, `crews`, and `ralph-orchestration` plugins, currently referenced through absolute `D:/ai-developer-toolkit/...` paths or marketplace cache paths.
+- Runtime entrypoint: `package.json` scripts call `node bin/ralph-overview.mjs ...`.
+
+CI is light: `.github/workflows/typecheck.yml` only watches `packages/happy-app/**`, and `.github/workflows/cli-smoke-test.yml` only watches `packages/happy-cli/**`. Root `pnpm test` is currently a no-op via `vitest.config.ts`.
+
+**Feature-Relevant Code**
+
+Key files to update or account for:
+
+- `.gitmodules`: add `ai-developer-toolkit` submodule using `https://github.com/gim-home/ai-developer-toolkit.git`.
+- `bin/ralph-overview.mjs`: resolver fallback currently hardcodes `D:/ai-developer-toolkit/plugins/ralph-overview` at line 92 and in help text.
+- `.mcp.json`: currently still tracked and points to `D:/ai-developer-toolkit/plugins/ralph-overview/launch.cjs`, despite `AGENTS.md` saying the local-path entry was removed.
+- `AGENTS.md`: live operational references at plugin resolution, crews protocol path, cross-repo worktree rules, multi-remote push rules, and spawn guidance.
+- `README.md`: fresh-clone section currently documents only the `codex/` submodule.
+- `plans/codexu-roadmap.md` plus several `plans/*.md`: historical and active references to toolkit paths.
+- `.ralph-overview/data.json`: hidden-dir grep finds embedded task prompts with `D:/ai-developer-toolkit`; generated `.ralph-overview/generated/snapshot.json` will need regeneration after source data changes.
+- `.agents/memory/*.md`: in this worktree, only two tracked memory files currently match `D:/ai-developer-toolkit`: `feedback_cross_repo_impl_worktree_mandate.md` and `feedback_fix_architecture_not_workarounds.md`.
+- `.ralph/brainstorms/*` and `.ralph/investigations/*`: there are real matches outside `.ralph/jobs`; acceptance criteria must either rewrite these or explicitly exclude them.
+
+Use `rg --hidden`, not plain `rg`, for the sweep, because `.mcp.json`, `.agents`, `.ralph`, and `.ralph-overview` are hidden paths.
+
+**Technical Constraints**
+
+Pre-flight currently has a blocker: `git ls-remote` showed toolkit `main` remotes diverged. `gim-home/main` is `d7e0187...`, while `evmitran_microsoft/main` and `Evyatar108/main` are `0c8047f...`; the local `D:/ai-developer-toolkit` checkout is clean at `0c8047f`. Sync or intentionally choose the gim-home SHA before `git submodule add`, because the submodule will pin gim-home’s current HEAD.
+
+`bin/ralph-overview.mjs` checks for `.claude-plugin/plugin.json` and `node_modules/chokidar`. A freshly initialized submodule will not necessarily have plugin `node_modules`, so the in-tree fallback is a dev-mode source path, not a guaranteed production runtime unless dependencies are installed. Cached marketplace paths should stay first in the resolver cascade.
+
+For version checks, use plugin manifests, not all package files. `plugins/ralph-overview/package.json` says `1.0.0`, while the plugin version lives in `plugins/ralph-overview/.claude-plugin/plugin.json` (`2.7.0` locally). Similarly: `plugins/crews/.claude-plugin/plugin.json` and `plugins/ralph/.claude-plugin/plugin.json` (`ralph-orchestration`).
+
+CI invariant needs a new workflow or script; existing workflows will not run for `.gitmodules`, `AGENTS.md`, `.ralph-overview`, or submodule-pointer changes. GitHub checkout must use `submodules: true` for any script that reads the in-tree toolkit.
+
+**Implementation Suggestions**
+
+Add the submodule first after remote sync, then rewrite paths. In code, make `bin/ralph-overview.mjs` fallback script-relative, e.g. resolve `../ai-developer-toolkit/plugins/ralph-overview` from `import.meta.url`, not from process cwd.
+
+For `.mcp.json`, either delete it if confirmed stale, or update it deliberately to an in-tree dev-mode path after verifying relative `args` behavior in the active CLI. Do not leave the current contradictory state.
+
+For docs, update `AGENTS.md` and `README.md` to distinguish:
+
+- marketplace cache path: production/default
+- `./ai-developer-toolkit/plugins/...`: in-tree dev-mode and pinned source reference
+- extra remotes inside the submodule are local operator setup, not `.gitmodules`
+
+Add a small Node CI script, e.g. `tools/check-toolkit-submodule-invariants.mjs`, and a package script such as `check:toolkit-submodule`. It should verify `.gitmodules`, gitlink presence, plugin manifest versions, and a scoped active-version block in docs. Avoid scanning every historical version mention, or CI will fail on intentional history/provenance text.
+
+Finally, regenerate Ralph outputs with `pnpm sync-ralph-state` after `.ralph-overview/data.json` changes, then verify with a hidden grep excluding `ai-developer-toolkit/**` and explicitly chosen historical exclusions.
