@@ -2681,9 +2681,9 @@
     {
       "id": "codex-channels-option-b",
       "scope": "codexu",
-      "lifecycle": "tracked",
+      "lifecycle": "merged",
       "status": "ok",
-      "lastTouchedAt": "2026-06-01T13:32:00Z",
+      "lastTouchedAt": "2026-06-02T03:59:00Z",
       "kanbanCards": [],
       "command": {
         "name": "codex-channels-option-b",
@@ -2692,6 +2692,22 @@
         "prompts": {
           "impl": "Read .ralph/jobs/codex-channels-option-b/plan.md. 3-story decomposition: (1) subscribe happy-cli's EventMsg consumer to McpServerNotification + McpSamplingRequest events; (2) routing config that maps notification kinds to display-only vs enqueue-as-prompt-input; (3) integration with existing input queue (priority handling, mid-LLM-call buffering). Tests: vitest fixtures per kind. Single commit OK on ralph/codex-channels-option-b off codexu origin/main. Push to origin + personal. Phase 5a+5b convergence."
         }
+      },
+      "shipManifest": {
+        "shippedAt": "2026-06-02T03:59:00Z",
+        "summary": "Shipped Option B notifications-to-prompt-queue consumer in happy-cli (TS-only, zero codex/ Rust touches). 8 files / +1418 / -2 LoC. Three stories: (1) routing config mcpNotificationRouting.ts with 7-kind default table + per-server overrides + opaque Settings.mcpNotificationRouting field + unknown-kind warn-and-drop; (2) generic consumer mcpNotificationConsumer.ts with trailing-edge debounce per ${server}|${uri ?? kind} key + lazy currentMode() accessor + mcp_sampling_request log-once-per-server per plan §4; (3) wiring in runCodex.ts with consumer built right after currentDisallowedTools so closure captures live EnhancedMode + handle(msg) at top of setEventHandler + dispose() in BOTH handleKillSession AND the main-loop finally (the latter added after Phase 5a code-review caught a real Medium bug: dispose() missing from normal-exit path meant a queued debounce timer could fire post-session-close, leak event-loop lifetime, throw on closed queue -- the exact failure mode the kill-path comment was defending against). 34 new vitest tests all green; 202 codex/* tests pass; typecheck clean. Phase 5b doc-review caught roadmap staleness on rows 34 + 211, fixed in same commit. Deferred (out of scope per plan): reply path for mcp_sampling_request -- future codex-sampling-handler task.",
+        "commits": [
+          {
+            "sha": "c3075b6c",
+            "oneLine": "feat(codex): Option B notifications-to-prompt-queue consumer (member commit on topic branch)",
+            "repo": "Evyatar108/codexu (topic)"
+          },
+          {
+            "sha": "e845ffc5",
+            "oneLine": "feat(codex): Option B notifications-to-prompt-queue consumer (cherry-picked to main)",
+            "repo": "Evyatar108/codexu (main)"
+          }
+        ]
       }
     },
     {
