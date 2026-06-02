@@ -2772,14 +2772,20 @@
       "scope": "codex",
       "lifecycle": "tracked",
       "status": "ok",
-      "lastTouchedAt": "2026-05-30T21:45:00Z",
-      "kanbanCards": [],
+      "lastTouchedAt": "2026-06-02T03:40:00Z",
+      "kanbanCards": [
+        {
+          "className": "cmd-info",
+          "html": "<strong>Plan shipped 2026-06-01</strong> (commit <code>2ad507ef</code>, deliverables at <code>.ralph/jobs/codex-rebase-phase-5a-5b-ci-closeout/</code>). 17 ACs, 16/17 multi-model findings addressed in v2 (1 wont_fix-rationale). Impl is doc-only, ~200-300 LoC across 5 files (rebase skill + CLAUDE.md/AGENTS.override.md mirrors + codexu AGENTS.md cross-ref + data.json). Impl pre-spawn checklist baked into the impl prompt; spawn when ready."
+        }
+      ],
       "command": {
         "name": "codex-rebase-phase-5a-5b-ci-closeout",
         "descriptionHtml": "Surfaced by <code>impl-codex-upstream-rebase-v2</code> (2026-05-30). The Phase 2 rebase (codexu <code>5d26cc93</code> / wrapper <code>f4551c95</code> / codex-patched <code>03fe64287</code>) shipped without local Phase 5a/5b convergence because <code>cargo check --workspace</code> couldn't run on this box (1.95 toolchain blocker). CI (<code>.github/workflows/invariant-check.yml</code> on ubuntu-latest + windows-latest) is the canonical workspace-test gate. <strong>Action:</strong> watch first post-push CI run on <code>sandbox-patches</code> and <code>codex/main</code>; if type-drift fixes needed, force-push fix on top.",
         "warnings": [],
         "prompts": {
-          "plan": "/plan-with-ralph \"Monitor CI on the post-rebase commits (codex-patched 03fe64287 on sandbox-patches, codex wrapper f4551c95 on gim-home/codex@main). If CI is green, mark this task merged with no follow-up. If CI surfaces type-drift fixes (compiler errors in HEAD-side code triggered by upstream's API changes in v0.135.0), apply the fix in a force-push to sandbox-patches per the skill convention (sandbox-patches lives through force-with-lease resets). Re-bump the wrapper gitlink + codexu submodule pointer on a small follow-up commit.\""
+          "plan": "/plan-with-ralph \"Monitor CI on the post-rebase commits (codex-patched 03fe64287 on sandbox-patches, codex wrapper f4551c95 on gim-home/codex@main). If CI is green, mark this task merged with no follow-up. If CI surfaces type-drift fixes (compiler errors in HEAD-side code triggered by upstream's API changes in v0.135.0), apply the fix in a force-push to sandbox-patches per the skill convention (sandbox-patches lives through force-with-lease resets). Re-bump the wrapper gitlink + codexu submodule pointer on a small follow-up commit.\"",
+          "impl": "/implement-with-ralph --from-plan .ralph/jobs/codex-rebase-phase-5a-5b-ci-closeout/plan.md --autonomous\n\nCRITICAL HANDOFF NOTES (from plan author):\n  - Worktree: codex/.worktrees/<task-id> (INSIDE the codex submodule, per fork-level AGENTS.md worktree convention table).\n  - Commit pattern: ONE codex submodule commit on ralph/<task-id>, then ONE codexu commit on ralph/<task-id> that bumps the codex gitlink + codexu-side AGENTS.md + .ralph-overview/data.json together.\n  - DO NOT touch plans/codexu-roadmap.md (bookkeeper post-ship responsibility).\n  - DO NOT git add CLAUDE.md from the codexu worktree (gitignored per fork pattern).\n  - After data.json edit, run `pnpm sync-ralph-state` (or `node bin/ralph-overview.mjs sync`) to regenerate sidecars.\n  - Push to ralph/<task-id> topic branches on BOTH the codex submodule and codexu, NEVER directly to either repo main. Lead FF-merges.\n\nPlan covers: Phase 5a HARD local cargo check --workspace gate + Phase 5b post-push invariant-check CI watch + interim closeout for the org-policy-blocked state (escalate-gim-home-actions-policy) + self-triggering sunset checklist that flips Phase 5b back to real CI watch once the org block lifts. Doc-only, no Rust changes."
         }
       }
     },
