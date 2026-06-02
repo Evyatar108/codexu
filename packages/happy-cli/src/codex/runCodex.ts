@@ -47,6 +47,8 @@ import { loadProjectMcpServers } from './projectMcpConfig';
 import { filterMcpServersByToolGating } from './mcpServerGating';
 import { synthesizeCodexTools } from './codexToolsList';
 import { createAgentTreeState, type AgentTreeEvent } from './agentTreeState';
+import { loadMcpNotificationRouting } from './mcpNotificationRouting';
+import { createMcpNotificationConsumer, type McpNotificationConsumer } from './mcpNotificationConsumer';
 
 function getMessageDelivery(message: { messageId?: string; seq?: number }): MessageDelivery | undefined {
     return typeof message.messageId === 'string' && typeof message.seq === 'number'
@@ -280,6 +282,27 @@ export async function runCodex(opts: {
     // filter operates on the mcpServers config handed to startThread.
     let currentAllowedTools: string[] | undefined = undefined;
     let currentDisallowedTools: string[] | undefined = undefined;
+
+    // Codex MCP-server notification consumer (Option B for codex-channels).
+    // Subscribes to EventMsg::McpServerNotification / McpSamplingRequest
+    // emitted by codex Stage A (Feature::McpServerNotifications). Disabled
+    // by default — the user opts in via `settings.mcpNotificationRouting`.
+    // See packages/happy-cli/src/codex/mcpNotificationRouting.ts and
+    // .ralph/jobs/codex-channels-option-b/plan.md.
+    const mcpNotificationRouting = loadMcpNotificationRouting(settings?.mcpNotificationRouting);
+    const mcpNotificationConsumer: McpNotificationConsumer = createMcpNotificationConsumer({
+        routing: mcpNotificationRouting,
+        messageQueue,
+        currentMode: () => ({
+            permissionMode: currentPermissionMode || 'default',
+            model: currentModel,
+            thinkingLevel: currentThinkingLevel,
+            customSystemPrompt: currentCustomSystemPrompt,
+            appendSystemPrompt: currentAppendSystemPrompt,
+            allowedTools: currentAllowedTools,
+            disallowedTools: currentDisallowedTools,
+        }),
+    });
 
     // Valid Codex permission modes from remote messages. Restricted to the
     // native Codex modes exposed by the mobile UI (see modelModeOptions.ts:
@@ -625,6 +648,10 @@ export async function runCodex(opts: {
         // Stop Happy MCP server
         happyServer.stop();
 
+        // Cancel any pending MCP-notification debounce timers so a late
+        // resource_updated push can't fire after session close.
+        mcpNotificationConsumer.dispose();
+
         logger.debug('[Codex] Session termination complete');
     };
 
@@ -718,6 +745,13 @@ export async function runCodex(opts: {
     // Event handler: same EventMsg types as the legacy MCP server — no changes needed
     client.setEventHandler((msg) => {
         logger.debug(`[Codex] Event: ${JSON.stringify(msg)}`);
+
+        // Option B for codex-channels: route Stage A MCP notifications into
+        // the prompt queue (or display-only) per `mcpNotificationRouting`
+        // config. No-op when routing is disabled. Called early so the
+        // synthesized push lands on the queue before any of the display
+        // branches below mutate UI state.
+        mcpNotificationConsumer.handle(msg as { type?: string } & Record<string, unknown>);
 
         const agentTreeDeltas = agentTreeState.applyEvent(msg as AgentTreeEvent);
         for (const delta of agentTreeDeltas) {
@@ -1138,6 +1172,12 @@ export async function runCodex(opts: {
         // Stop Happy MCP server
         logger.debug('[codex]: happyServer.stop');
         happyServer.stop();
+
+        // Cancel any pending MCP-notification debounce timers (Option B for
+        // codex-channels). Mirrors the same dispose in handleKillSession so
+        // a late resource_updated push can't fire after the queue / session
+        // are closed via the normal main-loop exit path either.
+        mcpNotificationConsumer.dispose();
 
         // Clean up ink UI
         if (process.stdin.isTTY) {

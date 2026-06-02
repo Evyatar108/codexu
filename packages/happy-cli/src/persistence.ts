@@ -44,6 +44,14 @@ interface Settings {
   daemonAutoStartWhenRunningHappy?: boolean
   chromeMode?: boolean
   sandboxConfig?: SandboxConfig
+  /**
+   * Opaque routing config for codex MCP-server notifications (Option B for
+   * codex-channels). Parsed and validated at use-site by
+   * `loadMcpNotificationRouting()` in
+   * `src/codex/mcpNotificationRouting.ts` so the persistence layer does not
+   * pull in codex-specific schema. Default behavior when omitted: disabled.
+   */
+  mcpNotificationRouting?: unknown
 }
 
 const defaultSettings: Settings = {
