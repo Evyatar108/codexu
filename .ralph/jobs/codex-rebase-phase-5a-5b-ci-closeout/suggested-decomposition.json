@@ -1,0 +1,22 @@
+{
+  "clusters": [
+    {
+      "name": "rebase-protocol-codification",
+      "stories": ["US-001"],
+      "phase": 1,
+      "dependsOn": [],
+      "fileOverlapEvidence": {
+        "sharedFiles": [
+          "codex/.claude/commands/rebase-upstream.md",
+          "codex/CLAUDE.md",
+          "codex/AGENTS.override.md",
+          "AGENTS.md",
+          ".ralph-overview/data.json"
+        ],
+        "exclusiveFiles": [],
+        "risk": "low"
+      },
+      "executionModeRationale": "Single doc-only story with tight lockstep coupling between CLAUDE.md and AGENTS.override.md mirror pointers and a canonical-source dependency on rebase-upstream.md drafting. No parallel opportunity; serial execution is correct."
+    }
+  ]
+}

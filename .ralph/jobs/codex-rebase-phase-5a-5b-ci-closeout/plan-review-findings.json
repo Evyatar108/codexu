@@ -1,0 +1,184 @@
+{
+  "planFile": "D:/harness-efforts/codexu/.ralph/jobs/.staging/20260602T031439Z-plan-codex-rebase-phase-5a-5b-ci-closeout-eabf8496/draft-plan.md",
+  "repoDir": "D:/harness-efforts/codexu/.ralph/jobs/codex-rebase-phase-5a-5b-ci-closeout/worktree/plan",
+  "reviewIteration": 1,
+  "synthesisNote": "Three reviewers (Claude + Codex + Copilot) returned 17 findings — 3 High consensus/near-consensus, 4 Codex-only High, 10 Mediums. All addressed in plan v2 directly by the plan-drafter without invoking review-loop.sh (findings were mechanical fixes — re-wording, extra ACs, command-path corrections — not deliberation-heavy design changes; multi-reviewer signal was already converged). v1 archived as draft-plan-v1.md in staging.",
+  "findings": [
+    {
+      "id": "F-001",
+      "severity": "High",
+      "source": "consensus",
+      "category": "AcceptanceCriteriaQuality",
+      "summary": "v1 AC6 grep -A0 only verifies first line of multi-line bullet — divergent continuation text would pass",
+      "raisedBy": ["codex", "copilot"],
+      "status": "fixed",
+      "resolution": "v2 AC7 uses awk-based bullet-block extractor + diff over the whole bullet body (from the bullet-start line through the next bullet/heading)"
+    },
+    {
+      "id": "F-002",
+      "severity": "High",
+      "source": "consensus",
+      "category": "Feasibility",
+      "summary": "v1 AC9 excludes all non-md/json paths from the diff — would fail on the legitimate codex gitlink path bump",
+      "raisedBy": ["codex", "copilot"],
+      "status": "fixed",
+      "resolution": "v2 AC11 split into per-repo checks: codex submodule allows only *.md; codexu allows *.md, *.json, the bare 'codex' gitlink path, and .ralph-overview/generated/ regenerated sidecars"
+    },
+    {
+      "id": "F-003",
+      "severity": "High",
+      "source": "claude",
+      "category": "Completeness",
+      "summary": "v1 split-commit fallback had no guard against wrapper gitlink pointing at the incomplete commit-1 SHA",
+      "raisedBy": ["claude"],
+      "status": "fixed",
+      "resolution": "v2 Phase 5a split-commit section now includes a wrapper-side gitlink safety check that greps the target commit message for '(incomplete)' and exits non-zero before staging. v2 AC2 verifies the check is present."
+    },
+    {
+      "id": "F-004",
+      "severity": "High",
+      "source": "codex",
+      "category": "Feasibility",
+      "summary": "v1 Phase 5a command 'source scripts/iteration-env.sh' resolved relative to submodule cwd, would fail",
+      "raisedBy": ["codex"],
+      "status": "fixed",
+      "resolution": "v2 uses 'source \"$REBASE_WORKTREE/scripts/iteration-env.sh\"' with wrapper-root absolute path"
+    },
+    {
+      "id": "F-005",
+      "severity": "High",
+      "source": "codex",
+      "category": "Feasibility",
+      "summary": "v1 said 'Push codex submodule commit to gim-home/codex@main' — violates the lead-only-merges-to-main rule",
+      "raisedBy": ["codex"],
+      "status": "fixed",
+      "resolution": "v2 Implementation Strategy Step 3 explicitly says impl pushes ralph/<task-id> topic branch; lead later FF-merges. Mirrored in v2 Technical Constraints."
+    },
+    {
+      "id": "F-006",
+      "severity": "High",
+      "source": "codex",
+      "category": "Completeness",
+      "summary": "v1 only appended H2 sections; numbered workflow steps 5/6 (which agents follow first) didn't reference Phase 5a",
+      "raisedBy": ["codex"],
+      "status": "fixed",
+      "resolution": "v2 Implementation Strategy Step 1 amends step 5 inline to add the workspace-cargo-check HARD GATE pointer, AND amends step 6 to require Phase 5a as a precondition. v2 AC4 verifies both amendments."
+    },
+    {
+      "id": "F-007",
+      "severity": "High",
+      "source": "codex",
+      "category": "Ordering",
+      "summary": "v1 had impl member add command.prompts.impl during impl — but that seed is needed BEFORE the impl spawn",
+      "raisedBy": ["codex"],
+      "status": "fixed",
+      "resolution": "v2 moves prompts.impl seed to a 'Bookkeeper pre-spawn responsibilities' section; removed from impl scope; AC9 no longer references it"
+    },
+    {
+      "id": "F-008",
+      "severity": "Medium",
+      "source": "claude",
+      "category": "CriteriaQuality",
+      "summary": "v1 sunset condition was prose-only ('update this section after escalate... ships'); not self-triggering",
+      "raisedBy": ["claude"],
+      "status": "fixed",
+      "resolution": "v2 Phase 5b now has '### Sunset checklist (self-triggering)' with concrete bookkeeper commands (workflow_dispatch + gh run watch + amend). v2 AC3 verifies the checklist is present. v2 AC10 verifies a cross-link kanbanCards row on the escalate-gim-home-actions-policy task."
+    },
+    {
+      "id": "F-009",
+      "severity": "Medium",
+      "source": "codex",
+      "category": "Feasibility",
+      "summary": "v1 worktree placement used codex/../.worktrees — doesn't match the convention table (which says <repo>/.worktrees)",
+      "raisedBy": ["codex"],
+      "status": "fixed",
+      "resolution": "v2 Step 0 uses codex/.worktrees/<task-id> inside the codex submodule"
+    },
+    {
+      "id": "F-010",
+      "severity": "Medium",
+      "source": "codex",
+      "category": "Completeness",
+      "summary": "v1 said 'six files touched' but later said roadmap is post-ship — contradictory",
+      "raisedBy": ["codex"],
+      "status": "fixed",
+      "resolution": "v2 consistently says 5 files in impl scope; roadmap is bookkeeper post-ship. v2 AC16 enforces no roadmap edit in impl scope."
+    },
+    {
+      "id": "F-011",
+      "severity": "Medium",
+      "source": "codex",
+      "category": "Completeness",
+      "summary": "v1 didn't mention regenerating .ralph-overview/generated/ sidecars after data.json edit",
+      "raisedBy": ["codex"],
+      "status": "fixed",
+      "resolution": "v2 Implementation Strategy Step 6 + v2 AC17 add the 'node bin/ralph-overview.mjs sync' step and verify sidecars are in-sync with committed state"
+    },
+    {
+      "id": "F-012",
+      "severity": "Medium",
+      "source": "codex",
+      "category": "Ordering",
+      "summary": "v1 implied this task exercises Phase 5b interim closeout — but doc-only impl doesn't",
+      "raisedBy": ["codex"],
+      "status": "fixed",
+      "resolution": "v2 Implementation Strategy Step 10 explicitly states this impl ships the PROTOCOL, not an exercise of the closeout"
+    },
+    {
+      "id": "F-013",
+      "severity": "Medium",
+      "source": "codex",
+      "category": "Simplicity",
+      "summary": "Proposed new sections are large; could update steps 5-8 + add a shorter summary",
+      "raisedBy": ["codex"],
+      "status": "wont_fix",
+      "resolution": "Q4 in Open Questions documents the deliberate decision to keep sections self-contained (future rebase agents read the skill from scratch in a fresh context; click-through assembly is more error-prone). The new sections DO explicitly cross-reference existing sections at their tops to make the relationship visible without forcing bouncing."
+    },
+    {
+      "id": "F-014",
+      "severity": "Medium",
+      "source": "codex",
+      "category": "AcceptanceCriteriaQuality",
+      "summary": "v1 AC10 cargo-metadata.out redirect used a bare filename, cwd-dependent",
+      "raisedBy": ["codex"],
+      "status": "fixed",
+      "resolution": "v2 Implementation Strategy Step 9 uses an absolute JOB_OUT path under .ralph/jobs/.../cargo-metadata.out; v2 AC12 verifies the file is non-empty"
+    },
+    {
+      "id": "F-015",
+      "severity": "Medium",
+      "source": "copilot",
+      "category": "Completeness",
+      "summary": "v1 data.json warning snippet was multi-line raw string, not valid JSON",
+      "raisedBy": ["copilot"],
+      "status": "fixed",
+      "resolution": "v2 Files to Create/Modify §5 shows the warnings row as proper single-line JSON"
+    },
+    {
+      "id": "F-016",
+      "severity": "Medium",
+      "source": "copilot",
+      "category": "AcceptanceCriteriaQuality",
+      "summary": "v1 AC8 only checked warnings array length >=1; weak — pre-existing warning would mask a missed addition",
+      "raisedBy": ["copilot"],
+      "status": "fixed",
+      "resolution": "v2 AC9 substring-checks both 'escalate-gim-home-actions-policy' AND 'Phase 5b is currently gated' in command.warnings[].html"
+    },
+    {
+      "id": "F-017",
+      "severity": "Medium",
+      "source": "claude",
+      "category": "CriteriaQuality",
+      "summary": "v1 AC9 used undefined <base> placeholder",
+      "raisedBy": ["claude"],
+      "status": "fixed",
+      "resolution": "v2 introductory 'Base commit reference' block before AC1 defines BASE=$(git merge-base HEAD origin/main) once; all diff ACs use $BASE"
+    }
+  ],
+  "summary": {
+    "totalFindings": 17,
+    "byStatus": {"fixed": 16, "wont_fix": 1, "open": 0},
+    "bySeverity": {"High": 7, "Medium": 10},
+    "bySource": {"consensus": 2, "claude": 3, "codex": 10, "copilot": 2}
+  }
+}

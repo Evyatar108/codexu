@@ -1,0 +1,32 @@
+I’ll open the referenced prompt file and follow its instructions.
+
+The prompt is long, so I’ll read it in ranges before acting on it.
+
+I’ll verify the plan’s referenced files and integration points against the repo before writing the review.
+
+I found the main doc locations; I’ll spot-check the task entry and workflow details for plan accuracy.
+
+The referenced files exist, and I’m checking the task-state shape to make sure the proposed JSON edits are valid.
+
+### Feasibility
+
+- [High] AC9 conflicts with AC12. AC9 says only `*.md` and `*.json` paths may appear in the diff, but AC12 requires a codexu submodule gitlink change at path `codex` with no extension. A correct implementation would fail AC9. Adjust AC9 to allow the `codex` gitlink while still excluding code/config/script extensions.
+
+### Completeness
+
+- [Medium] The `.ralph-overview/data.json` warning snippet is labeled JSON but shows a raw multiline string, which would be invalid if copied literally. Existing `descriptionHtml`/`warnings[].html` values are single-line JSON strings. Make the sample explicitly single-line or escaped.
+
+### Ordering
+
+No issues found.
+
+### Simplicity
+
+No issues found.
+
+### Acceptance Criteria Quality
+
+- [High] AC6 does not actually verify the `CLAUDE.md` and `AGENTS.override.md` bullets are byte-identical. `grep -A0` only compares the first bullet line, so divergent continuation text would pass. Use a bounded extraction of the whole bullet, e.g. from the `Rebase Phase 5a/5b protocol` line through the next bullet/heading, then diff those blocks.
+
+- [Medium] AC8 only checks warning count `>=1`, not that the new org-policy-block warning was added. Since the task entry currently has `warnings: []`, this is probably enough today, but a future pre-existing warning would make the check too weak. Check for `escalate-gim-home-actions-policy` or `Phase 5b is currently gated` in that task’s `command.warnings[].html`.
+

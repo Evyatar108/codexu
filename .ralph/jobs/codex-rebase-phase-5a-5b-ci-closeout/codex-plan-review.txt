@@ -1,0 +1,35 @@
+### Feasibility
+
+[High] The proposed Phase 5a command is not reliably executable as written. In `codex/.claude/commands/rebase-upstream.md`, `scripts/iteration-env.sh` exists at the wrapper root (`codex/scripts/iteration-env.sh`), not under `external/repos/codex-patched/`. The new text says Phase 5a runs in the submodule checkout, then shows `source scripts/iteration-env.sh` before `cd "$REBASE_WORKTREE/external/repos/codex-patched/codex-rs"`. If the agent is not already at `$REBASE_WORKTREE`, this fails. Use `source "$REBASE_WORKTREE/scripts/iteration-env.sh"` or explicitly `cd "$REBASE_WORKTREE"` first.
+
+[High] The plan’s push wording is ambiguous enough to violate repo workflow. Step 4 says “Push codex submodule commit to `gim-home/codex@main`”, while also saying the impl skill uses a topic branch and the lead FF-merges later. The root `AGENTS.md` rule is “Only the lead merges to main” and members must not push directly to `origin/main`. The plan should say unambiguously: impl pushes `ralph/codex-rebase-phase-5a-5b-ci-closeout`; lead later fast-forwards `main` and pushes all configured remotes.
+
+[Medium] The codex worktree placement instruction is questionable. It says `git -C codex worktree add ../.worktrees/<task-id> ...` “per cross-repo impl convention,” but `AGENTS.md` says cross-repo worktrees live inside the repo being worked on, `<repo>/.worktrees/<task-id>`. The proposed path may work because `.worktrees/` is ignored, but it does not match the cited convention.
+
+### Completeness
+
+[High] The plan does not update the actual numbered workflow step that future agents will follow. `codex/.claude/commands/rebase-upstream.md` step 5 still says to iterate with `cargo check -p codex-core` before step 6 pushes `sandbox-patches`. Adding later H2 sections is useful, but to make this procedural, step 5 and/or step 6 must explicitly say workspace `cargo check --workspace` is mandatory before the commit/push.
+
+[Medium] The plan says six files are touched, but later says `plans/codexu-roadmap.md` is post-ship only and not part of the impl story. That contradiction can make an autonomous impl member touch the roadmap too early. The implementation scope should be five files, with roadmap as a separate lead/bookkeeper step after merge.
+
+[Medium] Updating `.ralph-overview/data.json` usually requires regenerating/syncing overview artifacts if the committed repo expects generated state to stay coherent. The plan does not mention `pnpm sync-ralph-state` or whether generated files are intentionally left alone.
+
+### Ordering
+
+[High] The plan says to add `command.prompts.impl` during the implementation of the same task. That seed is needed before spawning the impl member, not after it is already running. Either this should be a pre-spawn bookkeeping edit by the lead, or it should be dropped from the story and replaced by `shipManifest`/lifecycle handling after merge.
+
+[Medium] Phase 5b “interim closeout” text depends on local release build + runtime smoke, but this doc-only implementation only requires `cargo metadata`. That is fine for verifying the doc edit, but the plan should not imply this task has exercised the actual Phase 5b interim closeout criteria.
+
+### Simplicity
+
+[Medium] The proposed new sections are very large and duplicate details already present in `Build step`, `Audit gate`, and `Pre-tag runtime smoke`. A simpler durable change would update steps 5-8 directly, then add a shorter Phase 5a/5b summary that links back to the existing sections.
+
+### Acceptance Criteria Quality
+
+[High] AC6 does not verify byte-identical mirror bullets. `grep -A0` compares only the first line, while the proposed bullet is multi-line. It would pass even if the rest of `codex/CLAUDE.md` and `codex/AGENTS.override.md` diverged. Extract the full bullet block, or use a small script that compares from the bullet start to the next bullet.
+
+[Medium] AC9 is internally inconsistent. The codexu follow-up diff must include the `codex` submodule gitlink path, which is neither `*.md` nor `*.json`. “Only `*.md` and `*.json` paths in the diff” will either fail on the intended pointer bump or be applied only inside the codex submodule without saying so.
+
+[Medium] AC10 says `cargo-metadata.out` must be captured to the job-dir, but the listed command redirects to a bare filename. Depending on cwd, that can leave output in `codex/external/repos/codex-patched/codex-rs/` or another source tree. Use an explicit path like `.ralph/jobs/codex-rebase-phase-5a-5b-ci-closeout/cargo-metadata.out`.
+
+No prior review-cycle amendments are mentioned, so there are no claimed fixes to validate.
