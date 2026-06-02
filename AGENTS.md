@@ -537,6 +537,19 @@ this doc.
   attributing inherited breakage to their own edits.
 - **`origin/main` always parses cleanly.** Feature-branch overlay gaps are
   mid-flight artifacts, not steady-state issues.
+- **Codex rebase Phase 5a/5b protocol** lives in
+  `codex/.claude/commands/rebase-upstream.md` `## Phase 5a` /
+  `## Phase 5b`. Phase 5a is the HARD `cargo check --workspace` local
+  gate before any `sandbox-patches` force-push; Phase 5b is the
+  post-push `invariant-check` CI watch on `gim-home/codex@main` (or
+  the documented interim-closeout path while CI is org-policy-blocked
+  via `escalate-gim-home-actions-policy` — see the rebase skill
+  `### Sunset checklist (self-triggering)` for the bookkeeper trigger
+  on block lift). **Naming overlap warning:** NOT the same as
+  codexu's impl-member Phase 5a/5b review-fix loop (the spawn-prompt
+  invariant in this AGENTS.md). Same number, different scope: the
+  rebase protocol gates the codex submodule pointer bump; the impl
+  protocol gates the impl-story ship.
 
 ### Bookkeeper operational practice
 

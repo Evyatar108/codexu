@@ -2301,6 +2301,13 @@
           "inlineStyle": null,
           "html": "\n      <div class=\"card-title\">Unblock gim-home/codex GitHub Actions (org policy escalation)</div>\n      <div class=\"sub\">100/100 recent CI runs exit startup_failure since at least 2026-04-07. Diagnosed as org-level Actions policy refusal — not code. Operator/org-admin action only.</div>\n      <div class=\"card-meta\">\n        <span class=\"pill area-ops\">ops</span>\n        <span class=\"pill p-high\">blocked on org-admin</span>\n      </div>\n    ",
           "order": 5
+        },
+        {
+          "column": "blocked",
+          "cardClass": null,
+          "inlineStyle": null,
+          "html": "\n      <div class=\"card-title\">On unblock: run rebase skill Sunset checklist</div>\n      <div class=\"sub\">workflow_dispatch invariant-check on gim-home/codex@main HEAD, then amend codex/.claude/commands/rebase-upstream.md Phase 5b interim subsection per its <code>### Sunset checklist (self-triggering)</code>. Cross-check every rebase task that closed under the interim path.</div>\n      <div class=\"card-meta\">\n        <span class=\"pill area-ops\">ops</span>\n        <span class=\"pill p-med\">post-unblock</span>\n      </div>\n    ",
+          "order": 6
         }
       ],
       "command": {
@@ -2788,7 +2795,7 @@
       "scope": "codex",
       "lifecycle": "tracked",
       "status": "ok",
-      "lastTouchedAt": "2026-06-02T03:40:00Z",
+      "lastTouchedAt": "2026-06-02T04:35:00Z",
       "kanbanCards": [
         {
           "className": "cmd-info",
@@ -2798,7 +2805,9 @@
       "command": {
         "name": "codex-rebase-phase-5a-5b-ci-closeout",
         "descriptionHtml": "Surfaced by <code>impl-codex-upstream-rebase-v2</code> (2026-05-30). The Phase 2 rebase (codexu <code>5d26cc93</code> / wrapper <code>f4551c95</code> / codex-patched <code>03fe64287</code>) shipped without local Phase 5a/5b convergence because <code>cargo check --workspace</code> couldn't run on this box (1.95 toolchain blocker). CI (<code>.github/workflows/invariant-check.yml</code> on ubuntu-latest + windows-latest) is the canonical workspace-test gate. <strong>Action:</strong> watch first post-push CI run on <code>sandbox-patches</code> and <code>codex/main</code>; if type-drift fixes needed, force-push fix on top.",
-        "warnings": [],
+        "warnings": [
+          {"className":"cmd-warn blocked","html":"⏸️ <strong>Phase 5b is currently gated on <code>escalate-gim-home-actions-policy</code></strong> — every invariant-check run on <code>gim-home/codex@main</code> returns startup_failure with zero jobs (100/100 since 2026-04-07). Interim closeout path (local cargo check --workspace + release build + pre-tag runtime smoke) is documented in <code>codex/.claude/commands/rebase-upstream.md</code> <code># Phase 5b → Interim closeout when CI is org-policy-blocked</code>. Sunset: when <code>escalate-gim-home-actions-policy</code> ships, the bookkeeper runs the <code>### Sunset checklist (self-triggering)</code> in the rebase skill."}
+        ],
         "prompts": {
           "plan": "/plan-with-ralph \"Monitor CI on the post-rebase commits (codex-patched 03fe64287 on sandbox-patches, codex wrapper f4551c95 on gim-home/codex@main). If CI is green, mark this task merged with no follow-up. If CI surfaces type-drift fixes (compiler errors in HEAD-side code triggered by upstream's API changes in v0.135.0), apply the fix in a force-push to sandbox-patches per the skill convention (sandbox-patches lives through force-with-lease resets). Re-bump the wrapper gitlink + codexu submodule pointer on a small follow-up commit.\"",
           "impl": "/implement-with-ralph --from-plan .ralph/jobs/codex-rebase-phase-5a-5b-ci-closeout/plan.md --autonomous\n\nCRITICAL HANDOFF NOTES (from plan author):\n  - Worktree: codex/.worktrees/<task-id> (INSIDE the codex submodule, per fork-level AGENTS.md worktree convention table).\n  - Commit pattern: ONE codex submodule commit on ralph/<task-id>, then ONE codexu commit on ralph/<task-id> that bumps the codex gitlink + codexu-side AGENTS.md + .ralph-overview/data.json together.\n  - DO NOT touch plans/codexu-roadmap.md (bookkeeper post-ship responsibility).\n  - DO NOT git add CLAUDE.md from the codexu worktree (gitignored per fork pattern).\n  - After data.json edit, run `pnpm sync-ralph-state` (or `node bin/ralph-overview.mjs sync`) to regenerate sidecars.\n  - Push to ralph/<task-id> topic branches on BOTH the codex submodule and codexu, NEVER directly to either repo main. Lead FF-merges.\n\nPlan covers: Phase 5a HARD local cargo check --workspace gate + Phase 5b post-push invariant-check CI watch + interim closeout for the org-policy-blocked state (escalate-gim-home-actions-policy) + self-triggering sunset checklist that flips Phase 5b back to real CI watch once the org block lifts. Doc-only, no Rust changes."
