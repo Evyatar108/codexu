@@ -2,7 +2,7 @@
 
 **Worktree:** the EXTRACTION work happens in **two places** with two separate worktrees / branches:
 
-1. **Plugin source tree:** `D:\ai-developer-toolkit\plugins\ralph-overview\` — new plugin alongside `crews`, `ralph`. The implementer creates a branch in the `ai-developer-toolkit` repo for this work (recommended name: `add-ralph-overview-plugin`). NOT a Ralph-orchestrated worktree — this is plain `git checkout -b` in the toolkit tree because the toolkit isn't using Ralph itself for its own development.
+1. **Plugin source tree:** `./ai-developer-toolkit/plugins/ralph-overview/` — new plugin alongside `crews`, `ralph`. The implementer creates a branch in the `ai-developer-toolkit` repo for this work (recommended name: `add-ralph-overview-plugin`). NOT a Ralph-orchestrated worktree — this is plain `git checkout -b` in the toolkit tree because the toolkit isn't using Ralph itself for its own development.
 2. **Codexu consumer-side migration:** `/implement-with-ralph --from-plan` creates the worktree at `D:\harness-efforts\codexu\.ralph\jobs\ralph-pipeline-12-package-as-plugin\worktree\` on branch `ralph-pipeline-12-package-as-plugin`. Removes the extracted files, updates `package.json` scripts, registers the installed plugin's MCP server in `.claude/settings.local.json` (per-machine, gitignored).
 
 The two changes ship as separate commits in separate repos. Land the plugin first (so the consumer migration can install + reference it); land the codexu migration second.
@@ -30,7 +30,7 @@ Plans 02 (watcher), 03 (UI chip), 04 (PipelineOverview), 06 (skills), 07 (contex
 ## Scope
 
 **In scope:**
-- Create the plugin source tree at `D:\ai-developer-toolkit\plugins\ralph-overview\`:
+- Create the plugin source tree at `./ai-developer-toolkit/plugins/ralph-overview/`:
   - `plugin.json` — plugin manifest declaring name, version, exposed skills, MCP servers.
   - `scripts/` — extracted from codexu's `scripts/lib/*` + `scripts/sync-ralph-state.mjs`.
   - `tools/overview-mcp/` — extracted from codexu's MCP server (Plans 09 + 11).
@@ -56,7 +56,7 @@ Plans 02 (watcher), 03 (UI chip), 04 (PipelineOverview), 06 (skills), 07 (contex
 
 ## Files
 
-### To create (in `D:\ai-developer-toolkit\plugins\ralph-overview\`)
+### To create (in `./ai-developer-toolkit/plugins/ralph-overview/`)
 
 - **`plugin.json`** — declares plugin identity:
   ```jsonc
@@ -78,7 +78,7 @@ Plans 02 (watcher), 03 (UI chip), 04 (PipelineOverview), 06 (skills), 07 (contex
       }
   }
   ```
-  Exact field names per the ai-developer-toolkit plugin manifest convention — read `D:\ai-developer-toolkit\plugins\crews\plugin.json` (or equivalent) for the canonical shape.
+  Exact field names per the ai-developer-toolkit plugin manifest convention — read `./ai-developer-toolkit/plugins/crews/plugin.json` (or equivalent) for the canonical shape.
 - **`README.md`** — installation guide, configuration reference, three-paragraph "what is this" intro.
 - **`docs/installation.md`** — step-by-step:
   1. `claude-code plugin add ai-developer-toolkit:ralph-overview`
@@ -118,17 +118,17 @@ Plans 02 (watcher), 03 (UI chip), 04 (PipelineOverview), 06 (skills), 07 (contex
 
 ### Read for reference
 
-- `D:\ai-developer-toolkit\plugins\crews\plugin.json` — canonical plugin manifest shape.
-- `D:\ai-developer-toolkit\plugins\ralph\` — sibling plugin; example of how a plugin exposes skills + scripts.
-- `D:\ai-developer-toolkit\PLUGINS.md` (if it exists) — toolkit's plugin authoring docs.
-- `D:\ai-developer-toolkit\plugins\seval\` (or any plugin with an MCP server) — example of MCP server registration via plugin manifest.
+- `./ai-developer-toolkit/plugins/crews/plugin.json` — canonical plugin manifest shape.
+- `./ai-developer-toolkit/plugins/ralph/` — sibling plugin; example of how a plugin exposes skills + scripts.
+- `./ai-developer-toolkit/PLUGINS.md` (if it exists) — toolkit's plugin authoring docs.
+- `./ai-developer-toolkit/plugins/seval/` (or any plugin with an MCP server) — example of MCP server registration via plugin manifest.
 
 ## Migration strategy
 
 The extraction is a "lift and shift" plus a "rename and re-target." Recommend:
 
 1. **Prep:** in codexu, run a final sync via the existing `pnpm sync-ralph-state` so the snapshot is fresh. Verify everything works pre-migration.
-2. **Create the plugin shell:** `D:\ai-developer-toolkit\plugins\ralph-overview\` with `plugin.json`, `README.md`, empty subdirs.
+2. **Create the plugin shell:** `./ai-developer-toolkit/plugins/ralph-overview/` with `plugin.json`, `README.md`, empty subdirs.
 3. **Copy code** from codexu into the plugin tree. Preserve the `scripts/lib/*` and `tools/*` layouts.
 4. **Rename packages:** `@codexu/overview-mcp` → `@ralph/overview-mcp`, `@codexu/overview-viewer` → `@ralph/overview-viewer`. Update internal imports.
 5. **Update `Toolbar.tsx`** to data-drive the workstream + scope chips.
@@ -140,7 +140,7 @@ The codexu migration is one PR; the plugin lives in its own commit history in th
 
 ## Acceptance criteria
 
-- [ ] `plugin.json` exists at `D:\ai-developer-toolkit\plugins\ralph-overview\plugin.json` and validates per the toolkit's plugin manifest schema.
+- [ ] `plugin.json` exists at `./ai-developer-toolkit/plugins/ralph-overview/plugin.json` and validates per the toolkit's plugin manifest schema.
 - [ ] Plugin tree includes `scripts/`, `tools/overview-mcp/`, `tools/overview-viewer/`, `skills/{work-on,triage,blocker-report}/`, `docs/`, `templates/`, `README.md`.
 - [ ] Plugin can be installed into a fresh test workspace and the full lifecycle runs end-to-end (sync, dev server start via MCP, chips render).
 - [ ] `Toolbar.tsx` `FILTER_GROUPS` is data-driven for workstream + scope (no hardcoded labels).

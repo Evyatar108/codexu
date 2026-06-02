@@ -258,8 +258,8 @@ Workspace dependencies inside `C:/harness-efforts/codexu/`:
 
 ```
 codexu/codex          → git submodule (gim-home/codex, pinned SHA in .gitmodules)
-codexu/ralph          → C:/ai-developer-toolkit/plugins/ralph             (per-machine junction)
-codexu/options-mode   → C:/ai-developer-toolkit/plugins/options-mode      (per-machine junction)
+codexu/ralph          → ./ai-developer-toolkit/plugins/ralph             (per-machine junction)
+codexu/options-mode   → ./ai-developer-toolkit/plugins/options-mode      (per-machine junction)
 codexu/inspirations/oh-my-codex      → C:/harness-efforts/oh-my-codex      (per-machine junction)
 codexu/inspirations/just-every-code  → C:/harness-efforts/just-every-code  (per-machine junction)
 codexu/inspirations/claude-code      → C:/harness-efforts/claude-code/worktrees/main (per-machine junction)
@@ -942,7 +942,7 @@ The three phase-like axes are deliberately separate:
 | `CrewSessionRef.phase` | Crew session reference | `brainstorm`, `plan`, `impl`, `null` | Intent of the member when it was spawned |
 
 **`.ralph-overview/generated/ralph-state.{js,json}` — watcher-generated.** Auto-emitted by
-`D:/ai-developer-toolkit/plugins/ralph-overview/scripts/sync-ralph-state.mjs --watch`
+`./ai-developer-toolkit/plugins/ralph-overview/scripts/sync-ralph-state.mjs --watch`
 based on `.ralph/jobs/<slug>/job-state.json`. Carries the dynamic state:
 `stage`, `terminalReason`, `storyCompletion`, `crewSessions`, `branchName`,
 etc. **Do not hand-edit** — the watcher overwrites it. If it's stale, the
@@ -1001,7 +1001,7 @@ The lead and members coordinate via the **crews** Claude Code plugin
   (monotonic; v1.5.6 guarantees no rollback). The script's side effect is
   the single source of truth for "agent reviewed."
 
-See `D:/ai-developer-toolkit/plugins/crews/CLAUDE.md` for the full protocol.
+See `./ai-developer-toolkit/plugins/crews/CLAUDE.md` for the full protocol.
 
 ### Bookkeeper workflow at-a-glance
 
@@ -1215,7 +1215,7 @@ Read in order, ~20 minutes:
 5. `C:/harness-efforts/claude-code/worktrees/main/src/tools/AskUserQuestionTool/`
    — full TS implementation of AskUserQuestion. Borrow the schema
    verbatim for Phase 2d.
-6. `C:/ai-developer-toolkit/plugins/ralph/CLAUDE.md` and
+6. `./ai-developer-toolkit/plugins/ralph/CLAUDE.md` and
    `plugins/options-mode/CLAUDE.md` — the two Claude Code plugins we are
    migrating. Phase 3 is bounded by what's in those directories.
 
@@ -1225,8 +1225,8 @@ Read in order, ~20 minutes:
 |---|---|---|---|
 | codex (patched) | `C:/harness-efforts/codexu/codex/` (git submodule of `gim-home/codex.git`) | `gim-home/codex.git` | runtime fork (wraps `external/repos/codex-patched/` subtree). Already routes to Copilot API; ditches non-LLM network paths. Pinned by codexu via `.gitmodules`. |
 | codexu | `C:/harness-efforts/codexu/` | `Evyatar108/codexu` | multi-device transport fork |
-| ralph plugin | `C:/ai-developer-toolkit/plugins/ralph/` | `gim-home/ai-developer-toolkit` | autonomous-loop workflow driver (Claude Code plugin → codex plugin) |
-| options-mode plugin | `C:/ai-developer-toolkit/plugins/options-mode/` | `gim-home/ai-developer-toolkit` | structured-choice prompt mode (Claude Code plugin → codex plugin); collapses into Phase 2d's AskUserQuestion primitive |
+| ralph plugin | `./ai-developer-toolkit/plugins/ralph/` | `gim-home/ai-developer-toolkit` | autonomous-loop workflow driver (Claude Code plugin → codex plugin) |
+| options-mode plugin | `./ai-developer-toolkit/plugins/options-mode/` | `gim-home/ai-developer-toolkit` | structured-choice prompt mode (Claude Code plugin → codex plugin); collapses into Phase 2d's AskUserQuestion primitive |
 | personal codex plugin | TBD | TBD | private content + conventions |
 
 The user's installed `codex` binary IS the patched fork. No wrappers,
@@ -2091,7 +2091,7 @@ Codex reviewer gauges upstream interest as "uncertain to weak without
 an RFC" — host-vs-spawned-agent semantics are fork-specific.
 
 **Phase 2c follow-ups (2026-05-26):**
-- Update `C:/ai-developer-toolkit/plugins/ralph-orchestration/.codex-plugin/plugin.json`
+- Update `./ai-developer-toolkit/plugins/ralph-orchestration/.codex-plugin/plugin.json`
   to declare the nested manifest field `"scope": { "agent": "top-level" }` after the
   corresponding toolkit plugin branch is ready to consume the shipped codex `scope.agent` axis.
 - **[F-005] `scope.agent='subagent'` top-level filter (deferred).** The `Subagent` value is
@@ -2360,7 +2360,7 @@ needs both done. Critical path: Phase 3 can start right after Phase 1.
 #### 3a. Skills port
 
 **Ralph: 4 user-invocable + 9 internal = 13 skills** (verified
-2026-05-02 against `C:/ai-developer-toolkit/plugins/ralph/skills/`
+2026-05-02 against `./ai-developer-toolkit/plugins/ralph/skills/`
 SKILL.md frontmatter `user-invocable` flags):
 
 User-invocable (`user-invocable: true`):
@@ -2737,7 +2737,7 @@ to codex plugin format (`.codex-plugin/plugin.json`):
 - `<ralph-codex-plugin>/.codex-plugin/plugin.json`
 - `<options-mode-codex-plugin>/.codex-plugin/plugin.json`
 - Update install instructions in
-  `C:/ai-developer-toolkit/plugins/ralph/CLAUDE.md` and the in-repo
+  `./ai-developer-toolkit/plugins/ralph/CLAUDE.md` and the in-repo
   `packages/codexu-options-mode-plugin/README.md` +
   `packages/codexu-options-mode-plugin/CLAUDE.md`
 
@@ -2982,7 +2982,7 @@ Failures get filed back into the appropriate phase.
   intact so plugin-registered `.claude/skills/` discovery in Phase 2b
   keeps working.
 - 5d. **Uninstall** Claude Code binary.
-- 5e. **Update** personal docs (`C:/ai-developer-toolkit/CLAUDE.md`,
+- 5e. **Update** personal docs (`./ai-developer-toolkit/CLAUDE.md`,
   any `AGENTS.md` files) to reflect codex-only stack.
 - 5f. **Update** `C:/harness-efforts/codex/CLAUDE.md` to mark migration
   complete.
@@ -3590,9 +3590,9 @@ Ordered by Phase-1 relevance:
   inventory of fork patches vs upstream.
 - `C:/harness-efforts/codex/docs/implementation/regression-history.md`
   — release-keyed regression ledger.
-- `C:/ai-developer-toolkit/plugins/ralph/CLAUDE.md` — ralph plugin
+- `./ai-developer-toolkit/plugins/ralph/CLAUDE.md` — ralph plugin
   documentation; Phase 3 work is bounded by what's in this directory.
-- `C:/ai-developer-toolkit/plugins/options-mode/CLAUDE.md` —
+- `./ai-developer-toolkit/plugins/options-mode/CLAUDE.md` —
   options-mode plugin documentation; collapses into Phase 2d
   AskUserQuestion primitive.
 - `C:/harness-efforts/claude-code/worktrees/main/src/tools/AskUserQuestionTool/`

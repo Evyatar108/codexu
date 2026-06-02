@@ -3,7 +3,7 @@
 **Status:** brainstorm (research only — no code changes proposed for this turn)
 **Date:** 2026-05-26
 **Author:** crew member `brainstorm-crews-review-gap` (crew `ralph-pipeline`)
-**Scope:** `D:/ai-developer-toolkit/plugins/crews/` at v1.5.6; cross-references
+**Scope:** `./ai-developer-toolkit/plugins/crews/` at v1.5.6; cross-references
 the `2026-05-25/26` autonomous-bookkeeper session in this codexu workspace.
 
 ---
@@ -85,7 +85,7 @@ extended Phase-4 investigations, multi-file refactors.
 ## 2. v1.5.6 design-rationale recovery
 
 The current Stop-only design is the **fixed point** of v1.5.4 → v1.5.5 →
-v1.5.6, all documented in `D:/ai-developer-toolkit/GAPS-FROM-2026-05-25-26-SESSION.md`
+v1.5.6, all documented in `./ai-developer-toolkit/GAPS-FROM-2026-05-25-26-SESSION.md`
 under **CR-2 (FIXED v1.5.4/5/6)**:
 
 > The PreToolUse review-required block matched commands via regex
@@ -479,7 +479,7 @@ matrix of `{role, engine, useEnvBin}`.
   registration needed for Option F).
 - Existing tests: `tests/integration/review-flow.test.js:16-46`
   (`assertReviewGateBlocks` delegates to Stop per v1.5.6 rename).
-- Historical context: `D:/ai-developer-toolkit/GAPS-FROM-2026-05-25-26-SESSION.md`
+- Historical context: `./ai-developer-toolkit/GAPS-FROM-2026-05-25-26-SESSION.md`
   CR-2 (FIXED v1.5.4/5/6) — the regex-deadlock root cause.
 - Plugin CLAUDE.md v1.5.1 / v1.5.2 sections — narrate the
   `buildReviewMailCommand` consolidation + `useEnvBin` mode, both of

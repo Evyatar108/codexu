@@ -21,17 +21,19 @@
 //   4. ~/.claude/plugins/cache/ai-developer-toolkit/ralph-overview/<latest>
 //   5. ~/.copilot/installed-plugins/ai-developer-toolkit/ralph-overview/
 //      (Copilot CLI install layout; non-versioned subdir, single live copy)
-//   6. D:/ai-developer-toolkit/plugins/ralph-overview/ (local-dev fallback)
+//   6. <repo>/ai-developer-toolkit/plugins/ralph-overview/
+//      (in-tree submodule local-dev fallback)
 //
 // Once located, this wrapper spawns the plugin's bin/ralph-overview.mjs
 // with the original argv and forwards stdio.
 //
-// The local-dev fallback (step 6) is intentionally an absolute, machine-
-// specific path. It is useful when iterating on the ralph-overview plugin
-// itself without re-installing on every change. It is harmless on machines
-// where that path does not exist: `existsPluginAt(localDev)` returns false
-// and the cascade falls through to `resolvePluginRoot() === null`, which
-// surfaces a friendly error pointing the developer at the install command.
+// The local-dev fallback (step 6) is script-relative, pointing at codexu's
+// in-tree ai-developer-toolkit submodule. It lets fresh clones use the pinned
+// submodule copy without depending on the old D:/ai-developer-toolkit checkout.
+// It is harmless when the submodule has not been initialized:
+// `existsPluginAt(localDev)` returns false and the cascade falls through to
+// `resolvePluginRoot() === null`, which surfaces a friendly error pointing the
+// developer at the install command.
 // See the long-term plan to push this resolution upstream into the plugin's
 // own `scripts/init-consumer.mjs` so future consumers do not each need a
 // copy of this wrapper: `ralph-overview-init-consumer-cross-engine-wrapper`
@@ -42,6 +44,7 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import process from 'node:process'
+import { fileURLToPath } from 'node:url'
 
 const PLUGIN_NAME = 'ralph-overview'
 const MANIFEST_REL = '.claude-plugin/plugin.json'
@@ -89,7 +92,13 @@ function resolvePluginRoot() {
     const copilotInstall = path.join(os.homedir(), '.copilot', 'installed-plugins', 'ai-developer-toolkit', PLUGIN_NAME)
     if (existsPluginAt(copilotInstall)) return copilotInstall
 
-    const localDev = 'D:/ai-developer-toolkit/plugins/ralph-overview'
+    const localDev = path.resolve(
+        path.dirname(fileURLToPath(import.meta.url)),
+        '..',
+        'ai-developer-toolkit',
+        'plugins',
+        'ralph-overview',
+    )
     if (existsPluginAt(localDev)) return localDev
 
     return null
@@ -115,7 +124,7 @@ if (!pluginRoot) {
     process.stderr.write(`    3. $CLAUDE_PLUGIN_ROOT/cache/ai-developer-toolkit/${PLUGIN_NAME}/<latest>\n`)
     process.stderr.write(`    4. ~/.claude/plugins/cache/ai-developer-toolkit/${PLUGIN_NAME}/<latest>\n`)
     process.stderr.write(`    5. ~/.copilot/installed-plugins/ai-developer-toolkit/${PLUGIN_NAME}/\n`)
-    process.stderr.write(`    6. D:/ai-developer-toolkit/plugins/${PLUGIN_NAME}/\n`)
+    process.stderr.write(`    6. <repo>/ai-developer-toolkit/plugins/${PLUGIN_NAME}/\n`)
     process.stderr.write(`  Fix: install the plugin via \`/plugin install ${PLUGIN_NAME}@ai-developer-toolkit\`,\n`)
     process.stderr.write(`       or set RALPH_OVERVIEW_PLUGIN_ROOT to an absolute path.\n`)
     process.exit(2)

@@ -3,7 +3,7 @@
 **Status:** brainstorm-only — no code changes proposed in this commit.
 **Crew member:** `brainstorm-overview-multi-mcp` in crew `ralph-pipeline`.
 **Today:** 2026-05-26 — observed cascading watcher crash-loop in codexu repo with 3 concurrent Claude Code sessions.
-**Plugin under review:** `ralph-overview` v2.0.3 at `D:/ai-developer-toolkit/plugins/ralph-overview/`.
+**Plugin under review:** `ralph-overview` v2.0.3 at `./ai-developer-toolkit/plugins/ralph-overview/`.
 **Sibling artifact precedent:** `plans/plugin-scope-agents-redesign-brainstorm.md` shipped at commit `2deb6c2b` as Phase 5a-equivalent.
 
 ---

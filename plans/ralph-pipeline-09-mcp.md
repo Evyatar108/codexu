@@ -80,7 +80,7 @@ Plans 02, 04, 07 are recommended but not strictly required (they enrich the snap
 - `.crews/crews/*/members/*/manifest.json` and `.crews/crews/*/leads/*/manifest.json` — re-read live by `list_crew_sessions` for fresh status.
 - `scripts/lib/crews-cross-walk.mjs` and `scripts/lib/parse-spawn-launcher.mjs` — Plan 08 crew-session discovery helpers; reuse their matching and launcher-parsing contracts instead of reimplementing task-id heuristics in the MCP package.
 - `scripts/sync-ralph-state.mjs --update-crew-session` and `--finalize-crew-session` — lock-protected explicit write/finalize surface for `CrewSessionRef` rows in `.ralph-overview/generated/ralph-state.json`.
-- `D:\ai-developer-toolkit\plugins\seval\` (or any existing MCP server in the toolkit) — TypeScript pattern reference for stdio transport + tool registration.
+- `./ai-developer-toolkit/plugins/seval/` (or any existing MCP server in the toolkit) — TypeScript pattern reference for stdio transport + tool registration.
 
 ## Tool implementation notes
 
@@ -90,7 +90,7 @@ Two modes:
 
 **Default (no `viaCrewMember`):** the server cannot directly invoke a Claude Code skill (MCP servers run as subprocesses, not in the Claude Code session). Instead, return the derived command with `{ ok: true, command: '<derived>', invocationGuidance: 'use the Skill tool to invoke this' }`. The caller (another agent) then uses the `Skill` tool itself.
 
-**`viaCrewMember`:** use the Plan 08 `/work-on --via-crew` flow as the contract. Derive the prompt with `node scripts/lib/derive-next-command-cli.mjs <taskId>`, spawn with `node D:/ai-developer-toolkit/plugins/crews/tools/spawn-member.js <memberName> --crew <crewName> --cwd <main-repo-root> -- "<prompt>"`, poll the member/lead manifest briefly for `sessionId` and `transcriptPath`, then persist the row through `node scripts/sync-ralph-state.mjs --update-crew-session <taskId> <stage> --json <ref>`. Record a partial explicit ref with `crewName`, `memberName`, `cwd`, and `startedAt` if manifest polling times out; heuristic discovery upgrades it later.
+**`viaCrewMember`:** use the Plan 08 `/work-on --via-crew` flow as the contract. Derive the prompt with `node scripts/lib/derive-next-command-cli.mjs <taskId>`, spawn with `node ./ai-developer-toolkit/plugins/crews/tools/spawn-member.js <memberName> --crew <crewName> --cwd <main-repo-root> -- "<prompt>"`, poll the member/lead manifest briefly for `sessionId` and `transcriptPath`, then persist the row through `node scripts/sync-ralph-state.mjs --update-crew-session <taskId> <stage> --json <ref>`. Record a partial explicit ref with `crewName`, `memberName`, `cwd`, and `startedAt` if manifest polling times out; heuristic discovery upgrades it later.
 
 ### `overview.set_override`
 
@@ -191,7 +191,7 @@ K. **`overview.add_journal_entry`:** appends a line. `tail tasks/<id>/journal.md
 6. **`SnapshotReader` cache invalidation.** chokidar fires on writes; the reader re-reads. Don't add additional polling — single source of cache invalidation.
 7. **Keep TypeScript types and JSON Schema roles separate.** Import TypeScript shapes from the shared overview types; use `.ralph-overview/generated/snapshot.schema.json` only for runtime JSON validation and MCP schema composition.
 8. **Backwards compatibility.** v1 tool contracts are committed once shipped. Adding a tool is non-breaking; changing an existing tool's input or output is breaking and requires a new tool or a versioned variant (`overview.list_tasks_v2`).
-9. **`invoke_next` with `viaCrewMember`** assumes Plan 08 is shipped. Use the CLI mirror at `D:/ai-developer-toolkit/plugins/crews/tools/spawn-member.js` and persist refs through `scripts/sync-ralph-state.mjs --update-crew-session`; do not write ad-hoc queued spawn files. Without Plan 08, the tool returns an error; document this dependency in the README.
+9. **`invoke_next` with `viaCrewMember`** assumes Plan 08 is shipped. Use the CLI mirror at `./ai-developer-toolkit/plugins/crews/tools/spawn-member.js` and persist refs through `scripts/sync-ralph-state.mjs --update-crew-session`; do not write ad-hoc queued spawn files. Without Plan 08, the tool returns an error; document this dependency in the README.
 
 ## Hand-off
 

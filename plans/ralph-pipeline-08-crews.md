@@ -8,7 +8,7 @@
 
 The user runs an overview-bookkeeping agent (lead role in a crew) that delegates phase work to crew members spawned via the crews plugin. The overview needs to track which crew member's session worked on each phase of each task — enabling continuity (lead resumes the same member), audit (trace decisions back to a transcript), and parallelism (lead spawns multiple members across tasks).
 
-The crews plugin is at `D:\ai-developer-toolkit\plugins\crews\`. Its runtime state lives under the consuming workspace's `.crews/` directory:
+The crews plugin is at `./ai-developer-toolkit/plugins/crews/`. Its runtime state lives under the consuming workspace's `.crews/` directory:
 
 ```
 .crews/
@@ -93,7 +93,7 @@ Each member's `manifest.json` exposes the canonical `sessionId` and `transcriptP
   - Both subcommands mutate the Ralph sidecar ONLY (`config.outputs.sidecarJson`). They do NOT directly edit the derived snapshot file (`.ralph-overview/generated/snapshot.json`); `writeSidecar()` regenerates the snapshot downstream from the sidecar.
 - **`.claude/skills/work-on/SKILL.md`** — add the `--via-crew <crewName>` branch. When the flag is present:
   1. Derive the next command via `derive-next-command.mjs` as in the default path.
-  2. Spawn a member by invoking the crews plugin's CLI mirror directly: `node D:/ai-developer-toolkit/plugins/crews/tools/spawn-member.js <generated-name> --crew <crewName> --cwd <main-repo-root> -- <derived-command-prompt>`. This is the canonical invocation path — Skill tool invocations of `/spawn-member` cannot fire the crews spawn hook, so the slash-command form is not viable from inside the `/work-on` skill. The CLI mirror is also the form Plan 09's MCP `overview.invoke_next` wraps for `viaCrewMember` (see "Hand-off to next plans").
+  2. Spawn a member by invoking the crews plugin's CLI mirror directly: `node ./ai-developer-toolkit/plugins/crews/tools/spawn-member.js <generated-name> --crew <crewName> --cwd <main-repo-root> -- <derived-command-prompt>`. This is the canonical invocation path — Skill tool invocations of `/spawn-member` cannot fire the crews spawn hook, so the slash-command form is not viable from inside the `/work-on` skill. The CLI mirror is also the form Plan 09's MCP `overview.invoke_next` wraps for `viaCrewMember` (see "Hand-off to next plans").
   3. Read the new member's `manifest.json` to extract `sessionId`, `transcriptPath`, `startedAt`.
   4. Call `node scripts/sync-ralph-state.mjs --update-crew-session <taskId> <stage> --json <ref>` to atomically record the spawn.
   5. Return to the bookkeeping agent (lead). The lead later monitors the member's mailbox and calls `--finalize-crew-session` when the member returns a `<|report kind="final" ...|>` tag.
@@ -102,9 +102,9 @@ Each member's `manifest.json` exposes the canonical `sessionId` and `transcriptP
 
 ### Read for reference
 
-- `D:\ai-developer-toolkit\plugins\crews\skills\spawn-member\SKILL.md` — `/spawn-member` invocation contract.
-- `D:\ai-developer-toolkit\plugins\crews\skills\read-member\SKILL.md` — `/read-member` for monitoring outcomes.
-- `D:\ai-developer-toolkit\plugins\crews\README.md` — overall coordination model.
+- `./ai-developer-toolkit/plugins/crews/skills/spawn-member/SKILL.md` — `/spawn-member` invocation contract.
+- `./ai-developer-toolkit/plugins/crews/skills/read-member/SKILL.md` — `/read-member` for monitoring outcomes.
+- `./ai-developer-toolkit/plugins/crews/README.md` — overall coordination model.
 - `D:\harness-efforts\codexu\.crews\crews\smoke\members\alice\manifest.json` — sample real manifest for field reference.
 - `scripts/lib/sync-core.mjs` from Plans 01, 02, 05 — extension point.
 

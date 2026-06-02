@@ -2,8 +2,9 @@
 
 > **Multi-device + multi-agent stack built around the codex engine.**
 > CLI, app, server, and personal plugin — all consuming a patched
-> codex fork as the runtime. The fork is pinned as a git submodule at
-> [`codex/`](./codex) (target repo: `gim-home/codex`).
+> codex fork as the runtime. The engine fork is pinned as a git submodule at
+> [`codex/`](./codex) (target repo: `gim-home/codex`), and the shared agent
+> tooling is pinned as [`ai-developer-toolkit/`](./ai-developer-toolkit).
 
 > **Rebrand status (2026-05-03):** package-level rebrand from
 > `happy-*` → `codexu-*` was attempted then reverted to enable a clean
@@ -31,10 +32,13 @@ Codexu is the consumer-facing surface for a personal AI-coding stack:
   marketplace add`. NEW; not part of upstream slopus/happy.
 
 The codex engine lives in a separate private repo (`gim-home/codex`)
-pinned as a git submodule at [`codex/`](./codex). On a fresh clone,
-run `git submodule update --init` to populate it. The submodule
-requires authenticated access to the `gim-home` GitHub org — local
-git credentials must point at a user with org access (e.g. via
+pinned as a git submodule at [`codex/`](./codex). The Ralph/crews/overview
+plugin sources live in the [`ai-developer-toolkit/`](./ai-developer-toolkit)
+submodule. On a fresh clone, run `git submodule update --init --recursive` to
+populate both. The codex submodule requires authenticated access to the
+`gim-home` GitHub org; the toolkit submodule is sourced from
+`https://github.com/evmitran_microsoft/ai-developer-toolkit.git`. Local git
+credentials must point at users with the needed repo access (e.g. via
 `gh auth switch`).
 
 [Evyatar108/codex-patched](https://github.com/Evyatar108/codex-patched)

@@ -2,7 +2,7 @@
 
 **Source brainstorm:** `D:/harness-efforts/codexu/plans/crews-review-required-mid-turn-brainstorm.md`
 (committed at `cb10c6e7`).
-**Target repo / worktree:** `D:/ai-developer-toolkit/plugins/crews/` (sibling
+**Target repo / worktree:** `./ai-developer-toolkit/plugins/crews/` (sibling
 plugin repo, not codexu). All implementation work happens there.
 **Bookkeeping commit (this plan only):** codexu, `origin/main`.
 **Target release:** crews **v1.6.0** (minor — recommended). Patch (v1.5.7) is
@@ -104,7 +104,7 @@ behind.
 
 ## 3. Cross-plugin PostToolUse survey
 
-Surveyed `D:/ai-developer-toolkit/plugins/*/hooks/hooks.json` (15 plugins).
+Surveyed `./ai-developer-toolkit/plugins/*/hooks/hooks.json` (15 plugins).
 
 **Plugins that register PostToolUse today: 1 — `agent-peers`.**
 
@@ -151,7 +151,7 @@ run crews + agent-peers in the same workspace).
 
 ## 4. Files to modify / create
 
-All paths under `D:/ai-developer-toolkit/plugins/crews/` unless prefixed
+All paths under `./ai-developer-toolkit/plugins/crews/` unless prefixed
 with `codexu/`.
 
 ### New files
@@ -755,5 +755,5 @@ hand-verify the following on a real long-turn lead session:
 - Copilot shim contract: `hooks/copilot-shim.js`, `hooks/copilot-pre-tool-use.js`.
 - Manifest schema: `hooks/protocol/manifest.js:5-46`.
 - Version bump script: `scripts/bump-version.js`.
-- Cross-plugin survey: `D:/ai-developer-toolkit/plugins/agent-peers/hooks/hooks.json` + `hooks/post-tool-summary.sh` (only other PostToolUse registration in the ecosystem).
-- CR-2 history: `D:/ai-developer-toolkit/GAPS-FROM-2026-05-25-26-SESSION.md` "CR-2 (FIXED v1.5.4/5/6)".
+- Cross-plugin survey: `./ai-developer-toolkit/plugins/agent-peers/hooks/hooks.json` + `hooks/post-tool-summary.sh` (only other PostToolUse registration in the ecosystem).
+- CR-2 history: `./ai-developer-toolkit/GAPS-FROM-2026-05-25-26-SESSION.md` "CR-2 (FIXED v1.5.4/5/6)".

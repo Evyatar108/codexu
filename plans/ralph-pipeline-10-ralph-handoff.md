@@ -1,6 +1,6 @@
 # Plan 10 — Ralph plugin handoff doc (`overviewTaskId` field)
 
-**Worktree:** `/implement-with-ralph --from-plan` creates the worktree at `D:\harness-efforts\codexu\.ralph\jobs\ralph-pipeline-10-ralph-handoff\worktree\` on branch `ralph-pipeline-10-ralph-handoff`. The deliverable is a single markdown doc (`plans/ralph-overview-task-id.md`) — write it in the worktree, commit on the branch, merge to `main` after review. The actual Ralph plugin patches that the doc describes live in a different repo (`D:\ai-developer-toolkit\plugins\ralph\`) and are picked up by a SEPARATE `/plan-with-ralph` cycle there — that's out of scope for this plan's worktree.
+**Worktree:** `/implement-with-ralph --from-plan` creates the worktree at `D:\harness-efforts\codexu\.ralph\jobs\ralph-pipeline-10-ralph-handoff\worktree\` on branch `ralph-pipeline-10-ralph-handoff`. The deliverable is a single markdown doc (`plans/ralph-overview-task-id.md`) — write it in the worktree, commit on the branch, merge to `main` after review. The actual Ralph plugin patches that the doc describes live in a different repo (`./ai-developer-toolkit/plugins/ralph/`) and are picked up by a SEPARATE `/plan-with-ralph` cycle there — that's out of scope for this plan's worktree.
 
 **Position in DAG:** standalone. Parallel-safe with all other plans. The output is a markdown doc that will be handed to a separate `/plan-with-ralph --improve` cycle targeting the Ralph plugin codebase.
 
@@ -31,7 +31,7 @@ None for the doc itself. (The doc DESCRIBES patches that, once landed in ralph-o
 - Optional: a small backfill script `scripts/backfill-overview-task-id.mjs` that interactively prompts for each unmatched Ralph job and writes the `overviewTaskId` to its PRD. (Out of scope for this plan, but the doc references it as a possible follow-up.)
 
 **Out of scope:**
-- The actual Ralph plugin patches. Those are picked up by a separate `/plan-with-ralph --improve plans/ralph-overview-task-id.md` cycle in the ralph-orchestration plugin's source tree (`D:\ai-developer-toolkit\plugins\ralph\`).
+- The actual Ralph plugin patches. Those are picked up by a separate `/plan-with-ralph --improve plans/ralph-overview-task-id.md` cycle in the ralph-orchestration plugin's source tree (`./ai-developer-toolkit/plugins/ralph/`).
 - Backfilling existing PRDs in this repo. Handled either manually by the user, via the optional `scripts/backfill-overview-task-id.mjs` follow-up, or for slug mismatches through the Plan 09 MCP `overview.set_override` tool until native `overviewTaskId` support lands.
 
 ## Files
@@ -137,7 +137,7 @@ None for the doc itself. (The doc DESCRIBES patches that, once landed in ralph-o
 
   ## How to pick this up
 
-  In the ralph-orchestration plugin source tree at `D:\ai-developer-toolkit\plugins\ralph\`,
+  In the ralph-orchestration plugin source tree at `./ai-developer-toolkit/plugins/ralph/`,
   run:
 
   ```
@@ -191,7 +191,7 @@ D. **Handoff command:** the doc includes the verbatim command for the future Ral
 2. **The field name `overviewTaskId` is a contract.** Plans 01 and the doc use the same name. If the implementing agent for the Ralph patches changes the name, Plan 01's sync script needs a matching update. Pin the name in this doc.
 3. **Optional field, never required.** The Ralph plugin patches MUST treat `overviewTaskId` as optional everywhere (schema, prompts, default). Existing PRDs without the field continue working. The plan must explicitly say this; otherwise the Ralph implementing agent may make it required and break legacy jobs.
 4. **No automatic backfill.** Don't propose writing `overviewTaskId` into existing PRDs via a Ralph-side migration. Backfilling is a codexu-side decision (manual or via a follow-up script).
-5. **Schema files live under ralph-orchestration's tree.** Update `schemas/prd-schema.json` etc. in `D:\ai-developer-toolkit\plugins\ralph\schemas/`, not in the cached plugin install at `C:\Users\evmitran\.claude\plugins\cache\...`. The plugin gets re-installed from source.
+5. **Schema files live under ralph-orchestration's tree.** Update `schemas/prd-schema.json` etc. in `./ai-developer-toolkit/plugins/ralph/schemas/`, not in the cached plugin install at `C:\Users\evmitran\.claude\plugins\cache\...`. The plugin gets re-installed from source.
 
 ## Hand-off
 
