@@ -1,0 +1,58 @@
+{
+  "version": 1,
+  "task": "codex-hooks-parity",
+  "strategy": "serial",
+  "rationale": "Single-commit task per the spec. Production change is ~20 LoC across two files; test additions ~140 LoC across two new files; doc edit ~30 LoC. The audit-doc edit references the impl commit's SHA, which forces a serial finalize regardless of how Stories A and B are parallelized. Parallel coordination overhead exceeds implementation cost; serial single-impl-member execution is the right shape.",
+  "clusters": [
+    {
+      "id": "codex-hooks-parity-all",
+      "label": "Wire turn-lifecycle + permission push, update audit doc, single commit",
+      "stories": [
+        "story-a-turn-lifecycle",
+        "story-b-permission-push",
+        "story-c-audit-doc-and-ship"
+      ],
+      "files": [
+        "packages/happy-cli/src/codex/runCodex.ts",
+        "packages/happy-cli/src/codex/runCodex.turnLifecycle.test.ts",
+        "packages/happy-cli/src/codex/utils/permissionHandler.ts",
+        "packages/happy-cli/src/codex/__tests__/permissionHandler.test.ts",
+        "packages/happy-cli/src/codex/__tests__/permissionHandler.pushEvent.test.ts",
+        "plans/codex-agent-parity-audit.md"
+      ],
+      "dependsOn": []
+    }
+  ],
+  "fallbackParallelDecomposition": {
+    "rationale": "If a future re-implementation needs parallel execution (e.g. breaking the single commit into a stack), the natural disjoint-file split is Story A | Story B, with Story C as a serial finalize. Listed for reference; not the recommended path for this task.",
+    "clusters": [
+      {
+        "id": "story-a-turn-lifecycle",
+        "label": "Turn-lifecycle agentState.turnActive publication",
+        "files": [
+          "packages/happy-cli/src/codex/runCodex.ts",
+          "packages/happy-cli/src/codex/runCodex.turnLifecycle.test.ts"
+        ],
+        "dependsOn": []
+      },
+      {
+        "id": "story-b-permission-push",
+        "label": "Permission push-event for pending requests (incl. existing test mock extension)",
+        "files": [
+          "packages/happy-cli/src/codex/utils/permissionHandler.ts",
+          "packages/happy-cli/src/codex/__tests__/permissionHandler.test.ts",
+          "packages/happy-cli/src/codex/__tests__/permissionHandler.pushEvent.test.ts"
+        ],
+        "dependsOn": []
+      },
+      {
+        "id": "story-c-audit-doc-and-ship",
+        "label": "Audit doc update + cross-package typecheck + single commit",
+        "files": [
+          "plans/codex-agent-parity-audit.md"
+        ],
+        "dependsOn": ["story-a-turn-lifecycle", "story-b-permission-push"]
+      }
+    ]
+  }
+}
