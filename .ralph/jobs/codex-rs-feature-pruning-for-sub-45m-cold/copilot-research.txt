@@ -1,0 +1,84 @@
+I'll read the referenced prompt file first, then execute the task it describes.
+
+I found the embedded research prompt; I’m switching to codebase survey mode and will inspect the codex-rs workspace plus the build scripts and feature gates.
+
+The first broad searches were too large, so I’m narrowing to manifests, build scripts, and feature-gated source paths relevant to the candidate dependencies.
+
+I’m going to run targeted Cargo graph probes now to distinguish command-line feature options from manifest-only dependencies and identify which of the four shipped binaries pulls each candidate.
+
+The manifest scan shows `image` is directly wired into the main binary path, while `lalrpop` may be purely transitive. I’m checking actual source usage and reverse dependency trees before making recommendations.
+
+`cargo tree` on this toolchain filters by package rather than bin target, so I’m treating `codex-cli` and `codex-windows-sandbox` package graphs as the shipped-bin proxies and checking direct source targets separately.
+
+The parallel Cargo probes contended on Cargo’s package-cache lock; I’ll let them drain and use the completed results rather than starting more concurrent Cargo commands.
+
+I have enough graph data for the candidates, but I’m doing one final pass over the specific rcgen/image/execpolicy source files so the research recommendation is grounded in actual call sites, not only Cargo metadata.
+
+I’ll summarize after extracting the precise inverse-tree chains from the saved Cargo output so the recommendation includes candidate-by-candidate evidence.
+
+I’m extracting the final concise Cargo-tree output now and will provide the research report directly from that evidence.
+
+**Bottom line:** the best pruning target is `aws-lc-rs`; `image` and `lalrpop` are currently required by runtime paths for the produced binaries, not optional Cargo features.
+
+### Codebase Architecture
+
+Rust workspace lives under `codex\external\repos\codex-patched\codex-rs`, with fork-only overlay crates under `codex\codex-rs-overlay`. The produced bins map to:
+
+| Bin | Package / manifest |
+|---|---|
+| `codex` | `codex-rs-overlay\codex-copilot-launcher\Cargo.toml` |
+| `codex-core` | `codex-rs\cli\Cargo.toml` package `codex-cli`, bin `codex-core` |
+| `codex-windows-sandbox-setup` | `codex-rs\windows-sandbox-rs\Cargo.toml` |
+| `codex-command-runner` | same `codex-windows-sandbox` package |
+
+Build tooling: Cargo workspace resolver 2, Rust 2024, `scripts\iteration-env.sh` for frozen release profile, and `scripts\measure-build.ps1` for timing/RSS/sccache metrics. Important gap: `measure-build.ps1` currently builds only `codex-core` + launcher `codex`, not the two Windows sandbox bins.
+
+### Feature-Relevant Code
+
+- `image`
+  - Declared centrally in `codex-rs\Cargo.toml` as `default-features = false`.
+  - Re-enabled with codecs in `core\Cargo.toml`, `tui\Cargo.toml`, and `utils\image\Cargo.toml`.
+  - Runtime implementation is `utils\image\src\lib.rs`: `image::guess_format`, resize-to-2048, PNG/JPEG/WebP/GIF handling, data URL generation.
+  - Pulled into both `codex-cli` and `codex-windows-sandbox` through `codex-core`, `codex-tui`, `codex-protocol`, and `codex-utils-image`.
+  - Rough forward tree size observed: **42 crates**.
+
+- `lalrpop`
+  - No direct workspace feature gate. Pulled as `lalrpop -> starlark_syntax -> starlark -> codex-execpolicy`.
+  - `codex-execpolicy\Cargo.toml` depends on `starlark`; `codex-execpolicy\src\lib.rs` exports policy parser/evaluator APIs used via `codex-protocol`, `codex-config`, and CLI paths.
+  - Rough forward tree size observed: **66 crates**.
+
+- `aws-lc-rs`
+  - Workspace `rustls` is explicitly `default-features = false, features = ["ring", "std"]`, and `utils\rustls-provider\src\lib.rs` installs the ring provider because both crypto stacks can appear.
+  - Still pulled via `rcgen -> rama-tls-rustls -> codex-network-proxy` and via transitive rustls users.
+  - `network-proxy\Cargo.toml` depends on `rama-tls-rustls = { version = "=0.3.0-alpha.4", features = ["http"] }`.
+  - Rough forward tree size observed: **24 crates**.
+
+The launcher package does not pull any candidate dependency.
+
+### Technical Constraints
+
+Cargo command-line pruning is not currently enough. The workspace has almost no local feature surface; only `code-mode` and `v8-poc` define a `sandbox` feature. There are no useful `#[cfg(feature = ...)]` gates around `image`, `lalrpop`, or `aws-lc-rs`, and `--no-default-features` will not disable dependency features explicitly requested by manifests or transitives.
+
+Per `codex\CLAUDE.md`, upstream-canonical manifest edits require `SANDBOX PATCH` comments, `docs\implementation\patch-surface.md` §14 coverage, and a rebase-replant note. Dependency edits also require Bazel lock refresh/check per `codex-rs\AGENTS.md`.
+
+### Implementation Suggestions
+
+1. **Fix measurement first:** extend `scripts\measure-build.ps1` to build all four bins:
+
+```powershell
+cargo build --release `
+  -p codex-cli --bin codex-core `
+  -p codex-copilot-launcher --bin codex `
+  -p codex-windows-sandbox --bin codex-windows-sandbox-setup `
+  -p codex-windows-sandbox --bin codex-command-runner `
+  --timings
+```
+
+2. **Prioritize `aws-lc-rs`:** investigate whether `rama-tls-rustls`/`rcgen` can be configured ring-only without patching upstream crates. If yes, make the smallest manifest change. If no, this is a manifest patch candidate with an invariant test such as `cargo tree ... -i aws-lc-rs` failing for the four-bin graph.
+
+3. **Do not prune `image` for AC-5 unless product scope changes:** it backs image attachments and TUI clipboard/image paths, which are explicitly in scope to preserve.
+
+4. **Do not prune `lalrpop` unless replacing Starlark exec policy is acceptable:** it is not a removable feature flag; it is build-time cost from the Starlark parser stack used by `codex-execpolicy`.
+
+5. **Verification recipe:** after any pruning attempt, run `cargo metadata --no-deps --format-version 1`, `cargo check --workspace`, targeted tests for touched crates (`codex-network-proxy`, `codex-protocol`, `codex-core` as applicable), `/audit`, `/runtime-audit`, and A/B cold-cache `measure-build.ps1` runs under the unchanged frozen iteration profile.
+

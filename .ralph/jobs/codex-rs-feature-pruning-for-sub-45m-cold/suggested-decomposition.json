@@ -1,0 +1,67 @@
+{
+  "clusters": [
+    {
+      "name": "wrapper-seam",
+      "stories": ["US-001"],
+      "phase": 1,
+      "dependsOn": [],
+      "fileOverlapEvidence": {
+        "sharedFiles": [],
+        "exclusiveFiles": [
+          "codex/scripts/measure-build.ps1",
+          "codex/scripts/iteration-env.sh"
+        ],
+        "risk": "low"
+      },
+      "executionModeRationale": "Wrapper-only edits with zero Cargo.toml or source touch. No file overlap with any other cluster. Runs first because the Lever A/B/C measurement steps consume this env var."
+    },
+    {
+      "name": "aws-lc-rs-investigation",
+      "stories": ["US-004"],
+      "phase": 1,
+      "dependsOn": [],
+      "fileOverlapEvidence": {
+        "sharedFiles": [],
+        "exclusiveFiles": [
+          "codex/external/repos/codex-patched/codex-rs/Cargo.toml",
+          "codex/.ralph/jobs/codex-rs-feature-pruning-for-sub-45m-cold/cargo-tree-aws-lc-rs-before.txt",
+          "codex/.ralph/jobs/codex-rs-feature-pruning-for-sub-45m-cold/cargo-tree-aws-lc-rs-after.txt"
+        ],
+        "risk": "low"
+      },
+      "executionModeRationale": "Read-only investigation has zero file writes; conditional impl edit touches workspace Cargo.toml which is exclusive to this cluster (other clusters do not edit the workspace-level Cargo.toml). Fully parallel with wrapper-seam."
+    },
+    {
+      "name": "tui-feature-gates",
+      "stories": ["US-002", "US-003"],
+      "phase": 2,
+      "dependsOn": ["wrapper-seam"],
+      "fileOverlapEvidence": {
+        "sharedFiles": [
+          "codex/external/repos/codex-patched/codex-rs/tui/Cargo.toml"
+        ],
+        "exclusiveFiles": [
+          "codex/external/repos/codex-patched/codex-rs/utils/image/Cargo.toml",
+          "codex/external/repos/codex-patched/codex-rs/tui/src/lib.rs"
+        ],
+        "risk": "medium"
+      },
+      "executionModeRationale": "Both US-002 (image-gif) and US-003 (voice) edit tui/Cargo.toml's [features] block. Cargo refuses overlapping [features] race writes. MUST serialize within cluster: US-002 first (smaller edit, lower risk), then US-003 (larger edit + source gates). Per-lever A/B measurement runs after each commit lands so wall-time attribution stays isolated."
+    },
+    {
+      "name": "docs",
+      "stories": ["US-005"],
+      "phase": 3,
+      "dependsOn": ["wrapper-seam", "aws-lc-rs-investigation", "tui-feature-gates"],
+      "fileOverlapEvidence": {
+        "sharedFiles": [],
+        "exclusiveFiles": [
+          "codex/docs/implementation/patch-surface.md",
+          "codex/docs/implementation/build-perf.md"
+        ],
+        "risk": "low"
+      },
+      "executionModeRationale": "Docs need the SANDBOX PATCH locations and measurement results from all prior clusters. Cannot start until those are landed."
+    }
+  ]
+}

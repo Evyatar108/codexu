@@ -1,0 +1,64 @@
+**Codebase Architecture**
+
+`codex-rs` lives at `codex/external/repos/codex-patched/codex-rs`, with fork-only overlay crates in `codex/codex-rs-overlay`. It is a large Rust/Cargo workspace (`Cargo.toml`, resolver v2, edition 2024) plus wrapper scripts under `codex/scripts`.
+
+The four relevant produced bins map to:
+
+- `codex`: `codex-rs-overlay/codex-copilot-launcher/Cargo.toml`
+- `codex-core`: `codex-rs/cli/Cargo.toml` package `codex-cli`, bin renamed by fork patch
+- `codex-windows-sandbox-setup`: `codex-rs/windows-sandbox-rs/Cargo.toml`
+- `codex-command-runner`: same Windows sandbox package
+
+Release workflow `codex/.github/workflows/publish-npm.yml` builds all four. Current benchmark wrapper `codex/scripts/measure-build.ps1` only builds `codex-core` and `codex`, so the plan must update it before using it as the AC-5 gate.
+
+**Feature-Relevant Code**
+
+`image` is load-bearing, not an easy disable:
+
+- `Cargo.toml`: workspace `image = { version = "^0.25.9", default-features = false }`
+- `core/Cargo.toml`: enables `jpeg/png/webp`
+- `tui/Cargo.toml`: enables `jpeg/png/gif/webp`
+- `utils/image/Cargo.toml`: enables `jpeg/png/gif/webp`
+- `core/src/context_manager/history.rs`: decodes image data URLs for original-detail token estimates
+- `core/src/tools/handlers/view_image.rs`: uses `codex_utils_image`
+- `utils/image/src/lib.rs`: prompt image decode/resize/encode
+- `protocol/src/models.rs`: local image attachment conversion
+- `tui/src/clipboard_paste.rs`: clipboard image paste
+- `tui/src/pets/*`: terminal pet image rendering
+
+`lalrpop` is not locally feature-gated:
+
+- Pulled by `starlark_syntax` build dependency
+- `execpolicy/Cargo.toml` depends on `starlark`
+- `cli/Cargo.toml` and `config/core` depend on exec policy paths
+- No local `#[cfg(feature = ...)]` gate controls this.
+
+`aws-lc-rs` is mostly transitive and hard-coded:
+
+- Workspace `rustls` is already `default-features = false, features = ["ring", "std"]`
+- Workspace `rcgen` requests `aws_lc_rs`, but the larger issue is `rama-tls-rustls`
+- `network-proxy/Cargo.toml` depends on `rama-tls-rustls`
+- Registry `rama-tls-rustls-0.3.0-alpha.4` hard-codes `rcgen/aws_lc_rs`, `rustls/aws_lc_rs`, `tokio-rustls/aws_lc_rs`, and `x509-parser/aws-lc-rs`
+- `network-proxy/src/certs.rs` uses rcgen/rustls for MITM cert generation
+
+**Technical Constraints**
+
+Cargo features are additive. `--no-default-features` cannot subtract explicit dependency features already hard-coded by `Cargo.toml` or transitive crates. That means a pure command-line disable set is unlikely to work for these candidates.
+
+The frozen measurement profile is in `codex/scripts/iteration-env.sh`: LTO off, codegen-units 16, `CARGO_BUILD_JOBS=8`, `CARGO_INCREMENTAL=0`, `RUSTC_WRAPPER=sccache`. Do not change LTO/codegen/RUSTFLAGS during A/B.
+
+Any unavoidable `Cargo.toml` edit under `external/repos/codex-patched/codex-rs` needs `SANDBOX PATCH`, patch-surface documentation, and rebase notes per `codex/CLAUDE.md`.
+
+**Implementation Suggestions**
+
+First update `measure-build.ps1` to build all four bins, for example:
+
+`cargo build --release -p codex-cli --bin codex-core -p codex-copilot-launcher --bin codex -p codex-windows-sandbox --bin codex-windows-sandbox-setup -p codex-windows-sandbox --bin codex-command-runner --timings`
+
+Best candidate order:
+
+1. `aws-lc-rs`: investigate replacing or patching `rama-tls-rustls` to use `ring` features. This is the only candidate with plausible large native compile savings, but it is not command-line-only.
+2. `image`: do not remove wholesale. Only test narrow codec reductions, and treat GIF/clipboard-image/pets as user-facing regression risks.
+3. `lalrpop`: deprioritize unless willing to redesign or patch Starlark parsing. It is a build dependency of `starlark_syntax`, not a local feature.
+
+Verification should include `cargo check --workspace`, focused tests for touched crates (`codex-network-proxy`, `codex-utils-image`, `codex-core` image/network proxy paths, `codex-tui` clipboard/pets if image changes), four-bin release build, `/audit`, `/runtime-audit`, and cold-cache A/B CSV comparison including wall time, RSS, sccache counts, and binary sizes.

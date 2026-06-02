@@ -1,0 +1,215 @@
+{
+  "planFile": "D:/harness-efforts/codexu/.ralph/jobs/.staging/20260602T043732Z-plan-codex-rs-feature-pruning-for-sub-45m-cold-2d310b16/draft-plan.md",
+  "repoDir": "D:/harness-efforts/codexu/.ralph/jobs/codex-rs-feature-pruning-for-sub-45m-cold/worktree/plan",
+  "reviewCycle": 0,
+  "findings": [
+    {
+      "id": "F-001",
+      "severity": "High",
+      "source": "consensus",
+      "category": "Feasibility — feature pruning mechanism",
+      "sectionRef": "Approach > Architecture; Files to Create/Modify",
+      "description": "The plan's wrapper seam (CODEX_FEATURE_OVERRIDE → --no-default-features -p codex-cli + --features) cannot actually prune codex-tui or codex-utils-image default features. Cargo's --no-default-features only affects the package(s) named in -p; it does NOT propagate to transitive deps. codex-cli depends on codex-tui via cli/Cargo.toml:63 (`codex-tui = { workspace = true }`) with implicit `default-features = true` — so codex-tui's defaults always activate regardless of what -p codex-cli does. To actually prune, the dependency edges in cli/Cargo.toml, core/Cargo.toml, and (likely) protocol/Cargo.toml must be changed to `default-features = false` with explicit feature forwarding. This is a fundamental redesign of the SANDBOX PATCH footprint: 2-3 more Cargo.toml files are now in-scope.",
+      "status": "fixed",
+      "relevantFiles": [
+        "codex/external/repos/codex-patched/codex-rs/cli/Cargo.toml",
+        "codex/external/repos/codex-patched/codex-rs/core/Cargo.toml",
+        "codex/external/repos/codex-patched/codex-rs/protocol/Cargo.toml",
+        "codex/scripts/measure-build.ps1"
+      ],
+      "suggestedFix": "Rewrite the wrapper-seam story: the env var is one of TWO required mechanisms. Mechanism 1 = per-package `[features]` blocks in tui/Cargo.toml + utils/image/Cargo.toml (already in plan). Mechanism 2 = dep-edge edits in cli/Cargo.toml + core/Cargo.toml + protocol/Cargo.toml that change `codex-tui = { workspace = true }` to `codex-tui = { workspace = true, default-features = false, features = [\"voice\", \"image-gif\"] }` (or similar) PLUS a `[features]` block on codex-cli/codex-core/codex-protocol that re-exports the prune-points (e.g., `[features] default = [\"voice\", \"image-gif\"]; voice = [\"codex-tui/voice\"]; image-gif = [\"codex-tui/image-gif\", \"codex-utils-image/image-gif\"]`). The wrapper env var then selects features at the codex-cli top-level which propagate through. Document this dual-mechanism explicitly. Add SANDBOX PATCH markers + §14 invariants for every dep-edge edit.",
+      "fixedInIteration": 1,
+      "resolution": "Amended the plan to require Cargo feature-forwarding and default-features=false dependency-edge edits across the release graph, with wrapper env var selection treated only as the top-level trigger."
+    },
+    {
+      "id": "F-002",
+      "severity": "High",
+      "source": "consensus",
+      "category": "Feasibility — Lever B cpal-only fallback",
+      "sectionRef": "Files to Create/Modify > Lever B; Risk Areas",
+      "description": "The 'cpal-only fallback' for Lever B (just flip cpal to `optional = true`, leave voice/audio_device source unchanged) is compile-broken. If cpal is optional and the feature is off, `tui/src/voice.rs` and `tui/src/audio_device.rs` still try to `use cpal::*` — that's an unresolved-import error. The Linux-stub pattern at `tui/src/lib.rs:92-99` and :203-220 (which stubs `mod voice { /* no-op */ }` on linux) is the right template — generalize it to `#[cfg(all(not(target_os = \"linux\"), feature = \"voice\"))]` for the real module + matching stub for the off case. Don't keep the brittle '>30 call-sites' decision rule. Copilot also flagged additional voice consumers at `chatwidget/realtime.rs`, `chatwidget/settings_popups.rs`, and `app/event_dispatch.rs` that need the same cfg-gate or stub plumbing.",
+      "status": "fixed",
+      "relevantFiles": [
+        "codex/external/repos/codex-patched/codex-rs/tui/src/lib.rs",
+        "codex/external/repos/codex-patched/codex-rs/tui/src/voice.rs",
+        "codex/external/repos/codex-patched/codex-rs/tui/src/audio_device.rs",
+        "codex/external/repos/codex-patched/codex-rs/tui/src/chatwidget/realtime.rs",
+        "codex/external/repos/codex-patched/codex-rs/tui/src/chatwidget/settings_popups.rs",
+        "codex/external/repos/codex-patched/codex-rs/tui/src/app/event_dispatch.rs"
+      ],
+      "suggestedFix": "Replace the >30-call-sites decision rule with a single deterministic approach: generalize the Linux-stub pattern to cover the feature-off case. Specifically: where `tui/src/lib.rs` has `#[cfg(not(target_os = \"linux\"))] mod audio_device;` + `#[cfg(target_os = \"linux\")] #[allow(dead_code)] mod audio_device { /* stub */ }`, change to `#[cfg(all(not(target_os = \"linux\"), feature = \"voice\"))] mod audio_device;` and broaden the stub to `#[cfg(any(target_os = \"linux\", not(feature = \"voice\")))] #[allow(dead_code)] mod audio_device { /* stub */ }`. Same pattern for `mod voice`. Consumer call sites continue to compile against the stub (which exposes the same surface API as no-ops). No widespread `#[cfg(feature = \"voice\")]` source edits required.",
+      "fixedInIteration": 2,
+      "resolution": "Updated Lever B to require generalized feature-off voice/audio_device stubs and adjusted scope, risks, docs, AC-3, story decomposition, and open questions accordingly."
+    },
+    {
+      "id": "F-003",
+      "severity": "High",
+      "source": "consensus",
+      "category": "Completeness — measure-build.ps1 scope",
+      "sectionRef": "Acceptance Criteria > AC-2/AC-3/AC-5/AC-6; Verification cadence per lever",
+      "description": "`scripts/measure-build.ps1:157` currently builds only `codex-cli --bin codex-core` and `codex-copilot-launcher --bin codex` — 2 of the 4 release bins. The plan repeatedly claims A/B measurement covers all 4 bins (codex, codex-core, codex-windows-sandbox-setup, codex-command-runner). To actually cover all 4, measure-build.ps1 must be extended to add `-p codex-windows-sandbox --bin codex-windows-sandbox-setup -p codex-windows-sandbox --bin codex-command-runner`. This needs to be an explicit step in the plan, NOT an implicit assumption. (There's a separately-tracked task `codex-rs-measure-build-includes-launcher` that already addressed the launcher inclusion at the same line — the sandbox bins are the remaining gap.)",
+      "status": "fixed",
+      "relevantFiles": [
+        "codex/scripts/measure-build.ps1"
+      ],
+      "suggestedFix": "Add an explicit US-001 sub-bullet (or new US): 'Update measure-build.ps1 line 157 to add the 2 windows-sandbox bin invocations so the A/B truly covers all 4 release bins'. Update ACs to reference the now-4-bin invocation, or honestly scope ACs to '2-bin measurement + 2-bin cargo check' if the cost of adding the bins to measure-build is non-trivial. Cross-reference the follow-up task `codex-rs-measure-build-includes-launcher` in the plan so the connection is visible.",
+      "fixedInIteration": 3,
+      "resolution": "Amended the plan to explicitly extend measure-build.ps1 from the current 2-bin build to the full 4-bin release invocation and updated the related story, scope, and acceptance criteria to require 4-bin A/B measurements."
+    },
+    {
+      "id": "F-004",
+      "severity": "High",
+      "source": "codex",
+      "category": "Acceptance Criteria > AC-1 correctness",
+      "sectionRef": "Acceptance Criteria > AC-1",
+      "description": "AC-1's example CSV `tui/voice,tui/image-gif` uses directory-style package names. The actual cargo package names are `codex-tui` and `codex-utils-image`. Cargo's package-feature syntax is `<package-name>/<feature>`, so the example must be `codex-tui/voice,codex-utils-image/image-gif` (or, post-F-001 fix, `codex-cli/voice,codex-cli/image-gif` if the prune-points are re-exported at codex-cli's [features] level). The wrong CSV will silently fail to enable any features and the harness will appear to work but not actually prune.",
+      "status": "fixed",
+      "relevantFiles": [
+        "codex/scripts/measure-build.ps1"
+      ],
+      "suggestedFix": "Once F-001's dual-mechanism is settled, the AC-1 example becomes `CODEX_FEATURE_OVERRIDE=voice,image-gif` and the harness translates that into `cargo build ... --no-default-features --features <list>` on the codex-cli package. The harness should validate the input against a fixed allowlist of known feature names rather than passing free-form CSV to cargo.",
+      "fixedInIteration": 4,
+      "resolution": "Amended the plan so CODEX_FEATURE_OVERRIDE uses allowlisted top-level feature names like voice,image-gif and AC-1 requires package-style or directory-style entries to fail before cargo runs."
+    },
+    {
+      "id": "F-005",
+      "severity": "High",
+      "source": "consensus",
+      "category": "Acceptance Criteria > AC-5 weasel wording",
+      "sectionRef": "Acceptance Criteria > AC-5",
+      "description": "AC-5 currently says cold-cache ≤45m is 'TARGETED' and the ship gate is 'documented A/B'. Both Codex and Claude flagged this as weakening F-7's stated 45m goal. The plan title is literally 'codex-rs-feature-pruning-for-sub-45m-cold' — the success criterion should be concrete, not 'document and ship anyway'.",
+      "status": "fixed",
+      "relevantFiles": [],
+      "suggestedFix": "Rewrite AC-5 with concrete pass/defer conditions: (a) Pass = post-change cold-cache wall-time strictly less than the pre-change baseline (50:12 on this dev box as of 2026-06-01) by at least 1 min AND no single lever's cold-cache wall-time exceeds the pre-change baseline. (b) Defer (file follow-up, do NOT merge): if combined levers save <1 min, file a new task `codex-rs-feature-pruning-residual-<next-bottleneck>` with cargo-bloat / cargo-timings evidence pointing at the next biggest crate. (c) Aspirational: 45m. The ship requires a measurable reduction, not just 'we measured something'. Failing to achieve 45m on this dev box is acceptable IF a real reduction was achieved AND the residual is filed; failing to achieve any reduction is NOT acceptable for ship.",
+      "fixedInIteration": 5,
+      "resolution": "Tightened AC-5 so shipment requires at least a 1 minute cold-cache reduction versus the 50:12 baseline, keeps 45m aspirational, and blocks merge with residual follow-up evidence if no measurable reduction is achieved."
+    },
+    {
+      "id": "F-006",
+      "severity": "High",
+      "source": "codex",
+      "category": "Acceptance Criteria > AC-6 verification command",
+      "sectionRef": "Acceptance Criteria > AC-6",
+      "description": "AC-6 references `codex login --provider copilot --no-launch` as a runtime smoke. Codex review couldn't find that flag in the current CLI. If it doesn't exist, the AC is unverifiable. The actual command may be `codex login --provider copilot` (interactive) or a different probe.",
+      "status": "fixed",
+      "relevantFiles": [
+        "codex/external/repos/codex-patched/codex-rs/login/src/",
+        "codex/external/repos/codex-patched/codex-rs/cli/src/"
+      ],
+      "suggestedFix": "Inspect `login/src/` and `cli/src/main.rs` for the actual non-interactive login probe. Likely candidates: `codex --version` (confirms launcher exec + codex-core load — already in AC-6), `codex login status --provider copilot` (if implemented), or a CI-friendly `codex login --provider copilot --check` (if implemented). Replace the placeholder. Worst case: drop the login smoke from AC-6 and rely on `--version` + `audit_network_calls.sh` + `runtime_audit.ps1` as the runtime gates. Add 'Verify the login-status command exists' to the impl phase's pre-flight checklist.",
+      "fixedInIteration": 6,
+      "resolution": "Replaced the invalid `codex login --provider copilot --no-launch` smoke with the existing non-interactive `codex login status` check and clarified acceptable outcomes."
+    },
+    {
+      "id": "F-007",
+      "severity": "Medium",
+      "source": "consensus",
+      "category": "Approach > image-gif feature semantics clarity",
+      "sectionRef": "Files to Create/Modify > Lever A",
+      "description": "The Lever A section wavers between 'drop gif' and the cargo-feature-routing pattern `image-gif = [\"image/gif\"]`. The wavering risks the impl agent picking the wrong shape and either (a) accidentally keeping gif default-on, or (b) trying an invalid conditional-dependency syntax. Pick ONE pattern and state it cleanly.",
+      "status": "open",
+      "relevantFiles": [
+        "codex/external/repos/codex-patched/codex-rs/tui/Cargo.toml",
+        "codex/external/repos/codex-patched/codex-rs/utils/image/Cargo.toml"
+      ],
+      "suggestedFix": "Specify the exact shape ONE time in the plan body: `image = { workspace = true, features = [\"jpeg\", \"png\", \"webp\"] }` as the always-on base, plus `[features] default = [\"image-gif\"]; image-gif = [\"image/gif\"]` to make gif default-on at the package level (so dist builds still get gif) but allow it to be turned off by the harness. Delete the wavering alternative descriptions. Same shape replicated in utils/image/Cargo.toml. The harness override path then disables `image-gif` on the relevant per-package context (post-F-001 fix: at the codex-cli level)."
+    },
+    {
+      "id": "F-008",
+      "severity": "Medium",
+      "source": "claude",
+      "category": "Measurement methodology > A/B framing internal consistency",
+      "sectionRef": "Implementation Strategy > Measurement methodology per lever",
+      "description": "The measurement steps (full wipe → cold BEFORE → full wipe → cold AFTER) are correct, but the cache-key note in Technical Constraints says feature changes 'invalidate affected crate fingerprints on the first build'. This is technically true but tangential — the wipe-cold-wipe-cold protocol means both runs are cold regardless. The plan should explicitly say: the useful metric is the steady-state first-cold-after-wipe wall-time delta, NOT the post-change cold-vs-pre-change-warm delta. This is implicit in the protocol but should be called out.",
+      "status": "open",
+      "relevantFiles": [],
+      "suggestedFix": "Add an explicit pass/fail framing note to the measurement methodology section: 'Both BEFORE and AFTER runs are cold (full sccache + target wipe). The wall-time delta is the apples-to-apples ship gate. Ignore subsequent cached re-runs except as a sanity check that the cache populated correctly.'"
+    },
+    {
+      "id": "F-009",
+      "severity": "Medium",
+      "source": "claude",
+      "category": "Lever C investigation criterion sharpness",
+      "sectionRef": "Files to Create/Modify > Lever C",
+      "description": "Lever C says to use `cargo tree -e features -i aws-lc-rs` and skip if rama-tls-rustls also activates it. That's correct but the plan never explicitly rules out the `[patch]` hammer or a more targeted dep-site override at the rama-tls-rustls call site. The plan should explicitly forbid `[patch]` (high conflict surface) and only consider a dep-site `default-features = false` override IF the cargo tree shows a single owning edge.",
+      "status": "open",
+      "relevantFiles": [
+        "codex/external/repos/codex-patched/codex-rs/Cargo.toml",
+        "codex/external/repos/codex-patched/codex-rs/network-proxy/src/certs.rs"
+      ],
+      "suggestedFix": "Rewrite Lever C with explicit decision tree: (1) Run cargo tree. (2a) If single owning edge through workspace `rcgen`: apply the SANDBOX PATCH feature swap. (2b) If multiple owning edges (rama-tls-rustls included): MARK DEAD. Do not use `[patch.crates-io]` (high conflict surface, blanket rebase risk). Do not attempt a dep-site override at the rama-tls-rustls site (rama is a transitive — we don't own its Cargo.toml). The lever stops at investigation evidence."
+    },
+    {
+      "id": "F-010",
+      "severity": "Medium",
+      "source": "consensus",
+      "category": "Acceptance Criteria > evidence specificity",
+      "sectionRef": "Acceptance Criteria > AC-2/AC-3/AC-6",
+      "description": "ACs for the levers say things like 'binary does NOT have gif decoder registered' or 'default build includes cpal'. These are vague. The verification command for feature presence/absence is `cargo tree -e features -i <crate>` showing the feature flag (e.g., `cpal/<feature>` or `image/gif`) in/out of the resolved graph. The smoke that decodes a gif at runtime is a separate, optional verification. The plan should specify the exact cargo-tree command per AC.",
+      "status": "open",
+      "relevantFiles": [],
+      "suggestedFix": "For AC-2: 'Run `cargo tree -e features -i image --target x86_64-pc-windows-msvc` in pruned mode; expected output contains `image/png` and `image/webp` but NOT `image/gif`. Same command in default mode contains `image/gif`.' For AC-3: 'Run `cargo tree -e features -i cpal --target x86_64-pc-windows-msvc` in pruned mode; expected output is empty (no path to cpal). Same command in default mode shows the codex-tui → cpal edge.' For AC-6: 'Default build cargo-tree shows both cpal AND image/gif present.'"
+    },
+    {
+      "id": "F-011",
+      "severity": "Medium",
+      "source": "claude",
+      "category": "SANDBOX PATCH §14/§15 compliance mapping",
+      "sectionRef": "Files to Create/Modify; Acceptance Criteria > AC-7",
+      "description": "AC-7 mentions §14 invariant rows and §15 replant recipe but doesn't enumerate each upstream-canonical file edit with its specific marker + invariant + enforcing test. The impl phase needs a checklist to ensure each SANDBOX PATCH has all three pieces.",
+      "status": "open",
+      "relevantFiles": [
+        "codex/docs/implementation/patch-surface.md"
+      ],
+      "suggestedFix": "Add a 'SANDBOX PATCH inventory' table to the plan listing each upstream-canonical file the levers will edit (`tui/Cargo.toml`, `utils/image/Cargo.toml`, `tui/src/lib.rs`, post-F-001 fix: `cli/Cargo.toml` + `core/Cargo.toml` + `protocol/Cargo.toml`, optionally workspace `Cargo.toml` for Lever C), with three columns: 'SANDBOX PATCH marker text', 'Invariant statement for §14', 'Enforcing test/guard command'. The impl phase ticks each box."
+    },
+    {
+      "id": "F-012",
+      "severity": "Medium",
+      "source": "copilot",
+      "category": "Simplicity — wrapper env-var design",
+      "sectionRef": "Approach > Architecture; Files to Create/Modify > US-001",
+      "description": "A free-form `CODEX_FEATURE_OVERRIDE` CSV is more general than this task needs and easy to mis-specify (e.g., typo in package name silently fails). A narrower enum-style `CODEX_PRUNED_FEATURES=voice,image-gif` mapped to known cargo arg fragments would be simpler and validatable. The wrapper translates a fixed allowlist of names; unknown names error out at parse time.",
+      "status": "open",
+      "relevantFiles": [
+        "codex/scripts/measure-build.ps1"
+      ],
+      "suggestedFix": "Replace the free-form `CODEX_FEATURE_OVERRIDE=<pkg>/<feat>,...` with `CODEX_PRUNED_FEATURES=<feat>,<feat>,...` where the recognized feature names are a closed set: `voice`, `image-gif`, plus (optionally) `aws-lc-rs` if Lever C ships. Unknown names → error exit before invoking cargo. The harness translates the recognized set into the appropriate `--no-default-features --features <list>` flags at the codex-cli build invocation. Document the closed set in the script header comment and in build-perf.md."
+    },
+    {
+      "id": "F-013",
+      "severity": "Medium",
+      "source": "codex",
+      "category": "Completeness — measurement artifact path consistency",
+      "sectionRef": "Implementation Strategy > Measurement methodology per lever",
+      "description": "The plan's measurement step says CSV row captured at `.ralph/jobs/codex-rs-feature-pruning-for-sub-45m-cold/measurements/<lever>-<scenario>.csv`, but `measure-build.ps1:188` already writes to `codex/docs/implementation/build-perf-artifacts/<runId>.csv`. Two different artifact paths means evidence either lives in the wrong place or the harness needs an extra copy/move step.",
+      "status": "open",
+      "relevantFiles": [
+        "codex/scripts/measure-build.ps1"
+      ],
+      "suggestedFix": "Pick one path and stick with it. Recommend: keep the existing `codex/docs/implementation/build-perf-artifacts/<runId>.csv` path (it's the established convention for this kind of evidence; the prior jobs-sweep used a similar pattern at `.ralph/jobs/codex-rs-build-perf-jobs-sweep-with-defender/`). Update plan ACs to reference that path. If a copy into the plan's job dir is still useful for the ship record, add an explicit `Copy-Item` step in the measurement methodology and document the duplication."
+    },
+    {
+      "id": "F-014",
+      "severity": "Medium",
+      "source": "copilot",
+      "category": "Ordering — US-001 cannot be fully validated standalone",
+      "sectionRef": "Suggested Decomposition; Implementation Strategy > Phase ordering",
+      "description": "US-001 (wrapper seam) was placed in Phase 1 with no dependencies, but `-ParseOnly` validation only proves the harness prints the expected args. It can't prove cargo accepts them and actually applies the prune until US-002/US-003 land the per-package `[features]` blocks AND (post-F-001) the dep-edge edits. So US-001 has a hidden dependency: it can be DRAFTED first but cannot be VALIDATED until at least one lever ships.",
+      "status": "open",
+      "relevantFiles": [],
+      "suggestedFix": "Either: (a) accept that US-001's verification is `-ParseOnly`-only in Phase 1, with full e2e verification deferred to Phase 2 (note this explicitly in the plan); or (b) re-order — put dep-edge plumbing (the post-F-001 cli/core/protocol Cargo.toml edits) into Phase 1 alongside US-001, then validate the env-var end-to-end as part of US-001's AC. Recommend (b) since the dep-edge plumbing is now load-bearing for the whole approach."
+    },
+    {
+      "id": "F-015",
+      "severity": "Low",
+      "source": "consensus",
+      "category": "SANDBOX PATCH compliance — explicit marker text",
+      "sectionRef": "Files to Create/Modify",
+      "description": "Several places in the plan reference 'SANDBOX PATCH' generically without showing the exact comment text and rationale that each marker should carry. Per codex/CLAUDE.md tenant §1, every edit must have `// SANDBOX PATCH:` (or `# SANDBOX PATCH:` for Cargo.toml) followed by the reason.",
+      "status": "open",
+      "relevantFiles": [],
+      "suggestedFix": "In the SANDBOX PATCH inventory table (from F-011), include the EXACT comment text for each marker, e.g.: 'tui/Cargo.toml: # SANDBOX PATCH: cpal optional + voice cargo feature for sub-45m cold-cache prune; see patch-surface.md §14 inv-N + §15 replant.'"
+    }
+  ]
+}

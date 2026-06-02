@@ -1,0 +1,38 @@
+I’ll open the referenced prompt file and use it as the task instructions.
+
+The prompt is a longer task file, so I’m reading it in sections before making changes.
+
+I’m switching from prompt ingestion to verifying the plan against the actual codex workspace before writing the review.
+
+I found the plan’s critical surface is Cargo feature control through transitive dependencies, so I’m checking the actual dependency edges before finalizing severity.
+
+The selected build packages depend on `codex-tui` as a normal default-feature dependency, which looks like the plan’s feature override cannot actually prune the target features as described. I’m doing one last targeted check for possible command-line escape hatches.
+
+### Feasibility
+
+[High] The `CODEX_FEATURE_OVERRIDE` mechanism cannot prune `codex-tui` / `codex-utils-image` defaults as described. The selected build packages depend on them through normal default-feature dependency edges (`cli/Cargo.toml:63`, `core/Cargo.toml`, `protocol/Cargo.toml`), so Cargo CLI `--no-default-features` on the selected packages will not disable default features of those transitive crates. The plan needs dependency-edge changes with explicit feature forwarding, not just target-crate `[features]` plus wrapper flags.
+
+[High] The Lever B “cpal-only fallback” is not compile-safe. If `cpal` becomes optional but `tui/src/audio_device.rs` and `tui/src/voice.rs` still compile, their `cpal::...` references fail. Actual call sites also reference `crate::voice::*` and audio-device APIs from `chatwidget/realtime.rs`, `chatwidget/settings_popups.rs`, and `app/event_dispatch.rs`; removing modules when `voice` is off requires feature-gated stubs or broader `cfg(all(not(target_os = "linux"), feature = "voice"))` plumbing.
+
+### Completeness
+
+[High] `scripts/measure-build.ps1` currently builds only `codex-cli --bin codex-core` and `codex-copilot-launcher --bin codex`, not the two `codex-windows-sandbox` bins the plan repeatedly treats as part of the measured 4-bin release build. AC-5/AC-6 evidence would not cover the stated artifact set unless the script is extended.
+
+[High] The plan omits required changes to dependency consumers (`cli/Cargo.toml`, likely `core/Cargo.toml` / `protocol/Cargo.toml`, possibly `cloud-tasks/Cargo.toml`) to make default-on distribution behavior and override-off measurement behavior both possible.
+
+### Ordering
+
+[Medium] US-001 cannot be meaningfully validated before US-002/US-003 define real feature plumbing and dependency edges. A `-ParseOnly` check can print args, but it will not prove Cargo accepts or applies the intended feature set.
+
+### Simplicity
+
+[Medium] A generic CSV `<pkg>/<feature>` override is over-flexible for this task and obscures the real problem: the shipped binary is built through `codex-cli`. A narrower harness option for “pruned measurement profile” plus explicit feature forwarding through the relevant dependency edges would be simpler and more verifiable.
+
+### Acceptance Criteria Quality
+
+[High] AC-1 is not sufficient: “prints expected flags” does not verify the flags actually disable transitive default features. It needs a Cargo-level proof, e.g. `cargo tree -e features` showing `image/gif` and `cpal` absent in the pruned build graph.
+
+[Medium] AC-2’s “does NOT have the gif decoder registered” is underspecified. The plan should name a concrete verification command or small test that exercises GIF decode failure/success under pruned/default feature sets.
+
+[Medium] AC-6 says default builds include the GIF decoder and `cpal`, but does not specify how to prove that beyond build success. Add `cargo tree -e features` checks for default and pruned profiles.
+

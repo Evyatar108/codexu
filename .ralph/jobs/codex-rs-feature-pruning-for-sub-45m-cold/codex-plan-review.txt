@@ -1,0 +1,45 @@
+**Feasibility**
+
+[High] The core feature-override mechanism will not disable the intended features for the real binaries. `codex-cli` depends on `codex-tui = { workspace = true }` in `codex/external/repos/codex-patched/codex-rs/cli/Cargo.toml`, and `codex-core` / `codex-protocol` depend on `codex-utils-image = { workspace = true }`. Those dependency edges enable default features on transitive crates. Passing `--no-default-features` for selected top-level packages in `scripts/measure-build.ps1` will not turn off `codex-tui` or `codex-utils-image` defaults unless those reverse-dependency edges are also changed to `default-features = false` and feature-forwarding is added.
+
+[High] The proposed override syntax uses directory-ish names like `tui/voice` and `utils-image/image-gif`, but the actual package names are `codex-tui` and `codex-utils-image`. Cargo package feature syntax must use package names, e.g. `codex-tui/voice`, if command-line feature selection is used at all.
+
+[High] `codex/scripts/measure-build.ps1` currently builds only `codex-core` and the launcher: `cargo build --release -p codex-cli --bin codex-core -p codex-copilot-launcher --bin codex --timings`. The plan repeatedly says measurements cover all four release bins, but does not explicitly require updating this wrapper to include `codex-windows-sandbox-setup` and `codex-command-runner`.
+
+[High] The “cpal-only fallback” for Lever B is not feasible as described. If `cpal` becomes optional and `voice.rs` / `audio_device.rs` still compile while the `voice` feature is off, their `use cpal::...` references will fail. The existing Linux stub pattern in `tui/src/lib.rs` should be generalized for `not(feature = "voice")` instead.
+
+**Completeness**
+
+[High] The plan is missing feature propagation through reverse dependencies. At minimum, inspect and likely modify `cli/Cargo.toml`, `core/Cargo.toml`, and `protocol/Cargo.toml`, because those are the release graph edges that currently pull in `codex-tui` and `codex-utils-image` with defaults.
+
+[High] The measurement artifact path is inconsistent. `measure-build.ps1` writes to `codex/docs/implementation/build-perf-artifacts/<runId>.csv`, while the plan’s ACs require `.ralph/jobs/codex-rs-feature-pruning-for-sub-45m-cold/measurements/lever-*.csv`. Add a parameter or explicit copy step, or the evidence ACs will not be met.
+
+[Medium] Lever A’s “gif decoder not registered” claim needs an actual verification method. A successful `cargo build --no-default-features` does not prove runtime decoder availability. Add a small test or smoke that attempts GIF decode with `image-gif` off/on, or use `cargo tree -e features -i image` evidence for feature resolution.
+
+[Medium] The plan does not include a pruned-feature release build of the actual target binaries. It checks direct `codex-tui --no-default-features`, but the important path is the measured `codex-cli` / launcher / Windows sandbox build with the pruned feature set.
+
+**Ordering**
+
+[High] `wrapper-seam` cannot be implemented correctly before the feature graph design is settled. The wrapper needs to know the actual package names and whether pruning is exposed through top-level package features, direct package features, or dependency-edge defaults. Put feature-gate plumbing before finalizing wrapper semantics.
+
+[Medium] Per-lever A/B isolation is under-specified. If reverse-dependency feature plumbing lands after Lever A/B, earlier measurements may not represent the real binary graph. Establish the final build-command and feature-selection mechanism first, then measure each lever by toggling only that lever.
+
+**Simplicity**
+
+[Medium] The plan overstates the need for widespread `#[cfg(feature = "voice")]` call-site edits. `tui/src/lib.rs` already has Linux no-op modules for `audio_device` and `voice`; reuse that shape for `#[cfg(any(target_os = "linux", not(feature = "voice")))]`. That preserves call sites and avoids a brittle 30-edit threshold.
+
+[Medium] A free-form `CODEX_FEATURE_OVERRIDE` CSV is more general than this task needs and easy to mis-specify. A narrower `-FeatureSet Default|PrunedWindows` or explicit `CODEX_PRUNED_FEATURES=voice,image-gif` mapped to known Cargo args would be simpler and less error-prone.
+
+**Acceptance Criteria Quality**
+
+[High] AC-1 is currently inaccurate because `tui/voice,tui/image-gif` is not valid for this workspace’s package names, and “right `-p` positions” is not how Cargo feature selection should be specified.
+
+[High] AC-5 weakens the stated task goal. The plan title and premise are “sub-45m cold build,” but AC-5 allows shipping above 45 minutes with documentation. If ≤45m is a real requirement, this is not an acceptable pass condition.
+
+[High] AC-6 uses a non-existent or unverified smoke: I found no `--no-launch` flag in the current CLI login code. Replace `codex login --provider copilot --no-launch` with an actual supported non-interactive command, or explicitly add that flag as part of scope.
+
+[Medium] AC-6’s “same decoder set” and “includes `cpal` and the gif decoder” are vague without concrete evidence commands. Prefer `cargo tree -e features -i cpal`, `cargo tree -e features -i image`, and a targeted GIF decode smoke.
+
+[Medium] AC-9 and AC-10 are process criteria, not feature behavior. They are fine as Ralph workflow gates, but they should not substitute for concrete build/runtime verification.
+
+The plan has good source discovery, especially around `image`, `cpal`, and `rcgen`, but the Cargo feature-selection model needs correction before implementation starts.
