@@ -2,8 +2,8 @@
 
 # Ralph Tasks Index
 
-Generated: 2026-06-02T04:55:08.459Z
-Source commit: c944d758
+Generated: 2026-06-02T15:31:46.316Z
+Source commit: 32fdb9de
 
 ## perf-WS3
 - Stage: shipped
@@ -32,7 +32,7 @@ Source commit: c944d758
 ## 3a-skills
 - Stage: untracked
 - jobDir: n/a
-- Last activity: 2026-05-13T21:30:00Z task touch
+- Last activity: 2026-06-02T15:31:32Z task touch
 - Dashboard: [3a-skills](../.ralph-overview/generated/overview.html#cmd-3a-skills)
 
 ## F-013-perms
@@ -74,25 +74,25 @@ Source commit: c944d758
 ## 3b-agents
 - Stage: untracked
 - jobDir: n/a
-- Last activity: 2026-05-13T19:30:00Z task touch
+- Last activity: 2026-06-02T15:31:32Z task touch
 - Dashboard: [3b-agents](../.ralph-overview/generated/overview.html#cmd-3b-agents)
 
 ## 3c-hooks
 - Stage: untracked
 - jobDir: n/a
-- Last activity: 2026-05-14T17:30:00Z task touch
+- Last activity: 2026-06-02T15:31:32Z task touch
 - Dashboard: [3c-hooks](../.ralph-overview/generated/overview.html#cmd-3c-hooks)
 
 ## 3d-workers
 - Stage: untracked
 - jobDir: n/a
-- Last activity: 2026-05-13T19:30:00Z task touch
+- Last activity: 2026-06-02T15:31:32Z task touch
 - Dashboard: [3d-workers](../.ralph-overview/generated/overview.html#cmd-3d-workers)
 
 ## 3fg-package
 - Stage: untracked
 - jobDir: n/a
-- Last activity: 2026-05-13T19:30:00Z task touch
+- Last activity: 2026-06-02T15:31:32Z task touch
 - Dashboard: [3fg-package](../.ralph-overview/generated/overview.html#cmd-3fg-package)
 
 ## 3h-options
@@ -134,7 +134,7 @@ Source commit: c944d758
 ## crews-roles-and-direct-operator-channel
 - Stage: planning
 - jobDir: `.ralph/jobs/crews-roles-and-direct-operator-channel`
-- Last activity: 2026-05-30T14:55:30Z task touch
+- Last activity: 2026-06-02T15:31:32Z task touch
 - Dashboard: [crews-roles-and-direct-operator-channel](../.ralph-overview/generated/overview.html#cmd-crews-roles-and-direct-operator-channel)
 
 ## ralph-overview-data-relocation-and-json-migration
@@ -188,7 +188,7 @@ Source commit: c944d758
 ## ralph-overview-init-consumer-cross-engine-wrapper
 - Stage: untracked
 - jobDir: n/a
-- Last activity: 2026-05-30T14:55:30Z task touch
+- Last activity: 2026-06-02T15:31:32Z task touch
 - Dashboard: [ralph-overview-init-consumer-cross-engine-wrapper](../.ralph-overview/generated/overview.html#cmd-ralph-overview-init-consumer-cross-engine-wrapper)
 
 ## crews-stop-tests-jsonparse-empty-2-tests
@@ -218,7 +218,7 @@ Source commit: c944d758
 ## ralph-plan-with-ralph-copilot-cli-read-only-research
 - Stage: untracked
 - jobDir: n/a
-- Last activity: 2026-05-29T01:30:00Z task touch
+- Last activity: 2026-06-02T15:31:32Z task touch
 - Dashboard: [ralph-plan-with-ralph-copilot-cli-read-only-research](../.ralph-overview/generated/overview.html#cmd-ralph-plan-with-ralph-copilot-cli-read-only-research)
 
 ## ralph-plan-staging-unique-path-per-member
@@ -360,21 +360,21 @@ Source commit: c944d758
 - Dashboard: [codex-local-build](../.ralph-overview/generated/overview.html#cmd-codex-local-build)
 
 ## ai-developer-toolkit-submodule
-- Stage: untracked
-- jobDir: n/a
-- Last activity: 2026-05-27T07:50:00Z task touch
+- Stage: planning
+- jobDir: `.ralph/jobs/ai-developer-toolkit-submodule`
+- Last activity: 2026-06-02T15:31:32Z task touch
 - Dashboard: [ai-developer-toolkit-submodule](../.ralph-overview/generated/overview.html#cmd-ai-developer-toolkit-submodule)
 
 ## overview-naming-rebrand
 - Stage: untracked
 - jobDir: n/a
-- Last activity: 2026-05-27T07:42:00Z task touch
+- Last activity: 2026-06-02T15:31:32Z task touch
 - Dashboard: [overview-naming-rebrand](../.ralph-overview/generated/overview.html#cmd-overview-naming-rebrand)
 
 ## overview-data-context-scalability
 - Stage: untracked
 - jobDir: n/a
-- Last activity: 2026-05-27T07:35:00Z task touch
+- Last activity: 2026-06-02T15:31:32Z task touch
 - Dashboard: [overview-data-context-scalability](../.ralph-overview/generated/overview.html#cmd-overview-data-context-scalability)
 
 ## overview-data-ship-manifest
@@ -498,9 +498,9 @@ Source commit: c944d758
 - Dashboard: [codex-system-prompts](../.ralph-overview/generated/overview.html#cmd-codex-system-prompts)
 
 ## codex-hooks-parity
-- Stage: untracked
-- jobDir: n/a
-- Last activity: 2026-05-30T22:15:00Z task touch
+- Stage: planning
+- jobDir: `.ralph/jobs/codex-hooks-parity`
+- Last activity: 2026-06-02T05:16:00Z task touch
 - Dashboard: [codex-hooks-parity](../.ralph-overview/generated/overview.html#cmd-codex-hooks-parity)
 
 ## port-explorer-prompt
@@ -624,9 +624,9 @@ Source commit: c944d758
 - Dashboard: [codex-rs-defender-exclusions-procmon-verify](../.ralph-overview/generated/overview.html#cmd-codex-rs-defender-exclusions-procmon-verify)
 
 ## codex-rs-feature-pruning-for-sub-45m-cold
-- Stage: untracked
-- jobDir: n/a
-- Last activity: 2026-06-01T19:03:00Z task touch
+- Stage: planning
+- jobDir: `.ralph/jobs/codex-rs-feature-pruning-for-sub-45m-cold`
+- Last activity: 2026-06-02T05:30:00Z task touch
 - Dashboard: [codex-rs-feature-pruning-for-sub-45m-cold](../.ralph-overview/generated/overview.html#cmd-codex-rs-feature-pruning-for-sub-45m-cold)
 
 ## codex-rs-measure-build-includes-launcher
@@ -728,7 +728,7 @@ Source commit: c944d758
 ## codex-rebase-phase-5a-5b-ci-closeout
 - Stage: planning
 - jobDir: `.ralph/jobs/codex-rebase-phase-5a-5b-ci-closeout`
-- Last activity: 2026-06-02T04:35:00Z task touch
+- Last activity: 2026-06-02T05:00:00Z task touch
 - Dashboard: [codex-rebase-phase-5a-5b-ci-closeout](../.ralph-overview/generated/overview.html#cmd-codex-rebase-phase-5a-5b-ci-closeout)
 
 ## happy-skill-md-roadmap-path-correction
