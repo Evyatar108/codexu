@@ -15,7 +15,47 @@ Full fork context, branches, build workflow, and "things that bit us" catalogue 
 
 Agent-readable Ralph pipeline state is emitted as `.ralph-overview/generated/ralph-state.{json,js}`; `.ralph-overview/generated/snapshot.json` is the merged aggregate snapshot for agents, and recent transitions append to `.ralph-overview/generated/activity.jsonl`. Artifacts are emitted by the **`ralph-overview` plugin** (installed via the `gim-home/ai-developer-toolkit` marketplace as of Plan 12). The plugin's watcher runs inside the Vite dev server during `pnpm overview` (delegating through `bin/ralph-overview.mjs dev`), or as a standalone process via `pnpm sync-ralph-state:watch` (delegating to `ralph-overview watch`). Both paths share the same `.ralph-overview/generated/.lock/sync.lock` and emit the same set of files. See `bin/ralph-overview.mjs` for the resolver wrapper that locates the installed plugin.
 
-**Plugin resolution.** The resolver wrapper (`bin/ralph-overview.mjs` — **tracked in git as of the codexu-bin-ralph-overview-wrapper-retirement task**; previously gitignored / per-machine) checks (in order): `$RALPH_OVERVIEW_PLUGIN_ROOT` env, `$CLAUDE_PLUGIN_ROOT/ralph-overview/`, `$CLAUDE_PLUGIN_ROOT/cache/ai-developer-toolkit/ralph-overview/<latest>/`, `~/.claude/plugins/cache/ai-developer-toolkit/ralph-overview/<latest>/`, **`~/.copilot/installed-plugins/ai-developer-toolkit/ralph-overview/`** (Copilot CLI install layout — single live copy, no per-version subdir), then the local-dev fallback `D:/ai-developer-toolkit/plugins/ralph-overview/`. Because the wrapper is now tracked, a fresh clone of codexu under EITHER Claude Code OR Copilot CLI gets a working `pnpm sync-ralph-state` / `pnpm overview` out of the box — no per-machine wrapper-copy or shell-rc setup. For local development against an unmerged plugin branch, set `RALPH_OVERVIEW_PLUGIN_ROOT` to point at the toolkit checkout. **Done:** the codexu install now uses the marketplace plugin registration (`enabledPlugins["ralph-overview@ai-developer-toolkit"]` in `.claude/settings.json` for Claude Code and the equivalent block in `~/.copilot/settings.json` for Copilot CLI); the old local-path `.mcp.json` entry and `enabledMcpjsonServers["ralph-overview"]` have been removed.
+**Plugin resolution.** The resolver wrapper (`bin/ralph-overview.mjs` — **tracked in git as of the codexu-bin-ralph-overview-wrapper-retirement task**; previously gitignored / per-machine) checks (in order): `$RALPH_OVERVIEW_PLUGIN_ROOT` env, `$CLAUDE_PLUGIN_ROOT/ralph-overview/`, `$CLAUDE_PLUGIN_ROOT/cache/ai-developer-toolkit/ralph-overview/<latest>/`, `~/.claude/plugins/cache/ai-developer-toolkit/ralph-overview/<latest>/`, **`~/.copilot/installed-plugins/ai-developer-toolkit/ralph-overview/`** (Copilot CLI install layout — single live copy, no per-version subdir), then the in-tree local-dev fallback `./ai-developer-toolkit/plugins/ralph-overview/`. The fallback is resolved script-relatively from `bin/ralph-overview.mjs` via `import.meta.url`, so it works from any cwd inside a fresh clone and no longer depends on a machine-global sibling checkout. Because the wrapper is now tracked, a fresh clone of codexu under EITHER Claude Code OR Copilot CLI gets a working `pnpm sync-ralph-state` / `pnpm overview` out of the box after submodules are initialized — no per-machine wrapper-copy or shell-rc setup. For local development against an unmerged plugin branch, prefer editing the `ai-developer-toolkit/` submodule and committing both the toolkit change and the codexu submodule-pointer bump; set `RALPH_OVERVIEW_PLUGIN_ROOT` only when you intentionally want an external checkout. **Done:** the codexu install now uses the marketplace plugin registration (`enabledPlugins["ralph-overview@ai-developer-toolkit"]` in `.claude/settings.json` for Claude Code and the equivalent block in `~/.copilot/settings.json` for Copilot CLI); the old local-path `.mcp.json` entry and `enabledMcpjsonServers["ralph-overview"]` have been removed.
+
+## Active plugin versions
+
+<!-- BEGIN: active-plugin-versions -->
+| Plugin | Pinned version | Source |
+|---|---:|---|
+| `ralph-overview` | `2.7.0` | `ai-developer-toolkit/plugins/ralph-overview/.claude-plugin/plugin.json` |
+| `crews` | `3.0.1` | `ai-developer-toolkit/plugins/crews/.claude-plugin/plugin.json` |
+| `ralph` (`ralph-orchestration`) | `5.47.0` | `ai-developer-toolkit/plugins/ralph/.claude-plugin/plugin.json` |
+<!-- END: active-plugin-versions -->
+
+The table above is the CI invariant's source of truth. Update it in the same
+commit as any `ai-developer-toolkit` submodule pointer bump that changes one of
+those plugin manifests.
+
+## After a fresh clone of codexu
+
+Run `git submodule update --init --recursive` before using the repo. Codexu has
+two load-bearing submodules: `codex/` for the engine fork and
+`ai-developer-toolkit/` for the local-dev plugin sources that back Ralph,
+crews, and overview workflows.
+
+For toolkit development, configure your operator-personal remotes inside the
+submodule after initialization. The canonical submodule URL is
+`https://github.com/evmitran_microsoft/ai-developer-toolkit.git`; add personal
+or marketplace remotes inside `ai-developer-toolkit/` as needed for pushes.
+Toolkit edits use a two-commit flow: first commit inside the submodule, then
+commit the resulting `ai-developer-toolkit` pointer bump in codexu.
+
+For dev-mode plugin execution from the submodule checkout, install dependencies
+inside the plugin packages you run locally, for example:
+
+```bash
+cd ai-developer-toolkit/plugins/ralph-overview && pnpm install
+cd ../crews && pnpm install
+cd ../ralph && pnpm install
+```
+
+Some plugins have no `package.json`; skip `pnpm install` there unless the plugin
+adds one.
 
 **Cross-engine manual smoke test (the wrapper).** To verify the wrapper resolves to the engine-appropriate install path on this machine, from `D:/harness-efforts/codexu` (or any subdir) run `pnpm sync-ralph-state` under each engine. Exit 0 + an updated `.ralph-overview/generated/snapshot.json` (only `generatedAt` changed) confirms resolution worked. To inspect which install path was chosen, watch for the `RALPH_OVERVIEW_PLUGIN_ROOT=<path>` line in stderr or set `RALPH_OVERVIEW_PLUGIN_ROOT=` empty + run with `node --trace-warnings bin/ralph-overview.mjs sync` and the cascade is visible. Reference smoke-test record: `.ralph/jobs/codexu-bin-ralph-overview-wrapper-retirement/smoke-test.md`.
 
@@ -266,7 +306,7 @@ The lead and members coordinate via the **crews** plugin (Claude Code + Copilot 
   Killing the inner PID never touches the wt.exe server (which hosts every
   tab in the window — killing it is catastrophic).
 
-See `D:/ai-developer-toolkit/plugins/crews/CLAUDE.md` for the full protocol.
+See `./ai-developer-toolkit/plugins/crews/CLAUDE.md` for the full protocol.
 
 ## Bookkeeper workflow at-a-glance
 
@@ -353,7 +393,8 @@ this doc.
   |---|---|---|
   | **Ralph-skill spawn** (`/plan-with-ralph`, `/implement-with-ralph`, `/brainstorm-with-ralph`) | `.ralph/jobs/<task-id>/worktree/` (with `/plan-with-ralph` using `worktree/plan/`; `/implement-with-ralph` keeps its historical `worktree/` layout) | The ralph skill itself manages it. Lead spawn-prompts should NOT include a manual `git worktree add ...` — that bypasses the skill's own setup and may create duplicate state. Run `/plan-with-ralph`; it auto-manages its plan worktree. |
   | **Lead-driven scratch work** (rare; non-ralph-skill) | `D:/harness-efforts/codexu/.worktrees/<purpose-slug>/` | Lead creates manually. Matches every existing operator worktree (see `git worktree list`). |
-  | **Cross-repo impl** (touches a sibling repo like `D:/ai-developer-toolkit/`) | `D:/<sibling-repo>/.worktrees/<task-id>/` — INSIDE the sibling repo | Lead/impl-member creates manually before editing. The worktree lives in the repo it works on, not in the parent dir nor in codexu's state tree. |
+  | **Submodule impl** (touches `codex/` or `ai-developer-toolkit/`) | `<submodule>/.worktrees/<task-id>/` — INSIDE that submodule | Lead/impl-member creates manually before editing. The worktree lives in the submodule repo it works on, and codexu records only the final submodule pointer bump. |
+  | **Other cross-repo impl** (touches a sibling repo outside codexu) | `D:/<sibling-repo>/.worktrees/<task-id>/` — INSIDE that repo | Lead/impl-member creates manually before editing. The worktree lives in the repo it works on, not in the parent dir nor in codexu's state tree. |
   | **NEVER** | `../codexu-<slug>/`, `D:/codexu-<slug>/`, `D:/<sibling-repo>-<slug>/` — all sibling-of-repo paths | — |
 
 - **Plan-phase members commit on a topic branch in a worktree, NOT on
@@ -396,9 +437,9 @@ this doc.
   landed. Stale topic branches on origin cause `git fetch origin
   --prune` noise and clutter `git ls-remote` output.
 
-- **Always push main to ALL configured remotes after every merge.** Both
-  codexu and `D:/ai-developer-toolkit` have multiple remotes that must
-  stay in lockstep — leaving any of them stale is operator surprise the
+- **Always push main to ALL configured remotes after every merge.** Codexu and
+  its submodule repos can each have multiple remotes that must stay in lockstep
+  — leaving any of them stale is operator surprise the
   next time they `git fetch` or try a `copilot plugin update`. The
   bookkeeper duty is: after `git merge --ff-only <sha>` or
   `git cherry-pick`, run `git remote | ForEach-Object { git push $_ main }`
@@ -406,23 +447,30 @@ this doc.
   local. Surface any push failure (auth, permission denied, protected
   branch) immediately rather than silently leaving the remote behind.
   Codexu remotes today: `origin` (evmitran_microsoft), `personal`
-  (Evyatar108). Toolkit remotes today: `origin` (evmitran_microsoft),
+  (Evyatar108). In `ai-developer-toolkit/`, toolkit remotes today are
+  `origin` (evmitran_microsoft),
   `gim-home` (the marketplace source — `copilot plugin update` pulls
   from here), `personal` (Evyatar108). **`copilot plugin update`
   depends on `gim-home/main` being current**, so a sync miss there
   silently leaves every other consumer machine running the old plugin
   even after the operator runs `copilot plugin update`.
 
-- **Cross-repo impl spawns need worktrees in EVERY shared repo.** When two
-  or more impl members touch the same sibling repo (e.g., both edit
-  `D:/ai-developer-toolkit`), each needs its own worktree in that repo so
-  they don't stomp each other's uncommitted state. The mandate is per-repo,
+- **Cross-repo and submodule impl spawns need worktrees in EVERY shared repo.**
+  When two or more impl members touch the same repo, including the `codex/` and
+  `ai-developer-toolkit/` submodules, each needs its own worktree in that repo
+  so they don't stomp each other's uncommitted state. The mandate is per-repo,
   not per-task. **Correct pattern:** `git -C <repo> worktree add
-  <repo>/.worktrees/<task-id> -b ralph/<task-id> main`. (The older
-  recommended pattern `<repo>-<slug>` as a sibling-of-repo path was
-  retired 2026-05-29 — see the worktree placement convention table
-  above.) Enumerate every sibling repo the plan touches before spawning;
-  check `list-members` + manifest cwd for co-residents.
+  <repo>/.worktrees/<task-id> -b ralph/<task-id> main`. For the toolkit
+  submodule, `<repo>` is `D:/harness-efforts/codexu/ai-developer-toolkit`, not
+  a sibling checkout. (The older recommended pattern `<repo>-<slug>` as
+  a sibling-of-repo path was retired 2026-05-29 — see the worktree placement
+  convention table above.) Enumerate every repo the plan touches before
+  spawning; check `list-members` + manifest cwd for co-residents.
+
+- **Submodule edits require two commits.** For changes under `codex/` or
+  `ai-developer-toolkit/`, commit and push the submodule repo first, then commit
+  the updated submodule pointer in codexu. Do not mix uncommitted submodule
+  edits with a parent codexu commit; the parent commit can only record a SHA.
 
 - **Never `git update-ref` to fast-forward a worktree's branch.** It moves
   HEAD but leaves stale working-tree files; the next `git add` + commit
@@ -552,6 +600,12 @@ this doc.
   protocol gates the impl-story ship.
 
 ### Bookkeeper operational practice
+
+- **Treat `ai-developer-toolkit/` as an in-tree submodule, not a sibling
+  checkout.** It sits alongside `codex/` under codexu. Toolkit code changes ship
+  as a submodule commit first, followed by a codexu parent commit that records
+  the new `ai-developer-toolkit` SHA and any matching docs/version-table edits.
+  Cross-repo worktree rules apply to both load-bearing submodules.
 
 - **Update `.ralph-overview/data.json` the same turn a task ships.** When a
   ralph member terminates clean (`terminal:complete`) and the work is on
