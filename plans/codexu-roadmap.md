@@ -221,6 +221,29 @@ review before renaming.
 
 ---
 
+### Late-evening continuation 2026-06-01 — measure-build launcher fix + user-driven stream-cut diagnostics
+
+After the daytime build-perf arc landed, two more ships closed the loop on docs/methodology + a user bug report:
+
+| # | Task | Repo / Branch | Merge SHA | Notes |
+|---|------|---|---|---|
+| 42 | `codex-rs-measure-build-includes-launcher` | wrapper + codexu | `e78e29e3` + `ac331dfe` | Lead noticed `codex.exe` launcher was missing from `target/release/` after the jobs-sweep — `scripts/measure-build.ps1:151` only built `codex-core` bin. Wrapper-only fix (+22/-6 across 4 files): cargo invocation now `cargo build --release -p codex-cli --bin codex-core -p codex-copilot-launcher --bin codex --timings` (launcher bin lives in fork-specific `codex-copilot-launcher` package). Bonus mid-flight scope: `CLAUDE.md` + `AGENTS.override.md` confusion-point bullet corrected — both files had claimed `-p codex-cli --bin codex --bin codex-core` works, but cargo rejects that under single `-p`. Verified via 7m 55s sccache-warm rebuild producing both binaries. |
+| 43 | `codex-stream-cut-diagnostics` | inner submodule + wrapper + codexu | inner `69a2108a7` + wrapper `7b6387340` + codexu `28f78ca0` | User report: codex fork response sometimes stops mid-stream. Current logs couldn't distinguish silent-end from clean-end. Shipped opt-in diagnostic suite gated by `CODEX_STREAM_TRACE=1` (off by default, zero overhead): (a) stream-end classifier wrapping the SSE consumer at `core/src/session/turn.rs:1745` with 5 termination causes (`completed` / `eof-before-completed` / `provider-error` / `client-cancel` / `unfinalized` / `io-error` / `timeout`); (b) Job Object close trace at `core/src/windows_job.rs:205` + watcher-installed trace at `core/src/spawn.rs:187` behind `CODEX_SHUTDOWN_TRACE=1`; (c) metadata-only ring buffer (N=64) dumped to `~/.codex/sessions/<id>/stream-cut-dump.jsonl` on abnormal termination. ~600 LoC overlay crate `codex-rs-overlay/codex-stream-diagnostics/` + ~36 LoC upstream-canonical SANDBOX PATCH at three confirmed seams. **HARD privacy canary** (5/5 PASSING) is a build gate: round-trips canary string through diagnostics + asserts zero matches in sidecar / tracing / ring buffer. First canary run actually caught a real verbatim-ID-persistence leak in caller-supplied session_id/turn_id — fixed by FNV-1a hashing before persistence. Patch-surface §4 cross-ref + §14 Invariant 30 + §15 "Stream-cut diagnostics replant" subsection drafted and committed. Triage runbook at `.agents/skills/diagnose-codex-stream-cut/SKILL.md` codifies the operational flow for future user reports. |
+
+**Critical session-lesson (this block):**
+
+- **Benchmark scripts must produce complete invokable artifacts.** Ship #42 surfaced a methodology gap — `measure-build.ps1` shipped 4 cold-cache scenarios + warm in the prior block but ALL of them only built `codex-core`, leaving `codex.exe` permanently absent until manually rebuilt. Going forward: any benchmark script that runs `cargo clean` MUST rebuild all shipped binaries the user is expected to invoke, not just the heaviest one. Otherwise the post-benchmark workspace state is unusable and misleading. Codified in `docs/implementation/build-perf.md` Methodology section.
+- **Privacy-sensitive features need canary tests as build gates, not afterthoughts.** Ship #43's privacy canary caught a real leak in its first run (verbatim session/turn IDs being persisted) that would have made the sidecar file unsafe to attach to bug reports. The runtime canary + a source-level static-grep `tests/source_invariants.rs` (banning `?event` / `serde_json::to_string(event)` patterns in the overlay crate's `src/`) together form a two-tier privacy gate. Pattern worth repeating for any future diagnostics or telemetry features.
+- **Three-axis ship for inner-submodule + wrapper + codexu requires submodule bumps in dependency order.** Ship #43 followed the canonical pattern: FF inner sandbox-patches first → FF wrapper main (which already records the gitlink) → codexu pointer bump. Reverse order would leave wrapper temporarily pointing at an unreachable inner SHA.
+
+**Newly tracked / merged tasks (this block):**
+- `codex-rs-measure-build-includes-launcher` (MERGED #42)
+- `codex-stream-cut-diagnostics` (MERGED #43)
+
+**Total session ships across all four sub-sessions: ~43 (11 + 13 + 17 + 2).**
+
+---
+
 
 ### What's where
 
