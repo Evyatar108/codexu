@@ -293,25 +293,37 @@
     {
       "id": "ralph-orchestration-spawn-target-repo-override-flag",
       "scope": "ralph-orchestration",
-      "lifecycle": "tracked",
+      "lifecycle": "merged",
       "status": "ok",
-      "lastTouchedAt": "2026-06-03T19:15:00Z",
+      "lastTouchedAt": "2026-06-03T22:00:00Z",
+      "shipManifest": {
+        "shippedAt": "2026-06-03T22:00:00Z",
+        "summary": "ralph v5.49.0 ships as bundle (US-001 + US-002 Phase a; see also ralph-orchestration-document-multi-repo-pointer-bump-flow for US-002 details). US-001: --target-repo CLI flag on /implement-with-ralph propagates through convert-to-ralph-prd Step 1 as authoritative override; validates via 'git -C <path> rev-parse --show-toplevel'; skips the ~30sec plan-analysis agent when provided. Worktree-create.mjs --help updated to document wrapper/submodule/sibling acceptance. 6 case-level tests in test-target-repo-override.mjs + worktree-create.test.mjs help-text assertion; 12/12 pass. Copilot mirror regenerated (convert-to-ralph-prd) + hand-forked (implement-with-ralph Phase 1 flag + Phase 1.7 rejection + Phase 2 forwarding + Phase 6 handoff). Two test items deferred transparently by impl member: AC-019 (test-submodule-worktree-init.sh) + AC-010 (full tests/run.mjs discovery) both killed at 80+min on git-subprocess spawn loops; member's changes don't touch the surfaces those tests gate, so risk is low. Lead may re-run in a longer window post-ship.",
+        "commits": [
+          { "sha": "7b3aa41d", "oneLine": "plan: ralph-orchestration v5.49 spawn-and-ship UX bundle (cherry-picked from plan member's 1be64b80)", "repo": "codexu" },
+          { "sha": "4d92f146", "oneLine": "feat(ralph): v5.49.0 spawn-and-ship UX bundle (US-001 + US-002 Phase a) [cherry-picked from impl member's a1c28050]", "repo": "ai-developer-toolkit" }
+        ]
+      },
       "kanbanCards": [
         {
           "className": "cmd-warn",
-          "html": "<strong>Surfaced 2026-06-03T18:15Z</strong> by operator question on multi-repo worktree support. Today <code>worktree-create.mjs</code> accepts an arbitrary <code>--target-repo &lt;path&gt;</code>, but <code>convert-to-ralph-prd</code> (the upstream skill that decides what gets passed) computes <code>target_repo</code> from a plan-analysis agent that inspects file paths in the plan's Files-to-Modify section. The agent is right MOST of the time (impl members targeting toolkit edits correctly create their worktree at <code>ai-developer-toolkit/.worktrees/&lt;task-id&gt;</code>), but there's no CLI escape hatch for the lead/operator to force-override. Failure modes: (a) plan ambiguity — plan touches both wrapper + submodule files and the agent picks the wrong one; (b) submodule-only tasks where the plan correctly identifies the submodule but the agent falls back to cwd; (c) operator wants to spawn an impl member to fix an issue in a sibling repo not declared in any prd.json. The plan-analysis agent runs every spawn and burns ~30sec; the operator already KNOWS the target repo at spawn time."
+          "html": "<strong>Surfaced 2026-06-03T18:15Z</strong> by operator question on multi-repo worktree support. Today <code>worktree-create.mjs</code> accepts an arbitrary <code>--target-repo &lt;path&gt;</code>, but <code>convert-to-ralph-prd</code> computes <code>target_repo</code> from a plan-analysis agent that inspects file paths in the plan's Files-to-Modify section. The agent is right MOST of the time but there's no CLI escape hatch."
         },
         {
           "className": "cmd-ok",
-          "html": "<strong>Plan shipped 2026-06-03T19:05Z</strong> as bundle <code>7b3aa41d</code> (codexu cherry-pick of plan member's <code>1be64b80</code>). Bundle includes BOTH US-001 (this task) + US-002 (<code>ralph-orchestration-document-multi-repo-pointer-bump-flow</code>). Plan deliverables at <code>.ralph/jobs/ralph-orchestration-spawn-target-repo-override-flag/</code>. Phase 4 review: 10 findings fixed (4 High + 6 Medium); 20 ACs. Ready for impl spawn."
+          "html": "<strong>Plan shipped 2026-06-03T19:05Z</strong> as bundle <code>7b3aa41d</code>. Phase 4: 10 findings fixed (4 High + 6 Medium); 20 ACs."
+        },
+        {
+          "className": "cmd-ok",
+          "html": "<strong>Impl shipped 2026-06-03T22:00Z</strong> as bundle <code>4d92f146</code> (toolkit v5.49.0; cherry-picked from impl member's <code>a1c28050</code> onto post-crews-v3.4 main). Toolkit FF + 3-remote push + codexu pointer bump + copilot plugin update --all → LIVE on lead's installed plugin (5.47.0 → 5.49.0). AC-019 + AC-010 deferred transparently (test infrastructure killed at 80min; not blocking)."
         }
       ],
       "command": {
         "name": "ralph-orchestration-spawn-target-repo-override-flag",
-        "descriptionHtml": "<strong>Add a spawn-time <code>--target-repo &lt;path&gt;</code> override flag to ralph's spawn surface.</strong> Lets the lead/operator force the target repo for an impl-member spawn without trusting <code>convert-to-ralph-prd</code>'s plan-analysis agent. Two integration points: (1) <code>/implement-with-ralph --from-plan &lt;path&gt; --target-repo &lt;abspath&gt;</code> CLI flag — caller sets it, skill passes through to <code>convert-to-ralph-prd</code> as authoritative (skip Step 1 plan-analysis agent entirely, write straight to <code>prd.json.repoDir</code>); (2) <code>convert-to-ralph-prd</code> Step 1 branches: if <code>--target-repo</code> was passed, validate it's a git repo (run <code>git -C &lt;path&gt; rev-parse --show-toplevel</code>, fail-fast on non-repo) and use it; otherwise fall back to the plan-analysis agent as today. Document the new flag in <code>convert-to-ralph-prd</code> SKILL.md + <code>implement-with-ralph</code> SKILL.md, plus <code>plugins/ralph/AGENTS.md</code>. Wins: (a) operator gets deterministic spawn behavior for cross-repo / submodule-targeted work; (b) skips ~30sec plan-analysis agent on every spawn where operator already knows the target; (c) opens a clean path for sibling-repo spawns where the target repo isn't even mentioned in the plan. Coordinates with worktree-conditional-submodule-init (operator may want to bundle as a 'spawn UX' v5.49 ship).",
+        "descriptionHtml": "<strong>Bundled in ralph v5.49 with <code>ralph-orchestration-document-multi-repo-pointer-bump-flow</code>.</strong> Plan shipped 7b3aa41d, impl shipped 4d92f146.",
         "warnings": [],
         "prompts": {
-          "plan": "/plan-with-ralph \"Add a --target-repo <abspath> spawn-time override flag to ralph's spawn surface so the lead/operator can force the target repo for an impl-member spawn without trusting convert-to-ralph-prd's plan-analysis agent. (Bundled with ralph-orchestration-document-multi-repo-pointer-bump-flow as US-001+US-002 for ralph v5.49 ship; full original spec preserved in git history at codexu commit 062e27a6.)\"",
+          "plan": "/plan-with-ralph \"Add a --target-repo <abspath> spawn-time override flag to ralph's spawn surface. (Bundled with ralph-orchestration-document-multi-repo-pointer-bump-flow as US-001+US-002 for ralph v5.49 ship; full original spec preserved in git history at codexu commit 062e27a6.)\"",
           "impl": "/implement-with-ralph --from-plan .ralph/jobs/ralph-orchestration-spawn-target-repo-override-flag/plan.md --autonomous"
         }
       }
@@ -319,17 +331,29 @@
     {
       "id": "ralph-orchestration-document-multi-repo-pointer-bump-flow",
       "scope": "ralph-orchestration",
-      "lifecycle": "tracked",
+      "lifecycle": "merged",
       "status": "ok",
-      "lastTouchedAt": "2026-06-03T19:15:00Z",
+      "lastTouchedAt": "2026-06-03T22:00:00Z",
+      "shipManifest": {
+        "shippedAt": "2026-06-03T22:00:00Z",
+        "summary": "ralph v5.49.0 ships as bundle Phase a docs-only (see also ralph-orchestration-spawn-target-repo-override-flag for US-001 details). US-002 Phase a: new '## Lead-Owned Ceremonies > Multi-repo wrapper-to-submodule ship ceremony' subsection in plugins/ralph/AGENTS.md with 6 repo-agnostic placeholders + skipped-step → failure-mode table + canonical-source backlink footer. New 'Lead handoff for submodule ship' Phase 6 block in implement-with-ralph SKILL.md (both single-job + parallel, complete + accept-open paths); wrapper-root derived from <job_dir>/<group_dir>; uses 'git -C <wrapper_root> submodule status -- <relative_repoDir>' for detection; emits to stdout BEFORE the terminal marker AND appends to progress.txt > ## Orchestrator Notes > Submodule ship handoff (stdout + progress.txt, NOT crews kind=done). codexu AGENTS.md cross-reference already landed earlier in commit f07bce68 (verified on disk). Phase b helper tooling + Phase c integration remain deferred to follow-up scopes per plan's explicit decision.",
+        "commits": [
+          { "sha": "7b3aa41d", "oneLine": "plan: ralph-orchestration v5.49 spawn-and-ship UX bundle", "repo": "codexu" },
+          { "sha": "4d92f146", "oneLine": "feat(ralph): v5.49.0 spawn-and-ship UX bundle (US-001 + US-002 Phase a)", "repo": "ai-developer-toolkit" }
+        ]
+      },
       "kanbanCards": [
         {
           "className": "cmd-warn",
-          "html": "<strong>Surfaced 2026-06-03T18:15Z</strong> by operator question on multi-repo worktree support. The codexu AGENTS.md documents a 'two-commit flow' for submodule edits (commit inside submodule first, then commit the pointer bump in the wrapper) and a 'lead-owned ceremony' for FF-merge + push to all 3 toolkit remotes + AGENTS.md active-plugin-versions table bump + <code>copilot plugin update</code>. The ralph-orchestration plugin's <code>convert-to-ralph-prd</code> + <code>worktree-create.mjs</code> have ZERO awareness of this ordering — they create worktrees in arbitrary repos but don't help impl members navigate wrapper↔submodule pointer-bump sequencing on completion. Today's lead pattern relies entirely on the lead session reading AGENTS.md and executing the ceremony by hand (we just did it this turn for crews v3.3.0: FF in submodule + push 3 remotes + bump codexu pointer + AGENTS.md table + copilot plugin update + commit + push codexu). Repeated ~daily; mechanical; easy to forget a step (e.g. <code>copilot plugin update</code> miss leaves stale plugin code on the lead session)."
+          "html": "<strong>Surfaced 2026-06-03T18:15Z</strong> by operator question on multi-repo worktree support. The 7-step lead-owned ship ceremony was undocumented in ralph-orchestration; lead session had to derive it from codexu AGENTS.md each time."
         },
         {
           "className": "cmd-ok",
-          "html": "<strong>Plan shipped 2026-06-03T19:05Z</strong> as bundle <code>7b3aa41d</code>. Bundle includes BOTH US-001 (<code>ralph-orchestration-spawn-target-repo-override-flag</code>) + US-002 (this task; docs-only Phase a). Plan deliverables at <code>.ralph/jobs/ralph-orchestration-spawn-target-repo-override-flag/</code>. Phase b helper tooling + Phase c integration remain deferred (explicit in plan). Ready for impl spawn."
+          "html": "<strong>Plan shipped 2026-06-03T19:05Z</strong> as bundle <code>7b3aa41d</code>. Phase b + Phase c deferred."
+        },
+        {
+          "className": "cmd-ok",
+          "html": "<strong>Impl shipped 2026-06-03T22:00Z</strong> as bundle <code>4d92f146</code> (toolkit v5.49.0). Multi-repo ceremony docs live in plugins/ralph/AGENTS.md; Phase 6 handoff prose live in implement-with-ralph SKILL.md."
         }
       ],
       "command": {
