@@ -131,23 +131,10 @@
     {
       "id": "crews-stop-hook-windows-flush-race",
       "scope": "crews",
-      "lifecycle": "tracked",
+      "lifecycle": "merged",
       "status": "ok",
-      "lastTouchedAt": "2026-06-03T13:55:00Z",
-      "kanbanCards": [
-        {
-          "className": "cmd-warn",
-          "html": "<strong>Surfaced 2026-06-03T04:20Z</strong> by impl-codex-rs-feature-pruning-for-sub-45m-cold session disengagement. SECOND distinct circuit-breaker bug (first was the v3.0 --parallel notification storm fixed in v3.1.0). The member DID emit a valid <code>&lt;|report kind=\"progress\" summary=\"...\" reply-to=\"cab7cd8b\"|&gt;</code> tag and it WAS persisted in events.jsonl at envelope 572 (verified via hex-dump); a Node reproduction of the parser logic against the truncated transcript correctly finds 1 match. But the live agentStop hook reported 'missing kind tag' on five consecutive turns. Diagnosed as a likely Windows file-buffering race: Copilot CLI writes assistant.message envelope at 04:16:24.619Z, agentStop hook reads events.jsonl at 04:16:24.724Z (only 105ms later) before kernel flush. Once circuit-breaker fires (MAX_CONSECUTIVE_STOP_BLOCKS=5), session is permanently disengaged (despite the v3.1.0 fix's breakerMutedUntil mechanism — that handles the notification-storm case but appears to not engage in this flush-race scenario). Member tried to comply 5+ times in close-tab loop with valid bare <code>&lt;|report kind=\"done\"|&gt;</code> tags; hook kept rejecting them. Crews v3.1.0 (engine=copilot)."
-        },
-        {
-          "className": "cmd-info",
-          "html": "<strong>Scope finalized 2026-06-03T06:28Z</strong> by operator: v3.2.0 bundles TWO fixes. (1) PRIMARY: flush-race retry-with-backoff in lastTurnAssistantText + detect-active-bg.js read paths (synthetic vitest fixture, no real timing dep). (2) SECONDARY: rename the v3.1.0 <code>&lt;options-mode&gt;background-task&lt;/options-mode&gt;</code> bypass tag (cross-plugin namespace coupling smell -- options-mode is a SEPARATE plugin) to a crews-namespaced form, preferably <code>&lt;|report kind=&quot;progress&quot; background-task|&gt;</code> in-band attribute on existing crews report tag. Bg-GATE STAYS as designed -- it fixes a real failure mode (model emits kind=progress then asks a user-facing question without emitting kind=question, breaking lead routing). Only the bypass tag was misnamed. Keep legacy forms with stderr warning for one deprecation cycle, remove in v4.0.0. Update hooks/stop.js (919-922, 937), AGENTS.md (41/51/226/236), CHANGELOG.md (123), tests/progress-bg-gate.test.js (cases 4+5 + new deprecation case)."
-        },
-        {
-          "className": "cmd-info",
-          "html": "<strong>Plan shipped 2026-06-03T06:46Z</strong> (commit <code>eef5cb06</code> via cherry-pick from <code>2e0ac9ca</code>). 12 stories. Phase 4 multi-model review skipped per operator decision Q2 -- impl reviewer in Phase 5a will catch any flaws post-commit (P0 urgency: Claude Code going away soon, every Copilot impl risks hitting the bug). 3 fixes bundled: (1) retry-with-backoff in lastTurnAssistantText + detect-active-bg.js read paths; (2) recoverable circuit-breaker extension; (3) bypass tag rename from cross-plugin <code>&lt;options-mode&gt;background-task&lt;/options-mode&gt;</code> to crews-namespaced form with one deprecation cycle (legacy recognized + stderr warning, full removal v4.0.0). Impl invocation: <code>/implement-with-ralph --from-plan .ralph/jobs/crews-stop-hook-windows-flush-race/plan.md --autonomous</code> (serial). Multi-repo: edits go through ai-developer-toolkit submodule, then lead bumps codexu submodule pointer + AGENTS.md active-plugin-versions table + runs copilot plugin update on this session."
-        }
-      ],
+      "lastTouchedAt": "2026-06-03T14:08:00Z",
+      "kanbanCards": [],
       "command": {
         "name": "crews-stop-hook-windows-flush-race",
         "descriptionHtml": "<strong>Fix the Copilot-CLI-specific Stop-hook windows flush race that causes missing-kind-tag false-positives.</strong> Full diagnosis at <code>D:/harness-efforts/codexu/.ralph/jobs/codex-rs-feature-pruning-for-sub-45m-cold/impl-session-handoff.md</code>. The valid tag IS in events.jsonl when the Stop hook reads it, but the kernel hasn't flushed it to disk yet within the ~100ms window. Three candidate mitigations (operator-team to pick during plan phase): (a) <strong>retry-with-backoff</strong> in <code>lastTurnAssistantText</code>'s events.jsonl read: if no valid tag found, sleep 500ms + re-read once before declaring missing-kind-tag; (b) <strong>file-watch instead of poll-on-stop</strong>: instead of reading events.jsonl at agentStop time, register an fs.watch on the file at SessionStart and maintain an in-memory copy of recent envelopes that the Stop hook reads from; (c) <strong>fsync</strong>: ask Copilot CLI to fsync events.jsonl on every write (cross-engine ask, not crews-side fix). Bug interacts with the v3.1.0 circuit-breaker fix: when the Stop hook is false-positive-blocking on a Copilot member that DID emit a valid tag, the breakerMutedUntil mechanism doesn't engage because the breaker correctly identifies notification-storm-blocks (the v3.0 bug) but NOT flush-race-blocks (this bug). Member-side close-tab loop after circuit-breaker fires is a separate but related UX issue (operator's transcript shows member emit 6+ minimal-tag turns trying to escape the loop, all rejected by the still-false-positive hook). Touches <code>D:/harness-efforts/codexu/ai-developer-toolkit/plugins/crews/hooks/stop.js</code> primarily (specifically lastTurnAssistantText function around line 437) + listener-loop heartbeat semantics.",
@@ -161,6 +148,27 @@
           "plan": "/plan-with-ralph \"Fix the Copilot-CLI Stop-hook windows flush-race + member-side close-tab loop. Diagnosis at D:/harness-efforts/codexu/.ralph/jobs/codex-rs-feature-pruning-for-sub-45m-cold/impl-session-handoff.md. Symptom: Copilot CLI member emits a valid kind tag, persists it to events.jsonl at envelope N, the Stop hook reads events.jsonl ~100ms later and reports missing-kind-tag despite the tag being on disk (verified via hex-dump that the tag is in fact present). Five consecutive false-positive blocks fire the circuit breaker. The v3.1.0 breakerMutedUntil mechanism doesn't engage because this is a different blocker classification than the v3.0 notification storm. Member then gets stuck in a close-tab loop emitting minimal bare-tag turns that the still-false-positive hook keeps rejecting. Three candidate mitigations to evaluate: (a) retry-with-backoff in lastTurnAssistantText at hooks/stop.js around line 437 (sleep 500ms + re-read once before declaring missing-kind-tag); (b) file-watch instead of poll-on-stop (register fs.watch at SessionStart, maintain in-memory recent-envelopes buffer that Stop hook reads from instead of re-reading events.jsonl every time); (c) require fsync on Copilot side (cross-engine ask, not crews-side, but file the upstream feature request). Also fix the member-side close-tab loop: force-exit when consecutiveStopBlocks exceeds some threshold (e.g., 10), OR breakerMutedUntil should ALSO short-circuit the member's retry-tag heuristic (member should see 'breaker muted' as a signal to stop trying). Crews source at D:/harness-efforts/codexu/ai-developer-toolkit/plugins/crews. v3.1.0 currently active. Vitest coverage required: synthetic test that simulates a 100ms delay between assistant.message write and agentStop fs.read for the same envelope, verifies the retry-with-backoff catches it. Test must NOT add real timing dependency; mock fs.readFile to return empty on first call + actual content on second.\"",
           "impl": "/implement-with-ralph --from-plan .ralph/jobs/crews-stop-hook-windows-flush-race/plan.md --autonomous"
         }
+      },
+      "shipManifest": {
+        "shippedAt": "2026-06-03T14:08:00Z",
+        "summary": "crews v3.2.0 shipped end-to-end. 3 fixes bundled: (1) PRIMARY -- retry-with-backoff in lastTurnAssistantText + detect-active-bg.js read paths with new sleepSync export + transcriptHasKindBearingReport helper; fixes the Copilot CLI Windows write->read race on events.jsonl that disengaged impl-codex-rs-feature-pruning-for-sub-45m-cold earlier. (2) SECONDARY -- recoverable circuit-breaker extension: clearFlag replaced with breakerMutedUntil timestamp; early-return mute gate after role-guard; successful-write path clears the field; layers on v3.1.0 breakerMutedUntil-for-notification-storms with the wider classification. (3) TERTIARY -- bypass tag rename from cross-plugin <options-mode>background-task</options-mode> to crews-namespaced bgTask attribute on the existing <|report kind=progress bgTask|> tag; legacy forms still recognized with stderr deprecation warning, full removal in v4.0.0. 252/255 tests pass; 3 fails are pre-existing Windows flakes unrelated to this change. New test fixtures: tests/fixtures/mock-fs-flush-race.js + tests/stop-flush-race-retry.test.js + tests/stop-allow-system-notification-boundary.test.js. Skipped Phase 4 multi-model review per operator Q2 decision (P0 urgency; design pressure-tested through 3 rounds of operator dialog).",
+        "commits": [
+          {
+            "sha": "eef5cb06",
+            "oneLine": "plan: crews-stop-hook-windows-flush-race (12 stories, scope = flush race + recoverable breaker + tag rename)",
+            "repo": "Evyatar108/codexu"
+          },
+          {
+            "sha": "58b4b882",
+            "oneLine": "crews(v3.2.0): fix Copilot Stop-hook flush race (both read paths) + recoverable breaker + bypass tag rename",
+            "repo": "ai-developer-toolkit (origin/personal/gim-home)"
+          },
+          {
+            "sha": "c38a8cbf",
+            "oneLine": "chore: bump ai-developer-toolkit submodule for crews v3.2.0",
+            "repo": "Evyatar108/codexu"
+          }
+        ]
       }
     },
     {
@@ -1826,7 +1834,7 @@
       "scope": "codexu",
       "lifecycle": "tracked",
       "status": "ok",
-      "lastTouchedAt": "2026-06-03T05:28:00Z",
+      "lastTouchedAt": "2026-06-03T14:08:00Z",
       "kanbanCards": [
         {
           "className": "cmd-info",
@@ -2689,7 +2697,7 @@
       "scope": "codex",
       "lifecycle": "tracked",
       "status": "ok",
-      "lastTouchedAt": "2026-06-02T05:30:00Z",
+      "lastTouchedAt": "2026-06-03T14:08:00Z",
       "kanbanCards": [
         {
           "className": "cmd-info",
