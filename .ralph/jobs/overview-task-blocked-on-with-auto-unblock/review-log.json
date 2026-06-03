@@ -1,0 +1,52 @@
+[
+  {
+    "ts": "2026-06-02T19:05:00Z",
+    "phase": "initial-review",
+    "iteration": 0,
+    "status": "synthesized",
+    "reviewers": ["claude", "codex", "copilot"],
+    "findingsTotal": 14,
+    "bySeverity": { "Critical": 2, "High": 5, "Medium": 7 },
+    "bySource": { "claude": 1, "codex": 7, "copilot": 3, "consensus": 3 },
+    "notes": "Three-way plan review (Claude + Codex + Copilot) produced 14 findings. 3 are consensus (2+ reviewers): F-001 push-to-remotes/lead-vs-impl boundary (Critical), F-003 invalid scripts/lib npm workspace + test:lib coverage (High), F-004 candidate score 0.85 droppable by topN (High), F-005 multi-repo ordering (High). Singletons cover: F-002 AGENTS.md update (Critical, Copilot); F-006 Recommendation field declaration (High, Codex); F-007 parser test path is wrong (Medium, Claude, verified via direct file check); F-008 viewer O(n^2) (Medium, Codex); F-009/F-014 shared fixture (Medium, Codex); F-010 AC #12 package.json version (Medium, Codex); F-011 AC #16 hardcoded worktree path (Medium, Codex); F-012 MCP tool title helper (Medium, Copilot); F-013 Windows verification commands (Medium, Copilot)."
+  },
+  {
+    "ts": "2026-06-02T19:15:00Z",
+    "phase": "manual-fix",
+    "iteration": 1,
+    "status": "fixed",
+    "fixerEngine": "claude-opus-4.7-1m-internal (this session — autonomous plan member)",
+    "rationale": "Findings all specific and actionable with clear edit targets. Direct rewrite faster than 15+ min review-loop.sh iteration that would spawn additional codex/copilot calls. Plan rewritten end-to-end to incorporate all 14 fixes coherently rather than 14 surgical edits (the F-001 + F-005 lead-vs-impl split touches many sections).",
+    "findingsFixed": ["F-001", "F-002", "F-003", "F-004", "F-005", "F-006", "F-007", "F-008", "F-009", "F-010", "F-011", "F-012", "F-013", "F-014"],
+    "fixSummary": {
+      "F-001": "Added 'Lead-owned release ceremonies' section to Approach; split US-007 from US-008 (impl prep vs lead handoff); rewrote Risk #6; rewrote ACs 11-12, 15-18 to encode the impl/lead boundary; added explicit STOP message requirement.",
+      "F-002": "Added ai-developer-toolkit/plugins/ralph-overview/AGENTS.md to US-001 file list and Cluster A; new AC #15 verifies 'exactly 4 tools' text is gone and 'unblock_candidates' appears.",
+      "F-003": "AC #4 rewritten to use npm test + per-file tee to <job_dir>/test-output-plugin.log instead of invalid --workspace=scripts/lib invocation. US-001 now includes package.json test:lib script expansion to include all new lib tests. New AC #14 verifies test:lib script contents.",
+      "F-004": "Recommendations scorer return shape changed to { topRecommendations, unblockCandidates }; candidates emitted as separate array OUTSIDE topN truncation. AC #5 rewritten to verify candidates appear with topN=0. Constraint #9 in Technical Constraints documents the new shape.",
+      "F-005": "Multi-repo ship order encoded as 12 numbered lead-owned steps in 'Lead-owned release ceremonies'; impl ends on pushed topic branch with explicit STOP. AC #18 verifies impl topic branch is pushed AND lead has not yet merged.",
+      "F-006": "Added unblockCandidate?: boolean field to Recommendation interface (types.ts) AND JSON Schema $def (emit-snapshot-schema.mjs).",
+      "F-007": "Parser test moved from Modify list to Create list as scripts/lib/parse-overview-data.test.mjs (sibling, NOT under __tests__/). Path confirmed by direct file check showing no __tests__ subdir exists.",
+      "F-008": "Added App.tsx tasksById useMemo to US-005; AC #7 verifies the memo via grep.",
+      "F-009": "Shared fixture scripts/lib/fixtures/unblock-candidates-truth-table.json added to Create list in US-002; both .mjs and .ts detector tests load the same fixture; AC #3 verifies both test files reference the fixture filename.",
+      "F-010": "AC #13 explicitly enumerates the 4 surfaces that bump (plugin.json + 3 marketplace indexes) AND verifies package.json is NOT bumped (still 1.0.0). Out-of-Scope section adds 'Bumping package.json version field' as explicitly out of scope.",
+      "F-011": "AC #17 (was #16) rewritten to use the impl worktree path reported in implementer's final summary instead of hardcoded path.",
+      "F-012": "tools/overview-mcp/src/utils/task-title.ts added to Create list; parallel-ready-tasks.ts added to Modify list (refactor); US-004 includes the extraction; AC #6 verifies both tools import from the shared helper.",
+      "F-013": "All AC verification commands now list bash AND PowerShell equivalents; log paths use <job_dir>/test-output-*.log instead of /tmp/...; verifier-friendly PowerShell-first idioms (Select-String, ConvertFrom-Json, Measure-Object).",
+      "F-014": "Shared fixture path documented at scripts/lib/fixtures/unblock-candidates-truth-table.json; relative-path import strategy noted in US-005 for the TS-side test."
+    },
+    "outputArtifacts": [
+      "<PLAN_JOB_DIR>/plan.md (rewritten end-to-end)",
+      "<PLAN_JOB_DIR>/stories-outline.md (8 stories US-001..US-008)",
+      "<PLAN_JOB_DIR>/suggested-decomposition.json (4 clusters)",
+      "<PLAN_JOB_DIR>/plan-review-findings.json (all 14 findings, status: fixed)"
+    ]
+  },
+  {
+    "ts": "2026-06-02T19:20:00Z",
+    "phase": "converged",
+    "iteration": 1,
+    "status": "complete",
+    "openFindings": 0,
+    "note": "All 14 findings status: fixed in this iteration. No re-review run because (a) autonomous mode is --codex-rereview never --copilot-rereview never per skill default, (b) all fixes are mechanical edits with clear before/after, (c) the plan rewrite is internally self-consistent (cross-referenced ACs to file lists to Risk areas to Cluster boundaries). Lead can re-spawn /plan-with-ralph --improve <plan_path> for a fresh review pass if needed."
+  }
+]

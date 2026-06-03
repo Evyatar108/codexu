@@ -1,0 +1,38 @@
+I’ll read the provided prompt file first, then carry out the requested task.
+
+The prompt file is sizable, so I’m reading it in sections to capture the full instructions without truncation.
+
+I have the plan context and am reading the remaining acceptance-criteria section before producing the review.
+
+I’m checking the referenced implementation surfaces now so the review can flag real plan defects rather than just restating the proposal.
+
+I’m checking a few more referenced files for MCP and schema/test conventions, then I’ll return the plan review findings.
+
+### Feasibility
+
+[High] AC #4’s verify command is not implementable: `npm test --workspace=scripts/lib -- emit-snapshot` references a workspace that does not exist. `ai-developer-toolkit/plugins/ralph-overview/package.json` only declares `tools/overview-mcp` and `tools/overview-viewer` workspaces, while script-lib tests run through `npm run test:lib`.
+
+[Medium] The new MCP tool’s return shape includes `title`, but `SnapshotTask` has no `title` field in `tools/overview-viewer/src/types.ts`. Existing title derivation is private in `tools/overview-mcp/src/tools/parallel-ready-tasks.ts` via `taskTitle()`. The plan should either extract/reuse that helper or specify local derivation from `command.descriptionHtml`, `command.name`, then `id`.
+
+### Completeness
+
+[Critical] Adding `overview.unblock_candidates` changes the MCP surface, but the plan does not update `ai-developer-toolkit/plugins/ralph-overview/AGENTS.md`, whose architecture invariant still says the MCP server exposes exactly 4 tools and requires an AGENTS update before breaking invariants. The plan notes the doc is already stale, but still must include the doc/invariant update.
+
+[Critical] US-007 assigns main-branch multi-remote push/release ceremony work to the implementer flow. Codexu AGENTS says only the lead merges to `main` and pushes main; members should push topic branches, and the lead performs FF/cherry-pick plus remote pushes. The plan should end the impl at a pushed topic branch/submodule commit and make the lead-owned merge/push/pointer bump explicit.
+
+[High] New script-lib tests will not run under `npm test` unless `package.json`’s `test:lib` script is updated. It currently runs only `scripts/lib/repo-root.test.mjs` and `scripts/lib/emit-snapshot.test.mjs`; the plan creates `unblock-candidates.test.mjs`, `score-recommendations.test.mjs`, and `derive-dependency-graph.test.mjs` but does not list `package.json` as a required script change.
+
+### Ordering
+
+[High] The codexu submodule pointer bump cannot safely be part of the same implementer-owned release step that pushes toolkit `main`. Correct ordering should be: implementer commits toolkit topic branch → lead merges/pushes toolkit main to all remotes → lead verifies `gim-home/main` → lead bumps codexu submodule pointer and AGENTS table.
+
+### Simplicity
+
+[Medium] The plan duplicates unblock-candidate logic between `.mjs` and viewer `.ts`. That is acceptable, but the MCP tool should not add a third implicit derivation path. Keep MCP snapshot-based as planned, and extract only generic display helpers like task-title formatting if needed.
+
+### Acceptance Criteria Quality
+
+[High] AC #5 says candidates are “not dropped by `topN`,” but the proposed score `0.85` is below `plan-ready` and `review-fix`, so a small `topN` or many higher-scored tasks can still drop candidates after sorting/slicing. Either weaken the AC to “included when it ranks within `topN`” or require reserved candidate inclusion before truncation.
+
+[Medium] Several verification commands are brittle on this Windows repo (`grep`, `cat`, `/tmp/...`, and a hardcoded impl worktree path in AC #16). The plan should provide PowerShell-compatible equivalents or use the repo’s existing npm scripts/log paths so autonomous verification is reproducible.
+

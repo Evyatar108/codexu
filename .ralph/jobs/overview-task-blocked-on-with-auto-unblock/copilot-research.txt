@@ -1,0 +1,73 @@
+I’ll read the referenced prompt file to determine the requested work, then carry it through end-to-end.
+
+I’ve got the feature request; I’m going to inspect the ralph-overview plugin surfaces and tests so the research notes are grounded in actual files.
+
+The broad search found the right plugin area but too much output, so I’m narrowing to the parser, snapshot, MCP, recommendations, and viewer integration points.
+
+The plugin checkout includes generated/vendor-heavy paths that are slowing recursive search, so I’m switching to a pruned file listing and then reading the specific source files.
+
+The targeted file listing is ready; I’m reading it and the likely source files next.
+
+I’m reading the remaining integration files now: the schema mirrors, MCP tool registration, snapshot reader, and task card rendering path.
+
+I found the main surfaces. I’m doing one last pass over the derived-artifact pipeline and existing tests so the recommendations include the correct write path and coverage locations.
+
+I’m checking the exact sidecar write order and viewer test helpers, then I’ll provide the research report.
+
+The sidecar function is further down in the file; I’m jumping to it directly to confirm where snapshot/recommendations are combined.
+
+I have the write path confirmed; I’m pulling the exact snippet once for citation-quality detail.
+
+Research complete: the natural implementation is a **notify-only unblock candidate detector** layered onto existing overview data, derived artifacts, MCP, and Kanban rendering. The viewer does **not** consume `snapshot.json`, so it must compute/render the marker from `OverviewData` too.
+
+### Codebase Architecture
+
+`ai-developer-toolkit\plugins\ralph-overview` is an ESM Node plugin with npm workspaces:
+
+- `scripts\lib\` shared sync/derive pipeline.
+- `tools\overview-mcp\` TypeScript MCP server using `@modelcontextprotocol/sdk` + Zod.
+- `tools\overview-viewer\` React 19 + Vite 8 + TypeScript dashboard.
+- Vitest covers library, MCP, and viewer SSR/jsdom tests.
+
+The sidecar pipeline is centered in `scripts\lib\sync-core.mjs`: `writeSidecar()` loads `.ralph-overview\data.json`, calls `emitDerivedArtifacts()` for `recommendations.json` and `dependency-graph.json`, then `emitAgentArtifacts()` for `snapshot.schema.json`, `snapshot.json`, and `tasks\INDEX.md`.
+
+### Feature-Relevant Code
+
+- Parser / validation:
+  - `scripts\lib\parse-overview-data.mjs` parses JSON or legacy literal JS. Arrays already parse; schema validation is elsewhere.
+  - `tools\overview-mcp\src\tools\validate-data-schema.ts` is the Zod mirror.
+  - `tools\overview-mcp\src\__tests__\validate-data.test.ts` drift-checks viewer types, Zod, and snapshot schema.
+
+- Snapshot / recommendations:
+  - `scripts\lib\emit-snapshot.mjs` currently shallow-copies overview tasks and attaches `ralph`.
+  - `scripts\lib\emit-snapshot-schema.mjs` defines `OverviewTask`, `SnapshotTask`, and `Recommendation`.
+  - `scripts\lib\score-recommendations.mjs` currently iterates `byTaskId`, so tasks with no Ralph state will not appear unless this changes.
+  - `scripts\lib\emit-derived-artifacts.mjs` writes recommendations before snapshot construction.
+
+- MCP:
+  - `tools\overview-mcp\src\server.ts` registers tools.
+  - `tools\overview-mcp\src\tools\parallel-ready-tasks.ts` excludes `blocked` stages, so a dedicated `overview.unblock_candidates` tool is cleaner than extending ready tasks.
+  - `tools\overview-mcp\src\schemas.ts` is the input schema surface.
+
+- Viewer:
+  - `tools\overview-viewer\src\types.ts` needs `blockedOn?: string[]`; `SnapshotTask` should get `unblockCandidate?: boolean`.
+  - `tools\overview-viewer\src\components\Kanban.tsx` already injects lifecycle and ship pills into `.card-meta`; add an unblock-candidate chip there.
+  - `tools\overview-viewer\src\styles.css` already has `.cmd-badge` / `.kanban-*-pill` styles to reuse.
+
+### Technical Constraints
+
+- Do **not** mutate `task.status` or `task.lifecycle`; emit/display candidate state only.
+- Use `task.status === 'blocked'` and require `blockedOn.length > 0`; otherwise legacy blocked tasks with no structured blockers would become vacuous candidates.
+- Count only blockers whose durable task lifecycle is exactly `merged`; `tracked`, `archived`, missing IDs, or absent tasks should not satisfy the candidate condition.
+- Existing `blocks` means “this task blocks others” and dependency graph edges point from dependent to prerequisite. Do not conflate it with new `blockedOn`.
+- Viewer renders from `data.json` + Ralph sidecar, not `snapshot.json`; it needs local candidate derivation or a data-loading change.
+- Update schema surfaces in lockstep or drift tests will fail.
+
+### Implementation Suggestions
+
+Add a small shared detector in `scripts\lib\unblock-candidates.mjs`, e.g. `computeUnblockCandidate(task, tasksById)`, returning `{ unblockCandidate, blockers, reason }`. Reuse it in `emit-snapshot.mjs`, `score-recommendations.mjs`, and the new MCP tool. Add a viewer-side equivalent/util for Kanban because browser code does not read the generated snapshot.
+
+Prefer a new `overview.unblock_candidates` MCP tool returning task id, title, blockedOn ids, and reason. Keep `overview.parallel_ready_tasks` focused on actionable non-blocked work.
+
+Backfill should be a separate candidate-list report, not direct `data.json` edits: the operator explicitly wants agency over whether a shipped blocker truly resolves the original reason.
+

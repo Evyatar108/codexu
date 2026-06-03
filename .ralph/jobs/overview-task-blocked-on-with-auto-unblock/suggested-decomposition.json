@@ -1,0 +1,93 @@
+{
+  "clusters": [
+    {
+      "name": "schema-and-detector",
+      "stories": ["US-001", "US-002"],
+      "phase": 1,
+      "dependsOn": [],
+      "fileOverlapEvidence": {
+        "sharedFiles": [],
+        "exclusiveFiles": [
+          "ai-developer-toolkit/plugins/ralph-overview/tools/overview-viewer/src/types.ts",
+          "ai-developer-toolkit/plugins/ralph-overview/tools/overview-mcp/src/tools/validate-data-schema.ts",
+          "ai-developer-toolkit/plugins/ralph-overview/scripts/lib/emit-snapshot-schema.mjs",
+          "ai-developer-toolkit/plugins/ralph-overview/scripts/lib/parse-overview-data.test.mjs",
+          "ai-developer-toolkit/plugins/ralph-overview/package.json",
+          "ai-developer-toolkit/plugins/ralph-overview/AGENTS.md",
+          "ai-developer-toolkit/plugins/ralph-overview/scripts/lib/unblock-candidates.mjs",
+          "ai-developer-toolkit/plugins/ralph-overview/scripts/lib/unblock-candidates.test.mjs",
+          "ai-developer-toolkit/plugins/ralph-overview/scripts/lib/fixtures/unblock-candidates-truth-table.json"
+        ],
+        "risk": "low"
+      },
+      "executionModeRationale": "US-001 (schema-drift trio + plugin AGENTS.md + package.json test:lib expansion + parser test) and US-002 (pure detector helper + shared fixture) touch zero overlapping files. The detector logic depends only on the OverviewTask shape, which is well-documented in the research brief, so it can be implemented in parallel with the schema files. Drift-check test (validate-data.test.ts) is the safety net at convergence."
+    },
+    {
+      "name": "emitters",
+      "stories": ["US-003"],
+      "phase": 2,
+      "dependsOn": ["schema-and-detector"],
+      "fileOverlapEvidence": {
+        "sharedFiles": [],
+        "exclusiveFiles": [
+          "ai-developer-toolkit/plugins/ralph-overview/scripts/lib/emit-snapshot.mjs",
+          "ai-developer-toolkit/plugins/ralph-overview/scripts/lib/emit-snapshot.test.mjs",
+          "ai-developer-toolkit/plugins/ralph-overview/scripts/lib/score-recommendations.mjs",
+          "ai-developer-toolkit/plugins/ralph-overview/scripts/lib/score-recommendations.test.mjs",
+          "ai-developer-toolkit/plugins/ralph-overview/scripts/lib/derive-dependency-graph.mjs",
+          "ai-developer-toolkit/plugins/ralph-overview/scripts/lib/derive-dependency-graph.test.mjs",
+          "ai-developer-toolkit/plugins/ralph-overview/scripts/lib/emit-derived-artifacts.mjs",
+          "ai-developer-toolkit/plugins/ralph-overview/scripts/lib/emit-derived-artifacts.test.mjs"
+        ],
+        "risk": "medium"
+      },
+      "executionModeRationale": "Single-story cluster. The 3 emitter changes plus the derived-artifacts audit are independent of each other within this PRD and a single implementer agent can handle all. Depends on schema-and-detector for both the field's existence in types and the shared detector helper as the import. Risk is medium because the score-recommendations.mjs return-shape change is consumer-visible (wrapped as { topRecommendations, unblockCandidates }) — emit-snapshot.mjs must accept both shapes for back-compat."
+    },
+    {
+      "name": "mcp-and-viewer",
+      "stories": ["US-004", "US-005"],
+      "phase": 2,
+      "dependsOn": ["schema-and-detector"],
+      "fileOverlapEvidence": {
+        "sharedFiles": [],
+        "exclusiveFiles": [
+          "ai-developer-toolkit/plugins/ralph-overview/tools/overview-mcp/src/utils/task-title.ts",
+          "ai-developer-toolkit/plugins/ralph-overview/tools/overview-mcp/src/tools/unblock-candidates.ts",
+          "ai-developer-toolkit/plugins/ralph-overview/tools/overview-mcp/src/__tests__/unblock-candidates.test.ts",
+          "ai-developer-toolkit/plugins/ralph-overview/tools/overview-mcp/src/server.ts",
+          "ai-developer-toolkit/plugins/ralph-overview/tools/overview-mcp/src/tools/parallel-ready-tasks.ts",
+          "ai-developer-toolkit/plugins/ralph-overview/tools/overview-viewer/src/components/Kanban.tsx",
+          "ai-developer-toolkit/plugins/ralph-overview/tools/overview-viewer/src/components/TaskCommand.tsx",
+          "ai-developer-toolkit/plugins/ralph-overview/tools/overview-viewer/src/App.tsx",
+          "ai-developer-toolkit/plugins/ralph-overview/tools/overview-viewer/src/styles.css",
+          "ai-developer-toolkit/plugins/ralph-overview/tools/overview-viewer/src/utils/unblockCandidates.ts",
+          "ai-developer-toolkit/plugins/ralph-overview/tools/overview-viewer/src/utils/unblockCandidates.test.ts",
+          "ai-developer-toolkit/plugins/ralph-overview/tools/overview-viewer/src/__tests__/kanban.test.tsx",
+          "ai-developer-toolkit/plugins/ralph-overview/tools/overview-viewer/src/__tests__/taskCommand.test.tsx"
+        ],
+        "risk": "low"
+      },
+      "executionModeRationale": "US-004 (MCP tool + shared title helper extraction) and US-005 (viewer chip + App.tsx tasksById memoization) share zero files. The MCP tool refactor for the shared task-title helper touches parallel-ready-tasks.ts but is structural (extraction, not behavioral); MCP reads from snapshot (already produced by emitters cluster); viewer computes client-side from OverviewData via the shared fixture. Independent surfaces; can run in parallel safely. The validate-data drift-check passes once schema-and-detector lands."
+    },
+    {
+      "name": "backfill-and-impl-release",
+      "stories": ["US-006", "US-007", "US-008"],
+      "phase": 3,
+      "dependsOn": ["emitters", "mcp-and-viewer"],
+      "fileOverlapEvidence": {
+        "sharedFiles": [],
+        "exclusiveFiles": [
+          ".ralph/jobs/overview-task-blocked-on-with-auto-unblock/backfill-candidates.md",
+          "ai-developer-toolkit/plugins/ralph-overview/CHANGELOG.md",
+          "ai-developer-toolkit/plugins/ralph-overview/.claude-plugin/plugin.json",
+          "ai-developer-toolkit/.claude-plugin/marketplace.json",
+          "ai-developer-toolkit/.github/plugin/marketplace.json",
+          "ai-developer-toolkit/.agents/plugins/marketplace.json",
+          ".ralph/jobs/overview-task-blocked-on-with-auto-unblock/lead-handoff.md"
+        ],
+        "risk": "low"
+      },
+      "executionModeRationale": "US-006 (advisory backfill report), US-007 (impl-side release prep: CHANGELOG + version bumps to topic branch), and US-008 (lead-handoff report) are file-disjoint. Recommend serial: US-006 -> US-007 -> US-008 because US-008 references US-007's concrete topic-branch SHA in the lead-handoff. US-007 is the LAST step that modifies plugin files; US-008 is a pure deliverable write. NEITHER cluster touches codexu repo (lead-owned per F-001/F-005 fix); NEITHER pushes toolkit main (lead-owned per F-001/F-005 fix). Implementer ends on a pushed topic branch with an explicit STOP message."
+    }
+  ]
+}

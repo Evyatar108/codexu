@@ -1,0 +1,83 @@
+**Codebase Architecture**
+
+The relevant code lives in the `ai-developer-toolkit/plugins/ralph-overview` submodule, not the Happy app packages. It is split into:
+
+- `scripts/lib/`: Node `.mjs` derivation pipeline for parsing overview data, deriving Ralph state, recommendations, dependency graph, snapshot schema, and generated artifacts.
+- `tools/overview-mcp/`: TypeScript MCP server using `@modelcontextprotocol/sdk` and Zod.
+- `tools/overview-viewer/`: React 19 + Vite 8 single-file dashboard renderer.
+- Consumer data lives in codexu at `.ralph-overview/data.json`; generated outputs go to `.ralph-overview/generated/`.
+
+Build/test tools: npm workspaces inside the plugin, TypeScript 5.9, Vitest 4, Zod 4, Ajv for snapshot schema tests. Codexu wraps the plugin through `bin/ralph-overview.mjs` and `pnpm overview:build` / `pnpm sync-ralph-state`.
+
+**Feature-Relevant Code**
+
+Key schema/data surfaces:
+
+- Parser: `ai-developer-toolkit/plugins/ralph-overview/scripts/lib/parse-overview-data.mjs`
+- Parser tests: `ai-developer-toolkit/plugins/ralph-overview/scripts/lib/__tests__/parseOverviewData.test.mjs`
+- Data load/normalization: `ai-developer-toolkit/plugins/ralph-overview/scripts/lib/sync-core.mjs`
+- Viewer types: `ai-developer-toolkit/plugins/ralph-overview/tools/overview-viewer/src/types.ts`
+- MCP Zod mirror: `ai-developer-toolkit/plugins/ralph-overview/tools/overview-mcp/src/tools/validate-data-schema.ts`
+- Snapshot schema: `ai-developer-toolkit/plugins/ralph-overview/scripts/lib/emit-snapshot-schema.mjs`
+- Drift checks: `ai-developer-toolkit/plugins/ralph-overview/tools/overview-mcp/src/__tests__/validate-data.test.ts`
+
+Generated output surfaces:
+
+- Snapshot builder: `scripts/lib/emit-snapshot.mjs`
+- Derived artifact writer: `scripts/lib/emit-derived-artifacts.mjs`
+- Recommendations scorer: `scripts/lib/score-recommendations.mjs`
+- Dependency graph: `scripts/lib/derive-dependency-graph.mjs`
+
+MCP surfaces:
+
+- Tool registration: `tools/overview-mcp/src/server.ts`
+- Input schemas: `tools/overview-mcp/src/schemas.ts`
+- Snapshot reader: `tools/overview-mcp/src/snapshot-reader.ts`
+- Existing ready-task tool: `tools/overview-mcp/src/tools/parallel-ready-tasks.ts`
+- Tool-list smoke: `tools/overview-mcp/src/__tests__/stdio-tools-list.test.ts`
+
+Viewer surfaces:
+
+- Kanban card rendering: `tools/overview-viewer/src/components/Kanban.tsx`
+- Command row rendering: `tools/overview-viewer/src/components/TaskCommand.tsx`
+- Styles: `tools/overview-viewer/src/styles.css`
+- SSR tests: `tools/overview-viewer/src/__tests__/kanban.test.tsx`
+
+**Technical Constraints**
+
+`parseOverviewData` mostly parses literal JSON/JS and does not do full schema validation. Structural validation is in the MCP Zod mirror. Adding `blockedOn` should therefore update parser tests for pass-through plus Zod/schema/type surfaces for validation.
+
+There is already `OverviewTask.blocks?: string[]`, but it means “this task blocks these other tasks”; `blockedOn` is the inverse. Existing dependency graph readiness uses Ralph `stage === "shipped"`, while the new requirement uses task `lifecycle === "merged"`, so do not rely on current graph readiness for candidate detection.
+
+Viewer does not read `snapshot.json`. It loads `data.json` plus `ralph-state.json`, so a snapshot-only `unblockCandidate` flag will not render. The viewer must compute the marker from `data.tasks` or a new sidecar.
+
+`scoreRecommendations()` currently iterates only `ralphState.byTaskId`, so overview-only blocked tasks will not appear unless unblock candidates are added explicitly from `overviewData.tasks`.
+
+Treat absent or empty `blockedOn` as not a candidate. Otherwise every existing prose-blocked task could become a false candidate through vacuous “every blocker is merged” logic. Missing `blockedOn` IDs and archived/tracked blockers should also produce `unblockCandidate: false`.
+
+Plugin `package.json` currently runs only a subset of `scripts/lib` tests in `test:lib`; new lib tests should either be added to that script or explicitly called in verification.
+
+**Implementation Suggestions**
+
+Add `blockedOn?: string[]` to `OverviewTask` in `types.ts`, `validate-data-schema.ts`, and `SNAPSHOT_SCHEMA.$defs.OverviewTask`. Add `unblockCandidate?: boolean` only to snapshot/recommendation output types, not source `OverviewTask`.
+
+Create a small pure helper for candidate logic, ideally shared or mirrored with tests:
+
+```text
+candidate iff:
+task.status === "blocked"
+blockedOn is a non-empty string array
+every referenced task exists and task.lifecycle === "merged"
+```
+
+Use it in `buildSnapshot()` to add `unblockCandidate: true` to copied snapshot tasks without mutating `overviewData`.
+
+Update `scoreRecommendations()` to inject unblock candidate entries from `overviewData.tasks`, including a reason like `unblock candidate: all blockedOn tasks merged`. Ensure candidates are not dropped by `topN` before the operator can see them.
+
+Add a dedicated `overview.unblock_candidates` MCP tool. That fits better than extending `overview.parallel_ready_tasks`, because ready-task discovery currently excludes blocked Ralph stages and is for spawnable work, while this feature is notify-only. Return task id, title, `blockedOn`, and reason; do not write `data.json`.
+
+For the viewer, render a small `NOTIFY` / `candidate` chip in `Kanban.tsx` using the existing badge injection pattern, and consider a matching `TaskCommand.tsx` chip so candidates are visible even outside kanban. No auto-flip button.
+
+For backfill, emit a candidate-list report for operator review rather than editing the five blocked tasks automatically. That preserves the hand-curated `data.json` invariant and avoids prose-mining mistakes.
+
+Verification should include plugin `npm test`, `npm run typecheck`, focused new Vitest cases, then codexu smoke with `RALPH_OVERVIEW_PLUGIN_ROOT=D:/harness-efforts/codexu/ai-developer-toolkit/plugins/ralph-overview pnpm sync-ralph-state` and `pnpm overview:build`.

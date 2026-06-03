@@ -1,0 +1,29 @@
+### Feasibility
+
+[Critical] US-007 appears to assign remote pushes to the autonomous implementer, including `origin/personal/gim-home`, before the codexu pointer bump. That conflicts with repo guidance in `AGENTS.md`: pushing to remotes requires confirmation. Add an explicit “stop and get lead/operator approval before any `git push`” gate.
+
+[High] The plan says recommendations should carry the derived `unblockCandidate` flag, but the concrete file changes only add a reason string and do not update `Recommendation` in `tools/overview-viewer/src/types.ts` or `scripts/lib/emit-snapshot-schema.mjs`. If recommendations are an advertised surface, they need `unblockCandidate?: boolean` too.
+
+### Completeness
+
+[High] New and modified `scripts/lib` tests will not be covered by `npm test` unless `test:lib` is expanded. Current `ai-developer-toolkit/plugins/ralph-overview/package.json` runs only `repo-root.test.mjs` and `emit-snapshot.test.mjs`, so `unblock-candidates.test.mjs`, `score-recommendations.test.mjs`, and `derive-dependency-graph.test.mjs` can be green individually but skipped by the main suite.
+
+[Medium] The viewer-side detector plan does not specify where `tasksById` is built and reused. If each `TaskCommand` or `KanbanCard` row builds a full `Map` from `data.tasks`, the dashboard gets avoidable O(n²) render work. Add a parent-level `useMemo` or utility that constructs the map once per data update.
+
+### Ordering
+
+[High] Release/push steps are listed in the final cluster, but the plan does not separate “local version bump commit” from “externally visible publish/push.” Given the repo rule above, the implementation order should be: commit locally, report exact SHAs/remotes to push, wait for approval, then push and only then bump codexu’s submodule pointer after verifying `gim-home/main`.
+
+### Simplicity
+
+[Medium] Duplicating the detector in `.mjs` and `.ts` is workable, but the richer Node helper and boolean viewer helper could drift despite similar tests. A smaller approach is to keep the predicate shape identical and export only primitive helpers on both sides, with shared fixture JSON for tests rather than separately authored fixtures.
+
+### Acceptance Criteria Quality
+
+[High] AC4 uses `npm test --workspace=scripts/lib -- emit-snapshot`, but there is no `scripts/lib` npm workspace. The root package workspaces are `tools/overview-mcp` and `tools/overview-viewer`. Replace this with a valid plugin-root Vitest invocation or update `test:lib`.
+
+[Medium] AC12 says “all 4 surfaces” but the plan also mentions `plugins/ralph-overview/package.json` “if tracked.” That root package currently has version `1.0.0`, not the plugin version, so the criterion should explicitly say it is not a plugin-version surface unless the implementation intentionally changes that convention.
+
+[Medium] AC16 hard-codes `.ralph/jobs/overview-task-blocked-on-with-auto-unblock/worktree/impl`. Ralph impl worktree layout can vary; make the verification command use the actual reported worktree path or run `git diff origin/main` from the implementation worktree.
+
+No prior review-cycle amendments were included, so there are no amendment fixes or regressions to assess.

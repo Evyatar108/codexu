@@ -1,0 +1,224 @@
+{
+  "planFile": ".ralph/jobs/overview-task-blocked-on-with-auto-unblock/plan.md",
+  "repoDir": "D:/harness-efforts/codexu/.ralph/jobs/overview-task-blocked-on-with-auto-unblock/worktree/plan",
+  "reviewCycle": 2,
+  "findings": [
+    {
+      "id": "F-001",
+      "severity": "Critical",
+      "category": "Constraints",
+      "source": "consensus",
+      "sectionRef": "Approach > Implementation Strategy + Cluster G + AC #16",
+      "description": "Plan assigns multi-remote pushes (origin/personal/gim-home) and codexu submodule pointer bump to the autonomous implementer. Codexu AGENTS.md 'Working preferences' says ask before pushing to remotes; 'Bookkeeper operating invariants > Branch + worktree discipline' says only the LEAD merges to main and pushes main; members commit + push topic branches only. Plan must end implementer work at a pushed topic branch on `ralph/<task-id>`, with the lead owning: main FF/cherry-pick, multi-remote push (origin/personal/gim-home), and codexu submodule pointer bump.",
+      "status": "fixed",
+      "relevantFiles": [
+        "draft-plan.md"
+      ],
+      "suggestedFix": "Restructure US-007 to split implementer-owned (topic-branch commit + topic-branch push) from lead-owned (main merge + multi-remote push + pointer bump). Add explicit 'STOP — operator/lead approval required' gate before any main-targeted push. Make ACs 12-16 lead-side responsibilities, not impl-side.",
+      "fixedInIteration": 1,
+      "resolution": "Applied directly in plan rewrite (see review-log.json for per-finding fix summary)."
+    },
+    {
+      "id": "F-002",
+      "severity": "Critical",
+      "category": "Completeness",
+      "source": "copilot",
+      "sectionRef": "Files to Modify + Scope > In Scope",
+      "description": "Plan adds the 6th MCP tool (`overview.unblock_candidates`) but does NOT update `ai-developer-toolkit/plugins/ralph-overview/AGENTS.md`, whose v2.1.0 MCP Surface section still says 'The MCP server exposes exactly 4 tools'. The 5th tool (`expand_task_context`) already broke that text. Adding a 6th tool without updating the invariant text creates silent divergence between docs and code — a constraint divergence per the Severity Rubric.",
+      "status": "fixed",
+      "relevantFiles": [
+        "ai-developer-toolkit/plugins/ralph-overview/AGENTS.md"
+      ],
+      "suggestedFix": "Add `ai-developer-toolkit/plugins/ralph-overview/AGENTS.md` to Cluster A's file list. Update the 'v2.1.0 MCP Surface' section to enumerate the actual current tools (init, validate_data, parallel_ready_tasks, expand_task_context, watcher_status, unblock_candidates = 6 tools). Bump the version label (v2.8.0 surface) so future readers know when the count changed.",
+      "fixedInIteration": 1,
+      "resolution": "Applied directly in plan rewrite (see review-log.json for per-finding fix summary)."
+    },
+    {
+      "id": "F-003",
+      "severity": "High",
+      "category": "Tests",
+      "source": "consensus",
+      "sectionRef": "Acceptance Criteria #4 + Risk #7",
+      "description": "AC4 uses `npm test --workspace=scripts/lib -- emit-snapshot` which is invalid: package.json workspaces are `tools/overview-mcp` and `tools/overview-viewer`; there is no `scripts/lib` workspace. Separately, `test:lib` script only runs a subset (`repo-root.test.mjs` + `emit-snapshot.test.mjs`); new lib tests (`unblock-candidates.test.mjs`, etc.) will be invisible to `npm test:lib` unless added explicitly to the script.",
+      "status": "fixed",
+      "relevantFiles": [
+        "ai-developer-toolkit/plugins/ralph-overview/package.json",
+        "draft-plan.md"
+      ],
+      "suggestedFix": "Replace AC4 invocation with `npm run test:lib` (after expanding the script to include new test files) OR a direct vitest invocation: `node node_modules/vitest/vitest.mjs run scripts/lib/unblock-candidates.test.mjs scripts/lib/emit-snapshot.test.mjs`. Add 'update `test:lib` script in package.json' to US-002 file list.",
+      "fixedInIteration": 1,
+      "resolution": "Applied directly in plan rewrite (see review-log.json for per-finding fix summary)."
+    },
+    {
+      "id": "F-004",
+      "severity": "High",
+      "category": "Criteria Quality",
+      "source": "consensus",
+      "sectionRef": "Modify > score-recommendations.mjs + AC #5",
+      "description": "Plan sets candidate score ≈ 0.85, below `plan-ready` (0.9) and `review-fix` (1.0). With default `topN=20`, if there are already 20+ tasks with score >0.85 (likely on a healthy backlog), unblock candidates get silently dropped. AC #5 says 'candidate is not dropped by topN' — the proposed algorithm does not guarantee that.",
+      "status": "fixed",
+      "relevantFiles": [
+        "ai-developer-toolkit/plugins/ralph-overview/scripts/lib/score-recommendations.mjs",
+        "draft-plan.md"
+      ],
+      "suggestedFix": "Two acceptable fixes: (A) reserve a separate candidate slot OUTSIDE the topN slice — return `{ topRecommendations: [...topN], unblockCandidates: [...] }` so candidates are always emitted independently of topN; OR (B) clamp candidate score to exceed any non-shipped stage urgency (e.g. 0.95 — below `review-fix` but above `plan-ready`) so candidates always sort into topN. Recommend (A) — cleaner separation of concerns; topN preserves existing ranking semantics, candidates get their own surface.",
+      "fixedInIteration": 1,
+      "resolution": "Applied directly in plan rewrite (see review-log.json for per-finding fix summary)."
+    },
+    {
+      "id": "F-005",
+      "severity": "High",
+      "category": "Ordering",
+      "source": "consensus",
+      "sectionRef": "Risk #6 + AC #15 + Cluster G",
+      "description": "Plan implies impl bumps codexu submodule pointer after toolkit push. Per AGENTS.md bookkeeper invariants, the lead owns this. Also, the gim-home push must complete BEFORE the codexu pointer bump (marketplace consumers read from gim-home/main). Sequencing needs explicit gates between impl-owned and lead-owned steps.",
+      "status": "fixed",
+      "relevantFiles": [
+        "draft-plan.md"
+      ],
+      "suggestedFix": "Rewrite Risk #6 + AC #15 to specify the ordering: (1) impl commits toolkit changes on `ralph/overview-task-blocked-on-with-auto-unblock` topic branch in the toolkit submodule; pushes ONLY that topic branch to toolkit `origin` (NOT main). (2) STOP — implementer reports SHA + branch to lead. (3) Lead reviews, merges to toolkit `main` via FF, pushes main to `origin`, `personal`, `gim-home`. (4) Lead verifies `git ls-remote gim-home main` SHA matches local. (5) Lead bumps codexu submodule pointer + AGENTS.md table in a single codexu commit; pushes codexu to its remotes.",
+      "fixedInIteration": 1,
+      "resolution": "Applied directly in plan rewrite (see review-log.json for per-finding fix summary)."
+    },
+    {
+      "id": "F-006",
+      "severity": "High",
+      "category": "Completeness",
+      "source": "codex",
+      "sectionRef": "Files to Modify > types.ts + emit-snapshot-schema.mjs",
+      "description": "Plan adds `unblockCandidate` to recommendations via a reason string only — does NOT declare `unblockCandidate?: boolean` on the `Recommendation` interface in types.ts or in SNAPSHOT_SCHEMA's Recommendation $def. If recommendations are an advertised surface that downstream consumers parse, the field should be declared so consumers can read it programmatically (not just parse the reason string).",
+      "status": "fixed",
+      "relevantFiles": [
+        "ai-developer-toolkit/plugins/ralph-overview/tools/overview-viewer/src/types.ts",
+        "ai-developer-toolkit/plugins/ralph-overview/scripts/lib/emit-snapshot-schema.mjs"
+      ],
+      "suggestedFix": "Add `unblockCandidate?: boolean` to `Recommendation` interface (types.ts) AND to `Recommendation` $def in SNAPSHOT_SCHEMA. Emit the field on every candidate-injected recommendation (and only on those). Update Story US-003 file list to include both surfaces.",
+      "fixedInIteration": 1,
+      "resolution": "Applied directly in plan rewrite (see review-log.json for per-finding fix summary)."
+    },
+    {
+      "id": "F-007",
+      "severity": "Medium",
+      "category": "Feasibility",
+      "source": "claude",
+      "sectionRef": "Files to Modify > parser test",
+      "description": "Plan cites `scripts/lib/__tests__/parseOverviewData.test.mjs` (lines 113, 178). Direct file check confirms NO `__tests__` subdirectory exists under `scripts/lib/`, and no `parse-overview-data.test.mjs` exists. All sibling tests follow the convention `<file>.test.mjs` next to `<file>.mjs`. Plan path is wrong; file needs to be CREATED, not modified.",
+      "status": "fixed",
+      "relevantFiles": [
+        "ai-developer-toolkit/plugins/ralph-overview/scripts/lib/parse-overview-data.test.mjs"
+      ],
+      "suggestedFix": "Move the parser test from the 'Modify' list to the 'Create' list as `scripts/lib/parse-overview-data.test.mjs` (sibling alongside `parse-overview-data.mjs`, matching the convention used by every other lib file). Update US-001 file list accordingly.",
+      "fixedInIteration": 1,
+      "resolution": "Applied directly in plan rewrite (see review-log.json for per-finding fix summary)."
+    },
+    {
+      "id": "F-008",
+      "severity": "Medium",
+      "category": "Simplicity",
+      "source": "codex",
+      "sectionRef": "Files to Create > viewer-side detector",
+      "description": "Viewer-side detector takes `tasksById: Map<string, OverviewTask>`. If `Kanban.tsx` / `TaskCommand.tsx` build that Map per-row, the dashboard renders O(n²) on each data update. Should be built once at parent level via `useMemo`.",
+      "status": "fixed",
+      "relevantFiles": [
+        "ai-developer-toolkit/plugins/ralph-overview/tools/overview-viewer/src/components/Kanban.tsx",
+        "ai-developer-toolkit/plugins/ralph-overview/tools/overview-viewer/src/components/TaskCommand.tsx",
+        "ai-developer-toolkit/plugins/ralph-overview/tools/overview-viewer/src/App.tsx"
+      ],
+      "suggestedFix": "Add to US-005 file list: `App.tsx` (or whichever parent owns the data prop) constructs `useMemo(() => new Map(data.tasks?.map(t => [t.id, t]) ?? []), [data.tasks])` once and passes the Map down. Kanban + TaskCommand receive the Map as a prop; no per-row construction.",
+      "fixedInIteration": 1,
+      "resolution": "Applied directly in plan rewrite (see review-log.json for per-finding fix summary)."
+    },
+    {
+      "id": "F-009",
+      "severity": "Medium",
+      "category": "Simplicity",
+      "source": "codex",
+      "sectionRef": "Risk Areas #2 (viewer-side duplication drift)",
+      "description": "Two detector files (.mjs + .ts) with independent fixture data risk silent drift. Shared fixture JSON loaded by both test files is a cheap drift-prevention measure.",
+      "status": "fixed",
+      "relevantFiles": [
+        "ai-developer-toolkit/plugins/ralph-overview/scripts/lib/unblock-candidates.test.mjs",
+        "ai-developer-toolkit/plugins/ralph-overview/tools/overview-viewer/src/utils/unblockCandidates.test.ts"
+      ],
+      "suggestedFix": "Author a single `scripts/lib/fixtures/unblock-candidates-truth-table.json` (path mirrors the existing `scripts/lib/fixtures/` directory convention per `scripts/lib/` directory listing). Both `.mjs` and `.ts` tests load it. Test cases (a)-(i) are defined once in JSON; assertion logic in each language is thin. Add the fixture file to US-002 file list.",
+      "fixedInIteration": 1,
+      "resolution": "Applied directly in plan rewrite (see review-log.json for per-finding fix summary)."
+    },
+    {
+      "id": "F-010",
+      "severity": "Medium",
+      "category": "Criteria Quality",
+      "source": "codex",
+      "sectionRef": "AC #12",
+      "description": "AC #12 includes `package.json` 'if tracked' for the plugin version. Plugin root `package.json` is at `version: 1.0.0` (per Codex inspection) — this is the workspace package version, NOT the plugin version. The plugin version lives ONLY in `.claude-plugin/plugin.json`. AC text is ambiguous and risks the impl bumping the wrong file.",
+      "status": "fixed",
+      "relevantFiles": [
+        "draft-plan.md"
+      ],
+      "suggestedFix": "Rewrite AC #12 to enumerate exactly THREE marketplace indexes + ONE `.claude-plugin/plugin.json` — explicitly NOT `package.json`. Add a note in the Files to Modify section: 'Do NOT bump `package.json` `version` field — that is the workspace package version, unrelated to plugin version.'",
+      "fixedInIteration": 1,
+      "resolution": "Applied directly in plan rewrite (see review-log.json for per-finding fix summary)."
+    },
+    {
+      "id": "F-011",
+      "severity": "Medium",
+      "category": "Criteria Quality",
+      "source": "codex",
+      "sectionRef": "AC #16",
+      "description": "AC #16 hardcodes `.ralph/jobs/.../worktree/impl` for the diff verification. Ralph impl worktree layout can vary (numeric suffixes, fork-from-branch variants). Verification should use the actual impl worktree path reported by the implementer, not a hardcoded one.",
+      "status": "fixed",
+      "relevantFiles": [
+        "draft-plan.md"
+      ],
+      "suggestedFix": "Rewrite AC #16 to: 'Run `git diff origin/main` FROM the impl worktree (the path reported in the implementer's final summary); pipe through the verb-form filter. The implementer's summary must report the resolved worktree path explicitly so the verifier can run the command verbatim.'",
+      "fixedInIteration": 1,
+      "resolution": "Applied directly in plan rewrite (see review-log.json for per-finding fix summary)."
+    },
+    {
+      "id": "F-012",
+      "severity": "Medium",
+      "category": "Simplicity",
+      "source": "copilot",
+      "sectionRef": "Files to Create > unblock-candidates.ts (MCP)",
+      "description": "MCP tool's return shape includes `title`, but `SnapshotTask` has no `title` field. Existing title derivation is a private `taskTitle()` helper in `tools/overview-mcp/src/tools/parallel-ready-tasks.ts`. The plan does not specify how the new MCP tool computes `title`, risking a third implicit derivation path.",
+      "status": "fixed",
+      "relevantFiles": [
+        "ai-developer-toolkit/plugins/ralph-overview/tools/overview-mcp/src/tools/parallel-ready-tasks.ts",
+        "ai-developer-toolkit/plugins/ralph-overview/tools/overview-mcp/src/tools/unblock-candidates.ts"
+      ],
+      "suggestedFix": "Extract `taskTitle()` and `plaintext()` helpers from `parallel-ready-tasks.ts` into a shared `tools/overview-mcp/src/utils/task-title.ts` (or similar). Both MCP tools import the shared helper. Update US-004 file list to include the extraction.",
+      "fixedInIteration": 1,
+      "resolution": "Applied directly in plan rewrite (see review-log.json for per-finding fix summary)."
+    },
+    {
+      "id": "F-013",
+      "severity": "Medium",
+      "category": "Criteria Quality",
+      "source": "copilot",
+      "sectionRef": "Acceptance Criteria (multiple)",
+      "description": "Several ACs use Unix-only verification commands: `grep`, `cat | jq`, `/tmp/...`, `start <file>`. The dev machine is Windows; bash from PowerShell sometimes resolves to WSL2 (which is broken on this box — Codex observed earlier). PowerShell-equivalent verification commands (Select-String, Get-Content | jq, $env:TEMP\\..., Invoke-Item) make the criteria machine-verifiable.",
+      "status": "fixed",
+      "relevantFiles": [
+        "draft-plan.md"
+      ],
+      "suggestedFix": "Per AC: list BOTH the bash command (for documentation) AND the PowerShell equivalent. Or use language-agnostic invocations: `node -e \"require('fs')...\"` works everywhere; `npm run test:lib` works everywhere. Replace `/tmp/...` with paths under `<job_dir>/test-output-*.log` per the toolkit AGENTS.md convention.",
+      "fixedInIteration": 1,
+      "resolution": "Applied directly in plan rewrite (see review-log.json for per-finding fix summary)."
+    },
+    {
+      "id": "F-014",
+      "severity": "Medium",
+      "category": "Tests",
+      "source": "codex",
+      "sectionRef": "Tests (plugin) + AC #2",
+      "description": "Adding fixture files referenced from BOTH `.mjs` (under scripts/lib/__tests__/?) and `.ts` (under tools/overview-viewer/src/__tests__/?) means we need a path that resolves cleanly from each. The existing `scripts/lib/fixtures/` (already exists per directory listing) is the natural home for shared fixtures. Plan must state the fixture file lives in the `scripts/lib/fixtures/` directory and is loaded via relative path from both test files.",
+      "status": "fixed",
+      "relevantFiles": [
+        "ai-developer-toolkit/plugins/ralph-overview/scripts/lib/fixtures/"
+      ],
+      "suggestedFix": "Specify the fixture file lives at `scripts/lib/fixtures/unblock-candidates-truth-table.json`. The .mjs test loads it via `../fixtures/...`; the .ts test loads it via a relative path computed from the viewer test dir (likely 5+ levels up). Document the path resolution in the plan to avoid impl-time confusion.",
+      "fixedInIteration": 1,
+      "resolution": "Applied directly in plan rewrite (see review-log.json for per-finding fix summary)."
+    }
+  ]
+}
