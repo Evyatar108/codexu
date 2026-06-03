@@ -842,7 +842,32 @@
       }
     },
     {
-      "id": "codex-upstream-rebase",
+      "id": "codex-cut-v0.135.0-copilot-api.1-release",
+      "scope": "codex",
+      "lifecycle": "tracked",
+      "status": "ok",
+      "lastTouchedAt": "2026-06-03T18:50:00Z",
+      "kanbanCards": [
+        {
+          "className": "cmd-warn",
+          "html": "<strong>Surfaced 2026-06-03T18:50Z</strong> by operator question: we rebased onto upstream <code>rust-v0.135.0</code> but never cut a release on <code>gim-home/codex</code>. Verified:<ul><li>Codex submodule HEAD on <code>main</code> at <code>166c8ec07</code> (2026-06-01) — 14 days post-rebase.</li><li><code>codex-patched</code> submodule at <code>69a2108a7</code>, sits 6485 commits ahead of <code>rust-v0.130.0-copilot-api.8</code> (the last release base) via the rebase to <code>rust-v0.135.0</code> + rebase-debt-fixes (4+ commits) + stream-cut diagnostics overlay (<code>7b6387340</code>) + Phase 5a/5b CI closeout docs (<code>166c8ec07</code>).</li><li>Latest published release on <code>gim-home/codex</code>: <code>v0.130.0-copilot-api.8</code> (2026-05-20, tag SHA <code>6c2a41e8</code>) — 14 days stale.</li><li><strong>Impact:</strong> consumers installing via <code>gh release download</code> on other machines get the pre-rebase v0.130.0 binary. They do NOT have v0.135 rebase, the rebase-debt-fixes, the stream-cut diagnostics, OR the Phase 5a/5b protocol.</li></ul>The rebase-upstream skill (<code>codex/.claude/commands/rebase-upstream.md</code>) Steps 10-12 own the release cut: version bump → build/pack/publish (delegates to <code>publish-sandbox-patch</code>) → smoke-test the launcher. None of these ran. The rebase was tracked as <code>codex-upstream-rebase</code> (<code>lifecycle: merged</code>) but that task's scope stopped at the codex-patched ship; the wrapper-level release cut was never explicitly captured."
+        }
+      ],
+      "command": {
+        "name": "codex-cut-v0.135.0-copilot-api.1-release",
+        "descriptionHtml": "<strong>Cut <code>v0.135.0-copilot-api.1</code> release on <code>gim-home/codex</code>.</strong> Run the <code>/rebase-upstream</code> Steps 10-12 closeout flow (or directly invoke <code>/publish-sandbox-patch</code> since the rebase is already on <code>main</code>): bump <code>[workspace.package] version</code> in <code>external/repos/codex-patched/codex-rs/Cargo.toml</code> to <code>0.135.0-copilot-api.1</code>, run the release build via the canonical env (xwin + LLVM + rusty_v8 v147.4.0 — prereqs verified present per <code>codex-rebase-rusty-v8-archive-fetch</code> ship), pack the self-contained tarball, commit + tag inside <code>codex-patched</code> submodule, commit wrapper gitlink update, tag wrapper <code>v0.135.0-copilot-api.1</code>, push to <code>gim-home/codex</code> with archival <code>release/v0.135.0-copilot-api.1</code> tag on <code>codex-patched</code> remote, upload self-contained tarball to GitHub Release. Then smoke-test the just-built launcher per Step 12. Phase 5b CI closeout — per <code>codex/.claude/commands/rebase-upstream.md</code> <code>### Interim closeout when CI is org-policy-blocked</code> subsection, the gim-home org's GitHub Actions block forces interim-closeout discipline (cite <code>escalate-gim-home-actions-policy</code> task in <code>shipManifest.summary</code>). Operator-driven session (interactive); not a fire-and-forget impl-with-ralph.",
+        "warnings": [
+          {
+            "className": "cmd-warn",
+            "html": "⚠️ Release cut is OPERATOR-DRIVEN, not autonomous-implementable. Per AGENTS.md \"ask before pushing\" and the build cost (cold-cache ~2h 47m; sccache-warm ~3 min per <code>codex-rs-build-perf-jobs-sweep-with-defender</code>), the operator should start a dedicated codex session (not this lead session) and run <code>/publish-sandbox-patch</code> (or <code>/rebase-upstream</code> Steps 10-12) from inside the codex submodule. Prereqs to verify before starting: <code>~/.xwin/{crt,sdk}</code> populated, <code>~/.cargo/.rusty_v8/rusty_v8_release_x86_64-pc-windows-msvc_v147.4.0.lib</code> present (193.8 MB; confirmed by <code>codex-rebase-rusty-v8-archive-fetch</code>), LLVM at <code>C:\\Program Files\\LLVM\\bin\\</code>, <code>gh auth status</code> shows account with push access to <code>gim-home/codex</code>. CI is org-policy-blocked (per <code>escalate-gim-home-actions-policy</code>) — use the documented interim closeout path."
+          }
+        ],
+        "prompts": {
+          "operator-driven": "Run inside the codex submodule from a fresh Claude Code or Copilot CLI session:\\n\\n1. cd D:/harness-efforts/codexu/codex\\n2. Verify prereqs: 'ls ~/.xwin/crt ~/.xwin/sdk', 'ls ~/.cargo/.rusty_v8/rusty_v8_release_x86_64-pc-windows-msvc_v147.4.0.lib', 'ls \\\"C:/Program Files/LLVM/bin\\\"', 'gh auth status' (account must have push access to gim-home/codex)\\n3. Invoke /publish-sandbox-patch (the skill bumps suffix on the current [workspace.package] version in external/repos/codex-patched/codex-rs/Cargo.toml — since the current pin should be 0.135.0-copilot-api.0 or 0.130.0-copilot-api.8 depending on what landed in the rebase, the skill will produce 0.135.0-copilot-api.1)\\n4. Alternatively if the version was never bumped after the rebase: invoke /rebase-upstream rust-v0.135.0 Steps 10-12 specifically (Step 10 bumps version, Step 11 builds/packs/publishes, Step 12 smoke-tests launcher)\\n5. The skill drives commit + tag + push + GitHub Release upload\\n6. After ship, in this codexu session (or a fresh bookkeeper session) flip lifecycle: tracked -> merged + add shipManifest with release tag SHA + GitHub Release URL"
+        }
+      }
+    },
+    {
       "scope": "codex",
       "lifecycle": "merged",
       "status": "ok",
