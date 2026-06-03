@@ -657,6 +657,280 @@ this doc.
   when a member is mid-task and could checkpoint any moment, the re-arm
   is worth it.
 
+### data.json edit-anchor safety (codified 2026-06-03)
+
+`.ralph-overview/data.json` is the single most-edited file the bookkeeper
+touches. Edits to it are also where the highest concentration of regressions
+happen — observed 4 distinct regressions in a single session (2026-06-03)
+where edit anchors matched the WRONG task object because the chosen anchor
+text (e.g., `"lastTouchedAt":`, `"scope":`, `"lifecycle":`) is non-unique
+across the ~135 task entries. The failure mode is silent: the edit succeeds,
+the JSON parses, but a different task's `id` field is consumed or a foreign
+block lands between tasks.
+
+Rules:
+
+1. **Always include `"id": "<exact-task-id>"` in the edit anchor.** Task
+   IDs are guaranteed unique by data.json convention. Anchoring on the id
+   line + 5-10 surrounding lines makes the anchor unambiguous.
+
+2. **For prepending a new task before another task**, anchor on the OLD
+   task's `"id":` line and include it verbatim in `new_str` so the existing
+   task survives the edit. Anchoring on `{\n      "id":` (without the
+   target ID) WILL match the first task in the file and silently move it.
+
+3. **For modifying a task in-place**, anchor on a substring that contains
+   the target task's id AND the specific field being modified. E.g.,
+   modify `lastTouchedAt` for task `foo`: anchor on the 4-line block
+   `"id": "foo",\n      "scope": ...,\n      "lifecycle": ...,\n      "lastTouchedAt": "2026-..."`.
+
+4. **MANDATORY: `node -e "JSON.parse(require('fs').readFileSync('.ralph-overview/data.json','utf8'))"`
+   before every commit.** If it fails, do NOT commit. Recovery: read the
+   diff against HEAD and locate the breakage; if unrepairable, `git checkout
+   .ralph-overview/data.json` and redo the edit.
+
+5. **Strongly recommended: enumerate task IDs before AND after the edit**
+   via `node -e "...d.tasks.map(t=>t.id)...filter(i=>!i)..."` and compare
+   counts. A drop in `tasks.length` OR a non-zero `without_id` count means
+   a task was clobbered. Restore from `git diff HEAD .ralph-overview/data.json`
+   and patch in place rather than `git checkout` (preserves intended edits).
+
+6. **For large structural changes** (re-targeting a task entirely,
+   replacing multi-line prompts), prefer a temporary Node helper
+   `node -e "const d=require('./.ralph-overview/data.json'); const t=d.tasks.find(t=>t.id==='X'); t.foo='bar'; require('fs').writeFileSync(...)"` over a text-anchor `edit` — the ID-keyed mutation
+   can't accidentally clobber a neighboring task.
+
+7. **NEVER use `git add -A`** in a bookkeeping commit. Stage data.json
+   explicitly. Otherwise generated sidecars (`.ralph-overview/generated/*`),
+   gitignored CLAUDE.md, and untracked staging dirs end up in the commit.
+
+### Task lifecycle state machine (codified 2026-06-03)
+
+Every task moves through a sequence of bookkeeping states. Each state
+transition has a specific `data.json` shape the bookkeeper writes. Documented
+here so future bookkeepers don't re-derive the convention from examples:
+
+| State | `lifecycle` | `kanbanCards[]` | `command.prompts.*` | `shipManifest` |
+|---|---|---|---|---|
+| **Filed** | `tracked` | 1 `cmd-warn` problem-statement card | Seed `prompts.brainstorm` OR `prompts.plan` | absent |
+| **Brainstorm shipped** | `tracked` | + 1 `cmd-ok` "Brainstorm shipped @ SHA" card with recommended direction | Add `prompts.plan` with `--from-brainstorm` | absent |
+| **Plan shipped** | `tracked` | + 1 `cmd-ok` "Plan shipped @ SHA" card with stories count + Phase 4 findings count + key reviewer corrections | Add `prompts.impl` with `--from-plan` | absent |
+| **Impl shipped** | `merged` | Trim warn cards; keep brief ok cards (or replace all with a concise summary) | Keep all prompts as historical reference | **REQUIRED:** `{ shippedAt, summary (1-3 paragraphs human-written), commits: [{ sha, oneLine, repo? }, ...] }` |
+| **Closed without ship** | `archived` | Keep cards as historical record + add cmd-warn "Closed because…" | Keep prompts | absent |
+| **Re-targeted (pivot)** | `tracked` | Add `cmd-warn` "Plan @ SHA is OFF-TARGET due to design pivot…" card; existing plan-ship card stays as history | Rewrite `prompts.plan` with new direction; existing `prompts.impl` stays but is invalidated | absent |
+
+Always refresh `lastTouchedAt` on every state transition. Always run the JSON
+parse check before commit (per data.json edit-anchor safety rules above).
+
+The 3 axes — `OverviewTask.lifecycle` (this state machine), watcher's
+`RalphPipelineState.stage`, and `CrewSessionRef.phase` — are deliberately
+independent and must not be conflated. See "Overview data — two-file split"
+above for details.
+
+### Parallel-spawn disjoint-surface rule (codified 2026-06-03)
+
+When considering multiple impl-member spawns in parallel, check disjoint
+surfaces at THREE levels:
+
+1. **Repo level.** Spawns targeting different repos (codexu, ai-developer-toolkit,
+   codex) are always parallel-safe.
+
+2. **Plugin level (within the ai-developer-toolkit submodule).** Spawns
+   targeting different plugins (`plugins/crews/`, `plugins/ralph/`,
+   `plugins/ralph-overview/`) are parallel-safe at the plugin code level.
+   BUT every plugin ship needs to bump `plugin.json`, edit `AGENTS.md`, and
+   prepend `CHANGELOG.md` — and 3 of the 4 marketplace indexes carry
+   `version` fields per plugin. Two impls targeting THE SAME plugin produce
+   conflicting version-file writes and conflicting AGENTS.md/CHANGELOG.md
+   prepends. **Same-plugin parallel = conflict; must serialize.**
+
+3. **Cross-cutting docs.** Two impls that both touch `codexu/AGENTS.md` or
+   both touch a shared `plans/<file>.md` will conflict on those files even
+   if the plugin code is disjoint. Inspect the plan deliverables for any
+   non-plugin file edits before spawning in parallel.
+
+When same-plugin or shared-doc parallel is needed, the workflow is:
+
+- **Bundle into ONE plan + ONE impl member** if the work naturally
+  combines (e.g., crews v3.4 bundle = 2 stories in one impl ship), OR
+- **Serialize via ship sequence**: spawn impl-A; let it ship; lead does
+  FF + push + plugin.json bump; THEN spawn impl-B; impl-B rebases topic
+  branch onto post-A toolkit main before push. Lead-orchestrated.
+
+For 3-way parallel where two of the three conflict, file the 2 as a
+serial bundle and run the 3rd alongside.
+
+### Impl-with-ralph capability surface (clarified 2026-06-03)
+
+`/implement-with-ralph` is NOT limited to JS/markdown edits within
+codexu's own packages. The capability surface is wider than the default
+spawn examples suggest:
+
+- **Can target any git repo** via `--target-repo <abspath>` flag (once
+  the `ralph-orchestration-spawn-target-repo-override-flag` task ships) OR
+  via the plan-analysis agent's repo-detection in convert-to-ralph-prd
+  Step 1 (today's default). Submodule paths, sibling-repo paths, and the
+  wrapper itself are all valid targets.
+
+- **Can invoke the target repo's own `.claude/commands/` skills.** When
+  an impl member targets the codex submodule, slash commands defined at
+  `codex/.claude/commands/` (e.g., `/publish-sandbox-patch`,
+  `/rebase-upstream`) are in scope. This means heavy release operations
+  (cut a tag + push + GitHub Release upload) ARE impl-with-ralph driveable
+  — they are NOT operator-only. The skill internally handles commit + tag
+  + push so the AGENTS.md "ask before pushing" rule is honored by the
+  skill, not bypassed.
+
+- **Long-build impls are fine** if the build prereqs are in place. The
+  codex release build is ~3 min with sccache warm; ~2h 47m cold. Impl
+  members tolerate long builds; the operator's interactive bottleneck
+  is the bookkeeper's review-mail cycle, not the build wall time.
+
+- **Cross-account git pushes** (e.g., the SAML-authorized `evmitran_microsoft`
+  account for the `gim-home` org vs the `Evyatar108` account for personal
+  remotes) work inside impl-with-ralph via `gh auth switch`. Spawn prompt
+  should include the explicit account-switching steps when the target repo
+  needs an account different from the lead's current one.
+
+When in doubt about whether something can be impl-with-ralph driven, ask
+the operator — but default to YES rather than defaulting to operator-only.
+
+### Listener re-arm + plugin update discipline (codified 2026-06-03)
+
+**Listener re-arm**: the background listener PROCESS dies in three legitimate
+patterns: (a) message delivery → exit; (b) idle timeout → exit; (c) crash.
+The Stop hook and PreToolUse hook both gate on `listenerState == 'armed'`,
+but they differ in strictness — Stop hook is lenient (only gates on terminal
+kinds or pending mail) while PreToolUse is strict (any tool call requires
+armed listener). For LEAD sessions specifically, when the listener exits
+via message delivery and the lead writes prose-only turns, PreToolUse will
+catch the next tool call but Stop may silently allow several intervening
+turn-ends (gap fix is filed as `crews-stop-hook-require-lead-listener-unconditionally`).
+
+In the meantime, the discipline:
+
+1. After reading a `system_notification` for listener completion, if the
+   listener delivered messages, run `review-mail` to process them, THEN
+   either continue with a tool call (PreToolUse will block with arm prompt
+   if needed) OR let the turn end naturally and PreToolUse will catch the
+   next tool call.
+
+2. Don't spam re-arms. Each re-arm spawns a node subprocess; spamming
+   them creates the same leaked-async-shell pattern that the bg-gate
+   filter has to handle.
+
+3. The arm command is engine-aware and shipped with hooks: the PreToolUse
+   block emits the EXACT command to run with the EXACT `mode: "async"`.
+   Use it verbatim; don't substitute.
+
+**Plugin update vs session restart**: when a plugin (crews, ralph,
+ralph-overview, etc.) ships a new version and the lead runs `copilot plugin
+update --all`, the new code is on disk under `~/.copilot/installed-plugins/<plugin>/`.
+**No session restart is needed** because:
+
+- Crews/ralph hooks (`hooks/*.js`) are spawned as fresh `node` subprocesses
+  on every hook fire (PreToolUse, Stop, PostToolUse, SessionStart). They
+  read the latest code from disk per invocation.
+
+- The crews CLI (`crews.js`) is spawned fresh per `arm`/`review-mail`/
+  `status`/etc. invocation.
+
+- The long-running listener is respawned several times per session (every
+  message delivery + idle timeout), so within a few minutes it's running
+  the new code.
+
+- The Copilot CLI session itself doesn't cache plugin CODE — only the
+  hook-event subscription map at session-start time. The map shape hasn't
+  changed across crews v3.0 → v3.3; ralph v5.46 → v5.49.
+
+Restart IS needed when:
+
+- A plugin adds/removes/renames a skill (the slash-command registry is
+  session-start-time)
+- A plugin changes its hook event subscriptions in `plugin.json`
+- A new plugin is installed (the `enabledPlugins` map is loaded at start)
+
+For routine version bumps (semantic refactors, bug fixes, new test
+coverage), neither restart NOR `copilot plugin update --all` is blocking
+— the hook code reads fresh from disk and the CLI session keeps working.
+
+### Spawn-prompt preamble template (codified 2026-06-03)
+
+For impl-phase member spawns, the stable preamble pattern observed across
+2026-05-29 → 2026-06-03:
+
+```text
+You are the IMPL-phase member for task <task-id>.
+
+Phase discipline: produce only the implementation commits per the plan;
+do NOT chain into another task. Per codexu AGENTS.md the lead handles
+FF-merge + push (ask-before-pushing); your scope is local commit on
+topic branch <topic-branch> inside the <repo-or-submodule> worktree
+at <worktree-path>.
+
+The /implement-with-ralph skill manages worktree + Phase 5a (code
+review-fix convergence) + Phase 5b (docs review-fix convergence). Drive
+ALL phases to terminal — do NOT stop at Phase 4 stories-pass.
+
+The plan is at <plan-path> (Phase-4 reviewed; <N> findings fixed;
+<decomposition-shape>). [+ key plan corrections vs original spec]
+
+[Specific scope notes: file:line refs, key invariants, what NOT to do,
+relevant prior-art tasks, version bump target]
+
+codexu root CLAUDE.md is gitignored — do NOT git add CLAUDE.md.
+Fork-level guidance edits go in codexu/AGENTS.md only. Body-canonical
+convention (substantive content in prose body, brief summary in attribute).
+
+After local commit, report kind=done with: commit SHA + topic branch +
+brief summary of fixed ACs.
+
+RUN: /implement-with-ralph --from-plan <plan-path> --autonomous
+```
+
+For plan-phase spawns the same shape but with `/plan-with-ralph` invocation
+and "produce only plan.md + stories-outline.md + Phase-4 review artifacts"
+in place of the impl scope sentence. Operator-driven release skills
+(`/publish-sandbox-patch`, `/rebase-upstream`) require a three-phase
+prompt: Phase 5a workspace check → release cut → Phase 5b CI closeout.
+
+### Rebase-as-closeout discipline (codified 2026-06-03)
+
+Codex submodule rebase tasks (`codex-upstream-rebase`, `codex-rebase-*`) are
+NOT complete when the rebase commits land on `gim-home/codex@main`. The
+upstream `codex/.claude/commands/rebase-upstream.md` defines Steps 7+ as
+the post-rebase closeout, mandatory for every rebase:
+
+- **Step 7 / Phase 5a workspace check (HARD gate)**: `cargo check
+  --workspace` from `codex/external/repos/codex-patched/codex-rs`.
+  Non-zero exit → file additional `codex-rebase-debt-fix-<crate>` tasks
+  BEFORE proceeding. Skipping this gate manifests later as 4+ reactive
+  debt-fix tasks discovered by impl members hitting workspace-parse
+  failures days later (observed 2026-05-30 → 2026-06-03 for the
+  rust-v0.135.0 rebase).
+
+- **Steps 10-12 release cut**: version bump in
+  `external/repos/codex-patched/codex-rs/Cargo.toml`
+  → release build → pack → commit + tag inside `codex-patched` submodule
+  → wrapper gitlink update + wrapper tag → push to `gim-home/codex` with
+  archival tag on `codex-patched` remote → GitHub Release tarball upload
+  → smoke-test launcher. The `/publish-sandbox-patch` skill drives all
+  of this. Skipping = consumers stuck on the prior release.
+
+- **Phase 5b CI closeout (or interim closeout)**: watch `invariant-check`
+  workflow on `gim-home/codex@main` for green. Since `escalate-gim-home-actions-policy`
+  blocks `workflow_dispatch` on the gim-home org as of 2026-04, fall back
+  to the documented interim-closeout path: cite the escalation task in
+  `shipManifest.summary`. Bookkeeper triggers the rebase skill's
+  `### Sunset checklist (self-triggering)` on block lift.
+
+The bookkeeper enforces this by NOT flipping a rebase task's `lifecycle`
+to `merged` until all three phases complete. A rebase task with rebase
+commits on main but no release cut + no CI closeout stays `tracked` with
+a `cmd-warn` card flagging the missing phases. See
+`codex-cut-v0.135.0-copilot-api.1-release` (filed 2026-06-03) as the
+canonical "closeout-missed → file separate task to drive it" pattern.
+
 ### Architectural-fix preference
 
 - **When a long-running coordination component (MCP server, watcher,
