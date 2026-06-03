@@ -1,0 +1,66 @@
+{
+  "brainstormName": "async-events-northstar-architecture",
+  "overviewTaskId": "async-events-northstar-architecture",
+  "idea": "Long-horizon (v2/v3, 6-12 month) async-events architecture for codexu / codex / crews / agent-comms. Builds FORWARD from D-002 (durable mailbox + channel wake) as foundation. 7 design axes: producer ecosystem, subscription transport, Scope A cross-tunnel, codex-as-crews-engine wire protocol, app-server idle-timeout interaction, heartbeat/presence convergence, replay/catch-up semantics.",
+  "availableLenses": ["codex-feasibility", "devils-advocate"],
+  "missingLenses": [{"lens": "copilot", "reason": "skipped-partial-mode-flaky"}],
+  "candidateDirections": [
+    {
+      "id": "N-001",
+      "name": "Evolutionary Layering (conservative)",
+      "summary": "Build v2 as incremental layers on D-002. Layer 1: D-002 ships. Layer 2: channel-wake for crews + bridge producers. Layer 3: app-server subscription RPC + idle-timeout. Layer 4: Scope A mailbox-on-server (demand-gated).",
+      "contributingLenses": ["codex-feasibility", "devils-advocate"]
+    },
+    {
+      "id": "N-002",
+      "name": "Subscription-First Unification (ambitious)",
+      "summary": "Generic events/subscribe RPC at app-server level subsuming all notification patterns. Single model for all subscriptions with persistent cursor-based replay. High Rust-side investment + upstream conflict surface.",
+      "contributingLenses": ["codex-feasibility"]
+    },
+    {
+      "id": "N-003",
+      "name": "Agent-Comms-Centric (demand-driven)",
+      "summary": "Focus v2 exclusively on agent-comms Scope B/C production quality; defer all producer ecosystem work until measurement shows actual demand. Exit-and-respawn remains default.",
+      "contributingLenses": ["devils-advocate"]
+    }
+  ],
+  "recommendedDirection": "N-001",
+  "perAxisAssessments": {
+    "axis1_producer_ecosystem": "Hybrid per-producer-class: file-system events → app-server-native; git/timer → Node bridge-embedded; plugin events → plugin MCP server; inter-session → daemon control route.",
+    "axis2_subscription_transport": "Both-with-bridge: Node-side producers emit via MCP stdio bridge (session-scoped); codex-side via app-server WebSocket (connection-scoped); bridge = D-002 pattern (fs write + wake).",
+    "axis3_scope_a_cross_tunnel": "A3 (mailbox-on-server) is the architecturally-consistent path but DEFERRED — demand is speculative. Critical v1 decision: use logical addressing (sessionId) not physical (file paths).",
+    "axis4_codex_as_crews_engine": "Channels-leveraged hybrid: MCP bridge watches inbox/outbox JSONL, emits resource_updated, consumer pushes wake to MessageQueue2. File protocol remains authoritative. Channel wake is opt-in progressive enhancement.",
+    "axis5_idle_timeout": "Configurable idle-grace period (default 300s). D-002 doesn't create app-server subscribers (uses Node-side fs.watch). Pressure comes from Layer 3 (app-server subscription RPC), not D-002.",
+    "axis6_heartbeat_presence": "DO NOT converge — each layer keeps its own mechanism for different reasons. v2 adds a unified READ-ONLY presence aggregation query in daemon control server.",
+    "axis7_replay_catchup": "Two distinct patterns: cursor-based mailbox replay (messages, crews, agent-comms) vs state-snapshot synthetic events (subscriptions, fs changes). Intentionally not unified. D-002 inbox = Pattern 1 only."
+  },
+  "v2BlockedOnV1": [
+    "D-002 inbox envelope shape definition (blocks Scope A mailbox-on-server)",
+    "D-002 daemon /agent-comms/send route (blocks crews channel-wake)",
+    "D-002 missed-wake recovery fixture (blocks app-server subscription replay)",
+    "D-002 happyMcpStdioBridge.ts producer pattern (blocks generic producers)"
+  ],
+  "v1DecisionsThatBecomeIrreversible": [
+    "Inbox envelope schema — must be versioned from day 1",
+    "Addressing model — must use sessionId (logical) not file paths (physical)",
+    "Wake signal URI scheme — must use stable agent-comms://inbox/<sessionId>",
+    "Consumer integration point — between-turns only; mid-turn is v3",
+    "Routing config shape — global-per-server-per-kind acceptable for v1; per-subscription is v2"
+  ],
+  "candidateTasksToFile": [
+    {"name": "crews-channel-wake-progressive-enhancement", "type": "plan", "priority": "HIGH"},
+    {"name": "app-server-subscription-rpc", "type": "brainstorm", "priority": "MEDIUM"},
+    {"name": "agent-comms-scope-a-mailbox-on-server", "type": "brainstorm", "priority": "LOW"},
+    {"name": "producer-ecosystem-git-timer", "type": "plan", "priority": "MEDIUM"},
+    {"name": "codex-as-crews-engine", "type": "plan", "priority": "MEDIUM"},
+    {"name": "presence-aggregation-query", "type": "plan", "priority": "LOW"},
+    {"name": "notification-audit-log", "type": "plan", "priority": "LOW"}
+  ],
+  "questionsForOperator": [
+    "Does N-001 (evolutionary layering) match your risk appetite, or do you want N-002 (subscription-first unification) for a more ambitious v2?",
+    "Is Scope A (cross-machine agent comms) actually needed in the 6-12 month horizon, or can it stay deferred indefinitely?",
+    "Should the codex-as-crews-engine task be filed immediately (material in Axis 4 is concrete enough), or wait for D-002 to ship first?",
+    "For Layer 2 prioritization: crews-channel-wake first, or git/timer producers first?",
+    "Is the 'exit-and-respawn stays default; in-session subscription is opt-in' framing correct, or should v2 flip the default?"
+  ]
+}
