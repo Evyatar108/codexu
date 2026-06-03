@@ -1790,9 +1790,14 @@
       "id": "async-events-design",
       "scope": "codexu",
       "lifecycle": "tracked",
-      "status": "blocked",
-      "lastTouchedAt": "2026-05-14T13:30:00Z",
-      "kanbanCards": [],
+      "status": "ok",
+      "lastTouchedAt": "2026-06-03T01:42:00Z",
+      "kanbanCards": [
+        {
+          "className": "cmd-info",
+          "html": "<strong>Unblocked 2026-06-03</strong> by codex-channels-option-b ship (commit <code>c3075b6c</code>). The original block reason was waiting for the channels primitive before locking v1 transport; the plan's evaluation matrix explicitly compared MCP channels vs exit-and-respawn vs long-poll vs codex-app-server subscription RPC. With Option B landed (notifications-to-prompt-queue subscriber in happy-cli), the channels lever is concrete and the matrix can be evaluated against measured behavior."
+        }
+      ],
       "command": {
         "name": "async-events-design",
         "descriptionHtml": "Design async event listening for agents — re-blocked 2026-05-14 to wait for channels primitive before locking v1 transport",
@@ -1803,7 +1808,24 @@
           }
         ],
         "prompts": {
-          "plan": "/plan-with-ralph \"Design how an agent listens to async events — e.g., 'wake me when a commit lands on main', 'notify me when a periodic task fires', 'tell me when another agent finishes its turn'. Today an agent's only async-trigger model is: exit and be re-spawned (e.g., a periodic background task that exits to wake the operator/agent). That's not ideal — loses context, restart latency, can't subscribe to fine-grained events. Output: plans/async-events-design.md covering: (1) The use cases — at least these 4: git events (commit on main / branch updated / push), periodic-task firings, inter-agent notifications (sibling-agent completion / sibling-agent question), file-system events (file changed under cwd). (2) Current options in Claude Code — is there a 'wait for X' tool? hooks? streamable MCP? A 'send-when-idle' channel? Read C:/harness-efforts/claude-code/worktrees/main/ if accessible. (3) Current options in codex — codex's hook system (config/src/hook_config.rs), inter-agent fast path in multi_agents_v2/, MCP support. READ-ONLY on codex/external/repos/codex-patched/ per minimize-conflict-surface. (4) Design options for codexu — compare at least: (a) MCP with 2-way channels (depends on channels-research outcome); (b) periodic background task that exits to wake agent (current model — note limits); (c) long-poll MCP tool (block until event); (d) a 'subscription' RPC on the codex app-server side that streams events to the agent's session; (e) hybrid (use codex hooks for in-session triggers, channels for cross-session). (5) Recommendation with rationale; identify the smallest-viable subset that covers the 4 use cases. (6) Surface to operator before committing follow-up implementation tasks. NO CODE — design only. The output doc IS the deliverable.\""
+          "plan": "/plan-with-ralph \"Design how an agent listens to async events — e.g., 'wake me when a commit lands on main', 'notify me when a periodic task fires', 'tell me when another agent finishes its turn'. Today an agent's only async-trigger model is: exit and be re-spawned (e.g., a periodic background task that exits to wake the operator/agent). That's not ideal — loses context, restart latency, can't subscribe to fine-grained events. Output: plans/async-events-design.md covering: (1) The use cases — at least these 4: git events (commit on main / branch updated / push), periodic-task firings, inter-agent notifications (sibling-agent completion / sibling-agent question), file-system events (file changed under cwd). (2) Current options in Claude Code — is there a 'wait for X' tool? hooks? streamable MCP? A 'send-when-idle' channel? Read C:/harness-efforts/claude-code/worktrees/main/ if accessible. (3) Current options in codex — codex's hook system (config/src/hook_config.rs), inter-agent fast path in multi_agents_v2/, MCP support. READ-ONLY on codex/external/repos/codex-patched/ per minimize-conflict-surface. (4) Design options for codexu — compare at least: (a) MCP with 2-way channels (depends on channels-research outcome); (b) periodic background task that exits to wake agent (current model — note limits); (c) long-poll MCP tool (block until event); (d) a 'subscription' RPC on the codex app-server side that streams events to the agent's session; (e) hybrid (use codex hooks for in-session triggers, channels for cross-session). (5) Recommendation with rationale; identify the smallest-viable subset that covers the 4 use cases. (6) Surface to operator before committing follow-up implementation tasks. NO CODE — design only. The output doc IS the deliverable.\"",
+          "brainstorm": "/brainstorm-with-ralph"
+        }
+      }
+    },
+    {
+      "id": "codex-app-server-idle-timeout",
+      "scope": "codex|codexu",
+      "lifecycle": "tracked",
+      "status": "ok",
+      "lastTouchedAt": "2026-06-03T01:42:00Z",
+      "kanbanCards": [],
+      "command": {
+        "name": "codex-app-server-idle-timeout",
+        "descriptionHtml": "Open question logged at <code>plans/codexu-roadmap.md:1547</code> but never filed as a task: when the last happy-cli client disconnects from a running <code>codex app-server</code> daemon, how long before the app-server exits? Defaults today are TBD. The seamless-multi-device plan defers this to its Phase 2; the tunnels plan adds a heartbeat-lifecycle wrinkle for the directory entry that holds the per-machine app-server address. Surface both interactions and pick a default (likely 'configurable timeout + sane default'). Touches codex app-server (Rust) + happy-cli (TS) reconnect logic + the multi-device discoverability protocol. Coordinate with <code>1b-multidev</code> (multi-device fan-out) and <code>async-events-design</code> (which now has the channels primitive shipped).",
+        "warnings": [],
+        "prompts": {
+          "brainstorm": "/brainstorm-with-ralph \"App-server idle-timeout default. When the last happy-cli client disconnects from codex app-server, how long before it exits? Defaults TBD; multi-device + tunnels interactions add wrinkles. Compare: (a) no timeout - daemon stays forever, operator manually kills; (b) short timeout 30-60s - low-footprint, but breaks multi-device handoff; (c) configurable timeout with sane default; (d) heartbeat-based - directory entry holds liveness, app-server exits when directory entry drops; (e) lazy-start + idle-exit - app-server starts on first happy connect, exits N seconds after last disconnect, happy auto-restarts on next connect. Scope: codex app-server (Rust) + happy-cli (TS) reconnect + multi-device discoverability protocol. Coordinate with 1b-multidev + async-events-design.\""
         }
       }
     },
