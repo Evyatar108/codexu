@@ -1119,6 +1119,32 @@
       }
     },
     {
+      "id": "ralph-orchestration-worktree-conditional-submodule-init",
+      "scope": "ralph-orchestration",
+      "lifecycle": "tracked",
+      "status": "ok",
+      "lastTouchedAt": "2026-06-03T15:38:00Z",
+      "kanbanCards": [
+        {
+          "className": "cmd-warn",
+          "html": "<strong>Surfaced 2026-06-03T08:38Z</strong> by plan-crews-stop-bg-gate-remove-bypass member self-observation. The worktree-create.mjs helper (in ralph-orchestration plugin) runs <code>git submodule update --init --recursive</code> unconditionally when creating a Ralph worktree. For codexu, this pulls in the multi-GB codex/ submodule even when the task only touches the ai-developer-toolkit/ submodule (or no submodules at all -- pure docs/plan work). Today's plan member burned ~3 min on the unnecessary codex/ init. Repeated across every plan + impl worktree spawn, this wastes operator wall-time + disk + network. Pattern is in the ralph-orchestration plugin, not in codexu."
+        }
+      ],
+      "command": {
+        "name": "ralph-orchestration-worktree-conditional-submodule-init",
+        "descriptionHtml": "<strong>Make Ralph worktree submodule init conditional.</strong> The current <code>worktree-create.mjs</code> in the ralph-orchestration plugin (D:/harness-efforts/codexu/ai-developer-toolkit/plugins/ralph) runs <code>git submodule update --init --recursive</code> unconditionally when creating any plan or impl worktree. This is wasteful when the task scope doesn't touch the submodules: codexu has two heavy submodules (codex/ ~multi-GB, ai-developer-toolkit/ ~moderate) and most tasks only touch one or neither. The plan phase NEVER needs submodule code (it only writes markdown into <code>&lt;PLAN_WORKTREE&gt;/.ralph/jobs/&lt;job&gt;/</code>); the impl phase needs only the submodules the task scope declares. <strong>Proposed mechanism:</strong> (a) plan worktrees default to <code>--no-submodule-init</code>; (b) impl worktrees check the PRD's <code>repoDir</code> + any declared <code>impactedSubmodules</code> field and init only those; (c) keep an env override <code>RALPH_WORKTREE_INIT_ALL_SUBMODULES=1</code> for the operator escape hatch when the task touches an undeclared submodule.",
+        "warnings": [
+          {
+            "className": "cmd-warn",
+            "html": "Touches ralph-orchestration plugin source. Coordinate with active ralph members + verify the PRD schema can express <code>impactedSubmodules</code> (or equivalent) without breaking existing job-state.json consumers. Backward-compat: PRDs without the field fall back to current behavior (init-all) OR to a smarter heuristic (e.g., 'init only submodules whose paths appear in the plan's Files-to-Create-or-Modify section')."
+          }
+        ],
+        "prompts": {
+          "brainstorm": "/brainstorm-with-ralph \"Ralph worktree-create.mjs runs git submodule update --init --recursive unconditionally on every plan + impl worktree spawn. Wasteful for codexu where the codex/ submodule is multi-GB and most tasks touch only ai-developer-toolkit/ or neither. Plan worktrees NEVER need submodule code (just write markdown). Brainstorm: (a) how to opportunistically detect which submodules a task scope touches (PRD field? plan-section grep? heuristic on stories-outline?); (b) plan-vs-impl default policy (plan = no-submodule-init by default? impl = init based on scope?); (c) operator escape hatches (env var, CLI flag); (d) backward-compat for PRDs that don't declare submodule scope; (e) failure modes (impl member runs into 'missing submodule code at compile/test time' -- detector + recovery story); (f) interaction with the existing convert-to-ralph-prd helper which currently auto-init's based on repoDir; (g) cost-benefit of the smarter detection vs just exposing a --no-submodule-init flag the spawn-prompt can pass. Scope: changes live in ralph-orchestration plugin (D:/harness-efforts/codexu/ai-developer-toolkit/plugins/ralph). Coordinate with crews v3.2.0+ which improved circuit-breaker resilience so a stalled-on-submodule-init plan member won't disengage the session.\""
+        }
+      }
+    },
+    {
       "id": "ralph-plan-staging-unique-path-per-member",
       "scope": "ralph-orchestration",
       "lifecycle": "merged",
