@@ -3101,6 +3101,59 @@
       }
     },
     {
+      "id": "codex-rebase-debt-fix-thread-manager-sample",
+      "scope": "codex",
+      "lifecycle": "merged",
+      "status": "ok",
+      "lastTouchedAt": "2026-06-03T20:55:00Z",
+      "shipManifest": {
+        "shippedAt": "2026-06-03T20:55:00Z",
+        "summary": "1-line debt fix for missed initializer in external/repos/codex-patched/codex-rs/thread-manager-sample/src/main.rs:164. Added additional_instructions: None, to the Config { ... } initializer (sample binary, doesn't go through launcher, so None is correct per the parallel fix at exec/src/lib.rs:403). Pattern identical to prior codex-rebase-debt-fix-tui-and-exec sweep at commit 590b50759 which caught the parallel ConfigOverrides initializer in exec/src/lib.rs but missed this thread-manager-sample Config initializer. Surfaced by impl-codex-cut-v0.135.0 Phase 5a HARD GATE — exactly the proactive-catch behavior the new rebase-as-closeout discipline (codified today in codexu AGENTS.md 41fa70cf) is designed to enforce. Lead-driven fix took ~13min wall (~5min edit + 8min commit/push triple). Subsumes the previously-unbumped stream-cut diagnostics commit 69a2108a7 in the same wrapper pointer bump.",
+        "commits": [
+          { "sha": "1dd5cd5c9", "oneLine": "rebase-debt-fix: thread-manager-sample missing additional_instructions field in Config initializer", "repo": "codex-patched (Evyatar108/codex-openai-fork)" },
+          { "sha": "3f5dabace", "oneLine": "chore(codex-patched): bump pointer to 1dd5cd5c9", "repo": "codex (gim-home/codex)" },
+          { "sha": "d15313b7", "oneLine": "chore: bump codex submodule for rebase-debt-fix thread-manager-sample", "repo": "codexu" }
+        ]
+      },
+      "kanbanCards": [
+        {
+          "className": "cmd-warn",
+          "html": "<strong>Surfaced 2026-06-03T20:42Z</strong> by <code>impl-codex-cut-v0.135.0</code> Phase 5a HARD GATE (cargo check --workspace from <code>codex-rs</code>). Single E0063 error in <code>external/repos/codex-patched/codex-rs/thread-manager-sample/src/main.rs:164</code>: <code>missing field additional_instructions in initializer of Config</code>. Pattern is identical to the prior <code>codex-rebase-debt-fix-tui-and-exec</code> fix at <code>exec/src/lib.rs:403</code> (commit <code>590b50759</code>): same upstream rust-v0.135.0 added <code>additional_instructions: Option&lt;String&gt;</code> field to <code>Config</code>; same fix applies (add <code>additional_instructions: None,</code> to the initializer)."
+        },
+        {
+          "className": "cmd-ok",
+          "html": "<strong>Shipped 2026-06-03T20:55Z</strong> at codex-patched <code>1dd5cd5c9</code> + codex wrapper <code>3f5dabace</code> + codexu <code>d15313b7</code>. v0.135.0-copilot-api.1 release cut unblocked; sending impl-codex-cut-v0.135.0 to resume."
+        }
+      ],
+      "command": {
+        "name": "codex-rebase-debt-fix-thread-manager-sample",
+        "descriptionHtml": "<strong>1-line debt fix</strong> for missed initializer in <code>external/repos/codex-patched/codex-rs/thread-manager-sample/src/main.rs:164</code>. Add <code>additional_instructions: None,</code> to the <code>Config { ... }</code> initializer (sample binary, doesn't go through launcher, so <code>None</code> is correct per the parallel fix at <code>exec/src/lib.rs:403</code> in commit <code>590b50759</code>). Lead-driven; no impl-with-ralph spawn needed.",
+        "warnings": [],
+        "prompts": {}
+      }
+    },
+    {
+      "id": "build-env-sccache-cache-wipe-and-rewarm",
+      "scope": "codex",
+      "lifecycle": "tracked",
+      "status": "ok",
+      "lastTouchedAt": "2026-06-03T20:42:00Z",
+      "kanbanCards": [
+        {
+          "className": "cmd-warn",
+          "html": "<strong>Surfaced 2026-06-03T20:42Z</strong> by <code>impl-codex-cut-v0.135.0</code> Phase 5a. First Phase 5a run via <code>iteration-env.sh</code> + <code>RUSTC_WRAPPER=sccache</code> produced 200+ spurious errors across <code>windows-core</code>, <code>dirs-sys-next</code>, <code>v8</code>, <code>ignore</code> with pattern <code>only metadata stub found for rlib dependency alloc/core</code>. Re-run with <code>unset RUSTC_WRAPPER</code> succeeded and surfaced the real E0063 from <code>codex-rebase-debt-fix-thread-manager-sample</code>. <code>D:\\codex-sccache</code> cache directory appears corrupted (likely from an interrupted build during the v0.135 rebase week). Fix: <code>rm -rf D:\\codex-sccache</code>, recreate the dir, do a one-time warm cold-build of the codex workspace (~50 min) to repopulate cache. Then subsequent builds drop to ~3 min sccache-warm per <code>codex-rs-build-perf-jobs-sweep-with-defender</code>. Without this, every future Phase 5a / release cut must run sccache-OFF and pay the ~9-50 min cold cost."
+        }
+      ],
+      "command": {
+        "name": "build-env-sccache-cache-wipe-and-rewarm",
+        "descriptionHtml": "Wipe + re-warm <code>D:\\codex-sccache</code> after observed metadata corruption. Operator-driven (involves long-running cold build).",
+        "warnings": [],
+        "prompts": {
+          "operator-driven": "1. unset RUSTC_WRAPPER (or set it temporarily)\\n2. rm -rf D:\\\\codex-sccache\\n3. mkdir D:\\\\codex-sccache\\n4. source codex/scripts/iteration-env.sh (Step 2a env from rebase-upstream.md)\\n5. export RUSTC_WRAPPER=sccache (with cache dir on D:)\\n6. cd codex/external/repos/codex-patched/codex-rs\\n7. cargo check --workspace 2>&1 | tee /tmp/sccache-rewarm.log  # one-time cold ~50 min\\n8. After this, future Phase 5a runs sccache-warm at ~3 min."
+        }
+      }
+    },
+    {
       "id": "codex-rebase-debt-fix-tui-and-exec",
       "scope": "codex",
       "lifecycle": "merged",
