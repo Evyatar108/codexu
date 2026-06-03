@@ -1,0 +1,136 @@
+{
+  "planFile": "D:/harness-efforts/codexu/.ralph/jobs/.staging/20260603T182800Z-plan-crews-v3-4-bundle-1b7698ab/draft-plan.md",
+  "repoDir": "D:/harness-efforts/codexu/.ralph/jobs/crews-v3.4-bundle/worktree/plan",
+  "reviewCycle": 0,
+  "findings": [
+    {
+      "id": "F-001",
+      "severity": "Critical",
+      "source": "codex",
+      "category": "Feasibility",
+      "sectionRef": "Acceptance Criteria > Bundle-level",
+      "description": "The bundle-level acceptance criterion 'Branch ralph/crews-v3.4-bundle exists in the toolkit submodule with the bundle commits; pushed to the toolkit's origin remote.' instructs the impl to push to toolkit origin. This violates the repo AGENTS.md ask-before-push rule and contradicts the spawn-prompt directive 'lead handles multi-remote push'. Out-of-Scope already lists multi-remote push as lead-owned, but origin is also a remote — pushing to any toolkit remote requires lead/operator approval. An autonomous impl would push and violate the rule.",
+      "relevantFiles": [
+        "D:/harness-efforts/codexu/AGENTS.md"
+      ],
+      "suggestedFix": "Replace the AC with: 'Branch ralph/crews-v3.4-bundle exists LOCALLY in the toolkit submodule with the bundle commits. The branch is NOT pushed to any toolkit remote; lead handles pushes to origin/personal/gim-home per AGENTS.md ask-before-push rule.' Also tighten the Out-of-Scope bullet to explicitly include 'origin' (currently lists 'origin / personal / gim-home' so this is fine but could be reinforced).",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Updated the plan so the toolkit branch remains local and all pushes to origin, personal, or gim-home are explicitly lead-owned under the ask-before-push rule."
+    },
+    {
+      "id": "F-002",
+      "severity": "High",
+      "source": "consensus",
+      "category": "Feasibility",
+      "sectionRef": "Approach > Files to Create/Modify > MODIFY for US-002 > hooks/stop.js",
+      "description": "Both codex and copilot flagged: the appendLog snippet uses undefined locals (name, crew, actorState, listenerState, stateCwd). In the actual decideStopBlock scope, the references are ctx.flag.name, ctx.crew, decision.state.actorState, decision.state.listenerState, and ctx.stateCwd. There is also no separate 'lead-specific branch that returns the block decision' — the existing role branch appends extra prose AFTER the shared listener-block log. If copied literally, the new lead-block path will throw ReferenceError.",
+      "relevantFiles": [
+        "ai-developer-toolkit/plugins/crews/hooks/stop.js"
+      ],
+      "suggestedFix": "Rewrite the snippet using the actual decideStopBlock locals: `if (ctx.flag.role === 'lead') appendLog(`stop: lead-listener-required name=${ctx.flag.name} crew=${ctx.crew} actorState=${decision.state.actorState} listenerState=${decision.state.listenerState}`, ctx.stateCwd);`. Place it inside the existing lead-conditional branch that already appends prose to the shared listener-block log, before the return. Clarify in the plan that the impl member must use the existing ctx/decision scope, NOT introduce new locals.",
+      "status": "fixed",
+      "fixedInIteration": 2,
+      "resolution": "Amended the plan to use the real ctx/decision scope for the lead appendLog call and clarified placement inside the existing lead branch."
+    },
+    {
+      "id": "F-003",
+      "severity": "High",
+      "source": "codex",
+      "category": "Criteria Quality",
+      "sectionRef": "Acceptance Criteria > Bundle-level",
+      "description": "The push AC is not safely testable without clarifying ownership. As written, an autonomous verifier cannot determine whether a missing remote branch is a violation (impl forgot to push) or correct behavior (impl correctly deferred to lead).",
+      "relevantFiles": [],
+      "suggestedFix": "Tied to F-001 fix. Replace with 'Branch ralph/crews-v3.4-bundle exists locally; lead pushes after approval' — this is verifiable by 'git -C ai-developer-toolkit branch --list ralph/crews-v3.4-bundle' returning the branch name AND 'git -C ai-developer-toolkit ls-remote origin ralph/crews-v3.4-bundle' returning empty (no remote push yet). State the verification command in the AC.",
+      "status": "fixed",
+      "fixedInIteration": 3,
+      "resolution": "Amended the bundle-level branch acceptance criterion to require explicit local-branch verification and empty remote-ref verification before lead-managed push."
+    },
+    {
+      "id": "F-004",
+      "severity": "High",
+      "source": "copilot",
+      "category": "Completeness",
+      "sectionRef": "Acceptance Criteria (test commands)",
+      "description": "The test commands in the plan do not redirect/tee output to log files. ai-developer-toolkit/AGENTS.md requires plugin test output to be saved on first run (so subsequent agents can grep cached results instead of re-running 5+ min suites). Currently the plan uses `> /tmp/crews-v3.4-focused.out 2>&1` which is POSIX-only and outside the repo — on Windows this path doesn't exist.",
+      "relevantFiles": [
+        "ai-developer-toolkit/AGENTS.md"
+      ],
+      "suggestedFix": "Update the focused and full test commands to redirect inside the job dir on a Windows-portable path, e.g. `node plugins/crews/tests/run.js tests/listener-protocol.test.js ... 2>&1 | Tee-Object -FilePath D:/harness-efforts/codexu/.ralph/jobs/crews-v3.4-bundle/test-output-focused.log` and the full-suite variant to `test-output-full.log`. Either Tee-Object on PowerShell or `> ... 2>&1` redirection. State both forms in the plan or use repo-relative paths.",
+      "status": "fixed",
+      "fixedInIteration": 4,
+      "resolution": "Updated the focused and full test acceptance commands to save output under the Ralph job directory using Windows-portable PowerShell Tee-Object paths."
+    },
+    {
+      "id": "F-005",
+      "severity": "Medium",
+      "source": "codex",
+      "category": "Completeness",
+      "sectionRef": "Approach > Files to Create/Modify > MODIFY for US-001",
+      "description": "The plan updates the LISTENER FILTER comment in detect-active-bg.js:38, but Stop-hook in stop.js around :1058 has a parallel explanatory comment that still says the detector subtracts listener-arm calls via isListenerArmCall. Without that update, the stop.js comment will be subtly misleading post-fix.",
+      "relevantFiles": [
+        "ai-developer-toolkit/plugins/crews/hooks/stop.js"
+      ],
+      "suggestedFix": "Add a bullet to the US-001 MODIFY section: 'hooks/stop.js around :1058 — update the explanatory comment block that describes the detector to mention the new infrastructure-filter behavior (detector subtracts listener-arm AND crews-CLI-infra calls).' Add a corresponding line-item to the US-001 AC verifying the comment was updated.",
+      "status": "fixed",
+      "fixedInIteration": 5,
+      "resolution": "Added a hooks/stop.js MODIFY bullet under US-001 instructing the impl to update the detector-explanatory comment around stop.js:1058 (comment-only change in stop.js for US-001). Added a matching AC line."
+    },
+    {
+      "id": "F-006",
+      "severity": "Medium",
+      "source": "codex",
+      "category": "Criteria Quality",
+      "sectionRef": "Acceptance Criteria > US-002 (logging AC)",
+      "description": "The logging AC says the new 'stop: lead-listener-required' line 'appears on the lead-block path AND ONLY on the lead-block path (no log on member allows or lead-with-armed-listener allows)'. But the existing shared 'stop: listener-*' log remains and will still fire on every listener-block decision. Tests should assert the NEW signature 'stop: lead-listener-required' is absent for members and armed leads — not 'only one log line'.",
+      "relevantFiles": [],
+      "suggestedFix": "Rephrase the AC to: 'The new \\`stop: lead-listener-required\\` log signature appears on the lead-block path. The signature does NOT appear in the locator log for member-block, member-allow, or lead-with-armed-listener cases.' Update the test cases to grep for the specific signature string, not assert single-log-line.",
+      "status": "fixed",
+      "fixedInIteration": 5,
+      "resolution": "Rephrased the lead-listener appendLog AC to specify string-match assertion on the new signature \"stop: lead-listener-required\" being present for lead-block fixtures and absent for member-block / member-allow / lead-with-armed-listener fixtures. The shared stop: listener-* log may co-occur."
+    },
+    {
+      "id": "F-007",
+      "severity": "Medium",
+      "source": "codex",
+      "category": "Completeness",
+      "sectionRef": "Risk Areas > Risk #2 (Regex coverage gap)",
+      "description": "Risk #2 mentions PowerShell '&' invocation, 'pwsh' wrappers, and 'npx crews' as forms the proposed regex might miss. But the plan's test fixtures and ARM_PATTERN_CREWS-shape regex deliberately scope to 'node ... crews.js' or 'node ... $CREWS_BIN' forms. PowerShell '&' is covered (the regex word-boundary still matches 'node' after '&'); 'pwsh -c node ...' is covered (still anchored on 'node'); 'npx crews' is NOT covered (no 'node' substring). The risk section reads as if all three are unaddressed.",
+      "relevantFiles": [
+        "ai-developer-toolkit/plugins/crews/hooks/listener-protocol.js"
+      ],
+      "suggestedFix": "Rewrite Risk #2 to be honest about scope: 'The regex is intentionally node-anchored because all real-world crews-CLI invocations in this codebase go through node. PowerShell `&` and shell-wrapper forms (e.g. `bash -c \"node ...\"`) are covered by the word-boundary anchor. `npx crews` is NOT covered and is explicitly out of scope — the codebase does not invoke crews via npx today.' Add 'npx crews invocation form' to Out of Scope. Optionally add a negative-case test asserting `npx crews status` returns false from isCrewsCliInfraCall, to document the scoping decision.",
+      "status": "fixed",
+      "fixedInIteration": 5,
+      "resolution": "Rewrote Risk #2 to honestly scope the regex: node-anchored design intentionally covers quoted paths, PowerShell & operator, and shell-wrapper forms; npx crews is explicitly out of scope with a negative-case test as the executable spec. Added npx crews to Out of Scope."
+    },
+    {
+      "id": "F-008",
+      "severity": "Medium",
+      "source": "copilot",
+      "category": "Completeness",
+      "sectionRef": "Approach > Files to Create/Modify > MODIFY for US-001 > tests/listener-protocol.test.js",
+      "description": "US-001 must cover `$CREWS_BIN` (bash/POSIX env var form, no env: prefix), but the listed direct/detector tests cover only `$env:CREWS_BIN` (PowerShell form) and `%CREWS_BIN%` (cmd.exe form). The regex matches `\\$(?:env:)?CREWS_BIN` so it DOES handle both forms, but without a test the bash/Claude invocation could regress without notice.",
+      "relevantFiles": [
+        "ai-developer-toolkit/plugins/crews/tests/listener-protocol.test.js"
+      ],
+      "suggestedFix": "Add a positive test case for `node $CREWS_BIN status` (no env: prefix) to the direct predicate tests in listener-protocol.test.js. Update the plan's US-001 test enumeration to include this case.",
+      "status": "fixed",
+      "fixedInIteration": 5,
+      "resolution": "Added node $CREWS_BIN status (bash/POSIX form, no env: prefix) to both the test enumeration in MODIFY-for-US-001 and the corresponding US-001 acceptance criteria for tests/listener-protocol.test.js and tests/progress-bg-gate.test.js."
+    },
+    {
+      "id": "F-009",
+      "severity": "Medium",
+      "source": "copilot",
+      "category": "Criteria Quality",
+      "sectionRef": "Acceptance Criteria > US-001 (byte-identical ACs)",
+      "description": "Byte-identical ACs for `isListenerArmCall` and `hooks/pre-tool-use.js` are good but don't specify HOW the impl verifies them. An autonomous impl might invent a snapshot mechanism or skip verification.",
+      "relevantFiles": [],
+      "suggestedFix": "Add the verification command to each byte-identical AC, e.g. 'Verify with `git -C ai-developer-toolkit diff -- plugins/crews/hooks/pre-tool-use.js` returns empty (no diff) at impl-end' and 'Verify with `git -C ai-developer-toolkit diff -- plugins/crews/hooks/listener-protocol.js` shows ONLY the new isCrewsCliInfraCall function + INFRA_PATTERN_CREWS constant + the export addition (no edits to ARM_PATTERN_CREWS / ARM_PATTERN_LEGACY / isListenerArmCall function body).'",
+      "status": "fixed",
+      "fixedInIteration": 5,
+      "resolution": "Added git diff verification commands to the byte-identical ACs: git -C ai-developer-toolkit diff -- plugins/crews/hooks/pre-tool-use.js returns empty; the listener-protocol.js diff shows ONLY additions (new INFRA_PATTERN_CREWS, new isCrewsCliInfraCall function, export-list addition) with no edits to ARM_PATTERN_CREWS / ARM_PATTERN_LEGACY / isListenerArmCall body."
+    }
+  ]
+}

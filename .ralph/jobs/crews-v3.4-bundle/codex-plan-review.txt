@@ -1,0 +1,27 @@
+### Feasibility
+
+[High] The `appendLog` snippet for US-002 is not directly implementable as written. In [stop.js](D:/harness-efforts/codexu/ai-developer-toolkit/plugins/crews/hooks/stop.js:637), `decideStopBlock` does not have local `name`, `crew`, `actorState`, `listenerState`, or `stateCwd` variables; it uses `ctx.flag.name`, `ctx.crew`, `decision.state.*`, and `ctx.stateCwd`. There also is no separate “lead-specific branch that returns the block decision”; the existing role branch only appends extra prose after the shared listener-block log. The plan should spell this as `if (ctx.flag.role === 'lead') appendLog(..., ctx.stateCwd)` before the return, using `decision.state`.
+
+[Critical] The plan’s scope and AC require pushing `ralph/crews-v3.4-bundle` to the toolkit `origin` remote, but repo guidance says to ask before pushing to remotes. The plan should either mark the push as lead/operator-owned or explicitly state that operator invocation authorizes this topic-branch push. As written, an autonomous implementer could violate the repo rule.
+
+Prior-review corrections for nonexistent test files look adequate: the plan uses the actual files `tests/stop-decision.test.js`, `tests/role-gate.test.js`, `tests/first-turn-listener-guard.test.js`, and `tests/progress-bg-gate.test.js`.
+
+### Completeness
+
+[Medium] The regex-risk section mentions PowerShell `&`, `pwsh` wrappers, and `npx crews`, but the concrete tests and proposed regex only cover `node .../crews.js ...` and env-var forms. If those invocation forms are intended requirements, add explicit positive/negative tests in [listener-protocol.test.js](D:/harness-efforts/codexu/ai-developer-toolkit/plugins/crews/tests/listener-protocol.test.js:1). If `npx crews` is out of scope, remove it from the risk claim.
+
+[Medium] The plan updates the detector comment in [detect-active-bg.js](D:/harness-efforts/codexu/ai-developer-toolkit/plugins/crews/hooks/detect-active-bg.js:38), but it should also update the corresponding Stop-hook explanatory comment in [stop.js](D:/harness-efforts/codexu/ai-developer-toolkit/plugins/crews/hooks/stop.js:1058), which still says the detector subtracts listener-arm calls via `isListenerArmCall`.
+
+### Ordering
+
+No issues found. The serial order is conservative and avoids version/changelog conflict churn.
+
+### Simplicity
+
+[Low] “Byte-identical” ACs for `isListenerArmCall` and `pre-tool-use.js` are useful, but the implementation can verify them with `git diff -- hooks/pre-tool-use.js hooks/listener-protocol.js` plus targeted inspection; no extra snapshot machinery is needed.
+
+### Acceptance Criteria Quality
+
+[High] The push acceptance criterion is not safely testable without clarifying approval/ownership. Replace “branch exists… pushed to origin” with either “branch exists locally; lead pushes after approval” or “operator-approved push to origin completed.”
+
+[Medium] The logging AC says the new `stop: lead-listener-required` line appears “on the lead-block path AND ONLY on the lead-block path,” but because the existing shared `stop: listener-*` log remains, tests should assert the new signature is absent for members and armed leads, not that lead blocks have only one log line.

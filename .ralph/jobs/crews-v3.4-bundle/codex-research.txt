@@ -1,0 +1,112 @@
+## Codebase Architecture
+
+The relevant code lives in the `ai-developer-toolkit` git submodule, specifically `ai-developer-toolkit/plugins/crews/`.
+
+`crews` is a Node.js hook/plugin package, not an npm package in this checkout: there is no `package.json` under `plugins/crews`. Tests are plain Node scripts run by `plugins/crews/tests/run.js`.
+
+Key structure:
+
+- `hooks/` — runtime hook logic for SessionStart, PreToolUse, Stop, listener protocol, mailbox/config helpers.
+- `hooks/crews.js` — CLI dispatcher used by commands like `arm`, `status`, `review-mail`.
+- `hooks/listener-protocol.js` — listener command construction and listener-arm detection.
+- `hooks/detect-active-bg.js` — Copilot async background process detector used by the progress-bg Stop gate.
+- `hooks/stop.js` — Stop hook gate orchestration, including listener reachability and progress-bg checks.
+- `hooks/pre-tool-use.js` — PreToolUse listener-arm gate; this is why `isListenerArmCall` must stay narrow.
+- `tests/` — plain Node regression tests plus shared helpers in `tests/lib/`.
+- `AGENTS.md`, `CHANGELOG.md` — protocol docs and release notes.
+- `scripts/bump-version.js` — bumps crews version across manifests, marketplace indexes, and `tests/version.test.js`.
+
+The codexu root tracks the submodule pointer and has an active plugin version table in `AGENTS.md`.
+
+## Feature-Relevant Code
+
+Direct integration points:
+
+- `ai-developer-toolkit/plugins/crews/hooks/listener-protocol.js`
+  - `ARM_PATTERN_CREWS`, `ARM_PATTERN_LEGACY`, `isListenerArmCall()` at lines 90-116.
+  - Export list at lines 269-283.
+  - Add `isCrewsCliInfraCall(cmd)` here, near the arm patterns.
+  - Existing regex style handles quoted paths; reuse that style rather than a bare `\S*crews\.js` only.
+
+- `ai-developer-toolkit/plugins/crews/hooks/detect-active-bg.js`
+  - Header `LISTENER FILTER` section at lines 38-44.
+  - Imports `isListenerArmCall` at line 79.
+  - Filters active async starts at line 225 with `const isListener = isListenerArmCall(start.command)`.
+  - Natural change: import both functions and use `isListenerArmCall(cmd) || isCrewsCliInfraCall(cmd)`.
+
+- `ai-developer-toolkit/plugins/crews/hooks/pre-tool-use.js`
+  - Imports `isListenerArmCall` / `isListenerArmToolCall` at lines 31-38.
+  - Uses listener-arm detection to allow only arm attempts through the arm-first gate.
+  - Do not broaden `isListenerArmCall`; that would create the safety bug described in the request.
+
+- `ai-developer-toolkit/plugins/crews/hooks/stop.js`
+  - `shouldRequireArmedListener()` at lines 111-115.
+  - `decideStopBlock()` at lines 637-679.
+  - Listener-armed gate call site at lines 1011-1037.
+  - Progress-bg gate at lines 1039-1107.
+  - Export list at lines 1419-1423.
+
+Tests to update/add:
+
+- `ai-developer-toolkit/plugins/crews/tests/progress-bg-gate.test.js`
+  - Existing detector unit coverage lives here, not in `tests/detect-active-bg.test.js`.
+  - Existing listener filter tests are lines 179-210.
+  - Add the crews `status` infra cases here.
+
+- `ai-developer-toolkit/plugins/crews/tests/listener-protocol.test.js`
+  - Asserts exact exports at lines 51-54. Adding `isCrewsCliInfraCall` requires updating this test.
+  - Good place to add direct predicate tests.
+
+- `ai-developer-toolkit/plugins/crews/tests/stop-decision.test.js`
+  - Already tests `shouldRequireArmedListener()` at lines 74-79 and `decideStopBlock()`.
+  - Good place for pure policy/log assertions.
+
+- `ai-developer-toolkit/plugins/crews/tests/role-gate.test.js`
+  - Existing lead prose-only pass case is lines 101-117.
+  - This likely needs adjustment: lead prose-only should still pass only when listener is armed.
+
+- `ai-developer-toolkit/plugins/crews/tests/first-turn-listener-guard.test.js`
+  - Existing member `kind=progress` no-listener pass case is lines 121-137.
+  - Good regression anchor for “member behavior unchanged.”
+
+There is no `tests/listener-arm-not-required.test.js` and no `tests/stop-hook.test.js` in this checkout.
+
+## Technical Constraints
+
+- Keep `isListenerArmCall()` narrow. `pre-tool-use.js` relies on it for permissioning listener arms through the arm-first gate.
+- `detect-active-bg.js` currently names the sample field `isListener`. If it starts filtering all crews CLI infrastructure, either keep the field for minimal blast radius or rename carefully with test updates. Minimal scope favors keeping it.
+- Stop hook ordering matters: listener reachability is evaluated before the progress-bg gate.
+- Lead prose-only turns are synthesized as `kind='progress'` in `stop.js` lines 889-903, so `shouldRequireArmedListener({ role:'lead', kind:'progress', queueDepth:0 })` must become true.
+- For strict manifest tests, `listenerState:'exited'` requires `lastListenerExitedAt`; `listenerState:'armed'` requires `lastListenerSpawnAt`.
+- Version bump should use `node plugins/crews/scripts/bump-version.js 3.4.0` from `ai-developer-toolkit/`. It updates both plugin manifests, three marketplace indexes, and `tests/version.test.js`.
+- Codexu root `AGENTS.md` active plugin versions table must be updated when the submodule pointer is bumped.
+
+## Implementation Suggestions
+
+Use a single toolkit branch such as `ralph/crews-v3.4-bundle` because both fixes share one `3.4.0` release.
+
+For US-001:
+
+- Add `isCrewsCliInfraCall(cmd)` beside `isListenerArmCall()` in `listener-protocol.js`.
+- Match `node` / `node.exe` plus quoted or unquoted `crews.js`, `$CREWS_BIN`, `$env:CREWS_BIN`, and `%CREWS_BIN%`, followed by any subcommand.
+- Export it and update `listener-protocol.test.js`.
+- Update `detect-active-bg.js` import, filter expression, and header comment.
+- Add detector cases in `progress-bg-gate.test.js` for full-path `crews.js status`, `$env:CREWS_BIN status`, and `node my-script.js` as a counterexample.
+
+For US-002:
+
+- Change `shouldRequireArmedListener()` to:
+  - `role === 'lead'` returns true.
+  - unknown roles return false.
+  - members keep existing terminal-kind or `queueDepth > 0` logic.
+- Add a lead-specific `appendLog('stop: lead-listener-required ...')` in `decideStopBlock()` when a lead is blocked for listener reachability.
+- Update the lead block prose/comment so it says leads always require an armed listener at end-of-turn.
+- Add/update tests in `stop-decision.test.js`, `role-gate.test.js`, and `first-turn-listener-guard.test.js`.
+
+Verification should run focused tests first, then full suite, with output saved:
+
+```bash
+cd ai-developer-toolkit
+node plugins/crews/tests/run.js tests/listener-protocol.test.js tests/progress-bg-gate.test.js tests/stop-decision.test.js tests/role-gate.test.js tests/first-turn-listener-guard.test.js tests/version.test.js > /tmp/crews-v3.4-focused.out 2>&1
+node plugins/crews/tests/run.js > /tmp/crews-v3.4-full.out 2>&1
+```

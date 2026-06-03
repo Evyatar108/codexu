@@ -1,0 +1,36 @@
+I’ll read the referenced prompt file first, then execute its instructions.
+
+The prompt is longer than a single read limit, so I’m loading it in sections.
+
+I’m now checking the referenced plugin code and tests so the plan review is grounded in the actual repository.
+
+The first path glob didn’t match, so I’m checking the submodule layout and then I’ll inspect the actual files by discovered path.
+
+I found the actual files; I’m reading the relevant hook/test sections now to identify any concrete plan defects.
+
+I’ve confirmed the hook locations and key invariants; I’m doing one more targeted check of the tests/metadata surfaces for mismatches in the plan.
+
+I have enough repository context now and am composing the review findings against the requested sections.Plan is **mostly feasible**, but I found a few issues to amend before implementation.
+
+### Feasibility
+
+- [High] `ai-developer-toolkit\plugins\crews\hooks\stop.js` appendLog snippet uses undefined locals: `name`, `crew`, `actorState`, `listenerState`, `stateCwd`. In the actual `decideStopBlock` scope, these are `ctx.flag.name`, `ctx.crew`, `decision.state.actorState`, `decision.state.listenerState`, and `ctx.stateCwd`. If copied literally, the new lead-block path will throw.
+
+### Completeness
+
+- [High] The test commands violate `ai-developer-toolkit\AGENTS.md`, which requires plugin test output to be saved/tee’d on first run. Update all focused/full test commands to redirect or tee to a log file, e.g. `node plugins/crews/tests/run.js ... > .ralph/jobs/crews-v3.4-bundle/test-output-us-001.log 2>&1`.
+
+- [Medium] US-001 says the infra detector must cover `$CREWS_BIN`, but the listed direct/detector tests cover `$env:CREWS_BIN` and `%CREWS_BIN%` only. Add a positive case for `node $CREWS_BIN status` or `node $CREWS_BIN review-mail ...` in `tests\listener-protocol.test.js`; otherwise a bash/Claude env-bin regression could slip through.
+
+### Ordering
+
+No issues found.
+
+### Simplicity
+
+No issues found.
+
+### Acceptance Criteria Quality
+
+- [Medium] The byte-identical criteria for `isListenerArmCall` and `hooks\pre-tool-use.js` are good, but should specify verification via `git diff -- hooks/pre-tool-use.js` and targeted diff review of only the new helper/export in `listener-protocol.js`, so the autonomous implementer has an unambiguous check.
+

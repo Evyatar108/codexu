@@ -1,0 +1,43 @@
+{
+  "clusters": [
+    {
+      "name": "us-001-detector-broaden-infra-filter",
+      "stories": ["US-001"],
+      "phase": 1,
+      "dependsOn": [],
+      "fileOverlapEvidence": {
+        "sharedFiles": [],
+        "exclusiveFiles": [
+          "ai-developer-toolkit/plugins/crews/hooks/listener-protocol.js",
+          "ai-developer-toolkit/plugins/crews/hooks/detect-active-bg.js",
+          "ai-developer-toolkit/plugins/crews/tests/listener-protocol.test.js",
+          "ai-developer-toolkit/plugins/crews/tests/progress-bg-gate.test.js"
+        ],
+        "risk": "low"
+      },
+      "executionModeRationale": "This cluster's files are fully disjoint from US-002's files. Could run in parallel with US-002 if the bundle-coordination commit is deferred to a synthetic third step; serial ordering chosen because the shared CHANGELOG / AGENTS / version-script files would otherwise create merge conflicts between two parallel branches."
+    },
+    {
+      "name": "us-002-require-lead-listener-unconditionally-and-bundle-coord",
+      "stories": ["US-002"],
+      "phase": 2,
+      "dependsOn": ["us-001-detector-broaden-infra-filter"],
+      "fileOverlapEvidence": {
+        "sharedFiles": [
+          "ai-developer-toolkit/plugins/crews/CHANGELOG.md",
+          "ai-developer-toolkit/plugins/crews/AGENTS.md",
+          "ai-developer-toolkit/plugins/crews/.claude-plugin/plugin.json",
+          "ai-developer-toolkit/plugins/crews/.github/plugin/plugin.json",
+          "ai-developer-toolkit/plugins/crews/tests/version.test.js"
+        ],
+        "exclusiveFiles": [
+          "ai-developer-toolkit/plugins/crews/hooks/stop.js",
+          "ai-developer-toolkit/plugins/crews/tests/stop-decision.test.js",
+          "ai-developer-toolkit/plugins/crews/tests/role-gate.test.js"
+        ],
+        "risk": "medium"
+      },
+      "executionModeRationale": "This cluster owns the bundle-coordination commit (CHANGELOG / AGENTS / version-bump script). Serial-after Cluster 1 so the bump-version.js script runs once on the final branch state and the CHANGELOG block reflects BOTH stories' fixes. Shared files (CHANGELOG.md, AGENTS.md, plugin manifests, marketplace indexes, version.test.js) make parallel execution unsafe."
+    }
+  ]
+}

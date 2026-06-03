@@ -1,0 +1,63 @@
+I’ll open the referenced prompt file to determine the requested work.
+
+I’ll research the crews plugin surfaces referenced by the feature request and summarize the implementation-relevant architecture.
+
+I found the relevant plugin area; next I’m reading the hook and test files around the exact gates the plan targets.
+
+I’m checking the existing test fixtures and release metadata so the research notes can point to the right integration points, not just the hook code.
+
+The named test files in the request don’t exist in this checkout; I’m locating the current equivalent test surfaces.
+
+The current equivalents are `progress-bg-gate.test.js`, `stop-decision.test.js`, `first-turn-listener-guard.test.js`, and `role-gate.test.js`; I’m reading the relevant sections.
+
+I’m verifying exported helpers and current docs around the listener/progress gate so the suggested plan aligns with existing public test hooks.
+
+I have enough codebase context; I’m preparing the research summary with the current-file corrections noted.### Codebase Architecture
+
+`ai-developer-toolkit/plugins/crews` is a JavaScript-only Claude Code / GitHub Copilot CLI plugin. Runtime logic is organized under `hooks/`, command dispatch under `hooks/commands/` and `tools/crews.js`, tests under `tests/`, and release metadata in `.claude-plugin/`, `.github/plugin/`, marketplace JSON files, `CHANGELOG.md`, and `tests/version.test.js`. There is no package-level build/typecheck; changed JS files should use `node --check`, and tests run with `node tests/run.js`.
+
+### Feature-Relevant Code
+
+Key files:
+
+- `hooks/listener-protocol.js`
+  - `isListenerArmCall(cmd)` currently matches only `crews.js arm`, `$CREWS_BIN arm`, `$env:CREWS_BIN arm`, `%CREWS_BIN% arm`, and legacy `wait-for-message.js`.
+  - Natural home for `isCrewsCliInfraCall(cmd)`.
+- `hooks/detect-active-bg.js`
+  - Imports `isListenerArmCall`.
+  - Computes `samples[].isListener` at line ~225 and derives `nonListenerCount`.
+  - Header `LISTENER FILTER` must be updated.
+- `hooks/stop.js`
+  - `shouldRequireArmedListener({ role, kind, queueDepth })` at line ~111 currently treats leads and members symmetrically.
+  - `decideStopBlock(ctx, state)` at line ~637 calls that helper, then `requireReachableForStop`, logs `stop: listener-*`, and formats the block reason.
+  - Progress-bg gate around line ~1086 only applies to Copilot members with `kind=progress`.
+- Current test equivalents:
+  - `tests/progress-bg-gate.test.js`, not `tests/detect-active-bg.test.js`.
+  - `tests/stop-decision.test.js`, not `tests/stop-hook.test.js`.
+  - `tests/first-turn-listener-guard.test.js` and `tests/role-gate.test.js`, not `tests/listener-arm-not-required.test.js`.
+
+### Technical Constraints
+
+Do **not** broaden `isListenerArmCall`; PreToolUse uses it as an allow-through detector for listener arming, so widening it would weaken safety. Add a separate exported infra predicate and use it only in bg detection.
+
+Release bump should use:
+
+```text
+node plugins/crews/scripts/bump-version.js 3.4.0
+node plugins/crews/tests/version.test.js
+```
+
+This updates the two plugin manifests, three marketplace indexes, and the pinned version test. `CHANGELOG.md` and `plugins/crews/AGENTS.md` must also be updated.
+
+### Implementation Suggestions
+
+For US-001, add `isCrewsCliInfraCall(cmd)` in `listener-protocol.js` with a regex matching `node` / `node.exe` plus either a `crews.js` path or CREWS_BIN env reference followed by any subcommand. Export it. In `detect-active-bg.js`, import both predicates and compute infrastructure filtering as:
+
+```js
+const isListener = isListenerArmCall(start.command) || isCrewsCliInfraCall(start.command);
+```
+
+Tests should be added to `tests/progress-bg-gate.test.js` near existing detector unit cases.
+
+For US-002, change `shouldRequireArmedListener` to return `true` immediately for `role === 'lead'`, leaving member behavior unchanged. Add focused tests in `tests/stop-decision.test.js` for lead exited/armed and member progress pass-through. Update the lead block prose and add a lead-specific log line in `decideStopBlock` only when the new lead-listener-required path blocks.
+
