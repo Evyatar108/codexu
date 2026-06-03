@@ -1830,6 +1830,32 @@
       }
     },
     {
+      "id": "overview-task-blocked-on-with-auto-unblock",
+      "scope": "codexu|ralph-overview",
+      "lifecycle": "tracked",
+      "status": "ok",
+      "lastTouchedAt": "2026-06-03T01:44:00Z",
+      "kanbanCards": [
+        {
+          "className": "cmd-warn",
+          "html": "<strong>Surfaced 2026-06-03 by operator</strong> after manual sweep caught <code>async-events-design</code> being silently no-longer-blocked (its blocker, the channels primitive, had shipped as <code>codex-channels-option-b</code> earlier today, but the prose-only kanban entry on async-events-design didn't surface that automatically). Repeat pattern is wasteful and error-prone."
+        }
+      ],
+      "command": {
+        "name": "overview-task-blocked-on-with-auto-unblock",
+        "descriptionHtml": "<strong>Add structured task-dependency tracking + auto-unblock detection.</strong> Today blockers live as free prose in <code>descriptionHtml</code> / <code>kanbanCards</code>; the only way to detect that a blocked task's blocker has merged is to manually sweep. Add a structured <code>blockedOn: TaskId[]</code> field on <code>OverviewTask</code> and surface auto-unblock candidates wherever the bookkeeper plans next-batch (snapshot / recommendations / MCP / viewer). <strong>Scope (multi-repo):</strong> (a) codexu: extend <code>.ralph-overview/config.json</code> JSON schema; backfill existing 5 blocked tasks (<code>3b-agents</code>, <code>3d-workers</code>, <code>3fg-package</code>, <code>agent-comms</code>, <code>escalate-gim-home-actions-policy</code>) with their actual blocker task IDs by mining their prose; (b) ralph-overview plugin (toolkit submodule): extend <code>parseOverviewData</code> JSON schema to accept + validate <code>blockedOn</code>; emit auto-unblock-candidate flag on snapshot.json + recommendations.json when <code>status === 'blocked' &amp;&amp; blockedOn.every(id =&gt; tasks[id]?.lifecycle === 'merged')</code>; surface in MCP tool (probably extend <code>overview_parallel_ready_tasks</code> OR add a dedicated <code>overview_auto_unblock_candidates</code> tool); render in viewer kanban (visual marker on auto-unblock candidates). Multi-repo ship order: toolkit first (submodule SHA bump in codexu) → codexu config + backfill second. Coordinate with the just-merged <code>ai-developer-toolkit-submodule</code> ship which made toolkit edits go through the in-tree submodule.",
+        "warnings": [
+          {
+            "className": "cmd-warn",
+            "html": "Multi-repo ship. Toolkit changes go through the in-tree ai-developer-toolkit/ submodule (commit there first, push, then bump codexu pointer). Schema additive — existing tasks without blockedOn stay valid. Backfill is bookkeeper-driven prose mining; impl member should leave it to lead OR provide a candidate list for operator review."
+          }
+        ],
+        "prompts": {
+          "plan": "/plan-with-ralph \"Add structured blockedOn dependency tracking + auto-unblock detection to the ralph-overview schema. Today blockers live only as free prose in descriptionHtml / kanbanCards; operators have to manually sweep to notice when a blocked task's blocker has shipped. Concrete fix: (a) extend the OverviewTask schema with blockedOn: TaskId[] (additive — existing tasks without it stay valid); (b) the ralph-overview plugin (D:/harness-efforts/codexu/ai-developer-toolkit/plugins/ralph-overview/) extends parseOverviewData to accept + validate the new field; (c) snapshot.json + recommendations.json emit an auto-unblock-candidate flag when status === 'blocked' AND every blockedOn task has lifecycle === 'merged'; (d) surface in MCP server — likely extend overview_parallel_ready_tasks OR add a dedicated overview_auto_unblock_candidates MCP tool; (e) the kanban viewer paints a visual marker on auto-unblock candidates; (f) update the JSON Schema at .ralph-overview/config.json schema file to declare the new field. Multi-repo ship order: toolkit edits go through the in-tree ai-developer-toolkit/ submodule (commit there first, push to evmitran_microsoft/personal/gim-home, then bump codexu submodule pointer). Backfill of the existing 5 blocked tasks (3b-agents, 3d-workers, 3fg-package, agent-comms, escalate-gim-home-actions-policy) is a separate bookkeeper-driven prose-mining step — the impl can either do it via a candidate-list report for operator review OR leave it as a follow-up task. Plan should propose which. NOT in scope: changing the existing lifecycle/status semantics; adding a UI editor for blockedOn (lead-curated only); cross-repo dependency tracking (only within data.json). Vitest coverage for the parser + emitter required. Cross-engine viewer test (Copilot + Claude installs both render the marker) optional but recommended.\""
+        }
+      }
+    },
+    {
       "id": "native-agent-parity",
       "scope": "codexu",
       "lifecycle": "merged",
