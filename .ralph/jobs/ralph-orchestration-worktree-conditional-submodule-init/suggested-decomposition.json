@@ -1,31 +1,30 @@
 {
   "clusters": [
     {
-      "name": "worktree-conditional-submodule-init",
-      "stories": ["US-001", "US-002", "US-003", "US-004", "US-005", "US-006", "US-007", "US-008", "US-009"],
+      "name": "single-sequential",
+      "stories": ["US-001", "US-002", "US-003", "US-004", "US-005", "US-006", "US-007", "US-008"],
       "phase": 1,
       "dependsOn": [],
       "fileOverlapEvidence": {
         "sharedFiles": [
-          "ai-developer-toolkit/plugins/ralph/src/worktree-create.mjs",
-          "ai-developer-toolkit/plugins/ralph/tests/worktree-create.test.mjs",
-          "ai-developer-toolkit/plugins/ralph/tests/test-submodule-worktree-init.sh",
-          "ai-developer-toolkit/plugins/ralph/skills/plan-with-ralph/SKILL.md",
-          "ai-developer-toolkit/plugins/ralph/skills/convert-to-ralph-prd/SKILL.md",
-          "ai-developer-toolkit/plugins/ralph/.copilot-plugin/copilot-skills/plan-with-ralph/SKILL.md",
-          "ai-developer-toolkit/plugins/ralph/.copilot-plugin/internal-workflows/convert-to-ralph-prd/SKILL.md",
           "ai-developer-toolkit/plugins/ralph/AGENTS.md",
+          "ai-developer-toolkit/plugins/ralph/CHANGELOG.md",
           "ai-developer-toolkit/plugins/ralph/.claude-plugin/plugin.json",
           "ai-developer-toolkit/plugins/ralph/.github/plugin/plugin.json",
           "ai-developer-toolkit/.claude-plugin/marketplace.json",
           "ai-developer-toolkit/.github/plugin/marketplace.json",
           "ai-developer-toolkit/.agents/plugins/marketplace.json",
-          "AGENTS.md"
+          "ai-developer-toolkit/plugins/ralph/src/worktree-create.mjs",
+          "ai-developer-toolkit/plugins/ralph/tests/worktree-create.test.mjs",
+          "ai-developer-toolkit/plugins/ralph/tests/test-submodule-worktree-init.sh",
+          "ai-developer-toolkit/plugins/ralph/skills/decompose-plan/SKILL.md",
+          "ai-developer-toolkit/plugins/ralph/.copilot-plugin/internal-workflows/decompose-plan/SKILL.md",
+          "D:/harness-efforts/codexu/AGENTS.md"
         ],
         "exclusiveFiles": [],
-        "risk": "high"
+        "risk": "low"
       },
-      "executionModeRationale": "Tightly-coupled change across a small surface. Tests (US-002/US-003) depend on the runtime flags (US-001 adds both --no-submodule-init and --require-submodule-init). Copilot mirrors (US-004) regenerate from plan-with-ralph + convert-to-ralph-prd SKILL.md edits in one generate-copilot-artifacts.mjs --write pass. AGENTS.md (US-005) and the 5-stamp version bump (US-006) land in the same toolkit topic-branch commit as US-001-005 (US-007 is the toolkit-handoff gate). Codexu pointer bump (US-008) depends on US-007's SHA existing on a pushed toolkit topic branch. Smoke (US-009) depends on lead-FF + multi-remote sync completing for both repos. Serializing is correct; parallelism would conflict on every modified file."
+      "executionModeRationale": "Approximately 50 lines of code change plus docs, version-stamp bump, and a two-commit submodule pattern. Parallelization buys nothing — every story touches a small overlapping set of files (worktree-create.mjs, AGENTS.md, CHANGELOG.md, version stamps). Single-member sequential execution eliminates the file-overlap concern entirely and matches the operator's pivot toward minimum complexity."
     }
   ]
 }

@@ -1,0 +1,23 @@
+### Feasibility
+
+No issues found. The main code/test/doc touchpoints exist as described: `src/worktree-create.mjs`, `tests/worktree-create.test.mjs`, `tests/test-submodule-worktree-init.sh`, and the three skill files plus Copilot mirrors.
+
+### Completeness
+
+[High] The plan misses stale batch-mode prose in `ai-developer-toolkit/plugins/ralph/skills/convert-to-ralph-prd/SKILL.md:54` and its Copilot mirror. It currently says batch mode does not init submodules because `decompose-plan` owns it for parallel-group members. After this change, `decompose-plan` explicitly will not own init. Updating only the Step 5 prose around line 396 leaves a false contract in the same skill.
+
+[Medium] `tests/test-submodule-worktree-init.sh` has more obsolete inline-lock coverage than the plan calls out. The plan discusses removing or repurposing the `run_locked_submodule_update()` behavioral fixture, but `assert_stale_lock_recovery`, `assert_missing_pid_recovery`, and `assert_timeout_override` still test the old shell lock helpers rather than live `worktree-create.mjs` behavior. Either delete them as obsolete or port equivalent stale-lock/timeout checks to the opt-in Node helper path.
+
+### Ordering
+
+No issues found. US-008 being lead-owned after the toolkit main merge is correctly separated from the autonomous toolkit implementation.
+
+### Simplicity
+
+[Low] The plan’s `helpText` guidance keeps the success JSON example with `"submoduleInitRan": true` while making default behavior false. That is defensible as a shape example, but simpler and less misleading would be showing `false` in the generic example and documenting that it becomes `true` only with `--init-submodules`.
+
+### Acceptance Criteria Quality
+
+[Medium] AC-1’s “lock-parent dir existence-state is unchanged” can miss the exact regression it is meant to catch if `~/.cache/ralph-orchestration/` already exists. A mistaken implementation could still call `mkdirSync(lockParent, { recursive: true })` and pass. The CLI default no-op test should run with an isolated temporary `HOME`/`USERPROFILE` where the lock parent is known absent, then assert it remains absent.
+
+Prior review amendments are mostly adequate: the plan now covers the stale Step 5 prose, `plan-with-ralph`, the test-script redesign, `protocol.file.allow`, and the lead-owned smoke split. The main regression is the missed `convert-to-ralph-prd` batch-mode summary line.

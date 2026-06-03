@@ -1,126 +1,121 @@
-# Stories Outline: ralph-orchestration-worktree-conditional-submodule-init
+# Stories Outline: ralph-orchestration-worktree-conditional-submodule-init (NARROW re-plan)
 
-*Preliminary decomposition from `/plan-with-ralph`. Feed to `/implement-with-ralph --from-plan` for PRD generation.*
+*Preliminary decomposition from `/plan-with-ralph`. Feed to `/implement-with-ralph --from-plan` for PRD generation. Supersedes the OFF-TARGET 130bbff7 plan.*
 
-## US-001: Add CLI flags + helpers to `worktree-create.mjs`
-
-**Description:** As a Ralph plugin maintainer, I want `worktree-create.mjs` to accept `--no-submodule-init` (negative-form CLI skip) and `--require-submodule-init` (positive-form impl-side override) flags plus a `RALPH_NO_SUBMODULE_INIT` env var so plan-with-ralph can default-skip submodule init while impl callers (`convert-to-ralph-prd` Step 5) can force init regardless of operator env vars.
-
+## US-001: Make `runSubmoduleInit()` opt-in via `--init-submodules`
+**Description:** As an autonomous impl member, I want `worktree-create.mjs` to skip submodule initialization by default and only init when `--init-submodules` is passed, so that plan-phase and impl-phase worktrees don't pay the multi-GB submodule-pull cost on every spawn.
 **Acceptance Criteria:**
-- [ ] `parseArgs` accepts `--no-submodule-init` and `--require-submodule-init` (both boolean, default false). Unknown-arg error continues to fire for typos.
-- [ ] Module-level helpers `parseTruthyEnv(value)` and `shouldSkipSubmoduleInit(opts, env = process.env)` exist; precedence is require > no > env > default.
-- [ ] `runSubmoduleInit(worktreePath, io, opts = {})` early-returns `false` with a single-line stderr `Skipping submodule init for ...` BEFORE `mkdirSync(lockParent, ...)` at line 267 when `shouldSkipSubmoduleInit(opts)` is true.
-- [ ] Reuse-path call (worktree-create.mjs line 88) threads `opts`; `finishResult` signature accepts `opts` and threads it; both fresh-create call sites (lines 108, 113) pass `opts`.
-- [ ] `helpText` documents both flags + the env var + the precedence rule. Success-JSON example comment mentions `submoduleInitRan` may be `false` when skipped.
-- [ ] Typecheck passes (`node --check ai-developer-toolkit/plugins/ralph/src/worktree-create.mjs` or equivalent ESM parse).
-- [ ] Lint passes (no new warnings; the file has no eslint config locally — adhere to existing style).
+- [ ] `parseArgs` in `src/worktree-create.mjs` accepts `--init-submodules` and sets `opts.initSubmodules = true`; default is `false` via the initial opts object.
+- [ ] `runSubmoduleInit(worktreePath, io, opts)` signature accepts `opts` and returns `false` BEFORE any filesystem touch when `!opts.initSubmodules`.
+- [ ] Both call sites (reuse path + fresh path via `finishResult`) thread `opts` through; `finishResult` signature gains trailing `opts` arg.
+- [ ] `helpText` documents the new flag and notes the new default is no-op.
+- [ ] Default CLI invocation produces stdout JSON `"submoduleInitRan": false`, no lock-parent dir activity, and empty submodule dirs in the resulting worktree.
+- [ ] Opt-in CLI invocation (`--init-submodules`) produces stdout JSON `"submoduleInitRan": true`, acquires + releases the lock, and populates declared submodules.
+- [ ] Typecheck / `node --check src/worktree-create.mjs` passes.
 **Dependencies:** None
 **Estimated complexity:** small
 
-## US-002: Add node test cases to `tests/worktree-create.test.mjs`
-
-**Description:** As a plugin maintainer, I want 7 new `node:test` cases asserting both flag-only / env-only / flag+env / default behaviors, the reuse-path skip, and the positive-form override's env immunity so the helper's behavior is locked under all signal combinations.
-
+## US-002: Update `tests/worktree-create.test.mjs` for v5.50.0 default
+**Description:** As an autonomous impl member, I want the node:test cases to cover both the new default no-op path and the opt-in init path so that future regressions on either path are caught at test time.
 **Acceptance Criteria:**
-- [ ] `beforeEach`/`afterEach` capture-and-restore `process.env.RALPH_NO_SUBMODULE_INIT` (and any other env var the helper reads) so inherited shell env does not bleed in.
-- [ ] Fixture helper builds a temp super-repo + temp file-protocol submodule-origin, adds submodule at `external/test-submodule` with `git -c protocol.file.allow=always submodule add`, then `git -C <super-repo> config protocol.file.allow always` so the policy is inherited by helper invocations.
-- [ ] Per-test temp `HOME`/`USERPROFILE` override so `~/.cache/ralph-orchestration` lock paths are isolated per test.
-- [ ] Cases (a)-(g) all pass: flag-only, env-only (3 truthy variants + 1 falsy regression), flag+env, default unchanged, reuse-path observes skip, `--require-submodule-init` overrides env, `--require-submodule-init` overrides `--no-submodule-init`.
-- [ ] `node --test ai-developer-toolkit/plugins/ralph/tests/worktree-create.test.mjs` exits 0 with at least 12 total assertions across the new cases.
+- [ ] Existing tests that asserted `submoduleInitRan: true` are amended with `initSubmodules: true` (preserving original intent) OR updated to `false` if the test was incidentally exercising the default.
+- [ ] NEW test: default `createWorktree({ ... })` invocation (without `initSubmodules`) returns `submoduleInitRan === false`.
+- [ ] NEW test: `createWorktree({ ..., initSubmodules: true })` returns `submoduleInitRan === true`.
+- [ ] NEW CLI help-text test: `runCli(['--help'])` stdout contains `--init-submodules`.
+- [ ] `node --test plugins/ralph/tests/worktree-create.test.mjs` passes including all amended + new cases.
 **Dependencies:** US-001
+**Estimated complexity:** small
+
+## US-003: Redesign `tests/test-submodule-worktree-init.sh` for v5.50.0
+**Description:** As an autonomous impl member, I want the bash behavioral test to (a) cover the new CLI default no-op and opt-in cases against the existing super-repo fixture, (b) drop assertions that became false under v5.50.0, and (c) add negative-assertions covering the v5.50.0 prose contract for the three updated SKILL.md files. The test must NOT amend the existing `assert_source_contract` / `assert_grep_contracts` semantics naively — the source files no longer contain `git submodule update --init`, so those assertions need REPLACEMENT not amendment.
+**Acceptance Criteria:**
+- [ ] In `create_fixture_repos()`, `git config protocol.file.allow always` is set on the super-repo immediately after `git init` so worktrees created via `worktree-create.mjs` inherit the config (mitigates F-004; without this the helper's plain `git submodule update --init --recursive` fails against the file:// fixture submodule).
+- [ ] `assert_source_contract($decompose)` and `assert_source_contract($convert)` are removed from `assert_grep_contracts()` (both files lose the `git submodule update --init` line under v5.50.0).
+- [ ] The two `assert_file_contains "$copilot_*" "git submodule update --init"` calls in `assert_grep_contracts()` are removed (mirrors lose the line too).
+- [ ] `assert_batch_scope($convert)` is KEPT (still true: convert-to-ralph-prd batch-mode prose at line ~372 does not contain init command).
+- [ ] NEW assertion: decompose-plan SKILL.md does NOT contain `git submodule update --init --recursive` anywhere in Step 5b's section.
+- [ ] NEW assertion: convert-to-ralph-prd SKILL.md Step 5 prose does NOT contain `submodules initialize under the shared cross-process lock` AND DOES contain `--init-submodules` reference.
+- [ ] NEW assertion: plan-with-ralph SKILL.md Phase 1B prose does NOT contain `initializes submodules under the shared Ralph lock` AND DOES contain `--init-submodules` reference.
+- [ ] NEW CLI case "default no-op": `node "$PLUGIN_ROOT/src/worktree-create.mjs" --target-repo $SUPER_REPO --worktree-path <fresh-wt> --branch <br> --json` returns JSON `.submoduleInitRan == false`, `git -C <wt> submodule status` lines all begin with `-`, lock-parent dir existence-state unchanged.
+- [ ] NEW CLI case "opt-in init": same command with `--init-submodules` returns `.submoduleInitRan == true`, submodule status lines all begin with space.
+- [ ] The existing `run_locked_submodule_update()` behavioral fixture is either deleted OR repurposed as a regression test asserting decompose-plan's new "no inline init" prose. Repurpose preferred.
+- [ ] `bash plugins/ralph/tests/test-submodule-worktree-init.sh` passes end-to-end.
+**Dependencies:** US-001, US-004 (decompose-plan), US-004b (convert-to-ralph-prd), US-004c (plan-with-ralph)
 **Estimated complexity:** medium
 
-## US-003: Add bash test cases to `tests/test-submodule-worktree-init.sh`
-
-**Description:** As a plugin maintainer, I want 7 new bash behavioral test cases that invoke `worktree-create.mjs` against a fixture super-repo with a declared file-protocol submodule so the CLI path is exercised end-to-end on Git Bash on Windows.
-
+## US-004: Remove inline submodule-init from `decompose-plan` Step 5b
+**Description:** As a parallel-group impl member, I want `decompose-plan` Step 5b to NOT initialize submodules in my worktree post-creation, matching the v5.50.0 worktree-create.mjs no-op default for parity. If I need submodule code, I run `git submodule update --init <path>` from inside my worktree on demand.
 **Acceptance Criteria:**
-- [ ] Fixture setup configures `git -C <super-repo> config protocol.file.allow always` so worktree-create.mjs's plain `git submodule update` invocation succeeds against the local file-protocol fixture.
-- [ ] Per-test temp `HOME` env-override so the lock-parent dir is isolated.
-- [ ] Tests assert via text-grep on JSON output (`grep -q '"submoduleInitRan"[[:space:]]*:[[:space:]]*false'`); NO `jq` calls per the v5.46.0 prerequisite-removal contract.
-- [ ] Mtime-based lock-parent skip assertion uses `stat -c '%Y'` (available in Git Bash on Windows).
-- [ ] All 7 new sections pass: flag-only, env-only (3 truthy variants + 1 falsy), flag+env, default unchanged, reuse-path, `--require-submodule-init` overrides env, `--require-submodule-init` overrides `--no-submodule-init`.
-- [ ] Pre-existing source-contract greps still pass (no breakage of v5.42.0 / v5.46.0 assertions).
-- [ ] `bash ai-developer-toolkit/plugins/ralph/tests/test-submodule-worktree-init.sh` exits 0.
-**Dependencies:** US-001
-**Estimated complexity:** medium
-
-## US-004: Wire flags into plan-with-ralph + convert-to-ralph-prd + regenerate Copilot mirrors
-
-**Description:** As a Ralph operator, I want plan-with-ralph Phase 1B to default to `--no-submodule-init` (with `/plan-with-ralph --init-submodules` as the opt-out) AND convert-to-ralph-prd Step 5 to pass `--require-submodule-init` so plan-phase wins on submodule init time while impl-phase stays safe.
-
-**Acceptance Criteria:**
-- [ ] `skills/plan-with-ralph/SKILL.md` Phase 1 arg-parsing list documents new `--init-submodules` boolean flag (no-list-arg variant; differs from the future helper-CLI `--init-submodules <list>` deferred to D-002).
-- [ ] `skills/plan-with-ralph/SKILL.md` Phase 1 output state table has a new `init_submodules` row.
-- [ ] `skills/plan-with-ralph/SKILL.md` Phase 1B wraps the worktree-create.mjs invocation so `--no-submodule-init` is added IFF `init_submodules != true`. Prose update documents the default + opt-out behavior.
-- [ ] `skills/convert-to-ralph-prd/SKILL.md` Step 5 invocation includes `--require-submodule-init` with a 1-line prose rationale.
-- [ ] `node ai-developer-toolkit/plugins/ralph/scripts/generate-copilot-artifacts.mjs --write` (from codexu root) regenerates `.copilot-plugin/copilot-skills/plan-with-ralph/SKILL.md` AND `.copilot-plugin/internal-workflows/convert-to-ralph-prd/SKILL.md` to match.
-- [ ] `node ai-developer-toolkit/plugins/ralph/scripts/generate-copilot-artifacts.mjs --check` and `node ai-developer-toolkit/plugins/ralph/scripts/check-copilot-parity.mjs` both exit 0.
-- [ ] PR description / commit message lists every `worktree-create.mjs` callsite in plan-with-ralph + Copilot mirror + convert-to-ralph-prd + its mirror, with per-site decision rationale (skip / keep / require).
+- [ ] `skills/decompose-plan/SKILL.md` Step 5b's prose paragraph "After the worktree has been added or validly reused, initialize submodules under the shared cross-process lock at ..." is removed.
+- [ ] The entire inline bash block (`lock_parent=...` + acquire-loop + `git submodule update --init --recursive` + cleanup + trap) is removed.
+- [ ] A replacement 1-paragraph note explains: "After the worktree is added or validly reused, do NOT initialize submodules. Members whose work requires submodule contents run `git submodule update --init <path>` from inside the worktree on demand. This matches the v5.50.0 worktree-create.mjs no-op default; see `plugins/ralph/AGENTS.md` `## v5.50.0 Behavioral Additions` for the pivot rationale."
+- [ ] `.copilot-plugin/internal-workflows/decompose-plan/SKILL.md` regenerated via `node plugins/ralph/scripts/generate-copilot-artifacts.mjs --write`.
+- [ ] `node plugins/ralph/scripts/generate-copilot-artifacts.mjs --check` passes post-edit.
+- [ ] `node plugins/ralph/scripts/check-copilot-parity.mjs` passes.
 **Dependencies:** US-001
 **Estimated complexity:** small
 
-## US-005: AGENTS.md `## v5.48.0 Behavioral Additions` section
-
-**Description:** As a plugin maintainer, I want a new `## v5.48.0 Behavioral Additions` section in `plugins/ralph/AGENTS.md` documenting the new flags, env var, precedence rule, plan-default change, impl positive-form override, lock-skip semantics, test gate, and release reminder so future agents have an authoritative reference.
-
+## US-004b: Rewrite stale submodule-init prose in `convert-to-ralph-prd` Step 5
+**Description:** As a doc reader, I want the `convert-to-ralph-prd` Step 5 prose to accurately describe the v5.50.0 worktree-create.mjs no-op default rather than claiming the helper initializes submodules under a shared lock.
 **Acceptance Criteria:**
-- [ ] New section added immediately AFTER the existing latest-version block (likely after `## v5.47.0` or `## v5.46.0` if 5.47 has no entry).
-- [ ] ≥8 bold-prefixed bullets following the v5.42.0 style (each starts with `- **<topic>.**`).
-- [ ] Bullets cover: both new flags individually, env var, precedence rule (require > no > env > default), lock-skip on no-op, plan-default + `--init-submodules` opt-out, convert-to-ralph-prd `--require-submodule-init` wiring, test gate (no jq, protocol.file.allow=always), why v5.42.0 relaxation is safe on plan-phase, release reminder (5 stamps).
-- [ ] Verifier command: `test "$(awk '/^## v5\.48\.0/,/^## v5\.4[0-7]/' ai-developer-toolkit/plugins/ralph/AGENTS.md | grep -c '^- \*\*')" -ge 8` exits 0.
-**Dependencies:** US-001, US-004
+- [ ] In `skills/convert-to-ralph-prd/SKILL.md`, the "The helper owns the behavior previously inlined here:" bullet list submodule-init bullet (around line ~396 in v5.49.0) is rewritten to: "submodule initialization is OPT-IN via `--init-submodules` (default off in v5.50.0+); this caller omits the flag so the impl worktree starts with uninitialized submodules. Members run `git submodule update --init <path>` on demand from inside the worktree."
+- [ ] Batch-mode prose (around line ~372) is UNTOUCHED — it remains factually correct ("do not initialize submodules" because batch mode doesn't, regardless of helper default).
+- [ ] `.copilot-plugin/internal-workflows/convert-to-ralph-prd/SKILL.md` regenerated via `generate-copilot-artifacts.mjs --write`.
+- [ ] `--check` and `check-copilot-parity.mjs` pass.
+**Dependencies:** US-001
 **Estimated complexity:** small
 
-## US-006: 5-stamp version bump to `5.48.0`
-
-**Description:** As a plugin maintainer, I want all 5 version-stamp locations bumped to `5.48.0` in the same toolkit commit so consumer installers pick up the new version cleanly.
-
+## US-004c: Rewrite stale submodule-init prose in `plan-with-ralph` Phase 1B
+**Description:** As a doc reader, I want the `plan-with-ralph` Phase 1B prose to accurately describe the v5.50.0 worktree-create.mjs no-op default rather than claiming the helper "initializes submodules under the shared Ralph lock".
 **Acceptance Criteria:**
-- [ ] `ai-developer-toolkit/plugins/ralph/.claude-plugin/plugin.json` `"version": "5.48.0"`.
-- [ ] `ai-developer-toolkit/plugins/ralph/.github/plugin/plugin.json` `"version": "5.48.0"`.
-- [ ] `ai-developer-toolkit/.claude-plugin/marketplace.json` ralph entry `"version": "5.48.0"`.
-- [ ] `ai-developer-toolkit/.github/plugin/marketplace.json` ralph entry `"version": "5.48.0"`.
-- [ ] `ai-developer-toolkit/.agents/plugins/marketplace.json` ralph entry `"version": "5.48.0"`.
-- [ ] `grep -l '"5.48.0"' <5 files>` returns all 5 paths (verifier).
-**Dependencies:** US-001, US-002, US-003, US-004, US-005 (all toolkit-side stories squash into one ship commit)
+- [ ] In `skills/plan-with-ralph/SKILL.md`, the post-bash-block paragraph that lists `worktree-create.mjs` behaviors (around line ~323 in v5.49.0) is rewritten to drop the "and initializes submodules under the shared Ralph lock" clause AND append: "Submodule init is opt-in via `--init-submodules` (default off in v5.50.0+); this caller omits the flag so the plan worktree starts with uninitialized submodules."
+- [ ] `.copilot-plugin/copilot-skills/plan-with-ralph/SKILL.md` regenerated via `generate-copilot-artifacts.mjs --write`.
+- [ ] `--check` and `check-copilot-parity.mjs` pass.
+**Dependencies:** US-001
 **Estimated complexity:** small
 
-## US-007: Toolkit topic-branch handoff
-
-**Description:** As an impl member, I want to commit the toolkit changes on topic branch `ralph/ralph-orchestration-worktree-conditional-submodule-init` (inside the `ai-developer-toolkit/` submodule worktree) and push that topic branch to ai-developer-toolkit `origin` so the lead can review, FF-merge to `main`, and sync `origin`/`personal`/`gim-home`.
-
+## US-005: Add v5.50.0 sections to AGENTS.md + CHANGELOG.md
+**Description:** As a plugin consumer reading the changelog before upgrading, I want a clear v5.50.0 entry explaining the pivot from v5.42.0 unconditional-init behavior so I can audit my flows before pulling the new version.
 **Acceptance Criteria:**
-- [ ] Toolkit changes committed on topic branch `ralph/ralph-orchestration-worktree-conditional-submodule-init` (inside the ai-developer-toolkit worktree). Commit message references the brainstorm direction D-001 and lists the impl scope.
-- [ ] Topic branch pushed to ai-developer-toolkit `origin` (one remote only — multi-remote sync is lead-owned).
-- [ ] `git -C ai-developer-toolkit/.worktrees/<task-id>/ ls-remote --heads origin ralph/ralph-orchestration-worktree-conditional-submodule-init` returns the expected SHA.
-- [ ] Impl member's kind=done report includes toolkit commit SHA + branch name.
-- [ ] Impl member does NOT push to `main` on any toolkit remote (verified by absence of push events to `refs/heads/main`).
-**Dependencies:** US-001, US-002, US-003, US-004, US-005, US-006
+- [ ] `plugins/ralph/AGENTS.md` has a `## v5.50.0 Behavioral Additions` section inserted above the existing v5.49.0 section.
+- [ ] The section contains at least 6 bullets covering: pivot from v5.42.0, new `--init-submodules` flag, decompose-plan Step 5b removal, convert-to-ralph-prd + plan-with-ralph prose updates, explicit non-changes list (env-var / precedence / PRD field / Step 5 call wiring / Phase 1B call wiring), self-heal contract, consumer-impact summary.
+- [ ] `plugins/ralph/CHANGELOG.md` has a `## v5.50.0` entry inserted above the v5.49.0 entry, mirroring the AGENTS.md bullets in changelog style.
+- [ ] CHANGELOG.md entry explicitly mentions the pivot from v5.42.0 unconditional-init behavior.
+**Dependencies:** US-001, US-004, US-004b, US-004c
 **Estimated complexity:** small
 
-## US-008: Codexu submodule pointer bump + version-table update + topic-branch handoff
-
-**Description:** As an impl member, I want to commit the codexu submodule pointer bump (recording the new toolkit SHA) plus the codexu root `AGENTS.md` `## Active plugin versions` table update on codexu topic branch `ralph/ralph-orchestration-worktree-conditional-submodule-init`, then push that topic branch to codexu `origin` so the lead can FF-merge after the toolkit-side merge lands.
-
+## US-006: Bump 5 version stamps lockstep to 5.50.0
+**Description:** As a marketplace consumer, I want all 5 toolkit-side version stamps to advance in lockstep so `copilot plugin update` from any marketplace index pulls v5.50.0.
 **Acceptance Criteria:**
-- [ ] `ai-developer-toolkit` submodule pointer in codexu HEAD matches the toolkit SHA from US-007 (after lead-FF on toolkit; member coordinates with lead handoff).
-- [ ] Codexu root `AGENTS.md` `## Active plugin versions` table row `| \`ralph\` (\`ralph-orchestration\`) | \`5.48.0\` | ...` matches the new toolkit version stamp.
-- [ ] Both edits in ONE codexu commit on topic branch `ralph/ralph-orchestration-worktree-conditional-submodule-init`.
+- [ ] `plugins/ralph/.claude-plugin/plugin.json` `version` field bumped `5.49.0` → `5.50.0`.
+- [ ] `plugins/ralph/.github/plugin/plugin.json` `version` field bumped `5.49.0` → `5.50.0`.
+- [ ] `.claude-plugin/marketplace.json` ralph entry version bumped `5.49.0` → `5.50.0`.
+- [ ] `.github/plugin/marketplace.json` ralph entry version bumped `5.49.0` → `5.50.0`.
+- [ ] `.agents/plugins/marketplace.json` ralph entry version bumped `5.49.0` → `5.50.0`.
+- [ ] Sanity grep `grep -rl "5\\.49\\.0" plugins/ralph/.claude-plugin plugins/ralph/.github/plugin .claude-plugin/marketplace.json .github/plugin/marketplace.json .agents/plugins/marketplace.json` returns zero matches.
+**Dependencies:** US-005
+**Estimated complexity:** small
+
+## US-007: Run quality gates and commit toolkit topic branch
+**Description:** As the autonomous impl member, I want to run all quality gates before commit and push the toolkit-side topic branch so the lead can review + FF-merge.
+**Acceptance Criteria:**
+- [ ] `node --test plugins/ralph/tests/worktree-create.test.mjs` exits 0.
+- [ ] `bash plugins/ralph/tests/test-submodule-worktree-init.sh` exits 0.
+- [ ] `node plugins/ralph/scripts/generate-copilot-artifacts.mjs --check` exits 0.
+- [ ] `node plugins/ralph/scripts/check-copilot-parity.mjs` exits 0.
+- [ ] All edits + version bumps committed on topic branch `ralph/plan-worktree-conditional-narrow` in `ai-developer-toolkit/` worktree.
+- [ ] Topic branch pushed to ai-developer-toolkit `origin`.
+- [ ] kind=done report issued with commit SHA + branch + Phase-4 findings summary.
+**Dependencies:** US-002, US-003, US-004, US-004b, US-004c, US-005, US-006
+**Estimated complexity:** small
+
+## US-008: (LEAD-OWNED follow-up) Codexu submodule pointer bump
+**Description:** As the codexu bookkeeper-lead (or a brief follow-up impl member), I commit the codexu submodule pointer bump after the toolkit FF-merge so codexu records the v5.50.0 toolkit-main SHA.
+**Acceptance Criteria:**
+- [ ] `ai-developer-toolkit` submodule pointer in codexu staged to the toolkit-main SHA produced by the lead's FF-merge of US-007's toolkit topic branch.
+- [ ] `D:/harness-efforts/codexu/AGENTS.md` `## Active plugin versions` table row for `ralph (ralph-orchestration)` updated from `5.49.0` to `5.50.0`.
+- [ ] Both changes committed on topic branch `ralph/plan-worktree-conditional-narrow` in codexu.
 - [ ] Topic branch pushed to codexu `origin`.
-- [ ] Impl member's kind=done report includes codexu commit SHA + branch name.
-- [ ] Impl member does NOT push to codexu `main` (lead-owned).
-**Dependencies:** US-007 (toolkit SHA must exist; member coordinates lead-FF on toolkit before bumping codexu pointer)
-**Estimated complexity:** small
-
-## US-009: Post-ship Criterion 12 two-variant smoke
-
-**Description:** As the bookkeeper, I want two `/plan-with-ralph` smoke spawns after both toolkit and codexu merges land — one default (asserts `submoduleInitRan: false` + plan completes) and one `/plan-with-ralph --init-submodules` (asserts `submoduleInitRan: true` + plan completes) — so we have empirical proof that both code paths work in production.
-
-**Acceptance Criteria:**
-- [ ] **Variant 1 (default-skip):** Spawn `/plan-with-ralph <any small fuzzy idea>`. Observe `worktree-result.json` contains `"submoduleInitRan": false`. `git -C <plan-worktree> submodule status` shows `-` lines. Plan member reaches Phase 5 and reports `kind=done`.
-- [ ] **Variant 2 (init opt-out):** Spawn `/plan-with-ralph --init-submodules <any small fuzzy idea>`. Observe `worktree-result.json` contains `"submoduleInitRan": true`. `git -C <plan-worktree> submodule status` shows space-prefix lines (populated). Plan member reaches Phase 5 and reports `kind=done`.
-- [ ] Both variants documented in the ship-manifest commit summary OR a follow-up bookkeeper note.
-- [ ] No regressions observed in concurrent plan/impl spawns during the 24-48 hour window post-merge (operator monitors).
-**Dependencies:** US-008 (both repos merged to main)
+- [ ] Lead executes FF-merge to codexu-main + multi-remote push per codexu/AGENTS.md ask-before-pushing rule.
+**Dependencies:** US-007 + lead toolkit FF-merge
 **Estimated complexity:** small

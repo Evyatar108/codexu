@@ -1,296 +1,178 @@
-# Research Brief: ralph-orchestration-worktree-conditional-submodule-init (D-001)
+# Research Brief — Ralph worktree submodule-init OPT-IN (narrow re-plan)
 
-Seed direction: D-001 — Phase-aware escape hatch (`--no-submodule-init` flag + plan-default-skip) on `worktree-create.mjs`. Source: `.ralph/brainstorms/ralph-orchestration-worktree-conditional-submodule-init/{selected-direction.md,brainstorm-synthesis.md,brainstorm.json}` (shipped 2026-06-03 commit `75043065`).
+## Context
 
-Four research lenses ran in parallel against the plan worktree (`ralph/plan-ralph-orchestration-worktree-conditional-submodule-init`, forked from `origin/main`): researcher Explore agent, architect Explore agent, Codex CLI at xhigh effort, Copilot CLI at xhigh effort. All four converged on the same shape with a few non-overlapping corrections — notably the decompose-plan Step 5b spawn-site classification.
+Operator pivoted 2026-06-03T11:14 from the D-001 brainstorm direction
+(`--no-submodule-init` flag + plan-default-skip + impl-default-init,
+codified in the OFF-TARGET 130bbff7 plan with 9 stories + 13 ACs +
+F-002 precedence stack + F-003 plan-skill flag + PRD-declared scope) to
+a SIMPLER model:
 
----
+- `runSubmoduleInit()` becomes a NO-OP by default for BOTH plan AND impl
+  phases.
+- Workers that actually need submodule code run
+  `git submodule update --init <path>` themselves on demand.
+- Add `--init-submodules` opt-in CLI flag on `worktree-create.mjs` for
+  the rare wrapper-only-task case where the worktree-creator wants
+  submodules eagerly initialized.
+- NO precedence stack, NO PRD-declared scope, NO env-var handling, NO
+  `convert-to-ralph-prd` Step 5 wiring, NO plan-with-ralph wiring.
+- Drop the inline `git submodule update --init --recursive` block from
+  `decompose-plan` Step 5b too (since impl-side parity is the whole
+  point of the pivot — there is no longer ANY caller that defaults to
+  init).
+- Plugin v5.50.0 (sequential after v5.49.0, just shipped today as
+  4d92f146 in the toolkit). v5.48 is intentionally skipped per the v5.49
+  release note.
 
-## Researcher Findings
+The brainstorm artifact at
+`.ralph/brainstorms/ralph-orchestration-worktree-conditional-submodule-init/selected-direction.md`
+is kept for context, but its directional recommendation (D-001) is
+SUPERSEDED. The pivot is documented inline in the new plan.
 
-### Primary touchpoint — `ai-developer-toolkit/plugins/ralph/src/worktree-create.mjs`
+## Why this re-plan is safe (key risks deferred to "Risk Areas")
 
-Ground-truth line refs (verified by direct read in the plan worktree):
+The original brainstorm's killer disconfirming observation —
+"plan-with-ralph's research/review may grep code inside the submodule
+path for context lookup, and defaulting to skip would break planning"
+— was reasoned through in the 130bbff7 plan and found NOT to apply:
 
-| Element | Lines |
+- plan-with-ralph Phase 2 spawns Explore agents that search
+  `<PLAN_WORKTREE>` (the worktree dir, not the submodule subtree as a
+  separate input). When the touched code IS inside a submodule (like
+  this very task targeting `ai-developer-toolkit/plugins/ralph`), the
+  Explore agent still resolves paths under the worktree's submodule
+  directory IF the submodule is initialized. With the new default, the
+  agent will see an EMPTY submodule directory and have no source to
+  search — Phase 2 returns an empty research brief, Phase 3 still
+  drafts a plan from the feature description, and Phase 4 review still
+  runs against the plan markdown.
+
+The mitigation under the new model is on-demand: when an agent (plan
+or impl) needs submodule code, it runs
+`git submodule update --init <path>` from inside the worktree. This is
+a 1-line user-visible recovery — the failure mode "I can't see the
+submodule code" is obvious enough that the worker self-heals.
+
+The 130bbff7 plan's 12-criterion safety net (lock-mtime check, env-var
+truthy parsing, precedence-rule precedence stack, AGENTS.md 6-bullet
+behavioral section, 4+ new test cases) is GONE under the pivot. The
+narrow plan ships ~50 lines + docs + 2 test cases. The trade-off:
+significantly less rope to hang ourselves with, at the cost of one
+self-healing failure mode (an agent that needs submodule code and
+discovers the dir is empty).
+
+## Primary touchpoints
+
+### Code
+
+| File | Lines | Change |
+|---|---|---|
+| `ai-developer-toolkit/plugins/ralph/src/worktree-create.mjs` | 263-300 + parseArgs + finishResult + reuse-path | Add `--init-submodules` flag to parseArgs (default false); thread `opts.initSubmodules` through `runSubmoduleInit` via the existing reuse-path call site (line 92) and `finishResult` (line 142); early-return `false` from `runSubmoduleInit` when `!opts.initSubmodules` BEFORE any filesystem touch (the `mkdirSync(lockParent, …)` at line 271 must not run on the no-op path); update `helpText` to document the new flag. |
+| `ai-developer-toolkit/plugins/ralph/skills/decompose-plan/SKILL.md` | ~197-245 | Delete the entire "After the worktree has been added or validly reused, initialize submodules under the shared cross-process lock …" paragraph + the inline bash block that acquires `~/.cache/ralph-orchestration/submodule-init.lockd` + runs `git submodule update --init --recursive`. Replace with a 1-paragraph note explaining that members needing submodule code run `git submodule update --init <path>` on demand. |
+| `ai-developer-toolkit/plugins/ralph/.copilot-plugin/internal-workflows/decompose-plan/SKILL.md` | Mirror | Regenerated via `node plugins/ralph/scripts/generate-copilot-artifacts.mjs --write`. Hand-edit is acceptable if generator drift is tracked elsewhere. |
+
+`convert-to-ralph-prd` Step 5 and `plan-with-ralph` Phase 1B keep their
+existing `worktree-create.mjs` invocations — neither needs editing,
+because the runSubmoduleInit default is now no-op so omitting
+`--init-submodules` produces the desired skip behavior. This is the
+load-bearing simplicity of the pivot.
+
+### Tests
+
+| File | Change |
 |---|---|
-| `helpText` constant (CLI usage doc) | 16-40 |
-| `main(argv, io)` entry | 42-57 |
-| `createWorktree(opts, io)` | 59-126 |
-| Reuse-path `runSubmoduleInit(worktreePath, io)` call | 88 |
-| `finishResult(...)` (fresh-create path) | 128-140 |
-| `finishResult`'s `submoduleInitRan` field | 138 |
-| `parseArgs(argv)` | 142-174 |
-| `runSubmoduleInit(worktreePath, io)` body | 259-296 |
-| `lockParent` derivation (`~/.cache/ralph-orchestration`) | 260-261 |
-| `lockDir` derivation (`submodule-init.lockd`) | 262 |
-| `mkdirSync(lockParent, { recursive: true })` — first filesystem touch | 267 |
-| `mkdirSync(lockDir)` — lock acquisition | 270 |
-| `git ["submodule", "update", "--init", "--recursive"]` | 291 |
-| Lock cleanup in `finally` | 294 |
-
-Existing env knobs:
-- `RALPH_SUBMODULE_LOCK_TIMEOUT_SECONDS` (default `600`) at line 263
-- `RALPH_SUBMODULE_LOCK_STALE_SECONDS` (default `300`) at line 264
-
-**No `--no-submodule-init` flag exists today; no `RALPH_NO_SUBMODULE_INIT` env var exists today.**
-
-Critical observation (Codex lens, refined): `submoduleInitRan: true` currently means **"the `git submodule update` command was invoked,"** NOT **"the repo had submodules."** A consumer with no `.gitmodules` still returns `true` because git's no-op fast path is invisible to the caller. The new flag does NOT change this for the unflagged path; consumers without submodules still see the same `true` they get today.
-
-### Existing tests
-
-#### `tests/test-submodule-worktree-init.sh` (bash, ~325 lines)
-
-Source-contract greps (lines ~156-209):
-- Asserts plan-with-ralph SKILL.md mentions submodule init in its Phase 1B flow
-- Asserts convert-to-ralph-prd Step 5 SKILL.md mentions submodule init
-- Asserts decompose-plan Step 5b SKILL.md mentions submodule init
-- Asserts Codex mirror at `.copilot-plugin/copilot-skills/plan-with-ralph` mentions it
-
-Behavioral fixture (lines ~242-267):
-- Creates a temp super-repo + a temp submodule-origin (file-protocol)
-- Adds submodule at `external/test-submodule`
-- Launches 8 worktrees in parallel via direct `git worktree add` + direct `git submodule update --init --recursive`
-- Asserts each worktree has populated submodule content (status begins with a space, not `-`)
-
-Other scenarios (lines ~269-323):
-- No-submodule fast path (consumer repo without `.gitmodules`): runs `git submodule update --init --recursive`, asserts no stderr noise. This is the contract that backs the "no-op on non-codexu consumers" requirement.
-- Stale lock recovery
-- Missing-PID recovery
-- Timeout override (env var honored)
-
-**Important nuance (Codex lens):** This test exercises the inline `git submodule update` flow that lives in skill prose, NOT `worktree-create.mjs` directly. The behavioral fixture launches `git worktree add` itself — it does not invoke `node src/worktree-create.mjs`. So existing tests will continue to pass under D-001 unmodified; new test cases need to invoke the helper specifically.
-
-#### `tests/worktree-create.test.mjs` (`node:test`, 5 tests)
-
-1. Fresh path creates new branch/worktree
-2. Existing branch reused with `--allow-existing-branch`
-3. Stale worktree path pruned/retried
-4. Missing start point falls back to default branch
-5. Collisions use numeric suffixes
-
-Invokes the helper via `worktreeCreateMain([...])` directly (no shell-out). **Current tests run against repos without submodules**, so they do not exercise `runSubmoduleInit` behavior end-to-end. Tests for the new flag/env will need to either (a) add fixture super-repo + submodule setup, or (b) assert at the helper level using a stub `runSubmoduleInit` if the helper is refactored to accept an io shim.
-
-### Spawn-site audit
-
-The brainstorm requires per-site assessment, not a blanket flip. Results:
-
-| File | Line(s) | Phase | Default-skip? | Rationale |
-|---|---|---|---|---|
-| `skills/plan-with-ralph/SKILL.md` Phase 1B | 306-313 | plan | **YES** | Plan-phase worktrees write markdown deliverables; planning research/review never reads submodule code (see "Disconfirming check" below). This is the primary win site. |
-| `skills/convert-to-ralph-prd/SKILL.md` Step 5 | ~150-158 | impl | NO | Impl worktree where the iteration agent runs `cargo` / `pnpm` / etc.; preserve v5.42.0 init-all safety. |
-| `skills/decompose-plan/SKILL.md` Step 5b | 184-239 | impl | **N/A** | Step 5b uses **inline** `git worktree add` + inline locked submodule init, NOT `worktree-create.mjs`. The brainstorm's "audit decompose-plan" requirement is satisfied: there is nothing to wire here. (Codex + Copilot lenses both flagged this; researcher initially mis-classified it as a worktree-create.mjs callsite.) |
-| `.copilot-plugin/copilot-skills/plan-with-ralph/SKILL.md` | (auto-generated mirror of plan-with-ralph) | plan | **YES** | Regenerated via `scripts/generate-copilot-artifacts.mjs --write` once the source mirror flips. |
-| `.copilot-plugin/internal-workflows/convert-to-ralph-prd/SKILL.md` | (auto-generated mirror) | impl | NO | Mirror of unchanged source. |
-| `.copilot-plugin/internal-workflows/decompose-plan/SKILL.md` | (auto-generated mirror) | impl | **N/A** | Mirror of unchanged source. |
-| `src/*.mjs` (recursive grep) | — | — | — | No other `worktree-create.mjs` callers in production code. |
-
-**Test files referencing the helper:** `tests/worktree-create.test.mjs` and any new tests added under D-001 — these invoke it directly without phase semantics; they do NOT default-skip, they explicitly test both modes.
-
-### Disconfirming check (Devil's Advocate's killing case)
-
-The brainstorm's most-load-bearing assumption: plan-phase workers never need to read code inside the `ai-developer-toolkit/` or `codex/` submodule paths. If they do, defaulting plan worktrees to `--no-submodule-init` breaks planning.
-
-Searched `plan-with-ralph/SKILL.md` for evidence of submodule-tree reads:
-- Phase 2 research only invokes `codex-exec.mjs` / `copilot-exec.mjs` (lines 369-374, 385-390) with the feature-request body as input. The Explore agents (`researcher`, `architect`) are told to search `<PLAN_WORKTREE>` (lines 335-346), but the search target is the FEATURE'S touchpoint files — NOT submodule trees specifically.
-- Phase 4 review uses `review-plan-initial.md` + review-loop against the draft plan (lines 618-659) — no submodule-tree reads.
-- `--improve` flows read the existing plan and revise; no submodule code reads.
-
-**Verdict: no evidence that planning needs initialized submodules.** The brainstorm's disconfirming-observation risk is real (a planning task ABOUT submodule code would still want to read it), but the v5.48.0 plan must include criteria 12 of the brainstorm — a post-ship smoke spawn that proves at least one representative plan completes its research/review phases without referencing missing submodule code.
-
-The escape valve for "this plan-phase actually needs submodule content" is identical to the operator override: pass `--init-submodules <list>` (if shipped as part of the two-flag shape) or simply do not pass `--no-submodule-init` for that specific spawn. The default-skip wire-up is a default, not a lock.
-
-### Copilot mirror parity
-
-Source files that will need regeneration:
-- `ai-developer-toolkit/plugins/ralph/.copilot-plugin/copilot-skills/plan-with-ralph/SKILL.md`
-- `ai-developer-toolkit/plugins/ralph/.copilot-plugin/internal-workflows/convert-to-ralph-prd/SKILL.md`
-- `ai-developer-toolkit/plugins/ralph/.copilot-plugin/internal-workflows/decompose-plan/SKILL.md` (no behavior change; only AGENTS.md addition may touch it)
-
-Generation + parity gate:
-- Regenerate: `node ai-developer-toolkit/plugins/ralph/scripts/generate-copilot-artifacts.mjs --write`
-- Gate: `node ai-developer-toolkit/plugins/ralph/scripts/generate-copilot-artifacts.mjs --check && node ai-developer-toolkit/plugins/ralph/scripts/check-copilot-parity.mjs`
-
-### Plugin version + manifests (5 stamp locations)
-
-Current version is `5.47.0` across all 5 locations (per researcher + Codex + Copilot lens consensus). The brainstorm scope says "next available — suggested v5.47.0"; that's stale. The correct bump is **v5.48.0**:
-
-| File | Current | Target |
-|---|---|---|
-| `ai-developer-toolkit/plugins/ralph/.claude-plugin/plugin.json` | `5.47.0` | `5.48.0` |
-| `ai-developer-toolkit/plugins/ralph/.github/plugin/plugin.json` | `5.47.0` | `5.48.0` |
-| `ai-developer-toolkit/.claude-plugin/marketplace.json` (plugin entry) | `5.47.0` | `5.48.0` |
-| `ai-developer-toolkit/.github/plugin/marketplace.json` (plugin entry) | `5.47.0` | `5.48.0` |
-| `ai-developer-toolkit/.agents/plugins/marketplace.json` (plugin entry) | `5.47.0` | `5.48.0` |
-
-### AGENTS.md style
-
-Reference: `ai-developer-toolkit/plugins/ralph/AGENTS.md` `## v5.42.0 Behavioral Additions` (the section that introduced the unconditional-init contract D-001 relaxes). Style: short prose bullets, explicit "what changed," "env knobs," "test gate," "release reminder." The v5.48.0 section must reference v5.42.0 explicitly to document why plan-phase is the safe relaxation surface.
-
----
-
-## Architect Analysis
-
-### Integration points
-
-`runSubmoduleInit()` has two callers in `createWorktree()`:
-1. **Reuse path** (line 88): `submoduleInitRan: runSubmoduleInit(worktreePath, io)` inside the result object literal when an existing valid worktree is detected.
-2. **Fresh-create path** (line 138, via `finishResult`): same shape, called after `git worktree add` succeeds.
-
-Both call sites must observe the skip — passing `opts` through. The current signature `runSubmoduleInit(worktreePath, io)` needs to become `runSubmoduleInit(worktreePath, io, opts)`, and both callers need to thread `opts` down.
-
-### CLI flag schema design — recommendation: **two-flag forward-compatible shape, but ship ONLY `--no-submodule-init` in D-001**
-
-The architect lens and the brainstorm both flagged the open question: single boolean vs single mode-enum vs two-flag composable shape. For D-001 specifically:
-
-- **Ship now:** `--no-submodule-init` (boolean, default `false`) + `RALPH_NO_SUBMODULE_INIT` env var.
-- **Do NOT ship now:** `--init-submodules <list>` is deferred to D-002; do not stub a `--submodule-init=mode` flag.
-- **Forward-compat hook:** the new boolean is *additive* in `parseArgs` — adding `--init-submodules <list>` later requires only a new case in the switch and no semantic change to `--no-submodule-init`. The two-flag composition (operator passes both: `--no-submodule-init --init-submodules codex` could mean "skip by default but init this specific one") is a future concern; for D-001 the criteria only require the binary skip.
-
-Rationale: ship the minimum to gather telemetry per the brainstorm's staged-rollout argument. Don't grow a multi-mode CLI before there's evidence it pays for itself.
-
-### Env-var precedence + truthy parsing — recommendation: **CLI > env > default**, helper-centralized parse
-
-```js
-function parseTruthyEnv(value) {
-  if (value == null) return false;
-  return /^(1|true|yes)$/i.test(String(value).trim());
-}
-
-function shouldSkipSubmoduleInit(opts, env = process.env) {
-  if (opts.noSubmoduleInit) return true;
-  return parseTruthyEnv(env.RALPH_NO_SUBMODULE_INIT);
-}
-```
-
-Behavior:
-- Truthy env values (`1`, `true`, `yes`, case-insensitive after trim): skip if no CLI override.
-- Falsy or absent (`0`, `false`, `no`, empty string, undefined): preserve default init.
-- CLI flag wins over env: even `RALPH_NO_SUBMODULE_INIT=0` does NOT override a passed `--no-submodule-init` (CLI is more specific). (But the brainstorm criteria don't actually test the negative-override case; CLI-wins is enough.)
-
-### Skip-without-lock semantics
-
-Critical constraint from brainstorm Criterion 1: "no `~/.cache/ralph-orchestration/submodule-init.lockd` was created during this invocation (asserted by mtime check on the lock-parent dir before/after)."
-
-The lock-parent dir (`~/.cache/ralph-orchestration`) is created by `mkdirSync(lockParent, { recursive: true })` at line 267 — **the very first filesystem write in `runSubmoduleInit()`**. The skip early-return MUST happen before line 267. Recommended placement: at the very top of `runSubmoduleInit`, before any path derivation that would be observable.
-
-Implementation skeleton:
-
-```js
-function runSubmoduleInit(worktreePath, io, opts = {}) {
-  if (shouldSkipSubmoduleInit(opts)) {
-    io.stderr.write(`Skipping submodule init for ${normalizePath(worktreePath)} (--no-submodule-init or RALPH_NO_SUBMODULE_INIT)\n`);
-    return false;
-  }
-  // ... existing body unchanged starting at current line 260
-}
-```
-
-### Spawn-site wire-up strategy
-
-Per the brainstorm, each callsite gets a per-site decision (skip vs preserve). The only production callsite that flips today is **plan-with-ralph Phase 1B**. The codexu `bin/ralph-overview.mjs` wrapper does not call worktree-create.mjs. There are no other plan-phase production callsites in the plugin source.
-
-The plan should explicitly list every callsite in a table for the impl member to verify; criteria require this audit.
-
-### Test gate design
-
-3 new positive cases + 1 regression case minimum, in BOTH test files:
-
-| Case | Setup | Assertion |
-|---|---|---|
-| flag-only | invoke with `--no-submodule-init` (no env) | exit 0; `submoduleInitRan: false`; lock-parent mtime unchanged; submodule status begins with `-` |
-| env-only | invoke without flag; set `RALPH_NO_SUBMODULE_INIT=1` (case variants: `True`, `YES`, `yes`) | same as flag-only |
-| flag + env | both signals set | same as flag-only (both produce same outcome) |
-| default-unchanged regression | invoke without flag, no env, repo has submodules | exit 0; `submoduleInitRan: true`; lock acquired+released; submodule populated (status begins with space) |
-
-**Architect recommendation: independent bash/node fixture setup.** The two test layers exercise different boundaries (bash exercises CLI subprocess + sh interaction; node exercises function-level behavior). Sharing fixtures couples them artificially. Each test file builds its own super-repo + submodule-origin in a tempdir.
-
-**Windows note:** The bash test requires Git Bash on Windows (it's in the surviving-bash-test list per v5.46.0 contract). Node test is the cross-platform coverage. For local file-protocol submodules, both test files need `git -c protocol.file.allow=always` (Codex lens flagged this).
-
-**Env isolation:** Node tests MUST clear `RALPH_NO_SUBMODULE_INIT` before each case (a developer's shell may have it set), and the helper should accept an explicit `env` parameter so tests can pass a controlled bag.
-
-### Two-commit submodule pattern
-
-Per codexu AGENTS.md "Worktree placement convention" and the brainstorm's Criterion 11:
-
-1. **Toolkit commit** (inside `ai-developer-toolkit/`): all `worktree-create.mjs` changes, test additions, SKILL.md edits (Claude source + Copilot mirrors), AGENTS.md addition, and 5-stamp version bump to v5.48.0. Push to `origin`, `personal`, AND `gim-home` (marketplace consumers fetch from `gim-home`).
-2. **Codexu parent commit**: submodule pointer bump only (`git add ai-developer-toolkit && git commit`), plus the version-table refresh in codexu's root `AGENTS.md` (the `## Active plugin versions` block has a `ralph (ralph-orchestration)` row that needs the v5.48.0 stamp).
-
-This is the standard fork submodule pattern (codexu AGENTS.md "Submodule edits require two commits" + "Update active plugin versions table"). The impl member MUST keep them split.
-
-### Risk areas / disconfirming observation
-
-| Risk | Severity | Mitigation in plan |
-|---|---|---|
-| Plan-phase actually needs submodule content for research | Medium | Criterion 12 smoke spawn validates against at least one representative case post-ship. Operator can omit the flag for known-needs-submodule planning tasks. |
-| Operator forgets manual flag for narrow impl spawn → no savings | Low | Out of scope for D-001 (explicit). D-002 future work covers the operator-forgetting failure mode via PRD-declared scope. |
-| Worktree-reuse branch semantically diverges | Medium-Low | Both callers receive `opts`; both observe the skip. Test gate covers both paths. |
-| `parseTruthyEnv` regex misclassifies edge cases | Low | Whitelist of `1|true|yes` is conservative; anything else is "do not skip". |
-| Lock-skip means new code path that bypasses error reporting | Low | The skip path writes a single stderr line so spawn-prompt forensics show that the skip happened. |
-| `submoduleInitRan: false` is observed by some downstream consumer that interprets it as "init failed" | Low | The field name is unambiguous and the brainstorm's Criterion 1 explicitly sets the semantic. No consumer in the current codebase reads this field beyond test assertions. |
-
-### Non-codexu-consumer no-op contract
-
-Verified against `tests/test-submodule-worktree-init.sh` lines 269-276: a consumer repo without `.gitmodules` runs `git submodule update --init --recursive` as a no-op (no stderr noise, success exit). The new flag layer wraps that — when neither flag nor env is set, behavior is byte-identical to v5.46.0 for non-codexu consumers. **Constraint met.**
-
----
-
-## Codex Research (gpt-5.5, xhigh)
-
-Full output at `<STAGING>/codex-research.txt`. Key contributions not already captured above:
-
-- **Plugin version is already 5.47.0**, so next bump is **5.48.0** (correcting brainstorm's v5.4X.0 placeholder).
-- **`submoduleInitRan: true` means "command was invoked"**, not "repo had submodules". Critical semantic clarification.
-- **`decompose-plan` Step 5b uses inline `git worktree add`** + inline locked submodule init, NOT `worktree-create.mjs`. The brainstorm scope item "Codexu-relevant plan-worktree paths in `skills/decompose-plan/SKILL.md`" reduces to "verify there is nothing to wire" — and the answer is confirmed: nothing to wire.
-- **Local file-protocol submodules need `protocol.file.allow=always`** for `git submodule update` to work in tests; this is a real footgun.
-- **Refactor `runSubmoduleInit` signature to accept `opts`** so both callers thread it through cleanly. Avoid module-global state.
-- **Run parity commands from `ai-developer-toolkit` working dir**, because `plugins/ralph/scripts/...` paths are toolkit-root relative.
-
----
-
-## Copilot Research (claude-opus equivalent via copilot-exec, xhigh)
-
-Full output at `<STAGING>/copilot-research.txt`. Reinforces the Codex findings; key complementary points:
-
-- **Node test env isolation**: `process.env.RALPH_NO_SUBMODULE_INIT` must be cleared per-test or a developer's shell var leaks into the baseline test and breaks it.
-- **CLI flag listing in `helpText`**: `--no-submodule-init` must appear in the helpText block (lines 16-40) so `--help` documents it.
-- **`shouldSkipSubmoduleInit(opts, env = process.env)`** signature explicitly accepts env for testability.
-- **AGENTS.md style match**: v5.48.0 Behavioral Additions should follow v5.42.0's bullet format exactly.
-- **Marketplace indexes must stay synchronized** across Claude, Copilot, AND Codex layouts — confirms researcher's 5-stamp count.
-
----
-
-## Consolidated File List
-
-### Files to modify (toolkit-side)
-
-- `ai-developer-toolkit/plugins/ralph/src/worktree-create.mjs` — add flag to `parseArgs`, helper `shouldSkipSubmoduleInit(opts, env)`, thread `opts` into `runSubmoduleInit`, short-circuit before line 267, update `helpText` (lines 16-40), update success-JSON shape doc in helpText
-- `ai-developer-toolkit/plugins/ralph/skills/plan-with-ralph/SKILL.md` — Phase 1B (lines 306-313): add `--no-submodule-init \` to the `worktree-create.mjs` invocation; update prose around line 323 that currently says "initializes submodules under the shared Ralph lock"
-- `ai-developer-toolkit/plugins/ralph/.copilot-plugin/copilot-skills/plan-with-ralph/SKILL.md` — regenerated mirror (no hand edit)
-- `ai-developer-toolkit/plugins/ralph/tests/worktree-create.test.mjs` — 4 new test cases (flag-only, env-only, flag+env, default regression)
-- `ai-developer-toolkit/plugins/ralph/tests/test-submodule-worktree-init.sh` — 4 new behavioral cases invoking `node src/worktree-create.mjs` against a fixture repo with a declared submodule
-- `ai-developer-toolkit/plugins/ralph/AGENTS.md` — new `## v5.48.0 Behavioral Additions` section
-- `ai-developer-toolkit/plugins/ralph/.claude-plugin/plugin.json` — bump `version` to `5.48.0`
-- `ai-developer-toolkit/plugins/ralph/.github/plugin/plugin.json` — bump `version` to `5.48.0`
-- `ai-developer-toolkit/.claude-plugin/marketplace.json` — bump ralph entry `version` to `5.48.0`
-- `ai-developer-toolkit/.github/plugin/marketplace.json` — bump ralph entry `version` to `5.48.0`
-- `ai-developer-toolkit/.agents/plugins/marketplace.json` — bump ralph entry `version` to `5.48.0`
-
-### Files to modify (codexu-side, second commit)
-
-- `ai-developer-toolkit` submodule pointer bump
-- Codexu root `AGENTS.md` — update `## Active plugin versions` table entry for `ralph (ralph-orchestration)` from `5.47.0` to `5.48.0`
-
-### Files NOT to modify
-
-- `ai-developer-toolkit/plugins/ralph/skills/convert-to-ralph-prd/SKILL.md` (impl-phase, preserve init-all)
-- `ai-developer-toolkit/plugins/ralph/skills/decompose-plan/SKILL.md` (uses inline `git worktree add`, not the helper)
-- `.copilot-plugin/internal-workflows/{convert-to-ralph-prd,decompose-plan}/SKILL.md` (no source change → no regen change for these files; only the plan-with-ralph mirror flips)
-
-### Test commands
-
-- `node --test ai-developer-toolkit/plugins/ralph/tests/worktree-create.test.mjs`
-- `bash ai-developer-toolkit/plugins/ralph/tests/test-submodule-worktree-init.sh` (Git Bash on Windows)
-- `node ai-developer-toolkit/plugins/ralph/scripts/generate-copilot-artifacts.mjs --check`
-- `node ai-developer-toolkit/plugins/ralph/scripts/check-copilot-parity.mjs`
-- Post-ship smoke (Criterion 12): spawn one codexu plan-phase crew member via `/plan-with-ralph` on a small fuzzy idea; observe `worktree-create.mjs` returned `submoduleInitRan: false` and the plan completes without missing-submodule errors.
+| `ai-developer-toolkit/plugins/ralph/tests/worktree-create.test.mjs` | Add 2 new `node:test` cases: (a) **default no-op** — invoke `createWorktree({ ... })` WITHOUT `initSubmodules`, assert `result.submoduleInitRan === false` and verify (via a spawn-spy or `git` stub) that no `git submodule` subprocess fires; (b) **opt-in init** — invoke with `initSubmodules: true`, assert `result.submoduleInitRan === true` and the subprocess fires. The existing tests at lines 21-37 already assert `submoduleInitRan: true` and will need an additive `initSubmodules: true` in those `createWorktree({ ... })` calls (the test fixture has no submodules so the `git submodule` no-op fast path still returns successfully — but the lock acquisition will run on those test cases, matching v5.46.3 behavior). |
+| `ai-developer-toolkit/plugins/ralph/tests/test-submodule-worktree-init.sh` | Update existing behavioral cases to pass `--init-submodules` on the CLI when they expect `submoduleInitRan: true`. Add 1 new CLI-invoked case: default invocation (no flag) returns JSON with `submoduleInitRan: false`, asserts submodule dirs are EMPTY, and asserts the lockfile parent dir is not touched (mtime-stable). This file already has a complete super-repo + submodule fixture set; the new case piggybacks. |
+
+### Docs
+
+| File | Change |
+|---|---|
+| `ai-developer-toolkit/plugins/ralph/AGENTS.md` | Add a new `## v5.50.0 Behavioral Additions` section above the existing `## v5.49.0` section. 4-6 bullets explaining: (1) the pivot from v5.42.0 unconditional-init; (2) the new `--init-submodules` opt-in flag and its rare-use intent (wrapper-only-task case); (3) the explicit NON-changes (no precedence stack, no env var, no PRD scope, no convert-to-ralph-prd Step 5 wiring, no plan-with-ralph wiring); (4) decompose-plan Step 5b inline-init block removed (parity with worktree-create.mjs no-op default); (5) self-heal contract: workers that need submodule code run `git submodule update --init <path>` from inside their worktree on demand. |
+| `ai-developer-toolkit/plugins/ralph/CHANGELOG.md` | Add `## v5.50.0` entry at the top of the file (above the `## v5.49.0` entry already present). Mirror the AGENTS.md bullets in CHANGELOG style — concise but explicit that this PIVOTS the v5.42.0 behavior. |
+
+### Version stamps (5 files, lockstep bump 5.49.0 → 5.50.0)
+
+1. `ai-developer-toolkit/plugins/ralph/.claude-plugin/plugin.json`
+2. `ai-developer-toolkit/plugins/ralph/.github/plugin/plugin.json`
+3. `ai-developer-toolkit/.claude-plugin/marketplace.json` (ralph entry)
+4. `ai-developer-toolkit/.github/plugin/marketplace.json` (ralph entry)
+5. `ai-developer-toolkit/.agents/plugins/marketplace.json` (ralph entry)
+
+## Codexu-side commit
+
+Single commit on a topic branch in codexu:
+
+- Submodule pointer bump (the `ai-developer-toolkit` gitlink → toolkit
+  `main` after the lead's FF-merge).
+- Codexu root `AGENTS.md` `## Active plugin versions` table — update
+  the `ralph (ralph-orchestration)` row from `5.49.0` to `5.50.0`.
+
+Topic branch name: `ralph/plan-worktree-conditional-narrow` (per
+operator). The lead handles FF-merge + multi-remote push per the
+codexu `AGENTS.md` ask-before-pushing rule and the canonical
+`## Multi-repo wrapper-to-submodule ship ceremony` in
+`plugins/ralph/AGENTS.md`.
+
+## Naming convention check
+
+- Flag name `--init-submodules` is consistent with other boolean
+  opt-in flags in `worktree-create.mjs::parseArgs` (e.g.
+  `--allow-existing-branch`). Camel-case opts key:
+  `opts.initSubmodules`. Default: `false`.
+- The `submoduleInitRan` JSON field name is PRESERVED — no rename. The
+  semantic is identical: "did `git submodule update --init --recursive`
+  fire on this invocation?" Just defaults to `false` instead of `true`.
+- Public test fixture protocol guidance (existing
+  `tests/test-submodule-worktree-init.sh` already uses
+  `protocol.file.allow=always` at super-repo level) is unchanged.
+
+## Test infrastructure
+
+- `node --test plugins/ralph/tests/worktree-create.test.mjs` — runs
+  via the auto-discovery glob in `tests/run.mjs`.
+- `bash plugins/ralph/tests/test-submodule-worktree-init.sh` — already
+  requires Git Bash / WSL on Windows (per v5.46.0 surviving-bash-tests
+  list); no host-shell change.
+- `node plugins/ralph/scripts/generate-copilot-artifacts.mjs --check`
+  must pass after the decompose-plan SKILL.md edit (it auto-discovers
+  internal-workflow files and asserts mirror parity).
+- `node plugins/ralph/scripts/check-copilot-parity.mjs` must pass
+  (covers hand-fork anchors + forbidden Claude-only tokens; the
+  decompose-plan internal-workflow is auto-generated so no
+  `parity-exceptions.json` entry should be needed unless the generator
+  flips the diff for some unrelated reason).
+
+## Out of scope (deferred to follow-ups, not blocking this ship)
+
+- Env-var support (`RALPH_INIT_SUBMODULES=1`) — operator explicitly
+  excluded.
+- Precedence stack (`--require-submodule-init` impl-side override) —
+  operator explicitly excluded.
+- PRD-declared `submodulesNeeded` field — operator excluded; D-002 in
+  the brainstorm artifacts addresses this if telemetry later motivates
+  it.
+- Auto-derive submodule scope from plan grep — D-002 territory.
+- Self-heal recovery in iteration agent / story-doctor — D-003
+  territory.
+- Per-spawn timing instrumentation JSONL — D-004 territory.
+- Smoke spawn after merge — the lead can run a fresh
+  `/plan-with-ralph` against any small fuzzy idea and confirm
+  `submoduleInitRan: false` in the staging worktree-result.json. Out
+  of scope for this plan to schedule; the lead owns post-ship smoke.
+
+## Consumer impact (non-codexu)
+
+The plugin powers other consumers besides codexu. The new default IS a
+behavior change for those consumers — anyone whose flow relied on
+`worktree-create.mjs` to populate submodules now needs to either pass
+`--init-submodules` or run `git submodule update --init <path>` on
+demand. For consumers WITHOUT submodules (no `.gitmodules` file), there
+is zero visible change — the prior `git submodule update --init
+--recursive` was already a no-op there, and the new path skips the
+lock entirely which is an unobservable speedup.
+
+The v5.50.0 CHANGELOG entry must explicitly call out this behavior
+change so consumers reading the changelog before upgrading know to
+audit their flows.

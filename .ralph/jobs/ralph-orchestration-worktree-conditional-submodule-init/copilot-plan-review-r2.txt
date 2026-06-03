@@ -1,0 +1,46 @@
+I’ll read the referenced prompt and inspect the repo context before making changes.
+
+The prompt is larger than the viewer limit, so I’m reading it in sections and checking the current worktree state.
+
+I’ve identified this as a plan-review prompt, so I’m now checking the proposed files and current implementation details for correctness.
+
+I’m checking the live implementation and tests against the plan’s assumptions, especially call sites, helper signatures, and test coverage claims.
+
+The core assumptions mostly line up so far; I’m drilling into a few edge cases where the plan may overstate what tests can prove or miss a stale doc surface.
+
+One possible issue is whether the plan’s “all stale prose” surface is complete, so I’m doing a broader targeted search before finalizing the review.
+
+I found one stale-prose surface the plan does not cover; I’m validating whether the proposed `protocol.file.allow` fixture fix is also reliable before writing the final review.
+
+The protocol check is still running/finished in the background; I’m reading its result now.
+
+The first protocol probe didn’t create the submodule because it intentionally lacked the existing `-c` add-time override, so I’m rerunning the narrow inheritance check with the fixture’s actual setup.
+
+I’ve got enough to finish the plan review; I’m just collecting the protocol check output so the finding doesn’t rest on an assumption.
+
+The corrected probe is taking longer than expected, likely inside Git submodule setup; I’m checking once more and will stop it if it is stuck.
+
+The Git protocol probe appears stuck rather than informative, so I’m stopping that shell and relying on static review for the final finding set.
+
+Found two blocking plan issues.
+
+### Feasibility
+
+- [High] AC-3 claims the reuse path will be covered by the redesigned `tests/test-submodule-worktree-init.sh`, but the required changes only add fresh CLI worktree cases. The current test’s “reuse” behavior is an inline `git worktree add` + `run_locked_submodule_update()` fixture, not `worktree-create.mjs` reuse. Add explicit second-invocation cases against the same `--worktree-path`: omitted flag returns `submoduleInitRan:false`; `--init-submodules` returns `true`.
+
+### Completeness
+
+- [High] The plan misses stale prose in `skills/convert-to-ralph-prd/SKILL.md:54` and its Copilot mirror: “batch mode… caller (`decompose-plan`) owns it for parallel-group members.” After removing decompose-plan’s init block, that statement becomes false. Update this bullet and add a test assertion that the old “caller owns it” wording is gone.
+
+### Ordering
+
+No issues found.
+
+### Simplicity
+
+No issues found.
+
+### Acceptance Criteria Quality
+
+- [High] AC-3 is not verifiable as written because it points to a non-existent reuse-fixture path for `worktree-create.mjs`. Rewrite it to name the exact CLI sequence or Node test that performs the second invocation on an existing valid worktree.
+

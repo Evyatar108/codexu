@@ -1,117 +1,145 @@
 {
-  "planFile": "D:/harness-efforts/codexu/.ralph/jobs/.staging/20260603T165631Z-plan-ralph-orchestration-worktree-conditional-submodule-init-22ab7c78/draft-plan.md",
+  "planFile": "D:/harness-efforts/codexu/.ralph/jobs/.staging/20260603T231858Z-plan-worktree-conditional-narrow-2e7f3c23/draft-plan.md",
   "repoDir": "D:/harness-efforts/codexu/.ralph/jobs/ralph-orchestration-worktree-conditional-submodule-init/worktree/plan",
   "reviewCycle": 1,
   "findings": [
     {
       "id": "F-001",
-      "severity": "Critical",
-      "source": "codex",
-      "category": "Feasibility",
-      "sectionRef": "Implementation Strategy > US-007/US-008 + Acceptance Criteria > AC11",
-      "description": "Plan US-007 says the impl member pushes the toolkit commit to `origin`, `personal`, AND `gim-home` directly, and US-008 says the impl member pushes the codexu pointer-bump commit to codexu `origin/main`. Both conflict with codexu AGENTS.md 'Lead post-FF flow' rule and the global guidance 'Ask before pushing to remotes' / 'Only the lead merges to main'.",
+      "severity": "High",
+      "source": "consensus",
+      "category": "Completeness",
+      "sectionRef": "Primary touchpoints > Code",
+      "description": "Plan says convert-to-ralph-prd needs no edit, but skills/convert-to-ralph-prd/SKILL.md:396 still claims 'submodules initialize under the shared cross-process lock'. Under v5.50.0 default the helper does NOT init unless --init-submodules is passed; the Step 5 call omits the flag so this prose becomes false. Same stale claim in the Copilot mirror at .copilot-plugin/internal-workflows/convert-to-ralph-prd/SKILL.md:396.",
       "status": "fixed",
-      "fixedInIteration": 1,
-      "resolution": "Amended the plan so impl members only push topic branches, while FF-merge to main, multi-remote sync, and cleanup are explicitly lead-owned. Updated US-007, US-008, AC11, Scope > In Scope, Technical Constraints, and Risk Areas to reflect the lead-FF-only pattern."
+      "relevantFiles": [
+        "ai-developer-toolkit/plugins/ralph/skills/convert-to-ralph-prd/SKILL.md",
+        "ai-developer-toolkit/plugins/ralph/.copilot-plugin/internal-workflows/convert-to-ralph-prd/SKILL.md"
+      ],
+      "suggestedFix": "Add convert-to-ralph-prd SKILL.md to MODIFY list: rewrite the bullet at line ~396 to read 'submodule init is OPT-IN via --init-submodules; this caller omits the flag so the impl worktree starts with uninitialized submodules. Members run git submodule update --init <path> on demand.' Regenerate the Copilot mirror via generate-copilot-artifacts.mjs.",
+      "resolution": "Added US-004b modifying convert-to-ralph-prd SKILL.md prose around line ~396; regenerate Copilot mirror; AC-6b covers grep verification.",
+      "fixedInIteration": 1
     },
     {
       "id": "F-002",
       "severity": "High",
-      "source": "codex",
-      "category": "Feasibility",
-      "sectionRef": "Approach > Architecture + Risk Areas + Acceptance Criteria > AC7",
-      "description": "RALPH_NO_SUBMODULE_INIT env var leak into impl-phase worktrees.",
+      "source": "claude",
+      "category": "Completeness",
+      "sectionRef": "Approach > Implementation Strategy",
+      "description": "plan-with-ralph SKILL.md:323 says 'worktree-create.mjs ... initializes submodules under the shared Ralph lock'. Under v5.50.0 default this becomes false. Plan does not list this file in MODIFY.",
       "status": "fixed",
-      "fixedInIteration": 2,
-      "resolution": "Added positive-form --require-submodule-init CLI flag with highest precedence (require > no > env > default). Wired convert-to-ralph-prd Step 5 to pass --require-submodule-init. Added 2 new test cases (f/g) to both bash + node test files asserting env-set + require still inits and require wins over --no-submodule-init. Restructured AC7 into two-part verification (positive proof of impl safety + env-leak immunity test). Updated Architecture, Technical Constraints, Risk Areas, AGENTS.md bullets, Files to Modify > worktree-create.mjs and new convert-to-ralph-prd MODIFY entry, In Scope, Story decomposition (added US-004b folded into US-004's PR scope)."
+      "relevantFiles": [
+        "ai-developer-toolkit/plugins/ralph/skills/plan-with-ralph/SKILL.md",
+        "ai-developer-toolkit/plugins/ralph/.copilot-plugin/copilot-skills/plan-with-ralph/SKILL.md"
+      ],
+      "suggestedFix": "Add plan-with-ralph SKILL.md to MODIFY list: rewrite the prose at line ~323 to remove the 'initializes submodules under the shared Ralph lock' clause. Replace with: 'Submodule init is opt-in via --init-submodules (default off in v5.50.0+); this caller omits the flag so the plan worktree starts with uninitialized submodules.' Regenerate the Copilot mirror.",
+      "resolution": "Added US-004c modifying plan-with-ralph SKILL.md prose around line ~323; regenerate Copilot mirror; AC-6c covers grep verification.",
+      "fixedInIteration": 1
     },
     {
       "id": "F-003",
       "severity": "High",
       "source": "consensus",
       "category": "Completeness",
-      "sectionRef": "Approach + Acceptance Criteria > AC12",
-      "description": "No user-facing /plan-with-ralph flag or per-invocation override for planning tasks targeting submodule code.",
+      "sectionRef": "Approach > Implementation Strategy > US-003",
+      "description": "US-003 description is INACCURATE about the test file structure. tests/test-submodule-worktree-init.sh does NOT have CLI worktree-create.mjs cases to amend — its behavioral fixture uses inline `git worktree add` plus a sourced run_locked_submodule_update() helper that mirrors the decompose-plan Step 5b inline pattern. It asserts via assert_source_contract / assert_grep_contracts / assert_batch_scope that the source SKILL.md files contain certain init prose. Under v5.50.0, decompose-plan loses the init prose entirely, so assert_source_contract for decompose-plan AND the grep assertion for the Copilot mirror BOTH fail. Plan must redesign these assertions, not merely amend them.",
       "status": "fixed",
-      "fixedInIteration": 3,
-      "resolution": "Added user-facing /plan-with-ralph --init-submodules boolean flag in Phase 1 arg parsing + Phase 1 output state + Phase 1B conditional NO_SUBMODULE_INIT_FLAG. When set, Phase 1B omits --no-submodule-init from the worktree-create invocation. Updated plan-with-ralph SKILL.md prose to document the opt-out. Restructured AC12 into two smoke spawn variants (default-skip + --init-submodules opt-out) with concrete observables per variant. Added US-004 description to include the new flag wiring. Updated Open Questions to reflect resolution."
+      "relevantFiles": [
+        "ai-developer-toolkit/plugins/ralph/tests/test-submodule-worktree-init.sh"
+      ],
+      "suggestedFix": "Rewrite US-003 to: (a) drop assert_source_contract and assert_grep_contracts calls against decompose-plan SKILL.md and the Copilot mirror (those files no longer contain the init command). (b) Keep assert_source_contract / assert_grep_contracts against convert-to-ralph-prd SKILL.md and its Copilot mirror IF we decide convert-to-ralph-prd should keep some init reference for documentation traceability — but under v5.50.0, convert-to-ralph-prd ALSO loses any source claim that it inits, so these assertions ALSO need to be dropped or replaced with negative assertions. (c) Replace the behavioral fixture's run_locked_submodule_update() invocation against decompose-plan-style worktrees with CLI invocations of worktree-create.mjs against the existing super-repo fixture — one default-no-op case (asserting submoduleInitRan: false + empty submodules + no lock activity) and one --init-submodules case (asserting submoduleInitRan: true + populated submodules).",
+      "resolution": "Rewrote US-003 with explicit Test redesign subsection enumerating drop assertions / new negative assertions / new CLI cases / fixture repurpose.",
+      "fixedInIteration": 1
     },
     {
       "id": "F-004",
       "severity": "High",
-      "source": "copilot",
+      "source": "codex",
       "category": "Feasibility",
-      "sectionRef": "Files to Create/Modify > tests/test-submodule-worktree-init.sh",
-      "description": "Plan proposes bash test parse JSON with jq, but v5.46.0 explicitly removed the jq prerequisite.",
+      "sectionRef": "Approach > Implementation Strategy > US-003",
+      "description": "Test fixture's local submodule setup uses `git -c protocol.file.allow=always` per-call on every git invocation that touches the file:// submodule URL. worktree-create.mjs's runSubmoduleInit() runs plain `git submodule update --init --recursive` without the -c flag, so a new CLI opt-in test against the file:// fixture submodule will fail with 'transport file disallowed' on default Git ≥2.38 unless the fixture sets `protocol.file.allow=always` at the super-repo config level (so the worktree inherits it for the helper's plain git invocation).",
       "status": "fixed",
-      "fixedInIteration": 4,
-      "resolution": "Replaced jq-parsing approach with text-grep on raw JSON output (e.g. grep -q '\"submoduleInitRan\"[[:space:]]*:[[:space:]]*false'). Documented the constraint in the test section MODIFY entry. Updated AC4 to specify NO jq, grep-on-JSON only. Updated AGENTS.md v5.48.0 bullets to call out the prerequisite-respecting approach."
+      "relevantFiles": [
+        "ai-developer-toolkit/plugins/ralph/tests/test-submodule-worktree-init.sh"
+      ],
+      "suggestedFix": "US-003 fixture-setup step must add `git -C $SUPER_REPO config protocol.file.allow always` immediately after super-repo init (before submodule add). The worktrees created via worktree-create.mjs against this super-repo inherit the config setting, so the helper's plain `git submodule update --init --recursive` works without modification. Alternatively, expose a new env-var on worktree-create.mjs to inject -c — but operator excluded env-var handling, so the super-repo config approach is preferred.",
+      "resolution": "Added explicit fixture-setup step in US-003 step 1: git -C SUPER_REPO config protocol.file.allow always; documented in Test redesign subsection.",
+      "fixedInIteration": 1
     },
     {
       "id": "F-005",
       "severity": "High",
       "source": "codex",
-      "category": "Feasibility",
-      "sectionRef": "Implementation Strategy > US-002, US-003 + Technical Constraints",
-      "description": "File-protocol submodule fixture tests need git -c protocol.file.allow=always; not explicitly required in AC4/AC5.",
+      "category": "Acceptance Criteria Quality",
+      "sectionRef": "Acceptance Criteria > AC-13",
+      "description": "AC-13 is post-merge, lead-owned smoke work. An autonomous impl member cannot satisfy it before the toolkit and codexu pointer commits are FF-merged. AC-13 also uses 'meaningfully faster than v5.49.0' without a numeric threshold or fixed baseline command — not objectively testable.",
       "status": "fixed",
-      "fixedInIteration": 5,
-      "resolution": "Updated AC4 and AC5 to explicitly require 'Fixture setup MUST configure git -C <super-repo> config protocol.file.allow always so subsequent git submodule update calls inside new worktrees (including worktree-create.mjs's plain invocation at line 291) succeed under git's default file-protocol-deny policy.' Updated tests MODIFY entries to describe the super-repo-config approach (so the worktree inherits the policy, no -c needed per call). Updated Technical Constraints bullet."
+      "relevantFiles": [
+        "D:/harness-efforts/codexu/.ralph/jobs/.staging/20260603T231858Z-plan-worktree-conditional-narrow-2e7f3c23/draft-plan.md"
+      ],
+      "suggestedFix": "Move AC-13 out of the Acceptance Criteria list into a new 'Lead-Owned Post-Ship Smoke' section that explicitly states it is NOT a gate on impl completion. The impl member ships when AC-1..AC-12 + AC-14 + AC-15 pass; the lead runs the smoke after FF-merging and records it as advisory. Drop the 'meaningfully faster' wording — make the smoke note just 'submoduleInitRan: false observed in staging worktree-result.json + plan completed without referencing missing submodule code'.",
+      "resolution": "Moved AC-13 out of Acceptance Criteria into new Lead-Owned Post-Ship Smoke section explicitly NOT a gate on impl. Dropped meaningfully faster wording.",
+      "fixedInIteration": 1
     },
     {
       "id": "F-006",
       "severity": "High",
       "source": "codex",
-      "category": "Feasibility",
-      "sectionRef": "Files to Create/Modify > Copilot mirror regeneration",
-      "description": "Copilot generation cwd/path mismatch (toolkit root + ai-developer-toolkit/... is invalid).",
+      "category": "Acceptance Criteria Quality",
+      "sectionRef": "Acceptance Criteria > AC-6",
+      "description": "AC-6 only greps Step 5b in decompose-plan but the F-001 + F-002 stale claims in convert-to-ralph-prd and plan-with-ralph are equally user-visible. Need explicit ACs covering those files and their Copilot mirrors.",
       "status": "fixed",
-      "fixedInIteration": 6,
-      "resolution": "Picked codexu-root as canonical cwd: 'From the codexu repo root, run: node ai-developer-toolkit/plugins/ralph/scripts/generate-copilot-artifacts.mjs --write'. Updated both the regen instruction and AC9. Documented the alternative toolkit-root form for impl members whose cwd differs."
+      "relevantFiles": [
+        "D:/harness-efforts/codexu/.ralph/jobs/.staging/20260603T231858Z-plan-worktree-conditional-narrow-2e7f3c23/draft-plan.md"
+      ],
+      "suggestedFix": "Split AC-6 into AC-6a (decompose-plan Step 5b — `git submodule update --init --recursive` no longer appears in Step 5b prose), AC-6b (convert-to-ralph-prd line ~396 prose updated to reflect opt-in default + Copilot mirror in sync), AC-6c (plan-with-ralph line ~323 prose updated to remove 'initializes submodules under the shared Ralph lock' clause + Copilot mirror in sync).",
+      "resolution": "Split AC-6 into AC-6a (decompose-plan), AC-6b (convert-to-ralph-prd), AC-6c (plan-with-ralph), each covering source + Copilot mirror.",
+      "fixedInIteration": 1
     },
     {
       "id": "F-007",
       "severity": "Medium",
-      "source": "codex",
-      "category": "Completeness",
-      "sectionRef": "Acceptance Criteria > AC1-AC3 + Files to Modify > tests",
-      "description": "Reuse-path test case missing; only fresh-create paths covered.",
+      "source": "claude",
+      "category": "Feasibility",
+      "sectionRef": "Research Findings > Codebase Context",
+      "description": "Line numbers in plan are off. finishResult is at lines 132-144 (not 132 as claimed); parseArgs is at 146-178; runSubmoduleInit starts at line 263 (not 263-300 — extends to 300). Reuse-path call is line 92 (correct), but the 'lock acquired' line is 274 (not 271 as claimed).",
       "status": "fixed",
-      "fixedInIteration": 7,
-      "resolution": "Added Test Case (e) 'reuse path observes skip' to both tests/worktree-create.test.mjs and tests/test-submodule-worktree-init.sh: pre-create valid worktree, invoke with --no-submodule-init, assert reusedExistingWorktree=true AND submoduleInitRan=false AND lock-parent unchanged. Added new AC14 explicitly asserting reuse-path skip."
+      "relevantFiles": [
+        "ai-developer-toolkit/plugins/ralph/src/worktree-create.mjs",
+        "D:/harness-efforts/codexu/.ralph/jobs/.staging/20260603T231858Z-plan-worktree-conditional-narrow-2e7f3c23/draft-plan.md"
+      ],
+      "suggestedFix": "Drop most line numbers from the plan — they're load-bearing only for impl members who'd otherwise grep, and they go stale on the first whitespace/import edit. Keep symbolic anchors (function names, switch case neighbors) and let the impl member find the exact lines. Where line ranges are kept (e.g. for the test file's existing case set), use approximate ranges with '~' prefix.",
+      "resolution": "Dropped most load-bearing line numbers from plan prose; kept symbolic anchors. Where ranges retained use ~ prefix.",
+      "fixedInIteration": 1
     },
     {
       "id": "F-008",
       "severity": "Medium",
-      "source": "codex",
-      "category": "Criteria Quality",
-      "sectionRef": "Acceptance Criteria > AC8",
-      "description": "AC8's grep -c >= 6 is not a valid shell predicate.",
+      "source": "copilot",
+      "category": "Ordering",
+      "sectionRef": "Approach > Implementation Strategy",
+      "description": "US-008 (codexu submodule pointer bump) cannot be done in the same autonomous impl session as US-001..US-007. It depends on the lead FF-merging the toolkit topic branch + pushing toolkit-main first. Plan's 'direct serial invocation' next-step language is misleading: one autonomous impl member can complete US-001..US-007 and then must hand off.",
       "status": "fixed",
-      "fixedInIteration": 8,
-      "resolution": "Rewrote AC8 verification as: test \"$(awk '/^## v5\\.48\\.0/,/^## v5\\.4[0-7]/' ai-developer-toolkit/plugins/ralph/AGENTS.md | grep -c '^- \\*\\*')\" -ge 8 (valid bash predicate; counts bold-prefixed bullets in v5.42.0 style)."
+      "relevantFiles": [
+        "D:/harness-efforts/codexu/.ralph/jobs/.staging/20260603T231858Z-plan-worktree-conditional-narrow-2e7f3c23/draft-plan.md"
+      ],
+      "suggestedFix": "Move US-008 to a dedicated 'Lead-Owned Follow-Up' subsection of Implementation Strategy. State clearly: 'The autonomous impl member completes US-001..US-007 and reports kind=done. The lead executes the canonical Multi-repo wrapper-to-submodule ship ceremony (plugins/ralph/AGENTS.md), then either runs US-008 by hand or spawns a brief follow-up impl member to commit the codexu pointer bump.' Update the Next Step section accordingly.",
+      "resolution": "Added Lead-Owned Follow-Up subsection under Implementation Strategy explicitly stating US-008 cannot be done in same autonomous session. Updated Next Step section.",
+      "fixedInIteration": 1
     },
     {
       "id": "F-009",
       "severity": "Medium",
       "source": "codex",
-      "category": "Criteria Quality",
-      "sectionRef": "Acceptance Criteria > AC3",
-      "description": "AC3 'byte-for-byte equivalent to v5.46.0' is vague and impossible by design (file picks up new flag-parsing cases).",
+      "category": "Completeness",
+      "sectionRef": "Approach > Implementation Strategy > US-003",
+      "description": "test-submodule-worktree-init.sh assert_batch_scope() asserts convert-to-ralph-prd batch-mode prose does NOT contain the submodule init command. Under v5.50.0 this assertion remains true (batch mode prose at line ~372 still says 'do not initialize submodules'), but the related assertion on assert_source_contract($convert) will fail because convert-to-ralph-prd's non-batch prose at line 396 also no longer claims to init. Plan must explicitly track this.",
       "status": "fixed",
-      "fixedInIteration": 9,
-      "resolution": "Rewrote AC3 to replace 'byte-for-byte' with 5 concrete observable assertions: (a) JSON shape submoduleInitRan: true, (b) lock-parent dir created+removed (transient trace), (c) stderr 'Initializing submodules in ', (d) git submodule status shows space-prefix lines, (e) pre-existing tests pass without modification. 'Behaviorally equivalent' explicitly noted as the contract instead of byte equality."
-    },
-    {
-      "id": "F-010",
-      "severity": "Medium",
-      "source": "claude",
-      "category": "Criteria Quality",
-      "sectionRef": "Acceptance Criteria > AC12",
-      "description": "AC12's 'without referencing missing submodule code' is subjective.",
-      "status": "fixed",
-      "fixedInIteration": 3,
-      "resolution": "Subsumed by F-003's AC12 restructure into two smoke spawn variants with concrete observables (worktree-result.json shape per variant, kind=done report fields, lock-parent state, git submodule status output). Subjective phrase removed."
+      "relevantFiles": [
+        "ai-developer-toolkit/plugins/ralph/tests/test-submodule-worktree-init.sh"
+      ],
+      "suggestedFix": "F-003's US-003 rewrite must include: 'Drop assert_source_contract($convert) and assert_file_contains for the Copilot convert mirror — convert-to-ralph-prd SKILL.md and its mirror no longer contain `git submodule update --init` after the line 396 prose update (F-001). Keep assert_batch_scope($convert) — batch-mode prose at line ~372 still does not contain the init command (assertion remains true).'",
+      "resolution": "Test redesign subsection in US-003 explicitly notes assert_batch_scope remains true (kept) while assert_source_contract for convert/decompose drop.",
+      "fixedInIteration": 1
     }
   ]
 }

@@ -1,33 +1,29 @@
 ### Feasibility
 
-[Critical] US-007/US-008 and AC11 require pushing to `origin`, `personal`, `gim-home`, and codexu `origin/main` without an explicit approval gate. That conflicts with root [AGENTS.md](/mnt/d/harness-efforts/codexu/AGENTS.md:94): “Ask before pushing to remotes.” Add a mandatory operator approval checkpoint before any `git push`.
+[High] `ai-developer-toolkit/plugins/ralph/tests/test-submodule-worktree-init.sh` does not currently contain CLI `worktree-create.mjs` cases to “amend.” Its behavioral fixture uses inline `git worktree add` plus `run_locked_submodule_update()`. AC-3/US-003’s “existing reuse-fixture path” is inaccurate; implementation must add new CLI fixture coverage or rewrite part of the shell test.
 
-[High] The env override undermines the “impl-phase safety net stays in place” claim. `convert-to-ralph-prd` calls `worktree-create.mjs` for impl worktrees at [SKILL.md](/mnt/d/harness-efforts/codexu/ai-developer-toolkit/plugins/ralph/skills/convert-to-ralph-prd/SKILL.md:357), and `runSubmoduleInit` is shared at [worktree-create.mjs](/mnt/d/harness-efforts/codexu/ai-developer-toolkit/plugins/ralph/src/worktree-create.mjs:259). If `RALPH_NO_SUBMODULE_INIT=1` leaks into the environment, impl worktrees skip too, even though AC7 only greps for the CLI flag. Either remove the env override, scope it to plan-with-ralph, or add an explicit impl override such as `--init-submodules`.
-
-[High] The proposed file-protocol submodule tests are likely infeasible as written. The helper runs plain `git submodule update --init --recursive` at [worktree-create.mjs](/mnt/d/harness-efforts/codexu/ai-developer-toolkit/plugins/ralph/src/worktree-create.mjs:285). Existing bash test code uses `git -c protocol.file.allow=always` for local fixture submodules at [test-submodule-worktree-init.sh](/mnt/d/harness-efforts/codexu/ai-developer-toolkit/plugins/ralph/tests/test-submodule-worktree-init.sh:143). The new helper-invoked default test needs repo config/env setup, or it will fail under Git’s default file protocol policy.
-
-[High] The Copilot generation instruction has the wrong path for the stated cwd. It says run `node ai-developer-toolkit/plugins/ralph/scripts/generate-copilot-artifacts.mjs --write` “from the toolkit root”; from `ai-developer-toolkit/`, that path is invalid. Use `node plugins/ralph/scripts/generate-copilot-artifacts.mjs --write` from toolkit root, or run the prefixed path from codexu root.
+[High] The shell fixture’s local submodule setup is not already configured for `worktree-create.mjs` opt-in. It uses `git -c protocol.file.allow=always ... submodule add` and the helper also uses `-c`, but `src/worktree-create.mjs` runs plain `git submodule update --init --recursive`. A new CLI opt-in test against the fixture may fail with file transport blocked unless the test configures `protocol.file.allow always` in the repo or environment.
 
 ### Completeness
 
-[Medium] The plan says both fresh-create and reuse paths must skip, but the proposed tests only clearly cover fresh worktree creation. The reuse path calls `runSubmoduleInit` separately at [worktree-create.mjs](/mnt/d/harness-efforts/codexu/ai-developer-toolkit/plugins/ralph/src/worktree-create.mjs:88). Add a test that creates/reuses a valid existing worktree and asserts `submoduleInitRan: false`.
+[High] The plan says `convert-to-ralph-prd` needs no edit, but its docs will become false. `ai-developer-toolkit/plugins/ralph/skills/convert-to-ralph-prd/SKILL.md:396` says the helper initializes submodules under the lock, and lines 54/372 say batch mode skips init because `decompose-plan` owns it. After this change, neither statement is true. The Copilot mirror has the same stale line at `.copilot-plugin/internal-workflows/convert-to-ralph-prd/SKILL.md:396`.
 
-[Medium] The plan does not give a practical opt-out for plan-phase tasks that target submodule code. `plan-with-ralph` currently has one fixed helper invocation at [SKILL.md](/mnt/d/harness-efforts/codexu/ai-developer-toolkit/plugins/ralph/skills/plan-with-ralph/SKILL.md:306). “Remove the flag for that spawn” is not a stable interface. Add a documented skill argument/env override for plan worktrees that need initialized submodules.
+[High] `plan-with-ralph` also needs a prose update. `ai-developer-toolkit/plugins/ralph/skills/plan-with-ralph/SKILL.md:323` says `worktree-create.mjs` initializes submodules under the Ralph lock. The plan explicitly omits this file, leaving operator-facing docs wrong after the default flip.
+
+[Medium] `test-submodule-worktree-init.sh` currently asserts that `decompose-plan`, `convert-to-ralph-prd`, and their Copilot mirrors contain `git submodule update --init` (`assert_grep_contracts`). The plan only mentions changing the decompose-plan expectations. The grep contract must be redesigned for the new policy, including what should still be true for `convert-to-ralph-prd`.
 
 ### Ordering
 
-[High] Remote push verification in AC11 is ordered as part of autonomous implementation, but repo policy requires approval before those pushes. Insert an approval gate after local tests and local commits, before toolkit remote pushes and before codexu main push.
+[High] AC-13 is post-merge, lead-owned smoke work, but it is listed as an acceptance criterion for this implementation plan. An autonomous impl member cannot satisfy it before the toolkit and codexu pointer commits are merged, so it should be moved to lead handoff/post-ship checklist rather than blocking implementation acceptance.
 
 ### Simplicity
 
-[Medium] The env var adds global blast radius for little benefit. A CLI flag wired into `plan-with-ralph` is enough for D-001 and avoids surprising impl callers. If the env var stays, the plan needs a counter-control for impl paths.
+No issues found. The core code approach, a single `--init-submodules` flag and early no-op in `runSubmoduleInit()`, is appropriately small.
 
 ### Acceptance Criteria Quality
 
-[High] AC7 is insufficient: grepping impl skill files for `--no-submodule-init` does not prove impl-phase submodule init is preserved because the env var can still skip shared helper calls.
+[High] AC-13 uses “meaningfully faster than v5.49.0” without a numeric threshold or fixed baseline command. That is not objectively testable by an autonomous agent and will produce inconsistent pass/fail judgments.
 
-[Medium] AC8’s verification command is not a valid shell predicate as written: `grep -c ... >= 6` will not test the count. Replace it with `test "$( ... | grep -c '^- ')" -ge 6`.
+[Medium] AC-6 only greps Step 5b in `decompose-plan`, but the stale behavior claims in `convert-to-ralph-prd` and `plan-with-ralph` are equally user-visible. Add explicit ACs for those files and their generated mirrors.
 
-[Medium] AC3’s “byte-for-byte equivalent to v5.46.0” is vague and not realistically verifiable. Replace it with concrete assertions for JSON shape, lock behavior, stderr expectations, and submodule status.
-
-No prior plan-review amendments were referenced; only brainstorm/selected-direction context was mentioned.
+The re-plan’s narrowed product direction looks adequate versus the rejected precedence-stack plan, but it undercounts existing documentation and test contracts that still encode the v5.49 unconditional-init behavior.
