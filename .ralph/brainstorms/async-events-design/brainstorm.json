@@ -1,0 +1,42 @@
+{
+  "brainstormName": "async-events-design",
+  "overviewTaskId": "async-events-design",
+  "idea": "Re-evaluate the async-events-design 5-option matrix in light of codex-channels-option-b ship (c3075b6c, 2026-06-02). Assess adjacent tasks 3d-workers and agent-comms; answer codex-as-crews-engine question. Research + design only.",
+  "availableLenses": ["devils-advocate", "codex"],
+  "missingLenses": [{"lens": "copilot", "reason": "malformed"}],
+  "candidateDirections": [
+    {
+      "id": "D-001",
+      "name": "Long-poll / explicit-seam v0 before channels-first producers",
+      "summary": "Ship producer logic as a long-poll async_events_wait MCP tool (and/or extend codex app-server fs_watch for U4) first; channels-first push is a fast-follow that reuses the same producer code.",
+      "contributingLenses": ["codex", "devils-advocate"]
+    },
+    {
+      "id": "D-002",
+      "name": "Durable mailbox + channel wake (agent-comms B/C + codex-as-crews)",
+      "summary": "Mailbox stays source of truth; channel notifications carry 'you have mail' wake signals; missed wakes recoverable via mailbox re-read. Single pattern resolves agent-comms Scopes B+C and the codex-as-crews-engine question.",
+      "contributingLenses": ["codex", "devils-advocate"]
+    },
+    {
+      "id": "D-003",
+      "name": "Channels-first Node producer hub",
+      "summary": "Extend packages/happy-cli/src/codex/happyMcpStdioBridge.ts with git/fs/timer producers emitting standard MCP notifications now that the consumer exists. Smallest visible-result increment for U1/U2/U4.",
+      "contributingLenses": ["codex"]
+    },
+    {
+      "id": "D-004",
+      "name": "Delay producer build-out — run a pilot first",
+      "summary": "Run a measurement pilot (routing enabled, synthetic producers, multi-session) before committing producer-ecosystem investment. Direct counter to D-003.",
+      "contributingLenses": ["devils-advocate"]
+    }
+  ],
+  "recommendedDirection": "D-002",
+  "questionsForSynthesis": [
+    "Which event kinds truly require in-session reaction instead of exit-and-respawn?",
+    "Is the authority of record for each use case the MCP producer (D-003), the app-server (D-001 fs_watch hint), or a durable mailbox/store (D-002)?",
+    "Can routing become per-subscription/per-session before multi-session producers ship, or is global per-server/per-kind policy acceptable for v1?",
+    "What is the explicit missed-wake recovery path when routing is disabled, the session is mid-turn, or the app-server idles out?",
+    "Should agent-comms be rescoped now to unblock Scope B+C while keeping Scope A explicitly blocked?",
+    "For codex-as-crews-engine: is anyone proposing to move message durability OUT of the file mailbox, or are we explicitly settling on mailbox=source-of-truth + channels=wake-hint?"
+  ]
+}
