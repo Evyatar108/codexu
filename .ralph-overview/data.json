@@ -217,22 +217,34 @@
     {
       "id": "crews-stop-bg-gate-detector-broaden-infra-filter",
       "scope": "crews",
-      "lifecycle": "tracked",
+      "lifecycle": "merged",
       "status": "ok",
-      "lastTouchedAt": "2026-06-03T19:15:00Z",
+      "lastTouchedAt": "2026-06-03T21:50:00Z",
+      "shipManifest": {
+        "shippedAt": "2026-06-03T21:50:00Z",
+        "summary": "crews v3.4.0 ships as bundle (US-001 detector-broaden + US-002 lead-listener; see also crews-stop-hook-require-lead-listener-unconditionally for US-002 details). US-001: new isCrewsCliInfraCall helper in hooks/listener-protocol.js; hooks/detect-active-bg.js OR-combines it with isListenerArmCall so forgotten async crews.js subcommand calls (status, peek-mailbox, etc.) no longer leak past the filter as 'real bg work'. PreToolUse safety preserved (hooks/pre-tool-use.js byte-identical; isListenerArmCall not broadened). Closes the false-pass that bit us at 2026-06-03T15:45 on member brainstorm-ralph-orchestration-worktree-conditional-submodule-init. 15 files +497/-11. Focused tests green. Two serial-tail flakes (locks.test.js, stop-member-cli.test.js) reproduce on origin/main — pre-existing Windows timing flakes, not caused by v3.4.",
+        "commits": [
+          { "sha": "1e085658", "oneLine": "plan: crews-v3.4-bundle (cherry-picked from plan member's e5a6d846)", "repo": "codexu" },
+          { "sha": "429ba5e6", "oneLine": "crews(v3.4.0): Stop-hook bundle - detector-broaden infra-filter + lead-listener unconditional", "repo": "ai-developer-toolkit" }
+        ]
+      },
       "kanbanCards": [
         {
           "className": "cmd-warn",
-          "html": "<strong>Surfaced 2026-06-03T16:22Z</strong> by post-mortem of why the v3.2.0 progress-bg-gate did NOT fire on member <code>brainstorm-ralph-orchestration-worktree-conditional-submodule-init</code> (session <code>478bf67e</code>, turn at 15:45:01Z), even though that turn emitted a plain <code>&lt;|report kind=\"progress\"|&gt;</code> with no bypass tag and no real bg work. Trace: the member ran <code>node $env:CREWS_BIN status --crew ralph-pipeline ... --as &lt;name&gt;</code> at SessionStart as <code>mode=async</code> (likely to inspect crew state without blocking) and never called <code>read_powershell</code> on it. No <code>shell_completed</code> event ever fired for that shellId. At Stop time the detector at <code>hooks/detect-active-bg.js</code> saw 2 active async shells (<code>crews-status</code> + the actual <code>listener</code>); <code>isListenerArmCall</code> from <code>hooks/listener-protocol.js:113</code> filters only commands matching <code>ARM_PATTERN_CREWS</code> (<code>crews.js arm</code>) or <code>ARM_PATTERN_LEGACY</code> (<code>wait-for-message.js</code>) — so the <code>status</code> shell counted as a non-listener bg subprocess. Detector returned <code>nonListenerCount === 1</code>, gate at <code>hooks/stop.js:1116</code> evaluated to false, turn allowed. False pass."
+          "html": "<strong>Surfaced 2026-06-03T16:22Z</strong> by post-mortem of why the v3.2.0 progress-bg-gate did NOT fire on member <code>brainstorm-ralph-orchestration-worktree-conditional-submodule-init</code> (session <code>478bf67e</code>, turn at 15:45:01Z), even though that turn emitted a plain <code>&lt;|report kind=\"progress\"|&gt;</code> with no bypass tag and no real bg work."
         },
         {
           "className": "cmd-ok",
-          "html": "<strong>Plan shipped 2026-06-03T19:05Z</strong> as bundle <code>1e085658</code> (codexu cherry-pick of plan member's <code>e5a6d846</code>; main was diverged via bookkeeping commits). Bundle includes BOTH US-001 (this task) + US-002 (<code>crews-stop-hook-require-lead-listener-unconditionally</code>). Plan deliverables at <code>.ralph/jobs/crews-v3.4-bundle/</code>. Phase 4 review: 9 findings fixed (4 in convergence loop + 5 post-soft-cap manual). 2-cluster serial decomposition. Plan member used soft-cap exit + manual finding application (review-loop convergence stalled). Ready for impl spawn."
+          "html": "<strong>Plan shipped 2026-06-03T19:05Z</strong> as bundle <code>1e085658</code>. Phase 4: 9 findings fixed (4 in convergence loop + 5 post-soft-cap manual)."
+        },
+        {
+          "className": "cmd-ok",
+          "html": "<strong>Impl shipped 2026-06-03T21:50Z</strong> as bundle <code>429ba5e6</code> (toolkit v3.4.0). Toolkit FF + 3-remote push + codexu pointer bump + AGENTS.md table 3.3.0→3.4.0 + copilot plugin update --all → LIVE on lead's installed plugin."
         }
       ],
       "command": {
         "name": "crews-stop-bg-gate-detector-broaden-infra-filter",
-        "descriptionHtml": "<strong>Broaden the bg-gate detector's listener filter to recognize ALL crews CLI subcommands as infrastructure, not real work.</strong> Bundled with <code>crews-stop-hook-require-lead-listener-unconditionally</code> as crews v3.4. Plan shipped 1e085658.",
+        "descriptionHtml": "<strong>Bundled in crews v3.4 with <code>crews-stop-hook-require-lead-listener-unconditionally</code>.</strong> Plan shipped 1e085658, impl shipped 429ba5e6.",
         "warnings": [],
         "prompts": {
           "plan": "/plan-with-ralph \"Broaden the crews progress-bg-gate detector's listener-call filter to recognize ALL crews CLI subcommands as infrastructure, not real bg work. (Bundled with crews-stop-hook-require-lead-listener-unconditionally as US-001+US-002 for crews v3.4 ship.)\"",
@@ -243,22 +255,34 @@
     {
       "id": "crews-stop-hook-require-lead-listener-unconditionally",
       "scope": "crews",
-      "lifecycle": "tracked",
+      "lifecycle": "merged",
       "status": "ok",
-      "lastTouchedAt": "2026-06-03T19:15:00Z",
+      "lastTouchedAt": "2026-06-03T21:50:00Z",
+      "shipManifest": {
+        "shippedAt": "2026-06-03T21:50:00Z",
+        "summary": "crews v3.4.0 ships as bundle (US-002 lead-listener; see also crews-stop-bg-gate-detector-broaden-infra-filter for US-001 details). US-002: shouldRequireArmedListener at hooks/stop.js:111 short-circuits role==='lead' → return true; new 'stop: lead-listener-required' log line on the lead-block path in decideStopBlock so post-mortem grep is possible. Members keep existing kind-gated logic (kind=progress mid-stream legitimately doesn't require armed; PreToolUse re-arms on next tool call). Closes the 3-min lead-listener drift observed at 2026-06-03T16:39:58 when brainstorm member's kind=done delivery exited the lead's armed listener and Stop hook silently allowed several prose-only turns before PreToolUse caught it. Tests in stop-decision.test.js + role-gate.test.js; first-turn-listener-guard.test.js regression anchor unchanged.",
+        "commits": [
+          { "sha": "1e085658", "oneLine": "plan: crews-v3.4-bundle (cherry-picked from plan member's e5a6d846)", "repo": "codexu" },
+          { "sha": "429ba5e6", "oneLine": "crews(v3.4.0): Stop-hook bundle - detector-broaden infra-filter + lead-listener unconditional", "repo": "ai-developer-toolkit" }
+        ]
+      },
       "kanbanCards": [
         {
           "className": "cmd-warn",
-          "html": "<strong>Surfaced 2026-06-03T16:43Z</strong> by operator observation: lead's listener went dead at 16:39:58 (when brainstorm member's <code>kind=done</code> delivery exited the lead's armed listener) and STAYED dead for ~3 minutes through several prose-only lead turns. The PreToolUse hook eventually caught it on the next tool call (at 16:42:46) with <code>BLOCKED: you must arm a background listener as your FIRST tool call</code>, but the Stop hook did NOT block any of the intervening turn-ends. Root cause: <code>hooks/stop.js:111-115::shouldRequireArmedListener</code> returns true only when <code>kind ∈ {done, question, blocked}</code> OR <code>queueDepth > 0</code>. Leads are exempt from kind-tag emission (v1.8.1+), so every lead prose-only turn has <code>kind=null</code>; if the lead's mailbox is also empty (lead just reviewed), <code>queueDepth=0</code> → function returns false → Stop allows silently with no log entry. Two hooks disagree: PreToolUse is strict (<em>always armed before any tool call</em>); Stop is lenient (<em>armed only on terminal-kind or pending-mail</em>). For leads this asymmetry is wrong — leads can receive mail at any time and should always be armed at end-of-turn. The Stop hook header at line 675 even states <em>'Being a lead means staying reachable; only the operator can terminate your session'</em>, but the gating function above silently lets prose-only-no-mail lead turns slip through."
+          "html": "<strong>Surfaced 2026-06-03T16:43Z</strong> by operator observation: lead's listener went dead at 16:39:58 (when brainstorm member's <code>kind=done</code> delivery exited the lead's armed listener) and STAYED dead for ~3 minutes through several prose-only lead turns. PreToolUse caught it at 16:42:46 but Stop did NOT. Two hooks disagree: PreToolUse strict; Stop lenient. For leads this asymmetry is wrong."
         },
         {
           "className": "cmd-ok",
-          "html": "<strong>Plan shipped 2026-06-03T19:05Z</strong> as bundle <code>1e085658</code> (codexu cherry-pick of plan member's <code>e5a6d846</code>). Bundle includes BOTH US-001 (<code>crews-stop-bg-gate-detector-broaden-infra-filter</code>) + US-002 (this task). Plan deliverables at <code>.ralph/jobs/crews-v3.4-bundle/</code>. Phase 4 review: 9 findings fixed. Ready for impl spawn."
+          "html": "<strong>Plan shipped 2026-06-03T19:05Z</strong> as bundle <code>1e085658</code>. Phase 4: 9 findings fixed."
+        },
+        {
+          "className": "cmd-ok",
+          "html": "<strong>Impl shipped 2026-06-03T21:50Z</strong> as bundle <code>429ba5e6</code> (toolkit v3.4.0). Toolkit FF + 3-remote push + codexu pointer bump + AGENTS.md table 3.3.0→3.4.0 + copilot plugin update --all → LIVE on lead's installed plugin."
         }
       ],
       "command": {
         "name": "crews-stop-hook-require-lead-listener-unconditionally",
-        "descriptionHtml": "<strong>Tighten the Stop-hook listener-armed gate for leads.</strong> Today <code>shouldRequireArmedListener</code> at <code>hooks/stop.js:111-115</code> gates on <code>(kind ∈ LISTENER_REQUIRED_KINDS) OR queueDepth > 0</code> for both roles. Leads have <code>kind=null</code> on every prose-only turn (the kind-tag exemption per v1.8.1+) and frequently have <code>queueDepth=0</code> (after a review-mail), so the Stop hook approves prose-only-no-mail lead turns silently, leaving the listener in <code>exited</code> state until the NEXT tool call's PreToolUse fires the arm-required block. Fix: short-circuit at the top of <code>shouldRequireArmedListener</code> when <code>role === 'lead'</code> — leads are by-definition reachability points and must always be armed at end-of-turn. Members keep the kind-gated logic intact (their listener-arm cycle is task-bounded; <code>kind=progress</code> mid-stream legitimately doesn't require armed because the next tool call re-arms via PreToolUse). Add the <code>stop</code> code-path log line emission (currently the function returns null silently when no block is needed; reviewing logs after the fact is impossible without that). Add 2 tests in <code>tests/stop-hook.test.js</code>: (a) lead prose-only turn with <code>queueDepth=0</code> and exited listener → Stop blocks with arm-prompt; (b) lead prose-only turn with armed listener → Stop allows. Ensure existing member tests for <code>kind=progress</code>-allowed (no listener required) still pass. Coordinates with v3.3.0 + detector-broaden tasks: orthogonal. This is a Stop-hook UX fix that prevents lead-listener drift; the others address bg-gate semantics for members.",
+        "descriptionHtml": "<strong>Bundled in crews v3.4 with <code>crews-stop-bg-gate-detector-broaden-infra-filter</code>.</strong> Plan shipped 1e085658, impl shipped 429ba5e6.",
         "warnings": [],
         "prompts": {
           "plan": "/plan-with-ralph \"Tighten the crews Stop-hook listener-armed gate so leads are always required to be armed at end-of-turn. (Bundled with crews-stop-bg-gate-detector-broaden-infra-filter as US-001+US-002 for crews v3.4 ship; full original spec preserved in git history at codexu commit 92c36262.)\"",
