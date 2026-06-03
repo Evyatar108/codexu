@@ -912,31 +912,72 @@
     {
       "id": "codex-cut-v0.135.0-copilot-api.1-release",
       "scope": "codex",
-      "lifecycle": "tracked",
+      "lifecycle": "merged",
       "status": "ok",
-      "lastTouchedAt": "2026-06-03T19:15:00Z",
+      "lastTouchedAt": "2026-06-03T22:11:00Z",
+      "shipManifest": {
+        "shippedAt": "2026-06-03T22:11:00Z",
+        "summary": "codex v0.135.0-copilot-api.1 SHIPPED end-to-end. Release URL: https://github.com/gim-home/codex/releases/tag/v0.135.0-copilot-api.1 (102.9 MB bundle, sha 3426ec42). 14 days of stale releases closed. Three-phase /rebase-upstream closeout executed per the new discipline codified in codexu AGENTS.md commit 41fa70cf. Phase 5a HARD GATE caught + filed + drove the codex-rebase-debt-fix-thread-manager-sample blocker (1-line missing additional_instructions in Config{} initializer; pattern identical to the prior 590b50759 sweep that missed this sample). Phase 5a re-run green in 2m 04s after fix landed. Release build LTO=thin cold ran 43m 02s (sccache 0% hit rate due to cache corruption — filed as build-env-sccache-cache-wipe-and-rewarm). Step 5 bundle vendor + npm pack + GitHub Release upload landed clean. Step 6 verify green. Step 12 smoke partial: binaries launch + report v0.135.0-copilot-api.1 correctly, but auth path NOT exercised (stale pre-v6 local config; no Copilot auth on this dev box). Phase 5b CI closeout = interim per escalate-gim-home-actions-policy block (every invariant-check run on gim-home/codex@main returns startup_failure in 0s as expected). Total wall: 2h 17min spawn-to-ship. Surfaced 3 process gaps as candidate follow-ups: (a) codex wrapper repo missing codex-patched remote on this dev box (member added as one-time fix; should propagate to fresh clones); (b) Python build_npm_package.py WinError-2 on subprocess.run(['npm']) under PowerShell; member wrote shutil.which-based wrapper; recommend committing upstream-style; (c) incidental overlay rustfmt drift (7 files, codex-rs-overlay/codex-{copilot,copilot-launcher,plugin-scope}/) preserved in stash@{0}: incidental-overlay-rustfmt-drift-pre-v135-release on wrapper repo.",
+        "commits": [
+          { "sha": "1dd5cd5c9", "oneLine": "rebase-debt-fix: thread-manager-sample missing additional_instructions field in Config initializer", "repo": "codex-patched (Evyatar108/codex-openai-fork)" },
+          { "sha": "3f5dabace", "oneLine": "chore(codex-patched): bump pointer to 1dd5cd5c9 (unblocks v0.135 release cut)", "repo": "codex (gim-home/codex)" },
+          { "sha": "d15313b7", "oneLine": "chore: bump codex submodule for rebase-debt-fix thread-manager-sample", "repo": "codexu" },
+          { "sha": "v0.135.0-copilot-api.1 (annotated tag)", "oneLine": "GitHub Release tag on gim-home/codex pointing at the wrapper release commit", "repo": "codex (gim-home/codex)" }
+        ]
+      },
       "kanbanCards": [
         {
           "className": "cmd-warn",
-          "html": "<strong>Surfaced 2026-06-03T18:50Z</strong> by operator question: we rebased onto upstream <code>rust-v0.135.0</code> but never ran the post-rebase discipline OR cut a release on <code>gim-home/codex</code>. The rebase commits landed; the closeout did not. Verified:<ul><li>Codex submodule HEAD on <code>main</code> at <code>166c8ec07</code> (2026-06-01) — 14 days post-rebase.</li><li><code>codex-patched</code> submodule at <code>69a2108a7</code>, sits 6485 commits ahead of <code>rust-v0.130.0-copilot-api.8</code> (the last release base) via the rebase to <code>rust-v0.135.0</code> + rebase-debt-fixes (4+ commits) + stream-cut diagnostics overlay (<code>7b6387340</code>) + Phase 5a/5b CI closeout DOCS (<code>166c8ec07</code> — note: docs were ADDED to the protocol but never EXECUTED for v0.135).</li><li>Latest published release on <code>gim-home/codex</code>: <code>v0.130.0-copilot-api.8</code> (2026-05-20, tag SHA <code>6c2a41e8</code>) — 14 days stale.</li><li><strong>Impact:</strong> consumers installing via <code>gh release download</code> on other machines get the pre-rebase v0.130.0 binary. They do NOT have v0.135 rebase, the rebase-debt-fixes, the stream-cut diagnostics, OR the Phase 5a/5b protocol. And critically — we never ran the monitoring discipline that catches new external-API drift (silently-dropped overlay symbols, new EventMsg variants, new ToolHandler trait method shapes) introduced by the rebase.</li></ul>The full <code>/rebase-upstream</code> Steps 7+ closeout never ran: Phase 5a workspace check (HARD gate; <code>cargo check --workspace</code>), Steps 10-12 release cut, Phase 5b CI closeout (or interim closeout per <code>### Interim closeout when CI is org-policy-blocked</code> due to <code>escalate-gim-home-actions-policy</code> block). The 4+ rebase-debt-fix tasks that landed (<code>codex-rebase-debt-fix-tui-and-exec</code>, <code>codex-rebase-debt-fix-app-server-client-brace</code>, etc.) are exactly the pattern Phase 5a would have caught up front — they were discovered REACTIVELY by impl members hitting workspace-parse failures days after the rebase merge. Phase 5b would have caught the lack-of-release situation we're filing now (CI watch on <code>gim-home/codex@main</code> would have noted no release tag was cut)."
+          "html": "<strong>Surfaced 2026-06-03T18:50Z</strong> by operator question: we rebased onto upstream <code>rust-v0.135.0</code> but never ran the post-rebase discipline OR cut a release on <code>gim-home/codex</code>. The rebase commits landed; the closeout did not. Latest published was 14 days stale — consumers stuck on pre-rebase v0.130.0."
+        },
+        {
+          "className": "cmd-ok",
+          "html": "<strong>Shipped 2026-06-03T22:11Z</strong> as <code>v0.135.0-copilot-api.1</code>. <a href='https://github.com/gim-home/codex/releases/tag/v0.135.0-copilot-api.1'>Release URL</a>. Phase 5a caught + drove 1 rebase-debt-fix (thread-manager-sample). Phase 5b interim closeout (CI org-blocked). Smoke partial (no Copilot auth on dev box). 2h 17min wall."
         }
       ],
       "command": {
         "name": "codex-cut-v0.135.0-copilot-api.1-release",
-        "descriptionHtml": "<strong>Execute the full <code>/rebase-upstream</code> Steps 7+ closeout for v0.135 + cut <code>v0.135.0-copilot-api.1</code> release on <code>gim-home/codex</code>.</strong> Three phases, NOT just the release cut:<ol><li><strong>Phase 5a workspace check (HARD GATE).</strong> Per <code>codex/.claude/commands/rebase-upstream.md</code> Phase 5a: run <code>cd codex/external/repos/codex-patched/codex-rs && cargo check --workspace</code> (~6 min). Non-zero exit → file additional rebase-debt-fix tasks BEFORE attempting release cut. This is the discipline we skipped — every reactively-discovered rebase-debt-fix task this past week would have surfaced here.</li><li><strong>Steps 10-12 release cut.</strong> Bump <code>[workspace.package] version</code> in <code>external/repos/codex-patched/codex-rs/Cargo.toml</code> to <code>0.135.0-copilot-api.1</code>, run the release build via the canonical env (xwin + LLVM + rusty_v8 v147.4.0 — prereqs verified present per <code>codex-rebase-rusty-v8-archive-fetch</code> ship), pack the self-contained tarball, commit + tag inside <code>codex-patched</code> submodule, commit wrapper gitlink update, tag wrapper <code>v0.135.0-copilot-api.1</code>, push to <code>gim-home/codex</code> with archival <code>release/v0.135.0-copilot-api.1</code> tag on <code>codex-patched</code> remote, upload self-contained tarball to GitHub Release. Then smoke-test the just-built launcher per Step 12.</li><li><strong>Phase 5b CI closeout (or interim closeout).</strong> Watch <code>invariant-check</code> workflow on <code>gim-home/codex@main</code> for green. Since <code>escalate-gim-home-actions-policy</code> blocks workflow_dispatch on the gim-home org, fall back to the documented interim closeout path: cite <code>escalate-gim-home-actions-policy</code> in <code>shipManifest.summary</code> and bookkeeper triggers the <code>### Sunset checklist (self-triggering)</code> on block lift.</li></ol>Impl-with-ralph driven (autonomous OK). The codex submodule's own <code>/publish-sandbox-patch</code> + <code>/rebase-upstream</code> skills handle commit + tag + push + GitHub Release upload internally.",
-        "warnings": [
-          {
-            "className": "cmd-warn",
-            "html": "⚠️ Build cost: cold-cache ~2h 47m; sccache-warm ~3 min per <code>codex-rs-build-perf-jobs-sweep-with-defender</code>. Impl member should set <code>RUSTC_WRAPPER=sccache</code> + cache dir on D: for fast iteration. Prereqs to verify before starting: <code>~/.xwin/{crt,sdk}</code> populated, <code>~/.cargo/.rusty_v8/rusty_v8_release_x86_64-pc-windows-msvc_v147.4.0.lib</code> present (193.8 MB; confirmed by <code>codex-rebase-rusty-v8-archive-fetch</code>), LLVM at <code>C:\\Program Files\\LLVM\\bin\\</code>, <code>gh auth status</code> shows account with push access to <code>gim-home/codex</code> (use <code>gh auth switch --user evmitran_microsoft</code> for the SAML-authorized account per codexu AGENTS.md). CI is org-policy-blocked (per <code>escalate-gim-home-actions-policy</code>) — use the documented interim closeout path."
-          },
-          {
-            "className": "cmd-warn",
-            "html": "⚠️ Phase 5a workspace check (cargo check --workspace) is a HARD GATE. The 4+ <code>codex-rebase-debt-fix-*</code> tasks shipped over the past 2 weeks are exactly the failure mode Phase 5a catches up front; running them reactively as separate impl tasks was the cost of skipping Phase 5a. Run it FIRST on the current main HEAD before any release-bump attempt. Any new errors -> file additional debt-fix tasks before the release cut continues."
-          }
-        ],
-        "prompts": {
-          "impl": "/implement-with-ralph --target-repo D:/harness-efforts/codexu/codex --autonomous \"Execute the full /rebase-upstream Steps 7+ closeout for v0.135 + cut v0.135.0-copilot-api.1 release on gim-home/codex. Three phases, NOT just the release cut:\\n\\n## Phase 5a workspace check (HARD GATE - DO FIRST)\\n\\n1. cd D:/harness-efforts/codexu/codex/external/repos/codex-patched/codex-rs\\n2. cargo check --workspace 2>&1 | tee /tmp/v135-cargo-check.log  # ~6 min\\n3. If non-zero exit: extract first error per crate, file each as a fresh codex-rebase-debt-fix-<crate-name> task in .ralph-overview/data.json by reporting kind=blocked with the surfaced errors. Do NOT proceed to release cut until cargo check --workspace returns 0.\\n\\n## Steps 10-12 release cut (after Phase 5a green)\\n\\n4. cd D:/harness-efforts/codexu/codex\\n5. Verify prereqs: ls ~/.xwin/crt ~/.xwin/sdk, ls ~/.cargo/.rusty_v8/rusty_v8_release_x86_64-pc-windows-msvc_v147.4.0.lib (193.8 MB), ls 'C:/Program Files/LLVM/bin', gh auth status (account must have push access to gim-home/codex; switch via gh auth switch --user evmitran_microsoft per codexu AGENTS.md SAML setup)\\n6. Set RUSTC_WRAPPER=sccache + CARGO_BUILD_JOBS=4 + sccache cache dir on D: for ~3min sccache-warm builds (cold cache would take ~2h 47m)\\n7. Invoke /publish-sandbox-patch (the skill in codex/.claude/commands/ bumps suffix on the current [workspace.package] version in external/repos/codex-patched/codex-rs/Cargo.toml; current pin should produce 0.135.0-copilot-api.1 as next). Alternatively if the version was never bumped after the rebase, invoke /rebase-upstream rust-v0.135.0 Steps 10-12 specifically (Step 10 bumps version, Step 11 builds/packs/publishes, Step 12 smoke-tests launcher)\\n8. The skill drives commit + tag + push + GitHub Release upload internally\\n\\n## Phase 5b CI closeout / interim closeout (after release shipped)\\n\\n9. Watch invariant-check workflow on gim-home/codex@main: gh run list --repo gim-home/codex --workflow invariant-check --limit 3\\n10. If org-policy-blocked (startup_failure / empty jobs array): document interim closeout per codex/.claude/commands/rebase-upstream.md '### Interim closeout when CI is org-policy-blocked' subsection. Cite escalate-gim-home-actions-policy task in shipManifest.summary.\\n\\n## Report kind=done\\n\\nWith: release tag SHA + GitHub Release URL + Phase 5a result + Phase 5b status (CI green vs interim closeout) + smoke-test result + total wall time + sccache hit rate.\""
+        "descriptionHtml": "<strong>SHIPPED 2026-06-03</strong> at <code>v0.135.0-copilot-api.1</code>. <a href='https://github.com/gim-home/codex/releases/tag/v0.135.0-copilot-api.1'>Release URL</a>.",
+        "warnings": [],
+        "prompts": {}
+      }
+    },
+    {
+      "id": "codex-publish-npm-subprocess-resolver-fix",
+      "scope": "codex",
+      "lifecycle": "tracked",
+      "status": "ok",
+      "lastTouchedAt": "2026-06-03T22:11:00Z",
+      "kanbanCards": [
+        {
+          "className": "cmd-warn",
+          "html": "<strong>Surfaced 2026-06-03T22:11Z</strong> by <code>impl-codex-cut-v0.135.0</code> during Step 5 bundle phase. <code>codex-patched/codex-cli/scripts/build_npm_package.py</code> calls <code>subprocess.run(['npm', ...])</code> which fails with WinError-2 (cannot find file) on Windows because <code>npm</code>/<code>pnpm</code> are <code>.cmd</code> shims that Python's subprocess can't resolve without <code>shutil.which</code>. Member empirically verified: running from PowerShell does NOT fix it (per the publish-skill WARN that claimed it would). Member wrote a wrapper at <code>D:/harness-efforts/codexu/.ralph/jobs/codex-cut-v0.135.0/wrap_build_npm.py</code> that monkey-patches subprocess to pre-resolve via shutil.which; this unblocked the v0.135 release ship. Two fix options: (a) commit the wrapper upstream-style into <code>external/repos/codex-patched/codex-cli/scripts/</code>; (b) update <code>codex/.claude/commands/publish-sandbox-patch.md</code> WARN to say 'Python from any shell needs subprocess wrapping; PowerShell alone is not enough.' (a) is the durable fix; (b) is documentation-only."
         }
+      ],
+      "command": {
+        "name": "codex-publish-npm-subprocess-resolver-fix",
+        "descriptionHtml": "<strong>Fix Python subprocess.run(['npm']) WinError-2 in build_npm_package.py.</strong> Either commit the shutil.which-based wrapper upstream-style OR update the publish-skill WARN. Operator-driven scope decision (which option to take + where to land the fix relative to upstream's own subprocess code). Member's wrapper is durable evidence and can be inspected at the working file path. Small fix; defer until next codex release cycle.",
+        "warnings": [],
+        "prompts": {}
+      }
+    },
+    {
+      "id": "codex-overlay-fmt-cleanup",
+      "scope": "codex",
+      "lifecycle": "tracked",
+      "status": "ok",
+      "lastTouchedAt": "2026-06-03T22:11:00Z",
+      "kanbanCards": [
+        {
+          "className": "cmd-warn",
+          "html": "<strong>Surfaced 2026-06-03T22:11Z</strong> by <code>impl-codex-cut-v0.135.0</code> as out-of-release-scope drift. Incidental rustfmt drift across 7 files in <code>codex-rs-overlay/codex-{copilot,copilot-launcher,plugin-scope}/</code> (split-imports, alphabetical reorder). Member preserved this in <code>stash@{0}: incidental-overlay-rustfmt-drift-pre-v135-release</code> on the wrapper repo working tree (NOT pushed; lives on the dev box only). To recover: <code>git -C codex stash show stash@{0}</code> or <code>git -C codex stash pop stash@{0}</code>. Run <code>cargo fmt -p codex-copilot -p codex-copilot-launcher -p codex-plugin-scope</code> (or workspace-wide <code>cargo fmt</code>) to regenerate the same edits, commit, push gim-home/codex. Trivial; no behavioral risk; bundle with next codex ship."
+        }
+      ],
+      "command": {
+        "name": "codex-overlay-fmt-cleanup",
+        "descriptionHtml": "<strong>Cleanup 7-file rustfmt drift in codex-rs-overlay/.</strong> Member preserved in stash@{0} on dev-box wrapper repo. Apply via <code>cargo fmt</code> + commit + push. No behavioral risk.",
+        "warnings": [],
+        "prompts": {}
       }
     },
     {
