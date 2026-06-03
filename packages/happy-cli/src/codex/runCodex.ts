@@ -812,6 +812,25 @@ export async function runCodex(opts: {
             // Reset diff processor on task end or abort
             diffProcessor.reset();
         }
+        // Publish `agentState.turnActive` parity with Claude's `Session.setTurnActive`
+        // (driven by `UserPromptSubmit`/`Stop` hooks on the Claude side). The
+        // completion publication is intentionally NOT guarded by `if (thinking)`
+        // so that a duplicate `task_complete`, an out-of-order completion (codex
+        // re-emits on reattach), or a `turn_aborted` without a preceding
+        // `task_started` still leaves `turnActive: false` published. See Gap 4
+        // in plans/codex-agent-parity-audit.md.
+        if (msg.type === 'task_started') {
+            session.updateAgentState((currentState) => ({
+                ...currentState,
+                turnActive: true,
+            }));
+        }
+        if (msg.type === 'task_complete' || msg.type === 'turn_aborted') {
+            session.updateAgentState((currentState) => ({
+                ...currentState,
+                turnActive: false,
+            }));
+        }
         if (msg.type === 'agent_reasoning_section_break') {
             reasoningProcessor.handleSectionBreak();
         }

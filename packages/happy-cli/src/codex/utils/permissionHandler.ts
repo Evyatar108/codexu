@@ -101,6 +101,24 @@ export class CodexPermissionHandler extends BasePermissionHandler {
                 input
             });
 
+            // Parity with Claude's permission notification
+            // (claude/utils/permissionHandler.ts:222-231). Provider-tagged so
+            // the app can route a permission notification for codex the same
+            // way it routes Claude permission prompts. Fire BEFORE
+            // `addPendingRequestToState` to match Claude's emit-then-update
+            // ordering. `sendPushEvent` is fire-and-forget (returns early when
+            // the socket is missing — see apiSession.ts), so no try/catch.
+            this.session.sendPushEvent({
+                kind: 'permission',
+                data: {
+                    sessionId: this.session.sessionId,
+                    requestId: toolCallId,
+                    tool: toolName,
+                    type: 'permission_request',
+                    provider: 'codex',
+                },
+            });
+
             // Update agent state with pending request
             this.addPendingRequestToState(toolCallId, toolName, input);
 

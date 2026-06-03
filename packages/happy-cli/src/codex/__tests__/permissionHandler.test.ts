@@ -12,6 +12,7 @@ function createSessionMock() {
 
     return {
         session: {
+            sessionId: 'sess-1',
             rpcHandlerManager: {
                 registerHandler: vi.fn(),
             },
@@ -19,6 +20,7 @@ function createSessionMock() {
                 state = updater(state);
                 return state;
             }),
+            sendPushEvent: vi.fn(),
         },
         getState: () => state,
     };
