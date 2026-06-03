@@ -1791,11 +1791,15 @@
       "scope": "codexu",
       "lifecycle": "tracked",
       "status": "ok",
-      "lastTouchedAt": "2026-06-03T01:42:00Z",
+      "lastTouchedAt": "2026-06-03T03:58:00Z",
       "kanbanCards": [
         {
           "className": "cmd-info",
           "html": "<strong>Unblocked 2026-06-03</strong> by codex-channels-option-b ship (commit <code>c3075b6c</code>). The original block reason was waiting for the channels primitive before locking v1 transport; the plan's evaluation matrix explicitly compared MCP channels vs exit-and-respawn vs long-poll vs codex-app-server subscription RPC. With Option B landed (notifications-to-prompt-queue subscriber in happy-cli), the channels lever is concrete and the matrix can be evaluated against measured behavior."
+        },
+        {
+          "className": "cmd-info",
+          "html": "<strong>Brainstorm shipped 2026-06-02T20:58Z</strong> (commit <code>58780ee8</code>, artifacts at <code>.ralph/brainstorms/async-events-design/</code>). Operator selected <strong>D-002 (durable mailbox + channel wake)</strong>: mailbox = source of truth, channels carry 'you have mail' wakes, missed wakes recoverable via mailbox re-read. Resolves agent-comms B+C / codex-as-crews-engine / channels-vs-storage all at once. Channels-native crews storage explicitly REJECTED. Long-horizon shape tracked separately as <code>async-events-northstar-architecture</code>. Three artifacts: selected-direction.md (16 KB, plan-with-ralph seed) + brainstorm-synthesis.md (14 KB, 5x7 matrix) + brainstorm.json (3 KB manifest). Plan invocation: <code>/plan-with-ralph --from-brainstorm .ralph/brainstorms/async-events-design/</code>."
         }
       ],
       "command": {
@@ -1808,7 +1812,7 @@
           }
         ],
         "prompts": {
-          "plan": "/plan-with-ralph \"Design how an agent listens to async events — e.g., 'wake me when a commit lands on main', 'notify me when a periodic task fires', 'tell me when another agent finishes its turn'. Today an agent's only async-trigger model is: exit and be re-spawned (e.g., a periodic background task that exits to wake the operator/agent). That's not ideal — loses context, restart latency, can't subscribe to fine-grained events. Output: plans/async-events-design.md covering: (1) The use cases — at least these 4: git events (commit on main / branch updated / push), periodic-task firings, inter-agent notifications (sibling-agent completion / sibling-agent question), file-system events (file changed under cwd). (2) Current options in Claude Code — is there a 'wait for X' tool? hooks? streamable MCP? A 'send-when-idle' channel? Read C:/harness-efforts/claude-code/worktrees/main/ if accessible. (3) Current options in codex — codex's hook system (config/src/hook_config.rs), inter-agent fast path in multi_agents_v2/, MCP support. READ-ONLY on codex/external/repos/codex-patched/ per minimize-conflict-surface. (4) Design options for codexu — compare at least: (a) MCP with 2-way channels (depends on channels-research outcome); (b) periodic background task that exits to wake agent (current model — note limits); (c) long-poll MCP tool (block until event); (d) a 'subscription' RPC on the codex app-server side that streams events to the agent's session; (e) hybrid (use codex hooks for in-session triggers, channels for cross-session). (5) Recommendation with rationale; identify the smallest-viable subset that covers the 4 use cases. (6) Surface to operator before committing follow-up implementation tasks. NO CODE — design only. The output doc IS the deliverable.\"",
+          "plan": "/plan-with-ralph --from-brainstorm .ralph/brainstorms/async-events-design/",
           "brainstorm": "/brainstorm-with-ralph"
         }
       }
