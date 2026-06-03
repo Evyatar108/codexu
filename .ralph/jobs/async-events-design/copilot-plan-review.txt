@@ -1,0 +1,42 @@
+I’ll read the referenced prompt file first, then carry out the requested task end to end.
+
+The prompt is long enough that I’m going to read it in sections so I can preserve the exact requirements.
+
+I’m switching from reading the prompt to validating the plan against the actual happy-cli code paths it references.
+
+The initial grouped glob pattern was incompatible with the matcher, so I’m narrowing with explicit file reads/searches against the referenced paths.
+
+I’m checking two plan assumptions that look potentially brittle: daemon auth/header shape and how Codex receives the bridge/session environment.
+
+I found a few mismatches with the plan text; I’m reading the exact startup/MCP config code so the review can cite concrete files.
+
+I’m checking the control server binding and route surface one more time to distinguish the daemon’s unauthenticated control port from the separate embedded loopback listener.
+
+### Feasibility
+
+[High] `packages/happy-cli/src/daemon/controlServer.ts` does not currently use `X-Loopback-Capability`; that header belongs to the separate embedded loopback listener via `daemonClient.ts:114-121`. The plan’s `/agent-comms/send` route is on the daemon control port, and `controlClient.ts:34-37` sends only `Content-Type`. The plan must either thread capability auth into the control server/client or explicitly use the embedded loopback surface.
+
+[High] `happyMcpStdioBridge.ts` watching `<inbox>/mailbox.json` can miss the first message if the file does not exist when the bridge starts. The plan should require pre-creating the inbox file or watching the parent directory.
+
+### Completeness
+
+[Critical] Startup recovery marks messages consumed immediately after `MessageQueue2.push()`, but `push()` only enqueues a prompt (`MessageQueue2.ts:62-115`); it does not prove the agent read or drained the durable mailbox. A crash after push but before processing would lose the message, violating the “durable mailbox is source of truth” invariant.
+
+[High] The plan relies on a special `[agent-comms] you have mail` prompt, but explicitly forbids changes to `mcpNotificationRouting.ts`. The default `resource_updated` template is `[mcp:{server}] resource updated: {uri}`. The plan needs a concrete per-server routing/config change or acceptance should allow the existing template.
+
+[Medium] Windows file URI handling is underspecified. Use `pathToFileURL(mailboxPath).href`; hand-built `file:///<absolute-path>` risks invalid `file:///D:\...` URIs.
+
+### Ordering
+
+[High] The bridge watcher must be armed against an existing mailbox path before daemon sends can prove live wake behavior. Put inbox initialization before bridge resource/watch setup and before tests expecting first-message wake.
+
+### Simplicity
+
+No issues found.
+
+### Acceptance Criteria Quality
+
+[High] AC for “mark consumed” conflicts with durable delivery semantics. It should define consumption as after the receiver drains/processes mailbox entries, not after wake prompt enqueue.
+
+[Medium] The “atomic-write under simulated mid-write process exit” test is vague for an imported non-injectable helper; specify the observable expected state, such as orphan temp ignored and previous `mailbox.json` intact.
+

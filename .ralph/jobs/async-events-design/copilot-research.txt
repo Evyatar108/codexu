@@ -1,0 +1,48 @@
+I’ll open the referenced prompt and follow its instructions.
+
+I’ll inspect the referenced TypeScript surfaces, package structure, and existing plan docs to ground the research.
+
+I found the package guidance; now I’ll narrow to the concrete Codex/MCP/mailbox surfaces and existing tests.
+
+The main consumer and routing layers are present and already test-covered. I’ll read their implementations and the bridge/run wiring next.
+
+I’ll pull the task-state snippets and test shapes, then I should have enough for the research report.
+
+I’ll verify the Codex multi-agent mailbox details and any existing persistence helpers before composing the report.
+
+### Codebase Architecture
+
+Codexu is a pnpm monorepo with TypeScript packages (`packages/happy-cli`, `happy-server`, `happy-wire`, app packages) plus a Rust `codex/` submodule. `happy-cli` is the relevant package: ESM TypeScript, built with `tsc`/`pkgroll`, tested with Vitest.
+
+Codex integration is centered in `packages/happy-cli/src/codex/`: `runCodex.ts` starts the Codex app-server client, configures MCP servers, creates `MessageQueue2`, and wires Codex event handling. The Rust `codex/` submodule already has Stage A event variants, but this feature is explicitly TypeScript-only.
+
+### Feature-Relevant Code
+
+- `packages/happy-cli/src/codex/mcpNotificationConsumer.ts`: consumes `mcp_server_notification`, resolves routing, debounces, and pushes synthesized prompts into `MessageQueue2`.
+- `packages/happy-cli/src/codex/mcpNotificationRouting.ts`: defines supported notification kinds (`resource_updated`, `tool_list_changed`, etc.), default routing, templates, and disabled-by-default settings behavior.
+- `packages/happy-cli/src/codex/runCodex.ts`: creates the consumer around lines ~286-305 and calls `mcpNotificationConsumer.handle(...)` early in the Codex event handler around ~745-754.
+- `packages/happy-cli/src/codex/happyMcpStdioBridge.ts`: existing stdio MCP bridge forwarding to Happy’s HTTP MCP server; natural place, or nearby module, for producer-side wake emission.
+- `packages/happy-cli/src/claude/utils/startHappyServer.ts`: existing HTTP MCP server currently exposes `change_title`; useful pattern for local MCP server setup.
+- `packages/happy-cli/src/utils/MessageQueue2.ts`: queue target for wake prompts.
+- `packages/happy-cli/src/persistence.ts`: settings already include opaque `mcpNotificationRouting?: unknown`.
+- Tests: `mcpNotificationConsumer.test.ts` and `runCodex.mcpNotifications.test.ts` are the closest fixture patterns.
+- Rust reference only: `codex/.../multi_agents_v2/wait.rs` uses an in-memory mailbox watch; it is not durable and should not be modified for this task.
+- Crews durable mailbox precedent lives under `ai-developer-toolkit/plugins/crews/`.
+
+### Technical Constraints
+
+- No `codex/` submodule changes.
+- MCP notification routing is opt-in; tests must enable `settings.mcpNotificationRouting` or instantiate the consumer directly.
+- Existing notification consumer only wakes by pushing text; missed-wake recovery needs a separate filesystem inbox reader on startup/reconnect.
+- Avoid fake URIs if using `resource_updated`; if possible use a real `file://` URI for the inbox file.
+- `agent-comms` Scope A remains blocked; Scope B/C can be partially unblocked only if this reference implementation proves same-daemon mailbox + wake behavior.
+- `codex-app-server-idle-timeout` should be documented as an input, not solved here.
+
+### Implementation Suggestions
+
+Update or supersede `plans/async-events-design.md` with a focused “Durable mailbox + channel wake” section: mailbox is source of truth, channel notification is only a wake hint, missed wakes are harmless because startup re-reads inbox state. Include worked examples for agent-comms Scope B and codex-as-crews, plus the explicit rejection of channels-native crews storage.
+
+For code, add a small TypeScript mailbox module under `packages/happy-cli/src/codex/` or a sibling `agentComms` area: append durable messages to a per-session filesystem inbox, read pending messages with cursor/seq semantics, and expose a producer helper that writes then emits an MCP notification. Wire startup recovery in `runCodex.ts` after `MessageQueue2` creation: scan B’s inbox and push pending mail prompts before waiting for live wakes.
+
+Keep the existing `mcpNotificationConsumer` as the wake router. Add focused Vitest coverage for happy path and missed-wake recovery using simulated sessions and real temp-directory files; reuse the existing consumer tests’ fake queue pattern.
+

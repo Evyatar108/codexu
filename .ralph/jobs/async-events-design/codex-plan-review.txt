@@ -1,0 +1,31 @@
+### Feasibility
+
+[High] The plan’s `X-Loopback-Capability` assumption is wrong for the chosen server. `packages/happy-cli/src/daemon/controlServer.ts` has no capability auth hook, and `packages/happy-cli/src/daemon/controlClient.ts` posts without that header. The capability pattern exists in `daemonClient.ts` for the embedded loopback Happy server, not this control server. The plan must either add auth to `startDaemonControlServer` and update existing callers/tests, or route this through the existing loopback-auth surface.
+
+[High] Watching `<inbox>/mailbox.json` directly is not reliable as planned. `fs.watch(file)` fails if the file does not exist, so a receiver with an empty inbox cannot arm the watcher before the first send. Atomic temp-write + rename can also detach or invalidate a file watcher after the first write. Watch the inbox directory and filter `mailbox.json`, or ensure file creation plus watcher re-arming on `rename`.
+
+[High] The plan says Session A calls `happy-mcp.agent_comms.send`, but `packages/happy-cli/src/codex/happyMcpStdioBridge.ts` currently exposes only `change_title`, and the plan does not add an `agent_comms.send` MCP tool. A daemon route and `controlClient.ts` helper are not enough to make this usable by Codex sessions.
+
+### Completeness
+
+[High] The “wake only” and “consume” semantics conflict. The plan says startup catch-up pushes a prompt and then `markConsumed`, but the prompt is only “you have mail”; if the pending list is marked consumed before the receiving agent reads it, the durable mailbox stops being the source of truth. The plan needs an explicit read/drain path, probably via the MCP resource read callback, and consumption should happen after that read, not after wake enqueue.
+
+[High] `packages/happy-cli/vitest.config.ts` is missing from the file list. A new `src/agentComms/scopeB.integration.test.ts` will not run under the current config because unit tests exclude `*.integration.test.ts`, and integration projects include only explicit existing files. Add it to a project include list, or name it as a unit-style `.test.ts`.
+
+[Medium] The mailbox API needs explicit session-id path safety. `inboxPathFor(sessionId)` should encode or validate session IDs before joining paths, even if the daemon route checks tracked sessions. Otherwise future internal callers can accidentally turn session IDs into path components.
+
+### Ordering
+
+[High] The integration fixtures are scheduled after “wiring”, but the plan does not require extracting a testable startup recovery helper. If recovery stays inline inside `runCodex.ts`, `scopeB.integration.test.ts` either has to boot the large mocked `runCodex` harness or duplicate behavior. Add an explicit helper, for example `recoverPendingAgentCommsMessages(...)`, before writing the fixtures.
+
+### Simplicity
+
+[Medium] “Atomic-write under a simulated mid-write process exit” is over-specified for `happy-cli`. `writeJsonAtomically` is already implemented and tested in `packages/happy-wire/src/node/writeJsonAtomically.test.ts`; the mailbox test should prove it calls the real helper and handles leftover temp/locked/missing files. A subprocess crash test here is likely brittle without adding much signal.
+
+### Acceptance Criteria Quality
+
+[High] The test commands use the wrong paths. `pnpm --filter happy exec` runs with cwd `packages/happy-cli`; I verified that `pnpm --filter happy exec vitest run packages/happy-cli/src/codex/mcpNotificationRouting.test.ts` finds no tests, while `src/codex/mcpNotificationRouting.test.ts` works. The ACs should use `src/agentComms/...`, not `packages/happy-cli/src/...`.
+
+[Medium] “Full suite, baseline-equal pass/fail count” is not self-verifying unless the plan names the baseline artifact or expected failing tests. Prefer “`pnpm --filter happy test` exits 0” or cite the known baseline log.
+
+No prior review cycles or amendments were included beyond brainstorm/operator scope notes, so there are no prior fixes to assess.

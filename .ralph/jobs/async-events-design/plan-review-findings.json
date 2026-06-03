@@ -1,0 +1,217 @@
+{
+  "planFile": "D:/harness-efforts/codexu/.ralph/jobs/.staging/20260603T040814Z-plan-async-events-design-43471f7a/draft-plan.md",
+  "repoDir": "D:/harness-efforts/codexu/.ralph/jobs/async-events-design/worktree/plan",
+  "reviewCycle": 0,
+  "findings": [
+    {
+      "id": "F-001",
+      "severity": "Critical",
+      "source": "consensus",
+      "category": "Completeness",
+      "sectionRef": "Approach > Architecture; Approach > Files to Create/Modify > runCodex.ts; Acceptance Criteria > runCodex.ts startup catch-up",
+      "description": "Startup recovery marks messages consumed immediately after MessageQueue2.push(), but push() only enqueues a prompt - it does not prove the agent read or drained the durable mailbox. A crash after push but before processing would lose the message, violating the 'durable mailbox is source of truth' invariant. The plan must define a separate read/drain path (likely via the MCP resource read callback exposed by the bridge, or via the next-turn user-facing read) and only call markConsumed AFTER the receiver has actually drained the entries - never after wake enqueue alone. Rewrite the Architecture section, the runCodex.ts modification description, and the relevant acceptance criteria to make consumption strictly post-drain.",
+      "status": "fixed",
+      "relevantFiles": [
+        "packages/happy-cli/src/codex/runCodex.ts",
+        "packages/happy-cli/src/utils/MessageQueue2.ts",
+        "packages/happy-cli/src/agentComms/mailbox.ts"
+      ],
+      "suggestedFix": "Recovery hook only PUSHES a wake prompt; the message body itself is delivered by the agent reading the inbox file via an explicit drain path (e.g. an MCP 'agent_comms.read' tool on the stdio bridge, or a follow-on read after the wake prompt). markConsumed runs at the end of the read/drain path, not the wake path.",
+      "fixedInIteration": 1,
+      "resolution": "Amended the plan so wake enqueue only prompts the receiver, while mailbox entries are marked consumed exclusively after the explicit agent-comms resource read/drain path returns them."
+    },
+    {
+      "id": "F-002",
+      "severity": "High",
+      "source": "consensus",
+      "category": "Feasibility",
+      "sectionRef": "Approach > Files to Create/Modify > daemon/controlServer.ts; Acceptance Criteria > controlServer.ts route",
+      "description": "The plan requires X-Loopback-Capability on POST /agent-comms/send, but the daemon control server in packages/happy-cli/src/daemon/controlServer.ts has no capability auth hook today, and packages/happy-cli/src/daemon/controlClient.ts posts without that header. The X-Loopback-Capability pattern lives in the separate embedded loopback listener (daemonClient.ts:114-121), not the daemon control server. The plan must either (a) thread capability auth into the control server + client (adding a code story for the auth hook) and update existing callers/tests, OR (b) explicitly route /agent-comms/send through the existing loopback-auth surface, OR (c) document that the daemon control port is daemon-local-loopback-only by socket binding and that no per-request auth is required - whichever option is chosen, the plan and ACs must accurately describe the actual existing auth contract.",
+      "status": "fixed",
+      "relevantFiles": [
+        "packages/happy-cli/src/daemon/controlServer.ts",
+        "packages/happy-cli/src/daemon/controlClient.ts",
+        "packages/happy-cli/src/daemon/daemonClient.ts"
+      ],
+      "suggestedFix": "Verify the actual auth surface on the daemon control port. If it's currently unauthenticated and bound only to 127.0.0.1, document that as the gate (and confirm no new auth story is needed). If we actually want capability auth on a new sender-attestation hop, add a focused auth-extension story to the wiring cluster. Either way, fix the AC + Approach to match reality.",
+      "fixedInIteration": 2,
+      "resolution": "Amended the plan to keep /agent-comms/send on the existing 127.0.0.1-bound daemon control port without X-Loopback-Capability auth, and updated the related research note, implementation bullets, and acceptance criterion."
+    },
+    {
+      "id": "F-003",
+      "severity": "High",
+      "source": "consensus",
+      "category": "Feasibility",
+      "sectionRef": "Approach > Files to Create/Modify > happyMcpStdioBridge.ts; Acceptance Criteria > bridge fs.watch",
+      "description": "fs.watch on a non-existent file fails immediately, so a receiver with an empty inbox cannot arm the watcher before the first send. Atomic temp-write + rename can also invalidate a file-level watcher after the first replace. The plan must either (a) pre-create the inbox file (e.g. write an empty mailbox on first session startup) and re-arm the watcher on 'rename' events, OR (b) watch the inbox parent DIRECTORY and filter for changes to mailbox.json. Pick one approach and pin it in the Approach section and the corresponding AC.",
+      "status": "fixed",
+      "relevantFiles": [
+        "packages/happy-cli/src/codex/happyMcpStdioBridge.ts",
+        "packages/happy-cli/src/agentComms/mailbox.ts"
+      ],
+      "suggestedFix": "Default to (b): fs.watch on the per-session inbox directory with a filter for mailbox.json change events. Also add an idempotent 'ensureInbox(sessionId)' to mailbox.ts that creates the dir + writes an empty mailbox.json if missing, called from the bridge before fs.watch arms.",
+      "fixedInIteration": 3,
+      "resolution": "Amended the plan to use directory-level inbox watching filtered to mailbox.json, add ensureInbox/inboxDirFor to mailbox.ts, and require ensureInbox before bridge watcher registration."
+    },
+    {
+      "id": "F-004",
+      "severity": "High",
+      "source": "codex",
+      "category": "Feasibility",
+      "sectionRef": "Approach > Architecture (diagram); Acceptance Criteria",
+      "description": "The architecture diagram shows 'Session A calls happy-mcp.agent_comms.send' but the plan only adds a daemon route + a control-client helper. happyMcpStdioBridge.ts currently exposes only 'change_title'; no 'agent_comms.send' MCP tool is added. Without an MCP tool, Codex sessions cannot call the send path - only happy-cli's own Node code can. Either (a) add a story that registers an 'agent_comms.send' MCP tool on the bridge that POSTs to the daemon route, OR (b) clarify that v1 only exposes the send as an internal Node helper for testing, with no Codex-facing tool until a follow-up.",
+      "status": "fixed",
+      "relevantFiles": [
+        "packages/happy-cli/src/codex/happyMcpStdioBridge.ts",
+        "packages/happy-cli/src/daemon/controlClient.ts"
+      ],
+      "suggestedFix": "Pick (a) and add the MCP tool to the wiring cluster's producer-emit story (US-003) - the bridge is already where producer-emit lives. The tool delegates to controlClient.sendAgentMessage.",
+      "fixedInIteration": 4,
+      "resolution": "Amended the plan so US-003 registers a Codex-facing `agent_comms.send` MCP tool in `happyMcpStdioBridge.ts` that delegates through `controlClient.sendAgentMessage`, and updated acceptance coverage to exercise that tool path."
+    },
+    {
+      "id": "F-005",
+      "severity": "High",
+      "source": "copilot",
+      "category": "Completeness",
+      "sectionRef": "Approach > Architecture (synthesized prompt); Risk Areas > 3",
+      "description": "The plan promises the consumer synthesizes a '[agent-comms] you have mail' prompt but explicitly forbids changes to mcpNotificationRouting.ts. The DEFAULT resource_updated template in mcpNotificationRouting.ts is '[mcp:{server}] resource updated: {uri}'. The plan must EITHER (a) document the required mcpNotificationRouting.perServer override that users must add to their settings to customize the template for the agent-comms server, OR (b) accept the default template as-is and adjust the Risk Areas / pattern doc copy to reference the actual rendered string. The current plan is internally inconsistent.",
+      "status": "fixed",
+      "relevantFiles": [
+        "packages/happy-cli/src/codex/mcpNotificationRouting.ts",
+        "packages/happy-cli/src/persistence.ts"
+      ],
+      "suggestedFix": "Choose (a). Add an explicit subsection 'Required mcpNotificationRouting config' that names the per-server key (e.g. 'happy-agent-comms') and template body the user adds to settings.mcpNotificationRouting.perServer. Document in pattern doc + acceptance criterion. No routing.ts code change required.",
+      "fixedInIteration": 5,
+      "resolution": "Added the required per-server routing override for the built-in happy MCP server and aligned risk/acceptance text with the actual default template behavior."
+    },
+    {
+      "id": "F-006",
+      "severity": "High",
+      "source": "codex",
+      "category": "Ordering",
+      "sectionRef": "Approach > Implementation Strategy (step 3 'recovery hook'); Approach > Files to Create/Modify > runCodex.ts",
+      "description": "Recovery is described as inline in runCodex.ts. The integration fixture in US-006 would then either have to boot the heavy runCodex harness or duplicate the logic, both of which are brittle and reduce signal. Add an explicit exported helper - e.g. recoverPendingAgentCommsMessages(sessionId, queue) - to packages/happy-cli/src/agentComms/mailbox.ts (or a sibling agentComms/recovery.ts) that the recovery story (US-005) implements and runCodex.ts simply CALLS. The fixture then invokes the helper directly.",
+      "status": "fixed",
+      "relevantFiles": [
+        "packages/happy-cli/src/codex/runCodex.ts",
+        "packages/happy-cli/src/agentComms/mailbox.ts"
+      ],
+      "suggestedFix": "Make US-005 deliver TWO files: an exported helper in agentComms/ AND the wiring call in runCodex.ts. Update the AC to require both - including a unit-level test for the helper - and the fixture to call the helper directly without booting runCodex.",
+      "fixedInIteration": 6,
+      "resolution": "Amended the plan so US-005 adds an exported agentComms recovery helper with unit coverage, wires runCodex.ts to call it, and updates the missed-wake fixture to invoke the helper directly."
+    },
+    {
+      "id": "F-007",
+      "severity": "High",
+      "source": "codex",
+      "category": "Completeness",
+      "sectionRef": "Acceptance Criteria > scopeB.integration.test.ts run command",
+      "description": "Vitest may exclude '*.integration.test.ts' from the default unit test project (depending on packages/happy-cli/vitest.config.ts settings) and integration projects often include only explicit existing files. The plan should EITHER (a) confirm via vitest.config inspection that *.integration.test.ts is included by default, OR (b) name the new test file as a plain *.test.ts to avoid the include-list landmine, OR (c) add a story that updates vitest config to include the new path. Without one of these, the fixture may silently skip.",
+      "status": "fixed",
+      "relevantFiles": [
+        "packages/happy-cli/vitest.config.ts",
+        "packages/happy-cli/src/agentComms/scopeB.integration.test.ts"
+      ],
+      "suggestedFix": "Read packages/happy-cli/vitest.config.ts to determine the actual include pattern. If *.integration.test.ts is excluded, choose (b) and name the file scopeB.test.ts (or scopeBRoundTrip.test.ts). Pin the chosen path in the AC.",
+      "fixedInIteration": 7,
+      "resolution": "Renamed the planned Scope B fixture to scopeB.test.ts and updated the acceptance run command, with a note that happy-cli vitest excludes unlisted *.integration.test.ts files."
+    },
+    {
+      "id": "F-008",
+      "severity": "High",
+      "source": "codex",
+      "category": "Criteria Quality",
+      "sectionRef": "Acceptance Criteria (multiple ACs use pnpm --filter happy exec vitest run packages/happy-cli/src/...)",
+      "description": "`pnpm --filter happy exec` runs commands with cwd already set to packages/happy-cli/. The ACs that say `pnpm --filter happy exec vitest run packages/happy-cli/src/agentComms/mailbox.test.ts` will find no tests because vitest is invoked from inside the package. Paths in those commands must be relative to the package, e.g. `pnpm --filter happy exec vitest run src/agentComms/mailbox.test.ts`. Fix every AC that uses this command form.",
+      "status": "fixed",
+      "relevantFiles": [
+        "packages/happy-cli/package.json"
+      ],
+      "suggestedFix": "Rewrite the affected ACs to use package-relative paths: `pnpm --filter happy exec vitest run src/agentComms/mailbox.test.ts` and `pnpm --filter happy exec vitest run src/agentComms/scopeB.integration.test.ts`.",
+      "fixedInIteration": 8,
+      "resolution": "Updated the affected vitest acceptance-criteria commands to use package-relative src/agentComms paths under pnpm --filter happy exec."
+    },
+    {
+      "id": "F-009",
+      "severity": "High",
+      "source": "claude",
+      "category": "BrainstormAlignment",
+      "sectionRef": "Research Findings > Technical Constraints (row 'Codex multi_agents_v2 mailbox is NOT a substitute')",
+      "description": "The plan hard-rejects the brainstorm's disconfirming observation #1 ('multi_agents_v2 may already cover Scope B without a new inbox file format') by saying flatly 'multi_agents_v2 mailbox is NOT a substitute'. The brainstorm's carryover note explicitly says: 'Read disconfirming observation #1 carefully before committing to a parallel filesystem inbox - the existing multi_agents_v2 mailbox may already be the right durable substrate.' The plan's research DID evaluate and reject it (the multi_agents_v2 mailbox is in-memory only, refutes the observation), but the framing reads as a flat dismissal rather than 'we evaluated per the brainstorm direction and concluded X for reason Y.' Rewrite the constraint row + the Research Findings section to (a) explicitly acknowledge the disconfirming observation, (b) cite the in-memory-only finding in codex/external/repos/codex-patched/codex-rs/core/src/session/input_queue.rs, and (c) frame the result as 'multi_agents_v2 was evaluated and rejected as the durable substrate because it is in-memory only, NOT durable, refuting the disconfirming observation.'",
+      "status": "fixed",
+      "relevantFiles": [
+        "codex/external/repos/codex-patched/codex-rs/core/src/session/input_queue.rs"
+      ],
+      "suggestedFix": "Reword the constraint row to: 'Codex multi_agents_v2 mailbox was evaluated per the brainstorm's disconfirming observation #1 and rejected as the durable substrate: input_queue.rs uses an in-memory watch::Receiver<()> only, which cannot survive a daemon restart. The filesystem inbox is required.' Add a similar acknowledgement to the Research Findings > Codebase Context section so the brainstorm-to-plan trace is preserved.",
+      "fixedInIteration": 9,
+      "resolution": "Updated the Research Findings and Technical Constraints wording to state that multi_agents_v2 was evaluated per the brainstorm observation and rejected as the durable substrate because input_queue.rs is in-memory only."
+    },
+    {
+      "id": "F-010",
+      "severity": "Medium",
+      "source": "codex",
+      "category": "Completeness",
+      "sectionRef": "Approach > Files to Create > mailbox.ts; Risk Areas",
+      "description": "The mailbox API needs explicit session-id path safety. inboxPathFor(sessionId) should encode or validate session IDs before joining paths, even if the daemon route already checks tracked sessions. Otherwise future internal callers can accidentally turn session IDs into path components (e.g. '../etc/passwd'). Add an explicit validation step to mailbox.ts and an AC that the helper rejects session IDs that contain '/', '\\', or '..', and that the helper has a unit test for the rejection.",
+      "status": "open",
+      "relevantFiles": [
+        "packages/happy-cli/src/agentComms/mailbox.ts"
+      ],
+      "suggestedFix": "inboxPathFor() validates against the safe-session-id regex (^[A-Za-z0-9_-]{1,128}$ - matches the existing happy-cli spawn ancestry validator). On rejection, throws a typed Error. Add an AC that mailbox.test.ts asserts both accept-and-reject cases."
+    },
+    {
+      "id": "F-011",
+      "severity": "Medium",
+      "source": "consensus",
+      "category": "Simplicity",
+      "sectionRef": "Acceptance Criteria > mailbox.test.ts (atomic-write under simulated mid-write process exit)",
+      "description": "'Atomic-write under a simulated mid-write process exit' is over-specified for happy-cli. writeJsonAtomically is already implemented and tested in packages/happy-wire/src/node/writeJsonAtomically.test.ts. The mailbox test should prove it CALLS the real helper and tolerates the observable end-states (orphan temp file ignored, previous mailbox.json intact). A subprocess crash test here is brittle without adding much signal. Replace the AC with a focused 'verify the helper is called + verify the observable end-state if a stray .tmp exists' formulation.",
+      "status": "open",
+      "relevantFiles": [
+        "packages/happy-cli/src/agentComms/mailbox.test.ts",
+        "packages/happy-wire/src/node/writeJsonAtomically.ts"
+      ],
+      "suggestedFix": "Drop the 'simulated mid-write process exit' clause. Replace with: 'mailbox.test.ts asserts (1) writeJsonAtomically is the write path via behavioral test - a leftover .tmp from a prior crash does not corrupt the next read; (2) the next write succeeds and supersedes any pre-existing temp file.'"
+    },
+    {
+      "id": "F-012",
+      "severity": "Medium",
+      "source": "copilot",
+      "category": "Completeness",
+      "sectionRef": "Approach > Architecture (URI shape)",
+      "description": "Windows file URI handling is underspecified. Hand-built 'file:///<absolute-path>' risks invalid 'file:///D:\\...' URIs on Windows (backslashes are not valid in URIs). The plan must specify using node:url's pathToFileURL(mailboxPath).href to produce the URI passed to sendResourceUpdated.",
+      "status": "open",
+      "relevantFiles": [
+        "packages/happy-cli/src/codex/happyMcpStdioBridge.ts"
+      ],
+      "suggestedFix": "Add a single line to Approach > Files to Modify > happyMcpStdioBridge.ts: 'URI for the resource is computed via pathToFileURL(mailboxPath).href; do NOT hand-construct file:/// URIs.' Mirror in the AC."
+    },
+    {
+      "id": "F-013",
+      "severity": "Medium",
+      "source": "codex",
+      "category": "Criteria Quality",
+      "sectionRef": "Acceptance Criteria > 'All happy-cli tests pass: pnpm --filter happy test (the full package suite, baseline-equal pass/fail count)'",
+      "description": "'Baseline-equal pass/fail count' is not self-verifying unless the plan names the baseline artifact or expected failing tests. Prefer a binary AC like '`pnpm --filter happy test` exits 0' OR cite the known baseline log (e.g. .test-output/happy.test.log captured pre-change) so the verifier can diff.",
+      "status": "open",
+      "relevantFiles": [
+        "packages/happy-cli/package.json"
+      ],
+      "suggestedFix": "Rewrite the AC: 'Run pnpm --filter happy test from the repo root (via npm_config_script_shell=bash on Git Bash); the suite exits 0 and the test count is equal to or greater than the baseline captured before the implementation began (capture baseline to .test-output/happy.test.before.log; capture after to .test-output/happy.test.after.log per AGENTS.md workflow conventions).'"
+    },
+    {
+      "id": "F-014",
+      "severity": "Medium",
+      "source": "claude",
+      "category": "Criteria Quality",
+      "sectionRef": "Acceptance Criteria (last bullet - follow-up filing)",
+      "description": "The acceptance criterion 'a brief note appended to .ralph-overview/data.json for agent-comms (Scope A only remaining blocker) OR an explicit decision recorded in notepad.md explaining why the Scope B ref impl does NOT unblock the wider task' is too vague for an autonomous verifier to confirm. The brainstorm called for an 'operator-decision-bearing follow-up' explicitly. Tighten this to a concrete artifact + location.",
+      "status": "open",
+      "relevantFiles": [
+        ".ralph-overview/data.json"
+      ],
+      "suggestedFix": "Rewrite as: 'On Phase 5.5/Phase 6 close-out, the implement-with-ralph orchestrator produces a follow-up artifact at <job_dir>/agent-comms-followup.md that recommends ONE of: (a) re-file agent-comms with Scope A as the remaining blocker (cite the Scope B ship), or (b) keep agent-comms blocked end-to-end (cite the specific gap the Scope B implementation does NOT close). The artifact is a deliberate operator-decision-bearing handoff, not a passive note.'"
+    }
+  ]
+}

@@ -1,0 +1,300 @@
+[
+  {
+    "iteration": 1,
+    "finding_id": "F-001",
+    "duration_s": 173,
+    "status": "fixed",
+    "summary": "Amended the plan so wake enqueue only prompts the receiver, while mailbox entries are marked consumed exclusively after the explicit agent-comms resource read/drain path returns them.",
+    "openFindingsBefore": [
+      "F-001",
+      "F-002",
+      "F-003",
+      "F-004",
+      "F-005",
+      "F-006",
+      "F-007",
+      "F-008",
+      "F-009",
+      "F-010",
+      "F-011",
+      "F-012",
+      "F-013",
+      "F-014"
+    ],
+    "openFindingsAfter": [
+      "F-002",
+      "F-003",
+      "F-004",
+      "F-005",
+      "F-006",
+      "F-007",
+      "F-008",
+      "F-009",
+      "F-010",
+      "F-011",
+      "F-012",
+      "F-013",
+      "F-014"
+    ],
+    "agentExitCode": 0,
+    "timestamp": "2026-06-03T04:37:12Z"
+  },
+  {
+    "iteration": 2,
+    "finding_id": "F-002",
+    "duration_s": 94,
+    "status": "fixed",
+    "summary": "Amended the plan to keep /agent-comms/send on the existing 127.0.0.1-bound daemon control port without X-Loopback-Capability auth, and updated the related research note, implementation bullets, and acceptance criterion.",
+    "openFindingsBefore": [
+      "F-002",
+      "F-003",
+      "F-004",
+      "F-005",
+      "F-006",
+      "F-007",
+      "F-008",
+      "F-009",
+      "F-010",
+      "F-011",
+      "F-012",
+      "F-013",
+      "F-014"
+    ],
+    "openFindingsAfter": [
+      "F-003",
+      "F-004",
+      "F-005",
+      "F-006",
+      "F-007",
+      "F-008",
+      "F-009",
+      "F-010",
+      "F-011",
+      "F-012",
+      "F-013",
+      "F-014"
+    ],
+    "agentExitCode": 0,
+    "timestamp": "2026-06-03T04:38:46Z"
+  },
+  {
+    "iteration": 3,
+    "finding_id": "F-003",
+    "duration_s": 125,
+    "status": "fixed",
+    "summary": "Amended the plan to use directory-level inbox watching filtered to mailbox.json, add ensureInbox/inboxDirFor to mailbox.ts, and require ensureInbox before bridge watcher registration.",
+    "openFindingsBefore": [
+      "F-003",
+      "F-004",
+      "F-005",
+      "F-006",
+      "F-007",
+      "F-008",
+      "F-009",
+      "F-010",
+      "F-011",
+      "F-012",
+      "F-013",
+      "F-014"
+    ],
+    "openFindingsAfter": [
+      "F-004",
+      "F-005",
+      "F-006",
+      "F-007",
+      "F-008",
+      "F-009",
+      "F-010",
+      "F-011",
+      "F-012",
+      "F-013",
+      "F-014"
+    ],
+    "agentExitCode": 0,
+    "timestamp": "2026-06-03T04:40:52Z"
+  },
+  {
+    "iteration": 4,
+    "finding_id": "F-004",
+    "duration_s": 157,
+    "status": "fixed",
+    "summary": "Amended the plan so US-003 registers a Codex-facing `agent_comms.send` MCP tool in `happyMcpStdioBridge.ts` that delegates through `controlClient.sendAgentMessage`, and updated acceptance coverage to exercise that tool path.",
+    "openFindingsBefore": [
+      "F-004",
+      "F-005",
+      "F-006",
+      "F-007",
+      "F-008",
+      "F-009",
+      "F-010",
+      "F-011",
+      "F-012",
+      "F-013",
+      "F-014"
+    ],
+    "openFindingsAfter": [
+      "F-005",
+      "F-006",
+      "F-007",
+      "F-008",
+      "F-009",
+      "F-010",
+      "F-011",
+      "F-012",
+      "F-013",
+      "F-014"
+    ],
+    "agentExitCode": 0,
+    "timestamp": "2026-06-03T04:43:30Z"
+  },
+  {
+    "iteration": 5,
+    "finding_id": "F-005",
+    "duration_s": 143,
+    "status": "fixed",
+    "summary": "Added the required per-server routing override for the built-in happy MCP server and aligned risk/acceptance text with the actual default template behavior.",
+    "openFindingsBefore": [
+      "F-005",
+      "F-006",
+      "F-007",
+      "F-008",
+      "F-009",
+      "F-010",
+      "F-011",
+      "F-012",
+      "F-013",
+      "F-014"
+    ],
+    "openFindingsAfter": [
+      "F-006",
+      "F-007",
+      "F-008",
+      "F-009",
+      "F-010",
+      "F-011",
+      "F-012",
+      "F-013",
+      "F-014"
+    ],
+    "agentExitCode": 0,
+    "timestamp": "2026-06-03T04:45:53Z"
+  },
+  {
+    "iteration": 6,
+    "finding_id": "F-006",
+    "duration_s": 198,
+    "status": "fixed",
+    "summary": "Amended the plan so US-005 adds an exported agentComms recovery helper with unit coverage, wires runCodex.ts to call it, and updates the missed-wake fixture to invoke the helper directly.",
+    "openFindingsBefore": [
+      "F-006",
+      "F-007",
+      "F-008",
+      "F-009",
+      "F-010",
+      "F-011",
+      "F-012",
+      "F-013",
+      "F-014"
+    ],
+    "openFindingsAfter": [
+      "F-007",
+      "F-008",
+      "F-009",
+      "F-010",
+      "F-011",
+      "F-012",
+      "F-013",
+      "F-014"
+    ],
+    "agentExitCode": 0,
+    "timestamp": "2026-06-03T04:49:11Z"
+  },
+  {
+    "iteration": 7,
+    "finding_id": "F-007",
+    "duration_s": 86,
+    "status": "fixed",
+    "summary": "Renamed the planned Scope B fixture to scopeB.test.ts and updated the acceptance run command, with a note that happy-cli vitest excludes unlisted *.integration.test.ts files.",
+    "openFindingsBefore": [
+      "F-007",
+      "F-008",
+      "F-009",
+      "F-010",
+      "F-011",
+      "F-012",
+      "F-013",
+      "F-014"
+    ],
+    "openFindingsAfter": [
+      "F-008",
+      "F-009",
+      "F-010",
+      "F-011",
+      "F-012",
+      "F-013",
+      "F-014"
+    ],
+    "agentExitCode": 0,
+    "timestamp": "2026-06-03T04:50:38Z"
+  },
+  {
+    "iteration": 8,
+    "finding_id": "F-008",
+    "duration_s": 78,
+    "status": "fixed",
+    "summary": "Updated the affected vitest acceptance-criteria commands to use package-relative src/agentComms paths under pnpm --filter happy exec.",
+    "openFindingsBefore": [
+      "F-008",
+      "F-009",
+      "F-010",
+      "F-011",
+      "F-012",
+      "F-013",
+      "F-014"
+    ],
+    "openFindingsAfter": [
+      "F-009",
+      "F-010",
+      "F-011",
+      "F-012",
+      "F-013",
+      "F-014"
+    ],
+    "agentExitCode": 0,
+    "timestamp": "2026-06-03T04:51:56Z"
+  },
+  {
+    "iteration": 9,
+    "finding_id": "F-009",
+    "duration_s": 69,
+    "status": "fixed",
+    "summary": "Updated the Research Findings and Technical Constraints wording to state that multi_agents_v2 was evaluated per the brainstorm observation and rejected as the durable substrate because input_queue.rs is in-memory only.",
+    "openFindingsBefore": [
+      "F-009",
+      "F-010",
+      "F-011",
+      "F-012",
+      "F-013",
+      "F-014"
+    ],
+    "openFindingsAfter": [
+      "F-010",
+      "F-011",
+      "F-012",
+      "F-013",
+      "F-014"
+    ],
+    "agentExitCode": 0,
+    "timestamp": "2026-06-03T04:53:06Z"
+  },
+  {
+    "phase": "soft-cap",
+    "iteration": 10,
+    "openMediumCount": 5,
+    "openCount": 5,
+    "severities": {
+      "Medium": 5
+    },
+    "timestamp": "2026-06-03T04:53:06Z"
+  }
+]

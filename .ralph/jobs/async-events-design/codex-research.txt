@@ -1,0 +1,141 @@
+**Codebase Architecture**
+
+This is a pnpm monorepo with TypeScript as the main implementation language:
+
+- Root workspace: `package.json`, `pnpm-workspace.yaml`
+- CLI package: `packages/happy-cli`
+  - ESM TypeScript, built with `tsc` + `pkgroll`
+  - tests with Vitest
+  - core Codex integration under `packages/happy-cli/src/codex/`
+  - daemon/session control under `packages/happy-cli/src/daemon/` and `packages/happy-cli/src/api/`
+- Server package: `packages/happy-server`
+  - Fastify + Socket.IO + Prisma/PGlite
+  - durable session messages and routing under `packages/happy-server/sources/app/`
+- Wire package: `packages/happy-wire`
+  - shared schemas and node utilities such as `writeJsonAtomically`
+- Codex fork submodule: `codex/`
+  - Rust; relevant only as already-shipped notification source, not to be changed for this task.
+- Crews plugin submodule: `ai-developer-toolkit/plugins/crews/`
+  - CommonJS filesystem mailbox implementation and protocol reference.
+
+**Feature-Relevant Code**
+
+The notification consumer is already in place:
+
+- `packages/happy-cli/src/codex/mcpNotificationConsumer.ts`
+  - Handles `mcp_server_notification`
+  - Resolves routing
+  - Synthesizes prompt text
+  - Pushes into `MessageQueue2`
+- `packages/happy-cli/src/codex/mcpNotificationRouting.ts`
+  - Known kinds: `progress`, `cancelled`, `resource_updated`, `resource_list_changed`, `tool_list_changed`, `prompt_list_changed`, `logging_message`
+  - Default is disabled
+  - `resource_updated` defaults to prompt-queue with 250ms debounce.
+- `packages/happy-cli/src/codex/runCodex.ts`
+  - Loads `settings.mcpNotificationRouting`
+  - Creates the notification consumer around line ~290
+  - Calls `mcpNotificationConsumer.handle(...)` in the Codex event handler
+  - Registers the `happy` MCP bridge around the `mcpServers` setup.
+- `packages/happy-cli/src/utils/MessageQueue2.ts`
+  - `push()` wakes an idle waiter.
+  - `waitForMessagesAndGetAsString()` drains on the next turn boundary.
+
+Producer-side MCP bridge:
+
+- `packages/happy-cli/src/codex/happyMcpStdioBridge.ts`
+  - Current stdio MCP server exposes only `change_title`.
+  - Uses `@modelcontextprotocol/sdk`.
+  - Can send resource notifications through the underlying SDK server API: `server.server.sendResourceUpdated({ uri })`.
+- `packages/happy-cli/bin/happy-mcp.mjs`
+  - Runtime entrypoint for the bridge.
+- `packages/happy-cli/src/codex/runCodex.ts`
+  - Starts HTTP Happy MCP server, then configures Codex MCP server `happy` via `node bin/happy-mcp.mjs --url ...`.
+
+Daemon/session coordination:
+
+- `packages/happy-cli/src/daemon/controlServer.ts`
+  - Local HTTP control server already has routes for `/session-started`, `/list`, `/spawn-session`, `/spawn-session-from-session`, `/stop-session`.
+  - Natural place to add a same-daemon `/agent-comms/send` or equivalent local-only endpoint.
+- `packages/happy-cli/src/daemon/controlClient.ts`
+  - Existing local HTTP client pattern for daemon control.
+- `packages/happy-cli/src/daemon/run.ts`
+  - Tracks live and persisted sessions.
+  - Persists session encryption metadata for daemon restarts.
+- `packages/happy-cli/src/api/apiSession.ts`
+  - Existing durable encrypted session-message flow through `/v3/sessions/:id/messages`, but this is chat storage, not the requested filesystem mailbox.
+
+Server-side durable chat stream, if needed for comparison:
+
+- `packages/happy-server/sources/app/api/routes/v3SessionRoutes.ts`
+  - Durable `/v3/sessions/:sessionId/messages` GET/POST.
+- `packages/happy-server/sources/app/events/eventRouter.ts`
+  - Socket.IO fan-out and replay buffer by recipient filter.
+
+Mailbox references:
+
+- `ai-developer-toolkit/plugins/crews/hooks/mailbox.js`
+  - Durable mailbox/outbox/cursor/history pattern.
+  - Atomic writes, lock discipline, JSON mailbox, JSONL history.
+- `ai-developer-toolkit/plugins/crews/docs/protocol.md`
+  - Crews envelope and review/cursor protocol.
+- `codex/external/repos/codex-patched/codex-rs/core/src/session/input_queue.rs`
+  - Codex `multi_agents_v2` mailbox is in-memory queue + watch, not durable.
+- `codex/external/repos/codex-patched/codex-rs/core/src/tools/handlers/multi_agents_v2/{send_message.rs,wait.rs,message_tool.rs}`
+  - Useful conceptual contrast, but not suitable for this TS-only durable reference implementation.
+
+Docs:
+
+- `plans/async-events-design.md`
+  - Existing broader draft; likely should be replaced or extended with the narrower D-002 pattern.
+- `plans/codexu-roadmap.md`
+  - Architecture context and app-server idle-timeout open question.
+- `.ralph-overview/data.json`
+  - Contains `agent-comms`, `async-events-design`, `async-events-northstar-architecture`, and `codex-app-server-idle-timeout` task state.
+
+**Technical Constraints**
+
+- No `codex/` changes are needed or allowed by the feature scope.
+- `mcpNotificationRouting` drops unknown notification kinds, so a custom `wake_signal` kind will not work unless routing is extended. Prefer a real MCP `resource_updated` notification with a real URI such as `agent-comms://inbox/<sessionId>`.
+- Routing is loaded once from settings in `runCodex.ts`; there is no live settings reload path. “Routing re-enabled” is naturally testable via restart, not mid-process config mutation.
+- `happyMcpStdioBridge.ts` is per Codex session. Session A’s bridge cannot directly emit a notification into session B’s Codex client. For B to wake, B’s own bridge must watch/read B’s inbox and emit `resources/updated` to its connected client, or a shared daemon-side producer must have a connection to B.
+- `MessageQueue2` proves only prompt injection, not mailbox durability. Missed-wake recovery needs an explicit inbox scan at startup/reconnect or before the next turn.
+- The existing happy-server `/v3/sessions/:id/messages` path is durable and replayable, but using it would change the design from filesystem mailbox to encrypted chat-message storage. That conflicts with the requested crews-compatible mailbox pattern.
+- The MCP SDK version is `@modelcontextprotocol/sdk@1.25.3`; high-level `McpServer` exposes `server` for advanced notification APIs.
+- Tests should live beside source files and use Vitest. For focused checks, use `pnpm --filter happy exec vitest run <file>`; full package verification is `pnpm --filter happy test`.
+
+**Implementation Suggestions**
+
+Use a small TS mailbox module, not the Rust `multi_agents_v2` mailbox:
+
+- Add `packages/happy-cli/src/agentComms/mailbox.ts` or `packages/happy-cli/src/codex/agentCommsMailbox.ts`.
+- Store under `configuration.happyHomeDir`, for example `agent-comms/inboxes/<sessionId>/mailbox.json` plus optional `history.jsonl`.
+- Reuse `writeJsonAtomically` from `@slopus/happy-wire/node`.
+- Implement minimal append/read/mark-consumed semantics, borrowing crews’ shape but not importing the CommonJS plugin.
+
+For Scope B send:
+
+- Add a local daemon control route in `packages/happy-cli/src/daemon/controlServer.ts`, e.g. `/agent-comms/send`.
+- Validate sender/target session ids against tracked sessions.
+- Write the target inbox file.
+- Return `{ id, seq }`.
+
+For wake delivery:
+
+- Extend `happyMcpStdioBridge.ts` or a parallel bridge module to:
+  - know the current session id from env or explicit args,
+  - register/read an `agent-comms://inbox/<sessionId>` resource,
+  - watch that inbox file with `fs.watch`,
+  - call `server.server.sendResourceUpdated({ uri })` when the inbox changes.
+- In tests, route `resource_updated` from server `happy` through `createMcpNotificationConsumer`.
+
+For missed wakes:
+
+- Add a startup/reconnect catch-up helper in `runCodex.ts` near queue initialization: read the current session inbox and enqueue a prompt if unread mail exists.
+- Keep this independent of notification replay. Notifications only reduce latency.
+
+For docs:
+
+- Update `plans/async-events-design.md` with “Durable mailbox + channel wake”.
+- Include worked examples for agent-comms Scope B and codex-as-crews.
+- Explicitly reject channels-native crews storage.
+- Mention `codex-app-server-idle-timeout` as an input, not solved here.

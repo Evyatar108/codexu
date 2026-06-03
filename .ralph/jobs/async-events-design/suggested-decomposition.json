@@ -1,0 +1,62 @@
+{
+  "clusters": [
+    {
+      "name": "pattern-doc",
+      "stories": ["US-001"],
+      "phase": 1,
+      "dependsOn": [],
+      "fileOverlapEvidence": {
+        "sharedFiles": [],
+        "exclusiveFiles": ["plans/durable-mailbox-channel-wake.md"],
+        "risk": "low"
+      },
+      "executionModeRationale": "Pure documentation; touches only a new file under plans/. No code dependency, can land in parallel with mailbox-core."
+    },
+    {
+      "name": "mailbox-core",
+      "stories": ["US-002"],
+      "phase": 1,
+      "dependsOn": [],
+      "fileOverlapEvidence": {
+        "sharedFiles": [],
+        "exclusiveFiles": [
+          "packages/happy-cli/src/agentComms/mailbox.ts",
+          "packages/happy-cli/src/agentComms/mailbox.test.ts"
+        ],
+        "risk": "low"
+      },
+      "executionModeRationale": "New directory + new files; no overlap with existing happy-cli files. Foundational for everything in phase 2."
+    },
+    {
+      "name": "wiring",
+      "stories": ["US-003", "US-004", "US-005"],
+      "phase": 2,
+      "dependsOn": ["mailbox-core"],
+      "fileOverlapEvidence": {
+        "sharedFiles": [],
+        "exclusiveFiles": [
+          "packages/happy-cli/src/codex/happyMcpStdioBridge.ts",
+          "packages/happy-cli/src/daemon/controlServer.ts",
+          "packages/happy-cli/src/daemon/controlClient.ts",
+          "packages/happy-cli/src/agentComms/recovery.ts",
+          "packages/happy-cli/src/agentComms/recovery.test.ts",
+          "packages/happy-cli/src/codex/runCodex.ts"
+        ],
+        "risk": "medium"
+      },
+      "executionModeRationale": "The three wiring stories (bridge send tool + producer-emit, daemon-route, recovery-helper + runCodex wiring) touch DISJOINT existing files and all depend only on the mailbox.ts API surface from cluster mailbox-core. They can run as parallel sub-jobs in v5.28 continuous-DAG mode because file-footprints don't overlap. Risk medium because edits to runCodex.ts and happyMcpStdioBridge.ts are load-bearing code paths; reviewer must verify no regression to non-agent-comms event handling."
+    },
+    {
+      "name": "fixtures",
+      "stories": ["US-006"],
+      "phase": 3,
+      "dependsOn": ["wiring"],
+      "fileOverlapEvidence": {
+        "sharedFiles": [],
+        "exclusiveFiles": ["packages/happy-cli/src/agentComms/scopeB.test.ts"],
+        "risk": "low"
+      },
+      "executionModeRationale": "Single new test file containing both fixtures (happy-path + missed-wake) that share setup helpers. Must run after all of wiring lands; the missed-wake fixture is the acceptance gate proving the full end-to-end contract."
+    }
+  ]
+}
