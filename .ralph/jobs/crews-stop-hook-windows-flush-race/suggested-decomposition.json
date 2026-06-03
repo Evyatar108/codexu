@@ -1,0 +1,32 @@
+{
+  "clusters": [
+    {
+      "name": "all-stories",
+      "stories": ["S1", "S2", "S3", "S4", "S5", "S6", "S7", "S8", "S9", "S10", "S11", "S12"],
+      "phase": 1,
+      "dependsOn": [],
+      "fileOverlapEvidence": {
+        "sharedFiles": [
+          "hooks/stop.js",
+          "hooks/mailbox.js",
+          "hooks/config.js",
+          "hooks/protocol/manifest.js",
+          "hooks/detect-active-bg.js",
+          "tests/stop-circuit-breaker.test.js",
+          "tests/review-gate.test.js",
+          "tests/progress-bg-gate.test.js",
+          "CHANGELOG.md",
+          "AGENTS.md"
+        ],
+        "exclusiveFiles": [
+          "tests/stop-flush-race-retry.test.js (NEW)",
+          "tests/stop-allow-system-notification-boundary.test.js (NEW)",
+          "tests/fixtures/mock-fs-flush-race.js (NEW)",
+          "docs/copilot-cli-fsync-upstream-ask.md (NEW)"
+        ],
+        "risk": "high"
+      },
+      "executionModeRationale": "All twelve stories touch hooks/stop.js or its immediate siblings (mailbox.js, config.js, manifest.js, detect-active-bg.js, tests/stop-*, tests/progress-bg-gate.test.js) in overlapping ranges. Serial execution lets each story see the previous diff, keeps the test suite green at each step, and is doubly necessary because the very bug this plan fixes makes --parallel impl spawns unsafe today (Tier-1 mitigation per recoverable-breaker plan + crews AGENTS.md). Parallel handoff is INTENTIONALLY NOT offered."
+    }
+  ]
+}
