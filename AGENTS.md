@@ -23,8 +23,8 @@ Agent-readable Ralph pipeline state is emitted as `.ralph-overview/generated/ral
 | Plugin | Pinned version | Source |
 |---|---:|---|
 | `ralph-overview` | `2.8.0` | `ai-developer-toolkit/plugins/ralph-overview/.claude-plugin/plugin.json` |
-| `crews` | `3.3.0` | `ai-developer-toolkit/plugins/crews/.claude-plugin/plugin.json` |
-| `ralph` (`ralph-orchestration`) | `5.47.0` | `ai-developer-toolkit/plugins/ralph/.claude-plugin/plugin.json` |
+| `crews` | `3.4.0` | `ai-developer-toolkit/plugins/crews/.claude-plugin/plugin.json` |
+| `ralph` (`ralph-orchestration`) | `5.49.0` | `ai-developer-toolkit/plugins/ralph/.claude-plugin/plugin.json` |
 <!-- END: active-plugin-versions -->
 
 The table above is the CI invariant's source of truth. Update it in the same
@@ -471,6 +471,8 @@ this doc.
   depends on `gim-home/main` being current**, so a sync miss there
   silently leaves every other consumer machine running the old plugin
   even after the operator runs `copilot plugin update`.
+
+  > **See also (canonical, do NOT duplicate the ceremony in place):** `ai-developer-toolkit/plugins/ralph/AGENTS.md` under `## Lead-Owned Ceremonies > Multi-repo wrapper-to-submodule ship ceremony` — the canonical 7-step ship procedure (FF-merge submodule → push to all submodule remotes → verify → bump wrapper pointer → update active-plugin-versions table → commit wrapper → `copilot plugin update`). The ralph-side version is the source of truth; this codexu doc backlinks rather than re-derives so the ceremony stays single-source-of-truth across forks.
 
 - **Cross-repo and submodule impl spawns need worktrees in EVERY shared repo.**
   When two or more impl members touch the same repo, including the `codex/` and
