@@ -2514,10 +2514,15 @@
     {
       "id": "codex-rs-defender-exclusions-procmon-verify",
       "scope": "codex",
-      "lifecycle": "tracked",
+      "lifecycle": "archived",
       "status": "ok",
-      "lastTouchedAt": "2026-06-01T19:03:00Z",
-      "kanbanCards": [],
+      "lastTouchedAt": "2026-06-03T00:55:00Z",
+      "kanbanCards": [
+        {
+          "className": "cmd-info",
+          "html": "<strong>Archived 2026-06-03</strong> by operator request. F-6 finding from 2026-06-01 jobs-sweep benchmark is already conclusive: Defender exclusions delivered no measurable benefit (56:26 with exclusions vs 53:00 baseline -- within noise, even slightly slower). The Procmon-verify task would only confirm WHY the exclusions had no effect (whether AV scanning was already bypassed for those paths or whether the exclusions silently failed to register), not change the operational conclusion. The recommendation to downgrade Defender-exclusion guidance to NOT-recommended already shipped in codex-rs-iteration-profile-lto-bypass-doc-fix (commit 712d3d369 in publish-sandbox-patch.md). No further action needed."
+        }
+      ],
       "command": {
         "name": "codex-rs-defender-exclusions-procmon-verify",
         "descriptionHtml": "F-6 finding from benchmark-codex-rs-jobs-sweep-with-defender. Defender exclusions (path: target/, sccache cache, .cargo, .rustup, .xwin, .rusty_v8, codex wrapper; process: rustc.exe cargo.exe sccache.exe link.exe lld-link.exe clang-cl.exe) delivered NO measurable build-perf benefit at jobs=4 (56:26 with vs 53:00 without — within noise, actually slightly slower). Per benchmark recommendation: run Procmon on jobs=8 cold to verify MpEng.exe isn't still touching D:\\codex-sccache despite exclusions. If genuinely no-op, drop exclusions to reduce machine-state divergence. If exclusions ARE being applied but other Defender component (real-time AMSI, cloud-protection, etc.) is the culprit, document the root cause.",
