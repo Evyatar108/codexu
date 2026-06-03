@@ -1,0 +1,43 @@
+{
+  "brainstormName": "ralph-orchestration-worktree-conditional-submodule-init",
+  "overviewTaskId": "ralph-orchestration-worktree-conditional-submodule-init",
+  "idea": "Ralph worktree-create.mjs runs git submodule update --init --recursive unconditionally on every plan + impl worktree spawn. Wasteful for codexu where the codex/ submodule is multi-GB and most tasks touch only ai-developer-toolkit/ or neither. Plan worktrees NEVER need submodule code (just write markdown). Brainstorm: (a) opportunistic detection of which submodules a task scope touches; (b) plan-vs-impl default policy; (c) operator escape hatches; (d) backward-compat for PRDs that don't declare submodule scope; (e) failure modes when detection is wrong; (f) interaction with convert-to-ralph-prd's repoDir auto-detection; (g) cost-benefit of smarter detection vs --no-submodule-init flag.",
+  "availableLenses": ["codex", "copilot", "devils-advocate"],
+  "missingLenses": [],
+  "candidateDirections": [
+    {
+      "id": "D-001",
+      "name": "Phase-aware escape hatch (--no-submodule-init flag + plan-default-skip)",
+      "summary": "Add --no-submodule-init flag + RALPH_NO_SUBMODULE_INIT env to worktree-create.mjs, wire plan-with-ralph and decompose-plan plan-worktree paths to pass it by default, leave impl-phase init-all behavior unchanged. ~1 day of dev work; immediate codexu plan-spawn savings; preserves impl safety; produces telemetry for whether D-002/D-003 are worth building.",
+      "contributingLenses": ["codex", "copilot", "devils-advocate"]
+    },
+    {
+      "id": "D-002",
+      "name": "PRD-declared submodule policy with scoped init",
+      "summary": "Add submodulesNeeded (or submoduleInit.{mode,paths}) to prd-schema.json, auto-derive at convert-to-ralph-prd time by grepping plan.md/stories-outline.md against .gitmodules paths, scope worktree-create init to listed submodules. Durable solution covering impl-phase too; ~L effort across schema + converter + decompose-plan + worktree-create + tests + copilot-mirror. Devil's Advocate's preferred framing (explicit > inferred) but auto-derive heuristic is fragile (markdown grep misses generated paths, stale PRD field hazard).",
+      "contributingLenses": ["codex", "copilot", "devils-advocate"]
+    },
+    {
+      "id": "D-003",
+      "name": "Lazy self-heal recovery as safety net for D-001 and/or D-002",
+      "summary": "On missing-submodule failure during impl iteration, auto-run git submodule update --init <name> + retry once, log a clear recovery event. Two sub-patterns: codex proposes preflight via git submodule status before cargo/pnpm commands; copilot proposes reactive recovery after first failure. Detection of missing-submodule vs real compile failure is non-trivial; partial/stale checkouts NOT detected. Safety net only; doesn't make sense as standalone (unconditional-init already covers it).",
+      "contributingLenses": ["codex", "copilot", "devils-advocate"]
+    },
+    {
+      "id": "D-004",
+      "name": "Measure-first: validate cost-driver before adding policy mechanism",
+      "summary": "Instrument runSubmoduleInit to emit per-spawn JSONL with lock_wait_ms / git_walk_ms / checkout_ms / network_ms / total_ms. Collect over ~1 week × ~50 spawns. Decide whether D-001/D-002/D-003 or a different optimization (shallow clone, partial clone, lock tuning, shared submodule object pool) is the right next step. ~2 hours of instrumentation effort; runs in parallel with D-001 without blocking it.",
+      "contributingLenses": ["devils-advocate"]
+    }
+  ],
+  "recommendedDirection": "D-001",
+  "questionsForSynthesis": [
+    "Canonical override shape: --no-submodule-init + --init-submodules <list> (two flags), or single --submodule-init=none|all|scoped (one flag)?",
+    "Existing PRDs without submodulesNeeded: retain init-all on resume, or auto-derive + persist on next worktree-create?",
+    "Backward-compatible PRDs default: full init, no init with self-heal, or phase-dependent (plan=no-init, impl=full)?",
+    "What exact signal tells an impl member 'this failure is missing-submodule setup' vs a real compile/test failure?",
+    "Could the simpler fix (D-001 alone) capture most savings without ever building D-002 detection?",
+    "If D-003 ships, where should recovery live: src/ralph.mjs preflight, story-doctor escalation, or iteration-agent prompt guidance?",
+    "How will Phase 5a code-reviewer detect green-but-meaningless verification (skipped tests, 0-test-discovery, fallback paths) caused by absent submodule content if D-001 or D-002 ships?"
+  ]
+}
