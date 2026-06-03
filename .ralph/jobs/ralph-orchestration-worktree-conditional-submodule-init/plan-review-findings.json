@@ -1,0 +1,117 @@
+{
+  "planFile": "D:/harness-efforts/codexu/.ralph/jobs/.staging/20260603T165631Z-plan-ralph-orchestration-worktree-conditional-submodule-init-22ab7c78/draft-plan.md",
+  "repoDir": "D:/harness-efforts/codexu/.ralph/jobs/ralph-orchestration-worktree-conditional-submodule-init/worktree/plan",
+  "reviewCycle": 1,
+  "findings": [
+    {
+      "id": "F-001",
+      "severity": "Critical",
+      "source": "codex",
+      "category": "Feasibility",
+      "sectionRef": "Implementation Strategy > US-007/US-008 + Acceptance Criteria > AC11",
+      "description": "Plan US-007 says the impl member pushes the toolkit commit to `origin`, `personal`, AND `gim-home` directly, and US-008 says the impl member pushes the codexu pointer-bump commit to codexu `origin/main`. Both conflict with codexu AGENTS.md 'Lead post-FF flow' rule and the global guidance 'Ask before pushing to remotes' / 'Only the lead merges to main'.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Amended the plan so impl members only push topic branches, while FF-merge to main, multi-remote sync, and cleanup are explicitly lead-owned. Updated US-007, US-008, AC11, Scope > In Scope, Technical Constraints, and Risk Areas to reflect the lead-FF-only pattern."
+    },
+    {
+      "id": "F-002",
+      "severity": "High",
+      "source": "codex",
+      "category": "Feasibility",
+      "sectionRef": "Approach > Architecture + Risk Areas + Acceptance Criteria > AC7",
+      "description": "RALPH_NO_SUBMODULE_INIT env var leak into impl-phase worktrees.",
+      "status": "fixed",
+      "fixedInIteration": 2,
+      "resolution": "Added positive-form --require-submodule-init CLI flag with highest precedence (require > no > env > default). Wired convert-to-ralph-prd Step 5 to pass --require-submodule-init. Added 2 new test cases (f/g) to both bash + node test files asserting env-set + require still inits and require wins over --no-submodule-init. Restructured AC7 into two-part verification (positive proof of impl safety + env-leak immunity test). Updated Architecture, Technical Constraints, Risk Areas, AGENTS.md bullets, Files to Modify > worktree-create.mjs and new convert-to-ralph-prd MODIFY entry, In Scope, Story decomposition (added US-004b folded into US-004's PR scope)."
+    },
+    {
+      "id": "F-003",
+      "severity": "High",
+      "source": "consensus",
+      "category": "Completeness",
+      "sectionRef": "Approach + Acceptance Criteria > AC12",
+      "description": "No user-facing /plan-with-ralph flag or per-invocation override for planning tasks targeting submodule code.",
+      "status": "fixed",
+      "fixedInIteration": 3,
+      "resolution": "Added user-facing /plan-with-ralph --init-submodules boolean flag in Phase 1 arg parsing + Phase 1 output state + Phase 1B conditional NO_SUBMODULE_INIT_FLAG. When set, Phase 1B omits --no-submodule-init from the worktree-create invocation. Updated plan-with-ralph SKILL.md prose to document the opt-out. Restructured AC12 into two smoke spawn variants (default-skip + --init-submodules opt-out) with concrete observables per variant. Added US-004 description to include the new flag wiring. Updated Open Questions to reflect resolution."
+    },
+    {
+      "id": "F-004",
+      "severity": "High",
+      "source": "copilot",
+      "category": "Feasibility",
+      "sectionRef": "Files to Create/Modify > tests/test-submodule-worktree-init.sh",
+      "description": "Plan proposes bash test parse JSON with jq, but v5.46.0 explicitly removed the jq prerequisite.",
+      "status": "fixed",
+      "fixedInIteration": 4,
+      "resolution": "Replaced jq-parsing approach with text-grep on raw JSON output (e.g. grep -q '\"submoduleInitRan\"[[:space:]]*:[[:space:]]*false'). Documented the constraint in the test section MODIFY entry. Updated AC4 to specify NO jq, grep-on-JSON only. Updated AGENTS.md v5.48.0 bullets to call out the prerequisite-respecting approach."
+    },
+    {
+      "id": "F-005",
+      "severity": "High",
+      "source": "codex",
+      "category": "Feasibility",
+      "sectionRef": "Implementation Strategy > US-002, US-003 + Technical Constraints",
+      "description": "File-protocol submodule fixture tests need git -c protocol.file.allow=always; not explicitly required in AC4/AC5.",
+      "status": "fixed",
+      "fixedInIteration": 5,
+      "resolution": "Updated AC4 and AC5 to explicitly require 'Fixture setup MUST configure git -C <super-repo> config protocol.file.allow always so subsequent git submodule update calls inside new worktrees (including worktree-create.mjs's plain invocation at line 291) succeed under git's default file-protocol-deny policy.' Updated tests MODIFY entries to describe the super-repo-config approach (so the worktree inherits the policy, no -c needed per call). Updated Technical Constraints bullet."
+    },
+    {
+      "id": "F-006",
+      "severity": "High",
+      "source": "codex",
+      "category": "Feasibility",
+      "sectionRef": "Files to Create/Modify > Copilot mirror regeneration",
+      "description": "Copilot generation cwd/path mismatch (toolkit root + ai-developer-toolkit/... is invalid).",
+      "status": "fixed",
+      "fixedInIteration": 6,
+      "resolution": "Picked codexu-root as canonical cwd: 'From the codexu repo root, run: node ai-developer-toolkit/plugins/ralph/scripts/generate-copilot-artifacts.mjs --write'. Updated both the regen instruction and AC9. Documented the alternative toolkit-root form for impl members whose cwd differs."
+    },
+    {
+      "id": "F-007",
+      "severity": "Medium",
+      "source": "codex",
+      "category": "Completeness",
+      "sectionRef": "Acceptance Criteria > AC1-AC3 + Files to Modify > tests",
+      "description": "Reuse-path test case missing; only fresh-create paths covered.",
+      "status": "fixed",
+      "fixedInIteration": 7,
+      "resolution": "Added Test Case (e) 'reuse path observes skip' to both tests/worktree-create.test.mjs and tests/test-submodule-worktree-init.sh: pre-create valid worktree, invoke with --no-submodule-init, assert reusedExistingWorktree=true AND submoduleInitRan=false AND lock-parent unchanged. Added new AC14 explicitly asserting reuse-path skip."
+    },
+    {
+      "id": "F-008",
+      "severity": "Medium",
+      "source": "codex",
+      "category": "Criteria Quality",
+      "sectionRef": "Acceptance Criteria > AC8",
+      "description": "AC8's grep -c >= 6 is not a valid shell predicate.",
+      "status": "fixed",
+      "fixedInIteration": 8,
+      "resolution": "Rewrote AC8 verification as: test \"$(awk '/^## v5\\.48\\.0/,/^## v5\\.4[0-7]/' ai-developer-toolkit/plugins/ralph/AGENTS.md | grep -c '^- \\*\\*')\" -ge 8 (valid bash predicate; counts bold-prefixed bullets in v5.42.0 style)."
+    },
+    {
+      "id": "F-009",
+      "severity": "Medium",
+      "source": "codex",
+      "category": "Criteria Quality",
+      "sectionRef": "Acceptance Criteria > AC3",
+      "description": "AC3 'byte-for-byte equivalent to v5.46.0' is vague and impossible by design (file picks up new flag-parsing cases).",
+      "status": "fixed",
+      "fixedInIteration": 9,
+      "resolution": "Rewrote AC3 to replace 'byte-for-byte' with 5 concrete observable assertions: (a) JSON shape submoduleInitRan: true, (b) lock-parent dir created+removed (transient trace), (c) stderr 'Initializing submodules in ', (d) git submodule status shows space-prefix lines, (e) pre-existing tests pass without modification. 'Behaviorally equivalent' explicitly noted as the contract instead of byte equality."
+    },
+    {
+      "id": "F-010",
+      "severity": "Medium",
+      "source": "claude",
+      "category": "Criteria Quality",
+      "sectionRef": "Acceptance Criteria > AC12",
+      "description": "AC12's 'without referencing missing submodule code' is subjective.",
+      "status": "fixed",
+      "fixedInIteration": 3,
+      "resolution": "Subsumed by F-003's AC12 restructure into two smoke spawn variants with concrete observables (worktree-result.json shape per variant, kind=done report fields, lock-parent state, git submodule status output). Subjective phrase removed."
+    }
+  ]
+}

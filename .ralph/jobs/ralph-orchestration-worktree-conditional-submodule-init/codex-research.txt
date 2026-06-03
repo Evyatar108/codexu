@@ -1,0 +1,62 @@
+**Codebase Architecture**
+
+Ralph lives inside the `ai-developer-toolkit` submodule at `ai-developer-toolkit/plugins/ralph`. It is mostly zero-dependency Node ESM plus Markdown skill specs and a hybrid test suite.
+
+Key layout:
+- `src/*.mjs`: runtime helpers and CLIs. `src/worktree-create.mjs` is the target helper.
+- `skills/*/SKILL.md`: Claude-facing workflow specs.
+- `.copilot-plugin/`: generated Copilot mirrors for skills/agents/internal workflows.
+- `scripts/generate-copilot-artifacts.mjs` and `scripts/check-copilot-parity.mjs`: mirror generation and parity gates.
+- `tests/*.mjs`: `node:test` files, auto-discovered by `tests/run.mjs`.
+- `tests/*.sh`: surviving Git Bash/WSL bash tests.
+- `.claude-plugin/plugin.json`, `.github/plugin/plugin.json`, and toolkit-root marketplace indexes hold release stamps.
+
+Current plugin version is already `5.47.0`, so this should likely become `5.48.0`.
+
+**Feature-Relevant Code**
+
+Direct implementation point:
+- `ai-developer-toolkit/plugins/ralph/src/worktree-create.mjs`
+  - `parseArgs()` currently accepts `--target-repo`, `--worktree-path`, `--branch`, `--start-point`, `--allow-existing-branch`, `--json`, `--help`.
+  - `createWorktree()` calls `runSubmoduleInit()` in both new and reused worktree paths.
+  - `runSubmoduleInit()` currently creates `~/.cache/ralph-orchestration`, acquires `submodule-init.lockd`, then runs `git submodule update --init --recursive`.
+
+Caller surface:
+- `skills/plan-with-ralph/SKILL.md`: one Phase 1B call to `worktree-create.mjs`; this is the natural place to add `--no-submodule-init`.
+- `.copilot-plugin/copilot-skills/plan-with-ralph/SKILL.md`: generated mirror.
+- `skills/convert-to-ralph-prd/SKILL.md`: standalone impl Step 5 calls `worktree-create.mjs`; keep unchanged.
+- `skills/decompose-plan/SKILL.md`: Step 5b does not currently call `worktree-create.mjs`; it still has inline `git worktree add` plus inline locked submodule init. Keep unchanged unless separately refactoring that workflow.
+- `.copilot-plugin/internal-workflows/{convert-to-ralph-prd,decompose-plan}/SKILL.md`: mirrors.
+
+Tests:
+- `tests/worktree-create.test.mjs`: direct unit coverage for `createWorktree()` and CLI JSON/help.
+- `tests/test-submodule-worktree-init.sh`: currently checks submodule-init contracts and inline lock behavior; it does not yet exercise `worktree-create.mjs` skip behavior.
+
+**Technical Constraints**
+
+- Skip must happen before `mkdirSync(lockParent)` in `runSubmoduleInit()`; otherwise the no-op path still touches `~/.cache/ralph-orchestration`, which violates the lock-parent mtime criterion.
+- `submoduleInitRan` currently means “the update command was invoked,” not “repo had submodules.” Repos without submodules still return `true` on default invocation.
+- `git submodule status` tests using local file-based submodules may need repo-local `protocol.file.allow=always`, since `worktree-create.mjs` invokes plain `git submodule update`.
+- Plan research and review explicitly search `<PLAN_WORKTREE>`. If a planning task needs code inside `codex/` or `ai-developer-toolkit/`, default skipping will leave those submodule directories uninitialized. D-001 should document that limitation or add a plan-skill opt-in for submodule init.
+- Copilot mirrors should be regenerated, not hand-edited, except for known hand-forked surfaces.
+- Run parity commands from `ai-developer-toolkit`, because paths like `plugins/ralph/scripts/...` are toolkit-root relative.
+- Parent codexu must use the two-commit submodule pattern after the toolkit-side change lands.
+
+**Implementation Suggestions**
+
+Add `--no-submodule-init` to `parseArgs()` and pass the resulting `opts` through both `finishResult()` and the reused-worktree branch. Implement a small helper such as `shouldSkipSubmoduleInit(opts)` that returns true when `opts.noSubmoduleInit` is true or `RALPH_NO_SUBMODULE_INIT` is one of `1`, `true`, `yes` case-insensitively. Treat `0`, `false`, `no`, empty, and absent as default behavior.
+
+In `runSubmoduleInit(worktreePath, io, opts)`, do the skip check before computing/creating the lock parent, write a concise stderr message, and return `false`.
+
+Update `skills/plan-with-ralph/SKILL.md` Phase 1B to pass `--no-submodule-init`, then regenerate Copilot artifacts. Also update the nearby prose that currently says plan worktrees initialize submodules.
+
+Keep `convert-to-ralph-prd` unchanged. For `decompose-plan`, do not add the new flag; it is impl-phase and currently inline, not helper-based.
+
+Add Node tests for flag-only, env-only, flag+env, and default behavior. Isolate `HOME`/`USERPROFILE` in tests so real user cache locks are not touched. Extend the bash test to exercise the CLI and update grep contracts: plan call has the flag, impl paths do not.
+
+Run:
+- `node --test plugins/ralph/tests/worktree-create.test.mjs`
+- `bash plugins/ralph/tests/test-submodule-worktree-init.sh`
+- `node plugins/ralph/scripts/generate-copilot-artifacts.mjs --write`
+- `node plugins/ralph/scripts/generate-copilot-artifacts.mjs --check`
+- `node plugins/ralph/scripts/check-copilot-parity.mjs`

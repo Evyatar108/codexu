@@ -1,0 +1,33 @@
+### Feasibility
+
+[Critical] US-007/US-008 and AC11 require pushing to `origin`, `personal`, `gim-home`, and codexu `origin/main` without an explicit approval gate. That conflicts with root [AGENTS.md](/mnt/d/harness-efforts/codexu/AGENTS.md:94): “Ask before pushing to remotes.” Add a mandatory operator approval checkpoint before any `git push`.
+
+[High] The env override undermines the “impl-phase safety net stays in place” claim. `convert-to-ralph-prd` calls `worktree-create.mjs` for impl worktrees at [SKILL.md](/mnt/d/harness-efforts/codexu/ai-developer-toolkit/plugins/ralph/skills/convert-to-ralph-prd/SKILL.md:357), and `runSubmoduleInit` is shared at [worktree-create.mjs](/mnt/d/harness-efforts/codexu/ai-developer-toolkit/plugins/ralph/src/worktree-create.mjs:259). If `RALPH_NO_SUBMODULE_INIT=1` leaks into the environment, impl worktrees skip too, even though AC7 only greps for the CLI flag. Either remove the env override, scope it to plan-with-ralph, or add an explicit impl override such as `--init-submodules`.
+
+[High] The proposed file-protocol submodule tests are likely infeasible as written. The helper runs plain `git submodule update --init --recursive` at [worktree-create.mjs](/mnt/d/harness-efforts/codexu/ai-developer-toolkit/plugins/ralph/src/worktree-create.mjs:285). Existing bash test code uses `git -c protocol.file.allow=always` for local fixture submodules at [test-submodule-worktree-init.sh](/mnt/d/harness-efforts/codexu/ai-developer-toolkit/plugins/ralph/tests/test-submodule-worktree-init.sh:143). The new helper-invoked default test needs repo config/env setup, or it will fail under Git’s default file protocol policy.
+
+[High] The Copilot generation instruction has the wrong path for the stated cwd. It says run `node ai-developer-toolkit/plugins/ralph/scripts/generate-copilot-artifacts.mjs --write` “from the toolkit root”; from `ai-developer-toolkit/`, that path is invalid. Use `node plugins/ralph/scripts/generate-copilot-artifacts.mjs --write` from toolkit root, or run the prefixed path from codexu root.
+
+### Completeness
+
+[Medium] The plan says both fresh-create and reuse paths must skip, but the proposed tests only clearly cover fresh worktree creation. The reuse path calls `runSubmoduleInit` separately at [worktree-create.mjs](/mnt/d/harness-efforts/codexu/ai-developer-toolkit/plugins/ralph/src/worktree-create.mjs:88). Add a test that creates/reuses a valid existing worktree and asserts `submoduleInitRan: false`.
+
+[Medium] The plan does not give a practical opt-out for plan-phase tasks that target submodule code. `plan-with-ralph` currently has one fixed helper invocation at [SKILL.md](/mnt/d/harness-efforts/codexu/ai-developer-toolkit/plugins/ralph/skills/plan-with-ralph/SKILL.md:306). “Remove the flag for that spawn” is not a stable interface. Add a documented skill argument/env override for plan worktrees that need initialized submodules.
+
+### Ordering
+
+[High] Remote push verification in AC11 is ordered as part of autonomous implementation, but repo policy requires approval before those pushes. Insert an approval gate after local tests and local commits, before toolkit remote pushes and before codexu main push.
+
+### Simplicity
+
+[Medium] The env var adds global blast radius for little benefit. A CLI flag wired into `plan-with-ralph` is enough for D-001 and avoids surprising impl callers. If the env var stays, the plan needs a counter-control for impl paths.
+
+### Acceptance Criteria Quality
+
+[High] AC7 is insufficient: grepping impl skill files for `--no-submodule-init` does not prove impl-phase submodule init is preserved because the env var can still skip shared helper calls.
+
+[Medium] AC8’s verification command is not a valid shell predicate as written: `grep -c ... >= 6` will not test the count. Replace it with `test "$( ... | grep -c '^- ')" -ge 6`.
+
+[Medium] AC3’s “byte-for-byte equivalent to v5.46.0” is vague and not realistically verifiable. Replace it with concrete assertions for JSON shape, lock behavior, stderr expectations, and submodule status.
+
+No prior plan-review amendments were referenced; only brainstorm/selected-direction context was mentioned.

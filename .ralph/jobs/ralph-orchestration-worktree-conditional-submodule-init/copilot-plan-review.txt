@@ -1,0 +1,28 @@
+I’ll open the referenced prompt file and carry out its instructions.
+
+The prompt is a longer task file, so I’ll read it in chunks to capture the full instruction set before changing anything.
+
+I’ll validate the plan’s key file references and call-site assumptions against the repo before writing the review.
+
+I found one likely assumption mismatch and will inspect the relevant source slices to confirm impact before finalizing the review.
+
+I have enough evidence for the plan review and will now provide the findings.### Feasibility
+
+- [High] `tests/test-submodule-worktree-init.sh` is planned to parse JSON with `jq`, but `ai-developer-toolkit/plugins/ralph/AGENTS.md` v5.46.0 says `jq` is no longer required and JSON assertions should use Node/assert patterns. Adding `jq` to this surviving bash gate reintroduces a tool prerequisite the plugin explicitly removed.
+
+### Completeness
+
+- [High] The plan defaults `skills/plan-with-ralph/SKILL.md` Phase 1B to `--no-submodule-init`, but provides no user-facing `/plan-with-ralph` flag or per-invocation override for planning tasks whose target files live in submodules like `ai-developer-toolkit/` or `codex/`. The plan says operators can “omit the flag,” but the implementation only hardcodes the SKILL.md invocation, so future submodule-targeting plans can silently research empty/uninitialized submodule directories.
+
+### Ordering
+
+No issues found.
+
+### Simplicity
+
+No issues found.
+
+### Acceptance Criteria Quality
+
+- [High] AC12 only requires one “small fuzzy idea” smoke spawn, which can pass while the default is still broken for submodule-targeting planning tasks. Since codexu’s relevant work often targets `ai-developer-toolkit/` or `codex/`, the acceptance criteria need either a submodule-targeted smoke with an explicit override path or a documented user-facing way to request initialized plan worktrees.
+
