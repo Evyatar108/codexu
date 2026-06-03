@@ -1834,11 +1834,15 @@
       "scope": "codexu|ralph-overview",
       "lifecycle": "tracked",
       "status": "ok",
-      "lastTouchedAt": "2026-06-03T01:44:00Z",
+      "lastTouchedAt": "2026-06-03T01:48:00Z",
       "kanbanCards": [
         {
           "className": "cmd-warn",
           "html": "<strong>Surfaced 2026-06-03 by operator</strong> after manual sweep caught <code>async-events-design</code> being silently no-longer-blocked (its blocker, the channels primitive, had shipped as <code>codex-channels-option-b</code> earlier today, but the prose-only kanban entry on async-events-design didn't surface that automatically). Repeat pattern is wasteful and error-prone."
+        },
+        {
+          "className": "cmd-info",
+          "html": "<strong>Operator clarification 2026-06-02T18:48Z</strong> (after plan spawn): semantics is NOTIFY-not-auto-flip. The system surfaces candidates wherever next-batch is planned (snapshot + recommendations + MCP + viewer marker); the bookkeeper-lead retains agency over each status transition. No auto-mutation of data.json. Sent inline to the in-flight plan member as a clarification message."
         }
       ],
       "command": {
