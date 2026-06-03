@@ -174,9 +174,17 @@
     {
       "id": "crews-stop-bg-gate-remove-bypass",
       "scope": "crews",
-      "lifecycle": "tracked",
+      "lifecycle": "merged",
       "status": "ok",
-      "lastTouchedAt": "2026-06-03T16:12:00Z",
+      "lastTouchedAt": "2026-06-03T17:30:00Z",
+      "shipManifest": {
+        "shippedAt": "2026-06-03T17:30:00Z",
+        "summary": "crews v3.3.0 ships: the progress-bg-gate bypass tag is removed entirely (both the legacy <options-mode>background-task</options-mode> XML form AND the v3.2.0 in-band crews-namespaced <|report kind=\"progress\" background-task|> form). Structural rationale baked into hooks/detect-active-bg.js: any genuine async-wait pattern is EITHER a follow-up tool call (no Stop hook fires, gate irrelevant) OR a background subprocess (detector sees it). There is no in-process wait case because the model itself can't sleep, so any in-process wait blocks the synchronous tool-call return and prevents Stop. The bypass was an over-engineered solution to a non-problem, made worse by the v3.2.0 block message at hooks/stop.js:1128 which explicitly TAUGHT the model to use it as the default lazy escape. New block message lists only the 3 real recovery paths: kind=question + reply-to to wait on lead, kind=done to complete, kind=blocked to surface a problem. Operator escape hatch CREWS_PROGRESS_BG_GATE=off remains as the only override path (per-machine config, not model-controlled in-band tag).\n\nImpl phase ran clean: Phase 4 plan-review had already caught 7 findings (all resolved in the plan), so the impl member shipped in one rubber-duck pass with zero code-level Critical/High findings -- only flagged the uncommitted state as HIGH which it then resolved. 14 files +352/-199. 252/255 tests passed; 3 failures are pre-existing Windows-EPERM race flakes in the documented serial denylist (crew-init-race, listener-redundant-arm-skip, locks), verified identical on untouched main baseline.\n\nLead-owned ceremony complete: toolkit FF-merged 58b4b882 -> 47edbd73 and pushed to all 3 toolkit remotes (origin/personal/gim-home); codexu submodule pointer bumped; AGENTS.md active-plugin-versions table updated 3.2.0 -> 3.3.0; copilot plugin update queued for the lead session.",
+        "commits": [
+          { "sha": "e20dd92a", "oneLine": "plan: crews-stop-bg-gate-remove-bypass (cherry-picked from plan member's 340b7dd4)", "repo": "codexu" },
+          { "sha": "47edbd73", "oneLine": "crews(v3.3.0): remove progress-bg-gate bypass tag entirely", "repo": "ai-developer-toolkit" }
+        ]
+      },
       "kanbanCards": [
         {
           "className": "cmd-warn",
@@ -184,7 +192,11 @@
         },
         {
           "className": "cmd-ok",
-          "html": "<strong>Plan shipped 2026-06-03T16:11Z</strong> at <code>e20dd92a</code> (cherry-picked from plan member's <code>340b7dd4</code> on <code>ralph/plan-crews-stop-bg-gate-remove-bypass</code>; main was diverged via bookkeeping commits). Pushed to origin + personal. Plan deliverables: <code>plan.md</code> (39 KB, 1 story US-001, 14 ACs), <code>stories-outline.md</code>, <code>suggested-decomposition.json</code> (one cluster, serial), <code>research-brief.md</code>, 3 Phase-4 review files. Phase 4 multi-model review (Codex gpt-5.5 + Copilot + Claude rubber-duck in parallel) caught 7 findings, all resolved in amended plan: F-001 Case 4/4b numbering reversed (Claude-only); F-002/3/4/7 (3-way consensus) missed external test files (stop-flush-race-retry.test.js F.1/F.6, stop-allow-system-notification-boundary.test.js A.6, Case 1 + skipped Cases 3/7/8/9 in progress-bg-gate.test.js); F-005 wrong 200-char sanitizeReason cap claim (actual message 185 chars exact); F-006 AC12 required impl member to push to all 3 toolkit remotes (violates AGENTS.md \"ask before pushing\"; scoped to local commit, push moved to lead-owned). Filed open question (non-blocking): worktree-create.mjs should support --no-submodules / --init-submodules &lt;list&gt; (already filed separately as <code>ralph-orchestration-worktree-conditional-submodule-init</code>). Lead is clear to spawn impl with the seeded <code>prompts.impl</code> when ready."
+          "html": "<strong>Plan shipped 2026-06-03T16:11Z</strong> at <code>e20dd92a</code> (cherry-picked from plan member's <code>340b7dd4</code>). Phase 4 multi-model review caught 7 findings, all resolved in amended plan."
+        },
+        {
+          "className": "cmd-ok",
+          "html": "<strong>Impl shipped 2026-06-03T17:17Z</strong> as toolkit commit <code>47edbd73</code> (crews v3.3.0). 14 files +352/-199. Phase 5a rubber-duck zero code Crit/High. Tests 252/255 (3 pre-existing Windows-race flakes verified on main baseline). Toolkit FF-merged + pushed origin/personal/gim-home. Codexu submodule pointer bumped + AGENTS.md table 3.2.0 -> 3.3.0."
         }
       ],
       "command": {
