@@ -305,6 +305,24 @@ Phase 4 plan review converged on every Critical + High finding, then `review-loo
 - **F-013 (Medium, codex, Criteria Quality — full-suite AC):** "Baseline-equal pass/fail count" is not self-verifying. Replace the full-suite AC with: capture baseline to `.test-output/happy.test.before.log` before implementation starts; capture after to `.test-output/happy.test.after.log`; assert (a) `pnpm --filter happy test` exits 0 and (b) the after-log test count is ≥ the before-log count. Implementing member: capture the baseline as the very first step of US-001 / US-002.
 - **F-014 (Medium, claude, Criteria Quality — agent-comms follow-up AC):** Tighten the agent-comms follow-up acceptance criterion. On Phase 5.5/Phase 6 close-out, produce an artifact at `<job_dir>/agent-comms-followup.md` recommending ONE of: (a) re-file `agent-comms` with Scope A as the remaining blocker (cite the Scope B ship), or (b) keep `agent-comms` blocked end-to-end (cite the specific gap the Scope B implementation does NOT close). The artifact is a deliberate operator-decision handoff, not a passive note. Implementing member: surface to the orchestrator as a final-phase deliverable.
 
+## Northstar forward-compatibility constraints (added post-merge 2026-06-03)
+
+The `async-events-northstar-architecture` brainstorm (commit `950b795b`, selected direction N-001 evolutionary layering) shipped after this plan and surfaced 5 v1 constraints the D-002 implementer MUST bake in to keep v2/v3 forward-compatible. Source: `.ralph/brainstorms/async-events-northstar-architecture/selected-direction.md` lines 80-87.
+
+These are BINDING constraints on this impl (not deferable polish):
+
+1. **Versioned envelope.** Every mailbox entry and wake-notification payload includes a top-level `version: 1` field so future schema evolution (e.g., adding signature / encryption / per-subscription routing) does not require a migration script. Mailbox readers must reject envelopes whose `version` is greater than the consumer's known max with a typed error.
+2. **Logical addressing only.** The envelope identifies destination by `sessionId` (logical handle), NOT by physical inbox file path. Filesystem-path-derived routing is an implementation detail of the v1 transport; the wire schema treats addresses opaquely. v2/v3 transports (app-server RPC, cross-machine relay) must be able to route the same envelope shape without filesystem semantics leaking.
+3. **Stable URI scheme for wake signals.** The `sendResourceUpdated({ uri })` URI follows a documented scheme like `agent-comms://inbox/<sessionId>` — NOT `file:///<absolute-path>` of the mailbox file. Even though the underlying transport reads from a filesystem mailbox in v1, the URI a consumer sees must be stable when v2/v3 swap the transport.
+4. **Per-subscription routing is v2.** v1 ships global-per-server-per-kind routing (matches what `codex-channels-option-b` already established). Per-subscription filters / handlers are a v2 concern. Document in the pattern doc that the v1 routing-config schema reserves the namespace for future per-subscription extension but does NOT implement it.
+5. **Between-turns delivery is the v1 contract.** Mid-turn preemption (interrupting a Codex/Copilot session mid-stream to deliver a wake) requires codex-core Rust changes and is explicitly a v3 concern. Document in the pattern doc that v1 wake delivery happens at the next turn boundary; consumers that need finer-grained latency are out of scope.
+
+Implementation impact:
+- US-001 (pattern doc) — sections 1, 4, 5 above belong in the pattern document as design rules.
+- US-002 (mailbox.ts) — implements 1 (`version` field on every appendMessage) and validates 1 on every readPending.
+- US-003 (recovery.ts + bridge) — implements 2 (`sessionId`-keyed addressing only) and 3 (stable URI scheme; use `agent-comms://inbox/${sessionId}` literal, not pathToFileURL).
+- Note: F-012 above said "use pathToFileURL for Windows file URIs" — that finding still applies INTERNALLY to any logging/diagnostic file URIs, but the `sendResourceUpdated({ uri })` URI per constraint 3 is NOT a file URI; it's a custom scheme.
+
 ## Next Step
 
 To implement this plan after the lead fast-forwards the plan branch to main, run:
