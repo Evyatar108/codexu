@@ -1,0 +1,85 @@
+**Codebase Architecture**
+
+Ralph lives inside the `ai-developer-toolkit` submodule at `ai-developer-toolkit/plugins/ralph/`. It is a skills-only plugin with Markdown workflow specs plus zero-dependency Node ESM helpers.
+
+Key structure:
+- `plugins/ralph/skills/*/SKILL.md`: canonical Claude skill/workflow specs.
+- `plugins/ralph/.copilot-plugin/...`: generated or hand-forked Copilot CLI mirrors.
+- `plugins/ralph/src/*.mjs`: executable Node helpers, including `worktree-create.mjs`, `ralph.mjs`, `path-utils.mjs`.
+- `plugins/ralph/scripts/*.mjs`: generation/parity tooling.
+- `plugins/ralph/tests/`: `node:test` tests plus remaining bash smoke/prose tests.
+- `plugins/ralph/AGENTS.md`: plugin operational docs, flags, release/version notes.
+- Root `AGENTS.md`: codexu fork/bookkeeper/submodule ceremony guidance.
+
+There is no `plugins/ralph/package.json`; tests are run directly, e.g. from `ai-developer-toolkit` with `node plugins/ralph/tests/run.mjs`.
+
+**Feature-Relevant Code**
+
+US-001:
+- `ai-developer-toolkit/plugins/ralph/skills/implement-with-ralph/SKILL.md`
+  - Parse-arguments section currently lacks `--target-repo`.
+  - Phase 2 delegates PRD generation/conversion and forwards flags like `--job`, `--iteration-engine`, `--planning-engine`.
+- `ai-developer-toolkit/plugins/ralph/skills/convert-to-ralph-prd/SKILL.md`
+  - Batch flag list lacks `--target-repo`.
+  - Step 1 currently detects `cwd_repo`, then non-batch delegates target repo resolution to an Explore agent using `prompts/repo-detector.md`.
+  - Step 5 already passes `--target-repo "<target_repo>"` to `src/worktree-create.mjs`.
+- `ai-developer-toolkit/plugins/ralph/prompts/repo-detector.md`
+  - The slow/opaque plan-analysis path.
+- `ai-developer-toolkit/plugins/ralph/src/worktree-create.mjs`
+  - Already requires `--target-repo <path>` and uses it for all git worktree operations.
+  - Help text can be clarified; behavior likely does not need changing.
+- `ai-developer-toolkit/plugins/ralph/src/path-utils.mjs`
+  - `normalizePath()` and git-root helpers define path conventions.
+- `ai-developer-toolkit/plugins/ralph/tests/worktree-create.test.mjs`
+  - Already asserts help includes `--target-repo`.
+- `ai-developer-toolkit/plugins/ralph/tests/test-submodule-worktree-init.sh`
+  - Good pattern for prose/skill contract tests and source/Copilot mirror checks.
+
+US-002:
+- `ai-developer-toolkit/plugins/ralph/AGENTS.md`
+  - Natural home for generalized “Multi-repo wrapper-to-submodule ship ceremony”.
+  - Existing Usage/flags section around `/implement-with-ralph`.
+  - Existing release/version and marketplace notes.
+- `ai-developer-toolkit/plugins/ralph/skills/implement-with-ralph/SKILL.md`
+  - Phase 6 final summary/handoff is the integration point.
+- Root `AGENTS.md`
+  - Existing codexu-specific submodule guidance: push all remotes, submodule edits require two commits, `gim-home/main` matters for `copilot plugin update`.
+  - Existing section is “Lead post-FF flow for plan branches,” not exactly “Codexu post-FF flow”.
+
+**Technical Constraints**
+
+- Canonical skill sources must stay synced with Copilot artifacts.
+  - `convert-to-ralph-prd` is generated to `.copilot-plugin/internal-workflows/convert-to-ralph-prd/SKILL.md`.
+  - `implement-with-ralph` has a hand-forked Copilot copy checked by `scripts/check-copilot-parity.mjs`.
+- Before shipping Copilot artifacts, run:
+  - `node plugins/ralph/scripts/generate-copilot-artifacts.mjs --check`
+  - `node plugins/ralph/scripts/check-copilot-parity.mjs`
+- `prd.json.repoDir` is schema-required but only string-validated by `src/ralph.mjs`; git repo validation belongs in conversion.
+- Path output should follow existing normalized forward-slash convention.
+- Feature says v5.49, but manifests currently show `5.47.0`; if this is a release, update all relevant plugin/version stamps and codexu active-plugin table when the submodule pointer changes.
+- Pushes/remotes are lead-owned and ask-before-push per root `AGENTS.md`.
+
+**Implementation Suggestions**
+
+For US-001:
+- Add `--target-repo <path>` to `implement-with-ralph` Parse arguments and usage/help.
+- In Phase 2, forward the flag to `convert-to-ralph-prd`.
+- In `convert-to-ralph-prd`, add optional `--target-repo <path>` parsing.
+- In Step 1:
+  - If present, run `git -C "<path>" rev-parse --show-toplevel`.
+  - On failure, exit non-zero with a clear message.
+  - Normalize the resolved toplevel and assign `target_repo`.
+  - Skip the Explore/repo-detector agent entirely.
+  - If absent, leave current Explore flow unchanged.
+- Keep job directory placement based on `repo_root`; only `repoDir`/worktree target changes.
+
+For US-002:
+- Add the generalized ceremony to `plugins/ralph/AGENTS.md` using placeholders like `<wrapper-repo>`, `<submodule>`, `<submodule-remotes>`.
+- Add a Phase 6 handoff note in `implement-with-ralph` final summary: when `prd.json.repoDir` is a submodule of the lead wrapper, the lead must perform the wrapper-to-submodule ship ceremony.
+- Add a backlink in root `AGENTS.md` near the existing post-FF/submodule bullets.
+- Add a follow-up task in `.ralph-overview/data.json` only if the implementation scope includes bookkeeping for deferred helper tooling.
+
+Tests:
+- Add a focused prose/contract test for `--target-repo` in source and Copilot mirror.
+- Tighten `worktree-create.test.mjs` help assertion for arbitrary git repo path wording.
+- Run Node tests plus Copilot generation/parity checks; run relevant bash prose tests if Git Bash is available.

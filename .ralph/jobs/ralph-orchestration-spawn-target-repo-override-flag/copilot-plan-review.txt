@@ -1,0 +1,36 @@
+I’ll read the referenced prompt file first, then carry out the requested work.
+
+The prompt is large, so I’ll read it in sections and extract the actionable requirements.
+
+I’ll verify the plan against the actual ralph plugin files and tests before writing the review findings.
+
+I’m narrowing the review to the actual skill specs and test surfaces the plan references, so findings can be grounded in file paths and current behavior.
+
+I found a possible mismatch around Copilot artifact paths and am checking the exact plugin layout before finalizing severity.
+
+I have enough context for most sections; I’m checking the exact finalization block to confirm whether the proposed handoff placement is feasible.
+
+One more data-flow check: I’m validating whether `target_repo` is already used consistently after detection, since that affects the feasibility of the override.
+
+### Feasibility
+
+[High] `plugins/ralph/skills/implement-with-ralph/SKILL.md` Phase 6 does not currently have an unambiguous “wrapper repo root” variable for the proposed submodule detection. The plan says to run `git -C <repo_root> submodule status -- <relative_repoDir_path>`, but current Phase 6 uses `repo_root` in the parallel PR handoff as the target repo from `prd.json.repoDir`, not the wrapper that owns the submodule. If `repoDir` is the submodule, running `submodule status` inside it will not prove it is a submodule of the wrapper. The plan should explicitly derive the wrapper root from `<job_dir>` / `<group_dir>` before `.ralph/jobs` or persist `cwd_repo`, then compute `repoDir` relative to that wrapper root.
+
+### Completeness
+
+[High] The plan adds a global `/implement-with-ralph --target-repo` flag but only forwards it through standalone Phase 2. Current parallel paths skip Phase 2 and route through Phase 1.7 `decompose-plan`, so `--parallel --target-repo` would be accepted by argument parsing but ignored unless the plan either rejects that combination up front or extends `decompose-plan` / batch conversion to carry the override.
+
+[Medium] The validation examples do not clearly require storing the normalized `git -C "$path" rev-parse --show-toplevel` output as `target_repo`. `prd.json.repoDir` requires an absolute normalized path with forward slashes, but the Phase 1 fail-fast example discards stdout and could lead an implementer to validate the path while later storing the raw user argument. Add an explicit normalization/write rule in `convert-to-ralph-prd` and the `implement-with-ralph` passthrough notes.
+
+### Ordering
+
+No issues found.
+
+### Simplicity
+
+No issues found.
+
+### Acceptance Criteria Quality
+
+[Medium] AC-012 requires Phase 6 to “emit the 7-step ceremony prose tailored to the actual repo paths in the kind=done report body,” but its verification is only a grep against static prose. That does not verify path tailoring, trigger behavior, or kind=done placement; also `implement-with-ralph` Phase 6 currently models terminal writes/markers, not crew `kind=done` reports. Either make this explicitly a static handoff-prose requirement or add a concrete fixture/contract test for wrapper-root + submodule detection wording.
+

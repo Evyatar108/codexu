@@ -1,0 +1,25 @@
+### Feasibility
+
+- [High] `AC-012` is not implementable as written. The proposed Phase 6 detection needs a wrapper repo root, but `implement-with-ralph/SKILL.md` Phase 6 currently only resolves `repo_root` inside the parallel PR handoff as the target repo from `prd.json.repoDir`. For a submodule-target job, that value is the submodule itself, so `git -C "$repo_root" submodule status -- <relative_repoDir>` will not detect that the submodule belongs to the wrapper. The plan should specify deriving the wrapper root from `job_dir` / `<wrapper>/.ralph/jobs/...`, then comparing `prd.json.repoDir` relative to that wrapper.
+
+- [Medium] The implementation branch name is contradictory. The overview says the topic branch is `ralph/plan-ralph-v5.49-bundle`, while the final spawn-prompt says `ralph/ralph-orchestration-spawn-target-repo-override-flag`. The latter matches codexu impl convention better; remove the earlier branch name to avoid an autonomous member committing to the wrong branch.
+
+### Completeness
+
+- [High] The plan does not fully cover the autonomous/batch path for `--target-repo`. `convert-to-ralph-prd/SKILL.md` currently says target repo detection is “non-batch only” and batch mode skips the Explore agent because the caller provides paths. `implement-with-ralph` autonomous Phase 2 tells the subagent to pass `--batch`, so the plan must explicitly define how `--target-repo` initializes `target_repo` and `repoDir` in batch mode, not only as a pre-Explore non-batch branch.
+
+- [High] The verification set omits relevant existing bash contract tests. `node plugins/ralph/tests/run.mjs` only discovers `test-*.mjs`; changes around `convert-to-ralph-prd` and submodule/worktree prose are also guarded by `plugins/ralph/tests/test-submodule-worktree-init.sh`. The plan should require at least that bash test, plus the Copilot generation/parity checks already listed.
+
+### Ordering
+
+No issues found. The serial US-001 then US-002 order is appropriate because both touch `plugins/ralph/AGENTS.md` and `skills/implement-with-ralph/SKILL.md`.
+
+### Simplicity
+
+No issues found. Given these are markdown workflow contracts, prose/contract tests are reasonable, provided the batch path and existing bash test coverage are fixed.
+
+### Acceptance Criteria Quality
+
+- [Medium] `AC-007`’s verifier is inaccurate. `tests/run.mjs` prints one summary row per test file, not “three passes” for three `node:test` cases. Use `node --test plugins/ralph/tests/test-target-repo-override.mjs` for case-level TAP output, or adjust the criterion to verify the file-level pass.
+
+- [Medium] Several grep-based ACs are too weak or brittle. `AC-002` can pass from three incidental `target-repo` mentions without proving Phase 2 forwarding, and `AC-013` uses `grep -A3` even though the existing “Always push main…” bullet is long, so a valid backlink placed under that bullet may not appear within three lines. Tighten these to search for specific forwarding prose/command snippets and anchor the backlink near a stable heading or exact inserted line.

@@ -1,0 +1,116 @@
+{
+  "planFile": "D:/harness-efforts/codexu/.ralph/jobs/.staging/20260603T183022Z-plan-ralph-v5-49-bundle-83b39046/draft-plan.md",
+  "repoDir": "D:/harness-efforts/codexu/.ralph/jobs/ralph-orchestration-spawn-target-repo-override-flag/worktree/plan",
+  "findings": [
+    {
+      "id": "F-001",
+      "severity": "High",
+      "category": "Feasibility",
+      "source": "consensus",
+      "detectedBy": ["codex", "copilot"],
+      "section": "Approach > Architecture / Appendix D (Phase 6 prose)",
+      "description": "Phase 6 trigger detection uses git -C <repo_root> submodule status, but repo_root in Phase 6 IS the target repo (= prd.json.repoDir). When repoDir IS the submodule, the submodule-status check runs INSIDE the submodule and fails to prove it belongs to the wrapper. Must derive the wrapper root from <job_dir> (typically <wrapper>/.ralph/jobs/<name>/) or <group_dir>, then check repoDir relative to that wrapper root.",
+      "status": "resolved",
+      "resolution": "Plan amended: Appendix D now derives wrapper_root from realpath of <job_dir>/../../.. (standalone) or <group_dir>/../../.. (group), validates the wrapper is itself a git repo, then runs git -C <wrapper_root> submodule status -- <relative_path_of_repoDir_from_wrapper_root>. AC-012 strengthened to verify both the wrapper-root derivation and the submodule-detection invocation."
+    },
+    {
+      "id": "F-002",
+      "severity": "High",
+      "category": "Completeness",
+      "source": "codex",
+      "detectedBy": ["codex"],
+      "section": "Approach > Implementation Strategy / AC-004",
+      "description": "convert-to-ralph-prd batch mode currently skips the Explore agent (caller provides paths). implement-with-ralph autonomous Phase 2 passes --batch. The plan does not specify how --target-repo interacts with batch mode: must --target-repo be accepted as a batch-mode flag, and how does it initialize target_repo and repoDir when --batch is also set?",
+      "status": "resolved",
+      "resolution": "Plan amended: AC-004 strengthened to require --target-repo accepted in BOTH interactive AND batch modes of convert-to-ralph-prd. In batch mode, --target-repo provides the value that --branch/--worktree-path/--job-dir already imply (the caller is the authoritative source). Implementation note added to the convert-to-ralph-prd file row: 'In batch mode, --target-repo is required when the caller did not pre-validate the path; validation still runs via git rev-parse --show-toplevel.'"
+    },
+    {
+      "id": "F-003",
+      "severity": "High",
+      "category": "Completeness",
+      "source": "codex",
+      "detectedBy": ["codex"],
+      "section": "Acceptance Criteria > AC-018 / Acceptance Criteria Bundle-level",
+      "description": "Verification set names node plugins/ralph/tests/run.mjs (auto-discovers test-*.mjs) and the Copilot parity scripts, but omits tests/test-submodule-worktree-init.sh — a bash contract test that guards submodule and worktree prose surfaces touched by this scope.",
+      "status": "resolved",
+      "resolution": "Plan amended: new AC-019 added requiring bash test bash plugins/ralph/tests/test-submodule-worktree-init.sh to pass after both stories ship. AC-018 reworded to enumerate all four verification gates (node tests, bash test, generate-copilot-artifacts.mjs --check, check-copilot-parity.mjs)."
+    },
+    {
+      "id": "F-004",
+      "severity": "High",
+      "category": "Completeness",
+      "source": "copilot",
+      "detectedBy": ["copilot"],
+      "section": "Approach / Scope > In Scope",
+      "description": "/implement-with-ralph --parallel skips Phase 2 (routes through Phase 1.7 decompose-plan), so the proposed --target-repo argument would be accepted by parsing but silently ignored in parallel mode. Plan must either reject the combination up-front or extend decompose-plan / batch conversion to carry the override.",
+      "status": "resolved",
+      "resolution": "Plan amended: scope clarified to REJECT --parallel + --target-repo combination with an explicit error message: 'Error: --target-repo is incompatible with --parallel (decompose-plan owns per-member repo selection; file a follow-up scope for cross-repo parallel decomposition).'. New AC-020 verifies the rejection: 'When both --parallel and --target-repo are provided, /implement-with-ralph exits non-zero with the documented error message before invoking decompose-plan.' Extending decompose-plan to carry the override is explicitly listed as a deferred follow-up scope (ralph-orchestration-decompose-plan-target-repo-override)."
+    },
+    {
+      "id": "F-005",
+      "severity": "Medium",
+      "category": "Criteria Quality",
+      "source": "codex",
+      "detectedBy": ["codex"],
+      "section": "Acceptance Criteria > AC-007",
+      "description": "tests/run.mjs prints one summary row per test file, not per node:test case. The 'three passes' verifier won't be visible at the file-level run output.",
+      "status": "resolved",
+      "resolution": "AC-007 verifier rewritten: 'Run node --test plugins/ralph/tests/test-target-repo-override.mjs for case-level TAP output; assert ok 3 - covering present-valid, present-non-repo, absent-regression cases. Also assert the file is auto-discovered by node plugins/ralph/tests/run.mjs (exit 0 + the file name appears in the summary row).'"
+    },
+    {
+      "id": "F-006",
+      "severity": "Medium",
+      "category": "Criteria Quality",
+      "source": "codex",
+      "detectedBy": ["codex"],
+      "section": "Acceptance Criteria > AC-002, AC-013",
+      "description": "AC-002 can pass on three incidental 'target-repo' mentions without proving Phase 2 forwarding. AC-013 uses grep -A3 against a long bullet — a valid backlink placed under it may not appear within 3 lines.",
+      "status": "resolved",
+      "resolution": "AC-002 tightened to: 'grep \"convert-to-ralph-prd .*--target-repo\" plugins/ralph/skills/implement-with-ralph/SKILL.md returns >=1 hit (proves Phase 2 forwarding wires through to the convert skill invocation).' AC-013 tightened to: 'grep -A20 \"Always push main to ALL configured remotes after every merge\" <wrapper>/AGENTS.md | grep -E \"plugins/ralph/AGENTS\\.md.*ceremony.*canonical\" returns >=1 hit (backlink within 20 lines of the anchor, explicitly mentioning canonical/ceremony).'"
+    },
+    {
+      "id": "F-007",
+      "severity": "Medium",
+      "category": "Feasibility",
+      "source": "codex",
+      "detectedBy": ["codex"],
+      "section": "Overview / Next Step",
+      "description": "Plan mentions topic branch ralph/plan-ralph-v5.49-bundle (overview) AND ralph/ralph-orchestration-spawn-target-repo-override-flag (Next Step / spawn-prompt). The two names are confusing; an autonomous member may commit to the wrong branch.",
+      "status": "resolved",
+      "resolution": "Plan amended: Overview section clarified — ralph/plan-ralph-v5.49-bundle is the PLAN-phase branch (this work, in codexu plan worktree); ralph/ralph-orchestration-spawn-target-repo-override-flag is the IMPL-phase branch (separate impl member, in ai-developer-toolkit submodule worktree). Next Step section adds explicit branch-mapping table."
+    },
+    {
+      "id": "F-008",
+      "severity": "Medium",
+      "category": "Completeness",
+      "source": "copilot",
+      "detectedBy": ["copilot"],
+      "section": "Approach > Architecture / Files to Create/Modify",
+      "description": "Validation example shows 'git -C \"$path\" rev-parse --show-toplevel >/dev/null 2>&1' which discards stdout. An implementer might validate then store the RAW user argument rather than the normalized canonical path. prd.json.repoDir requires absolute normalized path with forward slashes.",
+      "status": "resolved",
+      "resolution": "Plan amended: file-row entries for both convert-to-ralph-prd/SKILL.md and implement-with-ralph/SKILL.md now require the validated git -C <path> rev-parse --show-toplevel STDOUT to be captured (not discarded), normalized to forward slashes via existing path-utils.mjs::normalizePath helper, and stored as the canonical target_repo. Explicit example: target_repo=$(git -C \"$path\" rev-parse --show-toplevel | node \"$PLUGIN_DIR/src/path-utils.mjs\" normalize-path -)."
+    },
+    {
+      "id": "F-009",
+      "severity": "Medium",
+      "category": "Criteria Quality",
+      "source": "copilot",
+      "detectedBy": ["copilot"],
+      "section": "Acceptance Criteria > AC-012 / Appendix D",
+      "description": "AC-012 verifies static prose via grep but does not verify path tailoring, trigger behavior, or output destination. Also, implement-with-ralph Phase 6 emits terminal markers (<ralph-orchestrator>COMPLETE</ralph-orchestrator>) and writes to dashboard.md / progress.txt — NOT crews mailbox kind=done reports. The plan's 'kind=done report body' framing is the wrong layer (crews is the wrapper, not what SKILL.md writes to).",
+      "status": "resolved",
+      "resolution": "Plan amended: Appendix D rewritten so the handoff prose is APPENDED to Phase 6 stdout output (before the COMPLETE marker) and ALSO appended to progress.txt under a '## Orchestrator Notes > Submodule ship handoff' section. AC-012 verifier strengthened: (a) grep checks both stdout-echo command AND progress.txt append are present in SKILL.md; (b) plan adds a manual verification path describing a fixture where repoDir = subdirectory of wrapper_root + verifying the prose appears in the simulated terminal output. Crews-layer framing removed from the plan (the impl-member's own crews wrapper will surface the prose via its own kind=done emission, but that's outside the SKILL.md contract)."
+    },
+    {
+      "id": "F-010",
+      "severity": "Medium",
+      "category": "Criteria Quality",
+      "source": "claude",
+      "detectedBy": ["claude"],
+      "section": "Open Questions / Scope > Version bumps",
+      "description": "Plan targets v5.49.0 but current is 5.47.0 and the natural sequential bump is 5.48.0. The data.json prompts say 'v5.49.0 candidate'. The ambiguity is not resolved in-plan and the impl member may bump to either depending on interpretation.",
+      "status": "resolved",
+      "resolution": "Plan amended: Open Question #1 tightened with concrete decision gate. Impl member MUST run a check on first turn: cd ai-developer-toolkit && grep -rE '\"5\\.48\\.[0-9]+\"' plugins/ralph/CHANGELOG.md plugins/ralph/.claude-plugin/plugin.json plugins/ralph/.github/plugin/plugin.json .claude-plugin/marketplace.json .github/plugin/marketplace.json .agents/plugins/marketplace.json — if ANY hit, v5.48 IS taken, bump to 5.49.0 (matches operator brief). If NO hit, surface kind=question to operator asking whether to use 5.48.0 (sequential) or 5.49.0 (matches bundle name); default 5.49.0 if no response."
+    }
+  ]
+}

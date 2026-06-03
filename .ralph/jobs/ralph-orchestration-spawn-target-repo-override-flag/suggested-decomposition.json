@@ -1,0 +1,33 @@
+{
+  "clusters": [
+    {
+      "name": "ship-ux-bundle",
+      "stories": ["US-001", "US-002"],
+      "phase": 1,
+      "dependsOn": [],
+      "fileOverlapEvidence": {
+        "sharedFiles": [
+          "ai-developer-toolkit/plugins/ralph/AGENTS.md",
+          "ai-developer-toolkit/plugins/ralph/skills/implement-with-ralph/SKILL.md",
+          "ai-developer-toolkit/plugins/ralph/.copilot-plugin/copilot-skills/implement-with-ralph/SKILL.md",
+          "ai-developer-toolkit/plugins/ralph/CHANGELOG.md",
+          "ai-developer-toolkit/plugins/ralph/.claude-plugin/plugin.json",
+          "ai-developer-toolkit/plugins/ralph/.github/plugin/plugin.json",
+          "ai-developer-toolkit/.claude-plugin/marketplace.json",
+          "ai-developer-toolkit/.github/plugin/marketplace.json",
+          "ai-developer-toolkit/.agents/plugins/marketplace.json",
+          "AGENTS.md"
+        ],
+        "exclusiveFiles": [
+          "ai-developer-toolkit/plugins/ralph/skills/convert-to-ralph-prd/SKILL.md",
+          "ai-developer-toolkit/plugins/ralph/src/worktree-create.mjs",
+          "ai-developer-toolkit/plugins/ralph/.copilot-plugin/internal-workflows/convert-to-ralph-prd/SKILL.md",
+          "ai-developer-toolkit/plugins/ralph/tests/test-target-repo-override.mjs",
+          "ai-developer-toolkit/plugins/ralph/tests/worktree-create.test.mjs"
+        ],
+        "risk": "high"
+      },
+      "executionModeRationale": "Both stories edit plugins/ralph/AGENTS.md and skills/implement-with-ralph/SKILL.md plus the hand-forked Copilot mirror; parallel execution would create merge conflicts on the shared markdown sections. Serialize US-001 first (code + tests + parity + version bumps), then US-002 (docs + Phase 6 prose + codexu backlink) so US-002 sees US-001's edits as a stable base."
+    }
+  ]
+}
