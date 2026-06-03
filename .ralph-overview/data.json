@@ -138,6 +138,10 @@
         {
           "className": "cmd-warn",
           "html": "<strong>Surfaced 2026-06-03T04:20Z</strong> by impl-codex-rs-feature-pruning-for-sub-45m-cold session disengagement. SECOND distinct circuit-breaker bug (first was the v3.0 --parallel notification storm fixed in v3.1.0). The member DID emit a valid <code>&lt;|report kind=\"progress\" summary=\"...\" reply-to=\"cab7cd8b\"|&gt;</code> tag and it WAS persisted in events.jsonl at envelope 572 (verified via hex-dump); a Node reproduction of the parser logic against the truncated transcript correctly finds 1 match. But the live agentStop hook reported 'missing kind tag' on five consecutive turns. Diagnosed as a likely Windows file-buffering race: Copilot CLI writes assistant.message envelope at 04:16:24.619Z, agentStop hook reads events.jsonl at 04:16:24.724Z (only 105ms later) before kernel flush. Once circuit-breaker fires (MAX_CONSECUTIVE_STOP_BLOCKS=5), session is permanently disengaged (despite the v3.1.0 fix's breakerMutedUntil mechanism — that handles the notification-storm case but appears to not engage in this flush-race scenario). Member tried to comply 5+ times in close-tab loop with valid bare <code>&lt;|report kind=\"done\"|&gt;</code> tags; hook kept rejecting them. Crews v3.1.0 (engine=copilot)."
+        },
+        {
+          "className": "cmd-info",
+          "html": "<strong>Scope-broadened 2026-06-03T06:25Z</strong> by operator: v3.2.0 should ALSO rename the <code>&lt;options-mode&gt;background-task&lt;/options-mode&gt;</code> bypass tag introduced in v3.1.0 to a crews-namespaced form (<code>&lt;|crews:background-task|&gt;</code> or similar). options-mode is a separate plugin; crews should not be claiming its tag namespace. Keep legacy form recognized for one deprecation cycle with stderr warning, remove in v4.0.0. Update AGENTS.md (lines 226/236/41/51), CHANGELOG.md (line 123), hooks/stop.js (lines 919-922, 937 user-facing reason string), tests/progress-bg-gate.test.js (cases 4+5) accordingly. Both fixes ship in same minor: cohesive scope (both touch hooks/stop.js + tests + docs)."
         }
       ],
       "command": {
