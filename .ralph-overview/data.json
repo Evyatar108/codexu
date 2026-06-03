@@ -1791,7 +1791,7 @@
       "scope": "codexu",
       "lifecycle": "tracked",
       "status": "ok",
-      "lastTouchedAt": "2026-06-03T03:58:00Z",
+      "lastTouchedAt": "2026-06-03T05:28:00Z",
       "kanbanCards": [
         {
           "className": "cmd-info",
@@ -1800,6 +1800,10 @@
         {
           "className": "cmd-info",
           "html": "<strong>Brainstorm shipped 2026-06-02T20:58Z</strong> (commit <code>58780ee8</code>, artifacts at <code>.ralph/brainstorms/async-events-design/</code>). Operator selected <strong>D-002 (durable mailbox + channel wake)</strong>: mailbox = source of truth, channels carry 'you have mail' wakes, missed wakes recoverable via mailbox re-read. Resolves agent-comms B+C / codex-as-crews-engine / channels-vs-storage all at once. Channels-native crews storage explicitly REJECTED. Long-horizon shape tracked separately as <code>async-events-northstar-architecture</code>. Three artifacts: selected-direction.md (16 KB, plan-with-ralph seed) + brainstorm-synthesis.md (14 KB, 5x7 matrix) + brainstorm.json (3 KB manifest). Plan invocation: <code>/plan-with-ralph --from-brainstorm .ralph/brainstorms/async-events-design/</code>."
+        },
+        {
+          "className": "cmd-info",
+          "html": "<strong>Plan shipped 2026-06-02T22:25Z</strong> (commit <code>9465ce01</code> on codexu via merge <code>5381dddb</code>). 10 deliverables / 1478 LoC. 6 stories / 4-cluster decomp (pattern-doc || mailbox-core -> wiring -> fixtures). Multi-model review fixed 1 Critical + 8 High (markConsumed semantic bug; loopback-binding as auth gate; fs.watch crash on missing file -> directory-watch + ensureInbox; agent_comms.send MCP tool added; per-server template override documented); 5 Mediums soft-cap logged in Open Questions. Impl invocation: <code>/implement-with-ralph --from-plan .ralph/jobs/async-events-design/plan.md</code> (--parallel safety: defer to plan's suggested-decomposition.json; verify with impl member at spawn time given the cross-repo nature). Note carryover from brainstorm: verify codex multi_agents_v2 mailbox seq-watch is NOT already the right Scope B substrate BEFORE introducing parallel filesystem inbox; if synthesizing requires fabricating fake URIs to fit 7 standard MCP kinds, surface to operator FIRST."
         }
       ],
       "command": {
@@ -1813,7 +1817,8 @@
         ],
         "prompts": {
           "plan": "/plan-with-ralph --from-brainstorm .ralph/brainstorms/async-events-design/",
-          "brainstorm": "/brainstorm-with-ralph"
+          "brainstorm": "/brainstorm-with-ralph",
+          "impl": "/implement-with-ralph --from-plan .ralph/jobs/async-events-design/plan.md --autonomous"
         }
       }
     },
@@ -1862,23 +1867,10 @@
     {
       "id": "overview-task-blocked-on-with-auto-unblock",
       "scope": "codexu|ralph-overview",
-      "lifecycle": "tracked",
+      "lifecycle": "merged",
       "status": "ok",
-      "lastTouchedAt": "2026-06-03T02:25:00Z",
-      "kanbanCards": [
-        {
-          "className": "cmd-warn",
-          "html": "<strong>Surfaced 2026-06-03 by operator</strong> after manual sweep caught <code>async-events-design</code> being silently no-longer-blocked (its blocker, the channels primitive, had shipped as <code>codex-channels-option-b</code> earlier today, but the prose-only kanban entry on async-events-design didn't surface that automatically). Repeat pattern is wasteful and error-prone."
-        },
-        {
-          "className": "cmd-info",
-          "html": "<strong>Operator clarification 2026-06-02T18:48Z</strong> (after plan spawn): semantics is NOTIFY-not-auto-flip. The system surfaces candidates wherever next-batch is planned (snapshot + recommendations + MCP + viewer marker); the bookkeeper-lead retains agency over each status transition. No auto-mutation of data.json. Sent inline to the in-flight plan member as a clarification message."
-        },
-        {
-          "className": "cmd-info",
-          "html": "<strong>Plan shipped 2026-06-02T19:22Z</strong> (commit <code>eca14b96</code>). 10 deliverables / 1222 lines. 8 user stories / 4 clusters / 3 phases. 14 multi-model review findings addressed (2C + 5H + 7M): the two Criticals drove biggest structural changes -- (a) split US-007 impl-side release prep (topic-branch push only) from US-008 lead handoff with explicit STOP; lead-owned 12-step release ceremonies section added; (b) plugin AGENTS.md update enumerates all 6 current tools instead of stale 4. NOTIFY-not-auto-flip semantic baked in throughout: plan never mutates task.status / task.lifecycle; detector emits a boolean only; viewer paints passive NOTIFY chip (no auto-flip button); MCP tool is read-only; verb-form 'auto-unblock' only appears as the noun-form data field <code>unblockCandidate</code>. Recommended impl: <code>/implement-with-ralph --parallel --suggested-decomposition</code> (4 clusters: US-001+US-002 parallel phase 1, US-003 alone phase 2, US-004+US-005 parallel phase 2, US-006/007/008 serial phase 3)."
-        }
-      ],
+      "lastTouchedAt": "2026-06-03T05:28:00Z",
+      "kanbanCards": [],
       "command": {
         "name": "overview-task-blocked-on-with-auto-unblock",
         "descriptionHtml": "<strong>Add structured task-dependency tracking + auto-unblock detection.</strong> Today blockers live as free prose in <code>descriptionHtml</code> / <code>kanbanCards</code>; the only way to detect that a blocked task's blocker has merged is to manually sweep. Add a structured <code>blockedOn: TaskId[]</code> field on <code>OverviewTask</code> and surface auto-unblock candidates wherever the bookkeeper plans next-batch (snapshot / recommendations / MCP / viewer). <strong>Scope (multi-repo):</strong> (a) codexu: extend <code>.ralph-overview/config.json</code> JSON schema; backfill existing 5 blocked tasks (<code>3b-agents</code>, <code>3d-workers</code>, <code>3fg-package</code>, <code>agent-comms</code>, <code>escalate-gim-home-actions-policy</code>) with their actual blocker task IDs by mining their prose; (b) ralph-overview plugin (toolkit submodule): extend <code>parseOverviewData</code> JSON schema to accept + validate <code>blockedOn</code>; emit auto-unblock-candidate flag on snapshot.json + recommendations.json when <code>status === 'blocked' &amp;&amp; blockedOn.every(id =&gt; tasks[id]?.lifecycle === 'merged')</code>; surface in MCP tool (probably extend <code>overview_parallel_ready_tasks</code> OR add a dedicated <code>overview_auto_unblock_candidates</code> tool); render in viewer kanban (visual marker on auto-unblock candidates). Multi-repo ship order: toolkit first (submodule SHA bump in codexu) → codexu config + backfill second. Coordinate with the just-merged <code>ai-developer-toolkit-submodule</code> ship which made toolkit edits go through the in-tree submodule.",
@@ -1892,6 +1884,27 @@
           "plan": "/plan-with-ralph \"Add structured blockedOn dependency tracking + auto-unblock detection to the ralph-overview schema. Today blockers live only as free prose in descriptionHtml / kanbanCards; operators have to manually sweep to notice when a blocked task's blocker has shipped. Concrete fix: (a) extend the OverviewTask schema with blockedOn: TaskId[] (additive — existing tasks without it stay valid); (b) the ralph-overview plugin (D:/harness-efforts/codexu/ai-developer-toolkit/plugins/ralph-overview/) extends parseOverviewData to accept + validate the new field; (c) snapshot.json + recommendations.json emit an auto-unblock-candidate flag when status === 'blocked' AND every blockedOn task has lifecycle === 'merged'; (d) surface in MCP server — likely extend overview_parallel_ready_tasks OR add a dedicated overview_auto_unblock_candidates MCP tool; (e) the kanban viewer paints a visual marker on auto-unblock candidates; (f) update the JSON Schema at .ralph-overview/config.json schema file to declare the new field. Multi-repo ship order: toolkit edits go through the in-tree ai-developer-toolkit/ submodule (commit there first, push to evmitran_microsoft/personal/gim-home, then bump codexu submodule pointer). Backfill of the existing 5 blocked tasks (3b-agents, 3d-workers, 3fg-package, agent-comms, escalate-gim-home-actions-policy) is a separate bookkeeper-driven prose-mining step — the impl can either do it via a candidate-list report for operator review OR leave it as a follow-up task. Plan should propose which. NOT in scope: changing the existing lifecycle/status semantics; adding a UI editor for blockedOn (lead-curated only); cross-repo dependency tracking (only within data.json). Vitest coverage for the parser + emitter required. Cross-engine viewer test (Copilot + Claude installs both render the marker) optional but recommended.\"",
           "impl": "/implement-with-ralph --from-plan .ralph/jobs/overview-task-blocked-on-with-auto-unblock/plan.md --parallel --suggested-decomposition .ralph/jobs/overview-task-blocked-on-with-auto-unblock/suggested-decomposition.json --autonomous"
         }
+      },
+      "shipManifest": {
+        "shippedAt": "2026-06-03T05:28:00Z",
+        "summary": "Shipped 8/8 stories end-to-end. ralph-overview v2.8.0 adds OverviewTask.blockedOn schema field + derives NOTIFY-only unblockCandidate marker (status==='blocked' && every blockedOn-task lifecycle==='merged') + emits through snapshots/recommendations/MCP + renders passive NOTIFY chips in viewer. NOTIFY-not-auto-flip semantic preserved throughout per operator clarification (no mutation of task.status / task.lifecycle; MCP tool is read-only; viewer chip is passive span with title tooltip, no auto-flip button). New MCP tool overview.unblock_candidates registered with strict empty input schema. blocks-edges added to dependency-graph from blocked->blocker per invariant 11. Plan reviewer caught 2 Criticals + 5 Highs + 7 Mediums pre-commit (push-approval-gate, stale AGENTS.md 4-tools count, score-droppable-by-topN, etc.) all fixed in plan v2. Impl reviewer caught 1 High post-commit (READMEs still claimed 4 MCP tools; bumped to 6 in same commit). Topic branch ralph/overview-task-blocked-on-with-auto-unblock at 5ad8a089 pushed to all 3 toolkit remotes (origin/personal/gim-home); codexu submodule pointer bumped d36a3927 + AGENTS.md active-plugin-versions table updated 2.7.0->2.8.0. Live session installed plugin updated to v2.8.0 via copilot plugin update.",
+        "commits": [
+          {
+            "sha": "eca14b96",
+            "oneLine": "plan: overview-task-blocked-on-with-auto-unblock (8 stories, 14 findings fixed)",
+            "repo": "Evyatar108/codexu"
+          },
+          {
+            "sha": "5ad8a089",
+            "oneLine": "feat(ralph-overview): add unblock candidate notifications (v2.8.0)",
+            "repo": "ai-developer-toolkit (origin/personal/gim-home)"
+          },
+          {
+            "sha": "d36a3927",
+            "oneLine": "chore: bump ai-developer-toolkit submodule for ralph-overview v2.8.0 + AGENTS.md table",
+            "repo": "Evyatar108/codexu"
+          }
+        ]
       }
     },
     {
