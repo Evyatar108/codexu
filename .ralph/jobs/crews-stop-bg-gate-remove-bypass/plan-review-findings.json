@@ -1,0 +1,62 @@
+{
+  "planFile": "draft-plan.md",
+  "repoDir": "D:/harness-efforts/codexu",
+  "findings": [
+    {
+      "id": "F-001",
+      "severity": "HIGH",
+      "source": "claude",
+      "title": "Case 4 vs 4-new mapping was reversed in original draft",
+      "status": "resolved",
+      "resolution": "Verified actual file contents by re-reading progress-bg-gate.test.js. Corrected case-map in Implementation Strategy step 4: Case 4 is legacy XML, Case 4-new (renamed 4b) is in-band crews-namespaced, Case 5 is legacy CommonMark. Cases 5-new / 5b-original / 5c / 6 are deleted as duplicate / obsolete coverage."
+    },
+    {
+      "id": "F-002",
+      "severity": "CRITICAL",
+      "source": "consensus",
+      "title": "External test files (stop-flush-race-retry.test.js, stop-allow-system-notification-boundary.test.js) use the bypass tag and would break under v3.3.0",
+      "status": "resolved",
+      "resolution": "Added both files to scope as Implementation Strategy steps 5-6 and acceptance criteria AC7 + AC8 with concrete fixture fixes. F.1 seeds real asyncStart bg event (or swaps to kind=done + armed listener); F.6 drops bypass attr (gate exempts isRetry anyway); A.6 swaps kind=progress to kind=done."
+    },
+    {
+      "id": "F-003",
+      "severity": "CRITICAL",
+      "source": "consensus",
+      "title": "progress-bg-gate.test.js Case 1 (lines 316-318) and skip cases (3, 7, 8, 9) reference the old block-message text",
+      "status": "resolved",
+      "resolution": "Implementation Strategy step 4 enumerates Case 1 update (line 316 prefix swap; line 318 background-task assertion deletion; new asserts for three kind names + background-task absence) and Cases 3/7/7b/8/9 scan. AC6 requires a shared NEW_REASON_PREFIX constant to prevent future drift."
+    },
+    {
+      "id": "F-004",
+      "severity": "MEDIUM",
+      "source": "consensus",
+      "title": "sanitizeReason doesn't truncate at 200 chars; original plan's 245-char claim and truncation framing were wrong",
+      "status": "resolved",
+      "resolution": "Verified at hooks/paths.js:86-94 (strips ANSI/control chars, normalizes whitespace, trims — no length cap). Recounted new message: 185 chars exact. Plan corrected throughout (Architecture section, Risk Areas section, AC3) to say no truncation and to specify the exact 185-char text."
+    },
+    {
+      "id": "F-005",
+      "severity": "MEDIUM",
+      "source": "claude",
+      "title": "CHANGELOG v3.2.0 entry has forward-looking 'removed in v4.0.0' sentence that becomes false when v3.3.0 ships",
+      "status": "resolved",
+      "resolution": "Implementation Strategy step 8 adds a supersession parenthetical to the v3.2.0 entry alongside the new v3.3.0 entry. AC10 explicitly requires this in addition to the new v3.3.0 entry."
+    },
+    {
+      "id": "F-006",
+      "severity": "MEDIUM",
+      "source": "consensus",
+      "title": "Repurposed Case 6 (model-spinning fixture) duplicates Case 1 semantics",
+      "status": "resolved",
+      "resolution": "Deleted Case 6 entirely from the test rewrite plan. Case 1 already covers 'kind=progress + no bg + no bypass' — the spinning detection case. Case 6's quoted-region defense was specific to the bypass parser; with the parser gone, the defense is moot. Implementation Strategy step 4 reflects the deletion."
+    },
+    {
+      "id": "F-007",
+      "severity": "CRITICAL",
+      "source": "consensus",
+      "title": "AC12 (original) required impl member to push topic branch to all 3 toolkit remotes; violates codexu AGENTS.md 'ask before pushing to remotes' rule",
+      "status": "resolved",
+      "resolution": "Scoped impl-member responsibility to local commit only in AC13 (new numbering). Remote push moved to 'Lead-owned follow-ups AFTER impl member ships' table and explicitly excluded from acceptance criteria. Scope section's 'Out of Scope' bullet calls this out directly."
+    }
+  ]
+}

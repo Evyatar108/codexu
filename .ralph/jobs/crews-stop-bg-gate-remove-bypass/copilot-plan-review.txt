@@ -1,0 +1,36 @@
+I’ll read the referenced prompt file first, then carry out its instructions.
+
+The prompt is longer than a single read limit, so I’m reading it in ranges before acting.
+
+I have the plan context; I’m reading the remaining acceptance criteria before producing the review.
+
+I’m verifying the key referenced files and symbols now so the review is grounded in the actual codebase, not just the plan text.
+
+I’m checking the implementation-sensitive snippets now, especially tests and the version bump script.
+
+I found additional test references to the bypass token outside the planned test file, so I’m reading those before finalizing findings.
+
+I’m checking one helper definition to confirm whether the extra fixtures run through the Copilot-only gate.
+
+### Feasibility
+
+[High] The plan misses stale bypass-token fixtures outside `tests/progress-bg-gate.test.js`. `tests/stop-allow-system-notification-boundary.test.js:155` and `tests/stop-flush-race-retry.test.js:101,183` still use `<|report ... background-task|>` on Copilot `kind=progress` turns with no active bg process. Once the bypass is removed, those tests will trip the new unconditional progress-bg gate unless the plan updates them to use a real active async event, a non-progress kind, or an explicit env-off fixture where appropriate.
+
+### Completeness
+
+[High] `tests/progress-bg-gate.test.js` has earlier assertions that the plan does not update. Case 1 still asserts the old reason prefix and that the reason mentions `background-task` (`:316-318`), while Case 3 and skip cases key negative checks on the old `"kind=progress needs active bg"` substring (`:358`, `:585`, `:604`, `:617`, `:632`). The implementation plan only rewrites Cases 4/5/5b/6, so the test file will either fail or stop detecting the new gate correctly. Add a shared new reason prefix assertion and update all old-message checks.
+
+[Medium] AC1’s grep requirement is broader than the file plan accounts for. `hooks/detect-active-bg.js:1` currently says `background-task detector`, and `tests/` has non-target references as above. Either make AC1 precise (“no bypass-recognition references in hooks/tests”) or include all required comment/test cleanups.
+
+### Ordering
+
+[Medium] Push ownership is inconsistent. AC12 requires the topic branch pushed to all three toolkit remotes, but Risk Area 6 says the lead owns the toolkit-side push, and the implementation steps stop at committing. Clarify whether the impl member pushes the topic branch to `origin/personal/gim-home`, or whether the lead does that after review.
+
+### Simplicity
+
+No issues found.
+
+### Acceptance Criteria Quality
+
+[Medium] AC3 is good in spirit but should name the exact final <=200-char block reason. The plan proposes a 245-char string and leaves shortening to implementation. Since tests and user-facing behavior depend on exact sanitized output, specify the final text up front.
+

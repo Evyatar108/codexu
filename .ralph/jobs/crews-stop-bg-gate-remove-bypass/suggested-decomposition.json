@@ -1,0 +1,29 @@
+{
+  "clusters": [
+    {
+      "name": "bg-gate-removal",
+      "stories": ["US-001"],
+      "phase": 1,
+      "dependsOn": [],
+      "fileOverlapEvidence": {
+        "sharedFiles": [
+          "ai-developer-toolkit/plugins/crews/hooks/mailbox.js",
+          "ai-developer-toolkit/plugins/crews/hooks/stop.js",
+          "ai-developer-toolkit/plugins/crews/hooks/detect-active-bg.js",
+          "ai-developer-toolkit/plugins/crews/tests/progress-bg-gate.test.js",
+          "ai-developer-toolkit/plugins/crews/AGENTS.md",
+          "ai-developer-toolkit/plugins/crews/CHANGELOG.md",
+          "ai-developer-toolkit/plugins/crews/.claude-plugin/plugin.json",
+          "ai-developer-toolkit/plugins/crews/.github/plugin/plugin.json",
+          "ai-developer-toolkit/.claude-plugin/marketplace.json",
+          "ai-developer-toolkit/.github/plugin/marketplace.json",
+          "ai-developer-toolkit/.agents/plugins/marketplace.json",
+          "ai-developer-toolkit/plugins/crews/tests/version.test.js"
+        ],
+        "exclusiveFiles": [],
+        "risk": "low"
+      },
+      "executionModeRationale": "Single story cluster; serial execution is the only sensible option. Parallelism would require artificially splitting the work across the file boundary, which would create intermediate states where the parser is removed but the consumer still references the removed field (or vice versa) -- a self-inflicted breakage that wastes review-fix cycles."
+    }
+  ]
+}

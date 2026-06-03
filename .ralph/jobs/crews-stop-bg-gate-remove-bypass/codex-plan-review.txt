@@ -1,0 +1,31 @@
+### Feasibility
+
+[Critical] AC12 and the plan’s “topic branch pushed to all 3 toolkit remotes” step violates the repo rule in `AGENTS.md`: pushing to remotes requires confirmation. This is also internally inconsistent with the risk section saying the lead owns toolkit pushes. The plan should stop at a local commit or explicitly require operator approval before any `git push`.
+
+[High] The plan misses tests outside `tests/progress-bg-gate.test.js` that will break once the bypass is removed. `tests/stop-flush-race-retry.test.js:101` uses `<|report kind="progress" ... background-task|>` with no async bg work, so the new gate will block F.1. `tests/stop-allow-system-notification-boundary.test.js:155` does the same in A.6. These must be changed to `kind="done"`, given real async bg events, or otherwise updated to match the new contract.
+
+[Medium] The plan treats `sanitizeReason` as having a 200-char cap, but current `hooks/paths.js:86` only strips control chars and normalizes whitespace. AC3 can still require a concise message, but the “after truncation” framing is inaccurate.
+
+### Completeness
+
+[High] `tests/progress-bg-gate.test.js` needs more edits than the plan lists. Case 1 at `tests/progress-bg-gate.test.js:316-318` still asserts the old reason prefix and that the reason mentions `background-task`. Cases 3/8/9/10/11 also check absence of the old prefix, so after the message changes those tests could falsely pass even if the progress-bg gate fires on skipped paths.
+
+[Medium] The AGENTS.md insertion instructions conflict. The implementation step says add v3.3.0 “right after” v3.1.2, while the risk section correctly says reverse-chronological means before v3.1.2. Current `plugins/crews/AGENTS.md` starts with `## v3.1.2...`; v3.3.0 should be inserted above it.
+
+[Medium] No prior review-cycle amendments are mentioned. The plan’s correction for stale AGENTS.md line numbers is adequate, but the doc-placement contradiction above remains.
+
+### Ordering
+
+[High] Push/merge ownership is ordered incorrectly. The implementation can commit in `ai-developer-toolkit/.worktrees/...`, but pushing to origin/personal/gim-home and codexu submodule pointer bookkeeping should be lead/operator-controlled after approval, not an impl-member acceptance criterion.
+
+### Simplicity
+
+[Medium] Repurposing Case 6 as “model spinning with no bypass attempt” duplicates Case 1’s core fixture. A simpler test update is to make Case 1 the canonical no-bg/no-bypass block test, then use Case 6 only if there is still value in checking that quoted or ignored `background-task` text has no special behavior.
+
+### Acceptance Criteria Quality
+
+[High] AC1 is internally inconsistent with AC5. AC1 says cross-grep across `hooks/` and `tests/` should show zero `background-task`/`background-agent` references outside docs, while AC5 requires tests containing the previously bypassed tag forms. Tighten AC1 to “zero production hook references/consumers” and explicitly allow negative regression fixtures.
+
+[Medium] AC3’s “After `sanitizeReason` truncation” is not testable against current code because there is no truncation in `sanitizeReason`. Reword to require the emitted reason itself to contain `kind=question`, `kind=done`, and `kind=blocked`, and no bypass syntax.
+
+[Critical] AC12 is not acceptable as written because it requires remote pushes without an approval gate. Replace it with “local topic branch commit exists; pushing is lead/operator-approved follow-up.”
