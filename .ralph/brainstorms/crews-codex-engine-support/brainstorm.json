@@ -1,0 +1,49 @@
+{
+  "brainstormName": "crews-codex-engine-support",
+  "idea": "Add codex as a third supported engine in the crews plugin /spawn-member --engine selector, alongside the existing Claude (v1.0) and Copilot CLI (v1.3.0) integrations. A spawned codex member must participate in the same crew protocol (mailbox, listener-arm, kind-tag report footers, lead/member roles, peers, threads, stop-member, resume-crew, etc.) as Claude and Copilot members.",
+  "availableLenses": ["codex", "copilot", "devils-advocate"],
+  "missingLenses": [],
+  "candidateDirections": [
+    {
+      "id": "D-001",
+      "name": "Minimal viable codex member — hook-enforced, skill-deferred",
+      "summary": "Ship the smallest hook-enforced codex member (manifest.engine='codex', launcher, .codex-plugin/ overlay with the 5 hook shims, 3-way readSessionEnv, env scrub for 3 engines, basic resume) and DEFER the 21-skill overlay, progress-bg gate, slash-command surface, and durable-parity infrastructure to follow-up ships. Each lens independently named a minimal-first variant; the 3-lens convergence is the strongest available signal.",
+      "contributingLenses": ["codex", "copilot", "devils-advocate"]
+    },
+    {
+      "id": "D-002",
+      "name": "Full Claude/Copilot parity port — v1.3.0-comparable 12-story plan",
+      "summary": "Mirror the full v1.3.0 Copilot port template in one ship: hooks, shim, briefing variants, resume, 21-skill overlay, env tiebreak, all tests. Codex/Copilot lenses both named this; Devil's Advocate flagged the silent-failure risk. Predictable scope shape but high probability of post-ship hardening backlog like v1.3.2-v1.3.12 did for Copilot.",
+      "contributingLenses": ["codex", "copilot"]
+    },
+    {
+      "id": "D-003",
+      "name": "Engine-identity refactor first — stamp manifest, retire env-as-truth",
+      "summary": "Before adding codex, refactor crews' engine selection so engine identity is stamped explicitly at spawn time (manifest + bootstrap token) and hooks READ from the manifest rather than infer from ambient env. Devil's Advocate argued env-derived identity is a smell that codex will multiply; Copilot lens framed the same insight as an engine-adapter table refactor. Risk: pure-refactor ships are unpopular and delay time-to-codex-MVP.",
+      "contributingLenses": ["copilot", "devils-advocate"]
+    },
+    {
+      "id": "D-004",
+      "name": "Durable parity infrastructure — codex resume, transcript indexing, bg-liveness",
+      "summary": "Address the post-MVP hard problems specific to codex's session/transcript model: rollout date-tree indexing, bg-liveness detection (analog to v3.1.0 progress-bg gate), session-id-stable resume. Codex lens identified these as Direction 3; properly the SECOND ship after D-001 lands.",
+      "contributingLenses": ["codex"]
+    },
+    {
+      "id": "D-005",
+      "name": "Inversion via codex MCP/app-server — bridge, not terminal",
+      "summary": "Devil's Advocate's strongest contrarian: don't add codex as a terminal engine at all; integrate via codex's mcp-server / app-server / exec-server protocols. crews becomes a client of a codex daemon; sessions/resume/mailbox are codex-native concepts rather than crews-shims-over-hooks. Avoids plugin-cache iteration tax and hook reverse-engineering, but bets on experimental codex surfaces and would invalidate parts of existing Claude/Copilot integration.",
+      "contributingLenses": ["devils-advocate"]
+    }
+  ],
+  "recommendedDirection": "D-001",
+  "questionsForSynthesis": [
+    "What are codex's actual hook event names + stdin payload shapes? (Verify via options-mode/.codex-plugin/ end-to-end read OR via codex test harness.)",
+    "Does codex honor { decision: 'block' } from PreToolUse for built-in tools, or is a v1.3.8-style alternate-routing path needed?",
+    "Can crews load a local plugin without mutating ~/.codex/config.toml? (Probe codex -c marketplaces.<n>.source=<abs> viability.)",
+    "What env vars does codex set for child processes — is there a CODEX_AGENT_SESSION_ID analog, and does codex set a CODEX_CLI=1 marker?",
+    "Does codex's bash tool keep an async-spawned subprocess (e.g., listener loop) alive across the hook return? If not, the listener needs a different delivery modality.",
+    "Default permission mode for codex members: --full-auto (low-friction sandboxed) vs --dangerously-bypass-approvals-and-sandbox (skip all sandboxing)?",
+    "How does codex display agent name? wt.exe tab title only? Console window title? Both? Is there a CODEX_DISABLE_TERMINAL_TITLE analog?",
+    "Devil's Advocate red_flag question: is the real goal 'codex can be a crews member' or 'crews should become engine-agnostic over a stable coordination protocol'? D-001 keeps both options open; D-002 commits to terminal-tab engine multiplication; D-005 commits to inversion."
+  ]
+}

@@ -1,0 +1,44 @@
+{
+  "brainstormName": "overview-data-context-scalability",
+  "overviewTaskId": "overview-data-context-scalability",
+  "idea": "How should we break down .ralph-overview/data.json so the overview-bookkeeper lead does NOT need to load the full task list into context every session, while preserving the bookkeeper's hand-edit ergonomics + the watcher's single-source-of-truth model?",
+  "availableLenses": ["codex", "copilot", "devils-advocate"],
+  "missingLenses": [],
+  "candidateDirections": [
+    {
+      "id": "D-001",
+      "name": "ID-scoped tooling + lazy MCP first; defer source-storage split",
+      "summary": "Add tools/data-edit.mjs + MCP write surface (overview.upsert_task, overview.mark_shipped) so writes are task-id addressed; rely on existing read MCP tools so the lead never views the full file. Keep monolithic source. Optionally pair with cheap-D-004 (summary-projection.json + active-tasks.json watcher artifacts).",
+      "contributingLenses": ["codex", "copilot", "devils-advocate"]
+    },
+    {
+      "id": "D-002",
+      "name": "Per-task source files (.ralph-overview/tasks/<id>.json) with assembled snapshot + INDEX",
+      "summary": "Hand-edit one small file per task; watcher assembles snapshot.json + INDEX.md. Atomic per-task edits structurally eliminate cross-task anchor collisions. Highest payoff at scale but most silent-failure surface (dual-authority hazard, watcher rewrite, git-blame noise, 374 KB of prompt bodies bloating per-task files).",
+      "contributingLenses": ["codex", "copilot", "devils-advocate"]
+    },
+    {
+      "id": "D-003",
+      "name": "Lifecycle-bucketed files (data-active.json + data-merged.json + data-archived.json)",
+      "summary": "Simplest split. Hot path drops to 33 tracked tasks. But ship-time atomicity is broken (move task between two files), violating the atomic per-task edit invariant; bucket boundary requires periodic archival sweeps.",
+      "contributingLenses": ["codex", "copilot"]
+    },
+    {
+      "id": "D-004",
+      "name": "Generated projection / 'compute, don't split' (active-tasks.json + summary-projection.json)",
+      "summary": "Keep monolithic source; watcher emits a small active subset + a prompts-stripped summary projection so the agent read path is small. Doesn't address write-safety on its own — best as cheap pairing for D-001.",
+      "contributingLenses": ["devils-advocate"]
+    }
+  ],
+  "recommendedDirection": "D-001",
+  "questionsForSynthesis": [
+    "What exact prompt/request payloads currently include data.json at session start? Run one prompt-trace before sinking effort into D-002/D-003.",
+    "Is the operator-perceived slowdown session startup, ready-task selection, one-task expansion, or safe bookkeeping edits? Each has a different fix.",
+    "If 1M-context Opus is the lead model, is 173K tokens actually a gating cost at all, or is the real context bloat AGENTS.md + conversation history?",
+    "Would a checked-in tools/data-edit.mjs + overview.mark_shipped/upsert_task MCP write surface eliminate the documented wrong-anchor regressions without any storage migration?",
+    "Should the bookkeeper's normal read path be tasks/INDEX.md + recommendations.json + overview.parallel_ready_tasks + overview.expand_task_context rather than direct data.json views?",
+    "If per-task files (D-002) are chosen later, what prevents a bookkeeper from editing stale data.json out of habit during the 1-minor compatibility window? (Need a hard lint/hook.)",
+    "How will migration preserve git blame on task entries extracted from one large array into 147 new files?",
+    "Do Claude Code and Copilot CLI resolve @-references identically enough to make lazy @-loading a safe cross-engine design primitive, or should lazy loading live behind MCP only?"
+  ]
+}

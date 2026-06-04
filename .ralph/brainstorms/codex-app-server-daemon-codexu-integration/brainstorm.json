@@ -1,0 +1,42 @@
+{
+  "brainstormName": "codex-app-server-daemon-codexu-integration",
+  "overviewTaskId": "codex-app-server-daemon-codexu-integration",
+  "idea": "Codex app-server daemon integration with codexu (happy-cli + happy-server). Today integration is minimal and reactive; operator flagged 6 gap areas (supervision, discovery, multiplexing, resource lifecycle, observability, identity/auth). Brainstorm picks top 2-3 to prosecute first, classifies which are unblocked NOW vs. need a prereq, which are real impl-worthy items vs. brainstorm-only open questions, which are subsumed by agent-comms/async-events-design, and which are deferred to a future codex-fork refactor.",
+  "availableLenses": ["codex", "copilot", "devils-advocate"],
+  "missingLenses": [],
+  "candidateDirections": [
+    {
+      "id": "D-001",
+      "name": "Harden happy-cli-owned discovery, lifecycle, and observability",
+      "summary": "Build on the existing happy-cli discovery + lock + detachment infrastructure; ship `happy codex doctor` + structured spawn/exit/cold-start/RSS telemetry. NO new supervision, NO multiplexing. Lowest upstream-conflict surface.",
+      "contributingLenses": ["codex", "copilot", "devils-advocate"]
+    },
+    {
+      "id": "D-002",
+      "name": "Identity-scoped multi-client sharing (gated on isolation proof)",
+      "summary": "Before relaxing the `happySessionId` mismatch guard, run a two-session smoke test to prove whether codex app-server actually isolates sessions. If yes, file a narrow same-identity reattach task; if no, mark impl-deferred until the codex protocol provides isolation guarantees.",
+      "contributingLenses": ["codex", "copilot", "devils-advocate"]
+    },
+    {
+      "id": "D-003",
+      "name": "Defer Rust app-server-daemon adoption; track upstream",
+      "summary": "Do NOT carry shadow-fork daemon policy in codex/ today. The upstream Rust `app-server-daemon` crate is Unix-only and would force sandbox-patches that fight every 2-4-week sync. File an upstream-watch brainstorm-only task; revisit every 2 syncs.",
+      "contributingLenses": ["codex", "devils-advocate"]
+    },
+    {
+      "id": "D-004",
+      "name": "Instrument-only measurement-first task",
+      "summary": "Devil's Advocate contrarian: prove which gap actually hurts before prosecuting any. 1-week telemetry-only task. Best folded as the first sub-story of D-001 rather than tracked separately.",
+      "contributingLenses": ["devils-advocate"]
+    }
+  ],
+  "recommendedDirection": "D-001",
+  "questionsForSynthesis": [
+    "What measured failure is this brainstorm trying to eliminate first: cold-start latency, orphaned RSS, crash recovery, multi-client sharing, or identity correctness?",
+    "Which current isolation property is intentionally preserved by spawning one codex app-server per happy-cli session, and what exact proof would let happy-server safely share a daemon across remote clients?",
+    "Should supervision live first in happy-cli, happy-server, or a small shared supervisor shim?",
+    "Is observability a prerequisite for safe supervision, or can it ship after discovery?",
+    "Is the existing `codex-app-server-idle-timeout` brainstorm absorbed by D-001's lifecycle telemetry, or does it remain a separate policy question?",
+    "Should the first shipped task be local-only `happy codex doctor`, or should codex app-server health also be published through encrypted `DaemonState` for the mobile app?"
+  ]
+}

@@ -1,0 +1,42 @@
+{
+  "brainstormName": "crews-redundant-empty-kind-tag-emissions",
+  "idea": "Eliminate redundant / empty-body kind=done and kind=progress envelopes from crews members. Pick one v1.x (deployed: v3.x) mitigation to ship first; decide whether the v2 architectural redesign (Option D / side-channel listener queue, per crews/docs/architecture-refactor.md Cause 5) is still needed after the chosen v1.x fix.",
+  "availableLenses": ["codex", "copilot", "devils-advocate"],
+  "missingLenses": [],
+  "candidateDirections": [
+    {
+      "id": "D-001",
+      "name": "Lead-side review-mail exact-duplicate collapse",
+      "summary": "Collapse consecutive same-kind same-sender envelopes with identical (kind, normalized body hash, summary, zero replyTo/acks/decisions) in review-mail display only; outbox.jsonl + mailbox-history.jsonl stay append-only; per-collapse stderr warning + crews.log entry; cursor advances past all collapsed rows.",
+      "contributingLenses": ["codex", "copilot", "devils-advocate"]
+    },
+    {
+      "id": "D-002",
+      "name": "Telemetry-first causal split (instrument before further mitigation)",
+      "summary": "Classify each noisy row by mechanism (multi-tag same turn / multi turn / Stop retry / listener exit reason / system.notification ack / proactive batch expansion / real reply). Best bundled into D-001's per-collapse logging so it pays for itself.",
+      "contributingLenses": ["codex", "copilot", "devils-advocate"]
+    },
+    {
+      "id": "D-003",
+      "name": "Source-side Stop-hook exact-duplicate suppression",
+      "summary": "Stop hook detects 'would emit kind=done|progress identical to last emitted from same sender with zero replyTo/acks/decisions' and skips the outbox/history write. Ship dry-run/log-only first; pair with CREWS_DEDUP_KIND_EMITS=off env switch + stderr warning + crews.log per suppression.",
+      "contributingLenses": ["codex", "copilot"]
+    },
+    {
+      "id": "D-004",
+      "name": "First-class no-op / terminal-finality kind (defer until D-001 lands)",
+      "summary": "Extend the v3.2 member system.notification no-kind exemption to cover idle wake-ups with no inbox delta and lastKind=done, OR introduce an explicit noop/ack kind that satisfies the Stop hook contract without outbox writes. Highest risk of breaking the kind-tag invariant; defer until D-001 telemetry quantifies the residual noise pattern.",
+      "contributingLenses": ["devils-advocate"]
+    }
+  ],
+  "recommendedDirection": "D-001",
+  "questionsForSynthesis": [
+    "Should D-001 collapse be exact (sender, kind, normalized body+summary+replyTo+ackSet hash) only, refusing near-similarity in v1.x for safety?",
+    "Should collapsed rows expose collapsedCount, collapsedSeqs, and collapsedIds in review-mail JSON output, accepting a documented output shape change?",
+    "Is it acceptable that outbox.jsonl + mailbox-history.jsonl keep duplicate audit rows while review-mail advances the cursor past all collapsed rows?",
+    "Does the collapse pass need to dedup across payload.entries batches in proactive-routing notifications (stop.js:1379-1418) as well, or only at leaf rows in review-mail.js?",
+    "For each duplicate observed in original cases, was it (a) one assistant turn with multiple report tags, (b) multiple assistant turns, (c) a Stop retry, or (d) review-mail expansion of one payload.entries batch?",
+    "Should kind=done be modeled as a terminal state transition after which idle member turns are no-op until new lead mail, or as a repeatable per-turn report?",
+    "Which exact crews versions produced Case A (codexu v5.50 impl member) and Case B (seval-540475 summarizer-behavior member)?  Do they include stop.js:939-958 and the terminal-only proactive batching path?"
+  ]
+}
