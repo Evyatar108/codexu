@@ -1055,18 +1055,37 @@
     {
       "id": "crews-member-manifest-turn-fields-not-updated",
       "scope": "crews",
-      "lifecycle": "tracked",
-      "status": "warn",
-      "lastTouchedAt": "2026-06-04T01:16:00Z",
+      "lifecycle": "archived",
+      "status": "ok",
+      "lastTouchedAt": "2026-06-04T14:50:00Z",
       "kanbanCards": [
         {
-          "className": "cmd-warn",
-          "html": "<strong>Surfaced 2026-06-04T01:16Z</strong> by <code>impl-worktree-conditional-narrow</code> spawn on Copilot CLI. Member is visually alive + working (per operator), launcher PID 301656 healthy, manifest heartbeat fresh (~1s ago), but the per-turn manifest fields stay null after 64+ min of work: <code>lastTurnAt: null</code>, <code>lastKind: null</code>, <code>lastSummary: empty</code>, <code>lastSeq: 0</code>. The heartbeat-update path works (listener subprocess writes <code>lastHeartbeatAt</code> fine) but the Stop-hook-side manifest-write path that records assistant-turn metadata is silently failing. Suspects: (a) <code>hooks/copilot-stop.js</code> agentStop hook isn't firing per assistant turn under autonomous <code>/implement-with-ralph</code> wrapping, (b) it fires but skips the manifest write, (c) the report-tag parser isn't recognizing the autonomous member's tag emissions. Symptom blocks operator visibility: <code>/list-members</code> + <code>/list-jobs</code> show \"never turned\" status for a member doing real work. Worth diagnosing because every Copilot impl member spawn produces a stuck-looking lead view."
+          "className": "cmd-ok",
+          "html": "<strong>ARCHIVED 2026-06-04T14:50Z — bookkeeper observation error, not a real bug.</strong> Original concern: <code>lastTurnAt: null</code> after 64+ min for the v5.50 impl member. Post-investigation: the manifest DOES update for Copilot members; <code>lastTurnAt: 2026-06-04T14:35:42</code>, <code>lastKind: progress</code>, <code>lastSummary</code> all populated after the member emitted its first assistant turn. The null-window was the Copilot CLI startup interval before the first assistant turn fired. Filed in error after only 64 min of observation; subsequently corrected when the member shipped its kind=done report (which proved manifest writes work end-to-end)."
         }
       ],
       "command": {
         "name": "crews-member-manifest-turn-fields-not-updated",
         "descriptionHtml": "<strong>Diagnose why member manifest <code>lastTurnAt</code> / <code>lastKind</code> / <code>lastSummary</code> / <code>lastSeq</code> stay null for Copilot members even when the member is actively working.</strong> Heartbeat path works; turn-recording path silently fails. First seen 2026-06-04 with the v5.50 impl member.",
+        "warnings": [],
+        "prompts": {}
+      }
+    },
+    {
+      "id": "crews-listener-eperm-rename-crash-recurring",
+      "scope": "crews",
+      "lifecycle": "tracked",
+      "status": "warn",
+      "lastTouchedAt": "2026-06-04T14:50:00Z",
+      "kanbanCards": [
+        {
+          "className": "cmd-warn",
+          "html": "<strong>Surfaced 2026-06-04T14:50Z.</strong> Recurring crash in <code>hooks/mailbox.js::writeJsonAtomic</code> (Windows-only, EPERM on rename of <code>manifest.json.&lt;pid&gt;.&lt;hex&gt;.tmp -&gt; manifest.json</code>). Observed twice in one v5.50 session: (a) member <code>impl-worktree-conditional-narrow</code> seq 3 report \"Listener crashed on mailbox lock contention. Re-arming\" — member auto-recovered, (b) my own lead listener arm-5 PID 266512 crashed same way during the overnight gap, no auto-recovery (member-side has retry, lead-side does not?). Stack: <code>writeJsonAtomic -&gt; writeManifest -&gt; updateManifest -&gt; touchHeartbeat -&gt; markArmed -&gt; listener-loop heartbeat timer</code>. The v1.4.1 retry-on-EPERM fix exists per crews AGENTS.md but is apparently not catching this code path. Suspect: the retry covers some paths but the heartbeat-side rename is missing the wrap, or the retry exhausts and the listener still dies. Worth diagnosing — every long-lived listener risks this on Windows with Defender real-time scan or any file watcher (chokidar etc.) briefly holding a read handle."
+        }
+      ],
+      "command": {
+        "name": "crews-listener-eperm-rename-crash-recurring",
+        "descriptionHtml": "<strong>Diagnose recurring EPERM rename crash in <code>writeJsonAtomic</code> during listener heartbeat writes (Windows).</strong> v1.4.1 had a retry shim but the listener still crashes; either the retry exhausts or this specific path is unwrapped. Member-side has visible auto-recovery; lead-side does not.",
         "warnings": [],
         "prompts": {}
       }
@@ -1457,25 +1476,13 @@
     {
       "id": "ralph-orchestration-worktree-conditional-submodule-init",
       "scope": "ralph-orchestration",
-      "lifecycle": "tracked",
+      "lifecycle": "merged",
       "status": "ok",
-      "lastTouchedAt": "2026-06-03T23:49:00Z",
+      "lastTouchedAt": "2026-06-04T14:50:00Z",
       "kanbanCards": [
         {
-          "className": "cmd-warn",
-          "html": "<strong>Surfaced 2026-06-03T08:38Z</strong> by plan-crews-stop-bg-gate-remove-bypass member self-observation. The worktree-create.mjs helper runs <code>git submodule update --init --recursive</code> unconditionally on every Ralph worktree spawn. For codexu, this pulls in the multi-GB codex/ submodule even when the task doesn't touch it. ~3min wasted per spawn."
-        },
-        {
           "className": "cmd-ok",
-          "html": "<strong>Brainstorm shipped 2026-06-03T16:39Z</strong> at <code>75043065</code>. 3 lenses converged on D-001 (--no-submodule-init + plan-default-skip)."
-        },
-        {
-          "className": "cmd-warn",
-          "html": "<strong>Plan #1 shipped 2026-06-03T18:05Z at <code>130bbff7</code> is OFF-TARGET.</strong> Operator pivoted (2026-06-03T11:14) to a SIMPLER direction than D-001: no init for EITHER phase by default; worker initializes on-demand. ~80% of 130bbff7's scope rejected (--require-submodule-init precedence stack, PRD-declared scope, convert-to-ralph-prd Step 5 wiring all dropped). Re-planned narrow."
-        },
-        {
-          "className": "cmd-ok",
-          "html": "<strong>Plan #2 (narrow) shipped 2026-06-03T23:49Z at <code>f2703dc9</code></strong> with operator's pivot direction. 9 stories (US-001..US-008 + US-004b/c). Phase 4 multi-model review: R1 found 9 findings (3 consensus + 6 divergence; convert-to-ralph-prd:396 + test-submodule-worktree-init.sh assertions + AC-13 not impl-testable + AC-6 split = key Highs), all 9 resolved in v2. R2 found 5 more (2 new High: convert-to-ralph-prd:54 batch-mode prose + AC-3 reuse-path verification gap), all 5 resolved in v3. Soft-cap exit after R2 with all 14 findings resolved inline. Total wall ~10min (much faster than 130bbff7's plan cycle due to narrow scope). Removed OFF-TARGET artifacts from 130bbff7 (codex-research.txt, copilot-research.txt, review-log.json). Ready for impl spawn as v5.50."
+          "html": "<strong>SHIPPED 2026-06-04T14:50Z as ralph v5.50.0.</strong> 10 commits on <code>ralph/ralph-orchestration-worktree-conditional-submodule-init</code> tip <code>5bff9938</code>. 9/9 stories pass (US-001..US-008 + US-004b/c). Phase 5a clean after 1 Medium fix (F-001); Phase 5b clean; DSAT 1.00; 0 followup tasks. Toolkit submodule main pushed to all 3 remotes (gim-home, origin, personal). Codexu wrapper bump + AGENTS.md active-plugin-versions table 5.49.0 → 5.50.0 in commit <code>0dcb66e6</code>; pushed to origin + personal."
         }
       ],
       "command": {
@@ -1492,6 +1499,67 @@
           "plan": "/plan-with-ralph \"Make Ralph worktree submodule init OPT-IN. Operator pivoted (2026-06-03) from D-001 to SIMPLER direction: runSubmoduleInit() in plugins/ralph/src/worktree-create.mjs becomes a NO-OP by default for BOTH plan AND impl phases. Workers run 'git submodule update --init <path>' on-demand. Add --init-submodules opt-in flag. NO precedence stack, NO PRD-declared scope, NO env-var handling, NO convert-to-ralph-prd Step 5 wiring. Ship as ralph v5.50.\"",
           "impl": "/implement-with-ralph --from-plan .ralph/jobs/ralph-orchestration-worktree-conditional-submodule-init/plan.md --autonomous"
         }
+      },
+      "shipManifest": {
+        "shippedAt": "2026-06-04T14:50:00Z",
+        "summary": "Ralph v5.50.0 — narrow re-plan of worktree-conditional-submodule-init. Per the operator's design pivot on 2026-06-03 (rejecting the original 130bbff7 plan), the simpler model landed: runSubmoduleInit() in plugins/ralph/src/worktree-create.mjs becomes NO-OP by default for both plan AND impl phases; workers run `git submodule update --init <path>` on-demand; --init-submodules opt-in flag for the rare wrapper-only-task case.\n\n9 stories shipped: US-001 (runSubmoduleInit opt-in), US-002 (node:test coverage), US-003 (bash test redesign), US-004 (remove decompose-plan inline init), US-004b (convert-to-ralph-prd stale prose rewrite), US-004c (plan-with-ralph Phase 1B stale prose rewrite), US-005 (AGENTS+CHANGELOG docs), US-006 (5-file version stamp bump), US-007 (gates + topic branch commit). F-001 fix landed in Phase 5a (extending mirror prose-contract coverage in test-submodule-worktree-init.sh).\n\nMulti-repo ship ceremony executed end-to-end same-day: FF-merge to toolkit main → push to all 3 remotes (gim-home critical for marketplace) → codexu submodule pointer bump (4d92f146 → 5bff9938) → AGENTS.md active-plugin-versions table flip 5.49.0 → 5.50.0 → push codexu to origin + personal → copilot plugin update --all in flight.\n\nIteration-time observations worth memorializing: on this Windows dev box, `bash` resolves to WSL's C:\\Windows\\System32\\bash.exe first on PATH, which hangs indefinitely when spawned from Node via spawnSync('bash'). The ralph runner's preflight hung the first 12 minutes silently because of this. Prepend C:\\Program Files\\Git\\bin to PATH (or set GIT_BASH explicitly) before invoking any Node tool that internally shells to bash. Affects the runner, test-submodule-worktree-init.sh, and generate-copilot-artifacts --check. Filed as repo memory.",
+        "commits": [
+          {
+            "sha": "ccc0634c",
+            "oneLine": "feat: US-001 - Make runSubmoduleInit opt-in via --init-submodules",
+            "repo": "ai-developer-toolkit"
+          },
+          {
+            "sha": "a9656c62",
+            "oneLine": "feat: US-002 - Update node:test coverage for worktree-create defaults",
+            "repo": "ai-developer-toolkit"
+          },
+          {
+            "sha": "7052e1f6",
+            "oneLine": "feat: US-003 - Redesign bash submodule worktree behavior test",
+            "repo": "ai-developer-toolkit"
+          },
+          {
+            "sha": "936b438c",
+            "oneLine": "feat: US-004 - Remove decompose-plan inline submodule init",
+            "repo": "ai-developer-toolkit"
+          },
+          {
+            "sha": "0c323274",
+            "oneLine": "feat: US-004b - Rewrite convert-to-ralph-prd stale submodule-init prose",
+            "repo": "ai-developer-toolkit"
+          },
+          {
+            "sha": "67833986",
+            "oneLine": "feat: US-004c - Rewrite plan-with-ralph Phase 1B stale prose",
+            "repo": "ai-developer-toolkit"
+          },
+          {
+            "sha": "4ca7859f",
+            "oneLine": "feat: US-005 - Document v5.50.0 behavior in AGENTS and changelog",
+            "repo": "ai-developer-toolkit"
+          },
+          {
+            "sha": "4658eb2c",
+            "oneLine": "feat: US-006 - Bump ralph plugin version stamps to 5.50.0",
+            "repo": "ai-developer-toolkit"
+          },
+          {
+            "sha": "6bfd0f4d",
+            "oneLine": "feat: US-007 - Run gates and commit toolkit topic branch",
+            "repo": "ai-developer-toolkit"
+          },
+          {
+            "sha": "5bff9938",
+            "oneLine": "fix: F-001 - Extend mirror prose-contract coverage in test-submodule-worktree-init.sh",
+            "repo": "ai-developer-toolkit"
+          },
+          {
+            "sha": "0dcb66e6",
+            "oneLine": "chore: bump ai-developer-toolkit submodule for ralph v5.50.0 + update active-plugin-versions table",
+            "repo": "codexu"
+          }
+        ]
       }
     },
     {
