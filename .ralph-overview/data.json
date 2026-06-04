@@ -181,8 +181,16 @@
         "shippedAt": "2026-06-03T17:30:00Z",
         "summary": "crews v3.3.0 ships: the progress-bg-gate bypass tag is removed entirely (both the legacy <options-mode>background-task</options-mode> XML form AND the v3.2.0 in-band crews-namespaced <|report kind=\"progress\" background-task|> form). Structural rationale baked into hooks/detect-active-bg.js: any genuine async-wait pattern is EITHER a follow-up tool call (no Stop hook fires, gate irrelevant) OR a background subprocess (detector sees it). There is no in-process wait case because the model itself can't sleep, so any in-process wait blocks the synchronous tool-call return and prevents Stop. The bypass was an over-engineered solution to a non-problem, made worse by the v3.2.0 block message at hooks/stop.js:1128 which explicitly TAUGHT the model to use it as the default lazy escape. New block message lists only the 3 real recovery paths: kind=question + reply-to to wait on lead, kind=done to complete, kind=blocked to surface a problem. Operator escape hatch CREWS_PROGRESS_BG_GATE=off remains as the only override path (per-machine config, not model-controlled in-band tag).\n\nImpl phase ran clean: Phase 4 plan-review had already caught 7 findings (all resolved in the plan), so the impl member shipped in one rubber-duck pass with zero code-level Critical/High findings -- only flagged the uncommitted state as HIGH which it then resolved. 14 files +352/-199. 252/255 tests passed; 3 failures are pre-existing Windows-EPERM race flakes in the documented serial denylist (crew-init-race, listener-redundant-arm-skip, locks), verified identical on untouched main baseline.\n\nLead-owned ceremony complete: toolkit FF-merged 58b4b882 -> 47edbd73 and pushed to all 3 toolkit remotes (origin/personal/gim-home); codexu submodule pointer bumped; AGENTS.md active-plugin-versions table updated 3.2.0 -> 3.3.0; copilot plugin update queued for the lead session.",
         "commits": [
-          { "sha": "e20dd92a", "oneLine": "plan: crews-stop-bg-gate-remove-bypass (cherry-picked from plan member's 340b7dd4)", "repo": "codexu" },
-          { "sha": "47edbd73", "oneLine": "crews(v3.3.0): remove progress-bg-gate bypass tag entirely", "repo": "ai-developer-toolkit" }
+          {
+            "sha": "e20dd92a",
+            "oneLine": "plan: crews-stop-bg-gate-remove-bypass (cherry-picked from plan member's 340b7dd4)",
+            "repo": "codexu"
+          },
+          {
+            "sha": "47edbd73",
+            "oneLine": "crews(v3.3.0): remove progress-bg-gate bypass tag entirely",
+            "repo": "ai-developer-toolkit"
+          }
         ]
       },
       "kanbanCards": [
@@ -224,8 +232,16 @@
         "shippedAt": "2026-06-03T21:50:00Z",
         "summary": "crews v3.4.0 ships as bundle (US-001 detector-broaden + US-002 lead-listener; see also crews-stop-hook-require-lead-listener-unconditionally for US-002 details). US-001: new isCrewsCliInfraCall helper in hooks/listener-protocol.js; hooks/detect-active-bg.js OR-combines it with isListenerArmCall so forgotten async crews.js subcommand calls (status, peek-mailbox, etc.) no longer leak past the filter as 'real bg work'. PreToolUse safety preserved (hooks/pre-tool-use.js byte-identical; isListenerArmCall not broadened). Closes the false-pass that bit us at 2026-06-03T15:45 on member brainstorm-ralph-orchestration-worktree-conditional-submodule-init. 15 files +497/-11. Focused tests green. Two serial-tail flakes (locks.test.js, stop-member-cli.test.js) reproduce on origin/main — pre-existing Windows timing flakes, not caused by v3.4.",
         "commits": [
-          { "sha": "1e085658", "oneLine": "plan: crews-v3.4-bundle (cherry-picked from plan member's e5a6d846)", "repo": "codexu" },
-          { "sha": "429ba5e6", "oneLine": "crews(v3.4.0): Stop-hook bundle - detector-broaden infra-filter + lead-listener unconditional", "repo": "ai-developer-toolkit" }
+          {
+            "sha": "1e085658",
+            "oneLine": "plan: crews-v3.4-bundle (cherry-picked from plan member's e5a6d846)",
+            "repo": "codexu"
+          },
+          {
+            "sha": "429ba5e6",
+            "oneLine": "crews(v3.4.0): Stop-hook bundle - detector-broaden infra-filter + lead-listener unconditional",
+            "repo": "ai-developer-toolkit"
+          }
         ]
       },
       "kanbanCards": [
@@ -262,8 +278,16 @@
         "shippedAt": "2026-06-03T21:50:00Z",
         "summary": "crews v3.4.0 ships as bundle (US-002 lead-listener; see also crews-stop-bg-gate-detector-broaden-infra-filter for US-001 details). US-002: shouldRequireArmedListener at hooks/stop.js:111 short-circuits role==='lead' → return true; new 'stop: lead-listener-required' log line on the lead-block path in decideStopBlock so post-mortem grep is possible. Members keep existing kind-gated logic (kind=progress mid-stream legitimately doesn't require armed; PreToolUse re-arms on next tool call). Closes the 3-min lead-listener drift observed at 2026-06-03T16:39:58 when brainstorm member's kind=done delivery exited the lead's armed listener and Stop hook silently allowed several prose-only turns before PreToolUse caught it. Tests in stop-decision.test.js + role-gate.test.js; first-turn-listener-guard.test.js regression anchor unchanged.",
         "commits": [
-          { "sha": "1e085658", "oneLine": "plan: crews-v3.4-bundle (cherry-picked from plan member's e5a6d846)", "repo": "codexu" },
-          { "sha": "429ba5e6", "oneLine": "crews(v3.4.0): Stop-hook bundle - detector-broaden infra-filter + lead-listener unconditional", "repo": "ai-developer-toolkit" }
+          {
+            "sha": "1e085658",
+            "oneLine": "plan: crews-v3.4-bundle (cherry-picked from plan member's e5a6d846)",
+            "repo": "codexu"
+          },
+          {
+            "sha": "429ba5e6",
+            "oneLine": "crews(v3.4.0): Stop-hook bundle - detector-broaden infra-filter + lead-listener unconditional",
+            "repo": "ai-developer-toolkit"
+          }
         ]
       },
       "kanbanCards": [
@@ -300,8 +324,16 @@
         "shippedAt": "2026-06-03T22:00:00Z",
         "summary": "ralph v5.49.0 ships as bundle (US-001 + US-002 Phase a; see also ralph-orchestration-document-multi-repo-pointer-bump-flow for US-002 details). US-001: --target-repo CLI flag on /implement-with-ralph propagates through convert-to-ralph-prd Step 1 as authoritative override; validates via 'git -C <path> rev-parse --show-toplevel'; skips the ~30sec plan-analysis agent when provided. Worktree-create.mjs --help updated to document wrapper/submodule/sibling acceptance. 6 case-level tests in test-target-repo-override.mjs + worktree-create.test.mjs help-text assertion; 12/12 pass. Copilot mirror regenerated (convert-to-ralph-prd) + hand-forked (implement-with-ralph Phase 1 flag + Phase 1.7 rejection + Phase 2 forwarding + Phase 6 handoff). Two test items deferred transparently by impl member: AC-019 (test-submodule-worktree-init.sh) + AC-010 (full tests/run.mjs discovery) both killed at 80+min on git-subprocess spawn loops; member's changes don't touch the surfaces those tests gate, so risk is low. Lead may re-run in a longer window post-ship.",
         "commits": [
-          { "sha": "7b3aa41d", "oneLine": "plan: ralph-orchestration v5.49 spawn-and-ship UX bundle (cherry-picked from plan member's 1be64b80)", "repo": "codexu" },
-          { "sha": "4d92f146", "oneLine": "feat(ralph): v5.49.0 spawn-and-ship UX bundle (US-001 + US-002 Phase a) [cherry-picked from impl member's a1c28050]", "repo": "ai-developer-toolkit" }
+          {
+            "sha": "7b3aa41d",
+            "oneLine": "plan: ralph-orchestration v5.49 spawn-and-ship UX bundle (cherry-picked from plan member's 1be64b80)",
+            "repo": "codexu"
+          },
+          {
+            "sha": "4d92f146",
+            "oneLine": "feat(ralph): v5.49.0 spawn-and-ship UX bundle (US-001 + US-002 Phase a) [cherry-picked from impl member's a1c28050]",
+            "repo": "ai-developer-toolkit"
+          }
         ]
       },
       "kanbanCards": [
@@ -338,8 +370,16 @@
         "shippedAt": "2026-06-03T22:00:00Z",
         "summary": "ralph v5.49.0 ships as bundle Phase a docs-only (see also ralph-orchestration-spawn-target-repo-override-flag for US-001 details). US-002 Phase a: new '## Lead-Owned Ceremonies > Multi-repo wrapper-to-submodule ship ceremony' subsection in plugins/ralph/AGENTS.md with 6 repo-agnostic placeholders + skipped-step → failure-mode table + canonical-source backlink footer. New 'Lead handoff for submodule ship' Phase 6 block in implement-with-ralph SKILL.md (both single-job + parallel, complete + accept-open paths); wrapper-root derived from <job_dir>/<group_dir>; uses 'git -C <wrapper_root> submodule status -- <relative_repoDir>' for detection; emits to stdout BEFORE the terminal marker AND appends to progress.txt > ## Orchestrator Notes > Submodule ship handoff (stdout + progress.txt, NOT crews kind=done). codexu AGENTS.md cross-reference already landed earlier in commit f07bce68 (verified on disk). Phase b helper tooling + Phase c integration remain deferred to follow-up scopes per plan's explicit decision.",
         "commits": [
-          { "sha": "7b3aa41d", "oneLine": "plan: ralph-orchestration v5.49 spawn-and-ship UX bundle", "repo": "codexu" },
-          { "sha": "4d92f146", "oneLine": "feat(ralph): v5.49.0 spawn-and-ship UX bundle (US-001 + US-002 Phase a)", "repo": "ai-developer-toolkit" }
+          {
+            "sha": "7b3aa41d",
+            "oneLine": "plan: ralph-orchestration v5.49 spawn-and-ship UX bundle",
+            "repo": "codexu"
+          },
+          {
+            "sha": "4d92f146",
+            "oneLine": "feat(ralph): v5.49.0 spawn-and-ship UX bundle (US-001 + US-002 Phase a)",
+            "repo": "ai-developer-toolkit"
+          }
         ]
       },
       "kanbanCards": [
@@ -919,10 +959,26 @@
         "shippedAt": "2026-06-03T22:11:00Z",
         "summary": "codex v0.135.0-copilot-api.1 SHIPPED end-to-end. Release URL: https://github.com/gim-home/codex/releases/tag/v0.135.0-copilot-api.1 (102.9 MB bundle, sha 3426ec42). 14 days of stale releases closed. Three-phase /rebase-upstream closeout executed per the new discipline codified in codexu AGENTS.md commit 41fa70cf. Phase 5a HARD GATE caught + filed + drove the codex-rebase-debt-fix-thread-manager-sample blocker (1-line missing additional_instructions in Config{} initializer; pattern identical to the prior 590b50759 sweep that missed this sample). Phase 5a re-run green in 2m 04s after fix landed. Release build LTO=thin cold ran 43m 02s (sccache 0% hit rate due to cache corruption — filed as build-env-sccache-cache-wipe-and-rewarm). Step 5 bundle vendor + npm pack + GitHub Release upload landed clean. Step 6 verify green. Step 12 smoke partial: binaries launch + report v0.135.0-copilot-api.1 correctly, but auth path NOT exercised (stale pre-v6 local config; no Copilot auth on this dev box). Phase 5b CI closeout = interim per escalate-gim-home-actions-policy block (every invariant-check run on gim-home/codex@main returns startup_failure in 0s as expected). Total wall: 2h 17min spawn-to-ship. Surfaced 3 process gaps as candidate follow-ups: (a) codex wrapper repo missing codex-patched remote on this dev box (member added as one-time fix; should propagate to fresh clones); (b) Python build_npm_package.py WinError-2 on subprocess.run(['npm']) under PowerShell; member wrote shutil.which-based wrapper; recommend committing upstream-style; (c) incidental overlay rustfmt drift (7 files, codex-rs-overlay/codex-{copilot,copilot-launcher,plugin-scope}/) preserved in stash@{0}: incidental-overlay-rustfmt-drift-pre-v135-release on wrapper repo.",
         "commits": [
-          { "sha": "1dd5cd5c9", "oneLine": "rebase-debt-fix: thread-manager-sample missing additional_instructions field in Config initializer", "repo": "codex-patched (Evyatar108/codex-openai-fork)" },
-          { "sha": "3f5dabace", "oneLine": "chore(codex-patched): bump pointer to 1dd5cd5c9 (unblocks v0.135 release cut)", "repo": "codex (gim-home/codex)" },
-          { "sha": "d15313b7", "oneLine": "chore: bump codex submodule for rebase-debt-fix thread-manager-sample", "repo": "codexu" },
-          { "sha": "v0.135.0-copilot-api.1 (annotated tag)", "oneLine": "GitHub Release tag on gim-home/codex pointing at the wrapper release commit", "repo": "codex (gim-home/codex)" }
+          {
+            "sha": "1dd5cd5c9",
+            "oneLine": "rebase-debt-fix: thread-manager-sample missing additional_instructions field in Config initializer",
+            "repo": "codex-patched (Evyatar108/codex-openai-fork)"
+          },
+          {
+            "sha": "3f5dabace",
+            "oneLine": "chore(codex-patched): bump pointer to 1dd5cd5c9 (unblocks v0.135 release cut)",
+            "repo": "codex (gim-home/codex)"
+          },
+          {
+            "sha": "d15313b7",
+            "oneLine": "chore: bump codex submodule for rebase-debt-fix thread-manager-sample",
+            "repo": "codexu"
+          },
+          {
+            "sha": "v0.135.0-copilot-api.1 (annotated tag)",
+            "oneLine": "GitHub Release tag on gim-home/codex pointing at the wrapper release commit",
+            "repo": "codex (gim-home/codex)"
+          }
         ]
       },
       "kanbanCards": [
@@ -964,13 +1020,13 @@
     {
       "id": "codex-overlay-fmt-cleanup",
       "scope": "codex",
-      "lifecycle": "tracked",
+      "lifecycle": "merged",
       "status": "ok",
-      "lastTouchedAt": "2026-06-03T22:11:00Z",
+      "lastTouchedAt": "2026-06-04T00:25:00Z",
       "kanbanCards": [
         {
-          "className": "cmd-warn",
-          "html": "<strong>Surfaced 2026-06-03T22:11Z</strong> by <code>impl-codex-cut-v0.135.0</code> as out-of-release-scope drift. Incidental rustfmt drift across 7 files in <code>codex-rs-overlay/codex-{copilot,copilot-launcher,plugin-scope}/</code> (split-imports, alphabetical reorder). Member preserved this in <code>stash@{0}: incidental-overlay-rustfmt-drift-pre-v135-release</code> on the wrapper repo working tree (NOT pushed; lives on the dev box only). To recover: <code>git -C codex stash show stash@{0}</code> or <code>git -C codex stash pop stash@{0}</code>. Run <code>cargo fmt -p codex-copilot -p codex-copilot-launcher -p codex-plugin-scope</code> (or workspace-wide <code>cargo fmt</code>) to regenerate the same edits, commit, push gim-home/codex. Trivial; no behavioral risk; bundle with next codex ship."
+          "className": "cmd-ok",
+          "html": "<strong>SHIPPED 2026-06-04T00:25Z</strong> as standalone post-v0.135 cleanup. Pure rustfmt cleanup of 7 files in <code>codex-rs-overlay/codex-{copilot,copilot-launcher,plugin-scope}/</code> (19+/11-). Wrapper commit <code>10ececb49</code> pushed to <code>gim-home/codex@main</code>; codexu pointer bump <code>7440f863</code>. <code>cargo fmt --check</code> green after the wrapper commit. No behavior change."
         }
       ],
       "command": {
@@ -978,6 +1034,22 @@
         "descriptionHtml": "<strong>Cleanup 7-file rustfmt drift in codex-rs-overlay/.</strong> Member preserved in stash@{0} on dev-box wrapper repo. Apply via <code>cargo fmt</code> + commit + push. No behavioral risk.",
         "warnings": [],
         "prompts": {}
+      },
+      "shipManifest": {
+        "shippedAt": "2026-06-04T00:25:00Z",
+        "summary": "Pure rustfmt cleanup for the 3 overlay crates (codex-copilot, codex-copilot-launcher, codex-plugin-scope) inside codex-rs-overlay/. Drift was originally caught during the v0.135.0-copilot-api.1 release prep (ship #48 on 2026-06-03) and preserved in stash@{0}: incidental-overlay-rustfmt-drift-pre-v135-release to keep the release-cut diff scoped to release-essential changes.\n\nShipped here as a standalone post-release cleanup. Stash applied cleanly; cargo fmt --check on the 3 crates returned exit 0 after the wrapper-side commit. 2-tier cascade (wrapper + codexu pointer) because edits target codex-rs-overlay/ which lives in the wrapper repo, not in the codex-patched subtree. Lead-driven per the codex/CLAUDE.md auto-fmt guidance combined with the operator-approved lead-drive proposal at start of session.",
+        "commits": [
+          {
+            "sha": "10ececb49",
+            "oneLine": "style(codex-rs-overlay): rustfmt cleanup for codex-copilot, codex-copilot-launcher, codex-plugin-scope",
+            "repo": "codex (gim-home/codex)"
+          },
+          {
+            "sha": "7440f863",
+            "oneLine": "chore: bump codex submodule for overlay-fmt-cleanup ship (10ececb49)",
+            "repo": "codexu"
+          }
+        ]
       }
     },
     {
@@ -3203,9 +3275,21 @@
         "shippedAt": "2026-06-03T20:55:00Z",
         "summary": "1-line debt fix for missed initializer in external/repos/codex-patched/codex-rs/thread-manager-sample/src/main.rs:164. Added additional_instructions: None, to the Config { ... } initializer (sample binary, doesn't go through launcher, so None is correct per the parallel fix at exec/src/lib.rs:403). Pattern identical to prior codex-rebase-debt-fix-tui-and-exec sweep at commit 590b50759 which caught the parallel ConfigOverrides initializer in exec/src/lib.rs but missed this thread-manager-sample Config initializer. Surfaced by impl-codex-cut-v0.135.0 Phase 5a HARD GATE — exactly the proactive-catch behavior the new rebase-as-closeout discipline (codified today in codexu AGENTS.md 41fa70cf) is designed to enforce. Lead-driven fix took ~13min wall (~5min edit + 8min commit/push triple). Subsumes the previously-unbumped stream-cut diagnostics commit 69a2108a7 in the same wrapper pointer bump.",
         "commits": [
-          { "sha": "1dd5cd5c9", "oneLine": "rebase-debt-fix: thread-manager-sample missing additional_instructions field in Config initializer", "repo": "codex-patched (Evyatar108/codex-openai-fork)" },
-          { "sha": "3f5dabace", "oneLine": "chore(codex-patched): bump pointer to 1dd5cd5c9", "repo": "codex (gim-home/codex)" },
-          { "sha": "d15313b7", "oneLine": "chore: bump codex submodule for rebase-debt-fix thread-manager-sample", "repo": "codexu" }
+          {
+            "sha": "1dd5cd5c9",
+            "oneLine": "rebase-debt-fix: thread-manager-sample missing additional_instructions field in Config initializer",
+            "repo": "codex-patched (Evyatar108/codex-openai-fork)"
+          },
+          {
+            "sha": "3f5dabace",
+            "oneLine": "chore(codex-patched): bump pointer to 1dd5cd5c9",
+            "repo": "codex (gim-home/codex)"
+          },
+          {
+            "sha": "d15313b7",
+            "oneLine": "chore: bump codex submodule for rebase-debt-fix thread-manager-sample",
+            "repo": "codexu"
+          }
         ]
       },
       "kanbanCards": [
