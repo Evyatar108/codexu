@@ -1055,13 +1055,13 @@
     {
       "id": "crews-member-manifest-turn-fields-not-updated",
       "scope": "crews",
-      "lifecycle": "archived",
-      "status": "ok",
-      "lastTouchedAt": "2026-06-04T14:50:00Z",
+      "lifecycle": "tracked",
+      "status": "warn",
+      "lastTouchedAt": "2026-06-04T22:55:00Z",
       "kanbanCards": [
         {
-          "className": "cmd-ok",
-          "html": "<strong>ARCHIVED 2026-06-04T14:50Z — bookkeeper observation error, not a real bug.</strong> Original concern: <code>lastTurnAt: null</code> after 64+ min for the v5.50 impl member. Post-investigation: the manifest DOES update for Copilot members; <code>lastTurnAt: 2026-06-04T14:35:42</code>, <code>lastKind: progress</code>, <code>lastSummary</code> all populated after the member emitted its first assistant turn. The null-window was the Copilot CLI startup interval before the first assistant turn fired. Filed in error after only 64 min of observation; subsequently corrected when the member shipped its kind=done report (which proved manifest writes work end-to-end)."
+          "className": "cmd-warn",
+          "html": "<strong>RE-OPENED 2026-06-04T22:55Z (operator-confirmed).</strong> I wrongly archived this earlier as \"bookkeeper observation error\" after the v5.50 impl member shipped with a populated manifest. BUT on 2026-06-04T22:55Z the operator confirmed members WERE running and emitting turns yet <code>list-members</code> showed <code>lastTurnAt: null / lastKind: null / lastSeq: 0</code>. The v5.50 ship that \"proved\" the manifest works was a confounder, not a counterexample. The bug is REAL and affects all Copilot members until/unless they emit a <code>kind=done</code> report. Symptom: operator-visibility is broken; <code>/list-members</code> + <code>list-members</code> JSON show \"never turned\" status for members doing real work. Same crews-side bug class as crews-stop-hook-windows-flush-race (events.jsonl mtime issues on windows). Investigation focus: <code>hooks/copilot-stop.js</code> agentStop manifest-write path vs the heartbeat-update path that DOES work. Same 3 hypotheses as the original filing."
         }
       ],
       "command": {
