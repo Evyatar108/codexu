@@ -645,11 +645,33 @@ this doc.
   CI still in flight) stays `tracked` with a comment about the in-flight
   state. Wait for the actual main-side commit before bookkeeping.
 
-- **Peek the mailbox between tool-call clusters.** During extended
-  investigations (debugging, multi-step setup) that exceed ~6–8 tool calls
-  without a natural turn boundary, run `review-mail --peek` between
-  sub-tasks. The Stop-hook is a backstop, not a primary signal — relying
-  on it can miss a `kind=question` that arrives mid-investigation.
+- **Wait for members via armed listener, NEVER periodic poll loops
+  (codified 2026-06-03).** When a spawned member is running and there is
+  no immediate parallel work for the lead to do, arm the lead listener
+  (`node <crews-bin> arm overview-bookkeeper ralph-pipeline --cwd
+  D:/harness-efforts/codexu --timeout-ms <N>` in async mode) and end the
+  turn. The crews protocol delivers a `system_notification` when the
+  member sends mail (the listener subprocess exits, the runtime fires
+  the completion notification, the lead's next turn handles it via
+  `/crews:review-mail`). Polling loops — "wait 30s, peek mailbox, wait
+  30s, peek mailbox" or any analog — are forbidden because (a) every
+  empty cycle burns a model invocation, and (b) a peek can race the
+  same delivery the listener would have caught cleanly. The crews v3.4
+  `lead-listener-unconditional` Stop-hook gate is the design-time
+  enforcement; this bullet is the operating-discipline counterpart for
+  the lead model itself. Operator-observed correction
+  (2026-06-03T17:22): "never do periodic checks, it should always be by
+  listeners."
+
+- **Peek the mailbox between tool-call clusters WITHIN a single turn.**
+  During extended investigations (debugging, multi-step setup) that
+  exceed ~6–8 tool calls without a natural turn boundary, run
+  `review-mail --peek` between sub-tasks. The Stop-hook is a backstop,
+  not a primary signal — relying on it can miss a `kind=question` that
+  arrives mid-investigation. This rule is WITHIN-turn only (between
+  tool batches inside one assistant turn). BETWEEN turns the
+  armed-listener rule above is the only valid pattern; do NOT
+  peek-poll across turns.
 
 - **Don't re-arm the listener on every empty timeout cycle.** When the
   listener exits via timeout (not message delivery) and the conversation
@@ -657,7 +679,9 @@ this doc.
   instruction), don't immediately re-arm and emit a content-free
   "Idle." turn. Each empty re-arm cycle burns a model invocation. Exception:
   when a member is mid-task and could checkpoint any moment, the re-arm
-  is worth it.
+  is worth it (and the re-arm itself satisfies the listener-first rule
+  above — it is NOT a periodic-poll pattern; only ONE re-arm per timeout
+  exit, immediately ending the turn).
 
 ### data.json edit-anchor safety (codified 2026-06-03)
 
