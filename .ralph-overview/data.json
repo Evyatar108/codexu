@@ -2465,6 +2465,67 @@
       }
     },
     {
+      "id": "codex-daemon-isolation-smoke-test",
+      "scope": "codex|codexu",
+      "lifecycle": "tracked",
+      "status": "ok",
+      "lastTouchedAt": "2026-06-04T17:50:00Z",
+      "kanbanCards": [
+        {
+          "className": "cmd-warn",
+          "html": "<strong>Filed 2026-06-04T17:50Z as P2 follow-up per <code>codex-app-server-daemon-codexu-integration</code> brainstorm recommendation #2.</strong> Brainstorm-only or short research task. Goal: validate D-002 multiplexing assumption (can multiple happy-cli sessions share one codex app-server daemon safely?). Cheapest validation: two distinct happy-cli sessions against one app-server with distinct identities; observe whether approval requests, thread subscriptions, OAuth tokens, or Codex account state leak across sessions. Deliverable is a written finding (impl-worthy or impl-deferred), NOT code. Can run in parallel with the D-001 happy-cli-doctor impl since it touches no shared code. Output gates whether <code>codex-daemon-same-identity-reattach</code> (P4) gets filed."
+        }
+      ],
+      "command": {
+        "name": "codex-daemon-isolation-smoke-test",
+        "descriptionHtml": "<strong>P2 follow-up from codex-app-server-daemon-codexu-integration brainstorm.</strong> Two-Happy-session smoke test against one codex app-server. Deliverable: written finding (impl-worthy / impl-deferred), not code. Gates D-004 reattach work.",
+        "warnings": [],
+        "prompts": {
+          "brainstorm": "/brainstorm-with-ralph codex-daemon-isolation-smoke-test\n\nContext: Per the parent codex-app-server-daemon-codexu-integration brainstorm's recommendation #2, this is the D-002 multiplexing validation. The parent's D-001 deliberately DEFERS multi-client multiplexing pending this smoke result.\n\nGoal: write down a concrete 2-session smoke procedure + run it + capture the finding.\n\nMinimum smoke:\n1. Spawn happy-cli session A in cwd C1 with identity I1; let it spin up its codex app-server daemon.\n2. Spawn happy-cli session B in cwd C1 (same realpath) with identity I2.\n3. Observe: does B discover A's daemon and connect, or does B fail with happySessionId mismatch?\n4. If B connects: does B's first codex turn share or isolate from A's session state? Check approval-request routing, MCP tool handles, OAuth token cache, thread subscriptions, Codex account state.\n5. If B fails: confirm the mismatch guard is the gating mechanism.\n\nOutput artifact: smoke-isolation-finding.md with:\n- Procedure (so it can be re-run)\n- Observed behavior (per axis above)\n- Verdict: ISOLATION_SAFE / ISOLATION_LEAKY / NOT_DECIDABLE\n- If ISOLATION_SAFE: recommend codex-daemon-same-identity-reattach impl with what guard relaxations are safe.\n- If ISOLATION_LEAKY: enumerate which leakage axes, severity (P0/P1/P2), and what's needed to fix before multiplexing.\n- If NOT_DECIDABLE: enumerate what additional probes are needed.\n\nNon-goals: no code changes; no actually IMPL-ing reattach; no relaxing the mismatch guard. Pure observation.\n\nDeliverable filed at .ralph/brainstorms/codex-daemon-isolation-smoke-test/smoke-isolation-finding.md.\n\nReport kind=done with deliverable path + the verdict + which follow-up tasks should be filed by the bookkeeper."
+        }
+      }
+    },
+    {
+      "id": "codex-daemon-upstream-windows-watch",
+      "scope": "codex|codexu",
+      "lifecycle": "tracked",
+      "status": "ok",
+      "lastTouchedAt": "2026-06-04T17:50:00Z",
+      "kanbanCards": [
+        {
+          "className": "cmd-warn",
+          "html": "<strong>Filed 2026-06-04T17:50Z as P3 follow-up per <code>codex-app-server-daemon-codexu-integration</code> brainstorm recommendation #3.</strong> Perpetually-tracked (revisit every 2 codex sync cycles). Watch upstream codex's Windows-support roadmap for the Rust <code>app-server-daemon</code> crate which is Unix-only today. No impl in codex submodule until either (a) upstream ships Windows lifecycle support, or (b) D-001 telemetry shows happy-cli-layer fixes are inadequate. Status: WATCH. Re-evaluate on next codex upstream-rebase task."
+        }
+      ],
+      "command": {
+        "name": "codex-daemon-upstream-windows-watch",
+        "descriptionHtml": "<strong>Perpetually-tracked WATCH.</strong> Upstream codex's <code>app-server-daemon</code> crate is Unix-only; track when/if Windows lifecycle support lands so codexu can adopt it. Re-evaluate every 2 upstream-rebase cycles.",
+        "warnings": [],
+        "prompts": {}
+      }
+    },
+    {
+      "id": "codex-daemon-same-identity-reattach",
+      "scope": "codex|codexu",
+      "lifecycle": "tracked",
+      "status": "warn",
+      "lastTouchedAt": "2026-06-04T17:50:00Z",
+      "kanbanCards": [
+        {
+          "className": "cmd-warn",
+          "html": "<strong>Filed 2026-06-04T17:50Z as P4 follow-up per <code>codex-app-server-daemon-codexu-integration</code> brainstorm recommendation #4.</strong> CONDITIONAL on <code>codex-daemon-isolation-smoke-test</code> verdict. Do NOT file plan or impl prompts until the isolation smoke ships. Goal (if isolation is safe): narrow scope — relax <code>happySessionId</code> mismatch guard ONLY for same-identity reattach (so a reconnect from the same identity doesn't kill the daemon). NOT general multiplexing — that remains deferred. Impl-worthy if D-002 finding is ISOLATION_SAFE; otherwise close as obsolete."
+        }
+      ],
+      "command": {
+        "name": "codex-daemon-same-identity-reattach",
+        "descriptionHtml": "<strong>CONDITIONAL on codex-daemon-isolation-smoke-test finding.</strong> If isolation is safe, relax happySessionId mismatch guard for same-identity reattach. Narrow scope; NOT general multiplexing.",
+        "warnings": [
+          "Do NOT file plan/impl prompts until codex-daemon-isolation-smoke-test ships its verdict."
+        ],
+        "prompts": {}
+      }
+    },
+    {
       "id": "overview-task-blocked-on-with-auto-unblock",
       "scope": "codexu|ralph-overview",
       "lifecycle": "merged",
