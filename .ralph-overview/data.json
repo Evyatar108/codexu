@@ -1053,6 +1053,25 @@
       }
     },
     {
+      "id": "crews-member-manifest-turn-fields-not-updated",
+      "scope": "crews",
+      "lifecycle": "tracked",
+      "status": "warn",
+      "lastTouchedAt": "2026-06-04T01:16:00Z",
+      "kanbanCards": [
+        {
+          "className": "cmd-warn",
+          "html": "<strong>Surfaced 2026-06-04T01:16Z</strong> by <code>impl-worktree-conditional-narrow</code> spawn on Copilot CLI. Member is visually alive + working (per operator), launcher PID 301656 healthy, manifest heartbeat fresh (~1s ago), but the per-turn manifest fields stay null after 64+ min of work: <code>lastTurnAt: null</code>, <code>lastKind: null</code>, <code>lastSummary: empty</code>, <code>lastSeq: 0</code>. The heartbeat-update path works (listener subprocess writes <code>lastHeartbeatAt</code> fine) but the Stop-hook-side manifest-write path that records assistant-turn metadata is silently failing. Suspects: (a) <code>hooks/copilot-stop.js</code> agentStop hook isn't firing per assistant turn under autonomous <code>/implement-with-ralph</code> wrapping, (b) it fires but skips the manifest write, (c) the report-tag parser isn't recognizing the autonomous member's tag emissions. Symptom blocks operator visibility: <code>/list-members</code> + <code>/list-jobs</code> show \"never turned\" status for a member doing real work. Worth diagnosing because every Copilot impl member spawn produces a stuck-looking lead view."
+        }
+      ],
+      "command": {
+        "name": "crews-member-manifest-turn-fields-not-updated",
+        "descriptionHtml": "<strong>Diagnose why member manifest <code>lastTurnAt</code> / <code>lastKind</code> / <code>lastSummary</code> / <code>lastSeq</code> stay null for Copilot members even when the member is actively working.</strong> Heartbeat path works; turn-recording path silently fails. First seen 2026-06-04 with the v5.50 impl member.",
+        "warnings": [],
+        "prompts": {}
+      }
+    },
+    {
       "id": "codex-upstream-rebase",
       "scope": "codex",
       "lifecycle": "merged",
