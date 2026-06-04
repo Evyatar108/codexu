@@ -1,0 +1,29 @@
+### Feasibility
+
+[High] The stderr warning design is not specified in an implementable/testable way. `hooks/commands/runtime.js:70-71` only writes formatted stdout after `handler()` returns, while the plan proposes direct `process.stderr.write()` from the handler/helper. That bypasses the command runner’s `io` object and cannot cleanly distinguish slash vs CLI unless the implementation explicitly uses `args.output`. The `process.stderr.isTTY` condition also conflicts with tests using `spawnSync`, where stderr is usually not a TTY. Define this as CLI-only, pass a warning sink or `args.output`, and test via `tools/crews.js review-mail`.
+
+[Medium] D-002 telemetry is under-specified. `review-mail.js` has the actor manifest available in `handler()` at `hooks/commands/review-mail.js:184`, but the proposed `collapseReviewRows(expanded, { warnThreshold, stateCwd, crew })` signature does not pass `manifest`, `actor.name`, or any transcript source for `listenerExit` / `turnBoundaryCount`. The plan needs to define where those values come from or remove them from the bundled telemetry claim.
+
+[Medium] `collapsedIds` is ambiguous for proactive batches. `expandReviewRows()` preserves leaf identifiers as `reportId` / `outboxId` at `hooks/commands/review-mail.js:124-128`, but `formatReviewMailEntry()` currently exposes only `id`, which is the parent inbox row at lines `114-116`. If collapse uses `row.id`, multiple collapsed proactive entries will report the same parent id and not support leaf drill-down.
+
+### Completeness
+
+[Medium] The plan calls out updating stdout key order in `tests/command-args-parity.test.js:195-196`, but new stderr behavior also intersects with existing exact stderr assertions at `tests/command-args-parity.test.js:193` and `:203`. The deprecated wrapper `tools/review-mail.js:3` always emits its own deprecation warning, so warning tests must either account for combined stderr or avoid that wrapper.
+
+[Medium] The version-bump instructions are slightly stale. `plugins/crews/scripts/bump-version.js:44-72` already updates the two plugin manifests, three marketplace indexes, and `tests/version.test.js`; manual marketplace edits should be described as verification, not a separate required step.
+
+### Ordering
+
+[High] The measurement gate is contradicted by the suggested decomposition. The plan says US-001 gates whether US-002+ should ship, but `foundation-libs` has `Depends on: None` and is allowed to run in parallel with `measurement-gate`. If the intended behavior is “halt before implementation when reduction is <5%,” make `foundation-libs` depend on US-001 or explicitly allow speculative implementation but block merge until the operator decision.
+
+### Simplicity
+
+[Medium] The proposed “pure helper” is not pure if it parses env, reads plugin version, appends logs, and writes stderr. A simpler fit for the current command architecture is: pure collapse helper returns `{ rows, groups }`; `review-mail.js` handles env, version, manifest-derived telemetry, `appendLog`, and CLI-only warnings. That keeps side effects near the command surface and makes the collapse logic easier to unit-test.
+
+### Acceptance Criteria Quality
+
+[High] AC5 is internally inconsistent. It keeps the original “target: ≥30% reduction” while the planner note says preliminary measurement is ~1% and US-001 only escalates below 5%. An autonomous implementer cannot know whether <30% is a failure, a question, or acceptable if the operator approves. Rewrite this as a decision gate with exact pass/fail behavior.
+
+[High] AC1 says `/crews:review-mail` emits a stderr warning, but the plan also says slash invocations will not surface stderr. Split this into CLI behavior and slash behavior: CLI gets stderr plus log; slash gets log and JSON collapse fields only.
+
+[Medium] AC4’s “bit-identical to pre-change behavior” needs a comparison boundary. Specify whether it covers JSON stdout only, stderr, `crews.log`, cursor state, and `advanceOutboxCursorsForBatches()` side effects. Without that, tests can pass one interpretation while violating another.

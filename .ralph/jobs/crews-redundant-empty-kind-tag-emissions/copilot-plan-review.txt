@@ -1,0 +1,46 @@
+I’ll read the referenced prompt file first, then carry out the requested task.
+
+The prompt file is large enough that I’ll read it in sections and extract the actionable instructions.
+
+I’ve identified this as a plan-review task; I’ll validate the referenced code paths and constraints against the actual crews plugin before reporting findings.
+
+I’ve confirmed the key integration point and version/test surfaces; I’ll inspect the remaining referenced helpers and test fixtures to catch any plan-level misses.
+
+I found one possible mismatch around the planned telemetry fields, so I’ll verify the manifest write shape before finalizing the review.
+
+The manifest does not currently persist listener exit reason; I’ll check the exact `markExited` API to assess whether the plan’s telemetry claim is implementable as written.
+
+I need one more targeted read because the prior grep only showed the symbol locations without body context.
+
+I’ll continue directly to the review now; the remaining issue is plan quality, not code execution.
+
+I’ll read the exact listener-exit writer body, then produce the review.
+
+One final range contains the mark-exited implementation.
+
+The grep skipped the body because the function name is below the previous range; I’ll read that exact section and then stop investigating.
+
+I’m checking one import boundary because the plan proposes new `lib/*` helpers that need hook utilities without causing awkward dependency direction.
+
+### Feasibility
+
+- [High] The D-002 telemetry fields are not implementable as described. The plan says `listenerExit` and `turnBoundaryCount` can be “read from actor manifest at collapse time,” but `hooks/protocol/manifest.js` has no listener exit reason or turn-boundary fields, and `hooks/actors.js::markListenerExited` only writes `lastListenerExitedAt` plus `listenerState`. Either add a real data source/schema change, parse existing `crews.log`, or make the AC explicitly accept `unknown`/`0`.
+
+- [High] The stderr-warning AC is scoped to `/crews:review-mail`, but the plan itself says slash output will not surface stderr. Current `review-mail.js` returns slash/CLI output through `formatSuccess`, and the proposed collapse helper call does not pass `args.output`, so it cannot reliably distinguish CLI from slash. Reword the AC to “CLI emits stderr; slash logs only,” and pass the output surface into the helper if needed.
+
+### Completeness
+
+No issues found.
+
+### Ordering
+
+- [High] US-001 is ordered before the implementation it claims to measure. The plan says the measurement gate re-runs against the “actual implementation’s collapse logic,” but Phase 1 runs before `lib/collapse-key.js` / `lib/collapse-review-rows.js` exist, and the suggested decomposition even allows it to run in parallel with foundation libs. Move US-001 after the pure collapse-key helper exists, or change it to a clearly labeled heuristic pre-measurement.
+
+### Simplicity
+
+No issues found.
+
+### Acceptance Criteria Quality
+
+- [High] AC-5 still requires a target “>= 30% reduction,” while the plan’s own research says the current corpus may only produce ~1% and the implementation should escalate if under 5%. That makes the AC potentially impossible without changing the corpus. Rewrite it as: “measurement is reported; zero unsafe coalesces; if reduction < threshold, record the operator decision before proceeding.”
+

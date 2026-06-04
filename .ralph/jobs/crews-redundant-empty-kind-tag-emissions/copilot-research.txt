@@ -1,0 +1,74 @@
+I'll read the referenced prompt file first, then carry out the requested work.
+
+I’ll inspect the crews plugin implementation and tests, then synthesize the research findings against the requested references.
+
+I found the cited review-mail anchors and the listener loop has moved under `lib\listener-loop.js`; I’ll gather the remaining referenced sections, conventions, and test/corpus layout now.
+
+The proactive batching path does not dedup before `payload.entries`; it batches terminal rows since the cursor. I’m checking whether any runtime version helper already exists and how tests assert command/env parity.
+
+The existing test suite already pins review-mail entry key order, so the plan’s JSON extension will need additive assertions without changing current keys for non-collapsed rows. I’ll inspect cross-read tests and corpus counts next.
+
+The corpus summary command finished; I’ll read it and do a targeted directory sample to confirm paths.
+
+The expected `D:\harness-efforts\codexu\.crews\ralph-pipeline` state root is absent in this checkout, so I’m checking for any alternate in-repo `.crews` location before reporting that constraint.
+
+The home-level crews state exists separately from the repo state root; I’ll read both directory probes and then finalize the research report.
+
+I found a repo `.crews` directory but not the named crew path in the earlier probe; I’m reading the top-level listing to identify its actual structure.
+
+The active crew is nested under `.crews\crews`, so I’ll summarize that corpus layout and then provide the requested codebase research.
+
+The nested state has no member corpus files matching the requested sample; I’ll read the final listing now and then deliver the report.
+
+The correct local corpus root is `.crews\crews\ralph-pipeline`; I’ll do one corrected row-count pass before the final report.
+
+I’ll compute concise aggregate counts for the local corpus so the report can distinguish structure from the larger pre-sampled measurement.
+
+One remaining telemetry question is whether listener-exit reason is already persisted in manifests; I’ll check that symbol surface before finalizing.
+
+### Codebase Architecture
+
+`D:\harness-efforts\codexu\ai-developer-toolkit\plugins\crews` is a JavaScript-only CommonJS plugin. Core areas:
+
+| Area | Purpose |
+|---|---|
+| `hooks\commands\*.js` | Slash/CLI command implementations and output formatting |
+| `hooks\stop.js` | Parses report tags, validates STRICT-ACK/listener gates, appends outbox rows, routes proactive notifications |
+| `hooks\mailbox.js` / `hooks\config.js` | JSONL state, mailbox/outbox APIs, cursor APIs, `appendLog` |
+| `lib\listener-loop.js` | Long-running mailbox listener/heartbeat loop |
+| `tools\crews.js` | Unified CLI dispatcher |
+| `tests\*.test.js` | Standalone Node test files run by `tests\run.js` |
+
+### Feature-Relevant Code
+
+The review-mail anchors are current:
+
+- `hooks\commands\review-mail.js:99-118`: `formatReviewMailEntry()`. It resolves system-routed body via `resolveBodyFromOutbox(row, opts)`, then falls back to `bodyText(row)`. The pre-fallback delivered body is available: compute the collapse body hash from `bodyText(row)` before resolution.
+- `hooks\commands\review-mail.js:121-135`: `expandReviewRows()`. It expands `payload.entries[]` into leaf rows with `reportId`, `outboxId`, `outboxSeq`, `inboxSeq`, and copied payload metadata.
+- `hooks\commands\review-mail.js:193-209`: reads history, filters review-required rows, expands/formats entries, and advances `lastReviewedSeq` from `allRows`, not display rows. Collapse can preserve cursor behavior by leaving this advance path unchanged.
+
+Stop-hook reference validation:
+
+- `hooks\stop.js:939-958`: current member `system.notification` no-kind exemption.
+- `hooks\stop.js:1143-1215`: stale for body-canonical; current body-canonical block is `1017-1037`. `1143-1215` is the empty-body guard.
+- `hooks\stop.js:1251-1306`: current v2 one-outbox-row-per-report append path.
+- `hooks\stop.js:1379-1418`: current proactive batch producer. `payload.entries[]` shape is `{ seq, id, kind, summary, body, replyTo, acks, decisions, writtenAt }`. There is no deduplication; it batches terminal rows from `selectTerminalOutboxBatch()`.
+
+Listener references: `hooks\listener-loop.js` is stale; the file is `lib\listener-loop.js`. Basename filtering is currently `lib\listener-loop.js:272-275`, not `213-216`. Delivery exits only on real messages at `219-239`.
+
+### Technical Constraints
+
+- No normalized boolean env parser exists. Current patterns are ad hoc: `process.env.CREWS_PROGRESS_BG_GATE !== 'off'`, lowercased `CREWS_BODY_CANONICAL !== 'off'`, and integer helpers like `readEnvPositiveInt()` in `hooks\safe-io.js:60-67`.
+- `appendLog()` is `hooks\mailbox.js:830-841`; it writes timestamped free-form grepable lines and swallows logging failures.
+- Plugin version is in `.claude-plugin\plugin.json:1-5` (`3.5.0`). There is no runtime version helper; implementation should read via `getPluginRoot()` + `.claude-plugin\plugin.json`.
+- `tests\command-args-parity.test.js:191-197` pins review-mail JSON key order for non-collapsed rows. Add collapsed fields only for collapsed rows, or update assertions carefully.
+- STRICT-ACK coverage in `tests\strict-ack-review-mail.test.js` expects review-mail cursor advancement not to resolve consumed messages; collapse must not change that.
+
+Local corpus root is `D:\harness-efforts\codexu\.crews\crews\ralph-pipeline`, not `.crews\ralph-pipeline`. Current aggregate: 193 members, 1117 outbox rows, 142 mailbox-history rows.
+
+### Implementation Suggestions
+
+Implement collapse in `hooks\commands\review-mail.js` after `rows.flatMap(expandReviewRows)` and before `formatReviewMailEntry()`. Use an exact tuple of sender/member, kind, pre-resolution body hash, summary, and empty `replyTo`/`acks`/`decisions`. Apply it to expanded `payload.entries[]` rows too, because proactive batching does not dedup.
+
+Keep cursor advancement based on `allRows` to preserve review-required and STRICT-ACK behavior. Log every collapse group through `appendLog()` with version, count, seq range, and body hash prefix; emit stderr warnings at the env-controlled threshold.
+

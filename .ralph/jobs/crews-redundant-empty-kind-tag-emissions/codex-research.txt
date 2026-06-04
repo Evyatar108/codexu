@@ -1,0 +1,74 @@
+**Codebase Architecture**
+Crews is a Node/CommonJS plugin under [ai-developer-toolkit/plugins/crews](D:/harness-efforts/codexu/ai-developer-toolkit/plugins/crews). There is no local `package.json`; plugin metadata/version lives in [.claude-plugin/plugin.json](D:/harness-efforts/codexu/ai-developer-toolkit/plugins/crews/.claude-plugin/plugin.json:1), currently `3.5.0`.
+
+Key layout:
+
+- `hooks/commands/*.js`: slash/CLI command implementations. `review-mail` lives at [review-mail.js](D:/harness-efforts/codexu/ai-developer-toolkit/plugins/crews/hooks/commands/review-mail.js:1).
+- `hooks/config.js`: compatibility re-export layer over `paths`, `mailbox`, `actors`, etc.
+- `hooks/mailbox.js`: durable mailbox/outbox/history/cursor/log primitives.
+- `hooks/stop.js`: Stop hook, report parsing, outbox writes, proactive routing.
+- `lib/listener-loop.js`: actual listener loop. The cited `hooks/listener-loop.js` path is stale.
+- `tools/crews.js`: unified dispatcher; `tools/review-mail.js` is only a deprecated shim.
+- `tests/*.test.js`: custom Node tests via `node tests/run.js`, no Vitest/Jest.
+
+State is under `.crews/crews/<crew>/...`, not `.crews/<crew>/...`: members/leads each have `manifest.json`, `outbox.jsonl`, `mailbox-history.jsonl`; logs go to `.crews/logs/crews.log`.
+
+**Feature-Relevant Code**
+Validated references:
+
+- [review-mail.js](D:/harness-efforts/codexu/ai-developer-toolkit/plugins/crews/hooks/commands/review-mail.js:99) `99-118` is the body-resolution fallback site:
+  ```js
+  const resolution = resolveBodyFromOutbox(row, opts);
+  const body = resolution.status === 'ok' ? resolution.body : bodyText(row);
+  ```
+  Pre-fallback delivered body is available via `bodyText(row)` at `91-97`.
+
+- [review-mail.js](D:/harness-efforts/codexu/ai-developer-toolkit/plugins/crews/hooks/commands/review-mail.js:121) `121-135` expands `payload.entries[]` into leaf rows, preserving `entry.body`, `replyTo`, `acks`, `decisions`, `seq`, and adding `inboxSeq`.
+
+- [review-mail.js](D:/harness-efforts/codexu/ai-developer-toolkit/plugins/crews/hooks/commands/review-mail.js:193) `193-209` reads history, filters review-required rows, expands/formats rows, and advances `lastReviewedSeq` from `allRows`, not displayed entries.
+
+- [stop.js](D:/harness-efforts/codexu/ai-developer-toolkit/plugins/crews/hooks/stop.js:939) `939-958` is valid: member `system.notification` no-kind exemption.
+
+- [stop.js](D:/harness-efforts/codexu/ai-developer-toolkit/plugins/crews/hooks/stop.js:1017) body-canonical is actually `1017-1037`; the cited `1143-1215` is stale and now points to empty-body/no-summary handling.
+
+- [stop.js](D:/harness-efforts/codexu/ai-developer-toolkit/plugins/crews/hooks/stop.js:1251) `1251-1306` is valid: one outbox row per report, with `replyTo`, `acks`, `decisions`.
+
+- [stop.js](D:/harness-efforts/codexu/ai-developer-toolkit/plugins/crews/hooks/stop.js:1379) `1379-1418` is valid: proactive payload shape:
+  ```js
+  entries = batch.entries.map(row => ({
+    seq, id, kind, summary, body, replyTo, acks, decisions, writtenAt
+  }));
+  ```
+  No dedup happens here.
+
+- [mailbox.js](D:/harness-efforts/codexu/ai-developer-toolkit/plugins/crews/hooks/mailbox.js:723) `selectTerminalOutboxBatch()` returns unread rows through latest terminal by order; it does not dedup.
+
+- [lib/listener-loop.js](D:/harness-efforts/codexu/ai-developer-toolkit/plugins/crews/lib/listener-loop.js:219) actual listener delivery is `219-240`; it exits only when `messages.length > 0`. Basename fs.watch filter is `272-275`, not `213-216`.
+
+**Technical Constraints**
+There is no normalized boolean parser. Existing env parsing is local/ad hoc: `CREWS_REVIEW_MODE` tri-state in [review-gate.js](D:/harness-efforts/codexu/ai-developer-toolkit/plugins/crews/hooks/protocol/review-gate.js:10), `CREWS_BODY_CANONICAL=off` lowercased in `stop.js:158-160`, and `CREWS_PROGRESS_BG_GATE !== 'off'` at `stop.js:1116`.
+
+`appendLog(line, cwd)` stamps plain text lines as `[ISO] ${line}` and silently swallows write errors in [mailbox.js](D:/harness-efforts/codexu/ai-developer-toolkit/plugins/crews/hooks/mailbox.js:830). Existing convention is grep-able key/value text, not JSON.
+
+Runtime version read does not exist today. Tests read `.claude-plugin/plugin.json` directly in [version.test.js](D:/harness-efforts/codexu/ai-developer-toolkit/plugins/crews/tests/version.test.js:6). Use `getPluginRoot()` from [paths.js](D:/harness-efforts/codexu/ai-developer-toolkit/plugins/crews/hooks/paths.js:50) and read `.claude-plugin/plugin.json`; do not use `package.json`.
+
+CLI stderr is constrained by `runCliCommand()`: command `formatSuccess` only writes stdout. Per-collapse stderr warnings will need either `process.stderr.write()` inside the handler/collapse pass or a small runtime extension.
+
+`command-args-parity.test.js` pins review-mail stdout key order at lines `191-196`; adding collapsed fields requires deliberate test updates. `strict-ack-review-mail.test.js` currently asserts two entries and cursor behavior; collapse tests should preserve cursor assertions.
+
+Current local corpus is `.crews/crews/ralph-pipeline/...`: 194 manifests, 189 non-empty outbox files with 1,837 rows, and 83 non-empty mailbox-history files with 498 rows. The prompt’s 1086-row figure is a prior sample, not the current full tree.
+
+**Implementation Suggestions**
+Implement collapse wholly in `hooks/commands/review-mail.js` after `rows.flatMap(expandReviewRows)` and before `formatReviewMailEntry()`. Keep cursor advancement based on `allRows` unchanged.
+
+Use a pure helper over expanded raw rows:
+
+- compute hash from `bodyText(row)` before `resolveBodyFromOutbox()`;
+- require consecutive rows only;
+- require same `payload.memberName || senderName(row)`, `rowKind(row)`, summary, and body hash;
+- require empty `replyTo`, `payload.replyTo`, legacy `payload.replyToId`, `acks`, and `decisions`;
+- format the first row as representative, then add `collapsedCount`, `collapsedSeqs`, `collapsedIds` only for collapsed groups.
+
+Apply collapse to expanded `payload.entries[]` leaf rows. Do not modify `outbox.jsonl`, `mailbox-history.jsonl`, payload batches, or cursor code.
+
+Export the collapse helper for focused tests. Add review-mail unit tests for exact collapse, metadata non-collapse, env-off bit-identical behavior, and proactive batch expansion. Then add a read-only offline measurement script/test fixture against `.crews/crews/ralph-pipeline`.

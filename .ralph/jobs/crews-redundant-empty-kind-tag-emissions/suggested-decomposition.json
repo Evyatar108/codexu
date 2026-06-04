@@ -1,0 +1,77 @@
+{
+  "clusters": [
+    {
+      "name": "measurement-gate",
+      "stories": ["US-001"],
+      "phase": 1,
+      "dependsOn": [],
+      "fileOverlapEvidence": {
+        "sharedFiles": [],
+        "exclusiveFiles": [
+          ".ralph/jobs/crews-redundant-empty-kind-tag-emissions/offline-measurement.mjs",
+          ".ralph/jobs/crews-redundant-empty-kind-tag-emissions/offline-measurement-report.md"
+        ],
+        "risk": "low"
+      },
+      "executionModeRationale": "Pre-ship offline measurement script lives outside the crews plugin. Gates whether subsequent clusters are worth running; no file overlap with code clusters and so can run first standalone."
+    },
+    {
+      "name": "foundation-libs",
+      "stories": ["US-002", "US-003"],
+      "phase": 2,
+      "dependsOn": [],
+      "fileOverlapEvidence": {
+        "sharedFiles": [],
+        "exclusiveFiles": [
+          "ai-developer-toolkit/plugins/crews/lib/version.js",
+          "ai-developer-toolkit/plugins/crews/lib/collapse-key.js",
+          "ai-developer-toolkit/plugins/crews/tests/version-runtime.test.js",
+          "ai-developer-toolkit/plugins/crews/tests/collapse-key.test.js"
+        ],
+        "risk": "low"
+      },
+      "executionModeRationale": "Two independent helper modules with disjoint files and disjoint tests. Can run in parallel with measurement-gate because neither touches review-mail.js or the same test file."
+    },
+    {
+      "name": "core-collapse",
+      "stories": ["US-004", "US-005", "US-006", "US-007", "US-008", "US-009"],
+      "phase": 3,
+      "dependsOn": ["foundation-libs"],
+      "fileOverlapEvidence": {
+        "sharedFiles": [
+          "ai-developer-toolkit/plugins/crews/hooks/commands/review-mail.js",
+          "ai-developer-toolkit/plugins/crews/lib/collapse-review-rows.js",
+          "ai-developer-toolkit/plugins/crews/tests/review-mail-command.test.js",
+          "ai-developer-toolkit/plugins/crews/tests/collapse-review-rows.test.js",
+          "ai-developer-toolkit/plugins/crews/tests/command-args-parity.test.js"
+        ],
+        "exclusiveFiles": [],
+        "risk": "high"
+      },
+      "executionModeRationale": "All six stories edit review-mail.js or the new collapse helper or its tests. Same-file edits across review-mail.js, command-args-parity.test.js, and the new collapse helper force serial execution; each story builds on the previous one logically (helper -> wire-in -> cursor regression -> env-off bit-identical -> stderr warning -> telemetry)."
+    },
+    {
+      "name": "ship-and-docs",
+      "stories": ["US-010", "US-011", "US-012"],
+      "phase": 4,
+      "dependsOn": ["core-collapse"],
+      "fileOverlapEvidence": {
+        "sharedFiles": [
+          "ai-developer-toolkit/plugins/crews/CHANGELOG.md",
+          "ai-developer-toolkit/plugins/crews/AGENTS.md"
+        ],
+        "exclusiveFiles": [
+          "ai-developer-toolkit/plugins/crews/.claude-plugin/plugin.json",
+          "ai-developer-toolkit/plugins/crews/.github/plugin/plugin.json",
+          "ai-developer-toolkit/plugins/crews/tests/version.test.js",
+          "ai-developer-toolkit/.claude-plugin/marketplace.json",
+          "ai-developer-toolkit/.github/plugin/marketplace.json",
+          "ai-developer-toolkit/.agents/plugins/marketplace.json",
+          "AGENTS.md"
+        ],
+        "risk": "medium"
+      },
+      "executionModeRationale": "Version bump touches 6 files in lockstep (plugin.json x2 + 3 marketplace indexes + version.test.js). CHANGELOG and AGENTS.md must reference shipped behavior, so this cluster runs after core-collapse. Risk = medium because marketplace.json drift is a known repeat failure mode (per repo AGENTS.md warning) and the codexu-root AGENTS.md row must match the bumped plugin version."
+    }
+  ]
+}
