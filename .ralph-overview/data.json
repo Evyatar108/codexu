@@ -125,9 +125,9 @@
     {
       "id": "crews-proactive-done-auto-consumed-silent-lead-miss",
       "scope": "crews",
-      "lifecycle": "tracked",
-      "status": "warn",
-      "lastTouchedAt": "2026-06-05T17:30:00Z",
+      "lifecycle": "merged",
+      "status": "ok",
+      "lastTouchedAt": "2026-06-05T18:10:00Z",
       "kanbanCards": [
         {
           "className": "cmd-warn",
@@ -136,6 +136,10 @@
         {
           "className": "cmd-ok",
           "html": "<strong>Plan shipped 2026-06-05 @ 091ff639</strong> on ralph/plan-crews-proactive-done-auto-consumed-silent-lead-miss. 2 stories; Phase-4 12 findings (1C/5H/6M) resolved, re-review CONVERGED. This is the fix for the very bug it documents — which RECURRED a 3rd time this session: this plan's OWN done report (and the install-script plan's) was auto-consumed ~250ms after delivery with no lead notification (seqs 384/386, same fingerprint as seq 379). Impl is a crews/toolkit change (two-commit submodule ship); now unblocked (d001 shipped, no other toolkit impl running). NOTE: this plan done was SILENTLY LOST + recovered manually from the member outbox. HOLD for operator review before impl."
+        },
+        {
+          "className": "cmd-ok",
+          "html": "<strong>SHIPPED 2026-06-05 as crews v3.6.2 @ toolkit fe1a30bf / codexu f41636a0.</strong> Fixes the proactive-terminal-report deliver/consume silent-loss race that ate 3 done reports this session (seqs 379/384/386). Root cause: orphan/duplicate-listener race — markArmIntent (PreToolUse) PID-nulled a window during which a proactive done/question/blocked was auto-consumed (consumedAt set ~250ms post-delivery) without enqueue+notify, advancing the reviewed cursor past it. Fix (US-001): listener-epoch ownership (lastListenerEpoch in hooks/actors.js + protocol/manifest.js arm-time bump) + a consumeMailbox epoch fence so a stale listener can no longer consume+advance, + atomic enqueue-then-notify in hooks/mailbox.js + lib/listener-loop.js. 2 new race regression tests (consume-mailbox-epoch-fence + proactive-report-silent-loss-race); 262/262 green; Phase 5a/5b clean. US-002: full crews v3.6.1->3.6.2 release (6 version stamps + CHANGELOG + crews AGENTS.md + 3 marketplace indexes), codexu pointer bump + root active-plugin-versions table flip. copilot plugin update applied 3.6.2 to this session, so the fix is live going forward."
         }
       ],
       "command": {
@@ -145,6 +149,22 @@
         "prompts": {
           "plan": "/plan-with-ralph \"Fix the crews bug where a member proactive terminal report (kind=done/question/blocked) is auto-consumed at delivery and silently lost by the lead (no system_notification, reviewed cursor advances past it). Reproduced live 2026-06-05: plan-redirect-upstream-paths done at mailbox-history seq 379 had consumedAt 125ms after writtenAt with mailbox.json messages=[] and no lead notification; contrast seqs 377/378 (same routingKind=proactive-report) consumed only on an explicit review-mail. Likely a listener-delivery race that consumes-on-delivery without enqueue+notify, possibly aggravated by multiple arm cycles in one session and/or the Windows events.jsonl flush race. INVESTIGATE the crews delivery + listener code (the ai-developer-toolkit/plugins/crews/ mailbox/listener/hook modules — find where a proactive report is written to mailbox-history, enqueued to mailbox.json messages[], and where consumedAt is set + the reviewed cursor advances). Design a fix that makes proactive terminal-report delivery enqueue-then-notify ATOMICALLY and never sets consumedAt without an actual lead-side review-mail. Add a regression test for the deliver/consume race. This is a crews/toolkit plugin change (two-commit submodule ship + version bump + AGENTS/CHANGELOG/3 marketplace indexes). HOLD for operator review before impl. Same family as crews-implement-with-ralph-parallel-outbox-silent-loss (see .ralph/investigations/).\""
         }
+      },
+      "shipManifest": {
+        "shippedAt": "2026-06-05T18:10:00Z",
+        "summary": "Shipped crews v3.6.2 fixing the proactive-terminal-report deliver/consume silent-loss race that silently ate 3 member done reports during this very session (lead mailbox-history seqs 379, 384, 386 — each consumedAt ~250ms after writtenAt with no enqueue to mailbox.json messages[] and no system_notification, so the reviewed cursor advanced past the terminal report and the lead never saw it; recovered manually from member outboxes each time). Root cause: an orphan/duplicate-listener race — markArmIntent (PreToolUse) PID-nulls a window during which a stale listener subprocess consumes the just-delivered proactive report. Fix (US-001): listener-epoch ownership — a lastListenerEpoch stamped on the manifest at arm time (hooks/actors.js + hooks/protocol/manifest.js), a consumeMailbox epoch fence that refuses to consume+advance under a stale epoch, and atomic enqueue-then-notify in hooks/mailbox.js + lib/listener-loop.js so a terminal report is never marked consumed without a real lead-side review-mail. Two new regression tests pin the race (consume-mailbox-epoch-fence.test.js + proactive-report-silent-loss-race.test.js); full suite 262/262 green, Phase 5a/5b clean. US-002: complete crews v3.6.1->3.6.2 release ceremony (6 version stamps across 3 plugin.json + 3 marketplace indexes, CHANGELOG, crews AGENTS.md section) on the toolkit, plus the codexu submodule-pointer bump and the root AGENTS.md active-plugin-versions CI-invariant table flip (caught as a Critical Phase-4 finding). copilot plugin update --all installed 3.6.2 to the running session, so subsequent listener arms + mailbox consumes use the fixed code.",
+        "commits": [
+          {
+            "sha": "fe1a30bf",
+            "oneLine": "crews v3.6.2: listener-epoch ownership + atomic enqueue-then-notify (silent-loss race fix)",
+            "repo": "ai-developer-toolkit"
+          },
+          {
+            "sha": "f41636a0",
+            "oneLine": "chore: bump ai-developer-toolkit for crews v3.6.2 (silent-loss race fix)",
+            "repo": "codexu"
+          }
+        ]
       }
     },
     {
