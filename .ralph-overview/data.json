@@ -49,6 +49,25 @@
   "generatedFromCommit": "32fdb9de",
   "tasks": [
     {
+      "id": "crews-proactive-done-auto-consumed-silent-lead-miss",
+      "scope": "crews",
+      "lifecycle": "tracked",
+      "status": "warn",
+      "lastTouchedAt": "2026-06-05T15:30:00Z",
+      "kanbanCards": [
+        {
+          "className": "cmd-warn",
+          "html": "<strong>Filed 2026-06-05 (reproduced live).</strong> A member's proactive <code>kind=done</code> report was silently lost by the lead: it landed in the lead mailbox-history but was AUTO-CONSUMED at delivery instead of being enqueued as pending + waking the listener, so NO system_notification fired and the lead never saw the terminal report (operator had to notice the member tab was done). <strong>Evidence</strong> (leads/overview-bookkeeper/mailbox-history.jsonl seq 379, sender plan-redirect-upstream-paths, routingKind=proactive-report): <code>writtenAt 15:16:29.436Z</code> vs <code>consumedAt 15:16:29.561Z</code> &mdash; consumed 125ms after write, with NO intervening review-mail; <code>mailbox.json</code> shows <code>messages: []</code> (lastWriteAt 15:16:29.567Z) and the reviewed cursor silently advanced to 379. Contrast seqs 377/378 (same session, same routingKind) which were consumed only when the lead actively ran review-mail (14:35:59, 14:50:58). <strong>Likely cause:</strong> a listener-delivery race that consumes-on-delivery without enqueue+notify; possibly aggravated by multiple arm cycles in one session (arm-60..arm-65, several arm-skipped) and/or the known Windows events.jsonl flush race. <strong>Impact:</strong> silent loss of done/question/blocked terminal reports to the lead = stalled pipeline; same family as crews-implement-with-ralph-parallel-outbox-silent-loss. Recovery is manual (read-member --all on the member outbox). FIX: make proactive terminal-report delivery enqueue-then-notify atomically and never set consumedAt without an actual lead-side review; add a regression test for the deliver/consume race."
+        }
+      ],
+      "command": {
+        "name": "crews-proactive-done-auto-consumed-silent-lead-miss",
+        "descriptionHtml": "Proactive done/question/blocked report auto-consumed at delivery -> lead silently misses terminal report (no notification).",
+        "warnings": [],
+        "prompts": {}
+      }
+    },
+    {
       "id": "codex-v135-runtime-audit-elevated",
       "scope": "codex",
       "lifecycle": "tracked",
