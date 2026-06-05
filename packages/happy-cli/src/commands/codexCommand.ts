@@ -1,5 +1,6 @@
 import { authAndSetupMachineIfNeeded } from '@/ui/auth'
 import { runCodex } from '@/codex/runCodex'
+import { runCodexDoctor } from '@/codex/codexDaemonDoctor'
 import {
   extractCodexArgFlag,
   extractCodexEffortFlag,
@@ -13,6 +14,11 @@ import { extractNoSandboxFlag } from '@/utils/sandboxFlags'
 import { ensureDaemonRunning } from '@/daemon/ensureDaemonRunning'
 
 export async function handleCodexCommand(args: string[]): Promise<void> {
+  if (args[0] === 'doctor' || args[0] === 'status') {
+    process.exitCode = await runCodexDoctor(args.slice(1))
+    return
+  }
+
   let startedBy: 'daemon' | 'terminal' | undefined = undefined
   const sandboxArgs = extractNoSandboxFlag(args)
   const resumeArgs = extractCodexResumeFlag(sandboxArgs.args)

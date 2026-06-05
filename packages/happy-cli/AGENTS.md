@@ -296,6 +296,8 @@ The cwd key is always computed by the no-arg discovery helpers from `realpathSyn
 
 `enumerateDiscoveryRecords()` is the cross-cwd discovery API for diagnostics. Directory-level failures intentionally throw so `happy codex doctor` can map them to exit code 3; per-file JSON/schema/read failures are returned as rows with `record: null` and `parseError` so one corrupt record does not hide the rest.
 
+`happy codex doctor` and `happy codex status` are first-token diagnostics: route them before auth, Codex flag parsing, or daemon startup. They are read-only diagnostics; do not rotate/prune/write the lifecycle sidecar or remediate daemons from these commands.
+
 When instrumenting Codex app-server lifecycle telemetry in `codexAppServerClient.ts`, keep client tests in the existing mocked harness by spying on `./codexDaemonTelemetry`. Real logger/sidecar I/O coverage belongs in the telemetry module tests.
 
 Codex app-server exit telemetry has two producers: synthetic intentional-kill events and observable child `exit` events. Keep them behind the per-instance `exitEventEmitted` guard so one daemon termination emits at most one `codex.daemon.exit` sidecar event.

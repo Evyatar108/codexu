@@ -1,8 +1,12 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { mkdirSync, mkdtempSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 
 const mocks = vi.hoisted(() => ({
   mockAuthAndSetupMachineIfNeeded: vi.fn(),
   mockRunCodex: vi.fn(),
+  mockExtractCodexArgFlag: vi.fn(),
   mockExtractCodexEffortFlag: vi.fn(),
   mockExtractCodexModelFlag: vi.fn(),
   mockExtractCodexPermissionModeFlag: vi.fn(),
@@ -22,6 +26,7 @@ vi.mock('@/codex/runCodex', () => ({
 }))
 
 vi.mock('@/codex/cliArgs', () => ({
+  extractCodexArgFlag: mocks.mockExtractCodexArgFlag,
   extractCodexEffortFlag: mocks.mockExtractCodexEffortFlag,
   extractCodexModelFlag: mocks.mockExtractCodexModelFlag,
   extractCodexPermissionModeFlag: mocks.mockExtractCodexPermissionModeFlag,
@@ -38,11 +43,25 @@ vi.mock('@/daemon/ensureDaemonRunning', () => ({
   ensureDaemonRunning: mocks.mockEnsureDaemonRunning,
 }))
 
-import { handleCodexCommand } from './codexCommand'
+async function importCommand(homeDir?: string): Promise<typeof import('./codexCommand')> {
+  vi.resetModules()
+  if (homeDir !== undefined) {
+    process.env.HAPPY_HOME_DIR = homeDir
+  }
+  return import('./codexCommand')
+}
 
 describe('handleCodexCommand', () => {
+  let tempRoot: string | undefined
+  let previousHappyHomeDir: string | undefined
+  let logSpy: ReturnType<typeof vi.spyOn>
+
   beforeEach(() => {
     vi.clearAllMocks()
+    previousHappyHomeDir = process.env.HAPPY_HOME_DIR
+    process.exitCode = undefined
+    tempRoot = undefined
+    logSpy = vi.spyOn(console, 'log').mockImplementation(() => undefined)
     mocks.mockAuthAndSetupMachineIfNeeded.mockResolvedValue({
       credentials: { token: 'token' },
     })
@@ -74,11 +93,37 @@ describe('handleCodexCommand', () => {
       transport: undefined,
       args,
     }))
+    mocks.mockExtractCodexArgFlag.mockImplementation((args: string[]) => ({
+      codexArgs: [],
+      args,
+    }))
     mocks.mockEnsureDaemonRunning.mockResolvedValue(undefined)
     mocks.mockRunCodex.mockResolvedValue(undefined)
   })
 
+  afterEach(() => {
+    logSpy.mockRestore()
+    if (previousHappyHomeDir === undefined) {
+      delete process.env.HAPPY_HOME_DIR
+    } else {
+      process.env.HAPPY_HOME_DIR = previousHappyHomeDir
+    }
+    if (tempRoot !== undefined) {
+      rmSync(tempRoot, { recursive: true, force: true })
+    }
+    vi.resetModules()
+  })
+
+  function tempHome(): string {
+    tempRoot = mkdtempSync(join(tmpdir(), 'happy-codex-command-'))
+    const homeDir = join(tempRoot, 'home')
+    mkdirSync(homeDir, { recursive: true })
+    return homeDir
+  }
+
   it('ensures the daemon is running before starting a codex session', async () => {
+    const { handleCodexCommand } = await importCommand()
+
     await handleCodexCommand(['--started-by', 'terminal'])
 
     expect(mocks.mockEnsureDaemonRunning).toHaveBeenCalledTimes(1)
@@ -92,6 +137,7 @@ describe('handleCodexCommand', () => {
       permissionMode: undefined,
       projectDocFallback: undefined,
       codexTransport: undefined,
+      codexAppServerArgs: undefined,
     })
     expect(
       mocks.mockEnsureDaemonRunning.mock.invocationCallOrder[0],
@@ -99,6 +145,8 @@ describe('handleCodexCommand', () => {
   })
 
   it('passes parsed no-sandbox and resume flags through to runCodex', async () => {
+    const { handleCodexCommand } = await importCommand()
+
     mocks.mockExtractNoSandboxFlag.mockReturnValue({
       noSandbox: true,
       args: ['--resume', 'thread-123', '--started-by', 'daemon'],
@@ -140,6 +188,7 @@ describe('handleCodexCommand', () => {
       permissionMode: 'safe-yolo',
       projectDocFallback: ['PROJECT.md'],
       codexTransport: 'ws',
+      codexAppServerArgs: undefined,
     })
 
     expect(mocks.mockExtractCodexProjectDocFlag).toHaveBeenCalledWith([
@@ -151,5 +200,57 @@ describe('handleCodexCommand', () => {
       'daemon',
     ])
     expect(mocks.mockExtractCodexTransportFlag).toHaveBeenCalledWith(['--codex-transport', 'ws', '--started-by', 'daemon'])
+  })
+
+  it('routes doctor before auth, daemon startup, or codex flag parsing', async () => {
+    const homeDir = tempHome()
+    const { handleCodexCommand } = await importCommand(homeDir)
+
+    await handleCodexCommand(['doctor'])
+
+    expect(process.exitCode).toBe(2)
+    expect(mocks.mockAuthAndSetupMachineIfNeeded).not.toHaveBeenCalled()
+    expect(mocks.mockEnsureDaemonRunning).not.toHaveBeenCalled()
+    expect(mocks.mockRunCodex).not.toHaveBeenCalled()
+    expect(mocks.mockExtractNoSandboxFlag).not.toHaveBeenCalled()
+  })
+
+  it('routes doctor with unknown flags before codex flag parsing', async () => {
+    const homeDir = tempHome()
+    const { handleCodexCommand } = await importCommand(homeDir)
+
+    await handleCodexCommand(['doctor', '--some-unknown-flag'])
+
+    expect(process.exitCode).toBe(2)
+    expect(mocks.mockAuthAndSetupMachineIfNeeded).not.toHaveBeenCalled()
+    expect(mocks.mockEnsureDaemonRunning).not.toHaveBeenCalled()
+    expect(mocks.mockRunCodex).not.toHaveBeenCalled()
+    expect(mocks.mockExtractNoSandboxFlag).not.toHaveBeenCalled()
+  })
+
+  it('routes status before auth, daemon startup, or codex flag parsing', async () => {
+    const homeDir = tempHome()
+    const { handleCodexCommand } = await importCommand(homeDir)
+
+    await handleCodexCommand(['status'])
+
+    expect(process.exitCode).toBe(2)
+    expect(mocks.mockAuthAndSetupMachineIfNeeded).not.toHaveBeenCalled()
+    expect(mocks.mockEnsureDaemonRunning).not.toHaveBeenCalled()
+    expect(mocks.mockRunCodex).not.toHaveBeenCalled()
+    expect(mocks.mockExtractNoSandboxFlag).not.toHaveBeenCalled()
+  })
+
+  it('routes status with unknown flags before codex flag parsing', async () => {
+    const homeDir = tempHome()
+    const { handleCodexCommand } = await importCommand(homeDir)
+
+    await handleCodexCommand(['status', '--some-unknown-flag'])
+
+    expect(process.exitCode).toBe(2)
+    expect(mocks.mockAuthAndSetupMachineIfNeeded).not.toHaveBeenCalled()
+    expect(mocks.mockEnsureDaemonRunning).not.toHaveBeenCalled()
+    expect(mocks.mockRunCodex).not.toHaveBeenCalled()
+    expect(mocks.mockExtractNoSandboxFlag).not.toHaveBeenCalled()
   })
 })
