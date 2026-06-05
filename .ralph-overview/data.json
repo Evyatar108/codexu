@@ -51,9 +51,9 @@
     {
       "id": "codex-down-mcp-startup-behavior-0135",
       "scope": "codex",
-      "lifecycle": "tracked",
-      "status": "warn",
-      "lastTouchedAt": "2026-06-05T17:15:00Z",
+      "lifecycle": "merged",
+      "status": "ok",
+      "lastTouchedAt": "2026-06-05T17:25:00Z",
       "kanbanCards": [
         {
           "className": "cmd-warn",
@@ -62,6 +62,10 @@
         {
           "className": "cmd-ok",
           "html": "<strong>Investigation complete 2026-06-05 (findings at .ralph/investigations/codex-down-mcp-startup-behavior-0135/findings.md, 19KB, file:line-precise).</strong> <strong>VERDICT: NOT a 0.135 regression.</strong> rmcp is 0.15.0 in BOTH 0.125 and 0.135 (verified at upstream tags rust-v0.125.0/rust-v0.135.0 + local Cargo.toml:359/Cargo.lock:11220); the rmcp 0.14→0.15 bump landed at-or-before 0.125. The perceived \"louder/slower at 0.135\" = config-presence (Paper added 2026-04-13 in 3b85f69b) + single-sample LLM variance (the ~4.6s is within model jitter; 127.0.0.1 connection-refused is near-instant). MECHANISM: codex eager-connects all enabled MCP servers at session init (does NOT block unless required=true); the first-turn list_all_tools blocks on the connect future for non-codex-apps servers (Paper has no startup snapshot); the ERROR comes from the rmcp DEPENDENCY worker.rs:128, not codex, and exec's default stderr filter is \"error\" so it prints. -c mcp_servers={} failed because config layering is a DEEP MERGE (the repo-layer codexu/.codex/config.toml contributes mcp_servers.paper); the leaf override is -c mcp_servers.paper.enabled=false. KNOBS: per-server enabled / required / startup_timeout_sec(30s default) / tool_timeout_sec; NO global optional/lazy/tolerate-down flag; RUST_LOG=...rmcp::transport::worker=off silences noise only. RECOMMENDED FIX (zero code, zero conflict): a personal usually-down tool should NOT be in the git-tracked SHARED codexu/.codex/config.toml (repo layer hits every contributor + every ralph codex exec) — move Paper to user-layer ~/.codex/config.toml, OR keep in-repo with enabled=false + startup_timeout_sec=2. HOLD for operator on which fix to apply."
+        },
+        {
+          "className": "cmd-ok",
+          "html": "<strong>RESOLVED 2026-06-05 @ d2573945 (operator: \"remove paper for now\").</strong> Removed [mcp_servers.paper] from the git-tracked codexu/.codex/config.toml (the file's only content → deleted). Eliminates the eager-connect attempt + rmcp ERROR + first-turn list_tools block on every codex invocation in codexu, including ralph codex-exec. The Claude-side half (.mcp.json) was already removed in an earlier commit. Re-add to the user-layer ~/.codex/config.toml if Paper is needed locally. NET: not a 0.135 regression (rmcp 0.15.0 both versions) — was config hygiene (a personal usually-down MCP in the shared repo-layer config). The original \"no output\" was the slow Codex review lens, not a codex failure."
         }
       ],
       "command": {
@@ -71,6 +75,17 @@
         "prompts": {
           "brainstorm": "/multi-model-investigate \"Why does codex 0.135 (the gim-home/codex Copilot fork) react to an UNREACHABLE configured MCP server so much more loudly/slowly than 0.125 did, and is there a config knob to make a down MCP non-fatal/non-blocking? Evidence: codexu/.codex/config.toml registers [mcp_servers.paper] url=http://127.0.0.1:29979/mcp (the Paper Design MCP, only up when that desktop app runs). When it is down, EVERY codex invocation in the codexu workspace (including ralph-orchestration's non-interactive 'codex exec' review/research lens) logs a fatal-looking 'ERROR rmcp::transport::worker: worker quit with fatal: Transport channel closed ... http/request failed ... http://127.0.0.1:29979/mcp' and adds ~4.6s (measured: 29.6s in codexu vs 25.0s in a clean dir with no .codex/config.toml; single-sample, LLM-variance caveat). codex STILL produces output (verified: pong, exit 0) — so it is noise + latency, NOT an output-blocker. The operator updated codex 0.125->0.135 on this box this session, and 0.125 was quieter about the same down MCP. DO NOT recommend disabling MCP in ralph (impl runs legitimately use MCP servers).\n\nINVESTIGATE in the codex submodule (codex/external/repos/codex-patched/codex-rs): the MCP-client startup/init path (the rmcp transport, the streamable-HTTP client, where mcp_servers from config.toml are connected at process start, for BOTH the TUI and the 'codex exec' non-interactive path). Determine: (1) the exact mechanism — does codex connect to all configured MCP servers eagerly at startup and BLOCK on each (with what timeout/retry) before proceeding? (2) the 0.125->0.135 behavioral delta — what changed in MCP-init/rmcp that made a down server louder (ERROR log) and/or slower (the ~4.6s)? (3) whether codex exposes a KNOB: a per-MCP or global startup_timeout_ms, an 'optional'/lazy-connect flag, a retry/backoff setting, or an env var, so a down MCP is tolerated gracefully without the latency/noise. Cross-reference codex/docs + upstream openai/codex MCP config docs. (4) recommend a FIX that does NOT disable MCP generally: e.g., a codex config setting (if one exists), a small fork patch to bound the startup connection timeout / make eager-connect lazy / downgrade the log level for an optional MCP (minimize upstream-conflict surface per codex/CLAUDE.md core tenet #1 — overlay/seam over inline), AND separately note whether a personal usually-down tool like Paper belongs in the git-tracked SHARED .codex/config.toml vs a local/untracked codex config.\n\nOUTPUT: a findings report at .ralph/investigations/codex-down-mcp-startup-behavior-0135/findings.md with the mechanism (file:line), the 0.125->0.135 delta, the available knobs (or absence), and a recommended low-conflict fix + the config-placement guidance. HOLD for operator review.\""
         }
+      },
+      "shipManifest": {
+        "shippedAt": "2026-06-05T17:25:00Z",
+        "summary": "Investigated and resolved the codex down-MCP noise/latency that the operator flagged as \"codex returned no output.\" Verdict: NOT a codex 0.135 regression — rmcp is 0.15.0 in both 0.125 and 0.135 (verified at upstream tags + local lockfile); the perceived louder/slower behavior was config-presence (the Paper MCP was added to the shared config 2026-04-13) plus single-sample LLM latency variance, and the original \"no output\" was actually the slow Codex review lens still running (codex produces output fine, verified pong/exit-0 three times). Mechanism (file:line precise in the findings report): codex eager-connects every enabled MCP at session init; the first model turn's list_all_tools blocks on the connect future for non-codex servers; the ERROR line is emitted by the rmcp dependency (worker.rs:128), not codex, and codex exec's default \"error\" log filter prints it. The fix is config hygiene: removed the personal, usually-down Paper Design MCP from the git-tracked repo-layer codexu/.codex/config.toml (commit d2573945) so it no longer forces a connect attempt on every contributor + every ralph codex-exec. No codex code change (zero upstream-conflict surface). Per-server knobs (enabled/required/startup_timeout_sec) documented for future MCP configs; there is no global tolerate-down flag. Full findings: .ralph/investigations/codex-down-mcp-startup-behavior-0135/findings.md.",
+        "commits": [
+          {
+            "sha": "d2573945",
+            "oneLine": "chore(codex): remove Paper Design MCP from shared .codex/config.toml",
+            "repo": "codexu"
+          }
+        ]
       }
     },
     {
