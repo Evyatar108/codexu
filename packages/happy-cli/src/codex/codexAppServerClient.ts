@@ -270,6 +270,7 @@ export class CodexAppServerClient {
     private wsAuthProbeResult: boolean | null = null;
     private wsAuthFallbackWarned = false;
     private extraAppServerArgs: string[];
+    private lastClientDisconnectAtMs: number | null = null;
 
     constructor(sandboxConfig?: SandboxConfig, options: CodexAppServerClientOptions = {}) {
         this.sandboxConfig = sandboxConfig;
@@ -1252,6 +1253,29 @@ export class CodexAppServerClient {
         const discovery = this.currentDiscovery;
         const child = this.wsChild;
         logger.debug('[CodexAppServer] Disconnecting');
+
+        if (discovery) {
+            const disconnectedAtMs = Date.now();
+            const lastClientDisconnectAgeMs = this.lastClientDisconnectAtMs === null
+                ? null
+                : Math.max(0, disconnectedAtMs - this.lastClientDisconnectAtMs);
+            this.lastClientDisconnectAtMs = disconnectedAtMs;
+            try {
+                await emitCodexDaemonEvent({
+                    event: 'codex.daemon.disconnect',
+                    pid: discovery.pid,
+                    cwd: discovery.cwd,
+                    ...(discovery.happySessionId !== undefined
+                        ? { happy_session_id: discovery.happySessionId }
+                        : {}),
+                    started_at_ms: new Date(discovery.startedAt).getTime(),
+                    disconnected_at_ms: disconnectedAtMs,
+                    last_client_disconnect_age_ms: lastClientDisconnectAgeMs,
+                });
+            } catch (telemetryError) {
+                logger.warn('[CodexAppServer] Failed to emit disconnect telemetry', telemetryError);
+            }
+        }
 
         this.intentionalClose = true;
         try {

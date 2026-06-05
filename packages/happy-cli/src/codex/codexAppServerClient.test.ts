@@ -998,6 +998,69 @@ describe('CodexAppServerClient sandbox integration', () => {
         killSpy.mockRestore();
     });
 
+    it('emits one disconnect telemetry event per connected disconnect with per-client age', async () => {
+        Object.defineProperty(process, 'platform', { value: 'win32' });
+        const { proc, wss } = await createMockWsAppServer({ pid: 4344 });
+        const port = (wss.address() as AddressInfo).port;
+        mockPickFreeLoopbackPort.mockResolvedValueOnce(port);
+        mockSpawn.mockImplementationOnce(() => proc);
+        let terminated = false;
+        const killSpy = vi.spyOn(process, 'kill').mockImplementation(((pid: number, signal?: string | number) => {
+            if (pid !== 4344) return true;
+            if (signal === 'SIGTERM') {
+                terminated = true;
+                return true;
+            }
+            if (signal === 0 && terminated) {
+                const error = new Error('dead') as NodeJS.ErrnoException;
+                error.code = 'ESRCH';
+                throw error;
+            }
+            return true;
+        }) as typeof process.kill);
+
+        const { CodexAppServerClient } = await import('./codexAppServerClient');
+        const client = new CodexAppServerClient(undefined, { transport: 'ws' });
+
+        await client.connect({ extraEnv: { HAPPY_CURRENT_SESSION_ID: 'session-disconnect' } });
+        const record = readDiscoveryRecord(discoveryFilePath());
+        expect(record).toEqual(expect.objectContaining({
+            pid: 4344,
+            happySessionId: 'session-disconnect',
+        }));
+
+        await client.disconnect();
+        await client.connect({ extraEnv: { HAPPY_CURRENT_SESSION_ID: 'session-disconnect' } });
+        await client.disconnect({ terminateAppServer: true });
+
+        const disconnectEvents = mockEmitCodexDaemonEvent.mock.calls
+            .map(([event]) => event)
+            .filter((event) => event.event === 'codex.daemon.disconnect');
+        expect(disconnectEvents).toHaveLength(2);
+        expect(disconnectEvents[0]).toEqual(expect.objectContaining({
+            event: 'codex.daemon.disconnect',
+            pid: 4344,
+            cwd: record!.cwd,
+            happy_session_id: 'session-disconnect',
+            started_at_ms: new Date(record!.startedAt).getTime(),
+            disconnected_at_ms: expect.any(Number),
+            last_client_disconnect_age_ms: null,
+        }));
+        expect(disconnectEvents[1]).toEqual(expect.objectContaining({
+            event: 'codex.daemon.disconnect',
+            pid: 4344,
+            cwd: record!.cwd,
+            happy_session_id: 'session-disconnect',
+            started_at_ms: new Date(record!.startedAt).getTime(),
+            disconnected_at_ms: expect.any(Number),
+            last_client_disconnect_age_ms: expect.any(Number),
+        }));
+        expect(disconnectEvents[1].last_client_disconnect_age_ms).toBeGreaterThanOrEqual(0);
+        expect(killSpy).toHaveBeenCalledWith(4344, 'SIGTERM');
+        expect(existsSync(discoveryFilePath())).toBe(false);
+        killSpy.mockRestore();
+    });
+
     it('force-restarts from attached state under the held discovery lock and respawns', async () => {
         Object.defineProperty(process, 'platform', { value: 'win32' });
         const attached = await createMockWsAppServer({ pid: 4334 });
