@@ -25,6 +25,7 @@ const {
     mockCloseSync,
     mockWriteDiscoveryRecord,
     mockEmitCodexDaemonEvent,
+    mockPsList,
 } = vi.hoisted(() => ({
     mockConfiguration: {
         happyHomeDir: require('node:fs').mkdtempSync(require('node:path').join(require('node:os').tmpdir(), 'happy-codex-discovery-')),
@@ -44,6 +45,7 @@ const {
     mockCloseSync: vi.fn(),
     mockWriteDiscoveryRecord: vi.fn(),
     mockEmitCodexDaemonEvent: vi.fn(),
+    mockPsList: vi.fn(),
 }));
 
 vi.mock('@/configuration', () => ({
@@ -57,6 +59,10 @@ vi.mock('node:child_process', () => ({
 
 vi.mock('cross-spawn', () => ({
     spawn: mockSpawn,
+}));
+
+vi.mock('ps-list', () => ({
+    default: mockPsList,
 }));
 
 vi.mock('node:fs', async (importActual) => {
@@ -330,6 +336,12 @@ function bearerToken(headers: IncomingHttpHeaders): string {
     return value.slice('Bearer '.length);
 }
 
+function emittedCodexEvents(eventName: string) {
+    return mockEmitCodexDaemonEvent.mock.calls
+        .map(([event]) => event)
+        .filter((event) => event.event === eventName);
+}
+
 describe('CodexAppServerClient sandbox integration', () => {
     const originalRustLog = process.env.RUST_LOG;
     const originalPlatform = process.platform;
@@ -350,7 +362,9 @@ describe('CodexAppServerClient sandbox integration', () => {
         mockLogger.warn.mockClear();
         mockWriteDiscoveryRecord.mockReset();
         mockEmitCodexDaemonEvent.mockReset();
+        mockPsList.mockReset();
         mockEmitCodexDaemonEvent.mockResolvedValue(undefined);
+        mockPsList.mockResolvedValue([]);
         mockWriteDiscoveryRecord.mockImplementation((path: string, record: CodexDiscoveryRecord) => {
             const fs = require('node:fs') as typeof import('node:fs');
             const pathModule = require('node:path') as typeof import('node:path');
@@ -1059,6 +1073,165 @@ describe('CodexAppServerClient sandbox integration', () => {
         expect(killSpy).toHaveBeenCalledWith(4344, 'SIGTERM');
         expect(existsSync(discoveryFilePath())).toBe(false);
         killSpy.mockRestore();
+    });
+
+    it('emits a session-mismatch synthetic exit before killing the stale attached daemon', async () => {
+        Object.defineProperty(process, 'platform', { value: 'win32' });
+        const attached = await createMockWsAppServer({ pid: 4351 });
+        const record = testDiscoveryRecord({
+            pid: 4351,
+            port: (attached.wss.address() as AddressInfo).port,
+            happySessionId: 'session-A',
+        });
+        writeDiscoveryRecord(discoveryFilePath(), record);
+        let terminated = false;
+        const killSpy = vi.spyOn(process, 'kill').mockImplementation(((pid: number, signal?: string | number) => {
+            if (pid !== record.pid) return true;
+            if (signal === 'SIGTERM') {
+                terminated = true;
+                return true;
+            }
+            if (signal === 0 && terminated) {
+                const error = new Error('dead') as NodeJS.ErrnoException;
+                error.code = 'ESRCH';
+                throw error;
+            }
+            return true;
+        }) as typeof process.kill);
+        await mockNextAppServer('ws', { pid: 4352 });
+
+        const { CodexAppServerClient } = await import('./codexAppServerClient');
+        const client = new CodexAppServerClient(undefined, { transport: 'ws' });
+
+        await client.connect({ extraEnv: { HAPPY_CURRENT_SESSION_ID: 'session-B' } });
+
+        const exitEvents = emittedCodexEvents('codex.daemon.exit');
+        expect(exitEvents).toHaveLength(1);
+        expect(exitEvents[0]).toEqual(expect.objectContaining({
+            event: 'codex.daemon.exit',
+            pid: record.pid,
+            cwd: record.cwd,
+            happy_session_id: 'session-A',
+            started_at_ms: new Date(record.startedAt).getTime(),
+            exit_code: null,
+            exit_signal: null,
+            exit_reason: 'session_mismatch',
+            uptime_ms: expect.any(Number),
+            last_client_disconnect_age_ms: null,
+        }));
+        expect(killSpy).toHaveBeenCalledWith(record.pid, 'SIGTERM');
+
+        await client.disconnect({ terminateAppServer: true });
+        killSpy.mockRestore();
+    });
+
+    it('emits one killed synthetic exit for clean spawned-owner termination and dedupes the child exit', async () => {
+        Object.defineProperty(process, 'platform', { value: 'win32' });
+        const { proc, wss } = await createMockWsAppServer({ pid: 4353 });
+        const port = (wss.address() as AddressInfo).port;
+        mockPickFreeLoopbackPort.mockResolvedValueOnce(port);
+        mockSpawn.mockImplementationOnce(() => proc);
+        mockPsList.mockResolvedValue([{ pid: 4353, name: 'codex', ppid: 1, memory: 4321 }]);
+
+        const { CodexAppServerClient } = await import('./codexAppServerClient');
+        const client = new CodexAppServerClient(undefined, { transport: 'ws' });
+
+        await client.connect();
+        const record = readDiscoveryRecord(discoveryFilePath());
+        await client.disconnect({ terminateAppServer: true });
+
+        const exitEvents = emittedCodexEvents('codex.daemon.exit');
+        expect(exitEvents).toHaveLength(1);
+        expect(exitEvents[0]).toEqual(expect.objectContaining({
+            event: 'codex.daemon.exit',
+            pid: 4353,
+            cwd: record!.cwd,
+            started_at_ms: new Date(record!.startedAt).getTime(),
+            exit_code: null,
+            exit_signal: null,
+            exit_reason: 'killed',
+            rss_kb_at_exit: 4321,
+            last_client_disconnect_age_ms: expect.any(Number),
+        }));
+        expect(exitEvents[0].last_client_disconnect_age_ms).toBeGreaterThanOrEqual(0);
+        expect(proc.kill).toHaveBeenCalledWith('SIGTERM');
+    });
+
+    it('emits crashed exit telemetry for an unsolicited observable child exit with a nonzero code', async () => {
+        Object.defineProperty(process, 'platform', { value: 'win32' });
+        const { proc, wss } = await createMockWsAppServer({ pid: 4354 });
+        mockPickFreeLoopbackPort.mockResolvedValueOnce((wss.address() as AddressInfo).port);
+        mockSpawn.mockImplementationOnce(() => proc);
+        mockPsList.mockResolvedValue([{ pid: 4354, name: 'codex', ppid: 1, memory: 987 }]);
+
+        const { CodexAppServerClient } = await import('./codexAppServerClient');
+        const client = new CodexAppServerClient(undefined, { transport: 'ws' });
+
+        await client.connect();
+        const record = readDiscoveryRecord(discoveryFilePath());
+        proc.emit('exit', 1, null);
+
+        await waitFor(() => emittedCodexEvents('codex.daemon.exit').length === 1);
+        expect(emittedCodexEvents('codex.daemon.exit')[0]).toEqual(expect.objectContaining({
+            event: 'codex.daemon.exit',
+            pid: 4354,
+            cwd: record!.cwd,
+            exit_code: 1,
+            exit_reason: 'crashed',
+            rss_kb_at_exit: 987,
+        }));
+
+        await client.disconnect({ terminateAppServer: true });
+    });
+
+    it('emits unknown exit telemetry with null RSS when observable child exit has all-null status and no sample', async () => {
+        Object.defineProperty(process, 'platform', { value: 'win32' });
+        const { proc, wss } = await createMockWsAppServer({ pid: 4355 });
+        mockPickFreeLoopbackPort.mockResolvedValueOnce((wss.address() as AddressInfo).port);
+        mockSpawn.mockImplementationOnce(() => proc);
+        mockPsList.mockResolvedValue([]);
+
+        const { CodexAppServerClient } = await import('./codexAppServerClient');
+        const client = new CodexAppServerClient(undefined, { transport: 'ws' });
+
+        await client.connect();
+        proc.emit('exit', null, null);
+
+        await waitFor(() => emittedCodexEvents('codex.daemon.exit').length === 1);
+        expect(emittedCodexEvents('codex.daemon.exit')[0]).toEqual(expect.objectContaining({
+            event: 'codex.daemon.exit',
+            pid: 4355,
+            exit_code: null,
+            exit_signal: null,
+            exit_reason: 'unknown',
+            rss_kb_at_exit: null,
+        }));
+
+        await client.disconnect({ terminateAppServer: true });
+    });
+
+    it('does not throw when RSS sampling and exit telemetry emission fail', async () => {
+        Object.defineProperty(process, 'platform', { value: 'win32' });
+        const { proc, wss } = await createMockWsAppServer({ pid: 4356 });
+        mockPickFreeLoopbackPort.mockResolvedValueOnce((wss.address() as AddressInfo).port);
+        mockSpawn.mockImplementationOnce(() => proc);
+        mockPsList.mockRejectedValue(new Error('ps-list failed'));
+        mockEmitCodexDaemonEvent.mockRejectedValue(new Error('emit failed'));
+
+        const { CodexAppServerClient } = await import('./codexAppServerClient');
+        const client = new CodexAppServerClient(undefined, { transport: 'ws' });
+
+        await expect(client.connect()).resolves.toBeUndefined();
+        await expect(client.disconnect({ terminateAppServer: true })).resolves.toBeUndefined();
+
+        expect(mockLogger.warn).toHaveBeenCalledWith(
+            '[CodexAppServer] Failed to sample codex app-server RSS',
+            expect.objectContaining({ message: 'ps-list failed' }),
+        );
+        expect(mockLogger.warn).toHaveBeenCalledWith(
+            '[CodexAppServer] Failed to emit exit telemetry',
+            expect.objectContaining({ message: 'emit failed' }),
+        );
     });
 
     it('force-restarts from attached state under the held discovery lock and respawns', async () => {
@@ -2845,6 +3018,14 @@ describe('CodexAppServerClient sandbox integration', () => {
 
         await waitFor(() => (proc.kill as ReturnType<typeof vi.fn>).mock.calls.length > 0);
         expect(proc.kill).toHaveBeenCalledWith('SIGTERM');
+        expect(emittedCodexEvents('codex.daemon.exit')).toEqual([
+            expect.objectContaining({
+                event: 'codex.daemon.exit',
+                pid: 7001,
+                exit_code: null,
+                exit_reason: 'killed',
+            }),
+        ]);
     });
 
     it('does not reject pending stdio requests from onClose during intentional disconnect', async () => {
@@ -3064,6 +3245,16 @@ describe('CodexAppServerClient sandbox integration', () => {
         await client.disconnect({ terminateAppServer: true });
 
         expect(killSpy).toHaveBeenCalledWith(record.pid, 'SIGTERM');
+        expect(emittedCodexEvents('codex.daemon.exit')).toEqual([
+            expect.objectContaining({
+                event: 'codex.daemon.exit',
+                pid: record.pid,
+                cwd: record.cwd,
+                exit_code: null,
+                exit_signal: null,
+                exit_reason: 'killed',
+            }),
+        ]);
         expect(existsSync(discoveryFilePath())).toBe(false);
         killSpy.mockRestore();
     });

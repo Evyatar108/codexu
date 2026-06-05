@@ -19,6 +19,7 @@ import { closeSync, openSync, readFileSync, realpathSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { spawn as crossSpawn } from 'cross-spawn';
+import psList from 'ps-list';
 import { logger } from '@/ui/logger';
 import type {
     InitializeParams,
@@ -112,6 +113,8 @@ type ReconnectOptions = {
     terminateAppServer?: boolean;
     skipDiscovery?: boolean;
 };
+
+type ExitReason = 'killed' | 'session_mismatch' | 'crashed' | 'unknown';
 
 export type ApprovalHandler = (params: {
     type: 'exec' | 'patch' | 'mcp';
@@ -271,6 +274,12 @@ export class CodexAppServerClient {
     private wsAuthFallbackWarned = false;
     private extraAppServerArgs: string[];
     private lastClientDisconnectAtMs: number | null = null;
+    private terminationReason: ExitReason | undefined;
+    private terminationReasonDetail: string | undefined;
+    private exitEventEmitted = false;
+    private lastExitCode: number | null = null;
+    private lastExitSignal: string | null = null;
+    private lastSampledRssKb: number | null = null;
 
     constructor(sandboxConfig?: SandboxConfig, options: CodexAppServerClientOptions = {}) {
         this.sandboxConfig = sandboxConfig;
@@ -698,7 +707,109 @@ export class CodexAppServerClient {
         }
     }
 
+    private resetExitTelemetryForInstance(): void {
+        this.terminationReason = undefined;
+        this.terminationReasonDetail = undefined;
+        this.exitEventEmitted = false;
+        this.lastExitCode = null;
+        this.lastExitSignal = null;
+        this.lastSampledRssKb = null;
+    }
+
+    private startedAtMs(record: CodexDiscoveryRecord): number {
+        return new Date(record.startedAt).getTime();
+    }
+
+    private lastClientDisconnectAgeMs(atMs: number): number | null {
+        return this.lastClientDisconnectAtMs === null
+            ? null
+            : Math.max(0, atMs - this.lastClientDisconnectAtMs);
+    }
+
+    private async refreshLastSampledRssKb(pid: number): Promise<void> {
+        try {
+            const processRow = (await psList()).find((entry) => entry.pid === pid) as { memory?: number } | undefined;
+            if (typeof processRow?.memory === 'number' && Number.isFinite(processRow.memory)) {
+                this.lastSampledRssKb = Math.max(0, Math.round(processRow.memory));
+            }
+        } catch (error) {
+            logger.warn('[CodexAppServer] Failed to sample codex app-server RSS', error);
+        }
+    }
+
+    private classifyObservableExit(code: number | null): ExitReason {
+        if (this.terminationReason) return this.terminationReason;
+        if (code !== null && code !== 0) return 'crashed';
+        return 'unknown';
+    }
+
+    private async emitCodexDaemonExitEvent(opts: {
+        record: CodexDiscoveryRecord;
+        exitCode: number | null;
+        exitSignal: string | null;
+        exitReason: ExitReason;
+        terminationReasonDetail?: string;
+        refreshRss?: boolean;
+    }): Promise<void> {
+        if (this.exitEventEmitted) return;
+        this.exitEventEmitted = true;
+
+        if (opts.refreshRss) {
+            await this.refreshLastSampledRssKb(opts.record.pid);
+        }
+
+        const exitedAtMs = Date.now();
+        const startedAtMs = this.startedAtMs(opts.record);
+        try {
+            await emitCodexDaemonEvent({
+                event: 'codex.daemon.exit',
+                pid: opts.record.pid,
+                cwd: opts.record.cwd,
+                ...(opts.record.happySessionId !== undefined
+                    ? { happy_session_id: opts.record.happySessionId }
+                    : {}),
+                started_at_ms: startedAtMs,
+                exited_at_ms: exitedAtMs,
+                exit_code: opts.exitCode,
+                exit_signal: opts.exitSignal,
+                exit_reason: opts.exitReason,
+                ...(opts.terminationReasonDetail !== undefined
+                    ? { termination_reason_detail: opts.terminationReasonDetail }
+                    : {}),
+                uptime_ms: Number.isFinite(startedAtMs) ? Math.max(0, exitedAtMs - startedAtMs) : null,
+                rss_kb_at_exit: this.lastSampledRssKb,
+                last_client_disconnect_age_ms: this.lastClientDisconnectAgeMs(exitedAtMs),
+            });
+        } catch (telemetryError) {
+            logger.warn('[CodexAppServer] Failed to emit exit telemetry', telemetryError);
+        }
+    }
+
+    private async emitSyntheticExitEvent(record: CodexDiscoveryRecord, reason: ExitReason, detail?: string): Promise<void> {
+        this.terminationReason = reason;
+        this.terminationReasonDetail = detail;
+        await this.emitCodexDaemonExitEvent({
+            record,
+            exitCode: null,
+            exitSignal: null,
+            exitReason: reason,
+            terminationReasonDetail: detail,
+            refreshRss: true,
+        });
+    }
+
+    private emitObservableExitEvent(record: CodexDiscoveryRecord, code: number | null, signal: NodeJS.Signals | null): void {
+        void this.emitCodexDaemonExitEvent({
+            record,
+            exitCode: code,
+            exitSignal: signal,
+            exitReason: this.classifyObservableExit(code),
+            terminationReasonDetail: this.terminationReasonDetail,
+        });
+    }
+
     private async terminateAttachedAppServer(record: CodexDiscoveryRecord): Promise<void> {
+        await this.emitSyntheticExitEvent(record, this.terminationReason ?? 'killed', this.terminationReasonDetail);
         this.terminateWindowsProcessTree(record.pid);
         try { process.kill(record.pid, 'SIGTERM'); } catch { /* ignore */ }
         const exitedAfterTerm = await this.waitForPidExit(record.pid, 2_000);
@@ -713,7 +824,7 @@ export class CodexAppServerClient {
         deleteDiscoveryIfMatches(discoveryFilePath(), { pid: record.pid, startedAt: record.startedAt });
     }
 
-    private async closeWsChild(): Promise<void> {
+    private async closeWsChild(discoveryOverride?: CodexDiscoveryRecord): Promise<void> {
         const child = this.wsChild;
         if (!child) {
             this.closeWsLogFd();
@@ -721,6 +832,10 @@ export class CodexAppServerClient {
         }
 
         if (!this.wsChildExited) {
+            const discovery = discoveryOverride ?? this.currentDiscovery;
+            if (discovery) {
+                await this.emitSyntheticExitEvent(discovery, this.terminationReason ?? 'killed', this.terminationReasonDetail);
+            }
             if (typeof child.pid === 'number') {
                 this.terminateWindowsProcessTree(child.pid);
             }
@@ -759,13 +874,19 @@ export class CodexAppServerClient {
         child.once('error', (error) => {
             logger.debug('[CodexAppServer] WS process error:', error);
         });
-        child.once('exit', () => {
+        child.once('exit', (code, signal) => {
+            this.lastExitCode = code;
+            this.lastExitSignal = signal;
+            const discovery = this.currentDiscovery;
             this.wsChildExited = true;
             for (const handler of [...this.wsChildExitHandlers]) {
                 handler();
             }
             this.wsChildExitHandlers.clear();
             this.closeWsLogFd();
+            if (discovery && !this.exitEventEmitted) {
+                this.emitObservableExitEvent(discovery, code, signal);
+            }
         });
 
         return createWsTransport({
@@ -808,9 +929,10 @@ export class CodexAppServerClient {
                 this.pending.delete(id);
             }
             this.resolvePendingTurn(true);
+            const discovery = this.currentDiscovery;
             this.wsAppServerOwner = null;
             this.currentDiscovery = null;
-            void this.closeWsChild().catch((err) => {
+            void this.closeWsChild(discovery ?? undefined).catch((err) => {
                 logger.warn('[CodexAppServer] closeWsChild failed in onClose:', err);
                 this.clearWsChildState();
             });
@@ -848,6 +970,7 @@ export class CodexAppServerClient {
     private async tryReattach(initParams: InitializeParams, extraEnv: Record<string, string>): Promise<boolean> {
         const record = readDiscoveryRecord(discoveryFilePath());
         if (!record) return false;
+        this.resetExitTelemetryForInstance();
 
         const deleteStaleRecord = () => {
             deleteDiscoveryIfMatches(discoveryFilePath(), { pid: record.pid, startedAt: record.startedAt });
@@ -861,6 +984,7 @@ export class CodexAppServerClient {
         const incomingSessionId = extraEnv[HAPPY_CURRENT_SESSION_ID];
         if (incomingSessionId !== undefined && record.happySessionId !== undefined && record.happySessionId !== incomingSessionId) {
             logger.debug('[CodexAppServer] Session ID mismatch on reattach; terminating stale server to spawn fresh');
+            this.terminationReason = 'session_mismatch';
             await this.terminateAttachedAppServer(record);
             return false;
         }
@@ -875,6 +999,8 @@ export class CodexAppServerClient {
                 deleteStaleRecord();
                 return false;
             }
+            this.terminationReason = 'killed';
+            this.terminationReasonDetail = 'version_mismatch';
             await this.terminateAttachedAppServer(record);
             return false;
         }
@@ -895,6 +1021,7 @@ export class CodexAppServerClient {
         this.connection = candidate;
         this.wsAppServerOwner = 'attached';
         this.currentDiscovery = record;
+        this.resetExitTelemetryForInstance();
         this.wireWsConnection(candidate, epoch);
 
         let timeout: ReturnType<typeof setTimeout> | undefined;
@@ -908,6 +1035,7 @@ export class CodexAppServerClient {
             if (timeout) clearTimeout(timeout);
             this.notify('initialized');
             this.connected = true;
+            await this.refreshLastSampledRssKb(record.pid);
             try {
                 await emitCodexDaemonEvent({
                     event: 'codex.daemon.reattach',
@@ -931,6 +1059,7 @@ export class CodexAppServerClient {
                 try {
                     this.rejectPendingForEpoch(epoch, 'initialize', error instanceof Error ? error : new Error(String(error)));
                     await candidate.close().catch(() => undefined);
+                    this.terminationReason = 'killed';
                     await this.terminateAttachedAppServer(record);
                 } finally {
                     this.connection = null;
@@ -1173,6 +1302,8 @@ export class CodexAppServerClient {
                         await writeDiscoveryRecord(discoveryFilePath(), spawnedDiscoveryRecord);
                         this.wsAppServerOwner = 'spawned';
                         this.currentDiscovery = spawnedDiscoveryRecord;
+                        this.resetExitTelemetryForInstance();
+                        await this.refreshLastSampledRssKb(spawnedDiscoveryRecord.pid);
                     } catch (writeError) {
                         failureAlreadyCleanedUp = true;
                         this.intentionalClose = true;
@@ -1260,6 +1391,7 @@ export class CodexAppServerClient {
                 ? null
                 : Math.max(0, disconnectedAtMs - this.lastClientDisconnectAtMs);
             this.lastClientDisconnectAtMs = disconnectedAtMs;
+            await this.refreshLastSampledRssKb(discovery.pid);
             try {
                 await emitCodexDaemonEvent({
                     event: 'codex.daemon.disconnect',
@@ -1546,6 +1678,9 @@ export class CodexAppServerClient {
         const skipDiscovery = opts?.skipDiscovery ?? false;
         const lock = this.resolveEffectiveTransport() === 'ws' && skipDiscovery ? await acquireDiscoveryLock(lockFilePath()) : null;
         try {
+            if (terminateAppServer) {
+                this.terminationReason = 'killed';
+            }
             await this.disconnectInternal({ preserveThreadState: !!threadId, terminateAppServer });
             await this.connect(lock ? { skipDiscovery, heldLock: lock } : { skipDiscovery });
         } finally {
