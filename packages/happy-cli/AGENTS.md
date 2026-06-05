@@ -278,6 +278,10 @@ surface"):
 
 ## Codex Transport Security Model
 
+For Codex daemon lifecycle, discovery, sidecar telemetry, and the
+`happy codex doctor` / `status` command, see
+`packages/happy-cli/docs/codex-daemon-lifecycle.md`.
+
 The Codex app-server WebSocket transport is loopback-only and per-spawn authenticated. Happy must only bind `codex app-server` to `ws://127.0.0.1:<port>`; never expose it on `0.0.0.0`, LAN addresses, public addresses, or tunnels. Cross-device traffic continues to flow through Happy's encrypted relay, with the CLI as the only local app-server client.
 
 Each ws spawn attempt generates a fresh in-memory capability token. Spawn argv contains only `--ws-auth capability-token --ws-token-sha256 <64-hex-sha256>`; the raw token must not appear in argv, environment variables, URLs, or logs. The ws client sends it only on the upgrade request as `Authorization: Bearer <token>`. Do not set an `Origin` header on the node ws client because upstream rejects origin-bearing requests.
