@@ -49,6 +49,27 @@
   "generatedFromCommit": "32fdb9de",
   "tasks": [
     {
+      "id": "codex-down-mcp-startup-behavior-0135",
+      "scope": "codex",
+      "lifecycle": "tracked",
+      "status": "warn",
+      "lastTouchedAt": "2026-06-05T16:55:00Z",
+      "kanbanCards": [
+        {
+          "className": "cmd-warn",
+          "html": "<strong>Filed 2026-06-05 by operator.</strong> codex 0.135 reacts to an UNREACHABLE configured MCP server (the git-tracked Paper Design MCP at <code>codexu/.codex/config.toml</code> → <code>127.0.0.1:29979</code>) with a loud fatal <code>rmcp::transport::worker</code> ERROR + ~4.6s latency per call (measured 29.6s codexu vs 25.0s clean dir); 0.125 was quieter. Codex STILL produces output (verified pong/exit-0) — noise + latency, not an output-blocker; the member's \"no output\" was the slow Codex review lens still running. Investigate the codex MCP-init/rmcp startup path (eager-connect + timeout/retry?), the 0.125→0.135 delta, and whether a knob exists (startup_timeout / optional / lazy-connect) to tolerate a down MCP gracefully. <strong>Do NOT disable MCP generally (impl runs need MCPs).</strong> Recommend a low-conflict fix + whether Paper belongs in the shared tracked config. HOLD for operator."
+        }
+      ],
+      "command": {
+        "name": "codex-down-mcp-startup-behavior-0135",
+        "descriptionHtml": "Investigate why codex 0.135 errors loudly + adds latency on a down configured MCP, and find a graceful-tolerance knob/fix (not MCP-disable).",
+        "warnings": [],
+        "prompts": {
+          "brainstorm": "/multi-model-investigate \"Why does codex 0.135 (the gim-home/codex Copilot fork) react to an UNREACHABLE configured MCP server so much more loudly/slowly than 0.125 did, and is there a config knob to make a down MCP non-fatal/non-blocking? Evidence: codexu/.codex/config.toml registers [mcp_servers.paper] url=http://127.0.0.1:29979/mcp (the Paper Design MCP, only up when that desktop app runs). When it is down, EVERY codex invocation in the codexu workspace (including ralph-orchestration's non-interactive 'codex exec' review/research lens) logs a fatal-looking 'ERROR rmcp::transport::worker: worker quit with fatal: Transport channel closed ... http/request failed ... http://127.0.0.1:29979/mcp' and adds ~4.6s (measured: 29.6s in codexu vs 25.0s in a clean dir with no .codex/config.toml; single-sample, LLM-variance caveat). codex STILL produces output (verified: pong, exit 0) — so it is noise + latency, NOT an output-blocker. The operator updated codex 0.125->0.135 on this box this session, and 0.125 was quieter about the same down MCP. DO NOT recommend disabling MCP in ralph (impl runs legitimately use MCP servers).\n\nINVESTIGATE in the codex submodule (codex/external/repos/codex-patched/codex-rs): the MCP-client startup/init path (the rmcp transport, the streamable-HTTP client, where mcp_servers from config.toml are connected at process start, for BOTH the TUI and the 'codex exec' non-interactive path). Determine: (1) the exact mechanism — does codex connect to all configured MCP servers eagerly at startup and BLOCK on each (with what timeout/retry) before proceeding? (2) the 0.125->0.135 behavioral delta — what changed in MCP-init/rmcp that made a down server louder (ERROR log) and/or slower (the ~4.6s)? (3) whether codex exposes a KNOB: a per-MCP or global startup_timeout_ms, an 'optional'/lazy-connect flag, a retry/backoff setting, or an env var, so a down MCP is tolerated gracefully without the latency/noise. Cross-reference codex/docs + upstream openai/codex MCP config docs. (4) recommend a FIX that does NOT disable MCP generally: e.g., a codex config setting (if one exists), a small fork patch to bound the startup connection timeout / make eager-connect lazy / downgrade the log level for an optional MCP (minimize upstream-conflict surface per codex/CLAUDE.md core tenet #1 — overlay/seam over inline), AND separately note whether a personal usually-down tool like Paper belongs in the git-tracked SHARED .codex/config.toml vs a local/untracked codex config.\n\nOUTPUT: a findings report at .ralph/investigations/codex-down-mcp-startup-behavior-0135/findings.md with the mechanism (file:line), the 0.125->0.135 delta, the available knobs (or absence), and a recommended low-conflict fix + the config-placement guidance. HOLD for operator review.\""
+        }
+      }
+    },
+    {
       "id": "codex-fork-install-script",
       "scope": "codex",
       "lifecycle": "tracked",
