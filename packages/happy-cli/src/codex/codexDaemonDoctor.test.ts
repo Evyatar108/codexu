@@ -214,7 +214,6 @@ describe('codex daemon doctor', () => {
         expect(classifyCodexDaemonState(
             discoveryRecord({ pid: process.pid }),
             { pidAlive: true, wsInitialized: false, lastHealth: 'failed' },
-            [],
         )).toBe('stale-unreachable');
     });
 
@@ -270,7 +269,7 @@ describe('codex daemon doctor', () => {
         const exportLines = source.split(/\r?\n/).filter((line) => line.startsWith('export '));
 
         expect(exportLines).toEqual([
-            "export type CodexDaemonDoctorState = 'live' | 'stale-pid-gone' | 'stale-unreachable' | 'post-mortem';",
+            "export type CodexDaemonDoctorState = 'live' | 'stale-pid-gone' | 'stale-unreachable' | 'post-mortem' | 'unparsable';",
             'export async function probeCodexDaemon(record: CodexDiscoveryRecord, opts: ProbeOptions = {}): Promise<ProbeResult> {',
             'export function classifyCodexDaemonState(',
             'export function renderCodexDaemonTable(rows: InstanceRow[]): string {',

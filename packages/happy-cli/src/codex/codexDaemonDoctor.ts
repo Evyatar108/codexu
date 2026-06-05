@@ -1,4 +1,5 @@
 import chalk from 'chalk';
+import psList from 'ps-list';
 import { configuration } from '@/configuration';
 import {
     enumerateDiscoveryRecords,
@@ -13,12 +14,14 @@ import {
 import { createWsTransport } from './transport/wsTransport';
 import type { JsonRpcMessage } from './transport/JsonRpcConnection';
 
-export type CodexDaemonDoctorState = 'live' | 'stale-pid-gone' | 'stale-unreachable' | 'post-mortem';
+export type CodexDaemonDoctorState = 'live' | 'stale-pid-gone' | 'stale-unreachable' | 'post-mortem' | 'unparsable';
 
 type ProbeResult = {
     pidAlive: boolean;
     wsInitialized: boolean;
     lastHealth: string;
+    lastHealthAtMs?: number;
+    rssKb?: number | null;
     version?: string;
 };
 
@@ -27,6 +30,8 @@ type InstanceRow = {
     events: CodexDaemonLifecycleEvent[];
     probe: ProbeResult | null;
     state: CodexDaemonDoctorState;
+    parseError?: Error;
+    filePath?: string;
 };
 
 type ProbeOptions = {
@@ -79,6 +84,8 @@ function stateLabel(state: CodexDaemonDoctorState): string {
             return chalk.green(state);
         case 'post-mortem':
             return chalk.gray(state);
+        case 'unparsable':
+            return chalk.red(state);
         default:
             return chalk.yellow(state);
     }
@@ -115,10 +122,20 @@ function versionForRow(row: InstanceRow): string {
 }
 
 function rssForRow(row: InstanceRow): string {
+    if (row.probe?.rssKb !== null && row.probe?.rssKb !== undefined) {
+        return String(row.probe.rssKb);
+    }
     const exitEvent = lastEvent(row.events, 'codex.daemon.exit');
     return exitEvent?.rss_kb_at_exit === null || exitEvent?.rss_kb_at_exit === undefined
         ? ''
         : String(exitEvent.rss_kb_at_exit);
+}
+
+function lastHealthCellForRow(row: InstanceRow): string {
+    if (row.probe?.lastHealthAtMs !== undefined) {
+        return new Date(row.probe.lastHealthAtMs).toISOString();
+    }
+    return '';
 }
 
 function exitReasonForRow(row: InstanceRow): string {
@@ -144,12 +161,12 @@ function buildRows(rows: InstanceRow[]): string[] {
             row.state,
             String(row.record?.pid ?? row.events[0]?.pid ?? ''),
             endpointCell(row.record),
-            truncate(row.record?.cwd ?? row.events[0]?.cwd ?? '', 40),
+            truncate(row.record?.cwd ?? row.events[0]?.cwd ?? row.filePath ?? '', 40),
             humanizeDuration(startedAtMs === null ? null : now - startedAtMs),
             rssForRow(row),
-            row.probe?.lastHealth ?? '',
+            lastHealthCellForRow(row),
             lastDisconnectForRow(row),
-            exitReasonForRow(row),
+            row.parseError?.message ?? exitReasonForRow(row),
             versionForRow(row),
         ];
     });
@@ -161,7 +178,7 @@ function buildRows(rows: InstanceRow[]): string[] {
     ];
 }
 
-async function requestInitialize(record: CodexDiscoveryRecord, timeoutMs: number): Promise<{ version?: string }> {
+async function requestInitialize(record: CodexDiscoveryRecord, timeoutMs: number): Promise<{ version?: string; jsonRpcError?: string }> {
     const transport = createWsTransport({
         url: `ws://127.0.0.1:${record.port}`,
         authToken: record.capabilityToken,
@@ -175,10 +192,6 @@ async function requestInitialize(record: CodexDiscoveryRecord, timeoutMs: number
             transport.onMessage((message) => {
                 if (message.id !== nextId) return;
                 clearTimeout(timeout);
-                if (message.error) {
-                    reject(new Error(message.error.message));
-                    return;
-                }
                 resolve(message);
             });
             transport.onError((error) => {
@@ -194,6 +207,9 @@ async function requestInitialize(record: CodexDiscoveryRecord, timeoutMs: number
                 reject(error instanceof Error ? error : new Error(String(error)));
             });
         });
+        if (response.error) {
+            return { jsonRpcError: response.error.message };
+        }
         const result = response.result as { userAgent?: unknown; version?: unknown } | undefined;
         const version = typeof result?.version === 'string'
             ? result.version
@@ -206,14 +222,30 @@ async function requestInitialize(record: CodexDiscoveryRecord, timeoutMs: number
     }
 }
 
+async function sampleRssKb(pid: number): Promise<number | null> {
+    try {
+        const processRow = (await psList()).find((entry) => entry.pid === pid) as { memory?: number } | undefined;
+        if (typeof processRow?.memory === 'number' && Number.isFinite(processRow.memory)) {
+            return Math.max(0, Math.round(processRow.memory));
+        }
+    } catch {
+        // ignore — doctor is read-only diagnostics; missing RSS renders blank
+    }
+    return null;
+}
+
 export async function probeCodexDaemon(record: CodexDiscoveryRecord, opts: ProbeOptions = {}): Promise<ProbeResult> {
     const pidAlive = isPidAlive(record.pid);
+    const rssKb = pidAlive ? await sampleRssKb(record.pid) : null;
+    const lastHealthAtMs = Date.now();
     try {
         const initialized = await requestInitialize(record, opts.timeoutMs ?? DEFAULT_PROBE_TIMEOUT_MS);
         return {
             pidAlive,
             wsInitialized: true,
-            lastHealth: 'ok',
+            lastHealth: initialized.jsonRpcError !== undefined ? `ok (rpc-error: ${initialized.jsonRpcError})` : 'ok',
+            lastHealthAtMs,
+            rssKb,
             ...(initialized.version !== undefined ? { version: initialized.version } : {}),
         };
     } catch (error) {
@@ -221,6 +253,8 @@ export async function probeCodexDaemon(record: CodexDiscoveryRecord, opts: Probe
             pidAlive,
             wsInitialized: false,
             lastHealth: pidAlive ? 'failed' : 'pid-gone',
+            lastHealthAtMs,
+            rssKb,
         };
     }
 }
@@ -228,7 +262,6 @@ export async function probeCodexDaemon(record: CodexDiscoveryRecord, opts: Probe
 export function classifyCodexDaemonState(
     record: CodexDiscoveryRecord | null,
     probe: ProbeResult | null,
-    sidecarEntries: CodexDaemonLifecycleEvent[],
 ): CodexDaemonDoctorState {
     if (!record) {
         return 'post-mortem';
@@ -269,9 +302,19 @@ export async function runCodexDoctor(args: string[]): Promise<number> {
     }
 
     const recordsByKey = new Map<string, CodexDiscoveryRecord>();
+    const unparsableRows: InstanceRow[] = [];
     for (const row of discoveryRows) {
         if (row.record) {
             recordsByKey.set(instanceKey({ pid: row.record.pid, startedAt: discoveryStartedAtKey(row.record) }), row.record);
+        } else if (row.parseError) {
+            unparsableRows.push({
+                record: null,
+                events: [],
+                probe: null,
+                state: 'unparsable',
+                parseError: row.parseError,
+                filePath: row.filePath,
+            });
         }
     }
 
@@ -281,22 +324,26 @@ export async function runCodexDoctor(args: string[]): Promise<number> {
         return [key, record ? await probeCodexDaemon(record) : null] as const;
     }));
     const probesByKey = new Map(probeEntries);
-    const rows = keys.map((key) => {
-        const record = recordsByKey.get(key) ?? null;
-        const rowEvents = eventsByKey.get(key) ?? [];
-        const probe = probesByKey.get(key) ?? null;
-        return {
-            record,
-            events: rowEvents,
-            probe,
-            state: classifyCodexDaemonState(record, probe, rowEvents),
-        };
-    });
+    const rows = [
+        ...keys.map((key): InstanceRow => {
+            const record = recordsByKey.get(key) ?? null;
+            const rowEvents = eventsByKey.get(key) ?? [];
+            const probe = probesByKey.get(key) ?? null;
+            return {
+                record,
+                events: rowEvents,
+                probe,
+                state: classifyCodexDaemonState(record, probe),
+            };
+        }),
+        ...unparsableRows,
+    ];
 
     console.log(renderCodexDaemonTable(rows));
     const liveCount = rows.filter((row) => row.state === 'live').length;
     const staleCount = rows.filter((row) => row.state === 'stale-pid-gone' || row.state === 'stale-unreachable').length;
     const postMortemCount = rows.filter((row) => row.state === 'post-mortem').length;
-    console.log(`${liveCount} live, ${staleCount} stale, ${postMortemCount} post-mortem (stdio sessions are foreground-owned and not discoverable by \`happy codex doctor\`)`);
+    const unparsableCount = rows.filter((row) => row.state === 'unparsable').length;
+    console.log(`${liveCount} live, ${staleCount} stale, ${postMortemCount} post-mortem, ${unparsableCount} unparsable (stdio sessions are foreground-owned and not discoverable by \`happy codex doctor\`)`);
     return liveCount > 0 ? 0 : 1;
 }
