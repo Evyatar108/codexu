@@ -6,6 +6,7 @@ import {
     mkdirSync,
     openSync,
     readFileSync,
+    readdirSync,
     realpathSync,
     renameSync,
     unlinkSync,
@@ -34,6 +35,12 @@ export interface CodexDiscoveryRecord {
 export type DiscoveryLock = {
     release: () => Promise<void>;
 };
+
+export interface EnumeratedDiscoveryRecord {
+    filePath: string;
+    record: CodexDiscoveryRecord | null;
+    parseError?: Error;
+}
 
 const CodexDiscoveryRecordSchema = z.object({
     version: z.literal(DISCOVERY_FILE_VERSION),
@@ -69,6 +76,29 @@ export function readDiscoveryRecord(path: string): CodexDiscoveryRecord | null {
     } catch {
         return null;
     }
+}
+
+export async function enumerateDiscoveryRecords(homeDir: string = configuration.happyHomeDir): Promise<EnumeratedDiscoveryRecord[]> {
+    return readdirSync(homeDir)
+        .filter((entry) => /^codex-active-.*\.json$/.test(entry))
+        .sort()
+        .map((entry) => {
+            const filePath = join(homeDir, entry);
+            try {
+                const parsed = JSON.parse(readFileSync(filePath, 'utf8'));
+                const result = CodexDiscoveryRecordSchema.safeParse(parsed);
+                if (result.success) {
+                    return { filePath, record: result.data };
+                }
+                return { filePath, record: null, parseError: result.error };
+            } catch (error) {
+                return {
+                    filePath,
+                    record: null,
+                    parseError: error instanceof Error ? error : new Error(String(error)),
+                };
+            }
+        });
 }
 
 export function writeDiscoveryRecord(path: string, record: CodexDiscoveryRecord): void {

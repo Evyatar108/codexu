@@ -20,6 +20,7 @@ import {
     deleteDiscoveryIfMatches,
     discoveryFilePath,
     DISCOVERY_FILE_VERSION,
+    enumerateDiscoveryRecords,
     isPidAlive,
     lockFilePath,
     readDiscoveryRecord,
@@ -156,6 +157,54 @@ describe('codex app-server discovery paths', () => {
 
         writeFileSync(path, JSON.stringify(record));
         expect(readDiscoveryRecord(path)).toEqual(record);
+    });
+
+    it('enumerates multiple valid discovery records from a fixture directory', async () => {
+        const records = [
+            testRecord({ pid: 1001, port: 4101, cwd: join(tempRoot, 'project-a') }),
+            testRecord({ pid: 1002, port: 4102, cwd: join(tempRoot, 'project-b') }),
+            testRecord({ pid: 1003, port: 4103, cwd: join(tempRoot, 'project-c') }),
+        ];
+
+        records.forEach((record, index) => {
+            writeFileSync(join(mockConfiguration.happyHomeDir, `codex-active-${index}.json`), JSON.stringify(record));
+        });
+        writeFileSync(join(mockConfiguration.happyHomeDir, 'codex-active-ignored.json.lock'), '{}');
+        writeFileSync(join(mockConfiguration.happyHomeDir, 'not-codex-active.json'), '{}');
+
+        const entries = await enumerateDiscoveryRecords(mockConfiguration.happyHomeDir);
+
+        expect(entries.map((entry) => entry.record)).toEqual(records);
+        expect(entries.every((entry) => entry.filePath.endsWith('.json'))).toBe(true);
+        expect(entries.every((entry) => entry.parseError === undefined)).toBe(true);
+    });
+
+    it('returns a null record with parseError for corrupted discovery files', async () => {
+        const validRecord = testRecord({ pid: 2001, port: 4201 });
+        const badPath = join(mockConfiguration.happyHomeDir, 'codex-active-bad.json');
+        writeFileSync(badPath, '{"version":1,');
+        writeFileSync(join(mockConfiguration.happyHomeDir, 'codex-active-good.json'), JSON.stringify(validRecord));
+
+        const entries = await enumerateDiscoveryRecords(mockConfiguration.happyHomeDir);
+        const badEntry = entries.find((entry) => entry.filePath === badPath);
+
+        expect(entries).toHaveLength(2);
+        expect(badEntry).toEqual({
+            filePath: badPath,
+            record: null,
+            parseError: expect.any(Error),
+        });
+        expect(badEntry?.parseError?.message).toMatch(/JSON|position|Unexpected|unterminated/i);
+    });
+
+    it('returns an empty array for an existing directory without discovery records', async () => {
+        writeFileSync(join(mockConfiguration.happyHomeDir, 'unrelated.json'), '{}');
+
+        await expect(enumerateDiscoveryRecords(mockConfiguration.happyHomeDir)).resolves.toEqual([]);
+    });
+
+    it('throws for a non-existent discovery directory so doctor can map it to exit code 3', async () => {
+        await expect(enumerateDiscoveryRecords(join(tempRoot, 'missing-home'))).rejects.toThrow();
     });
 
     it('writes discovery records atomically and restricts POSIX file mode to 0600', () => {
