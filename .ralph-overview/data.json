@@ -3932,10 +3932,15 @@
     {
       "id": "happy-skill-md-roadmap-path-correction",
       "scope": "bookkeeping",
-      "lifecycle": "tracked",
+      "lifecycle": "archived",
       "status": "ok",
-      "lastTouchedAt": "2026-05-30T21:45:00Z",
-      "kanbanCards": [],
+      "lastTouchedAt": "2026-06-05T01:10:00Z",
+      "kanbanCards": [
+        {
+          "className": "cmd-ok",
+          "html": "<strong>ARCHIVED 2026-06-05T01:10Z as obsolete-by-state.</strong> Bookkeeper investigated 2026-06-05T01:08Z: <code>D:/harness-efforts/happy/.agents/skills/happy-upstream-sync/SKILL.md</code> does NOT exist (verified via Get-ChildItem on the happy repo). The target skill was never created OR has since been removed. ZERO references to <code>happy-upstream-sync</code> or <code>plans/codexu-roadmap.md</code> in the entire happy repo (verified via grep). Task surfaced 2026-05-30 by plan-happy-upstream-sync; the plan-happy-upstream-sync task itself was postponed (operator chose to diverge from upstream). No-op archive."
+        }
+      ],
       "command": {
         "name": "happy-skill-md-roadmap-path-correction",
         "descriptionHtml": "Surfaced by <code>plan-happy-upstream-sync</code> (2026-05-30). The <code>.agents/skills/happy-upstream-sync/SKILL.md</code> references <code>plans/codexu-roadmap.md</code> when bumping the upstream-merge bullet, but the happy fork's correct path is <code>docs/fork-roadmap.md</code>. Small doc-only fix; surfaced post-postponement of the actual happy-sync work (operator chose to diverge from upstream, so sync is paused — but the SKILL.md correction stands regardless if/when sync resumes).",
