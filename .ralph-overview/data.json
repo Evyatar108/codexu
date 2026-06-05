@@ -49,6 +49,48 @@
   "generatedFromCommit": "32fdb9de",
   "tasks": [
     {
+      "id": "codex-marketplace-add-gim-home-failure",
+      "scope": "codex",
+      "lifecycle": "tracked",
+      "status": "warn",
+      "lastTouchedAt": "2026-06-05T14:20:00Z",
+      "kanbanCards": [
+        {
+          "className": "cmd-warn",
+          "html": "<strong>Filed 2026-06-05 by operator.</strong> Adding marketplace <code>https://github.com/gim-home/ai-developer-toolkit.git</code> in codex fails with <code>Failed to add marketplace.</code> Root-cause the codex marketplace-add code path. Leading hypotheses: (a) codex expects a <code>.codex-plugin/marketplace.json</code> manifest that may be absent at the repo root; (b) gim-home org is INTERNAL-visibility so an unauthenticated fetch 404s; (c) URL form (<code>.git</code> suffix vs bare) or branch assumption. Reproduce, find the emitting code site, identify the fix."
+        }
+      ],
+      "command": {
+        "name": "codex-marketplace-add-gim-home-failure",
+        "descriptionHtml": "Debug why codex cannot add the gim-home/ai-developer-toolkit marketplace.",
+        "warnings": [],
+        "prompts": {
+          "impl": "See spawn prompt; debugging/investigation task."
+        }
+      }
+    },
+    {
+      "id": "codex-v135-network-audit-and-code-review",
+      "scope": "codex",
+      "lifecycle": "tracked",
+      "status": "warn",
+      "lastTouchedAt": "2026-06-05T14:20:00Z",
+      "kanbanCards": [
+        {
+          "className": "cmd-warn",
+          "html": "<strong>Filed 2026-06-05 by operator.</strong> The v0.135.0-copilot-api.1 release (prior: v0.130.0-copilot-api.8) shipped WITHOUT the documented egress-audit gate being recorded. Run the network-monitoring step (<code>/audit</code> static + <code>/runtime-audit</code> ETW) AND review the new upstream code in the rust-v0.130 &rarr; rust-v0.135 delta for new network calls / endpoints / telemetry that could bypass the fork network-suppression patches. Dedicated member. Read-only research + ops; surface findings, lead files any follow-up fix tasks."
+        }
+      ],
+      "command": {
+        "name": "codex-v135-network-audit-and-code-review",
+        "descriptionHtml": "Post-hoc egress audit + upstream-delta code review for the v0.135 codex rebase.",
+        "warnings": [],
+        "prompts": {
+          "impl": "See spawn prompt; investigation/ops task, not a ralph plan/impl cycle."
+        }
+      }
+    },
+    {
       "id": "crews-implement-with-ralph-parallel-outbox-silent-loss",
       "scope": "crews",
       "lifecycle": "merged",
