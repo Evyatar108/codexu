@@ -1,5 +1,4 @@
 import chalk from 'chalk';
-import psList from 'ps-list';
 import { configuration } from '@/configuration';
 import {
     enumerateDiscoveryRecords,
@@ -222,21 +221,9 @@ async function requestInitialize(record: CodexDiscoveryRecord, timeoutMs: number
     }
 }
 
-async function sampleRssKb(pid: number): Promise<number | null> {
-    try {
-        const processRow = (await psList()).find((entry) => entry.pid === pid) as { memory?: number } | undefined;
-        if (typeof processRow?.memory === 'number' && Number.isFinite(processRow.memory)) {
-            return Math.max(0, Math.round(processRow.memory));
-        }
-    } catch {
-        // ignore — doctor is read-only diagnostics; missing RSS renders blank
-    }
-    return null;
-}
-
 export async function probeCodexDaemon(record: CodexDiscoveryRecord, opts: ProbeOptions = {}): Promise<ProbeResult> {
     const pidAlive = isPidAlive(record.pid);
-    const rssKb = pidAlive ? await sampleRssKb(record.pid) : null;
+    const rssKb = null;
     const lastHealthAtMs = Date.now();
     try {
         const initialized = await requestInitialize(record, opts.timeoutMs ?? DEFAULT_PROBE_TIMEOUT_MS);

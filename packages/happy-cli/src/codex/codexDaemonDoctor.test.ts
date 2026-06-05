@@ -217,6 +217,19 @@ describe('codex daemon doctor', () => {
         )).toBe('stale-unreachable');
     });
 
+    it('reports rssKb as null for live probes (ps-list memory is %mem, not RSS KB)', async () => {
+        await withWsServer(async (port) => {
+            const record = discoveryRecord({ pid: process.pid, port });
+            const { probeCodexDaemon } = await importDoctor(homeDir);
+
+            const probe = await probeCodexDaemon(record);
+
+            expect(probe.pidAlive).toBe(true);
+            expect(probe.wsInitialized).toBe(true);
+            expect(probe.rssKb).toBeNull();
+        });
+    });
+
     it('classifies sidecar-only instances as post-mortem and returns exit code 1', async () => {
         writeSidecar(homeDir, [spawnEvent(), exitEvent()]);
         const { runCodexDoctor } = await importDoctor(homeDir);
