@@ -1,0 +1,104 @@
+{
+  "brainstormName": "codex-fork-install-script",
+  "overviewTaskId": "codex-fork-install-script",
+  "idea": "Design a Claude-Code-style one-liner installer for the codex fork: 'irm https://codex.evyatar.dev/install.ps1 | iex' (Windows) and 'curl -fsSL https://codex.evyatar.dev/install.sh | sh' (Unix), modeled on Claude Code's claude.ai/install.ps1. SCRIPT hosting at codex.evyatar.dev is operator-SETTLED; the open decision is where the ~100MB binary bundle (codex.exe + codex-core.exe + codex-windows-sandbox-setup.exe + codex-command-runner.exe + rg.exe) is hosted at a PUBLIC URL, since gim-home/codex is INTERNAL-visibility (Microsoft SAML).",
+  "availableLenses": ["codex", "copilot", "devils-advocate"],
+  "missingLenses": [],
+  "lensProvenance": "Lenses reasoned analytically by the brainstorm-phase member grounded in verified source (publish-npm.yml, publish-sandbox-patch.md, docs/workflows/install.md, codex/CLAUDE.md Distribution, the redirect plan, and Claude Code's live claude.ai/install.ps1). The external codex/copilot CLIs were NOT spawned as separate subprocesses; the three perspectives (feasibility, product-reality, devils-advocate) are applied as analytical frames.",
+  "verifiedFacts": [
+    "publish-npm.yml + publish-sandbox-patch.md build ONLY x86_64-pc-windows-msvc (RELEASE_TARGET, runs-on windows-latest). There is NO Unix build target today, so a 'curl|sh' Unix installer has no fork artifact to install.",
+    "The single release asset is codex-<VERSION>-win32-x64.tgz, an npm-pack tarball with package/bin/codex.js (npm shim) + package/vendor/x86_64-pc-windows-msvc/{codex/*.exe, path/rg.exe}. Launcher is codex.exe -> codex-core.exe (codex/CLAUDE.md Distribution).",
+    "The asset is uploaded ONLY to the gim-home/codex GitHub Release, which is INTERNAL visibility. Unauthenticated download returns 404; the documented install needs `gh auth login` + SAML + `gh release download` + `npm install -g <tarball>` (docs/workflows/install.md).",
+    "Codex has NO `install` subcommand that wires PATH (unlike claude.exe). PATH wiring is currently done by `npm install -g`. A standalone installer must extract the vendor tree to an install dir and wire PATH itself, then trigger the launcher's existing first-run (shell prompt -> ~/.codex-copilot/config.toml -> codex login --provider copilot).",
+    "Claude's claude.ai/install.ps1 pattern: GET $BASE/latest (plain version string) -> GET $BASE/$version/manifest.json (per-platform sha256) -> download single self-contained claude.exe -> Get-FileHash SHA256 verify -> run `claude.exe install` -> cleanup.",
+    "Redirect plan (codex-redirect-upstream-install-update-paths-to-fork, on HOLD) needs a PUBLIC latest-version endpoint: OQ1 doctor probe currently redirects to api.github.com/repos/gim-home/codex/releases/latest which 404s on the internal repo and degrades to a Warning row. ONE public /latest source should serve both the installer AND the doctor probe.",
+    "Apache-2.0 (upstream codex) permits redistributing built binaries; rg.exe is MIT/Unlicense. License is not the blocker. The blocker is whether MS-internal policy permits publishing a BUILD of an internal-visibility repo's artifacts."
+  ],
+  "candidateDirections": [
+    {
+      "id": "D-001",
+      "name": "Public GitHub release-mirror repo + evyatar.dev thin control-plane (RECOMMENDED)",
+      "summary": "Publish flow uploads the existing codex-<ver>-win32-x64.tgz + its .sha256 to a NEW PUBLIC release-mirror repo (e.g. Evyatar108/codex-releases). codex.evyatar.dev serves install.{ps1,sh} + a /latest version pointer; the script resolves latest, downloads the tarball from the public GitHub release CDN, verifies sha256, extracts to an install dir, wires PATH, triggers first-run. Reuses existing `gh release upload` infra; GitHub CDN reliability decoupled from the dev box.",
+      "axis": "artifact-hosting",
+      "effort": "low-medium",
+      "reliability": "HIGH",
+      "maintenance": "low",
+      "cost": "free",
+      "security": "GitHub TLS for bytes; sha256 published as a sibling release asset; evyatar.dev (trusted origin) serves the script + the /latest resolution. Bytes-from-CDN + hash-from-a-trusted-origin is the same split-trust model Claude uses.",
+      "contributingLenses": ["codex", "copilot", "devils-advocate"],
+      "gate": "Requires operator confirmation that publishing a BUILD of the internal gim-home/codex artifacts to a PUBLIC repo is policy-acceptable.",
+      "downside": "Adds a SECOND, public release target to the publish flow (multi-remote sync discipline, like the existing all-remotes rule). Exposes the patched binary publicly."
+    },
+    {
+      "id": "D-002",
+      "name": "Cloudflare R2 behind evyatar.dev (single-origin clean URLs)",
+      "summary": "Per-release upload of the tarball + manifest.json (version + sha256 + asset URL) to a Cloudflare R2 bucket bound to codex.evyatar.dev. install.{ps1,sh}, /latest, /manifest.json, AND the bytes all live on ONE evyatar.dev origin. Strongest single-origin trust story and cleanest URLs; needs R2 setup + an R2 credential in the publish flow.",
+      "axis": "artifact-hosting",
+      "effort": "medium-high",
+      "reliability": "HIGH",
+      "maintenance": "medium",
+      "cost": "near-free (R2 free tier 10GB storage; Cloudflare egress to internet is free — the big win vs S3); ~100MB/release needs a retention policy as releases accumulate.",
+      "security": "Single trusted origin (evyatar.dev) for script + manifest + hash + bytes — the strongest trust story. Needs R2 access-key handling in CI/the publish skill.",
+      "contributingLenses": ["codex", "copilot", "devils-advocate"],
+      "gate": "Same public-binary policy gate as D-001 (R2 objects are public).",
+      "downside": "Most setup; a new credential + bucket lifecycle/retention to own; marginal benefit over D-001 since the script entry point is already evyatar.dev."
+    },
+    {
+      "id": "D-003",
+      "name": "Cloudflare tunnel serving the bundle off the dev box (NOT recommended)",
+      "summary": "Add a route to the existing happy.evyatar.dev named tunnel that serves a local releases/ directory off the dev box. Lowest setup (tunnel already runs), but the binary's availability is tied to the operator's desktop being awake/online — fatal for an installer whose entire purpose is to run on fresh machines at arbitrary times.",
+      "axis": "artifact-hosting",
+      "effort": "lowest",
+      "reliability": "LOW",
+      "maintenance": "low-but-fragile",
+      "cost": "free",
+      "security": "evyatar.dev TLS, single origin — fine; availability is the disqualifier, not security.",
+      "contributingLenses": ["codex", "devils-advocate"],
+      "gate": "n/a (rejected on availability).",
+      "downside": "Dev box sleep/reboot/ISP blip = install fails. Acceptable ONLY for the tiny static install.{ps1,sh} + version.json (cheap, cacheable), never for the ~100MB binary."
+    },
+    {
+      "id": "D-004",
+      "name": "No public mirror — document/automate authenticated npm-from-Packages for SAML users (Devil's-Advocate null option)",
+      "summary": "Do NOT host the binary publicly. Keep today's authenticated path (gh + SAML + GitHub Packages / `gh release download`) and at most ship a thin evyatar.dev script that wraps the authenticated `gh release download <latest> --repo gim-home/codex` + `npm install -g` for users who ALREADY have gh+SAML. The honest fallback if the binary may not be public — but it is NOT a clean unauthenticated one-liner.",
+      "axis": "artifact-hosting",
+      "effort": "low",
+      "reliability": "HIGH (GitHub, authenticated)",
+      "maintenance": "lowest",
+      "cost": "free",
+      "security": "No new public attack surface; trust stays inside the MS enterprise SAML boundary.",
+      "contributingLenses": ["copilot", "devils-advocate"],
+      "gate": "n/a — this is the do-nothing-public baseline.",
+      "downside": "Defeats the stated goal: a clean `irm|iex` for unauthenticated/non-enterprise machines is IMPOSSIBLE by construction if the binary stays private. Only reachable by users who can already install today."
+    }
+  ],
+  "crossCuttingDesign": {
+    "scriptShape": "Model on claude.ai/install.ps1 but adapt for a multi-binary tarball with no `install` subcommand: (1) GET https://codex.evyatar.dev/latest -> fork version (e.g. 0.135.0-copilot-api.1); reject non-version content. (2) GET .../manifest.json -> {version, win32-x64: {url, sha256}}. (3) Download the tarball to a temp path. (4) Get-FileHash SHA256 / sha256sum, compare to manifest; abort + delete on mismatch. (5) Extract package/vendor/x86_64-pc-windows-msvc/** to an install dir ($env:USERPROFILE\\.codex-fork\\ or ~/.codex-fork/). (6) Put the codex.exe launcher on PATH (PATH entry or a shim) — keep codex.exe and codex-core.exe co-located. (7) Trigger the launcher's existing first-run (shell prompt -> ~/.codex-copilot/config.toml -> codex login --provider copilot). Kill running codex/codex-core processes first (Windows file-locking, per install.md). Idempotent upgrade = re-extract over the install dir.",
+    "versionResolution": "A SINGLE public version source serves BOTH the installer's /latest AND the redirect-plan doctor probe (OQ1). For D-001, /latest can be GitHub's native public releases/latest (302 redirect, unauthenticated-OK on a PUBLIC mirror repo) or a 2-line Cloudflare Worker on evyatar.dev that proxies it. For D-002 it's a static /latest object in R2. The redirect plan should curl THIS endpoint instead of the internal-404 api.github.com/repos/gim-home/codex path, turning its doctor Warning row green.",
+    "publishFlowIntegration": "publish-npm.yml + the manual /publish-sandbox-patch Step 5 already build codex-<ver>-win32-x64.tgz and `gh release upload` it to gim-home/codex. Add: compute sha256 of the tarball; write/refresh manifest.json + the version pointer; push tarball + sha256 + manifest to the chosen PUBLIC host (D-001: `gh release create/upload` to the public mirror repo; D-002: `wrangler r2 object put` / S3 PUT). This is one extra publish step governed by the same all-targets-must-receive-the-release sync discipline the fork already uses for multi-remote pushes.",
+    "redirectPlanCoupling": "Once codex.evyatar.dev/install.* + /latest exist, three redirect-plan answers FLIP from their current HOLD defaults: (OQ1) the doctor probe curls the public /latest -> Warning row becomes a functional green version row (no GitHub-auth plumbing needed); (US-003) the static hint strings point at the `irm ...|iex` / `curl ...|sh` one-liner instead of github.com/gim-home/codex/releases (which a clean user cannot even view); (US-002) the Unix self-updater could REDIRECT to install.sh instead of being neutralized — BUT only once a Unix build target exists (see windowsOnlyReality). SEQUENCING: the redirect plan is on HOLD; if THIS installer ships first, re-open redirect OQ1/OQ5/US-002 with the new public endpoint as the target. If the redirect plan ships first with neutralize/static-pointer defaults, this installer is a follow-up that upgrades those pointers."
+  },
+  "windowsOnlyReality": "The fork builds Windows-x64 ONLY. The 'curl -fsSL ...|sh' Unix one-liner has NOTHING to install today. Recommendation: ship install.ps1 (real) now; make install.sh a clear 'Windows-only fork; Unix build not yet available — see <docs>' stub that exits non-zero with guidance, OR defer install.sh entirely until a Unix RELEASE_TARGET is added to publish-npm.yml. Do NOT advertise the Unix one-liner as working until a Unix artifact exists.",
+  "devilsAdvocate": {
+    "redFlag": true,
+    "thesis": "The entire clean-unauthenticated-one-liner premise is gated on ONE unanswered question: may a BUILD of the internal-visibility gim-home/codex be published to a PUBLIC URL? If NO, a clean `irm|iex` is impossible by construction and the realistic deliverable collapses to D-004 (authenticated npm-from-Packages doc), which is no cleaner than today. If YES, D-001 is straightforward. So this is a policy decision wearing an engineering costume — resolve the gate BEFORE any build work.",
+    "secondaryPoints": [
+      "Audience reality: if every consumer is already a SAML-authed Microsoft user, a public mirror adds maintenance + a public attack surface for ZERO newly-reachable users. The public installer only pays off if the audience includes non-enterprise machines (personal laptops, CI, fresh boxes without gh+SAML).",
+      "Windows-only: the Unix half of the request is aspirational — there is no Unix artifact. Shipping a working-looking `curl|sh` would be a broken promise.",
+      "Trust/circularity: serving the tarball AND its hash from the SAME untrusted location is no protection (an attacker who controls the bytes controls the hash). The hash (manifest) must come from a trusted origin (evyatar.dev or a PUBLIC GitHub release over TLS). D-001/D-002 both satisfy this; a naive 'download both from the dev box tunnel' would not add integrity beyond TLS.",
+      "Maintenance honesty: a public mirror is a SECOND release target the publish flow must never forget — the same class of bug as a stale marketplace index or an un-pushed remote. Bake it into the publish skill, not operator memory."
+    ]
+  },
+  "recommendedDirection": "D-001",
+  "recommendationRationale": "D-001 (public GitHub release-mirror repo + evyatar.dev thin control-plane) is the lowest-effort path to a reliable, free, dev-box-independent clean installer: it reuses the existing `gh release upload` machinery, gets GitHub-CDN reliability, satisfies split-trust integrity (bytes from CDN, hash + script from evyatar.dev / a public TLS origin), and its /latest doubles as the redirect-plan doctor probe's public version source. D-002 (R2) is the clean-single-origin upgrade if GitHub-API resolution proves clunky or rate-limited — defer to a follow-up. D-003 is rejected on availability. D-004 is the honest fallback ONLY if the public-binary gate fails. CRITICAL: D-001 and D-002 BOTH require the operator to clear the public-binary policy gate first; if that gate fails, the answer is D-004 and the 'clean one-liner' goal is unachievable. Ship install.ps1 now; stub or defer install.sh until a Unix build target exists.",
+  "questionsForOperator": [
+    "GATE (decides everything): May a BUILD of the internal-visibility gim-home/codex artifacts be published to a PUBLIC URL (public GitHub repo or Cloudflare R2)? If NO, only D-004 is possible and a clean unauthenticated one-liner cannot exist.",
+    "Audience: who installs via the one-liner — only SAML-authed Microsoft machines (then D-004 may suffice), or also non-enterprise/personal/CI machines (then a public mirror is the only clean path)?",
+    "Artifact host: D-001 (public GitHub release-mirror repo, reuse `gh release upload`) vs D-002 (Cloudflare R2 single-origin)? Recommend starting D-001.",
+    "Unix: stub install.sh as 'Windows-only, not yet supported' now, or defer it entirely until a Unix RELEASE_TARGET is added to publish-npm.yml? (No Unix artifact exists today.)",
+    "Sequencing vs the redirect plan: ship THIS installer first (then re-open redirect OQ1/OQ5/US-002 to point at codex.evyatar.dev), or let the redirect plan ship with neutralize/static defaults and treat this installer as the follow-up that upgrades the pointers?",
+    "install.ps1 install dir + PATH strategy: extract to ~/.codex-fork/ + PATH entry (Claude-style) vs reuse the npm-global layout? (Codex has no `install` subcommand, so the script owns PATH wiring.)"
+  ],
+  "hold": true,
+  "holdReason": "Autonomous brainstorm; HOLD for operator review before any plan/impl. The artifact-hosting choice (axis 1) is the operator's, AND it is gated on a policy question (may the internal-repo binary be public?) that the operator must answer first — that single answer determines whether ANY clean-installer direction (D-001/D-002) is viable or whether the deliverable collapses to D-004."
+}

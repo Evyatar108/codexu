@@ -53,11 +53,15 @@
       "scope": "codex",
       "lifecycle": "tracked",
       "status": "warn",
-      "lastTouchedAt": "2026-06-05T15:46:00Z",
+      "lastTouchedAt": "2026-06-05T16:05:00Z",
       "kanbanCards": [
         {
           "className": "cmd-warn",
           "html": "<strong>Filed 2026-06-05 by operator.</strong> Add a Claude-Code-style one-liner installer for the fork: <code>irm https://codex.evyatar.dev/install.ps1 | iex</code> (Windows) + <code>curl -fsSL https://codex.evyatar.dev/install.sh | sh</code> (Unix). <strong>Host DECIDED by operator: evyatar.dev via the existing Cloudflare tunnel</strong> (settles SCRIPT hosting). <strong>Open problem:</strong> gim-home/codex is INTERNAL + the bundle is ~100 MB, so a clean unauthenticated install needs the BINARIES at a PUBLIC URL too — brainstorm artifact-distribution options (public GitHub release mirror vs Cloudflare R2 vs tunnel-off-dev-box) + the install scripts + publish-flow integration + a shared public \"latest version\" source (coordinate with the redirect plan). HOLD for operator on the artifact-hosting choice."
+        },
+        {
+          "className": "cmd-ok",
+          "html": "<strong>Brainstorm shipped 2026-06-05 (3-frame + Devil's Advocate, red_flag=true).</strong> <strong>recommendedDirection: D-001 — a PUBLIC GitHub release-mirror repo (e.g. Evyatar108/codex-releases) + evyatar.dev thin control-plane.</strong> The publish flow uploads the existing win32-x64 tarball + sha256 to the public mirror; codex.evyatar.dev serves install.ps1 + /latest; the script downloads from GitHub CDN, verifies sha256, extracts, wires PATH (codex has NO install subcommand), triggers first-run. Reuses gh-release-upload machinery, GitHub-CDN reliability (dev-box-independent), free; /latest doubles as the redirect-plan doctor version source (flips its Warning row green, no gh-auth plumbing). <strong>THE GATE (decides everything): may a BUILD of the INTERNAL-visibility gim-home/codex be published to a PUBLIC URL? License is NOT the blocker (codex Apache-2.0, rg MIT) — it is a POLICY question. NO → only D-004 (authenticated npm-from-Packages for SAML users) is possible, no clean unauthenticated one-liner.</strong> Other: fork is Windows-x64 ONLY (no Unix build) → ship install.ps1 real, install.sh = stub/deferred. Alts: D-002 Cloudflare R2 single-origin (upgrade path), D-003 dev-box tunnel (REJECTED — availability), D-004 authed (fallback iff gate fails). <em>HOLD for operator on OQ1 (the policy gate) + 5 more OQs. Artifacts at .ralph/brainstorms/codex-fork-install-script/.</em>"
         }
       ],
       "command": {
