@@ -44,6 +44,7 @@ import { pickFreeLoopbackPort } from '@/utils/pickFreeLoopbackPort';
 import type { JsonRpcConnection, JsonRpcMessage } from './transport/JsonRpcConnection';
 import { createStdioTransport } from './transport/stdioTransport';
 import { createWsTransport } from './transport/wsTransport';
+import { emitCodexDaemonEvent } from './codexDaemonTelemetry';
 import {
     acquireDiscoveryLock,
     deleteDiscoveryIfMatches,
@@ -1031,12 +1032,14 @@ export class CodexAppServerClient {
             ? opts?.heldLock ?? await acquireDiscoveryLock(lockFilePath())
             : null;
         let failureAlreadyCleanedUp = false;
+        let spawnStartedAtMs = 0;
         try {
             if (transport === 'ws') {
                 if (!skipDiscovery && await this.tryReattach(initParams, opts?.extraEnv ?? {})) {
                     return;
                 }
 
+                spawnStartedAtMs = Date.now();
                 const logFilePath = this.logFilePath ?? join(tmpdir(), `codex-app-server-${randomUUID()}.log`);
                 for (let attempt = 1; attempt <= WS_SPAWN_MAX_RETRIES; attempt += 1) {
                     const port = await pickFreeLoopbackPort();
@@ -1147,6 +1150,7 @@ export class CodexAppServerClient {
             // Perform initialize handshake
             try {
                 await this.request('initialize', initParams);
+                const initializedAtMs = Date.now();
                 if (spawnedDiscoveryRecord) {
                     // notify() is fire-and-forget per notify():1508; this invariant is invocation-ordering, not delivery-confirmation.
                     this.notify('initialized');
@@ -1173,6 +1177,21 @@ export class CodexAppServerClient {
                         this.connected = false;
                         this.intentionalClose = false;
                         throw killError ?? writeError;
+                    }
+                    try {
+                        await emitCodexDaemonEvent({
+                            event: 'codex.daemon.spawn',
+                            pid: spawnedDiscoveryRecord.pid,
+                            endpoint: `ws://127.0.0.1:${spawnedDiscoveryRecord.port}`,
+                            cwd: spawnedDiscoveryRecord.cwd,
+                            ...(spawnedDiscoveryRecord.happySessionId !== undefined
+                                ? { happy_session_id: spawnedDiscoveryRecord.happySessionId }
+                                : {}),
+                            cold_start_ms: Math.max(0, initializedAtMs - spawnStartedAtMs),
+                            started_at_ms: spawnStartedAtMs,
+                        });
+                    } catch (telemetryError) {
+                        logger.warn('[CodexAppServer] Failed to emit spawn telemetry', telemetryError);
                     }
                 } else {
                     this.notify('initialized');

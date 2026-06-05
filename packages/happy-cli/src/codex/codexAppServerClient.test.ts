@@ -24,6 +24,7 @@ const {
     mockOpenSync,
     mockCloseSync,
     mockWriteDiscoveryRecord,
+    mockEmitCodexDaemonEvent,
 } = vi.hoisted(() => ({
     mockConfiguration: {
         happyHomeDir: require('node:fs').mkdtempSync(require('node:path').join(require('node:os').tmpdir(), 'happy-codex-discovery-')),
@@ -42,6 +43,7 @@ const {
     mockOpenSync: vi.fn(),
     mockCloseSync: vi.fn(),
     mockWriteDiscoveryRecord: vi.fn(),
+    mockEmitCodexDaemonEvent: vi.fn(),
 }));
 
 vi.mock('@/configuration', () => ({
@@ -89,6 +91,10 @@ vi.mock('./codexAppServerDiscovery', async (importActual) => {
         writeDiscoveryRecord: ((...args: Parameters<typeof actual.writeDiscoveryRecord>) => mockWriteDiscoveryRecord(...args)) as typeof actual.writeDiscoveryRecord,
     };
 });
+
+vi.mock('./codexDaemonTelemetry', () => ({
+    emitCodexDaemonEvent: mockEmitCodexDaemonEvent,
+}));
 
 vi.mock('@/sandbox/manager', () => ({
     initializeSandbox: mockInitializeSandbox,
@@ -343,6 +349,8 @@ describe('CodexAppServerClient sandbox integration', () => {
         mockLogger.info.mockClear();
         mockLogger.warn.mockClear();
         mockWriteDiscoveryRecord.mockReset();
+        mockEmitCodexDaemonEvent.mockReset();
+        mockEmitCodexDaemonEvent.mockResolvedValue(undefined);
         mockWriteDiscoveryRecord.mockImplementation((path: string, record: CodexDiscoveryRecord) => {
             const fs = require('node:fs') as typeof import('node:fs');
             const pathModule = require('node:path') as typeof import('node:path');
@@ -507,6 +515,7 @@ describe('CodexAppServerClient sandbox integration', () => {
                 }),
             }),
         );
+        expect(mockEmitCodexDaemonEvent).not.toHaveBeenCalled();
 
         await client.disconnect({ terminateAppServer: true });
     });
@@ -573,7 +582,9 @@ describe('CodexAppServerClient sandbox integration', () => {
         const { CodexAppServerClient } = await import('./codexAppServerClient');
         const client = new CodexAppServerClient(undefined, { transport: 'ws' });
 
+        const connectStartedAt = Date.now();
         await client.connect();
+        const connectFinishedAt = Date.now();
 
         const record = readDiscoveryRecord(discoveryFilePath());
         expect(record).toEqual(expect.objectContaining({
@@ -590,6 +601,20 @@ describe('CodexAppServerClient sandbox integration', () => {
         expect(sha256hex(record?.capabilityToken ?? '')).toBe(record?.capabilityTokenSha256);
         expect((client as any).wsAppServerOwner).toBe('spawned');
         expect((client as any).currentDiscovery).toEqual(record);
+        expect(mockEmitCodexDaemonEvent).toHaveBeenCalledTimes(1);
+        expect(mockEmitCodexDaemonEvent).toHaveBeenCalledWith(expect.objectContaining({
+            event: 'codex.daemon.spawn',
+            pid: 4311,
+            endpoint: `ws://127.0.0.1:${port}`,
+            cwd: realpathSync(process.cwd()),
+            cold_start_ms: expect.any(Number),
+            started_at_ms: expect.any(Number),
+        }));
+        const [spawnEvent] = mockEmitCodexDaemonEvent.mock.calls[0];
+        expect(spawnEvent.endpoint).not.toContain(record?.capabilityToken ?? 'missing-token');
+        expect(spawnEvent.happy_session_id).toBeUndefined();
+        expect(spawnEvent.cold_start_ms).toBeGreaterThanOrEqual(0);
+        expect(spawnEvent.cold_start_ms).toBeLessThanOrEqual(connectFinishedAt - connectStartedAt + 100);
 
         await client.disconnect({ terminateAppServer: true });
         expect(existsSync(discoveryFilePath())).toBe(false);
@@ -891,6 +916,11 @@ describe('CodexAppServerClient sandbox integration', () => {
         expect(spawnedRequests.filter((msg) => msg.method === 'initialize')).toHaveLength(1);
         expect(readDiscoveryRecord(discoveryFilePath())?.pid).toBe(4342);
         expect(readDiscoveryRecord(discoveryFilePath())?.happySessionId).toBe('session-B');
+        expect(mockEmitCodexDaemonEvent).toHaveBeenCalledWith(expect.objectContaining({
+            event: 'codex.daemon.spawn',
+            pid: 4342,
+            happy_session_id: 'session-B',
+        }));
 
         await client.disconnect({ terminateAppServer: true });
         killSpy.mockRestore();
@@ -936,6 +966,7 @@ describe('CodexAppServerClient sandbox integration', () => {
         expect(mockSpawn).not.toHaveBeenCalled();
         expect(requests.filter((msg) => msg.method === 'initialize')).toHaveLength(1);
         expect((client as any).wsAppServerOwner).toBe('attached');
+        expect(mockEmitCodexDaemonEvent).not.toHaveBeenCalled();
 
         await client.disconnect({ terminateAppServer: true });
         killSpy.mockRestore();
