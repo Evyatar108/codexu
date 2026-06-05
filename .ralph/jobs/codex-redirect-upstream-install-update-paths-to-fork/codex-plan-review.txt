@@ -1,0 +1,31 @@
+Verified against `codex` submodule on `main`. No prior review cycles/amendments were mentioned.
+
+**Feasibility**
+
+[High] The plan is not ready for autonomous implementation while its own `HOLD` and Open Questions remain unresolved. In particular, the exact install command for `UpdateAction::command_args()` is still undecided, and the internal `gim-home/codex` release API 404 behavior is acknowledged but not made an explicit acceptance condition. An implementer could reasonably choose incompatible behavior.
+
+[Medium] The proposed `codex doctor` redirect to `https://api.github.com/repos/gim-home/codex/releases/latest` is implementable in [updates.rs](D:/harness-efforts/codexu/codex/external/repos/codex-patched/codex-rs/cli/src/doctor/updates.rs:25), but the plan should explicitly accept that normal unauthenticated users may get a warning row from `updates_check`, not a green update status.
+
+**Completeness**
+
+[High] US-003 misses active user-facing TUI update surfaces. [notices.rs](D:/harness-efforts/codexu/codex/external/repos/codex-patched/codex-rs/tui/src/history_cell/notices.rs:31) and [update_prompt.rs](D:/harness-efforts/codexu/codex/external/repos/codex-patched/codex-rs/tui/src/update_prompt.rs:207) still render `openai/codex` install/release links. If the requirement is “redirect every upstream install/update reference,” US-005 cannot remain optional.
+
+[High] The plan omits snapshot updates that will be required by `cargo test -p codex-tui`. The strings from `UpdateAction::command_str()` are asserted in snapshots under `tui/src/history_cell/snapshots/` and `tui/src/snapshots/codex_tui__update_prompt__tests__update_prompt_modal.snap`.
+
+[High] [app-server-daemon/README.md](D:/harness-efforts/codexu/codex/external/repos/codex-patched/codex-rs/app-server-daemon/README.md:39) still instructs users to run `curl -fsSL https://chatgpt.com/codex/install.sh | sh` and documents the updater around `install.sh`. That is user-facing install/update documentation and should be updated or explicitly declared out of scope.
+
+[Medium] The latent TUI update fetch cluster is only optional, but [npm_registry.rs](D:/harness-efforts/codexu/codex/external/repos/codex-patched/codex-rs/tui/src/npm_registry.rs:5), [updates.rs](D:/harness-efforts/codexu/codex/external/repos/codex-patched/codex-rs/tui/src/updates.rs:49), and [update_versions.rs](D:/harness-efforts/codexu/codex/external/repos/codex-patched/codex-rs/tui/src/update_versions.rs:10) still encode upstream package/release assumptions. Either include them or add a clear invariant that `tui/src/updates.rs::get_upgrade_version` must remain no-op.
+
+**Ordering**
+
+No issues found. US-004 after US-001 through US-003 is the right order because audit registration depends on the actual markers and final file set.
+
+**Simplicity**
+
+[Medium] For static update hints, “see fork releases/install docs” may be simpler and less misleading than trying to encode GitHub Packages auth in `command_args()`. The documented install flow in `docs/workflows/install.md` requires registry/token setup for GitHub Packages; a bare `npm install -g @gim-home/codex` may not work for clean users.
+
+**Acceptance Criteria Quality**
+
+[High] “No source reference ... remains as a LIVE outbound/hint path in the in-scope files” is too narrow and lets the plan pass while leaving `history_cell/notices.rs`, `update_prompt.rs`, snapshots, and daemon README with upstream install/update references. Define the exact file set or require a targeted grep over all install/update surfaces.
+
+[Medium] “cargo test -p codex-app-server-daemon (Unix neutralization, where applicable)” is vague. Existing [update_loop_tests.rs](D:/harness-efforts/codexu/codex/external/repos/codex-patched/codex-rs/app-server-daemon/src/update_loop_tests.rs:1) only tests restart-mode identity logic, not the no-op updater body. Add a concrete test expectation or remove that claimed evidence.

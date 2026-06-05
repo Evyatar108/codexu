@@ -1,0 +1,56 @@
+I’ll read the referenced prompt file first, then carry out the requested task end-to-end.
+
+I’m moving into codebase research now, focusing on the codex submodule call sites, audit scripts, and fork patch-surface docs named in the prompt.
+
+I found the primary Rust seams and am checking the audit/docs side now so the research covers the required patch registration and guard patterns, not just code paths.
+
+I’m checking the audit script mechanics and rebase-note section so the implementation guidance can name exactly where new guards and documentation rows should land.
+
+I have enough source context; I’m doing one last pass over local tests around the affected modules to point the future plan at the right verification updates.
+
+The test scan shows package-root assumptions too; I’m checking that helper so the plan can avoid leaving npm-root diagnostics pointed at the old package name.
+
+### Codebase Architecture
+
+The relevant code lives in `codex\external\repos\codex-patched\codex-rs`, a large Rust workspace with crates like `cli`, `tui`, and `app-server-daemon`. Fork-only code and invariant tests also live outside the upstream subtree under `codex\codex-rs-overlay`. Wrapper-level audit/docs live in `codex\scripts` and `codex\docs\implementation`.
+
+Build/verification is Rust + Cargo/Just, with fork-specific bash audits: `scripts\audit_network_calls.sh` and `scripts\audit_invariants.sh`.
+
+### Feature-Relevant Code
+
+Primary must-change sites:
+
+- `cli\src\doctor\updates.rs`: live `codex doctor` update probe; uses `curl` against `api.github.com/repos/openai/codex/releases/latest` and Homebrew cask API, parses `rust-v`, and prints `@openai/codex`/brew hints.
+- `app-server-daemon\src\update_loop.rs`: Unix-only standalone updater downloads and pipes `https://chatgpt.com/codex/install.sh` to `/bin/sh`.
+- `tui\src\update_action.rs`: update command enum and command strings for npm/bun/brew/standalone install paths.
+- `app-server-daemon\src\lib.rs`: missing-managed-install error text points to `chatgpt.com/codex/install.sh`.
+
+Additional relevant references:
+
+- `cli\src\doctor.rs`: both user-facing text and `compare_npm_package_roots()` hard-code `@openai/codex`; the helper will falsely mismatch fork installs unless changed.
+- Latent no-op TUI update cluster: `tui\src\history_cell\notices.rs`, `tui\src\update_prompt.rs`, `tui\src\npm_registry.rs`, `tui\src\updates.rs`.
+- Tests/snapshots will need updates: `cli\src\doctor\updates.rs` tests, `cli\src\doctor.rs` npm-root tests, `tui` update snapshots, `app-server-daemon` tests if neutralizing updater behavior.
+
+### Technical Constraints
+
+Every inline edit in upstream-canonical files needs a `// SANDBOX PATCH:` marker plus registration in `docs\implementation\patch-surface.md` §1/§14/§15 and audit coverage. Current `audit_network_calls.sh` does **not** list the new primary files in `KNOWN_PATCH_FILES`, and its endpoint patterns do not yet catch `chatgpt.com/codex/install`, `@openai/codex`, or the npm registry package URL.
+
+Do not add a broad tree-wide `openai/codex` ban without exclusions: unrelated PR/feedback/test references exist in `tui\src\branch_summary.rs`, `feedback_view.rs`, snapshots, etc. Guards should be file-scoped or install/update-pattern-specific.
+
+Fork release tags are `v0.135.0-copilot-api.1`; `strip_prefix("rust-v")` must become `strip_prefix("v")`. Version comparison currently parses only plain `major.minor.patch`, so suffix-aware “newer available” remains limited unless separately extended.
+
+`gim-home/codex` is internal; unauthenticated `curl` to GitHub latest release may warn/404. That is acceptable if surfaced as a doctor warning, unless the plan adds `gh`/token-aware auth.
+
+### Implementation Suggestions
+
+Use inline patches with markers, matching existing network-suppression precedent.
+
+Suggested story split:
+
+1. **Doctor update path:** change GitHub latest URL to `https://api.github.com/repos/gim-home/codex/releases/latest`, neutralize Homebrew probe, change tag prefix to `v`, update hints to fork install commands, and update `cli\src\doctor.rs` npm package root to `@gim-home/codex`.
+2. **Unix updater:** neutralize `install_latest_standalone()` with an explicit fork `SANDBOX PATCH` early return/error explaining no fork standalone install script exists.
+3. **Hint strings/UI:** redirect `tui\src\update_action.rs` commands/comments and app-server error text to the fork’s documented install flow.
+4. **Patch registration/audits:** add modified files to `KNOWN_PATCH_FILES`, add endpoint patterns for upstream install/update regressions, and add `audit_invariants.sh` guards requiring fork URLs/package names and forbidding upstream installer/package strings in patched files.
+
+For scope, I recommend **Scope B** despite extra conflict surface: the request says “EVERY install/update reference,” and the latent TUI update cluster will otherwise keep stale upstream install/release links even if currently unreachable.
+

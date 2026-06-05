@@ -1,0 +1,36 @@
+I’ll read the provided prompt file and follow its instructions.
+
+The prompt is long, so I’ll read it in sections before acting.
+
+I’ll verify the plan’s file references and constraints against the codex submodule before producing the review.
+
+The main references exist; I’m checking the surrounding code now for edge cases the plan may miss.
+
+I’m doing one last targeted check for tests and audit wiring so the review can call out only actionable issues.
+
+Reviewed against the current `codex` submodule tree. I found blocking plan issues.
+
+### Feasibility
+
+[Critical] The verification commands violate `codex-rs` repo rules. The plan’s ACs use `cargo test -p ...`, but `codex\external\repos\codex-patched\AGENTS.md` requires `just test -p <crate>`, plus `just fmt` and scoped `just fix -p <project>` after Rust edits. Update all verification steps before handing this to an autonomous implementer.
+
+### Completeness
+
+[High] US-005 conflicts with the stated “redirect EVERY” requirement. The plan defers `tui\src\history_cell\notices.rs`, `tui\src\update_prompt.rs`, `tui\src\npm_registry.rs`, `tui\src\update_versions.rs`, and `tui\src\updates.rs`, but those still contain upstream install/update/release references. Either include US-005 or narrow the requirement/ACs to “in-scope live paths only.”
+
+[High] The exact fork install command is unresolved. A bare `npm install -g @gim-home/codex` likely does not work for GitHub Packages without registry/auth setup, while `UpdateAction::command_args()` must be static. The plan must choose a concrete command or use a releases/documentation URL before implementation.
+
+[Medium] Be careful adding large non-network files like `cli\src\doctor.rs` or `app-server-daemon\src\lib.rs` to `scripts\audit_network_calls.sh::KNOWN_PATCH_FILES`; Phase 2 skips known files entirely, which can hide future endpoint regressions. Prefer `audit_invariants.sh` file-scoped guards for hint/functional string files, and reserve network-audit known files for actual outbound call sites.
+
+### Ordering
+
+[High] The plan says it is ready for `/implement-with-ralph`, but also says `HOLD` pending open questions. Resolve or codify the recommended answers first; otherwise the implementer can satisfy a narrower interpretation than the operator’s “redirect every” instruction.
+
+### Simplicity
+
+No issues found.
+
+### Acceptance Criteria Quality
+
+[High] “LIVE outbound/hint path” is too ambiguous for autonomous verification. Enumerate exact files and forbidden/required patterns, and specify whether latent TUI update UI files and snapshots are in scope. Also replace the direct `cargo test` ACs with the repo-approved `just test -p ...` commands.
+

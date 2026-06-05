@@ -1,0 +1,66 @@
+**Codebase Architecture**
+
+The target is a Rust 2024 Cargo workspace under `codex/external/repos/codex-patched/codex-rs`, with many crates (`cli`, `tui`, `app-server-daemon`, `install-context`, `core`, etc.) and fork-owned overlay crates wired into the workspace from `codex/codex-rs-overlay`. Build and verification are Cargo-first; static fork invariants live in `codex/scripts/audit_network_calls.sh`, `codex/scripts/audit_invariants.sh`, and `codex/docs/implementation/patch-surface.md`.
+
+The fork has a hard patch discipline in [CLAUDE.md](D:/harness-efforts/codexu/codex/CLAUDE.md:12): prefer overlays, but inline upstream-canonical edits are accepted for network suppression. Those edits need `// SANDBOX PATCH:` markers, patch-surface rows, rebase notes, and audit coverage.
+
+**Feature-Relevant Code**
+
+Live doctor path:
+
+- [cli/src/doctor/updates.rs](D:/harness-efforts/codexu/codex/external/repos/codex-patched/codex-rs/cli/src/doctor/updates.rs:24) defines:
+  - `GITHUB_LATEST_RELEASE_URL = api.github.com/repos/openai/codex/releases/latest`
+  - `HOMEBREW_CASK_API_URL = formulae.brew.sh/api/cask/codex.json`
+  - `updates_check`
+  - `update_action_label`
+  - `fetch_latest_version`
+  - `fetch_latest_github_release_version`
+  - `fetch_homebrew_cask_version`
+  - `http_get_json`, which shells out through `curl`.
+- [cli/src/doctor.rs](D:/harness-efforts/codexu/codex/external/repos/codex-patched/codex-rs/cli/src/doctor.rs:807) has a separate install-check remediation string with `npm install -g @openai/codex`.
+
+Unix daemon self-update path:
+
+- [app-server-daemon/src/update_loop.rs](D:/harness-efforts/codexu/codex/external/repos/codex-patched/codex-rs/app-server-daemon/src/update_loop.rs:91) calls `install_latest_standalone().await?`.
+- [app-server-daemon/src/update_loop.rs](D:/harness-efforts/codexu/codex/external/repos/codex-patched/codex-rs/app-server-daemon/src/update_loop.rs:157) fetches `https://chatgpt.com/codex/install.sh` and pipes it to `/bin/sh`. The whole active loop is `#[cfg(unix)]`; Windows bails at `run()`.
+- [app-server-daemon/src/lib.rs](D:/harness-efforts/codexu/codex/external/repos/codex-patched/codex-rs/app-server-daemon/src/lib.rs:654) prints the same upstream installer command in `ensure_managed_codex_bin`.
+
+TUI update/hint cluster:
+
+- [tui/src/update_action.rs](D:/harness-efforts/codexu/codex/external/repos/codex-patched/codex-rs/tui/src/update_action.rs:10) owns `UpdateAction` and executable update commands. It still returns `@openai/codex`, Homebrew, and `chatgpt.com/codex/install.*`.
+- [cli/src/main.rs](D:/harness-efforts/codexu/codex/external/repos/codex-patched/codex-rs/cli/src/main.rs:705) executes `UpdateAction::command_args()` via `run_update_action`.
+- [tui/src/updates.rs](D:/harness-efforts/codexu/codex/external/repos/codex-patched/codex-rs/tui/src/updates.rs:32) is already no-opped with `get_upgrade_version() -> None`, but dead constants and dead code still reference upstream GitHub, Homebrew, and npm registry.
+- [tui/src/npm_registry.rs](D:/harness-efforts/codexu/codex/external/repos/codex-patched/codex-rs/tui/src/npm_registry.rs:5) uses the upstream npm registry URL.
+- [tui/src/update_versions.rs](D:/harness-efforts/codexu/codex/external/repos/codex-patched/codex-rs/tui/src/update_versions.rs:8) parses `rust-v` tags.
+- [tui/src/history_cell/notices.rs](D:/harness-efforts/codexu/codex/external/repos/codex-patched/codex-rs/tui/src/history_cell/notices.rs:22) and [tui/src/update_prompt.rs](D:/harness-efforts/codexu/codex/external/repos/codex-patched/codex-rs/tui/src/update_prompt.rs:184) render upstream release/install links if update UI is ever re-enabled.
+
+Fork install target docs:
+
+- [docs/workflows/install.md](D:/harness-efforts/codexu/codex/docs/workflows/install.md:18) defines the primary install flow: `gh release download v<VERSION> --repo gim-home/codex --pattern 'codex-*-win32-x64.tgz' ...` then `npm install -g`.
+- [docs/workflows/install.md](D:/harness-efforts/codexu/codex/docs/workflows/install.md:62) defines the GitHub Packages alternative: `npm install -g @gim-home/codex` with registry/auth flags.
+
+**Technical Constraints**
+
+- `gim-home/codex` is internal, so unauthenticated `curl https://api.github.com/repos/gim-home/codex/releases/latest` may return 404. Current doctor `http_get_json` has no auth plumbing, so the plan should accept a warning or add explicit `gh`/token support.
+- Fork tags look like `v0.135.0-copilot-api.1`, not `rust-v...`. Both doctor and TUI tag parsing currently expect `rust-v`.
+- `parse_version` in doctor and TUI only handles plain `major.minor.patch`; the `-copilot-api.N` suffix will make update comparison return `None` unless parsing is extended.
+- `UpdateAction::command_args()` returns static command/args. The primary `gh release download v<VERSION>` flow needs a dynamic version, so it does not fit the existing API without broadening it. The static GitHub Packages command is easier to fit, but needs registry/auth setup.
+- There is no fork Homebrew cask. The Homebrew probe should be removed or converted to a non-network warning, not redirected.
+- TUI update code is release-only via `#![cfg(not(debug_assertions))]`, and snapshots will need updates if visible strings change.
+- Any new inline edits in upstream-canonical files must be marked and registered in patch-surface plus audits.
+
+**Implementation Suggestions**
+
+Use inline `// SANDBOX PATCH:` edits, not a new overlay constants crate. These are network-suppression patches, and an overlay would still require call-site edits while adding dependency conflict surface.
+
+Recommended story split:
+
+1. Doctor updates: patch `cli/src/doctor/updates.rs` to use `https://api.github.com/repos/gim-home/codex/releases/latest`, strip `v`, stop calling Homebrew, and update labels to fork install/update text. Add unit tests for fork tag parsing and labels. Also patch the `cli/src/doctor.rs` remediation string.
+
+2. Unix daemon updater: rewrite `install_latest_standalone()` to early-return `Ok(())` with a marker, removing the remote script execution and now-unused imports. Patch `ensure_managed_codex_bin` to point to the fork install docs/commands.
+
+3. Hint strings and latent TUI: update `tui/src/update_action.rs`, `tui/src/history_cell/notices.rs`, `tui/src/update_prompt.rs`, `tui/src/npm_registry.rs`, `tui/src/updates.rs`, `tui/src/update_versions.rs`, and affected snapshots/tests if the operator confirms literal “EVERY” includes dead update UI.
+
+4. Cross-cutting audit: add new `KNOWN_PATCH_FILES` entries for `cli/src/doctor/updates.rs`, `app-server-daemon/src/update_loop.rs`, `app-server-daemon/src/lib.rs`, and any TUI files touched. Extend `ENDPOINT_PATTERNS` for `chatgpt.com/codex/install`, `@openai/codex`, and Homebrew update references. Add `audit_invariants.sh` exact require/forbid guards for fork URL presence and upstream install URL absence.
+
+Verification: `cargo test -p codex-cli`, `cargo test -p codex-tui`, `cargo test -p codex-app-server-daemon`, `cargo check --workspace`, `bash scripts/audit_network_calls.sh`, and `bash scripts/audit_invariants.sh`.

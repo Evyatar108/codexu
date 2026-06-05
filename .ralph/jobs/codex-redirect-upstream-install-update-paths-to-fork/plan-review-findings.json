@@ -1,0 +1,105 @@
+{
+  "planFile": "D:/harness-efforts/codexu/.ralph/jobs/.staging/20260605T145051Z-plan-redirect-upstream-paths-3f26be49/draft-plan.md",
+  "repoDir": "D:/harness-efforts/codexu/codex",
+  "findings": [
+    {
+      "id": "F-001",
+      "severity": "Critical",
+      "source": "copilot",
+      "category": "Feasibility",
+      "description": "Verification ACs use `cargo test -p ...`, violating external/repos/codex-patched/AGENTS.md which requires `just test -p <crate>` (+ `just fmt`, `just fix -p <project>` after Rust edits). Repo-rule (constraint-anchored Critical).",
+      "status": "resolved",
+      "resolution": "Replaced all `cargo test` ACs with `just test -p <crate>`; added `just fmt` + `just fix -p <project>` to the verify list. Kept `cargo check --workspace` (the documented typecheck gate per codex/CLAUDE.md)."
+    },
+    {
+      "id": "F-002",
+      "severity": "High",
+      "source": "consensus",
+      "category": "Completeness",
+      "description": "US-005 (latent TUI cluster) marked optional contradicts operator's literal 'redirect EVERY'. An autonomous implementer could pick the narrow Scope-A reading. notices.rs + update_prompt.rs render upstream links; npm_registry.rs/update_versions.rs/updates.rs encode upstream package/release assumptions.",
+      "status": "resolved",
+      "resolution": "Reframed US-005 from OPTIONAL to Scope-B RECOMMENDED (per EVERY). The HOLD remains the single gate where the operator may explicitly cut to Scope A. Added an explicit invariant that tui/src/updates.rs::get_upgrade_version must remain a no-op."
+    },
+    {
+      "id": "F-003",
+      "severity": "High",
+      "source": "codex",
+      "category": "Completeness",
+      "description": "Omitted snapshot updates (UpdateAction::command_str() strings asserted in tui/src/history_cell/snapshots/ and the update_prompt snapshot) and app-server-daemon/README.md:39 which still documents `curl -fsSL https://chatgpt.com/codex/install.sh | sh`.",
+      "status": "resolved",
+      "resolution": "Added app-server-daemon/README.md to US-003 scope; added a snapshot-refresh step (`just test -p codex-tui` then `cargo insta accept -p codex-tui`) to US-003/US-005 and to the AC."
+    },
+    {
+      "id": "F-004",
+      "severity": "High",
+      "source": "consensus",
+      "category": "Completeness",
+      "description": "Exact fork install command unresolved; bare `npm install -g @gim-home/codex` won't work for clean users without GitHub Packages registry/token setup, and command_args() is static.",
+      "status": "resolved",
+      "resolution": "Recommendation updated: static hints point at the fork releases/install-docs URL (https://github.com/gim-home/codex/releases) rather than a bare npm command. Still a HOLD decision with a concrete recommended default."
+    },
+    {
+      "id": "F-005",
+      "severity": "High",
+      "source": "consensus",
+      "category": "Criteria Quality",
+      "description": "AC 'no LIVE outbound/hint path in in-scope files' is too narrow/ambiguous for autonomous verification; lets notices.rs/update_prompt.rs/snapshots/README pass.",
+      "status": "resolved",
+      "resolution": "Replaced with an enumerated file set + a targeted grep AC over all install/update surfaces (forbidden patterns scoped to install/update files, with the legit-ref exclusion list). Made the 404 graceful-degradation an explicit AC."
+    },
+    {
+      "id": "F-006",
+      "severity": "High",
+      "source": "consensus",
+      "category": "Ordering",
+      "description": "Plan says ready for /implement-with-ralph but also HOLD pending open questions; implementer could satisfy a narrower interpretation.",
+      "status": "resolved",
+      "resolution": "Next Step made conditional on the operator clearing the HOLD; recommended answers to all Open Questions codified as the default spec so the implementer has a concrete target."
+    },
+    {
+      "id": "F-007",
+      "severity": "Medium",
+      "source": "copilot",
+      "category": "Feasibility",
+      "description": "Adding non-call-site files (doctor.rs, lib.rs, update_action.rs) to audit_network_calls.sh KNOWN_PATCH_FILES makes Phase 2 skip them, hiding future endpoint regressions. Reserve KNOWN_PATCH_FILES for actual outbound call sites.",
+      "status": "resolved",
+      "resolution": "US-004 refined: KNOWN_PATCH_FILES gets ONLY the true outbound call sites (cli/src/doctor/updates.rs, app-server-daemon/src/update_loop.rs). String/functional files (doctor.rs, update_action.rs, lib.rs, TUI cluster) get file-scoped audit_invariants.sh guards + SANDBOX PATCH markers but stay OUT of KNOWN_PATCH_FILES so Phase 2 still scans them."
+    },
+    {
+      "id": "F-008",
+      "severity": "Medium",
+      "source": "codex",
+      "category": "Criteria Quality",
+      "description": "'cargo test -p codex-app-server-daemon (Unix neutralization, where applicable)' is vague; update_loop_tests.rs only tests restart-mode identity logic, not the no-op body.",
+      "status": "resolved",
+      "resolution": "US-002 enforcement is the file-scoped grep guard (forbid chatgpt.com/install.sh in update_loop.rs) + the chatgpt\\.com/codex/install ENDPOINT_PATTERN. A Unix-cfg no-op assertion test is noted optional, not claimed as primary evidence."
+    },
+    {
+      "id": "F-009",
+      "severity": "Medium",
+      "source": "claude",
+      "category": "Completeness",
+      "description": "Guard-design evidence inaccurate: branch_summary.rs/feedback_view.rs contain `openai/codex` (PR/issue URLs), not `@openai/codex`. The @-scoped legit refs are in snapshots + update_action.rs.",
+      "status": "resolved",
+      "resolution": "Corrected the cited evidence and split it: a tree-wide `openai/codex` ban false-positives on PR/issue/git-remote refs (branch_summary.rs, feedback_view.rs, git-utils, model-provider-info, etc.); a tree-wide `@openai/codex` ban false-positives on snapshots + update_action.rs. Guards stay file-scoped for both."
+    },
+    {
+      "id": "F-010",
+      "severity": "Medium",
+      "source": "claude",
+      "category": "Ordering",
+      "description": "'Single serial ship' overstated; US-001/002/003 touch disjoint Rust files and don't depend on each other.",
+      "status": "resolved",
+      "resolution": "Clarified: the Rust files ARE disjoint (parallel is technically possible), but serial single-member is RECOMMENDED because the change is small, the audit is only green as an atomic set (no partial-ship benefit), and the fork's parallel-impl path has known crews-instability. Not claiming the Rust files conflict."
+    },
+    {
+      "id": "F-011",
+      "severity": "Medium",
+      "source": "consensus",
+      "category": "Feasibility",
+      "description": "doctor redirect to internal gim-home/codex releases API: unauthenticated curl 404 → warning row, not green status. Should be an explicit acceptance condition.",
+      "status": "resolved",
+      "resolution": "Added explicit AC: the doctor 'updates' row degrades to a Warning (not Fail) on the internal-repo 404, and this is accepted behavior; the upstream egress is what must be eliminated."
+    }
+  ]
+}

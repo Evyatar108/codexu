@@ -1,0 +1,26 @@
+{
+  "clusters": [
+    {
+      "name": "redirect-upstream-paths",
+      "stories": ["US-001", "US-002", "US-003", "US-004"],
+      "phase": 1,
+      "dependsOn": [],
+      "fileOverlapEvidence": {
+        "sharedFiles": [
+          "docs/implementation/patch-surface.md",
+          "scripts/audit_network_calls.sh",
+          "scripts/audit_invariants.sh"
+        ],
+        "exclusiveFiles": [
+          "external/repos/codex-patched/codex-rs/cli/src/doctor/updates.rs",
+          "external/repos/codex-patched/codex-rs/cli/src/doctor.rs",
+          "external/repos/codex-patched/codex-rs/app-server-daemon/src/update_loop.rs",
+          "external/repos/codex-patched/codex-rs/app-server-daemon/src/lib.rs",
+          "external/repos/codex-patched/codex-rs/tui/src/update_action.rs"
+        ],
+        "risk": "medium"
+      },
+      "executionModeRationale": "Serial, single impl member. Although the per-story Rust files are disjoint (cli/, app-server-daemon/, tui/), the cross-cutting registration story US-004 edits patch-surface.md + both audit scripts and depends on the SANDBOX PATCH markers and invariant tests added by US-001-003. The two audit scripts are only green when every marker + KNOWN_PATCH_FILES entry + ENDPOINT_PATTERNS + guard lands together, so splitting risks a red-audit intermediate state. US-005 is an optional Scope-B story gated on operator decision at the HOLD."
+    }
+  ]
+}
