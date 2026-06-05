@@ -49,6 +49,27 @@
   "generatedFromCommit": "32fdb9de",
   "tasks": [
     {
+      "id": "crews-codex-member-spawn-does-not-start-session",
+      "scope": "crews",
+      "lifecycle": "tracked",
+      "status": "warn",
+      "lastTouchedAt": "2026-06-05T21:32:00Z",
+      "kanbanCards": [
+        {
+          "className": "cmd-warn",
+          "html": "<strong>Filed 2026-06-05 (live smoke FAILED).</strong> Spawning a crews member with <code>--engine codex</code> does NOT start a working codex agent session on this box. crews v3.6.2 IS installed+enabled in codex (so not a plugin-missing issue), and the node-side spawn created the manifest + wt tab, but: <code>inner.pid = {pid:0, name:null}</code> (capture for codex-core.exe failed), the launcher pwsh (377692) exited immediately, NO codex/codex-core process ever ran, NO ~/.codex/sessions dir created, manifest stayed <code>sessionId:null</code> after 90s, empty outbox — the codex SessionStart hook never fired and no report was delivered. This is the deferred CREWS_CODEX_LIVE smoke from the v3.6.0 ship; unit tests pass but the LIVE spawn path is broken. Suspect: the codex launcher (codex.exe→codex-core.exe) needs interactive first-run (shell prompt / <code>codex login --provider copilot</code>) the member launch can't satisfy, OR the crews codex launcher invocation isn't a valid non-interactive agent start. <strong>Copilot/Claude members work; codex members are NOT usable until this is fixed.</strong> HOLD for operator."
+        }
+      ],
+      "command": {
+        "name": "crews-codex-member-spawn-does-not-start-session",
+        "descriptionHtml": "crews --engine codex member spawn launches a wt tab but codex never starts an agent session (inner-pid pid:0, no session, no SessionStart, no report). Deferred v3.6.0 live smoke now failed.",
+        "warnings": [],
+        "prompts": {
+          "brainstorm": "/multi-model-investigate \"Why does spawning a crews MEMBER with --engine codex fail to start a working codex agent session on this Windows box? Live smoke 2026-06-05 (crews v3.6.2 installed + enabled in codex via local-source marketplace): node-side spawn-member --engine codex created the member manifest + launched a wt tab, but the codex agent session NEVER came up. Evidence: (1) inner.pid = {pid:0, name:null} — the WMI inner-PID capture (engineBinary 'codex-core.exe') found a candidate (poll-match count:1) but resolved innerPid:0/innerName:null; (2) the launcher pwsh PID (377692) exited immediately and was force-killed on stop (refusedReason 'inner-pid-missing', innerCli null); (3) NO codex.exe / codex-core.exe process was ever running (checked at +12s, +70s, +90s); (4) NO codex session dir created under ~/.codex/sessions in the window; (5) the member manifest stayed sessionId:null / lastTurnAt:null after 90s — the codex SessionStart hook never fired/stamped; (6) empty outbox, no kind=done report delivered. So codex starts (or is invoked) but exits before becoming an agent session. This is the deferred CREWS_CODEX_LIVE smoke from the v3.6.0 ship — it reveals the live spawn path is broken even though v3.6.0 unit tests pass.\n\nINVESTIGATE: (1) the crews codex-engine launcher — hooks/actors.js buildLauncherCommand codex branch — capture the EXACT command it runs to launch a codex member (binary, args, how the initial prompt is passed, env). (2) Whether the codex launcher (codex.exe -> codex-core.exe) requires interactive first-run (shell prompt, ~/.codex-copilot/config.toml, codex login --provider copilot) that a non-interactive member launch can't satisfy, causing immediate exit. (3) Whether codex needs an explicit non-interactive/agent invocation (e.g. codex exec, or a TUI-with-prompt flag) that the launcher isn't using — vs how Copilot/Claude members are launched. (4) The inner-PID capture for codex-core.exe (why pid:0 — process exited before capture, or name-match miss). (5) Reproduce by running the captured launcher command manually in a terminal and observing codex's actual output/exit. RECOMMEND a fix to the crews codex launcher (or document the required codex first-run prereqs a codex member needs). Cross-ref the v3.6.0 probe reports at .ralph/jobs/crews-codex-engine-support/probe-reports/. Note: crews v3.6.2 IS installed+enabled in codex (cache ~/.codex/plugins/cache/ai-developer-toolkit/crews/3.6.2) so the plugin-not-installed cause is ruled out.\n\nOUTPUT: findings report at .ralph/investigations/crews-codex-member-spawn-does-not-start-session/findings.md with the captured launcher command, the root cause, and a recommended fix. HOLD for operator.\""
+        }
+      }
+    },
+    {
       "id": "codex-git-marketplace-snapshot-tmp-ephemeral",
       "scope": "codex",
       "lifecycle": "tracked",
