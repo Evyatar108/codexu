@@ -1,0 +1,45 @@
+I’ll read the provided prompt file and then carry out the requested work.
+
+Direction 1 — **Producer release gate first**
+
+**Why it might work:** The bug originated in `ai-developer-toolkit`, and that repo owns the marketplace indexes. A release/CI validation guard prevents invalid enum values before any Codex user sees them.
+
+**Risks/friction:** Only protects marketplaces we control. Third-party marketplace authors can still trigger Codex’s all-or-nothing parse failure.
+
+**Cheapest validation:** Add a fixture with `policy.authentication: "OFF"` and prove the toolkit release/check command fails before publish.
+
+**Disconfirming observation:** If invalid marketplace JSON can still ship via a bypass path not covered by release/CI/pre-commit, this is insufficient.
+
+**Conflict surface:** **ZERO** — no Codex fork edit.  
+**Rebase-cost note:** No `/rebase-upstream` ceremony; all cost stays in toolkit-owned validation.
+
+---
+
+Direction 2 — **Layered strategy: guard now, upstream Codex partial-parse proposal**
+
+**Why it might work:** Product-wise, the producer should stop bad data, but the consumer should not lose 13 valid plugins because 1 entry is malformed. Propose upstream Codex change C: parse entries independently, skip bad entries, warn with the serde detail.
+
+**Risks/friction:** Upstream may reject tolerant parsing for policy/security reasons, or require a broader schema/error model. Carrying this locally before upstream accepts it creates fork maintenance cost.
+
+**Cheapest validation:** Draft a minimal upstream issue/PR with one failing test: manifest has one bad auth value plus one valid plugin; expected result is valid plugin loads and bad plugin is warned/skipped.
+
+**Disconfirming observation:** If upstream maintainers state marketplace manifests must be all-or-nothing for trust/security guarantees, partial-parse is the wrong consumer behavior.
+
+**Conflict surface:** **ZERO if pursued upstream-only; INLINE if carried in the fork before merge.**  
+**Rebase-cost note:** Best path avoids fork rebase cost; local carry would require the full SANDBOX PATCH ceremony.
+
+---
+
+Direction 3 — **Diagnosis UX patch only if incidents recur**
+
+**Why it might work:** The TUI hid the exact serde error even though the background request had it. Surfacing the detail would have reduced debugging time immediately, even without changing parser behavior.
+
+**Risks/friction:** Does not improve robustness; users still cannot add a marketplace with one bad entry. Also touches upstream-canonical TUI code for a diagnosis-only win.
+
+**Cheapest validation:** Reproduce with the bad manifest and confirm the TUI renders `unknown variant OFF, expected ON_INSTALL/ON_USE` instead of only “Failed to add marketplace.”
+
+**Disconfirming observation:** If CLI logs are already visible enough in the real operator flow, the TUI patch may not justify ongoing fork ceremony.
+
+**Conflict surface:** **INLINE** — TUI render seam is upstream-canonical.  
+**Rebase-cost note:** Perpetual rebase friction for a UX-only improvement; better upstreamed than fork-carried.
+

@@ -1,0 +1,87 @@
+**Direction 1: Producer-Side Marketplace Schema Gate**
+
+Conflict-surface tier: **ZERO**  
+Rebase-cost note: No codex fork patch, so no `/rebase-upstream` ceremony.
+
+Why it might work:  
+Validate `.agents/plugins/marketplace.json` before release against codex’s accepted Rust enum values: `installation in {NOT_AVAILABLE, AVAILABLE, INSTALLED_BY_DEFAULT}` and `authentication in {ON_INSTALL, ON_USE}`. This directly prevents the known failure mode without touching upstream-canonical codex code.
+
+Risks/friction:  
+It only protects marketplaces we own. A third-party codex marketplace can still contain one malformed entry and trigger all-or-nothing parsing.
+
+Cheapest validation:  
+Add a small toolkit test/script that loads every marketplace index and asserts codex-specific policy values. Feed it the historical bad value `"OFF"` and verify it fails with the plugin name/path.
+
+Disconfirming observation:  
+If codex users commonly add third-party marketplaces, this does not solve the product robustness issue, only our release hygiene.
+
+---
+
+**Direction 2: Upstreamable Partial Parse In `load_raw_marketplace_manifest`**
+
+Conflict-surface tier: **INLINE**  
+Rebase-cost note: If carried only in the fork, this is a perpetual SANDBOX PATCH site; best path is proposing it upstream.
+
+Why it might work:  
+Replace the single:
+
+```rust
+serde_json::from_str::<RawMarketplaceManifest>(&contents)
+```
+
+with a two-stage parse:
+
+```rust
+serde_json::from_str::<serde_json::Value>(&contents)
+```
+
+then deserialize top-level `name` / `interface`, keep `plugins` as `Vec<serde_json::Value>`, and loop:
+
+```rust
+serde_json::from_value::<RawMarketplaceManifestPlugin>(plugin_value)
+```
+
+Bad plugin entries get `warn!(...)` and are skipped; valid entries survive. This aligns with the existing later skip-and-warn behavior in `load_marketplace`.
+
+Risks/friction:  
+It touches an upstream function body and must preserve existing error behavior for malformed top-level manifests. Care is needed to include enough context in warnings: marketplace path, plugin index, maybe plugin name if recoverable.
+
+Cheapest validation:  
+Add a fixture marketplace with 3 plugins: valid, bad `policy.authentication: "OFF"`, valid. Assert `load_marketplace` returns the 2 valid plugins and logs/skips the bad one. Also assert malformed top-level JSON still returns `InvalidMarketplaceFile`.
+
+Disconfirming observation:  
+If downstream code assumes manifest parsing is atomic and any malformed plugin should reject the whole marketplace for trust/security reasons, partial parsing is the wrong semantic move. I do not see that assumption in the cited code because later plugin resolution already skips bad entries.
+
+---
+
+**Direction 3: Avoid Tolerant Auth Enum As The Fork Patch**
+
+Conflict-surface tier: **INLINE**  
+Rebase-cost note: Small diff, but high semantic ownership cost because it changes how malformed security-relevant policy data is interpreted forever.
+
+Why it might work:  
+`#[serde(other)]` is mechanically possible only if the enum has a unit catch-all variant, e.g.:
+
+```rust
+enum MarketplacePluginAuthPolicy {
+    #[serde(rename = "ON_INSTALL")]
+    OnInstall,
+    #[serde(rename = "ON_USE")]
+    OnUse,
+    #[serde(other)]
+    Unknown,
+}
+```
+
+But then the `From<MarketplacePluginAuthPolicy>` impl must decide what `Unknown` means. Mapping unknown auth to `OnInstall` or `OnUse` avoids parse failure, but silently accepts invalid policy data.
+
+Risks/friction:  
+This is the riskiest Rust-level fix. `authentication` is security-adjacent behavior. A bad value like `"OFF"` becoming “default auth policy” is less fail-safe than dropping that plugin. It also requires enum-body edits plus exhaustive match edits in upstream-canonical code.
+
+Cheapest validation:  
+Prototype the enum catch-all and verify `"OFF"` parses. Then inspect resulting protocol policy. If the only available mappings are silent defaults, reject this direction in favor of partial parse.
+
+Disconfirming observation:  
+If product requirements explicitly say unknown policy values must preserve marketplace availability and must not drop plugins, tolerant enum parsing becomes more attractive. Short of that, it is weaker than per-entry skip-and-warn.
+
+My Rust-maintainer read: carry **Direction 1** immediately in toolkit, and if codex-side hardening is desired, pursue **Direction 2 upstream** rather than as a fork-local patch. Direction 3 is mechanically easy but semantically worse.

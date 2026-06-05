@@ -1,0 +1,41 @@
+{
+  "lens": "devils-advocate",
+  "problem_framing": "This is less a generic codex parser-resilience problem than a boundary-management problem: our producer emitted invalid marketplace metadata, codex failed loudly in the CLI but opaquely in the TUI, and all-or-nothing parsing may be an intentional schema-integrity stance for security-adjacent fields. The fork should not casually buy a permanent SANDBOX-PATCH rebase obligation to paper over a data-validation defect we control; codex-side hardening only becomes compelling if we are explicitly optimizing for third-party marketplace UX and can upstream it canonically.",
+  "directions": [
+    {
+      "name": "Toolkit release/CI schema guard as the primary fix",
+      "why_it_might_work": "It fixes the observed root cause before any user installs a bad index, covers all toolkit-owned marketplaces, and costs zero codex overlay/rebase surface. It also preserves codex's fail-fast semantics for security-relevant policy data instead of normalizing malformed producer output at runtime.",
+      "risks_friction": "It only protects marketplaces we own; third-party indexes can still fail all-or-nothing. It also relies on the guard being wired into every release path, not just an optional local check, or the same class of defect can recur through an unguarded publishing lane.",
+      "cheapest_validation": "Add one deliberately invalid `.agents/plugins/marketplace.json` fixture or temporary mutation in ai-developer-toolkit and prove the release/test command fails before packaging, with an error naming plugin id, field path, bad value, and accepted values.",
+      "disconfirming_observation": "If codex users commonly install external marketplaces outside our control and hit malformed single-entry failures, a producer-only guard will not address the broader user pain.",
+      "conflict_surface_tier": "ZERO",
+      "rebase_cost_note": "No codex patch, no SANDBOX-PATCH marker, no patch-surface row, and no replant burden during `/rebase-upstream`."
+    },
+    {
+      "name": "Upstream-first codex partial parse, not fork-local tolerant enum",
+      "why_it_might_work": "Skipping only invalid entries matches codex's existing post-parse skip-and-warn precedent while preserving fail-closed behavior for the bad plugin itself. If accepted upstream, the fork gets robustness with no long-term conflict surface and avoids silently mapping unknown authentication policy values to a default.",
+      "risks_friction": "A fork-local implementation is still INLINE because the Raw structs and parse function live in upstream-canonical code. Per-entry deserialization can also create ambiguous UX if warnings remain invisible: users may see a marketplace install succeed but a plugin silently missing. Upstream may reject partial parsing if they consider marketplace manifests atomic trust/config documents.",
+      "cheapest_validation": "Open a minimal upstream-oriented patch or issue with a manifest containing 1 bad authentication value plus 1 valid plugin, and ask whether the intended behavior is atomic rejection or best-effort plugin loading; locally, a tiny test can assert the valid plugin survives and the bad plugin is named in diagnostics.",
+      "disconfirming_observation": "If maintainers say the marketplace file is intentionally atomic because policy schema drift must fail the whole source, partial parse becomes a fork-only semantic divergence with permanent ceremony.",
+      "conflict_surface_tier": "INLINE",
+      "rebase_cost_note": "Worth doing only if upstream accepts it; fork-local means full SANDBOX-PATCH ceremony and replant review on every upstream rebase."
+    },
+    {
+      "name": "TUI error-detail surfacing as a narrow diagnostic fix",
+      "why_it_might_work": "It attacks the user-confusing part of the incident without changing parser semantics: the detailed serde error already exists in the background request message, but the render path drops it. Showing the detail would have made the producer defect obvious and avoids security-risky tolerance of unknown policy values.",
+      "risks_friction": "It does not make marketplace loading robust; all valid sibling plugins remain unavailable until the bad entry is fixed. It is still an upstream-canonical TUI edit, may need careful UX/i18n treatment, and can leak overly technical serde paths unless formatted thoughtfully.",
+      "cheapest_validation": "Inject the known `authentication: OFF` manifest and confirm the TUI renders the specific unknown-variant detail instead of only `Failed to add marketplace.`; no core parser changes required.",
+      "disconfirming_observation": "If the CLI-visible precise error was already sufficient for the operator workflow, improving TUI diagnostics alone may not justify carrying an inline TUI patch in the fork.",
+      "conflict_surface_tier": "INLINE",
+      "rebase_cost_note": "Small patch but still upstream-canonical TUI surface, so fork-local carry requires the same SANDBOX-PATCH/rebase bookkeeping unless upstreamed."
+    }
+  ],
+  "red_flag": true,
+  "disconfirming_observation": "The strongest evidence against the tempting codex-side hardening path is that the actual bad value came from our own toolkit marketplace and was already fixed at the data layer; a zero-conflict producer guard prevents recurrence, while any fork-local codex change creates permanent upstream-rebase ceremony for a problem upstream should own if generalized.",
+  "questions_for_synthesis": [
+    "Is the product goal to protect only our ai-developer-toolkit marketplace, or to improve codex for arbitrary third-party marketplaces?",
+    "Should unknown `authentication` values be treated as security-sensitive schema errors rather than defaultable/tolerable data?",
+    "If partial-parse is pursued, must skipped plugin names and exact reasons be visible in the TUI, not just warn logs?",
+    "Are we willing to file an upstream codex issue/PR and wait, instead of carrying any fork-local INLINE marketplace patch?"
+  ]
+}

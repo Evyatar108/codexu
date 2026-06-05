@@ -1,0 +1,50 @@
+{
+  "brainstormName": "codex-marketplace-parse-robustness",
+  "overviewTaskId": "codex-marketplace-parse-robustness",
+  "idea": "Make codex's marketplace-index parsing more robust to a single bad plugin entry (the 2026-06-05 policy.authentication:'OFF' incident that aborted the whole index parse) WITHOUT a high upstream-canonical conflict surface, per the codex fork's overlay-first core tenet.",
+  "availableLenses": ["codex", "copilot", "devils-advocate"],
+  "missingLenses": [],
+  "candidateDirections": [
+    {
+      "id": "D-001",
+      "name": "Toolkit-side pre-release / CI / pre-commit schema guard",
+      "summary": "Validate every authentication+installation value across all three marketplace indexes against codex's accepted enum set before publish; ZERO codex conflict surface; fixes the actual root cause (our own bad data).",
+      "contributingLenses": ["codex", "copilot", "devils-advocate"],
+      "conflictSurfaceTier": "ZERO",
+      "rebaseCostNote": "No codex patch, no SANDBOX-PATCH ceremony; all cost stays in toolkit-owned validation."
+    },
+    {
+      "id": "D-002",
+      "name": "Upstream-first codex partial-parse (skip-and-warn bad entries)",
+      "summary": "Two-stage rewrite of load_raw_marketplace_manifest: parse plugins as Vec<JsonValue> then from_value per-entry with warn-and-skip, so valid plugins survive; extends an existing skip-and-warn precedent. Pursue UPSTREAM (zero fork cost) rather than as a fork patch (INLINE).",
+      "contributingLenses": ["codex", "copilot", "devils-advocate"],
+      "conflictSurfaceTier": "ZERO-if-upstream / INLINE-if-fork",
+      "rebaseCostNote": "Upstream-only avoids fork rebase cost; fork-local carry is a perpetual SANDBOX PATCH site on a function upstream may refactor."
+    },
+    {
+      "id": "D-003",
+      "name": "TUI add-error detail surfacing (diagnosis-only)",
+      "summary": "Thread the already-available serde error into marketplace_add_error_popup_params, mirroring the sibling marketplace_load_error_popup_params which already renders err.to_string(). Fixes the masking bug but not robustness; better upstreamed.",
+      "contributingLenses": ["copilot", "devils-advocate"],
+      "conflictSurfaceTier": "INLINE",
+      "rebaseCostNote": "Small upstream-canonical TUI edit in a high-churn area; perpetual rebase friction for a UX-only win unless upstreamed."
+    },
+    {
+      "id": "D-004",
+      "name": "Tolerant enum via #[serde(other)] -> safe default (NOT recommended)",
+      "summary": "Mechanically feasible catch-all variant on the two policy enums, but silently accepts a malformed security-relevant authentication value instead of failing safe; strictly weaker than D-002.",
+      "contributingLenses": ["codex"],
+      "conflictSurfaceTier": "INLINE",
+      "rebaseCostNote": "Small diff but high semantic ownership cost; edits 2 upstream enums + their exhaustive From impls, forever."
+    }
+  ],
+  "recommendedDirection": "D-001",
+  "questionsForSynthesis": [
+    "Scope: protect only our marketplace, or arbitrary third-party marketplaces a codex user adds? (If only ours, D-001 alone suffices.)",
+    "Should unknown authentication values always fail closed (drop the plugin) rather than be silently defaulted? (Favors D-002 over D-004.)",
+    "Must a skipped/dropped plugin be VISIBLE in the TUI, not just warn! to tracing? (Couples D-002 with D-003.)",
+    "Are we willing to upstream the codex-side change instead of carrying it as a fork patch?"
+  ],
+  "hold": true,
+  "holdReason": "Autonomous brainstorm; HOLD for operator review before any plan/impl. 3-lens + Devil's-Advocate consensus (red_flag=true) that fork-local codex hardening is net-negative vs the toolkit guard; codex robustness work is worth doing only as an upstream contribution."
+}
