@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { mkdirSync, mkdtempSync, rmSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -119,6 +119,32 @@ describe('handleCodexCommand', () => {
     const homeDir = join(tempRoot, 'home')
     mkdirSync(homeDir, { recursive: true })
     return homeDir
+  }
+
+  function writePostMortemSidecar(homeDir: string): void {
+    const sidecarDir = join(homeDir, 'codex-daemons')
+    const startedAtMs = Date.UTC(2026, 5, 5, 0, 0, 0)
+    mkdirSync(sidecarDir, { recursive: true })
+    writeFileSync(join(sidecarDir, 'lifecycle.jsonl'), `${JSON.stringify({
+      event: 'codex.daemon.spawn',
+      pid: 7777,
+      started_at_ms: startedAtMs,
+      cwd: '/tmp/post-mortem-command-fixture',
+      endpoint: 'ws://127.0.0.1:4321',
+      cold_start_ms: 12,
+    })}\n${JSON.stringify({
+      event: 'codex.daemon.exit',
+      pid: 7777,
+      started_at_ms: startedAtMs,
+      cwd: '/tmp/post-mortem-command-fixture',
+      exited_at_ms: startedAtMs + 60_000,
+      exit_code: 0,
+      exit_signal: null,
+      exit_reason: 'killed',
+      uptime_ms: 60_000,
+      rss_kb_at_exit: 12345,
+      last_client_disconnect_age_ms: null,
+    })}\n`)
   }
 
   it('ensures the daemon is running before starting a codex session', async () => {
@@ -248,6 +274,33 @@ describe('handleCodexCommand', () => {
     await handleCodexCommand(['status', '--some-unknown-flag'])
 
     expect(process.exitCode).toBe(2)
+    expect(mocks.mockAuthAndSetupMachineIfNeeded).not.toHaveBeenCalled()
+    expect(mocks.mockEnsureDaemonRunning).not.toHaveBeenCalled()
+    expect(mocks.mockRunCodex).not.toHaveBeenCalled()
+    expect(mocks.mockExtractNoSandboxFlag).not.toHaveBeenCalled()
+  })
+
+  it('routes status to the same doctor behavior and exit code for an identical fixture', async () => {
+    const homeDir = tempHome()
+    writePostMortemSidecar(homeDir)
+
+    const doctorCommand = await importCommand(homeDir)
+    await doctorCommand.handleCodexCommand(['doctor'])
+    const doctorExitCode = process.exitCode
+    const doctorOutput = logSpy.mock.calls.map((call) => call.join(' ')).join('\n')
+
+    process.exitCode = undefined
+    vi.clearAllMocks()
+    logSpy.mockClear()
+
+    const statusCommand = await importCommand(homeDir)
+    await statusCommand.handleCodexCommand(['status'])
+    const statusOutput = logSpy.mock.calls.map((call) => call.join(' ')).join('\n')
+
+    expect(statusOutput).toBe(doctorOutput)
+    expect(process.exitCode).toBe(doctorExitCode)
+    expect(process.exitCode).toBe(1)
+    expect(statusOutput).toContain('post-mortem')
     expect(mocks.mockAuthAndSetupMachineIfNeeded).not.toHaveBeenCalled()
     expect(mocks.mockEnsureDaemonRunning).not.toHaveBeenCalled()
     expect(mocks.mockRunCodex).not.toHaveBeenCalled()
