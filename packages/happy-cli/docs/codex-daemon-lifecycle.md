@@ -84,11 +84,19 @@ spawn, reattach, disconnect, and exit. There is no `health` event.
 The sidecar is append-only. `appendEvent()` validates the event, creates the
 parent directory, and performs one append write with
 `writeFileSync(path, JSON.stringify(parsed) + '\n', { flag: 'a' })`
-(`src/codex/codexDaemonLifecycle.ts:71-76`). Readers use
-`instanceKey({ pid, startedAt })`, rendered as `<pid>:<startedAt>`, as the
-daemon instance key (`src/codex/codexDaemonLifecycle.ts:63-65`). `readEvents()`
-parses line by line and tolerates one torn final line by dropping only that
-last unparseable line (`src/codex/codexDaemonLifecycle.ts:78-101`).
+(`src/codex/codexDaemonLifecycle.ts:71-76`). Readers use the tuple
+`(pid, started_at_ms)`, rendered as `<pid>:<started_at_ms>`, as the daemon
+instance key. `started_at_ms` is always derived from the discovery record's ISO
+`startedAt` with `new Date(record.startedAt).getTime()`: spawn telemetry uses
+the just-written `spawnedDiscoveryRecord.startedAt`, and every later event uses
+the current discovery `record.startedAt`. That keeps discovery rows and sidecar
+events joinable on the exact same instance key.
+
+`readEvents()` parses line by line and tolerates one torn final line by dropping
+only that last unparseable line (`src/codex/codexDaemonLifecycle.ts:78-101`).
+When rotation has occurred, it reads `lifecycle.jsonl.1` first and then the
+current `lifecycle.jsonl`, returning events in chronological order. Doctor and
+status therefore still see events emitted immediately before rotation.
 
 Rotation is single-tier. `rotateIfNeeded()` renames `lifecycle.jsonl` to
 `lifecycle.jsonl.1` after the current file exceeds 5 MB, deleting any existing
@@ -155,10 +163,15 @@ go through `emitCodexDaemonExitEvent()`, which returns immediately when
 (`src/codex/codexAppServerClient.ts:746-786`).
 
 Synthetic exit events are emitted at intentional-kill decision time before the
-kill. They use `exit_code: null` and refresh RSS with a final best-effort
-sample (`src/codex/codexAppServerClient.ts:788-799`). Callers include attached
-termination, spawned-child termination, session mismatch, version mismatch,
-and force-restart paths.
+kill, but only when an intentional path has explicitly set `terminationReason`.
+They use `exit_code: null` and currently write `rss_kb_at_exit: null`
+(`src/codex/codexAppServerClient.ts:788-799`). Synthetic `killed` exits are
+therefore limited to paths that seed `terminationReason = 'killed'`, such as
+`terminateAppServer` cleanup from `disconnectInternal()`, force restart,
+version mismatch, and spawn cleanup. Session mismatch sets its own explicit
+reason. An unsolicited WebSocket close does not synthesize `killed`; if the
+child process is still observable, the real `child.once('exit')` handler
+classifies it.
 
 Observable exit events come from the extended child handler
 `child.once('exit', (code, signal) => ...)`, which captures `lastExitCode` and
@@ -177,7 +190,7 @@ from discovery plus sidecar state.
 | `exit_reason` | Classified reason, described below. |
 | `termination_reason_detail` | Optional detail, currently used for `version_mismatch`. |
 | `uptime_ms` | Nonnegative ms from `started_at_ms` to `exited_at_ms`, or `null` when unavailable. |
-| `rss_kb_at_exit` | Last opportunistic RSS sample in KB, or `null` when no sample exists. |
+| `rss_kb_at_exit` | Reserved for future platform-aware RSS sampling; currently `null`. |
 | `last_client_disconnect_age_ms` | Ms since this client instance's previous disconnect, or `null`. |
 
 Exit reasons:
@@ -189,18 +202,23 @@ Exit reasons:
 | `crashed` | Observable child exit with a nonzero exit code and no intentional reason. |
 | `unknown` | Observable child exit with no intentional reason and no useful code. |
 
-RSS sampling is opportunistic only: once after connect/reattach initialize,
-once at disconnect start, and once at intentional-kill synthetic exit. There
-is no background timer.
+RSS sampling is reserved for future platform-aware implementation. Live rows
+and exit events intentionally render RSS as blank/null today because the
+available `ps-list` field is `%mem` rather than RSS-KB and is not supported on
+Windows. There is no background RSS timer.
 
 ## Doctor States
 
 `happy codex doctor` and `happy codex status` dispatch before auth, daemon
 startup, or Codex flag parsing (`src/commands/codexCommand.ts:16-20`). Doctor
 enumerates discovery records with `enumerateDiscoveryRecords()`, reads sidecar
-events with `readEvents()`, groups events by `instanceKey({ pid, startedAt })`,
-and builds the union of discovery and sidecar instance keys
-(`src/codex/codexDaemonDoctor.ts:248-301`).
+events with `readEvents()`, groups events by the `(pid, started_at_ms)` instance
+key, and builds the union of discovery and sidecar instance keys
+(`src/codex/codexDaemonDoctor.ts:248-301`). `started_at_ms` is derived with
+`new Date(record.startedAt).getTime()` on both sides of the join: spawn events
+use the newly written `spawnedDiscoveryRecord.startedAt`, while subsequent
+events and discovery rows use `record.startedAt` from the same persisted
+instance record.
 
 Instances with discovery records are probed concurrently through
 `Promise.all`. Each probe checks `isPidAlive(pid)` and attempts a WebSocket
@@ -217,12 +235,16 @@ Doctor states:
 | `stale-pid-gone` | Has discovery record and PID is not alive. |
 | `stale-unreachable` | Has discovery record, PID is alive, and WS initialize failed or timed out. |
 | `post-mortem` | Has no discovery record and has sidecar events for the instance. |
+| `unparsable` | Discovery file was present but could not be read, parsed, or schema-validated; enumeration returned `record: null` with a parse error, so doctor renders a red diagnostic row and does not probe it. |
 
 Doctor is read-only. It does not rotate, prune, kill, restart, remove, or
 delete daemons. It renders a table with state, PID, endpoint, cwd, age, RSS,
 last-health, last-disconnect, exit reason, and version
-(`src/codex/codexDaemonDoctor.ts:138-161`). The summary line is
-`N live, M stale, P post-mortem` plus the stdio disclaimer
+(`src/codex/codexDaemonDoctor.ts:138-161`). The RSS column is blank by design
+today: live rows use `rss: null`, exit events persist `rss_kb_at_exit: null`,
+and the column is reserved for future platform-aware RSS sampling rather than
+misreporting `%mem` as RSS-KB. The summary line is
+`N live, M stale, P post-mortem, U unparsable` plus the stdio disclaimer
 (`src/codex/codexDaemonDoctor.ts:296-300`).
 
 ## Exit-Code Matrix
