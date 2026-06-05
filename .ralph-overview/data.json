@@ -49,6 +49,27 @@
   "generatedFromCommit": "32fdb9de",
   "tasks": [
     {
+      "id": "codex-git-marketplace-snapshot-tmp-ephemeral",
+      "scope": "codex",
+      "lifecycle": "tracked",
+      "status": "warn",
+      "lastTouchedAt": "2026-06-05T21:15:00Z",
+      "kanbanCards": [
+        {
+          "className": "cmd-warn",
+          "html": "<strong>Filed 2026-06-05 (discovered installing crews into codex).</strong> codex cannot install a plugin from a GIT-sourced marketplace: <code>marketplace add/upgrade</code> reports success + correct <code>last_revision</code> and momentarily materializes a valid checkout (33 items incl. <code>.agents/plugins/marketplace.json</code>) under an EPHEMERAL <code>~/.codex/.tmp/marketplaces/&lt;name&gt;</code> path, but that dir does NOT persist across codex invocations, so a later <code>plugin list/add</code> fails with <strong>\"marketplace root does not contain a supported manifest\"</strong>. Today's OFF→ON_INSTALL fix resolved the PARSE error; this is a SECOND, distinct blocker (snapshot persistence). <strong>CONFIRMED WORKAROUND (applied):</strong> register the marketplace as a LOCAL source — <code>codex plugin marketplace add D:\\harness-efforts\\codexu\\ai-developer-toolkit</code> reads the dir directly (no .tmp), and <strong>crews@ai-developer-toolkit v3.6.2 is now installed + enabled in codex</strong>. Investigate the codex git-marketplace materialization (why .tmp not a durable cache) for a real fix. HOLD for operator."
+        }
+      ],
+      "command": {
+        "name": "codex-git-marketplace-snapshot-tmp-ephemeral",
+        "descriptionHtml": "codex git-sourced marketplace snapshots are materialized under an ephemeral .tmp path that does not survive between invocations, blocking plugin install; local-source workaround confirmed.",
+        "warnings": [],
+        "prompts": {
+          "brainstorm": "/multi-model-investigate \"Why does codex (gim-home/codex fork, 0.135.0-copilot-api.1) fail to install a plugin from a GIT-sourced marketplace with 'marketplace root does not contain a supported manifest', even though the marketplace upgrade reports success and (momentarily) materializes a valid checkout? Evidence (gathered 2026-06-05): codex plugin marketplace add/upgrade for source=https://github.com/gim-home/ai-developer-toolkit.git records correct metadata in ~/.codex/config.toml ([marketplaces.ai-developer-toolkit] last_revision=fe1a30bf..., source_type=git) and prints 'Installed marketplace root: C:\\\\Users\\\\evmitran\\\\.codex\\\\.tmp\\\\marketplaces\\\\ai-developer-toolkit'. IMMEDIATELY after upgrade (same process) that dir EXISTS with 33 items incl. .agents/plugins/marketplace.json (the supported manifest — present and valid after today's OFF->ON_INSTALL fix). But in a SEPARATE later codex process, codex plugin list / add fail with 'marketplace root does not contain a supported manifest' pointing at the SAME .tmp path, and the dir is then found empty/gone. So the git-marketplace snapshot is materialized under an EPHEMERAL .tmp path that does not persist across codex invocations, making git-sourced plugin install impossible. CONFIRMED WORKAROUND: registering the marketplace as a LOCAL source (codex plugin marketplace add <abs-path-to-checkout>) reads the dir directly (no .tmp materialization) and works — crews@ai-developer-toolkit installed fine from D:\\\\harness-efforts\\\\codexu\\\\ai-developer-toolkit.\n\nINVESTIGATE in the codex submodule (codex/external/repos/codex-patched/codex-rs, core-plugins/src/): (1) where git-sourced marketplaces are materialized — the code that writes 'Installed marketplace root: ...\\\\.tmp\\\\marketplaces\\\\<name>' and why it uses a .tmp (temporary) path rather than a persistent cache (cf. how plugin INSTALL persists to ~/.codex/plugins/cache/<mkt>/<plugin>/<ver>/). (2) the loader that emits 'marketplace root does not contain a supported manifest' (MARKETPLACE_MANIFEST_RELATIVE_PATHS in marketplace.rs) — confirm it checks .agents/plugins/marketplace.json then .claude-plugin/... and why it finds nothing in a separate process. (3) whether the .tmp dir is cleaned on process exit (codex's own cleanup) or by Windows temp reaping, vs never persisted by design. (4) is this fork-specific or upstream? File:line evidence. RECOMMEND a fix (persist git-marketplace snapshots to a durable cache path like ~/.codex/plugins/marketplaces/<name>/ instead of .tmp) with low upstream-conflict surface per codex/CLAUDE.md tenet #1. Note the local-source workaround as the interim path.\n\nOUTPUT: findings report at .ralph/investigations/codex-git-marketplace-snapshot-tmp-ephemeral/findings.md. HOLD for operator review.\""
+        }
+      }
+    },
+    {
       "id": "codex-down-mcp-startup-behavior-0135",
       "scope": "codex",
       "lifecycle": "merged",
