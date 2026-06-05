@@ -53,11 +53,15 @@
       "scope": "codex",
       "lifecycle": "tracked",
       "status": "warn",
-      "lastTouchedAt": "2026-06-05T16:55:00Z",
+      "lastTouchedAt": "2026-06-05T17:15:00Z",
       "kanbanCards": [
         {
           "className": "cmd-warn",
           "html": "<strong>Filed 2026-06-05 by operator.</strong> codex 0.135 reacts to an UNREACHABLE configured MCP server (the git-tracked Paper Design MCP at <code>codexu/.codex/config.toml</code> → <code>127.0.0.1:29979</code>) with a loud fatal <code>rmcp::transport::worker</code> ERROR + ~4.6s latency per call (measured 29.6s codexu vs 25.0s clean dir); 0.125 was quieter. Codex STILL produces output (verified pong/exit-0) — noise + latency, not an output-blocker; the member's \"no output\" was the slow Codex review lens still running. Investigate the codex MCP-init/rmcp startup path (eager-connect + timeout/retry?), the 0.125→0.135 delta, and whether a knob exists (startup_timeout / optional / lazy-connect) to tolerate a down MCP gracefully. <strong>Do NOT disable MCP generally (impl runs need MCPs).</strong> Recommend a low-conflict fix + whether Paper belongs in the shared tracked config. HOLD for operator."
+        },
+        {
+          "className": "cmd-ok",
+          "html": "<strong>Investigation complete 2026-06-05 (findings at .ralph/investigations/codex-down-mcp-startup-behavior-0135/findings.md, 19KB, file:line-precise).</strong> <strong>VERDICT: NOT a 0.135 regression.</strong> rmcp is 0.15.0 in BOTH 0.125 and 0.135 (verified at upstream tags rust-v0.125.0/rust-v0.135.0 + local Cargo.toml:359/Cargo.lock:11220); the rmcp 0.14→0.15 bump landed at-or-before 0.125. The perceived \"louder/slower at 0.135\" = config-presence (Paper added 2026-04-13 in 3b85f69b) + single-sample LLM variance (the ~4.6s is within model jitter; 127.0.0.1 connection-refused is near-instant). MECHANISM: codex eager-connects all enabled MCP servers at session init (does NOT block unless required=true); the first-turn list_all_tools blocks on the connect future for non-codex-apps servers (Paper has no startup snapshot); the ERROR comes from the rmcp DEPENDENCY worker.rs:128, not codex, and exec's default stderr filter is \"error\" so it prints. -c mcp_servers={} failed because config layering is a DEEP MERGE (the repo-layer codexu/.codex/config.toml contributes mcp_servers.paper); the leaf override is -c mcp_servers.paper.enabled=false. KNOBS: per-server enabled / required / startup_timeout_sec(30s default) / tool_timeout_sec; NO global optional/lazy/tolerate-down flag; RUST_LOG=...rmcp::transport::worker=off silences noise only. RECOMMENDED FIX (zero code, zero conflict): a personal usually-down tool should NOT be in the git-tracked SHARED codexu/.codex/config.toml (repo layer hits every contributor + every ralph codex exec) — move Paper to user-layer ~/.codex/config.toml, OR keep in-repo with enabled=false + startup_timeout_sec=2. HOLD for operator on which fix to apply."
         }
       ],
       "command": {
