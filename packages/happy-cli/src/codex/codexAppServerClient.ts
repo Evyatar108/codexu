@@ -19,7 +19,6 @@ import { closeSync, openSync, readFileSync, realpathSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { spawn as crossSpawn } from 'cross-spawn';
-import psList from 'ps-list';
 import { logger } from '@/ui/logger';
 import type {
     InitializeParams,
@@ -726,15 +725,8 @@ export class CodexAppServerClient {
             : Math.max(0, atMs - this.lastClientDisconnectAtMs);
     }
 
-    private async refreshLastSampledRssKb(pid: number): Promise<void> {
-        try {
-            const processRow = (await psList()).find((entry) => entry.pid === pid) as { memory?: number } | undefined;
-            if (typeof processRow?.memory === 'number' && Number.isFinite(processRow.memory)) {
-                this.lastSampledRssKb = Math.max(0, Math.round(processRow.memory));
-            }
-        } catch (error) {
-            logger.warn('[CodexAppServer] Failed to sample codex app-server RSS', error);
-        }
+    private async refreshLastSampledRssKb(_pid: number): Promise<void> {
+        this.lastSampledRssKb = null;
     }
 
     private classifyObservableExit(code: number | null): ExitReason {
