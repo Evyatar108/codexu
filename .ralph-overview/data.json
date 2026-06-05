@@ -49,6 +49,65 @@
   "generatedFromCommit": "32fdb9de",
   "tasks": [
     {
+      "id": "codex-v135-runtime-audit-elevated",
+      "scope": "codex",
+      "lifecycle": "tracked",
+      "status": "warn",
+      "lastTouchedAt": "2026-06-05T14:45:00Z",
+      "kanbanCards": [
+        {
+          "className": "cmd-warn",
+          "html": "<strong>From v135 network audit (Step 3 deferred).</strong> The runtime ETW audit (<code>scripts/runtime_audit.ps1 -ExtendedSmoke</code>) needs an ELEVATED PowerShell to open kernel-network + DNS-Client trace sessions; the audit member was not elevated. Run against the SHIPPED binary at <code>codex-rs/target/release/codex.exe</code> (0.135.0-copilot-api.1) &mdash; NOT the stale npm-installed 0.125.0-copilot-api.8. Asserts every TCP/UDP destination is in <code>scripts/runtime_audit_allowlist.txt</code>. This is the runtime half of the monitoring step; static + delta review already passed."
+        }
+      ],
+      "command": {
+        "name": "codex-v135-runtime-audit-elevated",
+        "descriptionHtml": "Run the elevated ETW runtime network audit against the shipped 0.135 binary.",
+        "warnings": [],
+        "prompts": {}
+      }
+    },
+    {
+      "id": "codex-network-audit-coverage-gaps",
+      "scope": "codex",
+      "lifecycle": "tracked",
+      "status": "warn",
+      "lastTouchedAt": "2026-06-05T14:45:00Z",
+      "kanbanCards": [
+        {
+          "className": "cmd-warn",
+          "html": "<strong>From v135 network audit (finding 3 + audit-script maintenance).</strong> Two gaps in <code>scripts/audit_network_calls.sh</code>: (a) the <code>feedback</code> crate is uncovered &mdash; <code>feedback/src/lib.rs:36</code> has a hardcoded Sentry DSN (<code>ingest.us.sentry.io</code>) used by <code>upload_feedback()</code> on explicit <code>codex feedback</code> (no startup init). Pre-existing since v0.130 (NOT a delta regression); the @user@host DSN format slips the host-enum regex. 0.135 adds NEW <code>feedback_processor.rs</code> + <code>feedback_doctor_report.rs</code> app-server plumbing that auto-attaches <code>codex doctor --json</code> to the upload. Decide: suppress vs redirect the Sentry egress, AND add the feedback crate to ENDPOINT_PATTERNS. (b) <code>KNOWN_PATCH_FILES</code> has a stale <code>arc_monitor.rs</code> entry (deleted upstream, 0 matches) producing a false MISSING &mdash; remove it."
+        }
+      ],
+      "command": {
+        "name": "codex-network-audit-coverage-gaps",
+        "descriptionHtml": "Close audit blind spots: feedback/Sentry coverage (suppress-or-redirect decision) + stale arc_monitor KNOWN_PATCH_FILES entry.",
+        "warnings": [],
+        "prompts": {}
+      }
+    },
+    {
+      "id": "codex-redirect-upstream-install-update-paths-to-fork",
+      "scope": "codex",
+      "lifecycle": "tracked",
+      "status": "warn",
+      "lastTouchedAt": "2026-06-05T14:45:00Z",
+      "kanbanCards": [
+        {
+          "className": "cmd-warn",
+          "html": "<strong>From v135 network audit (operator-directed).</strong> Redirect EVERY upstream install/update reference to point at the fork (gim-home/codex), and address the latent Unix paths even though they are dead on Windows. Three call sites: (1) <code>cli/src/doctor/updates.rs</code> &mdash; <code>codex doctor</code> shells to <code>curl</code> (bypassing reqwest/no_proxy) hitting <code>api.github.com/repos/openai/codex/releases/latest</code> + <code>formulae.brew.sh</code> (LIVE on Windows); (2) <code>app-server-daemon/src/update_loop.rs:158</code> &mdash; <code>reqwest::get(\"https://chatgpt.com/codex/install.sh\")</code> piped to sh, <code>#[cfg(unix)]</code>-only (latent); (3) <code>update_action.rs</code> + daemon <code>lib.rs</code> &mdash; user-facing <code>curl chatgpt.com/codex/install.sh | sh</code> hint strings. Operator: <strong>REDIRECT to our repo, do NOT no-op</strong> (the fork already no-ops <code>tui/src/updates.rs</code>; extend the discipline here but point at the fork release/install path). Upstream-canonical edits &rarr; each needs a <code>// SANDBOX PATCH:</code> marker + a <code>patch-surface.md</code> §14 row + an invariant test + an <code>audit_network_calls.sh</code> ENDPOINT_PATTERNS update. Plan first (enumerate seams + exact fork target per call site + conflict-surface estimate, per fork tenets)."
+        }
+      ],
+      "command": {
+        "name": "codex-redirect-upstream-install-update-paths-to-fork",
+        "descriptionHtml": "Redirect codex doctor update-check, the Unix daemon self-updater, and user-facing install/update hints from upstream (openai/codex, brew, chatgpt.com/install.sh) to the fork (gim-home/codex).",
+        "warnings": [],
+        "prompts": {
+          "plan": "/plan-with-ralph \"Redirect every upstream install/update reference in the codex fork to point at the fork (gim-home/codex) instead of upstream, and harden the latent Unix paths even though they are dead on the shipped Windows binary. Three call sites surfaced by the v0.135 network audit: (1) cli/src/doctor/updates.rs — codex doctor shells out to curl (bypassing reqwest/no_proxy) to api.github.com/repos/openai/codex/releases/latest + formulae.brew.sh; LIVE on Windows. (2) app-server-daemon/src/update_loop.rs:158 — reqwest::get(\\\"https://chatgpt.com/codex/install.sh\\\") piped to sh; #[cfg(unix)]-only so dead on Windows but must be addressed. (3) update_action.rs + the app-server-daemon lib.rs — user-facing curl chatgpt.com/codex/install.sh | sh hint strings. CONSTRAINT (fork core tenet, codex/CLAUDE.md Core engineering tenants #1): minimize upstream-canonical conflict surface; prefer overlay/seam over inline edits where possible; every inline upstream-canonical edit needs a // SANDBOX PATCH: marker + a docs/implementation/patch-surface.md §14 row (invariant + enforcing test/guard) + a §15 rebase-replant note + an update to scripts/audit_network_calls.sh ENDPOINT_PATTERNS. The fork already no-ops tui/src/updates.rs (get_upgrade_version returns None) — mirror that discipline but REDIRECT to the fork release/install path rather than no-op. Determine the correct fork target for each: the doctor update-check should compare against gim-home/codex latest release (see codex/docs/workflows/install.md for the fork install method via GitHub Packages); the install hints should print the fork install command. Output a stories outline with per-call-site seams, conflict-surface estimate, and the invariant tests + audit ENDPOINT_PATTERNS additions. HOLD for operator review before impl.\" --from-task codex-redirect-upstream-install-update-paths-to-fork"
+        }
+      }
+    },
+    {
       "id": "codex-marketplace-parse-robustness",
       "scope": "codex|ai-developer-toolkit",
       "lifecycle": "tracked",
@@ -113,13 +172,17 @@
     {
       "id": "codex-v135-network-audit-and-code-review",
       "scope": "codex",
-      "lifecycle": "tracked",
-      "status": "warn",
-      "lastTouchedAt": "2026-06-05T14:20:00Z",
+      "lifecycle": "merged",
+      "status": "ok",
+      "lastTouchedAt": "2026-06-05T14:45:00Z",
       "kanbanCards": [
         {
           "className": "cmd-warn",
           "html": "<strong>Filed 2026-06-05 by operator.</strong> The v0.135.0-copilot-api.1 release (prior: v0.130.0-copilot-api.8) shipped WITHOUT the documented egress-audit gate being recorded. Run the network-monitoring step (<code>/audit</code> static + <code>/runtime-audit</code> ETW) AND review the new upstream code in the rust-v0.130 &rarr; rust-v0.135 delta for new network calls / endpoints / telemetry that could bypass the fork network-suppression patches. Dedicated member. Read-only research + ops; surface findings, lead files any follow-up fix tasks."
+        },
+        {
+          "className": "cmd-ok",
+          "html": "<strong>SHIPPED 2026-06-05.</strong> Dedicated member ran static audit + silent-drop checklist + a 0.130&rarr;0.135 upstream-delta network review on the shipped 0.135.0-copilot-api.1 binary. <strong>Auth/network-suppression seams ALL intact (silent-drop 5/5 PASS); NO new <em>unsuppressed</em> egress in the shipped Windows binary.</strong> Static-audit raw 9 findings triaged to 6 benign (arc_monitor.rs deleted upstream = stale KNOWN_PATCH_FILES entry; IP-literal is a test false-positive; 6 IPC primitives are Unix-domain local-only). Net-surface findings spun into follow-ups per operator guidance (redirect upstream install/update paths to the fork; address latent Unix paths too): codex-redirect-upstream-install-update-paths-to-fork [doctor curl + daemon Unix self-updater + hint strings], codex-network-audit-coverage-gaps [feedback/Sentry blind spot + stale arc_monitor], codex-v135-runtime-audit-elevated [ETW, needs admin]. Report: .ralph/investigations/codex-v135-network-audit/findings.md"
         }
       ],
       "command": {
@@ -129,6 +192,11 @@
         "prompts": {
           "impl": "See spawn prompt; investigation/ops task, not a ralph plan/impl cycle."
         }
+      },
+      "shipManifest": {
+        "shippedAt": "2026-06-05T14:45:00Z",
+        "summary": "Post-hoc egress audit + rust-v0.130->v0.135 new-code review of the shipped codex v0.135.0-copilot-api.1 binary, run by a dedicated member. HEADLINE: the 0.130->0.135 delta introduced NO new UNSUPPRESSED outbound egress on the shipped Windows binary, and the fork network-suppression + auth seams are all intact (silent-drop checklist 5/5 PASS). Raw static audit reported 9 findings, 6 benign on triage (arc_monitor.rs deleted-upstream stale KNOWN_PATCH_FILES entry; IP literal is a #[test] version-string false positive; 6 IPC primitives are cfg(unix) Unix-domain sockets). Genuine net-surface findings, now consolidated per operator guidance (redirect upstream install/update references to the fork; address latent Unix paths even though Windows-dead): (1) cli/src/doctor/updates.rs NEW on codex doctor shells to curl (bypassing reqwest/no_proxy) to api.github.com/repos/openai/codex/releases/latest + formulae.brew.sh, live on Windows; (2) app-server-daemon/src/update_loop.rs:158 reqwest::get(chatgpt.com/codex/install.sh)|sh, cfg(unix)-only (dead on Windows, latent); (3) update_action.rs + daemon lib.rs print curl chatgpt.com/codex/install.sh | sh user-facing hints pointing upstream. (1)+(2)+(3) -> codex-redirect-upstream-install-update-paths-to-fork. Separately: feedback/src/lib.rs:36 hardcoded Sentry DSN (ingest.us.sentry.io) fires only on explicit codex feedback (no startup init), pre-existing since v0.130 (NOT a delta regression) but an audit blind spot -> codex-network-audit-coverage-gaps (also cleans the stale arc_monitor KNOWN_PATCH_FILES entry). Runtime ETW audit could not run (session not elevated) -> codex-v135-runtime-audit-elevated against the shipped binary at codex-rs/target/release/codex.exe. Incidental: the npm-installed codex on this box is stale (0.125.0-copilot-api.8); operator should reinstall the 0.135 release.",
+        "commits": []
       }
     },
     {
