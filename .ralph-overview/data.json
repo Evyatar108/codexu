@@ -49,6 +49,27 @@
   "generatedFromCommit": "32fdb9de",
   "tasks": [
     {
+      "id": "codex-fork-install-script",
+      "scope": "codex",
+      "lifecycle": "tracked",
+      "status": "warn",
+      "lastTouchedAt": "2026-06-05T15:46:00Z",
+      "kanbanCards": [
+        {
+          "className": "cmd-warn",
+          "html": "<strong>Filed 2026-06-05 by operator.</strong> Add a Claude-Code-style one-liner installer for the fork: <code>irm https://codex.evyatar.dev/install.ps1 | iex</code> (Windows) + <code>curl -fsSL https://codex.evyatar.dev/install.sh | sh</code> (Unix). <strong>Host DECIDED by operator: evyatar.dev via the existing Cloudflare tunnel</strong> (settles SCRIPT hosting). <strong>Open problem:</strong> gim-home/codex is INTERNAL + the bundle is ~100 MB, so a clean unauthenticated install needs the BINARIES at a PUBLIC URL too — brainstorm artifact-distribution options (public GitHub release mirror vs Cloudflare R2 vs tunnel-off-dev-box) + the install scripts + publish-flow integration + a shared public \"latest version\" source (coordinate with the redirect plan). HOLD for operator on the artifact-hosting choice."
+        }
+      ],
+      "command": {
+        "name": "codex-fork-install-script",
+        "descriptionHtml": "Claude-Code-style one-liner installer for the fork on evyatar.dev (artifact distribution + scripts + publish integration).",
+        "warnings": [],
+        "prompts": {
+          "brainstorm": "/brainstorm-with-ralph \"Design a Claude-Code-style one-liner installer for the codex fork (gim-home/codex): 'irm https://codex.evyatar.dev/install.ps1 | iex' (Windows) + 'curl -fsSL https://codex.evyatar.dev/install.sh | sh' (Unix), modeled on Claude Code's claude.ai/install.ps1.\n\nOPERATOR DECISION (host): the install SCRIPT is hosted on the operator's own domain evyatar.dev via the existing Cloudflare tunnel (the fork already runs happy.evyatar.dev). So script hosting is SETTLED: codex.evyatar.dev/install.{ps1,sh}. Focus the brainstorm on the parts that are still open.\n\nTHE CRITICAL OPEN PROBLEM — artifact distribution: gim-home/codex is INTERNAL-visibility (Microsoft enterprise, SAML), and the release bundle is ~100 MB (codex.exe, codex-core.exe, rg.exe, codex-windows-sandbox-setup.exe, codex-command-runner.exe — see codex/.github/workflows/publish-npm.yml). A CLEAN unauthenticated install needs the BINARIES at a PUBLIC URL too. Scope the options:\n  1. ARTIFACT HOSTING (the real decision): (a) a PUBLIC GitHub release mirror repo (e.g. Evyatar108/codex-releases, public) that the publish flow also uploads the merged bundle tarball to — the evyatar.dev script curls the public GitHub release asset; clean, free, GitHub-hosted, but adds a publish step. (b) Cloudflare R2 object storage behind evyatar.dev — clean URLs, scalable, but needs R2 setup + per-release upload. (c) Cloudflare tunnel serving files off the dev box — simplest but availability is tied to the dev box being up (bad for an installer). Recommend one with effort/reliability/cost notes.\n  2. SCRIPT DESIGN: install.ps1 (Windows, irm|iex) + install.sh (Unix, curl|sh) — resolve 'latest' fork version, download the bundle tarball, verify sha256, extract to an install dir, put codex on PATH, trigger first-run setup. Launcher is codex.exe -> codex-core.exe (codex/CLAUDE.md Distribution). Mirror codex/docs/workflows/install.md.\n  3. VERSION RESOLUTION: how does the script learn 'latest'? Coordinate with the redirect plan (codex-redirect-upstream-install-update-paths-to-fork) which ALSO needs a public 'latest version' endpoint for the codex doctor probe — ONE public version source should serve both.\n  4. PUBLISH-FLOW INTEGRATION: what does codex/.github/workflows/publish-npm.yml (or /publish-sandbox-patch) need to add to push the bundle to the chosen public artifact host on each release?\n  5. REDIRECT-PLAN INTEGRATION: once codex.evyatar.dev/install.{ps1,sh} exists, the redirect plan's US-003 hint strings (and possibly US-002 Unix self-updater, instead of neutralizing) point at THIS install URL. Note the coupling + sequencing.\n\nDELIVERABLE: brainstorm artifact, directions for artifact-hosting (1) each with effort/reliability/maintenance/security notes, plus the script + publish-integration shape, a Devil's-Advocate lens (is a public binary mirror worth the maintenance vs documenting npm-from-Packages for authed users?), and ONE recommendedDirection. HOLD for operator review. Do NOT implement.\""
+        }
+      }
+    },
+    {
       "id": "crews-proactive-done-auto-consumed-silent-lead-miss",
       "scope": "crews",
       "lifecycle": "tracked",
@@ -110,11 +131,15 @@
       "scope": "codex",
       "lifecycle": "tracked",
       "status": "warn",
-      "lastTouchedAt": "2026-06-05T14:45:00Z",
+      "lastTouchedAt": "2026-06-05T15:46:00Z",
       "kanbanCards": [
         {
           "className": "cmd-warn",
           "html": "<strong>From v135 network audit (operator-directed).</strong> Redirect EVERY upstream install/update reference to point at the fork (gim-home/codex), and address the latent Unix paths even though they are dead on Windows. Three call sites: (1) <code>cli/src/doctor/updates.rs</code> &mdash; <code>codex doctor</code> shells to <code>curl</code> (bypassing reqwest/no_proxy) hitting <code>api.github.com/repos/openai/codex/releases/latest</code> + <code>formulae.brew.sh</code> (LIVE on Windows); (2) <code>app-server-daemon/src/update_loop.rs:158</code> &mdash; <code>reqwest::get(\"https://chatgpt.com/codex/install.sh\")</code> piped to sh, <code>#[cfg(unix)]</code>-only (latent); (3) <code>update_action.rs</code> + daemon <code>lib.rs</code> &mdash; user-facing <code>curl chatgpt.com/codex/install.sh | sh</code> hint strings. Operator: <strong>REDIRECT to our repo, do NOT no-op</strong> (the fork already no-ops <code>tui/src/updates.rs</code>; extend the discipline here but point at the fork release/install path). Upstream-canonical edits &rarr; each needs a <code>// SANDBOX PATCH:</code> marker + a <code>patch-surface.md</code> §14 row + an invariant test + an <code>audit_network_calls.sh</code> ENDPOINT_PATTERNS update. Plan first (enumerate seams + exact fork target per call site + conflict-surface estimate, per fork tenets)."
+        },
+        {
+          "className": "cmd-ok",
+          "html": "<strong>Plan shipped 2026-06-05 @ 414610b7</strong> (5 stories; Phase-4 11 findings 1C/6H/4M converged; BONUS functional bug found — codex doctor hard-codes @openai/codex so it falsely Fails on every fork install). NOTE: this done was SILENTLY LOST by the crews listener (see crews-proactive-done-auto-consumed-silent-lead-miss) and recovered manually. Operator accepted OQ1-OQ5 defaults (404→Warning, neutralize brew + Unix updater, hints→fork URL) AND added a new direction: a Claude-Code-style installer at codex.evyatar.dev (see codex-fork-install-script). <strong>This RETARGETS US-003 (and possibly US-002) hint destinations to codex.evyatar.dev/install.* — redirect IMPL is HELD until codex-fork-install-script lands its artifact-hosting decision</strong>, to avoid editing+re-snapshotting hint strings twice. US-001 (doctor functional bug + probe-redirect + egress) is install-script-independent and could ship first if desired."
         }
       ],
       "command": {
