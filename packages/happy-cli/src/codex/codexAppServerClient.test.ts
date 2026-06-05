@@ -3013,14 +3013,7 @@ describe('CodexAppServerClient sandbox integration', () => {
 
         await waitFor(() => (proc.kill as ReturnType<typeof vi.fn>).mock.calls.length > 0);
         expect(proc.kill).toHaveBeenCalledWith('SIGTERM');
-        expect(emittedCodexEvents('codex.daemon.exit')).toEqual([
-            expect.objectContaining({
-                event: 'codex.daemon.exit',
-                pid: 7001,
-                exit_code: null,
-                exit_reason: 'killed',
-            }),
-        ]);
+        expect(emittedCodexEvents('codex.daemon.exit')).toEqual([]);
     });
 
     it('does not reject pending stdio requests from onClose during intentional disconnect', async () => {

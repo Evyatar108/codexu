@@ -833,8 +833,8 @@ export class CodexAppServerClient {
 
         if (!this.wsChildExited) {
             const discovery = discoveryOverride ?? this.currentDiscovery;
-            if (discovery) {
-                await this.emitSyntheticExitEvent(discovery, this.terminationReason ?? 'killed', this.terminationReasonDetail);
+            if (discovery && this.terminationReason) {
+                await this.emitSyntheticExitEvent(discovery, this.terminationReason, this.terminationReasonDetail);
             }
             if (typeof child.pid === 'number') {
                 this.terminateWindowsProcessTree(child.pid);
@@ -1416,6 +1416,9 @@ export class CodexAppServerClient {
             } catch { /* ignore */ }
 
             if (terminateAppServer) {
+                if (!this.terminationReason) {
+                    this.terminationReason = 'killed';
+                }
                 if (owner === 'attached' && discovery) {
                     await this.terminateAttachedAppServer(discovery);
                 } else {
