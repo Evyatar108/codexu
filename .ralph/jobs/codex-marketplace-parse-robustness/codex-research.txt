@@ -1,0 +1,62 @@
+**Codebase Architecture**
+`ai-developer-toolkit` is a plugin marketplace repo inside `D:\harness-efforts\codexu\ai-developer-toolkit`. The root has no `package.json` or workspace file; tooling is intentionally per-plugin or plain scripts. Main areas:
+
+- `plugins/`: plugin implementations, mixed Node/TS, C#, shell, and plugin manifests.
+- `.claude-plugin/marketplace.json`: Claude Code marketplace.
+- `.github/plugin/marketplace.json`: Copilot marketplace.
+- `.agents/plugins/marketplace.json`: Codex repo-local marketplace.
+- `.claude/skills/release-plugin/SKILL.md`: current plugin release gate.
+- `docs/codex-plugins-local.md`: Codex plugin layout and maintenance notes.
+
+Tests are not centralized. Existing lightweight patterns include plain CommonJS tests under `plugins/crews/tests/*.test.js` and shell-plus-inline-Node checks in `plugins/options-mode/tests/run.sh`.
+
+**Feature-Relevant Code**
+Key files:
+
+- [release-plugin SKILL.md](</D:/harness-efforts/codexu/ai-developer-toolkit/.claude/skills/release-plugin/SKILL.md:35>) defines pre-flight checks, version bumping, staging, commit, and push. It currently validates clean target files, semver monotonicity, and presence in all three indexes, but not Codex policy enum values.
+- [Codex marketplace index](</D:/harness-efforts/codexu/ai-developer-toolkit/.agents/plugins/marketplace.json:13>) contains `policy.installation` and `policy.authentication` on every entry. Current sanity check: 14 entries, all `AVAILABLE` / `ON_INSTALL`.
+- [Claude marketplace](</D:/harness-efforts/codexu/ai-developer-toolkit/.claude-plugin/marketplace.json:11>) and [Copilot marketplace](</D:/harness-efforts/codexu/ai-developer-toolkit/.github/plugin/marketplace.json:11>) have no `policy` object.
+- [toolkit AGENTS.md](</D:/harness-efforts/codexu/ai-developer-toolkit/AGENTS.md:44>) documents the three indexes and says `/release-plugin` is the version-bump workflow.
+- [Codex local docs](</D:/harness-efforts/codexu/ai-developer-toolkit/docs/codex-plugins-local.md:16>) document `.agents/plugins/marketplace.json`.
+- Codex accepted enums are in [marketplace.rs](</D:/harness-efforts/codexu/codex/external/repos/codex-patched/codex-rs/core-plugins/src/marketplace.rs:91>): installation is `NOT_AVAILABLE`, `AVAILABLE`, `INSTALLED_BY_DEFAULT`; authentication is `ON_INSTALL`, `ON_USE`.
+
+**Technical Constraints**
+No root Node package or test framework should be introduced. Keep the validator dependency-free and runnable with `node`.
+
+The guard must be toolkit-only: no edits under `codex/`.
+
+The Codex index schema differs from Claude/Copilot: only `.agents/plugins/marketplace.json` carries policy. The validator should treat missing `policy` as acceptable for policy-free indexes if invoked on all three files, while enforcing allowed values when policy fields are present or when validating the Codex index.
+
+`release-plugin` currently says it “does not run tests” at line 191, so the plan should amend that text if the pre-flight begins invoking the validator.
+
+**Implementation Suggestions**
+Add a small root-level script/module, for example:
+
+- `tools/validate-codex-marketplace-policy.mjs`
+- `tools/validate-codex-marketplace-policy.test.mjs`
+- `tools/fixtures/marketplace-policy-valid.json`
+- `tools/fixtures/marketplace-policy-invalid-auth-off.json`
+
+Use one exported constant:
+
+```js
+export const CODEX_MARKETPLACE_POLICY_ENUMS = {
+  installation: ['NOT_AVAILABLE', 'AVAILABLE', 'INSTALLED_BY_DEFAULT'],
+  authentication: ['ON_INSTALL', 'ON_USE'],
+};
+```
+
+Put the `marketplace.rs` coupling comment directly above that constant.
+
+Make the CLI accept file paths, defaulting to `.agents/plugins/marketplace.json` plus optionally the two policy-free indexes. Error messages should include plugin name, field path like `plugins[crews].policy.authentication`, bad value, and accepted values.
+
+Integrate it into `release-plugin` Pre-flight after “Confirm plugin exists in all three indexes” and before any edits. Suggested command:
+
+```bash
+node tools/validate-codex-marketplace-policy.mjs \
+  .agents/plugins/marketplace.json \
+  .claude-plugin/marketplace.json \
+  .github/plugin/marketplace.json
+```
+
+Update `AGENTS.md`, `docs/codex-plugins-local.md`, and `.claude/skills/release-plugin/SKILL.md`. Since `.agents/plugins/` has no local `AGENTS.md`, either add a short one there or keep the note in root docs to minimize new files.

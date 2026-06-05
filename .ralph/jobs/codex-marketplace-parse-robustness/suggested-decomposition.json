@@ -1,0 +1,48 @@
+{
+  "clusters": [
+    {
+      "name": "validator-core",
+      "stories": ["US-001"],
+      "phase": 1,
+      "dependsOn": [],
+      "fileOverlapEvidence": {
+        "sharedFiles": [],
+        "exclusiveFiles": ["ai-developer-toolkit/tools/validate-codex-marketplace-policy.mjs"],
+        "risk": "low"
+      },
+      "executionModeRationale": "Foundational module every other story imports/invokes; must land first before fixtures, tests, or wiring can verify against it."
+    },
+    {
+      "name": "fixtures-and-test",
+      "stories": ["US-002"],
+      "phase": 2,
+      "dependsOn": ["validator-core"],
+      "fileOverlapEvidence": {
+        "sharedFiles": [],
+        "exclusiveFiles": [
+          "ai-developer-toolkit/tools/fixtures/marketplace-policy-valid.json",
+          "ai-developer-toolkit/tools/fixtures/marketplace-policy-invalid-auth-off.json",
+          "ai-developer-toolkit/tools/validate-codex-marketplace-policy.test.mjs"
+        ],
+        "risk": "low"
+      },
+      "executionModeRationale": "Test-only files, disjoint from the release-wiring cluster; parallel-safe once the validator module exists."
+    },
+    {
+      "name": "release-wiring-and-docs",
+      "stories": ["US-003"],
+      "phase": 2,
+      "dependsOn": ["validator-core"],
+      "fileOverlapEvidence": {
+        "sharedFiles": [],
+        "exclusiveFiles": [
+          "ai-developer-toolkit/.claude/skills/release-plugin/SKILL.md",
+          "ai-developer-toolkit/AGENTS.md",
+          "ai-developer-toolkit/docs/codex-plugins-local.md"
+        ],
+        "risk": "low"
+      },
+      "executionModeRationale": "Skill/doc edits, disjoint from the test cluster; parallel-safe once the validator module exists. Small surface — may also run serially."
+    }
+  ]
+}

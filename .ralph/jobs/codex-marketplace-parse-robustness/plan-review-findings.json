@@ -1,0 +1,83 @@
+{
+  "planFile": "D:/harness-efforts/codexu/.ralph/jobs/codex-marketplace-parse-robustness/plan.md",
+  "repoDir": "D:/harness-efforts/codexu",
+  "reviewers": {
+    "claude": "completed (2 findings)",
+    "codex": "completed (gpt-5.5, high) — 1 Critical + High/Medium findings",
+    "copilot": "completed (gpt-5.4, high) — no issues"
+  },
+  "findings": [
+    {
+      "id": "F-001",
+      "severity": "Critical",
+      "source": "codex",
+      "status": "resolved",
+      "description": "Two-commit submodule flow + codexu submodule-pointer bump omitted from the plan; without the pointer bump codexu never consumes the guard.",
+      "resolution": "Added Implementation Strategy step 4, In-Scope bullet, Risk bullet, ship-step note under story decomposition, and a dedicated acceptance criterion."
+    },
+    {
+      "id": "F-002",
+      "severity": "High",
+      "source": "codex",
+      "status": "resolved",
+      "description": "Validator behavior underspecified for a `policy` that is present but not a plain object (null, [], \"OFF\", number) — codex deserializes policy as a struct, so these also abort its parse.",
+      "resolution": "Strengthened the validation rule to flag non-object policy as a violation; added an acceptance criterion and a risk bullet."
+    },
+    {
+      "id": "F-003",
+      "severity": "High",
+      "source": "codex",
+      "status": "resolved",
+      "description": "Ordering: the submodule pointer bump must follow the toolkit commits; the plan stopped too early.",
+      "resolution": "Covered by Implementation Strategy step 4 and the ship-step note."
+    },
+    {
+      "id": "F-004",
+      "severity": "High",
+      "source": "codex",
+      "status": "resolved",
+      "description": "Need an explicit acceptance criterion for the submodule commit/pointer contract.",
+      "resolution": "Added the two-commit-contract acceptance criterion (no unrelated parent changes staged)."
+    },
+    {
+      "id": "F-005",
+      "severity": "Medium",
+      "source": "consensus",
+      "status": "resolved",
+      "description": "Acceptance criteria require catching an out-of-set installation value, but fixtures/tests only covered authentication.",
+      "resolution": "Added tools/fixtures/marketplace-policy-invalid-installation.json, an acceptance criterion, and a US-002 test case."
+    },
+    {
+      "id": "F-006",
+      "severity": "Medium",
+      "source": "codex",
+      "status": "resolved",
+      "description": "ai-developer-toolkit/tools/AGENTS.md applies to new files under tools/ and should be read before editing.",
+      "resolution": "Added a risk bullet; verified tools/AGENTS.md is a developer-guide pointer file that does not block the plain-Node .mjs approach."
+    },
+    {
+      "id": "F-007",
+      "severity": "Medium",
+      "source": "codex",
+      "status": "resolved",
+      "description": "Add an explicit acceptance criterion for present-but-invalid policy shape (non-object).",
+      "resolution": "Same acceptance criterion as F-002."
+    },
+    {
+      "id": "F-008",
+      "severity": "Medium",
+      "source": "claude",
+      "status": "resolved",
+      "description": "Malformed JSON, non-string policy values, and the missing-`name` plugins[<index>] fallback were only described in prose, not verifiable acceptance criteria.",
+      "resolution": "Added explicit acceptance criteria for malformed-JSON distinct failure, non-string value rejection, and the missing-name index fallback."
+    },
+    {
+      "id": "F-009",
+      "severity": "Low",
+      "source": "claude",
+      "status": "resolved",
+      "description": "The policy-free pass criterion only named .claude-plugin/marketplace.json; the plan must tolerate both policy-free indexes.",
+      "resolution": "Added an acceptance criterion exercising .github/plugin/marketplace.json as well."
+    }
+  ]
+}

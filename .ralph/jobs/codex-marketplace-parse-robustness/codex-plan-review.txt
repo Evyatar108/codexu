@@ -1,0 +1,31 @@
+### Feasibility
+
+[Critical] The plan omits the required submodule integration flow from root `AGENTS.md`. The proposed edits are inside `ai-developer-toolkit/`, which is a codexu submodule, but the plan only lists toolkit file changes and says the entire change set is inside `ai-developer-toolkit`. Root guidance requires a two-commit flow: commit inside `ai-developer-toolkit/`, then commit the resulting submodule pointer bump in `D:/harness-efforts/codexu`. Without that pointer bump, codexu will not actually consume the guard.
+
+No other feasibility issues found. The referenced Codex enums exist at `codex/external/repos/codex-patched/codex-rs/core-plugins/src/marketplace.rs`, and the enum sets match the plan.
+
+### Completeness
+
+[High] The validator behavior is underspecified for `policy` values that are present but not objects, such as `"policy": null`, `"policy": []`, or `"policy": "OFF"`. Codex expects `policy` to deserialize as `RawMarketplaceManifestPluginPolicy`; these shapes would still break parsing, but the plan’s rule only says “IF a `policy` object is present” and then validates fields. The plan should require a violation when `policy` is present and not a plain object.
+
+[Medium] The test plan requires auth-invalid, valid, policy-free, and real-index smoke coverage, but the acceptance criteria also require catching an out-of-set `installation` value. Add either a second invalid fixture or an inline/temp test case so `policy.installation` is covered by `node tools/validate-codex-marketplace-policy.test.mjs`.
+
+[Medium] The plan does not mention `ai-developer-toolkit/tools/AGENTS.md`, which applies to the new `tools/validate-codex-marketplace-policy.mjs` file. It probably does not block the `.mjs` approach because `tools/` already contains mixed tooling, but the implementer should explicitly read it before editing under `tools/`.
+
+### Ordering
+
+[High] The missing submodule pointer bump also affects ordering. After US-001 through US-003 land in the toolkit submodule, the implementation must commit in `ai-developer-toolkit/` first, return to `D:/harness-efforts/codexu`, commit the submodule pointer update, and only then treat the codexu task as shipped. The current plan stops too early.
+
+No other ordering issues found.
+
+### Simplicity
+
+No issues found. A dependency-free repo-level Node validator under `ai-developer-toolkit/tools/` is the simplest natural fit; putting it under `plugins/crews/` would couple a repo-wide release guard to an unrelated plugin.
+
+### Acceptance Criteria Quality
+
+[High] Add an explicit acceptance criterion for the submodule commit/pointer contract: “Toolkit changes are committed inside `ai-developer-toolkit/`, and codexu records the updated `ai-developer-toolkit` submodule pointer; no unrelated parent changes are staged.”
+
+[Medium] Add an explicit criterion for present-but-invalid `policy` shape: the CLI must exit non-zero and name the plugin when `policy` is present but not an object.
+
+Prior amendments look mostly adequate: the plan correctly drops codex-side D-002/D-003/D-004 work, validates missing policy as valid per Codex defaults, and avoids brittle entry-count assertions.
