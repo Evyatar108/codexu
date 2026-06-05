@@ -1334,7 +1334,7 @@ export class CodexAppServerClient {
                                 ? { happy_session_id: spawnedDiscoveryRecord.happySessionId }
                                 : {}),
                             cold_start_ms: Math.max(0, initializedAtMs - spawnStartedAtMs),
-                            started_at_ms: spawnStartedAtMs,
+                            started_at_ms: new Date(spawnedDiscoveryRecord.startedAt).getTime(),
                         });
                     } catch (telemetryError) {
                         logger.warn('[CodexAppServer] Failed to emit spawn telemetry', telemetryError);

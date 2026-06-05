@@ -1150,7 +1150,7 @@ describe('CodexAppServerClient sandbox integration', () => {
             exit_code: null,
             exit_signal: null,
             exit_reason: 'killed',
-            rss_kb_at_exit: 4321,
+            rss_kb_at_exit: null,
             last_client_disconnect_age_ms: expect.any(Number),
         }));
         expect(exitEvents[0].last_client_disconnect_age_ms).toBeGreaterThanOrEqual(0);
@@ -1178,7 +1178,7 @@ describe('CodexAppServerClient sandbox integration', () => {
             cwd: record!.cwd,
             exit_code: 1,
             exit_reason: 'crashed',
-            rss_kb_at_exit: 987,
+            rss_kb_at_exit: null,
         }));
 
         await client.disconnect({ terminateAppServer: true });
@@ -1210,12 +1210,11 @@ describe('CodexAppServerClient sandbox integration', () => {
         await client.disconnect({ terminateAppServer: true });
     });
 
-    it('does not throw when RSS sampling and exit telemetry emission fail', async () => {
+    it('does not throw when exit telemetry emission fails', async () => {
         Object.defineProperty(process, 'platform', { value: 'win32' });
         const { proc, wss } = await createMockWsAppServer({ pid: 4356 });
         mockPickFreeLoopbackPort.mockResolvedValueOnce((wss.address() as AddressInfo).port);
         mockSpawn.mockImplementationOnce(() => proc);
-        mockPsList.mockRejectedValue(new Error('ps-list failed'));
         mockEmitCodexDaemonEvent.mockRejectedValue(new Error('emit failed'));
 
         const { CodexAppServerClient } = await import('./codexAppServerClient');
@@ -1224,10 +1223,6 @@ describe('CodexAppServerClient sandbox integration', () => {
         await expect(client.connect()).resolves.toBeUndefined();
         await expect(client.disconnect({ terminateAppServer: true })).resolves.toBeUndefined();
 
-        expect(mockLogger.warn).toHaveBeenCalledWith(
-            '[CodexAppServer] Failed to sample codex app-server RSS',
-            expect.objectContaining({ message: 'ps-list failed' }),
-        );
         expect(mockLogger.warn).toHaveBeenCalledWith(
             '[CodexAppServer] Failed to emit exit telemetry',
             expect.objectContaining({ message: 'emit failed' }),
