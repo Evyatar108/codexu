@@ -51,13 +51,17 @@
     {
       "id": "codex-marketplace-add-gim-home-failure",
       "scope": "codex",
-      "lifecycle": "tracked",
-      "status": "warn",
-      "lastTouchedAt": "2026-06-05T14:20:00Z",
+      "lifecycle": "merged",
+      "status": "ok",
+      "lastTouchedAt": "2026-06-05T14:35:00Z",
       "kanbanCards": [
         {
           "className": "cmd-warn",
           "html": "<strong>Filed 2026-06-05 by operator.</strong> Adding marketplace <code>https://github.com/gim-home/ai-developer-toolkit.git</code> in codex fails with <code>Failed to add marketplace.</code> Root-cause the codex marketplace-add code path. Leading hypotheses: (a) codex expects a <code>.codex-plugin/marketplace.json</code> manifest that may be absent at the repo root; (b) gim-home org is INTERNAL-visibility so an unauthenticated fetch 404s; (c) URL form (<code>.git</code> suffix vs bare) or branch assumption. Reproduce, find the emitting code site, identify the fix."
+        },
+        {
+          "className": "cmd-ok",
+          "html": "<strong>SHIPPED 2026-06-05 @ toolkit 58e55872 / codexu 6ba5c45a.</strong> Root cause (reproduced via dedicated member): <code>.agents/plugins/marketplace.json</code> line 175 had <code>\"authentication\": \"OFF\"</code> for the ralph-overview entry, but codex MarketplacePluginAuthPolicy (core-plugins/src/marketplace.rs) accepts only ON_INSTALL/ON_USE. serde rejected the unknown variant and aborted the whole parse, surfacing as the generic TUI error \"Failed to add marketplace.\" Clone/auth/visibility were all fine. Fix: OFF -> ON_INSTALL (matches the other 13 sibling entries). No generator emits OFF, so no regression source. Pushed to all 3 toolkit remotes incl. gim-home (public marketplace source)."
         }
       ],
       "command": {
@@ -67,6 +71,22 @@
         "prompts": {
           "impl": "See spawn prompt; debugging/investigation task."
         }
+      },
+      "shipManifest": {
+        "shippedAt": "2026-06-05T14:35:00Z",
+        "summary": "Fixed codex \"Failed to add marketplace.\" for gim-home/ai-developer-toolkit. A dedicated Copilot investigation member reproduced the exact serde error (unknown variant 'OFF', expected 'ON_INSTALL' or 'ON_USE' at line 175) that the TUI masks as a generic failure. Root cause: the ralph-overview entry in .agents/plugins/marketplace.json (codex's repo-local marketplace index) carried \"authentication\": \"OFF\", a value codex's MarketplacePluginAuthPolicy enum does not accept. serde aborted parsing the entire index, so codex could not register the marketplace at all even though the git clone succeeded and the index path was correct. The other 13 plugin entries already used ON_INSTALL. Fix was a single-line value change to match. Confirmed OFF appears nowhere else in the toolkit, so the /release-plugin version-bump tooling will not regress it.",
+        "commits": [
+          {
+            "sha": "58e55872",
+            "oneLine": "fix(marketplace): ralph-overview authentication OFF -> ON_INSTALL in codex index",
+            "repo": "ai-developer-toolkit"
+          },
+          {
+            "sha": "6ba5c45a",
+            "oneLine": "chore: bump ai-developer-toolkit for codex marketplace-add fix",
+            "repo": "codexu"
+          }
+        ]
       }
     },
     {
