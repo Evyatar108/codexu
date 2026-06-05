@@ -1,0 +1,33 @@
+Reviewed against the current worktree; no code changed.
+
+### Feasibility
+
+- [High] The plan overstates the guarantee from the PID fence. `consumeMailbox` would only reject an orphan after `manifest.lastListenerPid` has been updated to the newer listener PID. If the orphan drains before the newer listener’s `markArmed()` write lands, the manifest still points at the orphan, so the proposed check allows the same silent-loss shape the plan says is eliminated. This is partly acknowledged under “Residual sub-ms window,” but it contradicts the Overview and AC guarantee. Relevant flow: [listener-loop.js](D:/harness-efforts/codexu/ai-developer-toolkit/plugins/crews/lib/listener-loop.js:136), [listener-loop.js](D:/harness-efforts/codexu/ai-developer-toolkit/plugins/crews/lib/listener-loop.js:223), [mailbox.js](D:/harness-efforts/codexu/ai-developer-toolkit/plugins/crews/hooks/mailbox.js:526).
+
+### Completeness
+
+- [Critical] The release scope misses the codexu root active-plugin-versions table. Root [AGENTS.md](D:/harness-efforts/codexu/AGENTS.md:23) says that table is the CI invariant source of truth and must be updated in the same commit as any `ai-developer-toolkit` submodule pointer bump that changes plugin manifests. The plan updates plugin manifests/marketplaces but does not explicitly update root [AGENTS.md](D:/harness-efforts/codexu/AGENTS.md:26) from `crews 3.6.1` to the new version.
+
+- [High] The plan omits required updates to existing `markArmIntent` tests. Current [mark-arm-intent.test.js](D:/harness-efforts/codexu/ai-developer-toolkit/plugins/crews/tests/mark-arm-intent.test.js:105), [:122](D:/harness-efforts/codexu/ai-developer-toolkit/plugins/crews/tests/mark-arm-intent.test.js:122), and [:141](D:/harness-efforts/codexu/ai-developer-toolkit/plugins/crews/tests/mark-arm-intent.test.js:141) assert stale/null/dead listener PIDs are cleared. The plan changes that contract but only calls extending `listener-redundant-arm-skip.test.js` optional.
+
+- [Medium] The plugin docs need existing-section edits, not just a new AGENTS section. Current `ai-developer-toolkit/plugins/crews/AGENTS.md` still documents `markArmIntent` clearing stale `lastListenerPid`/`lastHeartbeatAt`; that will become false if [actors.js](D:/harness-efforts/codexu/ai-developer-toolkit/plugins/crews/hooks/actors.js:944) stops clearing them.
+
+- [Medium] If the new regression test really spawns contending listeners, the plan should say whether it belongs in the `tests/run.js` serial tail. Existing [tests/run.js](D:/harness-efforts/codexu/ai-developer-toolkit/plugins/crews/tests/run.js:45) serializes `listener-redundant-arm-skip.test.js` because it spawns contending listener processes.
+
+### Ordering
+
+- [High] US-002 must include the codexu pointer-bump commit work after the submodule commit: update root `AGENTS.md` active-plugin version table, stage the new `ai-developer-toolkit` gitlink, then verify the root worktree. The current ordering says “two-commit toolkit-submodule flow” but describes only plugin-local release artifacts.
+
+- [Low] The external gate on `impl-d001-toolkit-guard` is adequate, but the acceptance criterion should require concrete evidence, such as the base SHA or observed crews version after d001, not just “did not start until.”
+
+### Simplicity
+
+- [Medium] A full two-listener integration test is useful, but the PID-fence contract itself can be covered more simply with a focused `consumeMailbox` test: seed `lastListenerPid`, append one message, call `consumeMailbox(..., { sessionId, listenerPid: differentPid })`, assert mailbox/history/log. Keep the integration test for the end-to-end race, but do not make all coverage depend on timing.
+
+### Acceptance Criteria Quality
+
+- [High] The ACs claim “no silent loss” while the plan’s own residual-window note admits an orphan can still drain before the new listener records its PID. Either strengthen the design to close that window, or lower the AC to the actual guarantee.
+
+- [Medium] The “no `consumedAt`” AC for the orphan path needs precise evidence boundaries. If the test later lets the manifest-PID listener drain the same message, history will contain a `consumedAt`; the test must assert history count before and immediately after the orphan consume attempt.
+
+- [Medium] “IMPL did not start until `impl-d001-toolkit-guard` shipped” is not directly testable unless the plan defines what evidence to record: merge commit, submodule SHA, or version/file state.

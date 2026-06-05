@@ -1,0 +1,187 @@
+{
+  "planFile": "D:/harness-efforts/codexu/.ralph/jobs/.staging/20260605T162158Z-plan-crews-silent-loss-ce054e83/draft-plan.md",
+  "repoDir": "D:/harness-efforts/codexu",
+  "reviewCycle": 1,
+  "findings": [
+    {
+      "id": "F-001",
+      "severity": "Critical",
+      "source": "codex",
+      "category": "Completeness",
+      "sectionRef": "Approach > Files to Create/Modify; Acceptance Criteria; US-002",
+      "description": "Release scope misses the codexu ROOT AGENTS.md active-plugin-versions table. Root D:/harness-efforts/codexu/AGENTS.md states that table is the CI invariant source of truth and MUST be updated in the same commit as any ai-developer-toolkit submodule pointer bump that changes a plugin manifest. The plan bumps the crews plugin manifests + marketplace indexes but never updates the root AGENTS.md crews row from 3.6.1 to the new version. This is a repo-rule / CI-invariant violation that would fail CI.",
+      "status": "fixed",
+      "relevantFiles": [
+        "D:/harness-efforts/codexu/AGENTS.md"
+      ],
+      "suggestedFix": "Add to US-002 (and Acceptance Criteria): in the same commit as the ai-developer-toolkit submodule pointer bump, update the root AGENTS.md active-plugin-versions table crews row 3.6.1 -> <next>. Make it an explicit AC with the table as the verification surface.",
+      "fixedInIteration": 1,
+      "resolution": "Added to US-002 + ACs: the codexu parent commit bumps the root AGENTS.md active-plugin-versions table crews row in the same commit as the gitlink."
+    },
+    {
+      "id": "F-002",
+      "severity": "High",
+      "source": "consensus",
+      "category": "Feasibility",
+      "sectionRef": "Overview; Approach > Architecture; Risk Areas (Residual sub-ms window); Acceptance Criteria; Open Questions OQ-2",
+      "description": "All three reviewers (Claude, Codex, Copilot) independently conclude the proposed fix does NOT eliminate silent loss. The consumeMailbox PID fence only compares opts.listenerPid to manifest.lastListenerPid; it does not prove the manifest PID is the subprocess the runtime is currently awaiting. Because the markArmIntent change PRESERVES the old PID, an orphan that still owns lastListenerPid (i.e. drains before the newer listener's markArmed write lands, or the PID is read at mailbox.js:533 outside the manifest lock so a markArmed write can interleave before the drain commits) PASSES the fence and drains -> the same silent-loss shape persists. This directly contradicts the Overview/AC guarantee that 'mail is never consumed-and-dropped'. Resolution: EITHER strengthen the design with a reliable current-listener ownership check (e.g. a monotonic listener epoch/generation token recorded by markArmed and validated by consumeMailbox atomically under the manifest lock, so any superseded listener -- orphan OR stale same-PID -- is refused), OR narrow the Overview/ACs to the actual guarantee. Recommended: adopt the epoch design so the guarantee holds, and state ACs precisely.",
+      "status": "fixed",
+      "relevantFiles": [
+        "D:/harness-efforts/codexu/ai-developer-toolkit/plugins/crews/hooks/mailbox.js",
+        "D:/harness-efforts/codexu/ai-developer-toolkit/plugins/crews/lib/listener-loop.js",
+        "D:/harness-efforts/codexu/ai-developer-toolkit/plugins/crews/hooks/actors.js"
+      ],
+      "suggestedFix": "Introduce a monotonic listener epoch (e.g. manifest.lastListenerEpoch) bumped by markArmed under the manifest lock; the listener subprocess remembers the epoch granted at arm time and passes it to consumeMailbox; consumeMailbox refuses (returns []) when the caller epoch is not the current manifest epoch, with the epoch read+drain-commit serialized under the manifest lock so no markArmed write can interleave. Keep the markArmIntent/markExited no-null change as the prevention layer. Then the guarantee 'mail is delivered by the current listener or left queued; a superseded listener is always refused' is provable. Align Overview + ACs to that exact statement.",
+      "fixedInIteration": 1,
+      "resolution": "Replaced the bare PID fence with a monotonic lastListenerEpoch ownership token checked under the manifest lock (gating the mailbox-empty write); Overview + ACs state the provable guarantee. Verification re-review CONVERGED: residual race closed, deadlock-free, no self-invalidation."
+    },
+    {
+      "id": "F-003",
+      "severity": "High",
+      "source": "codex",
+      "category": "Completeness",
+      "sectionRef": "Approach > Files to Create/Modify; Acceptance Criteria",
+      "description": "Existing tests assert the contract the fix breaks. tests/mark-arm-intent.test.js (around :105, :122, :141) asserts that markArmIntent clears stale/null/dead listener PIDs (and lastHeartbeatAt). Changing markArmIntent to preserve lastListenerPid makes those assertions false. The plan lists only 'optionally extend listener-redundant-arm-skip.test.js' and does not require updating mark-arm-intent.test.js.",
+      "status": "fixed",
+      "relevantFiles": [
+        "D:/harness-efforts/codexu/ai-developer-toolkit/plugins/crews/tests/mark-arm-intent.test.js"
+      ],
+      "suggestedFix": "Add to US-001 scope + ACs: update tests/mark-arm-intent.test.js to assert the new contract (markArmIntent stamps listenerState:'armed' but does NOT null lastListenerPid/lastHeartbeatAt; a dead PID is demoted via isProcessAlive in the guard / deriveListenerState, not cleared by markArmIntent).",
+      "fixedInIteration": 1,
+      "resolution": "US-001 scope + AC now require updating tests/mark-arm-intent.test.js to the no-null markArmIntent contract."
+    },
+    {
+      "id": "F-004",
+      "severity": "High",
+      "source": "codex",
+      "category": "Ordering",
+      "sectionRef": "US-002; Technical Constraints; Acceptance Criteria",
+      "description": "US-002 underspecifies the codexu-side commit of the two-commit toolkit-submodule flow. It must include: bump the root AGENTS.md active-plugin-versions table (F-001), stage the new ai-developer-toolkit gitlink (submodule pointer), and verify the root worktree. The current text describes only plugin-local release artifacts (version stamps, CHANGELOG, AGENTS.md section, marketplace indexes) inside the submodule.",
+      "status": "fixed",
+      "relevantFiles": [
+        "D:/harness-efforts/codexu/AGENTS.md"
+      ],
+      "suggestedFix": "Expand US-002 to two explicit commits: (1) submodule commit inside ai-developer-toolkit (code fix + version stamps + crews CHANGELOG + crews AGENTS.md + 3 marketplace indexes); (2) codexu parent commit recording the new ai-developer-toolkit gitlink + the root AGENTS.md active-plugin-versions table bump. Add an AC that the root worktree shows the updated gitlink + table in one commit.",
+      "fixedInIteration": 1,
+      "resolution": "US-002 specifies the two-commit flow including the codexu pointer-bump commit (gitlink + root table) and root-worktree verification."
+    },
+    {
+      "id": "F-005",
+      "severity": "High",
+      "source": "consensus",
+      "category": "Criteria Quality",
+      "sectionRef": "Acceptance Criteria; Preliminary Story Decomposition (regression test)",
+      "description": "The regression ACs verify mailbox/history state but not the actual lost-notification failure mode, which is the real bug. The test must assert the observable: the non-current/orphan listener does NOT emit a {type:\"messages\"} envelope (it returns [] / exits without delivering), and the current/awaited listener emits EXACTLY ONE delivery envelope. Otherwise an implementation could satisfy the consumeMailbox state assertions while still dropping the lead notification. (Copilot High; aligns with Claude's 'exactly one surfacing path to the live lead'.)",
+      "status": "fixed",
+      "relevantFiles": [
+        "D:/harness-efforts/codexu/ai-developer-toolkit/plugins/crews/tests/integration/proactive-report-silent-loss-race.test.js"
+      ],
+      "suggestedFix": "Add an AC asserting: orphan consumeMailbox/deliver returns []/no {type:messages}; the manifest-current listener's deliver emits exactly one {type:messages,count:1}; assert mailbox-history has exactly one consumedAt row (from the current listener), none from the orphan.",
+      "fixedInIteration": 1,
+      "resolution": "Integration-test AC asserts the orphan emits no {type:messages} and the current-epoch listener emits exactly one {type:messages,count:1}."
+    },
+    {
+      "id": "F-006",
+      "severity": "High",
+      "source": "claude",
+      "category": "Completeness",
+      "sectionRef": "Approach > Architecture (prevention layer); Files to Create/Modify",
+      "description": "The prevention layer can be reopened if any path OTHER than a new listener's markArmed nulls lastListenerPid while a listener is still alive. The plan only addresses markArmIntent. It must audit ALL lastListenerPid writers/clearers -- specifically whether markExited nulls it (markExited -> null -> markArmIntent(no-clear) -> next markArmed guard sees Number.isInteger(null)===false -> duplicate listener arms) and the markArmIntent dead-PID-clear branch. Define a single unified rule.",
+      "status": "fixed",
+      "relevantFiles": [
+        "D:/harness-efforts/codexu/ai-developer-toolkit/plugins/crews/hooks/actors.js"
+      ],
+      "suggestedFix": "Add a step to audit every writer of lastListenerPid (markArmed, touchHeartbeat, markArmIntent, markExited, resume-crew/repair). Adopt the unified rule: only a new listener's markArmed overwrites lastListenerPid (to its own PID); neither markArmIntent nor markExited nulls it; dead PIDs are demoted via isProcessAlive in the requireFreshArm guard and deriveListenerState. Note that the FRESH_ARM_GUARD_STATES set already includes 'exited', so retaining the PID through markExited lets the guard correctly skip a duplicate while the old listener is still alive.",
+      "fixedInIteration": 1,
+      "resolution": "Unified rule added (only markArmed writes lastListenerPid). Audit confirmed markExited/markListenerExited already does NOT null it; only markArmIntent is fixed; the takeover-manifest null-writes (recoverable path) are intentional and out of scope."
+    },
+    {
+      "id": "F-007",
+      "severity": "Medium",
+      "source": "consensus",
+      "category": "Simplicity",
+      "sectionRef": "Acceptance Criteria; regression test design",
+      "description": "Coverage should not depend on subprocess timing. Add a focused DETERMINISTIC unit-level consumeMailbox test (seed manifest lastListenerPid/epoch, append one message, call consumeMailbox(..., {sessionId, listenerPid: differentPid / stale epoch}); assert it returns [], leaves mailbox.json unchanged, writes no history row, logs listener-orphan-consume-refused). Keep the end-to-end integration test, but if it spawns contending listener subprocesses, add it to tests/run.js's serial denylist (like listener-redundant-arm-skip.test.js and stale-listener.test.js, which are serial because they are Windows scheduling-sensitive).",
+      "status": "fixed",
+      "relevantFiles": [
+        "D:/harness-efforts/codexu/ai-developer-toolkit/plugins/crews/tests/run.js"
+      ],
+      "suggestedFix": "Split coverage: (a) a deterministic unit test of the consumeMailbox epoch/PID fence (primary contract); (b) an integration test of the two-listener end-to-end race, added to the tests/run.js serial denylist if it spawns subprocesses.",
+      "fixedInIteration": 1,
+      "resolution": "Added a deterministic unit test (consume-mailbox-epoch-fence.test.js) + a serial-denylist note for the subprocess integration test."
+    },
+    {
+      "id": "F-008",
+      "severity": "Medium",
+      "source": "copilot",
+      "category": "Feasibility",
+      "sectionRef": "Approach > Files to Create/Modify (lib/listener-loop.js)",
+      "description": "deliver() should pass the loop's local listenerPid variable, not literal process.pid. lib/listener-loop.js already computes `const listenerPid = options.listenerPid || process.pid` (~:95) and uses it in markArmed (~:136-140). Passing literal process.pid to consumeMailbox would bypass the existing options.listenerPid test seam, breaking deterministic simulations and risking a false fence mismatch.",
+      "status": "fixed",
+      "relevantFiles": [
+        "D:/harness-efforts/codexu/ai-developer-toolkit/plugins/crews/lib/listener-loop.js"
+      ],
+      "suggestedFix": "In deliver(), pass { sessionId, listenerPid } (and the epoch if adopted) using the loop's existing listenerPid variable, so consumeMailbox sees the same PID markArmed recorded and the options.listenerPid seam drives tests.",
+      "fixedInIteration": 1,
+      "resolution": "deliver() threads the loop's existing listenerPid variable (+ captured epoch), not literal process.pid."
+    },
+    {
+      "id": "F-009",
+      "severity": "Medium",
+      "source": "codex",
+      "category": "Completeness",
+      "sectionRef": "US-002 (AGENTS.md)",
+      "description": "The crews plugin AGENTS.md needs EXISTING-section edits, not just a new release section. The v1.2.12 section currently documents markArmIntent clearing stale lastListenerPid/lastHeartbeatAt; that statement becomes false after the fix and would mislead future maintainers.",
+      "status": "fixed",
+      "relevantFiles": [
+        "D:/harness-efforts/codexu/ai-developer-toolkit/plugins/crews/AGENTS.md"
+      ],
+      "suggestedFix": "Add to US-002: amend the existing crews AGENTS.md v1.2.12 section (and any other section describing markArmIntent PID-clearing) to reflect the new no-null contract, in addition to adding the new release section.",
+      "fixedInIteration": 1,
+      "resolution": "US-002 amends the existing crews AGENTS.md v1.2.12 section (which documents markArmIntent PID-clearing) in addition to adding a new release section."
+    },
+    {
+      "id": "F-010",
+      "severity": "Medium",
+      "source": "codex",
+      "category": "Criteria Quality",
+      "sectionRef": "Acceptance Criteria",
+      "description": "The 'orphan commits no consumedAt' AC needs precise evidence boundaries. If the test later lets the current listener drain the same message, mailbox-history WILL contain a consumedAt row. The test must assert the history row count immediately before and immediately after the orphan consume attempt (delta 0 for the orphan), separate from the later current-listener drain.",
+      "status": "fixed",
+      "relevantFiles": [
+        "D:/harness-efforts/codexu/ai-developer-toolkit/plugins/crews/tests/integration/proactive-report-silent-loss-race.test.js"
+      ],
+      "suggestedFix": "Reword the AC to: after the orphan consume attempt, mailbox-history row count is unchanged from before (no new consumedAt); after the current listener drains, exactly one new consumedAt row exists.",
+      "fixedInIteration": 1,
+      "resolution": "ACs assert the mailbox-history row count is unchanged after the orphan consume attempt and +1 after the current-listener drain."
+    },
+    {
+      "id": "F-011",
+      "severity": "Medium",
+      "source": "claude",
+      "category": "Completeness",
+      "sectionRef": "Risk Areas; Acceptance Criteria",
+      "description": "Confirm the live (current-epoch/manifest-PID) listener WILL retry the drain after the orphan acquires+releases the mailbox lock and returns []. consumeMailbox is under withMailboxLock; the orphan holding then releasing the lock means the live listener must get another deliver() trigger (poll backstop or fs.watch) to drain. The plan rates deadlock LOW but does not confirm the retry path fires.",
+      "status": "fixed",
+      "relevantFiles": [
+        "D:/harness-efforts/codexu/ai-developer-toolkit/plugins/crews/lib/listener-loop.js"
+      ],
+      "suggestedFix": "Add a note/AC: verify the live listener re-drains via the poll backstop or fs.watch after the orphan returns []; ensure the orphan returning [] does not consume the fs.watch event for the live listener (separate subprocesses each have their own watcher), so the message is delivered promptly, not only at timeout.",
+      "fixedInIteration": 1,
+      "resolution": "Risk Areas confirms each subprocess has its own fs.watch + poll backstop, so the orphan returning [] does not consume the live listener's watch event; prompt re-delivery verified, not delivery-only-at-timeout."
+    },
+    {
+      "id": "F-012",
+      "severity": "Medium",
+      "source": "codex",
+      "category": "Criteria Quality",
+      "sectionRef": "Acceptance Criteria (external gate)",
+      "description": "The external-gate ACs ('IMPL did not start until impl-d001-toolkit-guard shipped' and 'rebased onto post-d001 toolkit main') are not directly verifiable without defined evidence. Specify the recordable artifact: the post-d001 toolkit main base SHA the topic branch is rebased onto, and/or the observed crews version after d001.",
+      "status": "fixed",
+      "relevantFiles": [],
+      "suggestedFix": "Reword the gate ACs to require recording the post-d001 ai-developer-toolkit main SHA used as the rebase base (and the observed crews version after d001) in the ship manifest / commit message as evidence.",
+      "fixedInIteration": 1,
+      "resolution": "External-gate ACs require recording the post-d001 toolkit-main base SHA (and observed crews version after d001) as rebase evidence in the ship manifest/commit."
+    }
+  ]
+}

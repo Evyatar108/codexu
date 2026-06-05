@@ -1,0 +1,107 @@
+**Codebase Architecture**
+
+`D:\harness-efforts\codexu` is a fork orchestration repo with `ai-developer-toolkit/` as a submodule. This feature belongs entirely in `ai-developer-toolkit/plugins/crews/`.
+
+The `crews` plugin is plain CommonJS Node, not an npm package. Key layout:
+
+- `hooks/`: hook entrypoints and core protocol modules.
+- `lib/listener-loop.js`: long-lived listener subprocess loop.
+- `tools/`: CLI wrappers such as `crews.js`, `review-mail.js`, `wait-for-message.js`.
+- `tests/`: custom Node test suite run by `node tests/run.js`.
+- `.claude-plugin/`, `.github/plugin/`, `.codex-plugin/`: plugin manifests for Claude, Copilot, and Codex.
+- `.crews/crews/<crew>/{leads,members}/<actor>/`: runtime state: `manifest.json`, `mailbox.json`, `mailbox-history.jsonl`, outbox/cursor files.
+
+Tests run in isolated workers with temp `HOME`/`CREWS_HOME`, strict schema env enabled, and a serial denylist for race-sensitive files in `tests/run.js`.
+
+**Feature-Relevant Code**
+
+Primary consumer path:
+
+- `ai-developer-toolkit/plugins/crews/hooks/mailbox.js`
+  - `appendSystemMailbox()` writes system-routed envelopes such as `routingKind: "proactive-report"`.
+  - `appendMailboxWithSender()` appends to `mailbox.json`.
+  - `consumeMailbox()` is the critical drain. It reads queued messages, appends `mailbox-history.jsonl` with `consumedAt`, clears `mailbox.json`, and updates `lastInboxSeq` / `lastReviewRequiredSeq`.
+
+Listener path:
+
+- `ai-developer-toolkit/plugins/crews/lib/listener-loop.js`
+  - `runListenerLoop()` calls `markArmed(... requireFreshArm: true)` at startup.
+  - `deliver()` calls `consumeMailbox(..., "listener", { sessionId })`, then emits `{ type: "messages" }` on stdout.
+  - This is the only path that becomes a live lead system notification.
+
+Listener state helpers:
+
+- `hooks/listener-protocol.js`
+  - `markArmed()`, `markExited()` wrappers.
+- `hooks/actors.js`
+  - `touchHeartbeat()` owns `listenerState`, `lastListenerPid`, `lastHeartbeatAt`.
+  - `markListenerExited()` writes `listenerState: "exited"`.
+  - `markReviewed()` is the intended `lastReviewedSeq` advancement path.
+
+Other mailbox consumers:
+
+- `hooks/stop.js`
+  - Opportunistic drain when `getListenerState(...) !== "armed"`.
+  - Also produces proactive terminal reports around the `appendSystemMailbox(..., { kind: "proactive-report" })` block.
+- `hooks/user-prompt-submit.js`
+  - `/wake` drains via `consumeMailbox(..., "wake")`, surfaces entries, then calls `markReviewed()`.
+- `hooks/commands/review-mail.js`
+  - Reads `mailbox-history.jsonl`, formats entries, and advances `lastReviewedSeq`.
+
+Relevant tests:
+
+- `tests/listener-redundant-arm-skip.test.js`
+- `tests/listener-state-transitions.test.js`
+- `tests/listener.test.js`
+- `tests/mailbox.test.js`
+- `tests/proactive-report-notify.test.js`
+- `tests/integration/cli-spawn-proactive-report.test.js`
+- `tests/stop-hook-defers-to-armed-listener.test.js`
+- `tests/stop-hook-consumes-when-listener-exited.test.js`
+- `tests/integration/listener-defer-race.test.js`
+- `tests/review-mail-command.test.js`
+
+**Technical Constraints**
+
+`consumeMailbox()` currently treats “drained to history” as delivery. `consumedAt` means “some consumer drained it,” not “the live lead saw it.”
+
+The live evidence for seq 379 confirms the reproduced row was consumed with `via: "listener"` about 74 ms after send. That points first at duplicate/stale listener ownership, not the stop-hook path for that incident. Current manifest state is later at seq 383, so it cannot prove whether `lastReviewedSeq` advanced at seq 379 time. Code inspection shows ordinary drains advance `lastReviewRequiredSeq`; true `lastReviewedSeq` advances only in `markReviewed()` or `review-mail.js` including its stuck-cursor recovery branch.
+
+The current session-id guard is insufficient for duplicate same-session listeners. `consumeMailbox()` rejects different `sessionId`, recoverable state, and terminal actors, but it cannot distinguish current listener subprocess from an orphan with the same session id.
+
+`touchHeartbeat()` can also overwrite `lastListenerPid` on heartbeat without `requireFreshArm`, so any same-session duplicate listener still alive may be able to reclaim apparent ownership unless the fix introduces a stable listener token or pid ownership check.
+
+The stop-hook recovery behavior is tested and intentional for exited listeners, so removing it wholesale will regress existing tests. Any hardening should distinguish proactive/review-required terminal reports or recent armed/rearm windows from normal idle recovery.
+
+Ship constraints: use `scripts/bump-version.js`, update `AGENTS.md` and `CHANGELOG.md`, update plugin/manifests/marketplace indexes, then commit inside `ai-developer-toolkit` and bump the codexu submodule pointer. Serialize implementation after `impl-d001-toolkit-guard`.
+
+**Implementation Suggestions**
+
+Natural fix point: make listener delivery ownership explicit.
+
+Recommended low-risk shape:
+
+1. Add a listener ownership token or generation at successful initial `markArmed()`.
+   - Could be `listenerToken`, or a tuple of `lastListenerPid + lastListenerSpawnAt`.
+   - Listener-loop stores it and passes it to `consumeMailbox()`.
+
+2. Change listener heartbeat refresh so only the current owner can refresh ownership.
+   - A same-session listener with a stale token/pid must not overwrite `lastListenerPid`.
+
+3. Add a guarded drain mode to `consumeMailbox()`.
+   - For `via: "listener"`, require manifest still matches `sessionId`, `listenerState: "armed"`, and current token/pid.
+   - If ownership does not match, do not clear `mailbox.json` and do not append history.
+
+4. Harden stop-hook secondarily.
+   - Preserve stop-hook recovery for ordinary exited-listener messages.
+   - For review-required/proactive terminal envelopes, avoid draining during the armed-to-rearm race unless surfacing is guaranteed. A peek-and-defer path is safer than a blind `consumeMailbox()`.
+
+Regression tests should be deterministic:
+
+- Same-session stale listener drain is refused; mailbox remains queued.
+- Live listener drains exactly once and emits one `{ type: "messages" }`.
+- Stale heartbeat cannot steal current listener ownership.
+- Optional stop-hook race test: proactive terminal report remains queued or surfaces, never silently history-only.
+- Add any multi-process race test to `tests/run.js` serial denylist.
+
+Verification target: run focused tests first, then `node tests/run.js` for the plugin before version/docs/submodule commits.

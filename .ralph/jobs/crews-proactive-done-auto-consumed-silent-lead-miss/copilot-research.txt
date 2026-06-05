@@ -1,0 +1,79 @@
+I’ll read the referenced prompt file first, then carry out the requested work.
+
+I’m going to inspect the crews plugin’s mailbox/listener paths and test conventions, then return a research report only.
+
+The repo confirms the relevant code is in the crews plugin; I’m narrowing on the exact consumers and existing tests now.
+
+I’ve confirmed the three mailbox drain paths; next I’m checking listener ownership and test fixtures to identify the safest regression-test seam.
+
+Listener startup already has an active-listener guard, so I’m checking whether the remaining race is in duplicate same-session delivery vs Stop-side opportunistic drain.
+
+The current tests already pin Stop consuming when listenerState is exited, which conflicts with the new atomic-delivery objective for lead terminal reports; I’m checking the producer shape so the plan can scope the exception precisely.
+
+I found the proactive terminal notification is a normal lead mailbox envelope with `from.routingKind: "proactive-report"`; the drain race is entirely consumer-side after that append.
+
+Research complete: the bug is in the **consumer side** of lead mailbox delivery, not proactive-report production.
+
+### Codebase Architecture
+
+`ai-developer-toolkit\plugins\crews\` is a JavaScript/CommonJS plugin with no package-level build system. Runtime code is organized as:
+
+| Area | Key paths |
+|---|---|
+| Hook entrypoints | `hooks\stop.js`, `hooks\pre-tool-use.js`, `hooks\post-tool-use.js`, `hooks\user-prompt-submit.js` |
+| Mailbox/state primitives | `hooks\mailbox.js`, `hooks\actors.js`, `hooks\actor-state.js`, `hooks\config.js` |
+| Listener daemon | `lib\listener-loop.js`, dispatched through `tools\crews.js arm` |
+| Commands | `hooks\commands\*.js` |
+| Protocol helpers | `hooks\protocol\*.js` |
+| Tests | `tests\*.test.js`, run by `node tests\run.js` with worker isolation |
+
+### Feature-Relevant Code
+
+The proactive terminal report is produced in `hooks\stop.js:1415-1458`. For a member `done` / `question` / `blocked` report without `replyTo`, Stop writes one lead mailbox envelope via `appendSystemMailbox(..., { kind: 'proactive-report', triggeredBy: member })`. The payload contains `payload.entries[]`, `payload.memberName`, `payload.outboxSeq`, and the terminal kind.
+
+The dangerous drain is `hooks\mailbox.js:526-575`. `consumeMailbox()`:
+
+- drains all `mailbox.json.messages`
+- appends `mailbox-history.jsonl` rows with `consumedAt`
+- clears `mailbox.json`
+- advances `lastInboxSeq`
+- advances `lastReviewRequiredSeq` / `lastReviewRequiredDeliveryAt` for review-required envelopes
+
+It does **not** advance `lastReviewedSeq`.
+
+There are three consumers:
+
+1. `lib\listener-loop.js:219-240` drains via `consumeMailbox(..., 'listener', { sessionId })`, then emits `{ type: 'messages' }` on stdout.
+2. `hooks\stop.js:883-899` drains opportunistically when `listenerState !== 'armed'`, then surfaces content as a Stop block reason.
+3. `hooks\user-prompt-submit.js:69-87` drains only for explicit `/wake`, formats rows, then calls `markReviewed()`.
+
+`lastReviewedSeq` is advanced only by visible review surfaces: `hooks\commands\review-mail.js:205-225` and `/wake` via `hooks\user-prompt-submit.js:84`. The live evidence likely conflated `lastReviewRequiredSeq` with `lastReviewedSeq` unless `review-mail` or `/wake` ran.
+
+### Technical Constraints
+
+The listener lifecycle is delicate. Existing guards in `hooks\actors.js:908-941` and `lib\listener-loop.js:136-152` prevent many duplicate-listener starts, but `consumeMailbox()` only checks `sessionId`, not listener PID/generation. A stale same-session listener can still drain if it reaches `consumeMailbox()`.
+
+Stop-side opportunistic drain is intentionally covered by tests:
+
+- `tests\stop-hook-consumes-when-listener-exited.test.js`
+- `tests\stop-hook-defers-to-armed-listener.test.js`
+
+But this recovery behavior is unsafe for **lead** mail because Copilot Stop delivery is not a guaranteed live notification surface.
+
+### Implementation Suggestions
+
+Use a narrow two-part fix:
+
+1. **Make listener drains owner-bound.** Thread `listenerPid` from `lib\listener-loop.js` into `consumeMailbox()` and add an opt-in guard that refuses listener drains unless the manifest still names that PID as the current listener owner. Also prevent stale listener heartbeat writes from re-claiming ownership over a different fresh listener PID.
+
+2. **Disable Stop-side opportunistic drain for leads.** Keep the existing member recovery behavior, but for leads leave queued mail in `mailbox.json` and let the lead-listener-required gate force re-arming. This directly closes the Copilot Stop-hook silent-consume path without changing member semantics.
+
+Regression tests should cover:
+
+- stale listener PID cannot consume a queued `proactive-report`; mailbox remains queued and review cursors do not advance
+- current listener PID can consume and emits the normal `{ type: 'messages' }`
+- lead Stop with `listenerState !== 'armed'` does **not** drain proactive mail
+- existing member Stop recovery still drains when listener is exited
+
+Likely test homes: new `tests\proactive-report-delivery-race.test.js`, plus a lead-specific case near the existing Stop-hook consume/defers tests.
+

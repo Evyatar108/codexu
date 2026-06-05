@@ -1,0 +1,34 @@
+{
+  "clusters": [
+    {
+      "name": "crews-silent-loss-fix",
+      "stories": ["US-001", "US-002"],
+      "phase": 1,
+      "dependsOn": [],
+      "fileOverlapEvidence": {
+        "sharedFiles": [
+          "AGENTS.md",
+          "ai-developer-toolkit/plugins/crews/AGENTS.md",
+          "ai-developer-toolkit/plugins/crews/CHANGELOG.md",
+          "ai-developer-toolkit/plugins/crews/.claude-plugin/plugin.json",
+          "ai-developer-toolkit/plugins/crews/.github/plugin/plugin.json",
+          "ai-developer-toolkit/plugins/crews/.codex-plugin/plugin.json",
+          "ai-developer-toolkit/.claude-plugin/marketplace.json",
+          "ai-developer-toolkit/.github/plugin/marketplace.json",
+          "ai-developer-toolkit/.agents/plugins/marketplace.json"
+        ],
+        "exclusiveFiles": [
+          "ai-developer-toolkit/plugins/crews/hooks/actors.js",
+          "ai-developer-toolkit/plugins/crews/hooks/mailbox.js",
+          "ai-developer-toolkit/plugins/crews/hooks/protocol/manifest.js",
+          "ai-developer-toolkit/plugins/crews/lib/listener-loop.js",
+          "ai-developer-toolkit/plugins/crews/tests/consume-mailbox-epoch-fence.test.js",
+          "ai-developer-toolkit/plugins/crews/tests/integration/proactive-report-silent-loss-race.test.js",
+          "ai-developer-toolkit/plugins/crews/tests/mark-arm-intent.test.js"
+        ],
+        "risk": "low"
+      },
+      "executionModeRationale": "Serial. Both stories edit the same crews plugin; US-002 (version bump, CHANGELOG, AGENTS.md, marketplace indexes) must run after US-001's code is finalized, and both touch the same release-stamp files, so parallel execution would conflict. The whole IMPL additionally serializes after impl-d001-toolkit-guard (cross-task, enforced by the lead at spawn time)."
+    }
+  ]
+}

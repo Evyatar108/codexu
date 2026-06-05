@@ -1,0 +1,36 @@
+I’ll read the provided prompt and then carry out the requested work end-to-end.
+
+The prompt file is larger than the viewer’s single-read limit, so I’ll read it in ranges to capture the full request.
+
+I’ve identified this as a plan-review task; I’ll verify the cited crews code paths and tests before writing findings.
+
+The main cited code paths exist and match the plan’s root-cause narrative. I’m checking test and release surfaces now to catch gaps in the implementation plan.
+
+I found one likely release-surface mismatch tied to recent codex plugin support, so I’ll inspect the version script and tests directly before finalizing the review.
+
+I’m checking listener startup ordering because it determines whether the proposed PID fence truly eliminates the silent-loss path or only narrows it.
+
+The listener loop already has a `listenerPid` test seam, and the plan’s literal `process.pid` handoff may conflict with it. I’ll verify usage before calling that out.
+
+### Feasibility
+
+[High] The plan still leaves a silent-loss path it claims to eliminate. `consumeMailbox` can only compare `opts.listenerPid` to `manifest.lastListenerPid` (`hooks/mailbox.js:526-575`), but that does not prove the manifest PID is the subprocess the runtime is currently awaiting. An existing orphan that still owns `lastListenerPid` can remain authorized to drain, especially since the proposed `markArmIntent` change in `hooks/actors.js:944-984` preserves the old PID. The plan acknowledges a “residual window” but still states the fix guarantees “mail is never consumed-and-dropped.” Either close that path with a stronger ownership/epoch/re-enqueue design, or narrow the plan’s goal and ACs.
+
+[Medium] `lib/listener-loop.js` should thread the local `listenerPid` variable, not literal `process.pid`. The loop already supports `const listenerPid = options.listenerPid || process.pid` (`lib/listener-loop.js:95`) and uses that value in `markArmed` (`:136-140`). If `deliver()` passes `process.pid` literally, tests or deterministic simulations using the existing `options.listenerPid` seam can incorrectly fail the new PID fence.
+
+### Completeness
+
+[Medium] If the new `tests/integration/proactive-report-silent-loss-race.test.js` actually spawns competing listeners, the plan should add it to `tests/run.js`’s serial denylist. Existing listener race/process tests such as `listener-redundant-arm-skip.test.js` and `stale-listener.test.js` are already serial-only (`tests/run.js:39-60`) because they are Windows scheduling-sensitive.
+
+### Ordering
+
+No issues found.
+
+### Simplicity
+
+No issues found.
+
+### Acceptance Criteria Quality
+
+[High] The regression ACs verify mailbox state, but not the actual lost-notification failure mode. The original bug is “wrong listener drains and its stdout/system notification is not observed”; the test should assert that the non-current listener does **not** emit `{type:"messages"}` and the current/awaited listener emits exactly one delivery envelope. Otherwise an implementation could satisfy the `consumeMailbox` assertions while still dropping the lead notification.
+
