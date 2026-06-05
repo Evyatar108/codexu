@@ -77,24 +77,28 @@ export async function appendEvent(event: CodexDaemonLifecycleEvent, options?: Li
 
 export async function readEvents(homeDir?: string): Promise<CodexDaemonLifecycleEvent[]> {
     const path = lifecycleFilePath(homeDir);
-    if (!existsSync(path)) {
-        return [];
-    }
-
-    const lines = readFileSync(path, 'utf8').split(/\r?\n/);
-    if (lines.at(-1) === '') {
-        lines.pop();
-    }
-
+    const rotatedPath = `${path}.1`;
     const events: CodexDaemonLifecycleEvent[] = [];
-    for (const [index, line] of lines.entries()) {
-        try {
-            events.push(CodexDaemonLifecycleEvent.parse(JSON.parse(line)));
-        } catch (error) {
-            if (index === lines.length - 1) {
-                continue;
+
+    for (const filePath of [rotatedPath, path]) {
+        if (!existsSync(filePath)) {
+            continue;
+        }
+
+        const lines = readFileSync(filePath, 'utf8').split(/\r?\n/);
+        if (lines.at(-1) === '') {
+            lines.pop();
+        }
+
+        for (const [index, line] of lines.entries()) {
+            try {
+                events.push(CodexDaemonLifecycleEvent.parse(JSON.parse(line)));
+            } catch (error) {
+                if (index === lines.length - 1) {
+                    continue;
+                }
+                throw error;
             }
-            throw error;
         }
     }
     return events;

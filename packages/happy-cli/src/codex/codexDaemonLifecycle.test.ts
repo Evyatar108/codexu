@@ -200,6 +200,7 @@ describe('codex daemon lifecycle sidecar', () => {
         }
 
         const priorContent = readFileSync(lifecyclePath(tempRoot), 'utf8');
+        const rotatedEvents = await lifecycle.readEvents();
         lifecycle.rotateIfNeeded();
 
         expect(existsSync(`${lifecyclePath(tempRoot)}.1`)).toBe(true);
@@ -209,7 +210,7 @@ describe('codex daemon lifecycle sidecar', () => {
         const fresh = spawnEvent({ happy_session_id: 'fresh-after-rotate' });
         await lifecycle.appendEvent(fresh);
 
-        expect(await lifecycle.readEvents()).toEqual([fresh]);
+        expect(await lifecycle.readEvents()).toEqual([...rotatedEvents, fresh]);
     });
 
     it('preserves all child-process appends across a concurrent rotation race', async () => {
