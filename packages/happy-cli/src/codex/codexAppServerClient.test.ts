@@ -687,6 +687,15 @@ describe('CodexAppServerClient sandbox integration', () => {
         expect((client as any).wsAppServerOwner).toBe('attached');
         expect((client as any).currentDiscovery).toEqual(record);
         expect((client as any).processEpoch).toBe(1);
+        expect(mockEmitCodexDaemonEvent).toHaveBeenCalledTimes(1);
+        expect(mockEmitCodexDaemonEvent).toHaveBeenCalledWith(expect.objectContaining({
+            event: 'codex.daemon.reattach',
+            pid: record.pid,
+            cwd: record.cwd,
+            started_at_ms: new Date(record.startedAt).getTime(),
+            reattached_at_ms: expect.any(Number),
+        }));
+        expect(mockEmitCodexDaemonEvent.mock.calls[0][0].happy_session_id).toBeUndefined();
 
         await client.disconnect({ terminateAppServer: true });
         expect(killSpy).toHaveBeenCalledWith(record.pid, 'SIGTERM');
@@ -717,6 +726,9 @@ describe('CodexAppServerClient sandbox integration', () => {
         expect(mockSpawn).toHaveBeenCalledTimes(1);
         expect(spawnedRequests.filter((msg) => msg.method === 'initialize')).toHaveLength(1);
         expect(readDiscoveryRecord(discoveryFilePath())?.pid).toBe(4323);
+        expect(mockEmitCodexDaemonEvent).not.toHaveBeenCalledWith(expect.objectContaining({
+            event: 'codex.daemon.reattach',
+        }));
 
         await client.disconnect({ terminateAppServer: true });
         killSpy.mockRestore();
@@ -810,6 +822,9 @@ describe('CodexAppServerClient sandbox integration', () => {
         expect(spawnedRequests.filter((msg) => msg.method === 'initialize')).toHaveLength(1);
         expect(killSpy).toHaveBeenCalledWith(record.pid, 'SIGTERM');
         expect(readDiscoveryRecord(discoveryFilePath())?.pid).toBe(4327);
+        expect(mockEmitCodexDaemonEvent).not.toHaveBeenCalledWith(expect.objectContaining({
+            event: 'codex.daemon.reattach',
+        }));
 
         await client.disconnect({ terminateAppServer: true });
         killSpy.mockRestore();
@@ -921,6 +936,9 @@ describe('CodexAppServerClient sandbox integration', () => {
             pid: 4342,
             happy_session_id: 'session-B',
         }));
+        expect(mockEmitCodexDaemonEvent).not.toHaveBeenCalledWith(expect.objectContaining({
+            event: 'codex.daemon.reattach',
+        }));
 
         await client.disconnect({ terminateAppServer: true });
         killSpy.mockRestore();
@@ -966,7 +984,15 @@ describe('CodexAppServerClient sandbox integration', () => {
         expect(mockSpawn).not.toHaveBeenCalled();
         expect(requests.filter((msg) => msg.method === 'initialize')).toHaveLength(1);
         expect((client as any).wsAppServerOwner).toBe('attached');
-        expect(mockEmitCodexDaemonEvent).not.toHaveBeenCalled();
+        expect(mockEmitCodexDaemonEvent).toHaveBeenCalledTimes(1);
+        expect(mockEmitCodexDaemonEvent).toHaveBeenCalledWith(expect.objectContaining({
+            event: 'codex.daemon.reattach',
+            pid: record.pid,
+            cwd: record.cwd,
+            happy_session_id: 'session-C',
+            started_at_ms: new Date(record.startedAt).getTime(),
+            reattached_at_ms: expect.any(Number),
+        }));
 
         await client.disconnect({ terminateAppServer: true });
         killSpy.mockRestore();

@@ -907,6 +907,20 @@ export class CodexAppServerClient {
             if (timeout) clearTimeout(timeout);
             this.notify('initialized');
             this.connected = true;
+            try {
+                await emitCodexDaemonEvent({
+                    event: 'codex.daemon.reattach',
+                    pid: record.pid,
+                    cwd: record.cwd,
+                    ...(record.happySessionId !== undefined
+                        ? { happy_session_id: record.happySessionId }
+                        : {}),
+                    started_at_ms: new Date(record.startedAt).getTime(),
+                    reattached_at_ms: Date.now(),
+                });
+            } catch (telemetryError) {
+                logger.warn('[CodexAppServer] Failed to emit reattach telemetry', telemetryError);
+            }
             logger.debug('[CodexAppServer] Reattached and initialized');
             return true;
         } catch (error) {
