@@ -2020,6 +2020,27 @@
       }
     },
     {
+      "id": "remove-codexu-workspace-mcpjson-once-copilot-workspace-cwd-lands",
+      "scope": "codexu|ralph-overview",
+      "lifecycle": "tracked",
+      "status": "warn",
+      "lastTouchedAt": "2026-06-05T01:42:00Z",
+      "kanbanCards": [
+        {
+          "className": "cmd-warn",
+          "html": "<strong>Filed 2026-06-05T01:42Z as follow-up to Option A pick for ralph-overview-copilot-smoke-deferred.</strong> Once Copilot CLI ships a workspace-cwd or workspace-env contract for plugin-launched MCP servers (e.g., <code>cwd=workspaceRoot</code> on launch, or a <code>COPILOT_WORKSPACE_ROOT</code> env var, or <code>${workspaceFolder}</code>-token expansion in plugin manifest env blocks), REMOVE the codexu workspace <code>.mcp.json</code> entry that hardcodes <code>RALPH_OVERVIEW_REPO_ROOT=D:/harness-efforts/codexu</code>. Restore the documented \"plugin-only registration\" stance per codexu AGENTS.md. Track upstream Copilot CLI release notes for the relevant feature. As of 2026-06-04 Copilot 1.0.60-0 has NEITHER -- it launches plugin MCPs with <code>cwd=plugin-dir</code> and only <code>${CLAUDE_PLUGIN_ROOT}</code> expands in env blocks. Tested env vars on the dev box: only COPILOT_AGENT_SESSION_ID + COPILOT_CLI + COPILOT_CLI_BINARY_VERSION + COPILOT_LOADER_PID + COPILOT_RUN_APP exist; none encode workspace path. <strong>Status: WATCH</strong> -- re-evaluate every 2-3 Copilot CLI releases or on operator-noted release-note hit."
+        }
+      ],
+      "command": {
+        "name": "remove-codexu-workspace-mcpjson-once-copilot-workspace-cwd-lands",
+        "descriptionHtml": "<strong>Perpetually-tracked WATCH.</strong> Once Copilot CLI exposes a workspace path to plugin-launched MCP servers (cwd, env, or token-expansion), remove the codexu workspace <code>.mcp.json</code> that hardcodes <code>RALPH_OVERVIEW_REPO_ROOT</code>. Restore the documented plugin-only registration stance. Filed 2026-06-04 alongside the Option A pick for ralph-overview-copilot-smoke-deferred.",
+        "warnings": [
+          "Status: WATCH only -- no impl until Copilot CLI release-notes confirm workspace-cwd or env contract for plugin-launched MCP servers."
+        ],
+        "prompts": {}
+      }
+    },
+    {
       "id": "ralph-overview-copilot-mirror",
       "scope": "ralph-overview",
       "lifecycle": "merged",
