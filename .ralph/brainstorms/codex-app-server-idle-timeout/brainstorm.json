@@ -1,0 +1,42 @@
+{
+  "brainstormName": "codex-app-server-idle-timeout",
+  "overviewTaskId": "codex-app-server-idle-timeout",
+  "idea": "App-server idle-timeout default. When the last happy-cli client disconnects from a running `codex app-server`, how long before the process exits? Defaults are undefined today (effectively no timeout: the detached ws app-server outlives foreground happy-cli and is reattached via the per-cwd discovery file). Compare (a) no timeout, (b) short 30-60s, (c) configurable + sane default, (d) heartbeat/registry-driven, (e) lazy-start + idle-exit. Scope the multi-device + tunnels interactions and pick one direction. Touches codex app-server (Rust) + happy-cli (TS) reconnect logic + the multi-device discoverability protocol. Coordinate with 1b-multidev + async-events-design.",
+  "availableLenses": ["codex", "copilot", "devils-advocate"],
+  "missingLenses": [],
+  "candidateDirections": [
+    {
+      "id": "D-001",
+      "name": "Defer-and-instrument: ship the seam + idle telemetry, timeout DEFAULT-OFF, zero codex edits",
+      "summary": "Preserve today's reattach-forever behavior (option a) as the v1 default. Ship only the cheap, reversible scaffolding: a happy-cli `--idle-timeout` spawn-flag seam gated behind a `codex app-server --help` capability probe, plus idle-lifetime telemetry built on the sidecar's existing `last_client_disconnect_age_ms` / `uptime_ms` (+ optional RSS). Gather real orphan-lifetime + footprint data for a few weeks, then pick the default empirically. No automatic kill, no Rust edits now. Absorbs the Devil's-Advocate 'measure first' as its literal content.",
+      "contributingLenses": ["codex", "copilot", "devils-advocate"]
+    },
+    {
+      "id": "D-002",
+      "name": "Server-owned (Rust) configurable idle-exit with generous default + busy-exemption",
+      "summary": "The robust eventual home for the timer: the codex app-server self-exits after N seconds with zero connected ws clients, surviving happy-cli's exit (the detach-and-exit constraint kills any TS-side timer). Configurable, generous default (~10-30 min, tuned to bridge the multi-device handoff window, NOT 30-60s), and HARD-exempt while a session is mid-turn or a ralph job is active. Net-new Rust: upstream app-server has only thread-level 30-min idle-unload, no process-level idle-exit flag, so this requires an overlay seam or upstream-canonical edit -> highest conflict surface; defer until a measured default exists.",
+      "contributingLenses": ["codex", "copilot"]
+    },
+    {
+      "id": "D-003",
+      "name": "Heartbeat/liveness-driven exit tied to the tunnels directory entry (option d)",
+      "summary": "Model exit on directory-entry heartbeat-with-grace rather than raw ws connection count. Any device refreshes the per-machine app-server liveness entry; the app-server exits only when no device has asserted liveness for the whole grace window. Tolerates e-ink tablet sleep/flap and the handoff gap in one mechanism and unifies cleanly with the tunnels registry lifecycle. Explicitly deferred: depends on the not-yet-shipped tunnels directory + the `happySessionId` mismatch guard (which currently KILLS cross-session reattaches, so 'multiple clients share one server' isn't even a real feature yet).",
+      "contributingLenses": ["codex", "copilot"]
+    },
+    {
+      "id": "D-004",
+      "name": "Observability + manual reaper, no automatic policy (`happy codex kill-idle`)",
+      "summary": "Devil's-Advocate contrarian: keep exit manual. `doctor` already surfaces live/stale/orphaned daemons read-only; add a `happy codex kill-idle` command (and/or a doctor hint) so the human reaps when they choose. Avoids every automatic-kill race (mid-handoff TOCTOU on the per-cwd lock, tablet-sleep false positive, lost in-flight turn) for an orphan whose cost is largely unverified. Companion reframe: make reattach cheap + cold-start fast so the app-server's lifetime stops mattering. Best folded into D-001 as the chosen-after-measurement action rather than tracked alone.",
+      "contributingLenses": ["devils-advocate"]
+    }
+  ],
+  "recommendedDirection": "D-001",
+  "questionsForSynthesis": [
+    "Does 'the last client disconnects' mean the last transport (ws) connection, or the last client owning the daemon's `happySessionId`? The two diverge the moment multi-device sharing exists.",
+    "Does the `happySessionId` mismatch guard (which kills cross-session reattaches today, making it effectively one-client-per-session) stay as single-owner, or relax for shared multi-device? Relaxing it redefines the entire 'last client' problem and is a prerequisite for any shared-server idle-timeout.",
+    "What is the measured device-handoff window (close laptop -> relay disconnect -> walk -> unlock phone -> connect through the Dev Tunnel), p90? Any default chosen before this number is a guess that risks silently breaking 'seamless'.",
+    "What does a cold app-server restart actually LOSE -- just slower reattach, or in-flight turn / un-persisted thread state? Acceptable timeout aggressiveness depends entirely on whether reaping is reversible-but-slow vs. genuinely lossy.",
+    "What is the real idle cost (steady-state RSS, held loopback port, FD/process count) of leaving app-servers alive on the e-ink tablet + dev-laptop targets -- and does N>1 ever accumulate given lazy-start + per-cwd reattach almost always yields exactly one?",
+    "Can the app-server reliably self-detect 'busy' (mid-turn / active ralph job) to HARD-exempt it from any timeout? If not, every automatic timeout risks killing a long autonomous job mid-flight -- the worst failure mode. Should any timeout apply only in ws detached mode, never stdio?"
+  ]
+}
