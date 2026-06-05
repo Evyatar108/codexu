@@ -629,6 +629,7 @@ describe('CodexAppServerClient sandbox integration', () => {
         expect(spawnEvent.happy_session_id).toBeUndefined();
         expect(spawnEvent.cold_start_ms).toBeGreaterThanOrEqual(0);
         expect(spawnEvent.cold_start_ms).toBeLessThanOrEqual(connectFinishedAt - connectStartedAt + 100);
+        expect(spawnEvent.started_at_ms).toBe(new Date(record!.startedAt).getTime());
 
         await client.disconnect({ terminateAppServer: true });
         expect(existsSync(discoveryFilePath())).toBe(false);
