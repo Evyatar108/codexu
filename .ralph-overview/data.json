@@ -93,7 +93,7 @@
       "scope": "codex",
       "lifecycle": "tracked",
       "status": "warn",
-      "lastTouchedAt": "2026-06-05T16:15:00Z",
+      "lastTouchedAt": "2026-06-05T17:30:00Z",
       "kanbanCards": [
         {
           "className": "cmd-warn",
@@ -106,6 +106,10 @@
         {
           "className": "cmd-ok",
           "html": "<strong>Operator decision 2026-06-05: D-002 (Cloudflare R2 behind evyatar.dev).</strong> NO public GitHub repo; binaries hosted on the operator's own Cloudflare R2 bound to codex.evyatar.dev (single-origin trust). This keeps the clean unauthenticated one-liner viable. D-001 (public GitHub mirror) declined. Next: plan the D-002 installer — R2 bucket + per-release wrangler upload of the win32-x64 tarball + manifest.json + /latest; install.ps1 (real) downloads from R2, verifies sha256, extracts the multi-binary tarball to ~/.codex-fork/, wires PATH (no codex install subcommand), kills running codex procs first, triggers first-run; install.sh = Windows-only stub; publish-flow integration (add R2 upload to publish-npm.yml / publish-sandbox-patch Step 5, needs an R2 credential in CI); /latest serves BOTH the installer AND the redirect-plan doctor probe."
+        },
+        {
+          "className": "cmd-ok",
+          "html": "<strong>Plan shipped 2026-06-05 @ 7f7500b5</strong> on ralph/plan-codex-fork-install-script (D-002, R2 on evyatar.dev). 6 stories; tri-model Phase-4 review, 18 findings over 3 rounds all fixed; clear infra-vs-code split (operator/ops: R2 bucket + DNS + CI credential; code: install.ps1 + publish-flow R2 upload + /latest + install.sh stub). Research finding: gim-home CI is org-blocked, so the R2 publish hooks the manual /publish-sandbox-patch path. NOTE: this plan done was SILENTLY LOST (auto-consumed ~250ms post-delivery, seq 386) + recovered manually. HOLD for operator review before impl."
         }
       ],
       "command": {
@@ -123,11 +127,15 @@
       "scope": "crews",
       "lifecycle": "tracked",
       "status": "warn",
-      "lastTouchedAt": "2026-06-05T16:15:00Z",
+      "lastTouchedAt": "2026-06-05T17:30:00Z",
       "kanbanCards": [
         {
           "className": "cmd-warn",
           "html": "<strong>Filed 2026-06-05 (reproduced live).</strong> A member's proactive <code>kind=done</code> report was silently lost by the lead: it landed in the lead mailbox-history but was AUTO-CONSUMED at delivery instead of being enqueued as pending + waking the listener, so NO system_notification fired and the lead never saw the terminal report (operator had to notice the member tab was done). <strong>Evidence</strong> (leads/overview-bookkeeper/mailbox-history.jsonl seq 379, sender plan-redirect-upstream-paths, routingKind=proactive-report): <code>writtenAt 15:16:29.436Z</code> vs <code>consumedAt 15:16:29.561Z</code> &mdash; consumed 125ms after write, with NO intervening review-mail; <code>mailbox.json</code> shows <code>messages: []</code> (lastWriteAt 15:16:29.567Z) and the reviewed cursor silently advanced to 379. Contrast seqs 377/378 (same session, same routingKind) which were consumed only when the lead actively ran review-mail (14:35:59, 14:50:58). <strong>Likely cause:</strong> a listener-delivery race that consumes-on-delivery without enqueue+notify; possibly aggravated by multiple arm cycles in one session (arm-60..arm-65, several arm-skipped) and/or the known Windows events.jsonl flush race. <strong>Impact:</strong> silent loss of done/question/blocked terminal reports to the lead = stalled pipeline; same family as crews-implement-with-ralph-parallel-outbox-silent-loss. Recovery is manual (read-member --all on the member outbox). FIX: make proactive terminal-report delivery enqueue-then-notify atomically and never set consumedAt without an actual lead-side review; add a regression test for the deliver/consume race."
+        },
+        {
+          "className": "cmd-ok",
+          "html": "<strong>Plan shipped 2026-06-05 @ 091ff639</strong> on ralph/plan-crews-proactive-done-auto-consumed-silent-lead-miss. 2 stories; Phase-4 12 findings (1C/5H/6M) resolved, re-review CONVERGED. This is the fix for the very bug it documents — which RECURRED a 3rd time this session: this plan's OWN done report (and the install-script plan's) was auto-consumed ~250ms after delivery with no lead notification (seqs 384/386, same fingerprint as seq 379). Impl is a crews/toolkit change (two-commit submodule ship); now unblocked (d001 shipped, no other toolkit impl running). NOTE: this plan done was SILENTLY LOST + recovered manually from the member outbox. HOLD for operator review before impl."
         }
       ],
       "command": {
