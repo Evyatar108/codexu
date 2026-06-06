@@ -1,0 +1,74 @@
+I’ll read the referenced prompt file and execute the task it describes.
+
+I’ll inspect the ralph-overview plugin and codexu wrapper surfaces needed for the research-mode analysis.
+
+I found the relevant plugin init path; next I’m reading the existing init engine, tests, wrapper, and plugin metadata to ground the analysis.
+
+I’m checking the dispatcher, config resolver, and package/script surfaces so the recommendations match the actual integration points.
+
+I’m checking the `derive-next-command` CLI behavior and docs examples to avoid overstating what the wrapper config can express today.
+
+Research complete — the plan is feasible, but it needs changes across the `ralph-overview` plugin init engine, wrapper template/tests, config template/docs, and release metadata.
+
+### Codebase Architecture
+
+The relevant code lives in `ai-developer-toolkit\plugins\ralph-overview`, an ESM Node plugin with npm workspaces:
+
+- `bin\ralph-overview.mjs` — plugin dispatcher for `init|sync|watch|dev|build|mcp|install-server|cli`.
+- `scripts\init-consumer.mjs` — shared init engine used by CLI and MCP.
+- `scripts\lib\*.mjs` — sync/config/snapshot/command derivation logic.
+- `tools\overview-mcp` — TypeScript MCP server and Vitest tests.
+- `tools\overview-viewer` — React 19 + Vite 8 dashboard.
+- `templates\*.json` — emitted consumer scaffolds.
+- `skills\` and `.copilot-plugin\copilot-skills\` — Claude/Copilot guided skills.
+
+The consumer-side precedent is `bin\ralph-overview.mjs` in codexu, with package scripts in root `package.json`.
+
+### Feature-Relevant Code
+
+- `ai-developer-toolkit\plugins\ralph-overview\scripts\init-consumer.mjs`
+  - `PACKAGE_SCRIPTS` currently hard-codes `node $CLAUDE_PLUGIN_ROOT/ralph-overview/bin/ralph-overview.mjs ...`.
+  - `addPackageJsonScripts` is optional and independent from any wrapper emission.
+  - Writes are per-file atomic via `atomicWriteFile`, but the init loop can still write non-error operations while other operations error, so script+wrapper coupling needs explicit handling.
+
+- `ai-developer-toolkit\plugins\ralph-overview\bin\ralph-overview.mjs`
+  - CLI `init` forwards `addPackageJsonScripts`; dispatcher already forwards env, stdio, signals, and exit code for plugin-local commands.
+
+- `ai-developer-toolkit\plugins\ralph-overview\tools\overview-mcp\src\tools\init.ts` and `schemas.ts`
+  - MCP `overview.init` exposes `dryRun`, `force`, `serverOnly`, `addPackageJsonScripts`.
+  - Schema must change if wrapper/script emission becomes default or gains a new flag.
+
+- `ai-developer-toolkit\plugins\ralph-overview\tools\overview-mcp\src\__tests__\init-consumer.test.ts`
+  - Existing coverage for init output, force/conflict behavior, CLI/MCP parity, and package-root resolution.
+  - Natural place for init atomicity and emitted-wrapper tests.
+
+- `D:\harness-efforts\codexu\bin\ralph-overview.mjs`
+  - Current hand-written resolver has the exact known bugs: `node_modules\chokidar` liveness check, lexical version sorting, codexu-local fallback, and `cli derive-next-command --snapshot` injection.
+
+- `scripts\lib\derive-next-command-cli.mjs`
+  - Defaults to `plans\overview-snapshot.json` unless `--snapshot` is supplied, so codexu’s generated-snapshot behavior needs either wrapper config injection or a CLI default/config enhancement.
+
+### Technical Constraints
+
+- The generated wrapper must be self-contained; it cannot import plugin code before locating the plugin.
+- Existing config loading tolerates unknown keys in `.ralph-overview\config.json`, but the wrapper cannot reuse `loadConfig()` unless it has already found the plugin. It should implement a minimal JSON read for wrapper-specific config keys.
+- `overview.init` currently does **not** emit package scripts by default. The feature goal implies a behavior change, so CLI/MCP/docs/tests must align.
+- Semver comparison should be implemented inline or with no runtime dependency in the template.
+- Marketplace release requires synchronized version updates in:
+  - `plugins\ralph-overview\.claude-plugin\plugin.json`
+  - `.claude-plugin\marketplace.json`
+  - `.github\plugin\marketplace.json`
+  - `.agents\plugins\marketplace.json`
+  - codexu `AGENTS.md` active plugin table
+  - `CHANGELOG.md`
+
+### Implementation Suggestions
+
+Add `templates\consumer-ralph-overview.mjs` as the single source of the emitted wrapper. Export `resolvePluginRoot({ env, homedir, cwd, config })` plus helper result metadata, and gate execution with an ESM main check. Treat “usable” as manifest plus `bin\ralph-overview.mjs`; warn, but do not reject, when `node_modules` is missing.
+
+In `init-consumer.mjs`, replace `PACKAGE_SCRIPTS` with wrapper-backed commands like `node bin/ralph-overview.mjs sync --repo .`, and add one grouped planner operation that emits both `bin\ralph-overview.mjs` and `package.json` mutations together. Preflight the group before writing so a conflict cannot leave scripts without the wrapper or vice versa.
+
+Add wrapper config under `.ralph-overview\config.json`, likely a root `consumerWrapper` object with `additionalProbePaths`, `localDevPluginRootRel`, and a narrow `cliDefaults.deriveNextCommandSnapshotRel` for codexu. Then update `templates\overview-config.template.json` and docs to describe these as generated consumer-boundary settings.
+
+Test the template directly, not a copied reimplementation: fake plugin layouts for Claude direct, Claude cache, user cache, Copilot install, missing dispatcher, all-miss, semver `2.10.0 > 2.9.0`, and Copilot missing `node_modules`. Also extend init parity tests so CLI/MCP/shared engine report the same wrapper/script operations.
+

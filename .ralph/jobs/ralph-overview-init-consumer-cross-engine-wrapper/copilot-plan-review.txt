@@ -1,0 +1,36 @@
+I’ll read the provided prompt file first, then carry out the requested work.
+
+The prompt is longer than the single-read limit, so I’ll read it in sections and extract the actionable task.
+
+I found this is a plan-review prompt. I’ll verify the plan’s key file references and constraints against the repo before writing the findings.
+
+The initial checks confirm the plan is mostly grounded, but a few referenced surfaces need closer inspection for hidden integration gaps.
+
+I have enough context to identify concrete plan risks; I’ll do one final targeted check of the init CLI/MCP schema and docs surfaces before producing the review.
+
+I’m ready to deliver the plan review findings.### Feasibility
+
+- [High] `templates/consumer-ralph-overview.mjs` proposes a script guard using `import.meta.url === process.argv[1]`. In Node ESM, `import.meta.url` is a `file://` URL while `process.argv[1]` is a filesystem path, so the guard will be false and the emitted wrapper may never dispatch. Use `fileURLToPath(import.meta.url) === path.resolve(process.argv[1])`.
+
+- [High] The “atomic emit of wrapper + scripts” overpromises cross-file atomicity. `scripts/init-consumer.mjs` currently writes per operation with `atomicWriteFile`; even temp-then-rename cannot guarantee “forced mid-operation failure leaves neither” once the first rename succeeds unless the plan defines rollback or a two-phase staging directory strategy. The AC should specify the transaction mechanism or relax the guarantee to “preflight prevents expected conflicts.”
+
+### Completeness
+
+- [Medium] The plan adds `consumerWrapper` config keys but only calls out schema/template/docs. It should also update `scripts/lib/resolve-config.test.mjs` or an equivalent schema test to assert the new block is accepted, since that file currently guards `overview-config.schema.json` behavior.
+
+- [Medium] Job B says preserve codexu’s extra scripts, but plugin Job A only updates the four managed scripts. The plan should specify how `overview:dev` and `overview:build:preview` are handled during adoption so `overview-init --force` does not become the only mechanism and accidentally leave inconsistent `--repo .` coverage.
+
+### Ordering
+
+No issues found. The two-job ordering is correct: plugin template and marketplace version must ship before codexu adoption.
+
+### Simplicity
+
+- [Medium] Exporting and testing the exact emitted wrapper is good, but making `resolvePluginRoot` accept both `cwd` and `config` while the wrapper also reads `.ralph-overview/config.json` itself risks duplicated repo-root/config resolution logic. Prefer a single small `loadConsumerWrapperConfig(repoRoot)` helper inside the template and make tests drive that surface.
+
+### Acceptance Criteria Quality
+
+- [High] The atomicity AC is not implementable as written without more detail: “forced mid-operation failure leaves neither” needs to define failure point and rollback behavior. Otherwise an autonomous implementer can pass a narrow pre-rename test while still allowing real half-states after the first rename.
+
+- [Medium] The signal-forwarding AC is underspecified. It should name expected behavior for `SIGINT`/`SIGTERM` and child exit by signal on Windows, where POSIX signal semantics are limited.
+

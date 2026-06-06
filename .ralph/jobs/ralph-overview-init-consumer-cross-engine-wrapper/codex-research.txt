@@ -1,0 +1,68 @@
+**Codebase Architecture**
+
+The relevant code is split between codexu as a consumer repo and the `ai-developer-toolkit` submodule as the plugin source.
+
+`ai-developer-toolkit/plugins/ralph-overview/` is a Node 20 ESM plugin with:
+- `bin/ralph-overview.mjs`: plugin dispatcher for `init|sync|watch|dev|build|mcp|install-server|cli`.
+- `scripts/`: consumer init, sync, config loading, snapshot derivation.
+- `tools/overview-mcp/`: TypeScript MCP server using `@modelcontextprotocol/sdk`, `zod`, `chokidar`.
+- `tools/overview-viewer/`: React 19 + Vite 8 dashboard.
+- `templates/`: generated consumer config/data templates.
+- `skills/overview-init/SKILL.md`: guided init workflow.
+- `.claude-plugin/plugin.json` version `2.8.1`.
+
+Codexu itself has:
+- [bin/ralph-overview.mjs](/abs/path/D:/harness-efforts/codexu/bin/ralph-overview.mjs): hand-written consumer resolver wrapper.
+- [package.json](/abs/path/D:/harness-efforts/codexu/package.json): scripts already call `node bin/ralph-overview.mjs <subcommand>`.
+- [.ralph-overview/config.json](/abs/path/D:/harness-efforts/codexu/.ralph-overview/config.json): consumer config.
+- [AGENTS.md](/abs/path/D:/harness-efforts/codexu/AGENTS.md): active plugin version table and codexu wrapper behavior.
+
+**Feature-Relevant Code**
+
+Most changes naturally land in:
+
+- `ai-developer-toolkit/plugins/ralph-overview/templates/`
+  Add `consumer-ralph-overview.mjs` as the self-contained emitted wrapper.
+
+- `ai-developer-toolkit/plugins/ralph-overview/scripts/init-consumer.mjs`
+  Current `PACKAGE_SCRIPTS` still points to `$CLAUDE_PLUGIN_ROOT/...`. `initConsumer()`, `planOperations()`, `planTemplate()`, and `planPackageJsonScripts()` are the integration points for emitting wrapper + scripts together.
+
+- `ai-developer-toolkit/plugins/ralph-overview/bin/ralph-overview.mjs`
+  CLI `init` currently supports `--add-package-json-scripts`, `--dry-run`, `--json`, etc. No `--diff` exists today.
+
+- `ai-developer-toolkit/plugins/ralph-overview/tools/overview-mcp/src/tools/init.ts`
+  MCP `overview.init` delegates directly to `initConsumer()`.
+
+- `ai-developer-toolkit/plugins/ralph-overview/tools/overview-mcp/src/schemas.ts`
+  Strict MCP input schema currently exposes `dryRun`, `force`, `serverOnly`, `addPackageJsonScripts`.
+
+- `ai-developer-toolkit/plugins/ralph-overview/tools/overview-mcp/src/__tests__/init-consumer.test.ts`
+  Existing parity test asserts direct engine, MCP shim, and CLI JSON expose matching planning fields. Extend this rather than creating a separate parity surface.
+
+- `ai-developer-toolkit/plugins/ralph-overview/scripts/lib/resolve-config.mjs`
+  Config loader preserves unknown root keys at runtime, but `templates/overview-config.schema.json` has `additionalProperties: false`, so new config hooks need schema/template/docs updates.
+
+- `bin/ralph-overview.mjs` in codexu
+  Existing resolver has the known bugs: `REQUIRED_NODE_MODULES = ['chokidar']`, lexical version sorting, and codexu-specific `withCodexuCliDefaults()` adding `--snapshot`.
+
+**Technical Constraints**
+
+- The emitted wrapper cannot import plugin code because its job is to locate the plugin.
+- Runtime liveness should be `.claude-plugin/plugin.json` plus `bin/ralph-overview.mjs`; requiring `node_modules/chokidar` breaks Copilot installs.
+- `launch.cjs` stages only `scripts`, `tools`, and `package.json` into the MCP build cache, so init code must read templates from `RALPH_OVERVIEW_PLUGIN_ROOT`, not from the build cache.
+- Current init writes operations sequentially; true cross-file atomicity is not present. To prevent wrapper/scripts half-state, add a grouped preflight/write operation or fail the pair together.
+- `overview.init` MCP schema is strict; new flags/options must be added in schema, `.d.mts`, CLI parser, tests, and docs.
+- Root plugin tests use npm workspaces and Vitest. If new tests live under `scripts/lib`, update `package.json` `test:lib`; otherwise they may not run in root `npm test`.
+- Version bump must update `.claude-plugin/plugin.json`, all three toolkit marketplace indexes, plugin `CHANGELOG.md`, and codexu root `AGENTS.md` active-plugin-versions table.
+
+**Implementation Suggestions**
+
+Build the template by thinning codexu’s `bin/ralph-overview.mjs`, not starting from scratch. Keep `resolvePluginRoot({ env, homedir, cwd, config })` pure and exported, with a script guard for dispatch. Replace lexical sorting with a tiny local semver parser/comparator.
+
+In `init-consumer.mjs`, make wrapper emission and package script mutation a single planned group. Scripts should become `node bin/ralph-overview.mjs dev`, `build`, `sync`, `watch`. If `package.json` is missing, skip both wrapper and scripts so the pair cannot be partially emitted.
+
+For codexu’s two deltas, add config rather than hard-coding:
+- `localDevPluginRootRel: "ai-developer-toolkit/plugins/ralph-overview"`
+- Prefer fixing `derive-next-command-cli.mjs` to default to `loadConfig().outputs.snapshot`; if a hook is still required, use an allowlisted config key, not arbitrary argument injection.
+
+Tests should cover the emitted template directly with temp plugin roots containing fake manifests/dispatchers. Add CLI spawn tests for exit `2`, exit `3`, signal/exit-code forwarding, and `--repo` defaulting. Then run plugin `npm test`, `npm run typecheck`, `node tools/validate-codex-marketplace-policy.mjs`, and a codexu dry-run/init smoke.

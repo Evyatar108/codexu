@@ -1,0 +1,47 @@
+{
+  "clusters": [
+    {
+      "name": "plugin-job-A",
+      "stories": ["US-001", "US-002", "US-003", "US-004", "US-005", "US-006", "US-007", "US-008"],
+      "phase": 1,
+      "dependsOn": [],
+      "fileOverlapEvidence": {
+        "sharedFiles": [
+          "ai-developer-toolkit/plugins/ralph-overview/scripts/init-consumer.mjs",
+          "ai-developer-toolkit/plugins/ralph-overview/.claude-plugin/plugin.json",
+          "ai-developer-toolkit/plugins/ralph-overview/CHANGELOG.md",
+          "ai-developer-toolkit/plugins/ralph-overview/AGENTS.md",
+          "ai-developer-toolkit/.claude-plugin/marketplace.json",
+          "ai-developer-toolkit/.github/plugin/marketplace.json",
+          "ai-developer-toolkit/.agents/plugins/marketplace.json"
+        ],
+        "exclusiveFiles": [
+          "ai-developer-toolkit/plugins/ralph-overview/templates/consumer-ralph-overview.mjs",
+          "ai-developer-toolkit/plugins/ralph-overview/scripts/lib/__tests__/consumer-ralph-overview.test.mjs",
+          "ai-developer-toolkit/plugins/ralph-overview/scripts/lib/derive-next-command-cli.mjs",
+          "ai-developer-toolkit/plugins/ralph-overview/scripts/sync-ralph-state.mjs",
+          "ai-developer-toolkit/plugins/ralph-overview/skills/overview-init/SKILL.md"
+        ],
+        "risk": "medium"
+      },
+      "executionModeRationale": "All stories touch the same plugin plus the shared version/CHANGELOG/AGENTS/marketplace files, so they run serially inside ONE Ralph job to avoid version-file and doc-prepend conflicts."
+    },
+    {
+      "name": "codexu-adoption-B",
+      "stories": ["US-009", "US-010", "US-011"],
+      "phase": 2,
+      "dependsOn": ["plugin-job-A"],
+      "fileOverlapEvidence": {
+        "sharedFiles": [
+          "AGENTS.md",
+          "package.json",
+          "bin/ralph-overview.mjs",
+          ".ralph-overview/config.json"
+        ],
+        "exclusiveFiles": [],
+        "risk": "low"
+      },
+      "executionModeRationale": "Adoption can only run after the plugin ships v2.9.0 to the marketplace and the codexu gitlink is bumped; it touches only codexu files and runs as a second, dependent Ralph job. This is a cross-repo dependency, not in-process parallelism."
+    }
+  ]
+}

@@ -1,0 +1,29 @@
+**Feasibility**
+
+[Critical] Job B’s `overview-init --force` adoption is unsafe with the current init model. In [scripts/init-consumer.mjs](D:/harness-efforts/codexu/ai-developer-toolkit/plugins/ralph-overview/scripts/init-consumer.mjs:97), `force` applies to `.ralph-overview/data.json` and `.ralph-overview/config.json`; `planTemplate()` then overwrites on force. Running this against codexu could wipe hand-curated overview data/config while trying to replace only [bin/ralph-overview.mjs](D:/harness-efforts/codexu/bin/ralph-overview.mjs:1). The plan needs a separate wrapper/script force path, or an AC proving codexu data/config are unchanged.
+
+[High] The proposed script guard `import.meta.url === process.argv[1]` is not valid as written: one side is a file URL and the other is a filesystem path. If implemented literally, the emitted wrapper will not dispatch. Use `fileURLToPath(import.meta.url)` normalized against `process.argv[1]`.
+
+[High] The “diagnostic-only” missing-deps path does not make one-shot `sync` work today. [sync-ralph-state.mjs](D:/harness-efforts/codexu/ai-developer-toolkit/plugins/ralph-overview/scripts/sync-ralph-state.mjs:11) statically imports `watch-ralph-state.mjs`, which imports `chokidar`; so a Copilot install without `node_modules` can fail even for non-watch sync. Either lazy-load watch code only for `--watch`, or weaken the claim/AC.
+
+**Completeness**
+
+[High] The plan omits `skills/overview-init/SKILL.md` and generated Copilot mirrors. The current skill says `--add-package-json-scripts` only adds scripts and says `--force` overwrites only scaffold data/config in [skills/overview-init/SKILL.md](D:/harness-efforts/codexu/ai-developer-toolkit/plugins/ralph-overview/skills/overview-init/SKILL.md:21). That becomes wrong once the flag emits a wrapper and `--force` can replace it. Regenerate `.copilot-plugin/copilot-skills/overview-init/SKILL.md`.
+
+[Medium] The codexu submodule pointer bump is mentioned as a lead step but not represented as a concrete Job B file/change or AC. Add an explicit gate that `ai-developer-toolkit` points at the v2.9.0 commit before updating codexu `AGENTS.md` to 2.9.0.
+
+**Ordering**
+
+[High] Job B’s order should not be “`overview-init --force` then config hook” until force scoping is fixed. The config/data preservation step must come before any write, and the dry-run must prove only wrapper/package-script changes plus an intentional config merge will occur.
+
+**Simplicity**
+
+[Medium] `additionalProbePaths` looks broader than the current need. The only stated codexu-specific delta is `localDevPluginRootRel`; arbitrary extra probe paths add resolver precedence and validation surface without a current consumer. Consider deferring it or specifying strict precedence and path rules.
+
+**Acceptance Criteria Quality**
+
+[Medium] “`overview-init --dry-run` against codexu enumerates the exact deltas” is not currently testable: `initConsumer()` reports planned/skipped/errors, not diffs, and the plan explicitly says `--diff` does not exist. Replace with concrete assertions on JSON output, file hashes, and unchanged `.ralph-overview/data.json`.
+
+[Medium] The missing-deps diagnostic AC only checks selection/diagnostic, not the behavior of real subcommands. Given the static `chokidar` import, add an AC for one-shot `sync` under a fake missing-`node_modules` install, or explicitly accept that it fails after the diagnostic.
+
+No prior review cycles or amendments were referenced, so there are no regression fixes to assess.
