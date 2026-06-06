@@ -262,6 +262,27 @@
       }
     },
     {
+      "id": "codex-subagent-prompt-trigger-investigation",
+      "scope": "codex",
+      "lifecycle": "tracked",
+      "status": "warn",
+      "lastTouchedAt": "2026-06-06",
+      "kanbanCards": [
+        {
+          "className": "cmd-warn",
+          "html": "<strong>Filed 2026-06-06 (operator: when is codex expected to use sub-agents based on its current prompt? investigate for BOTH v1 and v2).</strong> Companion to <code>codex-upstream-multi-agent-v2-fork-impact</code> (which covered the MECHANISM). This one is about the MODEL-FACING GUIDANCE: what does codex's base/system prompt + the spawn-tool DESCRIPTIONS + any usage-hint config text actually instruct the model about <em>when</em> to delegate to a sub-agent &mdash; separately for <strong>v1</strong> (`Collab`, default ON: spawn_agent v1 / send_input / resume_agent / wait_agent) and <strong>v2</strong> (`MultiAgentV2`, default OFF: spawn_agent / send_message / followup_task / wait_agent / close_agent / list_agents). KEY: under STOCK config a codex session gets the v1 tools (v2 is opt-in), so the practical answer is mostly v1 today. Read the base prompt, the per-tool descriptions in <code>multi_agents_spec.rs</code>, the <code>MultiAgentV2Config</code> usage-hint text, and <code>spec_plan.rs::add_collaboration_tools</code>; determine the concrete spawn TRIGGERS/conditions the prompt sets, what differs v1 vs v2, and whether the FORK modified any of this guidance (SANDBOX PATCH)."
+        }
+      ],
+      "command": {
+        "name": "codex-subagent-prompt-trigger-investigation",
+        "descriptionHtml": "Investigate the model-facing prompt + tool-description guidance that governs WHEN codex decides to spawn a sub-agent, for both the v1 (Collab) and v2 (MultiAgentV2) surfaces. Companion to the v2 mechanism investigation.",
+        "warnings": "codex-scope READ-ONLY. Companion to codex-upstream-multi-agent-v2-fork-impact (mechanism) — this is the prompt/trigger angle. Under stock config v1 is the live surface (v2 default OFF). Fork is at 0.135; flag any v137 prompt deltas as rebase-gated.",
+        "prompts": {
+          "plan": "/plan-with-ralph \"READ-ONLY INVESTIGATION (produce .ralph/investigations/codex-subagent-prompt-trigger-investigation/findings.md; do NOT modify source). QUESTION: based on codex's CURRENT prompt + tool descriptions, WHEN is the codex model expected/instructed to spawn a sub-agent? Answer separately for v1 (Collab) and v2 (MultiAgentV2). This is the PROMPT/TRIGGER angle (companion to the mechanism covered in .ralph/investigations/codex-upstream-multi-agent-v2-fork-impact/findings.md). Codex tree: codex/external/repos/codex-patched/codex-rs. STEPS: (1) Locate codex's BASE/system prompt + any agent/turn instructions (grep for base_instructions / BASE_INSTRUCTIONS / prompt.md / *.md prompt templates / core/src/.../prompt*; check how the prompt is assembled in session/turn). Does it mention sub-agents / delegation / parallelism / when to spawn at all? Quote the relevant text. (2) V1 (Collab, default ON): read the v1 tool DESCRIPTIONS the model sees (multi_agents/ handlers + the v1 creators in core/src/tools/handlers/multi_agents_spec.rs: spawn_agent v1, send_input, resume_agent, wait_agent). What do their description strings tell the model about WHEN/why to use them? (3) V2 (MultiAgentV2, default OFF): read the v2 tool descriptions (create_spawn_agent_tool_v2, create_send_message_tool, create_followup_task_tool, create_wait_agent_tool_v2, create_close_agent_tool_v2, create_list_agents_tool) + the MultiAgentV2Config `usage_hint`/usage-hint text in core/src/config/mod.rs + how add_collaboration_tools (spec_plan.rs) injects the namespace/usage hint. What guidance/triggers does v2 give vs v1? (4) Determine what the model ACTUALLY SEES under STOCK config (v1 on, v2 off) vs with features.multi_agent_v2=true — i.e., the practical 'when does a real codex session spawn a sub-agent today' answer. (5) Did the FORK modify any of this guidance? grep SANDBOX PATCH near the prompt + tool descriptions; note any fork-authored hint/description text (the plugin-scope-axis subagent gate REJECTS spawn from subagents — does its error/description text shape behavior?). (6) Flag any v137-specific prompt/usage-hint deltas as REBASE-GATED (fork at 0.135). OUTPUT findings.md: a v1-vs-v2 comparison of the spawn-trigger guidance (with quoted prompt/description text + file:line), the stock-config practical answer, fork modifications, and whether the current guidance is strong/weak/absent (does codex actually get told to delegate, or is the capability present but under-prompted?). NOTE: if spawned --engine codex, bash-on-PATH hangs — use Git bash.\""
+        }
+      }
+    },
+    {
       "id": "opencode-as-codex-replacement-evaluation",
       "scope": "codex",
       "lifecycle": "merged",
