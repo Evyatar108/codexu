@@ -1,0 +1,36 @@
+{
+  "brainstormName": "ralph-overview-init-consumer-cross-engine-wrapper",
+  "overviewTaskId": "ralph-overview-init-consumer-cross-engine-wrapper",
+  "idea": "Push cross-engine plugin-path resolution UPSTREAM into the ralph-overview plugin's overview-init skill so every consumer gets working pnpm sync-ralph-state + pnpm overview under BOTH Claude Code AND Copilot CLI, without each consumer hand-rolling a per-repo resolver wrapper.",
+  "availableLenses": ["devils-advocate", "codex", "copilot"],
+  "missingLenses": [],
+  "candidateDirections": [
+    {
+      "id": "D-001",
+      "name": "Generated consumer wrapper (template-sourced) + wrapper-backed scripts, emitted atomically",
+      "summary": "overview-init copies a single tested self-contained resolver template to the consumer (bin/ default) and points the 4 package scripts at it in one atomic operation; fixes the semver-sort + node_modules-liveness bugs and adds a config hook for codexu-specific deltas.",
+      "contributingLenses": ["codex", "copilot", "devils-advocate"]
+    },
+    {
+      "id": "D-002",
+      "name": "Init-time absolute dispatcher-path scripts (no wrapper) + repair command",
+      "summary": "overview-init resolves the current engine install once and writes absolute-path package scripts plus an overview-repair command; smallest surface but non-portable for committed/shared package.json and stales on Claude cache upgrades.",
+      "contributingLenses": ["codex", "copilot", "devils-advocate"]
+    },
+    {
+      "id": "D-003",
+      "name": "Plugin-owned npm/bin shim or engine-neutral launcher (published shim package)",
+      "summary": "Ship one tested resolver as a versioned npm/bin shim; scripts call a stable command. Cleanest long-term but adds a package-distribution + auth + version-drift axis disproportionate to the current need.",
+      "contributingLenses": ["devils-advocate"]
+    }
+  ],
+  "recommendedDirection": "D-001",
+  "questionsForSynthesis": [
+    "Default wrapper location: bin/ralph-overview.mjs (continuity with codexu) vs scripts/ralph-overview.mjs (avoids common /bin gitignore)?",
+    "Liveness semantics: confirm manifest+dispatcher (NOT node_modules/chokidar) and the exact 'installed but dependencies missing' diagnostic + exit code.",
+    "Config schema for codexu-specific deltas: additionalProbePaths + localDevPluginRootRel for the submodule fallback, and a generic hook for the cli derive-next-command --snapshot default — or does codexu keep a thin shim?",
+    "API coupling: does the existing addPackageJsonScripts flag's meaning change to atomically include the wrapper, or is there a new single coupled flag, and what is the back-compat story?",
+    "Marketplace/plugin-name handling in the template: templated at emit time vs a constant block the template reads.",
+    "Architecture invariant #4 doc update wording (consumer wrapper as part of the generated consumer boundary)."
+  ]
+}
