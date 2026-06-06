@@ -252,6 +252,27 @@
       }
     },
     {
+      "id": "opencode-as-codex-replacement-evaluation",
+      "scope": "codex",
+      "lifecycle": "tracked",
+      "status": "warn",
+      "lastTouchedAt": "2026-06-06",
+      "kanbanCards": [
+        {
+          "className": "cmd-warn",
+          "html": "<strong>Filed 2026-06-06 (operator: cloned opencode; evaluate as a CODEX REPLACEMENT for codexu efforts).</strong> opencode is cloned at <code>D:\\harness-efforts\\opencode</code>; docs at <code>packages/web/src/content/docs</code> (English at the root / non-language-prefixed *.mdx; ar/bs/... are translations). The docs surface maps closely to codexu needs: <code>server.mdx</code> (the app-server question), <code>plugins.mdx</code>, <code>skills.mdx</code>, <code>mcp-servers.mdx</code>, <code>custom-tools.mdx</code>, <code>agents.mdx</code> (multi-agent), <code>permissions.mdx</code> (sandbox), <code>sdk.mdx</code>, <code>acp.mdx</code>, <code>config.mdx</code>, <code>network.mdx</code>. KEY OPEN QUESTION: there is no obvious <code>hooks.mdx</code> &mdash; crews + ralph depend HEAVILY on lifecycle HOOKS (PreToolUse / Stop / SessionStart). Whether opencode has a hooks equivalent (or whether plugins/the SDK provide one) is make-or-break. RESEARCH GOAL: does opencode have an app-server-or-similar, hooks, plugins, skills, MCP, multi-agent, sandbox-permissions &mdash; and what does codexu still NEED that is MISSING, vs what opencode ALREADY HAS that we had to PATCH into the codex fork (the SANDBOX PATCH surface, app-server ws integration, background shell / await_background_completion D-002, multi_agent_v2, remote_control handling, marketplace plugins)?"
+        }
+      ],
+      "command": {
+        "name": "opencode-as-codex-replacement-evaluation",
+        "descriptionHtml": "Strategic evaluation: can opencode replace the codex engine for codexu efforts? Compare opencode's app-server / hooks / plugins / skills / MCP / multi-agent / sandbox surfaces against what codexu needs (happy-cli integration, crews/ralph hooks) and against what the codex fork had to patch in.",
+        "warnings": "READ-ONLY research (read opencode + codex; produce findings.md). High-strategic, not urgent. The critical make-or-break is whether opencode has a HOOKS equivalent (crews/ralph depend on PreToolUse/Stop/SessionStart). opencode docs root is the non-language-prefixed *.mdx (ar/bs/... are translations).",
+        "prompts": {
+          "plan": "/plan-with-ralph \"READ-ONLY STRATEGIC EVALUATION (produce .ralph/investigations/opencode-as-codex-replacement-evaluation/findings.md; do NOT modify any source in opencode OR codex). GOAL: can opencode (cloned at D:/harness-efforts/opencode) replace the codex engine for codexu efforts? Docs at D:/harness-efforts/opencode/packages/web/src/content/docs (read the ENGLISH root-level *.mdx, NOT the ar/bs/... translation dirs); source at D:/harness-efforts/opencode/packages. INVESTIGATE each capability codexu depends on and map opencode vs the codex fork: (1) APP-SERVER: read server.mdx + sdk.mdx + the opencode server source. Does opencode have an app-server / headless-server concept comparable to codex app-server? Protocol (HTTP/ws/SSE)? Could happy-cli drive it the way it drives codex app-server over loopback ws (packages/happy-cli/src/codex/codexAppServerClient.ts)? (2) HOOKS (MAKE-OR-BREAK): does opencode have a lifecycle-hook system equivalent to Claude-Code/codex hooks (PreToolUse / PostToolUse / Stop / SessionStart) that crews + ralph absolutely require? Check plugins.mdx, custom-tools.mdx, sdk.mdx, config.mdx, the plugin source. If there is no direct hooks equivalent, can plugins/SDK observe the same lifecycle events (tool-execution, turn boundaries, session start/stop)? (3) PLUGINS + marketplace: plugins.mdx + the plugin loader. (4) SKILLS: skills.mdx. (5) MCP: mcp-servers.mdx. (6) MULTI-AGENT / sub-agents: agents.mdx + acp.mdx (compare to codex multi_agent_v2). (7) SANDBOX / PERMISSIONS: permissions.mdx + network.mdx (compare to the fork's sandbox patches). (8) BACKGROUND/ASYNC SHELL: does opencode have background/async shell execution (compare to the fork's await_background_completion D-002)? (9) ENGINE/PROVIDERS: providers.mdx + models.mdx (does it support the Copilot API the fork wires? codex is 0.135.0-COPILOT-api.1). THEN cross-reference what the CODEX FORK had to PATCH IN (grep SANDBOX PATCH markers across codex/external/repos/codex-patched/codex-rs; read codex/CLAUDE.md for the fork's patch inventory: app-server integration, remote_control force-disable, background shell, hooks Claude-compat, multi_agent_v2, plugin/marketplace, etc.) and classify EACH: does opencode ALREADY HAVE it (so adopting opencode saves us the patch), or is it MISSING (so we would have to add it to opencode too)? OUTPUT findings.md with: a capability matrix (codexu need | codex-fork status | opencode status | gap), the make-or-break HOOKS verdict, a list of 'opencode already has X that we patched into codex' wins, a list of 'codexu needs Y that opencode lacks' gaps, and an overall recommendation (viable replacement / viable-with-work / not-viable) with the biggest risks + a suggested next step (e.g. a spike). NOTE: if spawned --engine codex, bash-on-PATH hangs — use Git bash.\""
+        }
+      }
+    },
+    {
       "id": "crews-target-engine-plugin-provisioning",
       "scope": "crews",
       "lifecycle": "tracked",
