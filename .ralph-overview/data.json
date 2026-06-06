@@ -53,11 +53,15 @@
       "scope": "crews",
       "lifecycle": "tracked",
       "status": "warn",
-      "lastTouchedAt": "2026-06-06T06:05:00Z",
+      "lastTouchedAt": "2026-06-06T16:20:00Z",
       "kanbanCards": [
         {
           "className": "cmd-warn",
           "html": "<strong>Filed 2026-06-06 (minor residual from the codex-member spawn fix smoke).</strong> After crews v3.6.4 made codex members start correctly (live smoke PASSED 5/5), the crews inner-PID capture still does NOT resolve the codex member's inner <code>codex-core.exe</code> PID: stop-member reports <code>innerCli: null</code> + <code>refusedReason: inner-pid-missing</code> and falls back to killing the process-tree descendants (which DOES work — codex-core was killed, no procs lingered). So codex-member stop is functional via the descendant-kill fallback, but the clean inner-PID path (used for Copilot/Claude) doesn't engage for codex. The v3.6.4 investigation predicted the capture would \"resolve normally once the launch is fixed\" — it did not. Likely the WMI capture (engineBinary codex-core.exe) needs to walk codex.exe(launcher)→codex-core.exe, or the codex launch chain (codex.ps1→node→codex.exe→codex-core.exe) defeats the parent-PID match. Low priority: codex members spawn, run, report, AND stop (via fallback) correctly; this only restores the clean inner-PID kill path + removes the inner-pid-missing noise. See .ralph/investigations/crews-codex-member-spawn-does-not-start-session/findings.md §\"Ruled out\" (inner-PID capture target)."
+        },
+        {
+          "className": "cmd-warn",
+          "html": "<strong>USER-VISIBLE SYMPTOM confirmed by operator 2026-06-06: codex member tabs do NOT auto-close on stop.</strong> Unlike Copilot/Claude tabs (which close cleanly), a stopped codex member's wt tab stays OPEN showing <code>[process exited with code 1 (0x00000001)]</code> + \"You can now close this terminal with Ctrl+D, or press Enter to restart.\" MECHANISM: for Copilot/Claude, stop kills the captured INNER PID → the launcher's inline <code>&</code> returns → <code>exit 0</code> → wt <code>closeOnExit: graceful</code> closes the tab. For codex, inner-PID capture = pid:0 (inner-pid-missing) → stop falls back to descendant-kill (kills codex-core.exe — no procs linger) but that makes codex exit with code 1 (force-killed), and graceful only closes on exit 0 → the tab is left open. So this is NOT just log noise: it leaves an accumulating open tab per codex member. FIX must restore the clean inner-PID kill path for codex so the launcher returns 0: capture the codex-core.exe PID correctly (walk codex.ps1→node→codex.exe launcher→codex-core.exe; the WMI parent-PID match currently misses it) OR make stop kill the codex.exe launcher in a way that yields exit 0. RAISES priority from low → medium (UX gap, tab accumulation). Operator interim: close the tab with Ctrl+D."
         }
       ],
       "command": {
