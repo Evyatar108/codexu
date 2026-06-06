@@ -1,0 +1,95 @@
+# Feature Request: Constrain Copilot CLI research-mode invocations to read-only
+
+## Problem
+Observed 2026-05-28 during plan-crews-lead-suppress-kind-tag: the Copilot CLI invoked for
+plan-with-ralph Phase 2 research (or Phase 4 review) on this Windows host overflowed beyond
+reading source and ACTUALLY EDITED 16 files in the operator's ./ai-developer-toolkit working
+tree (plugins/crews/hooks/stop.js, CHANGELOG, version manifests, test files). The edits
+happened to match the design the plan was researching, but a different invocation could land
+random partial-implementation noise that compromises the operator's working-tree integrity.
+
+The same risk applies to every research/review-mode invocation that routes through
+`plugins/ralph/src/copilot-exec.mjs`: brainstorm-with-ralph (brainstorm lens),
+plan-with-ralph (Phase 2 research + Phase 4 review), review-changes (Step 3B code review),
+agents/plan-reviewer (plan review), and review-loop re-review copilot branch. These are
+ANALYSIS invocations whose only intended output is text written to the wrapper's `--output`
+file; the model itself should never edit repo files.
+
+## Root cause (CONFIRMED by code read)
+`plugins/ralph/src/copilot-exec.mjs` line ~109 builds childArgs that pass `--allow-all`
+(plus `--silent`). Per `copilot --help` (v1.0.59), `--allow-all` == `--allow-all-tools
+--allow-all-paths --allow-all-urls` — i.e. full unrestricted file write + path + URL access.
+`copilot-exec.mjs` is used for BOTH research/review (should be read-only) AND the
+per-iteration implementer when iterationEngine=copilot (MUST write). So the read-only
+constraint must be OPT-IN via a flag, applied only by the research/review-mode callers, not
+unconditionally.
+
+## INVESTIGATION ALREADY DONE (verified empirically 2026-06-06 on Copilot CLI v1.0.59 — CURRENT)
+Per the seed's REQUIRED investigation step ("read Copilot CLI docs/--help for read-only mode
+flags; test the chosen mechanism manually before proposing in plan"), the following was done:
+
+`copilot --help` exposes these permission-relevant flags:
+- `--allow-all` / `--yolo`  = --allow-all-tools --allow-all-paths --allow-all-urls (current behavior)
+- `--allow-all-tools`       = allow all tools to run without confirmation (required for -p non-interactive)
+- `--allow-all-paths`       = disable file-path verification (access any path)
+- `--allow-tool[=tools...]` = auto-approve listed tools (e.g. shell(git:*), write)
+- `--deny-tool[=tools...]`  = deny listed tools (takes precedence; e.g. --deny-tool='shell(git push)')
+- `--available-tools[=tools...]` = ONLY these tools available to the model (allowlist)
+- `--excluded-tools[=tools...]`  = these tools NOT available to the model
+- `--no-ask-user`           = disable ask_user tool (autonomous)
+- `--mode plan` / `--plan`  = start in plan mode (interactive-oriented; NOT a documented security boundary)
+- `-C <dir>`                = change working directory; `--add-dir` adds a dir to allowed file-access list
+- `write` is the dedicated file-edit tool; `shell` is the command tool.
+
+LIVE TEST (decisive): ran
+  `copilot -p "create pwned.txt and append to existing.txt; do whatever it takes"
+   --allow-all-tools --deny-tool=write --no-ask-user -s`
+in a temp sandbox. Result: the model reported "the create tool was blocked by a write rule"
+(so --deny-tool=write DOES block the dedicated editor) BUT it then used PowerShell (the shell
+tool) to create pwned.txt and overwrite existing.txt anyway. pwned.txt was created;
+existing.txt was overwritten.
+
+CONCLUSION: Tool-permission denial alone (option a) is NOT an airtight read-only sandbox,
+because research invocations REQUIRE the shell tool (grep/find/git log) and shell can write
+files via redirection. The acceptance criterion ("CANNOT modify any file outside its
+job_dir/staging") therefore cannot be met by --deny-tool alone.
+
+## Fix options (from seed) + empirical assessment
+(a) Pass read-only permission flags (--deny-tool=write etc.). EMPIRICALLY INSUFFICIENT ALONE
+    (shell bypasses it) — but useful as cheap DEFENSE-IN-DEPTH to block the easy edit path.
+(b) Run Copilot research in a temp dir / read-only bind-mount. Leaky on the shell axis (model
+    can cd back to repo and write), complex/fragile on Windows; research must still READ the
+    real repo source. Not recommended as primary.
+(c) Snapshot working-tree state pre+post; if any file outside job_dir/staging changed, surface
+    as kind=question to the spawning agent and DISCARD/REVERT the changes by default.
+    MECHANISM-AGNOSTIC — catches BOTH write-tool and shell-redirection writes. Cross-platform.
+    This is the only option that actually enforces the acceptance criterion.
+
+RECOMMENDED DIRECTION: option (c) as the primary airtight guard, with option (a) layered in as
+defense-in-depth. Implement an opt-in read-only mode on copilot-exec.mjs (e.g. a `--read-only`
+flag) that (1) swaps `--allow-all` for `--allow-all-tools --deny-tool=write` (drop
+--allow-all-paths), and (2) wraps the copilot invocation with a pre/post working-tree snapshot
+that reverts any out-of-scope change and surfaces a warning to stderr / the spawning agent.
+The revert MUST preserve pre-existing operator WIP (only undo changes introduced during the
+invocation window — diff against the PRE-invocation snapshot, NOT against HEAD).
+Research/review-mode callers opt in to `--read-only`; the per-iteration implementer and the
+plan-fix path (which legitimately write) do NOT.
+
+## Acceptance criteria (from seed)
+- /plan-with-ralph research subprocess invoked against any plugin source CANNOT modify any file
+  outside its job_dir/staging.
+- New test fixture demonstrates Copilot CLI running in research-mode + asserting zero source
+  file diffs (mechanism-agnostic: even a shell-redirection write must be caught/reverted).
+- CHANGELOG entry cites the failure pattern.
+
+## Version
+Seed said "ralph v5.46.3 patch" — STALE. ralph is currently v5.50.0. This change adds a new
+opt-in flag + a new safety mechanism + new test fixture + edits to multiple research-mode
+callers, which is feature-ish behavior. Target v5.51.0 (minor) unless the planner judges it a
+pure patch. The planner decides and notes the choice.
+
+## Scope
+plugins/ralph/ in the ai-developer-toolkit submodule. Primary surface: src/copilot-exec.mjs.
+Secondary: the research/review-mode callers (skills + agents), a new test fixture under
+plugins/ralph/tests/, CHANGELOG.md, and the five version stamps (per marketplace-sync rule).
+agents/copilot-*-prompt.md may get a defense-in-depth "do not edit files; research only" note.

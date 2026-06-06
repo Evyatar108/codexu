@@ -1,0 +1,114 @@
+{
+  "planFile": "D:/harness-efforts/codexu/.ralph/jobs/.staging/20260606T192940Z-plan-copilot-readonly-f34e9178/draft-plan.md",
+  "repoDir": "D:/harness-efforts/codexu",
+  "findings": [
+    {
+      "id": "F-001",
+      "severity": "Critical",
+      "source": "claude",
+      "status": "resolved",
+      "category": "snapshot-correctness",
+      "description": "Snapshot/revert underspecified for pre-dirty tracked files, untracked modify/delete, model deletions, staged/index changes, and nested repos/submodules. git status --porcelain flags alone cannot restore exact pre-run bytes; restoring to HEAD would destroy operator WIP.",
+      "resolution": "Plan now mandates capturing exact pre-run CONTENT+mode (not just porcelain flags) for every potentially-written path outside the allowed zone, restoring deletions, protecting index state, recursing into initialized nested repos/submodules (or read-only-failing when a nested-repo write can't be safely restored), and expanded US-001 test matrix (clean/dirty tracked modify+delete, staged preserved, untracked modify+delete, new file+dir, symlink/junction, nested repo)."
+    },
+    {
+      "id": "F-002",
+      "severity": "High",
+      "source": "claude",
+      "status": "resolved",
+      "category": "security-boundary",
+      "description": "A working-tree snapshot only observes the research cwd tree; a shell command can write to an arbitrary absolute path outside it. The AC 'CANNOT modify any file outside job_dir/staging' is literally filesystem-wide and over-claimed.",
+      "resolution": "Plan reframes the enforced boundary to 'no residual change in the research cwd working tree' (exactly where the 2026-05-28 16-file incident occurred). Out-of-tree absolute-path writes are documented as residual risk mitigated only by the prompt-layer 'research only' note + flag tightening, not the snapshot; AC wording corrected to the observable boundary."
+    },
+    {
+      "id": "F-003",
+      "severity": "High",
+      "source": "claude",
+      "status": "resolved",
+      "category": "allowed-zone",
+      "description": "Default allowed write-zone = dirname(--output) over-permits: if --output sits in the repo root, the whole repo becomes writable and the guard is defeated.",
+      "resolution": "Default implicit allowance is now the exact --output FILE only (not its parent dir). Callers must pass explicit --allow-write-path for staging/job_dir. The guard rejects/loudly warns on --allow-write-path values that canonicalize to repo root or cwd unless explicitly intended."
+    },
+    {
+      "id": "F-004",
+      "severity": "High",
+      "source": "claude",
+      "status": "resolved",
+      "category": "surfacing-semantics",
+      "description": "Preserving copilot's exit 0 after reverting a violation hides it from callers that consume only the --output file and ignore stderr; conflicts with the seed's 'surface as kind=question, discard by default'.",
+      "resolution": "Detected violation now returns a distinct non-zero exit code (3) after revert; the <copilot-readonly-violation> sentinel JSON includes the original copilot exit code and reverted paths. Output file preserved for debugging, but callers treat exit 3 as 'research invalid' and surface a kind=question / quarantine the output. 'Preserve copilot exit code' applies only to clean runs."
+    },
+    {
+      "id": "F-005",
+      "severity": "High",
+      "source": "codex",
+      "status": "resolved",
+      "category": "test-design",
+      "description": "COPILOT_EXEC_SCRIPT replaces the WRAPPER, not the inner copilot binary; a test that stubs COPILOT_EXEC_SCRIPT would bypass the in-wrapper guard entirely and test nothing.",
+      "resolution": "The guard test invokes copilot-exec.mjs main(argv, { spawn }) directly with an injected spawn stub (the existing harness seam at tests/test-copilot-exec.mjs:169-219, 378-430). The stub child writes a file outside the allowed zone via shell redirection, then exits; the test asserts the file was reverted and the sentinel was emitted with exit 3."
+    },
+    {
+      "id": "F-006",
+      "severity": "Medium",
+      "source": "claude",
+      "status": "resolved",
+      "category": "signal-handling",
+      "description": "On SIGINT/SIGTERM, the revert may run while the child/shell descendants are still writing, or async revert may not be awaited, leaving residual edits.",
+      "resolution": "Signal-path revert must first stop the child process tree, then run a synchronous/idempotent revert before exit. Added a test: stub writes, sleeps, receives SIGTERM, and the revert still completes."
+    },
+    {
+      "id": "F-007",
+      "severity": "Medium",
+      "source": "claude",
+      "status": "resolved",
+      "category": "snapshot-correctness",
+      "description": "Deleting newly-created files can leave empty directories outside the allowed zone, a visible residual modification.",
+      "resolution": "After deleting newly-created files, the guard removes newly-created empty directories deepest-first; never removes pre-existing directories. Covered by a test case."
+    },
+    {
+      "id": "F-008",
+      "severity": "Medium",
+      "source": "codex",
+      "status": "resolved",
+      "category": "concurrency",
+      "description": "Two read-only invocations sharing a cwd can each snapshot the same PRE state and revert each other's in-window changes.",
+      "resolution": "Revert is strictly zone-scoped (only paths OUTSIDE the invocation's allowed zone are reverted), so legitimate in-zone writes are never touched by a peer. The residual edge (overlapping allowed zones across concurrent runs) is documented; recommendation: concurrent read-only runs in the same cwd use disjoint allowed zones, or an advisory per-cwd lock. Added as a noted risk."
+    },
+    {
+      "id": "F-009",
+      "severity": "Medium",
+      "source": "codex",
+      "status": "resolved",
+      "category": "test-coverage",
+      "description": "The non-git fallback (filesystem manifest) is load-bearing but had no dedicated AC/test and could regress silently.",
+      "resolution": "Added an AC and a node:test fixture that runs copilot-exec.mjs from a non-git cwd and verifies the filesystem-manifest fallback still reverts an out-of-zone write."
+    },
+    {
+      "id": "F-010",
+      "severity": "Medium",
+      "source": "claude",
+      "status": "resolved",
+      "category": "drift-prevention",
+      "description": "SKILL.md prose can drift so that a research/review caller silently loses --read-only.",
+      "resolution": "Added a regression test (US-003) that asserts every copilot research/review caller passes --read-only (and --allow-write-path), while write-mode implementer/plan-fix paths do NOT."
+    },
+    {
+      "id": "F-011",
+      "severity": "Medium",
+      "source": "claude",
+      "status": "resolved",
+      "category": "scope",
+      "description": "Deferring codex-exec.mjs (same --dangerously-bypass-approvals-and-sandbox write-leak) risks users assuming all research/review is read-only when codex still leaks.",
+      "resolution": "Scope and CHANGELOG/AGENTS wording explicitly say 'Copilot research/review invocations only'. The snapshot helper is designed reusable so a codex-exec follow-up is cheap; a concrete follow-up task is recorded in Open Questions for the bookkeeper to file."
+    },
+    {
+      "id": "F-012",
+      "severity": "Medium",
+      "source": "claude",
+      "status": "resolved",
+      "category": "test-coverage",
+      "description": "US-001 helper test matrix was underspecified.",
+      "resolution": "US-001 test matrix expanded: clean tracked modify/delete, pre-dirty tracked modify/delete, staged changes preserved, pre-existing untracked modify/delete, newly-created untracked file + directory removal, symlink/junction containment, nested repo/submodule write, exact-output-file allowed vs sibling disallowed."
+    }
+  ]
+}

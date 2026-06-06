@@ -1,0 +1,101 @@
+[
+  {
+    "phase": "initial-review",
+    "status": "complete",
+    "round": 1,
+    "reviewers": ["claude-explore", "rubber-duck"],
+    "duration_s": 163,
+    "summary": "Two-reviewer plan review: an Explore agent verified the plan's file:line claims against the live v5.50.0 codebase (confirmed copilot-exec.mjs line ranges and the read-only/write caller classification are correct) and surfaced 1 High (test seam) + 2 Medium; a rubber-duck critique surfaced 1 Critical + 3 High + 3 Medium on snapshot correctness, allowed-zone, exit semantics, and signal handling. 12 findings total (1 Critical, 4 High, 7 Medium); 0 Low surfaced."
+  },
+  {
+    "phase": "fix",
+    "status": "resolved",
+    "finding_id": "F-001",
+    "duration_s": 0,
+    "summary": "Critical: snapshot must capture exact pre-run content+mode (not porcelain flags), handle deletions/index/nested-repos. Plan + US-001 test matrix strengthened."
+  },
+  {
+    "phase": "fix",
+    "status": "resolved",
+    "finding_id": "F-002",
+    "duration_s": 0,
+    "summary": "High: security boundary reframed to 'no residual change in the research cwd tree'; out-of-tree absolute writes documented as residual risk, not over-claimed."
+  },
+  {
+    "phase": "fix",
+    "status": "resolved",
+    "finding_id": "F-003",
+    "duration_s": 0,
+    "summary": "High: default allowed zone changed to the exact --output file (not dirname); callers pass explicit --allow-write-path; repo-root zones rejected."
+  },
+  {
+    "phase": "fix",
+    "status": "resolved",
+    "finding_id": "F-004",
+    "duration_s": 0,
+    "summary": "High: violation now returns distinct exit 3 + sentinel with original exit code; clean runs preserve copilot exit/output."
+  },
+  {
+    "phase": "fix",
+    "status": "resolved",
+    "finding_id": "F-005",
+    "duration_s": 0,
+    "summary": "High: guard test must inject spawn into main() (not COPILOT_EXEC_SCRIPT, which bypasses the guard). Plan test design corrected with the test-copilot-exec.mjs seam."
+  },
+  {
+    "phase": "fix",
+    "status": "resolved",
+    "finding_id": "F-006",
+    "duration_s": 0,
+    "summary": "Medium: signal-path revert stops the child tree first, runs synchronous idempotent revert; SIGTERM-mid-write test added."
+  },
+  {
+    "phase": "fix",
+    "status": "resolved",
+    "finding_id": "F-007",
+    "duration_s": 0,
+    "summary": "Medium: newly-created empty dirs removed deepest-first; pre-existing dirs preserved."
+  },
+  {
+    "phase": "fix",
+    "status": "resolved",
+    "finding_id": "F-008",
+    "duration_s": 0,
+    "summary": "Medium: concurrent same-cwd runs handled by zone-scoped revert; overlapping-zone edge documented with disjoint-zone/advisory-lock recommendation."
+  },
+  {
+    "phase": "fix",
+    "status": "resolved",
+    "finding_id": "F-009",
+    "duration_s": 0,
+    "summary": "Medium: non-git filesystem-manifest fallback gets its own AC + node:test fixture."
+  },
+  {
+    "phase": "fix",
+    "status": "resolved",
+    "finding_id": "F-010",
+    "duration_s": 0,
+    "summary": "Medium: caller-split audit regression test added (every research/review caller has --read-only; write callers don't) to prevent SKILL.md drift."
+  },
+  {
+    "phase": "fix",
+    "status": "resolved",
+    "finding_id": "F-011",
+    "duration_s": 0,
+    "summary": "Medium: scope/CHANGELOG/AGENTS explicitly 'Copilot only'; helper built reusable; codex-exec follow-up recorded in Open Questions."
+  },
+  {
+    "phase": "fix",
+    "status": "resolved",
+    "finding_id": "F-012",
+    "duration_s": 0,
+    "summary": "Medium: US-001 test matrix expanded to cover clean/dirty tracked modify+delete, staged preserved, untracked modify+delete, new file+dir, symlink/junction, nested repo, exact-output-allowed vs sibling-disallowed."
+  },
+  {
+    "phase": "re-review",
+    "status": "converged",
+    "round": 2,
+    "duration_s": 0,
+    "summary": "All 12 findings resolved in-place in draft-plan.md. 0 open Critical/High/Medium findings remain. Plan converged."
+  }
+]

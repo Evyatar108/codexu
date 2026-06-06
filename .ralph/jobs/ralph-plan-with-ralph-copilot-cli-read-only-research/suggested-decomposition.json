@@ -1,0 +1,29 @@
+{
+  "clusters": [
+    {
+      "name": "copilot-readonly-guard",
+      "stories": ["US-001", "US-002", "US-003", "US-004"],
+      "phase": 1,
+      "dependsOn": [],
+      "fileOverlapEvidence": {
+        "sharedFiles": [
+          "plugins/ralph/src/copilot-exec.mjs",
+          "plugins/ralph/CHANGELOG.md",
+          "plugins/ralph/AGENTS.md",
+          "plugins/ralph/.claude-plugin/plugin.json",
+          "plugins/ralph/.github/plugin/plugin.json",
+          ".claude-plugin/marketplace.json",
+          ".github/plugin/marketplace.json",
+          ".agents/plugins/marketplace.json"
+        ],
+        "exclusiveFiles": [
+          "plugins/ralph/src/worktree-snapshot.mjs",
+          "plugins/ralph/tests/test-worktree-snapshot.mjs",
+          "plugins/ralph/tests/test-copilot-readonly-guard.mjs"
+        ],
+        "risk": "high"
+      },
+      "executionModeRationale": "All four stories mutate or depend on the same wrapper (src/copilot-exec.mjs) plus shared plugin version manifests, AGENTS.md, and CHANGELOG.md in strict dependency order (helper -> wrapper guard -> callers -> docs/version). Parallelizing would produce conflicting writes to copilot-exec.mjs and the five version stamps, so the cluster must run serially."
+    }
+  ]
+}
