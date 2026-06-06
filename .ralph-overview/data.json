@@ -250,9 +250,9 @@
     {
       "id": "codex-redirect-upstream-install-update-paths-to-fork",
       "scope": "codex",
-      "lifecycle": "tracked",
-      "status": "warn",
-      "lastTouchedAt": "2026-06-05T16:15:00Z",
+      "lifecycle": "merged",
+      "status": "ok",
+      "lastTouchedAt": "2026-06-06T01:30:00Z",
       "kanbanCards": [
         {
           "className": "cmd-warn",
@@ -265,6 +265,10 @@
         {
           "className": "cmd-warn",
           "html": "<strong>Install-script unparked as D-002 (R2 on evyatar.dev) 2026-06-05.</strong> So the redirect plan SHOULD coordinate (not decouple): once codex.evyatar.dev/install.* + /latest exist, US-003 hints point at the irm|iex one-liner and OQ1 doctor probe curls the public /latest (Warning row → green, no gh-auth plumbing). Sequencing: either ship the installer first (then redirect targets the live endpoints) OR ship redirect with interim static/neutralize defaults and upgrade pointers when the installer lands. Operator to choose order; redirect IMPL stays HELD pending that call."
+        },
+        {
+          "className": "cmd-ok",
+          "html": "<strong>SHIPPED (source) 2026-06-06 @ codex-patched 5817fa310 / codex wrapper 4f3059360 / codexu ba986933.</strong> 3-level submodule ship. US-001..005 done: redirect codex doctor update-probe to gim-home/codex (404->Warning graceful), neutralize brew probe, rust-v->v parse fix, redirect install/update hint strings (update_action.rs + daemon lib.rs + README) to the fork releases URL, neutralize the Unix daemon self-updater (chatgpt.com/install.sh|sh -> no-op), Scope-B TUI update cluster + get_upgrade_version stays no-op. <strong>BONUS functional bug FIXED:</strong> compare_npm_package_roots @openai/codex->@gim-home/codex (+summary +pinned tests) so codex doctor stops falsely Failing on correct fork installs. SANDBOX-PATCH registered (patch-surface.md §1/§14/§15 + audit_invariants.sh file-scoped guards + audit_network_calls.sh ENDPOINT_PATTERNS chatgpt\\.com/codex/install). Gates: cargo check --workspace clean, audit_invariants exit 0, cli+tui tests pass; Unix-gated/release-only paths CI-validated. Interim static defaults used for hints (github.com/gim-home/codex/releases) — a later task upgrades them to codex.evyatar.dev/install.* once the installer (codex-fork-install-script D-002) ships. <strong>SOURCE-ONLY:</strong> the running codex CLI (npm 0.135.0-copilot-api.1) gets the fix on the next /publish-sandbox-patch release (deferred, operator-driven)."
         }
       ],
       "command": {
@@ -274,6 +278,27 @@
         "prompts": {
           "plan": "/plan-with-ralph \"Redirect every upstream install/update reference in the codex fork to point at the fork (gim-home/codex) instead of upstream, and harden the latent Unix paths even though they are dead on the shipped Windows binary. Three call sites surfaced by the v0.135 network audit: (1) cli/src/doctor/updates.rs — codex doctor shells out to curl (bypassing reqwest/no_proxy) to api.github.com/repos/openai/codex/releases/latest + formulae.brew.sh; LIVE on Windows. (2) app-server-daemon/src/update_loop.rs:158 — reqwest::get(\\\"https://chatgpt.com/codex/install.sh\\\") piped to sh; #[cfg(unix)]-only so dead on Windows but must be addressed. (3) update_action.rs + the app-server-daemon lib.rs — user-facing curl chatgpt.com/codex/install.sh | sh hint strings. CONSTRAINT (fork core tenet, codex/CLAUDE.md Core engineering tenants #1): minimize upstream-canonical conflict surface; prefer overlay/seam over inline edits where possible; every inline upstream-canonical edit needs a // SANDBOX PATCH: marker + a docs/implementation/patch-surface.md §14 row (invariant + enforcing test/guard) + a §15 rebase-replant note + an update to scripts/audit_network_calls.sh ENDPOINT_PATTERNS. The fork already no-ops tui/src/updates.rs (get_upgrade_version returns None) — mirror that discipline but REDIRECT to the fork release/install path rather than no-op. Determine the correct fork target for each: the doctor update-check should compare against gim-home/codex latest release (see codex/docs/workflows/install.md for the fork install method via GitHub Packages); the install hints should print the fork install command. Output a stories outline with per-call-site seams, conflict-surface estimate, and the invariant tests + audit ENDPOINT_PATTERNS additions. HOLD for operator review before impl.\" --from-task codex-redirect-upstream-install-update-paths-to-fork"
         }
+      },
+      "shipManifest": {
+        "shippedAt": "2026-06-06T01:30:00Z",
+        "summary": "Shipped (source) the redirect of all upstream install/update references in the codex fork to the fork itself, plus a bonus functional-bug fix, as a 3-level submodule ship: inner codex-patched sandbox-patches 1dd5cd5c9->5817fa310 (Evyatar108/codex-openai-fork), codex wrapper main 10ececb49->4f3059360 (gim-home/codex), codexu codex/ pointer ->ba986933. US-001: codex doctor is now fork-aware — the update probe targets gim-home/codex (graceful 404->Warning, no gh-auth plumbing per operator OQ1), the brew probe is neutralized, the rust-v->v tag parse is fixed, and the hint labels point at the fork; ALSO fixes the functional bug where compare_npm_package_roots hard-coded @openai/codex, making codex doctor falsely report Fail on every correct fork install (now @gim-home/codex + summary + pinned tests). US-002: the Unix-only app-server-daemon self-updater (reqwest::get(chatgpt.com/codex/install.sh) | sh) is neutralized to a no-op, removing the remote-script-exec vector. US-003: the user-facing install/update hint strings (tui/update_action.rs, daemon lib.rs, app-server-daemon/README.md) redirect to the fork releases URL, with refreshed tui snapshots. US-004: the SANDBOX-PATCH surface is registered (patch-surface.md §1/§14/§15 rows, file-scoped audit_invariants.sh guards, audit_network_calls.sh ENDPOINT_PATTERNS chatgpt.com/codex/install), avoiding tree-wide over-breadth. US-005: the latent TUI update-UI cluster is redirected and get_upgrade_version is asserted to stay no-op. Gates green: cargo check --workspace clean, audit_invariants exit 0, cli+tui tests pass. Interim static hint defaults (github.com/gim-home/codex/releases) are used pending the codex.evyatar.dev installer (codex-fork-install-script D-002); a follow-up upgrades the pointers once it ships. SOURCE-ONLY ship: the running npm codex CLI gets the fix on the next /publish-sandbox-patch release (deferred, operator-driven).",
+        "commits": [
+          {
+            "sha": "5817fa310",
+            "oneLine": "fix(updates): redirect upstream install/update paths to the fork",
+            "repo": "codex-patched (Evyatar108/codex-openai-fork)"
+          },
+          {
+            "sha": "4f3059360",
+            "oneLine": "chore(audit): register the redirect-upstream install/update patch surface",
+            "repo": "codex (gim-home/codex)"
+          },
+          {
+            "sha": "ba986933",
+            "oneLine": "chore: bump codex submodule for redirect-upstream install/update paths to fork",
+            "repo": "codexu"
+          }
+        ]
       }
     },
     {
