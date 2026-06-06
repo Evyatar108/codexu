@@ -269,6 +269,10 @@
       "lastTouchedAt": "2026-06-06",
       "kanbanCards": [
         {
+          "className": "cmd-warn",
+          "html": "<strong>Operator decision 2026-06-06: STAY ON CODEX, drop opencode for now.</strong> The eval below is kept as reference only; do NOT spawn the recommended Role-A spike or Role-B brainstorm unless the operator revisits. Codex remains the engine for codexu efforts."
+        },
+        {
           "className": "cmd-ok",
           "html": "<strong>Evaluation shipped (2026-06-06): VIABLE-WITH-WORK, split by codex's two roles.</strong> <strong>Role A</strong> (happy-cli programmatic engine): viable — opencode has a headless server (HTTP+SSE+SDK) + NATIVE GitHub Copilot transport (erases the fork's biggest patch class) + native .claude/.agents skills + MCP + subagents; cost = rewrite codexAppServerClient.ts to REST+SSE. <strong>Role B</strong> (crews/ralph member engine): NOT a drop-in — opencode has blocking tool hooks but <strong>no turn-end Stop blocking gate</strong> + no external-command hook model (the spine of crews/ralph enforcement) + no OS sandbox. Recommended next step: a ~1-day ROLE-A spike before any migration; decide role B separately. See .ralph/investigations/opencode-as-codex-replacement-evaluation/findings.md."
         }
