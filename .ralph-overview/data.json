@@ -86,6 +86,48 @@
       }
     },
     {
+      "id": "codex-engine-ralph-member-enablement",
+      "scope": "crews",
+      "lifecycle": "tracked",
+      "status": "warn",
+      "lastTouchedAt": "2026-06-06",
+      "kanbanCards": [
+        {
+          "className": "cmd-warn",
+          "html": "<strong>Filed 2026-06-06 (operator: &quot;try codex as the members engine; we might need to install ralph-orchestration there&quot;).</strong> A crews member spawned with <code>--engine codex</code> can now spawn + register + stop cleanly (crews v3.6.4 spawn fix + v3.6.6 tab-close), but CANNOT run <code>/plan-with-ralph</code>, <code>/brainstorm-with-ralph</code>, or <code>/implement-with-ralph</code> because <strong>ralph-orchestration is NOT installed in codex</strong> &mdash; <code>codex plugin list</code> (2026-06-06) shows only <code>crews@ai-developer-toolkit installed v3.6.2</code>; <code>ralph-orchestration</code> + <code>ralph-overview</code> are <code>not installed</code>. Each engine loads plugins from its OWN install, so the codex member has no ralph skills. SPIKE: install ralph-orchestration in codex from the LOCAL-SOURCE ai-developer-toolkit marketplace (git-source is buggy &mdash; see codex-git-marketplace-snapshot-tmp-ephemeral), refresh codex's crews from 3.6.2 &rarr; current if the local-source cache is stale, then VALIDATE a codex-engine member completes a real ralph phase end-to-end and reports back via crews. Findings feed <code>crews-target-engine-plugin-provisioning</code> (the automation)."
+        }
+      ],
+      "command": {
+        "name": "codex-engine-ralph-member-enablement",
+        "descriptionHtml": "Install ralph-orchestration in codex and validate that a <code>--engine codex</code> crews member can run a real ralph workflow end-to-end. The spike that de-risks codex-engine ralph members.",
+        "warnings": "crews-scope spike (mostly ops + validation; may need no crews CODE change). Use the codex LOCAL-SOURCE marketplace only (git-source corrupts across launches). Findings inform crews-target-engine-plugin-provisioning. ralph is bash-oriented (ralph.sh / review-loop.sh / jq) — expect Windows/codex friction to document.",
+        "prompts": {
+          "plan": "/plan-with-ralph \"Enable and validate codex-engine crews members running real ralph workflows. Today a member spawned with --engine codex registers (crews is installed in codex via the local-source ai-developer-toolkit marketplace, currently v3.6.2) but CANNOT run /plan-with-ralph, /brainstorm-with-ralph, or /implement-with-ralph because ralph-orchestration is NOT installed in codex (codex plugin list 2026-06-06: ralph-orchestration + ralph-overview 'not installed'; only crews). STEPS: (1) Install ralph-orchestration in codex from the LOCAL-SOURCE marketplace: codex plugin install ralph-orchestration@ai-developer-toolkit (local-source is immune to the codex git-marketplace auto-upgrade corruption bug — NEVER use a git-source marketplace for this; see .ralph/investigations/codex-git-marketplace-snapshot-tmp-ephemeral). Install ralph-overview too if members need the overview MCP tools. (2) Refresh codex's crews install to current (local-source cache is stale at 3.6.2 vs source 3.6.6) — determine the correct reinstall/upgrade command for a local-source marketplace. (3) Verify the codex member sees the ralph skills (system/init slash_commands or a dry-run). (4) VALIDATE end-to-end: spawn a codex-engine crews member running a SMALL real ralph workflow (a /brainstorm-with-ralph or a tiny /plan-with-ralph on a throwaway task) and confirm it completes + reports back via crews to the lead. (5) DOCUMENT what works and what breaks on codex/Windows: ralph bash-orientation (ralph.sh, review-loop.sh, jq), skill loading, codex-exec/copilot-exec lens invocation from INSIDE a codex member (recursion), MCP availability, worktree handling, listener/Stop-hook behavior under codex. ACCEPTANCE: a codex-engine member completes a real ralph phase end-to-end, OR the blockers are enumerated with root causes and a remediation path. Produce a findings doc. This spike de-risks codex-engine ralph members and feeds the crews-target-engine-plugin-provisioning automation design.\""
+        }
+      }
+    },
+    {
+      "id": "crews-target-engine-plugin-provisioning",
+      "scope": "crews",
+      "lifecycle": "tracked",
+      "status": "warn",
+      "lastTouchedAt": "2026-06-06",
+      "kanbanCards": [
+        {
+          "className": "cmd-warn",
+          "html": "<strong>Filed 2026-06-06 (operator: &quot;add a skill to crews to install plugins in the target engine ... handle copilot and codex&quot;).</strong> crews spawns members in copilot/claude/codex, but each engine loads plugins from its OWN install (copilot <code>~/.copilot/installed-plugins/</code>; claude <code>~/.claude/plugins/</code>; codex <code>codex plugin marketplace</code> + <code>~/.codex/plugins/cache/</code>). A member spawned in engine X can only run skills for plugins installed in X, and crews does NOT ensure the member's needed plugins (ralph-orchestration, ralph-overview, ...) are present there &mdash; so a codex member can't run /plan-with-ralph because only crews is installed in codex, and the operator must hand-install per engine. FEATURE: a crews capability/skill that provisions a member's REQUIRED plugins into the target engine (idempotent, per-engine install mechanism, codex MUST use local-source marketplace) before the member's first turn, surfacing install failures up-front instead of opaquely mid-turn. DEPENDS on findings from <code>codex-engine-ralph-member-enablement</code> (the spike)."
+        }
+      ],
+      "command": {
+        "name": "crews-target-engine-plugin-provisioning",
+        "descriptionHtml": "Add a crews capability/skill that ensures a member's required plugins are installed in the target engine (copilot/claude/codex) before spawn, so cross-engine members can run their skills without manual per-engine installs.",
+        "warnings": "crews-scope feature; serialize after other crews code changes (same plugin). Design-heavy — start with a brainstorm. DEPENDS on codex-engine-ralph-member-enablement findings (run that spike first). codex install MUST use local-source marketplace (git-source corrupts).",
+        "prompts": {
+          "brainstorm": "/brainstorm-with-ralph \"Design a crews capability/skill that ensures a member's required plugins are installed in the TARGET ENGINE before (or as part of) spawning, handling copilot, claude, AND codex. PROBLEM: crews spawns members in copilot/claude/codex, but each engine loads plugins from its OWN install location (copilot: ~/.copilot/installed-plugins/; claude: ~/.claude/plugins/; codex: codex plugin marketplace + ~/.codex/plugins/cache/). A member spawned in engine X can only run skills for plugins installed in X. Today crews does NOT ensure the member's needed plugins (e.g. ralph-orchestration, ralph-overview) are present in the target engine, so a codex member cannot run /plan-with-ralph because only crews is installed in codex — the operator must hand-install per engine. DESIGN AXES: (1) How does crews know WHICH plugins a member needs? (a) explicit --plugins flag on spawn-member; (b) a crew-config manifest (crew.json: requiredPlugins); (c) infer from the initial prompt / skill invoked. (2) Per-engine install mechanism: copilot (copilot plugin install <id>@<marketplace> / marketplace add); claude (settings.json enabledPlugins / /plugin install); codex (codex plugin marketplace add <local-abs-path> + codex plugin install <id>@<marketplace> — MUST use LOCAL-SOURCE, NOT git-source, due to the codex git-marketplace auto-upgrade corruption bug; see .ralph/investigations/codex-git-marketplace-snapshot-tmp-ephemeral). (3) Idempotency + version pinning: detect already-installed-at-right-version vs install/upgrade; handle codex local-source caching where the installed version lags the source (observed: codex crews cached at 3.6.2 while source is 3.6.6). (4) Timing: install at spawn time (blocking, before the member's first turn) vs a pre-spawn lead step vs a member-side SessionStart self-install. (5) Failure surfacing: detect + report install failures BEFORE the member tries a skill it does not have (today it fails opaquely mid-turn). (6) Scope: a crews SKILL (lead-invoked) vs built into spawn-member vs a SessionStart hook. Recommend ONE direction with a concrete edit plan + crews version bump. Reference: the codex-engine-ralph-member-enablement spike findings + the per-engine install-path knowledge in codexu AGENTS.md. Do NOT chain into /plan-with-ralph.\""
+        }
+      }
+    },
+    {
       "id": "crews-arm-chaining-footgun-guard",
       "scope": "crews",
       "lifecycle": "tracked",
