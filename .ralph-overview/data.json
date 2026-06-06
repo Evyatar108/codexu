@@ -2443,13 +2443,13 @@
     {
       "id": "ralph-plan-with-ralph-copilot-cli-read-only-research",
       "scope": "ralph-orchestration",
-      "lifecycle": "tracked",
+      "lifecycle": "merged",
       "status": "ok",
       "lastTouchedAt": "2026-06-06",
       "kanbanCards": [
         {
           "className": "cmd-ok",
-          "html": "<strong>Plan shipped @ 0adbe3a6 (2026-06-06, landed on main).</strong> Constrain Copilot CLI research-mode invocations (plan-with-ralph / brainstorm-with-ralph / review-changes Phase 2/4) to READ-ONLY so they cannot accidentally edit operator working-tree files. Mechanism: <strong>option (c)</strong> snapshot the working tree pre/post + revert guard (if any source file outside job_dir/staging changed, surface as <code>kind=question</code> and discard by default) + <strong>option (a)</strong> defense-in-depth opt-in <code>--read-only</code> flag. 4 stories. Target ralph <strong>v5.51.0</strong> (the seed's v5.46.3 was stale). Phase-4: 12 findings (1 Critical / 4 High / 7 Medium) all resolved/converged."
+          "html": "<strong>Shipped ralph v5.51.0 @ 01efe1e9 (2026-06-06) &mdash; Copilot research-mode read-only guard.</strong> plan/brainstorm/review Phase 2/4 Copilot invocations can no longer leave edits outside job_dir/staging: snapshot+revert guard (surfaces kind=question + discards) + opt-in <code>--read-only</code>. US-001..004 + a Phase 5a fix (preserve exact pre-run index state on revert). All tests + release gate green. Closes the 2026-05-28 16-file-edit incident."
         }
       ],
       "command": {
@@ -2465,6 +2465,17 @@
           "plan": "/plan-with-ralph \"Constrain Copilot CLI in research-mode invocations to read-only to prevent accidental file edits during plan-with-ralph / brainstorm-with-ralph / review-changes phases.\n\n## Problem\n\nObserved 2026-05-28 during plan-crews-lead-suppress-kind-tag: the Copilot CLI invoked for Phase 2 research (or Phase 4 review) on this Windows host overflowed beyond reading source and ACTUALLY EDITED 16 files in the operator's ./ai-developer-toolkit working tree, including plugins/crews/hooks/stop.js, CHANGELOG, version manifests, and test files. The edits happened to match the design the plan was researching, but on a different invocation could have landed random partial-implementation noise that compromises operator's working tree integrity.\n\n## Root cause hypotheses\n\n- Copilot CLI defaults to interactive file-edit mode unless explicitly constrained.\n- ralph-orchestration's research-invocation flags (in plugins/ralph/src/copilot-exec.mjs + agents/copilot-*-prompt.md) may pass arguments that allow file edits.\n- Copilot CLI doesn't differentiate research vs implementation modes — it always acts.\n\n## Fix options\n\n(a) Pass flags that constrain Copilot to read-only (--no-edit, --read-only, or equivalent — verify against Copilot CLI docs).\n(b) Run Copilot research inside a temp directory / read-only bind-mount so writes are sandboxed.\n(c) Snapshot working-tree state pre+post; if any source file changed, surface as a kind=question to the spawning agent and DISCARD the changes by default.\n\n## Investigation step (before picking option)\n\nRead Copilot CLI 1.0.55+ docs / --help for read-only mode flags. Test the chosen mechanism manually before proposing in plan.\n\n## Acceptance\n\n- /plan-with-ralph research subprocess invoked against any plugin source CANNOT modify any file outside its job_dir / staging.\n- New test fixture demonstrates Copilot CLI running in research-mode + asserting zero source file diffs.\n- CHANGELOG entry cites the failure pattern.\n\nVersion bump: ralph v5.46.3 patch. Multi-remote push per operator pattern.\"",
           "impl": "/implement-with-ralph --from-plan .ralph/jobs/ralph-plan-with-ralph-copilot-cli-read-only-research/plan.md --autonomous \"Implement the read-only research-mode guard per the plan (4 stories). TARGET = ai-developer-toolkit submodule, plugins/ralph/ (src/copilot-exec.mjs + agents/copilot-*-prompt.md + the research/review invocation paths). Mechanism: option (c) snapshot the working tree pre/post a Copilot research/review invocation + a revert guard that, if any file outside the job_dir/staging changed, surfaces kind=question and DISCARDS the changes by default; PLUS option (a) defense-in-depth opt-in --read-only flag passed to Copilot when supported (verify against current Copilot CLI --help). Acceptance: a research subprocess invoked against any plugin source CANNOT leave a modified file outside its job_dir/staging; new fixture asserts zero source diffs; CHANGELOG cites the 2026-05-28 failure pattern. ralph v5.50.0 -> v5.51.0 (the seed said v5.46.3 — stale; use current). codexu root CLAUDE.md is gitignored — do NOT git add CLAUDE.md. Lead handles FF + push + codexu pointer bump + table flip. Drive Phase 5a + 5b to clean.\""
         }
+      },
+      "shipManifest": {
+        "shippedAt": "2026-06-06",
+        "summary": "Shipped ralph v5.51.0: constrains Copilot CLI research-mode invocations (plan-with-ralph / brainstorm-with-ralph / review-changes Phase 2/4) to read-only so they cannot edit operator working-tree files (the 2026-05-28 incident where a research invocation edited 16 files). Mechanism: option (c) snapshot the working tree pre/post a Copilot research/review invocation + a revert guard that, if any file outside job_dir/staging changed, surfaces kind=question and discards the changes by default; PLUS option (a) defense-in-depth opt-in --read-only flag. US-001..US-004 + a Phase 5a review fix (preserve exact pre-run index state on revert). All tests green; release gate passes. Branch rebased onto the post-ovinit toolkit main (37eb0f87) before FF.",
+        "commits": [
+          {
+            "sha": "01efe1e9",
+            "oneLine": "fix(ralph): v5.51.0 - copilot research-mode read-only guard (FF tip)",
+            "repo": "ai-developer-toolkit"
+          }
+        ]
       }
     },
     {
