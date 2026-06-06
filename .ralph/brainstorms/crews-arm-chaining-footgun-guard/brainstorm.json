@@ -1,0 +1,47 @@
+{
+  "brainstormName": "crews-arm-chaining-footgun-guard",
+  "overviewTaskId": "crews-arm-chaining-footgun-guard",
+  "idea": "Brainstorm how crews should prevent a LEAD from silently ending up with no live listener after chaining the foreground-blocking `arm` command (e.g. `arm | Out-Null; <next cmd>`). Today arm returns/arm-skips and leaves no background listener; the lead believes it is armed but is not, and only finds out via the next PreToolUse/Stop review-required gate (no silent loss, but a silent footgun). Read the arm path in plugins/crews/tools/crews.js + plugins/crews/hooks/listener-protocol.js + actor-state.js (getListenerState / isStaleArmedManifest PID-liveness). Evaluate prevention options: (a) arm detects non-interactive / redirected stdout (chained pipeline) and prints a loud warning or refuses with a non-zero exit + guidance; (b) make the arm-skipped / returned envelope impossible to swallow silently; (c) contract/doc-only change. Weigh against the legitimate standalone async arm usage (must keep working) and the arm-skipped already-active-listener path. Recommend ONE direction with a concrete, low-surface edit plan and a regression test idea. Output the brainstorm.json with recommendedDirection.",
+  "availableLenses": [
+    "codex",
+    "devils-advocate"
+  ],
+  "missingLenses": [
+    {
+      "lens": "copilot",
+      "reason": "not launched in this Codex-engine member run; CLI reachability was validated separately"
+    }
+  ],
+  "candidateDirections": [
+    {
+      "id": "D-001",
+      "name": "Fail-loud redirected immediate-return arm envelopes",
+      "summary": "Add a narrow `arm` return-path guard that makes swallowed no-new-listener envelopes visible on stderr and non-zero by default while preserving normal async listener loops and explicit machine-readable mode.",
+      "contributingLenses": [
+        "codex",
+        "devils-advocate"
+      ]
+    },
+    {
+      "id": "D-002",
+      "name": "Hook-level chained-arm detector and verifier",
+      "summary": "Teach PreToolUse to reject suspicious piped or chained arm command strings before allowing the one arm attempt through.",
+      "contributingLenses": [
+        "devils-advocate"
+      ]
+    },
+    {
+      "id": "D-003",
+      "name": "Documentation and command-shape hardening only",
+      "summary": "Update help, briefing, and suggested commands to make standalone async arming the explicit contract without changing runtime behavior.",
+      "contributingLenses": [
+        "codex"
+      ]
+    }
+  ],
+  "recommendedDirection": "D-001",
+  "questionsForSynthesis": [
+    "Should `already-active-listener` under redirected stdout remain exit 0 because a live listener exists, or should it also emit a stderr advisory for operator clarity?",
+    "What opt-in name should preserve current JSON/status behavior for scripted tests and automation: CLI flag, env var, or both?"
+  ]
+}
