@@ -113,13 +113,13 @@
     {
       "id": "codex-upstream-background-shell-support-audit",
       "scope": "codex",
-      "lifecycle": "tracked",
-      "status": "warn",
+      "lifecycle": "merged",
+      "status": "ok",
       "lastTouchedAt": "2026-06-06",
       "kanbanCards": [
         {
-          "className": "cmd-warn",
-          "html": "<strong>Filed 2026-06-06 (operator: is there background/async shell task support in codex? we added it in our fork earlier &mdash; native now, still our impl, or accidentally removed?).</strong> The fork codex-rs tree HAS <code>core/src/tools/handlers/unified_exec/await_background_completion.rs</code> + <code>exec_command.rs</code> + <code>write_stdin.rs</code> (+ legacy shell.rs), so SOME background/interactive exec is present. INVESTIGATE: native-upstream vs fork SANDBOX PATCH vs removed/superseded; confirm the actual tool surface + that background-run + await-completion + write-stdin all work."
+          "className": "cmd-ok",
+          "html": "<strong>Findings shipped (2026-06-06): background-shell support INTACT &mdash; no action.</strong> <code>exec_command</code> + <code>write_stdin</code> native upstream; <code>await_background_completion</code> is our fork patch (D-002), present + wired; v0.135.0 near-miss already re-ported. See .ralph/investigations/codex-upstream-background-shell-support-audit/findings.md."
         }
       ],
       "command": {
@@ -129,18 +129,23 @@
         "prompts": {
           "plan": "/plan-with-ralph \"READ-ONLY INVESTIGATION (produce .ralph/investigations/codex-upstream-background-shell-support-audit/findings.md; do NOT modify codex source). Q: does codex have NATIVE background/async shell-task support now, or still rely on the fork's earlier impl, or was it accidentally removed? Tree: codex/external/repos/codex-patched/codex-rs/core/src/tools/handlers/unified_exec/{await_background_completion,exec_command,write_stdin}.rs + legacy shell.rs. STEPS: (1) Read those handlers + unified_exec.rs + shell.rs; which tool(s) does the model get + are background run/await/write-stdin wired? (2) Grep SANDBOX PATCH markers near them (native vs fork). (3) Diff vs pristine upstream 0.135 if a reference checkout exists. (4) Is the fork's earlier background-shell work present, superseded, or removed? OUTPUT findings.md: verdict (native/fork-patch/removed) + tool surface + evidence (file:line + markers) + action needed. If --engine codex, bash-on-PATH hangs — use Git bash.\""
         }
+      },
+      "shipManifest": {
+        "shippedAt": "2026-06-06",
+        "summary": "Investigation complete (findings.md): codex background/async shell support is INTACT. exec_command + write_stdin are native upstream; await_background_completion (our fork D-002 patch) is fork-only, present and wired; the v0.135.0 near-miss was already re-ported. No action needed.",
+        "commits": []
       }
     },
     {
       "id": "codex-upstream-remote-control-daemon-fork-impact",
       "scope": "codex",
-      "lifecycle": "tracked",
-      "status": "warn",
+      "lifecycle": "merged",
+      "status": "ok",
       "lastTouchedAt": "2026-06-06",
       "kanbanCards": [
         {
-          "className": "cmd-warn",
-          "html": "<strong>Filed 2026-06-06 (operator: v131 added daemon-managed codex remote-control + runtime enable/disable APIs + status reads + registry-backed/configured remote environments &mdash; does it affect our happy/codexu daemon integration?).</strong> The fork FORCE-DISABLES remote_control at three layers (codex/CLAUDE.md); happy-cli spawns the plain <code>app-server</code> over loopback ws, NOT the Unix-only app-server-daemon wired to remote-control. INVESTIGATE conflict with the force-disable, any change to the app-server vs app-server-daemon split happy-cli relies on, and whether to respond or leverage."
+          "className": "cmd-ok",
+          "html": "<strong>Findings shipped (2026-06-06): happy/codexu integration INSULATED &mdash; no action.</strong> happy-cli uses plain app-server (not the Unix-only daemon); v131+ remoteControl RPCs route through the force-disabled handle. See .ralph/investigations/codex-upstream-remote-control-daemon-fork-impact/findings.md."
         }
       ],
       "command": {
@@ -150,6 +155,11 @@
         "prompts": {
           "plan": "/plan-with-ralph \"READ-ONLY INVESTIGATION (produce .ralph/investigations/codex-upstream-remote-control-daemon-fork-impact/findings.md; do NOT modify source). Q: codex v131 added daemon-managed remote-control + runtime enable/disable APIs + status reads + registry-backed/configured remote environments. Does it affect the happy/codexu daemon integration? CONTEXT: fork FORCE-DISABLES remote_control at three layers (codex/CLAUDE.md); happy-cli spawns the plain app-server crate over loopback ws (packages/happy-cli/src/codex/codexAppServerClient.ts), NOT the Unix-only app-server-daemon (codex-uds/libc, wired to disabled remote_control). STEPS: (1) Read the force-disable points (grep remote_control + SANDBOX PATCH; app-server + app-server-daemon crates). (2) Identify what v131 added + where. (3) CONFLICT assessment: do new APIs re-enable/route around the force-disable? change the app-server vs daemon boundary happy-cli relies on? does happy-cli need changes or is it insulated? (4) LEVERAGE opportunity for the codexu daemon integration. OUTPUT findings.md: impact verdict (none/insulated/conflict/opportunity) + evidence (file:line) + recommended action. If --engine codex, bash-on-PATH hangs — use Git bash.\""
         }
+      },
+      "shipManifest": {
+        "shippedAt": "2026-06-06",
+        "summary": "Investigation complete (findings.md): the happy/codexu daemon integration is INSULATED from codex v131 daemon-managed remote-control. happy-cli spawns the plain app-server (not the Unix-only app-server-daemon), and v131+ remoteControl RPCs route through the force-disabled handle. No fork change needed.",
+        "commits": []
       }
     },
     {
@@ -197,17 +207,13 @@
     {
       "id": "codex-upstream-multi-agent-v2-fork-impact",
       "scope": "codex",
-      "lifecycle": "tracked",
-      "status": "warn",
+      "lifecycle": "merged",
+      "status": "ok",
       "lastTouchedAt": "2026-06-06",
       "kanbanCards": [
         {
-          "className": "cmd-warn",
-          "html": "<strong>VERSION SCOPE (2026-06-06): partially REBASE-GATED.</strong> Our codex fork is at <strong>0.135</strong>; the operator cited this as a <strong>v137</strong> feature. The <code>multi_agents_v2/</code> BASE IS present in 0.135 and fully investigable (tool surface, native-vs-fork, reconciliation with <code>codex-child-spawn-tools</code>, whether it could be the Agent surface for non-degraded codex ralph members). But the SPECIFIC v137 refinements (&quot;keeps runtime choice with each thread&quot;, &quot;cleaner follow-up and metadata defaults for spawned agents&quot;) are &gt;135 and likely NOT in the tree &mdash; those require rebasing codex to &ge;137 to inspect. The in-flight investigation (inv-multi-agent-v2, copilot) was told to characterize the 0.135 base now and flag the v137 deltas as REBASE-GATED rather than guess. General principle: codex investigations only have source up to the fork's current codex version; higher-version features need a rebase first."
-        },
-        {
-          "className": "cmd-warn",
-          "html": "<strong>Filed 2026-06-06 (operator: v137 &mdash; &quot;Multi-agent v2 keeps runtime choice with each thread and exposes cleaner follow-up and metadata defaults for spawned agents.&quot; Conflict with our fork agent-spawn work (explorer-agent-like)? Want to understand + leverage).</strong> Fork tree HAS <code>core/src/tools/handlers/multi_agents_v2/</code> (spawn/wait/close_agent/send_message/followup_task/list_agents/message_tool) + legacy <code>multi_agents/</code>; related fork task <code>codex-child-spawn-tools</code> (let codex spawn sub-agents like Claude Code's explore agent). The codex-engine spike found codex members do NOT see Ralph's Agent tool surface &mdash; could multi-agent v2 BE that surface? INVESTIGATE what v2 is, native-vs-fork, reconcile with codex-child-spawn-tools, and how to leverage."
+          "className": "cmd-ok",
+          "html": "<strong>Findings shipped (2026-06-06): multi_agents_v2 is upstream-native + complements codex-child-spawn-tools; codex ralph degradation is a TOOL-NAME MISMATCH (not a capability gap).</strong> Leverage = plugin-side adapter (map ralph Agent tools &rarr; codex multi_agent_v2) + a multi_agent_v2 config flip &rarr; non-degraded codex ralph members. v137-specific deltas REBASE-GATED (fork at 0.135). Filed follow-up <code>codex-ralph-member-multi-agent-adapter</code>. See .ralph/investigations/codex-upstream-multi-agent-v2-fork-impact/findings.md."
         }
       ],
       "command": {
@@ -216,6 +222,32 @@
         "warnings": "PARTIALLY REBASE-GATED: fork is at codex 0.135; the v137-specific refinements need a codex rebase to >=137 first. The multi_agents_v2 base + codex-child-spawn-tools reconciliation ARE doable on 0.135. codex-scope READ-ONLY. MUST reconcile with existing task codex-child-spawn-tools. Connects to codex-engine-ralph-member-enablement (codex lacks Ralph's Agent surface → degraded brainstorm).",
         "prompts": {
           "plan": "/plan-with-ralph \"READ-ONLY INVESTIGATION (produce .ralph/investigations/codex-upstream-multi-agent-v2-fork-impact/findings.md; do NOT modify source). Q: codex v137 'Multi-agent v2 keeps runtime choice with each thread and exposes cleaner follow-up and metadata defaults for spawned agents.' What is it, does it conflict with/supersede the fork's own agent-spawn work, how to leverage? CONTEXT: tree has codex/external/repos/codex-patched/codex-rs/core/src/tools/handlers/multi_agents_v2/ (spawn/wait/close_agent/send_message/followup_task/list_agents/message_tool) + legacy multi_agents/; fork task codex-child-spawn-tools (let codex spawn sub-agents like Claude Code explore agent); AND the codex-engine spike found codex members do NOT see Ralph's Agent tool surface (multi-lens brainstorm degrades). STEPS: (1) Read multi_agents_v2/ + multi_agents/ + multi_agents_v2.rs/multi_agents.rs; what does v2 add (per-thread runtime, follow-up + metadata defaults) + how is the tool surface exposed to the model? (2) SANDBOX PATCH markers: native vs fork-authored? Reconcile with codex-child-spawn-tools — superseded, complementary, or conflicting? (3) Is multi-agent v2 (or could it be wired as) the Agent surface that lets codex ralph members run NON-degraded multi-lens brainstorm/review like Claude/Copilot? (4) Recommend how to leverage v2 + what to do with codex-child-spawn-tools. OUTPUT findings.md: what v2 is + native-vs-fork + reconciliation + leverage recommendation. If --engine codex, bash-on-PATH hangs — use Git bash.\""
+        }
+      },
+      "shipManifest": {
+        "shippedAt": "2026-06-06",
+        "summary": "Investigation complete (findings.md, 0.135 base; v137 deltas rebase-gated): multi_agents_v2 is UPSTREAM-NATIVE (only a plugin-scope-axis fork edit). It COMPLEMENTS the fork task codex-child-spawn-tools (not superseding/conflicting). KEY: the codex ralph-member brainstorm degradation is a TOOL-NAME MISMATCH, not a capability gap — codex DOES have the agent-spawn capability via multi_agent_v2; ralph just looks for differently-named Agent tools. LEVERAGE: a plugin-side adapter (map ralph's Agent tool calls to codex multi_agent_v2) + a multi_agent_v2 config flip would let codex ralph members run NON-degraded multi-lens brainstorm/review. The specific v137 refinements remain rebase-gated.",
+        "commits": []
+      }
+    },
+    {
+      "id": "codex-ralph-member-multi-agent-adapter",
+      "scope": "crews",
+      "lifecycle": "tracked",
+      "status": "warn",
+      "lastTouchedAt": "2026-06-06",
+      "kanbanCards": [
+        {
+          "className": "cmd-warn",
+          "html": "<strong>Filed 2026-06-06 from the multi-agent-v2 investigation (leverage path).</strong> The codex-engine-ralph-member spike found codex members run brainstorm/review in DEGRADED single-threaded mode. The multi-agent-v2 investigation (findings.md) determined this is a <strong>TOOL-NAME MISMATCH, not a capability gap</strong>: codex DOES have agent-spawn via the native <code>multi_agent_v2</code> tools, but ralph looks for differently-named Agent tools (Claude/Copilot-style). LEVERAGE: build a plugin-side ADAPTER that maps ralph's Agent tool calls onto codex <code>multi_agent_v2</code> (spawn/wait/send_message/close), plus flip the <code>multi_agent_v2</code> config so the tools are exposed, so codex ralph members run NON-degraded multi-lens brainstorm/review like Claude/Copilot. Read .ralph/investigations/codex-upstream-multi-agent-v2-fork-impact/findings.md for the exact tool-name map + config flag. Reconcile with codex-child-spawn-tools (complementary). NOTE: the v137 refinements are rebase-gated (fork at 0.135), but the 0.135 multi_agent_v2 base is sufficient for this adapter."
+        }
+      ],
+      "command": {
+        "name": "codex-ralph-member-multi-agent-adapter",
+        "descriptionHtml": "Make codex-engine ralph members run NON-degraded multi-lens brainstorm/review by adapting ralph's Agent tool surface onto codex's native multi_agent_v2 tools (the degradation is a tool-name mismatch, not a capability gap).",
+        "warnings": "Depends on the multi-agent-v2 investigation findings (the tool-name map + config flag). Likely spans ralph + crews and/or a codex config flip. Start with a brainstorm to pin the adapter boundary. The 0.135 multi_agent_v2 base suffices; v137 refinements are rebase-gated and not required.",
+        "prompts": {
+          "brainstorm": "/brainstorm-with-ralph \"Design an adapter so codex-engine ralph members run NON-degraded multi-lens brainstorm/review (today they degrade to single-threaded). Per .ralph/investigations/codex-upstream-multi-agent-v2-fork-impact/findings.md the cause is a TOOL-NAME MISMATCH, not a capability gap: codex has agent-spawn via native multi_agent_v2 (spawn/wait/send_message/close_agent/list_agents) but ralph looks for Claude/Copilot-style Agent tools. Design the leverage: (1) a plugin-side adapter mapping ralph's Agent tool calls onto codex multi_agent_v2, and/or (2) the multi_agent_v2 config flip that exposes those tools, and how ralph detects+uses them under codex. Reconcile with the fork task codex-child-spawn-tools (complementary). Decide whether the adapter lives in ralph, crews, or a codex config layer. Use ONLY the 0.135 multi_agent_v2 base (v137 refinements are rebase-gated). Output selected-direction.md with recommendedDirection + version bump target. Do NOT chain into /plan-with-ralph.\""
         }
       }
     },
