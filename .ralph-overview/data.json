@@ -165,13 +165,13 @@
     {
       "id": "codex-upstream-extensions-vs-plugins-clarify",
       "scope": "codex",
-      "lifecycle": "tracked",
-      "status": "warn",
+      "lifecycle": "merged",
+      "status": "ok",
       "lastTouchedAt": "2026-06-06",
       "kanbanCards": [
         {
-          "className": "cmd-warn",
-          "html": "<strong>Filed 2026-06-06 (operator: v133 &mdash; &quot;Extensions can observe more lifecycle events (subagent start/stop, tool execution, turn metadata, async approval/turn processing).&quot; What are extensions vs mcp/skills/plugins/hooks?).</strong> INVESTIGATE what a codex &quot;extension&quot; IS vs MCP / plugin / skill / hook, what the v133 lifecycle-event surface exposes, and whether the fork (crews uses HOOKS today) should use/care about extensions."
+          "className": "cmd-ok",
+          "html": "<strong>Findings shipped (2026-06-06): no fork gain &mdash; crews/ralph stay on HOOKS.</strong> Extensions = compile-time in-process first-party Rust API (<code>ext/extension-api</code>); plugins = superset bundle (skill+MCP+hook+app); hooks = the external seam crews/ralph use. v133 lifecycle expansion is for the in-process extension API, not the external hook seam. See .ralph/investigations/codex-upstream-extensions-vs-plugins-clarify/findings.md."
         }
       ],
       "command": {
@@ -181,18 +181,23 @@
         "prompts": {
           "plan": "/plan-with-ralph \"READ-ONLY INVESTIGATION (produce .ralph/investigations/codex-upstream-extensions-vs-plugins-clarify/findings.md; do NOT modify source). Q: codex v133 'Extensions can observe more lifecycle events (subagent start/stop, tool execution, turn metadata, async approval/turn processing).' What ARE codex extensions vs MCP servers / plugins (marketplace) / skills / hooks? STEPS: (1) Locate the extension subsystem in codex-rs (grep extension/Extension/lifecycle; core, app-server, any extensions module). (2) Define each surface with code evidence (mcp/skill/plugin/hook/extension): what it is, how registered, what it observes/does, how they relate. (3) Detail the v133 lifecycle events + API. (4) Fork relevance: do crews/ralph (HOOKS today) or the happy integration gain from extensions, or are hooks sufficient? Could crews coordination be better as a codex extension? OUTPUT findings.md: a taxonomy table + v133 surface + fork-relevance verdict. If --engine codex, bash-on-PATH hangs — use Git bash.\""
         }
+      },
+      "shipManifest": {
+        "shippedAt": "2026-06-06",
+        "summary": "Investigation complete (findings.md): codex EXTENSIONS are a compile-time, in-process FIRST-PARTY Rust API (ext/extension-api) — NOT a user-facing extensibility point like plugins/hooks. PLUGINS are a superset bundle (skill + MCP + hook + app). HOOKS are the external process seam (PreToolUse/Stop/SessionStart) that crews + ralph use. The v133 lifecycle-observation expansion applies to the in-process extension API, not the external hook seam. Verdict: no fork gain — crews/ralph correctly stay on hooks. No action.",
+        "commits": []
       }
     },
     {
       "id": "codex-upstream-connectors-tool-schema-audit",
       "scope": "codex",
-      "lifecycle": "tracked",
-      "status": "warn",
+      "lifecycle": "merged",
+      "status": "ok",
       "lastTouchedAt": "2026-06-06",
       "kanbanCards": [
         {
-          "className": "cmd-warn",
-          "html": "<strong>Filed 2026-06-06 (operator: v134 &mdash; &quot;Made connector tool schemas more reliable by preserving local $ref/$defs structures and compacting oversized schemas before exposure.&quot; What are connectors?).</strong> INVESTIGATE what codex &quot;connectors&quot; are vs MCP / plugins / tools, what the v134 $ref/$defs-preservation + oversized-schema-compaction change does, and fork relevance (any connector tool schemas the fork/happy integration exposes or consumes)."
+          "className": "cmd-ok",
+          "html": "<strong>Findings shipped (2026-06-06): connectors INERT in the Copilot fork &mdash; no action.</strong> Connectors = ChatGPT Apps (ChatGPT-auth-gated), inert under codex 0.135.0-copilot-api.1; the v134 fix is generic codex-tools schema compaction. No fork relevance. See .ralph/investigations/codex-upstream-connectors-tool-schema-audit/findings.md."
         }
       ],
       "command": {
@@ -202,6 +207,11 @@
         "prompts": {
           "plan": "/plan-with-ralph \"READ-ONLY INVESTIGATION (produce .ralph/investigations/codex-upstream-connectors-tool-schema-audit/findings.md; do NOT modify source). Q: codex v134 'Made connector tool schemas more reliable by preserving local $ref/$defs structures and compacting oversized schemas before exposure.' What are codex CONNECTORS vs MCP servers / plugins / tools? STEPS: (1) Grep connector/Connector/$ref/$defs/schema compaction in codex-rs; locate the connector subsystem + the v134 schema code. (2) Define a connector + how it exposes tool schemas + what the change fixed. (3) Fork relevance: does the fork or happy integration expose/consume connector tool schemas? any MCP/tool-schema path this touches? OUTPUT findings.md: connector definition + the v134 change + fork-relevance verdict (likely none, confirm with evidence). If --engine codex, bash-on-PATH hangs — use Git bash.\""
         }
+      },
+      "shipManifest": {
+        "shippedAt": "2026-06-06",
+        "summary": "Investigation complete (findings.md): codex CONNECTORS are ChatGPT Apps, gated behind ChatGPT auth — therefore INERT in the Copilot-API fork (codex 0.135.0-copilot-api.1). The v134 change (preserve local $ref/$defs + compact oversized schemas) is a generic codex-tools schema-compaction fix, not connector-specific in impact. Fork relevance: none/low; no patch needed.",
+        "commits": []
       }
     },
     {
