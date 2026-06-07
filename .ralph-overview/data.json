@@ -350,21 +350,13 @@
     {
       "id": "crews-arm-chaining-footgun-guard",
       "scope": "crews",
-      "lifecycle": "tracked",
-      "status": "warn",
+      "lifecycle": "merged",
+      "status": "ok",
       "lastTouchedAt": "2026-06-06",
       "kanbanCards": [
         {
           "className": "cmd-ok",
-          "html": "<strong>Plan shipped @ aee60aea (2026-06-06, landed on main).</strong> 3 stories; 6 Phase-4 findings (1H/4M/1L) all fixed. Guard mechanism: <code>lib/listener-loop.js</code> redirection + no-new-listener detection &mdash; the <code>arm</code> command fails loud when its output is redirected/chained or it returns immediately without the lead owning a fresh background listener, so a lead cannot silently end up listener-less. Keeps the legitimate standalone async arm usage + the arm-skipped already-active-listener envelope working. Impl-ready."
-        },
-        {
-          "className": "cmd-ok",
-          "html": "<strong>Brainstorm shipped @ c842bb17 (2026-06-06) &mdash; produced by the FIRST codex-engine ralph member.</strong> Recommends <strong>D-001: fail-loud on redirected / immediate-return <code>arm</code></strong> (detect when <code>arm</code>'s output is redirected/chained or it returns immediately without owning a fresh listener, and warn/refuse loudly instead of silently leaving the lead listener-less). Deliverable: .ralph/brainstorms/crews-arm-chaining-footgun-guard/selected-direction.md (+ synthesis + brainstorm.json). Note: codex ran this DEGRADED (no Agent multi-lens surface) &mdash; single-threaded + inline adversarial review."
-        },
-        {
-          "className": "cmd-warn",
-          "html": "<strong>Filed 2026-06-06 (operator-observed: lead ended up with no live listener).</strong> The crews <code>arm</code> command is FOREGROUND-blocking (returns only on message/timeout). When a lead chains it before another command (e.g. <code>arm | Out-Null; spawn-member ...</code>), arm runs, returns, and leaves NO background listener process; if a prior listener is alive it silently returns <code>arm-skipped (already-active-listener)</code> without the lead owning a fresh listener. The lead then <em>believes</em> it is armed but is not, and gets no proactive notification when a member&apos;s <code>done</code> lands &mdash; it only surfaces lazily via the next PreToolUse / Stop review-required gate. The Stop backstop (v3.4 unconditional-lead-listener gate + actor-state PID-liveness check) DID catch it at the next tool call, so this is NOT silent loss; the gap is that the footgun is silent until then. PREVENTION OPTIONS to weigh: (a) <code>arm</code> detects its stdout is redirected / it is being chained (non-interactive pipeline) and prints a loud warning or refuses; (b) <code>arm</code> emits a clear <code>arm-skipped</code> envelope the lead must inspect (already does &mdash; but the chained <code>| Out-Null</code> swallows it); (c) a doc/contract change so the lead never chains arm. Documented anti-pattern already in operator memory; recurring (hit 2x). Low surface, crews-only (plugins/crews/tools/crews.js arm path + listener-protocol)."
+          "html": "<strong>Shipped crews v3.9.0 @ c95674a1 (toolkit) / ca69c534 (codexu), 2026-06-06.</strong> D-001 fail-loud arm guard: the no-new-listener <code>arm-skipped</code> outcome now writes a stderr advisory (survives <code>| Out-Null</code>) + non-zero exit when stdout is redirected and machine mode is off &mdash; UNSAFE (session-mismatch / recoverable-pending-takeover) &rarr; exit 3; SAFE (already-active-listener) &rarr; exit 0 + benign advisory; stdout JSON byte-identical. Escape hatch <code>CREWS_ARM_MACHINE=1</code> / <code>--machine</code>. A fresh successful arm blocks and never reaches the guard. 8 ACs; suite 280/280. Impl self-recovered from a mid-session partial worktree revert (caught via manual repro). Ship also reconciled a personal-only docs commit (dba2b217) onto all 3 toolkit remotes."
         }
       ],
       "command": {
@@ -376,6 +368,22 @@
           "plan": "/plan-with-ralph --from-brainstorm .ralph/brainstorms/crews-arm-chaining-footgun-guard/selected-direction.md \"Plan D-001: make the crews `arm` command fail-loud when it is redirected/chained or returns immediately without the lead owning a fresh background listener, so a lead cannot silently end up listener-less. Read the brainstorm selected-direction.md + the arm path in plugins/crews/tools/crews.js + listener-protocol.js + actor-state.js. crews-scope, low surface. Keep the legitimate standalone async arm usage + the arm-skipped already-active-listener envelope working. Add a regression test. crews version bump. Multi-remote push per operator pattern.\"",
           "impl": "/implement-with-ralph --from-plan .ralph/jobs/crews-arm-chaining-footgun-guard/plan.md --autonomous \"Implement the crews arm fail-loud guard per the plan (3 stories). TARGET = ai-developer-toolkit submodule, plugins/crews/ (lib/listener-loop.js redirection + no-new-listener detection; plugins/crews/tools/crews.js arm path + listener-protocol.js + actor-state.js as needed). Make arm fail loud when its output is redirected/chained or it returns immediately without the lead owning a fresh background listener. Keep the legitimate standalone async arm usage + the arm-skipped already-active-listener envelope working. Add the regression test per the plan. crews version bump (current -> next; COORDINATE with crews-locks-retry-unknown-errno-4094 which also touches lib/listener-loop.js — if locks-fix shipped first, rebase onto it). codexu root CLAUDE.md is gitignored — do NOT git add CLAUDE.md. Lead handles FF + push + codexu pointer bump + table flip. Drive Phase 5a + 5b to clean.\""
         }
+      },
+      "shipManifest": {
+        "shippedAt": "2026-06-06T00:00:00Z",
+        "summary": "Shipped as crews v3.9.0 (D-001 fail-loud arm guard). The crews `arm` command (lib/listener-loop.js) emits its outcome as a one-shot JSON envelope on stdout; the repeatedly-observed footgun `arm | Out-Null; <next>` swallows that stdout, so a lead that ran an arm which returned WITHOUT becoming the live listener (an arm-skipped no-new-listener outcome) silently believed it was armed. v3.9.0 makes the no-new-listener arm-skipped return point fail-loud when stdout is redirected and machine mode is off: it writes a stderr advisory (survives `| Out-Null`) and adjusts the exit code via a finishWithAdvisory barrier that resolves only after both stream writes flush. session-mismatch / recoverable-pending-takeover (UNSAFE, no live listener) -> exit 3 + \"no background listener was started\"; already-active-listener (SAFE) -> exit 0 + benign advisory (preserves the member anti-arm-loop contract); the stdout JSON envelope stays byte-identical in every case. Escape hatch: CREWS_ARM_MACHINE=1 / --machine (alias --machine-json) for tests/automation that capture the JSON. A fresh successful arm BLOCKS and never reaches the guard. 8 ACs fixed; new tests/listener-arm-fail-loud.test.js; full suite 280/280. The impl self-recovered from a mid-session partial worktree revert that silently stripped the guard-wiring + exports from lib/listener-loop.js (helper definitions survived, masking it) -- caught via manual repro, re-applied, re-validated, amended. The lead ship also reconciled a personal-only docs commit (dba2b217, copilot-cli-pin-version.md) onto all three toolkit remotes during the FF. Impl commit 4c39d922 was cherry-picked onto main as c95674a1.",
+        "commits": [
+          {
+            "sha": "c95674a1",
+            "oneLine": "feat(crews): fail-loud guard for arm redirected/no-new-listener footgun (v3.9.0)",
+            "repo": "ai-developer-toolkit"
+          },
+          {
+            "sha": "ca69c534",
+            "oneLine": "chore(crews): bump submodule to crews v3.9.0 + arm-indefinitely guidance",
+            "repo": "codexu"
+          }
+        ]
       }
     },
     {
@@ -4951,6 +4959,48 @@
         "warnings": "ralph-orchestration-scope. Surfaced 2026-06-06 by the codex-ralph-member-multi-agent-adapter brainstorm, which ran partial-mode (skipping the Copilot lens) specifically to avoid this. Verify the exact read-only guard file and the submodule-walk claim before sizing; pairs with the crews-locks UNKNOWN fix as the two concurrency-death causes.",
         "prompts": {
           "brainstorm": "/brainstorm-with-ralph \"ralph-orchestration copilot-exec --read-only guard resource cost: the pre/post working-tree revert guard (captureManifest) byte-reads every file into memory to detect/revert out-of-zone writes. It is git-based and excludes .ralph/node_modules/.git, but it still walks BOTH submodule trees (codex/ huge Rust tree + ai-developer-toolkit/), and running two concurrently (two multi-lens brainstorms each spawning a Copilot lens) is the most plausible cause of the 2026-06-06 resource-exhaustion member deaths (the codex lens has no snapshot guard and stayed healthy; a partial-mode brainstorm skipping the Copilot lens succeeded). First VERIFY the exact guard file + that it really walks the submodule trees. Then evaluate fixes: (a) skip gitlink/submodule paths in captureManifest; (b) use git object-id hashing instead of reading bytes; (c) cap total snapshot bytes / file count with a loud warning; (d) make the read-only guard opt-out for submodule-heavy repos. Goal: two concurrent Copilot lenses no longer exhaust memory, while the revert-guard still protects the plugin-edit zone. Also note the observed 0-byte-placeholder-then-exit-code-3 robustness nit as a possible related sub-issue. ralph-orchestration-scope.\""
+        }
+      }
+    },
+    {
+      "id": "crews-listener-observability-logging",
+      "scope": "crews",
+      "lifecycle": "tracked",
+      "status": "warn",
+      "lastTouchedAt": "2026-06-06",
+      "kanbanCards": [
+        {
+          "className": "cmd-warn",
+          "html": "<strong>Filed 2026-06-06 from the listener-timeout-gap investigation.</strong> Diagnosing why an impl done report appeared delayed needed a MANUAL cross-reference of <code>crews.log</code> <code>listener timeout</code> lines against <code>mailbox-history.jsonl</code> <code>sentAt</code> (root finding: seq 417 <code>sentAt</code> 02:03:45 landed 2s AFTER <code>lead-listener-29</code> timed out at 02:03:43 &mdash; a pure self-imposed-timeout gap, NOT a watch/poll delivery bug; no <code>orphan-consume-refused</code> in the log). Add cheap observability so this is instant next time: (1) <strong>message-age on delivery</strong> &mdash; in the <code>listener delivered ... via=initial</code> line (<code>lib/listener-loop.js</code> ~:247) log <code>oldestMsgAgeMs = consumedAt - sentAt</code>; a large age on a <code>via=initial</code> delivery is the exact &quot;message waited in an un-armed mailbox&quot; signal. (2) <strong>queued-while-unarmed warning</strong> &mdash; when <code>appendSystemMailbox</code> / <code>appendMailbox</code> (<code>hooks/mailbox.js</code>) writes to a mailbox whose <code>listenerState !== &quot;armed&quot;</code>, log <code>mail-queued-no-listener name=... kind=...</code>. (3) <strong>arm-config in lifecycle lines</strong> &mdash; include <code>timeoutMs</code> + <code>armedAtAgeMs</code> in the <code>listener timeout</code> / <code>listener delivered</code> lines so the arm configuration is visible without guessing. crews-scope; pairs with the codexu AGENTS.md arm-indefinitely guidance shipped the same day."
+        }
+      ],
+      "command": {
+        "name": "crews-listener-observability-logging",
+        "descriptionHtml": "Add listener delivery observability to crews so a delayed-delivery investigation does not need a manual <code>crews.log</code> vs <code>mailbox-history.jsonl</code> cross-reference: message-age on <code>via=initial</code> delivery, a queued-while-unarmed warning at mailbox append, and arm-config (<code>timeoutMs</code> / <code>armedAtAgeMs</code>) in the listener lifecycle log lines.",
+        "warnings": "crews-scope, surgical (lib/listener-loop.js + hooks/mailbox.js logging only). Surfaced 2026-06-06 when a timeout-gap delivery delay required manual log cross-referencing. Pure additive logging; no behavior change. Pairs with the arm-indefinitely guidance (the same incident).",
+        "prompts": {
+          "plan": "/plan-with-ralph \"Add listener delivery observability to the crews plugin (ralph-overview/crews submodule ai-developer-toolkit/plugins/crews). Three additive logging changes, no behavior change: (1) in lib/listener-loop.js deliver(), when via===initial, compute and log oldestMsgAgeMs = now - oldest delivered message sentAt (a large age on via=initial means the message sat in an un-armed mailbox); (2) in hooks/mailbox.js appendMailbox/appendSystemMailbox write path, when the recipient manifest listenerState !== armed, append a crews.log line mail-queued-no-listener name=<recipient> crew=<crew> kind=<kind>; (3) include timeoutMs and armedAtAgeMs (now - armedAt) in the listener timeout and listener delivered lifecycle log lines. Add unit tests for the age computation + the queued-while-unarmed predicate. Bump crews version. Root incident: a self-imposed 20-min --timeout-ms expired 2s before an impl done report landed (seq 417 sentAt 02:03:45 vs timeout 02:03:43), and diagnosing it needed a manual log cross-reference these lines would have made instant.\""
+        }
+      }
+    },
+    {
+      "id": "crews-bg-gate-recognize-background-subagents",
+      "scope": "crews",
+      "lifecycle": "tracked",
+      "status": "warn",
+      "lastTouchedAt": "2026-06-06",
+      "kanbanCards": [
+        {
+          "className": "cmd-warn",
+          "html": "<strong>Filed 2026-06-06 (enhancement, not a hot bug).</strong> The progress-bg gate (<code>hooks/stop.js</code> ~:1167 + <code>hooks/detect-active-bg.js</code>) blocks a member emitting <code>kind=progress</code> when <code>detection.nonListenerCount === 0</code>. Its &quot;active background work&quot; detector recognizes only SHELL subprocesses (<code>tool.execution_start</code> with <code>mode:async</code>, paired with <code>system.notification shell_completed</code>) &mdash; NOT harness-spawned background Task/sub-agents. Observed: the arm-guard impl member, genuinely WAITING on a background Phase-5a code-review agent (a Claude <code>Task</code> / Copilot <code>task</code> sub-agent), tried to checkpoint <code>kind=progress</code> and was blocked because the review agent is not a shell subprocess. The member self-recovered correctly (it waited on the agent synchronously via <code>wait: true</code>, then reported) and concluded &quot;the bg-gate correctly blocked an idle progress&quot; &mdash; so this is a coarse-but-defensible behavior, NOT a hot bug. OPEN QUESTION for a brainstorm: should a pending background sub-agent count as active background work (allowing a progress checkpoint), or is forcing the member to wait synchronously the right design? If it should count, detection must be HARNESS-AWARE (recognize the engine-specific background-agent signal: Claude Task / Copilot task / codex spawn_agent) &mdash; reuse the existing harness-aware seam, do not build a runtime adapter. crews-scope."
+        }
+      ],
+      "command": {
+        "name": "crews-bg-gate-recognize-background-subagents",
+        "descriptionHtml": "Decide whether the crews progress-bg gate should recognize a pending harness-spawned background Task/sub-agent (e.g. a Phase-5a review agent) as &quot;active background work&quot; so a member waiting on it can checkpoint <code>kind=progress</code> &mdash; today the detector only sees shell subprocesses. Enhancement, not a hot bug (the member self-recovers by waiting synchronously).",
+        "warnings": "crews-scope. Brainstorm first: the member self-recovered and judged the block correct-but-coarse, so confirm this is worth changing before building detection. If yes, detection must be harness-aware (Claude Task / Copilot task / codex spawn_agent), reusing the existing harness-aware seam rather than a runtime adapter.",
+        "prompts": {
+          "brainstorm": "/brainstorm-with-ralph \"crews progress-bg gate and background sub-agents: the gate (hooks/stop.js + hooks/detect-active-bg.js) blocks a member emitting kind=progress when no active background SHELL subprocess is detected (tool.execution_start mode:async + system.notification shell_completed). It does NOT recognize harness-spawned background Task/sub-agents. A real impl member waiting on a background Phase-5a code-review agent (Claude Task / Copilot task) was blocked from checkpointing progress; it self-recovered by waiting synchronously and judged the block correct-but-coarse. DECIDE: (1) Should a pending background sub-agent count as active background work, allowing a progress checkpoint while it runs? Or is forcing a synchronous wait (the current effect) actually the right design (avoids idle-progress-and-end-turn)? Weigh the v3.3.0 structural-completeness argument (any real bg work is a subprocess at Stop time) against the reality that harness Task agents are NOT shell subprocesses. (2) If it should count: how to detect a pending sub-agent per engine from the transcript/events &mdash; Claude Task (Task tool call without a returned result), Copilot task, codex spawn_agent/wait_agent &mdash; reusing the existing harness-aware tool-mention seam, NOT a runtime adapter. (3) Failure-open semantics + a CREWS_ env escape hatch consistent with CREWS_PROGRESS_BG_GATE=off. crews-scope. Reference: the v3.1.0/v3.3.0/v3.4.0 bg-gate AGENTS.md sections.\""
         }
       }
     }
