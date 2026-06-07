@@ -23,7 +23,7 @@ Agent-readable Ralph pipeline state is emitted as `.ralph-overview/generated/ral
 | Plugin | Pinned version | Source |
 |---|---:|---|
 | `ralph-overview` | `2.9.0` | `ai-developer-toolkit/plugins/ralph-overview/.claude-plugin/plugin.json` |
-| `crews` | `3.8.0` | `ai-developer-toolkit/plugins/crews/.claude-plugin/plugin.json` |
+| `crews` | `3.9.0` | `ai-developer-toolkit/plugins/crews/.claude-plugin/plugin.json` |
 | `ralph` (`ralph-orchestration`) | `5.51.0` | `ai-developer-toolkit/plugins/ralph/.claude-plugin/plugin.json` |
 <!-- END: active-plugin-versions -->
 
@@ -649,8 +649,9 @@ this doc.
   (codified 2026-06-03).** When a spawned member is running and there is
   no immediate parallel work for the lead to do, arm the lead listener
   (`node <crews-bin> arm overview-bookkeeper ralph-pipeline --cwd
-  D:/harness-efforts/codexu --timeout-ms <N>` in async mode) and end the
-  turn. The crews protocol delivers a `system_notification` when the
+  D:/harness-efforts/codexu --session-id <lead-session-id>` in async mode,
+  with NO `--timeout-ms` — see "Arm the lead listener INDEFINITELY" below)
+  and end the turn. The crews protocol delivers a `system_notification` when the
   member sends mail (the listener subprocess exits, the runtime fires
   the completion notification, the lead's next turn handles it via
   `/crews:review-mail`). Polling loops — "wait 30s, peek mailbox, wait
@@ -662,6 +663,27 @@ this doc.
   the lead model itself. Operator-observed correction
   (2026-06-03T17:22): "never do periodic checks, it should always be by
   listeners."
+
+- **Arm the lead listener INDEFINITELY — never pass `--timeout-ms`
+  (codified 2026-06-06).** The crews listener supports indefinite blocking
+  (`timeoutMs === null` → no timeout timers at all; crews v1.2.7). The
+  hook-provided arm command (the one PreToolUse hands you on a block)
+  already OMITS `--timeout-ms`, so it blocks until a message arrives and
+  delivers in REAL TIME via `fs.watch` (the `via=watch` path). A manually
+  added `--timeout-ms <N>` is an anti-pattern: when it expires it leaves a
+  brief un-armed gap, and any member report that lands in that gap is only
+  caught by the NEXT arm's `via=initial` scan — a multi-second-to-minutes
+  delay instead of instant. Evidence (2026-06-06): a manual 20-min-timeout
+  re-arm (`lead-listener-29`) timed out at 02:03:43; the impl's done report
+  was written at 02:03:45 (`mailbox-history` seq 417 `sentAt`) — 2 seconds
+  into the gap — and sat until the next arm's `via=initial` scan at
+  02:04:20. There was NO watch/poll delivery bug (`crews.log` had no
+  `orphan-consume-refused`; an earlier indefinite listener delivered
+  `via=watch` in real time); the self-imposed timeout was the sole cause.
+  ALWAYS arm with the exact hook-provided command (name + `--crew` +
+  `--cwd` + `--session-id`, no `--timeout-ms`). With indefinite arming the
+  "empty timeout cycle" failure mode below cannot occur — the listener only
+  ever exits on a real delivery (then you re-arm after processing the mail).
 
 - **Peek the mailbox between tool-call clusters WITHIN a single turn.**
   During extended investigations (debugging, multi-step setup) that
