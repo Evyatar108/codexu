@@ -5289,8 +5289,8 @@
     {
       "id": "crews-member-stalled-needs-attention-nudge",
       "scope": "crews",
-      "status": "warn",
-      "lifecycle": "tracked",
+      "status": "ok",
+      "lifecycle": "archived",
       "lastTouchedAt": "2026-06-07",
       "command": {
         "descriptionHtml": "Detect a STALLED crews member (pidAlive + listener heartbeat FRESH but agent-turn observability lastTurnAt/lastSeq FROZEN past a threshold) and respond with a gentle auto-nudge. DISTINCT from the hard-crash member-crashed notify (crews-member-crash-auto-notify-lead, scoped by the operator to high-confidence hard-dead only). Motivated by the 2026-06-07 incident: impl-adapter went ~9h dark (it had ended a turn on a progress checkpoint and idled; getMemberHealth classifies that 'alive'/'quiet', NOT 'dead'). THE HARD PROBLEM is false positives: a healthy member waiting on its armed listener looks identical to a stall. Deferred out of the crash-notify v1 as a separate feature per operator decision 2026-06-07.",
@@ -5303,6 +5303,10 @@
         {
           "className": "cmd-warn",
           "html": "Filed 2026-06-07 by bookkeeper as the DEFERRED stalled/idle half of crews-member-crash-auto-notify-lead (operator scoped crash-notify v1 to hard-dead only). The 9h-dark case (impl-adapter: pidAlive + heartbeat-fresh + lastTurnAt-frozen) is a false-positive minefield: a healthy member waiting on its listener is indistinguishable from a stall. Needs a healthy-idle carve-out + a gentle auto-nudge (not a crash page) + default-off. Brainstorm-ready."
+        },
+        {
+          "className": "cmd-warn",
+          "html": "ARCHIVED 2026-06-07 (brainstorm record merged @ 02cb32ce, from e1c6c53b) — not pursued. Operator decision: stalled-with-progress is NOT worth special detection logic, because the progress-bg gate (crews v3.1.0/v3.3.0) already requires a kind=progress turn to have an active background subprocess running. The crash->inform-lead case the operator actually wanted is covered by crews-member-crash-auto-notify-lead (plan shipped @ 77dce7f6, impl-ready). Brainstorm analysis retained on main for the record (key insight: lastKind=progress is the stall discriminator not an exclusion; would need default-off + a 3-valued active-bg signal if ever revisited; D-003 cross-engine active-bg observability is the deeper gap)."
         }
       ]
     },
