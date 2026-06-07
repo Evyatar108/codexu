@@ -1,0 +1,35 @@
+{
+  "brainstormName": "crews-bg-gate-recognize-background-subagents",
+  "overviewTaskId": "crews-bg-gate-recognize-background-subagents",
+  "idea": "crews progress-bg gate (hooks/stop.js + hooks/detect-active-bg.js) blocks a Copilot member's kind=progress when no async SHELL subprocess is detected; it does not recognize harness-spawned background Task/sub-agents (Claude Task, Copilot task, codex spawn_agent/wait_agent). Decide whether a pending sub-agent should count as active background work (allowing a progress checkpoint) or whether forcing a synchronous wait is the right design; if it should count, how to detect one per engine reusing the harness-aware tool-mention seam (not a runtime adapter); plus failure-open semantics and a CREWS_ env escape hatch consistent with CREWS_PROGRESS_BG_GATE=off and without re-introducing the v3.3.0-removed model-controllable bypass tags.",
+  "availableLenses": ["devils-advocate", "codex", "copilot"],
+  "missingLenses": [],
+  "candidateDirections": [
+    {
+      "id": "D-001",
+      "name": "Keep the gate shell-only; force synchronous sub-agent waits (status quo + clearer policy)",
+      "summary": "No detector change: await sub-agents in-turn and report done/question/blocked. Fix the false-block via block-message wording + AGENTS.md policy + Ralph prompts. Smallest surface (effort S), fully preserves the no-self-attestation invariant.",
+      "contributingLenses": ["devils-advocate", "copilot", "codex"]
+    },
+    {
+      "id": "D-002",
+      "name": "Gated, Copilot-first sub-agent detector with hard start->done correlation + CREWS_ escape hatch",
+      "summary": "Add a NEW detector signal source for Copilot background task agents, counting one as active ONLY with a stable start->done correlation key (shellId analog) so a completed-but-forgotten sub-agent can't become a permanent pass. Gated behind CREWS_PROGRESS_BG_SUBAGENTS (off/probe/on); unknown completion shape => don't count (fail toward block). Requires a transcript probe first. Effort M.",
+      "contributingLenses": ["devils-advocate", "copilot", "codex"]
+    },
+    {
+      "id": "D-003",
+      "name": "Full engine-aware background-work detector refactor (all three engines)",
+      "summary": "Generalize the detector to an engine-aware abstraction covering Copilot task, Claude Task, and codex spawn_agent/wait_agent via the harness-aware tool-mention seam. Largest blast radius (stop.js, codex-shim.js, codex-stop.js, listener-protocol.js); Claude/codex Stop inputs may not expose enough tool-result history. Effort L; gated on D-002's probe proving per-engine signals exist.",
+      "contributingLenses": ["codex"]
+    }
+  ],
+  "recommendedDirection": "D-001",
+  "questionsForSynthesis": [
+    "Does a kind=progress report while a sub-agent runs actually wake the lead / schedule a member resume, or merely park the session with a low-signal row? (If the latter, D-001 wins decisively.)",
+    "What is the per-engine analog of shellId (stable start->done correlation key) for Claude Task, Copilot task, and codex spawn_agent, and what exact event proves done/failed/cancelled/consumed?",
+    "Should the fix stay Copilot-only (matching current gate scope) or define a cross-engine contract now?",
+    "Should unknown completion shapes fail toward BLOCK (don't count) rather than PASS (count forever), despite the gate's broader failure-open posture?",
+    "Is a separate experimental env knob CREWS_PROGRESS_BG_SUBAGENTS=off/probe/on warranted, distinct from CREWS_PROGRESS_BG_GATE=off, so the model still cannot self-attest past the gate with tags?"
+  ]
+}
