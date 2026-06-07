@@ -1,0 +1,66 @@
+I’ll read the provided prompt file first, then carry out its instructions.
+
+The prompt file is larger than the viewer’s single-read threshold, so I’m reading it in sections.
+
+I’ll verify the plan’s assumptions against the repo before writing the review findings.
+
+The first file glob didn’t match with Windows separators, so I’m switching to repository search patterns that work with the code-search tools.
+
+I found the relevant plugin trees; now I’m reading the specific manifests, generators, and skill excerpts needed to validate the plan.
+
+I’m checking the live Codex plugin CLI syntax because the plan’s first gate depends on exact installer commands.
+
+The repository docs include Codex plugin install references; I’m reading the help output and the install reference to check for command-level mismatches.
+
+I’m checking the ignore rules around `.ralph/jobs` because the plan’s required durable deliverable lives there.
+
+I found references are too broad, so I’m reading the root ignore file directly.
+
+I’m checking the local marketplace metadata to validate the exact marketplace/plugin names the plan uses.
+
+I’m reading the specific marketplace entries now that the name/version search confirmed they exist.
+
+I’m verifying the claimed `.claude-plugin` fallback for Codex plugin loading, since that is central to the plan’s feasibility.
+
+The search found loader tests; I’m reading the loader implementation and fallback tests.
+
+I need the manifest discovery helper itself to confirm whether a missing `.codex-plugin` manifest prevents Ralph from loading.
+
+I’m locating the shared manifest-finder helper that the Codex plugin loader calls.
+
+The helper is in a utility crate; I’m reading it to confirm the fallback order.
+
+I’m reading the Ralph brainstorm skill to see whether the plan correctly treats it as a lighter probe than `/plan-with-ralph`.
+
+I’m checking whether `codex plugin list` actually verifies installed cache state, because the plan uses it as acceptance evidence.
+
+The help commands are running; I’m reading their output.
+
+I’m checking one last loader detail: whether a manifest without an explicit `skills` path still loads the default `skills/` root.
+
+### Feasibility
+
+- [High] The plan treats `/brainstorm-with-ralph` as the “lightest real workflow,” but `ai-developer-toolkit/plugins/ralph/skills/brainstorm-with-ralph/SKILL.md` uses Claude-only `Agent(..., run_in_background: true)` plus `Bash(... run_in_background)`-style semantics. Since the plan itself says Codex lacks typed subagents and streaming background output, Story 3 is expected to fail before it can validate a Ralph workflow. Add a separate preflight that spawns a Codex crews member and has it emit a simple `kind=done` report without invoking Ralph, so member lifecycle is isolated from Ralph primitive gaps.
+
+- [Medium] `codex plugin list` is described as version/cache verification, but its help says it “List[s] plugins available from configured marketplace snapshots,” not installed active cache state. Keep `codex plugin list` only as marketplace evidence; use `~/.codex/plugins/cache/ai-developer-toolkit/<plugin>/<version>/` and `~/.codex/config.toml` enabled plugin stanzas as the install/enablement evidence.
+
+### Completeness
+
+- [High] The plan allows throwaway `.ralph/jobs/` or `.ralph/brainstorms/` artifacts to be “left clearly-marked,” but root `.gitignore` explicitly tracks `.ralph/jobs/`, `.ralph/job-groups/`, and `.ralph/brainstorms/` except worktrees. This conflicts with AC “diff is the findings doc + optional one-line fork-roadmap follow-up only.” The plan must either require cleanup of throwaway artifacts before final diff or list them as intentional committed evidence.
+
+- [Medium] The spike mutates global Codex state (`~/.codex/plugins/cache` and likely `~/.codex/config.toml`) but does not require capturing pre-state/post-state or rollback notes. Add explicit snapshots of relevant plugin config/cache paths to `findings.md`, especially if hook trust prompts or enabled stanzas change.
+
+### Ordering
+
+- [High] Story order jumps from skill advertisement directly into `/brainstorm-with-ralph`. Insert a lifecycle-only Codex member smoke before Ralph invocation: spawn `--engine codex`, verify SessionStart/crews listener/report/stop, then proceed to Ralph skill execution. Otherwise a Ralph skill failure can obscure whether crews Codex membership itself works.
+
+### Simplicity
+
+No issues found.
+
+### Acceptance Criteria Quality
+
+- [Medium] “A fresh codex thread’s skill advertisement is captured” is underspecified. Define the exact capture method, e.g. saved transcript excerpt, `codex` startup output, or a specific session-state file path, and require recording whether skills came from `.claude-plugin/plugin.json` fallback plus default `skills/`.
+
+- [Medium] “The `/plan-with-ralph` degradation probe’s exact failure mode” needs a hard timebox value and required evidence shape. Specify timeout duration, where stdout/stderr/transcript excerpts are saved, and how to mark `NOT-REACHED`.
+

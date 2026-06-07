@@ -1,0 +1,96 @@
+{
+  "planFile": "draft-plan.md",
+  "repoDir": "D:/harness-efforts/codexu",
+  "findings": [
+    {
+      "id": "F-001",
+      "severity": "High",
+      "category": "Feasibility",
+      "source": "consensus",
+      "section": "Overview / Acceptance Criteria",
+      "description": "End-to-end 'a codex member completes a real ralph phase' goal over-claimed; codex lacks the primitives so the realistic outcome is the enumerated-blockers findings doc.",
+      "status": "resolved",
+      "resolution": "Added 'Realistic expected outcome' framing to Overview; acceptance made an explicit OR with the findings doc required in both branches."
+    },
+    {
+      "id": "F-002",
+      "severity": "High",
+      "category": "Ordering",
+      "source": "consensus",
+      "section": "Implementation Strategy / Story Decomposition",
+      "description": "/brainstorm-with-ralph uses Claude-only Agent(run_in_background)+background Bash (F2/F3), so it cannot isolate crews-codex membership from ralph primitive gaps; a brainstorm failure conflates the two.",
+      "status": "resolved",
+      "resolution": "Inserted a primitive-free lifecycle-only codex member smoke (US-003, gate 4) BEFORE any ralph workflow; brainstorm attempt is now US-004 and runs only after the lifecycle smoke passes."
+    },
+    {
+      "id": "F-003",
+      "severity": "High",
+      "category": "Criteria Quality",
+      "source": "claude",
+      "section": "Acceptance Criteria / gate 4",
+      "description": "The codex member spawn is an interactive wt.exe TUI; acceptance was not autonomous-verifiable and lacked a manual-vs-autonomous driving contract.",
+      "status": "resolved",
+      "resolution": "gate 4 / US-003 now define an explicit autonomous-vs-interactive driving contract with a fallback: record the interactive-driving blocker and STOP (no silent hang); operator drives manually and the agent records the result."
+    },
+    {
+      "id": "F-004",
+      "severity": "High",
+      "category": "Completeness",
+      "source": "copilot",
+      "section": "Scope / Files to Create/Modify / Acceptance Criteria",
+      "description": ".ralph/jobs/ and .ralph/brainstorms/ are TRACKED in codexu (only worktree/ gitignored), so leaving throwaway artifacts would pollute the committed diff and contradict the 'diff = findings doc only' AC.",
+      "status": "resolved",
+      "resolution": "gate 7 + Files-to-Modify + AC now mandate deleting throwaway artifacts before the final commit; transcript excerpts are captured into findings.md instead."
+    },
+    {
+      "id": "F-005",
+      "severity": "Medium",
+      "category": "Criteria Quality",
+      "source": "copilot",
+      "section": "Implementation Strategy gate 1 / Acceptance Criteria",
+      "description": "`codex plugin list` reports marketplace-snapshot availability, not active install/cache state; using it as install evidence is wrong.",
+      "status": "resolved",
+      "resolution": "Install evidence switched to the cache version subdirs (~/.codex/plugins/cache/...) + enabled stanzas in ~/.codex/config.toml; plugin list demoted to marketplace evidence."
+    },
+    {
+      "id": "F-006",
+      "severity": "Medium",
+      "category": "Ordering",
+      "source": "claude",
+      "section": "Implementation Strategy",
+      "description": "Plugin-cache refresh does not affect an already-open codex session; fresh-thread restart must be a first-class gate before skill verification, not a note.",
+      "status": "resolved",
+      "resolution": "Added gate 2 'Restart into a fresh codex thread/session' as an explicit precondition before skill advertisement verification (gate 3)."
+    },
+    {
+      "id": "F-007",
+      "severity": "Medium",
+      "category": "Criteria Quality",
+      "source": "copilot",
+      "section": "Acceptance Criteria",
+      "description": "'Fresh codex thread skill advertisement captured' was underspecified — no defined capture method.",
+      "status": "resolved",
+      "resolution": "gate 3 + AC now require a saved transcript excerpt of codex's skill-discovery output and recording the resolved discovery path."
+    },
+    {
+      "id": "F-008",
+      "severity": "Medium",
+      "category": "Criteria Quality",
+      "source": "copilot",
+      "section": "Implementation Strategy gate 6 / Acceptance Criteria",
+      "description": "/plan-with-ralph degradation probe lacked a hard timebox value and required evidence shape (risky given the observed codex-exec recursion hang).",
+      "status": "resolved",
+      "resolution": "Added a 10-minute hard timebox + saved stdout/stderr/transcript evidence + NOT-REACHED/HUNG marking to gate 6 / US-005 and the AC."
+    },
+    {
+      "id": "F-009",
+      "severity": "Medium",
+      "category": "Completeness",
+      "source": "copilot",
+      "section": "Implementation Strategy gate 1 / Risk Areas",
+      "description": "Spike mutates global codex state (~/.codex/plugins/cache, possibly ~/.codex/config.toml hook trust) without PRE/POST snapshots or rollback notes.",
+      "status": "resolved",
+      "resolution": "gate 1 now captures PRE/POST cache+config snapshots into the findings doc; a Risk-Areas bullet documents reversibility."
+    }
+  ]
+}

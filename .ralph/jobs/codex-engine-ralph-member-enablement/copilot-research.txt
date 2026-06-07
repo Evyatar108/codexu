@@ -1,0 +1,76 @@
+I'll read the referenced prompt file first, then carry out the requested work from it.
+
+I’ve got the research-mode prompt; I’ll inspect the codexu/toolkit/codex surfaces relevant to plugin provisioning and crews member execution.
+
+The first repository-wide search was too broad, so I’m narrowing to the plugin and codex engine directories that drive this feature.
+
+I found the active plugin versions and the ralph/crews guidance; next I’m checking the codex marketplace/config paths and the actual codex plugin sources to ground install/upgrade recommendations.
+
+I have enough on the toolkit side; I’m narrowing one last time into codex’s plugin manager implementation so the research distinguishes source-marketplace install behavior from cache/runtime behavior.
+
+Codex’s plugin implementation is large, so I’m reading the specific marketplace/loader files rather than scanning the whole Rust workspace.
+
+The key implementation question is whether ralph is already packageable for Codex; I’m reading Codex’s manifest/install code to confirm that rather than assuming Claude/Copilot manifests are accepted.
+
+I confirmed Codex requires a `plugin.json` discovered under a Codex plugin root and installs copies into `~\\.codex\\plugins\\cache`; I’m checking the manager refresh path for whether `plugin add` is the right local-source upgrade command.
+
+I’m checking the manifest discovery helper and CLI tests to pin the expected `.codex-plugin/plugin.json` layout and command spelling.
+
+One small helper remains: the manifest namespace function determines if a copied ralph `.claude-plugin` could be seen by Codex or whether a `.codex-plugin` overlay is mandatory.
+
+The loader can fall back to `.claude-plugin/plugin.json`, but that doesn’t prove ralph’s skill bodies are Codex-compatible, so I’m checking the actual ralph skill dependencies.
+
+I’ve confirmed the install/cache mechanics; I’m doing one final focused read of Codex skill metadata to identify what fields it recognizes from ralph’s SKILL frontmatter.
+
+Codex’s standalone skills crate path isn’t under `skills/src`; I’m locating it from the workspace before finishing the report.
+
+The skill metadata path is now located; I’m reading it to verify how Codex advertises and injects skills.
+
+I’ve got the major facts; one last small read of the parser function will let me state exactly which frontmatter fields Codex honors.
+
+### Codebase Architecture
+
+`D:\harness-efforts\codexu` is a wrapper monorepo with two load-bearing submodules:
+
+- `codex\` — patched Rust Codex fork. Plugin install/load is in `codex\external\repos\codex-patched\codex-rs\core-plugins\src\*`; CLI surface is `cli\src\plugin_cmd.rs`.
+- `ai-developer-toolkit\` — plugin marketplace containing `plugins\crews`, `plugins\ralph`, `plugins\ralph-overview`.
+
+Codex plugins are installed from marketplace entries into `~\.codex\plugins\cache\<marketplace>\<plugin>\<version>\`; runtime loads the cache, not source. `codex plugin add <plugin>@<marketplace>` is the install/reinstall command.
+
+### Feature-Relevant Code
+
+Key files:
+
+- `ai-developer-toolkit\.agents\plugins\marketplace.json` — local-source Codex marketplace. Already lists:
+  - `crews` v`3.12.0`
+  - `ralph-orchestration` v`5.52.0`
+  - `ralph-overview` v`2.10.0`
+- `ai-developer-toolkit\plugins\crews\.codex-plugin\plugin.json` and `...\hooks\hooks.json` — Codex-native crews overlay exists.
+- `ai-developer-toolkit\plugins\ralph\.claude-plugin\plugin.json` — fallback manifest exists; no `.codex-plugin` overlay.
+- `ai-developer-toolkit\plugins\ralph\skills\brainstorm-with-ralph\SKILL.md`, `plan-with-ralph\SKILL.md`, `implement-with-ralph\SKILL.md` — contain Claude-oriented `Agent(...)`, `Skill(...)`, `EnterPlanMode`, `run_in_background`, and bash snippets.
+- `codex-rs\utils\plugins\src\plugin_namespace.rs` — Codex discovers `.codex-plugin/plugin.json` first, then `.claude-plugin/plugin.json`.
+- `codex-rs\core-plugins\src\store.rs` — cache layout and active-version selection.
+- `codex-rs\core-skills\src\loader.rs`, `render.rs`, `injection.rs` — Codex skill metadata/injection. It advertises skills and loads full `SKILL.md` on mention; it does not provide Claude’s `Skill` tool.
+- `codex\tasks\prd-plugin-parity-skill-agent-streaming.md` — explicitly tracks missing Codex parity for skill chaining, typed subagents, and streaming background output.
+
+### Technical Constraints
+
+The install step is feasible with current marketplace data, but end-to-end Ralph execution is likely blocked today:
+
+- Codex can install `ralph-orchestration` via fallback `.claude-plugin/plugin.json` and default `skills\` root, but those skill bodies are not Codex-native.
+- Ralph workflows depend on Claude/Copilot agent primitives that Codex currently lacks: skill chaining and typed `Agent` subagents are called out as missing in the plugin-parity PRD.
+- Local-source updates require reinstall/cache refresh; source edits alone are invisible to Codex.
+- For stale crews v`3.6.2`, `codex plugin add crews@ai-developer-toolkit` should install current v`3.12.0` from local source. Cachebuster is only needed for same-version local edits.
+- New Codex thread/session is required after plugin install/update to refresh skills/hooks/MCP.
+
+### Implementation Suggestions
+
+Recommended sequence:
+
+1. Configure local marketplace if needed: `codex plugin marketplace add D:\harness-efforts\codexu\ai-developer-toolkit`.
+2. Reinstall current plugins: `codex plugin add crews@ai-developer-toolkit`, `codex plugin add ralph-orchestration@ai-developer-toolkit`, optionally `codex plugin add ralph-overview@ai-developer-toolkit`.
+3. Verify with `codex plugin list` and by inspecting `~\.codex\plugins\cache\ai-developer-toolkit\...`.
+4. Start a fresh Codex thread and verify skills list includes `ralph-orchestration:*`.
+5. Expect the first real Ralph workflow to fail on missing `Agent`/`Skill` semantics unless a Codex-specific Ralph overlay is added or Codex parity work lands.
+6. If blocked, document root cause as: install works, crews codex member works, but Ralph phase execution needs either Codex implementations for skill chaining/typed subagents or rewritten `.codex-plugin` skill bodies that avoid those primitives.
+
