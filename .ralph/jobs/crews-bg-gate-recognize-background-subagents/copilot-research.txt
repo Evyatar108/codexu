@@ -1,0 +1,75 @@
+I’ll read the referenced prompt file and then carry out its instructions.
+
+I’ll research the crews plugin surfaces and tests without making any workspace changes.
+
+I found the relevant plugin path via search; I’ll read the key hook, protocol, docs, and test files next.
+
+I’ll narrow into the Stop hook gate and existing progress-bg tests so the research maps to real integration points.
+
+I’ll inspect the Copilot transcript-shape fixtures and the exact Stop gate code path now.
+
+I’ll read the transcript helpers and Copilot shim/observability modules to identify reusable parsing seams.
+
+I’ll verify the plugin manifests and runner registration to round out the architecture summary.
+
+I’ll do one last targeted search for any existing sub-agent/tool-call terminology so the recommendations don’t invent conflicts.
+
+I’ll inspect the existing subagent-skip guards because they affect how any detector should stay parent-session-only.
+
+I’ll look at the Copilot shim tests around toolCalls because a sub-agent detector likely depends on the same event/tool naming assumptions.
+
+### Codebase Architecture
+
+`ai-developer-toolkit/plugins/crews` is a JavaScript-only Node plugin with no package-level `package.json`. It is organized around hook entrypoints and pure helper modules:
+
+- `hooks/`: Claude/Copilot/Codex hook logic, protocol validators, runtime context, mailbox/state helpers.
+- `lib/`: listener-loop/runtime support.
+- `tools/`: CLI dispatcher (`tools/crews.js`) and compatibility shims.
+- `tests/`: custom Node test runner (`tests/run.js`) using worker threads; tests are plain `.test.js` files.
+- `.claude-plugin/`, `.github/plugin/`, `.codex-plugin/`: engine-specific plugin manifests/hook registration.
+- `skills/` and `.copilot-plugin/copilot-skills/`: generated command guidance.
+
+Build tooling is minimal: run targeted JS tests directly with `node tests/run.js <file>` or syntax-check changed files with `node --check`. Version bumps must use `scripts/bump-version.js`.
+
+### Feature-Relevant Code
+
+Primary integration points:
+
+- `hooks/detect-active-bg.js`: current progress-bg detector. It reads Copilot `events.jsonl`, indexes async shell starts from `tool.execution_start` where `toolName ∈ {bash,powershell}` and `arguments.mode === "async"`, then pairs exits from `system.notification.kind.type === "shell_completed"` by `shellId`.
+- `hooks/stop.js`: progress-bg gate at the block after `decideStopBlock`. It gates only Copilot members with `turnKind === "progress"`, calls `detectActiveBg`, logs `progress-bg-gate`, and blocks when `nonListenerCount === 0`.
+- `hooks/listener-protocol.js`: shared shell/tool recognizers. `SHELL_TOOL_NAMES` and `isCrewsCliInfraCall` are here; `ASYNC_SHELL_TOOL_NAMES` currently lives in `detect-active-bg.js`, not this file.
+- `hooks/copilot-shim.js`: Copilot hook shape translation, including `toolCalls[]` batch support for `preToolUse`.
+- `hooks/turn-observability.js`: existing Copilot `events.jsonl` reader for `assistant.message`; useful as prior art for transcript path resolution and bounded/fail-open parsing.
+- `tests/progress-bg-gate.test.js`: existing detector and Stop-hook E2E coverage.
+- `tests/copilot-transcript-shape.test.js`, `tests/copilot-shim.test.js`, `tests/copilot-post-tool-use-manifest-update.test.js`, `tests/turn-observability.test.js`: fixture patterns for Copilot event shapes.
+- `tests/stop-allow-system-notification-boundary.test.js`: important interaction: a recent `system.notification` exempts missing-kind ack turns.
+
+There is no existing `CREWS_PROGRESS_BG_SUBAGENTS` reference and no existing background `task`/sub-agent detector.
+
+### Technical Constraints
+
+The implementation must not reintroduce model-controlled bypasses. Existing v3.3 behavior deliberately removed `background-task` tags and legacy options-mode forms; tests assert those still block.
+
+The new knob should be read from the hook process environment only. The member model cannot mutate the parent Copilot process env from within a shell/tool turn, so `CREWS_PROGRESS_BG_SUBAGENTS=off|probe|on` preserves the existing operator-only escape-hatch pattern.
+
+The real blocker is transcript feasibility. Existing code only knows shell liveness because it has a proven start key (`shellId`) and a proven exit event (`system.notification.kind.shell_completed`). A Copilot background `task` detector must first prove equivalent facts from a real transcript: start event, completion event, and stable correlation key. Synthetic tests alone are insufficient for the first acceptance criterion.
+
+Current hooks intentionally skip subagent contexts when hook input has `agent_id` or `agent_type`; the new detector should inspect the parent member’s transcript, not try to assign crews roles inside subagent sessions.
+
+Be careful with failure semantics. Existing shell detector is failure-open for missing transcript/detector throw and has some permissive timestamp behavior. D-002’s subagent path should be stricter: unknown or uncorrelated subagent shapes must contribute zero active work, so the Stop gate blocks if no other real bg work exists.
+
+### Implementation Suggestions
+
+Start with a read-only Copilot transcript probe and save a sanitized fixture only after the event schema is proven. If the probe cannot identify a start→done correlation key, close/escalate D-002 as infeasible and do not change gate behavior.
+
+Then extend `hooks/detect-active-bg.js` with a separate subagent indexing path rather than folding `task` into shell sets. Suggested shape:
+
+- Parse `CREWS_PROGRESS_BG_SUBAGENTS` in `stop.js` or a helper: default `off`; valid `off|probe|on`.
+- Add a task/subagent tool-name predicate or set near the existing recognizer seam. Do not add `task` to `SHELL_TOOL_NAMES`.
+- Add `indexSubagentEvents(events, schema)` keyed by the proven stable id.
+- Return additive fields like `subagentActiveCount`, `subagentSamples`, `subagentDecision`, while preserving existing `{ activeCount, nonListenerCount, samples }` when mode is `off`.
+- In `probe`, log the subagent decision but do not add it to `nonListenerCount`.
+- In `on`, add only correlated, still-running subagents to the active-work count.
+
+Tests should cover: default `off` byte-identical behavior; `probe` logs without unblocking; `on` allows correlated running task; completed correlated task blocks; unknown/uncorrelated completion blocks; `CREWS_PROGRESS_BG_GATE=off` still disables the whole gate. Add the real captured fixture under the crews test corpus, plus synthetic focused cases in `tests/progress-bg-gate.test.js` or a new dedicated test file. Update `AGENTS.md` and `CHANGELOG.md`, and bump plugin versions with `scripts/bump-version.js` if shipping as a plugin release.
+

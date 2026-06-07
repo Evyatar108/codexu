@@ -1,0 +1,139 @@
+{
+  "planFile": "D:/harness-efforts/codexu/.ralph/jobs/.staging/20260607T054049Z-plan-bggate-2-6697f104/draft-plan.md",
+  "repoDir": "D:/harness-efforts/codexu",
+  "reviewCycle": 1,
+  "findings": [
+    {
+      "id": "F-001",
+      "severity": "Critical",
+      "source": "codex",
+      "classification": "fixable",
+      "category": "Completeness",
+      "sectionRef": "Files to Create/Modify > version bump",
+      "description": "Plan omitted the submodule parent-repo ship bookkeeping: a crews version bump requires the two-commit ceremony (submodule commit -> codexu submodule-pointer bump -> codexu root AGENTS.md active-plugin-versions table crews 3.10.0->3.11.0 (CI invariant) -> wrapper commit). Plan only updated plugin-local AGENTS.md/CHANGELOG/version files.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Added a PARENT-REPO SHIP BOOKKEEPING bullet under Files to Modify and AC-11; STORY 6 now states the two-commit ceremony and references plugins/ralph/AGENTS.md 'Multi-repo wrapper-to-submodule ship ceremony'; notes impl member must NOT edit codexu root AGENTS.md/CLAUDE.md (lead-owned at merge)."
+    },
+    {
+      "id": "F-002",
+      "severity": "High",
+      "source": "consensus",
+      "classification": "fixable",
+      "category": "Feasibility",
+      "sectionRef": "Acceptance Criteria > AC-2/AC-4",
+      "description": "AC-2 (open correlated start with no terminal = still-running pass) conflicted with AC-4 fail-toward-block language ('start with no recognized terminal must block'). The two could describe the same live transcript state; no precise rule and no answer for the crashed/forgotten-sub-agent permanent-pass risk.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Added 'Sub-agent liveness rule (truth table)' with 7 explicit cases; an open correlated start (case 1) is ACTIVE/pass, fail-toward-block cases are narrowed to malformed/future start, uncorrelated terminal, unknown shape, and an optional stale-start TTL (case 7) that bounds the crashed-no-completion permanent-pass risk. AC-2/AC-3/AC-4 rewritten to map to specific truth-table rows."
+    },
+    {
+      "id": "F-003",
+      "severity": "High",
+      "source": "consensus",
+      "classification": "fixable",
+      "category": "Completeness",
+      "sectionRef": "Approach > Test determinism",
+      "description": "Gate uses wall-clock new Date().toISOString() as asOf with no injection seam; a real fixture with both start and completion timestamps always looks 'already-completed' at future test time, making AC-2's still-running E2E unimplementable as written.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Added 'Test determinism' subsection: pure helpers take an explicit asOf (unit tests cover every truth-table row incl. between-start-and-terminal); E2E follows the existing shell pattern (still-running = start-only fixture; completed = start+terminal both in the past); committed real fixture exercised at unit level with explicit asOf + start-only slice at E2E."
+    },
+    {
+      "id": "F-004",
+      "severity": "High",
+      "source": "codex",
+      "classification": "fixable",
+      "category": "Ordering",
+      "sectionRef": "Files to Modify > stop.js (STORY 4)",
+      "description": "STORY 4 wording ('after the existing nonListenerCount===0 check, consult subagents') could be read as block-on-shell-0-first, which returns the block before subagentActiveCount can allow AC-2.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "STORY 4 bullet rewritten to RESTRUCTURE the decision: compute both detections, form effectiveActive = nonListenerCount + (on?subagentActiveCount:0), log, then a SINGLE if(effectiveActive===0) block. Added AC-9 to pin the combined-count ordering."
+    },
+    {
+      "id": "F-005",
+      "severity": "High",
+      "source": "consensus",
+      "classification": "fixable",
+      "category": "Criteria Quality",
+      "sectionRef": "Acceptance Criteria > AC-4",
+      "description": "AC-4 'unknown completion shape' is by definition not recognizable as completion; not testable. Needs precise observable conditions.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "AC-4 split into explicit observable rows: malformed/missing start ts, future start, uncorrelated terminal (no matching toolCallId), unknown event shape, optional stale-start TTL — each a separate unit test."
+    },
+    {
+      "id": "F-006",
+      "severity": "High",
+      "source": "consensus",
+      "classification": "fixable",
+      "category": "Feasibility",
+      "sectionRef": "Risk Areas > 2",
+      "description": "Plan hard-coded failed/cancelled terminal shapes (agent_failed/agent_cancelled, any subagent.* terminal) the Phase-0 probe never confirmed; AC-4 risked being implemented against a nonexistent signal.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Baseline narrowed to the probe-confirmed subagent.completed (toolCallId, any status) as the sole authoritative terminal. STORY 1 probes a cancelled/failed run and extends the recognizer only if a terminal event is observed; otherwise the stale-start TTL + probe-mode validation handle the crash-no-completion residual."
+    },
+    {
+      "id": "F-007",
+      "severity": "Medium",
+      "source": "consensus",
+      "classification": "fixable",
+      "category": "Simplicity",
+      "sectionRef": "Approach > Sub-agent terminal signal",
+      "description": "The system.notification agent_completed (agentId-keyed) bridge adds complexity for no extra safety while subagent.completed is authoritative; the bridge would require parsing the launch-time tool.execution_complete trap for agent_id.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Dropped agent_completed from the baseline; subagent.completed (toolCallId) is primary+sufficient. Notification corroboration moved to a documented follow-up only if STORY 1 proves subagent.completed can be absent. tool.execution_complete is launch-metadata-only, never terminal."
+    },
+    {
+      "id": "F-008",
+      "severity": "Medium",
+      "source": "codex",
+      "classification": "fixable",
+      "category": "Completeness",
+      "sectionRef": "Technical Constraints",
+      "description": "Plan's failure-open description was inaccurate: only absence of a transcript PATH skips; a missing/unreadable/empty transcript FILE returns nonListenerCount:0 and BLOCKS today.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Added a 'Current failure semantics (corrected)' constraint citing stop.js:1159-1160 and detect-active-bg.js:228; sub-agent path preserves block-on-unreadable."
+    },
+    {
+      "id": "F-009",
+      "severity": "Medium",
+      "source": "codex",
+      "classification": "fixable",
+      "category": "Criteria Quality",
+      "sectionRef": "Acceptance Criteria > AC-5",
+      "description": "AC-5 'byte-identical' did not define the comparison surface.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "AC-5 now requires deep-equality of detectActiveBg() return keys in off mode (no subagent* keys), absence of new log fields, and identical decision vs the shell-only detector."
+    },
+    {
+      "id": "F-010",
+      "severity": "Medium",
+      "source": "codex",
+      "classification": "fixable",
+      "category": "Completeness",
+      "sectionRef": "Acceptance Criteria",
+      "description": "ACs covered off/probe/on but not the documented invalid->off behavior.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Added AC-10: invalid CREWS_PROGRESS_BG_SUBAGENTS values resolve to off (parser unit + E2E)."
+    },
+    {
+      "id": "F-011",
+      "severity": "Medium",
+      "source": "codex",
+      "classification": "fixable",
+      "category": "Completeness",
+      "sectionRef": "Files to Create",
+      "description": "Probe-findings artifact location ambiguous (.ralph/jobs may not ship with the plugin / be visible to crews maintainers).",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Durable schema doc relocated to tests/fixtures/copilot-subagent-schema.md (plugin-shipped); .ralph/jobs probe-findings.md is the seed only."
+    }
+  ]
+}

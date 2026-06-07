@@ -1,0 +1,24 @@
+{
+  "clusters": [
+    {
+      "name": "bg-subagent-detector",
+      "stories": ["US-001", "US-002", "US-003", "US-004", "US-005", "US-006"],
+      "phase": 1,
+      "dependsOn": [],
+      "fileOverlapEvidence": {
+        "sharedFiles": [
+          "ai-developer-toolkit/plugins/crews/hooks/detect-active-bg.js",
+          "ai-developer-toolkit/plugins/crews/hooks/stop.js",
+          "ai-developer-toolkit/plugins/crews/hooks/listener-protocol.js",
+          "ai-developer-toolkit/plugins/crews/tests/progress-bg-gate.test.js",
+          "ai-developer-toolkit/plugins/crews/tests/listener-protocol.test.js",
+          "ai-developer-toolkit/plugins/crews/AGENTS.md",
+          "ai-developer-toolkit/plugins/crews/CHANGELOG.md"
+        ],
+        "exclusiveFiles": [],
+        "risk": "high"
+      },
+      "executionModeRationale": "Must run serially. US-001 is a hard feasibility prerequisite (the Phase-0 probe/fixture must prove the start->done correlation key before any detector code is written), and every subsequent story edits the same 2-3 hook files (detect-active-bg.js, stop.js, listener-protocol.js) plus the same shared test and doc/version-stamp files. Parallel execution would produce conflicting same-file edits and could build a detector before the fixture validates the schema."
+    }
+  ]
+}

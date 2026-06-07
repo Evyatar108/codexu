@@ -1,0 +1,30 @@
+I’ll open the referenced prompt file and use it as the task brief.
+
+The brief is longer than the file viewer’s single-read limit, so I’ll read it in sections and then act on it.
+
+I’ll verify the plan against the crews plugin implementation and tests before writing the review.
+
+I found the relevant plugin files; now I’ll read the exact detector, stop-hook, seam, and test code sections the plan depends on.
+
+### Feasibility
+
+[High] The plan has an unresolved liveness contradiction. At real Stop time, a still-running Copilot `task` has `subagent.started` but no `subagent.completed` yet. AC-2 requires that to pass, but AC-4/Risk language says a start without a recognized terminal event must block / never become a permanent pass. `hooks/stop.js` currently passes `new Date().toISOString()` into `detectActiveBg`, and the shell detector in `hooks/detect-active-bg.js` treats “start with no exit” as active. The plan needs a precise sub-agent rule, e.g. whether an open correlated start counts active until a terminal event, and if so what TTL prevents stale permanent passes.
+
+[Medium] The secondary `agent_completed` notification path is under-specified. The plan says to use agentId-keyed notifications only when a `toolCallId↔agentId` bridge exists, but the described bridge appears to come from launch-time `tool.execution_complete`, while the plan also says to “explicitly ignore” `tool.execution_complete` for `task`. Clarify that it must be ignored only as a terminal signal, but may be parsed as launch metadata for `agent_id`.
+
+### Completeness
+
+[High] The fixture-backed E2E criteria may be non-deterministic or rot over time. `hooks/stop.js` uses wall-clock `new Date()` and has no `asOf` injection seam; a captured real fixture with both start and completion will eventually always look “already completed.” Existing shell E2E tests avoid this by omitting the exit event. The plan should add a Stop-test `asOf` seam, fixture slicing, or relative/generated timestamps before requiring AC-2/AC-3 E2E tests against a real completed transcript.
+
+### Ordering
+
+No issues found. US-001 as a hard prerequisite is correct; implementation should not wire gate behavior before resolving the transcript/liveness ambiguity.
+
+### Simplicity
+
+No issues found. Reusing `listener-protocol.js` for the tool-name seam and keeping the feature behind `CREWS_PROGRESS_BG_SUBAGENTS` is the right integration shape.
+
+### Acceptance Criteria Quality
+
+[High] AC-2 and AC-4 are not specific enough to implement consistently because “correlated, still-running” and “start with no recognized terminal event” can describe the same live transcript state. Split the cases explicitly: open live start, stale open start, malformed timestamp, foreign terminal event, recognized terminal after `asOf`, and recognized terminal before `asOf`.
+

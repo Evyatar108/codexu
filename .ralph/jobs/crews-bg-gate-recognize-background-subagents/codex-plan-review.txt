@@ -1,0 +1,33 @@
+### Feasibility
+
+[High] AC-4 conflicts with AC-2. The plan says a correlated start with no terminal event should allow `kind=progress`, but also says an unknown/uncorrelated completion shape such as “a start with no recognized terminal event” must block. From `ai-developer-toolkit/plugins/crews/hooks/detect-active-bg.js:182`, the existing model is start-active-until-done; without a recognized terminal event, the detector cannot distinguish “still running” from “completed with an unknown terminal shape.” The plan needs a concrete expiry/checkpoint rule, or AC-4 must be narrowed.
+
+[High] The “E2E test against the fixture” is underspecified and likely not implementable as written. `stop.js` passes `asOf: new Date().toISOString()` at `ai-developer-toolkit/plugins/crews/hooks/stop.js:1163`. A real fixture containing both start and completion timestamps from capture time will look completed during future test runs. Tests need either a truncated “in-flight” fixture, timestamp rewriting, or a test-only `asOf` injection.
+
+[Medium] The plan’s current-behavior description is inaccurate around failure-open semantics. `detectActiveBg()` returns `{ activeCount: 0, nonListenerCount: 0, ... }` for missing/unreadable/empty transcripts at `ai-developer-toolkit/plugins/crews/hooks/detect-active-bg.js:228-229`, and `stop.js` blocks on `nonListenerCount === 0` at `ai-developer-toolkit/plugins/crews/hooks/stop.js:1169`. Only absence of a transcript path skips evaluation. This matters because AC-5 requires byte-identical default behavior.
+
+### Completeness
+
+[Critical] The plan omits the required parent-repo bookkeeping for a submodule plugin version bump. Root `AGENTS.md:22-31` says the active plugin versions table is a CI invariant, and `AGENTS.md:475` points to the canonical submodule ship ceremony: commit the submodule change, bump the codexu submodule pointer, update `AGENTS.md` active-plugin-versions from `crews 3.10.0` to `3.11.0`, then commit the wrapper. The plan only updates plugin-local `AGENTS.md`/`CHANGELOG.md` and version files.
+
+[Medium] The probe artifact location is ambiguous. Creating a `.ralph/jobs/<job>/probe-findings.md` equivalent may not ship with the plugin or be visible to future crews maintainers. Make the durable schema documentation explicit under `ai-developer-toolkit/plugins/crews/tests/fixtures/` or plugin docs.
+
+[Medium] The plan does not require direct tests for invalid `CREWS_PROGRESS_BG_SUBAGENTS` values. It specifies invalid→`off`, but ACs only cover `off`/`probe`/`on`.
+
+### Ordering
+
+[High] STORY 4 wording can be read as “check `nonListenerCount === 0` first, then consult subagents.” That would return the existing block before `subagentActiveCount` can allow AC-2. The stop-hook order must be: compute shell + subagent detection, compute effective active count based on mode, log, then decide.
+
+[Medium] Version bump and parent pointer updates must be ordered after the plugin-local version change and before final verification from codexu. Otherwise `tests/version.test.js` may pass inside the submodule while the parent repo still fails its active-plugin-version invariant.
+
+### Simplicity
+
+[Medium] The `system.notification agent_completed` bridge adds complexity without being necessary for the core accepted path if `subagent.completed` reliably carries `toolCallId`. Because the bridge likely depends on parsing the launch-time `tool.execution_complete` trap only for `agent_id`, the safer first implementation is to treat `subagent.completed` by `toolCallId` as authoritative and leave agentId-keyed notification corroboration for a follow-up unless the fixture proves it is needed.
+
+### Acceptance Criteria Quality
+
+[High] AC-4 is not testable in its current form because “unknown completion shape” is, by definition, not recognizable as completion. It needs a precise observable condition: for example, malformed start timestamp, terminal event without matching `toolCallId`, or explicit stale-start TTL.
+
+[Medium] AC-5 says “byte-identical” behavior and log output, but it does not define the comparison surface. Require exact deep equality of `detectActiveBg()` return keys in `off` mode and exact absence of new `progress-bg-gate` log fields when `CREWS_PROGRESS_BG_SUBAGENTS` is unset/off.
+
+No prior review-cycle amendments were referenced beyond the planning probe; nothing to assess for regression there.

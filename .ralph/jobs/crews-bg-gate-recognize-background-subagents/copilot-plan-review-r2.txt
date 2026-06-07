@@ -1,0 +1,25 @@
+I’ll read the provided prompt file first, then carry out the requested task.
+
+The prompt file is large, so I’ll read it in sections to extract the task instructions.
+
+I’ll verify the revised plan against the actual crews plugin code and tests, focusing only on remaining Critical/High plan risks.
+
+I need the concrete hook implementation details now; I’ll read the relevant detector, stop gate, and tests directly.
+
+I’m checking the remaining export and test runner details to make sure the plan’s proposed seams are real and complete.
+
+I have enough code context; I’ll produce the second-round review focused only on Critical/High blockers.### Feasibility
+No Critical/High issues found. The revised plan’s referenced files and seams exist: `hooks/detect-active-bg.js`, `hooks/stop.js`, `hooks/listener-protocol.js`, `tests/progress-bg-gate.test.js`, `tests/listener-protocol.test.js`, and `scripts/bump-version.js`.
+
+### Completeness
+No Critical/High issues found. The prior issues are addressed: liveness has a truth table, tests use explicit `asOf`, `agent_completed` bridge complexity is removed in favor of `subagent.completed`, and AC-2..AC-11 are specific.
+
+### Ordering
+No Critical/High issues found. STORY 1 remains the hard feasibility gate before detector behavior changes, which is the correct dependency order.
+
+### Simplicity
+No Critical/High issues found. Dropping the `agent_completed` bridge is simpler and safer while `subagent.completed` remains the authoritative terminal signal.
+
+### Acceptance Criteria Quality
+No Critical/High issues found. The ACs are now concrete enough for autonomous implementation and verification.
+

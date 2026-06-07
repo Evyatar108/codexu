@@ -1,0 +1,94 @@
+**Codebase Architecture**
+
+The feature lives in the `ai-developer-toolkit/plugins/crews` submodule, not the main Happy app packages. The crews plugin is plain Node/CommonJS, with no local `package.json`; tests are standalone Node files run by `ai-developer-toolkit/plugins/crews/tests/run.js`.
+
+Key structure:
+
+- `hooks/` contains hook implementations and shared protocol logic.
+- `tools/` contains CLI entry points, mostly dispatching through `tools/crews.js`.
+- `tests/` contains per-file Node tests plus `tests/lib/*` harness helpers.
+- `.github/plugin/` is the Copilot plugin overlay. Its `hooks.json` maps Copilot camelCase hooks to `hooks/copilot-*.js`.
+- `.claude-plugin/` and `.codex-plugin/` are engine overlays for Claude/Codex.
+- Runtime state is in the consuming workspace under `.crews/`, not inside the plugin.
+
+**Feature-Relevant Code**
+
+The central detector is `ai-developer-toolkit/plugins/crews/hooks/detect-active-bg.js`. It currently indexes only Copilot async shell work:
+
+- `readEvents(transcriptPath, maxEvents)`
+- `indexEvents(events)`
+- `isActiveAt(start, exit, asOf)`
+- `detectActiveBg(opts)`
+- `ASYNC_SHELL_TOOL_NAMES = {'bash','powershell'}`
+
+The Stop hook gate is in `ai-developer-toolkit/plugins/crews/hooks/stop.js`, immediately after `decideStopBlock(...)`. It gates only when:
+
+- `manifest.engine === 'copilot'`
+- `state.role === 'member'`
+- `turnKind === 'progress'`
+- `CREWS_PROGRESS_BG_GATE !== 'off'`
+- not retry and not shutting down
+
+It calls `detectActiveBg({ transcriptPath, asOf: new Date().toISOString() })` and blocks when `detection.nonListenerCount === 0`.
+
+The reusable filter/tool-name seam is `ai-developer-toolkit/plugins/crews/hooks/listener-protocol.js`:
+
+- `SHELL_TOOL_NAMES`
+- `isListenerArmCall(cmd)`
+- `isCrewsCliInfraCall(cmd)`
+- `isListenerArmToolCall(toolName, toolInput)`
+
+Do not add Copilot `task` directly to `SHELL_TOOL_NAMES`; that set is used by PreToolUse shell-command logic. A safer pattern is a new exported sub-agent/tool-name set next to it.
+
+Copilot normalization lives in:
+
+- `hooks/copilot-shim.js`: maps `transcriptPath` to `transcript_path`, handles `toolCalls[]`.
+- `hooks/copilot-stop.js`: sets `CREWS_ENGINE='copilot'`, then delegates to shared `stop.js`.
+- `.github/plugin/hooks.json`: declares `agentStop`, `preToolUse`, `postToolUse`, etc.
+
+Tests to extend:
+
+- `tests/progress-bg-gate.test.js`: main detector + Stop gate coverage.
+- `tests/copilot-transcript-shape.test.js`: existing Copilot `events.jsonl` parser coverage.
+- `tests/listener-protocol.test.js`: tool-name/filter exports.
+- `tests/fixtures/`: currently minimal; good place for the captured Copilot background-task transcript fixture.
+
+**Technical Constraints**
+
+The current detector intentionally treats `tool.execution_complete` for async shells as not a done signal; shell completion is `system.notification.kind.type === 'shell_completed'`, keyed by `shellId`.
+
+For sub-agents, the implementation must not count any start event unless the Phase 0 probe proves a stable start/done correlation key and the detector implements both sides. Unknown completion shape must resolve to “inactive/not counted,” not “active forever.”
+
+`CREWS_PROGRESS_BG_SUBAGENTS` should be parsed only from `process.env`, default `off`. Avoid any `parseTurnReports`, tag, report attribute, or assistant-text path.
+
+`CREWS_PROGRESS_BG_GATE=off` must remain the top-level skip. With `CREWS_PROGRESS_BG_SUBAGENTS=off`, avoid changing logs or decisions if “byte-identical” is taken literally.
+
+Malformed JSONL lines are skipped today; keep that tolerant style. Activity-log guidance also expects torn final lines to be tolerated.
+
+**Implementation Suggestions**
+
+Start with the transcript probe. Capture a real Copilot background `task` transcript containing start, in-flight, and completion. Commit a redacted fixture under `tests/fixtures/`, plus a small test documenting the exact fields and correlation key. If no pre-Stop start event or stable done key exists, stop there and mark D-002 infeasible.
+
+Then refactor `detect-active-bg.js` minimally:
+
+- Keep existing shell behavior unchanged.
+- Add sub-agent-specific extractor helpers based on the fixture schema.
+- Return extra fields such as `subagentActiveCount`, `subagentSamples`, and `subagentDecision`, while preserving existing `activeCount/nonListenerCount` meanings for shell tests.
+- In `probe` mode, compute and log sub-agent decisions but do not add them to the gate pass condition.
+- In `on` mode, allow progress when `shellNonListenerCount + activeCorrelatedSubagents > 0`.
+
+In `stop.js`, parse:
+
+```js
+const subagentMode = process.env.CREWS_PROGRESS_BG_SUBAGENTS || 'off';
+```
+
+Treat invalid values as `off` or log-and-off. Use `probe` only for additional `appendLog(...)`, never for unblocking.
+
+Update docs in `AGENTS.md`, `CHANGELOG.md`, and README env-var list. Verification should include focused runs like:
+
+```powershell
+node ai-developer-toolkit/plugins/crews/tests/run.js progress-bg-gate.test.js listener-protocol.test.js copilot-transcript-shape.test.js
+```
+
+No code was changed during this research pass.
