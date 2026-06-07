@@ -5050,10 +5050,14 @@
     {
       "id": "crews-bg-gate-recognize-background-subagents",
       "scope": "crews",
-      "lifecycle": "tracked",
-      "status": "warn",
+      "lifecycle": "merged",
+      "status": "ok",
       "lastTouchedAt": "2026-06-07",
       "kanbanCards": [
+        {
+          "className": "cmd-ok",
+          "html": "<strong>Shipped @ crews v3.11.0 (submodule 190246d5, codexu pointer 844b4c11), 2026-06-07.</strong> D-002 gated Copilot-first background sub-agent detector for the progress-bg gate. The progress-bg gate now recognizes a pending Copilot background <code>task</code> sub-agent as active background work (so a member polling a Phase-5a review agent can checkpoint <code>kind=progress</code>) — but ONLY behind the <code>CREWS_PROGRESS_BG_SUBAGENTS</code> knob (off default / probe / on) and a stable start&rarr;done correlation key. Phase 5a review caught the load-bearing fix: the detector now treats BOTH <code>subagent.completed</code> AND <code>subagent.failed</code> as terminal (a failed sub-agent's open start would otherwise never see a terminal &rarr; permanent-pass risk). Fail-toward-block on unknown/uncorrelated/completed shapes; preserves the v3.3.0 no-self-attestation invariant (env var is the only enable seam). Claude Task / codex spawn_agent detection stays OUT (D-003). 6 stories; Phase 5a (4 findings fixed) + 5b clean; 281/281 green."
+        },
         {
           "className": "cmd-ok",
           "html": "<strong>Plan shipped @ 8773a6e9 (main), 2026-06-07.</strong> 6-story D-002 plan; 11 review findings resolved over 2 rounds. <strong>Story 1 (Phase-0 Copilot transcript probe) was run during planning and probe-CONFIRMED FEASIBLE</strong> (see <code>probe-findings.md</code>): a Copilot background <code>task</code> sub-agent does emit a pre-Stop start event with a stable start&rarr;done correlation key, so the gated detector is buildable (does NOT collapse to D-001). Plan adds a <code>CREWS_PROGRESS_BG_SUBAGENTS</code> knob (off/probe/on), a probe-mode logging path, and a new signal source in <code>hooks/detect-active-bg.js</code> that counts a pending Copilot background task as active ONLY when the correlation key shows it still-running at Stop time; fail-toward-block on unknown/uncorrelated/completed shapes. Preserves the v3.3.0 no-self-attestation invariant (env var is the only enable seam). Claude/codex detection stays OUT (D-003). Artifacts: <code>.ralph/jobs/crews-bg-gate-recognize-background-subagents/</code>."
@@ -5076,6 +5080,22 @@
           "plan": "/plan-with-ralph --from-brainstorm .ralph/brainstorms/crews-bg-gate-recognize-background-subagents/ \"Plan D-002: gated Copilot-first background sub-agent detector for the crews progress-bg gate (hooks/stop.js + hooks/detect-active-bg.js). STORY 1 (hard prerequisite) = Phase-0 Copilot transcript probe: capture the real event shape of a Copilot background task sub-agent at START / in-flight / COMPLETION, identify the stable start->done correlation key (shellId analog), persist a transcript fixture; if no pre-Stop start event or no stable correlation key exists, COLLAPSE to D-001 (status-quo synchronous wait + clearer block-message/policy) instead of shipping an unsafe detector. Then: add CREWS_PROGRESS_BG_SUBAGENTS knob (off default / probe / on), a probe-mode logging-only path, and a new signal source that counts a pending Copilot background task as active ONLY when the correlation key shows it still-running at Stop time; fail-toward-block on unknown/uncorrelated/already-completed shapes (no completed-but-forgotten permanent pass). Reuse the harness-aware tool-mention seam in hooks/listener-protocol.js (NOT a runtime adapter). Copilot-only. Preserve the v3.3.0 no-self-attestation invariant (env var is the ONLY enable seam; no model-controllable tag/attribute/summary bypass). CREWS_PROGRESS_BG_GATE=off still disables the whole gate. Claude Task / codex spawn_agent detection is OUT (D-003, gated on this probe). Bump crews appropriately. See selected-direction.md + brainstorm-synthesis.md.\"",
           "impl": "/implement-with-ralph --from-plan .ralph/jobs/crews-bg-gate-recognize-background-subagents/plan.md --autonomous --target-repo D:/harness-efforts/codexu/ai-developer-toolkit"
         }
+      },
+      "shipManifest": {
+        "shippedAt": "2026-06-07",
+        "summary": "Gated Copilot-first background sub-agent detector for the crews progress-bg gate (crews v3.11.0). The gate previously blocked a member emitting kind=progress when no active async SHELL subprocess was detected, ignoring harness-spawned background Task/sub-agents — so an impl member waiting on a background Phase-5a review agent was forced into a synchronous in-turn wait. v3.11.0 adds a new signal source in hooks/detect-active-bg.js that counts a pending Copilot background task as active ONLY when a stable transcript-derived start->done correlation key shows it still-running at Stop time, behind a CREWS_PROGRESS_BG_SUBAGENTS operator knob (off default / probe / on). The Phase-0 feasibility probe (run during planning) confirmed a Copilot background task emits a pre-Stop start event with a stable correlation key, so the detector is buildable (did not collapse to the status-quo D-001). Phase 5a review surfaced and fixed a real gap: the terminal recognizer must treat subagent.failed (not only subagent.completed) as terminal, else a failed sub-agent's open start never resolves -> permanent pass. Fail-toward-block on unknown/uncorrelated/already-completed shapes; the v3.3.0 no-self-attestation invariant is fully preserved (the env var is the only enable seam, no model-controllable bypass). Claude Task / codex spawn_agent detection is deferred to D-003. 6 stories; Phase 5a (4 findings) + 5b converged clean; 281/281 tests green. Shipped via the wrapper ceremony: rebased onto the advanced submodule main (after ralph-overview v2.10.0), FF + pushed to all 3 toolkit remotes, codexu pointer + version table bumped, copilot plugin update applied.",
+        "commits": [
+          {
+            "sha": "190246d5",
+            "oneLine": "crews v3.11.0: D-002 gated Copilot background sub-agent gate (rebased tip)",
+            "repo": "ai-developer-toolkit"
+          },
+          {
+            "sha": "844b4c11",
+            "oneLine": "chore: bump ai-developer-toolkit -> crews 3.11.0 (D-002 sub-agent gate)",
+            "repo": "codexu"
+          }
+        ]
       }
     }
   ],
