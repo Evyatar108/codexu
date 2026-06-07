@@ -1,0 +1,26 @@
+{
+  "clusters": [
+    {
+      "name": "arm-fail-loud-guard",
+      "stories": ["US-001", "US-002", "US-003"],
+      "phase": 1,
+      "dependsOn": [],
+      "fileOverlapEvidence": {
+        "sharedFiles": [
+          "ai-developer-toolkit/plugins/crews/lib/listener-loop.js",
+          "ai-developer-toolkit/plugins/crews/CHANGELOG.md",
+          "ai-developer-toolkit/plugins/crews/AGENTS.md",
+          "ai-developer-toolkit/plugins/crews/.claude-plugin/plugin.json",
+          "ai-developer-toolkit/plugins/crews/.github/plugin/plugin.json",
+          "ai-developer-toolkit/plugins/crews/tests/version.test.js"
+        ],
+        "exclusiveFiles": [
+          "ai-developer-toolkit/plugins/crews/tests/listener-arm-fail-loud.test.js",
+          "ai-developer-toolkit/plugins/crews/tests/listener-redundant-arm-skip.test.js"
+        ],
+        "risk": "low"
+      },
+      "executionModeRationale": "Must run serially in a single job: US-002's tests exercise the US-001 implementation in lib/listener-loop.js, and US-003's version/CHANGELOG/AGENTS bump is a release-gating step that must follow green code + tests. Splitting into parallel jobs would race on lib/listener-loop.js and the six version stamps for no throughput gain on a ~3-file change."
+    }
+  ]
+}

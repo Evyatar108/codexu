@@ -1,0 +1,55 @@
+**Codebase Architecture**
+The crews plugin is a CommonJS Node plugin under `ai-developer-toolkit/plugins/crews/`. It has no `package.json`; versioning comes from plugin manifests such as `.claude-plugin/plugin.json`, with runtime helper `lib/version.js`.
+
+Key layout:
+- `tools/`: CLI entry points. `tools/crews.js` is the dispatcher; `tools/wait-for-message.js` is a deprecated wrapper around `crews.js arm`.
+- `lib/`: shared runtime helpers. `lib/listener-loop.js` owns the actual `arm` listener loop.
+- `hooks/`: protocol, state, mailbox, command runtime, and agent hook integration.
+- `tests/`: plain Node test scripts using `spawnSync`, `spawn`, and local helpers in `tests/lib/`.
+
+The listener state is file-backed under `.crews/crews/<crew>/{members,leads}/<name>/manifest.json`, with fields such as `listenerState`, `lastListenerPid`, `lastHeartbeatAt`, and `lastListenerEpoch`.
+
+**Feature-Relevant Code**
+Direct integration points:
+- `ai-developer-toolkit/plugins/crews/tools/crews.js`: dispatches `arm` directly to `runListenerLoop(args, out, opts)`.
+- `ai-developer-toolkit/plugins/crews/lib/listener-loop.js`: natural home for the change. `runListenerLoop()` parses args, calls `markArmed(... requireFreshArm: true)`, and currently emits `{ type: "arm-skipped", ... }` with exit code `0`.
+- `ai-developer-toolkit/plugins/crews/hooks/listener-protocol.js`: `markArmed()` wraps `touchHeartbeat()`. Also contains arm-detection comments explaining why shell pipeline parsing was removed.
+- `ai-developer-toolkit/plugins/crews/hooks/actors.js`: `touchHeartbeat()` is authoritative for skip reasons: `session-mismatch`, `recoverable-pending-takeover`, `already-active-listener`.
+- `ai-developer-toolkit/plugins/crews/hooks/actor-state.js`: `deriveListenerState()` handles stale armed demotion. This should remain unchanged.
+- `ai-developer-toolkit/plugins/crews/tests/listener-redundant-arm-skip.test.js`: best place for regression coverage.
+- `ai-developer-toolkit/plugins/crews/tests/listener-stdout-flush.test.js`: protects listener stdout behavior.
+- `ai-developer-toolkit/plugins/crews/README.md`: likely place to document the machine-readable opt-in.
+
+**Technical Constraints**
+Do not change `touchHeartbeat()`, `deriveListenerState()`, mailbox draining, or listener epoch semantics. The requested behavior is a CLI-envelope handling change, not a state-machine change.
+
+`stdout.isTTY` is the practical detection point. In Node, piped/redirected/spawn-captured stdout is non-TTY, so existing tests that spawn the listener and parse stdout will start seeing the new fail-loud path unless they opt into machine mode.
+
+`tools/wait-for-message.js` delegates to `crews.js arm`, so implementing in `runListenerLoop()` affects both canonical and legacy entry points.
+
+`runListenerLoop()` resolves after `stdout.write(..., callback)`. If adding injected-IO tests, the fake `stdout.write` must call the callback or the Promise will hang.
+
+**Implementation Suggestions**
+Add a small helper in `lib/listener-loop.js`, not in hooks:
+
+- `isStdoutNonInteractive(stdout)`: probably `stdout && stdout.isTTY !== true`.
+- `isArmMachineJsonEnabled(parsed, env)`: support a clear opt-in such as `--machine-json` and/or `CREWS_ARM_MACHINE_JSON=1`.
+- `formatArmSkippedAdvisory(payload)`: reason-specific stderr text.
+
+Extend `parseListenerArgs()` with a boolean `machineJson` flag, e.g. `--machine-json`, and return it. Also check an env var for automation.
+
+In the `armed.skipped` branch, build the existing JSON payload once, then route through a helper:
+- If stdout is non-interactive and machine mode is not enabled: write a clear stderr warning, keep the JSON envelope if desired, and return exit code `1`.
+- If machine mode is enabled: preserve old behavior exactly: stdout JSON, exit `0`, no extra stderr.
+- If stdout is interactive: preserve old behavior unless the product wants warnings there too.
+
+Suggested stderr wording:
+- `already-active-listener`: “crews arm: no background listener was started; an existing live listener is already active for name=<name> crew=<crew> pid=<pid>.”
+- `session-mismatch`: “crews arm: no background listener was started; this arm command does not match the active actor session.”
+- `recoverable-pending-takeover`: “crews arm: no background listener was started; actor is pending recoverable takeover.”
+
+Tests to add near `listener-redundant-arm-skip.test.js`:
+- Spawn `node tools/crews.js arm ...` with stdout captured and an already-live listener seeded. Assert non-zero status and stderr contains “no background listener was started” plus “existing live listener”.
+- Repeat with `CREWS_ARM_MACHINE_JSON=1` or `--machine-json`; assert status `0`, stdout parses as the current `arm-skipped` envelope, and stderr is clean.
+- Keep existing skip-reason tests by enabling machine mode where they need stdout JSON parsing.
+- Ensure normal first arm still reaches `timeout` or `messages` and stamps the manifest as before.

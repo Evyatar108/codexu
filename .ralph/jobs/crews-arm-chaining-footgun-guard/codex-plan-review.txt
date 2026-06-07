@@ -1,0 +1,22 @@
+**Feasibility**
+[High] The plan does not require flushing the new stderr advisory before `process.exit`. `tools/crews.js` exits immediately after `runListenerLoop` resolves, while `listener-loop.js` currently waits only for the stdout write callback. If the implementation does `stderr.write(...)` and then resolves through `finish(...)`, the fail-loud text can be truncated under redirected stderr. Add a `finishWithAdvisory` path that waits for both stderr and stdout callbacks before resolving. See [tools/crews.js](D:/harness-efforts/codexu/ai-developer-toolkit/plugins/crews/tools/crews.js:55) and [listener-loop.js](D:/harness-efforts/codexu/ai-developer-toolkit/plugins/crews/lib/listener-loop.js:122).
+
+[Medium] The invalid-args branch is less reachable than the plan claims. `parseListenerArgs` constructs `RuntimeContext.fromCli(... requireSessionEnv: true)` before the explicit usage check, so a scrubbed shell with missing name/session env throws a `CommandInputError` stack before reaching `return 2`. If invalid args are truly in scope, the plan needs a parser/catch adjustment, not just a wording tweak at the usage line. See [listener-loop.js](D:/harness-efforts/codexu/ai-developer-toolkit/plugins/crews/lib/listener-loop.js:71), [listener-loop.js](D:/harness-efforts/codexu/ai-developer-toolkit/plugins/crews/lib/listener-loop.js:96), and [session-env.js](D:/harness-efforts/codexu/ai-developer-toolkit/plugins/crews/hooks/lib/session-env.js:55).
+
+**Completeness**
+[Medium] The release surface is internally inconsistent. `scripts/bump-version.js` updates three plugin manifests, three marketplace indexes, and `tests/version.test.js`; the plan says “6 stamped files” and elsewhere describes “two plugin manifests,” omitting `.codex-plugin/plugin.json` in prose. The script is correct, but the plan should name the 6 non-test stamps plus `tests/version.test.js` explicitly. See [bump-version.js](D:/harness-efforts/codexu/ai-developer-toolkit/plugins/crews/scripts/bump-version.js:14).
+
+[Medium] Q2 says the chosen machine-mode spelling should be documented in `AGENTS.md` and `README.md`, but the file list, US-003, and AC7 only require `AGENTS.md` and `CHANGELOG.md`. Since this is a user-visible escape hatch for automation, either add `README.md` to the plan or remove it from Q2.
+
+**Ordering**
+No issues found. Core change → regression tests → release/version docs is the right sequence.
+
+**Simplicity**
+No issues found. Keeping the change localized to `lib/listener-loop.js` and tests matches the existing dispatcher architecture.
+
+**Acceptance Criteria Quality**
+[Medium] There is no acceptance criterion for invalid args even though invalid args are listed in scope and US-001. Add one for missing name and invalid `--timeout-ms`, with stdout redirected and machine mode both off/on.
+
+[Low] AC3’s “byte-identically” wording should be scoped to `node tools/crews.js arm`. The legacy `tools/wait-for-message.js` shim always emits its deprecation stderr, so tests using that shim should assert “no extra guard stderr,” not total stderr silence.
+
+Prior-review amendments: Q1 is adequately settled by AC2’s exit-0 requirement for `already-active-listener`. Q2 is not fully adequate because the documentation target is inconsistent.

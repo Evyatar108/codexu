@@ -1,0 +1,91 @@
+{
+  "planFile": "D:/harness-efforts/codexu/.ralph/jobs/.staging/20260606T231238Z-plan-arm-guard-1e4542e0/draft-plan.md",
+  "repoDir": "D:/harness-efforts/codexu",
+  "reviewCycle": 0,
+  "findings": [
+    {
+      "id": "F-001",
+      "severity": "High",
+      "source": "codex",
+      "phase": "code",
+      "category": "Feasibility",
+      "sectionRef": "Approach > Implementation Strategy",
+      "description": "The plan does not require flushing the new stderr advisory before process exit. tools/crews.js (:55-56) does dispatch(...).then(code => process.exit(code)), and finish/writeJsonAndResolve (lib/listener-loop.js:122-131) resolves only inside the stdout.write callback. If the guard does stderr.write(...) then resolves, the fail-loud advisory can be TRUNCATED under redirected stderr because process.exit fires before the stderr write drains.",
+      "status": "fixed",
+      "fixedInIteration": 0,
+      "resolution": "Plan updated (Technical Constraints + Implementation Strategy step 4 + AC1/AC2) to require the guarded arm-skipped path to await BOTH the stderr and stdout write callbacks before resolving (a finishWithAdvisory-style barrier), mirroring the existing writeJsonAndResolve callback contract, so neither stream is truncated by the immediate process.exit in crews.js.",
+      "relevantFiles": ["ai-developer-toolkit/plugins/crews/tools/crews.js", "ai-developer-toolkit/plugins/crews/lib/listener-loop.js"],
+      "suggestedFix": "Add a finishWithAdvisory path that resolves only after both writes' callbacks fire."
+    },
+    {
+      "id": "F-002",
+      "severity": "Medium",
+      "source": "codex",
+      "phase": "code",
+      "category": "Feasibility",
+      "sectionRef": "Approach > Implementation Strategy (step 5, invalid-args)",
+      "description": "The invalid-args branch is less reachable than the plan claims: parseListenerArgs (lib/listener-loop.js:71-77) constructs RuntimeContext.fromCli(... requireSessionEnv: explicitSessionId ? false : true) BEFORE the explicit usage check at :98-101, so a scrubbed shell with missing name AND missing session env throws a CommandInputError before reaching `return 2`. A simple usage-line wording tweak would not cover that path and would need a parser/catch change.",
+      "status": "fixed",
+      "fixedInIteration": 0,
+      "resolution": "De-scoped invalid-args from the guard. invalid args are already loud + non-zero (either `return 2` with usage on stderr, or a thrown CommandInputError surfaced by crews.js) so no guard change is warranted. Removed the 'extend the usage line' item (was step 5), removed invalid-args from the In-Scope guard list and the decision matrix, and dropped the speculative invalid-args wording change. Avoids the parser/catch complexity entirely.",
+      "relevantFiles": ["ai-developer-toolkit/plugins/crews/lib/listener-loop.js", "ai-developer-toolkit/plugins/crews/hooks/lib/session-env.js"],
+      "suggestedFix": "Either adjust the parser/catch, or (chosen) de-scope invalid-args since it is already loud+non-zero."
+    },
+    {
+      "id": "F-003",
+      "severity": "Medium",
+      "source": "codex",
+      "phase": "code",
+      "category": "Completeness",
+      "sectionRef": "Approach > Files to Create/Modify; US-003; AC7",
+      "description": "The release-surface enumeration is wrong/internally inconsistent. scripts/bump-version.js (:14-21) pins SIX files: THREE plugin manifests (.claude-plugin/plugin.json, .github/plugin/plugin.json, AND .codex-plugin/plugin.json) plus three marketplace indexes; tests/version.test.js separately asserts the literal. The plan said '6 stamped files' and 'two plugin manifests', omitting the codex .codex-plugin/plugin.json manifest (added to the pinned list in crews v3.6.0).",
+      "status": "fixed",
+      "fixedInIteration": 0,
+      "resolution": "Corrected throughout: bump-version.js is authoritative and stamps 3 plugin manifests (claude + copilot + codex .codex-plugin/plugin.json) + 3 marketplace indexes; tests/version.test.js asserts the literal version in all of them. Replaced the wrong '6 stamps / two plugin manifests' phrasing in Technical Constraints, Files to Create/Modify, US-003, and AC7.",
+      "relevantFiles": ["ai-developer-toolkit/plugins/crews/scripts/bump-version.js", "ai-developer-toolkit/plugins/crews/.codex-plugin/plugin.json", "ai-developer-toolkit/plugins/crews/tests/version.test.js"],
+      "suggestedFix": "Name the bump-version.js pinned set explicitly (3 manifests + 3 marketplace indexes) and note version.test.js."
+    },
+    {
+      "id": "F-004",
+      "severity": "Medium",
+      "source": "codex",
+      "phase": "docs",
+      "category": "Completeness",
+      "sectionRef": "Open Questions > Q2; US-003; AC7; Files to Create/Modify",
+      "description": "Q2 says the chosen machine-mode spelling should be documented in AGENTS.md AND README.md, but the Files list, US-003, and AC7 only require AGENTS.md and CHANGELOG.md. The user-visible escape hatch should be documented where operators look.",
+      "status": "fixed",
+      "fixedInIteration": 0,
+      "resolution": "Added plugins/crews/README.md to the Files to Create/Modify list, US-003, and AC7 (document the CREWS_ARM_MACHINE env + --machine flag escape hatch alongside the version-release notes). Q2 is now consistent with the deliverables.",
+      "relevantFiles": ["ai-developer-toolkit/plugins/crews/README.md"],
+      "suggestedFix": "Add README.md to the deliverables (or remove it from Q2)."
+    },
+    {
+      "id": "F-005",
+      "severity": "Medium",
+      "source": "codex",
+      "phase": "code",
+      "category": "Criteria Quality",
+      "sectionRef": "Acceptance Criteria",
+      "description": "There is no acceptance criterion for invalid args even though invalid args were listed in scope and US-001 (missing name / invalid --timeout-ms, stdout redirected, machine mode on/off).",
+      "status": "fixed",
+      "fixedInIteration": 0,
+      "resolution": "Resolved jointly with F-002 by de-scoping invalid-args from the guard. invalid args are out of scope for the new guard (already loud+non-zero), so no dedicated AC is required; In Scope, US-001, and the decision matrix were updated to remove the invalid-args guard item, removing the inconsistency.",
+      "relevantFiles": ["ai-developer-toolkit/plugins/crews/lib/listener-loop.js"],
+      "suggestedFix": "Add an invalid-args AC, or de-scope invalid-args (chosen)."
+    },
+    {
+      "id": "F-006",
+      "severity": "Low",
+      "source": "codex",
+      "phase": "code",
+      "category": "Criteria Quality",
+      "sectionRef": "Acceptance Criteria > AC3 / AC4",
+      "description": "AC3's 'byte-identically' / 'no extra stderr' wording should be scoped to `node tools/crews.js arm`. The legacy tools/wait-for-message.js shim always emits its own deprecation stderr, so tests exercising that shim should assert 'no extra GUARD advisory stderr', not total stderr silence.",
+      "status": "fixed",
+      "fixedInIteration": 0,
+      "resolution": "AC3 reworded to scope the 'no extra stderr' / byte-identical claim to the dispatcher path (node tools/crews.js arm). AC4 already references the legacy shim; added a note that the legacy wait-for-message.js shim's deprecation-warning stderr is expected and only the GUARD advisory must be absent.",
+      "relevantFiles": ["ai-developer-toolkit/plugins/crews/tools/wait-for-message.js"],
+      "suggestedFix": "Scope the stderr-silence assertion to the dispatcher; assert 'no guard stderr' for the legacy shim."
+    }
+  ]
+}
