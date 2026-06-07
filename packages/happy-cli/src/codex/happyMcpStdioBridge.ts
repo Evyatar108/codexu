@@ -16,6 +16,9 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import { z } from 'zod';
+import { registerAgentCommsBridge, type AgentCommsBridgeHandle } from './agentCommsBridge';
+import { sendAgentMessage } from '@/daemon/controlClient';
+import { HAPPY_CURRENT_SESSION_ID } from '@/utils/envNames';
 
 function parseArgs(argv: string[]): { url: string | null } {
   let url: string | null = null;
@@ -89,6 +92,37 @@ async function main() {
       }
     }
   );
+
+  // agent-comms Scope B (D-002): register the cross-session send tool, the
+  // drainable agent-comms resource, and the inbox watcher for THIS session.
+  // The session id + daemon control URL are passed through the bridge spawn env
+  // by runCodex.ts. Disabled (with a stderr note) when the session id is absent.
+  let agentCommsHandle: AgentCommsBridgeHandle | undefined;
+  const currentSessionId = process.env[HAPPY_CURRENT_SESSION_ID];
+  if (currentSessionId) {
+    agentCommsHandle = registerAgentCommsBridge({
+      server,
+      sessionId: currentSessionId,
+      sendMessage: (targetSessionId, body, senderSessionId) =>
+        sendAgentMessage(targetSessionId, body, senderSessionId),
+    });
+  } else {
+    process.stderr.write(
+      '[happy-mcp] HAPPY_CURRENT_SESSION_ID not set; agent-comms bridge disabled\n'
+    );
+  }
+
+  // Tear down the inbox watcher on shutdown so we never leak a file descriptor.
+  const shutdown = () => {
+    try {
+      agentCommsHandle?.dispose();
+    } catch {
+      /* best-effort */
+    }
+    process.exit(0);
+  };
+  process.once('SIGINT', shutdown);
+  process.once('SIGTERM', shutdown);
 
   // Start STDIO transport
   const stdio = new StdioServerTransport();
