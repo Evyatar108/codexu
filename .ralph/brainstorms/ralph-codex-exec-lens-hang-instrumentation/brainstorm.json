@@ -1,0 +1,40 @@
+{
+  "brainstormName": "ralph-codex-exec-lens-hang-instrumentation",
+  "overviewTaskId": "ralph-codex-exec-lens-hang-instrumentation",
+  "idea": "Root-cause the `codex exec` research/review lens HANG on Windows (codex 0.135) when invoked from inside a Copilot ralph member: codex spawns, produces no stdout, never exits, orphans codex.exe, and the ~300s lens timeout fails to reap it (3x on 2026-06-07). Instrumentation-first: weigh which instrumentation gives the highest root-cause signal at lowest cost, recommend the cheapest high-signal set, give a reproduction recipe, and say which hypothesis the evidence points to. Does NOT ship the fix.",
+  "availableLenses": ["copilot", "devils-advocate"],
+  "missingLenses": [
+    {
+      "lens": "codex",
+      "reason": "Deliberately excluded per task directive — this task IS the codex-exec lens hang, so running the codex lens risked the bug under investigation. Codex was instead used for an instrumented live reproduction (captured as evidence in the synthesis). Notably the minimal repro did NOT hang (exit 0, ~27s)."
+    }
+  ],
+  "candidateDirections": [
+    {
+      "id": "D-001",
+      "name": "Capture-first: port copilot-exec's fd-backed capture + process-tree kill into codex-exec.mjs",
+      "summary": "Change codex-exec.mjs stdio from [pipe,inherit,inherit] to fd-backed per-lens sidecars, preserve codex's -o file, set RUST_LOG, and add a bounded wrapper timeout + killChildTree (taskkill /T /F) + signal handlers that snapshot the process subtree and TCP connections before killing. Diagnosis + fix in one change: removes the orphan, ends the capture-gap, and eliminates the pipe-buffer-deadlock failure mode (files have no write-backpressure). Reuses proven sibling code.",
+      "contributingLenses": ["copilot", "devils-advocate"]
+    },
+    {
+      "id": "D-002",
+      "name": "Isolate the lens environment: isolated CODEX_HOME + disable remote plugin sync, run an A/B matrix",
+      "summary": "Run lenses under an isolated CODEX_HOME (no plugins/marketplace, remote sync disabled) vs the normal shared home, with the same tiny and large/xhigh prompts, capturing RUST_LOG sidecars + wall time. Diagnoses which shared startup surface causes non-determinism under load (targets d' startup_remote_sync stall and g CODEX_HOME/Defender contention) and yields a cheap mitigation (disabling the ~10s remote sync). Risk: isolation can mask the bug and produce a mitigation, not a diagnosis.",
+      "contributingLenses": ["copilot", "devils-advocate"]
+    },
+    {
+      "id": "D-003",
+      "name": "Minimal targeted phase-tracing probe + one-variable-at-a-time disconfirmation matrix",
+      "summary": "Add wrapper phase markers (spawn ts; stdin write/drain/end + backpressure; child PID; first byte in stdout/stderr/-o; remote-sync start/end; model POST start/end; timeout snapshot; kill result) and rely on codex RUST_LOG as one input. Run a matrix changing one variable at a time: effort high|xhigh x tiny|large prompt x 1|N parallel x inherit|fd-backed stderr x shared|isolated home. The key signal is the FIRST divergence between a successful and a failing trace, not the last line. Folds in classification of large-prompt xhigh model-stream stalls (hypothesis e).",
+      "contributingLenses": ["copilot", "devils-advocate"]
+    }
+  ],
+  "recommendedDirection": "D-001",
+  "questionsForSynthesis": [
+    "Was the original hung codex.exe writing to an inherited stdout/stderr pipe owned by the Copilot member harness, and does that harness continuously drain those streams while waiting? (Decides the pipe-buffer-deadlock hypothesis f.)",
+    "Did the three 2026-06-07 hangs occur concurrently with other research/review lenses, and were they all large xhigh prompts sharing one CODEX_HOME? (Decides g vs e/f.)",
+    "Can codex startup_remote_sync be disabled or made fail-fast for non-interactive lenses, and is that acceptable as a mitigation even if it masks root cause?",
+    "What is the exact timeout owner today (Ralph lens harness vs Node wrapper vs Copilot member vs outer orchestration), and which PID does it kill? (Confirms the orphan mechanism.)",
+    "Should the work optimize for diagnosis purity, or accept the cheaper operational reframe: land D-001's capture/tree-kill now as mandatory hardening, then collect disconfirming evidence opportunistically on any remaining hang?"
+  ]
+}
