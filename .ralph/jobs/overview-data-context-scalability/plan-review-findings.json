@@ -1,0 +1,98 @@
+{
+  "planFile": "D:/harness-efforts/codexu/.ralph/jobs/.staging/20260607T175325Z-plan-ovdata-4bc9c51c/draft-plan.md",
+  "repoDir": "D:/harness-efforts/codexu",
+  "reviewCycle": 0,
+  "findings": [
+    {
+      "id": "F-001",
+      "severity": "Critical",
+      "source": "consensus",
+      "category": "Feasibility",
+      "sectionRef": "Approach > Files to Create/Modify",
+      "description": "The plan lists modifying `plugins/ralph-overview/.claude-plugin/plugin.json` for a `hooks` declaration, but ralph-overview AGENTS.md invariant #5 mandates that manifest is canonical metadata-only `{name,description,version,author,keywords}`. Hook registration must NOT live there. Claude Code auto-discovers `plugins/ralph-overview/hooks/hooks.json` (PreToolUse entry -> `node ${CLAUDE_PLUGIN_ROOT}/hooks/<script>.js`), per the options-mode prior art. Adding a `hooks` key to plugin.json violates a repo rule and may not be loaded.",
+      "status": "fixed",
+      "relevantFiles": [
+        "ai-developer-toolkit/plugins/ralph-overview/.claude-plugin/plugin.json",
+        "ai-developer-toolkit/plugins/ralph-overview/hooks/hooks.json",
+        "ai-developer-toolkit/plugins/options-mode/hooks/hooks.json"
+      ],
+      "suggestedFix": "Remove 'plugin.json hooks decl' from the plan. Declare the Claude PreToolUse hook in a NEW `plugins/ralph-overview/hooks/hooks.json` (auto-discovered); keep `.claude-plugin/plugin.json` changes limited to the version bump.",
+      "fixedInIteration": 1,
+      "resolution": "Removed the `plugin.json` hooks-decl modification across the Files-to-Create/Modify table, US-T5 story, and toolkit-hook cluster; clarified that Claude PreToolUse is auto-discovered from `hooks/hooks.json` per ralph-overview invariant #5 and options-mode prior art."
+    },
+    {
+      "id": "F-002",
+      "severity": "High",
+      "source": "copilot",
+      "category": "Completeness",
+      "sectionRef": "Approach > Architecture (guard hook)",
+      "description": "Copilot hook wiring is incomplete: `plugins/ralph-overview/.github/plugin/plugin.json` currently has no `hooks` field (options-mode declares `\"hooks\": \".github/plugin/hooks.json\"`). Creating `.github/plugin/hooks.json` alone will NOT make Copilot CLI load the preToolUse hook - the `.github/plugin/plugin.json` must point at it.",
+      "status": "fixed",
+      "relevantFiles": [
+        "ai-developer-toolkit/plugins/ralph-overview/.github/plugin/plugin.json",
+        "ai-developer-toolkit/plugins/ralph-overview/.github/plugin/hooks.json",
+        "ai-developer-toolkit/plugins/options-mode/.github/plugin/plugin.json"
+      ],
+      "suggestedFix": "Add a US-T5 sub-step: set `\"hooks\": \".github/plugin/hooks.json\"` in `plugins/ralph-overview/.github/plugin/plugin.json` AND create `.github/plugin/hooks.json` with the preToolUse entry. Note Copilot does not honor preToolUse deny for built-in edit tools before the dialog renders (options-mode v0.16.4) - the Copilot hook is reliable on the shell tool, best-effort on the edit tool; the pre-commit/CI backstop is the dependable guard.",
+      "fixedInIteration": 2,
+      "resolution": "Amended Approach §5, Files to Modify, US-T5, and toolkit-hook cluster to require adding the `\"hooks\": \".github/plugin/hooks.json\"` field to `.github/plugin/plugin.json` (Copilot CLI requires the manifest pointer; options-mode is the precedent) and documented the Copilot edit-tool best-effort caveat per options-mode v0.16.4."
+    },
+    {
+      "id": "F-003",
+      "severity": "High",
+      "source": "claude",
+      "category": "Criteria Quality",
+      "sectionRef": "Acceptance Criteria > C-3",
+      "description": "C-3's 'bit-identical' round-trip does not specify the CLI-side invocation path or where the parity test lives. As written it could trivially compare two calls into the same shared function and miss shell/argv/write-path differences.",
+      "status": "fixed",
+      "relevantFiles": [
+        "ai-developer-toolkit/plugins/ralph-overview/tools/overview-mcp/src/__tests__/",
+        "ai-developer-toolkit/plugins/ralph-overview/bin/ralph-overview.mjs"
+      ],
+      "suggestedFix": "Specify that the parity test lives in the plugin-local test suite and invokes the CLI through `node bin/ralph-overview.mjs data-edit ...` (subprocess) AND the MCP tool through the server handler (in-process) SEPARATELY against the same fixture, then byte-diffs the resulting data.json.",
+      "fixedInIteration": 3,
+      "resolution": "Amended C-3 to specify the parity test location (plugin-local `__tests__/data-write-roundtrip.test.ts`), require subprocess CLI invocation (`spawnSync` on `node bin/ralph-overview.mjs data-edit ...`) AND in-process MCP handler invocation against two separate fixture copies, byte-diff via `Buffer.equals`, and explicitly forbid satisfying the test by calling the shared core lib twice."
+    },
+    {
+      "id": "F-004",
+      "severity": "High",
+      "source": "copilot",
+      "category": "Criteria Quality",
+      "sectionRef": "Acceptance Criteria > C-6",
+      "description": "C-6 ('two real ship updates' with 'operator-in-the-loop approval') is not a deterministic implementation acceptance criterion for an autonomous Ralph job - it depends on external task availability and operator timing.",
+      "status": "fixed",
+      "relevantFiles": [],
+      "suggestedFix": "Re-scope C-6 in the codexu job (US-C4): the implementable, deterministic AC is a fixture/dry-run round-trip plus a documented two-ship operator-in-the-loop FOLLOW-UP task, not a blocking autonomous criterion. Make US-C4 produce the helper-driven dry-run evidence + the AGENTS.md operational-practice doc, and file the two real ships as a separate adoption task.",
+      "fixedInIteration": 4,
+      "resolution": "Re-scoped C-6 and US-C4 to a deterministic helper-driven dry-run against a fixture copy of data.json (set-lifecycle + mark-shipped for two fixture ids, recorded transcripts + JSON.parse smoke + AGENTS.md operational-practice doc); explicitly deferred the two real-task operator-in-the-loop ships to a separately filed follow-up adoption task, and updated In Scope, Out of Scope, and the resolved-decisions Adoption-gate note to match."
+    },
+    {
+      "id": "F-005",
+      "severity": "High",
+      "source": "copilot",
+      "category": "Criteria Quality",
+      "sectionRef": "Acceptance Criteria > C-5",
+      "description": "C-5 ('hook fires' for Claude + Copilot) does not name the actual manifest/config files each engine needs, so an autonomous agent cannot verify it precisely.",
+      "status": "fixed",
+      "relevantFiles": [
+        "ai-developer-toolkit/plugins/ralph-overview/hooks/hooks.json",
+        "ai-developer-toolkit/plugins/ralph-overview/.github/plugin/plugin.json",
+        "ai-developer-toolkit/plugins/ralph-overview/.github/plugin/hooks.json"
+      ],
+      "suggestedFix": "Make C-5 assert all three wirings exist and fire: Claude `hooks/hooks.json` PreToolUse entry; Copilot `.github/plugin/plugin.json` `hooks` field; Copilot `.github/plugin/hooks.json` preToolUse entry. Add a unit test that feeds a synthetic edit-on-data.json tool payload to each hook script and asserts the block/deny JSON + helper invocation text.",
+      "fixedInIteration": 5,
+      "resolution": "Rewrote C-5 to explicitly assert the three engine-aware hook wirings (Claude hooks/hooks.json PreToolUse, Copilot .github/plugin/plugin.json hooks field, Copilot .github/plugin/hooks.json preToolUse) and to specify a plugin-local unit test that spawns each hook script with a synthetic data.json edit payload and asserts the block/deny JSON plus the data-edit helper invocation substring."
+    },
+    {
+      "id": "F-006",
+      "severity": "Medium",
+      "source": "copilot",
+      "category": "Criteria Quality",
+      "sectionRef": "Acceptance Criteria > C-6",
+      "description": "C-6's 'no edit-anchor regression' is vague unless measured by git/tool evidence.",
+      "status": "open",
+      "relevantFiles": [],
+      "suggestedFix": "Require captured helper-command transcripts or test artifacts showing the helper performed the updates and `data.json` re-parsed cleanly with no manual Edit fallback (e.g., a recorded `data-edit` invocation + a post-write `node -e JSON.parse` check)."
+    }
+  ]
+}

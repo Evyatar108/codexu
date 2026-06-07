@@ -1,0 +1,105 @@
+{
+  "clusters": [
+    {
+      "name": "toolkit-core",
+      "stories": ["US-T1"],
+      "phase": 1,
+      "dependsOn": [],
+      "fileOverlapEvidence": {
+        "sharedFiles": [],
+        "exclusiveFiles": ["ai-developer-toolkit/plugins/ralph-overview/scripts/lib/data-edit-core.mjs"],
+        "risk": "low"
+      },
+      "executionModeRationale": "Foundation library every other toolkit story imports; must land first."
+    },
+    {
+      "name": "toolkit-surfaces",
+      "stories": ["US-T2", "US-T3"],
+      "phase": 2,
+      "dependsOn": ["toolkit-core"],
+      "fileOverlapEvidence": {
+        "sharedFiles": ["ai-developer-toolkit/plugins/ralph-overview/scripts/lib/data-edit-core.mjs"],
+        "exclusiveFiles": [
+          "ai-developer-toolkit/plugins/ralph-overview/bin/ralph-overview.mjs",
+          "ai-developer-toolkit/plugins/ralph-overview/tools/overview-mcp/src/server.ts",
+          "ai-developer-toolkit/plugins/ralph-overview/tools/overview-mcp/src/schemas.ts",
+          "ai-developer-toolkit/plugins/ralph-overview/tools/overview-mcp/src/tools/"
+        ],
+        "risk": "medium"
+      },
+      "executionModeRationale": "Bin subcommand and MCP tools touch disjoint files but the same plugin (read-only import of the core); they ship inside the single plugin version bump."
+    },
+    {
+      "name": "toolkit-projections",
+      "stories": ["US-T4"],
+      "phase": 2,
+      "dependsOn": ["toolkit-core"],
+      "fileOverlapEvidence": {
+        "sharedFiles": [],
+        "exclusiveFiles": [
+          "ai-developer-toolkit/plugins/ralph-overview/scripts/lib/emit-projections.mjs",
+          "ai-developer-toolkit/plugins/ralph-overview/scripts/lib/sync-core.mjs",
+          "ai-developer-toolkit/plugins/ralph-overview/scripts/lib/default-config.mjs"
+        ],
+        "risk": "medium"
+      },
+      "executionModeRationale": "Additive watcher output disjoint from surfaces, but same-plugin finalization keeps it serial with the rest of Job 1."
+    },
+    {
+      "name": "toolkit-hook",
+      "stories": ["US-T5"],
+      "phase": 2,
+      "dependsOn": ["toolkit-core"],
+      "fileOverlapEvidence": {
+        "sharedFiles": ["ai-developer-toolkit/plugins/ralph-overview/.github/plugin/plugin.json"],
+        "exclusiveFiles": [
+          "ai-developer-toolkit/plugins/ralph-overview/hooks/hooks.json",
+          "ai-developer-toolkit/plugins/ralph-overview/hooks/pre-tool-use-data-edit.js",
+          "ai-developer-toolkit/plugins/ralph-overview/.github/plugin/hooks.json",
+          "ai-developer-toolkit/plugins/ralph-overview/hooks/copilot-pre-tool-use-data-edit.js"
+        ],
+        "risk": "low"
+      },
+      "executionModeRationale": "Self-contained hook files. .claude-plugin/plugin.json is NOT touched (invariant #5; Claude auto-discovers hooks/hooks.json). .github/plugin/plugin.json MUST add the 'hooks' pointer field for Copilot — that overlaps toolkit-release's version bump on the same file; same-plugin serialization covers it."
+    },
+    {
+      "name": "toolkit-release",
+      "stories": ["US-T6"],
+      "phase": 3,
+      "dependsOn": ["toolkit-surfaces", "toolkit-projections", "toolkit-hook"],
+      "fileOverlapEvidence": {
+        "sharedFiles": [
+          "ai-developer-toolkit/plugins/ralph-overview/.claude-plugin/plugin.json",
+          "ai-developer-toolkit/.claude-plugin/marketplace.json",
+          "ai-developer-toolkit/.github/plugin/marketplace.json",
+          "ai-developer-toolkit/.agents/plugins/marketplace.json",
+          "ai-developer-toolkit/plugins/ralph-overview/AGENTS.md",
+          "ai-developer-toolkit/plugins/ralph-overview/CHANGELOG.md"
+        ],
+        "exclusiveFiles": [
+          "ai-developer-toolkit/plugins/ralph-overview/README.md",
+          "ai-developer-toolkit/plugins/ralph-overview/docs/extending.md"
+        ],
+        "risk": "high"
+      },
+      "executionModeRationale": "The version/marketplace/changelog chokepoint; runs last and serially — the reason Job 1 is one plugin ship."
+    },
+    {
+      "name": "codexu-adopt",
+      "stories": ["US-C1", "US-C2", "US-C3", "US-C4"],
+      "phase": 4,
+      "dependsOn": ["toolkit-release"],
+      "fileOverlapEvidence": {
+        "sharedFiles": ["AGENTS.md"],
+        "exclusiveFiles": [
+          "tools/data-edit.mjs",
+          "package.json",
+          ".ralph-overview/config.json",
+          "ai-developer-toolkit (submodule pointer)"
+        ],
+        "risk": "medium"
+      },
+      "executionModeRationale": "SEPARATE repo + SEPARATE Ralph job; cannot share a PRD with Job 1. Runs only after Job 1 is on main and the submodule pointer is bumped."
+    }
+  ]
+}

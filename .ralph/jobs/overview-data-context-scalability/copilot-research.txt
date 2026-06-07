@@ -1,0 +1,58 @@
+I’ll read the referenced prompt file first, then inspect the repo areas it points to.
+
+I found this is research-only plan analysis. I’ll inspect the ralph-overview plugin, repo tooling, and overview data paths without changing files.
+
+The feature spans codexu plus the ralph-overview submodule. I’m narrowing on the existing config/schema/load/write/MCP/watch paths and tests now.
+
+I’m checking the MCP server entrypoints, sync artifact emitters, and hook/plugin packaging surfaces to ground the recommendations precisely.
+
+I’ve confirmed the plugin has no hook today; I’m using the existing options-mode hook plugin as the local prior art for Claude/Copilot hook packaging.
+
+I need one last targeted read of hook manifests/tests and the overview schema docs to make the analysis complete.
+
+I’m checking the ralph-overview Copilot manifest path so the hook-packaging note is exact.
+
+### Codebase Architecture
+
+`codexu` is a pnpm monorepo with `ai-developer-toolkit\` as a submodule. Ralph Overview is implemented in `ai-developer-toolkit\plugins\ralph-overview\`, using npm workspaces:
+
+- `scripts\lib\*.mjs`: sync, parsing, config, derived artifacts.
+- `tools\overview-mcp\src\*.ts`: TypeScript MCP server.
+- `tools\overview-viewer\src\*.ts(x)`: React 19 + Vite dashboard.
+- Consumer data/config live in codexu at `.ralph-overview\data.json` and `.ralph-overview\config.json`.
+- Codexu invokes the plugin through `bin\ralph-overview.mjs`, a resolver wrapper that forwards to the plugin dispatcher.
+
+Generated overview artifacts are emitted under `.ralph-overview\generated\`, mainly by `scripts\lib\sync-core.mjs::writeSidecar()`.
+
+### Feature-Relevant Code
+
+Key integration points:
+
+- Data parsing/config: `scripts\lib\parse-overview-data.mjs`, `scripts\lib\resolve-config.mjs`, `scripts\lib\default-config.mjs`.
+- Atomic writes: `scripts\lib\atomic-write.mjs`.
+- Sync/projection emission: `scripts\lib\sync-core.mjs`, `scripts\lib\emit-derived-artifacts.mjs`, `scripts\lib\emit-snapshot.mjs`.
+- MCP registration: `tools\overview-mcp\src\server.ts`, `schemas.ts`, `context.ts`, existing tools under `tools\overview-mcp\src\tools\`.
+- Validation schema: `tools\overview-mcp\src\tools\validate-data-schema.ts`; viewer shape mirror: `tools\overview-viewer\src\types.ts`.
+- Hook prior art: `plugins\options-mode\hooks\hooks.json`, `.github\plugin\hooks.json`, and `hooks\copilot-pre-tool-use.js`.
+- Docs needing updates: root `AGENTS.md`, `ai-developer-toolkit\plugins\ralph-overview\README.md`, `docs\extending.md`, plugin `AGENTS.md`.
+
+Ralph Overview currently has no hooks, and its Copilot manifest `.github\plugin\plugin.json` lacks a `hooks` field.
+
+### Technical Constraints
+
+Do not use `loadOverviewData()` for write-side edits if surgical diffs matter: it normalizes legacy fields and could rewrite unrelated tasks. Use `parseOverviewDataJson()` for source-preserving mutations, then validate invariants.
+
+If new output paths are config-driven, update `default-config.mjs`, `resolve-config.mjs`, templates/schema, and codexu `.ralph-overview\config.json`; otherwise keep fixed defaults under `.ralph-overview\generated\`.
+
+MCP TypeScript already imports shared `.mjs` helpers from `scripts\lib\`; follow that pattern and add typings if TypeScript needs them. Plugin changes require version/marketplace sync across manifests.
+
+### Implementation Suggestions
+
+Put the shared mutation engine in the plugin, e.g. `scripts\lib\data-edit.mjs`, and expose it through both MCP tools and a CLI subcommand. Add codexu `tools\data-edit.mjs` only as a thin wrapper around `node bin\ralph-overview.mjs data-edit --repo .` so MCP and CLI remain bit-identical.
+
+Use file/stdin JSON for large values: `upsert-task --json`, `mark-shipped --summary-file`, `set-prompts --plan-file`, etc. Add a lock around read-mutate-write to avoid lost updates, then use existing `atomicWriteFile()`.
+
+Emit `active-tasks.json` and `summary-projection.json` from the existing `writeSidecar()` path via `emit-derived-artifacts.mjs`. For stripped fields, prefer an explicit marker like `{ "stripped": true, "approxBytes": N }` over omission so consumers can detect projection semantics.
+
+For hooks, add Claude `hooks\hooks.json` PreToolUse and Copilot `.github\plugin\hooks.json`, inspecting edit/apply-patch/shell payloads for `.ralph-overview\data.json` unless the command is the approved helper. A pre-commit check would be a useful backstop because hooks cannot catch external editor edits.
+

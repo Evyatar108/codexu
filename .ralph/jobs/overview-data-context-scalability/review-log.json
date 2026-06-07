@@ -1,0 +1,112 @@
+[
+  {
+    "iteration": 1,
+    "finding_id": "F-001",
+    "duration_s": 82,
+    "status": "fixed",
+    "summary": "Removed the `plugin.json` hooks-decl modification across the Files-to-Create/Modify table, US-T5 story, and toolkit-hook cluster; clarified that Claude PreToolUse is auto-discovered from `hooks/hooks.json` per ralph-overview invariant #5 and options-mode prior art.",
+    "openFindingsBefore": [
+      "F-001",
+      "F-002",
+      "F-003",
+      "F-004",
+      "F-005",
+      "F-006"
+    ],
+    "openFindingsAfter": [
+      "F-002",
+      "F-003",
+      "F-004",
+      "F-005",
+      "F-006"
+    ],
+    "agentExitCode": 0,
+    "timestamp": "2026-06-07T18:23:37Z"
+  },
+  {
+    "iteration": 2,
+    "finding_id": "F-002",
+    "duration_s": 121,
+    "status": "fixed",
+    "summary": "Amended Approach §5, Files to Modify, US-T5, and toolkit-hook cluster to require adding the `\"hooks\": \".github/plugin/hooks.json\"` field to `.github/plugin/plugin.json` (Copilot CLI requires the manifest pointer; options-mode is the precedent) and documented the Copilot edit-tool best-effort caveat per options-mode v0.16.4.",
+    "openFindingsBefore": [
+      "F-002",
+      "F-003",
+      "F-004",
+      "F-005",
+      "F-006"
+    ],
+    "openFindingsAfter": [
+      "F-003",
+      "F-004",
+      "F-005",
+      "F-006"
+    ],
+    "agentExitCode": 0,
+    "timestamp": "2026-06-07T18:25:38Z"
+  },
+  {
+    "iteration": 3,
+    "finding_id": "F-003",
+    "duration_s": 104,
+    "status": "fixed",
+    "summary": "Amended C-3 to specify the parity test location (plugin-local `__tests__/data-write-roundtrip.test.ts`), require subprocess CLI invocation (`spawnSync` on `node bin/ralph-overview.mjs data-edit ...`) AND in-process MCP handler invocation against two separate fixture copies, byte-diff via `Buffer.equals`, and explicitly forbid satisfying the test by calling the shared core lib twice.",
+    "openFindingsBefore": [
+      "F-003",
+      "F-004",
+      "F-005",
+      "F-006"
+    ],
+    "openFindingsAfter": [
+      "F-004",
+      "F-005",
+      "F-006"
+    ],
+    "agentExitCode": 0,
+    "timestamp": "2026-06-07T18:27:22Z"
+  },
+  {
+    "iteration": 4,
+    "finding_id": "F-004",
+    "duration_s": 123,
+    "status": "fixed",
+    "summary": "Re-scoped C-6 and US-C4 to a deterministic helper-driven dry-run against a fixture copy of data.json (set-lifecycle + mark-shipped for two fixture ids, recorded transcripts + JSON.parse smoke + AGENTS.md operational-practice doc); explicitly deferred the two real-task operator-in-the-loop ships to a separately filed follow-up adoption task, and updated In Scope, Out of Scope, and the resolved-decisions Adoption-gate note to match.",
+    "openFindingsBefore": [
+      "F-004",
+      "F-005",
+      "F-006"
+    ],
+    "openFindingsAfter": [
+      "F-005",
+      "F-006"
+    ],
+    "agentExitCode": 0,
+    "timestamp": "2026-06-07T18:29:26Z"
+  },
+  {
+    "iteration": 5,
+    "finding_id": "F-005",
+    "duration_s": 95,
+    "status": "fixed",
+    "summary": "Rewrote C-5 to explicitly assert the three engine-aware hook wirings (Claude hooks/hooks.json PreToolUse, Copilot .github/plugin/plugin.json hooks field, Copilot .github/plugin/hooks.json preToolUse) and to specify a plugin-local unit test that spawns each hook script with a synthetic data.json edit payload and asserts the block/deny JSON plus the data-edit helper invocation substring.",
+    "openFindingsBefore": [
+      "F-005",
+      "F-006"
+    ],
+    "openFindingsAfter": [
+      "F-006"
+    ],
+    "agentExitCode": 0,
+    "timestamp": "2026-06-07T18:31:01Z"
+  },
+  {
+    "phase": "soft-cap",
+    "iteration": 6,
+    "openMediumCount": 1,
+    "openCount": 1,
+    "severities": {
+      "Medium": 1
+    },
+    "timestamp": "2026-06-07T18:31:01Z"
+  }
+]

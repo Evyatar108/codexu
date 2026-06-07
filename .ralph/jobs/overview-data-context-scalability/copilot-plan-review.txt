@@ -1,0 +1,36 @@
+I’ll read the referenced prompt file first, then carry out the requested work end-to-end.
+
+The prompt is long, so I’ll read it in sections to extract the exact task and constraints.
+
+I’ve got the plan context; I’ll read the remaining story/criteria details before reviewing it against the codebase.
+
+I’ll verify the plan’s referenced files and integration points now, focusing on whether the proposed surfaces match the actual plugin and codexu layout.
+
+I’ll inspect the remaining plugin mechanics that could affect feasibility: config merging, derived artifact emission, existing locks, MCP tool patterns, and hook packaging.
+
+I’ll do one more focused pass on manifest/hook schemas and codexu config before producing the review findings.
+
+The main review issues are now clear: the plan’s hook-manifest wiring conflicts with the actual plugin packaging, and one acceptance criterion is not autonomously verifiable as written.### Feasibility
+
+- **[Critical]** The plan says to modify `plugins/ralph-overview/.claude-plugin/plugin.json` for “version + hooks,” but `plugins/ralph-overview/AGENTS.md` invariant #5 says that manifest shape is canonical and limited to `{ name, description, version, author, keywords }`. Existing hook plugins use root `hooks/hooks.json` for Claude and `.github/plugin/plugin.json` with `"hooks": ".github/plugin/hooks.json"` for Copilot, e.g. `plugins/options-mode/`. Adding hook declarations to `.claude-plugin/plugin.json` would violate a repo rule and may not be loaded.
+
+- **[High]** The Copilot hook wiring is incomplete. `plugins/ralph-overview/.github/plugin/plugin.json` currently has no `"hooks"` field, while `plugins/options-mode/.github/plugin/plugin.json` declares `"hooks": ".github/plugin/hooks.json"`. Creating `.github/plugin/hooks.json` alone will not make Copilot load the PreToolUse hook.
+
+### Completeness
+
+- **[High]** C-6 requires “two real ship updates” with “operator-in-the-loop approval.” That is not a deterministic implementation acceptance criterion for an autonomous Ralph job, and it depends on external task availability/operator timing. Split it into a post-implementation adoption task or replace with fixture/dry-run evidence plus one manual follow-up.
+
+### Ordering
+
+No issues found. The toolkit-first, codexu-second split matches the submodule/two-repo constraints.
+
+### Simplicity
+
+No issues found. A shared plugin-owned mutation core reused by CLI and MCP is the right integration point.
+
+### Acceptance Criteria Quality
+
+- **[High]** C-5 says “hook fires” for Claude and Copilot, but the plan does not specify the actual manifest/config files needed for each engine. Update AC/tests to assert Claude root `hooks/hooks.json`, Copilot `.github/plugin/plugin.json::hooks`, and `.github/plugin/hooks.json` are all wired.
+
+- **[Medium]** C-6’s “no edit-anchor regression” is vague unless measured by git/tool evidence. Require captured helper command transcripts or test artifacts showing the helper performed the two updates and `data.json` parsed with no manual edit fallback.
+
