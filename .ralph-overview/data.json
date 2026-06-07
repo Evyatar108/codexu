@@ -5228,6 +5228,26 @@
           }
         ]
       }
+    },
+    {
+      "id": "crews-member-stalled-needs-attention-nudge",
+      "scope": "crews",
+      "status": "warn",
+      "lifecycle": "tracked",
+      "lastTouchedAt": "2026-06-07",
+      "command": {
+        "descriptionHtml": "Detect a STALLED crews member (pidAlive + listener heartbeat FRESH but agent-turn observability lastTurnAt/lastSeq FROZEN past a threshold) and respond with a gentle auto-nudge. DISTINCT from the hard-crash member-crashed notify (crews-member-crash-auto-notify-lead, scoped by the operator to high-confidence hard-dead only). Motivated by the 2026-06-07 incident: impl-adapter went ~9h dark (it had ended a turn on a progress checkpoint and idled; getMemberHealth classifies that 'alive'/'quiet', NOT 'dead'). THE HARD PROBLEM is false positives: a healthy member waiting on its armed listener looks identical to a stall. Deferred out of the crash-notify v1 as a separate feature per operator decision 2026-06-07.",
+        "prompts": {
+          "brainstorm": "/brainstorm-with-ralph \"Design member-needs-attention: detect a STALLED crews member and respond with a gentle auto-nudge, distinct from the hard-crash member-crashed notify (crews-member-crash-auto-notify-lead, which the operator scoped to high-confidence hard-dead only). The stalled case (observed 2026-06-07: impl-adapter went ~9h dark): pidAlive=true + listener heartbeat FRESH + agent-turn observability (lastTurnAt/lastSeq) FROZEN past a threshold; getMemberHealth classifies this alive/quiet, NOT dead. THE HARD PROBLEM is false positives: a healthy member legitimately waiting on its armed listener for the next message looks IDENTICAL to a stall (fresh listener heartbeat, frozen lastTurnAt, zero queued mail, no active tool); long legit builds/tool-calls freeze lastTurnAt for hours; the health module is engine-agnostic and cannot see active-tool state. DESIGN QUESTIONS: (1) the detection signal + threshold (lastTurnAt age) + an explicit HEALTHY-IDLE carve-out [e.g. listenerState===armed AND queuedMailboxCount===0 AND lastKind!==progress AND no active bg subprocess]; (2) the RESPONSE -- a gentle auto-nudge [append a poke envelope to wake the member's OWN listener, like the lead's manual nudge that revived impl-adapter] vs a member-stalled notify to the lead vs both; (3) whether the nudge is automatic or lead-confirmed; (4) a new member-stalled/member-needs-attention envelope kind + a generation-scoped latch [reuse the crash-notify task's latch design]; (5) default-off vs default-on [recommend default-off given the false-positive risk]. Reference: hooks/health.js, the v3.5.1 Copilot turn-observability manifest fields [lastTurnAt/lastKind/lastSeq], hooks/detect-active-bg.js [active-tool signal], and the sibling crews-member-crash-auto-notify-lead brainstorm.\""
+        },
+        "warnings": []
+      },
+      "kanbanCards": [
+        {
+          "className": "cmd-warn",
+          "html": "Filed 2026-06-07 by bookkeeper as the DEFERRED stalled/idle half of crews-member-crash-auto-notify-lead (operator scoped crash-notify v1 to hard-dead only). The 9h-dark case (impl-adapter: pidAlive + heartbeat-fresh + lastTurnAt-frozen) is a false-positive minefield: a healthy member waiting on its listener is indistinguishable from a stall. Needs a healthy-idle carve-out + a gentle auto-nudge (not a crash page) + default-off. Brainstorm-ready."
+        }
+      ]
     }
   ],
   "phaseTree": [
