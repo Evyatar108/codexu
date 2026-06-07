@@ -1,0 +1,40 @@
+{
+  "brainstormName": "crews-member-stalled-needs-attention-nudge",
+  "overviewTaskId": "crews-member-stalled-needs-attention-nudge",
+  "idea": "Design member-needs-attention: detect a STALLED crews member (pidAlive + heartbeat-fresh + lastTurnAt frozen past a long threshold, classified alive/quiet NOT dead) and respond, distinct from the hard-crash member-crashed notify (crews-member-crash-auto-notify-lead, scoped to high-confidence hard-dead only). The deferred stalled/idle half. The hard problem is false positives: a healthy member waiting on its armed listener looks identical to a stall. Design the detection signal + threshold + healthy-idle carve-out, the response (auto-nudge vs lead-notify vs both), automatic-vs-confirmed, a new envelope kind + generation-scoped latch, and default-off-vs-on.",
+  "availableLenses": ["codex", "copilot", "devils-advocate"],
+  "missingLenses": [],
+  "candidateDirections": [
+    {
+      "id": "D-001",
+      "name": "Lead-only stalled-progress notification",
+      "summary": "Ride the crash-notify sweep substrate; on the high-precision progress-stall signature (lastKind==='progress' + frozen lastTurnAt + pidAlive + fresh heartbeat + listenerState armed + queuedMailboxCount 0 + unreviewedReviewRequired 0 + no active bg) past a long configurable threshold, append a new member-needs-attention system envelope to the LEAD mailbox (review-required + strict-ack-exempt, modeled on member-left). The lead decides whether to nudge. Lowest blast radius: a false notify is cheap, no automatic member action. Default-off, gated behind a mandatory dry-run + 2026-06-07 incident replay before any live write.",
+      "contributingLenses": ["codex", "copilot", "devils-advocate"]
+    },
+    {
+      "id": "D-002",
+      "name": "Escalating nudge-then-notify",
+      "summary": "On the same signature, first append a gentle poke envelope to the member's OWN mailbox to wake its armed listener (the manual nudge that revived impl-adapter); if lastTurnAt has not advanced after a SECOND threshold, escalate to a member-needs-attention lead notification. One automatic poke per frozen turn. Risks: loop (poke -> progress checkpoint -> re-arm -> poke) so the latch must key on lastTurnAt/lastSeq; a false poke burns a healthy member's turn; the poke text must not be misread as substantive lead instructions. Validate the poke as a manual command first.",
+      "contributingLenses": ["codex", "copilot", "devils-advocate"]
+    },
+    {
+      "id": "D-003",
+      "name": "Prevent the ambiguous progress-idle state at the source (explicit progress-state contract)",
+      "summary": "Reframe: fix the root cause instead of detecting it hours later. Either (a) strengthen the Stop-time progress-without-bg discipline cross-engine (progress valid only with provable active bg work or an explicit wait primitive, else report question/done/blocked), or (b) add an explicit manifest field (expectedNextActor / progressDisposition) written by Stop/turn-observability so 'is this a stall?' is a lookup not a guess. Cross-engine parity is the blocker (detect-active-bg is Copilot-only); bigger lift; worth a parallel/longer-horizon track.",
+      "contributingLenses": ["copilot", "devils-advocate"]
+    }
+  ],
+  "recommendedDirection": "D-001",
+  "questionsForSynthesis": [
+    "Is lastKind==='progress' the primary stall signature (all three lenses converged on it, inverting the seed's naive carve-out since the incident ended ON a progress checkpoint), or one weighted signal among several? A dry-run over existing manifests/crews.log answers this.",
+    "What threshold would have caught the 9-hour incident without flagging ordinary long-running implementation sessions? Single threshold or per-engine (longer for engines where active-bg is 'unknown')?",
+    "Active-bg as a three-valued signal (yes/no/unknown) since detect-active-bg.js is Copilot-only/transcript-dependent: is 'no active bg' a hard requirement for ANY action, or only for auto-nudge while a lead notification tolerates 'unknown'? Safe behavior for Claude/Codex when unknown = notify-only + longer threshold, never auto-nudge.",
+    "Response choice: lead-notify-only (D-001), escalating auto-nudge (D-002), or both? Is any automatic member-mailbox poke acceptable, or must every intervention be lead-confirmed?",
+    "Envelope semantics: one member-needs-attention kind (review-required AND strict-ack-exempt like member-left), or two kinds (lead notification vs member-mailbox poke)? Exact kindEnum + DEFAULT_REVIEW_KINDS + ACK_EXEMPT_KINDS decisions.",
+    "Dedupe generation key + reset wiring: {memberName, crew, sessionId/takeoverAt, lastTurnAt, lastSeq/lastObservedAssistantMessageId, reason} — reset on lastTurnAt advance, repairManifestForResume, and clear-member, but NOT on every heartbeat.",
+    "Prerequisite: getMemberHealth returns lastTurnAt but NOT lastKind/lastSeq today (verified hooks/health.js:90) — extend getMemberHealth to surface them, or read the manifest directly in the sweeper?",
+    "Default-off mechanism (env var, crew setting, or both) and the dry-run/replay acceptance criterion: prove the predicate fires exactly once on the 2026-06-07 incident and zero times on healthy-idle and hard-dead members.",
+    "If D-002: exact member-mailbox poke wording that wakes the armed listener and makes the model re-check its own state without misreading it as substantive lead instructions or starting unrelated work.",
+    "Sequencing: this depends on crews-member-crash-auto-notify-lead (shared sweep/latch/envelope substrate) — land behind it, or fold the shared substrate into this task?"
+  ]
+}
