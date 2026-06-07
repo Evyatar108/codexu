@@ -1,0 +1,50 @@
+{
+  "brainstormName": "codex-ralph-member-multi-agent-adapter",
+  "overviewTaskId": "codex-ralph-member-multi-agent-adapter",
+  "idea": "Make codex-engine ralph members run NON-degraded multi-lens brainstorm/review by extending the EXISTING harness-aware tool-mention seam (the build-time generate-copilot-artifacts.mjs generator) to a third harness (codex), emitting codex's native spawn_agent/followup_task/wait_agent/list_agents plus when-to-delegate guidance instead of Claude Task / Copilot task. Operator-directed; NOT a bespoke runtime adapter. Use only the codex 0.135 surface.",
+  "availableLenses": ["codex", "devils-advocate"],
+  "missingLenses": [
+    {"lens": "copilot", "reason": "deliberately skipped for resource-safety: copilot-exec --read-only byte-snapshots both submodule trees into memory; concurrent runs are the likely r1/r2 resource-death cause, and the product/adoption lens is least decision-relevant for an internal-tooling plumbing change"}
+  ],
+  "candidateDirections": [
+    {
+      "id": "D-001",
+      "name": "Codex generated target emitting an explicit spawn->trigger->wait->collect recipe, gated by a result-retrieval spike",
+      "summary": "Add a third (codex) target to ralph-orchestration's build-time generator that lowers one Agent() call into a spawn->followup_task->wait_agent->collect->validate-JSON->close recipe with fail-hard handling + injected when-to-delegate guidance; plugin-side only, target v2, gated on D-003.",
+      "contributingLenses": ["codex", "devils-advocate"]
+    },
+    {
+      "id": "D-002",
+      "name": "Engine-neutral delegation macro/helper expanded per harness, with per-engine contract tests",
+      "summary": "Replace the ad-hoc per-call regex with a named engine-neutral delegation construct in the canonical source that the generator lowers per harness (Claude/Copilot/codex), backed by per-engine contract tests; the proper long-term anti-drift shape but XL and touches canonical Claude prose.",
+      "contributingLenses": ["codex", "devils-advocate"]
+    },
+    {
+      "id": "D-003",
+      "name": "Disposable multi_agent_v2=true result-retrieval spike before any generator change (prerequisite gate)",
+      "summary": "Cheaply validate the single load-bearing unknown: can a parent codex 0.135 v2 member spawn 2-3 children, wait, retrieve each FULL final answer as JSON using only model-visible tools, handle one timeout by failing hard, and close them? Go/no-go gate for D-001.",
+      "contributingLenses": ["devils-advocate"]
+    },
+    {
+      "id": "D-004",
+      "name": "Keep codex out of Ralph orchestration; treat it as target-runtime + specialist worker only (null option)",
+      "summary": "Run Ralph fan-out under Claude/Copilot (which already provide the synchronous contract) and spawn codex only for codex-specific execution; pursue quality parity, not native per-engine phase parity. Preserves a visible degraded gap but avoids async/v1-v2/orphan-cleanup/drift complexity.",
+      "contributingLenses": ["devils-advocate"]
+    },
+    {
+      "id": "D-005",
+      "name": "Hand-author codex skill/agent variants beside Claude/Copilot (stopgap)",
+      "summary": "Fastest path to some codex multi-lens for narrow brainstorm/review skills without touching the generator, but creates immediate parity drift with no generator gate; rejected if more than a couple of fan-out sites exist.",
+      "contributingLenses": ["codex"]
+    }
+  ],
+  "recommendedDirection": "D-001",
+  "questionsForSynthesis": [
+    "Can codex 0.135 expose each child's FULL final answer to the parent through model-visible tools (list_agents / message stream), or does reliable collection require app-server/event-stream code outside the prompt? (gating unknown -> D-003)",
+    "v1 vs v2 target: ship v2-only (features.multi_agent_v2=true, cleaner followup_task/list_agents) coordinated with codex-engine-ralph-member-enablement, or also support stock v1?",
+    "Where is features.multi_agent_v2 set and verified for spawned codex Ralph members (happy-cli buildThreadConfig() vs ~/.codex/config.toml)?",
+    "Will generated Ralph instructions count as the explicit user request that codex v1's spawn gate requires, or must the design mandate v2 to escape v1's suppression?",
+    "On child timeout / malformed JSON / task-name collision / orphaned agents: fail the Ralph phase, retry, or allow partial synthesis? (the recipe must specify fail-hard vs mark-missing)",
+    "Should the generator stay a per-target regex translator (D-001) or graduate to an engine-neutral delegation macro with contract tests (D-002), and can the canonical Claude source tolerate macro syntax without losing plain-markdown readability?"
+  ]
+}
