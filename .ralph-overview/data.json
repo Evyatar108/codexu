@@ -88,8 +88,8 @@
     {
       "id": "codex-engine-ralph-member-enablement",
       "scope": "crews",
-      "lifecycle": "tracked",
-      "status": "warn",
+      "lifecycle": "merged",
+      "status": "ok",
       "lastTouchedAt": "2026-06-07",
       "kanbanCards": [
         {
@@ -103,6 +103,10 @@
         {
           "className": "cmd-ok",
           "html": "Plan shipped 2026-06-07 @ aebc2755 (topic b1a15cd0) &mdash; 6 serial stories; Phase 4 converged (Claude+Copilot lenses; codex reviewer skipped on a live codex-exec hang; 9 findings fixed). <b>Spike corrections vs seed:</b> ralph-orchestration is <i>installed @5.50.0</i> (stale, NOT absent); crews launcher fix already shipped (3.12.0); ralph <code>.sh</code> bash-orientation is stale (v5.46 went pure-Node, no jq at runtime). <b>Real blocker</b> = codex harness-primitive parity: no <code>.codex-plugin</code> ralph overlay + 3 missing primitives (skill chaining, typed subagents, streaming bg output; see codex/tasks/prd-plugin-parity-skill-agent-streaming.md). Two remediation tracks: A = extend generate-copilot-artifacts.mjs to emit a .codex-plugin ralph overlay; B = implement the codex parity PRD."
+        },
+        {
+          "className": "cmd-ok",
+          "html": "Spike SHIPPED 2026-06-07 @ 280f55ab (findings 94d01db0). <b>VERDICT: a codex-engine member CAN see + run ralph skills TODAY</b> (the v5.53/5.54 .codex-plugin overlay + cache refresh closed the enablement gap; original no-overlay premise is OBE). Live: 15 ralph skills enumerated; brainstorm-with-ralph ran end-to-end under codex (246s, exit 0); multi_agent_v2 fan-out 58.7s no hang; crews codex hooks fire. Remaining gaps = quality/parity (Track B PRD F1/F2/F3), degraded NOT broken. Track A already shipped. Feeds the codex-as-member-engine readiness chain."
         }
       ],
       "command": {
@@ -113,6 +117,23 @@
           "plan": "/plan-with-ralph \"Enable and validate codex-engine crews members running real ralph workflows. Today a member spawned with --engine codex registers (crews is installed in codex via the local-source ai-developer-toolkit marketplace, currently v3.6.2) but CANNOT run /plan-with-ralph, /brainstorm-with-ralph, or /implement-with-ralph because ralph-orchestration is NOT installed in codex (codex plugin list 2026-06-06: ralph-orchestration + ralph-overview 'not installed'; only crews). STEPS: (1) Install ralph-orchestration in codex from the LOCAL-SOURCE marketplace: codex plugin install ralph-orchestration@ai-developer-toolkit (local-source is immune to the codex git-marketplace auto-upgrade corruption bug — NEVER use a git-source marketplace for this; see .ralph/investigations/codex-git-marketplace-snapshot-tmp-ephemeral). Install ralph-overview too if members need the overview MCP tools. (2) Refresh codex's crews install to current (local-source cache is stale at 3.6.2 vs source 3.6.6) — determine the correct reinstall/upgrade command for a local-source marketplace. (3) Verify the codex member sees the ralph skills (system/init slash_commands or a dry-run). (4) VALIDATE end-to-end: spawn a codex-engine crews member running a SMALL real ralph workflow (a /brainstorm-with-ralph or a tiny /plan-with-ralph on a throwaway task) and confirm it completes + reports back via crews to the lead. (5) DOCUMENT what works and what breaks on codex/Windows: ralph bash-orientation (ralph.sh, review-loop.sh, jq), skill loading, codex-exec/copilot-exec lens invocation from INSIDE a codex member (recursion), MCP availability, worktree handling, listener/Stop-hook behavior under codex. ACCEPTANCE: a codex-engine member completes a real ralph phase end-to-end, OR the blockers are enumerated with root causes and a remediation path. Produce a findings doc. This spike de-risks codex-engine ralph members and feeds the crews-target-engine-plugin-provisioning automation design.\"",
           "impl": "/implement-with-ralph --from-plan .ralph/jobs/codex-engine-ralph-member-enablement/plan.md --autonomous \"Refresh-stale codex plugin caches from the LOCAL-SOURCE ai-developer-toolkit marketplace (ralph-orchestration 5.50.0->current, crews 3.6.2->3.12.0, install ralph-overview), then run the 6 serial stories: US-001 refresh cache -> US-002 fresh-thread skill-advertisement capture (evidence via cache version subdirs + ~/.codex/config.toml, NOT codex plugin list) -> US-003 primitive-free crews codex member lifecycle smoke (NO ralph) -> US-004 /brainstorm-with-ralph attempt -> US-005 tiny /plan-with-ralph degradation probe (10-min hard timebox) -> US-006 findings.md + cleanup. CRITICAL: ralph has NO .codex-plugin overlay and codex lacks 3 harness primitives (skill chaining, typed subagents, streaming bg output; codex/tasks/prd-plugin-parity-skill-agent-streaming.md) so the end-to-end ralph-under-codex goal is EXPECTED to degrade -- produce a findings doc + remediation path EITHER WAY (track A: extend generate-copilot-artifacts.mjs to emit a .codex-plugin ralph overlay mirroring crews; track B: codex parity PRD). If the interactive wt.exe codex-TUI member spawn is not autonomously driveable, record the blocker and STOP (no silent hang). Delete throwaway .ralph/jobs|.ralph/brainstorms artifacts before final commit; final diff = findings doc only. No plugin version bump expected (spike). codexu root CLAUDE.md is gitignored -- do NOT git add it.\""
         }
+      },
+      "shipManifest": {
+        "shippedAt": "2026-06-07",
+        "summary": "Validation spike COMPLETE (findings.md @ 94d01db0, merged to codexu 280f55ab). HEADLINE: a codex-engine crews member CAN now both SEE and RUN ralph skills, because ralph v5.53.0 (.codex-plugin overlay + codex-lowering.mjs generator) + v5.54.0 (codex-exec pipe-deadlock fix) shipped this session - the original plan premise (no overlay -> hard degrade) is OBE. Validated live: a fresh codex exec session enumerated all 15 ralph-orchestration:* skills and answered brainstorm/plan/implement = YES; brainstorm-with-ralph ran end-to-end under codex through Phase 4 (246s, exit 0, correct artifacts, no tool step failed); the codex multi_agent_v2 fan-out primitive fired SpawnAgent->Wait->CloseAgent in 58.7s no hang; all 4 crews codex hook events fired. Plugin cache refresh from the local-source marketplace WORKS (post: crews 3.12.1, ralph 5.54.0, ralph-overview 2.10.0).",
+        "notes": "REMAINING GAPS are quality/parity, NOT enablement (degraded not broken): Track B PRD codex/tasks/prd-plugin-parity-skill-agent-streaming.md - F1 skill-chaining (no codex invoke_skill; overlay chains by inline prose-read = no sub-turn isolation), F2 typed-subagents (no codex subagent_type registry; lenses run as GENERIC spawns, not tool-restricted/model-selected per type), F3 streaming-bg-output (not used by ralph bodies; affects crews-listener real-time delivery). Track A (overlay) ALREADY SHIPPED - no further Track-A needed for basic operation. NOT live-validated: full 3-lens brainstorm/plan fan-out under codex (minimal mode used to bound cost/hang), and plan/implement-with-ralph live runs (characterized analytically; lean harder on F1 chaining). The interactive --engine codex crews MEMBER spawn (wt.exe TUI + lead authority) was NOT autonomously driveable from an impl-member probe (STOP-gate per plan contract); indirectly validated by crews v3.6.4/v3.6.6 ships + live codex hook firing. READINESS: codex-as-member-engine is FEASIBLE today (degraded); remaining prereqs = crews-target-engine-plugin-provisioning (auto-provision), codex-git-marketplace-snapshot-tmp-ephemeral (stable install), ralph-codex-iteration-engine-runaway-spawn-guard (the Collab runaway), and optionally Track B for full parity.",
+        "commits": [
+          {
+            "sha": "94d01db0",
+            "oneLine": "docs(spike): codex-engine ralph member enablement findings",
+            "repo": "codexu"
+          },
+          {
+            "sha": "280f55ab",
+            "oneLine": "docs(spike): FF findings to main",
+            "repo": "codexu"
+          }
+        ]
       }
     },
     {
