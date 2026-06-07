@@ -22,7 +22,7 @@ Agent-readable Ralph pipeline state is emitted as `.ralph-overview/generated/ral
 <!-- BEGIN: active-plugin-versions -->
 | Plugin | Pinned version | Source |
 |---|---:|---|
-| `ralph-overview` | `2.9.0` | `ai-developer-toolkit/plugins/ralph-overview/.claude-plugin/plugin.json` |
+| `ralph-overview` | `2.10.0` | `ai-developer-toolkit/plugins/ralph-overview/.claude-plugin/plugin.json` |
 | `crews` | `3.10.0` | `ai-developer-toolkit/plugins/crews/.claude-plugin/plugin.json` |
 | `ralph` (`ralph-orchestration`) | `5.52.0` | `ai-developer-toolkit/plugins/ralph/.claude-plugin/plugin.json` |
 <!-- END: active-plugin-versions -->
