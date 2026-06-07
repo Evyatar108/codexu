@@ -5122,6 +5122,46 @@
           }
         ]
       }
+    },
+    {
+      "id": "ralph-codex-exec-lens-hang-instrumentation",
+      "scope": "ralph",
+      "status": "warn",
+      "lifecycle": "tracked",
+      "lastTouchedAt": "2026-06-07",
+      "command": {
+        "descriptionHtml": "ralph's codex-exec research/review lens spawns <code>codex exec</code> which HANGS (~20min, no stdout, orphaned codex.exe) on this Windows box when invoked from inside a Copilot ralph member. DISTINCT from the merged fast-ENOENT-~800ms spawn fix (ralph-orchestration-codex-exec-windows-spawn) — here the process spawns fine but never produces output or exits. Hit 3x in one batch (2026-06-07: plan-codex-engine research lens + Phase-4 codex reviewer; plan-ovdata research lens), each forcing a lens-skip that degrades plan/brainstorm quality. The ~300s lens timeout did NOT kill the subtree (orphan left behind). INSTRUMENTATION-FIRST: add the diagnostics needed to capture the root cause before attempting any fix.",
+        "prompts": {
+          "brainstorm": "/brainstorm-with-ralph \"Find the root cause of the codex-exec research/review lens HANG on Windows (codex 0.135), invoked from inside a Copilot ralph member: codex exec spawns but produces NO stdout, never exits, leaves an orphaned codex.exe, and the ~300s lens timeout fails to reap it. Hit 3x on 2026-06-07. This is INSTRUMENTATION-FIRST: enumerate and weigh which instrumentation gives the highest root-cause signal at lowest cost, then recommend the cheapest high-signal set. Candidate instrumentation: (1) at lens start, log the EFFECTIVE codex config layering (which .codex/config.toml files merged: repo-layer at git root + ~/.codex/config.toml user-layer) AND the resolved MCP server list + per-server connect outcomes; (2) tee codex-exec stdout+stderr to a per-lens sidecar (.ralph/jobs/<id>/lenses/codex-exec-<ts>.{out,err}) and set RUST_LOG / codex trace so we can see WHERE it blocks (MCP connect vs model request vs sandbox/approval prompt vs stdin wait); (3) on lens timeout, BEFORE killing, snapshot the codex.exe process subtree + its open TCP connections (Get-NetTCPConnection -OwningProcess) to the sidecar, THEN hard-kill the subtree (taskkill /T) so no orphan remains, and record the kill. Candidate ROOT-CAUSE hypotheses to confirm/refute with the instrumentation: (a) LEADING: a down/slow MCP server in the merged codex config blocks codex's first-turn list_tools (prior art: codex-down-mcp-startup-behavior-0135 — a tracked codexu/.codex/config.toml down MCP server caused an rmcp worker.rs:128 ERROR + first-turn block on every codex exec; that one was removed, but another may exist or have returned); (b) codex exec waiting on stdin / an interactive approval the non-interactive lens cannot answer; (c) sandbox/add-dir guard analog blocking before session start. DELIVERABLES: recommended instrumentation set + where in ralph's codex-exec lens path it lands, the reproduction recipe, and which hypothesis the evidence points to. Identify whether codex-exec.mjs already captures the subprocess stderr (the 'no output' report may be a capture gap, not a true silence). Does NOT need to ship the final fix — it de-risks it by producing root-cause evidence.\""
+        },
+        "warnings": []
+      },
+      "kanbanCards": [
+        {
+          "className": "cmd-warn",
+          "html": "Filed 2026-06-07 by bookkeeper after the codex-exec lens hung 3x in one batch (plan-codex-engine research + Phase-4 reviewer; plan-ovdata research), each forcing a lens-skip. codex exec spawns but HANGS (~20min, no stdout, orphaned codex.exe); the ~300s timeout did not reap the subtree. Operator direction: instrumentation-FIRST to find root cause. Leading hypothesis: a down/slow MCP server in the merged .codex/config.toml blocks first-turn list_tools (prior art: codex-down-mcp-startup-behavior-0135). Distinct from merged ralph-orchestration-codex-exec-windows-spawn (that was fast ENOENT, not a hang)."
+        }
+      ]
+    },
+    {
+      "id": "crews-lead-reply-to-consumed-inbox-envelope",
+      "scope": "crews",
+      "status": "warn",
+      "lifecycle": "tracked",
+      "lastTouchedAt": "2026-06-07",
+      "command": {
+        "descriptionHtml": "crews lead <code>reply-to=&lt;consumed-inbox-envelope-id&gt;</code> throws <code>ReplyToNotFoundError</code> for a member's proactive <code>kind=question</code> report. <code>resolveReplySource</code> (hooks/mailbox.js:358-376, lead branch) resolves reply-to ONLY against the lead's own send-history + member outboxes, NEVER the lead's consumed mailbox-history. Yet <code>review-mail</code> advertises the mailbox-envelope <code>id</code> as the 'actionable ack/reply id' (v2 protocol note). So the surfaced id is <code>ack</code>-able (STRICT-ACK matches consumed mailbox-history) but NOT <code>reply-to</code>-able — except AskUserQuestion-routed <code>member-question-request</code> envelopes, which are special-cased via <code>isSystemAckOnlyReplyTo</code>. A lead replying to a normal member question must fall back to <code>ack=&lt;id&gt; decision=replied</code>. DISTINCT from the merged crews-ack-loop-fix (that fixed member-side kind=question gate ordering). Observed live 2026-06-07.",
+        "prompts": {
+          "plan": "/plan-with-ralph \"Fix the crews lead reply-to asymmetry: a lead's <|report reply-to=\\\"<envelope-id>\\\"|> (or send-to-member --reply-to <envelope-id>) throws ReplyToNotFoundError when <envelope-id> is the mailbox-envelope id of a CONSUMED proactive member report (kind=question/blocked/done), because resolveReplySource (plugins/crews/hooks/mailbox.js:358-376, lead branch) only searches the lead's send-history (getSendHistoryPath) + member outboxes (memberOutboxRowsIncludingLeftAt), never the lead's own consumed mailbox-history. Meanwhile review-mail surfaces that same mailbox-envelope id as the 'actionable ack/reply id' (v2 protocol), and ack=<id> DOES resolve it — so reply-to and ack are inconsistent on the same surfaced id. Only AskUserQuestion-routed member-question-request envelopes are special-cased today (isSystemAckOnlyReplyTo + the effectiveReplyTo=null suppression in stop.js). OPTIONS to weigh in the plan: (A) extend the lead branch of resolveReplySource to ALSO resolve against the lead's consumed mailbox-history (getInboxHistoryPath) so any surfaced envelope id is reply-to-able, mirroring the ack path — and decide whether such a reply-to should suppress the outbox-row replyTo field (like the member-question-request carve-out) since the referenced id is not in the lead's send-history; OR (B) have review-mail expose the member OUTBOX id (outboxId/reportId) as the canonical reply target and document that reply-to needs the outbox id while ack needs the envelope id. Prefer (A) if it makes the surfaced 'actionable id' uniformly usable for BOTH ack and reply-to without breaking STRICT-ACK or the member-question-request carve-out. Add a regression test (lead replies to a consumed proactive kind=question via reply-to=<envelope-id>; assert no ReplyToNotFoundError and the resolution is recorded). Standard crews 6-file version bump + CHANGELOG. This is plugin-side only.\""
+        },
+        "warnings": []
+      },
+      "kanbanCards": [
+        {
+          "className": "cmd-warn",
+          "html": "Filed 2026-06-07 by bookkeeper after hitting it live: lead reply-to=<consumed-question-envelope-id> threw ReplyToNotFoundError (resolveReplySource lead branch searches send-history + member outboxes, not the lead's consumed inbox). ack=<id> works; reply-to doesn't — inconsistent on the same review-mail-surfaced 'actionable ack/reply id'. Only AskUserQuestion-routed member-question-request envelopes are special-cased. Small plugin-side fix. Distinct from merged crews-ack-loop-fix."
+        }
+      ]
     }
   ],
   "phaseTree": [
