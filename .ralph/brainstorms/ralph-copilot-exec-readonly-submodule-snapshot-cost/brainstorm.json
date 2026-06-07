@@ -1,0 +1,41 @@
+{
+  "brainstormName": "ralph-copilot-exec-readonly-submodule-snapshot-cost",
+  "overviewTaskId": "ralph-copilot-exec-readonly-submodule-snapshot-cost",
+  "idea": "ralph-orchestration copilot-exec --read-only revert guard (captureManifest in worktree-snapshot.mjs) byte-reads every file of each initialized submodule tree (codex/ multi-GB Rust + ai-developer-toolkit/) into a Map of Buffers; two concurrent Copilot read-only lenses exhaust memory (2026-06-06 member deaths). Fix the memory blowup while still reverting out-of-zone writes into the ai-developer-toolkit plugin-edit zone.",
+  "availableLenses": ["codex", "copilot", "devils-advocate"],
+  "missingLenses": [],
+  "candidateDirections": [
+    {
+      "id": "D-001",
+      "name": "Per-submodule git fast-path for nested repos (+ findNestedRepoRoots de-dup)",
+      "summary": "Treat each initialized submodule like the parent: use its own git ls-files/status fast-path, restore clean tracked files from HEAD/index, byte-capture only pre-existing dirty+untracked files; stop findNestedRepoRoots descending past a .git boundary. Kills clean-file byte blowup, keeps the out-of-zone guarantee.",
+      "contributingLenses": ["codex", "copilot", "devils-advocate"]
+    },
+    {
+      "id": "D-002",
+      "name": "Protected-zone scoping — skip out-of-protection submodules (notably codex/) by policy",
+      "summary": "Snapshot only the declared plugin-edit zone (ai-developer-toolkit/) and treat codex/ as read-only-by-policy, pruning the multi-GB walk. Cheapest peak-memory win but hinges on the whole-cwd-vs-known-zones contract; devil's advocate red-flags skipping the wrong submodule as a regression.",
+      "contributingLenses": ["codex", "copilot"]
+    },
+    {
+      "id": "D-003",
+      "name": "Hash/object-id detection + spill-to-disk for pre-run dirty bytes",
+      "summary": "Keep the whole-cwd contract but store hashes/object-ids in heap, restore clean files from git blobs, and persist pre-run dirty/untracked bytes outside the JS heap (spill or hash-object -w). All lenses warn hash-only is detection not restoration; adds crash-cleanup + index-fidelity complexity.",
+      "contributingLenses": ["codex", "copilot", "devils-advocate"]
+    },
+    {
+      "id": "D-004",
+      "name": "Disposable read-only lens workspace (architectural reframe)",
+      "summary": "Run read-only lenses in a throwaway git worktree / sparse / COW copy with submodules uninitialized by default; discard the workspace instead of reverting the live tree. This brainstorm's own Copilot lens ran clean from an uninitialized-submodule worktree (live proof). Larger scope; lens may need submodule contents.",
+      "contributingLenses": ["devils-advocate"]
+    }
+  ],
+  "recommendedDirection": "D-001",
+  "questionsForSynthesis": [
+    "Contract: protect the WHOLE cwd, or only KNOWN high-risk edit zones? (sets the D-001/D-002 boundary)",
+    "Are gitignored files inside submodules in protection scope? (git status -uall won't see them; current captureManifest does)",
+    "Fix the 0-byte-output / exit-3 robustness sub-issue in this task, or split it out?",
+    "Restore-fidelity requirements for nested-repo dirty / partially-staged / renamed / mode-bit files",
+    "Layer a fail-closed resource budget (abort before child launch, distinct diagnostic) as defense-in-depth onto the chosen direction?"
+  ]
+}
