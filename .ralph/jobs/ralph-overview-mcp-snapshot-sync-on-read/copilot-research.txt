@@ -1,0 +1,49 @@
+I’ll read the referenced prompt file first, then carry out the requested task end-to-end.
+
+I’ll inspect the ralph-overview MCP implementation and nearby tests/config to ground the research in actual files.
+
+I found the MCP tool and its existing test file; next I’m reading those plus the plugin guidance and version metadata surfaces.
+
+I’m narrowing on the ready-task flow: snapshot reader, result schema, task types, and fixture helpers, so the recommendations match the current contracts.
+
+I’m checking the shared data model and loader because the implementation should overlay snapshot state onto the authoritative task records without drifting from schema semantics.
+
+I’m checking package metadata and release surfaces now, since the feature includes tests plus a plugin version bump across marketplace indexes.
+
+I found the MCP server starts `SnapshotReader`’s file watcher, but tests often instantiate it without `start()`, which matters for stale-data test design.
+
+I’m reading the normalization and dependency-graph derivation details to make sure the lifecycle/dependency recommendations use the existing orientation and aliases correctly.
+
+### Codebase Architecture
+
+`ralph-overview` lives under `ai-developer-toolkit\plugins\ralph-overview` as a Node 20 ESM plugin with two npm workspaces: `tools\overview-mcp` (TypeScript MCP server) and `tools\overview-viewer` (React 19/Vite dashboard). Shared derivation logic lives in `scripts\lib`.
+
+The MCP server builds `ServerContext` in `tools\overview-mcp\src\context.ts`, starts `SnapshotReader` and `WatcherSupervisor` in `tools\overview-mcp\src\index.ts`, and registers tools under `tools\overview-mcp\src\tools`. MCP types are re-exported from viewer types via `tools\overview-mcp\src\types.ts`.
+
+### Feature-Relevant Code
+
+- `tools\overview-mcp\src\tools\parallel-ready-tasks.ts`: current implementation builds candidates from `snapshot.tasks`, filters only by Ralph stage, and never checks authoritative `OverviewTask.lifecycle`.
+- `tools\overview-mcp\src\snapshot-reader.ts`: exposes `getSnapshot()`, `getOverviewData()`, and sidecar diagnostics. It caches values and invalidates via chokidar when `start()` is active.
+- `scripts\lib\sync-core.mjs`: `loadOverviewData()` parses `.ralph-overview\data.json`, normalizes legacy `phase` to `lifecycle`, and derives `initialStage` from `command.prompts`.
+- `scripts\lib\task-aliases.mjs`: `resolveTaskLifecycle()` and `resolveTaskPrompt()` are the right alias-safe helpers.
+- `scripts\lib\derive-next-command.mjs`: already supports no-`ralph` tasks via `initialStage` + `command.prompts`.
+- `scripts\lib\derive-dependency-graph.mjs`: dependency edges point from dependent to prerequisite; `blockedOn` becomes `task -> blocker` with `type: "blocks"`.
+- `tools\overview-mcp\src\__tests__\parallel-ready-tasks.test.ts`: primary place for stale snapshot, lifecycle exclusion, absent-from-snapshot, and latency tests.
+- Version/release surfaces: `plugins\ralph-overview\.claude-plugin\plugin.json`, `.claude-plugin\marketplace.json`, `.github\plugin\marketplace.json`, `.agents\plugins\marketplace.json`, and `plugins\ralph-overview\CHANGELOG.md`.
+
+### Technical Constraints
+
+`data.json` must be authoritative for task set and lifecycle. Snapshot Ralph state and dependency graph are watcher-derived enrichment and can be stale. Do not trigger `sync`/`walkRalphState()` on read; that would violate the sub-second requirement.
+
+`SnapshotReader.getOverviewData()` is cached. In production it is invalidated because `index.ts` calls `snapshotReader.start()`, but tests often do not start it. For a hard “fresh on every MCP call” guarantee, either call `loadOverviewData(context.config.dataFile)` directly from `parallel-ready-tasks.ts`, or add an explicit force/mtime-refresh path to `SnapshotReader`.
+
+Readiness must preserve existing graph orientation and the existing “spawn edges do not block” rule. For newly filed tasks absent from the snapshot, PRD/story-derived dependencies are unknown; direct `blockedOn` dependencies from fresh `data.json` should be authoritative, with blockers satisfied only when their lifecycle is `merged`.
+
+### Implementation Suggestions
+
+Refactor `parallelReadyTasks()` to load fresh overview data first, build candidates from `overviewData.tasks`, skip `lifecycle` `merged` and `archived`, then overlay only snapshot-derived fields such as `ralph` and `unblockCandidate` by task ID. Avoid spreading stale snapshot task objects over data tasks, because that could reintroduce stale lifecycle, prompts, or initial stage.
+
+Extend `ReadyTask` with an explicit caveat/source field such as `stateSource: "snapshot" | "overview-data"` and `awaitingSync?: boolean` or `caveats?: string[]`. Use it when a tracked data task has no snapshot entry. Also extend `ParallelReadyTasksResult` with `snapshotAgeMs` plus a stale reason field when `snapshot.json` mtime is older than `data.json` mtime; keep `snapshotStaleSince` for backward compatibility.
+
+Update tests in `parallel-ready-tasks.test.ts` for: merged/archived snapshot-ready tasks excluded without resync; new tracked task absent from snapshot included with kickoff command and awaiting-sync caveat; `snapshotAgeMs`/reason surfaced when data mtime is newer; existing dependency/story gating still passes; and latency remains under 1s.
+

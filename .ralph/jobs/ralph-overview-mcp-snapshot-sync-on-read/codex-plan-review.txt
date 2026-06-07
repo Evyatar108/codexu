@@ -1,0 +1,33 @@
+Applied the local `review-plan-with-ralph` review framing only; no coordination with another reviewer.
+
+### Feasibility
+
+[Critical] The plan omits codexu’s submodule workflow. The files are not at `tools/...`, `.claude-plugin/plugin.json`, or `plugins/ralph-overview/AGENTS.md` from `D:\harness-efforts\codexu`; they are under `ai-developer-toolkit/plugins/ralph-overview/...`. Root `AGENTS.md` also requires submodule edits to happen inside the `ai-developer-toolkit` submodule, then commit the codexu submodule pointer, and update the root Active Plugin Versions table when a plugin manifest changes. Without this, the implementation can edit the wrong checkout or fail the repo invariant.
+
+[High] `parallel-ready-tasks.ts` cannot safely import `resolveTaskLifecycle` from `scripts/lib/task-aliases.mjs` as planned unless a declaration file is added. The TypeScript MCP package currently imports `.mjs` helpers that have `.d.mts` declarations, but `task-aliases.mjs` has no matching declaration, so `npm run typecheck` is likely to fail.
+
+[High] The planned result type for `snapshotAgeMs` is inconsistent. The plan says `snapshotAgeMs?: number`, but AC6 requires `snapshotAgeMs === null` when the snapshot is missing. The type must be `number | null` or the acceptance criterion must change.
+
+### Completeness
+
+[High] The unified prerequisite model only mentions data.json `blockedOn`, but `OverviewTask` also supports `blocks`, and `derive-dependency-graph.mjs` turns both into blocking edges. With a missing or stale snapshot, a data.json-only `blocks` relationship would be ignored and the blocked task could be returned as ready. Add data-derived edges for both `blockedOn` and reverse `blocks`, plus a missing-snapshot test for `blocks`.
+
+[Medium] The plan mtime-guards `getOverviewData()` but not `getSnapshot()`. If the snapshot is missing or stale when first cached and `reader.start()` is not running, the MCP process can continue using null/stale snapshot enrichment even after the file appears or changes. This may be acceptable for lifecycle correctness, but the plan should state that snapshot freshness remains watcher-dependent or add a snapshot mtime guard too.
+
+[Critical] AC10 misses required codexu bookkeeping: root `AGENTS.md` Active Plugin Versions must change from `2.9.0` to `2.10.0` in the same codexu commit as the `ai-developer-toolkit` pointer bump. The plan lists plugin manifests/indexes and plugin AGENTS docs, but not the consumer repo invariant.
+
+### Ordering
+
+[Medium] US-001 includes “graceful missing snapshot,” but the readiness model needed for missing-snapshot correctness is deferred to US-002. If implemented story-by-story with tests per story, US-001 can only satisfy a weak version of AC6. Either move the data-derived prerequisite logic into US-001 or move AC6 to US-002.
+
+### Simplicity
+
+[Medium] The manual “union `blockedOn` with snapshot graph” approach is more error-prone than reusing `scripts/lib/derive-dependency-graph.mjs` with fresh `overviewData`, loaded PRDs, and snapshot `byTaskId` as enrichment. That helper already handles `blockedOn`, `blocks`, PRD dependencies, and `spawnedFrom` without walking job-state, and it has a `.d.mts` declaration.
+
+### Acceptance Criteria Quality
+
+[Medium] AC9 is partly vague. “Parses data.json at most once per call” needs an explicit verification method, such as a spy around `loadOverviewData` or a cache counter exposed only in tests. The 300-task timing check should remain secondary because it is environment-sensitive.
+
+[Medium] AC3 requires a non-empty `snapshotStaleReason`, but the plan’s open question leaves the exact shape loose. For autonomous implementation, specify minimum substrings or fields, e.g. reason must distinguish `data.json newer` from `snapshot missing` and include age.
+
+No prior review-cycle amendments were referenced beyond the seed correction about `unblock-candidates.ts`; that correction is accurate.

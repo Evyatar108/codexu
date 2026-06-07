@@ -1,0 +1,34 @@
+I’ll read the referenced prompt file first, then carry out the requested task end-to-end.
+
+The prompt file is long enough that I’ll read it in sections and extract the actionable instructions before editing anything.
+
+I’ll verify the plan against the actual ralph-overview plugin code and tests, focusing on whether referenced APIs, paths, and acceptance criteria are accurate.
+
+I found the target plugin files; now I’m checking the actual implementation details for mismatches with the plan.
+
+I’m checking one TypeScript declaration detail that affects whether the plan’s proposed import compiles cleanly.
+
+I have enough codebase evidence now and will provide the requested plan review without changing files.### Feasibility
+
+- [High] `parallel-ready-tasks.ts` is TypeScript and the plan requires importing `resolveTaskLifecycle` from `../../../../scripts/lib/task-aliases.mjs`, but there is no ambient declaration for that module in the visible `*.d.ts` declarations. `load-prds-by-task-id.mjs` already has a declaration in `tools/overview-viewer/src/__tests__/scripts.d.ts`; `task-aliases.mjs` does not. Without adding a declaration or typed wrapper, `npm run typecheck` may fail.
+
+- [High] US-004 points marketplace index edits at `D:/ai-developer-toolkit/...`, but this workspace’s actual toolkit checkout is `D:\harness-efforts\codexu\ai-developer-toolkit`. The repo guidance explicitly treats `ai-developer-toolkit/` as the in-tree submodule, not a sibling checkout. Following the absolute `D:/ai-developer-toolkit` path risks editing the wrong repository or failing on machines without that path.
+
+### Completeness
+
+- [High] The plan says `getOverviewData()` should be mtime-guarded, but acceptance criteria do not require testing the stale-cache behavior in `SnapshotReader` directly except via a tool-level AC8. A direct `snapshot-reader.test.ts` case is important because this helper is shared by `expand-task-context`; otherwise the core cache invalidation contract could regress while the tool-level behavior passes accidentally.
+
+- [Medium] The plan adds `ReadyTask.enrichment` and result fields `snapshotAgeMs` / `snapshotStaleReason`, but does not mention updating any exported/public TypeScript declaration for the new result shape beyond `parallel-ready-tasks.ts`. If consumers rely on generated declarations from the MCP package this may be fine, but the implementation should confirm no exact-key tests or docs snapshots need updating.
+
+### Ordering
+
+No issues found.
+
+### Simplicity
+
+No issues found.
+
+### Acceptance Criteria Quality
+
+- [Medium] AC9 says “parses `data.json` at most once per call” and “performs no job-state walk beyond the existing `computeSnapshotStaleSince` mtime stats,” but the existing code does not expose parse-count instrumentation. The structural assertion needs a concrete mechanism, such as a spy/mockable loader seam or an observable cache/mtime fixture; otherwise this criterion is underspecified for an autonomous implementer.
+

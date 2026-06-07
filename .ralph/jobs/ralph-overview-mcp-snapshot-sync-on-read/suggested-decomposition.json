@@ -1,0 +1,27 @@
+{
+  "clusters": [
+    {
+      "name": "lifecycle-first-read",
+      "stories": ["US-001", "US-002", "US-003", "US-004"],
+      "phase": 1,
+      "dependsOn": [],
+      "fileOverlapEvidence": {
+        "sharedFiles": [
+          "ai-developer-toolkit/plugins/ralph-overview/tools/overview-mcp/src/tools/parallel-ready-tasks.ts",
+          "ai-developer-toolkit/plugins/ralph-overview/tools/overview-mcp/src/__tests__/parallel-ready-tasks.test.ts"
+        ],
+        "exclusiveFiles": [
+          "ai-developer-toolkit/plugins/ralph-overview/tools/overview-mcp/src/snapshot-reader.ts",
+          "ai-developer-toolkit/plugins/ralph-overview/.claude-plugin/plugin.json",
+          "ai-developer-toolkit/plugins/ralph-overview/CHANGELOG.md",
+          "ai-developer-toolkit/plugins/ralph-overview/AGENTS.md",
+          "ai-developer-toolkit/.claude-plugin/marketplace.json",
+          "ai-developer-toolkit/.github/plugin/marketplace.json",
+          "ai-developer-toolkit/.agents/plugins/marketplace.json"
+        ],
+        "risk": "high"
+      },
+      "executionModeRationale": "US-001..US-003 mutate the same function bodies in parallel-ready-tasks.ts and the same test file, so parallel execution would guarantee merge conflicts; they are serialized in one cluster. US-004 (version bump + docs) touches disjoint files but is appended to the same serial cluster because it documents the final shipped behavior and is trivially fast."
+    }
+  ]
+}

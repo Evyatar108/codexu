@@ -1,0 +1,178 @@
+{
+  "planFile": "D:/harness-efforts/codexu/.ralph/jobs/.staging/20260607T040237Z-plan-mcp-snapshot-2-fa017fbf/draft-plan.md",
+  "repoDir": "D:/harness-efforts/codexu",
+  "reviewCycle": 2,
+  "findings": [
+    {
+      "id": "F-001",
+      "severity": "Critical",
+      "category": "Feasibility",
+      "source": "consensus",
+      "sectionRef": "Files to Create/Modify",
+      "description": "Plan omitted the codexu submodule workflow and used wrong absolute marketplace-index paths (D:/ai-developer-toolkit/...). Target files live inside the ai-developer-toolkit submodule; edits need the two-commit flow (submodule commit + codexu pointer-bump) and the marketplace indexes are at the toolkit root.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Added 'Repo & Submodule Workflow' subsection; corrected all marketplace paths to repo-relative ai-developer-toolkit/{.claude-plugin,.github/plugin,.agents/plugins}/marketplace.json; prefixed all file paths with ai-developer-toolkit/plugins/ralph-overview/.",
+      "relevantFiles": ["ai-developer-toolkit/.claude-plugin/marketplace.json", "ai-developer-toolkit/.github/plugin/marketplace.json", "ai-developer-toolkit/.agents/plugins/marketplace.json"]
+    },
+    {
+      "id": "F-002",
+      "severity": "Critical",
+      "category": "Completeness",
+      "source": "codex",
+      "sectionRef": "Acceptance Criteria > AC10",
+      "description": "AC10 missed the codexu repo-root AGENTS.md 'Active Plugin Versions' table bump (2.9.0 -> 2.10.0), which is a CI invariant and must change in the same codexu commit as the submodule pointer bump.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "AC10, scope, US-004, and Repo & Submodule Workflow now require the root codexu AGENTS.md Active Plugin Versions table bump in the pointer-bump commit."
+    },
+    {
+      "id": "F-003",
+      "severity": "High",
+      "category": "Feasibility",
+      "source": "consensus",
+      "sectionRef": "Approach > D-C",
+      "description": "scripts/lib/task-aliases.mjs has no .d.mts declaration, so importing resolveTaskLifecycle from the TypeScript MCP package would fail npm run typecheck (verified: sibling helpers have .d.mts, task-aliases does not).",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "D-C primary path now reads the already-normalized task.lifecycle directly (no import); adding scripts/lib/task-aliases.d.mts is documented as a conditional only-if-imported step.",
+      "relevantFiles": ["ai-developer-toolkit/plugins/ralph-overview/scripts/lib/task-aliases.mjs"]
+    },
+    {
+      "id": "F-004",
+      "severity": "High",
+      "category": "Feasibility",
+      "source": "codex",
+      "sectionRef": "Approach > D-G",
+      "description": "snapshotAgeMs typed as number contradicts AC6 requiring snapshotAgeMs === null on missing snapshot. Type must be number | null.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "D-G, D-G result type, scope, US-003 now specify snapshotAgeMs?: number | null."
+    },
+    {
+      "id": "F-005",
+      "severity": "High",
+      "category": "Completeness",
+      "source": "codex",
+      "sectionRef": "Approach > D-E",
+      "description": "Unified prereq model mentioned only blockedOn, but OverviewTask also supports reverse 'blocks'; a data.json-only blocks relationship would be ignored under a stale/missing snapshot, letting a blocked task surface as ready.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "D-E rewritten to re-derive a FRESH dependency graph via deriveDependencyGraph({byTaskId, overviewData, prdsByTaskId}), which handles blockedOn + reverse blocks + PRD depends-on-story + spawn from authoritative data. Added a missing-snapshot blocks test expectation (AC5/AC6).",
+      "relevantFiles": ["ai-developer-toolkit/plugins/ralph-overview/scripts/lib/derive-dependency-graph.mjs"]
+    },
+    {
+      "id": "F-006",
+      "severity": "Medium",
+      "category": "Simplicity",
+      "source": "codex",
+      "sectionRef": "Approach > D-E",
+      "description": "Manual blockedOn-union-with-snapshot-graph is more error-prone than reusing derive-dependency-graph.mjs (which already handles blockedOn, blocks, PRD deps, spawn and has a .d.mts).",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Adopted derive-dependency-graph reuse as the primary approach in D-E; manual union explicitly rejected."
+    },
+    {
+      "id": "F-007",
+      "severity": "Medium",
+      "category": "Ordering",
+      "source": "codex",
+      "sectionRef": "Preliminary Story Decomposition",
+      "description": "US-001 claimed graceful missing-snapshot (AC6) but the readiness model needed for missing-snapshot correctness was deferred to US-002.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Moved AC6 + the dependency-graph readiness work into US-002; US-001 now owns lifecycle gate + merge + mtime-guard (AC1, AC8)."
+    },
+    {
+      "id": "F-008",
+      "severity": "High",
+      "category": "Completeness",
+      "source": "consensus",
+      "sectionRef": "Acceptance Criteria > AC8",
+      "description": "AC8 verification path was ambiguous; the mtime-guard on getOverviewData is shared by expand-task-context and must be covered at the SnapshotReader level, not only via the tool (which currently hard-fails before reading data.json).",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "AC8 now requires a direct snapshot-reader.test.ts test of the mtime-guarded getOverviewData."
+    },
+    {
+      "id": "F-009",
+      "severity": "Medium",
+      "category": "Criteria Quality",
+      "source": "consensus",
+      "sectionRef": "Acceptance Criteria > AC9",
+      "description": "AC9 'parses data.json at most once per call' lacked a concrete verification mechanism (no parse-count instrumentation exists).",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "AC9 now specifies a concrete instrumentation seam (spy/mock around loadOverviewData asserting call-count <= 1, or a test-only parse counter), with the timer as informational only."
+    },
+    {
+      "id": "F-010",
+      "severity": "Medium",
+      "category": "Criteria Quality",
+      "source": "codex",
+      "sectionRef": "Approach > D-G",
+      "description": "snapshotStaleReason shape left too loose for an autonomous implementer; should specify minimum content distinguishing 'data.json newer' from 'snapshot missing' and include age.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "D-G + AC3 + AC6 now require the reason to include the age and a stable marker distinguishing the two cases."
+    },
+    {
+      "id": "F-011",
+      "severity": "Medium",
+      "category": "Completeness",
+      "source": "codex",
+      "sectionRef": "Approach > D-I",
+      "description": "Plan mtime-guards getOverviewData but not getSnapshot; should state whether snapshot freshness stays watcher-dependent.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Added D-I documenting the freshness boundary: only getOverviewData is mtime-guarded; snapshot freshness stays watcher-dependent (D-002 boundary) and any staleness is surfaced, not masked."
+    },
+    {
+      "id": "F-012",
+      "severity": "Medium",
+      "category": "Completeness",
+      "source": "copilot",
+      "sectionRef": "Risk Areas",
+      "description": "Adding ReadyTask.enrichment / result fields without confirming no exact-key tests or docs snapshots pin the result shape.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Risk Areas now requires confirming no consumer asserts an exact ReadyTask key set and no docs/snapshot fixture pins the result shape."
+    },
+    {
+      "id": "F-013",
+      "severity": "High",
+      "category": "Feasibility",
+      "source": "codex",
+      "sectionRef": "Approach > D-E",
+      "description": "Round 2: deriveDependencyGraph expects byTaskId: OverviewRalphState['byTaskId'] (Record<string, RalphPipelineState>) and reads byTaskId[taskId]?.stage; the plan said to pass 'the snapshot tasks-by-id map'. A Map<string, SnapshotTask> would fail typecheck and lose stage enrichment (stage lives under .ralph.stage). Verified at derive-dependency-graph.mjs:20,56-70 and .d.mts:5.",
+      "status": "fixed",
+      "fixedInIteration": 2,
+      "resolution": "D-E + US-002 now specify byTaskId = Record<taskId, RalphPipelineState> built via Object.fromEntries(snapshot.tasks.flatMap(t => t.ralph ? [[t.id, t.ralph]] : [])), keeping the merged Map<string, SnapshotTask> separate for readiness/title lookups.",
+      "relevantFiles": ["ai-developer-toolkit/plugins/ralph-overview/scripts/lib/derive-dependency-graph.d.mts"]
+    },
+    {
+      "id": "F-014",
+      "severity": "Critical",
+      "category": "Completeness",
+      "source": "codex",
+      "sectionRef": "US-004 / Repo & Submodule Workflow",
+      "description": "Round 2: US-004 hand-edits plugin.json + marketplace indexes + CHANGELOG, but toolkit AGENTS.md mandates using /release-plugin for plugin version bumps. Repo-rule divergence.",
+      "status": "fixed",
+      "fixedInIteration": 2,
+      "resolution": "US-004, AC10, and Repo & Submodule Workflow now require /release-plugin (or mirroring its outputs) for the version surfaces + CHANGELOG + codex policy validation.",
+      "relevantFiles": ["ai-developer-toolkit/AGENTS.md"]
+    },
+    {
+      "id": "F-015",
+      "severity": "Critical",
+      "category": "Ordering",
+      "source": "codex",
+      "sectionRef": "Repo & Submodule Workflow",
+      "description": "Round 2: workflow said 'commit (and push)' inside the submodule, but codexu AGENTS.md requires asking before any git push; an autonomous implementer could push to shared branches / cut a release without approval.",
+      "status": "fixed",
+      "fixedInIteration": 2,
+      "resolution": "Workflow + US-004 + AC10 now require LOCAL commits only; the lead owns FF-merge + multi-remote release push, and the impl asks before any push (ask-before-push rule).",
+      "relevantFiles": ["AGENTS.md"]
+    }
+  ]
+}

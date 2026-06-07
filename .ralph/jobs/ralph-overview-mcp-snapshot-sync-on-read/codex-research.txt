@@ -1,0 +1,49 @@
+**Codebase Architecture**
+The relevant code lives in the `ai-developer-toolkit` submodule, under the `ralph-overview` plugin: [plugins/ralph-overview](D:/harness-efforts/codexu/ai-developer-toolkit/plugins/ralph-overview). It is a Node 20, ESM, npm-workspaces plugin with:
+
+- MCP server: [tools/overview-mcp](D:/harness-efforts/codexu/ai-developer-toolkit/plugins/ralph-overview/tools/overview-mcp), TypeScript, `@modelcontextprotocol/sdk`, Zod, Vitest.
+- Viewer: [tools/overview-viewer](D:/harness-efforts/codexu/ai-developer-toolkit/plugins/ralph-overview/tools/overview-viewer), React 19 + Vite 8.
+- Shared sync/derivation library: [scripts/lib](D:/harness-efforts/codexu/ai-developer-toolkit/plugins/ralph-overview/scripts/lib), plain ESM `.mjs`.
+
+Consumer state is split between hand-curated `.ralph-overview/data.json` and generated `.ralph-overview/generated/snapshot.json`, `ralph-state.json`, `dependency-graph.json`, etc. The MCP server reads both through `SnapshotReader`.
+
+**Feature-Relevant Code**
+The main implementation point is [parallel-ready-tasks.ts](D:/harness-efforts/codexu/ai-developer-toolkit/plugins/ralph-overview/tools/overview-mcp/src/tools/parallel-ready-tasks.ts). Current behavior is snapshot-first: `parallelReadyTasks()` loads `snapshot`, builds `tasksById` from `snapshot.tasks`, filters candidates with `isCandidateStage()`, and never checks `OverviewTask.lifecycle`. That matches the reported bug.
+
+Key supporting files:
+
+- [snapshot-reader.ts](D:/harness-efforts/codexu/ai-developer-toolkit/plugins/ralph-overview/tools/overview-mcp/src/snapshot-reader.ts): `getSnapshot()`, `getOverviewData()`, `getSidecarDiagnostics()`. Important caveat: data is cached until this reader’s chokidar invalidates it.
+- [sync-core.mjs](D:/harness-efforts/codexu/ai-developer-toolkit/plugins/ralph-overview/scripts/lib/sync-core.mjs): `loadOverviewData()` parses JSON and normalizes legacy `phase` to `lifecycle`, plus `planPrompt` to `command.prompts.plan`.
+- [task-aliases.mjs](D:/harness-efforts/codexu/ai-developer-toolkit/plugins/ralph-overview/scripts/lib/task-aliases.mjs): `resolveTaskLifecycle()` and `resolveTaskPrompt()` are the right defensive readers.
+- [derive-next-command.mjs](D:/harness-efforts/codexu/ai-developer-toolkit/plugins/ralph-overview/scripts/lib/derive-next-command.mjs): already supports `deriveNextCommand(null, task)` via `initialStage` plus `command.prompts`.
+- [derive-dependency-graph.mjs](D:/harness-efforts/codexu/ai-developer-toolkit/plugins/ralph-overview/scripts/lib/derive-dependency-graph.mjs): establishes edge direction: dependent `from` prerequisite `to`; `blockedOn` and inverse `blocks` become `blocks` edges.
+- [load-prds-by-task-id.mjs](D:/harness-efforts/codexu/ai-developer-toolkit/plugins/ralph-overview/scripts/lib/load-prds-by-task-id.mjs): already supports an `overviewData` argument, but `parallel-ready-tasks.ts` does not pass it today.
+- [parallel-ready-tasks.test.ts](D:/harness-efforts/codexu/ai-developer-toolkit/plugins/ralph-overview/tools/overview-mcp/src/__tests__/parallel-ready-tasks.test.ts): existing dependency, story-gating, initial-stage, staleness, watcher-failure, and latency tests.
+
+Version files: [.claude-plugin/plugin.json](D:/harness-efforts/codexu/ai-developer-toolkit/plugins/ralph-overview/.claude-plugin/plugin.json), [CHANGELOG.md](D:/harness-efforts/codexu/ai-developer-toolkit/plugins/ralph-overview/CHANGELOG.md), plus the three marketplace indexes under `ai-developer-toolkit/.claude-plugin/`, `.github/plugin/`, and `.agents/plugins/`.
+
+**Technical Constraints**
+The MCP tool result envelope is plain JSON text, so adding `snapshotAgeMs`, stale reason fields, and per-task caveats is straightforward. No output schema currently blocks that.
+
+Do not trigger `sync` from the MCP call. The existing full sync path writes generated artifacts and can be slow; D-001 should only read `data.json`, stale `snapshot.json`, PRDs, and maybe file mtimes.
+
+If “fresh every call” is literal, `SnapshotReader.getOverviewData()` needs a fresh-read mode or cache bypass. Using it as-is still depends on chokidar invalidation.
+
+Dependency orientation must be preserved: `edge.to` is the prerequisite. Direct lifecycle blockers should use authoritative `data.json` lifecycle, preferably via `resolveTaskLifecycle()`, not snapshot Ralph stage alone.
+
+Performance looks safe for the lifecycle read: a local timing probe of real codexu `.ralph-overview/data.json` showed 180 tasks parsed in about 6.4 ms min, 7.1 ms median, 9.2 ms p95, 10.1 ms max over 20 runs.
+
+**Implementation Suggestions**
+Refactor `parallelReadyTasks()` to load overview data first, then treat the snapshot as enrichment:
+
+1. Load fresh `overviewData`; fail only if `data.json` is missing or invalid.
+2. Load `snapshot`; if missing, consider continuing with empty enrichment and a stale/missing warning.
+3. Build `snapshotTaskById` and `dataTaskById`.
+4. Candidate source becomes `overviewData.tasks`, filtered by lifecycle: exclude `merged` and `archived` unconditionally.
+5. Overlay snapshot fields only by matching ID: `{ ...dataTask, ralph: snapshotTask?.ralph, unblockCandidate: snapshotTask?.unblockCandidate }`.
+6. For absent snapshot tasks, use `initialStage`, `deriveNextCommand(undefined, task)`, and return an explicit `awaitingSync` or `stageSource: "initialStage"` caveat.
+7. For blockers, enforce direct `blockedOn` and inverse `blocks` from fresh data. Treat PRD/story graph readiness for snapshot-absent tasks as unknown/awaiting-sync rather than rebuilding heavy watcher state.
+8. Pass the loaded `overviewData` into `loadPrdsByTaskId()` to avoid parsing two different versions of `data.json` in one call.
+9. Add `snapshotAgeMs` and a stale reason such as `data-newer-than-snapshot` when `data.json` mtime exceeds snapshot mtime.
+
+Tests should extend `parallel-ready-tasks.test.ts` with stale snapshot fixtures for merged/archived exclusion, new tracked task inclusion, stale warning fields, and the fresh-read/cache behavior.

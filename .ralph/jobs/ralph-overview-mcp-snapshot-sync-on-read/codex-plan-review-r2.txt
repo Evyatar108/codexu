@@ -1,0 +1,21 @@
+Prior review fixes are mostly adequate: marketplace paths, `task-aliases.d.mts`, `snapshotAgeMs: number | null`, fresh `blocks` derivation, AC8/AC9, and the root version table are now addressed. Remaining Critical/High issues:
+
+### Feasibility
+
+[High] The `deriveDependencyGraph` call is specified with the wrong `byTaskId` shape. The plan says to pass “the snapshot tasks-by-id map,” but `deriveDependencyGraph` expects `OverviewRalphState['byTaskId']`, i.e. `Record<string, RalphPipelineState>`, and reads `byTaskId[taskId]?.stage`. A `Map<string, SnapshotTask>` or `Record<string, SnapshotTask>` will either fail typecheck or lose stage enrichment. Use `Object.fromEntries(snapshot.tasks.flatMap(t => t.ralph ? [[t.id, t.ralph]] : []))` for `byTaskId`, and keep the merged `Map<string, SnapshotTask>` separate for readiness/title lookup. See [derive-dependency-graph.d.mts](D:/harness-efforts/codexu/ai-developer-toolkit/plugins/ralph-overview/scripts/lib/derive-dependency-graph.d.mts:5), [derive-dependency-graph.mjs](D:/harness-efforts/codexu/ai-developer-toolkit/plugins/ralph-overview/scripts/lib/derive-dependency-graph.mjs:20), and [types.ts](D:/harness-efforts/codexu/ai-developer-toolkit/plugins/ralph-overview/tools/overview-viewer/src/types.ts:155).
+
+### Completeness
+
+[Critical] US-004 plans a plugin version release by manually editing `plugin.json`, marketplace indexes, and `CHANGELOG.md`, but the toolkit repo instructions say to use `/release-plugin` instead of hand-editing for plugin version bumps. That is a repo-rule divergence for the submodule release workflow. Update US-004 to invoke the release workflow, or explicitly justify why it is unavailable and then mirror its required outputs. See [AGENTS.md](D:/harness-efforts/codexu/ai-developer-toolkit/AGENTS.md:66).
+
+### Ordering
+
+[Critical] The submodule workflow says to “commit (and push)” inside `ai-developer-toolkit`, but the codexu root instructions require asking before any `git push`. As written, an autonomous implementer could perform externally visible pushes without approval. Change the plan to “commit locally; request operator approval before any push,” including any `/release-plugin` push step. See [AGENTS.md](D:/harness-efforts/codexu/AGENTS.md:98).
+
+### Simplicity
+
+No issues found.
+
+### Acceptance Criteria Quality
+
+No issues found.
