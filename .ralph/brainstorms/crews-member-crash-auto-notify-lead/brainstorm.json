@@ -1,0 +1,42 @@
+{
+  "brainstormName": "crews-member-crash-auto-notify-lead",
+  "overviewTaskId": "crews-member-crash-auto-notify-lead",
+  "idea": "Auto-notify the crew LEAD when a member crashes, via the existing system-mailbox + armed-listener channel (no polling). crews has crash DETECTION (hooks/health.js getMemberHealth -> 'dead') but it is pull-only; the gap is a sweep that joins detection to delivery (appendSystemMailbox) plus a dedup latch, with a trigger that fires while the lead is idle. Includes the key scope decision: hard-crash-only vs also a stalled/idle (9h-dark, pid-alive+heartbeat-fresh+lastTurnAt-frozen) case.",
+  "availableLenses": ["copilot", "devils-advocate"],
+  "missingLenses": [
+    {
+      "lens": "codex",
+      "reason": "skipped — codex-exec reproducibly hangs ~20min on this Windows box; skipped per standing lead instruction (treat codex lens as unavailable) so the brainstorm could finish"
+    }
+  ],
+  "candidateDirections": [
+    {
+      "id": "D-001",
+      "name": "Heartbeat-tick liveness monitor in the lead listener",
+      "summary": "Throttled sweep on the lead listener's existing heartbeat setInterval (the only periodic hook in an indefinite timeoutMs===null listener) — the ONLY mechanism that wakes a quiet idle lead; on a high-confidence dead transition append a member-crashed system envelope to the lead mailbox before consume/exit. Cost: O(members) FS reads per throttled tick; honestly a daemon-internal monitor, not lead-model polling.",
+      "contributingLenses": ["copilot", "devils-advocate"]
+    },
+    {
+      "id": "D-002",
+      "name": "Dying-gasp self-report + sweep backstop",
+      "summary": "Member's own listener/launcher best-effort emits a member-crashed envelope on UNEXPECTED exit (Node process.on exit/uncaughtException; PowerShell launcher on non-clean engine exit) for near-zero latency on graceful crashes; a slower sweep backstops hard kills. Risk: handlers do NOT fire on taskkill/T, OS crash, power loss, or the UNKNOWN/-4094 lock-bug class that motivated the task.",
+      "contributingLenses": ["devils-advocate"]
+    },
+    {
+      "id": "D-003",
+      "name": "Lead-model turn-boundary hook sweep",
+      "summary": "Run the health-transition sweep at the lead's PreToolUse/Stop/SessionStart boundaries where roster + state-cwd context is natural and the listener hot path is untouched; also the natural home for latch-reset hygiene. But it CANNOT wake an idle lead during a quiet crash (waits for the lead's next turn) — a backstop/latch-reset layer, not a standalone solution.",
+      "contributingLenses": ["devils-advocate"]
+    }
+  ],
+  "recommendedDirection": "D-001",
+  "questionsForSynthesis": [
+    "Is the product requirement IMMEDIATE quiet-period crash notification (requires the D-001 periodic monitor / accept a background timer), or is surfacing crash state at the lead's next wake acceptable (D-003 suffices, simpler)?",
+    "Is the 'always listeners, never poll' rule absolute even for DAEMON INTERNALS, or is a throttled in-listener monitor an acceptable carve-out (daemon monitoring, not lead-model polling)?",
+    "Dedup latch home + exact generation key {memberName, sessionId, launcherPid, launcherStartedAt, deadReason} and the precise reset wiring in resume-crew repair + clear-member cleanup — dead member's manifest (races repairManifestForResume under the manifest lock) vs a lead/crew-level liveness-notifications/incidents file?",
+    "member-crashed: review-required AND strict-ack-exempt like member-left, or force the lead to explicitly ack the crash notice?",
+    "SCOPE DECISION: defer the 9h-dark stalled case to a separate member-needs-attention / auto-nudge feature (RECOMMENDED — high false-positive risk, healthy-idle looks identical), or in-scope behind a default-off threshold? Note hard-crash-only does NOT solve the 9h-dark class that partly motivated this.",
+    "Operator visibility: lead-only core with operator escalation as a phase-2 config knob (RECOMMENDED), or operator always paged on hard-dead?",
+    "v1 acceptance criterion: exactly one review-required lead notification per high-confidence alive->dead incarnation transition, and zero notifications for quiet/unknown members?"
+  ]
+}
