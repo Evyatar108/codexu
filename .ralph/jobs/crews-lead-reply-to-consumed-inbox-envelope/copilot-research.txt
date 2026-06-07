@@ -1,0 +1,86 @@
+I’ll read the referenced prompt and then carry out the requested work end-to-end.
+
+I’m going to inspect the crews plugin internals and tests needed to ground the research.
+
+I found this is a research-mode plan analysis, so I’ll only inspect and report on the codebase surfaces—no edits.
+
+I’ll narrow in on the reply resolution, stop-hook ack/reply handling, review-mail formatting, and existing tests.
+
+I’ve identified the main asymmetry; I’ll read the nearby producer/test code to make the implementation guidance precise.
+
+The relevant behavior is test-covered in a few focused files; I’ll inspect those next and then produce the research summary.
+
+I’ll read the focused reply/ack tests to identify the best place for the new regression.
+
+I’ll grab the remaining v2 review-mail test cases and the scenario helpers that make a regression test straightforward.
+
+I’ll inspect the batch expansion assertions because they define the surfaced envelope-id vs report-id contract.
+
+One final stop-hook segment determines downstream routing after the outbox row is written, so I’ll verify that before recommending suppression behavior.
+
+### Codebase Architecture
+
+`ai-developer-toolkit/plugins/crews` is a JavaScript-only plugin with no package-level `package.json`. Runtime code is organized around:
+
+- `hooks/` — hook entrypoints and shared protocol/storage logic.
+- `hooks/commands/` — slash/CLI command handlers like `send-to-member` and `review-mail`.
+- `tools/crews.js` plus legacy tool shims — command dispatcher surfaces.
+- `tests/*.test.js` and `tests/integration/*.test.js` — Node test files run by `node tests/run.js`.
+- Plugin manifests in `.claude-plugin/`, `.github/plugin/`, `.codex-plugin/`, plus marketplace indexes at repo root.
+
+### Feature-Relevant Code
+
+Primary edit point is `hooks/mailbox.js`:
+
+- `resolveReplySource(sender, replyTo, cwd)` currently handles:
+  - member senders: searches sender inbox history via `getInboxHistoryPath`.
+  - lead senders: searches lead send-history via `getSendHistoryPath`, then all member outboxes via `memberOutboxRowsIncludingLeftAt`.
+  - it does **not** search the lead’s consumed inbox history.
+- `appendMailboxWithSender()` and `buildOutboxEntry()` both call `resolveReplySource`, so fixing it covers both `send-to-member --reply-to` and Stop-hook outbox rows.
+
+Relevant Stop-hook code:
+
+- `hooks/stop.js`
+  - `findPendingConsumedEntries()`, `evaluateConsumedResolutions()`, and `appendMailboxDecisionRows()` implement STRICT-ACK resolution.
+  - `isSystemAckOnlyReplyTo()` only suppresses lead outbox `replyTo` for `system/member-question-request`.
+  - lead metadata-only tags are converted into a default `progress` report around lines 961-970.
+  - `appendOutboxBatch()` failure currently surfaces `ReplyToNotFoundError`.
+
+Relevant review-mail code:
+
+- `hooks/commands/review-mail.js`
+  - `expandReviewRows()` maps `payload.entries[]` to display rows where `id` is the parent mailbox-envelope id and `outboxId/reportId` are member outbox ids.
+  - This confirms the UI contract: the actionable displayed `id` is the consumed mailbox envelope.
+
+Relevant tests/patterns:
+
+- `tests/reply-to.test.js` covers `resolveReplySource` basics.
+- `tests/strict-ack-review-mail.test.js`, `tests/force-response-replyTo-passes.test.js`, and `tests/decision-replyTo-implies-replied.test.js` cover reply-to as STRICT-ACK resolution.
+- `tests/review-mail-command.test.js` covers proactive batch expansion and confirms `id` is the parent inbox id.
+- `tests/integration/lib/scenario.js` has helpers for realistic lead/member flows.
+
+### Technical Constraints
+
+Prefer option A: make the surfaced envelope id uniformly usable for both `ack` and `reply-to`. Option B would fight the existing `review-mail` output shape and require retraining/documenting two ids.
+
+Preserve the existing `member-question-request` carve-out in `stop.js`. I would not broaden suppression for ordinary proactive reports unless a downstream invariant demands it: after `resolveReplySource` learns lead inbox history, a lead outbox row with `replyTo=<consumed-envelope-id>` becomes resolvable and useful audit metadata.
+
+Versioning uses `node plugins/crews/scripts/bump-version.js <x.y.z>` from the ai-developer-toolkit root. It updates the three plugin manifests, three marketplace indexes, and `tests/version.test.js`; `CHANGELOG.md` is manual.
+
+### Implementation Suggestions
+
+Add lead inbox-history lookup in `resolveReplySource()` after preserving existing lead resolution paths. Keep current precedence for send-history and member outbox ids, then check:
+
+`readJsonLinesStrict(getInboxHistoryPath(sender.name, sender.crew, cwd))`
+
+and return `findMessageById(...)` before throwing `ReplyToNotFoundError`.
+
+Add a regression test, likely `tests/lead-reply-to-consumed-proactive.test.js` or an integration test using `createScenario()`:
+
+1. Spawn lead and member.
+2. Member emits proactive `kind=question` with no `replyTo`.
+3. Lead listener consumes it.
+4. `review-mail` surfaces `entries[0].id`.
+5. Lead Stop turn uses `<|report reply-to="<that envelope id>"|>`.
+6. Assert no block/`ReplyToNotFoundError`, lead outbox or decision rows record the resolution, and mailbox-decisions has `decision: "replied"` for that envelope id.
+

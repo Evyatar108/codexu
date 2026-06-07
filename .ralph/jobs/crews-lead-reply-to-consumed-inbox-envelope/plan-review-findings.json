@@ -1,0 +1,42 @@
+{
+  "planFile": "D:/harness-efforts/codexu/.ralph/jobs/.staging/20260607T184734Z-plan-replyto-058f88ee/draft-plan.md",
+  "repoDir": "D:/harness-efforts/codexu",
+  "reviewers": {
+    "claude": "ran (Explore agent)",
+    "copilot": "ran (copilot-exec review lens)",
+    "codex": "skipped — codex-exec treated UNAVAILABLE per spawn instructions (known hang on this box)"
+  },
+  "findings": [
+    {
+      "id": "F-001",
+      "severity": "High",
+      "category": "Criteria Quality / Feasibility",
+      "source": "copilot",
+      "status": "fixed",
+      "description": "AC2 claimed a `decision:\"replied\"` mailbox-decision row is written when a lead replies-to a consumed proactive-report. False: proactive-reports are STRICT-ACK auto-exempt (stop.js:189-196 ACK_EXEMPT_KINDS includes 'proactive-report'; isAckExempt at :263-264 requires from.role==='system'; evaluateConsumedResolutions skips exempt entries at :294), so NO decision row is written. The bug/fix are still valid (the outbox write still throws ReplyToNotFoundError) but the assertion was wrong.",
+      "resolution": "Reframed AC2 (proactive-report = exempt: assert no throw/no block + outbox row persists replyTo/hops + NO decision row). Added AC2b for a NON-exempt kind='direct' consumed message where a decision:'replied' row IS written. Added a Research-Findings subsection documenting ACK_EXEMPT_KINDS, updated Implementation-Strategy step 3 to cover both exempt+non-exempt, added a Risk-Areas bullet, and reconciled the seed's 'resolution is recorded' phrasing in Open Questions."
+    },
+    {
+      "id": "F-002",
+      "severity": "High",
+      "category": "Completeness",
+      "source": "claude",
+      "status": "wont_fix",
+      "description": "Claimed the five referenced reference test files (tests/reply-to.test.js, tests/force-response-replyTo-passes.test.js, tests/force-response-strict-ack-block.test.js, tests/proactive-report-notify.test.js, tests/lib/force-response.js) do not exist in the crews tree.",
+      "resolution": "REJECTED as a false positive. All five files were verified present via glob AND an explicit Test-Path check (all returned True) under ai-developer-toolkit/plugins/crews/. The Explore reviewer model (gpt-5.4-mini) failed to traverse the uninitialized-submodule path. The plan references them as EXISTING patterns, not new files; clarified the wording ('verified present in the tree — used as patterns, NOT created') to preempt the confusion."
+    },
+    {
+      "id": "F-003",
+      "severity": "Medium",
+      "category": "Criteria Quality",
+      "source": "claude",
+      "status": "fixed",
+      "description": "AC8 mixed a functional suite-pass gate with a fuzzy wall-clock ceiling (~60-90s), making acceptance ambiguous / perf-dependent.",
+      "resolution": "Rewrote AC8: the functional gate is 'all tests green from a clean env'; the perf window is a non-blocking flake/regression signal note."
+    }
+  ],
+  "convergence": {
+    "decision": "Findings applied directly (in-place) rather than via review-loop.mjs.",
+    "rationale": "The only fix engine available is Copilot (codex hangs on this box) and the Copilot review lens itself was flaky (no usable output on the first invocation, completed on retry). The two substantive findings (F-001 High, F-003 Medium) were applied directly + correctly; the false-positive High (F-002) was rejected with verified evidence. Running an automated fixer loop on a misdiagnosed High risked the fixer 'adding' non-existent missing tests and degrading the plan. No open valid findings remain."
+  }
+}

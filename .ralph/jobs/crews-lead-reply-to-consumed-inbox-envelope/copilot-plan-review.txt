@@ -1,0 +1,38 @@
+I’ll read the referenced prompt file first, then carry out the requested task from it.
+
+The prompt is larger than a single read, so I’m loading it in chunks to extract the actual instructions.
+
+I’m switching to plan-review mode and checking the referenced crews code paths against the plan’s claims.
+
+I have the plugin-specific context now; I’m reading the exact implementation sites to validate feasibility and spot missing coverage.
+
+The core flow matches the plan’s root-cause description; I’m checking existing test helpers now to assess whether the proposed tests are feasible as written.
+
+I’m checking the proactive-report producer shape as a final validation point, since the plan depends on the consumed row carrying the envelope id and hops.
+
+The plan’s main code change is feasible. I’m only checking whether any plan-review findings are warranted before producing the final review.
+
+I found one possible mismatch around strict-ack exemptions, so I’m verifying the ACK_EXEMPT kind set before finalizing.
+
+The ACK exemption check confirms a concrete acceptance-criteria issue in the plan: proactive reports are skipped by strict-ack resolution.
+
+### Feasibility
+
+[High] AC2’s “decision: replied row is written” claim is not feasible for proactive reports. `stop.js` explicitly exempts `from.role === 'system'` + `from.routingKind === 'proactive-report'` via `ACK_EXEMPT_KINDS`, so `evaluateConsumedResolutions()` skips those entries before writing mailbox-decision rows. The test should assert Stop does not block and the lead outbox row persists `replyTo`/derived `hops`; it should not expect a `mailbox-decisions.jsonl` row for that proactive-report envelope.
+
+### Completeness
+
+No issues found.
+
+### Ordering
+
+No issues found.
+
+### Simplicity
+
+No issues found. The single-function resolver extension is the natural integration point.
+
+### Acceptance Criteria Quality
+
+[High] AC2 is over-specified and currently false for the target envelope kind. Split it into: “Stop path writes the lead outbox row without `ReplyToNotFoundError`” and, separately if needed, keep `decision: replied` coverage on a non-exempt consumed direct message. AC1/AC3/AC4/AC5/AC6 otherwise look specific and testable.
+
