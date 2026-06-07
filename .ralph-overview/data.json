@@ -4901,6 +4901,27 @@
           "impl": "Edit .agents/skills/happy-upstream-sync/SKILL.md in the happy repo (D:/harness-efforts/happy) — replace all references to plans/codexu-roadmap.md with docs/fork-roadmap.md (the happy fork's actual file). Single commit on a topic branch off main; push to happy-fork remote; PR or direct push per fork conventions. NOT urgent since happy-sync is postponed."
         }
       }
+    },
+    {
+      "id": "crews-member-crash-auto-notify-lead",
+      "scope": "crews",
+      "lifecycle": "tracked",
+      "status": "warn",
+      "lastTouchedAt": "2026-06-06",
+      "kanbanCards": [
+        {
+          "className": "cmd-warn",
+          "html": "<strong>Filed 2026-06-06 (gap surfaced by the v3.8.0 locks-fix incident).</strong> Two brainstorm members crashed (the UNKNOWN/-4094 lock bug, now fixed in crews v3.8.0) and the LEAD never noticed &mdash; only the operator did, via a Copilot crash popup. Root gap: crews has crash DETECTION (<code>hooks/health.js getMemberHealth</code> &rarr; <code>state:&quot;dead&quot;</code> via launcher-pid liveness + heartbeat staleness) but it is PULL-only (only callers = <code>list-members</code> + <code>resume-crew</code>). A dead member can&#39;t self-report (a kind=blocked report needs a live process), and the lead&#39;s armed listener only wakes on MAIL. The delivery seam already EXISTS: <code>appendSystemMailbox(lead, crew, cwd, envelope, {kind})</code> wakes the armed listener (it&#39;s how member-joined / member-reply / thread-fanout reach the lead). PROPOSED FIX: a listener-driven liveness sweep that piggybacks on the lead listener&#39;s EXISTING wake cycle (idle-timeout + every delivery) &mdash; NOT a poll loop &mdash; and on an alive|quiet&rarr;dead transition synthesizes a review-required <code>member-crashed</code> system envelope, guarded by a per-member already-notified latch in the manifest. Honors the &quot;always listeners, never poll&quot; rule. crews-scope; brainstorm first to pin sweep-location + envelope-kind + latch-reset semantics."
+        }
+      ],
+      "command": {
+        "name": "crews-member-crash-auto-notify-lead",
+        "descriptionHtml": "Auto-notify the crew lead when a member crashes, using the existing system-mailbox + armed-listener channel (not polling). Crash detection already exists (getMemberHealth -&gt; &quot;dead&quot;); the missing piece is a listener-driven liveness sweep that pushes a review-required &quot;member-crashed&quot; envelope to the lead via appendSystemMailbox.",
+        "warnings": "crews-scope. Detection (hooks/health.js getMemberHealth) and delivery (hooks/mailbox.js appendSystemMailbox) primitives BOTH already exist; the work is the sweep that joins them + a dedup latch. Must honor the \"always listeners, never poll\" rule by piggybacking on the lead listener's existing wake cycle, not adding a poll loop. Surfaced 2026-06-06 after the v3.8.0 UNKNOWN-lock fix: dead members produced no mail so the lead never noticed.",
+        "prompts": {
+          "brainstorm": "/brainstorm-with-ralph \"Auto-notify the crew LEAD when a member crashes, via the existing mailbox+listener channel (no polling). Today crews has crash DETECTION but no PUSH notification: hooks/health.js getMemberHealth() classifies a member dead (launcher pid not running via isProcessAlive, OR no pid + stale heartbeat past HEARTBEAT_STALE_MS), but it is pull-only -- the only callers are the list-members command (hooks/crews.js:149) and resume-crew (hooks/commands/resume-crew.js). A dead member cannot self-report (a kind=blocked report needs a live process), and the lead's armed listener only wakes on MAIL delivery, so a silent crash never wakes the lead. Observed 2026-06-06: two brainstorm members died (the UNKNOWN/-4094 lock bug, since fixed in v3.8.0) and the lead never noticed -- only the operator did, via a Copilot crash popup. The delivery plumbing already exists: appendSystemMailbox(leadName, crew, cwd, envelope, {kind}) pushes a system-sourced envelope into the lead's mailbox, which DOES wake the armed listener (it is how member-joined / member-reply / thread-fanout reach the lead). The gap is a periodic liveness sweep joining detection to delivery. PROPOSED DIRECTION (validate/refine): a listener-driven sweep that piggybacks on the lead listener's EXISTING wake cycle (idle-timeout + every delivery) -- NOT a new poll loop, honoring the always-listeners-never-poll rule -- and on an alive|quiet -> dead transition synthesizes a review-required member-crashed system envelope via appendSystemMailbox, guarded by a per-member already-notified latch in the manifest to avoid re-notifying every wake. DESIGN QUESTIONS to resolve: (1) where the sweep runs -- inside the listener subprocess just before it exits, vs at lead re-arm time in the lead model's turn; (2) a new member-crashed envelope kind (review-required) vs reusing an existing kind; (3) latch location + reset semantics on resume/clear so a resumed member can re-crash-notify; (4) false-positive avoidance (lean on the existing dead classification which already requires pid-dead or no-pid+stale-heartbeat; do NOT notify on quiet); (5) scope -- lead-only, or also surface to the operator inbox via the v3.7 operator channel? crews-scope. Reference files: hooks/health.js, hooks/mailbox.js (appendSystemMailbox), hooks/lib/listener-loop.js, and the v3.7 operator-direct channel.\""
+        }
+      }
     }
   ],
   "phaseTree": [
