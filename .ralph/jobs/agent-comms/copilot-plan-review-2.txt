@@ -1,0 +1,40 @@
+I’ll read the prompt file to determine the requested task, then carry it through.
+
+The prompt is long, so I’ll read it in sections and extract the actionable instructions.
+
+I’m going to verify the reviewed plan against the actual package surfaces and repo constraints without changing files.
+
+I need a few targeted repo checks because the review turns on whether the named surfaces and prerequisites are real.
+
+The initial checks show the async-events mailbox is still absent in this checkout, and the main review risk is now whether the plan’s gating/decomposition handles that cleanly.
+
+I’ll check the MCP bridge and spawn launch path once more to ground the final review findings in exact files.
+
+I found one concrete correctness gap in the plan around `initialMessage`; I’m checking the exact launch option type so the finding is precise.
+
+One more security-surface check: the plan’s app-layer auth depends on key material shape, so I’m verifying whether current persisted keys support the proposed signing/encryption split.
+
+The key material check confirms the plan needs to reference the existing TOFU keypair files rather than treating the auth `machineKey` as a generic peer-crypto key.
+
+### Feasibility
+
+Prior Critical/High fixes look adequate: `peers.json` is no longer the sole channel, the stripped `X-Tunnel-Authorization` behavior is correctly acknowledged, async-events is now a hard gate for mailbox-dependent stories, and the missing `createHappyServer` injection slot is explicitly in scope.
+
+[High] Scope A app-layer crypto is underspecified against the actual key material. The plan says peer auth uses “machineKey public keys” and ECDH “between the two daemons’ `machineKey`s”, but current code has separate persisted TOFU keys in `packages/happy-cli/src/tofu/keypairManager.ts` (`server-key.*`, `ecdh-key.*`). `packages/happy-cli/src/persistence.ts`’s credentials `machineKey` is used for data-key encryption/auth, while `packages/happy-cli/src/daemon/run.ts:205-217` passes TOFU public keys into `createHappyServer`. Implementing against the wrong “machineKey” surface would fail signature/decrypt wiring or weaken the intended auth model. The plan should require `peerAuth.ts` to load/use `TofuKeypairs` private Ed25519 + ECDH keys, and pin peer TOFU public keys, not generic `machineKey`s.
+
+### Completeness
+
+[High] The `initialMessage` acceptance path is not actually represented in the target spawn type. `SpawnSessionFromSessionRpcOptions.config.initialMessage` exists in `packages/happy-cli/src/api/apiMachine.ts`, and `spawnSessionFromSessionHandler` forwards it in `packages/happy-cli/src/daemon/run.ts:906-916`, but `SpawnSessionOptions` in `packages/happy-cli/src/modules/common/registerCommonHandlers.ts:120-131` has no `initialMessage`, and `packages/happy-cli/src/daemon/spawnSessionFromSession.ts:126-134` drops it when calling `deps.spawnSession`. The plan says “extend whichever hop drops it,” which is directionally correct, but the story should explicitly add `initialMessage?: string` to `SpawnSessionOptions` and the daemon spawn launch path; otherwise the Scope C acceptance criterion can be missed.
+
+### Ordering
+
+[High] The decomposition contradicts the plan’s own async-events-independent claim for the `initialMessage` fix. Lines 272-273 classify “the `initialMessage` propagation fix part of US-005” as independent, but Suggested Decomposition puts all of US-005 into `scope-bc` with US-004/US-007, gated on the absent async-events mailbox. Since `packages/happy-cli/src/agentComms/mailbox.ts` is not present, an autonomous implementer following the suggested decomposition can block the `initialMessage` fix unnecessarily. Split US-005 into `initialMessage propagation` (independent) and `Scope C message-delivery fixture` (async-events-dependent), or move the independent part into the core/Scope A band.
+
+### Simplicity
+
+No new Critical/High issues found.
+
+### Acceptance Criteria Quality
+
+The criteria are mostly specific, but the Scope A crypto AC should name the concrete existing key source: TOFU Ed25519/ECDH keypairs from `packages/happy-cli/src/tofu/keypairManager.ts`, plus pin-store semantics. “machineKey” is ambiguous and conflicts with existing credentials terminology.
+

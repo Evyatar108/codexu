@@ -1,0 +1,52 @@
+I’ll read the provided prompt file to determine the requested work, then carry it through.
+
+I’ll inspect the referenced design notes and routing/session code to map the existing architecture and integration points.
+
+I found existing same-machine spawn-from-session and event routing seams; I’m filling in the missing runtime/mailbox details now.
+
+The referenced Codex path is slightly stale; I’m reading the actual multi-agent handler and daemon spawn files so the research notes point to real files.
+
+I’m checking the async-events design and local daemon control route to anchor the mailbox recommendation in the settled substrate.
+
+The async-events doc confirms the existing substrate is distinct from the top-level agent mailbox; I’m reading the message persistence routes and exact Codex tool implementation for fixture recommendations.
+
+I have enough for the research pass; one last targeted read will confirm message persistence details.
+
+### Codebase Architecture
+
+Codexu is a TypeScript monorepo with `happy-cli`, `happy-server`, `happy-app`, and `happy-wire`, plus the Rust `codex` submodule. `happy-server` is embedded per daemon, single-operator, and routes Socket.IO updates through `packages\happy-server\sources\app\events\eventRouter.ts`. `happy-cli` owns daemon lifecycle, local session spawning, encrypted session IO, and Codex app-server launch. `happy-wire` owns shared Zod wire schemas. Codex multi-agent primitives live in Rust under `codex\external\repos\codex-patched\codex-rs\core\src\tools\handlers\multi_agents_v2*`.
+
+### Feature-Relevant Code
+
+Key existing seams:
+
+- Same-machine routing: `packages\happy-server\sources\app\events\eventRouter.ts` supports rooms for session, machine, and user-scoped connections plus replay buffer.
+- Durable message substrate: `packages\happy-server\sources\app\api\routes\v3SessionRoutes.ts` provides idempotent persisted encrypted messages via `GET/POST /v3/sessions/:sessionId/messages`; `ApiSessionClient.fetchMessages()` / `flushOutbox()` already consume it in `packages\happy-cli\src\api\apiSession.ts`.
+- Session RPC: `packages\happy-cli\src\api\apiMachine.ts` registers `spawn-session-from-session`; `packages\happy-cli\src\daemon\controlServer.ts` exposes local `/spawn-session-from-session`.
+- Parent-child spawn: `packages\happy-cli\src\daemon\spawnSessionFromSession.ts` validates ancestry, sets `HAPPY_PARENT_SESSION_ID`, updates parent `metadata.spawnedChildren`.
+- Codex top-level spawn: `codex-rs\core\src\tools\handlers\spawn_top_level_session.rs` is gated to `agent-spawner` subagents and posts to daemon loopback using `HAPPY_CURRENT_SESSION_ID` and `HAPPY_DAEMON_CONTROL_URL`.
+- Codex in-process sibling comms: `multi_agents_v2\send_message.rs`, `wait.rs`, and `core\src\agent\registry.rs` cover subagent mailbox/watch behavior, but not top-level Happy sessions.
+- Existing async-event design: `plans\async-events-design.md` recommends MCP long-poll/push for Codex async events, not cross-session top-level messaging.
+
+### Technical Constraints
+
+Message bodies, metadata, and state are encrypted; RPC params are plaintext. Cross-session messaging through `happy-server` should reuse encrypted persisted session messages rather than inventing plaintext Socket.IO payloads.
+
+Scope B is the cleanest first implementation: same daemon, one embedded server, existing `eventRouter`, existing `/v3/sessions/:id/messages`, and per-session `ApiSessionClient` polling/update delivery.
+
+Scope C should be modeled as B plus stronger capability metadata: parent already gets a same-machine reference via `metadata.spawnedChildren`, child records `metadata.parentSessionId`, and daemon ancestry validation caps depth at `MAX_SPAWN_DEPTH = 10`.
+
+Scope A needs an operator decision first. Reintroducing a relay conflicts with stated policy. Dev Tunnels fits existing infrastructure (`tunnelManager`, private tunnel auth), while mobile-app rendezvous could broker discovery/approval without becoming the data plane.
+
+Important gap: `spawn-session-from-session` accepts `initialMessage`, but `spawnSessionFromSession.ts` currently does not pass it to `spawnSession`, so spawned children cannot receive an initial prompt through that path yet.
+
+### Implementation Suggestions
+
+Use one **logical transport envelope** with scope-aware adapters, not three unrelated APIs. Define a shared `agent-comms` message envelope in `happy-wire` with sender session, target session, channel kind, request/reply correlation, hop counter, and parent capability fields.
+
+Implement Scope B first by adding a daemon/server action that writes an encrypted message into the target session’s durable inbox via the same storage path as `/v3/sessions/:id/messages`, then relies on `eventRouter` and `ApiSessionClient.fetchMessages()` for delivery. Add a CLI/session tool that agents invoke for send/request/reply.
+
+Implement Scope C as an authorization shortcut over B: parent-spawned children can message parent/child without re-handshake if `metadata.parentSessionId` / `spawnedChildren` prove the edge. Fix `initialMessage` propagation in this same slice.
+
+For Scope A, surface the decision before wire design. Recommended default: Dev Tunnels as the data plane, mobile app only for rendezvous/operator approval, no central relay. Add hop-count and operator-approval gates before any cross-scope spawn to prevent A→B→A loops.
+

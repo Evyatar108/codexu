@@ -1,0 +1,23 @@
+I’ll read the referenced prompt, then carry out the requested work end-to-end.
+
+I’m in review-confirmation mode now: I’ll verify the amended plan against the current repo, focusing on the prior Highs and any new Critical/High defects.
+
+I’ve found two plan-level regressions in the exact confirmation areas, so I’m checking the surrounding package contracts before writing the review.
+
+### Feasibility
+[High] Scope A crypto is still internally inconsistent. Most of the plan now correctly requires `packages/happy-cli/src/tofu/keypairManager.ts` / `TofuKeypairs`, but the ingest endpoint section still says Ed25519 validation is against a pinned peer `machineKey`. In this repo `machineKey` is a separate credentials/data-key surface (`packages/happy-cli/src/persistence.ts`, `packages/happy-server/sources/index.ts`), so that wording can drive the implementation back to the rejected auth surface. The Round-2 crypto High is only partially resolved.
+
+### Completeness
+No new Critical/High issues found.
+
+### Ordering
+[High] The US-005 split is not fully reflected in the executable decomposition. The plan defines US-005a as async-events-independent, but `Suggested Decomposition` still puts `US-005` inside the `scope-bc` cluster, which depends on `core` and is gated on the async-events mailbox. That can still block the `initialMessage` propagation fix even though it is independent. The Round-2 decomposition High is not resolved.
+
+### Simplicity
+No new Critical/High issues found.
+
+### Acceptance Criteria Quality
+No new Critical/High issues found.
+
+Prior High status: `initialMessage` is explicitly added to `SpawnSessionOptions` and threaded through `spawnSessionFromSession.ts`, so that part is resolved; the TOFU wording and US-005a decomposition issues above remain blocking.
+

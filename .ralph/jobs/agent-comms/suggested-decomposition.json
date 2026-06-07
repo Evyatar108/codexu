@@ -1,0 +1,77 @@
+{
+  "clusters": [
+    {
+      "name": "doc",
+      "stories": ["US-001"],
+      "phase": 1,
+      "dependsOn": [],
+      "fileOverlapEvidence": {
+        "sharedFiles": [],
+        "exclusiveFiles": ["plans/agent-comms-design.md"],
+        "risk": "low"
+      },
+      "executionModeRationale": "A standalone markdown design doc with no code overlap; runs fully in parallel with everything else."
+    },
+    {
+      "name": "wire",
+      "stories": ["US-002"],
+      "phase": 1,
+      "dependsOn": [],
+      "fileOverlapEvidence": {
+        "sharedFiles": [],
+        "exclusiveFiles": ["packages/happy-wire/src/agentComms.ts", "packages/happy-wire/src/index.ts"],
+        "risk": "low"
+      },
+      "executionModeRationale": "Isolated new wire schema in a separate package; no overlap with happy-cli/happy-server work, so it runs in parallel with doc."
+    },
+    {
+      "name": "spawn-initmsg",
+      "stories": ["US-005a"],
+      "phase": 1,
+      "dependsOn": [],
+      "fileOverlapEvidence": {
+        "sharedFiles": [],
+        "exclusiveFiles": ["packages/happy-cli/src/modules/common/registerCommonHandlers.ts", "packages/happy-cli/src/daemon/spawnSessionFromSession.ts"],
+        "risk": "low"
+      },
+      "executionModeRationale": "Pre-existing-bug fix (add initialMessage to SpawnSessionOptions + thread through spawnSessionFromSession) with no async-events/router dependency; lands in phase 1. scope-bc serializes after it because US-007 also edits the spawn path."
+    },
+    {
+      "name": "core",
+      "stories": ["US-003"],
+      "phase": 2,
+      "dependsOn": ["wire"],
+      "fileOverlapEvidence": {
+        "sharedFiles": [],
+        "exclusiveFiles": ["packages/happy-cli/src/agentComms/router.ts", "packages/happy-cli/src/agentComms/router.test.ts"],
+        "risk": "low"
+      },
+      "executionModeRationale": "New router module that imports the wire schema; serialized after wire for the type dependency, otherwise isolated."
+    },
+    {
+      "name": "scope-bc",
+      "stories": ["US-004", "US-005b", "US-007"],
+      "phase": 3,
+      "dependsOn": ["core", "spawn-initmsg"],
+      "externalPrereq": "async-events-design: packages/happy-cli/src/agentComms/mailbox.ts + daemon POST /agent-comms/send must be on origin/main before this cluster's async-events-dependent work (US-004, US-005b Scope C message fixture, cross-session delivery in US-007) starts. The US-005a initialMessage-propagation fix is split into the independent spawn-initmsg cluster and lands earlier.",
+      "fileOverlapEvidence": {
+        "sharedFiles": ["packages/happy-cli/src/codex/happyMcpStdioBridge.ts", "packages/happy-cli/src/daemon/controlServer.ts"],
+        "exclusiveFiles": ["packages/happy-cli/src/daemon/spawnSessionFromSession.ts", "packages/happy-cli/src/agentComms/scopeC.test.ts"],
+        "risk": "medium"
+      },
+      "executionModeRationale": "These stories co-edit the stdio bridge and control server (local message + spawn tools), so they MUST serialize within one cluster to avoid conflicting edits; also gated on the async-events mailbox landing (see externalPrereq)."
+    },
+    {
+      "name": "scope-a",
+      "stories": ["US-006"],
+      "phase": 3,
+      "dependsOn": ["core"],
+      "fileOverlapEvidence": {
+        "sharedFiles": [],
+        "exclusiveFiles": ["packages/happy-cli/src/tunnel/tunnelManager.ts", "packages/happy-cli/src/agentComms/peerTransport.ts", "packages/happy-cli/src/agentComms/peerAuth.ts", "packages/happy-server/sources/app/api/routes/agentCommsIngestRoutes.ts", "packages/happy-cli/src/types/happy-server.d.ts"],
+        "risk": "low"
+      },
+      "executionModeRationale": "Touches disjoint files (Dev Tunnels manager, happy-server ingest route + config slot, CLI shim, peer modules) from scope-bc, so it runs in parallel with scope-bc in phase 3; start after core's router public types are stable (it imports the envelope + resolver), not merely after file creation."
+    }
+  ]
+}

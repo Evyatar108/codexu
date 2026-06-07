@@ -1,0 +1,106 @@
+{
+  "planFile": "D:/harness-efforts/codexu/.ralph/jobs/.staging/20260607T224325Z-plan-agentcomms-0d6baa07/draft-plan.md",
+  "repoDir": "D:/harness-efforts/codexu",
+  "convergence": "manual (review-loop.mjs bypassed: codex-exec lens hung this session; findings applied directly with judgment, then re-reviewed)",
+  "findings": [
+    {
+      "id": "F-001",
+      "severity": "Critical",
+      "source": "claude",
+      "category": "Completeness",
+      "status": "resolved",
+      "description": "peers.json out-of-band discovery fallback read as violating the Scope-A 'Dev Tunnels sole channel' constraint.",
+      "resolution": "Reframed: Dev Tunnels management plane (devtunnel list) is the SOLE network discovery path; peers.json is a machine-local operator-authored file (the operator's explicitly-named 'out-of-band operator-controlled path' + TOFU peer-pin store), not a third-party channel. Nothing transits phone/happy-server."
+    },
+    {
+      "id": "F-002",
+      "severity": "High",
+      "source": "consensus",
+      "category": "Feasibility",
+      "status": "resolved",
+      "description": "Ingest route cannot validate X-Tunnel-Authorization because the Dev Tunnels gateway strips it before reaching happy-server (happy-server/AGENTS.md).",
+      "resolution": "Backend-observable auth is now app-layer only: Ed25519 detached signature over the envelope verified against a TOFU-pinned peer machineKey + sealed-box decrypt; tunnel-gateway connect-token auth is enforced at the gateway and not re-checked at the backend."
+    },
+    {
+      "id": "F-003",
+      "severity": "High",
+      "source": "consensus",
+      "category": "Ordering",
+      "status": "resolved",
+      "description": "Scope B/C/spawn stories depend on the async-events substrate that is not in this checkout; the dependency was only an optional open question.",
+      "resolution": "Added 'External Dependency: async-events-design (HARD gate)' subsection splitting stories into independent vs dependent bands; scope-bc cluster carries an externalPrereq; implement-with-ralph must confirm mailbox.ts on origin/main before scope-bc."
+    },
+    {
+      "id": "F-004",
+      "severity": "High",
+      "source": "copilot",
+      "category": "Completeness",
+      "status": "resolved",
+      "description": "createHappyServer / HappyServerConfig + happy-server.d.ts have no injection callback slot for the ingest->mailbox handler.",
+      "resolution": "Added an agentCommsIngest callback slot to HappyServerConfig + the CLI declaration shim to Files-to-Modify and the Scope A AC; US-006 owns it."
+    },
+    {
+      "id": "F-005",
+      "severity": "Medium",
+      "source": "copilot",
+      "category": "Feasibility",
+      "status": "resolved",
+      "description": "spawnSessionFromSession.ts omits initialMessage; fix may need SpawnSessionOptions/registerCommonHandlers extension.",
+      "resolution": "Files-to-Modify now requires verifying the full initialMessage chain (RpcOptions -> deps -> SpawnSessionOptions -> registerCommonHandlers) and extending whichever hop drops it."
+    },
+    {
+      "id": "F-006",
+      "severity": "Medium",
+      "source": "consensus",
+      "category": "Ordering",
+      "status": "resolved",
+      "description": "scope-bc dependsOn omitted the explicit async-events edge; scope-a should start after router public types stable.",
+      "resolution": "Added externalPrereq to scope-bc and a 'start after core router public types stable' rationale to scope-a in suggested-decomposition.json."
+    },
+    {
+      "id": "F-007",
+      "severity": "Medium",
+      "source": "copilot",
+      "category": "Criteria Quality",
+      "status": "resolved",
+      "description": "happy-wire export wiring under-specified; 'manual two-machine smoke' vague; typecheck command unnamed.",
+      "resolution": "ACs now require AgentCommsEnvelope export from happy-wire/src/index.ts, an exact 'Manual two-machine smoke' doc section (commands + JSON + curl + non-goals), and named build/test commands (npm_config_script_shell=bash pnpm --filter happy test; pnpm --filter happy-server build)."
+    },
+    {
+      "id": "F-008",
+      "severity": "Medium",
+      "source": "copilot",
+      "category": "Simplicity",
+      "status": "acknowledged",
+      "description": "Plan may overreach (peerAuth, peerTransport, ingest, tunnel discovery, unified send, spawn, doc) in one pass.",
+      "resolution": "Acknowledged in Open Questions: Scope A is interfaces+tests+design only this pass; the decomposition split allows landing the async-events-independent band first. Kept full design per operator intent."
+    },
+    {
+      "id": "F-009",
+      "severity": "High",
+      "source": "copilot",
+      "category": "Feasibility",
+      "status": "resolved",
+      "description": "Round 2: Scope A app-layer crypto referenced the credentials 'machineKey'; the codebase has dedicated TOFU keypairs (tofu/keypairManager.ts: Ed25519 server-key + ECDH ecdh-key). Wrong key surface would break signature/decrypt wiring.",
+      "resolution": "Rewrote Scope A step 3 + Risk + AC to require peerAuth.ts use TofuKeypairs (Ed25519 server-key sign + ECDH ecdh-key seal) and pin peer TOFU public keys (ed25519Fingerprint + ecdh pub), NOT machineKey. Verified against keypairManager.ts:13-38."
+    },
+    {
+      "id": "F-010",
+      "severity": "High",
+      "source": "copilot",
+      "category": "Completeness",
+      "status": "resolved",
+      "description": "Round 2: initialMessage path not represented in the target spawn type; SpawnSessionOptions (registerCommonHandlers.ts:120-131) lacks initialMessage and spawnSessionFromSession.ts:126-134 drops it. 'extend whichever hop drops it' was too vague.",
+      "resolution": "Files-to-Modify now explicitly: add initialMessage?: string to SpawnSessionOptions + pass options.config.initialMessage through deps.spawnSession. Verified both gaps against the actual files."
+    },
+    {
+      "id": "F-011",
+      "severity": "High",
+      "source": "copilot",
+      "category": "Ordering",
+      "status": "resolved",
+      "description": "Round 2: decomposition contradicted the plan — initialMessage fix called async-events-independent but all of US-005 was in the gated scope-bc cluster.",
+      "resolution": "Split US-005 into US-005a (initialMessage fix, new independent 'spawn-initmsg' phase-1 cluster) and US-005b (Scope C reference+fixture, scope-bc, async-events-gated). Updated Preliminary Story Decomposition, External Dependency bands, and suggested-decomposition.json (scope-bc dependsOn now includes spawn-initmsg)."
+    }
+  ]
+}

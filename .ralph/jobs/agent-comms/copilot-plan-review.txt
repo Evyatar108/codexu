@@ -1,0 +1,44 @@
+I’ll read the referenced prompt file first, then execute the requested work from it.
+
+The prompt is long, so I’ll read it in ranges and extract the actionable instructions.
+
+I’ll verify the plan’s file and API assumptions against the repository before writing the review findings.
+
+The first broad search hit generated state, so I’m narrowing to source directories and confirming the repo layout directly.
+
+I found that the assumed `agentComms` mailbox substrate does not appear in source, so I’m checking the actual daemon/server entry points for concrete plan blockers.
+
+I have enough evidence to produce the plan review: the largest issue is that the plan depends on async-events files/routes/tools that are not present in this checkout.### Feasibility
+
+[High] The plan assumes the async-events substrate already exists, but this checkout has no `packages/happy-cli/src/agentComms/mailbox.ts`, no `/agent-comms/send` route in `packages/happy-cli/src/daemon/controlServer.ts`, and `happyMcpStdioBridge.ts` only registers `change_title`. US-004/US-005/US-007 cannot be implemented as described unless async-events lands first or this plan explicitly includes the mailbox/control/MCP substrate.
+
+[High] The Scope A ingest route design conflicts with current Dev Tunnels guidance. `packages/happy-server/AGENTS.md` says Microsoft consumes and strips `X-Tunnel-Authorization`, so happy-server normally never sees that header. The plan’s ingest validation step “tunnel-auth present” is not feasible at the backend route.
+
+[Medium] `spawnSessionFromSession.ts` really does omit `initialMessage` when calling `deps.spawnSession`, so that fix is valid. But the plan should verify `SpawnSessionOptions` supports `initialMessage`; otherwise the fix may require extending `registerCommonHandlers` too.
+
+### Completeness
+
+[High] Scope A says “app-layer mutual auth + E2E” with X25519/TOFU, but the plan’s proposed trust anchor relies partly on a gateway header the backend cannot see. It needs a concrete backend-visible auth/handshake flow, including what fields are plaintext, what is sealed, and where peer pins are stored.
+
+[High] The plan says daemon `createHappyServer` wiring will inject ingest→mailbox, but `happy-server`’s exported `HappyServerConfig` and `packages/happy-cli/src/types/happy-server.d.ts` have no callback slot. The plan must include updating both server config types and the CLI declaration shim.
+
+[Medium] The plan creates `happy-wire/src/agentComms.ts` but does not mention export wiring in enough detail beyond a parenthetical. Acceptance should require exports from the package entry point used by happy-cli/happy-server.
+
+### Ordering
+
+[High] The implementation order lists Scope B after router, but Scope B depends on a missing parallel job. The “open question” is not optional; US-004 and downstream US-005/US-007 must be blocked until async-events is merged or moved into this plan.
+
+[Medium] Scope A and Scope B/C are marked parallel in Phase 3, but both ultimately converge on the same envelope/router contracts and server config. If the router dispatch API is still evolving, Scope A should start after router tests and public types are stable, not merely after file creation.
+
+### Simplicity
+
+[Medium] The plan may overreach by attempting `peerAuth.ts`, `peerTransport.ts`, happy-server ingest, tunnel discovery/token minting, unified send, spawn, and design docs in one pass while Scope A live networking is out of scope. A simpler first pass would land envelope/router plus local B/C over the mailbox, and keep Scope A to documented interfaces/tests only after Dev Tunnels CLI shapes are verified.
+
+### Acceptance Criteria Quality
+
+[High] “Scope B fixture … builds on async-events `scopeB.test.ts`” is not autonomous-testable in this checkout because that file/substrate is absent. The AC must name the prerequisite commit or define the mailbox implementation in this job.
+
+[Medium] “documented manual two-machine smoke” is vague for an autonomous agent because full cross-machine networking is out of scope. Specify the exact doc content expected, e.g. commands, expected tunnel list/token output, ingest curl shape, and non-goals.
+
+[Medium] “cross-package typecheck green for every touched package” is good, but the plan should name the package scripts/commands because happy-server and happy-cli use different conventions.
+
