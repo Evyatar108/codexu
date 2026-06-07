@@ -1,0 +1,73 @@
+{
+  "planFile": "D:/harness-efforts/codexu/.ralph/jobs/ralph-codex-exec-lens-hang-instrumentation/plan.md",
+  "repoDir": "D:/harness-efforts/codexu",
+  "reviewCycle": 1,
+  "findings": [
+    {
+      "id": "F-001",
+      "severity": "High",
+      "source": "copilot",
+      "category": "Ordering",
+      "sectionRef": "Approach > Implementation Strategy / Preliminary Story Decomposition",
+      "description": "US-001 runs the dangerous failing workload (the real large/xhigh hang) to confirm pipe-deadlock, but US-004 (the bounded timeout + taskkill /T no-orphan safety net) lands later. Running the dangerous baseline before any reaping mechanism exists re-orphans codex.exe.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Reordered: US-001 now confirms the mechanism with a synthetic, deterministic buffer-filling repro wrapped in an external watchdog (Start-Process timeout + taskkill /T), so no orphan can occur before US-004. The real-prompt large/xhigh A/B confirmation moved to US-005, after US-004's tree-kill safety net exists. Implementation Strategy preamble documents the ordering rationale."
+    },
+    {
+      "id": "F-002",
+      "severity": "High",
+      "source": "copilot",
+      "category": "Criteria Quality",
+      "sectionRef": "Acceptance Criteria / US-001 / US-005",
+      "description": "The A/B acceptance criterion is underspecified and internally inconsistent: it requires the 'exact failing large/xhigh prompt' yet US-001 also describes 'a buffer-filling workload'. Those are different validations.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Split into two distinct, pinned criteria: a Synthetic A/B (US-001 — buffer-filling >256KB child, both stdio modes, external watchdog, recorded to docs/codex-exec-hang-ab-findings.md) and a Real-prompt A/B (US-005 — exact failing large/xhigh prompt under inherit vs fd-backed, low/no RUST_LOG, run after US-004's tree-kill)."
+    },
+    {
+      "id": "F-003",
+      "severity": "Medium",
+      "source": "copilot",
+      "category": "Completeness",
+      "sectionRef": "Approach > Architecture / US-002",
+      "description": "The sidecar default dir 'dirname(--output)/lenses/' requires directory creation before openSync; codex-exec.mjs today only validates input files and never creates output-adjacent directories.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "US-002 now requires mkdirSync(sidecarDir, { recursive: true }) before opening the .out/.err fds, plus a test for the missing-lenses-dir case (added to US-005 test list and the second Acceptance Criterion)."
+    },
+    {
+      "id": "F-004",
+      "severity": "Medium",
+      "source": "copilot",
+      "category": "Completeness",
+      "sectionRef": "US-001 / Files to Create / Acceptance Criteria",
+      "description": "The plan requires recording the A/B outcome in a 'short findings note' but never names the artifact path or format.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Named the durable committed artifact ai-developer-toolkit/plugins/ralph/docs/codex-exec-hang-ab-findings.md and specified its minimal format (stdio mode, RUST_LOG level, outcome, attribution) in Files to Create and the Acceptance Criteria."
+    },
+    {
+      "id": "F-005",
+      "severity": "Medium",
+      "source": "copilot",
+      "category": "Criteria Quality",
+      "sectionRef": "Acceptance Criteria / US-003 / Open Questions",
+      "description": "'The .err sidecar contains RUST_LOG phase markers sufficient to distinguish startup-sync vs model-request vs hooks' is not concrete while the default RUST_LOG filter remains an open question.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Listed the required marker substrings (remote plugin sync; stream_responses_api / POST /responses; SessionStart / Stop) in the Acceptance Criteria and US-003, pinned env/flag precedence (caller RUST_LOG wins, else default, plus low/off control), and converted the open question into a concrete recommended default filter."
+    },
+    {
+      "id": "F-006",
+      "severity": "Medium",
+      "source": "copilot",
+      "category": "Criteria Quality",
+      "sectionRef": "Acceptance Criteria / US-004 / US-005",
+      "description": "'No orphaned codex.exe remains, verified via process listing' can false-fail in a shared Windows environment that has unrelated codex.exe processes from other sessions.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Scoped the no-orphan assertion to descendants of the spawned shell PID captured in the pre-kill snapshot (recursive Get-CimInstance Win32_Process by ParentProcessId), explicitly NOT a global Get-Process codex. Reflected in the first Acceptance Criterion, US-004, and US-005."
+    }
+  ]
+}

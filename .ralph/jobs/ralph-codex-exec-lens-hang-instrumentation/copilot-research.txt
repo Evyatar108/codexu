@@ -1,0 +1,86 @@
+I’ll read the referenced prompt file first, then carry out its instructions.
+
+I found this is a research-only plan-analysis prompt, so I’m inspecting the relevant plugin wrapper code and adjacent patterns without changing files.
+
+I’ve confirmed the existing `codex-exec.mjs` uses inherited stdout/stderr while `copilot-exec.mjs` already has fd capture and tree-kill primitives; I’m checking caller contracts and test surfaces to ground the recommendations.
+
+The codebase evidence is sufficient now; I’m going to return the requested research analysis without modifying the repository.### Codebase Architecture
+
+`ai-developer-toolkit/plugins/ralph` is a skills-only Claude/Copilot plugin implemented mostly as Markdown workflow specs plus zero-dependency Node.js ESM runtime wrappers under `src/`. There is no package-local `package.json`; tests use Node’s built-in `node:test` and `tests/run.mjs` auto-discovers `tests/test-*.mjs`.
+
+Key runtime files:
+- `src/codex-exec.mjs`: Codex CLI wrapper. Assembles prompt from `--prompt`, `--text`, `--section`, streams it to Codex stdin, and lets Codex write the result file via `-o`.
+- `src/copilot-exec.mjs`: Copilot CLI wrapper with richer lifecycle handling: temp prompt file, fd-backed stdout capture via `openSync(outputFile, "w")`, `shell:true`, `killChildTree()` using Windows `taskkill /T /F /PID`, and SIGINT/SIGTERM cleanup.
+- `src/ralph.mjs` and `src/review-loop.mjs`: orchestrator/runtime callers that resolve `CODEX_EXEC_SCRIPT` and default to `src/codex-exec.mjs`.
+
+The plugin manifests are `.claude-plugin/plugin.json` and `.github/plugin/plugin.json`, both currently version `5.52.0`.
+
+### Feature-Relevant Code
+
+Most relevant:
+- `ai-developer-toolkit/plugins/ralph/src/codex-exec.mjs`
+  - `main()`: builds Codex args and spawns `codex`.
+  - Current stdio is exactly `["pipe", "inherit", "inherit"]`, so the wrapper does **not** capture or drain stdout/stderr itself.
+  - `waitForChild()`: only waits for `error`/`close`; no timeout, no signal handlers, no tree kill.
+  - Top comment currently says the wrapper “must not install signal handlers; orchestration owns interrupts here.” That comment becomes stale if D-001 is implemented.
+- `ai-developer-toolkit/plugins/ralph/src/copilot-exec.mjs`
+  - `killChildTree(child)` lines 107-128: Windows `taskkill /T /F /PID` pattern to port.
+  - `registerCleanupHandlers()` lines 474-498: SIGINT/SIGTERM registration pattern.
+  - `runCopilot()` lines 435-471: fd-backed stdout capture pattern, currently `["ignore", outFd, "inherit"]`.
+- `ai-developer-toolkit/plugins/ralph/tests/test-codex-exec.mjs`
+  - Pins current argv/stdin behavior.
+  - Test `spawn argv shape keeps -c value as one argv element` currently asserts stdio is `["pipe", "inherit", "inherit"]`; this must change.
+  - Existing fake `spawn` supports stdin and close/error events, but does not model process-tree kill, timers, or fd lifecycle.
+- `ai-developer-toolkit/plugins/ralph/tests/test-copilot-exec.mjs`
+  - Useful reference for fd capture and cleanup tests.
+
+Callers/output contracts:
+- `skills/review-changes/SKILL.md`: writes Codex review to `<context_dir>/codex-review.txt`.
+- `skills/plan-with-ralph/SKILL.md`, `skills/brainstorm-with-ralph/SKILL.md`, `skills/multi-model-investigate/SKILL.md`, `agents/plan-reviewer.md`: invoke `node <plugin_root>/src/codex-exec.mjs`.
+- `src/review-loop.mjs`: resolves `CODEX_EXEC_SCRIPT || src/codex-exec.mjs`.
+- `src/ralph.mjs`: uses Codex wrapper for iteration engine.
+
+### Technical Constraints
+
+- `shell:true` is intentional for Windows `.cmd` shim resolution; AGENTS.md says not to copy it broadly, but it is valid for `codex-exec.mjs` and `copilot-exec.mjs`.
+- Codex result output must remain owned by Codex’s `-o <outputFile>` argument. Captured stdout should go to a **sidecar**, not replace `--output`.
+- The wrapper currently has no explicit `jobId`/lens id argument. Sidecar placement must be derivable from `--output` or added via a narrow optional flag such as `--sidecar-dir`. Deriving `dirname(outputFile)/lenses/` is the least invasive default.
+- Existing tests pin exact stderr text and argv shape; changing stdio/env/timeout behavior will require test updates.
+- `RUST_LOG` should be merged into `env` without mutating the caller’s `process.env`; preserve caller overrides where sensible, or document precedence.
+- Windows process snapshotting needs to account for `shell:true`: the child PID is likely the shell wrapper, not necessarily `codex.exe`. Tree-kill should target the spawned PID with `/T`; process/TCP snapshots may need PowerShell/CIM queries for descendants.
+- Broad silent catches are discouraged by repo rules. If `taskkill` or snapshot commands fail, record the failure in the sidecar rather than ignoring it as success.
+
+### Implementation Suggestions
+
+Implement this primarily in `src/codex-exec.mjs` by porting selected `copilot-exec.mjs` primitives, but adapt them for two sidecar fds:
+
+1. Add sidecar setup after arg validation:
+   - compute timestamped base under `dirname(parsed.outputFile)/lenses/` or optional `--sidecar-dir`;
+   - create directory;
+   - open `<base>.out` and `<base>.err` with `openSync(..., "w")`;
+   - spawn Codex with `stdio: ["pipe", outFd, errFd]`.
+
+2. Preserve result contract:
+   - keep Codex args including `-o quoteShellArg(parsed.outputFile)`;
+   - do not write/truncate `parsed.outputFile` in Node.
+
+3. Add lifecycle machinery:
+   - wrapper timeout, preferably configurable by env/flag with a safe default;
+   - on timeout, append a diagnostic block to `.err`;
+   - snapshot process tree and TCP ownership before kill;
+   - call `taskkill /T /F /PID <child.pid>` on Windows;
+   - settle with a non-zero timeout code.
+
+4. Add `RUST_LOG` in spawn env:
+   - e.g. `{ ...env, RUST_LOG: env.RUST_LOG || "<codex filters or info>" }`;
+   - record the effective value in the sidecar header.
+
+5. Update tests:
+   - replace stdio assertion with fd-backed sidecar shape;
+   - assert stdout/stderr sidecar files are created;
+   - assert Codex `-o` argv remains unchanged;
+   - add timeout/tree-kill test using injected `execFileSync`/timer hooks rather than real `taskkill`;
+   - add signal handler cleanup if handlers are introduced.
+
+Natural integration point is `codex-exec.mjs::main()` around the current spawn block. Avoid changing call sites unless adding an explicit `--sidecar-dir`; most existing callers already pass output paths rooted in job/staging/context dirs, so deriving sidecars near `--output` keeps the change local.
+

@@ -1,0 +1,36 @@
+I’ll read the provided prompt file first, then execute the task it describes.
+
+The prompt file is readable but needs ranged access, so I’ll load it in sections.
+
+I’ll verify the plan against the actual ralph plugin source, tests, and docs before writing the review findings.
+
+I’ve confirmed the central wrapper and tests exist as described; I’m checking the surrounding helper patterns now for any plan-level gaps.
+
+I found one likely correctness risk around preserving live tail behavior; I’m checking the exact caller contracts before finalizing severity.
+
+The caller tailers consume the `-o` file, not child stdout/stderr, which narrows the live-visibility risk to diagnostics rather than normal result display.
+
+I’m checking whether the original deadlock hypothesis is fully consistent across both caller paths, since that affects whether the proposed validation is sound.scaffolding before the A/B run.
+
+### Completeness
+
+[Medium] The sidecar default `dirname(--output)/lenses/` requires directory creation before `openSync`; `codex-exec.mjs` currently only validates input files and does not create output-adjacent directories. The plan should explicitly require `mkdirSync(sidecarDir, { recursive: true })` and a test for a missing `lenses/` directory.
+
+[Medium] The plan requires recording the A/B outcome in a “short findings note” but does not name the artifact path or format. That leaves acceptance evidence ambiguous for `/implement-with-ralph`; specify a durable path under the job/test artifacts.
+
+### Ordering
+
+[High] The plan’s validation order is risky: US-001’s “exact failing large/xhigh prompt” is the dangerous workload, while US-004 is the no-orphan safety mechanism. The safety mechanism or an equivalent external harness guard must exist before running the dangerous baseline.
+
+### Simplicity
+
+No issues found.
+
+### Acceptance Criteria Quality
+
+[High] The A/B acceptance criterion is underspecified and internally inconsistent. AC requires the “exact failing large/`xhigh` prompt,” but US-001 also describes “a buffer-filling workload.” Those are different validations. Pin the exact command/prompt source, timeout, stdio modes, and expected evidence, and keep the synthetic buffer test as a separate unit/regression test if desired.
+
+[Medium] “The `.err` sidecar contains `RUST_LOG` phase markers sufficient to distinguish startup-sync vs model-request vs hooks” is not concrete while the default `RUST_LOG` filter remains an open question. List the required marker substrings or event categories and the exact default/env/flag precedence.
+
+[Medium] “No orphaned `codex.exe` remains verified via process listing” can false-fail in a shared Windows environment with unrelated `codex.exe` processes. Scope the check to descendants of the spawned shell PID or a command-line/job marker captured in the pre-kill snapshot.
+

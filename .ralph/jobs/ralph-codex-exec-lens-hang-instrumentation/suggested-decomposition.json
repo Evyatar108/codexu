@@ -1,0 +1,19 @@
+{
+  "clusters": [
+    {
+      "name": "codex-exec-capture-first",
+      "stories": ["US-001", "US-002", "US-003", "US-004", "US-005"],
+      "phase": 1,
+      "dependsOn": [],
+      "fileOverlapEvidence": {
+        "sharedFiles": [
+          "ai-developer-toolkit/plugins/ralph/src/codex-exec.mjs",
+          "ai-developer-toolkit/plugins/ralph/tests/test-codex-exec.mjs"
+        ],
+        "exclusiveFiles": [],
+        "risk": "high"
+      },
+      "executionModeRationale": "Every story mutates src/codex-exec.mjs (and US-005 also touches the shared tests, AGENTS.md, CHANGELOG.md, and the five version stamps), so concurrent execution would produce guaranteed conflicts. Execute serially as a single cluster."
+    }
+  ]
+}
