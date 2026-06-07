@@ -1,0 +1,25 @@
+{
+  "clusters": [
+    {
+      "name": "member-crash-autonotify",
+      "stories": ["US-001", "US-002", "US-003", "US-004", "US-005", "US-006"],
+      "phase": 1,
+      "dependsOn": [],
+      "fileOverlapEvidence": {
+        "sharedFiles": [
+          "plugins/crews/hooks/protocol/envelope.js",
+          "plugins/crews/hooks/protocol/review-required.js",
+          "plugins/crews/hooks/stop.js",
+          "plugins/crews/hooks/health.js",
+          "plugins/crews/lib/listener-loop.js",
+          "plugins/crews/hooks/member-crash-notifications.js",
+          "plugins/crews/scripts/bump-version.js",
+          "plugins/crews/.claude-plugin/plugin.json"
+        ],
+        "exclusiveFiles": [],
+        "risk": "high"
+      },
+      "executionModeRationale": "All six stories mutate a small shared set of crews files (envelope.js, stop.js, health.js, listener-loop.js, the new helper, and the 6 version stamps) with hard ordering dependencies: the member-crashed kind must be registered before the sweep appends it, the helper must exist before D-001/D-003 call it, and the version bump must land last. There is no disjoint surface to parallelize; parallel clusters would conflict on envelope.js/stop.js and the version files. Run serially in one impl member."
+    }
+  ]
+}

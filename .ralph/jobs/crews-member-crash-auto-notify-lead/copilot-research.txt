@@ -1,0 +1,114 @@
+I’ll read the referenced prompt and then apply the requested changes in the crews plugin.
+
+I’ll map the existing listener, health, mailbox, and review-gate seams so the research can cite concrete integration points.
+
+I found the relevant seams; I’ll read the surrounding code to pin constraints and recommended integration points.
+
+I’ll also inspect roster, clear/resume, and boundary hook structures to understand latch placement and sweep call sites.
+
+I have enough for the core architecture; one more pass through hook boundaries and manifest schema will clarify reset and field-count implications.
+
+I’ll inspect the snapshot implementation so the research can distinguish “use snapshot” versus “walk members directly.”
+
+I’ll check the manifest write helpers and envelope validator details before drafting the research summary.
+
+Research complete — no files were changed.
+
+### Codebase Architecture
+
+The crews plugin is a JavaScript/CommonJS Node plugin with no package-level build system. Runtime code is organized under `plugins/crews/hooks/`, listener code under `plugins/crews/lib/`, CLI dispatch under `plugins/crews/tools/crews.js`, and tests under `plugins/crews/tests/` with a custom worker-based runner (`node tests/run.js`). Plugin manifests exist for Claude, Copilot, and Codex plus three root marketplace indexes.
+
+Key architectural layers:
+
+- `hooks/paths.js`, `hooks/locks.js`, `hooks/mailbox.js`: state paths, lock discipline, mailbox/outbox JSONL storage, atomic writes.
+- `hooks/actors.js`: actor manifests, listener state, role assignment, spawn/stop/clear/resume lifecycle.
+- `hooks/crews.js`: crew metadata, roster listing, `snapshotCrew`.
+- `hooks/health.js`: current member health classification.
+- `lib/listener-loop.js`: long-running listener process, heartbeat timer, mailbox drain, stdout envelope.
+- Hook entrypoints: `hooks/session-start.js`, `hooks/pre-tool-use.js`, `hooks/stop.js`.
+
+### Feature-Relevant Code
+
+Most direct integration points:
+
+- `lib/listener-loop.js`
+  - `runListenerLoop()` owns the armed listener lifecycle.
+  - Heartbeat `setInterval` is the only periodic code path during an idle indefinite listener.
+  - `deliver(reason)` calls `consumeMailbox(...)`, logs delivery, marks listener exited, and emits the stable `{ type: "messages", count, name, crew, sessionId, via }` stdout envelope.
+  - Any crash sweep added here should preserve stdout envelope shape and likely self-deliver via the existing `deliver`/`tryDeliver` path after appending.
+
+- `hooks/health.js`
+  - `getMemberHealth(name, crew, stateCwd)` returns `state`, `reason`, `launcherPid`, `launcherStartedAt`, `pidAlive`, `lastHeartbeatAt`, `actorState`, `listenerState`.
+  - `deriveHealthState()` already defines the accepted high-confidence `dead` cases:
+    - launcher pid exists and `process.kill(pid, 0)` returns `ESRCH`
+    - no launcher pid and heartbeat age exceeds `HEARTBEAT_STALE_MS`
+  - `quiet`/`unknown` are already distinct and should not notify.
+
+- `hooks/mailbox.js`
+  - `appendSystemMailbox()` is the natural delivery seam for a system notification.
+  - `consumeMailbox()` writes inbox history and bumps `lastReviewRequiredSeq` when `isReviewRequiredEnvelope(...)` matches.
+  - `appendMailboxWithSender()` logs `mail-queued-no-listener` when a recipient is unarmed; crash notifications should avoid relying on later re-arm by self-delivering in the listener path.
+
+- `hooks/protocol/envelope.js`
+  - Add `member-crashed` to `kindEnum`.
+  - Add `PAYLOAD_RULES` if the payload has required fields such as `memberName`, `detectedAt`, `deadReason`, and signature fields.
+
+- `hooks/protocol/review-required.js`
+  - Add `member-crashed` to `DEFAULT_REVIEW_KINDS` so `consumeMailbox()` bumps `lastReviewRequiredSeq`.
+
+- `hooks/stop.js`
+  - Add `member-crashed` to `ACK_EXEMPT_KINDS`; `isAckExempt()` models system notification exemptions by `from.role === "system"` and `from.routingKind`.
+
+- `hooks/crews.js`
+  - `snapshotCrew()` already joins roster rows with `getMemberHealth()`, but a listener-loop helper may prefer a lighter direct member scan to avoid extra fields.
+
+- `hooks/commands/resume-crew.js`
+  - `repairManifestForResume()` is the latch-reset integration point for resumed members.
+
+- `hooks/commands/clear-member.js` / `hooks/actors.js::leaveCrewHelper`
+  - Clear-member routes through `leaveCrewHelper(...)`; latch cleanup belongs around this lifecycle path.
+
+### Technical Constraints
+
+- The listener stdout JSON envelope is intentionally stable; new timing/diagnostic fields belong in `crews.log`, not stdout.
+- Listener heartbeat has existing EPERM/UNKNOWN recovery logic; any sweep must be throttled and should avoid adding high-frequency manifest writes or lock pressure.
+- Strict schema tests run with `CREWS_STRICT_SCHEMA=1`; new envelope kinds must be wired through `kindEnum`, review-required defaults, ack exemptions, and payload validation consistently.
+- Manifest schema has an exact count test (`tests/protocol-manifest.test.js`, currently 51 fields). Using `manifest.custom` avoids count churn, but a separate crew-level state file avoids member-manifest write races and is cleaner for multi-lead behavior.
+- Health detection intentionally fails toward false negatives. Do not reinterpret `quiet`, `unknown`, or EPERM-as-alive as crashes.
+- Mailbox and manifest locks are separate domains; any dedupe latch must use explicit locking and atomic writes.
+
+### Implementation Suggestions
+
+Create a focused helper module, e.g. `hooks/member-crash-notifications.js`, rather than embedding scan logic into multiple hooks. Suggested exports:
+
+- `sweepMemberCrashNotifications({ leadName, crew, cwd, now })`
+- `buildDeadSignature(health, manifest)`
+- `resetMemberCrashNotificationLatch({ memberName, crew, cwd })`
+
+Use a crew-level latch file such as `<crewRoot>/liveness-notifications.json` guarded by `withStateFileLock` and written with `writeJsonAtomic`. Store signatures by lead/member, e.g. `memberCrash[leadName][memberName] = signature`, unless the product explicitly wants one global notification across all leads. The per-lead key matches the delivery model: the sweep appends to the current lead’s own mailbox.
+
+The sweep should:
+
+1. Verify the scanning actor is a lead.
+2. Enumerate member manifests only.
+3. Call `getMemberHealth(...)`.
+4. Skip anything not `health.state === "dead"`.
+5. Build the signature from `{ memberName, sessionId, launcherPid, launcherStartedAt, deadReason }`.
+6. If unchanged from latch, skip.
+7. Append a system mailbox envelope to the lead:
+
+```js
+appendSystemMailbox(leadName, crew, cwd, {
+  kind: 'member-crashed',
+  summary: `${memberName} crashed: ${health.reason}`,
+  message: `${memberName} appears hard-dead: ${health.reason}`,
+  payload: { memberName, detectedAt, deadReason, signature, health }
+}, { kind: 'member-crashed', triggeredBy: memberName })
+```
+
+8. Persist the latch only after successful append.
+
+In `lib/listener-loop.js`, run this sweep inside the heartbeat callback after successful heartbeat handling, throttled to about 60s. If it appends any notifications for a lead listener, immediately call the existing delivery path so the idle listener wakes instead of leaving the message queued.
+
+For D-003, call the same helper in lead `Stop` before opportunistic `consumeMailbox()` and review-required checks. `SessionStart` and `PreToolUse` can run it as a backstop, but `Stop` is the best surface for immediate model-visible delivery when no listener is armed.
+

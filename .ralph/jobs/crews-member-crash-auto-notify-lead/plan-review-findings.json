@@ -1,0 +1,91 @@
+{
+  "planFile": "draft-plan.md",
+  "repoDir": "D:/harness-efforts/codexu/ai-developer-toolkit/plugins/crews",
+  "reviewCycle": 1,
+  "findings": [
+    {
+      "id": "F-001",
+      "severity": "High",
+      "source": "claude",
+      "category": "Feasibility",
+      "sectionRef": "Approach > Sweep skip guards",
+      "description": "applyHardStopMember (actors.js:1529) kills the member process (hardTerminateMemberByLauncherChildren, :1548) BEFORE writing the shutdown/termination markers (:1601-1611). Skip guard #2 relies on those markers, so a sweep landing in the kill->markers window sees pidAlive===false (state:'dead') with no markers and false-fires a member-crashed alert for an intentional /stop-member.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Plan now hoists a pre-kill shutdownRequested:true intent write into applyHardStopMember before the kill (mirroring the soft path at :1451-1457), keeping the terminationKind/terminatedAt audit write after the kill. Added as in-scope + a regression test forcing a sweep in the window. (rubber-duck)",
+      "relevantFiles": ["hooks/actors.js", "hooks/health.js", "hooks/member-crash-notifications.js"]
+    },
+    {
+      "id": "F-002",
+      "severity": "High",
+      "source": "claude",
+      "category": "Completeness",
+      "sectionRef": "Approach > Architecture (latch)",
+      "description": "The plan framed the explicit latch reset as optional hygiene, claiming a resumed member naturally gets a new signature. But same-session /resume-crew reuses sessionId (actors.js:687-696) and launcher.pid is rewritten only at runtime by the launcher script (actors.js:2435-2436), NOT by repairManifestForResume. A re-crash before the new launcher.pid is written would carry the OLD corpse signature and be suppressed.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Added takeoverAt (stamped on every resume/takeover, actors.js:522,533) to the dead signature so resume reliably changes it; reframed the explicit reset as REQUIRED (GC + failed-spawn window). (rubber-duck)",
+      "relevantFiles": ["hooks/member-crash-notifications.js", "hooks/commands/resume-crew.js", "hooks/health.js"]
+    },
+    {
+      "id": "F-003",
+      "severity": "High",
+      "source": "copilot",
+      "category": "Criteria Quality",
+      "sectionRef": "Approach > D-003 + Acceptance Criteria",
+      "description": "Stop only drains its own mailbox when listenerState !== 'armed' (hooks/stop.js:896). A normal lead between turns has an armed listener, so the plan's claim that a Stop-time sweep 'surfaces the crash in the SAME Stop turn' is false for the armed case; the appended envelope is delivered by the listener instead.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Reframed D-003: armed lead -> listener delivers (= D-001 path); unarmed lead -> Stop's own consumeMailbox surfaces it same-turn. Split the D-003 AC accordingly. (copilot)",
+      "relevantFiles": ["hooks/stop.js"]
+    },
+    {
+      "id": "F-004",
+      "severity": "High",
+      "source": "consensus",
+      "category": "Completeness",
+      "sectionRef": "Approach > Sweep skip guards (ownership)",
+      "description": "Members can have null createdBy (assignMemberRole seeds without it, actors.js:719-728; only /spawn-member sets {leadName}, spawn-member.js:169-193). Raw createdBy.leadName misses string forms; raw readCrewMeta().leads can include tombstoned leads, so the single-lead determination is unreliable -> a crashed null-createdBy member may be claimed by no lead and never alert.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Use the existing createdByLeadName() helper (stop.js:392 / actors.js:1376) + activeLeadNames() (actors.js:849) for single-lead determination; log member-crash-sweep-orphan-skipped for unclaimable null-createdBy members. (rubber-duck + copilot consensus)",
+      "relevantFiles": ["hooks/member-crash-notifications.js", "hooks/actors.js", "hooks/stop.js"]
+    },
+    {
+      "id": "F-005",
+      "severity": "Medium",
+      "source": "copilot",
+      "category": "Feasibility",
+      "sectionRef": "Approach > Detection plumbing",
+      "description": "snapshotCrew() calls getMemberHealth for EVERY listNames entry (leads + tasks too). Making getMemberHealth member-role-strict or changing existing return fields would regress /crews-list-members and status surfaces.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Plan now requires the getMemberHealth extension to be STRICTLY additive; health.test asserts the existing shape is unchanged. (copilot)",
+      "relevantFiles": ["hooks/health.js", "hooks/crews.js"]
+    },
+    {
+      "id": "F-006",
+      "severity": "Medium",
+      "source": "copilot",
+      "category": "Completeness",
+      "sectionRef": "Approach > Architecture (latch)",
+      "description": "If appendSystemMailbox succeeds but the subsequent latch write fails, the next sweep can re-notify the same incarnation (duplicate).",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Documented as intentional fail-loud/fail-duplicate: persist latch only after append; log member-crash-latch-write-failed; unit test for append-ok-but-latch-write-fail. (copilot)",
+      "relevantFiles": ["hooks/member-crash-notifications.js"]
+    },
+    {
+      "id": "F-007",
+      "severity": "Medium",
+      "source": "consensus",
+      "category": "Criteria Quality",
+      "sectionRef": "Acceptance Criteria",
+      "description": "AC 'within the throttled sweep cadence' overpromises latency for the no-launcher-pid case, which deriveHealthState does not classify dead until heartbeat age >= HEARTBEAT_STALE_MS (hooks/health.js:54-57).",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Split ACs: pid-gone crashes wake within sweep cadence (~60s); no-pid/stale crashes within HEARTBEAT_STALE_MS (5min) + cadence. (rubber-duck + copilot consensus)",
+      "relevantFiles": []
+    }
+  ]
+}
