@@ -315,6 +315,27 @@ A long multi-thread session. Headline arc: drove the codex-member wt-tab-won't-c
 
 ---
 
+### Bookkeeper session 2026-06-06 — continuation (Copilot CLI overview-bookkeeper lead) — crews v3.8.0 UNKNOWN-locks fix, v3.9.0 arm fail-loud guard, 2 brainstorms, listener-timeout-gap root-cause
+
+Continued the same session. Headline: lead-DROVE the crews lock-contention crash (the exact bug that killed two brainstorm members earlier this session) to a shipped v3.8.0, then ran a 3-member parallel batch (2 multi-lens brainstorms + 1 impl) that ALL survived concurrently — validating the lock fix in production. Closed with a "listener missed a delivery" investigation that turned out to be a self-inflicted `--timeout-ms`, not a crews bug.
+
+| # | Task | Repo | Ship SHA | Notes |
+|---|------|---|---|---|
+| 58 | `crews-locks-retry-unknown-errno-4094` (crews **v3.8.0**, lead-driven) | toolkit + codexu | toolkit `9dd06d99` + codexu `81739f3b` | Windows file-scanner pressure (Defender + Search indexer) surfaces a transient `.crews` lock as `code:"UNKNOWN"` (errno -4094) which the v3.5.0 EPERM-recovery missed → crashed a lead listener + killed two brainstorm members on their FIRST heartbeat failure (`consecutiveFailures=0`; crews.log `listener-eperm-terminate … errCode=UNKNOWN`). Two-predicate fix: `locks.js isTransientLockOpenError` + `safe-io.js TRANSIENT_RENAME_ERRORS` both accept UNKNOWN (heartbeat classifier stays gated on `syscall==='rename'`). 5 new regression cases (16→21); suite 279/279; rubber-duck reviewed. |
+| 59 | `crews-arm-chaining-footgun-guard` (crews **v3.9.0**, impl) | toolkit + codexu | toolkit `c95674a1` + codexu `ca69c534` | D-001 fail-loud arm guard: the no-new-listener `arm-skipped` outcome now writes a stderr advisory (survives `\| Out-Null`) + non-zero exit when stdout is redirected & machine-mode off — UNSAFE→exit 3, SAFE(already-active)→exit 0; stdout JSON byte-identical; escape hatch `CREWS_ARM_MACHINE`/`--machine`. 8 ACs; suite 280/280. Impl self-recovered from a mid-session partial worktree revert. Ship reconciled a personal-only docs commit (`dba2b217`) onto all 3 toolkit remotes. |
+| 60 | `codex-ralph-member-multi-agent-adapter` (brainstorm) | codexu | `053c3f4a` | D-001: extend ralph's build-time harness-aware generator (`generate-copilot-artifacts.mjs`) with a codex target emitting an explicit `spawn_agent→followup_task→wait_agent→collect` recipe + when-to-delegate guidance — gated on a D-003 result-retrieval spike (plan story 1 go/no-go). ralph v5.52.0. Ran partial-mode (skipped the Copilot lens for resource safety). |
+| 61 | `ralph-overview-mcp-snapshot-sync-on-read` (brainstorm) | codexu | `2164c2c5`→`e6ce2c43` | D-001 lifecycle-first sync-on-read + staleness guard (3-way lens consensus): make `parallel_ready_tasks` read data.json fresh, exclude merged/archived as a hard invariant, include same-day filings, surface `snapshotAgeMs`. Root bug: `isCandidateStage()` filters only Ralph stage, never `lifecycle`. ralph-overview v2.10.0. |
+| — | Tasks filed | codexu | `3c4ce2fc` / `00cec024` / `48d03706` | `crews-member-crash-auto-notify-lead` (detection exists via `getMemberHealth`; missing the listener-driven sweep → `appendSystemMailbox`); `ralph-copilot-exec-readonly-submodule-snapshot-cost` (the Copilot lens `--read-only` guard byte-snapshots both multi-GB submodule trees → likely 2nd cause of the r1/r2 resource deaths); `crews-listener-observability-logging`; `crews-bg-gate-recognize-background-subagents`. |
+
+**Critical session-lessons (continuation):**
+
+- **The "listener missed a delivery" bug was a self-inflicted `--timeout-ms`, not a crews bug.** A manual 20-min-timeout re-arm (`lead-listener-29`) timed out at 02:03:43; the impl done report landed at 02:03:45 (mailbox-history seq 417 `sentAt`) — 2s into the un-armed gap — and waited for the next arm's `via=initial` scan. No `orphan-consume-refused`; an earlier indefinite listener delivered `via=watch` in real time. FIX: **arm INDEFINITELY (never pass `--timeout-ms`)** — codified in AGENTS.md; the hook-provided arm command already omits it.
+- **The lock fix held under the exact crash scenario.** Two concurrent multi-lens brainstorms + one impl ran to completion — the r1/r2 deaths do not recur post-v3.8.0.
+- **A SECOND concurrency-death cause surfaced:** the adapter member identified that ralph's Copilot lens `--read-only` guard byte-reads both `codex/` + `ai-developer-toolkit/` submodule trees into memory; running two concurrently is the likely resource-exhaustion trigger (filed `ralph-copilot-exec-readonly-submodule-snapshot-cost`). The member ran partial-mode (skipped that lens) and succeeded.
+- **Dual-writer brainstorm-on-main hazard observed.** The adapter member committed directly on the lead's primary-dir `main` (`053c3f4a`); the mcp-snapshot member correctly used a worktree+topic-branch (`2164c2c5`). Both landed (cherry-pick reconciled the divergence), but the worktree pattern is the safe one — already the codified plan-phase rule.
+
+---
+
 
 ### What's where
 
