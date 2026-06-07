@@ -106,6 +106,34 @@ export async function spawnDaemonSession(directory: string, sessionId?: string):
   return result;
 }
 
+/**
+ * agent-comms Scope B (D-002): post a message to another session on the same
+ * daemon. Goes through the local daemon control hop so cross-session writes are
+ * serialized through one process (no two-writer race on the target inbox).
+ *
+ * Returns the daemon's `{ id, seq }` on success; throws a typed error on any
+ * non-2xx response or transport failure (the bridge MCP tool surfaces that as
+ * an MCP tool error).
+ */
+export async function sendAgentMessage(
+  targetSessionId: string,
+  body: unknown,
+  senderSessionId: string
+): Promise<{ id: string; seq: number }> {
+  const result = await daemonPost('/agent-comms/send', {
+    targetSessionId,
+    body,
+    sender: { sessionId: senderSessionId },
+  });
+  if (result?.error) {
+    throw new Error(`agent-comms send failed (${senderSessionId} -> ${targetSessionId}): ${result.error}`);
+  }
+  if (typeof result?.id !== 'string' || typeof result?.seq !== 'number') {
+    throw new Error(`agent-comms send returned a malformed daemon response: ${JSON.stringify(result)}`);
+  }
+  return { id: result.id, seq: result.seq };
+}
+
 // TODO(F-009): inherits daemonPost envelope-vs-error inconsistency; see packages/happy-cli/src/daemon/AGENTS.md
 export async function spawnDaemonSessionFromSession(options: SpawnSessionFromSessionRpcOptions): Promise<any> {
   return daemonPost('/spawn-session-from-session', options);

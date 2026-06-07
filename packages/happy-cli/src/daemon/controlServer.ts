@@ -13,9 +13,17 @@ import { TrackedSession, SessionEncryptionData } from './types';
 import { isSupportedAgent, SpawnSessionOptions, SpawnSessionResult } from '@/modules/common/registerCommonHandlers';
 import { STOP_SESSION_ID_MAX_LENGTH, STOP_SESSION_PID_SUFFIX_SHAPE } from './stopTrackedSession';
 import type { SpawnSessionFromSessionRpcOptions } from '@/api/apiMachine';
+import { appendMessage, SESSION_ID_REGEX } from '@/agentComms/mailbox';
 
 const PARENT_SESSION_ID_MAX_LENGTH = 128;
 const PARENT_SESSION_ID_SHAPE = /^[A-Za-z0-9_-]+$/;
+
+// agent-comms Scope B (D-002): same-daemon cross-session messaging. Session ids
+// are validated with the mailbox path-safety regex at the route boundary so a
+// malformed id is rejected with a 400 before it can reach the durable store.
+const agentCommsSessionIdSchema = z.string().refine(value => SESSION_ID_REGEX.test(value), {
+  message: 'sessionId must match ^[A-Za-z0-9_-]{1,128}$',
+});
 
 const spawnSessionFromSessionConfigSchema = z.object({
   agent: z.string().refine(isSupportedAgent, { message: 'agent must be one of: claude, codex, gemini, openclaw' }),
@@ -254,6 +262,44 @@ export function startDaemonControlServer({
         };
       }
       return result;
+    });
+
+    // agent-comms Scope B (D-002): same-daemon cross-session message hop.
+    // The sender's stdio bridge posts here; the daemon serializes the write
+    // through one process to avoid two-writer races on the target inbox file.
+    // No X-Loopback-Capability gate on this control-port path — the 127.0.0.1
+    // binding is the auth boundary (per plan F-002). See
+    // packages/happy-cli/src/agentComms/mailbox.ts + plans/durable-mailbox-channel-wake.md.
+    typed.post('/agent-comms/send', {
+      schema: {
+        body: z.object({
+          targetSessionId: agentCommsSessionIdSchema,
+          body: z.unknown(),
+          sender: z.object({ sessionId: agentCommsSessionIdSchema }),
+        }),
+        response: {
+          200: z.object({ id: z.string(), seq: z.number() }),
+          404: z.object({ error: z.string() }),
+        }
+      }
+    }, async (request, reply) => {
+      const { targetSessionId, body, sender } = request.body;
+      const tracked = new Set(
+        getChildren()
+          .map(child => child.happySessionId)
+          .filter((id): id is string => id !== undefined)
+      );
+      if (!tracked.has(sender.sessionId)) {
+        reply.code(404);
+        return { error: `Sender session not tracked by this daemon: ${sender.sessionId}` };
+      }
+      if (!tracked.has(targetSessionId)) {
+        reply.code(404);
+        return { error: `Target session not tracked by this daemon: ${targetSessionId}` };
+      }
+      const { id, seq } = await appendMessage(targetSessionId, body, sender.sessionId);
+      logger.debug(`[CONTROL SERVER] agent-comms send ${sender.sessionId} -> ${targetSessionId} (id=${id} seq=${seq})`);
+      return { id, seq };
     });
 
     // Stop daemon
