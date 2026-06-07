@@ -5274,6 +5274,26 @@
           "html": "Filed 2026-06-07 by bookkeeper as the DEFERRED stalled/idle half of crews-member-crash-auto-notify-lead (operator scoped crash-notify v1 to hard-dead only). The 9h-dark case (impl-adapter: pidAlive + heartbeat-fresh + lastTurnAt-frozen) is a false-positive minefield: a healthy member waiting on its listener is indistinguishable from a stall. Needs a healthy-idle carve-out + a gentle auto-nudge (not a crash page) + default-off. Brainstorm-ready."
         }
       ]
+    },
+    {
+      "id": "ralph-codex-iteration-engine-runaway-spawn-guard",
+      "scope": "ralph",
+      "status": "warn",
+      "lifecycle": "tracked",
+      "lastTouchedAt": "2026-06-07",
+      "command": {
+        "descriptionHtml": "When codex 0.135 is used as ralph's ITERATION ENGINE (driving a story implementation), it can RABBIT-HOLE spawning runaway multi-agent Collab children and hang. Observed 2026-06-07 on impl-adapter (codex-ralph-member-multi-agent-adapter US-002): ~10min / 383K tokens before the member killed it, added anti-spawn guidance, and switched iterationEngine codex->copilot to finish. DISTINCT from the codex-exec LENS pipe-deadlock hang (ralph-codex-exec-lens-hang-instrumentation, fixed v5.54.0) - that was the research/review lens; THIS is the iteration engine spawning sub-agents. A PREREQUISITE for using codex as the default crews MEMBER engine (a codex member that also drives ralph iterations would hit this). Workaround today = iterationEngine->copilot policy.",
+        "prompts": {
+          "brainstorm": "/brainstorm-with-ralph \"Make codex reliable as ralph's ITERATION ENGINE, or decide the policy. Observed failure (2026-06-07, impl-adapter / codex-ralph-member-multi-agent-adapter US-002): codex 0.135 driving a ralph story-implementation iteration rabbit-holed spawning runaway multi_agent_v2 Collab sub-agents (~10min, 383K tokens) and hung; the member killed it, added anti-spawn prompt guidance, and switched iterationEngine codex->copilot to recover. This is DISTINCT from the codex-exec lens pipe-deadlock (fixed v5.54.0). FIX SPACE to weigh: (a) RALPH-SIDE guardrail -- detect runaway Collab spawning during a codex iteration and cap/abort + bake anti-spawn guidance into the codex iteration prompt template (where ralph selects/drives iterationEngine; see ralph.mjs / the codex-exec iteration path); (b) CODEX-SIDE -- disable or cap multi_agent_v2 Collab sub-agent spawning during a focused single-story implementation iteration (codex Collab default-on/off, features flags, or a per-invocation cap); (c) POLICY -- keep iterationEngine->copilot as ralph's default impl iteration engine (codex only for non-iteration lenses, now that the lens hang is fixed) and document it as the supported config. Design questions: detection signal for runaway spawn (child count + wall-time + token burn?), the abort/cap threshold, whether the guard is codex-version-specific, and the interaction with the codex-engine-ralph-member-enablement findings (a codex MEMBER that drives iterations would hit this). Reference: codex-ralph-member-multi-agent-adapter shipManifest.notes, codex/external/repos/codex-patched/codex-rs/multi_agents_v2/ (Collab), the ralph iteration-engine selection path, and codex-engine-ralph-member-enablement.\""
+        },
+        "warnings": []
+      },
+      "kanbanCards": [
+        {
+          "className": "cmd-warn",
+          "html": "Filed 2026-06-07 by bookkeeper. Codex-as-ralph-iteration-engine rabbit-holes spawning runaway Collab children (impl-adapter US-002: ~10min/383K tokens). DISTINCT from the fixed codex-exec lens pipe-deadlock (v5.54.0). Workaround = iterationEngine->copilot. A PREREQUISITE for codex-as-default-member-engine (member that drives iterations would hit it). Brainstorm-ready: ralph-side guard vs codex-side cap vs copilot-iteration policy."
+        }
+      ]
     }
   ],
   "phaseTree": [
