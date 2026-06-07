@@ -15,6 +15,7 @@ import { configuration } from '@/configuration';
 import packageJson from '../../package.json';
 import { MessageQueue2 } from '@/utils/MessageQueue2';
 import type { MessageBatch, MessageDelivery } from '@/utils/MessageQueue2';
+import { recoverPendingAgentCommsMessages } from '@/agentComms/recovery';
 import { hashObject } from '@/utils/deterministicJson';
 import { projectPath } from '@/projectPath';
 import { join } from 'node:path';
@@ -290,19 +291,32 @@ export async function runCodex(opts: {
     // See packages/happy-cli/src/codex/mcpNotificationRouting.ts and
     // .ralph/jobs/codex-channels-option-b/plan.md.
     const mcpNotificationRouting = loadMcpNotificationRouting(settings?.mcpNotificationRouting);
+    const currentMode = (): EnhancedMode => ({
+        permissionMode: currentPermissionMode || 'default',
+        model: currentModel,
+        thinkingLevel: currentThinkingLevel,
+        customSystemPrompt: currentCustomSystemPrompt,
+        appendSystemPrompt: currentAppendSystemPrompt,
+        allowedTools: currentAllowedTools,
+        disallowedTools: currentDisallowedTools,
+    });
     const mcpNotificationConsumer: McpNotificationConsumer = createMcpNotificationConsumer({
         routing: mcpNotificationRouting,
         messageQueue,
-        currentMode: () => ({
-            permissionMode: currentPermissionMode || 'default',
-            model: currentModel,
-            thinkingLevel: currentThinkingLevel,
-            customSystemPrompt: currentCustomSystemPrompt,
-            appendSystemPrompt: currentAppendSystemPrompt,
-            allowedTools: currentAllowedTools,
-            disallowedTools: currentDisallowedTools,
-        }),
+        currentMode,
     });
+
+    // agent-comms Scope B (D-002) startup catch-up. If the durable inbox holds
+    // unconsumed mail from before this process started (the "missed wake"
+    // scenario), enqueue exactly one wake prompt. Runs after MessageQueue2 is
+    // constructed and BEFORE the event handler binds. The recovery helper never
+    // marks anything consumed — the bridge's agent-comms resource read/drain is
+    // the only consumption path. See agentComms/recovery.ts.
+    try {
+        await recoverPendingAgentCommsMessages(session.sessionId, messageQueue, currentMode);
+    } catch (err) {
+        logger.debug(`[Codex] agent-comms startup recovery failed: ${String(err)}`);
+    }
 
     // Valid Codex permission modes from remote messages. Restricted to the
     // native Codex modes exposed by the mobile UI (see modelModeOptions.ts:
