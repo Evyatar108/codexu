@@ -2419,10 +2419,14 @@
     {
       "id": "ralph-overview-mcp-snapshot-sync-on-read",
       "scope": "ralph-overview",
-      "lifecycle": "tracked",
-      "status": "warn",
+      "lifecycle": "merged",
+      "status": "ok",
       "lastTouchedAt": "2026-06-07",
       "kanbanCards": [
+        {
+          "className": "cmd-ok",
+          "html": "<strong>Shipped @ ralph-overview v2.10.0 (submodule dda04a77, codexu pointer ed8e287f), 2026-06-07.</strong> Lifecycle-first sync-on-read for the MCP <code>parallel_ready_tasks</code> tool: reads <code>.ralph-overview/data.json</code> fresh per call as the authoritative task-set + lifecycle spine; excludes lifecycle merged/archived as a HARD invariant independent of Ralph stage (fixed <code>isCandidateStage()</code> in <code>parallel-ready-tasks.ts</code>); includes same-day filings absent from a stale snapshot; overlays snapshot stage/dependency data as enrichment only; surfaces snapshotAgeMs + a stale reason. 4 stories; Phase 5a+5b clean. NOTE: local installed-copy refresh deferred (EBUSY — the live overview MCP server holds the install dir); the ship is durable on all 3 toolkit remotes + the codexu pointer, and the local copy refreshes on next session restart / when the MCP is not holding it."
+        },
         {
           "className": "cmd-ok",
           "html": "<strong>Plan shipped @ 699fb56b (main), 2026-06-07.</strong> 4-story D-001 lifecycle-first sync-on-read plan for the ralph-overview MCP <code>parallel_ready_tasks</code> tool; 2 review rounds, 15 findings resolved. Reads <code>.ralph-overview/data.json</code> fresh per call as the authoritative task-set + lifecycle spine; excludes lifecycle merged/archived as a HARD invariant independent of Ralph stage (fixes <code>isCandidateStage()</code> in <code>parallel-ready-tasks.ts</code> which today filters only on stage); includes same-day filings absent from a stale snapshot via initialStage/command.prompts; overlays snapshot stage/dependency data as enrichment only; surfaces snapshotAgeMs + a stale reason. Reuses SnapshotReader.getOverviewData()/snapshotStaleSince/WatcherSupervisor; rejected full sync-on-read on ~17s latency. Bump ralph-overview 2.10.0. Artifacts: <code>.ralph/jobs/ralph-overview-mcp-snapshot-sync-on-read/</code>."
@@ -2445,6 +2449,22 @@
           "plan": "/plan-with-ralph --from-brainstorm .ralph/brainstorms/ralph-overview-snapshot-freshness/ \"Plan D-001 lifecycle-first sync-on-read + staleness guard for the ralph-overview MCP parallel_ready_tasks tool: read .ralph-overview/data.json fresh per call as the authoritative task-set + lifecycle spine; exclude lifecycle merged/archived as a hard invariant independent of Ralph stage (fix isCandidateStage() in parallel-ready-tasks.ts which today filters only on Ralph stage); include same-day filings absent from a stale snapshot via initialStage/command.prompts; overlay snapshot Ralph stage/dependency data as enrichment only; surface snapshotAgeMs + a stale reason. Reuse existing infra: SnapshotReader.getOverviewData(), snapshotStaleSince, WatcherSupervisor. D-002 (harden the MCP-owned watcher) is a secondary accelerator; reject full sync-on-read on latency (~17s). Bump ralph-overview to 2.10.0. See the brainstorm selected-direction.md + synthesis.\"",
           "impl": "/implement-with-ralph --from-plan .ralph/jobs/ralph-overview-mcp-snapshot-sync-on-read/plan.md --autonomous"
         }
+      },
+      "shipManifest": {
+        "shippedAt": "2026-06-07",
+        "summary": "Lifecycle-first sync-on-read + staleness guard for the ralph-overview MCP parallel_ready_tasks tool (D-001). The tool now reads .ralph-overview/data.json fresh per call as the authoritative task-set and lifecycle spine, excluding lifecycle merged/archived as a hard invariant independent of Ralph stage — fixing isCandidateStage() in parallel-ready-tasks.ts, which previously filtered only on Ralph stage and let merged/archived tasks leak in from a stale watcher snapshot. Same-day filings absent from a stale snapshot are included via the task initialStage/command.prompts; the snapshot Ralph stage + dependency data is overlaid as enrichment only; snapshotAgeMs + a human-readable stale reason are surfaced. Reuses SnapshotReader.getOverviewData()/snapshotStaleSince/WatcherSupervisor; full sync-on-read was rejected on ~17s latency grounds. 4 stories; Phase 5a code-review + Phase 5b docs-review both converged clean. Shipped via the wrapper-to-submodule ceremony (FF to ai-developer-toolkit main, pushed to all 3 toolkit remotes, codexu pointer + active-plugin-versions table bumped). Local installed-copy refresh deferred due to an EBUSY lock held by the live overview MCP server; the change is durable on the remotes and refreshes locally on next session restart.",
+        "commits": [
+          {
+            "sha": "dda04a77",
+            "oneLine": "ralph-overview v2.10.0: lifecycle-first sync-on-read parallel_ready_tasks",
+            "repo": "ai-developer-toolkit"
+          },
+          {
+            "sha": "ed8e287f",
+            "oneLine": "chore: bump ai-developer-toolkit -> ralph-overview 2.10.0",
+            "repo": "codexu"
+          }
+        ]
       }
     },
     {
