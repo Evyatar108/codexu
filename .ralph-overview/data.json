@@ -5024,10 +5024,14 @@
     {
       "id": "crews-listener-observability-logging",
       "scope": "crews",
-      "lifecycle": "tracked",
-      "status": "warn",
+      "lifecycle": "merged",
+      "status": "ok",
       "lastTouchedAt": "2026-06-07",
       "kanbanCards": [
+        {
+          "className": "cmd-ok",
+          "html": "<strong>Shipped @ crews v3.12.0 (submodule 64efeee6, codexu pointer 5727f045), 2026-06-07.</strong> Three additive listener-delivery observability logging changes, no behavior change: (1) <code>lib/listener-loop.js</code> deliver() logs <code>oldestMsgAgeMs</code> on via=initial (a large age means a message sat in an un-armed mailbox); (2) <code>hooks/mailbox.js</code> append path logs <code>mail-queued-no-listener</code> when recipient listenerState !== armed; (3) listener timeout/delivered lifecycle lines carry <code>timeoutMs</code> + <code>armedAtAgeMs</code>. appendLog is try/catch-guarded (observability never breaks delivery). 4 stories; 2-round multi-lens review converged 0 High/Crit; Phase 5a+5b clean; 282/282 green. Motivated by the 2026-06-06 listener-timeout-gap investigation that needed a manual crews.log vs mailbox-history cross-reference these lines now make instant."
+        },
         {
           "className": "cmd-ok",
           "html": "<strong>Plan shipped @ d4552400 (main), 2026-06-07.</strong> 4-story plan; 2-round multi-lens (codex+copilot+claude) Phase-4 review converged 0 High/Critical. Three additive logging changes, no behavior change: (1) <code>lib/listener-loop.js</code> deliver() logs <code>oldestMsgAgeMs</code> on via=initial (large age = message sat in an un-armed mailbox); (2) <code>hooks/mailbox.js</code> append path logs <code>mail-queued-no-listener</code> when recipient listenerState !== armed; (3) listener timeout/delivered lifecycle lines carry <code>timeoutMs</code> + <code>armedAtAgeMs</code>. Key reviewer corrections: derived-state predicate for the queued-while-unarmed check, try/catch-guarded appendLog (observability must never break delivery), submodule two-commit ship discipline, bump crews <strong>3.11.0</strong>. Artifacts: <code>.ralph/jobs/crews-listener-observability-logging/</code>."
@@ -5045,6 +5049,22 @@
           "plan": "/plan-with-ralph \"Add listener delivery observability to the crews plugin (ralph-overview/crews submodule ai-developer-toolkit/plugins/crews). Three additive logging changes, no behavior change: (1) in lib/listener-loop.js deliver(), when via===initial, compute and log oldestMsgAgeMs = now - oldest delivered message sentAt (a large age on via=initial means the message sat in an un-armed mailbox); (2) in hooks/mailbox.js appendMailbox/appendSystemMailbox write path, when the recipient manifest listenerState !== armed, append a crews.log line mail-queued-no-listener name=<recipient> crew=<crew> kind=<kind>; (3) include timeoutMs and armedAtAgeMs (now - armedAt) in the listener timeout and listener delivered lifecycle log lines. Add unit tests for the age computation + the queued-while-unarmed predicate. Bump crews version. Root incident: a self-imposed 20-min --timeout-ms expired 2s before an impl done report landed (seq 417 sentAt 02:03:45 vs timeout 02:03:43), and diagnosing it needed a manual log cross-reference these lines would have made instant.\"",
           "impl": "/implement-with-ralph --from-plan .ralph/jobs/crews-listener-observability-logging/plan.md --autonomous --target-repo D:/harness-efforts/codexu/ai-developer-toolkit"
         }
+      },
+      "shipManifest": {
+        "shippedAt": "2026-06-07",
+        "summary": "Listener-delivery observability logging for the crews plugin (crews v3.12.0). Three additive, behavior-neutral logging changes so a delayed-delivery investigation no longer needs a manual crews.log vs mailbox-history.jsonl cross-reference: (1) lib/listener-loop.js deliver() computes and logs oldestMsgAgeMs on via=initial delivery (a large age signals the message sat in an un-armed mailbox); (2) hooks/mailbox.js append path emits a mail-queued-no-listener crews.log line when the recipient manifest listenerState is not armed; (3) the listener timeout and listener delivered lifecycle log lines now include timeoutMs and armedAtAgeMs. Per reviewer corrections the queued-while-unarmed check uses a derived-state predicate, and appendLog is try/catch-guarded so observability can never break mail delivery. 4 stories; 2-round multi-lens (codex+copilot+claude) Phase-4 review converged 0 High/Critical; Phase 5a code-review + Phase 5b docs-review both clean; 282/282 tests green. Shipped via the wrapper ceremony: clean FF onto submodule main (forked after crews v3.11.0), pushed to all 3 toolkit remotes, codexu pointer + version table bumped, copilot plugin update applied. Directly addresses the 2026-06-06 listener-timeout-gap root-cause investigation.",
+        "commits": [
+          {
+            "sha": "64efeee6",
+            "oneLine": "crews v3.12.0: listener-delivery observability logging",
+            "repo": "ai-developer-toolkit"
+          },
+          {
+            "sha": "5727f045",
+            "oneLine": "chore: bump ai-developer-toolkit -> crews 3.12.0 (listener observability)",
+            "repo": "codexu"
+          }
+        ]
       }
     },
     {
