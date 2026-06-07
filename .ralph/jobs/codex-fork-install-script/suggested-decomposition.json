@@ -1,0 +1,51 @@
+{
+  "clusters": [
+    {
+      "name": "release-publish",
+      "stories": ["US-001", "US-002"],
+      "phase": 1,
+      "dependsOn": [],
+      "fileOverlapEvidence": {
+        "sharedFiles": [],
+        "exclusiveFiles": [
+          "codex/scripts/release/publish-r2.mjs",
+          "codex/.github/workflows/publish-npm.yml",
+          "codex/.claude/commands/publish-sandbox-patch.md"
+        ],
+        "risk": "medium"
+      },
+      "executionModeRationale": "US-001 defines the manifest/latest contract that US-002 wires into the manual Step 5 and CI workflow; serialize within the cluster (US-002 dependsOn US-001). The cluster's release/CI files do not overlap the installer or docs clusters."
+    },
+    {
+      "name": "installer-scripts",
+      "stories": ["US-003", "US-004"],
+      "phase": 1,
+      "dependsOn": ["release-publish"],
+      "fileOverlapEvidence": {
+        "sharedFiles": [],
+        "exclusiveFiles": [
+          "codex/scripts/install.ps1",
+          "codex/scripts/install.sh"
+        ],
+        "risk": "low"
+      },
+      "executionModeRationale": "install.ps1 and the Unix stub touch disjoint new files from the other clusters. The dependsOn release-publish is a data/contract dependency only (US-003 consumes the manifest/latest shape), not a file overlap, so it can author in parallel once the contract section is fixed."
+    },
+    {
+      "name": "endpoint-and-docs",
+      "stories": ["US-005", "US-006"],
+      "phase": 2,
+      "dependsOn": ["release-publish", "installer-scripts"],
+      "fileOverlapEvidence": {
+        "sharedFiles": [],
+        "exclusiveFiles": [
+          "codex/docs/workflows/install.md",
+          "codex/docs/README.md",
+          "codex/scripts/worker/"
+        ],
+        "risk": "low"
+      },
+      "executionModeRationale": "US-005 (/latest contract + optional Worker) needs the manifest/latest from release-publish; US-006 docs the real install steps from installer-scripts. Both land in phase 2 after the scripts exist so docs describe real behavior; disjoint files from the other clusters."
+    }
+  ]
+}

@@ -1,0 +1,86 @@
+I’ll read the provided prompt file to determine the requested task.
+
+I’ll inspect the codex publish/install surfaces and existing docs to ground the research findings in real file paths.
+
+I found the main publish and install docs; I’m checking the release-bundle tail and packaging script so the recommendations reference the exact integration points.
+
+I have enough grounded context to produce the research report.### Codebase Architecture
+
+The relevant project is the `codex\` submodule wrapper. It packages a patched Rust Codex fork from `codex\external\repos\codex-patched\` plus wrapper-owned release automation, docs, and GitHub workflows.
+
+Key pieces:
+
+- Rust workspace: `codex\external\repos\codex-patched\codex-rs\`
+- Overlay launcher: `codex\codex-rs-overlay\codex-copilot-launcher\`
+- Release workflow: `codex\.github\workflows\publish-npm.yml`
+- Manual release skill/runbook: `codex\.claude\commands\publish-sandbox-patch.md`
+- Install docs: `codex\docs\workflows\install.md`
+- Package staging script: `codex\external\repos\codex-patched\codex-cli\scripts\build_npm_package.py`
+
+Build/publish uses Rust, Bash-on-Windows in GitHub Actions, Node/npm packaging, GitHub Releases, and currently some GitHub Packages logic in CI.
+
+### Feature-Relevant Code
+
+- `codex\.github\workflows\publish-npm.yml`
+  - Defines `RELEASE_TARGET: x86_64-pc-windows-msvc`.
+  - Builds `codex.exe`, `codex-core.exe`, `codex-windows-sandbox-setup.exe`, `codex-command-runner.exe`.
+  - Downloads `rg.exe`.
+  - Stages `vendor\x86_64-pc-windows-msvc\...`.
+  - Builds merged release asset `codex-${RELEASE_VERSION}-win32-x64.tgz`.
+  - Uploads that tarball to the GitHub Release.
+  - Natural CI insertion point for SHA generation, `manifest.json`, `latest`, and R2 upload is after `BUNDLE_ASSET` is created and before/after GitHub Release upload.
+
+- `codex\.claude\commands\publish-sandbox-patch.md`
+  - Authoritative local/manual release flow.
+  - Step 5 manually assembles the same release bundle and uploads it with `gh release create`.
+  - It states CI is blocked by org Actions policy and manual upload is currently used.
+  - R2 upload must be added here if manual publishing remains the real release path.
+
+- `codex\external\repos\codex-patched\codex-cli\scripts\build_npm_package.py`
+  - Owns npm package staging.
+  - Platform config already maps `codex-win32-x64` to `x86_64-pc-windows-msvc`.
+  - Produces package layout consumed by the release bundle.
+
+- `codex\docs\workflows\install.md`
+  - Current primary install requires `gh auth login`, SAML, `gh release download`, then `npm install -g`.
+  - Needs to become secondary/fallback once `install.ps1` exists.
+  - Documents first-run behavior and current install layout.
+
+- `codex\docs\README.md`
+  - Contains install pointers and should likely point to the new unauthenticated one-liner.
+
+No existing `install.ps1` / `install.sh` implementation appears to be wired today.
+
+### Technical Constraints
+
+- Windows-x64 only: all current release automation targets `x86_64-pc-windows-msvc`; Unix installer must be a non-zero stub.
+- Current artifact is an npm tarball, not a bare zip/exe. Installer must extract `package\vendor\x86_64-pc-windows-msvc\codex\*.exe` and `package\vendor\x86_64-pc-windows-msvc\path\rg.exe`.
+- There is no `codex install` subcommand. `install.ps1` must own install location and PATH wiring.
+- Windows file locking matters: running `codex.exe` / `codex-core.exe` prevents replacement.
+- Manual release skill and CI workflow are not identical. The workflow still contains GitHub Packages publish steps, while the manual skill says current distribution is GitHub Releases only and CI is blocked. The plan must choose the authoritative R2 upload path or explicitly update both.
+- R2 credentials are external ops state. The code can consume `CLOUDFLARE_*` / S3-style secrets, but bucket, DNS, custom domain, lifecycle, and secret provisioning are operator-owned.
+- `codex.evyatar.dev/latest` should be plain version text and guarded against HTML/error responses by the installer.
+- The fork guidance strongly prefers wrapper/overlay changes over upstream-canonical Rust edits; this feature can avoid Rust code entirely.
+
+### Implementation Suggestions
+
+Use a static R2 object model first, not a Worker, unless routing needs appear later:
+
+- `https://codex.evyatar.dev/latest`
+- `https://codex.evyatar.dev/manifest.json`
+- `https://codex.evyatar.dev/install.ps1`
+- `https://codex.evyatar.dev/install.sh`
+- `https://codex.evyatar.dev/releases/<version>/codex-<version>-win32-x64.tgz`
+- matching `.sha256`
+
+Recommended plan shape:
+
+1. Add wrapper-owned release helper scripts under `codex\scripts\release\`, e.g. one script to generate `manifest.json`, `latest`, and sha256 from `codex-<ver>-win32-x64.tgz`; another optional upload wrapper using `wrangler r2 object put` or S3-compatible credentials.
+2. Wire the helper into the actual release path first: currently `codex\.claude\commands\publish-sandbox-patch.md` Step 5. Also update `publish-npm.yml` if tagged CI is intended to become active again; otherwise document CI as pending/secondary.
+3. Add `install.ps1` as a wrapper-owned script, preferably under `codex\scripts\install\install.ps1` and uploaded to R2 root during release.
+4. Use user-scope PATH wiring for `~\.codex-fork\` or `~\.codex-fork\bin\`, ensuring no duplicate PATH entries. A shim directory is fine only if it is fully owned by the installer.
+5. For integrity safety, download to temp, verify SHA-256 before touching install dir, extract to a staging dir, then swap/copy into `~\.codex-fork\` after killing running processes.
+6. Add `install.sh` as an explicit non-zero Windows-only stub.
+7. Update `codex\docs\workflows\install.md` and `codex\docs\README.md` to make the R2 one-liner primary and authenticated GitHub Release download fallback/internal.
+8. Document the redirect-plan coupling: doctor probe should curl `https://codex.evyatar.dev/latest`, and US-003 hints should use `irm https://codex.evyatar.dev/install.ps1 | iex`.
+

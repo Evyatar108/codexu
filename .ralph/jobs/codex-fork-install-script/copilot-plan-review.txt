@@ -1,0 +1,34 @@
+I’ll read the referenced prompt file first, then carry out the requested work from the repo.
+
+The prompt file is longer than the viewer’s one-shot limit, so I’m reading it in chunks to extract the task.
+
+I’m checking the referenced release, installer, and documentation surfaces so the review is grounded in the actual repo rather than the plan text alone.
+
+I found one concrete mismatch in the current manual release instructions and am doing a quick targeted check for existing script/test conventions before finalizing the plan review.
+
+I’m checking one more runtime-discovery seam because the installer’s proposed flattened layout has to satisfy helper-binary lookup, not just `codex.exe` startup.
+
+The plan is feasible, but I found **three blocking/near-blocking gaps** to fix before implementation.
+
+### Feasibility
+
+- **[High] Manual release path currently builds an incomplete bundle.** `codex/.claude/commands/publish-sandbox-patch.md` Step 5 copies only `codex.exe` and `codex-core.exe`, while CI copies all four shipped executables plus `rg.exe`. The plan notes this as “verify/reconcile,” but it should be a hard story/AC: update Step 5 to include `codex-windows-sandbox-setup.exe` and `codex-command-runner.exe`, then verify the final tarball contents.
+
+- **[Medium] R2 upload mechanism is underspecified.** The plan says “wrangler R2 object put or S3-compatible PUT,” but does not choose one or name exact env vars/secrets. Pick one interface and document exact inputs, no-op behavior, and dry-run/local-output mode.
+
+### Completeness
+
+- **[High] No publish path for `/install.ps1` and `/install.sh`.** The helper uploads per-release objects, but the one-liner depends on root static objects existing at `https://codex.evyatar.dev/install.ps1` and `/install.sh`. Add an explicit helper mode or documented command/AC that uploads those scripts and keeps them in sync.
+
+### Ordering
+
+No issues found.
+
+### Simplicity
+
+No issues found. Static R2 objects are the right simpler default versus a Worker.
+
+### Acceptance Criteria Quality
+
+- **[Medium] Installer verification should avoid interactive first-run ambiguity.** AC-3 says “launcher starts,” but first-run can prompt/login. Make the noninteractive verification explicit, e.g. `CODEX_NON_INTERACTIVE=1`, `codex --version`, tarball layout checks, and `rg.exe` presence/PATH checks.
+

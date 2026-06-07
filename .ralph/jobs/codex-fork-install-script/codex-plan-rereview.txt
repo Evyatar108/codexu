@@ -1,0 +1,23 @@
+Prior High/Medium findings appear resolved: full binary set, installer script publishing, install-layout caveat, scoped process kill, Windows swap rollback, and stronger AC-2/3/5 are now covered.
+
+### Feasibility
+
+[High] The PATH behavior is internally inconsistent and may make AC-3 fail. The algorithm only specifies `[Environment]::SetEnvironmentVariable(..., 'User')`, and the risk section says PATH may only apply to new shells, but AC-3 expects a fresh `powershell -NoProfile` process to find `codex` immediately. A child process launched from the current terminal usually inherits the parent process environment, not the just-written registry value. `install.ps1` should also update `$env:Path` in the current PowerShell session after writing the user PATH, or AC-3 should verify the registry PATH instead. Relevant planned file: `codex/scripts/install.ps1`.
+
+[Medium] The R2 “S3-compatible PUT” helper omits the signing/dependency detail needed to be implementable. A plain HTTP PUT to R2 will fail; the helper needs AWS SigV4 signing via either an explicit dependency such as AWS SDK / aws4fetch or a documented built-in signer. The repo currently has no existing R2/wrangler helper to reuse, so this should be specified before implementation in `codex/scripts/release/publish-r2.mjs`.
+
+### Completeness
+
+[High] Credential absence is too permissive for the manual publish path. The plan says the helper no-ops non-fatally when R2 env vars are absent, but `codex/.claude/commands/publish-sandbox-patch.md` is the authoritative release path today. If that path succeeds without uploading R2 artifacts, the public one-liner for that release is broken while the GitHub release exists. Keep the CI no-op guard, but make the manual Step 5 invocation fail by default unless an explicit `--skip-r2`/`--dry-run` is passed.
+
+### Ordering
+
+No issues found.
+
+### Simplicity
+
+No issues found.
+
+### Acceptance Criteria Quality
+
+[Medium] AC-3 should state exactly how PATH visibility is verified after install. If the intended behavior is immediate same-session availability from `irm ... | iex`, require `install.ps1` to update both user PATH and current `$env:Path`, then verify `codex --version` in the same session and a child process. If the intended behavior is new-terminal-only, AC-3’s “fresh powershell” check is not reliable enough as written.

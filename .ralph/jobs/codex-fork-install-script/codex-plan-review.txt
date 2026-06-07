@@ -1,0 +1,31 @@
+**Feasibility**
+
+[High] The plan’s primary publish path can currently produce an incomplete R2 artifact. [publish-sandbox-patch.md](D:/harness-efforts/codexu/codex/.claude/commands/publish-sandbox-patch.md:303) copies only `codex.exe` and `codex-core.exe` into `vendor/codex/`, while [publish-npm.yml](D:/harness-efforts/codexu/codex/.github/workflows/publish-npm.yml:139) copies all four binaries, including `codex-windows-sandbox-setup.exe` and `codex-command-runner.exe`. The plan notes this as an open question, but because manual Step 5 is the real release path today, US-002/AC-2 must require reconciliation before upload.
+
+[High] The default flat `~/.codex-fork/` layout conflicts with the update-hint/standalone integration story. Existing install-context detection requires either a package layout where `codex.exe` is under `bin/` with `codex-package.json`, or a standalone release under `<codex_home>/packages/standalone/releases/...`; otherwise the method is `Other`. See [install-context/src/lib.rs](D:/harness-efforts/codexu/codex/external/repos/codex-patched/codex-rs/install-context/src/lib.rs:184) and [install-context/src/lib.rs](D:/harness-efforts/codexu/codex/external/repos/codex-patched/codex-rs/install-context/src/lib.rs:224). `UpdateAction` returns `None` for `Other` in [update_action.rs](D:/harness-efforts/codexu/codex/external/repos/codex-patched/codex-rs/tui/src/update_action.rs:25). Either adopt the recognized layout or explicitly add follow-up install-context support for `.codex-fork`.
+
+**Completeness**
+
+[High] There is no code or acceptance criterion that uploads/syncs `codex/scripts/install.ps1` and `codex/scripts/install.sh` to the R2 keys `/install.ps1` and `/install.sh`. The helper uploads release objects, but the one-liner depends on the installer script itself being published and kept in sync. Add a helper mode or explicit runbook/AC for these static objects.
+
+[High] The process-kill behavior is too broad. “Terminate running `codex`/`codex-core` processes” can kill unrelated npm/global/dev installs or active sessions. The installer should only stop processes whose executable path is under the target install root, or prompt unless `CODEX_NON_INTERACTIVE` is set.
+
+[High] “Atomically swap into the install dir” is underspecified for Windows directories. Replacing a non-empty directory is not a simple atomic operation, and partial rename/delete failure can leave the user with no working install. The plan should require a stage → backup current → rename stage → rollback-on-failure sequence.
+
+**Ordering**
+
+[Medium] The plan allows installer authoring in parallel after the manifest contract is “fixed,” but layout choice and URL shape are still open questions. Resolve install layout and manifest URL shape before US-003 starts, otherwise the installer and docs can bake incompatible assumptions.
+
+**Simplicity**
+
+[Medium] The plan may be making the installer do extra work by choosing a flat layout. Using the existing package layout (`bin/`, `codex-path/`, `codex-package.json`) would reuse `InstallContext::package_layout`, avoid special `rg.exe` co-location, and make update/doctor follow-up cleaner.
+
+**Acceptance Criteria Quality**
+
+[High] AC-2 is too weak: it requires shared manifest logic but not that the uploaded tarball contains the full Windows binary set. Add an assertion for `codex.exe`, `codex-core.exe`, `codex-windows-sandbox-setup.exe`, `codex-command-runner.exe`, and `rg.exe`.
+
+[Medium] AC-3 should specify exact verification commands, e.g. a fresh `powershell -NoProfile` process can resolve `codex`, run `codex --version`, and find `rg.exe` from the installed PATH entry.
+
+[Medium] AC-5 should define the process scope. As written it encourages killing every `codex` process on the machine; acceptance should verify only target-install processes are stopped and unrelated ones are left alone.
+
+No prior review amendments were included beyond the D-002 direction choice, so there are no prior-cycle fixes to assess.

@@ -1,0 +1,23 @@
+### Feasibility
+
+[High] The plan still contradicts itself on the R2 upload backend. The main approach and Open Question 5 say the default is `wrangler r2 object put`, but US-001 says “default S3-compatible PUT; env vars named.” That can send implementers down the wrong path and reintroduce the SigV4 dependency issue. Fix US-001 to say `wrangler r2 object put` with `CLOUDFLARE_API_TOKEN`, `R2_ACCOUNT_ID`, and `R2_BUCKET`.
+
+### Completeness
+
+[High] The plan does not specify how `wrangler` is made available in both execution paths. `codex/.github/workflows/publish-npm.yml` currently has no Wrangler setup, and the manual path in `codex/.claude/commands/publish-sandbox-patch.md` cannot assume it exists either. AC-2 should require either `npx wrangler@<pinned>` / explicit setup in CI and manual docs, or a helper-side prerequisite check with a clear hard failure in the manual path.
+
+[High] The R2 publish helper needs an ordering/partial-publish contract: upload tarball, `.sha256`, manifest, and installer scripts first, verify or fail, then update `/latest` last. As written, a failed publish could leave `/latest` pointing at a version whose manifest or tarball is missing, breaking `install.ps1`.
+
+### Ordering
+
+No remaining Critical/High issues found.
+
+### Simplicity
+
+No remaining Critical/High issues found.
+
+### Acceptance Criteria Quality
+
+[High] AC-2 does not currently assert Wrangler availability/setup, despite making Wrangler the default upload interface. Add an explicit verification point for the CI workflow and manual Step 5 path.
+
+Not converged yet. The round-2 fixes are directionally adequate, but the remaining upload-backend contradiction and Wrangler/tooling contract need one more plan edit before implementation.

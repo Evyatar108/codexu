@@ -1,0 +1,66 @@
+**Codebase Architecture**
+
+`codexu` is the parent workspace, but this feature lives almost entirely in the `codex/` submodule: `D:/harness-efforts/codexu/codex`.
+
+The `codex/` repo is a wrapper around an inner patched upstream submodule:
+
+- [codex/CLAUDE.md](D:/harness-efforts/codexu/codex/CLAUDE.md:60): wrapper repo structure and release docs.
+- [external/repos/codex-patched/](D:/harness-efforts/codexu/codex/external/repos/codex-patched): patched upstream Codex source submodule.
+- [codex-rs-overlay/](D:/harness-efforts/codexu/codex/codex-rs-overlay): fork-only Rust crates, including the Copilot launcher.
+- Build stack: Rust workspace, GitHub Actions on `windows-latest`, Bash workflow steps, Python packaging via `build_npm_package.py`, `npm pack`, and `gh release upload`.
+
+The current release artifact is produced by [publish-npm.yml](D:/harness-efforts/codexu/codex/.github/workflows/publish-npm.yml:228): it merges the JS shim and platform vendor payload into `codex-<version>-win32-x64.tgz`.
+
+**Feature-Relevant Code**
+
+- [publish-npm.yml](D:/harness-efforts/codexu/codex/.github/workflows/publish-npm.yml:13): hard-codes `RELEASE_TARGET=x86_64-pc-windows-msvc`.
+- [publish-npm.yml](D:/harness-efforts/codexu/codex/.github/workflows/publish-npm.yml:109): builds `codex`, `codex-core`, `codex-windows-sandbox-setup`, and `codex-command-runner`.
+- [publish-npm.yml](D:/harness-efforts/codexu/codex/.github/workflows/publish-npm.yml:132): assembles vendor layout and downloads verified `rg.exe`.
+- [publish-npm.yml](D:/harness-efforts/codexu/codex/.github/workflows/publish-npm.yml:228): creates the merged release bundle and uploads it to GitHub Releases.
+- [publish-sandbox-patch.md](D:/harness-efforts/codexu/codex/.claude/commands/publish-sandbox-patch.md:292): manual release path. Important: it says CI is currently blocked and the manual path is authoritative, but its Step 5 only copies `codex.exe` and `codex-core.exe` before packing; it does not mirror the workflow’s helper binary copy. The plan should fix or explicitly reconcile that drift.
+- [install.md](D:/harness-efforts/codexu/codex/docs/workflows/install.md:18): current authenticated install path via `gh release download` plus `npm install -g`.
+- [docs/README.md](D:/harness-efforts/codexu/codex/docs/README.md:16): quick install pointer that will need the new one-liner.
+- [build_npm_package.py](D:/harness-efforts/codexu/codex/external/repos/codex-patched/codex-cli/scripts/build_npm_package.py:52): platform package map includes `codex-win32-x64`.
+- [bin/codex.js](D:/harness-efforts/codexu/codex/external/repos/codex-patched/codex-cli/bin/codex.js:78): npm shim resolves legacy vendor layout and prepends the vendor `path` directory for `rg.exe`.
+- [discovery.rs](D:/harness-efforts/codexu/codex/codex-rs-overlay/codex-copilot-launcher/src/discovery.rs:3): Rust launcher requires `codex-core.exe` next to `codex.exe`.
+- [setup.rs](D:/harness-efforts/codexu/codex/codex-rs-overlay/codex-copilot-launcher/src/setup.rs:16): first-run bootstrap writes `~/.codex-copilot/config.toml` and runs `codex login --provider copilot`.
+- [scripts/install/install.ps1](D:/harness-efforts/codexu/codex/external/repos/codex-patched/scripts/install/install.ps1:145): upstream installer has reusable PATH helpers, install lock, staging, hash verification, and junction logic, but points at OpenAI release metadata.
+- [install-context/src/lib.rs](D:/harness-efforts/codexu/codex/external/repos/codex-patched/codex-rs/install-context/src/lib.rs:184): standalone detection expects a package layout with `codex-package.json`, `bin/`, `codex-resources/`, and `codex-path/` under `~/.codex/packages/standalone/releases/...`.
+- [doctor/updates.rs](D:/harness-efforts/codexu/codex/external/repos/codex-patched/codex-rs/cli/src/doctor/updates.rs:24): redirect-plan coupling point; still probes `api.github.com/repos/openai/codex/releases/latest`.
+- [tui/update_action.rs](D:/harness-efforts/codexu/codex/external/repos/codex-patched/codex-rs/tui/src/update_action.rs:17): update hints still reference `chatgpt.com/codex/install.ps1`.
+
+**Technical Constraints**
+
+- Windows x64 only. No Unix binary is built today.
+- Existing upstream install script version regex only allows `x.y.z[-alpha|-beta]`; this fork needs to accept versions like `0.135.0-copilot-api.1`.
+- There is no `codex install` subcommand. The installer must own PATH wiring.
+- Windows file locking requires killing `codex` and `codex-core` before replacing executables.
+- Directly running `codex.exe` bypasses the JS shim that adds `rg.exe` to child PATH. If using a custom `~/.codex-fork` layout, put `rg.exe` in the same PATH-visible directory or create a recognized standalone package layout.
+- CI workflow exists, but manual `/publish-sandbox-patch` is currently the real release path because Actions are documented as blocked. The R2 upload must not live only in CI unless the operator unblocks Actions.
+- R2 credentials are new infrastructure. No repo dependency on `wrangler` exists today.
+
+**Implementation Suggestions**
+
+Use a static R2 layout first, not a Worker:
+
+```text
+/latest
+/manifest.json
+/releases/<version>/codex-<version>-win32-x64.tgz
+/releases/<version>/codex-<version>-win32-x64.tgz.sha256
+/install.ps1
+/install.sh
+```
+
+The natural code integration is a small wrapper-owned release helper invoked from both [publish-npm.yml](D:/harness-efforts/codexu/codex/.github/workflows/publish-npm.yml:254) and [publish-sandbox-patch.md](D:/harness-efforts/codexu/codex/.claude/commands/publish-sandbox-patch.md:292). It should take `version`, `bundle path`, `base URL`, and bucket config; compute SHA-256 and size; write `manifest.json` and `latest`; then upload all four release objects. This avoids duplicating manifest logic across CI and manual release docs.
+
+For `install.ps1`, reuse patterns from upstream `install.ps1`: `Invoke-WithInstallLock`, `Path-Contains`, `Prepend-PathEntry`, staging-before-move, checksum verification, and user-scope PATH update. Add testability knobs like `CODEX_INSTALL_ROOT`, `CODEX_BASE_URL`, and `CODEX_NON_INTERACTIVE`.
+
+Prefer staging extraction first, then atomic replace/retarget. That keeps AC-4 strong: a bad hash or malformed tarball cannot partially mutate the live install.
+
+For layout, either:
+
+1. Minimal AC layout: `~/.codex-fork/bin` contains `codex.exe`, `codex-core.exe`, `codex-windows-sandbox-setup.exe`, `codex-command-runner.exe`, and `rg.exe`; add only that dir to User PATH.
+2. More compatible layout: adapt upstream standalone layout under `~/.codex/packages/standalone/releases/...` so `codex doctor`, update actions, and bundled resource detection already classify it as standalone.
+
+I would choose option 2 unless the operator strongly wants the literal `~/.codex-fork` root. It reduces follow-up changes in doctor/update behavior.

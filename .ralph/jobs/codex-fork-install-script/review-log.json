@@ -1,0 +1,46 @@
+[
+  {
+    "phase": "initial-review",
+    "round": 0,
+    "reviewers": ["claude", "codex", "copilot"],
+    "findingsOpened": 10,
+    "note": "Tri-model plan review (Claude/Explore + Codex gpt-5.5 + Copilot, all effort=high +rubric). Consolidated into F-001..F-010. Step 5 binary-set gap independently confirmed by direct read of publish-sandbox-patch.md L304."
+  },
+  {
+    "phase": "fix",
+    "round": 1,
+    "findingsFixed": ["F-001", "F-002", "F-003", "F-004", "F-005", "F-006", "F-007", "F-008", "F-009", "F-010"],
+    "note": "Orchestrator applied fixes directly (superior context + verified ground truth) rather than delegating to a generic fixer loop. Edits across Architecture, install.ps1 algorithm, Files, Risk Areas, Acceptance Criteria (AC-2b/AC-2c/AC-3/AC-5/AC-11 added/strengthened), Story Decomposition, and Open Questions."
+  },
+  {
+    "phase": "re-review",
+    "round": 2,
+    "reviewers": ["codex"],
+    "findingsOpened": 4,
+    "note": "Codex re-review confirmed all 10 round-1 findings resolved; surfaced F-011 (PATH same-session inconsistency, High), F-012 (manual-path credential-absence too permissive, High), F-013 (S3 PUT needs SigV4 signing, Medium), F-014 (AC-3 PATH-visibility verification, Medium)."
+  },
+  {
+    "phase": "fix",
+    "round": 2,
+    "findingsFixed": ["F-011", "F-012", "F-013", "F-014"],
+    "note": "Applied: algorithm step 7 updates both registry user PATH and current-session $env:Path; manual Step 5 R2 upload hard-fails on missing creds unless --skip-r2/--dry-run (CI stays no-op); R2 default flipped to wrangler r2 object put with S3+SigV4 documented as alternative; AC-3 specifies two-way (same-session + persistent) PATH verification."
+  },
+  {
+    "phase": "re-review",
+    "round": 3,
+    "reviewers": ["codex"],
+    "findingsOpened": 4,
+    "note": "Final convergence re-review. Confirmed round-2 fixes directionally adequate. Surfaced F-015 (US-001/Architecture wrangler contradiction — already corrected by a parallel edit), F-016/F-018 (wrangler availability not specified for either publish path), F-017 (partial-publish ordering: /latest must be written last)."
+  },
+  {
+    "phase": "fix",
+    "round": 3,
+    "findingsFixed": ["F-015", "F-016", "F-017", "F-018"],
+    "note": "Applied: helper uses pinned `npx -y wrangler@<pinned>` (no global install) + wrangler/network prerequisite check hard-failing the manual path; mandatory publish ordering (/latest written LAST after all objects verified); US-001 made consistent with the wrangler default; AC-1 + AC-2 strengthened."
+  },
+  {
+    "phase": "cap-exit",
+    "round": 3,
+    "note": "Autonomous re-review cap (max-re-reviews=2) reached after 2 re-reviews (rounds 2,3). Convergence was productive and non-plateauing (10 -> 4 -> 4 findings, each round more specific; no repeated finding IDs). All 18 surfaced findings (F-001..F-018) addressed. Plan placed on HOLD for operator review per the task contract; the operator review is the next gate."
+  }
+]
