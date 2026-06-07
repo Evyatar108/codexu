@@ -1,0 +1,25 @@
+### Feasibility
+
+[High] The plan scopes the codex lowering around “fan-out” and a JSON-validating `spawn_agent -> ... -> collect` recipe, but the generated Copilot surface also includes non-fan-out `Agent(` sites. `INTERNAL_WORKFLOWS` includes `convert-to-ralph-prd`, which has `Agent(` calls at [convert-to-ralph-prd/SKILL.md](D:/harness-efforts/codexu/.ralph/jobs/codex-ralph-member-multi-agent-adapter/worktree/plan/ai-developer-toolkit/plugins/ralph/skills/convert-to-ralph-prd/SKILL.md:286) and [line 500](D:/harness-efforts/codexu/.ralph/jobs/codex-ralph-member-multi-agent-adapter/worktree/plan/ai-developer-toolkit/plugins/ralph/skills/convert-to-ralph-prd/SKILL.md:500). `implement-with-ralph` also has single-agent side-effect calls like `criteria-validator`, `code-fixer`, and `docs-updater` before the Phase 5.5 triple. A universal “validate JSON result” recipe would be wrong for these. The plan needs either separate codex lowerings for generic single-agent delegation vs JSON fan-out, or explicit non-target exceptions for every non-fan-out `Agent(` site.
+
+### Completeness
+
+[High] The plan identifies that `generate-copilot-artifacts.mjs --check` passes vacuously when `.copilot-plugin` is absent, but it does not add an acceptance criterion preventing the new codex check from doing the same. The existing behavior is in [generate-copilot-artifacts.mjs](D:/harness-efforts/codexu/.ralph/jobs/codex-ralph-member-multi-agent-adapter/worktree/plan/ai-developer-toolkit/plugins/ralph/scripts/generate-copilot-artifacts.mjs:262). A codex release gate that passes when the codex output root is missing would not prove artifacts were generated or committed. Add an AC that codex `--check` fails if the expected codex artifact root/files are absent after the target is introduced.
+
+[Medium] `spike-verdict.json` is load-bearing for every later guard, but the plan never gives it an exact path. In this repo there are at least three plausible roots: the codexu wrapper job dir, the `ai-developer-toolkit` submodule, and the plan/impl worktree. The AC should pin a path such as `.ralph/jobs/codex-ralph-member-multi-agent-adapter/spike-verdict.json` and require all guards to read that exact file.
+
+### Ordering
+
+[High] US-004’s live smoke says to “load the GENERATED codex artifact,” but US-005 is where codex discovery/manifest wiring is created and validated. As ordered, US-004 depends on US-005. Either move US-005 before the live-smoke part of US-004, or split US-004 into static checks before discovery and live smoke after discovery.
+
+### Simplicity
+
+No issues found.
+
+### Acceptance Criteria Quality
+
+[Medium] The live-smoke AC is directionally good but not executable enough for an autonomous agent. It should name the harness/command, required env/config for `features.multi_agent_v2=true`, expected skip vs fail behavior when a real `codex` binary is unavailable, and where the smoke transcript/artifact is written.
+
+[Medium] The spike requires a “LONG payload” and exact equality, but does not specify payload size, checksum algorithm, nonce format, or canonical JSON encoding. Add concrete values, for example `>=32 KiB`, SHA-256 over the payload string, and canonical `JSON.stringify` output with no markdown fences.
+
+No prior review-cycle amendments were mentioned in the plan, so there are no amendment regressions to assess.

@@ -1,0 +1,34 @@
+I’ll read the referenced prompt file and execute the requested task from there.
+
+The prompt is long, so I’ll read it in sections before making changes.
+
+I’ll validate the plan against the actual generator, parity scripts, and plugin metadata surfaces before writing the review.
+
+I found the plan’s main seam; now I’m checking the actual generator and fan-out sites for factual gaps.
+
+I found a likely factual issue around Codex plugin discovery, so I’ll verify existing `.codex-plugin` conventions before finalizing the review.
+
+### Feasibility
+
+[Medium] The plan says there is “no `.codex-plugin/` precedent” in `ai-developer-toolkit`, but existing plugins already ship `.codex-plugin/plugin.json` surfaces, e.g. `plugins/crews/.codex-plugin/plugin.json` and `plugins/teams/.codex-plugin/plugin.json`. US-005 should reuse that manifest convention instead of treating discovery as greenfield.
+
+[High] The plan’s Agent inventory is incomplete. It focuses on “multi-lens fan-out” sites, but generated/internal Ralph skills also contain non-fan-out `Agent(` calls: `skills/convert-to-ralph-prd/SKILL.md` repo detector and criteria validator, plus `skills/implement-with-ralph/SKILL.md` criteria-validator, code-fixer, and docs-updater calls. A codex target that only lowers the listed fan-out sites will either leak forbidden `Agent(` tokens or leave core workflows unusable.
+
+### Completeness
+
+[High] US-006 still says “five stamps,” but adding a Ralph `.codex-plugin/plugin.json` creates a new plugin manifest version surface. Existing codex-enabled plugins carry versions in `.codex-plugin/plugin.json`; the release story must include that manifest in the bump and in version tests, alongside the existing Claude/GitHub/index stamps.
+
+[Medium] The plan does not pin the exact location of `spike-verdict.json`. Since every downstream story gates on that file, the path should be explicit, preferably `<job_dir>/spike-verdict.json`, with guards reading that exact path.
+
+### Ordering
+
+No issues found. The spike-first dependency chain is correct, and the NO-GO terminal/replan semantics are appropriately ordered before generator work.
+
+### Simplicity
+
+[Medium] US-005 is over-open-ended because the repo already has codex plugin manifest examples. The simpler implementation path is: add `plugins/ralph/.codex-plugin/plugin.json`, point `skills` at the generated codex skills directory, and register through the existing `.agents/plugins/marketplace.json` entry.
+
+### Acceptance Criteria Quality
+
+[Medium] The US-004 “live smoke” AC is valuable but underspecified for an autonomous implementer: it does not define the command/session launcher, required env/config, where logs/artifacts are written, or whether it is manual-only versus part of the release gate. Add a concrete smoke command or mark it as a documented manual verification artifact.
+

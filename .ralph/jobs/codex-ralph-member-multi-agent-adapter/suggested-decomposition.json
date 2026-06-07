@@ -1,0 +1,56 @@
+{
+  "clusters": [
+    {
+      "name": "spike-gate",
+      "stories": ["US-001"],
+      "phase": 1,
+      "dependsOn": [],
+      "fileOverlapEvidence": {
+        "sharedFiles": [],
+        "exclusiveFiles": ["disposable spike probe", "spike-verdict.json"],
+        "risk": "low"
+      },
+      "executionModeRationale": "Single gating go/no-go story; nothing else may run until it records a GO verdict. Serial by definition."
+    },
+    {
+      "name": "codex-generator",
+      "stories": ["US-002", "US-003", "US-004", "US-005"],
+      "phase": 2,
+      "dependsOn": ["spike-gate"],
+      "fileOverlapEvidence": {
+        "sharedFiles": [
+          "ai-developer-toolkit/plugins/ralph/scripts/generate-copilot-artifacts.mjs",
+          "ai-developer-toolkit/plugins/ralph/<codex output tree>",
+          "ai-developer-toolkit/plugins/ralph/.codex-plugin/plugin.json",
+          "ai-developer-toolkit/.agents/plugins/marketplace.json",
+          "ai-developer-toolkit/plugins/ralph/scripts/check-copilot-parity.mjs"
+        ],
+        "exclusiveFiles": [],
+        "risk": "high"
+      },
+      "executionModeRationale": "All four stories edit the same generator file, the shared codex artifact tree, discovery, and parity surfaces; concurrent edits would conflict. Must be serialized. Contingent on spike-gate = GO."
+    },
+    {
+      "name": "ship",
+      "stories": ["US-006"],
+      "phase": 3,
+      "dependsOn": ["codex-generator"],
+      "fileOverlapEvidence": {
+        "sharedFiles": [
+          "ai-developer-toolkit/plugins/ralph/.claude-plugin/plugin.json",
+          "ai-developer-toolkit/plugins/ralph/.github/plugin/plugin.json",
+          "ai-developer-toolkit/plugins/ralph/.codex-plugin/plugin.json",
+          "ai-developer-toolkit/.claude-plugin/marketplace.json",
+          "ai-developer-toolkit/.github/plugin/marketplace.json",
+          "ai-developer-toolkit/.agents/plugins/marketplace.json",
+          "ai-developer-toolkit/plugins/ralph/CHANGELOG.md",
+          "ai-developer-toolkit/plugins/ralph/AGENTS.md",
+          "AGENTS.md"
+        ],
+        "exclusiveFiles": [],
+        "risk": "high"
+      },
+      "executionModeRationale": "Version-stamp bump + CHANGELOG + AGENTS.md (ralph + codexu) + submodule pointer ship; must run last and alone after the generator work is complete."
+    }
+  ]
+}
