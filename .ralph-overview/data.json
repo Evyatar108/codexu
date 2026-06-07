@@ -1871,10 +1871,14 @@
     {
       "id": "crews-postooluse-tag-aware-observability",
       "scope": "crews",
-      "lifecycle": "tracked",
+      "lifecycle": "merged",
       "status": "ok",
-      "lastTouchedAt": "2026-06-04T23:35:00Z",
+      "lastTouchedAt": "2026-06-07",
       "kanbanCards": [
+        {
+          "className": "cmd-ok",
+          "html": "<strong>Shipped @ crews v3.10.0 (submodule 0eca3470), 2026-06-07.</strong> Tag-aware per-turn manifest observability: <code>hooks/turn-observability.js</code> now regex-parses the latest assistant.message <code>&lt;|report kind=\"...\" summary=\"...\"|&gt;</code> tag and writes the PARSED kind+summary to the manifest (falls through to v3.5.1 hardcoded progress when not parseable), so <code>list-members</code> shows accurate per-turn state when a member emits blocked/question mid-session — before agentStop fires. PostToolUse stays observability-only (no body-canonical/STRICT-ACK/outbox writes). 281/281 green; Phase 5a/5b clean. Landed on codexu main via pointer bump 89f11e9a."
+        },
         {
           "className": "cmd-warn",
           "html": "<strong>Filed 2026-06-04T23:35Z as follow-up to v3.5.1 manifest-observability fix.</strong> Operator-observed gap: the v3.5.1 PostToolUse path synthesizes <code>kind='progress'</code> regardless of what tag the model actually emitted in its assistant.message text. If a member emits <code>&lt;|report kind=\"blocked\" summary=\"...\"|&gt;</code> mid-session, <code>list-members</code> mislabels it as <code>progress</code> until the eventual agentStop overwrites with the real kind. Operator sees green when they should see red. Fix: extend <code>hooks/copilot-post-tool-use.js</code>+<code>hooks/turn-observability.js</code> (or analogous) to do a CHEAP regex parse of the <code>&lt;|report kind=...|&gt;</code> tag from the latest assistant message text. If parseable, write the parsed kind instead of hardcoded progress. Stop still owns STRICT-ACK validation + body-canonical enforcement + outbox writes; PostToolUse just becomes more accurate for <code>list-members</code> display. Small scope (~30 lines + 1 test)."
@@ -1887,6 +1891,22 @@
         "prompts": {
           "impl": "/implement-with-ralph crews-postooluse-tag-aware-observability --autonomous\n\nContext: v3.5.1 shipped 2026-06-04 (commit 7b02a5df on ralph/crews-member-manifest-turn-fields-not-updated). The fix added per-tool-call observability writes to the manifest for Copilot members. BUT the writes hardcode kind='progress' regardless of what the model emitted in its assistant.message text.\n\nGap: if the model emits <|report kind=\"blocked\"|> mid-session, list-members mislabels it as progress for the entire wall-time until agentStop fires at session-end (could be 30-120min). Operator sees the wrong status.\n\nFix scope:\n\n1. In hooks/turn-observability.js (the v3.5.1 helper invoked from hooks/copilot-post-tool-use.js), add a cheap regex parse of the latest assistant.message text for <|report kind=\"...\" summary=\"...\"|>.\n2. If parseable: write the parsed kind + parsed summary to the manifest INSTEAD of hardcoded progress + synthesized summary.\n3. If NOT parseable: fall through to v3.5.1 behavior (hardcoded progress + text-synthesized summary).\n4. CRITICAL non-goal: do NOT validate body-canonical, do NOT enforce STRICT-ACK, do NOT write to outbox. Those remain Stop's exclusive authority. PostToolUse is observability-only.\n5. New test in tests/turn-observability.test.js (or extension to v3.5.1 test): asserts that an assistant.message text containing <|report kind=\"blocked\" summary=\"X\"|> results in manifest.lastKind='blocked' + manifest.lastSummary='X' WITHOUT the member actually being in a blocked state at the protocol level (no STRICT-ACK trigger, no outbox write).\n6. Telemetry log line update: `manifest-turn-update name=<name> crew=<crew> kind=<actual-or-synth-progress> source=<parsed|synth> seq=<N>` so operators can grep for synth-vs-parsed ratio.\n7. AGENTS.md v3.5.1 section update OR new v3.5.2/v3.6.x section depending on shipping cadence.\n8. 5-file version bump if shipping as own release.\n\nAcceptance criteria:\n\n1. Spawning a fresh Copilot member that emits <|report kind=\"blocked\"|> mid-session and waits → list-members shows lastKind: 'blocked' within ~10s of the emit (not pending agentStop).\n2. Same for kind=question, kind=done, kind=direct.\n3. Members WITHOUT a report tag in the message still get the v3.5.1 fallback (kind='progress' + text-synth summary).\n4. Stop hook regression suite stays green (no STRICT-ACK / body-canonical / outbox-write changes).\n5. Manifest dedupe key (lastObservedAssistantMessageId) still prevents double-write.\n6. Telemetry log distinguishes parsed-tag vs synthesized writes.\n7. Claude path unchanged.\n\nOut of scope:\n\n- Architectural refactor (side-channel listener queue, v2 design from crews-redundant-empty-kind-tag-emissions brainstorm).\n- Extending observability beyond Copilot members.\n- Changing Stop hook tag parser.\n\nCAVEAT: only spawn this AFTER v3.5.1 + v3.6.0 both merge to toolkit main and are pushed (same-plugin serialize rule).\n\nCodexu root CLAUDE.md is gitignored. Body-canonical convention applies.\n\nAfter local commit, report kind=done with: commit SHA + topic branch + brief summary of which assistant.message regex shape was chosen + ACs satisfied."
         }
+      },
+      "shipManifest": {
+        "shippedAt": "2026-06-07",
+        "summary": "Tag-aware per-turn manifest observability for Copilot crew members. The v3.5.1 PostToolUse path hardcoded kind='progress' regardless of the report tag the model actually emitted, so list-members mislabeled a mid-session blocked/question as progress for the whole wall-time until agentStop. v3.10.0 regex-parses the actual report tag in hooks/turn-observability.js and writes the parsed kind+summary to the manifest, falling back to the v3.5.1 synthesized-progress behavior when no tag is parseable. PostToolUse remains observability-only (Stop keeps exclusive authority over body-canonical/STRICT-ACK/outbox); the Claude path and the manifest dedupe key are unchanged. Shipped via the wrapper-to-submodule ceremony: FF to ai-developer-toolkit main, pushed to all 3 toolkit remotes, codexu pointer + active-plugin-versions table bumped, copilot plugin update applied.",
+        "commits": [
+          {
+            "sha": "0eca3470",
+            "oneLine": "feat(crews): tag-aware per-turn manifest observability for Copilot members (v3.10.0)",
+            "repo": "ai-developer-toolkit"
+          },
+          {
+            "sha": "89f11e9a",
+            "oneLine": "chore: bump ai-developer-toolkit -> crews 3.10.0 + ralph 5.52.0",
+            "repo": "codexu"
+          }
+        ]
       }
     },
     {
@@ -4958,6 +4978,10 @@
       "status": "warn",
       "lastTouchedAt": "2026-06-07",
       "kanbanCards": [
+        {
+          "className": "cmd-warn",
+          "html": "<strong>RE-SCOPED 2026-06-07: the read-only snapshot was DISABLED outright (ralph v5.52.0, submodule 723acf3a, codexu pointer 89f11e9a) as an operator-directed OOM hotfix.</strong> Root cause confirmed exactly as this task's D-001 brainstorm described: <code>captureManifest</code> byte-read every file of each initialized submodule into RAM — including the multi-GB gitignored <code>codex/</code> Rust build cache (<code>codex-rs/target</code>, ~21 GB) — OOM-killing concurrent Copilot read-only lenses (validated: 2 concurrent plans went from box-crash to ~39 GB free). Rather than make the snapshot cheap NOW, the operator chose to disable it (constant <code>READONLY_SNAPSHOT_ENABLED=false</code> in copilot-exec.mjs; <code>--deny-tool=write</code> retained as sole defense; 4 revert tests skipped). <strong>This task is now \"RE-ENABLE the read-only revert protection cheaply\"</strong>: land the D-001 per-submodule git fast-path, then flip the constant back to true. No longer urgent (protection is off, but so is the OOM). The existing D-001 plan seed still applies to the re-enable implementation."
+        },
         {
           "className": "cmd-ok",
           "html": "<strong>Brainstorm shipped @ 5e3a11c3 (main), 2026-06-07.</strong> 3-lens convergence on <strong>D-001</strong>: per-submodule git fast-path in ralph-orchestration&#39;s read-only revert guard (<code>worktree-snapshot.mjs</code>). Each initialized submodule found by <code>findNestedRepoRoots</code> (L311) is snapshotted via its OWN git fast-path (mirroring the parent tree at L337/L363/L370) so clean tracked files are restored from HEAD/index blobs instead of being <code>readFileSync</code>&#39;d into a heap <code>Map&lt;Buffer&gt;</code> &mdash; eliminating the captureManifest memory blowup that killed two concurrent Copilot read-only lenses on 2026-06-06. PRESERVES whole-cwd protection (any initialized nested repo, not just the plugin-edit zone &mdash; the deliberate distinction from rejected D-002 skip-by-policy). Adds a fail-closed resource budget (aborts BEFORE child launch with a distinct diagnostic, never a silent partial snapshot). D-004 disposable-workspace noted as a possible follow-up. Artifacts: <code>.ralph/brainstorms/ralph-copilot-exec-readonly-submodule-snapshot-cost/</code>."
