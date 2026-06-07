@@ -1,0 +1,72 @@
+I’ll read the provided prompt file to determine the requested work, then implement it in the current repo.
+
+The prompt file is larger than the viewer’s single-read limit, so I’ll read it in sections.
+
+I’ll inspect the happy-cli daemon/client code and tests needed for the research analysis, without changing files.
+
+I found the relevant happy-cli codex surfaces; I’ll read the client, lifecycle, doctor, command, docs, and package metadata in parallel.
+
+I’ll verify the command-routing and telemetry/doctor shapes so the research recommendations are grounded in current code, especially opt-in surfaces and RSS constraints.
+
+I’ll check the existing Codex CLI argument parsers and discovery APIs to recommend a low-friction opt-in and assess whether kill-idle can reuse existing paths.
+
+The current code already has an RSS placeholder path; I’ll read that exact implementation and the remaining argument parser surface to avoid overstating what exists.
+
+I have enough targeted code context; I’ll quickly confirm the happy-cli source layout to summarize architecture accurately.
+
+Research complete — no files were changed.
+
+### Codebase Architecture
+
+`packages/happy-cli` is a TypeScript ESM package in a pnpm workspace. It uses strict TS (`packages\happy-cli\tsconfig.json`), Vitest, `pkgroll`, Zod, `cross-spawn`, `ws`, and `ps-list`. Codex-specific code lives under `packages\happy-cli\src\codex\`; command routing is in `packages\happy-cli\src\commands\codexCommand.ts`; global env/path config is centralized in `packages\happy-cli\src\configuration.ts`.
+
+### Feature-Relevant Code
+
+Key integration points:
+
+- `packages\happy-cli\src\codex\codexAppServerClient.ts`
+  - `isWsAuthAvailable()` probes `codex app-server --help` and checks `--ws-auth`.
+  - `getWsAuthAvailability()` caches that probe per client instance.
+  - WS spawn args are built around `args = ['app-server', '--listen', listenUrl, '--ws-auth', ...]`.
+  - `extraAppServerArgs` is appended for both stdio and WS spawn paths.
+  - WS child is detached/unref’d, so a Happy-side idle timer must be rejected.
+  - RSS is currently stubbed by `refreshLastSampledRssKb()` always setting `null`.
+- `packages\happy-cli\src\codex\cliArgs.ts`
+  - Existing structured Codex flags are parsed here.
+  - `--codex-arg` already provides a passthrough escape hatch.
+- `packages\happy-cli\src\commands\codexCommand.ts`
+  - `doctor` / `status` route before auth/daemon startup.
+  - Normal Codex sessions parse flags, then call `runCodex()`.
+- `packages\happy-cli\src\codex\runCodex.ts`
+  - Constructs `new CodexAppServerClient(..., { transport, extraAppServerArgs })`.
+- `packages\happy-cli\src\codex\codexDaemonLifecycle.ts`
+  - Strict snake_case Zod schema already includes `uptime_ms`, `rss_kb_at_exit`, and `last_client_disconnect_age_ms`.
+- `packages\happy-cli\src\codex\codexDaemonDoctor.ts`
+  - Groups discovery + sidecar events by `(pid, started_at_ms)`.
+  - Renders `age`, `RSS`, and `last-disconnect`; RSS is blank/null today.
+  - Must remain read-only.
+- Docs: `packages\happy-cli\docs\codex-daemon-lifecycle.md`.
+- Tests: `codexAppServerClient.test.ts`, `cliArgs.test.ts`, `codexDaemonDoctor.test.ts`, `codexDaemonLifecycle.test.ts`, `codexCommand.test.ts`.
+
+### Technical Constraints
+
+The idle timeout must be a spawn-flag seam only. A TS timer cannot reap the detached orphan because Happy exits while the child survives.
+
+The seam should target one canonical flag spelling, preferably `--idle-timeout <seconds>`, and keep the detection token centralized so changing spelling later is one edit. Probe behavior should mirror `--ws-auth`: run `codex app-server --help`, cache result per `CodexAppServerClient`, emit nothing when unsupported.
+
+RSS must not use `ps-list.memory`; existing tests and docs explicitly treat that as `%mem`, not RSS KB, and unsupported on Windows. Either implement a real platform-aware sampler, or keep RSS `null` on unsupported platforms.
+
+Sidecar schema is `.strict()` and append-only; do not rename existing snake_case fields. Doctor/status must stay read-only and retain exit-code behavior.
+
+### Implementation Suggestions
+
+Use a structured CLI opt-in, not only `--codex-arg`: add `extractCodexIdleTimeoutFlag()` in `cliArgs.ts`, parse integer seconds, pass through `handleCodexCommand()` → `runCodex()` → `CodexAppServerClientOptions`. Apply only to WS app-server spawning; stdio should not receive the idle-timeout seam unless explicitly decided later.
+
+In `codexAppServerClient.ts`, add `isIdleTimeoutAvailable()` and `getIdleTimeoutAvailability()` mirroring `isWsAuthAvailable()`. When configured and supported, append `[IDLE_TIMEOUT_FLAG, String(seconds)]` before `extraAppServerArgs`; when unsupported, no-op with a one-time non-error log.
+
+For doctor, add an explicit idle/orphan-age column or summary buckets using existing disconnect/exit telemetry. Recommended buckets: `<1h`, `1-24h`, `>24h`, plus “never-disconnected/unknown”. Keep per-instance values too, because they are easiest to verify in tests.
+
+For RSS, introduce a small platform-aware sampler module used by both `refreshLastSampledRssKb()` and `probeCodexDaemon()`. If Windows support is not cheap via a reliable true-RSS source, scope Windows to `null`.
+
+Defer `kill-idle` unless the plan can reuse discovery enumeration plus per-cwd locks and confirm-dead-before-delete without exposing private `CodexAppServerClient` methods or adding broad cross-cwd termination plumbing.
+

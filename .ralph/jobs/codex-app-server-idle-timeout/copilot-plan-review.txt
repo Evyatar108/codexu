@@ -1,0 +1,34 @@
+I’ll read the referenced prompt and then carry out the requested work.
+
+The prompt is too large for one read, so I’m loading it in chunks before making changes.
+
+I’ll validate the plan against the actual happy-cli code paths and tests, without editing files.
+
+I found the likely review surfaces; now I’m checking the exact implementation shapes around the plan’s referenced functions.
+
+The code matches most referenced line anchors; I’m narrowing on argument parsing, command dispatch, doctor output, and test conventions to identify plan gaps.
+
+One important interaction is the existing reattach/discovery path, so I’m checking whether the plan accounts for persisted daemon state.
+
+I’m checking the exit-emission path because RSS-on-exit depends on whether the observable child exit can sample before the PID disappears.
+
+### Feasibility
+
+[High] **AC-5 overstates “RSS at exit.”** `codexAppServerClient.ts:793-800` emits observable child exits without `refreshRss: true`; existing RSS refresh points are spawn/reattach/disconnect/synthetic-exit (`:728-730`, `:1030`, `:1298`, `:1386`, `:749-750`). For an observable crash, `rss_kb_at_exit` would be the last cached sample, not necessarily exit-time RSS; for detached post-disconnect deaths, no Happy process remains to sample. The plan should either redefine this as “last sampled RSS written on exit” or add a feasible pre-exit/current sampling design.
+
+### Completeness
+
+[High] **Missing reattach semantics for `--idle-timeout`.** `connect()` tries discovery reattach before spawning (`codexAppServerClient.ts:1173-1175`), and `tryReattach()` has no way to compare a requested timeout with the already-running daemon (`codexAppServerDiscovery.ts:22-33` has no timeout field). So `happy codex --idle-timeout 60` can silently attach to a no-timeout server, and later default-OFF invocations can attach to a previously timeout-enabled server once codex supports the flag. Add discovery metadata/compat handling or explicitly document/test “fresh spawn only.”
+
+### Ordering
+
+No issues found.
+
+### Simplicity
+
+No issues found. The suggested shared `codex app-server --help` read is the right simplification if US-001 adds a second capability probe.
+
+### Acceptance Criteria Quality
+
+[Medium] **Several ACs depend on unresolved OQs.** AC-5 depends on the exact supported RSS platforms/source; AC-6 says per-instance idle-age plus buckets, while OQ-4 asks column vs summary-only; AC-7 is conditional on OQ-5. Before autonomous implementation, resolve or remove those OQs so the acceptance set is deterministic.
+

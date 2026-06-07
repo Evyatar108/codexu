@@ -1,0 +1,114 @@
+{
+  "planFile": "D:/harness-efforts/codexu/.ralph/jobs/.staging/20260607T171325Z-plan-idle-timeout-63ac9a23/draft-plan.md",
+  "repoDir": "D:/harness-efforts/codexu/.ralph/jobs/codex-app-server-idle-timeout/worktree/plan",
+  "reviewCycle": 0,
+  "findings": [
+    {
+      "id": "F-001",
+      "severity": "High",
+      "source": "consensus",
+      "category": "Feasibility",
+      "sectionRef": "Acceptance Criteria > AC-5; Approach > Architecture (2)",
+      "description": "AC-5 overstates 'RSS at exit'. The observable child-exit emit (codexAppServerClient.ts:793-800) does NOT pass refreshRss:true, and existing RSS refresh points are spawn (:1298) / reattach (:1030) / disconnect (:1386) / synthetic-exit (:749-750) only. For an observable crash, rss_kb_at_exit is therefore the LAST CACHED sample, not a fresh exit-time RSS; for detached post-disconnect deaths no Happy process remains to sample at all. Redefine AC-5 and the RSS story as 'rss_kb_at_exit carries the last sampled RSS taken at the most recent lifecycle event before exit (best-effort), and the doctor live-row RSS is the real-time value via probeCodexDaemon()'. Do not claim a guaranteed exit-time RSS sample. Flagged by both copilot (High) and codex (Medium).",
+      "status": "fixed",
+      "relevantFiles": [
+        "packages/happy-cli/src/codex/codexAppServerClient.ts",
+        "packages/happy-cli/src/codex/codexDaemonDoctor.ts"
+      ],
+      "suggestedFix": "Reword AC-5 to 'last sampled RSS written on exit (best-effort), real-time RSS on live doctor rows'. In the RSS story note that observable-exit does not re-sample (pid may be gone); optionally pass refreshRss:true on observable exit only when the pid is still alive, else keep the last cached value.",
+      "fixedInIteration": 1,
+      "resolution": "Reworded the RSS plan, AC-5, and US-002 so exit telemetry is last-sampled best-effort rather than guaranteed exit-time RSS."
+    },
+    {
+      "id": "F-002",
+      "severity": "High",
+      "source": "codex",
+      "category": "Criteria Quality",
+      "sectionRef": "Acceptance Criteria > AC-6; Approach > Architecture (3); Suggested Decomposition > doctor-orphan-age",
+      "description": "AC-6's 'idle-age / orphan-age' is misleading and may be false as written. TypeScript tracks no active-client count, and the client tests exercise concurrent ws clients sharing one app-server; one client disconnecting while another stays attached would be wrongly reported as 'idle'. The doctor can only honestly compute 'time since the latest observed client-side disconnect', not true server-idle age (which needs a server-side active-client signal = deferred Rust). Rename the metric to 'last-disconnect age' throughout (AC-6, the story, the doctor section), reuse/extend the EXISTING last-disconnect column (codexDaemonDoctor.ts:145-148) plus buckets, and explicitly state true idle-age is deferred with D-002/D-003.",
+      "status": "fixed",
+      "relevantFiles": [
+        "packages/happy-cli/src/codex/codexDaemonDoctor.ts"
+      ],
+      "suggestedFix": "Replace 'idle-age/orphan-age' with 'last-disconnect age'; reuse the existing last-disconnect cell + add bucket summary (<1h/1-24h/>24h/unknown); add a sentence that true server-idle age requires a deferred server-side active-client count.",
+      "fixedInIteration": 2,
+      "resolution": "Amended the plan to rename the doctor metric to last-disconnect age, reuse the existing last-disconnect cell with bucket summaries, and explicitly defer true server-idle age until server-side active-client tracking exists."
+    },
+    {
+      "id": "F-003",
+      "severity": "High",
+      "source": "copilot",
+      "category": "Completeness",
+      "sectionRef": "Approach > Architecture (1); Scope; Acceptance Criteria",
+      "description": "Missing reattach semantics for --idle-timeout. connect() attempts discovery reattach before spawning (codexAppServerClient.ts:1173-1175) and the discovery record (codexAppServerDiscovery.ts:22-33) has no timeout field, so 'happy codex --idle-timeout 60' can silently attach to an already-running no-timeout daemon (and a later default-OFF invocation can attach to a previously timeout-enabled daemon once codex supports the flag). The seam therefore only affects NEWLY spawned app-servers. The plan must explicitly scope the flag as 'fresh-spawn-only', document it, and add a test asserting reattach does not re-apply/override the timeout; optionally note a future discovery timeout-field + compat check as deferred.",
+      "status": "fixed",
+      "relevantFiles": [
+        "packages/happy-cli/src/codex/codexAppServerClient.ts",
+        "packages/happy-cli/src/codex/codexAppServerDiscovery.ts"
+      ],
+      "suggestedFix": "Add a 'fresh-spawn-only' scope bullet + AC: the idle-timeout flag applies only to a freshly spawned ws app-server, never to a reattached daemon; add a regression test; list 'discovery timeout field + reattach compat' as a deferred follow-up.",
+      "fixedInIteration": 3,
+      "resolution": "Added fresh-spawn-only reattach semantics, deferred discovery timeout compatibility, and regression-test acceptance coverage to the plan."
+    },
+    {
+      "id": "F-004",
+      "severity": "Medium",
+      "source": "codex",
+      "category": "Feasibility",
+      "sectionRef": "Approach > Architecture (1); Files to Create/Modify > cliArgs.ts/codexCommand.ts",
+      "description": "Parser ordering for --idle-timeout vs the --codex-arg passthrough is unspecified. commands/codexCommand.ts:23-30 runs structured extractors before extractCodexArgFlag; if extractCodexIdleTimeoutFlag() scans the whole argv first, 'happy codex --codex-arg --idle-timeout=30' could be consumed/rejected as the structured flag before reaching --codex-arg. Specify the extractor chain position and add a regression test for the intended power-user passthrough form.",
+      "status": "fixed",
+      "relevantFiles": [
+        "packages/happy-cli/src/codex/cliArgs.ts",
+        "packages/happy-cli/src/commands/codexCommand.ts"
+      ],
+      "suggestedFix": "State the exact chain position for extractCodexIdleTimeoutFlag (e.g. keep extractCodexArgFlag value-consumption correct) and add a cliArgs/codexCommand test asserting '--codex-arg --idle-timeout=30' is passed through verbatim while a bare '--idle-timeout 30' is parsed structurally.",
+      "fixedInIteration": 4,
+      "resolution": "Specified that extractCodexArgFlag must consume passthrough values before extractCodexIdleTimeoutFlag, and added acceptance/story coverage for passthrough versus structured --idle-timeout parsing."
+    },
+    {
+      "id": "F-005",
+      "severity": "Medium",
+      "source": "codex",
+      "category": "Completeness",
+      "sectionRef": "Approach > Architecture (2); Files to Create/Modify > processRss.ts; AC-5",
+      "description": "processRss.ts is underspecified — 'reliable RSS source' must be pinned to concrete platform behavior so two implementers cannot satisfy the prose with incompatible behavior. Specify: Linux read /proc/<pid>/statm or 'ps -o rss= -p <pid>'; macOS 'ps -o rss= -p <pid>'; Windows null for v1. Also specify stale/dead-PID behavior (return null, do not throw).",
+      "status": "fixed",
+      "relevantFiles": [
+        "packages/happy-cli/src/codex/processRss.ts"
+      ],
+      "suggestedFix": "Add an explicit platform matrix to the processRss.ts spec and AC-5 (Linux /proc or ps -o rss=, macOS ps -o rss=, Windows null v1; dead/stale pid -> null).",
+      "fixedInIteration": 5,
+      "resolution": "Pinned processRss.ts platform matrix (Linux /proc or ps -o rss=; macOS ps -o rss=; Windows null v1; dead/stale pid -> null, never throws) in Approach(2), Files-to-create, and AC-5."
+    },
+    {
+      "id": "F-006",
+      "severity": "Medium",
+      "source": "codex",
+      "category": "Criteria Quality",
+      "sectionRef": "Acceptance Criteria > AC-1",
+      "description": "The plan describes positive-integer validation for --idle-timeout but no AC requires parser error tests for zero, negative, non-integer, empty '--idle-timeout=', duplicate flags, or missing value. cliArgs.ts extractors are user-facing and throw specific errors; these cases must be covered.",
+      "status": "fixed",
+      "relevantFiles": [
+        "packages/happy-cli/src/codex/cliArgs.ts",
+        "packages/happy-cli/src/codex/cliArgs.test.ts"
+      ],
+      "suggestedFix": "Add an AC (or extend AC-1) requiring extractCodexIdleTimeoutFlag to reject zero, negative, non-integer, empty '=', duplicate, and missing-value forms with clear errors, with cliArgs.test.ts cases.",
+      "fixedInIteration": 5,
+      "resolution": "Added AC-1b requiring extractCodexIdleTimeoutFlag to reject zero/negative/non-integer/empty=/missing-value/duplicate with clear errors and cliArgs.test.ts coverage."
+    },
+    {
+      "id": "F-007",
+      "severity": "Medium",
+      "source": "copilot",
+      "category": "Criteria Quality",
+      "sectionRef": "Acceptance Criteria; Open Questions",
+      "description": "Several ACs depend on unresolved Open Questions (AC-5 on RSS platform/source = OQ-3; AC-6 column-vs-summary = OQ-4; AC-7 conditional = OQ-5), making the acceptance set non-deterministic. Since the plan is HOLD-for-operator-review, pick a concrete default for each so the ACs are verifiable as written, while keeping the OQ as a 'confirm during review' note (do not leave the AC ambiguous). Recommended defaults: RSS null on Windows / populate on macOS+Linux v1; doctor shows BOTH per-instance value AND summary buckets; kill-idle DEFERRED by default (AC-7 dropped unless operator opts in).",
+      "status": "fixed",
+      "relevantFiles": [],
+      "suggestedFix": "Bake the recommended defaults into AC-5/AC-6/AC-7 so they are deterministic; reframe OQ-3/4/5 as 'operator-confirm' rather than blocking ambiguity.",
+      "fixedInIteration": 5,
+      "resolution": "Baked v1 defaults into AC-5/AC-6/AC-7 (RSS null-Windows/populate-macOS+Linux; doctor cell+buckets; kill-idle deferred) and reframed OQ-3/4/5 as operator-confirm defaults so the acceptance set is deterministic."
+    }
+  ]
+}

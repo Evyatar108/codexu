@@ -1,0 +1,62 @@
+### Codebase Architecture
+
+`packages/happy-cli` is a TypeScript ESM package built with `tsc` + `pkgroll`, tested with Vitest, and managed by pnpm. The Codex path is organized under `packages/happy-cli/src/codex/`, with command routing in `src/commands/`.
+
+Key pieces:
+
+- `packages/happy-cli/src/commands/codexCommand.ts` routes `happy codex ...`.
+- `packages/happy-cli/src/codex/runCodex.ts` owns the full Codex session lifecycle and constructs `CodexAppServerClient`.
+- `packages/happy-cli/src/codex/codexAppServerClient.ts` owns stdio/ws app-server transport, discovery, spawn argv, reattach, disconnect, and lifecycle telemetry emission.
+- `packages/happy-cli/src/codex/codexAppServerDiscovery.ts` owns `~/.happy/codex-active-<cwdHash>.json`, locks, PID liveness, and enumeration.
+- `packages/happy-cli/src/codex/codexDaemonLifecycle.ts` owns the strict JSONL sidecar schema.
+- `packages/happy-cli/src/codex/codexDaemonDoctor.ts` renders `happy codex doctor/status`.
+- `packages/happy-cli/docs/codex-daemon-lifecycle.md` is the contract doc to update.
+
+### Feature-Relevant Code
+
+The spawn seam belongs in `packages/happy-cli/src/codex/codexAppServerClient.ts`:
+
+- `isWsAuthAvailable()` probes `codex app-server --help`; mirror this for idle-timeout support.
+- `getWsAuthAvailability()` caches the probe per client instance; add a matching idle-timeout cache.
+- WS argv is built at `args = ['app-server', '--listen', listenUrl, '--ws-auth', ...]`; append idle-timeout args there only when opted in and supported.
+- `extraAppServerArgs` already shows the passthrough pattern for both stdio and ws, but the idle-timeout seam should likely be ws-only because stdio is foreground-owned.
+
+The opt-in surface naturally threads through:
+
+- `packages/happy-cli/src/codex/cliArgs.ts`: add an extractor like `extractCodexIdleTimeoutFlag`.
+- `packages/happy-cli/src/commands/codexCommand.ts`: parse it before `extractCodexArgFlag`, pass into `runCodex`.
+- `packages/happy-cli/src/codex/runCodex.ts`: add `codexIdleTimeout` to options and pass into `CodexAppServerClient`.
+
+Telemetry/doctor work centers on:
+
+- `codexAppServerClient.ts`: `refreshLastSampledRssKb()` is currently a null stub and is already called on spawn/reattach/disconnect/synthetic exit.
+- `codexDaemonLifecycle.ts`: `rss_kb_at_exit`, `uptime_ms`, and `last_client_disconnect_age_ms` already exist in the strict schema.
+- `codexDaemonDoctor.ts`: already has `RSS`, `age`, and `last-disconnect` columns, groups by `(pid, started_at_ms)`, and hardcodes live RSS to `null`.
+
+### Technical Constraints
+
+The plan must preserve detached ws behavior: `codex app-server` is spawned with `detached: true`, ignored stdio, and `unref()`, so a TypeScript idle timer would die with the foreground CLI and must be rejected.
+
+Do not touch `codex/` or Rust. The current upstream app-server has no process-level idle-timeout flag, so the seam must fail closed.
+
+The sidecar schema is strict, snake_case, append-only. Existing fields can be populated; renames or camelCase fields are wrong.
+
+`happy codex doctor/status` are read-only first-token diagnostics before auth, flag parsing, or daemon startup. They must not rotate, prune, kill, or delete.
+
+RSS cannot use `ps-list.memory`; tests explicitly document that it is `%mem`, not RSS KB, and unsupported on Windows. Use a platform-aware helper or return `null`.
+
+`kill-idle` is not obviously cheap: existing termination helpers are private and delete via current-cwd `discoveryFilePath()`, not arbitrary enumerated discovery files. Cross-cwd reaping would need per-record/file locking and a shared terminator helper.
+
+### Implementation Suggestions
+
+Use canonical seam spelling `--idle-timeout <seconds>` and define constants in `codexAppServerClient.ts`, e.g. `CODEX_IDLE_TIMEOUT_FLAG = '--idle-timeout'`, so probe and argv emission share one source of truth.
+
+Expose `happy codex --idle-timeout <seconds>` as the structured opt-in. Validate positive integer seconds in `cliArgs.ts`; default `undefined` means OFF. Env/config can wait.
+
+Add a small RSS helper, e.g. `packages/happy-cli/src/codex/processRss.ts`, returning `Promise<number | null>`. Implement true KB only where reliable; otherwise `null`. Wire it into `refreshLastSampledRssKb()` and `probeCodexDaemon()`.
+
+For doctor output, add an `idle-age` column derived from latest disconnect time for live/stale rows and exit `last_client_disconnect_age_ms` for post-mortem rows. Add a compact bucket summary such as `<1h`, `1-24h`, `>24h`, `unknown`.
+
+Defer `happy codex kill-idle` unless the plan includes a small, explicit refactor of termination into a reusable, per-discovery-file helper with lock handling. Otherwise it risks bloating a telemetry/seam slice.
+
+Tests should extend existing files: `cliArgs.test.ts`, `codexCommand.test.ts`, `codexAppServerClient.test.ts`, `codexDaemonDoctor.test.ts`, `codexDaemonLifecycle.test.ts`, plus focused RSS helper tests.

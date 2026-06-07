@@ -1,0 +1,59 @@
+{
+  "clusters": [
+    {
+      "name": "seam-and-probe",
+      "stories": ["US-001"],
+      "phase": 1,
+      "dependsOn": [],
+      "fileOverlapEvidence": {
+        "sharedFiles": ["packages/happy-cli/src/codex/codexAppServerClient.ts"],
+        "exclusiveFiles": [
+          "packages/happy-cli/src/codex/cliArgs.ts",
+          "packages/happy-cli/src/commands/codexCommand.ts",
+          "packages/happy-cli/src/codex/runCodex.ts"
+        ],
+        "risk": "medium"
+      },
+      "executionModeRationale": "Must land first; it introduces the CODEX_IDLE_TIMEOUT_FLAG constant, the capability probe, and the idleTimeoutSec client option that later edits to codexAppServerClient.ts build on. Serialize because it shares the central client file with the rss-sampling cluster."
+    },
+    {
+      "name": "rss-sampling",
+      "stories": ["US-002"],
+      "phase": 2,
+      "dependsOn": ["seam-and-probe"],
+      "fileOverlapEvidence": {
+        "sharedFiles": [
+          "packages/happy-cli/src/codex/codexAppServerClient.ts",
+          "packages/happy-cli/src/codex/codexDaemonDoctor.ts"
+        ],
+        "exclusiveFiles": ["packages/happy-cli/src/codex/processRss.ts"],
+        "risk": "medium"
+      },
+      "executionModeRationale": "Edits refreshLastSampledRssKb() in the same client file as US-001 and touches the doctor probe shared with US-003; must serialize after seam-and-probe and before doctor-orphan-age to avoid conflicting edits on both shared files."
+    },
+    {
+      "name": "doctor-last-disconnect-age",
+      "stories": ["US-003"],
+      "phase": 3,
+      "dependsOn": ["rss-sampling"],
+      "fileOverlapEvidence": {
+        "sharedFiles": ["packages/happy-cli/src/codex/codexDaemonDoctor.ts"],
+        "exclusiveFiles": [],
+        "risk": "medium"
+      },
+      "executionModeRationale": "Adds last-disconnect age column + bucket-summary rendering to the same doctor file the rss-sampling cluster modifies; serialize after rss-sampling."
+    },
+    {
+      "name": "docs",
+      "stories": ["US-005"],
+      "phase": 4,
+      "dependsOn": ["seam-and-probe", "rss-sampling", "doctor-last-disconnect-age"],
+      "fileOverlapEvidence": {
+        "sharedFiles": [],
+        "exclusiveFiles": ["packages/happy-cli/docs/codex-daemon-lifecycle.md"],
+        "risk": "low"
+      },
+      "executionModeRationale": "Documents the shipped behavior; depends on all code clusters. The optional US-004 kill-idle story (only if the operator opts in) inserts as phase 3.5 depending on phases 1-3."
+    }
+  ]
+}

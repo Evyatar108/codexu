@@ -1,0 +1,29 @@
+**Feasibility**
+
+- [High] AC-6’s “idle-age/orphan-age” cannot be implemented accurately from the current TypeScript-side data. `codexDaemonDoctor.ts` can derive `Date.now() - latest disconnect`, but `codexAppServerClient.ts` does not track active client count, and the existing tests include concurrent ws clients sharing one app-server. One client disconnecting while another remains attached would be reported as “idle.” Either rename this metric to “last-disconnect age” or require a server-side active-client signal in a later Rust slice.
+
+- [Medium] The plan says appending the seam flag before `extraAppServerArgs` lets `--codex-arg` “still win,” but current parsing in `commands/codexCommand.ts` runs structured extractors before `extractCodexArgFlag`. If the new `extractCodexIdleTimeoutFlag()` follows that pattern, `happy codex --codex-arg --idle-timeout ...` can be consumed or rejected before it reaches `--codex-arg`. The plan should specify parser ordering and add a regression test for the intended override form.
+
+**Completeness**
+
+- [Medium] `processRss.ts` is underspecified. “Reliable RSS source” should be pinned to concrete platform behavior, e.g. Linux `/proc` or `ps -o rss=`, macOS `ps -o rss=`, Windows `null` for v1. Otherwise two implementers could satisfy the prose with incompatible behavior.
+
+- [Medium] The plan lists validation for `--idle-timeout` but the ACs do not require parser error tests for zero, negative, non-integer, empty `--idle-timeout=`, duplicate flags, or missing value. Those are important because `cliArgs.ts` extractors are user-facing and throw specific errors.
+
+**Ordering**
+
+No issues found.
+
+**Simplicity**
+
+- [Medium] If the metric remains TypeScript-only, the simpler and less misleading surface is to reuse/rename the existing `last-disconnect` column and add buckets for “since latest disconnect,” rather than introducing a new “idle-age” concept. That avoids implying server-owned idle knowledge the client does not have.
+
+**Acceptance Criteria Quality**
+
+- [High] AC-6 is not specific enough and may be false as written. It should say exactly whether the table displays “last disconnect age” or true “idle age,” and if true idle age is required, it needs a prerequisite source of active-client count.
+
+- [Medium] AC-5’s “where feasible” is vague. Replace it with an explicit platform matrix and expected `sampleProcessRssKb(pid)` behavior, including whether stale/dead PIDs preserve the previous sample or return `null`.
+
+- [Low] AC-10 should name the actual commands. This package is named `happy`, with scripts in `packages/happy-cli/package.json`; use something like `pnpm --filter happy typecheck` and `pnpm --filter happy test`.
+
+No prior review cycles or amendments are described, so there are no regression fixes to assess.
