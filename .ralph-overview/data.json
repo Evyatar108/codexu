@@ -5166,8 +5166,8 @@
     {
       "id": "crews-lead-reply-to-consumed-inbox-envelope",
       "scope": "crews",
-      "status": "warn",
-      "lifecycle": "tracked",
+      "status": "ok",
+      "lifecycle": "merged",
       "lastTouchedAt": "2026-06-07",
       "command": {
         "descriptionHtml": "crews lead <code>reply-to=&lt;consumed-inbox-envelope-id&gt;</code> throws <code>ReplyToNotFoundError</code> for a member's proactive <code>kind=question</code> report. <code>resolveReplySource</code> (hooks/mailbox.js:358-376, lead branch) resolves reply-to ONLY against the lead's own send-history + member outboxes, NEVER the lead's consumed mailbox-history. Yet <code>review-mail</code> advertises the mailbox-envelope <code>id</code> as the 'actionable ack/reply id' (v2 protocol note). So the surfaced id is <code>ack</code>-able (STRICT-ACK matches consumed mailbox-history) but NOT <code>reply-to</code>-able — except AskUserQuestion-routed <code>member-question-request</code> envelopes, which are special-cased via <code>isSystemAckOnlyReplyTo</code>. A lead replying to a normal member question must fall back to <code>ack=&lt;id&gt; decision=replied</code>. DISTINCT from the merged crews-ack-loop-fix (that fixed member-side kind=question gate ordering). Observed live 2026-06-07.",
@@ -5185,8 +5185,28 @@
         {
           "className": "cmd-ok",
           "html": "Plan shipped 2026-06-07 @ ca3fdb29 (topic 7ab3318c). <b>Option A</b>: extend the lead branch of resolveReplySource to also resolve against the lead's consumed mailbox-history (getInboxHistoryPath), so the review-mail-surfaced envelope id works for BOTH ack and reply-to. 2 stories. Phase 4 Claude+Copilot (codex skipped per the known lens hang): a Copilot HIGH (proactive ack-exempt nuance) fixed, a Claude false-positive rejected. crews plugin-side; impl needs an ai-developer-toolkit submodule worktree + two-commit flow."
+        },
+        {
+          "className": "cmd-ok",
+          "html": "Shipped 2026-06-07 as <b>crews v3.12.1</b> (submodule 5a339efc; codexu pointer b68b0bf4). resolveReplySource lead branch now resolves consumed mailbox-history ids, so the review-mail-surfaced envelope id works for both ack and reply-to. 283/283 green; Phase 5a/5b clean; pushed all 3 toolkit remotes; copilot plugin update applied."
         }
-      ]
+      ],
+      "shipManifest": {
+        "shippedAt": "2026-06-07",
+        "summary": "Shipped crews v3.12.1. Extends the LEAD branch of resolveReplySource (plugins/crews/hooks/mailbox.js) to also resolve reply-to against the lead's consumed mailbox-history (getInboxHistoryPath), mirroring the ack resolution path. Previously a lead's reply-to=<envelope-id> threw ReplyToNotFoundError for a member's proactive kind=question report (only ack=<id> worked), because the lead branch searched only the lead's send-history + member outboxes. Now the review-mail-surfaced mailbox-envelope id is usable for BOTH ack and reply-to. Preserves the member-question-request carve-out (isSystemAckOnlyReplyTo) and STRICT-ACK semantics. Includes a 274-line regression test; 283/283 crews tests green; Phase 5a/5b clean. Filed, brainstormed-N/A (direct plan), planned, implemented and shipped same day (2026-06-07) after the bookkeeper hit the bug live while answering a member question.",
+        "commits": [
+          {
+            "sha": "5a339efc",
+            "oneLine": "fix(crews): lead reply-to resolves consumed mailbox-history ids (v3.12.1)",
+            "repo": "ai-developer-toolkit"
+          },
+          {
+            "sha": "b68b0bf4",
+            "oneLine": "chore: bump ai-developer-toolkit for crews v3.12.1",
+            "repo": "codexu"
+          }
+        ]
+      }
     }
   ],
   "phaseTree": [
