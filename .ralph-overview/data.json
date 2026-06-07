@@ -5162,8 +5162,8 @@
     {
       "id": "ralph-codex-exec-lens-hang-instrumentation",
       "scope": "ralph",
-      "status": "warn",
-      "lifecycle": "tracked",
+      "status": "ok",
+      "lifecycle": "merged",
       "lastTouchedAt": "2026-06-07",
       "command": {
         "descriptionHtml": "ralph's codex-exec research/review lens spawns <code>codex exec</code> which HANGS (~20min, no stdout, orphaned codex.exe) on this Windows box when invoked from inside a Copilot ralph member. DISTINCT from the merged fast-ENOENT-~800ms spawn fix (ralph-orchestration-codex-exec-windows-spawn) — here the process spawns fine but never produces output or exits. Hit 3x in one batch (2026-06-07: plan-codex-engine research lens + Phase-4 codex reviewer; plan-ovdata research lens), each forcing a lens-skip that degrades plan/brainstorm quality. The ~300s lens timeout did NOT kill the subtree (orphan left behind). INSTRUMENTATION-FIRST: add the diagnostics needed to capture the root cause before attempting any fix.",
@@ -5186,8 +5186,29 @@
         {
           "className": "cmd-ok",
           "html": "Plan shipped 2026-06-07 @ d63e3e9a (topic 1dd33858) &mdash; D-001 capture-first. 5 stories; US-001 confirms/refutes the PIPE-DEADLOCK hypothesis via a synthetic A/B (concurrent-drain vs not). Copilot review 2H+4M fixed; codex lens skipped (it IS the hang under test). Impl targets ralph-orchestration src/codex-exec.mjs (ai-developer-toolkit submodule)."
+        },
+        {
+          "className": "cmd-ok",
+          "html": "Shipped 2026-06-07 as <b>ralph-orchestration v5.54.0</b> (submodule 80f8af7e; codexu pointer b915776a). <b>PIPE-DEADLOCK CONFIRMED via synthetic A/B</b> (codex-exec.mjs wasn't draining stdout+stderr concurrently -> Windows ~64KB pipe-buffer deadlock). Fix: fd-backed concurrent-drain sidecars + 240s timeout + taskkill /T tree-kill. A/B harness + findings doc + expanded tests. Pushed all 3 toolkit remotes; copilot plugin update applied. NOTE: distinct codex ITERATION-engine runaway-spawn hang still open (workaround: iterationEngine->copilot)."
         }
-      ]
+      ],
+      "shipManifest": {
+        "shippedAt": "2026-06-07",
+        "summary": "Shipped ralph-orchestration v5.54.0 - root-cause fix for the codex-exec research/review lens hang. The D-001 capture-first impl's synthetic A/B test CONFIRMED the hypothesis: PIPE-DEADLOCK. ralph's codex-exec.mjs was not draining the child's stdout and stderr concurrently, so on Windows the ~64KB OS pipe buffer filled and codex blocked on write (also explaining the 'no stdout captured' symptom). Fix: fd-backed per-lens sidecar capture with concurrent drain of both streams, a 240s timeout, and a taskkill /T subtree hard-kill so no orphan codex.exe is left. Ships an A/B findings doc + a reusable A/B harness/fixture + expanded test-codex-exec.mjs. Phase 5a/5b clean; tests green (only pre-existing env failures).",
+        "notes": "This fixes the LENS hang (research/review). A DISTINCT codex failure mode remains unaddressed: the codex ITERATION ENGINE (ralph driving codex exec to implement stories) rabbit-holes spawning runaway Collab children (impl-adapter hit it on the adapter impl 2026-06-07, ~10min/383K tokens); workaround is iterationEngine codex->copilot. Real-world validation pending: confirm a v5.54.0 ralph member uses the codex lens successfully before declaring the lens reliable again.",
+        "commits": [
+          {
+            "sha": "80f8af7e",
+            "oneLine": "fix(ralph): capture-first codex-exec lens hang (D-001) fd-backed sidecars + tree-kill (v5.54.0)",
+            "repo": "ai-developer-toolkit"
+          },
+          {
+            "sha": "b915776a",
+            "oneLine": "chore: bump ai-developer-toolkit for ralph-orchestration v5.54.0",
+            "repo": "codexu"
+          }
+        ]
+      }
     },
     {
       "id": "crews-lead-reply-to-consumed-inbox-envelope",
