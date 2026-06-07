@@ -248,8 +248,8 @@
     {
       "id": "codex-ralph-member-multi-agent-adapter",
       "scope": "crews",
-      "lifecycle": "tracked",
-      "status": "warn",
+      "lifecycle": "merged",
+      "status": "ok",
       "lastTouchedAt": "2026-06-07",
       "kanbanCards": [
         {
@@ -267,6 +267,10 @@
         {
           "className": "cmd-warn",
           "html": "<strong>Filed 2026-06-06 from the multi-agent-v2 investigation (leverage path).</strong> The codex-engine-ralph-member spike found codex members run brainstorm/review in DEGRADED single-threaded mode. The multi-agent-v2 investigation (findings.md) determined this is a <strong>TOOL-NAME MISMATCH, not a capability gap</strong>: codex DOES have agent-spawn via the native <code>multi_agent_v2</code> tools, but ralph looks for differently-named Agent tools (Claude/Copilot-style). LEVERAGE: build a plugin-side ADAPTER that maps ralph's Agent tool calls onto codex <code>multi_agent_v2</code> (spawn/wait/send_message/close), plus flip the <code>multi_agent_v2</code> config so the tools are exposed, so codex ralph members run NON-degraded multi-lens brainstorm/review like Claude/Copilot. Read .ralph/investigations/codex-upstream-multi-agent-v2-fork-impact/findings.md for the exact tool-name map + config flag. Reconcile with codex-child-spawn-tools (complementary). NOTE: the v137 refinements are rebase-gated (fork at 0.135), but the 0.135 multi_agent_v2 base is sufficient for this adapter."
+        },
+        {
+          "className": "cmd-ok",
+          "html": "Shipped 2026-06-07 as <b>ralph-orchestration v5.53.0</b> (submodule 39196e71; codexu pointer 4b317bfa). Codex multi-agent generator target: codex-lowering.mjs + .codex-plugin manifest + codex-skills + drift/live-smoke. US-001 spike GO (child 32KB+ answer recovered byte-exact via list_agents). 6 stories; Phase 5a/5b clean; pushed all 3 toolkit remotes; copilot plugin update applied. Codex iteration-engine hung mid-impl (runaway Collab spawn) -> switched to copilot; distinct from the lens pipe-deadlock hang."
         }
       ],
       "command": {
@@ -278,6 +282,23 @@
           "plan": "/plan-with-ralph --from-brainstorm .ralph/brainstorms/codex-ralph-member-multi-agent-adapter/ \"Plan D-001: a third codex target in ralph-orchestration plugins/ralph/scripts/generate-copilot-artifacts.mjs that lowers one Agent() multi-lens fan-out into an explicit spawn_agent -> followup_task -> wait_agent -> collect -> validate-JSON -> close recipe + when-to-delegate guidance, plugin-side only, no codex patch, target multi_agent_v2 (opt-in), bump ralph-orchestration to 5.52.0. STORY 1 MUST be the D-003 go/no-go spike: a disposable multi_agent_v2=true probe verifying a parent codex 0.135 v2 member can collect each child final answer as the JSON Ralph needs using only model-visible tools (wait_agent returns completed/timed-out only); if it requires out-of-band app-server/event-stream access, D-001 must pivot. See the brainstorm selected-direction.md + synthesis for the seam analysis (build-time regex generator, Claude canonical -> Copilot generated; codex is non-isomorphic async/mailbox so a pure token-swap is insufficient).\"",
           "impl": "/implement-with-ralph --from-plan .ralph/jobs/codex-ralph-member-multi-agent-adapter/plan.md --autonomous"
         }
+      },
+      "shipManifest": {
+        "shippedAt": "2026-06-07",
+        "summary": "Shipped ralph-orchestration v5.53.0 - the codex multi-agent adapter (D-001). Lowers ralph's multi-lens Agent() fan-out into codex's async/mailbox spawn_agent->followup_task->wait_agent->collect recipe via a new plugins/ralph/scripts/codex-lowering.mjs module + a third (codex) generator target in generate-copilot-artifacts.mjs, plus a .codex-plugin manifest + codex-skills overlay, when-to-delegate guidance + a v2 preflight, a codex --check/parity/drift guard + live smoke, and the v5.53.0 bump. US-001 go/no-go spike confirmed GO: a parent codex 0.135 multi_agent_v2 member recovers each child's full 32KB+ final answer byte-exact via the model-visible list_agents tool. 6 stories; Phase 5a (4 code findings) + 5b (2 docs findings) fixed+verified, gate green.",
+        "notes": "During impl the codex ITERATION ENGINE itself hung on US-002 (rabbit-holed spawning Collab children, ~10min/383K tokens); the member self-reported it (new hang-propagation instruction worked), killed it, added anti-spawn guidance, and switched iterationEngine codex->copilot to finish. This is a DISTINCT codex failure mode (runaway multi-agent Collab sub-agent spawn) from the codex-exec lens pipe-deadlock hang (ralph-codex-exec-lens-hang-instrumentation) - candidate follow-up. Also confirmed: impl-adapter's earlier ~9h 'idle' was the member ending a turn on a progress checkpoint (not a codex hang), which fed the crews-member-crash-auto-notify-lead brainstorm's stalled-detect design question.",
+        "commits": [
+          {
+            "sha": "39196e71",
+            "oneLine": "feat(ralph): codex multi-agent adapter generator target + .codex-plugin (v5.53.0)",
+            "repo": "ai-developer-toolkit"
+          },
+          {
+            "sha": "4b317bfa",
+            "oneLine": "chore: bump ai-developer-toolkit for ralph-orchestration v5.53.0",
+            "repo": "codexu"
+          }
+        ]
       }
     },
     {
