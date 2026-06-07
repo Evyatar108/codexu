@@ -1,0 +1,34 @@
+I’ll read the referenced prompt file first, then carry out the task it describes.
+
+The prompt is longer than the direct viewer limit, so I’ll read it in chunks and extract the actionable instructions.
+
+I’ll verify the plan against the actual crews plugin code and conventions, then return only the requested review findings.
+
+I’m checking the existing export/version tests for hidden pinned surfaces that the plan may have missed.
+
+I found a compatibility snapshot around config exports, so I’ll include that as a concrete review finding if the plan’s export strategy would trip it.
+
+One more pass is focused on whether listener-loop exports or tests are snapshot-pinned beyond the config shim.
+
+### Feasibility
+
+No issues found.
+
+### Completeness
+
+- [Medium] The test plan does not explicitly cover the new `listener delivered` and `listener timeout` log fields, even though those are core acceptance criteria. Add injected `runListenerLoop`/temp-fixture tests that assert `timeoutMs`, `armedAtAgeMs`, and `oldestMsgAgeMs` appear only in the intended `crews.log` lines, while stdout payload keys remain unchanged.
+
+- [Low] If `isQueuedWhileUnarmed` is re-exported through `hooks/config.js`, `tests/split-export-compat.test.js` must be updated. The plan only says to export it from `hooks/mailbox.js`; that is fine, but implementers should avoid accidentally changing the config shim without updating the snapshot.
+
+### Ordering
+
+No issues found.
+
+### Simplicity
+
+No issues found.
+
+### Acceptance Criteria Quality
+
+- [Medium] “stdout JSON envelope is byte-unchanged” is too literal for dynamic payloads that include timing like `waitedMs`. Rephrase as “no new stdout fields and existing stdout schema/key set is unchanged,” and verify that specifically.
+

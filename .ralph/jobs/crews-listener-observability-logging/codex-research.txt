@@ -1,0 +1,79 @@
+**Codebase Architecture**
+
+`ai-developer-toolkit/plugins/crews` is a plain Node/CommonJS plugin, not a packaged npm workspace. The root repo uses `pnpm`, but the crews plugin itself has no `package.json`; it is made of executable Node scripts, hook modules, skill files, and custom tests.
+
+Key structure:
+
+- `lib/listener-loop.js`: listener arm loop, timeout/watch/poll delivery, lifecycle logging.
+- `hooks/mailbox.js`: mailbox/outbox JSON state, locks, append/consume paths, `appendLog`.
+- `hooks/actors.js`, `hooks/listener-protocol.js`, `hooks/actor-state.js`: manifest state, listener transitions, heartbeat/arm/exit.
+- `hooks/protocol/manifest.js`: manifest schema and valid listener fields.
+- `tools/crews.js`: CLI dispatcher; `tools/wait-for-message.js` is a deprecated shim to `crews.js arm`.
+- `tests/*.test.js`: custom Node assertion tests run by `tests/run.js`.
+
+**Feature-Relevant Code**
+
+Primary implementation points:
+
+- [lib/listener-loop.js](D:/harness-efforts/codexu/ai-developer-toolkit/plugins/crews/lib/listener-loop.js:331)
+  - `deliver(reason)` consumes mailbox messages and logs:
+    `listener delivered name=... crew=... via=... count=...`
+  - `bail(reason)` logs:
+    `listener timeout name=... crew=... reason=... waitedMs=...`
+  - `start = Date.now()` is the best local “armed at” source for `armedAtAgeMs`.
+  - `timeoutMs` is parsed earlier and can be logged without changing stdout JSON.
+
+- [hooks/mailbox.js](D:/harness-efforts/codexu/ai-developer-toolkit/plugins/crews/hooks/mailbox.js:403)
+  - `appendMailboxWithSender()` is the shared chokepoint for `appendMailbox`, `appendSystemMailbox`, and `appendOperatorMailbox`.
+  - It already reads recipient `manifest` before appending and has `safeName`, `safeCrew`, `role`, `envelope`, and `sender`.
+  - Best place for `mail-queued-no-listener name=<recipient> crew=<crew> kind=<kind>` after the mailbox write succeeds.
+
+- [hooks/mailbox.js](D:/harness-efforts/codexu/ai-developer-toolkit/plugins/crews/hooks/mailbox.js:926)
+  - `appendLog(line, cwd)` writes to `<cwd>/.crews/logs/crews.log`, rotates at 64KB, and swallows logging errors. Reuse it.
+
+- [hooks/actors.js](D:/harness-efforts/codexu/ai-developer-toolkit/plugins/crews/hooks/actors.js:923)
+  - `touchHeartbeat()` stamps `listenerState: 'armed'` and `lastListenerSpawnAt`, but note it is also called by heartbeat refreshes, so it is not a stable original-arm timestamp.
+
+- [hooks/actor-state.js](D:/harness-efforts/codexu/ai-developer-toolkit/plugins/crews/hooks/actor-state.js:13)
+  - Valid listener states: `never-armed`, `armed`, `exited`, `recoverable`.
+
+- Versioning:
+  - [scripts/bump-version.js](D:/harness-efforts/codexu/ai-developer-toolkit/plugins/crews/scripts/bump-version.js:14) updates the three plugin manifests, three marketplace indexes, and `tests/version.test.js`.
+  - [CHANGELOG.md](D:/harness-efforts/codexu/ai-developer-toolkit/plugins/crews/CHANGELOG.md:1) is manual.
+
+**Technical Constraints**
+
+- No behavior change means do not alter mailbox contents, return values, listener stdout JSON, timeout exit codes, locking, or manifest transitions.
+- Logging must remain best-effort via `appendLog`; do not let observability failures throw.
+- Avoid adding manifest locks in the mailbox append path. Existing `appendMailboxWithSender()` reads the manifest under the mailbox lock only; adding new lock ordering could introduce deadlock risk.
+- `timeoutMs` can be `null` for no-timeout listeners; log as `timeoutMs=null`.
+- `oldestMsgAgeMs` should be computed from delivered message `sentAt` fields. `appendMailboxWithSender()` overwrites producer-supplied `sentAt`, so normal delivered messages should have valid ISO timestamps.
+- Do not use `lastListenerSpawnAt` as the delivered/timeout `armedAtAgeMs` source unless you capture it before the heartbeat timer mutates it. The loop-local `start` is safer.
+- Tests use synchronous Node scripts with `assert` wrappers, temporary state dirs from `tests/lib/repo-checks.js`, and log assertions by reading `<cwd>/.crews/logs/crews.log`.
+
+**Implementation Suggestions**
+
+1. In `lib/listener-loop.js`, add a small pure helper, e.g. `oldestMessageAgeMs(messages, nowMs)`, that parses valid `sentAt` values and returns `nowMs - oldestSentAtMs` or `null`. Export it for focused unit tests.
+
+2. In `deliver(reason)`, compute one `nowMs = Date.now()`. Always include:
+   - `timeoutMs=${timeoutMs === null ? 'null' : timeoutMs}`
+   - `armedAtAgeMs=${nowMs - start}`
+
+   If `reason === 'initial'`, also include:
+   - `oldestMsgAgeMs=${oldestMessageAgeMs(messages, nowMs)}`
+
+3. In `bail(reason)`, similarly log `timeoutMs` and `armedAtAgeMs`. Keep the existing `waitedMs` and stdout payload unchanged.
+
+4. In `appendMailboxWithSender()`, after a successful append path, check the already-read `manifest.listenerState !== 'armed'`. Log:
+   `mail-queued-no-listener name=${safeName} crew=${safeCrew} kind=${kind}`
+   
+   Derive `kind` conservatively from `envelope.kind || opts.kind || sender.routingKind || 'message'`.
+
+5. Add focused tests:
+   - `listener.test.js` or a new observability test for `oldestMessageAgeMs`.
+   - `mailbox.test.js` or a new mailbox observability test for unarmed vs armed queued logging, covering at least `appendMailbox` and `appendSystemMailbox`.
+
+6. Bump version with:
+   `node ai-developer-toolkit/plugins/crews/scripts/bump-version.js 3.10.1`
+   
+   Then add a `CHANGELOG.md` entry for the additive observability logging.

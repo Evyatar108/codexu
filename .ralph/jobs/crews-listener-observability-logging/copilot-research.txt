@@ -1,0 +1,93 @@
+I’ll read the referenced prompt and then carry out its instructions.
+
+I’ll inspect the crews plugin structure and the specific listener/mailbox logging paths needed for the research report.
+
+The broad search was too noisy, so I’m narrowing to the concrete plugin entry points and test files.
+
+I found the likely implementation points; now I’m reading the surrounding code and tests to ground the research in exact paths and APIs.
+
+I have the main code paths; I’m checking the existing test/style conventions and version bump surface so the recommendation is actionable.
+
+I’m doing one last targeted read for log helper exports and listener test seams; then I’ll produce the research report.
+
+I’m checking the exact log writer and mailbox drain shape to avoid guessing about timestamp and payload fields.
+
+I’m verifying what “armedAt” maps to in this codebase so the age field recommendation uses the existing manifest naming.
+
+I need one more context snippet for `lastListenerSpawnAt` semantics, because that affects the timeout/delivered `armedAtAgeMs` computation.
+
+### Codebase Architecture
+
+`ai-developer-toolkit/plugins/crews` is a JavaScript/CommonJS plugin with no package-level `package.json`. It has engine overlays for Claude, Copilot, and Codex via `.claude-plugin/`, `.github/plugin/`, and `.codex-plugin/`. Core runtime code is split across `hooks/`, `lib/`, `tools/`, and `tests/`.
+
+Key structure:
+- `lib/listener-loop.js`: `crews.js arm` listener process; owns `runListenerLoop()`, `deliver()`, timeout handling, heartbeat, and lifecycle log lines.
+- `hooks/mailbox.js`: mailbox append/consume primitives, JSON/JSONL helpers, `appendLog()`, review-required stamping, inbox history writes.
+- `hooks/actors.js`: manifest reads/writes, listener state transitions, `touchHeartbeat()`, `markArmIntent()`, `markListenerExited()`.
+- `hooks/config.js`: compatibility export surface that re-exports mailbox/actor/path helpers.
+- `hooks/protocol/manifest.js`: manifest schema and typed fields.
+- `tests/*.test.js`: plain Node test files using local `tests/lib/assert`; full suite runs through `node tests/run.js`.
+
+### Feature-Relevant Code
+
+Primary edit points:
+- `lib/listener-loop.js`
+  - `runListenerLoop()` parses `timeoutMs` and sets `const start = Date.now()`.
+  - `deliver(reason)` drains with `consumeMailbox(...)`, then logs:
+    `listener delivered name=... crew=... via=... count=...`
+  - `bail(reason)` logs:
+    `listener timeout name=... crew=... reason=... waitedMs=...`
+  - Natural place to add `timeoutMs`, `armedAtAgeMs`, and `oldestMsgAgeMs` for `via === 'initial'`.
+
+- `hooks/mailbox.js`
+  - `appendMailboxWithSender()` is the chokepoint for both user and system mailbox writes. It already reads recipient `manifest` before writing, so it can detect `manifest.listenerState !== 'armed'`.
+  - `appendMailbox()` and `appendSystemMailbox()` both delegate to `appendMailboxWithSender()`, so logging there likely covers both requested write paths.
+  - `appendLog(line, cwd)` writes timestamped lines to `<stateCwd>\.crews\logs\crews.log`.
+
+- `hooks/actors.js`
+  - `touchHeartbeat()` writes `listenerState: 'armed'`, `lastHeartbeatAt`, `lastListenerSpawnAt`, and listener epoch.
+  - Note: `lastListenerSpawnAt` is refreshed by heartbeat calls, so for `armedAtAgeMs` inside `listener-loop.js`, use the listener loop’s own `start`/`armedAt` timestamp rather than rereading manifest state.
+
+Relevant tests:
+- `tests/listener.test.js`: already spawns `tools/wait-for-message.js` / `tools/crews.js arm` and verifies listener delivery behavior.
+- `tests/mailbox.test.js`: covers `appendMailbox()` and `consumeMailbox()`.
+- `tests/system-mailbox.test.js`: covers `appendSystemMailbox()`.
+- `tests/consume-mailbox-epoch-fence.test.js`: good pattern for asserting `crews.log` lines.
+- `tests/version.test.js` plus `scripts/bump-version.js`: version bump contract.
+
+### Technical Constraints
+
+- Logging is observability-only; do not change listener delivery, drain, timeout, mailbox, or review-required behavior.
+- `appendLog()` swallows logging failures by design, so new observability lines should not throw or affect mailbox writes.
+- Listener stdout intentionally omits message bodies; new fields belong in `crews.log`, not the listener JSON envelope, unless explicitly required.
+- `timeoutMs` may be `null` for indefinite listeners; log it as `null` or a stable string like `timeoutMs=null`.
+- Message `sentAt` is ISO-like and set in `appendMailboxWithSender()`. Age computation should tolerate malformed/missing `sentAt` by omitting or using `oldestMsgAgeMs=null`, not by failing delivery.
+- Version bump must use `node plugins/crews/scripts/bump-version.js <x.y.z>` because it updates six stamps: three plugin manifests, three marketplace indexes, and `tests/version.test.js`.
+
+### Implementation Suggestions
+
+Add small pure helpers in `lib/listener-loop.js`, e.g.:
+- `computeOldestMsgAgeMs(messages, nowMs)`
+- `formatNullableMs(value)`
+- possibly `listenerAgeMs(nowMs, armedAtMs)`
+
+Then in `deliver(reason)`:
+- Capture `const now = Date.now()` after successful drain.
+- Always include `timeoutMs=${timeoutMs === null ? 'null' : timeoutMs}` and `armedAtAgeMs=${now - start}`.
+- If `reason === 'initial'`, compute oldest delivered message age from `messages[].sentAt` and append `oldestMsgAgeMs=<n|null>` to the delivered log line.
+
+In `bail(reason)`:
+- Use one `now` value for `waitedMs` and `armedAtAgeMs`.
+- Append `timeoutMs=... armedAtAgeMs=...`.
+
+For queued-while-unarmed logging, add the predicate inside `appendMailboxWithSender()` after `manifest` is read and before/after the mailbox write:
+`manifest.listenerState !== 'armed'`.
+Log:
+`mail-queued-no-listener name=<recipient> crew=<crew> kind=<kind>`
+where kind should come from the final envelope/requested kind (`envelope.kind`, `opts.kind`, or `message` fallback). This centralizes both `appendMailbox()` and `appendSystemMailbox()` without duplicating logic.
+
+Tests should be additive:
+- Extend or add listener-loop tests for `via=initial` `oldestMsgAgeMs`, and timeout/delivered log lines containing `timeoutMs` + `armedAtAgeMs`.
+- Add mailbox tests for armed vs non-armed manifests: non-armed logs `mail-queued-no-listener`, armed does not; cover both `appendMailbox()` and `appendSystemMailbox()`.
+- Bump crews to `3.11.0` unless the project has another pending version convention.
+

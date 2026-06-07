@@ -1,0 +1,30 @@
+{
+  "clusters": [
+    {
+      "name": "listener-observability",
+      "stories": ["US-001", "US-002", "US-003", "US-004"],
+      "phase": 1,
+      "dependsOn": [],
+      "fileOverlapEvidence": {
+        "sharedFiles": [
+          "plugins/crews/CHANGELOG.md",
+          "plugins/crews/AGENTS.md",
+          "plugins/crews/.claude-plugin/plugin.json",
+          "plugins/crews/.github/plugin/plugin.json",
+          "plugins/crews/.codex-plugin/plugin.json",
+          ".claude-plugin/marketplace.json",
+          ".github/plugin/marketplace.json",
+          ".agents/plugins/marketplace.json",
+          "plugins/crews/tests/version.test.js"
+        ],
+        "exclusiveFiles": [
+          "plugins/crews/lib/listener-loop.js",
+          "plugins/crews/hooks/mailbox.js",
+          "plugins/crews/tests/listener-delivery-observability.test.js"
+        ],
+        "risk": "low"
+      },
+      "executionModeRationale": "Single implementer, serial. US-001 (listener-loop.js) and US-002 (mailbox.js) touch disjoint source files, but US-003's test imports both new helpers and US-004 stamps the shared version/CHANGELOG/AGENTS surface, so splitting across parallel members would create version-file and import conflicts for no throughput gain on a ~2-file change."
+    }
+  ]
+}

@@ -1,0 +1,25 @@
+### Feasibility
+
+[High] The “Next Step” handoff points at a path that does not exist in this checkout. `plugins/ralph/.copilot-plugin/internal-workflows/implement-with-ralph/SKILL.md` is absent, and the fallback glob for `**/plugins/ralph/.copilot-plugin/internal-workflows/implement-with-ralph/SKILL.md` also will not match. The actual local paths are under `ai-developer-toolkit/plugins/ralph/skills/implement-with-ralph/` and `ai-developer-toolkit/plugins/ralph/.copilot-plugin/copilot-skills/implement-with-ralph/`. This would block an autonomous implementer using the plan verbatim.
+
+[High] The verification commands mix cwd assumptions. From the `ai-developer-toolkit` submodule root, `node plugins/crews/tests/run.js` exists, but `node tests/run.js` does not. From `plugins/crews`, `node tests/run.js` works, but `node --check plugins/crews/lib/listener-loop.js` does not. The plan should specify cwd per command.
+
+### Completeness
+
+[Medium] US-003 does not require tests for the two listener-loop log enrichments at `ai-developer-toolkit/plugins/crews/lib/listener-loop.js:347` and `:362`. It tests `computeOldestMsgAgeMs` and queued-while-unarmed logging, but not that real `listener delivered ... timeoutMs=... armedAtAgeMs=... oldestMsgAgeMs=...` and `listener timeout ... timeoutMs=... armedAtAgeMs=...` lines appear in `crews.log`. Add subprocess or injected-IO tests using the existing listener patterns in `tests/listener.test.js` or `tests/dispatcher-arm-listener.test.js`.
+
+[Medium] The raw `manifest.listenerState !== 'armed'` predicate intentionally misses stale `armed` manifests where no live listener exists. `deriveListenerState()` in `hooks/actor-state.js:60` already demotes stale/dead listeners. If the requirement is “raw manifest not armed,” the AC should say that explicitly; if the operator-facing requirement is “no live listener,” use the derived state or add a documented non-goal for stale-armed false negatives.
+
+### Ordering
+
+[High] US-004 combines submodule release edits with codexu wrapper pointer/table edits. The repo rules require a submodule-first commit inside `ai-developer-toolkit`, then a separate codexu pointer/table commit after the submodule commit is merged/pushed. Split this into member-owned submodule version/CHANGELOG/AGENTS work and lead-owned ship steps for `AGENTS.md` active-plugin-versions plus the `ai-developer-toolkit` gitlink.
+
+### Simplicity
+
+No issues found.
+
+### Acceptance Criteria Quality
+
+[High] The full-suite AC is not directly runnable because of the cwd mismatch above. Replace it with either `cd ai-developer-toolkit/plugins/crews && node tests/run.js` or `cd ai-developer-toolkit && node plugins/crews/tests/run.js`.
+
+[Medium] “listener stdout JSON envelope is byte-unchanged” is too strict and not practically testable because dynamic fields like `waitedMs` vary. Make it structural: no new stdout keys, no removed keys, and no message bodies added for `{type:"messages"}`.
