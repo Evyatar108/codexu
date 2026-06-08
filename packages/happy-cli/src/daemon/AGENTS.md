@@ -107,6 +107,7 @@ Local HTTP server (127.0.0.1 only) provides:
 - `/stop-session` - terminates specific session
 - `/spawn-session` - creates new session (used by integration tests)
 - `/spawn-session-from-session` - clone-style spawn that links the child to a same-machine parent via `HAPPY_PARENT_SESSION_ID`; validates `parentSessionId` shape (`^[A-Za-z0-9_-]{1,128}$`) and dispatches to the daemon `spawnSessionFromSessionHandler`. Used today by Codex's Rust-native `spawn_top_level_session` tool; the TypeScript helper `spawnDaemonSessionFromSession` in `controlClient.ts` is test-only until F-009 resolves the daemonPost envelope.
+- `/agent-comms/send` - same-daemon cross-session message hop (agent-comms Scope B / D-002). Body `{ targetSessionId, body, sender: { sessionId } }`; validates BOTH sender and target against tracked sessions (404 on unknown id) with the mailbox path-safety regex (`^[A-Za-z0-9_-]{1,128}$`), and has NO `X-Loopback-Capability` gate (the 127.0.0.1 binding is the boundary). Delivers `body` into the target session's durable mailbox via `mailbox.appendMessage` and returns `{ id, seq }`. Client helper: `sendAgentMessage()` in `controlClient.ts`. See `packages/happy-cli/src/agentComms/mailbox.ts` and `plans/durable-mailbox-channel-wake.md`.
 - `/stop` - graceful daemon shutdown
 
 ## 4. Process Discovery and Cleanup
