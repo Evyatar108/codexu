@@ -5072,21 +5072,13 @@
     {
       "id": "crews-member-crash-auto-notify-lead",
       "scope": "crews",
-      "lifecycle": "tracked",
+      "lifecycle": "merged",
       "status": "warn",
-      "lastTouchedAt": "2026-06-07",
+      "lastTouchedAt": "2026-06-08",
       "kanbanCards": [
         {
-          "className": "cmd-warn",
-          "html": "<strong>Filed 2026-06-06 (gap surfaced by the v3.8.0 locks-fix incident).</strong> Two brainstorm members crashed (the UNKNOWN/-4094 lock bug, now fixed in crews v3.8.0) and the LEAD never noticed &mdash; only the operator did, via a Copilot crash popup. Root gap: crews has crash DETECTION (<code>hooks/health.js getMemberHealth</code> &rarr; <code>state:&quot;dead&quot;</code> via launcher-pid liveness + heartbeat staleness) but it is PULL-only (only callers = <code>list-members</code> + <code>resume-crew</code>). A dead member can&#39;t self-report (a kind=blocked report needs a live process), and the lead&#39;s armed listener only wakes on MAIL. The delivery seam already EXISTS: <code>appendSystemMailbox(lead, crew, cwd, envelope, {kind})</code> wakes the armed listener (it&#39;s how member-joined / member-reply / thread-fanout reach the lead). PROPOSED FIX: a listener-driven liveness sweep that piggybacks on the lead listener&#39;s EXISTING wake cycle (idle-timeout + every delivery) &mdash; NOT a poll loop &mdash; and on an alive|quiet&rarr;dead transition synthesizes a review-required <code>member-crashed</code> system envelope, guarded by a per-member already-notified latch in the manifest. Honors the &quot;always listeners, never poll&quot; rule. crews-scope; brainstorm first to pin sweep-location + envelope-kind + latch-reset semantics."
-        },
-        {
           "className": "cmd-ok",
-          "html": "Brainstorm shipped 2026-06-07 @ fd7cf587 (topic aae053fb). Direction: <b>D-001 heartbeat-tick liveness monitor</b> in the lead listener (CORE — the only mechanism that wakes a quiet idle lead) + <b>D-003 turn-boundary hook backstop</b> + latch-reset hygiene; D-002 dying-gasp optional. <b>Hard-crash high-confidence-dead ONLY in v1</b>; new member-crashed envelope kind + generation-scoped latch keyed on {memberName, sessionId, launcherPid, launcherStartedAt, deadReason}. Stalled/idle 9h-dark case DEFERRED to crews-member-stalled-needs-attention-nudge."
-        },
-        {
-          "className": "cmd-ok",
-          "html": "Plan shipped 2026-06-07 @ 77dce7f6 (topic 2aa65c8a). 6 stories; Phase 4 Claude+Copilot: 7 findings (4 High) fixed. D-001 heartbeat-tick liveness monitor (core) + D-003 turn-boundary backstop, hard-crash-only v1. NOTE: the codex review lens hung (exit 124 timeout) on BOTH phases even post-v5.54.0 — the new 240s timeout + tree-kill fired cleanly (no orphan), Claude+Copilot lenses carried the review; candidate signal for the distinct iteration/model-stall path (ralph-codex-iteration-engine-runaway-spawn-guard)."
+          "html": "Impl shipped @ crews v3.13.0 (toolkit bea1bd20 / codexu pointer 77b8e2b4). Members that crash/die mid-task auto-notify the lead. D-001 liveness sweep + D-003 turn-boundary backstop, hard-crash-only v1. 287/287 tests; Phase 5a+5b converged."
         }
       ],
       "command": {
@@ -5098,6 +5090,57 @@
           "plan": "/plan-with-ralph --from-brainstorm crews-member-crash-auto-notify-lead \"Plan the hard-crash member-crashed auto-notify v1: D-001 heartbeat-tick liveness monitor in the lead listener [CORE] + D-003 turn-boundary hook backstop. The lead listener heartbeat setInterval [~10s] gains a THROTTLED [<= once/60s] liveness sweep over crew members; on a high-confidence transition to dead [getMemberHealth state===dead ONLY: launcher pid gone, or no pid + heartbeat stale past HEARTBEAT_STALE_MS; NEVER quiet/unknown] append a NEW member-crashed system envelope [review-required] to the lead's own mailbox BEFORE the listener consume/exit so it rides out in the same wake. Dedupe via a GENERATION-SCOPED latch keyed on [memberName, sessionId, launcherPid, launcherStartedAt, deadReason]; reset wired into repairManifestForResume + clear-member cleanup. D-003: also run the sweep in the lead turn-boundary hooks [PreToolUse/Stop/SessionStart] for the actively-working lead + latch-reset hygiene. Respect manifest/mailbox lock ordering [sweep-BEFORE-consume to avoid the v3.12.0 delayed-delivery shape; avoid self-deadlock when the lead writes its own mailbox]. Latch home is an open question [member manifest vs a lead/crew liveness-notifications.json] -- pick in the plan, mind the protocol-manifest exact-count test. Standard crews 6-file version bump + CHANGELOG. SUBMODULE task [ai-developer-toolkit/plugins/crews]: submodule worktree + two-commit flow; lead pauses before version push. STALLED/IDLE detection is OUT OF SCOPE [separate task crews-member-stalled-needs-attention-nudge]. Read selected-direction.md.\"",
           "impl": "/implement-with-ralph --from-plan .ralph/jobs/crews-member-crash-auto-notify-lead/plan.md --autonomous \"Implement hard-crash member-crashed auto-notify v1 per the 6-story plan: D-001 throttled [<= once/60s] heartbeat-tick liveness sweep in the lead listener appending a NEW member-crashed system envelope [review-required] on a high-confidence getMemberHealth dead transition [NEVER quiet/unknown], sweep BEFORE consume; generation-scoped latch {memberName, sessionId, launcherPid, launcherStartedAt, deadReason} with reset wired into repairManifestForResume + clear-member; D-003 turn-boundary hook sweep for the actively-working lead. Respect manifest/mailbox lock ordering [avoid self-deadlock writing the lead's own mailbox]. Standard crews 6-file version bump + CHANGELOG. SUBMODULE task [ai-developer-toolkit/plugins/crews]: submodule worktree + two-commit flow; commit locally only; the LEAD runs the ship ceremony and PAUSES for operator approval before the version push. Run the crews suite [scrub CREWS_*/agent-session env; prepend Git bin to PATH]. STALLED detection is OUT OF SCOPE. codexu root CLAUDE.md gitignored.\""
         }
+      },
+      "shipManifest": {
+        "shippedAt": "2026-06-08",
+        "summary": "crews v3.13.0 — members that crash or die mid-task now auto-notify the lead instead of going silently dark. Motivated by the impl-adapter \"went dark for 9h\" incident: a recycled-PID stale manifest reported pidAlive=true while the member was actually gone, so the lead never learned it had stopped. Operator picked direction D-001 (core liveness detection) + D-003 (turn-boundary backstop), hard-crash-only for v1.\n\nThe ship wires a new member-crashed envelope kind (US-001), strictly-additive getMemberHealth fields (US-002), a member-crash-notifications helper with a pre-kill intent write so an intentional stop is distinguishable from a crash (US-003/F-001), a throttled heartbeat-tick liveness sweep inside the lead listener (US-004/D-001), and turn-boundary backstop sweeps with latch reset (US-005/D-003). Phase 5a converged by throttling the pre-tool-use sweep and documenting the recycle-refuse tradeoff; Phase 5b added member-crashed to the protocol per-kind payload table and the STRICT-ACK auto-exempt enumerations. 287/287 tests green.",
+        "commits": [
+          {
+            "sha": "25a4c307",
+            "oneLine": "feat: US-001 - member-crashed envelope-kind wiring",
+            "repo": "ai-developer-toolkit"
+          },
+          {
+            "sha": "6a20b781",
+            "oneLine": "feat: US-002 - getMemberHealth strictly-additive return fields",
+            "repo": "ai-developer-toolkit"
+          },
+          {
+            "sha": "f595d991",
+            "oneLine": "feat: US-003 - member-crash-notifications helper + F-001 pre-kill intent write",
+            "repo": "ai-developer-toolkit"
+          },
+          {
+            "sha": "e1229fc2",
+            "oneLine": "feat: US-004 - D-001 throttled heartbeat-tick liveness sweep in the lead listener",
+            "repo": "ai-developer-toolkit"
+          },
+          {
+            "sha": "92dccc10",
+            "oneLine": "feat: US-005 - D-003 turn-boundary backstop sweeps + latch reset",
+            "repo": "ai-developer-toolkit"
+          },
+          {
+            "sha": "a94c987b",
+            "oneLine": "feat: US-006 - Version bump to 3.13.0 + CHANGELOG + AGENTS.md",
+            "repo": "ai-developer-toolkit"
+          },
+          {
+            "sha": "00ca8e47",
+            "oneLine": "fix(crews): Phase 5a review convergence - throttle pre-tool-use sweep",
+            "repo": "ai-developer-toolkit"
+          },
+          {
+            "sha": "bea1bd20",
+            "oneLine": "docs(crews): Phase 5b - member-crashed STRICT-ACK auto-exempt + protocol table",
+            "repo": "ai-developer-toolkit"
+          },
+          {
+            "sha": "77b8e2b4",
+            "oneLine": "chore(deps): bump crews plugin to v3.13.0 (member-crash auto-notify lead)",
+            "repo": "codexu"
+          }
+        ]
       }
     },
     {
