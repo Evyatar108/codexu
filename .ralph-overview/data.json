@@ -5516,13 +5516,13 @@
     {
       "id": "crews-flip-default-member-engine-to-codex",
       "scope": "crews",
-      "lifecycle": "tracked",
+      "lifecycle": "merged",
       "status": "active",
       "lastTouchedAt": "2026-06-08",
       "kanbanCards": [
         {
-          "className": "cmd-warn",
-          "html": "Filed 2026-06-08 by bookkeeper. The FINAL step of the codex-member-engine readiness chain: make codex the default crews member engine (currently the default mirrors the caller-CLI engine -> copilot lead spawns copilot members; precedence is explicit --engine > CREWS_ENGINE env > caller-CLI detect > claude legacy, per crews v1.8.11). Prereqs DONE: spawn/lifecycle (v3.6.x), skills-visible + adapter (v5.53.0), lens hang+timeout (v5.54/5.55), provisioning (v3.14.0), runaway-guard CLOSED, Stage-1 live codex-member smoke PASSED 2026-06-08 (engine confirmed, crews protocol e2e, all ralph skills visible, clean stop). REMAINING before flip: (1) ship v3.14.1 installed-CLI provisioner fix so the lead can provision codex members via the normal path; (2) a Stage-2 smoke = a live codex member INVOKES a real ralph skill end-to-end (small /plan-with-ralph or fan-out) to confirm the multi_agent_v2 codex-lowering recipe executes on a live member (not just the isolated D-003 spike). DECISION NEEDED: flip mechanism — (a) set CREWS_ENGINE=codex env (no code change, reversible), (b) change crews default precedence to prefer codex, or (c) operating-policy \"always --engine codex\" + docs. Plus: should the lead auto-provision codex members on spawn (currently provisioning is on-demand/REPORT-ONLY)? Keep it reversible."
+          "className": "cmd-ok",
+          "html": "SHIPPED 2026-06-08: codex is now the DEFAULT crews member engine via User-level CREWS_ENGINE=codex (most-reversible mechanism). Precedence: --engine > CREWS_ENGINE > caller-detect > claude. Validated: a no---engine spawn wrote manifest.engine=codex. AGENTS.md documents the flip + in-session inheritance caveat + revert. Caps the codex-engine readiness chain (all prereqs shipped/validated/closed this session)."
         }
       ],
       "command": {
@@ -5530,6 +5530,18 @@
         "prompts": {
           "brainstorm": "/brainstorm-with-ralph crews-flip-default-member-engine-to-codex \"Decide HOW to make codex the default crews member engine, reversibly. Current precedence (crews v1.8.11): explicit --engine > CREWS_ENGINE env > caller-CLI detect > claude legacy. Options for the flip: (a) CREWS_ENGINE=codex env (zero code, instantly reversible), (b) change the default-precedence code to prefer codex over caller-CLI-detect, (c) operating-policy + docs only (always pass --engine codex). Consider: rollback path, how mixed crews behave (some copilot some codex), whether the lead should auto-provision a codex member on spawn (vs the current on-demand REPORT-ONLY install-plugin), and how the caller-CLI-detect default interacts (a Copilot lead would still want codex members). Prereq: Stage-2 live codex ralph-skill smoke must pass first. Recommend the most reversible mechanism.\""
         }
+      },
+      "shipManifest": {
+        "shippedAt": "2026-06-08",
+        "summary": "Made codex the DEFAULT crews member engine — the destination of the codex-engine readiness chain. Mechanism: the User-level env var CREWS_ENGINE=codex (chosen by the operator for maximum reversibility; no code change). Engine precedence in hooks/actors.js spawnMember is explicit --engine > process.env.CREWS_ENGINE > caller-CLI detect > claude, so CREWS_ENGINE=codex makes every spawn-without---engine resolve to codex, even from a Copilot lead.\n\nValidated end-to-end: a member spawned WITHOUT --engine wrote manifest.engine=codex (verify-flip throwaway). Prereqs that gated this all completed first this session: crews v3.6.x spawn/lifecycle, ralph v5.53.0 multi-agent adapter, ralph v5.54.0/v5.55.0 lens hang+timeout, crews v3.14.0 provisioning + v3.14.1 installed-CLI fix (dogfood-found), runaway-guard closed as superseded, and a Stage-1 live codex-member smoke. AGENTS.md documents the flip, the in-session env-inheritance caveat (User-level vars only reach NEW process trees), and the one-line revert. Known follow-up (non-blocking): the v5.53.0 opt-in live fan-out smoke has a Windows codex.ps1 spawn bug (filed as ralph-codex-live-smoke-windows-shim-spawn); the fan-out itself is validated by the D-003 spike + Stage-1.",
+        "commits": [
+          {
+            "sha": "3b2270d4",
+            "oneLine": "docs(agents): codex is now the default crews member engine (CREWS_ENGINE=codex)",
+            "repo": "codexu"
+          }
+        ],
+        "notes": "Flip mechanism is a machine-local User-level env var (CREWS_ENGINE=codex), not a git-tracked change; the AGENTS.md doc is the version-controlled record + setup/revert instructions."
       }
     },
     {
