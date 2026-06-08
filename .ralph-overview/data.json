@@ -5496,6 +5496,25 @@
           "impl": "Fix lib/plugin-provisioning/source.js resolveToolkitRoot() to resolve the toolkit root when invoked via the installed Copilot CLI. PRIMARY: thread the command --cwd workspace into resolveToolkitRoot and try <cwd>/ai-developer-toolkit (and cwd) in the walk-up before the getPluginRoot()/../.. fallback; wire install-plugin.js + list-plugins.js to pass the context cwd into the provisioning lib opts. SECONDARY: honor an explicit --marketplace <localpath> as a toolkit-root override for the INDEX load too (keep the codex git/URL refusal). Add a regression test simulating the installed-CLI layout (getPluginRoot with no marketplace at ../.., cwd pointing at a tmp toolkit) asserting resolution succeeds. 6 version stamps -> 3.14.1 + CHANGELOG. SUBMODULE [ai-developer-toolkit/plugins/crews]; submodule worktree; lead ships."
         }
       }
+    },
+    {
+      "id": "crews-flip-default-member-engine-to-codex",
+      "scope": "crews",
+      "lifecycle": "tracked",
+      "status": "active",
+      "lastTouchedAt": "2026-06-08",
+      "kanbanCards": [
+        {
+          "className": "cmd-warn",
+          "html": "Filed 2026-06-08 by bookkeeper. The FINAL step of the codex-member-engine readiness chain: make codex the default crews member engine (currently the default mirrors the caller-CLI engine -> copilot lead spawns copilot members; precedence is explicit --engine > CREWS_ENGINE env > caller-CLI detect > claude legacy, per crews v1.8.11). Prereqs DONE: spawn/lifecycle (v3.6.x), skills-visible + adapter (v5.53.0), lens hang+timeout (v5.54/5.55), provisioning (v3.14.0), runaway-guard CLOSED, Stage-1 live codex-member smoke PASSED 2026-06-08 (engine confirmed, crews protocol e2e, all ralph skills visible, clean stop). REMAINING before flip: (1) ship v3.14.1 installed-CLI provisioner fix so the lead can provision codex members via the normal path; (2) a Stage-2 smoke = a live codex member INVOKES a real ralph skill end-to-end (small /plan-with-ralph or fan-out) to confirm the multi_agent_v2 codex-lowering recipe executes on a live member (not just the isolated D-003 spike). DECISION NEEDED: flip mechanism — (a) set CREWS_ENGINE=codex env (no code change, reversible), (b) change crews default precedence to prefer codex, or (c) operating-policy \"always --engine codex\" + docs. Plus: should the lead auto-provision codex members on spawn (currently provisioning is on-demand/REPORT-ONLY)? Keep it reversible."
+        }
+      ],
+      "command": {
+        "name": "crews-flip-default-member-engine-to-codex",
+        "prompts": {
+          "brainstorm": "/brainstorm-with-ralph crews-flip-default-member-engine-to-codex \"Decide HOW to make codex the default crews member engine, reversibly. Current precedence (crews v1.8.11): explicit --engine > CREWS_ENGINE env > caller-CLI detect > claude legacy. Options for the flip: (a) CREWS_ENGINE=codex env (zero code, instantly reversible), (b) change the default-precedence code to prefer codex over caller-CLI-detect, (c) operating-policy + docs only (always pass --engine codex). Consider: rollback path, how mixed crews behave (some copilot some codex), whether the lead should auto-provision a codex member on spawn (vs the current on-demand REPORT-ONLY install-plugin), and how the caller-CLI-detect default interacts (a Copilot lead would still want codex members). Prereq: Stage-2 live codex ralph-skill smoke must pass first. Recommend the most reversible mechanism.\""
+        }
+      }
     }
   ],
   "phaseTree": [
