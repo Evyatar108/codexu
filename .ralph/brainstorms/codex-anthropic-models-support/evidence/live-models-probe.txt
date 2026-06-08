@@ -1,0 +1,75 @@
+
+id                               vendor       type       picker endpoints                                  vision tools     ctx
+--                               ------       ----       ------ ---------                                  ------ -----     ---
+claude-opus-4.6-1m               Anthropic    chat         True /v1/messages,/chat/completions               True  True 1000000
+claude-opus-4.6                  Anthropic    chat         True /v1/messages,/chat/completions               True  True 1000000
+claude-opus-4.7-1m-internal      Anthropic    chat         True /v1/messages,/chat/completions               True  True 1000000
+claude-opus-4.7-high             Anthropic    chat         True /v1/messages,/chat/completions               True  True  200000
+claude-opus-4.7-xhigh            Anthropic    chat         True /v1/messages,/chat/completions               True  True  200000
+claude-opus-4.7                  Anthropic    chat         True /v1/messages,/chat/completions               True  True 1000000
+claude-opus-4.8                  Anthropic    chat         True /v1/messages,/chat/completions               True  True 1000000
+claude-sonnet-4.6                Anthropic    chat         True /chat/completions,/v1/messages               True  True 1000000
+gemini-3.1-pro-preview           Google       chat         True /chat/completions                            True  True 1000000
+gemini-3.5-flash                 Google       chat         True /chat/completions                            True  True 1000000
+gpt-5.3-codex                    OpenAI       chat         True /responses,ws:/responses                     True  True  400000
+gpt-5.4-mini                     OpenAI       chat         True /responses,ws:/responses                     True  True  400000
+gpt-5.4                          OpenAI       chat         True /responses,/chat/completions,ws:/responses   True  True 1050000
+gpt-5.5                          OpenAI       chat         True /responses,ws:/responses                     True  True 1050000
+mai-code-1-flash-internal        Azure OpenAI chat         True /responses                                         True  256000
+trajectory-compaction            Experimental chat        False /chat/completions                                  True 2508192
+gpt-5-mini                       Azure OpenAI chat         True /chat/completions,/responses,ws:/responses   True  True  264000
+gpt-4o-mini-2024-07-18           Azure OpenAI chat        False                                                    True  128000
+gpt-4o-2024-11-20                Azure OpenAI chat        False                                              True  True  128000
+gpt-4o-2024-08-06                Azure OpenAI chat        False                                                    True  128000
+text-embedding-3-small           Azure OpenAI embeddings  False                                                                
+text-embedding-3-small-inference Azure OpenAI embeddings  False                                                                
+claude-sonnet-4.5                Anthropic    chat         True /chat/completions,/v1/messages               True  True  200000
+claude-opus-4.5                  Anthropic    chat         True /chat/completions,/v1/messages               True  True  200000
+claude-haiku-4.5                 Anthropic    chat         True /chat/completions,/v1/messages               True  True  200000
+gemini-3-flash-preview           Google       chat         True                                              True  True  128000
+gemini-2.5-pro                   Google       chat         True                                              True  True  128000
+gpt-4.1-2025-04-14               Azure OpenAI chat        False                                              True  True  128000
+gpt-3.5-turbo-0613               Azure OpenAI chat        False                                                    True   16384
+gpt-4                            Azure OpenAI chat        False                                                    True   32768
+gpt-4-0613                       Azure OpenAI chat        False                                                    True   32768
+gpt-4-0125-preview               Azure OpenAI chat        False                                                    True  128000
+gpt-4o-2024-05-13                Azure OpenAI chat        False                                              True  True  128000
+gpt-4-o-preview                  Azure OpenAI chat        False                                                    True  128000
+gpt-4.1                          Azure OpenAI chat        False                                              True  True  128000
+gpt-3.5-turbo                    Azure OpenAI chat        False                                                    True   16384
+gpt-4o-mini                      Azure OpenAI chat        False                                                    True  128000
+gpt-4o                           Azure OpenAI chat        False                                              True  True  128000
+text-embedding-ada-002           Azure OpenAI embeddings  False                                                                
+
+
+
+=== CLAUDE / ANTHROPIC ROWS ===
+
+id                          vendor    type picker endpoints                      vision tools     ctx
+--                          ------    ---- ------ ---------                      ------ -----     ---
+claude-opus-4.6-1m          Anthropic chat   True /v1/messages,/chat/completions   True  True 1000000
+claude-opus-4.6             Anthropic chat   True /v1/messages,/chat/completions   True  True 1000000
+claude-opus-4.7-1m-internal Anthropic chat   True /v1/messages,/chat/completions   True  True 1000000
+claude-opus-4.7-high        Anthropic chat   True /v1/messages,/chat/completions   True  True  200000
+claude-opus-4.7-xhigh       Anthropic chat   True /v1/messages,/chat/completions   True  True  200000
+claude-opus-4.7             Anthropic chat   True /v1/messages,/chat/completions   True  True 1000000
+claude-opus-4.8             Anthropic chat   True /v1/messages,/chat/completions   True  True 1000000
+claude-sonnet-4.6           Anthropic chat   True /chat/completions,/v1/messages   True  True 1000000
+claude-sonnet-4.5           Anthropic chat   True /chat/completions,/v1/messages   True  True  200000
+claude-opus-4.5             Anthropic chat   True /chat/completions,/v1/messages   True  True  200000
+claude-haiku-4.5            Anthropic chat   True /chat/completions,/v1/messages   True  True  200000
+
+
+
+=== /responses-capable ids ===
+gpt-5.3-codex, gpt-5.4-mini, gpt-5.4, gpt-5.5, mai-code-1-flash-internal, gpt-5-mini
+
+=== distinct endpoint sets ===
+19x : 
+3x : /chat/completions
+1x : /chat/completions,/responses,ws:/responses
+4x : /chat/completions,/v1/messages
+1x : /responses
+1x : /responses,/chat/completions,ws:/responses
+3x : /responses,ws:/responses
+7x : /v1/messages,/chat/completions

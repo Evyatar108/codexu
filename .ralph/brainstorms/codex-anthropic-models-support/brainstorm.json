@@ -1,0 +1,41 @@
+{
+  "brainstormName": "codex-anthropic-models-support",
+  "overviewTaskId": "codex-anthropic-models-support",
+  "idea": "Add Anthropic/Claude model support to the codex fork so users can select and run Claude models (claude-sonnet, claude-opus, ...) through the same Copilot-backed provider that already serves GPT-5.x. Settle the GO/NO-GO against source + a live Copilot /models probe; codex is Responses-API-only. Reference prior art: ericc-ch/copilot-api.",
+  "availableLenses": ["codex", "copilot", "devils-advocate"],
+  "missingLenses": [],
+  "endpointVerdict": "SOURCE-VERIFIED (live GET api.githubcopilot.com/models via codex's own Copilot token, 2026-06-08): every Claude model on Copilot advertises supported_endpoints = /chat/completions + /v1/messages ONLY; NONE advertises /responses. The only /responses-capable models are OpenAI/Azure GPT-5.x (gpt-5.3-codex, gpt-5.4-mini, gpt-5.4, gpt-5.5, gpt-5-mini, mai-code-1-flash-internal). Therefore a filter/metadata-only change is impossible.",
+  "candidateDirections": [
+    {
+      "id": "D-001",
+      "name": "Overlay /chat/completions transport with per-model routing (spike-gated, contract-scoped)",
+      "summary": "Build a fork-local /chat/completions transport in codex-rs-overlay/codex-copilot/ that translates codex's internal Responses request/response/SSE <-> chat-completions wire, routed per-model via a minimal upstream seam (new WireApi variant + one client.rs:1583 match arm + filter relaxation). Gate it behind a Phase-0 feasibility spike and ship an explicit, test-enforced v1 Claude feature contract so unsupported Responses semantics fail visibly, not silently.",
+      "contributingLenses": ["codex", "copilot", "devils-advocate"],
+      "effort": "L",
+      "reConflictProbability": "low-medium"
+    },
+    {
+      "id": "D-002",
+      "name": "Anthropic-native /v1/messages transport (deferred fidelity fallback)",
+      "summary": "Same upstream seam but translate to Copilot's Anthropic-native /v1/messages instead of /chat/completions. Source-verified counter-evidence: the reference proxy (ericc-ch/copilot-api) implements its /v1/messages route as an Anthropic->OpenAI-chat translation before calling Copilot /chat/completions, so /v1/messages offers no proven fidelity advantage at higher (XL) cost. Defer to a phase-2 fidelity upgrade only if a concrete Claude-native need (e.g. thinking semantics) emerges.",
+      "contributingLenses": ["codex", "copilot", "devils-advocate"],
+      "effort": "XL",
+      "reConflictProbability": "medium"
+    },
+    {
+      "id": "D-003",
+      "name": "No-go / defer behind a must-pass spike + filter-only regression guardrail",
+      "summary": "The skeptical off-ramp: do NOT accept a permanent second transport unless a one-day spike proves the must-pass Claude contract (streamed typed tool-call with JSON arguments + a continuation turn + apply_patch/edit flow) works against Copilot's Claude /chat/completions. If any must-pass item fails, ship nothing or only an explicitly-labeled experimental text-only mode. Independently, keep a regression test that Claude rows lacking /responses stay hidden unless a chat-transport hint is present, so future filter-only patches can't create a false affordance.",
+      "contributingLenses": ["devils-advocate", "codex", "copilot"]
+    }
+  ],
+  "recommendedDirection": "D-001",
+  "questionsForSynthesis": [
+    "Per-model routing mechanism: a ModelInfo per-model wire hint, a selected-model supported_endpoints lookup inside client.rs stream(), or a second 'copilot-chat' provider (cleaner isolation but picker/registration/cache-contamination risk)?",
+    "v1 feature contract scope: text-only, text+tools, or text+tools+vision? How are unsupported Responses constructs (reasoning summaries, previous_response_id/store continuity, structured-output/JSON-schema, apply_patch, web-search) surfaced -- hard error, UI-disabled capability, or best-effort lossy mapping, and who sees the warning?",
+    "Model-id normalization: preserve exact Copilot slugs (claude-opus-4.8, ...-1m, ...-high, ...-xhigh, ...-internal) in UI+wire, or apply reference-proxy-style alias normalization only after a live POST proves the alias works?",
+    "models_cache keying/invalidation so chat-only Claude entries never route to the /responses transport and GPT /responses entries never route to chat -- and so a stale cache can't make the picker show a Claude row that then 400s at request time.",
+    "Audit + redaction: keep egress api.githubcopilot.com-only while permitting the new /chat/completions path (static audit ENDPOINT_PATTERNS does NOT currently flag it on the allowed host; add the overlay to EXCLUDED_FILES and a path-level assertion), and preserve Authorization/ChatGPT-Account-ID set_sensitive(true) in the new request builder.",
+    "No-go threshold: which specific failed spike result downgrades the feature to experimental text-only or kills it?"
+  ]
+}
