@@ -3517,9 +3517,9 @@
     {
       "id": "async-events-design",
       "scope": "codexu",
-      "lifecycle": "tracked",
+      "lifecycle": "merged",
       "status": "ok",
-      "lastTouchedAt": "2026-06-03T14:08:00Z",
+      "lastTouchedAt": "2026-06-07",
       "kanbanCards": [
         {
           "className": "cmd-info",
@@ -3532,6 +3532,10 @@
         {
           "className": "cmd-info",
           "html": "<strong>Plan shipped 2026-06-02T22:25Z</strong> (commit <code>9465ce01</code> on codexu via merge <code>5381dddb</code>). 10 deliverables / 1478 LoC. 6 stories / 4-cluster decomp (pattern-doc || mailbox-core -> wiring -> fixtures). Multi-model review fixed 1 Critical + 8 High (markConsumed semantic bug; loopback-binding as auth gate; fs.watch crash on missing file -> directory-watch + ensureInbox; agent_comms.send MCP tool added; per-server template override documented); 5 Mediums soft-cap logged in Open Questions. Impl invocation: <code>/implement-with-ralph --from-plan .ralph/jobs/async-events-design/plan.md</code> (--parallel safety: defer to plan's suggested-decomposition.json; verify with impl member at spawn time given the cross-repo nature). Note carryover from brainstorm: verify codex multi_agents_v2 mailbox seq-watch is NOT already the right Scope B substrate BEFORE introducing parallel filesystem inbox; if synthesizing requires fabricating fake URIs to fit 7 standard MCP kinds, surface to operator FIRST."
+        },
+        {
+          "className": "cmd-ok",
+          "html": "Shipped 2026-06-07 @ 4ba46716 — D-002 'Durable mailbox + channel wake' (agent-comms Scope B substrate). agentComms/mailbox.ts + recovery.ts + codex/agentCommsBridge.ts + daemon /agent-comms/send route + runCodex wiring + plans/durable-mailbox-channel-wake.md (canonical pattern doc). 6 stories; Phase 5a/5b converged (8 fixes incl F-007 cross-process race); 29/29 agentComms tests; codex/mcpNotification* untouched. Member proactively used iterationEngine=copilot to dodge the codex runaway-spawn hang. This is the SETTLED Scope B that agent-comms (a2e0f0ed) builds around."
         }
       ],
       "command": {
@@ -3548,6 +3552,18 @@
           "brainstorm": "/brainstorm-with-ralph",
           "impl": "/implement-with-ralph --from-plan .ralph/jobs/async-events-design/plan.md --autonomous"
         }
+      },
+      "shipManifest": {
+        "shippedAt": "2026-06-07",
+        "summary": "Implemented D-002 'Durable mailbox + channel wake' (agent-comms Scope B reference substrate). Lands packages/happy-cli/src/agentComms/mailbox.ts (durable per-session filesystem inbox: atomic writeJsonAtomically, append+history sidecar, seq/cursor contract, post-drain consumption invariant, sessionId path-safety, retry-tolerant readPending) + recovery.ts (startup catch-up: one wake prompt if pending, never markConsumed) + codex/agentCommsBridge.ts (agent_comms.send MCP tool + fs.watch producer wake via sendResourceUpdated) + daemon controlServer POST /agent-comms/send route + controlClient.sendAgentMessage + runCodex wiring + plans/durable-mailbox-channel-wake.md (the canonical pattern doc, supersedes plans/async-events-design.md). 6 stories; Phase 5a/5b converged (8 fixes incl F-007 cross-process append-vs-consume race + F-008 atomic stale-lock takeover). 29/29 agentComms tests green incl a cross-process fork integration test; no full-suite regressions; codex/mcpNotification* left untouched (plan no-touch verifier).",
+        "notes": "The impl member proactively set iterationEngine=copilot to dodge the just-filed codex runaway-spawn hang (ralph-codex-iteration-engine-runaway-spawn-guard) - the filed-risk awareness worked. This substrate is the SETTLED Scope B for agent-comms (plan a2e0f0ed), which builds Scope A (Dev Tunnels E2E) + Scope C (parent-child) around it. Branch was rebased onto current main before FF (had forked pre-crews-3.12.1); rebase clean, diff additions-only after.",
+        "commits": [
+          {
+            "sha": "4ba46716",
+            "oneLine": "feat: async-events-design D-002 durable mailbox + channel wake (6 stories)",
+            "repo": "codexu"
+          }
+        ]
       }
     },
     {
