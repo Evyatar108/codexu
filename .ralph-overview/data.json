@@ -5399,7 +5399,7 @@
       "id": "ralph-codex-iteration-engine-runaway-spawn-guard",
       "scope": "ralph",
       "status": "warn",
-      "lifecycle": "tracked",
+      "lifecycle": "archived",
       "lastTouchedAt": "2026-06-08",
       "command": {
         "descriptionHtml": "When codex 0.135 is used as ralph's ITERATION ENGINE (driving a story implementation), it can RABBIT-HOLE spawning runaway multi-agent Collab children and hang. Observed 2026-06-07 on impl-adapter (codex-ralph-member-multi-agent-adapter US-002): ~10min / 383K tokens before the member killed it, added anti-spawn guidance, and switched iterationEngine codex->copilot to finish. DISTINCT from the codex-exec LENS pipe-deadlock hang (ralph-codex-exec-lens-hang-instrumentation, fixed v5.54.0) - that was the research/review lens; THIS is the iteration engine spawning sub-agents. A PREREQUISITE for using codex as the default crews MEMBER engine (a codex member that also drives ralph iterations would hit this). Workaround today = iterationEngine->copilot policy.",
@@ -5426,6 +5426,10 @@
         {
           "className": "cmd-ok",
           "html": "Topology VERIFIED (investigation @ b3615452, .ralph/investigations/codex-recursive-subagent-spawn/findings.md): codex 0.135 sub-agent spawn is DEPTH-LIMITED-TO-1 for BOTH v1 Collab and v2 MultiAgentV2 in our fork (breadth-only, like Claude Code Task tool). Decisive gate: tools/src/tool_config.rs:223-228 SANDBOX PATCH sets include_spawn_agent=false for any SessionSource::SubAgent(_); handlers reject again at multi_agents/spawn.rs:57-61 + multi_agents_v2/spawn.rs:59-63. NOTE upstream v2 has NO depth cap (fork patch is the only guard). CORRECTION: the US-002 \"runaway\" was NOT recursive grandchildren — it was breadth fan-out + prompt-inheritance re-entry (children inherited the full prompt, tried to re-run the protocol, got rejected by the subagent gate) + a separate iteration-engine hang. disable multi_agent remains the correct fix (eliminates breadth fan-out AND the wasteful rejected re-entry attempts)."
+        },
+        {
+          "className": "cmd-warn",
+          "html": "CLOSED/ARCHIVED 2026-06-08 (operator: \"I dont want breadth suppression\"). The disable-multi_agent plan @ ed4cc895 is SUPERSEDED (kept as historical). Re-evaluation grounded in investigation @ b3615452 + the empirical run-log read shows EVERY \"runaway\" ingredient is already handled, so no new guard is warranted: (1) the actual ralph-run1.log pathology was the codex ITERATION-ENGINE HANG (the log shows ~6 spawn_agent mentions, all inside guardrails that say \"DO NOT spawn sub-agents during implementation\"; zero limit-reached lines) -> FIXED by v5.54.0 (pipe-deadlock concurrent-drain) + v5.55.0 (20min timeout); (2) depth recursion is structurally impossible (fork gate tools/src/tool_config.rs:223-228 + handler rejects); (3) breadth fan-out is DESIRED and kept; (4) the prompt-inheritance re-entry pathology is already fixed in v5.53.0 codex-lowering (fork_turns=\"none\" + single-level fan-out encoded in EVERY emitted recipe, per CHANGELOG v5.53.0); (5) the impl iteration prompt already forbids spawning during implementation. Net: breadth preserved, no code change. If a future codex rebase (>=0.137) changes the spawn-gate or fork_turns semantics, re-open."
         }
       ]
     },
