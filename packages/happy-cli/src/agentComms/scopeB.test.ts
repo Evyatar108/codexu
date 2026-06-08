@@ -281,6 +281,39 @@ describe('Scope B drain semantics', () => {
     });
 });
 
+describe('agent_comms.spawn tool shape', () => {
+    it('accepts the documented role/plugins/agent/cwd/machineId/initialMessage shape without dropping remote intent', async () => {
+        const bridgeServer = makeFakeServer();
+        const handle = bridge.registerAgentCommsBridge({
+            server: bridgeServer.server,
+            sessionId: 'sessA',
+            sendMessage: controlClient.sendAgentMessage,
+            spawnSession: async () => ({ type: 'success', sessionId: 'unused-local' }),
+        });
+        liveHandles.push(handle);
+
+        const result = await bridgeServer.callTool('agent_comms.spawn', {
+            role: 'reviewer',
+            plugins: ['ralph-orchestration@ai-developer-toolkit'],
+            agent: 'codex',
+            cwd: 'D:/repo',
+            machineId: 'remote-machine',
+            initialMessage: 'inspect the diff',
+        });
+
+        expect(result.isError).toBe(true);
+        const payload = JSON.parse(result.content[0].text) as { role?: string; plugins?: string[]; agent?: string; cwd?: string; initialMessage?: string; requiresOperatorApproval?: boolean };
+        expect(payload).toMatchObject({
+            role: 'reviewer',
+            plugins: ['ralph-orchestration@ai-developer-toolkit'],
+            agent: 'codex',
+            cwd: 'D:/repo',
+            initialMessage: 'inspect the diff',
+            requiresOperatorApproval: true,
+        });
+    });
+});
+
 describe('Scope B daemon route validation', () => {
     it('rejects an untracked target with 404 (sendAgentMessage throws)', async () => {
         await expect(controlClient.sendAgentMessage('sessUNKNOWN', { x: 1 }, 'sessA')).rejects.toThrow();

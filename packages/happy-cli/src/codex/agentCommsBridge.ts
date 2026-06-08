@@ -89,6 +89,8 @@ interface SendToolArgs {
 }
 
 interface SpawnToolArgs {
+    role?: string;
+    plugins?: string[];
     agent: SpawnSessionFromSessionRpcOptions['config']['agent'];
     cwd?: string;
     path?: string;
@@ -182,6 +184,8 @@ export function registerAgentCommsBridge(opts: RegisterAgentCommsBridgeOptions):
             title: 'Spawn top-level Happy agent session',
             description: 'Spawn another top-level agent session. Local spawns use spawn-session-from-session; cross-machine spawns are design-level and require operator approval.',
             inputSchema: {
+                role: z.string().optional().describe('Optional human-readable role for the spawned agent.'),
+                plugins: z.array(z.string()).optional().describe('Plugin ids requested for the spawned agent; preserved for Scope A design payloads.'),
                 agent: z.enum(['claude', 'codex', 'gemini', 'openclaw']),
                 cwd: z.string().optional().describe('Working directory for the child session.'),
                 path: z.string().optional().describe('Alias for cwd.'),
@@ -201,6 +205,11 @@ export function registerAgentCommsBridge(opts: RegisterAgentCommsBridgeOptions):
                             text: JSON.stringify({
                                 type: 'deferred-scope-a-spawn',
                                 requiresOperatorApproval: true,
+                                role: args.role,
+                                plugins: args.plugins ?? [],
+                                agent: args.agent,
+                                cwd: args.cwd ?? args.path,
+                                initialMessage: args.initialMessage,
                                 message: 'Cross-machine spawn-request envelopes are design-level in this pass; no live remote spawn was attempted.',
                             }),
                         }],

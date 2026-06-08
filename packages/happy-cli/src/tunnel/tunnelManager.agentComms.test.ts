@@ -41,4 +41,10 @@ describe('TunnelManager agent-comms helpers', () => {
     expect(token).toBe('connect-token');
     expect(calls).toEqual([{ command: 'devtunnel', args: ['token', 'codexu-alpha', '--scope', 'connect'] }]);
   });
+
+  it('does not concatenate informational stderr onto stdout token output', () => {
+    const runner: CommandRunner = () => ({ status: 0, stdout: 'connect-token\n', stderr: 'info: ignored\n' });
+
+    expect(new TunnelManager({ runner }).mintConnectToken('codexu-alpha')).toBe('connect-token');
+  });
 });

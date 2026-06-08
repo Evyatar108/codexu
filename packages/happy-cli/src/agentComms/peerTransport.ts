@@ -12,7 +12,10 @@ import type { AgentCommsEnvelope } from '@slopus/happy-wire';
 import type { OperatorTunnel, TunnelManager } from '@/tunnel/tunnelManager';
 
 export interface PeerTransportTarget {
-    machineId: string;
+    /** Authoritative daemon machineId, supplied by the caller's TOFU pin/operator config when known. */
+    machineId?: string;
+    /** Human-readable `codexu-<hostname>` Dev Tunnel name; a host hint, not a machineId. */
+    tunnelName: string;
     tunnelId: string;
     ingestUrl: string;
 }
@@ -38,10 +41,6 @@ export type FetchLike = (url: string, init: {
     body: string;
 }) => Promise<{ ok: boolean; status: number; json(): Promise<unknown>; text(): Promise<string> }>;
 
-function machineIdFromTunnelName(tunnelName: string): string {
-    return tunnelName.replace(/^codexu-/u, '');
-}
-
 function ingestUrl(tunnel: OperatorTunnel): string | null {
     const base = tunnel.tunnelUrl ?? tunnel.ports.find(port => port.portUri)?.portUri;
     return base ? `${base.replace(/\/$/u, '')}/agent-comms/ingest` : null;
@@ -57,7 +56,7 @@ export class DevTunnelsPeerTransport implements AgentCommsPeerTransport {
         return this.tunnelManager.listOperatorTunnels().flatMap((tunnel): PeerTransportTarget[] => {
             const url = ingestUrl(tunnel);
             if (!url) return [];
-            return [{ machineId: machineIdFromTunnelName(tunnel.tunnelName), tunnelId: tunnel.tunnelId, ingestUrl: url }];
+            return [{ tunnelName: tunnel.tunnelName, tunnelId: tunnel.tunnelId, ingestUrl: url }];
         });
     }
 

@@ -87,6 +87,17 @@ describe('peerAuth', () => {
         expect(openSealedBody(sealed, stranger, sender.ecdhPublicKey)).toBeNull();
     });
 
+    it('signs the sealed envelope shape consumed by the ingest handler', async () => {
+        const sender = await fixtureKeypairs(6);
+        const recipient = await fixtureKeypairs(7);
+        const sealed = sealBody({ msg: 'sealed-first' }, sender, recipient.ecdhPublicKey);
+        const sealedEnvelope: AgentCommsEnvelope = { ...envelope(), body: sealed };
+        const signature = await signEnvelope(sealedEnvelope, sender);
+
+        await expect(verifyEnvelopeSignature(sealedEnvelope, signature, sender.ed25519PublicKey)).resolves.toBe(true);
+        expect(openSealedBody<{ msg: string }>(sealedEnvelope.body as any, recipient, sender.ecdhPublicKey)).toEqual({ msg: 'sealed-first' });
+    });
+
     it('pins peer keys by machineId and rejects fingerprint changes', async () => {
         const peer = await fixtureKeypairs(4);
         const otherPeer = await fixtureKeypairs(5);

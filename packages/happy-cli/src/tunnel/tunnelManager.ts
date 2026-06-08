@@ -343,9 +343,12 @@ export class TunnelManager {
     if (result.status !== 0) {
       throw new Error(`Failed to mint Dev Tunnel connect token for ${tunnelId}: ${result.stderr || result.stdout || 'unknown error'}`);
     }
-    const token = `${result.stdout}\n${result.stderr}`.trim();
-    if (!token) throw new Error(`Dev Tunnel connect token for ${tunnelId} was empty`);
-    return token;
+    const tokenSource = result.stdout.trim() || result.stderr.trim();
+    const tokenLines = tokenSource.split(/\r?\n/u).map(line => line.trim()).filter(Boolean);
+    if (tokenLines.length !== 1) {
+      throw new Error(`Dev Tunnel connect token for ${tunnelId} was not a single line`);
+    }
+    return tokenLines[0];
   }
 
   stop(): void {

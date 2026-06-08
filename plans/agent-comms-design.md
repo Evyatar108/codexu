@@ -360,7 +360,7 @@ Expected JSON shape (abbreviated; only the fields this design relies on):
 }
 ```
 
-Filter the result to entries whose `name` starts with `codexu-`. Map peer `machineId` → `codexu-<hostname>` → `tunnelId` + `portUri`.
+Filter the result to entries whose `name` starts with `codexu-`. Treat `codexu-<hostname>` as a **host hint only**; the authoritative peer `machineId` still comes from the operator-authored/TOFU-pinned peer record, then maps to `tunnelId` + `portUri`. Never derive a daemon `machineId` by stripping the tunnel name.
 
 ### 8.3 Step 2 — mint a connect token
 
@@ -383,24 +383,30 @@ curl -X POST "https://<peer-tunnel-id>-<port>.<region>.devtunnels.ms/agent-comms
   --data @envelope.json
 ```
 
-`envelope.json` shape:
+`envelope.json` shape (the signed/sealed envelope wrapper that `POST /agent-comms/ingest` accepts):
 
 ```json
 {
-  "v": 1,
-  "id": "<ULID>",
-  "ts": 1736188800000,
-  "from": { "machineId": "<machine-a-id>", "sessionId": "<sender-session-id>" },
-  "to":   { "machineId": "<machine-b-id>", "sessionId": "<target-session-id>" },
-  "scope": "A",
-  "channel": "message",
-  "kind": "request",
-  "correlationId": "<optional>",
-  "hopCount": 0,
-  "hopPath": ["<sender-session-id>"],
-  "senderMachineId": "<machine-a-id>",
+  "envelope": {
+    "v": 1,
+    "id": "<ULID>",
+    "ts": 1736188800000,
+    "from": { "machineId": "<machine-a-id>", "sessionId": "<sender-session-id>" },
+    "to":   { "machineId": "<machine-b-id>", "sessionId": "<target-session-id>" },
+    "scope": "A",
+    "channel": "message",
+    "kind": "request",
+    "correlationId": "<optional>",
+    "hopCount": 0,
+    "hopPath": ["<machine-a-id>:<sender-session-id>"],
+    "body": { "v": 1, "nonce": "<base64 nonce>", "ciphertext": "<base64 sealed JSON body>" }
+  },
   "signature": "<base64 Ed25519 detached signature over canonicalized envelope>",
-  "body": "<base64 TweetNaCl-sealed body for machine B's ecdh-key>"
+  "senderKeys": {
+    "ed25519PublicKey": "<base64 server-key.pub>",
+    "ecdhPublicKey": "<base64 ecdh-key.pub>",
+    "ed25519Fingerprint": "SHA256:<fingerprint>"
+  }
 }
 ```
 
@@ -408,14 +414,13 @@ curl -X POST "https://<peer-tunnel-id>-<port>.<region>.devtunnels.ms/agent-comms
 
 Machine B's happy-server `/agent-comms/ingest` handler MUST, in order:
 
-1. Parse and validate against the `AgentCommsEnvelope` Zod schema.
-2. Look up `from.machineId` in `<happyHomeDir>/agent-comms/peers.json`; reject 401 if unknown.
-3. Verify the Ed25519 signature against the pinned `ed25519PublicKey`; reject 401 on mismatch.
-4. Decrypt the sealed `body` using the local `ecdh-key.priv` and the pinned peer `ecdhPublicKey`; reject 400 on decrypt failure.
-5. Re-check `hopCount <= MAX_HOPS` and `to.sessionId not in hopPath`; reject 422 on violation.
-6. Increment `hopCount`, append the receiver session id to `hopPath`.
-7. Call the injected `HappyServerConfig.agentCommsIngest(envelope, plaintextBody)` which calls `mailbox.appendMessage(envelope.to.sessionId, plaintextBody, envelope.from)`.
-8. Return 200 with `{ "ok": true, "id": "<envelope.id>" }`.
+1. Parse and validate the wrapper plus nested `AgentCommsEnvelope` Zod schema.
+2. Re-check `hopCount <= MAX_HOPS`, `to.sessionId not in hopPath`, and no duplicate `hopPath` entries at the route boundary; reject 400 on violation.
+3. Delegate to `HappyServerConfig.agentCommsIngest(body)`, the daemon-injected handler that looks up `envelope.from.machineId` in `<happyHomeDir>/agent-comms/peers.json`; reject if unknown.
+4. Verify the Ed25519 signature against the pinned `ed25519PublicKey`; reject on mismatch.
+5. Decrypt the sealed `envelope.body` using the local `ecdh-key.priv` and the pinned peer `ecdhPublicKey`; reject on decrypt failure.
+6. Increment `hopCount`, append the receiver daemon relay id to `hopPath`, and call `mailbox.appendMessage(envelope.to.sessionId, openedEnvelope, envelope.from.sessionId)`.
+7. Return 200 with `{ "id": "<mailbox-entry-id>", "seq": <mailbox-seq> }`.
 
 The handler MUST NOT inspect `X-Tunnel-Authorization`; that header has been stripped by the gateway by the time the request arrives.
 
