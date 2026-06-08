@@ -511,12 +511,27 @@ this doc.
   state-cwd and the spawn fails with `SenderNotFoundError: sender "null" not
   found in crew "ralph-pipeline"`.
 
-- **`--engine` is OPTIONAL as of crews v1.8.11.** The default member engine
-  now mirrors the caller-CLI engine (Copilot lead → Copilot member; Claude
-  lead → Claude member) instead of always defaulting to `claude`. Pass
-  `--engine <other>` only when you intentionally want a cross-engine spawn.
-  Old AGENTS.md guidance to "always pass `--engine copilot` from a Copilot
-  lead" is now obsolete — it still works but is redundant noise.
+- **Default member engine is `codex` as of 2026-06-08.** The codex-engine
+  readiness chain completed (spawn/skills/adapter/provisioning all shipped +
+  validated end-to-end; runaway-guard closed as superseded; a live Stage-1
+  codex-member smoke passed: engine confirmed, crews report-tag protocol works
+  end-to-end, all ralph skills visible, clean stop). The flip mechanism is the
+  **User-level env var `CREWS_ENGINE=codex`**, chosen for maximum reversibility.
+  Engine precedence (`hooks/actors.js` `spawnMember`): explicit `--engine` >
+  `process.env.CREWS_ENGINE` > caller-CLI detect (Copilot/Claude) > `claude`.
+  So **spawn members WITHOUT `--engine` to get a codex member**; pass
+  `--engine copilot` / `--engine claude` only for a deliberate cross-engine
+  member. (The old "default mirrors the caller-CLI engine" behavior from crews
+  v1.8.11 still applies as the *next* precedence rung, but `CREWS_ENGINE=codex`
+  now sits above it.)
+  - **In-session caveat:** a User-level env var only propagates to NEW process
+    trees (fresh terminals/sessions). A session whose shells predate the flip
+    won't see it — check `echo $env:CREWS_ENGINE`; if empty, either
+    `$env:CREWS_ENGINE='codex'` in the spawning shell or pass `--engine codex`
+    explicitly for that session.
+  - **To REVERT:** `[Environment]::SetEnvironmentVariable('CREWS_ENGINE',$null,'User')`
+    (then restart sessions, or `Remove-Item Env:CREWS_ENGINE` in-session). With
+    it unset, the default reverts to the caller-CLI mirror.
 
 - **Every implement-driving spawn prompt must hard-code Phase 5a (code
   review-fix convergence — multiple rounds if needed) and Phase 5b (docs
