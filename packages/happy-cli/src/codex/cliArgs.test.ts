@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
     extractCodexArgFlag,
     extractCodexEffortFlag,
+    extractCodexIdleTimeoutFlag,
     extractCodexProjectDocFlag,
     extractCodexResumeFlag,
     extractCodexTransportFlag,
@@ -215,5 +216,46 @@ describe('extractCodexArgFlag (Gap 9)', () => {
         // forward things like `--codex-arg --some-codex-flag`.
         const parsed = extractCodexArgFlag(['--codex-arg', '--leading-dash']);
         expect(parsed.codexArgs).toEqual(['--leading-dash']);
+    });
+});
+
+describe('extractCodexIdleTimeoutFlag', () => {
+    it('returns undefined and preserves args when idle-timeout is absent', () => {
+        const parsed = extractCodexIdleTimeoutFlag(['--started-by', 'terminal']);
+
+        expect(parsed.idleTimeoutSec).toBeUndefined();
+        expect(parsed.args).toEqual(['--started-by', 'terminal']);
+    });
+
+    it('extracts a positive integer timeout from space-separated syntax', () => {
+        const parsed = extractCodexIdleTimeoutFlag(['--idle-timeout', '300', '--started-by', 'daemon']);
+
+        expect(parsed.idleTimeoutSec).toBe(300);
+        expect(parsed.args).toEqual(['--started-by', 'daemon']);
+    });
+
+    it('extracts a positive integer timeout from equals syntax', () => {
+        const parsed = extractCodexIdleTimeoutFlag(['--idle-timeout=60']);
+
+        expect(parsed.idleTimeoutSec).toBe(60);
+        expect(parsed.args).toEqual([]);
+    });
+
+    it('throws for missing, duplicate, zero, or non-integer values', () => {
+        expect(() => extractCodexIdleTimeoutFlag(['--idle-timeout'])).toThrow(
+            'Codex idle-timeout requires a value: happy codex --idle-timeout <seconds>',
+        );
+        expect(() => extractCodexIdleTimeoutFlag(['--idle-timeout=0'])).toThrow(
+            'Codex idle-timeout must be a positive integer number of seconds',
+        );
+        expect(() => extractCodexIdleTimeoutFlag(['--idle-timeout=1.5'])).toThrow(
+            'Codex idle-timeout must be a positive integer number of seconds',
+        );
+        expect(() => extractCodexIdleTimeoutFlag(['--idle-timeout=9007199254740992'])).toThrow(
+            'Codex idle-timeout must be a positive integer number of seconds',
+        );
+        expect(() => extractCodexIdleTimeoutFlag(['--idle-timeout=1', '--idle-timeout=2'])).toThrow(
+            'Codex idle-timeout flag can only be provided once.',
+        );
     });
 });

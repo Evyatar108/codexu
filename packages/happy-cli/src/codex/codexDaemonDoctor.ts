@@ -12,6 +12,7 @@ import {
 } from './codexDaemonLifecycle';
 import { createWsTransport } from './transport/wsTransport';
 import type { JsonRpcMessage } from './transport/JsonRpcConnection';
+import { sampleProcessRssKb } from './processRss';
 
 export type CodexDaemonDoctorState = 'live' | 'stale-pid-gone' | 'stale-unreachable' | 'post-mortem' | 'unparsable';
 
@@ -143,8 +144,38 @@ function exitReasonForRow(row: InstanceRow): string {
 }
 
 function lastDisconnectForRow(row: InstanceRow): string {
+    const ageMs = lastDisconnectAgeMsForRow(row, Date.now());
+    return ageMs === null ? '' : humanizeDuration(ageMs);
+}
+
+function lastDisconnectAgeMsForRow(row: InstanceRow, nowMs: number): number | null {
+    const exitEvent = lastEvent(row.events, 'codex.daemon.exit');
+    if (!row.record && exitEvent) {
+        return exitEvent.last_client_disconnect_age_ms;
+    }
     const disconnectEvent = lastEvent(row.events, 'codex.daemon.disconnect');
-    return disconnectEvent ? humanizeDuration(Date.now() - disconnectEvent.disconnected_at_ms) : '';
+    return disconnectEvent ? Math.max(0, nowMs - disconnectEvent.disconnected_at_ms) : null;
+}
+
+function disconnectAgeBucket(ageMs: number | null): '<1h' | '1-24h' | '>24h' | 'unknown' {
+    if (ageMs === null) return 'unknown';
+    if (ageMs < 60 * 60 * 1000) return '<1h';
+    if (ageMs <= 24 * 60 * 60 * 1000) return '1-24h';
+    return '>24h';
+}
+
+function disconnectAgeDistribution(rows: InstanceRow[], nowMs: number): string {
+    const counts = new Map<string, number>([
+        ['<1h', 0],
+        ['1-24h', 0],
+        ['>24h', 0],
+        ['unknown', 0],
+    ]);
+    for (const row of rows) {
+        const bucket = disconnectAgeBucket(lastDisconnectAgeMsForRow(row, nowMs));
+        counts.set(bucket, (counts.get(bucket) ?? 0) + 1);
+    }
+    return `last-disconnect age: <1h=${counts.get('<1h')}, 1-24h=${counts.get('1-24h')}, >24h=${counts.get('>24h')}, unknown=${counts.get('unknown')}`;
 }
 
 function buildHeader(columns: string[], widths: number[]): string {
@@ -223,7 +254,7 @@ async function requestInitialize(record: CodexDiscoveryRecord, timeoutMs: number
 
 export async function probeCodexDaemon(record: CodexDiscoveryRecord, opts: ProbeOptions = {}): Promise<ProbeResult> {
     const pidAlive = isPidAlive(record.pid);
-    const rssKb = null;
+    const rssKb = await sampleProcessRssKb(record.pid);
     const lastHealthAtMs = Date.now();
     try {
         const initialized = await requestInitialize(record, opts.timeoutMs ?? DEFAULT_PROBE_TIMEOUT_MS);
@@ -331,6 +362,6 @@ export async function runCodexDoctor(args: string[]): Promise<number> {
     const staleCount = rows.filter((row) => row.state === 'stale-pid-gone' || row.state === 'stale-unreachable').length;
     const postMortemCount = rows.filter((row) => row.state === 'post-mortem').length;
     const unparsableCount = rows.filter((row) => row.state === 'unparsable').length;
-    console.log(`${liveCount} live, ${staleCount} stale, ${postMortemCount} post-mortem, ${unparsableCount} unparsable (stdio sessions are foreground-owned and not discoverable by \`happy codex doctor\`)`);
+    console.log(`${liveCount} live, ${staleCount} stale, ${postMortemCount} post-mortem, ${unparsableCount} unparsable; ${disconnectAgeDistribution(rows, Date.now())} (stdio sessions are foreground-owned and not discoverable by \`happy codex doctor\`)`);
     return liveCount > 0 ? 0 : 1;
 }

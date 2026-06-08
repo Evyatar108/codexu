@@ -93,6 +93,12 @@ export async function runCodex(opts: {
      * `--codex-transport`) when possible.
      */
     codexAppServerArgs?: string[];
+    /**
+     * Optional fresh-spawn-only seam for future codex app-server support.
+     * The app-server client probes support and omits the argv flag when the
+     * installed codex does not advertise it.
+     */
+    codexIdleTimeoutSec?: number;
 }): Promise<void> {
     const projectDocFallback = opts.projectDocFallback ?? ['CLAUDE.md', 'AGENTS.md'];
 
@@ -717,6 +723,7 @@ export async function runCodex(opts: {
         transportSource: opts.codexTransport ? 'explicit' : 'default',
         logFilePath: join(configuration.logsDir, `codex-app-server-${sessionTag}.log`),
         extraAppServerArgs: opts.codexAppServerArgs,
+        idleTimeoutSec: opts.codexIdleTimeoutSec,
     });
 
     permissionHandler = new CodexPermissionHandler(session);

@@ -17,6 +17,7 @@ const operationSpies = vi.hoisted(() => ({
     renameSync: vi.fn(),
     unlinkSync: vi.fn(),
     execSync: vi.fn(),
+    sampleProcessRssKb: vi.fn(),
 }));
 
 vi.mock('node:fs', async (importActual) => {
@@ -48,6 +49,10 @@ vi.mock('node:child_process', async (importActual) => {
         },
     };
 });
+
+vi.mock('./processRss', () => ({
+    sampleProcessRssKb: operationSpies.sampleProcessRssKb,
+}));
 
 function shaFixture(seed: string): string {
     return seed.padEnd(64, 'a').slice(0, 64);
@@ -149,6 +154,7 @@ describe('codex daemon doctor', () => {
         mkdirSync(homeDir, { recursive: true });
         logSpy = vi.spyOn(console, 'log').mockImplementation(() => undefined);
         errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+        operationSpies.sampleProcessRssKb.mockResolvedValue(null);
     });
 
     afterEach(() => {
@@ -217,21 +223,22 @@ describe('codex daemon doctor', () => {
         )).toBe('stale-unreachable');
     });
 
-    it('reports rssKb as null for live probes (ps-list memory is %mem, not RSS KB)', async () => {
+    it('reports platform RSS samples for live probes', async () => {
         await withWsServer(async (port) => {
             const record = discoveryRecord({ pid: process.pid, port });
+            operationSpies.sampleProcessRssKb.mockResolvedValue(2468);
             const { probeCodexDaemon } = await importDoctor(homeDir);
 
             const probe = await probeCodexDaemon(record);
 
             expect(probe.pidAlive).toBe(true);
             expect(probe.wsInitialized).toBe(true);
-            expect(probe.rssKb).toBeNull();
+            expect(probe.rssKb).toBe(2468);
         });
     });
 
     it('classifies sidecar-only instances as post-mortem and returns exit code 1', async () => {
-        writeSidecar(homeDir, [spawnEvent(), exitEvent()]);
+        writeSidecar(homeDir, [spawnEvent(), exitEvent({ last_client_disconnect_age_ms: 90_000 })]);
         const { runCodexDoctor } = await importDoctor(homeDir);
 
         await expect(runCodexDoctor([])).resolves.toBe(1);
@@ -240,6 +247,7 @@ describe('codex daemon doctor', () => {
         expect(output).toContain('post-mortem');
         expect(output).toContain('killed');
         expect(output).toContain('/tmp/post-mortem');
+        expect(output).toContain('last-disconnect age: <1h=1, 1-24h=0, >24h=0, unknown=0');
     });
 
     it('redacts raw capability tokens and renders the token hash prefix', async () => {

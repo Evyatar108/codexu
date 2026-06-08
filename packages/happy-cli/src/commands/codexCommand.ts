@@ -4,6 +4,7 @@ import { runCodexDoctor } from '@/codex/codexDaemonDoctor'
 import {
   extractCodexArgFlag,
   extractCodexEffortFlag,
+  extractCodexIdleTimeoutFlag,
   extractCodexModelFlag,
   extractCodexPermissionModeFlag,
   extractCodexProjectDocFlag,
@@ -28,10 +29,11 @@ export async function handleCodexCommand(args: string[]): Promise<void> {
   const projectDocArgs = extractCodexProjectDocFlag(permissionModeArgs.args)
   const transportArgs = extractCodexTransportFlag(projectDocArgs.args)
   const codexArgs = extractCodexArgFlag(transportArgs.args)
+  const idleTimeoutArgs = extractCodexIdleTimeoutFlag(codexArgs.args)
 
-  for (let i = 0; i < codexArgs.args.length; i++) {
-    if (codexArgs.args[i] === '--started-by') {
-      startedBy = codexArgs.args[++i] as 'daemon' | 'terminal'
+  for (let i = 0; i < idleTimeoutArgs.args.length; i++) {
+    if (idleTimeoutArgs.args[i] === '--started-by') {
+      startedBy = idleTimeoutArgs.args[++i] as 'daemon' | 'terminal'
     }
   }
 
@@ -49,5 +51,6 @@ export async function handleCodexCommand(args: string[]): Promise<void> {
     projectDocFallback: projectDocArgs.projectDocFallback.length > 0 ? projectDocArgs.projectDocFallback : undefined,
     codexTransport: transportArgs.transport,
     codexAppServerArgs: codexArgs.codexArgs.length > 0 ? codexArgs.codexArgs : undefined,
+    codexIdleTimeoutSec: idleTimeoutArgs.idleTimeoutSec,
   })
 }

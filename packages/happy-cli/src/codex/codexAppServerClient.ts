@@ -45,6 +45,7 @@ import type { JsonRpcConnection, JsonRpcMessage } from './transport/JsonRpcConne
 import { createStdioTransport } from './transport/stdioTransport';
 import { createWsTransport } from './transport/wsTransport';
 import { emitCodexDaemonEvent } from './codexDaemonTelemetry';
+import { sampleProcessRssKb } from './processRss';
 import {
     acquireDiscoveryLock,
     deleteDiscoveryIfMatches,
@@ -59,6 +60,8 @@ import {
 } from './codexAppServerDiscovery';
 import { snapshotCodexFileChanges } from './codexApprovalSnapshot';
 import { HAPPY_CURRENT_SESSION_ID } from '@/utils/envNames';
+
+const CODEX_IDLE_TIMEOUT_FLAG = '--idle-timeout';
 
 type PendingRequest = {
     resolve: (result: unknown) => void;
@@ -100,6 +103,7 @@ export type CodexAppServerClientOptions = {
      * `wrapForMcpTransport` doesn't strip them.
      */
     extraAppServerArgs?: string[];
+    idleTimeoutSec?: number;
 };
 
 type ConnectOptions = {
@@ -154,6 +158,20 @@ function isWsAuthAvailable(): boolean {
             stdio: ['ignore', 'pipe', 'pipe'],
         });
         return helpOutput.includes('--ws-auth');
+    } catch {
+        return false;
+    }
+}
+
+function isIdleTimeoutAvailable(): boolean {
+    try {
+        const helpOutput = execSync('codex app-server --help', {
+            encoding: 'utf8',
+            windowsHide: true,
+            timeout: 3000,
+            stdio: ['ignore', 'pipe', 'pipe'],
+        });
+        return helpOutput.includes(CODEX_IDLE_TIMEOUT_FLAG);
     } catch {
         return false;
     }
@@ -270,8 +288,11 @@ export class CodexAppServerClient {
     private wsLogFd: number | null = null;
     private wsChildExitHandlers = new Set<() => void>();
     private wsAuthProbeResult: boolean | null = null;
+    private idleTimeoutProbeResult: boolean | null = null;
     private wsAuthFallbackWarned = false;
+    private idleTimeoutFallbackWarned = false;
     private extraAppServerArgs: string[];
+    private idleTimeoutSec: number | undefined;
     private lastClientDisconnectAtMs: number | null = null;
     private terminationReason: ExitReason | undefined;
     private terminationReasonDetail: string | undefined;
@@ -286,6 +307,7 @@ export class CodexAppServerClient {
         this.transportSource = options.transportSource ?? (options.transport ? 'explicit' : 'default');
         this.logFilePath = options.logFilePath;
         this.extraAppServerArgs = options.extraAppServerArgs ? [...options.extraAppServerArgs] : [];
+        this.idleTimeoutSec = options.idleTimeoutSec;
     }
 
     private resolveEffectiveTransport(): 'stdio' | 'ws' {
@@ -725,8 +747,8 @@ export class CodexAppServerClient {
             : Math.max(0, atMs - this.lastClientDisconnectAtMs);
     }
 
-    private async refreshLastSampledRssKb(_pid: number): Promise<void> {
-        this.lastSampledRssKb = null;
+    private async refreshLastSampledRssKb(pid: number): Promise<void> {
+        this.lastSampledRssKb = await sampleProcessRssKb(pid);
     }
 
     private classifyObservableExit(code: number | null): ExitReason {
@@ -949,6 +971,25 @@ export class CodexAppServerClient {
             this.wsAuthProbeResult = isWsAuthAvailable();
         }
         return this.wsAuthProbeResult;
+    }
+
+    private getIdleTimeoutAvailability(): boolean {
+        if (this.idleTimeoutProbeResult === null) {
+            this.idleTimeoutProbeResult = isIdleTimeoutAvailable();
+        }
+        return this.idleTimeoutProbeResult;
+    }
+
+    private wsIdleTimeoutArgs(): string[] {
+        if (this.idleTimeoutSec === undefined) return [];
+        if (this.getIdleTimeoutAvailability()) {
+            return [CODEX_IDLE_TIMEOUT_FLAG, String(this.idleTimeoutSec)];
+        }
+        if (!this.idleTimeoutFallbackWarned) {
+            logger.warn('[CodexAppServer] Installed codex lacks --idle-timeout; omitting requested app-server idle timeout.');
+            this.idleTimeoutFallbackWarned = true;
+        }
+        return [];
     }
 
     private createAttachedWsConnection(record: CodexDiscoveryRecord): JsonRpcConnection {
@@ -1182,7 +1223,16 @@ export class CodexAppServerClient {
                     const listenUrl = `ws://127.0.0.1:${port}`;
                     const wsAuthToken = randomBytes(32).toString('base64url');
                     const wsTokenSha256 = sha256hex(wsAuthToken);
-                    args = ['app-server', '--listen', listenUrl, '--ws-auth', 'capability-token', '--ws-token-sha256', wsTokenSha256];
+                    args = [
+                        'app-server',
+                        '--listen',
+                        listenUrl,
+                        '--ws-auth',
+                        'capability-token',
+                        '--ws-token-sha256',
+                        wsTokenSha256,
+                        ...this.wsIdleTimeoutArgs(),
+                    ];
                     if (this.extraAppServerArgs.length > 0) {
                         args = [...args, ...this.extraAppServerArgs];
                     }

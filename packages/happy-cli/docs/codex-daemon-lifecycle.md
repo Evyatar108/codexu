@@ -64,6 +64,17 @@ foreground disconnect preserves the daemon and leaves discovery in place;
 `disconnect({ terminateAppServer: true })`, force restart, version mismatch,
 session mismatch, or spawn cleanup explicitly terminate it.
 
+`happy codex --idle-timeout <seconds>` is a default-off, fresh-spawn-only seam
+for future `codex app-server` support. Happy probes `codex app-server --help`
+for `--idle-timeout` before spawning a WebSocket daemon. If the installed codex
+does not advertise the flag, Happy omits it and logs one non-error warning; this
+fail-closed behavior is the expected state until codex implements the server-side
+timer. The seam is never applied to stdio transport and is never re-applied when
+Happy reattaches to an existing discovery record, because timeout policy belongs
+to the already-running codex process. Power-user `--codex-arg` values are still
+appended after the structured seam so explicit passthrough argv can override the
+spawn-time policy.
+
 ## happySessionId Mismatch Guard
 
 When a reconnect attempts to reuse a discovery record with a different
@@ -190,7 +201,7 @@ from discovery plus sidecar state.
 | `exit_reason` | Classified reason, described below. |
 | `termination_reason_detail` | Optional detail, currently used for `version_mismatch`. |
 | `uptime_ms` | Nonnegative ms from `started_at_ms` to `exited_at_ms`, or `null` when unavailable. |
-| `rss_kb_at_exit` | Reserved for future platform-aware RSS sampling; currently `null`. |
+| `rss_kb_at_exit` | Latest cached best-effort RSS sample in KB, or `null` when unavailable. |
 | `last_client_disconnect_age_ms` | Ms since this client instance's previous disconnect, or `null`. |
 
 Exit reasons:
@@ -202,10 +213,12 @@ Exit reasons:
 | `crashed` | Observable child exit with a nonzero exit code and no intentional reason. |
 | `unknown` | Observable child exit with no intentional reason and no useful code. |
 
-RSS sampling is reserved for future platform-aware implementation. Live rows
-and exit events intentionally render RSS as blank/null today because the
-available `ps-list` field is `%mem` rather than RSS-KB and is not supported on
-Windows. There is no background RSS timer.
+RSS sampling is best-effort and event-driven. Happy samples at spawn, reattach,
+disconnect, and intentional synthetic exit paths, then persists the latest cached
+value on exit. Observable child exits do not resample at exit time because the
+process may already be gone. Linux reads `/proc/<pid>/statm` with a `ps -o rss=`
+fallback; macOS uses `ps -o rss=`; Windows returns `null` in v1 rather than
+misreporting `%mem` as RSS-KB. There is no background RSS timer.
 
 ## Doctor States
 
@@ -240,11 +253,14 @@ Doctor states:
 Doctor is read-only. It does not rotate, prune, kill, restart, remove, or
 delete daemons. It renders a table with state, PID, endpoint, cwd, age, RSS,
 last-health, last-disconnect, exit reason, and version
-(`src/codex/codexDaemonDoctor.ts:138-161`). The RSS column is blank by design
-today: live rows use `rss: null`, exit events persist `rss_kb_at_exit: null`,
-and the column is reserved for future platform-aware RSS sampling rather than
-misreporting `%mem` as RSS-KB. The summary line is
-`N live, M stale, P post-mortem, U unparsable` plus the stdio disclaimer
+(`src/codex/codexDaemonDoctor.ts:138-161`). Live rows use a real-time RSS probe
+where the platform has a true RSS source; post-mortem rows fall back to
+`rss_kb_at_exit`. The `last-disconnect` cell is a client-observed age: live and
+stale rows use the latest disconnect event, while post-mortem rows use the exit
+event's `last_client_disconnect_age_ms`. This is not true server-idle age; a
+server-owned active-client signal remains required for that. The summary line is
+`N live, M stale, P post-mortem, U unparsable`, a last-disconnect age
+distribution (`<1h`, `1-24h`, `>24h`, `unknown`), and the stdio disclaimer
 (`src/codex/codexDaemonDoctor.ts:296-300`).
 
 ## Exit-Code Matrix

@@ -25,7 +25,7 @@ const {
     mockCloseSync,
     mockWriteDiscoveryRecord,
     mockEmitCodexDaemonEvent,
-    mockPsList,
+    mockSampleProcessRssKb,
 } = vi.hoisted(() => ({
     mockConfiguration: {
         happyHomeDir: require('node:fs').mkdtempSync(require('node:path').join(require('node:os').tmpdir(), 'happy-codex-discovery-')),
@@ -45,7 +45,7 @@ const {
     mockCloseSync: vi.fn(),
     mockWriteDiscoveryRecord: vi.fn(),
     mockEmitCodexDaemonEvent: vi.fn(),
-    mockPsList: vi.fn(),
+    mockSampleProcessRssKb: vi.fn(),
 }));
 
 vi.mock('@/configuration', () => ({
@@ -61,8 +61,8 @@ vi.mock('cross-spawn', () => ({
     spawn: mockSpawn,
 }));
 
-vi.mock('ps-list', () => ({
-    default: mockPsList,
+vi.mock('./processRss', () => ({
+    sampleProcessRssKb: mockSampleProcessRssKb,
 }));
 
 vi.mock('node:fs', async (importActual) => {
@@ -362,9 +362,9 @@ describe('CodexAppServerClient sandbox integration', () => {
         mockLogger.warn.mockClear();
         mockWriteDiscoveryRecord.mockReset();
         mockEmitCodexDaemonEvent.mockReset();
-        mockPsList.mockReset();
+        mockSampleProcessRssKb.mockReset();
         mockEmitCodexDaemonEvent.mockResolvedValue(undefined);
-        mockPsList.mockResolvedValue([]);
+        mockSampleProcessRssKb.mockResolvedValue(null);
         mockWriteDiscoveryRecord.mockImplementation((path: string, record: CodexDiscoveryRecord) => {
             const fs = require('node:fs') as typeof import('node:fs');
             const pathModule = require('node:path') as typeof import('node:path');
@@ -577,6 +577,77 @@ describe('CodexAppServerClient sandbox integration', () => {
         expect(args).toContain('--ws-auth');
 
         await client.disconnect({ terminateAppServer: true });
+    });
+
+    it('appends idle-timeout before extra ws app-server args when codex advertises support', async () => {
+        Object.defineProperty(process, 'platform', { value: 'win32' });
+        mockExecSync.mockImplementation((cmd: string) => {
+            if (cmd === 'codex --version') return 'codex-cli 0.107.0';
+            if (cmd === 'codex app-server --help') return 'Usage: codex app-server --listen <URL> --ws-auth capability-token --idle-timeout <seconds>';
+            return 'codex-cli 0.107.0';
+        });
+        const { proc, wss } = await createMockWsAppServer({ pid: 4401 });
+        const port = (wss.address() as AddressInfo).port;
+        mockPickFreeLoopbackPort.mockResolvedValueOnce(port);
+        mockSpawn.mockImplementationOnce(() => proc);
+
+        const { CodexAppServerClient } = await import('./codexAppServerClient');
+        const client = new CodexAppServerClient(undefined, {
+            transport: 'ws',
+            idleTimeoutSec: 300,
+            extraAppServerArgs: ['--idle-timeout', '900'],
+        });
+
+        await client.connect();
+
+        const args = mockSpawn.mock.calls[0]?.[1] as string[];
+        const tokenHashIndex = args.indexOf('--ws-token-sha256');
+        expect(args.slice(tokenHashIndex + 2)).toEqual(['--idle-timeout', '300', '--idle-timeout', '900']);
+        expect(mockExecSync.mock.calls.filter(([cmd]) => cmd === 'codex app-server --help')).toHaveLength(2);
+
+        await client.disconnect();
+        deleteDiscoveryIfMatches(discoveryFilePath(), { pid: process.pid, startedAt: new Date(0).toISOString() });
+    });
+
+    it('omits idle-timeout and warns once when codex lacks support', async () => {
+        Object.defineProperty(process, 'platform', { value: 'win32' });
+        mockExecSync.mockImplementation((cmd: string) => {
+            if (cmd === 'codex --version') return 'codex-cli 0.107.0';
+            if (cmd === 'codex app-server --help') return 'Usage: codex app-server --listen <URL> --ws-auth capability-token';
+            return 'codex-cli 0.107.0';
+        });
+        const { proc, wss } = await createMockWsAppServer({ pid: 4402 });
+        mockPickFreeLoopbackPort.mockResolvedValueOnce((wss.address() as AddressInfo).port);
+        mockSpawn.mockImplementationOnce(() => proc);
+
+        const { CodexAppServerClient } = await import('./codexAppServerClient');
+        const client = new CodexAppServerClient(undefined, { transport: 'ws', idleTimeoutSec: 300 });
+
+        await client.connect();
+
+        const args = mockSpawn.mock.calls[0]?.[1] as string[];
+        expect(args).not.toContain('--idle-timeout');
+        expect(mockLogger.warn).toHaveBeenCalledWith('[CodexAppServer] Installed codex lacks --idle-timeout; omitting requested app-server idle timeout.');
+
+        await client.disconnect({ terminateAppServer: true });
+    });
+
+    it('does not apply idle-timeout when reattaching to an existing daemon', async () => {
+        Object.defineProperty(process, 'platform', { value: 'win32' });
+        const { wss } = await createMockWsAppServer({ pid: process.pid });
+        const port = (wss.address() as AddressInfo).port;
+        writeDiscoveryRecord(discoveryFilePath(), testDiscoveryRecord({ pid: process.pid, port }));
+
+        const { CodexAppServerClient } = await import('./codexAppServerClient');
+        const client = new CodexAppServerClient(undefined, { transport: 'ws', idleTimeoutSec: 300 });
+
+        await client.connect();
+
+        expect(mockSpawn).not.toHaveBeenCalled();
+        expect(mockLogger.warn).not.toHaveBeenCalledWith(expect.stringContaining('--idle-timeout'));
+
+        await client.disconnect();
+        deleteDiscoveryIfMatches(discoveryFilePath(), { pid: process.pid, startedAt: new Date(0).toISOString() });
     });
 
     it('writes a discovery record after successful ws initialize', async () => {
@@ -1132,7 +1203,7 @@ describe('CodexAppServerClient sandbox integration', () => {
         const port = (wss.address() as AddressInfo).port;
         mockPickFreeLoopbackPort.mockResolvedValueOnce(port);
         mockSpawn.mockImplementationOnce(() => proc);
-        mockPsList.mockResolvedValue([{ pid: 4353, name: 'codex', ppid: 1, memory: 4321 }]);
+        mockSampleProcessRssKb.mockResolvedValue(4321);
 
         const { CodexAppServerClient } = await import('./codexAppServerClient');
         const client = new CodexAppServerClient(undefined, { transport: 'ws' });
@@ -1151,7 +1222,7 @@ describe('CodexAppServerClient sandbox integration', () => {
             exit_code: null,
             exit_signal: null,
             exit_reason: 'killed',
-            rss_kb_at_exit: null,
+            rss_kb_at_exit: 4321,
             last_client_disconnect_age_ms: expect.any(Number),
         }));
         expect(exitEvents[0].last_client_disconnect_age_ms).toBeGreaterThanOrEqual(0);
@@ -1163,7 +1234,7 @@ describe('CodexAppServerClient sandbox integration', () => {
         const { proc, wss } = await createMockWsAppServer({ pid: 4354 });
         mockPickFreeLoopbackPort.mockResolvedValueOnce((wss.address() as AddressInfo).port);
         mockSpawn.mockImplementationOnce(() => proc);
-        mockPsList.mockResolvedValue([{ pid: 4354, name: 'codex', ppid: 1, memory: 987 }]);
+        mockSampleProcessRssKb.mockResolvedValue(987);
 
         const { CodexAppServerClient } = await import('./codexAppServerClient');
         const client = new CodexAppServerClient(undefined, { transport: 'ws' });
@@ -1179,7 +1250,7 @@ describe('CodexAppServerClient sandbox integration', () => {
             cwd: record!.cwd,
             exit_code: 1,
             exit_reason: 'crashed',
-            rss_kb_at_exit: null,
+            rss_kb_at_exit: 987,
         }));
 
         await client.disconnect({ terminateAppServer: true });
@@ -1190,7 +1261,7 @@ describe('CodexAppServerClient sandbox integration', () => {
         const { proc, wss } = await createMockWsAppServer({ pid: 4355 });
         mockPickFreeLoopbackPort.mockResolvedValueOnce((wss.address() as AddressInfo).port);
         mockSpawn.mockImplementationOnce(() => proc);
-        mockPsList.mockResolvedValue([]);
+        mockSampleProcessRssKb.mockResolvedValue(null);
 
         const { CodexAppServerClient } = await import('./codexAppServerClient');
         const client = new CodexAppServerClient(undefined, { transport: 'ws' });

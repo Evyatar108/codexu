@@ -8,6 +8,7 @@ const mocks = vi.hoisted(() => ({
   mockRunCodex: vi.fn(),
   mockExtractCodexArgFlag: vi.fn(),
   mockExtractCodexEffortFlag: vi.fn(),
+  mockExtractCodexIdleTimeoutFlag: vi.fn(),
   mockExtractCodexModelFlag: vi.fn(),
   mockExtractCodexPermissionModeFlag: vi.fn(),
   mockExtractCodexProjectDocFlag: vi.fn(),
@@ -28,6 +29,7 @@ vi.mock('@/codex/runCodex', () => ({
 vi.mock('@/codex/cliArgs', () => ({
   extractCodexArgFlag: mocks.mockExtractCodexArgFlag,
   extractCodexEffortFlag: mocks.mockExtractCodexEffortFlag,
+  extractCodexIdleTimeoutFlag: mocks.mockExtractCodexIdleTimeoutFlag,
   extractCodexModelFlag: mocks.mockExtractCodexModelFlag,
   extractCodexPermissionModeFlag: mocks.mockExtractCodexPermissionModeFlag,
   extractCodexProjectDocFlag: mocks.mockExtractCodexProjectDocFlag,
@@ -97,6 +99,10 @@ describe('handleCodexCommand', () => {
       codexArgs: [],
       args,
     }))
+    mocks.mockExtractCodexIdleTimeoutFlag.mockImplementation((args: string[]) => ({
+      idleTimeoutSec: undefined,
+      args,
+    }))
     mocks.mockEnsureDaemonRunning.mockResolvedValue(undefined)
     mocks.mockRunCodex.mockResolvedValue(undefined)
   })
@@ -164,6 +170,7 @@ describe('handleCodexCommand', () => {
       projectDocFallback: undefined,
       codexTransport: undefined,
       codexAppServerArgs: undefined,
+      codexIdleTimeoutSec: undefined,
     })
     expect(
       mocks.mockEnsureDaemonRunning.mock.invocationCallOrder[0],
@@ -199,6 +206,14 @@ describe('handleCodexCommand', () => {
     })
     mocks.mockExtractCodexTransportFlag.mockReturnValue({
       transport: 'ws',
+      args: ['--idle-timeout', '120', '--started-by', 'daemon'],
+    })
+    mocks.mockExtractCodexArgFlag.mockReturnValue({
+      codexArgs: [],
+      args: ['--idle-timeout', '120', '--started-by', 'daemon'],
+    })
+    mocks.mockExtractCodexIdleTimeoutFlag.mockReturnValue({
+      idleTimeoutSec: 120,
       args: ['--started-by', 'daemon'],
     })
 
@@ -215,6 +230,7 @@ describe('handleCodexCommand', () => {
       projectDocFallback: ['PROJECT.md'],
       codexTransport: 'ws',
       codexAppServerArgs: undefined,
+      codexIdleTimeoutSec: 120,
     })
 
     expect(mocks.mockExtractCodexProjectDocFlag).toHaveBeenCalledWith([
@@ -226,6 +242,30 @@ describe('handleCodexCommand', () => {
       'daemon',
     ])
     expect(mocks.mockExtractCodexTransportFlag).toHaveBeenCalledWith(['--codex-transport', 'ws', '--started-by', 'daemon'])
+    expect(mocks.mockExtractCodexArgFlag).toHaveBeenCalledWith(['--idle-timeout', '120', '--started-by', 'daemon'])
+    expect(mocks.mockExtractCodexIdleTimeoutFlag).toHaveBeenCalledWith(['--idle-timeout', '120', '--started-by', 'daemon'])
+  })
+
+  it('lets --codex-arg consume idle-timeout-looking values before structured idle-timeout parsing', async () => {
+    const { handleCodexCommand } = await importCommand()
+
+    mocks.mockExtractCodexTransportFlag.mockReturnValue({
+      transport: 'ws',
+      args: ['--codex-arg', '--idle-timeout=30', '--started-by', 'terminal'],
+    })
+    mocks.mockExtractCodexArgFlag.mockReturnValue({
+      codexArgs: ['--idle-timeout=30'],
+      args: ['--started-by', 'terminal'],
+    })
+
+    await handleCodexCommand(['--codex-transport', 'ws', '--codex-arg', '--idle-timeout=30', '--started-by', 'terminal'])
+
+    expect(mocks.mockExtractCodexIdleTimeoutFlag).toHaveBeenCalledWith(['--started-by', 'terminal'])
+    expect(mocks.mockRunCodex).toHaveBeenCalledWith(expect.objectContaining({
+      startedBy: 'terminal',
+      codexAppServerArgs: ['--idle-timeout=30'],
+      codexIdleTimeoutSec: undefined,
+    }))
   })
 
   it('routes doctor before auth, daemon startup, or codex flag parsing', async () => {

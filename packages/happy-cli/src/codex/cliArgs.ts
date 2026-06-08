@@ -291,6 +291,55 @@ export function extractCodexArgFlag(args: string[]): { codexArgs: string[]; args
     };
 }
 
+function parsePositiveIntegerSeconds(value: string): number {
+    const normalized = value.trim();
+    const parsed = Number(normalized);
+    if (!/^[1-9]\d*$/.test(normalized) || !Number.isSafeInteger(parsed)) {
+        throw new Error('Codex idle-timeout must be a positive integer number of seconds');
+    }
+    return parsed;
+}
+
+export function extractCodexIdleTimeoutFlag(args: string[]): { idleTimeoutSec: number | undefined; args: string[] } {
+    const remainingArgs: string[] = [];
+    let idleTimeoutSec: number | undefined = undefined;
+
+    for (let i = 0; i < args.length; i++) {
+        const arg = args[i];
+
+        if (arg === '--idle-timeout') {
+            if (idleTimeoutSec !== undefined) {
+                throw new Error('Codex idle-timeout flag can only be provided once.');
+            }
+
+            const nextArg = args[i + 1];
+            if (!nextArg || nextArg.startsWith('-')) {
+                throw new Error('Codex idle-timeout requires a value: happy codex --idle-timeout <seconds>');
+            }
+
+            idleTimeoutSec = parsePositiveIntegerSeconds(nextArg);
+            i++;
+            continue;
+        }
+
+        if (arg.startsWith('--idle-timeout=')) {
+            if (idleTimeoutSec !== undefined) {
+                throw new Error('Codex idle-timeout flag can only be provided once.');
+            }
+
+            idleTimeoutSec = parsePositiveIntegerSeconds(arg.slice('--idle-timeout='.length));
+            continue;
+        }
+
+        remainingArgs.push(arg);
+    }
+
+    return {
+        idleTimeoutSec,
+        args: remainingArgs,
+    };
+}
+
 export function extractCodexTransportFlag(args: string[]): { transport: CodexTransportFlag | undefined; args: string[] } {
     const remainingArgs: string[] = [];
     let transport: CodexTransportFlag | undefined = undefined;
