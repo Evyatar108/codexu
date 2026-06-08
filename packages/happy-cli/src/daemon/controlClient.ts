@@ -114,6 +114,13 @@ export async function spawnDaemonSession(directory: string, sessionId?: string):
  * Returns the daemon's `{ id, seq }` on success; throws a typed error on any
  * non-2xx response or transport failure (the bridge MCP tool surfaces that as
  * an MCP tool error).
+ *
+ * Note (F-005): `daemonPost` collapses non-2xx response bodies into a generic
+ * `HTTP <status>` error (the pre-existing F-009 daemonPost-envelope debt), so
+ * the thrown message reports the status code (e.g. 404) rather than the route's
+ * specific "sender vs target untracked" reason. Surfacing the route's error
+ * body is deferred to the F-009 envelope cleanup so this stays on the shared
+ * `daemonPost` helper rather than forking a bespoke fetch here.
  */
 export async function sendAgentMessage(
   targetSessionId: string,

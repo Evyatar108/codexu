@@ -251,10 +251,32 @@ describe('Scope B missed-wake recovery', () => {
 
         // The explicit agent-comms resource drain returns the body AND advances
         // the cursor — all WITHOUT any resource_updated event being injected.
-        const drained = await bridge.drainAgentCommsInbox('sessB2');
+        const drained = await bridge.drainAgentCommsInbox('sessB2', (entries) => entries);
         expect(drained).toHaveLength(1);
         expect(drained[0].body).toEqual(MSG);
         expect(await mailbox.readPending('sessB2')).toEqual([]);
+    });
+});
+
+describe('Scope B drain semantics', () => {
+    it('a payload-build failure leaves the message unconsumed (F-003 build-before-consume)', async () => {
+        const sid = 'sessDrain';
+        await mailbox.appendMessage(sid, { keep: 'me' }, 'sessSender');
+
+        await expect(
+            bridge.drainAgentCommsInbox(sid, () => { throw new Error('boom'); }),
+        ).rejects.toThrow('boom');
+
+        // The cursor must NOT have advanced — build threw before markConsumed.
+        const stillPending = await mailbox.readPending(sid);
+        expect(stillPending).toHaveLength(1);
+        expect(stillPending[0].body).toEqual({ keep: 'me' });
+
+        // A subsequent successful drain still gets the message and consumes it
+        // (the failed drain did not poison the per-session chain).
+        const drained = await bridge.drainAgentCommsInbox(sid, (entries) => entries);
+        expect(drained).toHaveLength(1);
+        expect(await mailbox.readPending(sid)).toEqual([]);
     });
 });
 

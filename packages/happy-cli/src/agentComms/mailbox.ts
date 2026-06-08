@@ -30,14 +30,17 @@
  *    drain of the corresponding payload by the caller (the bridge resource
  *    read in US-003); the watcher / wake path NEVER calls `markConsumed`.
  *  - `readPending` is retry-tolerant: it retries up to 3x with linear
- *    backoff on `EBUSY`/`ENOENT` to cover the writer-flush vs reader-poll
- *    race (Windows is the common case for `EBUSY`).
+ *    backoff on `EBUSY` to cover the writer-flush vs reader-poll race
+ *    (Windows is the common case for `EBUSY`). `ENOENT` is absorbed earlier
+ *    by `readStateOrEmpty` (returns an empty state) and never reaches the
+ *    retry loop.
  */
 
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import { writeJsonAtomically } from '@slopus/happy-wire/node';
 import { configuration } from '@/configuration';
+import { logger } from '@/ui/logger';
 
 export const MAILBOX_ENVELOPE_VERSION = 1 as const;
 
@@ -157,6 +160,10 @@ export async function ensureInbox(sessionId: string): Promise<void> {
     await writeJsonAtomically(file, emptyState());
 }
 
+// Per-session append serialization chains (F-001). Module-level; one entry per
+// active inbox session id in this process.
+const appendChains = new Map<string, Promise<unknown>>();
+
 function randomId(): string {
     return `mb_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
 }
@@ -164,28 +171,51 @@ function randomId(): string {
 export async function appendMessage(sessionId: string, body: unknown, sender: string): Promise<{ id: string; seq: number }> {
     assertSessionId(sessionId);
     assertSessionId(sender);
-    await ensureInbox(sessionId);
-    const current = await readStateOrEmpty(sessionId);
-    const lastSeq = current.pending.length > 0
-        ? current.pending[current.pending.length - 1].seq
-        : current.cursor;
-    const entry: MailboxEntry = {
-        version: MAILBOX_ENVELOPE_VERSION,
-        seq: lastSeq + 1,
-        id: randomId(),
-        appendedAt: Date.now(),
-        sender,
-        body,
-    };
-    const next: MailboxState = {
-        version: MAILBOX_ENVELOPE_VERSION,
-        cursor: current.cursor,
-        pending: [...current.pending, entry],
-    };
-    await writeJsonAtomically(inboxPathFor(sessionId), next);
-    // History sidecar is best-effort append; the source of truth is mailbox.json.
-    await fs.appendFile(historyPathFor(sessionId), `${JSON.stringify(entry)}\n`, { mode: 0o600 });
-    return { id: entry.id, seq: entry.seq };
+    // Per-session append serialization (F-001). appendMessage is an async
+    // read-modify-write (readStateOrEmpty -> assign seq -> writeJsonAtomically).
+    // All appends to a given inbox flow through the single daemon process (the
+    // /agent-comms/send hop), so an in-process promise chain per sessionId is
+    // sufficient to prevent two concurrent appends from reading the same state,
+    // assigning the same seq, and having the later atomic write clobber the
+    // earlier pending list (a lost message).
+    const prior = appendChains.get(sessionId) ?? Promise.resolve();
+    const run = prior
+        .catch(() => undefined)
+        .then(async (): Promise<{ id: string; seq: number }> => {
+            await ensureInbox(sessionId);
+            const current = await readStateOrEmpty(sessionId);
+            const lastSeq = current.pending.length > 0
+                ? current.pending[current.pending.length - 1].seq
+                : current.cursor;
+            const entry: MailboxEntry = {
+                version: MAILBOX_ENVELOPE_VERSION,
+                seq: lastSeq + 1,
+                id: randomId(),
+                appendedAt: Date.now(),
+                sender,
+                body,
+            };
+            const next: MailboxState = {
+                version: MAILBOX_ENVELOPE_VERSION,
+                cursor: current.cursor,
+                pending: [...current.pending, entry],
+            };
+            await writeJsonAtomically(inboxPathFor(sessionId), next);
+            // History sidecar is GENUINELY best-effort (F-004): mailbox.json is
+            // already committed above and is the source of truth, so a sidecar
+            // failure must NOT fail the send — failing would invite duplicate
+            // retries against an inbox that already holds the message.
+            try {
+                await fs.appendFile(historyPathFor(sessionId), `${JSON.stringify(entry)}\n`, { mode: 0o600 });
+            } catch (err) {
+                logger.debug(`[mailbox] history sidecar append failed for ${sessionId} (mailbox.json is authoritative): ${String(err)}`);
+            }
+            return { id: entry.id, seq: entry.seq };
+        });
+    // Keep the chain alive even if this append rejected, so the next caller
+    // still serializes behind it rather than racing.
+    appendChains.set(sessionId, run.catch(() => undefined));
+    return run;
 }
 
 async function sleep(ms: number): Promise<void> {
@@ -205,7 +235,11 @@ export async function readPending(sessionId: string, sinceSeq?: number): Promise
                 throw error;
             }
             const code = (error as NodeJS.ErrnoException).code;
-            if (code !== 'EBUSY' && code !== 'ENOENT') {
+            // ENOENT is already absorbed by readStateOrEmpty (returns empty
+            // state), so it never reaches here on the normal path; only EBUSY
+            // (the Windows writer-flush vs reader-poll lock race) is a live
+            // retry case (F-006).
+            if (code !== 'EBUSY') {
                 throw error;
             }
             lastError = error;

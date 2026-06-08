@@ -74,27 +74,39 @@ export interface AgentCommsBridgeHandle {
 // Per-session drain serialization so two concurrent resource reads cannot both
 // `readPending` before either `markConsumed` (which would double-deliver). Each
 // drain chains after the previous one for the same session.
-const drainChains = new Map<string, Promise<MailboxEntry[]>>();
+const drainChains = new Map<string, Promise<unknown>>();
 
 /**
- * Drain the durable inbox for `sessionId`: read the pending entries, then —
- * only after the entries to return have been captured — advance the cursor via
- * `markConsumed` (post-drain consume, F-001). Returns the entries handed to the
- * caller. Drains for the same session are serialized.
+ * Drain the durable inbox for `sessionId`: read the pending entries, hand them
+ * to `build` to construct the caller's payload, and ONLY THEN advance the
+ * cursor via `markConsumed` (post-drain consume, F-001 + F-003). Building the
+ * payload BEFORE consuming means a payload-construction failure leaves the mail
+ * unconsumed and recoverable. Drains for the same session are serialized.
+ *
+ * Drain-acknowledgment boundary: the strongest drain-success signal the MCP
+ * resource-read API exposes is the read callback's return — there is no
+ * post-transport delivery ack. A transport failure AFTER this returns is an
+ * accepted at-most-once edge in v1 (documented in
+ * plans/durable-mailbox-channel-wake.md). The durable mailbox + missed-wake
+ * recovery cover the pre-consume window, not post-consume transport loss.
  */
-export function drainAgentCommsInbox(sessionId: string): Promise<MailboxEntry[]> {
-    const prior = drainChains.get(sessionId) ?? Promise.resolve<MailboxEntry[]>([]);
+export function drainAgentCommsInbox<T>(
+    sessionId: string,
+    build: (entries: MailboxEntry[]) => T,
+): Promise<T> {
+    const prior = drainChains.get(sessionId) ?? Promise.resolve();
     const next = prior
         // A prior drain failure must not poison the chain for the next caller.
-        .catch(() => [] as MailboxEntry[])
+        .catch(() => undefined)
         .then(async () => {
             const entries = await readPending(sessionId);
+            const result = build(entries); // build payload BEFORE consuming
             if (entries.length > 0) {
                 await markConsumed(sessionId, entries[entries.length - 1].seq);
             }
-            return entries;
+            return result;
         });
-    drainChains.set(sessionId, next);
+    drainChains.set(sessionId, next.catch(() => undefined));
     return next;
 }
 
@@ -145,16 +157,18 @@ export function registerAgentCommsBridge(opts: RegisterAgentCommsBridgeOptions):
             description: 'Reading this resource drains the durable agent-comms inbox for this session.',
             mimeType: 'application/json',
         },
-        async () => {
-            const entries = await drainAgentCommsInbox(sessionId);
-            return {
-                contents: [{
-                    uri,
-                    mimeType: 'application/json',
-                    text: JSON.stringify({ version: 1, entries }),
-                }],
-            };
-        },
+        // The drained payload carries the top-level `version: 1` envelope
+        // (Northstar rule 1). The wake `resource_updated` notification itself is
+        // a protocol-fixed `{ uri }`-only hint (MCP cannot carry extra params),
+        // so the versioned envelope rides the mailbox entries + this payload, not
+        // the wake. The cursor advances only after this payload object is built.
+        async () => drainAgentCommsInbox(sessionId, (entries) => ({
+            contents: [{
+                uri,
+                mimeType: 'application/json',
+                text: JSON.stringify({ version: 1, entries }),
+            }],
+        })),
     );
 
     function emitWakeRaw(): void {

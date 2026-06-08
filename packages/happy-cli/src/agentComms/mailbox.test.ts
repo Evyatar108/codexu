@@ -155,6 +155,26 @@ describe('mailbox sessionId path safety (F-010)', () => {
     });
 });
 
+describe('mailbox concurrent append (F-001)', () => {
+    it('serializes concurrent appends so no message is lost and seqs are unique', async () => {
+        const sid = 'sess_concurrent';
+        const N = 25;
+        // Fire all appends concurrently (as racing /agent-comms/send handlers do).
+        const results = await Promise.all(
+            Array.from({ length: N }, (_, i) => mailbox.appendMessage(sid, { i }, 'sess_sender')),
+        );
+        // Every append got a distinct, contiguous seq 1..N (no two readers
+        // assigned the same seq).
+        const seqs = results.map(r => r.seq).sort((a, b) => a - b);
+        expect(seqs).toEqual(Array.from({ length: N }, (_, i) => i + 1));
+        // All N messages are durably present (none clobbered by a racing write).
+        const pending = await mailbox.readPending(sid);
+        expect(pending).toHaveLength(N);
+        const bodies = pending.map(e => (e.body as { i: number }).i).sort((a, b) => a - b);
+        expect(bodies).toEqual(Array.from({ length: N }, (_, i) => i));
+    });
+});
+
 describe('mailbox version envelope (Northstar rule 1)', () => {
     it('readPending throws a typed error when an entry version is greater than max', async () => {
         const sid = 'sess_version';
