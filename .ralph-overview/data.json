@@ -5515,6 +5515,23 @@
           "brainstorm": "/brainstorm-with-ralph crews-flip-default-member-engine-to-codex \"Decide HOW to make codex the default crews member engine, reversibly. Current precedence (crews v1.8.11): explicit --engine > CREWS_ENGINE env > caller-CLI detect > claude legacy. Options for the flip: (a) CREWS_ENGINE=codex env (zero code, instantly reversible), (b) change the default-precedence code to prefer codex over caller-CLI-detect, (c) operating-policy + docs only (always pass --engine codex). Consider: rollback path, how mixed crews behave (some copilot some codex), whether the lead should auto-provision a codex member on spawn (vs the current on-demand REPORT-ONLY install-plugin), and how the caller-CLI-detect default interacts (a Copilot lead would still want codex members). Prereq: Stage-2 live codex ralph-skill smoke must pass first. Recommend the most reversible mechanism.\""
         }
       }
+    },
+    {
+      "id": "ralph-codex-live-smoke-windows-shim-spawn",
+      "scope": "ralph",
+      "lifecycle": "tracked",
+      "status": "active",
+      "lastTouchedAt": "2026-06-08",
+      "kanbanCards": [
+        {
+          "className": "cmd-warn",
+          "html": "Filed 2026-06-08 (found while running the Stage-2 codex-engine smoke). The v5.53.0 opt-in live fan-out smoke plugins/ralph/tests/test-codex-live-smoke.mjs:214 invokes spawnSync(\"codex\", [\"exec\", ...]) WITHOUT shell:true. On Windows, codex is a PowerShell shim (codex.ps1) which bare spawnSync cannot resolve -> ENOENT (status null, signal null, empty stdout/stderr), so the US-005 live-execute subtest FAILS even though codex + multi_agent_v2 work fine. CONFIRMED via repro: spawnSync(\"codex\", ...) -> error ENOENT; codexAvailable() passes because it uses a shell-based check. NOT a fan-out regression (the fan-out is validated by the D-003 spike-verdict.json GO + the Stage-1 live codex member smoke 2026-06-08). FIX: invoke codex via shell:true, or resolve codex.cmd/codex.ps1 explicitly the way src/codex-exec.mjs already does. Small; bundle with a future ralph change rather than a standalone version ship. Re-run the corrected live smoke to re-confirm the fan-out end-to-end on Windows."
+        }
+      ],
+      "command": {
+        "name": "ralph-codex-live-smoke-windows-shim-spawn",
+        "prompts": {}
+      }
     }
   ],
   "phaseTree": [
