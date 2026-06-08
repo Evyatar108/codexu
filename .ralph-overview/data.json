@@ -5481,13 +5481,13 @@
     {
       "id": "crews-install-plugin-installed-cli-toolkit-root",
       "scope": "crews",
-      "lifecycle": "tracked",
+      "lifecycle": "merged",
       "status": "active",
       "lastTouchedAt": "2026-06-08",
       "kanbanCards": [
         {
-          "className": "cmd-warn",
-          "html": "Filed 2026-06-08 by bookkeeper (found via LIVE DOGFOOD of the just-shipped v3.14.0 provisioner). install-plugin / list-plugins FAIL when invoked via the INSTALLED Copilot CLI (the normal lead path): lib/plugin-provisioning/source.js resolveToolkitRoot() walks up from getPluginRoot() then falls back to getPluginRoot()/../.., which under ~/.copilot/installed-plugins/ai-developer-toolkit/crews resolves to ~/.copilot/installed-plugins/ (no marketplace index) -> ENOENT on ~/.copilot/installed-plugins/.claude-plugin/marketplace.json. --marketplace does NOT override (the index load uses toolkitRoot, not --marketplace). Source-CLI invocation works (../.. = real toolkit root). Fix: thread the consumer --cwd workspace (<cwd>/ai-developer-toolkit) into resolveToolkitRoot + honor explicit --marketplace localpath for the index load; add a regression test that exercises the installed-CLI layout (v3.14.0 tests inject toolkitRoot directly and missed it). Ships crews v3.14.1."
+          "className": "cmd-ok",
+          "html": "Impl shipped @ crews v3.14.1 (toolkit 548152a9 / codexu pointer 36cb6085). resolveToolkitRoot threads the consumer --cwd + honors --marketplace localpath, fixing install-plugin/list-plugins via the installed Copilot CLI (was ENOENT). 173-line regression test for the installed-CLI layout. 296/296 tests. Found via live dogfood; validated post-ship (installed-CLI now status:no-op, not ENOENT)."
         }
       ],
       "command": {
@@ -5495,6 +5495,22 @@
         "prompts": {
           "impl": "Fix lib/plugin-provisioning/source.js resolveToolkitRoot() to resolve the toolkit root when invoked via the installed Copilot CLI. PRIMARY: thread the command --cwd workspace into resolveToolkitRoot and try <cwd>/ai-developer-toolkit (and cwd) in the walk-up before the getPluginRoot()/../.. fallback; wire install-plugin.js + list-plugins.js to pass the context cwd into the provisioning lib opts. SECONDARY: honor an explicit --marketplace <localpath> as a toolkit-root override for the INDEX load too (keep the codex git/URL refusal). Add a regression test simulating the installed-CLI layout (getPluginRoot with no marketplace at ../.., cwd pointing at a tmp toolkit) asserting resolution succeeds. 6 version stamps -> 3.14.1 + CHANGELOG. SUBMODULE [ai-developer-toolkit/plugins/crews]; submodule worktree; lead ships."
         }
+      },
+      "shipManifest": {
+        "shippedAt": "2026-06-08",
+        "summary": "crews v3.14.1 — fix the v3.14.0 provisioner so install-plugin / list-plugins work when invoked via the INSTALLED Copilot CLI (the normal lead path), not only from the in-tree source checkout. resolveToolkitRoot() now threads the consumer --cwd workspace (tries <cwd>/ai-developer-toolkit) and honors an explicit --marketplace localpath for the index load, instead of only walking up from getPluginRoot()/../.. (which under ~/.copilot/installed-plugins/ai-developer-toolkit/crews resolves to ~/.copilot/installed-plugins/, a dir with no marketplace index -> ENOENT).\n\nFound via live dogfood of the just-shipped v3.14.0 (the structured verdict correctly reported the failure, but every installed-CLI call failed). The fix adds a 173-line regression test that exercises the installed-CLI layout (a getPluginRoot whose ../.. has no marketplace index + a cwd-based toolkit), which the original v3.14.0 tests missed because they injected toolkitRoot directly. 296/296 tests green. Validated post-ship: the exact previously-ENOENTing installed-CLI command now returns status:no-op, and list-plugins resolves marketplaceSource to the real toolkit checkout via cwd. Reinforces the lesson that green unit tests need a live smoke before flipping merged.",
+        "commits": [
+          {
+            "sha": "548152a9",
+            "oneLine": "fix(crews): resolve marketplace index via consumer cwd for installed-CLI (v3.14.1)",
+            "repo": "ai-developer-toolkit"
+          },
+          {
+            "sha": "36cb6085",
+            "oneLine": "chore(deps): bump crews plugin to v3.14.1 (installed-CLI toolkit-root fix)",
+            "repo": "codexu"
+          }
+        ]
       }
     },
     {
