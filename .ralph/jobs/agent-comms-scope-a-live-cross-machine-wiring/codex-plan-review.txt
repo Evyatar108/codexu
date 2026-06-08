@@ -1,0 +1,35 @@
+### Feasibility
+
+[High] The cross-machine spawn path is not implementable as described without widening the sender contract. `packages/happy-cli/src/daemon/controlServer.ts:277-285` only accepts `kind: request|reply|notify` and no `channel`; `packages/happy-cli/src/daemon/controlClient.ts:126-141` only posts `kind`; `packages/happy-cli/src/codex/agentCommsBridge.ts:201-218` currently stubs foreign spawns. The plan says to send `channel: spawn` / `kind: spawn-request`, but does not explicitly include `controlClient.ts` or the `/agent-comms/send` schema/channel plumbing.
+
+[High] The allowlisted spawn execution path is underspecified. `packages/happy-cli/src/daemon/run.ts:219-240` defines `agentCommsIngest` early and only calls `appendMessage`; `spawnSessionFromSessionHandler` is created much later at `run.ts:939-956`. To “proceed to `spawnSessionFromSession`” for approved requests, the plan needs a concrete dependency path, likely mirroring the promise pattern used for the control server at `run.ts:849-859`.
+
+[Medium] US-004’s readiness check is feasible only if ordered carefully. `dualListenerBinding.ts:38` starts `devtunnel host` before the embedded tunnel listener starts at `dualListenerBinding.ts:72`; checking `/agent-comms/ingest` too early will fail. The plan should say whether readiness checks the local listener after `tunnel.start()`, or the Dev Tunnels URL with a minted token.
+
+### Completeness
+
+[High] The plan omits `packages/happy-cli/src/daemon/controlClient.ts` from “Files to Modify,” but the MCP bridge reaches `/agent-comms/send` through `sendAgentMessage()`. Without updating that helper’s option type/body to carry `channel` and `spawn-request`, the foreign `agent_comms.spawn` AC cannot pass.
+
+[Medium] If D-005 stores tunnel hints in `peers.json`, `packages/happy-cli/src/agentComms/peerAuth.ts:102-119` must preserve and update those fields. `pinPeerKeys()` currently reconstructs the whole `PinnedPeerKeys` record with only keys/fingerprint/pinnedAt, so an operator-authored `tunnelName`/`tunnelId` would be dropped on repin unless explicitly handled.
+
+[Medium] Pending approval is in scope but not specified enough. The plan says “persist a pending-approval record” and asks whether to expose an endpoint/mailbox/CLI, but the acceptance criteria only verify denied vs allowlisted behavior. If pending records are required, the plan needs path, schema, dedupe key, retry/idempotency behavior, and a minimal approval mechanism.
+
+### Ordering
+
+[High] US-005 depends on the sender-contract changes from US-003, not just outbound transport. A spawn request cannot reach `dispatchAgentCommsEnvelope()` today because the route schema rejects `spawn-request`; US-005 should explicitly follow the control route/client schema update.
+
+[Medium] US-006 should land after the approval and spawn execution contracts are fixed, but the harness design should be drafted earlier enough to drive interfaces. Otherwise the implementation may wire transport first and then discover the route/client/spawn-handler shape is wrong.
+
+### Simplicity
+
+[Medium] “Pending approval queue + endpoint” may be over-scoped for Scope A v1 if the required behavior is default-deny plus allowlist. A simpler first pass is: peer config contains `allowRemoteSpawn: boolean`; non-allowlisted requests return a deterministic denial envelope or ingest error; pending queue becomes a follow-up.
+
+[Low] US-004 could be reduced to a focused regression test around `dualListenerBinding` and route registration unless there is a known startup race. The current host lifecycle already calls `DevTunnelsDaemonProvider.loadHostTunnel()` and `TunnelManager.startHost()`.
+
+### Acceptance Criteria Quality
+
+[High] The spawn AC is not specific enough for autonomous implementation: it does not define the spawn-request body schema, whether `to.sessionId` is the parent session, what success ack/result is returned, or how the remote requester learns the spawned session id.
+
+[Medium] “`listOperatorTunnels()`, `mintConnectToken()`, and `peerTransport.ingestUrl()` selection are unchanged (no diff to their bodies)” is testable by diff review, but brittle. Prefer AC wording that says behavior and public contract are unchanged; refactors that preserve behavior should not fail the plan.
+
+[Medium] The hermetic “full chain” AC should specify whether the test exercises Fastify `/agent-comms/ingest` with auth or directly invokes the injected handler. `agentCommsIngestRoutes.ts:46-48` uses `app.authenticate`, and `api.ts:109-115` registers it only on the tunnel-auth listener, so this choice affects harness setup.

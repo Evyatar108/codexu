@@ -1,0 +1,32 @@
+I’ll read the referenced prompt, then carry out the requested work end-to-end.
+
+The prompt is larger than the viewer’s single-read limit, so I’m reading it in sections.
+
+I’m going to spot-check the plan’s key file/function claims against the worktree before producing the review.
+
+I have the plan and local rules; now I’m checking the cited implementation seams for concrete blockers rather than doing a full implementation pass.
+
+The high-risk area is the remote spawn path: I’m reading the exact sender/ingest/router code to see whether the plan defines enough payload and execution semantics.
+
+One more check: I’m validating the wire schema and ingest route shape so the review findings are anchored to existing contracts, not assumptions.
+
+### Feasibility
+
+- [High] Cross-machine `agent_comms.spawn` cannot use the current send path as planned. `/agent-comms/send` only accepts `kind: request|reply|notify` and has no `channel` field (`controlServer.ts:277-285`); `sendAgentMessage()` also cannot pass `channel` (`controlClient.ts:126-141`). The plan must explicitly widen this route/helper to carry `channel: "spawn"` and `kind: "spawn-request"`, or the “no longer deferred-scope-a-spawn” AC will fail.
+
+### Completeness
+
+- [High] The approval-gated spawn execution path is underspecified. `run.ts:219-240` currently only verifies/decrypts and `appendMessage()`s; the plan says approved requests should call `spawnSessionFromSession`, but does not define the spawn-request body schema, mapping to `SpawnSessionFromSessionRpcOptions`, parent session semantics, result/error envelope, or retry dedupe. Because ingest clients may retry, allowlisted requests could spawn duplicate child sessions unless keyed by envelope id/correlation.
+
+### Ordering
+
+No issues found. The serial recommendation is correct given the shared `run.ts` / `controlServer.ts` / `agentComms/*` surfaces.
+
+### Simplicity
+
+- [Medium] US-004’s “startup readiness check” for the public tunnel serving `/agent-comms/ingest` risks adding flaky external Dev Tunnels dependency to daemon startup. If retained, the plan should make it log-only/non-fatal and rely on existing route registration + `startHost` tests for deterministic CI proof.
+
+### Acceptance Criteria Quality
+
+- [High] The spawn AC is not independently verifiable until the plan specifies the approval allowlist/pending-approval storage contract and idempotency behavior. “Denied and never spawns” / “allowlisted proceeds” is clear as an outcome, but an autonomous implementer needs the durable key, payload shape, and duplicate-request behavior to prove it safely.
+

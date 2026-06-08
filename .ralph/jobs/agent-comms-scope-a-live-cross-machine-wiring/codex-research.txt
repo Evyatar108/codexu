@@ -1,0 +1,43 @@
+### Codebase Architecture
+
+- `packages/happy-cli`: daemon, local control server, Dev Tunnels lifecycle, agent-comms router/mailbox/peer crypto. TypeScript ESM, `@/*` alias, Fastify for local control.
+- `packages/happy-server`: embedded Fastify server mounted by the daemon. It currently owns `POST /agent-comms/ingest`.
+- `packages/happy-wire`: shared Zod wire schemas, including `AgentCommsEnvelope`.
+- Build/test: pnpm workspace, TypeScript 5.9, Vitest, pkgroll. Relevant package tests are `pnpm --filter happy test`, `pnpm --filter happy-server test`, and `pnpm --filter @slopus/happy-wire test`.
+
+### Feature-Relevant Code
+
+- `plans/agent-comms-design.md`: §5 and §8 are the authoritative Scope A design/smoke.
+- `.ralph/brainstorms/agent-comms-serverless-scope-a-discovery/selected-direction.md`: D-001 recommends a future CLI-owned ingest listener, but it has not shipped in this tree.
+- `packages/happy-cli/src/daemon/run.ts`: builds the existing `agentCommsIngest` closure: TOFU pin lookup, Ed25519 verify, ECDH open, `advanceAgentCommsRelay`, target machine check, `mailbox.appendMessage`.
+- `packages/happy-cli/src/agentComms/router.ts`: resolves Scope A when `to.machineId !== selfMachineId`; `deliverRemote` is the missing live integration point.
+- `packages/happy-cli/src/agentComms/peerTransport.ts`: Dev Tunnels outbound skeleton. Posts signed/sealed wrapper to `/agent-comms/ingest` with `X-Tunnel-Authorization`.
+- `packages/happy-cli/src/agentComms/peerAuth.ts`: canonical signing, `sealBody`, `openSealedBody`, TOFU pin store.
+- `packages/happy-cli/src/tunnel/tunnelManager.ts`: `devtunnel list --json`, `token --scope connect`, `host <tunnelId>`, port URL parsing.
+- `packages/happy-cli/src/daemon/dualListenerBinding.ts`: starts tunnel and loopback embedded happy-server listeners.
+- `packages/happy-server/sources/app/api/routes/agentCommsIngestRoutes.ts`: current ingest route and hop validation.
+- `packages/happy-wire/src/agentComms.ts`: shared `AgentCommsEnvelopeSchema`, `MAX_HOPS`.
+
+### Technical Constraints
+
+- Current tree assumes the happy-server ingest route, not D-001’s CLI-owned listener. Keep the handler contract compatible so D-001 can later move the route.
+- `TunnelConfig`, `MachineLocallyPersistedState`, and `DaemonTunnelProvider` are single-port. A second ingest port would require state/schema/provider changes and deterministic peer URL selection.
+- Current `peerTransport.ingestUrl()` selects the first tunnel port URI. If a second port is introduced, this is unsafe unless the port is explicitly identified.
+- `listReachablePeers()` returns tunnel hints but no authoritative `machineId`. Live Scope A needs a `machineId -> PeerTransportTarget` resolver from TOFU/operator peer config.
+- Production code must not inspect `X-Tunnel-Authorization` on the backend; Dev Tunnels gateway consumes it. Backend auth is only TOFU + Ed25519 + sealed body.
+- `keypairManager.ts` currently stores `server-key.*` and `ecdh-key.*` directly under `happyHomeDir`; the §8 text mentioning `tofu/` is stale relative to code.
+- Cross-machine spawn is currently blocked in `agentCommsBridge.ts`; `requiresOperatorApproval()` exists in router but is not enforced anywhere.
+
+### Implementation Suggestions
+
+Assume current happy-server ingest unless D-001 lands first. Choose the co-located port model for this task: use the existing daemon tunnel listener and `/agent-comms/ingest`. This avoids widening `machine.json` and preserves current `peerTransport.ingestUrl()` behavior.
+
+Implement live outbound by injecting `deliverRemote` in `packages/happy-cli/src/daemon/controlServer.ts`/`run.ts`: resolve target machine, seal `envelope.body`, sign the sealed envelope, attach local public keys, then call `DevTunnelsPeerTransport.send()`.
+
+Add a small peer resolver module that joins TOFU pins/operator config to `TunnelManager.listOperatorTunnels()` without changing `listOperatorTunnels()` or `mintConnectToken()`. Do not derive `machineId` from `codexu-<hostname>`.
+
+Move `AgentCommsIngestBodySchema` and hop validation to `happy-wire` or a CLI-shared module if D-001 compatibility is required; otherwise happy-cli continues importing the happy-server type shim.
+
+For tests, add a two-daemon harness with temp `HAPPY_HOME_DIR`s, fixture keypairs/pins, fake Dev Tunnels manager/fetch for deterministic CI, and an opt-in live smoke script for real `devtunnel list/token` on two machines. Verify: TOFU pin, signature verify, sealed open, relay advance, remote `mailbox.appendMessage`.
+
+For spawn, fail closed: remote ingest must detect Scope A `spawn-request`, persist/return a pending approval state, and only call `spawnSessionFromSession` after an explicit remote operator approval action.

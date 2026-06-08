@@ -1,0 +1,46 @@
+I’ll read the referenced prompt file and then carry out the requested work.
+
+I’ve confirmed this is a research-only plan-analysis task; I’ll inspect the design notes, brainstorm output, and relevant implementation surfaces without changing files.
+
+The initial search surfaced the expected Scope A skeleton plus the prior D-001 recommendation; I’ll now inspect the concrete daemon, tunnel, transport, auth, mailbox, and server-route code paths.
+
+I’ll check the remaining integration points now: route validation, router approval semantics, listener/tunnel lifecycle, and package test/build structure.
+
+I’ll do one final targeted pass for the shared wire schema, spawn tool surface, and any existing approval-gate pattern to anchor the recommendations.
+
+### Codebase Architecture
+
+This is a pnpm TypeScript monorepo with `happy-cli`, `happy-server`, and `@slopus/happy-wire` as the relevant packages. `happy-cli` owns daemon lifecycle, Dev Tunnels CLI calls, peer crypto, routing, and durable mailboxes. `happy-server` is embedded per daemon through `dualListenerBinding()` and exposes the tunnel-facing HTTP route. `happy-wire` owns shared Zod wire schemas.
+
+### Feature-Relevant Code
+
+- `plans/agent-comms-design.md` §5 and §8 define the Scope A contract: Dev Tunnels only, two-layer auth, `/agent-comms/ingest`, and the manual two-machine smoke.
+- `.ralph/brainstorms/agent-comms-serverless-scope-a-discovery/selected-direction.md` recommends D-001: a happy-cli-owned tiny ingest listener, while keeping embedded happy-server for mobile/session traffic.
+- `packages/happy-cli/src/daemon/run.ts` currently injects `agentCommsIngest` into embedded happy-server and performs TOFU lookup, fingerprint/key match, Ed25519 verify, sealed-body open, relay advance, target-machine check, then `appendMessage`.
+- `packages/happy-server/sources/app/api/routes/agentCommsIngestRoutes.ts` defines current `POST /agent-comms/ingest`, validates wrapper shape and hop invariants, then delegates to the injected handler.
+- `packages/happy-cli/src/tunnel/tunnelManager.ts` owns `devtunnel create/show/port create/host/list/token`. `listOperatorTunnels()` and `mintConnectToken()` already exist and should remain semantically unchanged.
+- `packages/happy-cli/src/agentComms/peerTransport.ts` has the Scope A outbound skeleton: list reachable tunnels, build ingest URL, mint connect token, POST signed/sealed envelope with `X-Tunnel-Authorization`.
+- `packages/happy-cli/src/agentComms/peerAuth.ts` has canonical signing, verify, seal/open, peer pin store, and fingerprint checks.
+- `packages/happy-cli/src/agentComms/router.ts` resolves scopes, validates hop cycles, has `deliverRemote`, and `requiresOperatorApproval()`.
+- `packages/happy-cli/src/codex/agentCommsBridge.ts` registers `agent_comms.send` and `agent_comms.spawn`; cross-machine spawn currently returns a deferred error instead of sending a live spawn request.
+
+### Technical Constraints
+
+- Preserve `TunnelManager.listOperatorTunnels()` and `mintConnectToken()` behavior: Dev Tunnels management plane remains discovery/auth, with no phone/app/server relay.
+- Backend must not inspect `X-Tunnel-Authorization`; Microsoft gateway consumes it.
+- Current `peerTransport.ingestUrl()` picks `tunnel.tunnelUrl` or the first `portUri`, so a second ingest port requires port selection by `portNumber` or metadata, otherwise it may post to the wrong port.
+- `TunnelManager.startHost()` already starts `devtunnel host <tunnelId>`, but lifecycle is minimal: detached process, error/exit logging, no readiness or multi-port modeling.
+- `AgentCommsEnvelopeSchema.body` is `unknown`; sealed-body shape is currently enforced in `peerAuth.ts`, not shared wire.
+- Cross-machine spawn approval is only a marker/helper today; there is no durable remote approval queue or UI/CLI approval path wired to execution.
+- `mailbox.appendMessage()` validates `sessionId` and `sender` against a bare safe ID regex; remote sender passed today is `relayedEnvelope.from.sessionId`, not composite machine/session.
+
+### Implementation Suggestions
+
+Use the existing happy-cli seam as the integration point. First wire `controlServer`/router `deliverRemote` to a real `DevTunnelsPeerTransport`: resolve Scope A target machine to a reachable `PeerTransportTarget`, seal/sign the envelope with local TOFU keys and pinned peer ECDH key, then POST through Dev Tunnels.
+
+For D-004, the cleanest compatible model is to make tunnel discovery port-aware before choosing co-located vs second port. If D-001 lands first, add an ingest-specific local port to machine state and ensure `devtunnel port create <tunnelId> --port-number <ingestPort> --protocol http`; `peerTransport` should choose the matching ingest `portNumber`. If D-001 has not landed, keep ingest co-located on the existing embedded happy-server tunnel port for the live-wiring task, but structure `PeerTransportTarget`/`OperatorTunnelPort` so switching to a second ingest port is a small follow-up.
+
+Automate §8 with a two-daemon harness that avoids real Microsoft network dependency for normal CI by injecting `CommandRunner`, `ProcessSpawner`, and `FetchLike`, while still exercising real `signEnvelope`/`sealBody`/`verifyEnvelopeSignature`/`openSealedBody` and filesystem peer pins/mailboxes. Keep a manual real-devtunnel smoke as a separate opt-in test or script because it requires two logged-in machines.
+
+For remote spawn, do not execute inside `/agent-comms/ingest` immediately. Append a durable approval request to the remote daemon/session first, require explicit operator approval, then call the existing `spawnSessionFromSession` path only after approval. This should reuse `requiresOperatorApproval()` and preserve the same signed/sealed envelope validation before any approval prompt is surfaced.
+

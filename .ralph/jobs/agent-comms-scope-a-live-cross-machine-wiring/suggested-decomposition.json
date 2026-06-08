@@ -1,0 +1,50 @@
+{
+  "clusters": [
+    {
+      "name": "docs-and-decision",
+      "stories": ["US-001"],
+      "phase": 1,
+      "dependsOn": [],
+      "fileOverlapEvidence": {
+        "sharedFiles": [],
+        "exclusiveFiles": ["plans/agent-comms-design.md"],
+        "risk": "low"
+      },
+      "executionModeRationale": "Touches only the design doc; can run in parallel with code stories without conflict."
+    },
+    {
+      "name": "outbound-core",
+      "stories": ["US-002", "US-003", "US-004"],
+      "phase": 2,
+      "dependsOn": [],
+      "fileOverlapEvidence": {
+        "sharedFiles": [
+          "packages/happy-cli/src/daemon/run.ts",
+          "packages/happy-cli/src/agentComms/peerTransport.ts"
+        ],
+        "exclusiveFiles": [
+          "packages/happy-cli/src/agentComms/peerResolver.ts",
+          "packages/happy-cli/src/daemon/controlServer.ts",
+          "packages/happy-cli/src/daemon/dualListenerBinding.ts"
+        ],
+        "risk": "high"
+      },
+      "executionModeRationale": "US-003 consumes US-002's resolver and both edit run.ts/peerTransport.ts; US-004 touches adjacent tunnel/daemon startup. Serialize within one member to avoid run.ts conflicts."
+    },
+    {
+      "name": "approval-and-harness",
+      "stories": ["US-005", "US-006"],
+      "phase": 3,
+      "dependsOn": ["outbound-core"],
+      "fileOverlapEvidence": {
+        "sharedFiles": ["packages/happy-cli/src/daemon/run.ts"],
+        "exclusiveFiles": [
+          "packages/happy-cli/src/codex/agentCommsBridge.ts",
+          "packages/happy-cli/src/agentComms/scopeA.integration.test.ts"
+        ],
+        "risk": "high"
+      },
+      "executionModeRationale": "US-005's gate lives in the same run.ts ingest closure US-003 edits, and US-006 exercises both the outbound (US-003) and gate (US-005) paths; all serial after outbound-core lands."
+    }
+  ]
+}
