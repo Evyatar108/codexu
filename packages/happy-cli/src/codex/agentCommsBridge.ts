@@ -32,9 +32,9 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { logger } from '@/ui/logger';
 import {
+    consumePending,
     ensureInbox,
     inboxDirFor,
-    markConsumed,
     readPending,
     type MailboxEntry,
 } from '@/agentComms/mailbox';
@@ -71,17 +71,13 @@ export interface AgentCommsBridgeHandle {
     dispose(): void;
 }
 
-// Per-session drain serialization so two concurrent resource reads cannot both
-// `readPending` before either `markConsumed` (which would double-deliver). Each
-// drain chains after the previous one for the same session.
-const drainChains = new Map<string, Promise<unknown>>();
-
 /**
- * Drain the durable inbox for `sessionId`: read the pending entries, hand them
- * to `build` to construct the caller's payload, and ONLY THEN advance the
- * cursor via `markConsumed` (post-drain consume, F-001 + F-003). Building the
- * payload BEFORE consuming means a payload-construction failure leaves the mail
- * unconsumed and recoverable. Drains for the same session are serialized.
+ * Drain the durable inbox for `sessionId` via the mailbox's serialized,
+ * cross-process-locked `consumePending` primitive: read the pending entries,
+ * hand them to `build`, then advance the cursor (post-drain consume, F-003) —
+ * all inside the same per-inbox critical section as the daemon's appends, so a
+ * concurrent send can never interleave and be lost (F-007). A `build` failure
+ * leaves the mail unconsumed.
  *
  * Drain-acknowledgment boundary: the strongest drain-success signal the MCP
  * resource-read API exposes is the read callback's return — there is no
@@ -94,20 +90,7 @@ export function drainAgentCommsInbox<T>(
     sessionId: string,
     build: (entries: MailboxEntry[]) => T,
 ): Promise<T> {
-    const prior = drainChains.get(sessionId) ?? Promise.resolve();
-    const next = prior
-        // A prior drain failure must not poison the chain for the next caller.
-        .catch(() => undefined)
-        .then(async () => {
-            const entries = await readPending(sessionId);
-            const result = build(entries); // build payload BEFORE consuming
-            if (entries.length > 0) {
-                await markConsumed(sessionId, entries[entries.length - 1].seq);
-            }
-            return result;
-        });
-    drainChains.set(sessionId, next.catch(() => undefined));
-    return next;
+    return consumePending(sessionId, build);
 }
 
 /**

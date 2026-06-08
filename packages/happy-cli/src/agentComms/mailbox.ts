@@ -160,9 +160,76 @@ export async function ensureInbox(sessionId: string): Promise<void> {
     await writeJsonAtomically(file, emptyState());
 }
 
-// Per-session append serialization chains (F-001). Module-level; one entry per
-// active inbox session id in this process.
-const appendChains = new Map<string, Promise<unknown>>();
+// Per-session in-process serialization chains — one promise chain per active
+// inbox session id in THIS process (F-001). Combined with the cross-process
+// lockfile below (F-007), every read-modify-write on an inbox (append, consume,
+// markConsumed) is serialized both within and across processes.
+const inboxChains = new Map<string, Promise<unknown>>();
+
+// Cross-process per-inbox lock (F-007). `writeJsonAtomically` makes each write
+// atomic but provides NO cross-process mutual exclusion, and an inbox has two
+// distinct writer processes: the daemon (`appendMessage`, via /agent-comms/send)
+// and the consumer's own stdio bridge (`consumePending` / `markConsumed`).
+// Without this guard a concurrent send + drain can interleave their
+// read-modify-write cycles and clobber the pending list (silent message loss),
+// which would violate the whole point of a durable mailbox. The lock is an
+// O_EXCL lockfile with bounded acquire retry + stale-holder takeover.
+const LOCK_ACQUIRE_TIMEOUT_MS = 5000;
+const LOCK_STALE_MS = 15000;
+
+function lockPathFor(sessionId: string): string {
+    return path.join(inboxDirFor(sessionId), 'mailbox.lock');
+}
+
+async function withInboxLock<T>(sessionId: string, fn: () => Promise<T>): Promise<T> {
+    await fs.mkdir(inboxDirFor(sessionId), { recursive: true });
+    const lockPath = lockPathFor(sessionId);
+    const deadline = Date.now() + LOCK_ACQUIRE_TIMEOUT_MS;
+    let handle: fs.FileHandle;
+    for (;;) {
+        try {
+            handle = await fs.open(lockPath, 'wx');
+            break;
+        } catch (error) {
+            if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error;
+            // Lock is held; take it over if the holder looks stale (crashed
+            // mid-critical-section), otherwise back off and retry.
+            try {
+                const st = await fs.stat(lockPath);
+                if (Date.now() - st.mtimeMs > LOCK_STALE_MS) {
+                    await fs.rm(lockPath, { force: true });
+                    continue;
+                }
+            } catch {
+                // Lock vanished between EEXIST and stat — retry immediately.
+                continue;
+            }
+            if (Date.now() > deadline) {
+                throw new Error(`mailbox: timed out acquiring inbox lock for ${sessionId}`);
+            }
+            await sleep(15 + Math.floor(Math.random() * 25));
+        }
+    }
+    try {
+        return await fn();
+    } finally {
+        // Close BEFORE unlink — Windows cannot remove a file with an open handle.
+        try { await handle.close(); } catch { /* already closed */ }
+        try { await fs.rm(lockPath, { force: true }); } catch { /* already gone */ }
+    }
+}
+
+/**
+ * Run `fn` under both the in-process per-session chain and the cross-process
+ * inbox lockfile, so an inbox read-modify-write can never interleave with
+ * another (in this or any other process).
+ */
+function runExclusive<T>(sessionId: string, fn: () => Promise<T>): Promise<T> {
+    const prior = inboxChains.get(sessionId) ?? Promise.resolve();
+    const run = prior.catch(() => undefined).then(() => withInboxLock(sessionId, fn));
+    inboxChains.set(sessionId, run.catch(() => undefined));
+    return run;
+}
 
 function randomId(): string {
     return `mb_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
@@ -171,51 +238,40 @@ function randomId(): string {
 export async function appendMessage(sessionId: string, body: unknown, sender: string): Promise<{ id: string; seq: number }> {
     assertSessionId(sessionId);
     assertSessionId(sender);
-    // Per-session append serialization (F-001). appendMessage is an async
-    // read-modify-write (readStateOrEmpty -> assign seq -> writeJsonAtomically).
-    // All appends to a given inbox flow through the single daemon process (the
-    // /agent-comms/send hop), so an in-process promise chain per sessionId is
-    // sufficient to prevent two concurrent appends from reading the same state,
-    // assigning the same seq, and having the later atomic write clobber the
-    // earlier pending list (a lost message).
-    const prior = appendChains.get(sessionId) ?? Promise.resolve();
-    const run = prior
-        .catch(() => undefined)
-        .then(async (): Promise<{ id: string; seq: number }> => {
-            await ensureInbox(sessionId);
-            const current = await readStateOrEmpty(sessionId);
-            const lastSeq = current.pending.length > 0
-                ? current.pending[current.pending.length - 1].seq
-                : current.cursor;
-            const entry: MailboxEntry = {
-                version: MAILBOX_ENVELOPE_VERSION,
-                seq: lastSeq + 1,
-                id: randomId(),
-                appendedAt: Date.now(),
-                sender,
-                body,
-            };
-            const next: MailboxState = {
-                version: MAILBOX_ENVELOPE_VERSION,
-                cursor: current.cursor,
-                pending: [...current.pending, entry],
-            };
-            await writeJsonAtomically(inboxPathFor(sessionId), next);
-            // History sidecar is GENUINELY best-effort (F-004): mailbox.json is
-            // already committed above and is the source of truth, so a sidecar
-            // failure must NOT fail the send — failing would invite duplicate
-            // retries against an inbox that already holds the message.
-            try {
-                await fs.appendFile(historyPathFor(sessionId), `${JSON.stringify(entry)}\n`, { mode: 0o600 });
-            } catch (err) {
-                logger.debug(`[mailbox] history sidecar append failed for ${sessionId} (mailbox.json is authoritative): ${String(err)}`);
-            }
-            return { id: entry.id, seq: entry.seq };
-        });
-    // Keep the chain alive even if this append rejected, so the next caller
-    // still serializes behind it rather than racing.
-    appendChains.set(sessionId, run.catch(() => undefined));
-    return run;
+    // Serialized per-inbox within AND across processes (F-001 + F-007), so two
+    // concurrent appends — or an append racing a consume in the bridge process —
+    // cannot read the same state, assign the same seq, and clobber each other.
+    return runExclusive(sessionId, async (): Promise<{ id: string; seq: number }> => {
+        await ensureInbox(sessionId);
+        const current = await readStateOrEmpty(sessionId);
+        const lastSeq = current.pending.length > 0
+            ? current.pending[current.pending.length - 1].seq
+            : current.cursor;
+        const entry: MailboxEntry = {
+            version: MAILBOX_ENVELOPE_VERSION,
+            seq: lastSeq + 1,
+            id: randomId(),
+            appendedAt: Date.now(),
+            sender,
+            body,
+        };
+        const next: MailboxState = {
+            version: MAILBOX_ENVELOPE_VERSION,
+            cursor: current.cursor,
+            pending: [...current.pending, entry],
+        };
+        await writeJsonAtomically(inboxPathFor(sessionId), next);
+        // History sidecar is GENUINELY best-effort (F-004): mailbox.json is
+        // already committed above and is the source of truth, so a sidecar
+        // failure must NOT fail the send — failing would invite duplicate
+        // retries against an inbox that already holds the message.
+        try {
+            await fs.appendFile(historyPathFor(sessionId), `${JSON.stringify(entry)}\n`, { mode: 0o600 });
+        } catch (err) {
+            logger.debug(`[mailbox] history sidecar append failed for ${sessionId} (mailbox.json is authoritative): ${String(err)}`);
+        }
+        return { id: entry.id, seq: entry.seq };
+    });
 }
 
 async function sleep(ms: number): Promise<void> {
@@ -251,12 +307,45 @@ export async function readPending(sessionId: string, sinceSeq?: number): Promise
 
 export async function markConsumed(sessionId: string, uptoSeq: number): Promise<void> {
     assertSessionId(sessionId);
-    const state = await readStateOrEmpty(sessionId);
-    const nextCursor = Math.max(state.cursor, uptoSeq);
-    const next: MailboxState = {
-        version: MAILBOX_ENVELOPE_VERSION,
-        cursor: nextCursor,
-        pending: state.pending.filter(e => e.seq > nextCursor),
-    };
-    await writeJsonAtomically(inboxPathFor(sessionId), next);
+    return runExclusive(sessionId, async () => {
+        const state = await readStateOrEmpty(sessionId);
+        const nextCursor = Math.max(state.cursor, uptoSeq);
+        const next: MailboxState = {
+            version: MAILBOX_ENVELOPE_VERSION,
+            cursor: nextCursor,
+            pending: state.pending.filter(e => e.seq > nextCursor),
+        };
+        await writeJsonAtomically(inboxPathFor(sessionId), next);
+    });
+}
+
+/**
+ * Atomically drain the inbox: read the pending entries, hand them to `build` to
+ * construct the caller's payload, and ONLY THEN advance the cursor (post-drain
+ * consume, F-003). The read, the `build`, and the cursor advance all run inside
+ * the same per-inbox critical section (in-process chain + cross-process lock,
+ * F-007), so a concurrent `appendMessage` cannot interleave and be lost. If
+ * `build` throws, the cursor is NOT advanced and the mail stays pending.
+ *
+ * This is the single consumption primitive: the bridge's resource-read callback
+ * delegates here rather than doing its own read+markConsumed, which would put a
+ * second writer (the bridge process) in contention with the daemon's appends.
+ */
+export async function consumePending<T>(sessionId: string, build: (entries: MailboxEntry[]) => T): Promise<T> {
+    assertSessionId(sessionId);
+    return runExclusive(sessionId, async () => {
+        const state = await readStateOrEmpty(sessionId);
+        const entries = state.pending;
+        const result = build(entries); // build payload BEFORE advancing the cursor
+        if (entries.length > 0) {
+            const uptoSeq = entries[entries.length - 1].seq;
+            const next: MailboxState = {
+                version: MAILBOX_ENVELOPE_VERSION,
+                cursor: Math.max(state.cursor, uptoSeq),
+                pending: [],
+            };
+            await writeJsonAtomically(inboxPathFor(sessionId), next);
+        }
+        return result;
+    });
 }
