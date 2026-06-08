@@ -1,0 +1,72 @@
+**Codebase Architecture**
+The relevant code lives in the `ai-developer-toolkit` submodule, mainly [plugins/crews](D:/harness-efforts/codexu/ai-developer-toolkit/plugins/crews). It is a dependency-light CommonJS Node plugin with no package-level `package.json`.
+
+Key structure:
+
+- [tools/crews.js](D:/harness-efforts/codexu/ai-developer-toolkit/plugins/crews/tools/crews.js): unified CLI dispatcher, `node tools/crews.js <subcommand>`.
+- [hooks/commands/registry.js](D:/harness-efforts/codexu/ai-developer-toolkit/plugins/crews/hooks/commands/registry.js): command registry.
+- [hooks/commands/runtime.js](D:/harness-efforts/codexu/ai-developer-toolkit/plugins/crews/hooks/commands/runtime.js): shared slash/CLI execution, auth, formatting.
+- [hooks/commands/*.js](D:/harness-efforts/codexu/ai-developer-toolkit/plugins/crews/hooks/commands): command modules export `name`, `usage`, `surfaces`, `parseArgs`, `handler`, `formatSuccess`.
+- [tools/lib/parse-crew-args.js](D:/harness-efforts/codexu/ai-developer-toolkit/plugins/crews/tools/lib/parse-crew-args.js): local flag parser.
+- [scripts/gen-skills.js](D:/harness-efforts/codexu/ai-developer-toolkit/plugins/crews/scripts/gen-skills.js): generates Claude skills under `skills/` and Copilot skills under `.copilot-plugin/copilot-skills/`.
+- Engine manifests:
+  - [plugins/crews/.claude-plugin/plugin.json](D:/harness-efforts/codexu/ai-developer-toolkit/plugins/crews/.claude-plugin/plugin.json)
+  - [plugins/crews/.github/plugin/plugin.json](D:/harness-efforts/codexu/ai-developer-toolkit/plugins/crews/.github/plugin/plugin.json)
+  - [plugins/crews/.codex-plugin/plugin.json](D:/harness-efforts/codexu/ai-developer-toolkit/plugins/crews/.codex-plugin/plugin.json)
+
+Tests are plain Node scripts run by [tests/run.js](D:/harness-efforts/codexu/ai-developer-toolkit/plugins/crews/tests/run.js). The harness sets temp `HOME`/`USERPROFILE`, which is ideal for fake engine-home tests.
+
+**Feature-Relevant Code**
+Natural integration point: add command modules under [hooks/commands](D:/harness-efforts/codexu/ai-developer-toolkit/plugins/crews/hooks/commands), register them in [registry.js](D:/harness-efforts/codexu/ai-developer-toolkit/plugins/crews/hooks/commands/registry.js), and implement reusable logic under a new `plugins/crews/lib/plugin-provisioning/`.
+
+Relevant existing patterns:
+
+- CLI-only structured JSON command: [hooks/commands/inbox.js](D:/harness-efforts/codexu/ai-developer-toolkit/plugins/crews/hooks/commands/inbox.js).
+- Dual slash/CLI command with JSON output: [hooks/commands/list-members.js](D:/harness-efforts/codexu/ai-developer-toolkit/plugins/crews/hooks/commands/list-members.js).
+- Operator/lead auth policies: [hooks/commands/auth-policies.js](D:/harness-efforts/codexu/ai-developer-toolkit/plugins/crews/hooks/commands/auth-policies.js).
+- Slash normalization:
+  - Claude `/crews:<cmd>` and Copilot/Codex `/crews-<cmd>` normalize in [hooks/user-prompt-submit.js](D:/harness-efforts/codexu/ai-developer-toolkit/plugins/crews/hooks/user-prompt-submit.js).
+  - Copilot shim: [hooks/copilot-user-prompt-submit.js](D:/harness-efforts/codexu/ai-developer-toolkit/plugins/crews/hooks/copilot-user-prompt-submit.js).
+  - Codex shim: [hooks/codex-user-prompt-submit.js](D:/harness-efforts/codexu/ai-developer-toolkit/plugins/crews/hooks/codex-user-prompt-submit.js).
+
+Marketplace/version data is at toolkit root:
+
+- [ai-developer-toolkit/.claude-plugin/marketplace.json](D:/harness-efforts/codexu/ai-developer-toolkit/.claude-plugin/marketplace.json)
+- [ai-developer-toolkit/.github/plugin/marketplace.json](D:/harness-efforts/codexu/ai-developer-toolkit/.github/plugin/marketplace.json)
+- [ai-developer-toolkit/.agents/plugins/marketplace.json](D:/harness-efforts/codexu/ai-developer-toolkit/.agents/plugins/marketplace.json)
+
+Version bump path already exists: [scripts/bump-version.js](D:/harness-efforts/codexu/ai-developer-toolkit/plugins/crews/scripts/bump-version.js) updates all three manifests, all three marketplace indexes, and [tests/version.test.js](D:/harness-efforts/codexu/ai-developer-toolkit/plugins/crews/tests/version.test.js).
+
+**Technical Constraints**
+Local CLI help confirms native plugin commands exist for all engines:
+
+- Codex: `codex plugin marketplace add <SOURCE>`, `codex plugin add <plugin>@<marketplace>`, `codex plugin list`.
+- Copilot: `copilot plugin marketplace add <source>`, `copilot plugin install <plugin>@<marketplace>`, `copilot plugin list`.
+- Claude: `claude plugin marketplace add <source> --scope user`, `claude plugin install <plugin>@<marketplace> --scope user`, `claude plugin list --json`, `claude plugin enable`.
+
+Codex must use local-source marketplaces only. The findings in [.ralph/investigations/codex-git-marketplace-snapshot-tmp-ephemeral/findings.md](D:/harness-efforts/codexu/.ralph/investigations/codex-git-marketplace-snapshot-tmp-ephemeral/findings.md) show git-source marketplaces can be corrupted by startup auto-upgrade. Refuse git/URL sources for Codex.
+
+Codex cache refresh behavior is proven in [.ralph/jobs/codex-engine-ralph-member-enablement/findings.md](D:/harness-efforts/codexu/.ralph/jobs/codex-engine-ralph-member-enablement/findings.md): rerunning `codex plugin add <p>@ai-developer-toolkit` recopies current source to `~/.codex/plugins/cache/<mp>/<plugin>/<version>/`, but a fresh Codex thread is required to see new skills/hooks.
+
+Current checkout note: crews source/manifests are already `3.13.0`, but local Codex currently lists `crews@ai-developer-toolkit` installed at `3.12.1`, so this exact cache-lag case exists.
+
+Crews’ `.codex-plugin/plugin.json` currently wires hooks only. Ralph’s Codex overlay has explicit `"skills": "./codex-skills/"`. If `/crews-install-plugin` must be Codex-skill discoverable, the plan needs a Codex skill-generation change; hook-intercepted `/crews-install-plugin` can still work through `UserPromptSubmit`.
+
+**Implementation Suggestions**
+Add `lib/plugin-provisioning/` with:
+
+- `index.js`: orchestrates `installPlugin()` and `listPlugins()`.
+- `version.js`: small tested semver comparator; crews has no reusable semver helper.
+- `source.js`: resolves default marketplace from explicit path, configured engine marketplace, or `<stateCwd>/ai-developer-toolkit`.
+- `adapters/codex.js`, `adapters/copilot.js`, `adapters/claude.js`: native CLI wrappers plus verification.
+
+Use injected command runners for tests. Avoid shell strings; use argv arrays with `spawnSync`/`execFileSync`.
+
+Add two command modules:
+
+- `install-plugin`: require `--engine`; parse `<plugin>`, `--version`, `--marketplace`, maybe `--exact`.
+- `list-plugins`: or `install-plugin --status`; separate command is simpler for operator use and skill text.
+
+Return JSON from CLI by default with a `summary` field. For installs/upgrades/enables, set `restartRequired: true` and `currentThreadUsable: false`; the human summary should say to stop/respawn the affected member, not perform it.
+
+Tests should cover source manifest parsing, no-op idempotency, Codex git-source refusal, Codex cache-lag refresh, Claude JSON list parsing, Copilot single-copy install-dir verification, restart verdicts, command registry shape, and generated skill drift via `node plugins/crews/scripts/gen-skills.js --check`.

@@ -1,0 +1,41 @@
+{
+  "clusters": [
+    {
+      "name": "crews-install-plugin",
+      "stories": ["US-001", "US-002", "US-003", "US-004", "US-005", "US-006", "US-007", "US-008"],
+      "phase": 1,
+      "dependsOn": [],
+      "fileOverlapEvidence": {
+        "sharedFiles": [
+          "plugins/crews/hooks/commands/registry.js",
+          "plugins/crews/skills/",
+          "plugins/crews/.copilot-plugin/copilot-skills/",
+          "plugins/crews/tests/command-registry-shape.test.js",
+          "plugins/crews/tests/command-args-parity.test.js",
+          "plugins/crews/.claude-plugin/plugin.json",
+          "plugins/crews/.github/plugin/plugin.json",
+          "plugins/crews/.codex-plugin/plugin.json",
+          ".claude-plugin/marketplace.json",
+          ".github/plugin/marketplace.json",
+          ".agents/plugins/marketplace.json",
+          "plugins/crews/tests/version.test.js",
+          "plugins/crews/CHANGELOG.md",
+          "plugins/crews/AGENTS.md"
+        ],
+        "exclusiveFiles": [
+          "plugins/crews/lib/plugin-provisioning/index.js",
+          "plugins/crews/lib/plugin-provisioning/version.js",
+          "plugins/crews/lib/plugin-provisioning/source.js",
+          "plugins/crews/lib/plugin-provisioning/command-runner.js",
+          "plugins/crews/lib/plugin-provisioning/adapters/codex.js",
+          "plugins/crews/lib/plugin-provisioning/adapters/copilot.js",
+          "plugins/crews/lib/plugin-provisioning/adapters/claude.js",
+          "plugins/crews/hooks/commands/install-plugin.js",
+          "plugins/crews/hooks/commands/list-plugins.js"
+        ],
+        "risk": "high"
+      },
+      "executionModeRationale": "All eight stories live in the same crews submodule and share load-bearing files: the command registry (US-006/US-007), the generated skills directory (US-007), and the six version stamps + CHANGELOG + AGENTS.md (US-008). Per the codexu 'same-plugin parallel = conflict; must serialize' rule, splitting into parallel Ralph jobs would produce conflicting writes. This is one serial cluster executed in US-001 -> US-008 dependency order (lib scaffold -> adapters -> orchestrator -> command modules -> ship prep) within a single Ralph job."
+    }
+  ]
+}

@@ -1,0 +1,40 @@
+I’ll read the referenced prompt file to pick up the task details, then proceed end-to-end.
+
+The prompt is long, so I’ll read it in sections and extract the actionable requirements.
+
+I have the plan context; I’m reading the final story/constraint section before reviewing it.
+
+I’ll verify the plan’s file/path claims against the current crews submodule before writing the review findings.I’ll cross-check the plan’s referenced crews files and conventions in the submodule before producing the review findings.
+
+I found the expected crews submodule; I’ll inspect the command, skill-generation, and engine-helper files the plan relies on.
+
+The plan’s main architecture matches the current registry/generation shape; I’m checking tests and helper APIs for any blocking gaps before finalizing the review.
+
+One possible naming/auth mismatch surfaced, so I’m verifying the plugin manifest names and generated skill behavior before classifying findings.
+
+### Feasibility
+
+[High] `buildVerdict` defines `currentThreadUsable = !restartRequired`, which makes failed installs report `currentThreadUsable: true` because `restartRequired` is false for `status:"failed"`. That contradicts the load-bearing restart/respawn verdict in the plan: a blocked member still cannot use a plugin after a failed install. Update the verdict semantics and AC8 to assert failed verdicts do not imply usability.
+
+[High] The plan does not specify a plugin-name-to-source-path mapping for marketplace plugins whose install name differs from their directory. `ralph-orchestration` lives at `plugins/ralph` (`plugins/ralph/.claude-plugin/plugin.json`), not `plugins/ralph-orchestration`, while AC7 requires `list-plugins` to report sourceVersion for `ralph-orchestration`. `source.js` should read the marketplace index `source.path` or carry an explicit mapping, and tests should cover this case.
+
+### Completeness
+
+[Medium] `install-plugin` auth is left as an open question, but the command is mutating global/user plugin state. Existing operator-trust commands such as `hooks/commands/spawn-member.js` use `cli auth: open` plus an explicit handler-side `--as <lead>` / `resolveActorRole(...) === 'lead'` check. The plan should make that mandatory and add command tests for non-lead or missing `--as` rejection.
+
+[Medium] The plan says the generated `/crews-install-plugin` skill “wraps the CLI,” but current generation behavior differs by engine: Claude generated skills can describe CLI fallback, while Copilot generated skills under `.copilot-plugin/copilot-skills/*/SKILL.md` are slash-intercept oriented and explicitly say not to rerun side effects. Clarify whether the required surface is slash-command execution only or actual Skill-tool CLI fallback, then adjust `scripts/gen-skills.js` or the wording/tests accordingly.
+
+### Ordering
+
+No issues found. The serial order library → adapters → orchestrator → commands → registry/skills → version/docs is appropriate.
+
+### Simplicity
+
+No issues found. A tested provisioning library with thin command modules matches existing crews command patterns.
+
+### Acceptance Criteria Quality
+
+[High] AC8 checks that failed installs are actionable, but does not assert `restartRequired/currentThreadUsable` semantics for failure. Add an assertion that failed installs do not claim the current thread is usable.
+
+[Medium] AC7 should explicitly cover the `ralph-orchestration` name/path mismatch by verifying sourceVersion is read from `plugins/ralph/.claude-plugin/plugin.json` through marketplace metadata, not from a naive `plugins/<plugin>` path.
+

@@ -1,0 +1,33 @@
+### Feasibility
+
+[High] The Claude adapter is underspecified for scope. `claude plugin list --json` can return multiple entries for the same plugin across `user` and `project` scopes; this machine already does for `crews@ai-developer-toolkit`. Installing `--scope user` may not fix a stale project-scoped plugin for the current workspace. Add an explicit scope/projectPath rule, include it in the verdict, and test duplicates. Relevant: [auth-policies.js](D:/harness-efforts/codexu/ai-developer-toolkit/plugins/crews/hooks/commands/auth-policies.js:48), `.claude/settings.json`.
+
+[High] The “Claude CLI absent” fallback cannot actually install or upgrade unless the expected cache already exists. Editing `~/.claude/settings.json` can enable a plugin, but it cannot populate `~/.claude/plugins/cache/...`. Either narrow fallback to “enable already-cached exact version” or explicitly allow a direct cache copy path.
+
+[Medium] Source-version lookup needs a marketplace-backed plugin-to-directory map. `ralph-orchestration` lives at `plugins/ralph`, not `plugins/ralph-orchestration`; a naive `<toolkit>/plugins/<plugin>` lookup will fail. Make `source.js` read the marketplace entry and resolve `source.path`.
+
+The plan’s correction that native Claude plugin CLI exists is adequate.
+
+### Completeness
+
+[Medium] Mutating command authorization is not covered by acceptance criteria. `cli auth: open` does not itself enforce `--as <lead>`; existing mutating commands do extra handler/context validation. Add tests that slash rejects non-leads and CLI validates `--as` or documented lead auto-resolve.
+
+[Medium] The plan omits a non-mutating live smoke for `list-plugins --engine <e>`. Since this feature wraps three external CLIs, unit tests with injected runners are necessary but not enough to catch output/shape drift.
+
+[Low] The generated-skill prose expectation is inconsistent. `gen-skills.js` currently gives active-lead/open-CLI commands a CLI fallback and `--as <lead>` callout, not “slash-only prose”. Relevant: [gen-skills.js](D:/harness-efforts/codexu/ai-developer-toolkit/plugins/crews/scripts/gen-skills.js:45).
+
+### Ordering
+
+[Low] Registry changes and `command-registry-shape.test.js` visible-command arrays must land in the same story. The plan says “registry-shape rows”, but the test has hard-coded `listCommands('member')` and `listCommands('lead')` arrays at [command-registry-shape.test.js](D:/harness-efforts/codexu/ai-developer-toolkit/plugins/crews/tests/command-registry-shape.test.js:59).
+
+### Simplicity
+
+No issues found. The library plus thin command modules fits the existing command registry and test style.
+
+### Acceptance Criteria Quality
+
+[High] AC6 should specify Claude scope behavior and duplicate-list handling. Without that, an implementation can pass unit tests while updating the wrong Claude install.
+
+[Medium] AC9 says dry-run status “reflects the would-be action” but does not define allowed dry-run status values. Pin expected values, e.g. `would-install`, `would-upgrade`, or reuse `installed/upgraded` with `dryRun:true`.
+
+[Medium] Add criteria for impossible `--exact` cases. If requested version differs from local source version and is not already installed, native local-source installers cannot materialize that exact older/newer version.

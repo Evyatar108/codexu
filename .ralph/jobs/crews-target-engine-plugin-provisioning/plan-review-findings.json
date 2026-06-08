@@ -1,0 +1,127 @@
+{
+  "planFile": "D:/harness-efforts/codexu/.ralph/jobs/.staging/20260608T052957Z-plan-provisioning-26f6ee72/draft-plan.md",
+  "repoDir": "D:/harness-efforts/codexu/ai-developer-toolkit/plugins/crews",
+  "reviewCycle": 1,
+  "findings": [
+    {
+      "id": "F-001",
+      "severity": "High",
+      "source": "consensus",
+      "category": "Feasibility",
+      "sectionRef": "Approach > Architecture (source.js) / Acceptance Criteria AC2,AC7",
+      "description": "Plugin install NAME differs from its source DIRECTORY for ralph-orchestration (name 'ralph-orchestration' -> dir 'plugins/ralph'), verified in .claude-plugin/marketplace.json. A naive <toolkit>/plugins/<name> source lookup fails for AC2 (codex install of ralph-orchestration) and AC7 (discovery sourceVersion). source.js must resolve the source dir via the marketplace index plugins[].source.",
+      "status": "fixed",
+      "resolution": "source.js now resolves plugin name -> source dir via the marketplace index plugins[].source; sourceVersion read from <resolved-source-dir>/.claude-plugin/plugin.json. Updated Architecture, In-Scope, listPlugins, AC2, AC7, and added a plugin-provisioning-source.test.js assertion for the ralph-orchestration case. Added a Risk Area.",
+      "relevantFiles": ["ai-developer-toolkit/.claude-plugin/marketplace.json", "plugins/crews/lib/plugin-provisioning/source.js"]
+    },
+    {
+      "id": "F-002",
+      "severity": "Medium",
+      "source": "consensus",
+      "category": "Completeness",
+      "sectionRef": "Acceptance Criteria / Open Questions (auth)",
+      "description": "install-plugin is mutating global/user plugin state but auth was left as an open question. cli auth:open does not by itself enforce --as; existing operator-trust commands (spawn-member/stop-member) add a handler-side --as <lead> / resolveActorRole === 'lead' check. Plan must make lead enforcement mandatory and test non-lead / missing-as rejection.",
+      "status": "fixed",
+      "resolution": "Auth promoted from Open Question to a decided In-Scope bullet with handler-side lead enforcement; added AC12 (slash rejects non-lead, CLI requires --as/in-session auto-resolve) and US-006 test note.",
+      "relevantFiles": ["plugins/crews/hooks/commands/spawn-member.js", "plugins/crews/hooks/commands/auth-policies.js"]
+    },
+    {
+      "id": "F-003",
+      "severity": "Medium",
+      "source": "copilot",
+      "category": "Completeness",
+      "sectionRef": "Open Questions (auth) / Overview (thin skill)",
+      "description": "Plan said operator-trust install-plugin makes its generated skill 'slash-only prose', and 'the thin skill wraps the CLI' was imprecise. gen-skills generation is slash-intercept-primary; the Skill-tool CLI fallback is Claude-side. Clarify the slash-intercept + CLI-fallback model.",
+      "status": "fixed",
+      "resolution": "Corrected the Open Questions auth note: verified against real skills/stop-member/SKILL.md that operator-trust commands DO get a CLI-wrapping body with an --as/in-session-auto-resolve callout (skillFallbackProse gates only on !cliEnabled || SLASH_ONLY). Clarified primary path = slash interception via UserPromptSubmit; skill body = post-run confirmation + (Claude) Skill-tool CLI fallback.",
+      "relevantFiles": ["plugins/crews/scripts/gen-skills.js", "plugins/crews/skills/stop-member/SKILL.md"]
+    },
+    {
+      "id": "F-004",
+      "severity": "High",
+      "source": "codex",
+      "category": "Feasibility",
+      "sectionRef": "Approach (claude.js) / Acceptance Criteria AC6",
+      "description": "claude plugin list --json can return the same plugin across BOTH user and project scopes (this box already shows a duplicate for crews@ai-developer-toolkit). Installing --scope user may not fix a stale project-scoped plugin. The claude adapter must specify scope handling + duplicate-list handling, and the verdict must carry the resolved scope.",
+      "status": "fixed",
+      "resolution": "claude adapter description + In-Scope + AC6 updated: default --scope user, key on the user-scope entry, surface a conflicting project-scoped entry, carry resolved scope in the verdict, unit-test the duplicate-list case. Added a Risk Area.",
+      "relevantFiles": ["plugins/crews/lib/plugin-provisioning/adapters/claude.js"]
+    },
+    {
+      "id": "F-005",
+      "severity": "High",
+      "source": "codex",
+      "category": "Feasibility",
+      "sectionRef": "Approach (claude.js) / Acceptance Criteria AC6",
+      "description": "The 'claude CLI absent' settings.json fallback cannot actually install/upgrade: editing ~/.claude/settings.json enables a plugin but cannot populate ~/.claude/plugins/cache. The fallback must be narrowed to 'enable an already-cached version' or explicitly fail.",
+      "status": "fixed",
+      "resolution": "Narrowed the claude settings.json fallback to ENABLE-an-already-cached-version only; when the version is not cached and the CLI is absent, the adapter returns status:failed with an actionable 'claude CLI required to install/populate cache' message. AC6 covers enable-from-cache and the no-cache failure.",
+      "relevantFiles": ["plugins/crews/lib/plugin-provisioning/adapters/claude.js"]
+    },
+    {
+      "id": "F-006",
+      "severity": "Medium",
+      "source": "codex",
+      "category": "Criteria Quality",
+      "sectionRef": "Scope / Acceptance Criteria",
+      "description": "A local-source marketplace exposes exactly one version (the checkout's). --exact <v> where v differs from sourceVersion and is not already installed cannot be satisfied; the plan lacked criteria for this impossible case.",
+      "status": "fixed",
+      "resolution": "Added an In-Scope bullet and AC11: --exact mismatch (not already installed) returns status:failed with an actionable message naming sourceVersion; no mutating call made.",
+      "relevantFiles": ["plugins/crews/lib/plugin-provisioning/index.js"]
+    },
+    {
+      "id": "F-007",
+      "severity": "Medium",
+      "source": "codex",
+      "category": "Criteria Quality",
+      "sectionRef": "Acceptance Criteria AC9",
+      "description": "AC9 said dry-run status 'reflects the would-be action' without defining allowed values.",
+      "status": "fixed",
+      "resolution": "AC9 pins the dry-run verdict: reuse the status enum (no-op/installed/upgraded) for the would-be action + dryRun:true, restartRequired/currentThreadUsable computed as if applied, summary phrased 'would install/upgrade'; zero mutating calls.",
+      "relevantFiles": ["plugins/crews/hooks/commands/install-plugin.js"]
+    },
+    {
+      "id": "F-008",
+      "severity": "Medium",
+      "source": "codex",
+      "category": "Completeness",
+      "sectionRef": "Approach / Acceptance Criteria",
+      "description": "Unit tests with injected runners cannot catch native-CLI output/shape drift; a non-mutating live smoke for list-plugins / install --dry-run was missing.",
+      "status": "fixed",
+      "resolution": "Added AC13: a CREWS_PROVISIONING_LIVE=1-gated smoke that runs list-plugins + install --dry-run against the real engine CLI and asserts the JSON verdict shape (skipped by default). Folded into US-007.",
+      "relevantFiles": ["plugins/crews/tests/run.js"]
+    },
+    {
+      "id": "F-009",
+      "severity": "Low",
+      "source": "codex",
+      "category": "Ordering",
+      "description": "command-registry-shape.test.js has hard-coded listCommands('member')/('lead') arrays; the registry change and these test arrays must land in the same story.",
+      "status": "fixed",
+      "resolution": "US-006/US-007 notes now explicitly require updating the hard-coded listCommands arrays in the same story as the registry change.",
+      "relevantFiles": ["plugins/crews/tests/command-registry-shape.test.js"]
+    },
+    {
+      "id": "F-010",
+      "severity": "High",
+      "source": "copilot",
+      "category": "Feasibility",
+      "sectionRef": "Approach > buildVerdict / Acceptance Criteria AC8",
+      "description": "buildVerdict defined currentThreadUsable = !restartRequired, so a failed install (restartRequired false) would report currentThreadUsable true — contradicting the load-bearing restart verdict (a blocked member still cannot use the plugin after a failed install).",
+      "status": "fixed",
+      "resolution": "Replaced the naive formula with a per-status table: no-op (false/true), installed|upgraded (true/false), failed (false / pre-action-installed-and-enabled-only). AC8 now asserts a failed install never claims currentThreadUsable when the plugin was not already usable.",
+      "relevantFiles": ["plugins/crews/lib/plugin-provisioning/index.js"]
+    },
+    {
+      "id": "F-011",
+      "severity": "High",
+      "source": "claude",
+      "category": "Completeness",
+      "sectionRef": "Overview / Open Questions (auth)",
+      "description": "Claude reviewer claimed an operator-trust install-plugin would generate a slash-only skill with no CLI-wrapping body, so the 'thin skill that wraps the CLI' would not materialize.",
+      "status": "wont_fix",
+      "resolution": "FALSE POSITIVE. Verified against the real skills/stop-member/SKILL.md (an operator-trust command): gen-skills emits a CLI-wrapping body 'Run the CLI mirror via Bash ... node $CREWS_BIN stop-member' plus an --as/in-session-auto-resolve callout. skillFallbackProse gates only on (!cliEnabled || SLASH_ONLY_SKILL_COMMANDS), NOT on requiresLeadAs. The codex lens independently confirmed this (its Low finding). The plan's framing holds; the Open Questions note was corrected for clarity (see F-003).",
+      "relevantFiles": ["plugins/crews/scripts/gen-skills.js", "plugins/crews/skills/stop-member/SKILL.md"]
+    }
+  ]
+}
