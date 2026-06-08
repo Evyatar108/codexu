@@ -5422,6 +5422,10 @@
         {
           "className": "cmd-ok",
           "html": "Plan shipped 2026-06-08 @ ed4cc895 (topic ralph/plan-ralph-codex-iteration-engine-runaway-spawn-guard). 6 stories serial; 8 Phase-4 findings fixed (1 Crit + 4 High + 3 Med), re-review clean. SPIKE-GATED GO (US-001 mandatory FIRST): codex exec --disable multi_agent (= -c features.multi_agent=false) suppresses v1 Collab spawn tools per codex-rs source; NO fork patch needed. Key reviewer corrections: max_concurrent_threads_per_session caps ONLY v2 (not v1) so escalation ladder is disable->fork-patch, no v1 cap; codex sub-agents are internal threads not OS children so D-003 child-count guard is non-viable. NO-GO -> STOP at US-001, separate codex-targeted plan. D-002 adopt copilot as documented impl iterationEngine (policy/docs)."
+        },
+        {
+          "className": "cmd-ok",
+          "html": "Topology VERIFIED (investigation @ b3615452, .ralph/investigations/codex-recursive-subagent-spawn/findings.md): codex 0.135 sub-agent spawn is DEPTH-LIMITED-TO-1 for BOTH v1 Collab and v2 MultiAgentV2 in our fork (breadth-only, like Claude Code Task tool). Decisive gate: tools/src/tool_config.rs:223-228 SANDBOX PATCH sets include_spawn_agent=false for any SessionSource::SubAgent(_); handlers reject again at multi_agents/spawn.rs:57-61 + multi_agents_v2/spawn.rs:59-63. NOTE upstream v2 has NO depth cap (fork patch is the only guard). CORRECTION: the US-002 \"runaway\" was NOT recursive grandchildren — it was breadth fan-out + prompt-inheritance re-entry (children inherited the full prompt, tried to re-run the protocol, got rejected by the subagent gate) + a separate iteration-engine hang. disable multi_agent remains the correct fix (eliminates breadth fan-out AND the wasteful rejected re-entry attempts)."
         }
       ]
     },
