@@ -436,6 +436,34 @@ The lead's value is in WHICH tasks run, in WHAT order, with WHICH seeds and
 disjoint surfaces — not in personally answering the technical question. When
 unsure whether something is lead-work or member-work, default to member-work.
 
+### Lead takeover + the `resume-crew` footgun (codified 2026-06-08)
+
+A fresh bookkeeper session does NOT inherit the lead binding automatically —
+the lead manifest still points at the PREVIOUS session id (the one in the
+handoff). Re-bind it EARLY, before arming:
+
+- **Correct lead-takeover mechanism:** `assign-role lead --crew ralph-pipeline
+  --name overview-bookkeeper`. It reads the session id from
+  `COPILOT_AGENT_SESSION_ID` / `CLAUDE_CODE_SESSION_ID` and the state-cwd from
+  the **`CREWS_STATE_CWD` env var** — it REJECTS a `--cwd` flag. (Flag surfaces
+  differ per subcommand: `list-members` uses `--cwd`; `arm` uses `--cwd` +
+  `--session-id`; `assign-role` uses env only. Check `<sub> --help` first.)
+- After `assign-role lead`, verify the lead manifest `sessionId` equals the
+  current session, THEN arm. `arm` fails `session-mismatch` until the rebind.
+
+- **NEVER use `resume-crew --confirm` to re-claim the lead — it does NOT
+  rebind the lead, and it is a mass-respawn footgun.** Per crews README L212,
+  `resume-crew --confirm` *"respawns [every dead member] as fresh sessions."*
+  On a long-lived crew like `ralph-pipeline` the roster accumulates HUNDREDS of
+  historical dead members (273 dead / 298 total as of 2026-06-08), and
+  `--confirm` relaunches all non-cleared ones at once — each a new wt.exe tab.
+  On 2026-06-08 this froze the operator's PC and forced a window-kill
+  (post-mortem: `.ralph/handoffs/2026-06-08-resume-crew-mass-respawn-postmortem.md`).
+  The `--dry-run` "targets" list IS the respawn set — a long list means a long
+  respawn, not a cleanup preview. Treat `resume-crew` as effectively-banned on
+  `ralph-pipeline` until the roster is pruned. To recover ONE member, spawn it
+  fresh by name instead.
+
 ### Branch + worktree discipline
 
 - **The lead's primary working dir (`D:/harness-efforts/codexu`) STAYS on
