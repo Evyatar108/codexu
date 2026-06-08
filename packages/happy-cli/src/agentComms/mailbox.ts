@@ -197,7 +197,19 @@ async function withInboxLock<T>(sessionId: string, fn: () => Promise<T>): Promis
             try {
                 const st = await fs.stat(lockPath);
                 if (Date.now() - st.mtimeMs > LOCK_STALE_MS) {
-                    await fs.rm(lockPath, { force: true });
+                    // Atomically CLAIM the stale lock before deleting it: rename is
+                    // atomic, so only ONE contender can win the takeover of this
+                    // exact file. The loser gets ENOENT and re-loops, then contends
+                    // for the fresh lock via O_EXCL. This prevents two processes
+                    // from both deciding "stale", both deleting, and both entering
+                    // the critical section (which would re-open the F-007 race).
+                    const tombstone = `${lockPath}.stale.${process.pid}.${Math.random().toString(36).slice(2, 10)}`;
+                    try {
+                        await fs.rename(lockPath, tombstone);
+                        await fs.rm(tombstone, { force: true });
+                    } catch {
+                        // Another contender claimed the stale lock first — just retry.
+                    }
                     continue;
                 }
             } catch {

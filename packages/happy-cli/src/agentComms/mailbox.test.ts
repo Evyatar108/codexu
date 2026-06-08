@@ -246,6 +246,28 @@ if (role === 'appender') {
     }, 25000);
 });
 
+describe('mailbox stale-lock takeover (F-008)', () => {
+    it('atomically takes over a stale lock left by a crashed holder and still appends', async () => {
+        const sid = 'sess_stale';
+        await mailbox.ensureInbox(sid);
+        // Simulate a holder that crashed mid-critical-section: a leftover lock
+        // file with an mtime older than LOCK_STALE_MS (15s).
+        const lockPath = path.join(mailbox.inboxDirFor(sid), 'mailbox.lock');
+        fsSync.writeFileSync(lockPath, '99999');
+        const sixtySecondsAgo = Date.now() / 1000 - 60;
+        fsSync.utimesSync(lockPath, sixtySecondsAgo, sixtySecondsAgo);
+
+        // appendMessage must take over the stale lock (via atomic rename) and succeed.
+        const r = await mailbox.appendMessage(sid, { took: 'over' }, 'sess_sender');
+        expect(r.seq).toBe(1);
+        const pending = await mailbox.readPending(sid);
+        expect(pending).toHaveLength(1);
+        expect(pending[0].body).toEqual({ took: 'over' });
+        // The lock is released (cleaned up) after the critical section completes.
+        expect(fsSync.existsSync(lockPath)).toBe(false);
+    });
+});
+
 describe('mailbox version envelope (Northstar rule 1)', () => {
     it('readPending throws a typed error when an entry version is greater than max', async () => {
         const sid = 'sess_version';
