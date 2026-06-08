@@ -1,37 +1,44 @@
 {
   "brainstormName": "codex-raw-session-happy-daemon-autoconnect",
   "overviewTaskId": "codex-raw-session-happy-daemon-autoconnect",
-  "idea": "Make a RAW codex invocation (user types `codex` directly, NOT `happy codex`) auto-connect to Happy the same way `happy codex` does -- become a discoverable, mobile-controllable, synced session on the Happy session tree instead of being permanently invisible. Resolve first: does v1 mean full remote control or discoverability+read-only sync? Verdict on whether a codex fork patch is needed.",
+  "idea": "RE-TARGETED (operator pivot 2026-06-08): make a raw `codex` invocation of OUR FORK binary behave EXACTLY like `happy codex` -- full mobile remote control (turns, approvals, interrupt/stop) + discoverable + synced -- by INTEGRATING the Happy client NATIVELY INTO THE FORK, ideally with NO happy-cli runtime dependency (codex-rs -> happy-server directly). Not read-only, not a PATH alias. The prior read-only mirror (D-001 @ e27720bc) is demoted to the degraded fallback only.",
   "availableLenses": ["codex", "copilot", "devils-advocate"],
   "missingLenses": [],
   "candidateDirections": [
     {
       "id": "D-001",
-      "name": "SessionStart-hook -> daemon-owned rollout adoption -> encrypted read-only unmanaged mirror (with explicit managed-successor handoff)",
-      "summary": "Global codex SessionStart command hook hands the daemon {session_id, transcript_path, cwd}; the daemon (holding Happy keys) mints an E2EE unmanaged session and tails the named rollout .jsonl read-only, with a 'continue in Happy' handoff that spawns a managed successor -- zero codex fork patch.",
+      "name": "B -- Native Rust Happy session client overlay crate (codex-happy), session-scope first",
+      "summary": "New conflict-free `codex/codex-rs-overlay/codex-happy` crate ports the Happy PROTOCOL client to Rust (TweetNaCl-equivalent crypto + Socket.IO /v1/updates + happy-wire session schemas + getOrCreateSession + GitHub device-flow/Dev-Tunnels auth), driven by a BOUNDED, registered, rebase-gated upstream-canonical control seam in tui (AppEvent/AppCommand) + core/session (event fan-out from the single-consumer mpsc) so one raw `codex` self-connects with NO happy-cli runtime process. NOT overlay-only and NOT launcher-wired (launcher execs codex-core then exits). Effort XL.",
       "contributingLenses": ["codex", "copilot", "devils-advocate"]
     },
     {
       "id": "D-002",
-      "name": "Opt-in PATH shim: codex wrapper delegates plain interactive starts to happy codex",
-      "summary": "For users who truly want full mobile control, intercept `codex` before launch and relaunch through `happy codex` (existing app-server + loopback ws-auth path). Full fidelity, still zero codex fork patch, but changes local UX and must pass through all subcommands untouched -- opt-in + reversible, deferred behind D-001.",
-      "contributingLenses": ["codex", "copilot", "devils-advocate"]
+      "name": "D -- Hybrid: native in-fork control seam + retained happy-cli daemon owns Happy wire/keys/machine scope",
+      "summary": "Reuse the SAME bounded tui/core control seam as B, but the Happy protocol/E2EE/Socket.IO/machine-RPCs stay in the proven TypeScript happy-cli daemon, reached over a thin local IPC. Avoids the second crypto/Socket.IO/wire implementation and keeps Happy egress out of the audited codex-core, at the cost of a happy-cli runtime dependency the operator wants to remove. The principled fallback if the native-Rust protocol round-trip proves too costly; also the natural home for machine-level scope. Effort L.",
+      "contributingLenses": ["devils-advocate", "copilot", "codex"]
     },
     {
       "id": "D-003",
-      "name": "Codex fork patch: raw TUI emits/adopts a Happy control lifecycle",
-      "summary": "Only path to true same-process bidirectional control of the running native TUI. XL; likely needs broad upstream-canonical edits against the minimize-conflict-surface tenet, and risks the unvalidated app-server-multiplexing + one-server-per-cwd invariants. Rejected for v1.",
+      "name": "A -- Launcher-internal delegation: codex.exe re-execs into the existing `happy codex` path",
+      "summary": "Inside codex.exe (not a user PATH alias), detect Happy availability and re-exec into `happy codex`, reusing runCodex/CodexAppServerClient/ApiSessionClient verbatim for exact parity. Lowest engineering risk but KEEPS the happy-cli runtime dependency and preserves the very app-server JSON-RPC driver layer the operator wants to collapse. Keep only as a safety valve / transitional fallback, with recursion + double-wrap guards. Effort M.",
       "contributingLenses": ["codex", "copilot", "devils-advocate"]
+    },
+    {
+      "id": "D-004",
+      "name": "C -- Fork-bundled thin Happy bridge sidecar auto-started by codex",
+      "summary": "The fork bundles and auto-starts a minimal Happy-protocol bridge process; codex-rs talks to it over a small local IPC. Middle ground between B (no extra process, full Rust port) and A/D (full happy-cli). Risk: the bridge accretes key ownership, Socket.IO state, RPC routing and lifecycle until it is a second happy-cli daemon in practice, undermining the operator's direct-to-happy-server goal. Effort L.",
+      "contributingLenses": ["copilot", "codex", "devils-advocate"]
     }
   ],
   "recommendedDirection": "D-001",
   "questionsForSynthesis": [
-    "What exact user promise should v1 make: 'visible' / 'live history mirror' / 'continue in managed Happy' -- and is same-process remote control explicitly out of scope for v1?",
-    "Spike first: does codex SessionStart supply a non-null, per-TUI-unique, restart-stable transcript_path for a raw interactive start (new/resume/compact/parallel-same-cwd)?",
-    "Where is the durable dedup identity: codex session_id + rollout line ordinal, rollout item id, or a Happy-maintained sidecar offset file? (must avoid randomUUID localId duplicates)",
-    "Daemon-down story: hook-only best-effort vs cold-start scan of ~/.codex/sessions vs both; which is authoritative on disagreement?",
-    "Should unmanaged raw-codex rows have a distinct read-only UI state with send/approval/interrupt disabled until an explicit managed handoff?",
-    "Is a happy-cli-installed global codex hook an acceptable consent boundary, or must 'raw codex' mean zero prior Happy configuration?",
-    "Is the loopback control-port trust model (127.0.0.1 binding as the boundary, no X-Loopback-Capability gate) acceptable for a new raw-registration route?"
+    "v1 scope: stop at SESSION-LEVEL parity (tree visibility + encrypted sync + mobile turns + live config + approvals + interrupt/stop) and DEFER machine-level (machine presence, spawn-from-mobile, fork-into-worktree, keepalive)? All three lenses recommend yes.",
+    "PHASE-0 SPIKE (gate before committing to B's full port): can a bounded upstream-canonical seam expose a complete turn/approval/interrupt/stop tap+inject over the TUI AppEvent/AppCommand layer in few enough patched lines to honor the minimize-conflict-surface tenet (registered in codex docs/implementation/patch-surface.md)? And can a Rust client round-trip POST /v1/sessions (dataKey+legacy), /v3 message send, Socket.IO /v1/updates, and metadata/state CAS against a dev happy-server with NO happy-server protocol changes?",
+    "E2EE key ownership: is it acceptable for the integrated `codex` process to read ~/.happy credentials and own per-session data keys, REPLACING the prior daemon-sole-holder model for this path? (codex child already inherits all HAPPY_* env today, same trust boundary -- but this moves key material into the network-audited binary.)",
+    "NETWORK-AUDIT surface: B/C add a new happy-server + Dev-Tunnels egress path INSIDE the audited codex-core boundary (scripts/audit_network_calls.sh + runtime_audit.ps1). New allowlist host + patch-surface registration + justification required. Is expanding the fork's audited egress acceptable, or is that itself a reason to keep Happy egress in a separate process (D)?",
+    "Idempotency: disable native autoconnect when HAPPY_CURRENT_SESSION_ID is present OR the subcommand is `app-server` so an explicit `happy codex` (or its spawned app-server child) does not double-wrap / create duplicate sessions.",
+    "Graceful fallback: no creds / not authed / offline -> silent vanilla `codex` within a strict startup-latency budget; optionally fall through to the prior D-001 read-only daemon mirror as a lesser degraded mode when a daemon is present.",
+    "Opt-in/config: build-time default-on with a kill switch (~/.codex-copilot/config.toml + env), since this is OUR build; mirror the existing launcher-config pattern (style_user_messages / auto_load_claude_md).",
+    "Maintenance: is eliminating the happy-cli runtime dependency worth maintaining a SECOND protocol implementation (Rust Socket.IO + NaCl-compatible crypto + AES-GCM dataKey + Ed25519 auth + happy-wire schemas + metadata CAS + reconnect) in parallel with the TypeScript @slopus/happy-wire as both evolve?"
   ]
 }
