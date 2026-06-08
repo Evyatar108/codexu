@@ -41,6 +41,22 @@ Before editing, run `git status` and confirm the current branch is the
 bookkeeping branch you intend to commit on. If you are doing parent-repo
 bookkeeping, `main` should usually be checked out.
 
+## Orchestrate, don't investigate
+
+This skill is bookkeeping/orchestration only. The bookkeeper-lead curates the
+backlog, chooses the batch, drives members, and records ship deltas — it does
+NOT personally perform technical research, source/codebase investigation,
+external-repo research, feasibility analysis, or coding. When a backlog item
+needs "research what's needed to support X" or "settle how Y works," that is a
+TASK to assign to a member (a `/brainstorm-with-ralph` member for fuzzy
+scoping, or a focused read-only investigation member for a narrow factual
+claim), never something the lead does itself — not even via its own `explore` /
+`research` / `general-purpose` subagents or direct grep/view/web search. The
+lead's own tool use is limited to orchestration housekeeping (locating a
+data.json edit anchor, confirming a commit landed, rendering the page). Full
+boundary + delegation recipes: codexu `AGENTS.md` >
+"Bookkeeper operating invariants" > "Lead orchestrates; members do the work."
+
 ## Source Files
 
 - `.ralph-overview/data.json` - primary file for procedures A-F. It is

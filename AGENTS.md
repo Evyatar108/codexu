@@ -172,6 +172,14 @@ current.
 | Commit + push the bookkeeping update | `chore(overview): update data for shipped tasks` |
 | Stop the member cleanly | `/crews:stop-member <name>` |
 
+> **Scope guardrail (codified 2026-06-08):** every duty above is
+> *orchestration* — curate the backlog, choose the batch, drive members,
+> bookkeep ships. The lead does NOT personally do research, source
+> investigation, feasibility analysis, or coding (not even via its own
+> `explore` / `research` subagents). That is member work. See
+> **"Bookkeeper operating invariants > Lead orchestrates; members do the
+> work"** below for the full boundary and the delegation recipes.
+
 ### Phase discipline - state machine + one member per ralph phase
 
 Each ralph phase gets its OWN fresh member. Never chain brainstorm -> plan ->
@@ -382,6 +390,51 @@ and the `ralph-pipeline` crew. Previously they lived as `.agents/memory/`
 auto-memory entries; they're now inlined here so every agent (Claude, Copilot,
 others) sees them on session start through the same channel as the rest of
 this doc.
+
+### Lead orchestrates; members do the work (codified 2026-06-08)
+
+**The bookkeeper-lead's job is to ORCHESTRATE tasks and members — NOT to do
+the work itself.** "The work" includes technical research, source/codebase
+investigation, external-repo research, feasibility analysis, scoping
+deep-dives, and any coding. All of that is MEMBER work. This holds even when
+the lead could technically do it faster in-session — doing it itself is the
+anti-pattern the operator corrected on 2026-06-08: *"this research is not
+something you should do, it should be a task that we assign to a member; your
+job as the bookkeeper is to orchestrate the tasks and members."*
+
+The boundary, concretely:
+
+| Lead DOES (hands-on, in-session) | Lead DELEGATES to a member |
+|---|---|
+| Curate `.ralph-overview/data.json` (file backlog items, write prompts/cards, flip `lifecycle`, add `shipManifest`) | Research "what would it take to support X" / "how does Y work" |
+| Pick the next batch (`overview_parallel_ready_tasks` + snapshot) | Investigate fork/codex/plugin internals to settle a claim |
+| Spawn / stop / message members; review mail; relay operator decisions | Read external repos to scope an integration |
+| Ship-ceremony git ops (FF-merge, push, worktree/branch cleanup) | Feasibility / GO-NO-GO spikes |
+| Light bookkeeping verification (JSON.parse guard, `git status`, MCP queries, confirm a commit landed) | Brainstorm / plan / implement (the ralph phases) |
+
+**This explicitly forbids the lead from using its OWN `task` subagents
+(`explore`, `research`, `general-purpose`, `rubber-duck`) or its own direct
+grep / view / web_fetch / web_search to perform investigation or research
+work.** Those tools are for the lead's OWN orchestration housekeeping only
+(e.g., locating a data.json edit anchor, confirming a ship landed on
+`origin/main`, finding the line to edit in this doc). The moment a question
+requires understanding how something works or what a change would entail, the
+answer is "file a task and spawn a member," not "let me look into it."
+
+How to delegate research, by shape:
+- **Fuzzy "what's needed to support X" / "is X feasible" ->** file the task
+  with a `prompts.brainstorm` seed and spawn a `/brainstorm-with-ralph` member
+  (heavy multi-lens -> `--engine copilot`). The brainstorm member does the
+  research and produces a recommended direction + conflict-surface analysis.
+- **Narrow "settle this factual claim about fork/codex/a plugin" ->** spawn a
+  focused read-only investigation member (cite file:line, commit findings under
+  `.ralph/investigations/<topic>/`). See the "Settle a load-bearing factual
+  claim" bullet below.
+- **Concrete scoping with known files/edits ->** `/plan-with-ralph`.
+
+The lead's value is in WHICH tasks run, in WHAT order, with WHICH seeds and
+disjoint surfaces — not in personally answering the technical question. When
+unsure whether something is lead-work or member-work, default to member-work.
 
 ### Branch + worktree discipline
 
@@ -706,6 +759,13 @@ this doc.
   a focused read-only investigation (cite file:line, commit findings under
   `.ralph/investigations/<topic>/`) rather than reasoning from memory. The
   operator will (rightly) challenge unverified internal-behavior claims.
+  **The investigation is a SPAWNED MEMBER — not the lead's own grep / view /
+  `explore` / `research` subagent.** Settling the claim against source is
+  member work (see "Lead orchestrates; members do the work" above); the lead's
+  part is framing the question, spawning the read-only member, and recording
+  the verdict in the task. A read-only investigation member should run on a
+  pre/post working-tree snapshot+revert guard (tool-denial alone is not an
+  airtight read-only sandbox on Copilot CLI).
 
 - **Update `.ralph-overview/data.json` the same turn a task ships.** When a
   ralph member terminates clean (`terminal:complete`) and the work is on
