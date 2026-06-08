@@ -5477,6 +5477,25 @@
           }
         ]
       }
+    },
+    {
+      "id": "crews-install-plugin-installed-cli-toolkit-root",
+      "scope": "crews",
+      "lifecycle": "tracked",
+      "status": "active",
+      "lastTouchedAt": "2026-06-08",
+      "kanbanCards": [
+        {
+          "className": "cmd-warn",
+          "html": "Filed 2026-06-08 by bookkeeper (found via LIVE DOGFOOD of the just-shipped v3.14.0 provisioner). install-plugin / list-plugins FAIL when invoked via the INSTALLED Copilot CLI (the normal lead path): lib/plugin-provisioning/source.js resolveToolkitRoot() walks up from getPluginRoot() then falls back to getPluginRoot()/../.., which under ~/.copilot/installed-plugins/ai-developer-toolkit/crews resolves to ~/.copilot/installed-plugins/ (no marketplace index) -> ENOENT on ~/.copilot/installed-plugins/.claude-plugin/marketplace.json. --marketplace does NOT override (the index load uses toolkitRoot, not --marketplace). Source-CLI invocation works (../.. = real toolkit root). Fix: thread the consumer --cwd workspace (<cwd>/ai-developer-toolkit) into resolveToolkitRoot + honor explicit --marketplace localpath for the index load; add a regression test that exercises the installed-CLI layout (v3.14.0 tests inject toolkitRoot directly and missed it). Ships crews v3.14.1."
+        }
+      ],
+      "command": {
+        "name": "crews-install-plugin-installed-cli-toolkit-root",
+        "prompts": {
+          "impl": "Fix lib/plugin-provisioning/source.js resolveToolkitRoot() to resolve the toolkit root when invoked via the installed Copilot CLI. PRIMARY: thread the command --cwd workspace into resolveToolkitRoot and try <cwd>/ai-developer-toolkit (and cwd) in the walk-up before the getPluginRoot()/../.. fallback; wire install-plugin.js + list-plugins.js to pass the context cwd into the provisioning lib opts. SECONDARY: honor an explicit --marketplace <localpath> as a toolkit-root override for the INDEX load too (keep the codex git/URL refusal). Add a regression test simulating the installed-CLI layout (getPluginRoot with no marketplace at ../.., cwd pointing at a tmp toolkit) asserting resolution succeeds. 6 version stamps -> 3.14.1 + CHANGELOG. SUBMODULE [ai-developer-toolkit/plugins/crews]; submodule worktree; lead ships."
+        }
+      }
     }
   ],
   "phaseTree": [
