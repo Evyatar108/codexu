@@ -17,7 +17,7 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import { z } from 'zod';
 import { registerAgentCommsBridge, type AgentCommsBridgeHandle } from './agentCommsBridge';
-import { sendAgentMessage } from '@/daemon/controlClient';
+import { sendAgentMessage, spawnDaemonSessionFromSession } from '@/daemon/controlClient';
 import { HAPPY_CURRENT_SESSION_ID } from '@/utils/envNames';
 
 function parseArgs(argv: string[]): { url: string | null } {
@@ -103,8 +103,9 @@ async function main() {
     agentCommsHandle = registerAgentCommsBridge({
       server,
       sessionId: currentSessionId,
-      sendMessage: (targetSessionId, body, senderSessionId) =>
-        sendAgentMessage(targetSessionId, body, senderSessionId),
+      sendMessage: (target, body, senderSessionId, options) =>
+        sendAgentMessage(target, body, senderSessionId, options),
+      spawnSession: spawnDaemonSessionFromSession,
     });
   } else {
     process.stderr.write(

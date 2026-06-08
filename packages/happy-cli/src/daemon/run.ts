@@ -1,11 +1,12 @@
 import fs from 'fs/promises';
 import os from 'os';
+import type { AgentCommsEnvelope } from '@slopus/happy-wire';
 import { execFile } from 'node:child_process';
 import * as tmp from 'tmp';
 import axios from 'axios';
 
 import { ApiClient } from '@/api/api';
-import { bootstrapMachineForEmbedded } from 'happy-server';
+import { bootstrapMachineForEmbedded, type AgentCommsIngestBody } from 'happy-server';
 import type { ForkSessionOptions, SpawnSessionFromSessionRpcOptions } from '@/api/apiMachine';
 import { TrackedSession, SessionEncryptionData } from './types';
 import { MachineMetadata, DaemonState, Metadata } from '@/api/types';
@@ -33,6 +34,9 @@ import { detectResumeSupport } from '@/resume/localHappyAgentAuth';
 import { encodeBase64, decodeBase64, decrypt } from '@/api/encryption';
 import { pickFreeLoopbackPort } from '@/utils/pickFreeLoopbackPort';
 import { loadOrCreateTofuKeypairs } from '@/tofu/keypairManager';
+import { appendMessage } from '@/agentComms/mailbox';
+import { openSealedBody, requirePinnedPeer, verifyEnvelopeSignature, type SealedAgentCommsBody } from '@/agentComms/peerAuth';
+import { advanceAgentCommsRelay } from '@/agentComms/router';
 import { TunnelManager } from '@/tunnel/tunnelManager';
 import { DevTunnelsDaemonProvider } from '@/tunnel/devTunnelsDaemonProvider';
 import { forkSession } from './forkSession';
@@ -50,6 +54,10 @@ import { buildDaemonSpawnArgs, createSpawnFromSessionMetadataUpdater, daemonSpaw
 // is visually distinct from the stable one in the machine list (they otherwise
 // share the same hostname and look identical).
 const hostSuffix = process.env.HAPPY_VARIANT === 'dev' ? '-dev' : '';
+function quoteShellArg(value: string): string {
+  return `'${value.replaceAll(`'`, `'\\''`)}'`;
+}
+
 export const initialMachineMetadata: MachineMetadata = {
   host: os.hostname() + hostSuffix,
   platform: os.platform(),
@@ -208,12 +216,36 @@ export async function startDaemon(): Promise<void> {
       x25519SecretKey: tofuKeypairs.ecdhPrivateKey,
       ed25519Fingerprint: tofuKeypairs.ed25519Fingerprint,
     };
+    const agentCommsIngest = async (body: AgentCommsIngestBody): Promise<{ id: string; seq: number }> => {
+      const pinned = await requirePinnedPeer(configuration.happyHomeDir, body.envelope.from.machineId);
+      if (body.senderKeys.ed25519Fingerprint && body.senderKeys.ed25519Fingerprint !== pinned.ed25519Fingerprint) {
+        throw new Error(`agent-comms peer fingerprint mismatch for ${body.envelope.from.machineId}`);
+      }
+      if (body.senderKeys.ed25519PublicKey !== pinned.ed25519PublicKey || body.senderKeys.ecdhPublicKey !== pinned.ecdhPublicKey) {
+        throw new Error(`agent-comms peer public keys do not match pinned keys for ${body.envelope.from.machineId}`);
+      }
+      const signatureOk = await verifyEnvelopeSignature(body.envelope, body.signature, decodeBase64(pinned.ed25519PublicKey));
+      if (!signatureOk) {
+        throw new Error(`agent-comms signature verification failed for ${body.envelope.from.machineId}`);
+      }
+      const openedBody = openSealedBody<unknown>(body.envelope.body as SealedAgentCommsBody, tofuKeypairs, decodeBase64(pinned.ecdhPublicKey));
+      if (openedBody === null) {
+        throw new Error(`agent-comms sealed body could not be opened for ${body.envelope.from.machineId}`);
+      }
+      const openedEnvelope: AgentCommsEnvelope = { ...body.envelope, body: openedBody };
+      const relayedEnvelope = advanceAgentCommsRelay(openedEnvelope, { machineId, sessionId: `daemon-${machineId}` });
+      if (relayedEnvelope.to.machineId && relayedEnvelope.to.machineId !== machineId) {
+        throw new Error(`agent-comms ingest target machine mismatch: ${relayedEnvelope.to.machineId}`);
+      }
+      return appendMessage(relayedEnvelope.to.sessionId, relayedEnvelope, relayedEnvelope.from.sessionId);
+    };
     const listenerBinding = await bindListenersAndWriteCapability({
       sharedContext: {
         dataDir: configuration.happyHomeDir,
         machineKey: tofuKeypairs.ed25519PublicKey,
         localUserId: machineId,
         tofuPublicKeys: tofuPublicKeysConfig,
+        agentCommsIngest,
       },
       tunnelProvider,
       paths: {
@@ -475,7 +507,7 @@ export async function startDaemon(): Promise<void> {
 
           // Construct command for the CLI
           const cliPath = join(projectPath(), 'dist', 'index.mjs');
-          const fullCommand = `node --no-warnings --no-deprecation ${cliPath} ${buildDaemonSpawnArgs(options).join(' ')}`;
+          const fullCommand = `node --no-warnings --no-deprecation ${quoteShellArg(cliPath)} ${buildDaemonSpawnArgs(options).map(quoteShellArg).join(' ')}`;
 
           // Spawn in tmux with environment variables
           // IMPORTANT: Pass complete environment (process.env + extraEnv) because:
@@ -826,7 +858,8 @@ export async function startDaemon(): Promise<void> {
       spawnSession,
       spawnSessionFromSession: (options) => spawnSessionFromSessionHandlerReady.then(handler => handler(options)),
       requestShutdown: () => requestShutdown('happy-cli'),
-      onHappySessionWebhook
+      onHappySessionWebhook,
+      localMachineId: machineId,
     });
 
     // Write initial daemon state (no lock needed for state file)

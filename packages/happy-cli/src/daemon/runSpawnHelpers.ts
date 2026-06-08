@@ -23,7 +23,7 @@ export function daemonSpawnWindowName(agent: SupportedAgent | undefined): string
   return `happy-${Date.now()}-${daemonAgentCommand(agent)}`;
 }
 
-export function buildDaemonSpawnArgs(options: Pick<SpawnSessionOptions, 'agent' | 'model' | 'permissionMode' | 'effortLevel'>): string[] {
+export function buildDaemonSpawnArgs(options: Pick<SpawnSessionOptions, 'agent' | 'model' | 'permissionMode' | 'effortLevel' | 'initialMessage'>): string[] {
   const agentCommand = daemonAgentCommand(options.agent);
   const args = [agentCommand, '--happy-starting-mode', 'remote', '--started-by', 'daemon'];
 
@@ -35,6 +35,9 @@ export function buildDaemonSpawnArgs(options: Pick<SpawnSessionOptions, 'agent' 
   }
   if (agentCommand === 'codex' && options.effortLevel) {
     args.push('--effort', options.effortLevel);
+  }
+  if (options.initialMessage) {
+    args.push(options.initialMessage);
   }
 
   return args;

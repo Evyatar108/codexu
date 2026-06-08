@@ -3,6 +3,7 @@
  * Used by CLI commands to interact with running daemon
  */
 
+import type { AgentCommsKind, AgentCommsTo } from '@slopus/happy-wire';
 import { logger } from '@/ui/logger';
 import { clearDaemonState, readDaemonState } from '@/persistence';
 import { Metadata } from '@/api/types';
@@ -123,17 +124,25 @@ export async function spawnDaemonSession(directory: string, sessionId?: string):
  * `daemonPost` helper rather than forking a bespoke fetch here.
  */
 export async function sendAgentMessage(
-  targetSessionId: string,
+  target: string | AgentCommsTo,
   body: unknown,
-  senderSessionId: string
+  senderSessionId: string,
+  options: { kind?: AgentCommsKind; correlationId?: string } = {},
 ): Promise<{ id: string; seq: number }> {
+  const normalizedTarget: AgentCommsTo = typeof target === 'string' ? { sessionId: target } : target;
   const result = await daemonPost('/agent-comms/send', {
-    targetSessionId,
+    target: normalizedTarget,
+    // Legacy field retained for older local callers while the route and bridge
+    // move to the unified target object.
+    targetSessionId: normalizedTarget.machineId ? undefined : normalizedTarget.sessionId,
     body,
+    kind: options.kind,
+    correlationId: options.correlationId,
     sender: { sessionId: senderSessionId },
   });
+  const targetLabel = normalizedTarget.machineId ? `${normalizedTarget.machineId}:${normalizedTarget.sessionId}` : normalizedTarget.sessionId;
   if (result?.error) {
-    throw new Error(`agent-comms send failed (${senderSessionId} -> ${targetSessionId}): ${result.error}`);
+    throw new Error(`agent-comms send failed (${senderSessionId} -> ${targetLabel}): ${result.error}`);
   }
   if (typeof result?.id !== 'string' || typeof result?.seq !== 'number') {
     throw new Error(`agent-comms send returned a malformed daemon response: ${JSON.stringify(result)}`);

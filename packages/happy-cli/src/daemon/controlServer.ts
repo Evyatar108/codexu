@@ -14,6 +14,7 @@ import { isSupportedAgent, SpawnSessionOptions, SpawnSessionResult } from '@/mod
 import { STOP_SESSION_ID_MAX_LENGTH, STOP_SESSION_PID_SUFFIX_SHAPE } from './stopTrackedSession';
 import type { SpawnSessionFromSessionRpcOptions } from '@/api/apiMachine';
 import { appendMessage, SESSION_ID_REGEX } from '@/agentComms/mailbox';
+import { AgentCommsRoutingError, dispatchAgentCommsEnvelope, type AgentCommsSessionMetadata } from '@/agentComms/router';
 
 const PARENT_SESSION_ID_MAX_LENGTH = 128;
 const PARENT_SESSION_ID_SHAPE = /^[A-Za-z0-9_-]+$/;
@@ -40,7 +41,8 @@ export function startDaemonControlServer({
   spawnSession,
   spawnSessionFromSession,
   requestShutdown,
-  onHappySessionWebhook
+  onHappySessionWebhook,
+  localMachineId = 'local-machine',
 }: {
   getChildren: () => TrackedSession[];
   stopSession: (sessionId: string) => boolean | Promise<boolean>;
@@ -48,6 +50,7 @@ export function startDaemonControlServer({
   spawnSessionFromSession?: (options: SpawnSessionFromSessionRpcOptions) => Promise<SpawnSessionResult>;
   requestShutdown: () => void;
   onHappySessionWebhook: (sessionId: string, metadata: Metadata, encryption?: SessionEncryptionData) => void;
+  localMachineId?: string;
 }): Promise<{ port: number; stop: () => Promise<void> }> {
   return new Promise((resolve) => {
     const app = fastify({
@@ -264,28 +267,41 @@ export function startDaemonControlServer({
       return result;
     });
 
-    // agent-comms Scope B (D-002): same-daemon cross-session message hop.
-    // The sender's stdio bridge posts here; the daemon serializes the write
-    // through one process to avoid two-writer races on the target inbox file.
-    // No X-Loopback-Capability gate on this control-port path — the 127.0.0.1
-    // binding is the auth boundary (per plan F-002). See
-    // packages/happy-cli/src/agentComms/mailbox.ts + plans/durable-mailbox-channel-wake.md.
+    // agent-comms unified local control hop. The sender's stdio bridge posts
+    // here; the daemon resolves B/C/A scope, serializes local writes through one
+    // process, and leaves Scope A live networking disabled unless a remote
+    // transport is injected in a later pass. No X-Loopback-Capability gate on
+    // this control-port path — the 127.0.0.1 binding is the auth boundary.
     typed.post('/agent-comms/send', {
       schema: {
         body: z.object({
-          targetSessionId: agentCommsSessionIdSchema,
+          target: z.object({
+            machineId: z.string().min(1).optional(),
+            sessionId: agentCommsSessionIdSchema,
+          }).optional(),
+          targetSessionId: agentCommsSessionIdSchema.optional(),
           body: z.unknown(),
-          sender: z.object({ sessionId: agentCommsSessionIdSchema }),
+          kind: z.enum(['request', 'reply', 'notify']).optional(),
+          correlationId: z.string().min(1).optional(),
+          sender: z.object({
+            machineId: z.string().min(1).optional(),
+            sessionId: agentCommsSessionIdSchema,
+          }),
+        }).refine(value => Boolean(value.target?.sessionId || value.targetSessionId), {
+          message: 'target.sessionId or targetSessionId is required',
         }),
         response: {
           200: z.object({ id: z.string(), seq: z.number() }),
+          400: z.object({ error: z.string() }),
           404: z.object({ error: z.string() }),
+          501: z.object({ error: z.string() }),
         }
       }
     }, async (request, reply) => {
-      const { targetSessionId, body, sender } = request.body;
+      const { target, targetSessionId, body, kind, correlationId, sender } = request.body;
+      const children = getChildren();
       const tracked = new Set(
-        getChildren()
+        children
           .map(child => child.happySessionId)
           .filter((id): id is string => id !== undefined)
       );
@@ -293,13 +309,42 @@ export function startDaemonControlServer({
         reply.code(404);
         return { error: `Sender session not tracked by this daemon: ${sender.sessionId}` };
       }
-      if (!tracked.has(targetSessionId)) {
-        reply.code(404);
-        return { error: `Target session not tracked by this daemon: ${targetSessionId}` };
+      const sessionMetadata: AgentCommsSessionMetadata[] = children
+        .filter((child): child is TrackedSession & { happySessionId: string } => typeof child.happySessionId === 'string')
+        .map(child => ({
+          sessionId: child.happySessionId,
+          parentSessionId: typeof child.happySessionMetadataFromLocalWebhook?.parentSessionId === 'string'
+            ? child.happySessionMetadataFromLocalWebhook.parentSessionId
+            : undefined,
+          spawnedChildren: Array.isArray(child.happySessionMetadataFromLocalWebhook?.spawnedChildren)
+            ? child.happySessionMetadataFromLocalWebhook.spawnedChildren.filter((sid): sid is string => typeof sid === 'string')
+            : undefined,
+        }));
+      try {
+        const normalizedTarget = target ?? { sessionId: targetSessionId! };
+        const { id, seq } = await dispatchAgentCommsEnvelope({
+          from: { machineId: sender.machineId ?? localMachineId, sessionId: sender.sessionId },
+          to: normalizedTarget,
+          body,
+          kind,
+          correlationId,
+        }, {
+          selfMachineId: localMachineId,
+          hasLocalSession: sessionId => tracked.has(sessionId),
+          sessionMetadata,
+          deliverLocal: envelope => appendMessage(envelope.to.sessionId, envelope, envelope.from.sessionId),
+        });
+        logger.debug(`[CONTROL SERVER] agent-comms send ${sender.sessionId} -> ${normalizedTarget.machineId ? `${normalizedTarget.machineId}:` : ''}${normalizedTarget.sessionId} (id=${id} seq=${seq})`);
+        return { id, seq };
+      } catch (error) {
+        if (error instanceof AgentCommsRoutingError) {
+          reply.code(error.code === 'agent_comms_unknown_local_target' ? 404
+            : error.code === 'agent_comms_remote_transport_unavailable' ? 501
+            : 400);
+          return { error: error.message };
+        }
+        throw error;
       }
-      const { id, seq } = await appendMessage(targetSessionId, body, sender.sessionId);
-      logger.debug(`[CONTROL SERVER] agent-comms send ${sender.sessionId} -> ${targetSessionId} (id=${id} seq=${seq})`);
-      return { id, seq };
     });
 
     // Stop daemon

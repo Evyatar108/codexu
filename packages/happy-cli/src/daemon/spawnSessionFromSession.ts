@@ -131,6 +131,7 @@ export async function spawnSessionFromSession(
     model: options.config.model,
     permissionMode: options.config.permissionMode,
     effortLevel: options.config.effortLevel,
+    ...(options.config.initialMessage !== undefined ? { initialMessage: options.config.initialMessage } : {}),
   });
 
   if (spawnResult.type === 'requestToApproveDirectoryCreation') {

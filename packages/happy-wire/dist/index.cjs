@@ -559,6 +559,39 @@ const SessionGetAgentTreeRequestSchema = z__namespace.object({
 });
 const SessionGetAgentTreeResponseSchema = AgentTreeSnapshotSchema;
 
+const MAX_HOPS = 4;
+const AgentCommsScopeSchema = z__namespace.enum(["B", "C", "A"]);
+const AgentCommsChannelSchema = z__namespace.enum(["message", "spawn"]);
+const AgentCommsKindSchema = z__namespace.enum([
+  "request",
+  "reply",
+  "notify",
+  "spawn-request",
+  "spawn-result"
+]);
+const AgentCommsFromSchema = z__namespace.object({
+  machineId: z__namespace.string().min(1),
+  sessionId: z__namespace.string().min(1)
+});
+const AgentCommsToSchema = z__namespace.object({
+  machineId: z__namespace.string().min(1).optional(),
+  sessionId: z__namespace.string().min(1)
+});
+const AgentCommsEnvelopeSchema = z__namespace.object({
+  v: z__namespace.literal(1),
+  id: z__namespace.string().min(1),
+  ts: z__namespace.number().int().nonnegative(),
+  from: AgentCommsFromSchema,
+  to: AgentCommsToSchema,
+  scope: AgentCommsScopeSchema,
+  channel: AgentCommsChannelSchema,
+  kind: AgentCommsKindSchema,
+  correlationId: z__namespace.string().min(1).optional(),
+  hopCount: z__namespace.number().int().min(0).max(MAX_HOPS),
+  hopPath: z__namespace.array(z__namespace.string().min(1)),
+  body: z__namespace.unknown()
+});
+
 const MachineTunnelSchema = z__namespace.object({
   machineId: z__namespace.string(),
   tunnelId: z__namespace.string(),
@@ -568,6 +601,12 @@ const MachineTunnelSchema = z__namespace.object({
   owner: z__namespace.string()
 });
 
+exports.AgentCommsChannelSchema = AgentCommsChannelSchema;
+exports.AgentCommsEnvelopeSchema = AgentCommsEnvelopeSchema;
+exports.AgentCommsFromSchema = AgentCommsFromSchema;
+exports.AgentCommsKindSchema = AgentCommsKindSchema;
+exports.AgentCommsScopeSchema = AgentCommsScopeSchema;
+exports.AgentCommsToSchema = AgentCommsToSchema;
 exports.AgentMessageSchema = AgentMessageSchema;
 exports.AgentTreeDeltaSchema = AgentTreeDeltaSchema;
 exports.AgentTreeEdgeSchema = AgentTreeEdgeSchema;
@@ -592,6 +631,7 @@ exports.LastOutputSummaryLedgerRecordSchema = LastOutputSummaryLedgerRecordSchem
 exports.LedgerErrorCodeSchema = LedgerErrorCodeSchema;
 exports.LedgerRecordSchema = LedgerRecordSchema;
 exports.LegacyMessageContentSchema = LegacyMessageContentSchema;
+exports.MAX_HOPS = MAX_HOPS;
 exports.MachineTunnelSchema = MachineTunnelSchema;
 exports.MessageContentSchema = MessageContentSchema;
 exports.MessageMetaSchema = MessageMetaSchema;

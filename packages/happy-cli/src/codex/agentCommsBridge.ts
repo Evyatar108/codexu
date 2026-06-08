@@ -1,5 +1,5 @@
 /**
- * agent-comms Scope B (D-002) wiring for the Happy stdio MCP bridge.
+ * agent-comms Scope B/C/A wiring for the Happy stdio MCP bridge.
  *
  * This module is the producer/consumer half of the "Durable mailbox + channel
  * wake" pattern (plans/durable-mailbox-channel-wake.md). It is extracted from
@@ -7,8 +7,11 @@
  * injection (no live daemon / codex process needed).
  *
  * Responsibilities, all keyed by the per-session Happy session id:
- *  - register an `agent_comms.send` MCP tool that delegates the cross-session
- *    write to the injected `sendMessage` (the daemon hop in US-004);
+ *  - register an `agent_comms.send` MCP tool that delegates the scope-aware
+ *    write to the injected `sendMessage` daemon hop;
+ *  - register an `agent_comms.spawn` MCP tool that reuses the local
+ *    spawn-session-from-session path and rejects cross-machine spawn requests
+ *    until the Scope A approval + transport follow-up lands;
  *  - register an `agent-comms` MCP resource whose read callback DRAINS the
  *    durable inbox and returns the pending entries (post-drain consume, F-001);
  *  - watch the inbox DIRECTORY (not the file — F-003) and emit a
@@ -30,7 +33,9 @@
 import * as fs from 'node:fs';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
+import type { AgentCommsKind, AgentCommsTo } from '@slopus/happy-wire';
 import { logger } from '@/ui/logger';
+import type { SpawnSessionFromSessionRpcOptions } from '@/api/apiMachine';
 import {
     consumePending,
     ensureInbox,
@@ -53,15 +58,19 @@ export function agentCommsInboxUri(sessionId: string): string {
  * the bridge can be unit-tested without the real control client / daemon.
  */
 export type AgentCommsSender = (
-    targetSessionId: string,
+    target: AgentCommsTo,
     body: unknown,
     senderSessionId: string,
+    options?: { kind?: AgentCommsKind; correlationId?: string },
 ) => Promise<{ id: string; seq: number }>;
+
+export type AgentCommsSpawner = (options: SpawnSessionFromSessionRpcOptions) => Promise<unknown>;
 
 export interface RegisterAgentCommsBridgeOptions {
     server: Pick<McpServer, 'registerTool' | 'registerResource' | 'server'>;
     sessionId: string;
     sendMessage: AgentCommsSender;
+    spawnSession?: AgentCommsSpawner;
     /** Coalesce window for rapid inbox writes into one wake. Default 50ms. */
     watchDebounceMs?: number;
 }
@@ -69,6 +78,31 @@ export interface RegisterAgentCommsBridgeOptions {
 export interface AgentCommsBridgeHandle {
     /** Tear down the inbox watcher and pending debounce. Idempotent. */
     dispose(): void;
+}
+
+interface SendToolArgs {
+    target?: AgentCommsTo;
+    targetSessionId?: string;
+    body: unknown;
+    kind?: AgentCommsKind;
+    correlationId?: string;
+}
+
+interface SpawnToolArgs {
+    agent: SpawnSessionFromSessionRpcOptions['config']['agent'];
+    cwd?: string;
+    path?: string;
+    machineId?: string;
+    initialMessage?: string;
+    model?: string;
+    permissionMode?: string;
+    effortLevel?: string;
+}
+
+function normalizeSendTarget(args: SendToolArgs): AgentCommsTo {
+    if (args.target?.sessionId) return args.target;
+    if (args.targetSessionId) return { sessionId: args.targetSessionId };
+    throw new Error('agent_comms.send requires target.sessionId (or legacy targetSessionId)');
 }
 
 /**
@@ -94,11 +128,11 @@ export function drainAgentCommsInbox<T>(
 }
 
 /**
- * Wire the agent-comms send tool, resource, and inbox watcher onto an MCP
- * server for one session. Returns a handle whose `dispose()` closes the watcher.
+ * Wire the agent-comms send/spawn tools, resource, and inbox watcher onto an
+ * MCP server for one session. Returns a handle whose `dispose()` closes the watcher.
  */
 export function registerAgentCommsBridge(opts: RegisterAgentCommsBridgeOptions): AgentCommsBridgeHandle {
-    const { server, sessionId, sendMessage } = opts;
+    const { server, sessionId, sendMessage, spawnSession } = opts;
     const debounceMs = opts.watchDebounceMs ?? 50;
     const uri = agentCommsInboxUri(sessionId);
 
@@ -110,21 +144,89 @@ export function registerAgentCommsBridge(opts: RegisterAgentCommsBridgeOptions):
         'agent_comms.send',
         {
             title: 'Send agent-comms message',
-            description: 'Send a message to another Happy session on the same daemon (agent-comms Scope B).',
+            description: 'Send a message to another Happy session through the unified scope-aware agent-comms router.',
             inputSchema: {
-                targetSessionId: z.string().describe('Recipient Happy session id.'),
-                body: z.unknown().describe('Opaque message payload delivered to the recipient inbox.'),
+                target: z.object({
+                    machineId: z.string().optional(),
+                    sessionId: z.string(),
+                }).optional().describe('Recipient target. Omit machineId for same-machine delivery.'),
+                targetSessionId: z.string().optional().describe('Legacy same-machine recipient Happy session id.'),
+                body: z.unknown().describe('Opaque message payload delivered inside the AgentCommsEnvelope body.'),
+                kind: z.enum(['request', 'reply', 'notify']).optional().describe('Message kind; defaults to request.'),
+                correlationId: z.string().optional().describe('Request/reply correlation id.'),
             },
         },
-        async (args: { targetSessionId: string; body: unknown }) => {
+        async (args: SendToolArgs) => {
             try {
-                const result = await sendMessage(args.targetSessionId, args.body, sessionId);
+                const target = normalizeSendTarget(args);
+                const result = await sendMessage(target, args.body, sessionId, {
+                    kind: args.kind,
+                    correlationId: args.correlationId,
+                });
                 return { content: [{ type: 'text' as const, text: JSON.stringify(result) }] };
             } catch (error) {
                 return {
                     content: [{
                         type: 'text' as const,
                         text: `agent-comms send failed: ${error instanceof Error ? error.message : String(error)}`,
+                    }],
+                    isError: true,
+                };
+            }
+        },
+    );
+
+    server.registerTool(
+        'agent_comms.spawn',
+        {
+            title: 'Spawn top-level Happy agent session',
+            description: 'Spawn another top-level agent session. Local spawns use spawn-session-from-session; cross-machine spawns are design-level and require operator approval.',
+            inputSchema: {
+                agent: z.enum(['claude', 'codex', 'gemini', 'openclaw']),
+                cwd: z.string().optional().describe('Working directory for the child session.'),
+                path: z.string().optional().describe('Alias for cwd.'),
+                machineId: z.string().optional().describe('Foreign machine id for a future Scope A spawn-request.'),
+                initialMessage: z.string().optional().describe('Initial task sent to the spawned child.'),
+                model: z.string().optional(),
+                permissionMode: z.string().optional(),
+                effortLevel: z.string().optional(),
+            },
+        },
+        async (args: SpawnToolArgs) => {
+            try {
+                if (args.machineId) {
+                    return {
+                        content: [{
+                            type: 'text' as const,
+                            text: JSON.stringify({
+                                type: 'deferred-scope-a-spawn',
+                                requiresOperatorApproval: true,
+                                message: 'Cross-machine spawn-request envelopes are design-level in this pass; no live remote spawn was attempted.',
+                            }),
+                        }],
+                        isError: true,
+                    };
+                }
+                if (!spawnSession) {
+                    throw new Error('local spawn handler not available');
+                }
+                const result = await spawnSession({
+                    parentSessionId: sessionId,
+                    config: {
+                        agent: args.agent,
+                        path: args.cwd ?? args.path,
+                        model: args.model,
+                        permissionMode: args.permissionMode,
+                        effortLevel: args.effortLevel,
+                        initialMessage: args.initialMessage,
+                    },
+                });
+                return { content: [{ type: 'text' as const, text: JSON.stringify(result) }] };
+            } catch (error) {
+                return {
+                    content: [{
+                        type: 'text' as const,
+                        text: `agent-comms spawn failed: ${error instanceof Error ? error.message : String(error)}`,
                     }],
                     isError: true,
                 };

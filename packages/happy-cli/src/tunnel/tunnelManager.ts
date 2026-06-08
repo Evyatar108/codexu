@@ -31,6 +31,18 @@ export type TunnelManagerOptions = {
   now?: () => Date;
 };
 
+export interface OperatorTunnelPort {
+  portNumber?: number;
+  portUri?: string;
+}
+
+export interface OperatorTunnel {
+  tunnelId: string;
+  tunnelName: string;
+  tunnelUrl?: string;
+  ports: OperatorTunnelPort[];
+}
+
 const defaultRunner: CommandRunner = (command, args) => {
   const result = spawnSync(command, args, {
     encoding: 'utf-8',
@@ -108,6 +120,43 @@ function parseTunnelUrl(output: string, tunnelId: string): string {
   if (url) return stripTrailingSlash(url);
 
   throw new Error(`Could not parse a Dev Tunnels port URL for ${tunnelId} from devtunnel output`);
+}
+
+function tunnelListArray(parsed: unknown): unknown[] {
+  if (Array.isArray(parsed)) return parsed;
+  if (parsed && typeof parsed === 'object') {
+    const record = parsed as Record<string, unknown>;
+    for (const key of ['tunnels', 'value', 'items']) {
+      const value = record[key];
+      if (Array.isArray(value)) return value;
+    }
+  }
+  return [];
+}
+
+function parseOperatorTunnels(output: string): OperatorTunnel[] {
+  const jsonStart = output.search(/[\[{]/);
+  if (jsonStart < 0) return [];
+  const parsed = JSON.parse(output.slice(jsonStart)) as unknown;
+  return tunnelListArray(parsed).flatMap((item): OperatorTunnel[] => {
+    if (!item || typeof item !== 'object') return [];
+    const tunnel = item as Record<string, unknown>;
+    const tunnelId = [tunnel.tunnelId, tunnel.id, tunnel.name].find((value): value is string => typeof value === 'string' && value.length > 0);
+    if (!tunnelId) return [];
+    const tunnelName = [tunnel.name, tunnel.tunnelName, tunnelId].find((value): value is string => typeof value === 'string' && value.length > 0) ?? tunnelId;
+    const ports = Array.isArray(tunnel.ports) ? tunnel.ports.flatMap((raw): OperatorTunnelPort[] => {
+      if (!raw || typeof raw !== 'object') return [];
+      const port = raw as Record<string, unknown>;
+      const portUri = [port.portUri, port.portForwardingUri, port.webForwardingUri, port.url]
+        .find((value): value is string => typeof value === 'string' && value.length > 0);
+      const portNumber = typeof port.portNumber === 'number' ? port.portNumber
+        : typeof port.port === 'number' ? port.port
+          : undefined;
+      return [{ portNumber, portUri }];
+    }) : [];
+    const tunnelUrl = ports.find(port => typeof port.portUri === 'string')?.portUri;
+    return [{ tunnelId, tunnelName, tunnelUrl, ports }];
+  });
 }
 
 function daysBetween(now: Date, then: Date): number {
@@ -205,7 +254,12 @@ export class TunnelManager {
       // Re-derive the port-specific URL via `devtunnel show --json` so callers
       // never inherit a stale base-tunnel URL from earlier buggy runs.
       const show = this.runner('devtunnel', ['show', existing.tunnelId, '--json']);
-      const refreshedUrl = parseTunnelUrl(show.stdout + show.stderr, existing.tunnelId);
+      let refreshedUrl = existing.tunnelUrl;
+      try {
+        refreshedUrl = parseTunnelUrl(show.stdout + show.stderr, existing.tunnelId);
+      } catch (error) {
+        logger.debug(`[TUNNEL] Could not refresh Dev Tunnel URL for ${existing.tunnelId}; keeping persisted URL: ${String(error)}`);
+      }
       if (refreshedUrl !== existing.tunnelUrl) {
         await writeTunnelConfig({ ...existing, tunnelUrl: refreshedUrl }, this.happyHomeDir);
       }
@@ -273,6 +327,25 @@ export class TunnelManager {
     });
     this.hostProcess.unref?.();
     logger.debug(`[TUNNEL] Started Dev Tunnel host for ${config.tunnelId} -> 127.0.0.1:${localPort}`);
+  }
+
+  listOperatorTunnels(prefix = 'codexu-'): OperatorTunnel[] {
+    const result = this.runner('devtunnel', ['list', '--json']);
+    if (result.status !== 0) {
+      throw new Error(`Failed to list Dev Tunnels: ${result.stderr || result.stdout || 'unknown error'}`);
+    }
+    return parseOperatorTunnels(`${result.stdout}\n${result.stderr}`)
+      .filter(tunnel => tunnel.tunnelName.startsWith(prefix) || tunnel.tunnelId.startsWith(prefix));
+  }
+
+  mintConnectToken(tunnelId: string): string {
+    const result = this.runner('devtunnel', ['token', tunnelId, '--scope', 'connect']);
+    if (result.status !== 0) {
+      throw new Error(`Failed to mint Dev Tunnel connect token for ${tunnelId}: ${result.stderr || result.stdout || 'unknown error'}`);
+    }
+    const token = `${result.stdout}\n${result.stderr}`.trim();
+    if (!token) throw new Error(`Dev Tunnel connect token for ${tunnelId} was empty`);
+    return token;
   }
 
   stop(): void {
@@ -349,3 +422,4 @@ export async function runInitCommand(): Promise<void> {
   console.log(`Dev Tunnel ready: ${config.tunnelUrl}`);
   console.log(`Config written to ${getTunnelConfigPath()}`);
 }
+

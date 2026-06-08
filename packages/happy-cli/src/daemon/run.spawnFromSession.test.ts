@@ -41,6 +41,9 @@ describe('daemon spawn-from-session wiring helpers', () => {
       'gemini', '--happy-starting-mode', 'remote', '--started-by', 'daemon',
     ]);
     expect(buildDaemonSpawnArgs({ agent: 'codex', permissionMode: 'read-only' })).not.toContain('--model');
+    expect(buildDaemonSpawnArgs({ agent: 'claude', initialMessage: 'start here' })).toEqual([
+      'claude', '--happy-starting-mode', 'remote', '--started-by', 'daemon', 'start here',
+    ]);
   });
 
   it('updates parent metadata through a short-lived session sync client and closes it', async () => {

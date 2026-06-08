@@ -90,6 +90,25 @@ describe('spawnSessionFromSession', () => {
     expect(updateParentMetadata).toHaveBeenCalledTimes(1);
   });
 
+  it('passes the configured initialMessage into the child spawn options', async () => {
+    const spawnSession = vi.fn().mockResolvedValue({ type: 'success', sessionId: 'child-local' });
+
+    await spawnSessionFromSession({
+      parentLocalId: 'parent-local',
+      machineId: 'machine-1',
+      config: { agent: 'codex', initialMessage: 'start here' },
+    }, {
+      getTrackedSession: vi.fn().mockReturnValue(tracked()),
+      spawnSession,
+      updateParentMetadata: vi.fn().mockResolvedValue(undefined),
+      stat: vi.fn().mockResolvedValue({ isDirectory: () => true }),
+    });
+
+    expect(spawnSession).toHaveBeenCalledWith(expect.objectContaining({
+      initialMessage: 'start here',
+    }));
+  });
+
   it('rejects missing parent path, relative path, and non-directory path before spawning', async () => {
     for (const [parentMetadata, stat] of [
       [metadata({ path: '' }), vi.fn()],

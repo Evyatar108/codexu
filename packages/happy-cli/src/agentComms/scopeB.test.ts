@@ -101,11 +101,11 @@ const MODE: CapturedMode = { tag: 'm' };
 /** A minimal MCP server fake capturing the registered tool/resource handlers
  *  and every `sendResourceUpdated` URI. */
 function makeFakeServer() {
-    const tools = new Map<string, (args: { targetSessionId: string; body: unknown }) => Promise<{ content: { type: 'text'; text: string }[]; isError?: boolean }>>();
+    const tools = new Map<string, (args: any) => Promise<{ content: { type: 'text'; text: string }[]; isError?: boolean }>>();
     const resources = new Map<string, (uri: URL, extra: unknown) => Promise<{ contents: { uri: string; mimeType?: string; text: string }[] }>>();
     const resourceUpdates: string[] = [];
     const fake = {
-        registerTool: (name: string, _config: unknown, handler: (args: { targetSessionId: string; body: unknown }) => Promise<{ content: { type: 'text'; text: string }[]; isError?: boolean }>) => {
+        registerTool: (name: string, _config: unknown, handler: (args: any) => Promise<{ content: { type: 'text'; text: string }[]; isError?: boolean }>) => {
             tools.set(name, handler);
             return {};
         },
@@ -123,7 +123,7 @@ function makeFakeServer() {
     return {
         server: fake as unknown as Pick<McpServer, 'registerTool' | 'registerResource' | 'server'>,
         resourceUpdates,
-        callTool: (name: string, args: { targetSessionId: string; body: unknown }) => tools.get(name)!(args),
+        callTool: (name: string, args: any) => tools.get(name)!(args),
         readResource: (uri: string) => resources.get(uri)!(new URL(uri), {}),
     };
 }
@@ -174,7 +174,8 @@ describe('Scope B happy-path round-trip', () => {
         // The daemon wrote B's inbox; A's inbox is untouched (deterministic no-self-write).
         const bPending = await mailbox.readPending('sessB');
         expect(bPending).toHaveLength(1);
-        expect(bPending[0].body).toEqual(MSG);
+        expect((bPending[0].body as any).body).toEqual(MSG);
+        expect((bPending[0].body as any).scope).toBe('B');
         expect(bPending[0].sender).toBe('sessA');
         expect(await mailbox.readPending('sessA')).toEqual([]);
 
@@ -219,7 +220,7 @@ describe('Scope B happy-path round-trip', () => {
         const payload = JSON.parse(readResult.contents[0].text) as { version: number; entries: { body: unknown; seq: number }[] };
         expect(payload.version).toBe(1);
         expect(payload.entries).toHaveLength(2);
-        expect(payload.entries[0].body).toEqual(MSG);
+        expect((payload.entries[0].body as any).body).toEqual(MSG);
         // Cursor advanced ONLY after the resource read returned the entries.
         expect(await mailbox.readPending('sessB')).toEqual([]);
     });
@@ -253,7 +254,7 @@ describe('Scope B missed-wake recovery', () => {
         // the cursor — all WITHOUT any resource_updated event being injected.
         const drained = await bridge.drainAgentCommsInbox('sessB2', (entries) => entries);
         expect(drained).toHaveLength(1);
-        expect(drained[0].body).toEqual(MSG);
+        expect((drained[0].body as any).body).toEqual(MSG);
         expect(await mailbox.readPending('sessB2')).toEqual([]);
     });
 });

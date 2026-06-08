@@ -128,6 +128,7 @@ export interface SpawnSessionOptions {
     model?: string;
     permissionMode?: string;
     effortLevel?: string;
+    initialMessage?: string;
 }
 
 export const SUPPORTED_AGENTS = ['claude', 'codex', 'gemini', 'openclaw'] as const;

@@ -15,6 +15,7 @@ import { parseCorsOrigins } from "./utils/parseCorsOrigins";
 import { v3SessionRoutes } from "./routes/v3SessionRoutes";
 import { accountRoutes } from "./routes/accountRoutes";
 import { machineSelfRoutes, type MachineSelfState } from "./routes/machineSelfRoutes";
+import { agentCommsIngestRoutes, type AgentCommsIngestHandler } from "./routes/agentCommsIngestRoutes";
 import { isLocalStorage, getLocalFilesDir } from "@/storage/files";
 import type { EventRouter } from "@/app/events/eventRouter";
 import { verifyLoopbackCapability, type LoopbackCapabilityPaths } from "./auth/loopbackCapability";
@@ -50,6 +51,7 @@ export interface ConfigureApiOptions {
     auth?: "tunnel" | "loopback";
     paths?: ApiPaths;
     machineState?: MachineStateGetter;
+    agentCommsIngest?: AgentCommsIngestHandler;
     onEventRouter?: (eventRouter: EventRouter) => void;
 }
 
@@ -110,6 +112,7 @@ export function configureApi(app: any, tofuConfig: TofuHandshakeConfig = { local
     sessionRoutes(typed, eventRouter, { localMachineId: tofuConfig.localUserId });
         devRoutes(typed);
         versionRoutes(typed);
+        agentCommsIngestRoutes(typed, { handler: options.agentCommsIngest });
         v3SessionRoutes(typed, eventRouter);
     }
 

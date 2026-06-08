@@ -6,4 +6,5 @@ export * from './voice';
 export * from './nonRenderablePolicy';
 export * from './ledger';
 export * from './agentTree';
+export * from './agentComms';
 export * from './tunnel/types';
