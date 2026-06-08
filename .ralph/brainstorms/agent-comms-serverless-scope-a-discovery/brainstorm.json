@@ -1,0 +1,40 @@
+{
+  "brainstormName": "agent-comms-serverless-scope-a-discovery",
+  "overviewTaskId": "agent-comms-serverless-scope-a-discovery",
+  "idea": "Make cross-machine Scope A agent/session discovery + message ingest work over Microsoft Dev Tunnels with NO happy-server -- eliminating even the EMBEDDED per-daemon happy-server that today hosts POST /agent-comms/ingest. Dev Tunnels must stay the SOLE channel for data + signaling + rendezvous + discovery + auth (nothing via phone/app/central server/relay). Settle against source: what is the MINIMAL tunnel-facing listener that replaces the embedded happy-server for ingest, comparing (1) a tiny purpose-built happy-cli HTTP listener, (2) un-loopback-ing controlServer.ts, (3) the codex app-server, (4) a raw TCP/WebSocket socket? Can happy-server be fully removed from the daemon, or is it load-bearing for pairing / session sync / push / Socket.IO?",
+  "availableLenses": ["codex", "copilot", "devils-advocate"],
+  "missingLenses": [],
+  "candidateDirections": [
+    {
+      "id": "D-001",
+      "name": "Tiny happy-cli-owned HTTP ingest listener; keep the embedded happy-server for the mobile/session plane",
+      "summary": "Decouple Scope A ingest from happy-server with a minimal happy-cli-owned HTTP listener serving ONLY POST /agent-comms/ingest and calling the existing daemon-injected agentCommsIngest handler; two-layer auth + Dev-Tunnels discovery are preserved unchanged because they already live in happy-cli + the gateway, NOT in happy-server. Verdict: happy-server CANNOT be fully removed from the daemon (it is the tablet/CLI session plane), only decoupled from the ingest path.",
+      "contributingLenses": ["codex", "copilot", "devils-advocate"]
+    },
+    {
+      "id": "D-002",
+      "name": "Full embedded-happy-server removal -- reframed as a separate multi-epic mobile/session server-replacement project (the literal operator lean)",
+      "summary": "Taking the lean literally ('NO happy-server at all in the daemon') is NOT a Scope A transport change: source shows the embedded tunnel listener IS the app/CLI session plane (pair/sessions/v3/Socket.IO/push/machine-self/settings). Removing it strands the tablet unless every tunnel route is re-implemented daemon-natively first. File this as its own migration plan with a live tablet dogfood gate, not as part of agent-comms ingest.",
+      "contributingLenses": ["codex", "copilot", "devils-advocate"]
+    },
+    {
+      "id": "D-003",
+      "name": "Reject the alternative minimal listeners: un-loopback controlServer.ts / codex app-server / raw socket",
+      "summary": "Option 2 (un-loopback controlServer.ts) is a security regression -- it would expose /spawn-session, /stop-session, /agent-comms/send (no auth gate; 127.0.0.1 IS the boundary) to tunnel-admitted callers. Option 3 (codex app-server) is ruled out by the loopback-only security mandate and couples transport to one agent. Option 4 (raw TCP/WebSocket) discards the existing HTTP POST /agent-comms/ingest contract and re-derives half of Fastify/Zod/error semantics for no benefit.",
+      "contributingLenses": ["codex", "copilot", "devils-advocate"]
+    },
+    {
+      "id": "D-004",
+      "name": "Second Dev Tunnel port vs shared-port for the ingest listener (implementation sub-decision within D-001)",
+      "summary": "If happy-server stays for mobile and a separate listener owns ingest, the listener needs its own local port. Either devtunnel host forwards a SECOND port (preserves happy-server's port untouched but stresses the 'discovery unchanged' contract because peerTransport derives a single ingest URL from the tunnel's first port), or the ingest route stays co-located on the existing tunnel port. Decide before planning; it changes the discovery/edit surface.",
+      "contributingLenses": ["copilot", "devils-advocate"]
+    }
+  ],
+  "recommendedDirection": "D-001",
+  "questionsForSynthesis": [
+    "Is the real desired outcome 'no happy-server in the Scope A ingest PATH' (plausible, medium effort) or 'no embedded happy-server in the daemon AT ALL' (a mobile/session server-replacement multi-epic)? The recommended direction assumes the former and explicitly reframes the latter.",
+    "Should AgentCommsIngestBodySchema + routeHopValidation move from happy-server to @slopus/happy-wire (or a happy-cli-owned shared module) so the tiny listener owns ingest without importing happy-server?",
+    "Should devtunnel host forward a SECOND port for the ingest listener, or should the ingest route remain co-located on the existing tunnel port to keep peerTransport's single-URL discovery contract byte-for-byte unchanged?",
+    "Should a live two-machine devtunnel-host round-trip + an operator-approval UI for cross-machine spawn be the acceptance gate for the deferred Scope A live-wiring impl (design 5.6), and should codex-raw-session-happy-daemon-autoconnect reuse this same Dev-Tunnels discovery/ingest metadata rather than exposing codex app-server directly?"
+  ]
+}
