@@ -321,7 +321,7 @@ sequenceDiagram
 - `/stop-session`
 - `/spawn-session`
 - `/spawn-session-from-session` (parent-session spawn used by Codex `spawn_top_level_session` and future TypeScript callers; validates `parentSessionId` against `^[A-Za-z0-9_-]{1,128}$`)
-- `/agent-comms/send` (same-daemon cross-session message delivery, agent-comms Scope B / D-002; validates sender/target ids and routes `body` into the target session's durable mailbox; client helper `sendAgentMessage()`)
+- `/agent-comms/send` (unified agent-comms routing hop for Scope B/C/A; accepts `{ target: { machineId?, sessionId }, targetSessionId?, body, kind?, correlationId?, sender }`, resolves scope through `agentComms/router`, delivers local Scope B/C envelopes to the durable mailbox, and returns 501 for Scope A until Dev Tunnels remote transport injection is enabled; client helper `sendAgentMessage()`)
 - `/stop` (shutdown daemon)
 - `/session-started` (session self-report)
 
