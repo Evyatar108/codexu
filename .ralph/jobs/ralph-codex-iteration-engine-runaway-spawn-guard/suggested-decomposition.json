@@ -1,0 +1,28 @@
+{
+  "clusters": [
+    {
+      "name": "codex-iteration-no-collab-profile",
+      "stories": ["US-001", "US-002", "US-003", "US-004", "US-005", "US-006"],
+      "phase": 1,
+      "dependsOn": [],
+      "fileOverlapEvidence": {
+        "sharedFiles": [
+          "ai-developer-toolkit/plugins/ralph/AGENTS.md",
+          "ai-developer-toolkit/plugins/ralph/CHANGELOG.md",
+          "ai-developer-toolkit/plugins/ralph/.claude-plugin/plugin.json",
+          "ai-developer-toolkit/plugins/ralph/.github/plugin/plugin.json",
+          "ai-developer-toolkit/plugins/ralph/.codex-plugin/plugin.json",
+          "ai-developer-toolkit/.claude-plugin/marketplace.json",
+          "ai-developer-toolkit/.github/plugin/marketplace.json",
+          "ai-developer-toolkit/.agents/plugins/marketplace.json",
+          "ai-developer-toolkit/plugins/ralph/src/codex-exec.mjs",
+          "ai-developer-toolkit/plugins/ralph/src/ralph.mjs",
+          "ai-developer-toolkit/plugins/ralph/prompts/codex.md"
+        ],
+        "exclusiveFiles": [],
+        "risk": "high"
+      },
+      "executionModeRationale": "Serial single-member only. US-001 is a hard GO/NO-GO gate that confirms the codex collab-disable surface before any wiring; US-002..US-006 all converge on the same plugin's 6 version stamps, AGENTS.md, CHANGELOG, and mechanically-regenerated .copilot-plugin/.codex-plugin artifact trees, so parallelizing them produces conflicting writes. Same-plugin parallel = conflict per the disjoint-surface rule. A config-disable NO-GO ends this job; the codex fork patch is a SEPARATE single-repo codex plan (dual-repo rule), never chained here."
+    }
+  ]
+}

@@ -1,0 +1,53 @@
+I'll read the referenced prompt first, then carry out its instructions.
+
+I’ll inspect the Ralph plugin and Codex wrapper surfaces named in the prompt, keeping this to read-only research.
+
+The initial path guess didn’t match; I’ll locate the actual Ralph plugin layout and then narrow the searches.
+
+I found the plugin under `ai-developer-toolkit\plugins\ralph`; next I’ll read the exact iteration and engine wrapper code.
+
+I’ll narrow on the configuration and schema surfaces now: PRD defaults, wrapper args, and Codex collaboration-tool wiring.
+
+The Ralph side currently hard-codes `iterationEngine` defaults to Codex and passes no Codex feature/config args beyond reasoning effort; I’ll verify whether the vendored Codex side exposes a narrower collaboration knob.
+
+The broad Codex search is too large, so I’ll switch to exact known Rust source paths and focused file-name searches.
+
+The glob helper isn’t matching this tree, but `rg` can search narrowed directories directly; I’ll target the likely crate subdirectories.
+
+I have enough matching paths to read the relevant Codex source files directly.
+
+I’ll read the remaining exact snippets for tool exposure and config defaults, then I can produce the research summary.
+
+I’ll verify how `-c features.*` and multi-agent config are loaded, since that determines whether Ralph can solve this without a Codex fork patch.
+
+I’ll check Ralph’s PRD generation docs/tests so the recommendation covers the supported default flip point, not only runtime args.
+
+I’ll do one last test-surface pass so the suggested implementation includes concrete validation points.
+
+### Codebase Architecture
+
+This is a multi-repo workspace. The Ralph implementation lives in `ai-developer-toolkit\plugins\ralph\` as a skills-only plugin with Node ESM runtime wrappers, Markdown skills/prompts, JSON schemas, and Node tests. The Codex fork lives under `codex\external\repos\codex-patched\codex-rs\`, a Rust workspace with feature/config/tool-router code.
+
+### Feature-Relevant Code
+
+- `ai-developer-toolkit\plugins\ralph\src\ralph.mjs`: `runEngineIteration()` selects `prompts\<engine>.md`, resolves `src\<engine>-exec.mjs`, and currently passes no Codex collaboration config.
+- `ai-developer-toolkit\plugins\ralph\src\codex-exec.mjs`: builds `codex exec - ... -c model_reasoning_effort=<effort>`. It already has a pattern for per-invocation `-c` config, but no generic config passthrough or no-collab flag.
+- `ai-developer-toolkit\plugins\ralph\prompts\codex.md`: iteration prompt; advisory anti-spawn guidance belongs here, but should not be the load-bearing guard.
+- `ai-developer-toolkit\plugins\ralph\schemas\prd-schema.json`, `prd.json.example`, `skills\convert-to-ralph-prd\SKILL.md`, `skills\implement-with-ralph\SKILL.md`: all still document/write `iterationEngine: "codex"` as default.
+- `codex\external\repos\codex-patched\codex-rs\core\src\tools\spec_plan.rs`: `collab_tools_enabled()` exposes collaboration if `MultiAgentV2` OR `Collab` is enabled. `add_collaboration_tools()` exposes either v2 tools or v1 tools.
+- `codex\external\repos\codex-patched\codex-rs\features\src\lib.rs`: `Feature::Collab` key is `multi_agent`, stable, default `true`; `Feature::MultiAgentV2` key is `multi_agent_v2`, default `false`.
+- `codex\external\repos\codex-patched\codex-rs\features\src\feature_configs.rs`: `features.multi_agent_v2.max_concurrent_threads_per_session` exists.
+- `codex\external\repos\codex-patched\codex-rs\core\src\config\config_tests.rs`: confirms `[features.multi_agent_v2] max_concurrent_threads_per_session = 1` is valid and counts the root, producing `agent_max_threads: Some(0)`.
+
+### Technical Constraints
+
+Disabling only `multi_agent_v2` is insufficient because v1 Collab remains on by default. Disabling only v1 Collab is insufficient if v2 is enabled. The single-story profile must disable both `features.multi_agent=false` and `features.multi_agent_v2.enabled=false`, or explicitly cap v2 when intentionally enabled.
+
+Do not change `codex-exec.mjs` defaults globally: the same wrapper is used for brainstorm/review/lens paths that must preserve multi-agent fan-out. The no-collab behavior should be opt-in from `runEngineIteration()` only.
+
+### Implementation Suggestions
+
+Add an explicit Codex wrapper flag such as `--disable-collaboration` or `--execution-profile single-story-iteration` in `codex-exec.mjs`, translating to per-invocation `-c features.multi_agent=false` and `-c features.multi_agent_v2.enabled=false`. Then have `ralph.mjs::runEngineIteration()` pass that flag only for `engine === "codex"` iteration runs.
+
+Flip the interim supported implementation default to Copilot in the PRD generation surfaces: `schemas\prd-schema.json`, `prd.json.example`, `convert-to-ralph-prd`, and `implement-with-ralph` docs. Existing PRDs with explicit `codex` remain unaffected.
+

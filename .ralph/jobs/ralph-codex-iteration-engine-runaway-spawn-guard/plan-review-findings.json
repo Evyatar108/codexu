@@ -1,0 +1,103 @@
+{
+  "planFile": "D:/harness-efforts/codexu/.ralph/jobs/.staging/20260608T052926Z-plan-runaway-d3651777/draft-plan.md",
+  "repoDir": "D:/harness-efforts/codexu",
+  "reviewCycle": 0,
+  "findings": [
+    {
+      "id": "F-001",
+      "severity": "High",
+      "source": "copilot",
+      "category": "Feasibility",
+      "sectionRef": "Research Findings / Implementation Strategy (escalation ladder)",
+      "description": "Cap fallback was technically wrong: max_concurrent_threads_per_session(turn_context) at spec_plan.rs:353-359 is multi_agent_v2_enabled(...).then_some(...), so it returns Some(N) ONLY when v2 is enabled; the v1 SpawnAgentHandler at :714 gets None for v1-Collab-only. So `-c features.multi_agent_v2.max_concurrent_threads_per_session=1` does NOT cap v1 Collab.",
+      "status": "fixed",
+      "fixedInIteration": 0,
+      "resolution": "Verified at spec_plan.rs:354. Removed the cap rung; escalation ladder is now disable -> fork-patch. A v2-capped-to-1 substitution is recorded as a non-preferred different-tool-surface alternative, not a v1 cap. Updated Research Findings (CAP CORRECTION), Implementation Strategy, Risk Areas, Open Question 3.",
+      "relevantFiles": ["codex/external/repos/codex-patched/codex-rs/core/src/tools/spec_plan.rs"]
+    },
+    {
+      "id": "F-002",
+      "severity": "Critical",
+      "source": "copilot",
+      "category": "Feasibility/Ordering",
+      "sectionRef": "Suggested Decomposition / Story Decomposition (US-007)",
+      "description": "US-007 (codex submodule fork patch) was a conditional story in the SAME /implement-with-ralph cluster as the toolkit-plugin work, violating the codexu dual-repo rule (/implement-with-ralph targets one repo/PRD per job; a codex-submodule patch cannot be expressed as a story in this toolkit-plugin PRD).",
+      "status": "fixed",
+      "fixedInIteration": 0,
+      "resolution": "Removed US-007 from the cluster. On a config-disable NO-GO the impl STOPS at the US-001 verdict and the lead spawns a SEPARATE codex-targeted plan/job. Updated Overview, Implementation Strategy step 7, Files, Worktree shape, Scope (Out), Story Decomposition, Suggested Decomposition (stories array US-001..US-006), Next Step.",
+      "relevantFiles": ["ai-developer-toolkit/plugins/ralph"]
+    },
+    {
+      "id": "F-003",
+      "severity": "High",
+      "source": "claude",
+      "category": "Feasibility",
+      "sectionRef": "Overview / Research Findings > Spike GO evidence",
+      "description": "Plan treated `-c features.multi_agent=false` as load-bearing GO evidence, but the cited Rust sources only showed the gate + default state, not that the CLI config override is accepted or suppresses tool exposure on 0.135 — under-evidenced GO premise.",
+      "status": "fixed",
+      "fixedInIteration": 0,
+      "resolution": "Reframed GO as well-supported but spike-gated (not assumed). Bolstered by a NEW first-hand finding: cli/src/main.rs:786-795 defines a first-class validated `--disable <FEATURE>` flag documented as equivalent to `-c features.<name>=false`. The spike's remaining job is the empirical tool-suppression A/B probe (forcing a Stable default-on feature false).",
+      "relevantFiles": ["codex/external/repos/codex-patched/codex-rs/cli/src/main.rs"]
+    },
+    {
+      "id": "F-004",
+      "severity": "Medium",
+      "source": "consensus",
+      "category": "Completeness",
+      "sectionRef": "Research Findings (codex-exec.mjs)",
+      "description": "Stale code reference: plan cited codex-exec.mjs DEFAULT_TIMEOUT_MS=240000 (:72, 4-min reap); the current file shows DEFAULT_TIMEOUT_MS = 1200000 at :76 (generous 20-min backstop).",
+      "status": "fixed",
+      "fixedInIteration": 0,
+      "resolution": "Verified at codex-exec.mjs:76. Corrected the value/line and reframed as thesis-strengthening: the ~10-min runaway ran under an already-20-min timeout, so it was never timeout-reaped -> a spawn guard (not a timeout) is the fix.",
+      "relevantFiles": ["ai-developer-toolkit/plugins/ralph/src/codex-exec.mjs"]
+    },
+    {
+      "id": "F-005",
+      "severity": "High",
+      "source": "consensus",
+      "category": "Criteria Quality",
+      "sectionRef": "Acceptance Criteria (US-001/US-002)",
+      "description": "Spike ACs were outcome-based ('does NOT reproduce the runaway and the story completes') and not mechanically verifiable; no deterministic probe command/artifact named.",
+      "status": "fixed",
+      "fixedInIteration": 0,
+      "resolution": "Rewrote spike ACs around a deterministic A/B tool-advertisement probe (with-flag run shows zero spawn_agent/send_input/wait_agent/close_agent advertisements, or a RUST_LOG add_collaboration_tools trace, or a without-flag A/B baseline). US-002 replay is now explicitly SMOKE/non-blocking; the BLOCKING criteria are deterministic argv + mode-separation regression tests (US-002/US-003).",
+      "relevantFiles": ["ai-developer-toolkit/plugins/ralph/tests"]
+    },
+    {
+      "id": "F-006",
+      "severity": "High",
+      "source": "copilot",
+      "category": "Completeness",
+      "sectionRef": "D-002 (Overview vs Open Question 4)",
+      "description": "D-002 target was ambiguous: Overview said it 'adopts iterationEngine=copilot as the documented supported default' while Open Question 4 recommended leaving schema default codex. 'Documented default' could mean schema default, generated-PRD default, skill prose, or operator policy.",
+      "status": "fixed",
+      "fixedInIteration": 0,
+      "resolution": "Decided + made concrete: D-002 is policy/docs-only. US-005 ACs split into (a) explicit AGENTS.md/CHANGELOG/skill-prose text recommending copilot + codex re-graduation criteria, and (b) explicit non-change: prd-schema.json iterationEngine default REMAINS codex. Updated Overview, Implementation Strategy step 5, Files, Scope, ACs, Open Question 4.",
+      "relevantFiles": ["ai-developer-toolkit/plugins/ralph/AGENTS.md", "ai-developer-toolkit/plugins/ralph/schemas/prd-schema.json"]
+    },
+    {
+      "id": "F-007",
+      "severity": "Medium",
+      "source": "copilot",
+      "category": "Simplicity",
+      "sectionRef": "Approach / Implementation Strategy",
+      "description": "Plan used raw `-c features.multi_agent=false`; codex exposes a first-class validated `--disable <feature>` flag (cli/src/main.rs:786-795) that fails loud on an unknown feature name, a clearer supported surface.",
+      "status": "fixed",
+      "fixedInIteration": 0,
+      "resolution": "Plan now prefers the first-class `codex exec --disable multi_agent` surface (with `-c features.multi_agent=false` as the documented equivalent); the spike tests/reports both and US-002 implements the confirmed one. Added the main.rs:786-795 finding to Research.",
+      "relevantFiles": ["codex/external/repos/codex-patched/codex-rs/cli/src/main.rs"]
+    },
+    {
+      "id": "F-008",
+      "severity": "Medium",
+      "source": "copilot",
+      "category": "Criteria Quality",
+      "sectionRef": "Acceptance Criteria (US-002 replay)",
+      "description": "'replaying US-002 ... story completes' is model-dependent and could be flaky as a blocking criterion.",
+      "status": "fixed",
+      "fixedInIteration": 0,
+      "resolution": "Replay is now explicitly smoke evidence (non-blocking); the BLOCKING criteria are the deterministic codex-exec argv unit test and the runEngineIteration mode-separation regression test plus the byte-identical codex-lowering generator-output assertion.",
+      "relevantFiles": ["ai-developer-toolkit/plugins/ralph/tests"]
+    }
+  ]
+}

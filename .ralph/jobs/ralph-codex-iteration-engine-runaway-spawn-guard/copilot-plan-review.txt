@@ -1,0 +1,38 @@
+I’ll read the referenced prompt file to identify the requested task, then carry it through.
+
+The prompt is long, so I’ll read it in chunks before making changes.
+
+I’ll verify the plan’s key file/function claims against the repository before producing the review.
+
+I found the core Ralph call path and current schema defaults. I’ll check the specific Codex feature/config surfaces and wrapper argument parser before finalizing findings.
+
+The key Codex feature gates line up with the plan, but one cap-related claim now looks inconsistent with the source. I’ll check the parser shape and then write the review.
+
+### Feasibility
+
+[Critical] The plan conditionally includes US-007, a codex submodule patch, in the same single `/implement-with-ralph --from-plan` cluster as the `ai-developer-toolkit/plugins/ralph` work. That conflicts with codexu guidance that dual-repo plans must not chain blindly into one Ralph impl job because `/implement-with-ralph` targets one repo/PRD at a time. If the spike reaches rung 3, the plan should stop and split into a separate codex-targeted plan/job.
+
+[High] The cap fallback appears technically wrong. `spec_plan.rs:353-359` returns `max_concurrent_threads_per_session` only when `multi_agent_v2_enabled(turn_context)` is true. The v1 handler receives that helper at `spec_plan.rs:714`, but with v1 Collab-only it gets `None`, not `1`. So rung (b) (`features.multi_agent_v2.max_concurrent_threads_per_session=1`) will not cap v1 Collab unless v2 is also enabled, which changes the tool path. This can invalidate the fallback acceptance criteria.
+
+[Low] The plan’s `codex-exec.mjs` timeout research is stale: current `DEFAULT_TIMEOUT_MS` is 20 minutes at `src/codex-exec.mjs:76`, not 240000/4 minutes. It is out of scope, but the plan should not preserve stale line references.
+
+### Completeness
+
+[High] The plan does not specify the exact required outcome if US-001 confirms disable works but D-002 remains “policy/docs-only.” The overview says it “adopts `iterationEngine=copilot` as the documented supported default,” while Open Question 4 recommends leaving schema default `codex`. The implementation story needs a concrete target: schema default flip, docs-only recommendation, or PRD-converter policy change.
+
+[Medium] The spike evidence is underspecified. AC asks to prove spawn tools are absent/capped, but the plan does not name a deterministic probe command or artifact to inspect. Add a required transcript/source of truth, e.g. `codex exec --disable multi_agent ...` sidecar showing advertised tools, plus replay logs.
+
+### Ordering
+
+[High] US-007 cannot be an ordinary “conditional later story” inside the same serialized plugin cluster. If config disable and cap both fail, the correct next step is to stop after US-001 with a NO-GO and spawn/replan the codex fork patch separately.
+
+### Simplicity
+
+[Medium] Prefer the first-class CLI toggle syntax already present in `cli/src/main.rs:788-793`: `--disable multi_agent` is equivalent to `-c features.multi_agent=false` and validated as a known feature. `codex-exec.mjs` can still implement with `-c`, but the spike should test/report both and pick the clearer supported surface.
+
+### Acceptance Criteria Quality
+
+[High] “`iterationEngine=copilot` is the documented supported impl default” is not verifiable enough because “documented default” can mean schema default, generated PRD default, skill prose recommendation, or operator policy. Split into exact ACs for schema/default behavior and documentation text.
+
+[Medium] “replaying US-002 … story completes” is model-dependent and could be flaky. Keep it as smoke evidence, but add deterministic unit/regression tests for argv wiring and mode separation as the blocking criteria.
+
