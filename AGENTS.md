@@ -440,6 +440,26 @@ this doc.
   cleanup command leaves the origin branch intact by default as an audit
   trail.
 
+- **Two FF-merge gotchas for plan/brainstorm branches (codified 2026-06-08).**
+  Both bit repeatedly this session:
+  1. **Stale-base phantom diff.** A plan/brainstorm branch forked before
+     intervening ships shows phantom "reverts" of `.ralph-overview/data.json`,
+     `AGENTS.md`, and the `ai-developer-toolkit` pointer in the two-dot
+     `git diff main..<sha>` (the branch is *behind* on those files, not
+     changing them). Confirm with the three-dot `git diff main...<sha> --
+     <file>` (empty = the branch never touched it), then **rebase the
+     member's worktree onto current main** (`git -C <worktree> rebase main`)
+     so the FF is clean and additions-only. Do NOT FF a stale-base branch
+     directly — it silently reverts the intervening ships.
+  2. **Untracked-copy conflict.** Brainstorm/plan members often write their
+     deliverables into BOTH their worktree AND the lead's primary checkout
+     `.ralph/{brainstorms,jobs}/<id>/` dir, so `git merge --ff-only` aborts
+     with "untracked working tree files would be overwritten". Verify each
+     untracked copy is byte-identical to the branch blob
+     (`git hash-object <wt-file>` == `git rev-parse <sha>:<path>`), then
+     `Remove-Item -Recurse` the untracked copies and re-run the FF. Never
+     blind-delete without the hash check.
+
 - **Impl-phase members still commit to a topic branch off `origin/main`.**
   Ralph's impl flow uses its own worktree convention and expects a
   `ralph/<task-id>` topic branch. The lead merges (fast-forward or PR) at
@@ -641,6 +661,52 @@ this doc.
   the new `ai-developer-toolkit` SHA and any matching docs/version-table edits.
   Cross-repo worktree rules apply to both load-bearing submodules.
 
+- **Dogfood a shipped CLI/tool feature via its REAL invocation path before
+  flipping `merged` — green unit tests are NOT sufficient (codified
+  2026-06-08).** crews v3.14.0's provisioner passed 295/295 but was 100%
+  broken via the INSTALLED Copilot CLI (its toolkit-root resolver walked up
+  from `~/.copilot/installed-plugins/…`, which has no marketplace index →
+  ENOENT); only a live dogfood through the installed CLI caught it (fixed as
+  v3.14.1). After the ship ceremony + `copilot plugin update`, run the
+  feature once through the path a real lead/user would use (the installed
+  CLI at `~/.copilot/installed-plugins/…`, NOT the in-tree `tools/*.js`) and
+  confirm the happy path before the `merged` flip. This generalizes the
+  crews-lifecycle rule (live smoke after green tests) to every CLI/tool ship.
+  File dogfood-discovered bugs immediately with the exact repro command + the
+  source root-cause.
+
+- **Engine selection for spawns now that codex is the default (codified
+  2026-06-08).** With `CREWS_ENGINE=codex`, a bare spawn is a codex member.
+  Keep HEAVY multi-lens work (brainstorm / plan members that fan out
+  codex+copilot+devil's-advocate lenses) on **copilot** for reliability —
+  spawn them with an explicit `--engine copilot` (the
+  `spawn-copilot-from-file.js` helper) because concurrent heavy multi-lens
+  members are the documented resource-exhaustion / crash-prone workload.
+  Dogfood codex on routine / lower-stakes work; reserve a deliberate codex
+  dogfood of a heavy job for when you can babysit it.
+
+- **When seeding a brainstorm with the operator's directional preference,
+  instruct it to VERIFY FEASIBILITY, not rubber-stamp (codified 2026-06-08).**
+  The raw-codex-autoconnect v2 seed leaned hard toward one option (native
+  Rust client, no happy-cli) but explicitly said "evaluate rigorously, do
+  not rubber-stamp" — and the brainstorm earned its keep by correcting the
+  operator's "overlay-only / zero upstream edits" framing with a
+  source-verified finding (`Codex.rx_event` is a TUI-owned single-consumer
+  mpsc, so a bounded upstream seam is unavoidable). A seed that only confirms
+  the operator's framing wastes the lens process: bake the operator's intent
+  in as the *lean* AND demand the disconfirming check.
+
+- **Settle a load-bearing factual claim against SOURCE before it drives task
+  framing — don't assert fork/codex internals from memory (codified
+  2026-06-08).** A confident-but-wrong claim ("codex sub-agents recursively
+  spawn sub-agents") nearly mis-shaped a task; a read-only source-investigation
+  member proved the opposite (depth-limited-to-1 via a fork gate at
+  `tool_config.rs:223-228`) and corrected the framing. When a task's
+  direction hinges on how the fork / codex / a plugin actually behaves, spawn
+  a focused read-only investigation (cite file:line, commit findings under
+  `.ralph/investigations/<topic>/`) rather than reasoning from memory. The
+  operator will (rightly) challenge unverified internal-behavior claims.
+
 - **Update `.ralph-overview/data.json` the same turn a task ships.** When a
   ralph member terminates clean (`terminal:complete`) and the work is on
   `origin/main`, flip `lifecycle: "tracked"` → `"merged"` (or `"archived"`
@@ -758,10 +824,15 @@ Rules:
    a task was clobbered. Restore from `git diff HEAD .ralph-overview/data.json`
    and patch in place rather than `git checkout` (preserves intended edits).
 
-6. **For large structural changes** (re-targeting a task entirely,
-   replacing multi-line prompts), prefer a temporary Node helper
-   `node -e "const d=require('./.ralph-overview/data.json'); const t=d.tasks.find(t=>t.id==='X'); t.foo='bar'; require('fs').writeFileSync(...)"` over a text-anchor `edit` — the ID-keyed mutation
-   can't accidentally clobber a neighboring task.
+6. **For any non-trivial change** (new `shipManifest`, multi-line prompt
+   seeds, re-targeting, adding cards), prefer a **file-based** ID-keyed Node
+   helper written to `.ralph/scratch/<name>.js` and run with `node
+   .ralph/scratch/<name>.js`, over BOTH a text-anchor `edit` AND an inline
+   `node -e "…"`. The ID-keyed mutation can't clobber a neighboring task, and
+   the file-based form avoids PowerShell 5.1 mangling the quotes/parens in
+   inline `node -e` (which broke data.json edits twice this session). The
+   helper should print `tasks before/after` + `without_id` counts as its own
+   guard. Delete the scratch script after the commit.
 
 7. **NEVER use `git add -A`** in a bookkeeping commit. Stage data.json
    explicitly. Otherwise generated sidecars (`.ralph-overview/generated/*`),
