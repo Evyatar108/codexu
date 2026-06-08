@@ -5419,8 +5419,8 @@
       "id": "ralph-codex-exec-default-timeout-too-short",
       "scope": "ralph",
       "status": "warn",
-      "lifecycle": "tracked",
-      "lastTouchedAt": "2026-06-07",
+      "lifecycle": "merged",
+      "lastTouchedAt": "2026-06-08",
       "command": {
         "descriptionHtml": "ralph codex-exec.mjs ships DEFAULT_TIMEOUT_MS=240000 (4 min, v5.54.0 line 72), designed to self-reap UNDER an assumed '~300s caller harness tool-timeout'. This is TOO SHORT: it prematurely reaps healthy long xhigh codex lens runs. Observed 2026-06-07: exit124 'stalls' on plan-crash, plan-agentcomms, bs-iterguard lenses were LIKELY premature reaps, not true codex hangs. Operator HARD MINIMUM: codex/agent lens timeouts >= 20 min (1200000ms). Also the '240s must sit under ~300s harness tool-timeout' premise may be STALE -- under Copilot CLI, async shell commands background (no 300s hard kill), so the wrapper timeout can be a pure long backstop. DISTINCT from the runaway-spawn pathology (ralph-codex-iteration-engine-runaway-spawn-guard) and the already-fixed pipe-deadlock (v5.54.0).",
         "prompts": {
@@ -5431,14 +5431,26 @@
       },
       "kanbanCards": [
         {
-          "className": "cmd-warn",
-          "html": "Filed 2026-06-07 by bookkeeper. ralph codex-exec.mjs DEFAULT_TIMEOUT_MS=240000 (4 min, v5.54.0) is TOO SHORT — prematurely reaps healthy long xhigh codex lens runs; the exit124 'stalls' this session were likely premature reaps, NOT true hangs. Operator hard-min: 20 min (1200000ms). Also re-validate the stale '240s must sit under ~300s harness tool-timeout' premise (Copilot CLI backgrounds async shells -> may be wrong). Distinct from the runaway-spawn guard + the fixed pipe-deadlock. Small plan->impl; raises codex-as-engine viability."
-        },
-        {
           "className": "cmd-ok",
-          "html": "Plan shipped 2026-06-07 @ d72b5ace (topic 5e686b84). 3 serial stories; Phase 4 5 findings resolved. <b>KEY FINDING: the '240s must sit under ~300s harness tool-timeout' premise is STALE/NOT-REAL</b> — the harness does not actually impose a ~300s hard kill, so the under-300s constraint is removed; raise DEFAULT_TIMEOUT_MS to a >= 20-min last-resort backstop. Confirms the exit124 'stalls' this session were premature reaps, not codex hangs."
+          "html": "Impl shipped @ ralph v5.55.0 (toolkit 5b917d9a / codexu pointer a7a3ac6d). DEFAULT_TIMEOUT_MS 240000->1200000 (20min last-resort backstop); stale ~300s-undercut premise removed; overrides preserved; regression test added. 28 tests + 5 gates green; Phase 5a+5b clean. Satisfies operator >=20min lens-timeout rule."
         }
-      ]
+      ],
+      "shipManifest": {
+        "shippedAt": "2026-06-08",
+        "summary": "ralph v5.55.0 — raised codex-exec.mjs DEFAULT_TIMEOUT_MS from 240000 (4 min) to 1200000 (20 min) as a pure last-resort backstop, and removed the stale \"the wrapper timeout must sit BELOW the caller's ~300s harness tool-timeout\" premise that the timeout task confirmed was never real (especially under Copilot CLI, which backgrounds long async shells rather than hard-killing at 300s).\n\nMost of this session's codex-lens \"exit 124 stalls\" were therefore premature reaps of healthy long xhigh runs, not codex hangs. The real Windows pipe-deadlock that genuinely wedged the lens is already fixed by the v5.54.0 fd-backed concurrent drain, and orphan prevention on any harness kill is handled by the SIGINT/SIGTERM snapshot + tree-kill handlers — so the timeout no longer needs to undercut any wall clock; it only needs to be long enough never to reap a healthy run mid-flight. Overrides (--timeout-ms / CODEX_EXEC_TIMEOUT_MS; 0/negative disables) are preserved, and the iteration-engine path inherits the new default. A regression test pins the new 1200000 default and asserts the 124 reap path still fires. 28 tests + 5 gates green; Phase 5a code-review clean + rubber-duck no blocking issues; docs review clean. Directly satisfies the operator rule that codex/agent lens timeouts must be >= 20 min.",
+        "commits": [
+          {
+            "sha": "5b917d9a",
+            "oneLine": "feat(ralph): raise codex-exec default timeout to 20min last-resort backstop (v5.55.0)",
+            "repo": "ai-developer-toolkit"
+          },
+          {
+            "sha": "a7a3ac6d",
+            "oneLine": "chore(deps): bump ralph plugin to v5.55.0 (codex-exec 20min backstop)",
+            "repo": "codexu"
+          }
+        ]
+      }
     }
   ],
   "phaseTree": [
