@@ -1,0 +1,36 @@
+{
+  "brainstormName": "ralph-codex-iteration-engine-runaway-spawn-guard",
+  "overviewTaskId": "ralph-codex-iteration-engine-runaway-spawn-guard",
+  "idea": "Make codex (CLI fork 0.135) reliable as Ralph's ITERATION ENGINE, or decide the policy. Codex driving a single-story ralph iteration (impl-adapter US-002) rabbit-holed spawning runaway multi-agent (Collab/multi_agent_v2) sub-agents (~10min/383K tokens) and hung. Weigh: (a) ralph-side guardrail, (b) codex-side disable/cap collaboration for single-story iterations, (c) policy: keep iterationEngine=copilot as default. Scope note: the codex-exec lens exit124 timeout-raise is a SEPARATE task (ralph-codex-exec-default-timeout-too-short); this brainstorm owns only the runaway-spawn guard.",
+  "availableLenses": ["codex", "copilot", "devils-advocate"],
+  "missingLenses": [],
+  "candidateDirections": [
+    {
+      "id": "D-001",
+      "name": "Codex-side no-collab / capped-collab iteration profile (root-cause prevention)",
+      "summary": "Give ralph single-story iterations a codex profile that disables/caps sub-agent spawning (v1 Collab + MultiAgentV2) while preserving multi_agent_v2 for lens fan-out and codex members; prefer a per-invocation 0.135 config knob, fall back to a small fork patch only if needed; pair with anti-spawn guidance in prompts/codex.md. Mode separation resolves the spawn-for-lenses vs don't-rabbit-hole-in-iteration tension. Plan must open with a go/no-go spike (replay US-002 collab-disabled + confirm a 0.135 knob exists). Graduates codex back to a supported iterationEngine for the codex-as-default-member chain.",
+      "contributingLenses": ["codex", "copilot", "devils-advocate"]
+    },
+    {
+      "id": "D-002",
+      "name": "Policy: Copilot as the supported impl iteration engine, codex non-iteration-only (interim default, already in effect)",
+      "summary": "Formalize iterationEngine=copilot as ralph's documented default implementation engine; mark codex as research/review/lens engine unless an explicit opt-in selects codex for impl. Zero-code, zero-risk, already de-facto (impl-async and the adapter member both switched to copilot to recover). Masks the root cause and leaves the codex-as-default-member chain blocked, so pair with D-001 rather than treat as terminal.",
+      "contributingLenses": ["codex", "copilot", "devils-advocate"]
+    },
+    {
+      "id": "D-003",
+      "name": "Ralph-side runaway-spawn guard - containment only, spawn-signal based, NOT a wall clock",
+      "summary": "If prevention (D-001) is incomplete or no 0.135 knob exists, add a diagnostic-first guard that detects runaway spawning via a spawn signal (codex.exe child-process count - the wrapper already enumerates the subtree - and/or sidecar Collab spawn markers) and aborts only on a clear runaway. Per operator directive this must NOT be a low wall-time timeout. Containment, not correctness; bounds token spend / orphan processes. Feasibility depends on whether the runaway is observable outside the codex process.",
+      "contributingLenses": ["codex", "copilot", "devils-advocate"]
+    }
+  ],
+  "recommendedDirection": "D-001",
+  "questionsForSynthesis": [
+    "Can ralph pass an existing per-invocation codex config override to disable/cap collaboration on 0.135, or does it require a fork patch (rebase-gated)?",
+    "During the US-002 runaway, were Collab children visible as OS child processes, codex internal agents/transcript events, or only token usage? (Determines whether D-003's spawn-signal detection is feasible.)",
+    "Should the no-collab profile apply only to ralph iteration prompts while preserving multi_agent_v2 for lens fan-out and codex members?",
+    "Is the guard codex-version-specific (0.135 vs >=137)? Will the next rebase change the feature/config surface?",
+    "Should the schema/example default flip from codex to copilot for iterationEngine, or only the operating policy/docs?",
+    "What evidence graduates codex back to a supported iterationEngine (N clean stories, no spawn events, a codex-side cap)?"
+  ]
+}
