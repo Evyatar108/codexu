@@ -92,6 +92,22 @@ export default defineConfig({
                     },
                 },
             },
+            {
+                extends: true,
+                test: {
+                    name: 'integration-agent-comms',
+                    fileParallelism: false,
+                    maxWorkers: 1,
+                    minWorkers: 1,
+                    testTimeout: 60_000,
+                    include: [
+                        'src/agentComms/mailbox.crossProcess.integration.test.ts',
+                    ],
+                    sequence: {
+                        groupOrder: 1,
+                    },
+                },
+            },
         ],
         coverage: {
             provider: 'v8',
