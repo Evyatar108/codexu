@@ -1,0 +1,37 @@
+{
+  "brainstormName": "crews-target-engine-plugin-provisioning",
+  "overviewTaskId": "crews-target-engine-plugin-provisioning",
+  "idea": "Design a crews SKILL that the LEAD/BOOKKEEPER invokes ON DEMAND to install a missing plugin into a TARGET ENGINE (copilot, claude, or codex). Decided direction (not relitigated): lead-invoked, on-demand, shaped like /crews-install-plugin <plugin> --engine <copilot|claude|codex> [--version <v>] [--marketplace <name-or-localpath>]. Design the details: command surface + defaults, per-engine install mechanism (copilot plugin install; codex local-source plugin add; claude settings.json), idempotency + version (codex local-source cache lag refresh), status/verification (non-opaque), discovery helper (list-plugins). Out of scope now: auto-provision-on-spawn.",
+  "availableLenses": ["codex", "copilot", "devils-advocate"],
+  "missingLenses": [],
+  "candidateDirections": [
+    {
+      "id": "D-001",
+      "name": "Two-layer native-CLI-wrapper installer + discovery companion, with explicit restart/respawn verdict",
+      "summary": "crews CLI subcommand (tools/crews.js install-plugin) with per-engine adapters shelling out to each engine's NATIVE installer, idempotent install/no-op/upgrade, codex local-source refresh, structured result incl. restartRequired/currentThreadUsable; thin /crews-install-plugin skill + /crews-list-plugins (or --status/--dry-run) companion; crews 3.12.1 -> 3.13.0.",
+      "contributingLenses": ["codex", "copilot", "devils-advocate"]
+    },
+    {
+      "id": "D-002",
+      "name": "Codex-first minimal unblock (install-only; defer copilot/claude + discovery)",
+      "summary": "Ship a tight --engine codex-only installer with the restart verdict first (codex is the actual blocked-member driver and the riskiest engine: local-source-only, cache lag, config.toml, fresh-thread), designing the surface so other engines/discovery add later non-breakingly.",
+      "contributingLenses": ["devils-advocate"]
+    },
+    {
+      "id": "D-003",
+      "name": "Direct config/cache reconciler (bypass native CLIs; edit settings.json/config.toml + cache)",
+      "summary": "Side-step missing/interactive native installers by directly writing ~/.claude/settings.json, ~/.copilot/settings.json, ~/.codex/config.toml + seeding cache. Other two lenses treat this as an anti-pattern; viable only as a narrow, clearly-labelled Claude fallback when no native non-interactive install exists.",
+      "contributingLenses": ["codex"]
+    }
+  ],
+  "recommendedDirection": "D-001",
+  "questionsForSynthesis": [
+    "Should --engine be REQUIRED for safety, or default to the caller engine (risk: the blocked member is often a different engine than the lead)?",
+    "Discovery surface: standalone /crews-list-plugins vs install-plugin --status/--dry-run mode vs both?",
+    "Restart handling: report-only respawn-required verdict vs an optional --respawn-member <name> follow-up (auto-restart of a running member is surprising)?",
+    "Claude scope in v1: detect-only/experimental vs a settings.json-edit install fallback (no proven non-interactive claude install CLI)?",
+    "--version semantics: exact required vs minimum acceptable (no-op if installed >= required)?",
+    "For codex, always run `codex plugin add` to refresh local-source version lag even when config already has the stanza, and reject git-source marketplaces unconditionally?",
+    "Verification depth: install-state cross-check (list + cache + config) sufficient, vs an optional --verify-skills that boots a fresh engine session?"
+  ]
+}
