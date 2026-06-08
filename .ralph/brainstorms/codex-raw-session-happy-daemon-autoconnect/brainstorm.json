@@ -1,0 +1,37 @@
+{
+  "brainstormName": "codex-raw-session-happy-daemon-autoconnect",
+  "overviewTaskId": "codex-raw-session-happy-daemon-autoconnect",
+  "idea": "Make a RAW codex invocation (user types `codex` directly, NOT `happy codex`) auto-connect to Happy the same way `happy codex` does -- become a discoverable, mobile-controllable, synced session on the Happy session tree instead of being permanently invisible. Resolve first: does v1 mean full remote control or discoverability+read-only sync? Verdict on whether a codex fork patch is needed.",
+  "availableLenses": ["codex", "copilot", "devils-advocate"],
+  "missingLenses": [],
+  "candidateDirections": [
+    {
+      "id": "D-001",
+      "name": "SessionStart-hook -> daemon-owned rollout adoption -> encrypted read-only unmanaged mirror (with explicit managed-successor handoff)",
+      "summary": "Global codex SessionStart command hook hands the daemon {session_id, transcript_path, cwd}; the daemon (holding Happy keys) mints an E2EE unmanaged session and tails the named rollout .jsonl read-only, with a 'continue in Happy' handoff that spawns a managed successor -- zero codex fork patch.",
+      "contributingLenses": ["codex", "copilot", "devils-advocate"]
+    },
+    {
+      "id": "D-002",
+      "name": "Opt-in PATH shim: codex wrapper delegates plain interactive starts to happy codex",
+      "summary": "For users who truly want full mobile control, intercept `codex` before launch and relaunch through `happy codex` (existing app-server + loopback ws-auth path). Full fidelity, still zero codex fork patch, but changes local UX and must pass through all subcommands untouched -- opt-in + reversible, deferred behind D-001.",
+      "contributingLenses": ["codex", "copilot", "devils-advocate"]
+    },
+    {
+      "id": "D-003",
+      "name": "Codex fork patch: raw TUI emits/adopts a Happy control lifecycle",
+      "summary": "Only path to true same-process bidirectional control of the running native TUI. XL; likely needs broad upstream-canonical edits against the minimize-conflict-surface tenet, and risks the unvalidated app-server-multiplexing + one-server-per-cwd invariants. Rejected for v1.",
+      "contributingLenses": ["codex", "copilot", "devils-advocate"]
+    }
+  ],
+  "recommendedDirection": "D-001",
+  "questionsForSynthesis": [
+    "What exact user promise should v1 make: 'visible' / 'live history mirror' / 'continue in managed Happy' -- and is same-process remote control explicitly out of scope for v1?",
+    "Spike first: does codex SessionStart supply a non-null, per-TUI-unique, restart-stable transcript_path for a raw interactive start (new/resume/compact/parallel-same-cwd)?",
+    "Where is the durable dedup identity: codex session_id + rollout line ordinal, rollout item id, or a Happy-maintained sidecar offset file? (must avoid randomUUID localId duplicates)",
+    "Daemon-down story: hook-only best-effort vs cold-start scan of ~/.codex/sessions vs both; which is authoritative on disagreement?",
+    "Should unmanaged raw-codex rows have a distinct read-only UI state with send/approval/interrupt disabled until an explicit managed handoff?",
+    "Is a happy-cli-installed global codex hook an acceptable consent boundary, or must 'raw codex' mean zero prior Happy configuration?",
+    "Is the loopback control-port trust model (127.0.0.1 binding as the boundary, no X-Loopback-Capability gate) acceptable for a new raw-registration route?"
+  ]
+}
