@@ -1,0 +1,103 @@
+{
+  "clusters": [
+    {
+      "name": "spike-gate",
+      "stories": ["US-001"],
+      "phase": 1,
+      "dependsOn": [],
+      "fileOverlapEvidence": {
+        "sharedFiles": [],
+        "exclusiveFiles": ["throwaway spike branch / internal flag"],
+        "risk": "low"
+      },
+      "executionModeRationale": "Phase-0 GO/NO-GO gate: must complete and return GO before any build story starts; nothing runs in parallel with the gate."
+    },
+    {
+      "name": "wire-seam",
+      "stories": ["US-002"],
+      "phase": 2,
+      "dependsOn": ["spike-gate"],
+      "fileOverlapEvidence": {
+        "sharedFiles": ["external/repos/codex-patched/codex-rs/model-provider-info/src/lib.rs"],
+        "exclusiveFiles": ["WireApi enum + Display + Deserialize"],
+        "risk": "low"
+      },
+      "executionModeRationale": "Foundational WireApi::ChatCompletions type change that other stories reference; lands alone before the parallel phase."
+    },
+    {
+      "name": "model-surface",
+      "stories": ["US-003"],
+      "phase": 3,
+      "dependsOn": ["wire-seam"],
+      "fileOverlapEvidence": {
+        "sharedFiles": ["external/repos/codex-patched/codex-rs/Cargo.lock (lock-owner = overlay-transport this phase; model-surface rebases)"],
+        "exclusiveFiles": [
+          "external/repos/codex-patched/codex-rs/model-provider/src/copilot_models_endpoint.rs",
+          "external/repos/codex-patched/codex-rs/protocol/src/openai_models.rs",
+          "external/repos/codex-patched/codex-rs/models-manager/src/model_info.rs"
+        ],
+        "risk": "medium"
+      },
+      "executionModeRationale": "Filter relaxation + protocol-local route hint + cache + guardrail; disjoint SOURCE files from the overlay crate so it can run in parallel with overlay-transport, but it rebases onto the Cargo.lock owned by overlay-transport this phase to avoid a lockfile conflict."
+    },
+    {
+      "name": "overlay-transport",
+      "stories": ["US-004"],
+      "phase": 3,
+      "dependsOn": ["wire-seam"],
+      "fileOverlapEvidence": {
+        "sharedFiles": ["external/repos/codex-patched/codex-rs/Cargo.lock (OWNER this phase)"],
+        "exclusiveFiles": [
+          "codex-rs-overlay/codex-copilot/src/payload.rs",
+          "codex-rs-overlay/codex-copilot/src/chat_completions.rs",
+          "codex-rs-overlay/codex-copilot/src/lib.rs"
+        ],
+        "risk": "medium"
+      },
+      "executionModeRationale": "Largest from-scratch translation code (yields NEUTRAL events, no codex-api dep to avoid a cycle); self-contained in the overlay crate. Owns the Cargo.lock / dependency edits for Phase 3 so the two parallel clusters cannot conflict on the lockfile."
+    },
+    {
+      "name": "dispatch-wiring",
+      "stories": ["US-005"],
+      "phase": 4,
+      "dependsOn": ["wire-seam", "model-surface", "overlay-transport"],
+      "fileOverlapEvidence": {
+        "sharedFiles": [
+          "external/repos/codex-patched/codex-rs/core/src/client.rs",
+          "external/repos/codex-patched/codex-rs/core/src/lib.rs",
+          "external/repos/codex-patched/codex-rs/core/Cargo.toml"
+        ],
+        "exclusiveFiles": ["external/repos/codex-patched/codex-rs/core/src/chat_transport.rs"],
+        "risk": "medium"
+      },
+      "executionModeRationale": "Integrates the WireApi variant + overlay functions into live dispatch (one client.rs arm + new core module + core->codex-copilot dep + neutral->ResponseEvent map), and flips Claude-row visibility; must follow the three upstream/overlay clusters."
+    },
+    {
+      "name": "contract-and-audit",
+      "stories": ["US-006", "US-007"],
+      "phase": 5,
+      "dependsOn": ["dispatch-wiring"],
+      "fileOverlapEvidence": {
+        "sharedFiles": [
+          "docs/implementation/patch-surface.md",
+          "scripts/audit_invariants.sh"
+        ],
+        "exclusiveFiles": ["feature-gate sites", "redaction/audit tests"],
+        "risk": "medium"
+      },
+      "executionModeRationale": "Feature-contract gating and audit/invariant registration both edit the same docs/scripts, so serialize them together after the path works end-to-end. (Request-build hard-errors already land in US-004 so no silent path ever exists.)"
+    },
+    {
+      "name": "e2e-validation",
+      "stories": ["US-008"],
+      "phase": 6,
+      "dependsOn": ["contract-and-audit"],
+      "fileOverlapEvidence": {
+        "sharedFiles": [],
+        "exclusiveFiles": ["deterministic e2e tests"],
+        "risk": "low"
+      },
+      "executionModeRationale": "Final whole-feature verification (deterministic integration test + GPT-5.x regression + cargo check --workspace); runs last."
+    }
+  ]
+}

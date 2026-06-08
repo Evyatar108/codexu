@@ -1,0 +1,35 @@
+I’ll read the provided task prompt and then carry out the requested changes.
+
+The prompt is longer than the file viewer’s default limit, so I’ll read it in sections to extract the task details.
+
+I’m going to verify the plan’s source references against the Rust workspace so the review findings are grounded in actual files.
+
+The direct code-search tools can’t access the repo root from this staging cwd, so I’ll use read-only shell searches from the repository root instead.
+
+I found several plan issues that should be fixed before implementation.
+
+### Feasibility
+
+- [High] `core/src/chat_transport.rs` is planned to call the overlay crate, but the file list does not include `core/Cargo.toml`. Unless `codex-core` already depends on `codex-copilot`, this will not compile. Add the dependency/change explicitly.
+- [High] The `ModelInfo` wire-hint type is unresolved. `ModelInfo` is in `protocol/src/openai_models.rs`, while `WireApi` is in `model-provider-info/src/lib.rs`; using `Option<WireApi>` may create bad layering or a dependency cycle. The plan should choose a protocol-local serde type/string and map it at the provider/core boundary.
+
+### Completeness
+
+- [High] The patch-surface scope is inconsistent. The plan says upstream-canonical edits are limited to `WireApi`, one `client.rs` arm, filter/hint relaxation, and `ModelInfo`, but it also creates `core/src/chat_transport.rs` and registers a module. The acceptance criteria omit those seams. Either include them in §14/§15 invariants or explicitly explain why they are exempt.
+- [High] The v1 unsupported-feature contract is not enumerated. “Every unsupported Responses feature” is too broad without a table naming features such as reasoning, output schema, web search, image detail, parallel tool calls, etc., plus the exact behavior: picker-disabled vs request-build hard error.
+- [Medium] Cache invalidation is left optional. Because old `models_cache.json` entries may omit Claude rows or wire hints, the plan should require a `client_version` bump or add a stale-cache test proving immediate correct behavior.
+
+### Ordering
+
+- [Medium] US-006 contract gating comes after the chat dispatch works. Since silent lossy success is the top risk, unsupported-feature rejection should be implemented alongside the request builder/dispatch, not deferred after the transport path can run.
+- [Medium] The proposed US-003/US-004 parallelism still risks shared workspace files, especially `Cargo.lock` and possibly `core/Cargo.toml`. The decomposition should assign one owner for shared dependency/lockfile edits or serialize those pieces.
+
+### Simplicity
+
+No issues found. The complexity is mostly justified by the per-model Copilot routing requirement.
+
+### Acceptance Criteria Quality
+
+- [High] The upstream-canonical “limited to” AC contradicts the implementation file list and would let an implementer satisfy the AC while leaving untracked canonical seams.
+- [Medium] The e2e AC allows “integration test or documented live-run transcript.” A transcript is useful for the live Claude spike, but deterministic wiremock/unit coverage should be mandatory for routing and chat-SSE tool-call translation.
+
