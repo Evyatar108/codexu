@@ -5692,7 +5692,7 @@
     {
       "id": "crews-remove-resume-crew-command",
       "scope": "crews",
-      "lifecycle": "tracked",
+      "lifecycle": "merged",
       "status": "active",
       "lastTouchedAt": "2026-06-08",
       "kanbanCards": [
@@ -5703,6 +5703,10 @@
         {
           "className": "cmd-ok",
           "html": "Plan shipped 2026-06-08 @ 5d11e2eb (ai-developer-toolkit submodule, on submodule main + all 3 toolkit remotes; codexu gitlink bumped). <b>5 stories</b> (US-001 remove the resume-crew surface; US-002 scrub refs + make the cleared actor-state TERMINAL; US-003 delete/rework 13 test suites; US-004 docs; US-005 version bump -> crews 3.15.0). <b>Coupling decided = option (a): cleared = terminal</b> -- a cleared member is NOT revived; recovery is a fresh /spawn-member (its mailbox is already archived, nothing lost) + assign-role lead for takeover. Decisive evidence: clear-member tombstones in place (keeps startedAt) and spawn-member.js:161 blocks same-name re-spawn, so resume-crew --include-cleared was the only same-name revival but preserved nothing of value. US-OPT (relax spawn-member guard for terminal manifests) EVALUATED + DEFERRED (non-trivial spawn-path change, exceeds \"remove the footgun\" intent). Phase-4 (Codex+Copilot, 20-min) earned its keep: caught a missed test file, a mis-classified test that calls the handler, the actor-state cleared:['active'] conflict, live /resume-crew strings in retained modules, + a version-manifest nit."
+        },
+        {
+          "className": "cmd-ok",
+          "html": "SHIPPED 2026-06-08: crews 3.15.0 @ toolkit 04eb6bc7 (on all 3 remotes) + codexu gitlink/AGENTS bump @ b8895830. resume-crew removed ENTIRELY (registry + hooks/commands/resume-crew.js -514 + both SKILL.md + ~13 test suites); coupling = option(a) cleared=terminal; 283/283 green. copilot plugin update applied; DOGFOOD verified: installed CLI = v3.15.0, resume-crew returns \"CLI surface disabled\" (exit 2), spawn-member/review-mail still work. The command that caused the 2026-06-08 mass-respawn incident is gone. UNBLOCKS the codex-skill $-token fix (same plugin, was serialized)."
         }
       ],
       "command": {
@@ -5711,6 +5715,22 @@
           "plan": "/plan-with-ralph crews-remove-resume-crew-command \"Remove the `resume-crew` command from the crews plugin ENTIRELY (operator decision 2026-06-08 after the mass-respawn incident that froze the PC; operator chose removal over a safety guard). Target repo = the ai-developer-toolkit submodule, plugins/crews/. ENUMERATE and remove every resume-crew surface: (1) the subcommand registration in tools/crews.js (and the help/usage listing); (2) tools/resume-crew.js (the v1.4.0 compat shim); (3) hooks/commands/resume-crew.js (the handler + repairManifestForResume + executePreview/crewPlan.leadName threading); (4) the /crews:resume-crew slash command (.claude-plugin) AND /crews-resume-crew (.github/plugin copilot mirror); (5) tests referencing resume-crew; (6) docs: README.md, plugins/crews/AGENTS.md, CHANGELOG.md. CRITICAL COUPLING TO DECIDE IN THE PLAN: clear-member revival is currently documented (README ~L210) as 'a cleared member can be revived by the lead via /resume-crew --confirm --include-cleared'. Removing resume-crew removes the ONLY documented revival path for a cleared member. The plan MUST choose and justify: (a) drop cleared-member revival entirely (cleared = terminal; re-do via fresh spawn-by-name), (b) fold a minimal named-member revive into clear-member or a new tiny command, or (c) keep ONLY a named-single-member revive (never bulk). Recommend (a) unless evidence shows revival is load-bearing — simplest, matches the operator's 'remove the footgun' intent. Confirm that lead-takeover (assign-role lead) and member recovery-by-name (spawn-member) cover the legitimate use cases resume-crew served, so removal does not strand a real workflow. crews v3.14.1 -> next minor (removal of a command surface); bump via scripts/bump-version.js across all 5 version files + tests/version.test.js. Honor the submodule two-commit flow + multi-remote push (origin/gim-home/personal); gim-home gates copilot plugin update. The codexu AGENTS.md 'Lead takeover + the resume-crew footgun' invariant (added in the post-mortem commit) should be updated by the codexu-side bookkeeper after this ships to reflect that the command no longer exists.\"",
           "impl": "/implement-with-ralph --from-plan ai-developer-toolkit/.ralph/jobs/crews-remove-resume-crew-command/plan.md --autonomous \"Implement the 5-story plan to REMOVE the crews resume-crew command entirely. Target repo = the ai-developer-toolkit submodule, plugins/crews/. The plan.md lives in the submodule at .ralph/jobs/crews-remove-resume-crew-command/plan.md (force-added; .ralph/ is gitignored in the submodule). Single serial cluster (same-plugin, shared version/doc files). US-001 remove the resume-crew subcommand surface (crews.js registry + tools/resume-crew.js shim + hooks/commands/resume-crew.js + the /crews:resume-crew claude slash + /crews-resume-crew copilot mirror). US-002 scrub remaining /resume-crew strings in retained modules (errors.js/stop.js/mailbox.js) + make the actor-state cleared transition TERMINAL (actor-state.js cleared:[] + matrix test) since repairManifestForResume was its only user. US-003 delete/rework the 13 affected test suites incl resume-crew-reboot-simulation.test.js + operator-trust-effective-as.test.js (which actually CALLS the handler) + ~8 shared enumeration tests. US-004 docs (README/AGENTS/CHANGELOG + architecture-refactor.md current-docs conflict + smoke-runbook). US-005 version bump crews 3.14.1 -> 3.15.0 via scripts/bump-version.js across all 5 version files + tests/version.test.js. DO NOT implement US-OPT (deferred). Coupling = option (a) cleared=terminal (recovery via fresh spawn + assign-role lead). Submodule two-commit flow: commit on a topic branch in a submodule worktree; the LEAD does the FF-merge to submodule main + 3-remote push (origin/gim-home/personal; gim-home gates copilot plugin update) + codexu gitlink bump + AGENTS active-plugin-versions table bump (crews -> 3.15.0) + copilot plugin update. Drive Phase 5a/5b to terminal-clean. codexu root CLAUDE.md is gitignored -- do NOT git add it.\""
         }
+      },
+      "shipManifest": {
+        "shippedAt": "2026-06-08",
+        "summary": "The crews resume-crew command was removed ENTIRELY (operator decision after it mass-respawned ~273 dead members and froze the PC). crews 3.15.0: the full surface gone -- crews.js registry entry, hooks/commands/resume-crew.js (-514 lines), both SKILL.md forms (claude + copilot), and ~13 test suites reworked/deleted; coupling resolved as option (a) cleared=terminal (recovery is a fresh /spawn-member + assign-role lead, since a cleared member's mailbox is already archived). US-OPT (relax the spawn-member same-name guard) was evaluated and DEFERRED. 283/283 tests green; Phase-4 multi-model review (Codex+Copilot) earned its keep. Shipped + dogfood-verified: after copilot plugin update, the installed CLI reports v3.15.0 and 'resume-crew --help' returns 'CLI surface disabled for resume-crew' (exit 2) while spawn-member/review-mail still work. Implemented on COPILOT (the earlier codex attempt implemented manually -- see codex-member-skips-implement-with-ralph-skill).",
+        "commits": [
+          {
+            "sha": "04eb6bc7",
+            "oneLine": "feat(crews): remove the resume-crew command entirely (v3.15.0)",
+            "repo": "ai-developer-toolkit"
+          },
+          {
+            "sha": "b8895830",
+            "oneLine": "chore: bump ai-developer-toolkit to crews v3.15.0 (resume-crew removed)",
+            "repo": "codexu"
+          }
+        ]
       }
     },
     {
