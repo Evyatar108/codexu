@@ -1,0 +1,58 @@
+{
+  "planFile": ".ralph/jobs/ralph-codex-exec-default-timeout-too-short/plan.md",
+  "repoDir": "D:/harness-efforts/codexu",
+  "reviewers": ["claude", "codex", "copilot"],
+  "round": 1,
+  "findings": [
+    {
+      "id": "F-001",
+      "severity": "High",
+      "source": "consensus",
+      "detectedBy": ["copilot", "codex"],
+      "status": "resolved",
+      "category": "test-correctness",
+      "description": "Proposed regression test would hang: main() awaits waitForChild(); a fake child that never closes + a setTimeout fake that only captures delay never settles the promise.",
+      "resolution": "US-002 AC + Files-to-modify now require settling the awaited main() promise (invoke the captured timeout callback so waitForChild resolves to 124, then await + assert captured delay === 1200000), mirroring the existing 'wrapper timeout ... returns 124' test."
+    },
+    {
+      "id": "F-002",
+      "severity": "Medium",
+      "source": "consensus",
+      "detectedBy": ["codex", "claude"],
+      "status": "resolved",
+      "category": "overclaim-scope",
+      "description": "Plan overstated that raising the default helps 'plan/brainstorm/review lenses simultaneously'. Under Claude Code the research/review SKILLs still wrap codex-exec in a Bash tool timeout: 300000, which can hard-kill a healthy run at 5 min before the new 20-min default is reached.",
+      "resolution": "Research-brief + plan Research-Findings narrowed: full help for the no-outer-timeout iteration-engine/review-loop paths and Copilot-CLI lenses; only PARTIAL help for Claude-Code SKILL lenses. Added an AC requiring the CHANGELOG/AGENTS text to narrow the guarantee and note outer SKILL Bash timeouts. SKILL Bash-timeout raise filed as an Open Question / follow-up."
+    },
+    {
+      "id": "F-003",
+      "severity": "Medium",
+      "source": "claude",
+      "detectedBy": ["claude"],
+      "status": "resolved",
+      "category": "engine-honesty",
+      "description": "Plan claimed 'no orphan regression' unconditionally; under Claude Code an immediate uncatchable SIGKILL would bypass the SIGINT/SIGTERM handlers.",
+      "resolution": "Technical Constraints reworded engine-honestly: no harness hard-kill under Copilot CLI (no regression); under Claude Code a SIGTERM is caught by the v5.54.0 handlers (no orphan), only an immediate SIGKILL bypasses them — a narrow, pre-existing window independent of this constant."
+    },
+    {
+      "id": "F-004",
+      "severity": "Medium",
+      "source": "codex",
+      "detectedBy": ["codex"],
+      "status": "resolved",
+      "category": "verification-completeness",
+      "description": "Because the plan updates .codex-plugin/plugin.json + marketplace entries, the verification ACs should include the Ralph Codex-artifact release-gate checks (generate-copilot-artifacts --target=codex --check, test-codex-generator.mjs) and the Copilot gate, not just the marketplace-policy validator.",
+      "resolution": "US-003 ACs + plan Acceptance-Criteria now require the Copilot release gate and the Codex release gate in addition to validate-codex-marketplace-policy.mjs."
+    },
+    {
+      "id": "F-005",
+      "severity": "Low",
+      "source": "codex",
+      "detectedBy": ["codex"],
+      "status": "resolved",
+      "category": "acceptance-criteria-precision",
+      "description": "The 'grep 300 returns only legitimate hits or none' AC is too loose for an autonomous agent.",
+      "resolution": "Tightened the AC to concrete forbidden phrases (`~300s`, `under 300s`, `harness tool-timeout`, `harness bound`), allowing an unrelated bare numeric 300."
+    }
+  ]
+}

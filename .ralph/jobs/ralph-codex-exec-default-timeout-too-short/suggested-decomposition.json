@@ -1,0 +1,27 @@
+{
+  "clusters": [
+    {
+      "name": "codex-exec-timeout-raise",
+      "stories": ["US-001", "US-002", "US-003"],
+      "phase": 1,
+      "dependsOn": [],
+      "fileOverlapEvidence": {
+        "sharedFiles": [
+          "plugins/ralph/src/codex-exec.mjs",
+          "plugins/ralph/tests/test-codex-exec.mjs",
+          "plugins/ralph/CHANGELOG.md",
+          "plugins/ralph/AGENTS.md",
+          "plugins/ralph/.claude-plugin/plugin.json",
+          "plugins/ralph/.github/plugin/plugin.json",
+          "plugins/ralph/.codex-plugin/plugin.json",
+          ".claude-plugin/marketplace.json",
+          ".github/plugin/marketplace.json",
+          ".agents/plugins/marketplace.json"
+        ],
+        "exclusiveFiles": [],
+        "risk": "low"
+      },
+      "executionModeRationale": "Serial single-member cluster. All three stories target the same plugin (plugins/ralph) with intra-cluster dependencies: US-002 asserts the value US-001 introduces, and US-003's CHANGELOG/AGENTS.md docs describe the final value. Same-plugin parallel would conflict on the version-stamp, CHANGELOG, and AGENTS.md writes, so there is no parallelism benefit."
+    }
+  ]
+}
