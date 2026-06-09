@@ -1,0 +1,30 @@
+You are running a CONTROLLED SMOKE TEST of codex v1 (Collab / multi_agent) write-child capability. This is an EXPLICIT request for sub-agent delegation: you MUST use the spawn_agent collaboration tool that is available to you (it may be exposed under a multi_agent_v1 namespace and/or behind tool search — find it and use it).
+
+Hard rules for YOU (the top-level/root agent):
+- Do NOT edit any file yourself.
+- Do NOT create any git commit yourself.
+- Your ONLY job is to delegate the write+commit to a sub-agent, wait for it, and report.
+- Read-only git inspection commands (git log, git show) ARE allowed for you in the final step.
+- This is the codex v1 collaboration surface: there is NO followup_task tool and NO list_agents tool. Pass the full task in spawn_agent's `message` argument. Retrieve the child's result from the wait_agent return value.
+
+Do exactly these steps:
+
+Step 1 - spawn the write-child. Call spawn_agent with:
+  - message: a self-contained instruction (this IS the child's task) that tells the sub-agent to perform ALL of the following in the current working directory (which is a git repository):
+      (a) Append a new line containing exactly EDITED_BY_V1_COLLAB_CHILD_9Z4K to the file target.txt (keep the existing content; add the new line at the end).
+      (b) Stage and commit it by running: git add target.txt && git commit -m "v1 child write smoke: EDITED_BY_V1_COLLAB_CHILD_9Z4K"
+      (c) Obtain the resulting commit SHA by running: git rev-parse HEAD
+      (d) Produce as its FINAL answer exactly one line in this format and nothing else:
+          <review-meta>{"wrote_file": true, "committed": true, "commit_sha": "PUT_THE_SHA_HERE", "child_id": "v1_write_child"}</review-meta>
+  - Do NOT set agent_type, model, or reasoning_effort.
+  - If your spawn_agent tool also accepts a task_name field, you may set it to "v1_write_child"; if it does not, omit it.
+  Capture the returned agent id / target from the spawn response.
+
+Step 2 - Call wait_agent on the spawned child with timeout_ms 600000 and wait until it finishes. The wait_agent result contains a status map; the child's entry will be Completed with the child's final assistant message (the <review-meta> line).
+
+Step 3 - In YOUR final answer, output ALL of the following:
+  - The child's <review-meta> block, verbatim (recovered from the wait_agent result's Completed status).
+  - The output of running git log --oneline -5 yourself (read-only).
+  - The output of running git show --stat HEAD yourself (read-only).
+  - One sentence stating whether the child's commit (sentinel EDITED_BY_V1_COLLAB_CHILD_9Z4K) is present in git history and parent-visible.
+  - One sentence naming the exact spawn_agent tool name you actually called (e.g. whether it was namespaced like multi_agent_v1__spawn_agent or plain spawn_agent), and whether followup_task / list_agents were available to you (they should NOT be on v1).

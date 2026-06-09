@@ -1,0 +1,23 @@
+<review-meta>{"wrote_file": true, "committed": true, "commit_sha": "d2f086f91f48ffbbc5718171aca72de4e7bbe3da", "child_id": "v1_write_child"}</review-meta>
+
+`git log --oneline -5`:
+```text
+d2f086f v1 child write smoke: EDITED_BY_V1_COLLAB_CHILD_9Z4K
+3d133c3 initial scratch commit (parent baseline)
+```
+
+`git show --stat HEAD`:
+```text
+commit d2f086f91f48ffbbc5718171aca72de4e7bbe3da
+Author: v1 smoke <smoke@local>
+Date:   Tue Jun 9 10:44:57 2026 -0700
+
+    v1 child write smoke: EDITED_BY_V1_COLLAB_CHILD_9Z4K
+
+ target.txt | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+```
+
+The child’s commit with sentinel `EDITED_BY_V1_COLLAB_CHILD_9Z4K` is present in git history and parent-visible.
+
+I called `multi_agent_v1.spawn_agent`; `followup_task` and `list_agents` were not available on this v1 surface.
