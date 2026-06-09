@@ -6030,6 +6030,25 @@
           "plan": "Plan D-002 (operator-chosen 2026-06-09 over the recommended D-001): make ralph's WRITE/REVIEW subagents codex-NATIVE via spawn_agent (multi_agent_v2) write-children when engine=codex, so a codex member runs a full /implement-with-ralph with real fresh-context PRD-gen + real Phase 5a/5b reviewer/fixer delegation (no copilot-exec helper, no hand-scaffolded prd.json, no in-context self-review). HARD PHASE 0 (go/no-go, do NOT skip): a spawn_agent write-child smoke -- prove a codex spawn_agent child can run with write access to the member work_dir, make + COMMIT an edit, leave it parent-visible after exit, and emit parseable <review-meta>/JSON. If Phase 0 FAILS, STOP and escalate to the operator (D-002 infeasible -> D-001 hybrid or D-004). Build on the brainstorm @ fa6b08fd (--from-brainstorm). Settle against SOURCE: codex multi_agents_spec.rs spawn_agent schema (note the required `message` field; the shipped read-lens recipe is schema-stale at codex-lowering.mjs:287-296 -- fix it), ralph's code-reviewer/docs-reviewer (prose-only + UNINVENTORIED, review-changes SKILL.md:113-124) + code-fixer/docs-updater/criteria-validator/repo-detector sites, AGENT_SITE_INVENTORY + the codex generator + tests. Prereq: features.multi_agent_v2 enablement (codex-engine-ralph-member-enablement). Plugin-side (ralph) change only; no codex/ submodule edit. Encode the re-enable dogfood (full codex-member /implement-with-ralph with git + transcript evidence of real PRD-gen + real reviewer delegation) as the final acceptance."
         }
       }
+    },
+    {
+      "id": "crews-review-mail-overview-summary-header",
+      "scope": "crews",
+      "lifecycle": "tracked",
+      "status": "active",
+      "lastTouchedAt": "2026-06-09",
+      "kanbanCards": [
+        {
+          "className": "cmd-warn",
+          "html": "Filed 2026-06-09 by operator request. PROBLEM: when the lead/bookkeeper reads listener output or review-mail results, the data is often large (proactive batches can be 20-30KB, saved to a temp file). The lead then reads only the head (`Select-Object -First N`) or greps, which can MISS a buried terminal report (done/question/blocked) sitting after many progress rows. This is a documented, repeatedly-hit failure mode (see crews/codexu memory 'review-mail parsing': a done was missed after 21 progress rows because the output was printed-then-truncated at 30; happened again multiple times in the 2026-06-09 session). WANT: a short OVERVIEW/SUMMARY describing the batch, emitted at the TOP / self-contained in the first ~15 lines, so a model reading only the head never misses an actionable message. Minimum content: total entry count, sender(s), counts by kind (done/question/blocked/progress/reply), and the ACTIONABLE (non-progress) entries listed FIRST with {seq, sender, kind, summary, reply-required}. Also consider enriching the listener delivery envelope (`{type:messages,count:N,...}`) with a kind breakdown so even the one-line listener wake flags actionable items. Plugin-side (crews) change. Make robust to head-only reads + add tests + version bump + marketplace-index sync."
+        }
+      ],
+      "command": {
+        "name": "crews-review-mail-overview-summary-header",
+        "prompts": {
+          "plan": "Add a compact OVERVIEW/SUMMARY header to crews review-mail output (and consider the listener delivery envelope) so a lead/bookkeeper reading only the first few lines of a large saved output NEVER misses a buried terminal report (done/question/blocked). PROBLEM: proactive review-mail batches can be 20-30KB with the terminal row buried after many progress rows; the lead saves to a file and reads the head / greps and can miss the done (documented failure mode -- crews/codexu memory 'review-mail parsing'; hit repeatedly in the 2026-06-09 session). DESIGN: at the TOP of review-mail output emit a self-contained summary block (fits in ~15 lines): total entries, sender(s), counts by kind (done/question/blocked/progress/reply), and the ACTIONABLE non-progress entries listed FIRST as {seq, sender, kind, one-line summary, reply-required}. Keep the full entries below for detail. Decide: a `--summary`/`--overview` flag vs make it default; whether to also enrich the listener envelope (`{type:messages,count:N}`) with a per-kind breakdown so the one-line wake itself flags actionable items. Robustness requirement: the summary must surface every non-progress entry even when the batch has 20+ progress rows. Plugin-side (ai-developer-toolkit/plugins/crews) change only; add tests covering a large progress-heavy batch with a trailing done; bump the crews version + sync the marketplace indexes + CHANGELOG + plugin AGENTS.md. Settle whether a brainstorm is needed first; the intent is concrete enough to plan directly."
+        }
+      }
     }
   ],
   "phaseTree": [
