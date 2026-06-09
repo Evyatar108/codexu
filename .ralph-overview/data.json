@@ -5998,6 +5998,25 @@
           "plan": "Triage the ~49 pre-existing `pnpm --filter happy test` failures on main. Group by root cause, fix the straightforward ones, and quarantine/skip-with-issue the rest so the full happy suite goes green (or has a documented, small, tracked skip-list). Goal: restore the full-suite test gate as a trustworthy acceptance signal for future happy-cli impls."
         }
       }
+    },
+    {
+      "id": "codex-member-skill-agent-subagent-fanout",
+      "scope": "codex",
+      "lifecycle": "tracked",
+      "status": "active",
+      "lastTouchedAt": "2026-06-09",
+      "kanbanCards": [
+        {
+          "className": "cmd-warn",
+          "html": "Filed 2026-06-09 by operator request. GAP: a codex crew member running ralph's /implement-with-ralph drives the runner + commits cleanly, but the multi-agent subagent FAN-OUT degrades to manual/local because codex members expose no Skill()/Agent() callable. Specifically, Phase-2 PRD generation (convert-to-ralph-prd agents) and Phase 5a/5b reviewer convergence (code-reviewer / docs-reviewer subagents) could not run as real subagents in the 2026-06-09 codex-impl-dogfood (commit 34368efa) -- the member had to hand-scaffold prd.json and finalize the reviews LOCALLY. On Claude/Copilot these phases use the Task/Agent tool; codex uses spawn_agent (multi_agent_v2) with a DIFFERENT tool name + schema, and the existing MERGED adapter work (codex-ralph-member-multi-agent-adapter, codex-child-spawn-tools, codex-subagent-prompt-trigger-investigation, codex-upstream-multi-agent-v2-fork-impact) did NOT close THIS /implement-with-ralph reviewer/PRD fan-out path. THIS GAP IS THE GATE for re-enabling codex as the default crews member engine (operator decision 2026-06-09: keep all-copilot for real impls until this is solved). BRAINSTORM how to give codex crew members an equivalent Skill()/Agent() subagent fan-out so ralph's multi-agent phases (PRD-gen + reviewer convergence) run with full coverage on codex. Read the prior merged adapter tasks + the dogfood findings before proposing a direction; do NOT redo work the merged tasks already shipped -- explain why it doesn't cover this path and what's still missing."
+        }
+      ],
+      "command": {
+        "name": "codex-member-skill-agent-subagent-fanout",
+        "prompts": {
+          "brainstorm": "Brainstorm how to close the codex-member Skill()/Agent() subagent fan-out gap that degrades ralph's /implement-with-ralph on the codex engine. CONTEXT: a codex crew member injects + drives the skill and commits, but Phase-2 PRD-gen (convert-to-ralph-prd) and Phase 5a/5b reviewer subagents (code-reviewer/docs-reviewer) cannot run as real subagents -- the member hand-scaffolds prd.json and finalizes reviews locally (2026-06-09 dogfood, commit 34368efa). Root of the mismatch: ralph subagents are authored against the Claude/Copilot Task/Agent tool (name + schema); codex exposes spawn_agent via multi_agent_v2 (different name + schema, top-level-only, depth-limited-to-1 per the fork). FIRST read the merged prior art (codex-ralph-member-multi-agent-adapter, codex-child-spawn-tools, codex-subagent-prompt-trigger-investigation, codex-upstream-multi-agent-v2-fork-impact) and the dogfood findings, and explain precisely WHY they don't cover the /implement-with-ralph PRD-gen + reviewer-convergence fan-out. THEN evaluate directions rigorously (do not rubber-stamp any): (a) a codex-engine lowering/adapter in ralph that maps its Agent()/Task subagent calls to codex spawn_agent (multi_agent_v2) at skill-invocation time, including schema translation + the depth-1 constraint; (b) restructuring the affected ralph phases to use codex's native spawn_agent shape directly when engine=codex; (c) a hybrid where codex members delegate the fan-out phases to a copilot/claude helper; (d) accept manual/local finalization with a hardened evidence protocol. Settle feasibility against SOURCE (codex multi_agent_v2 tool schema + ralph's reviewer/PRD agent definitions), and recommend ONE direction with a clear conflict-surface + prerequisite list. This gap gates re-enabling codex as the default crews member engine. CODEX + ralph-plugin task."
+        }
+      }
     }
   ],
   "phaseTree": [

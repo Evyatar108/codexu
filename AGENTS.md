@@ -612,27 +612,31 @@ handoff). Re-bind it EARLY, before arming:
   state-cwd and the spawn fails with `SenderNotFoundError: sender "null" not
   found in crew "ralph-pipeline"`.
 
-- **Default member engine is `codex` as of 2026-06-08.** The codex-engine
-  readiness chain completed (spawn/skills/adapter/provisioning all shipped +
-  validated end-to-end; runaway-guard closed as superseded; a live Stage-1
-  codex-member smoke passed: engine confirmed, crews report-tag protocol works
-  end-to-end, all ralph skills visible, clean stop). The flip mechanism is the
-  **User-level env var `CREWS_ENGINE=codex`**, chosen for maximum reversibility.
-  Engine precedence (`hooks/actors.js` `spawnMember`): explicit `--engine` >
-  `process.env.CREWS_ENGINE` > caller-CLI detect (Copilot/Claude) > `claude`.
-  So **spawn members WITHOUT `--engine` to get a codex member**; pass
-  `--engine copilot` / `--engine claude` only for a deliberate cross-engine
-  member. (The old "default mirrors the caller-CLI engine" behavior from crews
-  v1.8.11 still applies as the *next* precedence rung, but `CREWS_ENGINE=codex`
-  now sits above it.)
-  - **In-session caveat:** a User-level env var only propagates to NEW process
-    trees (fresh terminals/sessions). A session whose shells predate the flip
-    won't see it — check `echo $env:CREWS_ENGINE`; if empty, either
-    `$env:CREWS_ENGINE='codex'` in the spawning shell or pass `--engine codex`
-    explicitly for that session.
-  - **To REVERT:** `[Environment]::SetEnvironmentVariable('CREWS_ENGINE',$null,'User')`
-    (then restart sessions, or `Remove-Item Env:CREWS_ENGINE` in-session). With
-    it unset, the default reverts to the caller-CLI mirror.
+- **Default member engine is COPILOT for real impls — the 2026-06-08
+  `CREWS_ENGINE=codex` flip was REVERTED 2026-06-09 (operator decision).**
+  The codex skill-injection fix (crews 3.18.0) is verified working, and a live
+  end-to-end `codex-impl-dogfood` (commit `34368efa`) confirmed a codex member
+  DOES inject + drive `/implement-with-ralph` and commit cleanly (no
+  hand-coding). BUT the same dogfood showed the **`Skill()`/`Agent()` subagent
+  fan-out degrades** on codex: Phase-2 PRD generation (convert-to-ralph-prd) and
+  Phase 5a/5b reviewer convergence (code-reviewer / docs-reviewer subagents)
+  could not run as real subagents — the member hand-scaffolded `prd.json` and
+  finalized the reviews locally, i.e. weaker review coverage than Claude/Copilot.
+  So for real impls we stay all-copilot until that gap closes.
+  - **Mechanism:** the User-level env var `CREWS_ENGINE=codex` was UNSET on
+    2026-06-09 (`[Environment]::SetEnvironmentVariable('CREWS_ENGINE',$null,'User')`),
+    so the default reverts to the caller-CLI mirror — **copilot** when the lead
+    runs under Copilot CLI. Engine precedence (`hooks/actors.js` `spawnMember`):
+    explicit `--engine` > `process.env.CREWS_ENGINE` > caller-CLI detect
+    (Copilot/Claude) > `claude`. **Spawn members WITHOUT `--engine` to get a
+    copilot member** (caller-CLI mirror); pass `--engine codex` only for a
+    deliberate codex member (e.g. a codex dogfood).
+  - **RE-ENABLE GATE:** codex-default re-enable is gated on
+    `codex-member-skill-agent-subagent-fanout` (brainstorm filed 2026-06-09) —
+    give codex crew members an equivalent subagent fan-out so ralph's
+    multi-agent phases run with full coverage. Once that ships + passes a fresh
+    codex-impl dogfood with real reviewer fan-out, re-set
+    `[Environment]::SetEnvironmentVariable('CREWS_ENGINE','codex','User')`.
 
 - **Every implement-driving spawn prompt must hard-code Phase 5a (code
   review-fix convergence — multiple rounds if needed) and Phase 5b (docs
@@ -756,15 +760,17 @@ handoff). Re-bind it EARLY, before arming:
   File dogfood-discovered bugs immediately with the exact repro command + the
   source root-cause.
 
-- **Engine selection for spawns now that codex is the default (codified
-  2026-06-08).** With `CREWS_ENGINE=codex`, a bare spawn is a codex member.
-  Keep HEAVY multi-lens work (brainstorm / plan members that fan out
-  codex+copilot+devil's-advocate lenses) on **copilot** for reliability —
-  spawn them with an explicit `--engine copilot` (the
-  `spawn-copilot-from-file.js` helper) because concurrent heavy multi-lens
-  members are the documented resource-exhaustion / crash-prone workload.
-  Dogfood codex on routine / lower-stakes work; reserve a deliberate codex
-  dogfood of a heavy job for when you can babysit it.
+- **Engine selection for spawns (updated 2026-06-09 after the codex-default
+  revert).** With `CREWS_ENGINE` now UNSET, a bare spawn is a **copilot** member
+  (caller-CLI mirror under Copilot CLI). For real impls keep all members on
+  copilot — including HEAVY multi-lens work (brainstorm / plan members that fan
+  out codex+copilot+devil's-advocate lenses), which stays on copilot for
+  reliability (concurrent heavy multi-lens members are the documented
+  resource-exhaustion / crash-prone workload). Pass `--engine codex` only for a
+  deliberate codex dogfood (the `spawn-from-file.js` helper sets
+  `CREWS_ENGINE=codex` for that one spawn); `spawn-copilot-from-file.js` forces
+  `--engine copilot`. Re-enabling codex-default is gated on
+  `codex-member-skill-agent-subagent-fanout` (see the engine-policy bullet above).
 
 - **When seeding a brainstorm with the operator's directional preference,
   instruct it to VERIFY FEASIBILITY, not rubber-stamp (codified 2026-06-08).**
