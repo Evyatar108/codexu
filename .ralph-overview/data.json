@@ -5952,6 +5952,10 @@
         {
           "className": "cmd-warn",
           "html": "Follow-up to codex-anthropic-models-support (D-001 transport, shipped 2026-06-09 to gim-home/codex@main). The transport code is on main but Anthropic models are NOT usable until a codex release is cut (version bump in codex-rs/Cargo.toml + release build + pack + tag + GitHub Release upload via the /publish-sandbox-patch skill) and installed. Drive the release cut + smoke. CODEX SUBMODULE task; operator-aware (release push)."
+        },
+        {
+          "className": "cmd-warn",
+          "html": "DEPENDENCY added 2026-06-09: do NOT cut this release until codex-anthropic-models-opt-in-gate lands. Operator requirement: Anthropic support must be OPT-IN (flag/env), OFF by default -- the first anthropic-capable release must ship with the gate so Claude is not enabled by default. Cut the release only after the opt-in gate is merged into the fork."
         }
       ],
       "command": {
@@ -6108,6 +6112,25 @@
             "repo": "codexu"
           }
         ]
+      }
+    },
+    {
+      "id": "codex-anthropic-models-opt-in-gate",
+      "scope": "codex",
+      "lifecycle": "tracked",
+      "status": "active",
+      "lastTouchedAt": "2026-06-09",
+      "kanbanCards": [
+        {
+          "className": "cmd-warn",
+          "html": "Filed 2026-06-09 by operator request. The merged D-001 Anthropic transport (codex-anthropic-models-support @ wrapper 98743a6c9 / inner sandbox-patches 40accc502) currently makes Claude models available + routable by DEFAULT (the live /models filter was changed to admit chat-only Claude rows, and routing selects WireApi::ChatCompletions for them). OPERATOR REQUIREMENT: 'add anthropic support only when the user passes a certain flag or has an env variable for it enabled -- I do NOT want it enabled by default.' GATE the whole D-001 behavior behind an explicit OPT-IN (flag and/or env var), DEFAULT OFF. When OFF (default): restore the pre-D-001 behavior -- /models drops chat-only (Claude) rows, the ChatCompletions route is not taken; GPT-5.x /responses unchanged. When ON: the D-001 behavior (Claude served + routed via /chat/completions; the live-spiked claude-sonnet-4.6 flows). CODEX SUBMODULE (codex-rs) change; two-commit submodule flow at ship. SEQUENCING: this must land BEFORE codex-cut-release-with-anthropic-transport, so the first anthropic-capable codex release is opt-in by default."
+        }
+      ],
+      "command": {
+        "name": "codex-anthropic-models-opt-in-gate",
+        "prompts": {
+          "plan": "Plan gating the D-001 Anthropic/Claude support behind an explicit OPT-IN (flag and/or env var), DEFAULT OFF, per the operator requirement (2026-06-09: 'only when the user passes a certain flag or has an env variable for it enabled; not enabled by default'). FIRST pin the CURRENT behavior against source: how does D-001 make Claude models available + routable today? Trace the live /models filter change (codex-rs model-provider / copilot_models_endpoint.rs), the WireApi::ChatCompletions wire_route selection, and chat_transport.rs (commits: inner sandbox-patches 40accc502 'D-001 transport US-002..006', wrapper 98743a6c9 'D-001 overlay US-004/007'). Confirm it is currently default-on. THEN design the opt-in gate: settle the MECHANISM against codex's existing config/feature conventions -- an env var (pick an idiomatic name, e.g. CODEX_ENABLE_ANTHROPIC / CODEX_COPILOT_CHAT_COMPLETIONS) and/or a config.toml field and/or a CLI flag (the operator said 'a flag OR an env variable' -- choose the idiomatic codex mechanism, and prefer an env var + config field over a bespoke CLI flag unless codex convention says otherwise). Gate BOTH effects: (a) the /models filter admits Claude rows ONLY when opted in (default: drop chat-only rows = pre-D-001 behavior); (b) the ChatCompletions route is selectable ONLY when opted in. GPT-5.x /responses must be byte-unchanged in BOTH states. Tests for BOTH states: gate-off = no Claude / pre-D-001 model list + no ChatCompletions route; gate-on = Claude available + the chat-completions transport (reuse/extend the US-001 spike + the codex-copilot contract tests). Honor fork tenets: egress stays api.githubcopilot.com only; overlay-first (minimize upstream-canonical conflict surface). CODEX SUBMODULE task; no version bump here (the release cut is a separate task that depends on this). Encode the acceptance: default codex behavior is identical to pre-D-001 (no Claude) unless the opt-in is set."
+        }
       }
     }
   ],
