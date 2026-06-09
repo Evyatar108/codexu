@@ -33,6 +33,12 @@ interface PendingSpawnRecord {
     body: unknown;
 }
 
+interface InflightSpawnRecord {
+    envelopeId: string;
+    correlationId?: string;
+    reservedAt: string;
+}
+
 interface CompletedSpawnRecord {
     envelopeId: string;
     correlationId?: string;
@@ -44,20 +50,28 @@ interface CompletedSpawnRecord {
 interface SpawnApprovalStore {
     version: 1;
     pending: PendingSpawnRecord[];
+    inflight: InflightSpawnRecord[];
     completed: CompletedSpawnRecord[];
 }
 
 const STORE_VERSION = 1 as const;
 const LOCK_STALE_MS = 15_000;
 const LOCK_ACQUIRE_TIMEOUT_MS = 5_000;
+// A persisted reservation older than this is treated as abandoned (e.g. the
+// reserving process crashed mid-spawn), so a fresh request may re-run.
+const INFLIGHT_STALE_MS = 300_000;
 const storeChains = new Map<string, Promise<unknown>>();
+// In-process registry of running spawns keyed by happyHomeDir + dedupe key.
+// Lets a mid-flight retry observe and return the in-flight result without
+// re-acquiring the cross-process lock or spawning a second child.
+const inflightSpawns = new Map<string, Promise<AgentCommsDeliveryAck>>();
 
 export function pendingSpawnsPath(happyHomeDir: string): string {
     return path.join(happyHomeDir, 'agent-comms', 'pending-spawns.json');
 }
 
 function emptyStore(): SpawnApprovalStore {
-    return { version: STORE_VERSION, pending: [], completed: [] };
+    return { version: STORE_VERSION, pending: [], inflight: [], completed: [] };
 }
 
 async function readStore(happyHomeDir: string): Promise<SpawnApprovalStore> {
@@ -66,6 +80,7 @@ async function readStore(happyHomeDir: string): Promise<SpawnApprovalStore> {
         return {
             version: STORE_VERSION,
             pending: parsed.pending ?? [],
+            inflight: parsed.inflight ?? [],
             completed: parsed.completed ?? [],
         };
     } catch (error) {
@@ -135,9 +150,30 @@ function runExclusive<T>(happyHomeDir: string, fn: () => Promise<T>): Promise<T>
     return run;
 }
 
-function dedupeKeyMatches(record: CompletedSpawnRecord, envelope: AgentCommsEnvelope): boolean {
+function spawnKeyMatches(record: { envelopeId: string; correlationId?: string }, envelope: AgentCommsEnvelope): boolean {
     return record.envelopeId === envelope.id
         || (Boolean(envelope.correlationId) && record.correlationId === envelope.correlationId);
+}
+
+function isActiveInflight(record: InflightSpawnRecord, now: Date): boolean {
+    return now.getTime() - new Date(record.reservedAt).getTime() < INFLIGHT_STALE_MS;
+}
+
+function inflightKey(happyHomeDir: string, envelope: AgentCommsEnvelope): string {
+    return `${happyHomeDir}::${envelope.correlationId ?? envelope.id}`;
+}
+
+interface SpawnDeferred {
+    promise: Promise<AgentCommsDeliveryAck>;
+    resolve: (ack: AgentCommsDeliveryAck) => void;
+    reject: (error: unknown) => void;
+}
+
+function createDeferred(): SpawnDeferred {
+    let resolve!: (ack: AgentCommsDeliveryAck) => void;
+    let reject!: (error: unknown) => void;
+    const promise = new Promise<AgentCommsDeliveryAck>((res, rej) => { resolve = res; reject = rej; });
+    return { promise, resolve, reject };
 }
 
 function mapSpawnRequestToRpc(envelope: AgentCommsEnvelope, body: AgentCommsSpawnRequestBody): SpawnSessionFromSessionRpcOptions {
@@ -173,29 +209,95 @@ async function sendSpawnResult(
     }));
 }
 
+interface SpawnApprovalOptions {
+    happyHomeDir: string;
+    localMachineId: string;
+    pinnedPeer: PinnedPeerKeys;
+    spawnSessionFromSession: (options: SpawnSessionFromSessionRpcOptions) => Promise<SpawnSessionResult>;
+    deliverRemote: (envelope: AgentCommsEnvelope) => Promise<AgentCommsDeliveryAck>;
+    now?: () => Date;
+}
+
+type SpawnPlan =
+    | { type: 'completed'; ack: AgentCommsDeliveryAck }
+    | { type: 'denied' }
+    | { type: 'await-local'; promise: Promise<AgentCommsDeliveryAck> }
+    | { type: 'remote-inflight' }
+    | { type: 'reserved'; deferred: SpawnDeferred };
+
+// Runs the long spawn + delivery WITHOUT holding the approval-store lock, then
+// re-acquires the lock briefly to persist the completed result and release the
+// reservation. The deferred mirrors the result to any concurrent in-process
+// retry waiting on the same dedupe key.
+function executeReservedSpawn(envelope: AgentCommsEnvelope, options: SpawnApprovalOptions, now: () => Date, key: string, deferred: SpawnDeferred): void {
+    void (async () => {
+        try {
+            let spawnResult: SpawnSessionResult;
+            try {
+                const body = spawnRequestBodySchema.parse(envelope.body);
+                spawnResult = await options.spawnSessionFromSession(mapSpawnRequestToRpc(envelope, body));
+            } catch (error) {
+                spawnResult = { type: 'error', errorMessage: error instanceof Error ? error.message : String(error) };
+            }
+
+            const deliveryAck = await sendSpawnResult(envelope, options.localMachineId, {
+                type: 'spawn-result',
+                ok: spawnResult.type === 'success',
+                requestId: envelope.id,
+                correlationId: envelope.correlationId,
+                result: spawnResult,
+            }, options.deliverRemote);
+
+            await runExclusive(options.happyHomeDir, async () => {
+                const store = await readStore(options.happyHomeDir);
+                store.inflight = store.inflight.filter(record => !spawnKeyMatches(record, envelope));
+                if (!store.completed.some(record => spawnKeyMatches(record, envelope))) {
+                    store.completed.push({
+                        envelopeId: envelope.id,
+                        correlationId: envelope.correlationId,
+                        completedAt: now().toISOString(),
+                        spawnResult,
+                        deliveryAck,
+                    });
+                }
+                await writeStore(options.happyHomeDir, store);
+            });
+            deferred.resolve(deliveryAck);
+        } catch (error) {
+            try {
+                await runExclusive(options.happyHomeDir, async () => {
+                    const store = await readStore(options.happyHomeDir);
+                    store.inflight = store.inflight.filter(record => !spawnKeyMatches(record, envelope));
+                    await writeStore(options.happyHomeDir, store);
+                });
+            } catch { /* best-effort reservation release */ }
+            deferred.reject(error);
+        } finally {
+            if (inflightSpawns.get(key) === deferred.promise) inflightSpawns.delete(key);
+        }
+    })();
+}
+
 export async function handleInboundSpawnRequest(
     envelope: AgentCommsEnvelope,
-    options: {
-        happyHomeDir: string;
-        localMachineId: string;
-        pinnedPeer: PinnedPeerKeys;
-        spawnSessionFromSession: (options: SpawnSessionFromSessionRpcOptions) => Promise<SpawnSessionResult>;
-        deliverRemote: (envelope: AgentCommsEnvelope) => Promise<AgentCommsDeliveryAck>;
-        now?: () => Date;
-    },
+    options: SpawnApprovalOptions,
 ): Promise<AgentCommsDeliveryAck> {
     if (envelope.channel !== 'spawn' || envelope.kind !== 'spawn-request') {
         throw new Error(`agent-comms spawn approval only handles spawn-request envelopes, got ${envelope.channel}/${envelope.kind}`);
     }
     const now = options.now ?? (() => new Date());
+    const key = inflightKey(options.happyHomeDir, envelope);
 
-    return runExclusive(options.happyHomeDir, async () => {
+    // Critical section: dedupe against completed work and atomically reserve the
+    // key. The lock is released before the long spawn/delivery runs so a
+    // mid-flight retry never blocks on it until LOCK_ACQUIRE_TIMEOUT_MS.
+    const plan = await runExclusive(options.happyHomeDir, async (): Promise<SpawnPlan> => {
         const store = await readStore(options.happyHomeDir);
-        const prior = store.completed.find(record => dedupeKeyMatches(record, envelope));
-        if (prior) return prior.deliveryAck;
+        const prior = store.completed.find(record => spawnKeyMatches(record, envelope));
+        if (prior) return { type: 'completed', ack: prior.deliveryAck };
 
         if (!options.pinnedPeer.approvedForSpawn) {
-            if (!store.pending.some(record => record.envelopeId === envelope.id || (envelope.correlationId && record.correlationId === envelope.correlationId))) {
+            if (!store.pending.some(record => spawnKeyMatches(record, envelope))) {
                 store.pending.push({
                     envelopeId: envelope.id,
                     correlationId: envelope.correlationId,
@@ -208,6 +310,31 @@ export async function handleInboundSpawnRequest(
                 });
                 await writeStore(options.happyHomeDir, store);
             }
+            return { type: 'denied' };
+        }
+
+        const localInflight = inflightSpawns.get(key);
+        if (localInflight) return { type: 'await-local', promise: localInflight };
+
+        if (store.inflight.some(record => spawnKeyMatches(record, envelope) && isActiveInflight(record, now()))) {
+            return { type: 'remote-inflight' };
+        }
+
+        store.inflight = store.inflight.filter(record => !spawnKeyMatches(record, envelope) && isActiveInflight(record, now()));
+        store.inflight.push({ envelopeId: envelope.id, correlationId: envelope.correlationId, reservedAt: now().toISOString() });
+        await writeStore(options.happyHomeDir, store);
+
+        const deferred = createDeferred();
+        inflightSpawns.set(key, deferred.promise);
+        return { type: 'reserved', deferred };
+    });
+
+    switch (plan.type) {
+        case 'completed':
+            return plan.ack;
+        case 'await-local':
+            return plan.promise;
+        case 'denied':
             return sendSpawnResult(envelope, options.localMachineId, {
                 type: 'spawn-result',
                 ok: false,
@@ -216,32 +343,17 @@ export async function handleInboundSpawnRequest(
                 requiresOperatorApproval: true,
                 error: `Peer ${envelope.from.machineId} is not approved for remote spawn.`,
             }, options.deliverRemote);
-        }
-
-        let spawnResult: SpawnSessionResult;
-        try {
-            const body = spawnRequestBodySchema.parse(envelope.body);
-            spawnResult = await options.spawnSessionFromSession(mapSpawnRequestToRpc(envelope, body));
-        } catch (error) {
-            spawnResult = { type: 'error', errorMessage: error instanceof Error ? error.message : String(error) };
-        }
-
-        const deliveryAck = await sendSpawnResult(envelope, options.localMachineId, {
-            type: 'spawn-result',
-            ok: spawnResult.type === 'success',
-            requestId: envelope.id,
-            correlationId: envelope.correlationId,
-            result: spawnResult,
-        }, options.deliverRemote);
-
-        store.completed.push({
-            envelopeId: envelope.id,
-            correlationId: envelope.correlationId,
-            completedAt: now().toISOString(),
-            spawnResult,
-            deliveryAck,
-        });
-        await writeStore(options.happyHomeDir, store);
-        return deliveryAck;
-    });
+        case 'remote-inflight':
+            return sendSpawnResult(envelope, options.localMachineId, {
+                type: 'spawn-result',
+                ok: false,
+                requestId: envelope.id,
+                correlationId: envelope.correlationId,
+                inProgress: true,
+                error: `Spawn for ${envelope.correlationId ?? envelope.id} is already in progress.`,
+            }, options.deliverRemote);
+        case 'reserved':
+            executeReservedSpawn(envelope, options, now, key, plan.deferred);
+            return plan.deferred.promise;
+    }
 }

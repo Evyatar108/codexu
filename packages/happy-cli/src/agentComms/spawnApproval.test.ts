@@ -165,8 +165,74 @@ describe('handleInboundSpawnRequest', () => {
         await expect(readPendingStore(home)).resolves.toMatchObject({ completed: [{ correlationId: 'corr-spawn-1' }] });
     });
 
-    it('returns spawn-result errors for invalid allowlisted request bodies', async () => {
+    it('returns the in-flight result for a same-correlation retry without double-spawning', async () => {
         const home = makeHome();
+        homes.push(home);
+        const pinned = await pinPeerKeys(home, 'machine-a', {
+            ed25519PublicKey: 'ZWQ=',
+            ecdhPublicKey: 'ZWNkaA==',
+            approvedForSpawn: true,
+        });
+        let release: (value: { type: 'success'; sessionId: string }) => void = () => {};
+        const gate = new Promise<{ type: 'success'; sessionId: string }>(resolve => { release = resolve; });
+        const spawnSessionFromSession = vi.fn(async () => gate);
+        const deliverRemote = vi.fn(async (envelope: AgentCommsEnvelope) => ({ id: envelope.id, seq: 12 }));
+        const options = {
+            happyHomeDir: home,
+            localMachineId: 'machine-b',
+            pinnedPeer: pinned,
+            spawnSessionFromSession,
+            deliverRemote,
+        };
+
+        const first = handleInboundSpawnRequest(spawnEnvelope(), options);
+        const retry = handleInboundSpawnRequest(spawnEnvelope({ id: 'env-spawn-retry' }), options);
+        release({ type: 'success', sessionId: 'child-1' });
+        const [firstAck, retryAck] = await Promise.all([first, retry]);
+
+        expect(retryAck).toEqual(firstAck);
+        expect(spawnSessionFromSession).toHaveBeenCalledTimes(1);
+        expect(deliverRemote).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not serialize an unrelated spawn behind an in-flight spawn', async () => {
+        const home = makeHome();
+        homes.push(home);
+        const pinned = await pinPeerKeys(home, 'machine-a', {
+            ed25519PublicKey: 'ZWQ=',
+            ecdhPublicKey: 'ZWNkaA==',
+            approvedForSpawn: true,
+        });
+        let releaseA: (value: { type: 'success'; sessionId: string }) => void = () => {};
+        const gateA = new Promise<{ type: 'success'; sessionId: string }>(resolve => { releaseA = resolve; });
+        const spawnSessionFromSession = vi.fn(async (rpc: { config: { initialMessage?: string } }) =>
+            rpc.config.initialMessage === 'A' ? gateA : { type: 'success' as const, sessionId: 'child-B' });
+        const deliverRemote = vi.fn(async (envelope: AgentCommsEnvelope) => ({ id: envelope.id, seq: 11 }));
+        const options = {
+            happyHomeDir: home,
+            localMachineId: 'machine-b',
+            pinnedPeer: pinned,
+            spawnSessionFromSession,
+            deliverRemote,
+        };
+
+        const envA = spawnEnvelope({ id: 'env-A', correlationId: 'corr-A', body: { agent: 'codex', initialMessage: 'A' } });
+        const envB = spawnEnvelope({ id: 'env-B', correlationId: 'corr-B', body: { agent: 'codex', initialMessage: 'B' } });
+
+        const aPromise = handleInboundSpawnRequest(envA, options);
+        // B must complete even though A's spawn is still gated; the approval-store
+        // lock is released before the long spawn runs, so unrelated requests are
+        // not serialized behind it.
+        const bAck = await handleInboundSpawnRequest(envB, options);
+
+        expect(bAck).toEqual({ id: expect.any(String), seq: 11 });
+        expect(spawnSessionFromSession).toHaveBeenCalledTimes(2);
+
+        releaseA({ type: 'success', sessionId: 'child-A' });
+        await aPromise;
+    });
+
+    it('returns spawn-result errors for invalid allowlisted request bodies', async () => {        const home = makeHome();
         homes.push(home);
         const pinned = await pinPeerKeys(home, 'machine-a', {
             ed25519PublicKey: 'ZWQ=',
