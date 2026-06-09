@@ -1,0 +1,29 @@
+You are running a CONTROLLED SMOKE TEST of codex multi_agent_v2 write-child capability. This is an EXPLICIT request for sub-agent delegation: you MUST use the spawn_agent tool.
+
+Hard rules for YOU (the top-level/root agent):
+- Do NOT edit any file yourself.
+- Do NOT create any git commit yourself.
+- Your ONLY job is to delegate the write+commit to a sub-agent, wait for it, and report.
+- Read-only git inspection commands (git log, git show) ARE allowed for you in the final step.
+
+Do exactly these steps:
+
+Step 1 — spawn the write-child. Call spawn_agent with:
+  - task_name: "write_child"
+  - fork_turns: "none"
+  - message: a self-contained instruction that tells the sub-agent to perform ALL of the following in the current working directory (which is a git repository):
+      (a) Append a new line containing exactly EDITED_BY_SPAWN_AGENT_CHILD_7Q2X to the file target.txt (keep the existing content; add the new line at the end).
+      (b) Stage and commit it by running: git add target.txt && git commit -m "child write smoke: EDITED_BY_SPAWN_AGENT_CHILD_7Q2X"
+      (c) Obtain the resulting commit SHA by running: git rev-parse HEAD
+      (d) Produce as its FINAL answer exactly one line in this format and nothing else:
+          <review-meta>{"wrote_file": true, "committed": true, "commit_sha": "PUT_THE_SHA_HERE", "child_id": "write_child"}</review-meta>
+
+Step 2 — Call wait_agent on write_child with timeout_ms 600000 and wait until it finishes.
+
+Step 3 — Call list_agents and read the write_child entry's completed final message (the agent_status.completed field).
+
+Step 4 — In YOUR final answer, output ALL of the following:
+  - The child's <review-meta> block, verbatim.
+  - The output of running git log --oneline -5 yourself (read-only).
+  - The output of running git show --stat HEAD yourself (read-only).
+  - One sentence stating whether the child's commit (sentinel EDITED_BY_SPAWN_AGENT_CHILD_7Q2X) is present in git history and parent-visible.
