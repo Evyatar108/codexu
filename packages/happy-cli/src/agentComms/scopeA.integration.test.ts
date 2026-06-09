@@ -299,4 +299,52 @@ describe('Scope A hermetic round-trip', () => {
             body: { ok: true, result: { type: 'success', sessionId: 'child-2' } },
         });
     });
+
+    it('rejects a malformed channel/kind mismatch envelope fail-closed: no spawn, no mailbox append', async () => {
+        await pinPeerKeys(homeB, 'machine-a', { ...peerKeys(keysA), approvedForSpawn: true });
+        const spawnSessionFromSession = vi.fn();
+        const deliverRemote = vi.fn();
+        const appendMessage = vi.fn(async () => ({ id: 'unexpected', seq: 77 }));
+        const ingestB = ingestHandler.createAgentCommsIngestHandler({
+            happyHomeDir: homeB,
+            localMachineId: 'machine-b',
+            tofuKeypairs: keysB,
+            spawnSessionFromSession,
+            deliverRemote,
+            appendMessage,
+        });
+
+        // channel='message' mixed with kind='spawn-request' is an envelope the
+        // approval predicate gates but the spawn handler must never receive.
+        const mismatchEnvelope = scopeAEnvelope({
+            id: 'env-malformed-mismatch',
+            channel: 'message',
+            kind: 'spawn-request',
+            correlationId: 'malformed-corr',
+            to: { machineId: 'machine-b', sessionId: 'remote-parent' },
+            body: { agent: 'codex', cwd: 'D:/repo', initialMessage: 'inspect' },
+        });
+
+        await expect(ingestB(await signedSealedPayload(mismatchEnvelope, keysA, keysB)))
+            .rejects.toThrow(/malformed spawn envelope/);
+        expect(spawnSessionFromSession).not.toHaveBeenCalled();
+        expect(deliverRemote).not.toHaveBeenCalled();
+        expect(appendMessage).not.toHaveBeenCalled();
+
+        // spawn channel carrying a non-spawn kind is equally rejected.
+        const spawnChannelWrongKind = scopeAEnvelope({
+            id: 'env-malformed-spawn-channel',
+            channel: 'spawn',
+            kind: 'request',
+            correlationId: 'malformed-corr-2',
+            to: { machineId: 'machine-b', sessionId: 'remote-parent' },
+            body: { text: 'not a spawn payload' },
+        });
+
+        await expect(ingestB(await signedSealedPayload(spawnChannelWrongKind, keysA, keysB)))
+            .rejects.toThrow(/malformed spawn envelope/);
+        expect(spawnSessionFromSession).not.toHaveBeenCalled();
+        expect(deliverRemote).not.toHaveBeenCalled();
+        expect(appendMessage).not.toHaveBeenCalled();
+    });
 });

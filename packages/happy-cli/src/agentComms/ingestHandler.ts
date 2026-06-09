@@ -48,7 +48,12 @@ export function createAgentCommsIngestHandler({
         if (relayedEnvelope.to.machineId && relayedEnvelope.to.machineId !== localMachineId) {
             throw new Error(`agent-comms ingest target machine mismatch: ${relayedEnvelope.to.machineId}`);
         }
-        if (relayedEnvelope.kind === 'spawn-request') {
+        const isSpawnChannel = relayedEnvelope.channel === 'spawn';
+        const isSpawnKind = relayedEnvelope.kind === 'spawn-request' || relayedEnvelope.kind === 'spawn-result';
+        if (isSpawnChannel !== isSpawnKind) {
+            throw new Error(`agent-comms ingest rejected malformed spawn envelope: channel=${relayedEnvelope.channel} kind=${relayedEnvelope.kind}`);
+        }
+        if (isSpawnChannel && relayedEnvelope.kind === 'spawn-request') {
             return handleInboundSpawnRequest(relayedEnvelope, {
                 happyHomeDir,
                 localMachineId,
