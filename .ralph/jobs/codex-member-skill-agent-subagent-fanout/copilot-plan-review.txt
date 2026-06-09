@@ -1,0 +1,48 @@
+I’ll read the referenced prompt file and execute its instructions.
+
+The prompt is longer than a single safe read, so I’m reading it in sections before acting.
+
+I’ll verify the plan against the actual plugin code and tests, then provide only review findings.
+
+The initial search pattern didn’t match, so I’m narrowing by file existence and then reading the exact sections.
+
+I found the exact Ralph plugin instructions; now I’m reading the specific implementation files directly rather than relying on the broad glob.
+
+I have the lowering and generator shape; I’m checking the two prose-only source sites and release metadata claims for accuracy.
+
+I’m checking the Codex tool schema assumptions because the plan’s feasibility hinges on v1/v2 recipe accuracy.
+
+The broad schema search timed out with saved partials; I’m reading the captured excerpts and narrowing only if needed.
+
+The docs confirm the broad tool split; I’m reading the Rust handler definitions to verify the exact v1/v2 payload and return fields.
+
+I need one more schema source for the argument structs and tool names, then I’ll produce the review.
+
+The schema grep found the right files but produced large output, so I’m reading the relevant handler modules directly.
+
+I found a concrete schema mismatch in the plan and am checking if there are any other blocker-level gaps before finalizing the review.
+
+I’m checking close-agent arguments because the plan’s recipes must be executable, not just conceptually correct.
+
+The close-agent check confirms one executable-recipe issue; I’m ready to provide the plan review.### Feasibility
+
+[High] The v1 recipe in the plan omits the required `send_input` step. In codex v1, `spawn_agent` accepts `message` and starts the child, but the plan’s target use is a one-shot delegated task with later retrieval; if implementation follows “spawn → wait” only, it cannot send follow-up task content after spawn. If the entire prompt is in `spawn_agent.message`, the plan should say so explicitly and remove `send_input`/`resume_agent` from the v1 branch expectations. Relevant files: `core/src/tools/handlers/multi_agents/send_input.rs`, `multi_agents_spec.rs`.
+
+[High] The recipe descriptions omit required `close_agent { target }` arguments. Both v1 and v2 `close_agent` require `target`; v1 target is `agent_id`, v2 target is agent id or canonical task name. Plan text says only `close_agent`, so generated recipes can remain non-executable. Relevant files: `multi_agents/close_agent.rs`, `multi_agents_v2/close_agent.rs`, `multi_agents_spec.rs:278-313`.
+
+### Completeness
+
+[Medium] The plan should explicitly update tests around v1 namespacing. v1 tools are namespaced under `multi_agent_v1` (`ToolName::namespaced(...)`), while v2 tools are plain. Acceptance criteria say v1 “never mentions `list_agents`/`followup_task`” but should also assert v1 examples use `multi_agent_v1.spawn_agent`, `multi_agent_v1.wait_agent`, and `multi_agent_v1.close_agent` (or whatever Codex recipe syntax is expected).
+
+### Ordering
+
+No issues found.
+
+### Simplicity
+
+No issues found.
+
+### Acceptance Criteria Quality
+
+[Medium] AC7 is too broad for an autonomous implementer: “live codex-member full `/implement-with-ralph` dogfood” needs the exact fixture/job, v1 vs v2 mode, transcript path, and minimum grep assertions. The plan leaves this as an open question, so the implementer could satisfy it inconsistently or spend time inventing scope.
+

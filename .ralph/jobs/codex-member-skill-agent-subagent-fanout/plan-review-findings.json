@@ -1,0 +1,108 @@
+{
+  "planFile": "draft-plan.md",
+  "repoDir": "D:/harness-efforts/codexu",
+  "reviewMode": "direct-amendment",
+  "reviewNote": "Three-lens Phase 4 review (Claude/Explore + Codex + Copilot). Codex review succeeded on retry (first two codex-exec calls returned empty — known codex-exec flakiness on this box). The autonomous review-loop.mjs convergence was replaced with direct planning-agent amendment because (a) codex-exec is unreliable here and (b) the planning agent has full context to apply equivalent or higher-quality plan-text fixes deterministically. All Critical/High/Medium findings below were resolved by editing draft-plan.md in-place.",
+  "findings": [
+    {
+      "id": "F-001",
+      "severity": "High",
+      "source": "consensus",
+      "detectedBy": ["claude", "codex"],
+      "status": "resolved",
+      "title": "review-changes security scope must be inert-preserved, not silently dropped",
+      "description": "review-changes Step 2 still advertises --scope security (SKILL.md:117-121). If the codex recipe emits only code/docs branches, security scope is silently omitted.",
+      "resolution": "US-003 + Architecture(B) now require the emitted recipe to be scope-conditioned with an explicit inert/skip branch for scope=security (Phase 5c disabled), and US-004 adds a test that the security-scope path stays inert."
+    },
+    {
+      "id": "F-002",
+      "severity": "High",
+      "source": "consensus",
+      "detectedBy": ["claude", "codex"],
+      "status": "resolved",
+      "title": "test-codex-live-smoke.mjs also pins the old spawn->followup->wait->list->close shape",
+      "description": "tests/test-codex-live-smoke.mjs:131-143 hard-pins the current v2 recipe shape; the dual-branch + v1-no-list_agents change breaks it. It was missing from the test-update list.",
+      "resolution": "Added test-codex-live-smoke.mjs (131-143) to Files to Modify, Implementation Strategy step 5, and US-004; its recipe-shape assertion must accept the detect-and-branch + per-system sequences."
+    },
+    {
+      "id": "F-003",
+      "severity": "High",
+      "source": "copilot",
+      "detectedBy": ["copilot"],
+      "status": "resolved",
+      "title": "v1 recipe must be explicit one-shot via spawn_agent.message (no send_input/resume_agent)",
+      "description": "v1 has send_input/resume_agent; if the recipe is spawn->wait only it cannot dispatch follow-up content. The plan must state the full task goes in spawn_agent.message and that send_input/resume_agent are not used.",
+      "resolution": "Technical Constraints v1 bullet now states the FULL task goes in multi_agent_v1.spawn_agent{message} as a one-shot delegation and send_input/resume_agent are NOT used; AC2 mirrors this."
+    },
+    {
+      "id": "F-004",
+      "severity": "High",
+      "source": "copilot",
+      "detectedBy": ["copilot"],
+      "status": "resolved",
+      "title": "close_agent requires a target argument (recipe was non-executable)",
+      "description": "Both v1 and v2 close_agent require target (v1: agent_id; v2: agent name-or-id). The plan said bare close_agent.",
+      "resolution": "Technical Constraints + AC2 now specify close_agent{target: <agent_id>} (v1) and close_agent{target: <agent_name-or-id>} (v2); US-004 asserts close_agent always names a target."
+    },
+    {
+      "id": "F-005",
+      "severity": "Medium",
+      "source": "copilot",
+      "detectedBy": ["copilot"],
+      "status": "resolved",
+      "title": "v1 tools are namespaced multi_agent_v1.*",
+      "description": "v1 spawn_agent/wait_agent/close_agent are namespaced under multi_agent_v1; the recipe + AC should use the namespaced names.",
+      "resolution": "Technical Constraints v1 bullet + AC2 now use multi_agent_v1.spawn_agent / .wait_agent / .close_agent; US-004 asserts the namespacing."
+    },
+    {
+      "id": "F-006",
+      "severity": "High",
+      "source": "consensus",
+      "detectedBy": ["claude", "copilot", "codex"],
+      "status": "resolved",
+      "title": "Dogfood gate (AC7) too broad for an autonomous implementer",
+      "description": "All three lenses flagged AC7/US-006 as under-specified: no exact fixture, v1-vs-v2 mode, transcript path, required artifacts, or grep assertions proving spawn-child delegation vs inline.",
+      "resolution": "AC7 rewritten with a concrete reproducible spec: minimal fixture, v2 (and ideally v1) mode, required artifacts (prd.json, code/docs-review-findings.json, >=1 feat commit, transcript path), and scripted grep assertions on spawn_agent/multi_agent_v1.spawn_agent tool calls for PRD-gen + reviewers/fixers, plus assertion of no inline prd.json scaffolding."
+    },
+    {
+      "id": "F-007",
+      "severity": "High",
+      "source": "codex",
+      "detectedBy": ["codex"],
+      "status": "resolved",
+      "title": "Prose-site inventory needs explicit block START/END bounds, not a single anchor",
+      "description": "Both sites are multi-line blocks (PRD-gen 277-280; reviewer 113-129). A single anchor substring would strip one sentence and leave stale surrounding prose.",
+      "resolution": "Architecture(B), US-002, and the Risk section now require startAnchor/endAnchor block bounds (block-capture rule) so the WHOLE delimited block is replaced; the drift guard fails on missing/duplicated/out-of-order anchors. AC1 asserts whole-block replacement with no stale fragments."
+    },
+    {
+      "id": "F-008",
+      "severity": "Medium",
+      "source": "codex",
+      "detectedBy": ["codex"],
+      "status": "resolved",
+      "title": "PROSE_SITE_INVENTORY should be exported and directly tested like AGENT_SITE_INVENTORY",
+      "description": "The plan mentioned negative tests but not direct inventory/export assertions, making future drift easier to miss.",
+      "resolution": "Architecture(B) + US-002/US-004 now require PROSE_SITE_INVENTORY and verifyProseSiteInventory to be exported and directly unit-tested, mirroring AGENT_SITE_INVENTORY."
+    },
+    {
+      "id": "F-009",
+      "severity": "Medium",
+      "source": "codex",
+      "detectedBy": ["codex"],
+      "status": "resolved",
+      "title": "Release metadata should be bumped AFTER the dogfood gate",
+      "description": "US-005 (version/CHANGELOG/AGENTS) was scheduled before the US-006 dogfood; a dogfood-forced recipe change would ship behind stale claims.",
+      "resolution": "Reordered: the dogfood is now US-005 (runs before release) and the regenerate+version bump is US-006 (last). Implementation Strategy steps 6/7 reflect this; AC7 notes release metadata bumps only after the dogfood passes."
+    },
+    {
+      "id": "F-010",
+      "severity": "Medium",
+      "source": "codex",
+      "detectedBy": ["codex"],
+      "status": "resolved",
+      "title": "AC1 should assert the whole site block is replaced coherently",
+      "description": "AC1 asserted the 'Spawn an Agent subagent' sentence is gone but not that the surrounding site-specific instructions are replaced as a coherent block.",
+      "resolution": "AC1 now asserts the WHOLE delimited block (instruction + surrounding bullets/table) is replaced by the recipe with no stale fragments (ties to F-007)."
+    }
+  ]
+}

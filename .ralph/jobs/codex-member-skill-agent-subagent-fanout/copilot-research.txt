@@ -1,0 +1,67 @@
+Reading the provided prompt file to identify the task.
+
+I’ll inspect the Ralph plugin generator and skill files to ground the research in actual paths and constraints.
+
+The broad search was too noisy, so I’m narrowing to the generator scripts and the specific skill files mentioned in the feature request.
+
+I found the current lowering layer and the prose-only sites. I’m checking its drift guards and tests so the recommendations account for release-gate behavior.
+
+The marketplace validator is repo-level, not inside the Ralph plugin; I’m checking the remaining codex tests and the repo-level validator/version surfaces.
+
+I have enough for architecture and constraints; I’m doing one focused check of generated codex artifacts to identify the exact current integration gap.
+
+### Codebase Architecture
+
+The relevant code lives in `ai-developer-toolkit/plugins/ralph`, a skills-only plugin built from Markdown skill/agent sources plus zero-dependency Node ESM generator scripts. Source skills are under `skills/*/SKILL.md`; generated engine overlays are under `.copilot-plugin/` and `.codex-plugin/`; release/discovery metadata spans `.claude-plugin/plugin.json`, `.github/plugin/plugin.json`, `.codex-plugin/plugin.json`, and the three root marketplace indexes.
+
+The codex lowering pipeline is centralized in `scripts/codex-lowering.mjs` and invoked by `scripts/generate-copilot-artifacts.mjs`. Tests use Node’s built-in `node:test`, especially `tests/test-codex-generator.mjs`. The codex release gate is: `node plugins/ralph/scripts/generate-copilot-artifacts.mjs --target=codex --check`, `node plugins/ralph/tests/test-codex-generator.mjs`, and repo-level `node tools/validate-codex-marketplace-policy.mjs`.
+
+### Feature-Relevant Code
+
+Key files:
+
+- `plugins/ralph/scripts/codex-lowering.mjs`
+  - `AGENT_SITE_INVENTORY` currently covers only literal `Agent(` sites.
+  - `captureAgentBlocks`, `lowerAgentBlocks`, `singleDelegationRecipe`, `fanOutRecipe`, `preflightProse`, and `verifyAgentSiteInventory` are the natural integration points.
+  - Current recipes are v2-only and stale: they emit `spawn_agent { task_name, fork_turns }` followed by `followup_task`, not `spawn_agent.message`.
+
+- `plugins/ralph/scripts/generate-copilot-artifacts.mjs`
+  - `expectedCodexOutputs()` loads all source skills, runs `verifyAgentSiteInventory`, applies codex lowering, and writes/checks `.codex-plugin`.
+
+- Prose-only missed sites:
+  - `skills/implement-with-ralph/SKILL.md` Phase 2: “Spawn an Agent subagent to generate the PRD”; this remains unchanged in `.codex-plugin/codex-skills/implement-with-ralph/SKILL.md`.
+  - `skills/review-changes/SKILL.md` Step 2: “Spawn an Agent subagent using the selected agent definition”; this remains unchanged in `.codex-plugin/internal-workflows/review-changes/SKILL.md`.
+
+- Existing literal lowered sites:
+  - `skills/convert-to-ralph-prd/SKILL.md`: repo-detector `Explore` and `criteria-validator`.
+  - `skills/implement-with-ralph/SKILL.md`: `criteria-validator`, `code-fixer`, `docs-updater`, Phase 5.5 fan-out agents.
+  - `skills/brainstorm-with-ralph/SKILL.md`: Devil’s Advocate `general-purpose`.
+
+- Reviewer/fixer agent definitions:
+  - `agents/code-reviewer.md`, `agents/docs-reviewer.md`, `agents/code-fixer.md`, `agents/docs-updater.md`.
+  - `agents/security-reviewer.md` exists but Phase 5c is disabled/inert.
+
+### Technical Constraints
+
+The implementation should stay plugin-side; no `codex/` submodule changes are needed. The generated codex recipes must branch by tool presence, not config: v2 when `list_agents`/v2 tools exist, v1 when only `multi_agent_v1.*` style tools exist, and STOP only when neither surface exists.
+
+The existing drift guard is insufficient for this feature because it only scans literal `Agent(` calls. It will not detect the PRD-generation or reviewer prose sites. Add a parallel prose-site inventory/guard keyed by stable site IDs and anchored text.
+
+Generated artifacts are source-derived; edit `skills/*` and `scripts/*`, then regenerate `.codex-plugin`. Any source `implement-with-ralph` change also has Copilot hand-fork implications under `.copilot-plugin/copilot-skills/implement-with-ralph/SKILL.md`.
+
+Version bumps must keep Ralph manifests and marketplace indexes in sync, and the codex marketplace policy validator must remain green.
+
+### Implementation Suggestions
+
+Extend `codex-lowering.mjs` rather than adding a separate helper. Add a generic native-spawn recipe builder that supports both single-delegation and fan-out payloads and emits two runtime branches:
+
+- v2: `spawn_agent { task_name, message }`, `wait_agent { timeout_ms }`, `list_agents`, read `agents[].agent_status.completed`, JSON-validate, `close_agent`.
+- v1: `spawn_agent { message }`, `wait_agent { targets: [agent_id], timeout_ms }`, read `status[target].completed`, JSON-validate, `close_agent`.
+
+Then add prose-site lowering before forbidden-token checks. Start with explicit entries for:
+
+1. `implement-with-ralph` Phase 2 PRD generation, with prompt text that includes plan path, `create-prd`, `convert-to-ralph-prd`, autonomous flags, `--job`, engines, and `--target-repo`.
+2. `review-changes` Step 2 reviewer, with scope-conditioned `code-reviewer` and `docs-reviewer` recipes; preserve `security-reviewer` only as inert/direct-scope backplane if needed.
+
+Update tests to assert generated codex artifacts no longer contain the old prose-only “Spawn an Agent subagent” instructions, every recipe includes `message`, v2 no longer depends on `followup_task`, v1 does not mention `list_agents`, and the new prose inventory fails on anchor drift.
+

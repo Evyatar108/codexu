@@ -1,0 +1,27 @@
+{
+  "clusters": [
+    {
+      "name": "codex-native-spawn-dual-v1v2",
+      "stories": ["US-001", "US-002", "US-003", "US-004", "US-005", "US-006"],
+      "phase": 1,
+      "dependsOn": [],
+      "fileOverlapEvidence": {
+        "sharedFiles": [
+          "plugins/ralph/scripts/codex-lowering.mjs",
+          "plugins/ralph/scripts/generate-copilot-artifacts.mjs",
+          "plugins/ralph/tests/test-codex-generator.mjs",
+          "plugins/ralph/.codex-plugin/**",
+          "plugins/ralph/.claude-plugin/plugin.json",
+          "plugins/ralph/.github/plugin/plugin.json",
+          "plugins/ralph/.codex-plugin/plugin.json",
+          ".claude-plugin/marketplace.json",
+          ".github/plugin/marketplace.json",
+          ".agents/plugins/marketplace.json"
+        ],
+        "exclusiveFiles": [],
+        "risk": "high"
+      },
+      "executionModeRationale": "Every story mutates the same codex lowering module (codex-lowering.mjs), its generator wiring, its tests, or the generated/versioned outputs derived from it, so the stories must run serially in one cluster; there is no disjoint file footprint to exploit for parallelism."
+    }
+  ]
+}

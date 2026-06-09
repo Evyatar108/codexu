@@ -1,0 +1,29 @@
+### Feasibility
+
+[High] The plan’s prose-site lowering is under-specified for replacement bounds. The two target sites are not single-line instructions: PRD generation starts at [SKILL.md](/D:/harness-efforts/codexu/ai-developer-toolkit/plugins/ralph/skills/implement-with-ralph/SKILL.md:277) and includes follow-on bullets; reviewer selection spans [SKILL.md](/D:/harness-efforts/codexu/ai-developer-toolkit/plugins/ralph/skills/review-changes/SKILL.md:113). A single anchor substring is not enough unless the inventory also declares start/end bounds or a block capture rule. Otherwise the generated codex artifact can remove only “Spawn an Agent subagent...” while leaving stale surrounding prose.
+
+[Medium] The plan says “security-reviewer left as inert backplane,” but `review-changes` still advertises `--scope security` in the Step 2 table at [SKILL.md](/D:/harness-efforts/codexu/ai-developer-toolkit/plugins/ralph/skills/review-changes/SKILL.md:121). If codex lowering emits only code/docs branches, the generated internal workflow should explicitly preserve or reject security scope rather than silently omitting it.
+
+### Completeness
+
+[High] Dual v1/v2 support is only acceptance-tested by generated prose assertions plus one full dogfood. The v1 and v2 tool schemas are materially different: v1 is namespaced and uses `spawn_agent` returning `agent_id` plus `wait_agent{targets}` ([multi_agents_spec.rs](/D:/harness-efforts/codexu/codex/external/repos/codex-patched/codex-rs/core/src/tools/handlers/multi_agents_spec.rs:46), [wait.rs](/D:/harness-efforts/codexu/codex/external/repos/codex-patched/codex-rs/core/src/tools/handlers/multi_agents/wait.rs:218)); v2 `spawn_agent` requires `task_name` and `message`, while v2 `wait_agent` has no targets and returns only mailbox-update timing ([multi_agents_spec.rs](/D:/harness-efforts/codexu/codex/external/repos/codex-patched/codex-rs/core/src/tools/handlers/multi_agents_spec.rs:75), [wait.rs](/D:/harness-efforts/codexu/codex/external/repos/codex-patched/codex-rs/core/src/tools/handlers/multi_agents_v2/wait.rs:43)). AC7 should require evidence for both branches or add targeted live/smoke tests per branch.
+
+[Medium] The plan does not explicitly require extending `tests/test-codex-live-smoke.mjs`. Existing live smoke is opt-in and focused on generated recipe shape/minimal fan-out, not the new PRD-gen and `review-changes` prose sites. Add coverage or state why the full dogfood replaces it.
+
+[Medium] `PROSE_SITE_INVENTORY` should be exported and tested like `AGENT_SITE_INVENTORY`; current tests import/export the existing inventory and guard from [test-codex-generator.mjs](/D:/harness-efforts/codexu/ai-developer-toolkit/plugins/ralph/tests/test-codex-generator.mjs:11). The plan mentions negative tests but not direct inventory/export assertions, which would make future drift easier to miss.
+
+### Ordering
+
+[Medium] Version/CHANGELOG/AGENTS updates are scheduled in US-005 before the live dogfood gate in US-006. Since AC7 is the real “re-enable codex members” proof, release metadata should come after dogfood or be explicitly revisited after US-006 to avoid shipping stale claims if dogfood forces recipe changes.
+
+### Simplicity
+
+No issues found. The chosen codex-only lowering is reasonable given `generate-copilot-artifacts.mjs` already routes codex through `applyCodexSubstitutions` and keeps Copilot/Claude parity separate at [generate-copilot-artifacts.mjs](/D:/harness-efforts/codexu/ai-developer-toolkit/plugins/ralph/scripts/generate-copilot-artifacts.mjs:279).
+
+### Acceptance Criteria Quality
+
+[High] AC7 is too broad for an autonomous agent: “git + transcript evidence showing no hand-scaffolded prd.json and no in-context self-review finalization” needs concrete checks. Specify artifact paths, transcript grep patterns, expected spawned child names/task names, and the exact git evidence required.
+
+[Medium] AC1 says generated artifacts “no longer contain the prose-only ‘Spawn an Agent subagent’ instruction at those sites,” but should also assert the stale surrounding site-specific instructions are gone or replaced as a coherent block.
+
+No prior review cycles or amendments were mentioned, so there are no fix regressions to assess.
