@@ -26,7 +26,13 @@ export interface PeerPublicKeys {
     ed25519Fingerprint?: string;
 }
 
-export interface PinnedPeerKeys extends PeerPublicKeys {
+export interface PeerConfigHints {
+    tunnelName?: string;
+    tunnelId?: string;
+    approvedForSpawn?: boolean;
+}
+
+export interface PinnedPeerKeys extends PeerPublicKeys, PeerConfigHints {
     machineId: string;
     ed25519Fingerprint: string;
     pinnedAt: string;
@@ -99,7 +105,7 @@ export async function readPeerPins(happyHomeDir: string): Promise<PeerPinStore> 
     }
 }
 
-export async function pinPeerKeys(happyHomeDir: string, machineId: string, publicKeys: PeerPublicKeys, now = new Date()): Promise<PinnedPeerKeys> {
+export async function pinPeerKeys(happyHomeDir: string, machineId: string, publicKeys: PeerPublicKeys & PeerConfigHints, now = new Date()): Promise<PinnedPeerKeys> {
     const ed25519PublicKey = decodeBase64(publicKeys.ed25519PublicKey);
     const fingerprint = publicKeys.ed25519Fingerprint ?? formatEd25519Fingerprint(ed25519PublicKey);
     const store = await readPeerPins(happyHomeDir);
@@ -113,6 +119,9 @@ export async function pinPeerKeys(happyHomeDir: string, machineId: string, publi
         ecdhPublicKey: publicKeys.ecdhPublicKey,
         ed25519Fingerprint: fingerprint,
         pinnedAt: existing?.pinnedAt ?? now.toISOString(),
+        tunnelName: publicKeys.tunnelName ?? existing?.tunnelName,
+        tunnelId: publicKeys.tunnelId ?? existing?.tunnelId,
+        approvedForSpawn: publicKeys.approvedForSpawn ?? existing?.approvedForSpawn,
     };
     await fs.mkdir(path.dirname(peerPinStorePath(happyHomeDir)), { recursive: true });
     await fs.writeFile(peerPinStorePath(happyHomeDir), JSON.stringify({ version: 1, peers: { ...store.peers, [machineId]: pinned } }, null, 2), 'utf8');

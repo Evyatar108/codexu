@@ -114,4 +114,28 @@ describe('peerAuth', () => {
             ecdhPublicKey: encodeBase64(otherPeer.ecdhPublicKey),
         })).rejects.toThrow(/fingerprint changed/);
     });
+
+    it('preserves operator-authored peer routing and approval fields on repin', async () => {
+        const home = await fs.mkdtemp(path.join(tempHome, 'repin-'));
+        const peer = await fixtureKeypairs(10);
+        await pinPeerKeys(home, 'machine-c', {
+            ed25519PublicKey: encodeBase64(peer.ed25519PublicKey),
+            ecdhPublicKey: encodeBase64(peer.ecdhPublicKey),
+            tunnelName: 'codexu-workstation',
+            tunnelId: 'tunnel-guid-c',
+            approvedForSpawn: true,
+        }, new Date('2026-01-01T00:00:00Z'));
+
+        const repinned = await pinPeerKeys(home, 'machine-c', {
+            ed25519PublicKey: encodeBase64(peer.ed25519PublicKey),
+            ecdhPublicKey: encodeBase64(peer.ecdhPublicKey),
+        }, new Date('2026-02-01T00:00:00Z'));
+
+        expect(repinned).toMatchObject({
+            tunnelName: 'codexu-workstation',
+            tunnelId: 'tunnel-guid-c',
+            approvedForSpawn: true,
+            pinnedAt: '2026-01-01T00:00:00.000Z',
+        });
+    });
 });

@@ -41,7 +41,7 @@ export type FetchLike = (url: string, init: {
     body: string;
 }) => Promise<{ ok: boolean; status: number; json(): Promise<unknown>; text(): Promise<string> }>;
 
-function ingestUrl(tunnel: OperatorTunnel): string | null {
+export function ingestUrl(tunnel: OperatorTunnel): string | null {
     const base = tunnel.tunnelUrl ?? tunnel.ports.find(port => port.portUri)?.portUri;
     return base ? `${base.replace(/\/$/u, '')}/agent-comms/ingest` : null;
 }
