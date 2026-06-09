@@ -57,6 +57,22 @@ data.json edit anchor, confirming a commit landed, rendering the page). Full
 boundary + delegation recipes: codexu `AGENTS.md` >
 "Bookkeeper operating invariants" > "Lead orchestrates; members do the work."
 
+## Continuous-flow pipeline
+
+Prefer **continuous flow** over batch-and-wait: keep the pipeline saturated
+near the concurrency cap and **top up the moment a member finishes + is
+processed**, rather than spawning a fixed batch and idling until it all
+completes. Keep heavy multi-lens (brainstorm/plan) members to ~2 concurrent
+and impls to ~3 (cap total at ~3 when one member is a heavy `cargo`/release
+build); top-up candidates must be disjoint at four levels — repo, plugin,
+shared-docs, and **git-index** (prefer submodule/sibling-repo members as
+fillers when a codexu-primary impl is already running, since they don't race
+the lead's `.git/index.lock`). Process-then-top-up (verify + FF-merge +
+bookkeep + stop the finished member BEFORE spawning its replacement), keep a
+leverage-ordered ready queue, and honor the standing pause-points (plugin
+version push, dual-repo split decision, `kind=question`). Full rules: codexu
+`AGENTS.md` > "Bookkeeper operating invariants" > "Continuous-flow pipeline."
+
 ## Source Files
 
 - `.ralph-overview/data.json` - primary file for procedures A-F. It is

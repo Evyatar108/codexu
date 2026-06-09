@@ -982,6 +982,63 @@ When same-plugin or shared-doc parallel is needed, the workflow is:
 For 3-way parallel where two of the three conflict, file the 2 as a
 serial bundle and run the 3rd alongside.
 
+### Continuous-flow pipeline (codified 2026-06-09)
+
+Prefer **continuous flow** over **batch-and-wait**: keep the pipeline
+saturated near the concurrency cap and **top up the moment a member finishes
++ is processed**, rather than spawning a fixed batch and idling until the
+whole batch completes. The operator asked for this explicitly (2026-06-09:
+"continue spawning members instead of waiting for a new batch"). It maximizes
+throughput while the lead is awake to babysit.
+
+The rules that make it safe:
+
+- **Concurrency cap is engine-and-weight-aware, not a flat count.** The
+  documented crash mode (2026-06-06) is concurrent **heavy multi-lens**
+  members — brainstorm/plan members that fan out 3 xhigh lenses
+  (codex+copilot+devil's-advocate) — dying from resource exhaustion. Impls
+  fan out far less (one review lens in Phase 5a). So:
+  - Keep **heavy multi-lens (brainstorm/plan) members to ~2 concurrent**.
+  - **Impls can run ~3 concurrent**; when one member is HEAVY (a Rust
+    `cargo` build like the anthropic transport, or a release build), cap the
+    TOTAL at ~3 and don't add a second heavy member.
+  - Read the live roster + each member's phase before topping up; never spawn
+    blind to count.
+
+- **Top-up candidate must be disjoint at ALL FOUR levels** (extends the
+  three-level rule above): repo, plugin (within a submodule), shared-docs,
+  AND **git-index**. The 4th is new: a member spawned with `--cwd` = the
+  lead's primary checkout that does NOT use a worktree-managing skill (or a
+  codex member that can't invoke the skill — see the `$`-sigil bug) commits
+  in the SHARED codexu-primary checkout and races the lead's `.git/index.lock`
+  / can flip the lead off `main`. Members whose skill-managed worktree lives
+  in a SUBMODULE (`ai-developer-toolkit/.worktrees/...`) or a sibling repo do
+  NOT touch the codexu-primary index, so they are git-index-disjoint and the
+  safest top-ups while codexu-primary impls are also running. Prefer
+  submodule/sibling-repo members as fillers when a codexu-happy-cli impl is
+  already in flight.
+
+- **Maintain a leverage-ordered ready queue.** When a surface frees, top up
+  with the highest-leverage disjoint task that targets it. Heuristic order:
+  (1) unblockers that free other work (e.g. the `$`-token fix unblocks codex
+  members); (2) operator-priority features; (3) bug fixes with no workaround;
+  (4) cleanup/follow-ups. Surface the queue to the operator so they can
+  reprioritize.
+
+- **Pause-points still apply mid-flow.** Continuous flow does NOT bypass the
+  standing pauses: plugin VERSION pushes + `copilot plugin update` still
+  pause for operator confirmation; dual-repo `/implement-with-ralph` still
+  pauses for the proceed-vs-split decision; `kind=question` from a member is
+  still relayed-or-decided per the usual rule.
+
+- **Process-then-top-up, in that order.** When a member reports done: verify
+  the commit, FF-merge/cherry-pick + bookkeep + stop the member FIRST, THEN
+  spawn the next top-up. Don't spawn the replacement before the finished
+  member is stopped — stale roster + extra live members compound the
+  index-lock / resource pressure. Use the commit retry-with-backoff guard
+  (loop `git commit` up to ~5x with a 3s sleep) because top-up members may
+  hold the codexu-primary `index.lock` during the lead's bookkeeping commit.
+
 ### Impl-with-ralph capability surface (clarified 2026-06-03)
 
 `/implement-with-ralph` is NOT limited to JS/markdown edits within
