@@ -1,0 +1,50 @@
+{
+  "slug": "claude-sonnet-4.6",
+  "startedAt": "2026-06-09T11:09:49.759Z",
+  "flows": {
+    "F1_typed_tool_call": {
+      "pass": true,
+      "toolName": "get_weather",
+      "argsValid": true,
+      "assembledArgs": "{\"location\": \"Paris\", \"unit\": \"celsius\"}",
+      "toolCallInputDeltas": 7,
+      "noRawJsonAsText": true
+    },
+    "F2_parallel_tool_calls": {
+      "pass": true,
+      "count": 2,
+      "cities": [
+        "Paris",
+        "Tokyo"
+      ],
+      "distinctCallIds": 2,
+      "noCollapse": true
+    },
+    "F3_continuation": {
+      "pass": true,
+      "finalText": "The current weather in **Paris** is:\n\n- 🌡️ **Temperature:** 14°C\n- 🌥️ **Conditions:** Overcast",
+      "finishReason": "stop"
+    },
+    "F4_usage": {
+      "pass": true,
+      "usage": {
+        "completion_tokens": 4,
+        "prompt_tokens": 19,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        },
+        "total_tokens": 23
+      }
+    },
+    "F5_apply_patch": {
+      "pass": true,
+      "argsValid": true,
+      "multiLine": true,
+      "inputPreview": "*** Begin Patch\n*** Add File: hello.txt\nhello world\n*** End Patch"
+    }
+  },
+  "bearerSource": "refreshed",
+  "finishedAt": "2026-06-09T11:10:04.455Z",
+  "verdict": "GO",
+  "failingFlows": []
+}
