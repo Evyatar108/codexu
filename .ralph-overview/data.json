@@ -6073,7 +6073,7 @@
     {
       "id": "crews-review-mail-overview-summary-header",
       "scope": "crews",
-      "lifecycle": "tracked",
+      "lifecycle": "merged",
       "status": "active",
       "lastTouchedAt": "2026-06-09",
       "kanbanCards": [
@@ -6092,6 +6092,22 @@
           "plan": "Add a compact OVERVIEW/SUMMARY header to crews review-mail output (and consider the listener delivery envelope) so a lead/bookkeeper reading only the first few lines of a large saved output NEVER misses a buried terminal report (done/question/blocked). PROBLEM: proactive review-mail batches can be 20-30KB with the terminal row buried after many progress rows; the lead saves to a file and reads the head / greps and can miss the done (documented failure mode -- crews/codexu memory 'review-mail parsing'; hit repeatedly in the 2026-06-09 session). DESIGN: at the TOP of review-mail output emit a self-contained summary block (fits in ~15 lines): total entries, sender(s), counts by kind (done/question/blocked/progress/reply), and the ACTIONABLE non-progress entries listed FIRST as {seq, sender, kind, one-line summary, reply-required}. Keep the full entries below for detail. Decide: a `--summary`/`--overview` flag vs make it default; whether to also enrich the listener envelope (`{type:messages,count:N}`) with a per-kind breakdown so the one-line wake itself flags actionable items. Robustness requirement: the summary must surface every non-progress entry even when the batch has 20+ progress rows. Plugin-side (ai-developer-toolkit/plugins/crews) change only; add tests covering a large progress-heavy batch with a trailing done; bump the crews version + sync the marketplace indexes + CHANGELOG + plugin AGENTS.md. Settle whether a brainstorm is needed first; the intent is concrete enough to plan directly.",
           "impl": "Implement per .ralph/jobs/crews-review-mail-overview-summary-header/plan.md (--from-plan; Phase-4 reviewed, 8 findings resolved). 5 stories: US-001 pure helper lib/review-kind-summary.js (+ the 21xprogress+1xdone regression test) -> US-002 review-mail.js wiring -> US-003 /wake wiring -> US-004 listener-loop.js enrich (additive kinds+actionableCount, FAIL-OPEN after consume, counts-only, preserves messages===undefined; independently deferrable) -> US-005 crews 3.19.0 bump (6 stamps + marketplace sync + CHANGELOG + plugin AGENTS.md). Default-on overview + CREWS_REVIEW_MAIL_OVERVIEW=off byte-identical opt-out (all 3 surfaces). Plugin-side (ai-developer-toolkit/plugins/crews) ONLY; two-commit submodule flow (lead bumps codexu pointer). Drive Phase 5a/5b to review={code:clean,docs:clean}. IMPORTANT: this impl run is ALSO the CREWS_ENGINE=codex re-enable REAL-TASK DOGFOOD -- run on the CODEX engine; the PRD-gen + Phase 5a/5b code/docs reviewers MUST run as real native codex spawn children (evidence required), NOT inline/self-review. RUN: /implement-with-ralph --from-plan .ralph/jobs/crews-review-mail-overview-summary-header/plan.md --autonomous"
         }
+      },
+      "shipManifest": {
+        "shippedAt": "2026-06-09T22:00:00Z",
+        "summary": "Shipped crews 3.19.0: a compact OVERVIEW/SUMMARY block at the top of review-mail output (+ additive listener-wake enrichment) so a lead reading only the head of a large saved batch never misses a buried done/question/blocked after 20+ progress rows. Default-on with CREWS_REVIEW_MAIL_OVERVIEW=off byte-identical opt-out across all 3 surfaces (review-mail CLI, /wake, listener). Pure helper lib/review-kind-summary.js: lossless per-kind counts + actionable[] (every non-progress entry, seq-ordered-first) + a grep-able headline string + a truncation cap that always keeps the LAST actionable entry. Listener enrichment is counts-only + fail-open (preserves the messages===undefined invariant). 285/285 tests; the central 21xprogress+1xdone regression passes; Phase 5a/5b clean.\n\nDUAL SIGNIFICANCE: this was the codex-default re-enable REAL-TASK DOGFOOD (operator-gated). A codex member (codex-cli 0.135.0-copilot-api.1) implemented it via /implement-with-ralph on the ralph 5.56.0 native-spawn lowering and PASSED: real native codex spawn children did the work, NOT inline self-review -- PRD-gen child (multi_agent_v1.spawn_agent 'Lovelace') wrote prd.json; code-review child ('Hypatia') + docs-review child ('Boole') each wrote their findings file. This exercised the v1 (Collab) surface live (the earlier US-005 dogfood covered v2), so BOTH dual-support surfaces are now end-to-end validated in real /implement-with-ralph runs. This passing dogfood is the gate that authorized re-enabling CREWS_ENGINE=codex as the default member engine (flipped 2026-06-09). Operator-reviewed + approved plan @ 9fc95c89.",
+        "commits": [
+          {
+            "sha": "44375454",
+            "oneLine": "feat(crews): add review-mail overview summary (crews 3.19.0)",
+            "repo": "ai-developer-toolkit"
+          },
+          {
+            "sha": "2154b9bc",
+            "oneLine": "chore(crews): bump ai-developer-toolkit pointer to crews 3.19.0",
+            "repo": "codexu"
+          }
+        ]
       }
     }
   ],
