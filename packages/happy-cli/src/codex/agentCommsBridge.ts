@@ -33,7 +33,7 @@
 import * as fs from 'node:fs';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
-import type { AgentCommsKind, AgentCommsTo } from '@slopus/happy-wire';
+import type { AgentCommsChannel, AgentCommsKind, AgentCommsTo } from '@slopus/happy-wire';
 import { logger } from '@/ui/logger';
 import type { SpawnSessionFromSessionRpcOptions } from '@/api/apiMachine';
 import {
@@ -61,7 +61,7 @@ export type AgentCommsSender = (
     target: AgentCommsTo,
     body: unknown,
     senderSessionId: string,
-    options?: { kind?: AgentCommsKind; correlationId?: string },
+    options?: { channel?: AgentCommsChannel; kind?: AgentCommsKind; correlationId?: string },
 ) => Promise<{ id: string; seq: number }>;
 
 export type AgentCommsSpawner = (options: SpawnSessionFromSessionRpcOptions) => Promise<unknown>;
@@ -84,6 +84,7 @@ interface SendToolArgs {
     target?: AgentCommsTo;
     targetSessionId?: string;
     body: unknown;
+    channel?: AgentCommsChannel;
     kind?: AgentCommsKind;
     correlationId?: string;
 }
@@ -154,7 +155,8 @@ export function registerAgentCommsBridge(opts: RegisterAgentCommsBridgeOptions):
                 }).optional().describe('Recipient target. Omit machineId for same-machine delivery.'),
                 targetSessionId: z.string().optional().describe('Legacy same-machine recipient Happy session id.'),
                 body: z.unknown().describe('Opaque message payload delivered inside the AgentCommsEnvelope body.'),
-                kind: z.enum(['request', 'reply', 'notify']).optional().describe('Message kind; defaults to request.'),
+                channel: z.enum(['message', 'spawn']).optional().describe('Envelope channel; defaults to message.'),
+                kind: z.enum(['request', 'reply', 'notify', 'spawn-request', 'spawn-result']).optional().describe('Message kind; defaults to request.'),
                 correlationId: z.string().optional().describe('Request/reply correlation id.'),
             },
         },
@@ -162,6 +164,7 @@ export function registerAgentCommsBridge(opts: RegisterAgentCommsBridgeOptions):
             try {
                 const target = normalizeSendTarget(args);
                 const result = await sendMessage(target, args.body, sessionId, {
+                    channel: args.channel,
                     kind: args.kind,
                     correlationId: args.correlationId,
                 });

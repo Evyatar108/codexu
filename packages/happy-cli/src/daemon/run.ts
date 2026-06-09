@@ -209,7 +209,8 @@ export async function startDaemon(): Promise<void> {
     }
 
     let machineState = await resolveMachineState(machineId);
-    const tunnelProvider = new DevTunnelsDaemonProvider({ manager: new TunnelManager() });
+    const tunnelManager = new TunnelManager();
+    const tunnelProvider = new DevTunnelsDaemonProvider({ manager: tunnelManager });
     const tofuPublicKeysConfig = {
       ed25519PublicKey: tofuKeypairs.ed25519PublicKey,
       x25519PublicKey: tofuKeypairs.ecdhPublicKey,
@@ -860,6 +861,10 @@ export async function startDaemon(): Promise<void> {
       requestShutdown: () => requestShutdown('happy-cli'),
       onHappySessionWebhook,
       localMachineId: machineId,
+      agentCommsRemote: {
+        localKeypairs: tofuKeypairs,
+        tunnelManager,
+      },
     });
 
     // Write initial daemon state (no lock needed for state file)

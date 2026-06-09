@@ -3,7 +3,7 @@
  * Used by CLI commands to interact with running daemon
  */
 
-import type { AgentCommsKind, AgentCommsTo } from '@slopus/happy-wire';
+import type { AgentCommsChannel, AgentCommsKind, AgentCommsTo } from '@slopus/happy-wire';
 import { logger } from '@/ui/logger';
 import { clearDaemonState, readDaemonState } from '@/persistence';
 import { Metadata } from '@/api/types';
@@ -127,7 +127,7 @@ export async function sendAgentMessage(
   target: string | AgentCommsTo,
   body: unknown,
   senderSessionId: string,
-  options: { kind?: AgentCommsKind; correlationId?: string } = {},
+  options: { channel?: AgentCommsChannel; kind?: AgentCommsKind; correlationId?: string } = {},
 ): Promise<{ id: string; seq: number }> {
   const normalizedTarget: AgentCommsTo = typeof target === 'string' ? { sessionId: target } : target;
   const result = await daemonPost('/agent-comms/send', {
@@ -136,6 +136,7 @@ export async function sendAgentMessage(
     // move to the unified target object.
     targetSessionId: normalizedTarget.machineId ? undefined : normalizedTarget.sessionId,
     body,
+    channel: options.channel,
     kind: options.kind,
     correlationId: options.correlationId,
     sender: { sessionId: senderSessionId },

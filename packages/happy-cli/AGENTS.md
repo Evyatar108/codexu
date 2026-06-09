@@ -38,6 +38,7 @@ Happy CLI (`handy-cli`) is a command-line tool that wraps Claude Code to enable 
 - Descriptive test names and proper async handling
 - On Windows/Git Bash, run the package test script as `npm_config_script_shell=bash pnpm --filter happy test` so `$npm_execpath` expands correctly.
 - For file-scoped CLI validation, use `pnpm --filter happy exec vitest run <paths>`; passing paths through the package `test` script can still invoke the broader suite.
+- On Windows, tests that delete temp directories recently watched with `fs.watch` should use `fs.rm(..., { recursive: true, force: true, maxRetries, retryDelay })`; otherwise close-to-delete races can surface as transient `ENOTEMPTY`/`EBUSY` failures.
 - When a `runCodex` test mocks `node:child_process`, use a partial mock that preserves real exports and overrides only `execSync`; `@slopus/happy-wire/node` reaches `execFile` through persistence imports.
 - `logger.debug()` swallows file append errors unless `DEBUG=1`; set `DEBUG=1` before dynamic import when a test needs to prove caller-level logger failure isolation.
 

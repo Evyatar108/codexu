@@ -53,6 +53,7 @@ const trackedSessions = TRACKED_IDS.map(id => ({
 })) as unknown as TrackedSession[];
 
 const liveHandles: { dispose(): void }[] = [];
+const rmOptions = { recursive: true, force: true, maxRetries: 5, retryDelay: 50 };
 
 beforeAll(async () => {
     mailbox = await import('./mailbox');
@@ -85,14 +86,14 @@ beforeAll(async () => {
 
 afterAll(async () => {
     await server.stop();
-    await fs.rm(tempHome, { recursive: true, force: true });
+    await fs.rm(tempHome, rmOptions);
 });
 
 afterEach(async () => {
     while (liveHandles.length > 0) {
         try { liveHandles.pop()!.dispose(); } catch { /* ignore */ }
     }
-    await fs.rm(path.join(tempHome, 'agent-comms'), { recursive: true, force: true });
+    await fs.rm(path.join(tempHome, 'agent-comms'), rmOptions);
 });
 
 interface CapturedMode { tag: string }
@@ -321,5 +322,23 @@ describe('Scope B daemon route validation', () => {
 
     it('rejects an untracked sender with 404 (sendAgentMessage throws)', async () => {
         await expect(controlClient.sendAgentMessage('sessB', { x: 1 }, 'sessUNKNOWN')).rejects.toThrow();
+    });
+
+    it('accepts widened channel and spawn-result kind through sendAgentMessage without changing local delivery', async () => {
+        const ack = await controlClient.sendAgentMessage('sessB', { ok: true }, 'sessA', {
+            channel: 'spawn',
+            kind: 'spawn-result',
+            correlationId: 'spawn-corr-1',
+        });
+
+        expect(ack.seq).toBe(1);
+        const pending = await mailbox.readPending('sessB');
+        expect(pending).toHaveLength(1);
+        expect((pending[0].body as any)).toMatchObject({
+            channel: 'spawn',
+            kind: 'spawn-result',
+            correlationId: 'spawn-corr-1',
+            body: { ok: true },
+        });
     });
 });

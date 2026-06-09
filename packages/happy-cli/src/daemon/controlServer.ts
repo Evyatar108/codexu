@@ -14,7 +14,11 @@ import { isSupportedAgent, SpawnSessionOptions, SpawnSessionResult } from '@/mod
 import { STOP_SESSION_ID_MAX_LENGTH, STOP_SESSION_PID_SUFFIX_SHAPE } from './stopTrackedSession';
 import type { SpawnSessionFromSessionRpcOptions } from '@/api/apiMachine';
 import { appendMessage, SESSION_ID_REGEX } from '@/agentComms/mailbox';
-import { AgentCommsRoutingError, dispatchAgentCommsEnvelope, type AgentCommsSessionMetadata } from '@/agentComms/router';
+import { createDevTunnelsAgentCommsDeliverRemote } from '@/agentComms/peerDelivery';
+import { AgentCommsRoutingError, dispatchAgentCommsEnvelope, type AgentCommsDeliveryAck, type AgentCommsSessionMetadata } from '@/agentComms/router';
+import type { AgentCommsEnvelope } from '@slopus/happy-wire';
+import { TunnelManager } from '@/tunnel/tunnelManager';
+import type { TofuKeypairs } from '@/tofu/keypairManager';
 
 const PARENT_SESSION_ID_MAX_LENGTH = 128;
 const PARENT_SESSION_ID_SHAPE = /^[A-Za-z0-9_-]+$/;
@@ -43,6 +47,7 @@ export function startDaemonControlServer({
   requestShutdown,
   onHappySessionWebhook,
   localMachineId = 'local-machine',
+  agentCommsRemote,
 }: {
   getChildren: () => TrackedSession[];
   stopSession: (sessionId: string) => boolean | Promise<boolean>;
@@ -51,6 +56,11 @@ export function startDaemonControlServer({
   requestShutdown: () => void;
   onHappySessionWebhook: (sessionId: string, metadata: Metadata, encryption?: SessionEncryptionData) => void;
   localMachineId?: string;
+  agentCommsRemote?: {
+    localKeypairs?: Pick<TofuKeypairs, 'ed25519PublicKey' | 'ed25519PrivateKey' | 'ecdhPublicKey' | 'ecdhPrivateKey' | 'ed25519Fingerprint'>;
+    tunnelManager?: Pick<TunnelManager, 'listOperatorTunnels' | 'mintConnectToken'>;
+    deliverRemote?: (envelope: AgentCommsEnvelope) => Promise<AgentCommsDeliveryAck>;
+  };
 }): Promise<{ port: number; stop: () => Promise<void> }> {
   return new Promise((resolve) => {
     const app = fastify({
@@ -61,6 +71,13 @@ export function startDaemonControlServer({
     app.setValidatorCompiler(validatorCompiler);
     app.setSerializerCompiler(serializerCompiler);
     const typed = app.withTypeProvider<ZodTypeProvider>();
+    const deliverRemote = agentCommsRemote?.deliverRemote
+      ?? (agentCommsRemote?.localKeypairs
+        ? createDevTunnelsAgentCommsDeliverRemote({
+          localKeypairs: agentCommsRemote.localKeypairs,
+          tunnelManager: agentCommsRemote.tunnelManager,
+        })
+        : undefined);
 
     // Session reports itself after creation
     typed.post('/session-started', {
@@ -281,7 +298,8 @@ export function startDaemonControlServer({
           }).optional(),
           targetSessionId: agentCommsSessionIdSchema.optional(),
           body: z.unknown(),
-          kind: z.enum(['request', 'reply', 'notify']).optional(),
+          channel: z.enum(['message', 'spawn']).optional(),
+          kind: z.enum(['request', 'reply', 'notify', 'spawn-request', 'spawn-result']).optional(),
           correlationId: z.string().min(1).optional(),
           sender: z.object({
             machineId: z.string().min(1).optional(),
@@ -298,7 +316,7 @@ export function startDaemonControlServer({
         }
       }
     }, async (request, reply) => {
-      const { target, targetSessionId, body, kind, correlationId, sender } = request.body;
+      const { target, targetSessionId, body, channel, kind, correlationId, sender } = request.body;
       const children = getChildren();
       const tracked = new Set(
         children
@@ -326,6 +344,7 @@ export function startDaemonControlServer({
           from: { machineId: sender.machineId ?? localMachineId, sessionId: sender.sessionId },
           to: normalizedTarget,
           body,
+          channel,
           kind,
           correlationId,
         }, {
@@ -333,6 +352,7 @@ export function startDaemonControlServer({
           hasLocalSession: sessionId => tracked.has(sessionId),
           sessionMetadata,
           deliverLocal: envelope => appendMessage(envelope.to.sessionId, envelope, envelope.from.sessionId),
+          deliverRemote,
         });
         logger.debug(`[CONTROL SERVER] agent-comms send ${sender.sessionId} -> ${normalizedTarget.machineId ? `${normalizedTarget.machineId}:` : ''}${normalizedTarget.sessionId} (id=${id} seq=${seq})`);
         return { id, seq };

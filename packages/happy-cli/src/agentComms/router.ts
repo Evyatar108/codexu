@@ -197,10 +197,17 @@ export async function dispatchAgentCommsEnvelope(
         if (!context.deliverRemote) {
             throw new AgentCommsRoutingError(
                 'agent_comms_remote_transport_unavailable',
-                'Scope A delivery requires the Dev Tunnels peer transport, which is design-level in this pass.',
+                'Scope A delivery requires the Dev Tunnels peer transport.',
             );
         }
-        return context.deliverRemote(envelope);
+        try {
+            return await context.deliverRemote(envelope);
+        } catch (error) {
+            throw new AgentCommsRoutingError(
+                'agent_comms_remote_transport_unavailable',
+                error instanceof Error ? error.message : String(error),
+            );
+        }
     }
     return context.deliverLocal(envelope);
 }
