@@ -1,12 +1,11 @@
 import fs from 'fs/promises';
 import os from 'os';
-import type { AgentCommsEnvelope } from '@slopus/happy-wire';
 import { execFile } from 'node:child_process';
 import * as tmp from 'tmp';
 import axios from 'axios';
 
 import { ApiClient } from '@/api/api';
-import { bootstrapMachineForEmbedded, type AgentCommsIngestBody } from 'happy-server';
+import { bootstrapMachineForEmbedded } from 'happy-server';
 import type { ForkSessionOptions, SpawnSessionFromSessionRpcOptions } from '@/api/apiMachine';
 import { TrackedSession, SessionEncryptionData } from './types';
 import { MachineMetadata, DaemonState, Metadata } from '@/api/types';
@@ -34,11 +33,8 @@ import { detectResumeSupport } from '@/resume/localHappyAgentAuth';
 import { encodeBase64, decodeBase64, decrypt } from '@/api/encryption';
 import { pickFreeLoopbackPort } from '@/utils/pickFreeLoopbackPort';
 import { loadOrCreateTofuKeypairs } from '@/tofu/keypairManager';
-import { appendMessage } from '@/agentComms/mailbox';
-import { openSealedBody, requirePinnedPeer, verifyEnvelopeSignature, type SealedAgentCommsBody } from '@/agentComms/peerAuth';
 import { createDevTunnelsAgentCommsDeliverRemote } from '@/agentComms/peerDelivery';
-import { handleInboundSpawnRequest } from '@/agentComms/spawnApproval';
-import { advanceAgentCommsRelay, requiresOperatorApproval } from '@/agentComms/router';
+import { createAgentCommsIngestHandler } from '@/agentComms/ingestHandler';
 import { TunnelManager } from '@/tunnel/tunnelManager';
 import { DevTunnelsDaemonProvider } from '@/tunnel/devTunnelsDaemonProvider';
 import { forkSession } from './forkSession';
@@ -227,41 +223,13 @@ export async function startDaemon(): Promise<void> {
       x25519SecretKey: tofuKeypairs.ecdhPrivateKey,
       ed25519Fingerprint: tofuKeypairs.ed25519Fingerprint,
     };
-    const agentCommsIngest = async (body: AgentCommsIngestBody): Promise<{ id: string; seq: number }> => {
-      const pinned = await requirePinnedPeer(configuration.happyHomeDir, body.envelope.from.machineId);
-      if (body.senderKeys.ed25519Fingerprint && body.senderKeys.ed25519Fingerprint !== pinned.ed25519Fingerprint) {
-        throw new Error(`agent-comms peer fingerprint mismatch for ${body.envelope.from.machineId}`);
-      }
-      if (body.senderKeys.ed25519PublicKey !== pinned.ed25519PublicKey || body.senderKeys.ecdhPublicKey !== pinned.ecdhPublicKey) {
-        throw new Error(`agent-comms peer public keys do not match pinned keys for ${body.envelope.from.machineId}`);
-      }
-      const signatureOk = await verifyEnvelopeSignature(body.envelope, body.signature, decodeBase64(pinned.ed25519PublicKey));
-      if (!signatureOk) {
-        throw new Error(`agent-comms signature verification failed for ${body.envelope.from.machineId}`);
-      }
-      const openedBody = openSealedBody<unknown>(body.envelope.body as SealedAgentCommsBody, tofuKeypairs, decodeBase64(pinned.ecdhPublicKey));
-      if (openedBody === null) {
-        throw new Error(`agent-comms sealed body could not be opened for ${body.envelope.from.machineId}`);
-      }
-      const openedEnvelope: AgentCommsEnvelope = { ...body.envelope, body: openedBody };
-      const relayedEnvelope = advanceAgentCommsRelay(openedEnvelope, { machineId, sessionId: `daemon-${machineId}` });
-      if (relayedEnvelope.to.machineId && relayedEnvelope.to.machineId !== machineId) {
-        throw new Error(`agent-comms ingest target machine mismatch: ${relayedEnvelope.to.machineId}`);
-      }
-      if (relayedEnvelope.kind === 'spawn-request') {
-        return handleInboundSpawnRequest(relayedEnvelope, {
-          happyHomeDir: configuration.happyHomeDir,
-          localMachineId: machineId,
-          pinnedPeer: pinned,
-          spawnSessionFromSession: options => spawnSessionFromSessionHandlerReady.then(handler => handler(options)),
-          deliverRemote,
-        });
-      }
-      if (requiresOperatorApproval(relayedEnvelope) && !pinned.approvedForSpawn) {
-        throw new Error(`agent-comms peer ${body.envelope.from.machineId} is not approved for spawn envelopes`);
-      }
-      return appendMessage(relayedEnvelope.to.sessionId, relayedEnvelope, relayedEnvelope.from.sessionId);
-    };
+    const agentCommsIngest = createAgentCommsIngestHandler({
+      happyHomeDir: configuration.happyHomeDir,
+      localMachineId: machineId,
+      tofuKeypairs,
+      spawnSessionFromSession: options => spawnSessionFromSessionHandlerReady.then(handler => handler(options)),
+      deliverRemote,
+    });
     const listenerBinding = await bindListenersAndWriteCapability({
       sharedContext: {
         dataDir: configuration.happyHomeDir,

@@ -330,7 +330,7 @@ The router unit tests (US-003) cover:
 
 ## 8 · Manual two-machine smoke (Scope A)
 
-This section is the retained operator runbook for the real Dev Tunnels gateway path. Hermetic integration tests cover the signed/sealed daemon chain, but this manual smoke remains the proof for connect-token admission through Microsoft's gateway.
+This section is the retained opt-in operator runbook for the real Dev Tunnels gateway path. `packages/happy-cli/src/agentComms/scopeA.integration.test.ts` covers the signed/sealed daemon chain hermetically with loopback fetch and fixture keys; this manual smoke remains the proof for the non-hermetic connect-token admission step through Microsoft's gateway.
 
 ### 8.1 Prerequisites
 
@@ -378,7 +378,7 @@ On machine A, mint a connect token for machine B's tunnel:
 devtunnel token <peer-tunnel-id> --scope connect
 ```
 
-Expected output: a single line containing the connect-token JWT (the exact shape depends on the installed `devtunnel` CLI version; `REQUIRED_DEVTUNNEL_VERSION = 1.0.1516`). This token is presented as `X-Tunnel-Authorization: tunnel <jwt>` on the next ingest request. The Dev Tunnels gateway will **consume and strip** the header before forwarding to machine B's embedded happy-server.
+Expected output: a single line containing the connect-token JWT (the exact shape depends on the installed `devtunnel` CLI version; `REQUIRED_DEVTUNNEL_VERSION = 1.0.1516`). This token is presented as `X-Tunnel-Authorization: tunnel <jwt>` on the next ingest request. The Dev Tunnels gateway will **consume and strip** the header before forwarding to machine B's embedded happy-server. This is the one Scope A behavior the hermetic harness intentionally does not fake as a security proof: a real Dev Tunnels gateway must admit the request with the minted token and reject it without a valid token.
 
 ### 8.4 Step 3 — POST the signed + sealed envelope
 
@@ -448,7 +448,7 @@ Markdown-only verification is recorded for this story:
 
 - The doc exists at `plans/agent-comms-design.md` with the unified API, envelope, scope-aware routing, Scope B / Scope C / Scope A sections, the Scope A Dev-Tunnels-end-to-end constraint, the embedded-happy-server-is-not-a-broker distinction, the manual two-machine smoke with exact `devtunnel` commands + JSON shapes + curl shape + explicit non-goals, and a cross-reference to [`plans/durable-mailbox-channel-wake.md`](./durable-mailbox-channel-wake.md).
 - No live two-machine test is required for this docs story; Section 8 remains the manual real-gateway smoke and the live wiring stories add hermetic regression coverage.
-- The schema, router, transport interfaces, live outbound delivery, approval gate, and integration harness referenced here are implemented under their own live-wiring stories and verified in those iterations.
+- The schema, router, transport interfaces, live outbound delivery, approval gate, and `scopeA.integration.test.ts` harness referenced here are implemented under their own live-wiring stories and verified in those iterations.
 
 ---
 

@@ -101,6 +101,7 @@ export default defineConfig({
                     minWorkers: 1,
                     testTimeout: 60_000,
                     include: [
+                        'src/agentComms/scopeA.integration.test.ts',
                         'src/agentComms/mailbox.crossProcess.integration.test.ts',
                     ],
                     sequence: {

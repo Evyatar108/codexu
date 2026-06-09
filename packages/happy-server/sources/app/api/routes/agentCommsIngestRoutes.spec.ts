@@ -68,6 +68,23 @@ describe("agentCommsIngestRoutes", () => {
         await app.close();
     });
 
+    it("rejects malformed bodies at the Fastify schema boundary", async () => {
+        const { app, handler } = makeApp();
+
+        const response = await app.inject({
+            method: "POST",
+            url: "/agent-comms/ingest",
+            payload: {
+                ...validBody,
+                signature: "",
+            },
+        });
+
+        expect(response.statusCode).toBe(400);
+        expect(handler).not.toHaveBeenCalled();
+        await app.close();
+    });
+
     it("fails closed when no daemon handler is configured", async () => {
         const { app } = makeApp(null);
 

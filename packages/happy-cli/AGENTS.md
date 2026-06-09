@@ -52,6 +52,7 @@ Happy CLI (`handy-cli`) is a command-line tool that wraps Claude Code to enable 
 - The Dev Tunnels CLI uses `--port-number` for both `devtunnel port create` and `devtunnel host`; `--port` is not accepted by current Windows builds.
 - Tunnels are private by default. Do not add anonymous-access flags in production code. Sprint E path (b) uses **`X-Tunnel-Authorization: tunnel <connect-jwt>`** for Microsoft's Dev Tunnels gateway auth (gateway strips it before forwarding to the backend). The separate Happy Ed25519 tunnel claim layer has been retired. The earlier `X-Tunnel-Connect` name (Sprint A spec) was never reachable end-to-end because the gateway rejects it — corrected during BOOX validation 2026-05-13. See `packages/happy-app/scripts/sprint-a-gap.md` "R-D18 path (b) implementation log" and `docs/security-model.md`.
 - Scope A peer identity is not discoverable from Dev Tunnel names. Join pinned peer records to `listOperatorTunnels()` using explicit `tunnelName`/`tunnelId` hints; never derive `machineId` by stripping `codexu-<hostname>` or similar naming conventions.
+- Scope A ingest verification lives in `src/agentComms/ingestHandler.ts`; keep `run.ts` as dependency wiring only, and add hermetic cross-machine coverage to the `integration-agent-comms` Vitest project when touching signed/sealed ingest behavior.
 
 ## Architecture & Key Components
 
