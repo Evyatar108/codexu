@@ -21,6 +21,15 @@ const spawnRequestBodySchema = z.object({
 }).strict().refine(
     body => body.cwd === undefined || body.path === undefined || body.cwd === body.path,
     { message: 'spawn-request carries conflicting cwd and path values', path: ['path'] },
+).refine(
+    // v1 fail-closed: role/plugins are reserved Scope A design payload fields, but the
+    // shared spawn pipeline (SpawnFromSessionConfig -> SpawnSessionOptions -> spawnSession,
+    // also used by spawn-in-worktree/fork-into-worktree) cannot yet honor them. Rather than
+    // silently accepting and dropping a meaningful role/plugins request, reject it so the
+    // caller learns the field is unsupported. An empty plugins array / absent role carries no
+    // intent, so it is allowed through (the bridge always emits plugins: []).
+    body => body.role === undefined && (body.plugins === undefined || body.plugins.length === 0),
+    { message: 'spawn-request role/plugins are not honored by the v1 spawn pipeline; omit them or extend SpawnFromSessionConfig + spawnSessionFromSession to carry them', path: ['role'] },
 );
 
 export type AgentCommsSpawnRequestBody = z.infer<typeof spawnRequestBodySchema>;

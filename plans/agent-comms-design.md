@@ -70,6 +70,7 @@ agent_comms.spawn({
 
 - Local: reuses the existing `spawn-session-from-session` RPC + daemon route. The `initialMessage` is threaded through the spawn launch path (US-005a fix).
 - Cross-machine: represented by a `spawn-request` / `spawn-result` envelope pair over Scope A. Remote spawn requires an **operator-approval gate** at the remote daemon before any child process starts; unapproved requests are recorded for operator review and do not execute.
+- **`role` / `plugins` are v1 fail-closed.** They are reserved Scope A design-payload fields, but the shared spawn pipeline (`SpawnFromSessionConfig` → `SpawnSessionOptions` → `spawnSession`, also used by `spawn-in-worktree` / `fork-into-worktree`) does not yet carry them to the child launch. The `spawn-request` body schema therefore **rejects** any envelope that supplies a non-empty `plugins` array or a `role` string rather than silently accepting and dropping them; an absent `role` and an empty `plugins: []` are allowed through (they carry no intent). To honor them, extend `SpawnFromSessionConfig` + `spawnSessionFromSession` (and the shared `SpawnSessionOptions` launch path) and map them in `mapSpawnRequestToRpc`, then relax the schema refinement.
 
 ### 2.3 The single sink
 

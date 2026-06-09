@@ -27,8 +27,6 @@ function spawnEnvelope(overrides: Partial<AgentCommsEnvelope> = {}): AgentCommsE
         hopCount: 1,
         hopPath: ['machine-a:remote-parent', 'machine-b:daemon-machine-b'],
         body: {
-            role: 'reviewer',
-            plugins: ['ralph-overview@ai-developer-toolkit'],
             agent: 'codex',
             cwd: 'D:/repo',
             initialMessage: 'inspect the diff',
@@ -343,6 +341,75 @@ describe('handleInboundSpawnRequest', () => {
         const deliverRemote = vi.fn(async (envelope: AgentCommsEnvelope) => ({ id: envelope.id, seq: 8 }));
 
         await handleInboundSpawnRequest(spawnEnvelope({ body: { agent: 'codex', cwd: 'D:/repo', path: 'D:/repo' } }), {
+            happyHomeDir: home,
+            localMachineId: 'machine-b',
+            pinnedPeer: pinned,
+            spawnSessionFromSession,
+            deliverRemote,
+        });
+
+        expect(spawnSessionFromSession).toHaveBeenCalledTimes(1);
+        expect(spawnSessionFromSession).toHaveBeenCalledWith({
+            parentSessionId: 'local-parent',
+            config: {
+                agent: 'codex',
+                path: 'D:/repo',
+                model: undefined,
+                permissionMode: undefined,
+                effortLevel: undefined,
+                initialMessage: undefined,
+            },
+        });
+    });
+
+    it('fails closed on an allowlisted request carrying role or non-empty plugins instead of silently dropping them', async () => {
+        const home = makeHome();
+        homes.push(home);
+        const pinned = await pinPeerKeys(home, 'machine-a', {
+            ed25519PublicKey: 'ZWQ=',
+            ecdhPublicKey: 'ZWNkaA==',
+            approvedForSpawn: true,
+        });
+        const spawnSessionFromSession = vi.fn();
+        const deliverRemote = vi.fn(async (envelope: AgentCommsEnvelope) => ({ id: envelope.id, seq: 9 }));
+
+        await handleInboundSpawnRequest(spawnEnvelope({
+            body: { agent: 'codex', cwd: 'D:/repo', role: 'reviewer', plugins: ['ralph-overview@ai-developer-toolkit'] },
+        }), {
+            happyHomeDir: home,
+            localMachineId: 'machine-b',
+            pinnedPeer: pinned,
+            spawnSessionFromSession,
+            deliverRemote,
+        });
+
+        // The shared spawn pipeline cannot honor role/plugins, so the request is rejected
+        // before any child launch rather than accepted-and-dropped.
+        expect(spawnSessionFromSession).not.toHaveBeenCalled();
+        expect(deliverRemote.mock.calls[0][0]).toMatchObject({
+            channel: 'spawn',
+            kind: 'spawn-result',
+            body: {
+                ok: false,
+                result: { type: 'error' },
+            },
+        });
+    });
+
+    it('allows an allowlisted request with an empty plugins array and no role', async () => {
+        const home = makeHome();
+        homes.push(home);
+        const pinned = await pinPeerKeys(home, 'machine-a', {
+            ed25519PublicKey: 'ZWQ=',
+            ecdhPublicKey: 'ZWNkaA==',
+            approvedForSpawn: true,
+        });
+        const spawnSessionFromSession = vi.fn(async () => ({ type: 'success' as const, sessionId: 'child-empty-plugins' }));
+        const deliverRemote = vi.fn(async (envelope: AgentCommsEnvelope) => ({ id: envelope.id, seq: 10 }));
+
+        await handleInboundSpawnRequest(spawnEnvelope({
+            body: { agent: 'codex', cwd: 'D:/repo', plugins: [] },
+        }), {
             happyHomeDir: home,
             localMachineId: 'machine-b',
             pinnedPeer: pinned,
