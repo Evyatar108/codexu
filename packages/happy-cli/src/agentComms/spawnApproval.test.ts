@@ -165,6 +165,46 @@ describe('handleInboundSpawnRequest', () => {
         await expect(readPendingStore(home)).resolves.toMatchObject({ completed: [{ correlationId: 'corr-spawn-1' }] });
     });
 
+    it('persists the spawn result before delivery so a delivery failure does not re-spawn on retry', async () => {
+        const home = makeHome();
+        homes.push(home);
+        const pinned = await pinPeerKeys(home, 'machine-a', {
+            ed25519PublicKey: 'ZWQ=',
+            ecdhPublicKey: 'ZWNkaA==',
+            approvedForSpawn: true,
+        });
+        const spawnSessionFromSession = vi.fn(async () => ({ type: 'success' as const, sessionId: 'child-1' }));
+        let deliveryAttempt = 0;
+        const deliverRemote = vi.fn(async (envelope: AgentCommsEnvelope) => {
+            deliveryAttempt += 1;
+            if (deliveryAttempt === 1) throw new Error('dev tunnels delivery failed');
+            return { id: envelope.id, seq: 21 };
+        });
+        const options = {
+            happyHomeDir: home,
+            localMachineId: 'machine-b',
+            pinnedPeer: pinned,
+            spawnSessionFromSession,
+            deliverRemote,
+            now: () => new Date('2026-06-09T12:03:00.000Z'),
+        };
+
+        // First attempt: spawn succeeds but the outbound spawn-result delivery fails.
+        await expect(handleInboundSpawnRequest(spawnEnvelope(), options)).rejects.toThrow('dev tunnels delivery failed');
+
+        // The terminal completed record was persisted BEFORE delivery was attempted,
+        // so it survives the delivery failure.
+        await expect(readPendingStore(home)).resolves.toMatchObject({ completed: [{ correlationId: 'corr-spawn-1' }] });
+
+        // Retry of the same correlation id returns (and re-delivers) the recorded
+        // result without spawning a second child.
+        const retryAck = await handleInboundSpawnRequest(spawnEnvelope({ id: 'env-spawn-retry' }), options);
+
+        expect(retryAck).toEqual({ id: expect.any(String), seq: 21 });
+        expect(spawnSessionFromSession).toHaveBeenCalledTimes(1);
+        expect(deliverRemote).toHaveBeenCalledTimes(2);
+    });
+
     it('returns the in-flight result for a same-correlation retry without double-spawning', async () => {
         const home = makeHome();
         homes.push(home);

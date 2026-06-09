@@ -47,7 +47,10 @@ interface CompletedSpawnRecord {
     correlationId?: string;
     completedAt: string;
     spawnResult: SpawnSessionResult;
-    deliveryAck: AgentCommsDeliveryAck;
+    // Set once outbound spawn-result delivery succeeds. The terminal record is
+    // persisted right after a successful spawn (before delivery), so a record
+    // can durably exist with delivery still pending; a retry then re-delivers.
+    deliveryAck?: AgentCommsDeliveryAck;
 }
 
 interface SpawnApprovalStore {
@@ -212,6 +215,16 @@ async function sendSpawnResult(
     }));
 }
 
+function spawnResultDeliveryBody(envelope: AgentCommsEnvelope, spawnResult: SpawnSessionResult): unknown {
+    return {
+        type: 'spawn-result',
+        ok: spawnResult.type === 'success',
+        requestId: envelope.id,
+        correlationId: envelope.correlationId,
+        result: spawnResult,
+    };
+}
+
 interface SpawnApprovalOptions {
     happyHomeDir: string;
     localMachineId: string;
@@ -222,16 +235,34 @@ interface SpawnApprovalOptions {
 }
 
 type SpawnPlan =
-    | { type: 'completed'; ack: AgentCommsDeliveryAck }
+    | { type: 'completed'; record: CompletedSpawnRecord }
     | { type: 'denied' }
     | { type: 'await-local'; promise: Promise<AgentCommsDeliveryAck> }
     | { type: 'remote-inflight' }
     | { type: 'reserved'; deferred: SpawnDeferred };
 
-// Runs the long spawn + delivery WITHOUT holding the approval-store lock, then
-// re-acquires the lock briefly to persist the completed result and release the
-// reservation. The deferred mirrors the result to any concurrent in-process
-// retry waiting on the same dedupe key.
+// Persists the successful delivery ack onto an already-terminal completed
+// record so a later retry can short-circuit to the stored ack rather than
+// re-delivering. No-op if the record is gone or already carries an ack.
+async function recordDeliveryAck(happyHomeDir: string, envelope: AgentCommsEnvelope, deliveryAck: AgentCommsDeliveryAck): Promise<void> {
+    await runExclusive(happyHomeDir, async () => {
+        const store = await readStore(happyHomeDir);
+        const record = store.completed.find(r => spawnKeyMatches(r, envelope));
+        if (record && !record.deliveryAck) {
+            record.deliveryAck = deliveryAck;
+            await writeStore(happyHomeDir, store);
+        }
+    });
+}
+
+// Runs the long spawn + delivery WITHOUT holding the approval-store lock. On a
+// successful spawn the terminal completed record (carrying the spawn outcome) is
+// persisted BEFORE delivery is attempted, so a delivery failure can never drop
+// it: a retry of the same envelope/correlationId returns (and may re-deliver)
+// the recorded result without spawning a second child. Only an actual spawn
+// failure clears the reservation, allowing a future retry to spawn again. The
+// deferred mirrors the result to any concurrent in-process retry waiting on the
+// same dedupe key.
 function executeReservedSpawn(envelope: AgentCommsEnvelope, options: SpawnApprovalOptions, now: () => Date, key: string, deferred: SpawnDeferred): void {
     void (async () => {
         try {
@@ -243,14 +274,23 @@ function executeReservedSpawn(envelope: AgentCommsEnvelope, options: SpawnApprov
                 spawnResult = { type: 'error', errorMessage: error instanceof Error ? error.message : String(error) };
             }
 
-            const deliveryAck = await sendSpawnResult(envelope, options.localMachineId, {
-                type: 'spawn-result',
-                ok: spawnResult.type === 'success',
-                requestId: envelope.id,
-                correlationId: envelope.correlationId,
-                result: spawnResult,
-            }, options.deliverRemote);
+            if (spawnResult.type !== 'success') {
+                // The spawn did not produce a child, so this is NOT terminal: clear
+                // the reservation so a future retry may re-attempt the spawn. Still
+                // deliver the error result to the caller.
+                const deliveryAck = await sendSpawnResult(envelope, options.localMachineId, spawnResultDeliveryBody(envelope, spawnResult), options.deliverRemote);
+                await runExclusive(options.happyHomeDir, async () => {
+                    const store = await readStore(options.happyHomeDir);
+                    store.inflight = store.inflight.filter(record => !spawnKeyMatches(record, envelope));
+                    await writeStore(options.happyHomeDir, store);
+                });
+                deferred.resolve(deliveryAck);
+                return;
+            }
 
+            // Spawn SUCCEEDED: persist the terminal completed record and release the
+            // reservation BEFORE attempting delivery. From here on a delivery failure
+            // must not drop the completed record.
             await runExclusive(options.happyHomeDir, async () => {
                 const store = await readStore(options.happyHomeDir);
                 store.inflight = store.inflight.filter(record => !spawnKeyMatches(record, envelope));
@@ -260,13 +300,19 @@ function executeReservedSpawn(envelope: AgentCommsEnvelope, options: SpawnApprov
                         correlationId: envelope.correlationId,
                         completedAt: now().toISOString(),
                         spawnResult,
-                        deliveryAck,
                     });
                 }
                 await writeStore(options.happyHomeDir, store);
             });
+
+            const deliveryAck = await sendSpawnResult(envelope, options.localMachineId, spawnResultDeliveryBody(envelope, spawnResult), options.deliverRemote);
+            await recordDeliveryAck(options.happyHomeDir, envelope, deliveryAck);
             deferred.resolve(deliveryAck);
         } catch (error) {
+            // Reached only when delivery (or ack persistence) threw. Any terminal
+            // completed record written for a successful spawn is intentionally left
+            // in place; only the inflight reservation is released so the registry
+            // doesn't leak. A retry returns/re-delivers the recorded result.
             try {
                 await runExclusive(options.happyHomeDir, async () => {
                     const store = await readStore(options.happyHomeDir);
@@ -297,7 +343,7 @@ export async function handleInboundSpawnRequest(
     const plan = await runExclusive(options.happyHomeDir, async (): Promise<SpawnPlan> => {
         const store = await readStore(options.happyHomeDir);
         const prior = store.completed.find(record => spawnKeyMatches(record, envelope));
-        if (prior) return { type: 'completed', ack: prior.deliveryAck };
+        if (prior) return { type: 'completed', record: prior };
 
         if (!options.pinnedPeer.approvedForSpawn) {
             if (!store.pending.some(record => spawnKeyMatches(record, envelope))) {
@@ -333,8 +379,15 @@ export async function handleInboundSpawnRequest(
     });
 
     switch (plan.type) {
-        case 'completed':
-            return plan.ack;
+        case 'completed': {
+            // A terminal record exists. If delivery already succeeded, return the
+            // stored ack. Otherwise the original attempt's delivery failed after the
+            // spawn — re-deliver the recorded result WITHOUT spawning again.
+            if (plan.record.deliveryAck) return plan.record.deliveryAck;
+            const deliveryAck = await sendSpawnResult(envelope, options.localMachineId, spawnResultDeliveryBody(envelope, plan.record.spawnResult), options.deliverRemote);
+            await recordDeliveryAck(options.happyHomeDir, envelope, deliveryAck);
+            return deliveryAck;
+        }
         case 'await-local':
             return plan.promise;
         case 'denied':
