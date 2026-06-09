@@ -10,8 +10,8 @@
  *  - register an `agent_comms.send` MCP tool that delegates the scope-aware
  *    write to the injected `sendMessage` daemon hop;
  *  - register an `agent_comms.spawn` MCP tool that reuses the local
- *    spawn-session-from-session path and rejects cross-machine spawn requests
- *    until the Scope A approval + transport follow-up lands;
+ *    spawn-session-from-session path for same-machine children and emits a
+ *    Scope A spawn-request envelope for foreign-machine children;
  *  - register an `agent-comms` MCP resource whose read callback DRAINS the
  *    durable inbox and returns the pending entries (post-drain consume, F-001);
  *  - watch the inbox DIRECTORY (not the file — F-003) and emit a
@@ -31,6 +31,7 @@
  */
 
 import * as fs from 'node:fs';
+import { randomUUID } from 'node:crypto';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import type { AgentCommsChannel, AgentCommsKind, AgentCommsTo } from '@slopus/happy-wire';
@@ -96,6 +97,8 @@ interface SpawnToolArgs {
     cwd?: string;
     path?: string;
     machineId?: string;
+    targetSessionId?: string;
+    correlationId?: string;
     initialMessage?: string;
     model?: string;
     permissionMode?: string;
@@ -185,14 +188,16 @@ export function registerAgentCommsBridge(opts: RegisterAgentCommsBridgeOptions):
         'agent_comms.spawn',
         {
             title: 'Spawn top-level Happy agent session',
-            description: 'Spawn another top-level agent session. Local spawns use spawn-session-from-session; cross-machine spawns are design-level and require operator approval.',
+            description: 'Spawn another top-level agent session. Local spawns use spawn-session-from-session; cross-machine spawns send a Scope A spawn-request that the remote daemon approval-gates.',
             inputSchema: {
                 role: z.string().optional().describe('Optional human-readable role for the spawned agent.'),
                 plugins: z.array(z.string()).optional().describe('Plugin ids requested for the spawned agent; preserved for Scope A design payloads.'),
                 agent: z.enum(['claude', 'codex', 'gemini', 'openclaw']),
                 cwd: z.string().optional().describe('Working directory for the child session.'),
                 path: z.string().optional().describe('Alias for cwd.'),
-                machineId: z.string().optional().describe('Foreign machine id for a future Scope A spawn-request.'),
+                machineId: z.string().optional().describe('Foreign machine id for a Scope A spawn-request.'),
+                targetSessionId: z.string().optional().describe('Remote Happy parent session id to spawn from when machineId is foreign.'),
+                correlationId: z.string().optional().describe('Optional idempotency key for retrying the same remote spawn request.'),
                 initialMessage: z.string().optional().describe('Initial task sent to the spawned child.'),
                 model: z.string().optional(),
                 permissionMode: z.string().optional(),
@@ -202,22 +207,28 @@ export function registerAgentCommsBridge(opts: RegisterAgentCommsBridgeOptions):
         async (args: SpawnToolArgs) => {
             try {
                 if (args.machineId) {
-                    return {
-                        content: [{
-                            type: 'text' as const,
-                            text: JSON.stringify({
-                                type: 'deferred-scope-a-spawn',
-                                requiresOperatorApproval: true,
-                                role: args.role,
-                                plugins: args.plugins ?? [],
-                                agent: args.agent,
-                                cwd: args.cwd ?? args.path,
-                                initialMessage: args.initialMessage,
-                                message: 'Cross-machine spawn-request envelopes are design-level in this pass; no live remote spawn was attempted.',
-                            }),
-                        }],
-                        isError: true,
-                    };
+                    if (!args.targetSessionId) {
+                        throw new Error('remote agent_comms.spawn requires targetSessionId for the remote parent session');
+                    }
+                    const result = await sendMessage({
+                        machineId: args.machineId,
+                        sessionId: args.targetSessionId,
+                    }, {
+                        role: args.role,
+                        plugins: args.plugins ?? [],
+                        agent: args.agent,
+                        cwd: args.cwd,
+                        path: args.path,
+                        initialMessage: args.initialMessage,
+                        model: args.model,
+                        permissionMode: args.permissionMode,
+                        effortLevel: args.effortLevel,
+                    }, sessionId, {
+                        channel: 'spawn',
+                        kind: 'spawn-request',
+                        correlationId: args.correlationId ?? randomUUID(),
+                    });
+                    return { content: [{ type: 'text' as const, text: JSON.stringify(result) }] };
                 }
                 if (!spawnSession) {
                     throw new Error('local spawn handler not available');

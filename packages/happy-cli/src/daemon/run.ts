@@ -36,7 +36,9 @@ import { pickFreeLoopbackPort } from '@/utils/pickFreeLoopbackPort';
 import { loadOrCreateTofuKeypairs } from '@/tofu/keypairManager';
 import { appendMessage } from '@/agentComms/mailbox';
 import { openSealedBody, requirePinnedPeer, verifyEnvelopeSignature, type SealedAgentCommsBody } from '@/agentComms/peerAuth';
-import { advanceAgentCommsRelay } from '@/agentComms/router';
+import { createDevTunnelsAgentCommsDeliverRemote } from '@/agentComms/peerDelivery';
+import { handleInboundSpawnRequest } from '@/agentComms/spawnApproval';
+import { advanceAgentCommsRelay, requiresOperatorApproval } from '@/agentComms/router';
 import { TunnelManager } from '@/tunnel/tunnelManager';
 import { DevTunnelsDaemonProvider } from '@/tunnel/devTunnelsDaemonProvider';
 import { forkSession } from './forkSession';
@@ -211,6 +213,14 @@ export async function startDaemon(): Promise<void> {
     let machineState = await resolveMachineState(machineId);
     const tunnelManager = new TunnelManager();
     const tunnelProvider = new DevTunnelsDaemonProvider({ manager: tunnelManager });
+    const deliverRemote = createDevTunnelsAgentCommsDeliverRemote({
+      localKeypairs: tofuKeypairs,
+      tunnelManager,
+    });
+    let resolveSpawnSessionFromSessionHandler!: (handler: (options: SpawnSessionFromSessionRpcOptions) => Promise<SpawnSessionResult>) => void;
+    const spawnSessionFromSessionHandlerReady = new Promise<(options: SpawnSessionFromSessionRpcOptions) => Promise<SpawnSessionResult>>(
+      (resolve) => { resolveSpawnSessionFromSessionHandler = resolve; }
+    );
     const tofuPublicKeysConfig = {
       ed25519PublicKey: tofuKeypairs.ed25519PublicKey,
       x25519PublicKey: tofuKeypairs.ecdhPublicKey,
@@ -237,6 +247,18 @@ export async function startDaemon(): Promise<void> {
       const relayedEnvelope = advanceAgentCommsRelay(openedEnvelope, { machineId, sessionId: `daemon-${machineId}` });
       if (relayedEnvelope.to.machineId && relayedEnvelope.to.machineId !== machineId) {
         throw new Error(`agent-comms ingest target machine mismatch: ${relayedEnvelope.to.machineId}`);
+      }
+      if (relayedEnvelope.kind === 'spawn-request') {
+        return handleInboundSpawnRequest(relayedEnvelope, {
+          happyHomeDir: configuration.happyHomeDir,
+          localMachineId: machineId,
+          pinnedPeer: pinned,
+          spawnSessionFromSession: options => spawnSessionFromSessionHandlerReady.then(handler => handler(options)),
+          deliverRemote,
+        });
+      }
+      if (requiresOperatorApproval(relayedEnvelope) && !pinned.approvedForSpawn) {
+        throw new Error(`agent-comms peer ${body.envelope.from.machineId} is not approved for spawn envelopes`);
       }
       return appendMessage(relayedEnvelope.to.sessionId, relayedEnvelope, relayedEnvelope.from.sessionId);
     };
@@ -847,11 +869,6 @@ export async function startDaemon(): Promise<void> {
       pidToTrackedSession.delete(pid);
     };
 
-    let resolveSpawnSessionFromSessionHandler!: (handler: (options: SpawnSessionFromSessionRpcOptions) => Promise<SpawnSessionResult>) => void;
-    const spawnSessionFromSessionHandlerReady = new Promise<(options: SpawnSessionFromSessionRpcOptions) => Promise<SpawnSessionResult>>(
-      (resolve) => { resolveSpawnSessionFromSessionHandler = resolve; }
-    );
-
     // Start control server
     const { port: controlPort, stop: stopControlServer } = await startDaemonControlServer({
       getChildren: getCurrentChildren,
@@ -862,8 +879,7 @@ export async function startDaemon(): Promise<void> {
       onHappySessionWebhook,
       localMachineId: machineId,
       agentCommsRemote: {
-        localKeypairs: tofuKeypairs,
-        tunnelManager,
+        deliverRemote,
       },
     });
 

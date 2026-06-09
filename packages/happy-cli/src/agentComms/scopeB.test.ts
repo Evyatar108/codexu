@@ -21,7 +21,7 @@
  * forward (see mcpNotificationConsumer.ts).
  */
 
-import { describe, it, expect, beforeAll, afterAll, afterEach } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll, afterEach, vi } from 'vitest';
 import * as fsSync from 'node:fs';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
@@ -283,12 +283,13 @@ describe('Scope B drain semantics', () => {
 });
 
 describe('agent_comms.spawn tool shape', () => {
-    it('accepts the documented role/plugins/agent/cwd/machineId/initialMessage shape without dropping remote intent', async () => {
+    it('sends the documented remote spawn shape as a Scope A spawn-request', async () => {
         const bridgeServer = makeFakeServer();
+        const sendMessage = vi.fn(async () => ({ id: 'remote-spawn-env', seq: 8 }));
         const handle = bridge.registerAgentCommsBridge({
             server: bridgeServer.server,
             sessionId: 'sessA',
-            sendMessage: controlClient.sendAgentMessage,
+            sendMessage,
             spawnSession: async () => ({ type: 'success', sessionId: 'unused-local' }),
         });
         liveHandles.push(handle);
@@ -299,18 +300,30 @@ describe('agent_comms.spawn tool shape', () => {
             agent: 'codex',
             cwd: 'D:/repo',
             machineId: 'remote-machine',
+            targetSessionId: 'remote-parent',
+            correlationId: 'spawn-corr-1',
             initialMessage: 'inspect the diff',
         });
 
-        expect(result.isError).toBe(true);
-        const payload = JSON.parse(result.content[0].text) as { role?: string; plugins?: string[]; agent?: string; cwd?: string; initialMessage?: string; requiresOperatorApproval?: boolean };
-        expect(payload).toMatchObject({
+        expect(result.isError).toBeFalsy();
+        expect(JSON.parse(result.content[0].text)).toEqual({ id: 'remote-spawn-env', seq: 8 });
+        expect(sendMessage).toHaveBeenCalledWith({
+            machineId: 'remote-machine',
+            sessionId: 'remote-parent',
+        }, {
             role: 'reviewer',
             plugins: ['ralph-orchestration@ai-developer-toolkit'],
             agent: 'codex',
             cwd: 'D:/repo',
+            path: undefined,
             initialMessage: 'inspect the diff',
-            requiresOperatorApproval: true,
+            model: undefined,
+            permissionMode: undefined,
+            effortLevel: undefined,
+        }, 'sessA', {
+            channel: 'spawn',
+            kind: 'spawn-request',
+            correlationId: 'spawn-corr-1',
         });
     });
 });
