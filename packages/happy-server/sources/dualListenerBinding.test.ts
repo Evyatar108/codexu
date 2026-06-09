@@ -56,6 +56,7 @@ describe("dual-listener network binding", () => {
         const tunnelPort = await getFreePort();
         const loopbackPort = await getFreePort();
         const config = createTofuConfig();
+        const agentCommsIngest = async () => ({ id: "ingested-1", seq: 1 });
         const shared = {
             paths: { profile, accountSettings, loopbackCap },
             machineState: () => ({
@@ -67,6 +68,7 @@ describe("dual-listener network binding", () => {
                 lastSeenAt: "2026-05-11T12:00:00.000Z",
                 owner: "octocat",
             }),
+            agentCommsIngest,
         };
         const tunnel = createApi();
         const loopback = createApi();
@@ -93,6 +95,41 @@ describe("dual-listener network binding", () => {
 
         // /v1/* legacy routes must not be mounted on the loopback listener
         await expect(fetch(`http://127.0.0.1:${loopbackPort}/v1/machines`, { headers: loopbackHeaders }).then(response => response.status)).resolves.toBe(404);
+
+        const ingestBody = {
+            envelope: {
+                v: 1,
+                id: "env-1",
+                ts: 1,
+                from: { machineId: "machine-a", sessionId: "sender" },
+                to: { machineId: "machine-1", sessionId: "target" },
+                scope: "A",
+                channel: "message",
+                kind: "request",
+                hopCount: 0,
+                hopPath: ["machine-a:sender"],
+                body: { nonce: "n", ciphertext: "c" },
+            },
+            signature: "sig",
+            senderKeys: {
+                ed25519PublicKey: "ed-pub",
+                ecdhPublicKey: "ecdh-pub",
+                ed25519Fingerprint: "SHA256:abc",
+            },
+        };
+        await expect(fetch(`http://127.0.0.1:${tunnelPort}/agent-comms/ingest`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(ingestBody),
+        }).then(async response => ({ status: response.status, body: await response.json() }))).resolves.toEqual({
+            status: 200,
+            body: { id: "ingested-1", seq: 1 },
+        });
+        await expect(fetch(`http://127.0.0.1:${loopbackPort}/agent-comms/ingest`, {
+            method: "POST",
+            headers: { ...loopbackHeaders, "Content-Type": "application/json" },
+            body: JSON.stringify(ingestBody),
+        }).then(response => response.status)).resolves.toBe(404);
     }, 30_000);
 
     it("errors when a second daemon attempts to bind the same machine ports", async () => {

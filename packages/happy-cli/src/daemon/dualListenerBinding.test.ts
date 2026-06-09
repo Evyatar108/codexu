@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import { dualListenerBinding } from './dualListenerBinding';
+import { DevTunnelsDaemonProvider } from '@/tunnel/devTunnelsDaemonProvider';
 import type { DaemonTunnelProvider } from '@/tunnel/provider';
 import type { TunnelConfig } from '@/tunnel/types';
 
@@ -57,6 +58,58 @@ describe('dualListenerBinding', () => {
     await handle.stop();
     expect(stop).toHaveBeenCalledTimes(2);
     expect(tunnelProvider.stop).toHaveBeenCalledTimes(1);
+  });
+
+  it('loads and hosts the co-located Dev Tunnel port used by the tunnel-auth listener', async () => {
+    const manager = {
+      init: vi.fn(),
+      loadForDaemon: vi.fn().mockResolvedValue(tunnelConfig),
+      startHost: vi.fn(),
+      stop: vi.fn(),
+    };
+    const runner = vi.fn(() => ({ status: 0, stdout: '', stderr: '' }));
+    const tunnelProvider = new DevTunnelsDaemonProvider({ manager, runner });
+    const start = vi.fn().mockResolvedValue(undefined);
+    const stop = vi.fn().mockResolvedValue(undefined);
+    const createAppFactory = vi.fn(() => ({ app: {} as any, eventRouter: {}, start, stop }));
+
+    const handle = await dualListenerBinding({
+      sharedContext: {
+        dataDir: '/tmp/happy',
+        machineKey: 'machine-key',
+        localUserId: 'machine-1',
+        tofuPublicKeys: {
+          ed25519PublicKey: 'ed25519-public',
+          x25519PublicKey: 'x25519-public',
+        },
+      },
+      tunnelProvider,
+      paths: {
+        profile: '/tmp/happy/profile.json',
+        accountSettings: '/tmp/happy/account-settings.json',
+        loopbackCap: '/tmp/happy/loopback-cap.txt',
+      },
+      machineState: () => ({
+        machineId: 'machine-1',
+        tunnelPort: 62000,
+        loopbackPort: 62001,
+        tunnelId: 'happy-machine-1',
+        lastTunnelUrl: tunnelConfig.tunnelUrl,
+      }),
+      createAppFactory,
+    });
+
+    expect(manager.loadForDaemon).toHaveBeenCalledWith(62000);
+    expect(runner).toHaveBeenCalledWith('devtunnel', ['update', 'happy-machine-1', '--add-labels', 'happy-machine']);
+    expect(manager.startHost).toHaveBeenCalledWith(tunnelConfig, 62000);
+    expect(createAppFactory).toHaveBeenNthCalledWith(1, expect.objectContaining({
+      auth: 'tunnel',
+      port: 62000,
+      publicUrl: tunnelConfig.tunnelUrl,
+    }));
+
+    await handle.stop();
+    expect(manager.stop).toHaveBeenCalledTimes(1);
   });
 
   it('stops partial startup when the second listener cannot bind', async () => {
