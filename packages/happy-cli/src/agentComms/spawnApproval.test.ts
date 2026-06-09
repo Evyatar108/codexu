@@ -260,4 +260,67 @@ describe('handleInboundSpawnRequest', () => {
             },
         });
     });
+
+    it('rejects allowlisted requests whose cwd and path conflict without spawning', async () => {
+        const home = makeHome();
+        homes.push(home);
+        const pinned = await pinPeerKeys(home, 'machine-a', {
+            ed25519PublicKey: 'ZWQ=',
+            ecdhPublicKey: 'ZWNkaA==',
+            approvedForSpawn: true,
+        });
+        const spawnSessionFromSession = vi.fn();
+        const deliverRemote = vi.fn(async (envelope: AgentCommsEnvelope) => ({ id: envelope.id, seq: 7 }));
+
+        await handleInboundSpawnRequest(spawnEnvelope({ body: { agent: 'codex', cwd: 'D:/repo', path: 'D:/other' } }), {
+            happyHomeDir: home,
+            localMachineId: 'machine-b',
+            pinnedPeer: pinned,
+            spawnSessionFromSession,
+            deliverRemote,
+        });
+
+        expect(spawnSessionFromSession).not.toHaveBeenCalled();
+        expect(deliverRemote.mock.calls[0][0]).toMatchObject({
+            channel: 'spawn',
+            kind: 'spawn-result',
+            body: {
+                ok: false,
+                result: { type: 'error' },
+            },
+        });
+    });
+
+    it('maps allowlisted requests whose cwd and path are equal to a single config path', async () => {
+        const home = makeHome();
+        homes.push(home);
+        const pinned = await pinPeerKeys(home, 'machine-a', {
+            ed25519PublicKey: 'ZWQ=',
+            ecdhPublicKey: 'ZWNkaA==',
+            approvedForSpawn: true,
+        });
+        const spawnSessionFromSession = vi.fn(async () => ({ type: 'success' as const, sessionId: 'child-eq' }));
+        const deliverRemote = vi.fn(async (envelope: AgentCommsEnvelope) => ({ id: envelope.id, seq: 8 }));
+
+        await handleInboundSpawnRequest(spawnEnvelope({ body: { agent: 'codex', cwd: 'D:/repo', path: 'D:/repo' } }), {
+            happyHomeDir: home,
+            localMachineId: 'machine-b',
+            pinnedPeer: pinned,
+            spawnSessionFromSession,
+            deliverRemote,
+        });
+
+        expect(spawnSessionFromSession).toHaveBeenCalledTimes(1);
+        expect(spawnSessionFromSession).toHaveBeenCalledWith({
+            parentSessionId: 'local-parent',
+            config: {
+                agent: 'codex',
+                path: 'D:/repo',
+                model: undefined,
+                permissionMode: undefined,
+                effortLevel: undefined,
+                initialMessage: undefined,
+            },
+        });
+    });
 });

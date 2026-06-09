@@ -18,7 +18,10 @@ const spawnRequestBodySchema = z.object({
     model: z.string().min(1).optional(),
     permissionMode: z.string().min(1).optional(),
     effortLevel: z.string().min(1).optional(),
-}).strict();
+}).strict().refine(
+    body => body.cwd === undefined || body.path === undefined || body.cwd === body.path,
+    { message: 'spawn-request carries conflicting cwd and path values', path: ['path'] },
+);
 
 export type AgentCommsSpawnRequestBody = z.infer<typeof spawnRequestBodySchema>;
 
