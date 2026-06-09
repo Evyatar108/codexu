@@ -185,7 +185,7 @@ export function advanceAgentCommsRelay(envelope: AgentCommsEnvelope, relay: Agen
 }
 
 export function requiresOperatorApproval(envelope: AgentCommsEnvelope): boolean {
-    return envelope.scope === 'A' && (envelope.channel === 'spawn' || envelope.kind === 'spawn-request');
+    return envelope.scope === 'A' && envelope.channel === 'spawn' && envelope.kind === 'spawn-request';
 }
 
 export async function dispatchAgentCommsEnvelope(

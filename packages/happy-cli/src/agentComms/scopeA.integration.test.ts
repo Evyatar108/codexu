@@ -263,4 +263,40 @@ describe('Scope A hermetic round-trip', () => {
             body: { ok: true, result: { type: 'success', sessionId: 'child-1' } },
         });
     });
+
+    it('accepts an inbound spawn-result reply even when the responder is not approvedForSpawn', async () => {
+        await pinPeerKeys(homeB, 'machine-a', { ...peerKeys(keysA), approvedForSpawn: false });
+        const spawnSessionFromSession = vi.fn();
+        const deliverRemote = vi.fn();
+        const ingestB = ingestHandler.createAgentCommsIngestHandler({
+            happyHomeDir: homeB,
+            localMachineId: 'machine-b',
+            tofuKeypairs: keysB,
+            spawnSessionFromSession,
+            deliverRemote,
+            appendMessage: mailbox.appendMessage,
+        });
+        const spawnResultEnvelope = scopeAEnvelope({
+            id: 'env-spawn-result-reply',
+            channel: 'spawn',
+            kind: 'spawn-result',
+            correlationId: 'spawn-corr-reply',
+            to: { machineId: 'machine-b', sessionId: 'requester' },
+            body: { type: 'spawn-result', ok: true, result: { type: 'success', sessionId: 'child-2' } },
+        });
+
+        const ack = await ingestB(await signedSealedPayload(spawnResultEnvelope, keysA, keysB));
+
+        expect(ack.seq).toBeGreaterThan(0);
+        expect(spawnSessionFromSession).not.toHaveBeenCalled();
+        expect(deliverRemote).not.toHaveBeenCalled();
+        const pending = await mailbox.readPending('requester');
+        expect(pending).toHaveLength(1);
+        expect((pending[0].body as AgentCommsEnvelope)).toMatchObject({
+            id: 'env-spawn-result-reply',
+            channel: 'spawn',
+            kind: 'spawn-result',
+            body: { ok: true, result: { type: 'success', sessionId: 'child-2' } },
+        });
+    });
 });
