@@ -5779,7 +5779,7 @@
     {
       "id": "codex-member-skips-implement-with-ralph-skill",
       "scope": "ralph",
-      "lifecycle": "tracked",
+      "lifecycle": "merged",
       "status": "active",
       "lastTouchedAt": "2026-06-09",
       "kanbanCards": [
@@ -5794,6 +5794,10 @@
         {
           "className": "cmd-ok",
           "html": "Plan shipped 2026-06-09 @ 1d1edab6 (cherry-picked to main; orig 453820d6 on ralph/plan-codex-member-skips-implement-with-ralph-skill). 2 stories; Phase-4 converged 0-HIGH. <b>FIX = engine-gated /-&gt;$ sigil swap in crews actors.js spawnMember</b>: when the member engine is codex, rewrite a leading RUN:/&lt;skill&gt; in the spawn prompt to the codex $&lt;skill&gt; mention sigil so the SKILL.md is injected; keep /&lt;skill&gt; verbatim for Claude/Copilot. Verify the exact registered mention token via a skill-list probe first. crews PLUGIN change (same plugin as crews-proactive-done-silent-miss-regression -&gt; serialize at ship). Once shipped, codex members can run /implement-with-ralph etc. and the CREWS_ENGINE=codex default can be re-enabled."
+        },
+        {
+          "className": "cmd-ok",
+          "html": "SHIPPED 2026-06-09: crews 3.16.0 @ toolkit 56777f80 (all 3 remotes) + codexu gitlink/AGENTS bump @ beb9268b; copilot plugin update applied (live CLI v3.16.0). FIX = engine-aware /-&gt;$ skill-mention rewrite in actors.js (+77); codex spawn emits $-form, Claude/Copilot keep /-form (both tested); 284/284 green. Restores codex members for skill-driven work. DOGFOOD pending: spawn a codex member with RUN:/implement-with-ralph and confirm it invokes the skill before re-enabling CREWS_ENGINE=codex default."
         }
       ],
       "command": {
@@ -5803,6 +5807,27 @@
           "plan": "/plan-with-ralph codex-member-skips-implement-with-ralph-skill \"Implement the FIX for: codex crews members do not invoke /implement-with-ralph because codex injects a skill SKILL.md body only on a $skill-name mention (TOOL_MENTION_SIGIL=$, mention_syntax.rs:4; injection.rs:254-312), NOT on /slash; the crews launcher passes RUN:/implement-with-ralph as inert positional prose (hooks/actors.js:228-229) so the SKILL.md is never injected and the model implements manually (root cause fully documented at .ralph/investigations/codex-skips-implement-with-ralph/findings.md @ 1d92b185). PRIMARY FIX: make the crews spawn-prompt path engine-aware -- when the member engine is codex, rewrite a leading RUN:/<skill> (or the documented skill-invocation token) to the codex $<skill> mention sigil so the SKILL.md is injected; keep /<skill> verbatim for Claude/Copilot. FIRST verify the EXACT registered mention token for codex skills with a one-line skill-list probe (do not assume the bare slug). Consider where the rewrite belongs (spawn-prompt construction in the lead, or a normalization in actors.js spawnMember, or the crews SessionStart). Add a test that a codex spawn prompt emits the $ form and a Claude/Copilot spawn emits the / form. Target repo = ai-developer-toolkit submodule, plugins/crews/ (SAME PLUGIN as crews-remove-resume-crew-command -> the lead must serialize the ship). crews version bump + 5 version files; submodule two-commit flow + 3-remote push. Until shipped, all impl members run on COPILOT (operator directive). Secondary option: structured skill pre-selection at spawn. Tertiary (high blast radius, last resort): fork-patch codex to treat /skill as a mention.\"",
           "impl": "/implement-with-ralph --from-plan .ralph/jobs/codex-member-skips-implement-with-ralph-skill/plan.md --autonomous \"Implement the 2-story engine-aware skill-mention fix so codex crews members invoke ralph skills. ROOT CAUSE (settled @ 1d92b185): codex injects a SKILL.md only on a $skill mention, not /slash, so the crews RUN:/implement-with-ralph spawn prompt is inert prose for codex. FIX (per plan): in crews hooks/actors.js spawnMember, when the resolved member engine is codex, rewrite a leading RUN:/<skill> (or the documented skill-invocation token) in the initial spawn prompt to the codex $<skill> mention sigil so the SKILL.md is injected; keep /<skill> verbatim for Claude/Copilot. VERIFY the exact registered codex mention token via a one-line skill-list probe before assuming the bare slug. Add a test that a codex spawn emits the $ form and a Claude/Copilot spawn emits the / form. Target repo = ai-developer-toolkit submodule, plugins/crews/ (SAME PLUGIN as crews-proactive-done-silent-miss-regression -> the lead serializes the ship). Bump crews version + the 6 version files + tests/version.test.js + CHANGELOG. Submodule two-commit flow + 3-remote push (origin/gim-home/personal; gim-home gates copilot plugin update). Run on COPILOT (impl members on copilot until THIS fix ships). Drive Phase 5a/5b to terminal-clean. After it ships + copilot plugin update, dogfood: spawn a codex member with RUN:/implement-with-ralph and confirm it actually invokes the skill (worktree + Phase 5a/5b), not manual impl.\""
         }
+      },
+      "shipManifest": {
+        "shippedAt": "2026-06-09",
+        "summary": "Root-caused + fixed: codex crews members were implementing MANUALLY instead of invoking /implement-with-ralph because codex injects a skill SKILL.md body only on a $skill mention (TOOL_MENTION_SIGIL='$', mention_syntax.rs:4), not /slash, so the crews 'RUN: /skill' spawn prompt was inert prose. FIX (crews v3.16.0, hooks/actors.js +77): engine-aware spawn-prompt rewrite -- when the member engine is codex, a leading RUN:/<skill> is rewritten to the codex $<skill> mention sigil so the SKILL.md is injected; Claude/Copilot keep /<skill> verbatim (tested both directions). 284/284 green. Shipped via the submodule two-commit flow + copilot plugin update (live CLI now v3.16.0). This restores codex-engine members for skill-driven work and is the prerequisite to re-enabling the CREWS_ENGINE=codex default (pending a live dogfood). Investigation findings: .ralph/investigations/codex-skips-implement-with-ralph/findings.md.",
+        "commits": [
+          {
+            "sha": "1d92b185",
+            "oneLine": "docs(investigation): root-cause codex members skipping /implement-with-ralph",
+            "repo": "codexu"
+          },
+          {
+            "sha": "56777f80",
+            "oneLine": "feat(crews): engine-aware codex skill-mention rewrite (v3.16.0)",
+            "repo": "ai-developer-toolkit"
+          },
+          {
+            "sha": "beb9268b",
+            "oneLine": "chore: bump ai-developer-toolkit to crews v3.16.0",
+            "repo": "codexu"
+          }
+        ]
       }
     }
   ],
