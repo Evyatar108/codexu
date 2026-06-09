@@ -5639,9 +5639,9 @@
     {
       "id": "codex-anthropic-models-support",
       "scope": "codex",
-      "lifecycle": "tracked",
+      "lifecycle": "merged",
       "status": "active",
-      "lastTouchedAt": "2026-06-08",
+      "lastTouchedAt": "2026-06-09",
       "kanbanCards": [
         {
           "className": "cmd-warn",
@@ -5663,6 +5663,32 @@
           "plan": "/plan-with-ralph --from-brainstorm .ralph/brainstorms/codex-anthropic-models-support/selected-direction.md \"Plan D-001: a fork-local overlay /chat/completions transport so Claude models (Copilot serves them ONLY via /chat-completions + /v1/messages, never /responses) become selectable+runnable through the existing Copilot provider, egress staying api.githubcopilot.com only. SPIKE-GATED: Story 1 is the Phase-0 GO/NO-GO feasibility spike (hard-code ONE Claude slug behind an internal flag; prove a live Copilot /chat/completions call yields the internal ResponseEvent/output-item sequence codex expects for a streamed TYPED tool-call + a continuation turn + an apply_patch/edit; commit the spike artifact; GO -> proceed, OFF-RAMP -> D-003 defer/experimental-text-only). Build the transport in codex-rs-overlay/codex-copilot/ (chat_completions.rs + payload translation): build the chat body from codex's Prompt/tools, POST reusing CopilotHeaderSource auth, parse the chat SSE and translate deltas into codex's ResponseEvent/ResponseStream (content, tool_calls, finish_reason, usage). Minimal upstream-canonical seam: a new WireApi::ChatCompletions variant (model-provider-info/src/lib.rs:55-82) + ONE match arm at core/src/client.rs:1582-1621, each //SANDBOX PATCH-marked with patch-surface.md 14/15 rows. Decide the per-model routing mechanism (ModelInfo wire hint vs stream()-time supported_endpoints lookup vs a second copilot-chat provider) + the /models filter relaxation (copilot_models_endpoint.rs:199-292) so Claude rows are surfaced+tagged to the chat wire. Define an explicit, test-enforced v1 feature contract (which Responses features are supported for Claude vs UI-disabled/hard-error: reasoning summaries, previous_response_id/store continuity, structured output, apply_patch, web-search, vision) -- NEVER silent degradation. Handle Copilot-only slug ids (-1m/-high/-xhigh/-internal) via synthesize_from_capabilities; preserve exact slugs in UI+wire. Tests: guardrail that Claude rows lacking /responses stay hidden unless the chat-transport hint is present; network-audit + Authorization/ChatGPT-Account-ID set_sensitive redaction coverage for the new builder. Gate: cargo check --workspace from codex/external/repos/codex-patched/codex-rs; scripts/audit_network_calls.sh passes with the overlay registered. Honor fork tenet #1 (overlay-first, minimize upstream-canonical conflict surface). CODEX SUBMODULE task (worktree inside the submodule; run the cargo metadata workspace-parse preflight first).\"",
           "impl": "/implement-with-ralph --from-plan .ralph/jobs/codex-anthropic-models-support/plan.md --autonomous \"Implement the 8-story D-001 overlay /chat/completions transport for Claude models. SPIKE-GATED: US-001 is a Phase-0 GO/NO-GO feasibility spike -- hard-code ONE Claude slug behind an internal flag and prove a LIVE Copilot api.githubcopilot.com/chat/completions call produces codex internal ResponseEvent/output-item sequence for (a) a streamed TYPED tool-call with JSON args, (b) a continuation turn, (c) an apply_patch/edit; commit the spike artifact; GO -> proceed, OFF-RAMP (D-003) -> defer/experimental-text-only. DO NOT build US-002+ until the spike says GO. TWO-REPO change: (A) overlay in the WRAPPER repo codex/codex-rs-overlay/codex-copilot/src/ -- add chat_completions.rs (build chat body from codex Prompt/tools, POST reusing CopilotHeaderSource, parse chat SSE -> ResponseEvent/ResponseStream) + extend payload.rs + pub mod exports in that crate lib.rs (no new workspace member). (B) the upstream seam in the INNER patched submodule codex/external/repos/codex-patched/codex-rs/ -- a WireApi::ChatCompletions variant (model-provider-info/src/lib.rs:52-82, keep deserializer/Display aligned) + ONE match arm in core/src/client.rs:1582-1621 + /models filter relaxation (copilot_models_endpoint.rs:199-292, tag Claude rows to the chat wire) -- each //SANDBOX PATCH-marked with a patch-surface.md 14/15 row. Per-model routing = ModelInfo per-model WIRE HINT (ModelInfo serialized at protocol/src/openai_models.rs:260+; thread /models->ModelInfo->picker/cache->client.rs dispatch; include in the models_cache key). v1 feature contract enforced by tests (reasoning-summaries/previous_response_id/store/web-search UI-disabled-or-hard-error; apply_patch only if tool-call round-trips; NEVER silent degradation). Egress stays api.githubcopilot.com ONLY; preserve Authorization/ChatGPT-Account-ID set_sensitive redaction; scripts/audit_network_calls.sh passes with the overlay registered. GATES: cargo check --workspace from codex/external/repos/codex-patched/codex-rs (Phase 5a); run the cargo metadata workspace-parse preflight FIRST. DUAL-REPO CAVEAT: one /implement-with-ralph PRD covers one repo root -- because this touches the codex wrapper repo AND its inner patched submodule (two-commit flow), handle both commits + the submodule pointer bump; if the skill cannot express both, split into a wrapper-overlay phase + a submodule-seam phase. Run on COPILOT (operator directive). GPT-5.x must keep routing through the unchanged /responses transport (no regression).\""
         }
+      },
+      "shipManifest": {
+        "shippedAt": "2026-06-09T14:50:00Z",
+        "summary": "Shipped D-001: the Claude-via-Copilot `/chat/completions` transport for the codex fork, enabling Anthropic models (claude-sonnet/opus) through the same Copilot-backed provider that serves GPT-5.x. The brainstorm settled the GO/NO-GO source question: GitHub Copilot serves Claude ONLY via `/chat/completions` (not `/responses`), so a real fork patch re-introducing a chat-completions transport path was required (not a trivial filter change). US-001 spike (5 live claude-sonnet-4.6 flows captured + mapped) returned GO.\n\nImplementation is a 3-level nested submodule ship on branch `ralph/impl-codex-anthropic-models-support`: inner codex-patched `sandbox-patches` adds the transport seams (`chat_transport.rs`, a `WireApi::ChatCompletions` route selected only for chat-only Copilot rows, `copilot_models_endpoint.rs`), the codex wrapper adds the overlay + patch-surface entries, and codexu bumps the `codex/` pointer + records the spike artifacts. GPT-5.x `/responses` is byte-unchanged (routing selects ChatCompletions only when `model_info.wire_route == ChatCompletions`); egress stays `api.githubcopilot.com` only. Verification: `cargo check --workspace` GREEN, codex-copilot 17/17 + codex-model-provider-info 26/26 contract tests pass.\n\nPushed: inner -> Evyatar108/codex-openai-fork (sandbox-patches), wrapper -> gim-home/codex (main), codexu -> origin + personal. NOTE: this lands the code; Anthropic models are NOT usable until a separate codex release cut (tracked as a follow-up). Two other non-blocker follow-ups filed: MODULE.bazel.lock regen and US-008 deterministic e2e test.",
+        "commits": [
+          {
+            "sha": "40accc502300f1c7694a229eeb44a325de5145e9",
+            "oneLine": "feat(copilot): D-001 Claude-via-Copilot /chat/completions transport (US-002..US-006)",
+            "repo": "codex-patched (sandbox-patches)"
+          },
+          {
+            "sha": "98743a6c9220850ce39902a810e886693b3678c3",
+            "oneLine": "feat(copilot): D-001 chat-completions overlay transport + patch-surface (US-004/US-007)",
+            "repo": "codex (wrapper)"
+          },
+          {
+            "sha": "380d720a",
+            "oneLine": "feat(codex): bump codex pointer to D-001 chat-completions transport (98743a6c9)",
+            "repo": "codexu"
+          },
+          {
+            "sha": "3be3b467",
+            "oneLine": "spike(codex-anthropic-models-support): US-001 Phase-0 feasibility GO",
+            "repo": "codexu"
+          }
+        ]
       }
     },
     {
@@ -5835,6 +5861,63 @@
             "repo": "ai-developer-toolkit"
           }
         ]
+      }
+    },
+    {
+      "id": "codex-anthropic-transport-bazel-lock-regen",
+      "scope": "codex",
+      "lifecycle": "tracked",
+      "status": "active",
+      "lastTouchedAt": "2026-06-09",
+      "kanbanCards": [
+        {
+          "className": "cmd-warn",
+          "html": "Follow-up to codex-anthropic-models-support (D-001 transport, shipped 2026-06-09). MODULE.bazel.lock was NOT regenerated during the impl because bazel is not installed locally (exit 127). The D-001 ship added a `codex-copilot` dep to `core/Cargo.toml`, so the bazel lock is stale. Run `just bazel-lock-update` (CI or a lead env with bazel) and commit the regenerated lock on the codex-patched sandbox-patches branch. CODEX SUBMODULE task."
+        }
+      ],
+      "command": {
+        "name": "codex-anthropic-transport-bazel-lock-regen",
+        "prompts": {
+          "plan": "Regenerate MODULE.bazel.lock for the codex-patched workspace after the D-001 codex-copilot dep add. Run `just bazel-lock-update` (needs bazel installed), verify the lock diff is limited to the codex-copilot dep closure, commit on sandbox-patches, bump the wrapper + codexu pointer."
+        }
+      }
+    },
+    {
+      "id": "codex-anthropic-transport-us008-e2e-test",
+      "scope": "codex",
+      "lifecycle": "tracked",
+      "status": "active",
+      "lastTouchedAt": "2026-06-09",
+      "kanbanCards": [
+        {
+          "className": "cmd-warn",
+          "html": "Follow-up to codex-anthropic-models-support (D-001 transport, shipped 2026-06-09). US-008 deterministic end-to-end test was NOT written. The live spike + parser unit tests (codex-copilot 17/17) + routing test cover the wire format + mapping, but a full agentic-turn deterministic test (chat-SSE mock via a `core_test_support::responses`-style harness) is still missing. CODEX SUBMODULE task."
+        }
+      ],
+      "command": {
+        "name": "codex-anthropic-transport-us008-e2e-test",
+        "prompts": {
+          "plan": "Add US-008: a deterministic end-to-end test exercising a full agentic turn over the Claude `/chat/completions` transport using a chat-SSE mock (mirror the existing `core_test_support::responses` harness for the /responses path). Assert typed function_call assembly, usage, and no /responses regression."
+        }
+      }
+    },
+    {
+      "id": "codex-cut-release-with-anthropic-transport",
+      "scope": "codex",
+      "lifecycle": "tracked",
+      "status": "active",
+      "lastTouchedAt": "2026-06-09",
+      "kanbanCards": [
+        {
+          "className": "cmd-warn",
+          "html": "Follow-up to codex-anthropic-models-support (D-001 transport, shipped 2026-06-09 to gim-home/codex@main). The transport code is on main but Anthropic models are NOT usable until a codex release is cut (version bump in codex-rs/Cargo.toml + release build + pack + tag + GitHub Release upload via the /publish-sandbox-patch skill) and installed. Drive the release cut + smoke. CODEX SUBMODULE task; operator-aware (release push)."
+        }
+      ],
+      "command": {
+        "name": "codex-cut-release-with-anthropic-transport",
+        "prompts": {
+          "plan": "Cut a codex release including the D-001 Claude-via-Copilot chat-completions transport. Use codex/.claude/commands/publish-sandbox-patch.md: version bump, release build, pack, commit+tag inside codex-patched, wrapper gitlink + tag, push to gim-home/codex + archival tag on codex-patched remote, GitHub Release tarball upload, smoke-test the launcher. Confirm a claude-sonnet model runs end-to-end on the installed release."
+        }
       }
     }
   ],
