@@ -321,7 +321,7 @@ sequenceDiagram
 - `/stop-session`
 - `/spawn-session`
 - `/spawn-session-from-session` (parent-session spawn used by Codex `spawn_top_level_session` and future TypeScript callers; validates `parentSessionId` against `^[A-Za-z0-9_-]{1,128}$`)
-- `/agent-comms/send` (unified agent-comms routing hop for Scope B/C/A; accepts `{ target: { machineId?, sessionId }, targetSessionId?, body, kind?, correlationId?, sender }`, resolves scope through `agentComms/router`, delivers local Scope B/C envelopes to the durable mailbox, and returns 501 for Scope A until Dev Tunnels remote transport injection is enabled; client helper `sendAgentMessage()`)
+- `/agent-comms/send` (unified agent-comms routing hop for Scope B/C/A; accepts `{ target: { machineId?, sessionId }, targetSessionId?, body, channel?, kind?, correlationId?, sender }` where `channel` is `'message' | 'spawn'` (default `'message'`) and `kind` is `'request' | 'reply' | 'notify' | 'spawn-request' | 'spawn-result'` (default `'request'`), resolves scope through `agentComms/router`, delivers local Scope B/C envelopes to the durable mailbox, and for Scope A resolves the pinned peer (machineId→PeerTransportTarget via the resolver that joins TOFU pins to `listOperatorTunnels()`), seals + signs the envelope, and delivers it remotely to the peer's `/agent-comms/ingest` over the Dev Tunnels peer transport (`deliverRemote`). Unresolvable or unpinned peers still fail closed. Spawn-channel / `spawn-request` envelopes are operator-approval-gated at the remote daemon (default-deny; only senders with `approvedForSpawn` execute a spawn, others are recorded to `pending-spawns.json`). Client helper `sendAgentMessage()`)
 - `/stop` (shutdown daemon)
 - `/session-started` (session self-report)
 
