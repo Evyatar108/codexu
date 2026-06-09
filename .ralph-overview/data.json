@@ -5781,9 +5781,9 @@
     {
       "id": "agent-comms-scope-a-live-cross-machine-wiring",
       "scope": "codexu",
-      "lifecycle": "tracked",
+      "lifecycle": "merged",
       "status": "active",
-      "lastTouchedAt": "2026-06-08",
+      "lastTouchedAt": "2026-06-09",
       "kanbanCards": [
         {
           "className": "cmd-warn",
@@ -5800,6 +5800,47 @@
           "plan": "/plan-with-ralph agent-comms-scope-a-live-cross-machine-wiring \"Build the LIVE agent-comms Scope A cross-machine wiring. CONTEXT: the design is DONE and operator-blessed (plans/agent-comms-design.md section 5; task agent-comms @ 2a47a29c) -- per-PC daemon, discovery via the Dev Tunnels management plane (devtunnel list --json), peer-to-peer, NO central server. The operator confirmed (2026-06-08) the per-PC embedded happy-server is acceptable (it IS the daemon-per-PC); the goal is live cross-machine discovery+messaging, currently DESIGN+SKELETON ONLY (section 5.6 deferred: listOperatorTunnels()/mintConnectToken() have unit tests + a MANUAL section-8 two-machine smoke, but no live wiring). STUDY FIRST: plans/agent-comms-design.md section 5 (esp 5.3 discovery, 5.4 two-layer auth, 5.6 deferred scope, section 8 manual smoke) + the agent-comms-serverless brainstorm (.ralph/brainstorms/agent-comms-serverless-scope-a-discovery/selected-direction.md) which outlines this follow-up. BUILD: (1) a real devtunnel-host lifecycle on each daemon forwarding the ingest port (decide the D-004 port model: a SECOND forwarded port for ingest vs co-located with happy-server tunnel port -- keep section-5.3 devtunnel-list discovery + peerTransport.ingestUrl() behavior intact); (2) a real cross-machine signed+sealed AgentCommsEnvelope round-trip -- AUTOMATE the section-8 manual smoke into a scripted two-daemon harness / integration test (TOFU pin -> Ed25519 verify -> ECDH open -> relay-advance -> mailbox.appendMessage on the REMOTE machine); (3) an operator-APPROVAL gate at the remote daemon before any cross-machine agent_comms.spawn executes (a remote daemon must not silently run a spawn requested by a peer). PRESERVE BYTE-FOR-BYTE: section-5.4 two-layer auth (gateway connect-token layer1, backend never inspects X-Tunnel-Authorization; TOFU Ed25519 + ECDH sealed-body layer2 via peerAuth.ts) + section-5.3 discovery (listOperatorTunnels/mintConnectToken untouched). HARD REQUIREMENT: Microsoft Dev Tunnels stays the SOLE channel for data+signaling+rendezvous+discovery+auth -- nothing via phone/app/central server/relay. Scope = codexu (happy-cli daemon/run.ts + tunnel/tunnelManager.ts + agentComms/peerTransport.ts + peerAuth.ts + happy-server ingest route). Coordinate with agent-comms-serverless-scope-a-discovery (D-001 ingest-decouple): if D-001 ships first the listener owns ingest, else this task targets the current happy-server ingest route -- the plan must state which it assumes and keep the seam compatible. Note the operator maximum-security stance: signaling+rendezvous+data ALL through the tunnels.\"",
           "impl": "/implement-with-ralph --from-plan .ralph/jobs/agent-comms-scope-a-live-cross-machine-wiring/plan.md --autonomous \"Implement the 6-story live Scope A cross-machine wiring plan (D-004 = CO-LOCATED: ingest rides the existing single forwarded happy-server tunnel port; do NOT add a second port). Scope = codexu (happy-cli daemon + happy-server). Inbound is already wired -- the live gaps to build: (US-003) inject an outbound deliverRemote into dispatchAgentCommsEnvelope (controlServer.ts currently injects only deliverLocal -> Scope A returns 501 at :339-345) + add the channel/kind field to the /agent-comms/send route + sendAgentMessage helper so a spawn-request can traverse the send path; (US-002) an authoritative machineId->target peer resolver for listReachablePeers(); (US-004) verify+harden the co-located devtunnel host (DevTunnelsDaemonProvider.loadHostTunnel->startHost already forwards the ingest port on daemon boot); (US-005) enforce the operator-approval gate at the remote daemon before spawnSessionFromSession runs a cross-machine spawn (default-deny + allowlist + a concrete pending-approval persist+consume path; deferred spawn-handler injection per run.ts:849-859 pattern since the ingest closure at run.ts:219 predates the spawn handler at run.ts:939; idempotency by envelope.id); (US-006) an automated two-daemon round-trip integration test (mirror mailbox.crossProcess.integration.test.ts fork-based harness; real sign+seal envelope; TOFU pin -> Ed25519 verify -> ECDH open -> relay-advance -> appendMessage on the REMOTE daemon). PRESERVE the 5.4 two-layer auth + 5.3 discovery; Dev Tunnels stays the SOLE channel (no phone/app/central server/relay). IMPLEMENT SERIALLY (tight file overlap in run.ts/controlServer.ts/agentComms/*). Run on COPILOT (operator directive: impl members on copilot until the codex $-skill fix ships). Gates: pnpm --filter happy typecheck/build/test + pnpm --filter happy-server typecheck/build/test. Drive Phase 5a/5b to terminal-clean.\""
         }
+      },
+      "shipManifest": {
+        "shippedAt": "2026-06-09T15:10:00Z",
+        "summary": "Shipped Scope A live cross-machine wiring for agent-comms: the happy-cli daemon's `/agent-comms/send` now performs real cross-machine delivery (previously returned 501). 14 commits (range fa54fe60..0d00826d), 6 stories: US-001 design-doc decisions (D-004 co-located / D-005 resolver), US-002 peerResolver (machineId->PeerTransportTarget), US-003 outbound deliverRemote + channel/kind plumbing, US-004 co-located host-lifecycle verification, US-005 operator-approval gate + live spawn-request, US-006 hermetic two-daemon round-trip + approval-gate harness.\n\nRequired confirmations all met: deliverRemote is wired (a resolvable pinned peer is resolved per D-005, sealed+signed, and POSTed to the peer's /agent-comms/ingest over the Dev Tunnels peer transport; D-004 stays co-located, no second port); the operator-approval gate is enforced before any cross-machine spawn (default-deny + approvedForSpawn allowlist, durable idempotent dedupe by envelope.id/correlationId, fail-closed, spawn-result replies allowed); the two-daemon round-trip test (scopeA.integration.test.ts) passes with the real peerAuth chain (negative auth rejects before appendMessage; allow/deny + idempotent-retry gate). Phase 5a converged over 3 rounds (8 fix commits F-001..F-005: spawn-result gating, approval-store lock idempotency + durable dedupe, fail-closed channel/kind routing, cwd/path conflict rejection, role/plugins fail-closed) + Phase 5b docs clean. Terminal-clean (review code:clean docs:clean, 0 open findings).\n\nGates green: happy typecheck 0, happy agentComms 69 tests, happy-server typecheck 0, happy-server agent-comms 6 tests. Package-wide `pnpm --filter happy test` is a documented pre-existing baseline waiver (~49 unrelated fails on main, none in agentComms). Honors the hard requirement that cross-machine data transits ONLY Microsoft Dev Tunnels (no central relay). Two follow-ups filed: a real two-machine Dev Tunnels smoke (only hermetic loopback validated) and a happy-cli test-baseline cleanup.",
+        "commits": [
+          {
+            "sha": "0e5b444e",
+            "oneLine": "feat: US-001 - record D-004/D-005 decisions and sync the design doc",
+            "repo": "codexu"
+          },
+          {
+            "sha": "9975f161",
+            "oneLine": "feat: US-002 - peer resolver (machineId to PeerTransportTarget)",
+            "repo": "codexu"
+          },
+          {
+            "sha": "443d327f",
+            "oneLine": "feat: US-003 - outbound deliverRemote live wiring and channel/kind plumbing",
+            "repo": "codexu"
+          },
+          {
+            "sha": "ff6c5919",
+            "oneLine": "feat: US-004 - co-located host-lifecycle verification",
+            "repo": "codexu"
+          },
+          {
+            "sha": "e51753ef",
+            "oneLine": "feat: US-005 - operator-approval gate and live spawn-request",
+            "repo": "codexu"
+          },
+          {
+            "sha": "d2717cc5",
+            "oneLine": "feat: US-006 - automated two-daemon round-trip and approval-gate harness",
+            "repo": "codexu"
+          },
+          {
+            "sha": "0d00826d",
+            "oneLine": "docs: Scope A /agent-comms/send is live cross-machine delivery (HEAD; +8 Phase-5a fix/docs commits)",
+            "repo": "codexu"
+          }
+        ]
       }
     },
     {
@@ -5917,6 +5958,44 @@
         "name": "codex-cut-release-with-anthropic-transport",
         "prompts": {
           "plan": "Cut a codex release including the D-001 Claude-via-Copilot chat-completions transport. Use codex/.claude/commands/publish-sandbox-patch.md: version bump, release build, pack, commit+tag inside codex-patched, wrapper gitlink + tag, push to gim-home/codex + archival tag on codex-patched remote, GitHub Release tarball upload, smoke-test the launcher. Confirm a claude-sonnet model runs end-to-end on the installed release."
+        }
+      }
+    },
+    {
+      "id": "agent-comms-scope-a-two-machine-dev-tunnels-smoke",
+      "scope": "codexu",
+      "lifecycle": "tracked",
+      "status": "active",
+      "lastTouchedAt": "2026-06-09",
+      "kanbanCards": [
+        {
+          "className": "cmd-warn",
+          "html": "Follow-up to agent-comms-scope-a-live-cross-machine-wiring (shipped 2026-06-09). The live cross-machine wiring is validated ONLY by a hermetic loopback harness (scopeA.integration.test.ts); the real two-machine smoke over Microsoft Dev Tunnels was explicitly deferred (US-005 Not-tested + US-006 Constraint/Rejected). Run an actual two-PC / two-daemon Dev Tunnels round-trip: from machine A call `/agent-comms/send`, confirm sealed+signed delivery into machine B's mailbox AND an operator-approved cross-machine spawn on B. HARD REQUIREMENT: data transits only Dev Tunnels (no central relay / no mobile-app conduit)."
+        }
+      ],
+      "command": {
+        "name": "agent-comms-scope-a-two-machine-dev-tunnels-smoke",
+        "prompts": {
+          "plan": "Design + run a real two-machine (two-daemon, two PCs) Dev Tunnels smoke for Scope A agent-comms. From machine A: `/agent-comms/send` to a pinned peer B; assert sealed+signed envelope delivered into B's mailbox over the Dev Tunnels peer transport, negative-auth rejects, and an allowlisted spawn-request triggers an operator-approved spawn on B (non-allowlisted is recorded + never spawns). Keep all data + signaling on Dev Tunnels only."
+        }
+      }
+    },
+    {
+      "id": "happy-cli-test-baseline-failures-cleanup",
+      "scope": "codexu",
+      "lifecycle": "tracked",
+      "status": "active",
+      "lastTouchedAt": "2026-06-09",
+      "kanbanCards": [
+        {
+          "className": "cmd-warn",
+          "html": "Follow-up surfaced by agent-comms-scope-a-live-cross-machine-wiring (2026-06-09). The package-wide `pnpm --filter happy test` baseline has ~49 pre-existing unrelated failures on main, which forced every story in that impl to fall back from the full-suite gate to a targeted agentComms test gate (a `hard-gate-not-met` against a red baseline). Triage + fix (or quarantine) the baseline failures so future impls can use the full-suite gate as a real acceptance signal."
+        }
+      ],
+      "command": {
+        "name": "happy-cli-test-baseline-failures-cleanup",
+        "prompts": {
+          "plan": "Triage the ~49 pre-existing `pnpm --filter happy test` failures on main. Group by root cause, fix the straightforward ones, and quarantine/skip-with-issue the rest so the full happy suite goes green (or has a documented, small, tracked skip-list). Goal: restore the full-suite test gate as a trustworthy acceptance signal for future happy-cli impls."
         }
       }
     }
