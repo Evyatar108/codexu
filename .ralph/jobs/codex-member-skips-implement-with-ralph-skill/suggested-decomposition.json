@@ -1,0 +1,19 @@
+{
+  "overviewTaskId": "codex-member-skips-implement-with-ralph-skill",
+  "planPath": ".ralph/jobs/codex-member-skips-implement-with-ralph-skill/plan.md",
+  "targetRepo": "ai-developer-toolkit (submodule) — plugins/crews/",
+  "parallelizable": false,
+  "rationale": "Single small cohesive crews-plugin fix. US-002 dependsOn US-001 (probe records the slug + namespacing need). Both stories touch the same plugin code (hooks/actors.js) and the same 6 version-stamp files, so they cannot run in parallel — one impl member, serial. Same-plugin as the already-shipped crews-remove-resume-crew-command, so the lead must also serialize this crews ship against any other crews work.",
+  "clusters": [
+    {
+      "id": "cluster-1",
+      "name": "codex-skill-mention-rewrite",
+      "stories": ["US-001", "US-002"],
+      "dependsOn": [],
+      "targetRepo": "ai-developer-toolkit/plugins/crews",
+      "engine": "copilot",
+      "notes": "Serial: US-001 (codex token probe gate) then US-002 (helper + spawnMember wire-in + pure-fn + CREWS_NO_LAUNCH integration tests + version bump 3.15.0->3.16.0 + AGENTS.md + CHANGELOG). Operator directive: run impl members on COPILOT until this fix is shipped and validated. The crews ship ceremony (submodule two-commit + 3-remote push + codexu pointer bump + codexu AGENTS.md/data.json) is LEAD-owned, not an impl story."
+    }
+  ],
+  "suggestedConcurrency": 1
+}

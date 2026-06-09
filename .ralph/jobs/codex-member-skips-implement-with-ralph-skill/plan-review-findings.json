@@ -1,0 +1,41 @@
+{
+  "overviewTaskId": "codex-member-skips-implement-with-ralph-skill",
+  "reviewers": ["claude-rubber-duck"],
+  "rounds": 1,
+  "status": "converged",
+  "openCriticalOrHigh": 0,
+  "summary": "One review round (independent Claude critique). No HIGH/Critical findings — the plan is sound: spawnMember is the real spawn choke point, buildLauncherInvocation is test-only, the $ sigil survives PowerShell single-quoting, and leaving the forensic spawn-prompt envelope unchanged is correct. Three findings (2 MED, 1 LOW) all resolved in the plan + stories.",
+  "findings": [
+    {
+      "id": "F-001",
+      "severity": "MED",
+      "title": "Regex CRLF + trailing-boundary blind spot",
+      "detail": "RUN:\\n was covered but Windows RUN:\\r\\n could be missed, and without a post-token boundary a line-anchored path like /usr/bin could be falsely rewritten to $usr/bin.",
+      "resolution": "Rewrite contract now requires CRLF-aware \\r?\\n and a post-token boundary (?=\\s|$). plan.md 'Rewrite contract' + stories US-002 AC1; added CRLF and line-start-path non-rewrite test cases to AC3.",
+      "status": "resolved"
+    },
+    {
+      "id": "F-002",
+      "severity": "MED",
+      "title": "config.js re-export would break split-export snapshot",
+      "detail": "Adding rewriteCodexSkillMention to hooks/config.js fails tests/split-export-compat.test.js unless EXPECTED + count are updated.",
+      "resolution": "Contract now exports from actors.js only and the test requires it directly from actors.js (no config.js re-export). If one is ever added, the split-export snapshot must be updated in the same commit. plan.md gotcha #7 + stories US-002 AC1.",
+      "status": "resolved"
+    },
+    {
+      "id": "F-003",
+      "severity": "LOW",
+      "title": "Integration 'NOT slash-form' assertion too broad",
+      "detail": "A realistic preamble contains prose like 'The /implement-with-ralph skill manages…', so a whole-script absence check for /implement-with-ralph would false-fail even when the RUN: line is correctly rewritten.",
+      "resolution": "Integration test now uses a MINIMAL prompt (only the RUN: line) for the codex/claude/copilot launcher-script assertions, or asserts the RUN: segment specifically. plan.md gotcha #8 + stories US-002 AC4.",
+      "status": "resolved"
+    }
+  ],
+  "verifiedClaims": [
+    "spawnMember is the only launch-path caller of buildLauncherCommand; spawn-member.js:188 and bootstrap-crew.js:217 both funnel through it (single-site rewrite covers all real spawn paths).",
+    "buildLauncherInvocation (actors.js:249) is test-only (callers: codex-engine-field.test.js, codex-spawn-bypass-guard.test.js) — not on a launch path.",
+    "codex positional prompt is single-quoted ('${initialPromptEscaped}', actors.js:228); PowerShell single quotes do not interpolate $, so $implement-with-ralph reaches codex literally.",
+    "CREWS_NO_LAUNCH=1 / options.noLaunch returns {scriptPath,noLaunch:true} after writing the launcher script (actors.js:2489-2491) — the integration test seam.",
+    "Leaving the forensic spawn-prompt outbox envelope (spawn-member.js:180) on the original /-form is correct (records lead intent)."
+  ]
+}
