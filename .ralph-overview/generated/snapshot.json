@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-06-10T17:33:26.311Z",
-  "generatedFromCommit": "1f8f3f4b",
+  "generatedAt": "2026-06-10T18:03:07.730Z",
+  "generatedFromCommit": "563ee80c",
   "schemaVersion": 1,
   "tasks": [
     {
@@ -1525,7 +1525,7 @@
         },
         "terminalReason": "complete",
         "lastUpdatedAt": "2026-05-13T16:02:32Z",
-        "mergeCommit": "1f8f3f4b",
+        "mergeCommit": "563ee80c",
         "storyDoctorInterventions": 0
       }
     },
@@ -5920,7 +5920,7 @@
         },
         "terminalReason": "complete",
         "lastUpdatedAt": "2026-05-13T20:26:04Z",
-        "mergeCommit": "1f8f3f4b",
+        "mergeCommit": "563ee80c",
         "storyDoctorInterventions": 0
       }
     },
@@ -6640,7 +6640,7 @@
         "reviewOpenCount": {},
         "terminalReason": "complete",
         "lastUpdatedAt": "2026-05-25T12:01:32Z",
-        "mergeCommit": "1f8f3f4b",
+        "mergeCommit": "563ee80c",
         "storyDoctorInterventions": 0
       }
     },
@@ -9509,6 +9509,10 @@
         {
           "className": "cmd-ok",
           "html": "Brainstorm shipped @ d4112692 (rebased onto main; pushed). RECOMMENDED: port the progress-bg stall gate to codex members. KEY SOURCE FINDINGS (correct the original prompt's assumptions): (1) codex sessions live in a DATE-TREE ~/.codex/sessions/2026/... (NOT flat ~/.codex/sessions/<id>/); (2) codex's Stop hook input CARRIES transcript_path (core/src/hook_runtime.rs:378-388 StopRequest; hooks/src/events/stop.rs:24-43,116-177 StopCommandInput) -> codex-stop.js can pass it to the bg-detector; (3) codex bg model = exec_command with yield_time_ms, emitting 'Process running with session ID <N>' when backgrounded (START signal) + 'Process exited with code' on completion (COMPLETE signal) -- the codex analog of Copilot's tool.execution_start(mode:async) + system.notification.shell_completed. So the codex bg-liveness detector keys on those transcript strings (from the transcript_path codex provides), and the stop.js engine gate widens from copilot-only to copilot+codex. 3 files / 387 insertions."
+        },
+        {
+          "className": "cmd-ok",
+          "html": "Plan shipped @ 563ee80c (rebased onto main; pushed). Approach: a codex bg-liveness detector (codex branch in hooks/detect-active-bg.js or sibling) reads the CODEX TRANSCRIPT (via the transcript_path codex-stop.js threads through) and parses 'Process running with session ID <N>' (start) / 'Process exited with code' (complete) keyed by session ID; widen hooks/stop.js engine gate from copilot-only to copilot+codex (drops !isRetry for codex), preserving v3.1.0 structural-completeness + v3.3.0 no-bypass invariants; codex infra-filter for the PowerShell async shell. RESEARCH GROUNDING corrected 2 brainstorm assumptions vs a REAL on-disk codex rollout: output is `payload.output` (not `content`); `payload.arguments` is a JSON STRING. Phase-4: 3 parallel reviewers (Claude sonnet-4.5 + Codex + Copilot) -> 14 findings all resolved; the freshness-rule 'false-block' finding was clarified-and-defended (legit-polled codex sessions stay fresh via current-turn await_background_completion) rather than weakening the design. Mandatory LIVE codex dogfood at impl."
         }
       ],
       "command": {
@@ -9517,7 +9521,8 @@
         "warnings": "Codex bg-liveness gate was DEFERRED in crews v3.6.0. Detector detect-active-bg.js is Copilot-events.jsonl-specific; stop.js gate hard-checks manifest.engine==='copilot'. Brainstorm must pin codex transcript schema + the codex background-task start/complete event shapes. Coordinate with codex-notify-hook-async-bg-completion-investigation (shared codex background-work model). Mandatory live codex dogfood acceptance.",
         "prompts": {
           "brainstorm": "/brainstorm-with-ralph \"Design porting the crews progress-bg Stop-hook gate to CODEX members. Today (crews v3.19.1) the gate is COPILOT-ONLY: hooks/detect-active-bg.js parses Copilot events.jsonl (tool.execution_start mode=async + system.notification shell_completed + subagent.started/completed) and hooks/stop.js fires the gate only when manifest.engine==='copilot'. v3.6.0 explicitly deferred the codex equivalent. A codex /implement-with-ralph member just stalled by emitting kind=progress + stopping with NO Ralph loop running -- the false-progress stall the gate catches for Copilot but not codex. INVESTIGATE + DESIGN (read-only on codex; plugin design for crews): (1) codex transcript/session schema at ~/.codex/sessions/<id>/ -- what file + what event shapes mark a background exec_command START and its COMPLETION (the codex analog of Copilot's tool.execution_start + system.notification.shell_completed)? cite file:line in codex-patched + a real codex session transcript sample. (2) codex's background-work model is exec_command(background) + write_stdin + await_background_completion, and await_background_completion BLOCKS the turn (see sibling task codex-notify-hook-async-bg-completion-investigation) -- so reason carefully about WHEN a codex member actually reaches Stop with kind=progress and whether 'active bg exec_command at Stop time' is the right signal, or whether codex needs a different liveness signal. (3) the codex listener/infra filter (analog of isListenerArmCall + isCrewsCliInfraCall) since codex members arm via PowerShell async shell. (4) detector placement (codex branch in detect-active-bg.js vs sibling module) + how to widen the stop.js engine gate to copilot+codex while keeping the structural-completeness + no-model-bypass invariants from the v3.1.0/v3.3.0 design. (5) codex-stop.js threads an inline last_assistant_message (codex transcript != Claude JSONL) -- the bg detector needs the codex transcript file, not the inline message; design that read path. Output: recommendedDirection + the codex signal-source decision + conflict/effort estimate + a story outline. Do NOT resurrect the archived crews-member-stalled-needs-attention-nudge (different design). Plugin-side (ai-developer-toolkit/plugins/crews); mandatory live codex dogfood at impl acceptance.\"",
-          "plan": "/plan-with-ralph --from-brainstorm .ralph/brainstorms/crews-codex-progress-bg-gate-stall-detection/ \"Plan porting the crews progress-bg Stop-hook gate to CODEX members per the shipped brainstorm (d4112692, selected-direction.md). KEY FACTS: codex Stop input carries transcript_path (hook_runtime.rs:378-388); codex sessions are a DATE-TREE; the codex bg start/complete signals in the transcript are the strings 'Process running with session ID <N>' (start) and 'Process exited with code' (complete) -- the analog of Copilot's tool.execution_start(mode:async)+system.notification.shell_completed. DESIGN: a codex bg-liveness detector (codex branch in hooks/detect-active-bg.js or a sibling module) that reads the codex transcript (via the transcript_path codex-stop.js threads through) and parses those start/complete strings keyed by session ID; the codex infra-filter (analog of isListenerArmCall+isCrewsCliInfraCall for codex's PowerShell async shell); widen the hooks/stop.js engine gate from manifest.engine==='copilot' to copilot+codex while preserving the v3.1.0 structural-completeness + v3.3.0 no-model-bypass invariants. Plugin-side (ai-developer-toolkit/plugins/crews); version bump + marketplace sync; mandatory LIVE codex dogfood at impl (green units NOT sufficient). Do NOT resurrect the archived crews-member-stalled-needs-attention-nudge.\""
+          "plan": "/plan-with-ralph --from-brainstorm .ralph/brainstorms/crews-codex-progress-bg-gate-stall-detection/ \"Plan porting the crews progress-bg Stop-hook gate to CODEX members per the shipped brainstorm (d4112692, selected-direction.md). KEY FACTS: codex Stop input carries transcript_path (hook_runtime.rs:378-388); codex sessions are a DATE-TREE; the codex bg start/complete signals in the transcript are the strings 'Process running with session ID <N>' (start) and 'Process exited with code' (complete) -- the analog of Copilot's tool.execution_start(mode:async)+system.notification.shell_completed. DESIGN: a codex bg-liveness detector (codex branch in hooks/detect-active-bg.js or a sibling module) that reads the codex transcript (via the transcript_path codex-stop.js threads through) and parses those start/complete strings keyed by session ID; the codex infra-filter (analog of isListenerArmCall+isCrewsCliInfraCall for codex's PowerShell async shell); widen the hooks/stop.js engine gate from manifest.engine==='copilot' to copilot+codex while preserving the v3.1.0 structural-completeness + v3.3.0 no-model-bypass invariants. Plugin-side (ai-developer-toolkit/plugins/crews); version bump + marketplace sync; mandatory LIVE codex dogfood at impl (green units NOT sufficient). Do NOT resurrect the archived crews-member-stalled-needs-attention-nudge.\"",
+          "impl": "/implement-with-ralph --from-plan .ralph/jobs/crews-codex-progress-bg-gate-stall-detection/plan.md --autonomous \"Port the crews progress-bg Stop-hook gate to CODEX members per the committed plan: a codex bg-liveness detector reading the codex transcript (via transcript_path from codex-stop.js) parsing 'Process running with session ID <N>'(start)/'Process exited with code'(complete) keyed by session ID; note output is payload.output (NOT content) + payload.arguments is a JSON string (research-corrected); widen hooks/stop.js engine gate copilot->copilot+codex preserving v3.1.0 structural-completeness + v3.3.0 no-bypass invariants; codex infra-filter for the PowerShell async shell. MANDATORY: live codex dogfood (green units NOT sufficient). Plugin-side; version bump + marketplace sync + CHANGELOG + AGENTS.md; two-commit submodule flow. SERIALIZE with other crews impls (shared crews version).\""
         }
       },
       "initialStage": "planning",
@@ -9565,14 +9570,23 @@
       },
       "initialStage": "planning",
       "ralph": {
-        "stage": "planning",
+        "stage": "implementing",
+        "branchName": "ralph/crews-hook-timeout-under-lock-contention",
         "deferredQuestionsCount": 0,
         "artifacts": {
-          "jobDir": ".ralph/jobs/crews-hook-timeout-under-lock-contention"
+          "jobDir": ".ralph/jobs/crews-hook-timeout-under-lock-contention",
+          "prdFile": ".ralph/jobs/crews-hook-timeout-under-lock-contention/prd.json"
         },
         "jobSlug": "crews-hook-timeout-under-lock-contention",
-        "matchSource": "slug-default",
+        "matchSource": "overviewTaskId",
+        "storyCompletion": {
+          "total": 6,
+          "passed": 1,
+          "blocked": 0,
+          "remaining": 5
+        },
         "reviewOpenCount": {},
+        "lastUpdatedAt": "2026-06-10T17:59:13Z",
         "storyDoctorInterventions": 0
       }
     },
@@ -9970,12 +9984,22 @@
     },
     {
       "taskId": "codex-ralph-member-multi-agent-adapter",
-      "score": 0.7611989570868946,
+      "score": 0.7608817898860398,
       "stage": "implementing",
       "reasons": [
         "unblocked",
         "implementing stage",
         "not touched in 3 days"
+      ]
+    },
+    {
+      "taskId": "crews-hook-timeout-under-lock-contention",
+      "score": 0.64,
+      "stage": "implementing",
+      "reasons": [
+        "implementing stage",
+        "updated today",
+        "partially blocked"
       ]
     },
     {
@@ -10140,16 +10164,6 @@
     },
     {
       "taskId": "codex-member-skill-agent-subagent-fanout",
-      "score": 0.61,
-      "stage": "planning",
-      "reasons": [
-        "unblocked",
-        "planning stage",
-        "missing update timestamp"
-      ]
-    },
-    {
-      "taskId": "codex-member-skips-implement-with-ralph-skill",
       "score": 0.61,
       "stage": "planning",
       "reasons": [
@@ -11205,7 +11219,43 @@
         "id": "crews-hook-timeout-under-lock-contention",
         "type": "task",
         "taskId": "crews-hook-timeout-under-lock-contention",
-        "stage": "planning"
+        "stage": "implementing"
+      },
+      {
+        "id": "crews-hook-timeout-under-lock-contention:US-001",
+        "type": "story",
+        "taskId": "crews-hook-timeout-under-lock-contention",
+        "storyId": "US-001"
+      },
+      {
+        "id": "crews-hook-timeout-under-lock-contention:US-002",
+        "type": "story",
+        "taskId": "crews-hook-timeout-under-lock-contention",
+        "storyId": "US-002"
+      },
+      {
+        "id": "crews-hook-timeout-under-lock-contention:US-003",
+        "type": "story",
+        "taskId": "crews-hook-timeout-under-lock-contention",
+        "storyId": "US-003"
+      },
+      {
+        "id": "crews-hook-timeout-under-lock-contention:US-004",
+        "type": "story",
+        "taskId": "crews-hook-timeout-under-lock-contention",
+        "storyId": "US-004"
+      },
+      {
+        "id": "crews-hook-timeout-under-lock-contention:US-005",
+        "type": "story",
+        "taskId": "crews-hook-timeout-under-lock-contention",
+        "storyId": "US-005"
+      },
+      {
+        "id": "crews-hook-timeout-under-lock-contention:US-006",
+        "type": "story",
+        "taskId": "crews-hook-timeout-under-lock-contention",
+        "storyId": "US-006"
       },
       {
         "id": "crews-implement-with-ralph-parallel-outbox-silent-loss",
@@ -12920,6 +12970,81 @@
       {
         "from": "crews-bg-gate-recognize-background-subagents:US-006",
         "to": "crews-bg-gate-recognize-background-subagents:US-005",
+        "type": "depends-on-story"
+      },
+      {
+        "from": "crews-hook-timeout-under-lock-contention:US-002",
+        "to": "crews-hook-timeout-under-lock-contention:US-001",
+        "type": "depends-on-story"
+      },
+      {
+        "from": "crews-hook-timeout-under-lock-contention:US-003",
+        "to": "crews-hook-timeout-under-lock-contention:US-001",
+        "type": "depends-on-story"
+      },
+      {
+        "from": "crews-hook-timeout-under-lock-contention:US-003",
+        "to": "crews-hook-timeout-under-lock-contention:US-002",
+        "type": "depends-on-story"
+      },
+      {
+        "from": "crews-hook-timeout-under-lock-contention:US-004",
+        "to": "crews-hook-timeout-under-lock-contention:US-001",
+        "type": "depends-on-story"
+      },
+      {
+        "from": "crews-hook-timeout-under-lock-contention:US-004",
+        "to": "crews-hook-timeout-under-lock-contention:US-002",
+        "type": "depends-on-story"
+      },
+      {
+        "from": "crews-hook-timeout-under-lock-contention:US-004",
+        "to": "crews-hook-timeout-under-lock-contention:US-003",
+        "type": "depends-on-story"
+      },
+      {
+        "from": "crews-hook-timeout-under-lock-contention:US-005",
+        "to": "crews-hook-timeout-under-lock-contention:US-001",
+        "type": "depends-on-story"
+      },
+      {
+        "from": "crews-hook-timeout-under-lock-contention:US-005",
+        "to": "crews-hook-timeout-under-lock-contention:US-002",
+        "type": "depends-on-story"
+      },
+      {
+        "from": "crews-hook-timeout-under-lock-contention:US-005",
+        "to": "crews-hook-timeout-under-lock-contention:US-003",
+        "type": "depends-on-story"
+      },
+      {
+        "from": "crews-hook-timeout-under-lock-contention:US-005",
+        "to": "crews-hook-timeout-under-lock-contention:US-004",
+        "type": "depends-on-story"
+      },
+      {
+        "from": "crews-hook-timeout-under-lock-contention:US-006",
+        "to": "crews-hook-timeout-under-lock-contention:US-001",
+        "type": "depends-on-story"
+      },
+      {
+        "from": "crews-hook-timeout-under-lock-contention:US-006",
+        "to": "crews-hook-timeout-under-lock-contention:US-002",
+        "type": "depends-on-story"
+      },
+      {
+        "from": "crews-hook-timeout-under-lock-contention:US-006",
+        "to": "crews-hook-timeout-under-lock-contention:US-003",
+        "type": "depends-on-story"
+      },
+      {
+        "from": "crews-hook-timeout-under-lock-contention:US-006",
+        "to": "crews-hook-timeout-under-lock-contention:US-004",
+        "type": "depends-on-story"
+      },
+      {
+        "from": "crews-hook-timeout-under-lock-contention:US-006",
+        "to": "crews-hook-timeout-under-lock-contention:US-005",
         "type": "depends-on-story"
       },
       {
