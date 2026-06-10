@@ -1,0 +1,25 @@
+**Feasibility**
+
+No issues found. The main hook ordering is accurate: `isReviewMailCall` bypass precedes listener-state gating, AskUserQuestion routing precedes the unarmed block, and the plain arm block is at [pre-tool-use.js](D:/harness-efforts/codexu/ai-developer-toolkit/plugins/crews/hooks/pre-tool-use.js:451). `reviewRequiredReason` is exported and takes the planned signature at [review-gate.js](D:/harness-efforts/codexu/ai-developer-toolkit/plugins/crews/hooks/protocol/review-gate.js:106).
+
+**Completeness**
+
+[High] The plan’s test audit claim is false for `review-gate.test.js`. It says current unarmed fixtures have no review seqs, but [review-gate.test.js](D:/harness-efforts/codexu/ai-developer-toolkit/plugins/crews/tests/review-gate.test.js:368) seeds review-required mail, marks the listener exited, and asserts the plain arm block plus no `review-required` text at lines 378-380. This test must be explicitly updated to expect the new review-mail-first block, or `node tests/run.js` will fail.
+
+[Medium] The audit scope is too narrow. The plan names three files, but the safer instruction is to grep the full `ai-developer-toolkit/plugins/crews/tests` tree for `you must arm a background listener`, `lastReviewRequiredSeq`, and `lastReviewedSeq`. Existing relevant assertions include [pre-tool-use-listener-output.test.js](D:/harness-efforts/codexu/ai-developer-toolkit/plugins/crews/tests/pre-tool-use-listener-output.test.js:74) and the `review-gate.test.js` fixture above.
+
+**Ordering**
+
+No issues found. The planned branch placement after the review-mail bypass, listener-output bypass, AskUserQuestion intercept, and armed early-return matches the required behavior.
+
+**Simplicity**
+
+[Low] Creating a new test file is fine, but some fixtures already exist in `review-gate.test.js` and `tests/integration/lib/scenario.js`. Reusing those helpers may be simpler than duplicating subprocess and manifest setup.
+
+**Acceptance Criteria Quality**
+
+[Medium] AC4 conflates “review-mail command” with `reviewRequiredReason(...)`, which returns a full multi-line reason, not just the command. The test should assert that the hook reason contains the exact full `reviewRequiredReason(...)` string, or separately extract/compare the command substring.
+
+[Medium] AC4’s engine coverage should explicitly include env-set and env-unset cases. `reviewRequiredReason` switches on `process.env.CREWS_BIN` at [review-gate.js](D:/harness-efforts/codexu/ai-developer-toolkit/plugins/crews/hooks/protocol/review-gate.js:61); `buildReviewMailCommand` emits `$CREWS_BIN`, `$env:CREWS_BIN`, or an absolute dispatcher path at [listener-protocol.js](D:/harness-efforts/codexu/ai-developer-toolkit/plugins/crews/hooks/listener-protocol.js:73). Current `review-gate.test.js` covers Claude/Copilot env-set/env-unset but not Codex in that golden loop.
+
+[Low] AC8 says “6 stamps and `tests/version.test.js`,” which is accurate only if “stamps” excludes the test. The bump script actually edits three plugin manifests, three marketplace indexes, and `plugins/crews/tests/version.test.js` at [bump-version.js](D:/harness-efforts/codexu/ai-developer-toolkit/plugins/crews/scripts/bump-version.js:45). Clarify that as 7 edited files total from the script.

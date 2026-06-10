@@ -1,0 +1,32 @@
+I’ll read the provided prompt file first, then carry out its instructions end-to-end.
+
+The prompt file is large enough that I’m reading it in ranges to avoid truncation.
+
+I’m switching from reading the prompt to verifying the plan against the actual crews plugin code and tests.
+
+I’ve confirmed the plan’s main target and constraints; I’m checking adjacent test fixtures for any hidden conflicts before writing the review.
+
+I found one potentially important mismatch in the review-gate golden helper, so I’m reading that area before finalizing severity.
+
+I’m checking the top of the PreToolUse handler for lead/member-only gates and sweep ordering, since the new branch depends on where actor resolution has already happened.
+
+### Feasibility
+
+[Medium] The plan is feasible, but codex coverage needs care: `tests/review-gate.test.js` currently has an `expectedReviewRequiredReason` helper that treats only `engine === 'copilot'` specially and otherwise expects Claude wording. If AC4 is implemented by extending that helper to codex, it will produce the wrong expected arm-prefix for `review-gate.js`, where codex has its own string. Update the helper or test codex against direct `reviewRequiredReason(...)` output.
+
+### Completeness
+
+[Medium] The test plan says “4 cases,” but AC4 requires command equivalence “for each engine” and the repo now supports `claude`, `copilot`, and `codex`. Make the new test matrix explicit: at least member pending/no-pending/armed plus lead pending, and engine assertions covering codex’s `$env:CREWS_BIN` path.
+
+### Ordering
+
+No issues found.
+
+### Simplicity
+
+No issues found. Reusing `reviewRequiredReason(...)` is the right integration point and avoids duplicating review-mail command construction.
+
+### Acceptance Criteria Quality
+
+[Medium] AC1/AC4 should define “byte-identical” precisely: the combined PreToolUse block cannot equal `reviewRequiredReason(...)` because it appends the post-drain arm instructions. The verifiable criterion should be that the block starts with the exact `reviewRequiredReason(...)` string, followed by the secondary arm note.
+

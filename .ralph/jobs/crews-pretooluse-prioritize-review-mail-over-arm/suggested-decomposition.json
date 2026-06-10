@@ -1,0 +1,22 @@
+{
+  "clusters": [
+    {
+      "name": "pretooluse-review-mail-first",
+      "stories": ["US-001", "US-002", "US-003"],
+      "phase": 1,
+      "dependsOn": [],
+      "fileOverlapEvidence": {
+        "sharedFiles": [
+          "ai-developer-toolkit/plugins/crews/hooks/pre-tool-use.js",
+          "ai-developer-toolkit/plugins/crews/tests/pretooluse-review-mail-first.test.js",
+          "ai-developer-toolkit/plugins/crews/.claude-plugin/plugin.json",
+          "ai-developer-toolkit/plugins/crews/CHANGELOG.md",
+          "ai-developer-toolkit/plugins/crews/AGENTS.md"
+        ],
+        "exclusiveFiles": [],
+        "risk": "high"
+      },
+      "executionModeRationale": "Single sequential cluster. Tests (US-002) depend on the code change (US-001), and the version bump + marketplace + CHANGELOG + AGENTS.md note (US-003) must come last. Parallelizing would conflict on the plugin's six version stamps and the AGENTS/CHANGELOG prepends, so the work serializes by construction."
+    }
+  ]
+}

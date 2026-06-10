@@ -1,0 +1,54 @@
+{
+  "planFile": "D:/harness-efforts/codexu/.ralph/jobs/.staging/20260610T041335Z-plan-reviewmailfirst-90aff33b/draft-plan.md",
+  "repoDir": "D:/harness-efforts/codexu",
+  "findings": [
+    {
+      "id": "F-001",
+      "severity": "High",
+      "source": "codex",
+      "status": "resolved",
+      "summary": "Plan's test-audit claim is false: review-gate.test.js:367-381 seeds review-required mail + listenerState:'exited' (unarmed) and asserts the plain arm block (:379) plus no review-required text (:380); the new branch flips both. Must be explicitly updated or node tests/run.js fails.",
+      "resolution": "Verified directly. Corrected the plan's Risk + audit sections; added explicit US-002 AC to update review-gate.test.js:367-381 to expect the review-mail-first block. The four armed mode-tests (337-365) stay green (armed early-return short-circuits)."
+    },
+    {
+      "id": "F-002",
+      "severity": "Medium",
+      "source": "consensus",
+      "status": "resolved",
+      "summary": "AC4 'byte-identical' is imprecise: the combined PreToolUse block cannot equal reviewRequiredReason(...) because it appends the arm note. (codex + copilot)",
+      "resolution": "Refined AC1/AC4 to assert the block STARTS WITH the exact reviewRequiredReason(...) string as a contiguous prefix, followed by the secondary arm note."
+    },
+    {
+      "id": "F-003",
+      "severity": "Medium",
+      "source": "consensus",
+      "status": "resolved",
+      "summary": "AC4 engine coverage must be explicit: claude/copilot/codex x env-set/env-unset (useEnvBin). Compare against direct reviewRequiredReason(...) output; do NOT extend review-gate.test.js's expectedReviewRequiredReason helper (it special-cases only copilot and yields wrong codex wording). (codex + copilot)",
+      "resolution": "Rewrote AC4 + US-002 to require the explicit engine x env matrix and direct-output comparison; added an explicit note not to extend the review-gate helper."
+    },
+    {
+      "id": "F-004",
+      "severity": "Medium",
+      "source": "codex",
+      "status": "resolved",
+      "summary": "Audit scope too narrow (3 named files). Grep the whole tests/ tree for 'you must arm a background listener', 'lastReviewRequiredSeq', 'lastReviewedSeq'.",
+      "resolution": "Broadened the audit AC to a tests/-tree grep for those three tokens."
+    },
+    {
+      "id": "F-005",
+      "severity": "Low",
+      "source": "codex",
+      "status": "resolved",
+      "summary": "AC8 wording: bump-version.js edits 7 files total (3 plugin manifests + 3 marketplace indexes + tests/version.test.js).",
+      "resolution": "Clarified AC8 to state 7 files edited by the bump script."
+    },
+    {
+      "id": "F-006",
+      "severity": "Low",
+      "source": "codex",
+      "status": "acknowledged",
+      "summary": "Could reuse existing fixtures (review-gate.test.js helpers / tests/integration/lib/scenario.js) instead of duplicating subprocess+manifest setup.",
+      "resolution": "Noted as optional in the plan; the closest model (pre-tool-use-listener-output.test.js seedExitedMember + review-gate seedReviewRequired) is cited. Left to implementer discretion."
+    }
+  ]
+}

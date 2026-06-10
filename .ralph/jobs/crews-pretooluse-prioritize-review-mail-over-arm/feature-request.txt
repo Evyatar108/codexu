@@ -1,0 +1,91 @@
+Fix the crews PreToolUse hook block-message routing so a lead/member with UNREVIEWED
+PENDING MAIL is told to run REVIEW-MAIL first, instead of the generic "arm a listener"
+block.
+
+TARGET: crews plugin (ai-developer-toolkit submodule), currently v3.19.1 on submodule
+main. Code at ai-developer-toolkit/plugins/crews/. Plan against current main. Impl will
+be a two-commit submodule flow (lead-owned). All plan file references use paths under
+ai-developer-toolkit/plugins/crews/.
+
+THE BUG (operator-flagged, wastes turns + tokens):
+Listeners exit-on-delivery by design (v1.2.9). When mail arrives, the active listener
+delivers it and EXITS. Now no listener is active, so the lead's next tool call hits the
+arm-first gate in hooks/pre-tool-use.js (handleInput, around lines 478-526), which emits
+the GENERIC "BLOCKED: you must arm a background listener as your FIRST tool call" block.
+The lead arms -> the arm re-delivers the still-pending mail + EXITS again -> next tool
+gated -> arm again ... a multi-turn, multi-token loop. Only after the mail finally drains
+does the separate review-required nag (Stop/PostToolUse) surface the review-mail command.
+
+NET: when the REAL blocker is unreviewed pending mail, the hook tells the actor to ARM
+(which re-triggers the loop) instead of telling it to REVIEW-MAIL (the gate-exempt
+productive action that drains + advances lastReviewedSeq). review-mail is ALREADY
+gate-exempt in pre-tool-use.js (the isReviewMailCall bypass at ~line 451), so this is a
+block-MESSAGE + gate-ORDER change, NOT a new capability.
+
+THE FIX (design it):
+In hooks/pre-tool-use.js handleInput, BEFORE emitting the generic arm-first block (the
+plain arm block built at the bottom of handleInput when listenerState !== 'armed'), check
+the review-required predicate (lastReviewRequiredSeq > lastReviewedSeq). When unreviewed
+mail IS pending, emit a block whose PRIMARY instruction is the REVIEW-MAIL command
+(engine-aware -- the SAME command string the review-required nag emits) with a SECONDARY
+"then arm against a clean mailbox" note. When NO mail is pending, emit the EXISTING plain
+arm block unchanged.
+
+REUSE EXISTING MACHINERY:
+- The seq predicate (lastReviewRequiredSeq > lastReviewedSeq) and the engine-aware
+  review-mail command are ALREADY encapsulated in
+  hooks/protocol/review-gate.js::reviewRequiredReason(name, crew, cwd, role, manifest):
+  it returns null when no mail is pending and otherwise returns a review-mail-first
+  message built via hooks/listener-protocol.js::buildReviewMailCommand. This is the SAME
+  function the Stop hook uses (stop.js calls reviewRequiredReason). Reuse it (or its
+  inner buildReviewRequiredReason / buildReviewMailCommand) so the PreToolUse review-mail
+  command shape is byte-identical to the review-required nag for all three engines.
+- The kinds-filter predicate lives in hooks/protocol/review-required.js
+  (filterReviewRequired / reviewKindsFromEnv); review-gate.js already consumes it. Do not
+  re-derive the predicate inline -- thread through the shared review-gate path.
+
+CONSTRAINTS (do not regress):
+- KEEP the arm-first SAFETY intact. The lead/member still MUST arm to be reachable; this
+  ONLY reorders WHICH guidance shows first when unreviewed mail is the real blocker. The
+  block when mail is pending should still tell the actor to arm AFTER draining (secondary
+  note), so the actor ends up armed against a clean mailbox (which then stays blocking).
+- Do NOT regress the AskUserQuestion intercept ordering (pre-tool-use.js ~line 471, the
+  member isAskUserQuestionToolCall -> routeAskUserQuestionToLead path runs before the
+  listenerState === 'armed' early-return).
+- Do NOT regress the v3.4 lead-unconditional-listener Stop gate (that lives in stop.js,
+  not pre-tool-use.js -- verify it is untouched).
+- Do NOT regress the existing review-mail bypass (isReviewMailCall) or the
+  listener-output-inspection bypass (BashOutput/read_bash) in pre-tool-use.js.
+- Engine-aware: the review-mail command shape differs for claude
+  (node $CREWS_BIN / absolute dispatcher path, bash) vs copilot/codex
+  (node $env:CREWS_BIN, PowerShell). Reuse the existing builder so all three match the
+  review-required nag. The hook can probe process.env.CREWS_BIN to choose useEnvBin
+  (review-gate.js already does Boolean(process.env.CREWS_BIN)).
+
+TESTS (must add):
+1. unreviewed-mail-pending + unarmed -> PreToolUse emits the review-mail-first block
+   (assert the review-mail command text appears, NOT the plain "you must arm a background
+   listener" text).
+2. no-mail + unarmed -> the plain arm block unchanged (assert the existing arm-block text;
+   assert the review-mail command text does NOT appear).
+3. armed -> no block (regression -- listenerState === 'armed' early-returns).
+4. engine-aware: the review-mail command shape (claude/copilot/codex) emitted in the
+   review-mail-first block matches what the review-required nag emits (reuse the same
+   builder; assert $CREWS_BIN vs $env:CREWS_BIN forms per engine).
+
+SHIP MECHANICS (impl phase, lead-owned -- note in plan but do not do):
+- Plugin-side change: version bump 3.19.1 -> 3.20.0 (new gate-ordering behavior +
+  block-message contract is a minor bump) via scripts/bump-version.js (6 version stamps +
+  tests/version.test.js).
+- Marketplace sync (3 indexes: .claude-plugin/marketplace.json,
+  .github/plugin/marketplace.json, .agents/plugins/marketplace.json).
+- CHANGELOG.md entry.
+- plugins/crews/AGENTS.md note documenting the new gate-ordering behavior + the
+  common-mistake gotcha (don't broaden the gate, don't regress arm-first safety / the v3.4
+  lead gate / AskUserQuestion ordering).
+
+RELATED but DISTINCT tasks (do not conflate):
+- crews-listener-silent-reap-across-idle-investigation (a different reap cause -- idle,
+  not delivery).
+- crews-hook-timeout-under-lock-contention (the lock-starvation reap).
+This task is specifically the block-message ROUTING when unreviewed mail is pending.
