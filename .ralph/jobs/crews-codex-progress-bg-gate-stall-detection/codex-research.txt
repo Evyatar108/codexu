@@ -1,0 +1,122 @@
+**Codebase Architecture**
+
+The implementation target is the `crews` plugin under `ai-developer-toolkit/plugins/crews/`, a Node/CommonJS plugin with engine-specific hook shims feeding shared hook logic. There is no plugin-local `package.json`; tests run through the custom runner at `ai-developer-toolkit/plugins/crews/tests/run.js`.
+
+Key layout:
+
+- `hooks/`: shared hook logic plus engine shims.
+- `.codex-plugin/hooks/hooks.json`: Codex hook registration, including `Stop -> node ${CLAUDE_PLUGIN_ROOT}/hooks/codex-stop.js`.
+- `.github/plugin/hooks.json`: Copilot hook registration.
+- `tests/`: plain Node test files, custom assertions, fixtures.
+- `scripts/bump-version.js`: bumps plugin manifests and marketplace pins.
+
+Codex itself is a Rust submodule under `codex/external/repos/codex-patched/codex-rs/`; for this feature it supplies contracts, not the primary edit surface.
+
+**Feature-Relevant Code**
+
+Most relevant files:
+
+- `ai-developer-toolkit/plugins/crews/hooks/stop.js`
+  - Imports `detectActiveBg` and `parseSubagentMode`.
+  - `handleInput()` owns Stop-hook enforcement.
+  - Progress-bg gate is around `progress-bg-gate` / `detectActiveBg(...)`.
+  - Current gate is Copilot-only: `manifest.engine === 'copilot'`.
+  - Current gate skips retry via `!isRetry`; this must change for Codex.
+  - `data.transcript_path || manifest.transcriptPath` is already available.
+
+- `ai-developer-toolkit/plugins/crews/hooks/detect-active-bg.js`
+  - Existing Copilot detector and best template for `detect-active-bg-codex.js`.
+  - Reusable shape: `{ activeCount, nonListenerCount, samples, asOf }`.
+  - Existing patterns: bounded JSONL tail read, malformed-line tolerance, false-negative bias, infra filtering.
+
+- `ai-developer-toolkit/plugins/crews/hooks/listener-protocol.js`
+  - Reuse `isListenerArmCall(cmd)` and `isCrewsCliInfraCall(cmd)` exactly.
+  - Already handles `$env:CREWS_BIN` and Codex/Copilot PowerShell syntax.
+
+- `ai-developer-toolkit/plugins/crews/hooks/codex-stop.js`
+  - Sets `CREWS_ENGINE='codex'`.
+  - Calls `codexToClaudeStopInput()` then shared `stop.handleInput()`.
+
+- `ai-developer-toolkit/plugins/crews/hooks/codex-shim.js`
+  - `codexToClaudeStopInput()` preserves `transcript_path` and `stop_hook_active`.
+  - Threads `last_assistant_message` into `__crewsCodexLastAssistantMessage`; this is only for report-tag parsing. The new detector should still read the real rollout transcript path.
+
+- `ai-developer-toolkit/plugins/crews/tests/progress-bg-gate.test.js`
+  - Existing model for detector unit tests plus Stop subprocess tests.
+  - Has helpers for seeding a member manifest and asserting gate block/pass behavior.
+
+- `ai-developer-toolkit/plugins/crews/tests/lib/force-response.js`
+  - `runStop(cwd, sessionId, transcript, env, stopHookActive)` invokes `hooks/stop.js` as a subprocess.
+
+- Codex contract references:
+  - `codex/.../core/src/hook_runtime.rs`: Stop supplies `transcript_path` and `stop_hook_active`.
+  - `codex/.../hooks/src/events/stop.rs` and `hooks/src/schema.rs`: Stop input schema.
+  - `codex/.../core/src/tools/context.rs`: emits `"Process running with session ID N"` and `"Process exited with code X"`.
+  - `codex/.../core/src/unified_exec/process_manager.rs`: background session and await behavior.
+
+**Technical Constraints**
+
+The detector must be synchronous, bounded, and cheap; Codex Stop hook timeout is 10 seconds in `.codex-plugin/hooks/hooks.json`.
+
+The parser should treat ambiguity as no usable active work for Codex. That means stale running lines, missing current-turn boundary, unparseable `arguments`, missing `cmd`, or unresolved launch command should not satisfy `nonListenerCount`.
+
+Current-turn freshness is load-bearing. Do not use “last signal is running” over the whole rollout file; require the running signal to occur after the last `event_msg.task_started` boundary.
+
+Correlate in two stages:
+
+- `function_call` with `name === "exec_command"` by `call_id` gives launch arguments and `cmd`.
+- Matching `function_call_output.call_id` containing `Process running with session ID N` creates the running signal for session `N`.
+- `function_call` with `name === "await_background_completion"` gives `arguments.session_id`.
+- Matching output for that await call containing terminal text marks that session dead.
+
+For Stop integration, preserve Claude/Copilot behavior. Widen only the supported engine condition and keep Copilot byte-identical where possible. For Codex, do not let `stop_hook_active === true` skip the progress-bg gate; rely on the existing `bumpBlockCount('progress-without-bg')` circuit breaker.
+
+**Implementation Suggestions**
+
+Add `hooks/detect-active-bg-codex.js` as a sibling to `detect-active-bg.js`. Keep the exported public function small:
+
+```js
+detectActiveBgCodex({ transcriptPath, asOf, maxEvents })
+```
+
+Recommended internals:
+
+- `readRolloutEvents()` like `readEvents()`: read tail lines, skip malformed/torn lines.
+- `findLastTaskStartedIndex(events)`: locate latest `{ type: 'event_msg', payload: { type: 'task_started' } }`.
+- `indexFunctionCalls(events)`: map `call_id` to `{ name, args }`, parsing JSON `arguments`.
+- Walk events after the task boundary:
+  - record fresh running sessions from `function_call_output` text.
+  - recover launch `cmd` through the output’s `call_id`.
+  - record terminal awaits by mapping await `call_id -> session_id`, then reading its output.
+- Build `samples` only for sessions whose latest signal is running and whose launch command is resolvable.
+- Set `isListener` using `isListenerArmCall(cmd) || isCrewsCliInfraCall(cmd)`.
+- `nonListenerCount = samples.filter(s => !s.isListener).length`.
+
+In `stop.js`, import both detectors and dispatch by engine. A safe shape:
+
+```js
+const engine = manifest.engine;
+const supportsProgressBg = engine === 'copilot' || engine === 'codex';
+const retrySkipsGate = isRetry && engine !== 'codex';
+```
+
+For Codex, consider evaluating even if `transcriptPath` is absent and letting the Codex detector return empty counts, so ambiguity blocks. For Copilot, keep existing missing-transcript skip to preserve behavior.
+
+Tests should mirror `progress-bg-gate.test.js` but use a Codex rollout fixture:
+
+- detector unit tests for fresh running, listener-only, exited, stale prior-turn running, unknown command.
+- Stop subprocess tests with manifest `engine: 'codex'`.
+- retry test with `stopHookActive=true` proving the gate still blocks.
+- a control proving Copilot/Claude behavior is unchanged.
+
+Run focused first:
+
+```bash
+node ai-developer-toolkit/plugins/crews/tests/run.js progress-bg-gate-codex.test.js
+```
+
+Then full plugin tests:
+
+```bash
+node ai-developer-toolkit/plugins/crews/tests/run.js
+```

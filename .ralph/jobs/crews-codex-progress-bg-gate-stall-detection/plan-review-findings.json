@@ -1,0 +1,146 @@
+{
+  "planFile": "D:/harness-efforts/codexu/.ralph/jobs/.staging/20260610T172446Z-plan-codexbggate-953be9b2/draft-plan.md",
+  "repoDir": "D:/harness-efforts/codexu",
+  "findings": [
+    {
+      "id": "F-001",
+      "severity": "High",
+      "category": "Feasibility",
+      "source": "consensus",
+      "section": "Approach > Transcript-path robustness (US-003)",
+      "description": "Detector signature {transcriptPath, asOf} cannot do the manifest.sessionId fallback. Thread sessionId into the codex detector call (data.session_id || manifest.sessionId).",
+      "status": "resolved",
+      "resolution": "ADOPTED. stop.js now resolves transcriptPath via data.transcript_path || manifest.transcriptPath || resolveCodexTranscriptPath(sessionId); sessionId = data.session_id || manifest.sessionId. Detector stays pure on {transcriptPath, asOf}."
+    },
+    {
+      "id": "F-002",
+      "severity": "High",
+      "category": "Completeness",
+      "source": "consensus",
+      "section": "Approach > Detector algorithm, step 6",
+      "description": "Proposed sample shape {sessionId,cmd,isListener} is not parity with the Copilot detector's {shellId,toolName,command,isListener}.",
+      "status": "resolved",
+      "resolution": "ADOPTED. samples use { shellId: String(sessionId), toolName: 'exec_command', command: cmd, isListener }."
+    },
+    {
+      "id": "F-003",
+      "severity": "High",
+      "category": "Feasibility",
+      "source": "consensus",
+      "section": "Approach > Detector algorithm, step 4",
+      "description": "Terminal-detection 'unknown-process/failure text' is unenumerated; risks false-ALLOW on dead sessions.",
+      "status": "resolved",
+      "resolution": "ADOPTED (structural rule). An await output for session N marks N TERMINAL iff the output does NOT contain 'Process running with session ID N'; an await output that DOES contain it REFRESHES the running marker at the current row. No enumeration needed; covers exit/unknown/failure/timeout uniformly."
+    },
+    {
+      "id": "F-004",
+      "severity": "High",
+      "category": "Criteria Quality",
+      "source": "consensus",
+      "section": "Approach > Detector algorithm step 5b; Acceptance Criteria #3/#5",
+      "description": "Current-turn freshness appears to contradict the structural-completeness argument (a prior-turn still-running session would be false-blocked).",
+      "status": "resolved",
+      "resolution": "CLARIFIED-AND-DEFENDED (deliberate false-negative bias from the brainstorm; do NOT weaken). A session stays 'fresh' if re-asserted this turn by EITHER an exec_command launch OR an await_background_completion that returns 'still running' (re-stamps the marker in the current turn). The legitimate codex bg-polling idiom IS to await (which blocks the turn, or returns still-running and refreshens); a prior-turn session never re-touched is the stall to block (recoverable). AC #3/#5 reworded accordingly."
+    },
+    {
+      "id": "F-005",
+      "severity": "High",
+      "category": "Feasibility",
+      "source": "consensus",
+      "section": "Approach > failure-open contract",
+      "description": "Mixed 'unreadable -> block' vs 'null -> skip' policy; needs one explicit contract for missing/unreadable/empty/malformed/fallback-miss.",
+      "status": "resolved",
+      "resolution": "ADOPTED. null transcriptPath (incl. fallback miss) -> gate SKIPPED (existing if(transcriptPath) guard; failure-open). Non-null but unreadable/empty/all-malformed -> detector returns empty result -> effectiveActive 0 -> BLOCK (matches Copilot detector; recoverable). Detector THROW -> stop.js try/catch -> detection=null -> gate skipped."
+    },
+    {
+      "id": "F-006",
+      "severity": "Low",
+      "category": "Simplicity",
+      "source": "claude",
+      "section": "Approach > stop.js gate widening",
+      "description": "Reviewer claimed (!isRetry||isCodex) and (isCodex||!isRetry) are non-equivalent.",
+      "status": "wont_fix",
+      "resolution": "REJECTED as stated (OR is commutative; the two are logically identical). Adopted the (isCodex || !isRetry) wording for clarity + a code comment. Downgraded to Low."
+    },
+    {
+      "id": "F-007",
+      "severity": "High",
+      "category": "Completeness",
+      "source": "copilot",
+      "section": "Approach > stop.js gate widening",
+      "description": "Gate's leading comment block (stop.js ~1121,1155-1180) documents Copilot-only + isRetry-skip; must be updated for codex.",
+      "status": "resolved",
+      "resolution": "ADOPTED into US-002 scope: update the gate comment block to describe copilot|codex and the codex retry-evaluation behavior."
+    },
+    {
+      "id": "F-008",
+      "severity": "Medium",
+      "category": "Completeness",
+      "source": "codex",
+      "section": "Tests",
+      "description": "Stop e2e must exercise the codex-stop.js entrypoint (codexToClaudeStopInput + claudeDecisionToCodex + stop_hook_active round-trip), not only the shared stop.js handler.",
+      "status": "resolved",
+      "resolution": "ADOPTED into US-001/US-002 tests: add a codex-shim round-trip e2e through hooks/codex-stop.js."
+    },
+    {
+      "id": "F-009",
+      "severity": "Medium",
+      "category": "Completeness",
+      "source": "copilot",
+      "section": "Tests",
+      "description": "Add an explicit assertion that payload.content (wrong field) does NOT detect and payload.output (correct) DOES.",
+      "status": "resolved",
+      "resolution": "ADOPTED into US-001 tests."
+    },
+    {
+      "id": "F-010",
+      "severity": "High",
+      "category": "Criteria Quality",
+      "source": "consensus",
+      "section": "Acceptance Criteria; US-005",
+      "description": "The 5-case LIVE dogfood is not autonomous-verifiable: no concrete spawn/update commands, per-case forcing method, BLOCK/ALLOW evidence lines, or artifact path. Also requires the submodule ship + copilot plugin update first (lead-owned).",
+      "status": "resolved",
+      "resolution": "ADOPTED. US-005 expanded with concrete commands, per-case procedure, the crews.log 'progress-bg-gate ... engine=codex active=N nonListener=M' + Stop block-reason evidence, artifact path .ralph/jobs/<job>/dogfood/, and marked LEAD-coordinated post-merge acceptance."
+    },
+    {
+      "id": "F-011",
+      "severity": "Medium",
+      "category": "Criteria Quality",
+      "source": "consensus",
+      "section": "Acceptance Criteria",
+      "description": "'Claude/Copilot behavior byte-identical' is too broad (version/docs/tests change literal output).",
+      "status": "resolved",
+      "resolution": "ADOPTED. Rephrased to: existing Copilot progress-bg-gate tests stay green; Copilot log line stays engine=copilot; Claude remains skipped; no codex detector import path is exercised for engine==='copilot'."
+    },
+    {
+      "id": "F-012",
+      "severity": "Medium",
+      "category": "Completeness",
+      "source": "copilot",
+      "section": "Scope > Out of Scope",
+      "description": "Clarify whether codex subagent (task/multi_agent) invocations produce exec_command sessions that the detector would count.",
+      "status": "resolved",
+      "resolution": "CLARIFIED. The detector recognizes ONLY unified-exec sessions ('Process running with session ID N'); codex subagent spawns are a different tool surface that does not emit that marker, so they are neither counted nor false-allowed. Documented in Out of Scope."
+    },
+    {
+      "id": "F-013",
+      "severity": "Medium",
+      "category": "Ordering",
+      "source": "copilot",
+      "section": "US-005",
+      "description": "US-005 dogfood requires the submodule merge/push + installed-plugin update before it can run.",
+      "status": "resolved",
+      "resolution": "Folded into F-010: US-005 marked LEAD-coordinated post-merge acceptance."
+    },
+    {
+      "id": "F-014",
+      "severity": "Medium",
+      "category": "Simplicity",
+      "source": "copilot",
+      "section": "Approach > Detector algorithm step 3/4",
+      "description": "Unclear whether current-turn scoping applies to terminal detection (step 4) or only to RUNNING freshness (step 5b); awaitArgs indexing scope ambiguous.",
+      "status": "resolved",
+      "resolution": "CLARIFIED via a single ordered walk maintaining sessionState[N]={lastSignal,lastRowIndex,cmd}; active iff lastSignal==='running' && lastRowIndex>boundary && cmd non-infra. Pre-boundary awaits naturally mark terminal."
+    }
+  ]
+}

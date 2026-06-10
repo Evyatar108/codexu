@@ -1,0 +1,28 @@
+{
+  "clusters": [
+    {
+      "name": "codex-progress-bg-gate",
+      "stories": ["US-001", "US-002", "US-003", "US-004", "US-005"],
+      "phase": 1,
+      "dependsOn": [],
+      "fileOverlapEvidence": {
+        "sharedFiles": [
+          "ai-developer-toolkit/plugins/crews/hooks/stop.js",
+          "ai-developer-toolkit/plugins/crews/AGENTS.md",
+          "ai-developer-toolkit/plugins/crews/CHANGELOG.md",
+          "ai-developer-toolkit/plugins/crews/.claude-plugin/plugin.json",
+          "ai-developer-toolkit/plugins/crews/.github/plugin/plugin.json",
+          "ai-developer-toolkit/plugins/crews/.codex-plugin/plugin.json",
+          "ai-developer-toolkit/plugins/crews/tests/version.test.js"
+        ],
+        "exclusiveFiles": [
+          "ai-developer-toolkit/plugins/crews/hooks/detect-active-bg-codex.js",
+          "ai-developer-toolkit/plugins/crews/tests/progress-bg-gate-codex.test.js",
+          "ai-developer-toolkit/plugins/crews/tests/fixtures/codex-rollout-bg.jsonl"
+        ],
+        "risk": "medium"
+      },
+      "executionModeRationale": "All stories target the same crews plugin: US-002 edits hooks/stop.js and depends on the US-001 module, US-004 edits shared version-stamp files plus AGENTS.md/CHANGELOG.md, and US-005 requires a shipped+installed build. Same-plugin version-file and shared-stop.js conflicts force a single serial cluster with one implementer."
+    }
+  ]
+}

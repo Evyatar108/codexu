@@ -1,0 +1,48 @@
+I’ll read the referenced prompt file first, then carry out its instructions.
+
+I’ll inspect the crews plugin’s hook/test structure and the relevant Stop-gate paths, without making changes.
+
+I found the relevant plugin area; next I’m narrowing on the Stop gate, bg detector, codex shim, and existing tests.
+
+I’m reading the exact code shape now so the research can point to concrete integration points and constraints.
+
+I’m checking existing codex fixtures/tests and version/release surfaces to identify what would need to be extended.
+
+I’m also checking plugin manifests and directory layout so the architecture summary is accurate.
+
+I’m looking for any existing rollout-transcript parsing or fixtures so I don’t recommend duplicating prior art.
+
+I’m confirming whether this plugin has package-level build metadata or is plain Node/CommonJS.
+
+### Codebase Architecture
+
+`ai-developer-toolkit/plugins/crews/` is a plain Node/CommonJS plugin with no package-level `package.json`, `tsconfig`, or build step. Runtime code is organized around shared hook handlers in `hooks/`, reusable logic in `lib/`, command handlers in `hooks/commands/`, and a custom worker-based test runner at `tests/run.js`.
+
+The plugin supports Claude, Copilot, and codex via engine overlays: `.claude-plugin/plugin.json`, `.github/plugin/plugin.json`, and `.codex-plugin/plugin.json` plus `.codex-plugin/hooks/hooks.json`. Codex hook entrypoints like `hooks/codex-stop.js` translate codex hook stdin through `hooks/codex-shim.js` and then call the shared `hooks/stop.js`.
+
+### Feature-Relevant Code
+
+Key integration points:
+
+- `hooks/stop.js`: existing progress-bg Stop gate is at the “Progress + no-bg gate” block. It imports `detectActiveBg` from `hooks/detect-active-bg.js`, checks `manifest.engine === 'copilot'`, `turnKind === 'progress'`, `state.role === 'member'`, `!isRetry`, and logs `engine=copilot`. This is the natural edit site to widen to `copilot || codex`, dispatch detectors by engine, keep Copilot retry behavior, and remove the retry skip for codex.
+- `hooks/detect-active-bg.js`: Copilot detector parses `events.jsonl` for `tool.execution_start` + `system.notification.shell_completed`, filters crews infra via `isListenerArmCall` and `isCrewsCliInfraCall`, and returns `{ activeCount, nonListenerCount, samples, asOf }`. A sibling `hooks/detect-active-bg-codex.js` should mirror this API but parse rollout JSONL.
+- `hooks/listener-protocol.js`: exports the reusable infra filters. `isCrewsCliInfraCall(cmd)` already handles `$env:CREWS_BIN`; reuse it exactly for codex command filtering.
+- `hooks/codex-shim.js`: `codexToClaudeStopInput()` already preserves `transcript_path` and `stop_hook_active`, and threads `last_assistant_message` for report parsing. No new Stop payload plumbing is needed.
+- `tests/progress-bg-gate.test.js` and `tests/lib/force-response.js`: existing patterns for detector unit tests and Stop subprocess tests. Add a codex-focused sibling test file rather than overloading the large Copilot test.
+
+### Technical Constraints
+
+Codex rollout parsing is a different transcript schema than Copilot. The detector must correlate `exec_command` `function_call` rows to their `function_call_output` via `call_id` to recover the launching `cmd`, and correlate exits through `await_background_completion` call arguments because terminal text lacks the session id.
+
+The detector should fail toward blocking: unparseable command, stale running signal before the latest `event_msg.task_started`, missing current-turn evidence, or ambiguous session state should produce `nonListenerCount: 0`.
+
+Keep behavior unchanged for Claude/Copilot. Copilot’s detector and retry skip should remain byte-compatible except for engine-aware log text. Version updates must use `plugins/crews/scripts/bump-version.js`.
+
+### Implementation Suggestions
+
+Add `hooks/detect-active-bg-codex.js` with small pure helpers: read rollout JSONL, find last `event_msg.task_started` boundary, index `exec_command` calls by `call_id`, map backgrounded `"Process running with session ID N"` outputs to session ids, map `await_background_completion` calls to `session_id`, and mark sessions dead on terminal output. Return the same shape as `detectActiveBg`.
+
+In `hooks/stop.js`, compute `const progressBgEngine = manifest.engine === 'copilot' || manifest.engine === 'codex'`, skip retry only for non-codex, dispatch to `detectActiveBgCodex({ transcriptPath, asOf })` for codex, and log `engine=${manifest.engine}`.
+
+Tests should cover the five codex matrix cases, retry re-evaluation with `stop_hook_active: true`, infra-only filtering, stale prior-turn running signals, and unchanged Claude/Copilot behavior.
+

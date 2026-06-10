@@ -1,0 +1,27 @@
+### Feasibility
+
+[High] US-003’s transcript fallback is not implementable with the detector API as specified. The plan defines `detectActiveBgCodex({ transcriptPath, asOf })`, but fallback needs a session id to find `~/.codex/sessions/**/rollout-*-<sessionId>.jsonl`. Today [hooks/stop.js](D:/harness-efforts/codexu/ai-developer-toolkit/plugins/crews/hooks/stop.js:1189) only passes `transcriptPath/asOf` to the detector, while codex Stop input does carry `session_id` through [hooks/codex-shim.js](D:/harness-efforts/codexu/ai-developer-toolkit/plugins/crews/hooks/codex-shim.js:77). The plan should explicitly change the codex detector call to pass `sessionId: data.session_id || manifest.sessionId`.
+
+[Medium] The failure policy is internally inconsistent. Detector step 1 says unreadable/empty rollout returns an empty result so the gate fails toward block, but US-003 says null/unreadable path should try fallback and, if that fails, failure-open. Existing [hooks/stop.js](D:/harness-efforts/codexu/ai-developer-toolkit/plugins/crews/hooks/stop.js:1190) skips the detector when `transcriptPath` is missing, but an unreadable existing path can still become a truthy empty detection. The plan needs separate rules/tests for missing path, unreadable path, empty file, malformed file, and fallback miss.
+
+### Completeness
+
+[High] The proposed codex detector sample shape is not actually “SAME shape” as Copilot. Copilot samples are `{ shellId, toolName, command, isListener }` in [hooks/detect-active-bg.js](D:/harness-efforts/codexu/ai-developer-toolkit/plugins/crews/hooks/detect-active-bg.js:423); the plan proposes `{ sessionId, cmd, isListener }`. That violates the requested return-shape parity. Use `shellId: String(sessionId)`, `toolName: 'exec_command'`, and `command`, or clearly document and test the codex-specific shape.
+
+[Medium] The “fresh await” semantics are underspecified. The AC says a stale prior-turn running signal with “no fresh await this turn” must not satisfy the gate, implying a fresh await might matter. But the algorithm only treats await output as terminal when it contains exit/unknown/failure, and only counts RUNNING signals after the current `task_started`. If a prior-turn process is awaited this turn and remains active, the plan currently has no parser signal for that case. Either remove the “no fresh await” qualifier, or define/test nonterminal await output handling.
+
+[Medium] The Stop e2e tests need to exercise the codex shim entrypoint, not just the shared Stop handler. Existing test helper [tests/lib/force-response.js](D:/harness-efforts/codexu/ai-developer-toolkit/plugins/crews/tests/lib/force-response.js:95) invokes `hooks/stop.js` directly. That proves shared logic, but not [hooks/codex-stop.js](D:/harness-efforts/codexu/ai-developer-toolkit/plugins/crews/hooks/codex-stop.js:33), `claudeDecisionToCodex`, or codex `stop_hook_active` round-trip behavior.
+
+### Ordering
+
+No issues found. Serializing US-001 through US-005 is correct for the shared `hooks/stop.js`, shared tests, docs, and version stamp edits.
+
+### Simplicity
+
+No major issues found. The separate codex detector module is justified because rollout JSONL is a different schema from Copilot events.
+
+### Acceptance Criteria Quality
+
+[Medium] “A LIVE codex dogfood confirms the 5-case matrix” is not specific enough for an autonomous implementer. It should name the exact spawn/update command, whether to run installed marketplace plugin or submodule path, how to produce each case, what stdout/log lines prove BLOCK vs ALLOW, and the required artifact path under `.ralph/jobs/<job>/dogfood/`.
+
+[Low] “Claude/Copilot member behavior is byte-identical” is too broad unless pinned to concrete evidence. The practical check should be: existing `progress-bg-gate.test.js` Copilot cases still pass, the Copilot log line remains `engine=copilot`, and no codex detector import path is used for `manifest.engine === 'copilot'`.

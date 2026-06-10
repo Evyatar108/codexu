@@ -1,0 +1,40 @@
+I’ll read the referenced prompt file first, then carry out the requested work from there.
+
+The prompt file is long, so I’ll read it in chunks to capture the full instructions.
+
+I’ll verify the plan against the actual crews plugin sources and tests, without modifying files.
+
+I found the relevant stop-hook and shim references; next I’ll read the exact code sections and existing tests around the gate.
+
+The plugin guidance confirms this is a research-only plan review; I’ll finish by checking a few likely edge cases in source before writing findings.
+
+I’ll check the Stop e2e harness section to see whether the proposed acceptance tests map cleanly onto current fixtures.
+
+One likely concern is the proposed transcript fallback, so I’ll verify what state is actually available at the Stop call site and in codex shims.
+
+I have enough source context now and will produce the review findings.### Feasibility
+
+- [High] The transcript fallback in US-003 is underspecified/inconsistent with the proposed Stop dispatch. The plan says derive `~/.codex/sessions/**/rollout-*-<sessionId>.jsonl` from `manifest.sessionId`, but the proposed detector call only passes `{ transcriptPath, asOf }`, and `stop.js` currently only computes `transcriptPath = data.transcript_path || manifest.transcriptPath || null` in the gate. The implementation needs to pass `sessionId` explicitly into `detectActiveBgCodex` or do the fallback in `stop.js`; otherwise US-003 cannot be implemented as described.
+
+- [Medium] “Failure-open” and “unreadable/empty → return empty result so the gate fails toward block” are mixed in the plan. Existing Copilot behavior treats missing transcript path as skip/failure-open in `stop.js`, but `detectActiveBg()` returns `{0,0}` for an unreadable path when called. The codex plan says unreadable/null fallback failure should skip the gate, while detector algorithm step 1 says unreadable/empty returns empty and blocks. The plan should define one exact contract for null, unreadable, empty, and malformed transcript after fallback.
+
+### Completeness
+
+- [High] The plan does not require updating the progress-bg gate comments/tests that currently say the scope is Copilot-only and that `isRetry` skips the gate. `hooks/stop.js` lines 1133-1163 document Copilot-only behavior and `isRetry` as a skip condition; widening behavior to codex and intentionally evaluating codex retries without updating these comments would leave stale load-bearing guidance in the code.
+
+- [Medium] The codex detector acceptance does not explicitly require a test for “output text is in `payload.output`, not `content`” at the Stop-subprocess/e2e layer. The pure parser fixture likely catches it, but the plan calls this a risk because a wrong field silently detects nothing. Add an assertion that a fixture with only `payload.content` does not pass and the real-shaped `payload.output` does pass.
+
+### Ordering
+
+- [Medium] US-005 says live codex dogfood after ship + `copilot plugin update`, but US-004 is only docs/version. The actual ship ceremony for a submodule plugin also requires merging/pushing the `ai-developer-toolkit` commit to all relevant remotes and updating/installing the plugin before dogfood. The plan should explicitly place “merge/push/update installed plugin” before US-005 or mark US-005 as lead-owned post-merge acceptance, not normal implementer-local work.
+
+### Simplicity
+
+No issues found.
+
+### Acceptance Criteria Quality
+
+- [High] “A LIVE codex dogfood confirms the 5-case matrix” is not autonomous-agent-verifiable as written. It needs concrete commands/artifact paths and expected observable outputs for each case, especially how to force a codex member to emit `kind=progress` under block/pass conditions and where to record the transcript under `.ralph/jobs/<job>/dogfood/`.
+
+- [Medium] “Claude/Copilot member behavior is byte-identical” is too broad unless scoped to the relevant surfaces. Because version/docs/tests change, literal repository output cannot be byte-identical. Rephrase to “existing Copilot progress-bg gate tests remain green and Claude remains skipped by the progress-bg gate.”
+
