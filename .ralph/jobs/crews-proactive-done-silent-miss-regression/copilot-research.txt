@@ -1,0 +1,50 @@
+I’ll read the referenced prompt file first, then carry out the requested task.
+
+I found this is a research-only plan-analysis prompt for the crews plugin, so I’ll inspect the existing fix, current mail/review paths, and tests without changing files.
+
+I’ll narrow this to the current crews implementation, the v3.6.2 commit/tests, and the protocol-v2 paths that can consume or collapse proactive terminal messages.
+
+The plugin notes confirm the historical v3.6.2 fix and later protocol-v2 changes; I’ll now verify the exact current code paths and commit/test anchors.
+
+I have the current flow shape; I’ll pull the v3.6.2 commit details and the relevant test files so the research output can name exact anchors.
+
+I’ll inspect the historical v3.6.2 test anchors and the newer proactive-batch/review-mail tests to identify the missing regression coverage precisely.
+
+I’ll do one last narrow pass for the protocol-v2 batch tests so the recommendations distinguish covered behavior from the missing seq-501 scenario.
+
+The coverage shows overview/collapse handle nested entries, but not the consumed-at-delivery empty-review regression; I’ll inspect that test block to cite it accurately.
+
+One implementation detail remains important: whether any hook path besides `review-mail` advances the reviewed cursor after listener delivery. I’ll check cursor writers before finalizing the analysis.
+
+The `/wake` path is the one reviewed-cursor writer besides `review-mail`; I’ll cite that and the monotonic writer in the final research.
+
+I’ll verify the history reader behavior too, since the empty-review symptom depends on whether seq 501 is invisible due to the cursor or due to filtering.
+
+I’ll read the small history-window function to avoid overstating whether seq 501 can be hidden by reader behavior.
+
+Research complete: the v3.6.2 fix (`fe1a30bf`) addressed stale duplicate listeners consuming mail, but the reported v3.14.1 symptom is a different cursor-surfacing regression: a proactive terminal batch reaches `mailbox-history.jsonl`, but `lastReviewedSeq` is already at that row by the time `review-mail` runs, so `readInboxHistorySince()` hides it.
+
+### Codebase Architecture
+
+`ai-developer-toolkit\plugins\crews` is a JavaScript/CommonJS plugin with hook entrypoints under `hooks\`, CLI/slash command handlers under `hooks\commands\`, listener runtime in `lib\listener-loop.js`, and state persisted in `.crews` actor directories (`manifest.json`, `mailbox.json`, `mailbox-history.jsonl`, `outbox.jsonl`). Tests are plain Node scripts run by `node plugins/crews/tests/run.js`.
+
+### Feature-Relevant Code
+
+- Historical fix: commit `fe1a30bf fix(crews): v3.6.2 listener-epoch ownership - proactive-report silent-loss fix`.
+- `hooks\mailbox.js`: `consumeMailbox()` now fences listener ownership with `lastListenerEpoch`, writes consumed rows, and bumps `lastReviewRequiredSeq` when `isReviewRequiredEnvelope()` matches.
+- `lib\listener-loop.js`: `deliver()` calls `consumeMailbox()` and emits only `{type:"messages", count, ...}` plus v3.19 counts; it intentionally omits message bodies.
+- `hooks\stop.js`: proactive v2 batch producer builds `payload.entries[]` from `selectTerminalOutboxBatch()` and writes a single system mailbox envelope with top-level terminal `kind`.
+- `hooks\commands\review-mail.js`: reads rows after `manifest.lastReviewedSeq`, filters review-required parent rows, then expands `payload.entries[]`; cursor advancement still uses parent `allRows`.
+- `hooks\user-prompt-submit.js`: `/wake` is the other cursor writer; it consumes, formats entries, then calls `markReviewed()`.
+- Tests already cover v3.6.2 stale-epoch loss (`tests\consume-mailbox-epoch-fence.test.js`, `tests\integration\proactive-report-silent-loss-race.test.js`) and overview/collapse batch expansion, but not “listener delivered via watch, then review-mail surfaces the terminal batch”.
+
+### Technical Constraints
+
+`lastReviewedSeq` is the proof that the lead actually saw content. Listener delivery alone must not advance it unless the listener also carries/surfaces the terminal row content, which current v3.19 docs explicitly avoid. `readInboxHistorySince()` starts strictly after `lastReviewedSeq`, so once that cursor equals seq 501, `review-mail` cannot show seq 501.
+
+### Implementation Suggestions
+
+Add a regression test that drives the real flow: create a member outbox batch with progress rows followed by `done`, let the lead listener deliver the queued proactive-report, assert `lastReviewRequiredSeq` advances but `lastReviewedSeq` does **not**, then run `review-mail` and assert entries are non-empty, include the terminal `done`, and `cursor.advanced === true`.
+
+If the test fails because `lastReviewedSeq` advances at delivery, fix the offending cursor writer: keep `markReviewed()` limited to `review-mail` and explicit `/wake` after content formatting. Preserve v3.6.2 epoch fencing and v2 batch expansion; don’t reintroduce double-notify or listener body payloads unless deliberately changing the listener contract.
+

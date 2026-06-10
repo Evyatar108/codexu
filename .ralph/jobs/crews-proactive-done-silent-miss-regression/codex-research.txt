@@ -1,0 +1,42 @@
+**Codebase Architecture**
+The crews plugin lives under [ai-developer-toolkit/plugins/crews](D:/harness-efforts/codexu/ai-developer-toolkit/plugins/crews). It is a CommonJS Node.js plugin with no `package.json`; versioning is pinned in plugin manifests and checked by a custom test runner.
+
+Key structure:
+- [hooks/](D:/harness-efforts/codexu/ai-developer-toolkit/plugins/crews/hooks): engine hooks, mailbox/state primitives, Stop/UserPromptSubmit hooks.
+- [hooks/commands/](D:/harness-efforts/codexu/ai-developer-toolkit/plugins/crews/hooks/commands): slash/CLI command implementations, including `review-mail`.
+- [tools/](D:/harness-efforts/codexu/ai-developer-toolkit/plugins/crews/tools): CLI entrypoint/shims, especially `crews.js`.
+- [lib/](D:/harness-efforts/codexu/ai-developer-toolkit/plugins/crews/lib): pure helpers, listener loop, review summary/collapse helpers.
+- [tests/](D:/harness-efforts/codexu/ai-developer-toolkit/plugins/crews/tests): custom JS test files run by [tests/run.js](D:/harness-efforts/codexu/ai-developer-toolkit/plugins/crews/tests/run.js).
+
+State is file-backed: actor manifests, `mailbox.json`, `mailbox-history.jsonl`, member `outbox.jsonl`, and cursors.
+
+**Feature-Relevant Code**
+The original v3.6.2 fix is commit `fe1a30bf fix(crews): v3.6.2 listener-epoch ownership - proactive-report silent-loss fix`. It added epoch ownership to prevent an orphan listener from draining mail. Key tests:
+- [tests/consume-mailbox-epoch-fence.test.js](D:/harness-efforts/codexu/ai-developer-toolkit/plugins/crews/tests/consume-mailbox-epoch-fence.test.js)
+- [tests/integration/proactive-report-silent-loss-race.test.js](D:/harness-efforts/codexu/ai-developer-toolkit/plugins/crews/tests/integration/proactive-report-silent-loss-race.test.js)
+
+Current core paths:
+- [hooks/mailbox.js](D:/harness-efforts/codexu/ai-developer-toolkit/plugins/crews/hooks/mailbox.js:635): `consumeMailbox()` drains queued mailbox messages into `mailbox-history.jsonl`, stamps `consumedAt`, updates `lastReviewRequiredSeq`, and enforces listener epoch ownership.
+- [lib/listener-loop.js](D:/harness-efforts/codexu/ai-developer-toolkit/plugins/crews/lib/listener-loop.js:444): listener `deliver()` calls `consumeMailbox()` and emits a metadata wake envelope. Current HEAD adds `kinds`/`actionableCount`, but not full terminal content.
+- [hooks/stop.js](D:/harness-efforts/codexu/ai-developer-toolkit/plugins/crews/hooks/stop.js:1323): Stop writes one outbox row per report tag. The proactive terminal notification is built at [hooks/stop.js](D:/harness-efforts/codexu/ai-developer-toolkit/plugins/crews/hooks/stop.js:1481) with `payload.entries`.
+- [hooks/commands/review-mail.js](D:/harness-efforts/codexu/ai-developer-toolkit/plugins/crews/hooks/commands/review-mail.js:154): `expandReviewRows()` expands proactive `payload.entries[]` into display rows. The handler reads history since `lastReviewedSeq`, expands rows, and only then advances the cursor.
+- [hooks/user-prompt-submit.js](D:/harness-efforts/codexu/ai-developer-toolkit/plugins/crews/hooks/user-prompt-submit.js:70): explicit `/wake` consumes mailbox messages, formats unexpanded history rows, then calls `markReviewed()`. This is the suspicious “consume and advance before review-mail” path.
+- [hooks/protocol/review-required.js](D:/harness-efforts/codexu/ai-developer-toolkit/plugins/crews/hooks/protocol/review-required.js:1): default review-required kinds include `done`, `question`, and `blocked`.
+
+I verified current HEAD (`crews` 3.19.0) with a real watch-path reproduction: progress/progress/done produced listener stdout `via:"watch", count:1, kinds:{progress:2,done:1}`, then `review-mail` returned 3 entries and `advanced:true`. So the reported v3.14.1 failure is not reproducible in the current listener + review-mail path.
+
+**Technical Constraints**
+Preserve protocol v2 from `af07987d`: one durable outbox row per kind-bearing report tag, proactive non-reply delivery terminal-gated through `payload.entries`, no `progressTail` resurrection, and no first/last-tag collapse.
+
+Do not break v3.6.2’s epoch guard in `consumeMailbox()` or v3.6.3’s display-only collapse in [lib/collapse-review-rows.js](D:/harness-efforts/codexu/ai-developer-toolkit/plugins/crews/lib/collapse-review-rows.js).
+
+Cursor semantics matter: `consumedAt` means listener drained to history; `lastReviewedSeq` means the actor actually reviewed. Any path that advances `lastReviewedSeq` must surface the same expanded terminal content that `review-mail` would.
+
+Version bumps must use [scripts/bump-version.js](D:/harness-efforts/codexu/ai-developer-toolkit/plugins/crews/scripts/bump-version.js) and update `.claude-plugin`, `.codex-plugin`, `.github/plugin`, and [tests/version.test.js](D:/harness-efforts/codexu/ai-developer-toolkit/plugins/crews/tests/version.test.js).
+
+**Implementation Suggestions**
+Best integration point: export or move `expandReviewRows()` from [review-mail.js](D:/harness-efforts/codexu/ai-developer-toolkit/plugins/crews/hooks/commands/review-mail.js:154) into a shared helper, then use it in both `review-mail` and `/wake`.
+
+Fix `/wake` in [user-prompt-submit.js](D:/harness-efforts/codexu/ai-developer-toolkit/plugins/crews/hooks/user-prompt-submit.js:78) to expand `payload.entries[]` before formatting and before `markReviewed()`. That handles the likely silent-miss path without weakening listener consumption or reintroducing double notify.
+
+Add the requested regression test as an integration test, probably near [tests/integration/proactive-report-silent-loss-race.test.js](D:/harness-efforts/codexu/ai-developer-toolkit/plugins/crews/tests/integration/proactive-report-silent-loss-race.test.js): spawn a real `crews.js arm`, emit progress/progress/done via Stop, assert watch delivery, then assert `review-mail.entries.length > 0` and `cursor.advanced === true`. Add a second `/wake`-specific assertion if fixing that path.

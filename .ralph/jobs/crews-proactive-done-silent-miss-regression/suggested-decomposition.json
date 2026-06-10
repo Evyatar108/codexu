@@ -1,0 +1,27 @@
+{
+  "clusters": [
+    {
+      "name": "crews-proactive-done-silent-miss",
+      "stories": ["US-001", "US-002", "US-003"],
+      "phase": 1,
+      "dependsOn": [],
+      "fileOverlapEvidence": {
+        "sharedFiles": [
+          "ai-developer-toolkit/plugins/crews/hooks/commands/review-mail.js",
+          "ai-developer-toolkit/plugins/crews/hooks/user-prompt-submit.js",
+          "ai-developer-toolkit/plugins/crews/lib/expand-review-rows.js",
+          "ai-developer-toolkit/plugins/crews/tests/integration/proactive-done-silent-miss.test.js",
+          "ai-developer-toolkit/plugins/crews/CHANGELOG.md",
+          "ai-developer-toolkit/plugins/crews/AGENTS.md",
+          "ai-developer-toolkit/plugins/crews/.claude-plugin/plugin.json",
+          "ai-developer-toolkit/plugins/crews/.github/plugin/plugin.json",
+          "ai-developer-toolkit/plugins/crews/.codex-plugin/plugin.json",
+          "ai-developer-toolkit/plugins/crews/tests/version.test.js"
+        ],
+        "exclusiveFiles": [],
+        "risk": "high"
+      },
+      "executionModeRationale": "Serial only. Reproduce-first (US-001) gates the fix (US-002), which gates the version/docs stamp (US-003). All three edit the same crews plugin and share review-mail.js plus the version/CHANGELOG/AGENTS surfaces, so parallel execution would conflict. One impl member, one branch, in story order."
+    }
+  ]
+}
