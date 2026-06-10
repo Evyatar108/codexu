@@ -6159,6 +6159,25 @@
           "plan": "Plan the fix so the ralph-overview ready-list / recommendations never surface bookkeeper-merged (or archived) tasks as actionable. PROBLEM: `overview.parallel_ready_tasks` (MCP) + the watcher recommendations/readyTasks/snapshot compute readiness from the watcher RalphPipelineState.stage axis and do NOT reconcile the OverviewTask.lifecycle axis (the two-file split: .ralph-overview/data.json lifecycle vs .ralph-overview/generated/ralph-state stage). A lifecycle=merged task with a non-terminal/stale stage leaks into the ready list (observed 2026-06-09: ~6 merged tasks shown as 'ready'). FIRST trace where readyTasks/recommendations are computed in the ralph-overview plugin (the sync library + the MCP server `parallel_ready_tasks` handler) and where lifecycle is (or isn't) joined. THEN fix: exclude tasks whose OverviewTask.lifecycle is 'merged' or 'archived' from parallel_ready_tasks AND from the recommendations/snapshot readyTasks. Keep the two-axis split (do NOT collapse them) -- just gate the ready-list on lifecycle. Add regression tests: a merged-lifecycle task with stage=implementing|plan-ready|etc. must NOT appear in parallel_ready_tasks or recommendations; a tracked task with a ready stage still appears. Plugin-side (ai-developer-toolkit/plugins/ralph-overview) only; version bump + marketplace sync as the plugin convention requires; two-commit submodule flow (lead bumps codexu pointer)."
         }
       }
+    },
+    {
+      "id": "crews-listener-silent-reap-across-idle-investigation",
+      "scope": "crews",
+      "lifecycle": "tracked",
+      "status": "active",
+      "lastTouchedAt": "2026-06-09",
+      "kanbanCards": [
+        {
+          "className": "cmd-warn",
+          "html": "Filed 2026-06-09. OPEN (not root-caused): a lead crews listener armed INDEFINITELY (timeoutMs=null) was found `exited` after a long idle/between-turns gap (~22:53Z->00:16Z, ~1h23m, 2026-06-09 session), with the lead then hitting the PLAIN PreToolUse 'arm a listener' block (NOT the review-required nag -- no mail was pending). EVIDENCE: (1) NO crews exit transition logged in the gap (no `listener delivered`, no timeout, no `to=exited`); (2) NO crash/lock/EPERM/errno line in crews.log during the gap; (3) lastListenerEpoch ~148 (many re-arm cycles); (4) heartbeat went stale. WORKING HYPOTHESIS (NOT proven): the runtime reaps the ATTACHED async shell hosting the `arm` process across long idle/suspend; an external kill runs none of crews' clean-exit code (hence no exit transition). Self-healing via the first-action re-arm each turn, BUT a member done landing in the dead window is not delivered real-time (waits for the next re-arm's via=initial scan -- same class as crews-stop-hook-require-lead-listener-unconditionally). OPERATOR CONSTRAINT: keep the listener SESSION-BOUND -- do NOT use detach:true. Full writeup in codexu AGENTS.md ('OPEN QUESTION -- silent listener reap across idle'). GOAL: investigate deeper (confirm/refute the reaping mechanism with instrumentation) and design a session-bound solution that survives idle gaps (candidates: heartbeat-liveness + auto in-turn re-arm, a session-bound supervisor, or accept+narrow the gap)."
+        }
+      ],
+      "command": {
+        "name": "crews-listener-silent-reap-across-idle-investigation",
+        "prompts": {
+          "brainstorm": "Investigate + design a fix for the silently-reaped crews lead listener across long idle/between-turns gaps, keeping the listener SESSION-BOUND (operator constraint: NO detach:true). FIRST root-cause it with instrumentation -- the 2026-06-09 evidence (codexu AGENTS.md 'OPEN QUESTION -- silent listener reap across idle') shows a listener armed indefinitely found `exited` with NO crews exit transition + NO crash/lock line in the gap, heartbeat stale, epoch ~148. Confirm or REFUTE the working hypothesis that the Copilot CLI runtime reaps the attached async shell hosting the `arm` process across idle/suspend (vs. a crews-internal cause: an unlogged throw in the fs.watch loop, a lock-acquire failure path that exits without logging, a heartbeat-writer death, etc.). Add listener instrumentation if needed (log the actual exit cause/signal). THEN design a session-bound solution that survives idle gaps WITHOUT detach: candidates include heartbeat-based liveness detection + reliable first-action re-arm (already partly enforced by PreToolUse), a lightweight session-bound supervisor/watchdog that re-spawns the arm if it dies while the session is alive, or explicitly accepting + narrowing the real-time-delivery gap (and ensuring the next-turn via=initial scan never drops a done). Quantify the actual risk (how often does a member done land in a dead window?). Plugin-side (ai-developer-toolkit/plugins/crews). Cite crews listener source (the arm/listener-loop, heartbeat writer, lock handling) + the Copilot CLI attached-vs-detached async-process docs. Settle whether this needs a brainstorm->plan or can go straight to plan."
+        }
+      }
     }
   ],
   "phaseTree": [

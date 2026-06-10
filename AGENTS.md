@@ -1089,15 +1089,51 @@ the operator — but default to YES rather than defaulting to operator-only.
 
 ### Listener re-arm + plugin update discipline (codified 2026-06-03)
 
-**Listener re-arm**: the background listener PROCESS dies in three legitimate
-patterns: (a) message delivery → exit; (b) idle timeout → exit; (c) crash.
-The Stop hook and PreToolUse hook both gate on `listenerState == 'armed'`,
-but they differ in strictness — Stop hook is lenient (only gates on terminal
-kinds or pending mail) while PreToolUse is strict (any tool call requires
-armed listener). For LEAD sessions specifically, when the listener exits
-via message delivery and the lead writes prose-only turns, PreToolUse will
-catch the next tool call but Stop may silently allow several intervening
-turn-ends (gap fix is filed as `crews-stop-hook-require-lead-listener-unconditionally`).
+**Listener re-arm**: the background listener PROCESS dies in four observed
+patterns: (a) message delivery → exit (clean, logged `listener delivered`);
+(b) idle timeout → exit (only if armed WITH `--timeout-ms`; we arm indefinite,
+so this should not occur); (c) crash (e.g. the Windows lock-file race,
+`UNKNOWN: open manifest.json.lock` errno-4094 — see
+`crews-listener-eperm-rename-crash-recurring`); and (d) **silent reap across a
+long idle / between-turns gap — NOT fully understood (see open question
+below).** The Stop hook and PreToolUse hook both gate on
+`listenerState == 'armed'`, but they differ in strictness — Stop hook is
+lenient (only gates on terminal kinds or pending mail) while PreToolUse is
+strict (any tool call requires armed listener). For LEAD sessions specifically,
+when the listener exits via message delivery and the lead writes prose-only
+turns, PreToolUse will catch the next tool call but Stop may silently allow
+several intervening turn-ends (gap fix is filed as
+`crews-stop-hook-require-lead-listener-unconditionally`).
+
+**OPEN QUESTION — silent listener reap across idle (pattern (d), documented
+2026-06-09, NOT yet root-caused):** A lead listener armed indefinitely
+(`--timeout-ms` omitted, `timeoutMs=null`) was found `exited` after a long
+idle/between-turns gap, with the lead later hitting the plain PreToolUse
+"arm a listener" block (NOT the "review-required" nag, since no mail was
+pending). EVIDENCE gathered (2026-06-09 session, gap ~22:53Z→00:16Z, ~1h23m):
+(1) NO crews exit transition logged for that listener in the gap — no
+`listener delivered`, no timeout, no `to=exited`; (2) NO crash/lock/EPERM/errno
+line in `crews.log` during the gap; (3) `lastListenerEpoch` had reached ~148
+(many spawn/re-arm cycles across the session); (4) the manifest heartbeat had
+gone stale (the listener writes a heartbeat ~every 10s while alive). The
+WORKING HYPOTHESIS (plausible, NOT proven): the runtime reaps the **attached**
+async shell hosting the `arm` process across long idle/suspend periods — the
+Copilot CLI documents that non-`detach` async processes are "attached to the
+session" and killed on session shutdown/suspend; an external kill runs none of
+crews' clean-exit code, which matches the total absence of an exit transition.
+Because crews re-arms as the FIRST action each turn (PreToolUse-enforced), the
+reap is normally self-healing; the ONE real risk is that a member `done`
+landing DURING the dead idle window is not delivered in real time — it waits
+for the next re-arm's `via=initial` scan (same class as
+`crews-stop-hook-require-lead-listener-unconditionally`).
+**OPERATOR CONSTRAINT (2026-06-09):** the listener MUST stay session-bound — do
+NOT "fix" this with `detach: true` (a detached listener that outlives the
+session is explicitly unwanted). A better solution must keep the listener bound
+to the session while surviving idle gaps (candidates to explore in a future
+deeper investigation: heartbeat-based liveness + automatic in-turn re-arm, a
+lightweight session-bound supervisor, or simply accepting+narrowing the gap).
+Tracked for deeper investigation as
+`crews-listener-silent-reap-across-idle-investigation`.
 
 In the meantime, the discipline:
 
