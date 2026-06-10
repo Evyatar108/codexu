@@ -1,0 +1,41 @@
+{
+  "brainstormName": "ralph-orchestration-multi-repo-single-job-support",
+  "overviewTaskId": "ralph-orchestration-multi-repo-single-job-support",
+  "idea": "Add native multi-repo single-job support to the ralph-orchestration plugin so one /implement-with-ralph can drive a plan spanning multiple repos, instead of requiring a manual lead-orchestrated 2-job split (which on 2026-06-09 caused a codex member to hand-roll when prose-constrained to 'Job 1 only').",
+  "availableLenses": ["codex", "copilot", "devils-advocate"],
+  "missingLenses": [],
+  "candidateDirections": [
+    {
+      "id": "D-001",
+      "name": "Repo-aware plan-splitter/scaffolder with lead-owned shipping",
+      "summary": "One multi-repo plan -> N scoped single-repo job seeds (each with its own --target-repo + stories, other repos as read-only additionalDirs) + an explicit ship-order manifest with cross-repo ship checkpoints as LEAD gates; reuses shipped primitives (convert-to-ralph-prd --batch + --target-repo + worktree-create.mjs); does NOT automate cross-repo push/pointer-bump/rollback. Effort M.",
+      "contributingLenses": ["codex", "copilot", "devils-advocate"]
+    },
+    {
+      "id": "D-002",
+      "name": "Full multi-repo single-job orchestration + automated finalization",
+      "summary": "Extend the group machinery for per-job repo, per-repo integration branches, cross-repo ship ordering, automated submodule pointer bumps + multi-remote pushes, and a cross-repo rollback ledger. Effort XL; red_flag — automates the deliberately lead-owned irreversible ship surface and over-promises atomicity git cannot give across N histories. Rejected for now.",
+      "contributingLenses": ["codex", "copilot", "devils-advocate"]
+    },
+    {
+      "id": "D-003",
+      "name": "Harden the manual 2-job split (template + spawn-prompt convention + tiny validator)",
+      "summary": "Canonical per-repo plan template + a $namespaced skill-mention spawn convention + an optional validator that rejects a job seed whose plan writes to >1 repo. Cheapest (effort S); directly kills the 2026-06-09 codex hand-roll but leaves repo-assignment/PRD-authoring/sequencing manual. Effectively the first increment of D-001.",
+      "contributingLenses": ["codex", "copilot", "devils-advocate"]
+    },
+    {
+      "id": "D-004",
+      "name": "Status quo (fully manual lead-orchestrated 2-job split)",
+      "summary": "Keep the manual 2-job split and rely on lead + prose discipline. Rejected: the 2026-06-09 incident shows prose discipline fails on codex members.",
+      "contributingLenses": ["devils-advocate"]
+    }
+  ],
+  "recommendedDirection": "D-001",
+  "questionsForSynthesis": [
+    "Independent .ralph/jobs/<slug> seeds + a standalone ship-order manifest, vs reuse group.json with a new per-job repo field? (Lenses lean independent + manifest to avoid conflating execution dependsOn with cross-repo RELEASE dependencies.)",
+    "Repo selection input shape: explicit CLI --repo name=path map vs an extended suggested-decomposition.json cluster repo field?",
+    "Minimum ship-order-manifest schema that encodes a 'SHA reachable on all remotes' precondition (stronger than dependsOn) without becoming a full saga ledger?",
+    "Given .ralph/jobs anchors at each target repo's root (path-utils.detectRepoRoot), where do generated job dirs live so they are runnable across repos via --job-dir/--target-repo?",
+    "Frequency check: over the last ~20 Ralph tasks, how many truly needed coordinated WRITES across two repos vs one repo + read context — enough to amortize the M-effort scaffolder beyond the S-effort guardrails?"
+  ]
+}
