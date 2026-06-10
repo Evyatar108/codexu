@@ -1,0 +1,110 @@
+<!-- ralph-meta {"overviewTaskId":"codex-anthropic-models-opt-in-gate"} -->
+# Gate the D-001 Anthropic/Claude transport behind an explicit OPT-IN (default OFF)
+
+## Target
+The CODEX FORK (a codex-rs change). Inner source:
+`codex/external/repos/codex-patched/codex-rs/` (branch `sandbox-patches`).
+Overlay crates: `codex/codex-rs-overlay/`. Wrapper: `codex/`.
+This is a two-commit nested-submodule flow at ship (lead-owned). Plan file paths
+under `codex-rs/` and `codex-rs-overlay/`. Honor `codex/CLAUDE.md` fork tenets:
+overlay-first (minimize upstream-canonical conflict surface), egress stays
+`api.githubcopilot.com` only, every upstream-canonical edit gets a
+`// SANDBOX PATCH:` marker + a patch-surface.md §14 invariant + §15 replant note.
+
+## Operator requirement (2026-06-09)
+The merged D-001 Anthropic transport (`codex-anthropic-models-support`, inner
+`40accc502` / wrapper `98743a6c9`) currently makes Claude models available +
+routable BY DEFAULT. The operator wants Anthropic/Claude support to be OPT-IN
+ONLY (a flag and/or env var), OFF by default: "I don't want it enabled by
+default." Default codex behavior MUST be byte-identical to pre-D-001 (no Claude
+anywhere) UNLESS the opt-in is set. This must land BEFORE the anthropic-capable
+release cut (`codex-cut-release-with-anthropic-transport` depends on it).
+
+## What the gate must cover (4 surfaces, BOTH gate states)
+(a) /models filter: admit chat-only Claude rows ONLY when opted in; default drops
+    them (pre-D-001 behavior).
+(b) Routing: the `WireApi::ChatCompletions` route is selectable ONLY when opted in.
+(c) /model picker: Claude models must NOT be listed/selectable in the codex
+    `/model` slash command when OFF; listed when ON.
+(d) SUB-AGENTS: codex spawn_agent children (D-002 native fan-out, BOTH v1
+    `multi_agent_v1.spawn_agent` and v2 `spawn_agent`) must NOT use/select Claude
+    when OFF, whether the model is INHERITED from the parent session OR passed as
+    an EXPLICIT per-spawn model param. Close the per-spawn-override bypass.
+
+GPT-5.x `/responses` must be byte-unchanged in BOTH gate states. Egress stays
+`api.githubcopilot.com` only.
+
+## Pinned current D-001 behavior (source-traced, default-ON today)
+1. /models filter + wire-route tagging:
+   `model-provider/src/copilot_models_endpoint.rs`
+   - `pub(crate) const CHAT_TRANSPORT_AVAILABLE: bool = true;` (line ~62) is the
+     existing "hidden-until-transport" guardrail — now always true.
+   - `is_chat_responses_picker_entry(entry)` -> `is_picker_entry_with_transport(
+     entry, CHAT_TRANSPORT_AVAILABLE)` admits a chat-only row when
+     `has_responses || (chat_transport_available && has_chat)`.
+   - `wire_route_for(entry)` returns `ModelWireRoute::ChatCompletions` for a
+     chat-only row (`has_chat && !has_responses`), else `ProviderDefault`.
+   - `translate_entry` / `synthesize_from_capabilities` tag `info.wire_route`.
+2. Routing: `core/src/client.rs::stream` (line ~1585)
+   `let wire_api = crate::chat_transport::effective_wire_api(model_info.wire_route,
+   provider_wire);` then a `WireApi::ChatCompletions =>` dispatch arm calls
+   `crate::chat_transport::stream_chat_completions(...)`.
+   `core/src/chat_transport.rs::effective_wire_api(route, provider_wire)` maps
+   `ChatCompletions -> WireApi::ChatCompletions`, else provider_wire.
+3. /model picker source: `tui/src/chatwidget/model_popups.rs` reads
+   `self.model_catalog.try_list_models()`; `tui/src/model_catalog.rs` holds
+   `Vec<ModelPreset>` built from the models_manager (the same filtered catalog).
+   So gating the /models filter removes Claude from /model too.
+4. Sub-agent model resolution (BOTH v1 and v2 share the seam):
+   `core/src/tools/handlers/multi_agents/spawn.rs` and `.../multi_agents_v2/spawn.rs`
+   both call `apply_requested_spawn_agent_model_overrides(...)` (non-fork-mode) or
+   `reject_full_fork_spawn_overrides(...)` (full-history fork) in
+   `core/src/tools/handlers/multi_agents_common.rs`.
+   `apply_requested_spawn_agent_model_overrides` -> `find_spawn_agent_model_name(
+   available_models, requested_model)` where `available_models =
+   session.services.models_manager.list_models(RefreshStrategy::Offline)`. An
+   explicit `model: "claude-..."` that is NOT in `available_models` is REJECTED
+   ("Unknown model ... for spawn_agent"). Inherited path: child inherits
+   `config.model`; if a user manually pins Claude in config.toml, the routing
+   gate must still force /responses (fail-closed). In-process children share the
+   parent process env/config (per the v1/v2 smokes).
+
+## Patch-surface context
+`codex/docs/implementation/patch-surface.md` §14 invariants 32-38 document D-001;
+§15 "D-001 chat-completions transport replant (Invariants 32-38)". Invariant 34 is
+the filter guardrail (`CHAT_TRANSPORT_AVAILABLE`), invariant 35 the routing seam.
+The gate transforms inv 34/35 and adds a new invariant for the opt-in default-off.
+
+## Mechanism (settle against codex conventions; finalize in review)
+Operator said "a flag OR an env variable". Prefer an env var + a launcher config
+field over a bespoke CLI flag. Idiomatic fork precedent: the launcher
+`codex-rs-overlay/codex-copilot-launcher/src/config.rs` field `style_user_messages`
+-> propagated to core via the `CODEX_TUI_USER_MESSAGE_STYLE` env var (`on`/`off`),
+and `-c features.X=false` overrides (e.g. `features.remote_control=false`).
+Proposed: env var (e.g. `CODEX_ENABLE_ANTHROPIC`, default off) read once via a
+fork-exclusive overlay helper (OnceLock-cached, in `codex-rs-overlay/codex-copilot/`)
++ a launcher config field `enable_anthropic = false` (default) that sets the env
+var. All gate seams take the resolved bool as a PARAM (so tests stay env-free —
+the filter already has the `chat_transport_available: bool` param shape). In-process
+sub-agents share the parent env, so the gate propagates to children automatically;
+the per-spawn explicit-override bypass is closed by the filter gate.
+
+## Tests required (BOTH states, ALL FOUR surfaces)
+- /models filter: off => chat-only Claude rows dropped (pre-D-001 list); on =>
+  admitted + wire_route=ChatCompletions. GPT /responses row unaffected in both.
+- routing: off => effective_wire_api never returns ChatCompletions (even for a
+  stale cached ChatCompletions hint); on => Claude routes to ChatCompletions.
+  GPT routes to Responses in both.
+- /model picker: off => no Claude rows; on => Claude rows present.
+- sub-agents (v1 AND v2): off => explicit Claude model override rejected /
+  inherited Claude falls back to non-anthropic (zero Claude access); on => allowed.
+Reuse/extend the US-001 spike (`.ralph/jobs/codex-anthropic-models-support/spike/`)
+and the codex-copilot contract tests.
+
+## Constraints
+- CODEX SUBMODULE task; NO version bump here (release cut is a separate task).
+- Overlay-first; minimize upstream-canonical conflict surface.
+- Local gate: `cargo check --workspace` from
+  `codex/external/repos/codex-patched/codex-rs`; run a `cargo metadata --no-deps
+  --format-version 1` workspace-parse preflight first. `cargo build --release` and
+  full `cargo test --workspace` are CI (not local iteration).

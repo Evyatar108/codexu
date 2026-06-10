@@ -1,0 +1,38 @@
+I’ll read the provided prompt file first, then act on the instructions it contains.
+
+The prompt file is larger than the single-read limit, so I’m reading it in chunks.
+
+I’ll verify the plan against the actual source seams so the review findings are grounded in current code, not just the plan text.
+
+I found the expected seams; now I’m checking the surrounding implementations for plan-breaking details like trait boundaries and test feasibility.
+
+I’m checking a few plan-referenced test paths and crate boundaries before writing the review, because those determine whether any findings are real blockers.
+
+The exact glob pattern didn’t match, so I’m narrowing via directory listings/search names to distinguish path typos from actual missing test modules.
+
+One possible mismatch depends on how unknown pinned models are resolved, so I’m checking that helper before assigning severity.
+
+### Feasibility
+
+[High] The env-var opt-in is not actually preserved if the launcher unconditionally writes `CODEX_ENABLE_ANTHROPIC=off` when `enable_anthropic` is unset. `codex-rs-overlay/codex-copilot-launcher/src/main.rs:93-112` currently mirrors `style_user_messages` by always setting an env var from config defaults; applying that pattern literally would override a caller’s ad-hoc `CODEX_ENABLE_ANTHROPIC=on`, contradicting the plan’s “flag OR env variable” mechanism. The plan should define precedence: recommended behavior is “unset config preserves existing env; `enable_anthropic=true/false` overrides.”
+
+### Completeness
+
+[Critical] Acceptance criterion 8 instructs implementers to run `cargo test -p ...` directly. `external/repos/codex-patched/AGENTS.md` says “Do not run `cargo test` directly. Use `just test`,” and also requires `just fix -p <project>` before finalizing a large Rust change. Replace the test commands with `just test -p codex-model-provider`, `just test -p codex-core`, etc., and add scoped `just fix -p ...` coverage for touched crates.
+
+[High] The cache-safe filter is underspecified against the actual `ModelsManager` API. `models-manager/src/manager.rs:82-133` has separate paths for `list_models`, `try_list_models`, `raw_model_catalog`, `get_remote_models`, and `try_get_remote_models`; TUI picker code uses `try_list_models`, not necessarily `list_models`. Also `model-provider/src/copilot.rs:121-126` returns `StaticModelsManager` unchanged when `config_model_catalog` is supplied. Gate 2 must wrap/filter the final `SharedModelsManager` for both OpenAI-backed and static catalogs, and cover all read methods that expose remote models, or stale/config-supplied `ChatCompletions` rows can still appear in `/model` and spawn-agent model validation.
+
+### Ordering
+
+No issues found.
+
+### Simplicity
+
+No issues found.
+
+### Acceptance Criteria Quality
+
+[Medium] AC7’s “GPT-5.x `/responses` path is byte-unchanged” is not precise enough. It should define the observable evidence: e.g. same filter admission result, same `ModelWireRoute::ProviderDefault`, same `effective_wire_api(...)=Responses`, and, if “byte” is literal, identical serialized outbound `/responses` request body in an existing request-construction test.
+
+[Medium] AC6’s inherited-Claude test says the child “does NOT reach the chat transport” but only specifies the expected route fallback. Make the verification concrete: assert no `/chat/completions` request is issued and/or assert the child’s `ModelInfo` with `ChatCompletions` hint resolves through `effective_wire_api(..., anthropic_enabled=false)` to `Responses`.
+

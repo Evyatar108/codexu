@@ -1,0 +1,56 @@
+{
+  "planFile": "D:/harness-efforts/codexu/.ralph/jobs/.staging/20260609T235826Z-plan-anthropic-gate-c3e1a55f/draft-plan.md",
+  "repoDir": "D:/harness-efforts/codexu/codex",
+  "findings": [
+    {
+      "id": "F-001",
+      "severity": "High",
+      "source": "consensus",
+      "category": "Completeness",
+      "section": "Approach / US-003 / AC #4-#5",
+      "description": "Cache-safe filter seam underspecified: OpenAiModelsManager::list_models builds the catalog in upstream models-manager/src/manager.rs:82-133; copilot.rs::models_manager only selects which SharedModelsManager to return. A filter in CopilotModelsEndpoint alone won't affect try_list_models / cached/offline reads, and the StaticModelsManager (config_model_catalog) branch is unfiltered. Must wrap the FINAL SharedModelsManager (both branches) covering list_models, try_list_models, raw_model_catalog, get_remote_models, try_get_remote_models, and get_model_info.",
+      "status": "addressed",
+      "resolution": "Pinned the seam to a fork-local GatedModelsManager decorator in model-provider that wraps the SharedModelsManager returned by copilot.rs::models_manager() in BOTH the OpenAiModelsManager and StaticModelsManager branches, filtering wire_route==ChatCompletions rows from all read methods when off; updated AC #4/#5 + Files + Risk Areas."
+    },
+    {
+      "id": "F-002",
+      "severity": "Medium",
+      "source": "consensus",
+      "category": "Criteria Quality",
+      "section": "Acceptance Criteria #7",
+      "description": "AC #7 'GPT-5.x /responses byte-unchanged' is not directly verifiable as a whole-path byte invariant. Tighten to concrete evidence: same filter admission, wire_route==ProviderDefault, effective_wire_api(ProviderDefault, Responses)==Responses in both states, and identical serialized /responses request body in an existing request-construction test.",
+      "status": "addressed",
+      "resolution": "Reworded AC #7 to concrete semantic-equality assertions (admission + wire_route + effective_wire_api + optional serialized-body equality); dropped the literal 'byte-unchanged' framing."
+    },
+    {
+      "id": "F-003",
+      "severity": "Critical",
+      "source": "copilot",
+      "category": "Completeness",
+      "section": "Acceptance Criteria #8",
+      "description": "AC #8 instructs running 'cargo test -p ...' directly, violating external/repos/codex-patched/AGENTS.md ('Do not run cargo test directly. Use just test') and missing the 'just fix -p <project>' finalize step.",
+      "status": "addressed",
+      "resolution": "Replaced cargo test with 'just test -p <crate>' and added 'just fix -p <crate>' for touched crates; kept 'cargo check --workspace' as the typecheck gate per codex CLAUDE.md."
+    },
+    {
+      "id": "F-004",
+      "severity": "High",
+      "source": "copilot",
+      "category": "Feasibility",
+      "section": "Approach / US-001 / launcher",
+      "description": "If the launcher unconditionally writes CODEX_ENABLE_ANTHROPIC=off when enable_anthropic is unset (literal style_user_messages mirror), it overrides a caller's ad-hoc CODEX_ENABLE_ANTHROPIC=on, contradicting the 'flag OR env var' mechanism. Define precedence.",
+      "status": "addressed",
+      "resolution": "Specified precedence: an explicit launcher enable_anthropic=true/false sets/overrides the env var; when the config field is UNSET the launcher leaves any caller-provided CODEX_ENABLE_ANTHROPIC intact (does not write off). Added AC + launcher modify note + test."
+    },
+    {
+      "id": "F-005",
+      "severity": "Medium",
+      "source": "copilot",
+      "category": "Criteria Quality",
+      "section": "Acceptance Criteria #6",
+      "description": "AC #6 inherited-Claude test says the child 'does NOT reach the chat transport' but only specifies route fallback. Make verification concrete: assert no /chat/completions request is issued and/or the child's ChatCompletions-hint ModelInfo resolves via effective_wire_api(..., anthropic_enabled=false) to Responses.",
+      "status": "addressed",
+      "resolution": "Made AC #6 concrete: assert the child's ChatCompletions-hint ModelInfo resolves through effective_wire_api(..., off) to Responses and that no /chat/completions request is issued (stream dispatch never enters the chat arm)."
+    }
+  ]
+}

@@ -1,0 +1,93 @@
+I’ll read the provided prompt file first, then execute its instructions end-to-end.
+
+I’ve got the research brief. I’ll inspect the current D-001 seams and related launcher/sub-agent paths without modifying the worktree.
+
+I found the main guard and routing seams. I’ll read the call sites/tests and crate wiring next so the recommendation is grounded in actual integration points.
+
+The picker and both spawn-agent versions reuse the filtered model catalog, but routing can still honor stale `wire_route` hints. I’ll inspect tests and dependency boundaries to identify the smallest default-off gate.
+
+One more pass through workspace membership and existing sub-agent specs will clarify whether a shared overlay helper is already usable from both affected crates.
+
+Patch-surface has moved; I’ll locate the D-001 invariant rows directly rather than assume section offsets.
+
+I found the invariant table entries. I’ll read the exact D-001 replant text to include required documentation/testing constraints in the research output.
+
+The routing test referenced in docs has drifted to `core/src/chat_transport.rs`; that’s a documentation detail future implementation should correct if it updates the invariant row.I’ll grab the rest of the replant entry so the output can mention all D-001 files that must be preserved/updated.
+
+A key edge case is stale `models_cache.json`: filtering only live `/models` may not hide previously cached Claude rows. I’ll inspect the model manager cache path before finalizing the recommendation.
+
+The cache path confirms stale chat-routed `ModelInfo` can survive live filtering, so routing must be gated independently from catalog admission. I’ll inspect default model resolution/spawn config inheritance to distinguish “explicit override” from “parent already on Claude.”
+
+Spawn children inherit `config.model` before any override checks, so an inherited stale/explicit Claude parent requires a route-level guard; catalog filtering alone only rejects per-spawn override. I’ll read the inheritance helper to cite it precisely.
+
+The existing tree has unit coverage for filter/routing but not the requested off/on sub-agent cases yet. I’ll check whether the referenced Ralph spike artifacts are present for implementation reuse.
+
+### Codebase Architecture
+
+Rust Cargo workspace under `external\repos\codex-patched\codex-rs\`, with fork-only overlay crates under `codex-rs-overlay\`. Key crates here:
+
+- `model-provider`: Copilot provider and live `/models` endpoint.
+- `models-manager`: model cache/refresh/picker preset construction.
+- `protocol`: shared `ModelInfo` / `ModelWireRoute` types.
+- `core`: request routing, sessions, spawn-agent handlers.
+- `tui`: `/model` picker UI.
+- `codex-rs-overlay\codex-copilot`: fork-only Copilot auth/chat helpers.
+- `codex-rs-overlay\codex-copilot-launcher`: reads `~\.codex-copilot\config.toml` and sets env/`-c` overrides.
+
+Build/test tooling is Cargo + `just`; Bazel lockfiles matter only if dependencies change.
+
+### Feature-Relevant Code
+
+Main D-001 seams:
+
+- `model-provider\src\copilot_models_endpoint.rs`
+  - `CHAT_TRANSPORT_AVAILABLE: bool = true`
+  - `is_picker_entry_with_transport(entry, chat_transport_available)`
+  - `wire_route_for(entry)`
+  - `translate_entry` / `synthesize_from_capabilities`
+- `core\src\chat_transport.rs`
+  - `effective_wire_api(ModelWireRoute, WireApi)` currently routes `ChatCompletions` unconditionally.
+  - Chat POST implementation stays here.
+- `core\src\client.rs:1582-1647`
+  - Calls `effective_wire_api(...)`, dispatches `WireApi::ChatCompletions`.
+- `models-manager\src\manager.rs`
+  - Loads/merges cached remote models and exposes `list_models`, `get_model_info`.
+  - Important: stale `models_cache.json` rows can preserve `wire_route: ChatCompletions`.
+- `/model` picker:
+  - `tui\src\app.rs:782` builds `ModelCatalog` from `available_models`.
+  - `tui\src\model_catalog.rs`
+  - `tui\src\chatwidget\model_popups.rs:20-76`
+- Spawn agents:
+  - v1 `core\src\tools\handlers\multi_agents\spawn.rs:100`
+  - v2 `core\src\tools\handlers\multi_agents_v2\spawn.rs:101`
+  - shared `core\src\tools\handlers\multi_agents_common.rs:339-463`
+  - child inheritance: `build_agent_shared_config` sets `config.model = Some(turn.model_info.slug.clone())`.
+- Launcher precedent:
+  - `codex-rs-overlay\codex-copilot-launcher\src\config.rs`
+  - `codex-rs-overlay\codex-copilot-launcher\src\main.rs:93-112`
+
+Patch docs:
+
+- `docs\implementation\patch-surface.md` invariants 32-38 and D-001 replant section.
+- Existing docs reference a routing test path that has drifted: actual unit test is in `core\src\chat_transport.rs`.
+
+### Technical Constraints
+
+Default-off cannot be implemented only in `copilot_models_endpoint.rs`; cached Claude rows can bypass a live `/models` filter. Routing must also fail closed for stale `ModelWireRoute::ChatCompletions`.
+
+Avoid adding config to `core` unless necessary. Launcher config is separate from `ConfigToml`, so `just write-config-schema` should not be needed if only `~\.codex-copilot\config.toml` changes.
+
+Every upstream-canonical edit needs `// SANDBOX PATCH:`, patch-surface invariant/replant updates, and focused tests. The referenced `.ralph\jobs\codex-anthropic-models-support\spike\` path is not present in this checkout.
+
+### Implementation Suggestions
+
+Add the env/config gate in overlay-first style:
+
+1. Add a small helper in `codex-rs-overlay\codex-copilot\src\`, exported from `lib.rs`, reading e.g. `CODEX_ENABLE_ANTHROPIC` once with `std::sync::OnceLock`. Default false; accept explicit on values.
+2. Add `enable_anthropic: Option<bool>` to launcher `SandboxConfig`; default resolves false. In `configure_launcher_env`, set `CODEX_ENABLE_ANTHROPIC=on/off`, similar to `CODEX_TUI_USER_MESSAGE_STYLE`.
+3. In `model-provider\src\copilot_models_endpoint.rs`, replace production `CHAT_TRANSPORT_AVAILABLE=true` with the resolved gate. Keep `is_picker_entry_with_transport(entry, bool)` for env-free tests. Prefer also making `wire_route_for` gate-aware so off-state translation cannot write chat hints.
+4. Add a cache-safe Copilot model-manager wrapper, likely new file under `model-provider\src\`, called from `copilot.rs::models_manager`. It should filter `ModelInfo` with `wire_route == ChatCompletions` when off for `raw_model_catalog`, `get_remote_models`, and `try_get_remote_models`. This closes stale cache, `/model`, and spawn explicit override bypasses.
+5. In `core\src\chat_transport.rs`, gate `effective_wire_api`: off maps `ModelWireRoute::ChatCompletions` back to provider wire (`Responses` for Copilot); on maps to `WireApi::ChatCompletions`.
+
+Test both states for endpoint filtering, stale-route routing, picker catalog exclusion, and v1/v2 spawn override rejection. Update patch-surface invariants 34/35 and add a new default-off invariant/replant note.
+

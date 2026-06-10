@@ -1,0 +1,25 @@
+{
+  "clusters": [
+    {
+      "name": "anthropic-opt-in-gate",
+      "stories": ["US-001", "US-002", "US-003", "US-004", "US-005", "US-006", "US-007"],
+      "phase": 1,
+      "dependsOn": [],
+      "fileOverlapEvidence": {
+        "sharedFiles": [
+          "model-provider/src/copilot_models_endpoint.rs",
+          "model-provider/src/copilot.rs",
+          "core/src/chat_transport.rs",
+          "core/src/client.rs",
+          "codex-rs-overlay/codex-copilot/src/lib.rs",
+          "core/src/tools/handlers/multi_agents_tests.rs",
+          "tui/src/chatwidget/tests/popups_and_settings.rs",
+          "docs/implementation/patch-surface.md"
+        ],
+        "exclusiveFiles": [],
+        "risk": "high"
+      },
+      "executionModeRationale": "All stories mutate the same small set of interlocking files (copilot_models_endpoint.rs, copilot.rs, chat_transport.rs, client.rs, patch-surface.md) in a strict dependency order; every story depends on the US-001 gate helper. Splitting across parallel members would produce conflicting edits. Run serially as one impl member."
+    }
+  ]
+}
