@@ -1,0 +1,16 @@
+{
+  "clusters": [
+    {
+      "name": "commandonpath-fix",
+      "stories": ["US-001", "US-002", "US-003"],
+      "phase": 1,
+      "dependsOn": [],
+      "fileOverlapEvidence": {
+        "sharedFiles": ["plugins/ralph/.claude-plugin/plugin.json", "plugins/ralph/.github/plugin/plugin.json", "plugins/ralph/.codex-plugin/plugin.json", ".claude-plugin/marketplace.json", ".github/plugin/marketplace.json", ".agents/plugins/marketplace.json", "plugins/ralph/CHANGELOG.md", "plugins/ralph/AGENTS.md"],
+        "exclusiveFiles": ["plugins/ralph/src/ralph.mjs", "plugins/ralph/tests/test-ralph.mjs", "plugins/ralph/tests/test-codex-live-smoke.mjs"],
+        "risk": "low"
+      },
+      "executionModeRationale": "Single small submodule change set with a release tail. All three stories target the same ai-developer-toolkit submodule and US-003 mutates the shared version stamps, so they must run serially in one job to avoid version-file write conflicts and keep the diff reviewable as one coherent 'no bash in the command-on-PATH preflight' ship. Parallelization buys nothing here."
+    }
+  ]
+}
