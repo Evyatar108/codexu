@@ -1,0 +1,52 @@
+I’ll read the provided prompt file first, then carry out the requested task.
+
+I’ll inspect the crews plugin surfaces and tests relevant to the overview schema, without making changes.
+
+I’ve found the current shipped overview implementation; now I’m checking the adjacent expander, tests, and release/version surfaces so the research covers integration and constraints.
+
+I need the existing overview-specific assertions further down in the command test, plus the test runner/version pins, before producing the final analysis.
+
+I’m checking the approved plan artifact itself to confirm the target contract and avoid relying only on the prompt summary.
+
+One last pass on the acceptance criteria lines will let me summarize the implementation-relevant test obligations accurately.
+
+### Codebase Architecture
+
+Target is the JavaScript-only `crews` plugin under `ai-developer-toolkit/plugins/crews/`. It is organized into `hooks/` entrypoints and command handlers, pure helpers in `lib/`, CLI dispatch under `tools/`, and custom Node tests in `tests/`. There is no package-level TypeScript setup; validation is `node --check <changed.js>` plus `node tests/run.js`. Plugin versions are stamped across Claude/Copilot/Codex manifests and marketplace indexes via `scripts/bump-version.js`.
+
+### Feature-Relevant Code
+
+Key files:
+
+| Path | Relevance |
+|---|---|
+| `lib/review-kind-summary.js` | Current simple overview helper. Needs main rewrite to approved schema. |
+| `hooks/commands/review-mail.js` | Expands `payload.entries[]`, applies collapse, formats entries, adds `overview`, serializes output. |
+| `hooks/user-prompt-submit.js` | `/wake` delivery wraps `{ overview, entries }` when overview is enabled. |
+| `lib/listener-loop.js` | Listener `deliver()` emits counts-only `kinds`/`actionableCount`; must stay body-free and fail-open. |
+| `lib/expand-review-rows.js` | Existing pure batch expander; useful reference for listener raw-message expansion. |
+| `tests/review-kind-summary.test.js` | Currently pins old schema; should be rewritten around `computeReviewKindSummary`. |
+| `tests/review-mail-command.test.js`, `tests/wake-explicit-only.test.js`, `tests/listener.test.js` | Surface-level regression tests for review-mail, `/wake`, listener. |
+| `CHANGELOG.md`, `AGENTS.md`, manifests, marketplace indexes | Required release/documentation surfaces. |
+
+### Technical Constraints
+
+The approved richer schema is not compatible with the current `buildReviewKindSummary()` result. Current output is `{ total, actionableCount, kinds, firstActionable, lastActionable, summary }`; target output is `headline`, `totalEntries`, `shownRows`, `senders`, lossless `counts`, full capped `actionable[]`, `needsActionCount`, and `truncatedActionable`.
+
+Important invariants:
+
+- `CREWS_REVIEW_MAIL_OVERVIEW=off` must omit overview on all three surfaces.
+- Listener envelope must never include bodies or summaries; `messages === undefined` is pinned.
+- Listener enrichment should be wrapped in `try/catch`; current code is not fail-open.
+- Counts must use `collapsedCount || 1`, unlike current per-display-row `kinds`.
+- Actionable policy must switch from allowlist to denylist: only progress/thread/member lifecycle notification kinds are non-actionable.
+- Keep old exports as aliases for compatibility: `buildReviewKindSummary`, `flattenEntries`, `reviewOverviewEnabled`.
+
+### Implementation Suggestions
+
+Rewrite `lib/review-kind-summary.js` as the single policy module: export `NON_ACTIONABLE_KINDS`, `NEEDS_ACTION_KINDS`, `OVERVIEW_ACTIONABLE_CAP`, `parseOverviewEnv`, `computeReviewKindSummary`, and `expandMessagesToKindRecords`. Keep `buildReviewKindSummary()` as an alias to `computeReviewKindSummary()` and `reviewOverviewEnabled()` as `parseOverviewEnv().enabled`.
+
+Wire `review-mail.js` and `/wake` to compute from already formatted `entries`, so collapsed fields and formatted summaries match what users see. Wire `listener-loop.js` as raw messages → `expandMessagesToKindRecords()` → `computeReviewKindSummary()`, then set `envelope.kinds = overview.counts` and `envelope.actionableCount`, inside fail-open `try/catch`.
+
+Tests should explicitly add the missing 3+ actionable regression: e.g. `question@10`, `blocked@20`, `done@30` interleaved with progress all appear in `actionable[]`. Also add collapsedCount weighting, cap keeps last actionable, env-off byte-shape, and listener body-free/fail-open assertions.
+

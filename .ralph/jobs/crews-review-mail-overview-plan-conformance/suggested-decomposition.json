@@ -1,0 +1,24 @@
+{
+  "clusters": [
+    {
+      "name": "review-mail-overview-conformance",
+      "stories": ["US-001", "US-002", "US-003", "US-004", "US-005"],
+      "phase": 1,
+      "dependsOn": [],
+      "fileOverlapEvidence": {
+        "sharedFiles": [
+          "lib/review-kind-summary.js",
+          "CHANGELOG.md",
+          "AGENTS.md",
+          ".claude-plugin/plugin.json",
+          ".github/plugin/plugin.json",
+          ".codex-plugin/plugin.json",
+          "tests/version.test.js"
+        ],
+        "exclusiveFiles": [],
+        "risk": "high"
+      },
+      "executionModeRationale": "All stories mutate or depend on the single shared helper module lib/review-kind-summary.js (US-001 defines it; US-002/003/004 consume it) and US-005 stamps shared version/CHANGELOG/AGENTS/marketplace files. Parallel execution would guarantee merge conflicts on the helper and the release files. Run serially in one impl job with US-001 first."
+    }
+  ]
+}

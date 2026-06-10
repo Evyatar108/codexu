@@ -1,0 +1,30 @@
+I’ll read the provided prompt file first, then carry out its instructions.
+
+The prompt is large, so I’ll read it in ranges and extract the actionable task.
+
+I’ll validate the plan against the current crews plugin code and tests, staying read-only.
+
+I found the main integration points and will check the shared expand/collapse helpers and version script for plan-conformance risks.
+
+I’ll do one more targeted check of listener-loop signatures and exports to make sure the plan’s suggested rewiring matches actual call shapes.
+
+I have enough to produce the plan review.### Feasibility
+
+No issues found. The referenced files and helper flow match current `plugins/crews`: `review-mail.js`, `/wake`, and `listener-loop.js` all currently consume `lib/review-kind-summary.js`, and `scripts/bump-version.js` covers the six version-bearing files plus `tests/version.test.js`.
+
+### Completeness
+
+[Medium] The plan says collapsed rows carry `collapsedCount` and `counts` are weighted, but `actionableCount = candidates.length` and `needsActionCount = candidates.filter(...).length` would undercount collapsed actionable rows. If collapse is enabled and three identical `done` rows collapse into one display row, `counts.done === 3` but `actionableCount === 1`. Either document that actionable counts are display-row counts, or weight them consistently.
+
+### Ordering
+
+No issues found. US-001 correctly precedes the three consumer rewires, and the version/docs story is last.
+
+### Simplicity
+
+No issues found. Centralizing policy in `lib/review-kind-summary.js` and keeping listener enrichment counts-only is the natural integration point.
+
+### Acceptance Criteria Quality
+
+[Medium] AC7/AC8 do not specify the collapsed actionable semantics above. “`actionableCount` = true count” conflicts with a collapsed input row carrying `collapsedCount > 1`; an implementer could satisfy tests for non-collapsed batches while shipping inconsistent overview totals under default collapse. Add an explicit collapsed-actionable criterion.
+

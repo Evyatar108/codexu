@@ -1,0 +1,26 @@
+{
+  "planFile": "D:/harness-efforts/codexu/.ralph/jobs/.staging/20260610T043807Z-plan-conformance-cbaec124/draft-plan.md",
+  "repoDir": "D:/harness-efforts/codexu/ai-developer-toolkit/plugins/crews",
+  "findings": [
+    {
+      "id": "F-001",
+      "severity": "Medium",
+      "category": "Completeness",
+      "source": "copilot",
+      "section": "Approach > computeReviewKindSummary algorithm; Acceptance Criteria AC7/AC8",
+      "description": "The plan weighted `counts`/`totalEntries` by collapsedCount but defined `actionableCount = candidates.length` / `needsActionCount = candidates.filter(...).length` without stating whether those are collapsedCount-weighted or display-row counts. With collapse enabled, 3 identical `done` rows collapse to 1 display row: `counts.done === 3` but `actionableCount === 1` — an undocumented inconsistency an implementer could resolve either way.",
+      "status": "resolved",
+      "resolution": "Plan amended: explicitly defined `actionableCount`/`needsActionCount`/`shownRows`/`actionable[].length` as DISPLAY-ROW counts (required for the cap-on-array-length + truncatedActionable logic to be coherent), while `counts`/`totalEntries` stay collapsedCount-weighted ORIGINAL totals; each `actionable[]` row carries `collapsedCount` so per-row multiplicity is recoverable. Added the headline clarification (per-kind from counts, actionable=/needsAction= from display-row counts), a new AC7b, and a dedicated collapsed-actionable test requirement (counts.done===3, actionableCount===1, actionable[0].collapsedCount===3)."
+    },
+    {
+      "id": "F-002",
+      "severity": "High",
+      "category": "Completeness",
+      "source": "claude",
+      "section": "Files to Create/Modify",
+      "description": "Claimed `tests/listener.test.js` is missing from the Files-to-Modify table.",
+      "status": "wont_fix",
+      "resolution": "False positive. The `MODIFY tests/listener.test.js` row IS present in the Files to Create/Modify table (envelope kinds(lossless)+actionableCount; messages===undefined STILL holds; proactive-batch expansion; fail-open; env-off minimal). The reviewer (gpt-5.4-mini) misread the line range it cited. No change needed."
+    }
+  ]
+}
