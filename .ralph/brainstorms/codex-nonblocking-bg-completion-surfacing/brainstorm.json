@@ -1,0 +1,35 @@
+{
+  "brainstormName": "codex-nonblocking-bg-completion-surfacing",
+  "overviewTaskId": "codex-nonblocking-bg-completion-surfacing",
+  "idea": "Give the codex CLI agent Claude-Code-parity non-blocking background-task UX without core-turn-loop surgery: the agent spawns a long-running process, ends its turn (operator keeps interacting), and the process completion surfaces async as a later queued prompt/turn. The fork already has the default-off BackgroundProcessNotification watcher (spawn_exit_watcher) and happy-cli has an Option-B prompt-queue bridge; the gap is enabling + wiring it + keeping the agent off the blocking await that shares a dedup flag with the watcher.",
+  "availableLenses": ["codex", "copilot", "devils-advocate"],
+  "missingLenses": [],
+  "candidateDirections": [
+    {
+      "id": "D-001",
+      "name": "LOW: enable the existing watcher + spawn-then-end-turn policy + race-proof the turn-end wake",
+      "summary": "Turn on Feature::BackgroundProcessNotification, teach the agent to spawn-with-short-yield + end the turn + not call await_background_completion, and add a feature-gated turn-end pending-work re-check (small SANDBOX-PATCH seam in on_task_finished + regression test) to close the active-turn race; happy-cli enables the flag + renders the codex-self-started turn (LOW-A), with an MCP-style unified-exec prompt-queue bridge as the documented fallback (LOW-B).",
+      "contributingLenses": ["codex", "copilot", "devils-advocate"]
+    },
+    {
+      "id": "D-002",
+      "name": "MEDIUM: explicit non-blocking contract (do_not_await / subscribe_background_completion) + nonblocking result retrieval",
+      "summary": "Replace fragile model etiquette with a per-process subscribed-state invariant: a spawn-time do_not_await/notify_on_completion param or a subscribe_background_completion(session_id) tool plus a get_background_result_if_ready retrieval tool; the subscribed bit (separate from the notified flag) guarantees the watcher is never suppressed. Higher tool-schema/rebase surface; only justified if D-001 model discipline proves unreliable.",
+      "contributingLenses": ["codex", "copilot", "devils-advocate"]
+    },
+    {
+      "id": "D-003",
+      "name": "HIGH: core session/turn-loop interleaving (operator messages preempt an active await)",
+      "summary": "Modify the core turn loop so operator messages interleave while a tool await is active. Highest upstream-rebase risk (turn.rs, tasks, input_queue, await handler, protocol + happy-cli multi-turn tracking); unnecessary because spawn->end-turn->async-completion already delivers the requested UX. Not recommended; ruled out by the standing minimize-conflict constraint.",
+      "contributingLenses": ["codex", "copilot"]
+    }
+  ],
+  "recommendedDirection": "D-001",
+  "questionsForSynthesis": [
+    "Authoritative producer for the completion turn: codex input_queue (LOW-A) vs happy-cli MessageQueue2 (LOW-B) — pick ONE for unified-exec exits, never both.",
+    "Should the <task_notification> carry transcript summary to act on, or only wake the model and require a separate nonblocking result-retrieval tool (payload is currently process_id+exit_code only)?",
+    "Model-discipline strength: instruction-only (LOW) vs hard-guard await_background_completion + the write_stdin poll for subscribed sessions (MEDIUM)?",
+    "Ordering when an operator message and a completion land in the same window (notification-first / operator-first / coalesced / separate turn)?",
+    "Two default-off flags + policy is an adoption hazard — ship a happy codex doctor/status probe that explains why async completion will or will not fire."
+  ]
+}
