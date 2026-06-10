@@ -1,0 +1,31 @@
+{
+  "clusters": [
+    {
+      "name": "pidalive-verified-health",
+      "stories": ["US-001", "US-002", "US-003"],
+      "phase": 1,
+      "dependsOn": [],
+      "fileOverlapEvidence": {
+        "sharedFiles": [
+          "ai-developer-toolkit/plugins/crews/hooks/health.js",
+          "ai-developer-toolkit/plugins/crews/hooks/actors.js",
+          "ai-developer-toolkit/plugins/crews/tests/health.test.js",
+          "ai-developer-toolkit/plugins/crews/tests/integration/list-members-health.test.js",
+          "ai-developer-toolkit/plugins/crews/tests/member-crash-notifications.test.js",
+          "ai-developer-toolkit/plugins/crews/CHANGELOG.md",
+          "ai-developer-toolkit/plugins/crews/AGENTS.md",
+          "ai-developer-toolkit/plugins/crews/.claude-plugin/plugin.json",
+          "ai-developer-toolkit/plugins/crews/.github/plugin/plugin.json",
+          "ai-developer-toolkit/plugins/crews/.codex-plugin/plugin.json",
+          ".claude-plugin/marketplace.json",
+          ".github/plugin/marketplace.json",
+          ".agents/plugins/marketplace.json",
+          "ai-developer-toolkit/plugins/crews/tests/version.test.js"
+        ],
+        "exclusiveFiles": [],
+        "risk": "high"
+      },
+      "executionModeRationale": "All three stories touch the single crews plugin with ordered dependencies (tests need the US-001 code; the US-003 version bump needs green tests). Splitting into parallel members would conflict on the shared version stamps and the AGENTS.md/CHANGELOG prepends, so they execute serially as one impl member."
+    }
+  ]
+}

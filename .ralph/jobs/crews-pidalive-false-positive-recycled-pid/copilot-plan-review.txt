@@ -1,0 +1,32 @@
+I’ll open the referenced prompt file and execute its instructions end-to-end.
+
+The prompt is longer than the viewer allows in one read, so I’m reading it in sections.
+
+I’m checking the referenced code paths and existing tests so the review is grounded in the actual repository.
+
+I have enough code context to evaluate the plan against the actual `crews` implementation and tests.
+
+I’m verifying whether exported helper surfaces are snapshotted so the review can catch any plan/test mismatch.
+
+One cross-surface test dependency looks relevant, so I’m checking the crash-sweep call path before finalizing the review.
+
+### Feasibility
+
+[High] The plan’s fail-closed `pidAlive:false` can create false `member-crashed` notifications. `hooks/member-crash-notifications.js:288-292` treats `getMemberHealth(...).state === 'dead'` as a high-confidence crash. But the plan explicitly accepts `describeProcess(...) === null` for a genuinely alive member becoming `pidAlive:false → dead`. That would route a false crash notice, violating the v3.13 crash-sweep invariant. The plan needs either a confidence/reason distinction, or the crash sweep must skip unverifiable/CIM-null cases while still treating ESRCH and verified recycled/foreign launcher PIDs as dead.
+
+### Completeness
+
+[High] The test update scope misses existing no-seam consumers. `tests/integration/list-members-health.test.js:49-62` uses a live `node.exe` PID as an “alive launcher” stand-in, and `tests/member-crash-notifications.test.js:65-74,230-243` stubs PID `111` alive and expects the crash sweep to skip. With launcher verification, those are not verified `pwsh` launchers and will be classified dead/foreign unless updated. The plan lists only `tests/health.test.js`; it should include integration/list-members and member-crash test updates, likely using a real temporary `pwsh -File <spawn-launchers/...>` launcher or an added seam where appropriate.
+
+### Ordering
+
+No issues found.
+
+### Simplicity
+
+No issues found. Reusing `verifyLauncherRecycleSafety` is the right integration point.
+
+### Acceptance Criteria Quality
+
+[Medium] AC3 says “EPERM/unverifiable PID” should yield `pidAlive === false`, but does not specify whether that must also produce `state === dead` for all downstream consumers. Given the crash-notification coupling above, the AC should distinguish “verified not this launcher” from “temporarily unverifiable” or explicitly update crash-sweep expectations.
+

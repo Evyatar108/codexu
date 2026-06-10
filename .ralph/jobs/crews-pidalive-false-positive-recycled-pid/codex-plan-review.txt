@@ -1,0 +1,27 @@
+### Feasibility
+
+[High] The non-Windows path in the plan is internally inconsistent. The pseudocode returns `true` when `isProcessAlive()` returns `true`, but that is still a bare PID check and can report a recycled PID as alive. That contradicts the plan’s “verified to be this member’s launcher” contract and “Non-Windows: documented fail-closed behavior.” Relevant current code: `ai-developer-toolkit/plugins/crews/hooks/health.js:13-22`. The plan should either make non-Windows return `false`/`null` when it cannot verify ownership, or explicitly scope the hard “never false-positive” guarantee to Windows.
+
+[High] `tests/integration/list-members-health.test.js` will fail if left unchanged. It writes `launcher.pid` for `alivemember` to a long-running `node.exe` process and expects `getMemberHealth(...).state === 'alive'` at lines `49-55`. The proposed verifier correctly rejects non-`pwsh.exe`/`powershell.exe` images via `verifyLauncherRecycleSafety()` in `hooks/actors.js:2208-2235`, so this integration test must be updated or removed from the expected alive path.
+
+### Completeness
+
+[High] The plan mentions updating `tests/health.test.js`, but not `tests/integration/list-members-health.test.js`. Since AC10 requires `node tests/run.js` to pass, the integration test must be in scope. A viable update needs a verified PowerShell launcher fixture, or the test should stop asserting that an arbitrary live `node.exe` PID is an alive launcher.
+
+[Medium] The plan under-specifies how existing `health.test.js` cases that currently monkey-patch `process.kill` will be migrated. Several current cases at `tests/health.test.js:70-83`, `133-175` rely on PID `111` being “alive”; after the default path calls `describeProcess(111)`, those cases will fail unless every alive/quiet/shape fixture passes injected `describeProcess` and `isProcessAlive` seams.
+
+[Low] Release-surface wording is slightly inconsistent. `scripts/bump-version.js` updates 3 plugin manifests, 3 marketplace indexes, and `tests/version.test.js` (`scripts/bump-version.js:14-21`, `67-74`). The plan says “7 stamps” in one place and “6 stamps + version test” elsewhere. The latter is correct.
+
+### Ordering
+
+[Low] The suggested handoff includes `--parallel --suggested-decomposition` even though the decomposition is a single serial cluster. That may be harmless, but it is unnecessary and could confuse the implementer. The clearer next step is just `/implement-with-ralph --from-plan <job_dir>/plan.md`.
+
+### Simplicity
+
+No issues found. Reusing `verifyLauncherRecycleSafety()` from `hooks/actors.js:2208-2235` is the right integration point, and exporting `describeProcess()` from `hooks/actors.js:1977-1987` is a small, natural change.
+
+### Acceptance Criteria Quality
+
+[Medium] AC1-AC3 are good for Windows, but they do not resolve the non-Windows ambiguity. Add an explicit AC for `process.platform !== 'win32'`, or state that the recycled-PID guarantee is Windows-only.
+
+[Medium] AC10 says the whole suite must pass, but the plan’s test scope omits the integration test that will break. Add an explicit criterion for `tests/integration/list-members-health.test.js` behavior under verified launcher semantics.

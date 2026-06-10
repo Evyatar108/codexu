@@ -1,0 +1,111 @@
+{
+  "planFile": "draft-plan.md",
+  "repoDir": "D:/harness-efforts/codexu/ai-developer-toolkit/plugins/crews",
+  "reviewers": {
+    "claude": "completed (2 findings)",
+    "codex": "completed (8 findings — landed late after initial empty read)",
+    "copilot": "completed (3 findings — landed late after initial progress-only read)"
+  },
+  "convergenceNote": "All three reviewers were run in parallel (autonomous mode). Codex and Copilot output files initially read empty/progress-only and were re-read on their late completion notifications; both produced substantive High-severity findings that materially refined the plan from a binary fail-closed (pidAlive:false) design to a tri-state (true/false/null) design. Findings applied directly to draft-plan.md + stories-outline.md + suggested-decomposition.json rather than via review-loop.mjs (whose planning-engine relies on the same codex-exec path that showed Windows flakiness this run).",
+  "findings": [
+    {
+      "id": "F-001",
+      "severity": "Medium",
+      "category": "Completeness",
+      "source": "claude",
+      "description": "Non-Windows fail-closed path was a behavior change with no explicit acceptance criterion.",
+      "status": "resolved",
+      "resolution": "Added AC9 (non-Windows tri-state) and flagged the behavior change in Technical Constraints; the converged non-Windows behavior is unverifiable-live -> null (Windows-scoped guarantee)."
+    },
+    {
+      "id": "F-002",
+      "severity": "Low",
+      "category": "Criteria Quality",
+      "source": "claude",
+      "description": "AC1-AC3 under-specified the exact injected-seam inputs/outputs (esp. the EPERM/null split).",
+      "status": "resolved",
+      "resolution": "Rewrote AC1-AC3 with concrete seam inputs (foreign image vs non-matching pwsh cmdline; matching launcher-script basename; describeProcess->null vs foreign-image split)."
+    },
+    {
+      "id": "F-003",
+      "severity": "High",
+      "category": "Feasibility",
+      "source": "codex",
+      "description": "Non-Windows pseudocode returned true on a bare isProcessAlive==true, which can report a recycled PID as alive — contradicting the never-false-positive contract. Either fail-closed on non-Windows or scope the guarantee to Windows.",
+      "status": "resolved",
+      "resolution": "Converged design maps non-Windows unverifiable-live -> null (never a verified alive); guarantee explicitly Windows-scoped. AC9 pins it."
+    },
+    {
+      "id": "F-004",
+      "severity": "High",
+      "category": "Feasibility/Completeness",
+      "source": "codex",
+      "description": "tests/integration/list-members-health.test.js:49-55 writes a real node.exe PID to alivemember's launcher.pid and asserts state==='alive'; the verifier rejects non-pwsh images, so this integration test breaks and was not in the plan's test scope.",
+      "status": "resolved",
+      "resolution": "Added the integration test to Files-to-Modify and AC12: alivemember fixture becomes a genuine verified pwsh launcher (matching launcher.pid.scriptPath)."
+    },
+    {
+      "id": "F-005",
+      "severity": "Medium",
+      "category": "Completeness",
+      "source": "codex",
+      "description": "Existing health.test.js alive/quiet/shape fixtures (lines 70-83, 133-175) rely on PID 111 being alive via process.kill stub; the new default path calls real describeProcess(111) and they will fail unless migrated to inject seams.",
+      "status": "resolved",
+      "resolution": "Added AC11 requiring migration of those fixtures to inject a matching describeProcess seam."
+    },
+    {
+      "id": "F-006",
+      "severity": "Low",
+      "category": "Consistency",
+      "source": "codex",
+      "description": "Release-surface stamp count inconsistent ('7 stamps' vs '6 stamps + version test').",
+      "status": "resolved",
+      "resolution": "Standardized to '6 version-bearing files + tests/version.test.js' in plan, stories, and research-brief."
+    },
+    {
+      "id": "F-007",
+      "severity": "Low",
+      "category": "Ordering",
+      "source": "codex",
+      "description": "Parallel handoff line is unnecessary for a single serial cluster.",
+      "status": "resolved",
+      "resolution": "Next Step uses the serial handoff; Suggested Decomposition keeps the parallel line (skill-required) but notes serial is the recommended path."
+    },
+    {
+      "id": "F-008",
+      "severity": "Medium",
+      "category": "Criteria Quality",
+      "source": "codex",
+      "description": "AC10 (whole-suite green) omitted the integration test that would break.",
+      "status": "resolved",
+      "resolution": "Added explicit AC12 (integration) + AC13 (crash-sweep audit); AC14 keeps the whole-suite gate."
+    },
+    {
+      "id": "F-009",
+      "severity": "High",
+      "category": "Feasibility",
+      "source": "copilot",
+      "description": "Fail-closing an unverifiable (describeProcess===null) PID to pidAlive:false -> state dead would route FALSE member-crashed notifications (v3.13 crash sweep, member-crash-notifications.js:292 fires on state==='dead'), violating the crash-sweep invariant for a transiently-unverifiable but genuinely-alive member.",
+      "status": "resolved",
+      "resolution": "Core design change: unverifiable (CIM-null / non-Windows) -> null (NOT false). deriveHealthState then yields unknown for fresh-heartbeat members, which the crash sweep skips. Only definitive disconfirmation (ESRCH / verified-foreign) -> false -> dead. Added AC3/AC4/AC5 to pin no-false-crash + sweep-eligible-when-verified-foreign."
+    },
+    {
+      "id": "F-010",
+      "severity": "High",
+      "category": "Completeness",
+      "source": "copilot",
+      "description": "Test scope missed tests/member-crash-notifications.test.js PID-stubbed-alive fixtures that expect the sweep to skip; under verification they become non-pwsh -> dead/foreign unless updated.",
+      "status": "resolved",
+      "resolution": "Added the crash-notifications test to Files-to-Modify and AC13 (audit + update)."
+    },
+    {
+      "id": "F-011",
+      "severity": "Medium",
+      "category": "Criteria Quality",
+      "source": "copilot",
+      "description": "AC3 didn't distinguish 'verified not this launcher' (definitive dead) from 'temporarily unverifiable' (CIM-null), given the crash-notification coupling.",
+      "status": "resolved",
+      "resolution": "Split into AC3 (CIM-null -> null/unknown) and AC5 (verified-foreign -> false/dead, sweep-eligible); the tri-state design encodes the distinction."
+    }
+  ]
+}
