@@ -1,0 +1,2 @@
+- 2026-06-06T19:21:07.444Z  stage: null → brainstorm-ready  (job: overview-data-context-scalability)
+- 2026-06-10T02:51:25.150Z  stage: plan-ready → brainstorming  (job: overview-data-context-scalability-toolkit)

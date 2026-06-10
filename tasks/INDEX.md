@@ -2,8 +2,8 @@
 
 # Ralph Tasks Index
 
-Generated: 2026-06-10T18:08:13.352Z
-Source commit: e2017d42
+Generated: 2026-06-10T21:38:19.728Z
+Source commit: 55816a29
 
 ## codex-test-binaries-compile-debt-baseline
 - Stage: untracked
@@ -1187,6 +1187,18 @@ Source commit: e2017d42
 - Last activity: 2026-06-09 task touch
 - Dashboard: [codex-anthropic-transport-bazel-lock-regen](../.ralph-overview/generated/overview.html#cmd-codex-anthropic-transport-bazel-lock-regen)
 
+## codex-anthropic-transport-no-text-output
+- Stage: planning
+- jobDir: `.ralph/jobs/codex-anthropic-transport-no-text-output`
+- Last activity: 2026-06-10 task touch
+- Dashboard: [codex-anthropic-transport-no-text-output](../.ralph-overview/generated/overview.html#cmd-codex-anthropic-transport-no-text-output)
+
+## codex-anthropic-enable-flag
+- Stage: planning
+- jobDir: `.ralph/jobs/codex-anthropic-enable-flag`
+- Last activity: 2026-06-10 task touch
+- Dashboard: [codex-anthropic-enable-flag](../.ralph-overview/generated/overview.html#cmd-codex-anthropic-enable-flag)
+
 ## codex-anthropic-transport-us008-e2e-test
 - Stage: untracked
 - jobDir: n/a
@@ -1272,9 +1284,9 @@ Source commit: e2017d42
 - Dashboard: [crews-codex-progress-bg-gate-stall-detection](../.ralph-overview/generated/overview.html#cmd-crews-codex-progress-bg-gate-stall-detection)
 
 ## crews-hook-timeout-under-lock-contention
-- Stage: implementing
+- Stage: shipped
 - jobDir: `.ralph/jobs/crews-hook-timeout-under-lock-contention`
-- Last activity: 2026-06-10T17:59:13Z Ralph update
+- Last activity: 2026-06-10T21:29:03Z Ralph update
 - Dashboard: [crews-hook-timeout-under-lock-contention](../.ralph-overview/generated/overview.html#cmd-crews-hook-timeout-under-lock-contention)
 
 ## crews-pidalive-false-positive-recycled-pid

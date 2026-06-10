@@ -1,0 +1,3 @@
+- 2026-06-09T13:55:20.478Z  stage: review-fix → reviewing  (job: agent-comms-scope-a-live-cross-machine-wiring)
+- 2026-06-09T14:32:48.808Z  stage: review-fix → reviewing  (job: agent-comms-scope-a-live-cross-machine-wiring)
+- 2026-06-09T15:24:53.935Z  stage: reviewing → shipped  (job: agent-comms-scope-a-live-cross-machine-wiring)

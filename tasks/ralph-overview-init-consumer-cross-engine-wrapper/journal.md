@@ -1,0 +1,1 @@
+- 2026-06-06T19:40:29.266Z  stage: null → brainstorm-ready  (job: ralph-overview-init-consumer-cross-engine-wrapper)

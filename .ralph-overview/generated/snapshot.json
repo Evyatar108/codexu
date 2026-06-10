@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-06-10T18:08:13.352Z",
-  "generatedFromCommit": "e2017d42",
+  "generatedAt": "2026-06-10T21:38:19.728Z",
+  "generatedFromCommit": "55816a29",
   "schemaVersion": 1,
   "tasks": [
     {
@@ -1525,7 +1525,7 @@
         },
         "terminalReason": "complete",
         "lastUpdatedAt": "2026-05-13T16:02:32Z",
-        "mergeCommit": "e2017d42",
+        "mergeCommit": "55816a29",
         "storyDoctorInterventions": 0
       }
     },
@@ -5920,7 +5920,7 @@
         },
         "terminalReason": "complete",
         "lastUpdatedAt": "2026-05-13T20:26:04Z",
-        "mergeCommit": "e2017d42",
+        "mergeCommit": "55816a29",
         "storyDoctorInterventions": 0
       }
     },
@@ -6640,7 +6640,7 @@
         "reviewOpenCount": {},
         "terminalReason": "complete",
         "lastUpdatedAt": "2026-05-25T12:01:32Z",
-        "mergeCommit": "e2017d42",
+        "mergeCommit": "55816a29",
         "storyDoctorInterventions": 0
       }
     },
@@ -8987,6 +8987,68 @@
       "initialStage": "planning"
     },
     {
+      "id": "codex-anthropic-transport-no-text-output",
+      "scope": "codex",
+      "lifecycle": "tracked",
+      "status": "active",
+      "lastTouchedAt": "2026-06-10",
+      "kanbanCards": [
+        {
+          "className": "cmd-warn",
+          "html": "BUG (operator-found 2026-06-10, release 0.135.0-copilot-api.2). With the Anthropic gate enabled and model set to <code>claude-opus-4.8</code>: model-selection works (\"Model changed to claude-opus-4.8\") and TOOL CALLS work (ran <code>date</code> successfully), but plain assistant TEXT output renders BLANK (\"hi\"/\"hello?\" produce no visible reply). The Anthropic streaming text path (<code>content_block_delta</code>/<code>text_delta</code> in the Messages-API SSE shape) is not being mapped into codex output events — only tool_use blocks come through. Entry points: <code>codex-rs/core/src/chat_transport.rs</code> (gated wire-api routing, anthropic route != ChatCompletions), <code>codex-rs/model-provider/src/copilot.rs</code> + <code>copilot/gated_models_manager.rs</code>, and the streaming-response parser for the Anthropic wire format. Could be codex-side parsing OR the copilot-api server’s anthropic endpoint SSE shape (reference: ericc-ch/copilot-api). BLOCKS the headline feature of the anthropic-transport release; GitHub Release + codexu pointer bump are ON HOLD until fixed. CODEX SUBMODULE task. Interactive TUI re-test requires the operator’s live copilot-api endpoint + an Anthropic model."
+        }
+      ],
+      "command": {
+        "name": "codex-anthropic-transport-no-text-output",
+        "prompts": {
+          "impl": "INVESTIGATE then FIX the Anthropic-transport no-text-output bug. Repro: enable the anthropic gate, set model to claude-opus-4.8, send a plain-text message — assistant text renders blank while tool calls (e.g. running `date`) work. (1) Capture evidence of where text is dropped: run codex with RUST_LOG/debug or curl the copilot-api anthropic Messages endpoint directly to see the raw SSE; determine whether the copilot-api server emits text content_block_delta/text_delta events and whether codex parses+forwards them. Compare against ericc-ch/copilot-api reference SSE shape. (2) Root-cause: most likely the Anthropic wire-route response parser in codex-rs/core/src/chat_transport.rs (and the copilot model-provider) handles tool_use content blocks but drops/ignores text content blocks, so assistant text never reaches the output/render path. (3) Fix minimally: map Anthropic text deltas into codex assistant-message output events for the non-ChatCompletions anthropic route. Add a deterministic parser/unit test for a text-bearing Anthropic SSE turn. (4) Build the codex binaries (cargo build of the affected crates is enough for a dev binary; full release build optional) and report the binary path + topic-branch commit SHA so the LEAD/operator can interactively re-test (text now renders). WORKTREE: codex inner submodule (codex/external/repos/codex-patched) on branch ralph/codex-anthropic-transport-no-text-output. Do NOT git push and do NOT gh auth switch — the LEAD owns all pushes + auth. codexu root CLAUDE.md is gitignored — do not git add it. Report kind=done with: root-cause (file:line), the fix, test added, build result, binary path, and commit SHA."
+        }
+      },
+      "initialStage": "plan-ready",
+      "ralph": {
+        "stage": "planning",
+        "deferredQuestionsCount": 0,
+        "artifacts": {
+          "jobDir": ".ralph/jobs/codex-anthropic-transport-no-text-output"
+        },
+        "jobSlug": "codex-anthropic-transport-no-text-output",
+        "matchSource": "slug-default",
+        "reviewOpenCount": {},
+        "storyDoctorInterventions": 0
+      }
+    },
+    {
+      "id": "codex-anthropic-enable-flag",
+      "scope": "codex",
+      "lifecycle": "tracked",
+      "status": "active",
+      "lastTouchedAt": "2026-06-10",
+      "kanbanCards": [
+        {
+          "className": "cmd-warn",
+          "html": "UX (operator-requested 2026-06-10). Today the Anthropic-models gate is enabled ONLY via an environment variable (read by <code>codex_copilot::anthropic_models_enabled()</code>), which is awkward for users. Add friendlier toggles: a dedicated clap CLI flag <code>--enable-anthropic</code> AND a <code>features.anthropic_models</code> config key (same <code>features.*</code> family as <code>features.multi_agent_v2</code>, settable in <code>~/.codex/config.toml</code> or via <code>-c features.anthropic_models=true</code>). Keep the existing env var working as a back-compat fallback. Decision (operator 2026-06-10): BOTH flag + config key; env var fallback retained. CODEX SUBMODULE task."
+        }
+      ],
+      "command": {
+        "name": "codex-anthropic-enable-flag",
+        "prompts": {
+          "impl": "Add user-friendly toggles for the Anthropic-models gate. Decision (operator): BOTH a clap CLI flag `--enable-anthropic` AND a `features.anthropic_models` config key, with the existing env var kept as a back-compat fallback. (1) Find the current gate read `codex_copilot::anthropic_models_enabled()` and confirm exactly what it reads (env var name). (2) Refactor the gate so it resolves from MULTIPLE sources with clear precedence: CLI flag `--enable-anthropic` (highest) > `features.anthropic_models` config key > existing env var (back-compat) > default false. (3) Add the clap flag `--enable-anthropic` (global/boolean) to the codex CLI and thread it into the resolved gate; add the `features.anthropic_models` config key to the config schema (default false), matching the existing `features.*` pattern (e.g. how `features.multi_agent_v2` is declared/plumbed). (4) Update `--help` text and any config docs. (5) Add tests for the precedence (flag overrides config overrides env overrides default; default OFF). (6) Build per-crate debug (NOT the full release LTO) + run `cargo test` for the touched crates; report results. WORKTREE: codex inner submodule on branch ralph/codex-anthropic-enable-flag. Do NOT git push and do NOT gh auth switch (LEAD owns pushes+auth). codexu root CLAUDE.md is gitignored. Report kind=done with: the gate-resolution refactor (file:line), the flag + config-key wiring, tests added, build/test results, and commit SHA."
+        }
+      },
+      "initialStage": "plan-ready",
+      "ralph": {
+        "stage": "planning",
+        "deferredQuestionsCount": 0,
+        "artifacts": {
+          "jobDir": ".ralph/jobs/codex-anthropic-enable-flag"
+        },
+        "jobSlug": "codex-anthropic-enable-flag",
+        "matchSource": "slug-default",
+        "reviewOpenCount": {},
+        "storyDoctorInterventions": 0
+      }
+    },
+    {
       "id": "codex-anthropic-transport-us008-e2e-test",
       "scope": "codex",
       "lifecycle": "tracked",
@@ -9541,7 +9603,7 @@
     {
       "id": "crews-hook-timeout-under-lock-contention",
       "scope": "crews",
-      "lifecycle": "tracked",
+      "lifecycle": "merged",
       "status": "active",
       "lastTouchedAt": "2026-06-10",
       "kanbanCards": [
@@ -9568,9 +9630,30 @@
           "impl": "/implement-with-ralph --from-plan .ralph/jobs/crews-hook-timeout-under-lock-contention/plan.md --autonomous \"Implement the hook-timeout cascade fix per the committed plan (CENTER the real fix, not the timeout band-aid): (a) DEAD-HOLDER LOCK-STEAL in hooks/locks.js -- record holder PID in the lock file; in acquireLock, when the lock exists, steal immediately if isProcessAlive(holderPid)===false instead of waiting LOCK_STALE_MS(30s); (b) DON'T run the ~6.5s atomic-write retry (safe-io.js writeJsonAtomicWithRetry) while holding the manifest lock; (c) SEPARATE the heartbeat write from the hook manifest write (lock-free heartbeat stamp); (d) REDUCE per-hook I/O (coalesce/throttle manifest writes, avoid full events.jsonl reads). PRESERVE AV-resilience on the heartbeat path. MUST RESOLVE the 2 Phase-4 Highs: (1) L3c -- deriveListenerState(manifest) (actor-state.js:59-95) takes only the manifest object; add an explicit path/cwd input OR a separate heartbeat-reader helper + update callers so the <actorDir>/heartbeat stamp is readable/testable; (2) file-op-count AC -- define WHERE the injectable fs-op counter is wired (locks.js/safe-io.js/actors.js/mailbox.js) + exactly which ops count, so the reduction is deterministically testable. Include L1/L2 mitigations (document Defender exclusion; bump codex/claude .codex-plugin/hooks/hooks.json + .github/plugin/hooks.json timeout to 30s). Tests: cascade-repro (dead-holder orphan lock -> immediate steal, not 30s); no-retry-under-lock; heartbeat-not-starved; file-op-count bound. Plugin-side; version bump + marketplace sync + CHANGELOG + AGENTS.md; two-commit submodule flow. Consider BUNDLING with crews-listener-silent-reap-across-idle-investigation (same root). SERIALIZE with other crews impls.\""
         }
       },
+      "shipManifest": {
+        "shippedAt": "2026-06-10",
+        "summary": "Shipped as crews v3.21.0 (toolkit main 853581e0; codexu pointer 76356095). Fixes the self-sustaining hook-timeout orphan-lock cascade: a hook killed by the self-imposed 5s timeout used to leave a 30s non-stealable manifest lock (LOCK_STALE_MS=30000) while waiters had only a 2s budget, so heartbeats, hooks, and the listener all serialized behind the dead lock and the cascade fed itself. The fix layers: L3a dead-holder lock-steal (steal immediately when isProcessAlive(holder)===false rather than waiting for mtime-age), L3b no-retry-under-lock (advisory single-attempt write budget), L3c a lock-free heartbeat stamp (getListenerState wrapper added; deriveListenerState(manifest) stays pure), L3d protocol-state fail-loud, plus L2 timeout raised to 30s and L1 the operator Defender exclusion on .crews. Both Phase-4 Highs resolved (getListenerState API surface; real file-op-count fixture asserting total<=7 with bounded readEventsTail). Full suite 290/290; Phase 5a (3-way code review) + Phase 5b (docs) both clean.",
+        "commits": [
+          {
+            "sha": "cea1541e",
+            "oneLine": "crews v3.21.0 hook-timeout cascade fix (10-commit topic branch, L3a-d + L2/L1)",
+            "repo": "ai-developer-toolkit"
+          },
+          {
+            "sha": "853581e0",
+            "oneLine": "merge gim-home/main (teams 1.4.1 + m365-grounding 0.2.0) into crews 3.21.0 line",
+            "repo": "ai-developer-toolkit"
+          },
+          {
+            "sha": "76356095",
+            "oneLine": "chore(crews): bump pointer to crews v3.21.0 + AGENTS.md table",
+            "repo": "codexu"
+          }
+        ]
+      },
       "initialStage": "planning",
       "ralph": {
-        "stage": "implementing",
+        "stage": "shipped",
         "branchName": "ralph/crews-hook-timeout-under-lock-contention",
         "deferredQuestionsCount": 0,
         "artifacts": {
@@ -9581,12 +9664,16 @@
         "matchSource": "overviewTaskId",
         "storyCompletion": {
           "total": 6,
-          "passed": 1,
+          "passed": 6,
           "blocked": 0,
-          "remaining": 5
+          "remaining": 0
         },
-        "reviewOpenCount": {},
-        "lastUpdatedAt": "2026-06-10T17:59:13Z",
+        "reviewOpenCount": {
+          "code": 0,
+          "docs": 0
+        },
+        "terminalReason": "complete",
+        "lastUpdatedAt": "2026-06-10T21:29:03Z",
         "storyDoctorInterventions": 0
       }
     },
@@ -9989,22 +10076,12 @@
     },
     {
       "taskId": "codex-ralph-member-multi-agent-adapter",
-      "score": 0.7608273457977208,
+      "score": 0.7585825811965812,
       "stage": "implementing",
       "reasons": [
         "unblocked",
         "implementing stage",
         "not touched in 3 days"
-      ]
-    },
-    {
-      "taskId": "crews-hook-timeout-under-lock-contention",
-      "score": 0.64,
-      "stage": "implementing",
-      "reasons": [
-        "implementing stage",
-        "updated today",
-        "partially blocked"
       ]
     },
     {
@@ -10068,6 +10145,16 @@
       ]
     },
     {
+      "taskId": "codex-anthropic-enable-flag",
+      "score": 0.61,
+      "stage": "planning",
+      "reasons": [
+        "unblocked",
+        "planning stage",
+        "missing update timestamp"
+      ]
+    },
+    {
       "taskId": "codex-anthropic-models-opt-in-gate",
       "score": 0.61,
       "stage": "planning",
@@ -10079,6 +10166,16 @@
     },
     {
       "taskId": "codex-anthropic-models-support",
+      "score": 0.61,
+      "stage": "planning",
+      "reasons": [
+        "unblocked",
+        "planning stage",
+        "missing update timestamp"
+      ]
+    },
+    {
+      "taskId": "codex-anthropic-transport-no-text-output",
       "score": 0.61,
       "stage": "planning",
       "reasons": [
@@ -10159,16 +10256,6 @@
     },
     {
       "taskId": "codex-mcp-server-notifications-patch-surface-docs",
-      "score": 0.61,
-      "stage": "planning",
-      "reasons": [
-        "unblocked",
-        "planning stage",
-        "missing update timestamp"
-      ]
-    },
-    {
-      "taskId": "codex-member-skill-agent-subagent-fanout",
       "score": 0.61,
       "stage": "planning",
       "reasons": [
@@ -10481,6 +10568,12 @@
         "taskId": "channels-research"
       },
       {
+        "id": "codex-anthropic-enable-flag",
+        "type": "task",
+        "taskId": "codex-anthropic-enable-flag",
+        "stage": "planning"
+      },
+      {
         "id": "codex-anthropic-models-opt-in-gate",
         "type": "task",
         "taskId": "codex-anthropic-models-opt-in-gate",
@@ -10496,6 +10589,12 @@
         "id": "codex-anthropic-transport-bazel-lock-regen",
         "type": "task",
         "taskId": "codex-anthropic-transport-bazel-lock-regen"
+      },
+      {
+        "id": "codex-anthropic-transport-no-text-output",
+        "type": "task",
+        "taskId": "codex-anthropic-transport-no-text-output",
+        "stage": "planning"
       },
       {
         "id": "codex-anthropic-transport-us008-e2e-test",
@@ -11224,7 +11323,7 @@
         "id": "crews-hook-timeout-under-lock-contention",
         "type": "task",
         "taskId": "crews-hook-timeout-under-lock-contention",
-        "stage": "implementing"
+        "stage": "shipped"
       },
       {
         "id": "crews-hook-timeout-under-lock-contention:US-001",

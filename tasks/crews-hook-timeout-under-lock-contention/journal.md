@@ -1,0 +1,2 @@
+- 2026-06-10T17:36:11.461Z  stage: planning → plan-ready  (job: crews-hook-timeout-under-lock-contention)
+- 2026-06-10T21:38:19.728Z  stage: implementing → shipped  (job: crews-hook-timeout-under-lock-contention)

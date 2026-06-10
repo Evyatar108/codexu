@@ -1,0 +1,2 @@
+- 2026-06-09T22:25:08.440Z  stage: planning → plan-ready  (job: crews-review-mail-overview-summary-header)
+- 2026-06-09T22:51:30.703Z  stage: plan-ready → shipped  (job: crews-review-mail-overview-summary-header)

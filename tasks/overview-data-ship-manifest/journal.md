@@ -1,0 +1,3 @@
+- 2026-05-30T18:33:16.074Z  stage: null → planning  (job: overview-data-ship-manifest)
+- 2026-05-30T19:43:28.080Z  stage: null → planning  (job: overview-data-ship-manifest)
+- 2026-06-03T04:54:26.579Z  stage: planning → shipped  (job: overview-data-ship-manifest)
