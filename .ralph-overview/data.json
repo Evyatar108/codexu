@@ -6264,7 +6264,7 @@
     {
       "id": "ralph-commandonpath-bash-windows-iteration-engine-downgrade",
       "scope": "ralph",
-      "lifecycle": "tracked",
+      "lifecycle": "merged",
       "status": "active",
       "lastTouchedAt": "2026-06-10",
       "kanbanCards": [
@@ -6283,6 +6283,22 @@
           "plan": "Plan replacing ralph's bash-based command-on-path check with a Node-native cross-platform implementation. ROOT CAUSE: plugins/ralph/src/ralph.mjs:1183-1189 `commandOnPath(command, {env, cwd})` runs `spawnSync('bash', ['-lc', `command -v ${shellQuote(command)}`])`. On Windows this fails to detect codex (installed as codex.ps1): bash may be WSL bash (wrong PATH) and bash's `command -v` doesn't resolve .ps1 shims. Result: the iteration-engine preflight rejects an installed codex and silently downgrades codex->copilot for the inner ralph loop on every Windows run. FIX: implement a Node-native, dependency-free, cross-platform command resolver -- on Windows honor PATHEXT (.ps1/.cmd/.exe/.bat) and the npm shim layout (codex.ps1 / codex.cmd / codex at ~/.../npm), on POSIX keep `command -v` semantics or a PATH-dir scan with execute-bit check. Prefer reusing/auditing any existing path-utils.mjs helper before adding a new one. Tests: a Windows-shaped case (codex resolvable via codex.ps1/codex.cmd) AND a POSIX-shaped case, plus a not-found case; assert NO spawn of `bash` occurs (the regression guard). Audit for any OTHER bash/command-v shell-outs in src/*.mjs (grep showed only this one, but confirm). Coordinate with ralph-codex-live-smoke-windows-shim-spawn (the test-path sibling: spawnSync('codex') without shell:true) -- decide whether to bundle both Windows-shim fixes in one ship. SCOPE: the RUNTIME path only -- remove bash from ralph's production code path (commandOnPath is the concrete + only runtime bash site per grep). The 23 bash TEST files (which still need Git Bash/WSL on Windows) are a SEPARATE, larger porting effort and are explicitly OUT OF SCOPE here -- do NOT port them in this task. Plugin-side (ai-developer-toolkit/plugins/ralph); version bump + marketplace sync; this fix REMOVES the last bash dependency from the runtime path. Two-commit submodule flow.",
           "impl": "/implement-with-ralph --from-plan .ralph/jobs/ralph-commandonpath-bash-windows-iteration-engine-downgrade/plan.md --autonomous \"Implement the Node-native cross-platform commandOnPath per the committed plan: replace the spawnSync('bash', ['-lc', 'command -v <cmd>']) in ai-developer-toolkit/plugins/ralph/src/ralph.mjs:1183-1189 with a dependency-free Node resolver (Windows PATHEXT/.ps1/.cmd npm-shim aware; POSIX PATH-dir scan + execute-bit); a regression guard asserting NO bash process is spawned by the resolver. RUNTIME path only -- do NOT port the 23 bash test files. Plugin-side; version bump + marketplace sync + CHANGELOG + AGENTS.md; two-commit submodule flow.\""
         }
+      },
+      "shipManifest": {
+        "shippedAt": "2026-06-10",
+        "summary": "Shipped as ralph 5.57.0. Replaced ralph's bash-based commandOnPath preflight (spawnSync('bash',['-lc','command -v ...'])) with a Node-native, dependency-free, cross-platform resolver: Windows honors PATHEXT (.ps1/.cmd/.exe/.bat) + the npm shim layout so a codex.ps1-only install counts; POSIX preserves command -v semantics without spawning any process. This fixes the silent codex->copilot iteration-engine downgrade on Windows (bash's command -v couldn't resolve codex.ps1). 51/51 resolver tests, no bash spawned (regression-guarded), Phase 5a/5b clean. Merged to ai-developer-toolkit submodule main (aa3a9fe1), pushed origin/gim-home/personal; codexu pointer e82b1342; copilot plugin update ralph-orchestration -> 5.57.0 applied.",
+        "commits": [
+          {
+            "sha": "a9a38b70",
+            "oneLine": "feat(ralph): Node-native cross-platform command-on-PATH preflight (no bash)",
+            "repo": "ai-developer-toolkit"
+          },
+          {
+            "sha": "e82b1342",
+            "oneLine": "chore(submodule): bump ai-developer-toolkit pointer (ralph 5.57.0 + crews 3.20.0)",
+            "repo": "codexu"
+          }
+        ]
       }
     },
     {
@@ -6465,7 +6481,7 @@
     {
       "id": "crews-pretooluse-prioritize-review-mail-over-arm",
       "scope": "crews",
-      "lifecycle": "tracked",
+      "lifecycle": "merged",
       "status": "active",
       "lastTouchedAt": "2026-06-10",
       "kanbanCards": [
@@ -6486,6 +6502,22 @@
           "plan": "/plan-with-ralph \"Fix the crews PreToolUse hook block-message routing so a lead with UNREVIEWED PENDING MAIL is told to run REVIEW-MAIL first, instead of the generic 'arm a listener' block. THE BUG (operator-flagged, wastes turns + tokens): listeners exit-on-delivery (v1.2.9), so when mail arrives the active listener delivers + exits; the lead's next tool call hits the arm-first gate in hooks/pre-tool-use.js -> 'BLOCKED: arm a listener'; the lead arms -> arm re-delivers the pending mail + exits -> loop. The productive action is REVIEW-MAIL (gate-exempt, drains + advances lastReviewedSeq); only after draining does an arm stay blocking. FIX: in hooks/pre-tool-use.js, BEFORE emitting the generic arm-first block, check the review-required predicate (lastReviewRequiredSeq > lastReviewedSeq, or pending mailbox entries -- reuse hooks/protocol/review-required.js / the same check Stop/PostToolUse use). When unreviewed mail is pending, emit a block whose PRIMARY instruction is the REVIEW-MAIL command (engine-aware, the same one the review-required nag emits) with a secondary 'then arm against a clean mailbox' note; when NO mail is pending, emit the existing plain arm block unchanged. KEEP the arm-first SAFETY (the lead/member still must arm to be reachable); this only reorders WHICH guidance shows first. Verify the AskUserQuestion-intercept ordering and the lead-unconditional-listener gate (v3.4) are not regressed. Tests: (1) unreviewed-mail-pending + unarmed -> PreToolUse emits the review-mail-first block (asserts the review-mail command text, not the plain arm text); (2) no-mail + unarmed -> the plain arm block unchanged; (3) armed -> no block (regression); (4) the engine-aware review-mail command shape (claude/copilot/codex) matches the review-required nag. Plugin-side (ai-developer-toolkit/plugins/crews); version bump + marketplace sync + CHANGELOG + AGENTS.md; two-commit submodule flow. Coordinate with (distinct from) crews-listener-silent-reap-across-idle-investigation + crews-hook-timeout-under-lock-contention.\"",
           "impl": "/implement-with-ralph --from-plan .ralph/jobs/crews-pretooluse-prioritize-review-mail-over-arm/plan.md --autonomous \"Implement per the committed plan: in ai-developer-toolkit/plugins/crews/hooks/pre-tool-use.js, before the arm-first block, check the review-required predicate; when unreviewed mail is pending emit the engine-aware REVIEW-MAIL command (reuse buildReviewMailCommand) as the primary instruction + secondary 'then arm'; no-mail -> plain arm block unchanged; armed -> no block. KEEP arm-first safety + don't regress the AskUserQuestion intercept or v3.4 lead-unconditional-listener gate. CRITICAL (codex review High): UPDATE the existing test review-gate.test.js:367-381 (it seeds review-required mail + listenerState:'exited' and asserts the plain arm block -> it flips under the new behavior). Tests per plan (mail-pending->review-mail block; no-mail->plain arm; armed->no block; engine-aware shape). Plugin-side; version bump + marketplace sync + CHANGELOG + AGENTS.md; two-commit submodule flow.\""
         }
+      },
+      "shipManifest": {
+        "shippedAt": "2026-06-10",
+        "summary": "Shipped as crews 3.20.0. hooks/pre-tool-use.js now checks the review-required predicate BEFORE the generic arm-first block: when unreviewed mail is pending it emits the engine-aware REVIEW-MAIL command as the primary instruction (+ secondary 'then arm'), instead of the arm-loop that re-delivers + exits the listener. Arm-first safety preserved. The codex review lens caught + the impl fixed a flipped existing test (review-gate.test.js). 287/287 suite (twice), Phase 5a/5b clean. Merged to ai-developer-toolkit submodule main (aa3a9fe1), pushed origin/gim-home/personal; codexu pointer e82b1342; copilot plugin update crews -> 3.20.0 applied.",
+        "commits": [
+          {
+            "sha": "ed9dc83d",
+            "oneLine": "feat(crews): prioritize review-mail over arm when unreviewed mail is pending (v3.20.0) [rebased to aa3a9fe1]",
+            "repo": "ai-developer-toolkit"
+          },
+          {
+            "sha": "e82b1342",
+            "oneLine": "chore(submodule): bump ai-developer-toolkit pointer (ralph 5.57.0 + crews 3.20.0)",
+            "repo": "codexu"
+          }
+        ]
       }
     }
   ],
