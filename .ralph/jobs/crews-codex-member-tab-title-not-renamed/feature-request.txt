@@ -1,0 +1,133 @@
+<!-- ralph-meta {"overviewTaskId":"crews-codex-member-tab-title-not-renamed"} -->
+# Fix: codex crew member wt.exe tabs are NOT renamed to the member name
+
+## Target
+crews plugin in the `ai-developer-toolkit` submodule of codexu.
+- Code root: `ai-developer-toolkit/plugins/crews/`
+- crews is at v3.19.1 on submodule main; plan against current main.
+- Impl will be a two-commit submodule flow (lead-owned). All plan file paths are under `ai-developer-toolkit/plugins/crews/`.
+
+## Symptom (operator-flagged)
+When a CODEX member is spawned, its wt.exe tab is usually NOT renamed to the
+member name -- it stays the launcher pwsh's default console title "Windows
+PowerShell" instead of the expected "(pawn-glyph) <name> (<crew>)" tab title.
+Copilot and Claude member tabs DO get renamed correctly. The pawn glyph is the
+chess-pawn U+2659 used as the spawned-member prefix.
+
+## Root cause (CONFIRMED against source during planning)
+In `ai-developer-toolkit/plugins/crews/hooks/actors.js`, `spawnMember`:
+- Stamps the wt.exe tab `--title '(pawn) <name> (<crew>)'` at tab creation, for
+  EVERY engine (see `tabTitle` near actors.js:2670 and the `wtArgs` array at
+  actors.js:2677). This is the INITIAL title only.
+- For copilot/claude, the engine's own `--name`-driven OSC title emission is what
+  KEEPS the tab renamed for the lifetime of the session (copilot additionally
+  has `COPILOT_DISABLE_TERMINAL_TITLE=1` stamped so its per-intent OSC rewriter
+  does not clobber the crews title).
+- For CODEX there is NO `--name` flag (codex has none) AND the codex launcher
+  passes `-c 'tui.terminal_title=[]'` (see `buildLauncherCommand` codex branch
+  actors.js:371 and `buildLauncherInvocation` codex branch actors.js:447) which
+  DISABLES codex's per-turn TUI title rewriter (added in v3.6.0 so codex would
+  not clobber the wt `--title`).
+
+Net effect for codex: nothing emits or MAINTAINS an OSC title. The launcher pwsh
+sets its own default console title "Windows PowerShell" at startup (which emits
+an OSC that overrides the initial wt `--title`), and codex -- with its rewriter
+disabled -- never re-emits a title to restore the member name. So the tab shows
+"Windows PowerShell". This is compounded by codex 0.135's ~60-90s startup, during
+which only the launcher pwsh is up.
+
+## The fix -- two approaches evaluated; APPROACH (1) is the answer
+
+### Approach (1) -- pwsh sets+maintains the title in the generated launcher .ps1 (CHOSEN)
+In the generated codex launcher `.ps1` (built in `spawnMember`, scriptLines array,
+around actors.js:2619-2639), set the console/tab title to
+`(pawn) <name> (<crew>)` -- e.g. `$Host.UI.RawUI.WindowTitle = '<pawn> <name> (<crew>)'`
+(or emit the OSC 0/2 escape) BEFORE invoking `& <launcherCommand>` (the
+`& ${launcherCommand}` line). Because codex's title rewriter stays disabled via
+`-c 'tui.terminal_title=[]'`, the pwsh-set title persists through codex startup
+AND the per-turn loop. Gate this new launcher line on `engine === 'codex'` so
+copilot/claude launchers stay byte-identical.
+
+### Approach (2) -- static `-c tui.terminal_title=<literal>` (REJECTED -- INFEASIBLE)
+VERIFIED INFEASIBLE against the codex-patched tui source:
+- `codex/external/repos/codex-patched/codex-rs/tui/src/bottom_pane/title_setup.rs:37-87`:
+  `tui.terminal_title` accepts ONLY a fixed `TerminalTitleItem` enum allowlist of
+  kebab tokens (app-name, project, current-dir, spinner/activity, status/run-state,
+  thread, git-branch, context-remaining, ...). There is NO free-text/literal item,
+  so a literal "(pawn) <name>" string cannot be encoded via `-c tui.terminal_title=[...]`.
+  Unknown items are dropped as invalid (warned once).
+- `tui/src/chatwidget/status_surfaces.rs:204-254`: a NON-empty template makes codex
+  RENDER and `set_terminal_title(...)` on every refresh (and re-render on spinner
+  animation / status change), so codex would clobber the wt title with its own
+  rendered content (e.g. "codex ...") on every turn. There is no "static,
+  non-per-turn-rewritten" title path.
+
+### Why approach (1) survives startup with `tui.terminal_title=[]`
+VERIFIED: with `terminal_title=[]` (empty selections),
+`refresh_terminal_title_from_selections` (status_surfaces.rs:211-219) calls
+`clear_managed_terminal_title()` (status_surfaces.rs:195-202), which is GUARDED by
+`if self.last_terminal_title.is_some()`. At startup `last_terminal_title` is `None`
+(codex never set a title because the template is empty), so the clear is a NO-OP --
+codex emits NO OSC title at all (neither set nor clear). Therefore the pwsh-set
+window title is never overwritten by codex; it persists through startup and the
+per-turn loop. (`set_terminal_title`/`clear_terminal_title` both write OSC 0 via
+`tui/src/terminal_title.rs:56-80`.)
+
+## Implementation constraints
+- KEEP copilot/claude byte-identical. Their path already works. The new title-set
+  must be gated `engine === 'codex'`.
+- Keep the two launcher builders in sync: `buildLauncherCommand` (flat-string,
+  actors.js:288) AND `buildLauncherInvocation` (structured-argv, actors.js:399).
+  The in-file note says they must agree. (The title-set is a LAUNCHER .ps1 line in
+  spawnMember's scriptLines, NOT a codex CLI flag, so it likely does not change the
+  two builders -- but confirm whether the `-c tui.terminal_title=[]` value needs any
+  change. Per approach (1) it does NOT: keep `[]`.)
+- Use the SAME display string as the existing wt `--title` `tabTitle` =
+  `(pawn) ${safeName} (${safeCrew})` (actors.js:2670). psEscape `safeName`/`safeCrew`
+  for the single-quoted PowerShell string (psEscape is already in scope in spawnMember).
+- Update the v1.5.7 limitation note that says "The launcher .ps1 does NOT re-stamp the
+  title via $Host.UI.RawUI.WindowTitle" -- for codex it now SHOULD; update that note
+  (it lives in the crews AGENTS.md v1.5.7 section) and add a v3.x section documenting
+  the codex re-stamp.
+- `hooks/terminal-title.js` is in scope to review (formatCrewTabTitle / buildOscTitle
+  helpers) -- prefer reusing its `formatCrewTabTitle('member', name, crew)` /
+  `buildOscTitle(...)` helpers if practical for consistency, but spawnMember currently
+  builds `tabTitle` inline as `(pawn) ${safeName} (${safeCrew})`. Whichever path the
+  impl picks, the codex launcher line must produce the SAME string the wt `--title`
+  uses.
+
+## Tests (assert in the plan)
+- A unit test asserting the codex launcher SCRIPT (and/or structured argv) contains
+  the title-set (pwsh `$Host.UI.RawUI.WindowTitle = '...'` / OSC / chosen mechanism)
+  with the correct `(pawn) <name> (<crew>)` value.
+- A regression test asserting copilot AND claude launcher scripts are UNCHANGED
+  (no new title-set line; still byte-identical to current behavior).
+- Tests likely live near `tests/launcher-pid.test.js`, `tests/engine-field.test.js`,
+  `tests/codex-engine-field.test.js`, `tests/copilot-review-fixes.test.js` -- the
+  research phase should pin the exact existing test that asserts launcher script /
+  argv shape per engine, and extend it. Use `CREWS_NO_LAUNCH=1` (noLaunch) to inspect
+  the generated script without spawning a tab.
+
+## MANDATORY ACCEPTANCE (note for the impl, not gating the plan content itself)
+A LIVE codex member spawn with VISUAL confirmation that the tab reads
+"(pawn) <name> (<crew>)" and STAYS that way through codex startup (~60-90s) AND a
+few turns. Exit-code-only smoke is a FALSE POSITIVE for tab-title bugs -- the
+v2.2.0 / v3.1.1 wt rename-tab lesson is that a broken wt invocation returned exit 0
+from the parent process while the in-tab launch failed. State this clearly in the
+plan's acceptance criteria. The CI unit test pins the generated script shape; the
+real end-to-end tab-rename is the operator/LEAD live smoke.
+
+## Versioning / ship (note for impl)
+Plugin-side: 6-file version bump via `scripts/bump-version.js` + marketplace sync +
+CHANGELOG.md entry + plugin AGENTS.md note. Two-commit submodule flow (lead-owned):
+submodule commit first, then the codexu parent commit records the new
+`ai-developer-toolkit` pointer. Do NOT `git add` codexu root CLAUDE.md (gitignored);
+fork-level guidance edits go in codexu/AGENTS.md only.
+
+## SCOPE / SHARED-FILE NOTE (record in the plan)
+This change touches `hooks/actors.js` (spawnMember launcher template + possibly the
+codex branch of the two launcher builders). A SIBLING task
+`crews-pidalive-false-positive-recycled-pid` ALSO touches `hooks/actors.js` (it reuses
+verifyLauncherRecycleSafety from health.js). The LEAD will serialize the two IMPL ships.
+At PLAN phase there is no conflict (docs only). The plan MUST note that the impl must
+rebase onto whichever of the two ships first.

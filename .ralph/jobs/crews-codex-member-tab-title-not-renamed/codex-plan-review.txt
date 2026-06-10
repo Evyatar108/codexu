@@ -1,0 +1,24 @@
+### Feasibility
+[High] The plan’s file paths are plugin-relative but not valid from the provided repo root. From this worktree, `hooks/actors.js`, `tests/codex-engine-field.test.js`, `CHANGELOG.md`, and plugin `AGENTS.md` are absent; the intended targets appear to be under `ai-developer-toolkit/plugins/crews/...`, but that submodule is currently uninitialized. The plan should explicitly say to initialize `ai-developer-toolkit` and run from `ai-developer-toolkit/plugins/crews` or use full paths, otherwise an implementer could edit the root `AGENTS.md`/wrong files.
+
+### Completeness
+[High] AC1 says the title-set line must be before `& codex`, but the suggested test only checks that the line exists. That permits a false positive if the line is accidentally inserted after `& ${launcherCommand}`. Require an ordering assertion, e.g. `script.indexOf(titleLine) < script.search(/^& codex /m)`.
+
+[Medium] The non-codex regression tests are tied to `$Host.UI.RawUI.WindowTitle`, but the plan also allows `[Console]::Title` or raw OSC fallback. If the implementation chooses a fallback mechanism, AC2 must assert absence of that chosen title-setting mechanism in Claude/Copilot launchers, not only absence of `RawUI.WindowTitle`.
+
+[Medium] Version wording is ambiguous. `scripts/bump-version.js` updates six stamp files total: three plugin manifests plus three marketplace indexes, and then `tests/version.test.js`. AC5 says “all 6 version files + the 3 marketplace indexes,” which reads like nine files plus the test. Clarify “six stamp files, including the three marketplace indexes, plus `tests/version.test.js`.”
+
+### Ordering
+No issues found with the source-change ordering. US-001 before US-002 is correct. AC7 being manual after implementation is acceptable, but if the live smoke forces a fallback mechanism, docs and tests must be updated before ship.
+
+### Simplicity
+No issues found. The one-line `spawnMember` launcher-script change is the simplest integration point and avoids changing `buildLauncherCommand`, `buildLauncherInvocation`, or codex itself.
+
+### Acceptance Criteria Quality
+[High] AC1 is not specific enough about verification: it requires pre-`& codex` placement but proposes a contains-only regex. Make the ordering check mandatory.
+
+[Medium] AC2 should be mechanism-neutral or dynamically tied to the chosen mechanism. Current wording only protects against one implementation string.
+
+[Medium] AC5 should clarify the exact version-stamp file count to avoid unnecessary or wrong edits.
+
+No prior review-cycle amendments were cited, so there are no amendment regressions to evaluate.

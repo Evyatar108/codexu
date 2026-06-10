@@ -1,0 +1,30 @@
+{
+  "clusters": [
+    {
+      "name": "codex-tab-title-fix",
+      "stories": ["US-001", "US-002"],
+      "phase": 1,
+      "dependsOn": [],
+      "fileOverlapEvidence": {
+        "sharedFiles": [
+          "ai-developer-toolkit/plugins/crews/hooks/actors.js",
+          "ai-developer-toolkit/plugins/crews/AGENTS.md",
+          "ai-developer-toolkit/plugins/crews/CHANGELOG.md",
+          "ai-developer-toolkit/plugins/crews/.claude-plugin/plugin.json",
+          "ai-developer-toolkit/plugins/crews/.github/plugin/plugin.json",
+          "ai-developer-toolkit/plugins/crews/.codex-plugin/plugin.json",
+          "ai-developer-toolkit/.claude-plugin/marketplace.json",
+          "ai-developer-toolkit/.github/plugin/marketplace.json",
+          "ai-developer-toolkit/.agents/plugins/marketplace.json",
+          "ai-developer-toolkit/plugins/crews/tests/version.test.js"
+        ],
+        "exclusiveFiles": [
+          "ai-developer-toolkit/plugins/crews/tests/codex-engine-field.test.js",
+          "ai-developer-toolkit/plugins/crews/tests/engine-field.test.js"
+        ],
+        "risk": "low"
+      },
+      "executionModeRationale": "One small, cohesive fix in a single plugin. US-002's version-bump and AGENTS.md/CHANGELOG writes share files with US-001's scope, so the two stories run serially in ONE impl member, not in parallel. Same-plugin work cannot be parallelized across impl members because of conflicting version-file and doc writes."
+    }
+  ]
+}

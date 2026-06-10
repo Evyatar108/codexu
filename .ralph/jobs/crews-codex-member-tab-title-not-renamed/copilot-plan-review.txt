@@ -1,0 +1,46 @@
+I’ll read the referenced prompt to determine the requested work, then proceed with the necessary code changes.
+
+The prompt file is larger than the direct reader allows, so I’m reading it in line ranges to extract the task requirements.
+
+I’m validating the plan against the actual crews plugin files and tests so the review can flag only concrete implementation risks.
+
+The plan worktree doesn’t contain the plugin sources directly, so I’m locating the repository layout before checking the referenced files.
+
+I found the codexu root; now I’m checking whether the toolkit submodule is present and reading only the crews files needed to assess the plan.
+
+The toolkit submodule isn’t populated in this worktree, so I’m using git metadata to identify the pinned submodule revision before reading the referenced files from GitHub.
+
+The submodule metadata command completed; I’m reading the output and then will inspect the pinned plugin files remotely.
+
+I resolved the pinned toolkit revision and am reading the exact crews plugin files at that SHA for the plan review.
+
+The large source files were staged as tool outputs; I’m searching those cached outputs for the exact launcher and documentation anchors.
+
+I have the relevant files; one more source check is needed around the generated PowerShell script to see if the proposed insertion point is exact.
+
+The launcher context command finished; I’m reading it to finalize the review findings.
+
+### Feasibility
+
+No issues found. The referenced `spawnMember` insertion point exists in `plugins/crews/hooks/actors.js`, `sessionDisplayName` is in scope before `scriptLines.push(...)`, and `tabTitle` is indeed defined later.
+
+### Completeness
+
+[High] AC1 says the codex title-set line must be positioned before `& codex`, but the suggested test only checks that the line exists. Add an order assertion in `plugins/crews/tests/codex-engine-field.test.js`, e.g. `script.indexOf("$Host.UI.RawUI.WindowTitle") < script.indexOf("& codex")`, otherwise an implementation could place the title line after the blocking codex invocation and still pass the proposed regex.
+
+[High] AC2 claims copilot/claude launcher scripts stay byte-identical, but the suggested regression tests only assert absence of `$Host.UI.RawUI.WindowTitle`. If byte-identity is a hard constraint, capture the pre-change script shape or assert the full relevant launcher block for copilot and claude. Otherwise reword AC2 to “no WindowTitle line and no behavior-relevant launcher changes.”
+
+[Medium] AC5 overstates the version-file count. `plugins/crews/scripts/bump-version.js` updates 3 plugin manifests, 3 marketplace indexes, and `plugins/crews/tests/version.test.js`; it is not “6 version files + 3 marketplace indexes.” Fix the wording so the implementer does not chase nonexistent version surfaces.
+
+### Ordering
+
+No issues found. The core source/test change before version/docs is the right order, and live smoke after automated checks is appropriate.
+
+### Simplicity
+
+No issues found. A codex-only PowerShell title assignment in the generated launcher is the smallest viable change and avoids touching codex’s `tui.terminal_title=[]` behavior.
+
+### Acceptance Criteria Quality
+
+[Medium] AC7 is intentionally manual, but it should specify where the live result is recorded, e.g. in the member report or ship notes. Without a durable record, later reviewers cannot distinguish “not automatable” from “not performed.”
+

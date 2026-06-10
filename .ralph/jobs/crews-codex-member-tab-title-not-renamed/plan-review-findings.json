@@ -1,0 +1,85 @@
+{
+  "planFile": "D:/harness-efforts/codexu/.ralph/jobs/.staging/20260610T033725Z-plan-tabtitle-45d825f7/draft-plan.md",
+  "repoDir": "D:/harness-efforts/codexu",
+  "reviewCycle": 1,
+  "findings": [
+    {
+      "id": "F-001",
+      "severity": "High",
+      "source": "consensus",
+      "category": "Criteria Quality",
+      "sectionRef": "Acceptance Criteria > AC1",
+      "description": "AC1 / the codex launcher test used a presence-only regex, which would pass even if the title-set line were placed AFTER the blocking `& codex` invocation (where it never runs) — the same false-positive class as the v2.2.0/v3.1.1 wt rename-tab bug. Flagged High by codex and copilot, Low by claude.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "AC1 and the tests/codex-engine-field.test.js bullet now MANDATE an ordering assertion (titleSetLine index < script.search(/^& codex /m)) in addition to the value-presence assertion.",
+      "relevantFiles": ["ai-developer-toolkit/plugins/crews/tests/codex-engine-field.test.js"],
+      "suggestedFix": "Add ok(script.indexOf('$Host.UI.RawUI.WindowTitle') < script.search(/^& codex /m), 'title-set before & codex')."
+    },
+    {
+      "id": "F-002",
+      "severity": "High",
+      "source": "codex",
+      "category": "Feasibility",
+      "sectionRef": "Files to Create/Modify",
+      "description": "Plan file paths are plugin-relative; from the plan worktree root they do not resolve (the ai-developer-toolkit submodule is uninitialized). An implementer could edit the codexu ROOT AGENTS.md/CHANGELOG instead of the plugin ones.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Added a 'Target repo / working directory (READ FIRST)' note: all paths are relative to ai-developer-toolkit/plugins/crews/; impl targets that submodule; edit the PLUGIN AGENTS.md/CHANGELOG, never the codexu root AGENTS.md or gitignored CLAUDE.md.",
+      "relevantFiles": ["ai-developer-toolkit/plugins/crews/AGENTS.md", "ai-developer-toolkit/plugins/crews/CHANGELOG.md"],
+      "suggestedFix": "State the submodule target + init requirement explicitly in the plan."
+    },
+    {
+      "id": "F-003",
+      "severity": "High",
+      "source": "consensus",
+      "category": "Completeness",
+      "sectionRef": "Acceptance Criteria > AC2",
+      "description": "AC2 claimed copilot/claude launchers stay 'byte-identical' but the suggested regression test only asserts absence of `$Host.UI.RawUI.WindowTitle`. If the impl chooses a fallback mechanism ([Console]::Title / OSC), AC2 would not protect against it; and a single-line-absence test cannot prove literal byte-identity. Flagged High by copilot, Medium by codex.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "AC2 reworded to 'no codex title-set line + no behavior-relevant change' (not literal byte-identity), and made mechanism-neutral: assert absence of the CHOSEN mechanism string. Also requires BOTH copilot and claude to each have an absence assertion (folds in claude's F-006).",
+      "relevantFiles": ["ai-developer-toolkit/plugins/crews/tests/engine-field.test.js", "ai-developer-toolkit/plugins/crews/tests/copilot-review-fixes.test.js"],
+      "suggestedFix": "Assert absence of the chosen mechanism for both copilot and claude scripts."
+    },
+    {
+      "id": "F-004",
+      "severity": "Medium",
+      "source": "consensus",
+      "category": "Criteria Quality",
+      "sectionRef": "Acceptance Criteria > AC5",
+      "description": "AC5 wording ('all 6 version files + the 3 marketplace indexes') reads like 9 files; the 3 marketplace indexes are PART of the 6 stamp files. Flagged Medium by codex and copilot.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "AC5 clarified: bump-version.js updates exactly SIX stamp files (3 plugin manifests + 3 marketplace indexes) plus tests/version.test.js; the marketplace indexes are part of the six, not additional.",
+      "relevantFiles": ["ai-developer-toolkit/plugins/crews/scripts/bump-version.js"],
+      "suggestedFix": "Reword AC5 to the 6-stamp-files + version.test.js shape."
+    },
+    {
+      "id": "F-005",
+      "severity": "Medium",
+      "source": "copilot",
+      "category": "Criteria Quality",
+      "sectionRef": "Acceptance Criteria > AC7",
+      "description": "AC7 (manual live smoke) does not specify where the live result is recorded, so later reviewers cannot distinguish 'not automatable' from 'not performed.'",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "AC7 now requires recording the live-smoke outcome (pass/fail + chosen mechanism + observations) in the impl member's kind=done report AND the AGENTS.md v3.x note / ship notes.",
+      "relevantFiles": [],
+      "suggestedFix": "Add a durable-record requirement to AC7."
+    },
+    {
+      "id": "F-006",
+      "severity": "Low",
+      "source": "claude",
+      "category": "Completeness",
+      "sectionRef": "Files to Create/Modify > tests/engine-field.test.js",
+      "description": "AC2's 'and/or' phrasing between the two candidate test files left it ambiguous whether both copilot and claude must be asserted; an impl could assert only one engine and still argue AC2 is met.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Folded into the F-003 AC2 rewrite: AC2 now explicitly requires BOTH copilot AND claude to each have an absence assertion (each in at least one test file).",
+      "relevantFiles": ["ai-developer-toolkit/plugins/crews/tests/engine-field.test.js"],
+      "suggestedFix": "Require both engines asserted."
+    }
+  ]
+}
