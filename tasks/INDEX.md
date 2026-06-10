@@ -2,8 +2,206 @@
 
 # Ralph Tasks Index
 
-Generated: 2026-06-02T15:31:46.316Z
-Source commit: 32fdb9de
+Generated: 2026-06-10T17:33:26.311Z
+Source commit: 1f8f3f4b
+
+## codex-test-binaries-compile-debt-baseline
+- Stage: untracked
+- jobDir: n/a
+- Last activity: 2026-06-10 task touch
+- Dashboard: [codex-test-binaries-compile-debt-baseline](../.ralph-overview/generated/overview.html#cmd-codex-test-binaries-compile-debt-baseline)
+
+## crews-codex-inner-pid-capture-not-resolving
+- Stage: untracked
+- jobDir: n/a
+- Last activity: 2026-06-06 task touch
+- Dashboard: [crews-codex-inner-pid-capture-not-resolving](../.ralph-overview/generated/overview.html#cmd-crews-codex-inner-pid-capture-not-resolving)
+
+## codex-engine-ralph-member-enablement
+- Stage: planning
+- jobDir: `.ralph/jobs/codex-engine-ralph-member-enablement`
+- Last activity: 2026-06-07 task touch
+- Dashboard: [codex-engine-ralph-member-enablement](../.ralph-overview/generated/overview.html#cmd-codex-engine-ralph-member-enablement)
+
+## codex-upstream-background-shell-support-audit
+- Stage: untracked
+- jobDir: n/a
+- Last activity: 2026-06-06 task touch
+- Dashboard: [codex-upstream-background-shell-support-audit](../.ralph-overview/generated/overview.html#cmd-codex-upstream-background-shell-support-audit)
+
+## codex-upstream-remote-control-daemon-fork-impact
+- Stage: untracked
+- jobDir: n/a
+- Last activity: 2026-06-06 task touch
+- Dashboard: [codex-upstream-remote-control-daemon-fork-impact](../.ralph-overview/generated/overview.html#cmd-codex-upstream-remote-control-daemon-fork-impact)
+
+## codex-upstream-extensions-vs-plugins-clarify
+- Stage: untracked
+- jobDir: n/a
+- Last activity: 2026-06-06 task touch
+- Dashboard: [codex-upstream-extensions-vs-plugins-clarify](../.ralph-overview/generated/overview.html#cmd-codex-upstream-extensions-vs-plugins-clarify)
+
+## codex-upstream-connectors-tool-schema-audit
+- Stage: untracked
+- jobDir: n/a
+- Last activity: 2026-06-06 task touch
+- Dashboard: [codex-upstream-connectors-tool-schema-audit](../.ralph-overview/generated/overview.html#cmd-codex-upstream-connectors-tool-schema-audit)
+
+## codex-upstream-multi-agent-v2-fork-impact
+- Stage: untracked
+- jobDir: n/a
+- Last activity: 2026-06-06 task touch
+- Dashboard: [codex-upstream-multi-agent-v2-fork-impact](../.ralph-overview/generated/overview.html#cmd-codex-upstream-multi-agent-v2-fork-impact)
+
+## codex-ralph-member-multi-agent-adapter
+- Stage: implementing
+- jobDir: `.ralph/jobs/codex-ralph-member-multi-agent-adapter`
+- Last activity: 2026-06-07T20:37:41Z Ralph update
+- Dashboard: [codex-ralph-member-multi-agent-adapter](../.ralph-overview/generated/overview.html#cmd-codex-ralph-member-multi-agent-adapter)
+
+## codex-subagent-prompt-trigger-investigation
+- Stage: untracked
+- jobDir: n/a
+- Last activity: 2026-06-06 task touch
+- Dashboard: [codex-subagent-prompt-trigger-investigation](../.ralph-overview/generated/overview.html#cmd-codex-subagent-prompt-trigger-investigation)
+
+## opencode-as-codex-replacement-evaluation
+- Stage: untracked
+- jobDir: n/a
+- Last activity: 2026-06-06 task touch
+- Dashboard: [opencode-as-codex-replacement-evaluation](../.ralph-overview/generated/overview.html#cmd-opencode-as-codex-replacement-evaluation)
+
+## crews-target-engine-plugin-provisioning
+- Stage: planning
+- jobDir: `.ralph/jobs/crews-target-engine-plugin-provisioning`
+- Last activity: 2026-06-08 task touch
+- Dashboard: [crews-target-engine-plugin-provisioning](../.ralph-overview/generated/overview.html#cmd-crews-target-engine-plugin-provisioning)
+
+## crews-arm-chaining-footgun-guard
+- Stage: planning
+- jobDir: `.ralph/jobs/crews-arm-chaining-footgun-guard`
+- Last activity: 2026-06-06 task touch
+- Dashboard: [crews-arm-chaining-footgun-guard](../.ralph-overview/generated/overview.html#cmd-crews-arm-chaining-footgun-guard)
+
+## crews-locks-retry-unknown-errno-4094
+- Stage: untracked
+- jobDir: n/a
+- Last activity: 2026-06-06 task touch
+- Dashboard: [crews-locks-retry-unknown-errno-4094](../.ralph-overview/generated/overview.html#cmd-crews-locks-retry-unknown-errno-4094)
+
+## crews-codex-member-spawn-does-not-start-session
+- Stage: untracked
+- jobDir: n/a
+- Last activity: 2026-06-06T06:00:00Z task touch
+- Dashboard: [crews-codex-member-spawn-does-not-start-session](../.ralph-overview/generated/overview.html#cmd-crews-codex-member-spawn-does-not-start-session)
+
+## codex-git-marketplace-snapshot-tmp-ephemeral
+- Stage: untracked
+- jobDir: n/a
+- Last activity: 2026-06-06T03:35:00Z task touch
+- Dashboard: [codex-git-marketplace-snapshot-tmp-ephemeral](../.ralph-overview/generated/overview.html#cmd-codex-git-marketplace-snapshot-tmp-ephemeral)
+
+## codex-down-mcp-startup-behavior-0135
+- Stage: untracked
+- jobDir: n/a
+- Last activity: 2026-06-05T17:25:00Z task touch
+- Dashboard: [codex-down-mcp-startup-behavior-0135](../.ralph-overview/generated/overview.html#cmd-codex-down-mcp-startup-behavior-0135)
+
+## codex-fork-install-script
+- Stage: planning
+- jobDir: `.ralph/jobs/codex-fork-install-script`
+- Last activity: 2026-06-05T17:30:00Z task touch
+- Dashboard: [codex-fork-install-script](../.ralph-overview/generated/overview.html#cmd-codex-fork-install-script)
+
+## crews-proactive-done-auto-consumed-silent-lead-miss
+- Stage: planning
+- jobDir: `.ralph/jobs/crews-proactive-done-auto-consumed-silent-lead-miss`
+- Last activity: 2026-06-05T18:10:00Z task touch
+- Dashboard: [crews-proactive-done-auto-consumed-silent-lead-miss](../.ralph-overview/generated/overview.html#cmd-crews-proactive-done-auto-consumed-silent-lead-miss)
+
+## codex-v135-runtime-audit-elevated
+- Stage: untracked
+- jobDir: n/a
+- Last activity: 2026-06-05T14:45:00Z task touch
+- Dashboard: [codex-v135-runtime-audit-elevated](../.ralph-overview/generated/overview.html#cmd-codex-v135-runtime-audit-elevated)
+
+## codex-network-audit-coverage-gaps
+- Stage: untracked
+- jobDir: n/a
+- Last activity: 2026-06-05T14:45:00Z task touch
+- Dashboard: [codex-network-audit-coverage-gaps](../.ralph-overview/generated/overview.html#cmd-codex-network-audit-coverage-gaps)
+
+## codex-redirect-upstream-install-update-paths-to-fork
+- Stage: planning
+- jobDir: `.ralph/jobs/codex-redirect-upstream-install-update-paths-to-fork`
+- Last activity: 2026-06-06T01:30:00Z task touch
+- Dashboard: [codex-redirect-upstream-install-update-paths-to-fork](../.ralph-overview/generated/overview.html#cmd-codex-redirect-upstream-install-update-paths-to-fork)
+
+## codex-marketplace-parse-robustness
+- Stage: planning
+- jobDir: `.ralph/jobs/codex-marketplace-parse-robustness`
+- Last activity: 2026-06-05T16:25:00Z task touch
+- Dashboard: [codex-marketplace-parse-robustness](../.ralph-overview/generated/overview.html#cmd-codex-marketplace-parse-robustness)
+
+## codex-marketplace-add-gim-home-failure
+- Stage: untracked
+- jobDir: n/a
+- Last activity: 2026-06-05T14:35:00Z task touch
+- Dashboard: [codex-marketplace-add-gim-home-failure](../.ralph-overview/generated/overview.html#cmd-codex-marketplace-add-gim-home-failure)
+
+## codex-v135-network-audit-and-code-review
+- Stage: untracked
+- jobDir: n/a
+- Last activity: 2026-06-05T14:45:00Z task touch
+- Dashboard: [codex-v135-network-audit-and-code-review](../.ralph-overview/generated/overview.html#cmd-codex-v135-network-audit-and-code-review)
+
+## crews-implement-with-ralph-parallel-outbox-silent-loss
+- Stage: untracked
+- jobDir: n/a
+- Last activity: 2026-06-02T16:33:00Z task touch
+- Dashboard: [crews-implement-with-ralph-parallel-outbox-silent-loss](../.ralph-overview/generated/overview.html#cmd-crews-implement-with-ralph-parallel-outbox-silent-loss)
+
+## crews-stop-circuit-breaker-recoverable
+- Stage: planning
+- jobDir: `.ralph/jobs/crews-stop-circuit-breaker-recoverable`
+- Last activity: 2026-06-02T23:28:00Z task touch
+- Dashboard: [crews-stop-circuit-breaker-recoverable](../.ralph-overview/generated/overview.html#cmd-crews-stop-circuit-breaker-recoverable)
+
+## crews-stop-hook-windows-flush-race
+- Stage: planning
+- jobDir: `.ralph/jobs/crews-stop-hook-windows-flush-race`
+- Last activity: 2026-06-03T14:08:00Z task touch
+- Dashboard: [crews-stop-hook-windows-flush-race](../.ralph-overview/generated/overview.html#cmd-crews-stop-hook-windows-flush-race)
+
+## crews-stop-bg-gate-remove-bypass
+- Stage: planning
+- jobDir: `.ralph/jobs/crews-stop-bg-gate-remove-bypass`
+- Last activity: 2026-06-03T17:30:00Z task touch
+- Dashboard: [crews-stop-bg-gate-remove-bypass](../.ralph-overview/generated/overview.html#cmd-crews-stop-bg-gate-remove-bypass)
+
+## crews-stop-bg-gate-detector-broaden-infra-filter
+- Stage: untracked
+- jobDir: n/a
+- Last activity: 2026-06-03T21:50:00Z task touch
+- Dashboard: [crews-stop-bg-gate-detector-broaden-infra-filter](../.ralph-overview/generated/overview.html#cmd-crews-stop-bg-gate-detector-broaden-infra-filter)
+
+## crews-stop-hook-require-lead-listener-unconditionally
+- Stage: untracked
+- jobDir: n/a
+- Last activity: 2026-06-03T21:50:00Z task touch
+- Dashboard: [crews-stop-hook-require-lead-listener-unconditionally](../.ralph-overview/generated/overview.html#cmd-crews-stop-hook-require-lead-listener-unconditionally)
+
+## ralph-orchestration-spawn-target-repo-override-flag
+- Stage: planning
+- jobDir: `.ralph/jobs/ralph-orchestration-spawn-target-repo-override-flag`
+- Last activity: 2026-06-03T22:00:00Z task touch
+- Dashboard: [ralph-orchestration-spawn-target-repo-override-flag](../.ralph-overview/generated/overview.html#cmd-ralph-orchestration-spawn-target-repo-override-flag)
+
+## ralph-orchestration-document-multi-repo-pointer-bump-flow
+- Stage: untracked
+- jobDir: n/a
+- Last activity: 2026-06-03T22:00:00Z task touch
+- Dashboard: [ralph-orchestration-document-multi-repo-pointer-bump-flow](../.ralph-overview/generated/overview.html#cmd-ralph-orchestration-document-multi-repo-pointer-bump-flow)
 
 ## perf-WS3
 - Stage: shipped
@@ -60,8 +258,8 @@ Source commit: 32fdb9de
 - Dashboard: [codex-parity-audit](../.ralph-overview/generated/overview.html#cmd-codex-parity-audit)
 
 ## perf-WS2
-- Stage: untracked
-- jobDir: n/a
+- Stage: planning
+- jobDir: `.ralph/jobs/perf-WS2`
 - Last activity: 2026-05-31T15:31:00Z task touch
 - Dashboard: [perf-WS2](../.ralph-overview/generated/overview.html#cmd-perf-WS2)
 
@@ -102,9 +300,9 @@ Source commit: 32fdb9de
 - Dashboard: [3h-options](../.ralph-overview/generated/overview.html#cmd-3h-options)
 
 ## userid-cleanup
-- Stage: untracked
-- jobDir: n/a
-- Last activity: 2026-05-25T11:00:00Z task touch
+- Stage: shipped
+- jobDir: `.ralph/jobs/userid-cleanup`
+- Last activity: 2026-05-25T11:01:44Z Ralph update
 - Dashboard: [userid-cleanup](../.ralph-overview/generated/overview.html#cmd-userid-cleanup)
 
 ## happy-upstream-sync
@@ -112,6 +310,60 @@ Source commit: 32fdb9de
 - jobDir: `.ralph/jobs/happy-upstream-sync`
 - Last activity: 2026-05-30T21:27:00Z task touch
 - Dashboard: [happy-upstream-sync](../.ralph-overview/generated/overview.html#cmd-happy-upstream-sync)
+
+## codex-cut-v0.135.0-copilot-api.1-release
+- Stage: untracked
+- jobDir: n/a
+- Last activity: 2026-06-03T22:11:00Z task touch
+- Dashboard: [codex-cut-v0.135.0-copilot-api.1-release](../.ralph-overview/generated/overview.html#cmd-codex-cut-v0.135.0-copilot-api.1-release)
+
+## codex-publish-npm-subprocess-resolver-fix
+- Stage: untracked
+- jobDir: n/a
+- Last activity: 2026-06-03T22:11:00Z task touch
+- Dashboard: [codex-publish-npm-subprocess-resolver-fix](../.ralph-overview/generated/overview.html#cmd-codex-publish-npm-subprocess-resolver-fix)
+
+## codex-overlay-fmt-cleanup
+- Stage: untracked
+- jobDir: n/a
+- Last activity: 2026-06-04T00:25:00Z task touch
+- Dashboard: [codex-overlay-fmt-cleanup](../.ralph-overview/generated/overview.html#cmd-codex-overlay-fmt-cleanup)
+
+## crews-member-manifest-turn-fields-not-updated
+- Stage: planning
+- jobDir: `.ralph/jobs/crews-member-manifest-turn-fields-not-updated`
+- Last activity: 2026-06-05T00:50:00Z task touch
+- Dashboard: [crews-member-manifest-turn-fields-not-updated](../.ralph-overview/generated/overview.html#cmd-crews-member-manifest-turn-fields-not-updated)
+
+## crews-postooluse-tag-aware-observability
+- Stage: untracked
+- jobDir: n/a
+- Last activity: 2026-06-07 task touch
+- Dashboard: [crews-postooluse-tag-aware-observability](../.ralph-overview/generated/overview.html#cmd-crews-postooluse-tag-aware-observability)
+
+## crews-codex-shell-tool-name-coverage
+- Stage: planning
+- jobDir: `.ralph/jobs/crews-codex-shell-tool-name-coverage`
+- Last activity: 2026-06-05T13:50:00Z task touch
+- Dashboard: [crews-codex-shell-tool-name-coverage](../.ralph-overview/generated/overview.html#cmd-crews-codex-shell-tool-name-coverage)
+
+## crews-listener-eperm-rename-crash-recurring
+- Stage: untracked
+- jobDir: n/a
+- Last activity: 2026-06-04T17:35:00Z task touch
+- Dashboard: [crews-listener-eperm-rename-crash-recurring](../.ralph-overview/generated/overview.html#cmd-crews-listener-eperm-rename-crash-recurring)
+
+## crews-codex-engine-support
+- Stage: planning
+- jobDir: `.ralph/jobs/crews-codex-engine-support`
+- Last activity: 2026-06-05T00:50:00Z task touch
+- Dashboard: [crews-codex-engine-support](../.ralph-overview/generated/overview.html#cmd-crews-codex-engine-support)
+
+## crews-redundant-empty-kind-tag-emissions
+- Stage: planning
+- jobDir: `.ralph/jobs/crews-redundant-empty-kind-tag-emissions`
+- Last activity: 2026-06-05T22:05:00Z task touch
+- Dashboard: [crews-redundant-empty-kind-tag-emissions](../.ralph-overview/generated/overview.html#cmd-crews-redundant-empty-kind-tag-emissions)
 
 ## codex-upstream-rebase
 - Stage: planning
@@ -126,15 +378,15 @@ Source commit: 32fdb9de
 - Dashboard: [agent-view-research](../.ralph-overview/generated/overview.html#cmd-agent-view-research)
 
 ## overview-data-dynamic-stages-schema
-- Stage: planning
-- jobDir: `.ralph/jobs/overview-data-dynamic-stages-schema`
+- Stage: reviewing
+- jobDir: `.ralph/jobs/overview-data-codexu-run2`
 - Last activity: 2026-05-27T17:30:00Z task touch
 - Dashboard: [overview-data-dynamic-stages-schema](../.ralph-overview/generated/overview.html#cmd-overview-data-dynamic-stages-schema)
 
 ## crews-roles-and-direct-operator-channel
 - Stage: planning
 - jobDir: `.ralph/jobs/crews-roles-and-direct-operator-channel`
-- Last activity: 2026-06-02T15:31:32Z task touch
+- Last activity: 2026-06-06 task touch
 - Dashboard: [crews-roles-and-direct-operator-channel](../.ralph-overview/generated/overview.html#cmd-crews-roles-and-direct-operator-channel)
 
 ## ralph-overview-data-relocation-and-json-migration
@@ -186,10 +438,22 @@ Source commit: 32fdb9de
 - Dashboard: [ralph-orchestration-plan-with-ralph-auto-worktree](../.ralph-overview/generated/overview.html#cmd-ralph-orchestration-plan-with-ralph-auto-worktree)
 
 ## ralph-overview-init-consumer-cross-engine-wrapper
+- Stage: planning
+- jobDir: `.ralph/jobs/ralph-overview-init-consumer-cross-engine-wrapper`
+- Last activity: 2026-06-08 task touch
+- Dashboard: [ralph-overview-init-consumer-cross-engine-wrapper](../.ralph-overview/generated/overview.html#cmd-ralph-overview-init-consumer-cross-engine-wrapper)
+
+## ralph-overview-wrapper-auto-bootstrap-deps
 - Stage: untracked
 - jobDir: n/a
-- Last activity: 2026-06-02T15:31:32Z task touch
-- Dashboard: [ralph-overview-init-consumer-cross-engine-wrapper](../.ralph-overview/generated/overview.html#cmd-ralph-overview-init-consumer-cross-engine-wrapper)
+- Last activity: 2026-06-06 task touch
+- Dashboard: [ralph-overview-wrapper-auto-bootstrap-deps](../.ralph-overview/generated/overview.html#cmd-ralph-overview-wrapper-auto-bootstrap-deps)
+
+## ralph-overview-mcp-snapshot-sync-on-read
+- Stage: shipped
+- jobDir: `.ralph/jobs/ralph-overview-mcp-snapshot-sync-on-read`
+- Last activity: 2026-06-07T08:16:28Z Ralph update
+- Dashboard: [ralph-overview-mcp-snapshot-sync-on-read](../.ralph-overview/generated/overview.html#cmd-ralph-overview-mcp-snapshot-sync-on-read)
 
 ## crews-stop-tests-jsonparse-empty-2-tests
 - Stage: untracked
@@ -216,10 +480,16 @@ Source commit: 32fdb9de
 - Dashboard: [ralph-orchestration-codex-exec-windows-spawn](../.ralph-overview/generated/overview.html#cmd-ralph-orchestration-codex-exec-windows-spawn)
 
 ## ralph-plan-with-ralph-copilot-cli-read-only-research
-- Stage: untracked
-- jobDir: n/a
-- Last activity: 2026-06-02T15:31:32Z task touch
+- Stage: planning
+- jobDir: `.ralph/jobs/ralph-plan-with-ralph-copilot-cli-read-only-research`
+- Last activity: 2026-06-06 task touch
 - Dashboard: [ralph-plan-with-ralph-copilot-cli-read-only-research](../.ralph-overview/generated/overview.html#cmd-ralph-plan-with-ralph-copilot-cli-read-only-research)
+
+## ralph-orchestration-worktree-conditional-submodule-init
+- Stage: shipped
+- jobDir: `.ralph/jobs/ralph-orchestration-worktree-conditional-submodule-init`
+- Last activity: 2026-06-04T14:50:00Z task touch
+- Dashboard: [ralph-orchestration-worktree-conditional-submodule-init](../.ralph-overview/generated/overview.html#cmd-ralph-orchestration-worktree-conditional-submodule-init)
 
 ## ralph-plan-staging-unique-path-per-member
 - Stage: planning
@@ -306,10 +576,16 @@ Source commit: 32fdb9de
 - Dashboard: [agent-memory-repo-migration](../.ralph-overview/generated/overview.html#cmd-agent-memory-repo-migration)
 
 ## ralph-overview-copilot-smoke-deferred
+- Stage: planning
+- jobDir: `.ralph/jobs/ralph-overview-copilot-smoke-deferred`
+- Last activity: 2026-06-05T13:50:00Z task touch
+- Dashboard: [ralph-overview-copilot-smoke-deferred](../.ralph-overview/generated/overview.html#cmd-ralph-overview-copilot-smoke-deferred)
+
+## remove-codexu-workspace-mcpjson-once-copilot-workspace-cwd-lands
 - Stage: untracked
 - jobDir: n/a
-- Last activity: 2026-05-29T04:00:00Z task touch
-- Dashboard: [ralph-overview-copilot-smoke-deferred](../.ralph-overview/generated/overview.html#cmd-ralph-overview-copilot-smoke-deferred)
+- Last activity: 2026-06-05T01:42:00Z task touch
+- Dashboard: [remove-codexu-workspace-mcpjson-once-copilot-workspace-cwd-lands](../.ralph-overview/generated/overview.html#cmd-remove-codexu-workspace-mcpjson-once-copilot-workspace-cwd-lands)
 
 ## ralph-overview-copilot-mirror
 - Stage: planning
@@ -362,7 +638,7 @@ Source commit: 32fdb9de
 ## ai-developer-toolkit-submodule
 - Stage: planning
 - jobDir: `.ralph/jobs/ai-developer-toolkit-submodule`
-- Last activity: 2026-06-02T15:31:32Z task touch
+- Last activity: 2026-06-02T18:55:00Z task touch
 - Dashboard: [ai-developer-toolkit-submodule](../.ralph-overview/generated/overview.html#cmd-ai-developer-toolkit-submodule)
 
 ## overview-naming-rebrand
@@ -372,13 +648,13 @@ Source commit: 32fdb9de
 - Dashboard: [overview-naming-rebrand](../.ralph-overview/generated/overview.html#cmd-overview-naming-rebrand)
 
 ## overview-data-context-scalability
-- Stage: untracked
-- jobDir: n/a
-- Last activity: 2026-06-02T15:31:32Z task touch
+- Stage: brainstorming
+- jobDir: `.ralph/jobs/overview-data-context-scalability-toolkit`
+- Last activity: 2026-06-10T02:47:00Z Ralph update
 - Dashboard: [overview-data-context-scalability](../.ralph-overview/generated/overview.html#cmd-overview-data-context-scalability)
 
 ## overview-data-ship-manifest
-- Stage: planning
+- Stage: shipped
 - jobDir: `.ralph/jobs/overview-data-ship-manifest`
 - Last activity: 2026-05-30T20:30:00Z task touch
 - Dashboard: [overview-data-ship-manifest](../.ralph-overview/generated/overview.html#cmd-overview-data-ship-manifest)
@@ -396,8 +672,8 @@ Source commit: 32fdb9de
 - Dashboard: [ralph-overview-multi-mcp-v210](../.ralph-overview/generated/overview.html#cmd-ralph-overview-multi-mcp-v210)
 
 ## crews-review-mid-turn-v160
-- Stage: untracked
-- jobDir: n/a
+- Stage: shipped
+- jobDir: `.ralph/jobs/crews-review-mid-turn-v160`
 - Last activity: 2026-05-26T11:06:47Z task touch
 - Dashboard: [crews-review-mid-turn-v160](../.ralph-overview/generated/overview.html#cmd-crews-review-mid-turn-v160)
 
@@ -408,9 +684,9 @@ Source commit: 32fdb9de
 - Dashboard: [plugin-scope-agents](../.ralph-overview/generated/overview.html#cmd-plugin-scope-agents)
 
 ## agent-comms
-- Stage: untracked
-- jobDir: n/a
-- Last activity: 2026-05-14T03:00:00Z task touch
+- Stage: shipped
+- jobDir: `.ralph/jobs/agent-comms`
+- Last activity: 2026-06-08T03:57:37Z Ralph update
 - Dashboard: [agent-comms](../.ralph-overview/generated/overview.html#cmd-agent-comms)
 
 ## channels-research
@@ -420,10 +696,52 @@ Source commit: 32fdb9de
 - Dashboard: [channels-research](../.ralph-overview/generated/overview.html#cmd-channels-research)
 
 ## async-events-design
+- Stage: shipped
+- jobDir: `.ralph/jobs/async-events-design`
+- Last activity: 2026-06-08T01:11:58Z Ralph update
+- Dashboard: [async-events-design](../.ralph-overview/generated/overview.html#cmd-async-events-design)
+
+## async-events-northstar-architecture
+- Stage: brainstorm-ready
+- jobDir: n/a
+- Last activity: 2026-06-03T13:16:00Z task touch
+- Dashboard: [async-events-northstar-architecture](../.ralph-overview/generated/overview.html#cmd-async-events-northstar-architecture)
+
+## codex-app-server-idle-timeout
+- Stage: planning
+- jobDir: `.ralph/jobs/codex-app-server-idle-timeout`
+- Last activity: 2026-06-08 task touch
+- Dashboard: [codex-app-server-idle-timeout](../.ralph-overview/generated/overview.html#cmd-codex-app-server-idle-timeout)
+
+## codex-app-server-daemon-codexu-integration
+- Stage: shipped
+- jobDir: `.ralph/jobs/codex-app-server-daemon-codexu-integration`
+- Last activity: 2026-06-05T13:50:00Z task touch
+- Dashboard: [codex-app-server-daemon-codexu-integration](../.ralph-overview/generated/overview.html#cmd-codex-app-server-daemon-codexu-integration)
+
+## codex-daemon-isolation-smoke-test
 - Stage: untracked
 - jobDir: n/a
-- Last activity: 2026-05-14T13:30:00Z task touch
-- Dashboard: [async-events-design](../.ralph-overview/generated/overview.html#cmd-async-events-design)
+- Last activity: 2026-06-04T17:50:00Z task touch
+- Dashboard: [codex-daemon-isolation-smoke-test](../.ralph-overview/generated/overview.html#cmd-codex-daemon-isolation-smoke-test)
+
+## codex-daemon-upstream-windows-watch
+- Stage: untracked
+- jobDir: n/a
+- Last activity: 2026-06-04T17:50:00Z task touch
+- Dashboard: [codex-daemon-upstream-windows-watch](../.ralph-overview/generated/overview.html#cmd-codex-daemon-upstream-windows-watch)
+
+## codex-daemon-same-identity-reattach
+- Stage: untracked
+- jobDir: n/a
+- Last activity: 2026-06-04T17:50:00Z task touch
+- Dashboard: [codex-daemon-same-identity-reattach](../.ralph-overview/generated/overview.html#cmd-codex-daemon-same-identity-reattach)
+
+## overview-task-blocked-on-with-auto-unblock
+- Stage: planning
+- jobDir: `.ralph/jobs/overview-task-blocked-on-with-auto-unblock`
+- Last activity: 2026-06-03T05:28:00Z task touch
+- Dashboard: [overview-task-blocked-on-with-auto-unblock](../.ralph-overview/generated/overview.html#cmd-overview-task-blocked-on-with-auto-unblock)
 
 ## native-agent-parity
 - Stage: untracked
@@ -450,8 +768,8 @@ Source commit: 32fdb9de
 - Dashboard: [session-parent-link](../.ralph-overview/generated/overview.html#cmd-session-parent-link)
 
 ## mobile-tree-view
-- Stage: untracked
-- jobDir: n/a
+- Stage: shipped
+- jobDir: `.ralph/jobs/mobile-tree-view`
 - Last activity: 2026-05-25T13:55:00Z task touch
 - Dashboard: [mobile-tree-view](../.ralph-overview/generated/overview.html#cmd-mobile-tree-view)
 
@@ -462,8 +780,8 @@ Source commit: 32fdb9de
 - Dashboard: [session-role-pill](../.ralph-overview/generated/overview.html#cmd-session-role-pill)
 
 ## spawn-from-app
-- Stage: untracked
-- jobDir: n/a
+- Stage: implementing
+- jobDir: `.ralph/jobs/spawn-from-app`
 - Last activity: 2026-05-26T03:55:00Z task touch
 - Dashboard: [spawn-from-app](../.ralph-overview/generated/overview.html#cmd-spawn-from-app)
 
@@ -480,9 +798,9 @@ Source commit: 32fdb9de
 - Dashboard: [codex-wire-spike](../.ralph-overview/generated/overview.html#cmd-codex-wire-spike)
 
 ## codex-claude-md-autoload
-- Stage: untracked
-- jobDir: n/a
-- Last activity: 2026-05-26T04:58:00Z task touch
+- Stage: shipped
+- jobDir: `.ralph/jobs/codex-claude-md-autoload`
+- Last activity: 2026-05-26T04:59:49Z Ralph update
 - Dashboard: [codex-claude-md-autoload](../.ralph-overview/generated/overview.html#cmd-codex-claude-md-autoload)
 
 ## codex-attachments
@@ -492,15 +810,15 @@ Source commit: 32fdb9de
 - Dashboard: [codex-attachments](../.ralph-overview/generated/overview.html#cmd-codex-attachments)
 
 ## codex-system-prompts
-- Stage: untracked
-- jobDir: n/a
+- Stage: planning
+- jobDir: `.ralph/jobs/codex-system-prompts`
 - Last activity: 2026-05-31T12:42:00Z task touch
 - Dashboard: [codex-system-prompts](../.ralph-overview/generated/overview.html#cmd-codex-system-prompts)
 
 ## codex-hooks-parity
 - Stage: planning
 - jobDir: `.ralph/jobs/codex-hooks-parity`
-- Last activity: 2026-06-02T05:16:00Z task touch
+- Last activity: 2026-06-03T05:12:00Z task touch
 - Dashboard: [codex-hooks-parity](../.ralph-overview/generated/overview.html#cmd-codex-hooks-parity)
 
 ## port-explorer-prompt
@@ -534,9 +852,9 @@ Source commit: 32fdb9de
 - Dashboard: [session-parent-link-writer](../.ralph-overview/generated/overview.html#cmd-session-parent-link-writer)
 
 ## codex-base-prompt-safety-rails
-- Stage: untracked
-- jobDir: n/a
-- Last activity: 2026-05-25T12:00:00Z task touch
+- Stage: shipped
+- jobDir: `.ralph/jobs/codex-base-prompt-safety-rails`
+- Last activity: 2026-05-25T12:01:32Z Ralph update
 - Dashboard: [codex-base-prompt-safety-rails](../.ralph-overview/generated/overview.html#cmd-codex-base-prompt-safety-rails)
 
 ## codex-child-spawn-tools
@@ -546,20 +864,20 @@ Source commit: 32fdb9de
 - Dashboard: [codex-child-spawn-tools](../.ralph-overview/generated/overview.html#cmd-codex-child-spawn-tools)
 
 ## codex-slash-commands
-- Stage: untracked
-- jobDir: n/a
+- Stage: planning
+- jobDir: `.ralph/jobs/codex-slash-commands`
 - Last activity: 2026-05-31T10:40:00Z task touch
 - Dashboard: [codex-slash-commands](../.ralph-overview/generated/overview.html#cmd-codex-slash-commands)
 
 ## codex-plan-mode-defensive
-- Stage: untracked
-- jobDir: n/a
+- Stage: planning
+- jobDir: `.ralph/jobs/codex-plan-mode-defensive`
 - Last activity: 2026-05-31T13:20:00Z task touch
 - Dashboard: [codex-plan-mode-defensive](../.ralph-overview/generated/overview.html#cmd-codex-plan-mode-defensive)
 
 ## codex-polish-lows
-- Stage: untracked
-- jobDir: n/a
+- Stage: planning
+- jobDir: `.ralph/jobs/codex-polish-lows`
 - Last activity: 2026-05-31T13:42:00Z task touch
 - Dashboard: [codex-polish-lows](../.ralph-overview/generated/overview.html#cmd-codex-polish-lows)
 
@@ -612,32 +930,32 @@ Source commit: 32fdb9de
 - Dashboard: [codex-rs-build-time-and-cache-resilience](../.ralph-overview/generated/overview.html#cmd-codex-rs-build-time-and-cache-resilience)
 
 ## codex-rs-iteration-env-sccache-race-and-jobs-default
-- Stage: untracked
-- jobDir: n/a
+- Stage: planning
+- jobDir: `.ralph/jobs/codex-rs-iteration-env-sccache-race-and-jobs-default`
 - Last activity: 2026-06-01T19:14:00Z task touch
 - Dashboard: [codex-rs-iteration-env-sccache-race-and-jobs-default](../.ralph-overview/generated/overview.html#cmd-codex-rs-iteration-env-sccache-race-and-jobs-default)
 
 ## codex-rs-defender-exclusions-procmon-verify
 - Stage: untracked
 - jobDir: n/a
-- Last activity: 2026-06-01T19:03:00Z task touch
+- Last activity: 2026-06-03T00:55:00Z task touch
 - Dashboard: [codex-rs-defender-exclusions-procmon-verify](../.ralph-overview/generated/overview.html#cmd-codex-rs-defender-exclusions-procmon-verify)
 
 ## codex-rs-feature-pruning-for-sub-45m-cold
 - Stage: planning
 - jobDir: `.ralph/jobs/codex-rs-feature-pruning-for-sub-45m-cold`
-- Last activity: 2026-06-02T05:30:00Z task touch
+- Last activity: 2026-06-03T14:08:00Z task touch
 - Dashboard: [codex-rs-feature-pruning-for-sub-45m-cold](../.ralph-overview/generated/overview.html#cmd-codex-rs-feature-pruning-for-sub-45m-cold)
 
 ## codex-rs-measure-build-includes-launcher
-- Stage: untracked
-- jobDir: n/a
+- Stage: planning
+- jobDir: `.ralph/jobs/codex-rs-measure-build-includes-launcher`
 - Last activity: 2026-06-01T20:06:00Z task touch
 - Dashboard: [codex-rs-measure-build-includes-launcher](../.ralph-overview/generated/overview.html#cmd-codex-rs-measure-build-includes-launcher)
 
 ## codex-stream-cut-diagnostics
-- Stage: untracked
-- jobDir: n/a
+- Stage: planning
+- jobDir: `.ralph/jobs/codex-stream-cut-diagnostics`
 - Last activity: 2026-06-02T02:49:00Z task touch
 - Dashboard: [codex-stream-cut-diagnostics](../.ralph-overview/generated/overview.html#cmd-codex-stream-cut-diagnostics)
 
@@ -648,8 +966,8 @@ Source commit: 32fdb9de
 - Dashboard: [codex-rs-build-perf-jobs-sweep-with-defender](../.ralph-overview/generated/overview.html#cmd-codex-rs-build-perf-jobs-sweep-with-defender)
 
 ## codex-rs-iteration-profile-lto-bypass-doc-fix
-- Stage: untracked
-- jobDir: n/a
+- Stage: planning
+- jobDir: `.ralph/jobs/codex-rs-iteration-profile-lto-bypass-doc-fix`
 - Last activity: 2026-06-01T19:30:00Z task touch
 - Dashboard: [codex-rs-iteration-profile-lto-bypass-doc-fix](../.ralph-overview/generated/overview.html#cmd-codex-rs-iteration-profile-lto-bypass-doc-fix)
 
@@ -659,33 +977,45 @@ Source commit: 32fdb9de
 - Last activity: 2026-06-01T14:52:00Z task touch
 - Dashboard: [codex-rs-build-perf-baseline-measurement](../.ralph-overview/generated/overview.html#cmd-codex-rs-build-perf-baseline-measurement)
 
-## codex-rebase-debt-fix-tui-and-exec
+## codex-rebase-debt-fix-thread-manager-sample
 - Stage: untracked
 - jobDir: n/a
+- Last activity: 2026-06-03T20:55:00Z task touch
+- Dashboard: [codex-rebase-debt-fix-thread-manager-sample](../.ralph-overview/generated/overview.html#cmd-codex-rebase-debt-fix-thread-manager-sample)
+
+## build-env-sccache-cache-wipe-and-rewarm
+- Stage: untracked
+- jobDir: n/a
+- Last activity: 2026-06-03T20:42:00Z task touch
+- Dashboard: [build-env-sccache-cache-wipe-and-rewarm](../.ralph-overview/generated/overview.html#cmd-build-env-sccache-cache-wipe-and-rewarm)
+
+## codex-rebase-debt-fix-tui-and-exec
+- Stage: planning
+- jobDir: `.ralph/jobs/codex-rebase-debt-fix-tui-and-exec`
 - Last activity: 2026-06-01T01:12:00Z task touch
 - Dashboard: [codex-rebase-debt-fix-tui-and-exec](../.ralph-overview/generated/overview.html#cmd-codex-rebase-debt-fix-tui-and-exec)
 
 ## codex-mcp-server-eventmsg-match-arms-fix
-- Stage: untracked
-- jobDir: n/a
+- Stage: planning
+- jobDir: `.ralph/jobs/codex-mcp-server-eventmsg-match-arms-fix`
 - Last activity: 2026-06-01T00:04:00Z task touch
 - Dashboard: [codex-mcp-server-eventmsg-match-arms-fix](../.ralph-overview/generated/overview.html#cmd-codex-mcp-server-eventmsg-match-arms-fix)
 
 ## codex-rebase-debt-fix-app-server-client-brace
-- Stage: untracked
-- jobDir: n/a
+- Stage: planning
+- jobDir: `.ralph/jobs/codex-rebase-debt-fix-app-server-client-brace`
 - Last activity: 2026-05-31T23:32:00Z task touch
 - Dashboard: [codex-rebase-debt-fix-app-server-client-brace](../.ralph-overview/generated/overview.html#cmd-codex-rebase-debt-fix-app-server-client-brace)
 
 ## codex-rebase-debt-fix-app-server-plugin-share-context
-- Stage: untracked
-- jobDir: n/a
+- Stage: planning
+- jobDir: `.ralph/jobs/codex-rebase-debt-fix-app-server-plugin-share-context`
 - Last activity: 2026-05-31T22:40:00Z task touch
 - Dashboard: [codex-rebase-debt-fix-app-server-plugin-share-context](../.ralph-overview/generated/overview.html#cmd-codex-rebase-debt-fix-app-server-plugin-share-context)
 
 ## codex-rebase-resume-proper
-- Stage: untracked
-- jobDir: n/a
+- Stage: planning
+- jobDir: `.ralph/jobs/codex-rebase-resume-proper`
 - Last activity: 2026-05-31T18:35:00Z task touch
 - Dashboard: [codex-rebase-resume-proper](../.ralph-overview/generated/overview.html#cmd-codex-rebase-resume-proper)
 
@@ -702,8 +1032,8 @@ Source commit: 32fdb9de
 - Dashboard: [codex-channels-option-b](../.ralph-overview/generated/overview.html#cmd-codex-channels-option-b)
 
 ## codex-mcp-server-notifications-patch-surface-docs
-- Stage: untracked
-- jobDir: n/a
+- Stage: planning
+- jobDir: `.ralph/jobs/codex-mcp-server-notifications-patch-surface-docs`
 - Last activity: 2026-05-31T17:32:00Z task touch
 - Dashboard: [codex-mcp-server-notifications-patch-surface-docs](../.ralph-overview/generated/overview.html#cmd-codex-mcp-server-notifications-patch-surface-docs)
 
@@ -734,5 +1064,245 @@ Source commit: 32fdb9de
 ## happy-skill-md-roadmap-path-correction
 - Stage: untracked
 - jobDir: n/a
-- Last activity: 2026-05-30T21:45:00Z task touch
+- Last activity: 2026-06-05T01:10:00Z task touch
 - Dashboard: [happy-skill-md-roadmap-path-correction](../.ralph-overview/generated/overview.html#cmd-happy-skill-md-roadmap-path-correction)
+
+## crews-member-crash-auto-notify-lead
+- Stage: brainstorming
+- jobDir: `.ralph/jobs/crews-member-crash-auto-notify-lead`
+- Last activity: 2026-06-08T03:32:54Z Ralph update
+- Dashboard: [crews-member-crash-auto-notify-lead](../.ralph-overview/generated/overview.html#cmd-crews-member-crash-auto-notify-lead)
+
+## ralph-copilot-exec-readonly-submodule-snapshot-cost
+- Stage: planning
+- jobDir: `.ralph/jobs/ralph-copilot-exec-readonly-submodule-snapshot-cost`
+- Last activity: 2026-06-07 task touch
+- Dashboard: [ralph-copilot-exec-readonly-submodule-snapshot-cost](../.ralph-overview/generated/overview.html#cmd-ralph-copilot-exec-readonly-submodule-snapshot-cost)
+
+## crews-listener-observability-logging
+- Stage: planning
+- jobDir: `.ralph/jobs/crews-listener-observability-logging`
+- Last activity: 2026-06-07 task touch
+- Dashboard: [crews-listener-observability-logging](../.ralph-overview/generated/overview.html#cmd-crews-listener-observability-logging)
+
+## crews-bg-gate-recognize-background-subagents
+- Stage: shipped
+- jobDir: `.ralph/jobs/crews-bg-gate-recognize-background-subagents`
+- Last activity: 2026-06-07T07:47:30.642Z Ralph update
+- Dashboard: [crews-bg-gate-recognize-background-subagents](../.ralph-overview/generated/overview.html#cmd-crews-bg-gate-recognize-background-subagents)
+
+## ralph-codex-exec-lens-hang-instrumentation
+- Stage: planning
+- jobDir: `.ralph/jobs/ralph-codex-exec-lens-hang-instrumentation`
+- Last activity: 2026-06-07 task touch
+- Dashboard: [ralph-codex-exec-lens-hang-instrumentation](../.ralph-overview/generated/overview.html#cmd-ralph-codex-exec-lens-hang-instrumentation)
+
+## crews-lead-reply-to-consumed-inbox-envelope
+- Stage: planning
+- jobDir: `.ralph/jobs/crews-lead-reply-to-consumed-inbox-envelope`
+- Last activity: 2026-06-07 task touch
+- Dashboard: [crews-lead-reply-to-consumed-inbox-envelope](../.ralph-overview/generated/overview.html#cmd-crews-lead-reply-to-consumed-inbox-envelope)
+
+## crews-member-stalled-needs-attention-nudge
+- Stage: brainstorm-ready
+- jobDir: n/a
+- Last activity: 2026-06-07 task touch
+- Dashboard: [crews-member-stalled-needs-attention-nudge](../.ralph-overview/generated/overview.html#cmd-crews-member-stalled-needs-attention-nudge)
+
+## ralph-codex-iteration-engine-runaway-spawn-guard
+- Stage: planning
+- jobDir: `.ralph/jobs/ralph-codex-iteration-engine-runaway-spawn-guard`
+- Last activity: 2026-06-08 task touch
+- Dashboard: [ralph-codex-iteration-engine-runaway-spawn-guard](../.ralph-overview/generated/overview.html#cmd-ralph-codex-iteration-engine-runaway-spawn-guard)
+
+## ralph-codex-exec-default-timeout-too-short
+- Stage: planning
+- jobDir: `.ralph/jobs/ralph-codex-exec-default-timeout-too-short`
+- Last activity: 2026-06-08 task touch
+- Dashboard: [ralph-codex-exec-default-timeout-too-short](../.ralph-overview/generated/overview.html#cmd-ralph-codex-exec-default-timeout-too-short)
+
+## crews-install-plugin-installed-cli-toolkit-root
+- Stage: untracked
+- jobDir: n/a
+- Last activity: 2026-06-08 task touch
+- Dashboard: [crews-install-plugin-installed-cli-toolkit-root](../.ralph-overview/generated/overview.html#cmd-crews-install-plugin-installed-cli-toolkit-root)
+
+## crews-flip-default-member-engine-to-codex
+- Stage: untracked
+- jobDir: n/a
+- Last activity: 2026-06-08 task touch
+- Dashboard: [crews-flip-default-member-engine-to-codex](../.ralph-overview/generated/overview.html#cmd-crews-flip-default-member-engine-to-codex)
+
+## ralph-codex-live-smoke-windows-shim-spawn
+- Stage: untracked
+- jobDir: n/a
+- Last activity: 2026-06-08 task touch
+- Dashboard: [ralph-codex-live-smoke-windows-shim-spawn](../.ralph-overview/generated/overview.html#cmd-ralph-codex-live-smoke-windows-shim-spawn)
+
+## codex-raw-session-happy-daemon-autoconnect
+- Stage: brainstorm-ready
+- jobDir: n/a
+- Last activity: 2026-06-08 task touch
+- Dashboard: [codex-raw-session-happy-daemon-autoconnect](../.ralph-overview/generated/overview.html#cmd-codex-raw-session-happy-daemon-autoconnect)
+
+## codex-anthropic-models-support
+- Stage: planning
+- jobDir: `.ralph/jobs/codex-anthropic-models-support`
+- Last activity: 2026-06-09 task touch
+- Dashboard: [codex-anthropic-models-support](../.ralph-overview/generated/overview.html#cmd-codex-anthropic-models-support)
+
+## agent-comms-serverless-scope-a-discovery
+- Stage: brainstorm-ready
+- jobDir: n/a
+- Last activity: 2026-06-08 task touch
+- Dashboard: [agent-comms-serverless-scope-a-discovery](../.ralph-overview/generated/overview.html#cmd-agent-comms-serverless-scope-a-discovery)
+
+## crews-remove-resume-crew-command
+- Stage: untracked
+- jobDir: n/a
+- Last activity: 2026-06-08 task touch
+- Dashboard: [crews-remove-resume-crew-command](../.ralph-overview/generated/overview.html#cmd-crews-remove-resume-crew-command)
+
+## crews-proactive-done-silent-miss-regression
+- Stage: planning
+- jobDir: `.ralph/jobs/crews-proactive-done-silent-miss-regression`
+- Last activity: 2026-06-09 task touch
+- Dashboard: [crews-proactive-done-silent-miss-regression](../.ralph-overview/generated/overview.html#cmd-crews-proactive-done-silent-miss-regression)
+
+## agent-comms-scope-a-live-cross-machine-wiring
+- Stage: shipped
+- jobDir: `.ralph/jobs/agent-comms-scope-a-live-cross-machine-wiring`
+- Last activity: 2026-06-09T15:23:34Z Ralph update
+- Dashboard: [agent-comms-scope-a-live-cross-machine-wiring](../.ralph-overview/generated/overview.html#cmd-agent-comms-scope-a-live-cross-machine-wiring)
+
+## codex-member-skips-implement-with-ralph-skill
+- Stage: planning
+- jobDir: `.ralph/jobs/codex-member-skips-implement-with-ralph-skill`
+- Last activity: 2026-06-09 task touch
+- Dashboard: [codex-member-skips-implement-with-ralph-skill](../.ralph-overview/generated/overview.html#cmd-codex-member-skips-implement-with-ralph-skill)
+
+## codex-anthropic-transport-bazel-lock-regen
+- Stage: untracked
+- jobDir: n/a
+- Last activity: 2026-06-09 task touch
+- Dashboard: [codex-anthropic-transport-bazel-lock-regen](../.ralph-overview/generated/overview.html#cmd-codex-anthropic-transport-bazel-lock-regen)
+
+## codex-anthropic-transport-us008-e2e-test
+- Stage: untracked
+- jobDir: n/a
+- Last activity: 2026-06-09 task touch
+- Dashboard: [codex-anthropic-transport-us008-e2e-test](../.ralph-overview/generated/overview.html#cmd-codex-anthropic-transport-us008-e2e-test)
+
+## codex-cut-release-with-anthropic-transport
+- Stage: untracked
+- jobDir: n/a
+- Last activity: 2026-06-09 task touch
+- Dashboard: [codex-cut-release-with-anthropic-transport](../.ralph-overview/generated/overview.html#cmd-codex-cut-release-with-anthropic-transport)
+
+## agent-comms-scope-a-two-machine-dev-tunnels-smoke
+- Stage: untracked
+- jobDir: n/a
+- Last activity: 2026-06-09 task touch
+- Dashboard: [agent-comms-scope-a-two-machine-dev-tunnels-smoke](../.ralph-overview/generated/overview.html#cmd-agent-comms-scope-a-two-machine-dev-tunnels-smoke)
+
+## happy-cli-test-baseline-failures-cleanup
+- Stage: untracked
+- jobDir: n/a
+- Last activity: 2026-06-09 task touch
+- Dashboard: [happy-cli-test-baseline-failures-cleanup](../.ralph-overview/generated/overview.html#cmd-happy-cli-test-baseline-failures-cleanup)
+
+## codex-member-skill-agent-subagent-fanout
+- Stage: planning
+- jobDir: `.ralph/jobs/codex-member-skill-agent-subagent-fanout`
+- Last activity: 2026-06-09 task touch
+- Dashboard: [codex-member-skill-agent-subagent-fanout](../.ralph-overview/generated/overview.html#cmd-codex-member-skill-agent-subagent-fanout)
+
+## crews-review-mail-overview-summary-header
+- Stage: shipped
+- jobDir: `.ralph/jobs/crews-review-mail-overview-summary-header`
+- Last activity: 2026-06-09T22:51:15.933Z Ralph update
+- Dashboard: [crews-review-mail-overview-summary-header](../.ralph-overview/generated/overview.html#cmd-crews-review-mail-overview-summary-header)
+
+## codex-anthropic-models-opt-in-gate
+- Stage: planning
+- jobDir: `.ralph/jobs/codex-anthropic-models-opt-in-gate`
+- Last activity: 2026-06-10 task touch
+- Dashboard: [codex-anthropic-models-opt-in-gate](../.ralph-overview/generated/overview.html#cmd-codex-anthropic-models-opt-in-gate)
+
+## overview-parallel-ready-excludes-merged-lifecycle
+- Stage: untracked
+- jobDir: n/a
+- Last activity: 2026-06-09 task touch
+- Dashboard: [overview-parallel-ready-excludes-merged-lifecycle](../.ralph-overview/generated/overview.html#cmd-overview-parallel-ready-excludes-merged-lifecycle)
+
+## crews-listener-silent-reap-across-idle-investigation
+- Stage: untracked
+- jobDir: n/a
+- Last activity: 2026-06-09 task touch
+- Dashboard: [crews-listener-silent-reap-across-idle-investigation](../.ralph-overview/generated/overview.html#cmd-crews-listener-silent-reap-across-idle-investigation)
+
+## crews-review-mail-overview-plan-conformance
+- Stage: reviewing
+- jobDir: `.ralph/jobs/crews-review-mail-overview-plan-conformance`
+- Last activity: 2026-06-10T03:08:18Z Ralph update
+- Dashboard: [crews-review-mail-overview-plan-conformance](../.ralph-overview/generated/overview.html#cmd-crews-review-mail-overview-plan-conformance)
+
+## ralph-orchestration-multi-repo-single-job-support
+- Stage: brainstorm-ready
+- jobDir: n/a
+- Last activity: 2026-06-09 task touch
+- Dashboard: [ralph-orchestration-multi-repo-single-job-support](../.ralph-overview/generated/overview.html#cmd-ralph-orchestration-multi-repo-single-job-support)
+
+## ralph-commandonpath-bash-windows-iteration-engine-downgrade
+- Stage: planning
+- jobDir: `.ralph/jobs/ralph-commandonpath-bash-windows-iteration-engine-downgrade`
+- Last activity: 2026-06-10 task touch
+- Dashboard: [ralph-commandonpath-bash-windows-iteration-engine-downgrade](../.ralph-overview/generated/overview.html#cmd-ralph-commandonpath-bash-windows-iteration-engine-downgrade)
+
+## codex-notify-hook-async-bg-completion-investigation
+- Stage: untracked
+- jobDir: n/a
+- Last activity: 2026-06-10 task touch
+- Dashboard: [codex-notify-hook-async-bg-completion-investigation](../.ralph-overview/generated/overview.html#cmd-codex-notify-hook-async-bg-completion-investigation)
+
+## crews-codex-progress-bg-gate-stall-detection
+- Stage: planning
+- jobDir: `.ralph/jobs/crews-codex-progress-bg-gate-stall-detection`
+- Last activity: 2026-06-10 task touch
+- Dashboard: [crews-codex-progress-bg-gate-stall-detection](../.ralph-overview/generated/overview.html#cmd-crews-codex-progress-bg-gate-stall-detection)
+
+## crews-hook-timeout-under-lock-contention
+- Stage: planning
+- jobDir: `.ralph/jobs/crews-hook-timeout-under-lock-contention`
+- Last activity: 2026-06-10 task touch
+- Dashboard: [crews-hook-timeout-under-lock-contention](../.ralph-overview/generated/overview.html#cmd-crews-hook-timeout-under-lock-contention)
+
+## crews-pidalive-false-positive-recycled-pid
+- Stage: planning
+- jobDir: `.ralph/jobs/crews-pidalive-false-positive-recycled-pid`
+- Last activity: 2026-06-10 task touch
+- Dashboard: [crews-pidalive-false-positive-recycled-pid](../.ralph-overview/generated/overview.html#cmd-crews-pidalive-false-positive-recycled-pid)
+
+## crews-codex-member-tab-title-not-renamed
+- Stage: planning
+- jobDir: `.ralph/jobs/crews-codex-member-tab-title-not-renamed`
+- Last activity: 2026-06-10 task touch
+- Dashboard: [crews-codex-member-tab-title-not-renamed](../.ralph-overview/generated/overview.html#cmd-crews-codex-member-tab-title-not-renamed)
+
+## codex-nonblocking-bg-completion-surfacing
+- Stage: planning
+- jobDir: `.ralph/jobs/codex-nonblocking-bg-completion-surfacing`
+- Last activity: 2026-06-10 task touch
+- Dashboard: [codex-nonblocking-bg-completion-surfacing](../.ralph-overview/generated/overview.html#cmd-codex-nonblocking-bg-completion-surfacing)
+
+## codex-session-name-arg-support-verification
+- Stage: untracked
+- jobDir: n/a
+- Last activity: 2026-06-10 task touch
+- Dashboard: [codex-session-name-arg-support-verification](../.ralph-overview/generated/overview.html#cmd-codex-session-name-arg-support-verification)
+
+## crews-pretooluse-prioritize-review-mail-over-arm
+- Stage: planning
+- jobDir: `.ralph/jobs/crews-pretooluse-prioritize-review-mail-over-arm`
+- Last activity: 2026-06-10 task touch
+- Dashboard: [crews-pretooluse-prioritize-review-mail-over-arm](../.ralph-overview/generated/overview.html#cmd-crews-pretooluse-prioritize-review-mail-over-arm)

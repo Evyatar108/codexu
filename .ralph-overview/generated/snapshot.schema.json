@@ -104,7 +104,7 @@
         },
         "prompts": {
           "type": "object",
-          "additionalProperties": false,
+          "additionalProperties": true,
           "properties": {
             "brainstorm": {
               "type": "string"
@@ -133,7 +133,6 @@
       "type": "object",
       "additionalProperties": true,
       "required": [
-        "column",
         "html"
       ],
       "properties": {
@@ -207,7 +206,6 @@
         },
         "commits": {
           "type": "array",
-          "minItems": 1,
           "items": {
             "$ref": "#/$defs/ShipManifestCommit"
           }
@@ -249,6 +247,12 @@
           "type": "string"
         },
         "blocks": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "blockedOn": {
           "type": "array",
           "items": {
             "type": "string"
@@ -369,19 +373,54 @@
           "type": "string"
         },
         "sessionId": {
-          "type": "string"
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
         },
         "transcriptPath": {
-          "type": "string"
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
         },
         "endedAt": {
-          "type": "string"
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
         },
         "outcome": {
-          "type": "string"
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
         },
         "summary": {
-          "type": "string"
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
         },
         "_isExplicit": {
           "type": "boolean"
@@ -563,6 +602,9 @@
           "properties": {
             "ralph": {
               "$ref": "#/$defs/RalphPipelineState"
+            },
+            "unblockCandidate": {
+              "type": "boolean"
             }
           }
         }
@@ -617,6 +659,9 @@
           "items": {
             "type": "string"
           }
+        },
+        "unblockCandidate": {
+          "type": "boolean"
         }
       }
     },
