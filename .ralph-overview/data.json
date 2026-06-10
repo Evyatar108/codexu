@@ -5762,7 +5762,7 @@
     {
       "id": "crews-proactive-done-silent-miss-regression",
       "scope": "crews",
-      "lifecycle": "tracked",
+      "lifecycle": "merged",
       "status": "active",
       "lastTouchedAt": "2026-06-09",
       "kanbanCards": [
@@ -5781,6 +5781,27 @@
           "plan": "/plan-with-ralph crews-proactive-done-silent-miss-regression \"Investigate + fix a REGRESSION: a crews proactive-batch terminal report (kind=done/question/blocked) is auto-consumed at delivery so the lead's /crews:review-mail returns empty entries and the lead silently misses it. REPRO EVIDENCE (2026-06-08, crews 3.14.1): member bs-serverless kind=done id 5124e752 written 20:43:58.321Z; lead listener delivered count:1 via watch; lead mailbox-history seq 501 = kind=done with consumedAt=20:43:58.536Z (delivery instant) + message 'bs-serverless done (proactive batch, 6 reports)'; the lead's subsequent review-mail returned {entries:[], advanced:false, lastReviewedSeq:501}. The done content existed only in mailbox-history.jsonl / read-member --all. The original bug crews-proactive-done-auto-consumed-silent-lead-miss shipped MERGED as crews v3.6.2 -- so START by reading that fix (find its commit + tests) and determine what regressed it across the v3.7->v3.14 protocol-v2 changes (multi-row outbox per report tag, body-canonical gate, collapsedSeqs/collapsedCount batch-collapsing, the proactive non-reply wake path). The FIX must guarantee a terminal done/question/blocked row in a proactive batch is SURFACED to the lead through the documented read path (review-mail) -- either it must NOT be marked consumed until the lead actually reviews it, OR the listener wake must carry the terminal row's content -- WITHOUT re-introducing the original double-notify the v3.6.2 fix removed. Add a regression test that reproduces the seq-501 scenario (proactive batch, progress rows then a terminal done last, delivered via watch) and asserts review-mail surfaces the done. crews plugin / ai-developer-toolkit submodule; bump version + the 5 version files; submodule two-commit flow + 3-remote push. Cross-ref the codexu AGENTS.md crews-mail-handling memory (empty review-mail after a watch wake -> dig via read-member --all).\"",
           "impl": "Implement per .ralph/jobs/crews-proactive-done-silent-miss-regression/plan.md (--from-plan; Phase-4 reviewed; 3 serial stories). Fix the REGRESSION where a proactive-batch terminal report (done/question/blocked) is consumed/skipped so the lead review-mail returns empty. PINNED ROOT CAUSE: protocol-v2 commit af07987d added expandReviewRows to review-mail ONLY; the other cursor-advancing paths (/wake, --since, recovery branch) over-advance lastReviewedSeq without expanding payload.entries. FIX: extract a SHARED expand helper used by ALL cursor-advancing paths; /wake must expand-before-advance; add a recovery-branch guard; listener stays metadata-only. Regression test: a proactive batch with a trailing done so review-mail (and /wake) returns the done row, advanced true (reproduce the bs-serverless scenario). crews version bump + marketplace sync. Plugin-side; two-commit submodule flow. SERIALIZE vs other crews impls (same-plugin version-file contention)."
         }
+      },
+      "shipManifest": {
+        "shippedAt": "2026-06-09T19:00:00Z",
+        "summary": "Fixed the regression where a crews proactive-batch terminal report (done/question/blocked) was consumed/skipped so the lead's review-mail returned empty and the terminal was silently missed. ROOT CAUSE (pinned by the plan): protocol-v2 commit af07987d added expandReviewRows to the review-mail path ONLY; the other cursor-advancing paths (/wake, --since, recovery branch) over-advanced lastReviewedSeq WITHOUT expanding payload.entries, so a buried terminal row in a proactive batch was advanced past. FIX (crews 3.19.1): extracted a shared lib/expand-review-rows.js used by both review-mail and /wake; /wake now expands proactive batch entries before formatting AND before advancing lastReviewedSeq; the recovery branch surfaces protocol-v2 proactive terminal batches instead of silently advancing; the listener stays metadata-only. Added regression coverage for /wake, listener+review-mail, and narrowed CREWS_REVIEW_KINDS. 286/286 full suite green. Implemented by a CODEX crew member that correctly drove the autonomous /implement-with-ralph loop (clean single-repo seed). NOTE: installed-plugin update to 3.19.1 deferred (EBUSY: dir locked by the live batch); source is shipped to all remotes + codexu pointer bumped.",
+        "commits": [
+          {
+            "sha": "c4c2eb5c",
+            "oneLine": "fix(crews): expand proactive terminal review rows before cursor advance",
+            "repo": "ai-developer-toolkit"
+          },
+          {
+            "sha": "97670105",
+            "oneLine": "chore(crews): bump version to 3.19.1",
+            "repo": "ai-developer-toolkit"
+          },
+          {
+            "sha": "6a4423c9",
+            "oneLine": "chore(crews): bump ai-developer-toolkit pointer to crews 3.19.1",
+            "repo": "codexu"
+          }
+        ]
       }
     },
     {
