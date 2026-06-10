@@ -1,0 +1,44 @@
+I’ll open the referenced prompt file and use it as the task brief.
+
+The brief is longer than a single view window, so I’m reading it in chunks before changing anything.
+
+I’m switching from reading the brief to validating the plan against the actual crews plugin files.
+
+I’m checking the concrete hook/lock/listener code and plugin rules so the review can flag only real plan issues.
+
+I’ve verified the lock/liveness basics; I’m checking the manifest write and heartbeat call sites now for completeness/order issues.
+
+I found one plan-level risk around treating all hook manifest writes as fail-open; I’m checking consume/stop paths to ground the severity.
+
+I’m checking a few remaining version/test/export surfaces before writing the review.
+
+The review evidence is sufficient; I’m preparing the findings text now.
+
+### Feasibility
+
+[Critical] **L3b’s fail-open write budget is too broad for protocol-critical state.** The plan explicitly threads hook-context single-attempt/fail-open behavior into `consumeMailbox` manifest writes, but `hooks/mailbox.js::consumeMailbox` appends inbox history, empties `mailbox.json`, then updates `lastInboxSeq` / `lastReviewRequiredSeq`. If that manifest update fails open, mail can be durably consumed while the review cursor/gate is stale or wrong. Limit fail-open to observability/advisory writes; protocol-state writes must fail loud or remain transactional.
+
+[High] **Heartbeat stamps need an ownership check, not just freshness.** A lock-free `<actorDir>/heartbeat` stamp with `{ ts, pid, epoch }` must be ignored unless its `pid` and `epoch` match the manifest’s current `lastListenerPid` / `lastListenerEpoch`. Otherwise an orphan/superseded listener can keep writing a fresh stamp and mask a dead current listener, weakening the v3.6.2 epoch ownership invariant.
+
+[Medium] **`deriveListenerState(manifest)` cannot read a per-actor stamp as planned.** The current pure helper only receives a manifest and is directly tested/called that way; path-aware code lives in `getListenerState(name, crew, stateCwd, opts)`. The plan should route stamp reads through the path-aware helper or explicitly change the helper signature and all direct tests/callers.
+
+### Completeness
+
+[High] **The plan does not classify write sites by safety.** It should enumerate which manifest writes are best-effort (`turn-observability`, `claimNagSeq`, maybe `markArmIntent`) versus must-not-fail-open (`consumeMailbox`, outbox/report finalization, mailbox cursor/review-required updates). Without that split, the implementation can satisfy the current AC while corrupting protocol state.
+
+[Medium] **The bounded events-tail helper requirement misses existing semantics.** `detect-active-bg.js` and `turn-observability.js` both read full files today, but `turn-observability` depends on reverse traversal, message-id dedupe, and malformed-line tolerance. Add AC that the shared bounded reader preserves those behaviors and skips a torn final JSONL line.
+
+### Ordering
+
+No issues found.
+
+### Simplicity
+
+[Medium] **Threading budget options through every generic JSON writer is risky.** A simpler and safer shape is a narrow helper for “hook best-effort manifest patch” call sites, leaving `writeJsonAtomic` / `updateManifest` default fail-loud. That reduces accidental propagation into protocol-critical writes.
+
+### Acceptance Criteria Quality
+
+[High] **“File-op-count regression bound” is underspecified.** It does not name the representative hook(s), the pre-fix baseline, the bound, or which fs operations count. An autonomous implementer could choose a weak fixture and still pass.
+
+[High] **Heartbeat AC must cover stale/orphan stamp rejection.** Add cases where stamp PID/epoch differs from the manifest and `derive/getListenerState` still reports stale/exited as appropriate.
+

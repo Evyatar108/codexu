@@ -1,0 +1,221 @@
+{
+  "planFile": "D:/harness-efforts/codexu/.ralph/jobs/.staging/20260610T035339Z-plan-hooktimeout-d1150e41/draft-plan.md",
+  "repoDir": "D:/harness-efforts/codexu/ai-developer-toolkit/plugins/crews",
+  "reviewCycle": 1,
+  "findings": [
+    {
+      "id": "F-001",
+      "severity": "Critical",
+      "source": "consensus",
+      "category": "Feasibility",
+      "sectionRef": "Approach > Implementation Strategy > L3b",
+      "description": "L3b's hook-context fail-open write budget is UNSAFE if applied to protocol-state writes. consumeMailbox (hooks/mailbox.js:704-722) appends inbox history, fsyncs, EMPTIES mailbox.json, THEN updates lastInboxSeq / lastReviewRequiredSeq / operator-direct cursors (mailbox.js:719). If that manifest write 'fails open', mail is durably consumed while the review cursor/gate is stale or wrong, and no later hook can retry the same logical update (the mailbox is already empty). Same hazard for outbox/report finalization and the final Stop manifest seq update.",
+      "status": "fixed",
+      "relevantFiles": [
+        "hooks/mailbox.js",
+        "hooks/actors.js",
+        "hooks/stop.js"
+      ],
+      "suggestedFix": "Limit fail-open STRICTLY to idempotent/advisory manifest writes (turn-observability, the claimNagSeq nag, markArmIntent). consumeMailbox's cursor update, outbox/report finalization, and the final Stop seq/review-required manifest update must stay FAIL-LOUD / transactional (abort-on-failure, do NOT empty the mailbox if the cursor write cannot commit). The cascade relief for these fail-loud writes comes from L3a (immediate steal) + L3c (heartbeat off the lock) reducing contention, not from making them fail open.",
+      "fixedInIteration": 1,
+      "resolution": "Restricted L3b fail-open handling to advisory/idempotent writes and required consumeMailbox, outbox/report finalization, and final Stop protocol-state writes to remain fail-loud/transactional with dedicated safety tests."
+    },
+    {
+      "id": "F-002",
+      "severity": "High",
+      "source": "consensus",
+      "category": "Feasibility",
+      "sectionRef": "Approach > Architecture > L3c",
+      "description": "The heartbeat-stamp read is under-specified for current call signatures. deriveListenerState(manifest) is a PURE helper that only receives a manifest (hooks/actor-state.js:59-95) and has many manifest-only call sites (hooks/actors.js:660, :1082; hooks/mailbox.js:435). A stamp reader cannot locate <actorDir>/heartbeat from a manifest alone, so those gates would still demote a live listener on stale manifest.lastHeartbeatAt.",
+      "status": "fixed",
+      "relevantFiles": [
+        "hooks/actor-state.js",
+        "hooks/actors.js",
+        "hooks/mailbox.js",
+        "hooks/health.js"
+      ],
+      "suggestedFix": "Route stamp reads through the PATH-AWARE wrapper getListenerState(name, crew, stateCwd, opts) (which already has cwd) rather than the pure deriveListenerState(manifest). Keep deriveListenerState(manifest) pure; have getListenerState read the stamp and pass a derived freshness/liveness signal in. Enumerate and update every gate that currently relies on manifest-only liveness (actors.js:660,1082; mailbox.js:435) to go through the path-aware path, OR document why a given manifest-only consumer is safe to leave on the manifest fallback.",
+      "fixedInIteration": 2,
+      "resolution": "Amended the plan so heartbeat-stamp reads are routed through path-aware getListenerState while deriveListenerState remains pure, and enumerated the affected gates/tests."
+    },
+    {
+      "id": "F-003",
+      "severity": "High",
+      "source": "consensus",
+      "category": "Completeness",
+      "sectionRef": "Approach > Implementation Strategy",
+      "description": "The plan does not classify manifest-write call sites by safety. Without an explicit best-effort-vs-must-commit table, the implementation can wire the fail-open budget into protocol-critical writes and still satisfy the current ACs while corrupting state (root of F-001).",
+      "status": "fixed",
+      "relevantFiles": [
+        "hooks/mailbox.js",
+        "hooks/actors.js",
+        "hooks/post-tool-use.js",
+        "hooks/stop.js",
+        "hooks/pre-tool-use.js"
+      ],
+      "suggestedFix": "Add a table to the plan: BEST-EFFORT/advisory (may fail-open) = turn-observability updateManifest, claimNagSeq nag, markArmIntent; MUST-COMMIT/transactional (never fail-open) = consumeMailbox cursor/drain, outbox/report finalization, final Stop seq/review-required update, the v3.6.2 epoch/PID arm claim. Wire the hook best-effort helper ONLY to the approved advisory sites.",
+      "fixedInIteration": 3,
+      "resolution": "Added an explicit best-effort versus must-commit manifest-write classification table and constrained the fail-open helper to approved advisory call sites."
+    },
+    {
+      "id": "F-004",
+      "severity": "High",
+      "source": "consensus",
+      "category": "Criteria Quality",
+      "sectionRef": "Acceptance Criteria",
+      "description": "The file-op-count regression AC is under-specified: it does not name the representative hook(s) and exact fixture inputs, the pre-fix baseline count, the numeric target bound, or which fs operations are counted (open/read/rename/lock create+delete). An autonomous implementer could pick a weak fixture and still pass.",
+      "status": "fixed",
+      "relevantFiles": [
+        "tests",
+        "hooks/locks.js",
+        "hooks/safe-io.js"
+      ],
+      "suggestedFix": "Specify: the exact hook fire (e.g. a Copilot/codex PostToolUse on a representative manifest), the counted operation set, the measured pre-fix baseline number, and the asserted post-fix upper bound (strictly lower). Keep the fs-op counter seam TESTS-ONLY (do not plumb through production APIs).",
+      "fixedInIteration": 4,
+      "resolution": "Amended the plan to specify the exact Copilot PostToolUse turn-observability fixture, counted fs operations, measured pre-fix baseline, post-fix bound, and tests-only counter constraint."
+    },
+    {
+      "id": "F-005",
+      "severity": "High",
+      "source": "copilot",
+      "category": "Correctness",
+      "sectionRef": "Approach > Architecture > L3c",
+      "description": "A lock-free heartbeat stamp { ts, pid, epoch } must be validated for OWNERSHIP, not just freshness. If the consumer accepts any fresh stamp, an orphan/superseded listener can keep writing a fresh stamp and mask a dead CURRENT listener, weakening the v3.6.2 lastListenerEpoch ownership invariant.",
+      "status": "fixed",
+      "relevantFiles": [
+        "hooks/actor-state.js",
+        "hooks/heartbeat-stamp.js"
+      ],
+      "suggestedFix": "The stamp consumer must IGNORE the stamp unless its pid AND epoch equal the manifest's current lastListenerPid / lastListenerEpoch; otherwise fall back to manifest.lastHeartbeatAt / treat as stale. Add this to the L3c design and to the heartbeat AC.",
+      "fixedInIteration": 5,
+      "resolution": "Amended L3c so heartbeat stamps are consumed only when stamp pid and epoch match the manifest's current lastListenerPid and lastListenerEpoch, with risk and AC coverage for orphan/superseded stamps."
+    },
+    {
+      "id": "F-006",
+      "severity": "High",
+      "source": "codex",
+      "category": "Completeness",
+      "sectionRef": "Approach > Implementation Strategy > L3c / Files to Modify",
+      "description": "The plan does not require updating all health/list surfaces to consume the new stamp. getMemberHealth computes heartbeat age from manifest.lastHeartbeatAt (hooks/health.js:75) and list-members paths also read it. If recurring ticks stop rewriting the manifest, these surfaces report stale/quiet/dead.",
+      "status": "fixed",
+      "relevantFiles": [
+        "hooks/health.js",
+        "hooks/crews.js"
+      ],
+      "suggestedFix": "Add getMemberHealth + the list-members snapshot to the L3c Files-to-Modify and to an AC: they must read the stamp ts (with manifest fallback) so a live-but-stamp-only listener is not reported stale.",
+      "fixedInIteration": 6,
+      "resolution": "Amended the L3c plan to require getMemberHealth and snapshotCrew/list-members liveness rows to consume the validated heartbeat stamp timestamp with manifest fallback."
+    },
+    {
+      "id": "F-007",
+      "severity": "High",
+      "source": "codex",
+      "category": "Ordering",
+      "sectionRef": "Suggested Decomposition / internal story order",
+      "description": "US-002 should not broadly thread the hook budget through mailbox.js BEFORE the safe/unsafe write classification (F-003) is done; otherwise later stories build tests around an unsafe generalized API.",
+      "status": "fixed",
+      "relevantFiles": [
+        "hooks/mailbox.js"
+      ],
+      "suggestedFix": "Reorder: add the write-site safety classification as the first sub-step of the L3b story (or a tiny preceding story), then wire the best-effort helper to ONLY the approved advisory sites.",
+      "fixedInIteration": 7,
+      "resolution": "Reordered L3b in the plan so write-site safety classification happens before helper wiring, and constrained fail-open behavior to approved advisory hook sites."
+    },
+    {
+      "id": "F-008",
+      "severity": "Medium",
+      "source": "codex",
+      "category": "Feasibility",
+      "sectionRef": "Approach > Implementation Strategy > L3a",
+      "description": "L3a immediate dead-PID steal can still stall behind an orphaned .steal mutex. acquireStealMutex (hooks/locks.js:92-119) uses only 30s mtime staleness; a hook killed while holding <lock>.steal blocks the main lock's immediate dead-PID recovery for 30s.",
+      "status": "fixed",
+      "relevantFiles": [
+        "hooks/locks.js"
+      ],
+      "suggestedFix": "Extend dead-PID immediate stealing to the .steal mutex path too (same host-scoped dead-PID check in acquireStealMutex), so a dead hook holding the steal mutex does not reintroduce the 30s stall.",
+      "resolution": "Plan L3a strategy + Risk Areas + a dedicated .steal-mutex orphan AC now require the same host-scoped dead-PID immediate-steal on acquireStealMutex (locks.js:92-119) so a dead hook holding <lock>.steal does not reintroduce the 30s stall.",
+      "fixedInIteration": null
+    },
+    {
+      "id": "F-009",
+      "severity": "Medium",
+      "source": "consensus",
+      "category": "Completeness",
+      "sectionRef": "Acceptance Criteria / L3d",
+      "description": "The shared bounded events-tail reader must preserve existing turn-observability semantics: reverse traversal, message-id dedupe (lastObservedAssistantMessageId), and malformed/torn-final-line tolerance (skip a torn last JSONL line). detect-active-bg.js parses a tail-bounded window today; the shared reader must not regress either consumer.",
+      "status": "fixed",
+      "relevantFiles": [
+        "hooks/turn-observability.js",
+        "hooks/detect-active-bg.js",
+        "lib/read-events-tail.js"
+      ],
+      "suggestedFix": "Add an AC that the shared bounded reader preserves reverse traversal + dedupe + torn-final-line tolerance, and that both detect-active-bg.js and turn-observability.js route through it with their existing behavior intact.",
+      "resolution": "Added a Bounded-reader-semantics AC requiring readEventsTail to preserve reverse traversal, lastObservedAssistantMessageId dedupe, and torn-final-line tolerance, with both detect-active-bg.js and turn-observability.js routing through it and no regression on existing tests.",
+      "fixedInIteration": null
+    },
+    {
+      "id": "F-010",
+      "severity": "Medium",
+      "source": "consensus",
+      "category": "Simplicity",
+      "sectionRef": "Approach > Implementation Strategy > L3b",
+      "description": "Threading budget options through every generic JSON writer (writeJsonAtomic/updateManifest) risks accidental propagation into protocol-critical writes. A narrower, safer shape is preferred.",
+      "status": "fixed",
+      "relevantFiles": [
+        "hooks/actors.js",
+        "hooks/safe-io.js",
+        "hooks/mailbox.js"
+      ],
+      "suggestedFix": "Introduce a narrow 'hook best-effort manifest patch' helper used ONLY at the approved advisory call sites; leave writeJsonAtomic / updateManifest FAIL-LOUD by default. This makes F-001/F-003 safe by construction (default is transactional).",
+      "resolution": "Covered by the F-001/F-003 amendments: L3b keeps the fail-open helper mechanically opt-in only at approved advisory call sites (markArmIntent/claimNagSeq/turn-observability) rather than a generalized mailbox.js write mode; writeJsonAtomic/updateManifest stay fail-loud by default.",
+      "fixedInIteration": null
+    },
+    {
+      "id": "F-011",
+      "severity": "Medium",
+      "source": "codex",
+      "category": "Criteria Quality",
+      "sectionRef": "Approach > Implementation Strategy > L1",
+      "description": "'README.md and/or AGENTS.md' for the Defender-exclusion doc is ambiguous for an autonomous implementer.",
+      "status": "fixed",
+      "relevantFiles": [
+        "plugins/crews/AGENTS.md",
+        "README.md"
+      ],
+      "suggestedFix": "Require the plugin-local plugins/crews/AGENTS.md ops note (mandatory); add to README.md only if operator-facing setup already lives there. Name the file(s) explicitly in the L1 step and AC.",
+      "resolution": "L1 step + AC now make the plugin-local plugins/crews/AGENTS.md ops note MANDATORY, with README.md only if operator-facing setup already lives there.",
+      "fixedInIteration": null
+    },
+    {
+      "id": "F-012",
+      "severity": "Medium",
+      "source": "codex",
+      "category": "Criteria Quality",
+      "sectionRef": "Acceptance Criteria",
+      "description": "The heartbeat AC should explicitly require stale-manifest/fresh-stamp behavior through BOTH getListenerState(...) and any remaining direct deriveListenerState consumers (or require eliminating direct manifest-only consumers), plus the stale/orphan-stamp rejection from F-005.",
+      "status": "fixed",
+      "relevantFiles": [
+        "hooks/actor-state.js"
+      ],
+      "suggestedFix": "Expand the heartbeat AC: (a) fresh stamp + stale manifest => live via getListenerState; (b) orphan stamp (pid/epoch mismatch) + stale manifest => exited; (c) stamp-absent (pre-upgrade) => manifest fallback unchanged.",
+      "resolution": "Covered by the F-005 amendment: the heartbeat AC requires fresh-stamp+stale-manifest => live via getListenerState, orphan/superseded stamp (pid/epoch mismatch) => ignored/stale, stamp-absent => manifest fallback, and pure deriveListenerState(manifest) unchanged.",
+      "fixedInIteration": null
+    },
+    {
+      "id": "F-013",
+      "severity": "Medium",
+      "source": "codex",
+      "category": "Simplicity",
+      "sectionRef": "Acceptance Criteria / L3d",
+      "description": "The file-op-count seam may be heavier than needed if plumbed through production APIs.",
+      "status": "fixed",
+      "relevantFiles": [
+        "tests",
+        "lib/read-events-tail.js"
+      ],
+      "suggestedFix": "Prefer unit-testing the new bounded tail reader directly + source/behavior tests proving detect-active-bg.js and turn-observability.js use it. If a counter seam is kept, constrain it to tests only.",
+      "resolution": "Covered by the F-004 amendment: the fs-op counter is specified TESTS-ONLY (monkeypatch/injected fs inside the test; not plumbed through production hook APIs).",
+      "fixedInIteration": null
+    }
+  ]
+}

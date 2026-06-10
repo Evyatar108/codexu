@@ -1,0 +1,65 @@
+I’ll read the provided prompt file to identify the requested task and then carry it through.
+
+I’ll inspect the confirmed investigation and crews plugin structure, staying read-only as requested.
+
+I have the investigation baseline; now I’m checking the concrete hook/lock/write paths and tests so the research output can cite real integration points.
+
+I’m narrowing the research to the concrete edit and test seams: hook entrypoints, event-walk helpers, version bump mechanics, and existing test harness conventions.
+
+I’m checking the lower-level write wrappers and export surfaces so the implementation guidance can avoid breaking test/public compatibility.
+
+### Codebase Architecture
+
+`ai-developer-toolkit/plugins/crews/` is a JavaScript-only plugin with no package-level `package.json`. Runtime code is synchronous Node.js organized around:
+
+- `hooks/`: engine hook entrypoints, state IO, manifests, locks, protocol validators, mailbox/outbox routing.
+- `lib/`: listener loop and shared pure helpers.
+- `tools/crews.js`: dispatcher CLI for commands.
+- Engine overlays: `.claude-plugin/`, `.github/plugin/`, `.codex-plugin/`.
+- `tests/`: custom Node worker-thread runner via `node tests/run.js`.
+
+State is file-backed under `.crews/`: actor `manifest.json`, `mailbox.json`, `mailbox-history.jsonl`, outboxes, send histories, and lock files. `hooks/config.js` preserves a large compatibility re-export surface, so changes to exports need `tests/split-export-compat.test.js` awareness.
+
+### Feature-Relevant Code
+
+Key implementation sites:
+
+- `hooks/locks.js`: `writeNewLockFile()` already writes `{ pid, owner, acquiredAt, hostname }`; `acquireLock()` retries on `EEXIST`; `lockIsStealable()` waits `LOCK_STALE_MS = 30000`; `stealStaleLock()` uses a `.steal` mutex.
+- `hooks/health.js`: `isProcessAlive(pid)` exists and returns `false` only for definite dead PIDs.
+- `hooks/safe-io.js`: `renameSyncWithRetry()` sleeps up to ~6500ms; `writeJsonAtomicWithRetry()` owns temp-file creation and retry options.
+- `hooks/mailbox.js`: `writeJsonAtomic()` wraps safe-io with telemetry; `consumeMailbox()` holds mailbox then manifest lock while appending history, fsyncing, rewriting mailbox, and updating manifest.
+- `hooks/actors.js`: `writeManifest()` / `updateManifest()` rewrite full manifest; `touchHeartbeat()` / `markArmed()` hold manifest lock and update heartbeat, listener PID, and epoch; `markArmIntent()` writes manifest on listener-arm attempts.
+- `lib/listener-loop.js`: heartbeat timer calls `markArmed()` every tick and uses `decideHeartbeatAction()`.
+- `hooks/actor-state.js`: `deriveListenerState()` currently derives liveness from manifest `lastHeartbeatAt` and `lastListenerPid`.
+- Hot hook writers: `hooks/pre-tool-use.js` (`markArmIntent`, crash sweep), `hooks/post-tool-use.js` (`claimNagSeq`), `hooks/stop.js` (`bumpBlockCount`, opportunistic `consumeMailbox`, final manifest update), `hooks/turn-observability.js`.
+- Hook timeout configs: `hooks/hooks.json` and `.codex-plugin/hooks/hooks.json` use 5s Pre/Post and 10s Stop; `.github/plugin/hooks.json` uses 30s.
+- Release/version: `scripts/bump-version.js`, `tests/version.test.js`, `CHANGELOG.md`, `README.md`, `AGENTS.md`, and three marketplace indexes.
+
+### Technical Constraints
+
+The hooks are synchronous subprocesses and must finish under engine timeouts. Do not remove AV resilience globally: `safe-io.js` retry behavior is intentional for heartbeat/listener durability.
+
+Manifest writes are concurrency-sensitive. The existing lock order matters, especially `consumeMailbox()`’s mailbox -> manifest order and the v3.6.2 listener epoch gate. Any heartbeat split must preserve `lastListenerEpoch`, `requireFreshArm`, duplicate-listener guard behavior, and `recoverable` takeover fencing.
+
+Dead-PID lock stealing must be local-host only. `process.kill(pid, 0)` is reliable only for local PIDs; `EPERM`/unknown should not be treated as dead. PID reuse means only steal when the lock hostname matches local host and the lock metadata is sane; foreign-host locks should keep the existing stale-window path.
+
+Tests run via `node tests/run.js`; race-sensitive files are serialized. Add new race-heavy tests to the denylist if they spawn lock/listener subprocesses.
+
+### Implementation Suggestions
+
+Center the plan on L3, not the timeout bump.
+
+1. **Dead-holder lock steal:** Extend `hooks/locks.js` with a helper that reads the lock file, checks `hostname === os.hostname()`, validates `pid` and `acquiredAt`, and steals immediately only when `isProcessAlive(pid) === false`. Keep stale/future-time logic as fallback. Prefer an injectable liveness seam for deterministic tests rather than relying on real PID timing.
+
+2. **Avoid retry sleeps under manifest lock:** Do not simply move `renameSyncWithRetry()` outside the lock without a concurrency design; that risks overwriting a newer manifest. Safer pattern: introduce a lock-held single-attempt write path, and on transient rename failure release the lock, sleep outside it, reacquire, reread current manifest, recompute the patch, and retry until a hook-local deadline expires. Use this for hook manifest updates; keep full retry budget for heartbeat-safe paths.
+
+3. **Separate heartbeat liveness:** Add a small actor-local heartbeat stamp file written by the listener timer without the manifest lock, with full safe-io retry budget. Teach `deriveListenerState()` and health/list-members paths to treat this stamp as the primary/fallback liveness signal while leaving manifest epoch ownership intact. The first arm should still claim epoch/PID in manifest; subsequent heartbeat ticks should avoid full manifest rewrites.
+
+4. **Reduce hot-path IO:** Coalesce manifest writes when the computed state is unchanged. Reuse/broaden bounded transcript reads like `detect-active-bg.js::readEvents()` for `turn-observability.js` and Stop transcript walks instead of full-file scans. Add measurement tests for file-op bounds around representative Pre/Post/Stop hook fires.
+
+5. **Mitigations:** After L3 work is planned, bump Claude/Codex hook timeouts to 30s in both hook configs and document Defender exclusions for `.crews` state dirs. Treat this as headroom, not the fix.
+
+6. **Tests:** Add focused tests for dead-PID immediate steal, no sleep while manifest lock is held, heartbeat stamp freshness despite manifest lock contention, and bounded/coalesced per-hook IO. Existing useful anchors include `listener-eperm-recovery.test.js`, `locks.test.js`, `listener-state-transitions.test.js`, `consume-mailbox-epoch-fence.test.js`, `turn-observability.test.js`, and `progress-bg-gate.test.js`.
+
+Bundle recommendation: ship the hot-lock/heartbeat-starvation fix here. Keep the attached async-shell silent-reap investigation separate; L3c addresses heartbeat starvation, not runtime reaping of the listener process itself.
+

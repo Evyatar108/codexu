@@ -1,0 +1,29 @@
+**Feasibility**
+
+[Critical] The plan’s L3b fail-open budget is unsafe if applied to `consumeMailbox`. In [mailbox.js](D:/harness-efforts/codexu/ai-developer-toolkit/plugins/crews/hooks/mailbox.js:704), the drain appends history, fsyncs, empties the mailbox, then updates manifest cursors at [mailbox.js:719](D:/harness-efforts/codexu/ai-developer-toolkit/plugins/crews/hooks/mailbox.js:719). If that manifest write “fails open,” the next hook cannot retry the same logical update because the mailbox was already emptied. This can corrupt `lastInboxSeq`, review-required cursors, and operator-direct state. L3b must explicitly limit fail-open to idempotent/advisory manifest writes, or make mailbox drain atomic/abort-on-failure with no mailbox emptying.
+
+[High] The heartbeat-stamp design is under-specified for current call signatures. `deriveListenerState(manifest)` only receives a manifest in [actor-state.js](D:/harness-efforts/codexu/ai-developer-toolkit/plugins/crews/hooks/actor-state.js:59), but many direct call sites pass no `name/crew/cwd`, for example [actors.js:660](D:/harness-efforts/codexu/ai-developer-toolkit/plugins/crews/hooks/actors.js:660), [actors.js:1082](D:/harness-efforts/codexu/ai-developer-toolkit/plugins/crews/hooks/actors.js:1082), and [mailbox.js:435](D:/harness-efforts/codexu/ai-developer-toolkit/plugins/crews/hooks/mailbox.js:435). A stamp reader cannot locate `<actorDir>/heartbeat` from manifest alone unless the signature changes or the stamp path is derivable. Otherwise some gates will still demote a live listener based on stale `manifest.lastHeartbeatAt`.
+
+[Medium] L3a should also address orphaned `.steal` mutex locks. `acquireLock` delegates stealing through `acquireStealMutex` in [locks.js](D:/harness-efforts/codexu/ai-developer-toolkit/plugins/crews/hooks/locks.js:92), which still uses only 30s mtime staleness. If a hook is killed while holding `<lock>.steal`, immediate dead-PID recovery on the main lock can still stall behind the steal mutex.
+
+**Completeness**
+
+[High] The plan does not require updating all health/list surfaces to consume the new stamp. `getMemberHealth` still computes heartbeat age from `manifest.lastHeartbeatAt` in [health.js](D:/harness-efforts/codexu/ai-developer-toolkit/plugins/crews/hooks/health.js:75), and list output paths also read `lastHeartbeatAt`. If recurring ticks stop updating the manifest, these surfaces will report stale/quiet/dead unless the plan explicitly updates them.
+
+[Medium] The plan says “hook-context manifest write” but does not classify call sites by safety. `markArmIntent` and `claimNagSeq` are reasonable fail-open candidates; final Stop manifest updates and mailbox drains are not obviously safe. The implementation needs a table of allowed fail-open writes versus must-commit writes.
+
+**Ordering**
+
+[High] US-002 should not broadly thread the hook budget through `mailbox.js` before the safe/unsafe write classification is done. Otherwise later stories may build tests around an unsafe generalized API. Add the classification first, then wire only approved call sites.
+
+**Simplicity**
+
+[Medium] The file-op-count seam may be heavier than needed. A simpler acceptance path is to unit-test the new bounded tail reader directly and add targeted source/behavior tests proving `detect-active-bg.js` and `turn-observability.js` use it. If a counter seam is kept, constrain it to tests only and avoid plumbing it through production APIs.
+
+**Acceptance Criteria Quality**
+
+[Medium] “Representative Pre/Post/Stop hook fire performs no more than the asserted bound” is not autonomous-agent-ready. It does not name the hook inputs, baseline count, or target bound. Specify exact fixture commands and numeric limits.
+
+[Medium] “README.md and/or AGENTS.md” is ambiguous. Pick the required doc file(s), preferably the plugin-local `plugins/crews/AGENTS.md` plus `README.md` only if operator-facing setup lives there.
+
+[Medium] The heartbeat AC should explicitly require stale-manifest/fresh-stamp behavior through both `getListenerState(...)` and direct `deriveListenerState` consumers, or require eliminating direct manifest-only consumers.

@@ -1,0 +1,39 @@
+{
+  "clusters": [
+    {
+      "name": "hook-timeout-cascade-fix",
+      "stories": ["US-001", "US-002", "US-003", "US-004", "US-005", "US-006"],
+      "phase": 1,
+      "dependsOn": [],
+      "fileOverlapEvidence": {
+        "sharedFiles": [
+          "hooks/actors.js",
+          "hooks/safe-io.js",
+          "hooks/locks.js",
+          "hooks/config.js",
+          "CHANGELOG.md",
+          "plugins/crews/AGENTS.md",
+          ".claude-plugin/plugin.json",
+          ".github/plugin/plugin.json",
+          ".codex-plugin/plugin.json",
+          ".claude-plugin/marketplace.json",
+          ".github/plugin/marketplace.json",
+          ".agents/plugins/marketplace.json"
+        ],
+        "exclusiveFiles": [
+          "hooks/process-liveness.js",
+          "hooks/heartbeat-stamp.js",
+          "lib/read-events-tail.js",
+          "hooks/actor-state.js",
+          "lib/listener-loop.js",
+          "hooks/detect-active-bg.js",
+          "hooks/turn-observability.js",
+          ".codex-plugin/hooks/hooks.json",
+          "hooks/hooks.json"
+        ],
+        "risk": "high"
+      },
+      "executionModeRationale": "Serial single cluster. Every story ends in the same single crews version bump plus one CHANGELOG.md and one AGENTS.md version entry, and the three hot-path stories (US-002/003/004) all edit hooks/actors.js and hooks/safe-io.js. Splitting across parallel members would produce conflicting version-file writes and overlapping edits to the same modules. Per codexu AGENTS.md 'same-plugin parallel = conflict; must serialize', this runs as ONE impl member with the internal order US-001 -> US-002 -> US-003 -> US-004 -> US-005 -> US-006."
+    }
+  ]
+}

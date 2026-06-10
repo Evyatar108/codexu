@@ -1,0 +1,62 @@
+**Codebase Architecture**
+
+Target code is the `ai-developer-toolkit` submodule, specifically [plugins/crews](D:/harness-efforts/codexu/ai-developer-toolkit/plugins/crews). It is a plain Node/CommonJS plugin, not an npm package; there is no `plugins/crews/package.json`. Main structure:
+
+- `hooks/`: engine hook entrypoints and shared runtime state code.
+- `hooks/config.js`: compatibility re-export hub for paths, locks, mailbox, actors.
+- `hooks/locks.js`: file-lock primitives.
+- `hooks/safe-io.js`: atomic JSON write + Defender/AV retry logic.
+- `hooks/actors.js`: actor manifest CRUD, heartbeat/listener state writes, process helpers.
+- `hooks/mailbox.js`: mailbox/outbox JSON and JSONL operations.
+- `lib/listener-loop.js`: long-running listener heartbeat/delivery loop.
+- `tools/`: CLI wrappers such as `crews.js`, `spawn-member.js`, `review-mail.js`.
+- `skills/`: generated/user-facing command skill docs.
+- `tests/`: custom worker-thread runner, invoked from toolkit root as `node plugins/crews/tests/run.js`.
+- `.claude-plugin/`, `.codex-plugin/`, `.github/plugin/`: Claude, Codex, and Copilot plugin manifests/hooks.
+
+Versioning is centralized through [scripts/bump-version.js](D:/harness-efforts/codexu/ai-developer-toolkit/plugins/crews/scripts/bump-version.js:14), which updates three plugin manifests, three marketplace indexes, and [tests/version.test.js](D:/harness-efforts/codexu/ai-developer-toolkit/plugins/crews/tests/version.test.js:4).
+
+**Feature-Relevant Code**
+
+The investigation’s root cause is confirmed by current code:
+
+- [hooks/locks.js](D:/harness-efforts/codexu/ai-developer-toolkit/plugins/crews/hooks/locks.js:20): `LOCK_STALE_MS = 30000`; `writeNewLockFile()` already writes `pid`, `owner`, `acquiredAt`, `hostname` at lines 41-51. `acquireLock()` only steals via age/future timestamp at lines 134-155. `withManifestLock()` defaults to 2s at lines 216-224.
+- [hooks/safe-io.js](D:/harness-efforts/codexu/ai-developer-toolkit/plugins/crews/hooks/safe-io.js:41): retry defaults are 10 attempts, 100ms base, 1000ms cap; worst-case sleep is documented as 6500ms at lines 46-47. `renameSyncWithRetry()` sleeps inside the retry loop at lines 129-153, and `writeJsonAtomicWithRetry()` wraps temp-write + retrying rename at lines 161-175.
+- [hooks/actors.js](D:/harness-efforts/codexu/ai-developer-toolkit/plugins/crews/hooks/actors.js:618): `writeManifest()` calls `writeJsonAtomic()`; `updateManifest()` reads/merges/rewrites the manifest at lines 631-638. `touchHeartbeat()` and `markArmIntent()` both hold the manifest lock then call `updateManifest()` at lines 1073-1134 and 1137-1177.
+- [hooks/actor-state.js](D:/harness-efforts/codexu/ai-developer-toolkit/plugins/crews/hooks/actor-state.js:59): `deriveListenerState()` treats stale `lastHeartbeatAt` as exited/dead via `isStaleArmedManifest()` at lines 83-96.
+- [lib/listener-loop.js](D:/harness-efforts/codexu/ai-developer-toolkit/plugins/crews/lib/listener-loop.js:359): heartbeat timer calls `markArmed()` every tick and uses `decideHeartbeatAction()` after failures.
+- [hooks/mailbox.js](D:/harness-efforts/codexu/ai-developer-toolkit/plugins/crews/hooks/mailbox.js:635): `consumeMailbox()` nests mailbox lock then manifest lock, appends inbox history, fsyncs, rewrites mailbox JSON, then updates manifest at lines 641-722.
+- Hook entrypoints: [pre-tool-use.js](D:/harness-efforts/codexu/ai-developer-toolkit/plugins/crews/hooks/pre-tool-use.js:343), [post-tool-use.js](D:/harness-efforts/codexu/ai-developer-toolkit/plugins/crews/hooks/post-tool-use.js:65), [stop.js](D:/harness-efforts/codexu/ai-developer-toolkit/plugins/crews/hooks/stop.js:747). Codex/Copilot shims call these same handlers.
+- Expensive transcript reads: [turn-observability.js](D:/harness-efforts/codexu/ai-developer-toolkit/plugins/crews/hooks/turn-observability.js:126) reads full `events.jsonl`; [detect-active-bg.js](D:/harness-efforts/codexu/ai-developer-toolkit/plugins/crews/hooks/detect-active-bg.js:130) bounds parsed events but still `readFileSync()`s the whole file.
+
+Hook timeout config is split:
+
+- Claude: [hooks/hooks.json](D:/harness-efforts/codexu/ai-developer-toolkit/plugins/crews/hooks/hooks.json:26) Stop 10s, Pre/Post 5s.
+- Codex: [.codex-plugin/hooks/hooks.json](D:/harness-efforts/codexu/ai-developer-toolkit/plugins/crews/.codex-plugin/hooks/hooks.json:26) Stop 10s, Pre/Post 5s.
+- Copilot: [.github/plugin/hooks.json](D:/harness-efforts/codexu/ai-developer-toolkit/plugins/crews/.github/plugin/hooks.json:13) agent/pre/post/user/session all 30s.
+
+**Technical Constraints**
+
+Do not globally shrink `safe-io` retry defaults; comments explicitly tie the 6.5s budget to Windows Defender resilience. Hook paths need deadline-scoped behavior, while heartbeat keeps full AV resilience.
+
+Be careful with “rename outside lock.” Releasing the manifest lock after computing a new manifest but before the final rename can lose concurrent updates unless a generation/CAS scheme is added. A safer first implementation is: no multi-attempt rename retry while holding manifest lock for hook-context writes; fail open/log cheaply on transient exhaustion, and retry on a later hook.
+
+Dead-holder stealing should not import `health.js` directly from `locks.js` without checking cycles: `health.js` imports `actors.js`, `actors.js`/`config.js` already depend on locks. Prefer a small leaf liveness helper or a local conservative helper returning `true|false|null`.
+
+Heartbeat separation must preserve v3.6.2 `lastListenerEpoch` semantics. Initial arm still needs a manifest-locked epoch/PID update; recurring heartbeat ticks should write a small heartbeat stamp outside the manifest hot lock and `deriveListenerState()` should read that stamp as primary/fallback.
+
+Tests should use existing seams: `safe-io` already supports `sleepFn`, and tests already monkey-patch `fs.renameSync`. Timing-sensitive lock/listener tests belong in the `DEFAULT_SERIAL_DENYLIST` in [tests/run.js](D:/harness-efforts/codexu/ai-developer-toolkit/plugins/crews/tests/run.js:39).
+
+**Implementation Suggestions**
+
+Center the plan on L3:
+
+1. Add host-scoped dead-holder lock stealing in `locks.js`: read pid/hostname/acquiredAt; if hostname matches local host and pid is definitively dead, steal immediately under the existing `.steal` mutex. Keep age/future timestamp fallback for foreign host, invalid pid, unknown liveness, corrupt/empty locks.
+2. Add hook-context write options through `safe-io.js`, `mailbox.writeJsonAtomic()`, `actors.writeManifest()/updateManifest()`, and selected hook call sites. In hook context, avoid retrying the 6.5s rename budget under manifest lock; fail open where hooks already tolerate best-effort state.
+3. Split heartbeat into a tiny per-actor heartbeat file/stamp. Update `touchHeartbeat()`, `listener-loop`, `actor-state.deriveListenerState()`, and health/list display readers to use it while preserving manifest epoch ownership.
+4. Coalesce manifest writes by skipping `updateManifest()` when a patch is a no-op. Moving heartbeat out of the manifest will remove the largest recurring write.
+5. Replace full transcript reads with a shared bounded tail reader for `turn-observability.js` and `detect-active-bg.js`.
+6. Apply L2 timeout mitigation by changing only PreToolUse/PostToolUse/Stop in Claude and Codex hook manifests to 30s. Leave Copilot unchanged.
+7. Add docs for Defender exclusions for workspace `.crews/`, likely in `README.md` and `AGENTS.md`.
+
+Recommended bundle decision: ship this hot-lock/starvation fix here. Do not bundle the separate attached-shell idle reap fix; this work addresses heartbeat starvation, not the separate runtime reaping mechanism noted in the feature request.
