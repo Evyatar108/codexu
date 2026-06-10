@@ -1,0 +1,68 @@
+I’ll read the referenced prompt file and carry out its instructions.
+
+I’m switching from reading the prompt to source-only research across the codex submodule and happy-cli surfaces it references.
+
+I found the plan is in research mode; I’m narrowing to the exact codex wake path and happy-cli codex app-server integration points.
+
+I have the core codex wake behavior; I’m checking happy-cli’s actual command/settings/diagnostic structure so the research is concrete rather than inferred.
+
+I’m using targeted file reads now; broad searches were too noisy for the specific integration points.
+
+I have enough for the main architecture; one more pass is checking tests and docs/patch-surface expectations for the minimal codex seam.
+
+I’m filling in the tool-policy and configuration details, then I’ll return the requested research report.
+
+The research is complete; I’m checking one final line range for where local settings enter `runCodex`.
+
+I’m checking the queue/turn loop boundary so the async completion path can be described accurately.
+
+I’m reading the send-turn method to verify whether happy-cli already handles codex-initiated follow-up turns as ordinary events.
+
+I’m confirming the wait semantics for `sendTurnAndWait`, then I’ll produce the report.
+
+I noticed the exact placement of the turn-end re-check depends on where `on_task_finished` clears active state, so I’m reading that tail to avoid an inaccurate recommendation.
+
+Research complete; no files were changed.
+
+### Codebase Architecture
+
+This repo is a JS/TS monorepo with a Rust `codex` submodule. `packages\happy-cli` is a Node/TypeScript CLI using `pnpm`, `tsc`, `pkgroll`, and Vitest. Codex engine code lives under `codex\external\repos\codex-patched\codex-rs`, a Rust workspace using `cargo`/`just`.
+
+Happy’s Codex path is app-server based: `packages\happy-cli\src\codex\codexAppServerClient.ts` spawns or reattaches to `codex app-server`, while `packages\happy-cli\src\codex\runCodex.ts` owns the Happy session, `MessageQueue2`, and event forwarding to the app.
+
+### Feature-Relevant Code
+
+Key Codex files:
+
+- `codex\external\repos\codex-patched\codex-rs\features\src\lib.rs`: defines `Feature::BackgroundProcessNotification` with key `background_process_notification`, `UnderDevelopment`, default `false`.
+- `codex\external\repos\codex-patched\codex-rs\core\src\unified_exec\async_watcher.rs`: `spawn_exit_watcher()` queues `<task_notification>` and calls `maybe_start_turn_for_pending_work()` when the feature is enabled and the shared `notified` CAS wins.
+- `codex\external\repos\codex-patched\codex-rs\core\src\tasks\mod.rs`: `maybe_start_turn_for_pending_work*()` refuses to wake while `active_turn.is_some()`. `on_task_finished()` clears active state at lines ~888-899 but does not re-check `idle_pending_input` afterward.
+- `codex\external\repos\codex-patched\codex-rs\core\src\session\input_queue.rs`: owns `idle_pending_input`, `queue_response_items_for_next_turn()`, and `take_queued_response_items_for_next_turn()`.
+- `codex\external\repos\codex-patched\codex-rs\core\src\unified_exec\process_manager.rs`: `write_stdin` empty polling and `await_background_completion` can claim `notified`, suppressing the watcher.
+- `codex\external\repos\codex-patched\codex-rs\core\src\tools\handlers\shell_spec.rs`: tool descriptions for `exec_command`, `write_stdin`, and `await_background_completion`.
+- `codex\external\repos\codex-patched\codex-rs\core\src\unified_exec\process_manager_tests.rs`: existing background watcher tests, including `background_process_notification_wakes_idle_session()`.
+
+Key Happy CLI files:
+
+- `packages\happy-cli\src\codex\codexAppServerClient.ts`: app-server spawn/reattach. `extraAppServerArgs` already appends raw argv to both stdio and ws spawns; this is the natural place to add a structured `-c features.background_process_notification=true` option.
+- `packages\happy-cli\src\codex\runCodex.ts`: reads local settings, creates `MessageQueue2`, connects `CodexAppServerClient`, forwards app-server events, and waits on `client.sendTurnAndWait()` only for user-submitted turns.
+- `packages\happy-cli\src\persistence.ts`: local settings schema; existing `mcpNotificationRouting?: unknown` is the closest default-off setting precedent.
+- `packages\happy-cli\src\codex\mcpNotificationConsumer.ts`: fallback pattern for a second producer pushing synthesized prompts into `MessageQueue2`.
+- `packages\happy-cli\src\commands\codexCommand.ts` and `packages\happy-cli\src\codex\codexDaemonDoctor.ts`: `happy codex doctor/status` currently diagnose daemon lifecycle only, not async completion config/policy.
+
+### Technical Constraints
+
+The feature must stay opt-in at two layers: Codex feature config and Happy setting. LOW-A should use only Codex’s existing input queue wake; LOW-B must not run simultaneously or duplicate completion turns.
+
+The active-turn race is real: watcher wake returns while a later turn is active, and `on_task_finished()` only applies `MaybeContinueIfIdle` after clearing active state. A feature-gated `maybe_start_turn_for_pending_work().await` immediately after that idle transition is the minimal seam.
+
+Codex fork rules require every upstream-canonical edit in `codex-rs` to carry `// SANDBOX PATCH:` and update `codex\docs\implementation\patch-surface.md`.
+
+### Implementation Suggestions
+
+Implement LOW-A first. In Codex, add the gated re-check after `cleared_active_turn` and `MaybeContinueIfIdle` in `core\src\tasks\mod.rs`, plus a regression test beside `background_process_notification_wakes_idle_session()`.
+
+In Happy CLI, add a typed default-off settings field in `persistence.ts`, load it in `runCodex.ts`, and pass a structured option into `CodexAppServerClient` so `connect()` appends `-c features.background_process_notification=true` for both ws and stdio spawns. Extend `happy codex doctor` to report local setting state, app-server argv/config intent, and policy readiness.
+
+For model behavior, prefer tool-description wording in `shell_spec.rs`: long-running fire-and-forget commands should use short `yield_time_ms`, end the turn, and avoid `await_background_completion`/empty `write_stdin` polling unless the user explicitly asks to block for results.
+

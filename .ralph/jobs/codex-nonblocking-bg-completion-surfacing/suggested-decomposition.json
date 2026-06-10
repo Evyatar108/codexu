@@ -1,0 +1,67 @@
+{
+  "clusters": [
+    {
+      "name": "codex-core-seam",
+      "stories": ["US-001"],
+      "phase": 1,
+      "dependsOn": [],
+      "fileOverlapEvidence": {
+        "sharedFiles": [],
+        "exclusiveFiles": [
+          "codex/external/repos/codex-patched/codex-rs/core/src/tasks/mod.rs",
+          "codex/external/repos/codex-patched/codex-rs/core/src/unified_exec/process_manager_tests.rs",
+          "codex/docs/implementation/patch-surface.md"
+        ],
+        "risk": "low"
+      },
+      "executionModeRationale": "A single codex-submodule story (feature-gated on_task_finished re-check placed after active_turn is cleared, + placement-guarded regression test + marker + patch-surface row); runs as its own codex impl job. The model policy moved to happy-cli, so there is no same-repo sibling to conflict with."
+    },
+    {
+      "name": "happy-cli-enablement-and-policy",
+      "stories": ["US-002", "US-003", "US-004"],
+      "phase": 1,
+      "dependsOn": [],
+      "fileOverlapEvidence": {
+        "sharedFiles": [
+          "packages/happy-cli/src/codex/runCodex.ts",
+          "packages/happy-cli new default-off setting module"
+        ],
+        "exclusiveFiles": [
+          "packages/happy-cli/src/codex/codexAppServerClient.ts",
+          "packages/happy-cli/src/codex/codexDaemonDoctor.ts",
+          "packages/happy-cli/src/codex/codexAppServerClient.test.ts"
+        ],
+        "risk": "medium"
+      },
+      "executionModeRationale": "All happy-cli, disjoint repo from the codex cluster, so codeable in parallel with Phase 1 codex work. US-002 (developerInstructions policy), US-003 (dual -c flags in both spawn paths + unsolicited-active-turn tracking), and US-004 (doctor readiness contract) share runCodex.ts and the new setting module, so keep them in ONE happy-cli impl job (serial within the job). Live validation (US-005) depends on the codex cluster being built."
+    },
+    {
+      "name": "live-validation-gate",
+      "stories": ["US-005"],
+      "phase": 2,
+      "dependsOn": ["codex-core-seam", "happy-cli-enablement-and-policy"],
+      "fileOverlapEvidence": {
+        "sharedFiles": [],
+        "exclusiveFiles": [".ralph/jobs/codex-nonblocking-bg-completion-surfacing/low-a-validation.json"],
+        "risk": "low"
+      },
+      "executionModeRationale": "End-to-end live validation against a codex build with the seam + a happy-cli build with the toggle; emits a structured decision artifact (unsolicitedTurnRendered, stalePromiseObserved, operatorDuringUnsolicitedTurn, transcriptRetrievalUsable, decision) that gates the conditional LOW-B cluster."
+    },
+    {
+      "name": "happy-cli-low-b-fallback",
+      "stories": ["US-006"],
+      "phase": 3,
+      "dependsOn": ["live-validation-gate"],
+      "fileOverlapEvidence": {
+        "sharedFiles": [
+          "packages/happy-cli/src/codex/runCodex.ts",
+          "packages/happy-cli/src/codex/codexAppServerClient.ts",
+          "packages/happy-cli MessageQueue2 route"
+        ],
+        "exclusiveFiles": ["packages/happy-cli new unified-exec completion-consumer module"],
+        "risk": "low"
+      },
+      "executionModeRationale": "CONDITIONAL — implemented only if the validation gate decides low-b-required. Step 1 preserves process_id/source through the exec_command_end mapping (the discriminator), then a separate-route consumer pushes into MessageQueue2. Serialized after the gate; single-producer invariant means codex auto-wake is disabled for this path so there is no double prompt."
+    }
+  ]
+}

@@ -1,0 +1,58 @@
+**Codebase Architecture**
+
+This repo is a pnpm monorepo plus a Rust Codex submodule.
+
+- `packages/happy-cli`: TypeScript CLI package, built with `tsc`, `pkgroll`, tested with Vitest. Codex mode starts at `src/commands/codexCommand.ts`, then `src/codex/runCodex.ts`, then `src/codex/codexAppServerClient.ts`.
+- `packages/happy-wire`, `happy-server`, `happy-app`: shared protocol/server/app packages, mostly not central to this feature unless session protocol rendering changes.
+- `codex/`: git submodule. Rust workspace lives under `codex/external/repos/codex-patched/codex-rs`, with wrapper/fork docs under `codex/docs/implementation`.
+- Codex fork policy: upstream-canonical edits under `external/repos/codex-patched/codex-rs` need `// SANDBOX PATCH:` markers and `codex/docs/implementation/patch-surface.md` updates.
+
+**Feature-Relevant Code**
+
+Codex core:
+
+- `codex/external/repos/codex-patched/codex-rs/features/src/lib.rs`: `Feature::BackgroundProcessNotification`, key `background_process_notification`, `UnderDevelopment`, default `false`.
+- `codex/external/repos/codex-patched/codex-rs/core/src/unified_exec/async_watcher.rs`: `spawn_exit_watcher()` emits `ExecCommandEnd`, queues `<task_notification>`, and calls `maybe_start_turn_for_pending_work()`.
+- `codex/external/repos/codex-patched/codex-rs/core/src/unified_exec/process_manager.rs`: `write_stdin()` and `await_background_completion()` claim the shared `notified` flag, suppressing watcher notification.
+- `codex/external/repos/codex-patched/codex-rs/core/src/session/input_queue.rs`: owns `idle_pending_input`, `queue_response_items_for_next_turn()`, `take_queued_response_items_for_next_turn()`.
+- `codex/external/repos/codex-patched/codex-rs/core/src/tasks/mod.rs`: `maybe_start_turn_for_pending_work_with_sub_id()` refuses to start while `active_turn` exists; `on_task_finished()` clears the active turn but currently does not re-check idle pending work.
+- `codex/external/repos/codex-patched/codex-rs/core/src/tools/handlers/shell_spec.rs`: tool descriptions for `exec_command`, `write_stdin`, `await_background_completion`.
+- `codex/external/repos/codex-patched/codex-rs/core/src/tools/handlers/shell_spec_tests.rs`: exact `ToolSpec` snapshot-style assertions.
+- `codex/external/repos/codex-patched/codex-rs/core/src/unified_exec/process_manager_tests.rs`: current background notification tests. The request’s `process_manager_tests.rs:583` concept is right, but the real path is under `core/src/unified_exec/`.
+
+happy-cli:
+
+- `packages/happy-cli/src/codex/codexAppServerClient.ts`: app-server spawn/reattach, extra argv via `extraAppServerArgs`, JSON-RPC notification handling, `sendTurnAndWait()`.
+- `packages/happy-cli/src/codex/runCodex.ts`: reads settings, creates `MessageQueue2`, starts `CodexAppServerClient`, maps Codex events to session protocol.
+- `packages/happy-cli/src/persistence.ts`: `Settings` currently has default-off `mcpNotificationRouting`; this is the nearest pattern for a new opt-in setting.
+- `packages/happy-cli/src/codex/mcpNotificationRouting.ts` and `mcpNotificationConsumer.ts`: fallback pattern for default-off event-to-prompt queue routing.
+- `packages/happy-cli/src/codex/codexDaemonDoctor.ts` and `src/commands/codexCommand.ts`: `happy codex doctor/status` are read-only and route before auth/daemon startup.
+- `packages/happy-cli/src/codex/codexAppServerClient.test.ts`, `runCodex.mcpNotifications.test.ts`, `codexDaemonDoctor.test.ts`, `commands/codexCommand.test.ts`: natural test homes.
+
+**Technical Constraints**
+
+- The Codex feature flag is fresh-spawn configuration. `CodexAppServerClient.connect()` may reattach to an existing WS app-server, so changing a happy-cli setting will not affect already-running Codex daemons unless the app-server is restarted or discovery is bypassed.
+- `extraAppServerArgs` already appends raw argv to both stdio and WS spawns. The happy setting can add `-c features.background_process_notification=true`, but precedence with user `--codex-arg` must be deliberate.
+- `happy codex doctor` currently cannot prove whether a live app-server was spawned with this flag; discovery records do not store feature args. Either add a non-secret discovery/lifecycle field, or report “setting enabled, live daemon unknown/restart required.”
+- Primary LOW-A should not use `MessageQueue2`; Codex core already starts the synthetic turn. The queue consumer pattern is only for LOW-B fallback.
+- The turn-end seam should run only after `active_turn` is cleared in `on_task_finished()`. Placing it earlier risks preserving the active-turn race.
+- Tool-description edits require updating exact expected strings in `shell_spec_tests.rs`.
+- Codex verification should use `just fmt`, `cargo check --workspace`, and focused `just test -p codex-core`; avoid broad workspace tests locally unless needed.
+
+**Implementation Suggestions**
+
+Use LOW-A first.
+
+1. In Codex, add a small feature-gated `maybe_start_turn_for_pending_work().await` in `core/src/tasks/mod.rs` after `cleared_active_turn` succeeds, ideally after the existing `GoalRuntimeEvent::MaybeContinueIfIdle` call. Mark with `// SANDBOX PATCH:` and update `codex/docs/implementation/patch-surface.md`.
+
+2. Add a regression test in `core/src/unified_exec/process_manager_tests.rs`: set an active turn, spawn a background process with exit watcher, wait until the notification is queued but no turn starts, finish/clear the active turn through the relevant task path or a tight helper, then assert the queued notification drains into a synthetic turn.
+
+3. In happy-cli, add a default-off setting in `persistence.ts`, e.g. `codexBackgroundProcessNotifications?: { enabled?: boolean }` or a simple boolean. In `runCodex.ts`, when enabled, append `['-c', 'features.background_process_notification=true']` into `codexAppServerArgs` before constructing `CodexAppServerClient`.
+
+4. Add tests that setting off preserves argv exactly and setting on adds the `-c` flag for both stdio and WS spawn paths. Existing `extraAppServerArgs` tests in `codexAppServerClient.test.ts` are the right pattern.
+
+5. Extend doctor/status carefully. Best option: add a sanitized discovery-record field written at spawn, then render “async background completion: enabled/disabled/unknown; restart required if setting and live daemon disagree.”
+
+6. For model policy, prefer minimal wording changes in `shell_spec.rs`: tell the model to use short `yield_time_ms` and end the turn for fire-and-forget work, and to avoid `await_background_completion` or empty `write_stdin` polling when async completion is desired.
+
+7. Live validation remains necessary: happy-cli’s event handler will likely render Codex-initiated `task_started` / `agent_message` / `task_complete` events, but `sendTurnAndWait()` only owns submitted turns, so readiness/push behavior for self-started turns should be verified explicitly.

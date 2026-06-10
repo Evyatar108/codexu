@@ -1,0 +1,27 @@
+### Feasibility
+
+[High] The LOW-B fallback is not implementable as described. The plan says to watch `exec_command_end` with a “background/subscribed” discriminator, but current happy-cli mapping only emits `type`, `call_id`, `output`, `exit_code`, `duration_ms`, `status`, `cwd`, and `command` from [codexAppServerClient.ts](D:/harness-efforts/codexu/packages/happy-cli/src/codex/codexAppServerClient.ts:583). Codex protocol has `process_id` and `source` on `ExecCommandEndEvent` in [protocol.rs](D:/harness-efforts/codexu/codex/external/repos/codex-patched/codex-rs/protocol/src/protocol.rs:3067), but happy-cli does not currently preserve enough of that shape to safely distinguish foreground command completion from background process completion. If LOW-B is needed, the plan must first define the discriminator and mapping changes.
+
+[Medium] The policy seam is too vague. “instructions/system-prompt overlay file - impl-located” is not a concrete integration point. happy-cli already passes `baseInstructions` and `developerInstructions` through `startThread` from [runCodex.ts](D:/harness-efforts/codexu/packages/happy-cli/src/codex/runCodex.ts:1105), so the plan should say whether the policy is injected there when the async-completion setting is on, or in a specific Codex context file. Leaving this open risks unnecessary upstream-visible edits.
+
+### Completeness
+
+[High] The plan does not require targeted happy-cli tests for the new behavior. Existing surfaces include app-server argv tests in [codexAppServerClient.test.ts](D:/harness-efforts/codexu/packages/happy-cli/src/codex/codexAppServerClient.test.ts:538), turn-completion correlation in [codexAppServerClient.ts](D:/harness-efforts/codexu/packages/happy-cli/src/codex/codexAppServerClient.ts:1772), and the settings pattern in [mcpNotificationRouting.ts](D:/harness-efforts/codexu/packages/happy-cli/src/codex/mcpNotificationRouting.ts). The plan should explicitly require tests for: default-off no extra `-c`, opt-in appends `-c features.background_process_notification=true`, unsolicited `turn/started`/`turn/completed` does not resolve a stale pending `sendTurnAndWait`, and doctor/status reports the async-completion readiness reason.
+
+[Medium] The doctor acceptance criterion is under-specified. `happy codex doctor|status` exists via [codexCommand.ts](D:/harness-efforts/codexu/packages/happy-cli/src/commands/codexCommand.ts:18) and [codexDaemonDoctor.ts](D:/harness-efforts/codexu/packages/happy-cli/src/codex/codexDaemonDoctor.ts), but the plan does not define how the probe can verify “policy in effect” or whether it only reports the local happy setting plus spawned app-server args. That needs a concrete output contract.
+
+### Ordering
+
+[Medium] The validation phase depends on running happy-cli against the modified Codex build, but the plan does not specify how `packages/happy-cli` will resolve that build. `CodexAppServerClient` spawns `codex app-server` from PATH in [codexAppServerClient.ts](D:/harness-efforts/codexu/packages/happy-cli/src/codex/codexAppServerClient.ts:1148), so US-005 needs a setup step: install/link the built fork, prepend the build output to PATH, or otherwise prove the spawned binary includes the codex seam.
+
+### Simplicity
+
+[Medium] The plan may over-edit Codex for model policy. Since happy-cli already has a default-off settings path and passes per-thread `developerInstructions`, the lowest-conflict approach is likely a happy-cli-only appended developer instruction gated by the new setting, plus a test that the instruction is present when starting a thread. The plan should make the Codex `shell_spec.rs` edit a true last resort, not a co-equal fallback.
+
+### Acceptance Criteria Quality
+
+[High] AC3 cannot be verified until LOW-B’s event discriminator is defined. “A foreground `exec_command_end` does NOT loop back” is necessary, but without specifying which event fields identify a background/subscribed completion, an implementer can neither build nor test the negative case reliably.
+
+[Medium] AC5’s “byte-for-byte unchanged” is too broad to prove. Replace it with concrete checks: setting omitted defaults disabled, no `-c features.background_process_notification=true` in spawned argv, no async policy text added to thread config, no new prompt-queue consumer active, and existing turn-completion tests remain green.
+
+[Medium] AC4 asks for “deliberate, documented ordering” but does not define the required order. The open question infers “operator turn first, completion turn next”; make that the acceptance criterion and require a unit/integration test covering operator message plus queued completion.

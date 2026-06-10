@@ -1,0 +1,42 @@
+I’ll read the referenced prompt file first, then carry out its instructions.
+
+The prompt is long, so I’m reading it in sections to avoid truncation.
+
+I’m switching to source verification now: checking the cited Codex and happy-cli anchors against the current checkout before writing the review.
+
+The exact path glob didn’t match, so I’m checking the repo layout and locating the relevant files by broader patterns.
+
+The repo is large enough that broad scans timed out; I’m narrowing to top-level directories and known package roots.
+
+I found the relevant package paths. I’m reading only the cited sections needed to validate the plan’s feasibility and gaps.
+
+The Codex-side anchors mostly line up; I’m checking happy-cli’s turn-correlation and diagnostic routing to find any plan-breaking omissions.
+
+One likely gap is the model-policy seam, so I’m checking whether happy-cli already has an instruction injection path that would reduce Codex patch surface.
+
+The current event path forwards unsolicited Codex events, but I found the policy injection can likely stay in happy-cli instead of widening Codex’s upstream patch surface. I’m doing one final check for config/settings shape before composing the review.
+
+I have enough source evidence for the review now; no files were changed.### Feasibility
+
+[Medium] The plan leaves the “model policy” integration point under-specified and may push work into Codex unnecessarily. happy-cli already threads per-thread `developerInstructions` via `packages/happy-cli/src/codex/runCodex.ts` and `codexAppServerClient.ts`; the default-off toggle could append the spawn-then-end-turn policy there when enabled, avoiding a Codex upstream-canonical prompt/tool-description edit. If the implementer instead edits `core/src/tools/handlers/shell_spec.rs`, it widens the patch surface despite an existing lower-conflict seam.
+
+### Completeness
+
+[High] The plan’s doctor/status probe says it should report “policy in effect,” but it does not define a concrete signal for that. Existing `packages/happy-cli/src/codex/codexDaemonDoctor.ts` only inspects discovery records, ws health, lifecycle events, RSS, and version. A probe can verify the happy-cli toggle and intended `-c features.background_process_notification=true` argv, but cannot prove an instruction-only model policy is active unless the plan specifies where that policy is stored and how doctor reads it.
+
+[Medium] The plan should add explicit unit coverage for the app-server arg toggle in both stdio and ws spawn paths. `codexAppServerClient.ts` appends `extraAppServerArgs` at the stdio path and again in the ws loop; AC5 requires identical args when off and the feature flag when on, so tests should assert both paths.
+
+### Ordering
+
+No issues found. The codex seam/policy and happy-cli LOW-A clusters are correctly independent for coding, with live validation gating the conditional LOW-B fallback.
+
+### Simplicity
+
+[Medium] Prefer implementing the policy via happy-cli’s existing `developerInstructions` path rather than modifying Codex tool descriptions. This is simpler and better matches the repo rule to minimize upstream-canonical Codex edits. The plan currently mentions “instructions/system-prompt overlay preferred” but does not point the implementer to the already-existing happy-cli wire path.
+
+### Acceptance Criteria Quality
+
+[Medium] AC5’s “byte-for-byte unchanged” is too broad for an autonomous agent to prove. Narrow it to observable invariants: feature off means no added `-c features.background_process_notification=true`, no appended async-completion developer instruction, no background-completion consumer enabled, and existing tests for current codex behavior remain green.
+
+[Medium] AC4 requires “deliberate, documented ordering” for two background exits plus an operator message, but does not state the intended order. The open question infers “finish the active operator turn, then surface background completions,” but the AC should make that the contract and specify whether multiple queued completions preserve enqueue order.
+
