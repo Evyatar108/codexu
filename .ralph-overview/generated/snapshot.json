@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-06-10T18:03:07.730Z",
-  "generatedFromCommit": "563ee80c",
+  "generatedAt": "2026-06-10T18:08:13.352Z",
+  "generatedFromCommit": "e2017d42",
   "schemaVersion": 1,
   "tasks": [
     {
@@ -1525,7 +1525,7 @@
         },
         "terminalReason": "complete",
         "lastUpdatedAt": "2026-05-13T16:02:32Z",
-        "mergeCommit": "563ee80c",
+        "mergeCommit": "e2017d42",
         "storyDoctorInterventions": 0
       }
     },
@@ -5920,7 +5920,7 @@
         },
         "terminalReason": "complete",
         "lastUpdatedAt": "2026-05-13T20:26:04Z",
-        "mergeCommit": "563ee80c",
+        "mergeCommit": "e2017d42",
         "storyDoctorInterventions": 0
       }
     },
@@ -6640,7 +6640,7 @@
         "reviewOpenCount": {},
         "terminalReason": "complete",
         "lastUpdatedAt": "2026-05-25T12:01:32Z",
-        "mergeCommit": "563ee80c",
+        "mergeCommit": "e2017d42",
         "storyDoctorInterventions": 0
       }
     },
@@ -9680,6 +9680,10 @@
         {
           "className": "cmd-ok",
           "html": "Brainstorm shipped @ ea2218df (rebased onto main; pushed). RECOMMENDED DIRECTION: LOW conflict -- enable the existing default-off Feature::BackgroundProcessNotification watcher + a spawn-then-end-turn policy + a race-proof turn-end wake. KEY FINDING (reframes the wiring): codex's watcher maybe_start_turn_for_pending_work() (tasks/mod.rs:567-593) AUTO-STARTS a real agent turn (start_task RegularTask) when the session is idle + the <task_notification> is queued -- this is codex-core-internal turn orchestration BELOW the app-server protocol layer, so in happy-cli's `codex app-server` mode the completion re-enters the model and emits turn events that app-server forwards WITHOUT happy-cli needing to inject a prompt. All 3 lenses (copilot + codex + devil's-advocate) leaned LOW. Cross-repo (codex + happy-cli), minimal happy-cli wiring. 3 files / 307 insertions."
+        },
+        {
+          "className": "cmd-ok",
+          "html": "Plan shipped @ e2017d42 (rebased onto main; pushed). LOW-conflict design confirmed: 6 stories -- US-001 (ONE feature-gated codex seam + regression test) + US-002-006 happy-cli (developerInstructions policy, dual-flag enablement + unsolicited-turn handling, doctor probe, live-validation gate, conditional LOW-B). MECHANISM: enable the existing default-off BackgroundProcessNotification + its UnifiedExec prerequisite via happy-cli-gated `-c` flags; inject the spawn-then-end-turn policy via happy-cli developerInstructions; LOW-A auto-turn-start primary (codex's maybe_start_turn_for_pending_work re-enters the model below the app-server layer) with a LOW-B MessageQueue2 fallback gated by a structured validation-decision artifact. Phase-4 multi-model review (codex + copilot + source-verifying rubber-duck) -> 12 findings all resolved; KEY: moved the policy to happy-cli (shrinks codex's upstream surface to a SINGLE seam), added the UnifiedExec prerequisite, and CORRECTED the seam placement (must fire AFTER active_turn is cleared, else it no-ops). Cross-repo (codex + happy-cli); mandatory live validation at impl."
         }
       ],
       "command": {
@@ -9688,7 +9692,8 @@
         "warnings": "Want-(b) follow-up to codex-notify-hook-async-bg-completion-investigation -- READ its findings.md first (.ralph/investigations/codex-notify-hook-async-bg-completion/findings.md). Lean LOW-conflict (operator constraint: minimize codex-fork upstream surface). Cross-repo: codex (unified-exec + features) + happy-cli (TS routing). The blocking await and the watcher share a `notified` dedup flag and are mutually exclusive -- the design must keep the agent OFF the blocking await for that session. Mandatory live validation at impl.",
         "prompts": {
           "brainstorm": "/brainstorm-with-ralph \"Design codex NON-BLOCKING background-task completion surfacing (Claude-Code parity) WITHOUT core-turn-loop surgery. PROBLEM: today `await_background_completion` is a BLOCKING in-turn await -- while the model is parked in it the operator's messages queue and completion does not surface async. WANT: the agent spawns a long-running background process, ENDS its turn (operator keeps interacting + the agent can do other things), and the process COMPLETION arrives ASYNC as a later queued prompt/turn. READ FIRST: .ralph/investigations/codex-notify-hook-async-bg-completion/findings.md (the prior investigation that pinned the source facts). KEY FACTS to build on (verify + extend against codex/external/repos/codex-patched/codex-rs): (1) the fork already has spawn_exit_watcher (core/src/unified_exec/async_watcher.rs:114-183) that, when Feature::BackgroundProcessNotification is ON and the agent did NOT call the blocking await, queues a synthetic <task_notification> user message + calls maybe_start_turn_for_pending_work() -- this is the want-(b) primitive but it's DEFAULT-OFF/under development (features/src/lib.rs:88-92,740-746); (2) it's MUTUALLY EXCLUSIVE with the blocking await via a shared `notified` dedup flag (process_manager.rs:779-783,800-810); (3) happy-cli's Option B McpServerNotification->prompt-queue bridge (packages/happy-cli/src/codex/mcpNotificationConsumer.ts + mcpNotificationRouting.ts) is real but wired for MCP notifications, not unified-exec process exits, also default-off. DECIDE: (a) the non-blocking SPAWN mechanism -- a short yield_time_ms policy that lets the agent turn end vs a new explicit tool/param (exec_command(..., do_not_await:true) / subscribe_background_completion(session_id)); (b) how the agent is kept OFF the blocking await for that session so the watcher's dedup flag actually fires the async notification; (c) the feature-flag enablement story (BackgroundProcessNotification + the happy-cli routing flag) and whether to keep default-off behind a toggle; (d) the happy-cli wiring to surface a UNIFIED-EXEC completion (not just MCP notifications) into MessageQueue2 / the prompt queue; (e) the model-instruction/policy change so the agent actually adopts the spawn-then-end-turn pattern. EVALUATE the finding's three conflict tiers (LOW: enable watcher + non-blocking spawn policy + happy-cli route; MEDIUM: new non-blocking tool/param; HIGH: core turn-loop interleaving) and RECOMMEND one, leaning LOW-conflict (operator standing constraint: minimize codex-fork upstream conflict surface) -- justify rigorously if you ever recommend MEDIUM/HIGH. OUTPUT: recommendedDirection + the cross-repo (codex + happy-cli) story outline + conflict-surface estimate + the dedup-flag-avoidance design. Cross-repo task; impl will need worktrees in both codex (submodule) and happy-cli. Mandatory live validation at impl. codexu root CLAUDE.md is gitignored -- do NOT git add it.\"",
-          "plan": "/plan-with-ralph --from-brainstorm .ralph/brainstorms/codex-nonblocking-bg-completion-surfacing/ \"Plan the LOW-conflict codex non-blocking background-completion surfacing per the shipped brainstorm (ea2218df, selected-direction.md): (1) enable the existing default-off Feature::BackgroundProcessNotification watcher behind a toggle; (2) a spawn-then-end-turn policy (short yield_time_ms / a non-blocking spawn path) that keeps the agent OFF the blocking await_background_completion for that session so the watcher's dedup flag fires; (3) a race-proof turn-end wake. KEY: codex's maybe_start_turn_for_pending_work() auto-starts a real turn below the app-server layer, so happy-cli's `codex app-server` mode gets the completion-re-enters-the-model behavior FOR FREE (no prompt injection) -- so the happy-cli wiring is minimal (mostly enabling + routing, possibly none). Cross-repo: codex (submodule) + happy-cli; impl needs worktrees in both. Minimize codex-fork upstream conflict surface. Mandatory live validation at impl.\""
+          "plan": "/plan-with-ralph --from-brainstorm .ralph/brainstorms/codex-nonblocking-bg-completion-surfacing/ \"Plan the LOW-conflict codex non-blocking background-completion surfacing per the shipped brainstorm (ea2218df, selected-direction.md): (1) enable the existing default-off Feature::BackgroundProcessNotification watcher behind a toggle; (2) a spawn-then-end-turn policy (short yield_time_ms / a non-blocking spawn path) that keeps the agent OFF the blocking await_background_completion for that session so the watcher's dedup flag fires; (3) a race-proof turn-end wake. KEY: codex's maybe_start_turn_for_pending_work() auto-starts a real turn below the app-server layer, so happy-cli's `codex app-server` mode gets the completion-re-enters-the-model behavior FOR FREE (no prompt injection) -- so the happy-cli wiring is minimal (mostly enabling + routing, possibly none). Cross-repo: codex (submodule) + happy-cli; impl needs worktrees in both. Minimize codex-fork upstream conflict surface. Mandatory live validation at impl.\"",
+          "impl": "/implement-with-ralph --from-plan .ralph/jobs/codex-nonblocking-bg-completion-surfacing/plan.md --autonomous \"Implement the LOW-conflict non-blocking codex bg-completion surfacing per the committed plan (CROSS-REPO: codex submodule + happy-cli, worktrees in BOTH). US-001: ONE feature-gated codex seam (the spawn-then-end-turn enablement; the seam must fire AFTER active_turn is cleared else it no-ops -- corrected in review). US-002-006 happy-cli: developerInstructions policy, dual-flag enablement (BackgroundProcessNotification + UnifiedExec prerequisite via -c flags) + unsolicited-turn handling, doctor probe, live-validation gate, conditional LOW-B MessageQueue2 fallback. LEAN minimal codex surface (single seam). Mandatory live validation. Two repos -> the lead does the multi-repo ship; you commit on topic branches in each. NOTE: do NOT run concurrently with a codex release build (resource).\""
         }
       },
       "initialStage": "planning",
@@ -9984,7 +9989,7 @@
     },
     {
       "taskId": "codex-ralph-member-multi-agent-adapter",
-      "score": 0.7608817898860398,
+      "score": 0.7608273457977208,
       "stage": "implementing",
       "reasons": [
         "unblocked",
