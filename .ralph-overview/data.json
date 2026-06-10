@@ -5986,6 +5986,25 @@
       }
     },
     {
+      "id": "codex-anthropic-enable-flag",
+      "scope": "codex",
+      "lifecycle": "tracked",
+      "status": "active",
+      "lastTouchedAt": "2026-06-10",
+      "kanbanCards": [
+        {
+          "className": "cmd-warn",
+          "html": "UX (operator-requested 2026-06-10). Today the Anthropic-models gate is enabled ONLY via an environment variable (read by <code>codex_copilot::anthropic_models_enabled()</code>), which is awkward for users. Add friendlier toggles: a dedicated clap CLI flag <code>--enable-anthropic</code> AND a <code>features.anthropic_models</code> config key (same <code>features.*</code> family as <code>features.multi_agent_v2</code>, settable in <code>~/.codex/config.toml</code> or via <code>-c features.anthropic_models=true</code>). Keep the existing env var working as a back-compat fallback. Decision (operator 2026-06-10): BOTH flag + config key; env var fallback retained. CODEX SUBMODULE task."
+        }
+      ],
+      "command": {
+        "name": "codex-anthropic-enable-flag",
+        "prompts": {
+          "impl": "Add user-friendly toggles for the Anthropic-models gate. Decision (operator): BOTH a clap CLI flag `--enable-anthropic` AND a `features.anthropic_models` config key, with the existing env var kept as a back-compat fallback. (1) Find the current gate read `codex_copilot::anthropic_models_enabled()` and confirm exactly what it reads (env var name). (2) Refactor the gate so it resolves from MULTIPLE sources with clear precedence: CLI flag `--enable-anthropic` (highest) > `features.anthropic_models` config key > existing env var (back-compat) > default false. (3) Add the clap flag `--enable-anthropic` (global/boolean) to the codex CLI and thread it into the resolved gate; add the `features.anthropic_models` config key to the config schema (default false), matching the existing `features.*` pattern (e.g. how `features.multi_agent_v2` is declared/plumbed). (4) Update `--help` text and any config docs. (5) Add tests for the precedence (flag overrides config overrides env overrides default; default OFF). (6) Build per-crate debug (NOT the full release LTO) + run `cargo test` for the touched crates; report results. WORKTREE: codex inner submodule on branch ralph/codex-anthropic-enable-flag. Do NOT git push and do NOT gh auth switch (LEAD owns pushes+auth). codexu root CLAUDE.md is gitignored. Report kind=done with: the gate-resolution refactor (file:line), the flag + config-key wiring, tests added, build/test results, and commit SHA."
+        }
+      }
+    },
+    {
       "id": "codex-anthropic-transport-us008-e2e-test",
       "scope": "codex",
       "lifecycle": "tracked",
