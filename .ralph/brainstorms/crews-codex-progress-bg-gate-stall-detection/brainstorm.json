@@ -1,0 +1,36 @@
+{
+  "brainstormName": "crews-codex-progress-bg-gate-stall-detection",
+  "overviewTaskId": "crews-codex-progress-bg-gate-stall-detection",
+  "idea": "Port the crews progress-bg Stop-hook stall gate (currently Copilot-only) to codex crew members so a codex member emitting kind=progress with no real active background work is BLOCKED instead of silently idling.",
+  "availableLenses": ["devils-advocate"],
+  "missingLenses": [
+    {"lens": "codex", "reason": "CLI lens intentionally not run; replaced by direct codex Rust source + real rollout-transcript investigation (stronger evidence for a code-internals design task)"},
+    {"lens": "copilot", "reason": "CLI lens intentionally not run; replaced by direct crews-plugin source reading"}
+  ],
+  "candidateDirections": [
+    {
+      "id": "D-001",
+      "name": "Rollout-transcript liveness parser (sibling detect-active-bg-codex.js)",
+      "summary": "New sibling detector parses the codex rollout JSONL for backgrounded unified-exec sessions ('Process running with session ID N' active vs await-correlated 'Process exited with code' dead), current-turn freshness scoping, cmd-via-call_id infra filter; stop.js widens the engine gate to copilot|codex and dispatches by engine.",
+      "contributingLenses": ["source-investigation", "devils-advocate"]
+    },
+    {
+      "id": "D-002",
+      "name": "Structured manifest-tracked bg sessions via codex Pre/PostToolUse hooks",
+      "summary": "Record exec_command bg-session starts/exits into the actor manifest from crews' codex hooks and have the gate read manifest state; immune to output-format drift but needs codex-side changes (PostToolUse lacks still-running session metadata and async exits fire no PostToolUse), so higher effort / partly infeasible without upstreaming.",
+      "contributingLenses": ["source-investigation", "devils-advocate"]
+    },
+    {
+      "id": "D-003",
+      "name": "Minimal fresh-await-proof gate (freshness reframe)",
+      "summary": "Require a progress turn to carry a fresh, current-turn non-infra liveness proof (ideally an await_background_completion 'still running'); never carry a bare exec_command 'running' across turns. Not a separate architecture — it is the soundness-correcting freshness rule folded into D-001.",
+      "contributingLenses": ["source-investigation", "devils-advocate"]
+    }
+  ],
+  "recommendedDirection": "D-001",
+  "questionsForSynthesis": [
+    "Does a codex member's listener-arm (node $env:CREWS_BIN arm) actually appear as a backgrounded exec_command session in the rollout (making the infra filter load-bearing)? Settle with the US-004 arm-only live smoke before relying on it.",
+    "Is current-turn freshness scoping the right precision/soundness trade-off vs Copilot's carry-forward-until-shell_completed, given codex's async ExecCommandEnd may not be persisted to the rollout?",
+    "If context.rs free-text output strings drift across codex versions, when do we escalate from D-001 (parse) to D-002 (structured, needs codex-side work)?"
+  ]
+}
