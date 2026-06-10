@@ -6024,6 +6024,25 @@
       }
     },
     {
+      "id": "codex-r2-iex-installer-auto-publish",
+      "scope": "codex",
+      "lifecycle": "tracked",
+      "status": "active",
+      "lastTouchedAt": "2026-06-10",
+      "kanbanCards": [
+        {
+          "className": "cmd-warn",
+          "html": "FEATURE (operator-requested 2026-06-10). Provide a claude-code-style one-liner installer for the latest Copilot codex fork: <code>irm https://&lt;cloudflare-domain&gt;/install.ps1 | iex</code> (+ a .sh analog), backed by an auto-publish step that pushes each new release binary to a <b>Cloudflare R2 bucket</b> (operator-chosen backend) so the install URL is UNAUTHENTICATED (today install requires gh auth + SAML to gim-home + npm). Two halves: (1) a release-flow step (hook into codex <code>/publish-sandbox-patch</code>) that uploads the built artifact + a <code>latest</code> pointer to R2 on every release; (2) a hosted <code>install.ps1</code> that fetches + installs the latest binary. KEY DESIGN FORK: today’s artifact is an <b>npm tarball</b> (needs Node/npm); a true iex installer should drop a <b>standalone binary set</b> (codex.exe + codex-core.exe + helpers + rg.exe) into a bin dir on PATH with NO npm dependency — brainstorm the packaging. Also settle: R2 public-access model (public bucket vs custom-domain binding under the operator’s cloudflare domain), upload auth (wrangler vs S3-API token — operator provisions credentials), versioning/<code>latest.json</code>, and upgrade/uninstall semantics. NOTE: operator must provision the R2 bucket + API token + DNS; member builds the upload script + installer. Does NOT block the held .3 release. CODEX SUBMODULE + codexu infra (brainstorm clarifies the split)."
+        }
+      ],
+      "command": {
+        "name": "codex-r2-iex-installer-auto-publish",
+        "prompts": {
+          "brainstorm": "Design a claude-code-style one-liner installer for the Copilot codex fork: `irm https://<cloudflare-domain>/install.ps1 | iex` (+ a curl|bash .sh analog), backed by auto-publish to a Cloudflare R2 bucket (operator-chosen). Research + recommend a direction; produce brainstorm.json. SETTLE THESE (cite file:line / evidence): (1) PACKAGING: today the release artifact is an npm tarball (codex/docs/workflows/install.md: gh release download + npm install -g, requires gh+SAML+npm). A true iex installer should be NO-NPM — drop the standalone binary set (codex.exe, codex-core.exe, codex-windows-sandbox-setup.exe, codex-command-runner.exe, rg.exe) into a bin dir (e.g. ~/.codex-bin) and add it to PATH. Determine the cleanest packaging (a plain .zip of the vendor/ bin set? reuse the existing release tarball but extract instead of npm-install?) and how it maps onto the existing publish flow (codex/.github/workflows/publish-npm.yml + .claude/commands/publish-sandbox-patch.md Step 5). (2) UPLOAD STEP: how to push the artifact + a latest pointer (latest.json with version + sha) to R2 on every release — wrangler CLI vs the S3-compatible API; where it hooks into /publish-sandbox-patch (a new Step after the GitHub Release upload); what credentials are needed (operator provisions an R2 API token; member should NOT need the secret to design it). (3) R2 PUBLIC ACCESS: R2 public bucket URL vs a custom-domain binding under the operator’s existing cloudflare domain (the fork already runs happy.evyatar.dev via a named tunnel — evaluate reusing that domain vs a new subdomain like get.<domain>). (4) INSTALLER UX: install.ps1 must fetch latest.json, download the artifact, verify sha, extract to the bin dir, add to PATH, run `codex --version`; plus upgrade (re-run) + uninstall. Mirror the claude.ai/install.ps1 shape for familiarity. (5) SECURITY: the artifact is now served unauthenticated — note sha-pinning + (optional) signing as a follow-up; flag that R2-hosting a Copilot-talking binary publicly is an operator decision. DELIVERABLE: recommended packaging + upload mechanism + hosting URL scheme + installer outline, the operator-provisioning checklist (R2 bucket, token, DNS) vs member-build split, a story breakdown, and the codex-vs-codexu placement for each piece. Do NOT rubber-stamp — if no-npm standalone packaging is materially harder than expected, say so. WORKTREE: codex inner submodule (publish flow lives there); note any codexu-side pieces. Read-only research + brainstorm.json; no impl. Do NOT git push / gh switch (lead-owned)."
+        }
+      }
+    },
+    {
       "id": "codex-anthropic-transport-us008-e2e-test",
       "scope": "codex",
       "lifecycle": "tracked",
