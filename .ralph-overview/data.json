@@ -5967,6 +5967,25 @@
       }
     },
     {
+      "id": "codex-anthropic-transport-no-text-output",
+      "scope": "codex",
+      "lifecycle": "tracked",
+      "status": "active",
+      "lastTouchedAt": "2026-06-10",
+      "kanbanCards": [
+        {
+          "className": "cmd-warn",
+          "html": "BUG (operator-found 2026-06-10, release 0.135.0-copilot-api.2). With the Anthropic gate enabled and model set to <code>claude-opus-4.8</code>: model-selection works (\"Model changed to claude-opus-4.8\") and TOOL CALLS work (ran <code>date</code> successfully), but plain assistant TEXT output renders BLANK (\"hi\"/\"hello?\" produce no visible reply). The Anthropic streaming text path (<code>content_block_delta</code>/<code>text_delta</code> in the Messages-API SSE shape) is not being mapped into codex output events — only tool_use blocks come through. Entry points: <code>codex-rs/core/src/chat_transport.rs</code> (gated wire-api routing, anthropic route != ChatCompletions), <code>codex-rs/model-provider/src/copilot.rs</code> + <code>copilot/gated_models_manager.rs</code>, and the streaming-response parser for the Anthropic wire format. Could be codex-side parsing OR the copilot-api server’s anthropic endpoint SSE shape (reference: ericc-ch/copilot-api). BLOCKS the headline feature of the anthropic-transport release; GitHub Release + codexu pointer bump are ON HOLD until fixed. CODEX SUBMODULE task. Interactive TUI re-test requires the operator’s live copilot-api endpoint + an Anthropic model."
+        }
+      ],
+      "command": {
+        "name": "codex-anthropic-transport-no-text-output",
+        "prompts": {
+          "impl": "INVESTIGATE then FIX the Anthropic-transport no-text-output bug. Repro: enable the anthropic gate, set model to claude-opus-4.8, send a plain-text message — assistant text renders blank while tool calls (e.g. running `date`) work. (1) Capture evidence of where text is dropped: run codex with RUST_LOG/debug or curl the copilot-api anthropic Messages endpoint directly to see the raw SSE; determine whether the copilot-api server emits text content_block_delta/text_delta events and whether codex parses+forwards them. Compare against ericc-ch/copilot-api reference SSE shape. (2) Root-cause: most likely the Anthropic wire-route response parser in codex-rs/core/src/chat_transport.rs (and the copilot model-provider) handles tool_use content blocks but drops/ignores text content blocks, so assistant text never reaches the output/render path. (3) Fix minimally: map Anthropic text deltas into codex assistant-message output events for the non-ChatCompletions anthropic route. Add a deterministic parser/unit test for a text-bearing Anthropic SSE turn. (4) Build the codex binaries (cargo build of the affected crates is enough for a dev binary; full release build optional) and report the binary path + topic-branch commit SHA so the LEAD/operator can interactively re-test (text now renders). WORKTREE: codex inner submodule (codex/external/repos/codex-patched) on branch ralph/codex-anthropic-transport-no-text-output. Do NOT git push and do NOT gh auth switch — the LEAD owns all pushes + auth. codexu root CLAUDE.md is gitignored — do not git add it. Report kind=done with: root-cause (file:line), the fix, test added, build result, binary path, and commit SHA."
+        }
+      }
+    },
+    {
       "id": "codex-anthropic-transport-us008-e2e-test",
       "scope": "codex",
       "lifecycle": "tracked",
