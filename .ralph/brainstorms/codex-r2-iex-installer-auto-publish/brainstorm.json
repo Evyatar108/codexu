@@ -1,0 +1,42 @@
+{
+  "brainstormName": "codex-r2-iex-installer-auto-publish",
+  "overviewTaskId": "codex-r2-iex-installer-auto-publish",
+  "idea": "A Claude-Code-style unauthenticated one-liner installer (irm https://<domain>/install.ps1 | iex, plus a curl|bash analog) for the win32-x64 Copilot Codex fork (gim-home/codex, built in codexu/codex), backed by auto-publish to a Cloudflare R2 bucket so the install URL is unauthenticated, replacing today's gh auth + SAML + npm install -g flow.",
+  "availableLenses": ["codex", "copilot", "devils-advocate"],
+  "missingLenses": [],
+  "candidateDirections": [
+    {
+      "id": "D-001",
+      "name": "Standalone/flat bin artifact + R2 custom-domain + iex installer",
+      "summary": "Produce a purpose-built win32-x64 binary artifact (recommended: recognized standalone layout) in the publish flow, env-gated wrangler upload to R2 with latest.json + sha (+ optional sig), serve from a get.evyatar.dev custom-domain binding, and a sha-verifying install.ps1 that extracts to a bin dir, edits PATH, supports upgrade/uninstall. RECOMMENDED build path (all three lenses' top pick), gated on the public-redistribution + signing decision.",
+      "contributingLenses": ["codex", "copilot", "devils-advocate"]
+    },
+    {
+      "id": "D-002",
+      "name": "Reuse the existing release .tgz; installer extracts and flattens",
+      "summary": "Mirror the existing codex-<ver>-win32-x64.tgz to R2 unchanged; install.ps1 tar-extracts package/vendor/.../codex/*.exe + path/rg.exe and flattens. Zero new build artifact but couples the installer to npm tarball internals and depends on reconciling the manual-vs-CI vendor-copy divergence.",
+      "contributingLenses": ["codex", "copilot", "devils-advocate"]
+    },
+    {
+      "id": "D-003",
+      "name": "Keep npm; just remove GitHub auth from the tarball URL",
+      "summary": "Smallest change (effort S): host the existing tarball on public R2 and make the one-liner npm install -g <public-url>. Removes the gh+SAML barrier with near-zero code but keeps the Node/npm dependency and locked-exe upgrade failure mode; fails the no-npm product promise. Viable only as a short-term bridge.",
+      "contributingLenses": ["codex", "copilot", "devils-advocate"]
+    },
+    {
+      "id": "D-004",
+      "name": "Reframe: remove the auth barrier without a bespoke R2 channel",
+      "summary": "If the requirement is only 'no gh+SAML for trusted operators' (not public-anyone), the cheapest path may be making the gim-home release/repo public or a small public release-only mirror / GitHub Pages redirect with signed assets, avoiding bucket/DNS/token/installer ownership entirely. Moot if the operator wants a branded custom-domain Claude-style one-liner.",
+      "contributingLenses": ["devils-advocate", "copilot"]
+    }
+  ],
+  "recommendedDirection": "D-001",
+  "questionsForSynthesis": [
+    "GATE 1 (GO/NO-GO): Does the operator accept that the Copilot-talking fork may be publicly, unauthenticatedly downloadable by anyone (ToS / brand / support / revocation)? If only trusted machines need it, D-004 may be cheaper than D-001.",
+    "GATE 2 (security posture): Is sha256-only (labeled corruption-only, since it shares the artifact's origin) acceptable for v1, or is a detached signature + embedded public key required before going public?",
+    "Install layout: simple ~/.codex-bin on PATH, or the recognized standalone layout under CODEX_HOME/packages/standalone/releases/<ver>/ so install-context classifies it Standalone and rg/doctor behave natively (install-context/src/lib.rs:41-54,123-145,224-249)?",
+    "install.sh scope: a Git Bash/WSL-on-Windows delegator now (build is win32-x64 only per publish-npm.yml:12-15), or deferred until native non-Windows binaries exist?",
+    "Rollback story when latest.json points at a bad release: support pinned --version installs and/or a latest-pin-revert procedure?",
+    "Reconcile the vendor-copy divergence (manual publish-sandbox-patch.md:292-315 copies 2 exes vs CI publish-npm.yml:126-153 copies all 4 + rg) so the artifact source-of-truth is the assembled $VENDOR dir."
+  ]
+}
