@@ -6037,6 +6037,10 @@
         {
           "className": "cmd-ok",
           "html": "Brainstorm shipped @ <code>6efd6d51d</code> (branch ralph/codex-model-knobs-brainstorm, codex submodule; 3 artifacts +356 lines). Devil’s-advocate lens corrected the first pass. VERDICT: two impls, ship Knob A first. <b>This task is now KNOB A only</b> (reasoning-effort for Claude); Knob B (context-window tier) split into <code>codex-context-window-tier-selection</code> (operator-design-gated). Knob A root cause: selected effort dropped in 2 fork-owned spots — core <code>build_reasoning</code> returns None for Claude (supports_reasoning_summaries=false @ copilot_models_endpoint.rs:316) + overlay <code>ChatRequestBody</code> has no <code>reasoning_effort</code> field (payload.rs:196-209). Fix threads effort through existing fork/SANDBOX-PATCH seams (zero new upstream-conflict surface). Backend DOES expose it. v1 = low/medium/high/xhigh. BUNDLED into the held .3 release."
+        },
+        {
+          "className": "cmd-warn",
+          "html": "FOLLOW-UP (operator-found 2026-06-10 smoke): Knob A’s unselected default REGRESSED to \"low\". The dispatch arm fallback <code>effort.or(model_info.default_reasoning_level)</code> resolves default_reasoning_level to the FIRST supported preset = <b>low</b> for claude-opus-4.8 (the picker shows \"Low (default)\"), whereas the model previously ran at \"medium\". OPERATOR DECISION: default to <b>MEDIUM</b> when unselected. FIX must yield medium for Claude when no effort is selected WITHOUT regressing GPT’s own default (do NOT hardcode medium for all models). Folded into the .3 rebuild (we’re rebuilding for managed-hooks anyway). Tracked as codex-knob-a-default-medium."
         }
       ],
       "command": {
@@ -6044,6 +6048,44 @@
         "prompts": {
           "brainstorm": "Research and recommend a direction for exposing two copilot-supported model knobs in codex that Copilot CLI already exposes but codex does not: (A) REASONING-EFFORT selection for Anthropic models (today the picker shows a fixed effort like \"claude-opus-4.8 medium\" with no way to change it for anthropic; gpt models may already have effort selection - verify), and (B) CONTEXT-WINDOW size selection (e.g. 200k vs 1m) for BOTH gpt and anthropic models. KEY QUESTIONS to settle against SOURCE (cite file:line): (1) What does the copilot /models capabilities payload actually expose for reasoning effort + context window per model? Probe a live GET https://api.githubcopilot.com/models (or inspect cached ~/.codex/models_cache.json) and compare against the ericc-ch/copilot-api reference (https://github.com/ericc-ch/copilot-api) for the expected fields. (2) How does codex TODAY surface reasoning effort (the \"medium\" shown in the picker) - is it ModelPreset/ModelInfo metadata (models-manager/models.json + copilot_models_endpoint.rs synthesis), a TUI picker affordance, or a per-request param in the /responses or /chat-completions builder? Find the existing gpt reasoning-effort selection path if any. (3) How is context window currently determined for copilot models, and what would it take to let the user pick 200k vs 1m (is it a model-variant slug, a request param, or a capabilities field)? (4) How does Copilot CLI expose these (for parity reference)? DELIVERABLE: a recommended direction (which seam to extend - prefer overlay/fork-internal per codex CLAUDE.md tenet 1, minimize upstream-canonical conflict surface), the conflict-surface analysis, whether A and B are one impl or two, and a rough story breakdown. Do NOT rubber-stamp - if a knob is NOT actually exposed by the copilot-api backend, say so (that would make it a copilot-api/server change, not a codex change). WORKTREE: codex inner submodule. Read-only research + brainstorm.json deliverable; no impl. Do NOT git push / gh switch (lead-owned).",
           "plan": "Plan Knob A (reasoning-effort selection for Claude models) --from-brainstorm 6efd6d51d (ralph/codex-model-knobs-brainstorm in the codex submodule; read .ralph/brainstorms/codex-copilot-model-knobs-reasoning-context/{selected-direction.md,brainstorm-synthesis.md,brainstorm.json}). GOAL: a codex user on a Copilot session with --enable-anthropic can pick a reasoning effort (low/medium/high/xhigh) for ANY Claude model (incl claude-opus-4.8, today pinned \"medium\") and it is actually sent to api.githubcopilot.com/chat/completions. SCOPE (fork-owned seams only, zero new upstream-canonical conflict surface): (1) add reasoning_effort: Option<String> to fork ChatRequestBody (overlay payload.rs); (2) build_chat_request_body accepts effort param + sets top-level field when Some, omits when None (do NOT read from responses_body — core build_reasoning strips it for Claude); (3) stream_chat_completions (chat_transport.rs) accepts + forwards effort; (4) the D-001 chat dispatch arm (core/src/client.rs:1641) passes effort.or(model_info.default_reasoning_level). TESTS at builder boundary (present->top-level set; absent->omitted; existing hard-error paths unchanged) + one proving a selected Claude effort reaches the chat body. BACKEND-ACCEPTANCE GATE: a live /chat/completions canary to claude-opus-4.8 with effort=high returns 200 (record in plan); if 4xx on reasoning_effort, re-scope (copilot-api passthrough or /v1/messages thinking-budget mapping) rather than ship. Patch-surface/SANDBOX-PATCH bookkeeping per codex CLAUDE.md tenets 1+3. OUT OF SCOPE: Knob B, flipping supports_reasoning_summaries, adding ReasoningEffort::Max. IMPORTANT: base the plan/impl branch on the .3 integration commit 1190d1875 (NOT 2bd9a9e74) — Knob A also touches chat_transport.rs which the text-fix + flag already modified; basing on 1190d1875 avoids re-conflict. WORKTREE: codex inner submodule. Do NOT git push / gh switch (lead-owned)."
+        }
+      }
+    },
+    {
+      "id": "codex-knob-a-default-medium",
+      "scope": "codex",
+      "lifecycle": "tracked",
+      "status": "active",
+      "lastTouchedAt": "2026-06-10",
+      "kanbanCards": [
+        {
+          "className": "cmd-warn",
+          "html": "Knob A unselected-default fix (operator 2026-06-10): default to MEDIUM, not low. The .3 Knob A dispatch arm (core/src/client.rs ~1641) passes <code>effort.or(model_info.default_reasoning_level)</code>; default_reasoning_level = first supported preset = low for Claude → unselected Claude now sends low (regression from the prior medium). FIX: when no effort is explicitly selected, default to MEDIUM for Claude WITHOUT regressing GPT (GPT keeps its own default). Small edit to the dispatch-arm fallback (or the default-resolution). Folds into the .3 rebuild. CODEX inner; lead builds."
+        }
+      ],
+      "command": {
+        "name": "codex-knob-a-default-medium",
+        "prompts": {
+          "impl": "Fix Knob A’s unselected reasoning-effort default: it currently regresses to \"low\" for Claude. The .3 dispatch arm (core/src/client.rs ~1641) is `effort.or(model_info.default_reasoning_level).map(|e| e.to_string())`; default_reasoning_level resolves to supported_reasoning_levels.first() = low for claude-opus-4.8. OPERATOR DECISION: default to MEDIUM when no effort is explicitly selected. CONSTRAINT: must NOT regress GPT models (they keep their own default). Recommended approach: when the resolved fallback would be the first-preset for a Claude/Copilot-synthesized model, prefer Medium if Medium is in supported_reasoning_levels (else keep the model default). Verify the exact seam in YOUR worktree (the dispatch arm + how default_reasoning_level is computed in copilot_models_endpoint.rs synthesize_from_capabilities). Add/adjust a unit test: an UNSELECTED claude-opus-4.8 turn yields reasoning_effort=\"medium\" (not \"low\"); an explicitly-selected effort still wins; a GPT model’s default is unchanged. WORKTREE: codex inner (off the .3 integration). Build/verify LEAD-OWNED (overlay pin) — write code + test, do NOT cargo build. Do NOT git push / gh switch. Report kind=done with the seam (file:line), the test, and your commit SHA."
+        }
+      }
+    },
+    {
+      "id": "codex-subagent-model-effort-context-propagation",
+      "scope": "codex",
+      "lifecycle": "tracked",
+      "status": "active",
+      "lastTouchedAt": "2026-06-10",
+      "kanbanCards": [
+        {
+          "className": "cmd-warn",
+          "html": "INVESTIGATION (operator-asked 2026-06-10): when codex spawns a SUB-AGENT (spawn_agent / multi_agent_v2), which MODEL, REASONING EFFORT, and CONTEXT TIER does it use? Do Knob A (selected reasoning effort) and Knob B (context tier 200k/1m) PROPAGATE to sub-agents, or do sub-agents reset to the model default? Prior hint: child config derives \"from the parent turn\" (multi_agents_v2/spawn.rs:92-120) → likely inherits the parent model, but effort/context propagation UNVERIFIED. If they DON’T propagate, a user who picks xhigh / long_context gets it only for the top-level agent, not sub-agents (a real gap). Feeds Knob A finalization + the Knob B plan. Read-only codex source investigation; CRASH-SAFE (no lens fan-out)."
+        }
+      ],
+      "command": {
+        "name": "codex-subagent-model-effort-context-propagation",
+        "prompts": {
+          "brainstorm": "INVESTIGATE (read-only, source-cited; findings.md under .ralph/investigations/codex-subagent-model-effort-context-propagation/) how codex SUB-AGENTS resolve model / reasoning-effort / context-tier, and whether Knob A (reasoning effort) + Knob B (context tier) propagate to them. QUESTION (operator): when codex spawns a sub-agent (spawn_agent, multi_agent_v2 / v1), which MODEL does the child use? Which REASONING EFFORT? Which CONTEXT WINDOW / tier? SETTLE AGAINST SOURCE (cite file:line; codex source at codex/external/repos/codex-patched/codex-rs/, grep core/src/tools/handlers/multi_agents_v2 + multi_agents, spawn.rs, the child turn/config construction ~spawn.rs:92-120 \"child config from parent turn\"): (1) Does the child INHERIT the parent turn’s model? (2) Does it inherit the parent’s SELECTED reasoning_effort (the Knob A value threaded via the chat path), or reset to the model default? Trace where the child’s turn config / reasoning effort is set. (3) Does it inherit the parent’s context window / tier (Knob B), or use the model max? (4) Can a spawn_agent call OVERRIDE model/effort/context per-child? DELIVERABLE: a clear table (parent vs child) for model/effort/context, whether Knob A + Knob B propagate, and (if not) a recommendation for making them propagate (or a per-child override). Read-only — no source edits beyond findings.md. Do NOT git push / gh switch. Do NOT run cargo while a build is active."
         }
       }
     },
