@@ -7158,8 +7158,8 @@
     {
       "id": "crews-lens-child-takeover-recoverable-skip-gap",
       "scope": "crews",
-      "lifecycle": "tracked",
-      "status": "active",
+      "lifecycle": "merged",
+      "status": "shipped",
       "lastTouchedAt": "2026-06-11",
       "kanbanCards": [
         {
@@ -7170,6 +7170,22 @@
       "command": {
         "name": "crews-lens-child-takeover-recoverable-skip-gap",
         "prompts": {}
+      },
+      "shipManifest": {
+        "shippedAt": "2026-06-11",
+        "summary": "crews v3.21.4: fixed the lens-child takeover recurrence (the v3.21.1 owner-fix gap). Two fixes (defense in depth): GAP1 = a recycle-safe live-tab guard so a member with a recoverable/exited listenerState but a genuinely-live launcher is NOT yielded to a different session (closing the recoverable-skip window a copilot listener opens on exit-on-delivery); GAP2 = an engine-mismatch decline so a codex lens-child (engine=codex) claiming a copilot-engine parent manifest is refused (directly targets the copilot->codex engine-flip observed on plan-hookshell). Confirmed safe for legit recovery: recoverExisting:true (cross-session member resume) is NOT used in production (resume-crew removed in v3.15.0; recovery uses fresh names), so the stricter guard cannot break recovery re-spawn. 292/292 tests; +A4-style regression tests in session-ownership-divergence.test.js. Installed via copilot plugin update (3.21.3 -> 3.21.4). NOTE follow-up: the legit same-tab /clear session-change (new session_id, same live launcher) is now refused by the stricter guard -> being addressed by codex-hook-event-lifecycle-vs-crews-binding (impl-sscaveats, crews 3.21.5).",
+        "commits": [
+          {
+            "sha": "e2448b27",
+            "oneLine": "fix(crews): lens-child takeover - recycle-safe live-tab guard + engine-mismatch decline (v3.21.4)",
+            "repo": "ai-developer-toolkit"
+          },
+          {
+            "sha": "5c1f917c",
+            "oneLine": "chore(crews): bump to v3.21.4 (codexu pointer)",
+            "repo": "codexu"
+          }
+        ]
       }
     },
     {
