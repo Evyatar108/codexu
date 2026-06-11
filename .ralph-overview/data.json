@@ -6860,9 +6860,9 @@
     {
       "id": "crews-pidalive-false-positive-recycled-pid",
       "scope": "crews",
-      "lifecycle": "tracked",
-      "status": "active",
-      "lastTouchedAt": "2026-06-10",
+      "lifecycle": "merged",
+      "status": "shipped",
+      "lastTouchedAt": "2026-06-11",
       "kanbanCards": [
         {
           "className": "cmd-warn",
@@ -6881,6 +6881,22 @@
           "plan": "/plan-with-ralph \"Fix the crews `pidAlive` FALSE POSITIVE: list-members / getMemberHealth (ai-developer-toolkit/plugins/crews/hooks/health.js) reports `pidAlive:true` for members whose wt tabs died days ago. Live evidence: 11 pidAlive:true members but only 4 genuinely active; the rest had last turns days old with dead tabs. ROOT CAUSE: getMemberHealth uses `<actorDir>/launcher.pid` with a BARE isProcessAlive(pid) check; Windows recycles the dead launcher's PID to an unrelated process (isProcessAlive(stale pid)->true for the wrong process), and per v1.2.12 deferred Hole #3 health.js treats EPERM as alive. The launcher.pid file is never pruned, so the stale PID lingers. FIX: pidAlive must verify the PID IS THIS MEMBER'S LAUNCHER, reusing the EXISTING v3.6.6 verifyLauncherRecycleSafety (hooks/actors.js) which confirms via CIM that the PID's image is pwsh.exe/powershell.exe AND its command line carries the launcher-script basename / spawn marker recorded in launcher.pid. A recycled or foreign PID -> pidAlive:false. Also: treat EPERM/unverifiable as NOT-alive for getMemberHealth (close Hole #3 for the health surface; the stop-member recycle guard already fails closed). Consider demoting to dead/quiet when the heartbeat is far past HEARTBEAT_STALE_MS even if a verified PID looks alive. PRESERVE: the existing alive classification for genuinely-running members (verified launcher PID + fresh heartbeat). Non-Windows path: keep current behavior or document the platform gap. Tests: (1) recycled-PID false-positive case (launcher.pid -> live process whose image/cmdline is NOT this member's launcher -> pidAlive:false); (2) genuinely-alive case (verified launcher -> pidAlive:true); (3) EPERM/unverifiable -> pidAlive:false; (4) launcher.pid missing -> existing fallback. Plugin-side; version bump + marketplace sync; two-commit submodule flow. Coordinate with (but keep distinct from) crews-listener-silent-reap-across-idle-investigation + crews-hook-timeout-under-lock-contention.\"",
           "impl": "/implement-with-ralph --from-plan .ralph/jobs/crews-pidalive-false-positive-recycled-pid/plan.md --autonomous \"Implement the pidAlive false-positive fix per the committed plan: in ai-developer-toolkit/plugins/crews/hooks/health.js, getMemberHealth pidAlive verifies launcher.pid is this member's launcher via actors.js::verifyLauncherRecycleSafety (CIM image=pwsh + spawn-marker); recycled/foreign -> false; EPERM/unverifiable -> NOT-alive; preserve genuinely-alive classification. Tests with injectable seams (no real process spawn). Plugin-side; version bump + marketplace sync + CHANGELOG + AGENTS.md; two-commit submodule flow. SERIALIZE with the crews-codex-member-tab-title impl (both touch hooks/actors.js).\""
         }
+      },
+      "shipManifest": {
+        "shippedAt": "2026-06-11",
+        "summary": "crews v3.21.2: getMemberHealth.pidAlive is now a verified tri-state. resolvePidAlive (hooks/health.js) reuses the v3.6.6 recycle-safety primitive (verifyLauncherRecycleSafety + describeProcess) to confirm a launcher PID is this member's pwsh launcher before reporting alive, fixing list-members showing recycled/foreign PIDs as pidAlive:true. CIM-null/non-Windows -> null (not false) so the crash sweep does not over-fire; ESRCH short-circuits before CIM. 292/292. Shipped in the bundled crews 3.21.3 ship (codexu pointer 5b6548ff).",
+        "commits": [
+          {
+            "sha": "733f1c6a",
+            "oneLine": "fix(crews): verified tri-state pidAlive resists recycled launcher PIDs (v3.21.2)",
+            "repo": "ai-developer-toolkit"
+          },
+          {
+            "sha": "5b6548ff",
+            "oneLine": "chore(crews): bump to v3.21.3 (codexu pointer)",
+            "repo": "codexu"
+          }
+        ]
       }
     },
     {
@@ -7020,6 +7036,39 @@
         "prompts": {
           "brainstorm": "Decide the correct behavior when a PERSISTED Anthropic model selection and the Anthropic gate (--enable-anthropic / features.anthropic_models / env var, default OFF) get out of sync.\n\nTHE BUG (operator-reported 2026-06-10, hit live on the .3 build): the active model PERSISTS across runs (saved in session/config state) but the gate does NOT. So if a user enables anthropic + selects an Anthropic model (e.g. claude-opus-4.8), then runs AGAIN WITHOUT the flag, the persisted model is still claude-opus-4.8 while the gate is OFF -> the model is routed through the default Responses API path, which Anthropic models do not support. Every message then fails until the user manually changes the model. Exact operator output:\n    WARN Model metadata for `claude-opus-4.8` not found. Defaulting to fallback metadata; this can degrade performance and cause issues.\n    ERROR {\"error\":{\"message\":\"model claude-opus-4.8 does not support Responses API.\",\"code\":\"unsupported_api_for_model\"}}\n\nYOUR JOB: produce a recommended direction (plus a runner-up) for how codex should handle this scenario. This is a genuine design question -- EVALUATE each option feasibility against the SOURCE; do NOT rubber-stamp. Candidate directions to weigh (add others you find):\n  (A) Persist the gate too -- if --enable-anthropic was used, persist features.anthropic_models so later runs keep Anthropic routing. (Is persisting a transient flag idiomatic for codex config? where is the active model persisted today?)\n  (B) Model-selection implies the gate -- if the persisted/active model is an Anthropic model, auto-enable Anthropic routing (the model choice IS the signal). Risk: silently re-enabling an experimental feature.\n  (C) Startup guard / self-heal -- on startup, if (persisted model is Anthropic) AND (gate OFF): either (c1) reset model to a safe Responses-API default, (c2) hard-error EARLY with a clear actionable message instead of failing per-message, or (c3) prompt the user.\n  (D) Gate controls AVAILABILITY -- when the gate is OFF, Anthropic models cannot be selected OR persisted (picker hides them; any persisted Anthropic model is treated as unset/reset to default).\n  (E) Route by model capability, not by gate -- dispatch already knows claude-* must use ChatCompletions (the .3 text-fix added AnthropicSseParser); key routing off the model declared API-support so a claude model ALWAYS routes ChatCompletions regardless of the gate, and the gate only controls whether claude models are OFFERED.\n\nREQUIRED SOURCE INVESTIGATION (cite file:line): (1) where the active model is persisted across runs (session state / ~/.codex/config.toml / rollout); (2) where the gate is resolved (codex_copilot::anthropic_models_enabled() + the .3 --enable-anthropic flag / features.anthropic_models -- see task codex-anthropic-enable-flag, commit 2602c5474); (3) the dispatch that chooses Responses vs ChatCompletions and where \"does not support Responses API\" / \"unsupported_api_for_model\" is raised (model-provider crate; copilot_models_endpoint.rs); (4) whether per-model API-capability metadata exists (the \"Model metadata for claude-opus-4.8 not found\" warning suggests a metadata lookup that misses when the gate is off).\n\nCONSTRAINTS: keep Anthropic support OPT-IN/experimental (do NOT silently enable a half-baked feature for all users) while making the failure mode non-confusing. Prefer the smallest change that eliminates the per-message-failure trap. Note the upstream-conflict surface (fork-only copilot-api behavior). Recommend whether this BLOCKS the .3 release or is a follow-up.\n\nThis is the codex inner submodule (read-only analysis). Commit a brainstorm.json under .ralph/brainstorms/codex-anthropic-model-persists-without-enable-flag/. Report kind=done with the recommended direction + whether it is a .3 blocker."
         }
+      }
+    },
+    {
+      "id": "crews-takeover-guard-declines-legit-first-bind",
+      "scope": "crews",
+      "lifecycle": "merged",
+      "status": "shipped",
+      "lastTouchedAt": "2026-06-11",
+      "kanbanCards": [
+        {
+          "className": "cmd-ok",
+          "html": "Regression from the v3.21.1 takeover guard (discovered 2026-06-11 while running multiple Copilot members concurrently). <code>assignMemberRole</code> refused a member's OWN first SessionStart bind when the launcher tab was alive but <code>manifest.sessionId</code> was still empty (a fresh spawn's shape) -> <code>role assign declined (owner tab alive)</code>, sessionId stayed null, member could never arm, and its Stop-hook reports never reached the lead (broke plan-multirepo + impl-pidalive delivery). Fix: only apply the live-owner refusal when a DIFFERENT session is actually bound. Shipped v3.21.3."
+        }
+      ],
+      "shipManifest": {
+        "shippedAt": "2026-06-11",
+        "summary": "Fixed the spawn-bind reliability regression introduced by the v3.21.1 takeover guard: assignMemberRole now applies the live-owner (isHeartbeatActive || isActorTabAlive) takeover refusal ONLY when existing.sessionId is actually set, so a member's legitimate first SessionStart bind is never declined just because its launcher tab is alive. Under concurrent spawns the old behavior left sessionId null -> the member could not arm and its reports never reached the lead. The v3.21.1 lens-child takeover protection is unchanged (that path always has a bound parent sessionId). Added an A4 regression test in tests/session-ownership-divergence.test.js; full suite 292/292.",
+        "commits": [
+          {
+            "sha": "9dc13e00",
+            "oneLine": "fix(crews): allow legit first-bind under live launcher (v3.21.3)",
+            "repo": "ai-developer-toolkit"
+          },
+          {
+            "sha": "5b6548ff",
+            "oneLine": "chore(crews): bump to v3.21.3 (codexu pointer)",
+            "repo": "codexu"
+          }
+        ]
+      },
+      "command": {
+        "name": "crews-takeover-guard-declines-legit-first-bind",
+        "prompts": {}
       }
     }
   ],
