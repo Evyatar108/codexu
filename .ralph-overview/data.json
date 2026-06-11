@@ -7094,6 +7094,25 @@
           "plan": "Fix: codex SOMETIMES provisions codex-windows-sandbox-setup.exe despite the launcher passing the skip-sandbox flag. Root cause (investigation b41ca1ae): the launcher sets sandbox_mode=danger-full-access (suppresses the EXEC sandbox only), but the Windows-sandbox NUX/setup.exe is gated on the ORTHOGONAL WindowsSandboxLevel (unset -> Disabled -> NUX fires). Both NUX paths (TUI startup gate core/.../lib.rs:1697-1699 + the app-server JSON-RPC path) check only WindowsSandboxLevel==Disabled, never sandbox_mode. run_setup_exe falls back to a bare filename -> \"Windows cannot find codex-windows-sandbox-setup.exe\" on machines missing the exe.\n\nDECIDE + plan the smallest fix among: (a) launcher emits a [windows].sandbox level so WindowsSandboxLevel != Disabled (suppresses the NUX from the launcher side, no upstream-canonical edit); (b) codex gates the Windows-sandbox NUX/startup-prompt on sandbox_mode too (suppress when danger-full-access) — an upstream-canonical seam, prefer fork-tenet-1 overlay; (c) add a config/env (e.g. features.skip_windows_sandbox_nux) to suppress the NUX. Prefer the launcher-side option (a) if it fully suppresses both NUX paths without a SANDBOX-PATCH to upstream files; verify against source. Read findings at .ralph/investigations/codex-sandbox-setup-install-despite-skip-flag/findings.md. WORKTREE: codex inner submodule (+ the wrapper launcher if option a). Build/verify lead-owned. Do NOT git push / gh switch."
         }
       }
+    },
+    {
+      "id": "codex-hook-executor-windows-native-shell",
+      "scope": "codex",
+      "lifecycle": "tracked",
+      "status": "active",
+      "lastTouchedAt": "2026-06-11",
+      "kanbanCards": [
+        {
+          "className": "cmd-warn",
+          "html": "BUG (operator 2026-06-11). codex runs crews hooks via WSL bash on Windows, mangling the Windows plugin path -> <code>PreToolUse/PostToolUse hook (failed) error: hook exited with code 1</code>. Captured: <code>Cannot find module '/mnt/c/TentedRepos/C:Usersevmitran.codexplugins...'</code> (backslashes stripped + resolved against WSL cwd). Operator expects PowerShell/cmd, not bash. Investigate codex hook-executor shell selection + FIX to native Windows shell (or direct node spawn). CODEX SUBMODULE."
+        }
+      ],
+      "command": {
+        "name": "codex-hook-executor-windows-native-shell",
+        "prompts": {
+          "plan": "Investigate + FIX: codex executes crews hooks via (WSL) bash on Windows, mangling the Windows plugin path, so PreToolUse/PostToolUse hooks crash with \"exited with code 1\".\n\nTHE BUG (operator machine, repo C:\\TentedRepos, codex crews 3.21.3): codex runs the hook command (node ${CLAUDE_PLUGIN_ROOT}/hooks/codex-pre-tool-use.js) and it fails because the Windows path is executed under bash. Captured error: Cannot find module '/mnt/c/TentedRepos/C:Usersevmitran.codexpluginscacheai-developer-toolkitcrews3.21.3/hooks/codex-pre-tool-use.js' -- the backslashes were stripped (bash escapes) and the leftover resolved against the WSL cwd (/mnt/c/...). So the hook never loads -> exit 1 -> \"PreToolUse hook (failed)\". Codex hides the stderr behind the exit code (see it via ~/.codex/log codex logs / RUST_LOG / running the hook manually).\n\nSTEP 1 (confirm against SOURCE, cite file:line in the codex inner submodule core-plugins / hook executor): HOW does codex execute hooks on Windows? Does it shell out via `bash -c \"<cmd>\"` (a POSIX-first design)? Is there a win32 branch? Does it `spawn` node directly or always go through a shell? Operator EXPECTS PowerShell/cmd, not bash. On Windows a bare `bash` resolves to WSL's C:\\Windows\\System32\\bash.exe first on PATH (known gotcha) -> WSL bash -> /mnt/c mangling. Confirm whether the cause is (i) codex hardcoding bash, (ii) no win32 shell branch, or (iii) WSL-bash-first-on-PATH leaking in.\n\nSTEP 2 (FIX): make codex run hooks via the NATIVE Windows shell (PowerShell/cmd) on win32 -- or spawn node directly without a shell so the Windows backslash path works -- so a Windows ${CLAUDE_PLUGIN_ROOT} path loads correctly. Prefer fork-tenet-1 overlay placement; minimal upstream-canonical seam + SANDBOX PATCH markers + patch-surface entry if an upstream file must change. Add a regression test (a Windows-path hook command loads under the chosen execution path). Build/verify is LEAD-OWNED (codex overlay pin); cargo check --workspace locally.\n\nNOTE: the crews .codex-plugin/hooks/hooks.json command format is part of the surface -- if codex cannot avoid bash, a shell-portable command is the fallback fix layer; evaluate both and recommend. WORKTREE: codex inner submodule (+ crews .codex-plugin if the fallback). Do NOT git push / gh switch."
+        }
+      }
     }
   ],
   "phaseTree": [
