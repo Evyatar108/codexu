@@ -6509,6 +6509,25 @@
       }
     },
     {
+      "id": "crews-codex-12s-hook-timeout-ceiling",
+      "scope": "ai-developer-toolkit",
+      "lifecycle": "tracked",
+      "status": "active",
+      "lastTouchedAt": "2026-06-10",
+      "kanbanCards": [
+        {
+          "className": "cmd-warn",
+          "html": "BUG (operator-reported 2026-06-10, recurring, CODEX-ONLY). codex members hit <code>PreToolUse hook (failed) error: hook timed out after 12s</code> \"way too often\" — copilot/claude members never do. KEY FINDING: crews <code>.codex-plugin/hooks/hooks.json</code> declares the PreToolUse hook at <code>timeout: 30</code> (line 43), so v3.21.0’s timeout-to-30 bump is INERT for codex. 12s matches NO crews config value (codex hooks are 10/5/30/30/30) → the 12s ceiling is <b>codex-imposed</b> and overrides/caps the declared hook timeout. Distinct root cause from the lock-contention cascade (crews-hook-timeout-under-lock-contention, shipped v3.21.0). INVESTIGATE (read-only, source-cited): (1) does codex honor the per-hook <code>timeout</code> field in <code>.codex-plugin/hooks/hooks.json</code> at all, or impose its own ~12s ceiling? Find the ceiling constant/logic in codex source (codex-rs hook runner). (2) Is 12s a hard cap or a configurable default? (3) Is the v3.21.0 lock-free heartbeat + lock-steal fix actually effective on the codex hook path, or does codex’s shorter ceiling still trip even after the cascade fix? (4) What’s the realistic worst-case crews codex PreToolUse hook time vs 12s? Then a follow-up fix task (reduce codex PreToolUse hook work under the ceiling, or surface a codex config knob). codex SUBMODULE source investigation + ai-developer-toolkit/crews remediation."
+        }
+      ],
+      "command": {
+        "name": "crews-codex-12s-hook-timeout-ceiling",
+        "prompts": {
+          "brainstorm": "INVESTIGATE (read-only, source-cited; produce findings.md under .ralph/investigations/crews-codex-12s-hook-timeout-ceiling/) the codex-only 12s PreToolUse hook-timeout ceiling. CONTEXT: operator reports codex crew members frequently hit \"PreToolUse hook (failed) error: hook timed out after 12s\"; copilot/claude members never do. crews .codex-plugin/hooks/hooks.json declares PreToolUse at timeout:30 (codex hooks are SessionStart:10, UserPromptSubmit:5, Stop:30, PreToolUse:30, PostToolUse:30). 12s matches no crews value. SETTLE AGAINST SOURCE (cite file:line in codex/external/repos/codex-patched/codex-rs): (1) Does codex read+honor the per-hook `timeout` field from a plugin .codex-plugin/hooks/hooks.json, or does it impose its own ceiling? Find the hook-execution/timeout code (grep for hook timeout, 12, Duration, kill, the HooksFile/hook-runner module). (2) Where does 12s come from — a hardcoded constant, a default, env-configurable? (3) Does codex CAP the declared timeout to its ceiling (min(declared, ceiling)) or ignore the field entirely? (4) Is the crews v3.21.0 lock-free heartbeat + dead-holder lock-steal fix (hooks/locks.js, safe-io.js, heartbeat-stamp.js) effective on the codex hook path — i.e. would a codex PreToolUse hook still exceed 12s under Defender/lock pressure after v3.21.0? Measure/estimate the realistic worst-case crews codex PreToolUse hook wall time (lock-acquire + manifest read + review-mail-first gate + atomic writes). DELIVERABLE: the source-verified ceiling mechanism (honored? capped? ignored?), whether v3.21.0 helps codex, and a recommended remediation direction (reduce codex PreToolUse hook work below the ceiling, split/defer expensive work, or expose a codex config knob) + whether it is one fix or needs a codex-side change. Do NOT rubber-stamp. Read-only: no source edits beyond the findings.md/brainstorm.json deliverable. Do NOT git push / gh switch (lead-owned). Run on a pre/post working-tree snapshot+revert guard (read-only)."
+        }
+      }
+    },
+    {
       "id": "crews-hook-timeout-under-lock-contention",
       "scope": "crews",
       "lifecycle": "merged",
