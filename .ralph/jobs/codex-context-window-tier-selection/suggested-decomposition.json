@@ -1,0 +1,88 @@
+{
+  "clusters": [
+    {
+      "name": "spike-gate",
+      "stories": ["US-001"],
+      "phase": 1,
+      "dependsOn": [],
+      "fileOverlapEvidence": {
+        "sharedFiles": [],
+        "exclusiveFiles": [".ralph/jobs/codex-context-window-tier-selection/spike/ (raw + redacted /models capture, findings)"],
+        "risk": "low"
+      },
+      "executionModeRationale": "A GO/NO-GO spike that must complete and be reviewed before any parser coding; nothing else may start until its finding lands. If the live /models endpoint does not expose per-tier maxes, the impl member surfaces kind=question and stops."
+    },
+    {
+      "name": "protocol-foundation",
+      "stories": ["US-002"],
+      "phase": 2,
+      "dependsOn": ["spike-gate"],
+      "fileOverlapEvidence": {
+        "sharedFiles": ["protocol/src/openai_models.rs"],
+        "exclusiveFiles": [],
+        "risk": "medium"
+      },
+      "executionModeRationale": "Touches the shared protocol metadata types every later story builds on; must land alone before parser/resolution."
+    },
+    {
+      "name": "parse-and-resolve",
+      "stories": ["US-003", "US-004"],
+      "phase": 3,
+      "dependsOn": ["protocol-foundation"],
+      "fileOverlapEvidence": {
+        "sharedFiles": [],
+        "exclusiveFiles": ["model-provider/src/copilot_models_endpoint.rs", "models-manager/src/model_info.rs", "models-manager/src/config.rs"],
+        "risk": "low"
+      },
+      "executionModeRationale": "Disjoint crates (model-provider vs models-manager) consuming the US-002 types; safe to run in parallel. US-003 also depends on the spike-gate finding. US-004 additionally owns stale-tier normalization."
+    },
+    {
+      "name": "config-persistence",
+      "stories": ["US-005"],
+      "phase": 4,
+      "dependsOn": ["parse-and-resolve"],
+      "fileOverlapEvidence": {
+        "sharedFiles": ["core/config.schema.json", "config/src/config_toml.rs", "config/src/profile_toml.rs"],
+        "exclusiveFiles": [],
+        "risk": "high"
+      },
+      "executionModeRationale": "Touches the global config schema (generated artifact + deny_unknown_fields) AND the profile config (parity for profile-selected models); must run serially to avoid schema drift conflicts."
+    },
+    {
+      "name": "tui-picker",
+      "stories": ["US-006"],
+      "phase": 5,
+      "dependsOn": ["config-persistence"],
+      "fileOverlapEvidence": {
+        "sharedFiles": ["tui/src/app_event.rs", "tui/src/app/event_dispatch.rs", "tui/src/chatwidget/model_popups.rs"],
+        "exclusiveFiles": ["tui/src/chatwidget/context_tier_popup.rs"],
+        "risk": "medium"
+      },
+      "executionModeRationale": "The convergence-seam refactor + new picker depend on the persisted config key and tier metadata; serial after config. Owns the operator UX (model->effort->context, single-tier skip) and the picker-skip-on-stale-config test."
+    },
+    {
+      "name": "thread-sync",
+      "stories": ["US-007"],
+      "phase": 6,
+      "dependsOn": ["tui-picker"],
+      "fileOverlapEvidence": {
+        "sharedFiles": ["app-server-protocol/src/protocol/v2/thread.rs", "app-server v2 generated schema fixtures", "app-server/src/request_processors/turn_processor.rs", "core/src/session/session.rs", "tui/src/app/thread_settings.rs"],
+        "exclusiveFiles": [],
+        "risk": "high"
+      },
+      "executionModeRationale": "Active-thread sync touches the enumerated v2 thread DTOs + generated fixtures (just write-app-server-schema; cargo check does NOT catch fixture drift) + the app-server/core wiring; runs serially after the picker."
+    },
+    {
+      "name": "docs-registration",
+      "stories": ["US-008"],
+      "phase": 7,
+      "dependsOn": ["thread-sync"],
+      "fileOverlapEvidence": {
+        "sharedFiles": ["codex/docs/implementation/patch-surface.md"],
+        "exclusiveFiles": [],
+        "risk": "low"
+      },
+      "executionModeRationale": "Patch-surface §14/§15 registration must reflect EVERY landed upstream-canonical edit, including the final US-007 protocol edits. Split into its own final-only cluster strictly depends-on US-007 so docs cannot race the protocol edits under --parallel."
+    }
+  ]
+}
