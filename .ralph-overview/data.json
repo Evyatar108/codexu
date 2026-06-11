@@ -6613,9 +6613,9 @@
     {
       "id": "crews-member-session-ownership-divergence",
       "scope": "crews",
-      "lifecycle": "tracked",
-      "status": "active",
-      "lastTouchedAt": "2026-06-10",
+      "lifecycle": "merged",
+      "status": "shipped",
+      "lastTouchedAt": "2026-06-11",
       "kanbanCards": [
         {
           "className": "cmd-warn",
@@ -6632,6 +6632,22 @@
           "brainstorm": "INVESTIGATE (read-only, source-cited; findings.md under .ralph/investigations/crews-member-session-ownership-divergence/) the recurring crews member IdentityMismatchError. SYMPTOM: a running COPILOT crew member suddenly dies with \"IdentityMismatchError: session no longer owns actor <name> in crew <crew>\"; the PreToolUse hook then blocks EVERY tool (incl. status), wedging the member. Observed 2x this session (bs-modelknobs after kind=progress; plan-readylifecycle after Phase 4) — both copilot, both lost uncommitted work. SETTLE AGAINST SOURCE (cite file:line in the crews plugin, ai-developer-toolkit/plugins/crews): (1) Where is assertSessionOwnsActor defined + called, and what exactly does it compare (running session id vs manifest.sessionId)? (2) How is the running session id derived for a copilot member (readSessionEnv -> COPILOT_AGENT_SESSION_ID)? Can copilot CLI ROTATE/restart that id within the same tab (resume/restart/compact) such that the SessionStart hook does NOT re-claim manifest ownership? Check the copilot SessionStart shim + applyEnvRole + the takeover paths. (3) Could a manifest rewrite (takeover/heartbeat/markArmed with a different sessionId) or env leakage flip manifest.sessionId out from under the live session? (4) Why does the failure wedge EVEN status (the PreToolUse identity gate has no read-only/diagnostic exemption)? ALSO inspect the two crashed members’ manifests + crews.log (under D:/harness-efforts/codexu/.crews/.../members/{bs-modelknobs,plan-readylifecycle}/) for the actual sessionId values + the divergence moment. DELIVERABLE: root cause (with file:line), a repro hypothesis, and a remediation direction — ideally (a) let a member RE-CLAIM ownership on a legit copilot session-id change, AND/OR (b) fail SOFT (a recoverable advisory, not wedge every tool incl. status; add a diagnostic-tool exemption to the PreToolUse identity gate). Do NOT rubber-stamp. Read-only: no source edits beyond findings.md. Do NOT git push / gh switch.",
           "impl": "Fix the crews member manifest-takeover-by-codex-lens-child bug (root cause in findings.md @ .ralph/investigations/crews-member-session-ownership-divergence/). MECHANISM: a multi-lens member fans out a codex lens-child (codex exec) that inherits the parent’s CREWS_* env; the child’s crews codex SessionStart fires, codex-shim.js (codexToClaudeSessionStartInput, ~line 51) maps no agent_id/agent_type, so the subagent-skip guard (session-start.js ~line 239) never fires, assignMemberRole (~875) takes over the parent’s manifest (re-stamps sessionId), and the parent then wedges at assertSessionOwnsActor (pre-tool-use.js ~366) with block-no-flag-clear (~391). FIX (both): (A) PREVENT the takeover — preferred: make the codex SessionStart shim pass through agent_id/agent_type when present so the existing subagent-skip guard fires for codex sub-agent children; AND/OR scrub CREWS_NAME/CREWS_CREW/CREWS_ROLE/CREWS_STATE_CWD from the env of lens/sub-agent children at the fan-out spawn so a child never bootstraps as the parent crews actor. (Confirm where ralph/crews launches the codex lens — codex-exec — and whether the shim or the spawn is the right seam; the shim fix is the most general.) (B) FAIL-SOFT the PreToolUse identity gate — on IdentityMismatchError, emit a ONE-SHOT advisory + CLEAR the session flag (so the next turn is allowed) + add a diagnostic/read-tool exemption (status/read-member must not wedge), mirroring the stop.js (~869) displaced-session one-shot. Add appendLog to the identity catch (the silent wedge had no log). TESTS: a codex sub-agent SessionStart with inherited CREWS_* must NOT take over the parent manifest (subagent-skip fires); IdentityMismatch in PreToolUse fails soft (one-shot, flag cleared, status exempt). crews (ai-developer-toolkit) impl. WORKTREE: ai-developer-toolkit/.worktrees/. Version bump + 3 marketplace indexes per plugin convention; two-commit submodule flow (lead bumps codexu pointer). Do NOT git push / gh switch. HIGH PRIORITY — crashes every multi-lens member."
         }
+      },
+      "shipManifest": {
+        "shippedAt": "2026-06-11",
+        "summary": "Fixes the recurring multi-lens member crash (IdentityMismatchError silent wedge). Root cause: a brainstorm/plan member fans out a codex lens-child (codex exec) ~30s in; the child inherits the parent's CREWS_* env, and its crews codex SessionStart fired with no agent marker mapped (codex-shim mapped neither agent_id nor agent_type), so the subagent-skip guard never fired and assignMemberRole re-stamped the parent's manifest sessionId. The parent then wedged permanently at assertSessionOwnsActor in PreToolUse (block-no-flag-clear, no one-shot, no diagnostic exemption).\n\nThe fix (crews v3.21.1) has two halves: (1) codex-shim + session-start now propagate the agent marker / scrub the lens-child env so the subagent-skip guard fires and the child no longer takes over the parent manifest; (2) the PreToolUse identity gate now FAILS SOFT — a displaced session gets a one-shot advisory + clearFlag (next tool reads a null flag and is allowed at the role guard), with a deliberately NARROW read-only crews CLI exemption (status, list-members, list-crews, list-threads, peek-mailbox, thread-path) so it can self-diagnose without driving crew state. The blocking rubber-duck finding (broad isCrewsCliInfraCall exemption too permissive) was addressed with the narrow allowlist. 292/292 tests.",
+        "commits": [
+          {
+            "sha": "b6d4e22c",
+            "oneLine": "fix(crews): prevent codex-lens-child manifest takeover + fail-soft PreToolUse identity gate (v3.21.1)",
+            "repo": "ai-developer-toolkit"
+          },
+          {
+            "sha": "509be6ac",
+            "oneLine": "chore(crews): bump to v3.21.1 (codex-lens-child takeover + fail-soft identity gate)",
+            "repo": "codexu"
+          }
+        ]
       }
     },
     {
