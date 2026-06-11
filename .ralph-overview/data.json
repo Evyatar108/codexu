@@ -3458,9 +3458,9 @@
     {
       "id": "codex-sandbox-setup-exe-not-vendored-in-release",
       "scope": "codex",
-      "lifecycle": "tracked",
-      "status": "active",
-      "lastTouchedAt": "2026-06-10",
+      "lifecycle": "merged",
+      "status": "shipped",
+      "lastTouchedAt": "2026-06-11",
       "kanbanCards": [
         {
           "className": "cmd-warn",
@@ -3472,6 +3472,17 @@
         "prompts": {
           "impl": "Fix the codex Release packaging so codex-windows-sandbox-setup.exe (and codex-command-runner.exe) actually ship + install. ROOT CAUSE (verified): codex/.claude/commands/publish-sandbox-patch.md Step 5 (~line 304) vendors only codex.exe + codex-core.exe: `cp \"$REL/codex.exe\" \"$REL/codex-core.exe\" \"$VENDOR/codex/\"`. The build (Step 2b) DOES build all 4 bins, and docs/workflows/install.md’s vendor layout lists all 4 in vendor/<target>/codex/, but the bundle omits sandbox-setup + command-runner. STEPS: (1) Add codex-windows-sandbox-setup.exe + codex-command-runner.exe to the Step 5 vendor cp. (2) Check codex-cli/scripts/build_npm_package.py + .github/workflows/publish-npm.yml + the staged package.json \"files\" array — ensure all 4 codex bins are staged into the platform/bundle package and survive `npm pack` to the installed vendor dir. (3) Confirm at RUNTIME codex resolves codex-windows-sandbox-setup.exe from the vendored path (trace where codex looks for the sandbox-setup binary; if it expects a different filename/location, reconcile). (4) Update install.md / any doc if the vendor list changes. VERIFY: a dry pack (or inspect the staged bundle) shows all 4 bins under vendor/<target>/codex/. WORKTREE: codex WRAPPER (the publish flow is wrapper-owned; build_npm_package.py is in codex-patched/codex-cli/scripts so may need an inner worktree too). Do NOT git push / gh switch. Report kind=done with the edited files + a staged-bundle listing proving all 4 bins are vendored."
         }
+      },
+      "shipManifest": {
+        "shippedAt": "2026-06-11",
+        "summary": "The publish recipe Step 5 vendored only codex.exe + codex-core.exe, omitting codex-windows-sandbox-setup.exe + codex-command-runner.exe -> runtime \"Windows cannot find codex-windows-sandbox-setup.exe\". Fixed the recipe to vendor all 4 bins + hardened Step 6 verify; .3 bundle ships all 4. Shipped in the v0.135.0-copilot-api.3 codex release (GitHub Release gim-home/codex v0.135.0-copilot-api.3; codexu pointer f88650d2; inner sandbox-patches 03da7a2d8 + retention tag release/0.135.0-copilot-api.3).",
+        "commits": [
+          {
+            "sha": "b84835336",
+            "oneLine": "chore(release): v0.135.0-copilot-api.3 (folds publish recipe vendor-all-4-bins fix)",
+            "repo": "codex"
+          }
+        ]
       }
     },
     {
@@ -5988,9 +5999,9 @@
     {
       "id": "codex-anthropic-transport-no-text-output",
       "scope": "codex",
-      "lifecycle": "tracked",
-      "status": "active",
-      "lastTouchedAt": "2026-06-10",
+      "lifecycle": "merged",
+      "status": "shipped",
+      "lastTouchedAt": "2026-06-11",
       "kanbanCards": [
         {
           "className": "cmd-warn",
@@ -6002,14 +6013,30 @@
         "prompts": {
           "impl": "INVESTIGATE then FIX the Anthropic-transport no-text-output bug. Repro: enable the anthropic gate, set model to claude-opus-4.8, send a plain-text message — assistant text renders blank while tool calls (e.g. running `date`) work. (1) Capture evidence of where text is dropped: run codex with RUST_LOG/debug or curl the copilot-api anthropic Messages endpoint directly to see the raw SSE; determine whether the copilot-api server emits text content_block_delta/text_delta events and whether codex parses+forwards them. Compare against ericc-ch/copilot-api reference SSE shape. (2) Root-cause: most likely the Anthropic wire-route response parser in codex-rs/core/src/chat_transport.rs (and the copilot model-provider) handles tool_use content blocks but drops/ignores text content blocks, so assistant text never reaches the output/render path. (3) Fix minimally: map Anthropic text deltas into codex assistant-message output events for the non-ChatCompletions anthropic route. Add a deterministic parser/unit test for a text-bearing Anthropic SSE turn. (4) Build the codex binaries (cargo build of the affected crates is enough for a dev binary; full release build optional) and report the binary path + topic-branch commit SHA so the LEAD/operator can interactively re-test (text now renders). WORKTREE: codex inner submodule (codex/external/repos/codex-patched) on branch ralph/codex-anthropic-transport-no-text-output. Do NOT git push and do NOT gh auth switch — the LEAD owns all pushes + auth. codexu root CLAUDE.md is gitignored — do not git add it. Report kind=done with: root-cause (file:line), the fix, test added, build result, binary path, and commit SHA."
         }
+      },
+      "shipManifest": {
+        "shippedAt": "2026-06-11",
+        "summary": "Anthropic assistant text was rendering blank: Claude routes via ChatCompletions but the SSE parser only read OpenAI choices[].delta.content, dropping Anthropic text_delta; a follow-up panic (OutputTextDelta without active item) was fixed by emitting OutputItemAdded/Done around the stream. Shipped in the v0.135.0-copilot-api.3 codex release (GitHub Release gim-home/codex v0.135.0-copilot-api.3; codexu pointer f88650d2; inner sandbox-patches 03da7a2d8 + retention tag release/0.135.0-copilot-api.3).",
+        "commits": [
+          {
+            "sha": "5ddd7c193",
+            "oneLine": "fix(chat-transport): surface Anthropic Messages-API SSE assistant text",
+            "repo": "codex"
+          },
+          {
+            "sha": "5a053a2c5",
+            "oneLine": "fix(chat-transport): open assistant message item before streaming text",
+            "repo": "codex"
+          }
+        ]
       }
     },
     {
       "id": "codex-anthropic-enable-flag",
       "scope": "codex",
-      "lifecycle": "tracked",
-      "status": "active",
-      "lastTouchedAt": "2026-06-10",
+      "lifecycle": "merged",
+      "status": "shipped",
+      "lastTouchedAt": "2026-06-11",
       "kanbanCards": [
         {
           "className": "cmd-warn",
@@ -6021,14 +6048,25 @@
         "prompts": {
           "impl": "Add user-friendly toggles for the Anthropic-models gate. Decision (operator): BOTH a clap CLI flag `--enable-anthropic` AND a `features.anthropic_models` config key, with the existing env var kept as a back-compat fallback. (1) Find the current gate read `codex_copilot::anthropic_models_enabled()` and confirm exactly what it reads (env var name). (2) Refactor the gate so it resolves from MULTIPLE sources with clear precedence: CLI flag `--enable-anthropic` (highest) > `features.anthropic_models` config key > existing env var (back-compat) > default false. (3) Add the clap flag `--enable-anthropic` (global/boolean) to the codex CLI and thread it into the resolved gate; add the `features.anthropic_models` config key to the config schema (default false), matching the existing `features.*` pattern (e.g. how `features.multi_agent_v2` is declared/plumbed). (4) Update `--help` text and any config docs. (5) Add tests for the precedence (flag overrides config overrides env overrides default; default OFF). (6) Build per-crate debug (NOT the full release LTO) + run `cargo test` for the touched crates; report results. WORKTREE: codex inner submodule on branch ralph/codex-anthropic-enable-flag. Do NOT git push and do NOT gh auth switch (LEAD owns pushes+auth). codexu root CLAUDE.md is gitignored. Report kind=done with: the gate-resolution refactor (file:line), the flag + config-key wiring, tests added, build/test results, and commit SHA."
         }
+      },
+      "shipManifest": {
+        "shippedAt": "2026-06-11",
+        "summary": "Added user-friendly toggles for the Anthropic-models gate: a clap --enable-anthropic flag + a features.anthropic_models config key, with the existing env var kept as back-compat fallback (default OFF). Shipped in the v0.135.0-copilot-api.3 codex release (GitHub Release gim-home/codex v0.135.0-copilot-api.3; codexu pointer f88650d2; inner sandbox-patches 03da7a2d8 + retention tag release/0.135.0-copilot-api.3).",
+        "commits": [
+          {
+            "sha": "2602c5474",
+            "oneLine": "feat(copilot): add --enable-anthropic flag + features.anthropic_models config gate",
+            "repo": "codex"
+          }
+        ]
       }
     },
     {
       "id": "codex-copilot-model-knobs-reasoning-context",
       "scope": "codex",
-      "lifecycle": "tracked",
-      "status": "active",
-      "lastTouchedAt": "2026-06-10",
+      "lifecycle": "merged",
+      "status": "shipped",
+      "lastTouchedAt": "2026-06-11",
       "kanbanCards": [
         {
           "className": "cmd-warn",
@@ -6049,14 +6087,30 @@
           "brainstorm": "Research and recommend a direction for exposing two copilot-supported model knobs in codex that Copilot CLI already exposes but codex does not: (A) REASONING-EFFORT selection for Anthropic models (today the picker shows a fixed effort like \"claude-opus-4.8 medium\" with no way to change it for anthropic; gpt models may already have effort selection - verify), and (B) CONTEXT-WINDOW size selection (e.g. 200k vs 1m) for BOTH gpt and anthropic models. KEY QUESTIONS to settle against SOURCE (cite file:line): (1) What does the copilot /models capabilities payload actually expose for reasoning effort + context window per model? Probe a live GET https://api.githubcopilot.com/models (or inspect cached ~/.codex/models_cache.json) and compare against the ericc-ch/copilot-api reference (https://github.com/ericc-ch/copilot-api) for the expected fields. (2) How does codex TODAY surface reasoning effort (the \"medium\" shown in the picker) - is it ModelPreset/ModelInfo metadata (models-manager/models.json + copilot_models_endpoint.rs synthesis), a TUI picker affordance, or a per-request param in the /responses or /chat-completions builder? Find the existing gpt reasoning-effort selection path if any. (3) How is context window currently determined for copilot models, and what would it take to let the user pick 200k vs 1m (is it a model-variant slug, a request param, or a capabilities field)? (4) How does Copilot CLI expose these (for parity reference)? DELIVERABLE: a recommended direction (which seam to extend - prefer overlay/fork-internal per codex CLAUDE.md tenet 1, minimize upstream-canonical conflict surface), the conflict-surface analysis, whether A and B are one impl or two, and a rough story breakdown. Do NOT rubber-stamp - if a knob is NOT actually exposed by the copilot-api backend, say so (that would make it a copilot-api/server change, not a codex change). WORKTREE: codex inner submodule. Read-only research + brainstorm.json deliverable; no impl. Do NOT git push / gh switch (lead-owned).",
           "plan": "Plan Knob A (reasoning-effort selection for Claude models) --from-brainstorm 6efd6d51d (ralph/codex-model-knobs-brainstorm in the codex submodule; read .ralph/brainstorms/codex-copilot-model-knobs-reasoning-context/{selected-direction.md,brainstorm-synthesis.md,brainstorm.json}). GOAL: a codex user on a Copilot session with --enable-anthropic can pick a reasoning effort (low/medium/high/xhigh) for ANY Claude model (incl claude-opus-4.8, today pinned \"medium\") and it is actually sent to api.githubcopilot.com/chat/completions. SCOPE (fork-owned seams only, zero new upstream-canonical conflict surface): (1) add reasoning_effort: Option<String> to fork ChatRequestBody (overlay payload.rs); (2) build_chat_request_body accepts effort param + sets top-level field when Some, omits when None (do NOT read from responses_body — core build_reasoning strips it for Claude); (3) stream_chat_completions (chat_transport.rs) accepts + forwards effort; (4) the D-001 chat dispatch arm (core/src/client.rs:1641) passes effort.or(model_info.default_reasoning_level). TESTS at builder boundary (present->top-level set; absent->omitted; existing hard-error paths unchanged) + one proving a selected Claude effort reaches the chat body. BACKEND-ACCEPTANCE GATE: a live /chat/completions canary to claude-opus-4.8 with effort=high returns 200 (record in plan); if 4xx on reasoning_effort, re-scope (copilot-api passthrough or /v1/messages thinking-budget mapping) rather than ship. Patch-surface/SANDBOX-PATCH bookkeeping per codex CLAUDE.md tenets 1+3. OUT OF SCOPE: Knob B, flipping supports_reasoning_summaries, adding ReasoningEffort::Max. IMPORTANT: base the plan/impl branch on the .3 integration commit 1190d1875 (NOT 2bd9a9e74) — Knob A also touches chat_transport.rs which the text-fix + flag already modified; basing on 1190d1875 avoids re-conflict. WORKTREE: codex inner submodule. Do NOT git push / gh switch (lead-owned)."
         }
+      },
+      "shipManifest": {
+        "shippedAt": "2026-06-11",
+        "summary": "Knob A: a codex user on a Copilot session with --enable-anthropic can pick a reasoning effort for Claude models and it is threaded to the chat path + the Copilot overlay ChatRequestBody. (Knob B context-tier selector is a separate task, codex-context-window-tier-selection, now in planning.) Shipped in the v0.135.0-copilot-api.3 codex release (GitHub Release gim-home/codex v0.135.0-copilot-api.3; codexu pointer f88650d2; inner sandbox-patches 03da7a2d8 + retention tag release/0.135.0-copilot-api.3).",
+        "commits": [
+          {
+            "sha": "c2d1bb415",
+            "oneLine": "feat(chat-transport): pass selected reasoning_effort to chat path (Knob A)",
+            "repo": "codex"
+          },
+          {
+            "sha": "f1f8d25b8",
+            "oneLine": "overlay codex-copilot payload.rs: thread reasoning_effort (Knob A)",
+            "repo": "codex"
+          }
+        ]
       }
     },
     {
       "id": "codex-knob-a-default-medium",
       "scope": "codex",
-      "lifecycle": "tracked",
-      "status": "active",
-      "lastTouchedAt": "2026-06-10",
+      "lifecycle": "merged",
+      "status": "shipped",
+      "lastTouchedAt": "2026-06-11",
       "kanbanCards": [
         {
           "className": "cmd-warn",
@@ -6068,6 +6122,17 @@
         "prompts": {
           "impl": "Fix Knob A’s unselected reasoning-effort default: it currently regresses to \"low\" for Claude. The .3 dispatch arm (core/src/client.rs ~1641) is `effort.or(model_info.default_reasoning_level).map(|e| e.to_string())`; default_reasoning_level resolves to supported_reasoning_levels.first() = low for claude-opus-4.8. OPERATOR DECISION: default to MEDIUM when no effort is explicitly selected. CONSTRAINT: must NOT regress GPT models (they keep their own default). Recommended approach: when the resolved fallback would be the first-preset for a Claude/Copilot-synthesized model, prefer Medium if Medium is in supported_reasoning_levels (else keep the model default). Verify the exact seam in YOUR worktree (the dispatch arm + how default_reasoning_level is computed in copilot_models_endpoint.rs synthesize_from_capabilities). Add/adjust a unit test: an UNSELECTED claude-opus-4.8 turn yields reasoning_effort=\"medium\" (not \"low\"); an explicitly-selected effort still wins; a GPT model’s default is unchanged. WORKTREE: codex inner (off the .3 integration). Build/verify LEAD-OWNED (overlay pin) — write code + test, do NOT cargo build. Do NOT git push / gh switch. Report kind=done with the seam (file:line), the test, and your commit SHA."
         }
+      },
+      "shipManifest": {
+        "shippedAt": "2026-06-11",
+        "summary": "The Knob A dispatch fallback defaulted an unselected Claude reasoning level to LOW (first preset) for opus-4.8, regressing the displayed medium default. Fixed so synthesize_from_capabilities prefers Medium for the Claude ChatCompletions wire-route only (GPT /responses untouched). Shipped in the v0.135.0-copilot-api.3 codex release (GitHub Release gim-home/codex v0.135.0-copilot-api.3; codexu pointer f88650d2; inner sandbox-patches 03da7a2d8 + retention tag release/0.135.0-copilot-api.3).",
+        "commits": [
+          {
+            "sha": "03da7a2d8",
+            "oneLine": "fix(copilot-models): default UNSELECTED Claude reasoning to medium (Knob A)",
+            "repo": "codex"
+          }
+        ]
       }
     },
     {
@@ -6119,9 +6184,9 @@
     {
       "id": "codex-revert-disable-paste-burst-default",
       "scope": "codex",
-      "lifecycle": "tracked",
-      "status": "active",
-      "lastTouchedAt": "2026-06-10",
+      "lifecycle": "merged",
+      "status": "shipped",
+      "lastTouchedAt": "2026-06-11",
       "kanbanCards": [
         {
           "className": "cmd-warn",
@@ -6133,6 +6198,17 @@
         "prompts": {
           "impl": "Revert the fork’s disable_paste_burst default to match upstream (paste-burst guard ENABLED by default). STEPS: (1) In core/src/config/mod.rs (~line 2457) change the disable_paste_burst resolution from unwrap_or(true) back to unwrap_or(false). (2) Update the 4 Config test fixtures in core/src/config/config_tests.rs (~5297, ~5495, ~5647, ~5784) that assert disable_paste_burst to expect false (matching upstream). (3) Remove the now-obsolete fork bookkeeping because this is no longer an upstream deviation: the patch-surface.md row/invariant for disable_paste_burst, the codex CLAUDE.md \"On rebase, re-apply unwrap_or(true)\" guidance line, and any \"// SANDBOX PATCH:\" marker on the reverted line. Grep the tree for \"disable_paste_burst\" + \"paste_burst\" to find every reference and ensure none still assume the fork default. (4) Confirm the launcher (codex-rs-overlay/codex-copilot-launcher) does NOT inject disable_paste_burst via a -c override (it must not). VERIFY: cargo check --workspace green; cargo test -p codex-core for the config tests (the 4 fixtures + any disable_paste_burst test pass with the new default); a grep-guard that no remaining doc claims the fork disables it by default. IMPORTANT: if bundling into .3, base the branch on the .3 integration commit 1190d1875 (files are disjoint from Knob A, so no conflict) — otherwise base on 2bd9a9e74. WORKTREE: codex inner submodule. Do NOT git push / gh switch (lead-owned). codexu root CLAUDE.md is gitignored — the CLAUDE.md to edit is the codex submodule’s own CLAUDE.md, not codexu’s. Report kind=done with: the reverted line, the 4 fixture updates, the removed bookkeeping (file:line), cargo check/test results, and commit SHA."
         }
+      },
+      "shipManifest": {
+        "shippedAt": "2026-06-11",
+        "summary": "Reverted the paste-burst default to match upstream (unwrap_or(true) -> unwrap_or(false)); the guard is now opt-in again. The premised 4 fixtures were already absent (0 fixtures). Shipped in the v0.135.0-copilot-api.3 codex release (GitHub Release gim-home/codex v0.135.0-copilot-api.3; codexu pointer f88650d2; inner sandbox-patches 03da7a2d8 + retention tag release/0.135.0-copilot-api.3).",
+        "commits": [
+          {
+            "sha": "93d7c9b59",
+            "oneLine": "revert: re-enable paste-burst guard by default (match upstream)",
+            "repo": "codex"
+          }
+        ]
       }
     },
     {
@@ -6176,9 +6252,9 @@
     {
       "id": "codex-cut-release-with-anthropic-transport",
       "scope": "codex",
-      "lifecycle": "tracked",
-      "status": "active",
-      "lastTouchedAt": "2026-06-09",
+      "lifecycle": "merged",
+      "status": "shipped",
+      "lastTouchedAt": "2026-06-11",
       "kanbanCards": [
         {
           "className": "cmd-warn",
@@ -6194,6 +6270,27 @@
         "prompts": {
           "plan": "Cut a codex release including the D-001 Claude-via-Copilot chat-completions transport. Use codex/.claude/commands/publish-sandbox-patch.md: version bump, release build, pack, commit+tag inside codex-patched, wrapper gitlink + tag, push to gim-home/codex + archival tag on codex-patched remote, GitHub Release tarball upload, smoke-test the launcher. Confirm a claude-sonnet model runs end-to-end on the installed release."
         }
+      },
+      "shipManifest": {
+        "shippedAt": "2026-06-11",
+        "summary": "Cut the v0.135.0-copilot-api.3 release bundling the Anthropic transport text fix + --enable-anthropic flag + Knob A (+ medium default) + managed-hooks-off + paste-burst revert + the sandbox-vendoring recipe fix. Inner pushed to sandbox-patches; wrapper tagged; GitHub Release with all 4 bins + rg; codexu pointer bumped. Shipped in the v0.135.0-copilot-api.3 codex release (GitHub Release gim-home/codex v0.135.0-copilot-api.3; codexu pointer f88650d2; inner sandbox-patches 03da7a2d8 + retention tag release/0.135.0-copilot-api.3).",
+        "commits": [
+          {
+            "sha": "1190d1875",
+            "oneLine": "chore(release): 0.135.0-copilot-api.3 base (Anthropic text fix + --enable-anthropic)",
+            "repo": "codex"
+          },
+          {
+            "sha": "b84835336",
+            "oneLine": "chore(release): v0.135.0-copilot-api.3 wrapper (gitlink + overlay + vendor fix)",
+            "repo": "codex"
+          },
+          {
+            "sha": "f88650d2",
+            "oneLine": "chore(codex): bump pointer to v0.135.0-copilot-api.3",
+            "repo": "codexu"
+          }
+        ]
       }
     },
     {
@@ -6681,9 +6778,9 @@
     {
       "id": "codex-disable-managed-hooks-by-default",
       "scope": "codex",
-      "lifecycle": "tracked",
-      "status": "active",
-      "lastTouchedAt": "2026-06-10",
+      "lifecycle": "merged",
+      "status": "shipped",
+      "lastTouchedAt": "2026-06-11",
       "kanbanCards": [
         {
           "className": "cmd-warn",
@@ -6695,6 +6792,17 @@
         "prompts": {
           "impl": "Modify the codex fork so MANAGED / admin-config hooks are NOT honored by default, with an opt-in to re-enable. WHY: the operator’s \"PreToolUse hook timed out after 12s\" is a Microsoft Defender MANAGED hook (PreToolUse, matcher .*, Source \"Admin config\", DefenderAgentScan.exe, 12s timeout, Trust \"Managed\") injected by enterprise policy; it runs on every tool call + times out. STEPS: (1) Find where codex DISCOVERS + LOADS managed/admin-config hooks and assigns the \"Managed\" trust level (grep codex-rs for the hook discovery/config-source enum, \"Admin\"/\"Managed\"/\"managed\" trust, the admin/managed config path). (2) Add a fork gate so managed-source hooks are SKIPPED by default (not loaded/executed). (3) Add an OPT-IN to re-enable them, in priority order: a CLI flag (e.g. --enable-managed-hooks) > a config key (e.g. features.managed_hooks or a hooks.allow_managed) > an env var (e.g. CODEX_ENABLE_MANAGED_HOOKS). Default = OFF (managed hooks skipped). Match the existing fork patterns (see the --enable-anthropic flag + features.anthropic_models work for a precedent of flag+config+env+default-off). (4) Keep user + project hooks UNCHANGED (only managed/admin-source hooks are gated). FORK-tenet-1: minimal seam, // SANDBOX PATCH markers, patch-surface.md S14/S15 row + a guard test. VERIFY: cargo check --workspace; a test asserting managed hooks are skipped by default + honored when the opt-in is set. WORKTREE: codex inner submodule (codex-patched). Build/verify is LEAD-OWNED (overlay workspace pins to canonical; you cannot cargo-build from a worktree) — write the code, the lead builds + verifies in canonical. Ships as .4 (own release), NOT bundled into .3. Do NOT git push / gh switch. Report kind=done with the gated seam (file:line), the flag/config/env wiring, the test, and your commit SHA."
         }
+      },
+      "shipManifest": {
+        "shippedAt": "2026-06-11",
+        "summary": "Codex now skips managed/admin-config hooks by default (opt-in to re-enable), so enterprise-policy-injected PreToolUse hooks (e.g. Microsoft Defender DefenderAgentScan.exe, the 12s-timeout the operator hit) no longer run unless explicitly enabled. New managed_gate in the hooks crate (engine-linked). Shipped in the v0.135.0-copilot-api.3 codex release (GitHub Release gim-home/codex v0.135.0-copilot-api.3; codexu pointer f88650d2; inner sandbox-patches 03da7a2d8 + retention tag release/0.135.0-copilot-api.3).",
+        "commits": [
+          {
+            "sha": "883f75f50",
+            "oneLine": "feat(hooks): skip managed/admin-config hooks by default with opt-in",
+            "repo": "codex"
+          }
+        ]
       }
     },
     {
