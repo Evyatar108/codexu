@@ -6758,9 +6758,9 @@
     {
       "id": "codex-curated-plugins-startup-sync-timeout",
       "scope": "codex",
-      "lifecycle": "tracked",
+      "lifecycle": "merged",
       "status": "active",
-      "lastTouchedAt": "2026-06-10",
+      "lastTouchedAt": "2026-06-11",
       "kanbanCards": [
         {
           "className": "cmd-warn",
@@ -6777,6 +6777,11 @@
           "brainstorm": "INVESTIGATE (read-only, source-cited; findings.md under .ralph/investigations/codex-curated-plugins-startup-sync-timeout/) codex-native plugin startup-sync timing out. EVIDENCE (affected machine C:\\TentedRepos, codex-cli 0.130.0-copilot-api.8): ~/.codex/log/codex-tui.log shows 3x \"codex_core_plugins::startup_sync: git clone curated plugins repo timed out after 30s\" near member spawns (2026-06-11T00:13Z). This is the ONLY confirmed codex-only 30s blocker; the crews-lock hypothesis is refuted (fresh crews 3.21.0, no lock footprint, no crews timeout log line). SETTLE AGAINST SOURCE (cite file:line; codex source at codex/external/repos/codex-patched/codex-rs/, grep core-plugins / codex_core_plugins / startup_sync): (1) What is startup_sync + the \"curated plugins repo\" it git-clones on startup? What URL/source does it clone (a default curated-marketplace? the configured marketplace? gim-home/ai-developer-toolkit?), and where is the 30s timeout set? (2) Is the clone BLOCKING codex startup / member-session readiness? Could a slow/failing clone delay or starve the first PreToolUse hook (explaining the operator’s original \"PreToolUse hook timed out\" misattribution)? (3) Why would it time out on the affected box specifically — network, SAML/auth to the clone URL, firewall, or a missing local marketplace? (4) Is it configurable/disable-able — can codex be pointed at a LOCAL marketplace path (the fork already uses a local ai-developer-toolkit marketplace) to skip the remote clone? (5) Version skew: confirm the startup_sync behavior in BOTH 0.130 (affected) and 0.135 (dev box) — did it change? DELIVERABLE: source-verified explanation of startup_sync + the curated-plugins clone, whether it blocks member startup, why it times out on the affected box, and a remediation direction (disable/redirect to local marketplace / make non-blocking / fix the clone source). Do NOT rubber-stamp. Read-only: no source edits beyond findings.md. Do NOT run while a codex release build is WRITING to the codex-patched canonical checkout (read-only source reads are fine). Do NOT git push / gh switch.",
           "impl": "Short-circuit codex’s curated-plugins startup-sync so the fork stops cloning https://github.com/openai/plugins.git on every codex startup (30s egress + scary \"git clone curated plugins repo timed out after 30s\" log noise; the fork uses the LOCAL ai-developer-toolkit marketplace and never needs OpenAI’s curated repo). SOURCE (verified by the investigation): the curated sync is started by start_curated_repo_sync via maybe_start_plugin_startup_tasks_for_config (core-plugins/src/manager.rs:1470-1477,1739-1742) at app-server MessageProcessor construction (message_processor.rs:454); the clone URL + 30s timeout live in core-plugins/src/startup_sync.rs (:28 CURATED_PLUGINS_GIT_TIMEOUT, :155 clone URL, :521-573 run_git_command_with_timeout). FIX (fork-tenet-1, minimize upstream-canonical conflict surface): add an early-return / feature-gate at the start of start_curated_repo_sync (or its caller maybe_start_plugin_startup_tasks_for_config) so the curated-repo background sync is NOT spawned in this fork (prefer a 1-3 line SANDBOX PATCH at the spawn seam, with the // SANDBOX PATCH: marker + patch-surface.md S14/S15 row). Confirm no code path BLOCKS on the curated snapshot (the investigation says it is fire-and-forget, so a no-op skip is safe). Add a test/guard asserting the curated-sync thread is not spawned (or the gate is honored). VERIFY: cargo check --workspace; the affected log line no longer appears on startup. WORKTREE: codex inner submodule. Do NOT git push / gh switch. NOTE: this is a behavior change (no curated marketplace) — acceptable for the fork; flag if any fork feature actually consumes the curated snapshot."
         }
+      },
+      "shipManifest": {
+        "shippedAt": "2026-06-11",
+        "summary": "Investigation complete (no code change). Question: does the codex startup_sync openai/plugins curated clone (~30s) cause PreToolUse-hook timeouts? Finding: NO — the curated clone runs on a DETACHED, never-joined 'plugins-curated-repo-sync' thread (manager.rs:1739), so it is non-blocking; the hook-timeout attribution was a misattribution. A fix would require a codex-source short-circuit of start_curated_repo_sync (no operator config toggle exists), but since it does not actually block anything, no action is needed unless the symptom re-surfaces. Findings: .ralph/investigations/codex-curated-plugins-startup-sync-timeout/findings.md (on disk).",
+        "commits": []
       }
     },
     {
@@ -6789,6 +6794,10 @@
         {
           "className": "cmd-warn",
           "html": "FEATURE/fork-patch (operator-requested 2026-06-10). ROOT CAUSE of the \"PreToolUse hook timed out after 12s\" (FINALLY identified): a Microsoft Defender MANAGED hook injected via admin config — PreToolUse, matcher <code>.*</code>, Source \"Admin config\", command <code>DefenderAgentScan.exe</code>, Timeout 12s, Trust \"Managed\". It runs on every tool call and times out at 12s when the Defender scan is slow. NOT crews, NOT startup_sync (both refuted). Operator decision: modify the codex FORK so it does NOT honor managed/admin-config hooks BY DEFAULT, with an opt-in (env var / CLI flag / config key) to turn them back on. This neutralizes the Defender 12s PreToolUse hook (and any other admin-pushed managed hook) by default. SOURCE: find where codex discovers/loads \"Admin config\" / managed hooks + assigns \"Managed\" trust (the hooks engine/discovery, likely codex-rs/hooks or core-plugins). FORK-tenet-1: prefer a minimal seam (early-return/gate at the managed-hook load site) + the // SANDBOX PATCH marker + patch-surface S14/S15 row. CODEX SUBMODULE source patch — ships as its OWN release (.4), NOT bundled into .3. Note version skew (affected box 0.130; dev 0.135) — confirm the managed-hook seam in current source."
+        },
+        {
+          "className": "cmd-ok",
+          "html": "IMPL COMPLETE (2026-06-11) — committed <code>70281968a</code> on <code>ralph/codex-disable-managed-hooks</code> (stacked on the .3 base). Managed-hooks gate implemented + tested. codex submodule change → awaiting LEAD canonical build/verify + ship in the <strong>.4</strong> codex release bundle. Member stopped."
         }
       ],
       "command": {
@@ -6967,9 +6976,9 @@
     {
       "id": "codex-session-name-arg-support-verification",
       "scope": "codex",
-      "lifecycle": "tracked",
+      "lifecycle": "merged",
       "status": "active",
-      "lastTouchedAt": "2026-06-10",
+      "lastTouchedAt": "2026-06-11",
       "kanbanCards": [
         {
           "className": "cmd-warn",
@@ -6983,6 +6992,11 @@
         "prompts": {
           "investigate": "READ-ONLY: produce .ralph/investigations/codex-session-name-arg-support-verification/findings.md; do NOT modify source. QUESTION: does codex 0.135 (installed 0.135.0-copilot-api.1) support passing a SESSION NAME/label as a CLI arg, equivalent to copilot's/claude's `--name '<label>'`, so crews can name codex sessions? The crews v3.6.0 notes CLAIM 'codex has no --name flag' -- VERIFY, don't trust. STEPS: (1) run `codex --help`, `codex resume --help`, `codex exec --help` on the installed CLI and capture every flag that could set a session name/label/title; (2) read the codex-patched arg parser (codex/external/repos/codex-patched/codex-rs -- the clap/cli arg definitions for the interactive/TUI entrypoint) to confirm what the CLI accepts; (3) check whether a `-c <key>=<value>` config key names the session or sets a STATIC (non-per-turn-rewritten) title (e.g. tui.* keys); (4) if a name/title mechanism exists, document the EXACT flag/config + example + whether codex's per-turn TUI title rewriter clobbers it (relevant to dropping crews' `-c tui.terminal_title=[]` disable). OUTPUT findings.md: verdict (session-name arg: yes+exact-flag/config OR confirmed-none) + `codex --help`/file:line evidence + implication for crews-codex-member-tab-title-not-renamed (if YES, the tab-title fix uses the native arg and crews gets nameable codex sessions for free; if NO, confirm + name the closest alternative). Report kind=done with the verdict + findings.md path."
         }
+      },
+      "shipManifest": {
+        "shippedAt": "2026-06-11",
+        "summary": "Investigation complete (no code change). Verified against codex 0.135 source: there is NO session-name/title CLI arg or -c key anywhere in SharedCliOptions; tui.terminal_title is typed Option<Vec<String>> but parses into a fixed TerminalTitleItem enum allowlist, and any literal string is classified invalid, dropped from the rendered title, and only logs an 'Ignored invalid terminal title' warning. Empty terminal_title=[] emits no OSC so a pre-set OS title persists. The crews v3.6.0 'no --name' claim is CONFIRMED correct; the PowerShell tab-title hack stays. Findings: .ralph/investigations/codex-session-name-arg-support-verification/findings.md (on disk per investigation convention).",
+        "commits": []
       }
     },
     {
@@ -7137,7 +7151,7 @@
     {
       "id": "codex-hook-event-lifecycle-vs-crews-binding",
       "scope": "codex",
-      "lifecycle": "tracked",
+      "lifecycle": "merged",
       "status": "investigated",
       "lastTouchedAt": "2026-06-11",
       "kanbanCards": [
@@ -7153,6 +7167,22 @@
       "command": {
         "name": "codex-hook-event-lifecycle-vs-crews-binding",
         "prompts": {}
+      },
+      "shipManifest": {
+        "shippedAt": "2026-06-11",
+        "summary": "Shipped as crews v3.21.5. Fixes the two codex SessionStart-per-message caveats flagged by investigation 521c7b3f (codex emits SessionStart per-message-after-stop by design; crews was already safe via the v3.21.3 same-session shortcut, but two caveats remained). CAVEAT 1 (briefing-reinjection churn): briefing reinjection is now gated on first-bind / compact / clear instead of firing every drained SessionStart. CAVEAT 2 (/clear breaks re-bind): a /clear same-tab re-bind is now allowed via the authoritative source==='clear' signal + verified-alive-launcher + engine-match discriminator. All v3.21.3 first-bind and v3.21.4 GAP1/GAP2 lens-child takeover protections preserved (verified by Phase-5a review). 293/293 tests green. Both copilot and codex crews installs updated to 3.21.5.",
+        "commits": [
+          {
+            "sha": "ffa1f2f6",
+            "oneLine": "fix(crews): codex SessionStart per-message caveats (v3.21.5)",
+            "repo": "ai-developer-toolkit"
+          },
+          {
+            "sha": "62e6acfe",
+            "oneLine": "chore(crews): bump to v3.21.5 + codexu submodule pointer + AGENTS table",
+            "repo": "codexu"
+          }
+        ]
       }
     },
     {
