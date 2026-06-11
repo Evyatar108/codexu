@@ -7070,6 +7070,25 @@
         "name": "crews-takeover-guard-declines-legit-first-bind",
         "prompts": {}
       }
+    },
+    {
+      "id": "codex-sandbox-setup-install-despite-skip-flag",
+      "scope": "codex",
+      "lifecycle": "tracked",
+      "status": "active",
+      "lastTouchedAt": "2026-06-11",
+      "kanbanCards": [
+        {
+          "className": "cmd-warn",
+          "html": "BUG (operator-reported 2026-06-10). codex SOMETIMES attempts to install/run <code>codex-windows-sandbox-setup.exe</code> even though the launcher passes a flag to SKIP sandbox setup (intermittent). On machines missing the exe this also shows \"Windows cannot find codex-windows-sandbox-setup.exe\". READ-ONLY investigation to find the root cause + when \"sometimes\" triggers. CODEX SUBMODULE. Related: codex-sandbox-setup-exe-not-vendored-in-release (the vendoring fix)."
+        }
+      ],
+      "command": {
+        "name": "codex-sandbox-setup-install-despite-skip-flag",
+        "prompts": {
+          "brainstorm": "READ-ONLY source investigation: why does codex SOMETIMES attempt to install/run codex-windows-sandbox-setup.exe even though the launcher passes a flag to SKIP sandbox setup?\n\nTHE BUG (operator-reported 2026-06-10): the codex launcher sends a skip-sandbox flag, but codex SOMETIMES still tries to provision the Windows sandbox (invoking codex-windows-sandbox-setup.exe). Intermittent (\"sometimes\"). On a machine where the sandbox exe is absent this also surfaces as \"Windows cannot find codex-windows-sandbox-setup.exe\".\n\nREQUIRED SOURCE INVESTIGATION (cite file:line in the codex inner submodule at codex/external/repos/codex-patched/codex-rs and/or the wrapper launcher):\n  1. Identify the launcher skip-sandbox flag: what EXACTLY does the launcher (codex npm wrapper bin/codex.js / codex-cli entry) pass to skip sandbox setup? (env var? CLI flag e.g. --no-sandbox / --dangerously-bypass-approvals-and-sandbox / a sandbox-mode config? a SANDBOX/skip env?) Find where it is set and how it is threaded into codex-core.\n  2. Trace where codex-core DECIDES to provision/install the Windows sandbox (the codex-windows-sandbox-setup.exe invocation). Find the exact condition guarding that invocation.\n  3. Determine WHY the skip flag is sometimes NOT honored: is there a code path that provisions the sandbox BEFORE or INDEPENDENT of the flag check? A default that runs first (e.g. on first run / cold install)? A race? A flag parsed in one place while the sandbox-provision reads a different or stale source? A specific sandbox-mode value (e.g. read-only vs danger-full-access) that still triggers provisioning?\n  4. Characterize WHEN \"sometimes\" triggers (first run only? a specific approval/sandbox mode? a specific subcommand or the exec path? after an upgrade?).\n\nDELIVERABLE: root cause (cite file:line) + a recommended fix direction + the precise trigger condition for \"sometimes\". Commit findings under .ralph/investigations/codex-sandbox-setup-install-despite-skip-flag/findings.md. Read-only — do NOT modify code. Run on a pre/post working-tree snapshot+revert guard (tool-denial alone is not an airtight read-only sandbox on Copilot CLI)."
+        }
+      }
     }
   ],
   "phaseTree": [
