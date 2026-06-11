@@ -7118,12 +7118,16 @@
       "id": "codex-hook-event-lifecycle-vs-crews-binding",
       "scope": "codex",
       "lifecycle": "tracked",
-      "status": "active",
+      "status": "investigated",
       "lastTouchedAt": "2026-06-11",
       "kanbanCards": [
         {
           "className": "cmd-warn",
           "html": "BUG/INVESTIGATION (operator 2026-06-11). In a live codex session a <code>SessionStart hook (completed)</code> fires when the operator sends a NEW message AFTER a Stop hook (after codex's last message) — NOT how Claude/Copilot work (SessionStart fires once at start + resume/clear/compact, never per message). READ-ONLY: confirm codex's SessionStart emission lifecycle + whether crews' once-per-session binding (session-start.js -> assignMemberRole) is SAFE under per-message re-emit (suspected contributor to the binding/identity weirdness). CODEX SUBMODULE + crews hooks."
+        },
+        {
+          "className": "cmd-ok",
+          "html": "VERDICT (investigation 521c7b3f, 2026-06-11): codex SessionStart per-message-after-stop is BY-DESIGN — codex QUEUES SessionStart at init + compact and DRAINS it per-turn (only 2 queue sites tree-wide). The <code>session_id</code> is PRESERVED across resume (session_id() = conversation_id; resumed_history.conversation_id), so crews is SAFE under the re-emit via applyEnvRole's same-session shortcut (v3.21.3 existing.sessionId===sessionId -&gt; return). NOT a cause of the binding weirdness (that was the separate bind-decline bug, fixed in 3.21.3). TWO follow-up caveats (not bugs): (1) per-message briefing-reinjection CHURN — the SessionStart hook re-injects context every message on codex (wasteful tokens/time); (2) BREAKS if session_id CHANGES (e.g. /clear) — the re-emit then has a different id and the takeover guard would fire. Both are candidate follow-ups; core question RESOLVED (crews safe, no fix needed)."
         }
       ],
       "command": {
