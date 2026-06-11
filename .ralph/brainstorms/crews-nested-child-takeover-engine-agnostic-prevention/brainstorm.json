@@ -1,0 +1,34 @@
+{
+  "brainstormName": "crews-nested-child-takeover-engine-agnostic-prevention",
+  "overviewTaskId": "crews-nested-child-takeover-engine-agnostic-prevention",
+  "idea": "Prevent engine-agnostic crews identity takeover by nested child processes spawned from ralph implementer/lens flows; same-engine codex->codex must be safe.",
+  "availableLenses": ["devils-advocate", "codex", "copilot"],
+  "missingLenses": [],
+  "candidateDirections": [
+    {
+      "id": "D-001",
+      "name": "Primary ralph spawn-env sanitization plus crews ancestry refusal defense-in-depth",
+      "summary": "Strip claimable CREWS identity vars at nested spawn boundaries in ralph (implementer + lens paths), and add engine-agnostic ancestry-based refusal in crews SessionStart/assign as backstop.",
+      "contributingLenses": ["devils-advocate", "codex", "copilot"]
+    },
+    {
+      "id": "D-002",
+      "name": "Marker-only suppression via CREWS_SUPPRESS_CLAIM on nested children",
+      "summary": "Set a no-claim marker on child processes and short-circuit SessionStart claim when marker is present; lighter to ship but depends on perfect spawn-site coverage.",
+      "contributingLenses": ["devils-advocate", "copilot"]
+    },
+    {
+      "id": "D-003",
+      "name": "Crews-only hardening around GAP1 live-owner checks",
+      "summary": "Avoid ralph edits and rely on stronger liveness/claim guards in crews; leaves source env leak intact and remains more race-sensitive.",
+      "contributingLenses": ["codex"]
+    }
+  ],
+  "recommendedDirection": "D-001",
+  "questionsForSynthesis": [
+    "Should CREWS_ENGINE be preserved or scrubbed in nested children when no role claim vars remain, to balance observability and safety?",
+    "Should ancestry refusal be scoped to member role only, or also apply to lead role claims for symmetry?",
+    "What minimum integration test matrix is required before landing (copilot->codex, codex->codex, brainstorm/plan lens fanout)?",
+    "Should marker-based suppression (D-002) still be added as tertiary defense after D-001, or omitted to keep semantics minimal?"
+  ]
+}
