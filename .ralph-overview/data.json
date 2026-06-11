@@ -6683,9 +6683,9 @@
     {
       "id": "crews-codex-12s-hook-timeout-ceiling",
       "scope": "ai-developer-toolkit",
-      "lifecycle": "tracked",
-      "status": "active",
-      "lastTouchedAt": "2026-06-10",
+      "lifecycle": "archived",
+      "status": "closed",
+      "lastTouchedAt": "2026-06-11",
       "kanbanCards": [
         {
           "className": "cmd-warn",
@@ -6702,6 +6702,10 @@
         {
           "className": "cmd-warn",
           "html": "BOTH hypotheses now REFUTED. (1) Stale crews cache: refuted (affected box has fresh 3.21.0, no lock footprint). (2) Codex startup-sync blocking: refuted (codex-curated-plugins-startup-sync-timeout investigation proved the 30s curated-clone runs on a DETACHED never-joined thread, off the startup critical path — non-blocking). So the original \"PreToolUse hook (failed) error: hook timed out after 12s\" is unexplained by source and is most likely a MISATTRIBUTION of the scary 30s startup_sync log line. NEXT DIAGNOSTIC = the live codex+crews dogfood (operator-driven, mock workspace D:/codex-crews-dogfood, runbook in session files): if a fresh codex+crews-3.21.0 member spawn shows NO PreToolUse hook timeout, this task is closed as not-reproducible. Keeping tracked pending dogfood evidence."
+        },
+        {
+          "className": "cmd-warn",
+          "html": "CLOSED 2026-06-11 (operator: \"not relevant anymore\"). The \"12s hook timeout\" was root-caused to a Microsoft Defender MANAGED PreToolUse hook (DefenderAgentScan.exe), NOT a crews/codex timeout ceiling. Addressed by codex-disable-managed-hooks-by-default (shipped in v0.135.0-copilot-api.3). No crews-side timeout-ceiling change needed."
         }
       ],
       "command": {
@@ -7103,7 +7107,7 @@
       "id": "codex-hook-executor-windows-native-shell",
       "scope": "codex",
       "lifecycle": "tracked",
-      "status": "investigated",
+      "status": "re-investigating",
       "lastTouchedAt": "2026-06-11",
       "kanbanCards": [
         {
@@ -7113,6 +7117,10 @@
         {
           "className": "cmd-ok",
           "html": "ROOT CAUSE + FIX confirmed against source (plan-hookshell investigation 2026-06-11, before it was displaced; findings in staging .ralph/jobs/.staging/20260611T053724Z-plan-hookshell-d2ba601b/feature-request.txt). Execution path: core/src/session/mod.rs::build_hooks_for_config (~3360-3386) -&gt; user_shell.derive_exec_args -&gt; HooksConfig.shell_program/args -&gt; hooks/src/registry.rs:79 CommandShell -&gt; hooks/src/engine/command_runner.rs:103-117 Command::new(shell.program).args(shell.args).arg(handler.command). CORRECTION to the earlier \"codex uses bash\" framing: codex default shell is actually PowerShell on Windows (shell.rs:312-318), NOT bash; user_shell_override is always None; the launcher -c default_shell is a DEAD key. The REAL bug: <code>${CLAUDE_PLUGIN_ROOT}</code> is ENV-ONLY (hooks/src/engine/discovery.rs:225 = plugin_root.display() -&gt; Windows backslashes) and is NEVER substituted into the hook command STRING (unlike the fork .mcp.json path via mcp_substitution.rs / loader.rs:1069). So the command breaks on Windows under EVERY shell: PowerShell/cmd do not expand ${VAR}; and a which(\"bash\")-&gt;WSL-bash path produces the operator /mnt/c module error. FIX: (A) substitute plugin-root tokens into the hook command string, forward-slash-normalized on Windows (extend the mcp_substitution.rs overlay precedent); (B) force a Windows-native hook shell (cmd.exe /C) so Windows node runs. Regression test in codex-rs-overlay/codex-invariant-tests/. READY FOR IMPL."
+        },
+        {
+          "className": "cmd-warn",
+          "html": "NOT READY FOR IMPL (operator-flagged 2026-06-11): plan-hookshell findings CONTRADICT the operator codex-agent live repro. Agent (affected machine) saw ${CLAUDE_PLUGIN_ROOT} EXPAND to the Windows path (codex DID substitute it) then bash mangled it; plan-hookshell claimed it is env-only / NEVER substituted. Also unresolved: WHY bash on Windows when the agent shell tool uses PowerShell, and WHICH macro the .codex-plugin hooks.json actually uses (${CLAUDE_PLUGIN_ROOT} vs a codex-specific ${CODEX_PLUGIN_ROOT}) + whether codex substitutes it. Spawned read-only re-investigation (investigate-hookmacro) to settle the contradiction + answer the 3 questions BEFORE any impl. The earlier impl seed may be wrong; re-confirm root cause first."
         }
       ],
       "command": {
