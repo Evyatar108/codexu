@@ -1,0 +1,66 @@
+{
+  "clusters": [
+    {
+      "name": "ralph-sanitization",
+      "stories": [
+        "US-001",
+        "US-002"
+      ],
+      "phase": 1,
+      "dependsOn": [],
+      "fileOverlapEvidence": {
+        "sharedFiles": [
+          "ai-developer-toolkit/plugins/ralph/src/ralph.mjs",
+          "ai-developer-toolkit/plugins/ralph/src/codex-exec.mjs",
+          "ai-developer-toolkit/plugins/ralph/src/copilot-exec.mjs",
+          "ai-developer-toolkit/plugins/ralph/src/review-loop.mjs"
+        ],
+        "exclusiveFiles": [
+          "ai-developer-toolkit/plugins/ralph/**"
+        ],
+        "risk": "medium"
+      },
+      "executionModeRationale": "These stories share ralph spawn surfaces and should run serially in one implementation stream to guarantee full boundary coverage."
+    },
+    {
+      "name": "crews-defense",
+      "stories": [
+        "US-003",
+        "US-004"
+      ],
+      "phase": 2,
+      "dependsOn": [
+        "ralph-sanitization"
+      ],
+      "fileOverlapEvidence": {
+        "sharedFiles": [
+          "ai-developer-toolkit/plugins/crews/hooks/actors.js",
+          "ai-developer-toolkit/plugins/crews/tests/session-ownership-divergence.test.js"
+        ],
+        "exclusiveFiles": [
+          "ai-developer-toolkit/plugins/crews/**"
+        ],
+        "risk": "high"
+      },
+      "executionModeRationale": "Ownership-critical guard changes and regression tests should run after sanitization is proven, with focused crews-side verification."
+    },
+    {
+      "name": "integration-dogfood",
+      "stories": [
+        "US-005"
+      ],
+      "phase": 3,
+      "dependsOn": [
+        "crews-defense"
+      ],
+      "fileOverlapEvidence": {
+        "sharedFiles": [],
+        "exclusiveFiles": [
+          ".ralph/jobs/crews-nested-child-takeover-engine-agnostic-prevention/*"
+        ],
+        "risk": "medium"
+      },
+      "executionModeRationale": "Live same-engine dogfood and sequencing closeout are final validation steps and require both prior clusters complete."
+    }
+  ]
+}

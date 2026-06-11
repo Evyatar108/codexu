@@ -1,0 +1,29 @@
+[
+  {
+    "id": "F-001",
+    "severity": "high",
+    "source": "consensus",
+    "status": "closed",
+    "summary": "Plan must make explicit one-vs-two-job decision and sequencing rationale",
+    "details": "Cross-plugin scope and crews collision risk require explicit two-job sequence in the finalized plan.",
+    "resolution": "Added explicit decision: two sequenced jobs (ralph-first, crews-second) with serialization rationale."
+  },
+  {
+    "id": "F-002",
+    "severity": "medium",
+    "source": "consensus",
+    "status": "closed",
+    "summary": "Mandatory same-engine dogfood acceptance was under-specified",
+    "details": "Plan needed explicit acceptance for codex->codex nested no-hijack and delivery integrity.",
+    "resolution": "Added same-engine live dogfood acceptance criterion and final validation story."
+  },
+  {
+    "id": "F-003",
+    "severity": "medium",
+    "source": "copilot",
+    "status": "closed",
+    "summary": "Non-regression anchors should be explicit",
+    "details": "First-bind, same-tab reclaim, and recoverable dead-member reclaim were not all explicit in acceptance.",
+    "resolution": "Expanded acceptance criteria and stories to list all required non-regression anchors."
+  }
+]

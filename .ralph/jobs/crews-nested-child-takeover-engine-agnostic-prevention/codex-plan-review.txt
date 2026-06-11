@@ -1,0 +1,9 @@
+## Mode: review
+
+### Findings
+1. **High** - Plan must state one-vs-two-job decision explicitly and tie it to known crews serialization risk.
+2. **Medium** - Acceptance criteria must include mandatory same-engine live dogfood and intact report delivery proof.
+3. **Medium** - Suggested decomposition should align with the two-stage plugin sequence plus final dogfood phase.
+
+### Recommendation
+Adopt two sequenced impl jobs (ralph first, crews second), keep explicit same-engine dogfood gate, and preserve ownership regression anchors.
