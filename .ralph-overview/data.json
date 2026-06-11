@@ -6172,6 +6172,14 @@
         {
           "className": "cmd-warn",
           "html": "UX (operator 2026-06-10): context-size selector chained AFTER the .3 Knob A effort picker. Flow = pick model -> pick effort -> pick context size. Skip the context step for single-tier models. Plan must find where the .3 reasoning-level picker is presented and chain the context picker after it."
+        },
+        {
+          "className": "cmd-ok",
+          "html": "IMPL CODE-COMPLETE @ <code>5cfe3c9ba</code> on <code>ralph/codex-context-window-tier-selection</code> (codex-patched inner submodule worktree). 8 stories: US-002 0223f9e64, US-003 00c7cd18b, US-004 1c6314061, US-005 b40a688e7, US-006 b92f7805b, US-007 5cfe3c9ba (US-008 specced, wrapper-doc). US-002-005 UNIT-TESTED; US-006/007 BLIND-WRITTEN (Approach A, operator-chosen). DESIGN = approach B-reframed (confirmed via live /models, codex auth, 200 OK): /models has NO per-tier field; full = live max_context_window_tokens; DEFAULT = per-family curated cap GPT 400k / Anthropic 264k. Picker chains model->effort->context, single-tier models skip the context step. Anthropic: -1m slugs are independent 1M duplicates (two-tier 264k/1M); 200k Claude models single-tier (264k clamps down); default<=full via min clamp."
+        },
+        {
+          "className": "cmd-warn",
+          "html": "PENDING LEAD-FINALIZE (ships in .4; NOT merged yet). In the CANONICAL codex checkout: (1) build-verify + fix E0063s at every ThreadSettings{}/ThreadStartResponse{} literal (real builders read the session tier; tests use context_tier: None); (2) wire the one remaining behavioral hop SessionSettingsUpdate.context_tier -> SessionConfiguration (session.rs:197 apply) -> per-turn Config.model_context_tier (turn_context.rs:173/676); (3) just write-config-schema + just write-app-server-schema; (4) just test -p codex-tui -> cargo insta accept -p codex-tui (new popup snapshot + single-tier-skip); (5) add TODO tests (profile round-trip + deny_unknown_fields; popup snapshot; app-server tier-applies-next-turn); (6) add US-008 patch-surface.md rows at the submodule-pointer bump. Fix-spec: .ralph/jobs/codex-context-window-tier-selection/lead-finalize-spec.md. Build is lead-owned (members cannot compile the overlay from a worktree)."
         }
       ],
       "command": {
