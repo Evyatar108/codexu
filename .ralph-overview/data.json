@@ -6180,6 +6180,10 @@
         {
           "className": "cmd-warn",
           "html": "PENDING LEAD-FINALIZE (ships in .4; NOT merged yet). In the CANONICAL codex checkout: (1) build-verify + fix E0063s at every ThreadSettings{}/ThreadStartResponse{} literal (real builders read the session tier; tests use context_tier: None); (2) wire the one remaining behavioral hop SessionSettingsUpdate.context_tier -> SessionConfiguration (session.rs:197 apply) -> per-turn Config.model_context_tier (turn_context.rs:173/676); (3) just write-config-schema + just write-app-server-schema; (4) just test -p codex-tui -> cargo insta accept -p codex-tui (new popup snapshot + single-tier-skip); (5) add TODO tests (profile round-trip + deny_unknown_fields; popup snapshot; app-server tier-applies-next-turn); (6) add US-008 patch-surface.md rows at the submodule-pointer bump. Fix-spec: .ralph/jobs/codex-context-window-tier-selection/lead-finalize-spec.md. Build is lead-owned (members cannot compile the overlay from a worktree)."
+        },
+        {
+          "className": "cmd-ok",
+          "html": "COMPILE-FIX VERIFIED @ <code>cb89014287</code> (+ <code>0739d6d4e9</code> drop accidental worktree gitlinks) on <code>ralph/codex-knobb-fix</code> (2026-06-11). <code>cargo check --workspace</code> CLEAN. Behavioral hop wired (SessionConfiguration.model_context_tier -> per-turn Config). Config + app-server schemas REGENERATED. Tests GREEN: codex-config, codex-app-server-protocol (patched fixtures with context_tier). NOTED (not Knob B fault): codex-tui tests hit a known Windows STACK-OVERFLOW runtime issue (separate); codex-core tests blocked by codex-core-test-tree-precompile-breakage. Both .4 features (bg-awakening 6be476983f + Knob B cb89014287) now check-verified -> ready to integrate + build .4."
         }
       ],
       "command": {
