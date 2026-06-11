@@ -3456,6 +3456,25 @@
       }
     },
     {
+      "id": "codex-sandbox-setup-exe-not-vendored-in-release",
+      "scope": "codex",
+      "lifecycle": "tracked",
+      "status": "active",
+      "lastTouchedAt": "2026-06-10",
+      "kanbanCards": [
+        {
+          "className": "cmd-warn",
+          "html": "BUG (operator-hit 2026-06-10: \"Windows cannot find codex-windows-sandbox-setup.exe\"). The exe IS built (the publish build line includes <code>--bin codex-windows-sandbox-setup --bin codex-command-runner</code>) but the GitHub Release BUNDLE never vendors it: <code>codex/.claude/commands/publish-sandbox-patch.md</code> Step 5 line ~304 is <code>cp \"$REL/codex.exe\" \"$REL/codex-core.exe\" \"$VENDOR/codex/\"</code> — only codex.exe + codex-core.exe; it OMITS codex-windows-sandbox-setup.exe AND codex-command-runner.exe. So the installed package lacks them and codex’s sandbox feature fails at runtime. install.md’s vendor layout EXPECTS all 4 codex bins. The prior task codex-sandbox-setup-release (merged) added the build --bin but NEVER fixed the Release vendoring. FIX: add the two missing bins to the Step 5 vendor cp (and verify build_npm_package.py / .github/workflows/publish-npm.yml + the npm package \"files\" include them so they install to vendor/<target>/codex/). Confirm codex resolves codex-windows-sandbox-setup.exe at the vendored path. CODEX WRAPPER publish-flow fix. NOTE: the lead will ALSO manually include these bins in the imminent .3 Release cut (cheap packaging, no rebuild) so .3 ships with the sandbox exe."
+        }
+      ],
+      "command": {
+        "name": "codex-sandbox-setup-exe-not-vendored-in-release",
+        "prompts": {
+          "impl": "Fix the codex Release packaging so codex-windows-sandbox-setup.exe (and codex-command-runner.exe) actually ship + install. ROOT CAUSE (verified): codex/.claude/commands/publish-sandbox-patch.md Step 5 (~line 304) vendors only codex.exe + codex-core.exe: `cp \"$REL/codex.exe\" \"$REL/codex-core.exe\" \"$VENDOR/codex/\"`. The build (Step 2b) DOES build all 4 bins, and docs/workflows/install.md’s vendor layout lists all 4 in vendor/<target>/codex/, but the bundle omits sandbox-setup + command-runner. STEPS: (1) Add codex-windows-sandbox-setup.exe + codex-command-runner.exe to the Step 5 vendor cp. (2) Check codex-cli/scripts/build_npm_package.py + .github/workflows/publish-npm.yml + the staged package.json \"files\" array — ensure all 4 codex bins are staged into the platform/bundle package and survive `npm pack` to the installed vendor dir. (3) Confirm at RUNTIME codex resolves codex-windows-sandbox-setup.exe from the vendored path (trace where codex looks for the sandbox-setup binary; if it expects a different filename/location, reconcile). (4) Update install.md / any doc if the vendor list changes. VERIFY: a dry pack (or inspect the staged bundle) shows all 4 bins under vendor/<target>/codex/. WORKTREE: codex WRAPPER (the publish flow is wrapper-owned; build_npm_package.py is in codex-patched/codex-cli/scripts so may need an inner worktree too). Do NOT git push / gh switch. Report kind=done with the edited files + a staged-bundle listing proving all 4 bins are vendored."
+        }
+      }
+    },
+    {
       "id": "ralph-overview-multi-mcp-v210",
       "scope": "ralph-overview",
       "lifecycle": "merged",
@@ -6336,11 +6355,15 @@
       "scope": "codexu|ralph-overview",
       "lifecycle": "tracked",
       "status": "active",
-      "lastTouchedAt": "2026-06-09",
+      "lastTouchedAt": "2026-06-10",
       "kanbanCards": [
         {
           "className": "cmd-warn",
           "html": "Filed 2026-06-09. BUG (bites the bookkeeper every batch-selection): the ralph-overview MCP `overview.parallel_ready_tasks` (and the watcher-generated recommendations/readyTasks/snapshot) surface tasks whose bookkeeper OverviewTask.lifecycle is already 'merged' (or 'archived') as READY/actionable. OBSERVED 2026-06-09: parallel_ready_tasks returned crews-codex-inner-pid-capture-not-resolving, codex-marketplace-add-gim-home-failure, codex-v135-network-audit-and-code-review, ralph-orchestration-spawn-target-repo-override-flag, crews-arm-chaining-footgun-guard, crews-proactive-done-auto-consumed-silent-lead-miss etc. as 'plan-ready'/ready -- but ALL are lifecycle=merged in data.json. ROOT: the ready-list is computed from the watcher's RalphPipelineState.stage axis WITHOUT reconciling the OverviewTask.lifecycle axis (the intentional two-file split). A merged task can still carry a non-terminal watcher stage (or a stale/never-updated snapshot stage), so it leaks into the ready list. FIX: the parallel_ready_tasks + recommendations computation (ralph-overview plugin: MCP server + sync library) must EXCLUDE tasks whose lifecycle is 'merged' or 'archived' (join the two axes). Add a regression test (a merged-lifecycle task with a non-terminal stage must NOT appear in parallel_ready_tasks). Plugin-side (ai-developer-toolkit/plugins/ralph-overview); two-commit submodule flow at ship."
+        },
+        {
+          "className": "cmd-warn",
+          "html": "Plan member plan-readylifecycle reached Phase 4 (both review lenses ran) but its listener crashed with IdentityMismatchError (session diverged from manifest owner) before committing — plan branch had 0 commits, work uncommitted/lost. SECOND such copilot-member identity-mismatch crash this session (after bs-modelknobs) — a recurring crews identity-ownership bug. Re-plan is cheap (fix is well-scoped). Needs re-spawn."
         }
       ],
       "command": {
@@ -6540,6 +6563,25 @@
       }
     },
     {
+      "id": "crews-member-session-ownership-divergence",
+      "scope": "crews",
+      "lifecycle": "tracked",
+      "status": "active",
+      "lastTouchedAt": "2026-06-10",
+      "kanbanCards": [
+        {
+          "className": "cmd-warn",
+          "html": "BUG (operator-flagged 2026-06-10, RECURRING, breaks members mid-work). A running crew member SUDDENLY dies with <code>IdentityMismatchError: session no longer owns actor \"&lt;name&gt;\" in crew \"&lt;crew&gt;\"</code> — the PreToolUse hook then BLOCKS EVERY tool (incl. <code>status</code>), so the member is wedged + cannot self-diagnose. Observed 2x THIS session, both COPILOT members: <b>bs-modelknobs</b> (after reaching kind=progress) and <b>plan-readylifecycle</b> (after reaching Phase 4, both review lenses run — work uncommitted + lost). The member’s own read: \"the manifest’s sessionId for the actor no longer matches my current session — could be the lead reassigning, a manifest rewrite from a crash, or env-var leakage between sessions.\" INVESTIGATE (read-only crews source + the two crashed members’ manifests/logs): WHY does a copilot member’s live session id diverge from its manifest <code>sessionId</code> mid-session? Candidates: (a) copilot CLI rotating/restarting the session id within the same tab (a new COPILOT_AGENT_SESSION_ID after a resume/restart) without the SessionStart hook re-claiming ownership; (b) <code>assertSessionOwnsActor</code> comparing against a stale manifest sessionId after a takeover/heartbeat rewrite; (c) env-var leakage across sessions; (d) the v1.7.0 pointer/locator mis-resolving identity. Trace <code>assertSessionOwnsActor</code> + where manifest.sessionId is written/compared (hooks/runtime-context, session-start, actors). Determine repro + a fix that lets a member RE-CLAIM ownership on a legit session-id change (or at least fail SOFT — not wedge every tool incl. status). crews (ai-developer-toolkit) read-only investigation → remediation. HIGH PRIORITY: it is actively killing this session’s members."
+        }
+      ],
+      "command": {
+        "name": "crews-member-session-ownership-divergence",
+        "prompts": {
+          "brainstorm": "INVESTIGATE (read-only, source-cited; findings.md under .ralph/investigations/crews-member-session-ownership-divergence/) the recurring crews member IdentityMismatchError. SYMPTOM: a running COPILOT crew member suddenly dies with \"IdentityMismatchError: session no longer owns actor <name> in crew <crew>\"; the PreToolUse hook then blocks EVERY tool (incl. status), wedging the member. Observed 2x this session (bs-modelknobs after kind=progress; plan-readylifecycle after Phase 4) — both copilot, both lost uncommitted work. SETTLE AGAINST SOURCE (cite file:line in the crews plugin, ai-developer-toolkit/plugins/crews): (1) Where is assertSessionOwnsActor defined + called, and what exactly does it compare (running session id vs manifest.sessionId)? (2) How is the running session id derived for a copilot member (readSessionEnv -> COPILOT_AGENT_SESSION_ID)? Can copilot CLI ROTATE/restart that id within the same tab (resume/restart/compact) such that the SessionStart hook does NOT re-claim manifest ownership? Check the copilot SessionStart shim + applyEnvRole + the takeover paths. (3) Could a manifest rewrite (takeover/heartbeat/markArmed with a different sessionId) or env leakage flip manifest.sessionId out from under the live session? (4) Why does the failure wedge EVEN status (the PreToolUse identity gate has no read-only/diagnostic exemption)? ALSO inspect the two crashed members’ manifests + crews.log (under D:/harness-efforts/codexu/.crews/.../members/{bs-modelknobs,plan-readylifecycle}/) for the actual sessionId values + the divergence moment. DELIVERABLE: root cause (with file:line), a repro hypothesis, and a remediation direction — ideally (a) let a member RE-CLAIM ownership on a legit copilot session-id change, AND/OR (b) fail SOFT (a recoverable advisory, not wedge every tool incl. status; add a diagnostic-tool exemption to the PreToolUse identity gate). Do NOT rubber-stamp. Read-only: no source edits beyond findings.md. Do NOT git push / gh switch."
+        }
+      }
+    },
+    {
       "id": "codex-curated-plugins-startup-sync-timeout",
       "scope": "codex",
       "lifecycle": "tracked",
@@ -6560,6 +6602,25 @@
         "prompts": {
           "brainstorm": "INVESTIGATE (read-only, source-cited; findings.md under .ralph/investigations/codex-curated-plugins-startup-sync-timeout/) codex-native plugin startup-sync timing out. EVIDENCE (affected machine C:\\TentedRepos, codex-cli 0.130.0-copilot-api.8): ~/.codex/log/codex-tui.log shows 3x \"codex_core_plugins::startup_sync: git clone curated plugins repo timed out after 30s\" near member spawns (2026-06-11T00:13Z). This is the ONLY confirmed codex-only 30s blocker; the crews-lock hypothesis is refuted (fresh crews 3.21.0, no lock footprint, no crews timeout log line). SETTLE AGAINST SOURCE (cite file:line; codex source at codex/external/repos/codex-patched/codex-rs/, grep core-plugins / codex_core_plugins / startup_sync): (1) What is startup_sync + the \"curated plugins repo\" it git-clones on startup? What URL/source does it clone (a default curated-marketplace? the configured marketplace? gim-home/ai-developer-toolkit?), and where is the 30s timeout set? (2) Is the clone BLOCKING codex startup / member-session readiness? Could a slow/failing clone delay or starve the first PreToolUse hook (explaining the operator’s original \"PreToolUse hook timed out\" misattribution)? (3) Why would it time out on the affected box specifically — network, SAML/auth to the clone URL, firewall, or a missing local marketplace? (4) Is it configurable/disable-able — can codex be pointed at a LOCAL marketplace path (the fork already uses a local ai-developer-toolkit marketplace) to skip the remote clone? (5) Version skew: confirm the startup_sync behavior in BOTH 0.130 (affected) and 0.135 (dev box) — did it change? DELIVERABLE: source-verified explanation of startup_sync + the curated-plugins clone, whether it blocks member startup, why it times out on the affected box, and a remediation direction (disable/redirect to local marketplace / make non-blocking / fix the clone source). Do NOT rubber-stamp. Read-only: no source edits beyond findings.md. Do NOT run while a codex release build is WRITING to the codex-patched canonical checkout (read-only source reads are fine). Do NOT git push / gh switch.",
           "impl": "Short-circuit codex’s curated-plugins startup-sync so the fork stops cloning https://github.com/openai/plugins.git on every codex startup (30s egress + scary \"git clone curated plugins repo timed out after 30s\" log noise; the fork uses the LOCAL ai-developer-toolkit marketplace and never needs OpenAI’s curated repo). SOURCE (verified by the investigation): the curated sync is started by start_curated_repo_sync via maybe_start_plugin_startup_tasks_for_config (core-plugins/src/manager.rs:1470-1477,1739-1742) at app-server MessageProcessor construction (message_processor.rs:454); the clone URL + 30s timeout live in core-plugins/src/startup_sync.rs (:28 CURATED_PLUGINS_GIT_TIMEOUT, :155 clone URL, :521-573 run_git_command_with_timeout). FIX (fork-tenet-1, minimize upstream-canonical conflict surface): add an early-return / feature-gate at the start of start_curated_repo_sync (or its caller maybe_start_plugin_startup_tasks_for_config) so the curated-repo background sync is NOT spawned in this fork (prefer a 1-3 line SANDBOX PATCH at the spawn seam, with the // SANDBOX PATCH: marker + patch-surface.md S14/S15 row). Confirm no code path BLOCKS on the curated snapshot (the investigation says it is fire-and-forget, so a no-op skip is safe). Add a test/guard asserting the curated-sync thread is not spawned (or the gate is honored). VERIFY: cargo check --workspace; the affected log line no longer appears on startup. WORKTREE: codex inner submodule. Do NOT git push / gh switch. NOTE: this is a behavior change (no curated marketplace) — acceptable for the fork; flag if any fork feature actually consumes the curated snapshot."
+        }
+      }
+    },
+    {
+      "id": "codex-disable-managed-hooks-by-default",
+      "scope": "codex",
+      "lifecycle": "tracked",
+      "status": "active",
+      "lastTouchedAt": "2026-06-10",
+      "kanbanCards": [
+        {
+          "className": "cmd-warn",
+          "html": "FEATURE/fork-patch (operator-requested 2026-06-10). ROOT CAUSE of the \"PreToolUse hook timed out after 12s\" (FINALLY identified): a Microsoft Defender MANAGED hook injected via admin config — PreToolUse, matcher <code>.*</code>, Source \"Admin config\", command <code>DefenderAgentScan.exe</code>, Timeout 12s, Trust \"Managed\". It runs on every tool call and times out at 12s when the Defender scan is slow. NOT crews, NOT startup_sync (both refuted). Operator decision: modify the codex FORK so it does NOT honor managed/admin-config hooks BY DEFAULT, with an opt-in (env var / CLI flag / config key) to turn them back on. This neutralizes the Defender 12s PreToolUse hook (and any other admin-pushed managed hook) by default. SOURCE: find where codex discovers/loads \"Admin config\" / managed hooks + assigns \"Managed\" trust (the hooks engine/discovery, likely codex-rs/hooks or core-plugins). FORK-tenet-1: prefer a minimal seam (early-return/gate at the managed-hook load site) + the // SANDBOX PATCH marker + patch-surface S14/S15 row. CODEX SUBMODULE source patch — ships as its OWN release (.4), NOT bundled into .3. Note version skew (affected box 0.130; dev 0.135) — confirm the managed-hook seam in current source."
+        }
+      ],
+      "command": {
+        "name": "codex-disable-managed-hooks-by-default",
+        "prompts": {
+          "impl": "Modify the codex fork so MANAGED / admin-config hooks are NOT honored by default, with an opt-in to re-enable. WHY: the operator’s \"PreToolUse hook timed out after 12s\" is a Microsoft Defender MANAGED hook (PreToolUse, matcher .*, Source \"Admin config\", DefenderAgentScan.exe, 12s timeout, Trust \"Managed\") injected by enterprise policy; it runs on every tool call + times out. STEPS: (1) Find where codex DISCOVERS + LOADS managed/admin-config hooks and assigns the \"Managed\" trust level (grep codex-rs for the hook discovery/config-source enum, \"Admin\"/\"Managed\"/\"managed\" trust, the admin/managed config path). (2) Add a fork gate so managed-source hooks are SKIPPED by default (not loaded/executed). (3) Add an OPT-IN to re-enable them, in priority order: a CLI flag (e.g. --enable-managed-hooks) > a config key (e.g. features.managed_hooks or a hooks.allow_managed) > an env var (e.g. CODEX_ENABLE_MANAGED_HOOKS). Default = OFF (managed hooks skipped). Match the existing fork patterns (see the --enable-anthropic flag + features.anthropic_models work for a precedent of flag+config+env+default-off). (4) Keep user + project hooks UNCHANGED (only managed/admin-source hooks are gated). FORK-tenet-1: minimal seam, // SANDBOX PATCH markers, patch-surface.md S14/S15 row + a guard test. VERIFY: cargo check --workspace; a test asserting managed hooks are skipped by default + honored when the opt-in is set. WORKTREE: codex inner submodule (codex-patched). Build/verify is LEAD-OWNED (overlay workspace pins to canonical; you cannot cargo-build from a worktree) — write the code, the lead builds + verifies in canonical. Ships as .4 (own release), NOT bundled into .3. Do NOT git push / gh switch. Report kind=done with the gated seam (file:line), the flag/config/env wiring, the test, and your commit SHA."
         }
       }
     },
