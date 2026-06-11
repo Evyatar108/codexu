@@ -6930,7 +6930,7 @@
       "scope": "codex",
       "lifecycle": "tracked",
       "status": "active",
-      "lastTouchedAt": "2026-06-10",
+      "lastTouchedAt": "2026-06-11",
       "kanbanCards": [
         {
           "className": "cmd-warn",
@@ -6943,6 +6943,10 @@
         {
           "className": "cmd-ok",
           "html": "Plan shipped @ e2017d42 (rebased onto main; pushed). LOW-conflict design confirmed: 6 stories -- US-001 (ONE feature-gated codex seam + regression test) + US-002-006 happy-cli (developerInstructions policy, dual-flag enablement + unsolicited-turn handling, doctor probe, live-validation gate, conditional LOW-B). MECHANISM: enable the existing default-off BackgroundProcessNotification + its UnifiedExec prerequisite via happy-cli-gated `-c` flags; inject the spawn-then-end-turn policy via happy-cli developerInstructions; LOW-A auto-turn-start primary (codex's maybe_start_turn_for_pending_work re-enters the model below the app-server layer) with a LOW-B MessageQueue2 fallback gated by a structured validation-decision artifact. Phase-4 multi-model review (codex + copilot + source-verifying rubber-duck) -> 12 findings all resolved; KEY: moved the policy to happy-cli (shrinks codex's upstream surface to a SINGLE seam), added the UnifiedExec prerequisite, and CORRECTED the seam placement (must fire AFTER active_turn is cleared, else it no-ops). Cross-repo (codex + happy-cli); mandatory live validation at impl."
+        },
+        {
+          "className": "cmd-ok",
+          "html": "US-001 codex seam CODE-COMPLETE (impl-codexseam, commit 7133aca92 on ralph/codex-nonblocking-bg-completion-surfacing in the inner submodule worktree): turn-end wake + INLINE-OUTPUT enriched wake payload (watcher already held a 1 MiB head/tail transcript buffer, read without draining + capped, mirroring the old await aggregation) + <code>await_background_completion</code> FULLY REMOVED. LEAD ACTION ITEMS before ship: (1) delete the wrapper invariant_15 overlay test (codex-rs-overlay); (2) update docs/implementation/patch-surface.md; (3) Phase-5a cargo check --workspace in the CANONICAL checkout (worktree cannot resolve the overlay relative path); (4) inner push + wrapper + codexu pointer bump. SHIP target: a codex .4 release (bundle with anthropic-persist + hook-executor fix when ready). US-002..006 (happy-cli consumers) remain a separate future job; their developerInstructions must NOT tell the model to call await after wake (it is gone)."
         }
       ],
       "command": {
@@ -7155,6 +7159,25 @@
       "command": {
         "name": "crews-lens-child-takeover-recoverable-skip-gap",
         "prompts": {}
+      }
+    },
+    {
+      "id": "codex-bg-wake-payload-overflow-spill-to-file",
+      "scope": "codex",
+      "lifecycle": "tracked",
+      "status": "active",
+      "lastTouchedAt": "2026-06-11",
+      "kanbanCards": [
+        {
+          "className": "cmd-warn",
+          "html": "BRAINSTORM (operator 2026-06-11). The codex bg-completion wake payload (commit 7133aca92) carries process output INLINE with a head/tail cap, but (unlike Claude Code / Copilot) likely does NOT spill the truncated overflow to a FILE -- and since await_background_completion was deleted, overflow beyond the cap is LOST. Brainstorm file-spill-on-overflow parity: on truncation, persist full output to a file + give the agent a path/command to read it. CODEX SUBMODULE. Follow-up to codex-nonblocking-bg-completion-surfacing."
+        }
+      ],
+      "command": {
+        "name": "codex-bg-wake-payload-overflow-spill-to-file",
+        "prompts": {
+          "brainstorm": "Brainstorm: when the codex non-blocking background-completion wake payload TRUNCATES large process output, should it SPILL the full output to a FILE (with a path/command the agent can read), matching Claude Code + Copilot truncated-tool-output behavior?\n\nCONTEXT: codex-nonblocking-bg-completion-surfacing (commit 7133aca92) enriched the watcher wake payload to carry the process transcript INLINE with a sensible cap (mirroring the old await_background_completion truncation: a 1 MiB head/tail buffer). await_background_completion was DELETED, so the wake payload is now the ONLY way the agent sees the output. If output exceeds the cap, the truncated middle is LOST (no retrieval path) -- unlike Claude Code / Copilot, which write the FULL output to a file + give the agent a path/command to read the overflow.\n\nSTEP 1 -- CONFIRM current behavior (cite file:line in 7133aca92 / async_watcher.rs): does the enriched wake payload spill overflow to a file, or just truncate (head/tail) with a marker? (Expected: just truncates.)\nSTEP 2 -- DESIGN file-spill-on-overflow for parity with Claude Code / Copilot: on truncation, persist the FULL aggregated output to a file (session-scoped temp / ~/.codex / rollout path?) + include in the wake notification a clear \"[output truncated; full output at <path>]\" marker (and/or a command the agent can run to read it). Evaluate: where to write, lifecycle/cleanup, size limits, how the agent reads it (a tool vs a path it cats), and how Claude Code / Copilot implement their truncation-spill UX (reference for parity). Keep fork-tenet-1 overlay where possible; minimal upstream-canonical seam.\n\nDELIVERABLE: recommended direction + the confirmed current behavior. Brainstorm.json under .ralph/brainstorms/codex-bg-wake-payload-overflow-spill-to-file/."
+        }
       }
     }
   ],
