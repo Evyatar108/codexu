@@ -7113,6 +7113,23 @@
           "plan": "Investigate + FIX: codex executes crews hooks via (WSL) bash on Windows, mangling the Windows plugin path, so PreToolUse/PostToolUse hooks crash with \"exited with code 1\".\n\nTHE BUG (operator machine, repo C:\\TentedRepos, codex crews 3.21.3): codex runs the hook command (node ${CLAUDE_PLUGIN_ROOT}/hooks/codex-pre-tool-use.js) and it fails because the Windows path is executed under bash. Captured error: Cannot find module '/mnt/c/TentedRepos/C:Usersevmitran.codexpluginscacheai-developer-toolkitcrews3.21.3/hooks/codex-pre-tool-use.js' -- the backslashes were stripped (bash escapes) and the leftover resolved against the WSL cwd (/mnt/c/...). So the hook never loads -> exit 1 -> \"PreToolUse hook (failed)\". Codex hides the stderr behind the exit code (see it via ~/.codex/log codex logs / RUST_LOG / running the hook manually).\n\nSTEP 1 (confirm against SOURCE, cite file:line in the codex inner submodule core-plugins / hook executor): HOW does codex execute hooks on Windows? Does it shell out via `bash -c \"<cmd>\"` (a POSIX-first design)? Is there a win32 branch? Does it `spawn` node directly or always go through a shell? Operator EXPECTS PowerShell/cmd, not bash. On Windows a bare `bash` resolves to WSL's C:\\Windows\\System32\\bash.exe first on PATH (known gotcha) -> WSL bash -> /mnt/c mangling. Confirm whether the cause is (i) codex hardcoding bash, (ii) no win32 shell branch, or (iii) WSL-bash-first-on-PATH leaking in.\n\nSTEP 2 (FIX): make codex run hooks via the NATIVE Windows shell (PowerShell/cmd) on win32 -- or spawn node directly without a shell so the Windows backslash path works -- so a Windows ${CLAUDE_PLUGIN_ROOT} path loads correctly. Prefer fork-tenet-1 overlay placement; minimal upstream-canonical seam + SANDBOX PATCH markers + patch-surface entry if an upstream file must change. Add a regression test (a Windows-path hook command loads under the chosen execution path). Build/verify is LEAD-OWNED (codex overlay pin); cargo check --workspace locally.\n\nNOTE: the crews .codex-plugin/hooks/hooks.json command format is part of the surface -- if codex cannot avoid bash, a shell-portable command is the fallback fix layer; evaluate both and recommend. WORKTREE: codex inner submodule (+ crews .codex-plugin if the fallback). Do NOT git push / gh switch."
         }
       }
+    },
+    {
+      "id": "codex-hook-event-lifecycle-vs-crews-binding",
+      "scope": "codex",
+      "lifecycle": "tracked",
+      "status": "active",
+      "lastTouchedAt": "2026-06-11",
+      "kanbanCards": [
+        {
+          "className": "cmd-warn",
+          "html": "BUG/INVESTIGATION (operator 2026-06-11). In a live codex session a <code>SessionStart hook (completed)</code> fires when the operator sends a NEW message AFTER a Stop hook (after codex's last message) — NOT how Claude/Copilot work (SessionStart fires once at start + resume/clear/compact, never per message). READ-ONLY: confirm codex's SessionStart emission lifecycle + whether crews' once-per-session binding (session-start.js -> assignMemberRole) is SAFE under per-message re-emit (suspected contributor to the binding/identity weirdness). CODEX SUBMODULE + crews hooks."
+        }
+      ],
+      "command": {
+        "name": "codex-hook-event-lifecycle-vs-crews-binding",
+        "prompts": {}
+      }
     }
   ],
   "phaseTree": [
