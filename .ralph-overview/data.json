@@ -66,6 +66,10 @@
         {
           "className": "cmd-warn",
           "html": "FOLLOW-UP (operator, in flight): deep-dive the AUTOMATIC TURN-CONTINUATION loop — when the model stops with a goal active it continues into another turn. SPAWNED investigate-goal-autocontinue (copilot, read-only): pin the trigger (what detects turn-end + goal-not-done and re-enters), whether it's fully automatic, the EXACT <code>&lt;goal_context&gt;</code> content injected at continuation, the budget/stop conditions + loop termination, and upstream-vs-fork. Findings -> <code>.ralph/investigations/codex-goal-command/auto-continuation.md</code> (branch ralph/investigate-goal-autocontinue)."
+        },
+        {
+          "className": "cmd-ok",
+          "html": "AUTO-CONTINUATION DEEP-DIVE DONE @ <code>0f996651</code> (findings merged to main). <code>/goal</code> continuation is FULLY AUTOMATIC. Trigger: <code>Session::on_task_finished()</code> (<code>core/src/tasks/mod.rs</code>) records TurnFinished/emits TurnComplete/clears active_turn, then fires <code>GoalRuntimeEvent::MaybeContinueIfIdle</code> -> <code>maybe_start_goal_continuation_turn()</code> starts a FRESH turn with EMPTY user input (<code>RegularTask::new()</code> + <code>Vec::new()</code>) — no user action. Each continuation injects a hidden user-role <code>&lt;goal_context&gt;</code> from <code>core/templates/goals/continuation.md</code> (objective text + budget/accounting + keep-pursuing instructions). On <code>budget_limited</code> it injects the wrap-up prompt <code>core/templates/goals/budget_limit.md</code> instead and continuation stops (new turns require <code>goal.status == active</code>). NO max-continuation counter; termination is status/gate-based (complete/blocked/paused/usage_limited/budget_limited/cleared/plan-mode/pending-queued-input-or-mailbox/ephemeral-thread). Findings: <code>.ralph/investigations/codex-goal-command/auto-continuation.md</code>."
         }
       ],
       "command": {
