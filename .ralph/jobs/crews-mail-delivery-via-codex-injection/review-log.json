@@ -1,0 +1,19 @@
+[
+  {
+    "iteration": 1,
+    "phase": "synthesis",
+    "status": "converged",
+    "engine": "manual-3way",
+    "reviewers": [
+      "claude",
+      "codex",
+      "copilot"
+    ],
+    "summary": "3-way plan review converged in one pass. 8 findings total: 5 High (producer IPC/trigger model, reuse of the existing Stage-A bridge, session event-dispatch seam ownership, Codex MCP config/runtime shape, capability proof plus launcher enablement) and 3 Medium (version/cache bookkeeping, dedupe semantics, merge-time activation ordering). All 8 were resolved directly in draft-plan.md.",
+    "openCritical": 0,
+    "openHigh": 0,
+    "openMedium": 0,
+    "fixedCount": 8,
+    "note": "The plan was amended directly instead of running review-loop.mjs because the findings were concrete, source-verified, and localized to planning text. Raw reviewer artifacts are preserved as claude-plan-review.txt, codex-plan-review.txt, and copilot-plan-review.txt."
+  }
+]

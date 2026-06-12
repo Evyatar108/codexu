@@ -1,0 +1,80 @@
+**Codebase Architecture**
+
+This is a pnpm monorepo with fork-owned packages plus two major submodules. The relevant split is:
+
+- `codex/`: fork wrapper around the Rust Codex checkout at `codex/external/repos/codex-patched/codex-rs/`, plus fork-only overlay crates under `codex/codex-rs-overlay/`.
+- `ai-developer-toolkit/plugins/crews/`: JavaScript crews plugin, mostly hook-driven, with tests under `tests/`.
+- `packages/happy-cli/`: TypeScript prior art for durable mailbox wake handling, but not the raw Codex runtime being targeted.
+
+Codex is a Rust workspace. Relevant crates are `core`, `protocol`, `features`, `rmcp-client`, `codex-mcp`, and `core-plugins`. Crews is plain Node/CommonJS JavaScript and currently has no package-level `package.json`.
+
+**Feature-Relevant Code**
+
+Codex already has MCP notification ingress:
+
+- `codex/external/repos/codex-patched/codex-rs/features/src/lib.rs:204,1163` registers `Feature::McpServerNotifications`.
+- `codex/external/repos/codex-patched/codex-rs/core/src/session/mcp.rs:363` passes the flag into MCP setup.
+- `codex/external/repos/codex-patched/codex-rs/codex-mcp/src/rmcp_client.rs:510` constructs `NotificationBridge`.
+- `codex/codex-rs-overlay/codex-mcp-notification-bridge/src/bridge.rs:125` emits `EventMsg::McpServerNotification`.
+- `codex/external/repos/codex-patched/codex-rs/protocol/src/protocol.rs:1254,2287` defines the event and payload shape.
+- `codex/external/repos/codex-patched/codex-rs/core/src/session/turn.rs:1370` maps `McpServerNotification` to `None` for realtime text, so native Codex currently does not make notifications model-visible.
+
+The queued input/wake primitives already exist:
+
+- `codex/external/repos/codex-patched/codex-rs/core/src/session/input_queue.rs:82` queues `ResponseInputItem`s for the next turn.
+- `codex/external/repos/codex-patched/codex-rs/core/src/session/mod.rs:1110` exposes `request_pending_work_wake()`.
+- `codex/external/repos/codex-patched/codex-rs/core/src/unified_exec/async_watcher.rs:184-188` is the direct precedent: queue synthetic input, then wake pending work.
+- `codex/external/repos/codex-patched/codex-rs/core/src/tasks/mod.rs:553-568,918-922` shows pending-work turn behavior.
+
+Resource subscription is the likely missing Codex client piece. `rmcp-client/src/rmcp_client.rs` exposes generic `send_custom_request`, but no typed `resources/subscribe`; `mcp-server/src/message_processor.rs:302` only shows server-side subscribe handling.
+
+Codex plugin MCP config loading already exists:
+
+- `codex/external/repos/codex-patched/codex-rs/core-plugins/src/manifest.rs:28,242-245`
+- `codex/external/repos/codex-patched/codex-rs/core-plugins/src/loader.rs:699-717,979-1073`
+
+Crews currently exposes Codex hooks only, no MCP server:
+
+- `ai-developer-toolkit/plugins/crews/.codex-plugin/plugin.json`
+- `ai-developer-toolkit/plugins/crews/.codex-plugin/hooks/hooks.json`
+
+Mailbox/review source of truth:
+
+- `ai-developer-toolkit/plugins/crews/hooks/mailbox.js:544,638,714,721-722,768`
+- `ai-developer-toolkit/plugins/crews/hooks/commands/review-mail.js:220-298`
+- `ai-developer-toolkit/plugins/crews/hooks/actors.js:1432-1464`
+- `ai-developer-toolkit/plugins/crews/hooks/protocol/review-gate.js:46-48`
+
+Important non-reuse: `ai-developer-toolkit/plugins/crews/hooks/user-prompt-submit.js:70-90` implements `/wake`, but it drains mail and calls `markReviewed`; it must not become the new wake semantics.
+
+Listener gates to adjust only for Codex bridge health:
+
+- `ai-developer-toolkit/plugins/crews/hooks/pre-tool-use.js:590-618`
+- `ai-developer-toolkit/plugins/crews/hooks/stop.js:696,928`
+- `ai-developer-toolkit/plugins/crews/hooks/listener-protocol.js:240`
+
+**Technical Constraints**
+
+No MCP protocol change is needed. Option A, `notifications/resources/updated`, is the correct semantic shape, but should include `resources/subscribe` plumbing rather than relying on unsolicited updates. Option B, `notifications/message`, is a lower-effort fallback because Codex already bridges logging notifications, but it loses mailbox-resource semantics.
+
+The Codex consumer should be general, not crews-specific: gated by `Feature::McpServerNotifications`, MCP server name allowlist, notification kind, and ideally URI prefix such as `crews://mailbox/`. Generic MCP notifications must remain event-only.
+
+Do not implement this by editing only `realtime_text_for_event`; notifications currently enter through `tx_event`, and the bridge needs a session-owned consumer/callback/channel with access to `input_queue` and `request_pending_work_wake()`.
+
+Codex fork rules from `codex/CLAUDE.md:16-22`: prefer overlay/new files; every upstream-canonical edit needs `// SANDBOX PATCH:`, a `patch-surface.md` §14 invariant row, and §15 rebase note. Local verification should prefer `cargo check --workspace` and focused crate/invariant tests, not full `cargo test --workspace`.
+
+Crews constraints: no package-level `package.json`; adding an MCP SDK requires an explicit dependency/packaging plan. Otherwise keep the server dependency-free or local to the plugin packaging model. Verification is `node --check <changed-js-file>` and `node tests/run.js`.
+
+**Implementation Suggestions**
+
+Recommend Option A for v1: model a per-actor mailbox resource and emit `notifications/resources/updated { uri }`. Use Option B only as a fallback if `resources/subscribe` plumbing is deferred.
+
+Implementation order should be:
+
+1. Codex: add the notification-to-queued-input primitive, gated and allowlisted; add resource subscribe support for the crews mailbox URI; cover with invariant tests proving non-matching servers/kinds do not inject input.
+2. Crews: add a small MCP server and wire it through `.codex-plugin` MCP config; emit mailbox resource updates from the existing mailbox write chokepoints; add startup catch-up when `lastReviewRequiredSeq > lastReviewedSeq`.
+3. Crews gates: only after bridge health is detectable, relax listener reachability for Codex members. Keep Claude/Copilot unchanged. Keep review-required and strict-ack gates unchanged.
+
+V1 should target Codex members only. The Codex bridge can be role-neutral, but lead reachability has stricter semantics and today’s lead runtime is Copilot; enable Codex leads later with a dedicated smoke.
+
+Acceptance tests should prove: wake does not call `markReviewed`; only `review-mail` advances `lastReviewedSeq`; startup catch-up queues one hint; matching MCP notifications queue next-turn input; active turns are not preempted; rollback is just disabling the crews MCP server entry/feature gate while listener gates remain available.

@@ -1,0 +1,67 @@
+I’ll read the referenced prompt file first, then carry out the task it contains.
+
+I’ve got the research-mode prompt; I’ll inspect the referenced Codex and crews surfaces without changing files.
+
+The initial repo-relative glob didn’t resolve in this worktree, so I’m checking the actual checkout layout before reading the relevant files.
+
+I’ll read the directory listing output and then target the actual paths from this plan worktree.
+
+I have the crews hook/manifest surfaces now; I’ll inspect the Codex notification and input-queue seams plus package metadata to ground the architecture summary.
+
+I’m going to check the MCP registration examples and Codex patch-surface notes so the recommendations include the required wiring and rebase obligations.
+
+I’ll read the remaining narrow seams for mailbox writes, SessionStart, and Codex feature/patch registration, then return the research analysis.
+
+I’ve finished the targeted read-only investigation and will provide the plan-research findings now.### Codebase Architecture
+
+This work spans two repos inside the codexu worktree:
+
+1. **`ai-developer-toolkit/plugins/crews/`** — JavaScript plugin with hook entrypoints, command modules, file-backed `.crews` state, generated skills, and Codex/Claude/Copilot plugin manifests. There is no package-level build; validation is via `node tests/run.js` and `node --check`.
+2. **`codex/` submodule** — Rust Codex fork. Upstream-canonical Rust lives under `codex/external/repos/codex-patched/codex-rs/`; fork-local additions prefer `codex/codex-rs-overlay/`. Any upstream-canonical edit needs `// SANDBOX PATCH`, a `docs/implementation/patch-surface.md` entry, and rebase notes.
+
+The Happy CLI code under `packages/happy-cli/src/codex/` is useful prior art only; raw Codex sessions do not use its TypeScript notification consumer.
+
+### Feature-Relevant Code
+
+**Crews producer / mailbox truth:**
+
+- `ai-developer-toolkit/plugins/crews/.codex-plugin/plugin.json:1-19` currently declares hooks only; no `mcpServers`.
+- `ai-developer-toolkit/plugins/crews/.codex-plugin/hooks/hooks.json:1-60` wires Codex hooks.
+- `hooks/mailbox.js:441-497` is the mailbox write chokepoint. `appendMailbox`, `appendSystemMailbox`, and `appendOperatorMailbox` all route through `appendMailboxWithSender`, making it the natural place to emit a wake notification after successful durable write.
+- `hooks/mailbox.js:638-690` shows `consumeMailbox` owns mailbox draining and preserves listener epoch fencing. The MCP wake must not drain here.
+- `hooks/commands/review-mail.js:209-317` is the cursor-advance path. Only non-peek review advances `lastReviewedSeq`; this should remain the ack/review authority.
+- `hooks/actors.js:1432-1474` `markReviewed` preserves monotonic cursor advancement.
+- `hooks/pre-tool-use.js:590-635` and `hooks/stop.js:745-750` enforce listener reachability today and are the codex-only relaxation sites.
+- `hooks/session-start.js:333-430` is the SessionStart path for codex binding and briefing injection; startup catch-up for pending mail belongs near this lifecycle surface.
+
+**Codex consumer / notification bridge:**
+
+- `core/src/session/input_queue.rs:82-88` queues `ResponseInputItem`s for the next turn.
+- `core/src/unified_exec/async_watcher.rs:166-189` is the exact precedent: synthesize a user message, call `queue_response_items_for_next_turn(...)`, then `request_pending_work_wake()`.
+- `core/src/session/turn.rs:1291-1371` currently maps `EventMsg::McpServerNotification(_)` to `None`; raw Codex sees the event but does not turn it into model-visible input.
+- `codex-rs-overlay/codex-mcp-notification-bridge/src/bridge.rs:109-163` forwards standard MCP notifications into `EventMsg::McpServerNotification`.
+- `rmcp-client/src/logging_client_handler.rs:58-177` forwards resource/list/tool/prompt/log/progress/cancel notifications.
+- `protocol/src/protocol.rs:2270-2294` defines `McpNotificationKind` and `McpServerNotificationEvent`.
+- `features/src/lib.rs:1161-1171` gates this under `Feature::McpServerNotifications`, default off.
+- `rmcp-client/src/rmcp_client.rs` exposes `read_resource` and `send_custom_request`; there is no typed client `resources/subscribe`.
+
+### Technical Constraints
+
+No MCP protocol change is needed. Codex already bridges standard MCP server notifications, but raw Codex lacks the final native consumer that converts an allowlisted notification into queued next-turn input.
+
+For the producer shape, **Option A (`notifications/resources/updated`) is semantically best**, because it models “mailbox resource changed.” However, spec-native Option A needs `resources.subscribe` support and client-side subscription plumbing. **Option B (`notifications/message`) is smaller**, because Codex already forwards logging notifications and no subscribe flow is required, but it is semantically weaker and lacks a mailbox URI/read-after-notify contract.
+
+Crews must preserve strict review semantics: wake notification is only a hint; `.crews` mailbox history and `review-mail`/`markReviewed` remain the only review cursor path.
+
+Codex fork constraints are significant: prefer overlay/new-file placement; any unavoidable upstream-canonical seam must be tiny, marked `SANDBOX PATCH`, documented in `patch-surface.md`, and covered by an invariant/test.
+
+### Implementation Suggestions
+
+Plan a two-repo implementation with ordering:
+
+1. **Crews MCP producer first:** add `.mcp.codex.json` plus `mcpServers` in `.codex-plugin/plugin.json`; implement a tiny MCP server that exposes a mailbox resource/read or drain hint and emits a wake after successful `appendMailboxWithSender` writes. Startup catch-up should check `lastReviewRequiredSeq > lastReviewedSeq` and emit/inject one wake hint, never mark reviewed.
+2. **Codex native consumer second:** add a small allowlisted notification consumer, preferably in a new module/crate or tiny upstream seam, gated by server name and `McpNotificationKind`. For crews, synthesize a fixed prompt such as “you have pending crews mail; run review-mail to drain,” queue it via `InputQueue`, and call `request_pending_work_wake()`.
+3. **Hook gate relaxation third:** for `manifest.engine === "codex"` and “bridge healthy,” skip listener-arm-first reachability blocks, but keep review-required and strict-ack gates unchanged.
+
+Recommendation: **ship Option A if planning can include subscribe plumbing; otherwise explicitly choose Option B as v1 with a documented migration to resource updates.** The plan should prefer Option A for correctness, but call out the extra Codex client subscription work as the main scope increase.
+

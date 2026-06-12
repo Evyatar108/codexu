@@ -1,0 +1,50 @@
+I’ll read the referenced prompt and then carry out its instructions.
+
+The prompt is larger than the file viewer’s one-shot limit, so I’m reading it in sections.
+
+I’m switching from reading the prompt to verifying the plan against the referenced code surfaces.
+
+I found existing Codex MCP-notification bridge code in the worktree, so I’m checking whether the plan is stale or accurately builds on current state.
+
+I’m checking Codex’s plugin manifest conventions and notification payload shape so the review can flag concrete implementation risks rather than speculate.
+
+The main convention issue looks likely to be the Codex plugin MCP config path, so I’m narrowing to the plugin loader and a few current hook files.
+
+I’m reading the actual plugin-loader crate now; that determines whether the plan’s `.codex-plugin\.mcp.codex.json` target would be loaded.
+
+I’m inspecting the shared Codex plugin loader directly, because its path resolution is the strongest feasibility check for the plan.
+
+I have enough to assess feasibility, but I’m checking one more loader slice to confirm the `./...` path rule and default MCP location.
+
+I’m checking current crews launcher and gate code to see whether the proposed capability flag has a concrete stamping point in the plan’s file list.
+
+### Feasibility
+
+[High] The plan’s crews MCP config path is likely wrong. Codex plugin manifests require paths to start with `./` and resolve relative to the plugin root (`core-plugins/src/manifest.rs`, `loader.rs`). Existing toolkit Codex plugins use `plugins\<name>\.mcp.codex.json` with `"mcpServers": "./.mcp.codex.json"`, not `plugins\crews\.codex-plugin\.mcp.codex.json`. As written, the file list risks creating a config that Codex never loads.
+
+[High] The capability flag has no listed launch stamping site. `CREWS_CODEX_WAKE_BRIDGE=1` must be set by the codex member launcher, but the crews files list omits `hooks\actors.js`, where codex launcher env and `-c` flags are actually emitted. Without updating both `buildLauncherCommand` and `buildLauncherInvocation`, `Feature::McpServerNotifications` and the proof flag may never be active.
+
+[High] The crews-side wake producer lacks an IPC/trigger design. `appendMailboxWithSender(...)` runs in hook/CLI subprocesses, while the Codex MCP server is a separate long-lived stdio process. The plan says “after a successful durable mailbox write, emit” but does not specify whether the MCP server watches mailbox files, consumes a side-channel queue, or is otherwise signaled. A separate process cannot send notifications on the already-connected MCP transport just because `mailbox.js` ran.
+
+### Completeness
+
+[High] Add version-bump files to the crews job. The plan mentions `CHANGELOG.md` but not the six required version stamps updated by `plugins\crews\scripts\bump-version.js` (`.claude-plugin`, `.github/plugin`, `.codex-plugin`, and three marketplace indexes) nor `tests\version.test.js`. Installed-path dogfood is an AC, and stale plugin versions are a known cache/update failure mode.
+
+[Medium] The plan should state how the crews MCP server is implemented without new package assumptions. `plugins\crews` is JavaScript-only and has no package-level `package.json`; adding an MCP SDK dependency would be a packaging change. Either specify a dependency/package update or require a minimal stdio JSON-RPC implementation.
+
+[Medium] Reuse the existing Codex MCP notification bridge. `codex\codex-rs-overlay\codex-mcp-notification-bridge` already converts rmcp `LoggingMessage` notifications into `EventMsg::McpServerNotification`; the plan’s “new overlay helper/crate” wording risks duplicate/crisscross ownership. The new work should likely add a consumer/route helper adjacent to the existing bridge, not create another bridge crate.
+
+### Ordering
+
+[High] US-003 cannot safely wait only on US-001/US-002 unless it also verifies the launcher cache/config path. The gate relaxation depends on three things simultaneously: MCP server loaded, `Feature::McpServerNotifications` enabled, and capability flag stamped. Make the launcher/config proof a prerequisite before relaxing PreToolUse/Stop.
+
+### Simplicity
+
+[Medium] The plan overstates “exactly one wake” without defining dedupe boundaries. Startup catch-up plus a file-watch/mailbox-write wake can race and produce duplicate prompts unless there is a per-session pending-wake latch or explicit “at least once, idempotent prompt” contract. Either weaken the AC or add dedupe design.
+
+### Acceptance Criteria Quality
+
+[High] “Crews emits one wake after successful durable mailbox writes” is not independently testable until the triggering mechanism is specified. Add ACs for the chosen mechanism, e.g. file watcher observes mailbox append, side-channel queue row consumed once, or hook appends a wake record read by the MCP server.
+
+[Medium] “Installed-path dogfood” should name the exact commands and expected config state: `codex plugin marketplace add ...`, `codex plugin add crews@ai-developer-toolkit`, confirm the installed cache contains the new `mcpServers` config, then spawn a codex member with the bridge flag and feature enabled.
+

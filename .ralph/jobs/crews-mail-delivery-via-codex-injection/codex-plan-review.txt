@@ -1,0 +1,37 @@
+### Feasibility
+
+[High] US-002’s producer path is under-specified enough to be non-implementable as written. [mailbox.js](D:/harness-efforts/codexu/.ralph/jobs/crews-mail-delivery-via-codex-injection/worktree/plan/ai-developer-toolkit/plugins/crews/hooks/mailbox.js:441) runs in short-lived hook/command processes, while a Codex MCP server would be a separate long-lived process connected to Codex over stdio. The plan says mailbox writes should “emit” MCP notifications, but does not define the IPC mechanism from `appendMailboxWithSender(...)` to that MCP server. It needs a concrete wake queue/file-watch/socket/polling design and dedupe key.
+
+[High] The Codex side is stale around existing infrastructure. `codex/codex-rs-overlay/codex-mcp-notification-bridge/src/lib.rs` already exists, `rmcp-client/src/logging_client_handler.rs` already forwards notifications into it, and [turn.rs](D:/harness-efforts/codexu/.ralph/jobs/crews-mail-delivery-via-codex-injection/worktree/plan/codex/external/repos/codex-patched/codex-rs/core/src/session/turn.rs:1370) currently drops `EventMsg::McpServerNotification(_)`. The implementation should extend the existing bridge and session consumer, not create a new overlay crate or duplicate patch-surface invariant 25.
+
+[High] The Codex plugin MCP manifest contract is ambiguous. [manifest.rs](D:/harness-efforts/codexu/.ralph/jobs/crews-mail-delivery-via-codex-injection/worktree/plan/codex/external/repos/codex-patched/codex-rs/core-plugins/src/manifest.rs:28) models `mcpServers` as `Option<String>`, i.e. a path to a config file, and [loader.rs](D:/harness-efforts/codexu/.ralph/jobs/crews-mail-delivery-via-codex-injection/worktree/plan/codex/external/repos/codex-patched/codex-rs/core-plugins/src/loader.rs:699) falls back only to root `.mcp.json`. If the plan creates `.codex-plugin/.mcp.codex.json`, `.codex-plugin/plugin.json` must explicitly set `"mcpServers": "./.codex-plugin/.mcp.codex.json"`; inline `mcpServers` would not work.
+
+[High] The explicit bridge capability flag cannot be stamped without editing the spawn launcher. Existing codex launch code in [actors.js](D:/harness-efforts/codexu/.ralph/jobs/crews-mail-delivery-via-codex-injection/worktree/plan/ai-developer-toolkit/plugins/crews/hooks/actors.js:342) only adds sandbox and terminal-title config; it does not enable `Feature::McpServerNotifications` or export `CREWS_CODEX_WAKE_BRIDGE=1`. The plan’s file list omits `hooks/actors.js`.
+
+### Completeness
+
+[High] Missing crews-side tests. The plan should require focused tests for mailbox wake signaling, startup catch-up, no mutation of `lastReviewedSeq`, PreToolUse bridge-flag behavior, Stop bridge-flag behavior, and briefing golden updates. Current acceptance relies too much on live dogfood.
+
+[Medium] Missing plugin version/cache bookkeeping. Crews has `.claude-plugin/plugin.json`, `.github/plugin/plugin.json`, `.codex-plugin/plugin.json`, marketplace metadata, and `scripts/bump-version.js`; editing only the Codex manifest risks installed-cache dogfood using stale code.
+
+[Medium] Prompt synthesis is underspecified. The wake prompt should name the exact action Codex can execute, likely `/crews:review-mail` or the CLI equivalent, and tests should assert that string.
+
+### Ordering
+
+[High] US-002 is marked dependency-free, but the producer and consumer must share an exact `{serverName, kind}` and payload contract before either can be verified. Parallel work is only safe if US-001 first emits a route-contract fixture or test vector.
+
+[Medium] US-003 must depend on the launcher/capability stamping work, not only on US-001 and US-002. Gate relaxation before reliable stamping would either remain inactive or relax on an untrusted signal.
+
+### Simplicity
+
+[Medium] Reuse the existing `codex-mcp-notification-bridge` crate and `EventMsg::McpServerNotification` flow. The simplest Codex change is a small allowlist consumer at the existing drop site, plus tests in the existing bridge/invariant-test crates.
+
+### Acceptance Criteria Quality
+
+[High] “Exactly one wake” is not testable without defining the unit of dedupe: per mailbox append, per inbox seq, per actor, or per unread state. Define restart and retry behavior.
+
+[Medium] “Installed-path dogfood” needs exact commands and observations: refresh Codex plugin cache, enable feature, spawn codex member, send mail, observe wake prompt, run review-mail, verify manifest cursor and no listener block.
+
+[Medium] “Claude/Copilot behavior unchanged” should name required regression tests or golden snapshots.
+
+No prior review cycles or amendments were mentioned.

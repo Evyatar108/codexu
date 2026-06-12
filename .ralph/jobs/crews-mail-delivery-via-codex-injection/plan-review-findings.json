@@ -1,0 +1,133 @@
+{
+  "planFile": "D:/harness-efforts/codexu/.ralph/jobs/.staging/20260612T094026Z-plan-mailinject-9c28d688/draft-plan.md",
+  "repoDir": "D:/harness-efforts/codexu",
+  "reviewCycle": 1,
+  "findings": [
+    {
+      "id": "F-001",
+      "severity": "High",
+      "source": "consensus",
+      "category": "Feasibility",
+      "sectionRef": "Approach > Crews-side producer",
+      "description": "The producer path was under-specified because mailbox writes run in short-lived hook/CLI processes while the Codex MCP server is a separate long-lived stdio process. The plan needed a concrete trigger model instead of direct hook-to-server 'emit' wording.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Reworked the producer into a Node.js stdio MCP server that watches durable actor state (`mailbox.json` plus manifest/review fields), writes a ready stamp after MCP initialization, performs startup catch-up only after the ready stamp exists, and emits deduped wakes per unread generation. Hooks no longer need direct IPC into the server.",
+      "relevantFiles": [
+        "ai-developer-toolkit/plugins/crews/.mcp.codex.json",
+        "ai-developer-toolkit/plugins/crews/launch.cmd"
+      ],
+      "suggestedFix": "Specify a watched durable-state producer and the dedupe boundary."
+    },
+    {
+      "id": "F-002",
+      "severity": "High",
+      "source": "consensus",
+      "category": "Feasibility",
+      "sectionRef": "Approach > Codex-side general wake primitive",
+      "description": "The draft's 'new overlay helper/crate' wording ignored the existing Stage-A `codex-mcp-notification-bridge` crate and risked a redundant second bridge surface.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "The plan now extends `codex-rs-overlay/codex-mcp-notification-bridge` with a consumer module rather than proposing a second bridge crate.",
+      "relevantFiles": [
+        "codex/codex-rs-overlay/codex-mcp-notification-bridge/src/consumer.rs"
+      ],
+      "suggestedFix": "Extend the existing Stage-A bridge instead of creating another overlay bridge crate."
+    },
+    {
+      "id": "F-003",
+      "severity": "High",
+      "source": "consensus",
+      "category": "Completeness",
+      "sectionRef": "Approach > Codex-side general wake primitive",
+      "description": "The queue-side consumer seam was not constrained tightly enough, making `realtime_text_for_event()` the most likely wrong implementation target.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "The plan now explicitly requires the consumer to live in the session event-dispatch path and forbids placing queue-side effects in `realtime_text_for_event()`; it cites the existing `async_watcher.rs:166-189` queue-then-wake precedent.",
+      "relevantFiles": [
+        "codex/external/repos/codex-patched/codex-rs/core/src/session/turn.rs"
+      ],
+      "suggestedFix": "Prescribe the session event-dispatch seam and make the `realtime_text_for_event()` anti-pattern explicit."
+    },
+    {
+      "id": "F-004",
+      "severity": "High",
+      "source": "consensus",
+      "category": "Feasibility",
+      "sectionRef": "Files to Create/Modify; US-002",
+      "description": "The Codex MCP config path and runtime shape were ambiguous. The plan used `.codex-plugin/.mcp.codex.json`, but Codex plugin manifests load `mcpServers` from a path string relative to the plugin root, and the server runtime/entrypoint were unspecified.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "The plan now uses plugin-root wiring (`\"mcpServers\": \"./.mcp.codex.json\"`), adds a plugin-root `launch.cmd`/stdio entrypoint, and states that the MCP server is a Node.js stdio process rather than a hook-side inline server.",
+      "relevantFiles": [
+        "ai-developer-toolkit/plugins/crews/.codex-plugin/plugin.json",
+        "ai-developer-toolkit/plugins/crews/.mcp.codex.json",
+        "ai-developer-toolkit/plugins/crews/launch.cmd"
+      ],
+      "suggestedFix": "Use root `.mcp.codex.json` plus a stable stdio launch entrypoint."
+    },
+    {
+      "id": "F-005",
+      "severity": "High",
+      "source": "consensus",
+      "category": "Ordering",
+      "sectionRef": "Approach > Capability proof; US-003",
+      "description": "Gate relaxation depended on a capability proof that had no concrete stamping site, and the file list omitted `hooks/actors.js`, where Codex launcher flags are emitted.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "The plan now makes `hooks/actors.js` part of US-003, requires it to launch codex members with `-c features.mcp_server_notifications=true`, and ties gate relaxation to a current-session ready stamp written by the MCP server after initialization succeeds.",
+      "relevantFiles": [
+        "ai-developer-toolkit/plugins/crews/hooks/actors.js",
+        "ai-developer-toolkit/plugins/crews/hooks/pre-tool-use.js",
+        "ai-developer-toolkit/plugins/crews/hooks/stop.js"
+      ],
+      "suggestedFix": "Add the launcher seam and replace engine-only gating with a ready-stamp proof."
+    },
+    {
+      "id": "F-006",
+      "severity": "Medium",
+      "source": "consensus",
+      "category": "Completeness",
+      "sectionRef": "Files to Create/Modify; Acceptance Criteria",
+      "description": "The draft omitted required crews version/cache bookkeeping even though installed-path dogfood was an acceptance criterion.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "The plan now includes `scripts/bump-version.js`, `tests/version.test.js`, and an explicit acceptance criterion that version and marketplace stamps are updated in the same ship.",
+      "relevantFiles": [
+        "ai-developer-toolkit/plugins/crews/scripts/bump-version.js",
+        "ai-developer-toolkit/plugins/crews/tests/version.test.js"
+      ],
+      "suggestedFix": "Call out the version-bump surfaces and make them part of the acceptance contract."
+    },
+    {
+      "id": "F-007",
+      "severity": "Medium",
+      "source": "consensus",
+      "category": "Criteria Quality",
+      "sectionRef": "Approach > Crews-side producer; Acceptance Criteria",
+      "description": "The original 'exactly one wake' language was not testable because the dedupe unit was undefined and startup catch-up could race steady-state watch notifications.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "The plan now defines the dedupe boundary as one wake per unread generation keyed by `lastReviewRequiredSeq`, with startup catch-up emitted only after the current-session ready stamp exists.",
+      "relevantFiles": [
+        "ai-developer-toolkit/plugins/crews/.mcp.codex.json"
+      ],
+      "suggestedFix": "Define the dedupe key and startup sequencing explicitly."
+    },
+    {
+      "id": "F-008",
+      "severity": "Medium",
+      "source": "codex",
+      "category": "Ordering",
+      "sectionRef": "Suggested Decomposition > crews-mcp-producer",
+      "description": "Parallel Phase-1 development was fine, but merge activation of the producer needed a stronger rule so wakes are not emitted before the Codex consumer is available in the installed runtime.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "The producer cluster now states that `plugin.json` `mcpServers` activation should not land on main until the Codex consumer is installed and dogfood-ready, even if the code is developed in parallel.",
+      "relevantFiles": [
+        "ai-developer-toolkit/plugins/crews/.codex-plugin/plugin.json"
+      ],
+      "suggestedFix": "Separate code development parallelism from merge-time activation."
+    }
+  ]
+}

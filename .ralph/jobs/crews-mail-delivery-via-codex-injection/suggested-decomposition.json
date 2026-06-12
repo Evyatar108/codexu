@@ -1,0 +1,65 @@
+{
+  "clusters": [
+    {
+      "name": "codex-general-wake-bridge",
+      "stories": [
+        "US-001"
+      ],
+      "phase": 1,
+      "dependsOn": [],
+      "fileOverlapEvidence": {
+        "sharedFiles": [],
+        "exclusiveFiles": [
+          "codex\\external\\repos\\codex-patched\\codex-rs\\core\\src\\session\\*",
+          "codex\\codex-rs-overlay\\*",
+          "codex\\docs\\implementation\\patch-surface.md"
+        ],
+        "risk": "medium"
+      },
+      "executionModeRationale": "This cluster is isolated to the Codex repo and can run independently as long as it keeps the wake logic overlay-first and the upstream-canonical seam additive."
+    },
+    {
+      "name": "crews-mcp-producer",
+      "stories": [
+        "US-002"
+      ],
+      "phase": 1,
+      "dependsOn": [],
+      "fileOverlapEvidence": {
+        "sharedFiles": [],
+        "exclusiveFiles": [
+          "ai-developer-toolkit\\plugins\\crews\\.mcp.codex.json",
+          "ai-developer-toolkit\\plugins\\crews\\launch.cmd",
+          "ai-developer-toolkit\\plugins\\crews\\.codex-plugin\\plugin.json",
+          "ai-developer-toolkit\\plugins\\crews\\server\\*"
+        ],
+        "risk": "medium"
+      },
+      "executionModeRationale": "The producer lives in a different repo surface from the Codex consumer, so it can be implemented in parallel while the Codex branch is under development. The mcpServers activation should not land on main until the Codex consumer is installed and dogfood-ready."
+    },
+    {
+      "name": "crews-gate-relaxation-and-dogfood",
+      "stories": [
+        "US-003"
+      ],
+      "phase": 2,
+      "dependsOn": [
+        "codex-general-wake-bridge",
+        "crews-mcp-producer"
+      ],
+      "fileOverlapEvidence": {
+        "sharedFiles": [
+          "ai-developer-toolkit\\plugins\\crews\\hooks\\actors.js",
+          "ai-developer-toolkit\\plugins\\crews\\hooks\\pre-tool-use.js",
+          "ai-developer-toolkit\\plugins\\crews\\hooks\\stop.js",
+          "ai-developer-toolkit\\plugins\\crews\\hooks\\briefing\\*",
+          "ai-developer-toolkit\\plugins\\crews\\AGENTS.md",
+          "ai-developer-toolkit\\plugins\\crews\\CHANGELOG.md"
+        ],
+        "exclusiveFiles": [],
+        "risk": "high"
+      },
+      "executionModeRationale": "This cluster must wait for both the producer and the Codex consumer because the listener-gate relaxation is safe only after the bridge can be proven active and the installed-path dogfood can run."
+    }
+  ]
+}

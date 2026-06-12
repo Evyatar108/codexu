@@ -1,0 +1,20 @@
+### Findings
+
+[High] The producer side needed a concrete cross-process trigger model. `appendMailboxWithSender(...)` runs in short-lived hook/CLI processes, while the Codex MCP server is a separate long-lived stdio process, so "emit a wake on mailbox write" needed a durable-state watch design instead of direct hook-to-server IPC.
+
+[High] The Codex side should extend the existing `codex-mcp-notification-bridge` surface rather than introducing a second redundant overlay bridge. The missing work is the consumer that acts on `EventMsg::McpServerNotification`, not a replacement for Stage-A ingress.
+
+[High] The plan needed to forbid putting queue-side effects inside `realtime_text_for_event()`. That function is the UI-text sink; the wake consumer belongs in the session event-dispatch path using the existing queue-then-wake precedent.
+
+[Medium] The bridge-proof path needed to name the launcher/config seam explicitly. `hooks\actors.js` must enable `features.mcp_server_notifications=true` on the codex launch path, and the MCP server needs a current-session ready stamp so PreToolUse / Stop relax only when the bridge is actually alive.
+
+[Medium] The producer activation order needed a stronger merge guard. The crews plugin's `mcpServers` activation should not land on main until the Codex consumer is installed and dogfood-ready, otherwise wakes would be emitted into a runtime that still drops them.
+
+### Resolution
+
+All of the above were adopted into `draft-plan.md`:
+- producer re-scoped to a Node.js stdio MCP server that watches durable state and writes a ready stamp;
+- Codex consumer re-scoped to an extension of `codex-mcp-notification-bridge`;
+- the session event-dispatch seam was prescribed explicitly and `realtime_text_for_event()` was made an anti-pattern;
+- `hooks\actors.js`, root `.mcp.codex.json`, `launch.cmd`, version-bump files, and installed-path cache-refresh steps were added to the plan;
+- the parallel-development vs merge-activation rule was clarified for the crews producer cluster.
