@@ -49,6 +49,25 @@
   "generatedFromCommit": "32fdb9de",
   "tasks": [
     {
+      "id": "codex-v1-agent-thread-limit-not-released-on-completion",
+      "scope": "codex",
+      "lifecycle": "tracked",
+      "status": "active",
+      "lastTouchedAt": "2026-06-12",
+      "kanbanCards": [
+        {
+          "className": "cmd-warn",
+          "html": "BUG (operator 2026-06-12). v1 (Collab) multi-agent spawn fails with &quot;Agent spawn failed&quot; + &quot;the agent-thread limit is still reached, so I can&#39;t spawn this round right now&quot; even when NO agents are running (they already finished). KEY OBSERVATION: the agent-thread limit counter is apparently NOT released/decremented when a v1 agent COMPLETES, so the limit stays saturated for the rest of the session and blocks every future spawn. Reproduced in a plain codex session (C:\\TentedRepos\\research\\sydney-outer-loop-context-management), NOT crews/ralph-related -- so it is a general codex/fork bug. READ-ONLY investigation first: root-cause the limit accounting + determine fork-introduced vs upstream + whether v2 is affected too."
+        }
+      ],
+      "command": {
+        "name": "codex-v1-agent-thread-limit-not-released-on-completion",
+        "prompts": {
+          "investigate": "READ-ONLY investigation (CODEX submodule). Make NO code edits except the findings deliverable; run on a pre/post working-tree snapshot + revert guard.\n\nBUG: v1 (Collab) multi-agent spawning fails with \"Agent spawn failed\" and \"the agent-thread limit is still reached, so I can't spawn this round right now\" EVEN WHEN no agents are currently running (they already finished). Observed in a plain codex session (not crews/ralph). Working hypothesis: the concurrent-agent-thread limit counter is incremented on spawn but NOT decremented when an agent completes / aborts / errors, so the limit saturates permanently for the session.\n\nSTEP 1 -- LOCATE THE LIMIT (cite file:line): find where the agent-thread limit (max concurrent agent threads) is defined and enforced for the v1 Collab path. Look under codex-rs/core/src/tools/handlers/ (the Collab/v1 spawn handler) and any agent-thread registry/semaphore/counter. Identify the exact check that emits the \"agent-thread limit is still reached\" error.\nSTEP 2 -- TRACE INCREMENT vs RELEASE: where is a thread slot ACQUIRED (on spawn) and where is it RELEASED (on agent completion / abort / error)? Is the release path present and correct, or does a finished agent fail to free its slot (the leak)? Check all completion/termination paths (success, cancel, error, parent-turn-end).\nSTEP 3 -- FORK vs UPSTREAM: is this leak fork-introduced (e.g. the fork subagent gate/filter at tool_config.rs:223-228, or the plugin-scope-axis edit) or upstream-native? This matters for divergence tracking (cross-reference codex/docs/implementation/patch-surface.md) and for where to fix / whether to report upstream.\nSTEP 4 -- V2 SCOPE: does the same leak affect the v2 MultiAgentV2 path, or is it v1 (Collab) only?\n\nDELIVERABLE: findings.md under .ralph/investigations/codex-v1-agent-thread-limit-not-released-on-completion/ with the limit location, the increment/release trace, the root cause, a fix recommendation, the fork-vs-upstream verdict, and the v1-vs-v2 scope. Report kind=done with the root cause + fix rec + fork/upstream verdict."
+        }
+      }
+    },
+    {
       "id": "codex-patch-surface-divergence-registry-refresh",
       "scope": "codex",
       "lifecycle": "tracked",
