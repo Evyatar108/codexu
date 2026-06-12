@@ -58,6 +58,10 @@
         {
           "className": "cmd-warn",
           "html": "RESEARCH (operator 2026-06-12). Read the Claude Code &quot;workflows&quot; docs (<code>https://code.claude.com/docs/en/workflows</code>), enumerate each documented workflow feature, and check whether codex CLI (our fork) has a MATCHING feature. Produce a parity matrix (feature / Claude Code behavior / codex equivalent yes-partial-no / file:line evidence or gap) + flag which gaps are worth filing as follow-up tasks. READ-ONLY investigation (web + codex source); snapshot+revert guard. SPAWNED member."
+        },
+        {
+          "className": "cmd-ok",
+          "html": "RESEARCH DONE (2026-06-12, read-only member research-workflows-parity; findings @ .ralph/investigations/codex-cli-vs-claude-code-workflows-parity/findings.md). Enumerated <strong>17</strong> Claude Code workflow capabilities. Codex parity: <strong>0 YES / 8 PARTIAL / 9 NO</strong>. Codex HAS strong ADJACENT primitives (Plan mode, upstream-native multi-agent/subagent tools, background terminals, resume/fork, exec + Python/TypeScript SDKs) but NO first-class WORKFLOW PRODUCT equivalent to Claude&#39;s JS workflow runtime, the <code>/workflows</code> run browser, ultracode triggers, saveable workflow commands, or same-session workflow resume. TOP GAPS worth filing (recommendations only -- operator decides): (1) workflow MVP on MultiAgentV2 + persisted run metadata + a /workflows UI; (2) prompt-triggered / ultracode-equivalent orchestration; (3) saveable reusable workflows; (4) a bundled deep-research workflow; (5) workflow-specific approval/policy; (6) resume semantics with cached completed-agent results. AWAITING operator decision on which gaps (if any) to file as follow-up tasks."
         }
       ],
       "command": {
