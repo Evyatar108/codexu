@@ -49,6 +49,44 @@
   "generatedFromCommit": "32fdb9de",
   "tasks": [
     {
+      "id": "crews-mail-delivery-via-codex-injection",
+      "scope": "crews|codex",
+      "lifecycle": "tracked",
+      "status": "active",
+      "lastTouchedAt": "2026-06-12",
+      "kanbanCards": [
+        {
+          "className": "cmd-warn",
+          "html": "BRAINSTORM-first (operator 2026-06-12; PRIORITIZE next batch). GOAL: deliver crews mailbox events into a CODEX member/lead session ASYNC via codex&#39;s native message-injection (the same path that surfaces background-process completions / the MCP-server-notification -&gt; prompt-queue), so codex actors no longer need the hook-enforced listener-arm loop -- mail &quot;just arrives&quot; in-conversation. Substrate already MERGED: codex-nonblocking-bg-completion-surfacing (.4, Op::WakePendingWork), codex-channels-option-b (EventMsg::McpServerNotification -&gt; prompt-queue), mcp-server-notifications, async-events-design D-002 (durable mailbox + channel-wake), agent-comms. The integration itself is UNFILED until now. HEAVY multi-lens (cross-cutting codex-fork + crews) -&gt; run brainstorm on copilot engine. Minimize codex-fork upstream conflict (fork tenet)."
+        }
+      ],
+      "command": {
+        "name": "crews-mail-delivery-via-codex-injection",
+        "prompts": {
+          "brainstorm": "Brainstorm: route crews mailbox deliveries into a CODEX session ASYNC via codex native message-injection, so codex members + a codex-engine lead no longer need the crews hook-enforced background listener-arm loop. Mail should surface in-conversation as a queued prompt the moment it is written, while the operator keeps interacting.\n\nPRIOR ART (all MERGED -- read findings/commits, do not re-derive):\n- codex-nonblocking-bg-completion-surfacing (shipped codex .4, commit 7133aca92 / 6be47698): BackgroundProcessNotification self-wake via Op::WakePendingWork drops the blocking await_background_completion and wakes the turn when a tracked background PROCESS completes. NOTE: the crews listener IS a background process today, so its exit could already wake a codex turn -- but the goal is LISTENER-LESS.\n- codex-channels-option-b (merged): EventMsg::McpServerNotification -> prompt-queue surface. Most promising seam for an ARBITRARY external event (crews mail is not a tracked bg process).\n- mcp-server-notifications (Stage A), async-events-design D-002 (durable mailbox + channel-wake), agent-comms (AgentCommsEnvelope + scope-aware router + agent_comms.send/spawn MCP tools + daemon routes).\n\nKEY QUESTIONS:\n1. Which codex seam best carries crews mail async: MCP-server-notification -> prompt-queue (channels-option-b), the bg-process-notification wake, or the agent-comms mailbox+channel-wake substrate? Cite file:line for the chosen dispatch site.\n2. CREWS side: does crews expose (or can it cheaply expose) an MCP server / notification source that fires on mailbox delivery, replacing the spawned `arm` listener subprocess? How does the durable mailbox cursor / review-mail ack model map onto an injected-prompt model (mail must still be ack-tracked, not just shown)?\n3. HOOK GATES: today the crews Stop + PreToolUse hooks GATE on listener-armed. If mail injects async, which gates can be removed/relaxed FOR CODEX actors specifically? Design the engine-conditional behavior (copilot/claude keep the listener; codex gets injection) so cross-engine crews keeps working.\n4. CONFLICT SURFACE in the codex fork: can this ride ONLY already-merged seams (channels-option-b / bg-notification) with zero NEW codex-fork patch, or is a new fork seam required? Quantify the upstream-conflict delta (fork tenet: minimize).\n5. THE LEAD: the bookkeeper-lead runs under Copilot CLI today (Copilot has its OWN async bg-task completion injection = the system_notification path). Does this design only help codex MEMBERS, or could the same injection model unify the lead too? Note what changes if the lead were a codex session.\n\nDELIVERABLE: recommended direction + chosen seam + the crews-side and codex-side change list + conflict-surface note + whether a follow-up plan/impl is warranted and of what shape. Write brainstorm.json under .ralph/brainstorms/crews-mail-delivery-via-codex-injection/. Evaluate rigorously; do NOT rubber-stamp the operator&#39;s framing -- if listener-less is infeasible without a heavy fork patch, say so and propose the minimal-conflict alternative."
+        }
+      }
+    },
+    {
+      "id": "codex-fork-patch-marking-and-divergence-audit",
+      "scope": "codex",
+      "lifecycle": "tracked",
+      "status": "active",
+      "lastTouchedAt": "2026-06-12",
+      "kanbanCards": [
+        {
+          "className": "cmd-warn",
+          "html": "READ-ONLY AUDIT (operator 2026-06-12). Concern: are the RECENT codex-fork changes (the .4 batch + the .5 accumulation) correctly MARKED as fork patches (SANDBOX PATCH markers / codex-rs-overlay) AND documented in a divergence registry, so we still know exactly which changes we maintain vs upstream? Audit the marking + documentation coverage of recent fork edits; cite file:line; report gaps + recommend whether a maintained divergence doc is needed. CODEX SUBMODULE, read-only (pre/post worktree snapshot + revert guard)."
+        }
+      ],
+      "command": {
+        "name": "codex-fork-patch-marking-and-divergence-audit",
+        "prompts": {
+          "investigate": "READ-ONLY investigation (CODEX submodule). Verify that the codex fork&#39;s recent changes are properly marked as fork patches AND documented, so the team knows exactly which changes we maintain vs upstream. Make NO code edits; run on a pre/post working-tree snapshot + revert guard (tool-denial alone is not airtight on Copilot CLI).\n\nBACKGROUND: codexu nests two codex submodules: codex/ (wrapper, holds codex-rs-overlay) -> codex/external/repos/codex-patched/ (the patched upstream Rust). Fork edits are conventionally annotated with a SANDBOX PATCH marker comment, and the rebase ceremony (codex/.claude/commands/rebase-upstream.md) + publish-sandbox-patch.md depend on knowing the patch set. The recent .4 release + .5 accumulation added several fork changes.\n\nSTEP 1 -- ESTABLISH THE CONVENTION (cite file:line): How are fork patches marked today? Find the SANDBOX PATCH marker convention (grep for the marker), the codex-rs-overlay mechanism (what it overlays + how), and any divergence/patch-registry doc the rebase skill reads. Is there a single canonical list of \"changes we maintain vs upstream\"?\n\nSTEP 2 -- ENUMERATE RECENT FORK CHANGES: From the .4 shipManifest commits + the .5 accumulation branch (ralph/codex-v5-int in codex/external/repos/codex-patched), list every fork edit. Candidates include: focus-event-leak fix, bg-completion exec-cell rendering, agent-spawn name display (+ remaining cells on v5-int), status-line, copilot model knobs / Knob A medium / Knob B, revert paste-burst default, nonblocking bg-completion surfacing (Op::WakePendingWork), disable-managed-hooks-by-default, /resume DB-only (v5-int), anthropic-models-support. Cross-reference each against git history (file:line).\n\nSTEP 3 -- COVERAGE MATRIX: For each recent fork change, report: (a) is it MARKED (SANDBOX PATCH marker / lives in overlay)? (b) is it DOCUMENTED in the divergence registry / rebase patch list? Flag every change that is unmarked OR undocumented.\n\nSTEP 4 -- RECOMMENDATION: Is the current marking+documentation sufficient to reliably re-apply the patch set on the next upstream rebase? If gaps exist, recommend the concrete fix (e.g., add missing markers, create/extend a maintained divergence doc) and whether it should be a follow-up impl task.\n\nDELIVERABLE: findings.md under .ralph/investigations/codex-fork-patch-marking-and-divergence-audit/ with the coverage matrix + file:line evidence + verdict + recommendation. Report kind=done with the verdict + gap count."
+        }
+      }
+    },
+    {
       "id": "codex-tmux-vs-windows-terminal-research",
       "scope": "codex",
       "lifecycle": "tracked",
