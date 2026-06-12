@@ -1,0 +1,55 @@
+{
+  "clusters": [
+    {
+      "name": "crews-codex-terminology",
+      "stories": ["US-001", "US-002"],
+      "phase": 1,
+      "dependsOn": [],
+      "fileOverlapEvidence": {
+        "sharedFiles": [
+          "plugins/crews/hooks/pre-tool-use.js",
+          "plugins/crews/hooks/briefing/template.js",
+          "plugins/crews/hooks/briefing/continuation.js",
+          "plugins/crews/hooks/stop.js",
+          "plugins/crews/hooks/protocol/review-gate.js",
+          "plugins/crews/tests/lib/briefing-assertions.js",
+          "plugins/crews/CHANGELOG.md",
+          "plugins/crews/AGENTS.md"
+        ],
+        "exclusiveFiles": [
+          "plugins/crews/tests/copilot-briefing.test.js",
+          "plugins/crews/tests/engine-env-bootstrap.test.js",
+          "plugins/crews/tests/version.test.js"
+        ],
+        "risk": "high"
+      },
+      "executionModeRationale": "Run the crews work first because it owns the load-bearing listener-arm path and needs a live Codex dogfood checkpoint before the wider generator work proceeds."
+    },
+    {
+      "name": "ralph-codex-terminology",
+      "stories": ["US-003", "US-004"],
+      "phase": 2,
+      "dependsOn": ["crews-codex-terminology"],
+      "fileOverlapEvidence": {
+        "sharedFiles": [
+          "plugins/ralph/scripts/codex-lowering.mjs",
+          "plugins/ralph/scripts/generate-copilot-artifacts.mjs",
+          "plugins/ralph/tests/test-codex-generator.mjs",
+          "plugins/ralph/CHANGELOG.md",
+          "plugins/ralph/AGENTS.md",
+          ".claude-plugin/marketplace.json",
+          ".github/plugin/marketplace.json",
+          ".agents/plugins/marketplace.json"
+        ],
+        "exclusiveFiles": [
+          "plugins/ralph/.codex-plugin/codex-skills/**",
+          "plugins/ralph/.codex-plugin/internal-workflows/**",
+          "plugins/ralph/tests/test-no-stale-sh-refs.mjs",
+          "plugins/ralph/tests/test-codex-live-smoke.mjs"
+        ],
+        "risk": "high"
+      },
+      "executionModeRationale": "Serialize the Ralph ship after crews because both plugins share toolkit release/index surfaces, and the crews dogfood result should be known before regenerating and versioning the Codex mirrors."
+    }
+  ]
+}

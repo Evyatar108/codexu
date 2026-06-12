@@ -1,0 +1,48 @@
+{
+  "planFile": "D:\\harness-efforts\\codexu\\.ralph\\jobs\\crews-ralph-codex-background-execution-terminology\\plan.md",
+  "repoDir": "D:\\harness-efforts\\codexu\\.ralph\\jobs\\crews-ralph-codex-background-execution-terminology\\worktree\\plan",
+  "reviewCycle": 1,
+  "findings": [
+    {
+      "id": "F-001",
+      "severity": "Medium",
+      "source": "claude",
+      "classification": "fixable",
+      "category": "test coverage completeness",
+      "sectionRef": "Approach > Files to Create/Modify",
+      "description": "The draft under-specified the crews test surface for the touched briefing/review-gate files and would have let an implementer miss load-bearing Codex wording assertions.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Expanded the explicit crews test list to include briefing-render, continuation-briefing, review-gate, and pretooluse-review-mail-first, and called out the golden/fixture risk in Risk Areas and story acceptance criteria.",
+      "relevantFiles": [
+        "plugins/crews/tests/briefing-render.test.js",
+        "plugins/crews/tests/continuation-briefing.test.js",
+        "plugins/crews/tests/review-gate.test.js",
+        "plugins/crews/tests/pretooluse-review-mail-first.test.js"
+      ],
+      "suggestedFix": "Name the missing crews tests explicitly and clarify that Codex becomes a first-class tested rendering branch."
+    },
+    {
+      "id": "F-002",
+      "severity": "Medium",
+      "source": "claude",
+      "classification": "fixable",
+      "category": "release surface completeness",
+      "sectionRef": "Technical Constraints; Files to Create/Modify; Acceptance Criteria",
+      "description": "The draft said each plugin needed release/version updates but omitted the concrete plugin manifest files and the documented Ralph Codex release-gate commands.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Added the six plugin manifest files to the file list, documented the Ralph Codex release gate in Technical Constraints, and tightened acceptance criteria around release-gate verification.",
+      "relevantFiles": [
+        "plugins/crews/.claude-plugin/plugin.json",
+        "plugins/crews/.github/plugin/plugin.json",
+        "plugins/crews/.codex-plugin/plugin.json",
+        "plugins/ralph/.claude-plugin/plugin.json",
+        "plugins/ralph/.github/plugin/plugin.json",
+        "plugins/ralph/.codex-plugin/plugin.json",
+        "tools/validate-codex-marketplace-policy.mjs"
+      ],
+      "suggestedFix": "List the actual version-stamp files and treat the Codex generator/validator commands as explicit verification steps."
+    }
+  ]
+}

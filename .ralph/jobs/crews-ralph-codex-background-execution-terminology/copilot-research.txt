@@ -1,0 +1,71 @@
+I’ll read the referenced prompt file first, then execute the task it contains.
+
+I’m switching from prompt intake to read-only codebase research across the settled investigation and the named plugin surfaces.
+
+The main repo path is outside this task worktree, so I’ll stay within the plan worktree and use its checked-out copies of the investigation and plugin files.
+
+I found the task-local copies, including the settled investigation and both plugin trees; next I’m reading the concrete hook/generator surfaces.
+
+I’m narrowing to exact functions and tests so the final research can name integration points and constraints without redoing the settled investigation.
+
+The current Ralph generator already has strong multi-agent lowering tests, but shell-background wording is governed by a smaller substitution/token gate; I’m checking that seam next.
+
+I have the main seams; one remaining implementation-shape detail is whether Ralph has a version-bump helper or relies on release-gate/manual stamp updates.
+
+### Codebase Architecture
+
+The relevant code lives in the `ai-developer-toolkit` submodule, a plugin marketplace with per-plugin directories under `plugins/`. This task spans two JavaScript/Markdown plugins:
+
+- `plugins/crews/`: JavaScript CommonJS hook/CLI plugin. Runtime logic is in `hooks/`, CLI dispatcher in `tools/crews.js`, tests in `tests/*.test.js`, no package-level build system. Version bumps use `plugins/crews/scripts/bump-version.js`.
+- `plugins/ralph/`: skills-only Ralph orchestration plugin. Source skill bodies are Markdown under `skills/`, agent definitions under `agents/`, Node ESM generator/lowering code under `scripts/`, generated Codex artifacts under `.codex-plugin/`, and generator tests under `tests/test-codex-generator.mjs`.
+
+The settled investigation at `.ralph/investigations/codex-plugin-background-execution-terminology/findings.md` is directly applicable: Codex model-facing shell tools are `exec_command` / `write_stdin`; backgrounding is `yield_time_ms` returning a `session_id`; multi-agent work is `spawn_agent` / `wait_agent` / `list_agents` / `close_agent` or the v1 `multi_agent_v1.*` equivalents.
+
+### Feature-Relevant Code
+
+**Crews hook text surfaces:**
+
+- `plugins/crews/hooks/pre-tool-use.js:557-628` currently treats `manifest.engine === 'codex'` like Copilot and emits `powershell|bash ... mode: "async"`.
+- `plugins/crews/hooks/briefing/template.js:8-42` and `hooks/briefing/continuation.js:8-37` group Codex with Copilot and mention `mode: "async"` / `read_bash`.
+- `plugins/crews/hooks/stop.js:715-722` emits Codex arm guidance as `bash ... mode: "async"`.
+- `plugins/crews/hooks/protocol/review-gate.js:79-90` emits Codex review-mail guidance as a `bash` call “not in mode:"async"”.
+
+**Crews tests to extend:**
+
+- `tests/pretooluse-review-mail-first.test.js` already includes Codex in the engine matrix but currently expects `mode: "async"`.
+- `tests/review-gate.test.js` engine matrix currently covers Claude/Copilot only; add Codex golden cases.
+- `tests/copilot-briefing.test.js` should gain Codex briefing/continuation coverage or be generalized.
+- `tests/engine-env-bootstrap.test.js` has Copilot/Claude listener-arm block assertions; add Codex-native assertions.
+- Keep `tests/codex-bash-hook-alias.test.js` intact: Codex hook payloads use `"Bash"` as the hook alias, but the model-facing instruction text should still say `exec_command`.
+
+**Ralph generator surfaces:**
+
+- `plugins/ralph/scripts/codex-lowering.mjs:638-646` is the core stale shell substitution: it maps `run_in_background` to `background: true` / `background-shell`.
+- `plugins/ralph/scripts/codex-lowering.mjs:30-39` has `CODEX_FORBIDDEN`; it does not currently ban `background: true` or other stale Codex-background phrases.
+- `plugins/ralph/scripts/codex-lowering.mjs:764-784` has `PROSE_SITE_INVENTORY`; it currently scopes only PRD generation and review-changes. This task should extend it or add equivalent specific prose substitutions for `plan-with-ralph`, `brainstorm-with-ralph`, and `multi-model-investigate`.
+- `plugins/ralph/scripts/generate-copilot-artifacts.mjs:279-313` generates Codex artifacts; regenerate, do not hand-edit `.codex-plugin/**/SKILL.md`.
+
+Existing generated Codex artifacts still contain stale text, e.g. `plugins/ralph/.codex-plugin/codex-skills/plan-with-ralph/SKILL.md`, `brainstorm-with-ralph/SKILL.md`, `multi-model-investigate/SKILL.md`, `implement-with-ralph/SKILL.md`, and internal workflows `run-ralph` / `parallel-ralph`.
+
+### Technical Constraints
+
+Generated Ralph Codex mirrors are derived artifacts; fix `scripts/codex-lowering.mjs` and rerun `node plugins/ralph/scripts/generate-copilot-artifacts.mjs --target=codex --write`.
+
+Codex lowering already has strong drift protection for literal `Agent(` sites and two prose sites; any newly lowered prose delegation site should be inventory-guarded so future source edits fail tests instead of silently leaking stale Agent/background language.
+
+Do not widen Crews shell-tool detection based on Codex’s model-facing `shell`/`exec_command` names. Codex hook payloads intentionally alias shell tools as `"Bash"`; this task is about text emitted to the model, not hook recognizers.
+
+Both plugins live in the same submodule and both will need version/CHANGELOG/AGENTS/marketplace stamp updates. The codexu parent pointer bump is lead-owned after the submodule commit lands.
+
+### Implementation Suggestions
+
+Ship this as **one implementation branch/member touching both plugins**, with two internal phases: Crews first, then Ralph. Do not run parallel impls: both would edit the same marketplace indexes, plugin docs, and submodule state. If split is required operationally, serialize Crews first, dogfood the listener-arm path, then rebase Ralph.
+
+For Crews, add explicit Codex rendering helpers for:
+
+- listener arm: “call `exec_command` with the rendered `node ... crews.js arm ...` command and short `yield_time_ms`; if still running, keep the returned `session_id`; inspect/poll with `write_stdin` using empty input.”
+- listener output inspection: replace `read_bash` with `write_stdin(session_id, ...)`.
+- review-mail: use `exec_command` for the `node ... review-mail ...` command and, if a `session_id` is returned, poll via `write_stdin` until completion.
+
+For Ralph, replace stale shell substitutions with Codex-native `exec_command` / `yield_time_ms` / `session_id` / `write_stdin` prose, extend forbidden-token tests to reject exact stale phrases like `background: true`, and inventory/lower the remaining generated Agent/background prose sites. Then regenerate Codex artifacts and extend `test-codex-generator.mjs` to assert both native shell terms and existing native multi-agent terms appear while stale terms do not. A live Codex dogfood of the Crews listener-arm path should be part of final acceptance before marking merged.
+
