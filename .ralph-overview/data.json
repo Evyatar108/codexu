@@ -81,6 +81,10 @@
         {
           "className": "cmd-ok",
           "html": "WORKAROUND (operator 2026-06-12): closing codex + RESUMING the session clears the saturated limit. This CONFIRMS the leak is SESSION-SCOPED in-memory state (the agent-thread counter is not freed on agent completion but resets on a fresh process). Lowers urgency (restart unblocks), but the leak is still a real bug worth fixing. Investigation seed stands."
+        },
+        {
+          "className": "cmd-ok",
+          "html": "INVESTIGATION DONE (2026-06-12, read-only member investigate-agent-limit; findings @ .ralph/investigations/codex-v1-agent-thread-limit-not-released-on-completion/findings.md). VERDICT: NOT a completion-path slot leak -- BY-DESIGN lifecycle semantics. The v1/v2 limiter counts OPEN spawned-agent threads (not currently-running turns); a finished agent KEEPS its slot until explicit <code>close_agent</code>/shutdown. TRACE: spawn/resume acquires via <code>reserve_spawn_slot()</code> in <code>core/src/agent/control.rs</code>; slot released only on failed-spawn-before-commit, explicit close_agent/shutdown, or InternalAgentDied. TurnComplete/TurnAborted/Error only update status + notify parent -- they do NOT release. FORK VERDICT: UPSTREAM-NATIVE (not introduced by the fork plugin-scope-axis patches). SCOPE: affects BOTH v1 and v2 (shared AgentControl/AgentRegistry limiter). RECOMMENDED FIX: UX/error-contract -- clarify the cap is for OPEN threads + hint close_agent for finished agents; do NOT auto-release on TurnComplete (API explicitly supports reusing completed agents via follow-up messaging). This is why the restart workaround works (closes everything). Likely an UPSTREAM-facing improvement."
         }
       ],
       "command": {
