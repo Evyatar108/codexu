@@ -100,13 +100,17 @@
     {
       "id": "codex-tui-agent-spawn-name-display",
       "scope": "codex",
-      "lifecycle": "tracked",
+      "lifecycle": "merged",
       "status": "active",
       "lastTouchedAt": "2026-06-11",
       "kanbanCards": [
         {
           "className": "cmd-warn",
           "html": "Filed 2026-06-11 (operator smoke feedback). When codex spawns sub-agents the TUI cell shows the agent GUID: <code>• Spawned 019eba0c-d0d4-... (gpt-5.5 high)</code> — but the MODEL refers to agents by NAME. Operator wants the TUI to show the agent NAME instead of/alongside the GUID so they can correlate. (The <code>└</code> prompt-preview line is ALREADY shown + fine — only the GUID-vs-name header is the problem.) Observed on the v1 (Collab/multi_agents) spawn tools; fix v1 + v2 if shared. Agent carries a name (v2 spawn_agent has required <code>task_name</code>; v1 Collab has its own). SPAWNED fix-agentname (copilot, branch ralph/codex-agent-spawn-name-display off .4 tip 02ef333bc5): investigate the spawn-cell render + where the name is available, show the name in the header (add minimal plumbing if name isn't reaching the TUI). Polish on the .4 build; lead rebuilds."
+        },
+        {
+          "className": "cmd-ok",
+          "html": "SHIPPED in codex <code>v0.135.0-copilot-api.4</code> (2026-06-11). Released via codex-patched sandbox-patches @ <code>4d59927165</code> (retention tag <code>release/0.135.0-copilot-api.4</code>) + wrapper gim-home/codex <code>01dc6c2dd</code> tag <code>v0.135.0-copilot-api.4</code> + GitHub Release bundle; codexu pointer <code>da15eeba</code>. See shipManifest for the per-feature commits."
         }
       ],
       "command": {
@@ -114,6 +118,32 @@
         "prompts": {
           "impl": "You are `fix-agentname`, a focused COPILOT impl member of crew `ralph-pipeline` (Copilot CLI). You investigate a seam then implement ONE focused codex TUI enhancement and compile-verify it. Building the launcher binaries is LEAD-OWNED — do NOT build codex.exe / codex-core.exe.\r\n\r\n## The enhancement (operator-observed, live)\r\nWhen codex spawns sub-agents, the TUI renders a cell like:\r\n```\r\n• Spawned 019eba0c-d0d4-7961-810a-9790460b7368 (gpt-5.5 high)\r\n  └ Workspace: C:\\... You are researching ... (prompt preview)\r\n```\r\nThe cell shows the agent's **GUID** (the raw session/agent id), but the model itself refers to these agents by **NAME** (the `task_name` / agent name given at spawn). The operator wants the TUI to show the agent's **NAME** instead of (or alongside) the GUID, so the human can correlate what the model says with what the TUI shows.\r\n- The prompt-preview line (`└ ...`) is ALREADY shown and is FINE — do NOT change it. The ONLY problem is the GUID-vs-name in the header.\r\n- This was observed with the **v1 agent spawn tools** (the Collab / `multi_agents` path). Fix v1 for sure; if v2 (`multi_agents_v2` / `spawn_agent`) renders the same GUID-only header, fix it too for consistency.\r\n\r\n## Phase 1 — INVESTIGATE (cite file:line)\r\n1. Find where the TUI renders the `Spawned <id> (<model> <effort>)` history cell. Search the chatwidget/history rendering for the spawn/agent cell: `Spawned`, `spawn_agent`, `agent`, `Collab`, `multi_agents`, the agent-lifecycle event → cell mapping.\r\n2. Find where the agent NAME is available at render time. Per the codex agent tooling: v2 `spawn_agent` takes a required `task_name: String` (+ `message`) — see `core/src/tools/handlers/multi_agents_v2/spawn.rs`; v1 Collab/`multi_agents` has its own name/agent-id field. Trace how the spawn event/agent record carries the name into the TUI (the agent struct, the event payload, the agents registry). Confirm the name is actually PRESENT in the data the cell renders from (if it is NOT plumbed to the TUI, that plumbing is part of the fix — note it).\r\n3. Determine the GUID currently shown (session id / agent id) and where it comes from, so you can swap/augment it with the name.\r\n\r\n## Phase 2 — FIX\r\nRender the agent NAME in the spawn cell header. Preferred: `• Spawned <name> (<model> <effort>)`, keeping the GUID either dropped or appended in a secondary/dimmed position if it's still useful for correlation (use your judgment + match codex's existing cell style; if unsure between \"name only\" vs \"name + short id\", prefer NAME as the primary and keep a short/dimmed id only if trivial). Keep the `└` prompt-preview line unchanged. Cover the v1 path (reported) and v2 if it shares the header. If the name isn't currently plumbed to the TUI, add the minimal plumbing to carry `task_name`/agent name to the cell.\r\n\r\n## Build / verify env (the ONLY way codex-rs compiles on this box)\r\nUse the wrapper via Git Bash for ALL cargo commands:\r\n`\"C:/Program Files/Git/bin/bash.exe\" \"C:/Users/evmitran/.copilot/session-state/ba496dad-92be-4d12-abef-2edc51609151/files/codex-cargo.sh\" <cargo args>`\r\ne.g. `... codex-cargo.sh check -p codex-tui`, then `... codex-cargo.sh check --workspace`. Plain `cargo` fails (\"linker link.exe not found\").\r\n- Do NOT run `just fmt` (repo rustfmt config uses an unstable flag the local stable rustfmt rejects — KNOWN, note it, don't fight it).\r\n- The FULL `cargo test -p codex-tui` hits a KNOWN Windows stack overflow — run FOCUSED tests by filter; that overflow is not your failure.\r\n- `cargo insta accept -p <crate>` may be rejected; accept from the `tui` crate directory instead.\r\n- `cargo check --workspace` / `cargo test -p codex-core` may surface PRE-EXISTING codex-core test-tree compile breakage unrelated to your diff — distinguish it from your change.\r\n\r\n## Where to work\r\nCanonical checkout: `D:/harness-efforts/codexu/codex/external/repos/codex-patched`. The lead has ALREADY created + checked out your branch `ralph/codex-agent-spawn-name-display` (off the current .4 tip, which has Knob B + status-line + bg-cell). Confirm via `git branch --show-current` BEFORE editing; do NOT switch branches.\r\n\r\n## Constraints\r\n- Do NOT build the launcher binaries — the lead rebuilds.\r\n- Do NOT touch unrelated files; revert any clippy-fix/fmt edits to shared files — keep ONLY your intended diff.\r\n- Stage ONLY intended files; NEVER `git add -A`. There is an untracked `.worktrees/` dir — leave it untouched. (This is the codex submodule, not codexu.)\r\n- Add/update focused tests + insta snapshots asserting the spawn cell shows the NAME (a v1 case at minimum; v2 if covered).\r\n\r\n## Commit + report\r\nCommit on `ralph/codex-agent-spawn-name-display` with message `feat(tui): show agent name (not guid) in spawn cell header` and the trailer:\r\n`Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>`\r\nBody-canonical: substantive detail in the BODY. End with:\r\n`<|report kind=\"done\" summary=\"<one-line>\"|>`\r\nreporting the commit SHA + branch + files changed + where the name came from (v1 + v2 status) + what you verified. If the name is genuinely NOT available to the TUI without large cross-crate plumbing, end with `kind=\"question\"` describing the plumbing needed + your recommendation, rather than guessing.\r\n\r\nKeep your background listener armed per the PreToolUse hook instructions.\r\n"
         }
+      },
+      "shipManifest": {
+        "shippedAt": "2026-06-11",
+        "summary": "Agent spawn cell shows the agent NAME instead of the raw GUID, shipped in codex v0.135.0-copilot-api.4. Threads the agent name/nickname/role through CollabAgentSpawnEndEvent -> app-server ThreadItem -> TUI (v1 nickname; v2 agent_path/task_name), preferring the per-item name before cached metadata or the thread GUID. NOTE: only the spawn-cell header was covered; the 'Waiting for <guid>' and completion/result cells still show the GUID -> follow-up codex-tui-agent-name-remaining-lifecycle-cells (targeted for .5).",
+        "commits": [
+          {
+            "sha": "9c85f00a",
+            "oneLine": "feat(tui): show agent name (not guid) in spawn cell header",
+            "repo": "codex-patched"
+          },
+          {
+            "sha": "4d599271",
+            "oneLine": "chore(release): bump copilot-fork version to v0.135.0-copilot-api.4 (codex-patched sandbox-patches HEAD)",
+            "repo": "codex-patched"
+          },
+          {
+            "sha": "01dc6c2d",
+            "oneLine": "fix(release): codex v0.135.0-copilot-api.4 wrapper gitlink + tag (gim-home/codex)",
+            "repo": "codex (wrapper)"
+          },
+          {
+            "sha": "da15eeba",
+            "oneLine": "chore(codex): bump submodule to v0.135.0-copilot-api.4 release",
+            "repo": "codexu"
+          }
+        ]
       }
     },
     {
@@ -143,13 +173,17 @@
     {
       "id": "codex-tui-bg-completion-exec-cell-rendering",
       "scope": "codex",
-      "lifecycle": "tracked",
+      "lifecycle": "merged",
       "status": "active",
       "lastTouchedAt": "2026-06-11",
       "kanbanCards": [
         {
           "className": "cmd-warn",
           "html": "Filed 2026-06-11 (operator smoke feedback on the .4 bg-awakening feature). Background-process-notification (<code>features.background_process_notification</code>) now self-wakes the turn when a background terminal command completes (Test ② CONFIRMED working: codex woke + printed DONE_SMOKE). GAP: the completion is surfaced as a free-form agent PROSE line (“• Confirmed: the long-sleep command completed... DONE_SMOKE”). Operator wants it rendered as a proper TOOL-CALL-STYLE history cell — a <code>• Ran &lt;cmd&gt;</code> header + indented <code>└</code> output block + the <code>… +N lines (ctrl + t to view transcript)</code> expand affordance — i.e. consistent with how foreground exec/tool calls render. SPAWNED fix-bgcell (copilot, branch ralph/codex-bg-completion-cell off the .4 tip a69ea91661): investigate how foreground exec history cells render + where bg-completion currently becomes prose, then reuse that cell type so the completion renders structured (command + output + transcript-expand) while PRESERVING the self-wake. Polish on the .4 bg-awakening feature; not a .4 blocker. Lead rebuilds bins after."
+        },
+        {
+          "className": "cmd-ok",
+          "html": "SHIPPED in codex <code>v0.135.0-copilot-api.4</code> (2026-06-11). Released via codex-patched sandbox-patches @ <code>4d59927165</code> (retention tag <code>release/0.135.0-copilot-api.4</code>) + wrapper gim-home/codex <code>01dc6c2dd</code> tag <code>v0.135.0-copilot-api.4</code> + GitHub Release bundle; codexu pointer <code>da15eeba</code>. See shipManifest for the per-feature commits."
         }
       ],
       "command": {
@@ -157,12 +191,38 @@
         "prompts": {
           "impl": "You are `fix-bgcell`, a focused COPILOT impl member of crew `ralph-pipeline` (Copilot CLI). You investigate a seam then implement ONE focused TUI enhancement and compile-verify it. Building the launcher binaries is LEAD-OWNED — do NOT build codex.exe / codex-core.exe.\r\n\r\n## The enhancement\r\nCodex's background-process-notification feature (`features.background_process_notification`) now self-wakes the turn when a background terminal command completes. But the COMPLETION is surfaced as a plain agent PROSE line, e.g.:\r\n```\r\n• Confirmed: the direct long-sleep command completed successfully and printed:\r\n  DONE_SMOKE\r\n```\r\nThe operator wants the completion rendered as a proper TOOL-CALL-STYLE HISTORY CELL — the same visual treatment codex uses for an exec/tool call — i.e. a header line + an indented output block + an expandable transcript affordance, like:\r\n```\r\n• Ran <the background command>\r\n  └ <captured stdout/stderr, first N lines>\r\n    … +<more> lines (ctrl + t to view transcript)\r\n```\r\nSo when a background terminal finishes, the user should see a structured cell (command + its output + \"ctrl+t to view transcript\"), consistent with how foreground tool/exec calls render — NOT a free-form prose paragraph.\r\n\r\n## Investigate FIRST (cite file:line), THEN implement\r\n1. How codex renders FOREGROUND exec/tool-call history cells: the `• Ran <cmd>` header + the `└` indented output + the `… +N lines (ctrl + t to view transcript)` expand affordance. Find the history-cell type + its rendering (search the chatwidget history/exec cell rendering, e.g. `chatwidget/`, `history_cell`, `exec`, `transcript`, `ctrl + t`, `+{} lines`).\r\n2. The background-completion seam (OUR feature — the .4 bg-awakening work): how a completed background terminal currently produces the surfaced text. Search: `background`, `BackgroundProcessNotification`, `WakePendingWork`, `backgroundTerminals`, the op/event that injects the completion, and where that becomes an agent message vs a history cell. Identify the EXACT point where the completion is turned into prose today.\r\n3. Wire the background completion to emit the SAME exec/tool-call-style history cell as a foreground exec (reuse the existing cell type + renderer — do NOT build a parallel renderer), populated with the background command and its captured output, with the transcript-expand affordance. Preserve the self-wake behavior (the turn still wakes; only the RENDERING changes). Keep it behind / consistent with the existing `background_process_notification` feature gate.\r\n\r\n## Build / verify env (the ONLY way codex-rs compiles on this box)\r\nUse the wrapper via Git Bash for ALL cargo commands:\r\n`\"C:/Program Files/Git/bin/bash.exe\" \"C:/Users/evmitran/.copilot/session-state/ba496dad-92be-4d12-abef-2edc51609151/files/codex-cargo.sh\" <cargo args>`\r\ne.g. `... codex-cargo.sh check -p codex-tui`, then `... codex-cargo.sh check --workspace`. Plain `cargo` fails (\"linker link.exe not found\").\r\n- Do NOT run `just fmt` — the repo's rustfmt config uses an unstable `imports_granularity` flag the local stable rustfmt rejects (KNOWN pre-existing env limitation; note it, don't fight it).\r\n- The FULL `cargo test -p codex-tui` hits a KNOWN Windows stack overflow after starting — run FOCUSED tests by filter; don't treat that full-crate overflow as your failure.\r\n- `cargo insta accept -p <crate>` may be rejected by the installed cargo-insta — accept from the `tui` crate directory instead (a prior member hit this).\r\n\r\n## Where to work\r\nCanonical checkout: `D:/harness-efforts/codexu/codex/external/repos/codex-patched`. The lead has ALREADY created + checked out your branch `ralph/codex-bg-completion-cell` (off the integrated .4 tip, which has the working Knob B picker + status-line + bg-awakening seam). Confirm via `git branch --show-current` BEFORE editing; do NOT switch branches.\r\n\r\n## Constraints\r\n- Do NOT build the launcher binaries — the lead rebuilds.\r\n- Do NOT touch unrelated files; if clippy-fix/fmt edits shared files, REVERT those unrelated edits — keep ONLY your intended diff.\r\n- Stage ONLY intended files; NEVER `git add -A`. There is an untracked `.worktrees/` dir — leave it untouched. (This is the codex submodule, not codexu.)\r\n- Add/update focused tests + insta snapshots for the new cell rendering (at minimum: a background completion renders an exec-style cell with command + output; verify the self-wake path still fires).\r\n\r\n## Commit + report\r\nCommit on `ralph/codex-bg-completion-cell` with message `feat(tui): render background-process completion as an exec-style history cell` and the trailer:\r\n`Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>`\r\nBody-canonical: substantive detail in the BODY. End with:\r\n`<|report kind=\"done\" summary=\"<one-line>\"|>`\r\nreporting the commit SHA + branch + files changed + the seam you reused + exactly what you verified (which check/tests passed, which are blocked by the known env issues). If the right UX is genuinely ambiguous after investigation (e.g. the completion has no associated command string to show as a header), end with `kind=\"question\"` describing the exact choice + your recommendation, rather than guessing.\r\n\r\nKeep your background listener armed per the PreToolUse hook instructions.\r\n"
         }
+      },
+      "shipManifest": {
+        "shippedAt": "2026-06-11",
+        "summary": "Background-process completion now renders as a tool-call-style exec history cell (bullet Ran <cmd> + indented output + ctrl+t transcript) instead of a free-form prose line, shipped in codex v0.135.0-copilot-api.4. Minimal TUI fix: unified-exec completions stop being suppressed once the task goes idle and flow through the existing ExecCell renderer; the self-wake behavior is preserved.",
+        "commits": [
+          {
+            "sha": "232d42b0",
+            "oneLine": "feat(tui): render bg-process completion as an exec-style history cell",
+            "repo": "codex-patched"
+          },
+          {
+            "sha": "4d599271",
+            "oneLine": "chore(release): bump copilot-fork version to v0.135.0-copilot-api.4 (codex-patched sandbox-patches HEAD)",
+            "repo": "codex-patched"
+          },
+          {
+            "sha": "01dc6c2d",
+            "oneLine": "fix(release): codex v0.135.0-copilot-api.4 wrapper gitlink + tag (gim-home/codex)",
+            "repo": "codex (wrapper)"
+          },
+          {
+            "sha": "da15eeba",
+            "oneLine": "chore(codex): bump submodule to v0.135.0-copilot-api.4 release",
+            "repo": "codexu"
+          }
+        ]
       }
     },
     {
       "id": "codex-tui-focus-event-leak-input-corruption",
       "scope": "codex",
-      "lifecycle": "tracked",
+      "lifecycle": "merged",
       "status": "active",
       "lastTouchedAt": "2026-06-11",
       "kanbanCards": [
@@ -185,6 +245,10 @@
         {
           "className": "cmd-ok",
           "html": "FIX DESIGN DONE @ <code>d04832f1</code> (merged) - <strong>CODEX-SIDE ONLY, NO crossterm fork, NO operator approval needed.</strong> Subtlety RESOLVED: on Windows codex inherits <code>ENABLE_VIRTUAL_TERMINAL_INPUT</code> on stdin (Windows Terminal default), so the terminal sends VT-input <code>KEY_EVENT_RECORD</code>s; crossterm's Windows parser only maps <code>Esc</code> when <code>wVirtualKeyCode==VK_ESCAPE</code>, but in VT-input mode the ESC leader arrives with <code>wVirtualKeyCode==0</code> -> control-char branch -> <code>get_char_for_key()</code> returns None (ESC DROPPED), while tail bytes <code>[ O I 6 ~</code> survive as <code>KeyCode::Char</code> -> leak. Windows-ONLY (Linux/macOS use the VT byte-stream path that parses correctly - matches operator's 'only I hit it'). FIX (<code>codex-rs/tui/src/tui.rs</code>): clear inherited ENABLE_VIRTUAL_TERMINAL_INPUT on STD_INPUT_HANDLE before <code>enable_raw_mode()</code>, restore only that bit on exit (preserve RestoreMode::KeepRaw). Does NOT disable EnableFocusChange so the bg-notification feature (which needs focus reporting) is NOT regressed. Design: <code>.ralph/investigations/codex-tui-focus-event-leak/fix-design.md</code>. IMPL queued behind fix-agentname (shared codex-rs checkout); prompts.impl seeded. Folding into the rolling .4 build per operator."
+        },
+        {
+          "className": "cmd-ok",
+          "html": "SHIPPED in codex <code>v0.135.0-copilot-api.4</code> (2026-06-11). Released via codex-patched sandbox-patches @ <code>4d59927165</code> (retention tag <code>release/0.135.0-copilot-api.4</code>) + wrapper gim-home/codex <code>01dc6c2dd</code> tag <code>v0.135.0-copilot-api.4</code> + GitHub Release bundle; codexu pointer <code>da15eeba</code>. See shipManifest for the per-feature commits."
         }
       ],
       "command": {
@@ -193,6 +257,32 @@
           "investigate": "You are the read-only INVESTIGATION member `investigate-focusleak` of crew `ralph-pipeline`, running under Copilot CLI. Your job is to ROOT-CAUSE a codex TUI bug, cite source at file:line, and write a findings doc. You do NOT fix it and you do NOT build.\r\n\r\n## The bug (operator-reported, PRE-EXISTING — NOT introduced by our in-flight .4 work)\r\nIn a long-running codex TUI session, the input field starts filling with repeating literal text `[O[I[O[I[O[I...` and then backspace inserts a space instead of deleting a character.\r\n\r\nDiagnosis seed (general terminal knowledge — VERIFY against source, do not assume): `ESC[I` (CSI I) = terminal FocusIn report; `ESC[O` (CSI O) = FocusOut report. These appear when the terminal has focus-reporting mode (DECSET ?1004) enabled and the application is NOT consuming the FocusGained/FocusLost events — the bytes leak into the input. Repeating `[O[I[O[I` means focus is rapidly toggling (e.g. another window/notification stealing+returning focus). The accumulated corruption likely puts the input/escape parser in a bad state, explaining the broken backspace. Treat this as a hypothesis to confirm or refute against the code.\r\n\r\n## Constraints (READ-ONLY)\r\n- Do NOT modify, create, or delete ANY source file anywhere. Your ONLY writes are your findings markdown + its git commit, inside YOUR codexu worktree (see Output below).\r\n- Build is lead-owned — do NOT run cargo/just/any build.\r\n- A sibling member (`fix-picker`) is CONCURRENTLY EDITING `codex/external/repos/codex-patched/codex-rs/tui/src/chatwidget/model_popups.rs` and related picker files in the SAME submodule checkout. Do NOT touch those files. Your investigation reads the event-loop / terminal-setup / input-widget code, which is disjoint. If you ever find yourself about to edit ANY source file, STOP — that is out of scope.\r\n- Read-only guard: at the START capture `git -C D:/harness-efforts/codexu/codex/external/repos/codex-patched status --porcelain` and save it; at the END re-capture and diff. The set of files YOU modified must be empty (fix-picker's edits may legitimately be present — leave them alone). If you accidentally modified anything, `git checkout -- <file>` ONLY the files you changed.\r\n\r\n## Where to read\r\n`D:/harness-efforts/codexu/codex/external/repos/codex-patched/codex-rs/tui/` — look at:\r\n- Terminal setup / teardown: where raw mode, bracketed paste, and focus-change reporting are enabled. Search for: `EnableFocusChange`, `DisableFocusChange`, `PushKeyboardEnhancementFlags`, `EnableBracketedPaste`, `1004`, `execute!`, alternate-screen enter/leave.\r\n- The crossterm event read loop: how `Event::FocusGained` / `Event::FocusLost` / `Event::Key` / `Event::Paste` are matched and whether focus events are consumed or fall through. Search: `FocusGained`, `FocusLost`, `read_event`, `EventStream`, `crossterm::event`, `Event::`.\r\n- The text input / composer / textarea widget: how keystrokes and backspace are handled. Search the composer/textarea module, `KeyCode::Backspace`, paste handling, any escape-sequence parsing.\r\n\r\n## Questions to answer DEFINITIVELY (cite file:line for each)\r\n1. Does codex enable terminal focus-reporting mode? Where, and is it ever disabled/re-enabled mid-session?\r\n2. Does codex's event loop consume `Event::FocusGained` / `Event::FocusLost`? If not, what happens to them — and can that explain literal `[O`/`[I` text reaching the input field?\r\n3. What specifically corrupts the parser so that backspace then inserts a space instead of deleting? (escape-sequence state machine, bracketed-paste mode left enabled, key decoding, etc.)\r\n4. Is this UPSTREAM codex behavior or fork-introduced? Check for `// SANDBOX PATCH` markers near the relevant code and compare against `upstream/main` at the same seams (mirror the method in `.ralph/investigations/codex-per-turn-resume-trigger-upstream-vs-fork/findings.md`). The operator believes it is pre-existing — confirm or refute with evidence.\r\n5. Confirm our in-flight .4 changes are NOT involved: the bg-awakening seam (`Op::WakePendingWork` and the event/op routing) and Knob B (context-window tier). Do they touch the terminal event loop or focus handling? Quick check; cite.\r\n6. Recommended fix DIRECTION only (DO NOT implement): e.g. add `FocusGained`/`FocusLost` match arms that consume+no-op, disable focus reporting, or reset parser state on focus toggle. Note the exact file:line where a fix would land.\r\n\r\n## Output + commit (use a worktree — keep the lead's main checkout untouched)\r\n1. Create your worktree:\r\n   `git -C D:/harness-efforts/codexu worktree add D:/harness-efforts/codexu/.worktrees/investigate-focusleak -b ralph/investigate-focusleak main`\r\n2. Write findings to:\r\n   `D:/harness-efforts/codexu/.worktrees/investigate-focusleak/.ralph/investigations/codex-tui-focus-event-leak/findings.md`\r\n   Include: definitive root cause, file:line citations for each of the 6 questions, upstream-vs-fork verdict, and the recommended fix direction + exact landing site.\r\n3. Commit in the worktree, staging ONLY your findings file:\r\n   `git -C D:/harness-efforts/codexu/.worktrees/investigate-focusleak add .ralph/investigations/codex-tui-focus-event-leak/findings.md`\r\n   then commit with message `docs(investigation): root-cause codex TUI focus-event leak + backspace corruption` and include the trailer:\r\n   `Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>`\r\n   Do NOT use `git add -A`.\r\n4. Push the branch:\r\n   `git -C D:/harness-efforts/codexu/.worktrees/investigate-focusleak push -u origin ralph/investigate-focusleak`\r\n   If push fails on auth, report the SHA + branch and let the lead push.\r\n\r\n## Reporting\r\nBody-canonical: keep the substantive findings in your message BODY, not the summary attribute. End EVERY turn with a report tag; finish with:\r\n`<|report kind=\"done\" summary=\"<concise one-line>\"|>`\r\nReport the commit SHA + branch + worktree path. If you hit a real blocker needing a lead/operator decision, end with `kind=\"question\"` stating the exact decision needed.\r\n\r\nKeep your background listener armed per the PreToolUse hook instructions.\r\n",
           "impl": "You are `fix-focusleak`, a focused COPILOT impl member of crew `ralph-pipeline` (Copilot CLI). You implement ONE codex-side Windows TUI fix per a committed design, and compile-verify. Building the launcher binaries is LEAD-OWNED — do NOT build codex.exe / codex-core.exe.\r\n\r\n## The fix (codex-side only; NO crossterm fork)\r\nRoot cause (verified, committed): on WINDOWS, codex inherits `ENABLE_VIRTUAL_TERMINAL_INPUT` on stdin (Windows Terminal's default console mode), so the terminal delivers VT-input-style `KEY_EVENT_RECORD`s. crossterm's Windows parser only maps `Esc` when `wVirtualKeyCode == VK_ESCAPE`; in the VT-input case the `ESC` leader arrives with `wVirtualKeyCode == 0`, falls into the control-char branch, `get_char_for_key()` returns `None` (ESC dropped), while the tail bytes (`[`, `O`, `I`, `6`, `~`) survive as `KeyCode::Char` — so focus reports leak as `[O[I` and PageDown leaks as `[6~`. Windows-only (Linux/macOS use the VT byte-stream path that parses correctly).\r\n\r\nTHE FIX (codex-side, in `codex-rs/tui/src/tui.rs`): before `enable_raw_mode()`, on Windows, clear the inherited `ENABLE_VIRTUAL_TERMINAL_INPUT` bit on `STD_INPUT_HANDLE` (so the console delivers classic key-event records that crossterm's Windows parser decodes correctly — VK_ESCAPE→Esc, VK_NEXT→PageDown). Save the prior input mode and RESTORE only that VT-input bit on restore/exit so `RestoreMode::{Full,KeepRaw}` semantics stay intact (do not clobber other mode bits the restore path manages).\r\n\r\n## READ THE DESIGN FIRST\r\nRead the committed design note (on main): `.ralph/investigations/codex-tui-focus-event-leak/fix-design.md` — it has the exact subtlety resolution, the file:line landing site in `tui.rs`, the save/restore approach, the `RestoreMode::KeepRaw` constraint, and the bg-notification non-regression check. Also useful: `.ralph/investigations/codex-tui-focus-event-leak/windows-path-verification.md`. Implement EXACTLY what the design specifies; if you find a concrete reason to deviate, note it in your report.\r\n\r\n## CRITICAL non-regression\r\nThe background-process-notification feature depends on focus reporting + `terminal_focused`. Your fix must NOT disable `EnableFocusChange` and must NOT regress focus-event delivery — it only changes the Windows INPUT console mode so the focus/PageDown VT sequences are decoded as proper key/focus events instead of leaking. Verify codex still receives FocusGained/FocusLost (the event-stream path) after the change.\r\n\r\n## Build / verify env (the ONLY way codex-rs compiles on this box)\r\nUse the wrapper via Git Bash for ALL cargo commands:\r\n`\"C:/Program Files/Git/bin/bash.exe\" \"C:/Users/evmitran/.copilot/session-state/ba496dad-92be-4d12-abef-2edc51609151/files/codex-cargo.sh\" <cargo args>`\r\ne.g. `... codex-cargo.sh check -p codex-tui`, then `... codex-cargo.sh check --workspace`. Plain `cargo` fails (\"linker link.exe not found\").\r\n- Do NOT run `just fmt` (repo rustfmt config uses an unstable flag the local stable rustfmt rejects — KNOWN; note it, don't fight it).\r\n- The Windows console-mode APIs (`GetConsoleMode`/`SetConsoleMode`, `STD_INPUT_HANDLE`, `ENABLE_VIRTUAL_TERMINAL_INPUT`) are `#[cfg(windows)]`; ensure the change compiles on the Windows target (the wrapper builds for `x86_64-pc-windows-msvc`). Guard non-Windows builds appropriately (the change is Windows-only; don't break the Unix build).\r\n- The FULL `cargo test -p codex-tui` hits a KNOWN Windows stack overflow — run FOCUSED tests by filter; that overflow is not your failure. `cargo check --workspace` / `cargo test -p codex-core` may surface PRE-EXISTING codex-core test-tree breakage unrelated to your diff.\r\n\r\n## Where to work\r\nCanonical checkout: `D:/harness-efforts/codexu/codex/external/repos/codex-patched`. The lead has ALREADY created + checked out your branch `ralph/codex-focusleak-fix` (off the current .4 tip). Confirm via `git branch --show-current` BEFORE editing; do NOT switch branches.\r\n\r\n## Constraints\r\n- Do NOT build the launcher binaries — the lead rebuilds.\r\n- Do NOT touch unrelated files; revert any clippy-fix/fmt edits to shared files — keep ONLY your intended diff.\r\n- Stage ONLY intended files; NEVER `git add -A`. Untracked `.worktrees/` dir — leave it. (Codex submodule, not codexu.)\r\n- Add a focused test where feasible (e.g. assert the input-mode save/restore logic; a unit test around the mode manipulation if the code is structured for it). If the console-mode call can't be unit-tested in CI, note that + rely on the lead's live smoke.\r\n\r\n## Commit + report\r\nCommit on `ralph/codex-focusleak-fix` with message `fix(tui): clear inherited VT input mode on Windows to stop focus/PageDown escape leak` and the trailer:\r\n`Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>`\r\nBody-canonical: substantive detail in the BODY. End with `<|report kind=\"done\" summary=\"<one-line>\"|>` reporting the commit SHA + branch + files changed + what you verified (which checks/tests passed). If implementing reveals the design is wrong/insufficient, end `kind=\"question\"` with specifics + your recommendation.\r\n\r\nKeep your background listener armed per the PreToolUse hook instructions.\r\n"
         }
+      },
+      "shipManifest": {
+        "shippedAt": "2026-06-11",
+        "summary": "Windows VT-input focus/PageDown escape-leak fixed, shipped in codex v0.135.0-copilot-api.4. Root cause (3 read-only investigations): on Windows codex inherits ENABLE_VIRTUAL_TERMINAL_INPUT, so crossterm's console-record parser drops the ESC leader of VT sequences and the tails leak as text ([O[I focus reports, [6~ PageDown), with Esc not stopping agents. Fix is codex-side (no crossterm fork): clear the inherited VT-input bit before enable_raw_mode() and restore only that bit on exit; EnableFocusChange is untouched so the background-notification focus path is not regressed. Windows-only (Linux/macOS use the VT byte-stream path that parses correctly). Operator will verify the live repro on another PC post-release.",
+        "commits": [
+          {
+            "sha": "bc7f695e",
+            "oneLine": "fix(tui): clear inherited VT input mode on Windows (focus/PageDown leak)",
+            "repo": "codex-patched"
+          },
+          {
+            "sha": "4d599271",
+            "oneLine": "chore(release): bump copilot-fork version to v0.135.0-copilot-api.4 (codex-patched sandbox-patches HEAD)",
+            "repo": "codex-patched"
+          },
+          {
+            "sha": "01dc6c2d",
+            "oneLine": "fix(release): codex v0.135.0-copilot-api.4 wrapper gitlink + tag (gim-home/codex)",
+            "repo": "codex (wrapper)"
+          },
+          {
+            "sha": "da15eeba",
+            "oneLine": "chore(codex): bump submodule to v0.135.0-copilot-api.4 release",
+            "repo": "codexu"
+          }
+        ]
       }
     },
     {
@@ -6304,7 +6394,7 @@
     {
       "id": "codex-context-window-tier-selection",
       "scope": "codex",
-      "lifecycle": "tracked",
+      "lifecycle": "merged",
       "status": "active",
       "lastTouchedAt": "2026-06-11",
       "kanbanCards": [
@@ -6331,6 +6421,10 @@
         {
           "className": "cmd-ok",
           "html": "COMPILE-FIX VERIFIED @ <code>cb89014287</code> (+ <code>0739d6d4e9</code> drop accidental worktree gitlinks) on <code>ralph/codex-knobb-fix</code> (2026-06-11). <code>cargo check --workspace</code> CLEAN. Behavioral hop wired (SessionConfiguration.model_context_tier -> per-turn Config). Config + app-server schemas REGENERATED. Tests GREEN: codex-config, codex-app-server-protocol (patched fixtures with context_tier). NOTED (not Knob B fault): codex-tui tests hit a known Windows STACK-OVERFLOW runtime issue (separate); codex-core tests blocked by codex-core-test-tree-precompile-breakage. Both .4 features (bg-awakening 6be476983f + Knob B cb89014287) now check-verified -> ready to integrate + build .4."
+        },
+        {
+          "className": "cmd-ok",
+          "html": "SHIPPED in codex <code>v0.135.0-copilot-api.4</code> (2026-06-11). Released via codex-patched sandbox-patches @ <code>4d59927165</code> (retention tag <code>release/0.135.0-copilot-api.4</code>) + wrapper gim-home/codex <code>01dc6c2dd</code> tag <code>v0.135.0-copilot-api.4</code> + GitHub Release bundle; codexu pointer <code>da15eeba</code>. See shipManifest for the per-feature commits."
         }
       ],
       "command": {
@@ -6338,6 +6432,47 @@
         "prompts": {
           "plan": "Plan Knob B = context-tier parity (operator chose Option 1). GOAL: expose a per-model context-tier selector (default | long_context ≈ 200k vs 1m) for Copilot-provider models in codex, matching VS Code Copilot CLI, wired into codex’s effective/usable context window + compaction. SOURCE (from brainstorm 6efd6d51d, verify in current source): codex’s CopilotCapabilities parser (model-provider/src/copilot_models_endpoint.rs:76-100) IGNORES defaultContextMax / billing-tier from /models; context window is read-only model metadata (limits.max_context_window_tokens) that drives compaction (auto_compact_token_limit, effective_context_window_percent=95 → ~95% usable / ~90% auto-compact) + the % context gauge (turn_context.rs:140-146, openai_models.rs:354-366); a config context_window is already clamped to max_context_window (models-manager/src/model_info.rs:30-37). SCOPE the plan: (1) extend the CopilotCapabilities parser to read defaultContextMax + fullMax (and any billing-tier gating) per model; (2) model a per-model contextTier (default|long_context) mapping default->defaultContextMax, long_context->fullMax; (3) a selection affordance (TUI /model-style picker entry + a config key + sensible default = default tier); (4) wire the chosen tier into the effective/usable context window + compaction thresholds + the gauge; (5) handle models with only one tier (no toggle shown). Note GPT nuance (gpt-5.4 max=1m/default=272k; gpt-5.5 272k/272k) — the tier toggle should subsume the Option-2 GPT case. Prefer fork-tenet-1 placement (overlay where possible; minimal upstream-canonical seam + SANDBOX PATCH markers + patch-surface S14/S15). Tests for parser + tier mapping + clamp. WORKTREE: codex inner submodule. Build/verify lead-owned (overlay pin). Do NOT git push / gh switch. UX REQUIREMENT (operator 2026-06-10): the context-size selector MUST be presented as the NEXT step AFTER the reasoning-effort selector (Knob A, shipped in .3 — the \"Select Reasoning Level for <model>\" picker), which itself follows model selection. The flow is: pick MODEL -> pick EFFORT level -> pick CONTEXT size. After the user confirms an effort level, immediately present the context-tier picker (default | long_context) for that model; SKIP the context step for models with only one tier. The plan MUST locate in source where the .3 Knob A effort picker is presented (the reasoning-level selector added by codex-copilot-model-knobs-reasoning-context) and chain the new context picker directly after it in that same flow, so a non-anthropic model that has no effort step still reaches the context step after model selection. Confirm whether the effort picker and the model picker live in the TUI (codex/codex-tui) and design the context picker to match their presentation + confirm/cancel semantics."
         }
+      },
+      "shipManifest": {
+        "shippedAt": "2026-06-11",
+        "summary": "Knob B: per-model context-window tier selector (default vs full) for Copilot models, shipped in codex v0.135.0-copilot-api.4. The parser overlays the live max_context_window_tokens as the full-tier ceiling with a per-family curated default (GPT 400k / Anthropic 264k); the TUI adds a context-tier picker step (model -> effort -> context, skipped for single-tier models) and the status line shows the selected tier's total window. Finalize fixes: E0063 literals + the SessionConfiguration behavioral hop + schema/snapshot regen; the app-server model/list contextWindow/maxContextWindow drop that made the picker never appear; and the status-line value (was showing the 95% runtime-effective window ~998K instead of the clean tier total).",
+        "commits": [
+          {
+            "sha": "cb894142",
+            "oneLine": "Knob B finalize (E0063 + behavioral hop + schema regen)",
+            "repo": "codex-patched"
+          },
+          {
+            "sha": "2b46782c",
+            "oneLine": "fix(tui): preserve context tier metadata in picker (model/list DTO)",
+            "repo": "codex-patched"
+          },
+          {
+            "sha": "a69ea916",
+            "oneLine": "feat(tui): show selected context-window size in status line",
+            "repo": "codex-patched"
+          },
+          {
+            "sha": "02ef333b",
+            "oneLine": "fix(tui): status line shows selected-tier total context window",
+            "repo": "codex-patched"
+          },
+          {
+            "sha": "4d599271",
+            "oneLine": "chore(release): bump copilot-fork version to v0.135.0-copilot-api.4 (codex-patched sandbox-patches HEAD)",
+            "repo": "codex-patched"
+          },
+          {
+            "sha": "01dc6c2d",
+            "oneLine": "fix(release): codex v0.135.0-copilot-api.4 wrapper gitlink + tag (gim-home/codex)",
+            "repo": "codex (wrapper)"
+          },
+          {
+            "sha": "da15eeba",
+            "oneLine": "chore(codex): bump submodule to v0.135.0-copilot-api.4 release",
+            "repo": "codexu"
+          }
+        ]
       }
     },
     {
@@ -7109,7 +7244,7 @@
     {
       "id": "codex-nonblocking-bg-completion-surfacing",
       "scope": "codex",
-      "lifecycle": "tracked",
+      "lifecycle": "merged",
       "status": "active",
       "lastTouchedAt": "2026-06-11",
       "kanbanCards": [
@@ -7132,6 +7267,10 @@
         {
           "className": "cmd-ok",
           "html": "COMPILE-FIX CHECK-VERIFIED @ <code>6be476983f</code> on <code>ralph/codex-bg-seam-fix</code> (2026-06-11). The blind-written code (7133aca92, never compiled) had a Send-bound flaw: the bg-completion watcher (a tokio::spawn'd Send task in unified_exec/async_watcher.rs) called the non-Send <code>start_task</code> directly via maybe_start_turn_for_pending_work (start_task is fine for its main-loop callers but cannot be hoisted into a Send task; SessionTask/AnySessionTask ARE Send+Sync so that was not the cause). FIX: route the wake through the session submission loop via <code>Op::WakePendingWork</code> — the watcher + the US-001 turn-end recheck enqueue a wake submission; the session loop starts the pending work in its existing non-Send context. VERIFIED: <code>check --workspace</code> clean; reverting the 7 fix files to HEAD^ reproduces the original non-Send error (tasks/mod.rs:503/594), proving the fix resolves it. Test-level (US-001) deferred: codex-core test tree pre-existingly broken (see codex-core-test-tree-precompile-breakage). Operator accepted CHECK-level for .4. Integrates at the .4 ship."
+        },
+        {
+          "className": "cmd-ok",
+          "html": "SHIPPED in codex <code>v0.135.0-copilot-api.4</code> (2026-06-11). Released via codex-patched sandbox-patches @ <code>4d59927165</code> (retention tag <code>release/0.135.0-copilot-api.4</code>) + wrapper gim-home/codex <code>01dc6c2dd</code> tag <code>v0.135.0-copilot-api.4</code> + GitHub Release bundle; codexu pointer <code>da15eeba</code>. See shipManifest for the per-feature commits."
         }
       ],
       "command": {
@@ -7143,6 +7282,32 @@
           "plan": "/plan-with-ralph --from-brainstorm .ralph/brainstorms/codex-nonblocking-bg-completion-surfacing/ \"Plan the LOW-conflict codex non-blocking background-completion surfacing per the shipped brainstorm (ea2218df, selected-direction.md): (1) enable the existing default-off Feature::BackgroundProcessNotification watcher behind a toggle; (2) a spawn-then-end-turn policy (short yield_time_ms / a non-blocking spawn path) that keeps the agent OFF the blocking await_background_completion for that session so the watcher's dedup flag fires; (3) a race-proof turn-end wake. KEY: codex's maybe_start_turn_for_pending_work() auto-starts a real turn below the app-server layer, so happy-cli's `codex app-server` mode gets the completion-re-enters-the-model behavior FOR FREE (no prompt injection) -- so the happy-cli wiring is minimal (mostly enabling + routing, possibly none). Cross-repo: codex (submodule) + happy-cli; impl needs worktrees in both. Minimize codex-fork upstream conflict surface. Mandatory live validation at impl.\"",
           "impl": "/implement-with-ralph --from-plan .ralph/jobs/codex-nonblocking-bg-completion-surfacing/plan.md --autonomous \"Implement the LOW-conflict non-blocking codex bg-completion surfacing per the committed plan (CROSS-REPO: codex submodule + happy-cli, worktrees in BOTH). US-001: ONE feature-gated codex seam (the spawn-then-end-turn enablement; the seam must fire AFTER active_turn is cleared else it no-ops -- corrected in review). US-002-006 happy-cli: developerInstructions policy, dual-flag enablement (BackgroundProcessNotification + UnifiedExec prerequisite via -c flags) + unsolicited-turn handling, doctor probe, live-validation gate, conditional LOW-B MessageQueue2 fallback. LEAN minimal codex surface (single seam). Mandatory live validation. Two repos -> the lead does the multi-repo ship; you commit on topic branches in each. NOTE: do NOT run concurrently with a codex release build (resource).\""
         }
+      },
+      "shipManifest": {
+        "shippedAt": "2026-06-11",
+        "summary": "Background-process-notification self-wake, shipped in codex v0.135.0-copilot-api.4. Drops await_background_completion and routes the watcher wake through the submission/op loop via Op::WakePendingWork (resolving the Send-bound flaw where the watcher's tokio::spawn called non-Send start_task), so a completed background terminal command wakes the turn non-blockingly. Enable with -c features.background_process_notification=true.",
+        "commits": [
+          {
+            "sha": "6be47698",
+            "oneLine": "fix(core): route bg wake via submission loop (Op::WakePendingWork)",
+            "repo": "codex-patched"
+          },
+          {
+            "sha": "4d599271",
+            "oneLine": "chore(release): bump copilot-fork version to v0.135.0-copilot-api.4 (codex-patched sandbox-patches HEAD)",
+            "repo": "codex-patched"
+          },
+          {
+            "sha": "01dc6c2d",
+            "oneLine": "fix(release): codex v0.135.0-copilot-api.4 wrapper gitlink + tag (gim-home/codex)",
+            "repo": "codex (wrapper)"
+          },
+          {
+            "sha": "da15eeba",
+            "oneLine": "chore(codex): bump submodule to v0.135.0-copilot-api.4 release",
+            "repo": "codexu"
+          }
+        ]
       }
     },
     {
