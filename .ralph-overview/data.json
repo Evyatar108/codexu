@@ -49,6 +49,25 @@
   "generatedFromCommit": "32fdb9de",
   "tasks": [
     {
+      "id": "codex-cli-vs-claude-code-workflows-parity",
+      "scope": "codex",
+      "lifecycle": "tracked",
+      "status": "active",
+      "lastTouchedAt": "2026-06-12",
+      "kanbanCards": [
+        {
+          "className": "cmd-warn",
+          "html": "RESEARCH (operator 2026-06-12). Read the Claude Code &quot;workflows&quot; docs (<code>https://code.claude.com/docs/en/workflows</code>), enumerate each documented workflow feature, and check whether codex CLI (our fork) has a MATCHING feature. Produce a parity matrix (feature / Claude Code behavior / codex equivalent yes-partial-no / file:line evidence or gap) + flag which gaps are worth filing as follow-up tasks. READ-ONLY investigation (web + codex source); snapshot+revert guard. SPAWNED member."
+        }
+      ],
+      "command": {
+        "name": "codex-cli-vs-claude-code-workflows-parity",
+        "prompts": {
+          "investigate": "READ-ONLY investigation. Make NO code edits except your findings deliverable. Run on a pre/post working-tree snapshot + revert guard (capture git status --porcelain for D:/harness-efforts/codexu, codex/, and codex/external/repos/codex-patched at START + END; the only NEW path you introduce is the findings file).\n\nGOAL: compare Claude Code's documented \"workflows\" feature set against codex CLI (our fork) and report feature parity + gaps.\n\nSTEP 1 -- READ THE CLAUDE CODE DOCS (use web_fetch/web_search): https://code.claude.com/docs/en/workflows . Enumerate EVERY workflow feature/capability documented there (e.g. whatever the page covers -- resume/continue, plan mode, subagents, hooks, slash commands, memory, MCP, background tasks, etc. -- do not assume; read the actual page and follow relevant sub-links). For each, capture a one-line description of what Claude Code does + the doc URL.\n\nSTEP 2 -- CHECK CODEX CLI FOR EACH (read source, read-only): our codex fork lives at codex/external/repos/codex-patched/codex-rs/ (the patched Rust) + the wrapper codex/ + the codex-rs-overlay. For each Claude Code workflow feature, determine whether codex has a matching capability: YES (equivalent exists -- cite file:line / config key / command), PARTIAL (partial/different shape -- explain), or NO (absent). Use codex --help / codex <sub> --help knowledge, config.toml keys, the TUI, slash commands, and the feature flags (features/src/lib.rs) as evidence. Distinguish upstream-codex-native vs fork-added where relevant.\n\nSTEP 3 -- PARITY MATRIX + GAP CALLOUTS: produce a table (Feature | Claude Code behavior | Codex equivalent: YES/PARTIAL/NO | Evidence (file:line / cmd / config) or gap note). Then list the NOTABLE GAPS (features Claude Code has that codex lacks or only partially supports) and, for each, a one-line note on whether it is worth filing as a follow-up codex task + rough shape. Do NOT file tasks yourself -- recommendations only (the lead files).\n\nDELIVERABLE: findings.md under .ralph/investigations/codex-cli-vs-claude-code-workflows-parity/ with the parity matrix, evidence, and the gap/follow-up recommendations. Report kind=done with: how many Claude Code workflow features were enumerated, the YES/PARTIAL/NO counts, the top gaps worth filing, and the findings path."
+        }
+      }
+    },
+    {
       "id": "codex-tui-focus-leak-recurs-after-v1-agent-spawn",
       "scope": "codex",
       "lifecycle": "tracked",
