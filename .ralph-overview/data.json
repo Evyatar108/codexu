@@ -49,6 +49,25 @@
   "generatedFromCommit": "32fdb9de",
   "tasks": [
     {
+      "id": "codex-workflows-replace-ralph-orchestration-feasibility",
+      "scope": "codex",
+      "lifecycle": "tracked",
+      "status": "active",
+      "lastTouchedAt": "2026-06-12",
+      "kanbanCards": [
+        {
+          "className": "cmd-warn",
+          "html": "FEASIBILITY (operator 2026-06-12). Can a codex WORKFLOWS product (see codex-workflows-product-mvp) REPLACE the ralph-orchestration plugin, AND make its phases USER-EXTENSIBLE (third parties add/reorder phases by editing workflow data, not forking the plugin)? CRUX (operator refinement): ralph is DEEPLY NESTED/RECURSIVE -- it is not a flat brainstorm-&gt;plan-&gt;impl pipeline. Each phase is itself a multi-phase sub-workflow: e.g. IMPL = PRD generation -&gt; review -&gt; implementation -&gt; DSAT gathering -&gt; Phase-5a/5b convergence loops, and each sub-phase spawns its own sub-agents. So the make-or-break question is whether the codex workflow runtime supports NESTED/RECURSIVE sub-workflows + convergence loops + operator-interaction points, WITHIN the documented Claude-parity limits (16 concurrent agents, 1000 total/run, NO mid-run user input, NO direct FS/shell from the script). READ-ONLY analysis; feeds the MVP design (#1). Brainstorm/investigation member."
+        }
+      ],
+      "command": {
+        "name": "codex-workflows-replace-ralph-orchestration-feasibility",
+        "prompts": {
+          "investigate": "READ-ONLY feasibility investigation. Make NO code edits except your findings deliverable; pre/post working-tree snapshot + revert guard (capture git status --porcelain for D:/harness-efforts/codexu, codex/, codex/external/repos/codex-patched at START + END; only NEW path = your findings file; another impl member is concurrently editing the codex-rs TUI -- do not touch its work).\n\nQUESTION: Can a codex WORKFLOWS product (per the codex-workflows-product-mvp task + the parity findings @ .ralph/investigations/codex-cli-vs-claude-code-workflows-parity/findings.md) REPLACE the ralph-orchestration plugin, and additionally make ralph phases USER-EXTENSIBLE (third parties add/reorder phases via workflow data instead of forking the plugin)?\n\nTHE CRUX -- NESTING/RECURSION: ralph is NOT a flat pipeline. It is deeply nested. Map ralph's actual structure from source: the ralph plugin lives at ai-developer-toolkit/plugins/ralph/ (skills, scripts, src). Document the real phase tree -- e.g. top-level brainstorm -> plan -> impl, where IMPL itself = convert-to-ralph-PRD -> per-story implementation loop -> Phase 5a code review-fix convergence (multi-round) -> Phase 5b docs review-fix convergence -> DSAT/retrospective gathering -> followup-task gathering, and where individual steps spawn SUBAGENTS (e.g. the write/review children, the codex spawn_agent fan-out). Cite the skill/script files that define each level.\n\nTHEN assess against the codex workflow runtime model (from the parity findings + codex multi-agent source core/src/tools/handlers/multi_agents_v2/ + features/src/feature_configs.rs + spec_plan.rs): \n1. NESTED SUB-WORKFLOWS: can a codex workflow phase itself BE a workflow (recursion)? Does the runtime/agent model allow a spawned agent to itself spawn a nested workflow run, and to what DEPTH? (Cross-reference any depth limits -- e.g. the fork subagent gate at tool_config.rs and the depth-limited-to-1 finding if it still applies.)\n2. AGENT BUDGET: ralph fans out many agents across nested phases. Do Claude-parity limits (16 concurrent / 1000 total per run) + codex MultiAgentV2 max_concurrent_threads_per_session (default 4) accommodate ralph's real fan-out, or is per-phase budgeting needed?\n3. CONVERGENCE LOOPS: Phase 5a/5b are iterate-until-clean loops (data-dependent iteration count). Can a workflow express a loop whose iteration count is decided at runtime by a reviewer verdict?\n4. OPERATOR INTERACTION: ralph + the bookkeeper relay operator decisions (kind=question). The Claude workflow runtime documents NO mid-run user input. Is that a blocker for ralph's question-relay + approval pauses?\n5. STATE/RESUME: ralph persists job-state.json + iteration manifests + worktrees. Can workflow run-state model that, and resume mid-job?\n6. CROSS-ENGINE + CREWS: ralph today runs cross-engine (Claude/Copilot/codex) and is driven via the crews member model. A codex-native workflow runtime is codex-only -- what is lost (the non-codex engines, the cross-session crew model)?\n7. USER-EXTENSIBILITY: if ralph phases were DEFINED as workflow data (declarative phase graph), could a third party add/reorder a phase without forking? What would the phase-definition format need (inputs/outputs, sub-agent recipes, convergence predicates)?\n\nVERDICT: FULL-REPLACE / PARTIAL-REPLACE (which parts) / NOT-FEASIBLE, with the specific blockers, and a recommendation on whether the codex-workflows-product-mvp design should TARGET ralph as its canonical complex use case (driving nesting + loop + budget requirements into the MVP). Note conflict surface (fork-minimize).\n\nDELIVERABLE: findings.md under .ralph/investigations/codex-workflows-replace-ralph-orchestration-feasibility/ with the ralph phase tree (cited), the 7-point assessment, the verdict + blockers, and the MVP-design recommendation. Report kind=done with the verdict + the top 2-3 blockers + the findings path."
+        }
+      }
+    },
+    {
       "id": "codex-workflows-product-mvp",
       "scope": "codex",
       "lifecycle": "tracked",
@@ -58,6 +77,10 @@
         {
           "className": "cmd-warn",
           "html": "FEATURE (operator 2026-06-12, from workflows-parity research @ .ralph/investigations/codex-cli-vs-claude-code-workflows-parity/findings.md). GAP #1 (high value). Claude Code has a first-class WORKFLOW PRODUCT (model-authored JS scripts run by a background runtime + a <code>/workflows</code> run browser + persisted run metadata); codex has NONE (parity 0 YES). Codex DOES have the building blocks: upstream-native multi-agent tools (spawn_agent/wait_agent/list_agents/close_agent, spec_plan.rs:649-690), background terminals (/ps, /stop), plan mode. Build a user-visible orchestration MVP on top of those primitives: persisted run registry + a TUI <code>/workflows</code> browser/progress view. FOUNDATIONAL for gaps #4 (deep-research) + #6 (resume). HEAVY codex-fork feature; brainstorm-first; minimize upstream conflict."
+        },
+        {
+          "className": "cmd-warn",
+          "html": "CANONICAL USE CASE (operator 2026-06-12): evaluate whether this MVP can REPLACE the ralph-orchestration plugin + make ralph phases user-extensible. Ralph is DEEPLY NESTED (impl = PRD-gen -&gt; review -&gt; impl -&gt; DSAT -&gt; 5a/5b convergence, each spawning sub-agents), so it stress-tests nested sub-workflows + runtime-decided convergence loops + agent budgets + operator-interaction. Feasibility tracked separately as codex-workflows-replace-ralph-orchestration-feasibility -- its findings should DRIVE this MVP's nesting/loop/budget requirements."
         }
       ],
       "command": {
