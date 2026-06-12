@@ -215,7 +215,7 @@
     {
       "id": "codex-tui-focus-leak-recurs-after-v1-agent-spawn",
       "scope": "codex",
-      "lifecycle": "tracked",
+      "lifecycle": "merged",
       "status": "active",
       "lastTouchedAt": "2026-06-12",
       "kanbanCards": [
@@ -238,6 +238,27 @@
           "investigate": "READ-ONLY investigation (CODEX submodule). Make NO code edits except the findings deliverable; run on a pre/post working-tree snapshot + revert guard.\n\nBUG: the Windows focus-event leak ([I[O[I[O literal focus-in/out reports flooding the input field) RECURS on codex 0.135.0-copilot-api.4 -- the release that shipped the focus-leak fix -- specifically AFTER spawning v1 (Collab) agents (NOT after /goal). Reproduced on a second PC running .4.\n\nTHE .4 FIX (cite + re-read it): commit bc7f695e cleared the inherited Windows ENABLE_VIRTUAL_TERMINAL_INPUT stdin console-mode bit ONCE before enable_raw_mode() at startup, and restores it on exit (see the original task codex-tui-focus-event-leak-input-corruption shipManifest + the tui startup/raw-mode setup in codex-rs/tui/src/). Root cause of the ORIGINAL leak: on Windows codex inherits VT-input mode, so crossterm's console-record parser drops the ESC leader of VT sequences and the tails ([O[I focus reports) leak as text.\n\nHYPOTHESIS TO CONFIRM/REFUTE: a v1 (Collab) agent spawn re-enables the VT-input bit or re-arms focus-reporting (DECSET ?1004 / crossterm EnableFocusChange) AFTER the one-time startup clear, so the cleared state is undone mid-session and the leak returns.\n\nSTEPS (cite file:line; source at codex/external/repos/codex-patched/codex-rs/ + overlay codex/codex-rs-overlay/):\n1. RE-READ the .4 fix: where exactly is ENABLE_VIRTUAL_TERMINAL_INPUT cleared (startup) + restored (exit)? Is it a ONE-TIME clear, or is it re-asserted on any state-change? (tui startup / raw-mode / terminal init).\n2. TRACE THE v1 AGENT SPAWN PATH: when a v1 (Collab) agent is spawned (core/src/tools/handlers/ Collab spawn handler), does it create a PTY / sub-shell / touch stdin console mode / re-run any terminal setup that could RE-SET ENABLE_VIRTUAL_TERMINAL_INPUT on the parent stdin, or re-emit EnableFocusChange / DECSET ?1004? Identify the exact site that re-introduces the leak.\n3. WINDOWS-SPECIFICITY: confirm whether the recurrence is Windows-only (the original was a Windows console-record-path bug) or also affects Linux/mac.\n4. CORRELATION with codex-v1-agent-thread-limit-not-released-on-completion: do both bugs share the same v1-agent-spawn console/session-handling root, or are they independent? (Cross-reference; do not assume.)\n5. FIX DIRECTION: e.g. re-assert the VT-input clear after every agent spawn, or move the clear/restore to wrap the agent-spawn console interaction, or suppress focus-report re-enable on the parent. Keep codex-side (no crossterm fork, matching the .4 fix). Note fork-vs-upstream + patch-surface registry impact.\n\nDELIVERABLE: findings.md under .ralph/investigations/codex-tui-focus-leak-recurs-after-v1-agent-spawn/ with the re-enable site (file:line), the confirmed/refuted hypothesis, the v1-vs-correlation finding, OS scope, and a codex-side fix recommendation. Report kind=done with root cause + fix rec + whether it needs a .5 release.",
           "impl": "Implement the codex-side fix for the Windows focus-event-leak RECURRENCE (the .4 startup-only clear gets undone mid-session).\n\nROOT CAUSE (from findings @ .ralph/investigations/codex-tui-focus-leak-recurs-after-v1-agent-spawn/findings.md): the .4 fix clears the inherited Windows ENABLE_VIRTUAL_TERMINAL_INPUT stdin bit ONCE before enable_raw_mode() at startup and restores it in the TUI restore path (codex-rs/tui/src/tui.rs restore_common() -> restore_saved_virtual_terminal_input_bit()). A MID-SESSION restore_common() (e.g. a suspend/resume / alternate-screen toggle) re-enables the bit, so crossterm's Windows console-record parser again drops the ESC leader of VT sequences and focus reports ([I[O) leak as literal input. Windows-only.\n\nFIX (codex-side, NO crossterm fork): keep ENABLE_VIRTUAL_TERMINAL_INPUT CLEARED for the FULL TUI lifetime -- restore the saved bit ONLY on FINAL TUI exit, not on every restore_common(). Re-read tui.rs to confirm the exact suspend/resume vs final-teardown call sites; ensure mid-session restore paths do NOT re-enable the bit (re-clear after any restore, or move the restore to final teardown only). Verify the .4 startup clear + final-exit restore still works (no leaked bit after codex exits).\n\nCONSTRAINTS: CODEX SUBMODULE -- impl is LEAD-COORDINATED in the canonical inner checkout (codex/external/repos/codex-patched), NOT a worktree (overlay relative-paths break cargo check from worktrees). Land on the .5 accumulation branch ralph/codex-v5-int. Compile-verify via the lead build (files/codex-cargo.sh / cargo check --workspace). SANDBOX-PATCH-mark the change + add a docs/implementation/patch-surface.md entry (coordinate with codex-patch-surface-divergence-registry-refresh). Note: this is a Windows-only behavioral fix; if feasible add/adjust a test asserting the bit stays cleared across a restore_common() cycle.\n\nDELIVERABLE: the fix committed on ralph/codex-v5-int (lead coordinates). Report kind=done with the commit SHA + confirmation the bit stays cleared across mid-session restore + cargo check green."
         }
+      },
+      "shipManifest": {
+        "shippedAt": "2026-06-12",
+        "summary": "The Windows focus-event leak ([I[O literal focus reports flooding input) that RECURRED on .4 mid-session (after a v1 agent spawn / any restore_common()) is fixed by keeping ENABLE_VIRTUAL_TERMINAL_INPUT cleared for the full TUI lifetime and restoring the inherited bit only on final exit. The .4 fix cleared it once at startup but a mid-session restore re-enabled it; the saved VT-input state now sticks across re-entry. New Windows-only restore-cycle test. Windows-only. Shipped in codex v0.135.0-copilot-api.5. Released via codex-patched sandbox-patches @ a2bafe72 (retention tag release/0.135.0-copilot-api.5) + wrapper gim-home/codex ebd6e0ba tag v0.135.0-copilot-api.5 + GitHub Release bundle (https://github.com/gim-home/codex/releases/tag/v0.135.0-copilot-api.5); codexu pointer bumped to ebd6e0ba.",
+        "commits": [
+          {
+            "sha": "0f056863",
+            "oneLine": "fix(tui): keep Windows VT input cleared until exit",
+            "repo": "codex-patched"
+          },
+          {
+            "sha": "a2bafe72",
+            "oneLine": "fix(release): codex 0.135.0-copilot-api.5 (version bump)",
+            "repo": "codex-patched"
+          },
+          {
+            "sha": "ebd6e0ba",
+            "oneLine": "fix(release): codex 0.135.0-copilot-api.5 wrapper gitlink + tag",
+            "repo": "codex (gim-home wrapper)"
+          }
+        ]
       }
     },
     {
@@ -388,9 +409,9 @@
     {
       "id": "codex-resume-slow-conversation-list",
       "scope": "codex",
-      "lifecycle": "tracked",
+      "lifecycle": "merged",
       "status": "active",
-      "lastTouchedAt": "2026-06-11",
+      "lastTouchedAt": "2026-06-12",
       "kanbanCards": [
         {
           "className": "cmd-warn",
@@ -415,12 +436,33 @@
           "investigate": "You are `investigate-resume` (register under a short auto-name if needed), a READ-ONLY investigation member of crew `ralph-pipeline` (Copilot CLI). You root-cause why codex `/resume` is slow to load the past-conversations list, cite source at file:line, and write a findings + fix-direction doc. You do NOT edit source and you do NOT build.\r\n\r\n## The bug (operator-reported)\r\n`/resume` takes a really long time to load the list of past conversations (the resume picker). Goal: understand WHY it's slow and recommend how to speed it up.\r\n\r\n## Where to read + what to answer (cite file:line)\r\nCodex submodule: `D:/harness-efforts/codexu/codex/external/repos/codex-patched/codex-rs`.\r\n1. **The /resume list path.** Find the `/resume` command + the code that builds the past-conversations list/picker. Search `resume`, `Resume`, `list_sessions`, `list_conversations`, `rollout`, `sessions`, `RolloutRecorder`, the session/rollout directory scan, the resume picker UI (tui). Trace from the command to where the list is populated.\r\n2. **Where session metadata comes from.** How are past conversations enumerated — does it scan a sessions/rollout directory (e.g. `~/.codex/sessions/**` or the rollout dir), and for EACH session file does it OPEN + PARSE the whole file (JSONL rollout) to extract metadata/preview (title, first message, timestamp, cwd)? Pin the per-file work done to build each list row.\r\n3. **Why it's slow.** Quantify the cost model: is it O(N sessions) full-file reads/parses, synchronous + serial, with no index/cache/pagination? Are large rollout files fully parsed just for a preview line? Is it done on the main thread blocking the UI? Cite the loop + the per-file parse. Note any sorting/globbing that walks all files.\r\n4. **Fix direction (DO NOT implement).** Recommend the cheapest correct speedup: e.g. read only the file head (not the whole rollout) for the preview, a metadata index/cache (sidecar or sqlite), lazy/paginated loading (load first page, fetch more on scroll), parallel reads, or caching parsed metadata. Note the exact file:line where a fix would land + tradeoffs. Note fork-vs-upstream (// SANDBOX PATCH) for the resume/list path.\r\n\r\nCite file:line for every claim.\r\n\r\n## Constraints (READ-ONLY)\r\n- Do NOT edit/create/delete any source. No build. Other members are concurrently editing codex-rs TUI + a ralph plan worktree + reading codex source (mav2, resize) — you only READ; touch no source. Ignore `.worktrees/`.\r\n- Read-only guard: capture `git -C D:/harness-efforts/codexu/codex/external/repos/codex-patched status --porcelain` at start + end; the files YOU changed must be empty (leave others' edits + pre-existing dirty state alone).\r\n\r\n## Output + commit (codexu worktree)\r\n1. `git -C D:/harness-efforts/codexu worktree add D:/harness-efforts/codexu/.worktrees/investigate-resume -b ralph/investigate-resume main`\r\n2. Write to `D:/harness-efforts/codexu/.worktrees/investigate-resume/.ralph/investigations/codex-resume-slow-conversation-list/findings.md`: a top \"summary for the operator\" (3-5 sentences: why it's slow + the recommended fix), then detailed answers to all 4 points with file:line citations + the cost model.\r\n3. Commit ONLY that file: message `docs(investigation): codex /resume slow conversation-list load + fix direction`, trailer `Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>`. Do NOT `git add -A`.\r\n4. Push: `git -C ...worktree... push -u origin ralph/investigate-resume` (if auth fails, report SHA+branch for the lead).\r\n\r\n## Reporting\r\nBody-canonical: substantive plain-English answer in the BODY. End with `<|report kind=\"done\" summary=\"<one-line>\"|>` reporting the commit SHA + branch + a crisp answer (why slow + cheapest fix locus). Keep your background listener armed per the PreToolUse hook instructions.\r\n",
           "impl": "Fix codex /resume slow conversation-list load per .ralph/investigations/codex-resume-slow-conversation-list/findings.md (committed b095ecd9). PRIMARY: flip the resume picker's thread/list calls to use_state_db_only: true at codex-rs/tui/src/resume_picker.rs:1818-1831 so page 1 returns from the state DB instead of the filesystem-first scan/repair path (which walks rollout dirs, stats mtimes, opens rollout heads, may run SQLite repair). PRESERVE CORRECTNESS: reconcile selected/visible rows lazily after first paint so filesystem-only sessions still appear. Add a focused test asserting the picker's first-page thread/list request uses DB-only. Verify with the codex-cargo.sh wrapper (cargo check -p codex-tui + focused tests); build is lead-owned (canonical checkout, not a worktree). codex submodule."
         }
+      },
+      "shipManifest": {
+        "shippedAt": "2026-06-12",
+        "summary": "/resume now loads page 1 with use_state_db_only=true (fast DB read) then queues a lazy scan-and-repair reconcile for the visible first page, replacing the slow filesystem-first scan/repair that walked rollout dirs + opened rollout heads for preview metadata. Shipped in codex v0.135.0-copilot-api.5. Released via codex-patched sandbox-patches @ a2bafe72 (retention tag release/0.135.0-copilot-api.5) + wrapper gim-home/codex ebd6e0ba tag v0.135.0-copilot-api.5 + GitHub Release bundle (https://github.com/gim-home/codex/releases/tag/v0.135.0-copilot-api.5); codexu pointer bumped to ebd6e0ba.",
+        "commits": [
+          {
+            "sha": "e484d0e5",
+            "oneLine": "perf(tui): /resume loads first page DB-only + lazy reconcile",
+            "repo": "codex-patched"
+          },
+          {
+            "sha": "a2bafe72",
+            "oneLine": "fix(release): codex 0.135.0-copilot-api.5 (version bump)",
+            "repo": "codex-patched"
+          },
+          {
+            "sha": "ebd6e0ba",
+            "oneLine": "fix(release): codex 0.135.0-copilot-api.5 wrapper gitlink + tag",
+            "repo": "codex (gim-home wrapper)"
+          }
+        ]
       }
     },
     {
       "id": "codex-tui-resize-reprints-full-history",
       "scope": "codex",
-      "lifecycle": "tracked",
+      "lifecycle": "merged",
       "status": "active",
       "lastTouchedAt": "2026-06-12",
       "kanbanCards": [
@@ -452,6 +494,27 @@
           "plan": "/plan-with-ralph \"Plan the fix for codex reprinting the full conversation history on terminal resize, per .ralph/investigations/codex-tui-resize-reprints-history/findings.md (committed 6861734d). Root cause: reflow_transcript_now() clears codex-owned terminal scrollback and re-emits ALL transcript_cells on resize (O(history)). EVALUATE the two directions the investigation found and recommend ONE: (A) TRUE fix — render finalized history from transcript_cells in a retained ratatui-owned history viewport instead of terminal scrollback (bigger, changes the history rendering model; weigh the e-ink/low-power target + the inline-viewport UX); (B) cheaper mitigation — smaller resize-reflow row caps + skip pure-height-only rebuilds (lower risk, partial). Cite the exact seams (event_stream.rs:237-248, app/resize_reflow.rs:231-243/421-446/456-513, insert_history.rs, resize_reflow_cap.rs, transcript_reflow.rs:72-85). codex submodule; build is lead-owned (canonical checkout only, not a worktree).\"",
           "impl": "Implement the codex TUI resize-reprint fix per the committed plan @ .ralph/jobs/codex-tui-resize-reprints-full-history/plan.md (Direction A: retained ratatui-owned transcript viewport instead of terminal-scrollback replay). 3 stories.\n\nCRITICAL BUILD-TARGET CORRECTION: the plan.md build/test section is WRONG -- it points at packages/happy-app/src-tauri + pnpm --filter happy-app. IGNORE THAT. This fix lives in the CODEX-RS TUI crate: codex/external/repos/codex-patched/codex-rs/tui/ (modules tui/src/app/resize_reflow.rs, tui/src/insert_history.rs, tui/src/app/event_dispatch.rs, tui/src/app_backtrack.rs, tui/src/pager_overlay.rs, tui/src/tui.rs, tui/src/app/tests.rs). Build/verify with cargo from the canonical codex checkout (files/codex-cargo.sh; cargo check -p codex-tui + cargo test -p codex-tui), NOT pnpm/tauri.\n\nCODEX SUBMODULE constraints: impl is LEAD-COORDINATED in the canonical inner checkout (codex/external/repos/codex-patched), NOT a worktree (overlay relative-paths break cargo from worktrees). Land on the .5 accumulation branch ralph/codex-v5-int. SANDBOX-PATCH-mark the change + add a docs/implementation/patch-surface.md entry (coordinate with codex-patch-surface-divergence-registry-refresh). Current resize behavior is upstream-native (no existing markers).\n\nHonor the 3 plan-critique gaps: (1) neutralize app_backtrack.rs render_transcript_once() + the deferred_history_lines flush in close_transcript_overlay(); (2) ship US-001+US-002 atomically OR feature-gate the retained renderer behind TerminalResizeReflow so scrollback + retained paths never double-render; (3) implement the DECIDED inline scroll model for the retained main viewport (per plan). Update tui/src/app/tests.rs coverage. Drive Phase 5a/5b to terminal.\n\nDELIVERABLE: fix committed on ralph/codex-v5-int (lead coordinates the canonical-checkout build). Report kind=done with commit SHA + cargo check/test -p codex-tui green + confirmation resize no longer replays full history."
         }
+      },
+      "shipManifest": {
+        "shippedAt": "2026-06-12",
+        "summary": "Resize no longer reprints the entire conversation history. Direction A: committed history moved from terminal scrollback into a retained ratatui-owned transcript viewport (new chatwidget/committed_transcript.rs shared by main view + overlay), making resize O(viewport) instead of O(history). The prior O(history) clear-and-reemit path (TerminalResizeReflow, default-on, no OS gate) is bypassed under the retained model. Shipped in codex v0.135.0-copilot-api.5. Released via codex-patched sandbox-patches @ a2bafe72 (retention tag release/0.135.0-copilot-api.5) + wrapper gim-home/codex ebd6e0ba tag v0.135.0-copilot-api.5 + GitHub Release bundle (https://github.com/gim-home/codex/releases/tag/v0.135.0-copilot-api.5); codexu pointer bumped to ebd6e0ba.",
+        "commits": [
+          {
+            "sha": "8548182d",
+            "oneLine": "feat(tui): retained committed-transcript viewport (resize no longer replays full history)",
+            "repo": "codex-patched"
+          },
+          {
+            "sha": "a2bafe72",
+            "oneLine": "fix(release): codex 0.135.0-copilot-api.5 (version bump)",
+            "repo": "codex-patched"
+          },
+          {
+            "sha": "ebd6e0ba",
+            "oneLine": "fix(release): codex 0.135.0-copilot-api.5 wrapper gitlink + tag",
+            "repo": "codex (gim-home wrapper)"
+          }
+        ]
       }
     },
     {
@@ -480,9 +543,9 @@
     {
       "id": "codex-tui-agent-name-remaining-lifecycle-cells",
       "scope": "codex",
-      "lifecycle": "tracked",
+      "lifecycle": "merged",
       "status": "active",
-      "lastTouchedAt": "2026-06-11",
+      "lastTouchedAt": "2026-06-12",
       "kanbanCards": [
         {
           "className": "cmd-warn",
@@ -496,6 +559,27 @@
       "command": {
         "name": "codex-tui-agent-name-remaining-lifecycle-cells",
         "prompts": {}
+      },
+      "shipManifest": {
+        "shippedAt": "2026-06-12",
+        "summary": "Agent NAME (not GUID) now shown in the Waiting/Completion TUI cells (the remaining lifecycle cells beyond the spawn cell that codex-tui-agent-spawn-name-display fixed in .4). Shipped in codex v0.135.0-copilot-api.5. Released via codex-patched sandbox-patches @ a2bafe72 (retention tag release/0.135.0-copilot-api.5) + wrapper gim-home/codex ebd6e0ba tag v0.135.0-copilot-api.5 + GitHub Release bundle (https://github.com/gim-home/codex/releases/tag/v0.135.0-copilot-api.5); codexu pointer bumped to ebd6e0ba.",
+        "commits": [
+          {
+            "sha": "0f7bf5d4",
+            "oneLine": "feat(tui): show agent name (not guid) in wait + completion cells",
+            "repo": "codex-patched"
+          },
+          {
+            "sha": "a2bafe72",
+            "oneLine": "fix(release): codex 0.135.0-copilot-api.5 (version bump)",
+            "repo": "codex-patched"
+          },
+          {
+            "sha": "ebd6e0ba",
+            "oneLine": "fix(release): codex 0.135.0-copilot-api.5 wrapper gitlink + tag",
+            "repo": "codex (gim-home wrapper)"
+          }
+        ]
       }
     },
     {
