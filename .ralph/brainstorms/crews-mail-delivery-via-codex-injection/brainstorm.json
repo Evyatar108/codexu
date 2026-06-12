@@ -1,0 +1,178 @@
+{
+  "taskId": "crews-mail-delivery-via-codex-injection",
+  "generatedAt": "2026-06-12T01:46:18.882-07:00",
+  "status": "recommended-direction-selected",
+  "lensRun": {
+    "codex": {
+      "status": "launched-no-usable-output-yet",
+      "detail": "The Codex lens process was launched but had not produced a usable artifact before synthesis time."
+    },
+    "copilot": {
+      "status": "partial-malformed-output",
+      "detail": "The Copilot lens wrote process narration but not a completed structured result."
+    },
+    "devilsAdvocate": {
+      "status": "completed",
+      "detail": "Returned a usable JSON lens result emphasizing that wake hint and durable review/ack semantics must stay separate."
+    }
+  },
+  "candidateDirections": [
+    {
+      "id": "D-001",
+      "name": "Crews MCP wake plus native Codex queued-input bridge",
+      "summary": "Keep the existing crews mailbox/review cursor as source of truth, add a tiny crews MCP notification source for mailbox writes, and add a Codex-native next-turn queue bridge so specific crews notifications become queued prompts without a listener subprocess."
+    },
+    {
+      "id": "D-002",
+      "name": "Route crews delivery through happy-cli instead of raw codex",
+      "summary": "Reuse the already-shipped happy-cli MCP notification consumer and durable mailbox wake pattern by changing the runtime architecture so crews codex sessions run through happy-cli's codex wrapper."
+    },
+    {
+      "id": "D-003",
+      "name": "Keep the listener subprocess and surface its completion better",
+      "summary": "Use the existing BackgroundProcessNotification wake path to make listener exits show up more naturally in codex, but keep the listener/review-mail loop intact."
+    }
+  ],
+  "recommendedDirection": {
+    "id": "D-001",
+    "name": "Crews MCP wake plus native Codex queued-input bridge",
+    "summary": "The best listener-less shape is to copy the happy agent-comms split: durable mailbox remains authoritative, MCP resource_updated is only a wake hint, and native Codex injects a queued next-turn prompt by reusing the existing input-queue wake pattern rather than relying on the current happy-cli-only Option B consumer.",
+    "why": [
+      "Mailbox writes, not process exits, are the right producer event for crews mail; BackgroundProcessNotification only models subprocess completion.",
+      "The already-merged MCP notification ingress is real, but in raw Codex it stops at EventMsg::McpServerNotification and does not become model-visible queued input; that is why a small new codex fork patch is still required.",
+      "Keeping review/ack semantics explicit avoids splitting truth between transcript text and .crews mailbox history."
+    ]
+  },
+  "chosenCodexSeam": {
+    "dispatchSite": {
+      "queueApi": "codex\\external\\repos\\codex-patched\\codex-rs\\core\\src\\session\\input_queue.rs:82-88",
+      "wakePrecedent": "codex\\external\\repos\\codex-patched\\codex-rs\\core\\src\\unified_exec\\async_watcher.rs:184-188"
+    },
+    "reason": "These are the existing native Codex primitives that queue next-turn ResponseInputItems and wake pending work. A crews-specific MCP notification consumer should reuse this exact mechanism so mail is delivered between turns in the same way background shell completion is already delivered today."
+  },
+  "existingSeamsAssessed": {
+    "mcpNotificationIngress": {
+      "status": "usable-but-insufficient-alone",
+      "evidence": [
+        "codex\\codex-rs-overlay\\codex-mcp-notification-bridge\\src\\bridge.rs:123-131",
+        "codex\\external\\repos\\codex-patched\\codex-rs\\rmcp-client\\src\\logging_client_handler.rs:88-97",
+        "codex\\external\\repos\\codex-patched\\codex-rs\\codex-mcp\\src\\rmcp_client.rs:509-519"
+      ],
+      "finding": "Codex can already ingest MCP server notifications and emit EventMsg::McpServerNotification, but raw Codex does not yet turn that event into queued model input."
+    },
+    "rawCodexNativeGap": {
+      "status": "blocks-listener-less-on-existing-seams",
+      "evidence": [
+        "codex\\external\\repos\\codex-patched\\codex-rs\\core\\src\\session\\turn.rs:1370-1371"
+      ],
+      "finding": "Raw Codex currently ignores EventMsg::McpServerNotification in the native turn path."
+    },
+    "happyCliOptionB": {
+      "status": "already-solves-the-problem-only-inside-happy-cli",
+      "evidence": [
+        "packages\\happy-cli\\src\\codex\\runCodex.ts:299-313",
+        "packages\\happy-cli\\src\\codex\\runCodex.ts:766-775",
+        "packages\\happy-cli\\src\\codex\\mcpNotificationConsumer.ts:120-150"
+      ],
+      "finding": "The existing prompt-queue consumer is in happy-cli, not in plain crews-spawned Codex sessions."
+    },
+    "backgroundProcessNotification": {
+      "status": "good-fallback-not-listener-less",
+      "evidence": [
+        "codex\\external\\repos\\codex-patched\\codex-rs\\core\\src\\unified_exec\\async_watcher.rs:166-189"
+      ],
+      "finding": "This already queues a synthetic next-turn message and wakes pending work, but only for subprocess exits; it does not model mailbox writes and still assumes a listener subprocess exists."
+    },
+    "agentCommsPattern": {
+      "status": "best-shape-to-copy",
+      "evidence": [
+        "packages\\happy-cli\\src\\codex\\agentCommsBridge.ts:15-31",
+        "packages\\happy-cli\\src\\codex\\agentCommsBridge.ts:273-325",
+        "packages\\happy-cli\\src\\agentComms\\recovery.ts:12-19",
+        "packages\\happy-cli\\src\\agentComms\\recovery.ts:50-60",
+        "plans\\durable-mailbox-channel-wake.md:31-40",
+        "plans\\durable-mailbox-channel-wake.md:107-115"
+      ],
+      "finding": "The durable-mailbox plus resource_updated wake split already solves 'wake is hint, mailbox is truth' and includes startup catch-up semantics."
+    }
+  },
+  "crewsSideChanges": [
+    "Add a small Codex-visible MCP surface for crews mail. The current crews codex plugin manifest has hooks only and no mcpServers entry (`ai-developer-toolkit\\plugins\\crews\\.codex-plugin\\plugin.json:1-18`, `ai-developer-toolkit\\plugins\\crews\\.codex-plugin\\hooks\\hooks.json:1-60`).",
+    "Keep `.crews` mailbox files and review cursors as the source of truth. A wake notification must never mark mail reviewed; only the existing review-mail/markReviewed path should advance `lastReviewedSeq` (`ai-developer-toolkit\\plugins\\crews\\hooks\\commands\\review-mail.js:220-298`, `ai-developer-toolkit\\plugins\\crews\\hooks\\actors.js:1454-1473`).",
+    "Emit resource_updated (or equivalent MCP server notification) on mailbox writes, keyed by actor/session identity, and reuse existing review-mail formatting rather than inventing a second mailbox schema.",
+    "Add startup catch-up for codex sessions: if `lastReviewRequiredSeq > lastReviewedSeq`, inject one wake hint on SessionStart the same way happy agent-comms recovery enqueues one wake on startup."
+  ],
+  "codexSideChanges": [
+    "Add a small native consumer for crews-tagged MCP notifications that synthesizes one queued next-turn prompt using the existing `queue_response_items_for_next_turn(...)` + `request_pending_work_wake()` pattern (`core\\src\\session\\input_queue.rs:82-88`, `core\\src\\unified_exec\\async_watcher.rs:184-188`).",
+    "Do not rely on the current happy-cli Option B consumer for raw codex sessions; that consumer only exists in `packages\\happy-cli\\src\\codex\\mcpNotificationConsumer.ts` and is not present in plain codex TUI flows.",
+    "Gate the new behavior narrowly, ideally by MCP server name plus notification kind, so generic MCP notifications continue to behave as Stage A event-only traffic.",
+    "Preserve 'between turns only' semantics; the new path should queue input for the next turn, not preempt an active LLM call."
+  ],
+  "hookGateBehavior": {
+    "codex": {
+      "preToolUse": "Replace the listener-arm-first requirement with a codex-specific 'notification bridge healthy' requirement. Once the bridge is active, the unarmed review-mail-first block at `ai-developer-toolkit\\plugins\\crews\\hooks\\pre-tool-use.js:590-635` should not fire for codex actors.",
+      "stop": "Relax the listener-armed end-of-turn requirement only for codex actors that have the bridge enabled. Keep review-required and strict-ack behavior unchanged; only the reachability primitive changes.",
+      "reviewFlow": "The wake prompt should tell the actor to run review-mail (or a future equivalent drain tool/resource). The wake itself is not the ack path."
+    },
+    "claudeCopilot": {
+      "behavior": "Keep the current listener model unchanged, including the review-mail-first block and the lead/member listener gates."
+    }
+  },
+  "conflictSurface": {
+    "verdict": "new-codex-fork-patch-required",
+    "summary": "Listener-less delivery for plain crews-spawned codex sessions cannot ride only already-merged seams. The producer half is missing in crews, and the native consumer half is missing in raw Codex.",
+    "whyNotAlreadyMergedOnly": [
+      "Current Stage A MCP notification ingress stops at EventMsg::McpServerNotification in raw Codex (`core\\src\\session\\turn.rs:1370-1371`).",
+      "The shipped prompt-queue consumer lives only in happy-cli (`packages\\happy-cli\\src\\codex\\runCodex.ts:299-313`, `:766-775`).",
+      "The crews codex plugin today exposes only hooks, not an MCP server (`ai-developer-toolkit\\plugins\\crews\\.codex-plugin\\plugin.json:1-18`)."
+    ],
+    "upstreamConflictDelta": {
+      "crewsPlugin": "low - plugin-local new files plus codex plugin manifest wiring",
+      "codexFork": "medium - a new native notification-to-input bridge is needed, but it can reuse existing queue/wake primitives and should be implementable with mostly new files and a small seam",
+      "happyCli": "optional/low - useful as prior art or a fallback architecture, but not required for the recommended direct-codex path"
+    }
+  },
+  "leadApplicability": {
+    "currentCopilotLead": "Limited direct benefit. Copilot already has its own system_notification/background-task wake path, so this does not unify today's lead runtime.",
+    "codexMembers": "High benefit. This is the primary target: no listener-arm loop, async wake on mailbox writes, explicit review/ack preserved.",
+    "futureCodexLead": "Also high benefit. The same bridge can replace the current codex-specific listener gates for a codex lead once that runtime exists."
+  },
+  "fallbackIfNoNewCodexPatch": {
+    "directionId": "D-003",
+    "summary": "Keep the existing listener subprocess and use BackgroundProcessNotification to surface its exit/completion more naturally.",
+    "tradeoff": "Lowest conflict, but it does not remove the listener loop and does not solve the operator's listener-less goal."
+  },
+  "followUpPlan": {
+    "warranted": true,
+    "shape": "One plan spanning two implementation surfaces: (1) crews plugin adds a codex MCP wake source over the existing mailbox, (2) codex fork adds a narrow native notification-to-next-turn queue bridge, (3) crews hook gates branch on 'listener or codex bridge reachable'.",
+    "stories": [
+      "Story 1: crews codex MCP wake source and startup catch-up",
+      "Story 2: native Codex notification-to-queued-input bridge",
+      "Story 3: codex-only hook-gate relaxation and smoke coverage"
+    ]
+  },
+  "sourceCitations": [
+    "codex\\external\\repos\\codex-patched\\codex-rs\\core\\src\\session\\input_queue.rs:82-88",
+    "codex\\external\\repos\\codex-patched\\codex-rs\\core\\src\\unified_exec\\async_watcher.rs:166-189",
+    "codex\\codex-rs-overlay\\codex-mcp-notification-bridge\\src\\bridge.rs:123-131",
+    "codex\\external\\repos\\codex-patched\\codex-rs\\rmcp-client\\src\\logging_client_handler.rs:88-97",
+    "codex\\external\\repos\\codex-patched\\codex-rs\\codex-mcp\\src\\rmcp_client.rs:509-519",
+    "codex\\external\\repos\\codex-patched\\codex-rs\\core\\src\\session\\turn.rs:1370-1371",
+    "packages\\happy-cli\\src\\codex\\runCodex.ts:299-313",
+    "packages\\happy-cli\\src\\codex\\runCodex.ts:766-775",
+    "packages\\happy-cli\\src\\codex\\mcpNotificationConsumer.ts:120-150",
+    "packages\\happy-cli\\src\\codex\\agentCommsBridge.ts:15-31",
+    "packages\\happy-cli\\src\\codex\\agentCommsBridge.ts:273-325",
+    "packages\\happy-cli\\src\\agentComms\\recovery.ts:12-19",
+    "packages\\happy-cli\\src\\agentComms\\recovery.ts:50-60",
+    "plans\\durable-mailbox-channel-wake.md:31-40",
+    "plans\\durable-mailbox-channel-wake.md:107-115",
+    "ai-developer-toolkit\\plugins\\crews\\.codex-plugin\\plugin.json:1-18",
+    "ai-developer-toolkit\\plugins\\crews\\.codex-plugin\\hooks\\hooks.json:1-60",
+    "ai-developer-toolkit\\plugins\\crews\\hooks\\pre-tool-use.js:590-635",
+    "ai-developer-toolkit\\plugins\\crews\\hooks\\stop.js:745-750",
+    "ai-developer-toolkit\\plugins\\crews\\hooks\\commands\\review-mail.js:220-298",
+    "ai-developer-toolkit\\plugins\\crews\\hooks\\actors.js:1454-1473",
+    "ai-developer-toolkit\\plugins\\crews\\hooks\\protocol\\review-required.js:50-59"
+  ]
+}
