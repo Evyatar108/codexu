@@ -49,6 +49,27 @@
   "generatedFromCommit": "32fdb9de",
   "tasks": [
     {
+      "id": "codex-tmux-vs-windows-terminal-research",
+      "scope": "codex",
+      "lifecycle": "tracked",
+      "status": "active",
+      "lastTouchedAt": "2026-06-11",
+      "kanbanCards": [
+        {
+          "className": "cmd-warn",
+          "html": "Filed 2026-06-11 (operator question): would running codex in tmux (instead of Windows Terminal/PowerShell) cause fewer bugs?"
+        },
+        {
+          "className": "cmd-ok",
+          "html": "ANSWER DONE @ <code>07f3e892</code> (findings merged to main). tmux is Unix-only, so 'codex in tmux' on Windows = the LINUX codex build under WSL/POSIX, NOT the Windows console path. Net: it would likely REMOVE the Windows-only <code>[O[I</code>/<code>[6~</code> input-leak (Unix VT path parses correctly), but would NOT fix resize-reprint (cross-platform, default-on reflow) or /resume slowness (DB/filesystem listing policy, terminal-independent). TRADEOFFS: tmux focus-events/copy-mode/mouse passthrough quirks, terminal/$TERM detection, and a SEPARATE WSL-side <code>~/.codex</code> state unless paths are shared; plus needing a Linux codex build. Verdict: fixes 1 of 3, adds setup + new quirks — not a silver bullet. Findings: <code>.ralph/investigations/codex-tmux-vs-windows-terminal/findings.md</code>."
+        }
+      ],
+      "command": {
+        "name": "codex-tmux-vs-windows-terminal-research",
+        "prompts": {}
+      }
+    },
+    {
       "id": "codex-crews-vs-multi-agent-v2-comparison",
       "scope": "codex",
       "lifecycle": "tracked",
@@ -58,6 +79,10 @@
         {
           "className": "cmd-warn",
           "html": "Filed 2026-06-11 (operator request). Compare codex MULTI-AGENTS v2 with our CREWS plugin: (1) is there a reason to use crews in codex if we enable v2? (2) if v2 is enabled, can we still use v1 agents? SPAWNED investigate-crews-vs-mav2 (copilot, read-only): map the LAYERS — crews = cross-ENGINE (claude/copilot/codex), cross-SESSION/cross-PROCESS (wt.exe tabs), persistent mailboxes + report/review protocol + operator-in-the-loop oversight; codex v2 = in-process/in-SESSION native sub-agent fan-out (spawn_agent/wait_agent) within ONE codex run. Likely COMPLEMENTARY not substitutes. Answer v1+v2 coexistence via the Feature::Collab vs Feature::MultiAgentV2 gating (independently gateable? does enabling v2 replace or add to v1 tools?) + the fork plugin-scope-axis gate. Builds on the mav2 research (a58f8ff6). Cite file:line. Findings -> .ralph/investigations/codex-crews-vs-multi-agent-v2/findings.md (branch ralph/investigate-crews-vs-mav2). Pure research."
+        },
+        {
+          "className": "cmd-ok",
+          "html": "ANSWER DONE @ <code>161b4bb2</code> (findings merged to main). crews and codex multi-agents v2 are COMPLEMENTARY, not substitutes: v2 = native IN-SESSION codex fan-out (one process, spawn_agent/wait_agent); crews = cross-SESSION + cross-ENGINE + operator-supervised + DURABLE orchestration (persistent manifests, mailboxes, review cursors, listener/Stop gates, wt.exe-tab processes). REASON TO USE CREWS WITH V2 ENABLED: YES — whenever you need operator oversight, resumable/durable coordination, or mixed-engine members; v2 does not provide that layer. v1+v2 COEXISTENCE: Feature::Collab and Feature::MultiAgentV2 are separately defined, but once v2 is enabled codex exposes the v2 tool surface INSTEAD of v1 for that session — v1 stays in the codebase but is not the active model-facing API when v2 is on (per-session, not simultaneous). Findings: <code>.ralph/investigations/codex-crews-vs-multi-agent-v2/findings.md</code>."
         }
       ],
       "command": {
@@ -85,6 +110,10 @@
         {
           "className": "cmd-ok",
           "html": "OS-RELATION + DEFAULT-RATIONALE FOLLOW-UP @ <code>59cac40d</code> (appended to findings, on main). <code>use_state_db_only=false</code> is NOT OS-related (plain ThreadListParams bool; SQLite location is config/CODEX_HOME-driven, no Windows-vs-Unix branch). OFF by default for CORRECTNESS: the non-DB-only path does a filesystem-first overfetch to REPAIR stale/missing SQLite rows (rebuilds metadata from rollout contents + reconciles back). Flipping to true risks staleness (a test poisons SQLite with a stale cwd — DB-only returns the stale thread, false rescans + excludes it). CONFIRMS the fix design: DB-only for first paint + LAZY RECONCILE of selected/visible rows (so missing/stale sessions are corrected). fix-resume-dbonly impl spawned on this basis."
+        },
+        {
+          "className": "cmd-ok",
+          "html": "FIX DONE + compile-verified (NOT yet released; awaiting .5). <code>codex-rs/tui/src/resume_picker.rs</code> now sends the initial /resume page-1 thread/list with <code>use_state_db_only: true</code> (fast DB read), then immediately queues a LAZY scan-and-repair reconcile for the visible first page — replaces first-page rows with filesystem-backed results, preserves selection, and holds pagination until reconcile finishes — so filesystem-only / stale-in-SQLite sessions still appear or self-correct after first paint. Verified: codex-cargo.sh check -p codex-tui + focused initial-request/lazy-reconcile tests + check --workspace. INTEGRATED on <code>ralph/codex-v5-int</code> @ <code>e484d0e561</code>. Ships when .5 is cut."
         }
       ],
       "command": {
@@ -270,6 +299,10 @@
         {
           "className": "cmd-ok",
           "html": "PLAN SHIPPED @ <code>4113223b</code> (cherry-picked; orig d9c9f8d8, merged to main). Recommends TWO SERIALIZED impls (NOT one combined): crews first, then a rebased ralph follow-up. 4 stories / 2 serial clusters, with a LIVE codex listener-arm dogfood checkpoint placed BETWEEN the crews and ralph ships. Phase 4: 2 Medium findings fixed — crews test surface now explicitly covers briefing-render + continuation-briefing + review-gate + pretooluse-review-mail-first; release-surface coverage includes the six plugin manifest files + ralph's explicit codex release-gate commands. Deliverables under <code>.ralph/jobs/crews-ralph-codex-background-execution-terminology/</code> (plan.md, stories-outline.md, research-brief.md, requirements-gaps.md, suggested-decomposition.json, plan-review-findings.json)."
+        },
+        {
+          "className": "cmd-ok",
+          "html": "CLUSTER-1 (crews) IMPL DONE @ <code>8cf47d06</code> on branch <code>ralph/crews-codex-bg-terms</code> (ai-developer-toolkit worktree); crews bumped to <strong>3.21.6</strong> across 6 release surfaces. The 5 codex-facing hook surfaces (pre-tool-use.js, briefing/template.js, briefing/continuation.js, stop.js, review-gate.js) now emit codex-native <code>exec_command</code> + <code>yield_time_ms</code> + <code>session_id</code> + <code>write_stdin</code> on CODEX branches only (Claude/Copilot wording unchanged). Added codex test coverage (briefing-render, continuation-briefing, review-gate, pretooluse-review-mail-first, engine-env-bootstrap, copilot-briefing). Phase 5a/5b: review {code: clean, docs: clean}. Saved logs: 7/7 slice + 293/293 full crews suite. AWAITING: operator ship decision (plugin version push + copilot plugin update pause) -> then a LIVE codex listener-arm dogfood -> then CLUSTER-2 (ralph generator) serialized after. NOT yet on a toolkit remote / not yet in the codexu pointer."
         }
       ],
       "command": {
