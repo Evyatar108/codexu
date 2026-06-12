@@ -58,6 +58,10 @@
         {
           "className": "cmd-warn",
           "html": "BUG (operator 2026-06-12). v1 (Collab) multi-agent spawn fails with &quot;Agent spawn failed&quot; + &quot;the agent-thread limit is still reached, so I can&#39;t spawn this round right now&quot; even when NO agents are running (they already finished). KEY OBSERVATION: the agent-thread limit counter is apparently NOT released/decremented when a v1 agent COMPLETES, so the limit stays saturated for the rest of the session and blocks every future spawn. Reproduced in a plain codex session (C:\\TentedRepos\\research\\sydney-outer-loop-context-management), NOT crews/ralph-related -- so it is a general codex/fork bug. READ-ONLY investigation first: root-cause the limit accounting + determine fork-introduced vs upstream + whether v2 is affected too."
+        },
+        {
+          "className": "cmd-ok",
+          "html": "WORKAROUND (operator 2026-06-12): closing codex + RESUMING the session clears the saturated limit. This CONFIRMS the leak is SESSION-SCOPED in-memory state (the agent-thread counter is not freed on agent completion but resets on a fresh process). Lowers urgency (restart unblocks), but the leak is still a real bug worth fixing. Investigation seed stands."
         }
       ],
       "command": {
