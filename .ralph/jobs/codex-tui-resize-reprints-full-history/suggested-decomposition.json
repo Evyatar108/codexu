@@ -1,0 +1,54 @@
+{
+  "clusters": [
+    {
+      "name": "retained-transcript-foundation",
+      "stories": ["US-001"],
+      "phase": 1,
+      "dependsOn": [],
+      "fileOverlapEvidence": {
+        "sharedFiles": [
+          "codex/external/repos/codex-patched/codex-rs/tui/src/chatwidget/rendering.rs",
+          "codex/external/repos/codex-patched/codex-rs/tui/src/pager_overlay.rs"
+        ],
+        "exclusiveFiles": [
+          "codex/external/repos/codex-patched/codex-rs/tui/src/chatwidget/committed_transcript.rs"
+        ],
+        "risk": "high"
+      },
+      "executionModeRationale": "This cluster establishes the retained committed-history renderer that every later change depends on. It should land first so the scrollback path can be removed without leaving committed history homeless, but it is not independently shippable because phase 2 must land with it to avoid duplicate history rendering."
+    },
+    {
+      "name": "resize-replay-removal",
+      "stories": ["US-002"],
+      "phase": 2,
+      "dependsOn": ["retained-transcript-foundation"],
+      "fileOverlapEvidence": {
+        "sharedFiles": [
+          "codex/external/repos/codex-patched/codex-rs/tui/src/app/event_dispatch.rs",
+          "codex/external/repos/codex-patched/codex-rs/tui/src/app/resize_reflow.rs",
+          "codex/external/repos/codex-patched/codex-rs/tui/src/tui.rs",
+          "codex/external/repos/codex-patched/codex-rs/tui/src/app_backtrack.rs"
+        ],
+        "exclusiveFiles": [],
+        "risk": "high"
+      },
+      "executionModeRationale": "This cluster removes the old clear-and-replay ownership model. It must follow the foundation cluster because it relies on the new retained transcript path already being visible and correct."
+    },
+    {
+      "name": "guardrails-and-docs",
+      "stories": ["US-003"],
+      "phase": 3,
+      "dependsOn": ["resize-replay-removal"],
+      "fileOverlapEvidence": {
+        "sharedFiles": [
+          "codex/external/repos/codex-patched/codex-rs/tui/src/app/tests.rs",
+          "codex/external/repos/codex-patched/codex-rs/tui/src/snapshots",
+          "codex/docs/implementation/patch-surface.md"
+        ],
+        "exclusiveFiles": [],
+        "risk": "medium"
+      },
+      "executionModeRationale": "Tests, snapshots, and patch-surface updates should finalize the settled implementation shape after the code path is stable. Running this cluster last avoids rebasing test baselines and invariant text twice."
+    }
+  ]
+}

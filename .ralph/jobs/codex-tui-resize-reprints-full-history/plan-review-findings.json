@@ -1,0 +1,61 @@
+{
+  "planFile": ".ralph/jobs/codex-tui-resize-reprints-full-history/plan.md",
+  "repoDir": "D:/harness-efforts/codexu",
+  "reviewCycle": 1,
+  "findings": [
+    {
+      "id": "F-001",
+      "severity": "High",
+      "source": "claude",
+      "classification": "fixable",
+      "phase": "docs",
+      "category": "Completeness",
+      "sectionRef": "Approach > Implementation Strategy",
+      "description": "The draft omitted `app_backtrack.rs` and the initial/thread-switch replay buffer helpers even though they still reinsert committed history into terminal scrollback after rollback, overlay close, and startup/thread-switch replay.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Added the replay-helper paths to the implementation strategy, file list, risk register, and US-002 acceptance criteria.",
+      "relevantFiles": [
+        "codex/external/repos/codex-patched/codex-rs/tui/src/app_backtrack.rs",
+        "codex/external/repos/codex-patched/codex-rs/tui/src/app/resize_reflow.rs"
+      ],
+      "suggestedFix": "Call out the remaining scrollback replay helpers explicitly so direction A covers them from the start."
+    },
+    {
+      "id": "F-002",
+      "severity": "High",
+      "source": "claude",
+      "classification": "fixable",
+      "phase": "docs",
+      "category": "Ordering",
+      "sectionRef": "Approach > Implementation Strategy",
+      "description": "The draft let the retained inline transcript land independently of scrollback-emission removal, which would create a duplicate-history state.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Recorded the atomic-ship requirement in the implementation strategy, risk section, acceptance criteria, and decomposition notes.",
+      "relevantFiles": [
+        "codex/external/repos/codex-patched/codex-rs/tui/src/chatwidget/rendering.rs",
+        "codex/external/repos/codex-patched/codex-rs/tui/src/app/event_dispatch.rs"
+      ],
+      "suggestedFix": "State that the retained viewport and scrollback-removal steps ship together."
+    },
+    {
+      "id": "F-003",
+      "severity": "Medium",
+      "source": "claude",
+      "classification": "fixable",
+      "phase": "docs",
+      "category": "Acceptance Criteria Quality",
+      "sectionRef": "Approach > Architecture",
+      "description": "The first draft left the main retained transcript scroll model unresolved and did not specify whether the inline transcript was independently scrollable or tail-focused.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Settled the design: the inline retained transcript stays tail-focused and the existing `Ctrl+T` transcript overlay remains the explicit full-history scroll surface.",
+      "relevantFiles": [
+        "codex/external/repos/codex-patched/codex-rs/tui/src/chatwidget/rendering.rs",
+        "codex/external/repos/codex-patched/codex-rs/tui/src/pager_overlay.rs"
+      ],
+      "suggestedFix": "Resolve the scroll model before implementation so US-001 is directly implementable."
+    }
+  ]
+}
