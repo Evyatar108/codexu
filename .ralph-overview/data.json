@@ -62,6 +62,10 @@
         {
           "className": "cmd-ok",
           "html": "INVESTIGATION DONE @ <code>b095ecd9</code> (findings merged to main). ROOT CAUSE: the resume picker defaults to <code>UpdatedAt</code> sort and sends <code>thread/list</code> with <code>use_state_db_only = false</code>, forcing the FILESYSTEM-FIRST scan/repair path for page 1: walks rollout dirs, stats mtimes, opens rollout heads for preview metadata, and may run SQLite repair before returning (<code>tui/src/resume_picker.rs:1818-1831</code>). CHEAPEST FIX: flip the picker <code>thread/list</code> calls to <code>use_state_db_only: true</code> (resume_picker.rs:1818-1831), reconciling selected/visible rows lazily after first paint to preserve correctness. Secondary: default sort CreatedAt, or make thread/list DB-first for picker-style filters. Findings: <code>.ralph/investigations/codex-resume-slow-conversation-list/findings.md</code>."
+        },
+        {
+          "className": "cmd-ok",
+          "html": "OS-RELATION + DEFAULT-RATIONALE FOLLOW-UP @ <code>59cac40d</code> (appended to findings, on main). <code>use_state_db_only=false</code> is NOT OS-related (plain ThreadListParams bool; SQLite location is config/CODEX_HOME-driven, no Windows-vs-Unix branch). OFF by default for CORRECTNESS: the non-DB-only path does a filesystem-first overfetch to REPAIR stale/missing SQLite rows (rebuilds metadata from rollout contents + reconciles back). Flipping to true risks staleness (a test poisons SQLite with a stale cwd — DB-only returns the stale thread, false rescans + excludes it). CONFIRMS the fix design: DB-only for first paint + LAZY RECONCILE of selected/visible rows (so missing/stale sessions are corrected). fix-resume-dbonly impl spawned on this basis."
         }
       ],
       "command": {
@@ -86,6 +90,10 @@
         {
           "className": "cmd-ok",
           "html": "INVESTIGATION DONE @ <code>6861734d</code> (findings merged to main). ROOT CAUSE: on resize, with TerminalResizeReflow enabled (<code>tui/src/tui/event_stream.rs:237-248</code>, <code>app.rs:1206-1215</code>), <code>reflow_transcript_now()</code> CLEARS codex-owned terminal SCROLLBACK and re-emits reflowed lines from <code>transcript_cells</code> (<code>app/resize_reflow.rs:231-243,421-446,456-513</code>) — finalized history lives in terminal scrollback above the inline viewport (<code>insert_history.rs</code>, <code>tui.rs:884-908</code>), so resize work is O(history) up to the row cap, not O(viewport). FIX DIRECTIONS: TRUE fix = stop using terminal scrollback as the resize-time history surface; render finalized history from transcript_cells in a RETAINED ratatui-owned history viewport (bigger change). CHEAPER mitigation = smaller resize-reflow row caps (<code>resize_reflow_cap.rs:19-21,60-64</code>) and/or skip pure-height rebuilds (<code>transcript_reflow.rs:72-85</code>); debounce already exists. Design choice (true viewport rewrite vs mitigation) -> seeded a plan. Findings: <code>.ralph/investigations/codex-tui-resize-reprints-history/findings.md</code>."
+        },
+        {
+          "className": "cmd-ok",
+          "html": "OS-DEPENDENCE FOLLOW-UP @ <code>5724ce6c</code> (appended to findings, on main). Resize-reprint is NOT Windows-only: <code>TerminalResizeReflow</code> is default-on with NO OS gate; the resize path ALWAYS rebuilds codex-owned scrollback from transcript_cells (O(history)) on every OS. OS/terminal difference is SEVERITY only: Windows Terminal auto-caps at 9,001 rows while many Linux/macOS terminals cap ~1,000 (WezTerm 3,500, Alacritty 10,000) — so the same reflow is far more VISIBLE on the operator's Windows Terminal. Fix applies to all OSes."
         }
       ],
       "command": {
