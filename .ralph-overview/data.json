@@ -286,7 +286,7 @@
       "scope": "crews",
       "lifecycle": "tracked",
       "status": "active",
-      "lastTouchedAt": "2026-06-11",
+      "lastTouchedAt": "2026-06-12",
       "kanbanCards": [
         {
           "className": "cmd-warn",
@@ -303,6 +303,10 @@
         {
           "className": "cmd-ok",
           "html": "CLUSTER-1 (crews) IMPL DONE @ <code>8cf47d06</code> on branch <code>ralph/crews-codex-bg-terms</code> (ai-developer-toolkit worktree); crews bumped to <strong>3.21.6</strong> across 6 release surfaces. The 5 codex-facing hook surfaces (pre-tool-use.js, briefing/template.js, briefing/continuation.js, stop.js, review-gate.js) now emit codex-native <code>exec_command</code> + <code>yield_time_ms</code> + <code>session_id</code> + <code>write_stdin</code> on CODEX branches only (Claude/Copilot wording unchanged). Added codex test coverage (briefing-render, continuation-briefing, review-gate, pretooluse-review-mail-first, engine-env-bootstrap, copilot-briefing). Phase 5a/5b: review {code: clean, docs: clean}. Saved logs: 7/7 slice + 293/293 full crews suite. AWAITING: operator ship decision (plugin version push + copilot plugin update pause) -> then a LIVE codex listener-arm dogfood -> then CLUSTER-2 (ralph generator) serialized after. NOT yet on a toolkit remote / not yet in the codexu pointer."
+        },
+        {
+          "className": "cmd-ok",
+          "html": "CLUSTER-1 SHIPPED + LIVE DOGFOOD PASS (2026-06-12). crews <strong>3.21.6</strong> FF-merged into ai-developer-toolkit main @ <code>8cf47d06</code> and pushed to all 3 toolkit remotes (origin/gim-home/personal); codexu pointer + AGENTS.md version table bumped @ <code>51dbd4da</code>; <code>copilot plugin update</code> installed 3.21.6 on the Copilot side. LIVE CODEX DOGFOOD: a real <code>--engine codex</code> member quoted its rendered SessionStart briefing and confirmed codex-native <code>exec_command</code> + <code>yield_time_ms</code> + <code>session_id</code> + <code>write_stdin</code> wording (no <code>mode:async</code>/<code>read_bash</code>) = PASS. DISCOVERY: codex members load crews from a SEPARATE cache (<code>~/.codex/plugins/cache/ai-developer-toolkit/crews/&lt;ver&gt;</code>) that <code>copilot plugin update</code> does NOT refresh; it was stale at 3.21.5 (first probe FAILed on old wording) until refreshed via <code>codex plugin add crews@ai-developer-toolkit</code> -&gt; 3.21.6, after which the re-probe PASSed. REMAINING: CLUSTER-2 (ralph generator) still uses the old wording in its emitted briefings; serialized next (seed in prompts.implCluster2Ralph). Task stays tracked until cluster-2 ships."
         }
       ],
       "command": {
