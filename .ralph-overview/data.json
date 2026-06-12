@@ -49,6 +49,25 @@
   "generatedFromCommit": "32fdb9de",
   "tasks": [
     {
+      "id": "codex-patch-surface-divergence-registry-refresh",
+      "scope": "codex",
+      "lifecycle": "tracked",
+      "status": "active",
+      "lastTouchedAt": "2026-06-12",
+      "kanbanCards": [
+        {
+          "className": "cmd-warn",
+          "html": "FOLLOW-UP from codex-fork-patch-marking-and-divergence-audit (findings @ .ralph/investigations/codex-fork-patch-marking-and-divergence-audit/findings.md). The canonical divergence registry codex/docs/implementation/patch-surface.md is STALE (frozen at 0.130.0-copilot-api.*) and misses 8 recent .4/.5 patches, so the next upstream rebase cannot reliably re-apply the fork. FIX (one pass): (1) refresh the header to the current release line + add the missing patch families; (2) add &sect;14 invariant + &sect;15 replant rows for each; (3) add missing <code>// SANDBOX PATCH:</code> markers (multi_agents.rs agent-name seam, resume_picker.rs); (4) RETIRE/correct the stale paste-burst entry (registry says unwrap_or(true) but code is unwrap_or(false)). CODEX SUBMODULE (doc + source markers; no build needed). Likely folds into .5 release prep. Plan-first recommended (validate marker placements before edit)."
+        }
+      ],
+      "command": {
+        "name": "codex-patch-surface-divergence-registry-refresh",
+        "prompts": {
+          "plan": "Plan the refresh of the codex fork divergence registry so the next upstream rebase can reliably re-apply the full recent patch set. INPUT SPEC: the completed audit at .ralph/investigations/codex-fork-patch-marking-and-divergence-audit/findings.md (read its coverage matrix + file:line evidence; do NOT re-derive).\n\nSCOPE (codex submodule; doc + source-marker edits, no build required):\n1. Refresh codex/docs/implementation/patch-surface.md: update the header (Last Updated / Applies to) from 0.130.0-copilot-api.* to the current maintained series, and add coverage for each missing recent patch family from the audit matrix.\n2. For each missing upstream-canonical edit add a §14 invariant row + a §15 replant note (and any focused audit/test hook needed so it does not silently drop on rebase). Missing families: focus-leak, bg-completion exec-cell rendering, agent-name display, Knob B context-tier/status-line, Knob A reasoning default/threading, managed-hooks-off, /resume DB-only lazy reconcile.\n3. Add the missing // SANDBOX PATCH: markers where the audit found unmarked code: codex-rs/tui/src/multi_agents.rs (agent-name-display seam) and codex-rs/tui/src/resume_picker.rs.\n4. RECONCILE the stale paste-burst entry: current code is unwrap_or(false) (config/mod.rs:3576) but the registry still documents the old unwrap_or(true) divergence (patch-surface.md:651-684). If the revert fully retired the fork divergence, REMOVE the stale registry entry rather than re-marking code.\n\nCONSTRAINTS: edits to .4-shipped source markers reconcile already-released code, so coordinate sequencing with the next (.5) release prep — note in the plan whether marker-adds land on the .5 accumulation branch (ralph/codex-v5-int) or a dedicated branch. Two-commit submodule flow. Minimize upstream conflict (fork tenet).\n\nDELIVERABLE: plan.md + stories outline under .ralph/jobs/codex-patch-surface-divergence-registry-refresh/."
+        }
+      }
+    },
+    {
       "id": "crews-mail-delivery-via-codex-injection",
       "scope": "crews|codex",
       "lifecycle": "tracked",
@@ -77,6 +96,10 @@
         {
           "className": "cmd-warn",
           "html": "READ-ONLY AUDIT (operator 2026-06-12). Concern: are the RECENT codex-fork changes (the .4 batch + the .5 accumulation) correctly MARKED as fork patches (SANDBOX PATCH markers / codex-rs-overlay) AND documented in a divergence registry, so we still know exactly which changes we maintain vs upstream? Audit the marking + documentation coverage of recent fork edits; cite file:line; report gaps + recommend whether a maintained divergence doc is needed. CODEX SUBMODULE, read-only (pre/post worktree snapshot + revert guard)."
+        },
+        {
+          "className": "cmd-ok",
+          "html": "AUDIT DONE (2026-06-12, read-only member audit-codex-patches). VERDICT: NOT sufficient -- 8 gaps. Contract: a <code>// SANDBOX PATCH:</code> marker + a row in <code>codex/docs/implementation/patch-surface.md</code> (&sect;14 invariant + &sect;15 replant note); the rebase skill treats that file as the &quot;full annotated change inventory&quot;. But the registry is FROZEN at &quot;Last Updated 2026-05-12 / Applies to 0.130.0-copilot-api.*&quot; while recent work is .3/.4/.5. FULLY COVERED (marker+registry): Anthropic transport/gate; nonblocking bg-completion (Op::WakePendingWork). MARKED but UNDOCUMENTED: focus-leak, bg-completion exec-cell, Knob B/status-line, Knob A medium, managed-hooks-off. UNMARKED + UNDOCUMENTED: agent-name display (multi_agents.rs), /resume DB-only (resume_picker.rs). STALE/WRONG: paste-burst revert -- registry still claims fork default unwrap_or(true) but code is unwrap_or(false). Findings + coverage matrix + file:line evidence: <code>.ralph/investigations/codex-fork-patch-marking-and-divergence-audit/findings.md</code>. FIX tracked as codex-patch-surface-divergence-registry-refresh."
         }
       ],
       "command": {
@@ -345,6 +368,10 @@
         {
           "className": "cmd-ok",
           "html": "CLUSTER-1 SHIPPED + LIVE DOGFOOD PASS (2026-06-12). crews <strong>3.21.6</strong> FF-merged into ai-developer-toolkit main @ <code>8cf47d06</code> and pushed to all 3 toolkit remotes (origin/gim-home/personal); codexu pointer + AGENTS.md version table bumped @ <code>51dbd4da</code>; <code>copilot plugin update</code> installed 3.21.6 on the Copilot side. LIVE CODEX DOGFOOD: a real <code>--engine codex</code> member quoted its rendered SessionStart briefing and confirmed codex-native <code>exec_command</code> + <code>yield_time_ms</code> + <code>session_id</code> + <code>write_stdin</code> wording (no <code>mode:async</code>/<code>read_bash</code>) = PASS. DISCOVERY: codex members load crews from a SEPARATE cache (<code>~/.codex/plugins/cache/ai-developer-toolkit/crews/&lt;ver&gt;</code>) that <code>copilot plugin update</code> does NOT refresh; it was stale at 3.21.5 (first probe FAILed on old wording) until refreshed via <code>codex plugin add crews@ai-developer-toolkit</code> -&gt; 3.21.6, after which the re-probe PASSed. REMAINING: CLUSTER-2 (ralph generator) still uses the old wording in its emitted briefings; serialized next (seed in prompts.implCluster2Ralph). Task stays tracked until cluster-2 ships."
+        },
+        {
+          "className": "cmd-ok",
+          "html": "CLUSTER-2 (ralph generator) IMPL DONE @ <code>b576f183</code> on branch <code>ralph/ralph-codex-bg-terms</code> (toolkit worktree off post-crews main 8cf47d06). codex-lowering.mjs + generate-copilot-artifacts.mjs now emit codex-native <code>exec_command</code>+<code>yield_time_ms</code>+<code>session_id</code>+<code>write_stdin</code> for long-running shell and <code>spawn_agent</code>/<code>wait_agent</code> for multi-agent; .codex-plugin/** regenerated from source; member self-caught + fixed several stale collection loops (plan-with-ralph, parallel-ralph launch + resume rows, run_in_background-&gt;Agent prose). Ralph bumped to <strong>5.58.0</strong> across manifests + the 3 marketplace indexes (ralph entries only) + CHANGELOG + AGENTS. Release gate GREEN: generate --target=codex --check ok, test-codex-generator 28/28, validate-codex-marketplace-policy ok (3 indexes). READY TO SHIP -- PAUSED for operator confirmation (ralph version push). On ship: FF-merge, push all 3 toolkit remotes, codexu pointer + AGENTS table bump, <code>copilot plugin update</code>, AND <code>codex plugin add ralph-orchestration@ai-developer-toolkit</code> for the codex side."
         }
       ],
       "command": {
