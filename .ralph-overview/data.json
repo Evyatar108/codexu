@@ -49,6 +49,23 @@
   "generatedFromCommit": "32fdb9de",
   "tasks": [
     {
+      "id": "codex-tui-agent-name-remaining-lifecycle-cells",
+      "scope": "codex",
+      "lifecycle": "tracked",
+      "status": "active",
+      "lastTouchedAt": "2026-06-11",
+      "kanbanCards": [
+        {
+          "className": "cmd-warn",
+          "html": "Filed 2026-06-11 (operator smoke feedback; FOLLOW-UP to codex-tui-agent-spawn-name-display which shipped in .4). The spawn-cell header now shows the agent NAME (e.g. <code>Spawned Galileo [default]</code>) GOOD, but OTHER agent-lifecycle cells STILL show the raw GUID: the <code>Waiting for &lt;guid&gt;</code> cell and the completion/result line (<code>└ &lt;guid&gt;: Completed - ...</code>). Operator wants the NAME in those too. The heavy plumbing is DONE (the agent name/nickname is now carried through CollabAgentSpawnEndEvent -> app-server ThreadItem per 9c85f00a4d), so this should be a SMALL extension: make the wait-cell + agent-result/completion-cell renderers use the per-item name (falling back to GUID) like the spawn cell does. Cover v1 (reported) + v2. Targeted for the NEXT codex release (.5). codex-rs/tui (the agent-lifecycle cell rendering: search the 'Waiting for' + agent-completed/result cell builders near multi_agents.rs / the agent wait/finish event mapping)."
+        }
+      ],
+      "command": {
+        "name": "codex-tui-agent-name-remaining-lifecycle-cells",
+        "prompts": {}
+      }
+    },
+    {
       "id": "codex-goal-command-research",
       "scope": "codex",
       "lifecycle": "tracked",
