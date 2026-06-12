@@ -49,6 +49,120 @@
   "generatedFromCommit": "32fdb9de",
   "tasks": [
     {
+      "id": "codex-workflows-product-mvp",
+      "scope": "codex",
+      "lifecycle": "tracked",
+      "status": "active",
+      "lastTouchedAt": "2026-06-12",
+      "kanbanCards": [
+        {
+          "className": "cmd-warn",
+          "html": "FEATURE (operator 2026-06-12, from workflows-parity research @ .ralph/investigations/codex-cli-vs-claude-code-workflows-parity/findings.md). GAP #1 (high value). Claude Code has a first-class WORKFLOW PRODUCT (model-authored JS scripts run by a background runtime + a <code>/workflows</code> run browser + persisted run metadata); codex has NONE (parity 0 YES). Codex DOES have the building blocks: upstream-native multi-agent tools (spawn_agent/wait_agent/list_agents/close_agent, spec_plan.rs:649-690), background terminals (/ps, /stop), plan mode. Build a user-visible orchestration MVP on top of those primitives: persisted run registry + a TUI <code>/workflows</code> browser/progress view. FOUNDATIONAL for gaps #4 (deep-research) + #6 (resume). HEAVY codex-fork feature; brainstorm-first; minimize upstream conflict."
+        }
+      ],
+      "command": {
+        "name": "codex-workflows-product-mvp",
+        "prompts": {
+          "brainstorm": "Brainstorm a WORKFLOWS PRODUCT MVP for codex (gap #1 from the parity research @ .ralph/investigations/codex-cli-vs-claude-code-workflows-parity/findings.md). GOAL: a user-visible orchestration layer comparable to Claude Code workflows, built on codex's EXISTING upstream-native multi-agent primitives rather than a brand-new runtime where possible.\n\nREAD FIRST (do not re-derive): the parity findings @ .ralph/investigations/codex-cli-vs-claude-code-workflows-parity/findings.md (17-feature inventory, parity matrix, the 6 gap recommendations). Codex primitives to build on: multi-agent tools in core/src/tools/spec_plan.rs:649-690 (spawn_agent/send_message/followup_task/wait_agent/close_agent/list_agents) + the v2 handlers under core/src/tools/handlers/multi_agents_v2/; background terminals (/ps, /stop); plan mode; slash command registry tui/src/slash_command.rs.\n\nKEY QUESTIONS: (1) what is the minimal user-visible surface (a /workflows slash command + a run browser/progress view + a persisted run registry)? (2) what run metadata must persist + where (codex-owned session dir, NOT .claude)? (3) build on MultiAgentV2 (default-off today) vs v1 Collab vs a thin new orchestration layer? (4) how much is achievable as a fork OVERLAY vs requiring upstream-canonical seams (fork-minimize tenet)? (5) scope the MVP tightly -- defer prompt-trigger (#2), saveable (#3), deep-research (#4), approval (#5), resume (#6) to their own tasks but note the seams they will need.\n\nDELIVERABLE: recommended MVP shape + conflict-surface verdict + which sibling gaps it unblocks. brainstorm.json under .ralph/brainstorms/codex-workflows-product-mvp/."
+        }
+      }
+    },
+    {
+      "id": "codex-workflows-prompt-trigger-ultracode-equivalent",
+      "scope": "codex",
+      "lifecycle": "tracked",
+      "status": "active",
+      "lastTouchedAt": "2026-06-12",
+      "kanbanCards": [
+        {
+          "className": "cmd-warn",
+          "html": "FEATURE (operator 2026-06-12, from workflows-parity research @ .ralph/investigations/codex-cli-vs-claude-code-workflows-parity/findings.md). GAP #2 (high value). Claude Code converts a user request into an orchestration plan via an <code>ultracode</code> keyword / &quot;use a workflow&quot; request / <code>/effort ultracode</code> session mode. Codex has NO such trigger (PARTIAL only: /plan + /model + plan-mode reasoning override). Today a codex user must manually juggle /plan, /subagents, thread-switching. Add a first-class prompt-trigger path that turns a request into an orchestration plan. Likely DEPENDS on the workflows MVP (#1, codex-workflows-product-mvp). Brainstorm-first."
+        }
+      ],
+      "command": {
+        "name": "codex-workflows-prompt-trigger-ultracode-equivalent",
+        "prompts": {
+          "brainstorm": "Brainstorm a prompt-triggered workflow-creation path for codex (gap #2 from .ralph/investigations/codex-cli-vs-claude-code-workflows-parity/findings.md), the ultracode equivalent. GOAL: a first-class trigger that converts a natural-language request into an orchestration plan/run, instead of the user manually juggling /plan + /subagents + thread switching.\n\nREAD FIRST: the parity findings @ .ralph/investigations/codex-cli-vs-claude-code-workflows-parity/findings.md (esp. rows 3-4: one-off ultracode trigger + session-wide /effort ultracode). Codex adjacent surfaces: /plan (tui/src/slash_command.rs:115-117), /model + plan-mode reasoning override (core/src/config/mod.rs:874-880), request_user_input in plan mode.\n\nKEY QUESTIONS: (1) trigger surface -- a keyword, a slash command, an /effort-style session mode, or auto-detection of substantive tasks? (2) how does the trigger produce an orchestration plan and hand it to the workflows runtime (#1)? (3) DEPENDENCY on codex-workflows-product-mvp -- can this be designed/stubbed independently or must it wait? (4) conflict surface (fork-minimize).\n\nDELIVERABLE: recommended trigger design + dependency note on #1 + conflict verdict. brainstorm.json under .ralph/brainstorms/codex-workflows-prompt-trigger-ultracode-equivalent/."
+        }
+      }
+    },
+    {
+      "id": "codex-workflows-saveable-reusable",
+      "scope": "codex",
+      "lifecycle": "tracked",
+      "status": "active",
+      "lastTouchedAt": "2026-06-12",
+      "kanbanCards": [
+        {
+          "className": "cmd-warn",
+          "html": "FEATURE (operator 2026-06-12, from workflows-parity research @ .ralph/investigations/codex-cli-vs-claude-code-workflows-parity/findings.md). GAP #3 (medium-high value). Claude Code saves a completed workflow as a reusable command in project/user scope (<code>.claude/workflows/</code>, invoked as <code>/&lt;name&gt;</code>) with structured <code>args</code> input. Codex has reusable skills/plugins (/skills, /plugins) but NO saveable-workflow surface + no args plumbing. Define a codex-native saved-workflow format + storage (codex-owned, NOT .claude/workflows) + invocation (slash command or CLI subcommand) + structured args. DEPENDS on the workflows MVP (#1). Brainstorm-first."
+        }
+      ],
+      "command": {
+        "name": "codex-workflows-saveable-reusable",
+        "prompts": {
+          "brainstorm": "Brainstorm saveable/reusable workflows for codex (gap #3 from .ralph/investigations/codex-cli-vs-claude-code-workflows-parity/findings.md). GOAL: save a workflow run as a reusable, invocable command with structured args.\n\nREAD FIRST: parity findings @ .ralph/investigations/codex-cli-vs-claude-code-workflows-parity/findings.md (rows 10-11: save-as-reusable + structured args). Codex nearby: /skills, /plugins (tui/src/slash_command.rs:28-29, 53-55) -- reuse their format/storage conventions where sensible.\n\nKEY QUESTIONS: (1) codex-native saved-workflow format + storage location (codex-owned, e.g. ~/.codex/workflows or project .codex/, NOT .claude/workflows); (2) invocation surface (slash command vs CLI subcommand) + structured args plumbing; (3) relationship to existing skills/plugins -- is a saved workflow just a skill, or a distinct artifact? (4) DEPENDENCY on codex-workflows-product-mvp; (5) conflict surface.\n\nDELIVERABLE: recommended format/storage/invocation + dependency note on #1 + conflict verdict. brainstorm.json under .ralph/brainstorms/codex-workflows-saveable-reusable/."
+        }
+      }
+    },
+    {
+      "id": "codex-workflows-deep-research-bundled",
+      "scope": "codex",
+      "lifecycle": "tracked",
+      "status": "active",
+      "lastTouchedAt": "2026-06-12",
+      "kanbanCards": [
+        {
+          "className": "cmd-warn",
+          "html": "FEATURE (operator 2026-06-12, from workflows-parity research @ .ralph/investigations/codex-cli-vs-claude-code-workflows-parity/findings.md). GAP #4 (medium value). Claude Code ships a built-in <code>/deep-research</code> workflow (fan-out web search + source fetch + cross-check + cited report). Codex has NO equivalent. Either a native bundled workflow ONCE the workflows runtime (#1) exists, OR an interim plugin/skill that standardizes fan-out research + source cross-checking. Brainstorm-first; evaluate interim-vs-native."
+        }
+      ],
+      "command": {
+        "name": "codex-workflows-deep-research-bundled",
+        "prompts": {
+          "brainstorm": "Brainstorm a deep-research workflow for codex (gap #4 from .ralph/investigations/codex-cli-vs-claude-code-workflows-parity/findings.md). GOAL: a bundled fan-out research workflow (parallel web search + source fetch + cross-check + cited report).\n\nREAD FIRST: parity findings @ .ralph/investigations/codex-cli-vs-claude-code-workflows-parity/findings.md (row 2: bundled /deep-research). Codex has web tools + multi-agent fan-out primitives already.\n\nKEY QUESTIONS: (1) INTERIM (a plugin/skill that orchestrates fan-out research with today's primitives, shippable NOW) vs NATIVE (a bundled workflow once codex-workflows-product-mvp #1 lands) -- recommend a path + sequencing; (2) what the research workflow does (fan-out queries, source fetch, cross-check, cited synthesis); (3) dependency on #1 for the native form; (4) conflict surface.\n\nDELIVERABLE: recommended interim-vs-native path + dependency note + conflict verdict. brainstorm.json under .ralph/brainstorms/codex-workflows-deep-research-bundled/."
+        }
+      }
+    },
+    {
+      "id": "codex-workflows-approval-policy-surface",
+      "scope": "codex",
+      "lifecycle": "tracked",
+      "status": "active",
+      "lastTouchedAt": "2026-06-12",
+      "kanbanCards": [
+        {
+          "className": "cmd-warn",
+          "html": "FEATURE (operator 2026-06-12, from workflows-parity research @ .ralph/investigations/codex-cli-vs-claude-code-workflows-parity/findings.md). GAP #5 (medium value). Claude Code shows a workflow-specific PRE-RUN approval (phase list + view-raw-script + don&#39;t-ask-again) and exposes disable-via-config/settings/env/org-policy. Codex has only a generic plan-to-impl confirmation popup (plan_implementation.rs) + no workflow-disable key. Separate workflow-launch approval + script review + per-repo consent from the generic permission/plan-mode prompts; add a disable surface. DEPENDS on the workflows MVP (#1). Brainstorm-first."
+        }
+      ],
+      "command": {
+        "name": "codex-workflows-approval-policy-surface",
+        "prompts": {
+          "brainstorm": "Brainstorm a workflow-specific approval/policy surface for codex (gap #5 from .ralph/investigations/codex-cli-vs-claude-code-workflows-parity/findings.md). GOAL: separate workflow-launch approval, script review, and per-repo \"remember this workflow\" consent from today's generic permission + plan-mode prompts; plus a disable surface (config/settings/env/org policy).\n\nREAD FIRST: parity findings @ .ralph/investigations/codex-cli-vs-claude-code-workflows-parity/findings.md (rows 5 + 17: pre-run approval/script-review + disable-via-config). Codex nearby: plan-to-impl confirmation popup (tui/src/chatwidget/plan_implementation.rs:9-18,77-113); config.schema.json for a disable key.\n\nKEY QUESTIONS: (1) what the pre-run approval shows (phases + raw script view + don't-ask-again per repo); (2) how it differs from the existing plan-implementation popup; (3) the disable surface (a codex config key, env var, org-managed setting); (4) DEPENDENCY on codex-workflows-product-mvp; (5) conflict surface.\n\nDELIVERABLE: recommended approval + disable design + dependency note on #1 + conflict verdict. brainstorm.json under .ralph/brainstorms/codex-workflows-approval-policy-surface/."
+        }
+      }
+    },
+    {
+      "id": "codex-workflows-resume-cached-agent-results",
+      "scope": "codex",
+      "lifecycle": "tracked",
+      "status": "active",
+      "lastTouchedAt": "2026-06-12",
+      "kanbanCards": [
+        {
+          "className": "cmd-warn",
+          "html": "FEATURE (operator 2026-06-12, from workflows-parity research @ .ralph/investigations/codex-cli-vs-claude-code-workflows-parity/findings.md). GAP #6 (medium value). Claude Code resumes a STOPPED workflow run in the same session and reuses COMPLETED-agent results. Codex resumes CONVERSATIONS (/resume, CLI Resume/Fork) but not paused workflow EXECUTIONS with cached sub-results. Persist orchestration state/results separately from normal chat resume so interrupted long-running automation continues without redoing finished agents. NOTE the by-design open-agent semantics (codex-v1-agent-thread-limit finding: finished agents stay OPEN + reusable until close_agent). DEPENDS on the workflows MVP (#1). Brainstorm-first."
+        }
+      ],
+      "command": {
+        "name": "codex-workflows-resume-cached-agent-results",
+        "prompts": {
+          "brainstorm": "Brainstorm run-resume with cached completed-agent results for codex workflows (gap #6 from .ralph/investigations/codex-cli-vs-claude-code-workflows-parity/findings.md). GOAL: resume a stopped/paused orchestration run in-session and reuse already-completed-agent results instead of redoing them.\n\nREAD FIRST: parity findings @ .ralph/investigations/codex-cli-vs-claude-code-workflows-parity/findings.md (row 13: resume after pause with cached agents). Codex today: conversation resume only (/resume tui/src/slash_command.rs:87-90; CLI Resume/Fork cli/src/main.rs:175-179). RELEVANT: the codex-v1-agent-thread-limit finding -- finished agents stay OPEN/reusable until explicit close_agent (so cached results may already be reachable while the agent thread is open).\n\nKEY QUESTIONS: (1) what orchestration state/results must persist separately from chat-thread resume; (2) how to key + reuse completed-agent results on resume (leverage the open-agent-thread reuse semantics?); (3) interaction with the workflows runtime/run registry (#1); (4) DEPENDENCY on codex-workflows-product-mvp; (5) conflict surface.\n\nDELIVERABLE: recommended resume/caching design + dependency note on #1 + conflict verdict. brainstorm.json under .ralph/brainstorms/codex-workflows-resume-cached-agent-results/."
+        }
+      }
+    },
+    {
       "id": "codex-cli-vs-claude-code-workflows-parity",
       "scope": "codex",
       "lifecycle": "tracked",
