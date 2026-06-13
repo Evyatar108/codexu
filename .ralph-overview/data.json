@@ -49,6 +49,31 @@
   "generatedFromCommit": "32fdb9de",
   "tasks": [
     {
+      "id": "codex-managed-hooks-visible-experimental-plus-patch-surface",
+      "scope": "codex",
+      "lifecycle": "tracked",
+      "status": "todo",
+      "lastTouchedAt": "2026-06-12",
+      "kanbanCards": [
+        {
+          "className": "cmd-warn",
+          "html": "CLARITY (operator-raised 2026-06-13: \"we did a change to disable managed hooks, is this clear?\"). The fork DISABLES managed/admin-config hooks by default via Feature::ManagedHooks (opt-in), but it is HIDDEN from /experimental (Stage::Stable) and has clarity/discoverability gaps. Operator proposed renaming to DisableManagedHooks default-on; investigation recommends AGAINST the rename (default-on negative feature + double-negative config/CLI + config-migration break + more upstream divergence) and instead: make it VISIBLE with clearer copy."
+        },
+        {
+          "className": "cmd-ok",
+          "html": "INVESTIGATION done (read-only, 2026-06-13, .ralph/investigations/codex-managed-hooks-semantics-naming/findings.md). FORK CHANGE: commit 883f75f50a \"skip managed/admin-config hooks by default with opt-in\" -- upstream has NO such gate. TRUTH TABLE (aligned with intent, NOT inverted): Feature::ManagedHooks=false (default) => managed hooks SUPPRESSED; =true => honored/executed (features/src/lib.rs:1012-1021; hooks/src/managed_gate.rs:4-55; runtime suppression session/mod.rs:3391-3393 + registry.rs:84-88 + engine/mod.rs:144-151). Enable: --enable-managed-hooks / features.managed_hooks=true / CODEX_ENABLE_MANAGED_HOOKS (cli/src/main.rs:805-852). RECOMMENDATION: KEEP the name + opt-in semantics (default-off already matches intent); make it VISIBLE in /experimental with explicit copy (\"Allow managed (admin) hooks\", description noting off-by-default); + ADD the MISSING patch-surface.md entry (the audit found NO managed-hooks entry in either wrapper or inner patch-surface.md)."
+        }
+      ],
+      "command": {
+        "name": "codex-managed-hooks-visible-experimental-plus-patch-surface",
+        "descriptionHtml": "Make Feature::ManagedHooks visible+toggleable in /experimental with clear \"Allow managed (admin) hooks\" copy (keep opt-in/default-off semantics, no rename) and add the missing patch-surface.md divergence entry.",
+        "warnings": [],
+        "prompts": {
+          "impl": "/implement-with-ralph --autonomous \"Make the codex managed-hooks feature discoverable + clearly documented, per the source-settled investigation @ .ralph/investigations/codex-managed-hooks-semantics-naming/findings.md. CONTEXT: the fork (commit 883f75f50a) disables managed/admin-config hooks by DEFAULT via an opt-in gate Feature::ManagedHooks -- upstream has no such gate. Current semantics (KEEP these, do NOT rename, do NOT flip the default -- the investigation recommends against DisableManagedHooks-default-on due to double-negative + config-migration break + upstream divergence): ManagedHooks=false (default) => managed hooks SUPPRESSED; =true => honored/executed. THE FIX (two parts): (1) Make Feature::ManagedHooks VISIBLE + toggleable in /experimental by changing its stage from Stage::Stable to Stage::Experimental with CLEAR menu copy -- a label like \\\"Allow managed (admin) hooks\\\" and a description stating it is OFF by default and that enabling it honors admin/managed-config-pushed hooks (an enterprise/privileged surface). Match how the already-visible fork features LegacyPasteBurstHeuristic (features/src/lib.rs:986-998) + UserMessageStyling (features/src/lib.rs:999-1011) are staged. Keep DEFAULT OFF (Experimental stage, default false). Preserve ALL existing enable mechanisms unchanged: --enable-managed-hooks, features.managed_hooks=true, CODEX_ENABLE_MANAGED_HOOKS (cli/src/main.rs:805-852; config/mod.rs:2590-2603) -- no flag/env/key rename, no config migration. Confirm toggling it in /experimental converges on the same Feature state as the CLI/env/config paths and the gate (hooks/src/managed_gate.rs:4-55) still suppresses-when-off / honors-when-on. (2) ADD the MISSING patch-surface.md entry for the managed-hooks divergence (the audit found NO entry in either wrapper codex/docs/implementation/patch-surface.md or inner docs/implementation/patch-surface.md for ManagedHooks/managed_hooks/CODEX_ENABLE_MANAGED_HOOKS) -- document the fork skip-by-default-with-opt-in behavior (originating commit 883f75f50a) + the new picker visibility. CODEX submodule -- lead-coordinated in the canonical inner checkout codex/external/repos/codex-patched on branch ralph/codex-v8-int (the .8 accumulation branch), NOT a worktree. Build/verify via files/codex-cargo.sh: cargo check -p codex-core + codex-tui + targeted feature-registry/picker + managed-gate tests. Drive Phase 5a to terminal. Known false-alarms (NOT blockers): reset_memories STATUS_STACK_OVERFLOW; spec_plan_tests.rs rustfmt quirk. EOL hygiene: revert LF->CRLF churn before commit. Report the SHA + branch + the stage+copy change + confirmation default stays OFF + all enable paths intact + the patch-surface entry added.\""
+        }
+      }
+    },
+    {
       "id": "codex-anthropic-models-visible-in-experimental-picker",
       "scope": "codex",
       "lifecycle": "tracked",
