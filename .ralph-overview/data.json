@@ -49,6 +49,25 @@
   "generatedFromCommit": "32fdb9de",
   "tasks": [
     {
+      "id": "crews-pretooluse-hook-errored-under-concurrent-spawn-burst",
+      "scope": "crews",
+      "lifecycle": "tracked",
+      "status": "active",
+      "lastTouchedAt": "2026-06-12",
+      "kanbanCards": [
+        {
+          "className": "cmd-warn",
+          "html": "BUG (operator + lead-observed 2026-06-12). Copilot CLI reported &quot;Denied by preToolUse hook (hook errored)&quot; on the LEAD&#39;s tool calls (a member spawn + a listener re-arm) -- an actual hook EXECUTION failure -&gt; tool denied (fail-closed), NOT a normal block. LEAD DIAGNOSIS (read-only): hook LOGIC is fine (run directly: clean {decision:block} when review-required, empty/exit-0 when allowed, 187-301ms). Failures were TRANSIENT, at the moment of spawning a 4th member WHILE 3 freshly-spawned members were doing SessionStart + arming listeners (spawn-burst spike; ~36 live node procs). crews fires a fresh node subprocess PER hook fire; under that process-table/CPU saturation an individual hook invocation can fail to spawn/complete within the Copilot CLI hook window -&gt; &quot;hook errored&quot; -&gt; fail-closed. Self-heals after the burst. locator-failures.jsonl shows a storm of concurrent role-guard hook fires from the new member sessions (019ebefc-*) at that timestamp. DISTINCT FACET from crews-hook-timeout-under-lock-contention (merged) / crews-codex-12s-hook-timeout-ceiling (archived): trigger is PROCESS-SPAWN SATURATION during a concurrent SessionStart burst, not just manifest-lock timeout. Mitigation candidates: hook self-retry/backoff on transient spawn failure; lighter hook fast-path under contention; throttle SessionStart hook work; OR operating guidance to stagger lead spawns. NON-BLOCKING (retry works) but a real reliability facet at higher member concurrency."
+        }
+      ],
+      "command": {
+        "name": "crews-pretooluse-hook-errored-under-concurrent-spawn-burst",
+        "prompts": {
+          "investigate": "READ-ONLY investigation (crews plugin: ai-developer-toolkit/plugins/crews/). NO code edits except the findings deliverable; pre/post snapshot+revert guard.\nBUG: Copilot CLI \"Denied by preToolUse hook (hook errored)\" (an EXECUTION failure, not a normal block) on a lead session, transiently, when spawning a member while 3 others were mid SessionStart + arming (~36 node procs). Hook run directly returns valid output in 187-301ms; self-heals after the burst.\nCONFIRM/REFUTE: under a concurrent member SessionStart/spawn burst, the per-fire fresh-node-subprocess model + manifest I/O makes an individual PreToolUse hook invocation fail/timeout within the Copilot CLI hook window -> CLI reports \"hook errored\" + fail-closes.\nSTEPS: read hooks/pre-tool-use.js (per-fire work + lock + I/O) + actors.js SessionStart work; characterize the saturation trigger; determine the Copilot CLI hook-failure behavior; RANK mitigations (hook fast-path / self-retry-backoff / throttle SessionStart / reduce per-fire I/O / operating guidance to stagger spawns), noting crews-code vs operating-guidance.\nDELIVERABLE: findings.md under .ralph/investigations/crews-pretooluse-hook-errored-under-concurrent-spawn-burst/. Report kind=done with root cause + top mitigation + path."
+        }
+      }
+    },
+    {
       "id": "codex-fork-flags-to-experimental-features-migration",
       "scope": "codex",
       "lifecycle": "tracked",
@@ -121,6 +140,10 @@
         {
           "className": "cmd-warn",
           "html": "BUG/PERF (operator 2026-06-12). The codex paste guard (paste-burst detection/grouping) is SLOW, and on a SLOW PC it sometimes DROPS some of the pasted text from the grouping (the captured paste is incomplete). LEARN FROM CLAUDE CODE: study how Claude Code does paste capture/grouping in its source at <code>D:\\harness-efforts\\claude-code\\worktrees\\main</code>, then improve codex&#39;s approach. CONTEXT: the paste-burst guard is currently ON by default (re-enabled by codex-revert-disable-paste-burst-default: disable_paste_burst defaults false, matching upstream; core/src/config/mod.rs ~2457). The complaint is about the guard&#39;s ALGORITHM (latency + lossy grouping under slow IO), not whether it&#39;s enabled. INVESTIGATE-first (diagnose codex&#39;s burst-grouping + benchmark vs Claude Code&#39;s method), then fix. CODEX SUBMODULE."
+        },
+        {
+          "className": "cmd-ok",
+          "html": "INVESTIGATION DONE (2026-06-12, read-only member investigate-paste-guard; findings @ .ralph/investigations/codex-paste-guard-perf-and-dropped-text/findings.md). SLOWNESS root cause: the non-bracketed fallback HOLDS the first ASCII char, waits on a short timeout, and schedules DELAYED redraws on the normal typing path (timeout/redraw problem, not a blocking sleep). DROPPED/INCOMPLETE PASTE root cause: the fallback closes a burst on short IDLE TIMEOUTS (60ms Windows / 8ms non-Windows), so a slow terminal/PTY splits one physical paste into MULTIPLE groups; multiline payloads then hit the 120ms Enter-suppress window and SUBMIT EARLY, truncating the paste. RECOMMENDED FIX (small, not a plan): treat BRACKETED PASTE as authoritative + reapply <code>disable_paste_burst = true</code> by default, keeping the heuristic only as explicit LEGACY OPT-IN. Codex already enables bracketed paste + has a clean Event::Paste(String) path. Per the fork convention the legacy heuristic opt-in should be an EXPERIMENTAL FEATURE (default off). COUPLES with codex-fork-flags-to-experimental-features-migration (disable_paste_burst is on its migration list). READY FOR IMPL (small fix)."
         }
       ],
       "command": {
@@ -8215,11 +8238,15 @@
       "scope": "codex",
       "lifecycle": "tracked",
       "status": "active",
-      "lastTouchedAt": "2026-06-11",
+      "lastTouchedAt": "2026-06-12",
       "kanbanCards": [
         {
           "className": "cmd-warn",
           "html": "BRAINSTORM (operator 2026-06-11). The codex bg-completion wake payload (commit 7133aca92) carries process output INLINE with a head/tail cap, but (unlike Claude Code / Copilot) likely does NOT spill the truncated overflow to a FILE -- and since await_background_completion was deleted, overflow beyond the cap is LOST. Brainstorm file-spill-on-overflow parity: on truncation, persist full output to a file + give the agent a path/command to read it. CODEX SUBMODULE. Follow-up to codex-nonblocking-bg-completion-surfacing."
+        },
+        {
+          "className": "cmd-ok",
+          "html": "BRAINSTORM SHIPPED (2026-06-12, member brainstorm-bgwake @ <code>b334db59</code>; brainstorm.json @ .ralph/brainstorms/codex-bg-wake-payload-overflow-spill-to-file/). CURRENT BEHAVIOR CONFIRMED: inline-only truncation in core/src/unified_exec/async_watcher.rs -- the wake payload embeds a 16 KiB head/tail preview + omission marker and does NOT spill overflow to a file; await_background_completion is gone. RECOMMENDED DIRECTION D-001: experimental tee-to-session-artifact + truncated wake reference. Write a session-scoped artifact under <code>~/.codex/sessions/&lt;conversation&gt;/...</code> DURING STREAMING (not at exit -- exit-time spill cannot recover bytes already dropped by HeadTailBuffer; the bg-notification coalescer only preserves task_id + exit_code). Gate via an EXPERIMENTAL FEATURE (default off) per fork convention. CONFLICT SURFACE: MEDIUM -- not overlay-only; a real fix touches the unified-exec STREAMING path + likely widens notification/coalescing to carry a recovery reference. Codex lens timed out -> partial-mode synthesis (copilot + devil&#39;s-advocate, which aligned post-commit); current behavior is source-confirmed. READY FOR PLAN."
         }
       ],
       "command": {
