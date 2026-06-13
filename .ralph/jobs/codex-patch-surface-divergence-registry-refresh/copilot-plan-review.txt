@@ -1,0 +1,40 @@
+I’ll read the referenced prompt and then execute the requested task end-to-end.
+
+The prompt is longer than the file viewer’s single-read limit, so I’m reading it in sections.
+
+I’m switching to read-only plan review: checking whether the plan’s file references, constraints, and acceptance criteria match the actual codex surfaces.
+
+I found the registry still contains the stale paste-burst text, so I’m checking the surrounding registry/script/source context for plan gaps rather than assuming the plan’s inventory is complete.
+
+I’m incorporating the codex-specific constraints and the branch/tag probe result, then I’ll finalize the plan review.
+
+The local codex wrapper is on `main` with `.1` through `.5` release tags present; I’m checking whether the named implementation branch is actually available before classifying branch-targeting risk.
+
+I have enough source context; I’m reading the final branch check output and then will provide the review findings.
+
+### Feasibility
+
+[High] The branch target is not currently actionable as written. The plan says to land on `ralph/codex-v5-int` or a branch from its latest tip, but `codex/` has no local or remote branch matching `*codex-v5-int*` in this checkout. Since `.5` source anchors are central to US-003, the plan should name the exact fallback base, e.g. current `codex/main` if it already contains `v0.135.0-copilot-api.5`, or the specific release tag/commit to branch from.
+
+[Critical] The plan touches upstream-canonical Rust files (`codex/external/repos/codex-patched/codex-rs/tui/src/multi_agents.rs`, `.../resume_picker.rs`) but does not fully satisfy `codex/CLAUDE.md` Tenant 1’s planning requirement: record seams considered, chosen option, edit-budget estimate, and re-conflict probability for each upstream-canonical edit. It cites the tenant but only gives broad risk/branch notes.
+
+### Completeness
+
+[High] The stale paste-burst divergence appears in multiple places, not just one section: `codex/docs/implementation/patch-surface.md` has duplicate `## 11. TUI input latency: disable_paste_burst default flipped` blocks and conflict-guide lines still saying to reapply `unwrap_or(true)`. The plan’s “retire or rewrite the divergence” could be implemented too narrowly unless it explicitly requires updating every stale `disable_paste_burst` registry/replant occurrence.
+
+[Medium] The plan says to extend `codex/scripts/audit_invariants.sh` but does not require running `bash scripts/audit_invariants.sh` as the verification gate. Since the task’s output is mostly registry plus guard coverage and builds are intentionally out of scope, the audit script pass should be explicit.
+
+### Ordering
+
+No issues found. The serial ordering is appropriate because all stories overlap on `codex/docs/implementation/patch-surface.md` and later marker/audit wording depends on settled registry rows.
+
+### Simplicity
+
+No issues found. The plan is appropriately narrow: update the ledger, add two missing markers, and add focused guards rather than widening source changes or migrating flags.
+
+### Acceptance Criteria Quality
+
+[Medium] Some AC wording is not fully testable for an autonomous implementer: “appropriately scoped,” “focused verification hook,” and “any focused checks needed” do not specify the exact guard patterns or expected command output. Tighten these by naming the exact `audit_invariants.sh` checks and requiring the audit command to pass.
+
+[Medium] ACs require `.4` families to gain “exact source anchors,” but the plan does not list those exact anchors for all `.4` families. Add the intended file/function anchors for focus leak, BG exec-cell rendering, Knob A, Knob B, and managed-hooks before implementation.
+

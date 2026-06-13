@@ -1,0 +1,259 @@
+{
+  "planFile": "D:\\harness-efforts\\codexu\\.ralph\\jobs\\.staging\\20260613T031747Z-plan-patchsurface-9205ad07\\draft-plan.md",
+  "repoDir": "D:/harness-efforts/codexu/.ralph/jobs/codex-patch-surface-divergence-registry-refresh/worktree/plan",
+  "reviewCycle": 0,
+  "findings": [
+    {
+      "id": "F-001",
+      "severity": "High",
+      "source": "copilot",
+      "classification": "fixable",
+      "phase": "docs",
+      "category": "Feasibility",
+      "sectionRef": "Approach > Implementation Strategy",
+      "description": "The original branch target was not actionable because it referenced `ralph/codex-v5-int` as if it were still the required base, even though the maintained `.5` line is already tagged at HEAD.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Updated the plan to require a dedicated branch from `codex/main` at `release/0.135.0-copilot-api.5` (or directly from that tag if main has moved).",
+      "relevantFiles": [
+        "codex/docs/implementation/patch-surface.md",
+        "codex/.claude/commands/rebase-upstream.md"
+      ],
+      "suggestedFix": "Name the exact maintained base for the future implementation branch."
+    },
+    {
+      "id": "F-002",
+      "severity": "Critical",
+      "source": "copilot",
+      "classification": "fixable",
+      "phase": "docs",
+      "category": "Feasibility",
+      "sectionRef": "Approach > Architecture",
+      "description": "The draft cited Tenant 1 but did not record seams considered, chosen option, edit-budget estimate, and re-conflict probability for the upstream-canonical marker edits.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Added an `Upstream-canonical seam decisions` table that records the considered seams, chosen placement, edit budget, and re-conflict probability for the `multi_agents.rs` and `resume_picker.rs` marker edits.",
+      "relevantFiles": [
+        "codex/external/repos/codex-patched/codex-rs/tui/src/multi_agents.rs",
+        "codex/external/repos/codex-patched/codex-rs/tui/src/resume_picker.rs"
+      ],
+      "suggestedFix": "Add a dedicated seam-decision section for the only upstream-canonical edits."
+    },
+    {
+      "id": "F-003",
+      "severity": "High",
+      "source": "copilot",
+      "classification": "fixable",
+      "phase": "docs",
+      "category": "Completeness",
+      "sectionRef": "Approach > Implementation Strategy",
+      "description": "The paste-burst retirement work was too narrow because the stale divergence appears in both the main section 11 entry and the conflict-resolution guide reapply note.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Expanded the plan to require updating every stale paste-burst reference, explicitly including the main divergence entry and the conflict-resolution-guide note.",
+      "relevantFiles": [
+        "codex/docs/implementation/patch-surface.md"
+      ],
+      "suggestedFix": "Call out every stale paste-burst occurrence rather than a single section."
+    },
+    {
+      "id": "F-004",
+      "severity": "Medium",
+      "source": "copilot",
+      "classification": "fixable",
+      "phase": "docs",
+      "category": "Completeness",
+      "sectionRef": "Approach > Implementation Strategy",
+      "description": "The draft extended `audit_invariants.sh` but did not make the audit command itself an explicit verification gate.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Made `bash scripts/audit_invariants.sh` the mandatory verification command and added it to the implementation strategy and acceptance criteria.",
+      "relevantFiles": [
+        "codex/scripts/audit_invariants.sh"
+      ],
+      "suggestedFix": "Name the exact audit command the implementer must run."
+    },
+    {
+      "id": "F-005",
+      "severity": "Medium",
+      "source": "copilot",
+      "classification": "fixable",
+      "phase": "docs",
+      "category": "Criteria Quality",
+      "sectionRef": "Acceptance Criteria",
+      "description": "The AC wording was not fully testable because phrases like `appropriately scoped` and `focused verification hook` did not identify the exact marker checks or expected verification behavior.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Tightened the acceptance criteria to require explicit marker-presence/drift checks in `audit_invariants.sh` and an exit-0 audit run.",
+      "relevantFiles": [
+        "codex/scripts/audit_invariants.sh",
+        "codex/docs/implementation/patch-surface.md"
+      ],
+      "suggestedFix": "Replace vague criteria with explicit marker and audit expectations."
+    },
+    {
+      "id": "F-006",
+      "severity": "Medium",
+      "source": "copilot",
+      "classification": "fixable",
+      "phase": "docs",
+      "category": "Criteria Quality",
+      "sectionRef": "Acceptance Criteria",
+      "description": "The draft required `.4` families to gain exact source anchors but did not list those anchors for every family.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Added explicit source anchors for every `.4` and `.5` family directly in the implementation strategy and acceptance criteria.",
+      "relevantFiles": [
+        "codex/external/repos/codex-patched/codex-rs/tui/src/tui.rs",
+        "codex/external/repos/codex-patched/codex-rs/tui/src/chatwidget/command_lifecycle.rs",
+        "codex/external/repos/codex-patched/codex-rs/core/src/client.rs",
+        "codex/external/repos/codex-patched/codex-rs/model-provider/src/copilot_models_endpoint.rs",
+        "codex/external/repos/codex-patched/codex-rs/hooks/src/managed_gate.rs"
+      ],
+      "suggestedFix": "Name the intended file/function anchors for each documented family."
+    },
+    {
+      "id": "F-007",
+      "severity": "High",
+      "source": "codex",
+      "classification": "fixable",
+      "phase": "docs",
+      "category": "Completeness",
+      "sectionRef": "Files to Create/Modify",
+      "description": "The draft did not account for stale `disable_paste_burst` guidance in `codex/CLAUDE.md`, leaving a second operator-facing rebase hazard after the registry refresh.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Added `codex/CLAUDE.md` to the planned edit set and expanded the paste-burst acceptance criteria to cover every stale reference, including the stale CLAUDE guidance.",
+      "relevantFiles": [
+        "codex/CLAUDE.md",
+        "codex/docs/implementation/patch-surface.md"
+      ],
+      "suggestedFix": "Treat the stale CLAUDE guidance as part of the same retirement pass."
+    },
+    {
+      "id": "F-008",
+      "severity": "Medium",
+      "source": "codex",
+      "classification": "fixable",
+      "phase": "docs",
+      "category": "Completeness",
+      "sectionRef": "Approach > Implementation Strategy",
+      "description": "Verification was incomplete for a shell-guard edit because the draft named `bash scripts/audit_invariants.sh` but not a shell syntax check.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Updated the plan to require both `bash -n scripts/audit_invariants.sh` and `bash scripts/audit_invariants.sh` as explicit verification commands.",
+      "relevantFiles": [
+        "codex/scripts/audit_invariants.sh"
+      ],
+      "suggestedFix": "Add both syntax and functional shell verification commands."
+    },
+    {
+      "id": "F-009",
+      "severity": "Medium",
+      "source": "codex",
+      "classification": "fixable",
+      "phase": "docs",
+      "category": "Acceptance Criteria Quality",
+      "sectionRef": "Acceptance Criteria",
+      "description": "The marker-placement requirement was still subjective because it did not identify the exact functions/blocks that should receive the new `SANDBOX PATCH` anchors.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Specified the concrete anchor blocks for both files: `waiting_begin()` / `waiting_end()` / `agent_label_spans()` in `multi_agents.rs`, and `start_initial_load()` / `schedule_first_page_reconcile()` / `load_more_if_needed()` in `resume_picker.rs`.",
+      "relevantFiles": [
+        "codex/external/repos/codex-patched/codex-rs/tui/src/multi_agents.rs",
+        "codex/external/repos/codex-patched/codex-rs/tui/src/resume_picker.rs"
+      ],
+      "suggestedFix": "Name the exact functions or blocks where the markers must land."
+    },
+    {
+      "id": "F-010",
+      "severity": "Medium",
+      "source": "codex",
+      "classification": "fixable",
+      "phase": "docs",
+      "category": "Completeness",
+      "sectionRef": "Files to Create/Modify",
+      "description": "Leaving `codex/.claude/commands/rebase-upstream.md` optional risked keeping stale summary-file guidance after the registry refresh.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Changed the plan to require a grep-based stale-reference check for `rebase-upstream.md` and to update the file if stale `.130`, paste-burst, or missing-family guidance remains.",
+      "relevantFiles": [
+        "codex/.claude/commands/rebase-upstream.md"
+      ],
+      "suggestedFix": "Require an explicit stale-reference check on `rebase-upstream.md`."
+    },
+    {
+      "id": "F-011",
+      "severity": "Medium",
+      "source": "codex",
+      "classification": "fixable",
+      "phase": "docs",
+      "category": "Feasibility",
+      "sectionRef": "Approach > Implementation Strategy",
+      "description": "The draft used `.5` tag names imprecisely across repos, which could confuse whether the wrapper or the inner workspace tag should be used as the implementation base.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Clarified the repo-specific release pair: wrapper `codex/` tag `v0.135.0-copilot-api.5` and inner `codex-rs` tag `release/0.135.0-copilot-api.5`.",
+      "relevantFiles": [
+        "codex/docs/implementation/patch-surface.md",
+        "codex/external/repos/codex-patched"
+      ],
+      "suggestedFix": "Name the wrapper and inner tag forms separately."
+    },
+    {
+      "id": "F-012",
+      "severity": "High",
+      "source": "claude",
+      "classification": "fixable",
+      "phase": "docs",
+      "category": "Completeness",
+      "sectionRef": "Files to Create/Modify",
+      "description": "The original draft omitted `tool_lifecycle.rs`, even though it is a live agent-name display seam without a `SANDBOX PATCH:` marker.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Added `tool_lifecycle.rs` to the planned edit set and made the agent-name family require markers in both `tool_lifecycle.rs` and `multi_agents.rs`.",
+      "relevantFiles": [
+        "codex/external/repos/codex-patched/codex-rs/tui/src/chatwidget/tool_lifecycle.rs",
+        "codex/external/repos/codex-patched/codex-rs/tui/src/multi_agents.rs"
+      ],
+      "suggestedFix": "Treat the full agent-name family as a coupled marker pass."
+    },
+    {
+      "id": "F-013",
+      "severity": "High",
+      "source": "claude",
+      "classification": "fixable",
+      "phase": "docs",
+      "category": "Completeness",
+      "sectionRef": "Approach > Implementation Strategy",
+      "description": "The draft risked retiring only one paste-burst section while leaving the conflict-resolution-guide instructions and related stale operator guidance intact.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Expanded the paste-burst retirement scope to cover the main section, duplicate later section, conflict-resolution-guide note, possible stale config-test guidance, and `codex/CLAUDE.md`.",
+      "relevantFiles": [
+        "codex/docs/implementation/patch-surface.md",
+        "codex/CLAUDE.md"
+      ],
+      "suggestedFix": "Make every stale paste-burst instruction part of the same retirement pass."
+    },
+    {
+      "id": "F-014",
+      "severity": "Medium",
+      "source": "claude",
+      "classification": "fixable",
+      "phase": "docs",
+      "category": "Acceptance Criteria Quality",
+      "sectionRef": "US-003 / Acceptance Criteria",
+      "description": "The draft did not clearly distinguish which families already had markers and which specific files still needed new ones, creating risk of redundant source edits.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Restricted new markers to `tool_lifecycle.rs`, `multi_agents.rs`, and `resume_picker.rs`, and explicitly stated that the other `.4` / `.5` families remain registry-only unless a grep proves they lack markers.",
+      "relevantFiles": [
+        "codex/external/repos/codex-patched/codex-rs/tui/src/chatwidget/tool_lifecycle.rs",
+        "codex/external/repos/codex-patched/codex-rs/tui/src/multi_agents.rs",
+        "codex/external/repos/codex-patched/codex-rs/tui/src/resume_picker.rs"
+      ],
+      "suggestedFix": "State exactly which files get new markers and keep the rest registry-only."
+    }
+  ]
+}
