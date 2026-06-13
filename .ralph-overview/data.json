@@ -49,6 +49,29 @@
   "generatedFromCommit": "32fdb9de",
   "tasks": [
     {
+      "id": "codex-console-mode-corruption-tracer",
+      "scope": "codex",
+      "lifecycle": "tracked",
+      "status": "todo",
+      "lastTouchedAt": "2026-06-12",
+      "kanbanCards": [
+        {
+          "className": "cmd-warn",
+          "html": "INVESTIGATION/INSTRUMENTATION (operator request 2026-06-13). The mid-session Windows console-mode corruption (sibling task codex-tui-input-mode-full-guard-windows-recur: [I/[O flood + Backspace/Enter/Escape/special-keys broken) has a known FIX (self-heal guard) but the CULPRIT -- WHAT actually flips the console mode mid-session -- is NOT statically pinnable: the source investigation proved codex built-in agent spawn is in-process (no console child) and no in-source path re-enables the mode. So finding the culprit needs RUNTIME instrumentation, not log-reading (codex has no console-mode logging today). GOAL: an opt-in console-mode delta tracer that captures the exact instant + context when the mode flips, so the operator can reproduce live and fingerprint the corruptor (leading hypothesis: a tool/exec OS child sharing the console handle)."
+        },
+        {
+          "className": "cmd-warn",
+          "html": "DESIGN SPIKE in progress (read-only). Mirror the existing CODEX_STREAM_TRACE / diagnose-codex-stream-cut tracer pattern: env-gated default-OFF zero-overhead instrumentation that snapshots GetConsoleMode before each event read (event_stream.rs:178-220), compares to codex expected mode, and on a DELTA appends a JSONL sidecar record (named mode-bit flags + timestamp + context: last event / whether a tool-exec child or agent just ran). Then reproduce mid-session + read the sidecar to disambiguate culprit hypotheses (exec-child vs conhost/resize vs crossterm re-push). Independent of the self-heal FIX. Design doc -> .ralph/investigations/codex-console-mode-corruption-tracer/design-spike.md."
+        }
+      ],
+      "command": {
+        "name": "codex-console-mode-corruption-tracer",
+        "descriptionHtml": "Add an opt-in (default-OFF, zero-overhead) Windows console-mode delta tracer so the operator can reproduce the mid-session input-mode corruption live and identify what actually flips the console mode.",
+        "warnings": [],
+        "prompts": {}
+      }
+    },
+    {
       "id": "codex-tui-input-mode-full-guard-windows-recur",
       "scope": "codex",
       "lifecycle": "tracked",
