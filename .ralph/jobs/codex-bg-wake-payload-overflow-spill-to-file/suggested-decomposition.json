@@ -1,0 +1,44 @@
+{
+  "clusters": [
+    {
+      "name": "runtime-seam",
+      "stories": ["US-001", "US-002"],
+      "phase": 1,
+      "dependsOn": [],
+      "fileOverlapEvidence": {
+        "sharedFiles": [
+          "external/repos/codex-patched/codex-rs/core/src/unified_exec/async_watcher.rs",
+          "external/repos/codex-patched/codex-rs/core/src/unified_exec/process_manager.rs",
+          "external/repos/codex-patched/codex-rs/core/src/unified_exec/mod.rs"
+        ],
+        "exclusiveFiles": [
+          "external/repos/codex-patched/codex-rs/core/src/unified_exec/background_output_artifact.rs",
+          "external/repos/codex-patched/codex-rs/core/src/tasks/mod.rs"
+        ],
+        "risk": "high"
+      },
+      "executionModeRationale": "These stories share the same runtime seam and notification shape. Splitting them would create overlapping edits in the watcher, event struct, and coalescer, so they should land serially in one implementation cluster."
+    },
+    {
+      "name": "verification-and-registration",
+      "stories": ["US-003"],
+      "phase": 2,
+      "dependsOn": ["runtime-seam"],
+      "fileOverlapEvidence": {
+        "sharedFiles": [
+          "docs/implementation/patch-surface.md",
+          "external/repos/codex-patched/codex-rs/features/src/lib.rs"
+        ],
+        "exclusiveFiles": [
+          "external/repos/codex-patched/codex-rs/core/src/unified_exec/async_watcher_tests.rs",
+          "external/repos/codex-patched/codex-rs/core/src/unified_exec/process_manager_tests.rs",
+          "external/repos/codex-patched/codex-rs/core/src/tasks/mod_tests.rs",
+          "codex-rs-overlay/codex-invariant-tests/tests/background_notifications.rs",
+          "codex-rs-overlay/codex-invariant-tests/tests/background_completion.rs"
+        ],
+        "risk": "medium"
+      },
+      "executionModeRationale": "Verification and patch-surface registration depend on the final runtime XML/tag shape and chosen feature metadata. This cluster can start only after the runtime seam stabilizes, but it is otherwise isolated to tests, docs, and feature registration."
+    }
+  ]
+}

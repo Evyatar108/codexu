@@ -1,0 +1,26 @@
+{
+  "planFile": "D:\\harness-efforts\\codexu\\.ralph\\jobs\\.staging\\20260613T035637Z-plan-bgwake-dc242604\\draft-plan.md",
+  "repoDir": "D:\\harness-efforts\\codexu\\codex",
+  "reviewCycle": 1,
+  "findings": [
+    {
+      "id": "F-001",
+      "severity": "Medium",
+      "source": "claude",
+      "classification": "fixable",
+      "phase": "docs",
+      "category": "Completeness",
+      "sectionRef": "Approach > Architecture",
+      "description": "The first draft named the artifact helper and coalescer changes but did not pin the concrete artifact format or the exact XML wire shape needed for `core/src/tasks/mod.rs` to preserve recovery references after batching.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Specified a plain UTF-8 `.log` artifact and the exact `<output_artifact_path>` placement for both single-task and coalesced background notifications.",
+      "relevantFiles": [
+        "external/repos/codex-patched/codex-rs/core/src/unified_exec/async_watcher.rs",
+        "external/repos/codex-patched/codex-rs/core/src/tasks/mod.rs",
+        "external/repos/codex-patched/codex-rs/core/src/unified_exec/background_output_artifact.rs"
+      ],
+      "suggestedFix": "Name the concrete artifact format and the exact notification/coalescer XML contract so tests can assert the wire format precisely."
+    }
+  ]
+}

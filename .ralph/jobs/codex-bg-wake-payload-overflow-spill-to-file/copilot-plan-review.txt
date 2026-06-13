@@ -1,0 +1,17 @@
+I’ll read the prompt file to identify the requested work, then proceed with the repository changes.
+
+The prompt is larger than the single-read limit, so I’ll read it in sections and extract the actionable requirements.
+
+I’m checking the referenced Rust seams and tests now so the review can distinguish real blockers from speculative concerns.
+
+I’ve confirmed the plan is in review mode and won’t edit files; I’m narrowing the remaining checks to likely feasibility/completeness blockers.
+
+The main seams exist, but I found one important mismatch in the planned artifact path precedent and one likely missing cleanup path; I’m checking the process lifecycle to grade those correctly.
+
+One more production-access check is needed: the plan depends on resolving `codex_home` from unified exec without broad plumbing.
+
+I have enough context for the review now and will produce the plan analysis without making repository changes.### Feasibility
+
+[Medium] The referenced seams are real: `core/src/unified_exec/async_watcher.rs::start_streaming_output`, `process_chunk`, `spawn_exit_watcher`, `build_background_completion_output`; `process_manager.rs::store_process`; and `tasks/mod.rs::coalesce_background_notifications` all match the plan. However, the plan calls `stream_events_utils.rs::image_generation_artifact_path()` the best precedent for “session-scoped” paths, but that helper writes under `codex_home/generated_images/<session>/...`, not `codex_home/sessions/<conversation>/...`. The better precedent for the required layout is `core/src/session/turn.rs`’s stream diagnostics path using `config.codex_home.join(crate::rollout::SESSIONS_SUBDIR).join(sess.conversation_id.to_string())`.
+
+[Medium] The plan leaves the artifact format open despite the runtime seam requiring an early choice. `process_chunk` receives raw `Vec<u8>` chunks but currently only appends UTF-8-ish prefixes to `HeadTailBuffer` and lossy-converts for previews. If “plain text” is chosen, the implementation must define whether the artifact preserves raw bytes exactly or mirrors the lossy preview semantics. That affects “full background output

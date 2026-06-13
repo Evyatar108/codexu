@@ -1,0 +1,47 @@
+I’ll read the provided prompt file to determine the requested work, then proceed autonomously.
+
+I’ll trace the existing background-output and experimental-feature seams in the submodule so the analysis names concrete integration points.
+
+I found the main async watcher seam; I’ll narrow into the feature registry, notification coalescing, and session-path utilities to complete the research.
+
+I’ve identified an existing session-artifact pattern for generated images and stream diagnostics, so I’ll verify exact feature/config and test hooks before summarizing.
+
+I’ll confirm the persisted-session directory constants and then provide the research report.
+
+Research complete: D-001 naturally integrates in `codex-rs` unified exec, with the streaming watcher as the critical pre-truncation seam.
+
+### Codebase Architecture
+Rust/Cargo workspace under `external\repos\codex-patched\codex-rs`, with fork-owned overlay crates under `codex-rs-overlay`. Core runtime is `core` (`codex-core`), feature flags live in `features` (`codex-features`), protocol types in `protocol`, and patch inventory/docs in wrapper-owned `docs\implementation\patch-surface.md`. Builds/tests use Cargo through `just`; invariant guard tests also live in `codex-rs-overlay\codex-invariant-tests`.
+
+### Feature-Relevant Code
+- `core\src\unified_exec\async_watcher.rs`
+  - `start_streaming_output()` receives PTY chunks and calls `process_chunk()` before `HeadTailBuffer` can omit middle bytes.
+  - `process_chunk()` appends to `HeadTailBuffer` and emits `ExecCommandOutputDelta`.
+  - `spawn_exit_watcher()` builds the background wake notification, queues it, then calls `request_pending_work_wake()`.
+  - `build_background_completion_output()` creates the current 16 KiB inline head/tail preview.
+- `core\src\unified_exec\head_tail_buffer.rs`: 1 MiB head/tail retained transcript; middle bytes are irreversibly dropped.
+- `core\src\unified_exec\mod.rs`: `BackgroundCompletionEvent` currently carries only `process_id`, `exit_code`, and inline `output`.
+- `core\src\unified_exec\process_manager.rs`: creates the shared transcript, calls `start_streaming_output()`, stores `ProcessEntry`, and passes state into `spawn_exit_watcher()`.
+- `core\src\tasks\mod.rs`: `coalesce_background_notifications()` currently extracts only `task_id` and `exit_code`; this must be widened to preserve artifact references.
+- `features\src\lib.rs`: add the default-off experimental `Feature` and `FeatureSpec`. `Stage::Experimental` automatically feeds `/experimental` via `tui\src\chatwidget\settings_popups.rs`.
+- Existing session-artifact patterns:
+  - `core\src\session\turn.rs` uses `turn_context.config.codex_home.join(crate::rollout::SESSIONS_SUBDIR).join(sess.conversation_id.to_string())`.
+  - `core\src\stream_events_utils.rs::image_generation_artifact_path()` shows sanitizing path components plus `tokio::fs::create_dir_all`/`write`.
+
+### Technical Constraints
+- Default behavior must be byte-for-byte unchanged when the new feature is off: no artifact creation, no new XML tags, no notification shape change.
+- Tee must happen during streaming, ideally from raw `chunk` in `start_streaming_output()` before UTF-8 splitting and before `HeadTailBuffer::push_chunk()`.
+- Artifact paths must sanitize `conversation_id`, `call_id`, and `process_id`; never let model/tool output influence path components.
+- Exit watcher waits for output drain, so a shared artifact state/ref must be finalized before notification construction.
+- Notification coalescing is XML-string based and simplistic; add structured parsing for the new reference instead of relying on attributes or nested free-form XML.
+- Upstream-canonical edits require `// SANDBOX PATCH:` markers plus updates to `docs\implementation\patch-surface.md` §13/§14/§15 and enforcing tests/guards.
+
+### Implementation Suggestions
+Add a small `core\src\unified_exec\background_output_artifact.rs` module owning path construction, lazy file creation, byte counting, and write/finalize state. Gate it with a new `Feature`, e.g. `BackgroundOutputArtifact`, key `background_output_artifact`, `Stage::Experimental`, `default_enabled: false`.
+
+Thread an optional shared artifact writer/state from `process_manager.rs` into `start_streaming_output()` and `spawn_exit_watcher()`. In streaming, write raw chunks before `HeadTailBuffer` truncation. At exit, include a recovery reference only when the inline wake output was truncated and the artifact write succeeded.
+
+Extend `BackgroundCompletionEvent` with `recovery_reference: Option<...>`, keep `<output>` unchanged, and add a simple escaped tag such as `<output_artifact_path>...</output_artifact_path>`. Update `core\src\tasks\mod.rs` to coalesce into per-task entries preserving `task_id`, `exit_code`, and optional artifact path.
+
+Recommended tests: unit tests for artifact path sanitization/write behavior, `async_watcher_tests` for truncation/ref decisions, `tasks\mod_tests.rs` for coalescing preservation, and an invariant-test row/guard for “streaming tee precedes HeadTailBuffer omission.”
+
