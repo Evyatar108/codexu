@@ -49,6 +49,25 @@
   "generatedFromCommit": "32fdb9de",
   "tasks": [
     {
+      "id": "codex-paste-guard-perf-and-dropped-text",
+      "scope": "codex",
+      "lifecycle": "tracked",
+      "status": "active",
+      "lastTouchedAt": "2026-06-12",
+      "kanbanCards": [
+        {
+          "className": "cmd-warn",
+          "html": "BUG/PERF (operator 2026-06-12). The codex paste guard (paste-burst detection/grouping) is SLOW, and on a SLOW PC it sometimes DROPS some of the pasted text from the grouping (the captured paste is incomplete). LEARN FROM CLAUDE CODE: study how Claude Code does paste capture/grouping in its source at <code>D:\\harness-efforts\\claude-code\\worktrees\\main</code>, then improve codex&#39;s approach. CONTEXT: the paste-burst guard is currently ON by default (re-enabled by codex-revert-disable-paste-burst-default: disable_paste_burst defaults false, matching upstream; core/src/config/mod.rs ~2457). The complaint is about the guard&#39;s ALGORITHM (latency + lossy grouping under slow IO), not whether it&#39;s enabled. INVESTIGATE-first (diagnose codex&#39;s burst-grouping + benchmark vs Claude Code&#39;s method), then fix. CODEX SUBMODULE."
+        }
+      ],
+      "command": {
+        "name": "codex-paste-guard-perf-and-dropped-text",
+        "prompts": {
+          "investigate": "READ-ONLY investigation (CODEX submodule + Claude Code source). Make NO code edits except the findings deliverable; pre/post working-tree snapshot + revert guard (capture git status --porcelain for D:/harness-efforts/codexu, codex/, codex/external/repos/codex-patched at START + END; only NEW path = findings file; do NOT edit the Claude Code checkout either).\n\nPROBLEM (operator-reported): the codex paste guard / paste-burst grouping is SLOW, and on a SLOW PC it sometimes DROPS part of the pasted text (incomplete capture in the grouping). Goal: understand both implementations and recommend a fix that is fast + lossless.\n\nSTEP 1 -- CODEX paste-burst implementation (cite file:line): find how codex captures + groups a paste burst. Start from the config flag disable_paste_burst (core/src/config/mod.rs ~2457, the codex-revert-disable-paste-burst-default change) and trace to the TUI input/event layer that does the burst grouping (likely under tui/src/ -- bracketed-paste handling, the key/char event coalescing loop, any time-window / debounce that batches rapid input into a single paste). Identify: the grouping algorithm, the timing window / heuristic used to decide \"this is a paste burst\", how characters are buffered, and WHERE text could be dropped under slow IO (e.g. a fixed timeout that expires before all bytes arrive, a bounded buffer, a race between the burst timer and the input reader, or bracketed-paste start/end markers not being honored).\n\nSTEP 2 -- ROOT-CAUSE the two symptoms: (a) SLOWNESS -- what makes it slow (per-char redraw? O(n^2) buffer ops? a blocking sleep in the burst window?). (b) DROPPED TEXT on slow PCs -- the precise mechanism (timeout-based grouping that ends early vs slow producer? non-bracketed fallback heuristic?).\n\nSTEP 3 -- CLAUDE CODE approach (read source at D:/harness-efforts/claude-code/worktrees/main): find how Claude Code captures + groups pastes. Does it rely on terminal BRACKETED PASTE mode (ESC[200~ ... ESC[201~) to delimit a paste deterministically (lossless, no timing heuristic)? Does it have a burst/debounce fallback? How does it avoid per-char churn + dropped text? Cite the relevant Claude Code source files/functions. (It is JS/TS -- grep for \"bracket\", \"paste\", \"200~\", \"201~\", paste-mode, etc.)\n\nSTEP 4 -- RECOMMENDATION: the cleanest fix for codex (e.g. prefer terminal bracketed-paste delimiting over a timing-window heuristic; make the burst window robust to slow producers; avoid per-char redraw). Note whether codex already enables bracketed paste + whether the bug is the heuristic fallback. Keep fork-conflict minimal (overlay/SANDBOX-PATCH where possible). Recommend whether this is a small fix or warrants a plan.\n\nDELIVERABLE: findings.md under .ralph/investigations/codex-paste-guard-perf-and-dropped-text/ with the codex burst-grouping mechanism (file:line), the two root causes, the Claude Code approach (file:line), and the fix recommendation. Report kind=done with the two root causes + the recommended fix + whether small-fix-vs-plan + findings path."
+        }
+      }
+    },
+    {
       "id": "codex-workflows-replace-ralph-orchestration-feasibility",
       "scope": "codex",
       "lifecycle": "tracked",
