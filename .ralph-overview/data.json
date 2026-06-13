@@ -49,6 +49,31 @@
   "generatedFromCommit": "32fdb9de",
   "tasks": [
     {
+      "id": "codex-publish-preflight-gate-excludes-submodule-gitlink",
+      "scope": "codex",
+      "lifecycle": "tracked",
+      "status": "todo",
+      "lastTouchedAt": "2026-06-12",
+      "kanbanCards": [
+        {
+          "className": "cmd-warn",
+          "html": "BUG (lead-observed 2026-06-13 during the .7 release). The Step-0 assert-clean-or-abort preflight gate added to <code>codex/.claude/commands/publish-sandbox-patch.md</code> by the overlay-fmt fix (ac5fa72b) is TOO BROAD: it counts the submodule gitlink pointer (external/repos/codex-patched) as &quot;dirty tracked source&quot; and ABORTS. But the gitlink being AHEAD is the NORMAL pre-release state -- the inner submodule has the new fix commits and the wrapper gitlink has not been re-pointed yet; the release flow ITSELF reconciles it in its wrapper-gitlink commit. So the gate blocks EVERY release at Step 0. Worked around for .7 by lead instructing the member to proceed (gate intent -- no dirty rustfmt overlay -- was satisfied; submodule working tree was clean)."
+        },
+        {
+          "className": "cmd-ok",
+          "html": "FIX DIRECTION: the gate should check (a) the SUBMODULE&#39;s OWN working tree is clean (cd external/repos/codex-patched; git status --porcelain shows only untracked .worktrees/) -- this is the real &quot;no dirty rustfmt overlay / no uncommitted build source&quot; intent; AND (b) the WRAPPER&#39;s tracked files OTHER THAN the external/repos/codex-patched gitlink line are clean. It must NOT abort merely because the submodule gitlink pointer is ahead of the wrapper&#39;s recorded SHA (the release reconciles that). Refine the Step-0 bash in publish-sandbox-patch.md accordingly. This is a codex WRAPPER-only doc/skill change, no version bump."
+        }
+      ],
+      "command": {
+        "name": "codex-publish-preflight-gate-excludes-submodule-gitlink",
+        "descriptionHtml": "Refine the publish-sandbox-patch Step-0 clean-source preflight so it does not abort on the (expected) submodule gitlink being ahead pre-release; only check the submodule working tree + wrapper non-gitlink tracked files.",
+        "warnings": [],
+        "prompts": {
+          "impl": "/implement-with-ralph --autonomous \"Refine the Step-0 assert-clean-or-abort preflight gate in codex/.claude/commands/publish-sandbox-patch.md (added by the overlay-fmt fix ac5fa72b). THE BUG (lead-observed 2026-06-13 during the .7 release): the gate counts the submodule gitlink pointer (external/repos/codex-patched) as dirty tracked source and ABORTS Step 0, but the gitlink being ahead is the NORMAL pre-release state -- the inner submodule has the new fix commits and the wrapper gitlink has not been re-pointed yet; the release flow itself reconciles it in its wrapper-gitlink commit. As written the gate blocks EVERY release. FIX: change the Step-0 check to (a) verify the SUBMODULE working tree is clean -- run git -C external/repos/codex-patched status --porcelain and require it to be empty except untracked dirs like .worktrees/ (this captures the real intent: no dirty rustfmt overlay / no uncommitted build source); AND (b) verify the WRAPPER tracked files OTHER THAN the external/repos/codex-patched gitlink line are clean -- i.e. git status --porcelain --untracked-files=no filtered to drop the single gitlink line for external/repos/codex-patched. ABORT only if (a) the submodule tree is dirty OR (b) a wrapper tracked file other than the gitlink is dirty. Do NOT abort merely because the gitlink pointer is ahead. Keep the abort message clear + the remediation actionable. This is a codex WRAPPER-only skill/doc change (codex/.claude/commands/publish-sandbox-patch.md), NO inner submodule change, NO version bump, NO cargo build (markdown + embedded bash only). Per codexu AGENTS.md the lead handles FF-merge + push; commit on a topic branch in a codex/ worktree. VERIFY: dry-run the new check logic against the exact .7-style state (submodule clean + gitlink ahead) and confirm it PASSES; dry-run against a synthetic dirty overlay file and confirm it ABORTS. Report the commit SHA + branch + the new gate logic.\""
+        }
+      }
+    },
+    {
       "id": "codex-gpt55-1m-context-input-budget-vs-prompt-cap",
       "scope": "codex",
       "lifecycle": "tracked",
