@@ -4316,8 +4316,12 @@
       "scope": "codexu|ralph-overview",
       "lifecycle": "tracked",
       "status": "ok",
-      "lastTouchedAt": "2026-06-07",
+      "lastTouchedAt": "2026-06-12",
       "kanbanCards": [
+        {
+          "className": "cmd-ok",
+          "html": "Job 1 (ralph-overview MCP write tools, US-T1..US-T6) shipped @ 308cbd92 in ralph-overview v2.11.0. Five MCP write tools (upsert_task/mark_shipped/set_lifecycle/add_kanban_card/set_prompts) + data-edit CLI/shared core + active-tasks.json/summary-projection.json projections + engine-aware PreToolUse guard; C-7 byte-identical-snapshot guard covered. STILL TRACKED: Job 2 (codexu-side tools/data-edit.mjs CLI + AGENTS canonical-path updates, US-C1..US-C4) pending."
+        },
         {
           "className": "cmd-ok",
           "html": "<strong>Brainstorm shipped 2026-06-04T20:38Z @ <code>bba466d9</code></strong>. <strong>D-001: ID-scoped tooling + lazy MCP first; defer source-storage split.</strong> Devil's Advocate caught seed premise was FALSE: AGENTS.md/CLAUDE.md have ZERO @-prefix auto-load directives; data.json (680KB, 173K tokens) does NOT auto-load into context. Real pain is edit-anchor safety (4 regressions in single 2026-06-03 session). D-001 solves via tools/data-edit.mjs + MCP write tools (overview.upsert_task, overview.mark_shipped, overview.set_lifecycle) that mutate by exact task-id with atomic-write + invariant validation. 4 open Qs for planner: helper location, MCP tool naming, summary-projection.json shape, lint/hook surface."
@@ -7651,10 +7655,14 @@
     {
       "id": "crews-codex-progress-bg-gate-stall-detection",
       "scope": "crews",
-      "lifecycle": "tracked",
+      "lifecycle": "merged",
       "status": "active",
-      "lastTouchedAt": "2026-06-10",
+      "lastTouchedAt": "2026-06-12",
       "kanbanCards": [
+        {
+          "className": "cmd-ok",
+          "html": "Shipped crews v3.22.0 @ 1cce927d. Codex progress-bg Stop-hook gate (detect-active-bg-codex.js) widened copilot to copilot+codex; live codex dogfood passed (no-bg blocked, real-bg allowed); 294/294 tests. Pointer bump 8ec2cfe1."
+        },
         {
           "className": "cmd-warn",
           "html": "BRAINSTORM-first. Filed 2026-06-10 (surfaced live by the impl-overviewdata CODEX member). GAP: the crews progress-bg Stop-hook gate -- which BLOCKS a member from emitting kind=progress + stopping when it has NO active background task (other than the listener) -- is COPILOT-ONLY. The detector hooks/detect-active-bg.js header literally reads 'Copilot-engine background-task detector', it parses Copilot events.jsonl shapes (tool.execution_start mode=async, system.notification shell_completed, subagent.started/completed), and the stop.js gate fires only when manifest.engine==='copilot'. v3.6.0 EXPLICITLY DEFERRED the codex equivalent ('Progress-bg gate for codex (v3.1.0 was Copilot-only by design)... Defer to v3.NEXT+2: codex bg-liveness gate'). LIVE SYMPTOM: impl-overviewdata (a codex /implement-with-ralph member) created a worktree + did manual scaffolding, then emitted kind=progress and STOPPED with the Ralph loop NEVER STARTED -- exactly the false-progress stall the gate is designed to catch, but codex members are ungated so nothing blocked it. WANT: port the progress-bg gate to codex members so a codex member emitting kind=progress with no real active background work is blocked (forced to emit kind=question to wait on the lead, kind=done to finish, or kind=blocked to surface a problem) instead of silently idling. WHY BRAINSTORM-FIRST: codex's transcript schema differs from Copilot's events.jsonl (codex sessions live at ~/.codex/sessions/<id>/), and codex's background-work model is exec_command(background) + write_stdin + await_background_completion -- AND await_background_completion is a BLOCKING in-turn await (see the sibling codex-notify-hook-async-bg-completion-investigation), so the 'is there active bg work at Stop time' signal has a DIFFERENT shape than Copilot's async-shell + shell_completed notification. The brainstorm must (1) pin codex's transcript/event schema + the exact event(s) that mark a background exec_command start AND completion (the codex analog of tool.execution_start + system.notification.shell_completed); (2) define the codex listener/infra filter (the analog of isListenerArmCall + isCrewsCliInfraCall, since codex members arm via PowerShell async shell too); (3) decide detector placement (a codex branch in detect-active-bg.js vs a sibling detect-active-bg-codex.js) + how to widen the stop.js engine gate from copilot-only to copilot+codex; (4) handle codex-stop.js's inline last_assistant_message path (codex's transcript is not the Claude-shape JSONL the existing reader expects -- the bg detector needs the codex transcript, not the inline message). DO NOT resurrect the archived crews-member-stalled-needs-attention-nudge approach -- that was a different (nudge) design; port the actual GATE. Plugin-side (ai-developer-toolkit/plugins/crews); two-commit submodule flow + version bump + marketplace sync; mandatory LIVE codex dogfood acceptance (green units are NOT sufficient -- the v3.16.0/3.17.0 lesson)."
@@ -7677,6 +7685,27 @@
           "plan": "/plan-with-ralph --from-brainstorm .ralph/brainstorms/crews-codex-progress-bg-gate-stall-detection/ \"Plan porting the crews progress-bg Stop-hook gate to CODEX members per the shipped brainstorm (d4112692, selected-direction.md). KEY FACTS: codex Stop input carries transcript_path (hook_runtime.rs:378-388); codex sessions are a DATE-TREE; the codex bg start/complete signals in the transcript are the strings 'Process running with session ID <N>' (start) and 'Process exited with code' (complete) -- the analog of Copilot's tool.execution_start(mode:async)+system.notification.shell_completed. DESIGN: a codex bg-liveness detector (codex branch in hooks/detect-active-bg.js or a sibling module) that reads the codex transcript (via the transcript_path codex-stop.js threads through) and parses those start/complete strings keyed by session ID; the codex infra-filter (analog of isListenerArmCall+isCrewsCliInfraCall for codex's PowerShell async shell); widen the hooks/stop.js engine gate from manifest.engine==='copilot' to copilot+codex while preserving the v3.1.0 structural-completeness + v3.3.0 no-model-bypass invariants. Plugin-side (ai-developer-toolkit/plugins/crews); version bump + marketplace sync; mandatory LIVE codex dogfood at impl (green units NOT sufficient). Do NOT resurrect the archived crews-member-stalled-needs-attention-nudge.\"",
           "impl": "/implement-with-ralph --from-plan .ralph/jobs/crews-codex-progress-bg-gate-stall-detection/plan.md --autonomous \"Port the crews progress-bg Stop-hook gate to CODEX members per the committed plan: a codex bg-liveness detector reading the codex transcript (via transcript_path from codex-stop.js) parsing 'Process running with session ID <N>'(start)/'Process exited with code'(complete) keyed by session ID; note output is payload.output (NOT content) + payload.arguments is a JSON string (research-corrected); widen hooks/stop.js engine gate copilot->copilot+codex preserving v3.1.0 structural-completeness + v3.3.0 no-bypass invariants; codex infra-filter for the PowerShell async shell. MANDATORY: live codex dogfood (green units NOT sufficient). Plugin-side; version bump + marketplace sync + CHANGELOG + AGENTS.md; two-commit submodule flow. SERIALIZE with other crews impls (shared crews version).\""
         }
+      },
+      "shipManifest": {
+        "shippedAt": "2026-06-12",
+        "summary": "Ported the crews progress-bg Stop-hook gate to CODEX members. New hooks/detect-active-bg-codex.js reads the codex transcript (via transcript_path) parsing Process running with session ID N (start) / Process exited with code (complete) keyed by session id; the Stop progress-bg engine gate widened from copilot to copilot+codex, preserving the v3.1.0 structural-completeness + v3.3.0 no-bypass invariants, with a codex infra-filter for the PowerShell async shell. Full crews suite 294/294. A mandatory LIVE codex dogfood passed: a no-bg codex member was blocked on progress (active=0 nonListener=0) and a real background codex member was allowed (active=2 nonListener=1). Shipped as crews v3.22.0.",
+        "commits": [
+          {
+            "sha": "1cce927d",
+            "oneLine": "feat(crews): gate codex progress on background work",
+            "repo": "ai-developer-toolkit"
+          },
+          {
+            "sha": "c59ad63e",
+            "oneLine": "chore(release): ralph 5.59.0 + ralph-overview 2.11.0 version bumps (crews 3.22.0 carried)",
+            "repo": "ai-developer-toolkit"
+          },
+          {
+            "sha": "8ec2cfe1",
+            "oneLine": "chore: bump ai-developer-toolkit pointer + version table",
+            "repo": "codexu"
+          }
+        ]
       }
     },
     {
@@ -8303,8 +8332,12 @@
       "scope": "crews",
       "lifecycle": "tracked",
       "status": "active",
-      "lastTouchedAt": "2026-06-11",
+      "lastTouchedAt": "2026-06-12",
       "kanbanCards": [
+        {
+          "className": "cmd-ok",
+          "html": "Phase 1 (ralph env-sanitization, US-001/US-002) shipped @ 8b71a406 in ralph v5.59.0. New src/crews-env.mjs strips CREWS_ROLE/NAME/CREW/STATE_CWD/BOOTSTRAP_REPLY_TO at 4 nested-spawn boundaries (ralph.mjs, codex-exec.mjs, copilot-exec.mjs, review-loop.mjs); preserves CREWS_ENGINE; 115/115 tests. STILL TRACKED: Phase 2 crews-side defense (US-003/004) + dogfood (US-005) pending as a separate serialized crews impl."
+        },
         {
           "className": "cmd-warn",
           "html": "BUG/ROOT-CAUSE (operator 2026-06-11: \"engine mismatch is not the right approach, we might have the same engine\"). A crew member running /implement-with-ralph spawns a `codex exec` ITERATION (or a brainstorm/plan LENS-CHILD) that INHERITS CREWS_* identity env; the child's SessionStart claims the parent member's identity under the child's session id -> HIJACK (manifest engine/sessionId flip + takeoverAt) -> member can no longer write its outbox -> done/question silently lost (live: impl-knobb 2026-06-11). The 3.21.4 GAP2 engine-MISMATCH decline does NOT catch the SAME-ENGINE case (codex member -> codex iteration). Need an ENGINE-AGNOSTIC prevention: ENV-SANITIZATION at the spawn site (strip CREWS identity from nested agent children) + PID-ANCESTRY / live-owner defense-in-depth. Likely touches BOTH crews AND ralph (spawn sites). Separate from the delivery defense-in-depth (crews-undeliverable-report-notify-lead) and supersedes the incomplete crews-lens-child-takeover-recoverable-skip-gap (3.21.4). Proximate contributor (separately fixed): codex had stale crews 3.14.0 with NO guards; lead updated to 3.21.4 on 2026-06-11."
