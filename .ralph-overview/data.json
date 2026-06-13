@@ -8486,10 +8486,14 @@
     {
       "id": "crews-nested-child-takeover-engine-agnostic-prevention",
       "scope": "crews",
-      "lifecycle": "tracked",
+      "lifecycle": "merged",
       "status": "active",
       "lastTouchedAt": "2026-06-12",
       "kanbanCards": [
+        {
+          "className": "cmd-ok",
+          "html": "SHIPPED (all phases). Phase 1 ralph 5.59.0 @ f4f19c13 (env sanitizer at ralph nested-spawn boundaries). Phase 2/3 crews 3.23.0 @ 05491889 (process-ancestry refusal in assignMemberRole + live dogfood: real codex child with claimable env REFUSED, parent keeps identity; 294/294). Pointer 6efd20ed; copilot plugin update installed v3.23.0."
+        },
         {
           "className": "cmd-ok",
           "html": "Phase 1 (ralph env-sanitization, US-001/US-002) shipped @ 8b71a406 in ralph v5.59.0. New src/crews-env.mjs strips CREWS_ROLE/NAME/CREW/STATE_CWD/BOOTSTRAP_REPLY_TO at 4 nested-spawn boundaries (ralph.mjs, codex-exec.mjs, copilot-exec.mjs, review-loop.mjs); preserves CREWS_ENGINE; 115/115 tests. STILL TRACKED: Phase 2 crews-side defense (US-003/004) + dogfood (US-005) pending as a separate serialized crews impl."
@@ -8514,6 +8518,32 @@
           "plan": "You are the PLAN-phase member for task crews-nested-child-takeover-engine-agnostic-prevention. Produce ONLY the plan deliverables (plan.md + stories-outline.md + Phase-4 review artifacts) on a topic branch in the /plan-with-ralph-managed worktree; do NOT chain into impl. The LEAD handles FF-merge + push.\n\nBUILD ON THE BRAINSTORM (shipped @ 3b0fb109): .ralph/brainstorms/crews-nested-child-takeover-engine-agnostic-prevention/ (selected-direction.md = D-001; brainstorm-synthesis.md = the evidence). Run /plan-with-ralph --from-brainstorm.\n\nDIRECTION D-001 (engine-agnostic; operator rejected engine-mismatch as the sole mechanism): two layers.\n1. PRIMARY -- ralph spawn-env sanitization. At every ralph nested-spawn boundary, STRIP the claimable crews identity env from the child so its SessionStart has no member to claim. The claimable vars (confirmed by the brainstorm): CREWS_ROLE, CREWS_NAME, CREWS_CREW, CREWS_STATE_CWD, CREWS_BOOTSTRAP_REPLY_TO. Spawn boundaries: implementer iteration chain src/ralph.mjs -> src/codex-exec.mjs / src/copilot-exec.mjs; review/lens paths src/review-loop.mjs + the brainstorm/plan skill-driven codex/coplan lens commands.\n2. DEFENSE-IN-DEPTH -- crews engine-agnostic ancestry refusal in hooks/actors.js: if the claimer process is a DESCENDANT of the live role-holder process (ancestry check, NOT engine), DECLINE the claim. Catches any spawn path that leaks env, AND the same-engine codex->codex case GAP2 cannot.\n\nMUST-PASS CRITERIA (from the brainstorm): same-engine nested test (codex member spawning a codex iteration cannot steal the parent manifest + parent still delivers done/question/blocked); cross-engine nested test (copilot->codex still blocked); brainstorm/plan/review lens-child cannot claim; ancestry guard blocks even if env leaks; NON-REGRESSION: first-bind, same-tab /clear reclaim, recoverable dead-member reclaim all still pass existing tests (tests/session-ownership-divergence.test.js A1-A4+).\n\nCROSS-PLUGIN SEQUENCING (call out in the plan): impl touches BOTH plugins/ralph AND plugins/crews. The crews part conflicts on version files with other in-flight crews impls -> must serialize at ship. Decide whether the plan is ONE dual-plugin job or TWO sequenced jobs (ralph env-sanitization first, crews ancestry guard second). Impl acceptance requires a LIVE same-engine dogfood (codex member -> codex iteration, confirm no hijack + delivery intact); green unit tests are NOT sufficient.\n\ncodexu root CLAUDE.md is gitignored -- do NOT git add it. WORKTREE DISCIPLINE: /plan-with-ralph manages its own worktree; do NOT commit in the lead primary checkout (the brainstorm member accidentally committed in D:/harness-efforts/codexu and flipped the lead off main -- do NOT repeat that; verify you are in the skill-managed worktree before committing).\n\nAfter committing the plan deliverables, report kind=done with commit SHA + topic branch + worktree path + a one-line summary (story count + the one/two-job decision + the cross-plugin ship sequencing).\n\nRUN: /plan-with-ralph --from-brainstorm",
           "impl": "You are the IMPL member for the RALPH-side job (Phase 1) of task crews-nested-child-takeover-engine-agnostic-prevention. This is a DUAL-PLUGIN plan -- you do ONLY the ralph-sanitization job (US-001 + US-002); the crews-defense job (US-003/004) + dogfood (US-005) are a SEPARATE later impl, serialized after this ships AND after any in-flight crews impls.\n\nPLAN: .ralph/jobs/crews-nested-child-takeover-engine-agnostic-prevention/plan.md (5 stories; suggested-decomposition.json = 3 phases). YOUR SCOPE = Phase 1 cluster \"ralph-sanitization\" ONLY: US-001 + US-002.\n\nDO: at every ralph nested-spawn boundary, STRIP the claimable crews identity env (CREWS_ROLE, CREWS_NAME, CREWS_CREW, CREWS_STATE_CWD, CREWS_BOOTSTRAP_REPLY_TO) from the child env so a nested codex iteration / lens-child has no member to claim. Boundaries (plugins/ralph/src): ralph.mjs -> codex-exec.mjs / copilot-exec.mjs (implementer iteration chain) + review-loop.mjs + the brainstorm/plan lens spawn commands. Add unit tests proving the child env is sanitized. Follow the plan story ACs exactly.\n\nWORKTREE: changes the ai-developer-toolkit submodule (plugins/ralph). Create a worktree INSIDE the submodule: git -C ai-developer-toolkit worktree add .worktrees/crews-nested-child-takeover-ralph -b ralph/crews-nested-child-takeover-ralph main. Commit ONLY there; do NOT commit in the lead primary checkout.\n\nPer codexu AGENTS.md the lead handles FF-merge + push + the two-commit submodule pointer bump + version bump. Drive ALL phases to terminal (Phase 5a code review-fix). Do NOT touch plugins/crews (that is the separate crews job). codexu root CLAUDE.md is gitignored -- do NOT git add it. Report kind=done with commit SHA + branch + the sanitized boundaries + lead action items (version bump + the follow-on crews job).\n\nRUN: /implement-with-ralph --from-plan .ralph/jobs/crews-nested-child-takeover-engine-agnostic-prevention/plan.md --autonomous"
         }
+      },
+      "shipManifest": {
+        "shippedAt": "2026-06-12",
+        "summary": "Engine-agnostic prevention of crew-member IDENTITY TAKEOVER by a nested agent child process (the live 2026-06-11 footgun where a codex iteration inside a crew member re-armed the SAME member actor under codex’s own session id). Shipped as a 2-plugin, 3-phase fix. PHASE 1 (ralph 5.59.0): a central sanitizer (plugins/ralph/src/crews-env.mjs) strips the claimable crews identity env (CREWS_ROLE/NAME/CREW/STATE_CWD/BOOTSTRAP_REPLY_TO) at every ralph nested-spawn boundary (ralph.mjs, codex-exec.mjs, copilot-exec.mjs, review-loop.mjs), preserving non-claim CREWS_ENGINE, so a nested child has no member identity to claim. PHASE 2/3 (crews 3.23.0): a defense-in-depth process-ancestry refusal in assignMemberRole -- a different-session claimant is refused when its hook process is proven to descend from the bound member’s launcher (legit same-tab codex /clear reclaim still allowed) -- plus regression tests and a LIVE dogfood proving a real codex-session-start child with inherited claimable env is refused while the parent keeps its identity and still delivers its kind=done. Full crews suite 294/294.",
+        "commits": [
+          {
+            "sha": "f4f19c13",
+            "oneLine": "fix(ralph): strip crews identity from child env (Phase 1)",
+            "repo": "ai-developer-toolkit"
+          },
+          {
+            "sha": "c59ad63e",
+            "oneLine": "chore(release): ralph 5.59.0",
+            "repo": "ai-developer-toolkit"
+          },
+          {
+            "sha": "05491889",
+            "oneLine": "fix(crews): refuse descendant role claims (Phase 2/3, crews 3.23.0)",
+            "repo": "ai-developer-toolkit"
+          },
+          {
+            "sha": "6efd20ed",
+            "oneLine": "chore: bump ai-developer-toolkit pointer (crews 3.23.0) + version table",
+            "repo": "codexu"
+          }
+        ]
       }
     },
     {
