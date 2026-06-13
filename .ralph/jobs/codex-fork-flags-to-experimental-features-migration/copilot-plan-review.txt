@@ -1,0 +1,30 @@
+I’ll read the provided prompt file, then carry out the requested work end-to-end.
+
+I’m going to verify the plan against the relevant codex sources before returning the review findings.
+
+I found one possible mismatch between the plan and the repo guidance, so I’m narrowing on the exact source lines before finalizing findings.
+
+### Feasibility
+
+[High] The Anthropic “sole source of truth” goal cannot be met by only removing launcher env mediation. Runtime still reads `CODEX_ENABLE_ANTHROPIC` in `model-provider/src/anthropic_gate.rs`, via `install_anthropic_gate()` and `anthropic_models_resolved()`, and `core/src/config/mod.rs` reflects that env-derived value back into `Feature::AnthropicModels`. The plan must include `model-provider/src/anthropic_gate.rs` and its tests, or explicitly redefine “sole source” to allow env as compatibility.
+
+[High] The styling migration is under-plumbed. `tui/src/style.rs` has process-global helpers with no `Config`/`Features` input, while call sites are spread across `chatwidget/committed_transcript.rs`, `history_cell/messages.rs`, `history_cell/plans.rs`, `bottom_pane/chat_composer.rs`, and `streaming/controller.rs`. Replacing env gating with feature-backed behavior requires a concrete config/threading strategy, not just editing `style.rs`.
+
+### Completeness
+
+[High] The plan must update stale fork guidance for paste-burst defaults. Current repo guidance says to reapply `disable_paste_burst = unwrap_or(true)` on rebase, while the plan accepts current source `unwrap_or(false)` and moves toward a default-off legacy opt-in feature. If that rebase note is not updated, future rebases will restore the old behavior.
+
+[Medium] The patch-surface closeout is too broad. `codex/CLAUDE.md` requires upstream-canonical edits to include SANDBOX markers, §14 invariant rows, enforcing tests/guards, §15 replant notes, and plan-level seam alternatives/edit-budget/re-conflict probability. AC #9 mentions markers and patch-surface updates, but not the enforcing guard/test mapping or conflict-budget deliverable.
+
+### Ordering
+
+No issues found.
+
+### Simplicity
+
+[Medium] For launcher compatibility, the simplest Anthropic bridge is likely to convert `enable_anthropic` into a `-c features.anthropic_models=<bool>` provider/config override and remove env fallback separately. The plan allows “compatibility-only translation” but does not name this existing pattern, even though `codex-cli` already folds `--enable-anthropic` into `features.anthropic_models`.
+
+### Acceptance Criteria Quality
+
+[Medium] ACs leave key implementation choices unresolved: paste-burst feature name, styling feature stage, and whether launcher compatibility remains. Those are load-bearing API/config decisions; an autonomous implementer needs them resolved or bounded before coding.
+

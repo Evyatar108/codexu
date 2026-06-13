@@ -1,0 +1,59 @@
+I’ll read the referenced prompt and then execute the requested work.
+
+I’ll inspect the investigation artifact and the codex fork surfaces it names, then synthesize the plan-research notes.
+
+I’m narrowing the source references to the actual registry, launcher, config, and TUI seams so the research output is concrete.
+
+I’m checking the config resolution and TUI call sites now, including the source/default discrepancy around `disable_paste_burst`.
+
+I’ve confirmed the registry and config seams; I’m checking the exact composer integration and patch-surface bookkeeping hooks for the final research notes.
+
+I have enough source context; I’m pulling a few targeted line ranges to make the report precise without editing anything.
+
+I’m ready to produce the research analysis; no files were changed.### Codebase Architecture
+
+The target is the `codex` submodule, primarily `codex\external\repos\codex-patched\codex-rs`, a Rust workspace split into crates such as `features`, `core`, `config`, `cli`, `tui`, `app-server`, and `model-provider`. Fork-only/overlay code lives under `codex\codex-rs-overlay`, notably `codex-copilot-launcher`, which wraps `codex-core.exe` and injects Copilot-specific config/env.
+
+The canonical feature mechanism is centralized in `codex-rs\features\src\lib.rs`: `Feature`, `Stage`, `FeatureSpec`, and `FEATURES`. Config reads `[features]` via `FeaturesToml`, CLI `--enable/--disable` becomes `-c features.<key>=...`, TUI `/experimental` filters `Stage::Experimental`, and app-server catalog exposes the same registry.
+
+### Feature-Relevant Code
+
+Key Anthropic files:
+- `features\src\lib.rs`: `Feature::AnthropicModels` and `FeatureSpec { key: "anthropic_models", default_enabled: false }`.
+- `model-provider\src\anthropic_gate.rs`: currently resolves config/flag/env with `CODEX_ENABLE_ANTHROPIC` fallback.
+- `core\src\config\mod.rs`: installs Anthropic gate and reflects effective value into `config.features`.
+- `cli\src\main.rs`: `--enable-anthropic` folds into `features.anthropic_models=true`.
+- `codex-rs-overlay\codex-copilot-launcher\src\config.rs` and `src\main.rs`: ad-hoc `enable_anthropic` launcher config sets/clears `CODEX_ENABLE_ANTHROPIC`.
+
+Key paste-burst files:
+- `config\src\config_toml.rs`: top-level `disable_paste_burst: Option<bool>`.
+- `core\src\config\mod.rs`: resolves `disable_paste_burst: cfg.disable_paste_burst.unwrap_or(false)`.
+- `tui\src\chatwidget\constructor.rs`: passes `config.disable_paste_burst` into `BottomPane`.
+- `tui\src\bottom_pane\mod.rs`: threads `disable_paste_burst` into `ChatComposer` and overlays.
+- `tui\src\bottom_pane\chat_composer.rs` and `paste_burst.rs`: actual state machine and tests.
+
+Key user-message styling files:
+- `codex-rs-overlay\codex-copilot-launcher\src\config.rs`: launcher `style_user_messages`.
+- `codex-rs-overlay\codex-copilot-launcher\src\main.rs`: sets `CODEX_TUI_USER_MESSAGE_STYLE`.
+- `tui\src\style.rs`: `user_message_styling_enabled()` reads env via `OnceLock`; `user_message_style_for()` gates fork styling.
+
+Leave structurally as-is:
+- `Feature::ManagedHooks`, `Feature::BackgroundProcessNotification`, `Feature::McpServerNotifications` in `features\src\lib.rs`.
+- `docs\implementation\patch-surface.md` already has invariant rows for background notifications and MCP server notifications.
+
+### Technical Constraints
+
+Every upstream-canonical edit under `codex-rs` needs `// SANDBOX PATCH:` marking plus `docs\implementation\patch-surface.md` registration and an enforcing test/guard. Config schema changes require `just write-config-schema`. TUI visible behavior needs focused `codex-tui` tests/snapshots as applicable.
+
+The source currently disagrees with some stale docs: `disable_paste_burst` resolves with `unwrap_or(false)`, so the current default is heuristic enabled, not disabled. Treat the investigation and source as authoritative.
+
+### Implementation Suggestions
+
+1. **Anthropic first:** make `Feature::AnthropicModels` the only durable source. Remove or deprecate launcher `enable_anthropic`; keep `--enable-anthropic` and `CODEX_ENABLE_ANTHROPIC` only as explicit compatibility aliases if needed. Fix the dual-source persistence bug by ensuring persisted/runtime truth is `features.anthropic_models`, not launcher config/env.
+
+2. **Paste burst:** add or repurpose `Feature::DisablePasteBurst` with key `disable_paste_burst`, `default_enabled = false`, SANDBOX PATCH comments, and patch-surface invariant. Replace top-level `ConfigToml.disable_paste_burst` resolution with `features.enabled(...)`, preserving compatibility by accepting old top-level config as a deprecated alias during migration.
+
+3. **User-message styling:** add a default-off feature, e.g. `user_message_styling` or `style_user_messages`, then pass resolved `Features` into TUI styling instead of using launcher env. Because `tui\src\style.rs` currently uses process-global env caching, plan a small seam to make the feature value available without growing `chatwidget.rs`.
+
+4. **Bookkeeping:** coordinate with `codex-patch-surface-divergence-registry-refresh`; add invariant rows/tests for all new or repurposed fork feature entries. Keep managed hooks, background notifications, MCP notifications, Knob A, and Knob B out of implementation scope.
+

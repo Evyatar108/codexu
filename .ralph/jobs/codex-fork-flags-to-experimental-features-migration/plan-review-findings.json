@@ -1,0 +1,76 @@
+{
+  "planFile": "D:/harness-efforts/codexu/.ralph/jobs/codex-fork-flags-to-experimental-features-migration/plan.md",
+  "repoDir": "D:/harness-efforts/codexu/codex",
+  "findings": [
+    {
+      "id": "F-001",
+      "severity": "Medium",
+      "source": "claude",
+      "category": "Completeness",
+      "section": "Open Questions / Approach > User-message styling",
+      "description": "The earlier draft left the `style_user_messages` compatibility path unresolved, which made the launcher migration path underspecified for `codex/codex-rs-overlay/codex-copilot-launcher/src/config.rs` and `src/main.rs`.",
+      "status": "addressed",
+      "resolution": "Pinned the migration to a one-release launcher compatibility adapter that maps `style_user_messages` into `features.user_message_styling`, and made that behavior explicit in Overview, Architecture, Files, and Acceptance Criteria."
+    },
+    {
+      "id": "F-002",
+      "severity": "Medium",
+      "source": "claude",
+      "category": "Criteria Quality",
+      "section": "Acceptance Criteria > 3-5",
+      "description": "The earlier draft did not pin the final paste-burst/styling naming, stages, and compatibility behavior tightly enough for autonomous verification.",
+      "status": "addressed",
+      "resolution": "Pinned `features.legacy_paste_burst_heuristic` and `features.user_message_styling` as `Stage::Experimental` / default-off, with explicit one-release compatibility adapter semantics in the acceptance criteria."
+    },
+    {
+      "id": "F-003",
+      "severity": "High",
+      "source": "copilot",
+      "category": "Feasibility",
+      "section": "Overview / Approach > Anthropic",
+      "description": "Anthropic could not become a true sole source of truth if the plan only removed launcher env mediation, because `model-provider/src/anthropic_gate.rs` still read `CODEX_ENABLE_ANTHROPIC` as runtime authority.",
+      "status": "addressed",
+      "resolution": "Added `model-provider/src/anthropic_gate.rs` explicitly to scope and acceptance criteria, and specified that any retained compatibility adapter must translate into `features.anthropic_models` before config resolution rather than being re-read at runtime."
+    },
+    {
+      "id": "F-004",
+      "severity": "High",
+      "source": "copilot",
+      "category": "Feasibility",
+      "section": "Approach > User-message styling",
+      "description": "The earlier draft replaced env gating in `tui/src/style.rs` without a concrete strategy for shared helper call sites spread across transcript, history, composer, and streaming surfaces.",
+      "status": "addressed",
+      "resolution": "Added a one-time TUI style-gate install seam and enumerated the dependent styling surfaces that need coverage, keeping shared helper signatures stable while removing env-based runtime reads."
+    },
+    {
+      "id": "F-005",
+      "severity": "High",
+      "source": "copilot",
+      "category": "Completeness",
+      "section": "Technical Constraints / Files to Create-Modify",
+      "description": "The draft accepted the current `disable_paste_burst` source default but did not explicitly include stale guidance in `codex/CLAUDE.md` and `codex/docs/implementation/patch-surface.md`, which would let future rebases resurrect the old behavior.",
+      "status": "addressed",
+      "resolution": "Added those docs to the explicit file list, risk areas, and acceptance criteria so the implementation must refresh stale paste-burst guidance as part of closeout."
+    },
+    {
+      "id": "F-006",
+      "severity": "Medium",
+      "source": "copilot",
+      "category": "Completeness",
+      "section": "Patch-surface closeout",
+      "description": "The earlier patch-surface closeout language was too broad because it did not retain the chosen seams, edit budget, or invariant/test mapping needed by repo policy.",
+      "status": "addressed",
+      "resolution": "Added the `Chosen Seams / Conflict Budget` table and an acceptance criterion requiring invariant/test mapping plus seam and re-conflict notes."
+    },
+    {
+      "id": "F-007",
+      "severity": "High",
+      "source": "copilot",
+      "category": "Completeness",
+      "section": "Anthropic persistence bug coverage",
+      "description": "Late Codex research found that `tui/src/app.rs` can overwrite the gate-safe bootstrap default with persisted `config.model`, allowing a hidden Claude model to reappear even after the transport gate hides it.",
+      "status": "addressed",
+      "resolution": "Added `tui/src/app.rs` persisted-model fallback handling to Overview, Research Findings, Implementation Strategy, Files to Create/Modify, Risk Areas, and Acceptance Criteria."
+    }
+  ]
+}

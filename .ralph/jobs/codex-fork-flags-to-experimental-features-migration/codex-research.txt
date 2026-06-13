@@ -1,0 +1,75 @@
+**Codebase Architecture**
+
+The codex target is a Rust workspace under `codex/external/repos/codex-patched/codex-rs`, with fork-only overlay crates included from `codex/codex-rs-overlay` via relative workspace members. Key crates for this work are:
+
+- `features`: canonical feature registry, TOML parsing, defaults.
+- `config` + `core`: config schema/loading and resolved runtime `Config`.
+- `cli`: `--enable/--disable` feature override surface.
+- `tui`: `/experimental`, model picker, style, paste handling.
+- `model-provider`: Copilot/Anthropic catalog and transport gating.
+- `app-server` / `app-server-protocol`: app-facing feature catalog and config writes.
+- Overlay crates: `codex-copilot`, `codex-copilot-launcher`, `codex-invariant-tests`.
+
+Fork rule: upstream-canonical edits under `external/repos/codex-patched/codex-rs` need `// SANDBOX PATCH:` markers plus registration in `codex/docs/implementation/patch-surface.md`.
+
+**Feature-Relevant Code**
+
+Authoritative source: `.ralph/investigations/codex-fork-flags-to-experimental-features-migration/findings.md`.
+
+Feature system:
+
+- `features/src/lib.rs`: `Stage`, `Feature`, `FeatureSpec`, `FEATURES`, `FeaturesToml`.
+- `tui/src/chatwidget/settings_popups.rs`: `/experimental` only shows `Stage::Experimental`.
+- `app-server/src/request_processors/catalog_processor.rs`: exposes all feature stages over API.
+- `tui/src/config_update.rs`: `build_feature_enabled_edit()` persists `features.<key>`.
+
+Anthropic:
+
+- `features/src/lib.rs`: `Feature::AnthropicModels`, key `anthropic_models`, default off.
+- `cli/src/main.rs`: generic `--enable/--disable`; fork `--enable-anthropic` folds into `features.anthropic_models=true`.
+- `codex-rs-overlay/codex-copilot-launcher/src/config.rs` and `src/main.rs`: ad-hoc `enable_anthropic` sets `CODEX_ENABLE_ANTHROPIC`.
+- `model-provider/src/anthropic_gate.rs` and `core/src/config/mod.rs`: resolve and install current gate.
+- `model-provider/src/copilot/gated_models_manager.rs`: filters ChatCompletions models and replaces hidden explicit Claude defaults.
+- `core/src/chat_transport.rs`: routes ChatCompletions only when Anthropic is enabled.
+- Important bug seam: `tui/src/app.rs` accepts `bootstrap.default_model`, then overwrites it with `config.model`; this can reselect a persisted Claude slug after the gate-filtered bootstrap chose a safe default.
+
+Paste burst:
+
+- `config/src/config_toml.rs`: top-level `disable_paste_burst: Option<bool>`.
+- `core/src/config/mod.rs`: resolves `disable_paste_burst` with current `unwrap_or(false)`.
+- `tui/src/chatwidget/constructor.rs` → `bottom_pane/mod.rs` → `chat_composer.rs`: passes and gates the heuristic.
+- `tui/src/bottom_pane/paste_burst.rs`: timing heuristic.
+- `tui/src/tui.rs` and `tui/src/app.rs`: bracketed paste is already enabled and handled separately via `TuiEvent::Paste`.
+- Note: `codex/CLAUDE.md` and `codex/docs/implementation/patch-surface.md` still contain stale text saying this fork defaults `disable_paste_burst` to `true`.
+
+Style user messages:
+
+- `codex-rs-overlay/codex-copilot-launcher/src/config.rs`: `style_user_messages`, currently default-on.
+- `codex-rs-overlay/codex-copilot-launcher/src/main.rs`: sets `CODEX_TUI_USER_MESSAGE_STYLE`.
+- `tui/src/style.rs`: `user_message_styling_enabled()` reads that env var once via `OnceLock`.
+
+Leave structurally as-is:
+
+- `Feature::ManagedHooks`, `Feature::BackgroundProcessNotification`, `Feature::McpServerNotifications`.
+
+**Technical Constraints**
+
+Every migrated behavior must be a `Feature` row with `default_enabled: false`. Plain booleans need no extra config schema because `FeaturesToml` flattens unknown feature keys into `[features]`.
+
+Stage choice matters: `Stage::Experimental` appears in `/experimental`; `UnderDevelopment` is configurable but hidden. Use `Experimental` for user-facing toggles unless intentionally hidden.
+
+Do not keep dual sources of truth. Compatibility aliases are acceptable only if they collapse into `features.<key>` before runtime behavior reads them.
+
+Patch-surface bookkeeping is currently known stale; coordinate with `codex-patch-surface-divergence-registry-refresh`.
+
+**Implementation Suggestions**
+
+Priority 1: Anthropic. Keep `Feature::AnthropicModels` as sole source. Deprecate launcher `enable_anthropic`; during transition, map it to a `-c features.anthropic_models=<bool>` override or warning, not `CODEX_ENABLE_ANTHROPIC`. Keep `--enable-anthropic` only as a CLI alias because it already folds into the feature override. Fix the persisted Claude bug by honoring the gated `bootstrap.default_model` when `config.model` is no longer in `available_models`, or by clearing/resetting the persisted model with an explicit message.
+
+Priority 2: Paste. Add a positive default-off feature such as `legacy_paste_burst_heuristic`. Resolve `Config.disable_paste_burst = !features.enabled(...)`. Temporarily translate legacy top-level `disable_paste_burst=false` to feature enabled and `true` to feature disabled, with docs. Do not touch bracketed paste.
+
+Priority 3: Style. Add `user_message_styling` default-off. Replace env caching with a TUI/runtime setting derived from `config.features.enabled(...)`. Deprecate launcher `style_user_messages`; if retained temporarily, translate it into `features.user_message_styling`.
+
+Tests to plan: feature registry default-off tests, CLI alias tests, launcher deprecation tests, TUI bootstrap persisted-Claude regression, paste config-resolution tests, style feature gate tests, plus invariant tests for new fork feature rows and patch-surface coverage.
+
+No build was required or run for this research pass.

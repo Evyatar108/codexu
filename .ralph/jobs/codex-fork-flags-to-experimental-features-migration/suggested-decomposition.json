@@ -1,0 +1,32 @@
+{
+  "clusters": [
+    {
+      "name": "fork-feature-migration",
+      "stories": [
+        "US-001",
+        "US-002",
+        "US-003",
+        "US-004"
+      ],
+      "phase": 1,
+      "dependsOn": [],
+      "fileOverlapEvidence": {
+        "sharedFiles": [
+          "codex/external/repos/codex-patched/codex-rs/features/src/lib.rs",
+          "codex/external/repos/codex-patched/codex-rs/core/src/config/mod.rs",
+          "codex/docs/implementation/patch-surface.md"
+        ],
+        "exclusiveFiles": [
+          "codex/codex-rs-overlay/codex-copilot-launcher/src/config.rs",
+          "codex/codex-rs-overlay/codex-copilot-launcher/src/main.rs",
+          "codex/external/repos/codex-patched/codex-rs/tui/src/style.rs",
+          "codex/external/repos/codex-patched/codex-rs/tui/src/chatwidget/constructor.rs",
+          "codex/external/repos/codex-patched/codex-rs/tui/src/public_widgets/composer_input.rs",
+          "codex/external/repos/codex-patched/codex-rs/tui/src/bottom_pane/paste_burst.rs"
+        ],
+        "risk": "high"
+      },
+      "executionModeRationale": "All stories share the same canonical registry and config-resolution seams, plus one shared patch-surface bookkeeping update. Running them serially avoids conflicting edits across features/src/lib.rs, core/src/config/mod.rs, launcher compatibility paths, and TUI wiring."
+    }
+  ]
+}
