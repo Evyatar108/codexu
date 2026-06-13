@@ -49,6 +49,31 @@
   "generatedFromCommit": "32fdb9de",
   "tasks": [
     {
+      "id": "codex-tui-input-mode-full-guard-windows-recur",
+      "scope": "codex",
+      "lifecycle": "tracked",
+      "status": "todo",
+      "lastTouchedAt": "2026-06-12",
+      "kanbanCards": [
+        {
+          "className": "cmd-warn",
+          "html": "BUG (operator hit LIVE on .6, mid-session after agent work / sub-agent spawn). The Windows input mode gets CORRUPTED mid-session and codex does not repair it: <code>[I</code>/<code>[O</code> (focus reports) flood as literal text AND full input breaks -- Backspace echoes as a space instead of deleting, Enter does NOT submit + Escape does NOT stop the agent, and special keys (e.g. Page Down) are inputted as their literal CHARACTER instead of performing the action. I.e. the terminal drops out of codex raw/VT-input mode and keys are no longer parsed as events. The .5 focus-leak fix is INSUFFICIENT (operator did not thoroughly test .5; bug may have existed there too). .7 inherits .6 so it carries this too."
+        },
+        {
+          "className": "cmd-ok",
+          "html": "ROOT CAUSE (source-settled, read-only investigation 2026-06-13, .ralph/investigations/codex-focus-leak-recur-after-subagent-v6/findings.md). Q0: codex .6 does NOT leave ENABLE_VIRTUAL_TERMINAL_INPUT on by default -- startup clears it (tui.rs:1365-1379) and codex-owned restores keep it cleared (tui.rs:414-449,1351-1361,1384-1397), so the .5 fix on THAT bit works. THE GAP IS BROADER: the raw-mode bits (ENABLE_LINE_INPUT | ENABLE_ECHO_INPUT | ENABLE_PROCESSED_INPUT) can be corrupted mid-session and are NEVER re-asserted before normal event reads (event_stream.rs:178-220; crossterm raw bits at crossterm/src/terminal/sys/windows.rs:17-39). That explains ALL symptoms (line-input/echo back on -> backspace echoes + Enter cooked; processed-input + focus reporting -> [I/[O + special keys as literal chars). NOTE: no source-citable built-in sub-agent path re-enables the mode -- codex built-in spawn is IN-PROCESS (multi_agents/spawn.rs:79-139), not an inherited-console OS child; so whatever corrupts the mode, the robust finding is codex must SELF-HEAL the full input mode before event reads. FIX: a Windows full-input-mode guard in tui.rs that re-asserts the complete expected console mode (raw bits cleared + VT-input cleared + focus reporting off) before event reads / on every event-stream resume; + stop enabling xterm focus reporting on Windows unless needed."
+        }
+      ],
+      "command": {
+        "name": "codex-tui-input-mode-full-guard-windows-recur",
+        "descriptionHtml": "Add a Windows full-input-mode self-heal guard so codex re-asserts the complete console mode (raw bits + VT-input cleared + focus-off) before event reads, fixing the mid-session [I/[O flood + broken input (backspace/Enter/Escape/special keys).",
+        "warnings": [],
+        "prompts": {
+          "impl": "/implement-with-ralph --autonomous \"Fix the mid-session Windows input-mode corruption in codex-tui per the source-settled root cause @ .ralph/investigations/codex-focus-leak-recur-after-subagent-v6/findings.md. SYMPTOMS (operator live on .6, mid-session after agent work/sub-agent spawn): [I/[O focus reports flood as literal text; Backspace echoes as space instead of deleting; Enter does not submit + Escape does not stop the agent; special keys (Page Down etc.) input as literal characters. ROOT CAUSE: the .5 focus-leak fix only guards the ENABLE_VIRTUAL_TERMINAL_INPUT bit at setup/restore sites, but the Windows raw-mode bits (ENABLE_LINE_INPUT | ENABLE_ECHO_INPUT | ENABLE_PROCESSED_INPUT) can be corrupted mid-session and are NEVER re-asserted before normal event reads (codex-rs/tui/src/tui/event_stream.rs:178-220). codex keeps polling input without repairing full TUI input mode. THE FIX: add a Windows full-input-mode guard (e.g. a reassert_input_mode() helper in codex-rs/tui/src/tui.rs alongside the existing enter_codex_tui_input_mode / set_modes / restore helpers at tui.rs:414-449,1351-1397) that re-asserts the COMPLETE expected console input mode on Windows -- raw-mode bits CLEARED (no ENABLE_LINE_INPUT/ENABLE_ECHO_INPUT/ENABLE_PROCESSED_INPUT), ENABLE_VIRTUAL_TERMINAL_INPUT cleared, focus-event reporting OFF -- and CALL it before event reads / on every event-stream resume (event_stream.rs:178-220) so codex SELF-HEALS even if something clobbered the console mode mid-session. Make it idempotent + cheap (only SetConsoleMode if the live mode differs from expected, to avoid per-poll syscall churn). ALSO: stop enabling xterm focus-event reporting on Windows unless actually needed (the [I/[O leak). Keep it Windows-gated (cfg(windows)); do NOT change POSIX behavior. CODEX submodule -- lead-coordinated in the canonical inner checkout codex/external/repos/codex-patched on branch ralph/codex-v7-int (or the next accumulation branch the lead sets up), NOT a worktree (overlay relative-paths break cargo). Build/verify via files/codex-cargo.sh: cargo check -p codex-tui + targeted tui input/event tests. Verify (manual repro guidance in the report): mid-session after agent work the input stays correct -- Backspace deletes, Enter submits, Escape stops, special keys act, no [I/[O. SANDBOX-PATCH-mark + register in docs/implementation/patch-surface.md (the .5 focus-leak patch entry should be extended). Drive Phase 5a to terminal. Known false-alarms (NOT blockers): reset_memories STATUS_STACK_OVERFLOW (Windows harness); spec_plan_tests.rs rustfmt quirk. EOL hygiene: revert LF->CRLF whitespace-only churn before commit. Report the commit SHA + branch + the guard added + how it self-heals + the manual repro verification.\""
+        }
+      }
+    },
+    {
       "id": "codex-publish-preflight-gate-excludes-submodule-gitlink",
       "scope": "codex",
       "lifecycle": "tracked",
