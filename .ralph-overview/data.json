@@ -49,6 +49,31 @@
   "generatedFromCommit": "32fdb9de",
   "tasks": [
     {
+      "id": "codex-gpt55-1m-context-input-budget-vs-prompt-cap",
+      "scope": "codex",
+      "lifecycle": "tracked",
+      "status": "todo",
+      "lastTouchedAt": "2026-06-12",
+      "kanbanCards": [
+        {
+          "className": "cmd-warn",
+          "html": "BUG (operator hit live 2026-06-13, gpt-5.5 1M context). Request rejected with <code>{\"error\":{\"message\":\"Your input exceeds the context window of this model...\",\"code\":\"invalid_request_body\"}}</code> even though input is under 1M. Surfaces on normal long turns AND auto-compaction."
+        },
+        {
+          "className": "cmd-ok",
+          "html": "ROOT CAUSE (source-settled, read-only investigation 2026-06-13, .ralph/investigations/codex-gpt55-1m-context-exceeds/findings.md): codex budgets gpt-5.5 INPUT against the TOTAL <code>max_context_window_tokens=1_050_000</code> instead of the PROMPT cap <code>max_prompt_tokens</code> (~922k = billing.token_prices.long_context.context_max). So input grows to ~945k-997k before codex compacts, but the server cap is input&lt;=922k (the other ~128k is reserved output) -&gt; server rejects. The Copilot CLI gets it right: it reads billing.token_prices.{default,long_context}.context_max as max_prompt_tokens and computes total = context_max + max_output_tokens; codex parses ONLY the merged max_context_window_tokens (copilot_models_endpoint.rs translate_entry ~:303) and loses the prompt/output split. Regression-adjacent: the Knob B work fixed the stale-bundled-window collapse but left this total-vs-prompt budgeting error. Payload itself is correct (plain slug \"gpt-5.5\" on POST /responses, no api-version/context_tier field needed); compaction uses the same /responses path (no separate max_output reservation) so it fails by the same bad input budget."
+        }
+      ],
+      "command": {
+        "name": "codex-gpt55-1m-context-input-budget-vs-prompt-cap",
+        "descriptionHtml": "Fix codex budgeting gpt-5.5 input against the total 1.05M context window instead of the ~922k prompt cap, which causes server \"input exceeds context window\" rejections on long turns + compaction.",
+        "warnings": [],
+        "prompts": {
+          "impl": "/implement-with-ralph --autonomous \"Fix the gpt-5.5 1M-context input-budget bug per the source-settled root cause @ .ralph/investigations/codex-gpt55-1m-context-exceeds/findings.md. THE BUG: codex budgets gpt-5.5 INPUT against the TOTAL max_context_window_tokens (1_050_000) instead of the PROMPT/input cap max_prompt_tokens (~922k = billing.token_prices.long_context.context_max). So codex lets input grow to ~945k-997k before triggering compaction, but the Copilot server caps input at ~922k (the remaining ~128k is reserved for output), so the server rejects with invalid_request_body \\\"Your input exceeds the context window\\\". This hits normal long turns AND auto-compaction (same /responses path; no separate max_output reservation in codex). FIX: in codex-rs/model-provider/src/copilot_models_endpoint.rs (translate_entry, ~line 303 area), parse max_prompt_tokens AND max_output_tokens (and ideally billing.token_prices.{default,long_context}.context_max) from the /models response instead of only max_context_window_tokens. Make ModelInfo.context_window (the value used for tier selection + compaction-trigger budgeting) represent the PROMPT/INPUT budget (~922k for gpt-5.5 long_context), NOT the total 1.05M. Mirror the working Copilot CLI mapping: max_prompt_tokens = context_max; total = context_max + max_output_tokens. Ensure the auto-compaction trigger fires against the input/prompt budget so input never exceeds ~922k. ADD TESTS around the existing Knob B tests: gpt-5.5 long_context resolves to ~922k input budget (not 1.05M); a near-cap input triggers compaction before exceeding the prompt cap. CODEX submodule -- lead-coordinated in the canonical inner checkout codex/external/repos/codex-patched on branch ralph/codex-v7-int (the .7 accumulation branch), NOT a worktree (overlay relative-paths break cargo). Build/verify via files/codex-cargo.sh: cargo check -p codex-model-provider + cargo check -p codex-core + targeted tests on the touched model-provider/config paths. Verify: a long gpt-5.5 session + a compaction no longer hit the server context-exceeded error. SANDBOX-PATCH-mark + register in docs/implementation/patch-surface.md. Drive Phase 5a to terminal. Known false-alarms (NOT blockers): reset_memories STATUS_STACK_OVERFLOW (Windows harness); spec_plan_tests.rs rustfmt quirk. EOL hygiene: revert LF->CRLF whitespace-only churn before commit.\""
+        }
+      }
+    },
+    {
       "id": "codex-retained-transcript-viewport-typing-lag",
       "scope": "codex",
       "lifecycle": "tracked",
