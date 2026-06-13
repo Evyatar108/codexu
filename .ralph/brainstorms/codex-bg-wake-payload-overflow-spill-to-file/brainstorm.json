@@ -1,0 +1,40 @@
+{
+  "brainstormName": "codex-bg-wake-payload-overflow-spill-to-file",
+  "overviewTaskId": "codex-bg-wake-payload-overflow-spill-to-file",
+  "idea": "Confirm the current codex non-blocking background-completion wake path and decide whether overflowed background output should spill to a file for Claude Code + Copilot parity. Current behavior is inline-only: spawn_exit_watcher builds BackgroundCompletionEvent.output from build_background_completion_output(...) in core/src/unified_exec/async_watcher.rs, caps wake output at 16 KiB, and emits only a head/tail preview with an omission marker. The old await_background_completion retrieval tool was removed in 7133aca92, so oversized output currently has no recovery path.",
+  "availableLenses": ["copilot", "devils-advocate"],
+  "missingLenses": [
+    {
+      "lens": "codex",
+      "reason": "malformed (timed out without writing staged output)"
+    }
+  ],
+  "candidateDirections": [
+    {
+      "id": "D-001",
+      "name": "Experimental tee-to-session artifact + truncated wake reference",
+      "summary": "Recommended. Keep the current inline wake preview, but gate a default-off fork feature that tees full background output during streaming into a session-scoped artifact and appends a recovery reference when the wake payload truncates. Use a session-owned path under ~/.codex/sessions/<conversation>/... rather than OS temp, and keep the implementation to a small unified-exec seam plus helper logic so the fork can preserve parity without pretending exit-time spill can recover bytes already dropped by HeadTailBuffer.",
+      "contributingLenses": ["copilot", "devils-advocate"]
+    },
+    {
+      "id": "D-002",
+      "name": "Typed artifact handle or retrieval seam instead of a raw file path",
+      "summary": "If privacy, batching, or prompt-coupling concerns dominate, prefer a typed artifact handle or retrieval seam over embedding a literal filesystem path in <task_notification>. This costs more design surface up front, but it survives notification coalescing better and avoids binding model behavior to a local path string.",
+      "contributingLenses": ["devils-advocate"]
+    },
+    {
+      "id": "D-003",
+      "name": "Keep current inline truncation until real workflows prove the gap hurts",
+      "summary": "Do nothing beyond the current 16 KiB head/tail wake payload until real background completions show that the omitted middle is frequently actionable. Lowest-change option, but it preserves the parity gap with Claude/Copilot and leaves the agent unable to recover long background output without rerunning commands.",
+      "contributingLenses": ["copilot"]
+    }
+  ],
+  "recommendedDirection": "D-001",
+  "questionsForSynthesis": [
+    "Is the real requirement to recover outputs larger than 16 KiB, or larger than the 1 MiB HeadTailBuffer retention cap? Only the latter forces tee-before-omission rather than spill-on-exit.",
+    "Should the wake payload expose a raw filesystem path, or should the fork add a typed artifact reference or retrieval seam for cleaner privacy and future compatibility?",
+    "How should multi-completion batching preserve spill references, given that the current coalescer in core/src/tasks/mod.rs only retains task_id and exit_code from queued background notifications?",
+    "Should spilled artifacts follow the hook spiller's OS-temp pattern, or the session-owned ~/.codex/sessions/<id>/... pattern already used by other codex sidecars and artifacts?",
+    "What cleanup and retention policy is acceptable for potentially large, sensitive background-output artifacts?"
+  ]
+}
