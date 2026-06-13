@@ -168,7 +168,7 @@ current.
 | Spawn a Ralph member per task | `node <plugin>/tools/crews.js spawn-member <name> --crew ralph-pipeline --cwd D:/harness-efforts/codexu --state-cwd D:/harness-efforts/codexu --as overview-bookkeeper -- <prompt>` |
 | Watch the member mailbox | armed listener; on `messages` envelope, `/crews:review-mail` |
 | Relay operator decisions when members surface `kind=question` | `/crews:send-to-member` |
-| **Update `.ralph-overview/data.json` when a task ships** | Edit `lifecycle` → `"merged"` (or `"archived"` for closed/superseded work); add `shipManifest` with shippedAt, summary, and commit rows; refresh `lastTouchedAt` |
+| **Update `.ralph-overview/data.json` when a task ships** | Use `node tools/data-edit.mjs mark-shipped <task-id> ...` (or `set-lifecycle` for archive/reopen) so the write is id-scoped, atomic, and invariant-checked |
 | Commit + push the bookkeeping update | `chore(overview): update data for shipped tasks` |
 | Stop the member cleanly | `/crews:stop-member <name>` |
 
@@ -232,6 +232,14 @@ is a deprecated read alias for old rows only; when both fields exist,
 `shipManifest` is authoritative. The
 full rule is codified below under "Bookkeeper operating invariants."
 
+Use `node tools/data-edit.mjs <verb> ...` as the canonical write path for this
+file. The helper delegates through `bin/ralph-overview.mjs data-edit` to the
+installed `ralph-overview` plugin's shared mutation core, so CLI writes and MCP
+write tools use the same id-scoped, atomic implementation. For large read-only
+scans, prefer the generated projections (`active-tasks.json` for live backlog,
+`summary-projection.json` when prompt/body bulk is not needed) over loading the
+full hand-curated file into agent context.
+
 The three phase-like axes are deliberately separate:
 
 | Axis | Owner | Values | Meaning |
@@ -257,6 +265,8 @@ snapshot. Agents querying the canonical task list should read
 ### Other generated files (don't hand-edit)
 
 - `.ralph-overview/generated/snapshot.json` — aggregated snapshot for agents
+- `.ralph-overview/generated/active-tasks.json` — tracked-task projection for live backlog reads
+- `.ralph-overview/generated/summary-projection.json` — all-task projection with prompt/body bulk stripped
 - `.ralph-overview/generated/recommendations.json` — ranked next-task list
 - `.ralph-overview/generated/dependency-graph.json` — DAG
 - `.ralph-overview/generated/activity.jsonl` — append-only audit log
@@ -357,8 +367,8 @@ lead: review-mail → verify commit on origin/main
    ↓
 lead: /crews:stop-member <name> (do NOT chain into the next phase)
    ↓
-lead: if this was the FINAL phase (impl ship), EDIT .ralph-overview/data.json
-     (lifecycle → "merged", shipManifest, lastTouchedAt)
+lead: if this was the FINAL phase (impl ship), run
+     node tools/data-edit.mjs mark-shipped <task-id> ...
    ↓
 lead: commit "chore(overview): update data for shipped tasks"
    ↓
@@ -887,7 +897,7 @@ handoff). Re-bind it EARLY, before arming:
   above — it is NOT a periodic-poll pattern; only ONE re-arm per timeout
   exit, immediately ending the turn).
 
-### data.json edit-anchor safety (codified 2026-06-03)
+### data.json helper safety (codified 2026-06-03; updated 2026-06-13)
 
 `.ralph-overview/data.json` is the single most-edited file the bookkeeper
 touches. Edits to it are also where the highest concentration of regressions
@@ -900,19 +910,22 @@ block lands between tasks.
 
 Rules:
 
-1. **Always include `"id": "<exact-task-id>"` in the edit anchor.** Task
-   IDs are guaranteed unique by data.json convention. Anchoring on the id
-   line + 5-10 surrounding lines makes the anchor unambiguous.
+1. **Canonical write path: use `node tools/data-edit.mjs`, not raw edits.**
+   The helper delegates through the ralph-overview bin dispatcher to the shared
+   mutation core used by the MCP write tools. Available verbs:
+   `upsert-task`, `mark-shipped`, `set-lifecycle`, `add-kanban-card`,
+   `set-prompts`. Run `node tools/data-edit.mjs --help` for exact flags.
 
-2. **For prepending a new task before another task**, anchor on the OLD
-   task's `"id":` line and include it verbatim in `new_str` so the existing
-   task survives the edit. Anchoring on `{\n      "id":` (without the
-   target ID) WILL match the first task in the file and silently move it.
+2. **Ship bookkeeping uses `mark-shipped`.** Prefer
+   `node tools/data-edit.mjs mark-shipped <task-id> --summary-file <file>
+   --commits-file <json> [--shipped-at <iso>]` so `lifecycle`,
+   `shipManifest`, and `lastTouchedAt` move together under one id-scoped lock.
+   Use `set-lifecycle <task-id> archived` only for closed-without-ship work.
 
-3. **For modifying a task in-place**, anchor on a substring that contains
-   the target task's id AND the specific field being modified. E.g.,
-   modify `lastTouchedAt` for task `foo`: anchor on the 4-line block
-   `"id": "foo",\n      "scope": ...,\n      "lifecycle": ...,\n      "lastTouchedAt": "2026-..."`.
+3. **Backlog/task-seed edits use the matching helper verb.** Use
+   `upsert-task` for whole task rows, `add-kanban-card` for cards, and
+   `set-prompts` for brainstorm/plan/impl seeds. Large text belongs in
+   `--*-file` inputs; avoid inline PowerShell quoting for multiline content.
 
 4. **MANDATORY: `node -e "JSON.parse(require('fs').readFileSync('.ralph-overview/data.json','utf8'))"`
    before every commit.** If it fails, do NOT commit. Recovery: read the
@@ -925,15 +938,12 @@ Rules:
    a task was clobbered. Restore from `git diff HEAD .ralph-overview/data.json`
    and patch in place rather than `git checkout` (preserves intended edits).
 
-6. **For any non-trivial change** (new `shipManifest`, multi-line prompt
-   seeds, re-targeting, adding cards), prefer a **file-based** ID-keyed Node
-   helper written to `.ralph/scratch/<name>.js` and run with `node
-   .ralph/scratch/<name>.js`, over BOTH a text-anchor `edit` AND an inline
-   `node -e "…"`. The ID-keyed mutation can't clobber a neighboring task, and
-   the file-based form avoids PowerShell 5.1 mangling the quotes/parens in
-   inline `node -e` (which broke data.json edits twice this session). The
-   helper should print `tasks before/after` + `without_id` counts as its own
-   guard. Delete the scratch script after the commit.
+6. **Raw edit anchors are last-resort only.** If the helper cannot express a
+   one-off repair, anchor any manual edit on `"id": "<exact-task-id>"` plus the
+   specific field being changed. Never anchor on non-unique fields like
+   `"lastTouchedAt":`, `"scope":`, or `"lifecycle":`. For prepending before
+   another task, anchor on the old task's exact `"id"` line and keep that line
+   in the replacement so the old task survives.
 
 7. **NEVER use `git add -A`** in a bookkeeping commit. Stage data.json
    explicitly. Otherwise generated sidecars (`.ralph-overview/generated/*`),
