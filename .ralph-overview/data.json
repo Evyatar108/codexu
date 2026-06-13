@@ -57,6 +57,10 @@
       "kanbanCards": [
         {
           "className": "cmd-ok",
+          "html": "FIX COMMITTED @ inner 705d14c6 on ralph/codex-v7-int (the .7 accumulation branch). committed_transcript.rs:250 RetainedTranscriptViewportRenderable::desired_height now returns 0 for empty / u16::MAX O(1) fill-available -- the full committed-cell scan is GONE. FORK-CONTAINED (no FlexRenderable/HistoryCell/Paragraph edits); patch-surface.md:19 now registers retained_transcript_viewport + the fix. cargo check -p codex-tui green (5m58s); 6/6 retained tests pass. AWAITING .7 RELEASE (stays tracked until .7 ships to gim-home)."
+        },
+        {
+          "className": "cmd-ok",
           "html": "DESIGN SPIKE done (read-only, 2026-06-13, .ralph/investigations/codex-retained-viewport-typing-lag/design-spike.md). RECOMMENDED: Approach C -- make the fork-owned <code>RetainedTranscriptViewportRenderable::desired_height</code> return an O(1) fill-available response (the visible window is ALREADY bounded by a visible_height prepass + the visible-tail renderer is already windowed), instead of scanning all committed cells. CONFLICT SURFACE: fork-contained -- edit ONLY <code>committed_transcript.rs:250-260</code> (fork-owned/SANDBOX PATCH, overridable; generic flex dispatch already reaches it); NO upstream edits to FlexRenderable or HistoryCell::desired_transcript_height. No cache/invalidation needed. Also add the missing patch-surface.md entry for retained_transcript_viewport."
         },
         {
@@ -84,6 +88,10 @@
       "status": "todo",
       "lastTouchedAt": "2026-06-12",
       "kanbanCards": [
+        {
+          "className": "cmd-ok",
+          "html": "COMMITTED @ wrapper ac5fa72b, locally FF-merged to codex wrapper main -- the canonical checkout is now CLEAN (6 overlay files committed in rustfmt-fixpoint form + publish-sandbox-patch.md gained a Step-0 assert-clean-or-abort preflight). Double-build is fixed for the .7 release from this box. RIDES THE .7 RELEASE publish to gim-home (operator chose not to do a standalone public push). Stays tracked until .7 pushes wrapper main."
+        },
         {
           "className": "cmd-ok",
           "html": "DESIGN SPIKE done (read-only, 2026-06-13, .ralph/investigations/codex-release-double-build/design-spike.md). VERDICTS: (1) fmt-commit is DURABLE -- the 6 overlay files are a rustfmt fixpoint at package scope (cargo fmt --check passes for codex-copilot + codex-stream-diagnostics; the &quot;full workspace fmt&quot; noise is unrelated submodule debt). (2) NO regenerator -- overlay is plain relative workspace membership (Cargo.toml:115-123), nothing copies/regenerates these files. (3) FORK-CONTAINED -- codex-copilot + codex-stream-diagnostics are wrapper overlay crates (NOT upstream mirrors); /rebase-upstream does not fmt/regenerate them -> zero upstream-conflict. (4) PREFLIGHT: assert-clean-or-abort gate in publish-sandbox-patch.md after ## Steps / before Step 0 (lines 45-47), checking tracked wrapper+submodule status (ignore untracked). MINIMAL FIX: one WRAPPER commit = the 6 formatted overlay files + the preflight doc edit; no submodule commit, no version bump. Optional: package-scoped cargo fmt --check in invariant-check.yml."
@@ -4432,10 +4440,14 @@
     {
       "id": "overview-data-context-scalability",
       "scope": "codexu|ralph-overview",
-      "lifecycle": "tracked",
+      "lifecycle": "merged",
       "status": "ok",
       "lastTouchedAt": "2026-06-12",
       "kanbanCards": [
+        {
+          "className": "cmd-ok",
+          "html": "SHIPPED (both jobs). Job 1 = ralph-overview 2.11.0 (5 MCP write tools + shared data-edit-core + projections + PreToolUse guard) @ 41631e36. Job 2 = codexu tools/data-edit.mjs CLI (byte-parity with MCP via shared lib + C-7 guard + AGENTS canonical-path update) @ a91f7636 on codexu main. The lead data.json edit path is now an ID-scoped helper, not hand-rolled scratch scripts."
+        },
         {
           "className": "cmd-ok",
           "html": "Job 1 (ralph-overview MCP write tools, US-T1..US-T6) shipped @ 308cbd92 in ralph-overview v2.11.0. Five MCP write tools (upsert_task/mark_shipped/set_lifecycle/add_kanban_card/set_prompts) + data-edit CLI/shared core + active-tasks.json/summary-projection.json projections + engine-aware PreToolUse guard; C-7 byte-identical-snapshot guard covered. STILL TRACKED: Job 2 (codexu-side tools/data-edit.mjs CLI + AGENTS canonical-path updates, US-C1..US-C4) pending."
@@ -4464,6 +4476,32 @@
           "plan": "/plan-with-ralph --from-brainstorm .ralph/brainstorms/overview-data-context-scalability/",
           "impl": "/implement-with-ralph --from-plan .ralph/jobs/overview-data-context-scalability/plan.md --autonomous \"DUAL-REPO D-001 (ID-scoped write tooling + lazy projections). This plan is a 2-JOB split and MUST NOT be run as a single PRD (per codexu AGENTS.md dual-repo rule). JOB 1 (ai-developer-toolkit submodule, FIRST): stories US-T1..US-T6 = ralph-overview MCP write tools (overview.upsert_task/mark_shipped/set_lifecycle/add_kanban_card/set_prompts) sharing ONE library, watcher additions in plugins/ralph-overview/scripts/lib/sync-core.mjs emitting active-tasks.json + summary-projection.json, and a plugin-bundled engine-aware PreToolUse hook. JOB 2 (codexu root, AFTER Job 1 ships): stories US-C1..US-C4 = tools/data-edit.mjs CLI mirroring the MCP verbs via the shared lib + AGENTS.md canonical-path updates. C-7 backwards-compat (snapshot.json tasks array byte-identical when no source edit) is load-bearing. Lead orchestrates the split + submodule-pointer bump; do NOT spawn as one job.\""
         }
+      },
+      "shipManifest": {
+        "shippedAt": "2026-06-12",
+        "summary": "ID-scoped .ralph-overview/data.json write tooling + lazy read projections, shipped as a 2-job split. JOB 1 (ralph-overview 2.11.0): five MCP write tools (overview.upsert_task/mark_shipped/set_lifecycle/add_kanban_card/set_prompts) over ONE shared mutation core (scripts/lib/data-edit-core.mjs) with global invariant checks + atomic write, the bin data-edit CLI subcommand, two additive watcher projections (active-tasks.json + summary-projection.json), and an engine-aware PreToolUse write-guard hook; C-7 keeps snapshot.json tasks byte-identical. JOB 2 (codexu root): tools/data-edit.mjs -- a thin consumer CLI mirroring all five verbs by delegating through the bin dispatcher to the shared core (CLI<->MCP byte-parity tested), plus the C-7 byte-stability guard test, and an AGENTS.md update making the helper the CANONICAL way to mutate data.json (replacing the file-based-scratch-script guidance). This automates the bookkeeper-lead data.json edit path that was previously hand-rolled scratch scripts.",
+        "commits": [
+          {
+            "sha": "41631e36",
+            "oneLine": "feat(ralph-overview): add data edit tools and projections (Job 1)",
+            "repo": "ai-developer-toolkit"
+          },
+          {
+            "sha": "c59ad63e",
+            "oneLine": "chore(release): ralph-overview 2.11.0",
+            "repo": "ai-developer-toolkit"
+          },
+          {
+            "sha": "8ec2cfe1",
+            "oneLine": "chore: bump ai-developer-toolkit pointer + version table",
+            "repo": "codexu"
+          },
+          {
+            "sha": "a91f7636",
+            "oneLine": "feat(overview): add data-edit consumer CLI (Job 2)",
+            "repo": "codexu"
+          }
+        ]
       }
     },
     {
