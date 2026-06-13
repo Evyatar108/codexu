@@ -49,6 +49,25 @@
   "generatedFromCommit": "32fdb9de",
   "tasks": [
     {
+      "id": "codex-resume-slow-history-paint-regression-from-resize-fix",
+      "scope": "codex",
+      "lifecycle": "tracked",
+      "status": "active",
+      "lastTouchedAt": "2026-06-12",
+      "kanbanCards": [
+        {
+          "className": "cmd-warn",
+          "html": "REGRESSION (operator 2026-06-12, observed on .5). On <code>/resume</code>, codex now &quot;very slowly prints the messages from the history&quot; of the resumed conversation -- the historical messages trickle in one-by-one instead of appearing at once. PRIME SUSPECT: the .5 resize-reprint fix codex-tui-resize-reprints-full-history (commit <code>8548182d</code>, Direction A) moved committed history OUT of terminal scrollback INTO a retained ratatui-owned transcript viewport, and explicitly changed the INITIAL-history replay path (&quot;resize/initial/thread-switch replay helpers no longer replay committed history&quot; + event_dispatch stops writing scrollback). Resume replays the whole conversation through that exact path, so the new per-frame inline render likely paints long history far slower than the old bulk scrollback write. NOT the /resume DB-only change (that fixed the conversation-LIST load, confirmed fast by operator). This is the message-history PAINT on resume. INVESTIGATE-first: confirm the regression + mechanism, then recommend a fix that keeps the resize benefit without the slow resume paint. Likely a .6 fix. CODEX SUBMODULE."
+        }
+      ],
+      "command": {
+        "name": "codex-resume-slow-history-paint-regression-from-resize-fix",
+        "prompts": {
+          "investigate": "READ-ONLY investigation (CODEX submodule). Make NO code edits except the findings deliverable; pre/post working-tree snapshot + revert guard (git status --porcelain for D:/harness-efforts/codexu, codex/, codex/external/repos/codex-patched at START + END; only NEW path = findings file).\n\nREGRESSION (operator, on codex 0.135.0-copilot-api.5): on /resume, codex VERY SLOWLY PRINTS the messages from the resumed conversation history -- they trickle in one at a time instead of appearing together. The conversation-LIST load is fast (the .5 /resume DB-only fix is fine); this is specifically the message-history PAINT after selecting a conversation.\n\nPRIME SUSPECT: the .5 resize-reprint fix (task codex-tui-resize-reprints-full-history, commit 8548182d on the inner submodule, Direction A) which moved committed history from terminal scrollback into a retained ratatui-owned transcript viewport (new tui/src/chatwidget/committed_transcript.rs) and changed the INITIAL-history replay path: resize/initial/thread-switch replay helpers no longer replay committed history to scrollback, and event_dispatch stopped writing committed history to scrollback under the retained path. The resume flow replays the full conversation through that initial-history path.\n\nSTEP 1 -- CONFIRM THE LINK (cite file:line): read commit 8548182d (git -C codex/external/repos/codex-patched show 8548182d) + the touched files (tui/src/app/resize_reflow.rs initial_history_replay_buffer / finish_initial_history_replay_buffer, tui/src/app/event_dispatch.rs InsertHistoryCell handler, tui/src/chatwidget/committed_transcript.rs, tui/src/app.rs frame path). Trace what RESUME does: how a resumed session's historical cells are fed in (one AppEvent::InsertHistoryCell per cell? a batch?) and how they now render under the retained viewport.\n\nSTEP 2 -- ROOT-CAUSE THE SLOW PAINT: why does history now trickle in? Candidate mechanisms: (a) each historical cell triggers its own frame render of the WHOLE retained transcript (O(n^2) repaint as n cells arrive), (b) the retained viewport re-renders all committed cells every frame whereas the old scrollback write was one-shot per cell, (c) a per-cell flush/redraw that was previously batched into scrollback insertion, (d) the initial-replay buffer that used to bulk-write is now disabled so cells render individually. Pinpoint the exact cost change vs the pre-8548182d behavior.\n\nSTEP 3 -- FIX RECOMMENDATION: how to keep the resize-reprint benefit (no O(history) replay on resize) WITHOUT the slow resume paint. Options to evaluate: batch the initial-history cells into the retained viewport in one pass (bulk insert, single render) instead of per-cell render; defer/coalesce frame renders during initial replay; only render the visible tail on initial load + lazily realize the rest on scroll. Recommend the cleanest, lowest-conflict option (codex-side, overlay/SANDBOX-PATCH where possible). State whether it is a small fix or warrants a plan, and that it should ship in .6.\n\nDELIVERABLE: findings.md under .ralph/investigations/codex-resume-slow-history-paint-regression-from-resize-fix/ with the confirmed mechanism (file:line), the cost-model comparison (pre vs post 8548182d), and the fix recommendation. Report kind=done with the root cause + recommended fix + small-fix-vs-plan + findings path."
+        }
+      }
+    },
+    {
       "id": "codex-paste-guard-perf-and-dropped-text",
       "scope": "codex",
       "lifecycle": "tracked",
@@ -504,6 +523,10 @@
         {
           "className": "cmd-ok",
           "html": "IMPL DONE + committed @ <code>8548182d</code> on <code>ralph/codex-v5-int</code> (NOT yet released; awaiting .5). Direction A retained committed-transcript viewport: new tui/src/chatwidget/committed_transcript.rs (+318) shared by main view + overlay; app.rs frame path renders retained history inline; event_dispatch/resize_reflow/app_backtrack stop replaying committed history into scrollback; mod decl in chatwidget.rs; new snapshot codex_tui__app__tests__retained_transcript_main_view_tail.snap. 10 files, +1095/-583. VERIFIED GREEN (finalize-resize-codex, canonical checkout): cargo check -p codex-tui clean, cargo test -p codex-tui clean (+ repo-default just test), just fmt clean -- all exit 0. The prior member&#39;s &quot;pre-existing .5 breakage&quot; (spec_plan_tests.rs fmt error, footer snapshot drift, Windows stack-overflow) did NOT reproduce -- it was a transient artifact of that member&#39;s own interrupted/partially-applied state, NOT a real v5-int health issue. No separate fix commits needed. SANDBOX-PATCH-marked; patch-surface.md entry deferred to the lead-tracked registry refresh (codex-patch-surface-divergence-registry-refresh). .5 BATCH so far: agent-name cells + /resume DB-only + resize; focus-leak-recur impl queued next."
+        },
+        {
+          "className": "cmd-warn",
+          "html": "REGRESSION SURFACED (operator 2026-06-12, on .5): this fix (Direction A retained viewport, commit 8548182d) appears to have made <code>/resume</code> &quot;very slowly print the messages from history&quot; -- the initial-history replay path it changed now paints resumed-conversation history slowly/per-cell instead of at once. Tracked + under investigation as codex-resume-slow-history-paint-regression-from-resize-fix. Fix-forward expected in .6; the resize-reprint benefit itself stands."
         }
       ],
       "command": {
