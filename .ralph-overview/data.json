@@ -49,6 +49,56 @@
   "generatedFromCommit": "32fdb9de",
   "tasks": [
     {
+      "id": "codex-retained-transcript-viewport-typing-lag",
+      "scope": "codex",
+      "lifecycle": "tracked",
+      "status": "todo",
+      "lastTouchedAt": "2026-06-12",
+      "kanbanCards": [
+        {
+          "className": "cmd-warn",
+          "html": "REGRESSION (operator 2026-06-13, observed on .6 with the new feature ENABLED). Enabling the default-OFF experimental feature <code>retained_transcript_viewport</code> (&quot;Render committed transcript history inside the TUI viewport instead of native terminal scrollback&quot;) loads a long session FAST (the intended win) BUT introduces HUGE per-keystroke typing lag. Feature OFF = smooth typing (history lives in native scrollback). Default-OFF, so .6&#39;s default is unaffected; this is an opt-in-only perf bug to fix in .7."
+        },
+        {
+          "className": "cmd-ok",
+          "html": "ROOT CAUSE (source-settled, read-only investigation 2026-06-13, .ralph/investigations/codex-retained-viewport-typing-lag/findings.md): each composer keypress schedules a redraw (<code>bottom_pane/mod.rs:654-660</code>); in feature-ON mode the flex layout calls <code>desired_height()</code> on ALL committed cells every frame -- <code>RetainedTranscriptViewportRenderable::desired_height</code> loops over every committed cell (<code>chatwidget/committed_transcript.rs:250-260</code>) recomputing transcript lines + <code>Paragraph::line_count</code> (<code>history_cell/mod.rs:232-249</code>), so steady-state cost is O(history) per keystroke. Feature-OFF only renders active cell + composer (<code>chatwidget/rendering.rs:7-40</code>); committed history is in terminal scrollback. The 6f0137db frame-suppression only covered initial replay (resize_reflow.rs:124-129,161-169), NOT composer-keypress redraws."
+        }
+      ],
+      "command": {
+        "name": "codex-retained-transcript-viewport-typing-lag",
+        "descriptionHtml": "Fix the O(history)-per-keystroke typing lag in the codex retained_transcript_viewport (feature-ON) path so a long retained session types smoothly.",
+        "warnings": [],
+        "prompts": {
+          "impl": "/implement-with-ralph --autonomous \"Fix the steady-state per-keystroke typing lag in the codex `retained_transcript_viewport` (feature-ON) path. ROOT CAUSE (source-settled, read-only investigation 2026-06-13 @ .ralph/investigations/codex-retained-viewport-typing-lag/findings.md): each composer keypress schedules a redraw (tui/src/bottom_pane/mod.rs:654-660) -> App::render_chat_widget_frame (app.rs:1312-1345) -> ChatWidget::render_with_committed_cells -> as_retained_renderable -> FlexRenderable::render/allocate, which calls child.desired_height(area.width) EVERY frame (render/renderable.rs:296-310,326-333). That dispatches to RetainedTranscriptViewportRenderable::desired_height, which loops over ALL committed cells (chatwidget/committed_transcript.rs:250-260) calling committed_cell_total_height (committed_transcript.rs:41-44) -> HistoryCell::desired_transcript_height recomputing lines + Paragraph::line_count (history_cell/mod.rs:232-249). Cursor position/style queries repeat the allocation (render/renderable.rs:343-360). The visible-tail renderer is already bounded (committed_transcript.rs:155-180); the unbounded cost is the desired-height/layout scan. FIX DIRECTION: cache/memoize retained committed-cell heights/layout across frames (invalidate only when the committed transcript actually changes), OR replace the retained flex allocation with a budgeted/windowed layout, OR special-case app.rs:1312-1355 to skip committed-region work on composer-only frames. Target files: chatwidget/committed_transcript.rs:41-44,109-128,250-260 + the retained construction/cursor paths in chatwidget/rendering.rs:43-148 (+ optional app.rs:1312-1355 composer-only short-circuit). CODEX submodule -- lead-coordinated in the canonical checkout (codex/external/repos/codex-patched), land on the .7 accumulation branch (lead sets it up off the .6 tip), NOT a worktree (overlay relative-paths break cargo). Build/verify via files/codex-cargo.sh (cargo check -p codex-tui + targeted tui tests). Verify: with retained_transcript_viewport ON + a long session, typing is smooth (no O(history) per-keystroke cost) AND resume stays fast AND the visible transcript still renders correctly; feature-OFF path unchanged. SANDBOX-PATCH-mark + register in docs/implementation/patch-surface.md. Drive Phase 5a to terminal. Known false-alarms (NOT blockers): reset_memories_clears_local_memory_directories STATUS_STACK_OVERFLOW (Windows harness); spec_plan_tests.rs rustfmt quirk. EOL hygiene: revert LF->CRLF whitespace-only churn before commit.\""
+        }
+      }
+    },
+    {
+      "id": "codex-release-double-build-overlay-fmt",
+      "scope": "codex",
+      "lifecycle": "tracked",
+      "status": "todo",
+      "lastTouchedAt": "2026-06-12",
+      "kanbanCards": [
+        {
+          "className": "cmd-warn",
+          "html": "BUILD-WASTE (operator-flagged 2026-06-13, recurring since .4/.5). Every codex release wastes a full ~25-50min build via a DOUBLE BUILD: the codex WRAPPER worktree carries PERSISTENT dirty rustfmt-only overlay diffs, so the release member builds once on dirty source, then must stash -> rebuild clean -> restore. Long build times make this expensive to repeat each release."
+        },
+        {
+          "className": "cmd-ok",
+          "html": "ROOT CAUSE (source-settled, read-only investigation 2026-06-13, .ralph/investigations/codex-release-double-build/findings.md): six tracked <code>codex-rs-overlay/...</code> files (codex-copilot/src/payload.rs; codex-stream-diagnostics/src/{cause,id_hash,tracker}.rs + tests/{privacy_canary,ring_buffer}.rs) are perpetually dirty because <code>external/repos/codex-patched/justfile:33-37</code> runs workspace-wide <code>cargo fmt</code> over overlay crates included by relative path (<code>codex-rs/Cargo.toml:115-123</code>), but the COMMITTED form is unformatted -> git status always shows fmt-only hunks. DURABLE FIX: commit the formatted overlay source once (tree stays clean, no stash needed) + add a Step-0 clean-tracked-source gate in publish-sandbox-patch.md before line 47 to fail fast / auto-handle."
+        }
+      ],
+      "command": {
+        "name": "codex-release-double-build-overlay-fmt",
+        "descriptionHtml": "Eliminate the codex-release double-build by permanently resolving the persistent dirty rustfmt overlay diffs + adding a clean-source preflight to publish-sandbox-patch.",
+        "warnings": [],
+        "prompts": {
+          "impl": "/implement-with-ralph --autonomous \"Eliminate the codex-release DOUBLE BUILD (wastes ~25-50min per release). ROOT CAUSE (source-settled, read-only investigation 2026-06-13 @ .ralph/investigations/codex-release-double-build/findings.md): six tracked overlay files are perpetually dirty with rustfmt-only hunks because external/repos/codex-patched/justfile:33-37 runs workspace-wide `cargo fmt` over wrapper overlay crates included by relative path (codex-rs/Cargo.toml:115-123), but the committed form is unformatted. Dirty files: codex-rs-overlay/codex-copilot/src/payload.rs; codex-rs-overlay/codex-stream-diagnostics/src/{cause,id_hash,tracker}.rs + tests/{privacy_canary,ring_buffer}.rs. TWO-PART FIX: (1) DURABLE -- run `cargo fmt` (or `just fmt`) once on the overlay crates and COMMIT the formatted source so the wrapper working tree is clean to begin with (no stash/rebuild). Verify `git -C codex status --short` is clean afterward (only expected `?? .worktrees/`). Confirm CI fmt-check (the same `cargo fmt --check`) still passes. (2) PREFLIGHT GUARD -- add a Step 0 clean-tracked-source gate to codex/.claude/commands/publish-sandbox-patch.md BEFORE the existing Step ~1/line 47: assert the tracked tree is clean (ignore untracked .worktrees/); if dirty, either auto-`cargo fmt`+show-diff+abort-for-review OR fail loudly with the exact remediation -- so a future release NEVER silently builds on dirty source then rebuilds. DUAL-REPO NOTE: the overlay fmt commit lands in the WRAPPER repo (codex/, remote origin=gim-home/codex) -- this is a codex WRAPPER change, NOT the inner codex-patched submodule and NOT codexu. The skill edit is also in codex/. Per codexu AGENTS.md the lead handles FF-merge + push + the codexu pointer bump; commit on a topic branch in a codex/ worktree. Verify the fmt commit makes the tree clean by re-running `git status` from a fresh state. Do NOT bump any version (this is a build-hygiene fix, no release). Report the committed SHA + branch + confirmation the wrapper tree is now clean + the publish-sandbox-patch.md preflight anchor you added.\""
+        }
+      }
+    },
+    {
       "id": "crews-pretooluse-hook-errored-under-concurrent-spawn-burst",
       "scope": "crews",
       "lifecycle": "tracked",
