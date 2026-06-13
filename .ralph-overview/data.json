@@ -49,6 +49,56 @@
   "generatedFromCommit": "32fdb9de",
   "tasks": [
     {
+      "id": "codex-background-process-notification-experimental-visibility",
+      "scope": "codex",
+      "lifecycle": "tracked",
+      "status": "todo",
+      "lastTouchedAt": "2026-06-12",
+      "kanbanCards": [
+        {
+          "className": "cmd-warn",
+          "html": "CANDIDATE (from fork-features audit 2026-06-13, .ralph/investigations/codex-fork-features-experimental-audit/findings.md). Feature::BackgroundProcessNotification (the fork D-001/D-002 async-completion seam: when a background process completes it queues a &lt;task_notification&gt; + wakes the agent) is HIDDEN from /experimental because Stage::UnderDevelopment, default false. NOTE: this is the SAME seam the notify-hook investigation (.ralph/investigations/codex-notify-hook-async-bg-completion-investigation) flagged for the operator&#39;s \"interact-while-running / async completion surfacing\" want. PRODUCT-READY DECISION REQUIRED before promoting: enabling it creates MODEL-VISIBLE TURN WAKEUPS, so it needs warning copy + a readiness call."
+        },
+        {
+          "className": "cmd-ok",
+          "html": "SOURCE (audit): Feature::BackgroundProcessNotification @ features/src/lib.rs:759-763 (Stage::UnderDevelopment, default false); runtime seam at core/src/unified_exec/async_watcher.rs:166-188 + core/src/tasks/mod.rs:913-923; patch-surface.md:710-743. RECOMMENDATION: IF product-ready, promote Stage::UnderDevelopment -> Stage::Experimental with menu copy warning it creates model-visible turn wakeups; OTHERWISE keep hidden + explicitly mark not-ready. This task should FIRST settle the product-ready question (does the seam actually deliver the async-completion UX, or is it half-wired?) before flipping the stage."
+        }
+      ],
+      "command": {
+        "name": "codex-background-process-notification-experimental-visibility",
+        "descriptionHtml": "Decide + (if ready) make Feature::BackgroundProcessNotification visible in /experimental with model-visible-turn-wakeup warning copy; it is the async-completion seam from the notify-hook investigation.",
+        "warnings": [],
+        "prompts": {
+          "brainstorm": "/brainstorm-with-ralph \"Decide whether codex Feature::BackgroundProcessNotification is PRODUCT-READY to surface in /experimental, and design the change. CONTEXT (source-settled, .ralph/investigations/codex-fork-features-experimental-audit/findings.md + .ralph/investigations/codex-notify-hook-async-bg-completion-investigation/findings.md): it is the fork D-001/D-002 async-completion seam -- on background-process completion it queues a <task_notification> + wakes the agent (core/src/unified_exec/async_watcher.rs:166-188; core/src/tasks/mod.rs:913-923; patch-surface.md:710-743). It is Stage::UnderDevelopment default-false (features/src/lib.rs:759-763), so HIDDEN from /experimental. This is the SAME seam flagged for the operator want (b): Claude-Code-style interact-while-running + in-conversation async completion surfacing. SETTLE (read-only, cite source): (1) Is the seam fully wired end-to-end -- does enabling the feature today actually deliver interact-while-running + async completion surfacing in the conversation, or is it half-implemented (queues but does not surface, or only OS-toast)? Trace the producer (async_watcher/tasks) -> the wake -> where the notification surfaces in the turn/conversation. (2) What is the UX when enabled -- the model-visible-turn-wakeup behavior + any downsides (extra turns, cost, interruption). (3) GO/NO-GO: is it product-ready to flip to Stage::Experimental (visible opt-in) NOW, or does it need more wiring first? (4) If GO: the exact change (stage flip + warning menu copy) + conflict surface. If NO-GO: what remains to wire (a follow-up impl task shape). Recommend a direction with file:line evidence. Minimize codex-fork upstream divergence.\""
+        }
+      }
+    },
+    {
+      "id": "codex-style-user-messages-stale-launcher-key-cleanup",
+      "scope": "codex",
+      "lifecycle": "tracked",
+      "status": "todo",
+      "lastTouchedAt": "2026-06-12",
+      "kanbanCards": [
+        {
+          "className": "cmd-warn",
+          "html": "CLEANUP (from fork-features audit 2026-06-13, .ralph/investigations/codex-fork-features-experimental-audit/findings.md). The style_user_messages migration to Feature::UserMessageStyling (shipped .6, visible in /experimental, features/src/lib.rs:999-1011) left a STALE LAUNCHER KEY behind -- a dead config knob that can DIVERGE from the visible Feature (set the old key, get no effect, or conflicting state). Low-risk dead-knob cleanup."
+        },
+        {
+          "className": "cmd-ok",
+          "html": "SOURCE (audit): the visible Feature is UserMessageStyling @ features/src/lib.rs:999-1011 (Stage::Experimental, default false), wired at tui/src/chatwidget/constructor.rs:35-40. The stale launcher style_user_messages key remains. RECOMMENDATION: do NOT create a new Feature; either MAP the launcher key to the existing features.user_message_styling=<bool> (so old configs still work) OR remove/deprecate it. Conflict surface: low; prevents a dead config knob from diverging from the visible Feature."
+        }
+      ],
+      "command": {
+        "name": "codex-style-user-messages-stale-launcher-key-cleanup",
+        "descriptionHtml": "Remove/deprecate or map the stale style_user_messages launcher key to the shipped features.user_message_styling Feature so the dead knob cannot diverge.",
+        "warnings": [],
+        "prompts": {
+          "impl": "/implement-with-ralph --autonomous \"Clean up the stale style_user_messages launcher key, per the fork-features audit @ .ralph/investigations/codex-fork-features-experimental-audit/findings.md. CONTEXT: style_user_messages was migrated to the visible experimental Feature::UserMessageStyling (shipped .6; features/src/lib.rs:999-1011, Stage::Experimental default false; wired at tui/src/chatwidget/constructor.rs:35-40). But a STALE launcher style_user_messages key remains -- a dead config knob that can diverge from the Feature (e.g. a user sets the old key and gets no effect, or conflicting state). FIRST find the stale launcher key (grep for style_user_messages across the launcher / copilot-fork launcher config + core config + config_toml). THEN choose the low-conflict fix: (a) MAP the old launcher key to the shipped features.user_message_styling=<bool> so existing configs still take effect (preferred if any users may rely on it), OR (b) REMOVE/DEPRECATE the dead key with a clear deprecation note if it is genuinely unused. Do NOT create a new Feature; the Feature already exists. Preserve backward compatibility -- do not silently break a config.toml that sets the old key. CODEX submodule -- lead-coordinated in the canonical inner checkout codex/external/repos/codex-patched on branch ralph/codex-v8-int (the .8 accumulation branch), NOT a worktree. Build/verify via files/codex-cargo.sh: cargo check -p codex-core (+ codex-tui if the launcher seam touches it) + targeted config tests. SANDBOX-PATCH-mark + register in docs/implementation/patch-surface.md if the key removal/mapping changes documented divergence. Drive Phase 5a to terminal. Known false-alarms (NOT blockers): reset_memories STATUS_STACK_OVERFLOW; spec_plan_tests.rs rustfmt quirk. EOL hygiene: revert LF->CRLF churn before commit. Report the SHA + branch + which option (map vs remove) + confirmation no existing config breaks.\""
+        }
+      }
+    },
+    {
       "id": "codex-managed-hooks-visible-experimental-plus-patch-surface",
       "scope": "codex",
       "lifecycle": "tracked",
