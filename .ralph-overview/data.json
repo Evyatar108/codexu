@@ -9084,6 +9084,25 @@
           "impl": "IMPL (direct, canonical inner checkout, NOT /implement-with-ralph -- cargo cannot build from a worktree).\n\ncwd = codex/external/repos/codex-patched (codex-rs/); branch ralph/codex-v8-int (implement DIRECTLY, sole editor, no worktree, no push -- lead pushes at the .8 cut). Spec = .ralph/jobs/codex-windows-gitbash-shell-experimental-feature/plan.md (5 stories US-001..005).\n\nCRITICAL CONSTRAINT (child-process findings @ .ralph/investigations/codex-windows-gitbash-shell/child-process-fix-findings.md): PRESERVE the Windows Job Object child-tree cleanup (f11c5d8d). Detector returns a normal shell::Shell via get_shell(ShellType::Bash, Some(&path)); Git Bash flows through the EXISTING exec_command/unified_exec/session-shell path. NO new direct tokio::process spawn for Git Bash; NO features.unified_exec=false guard; keep features.unified_exec=true Copilot policy; do NOT change unified_exec semantics / derive_exec_args. ADD a regression test that bash sessions route through the existing exec path (no bypass).\n\nPATCH-SURFACE (US-005): the plan says wrapper copy, but the established .8 convention (commits 43ac126981, 5b8aec23) registers in the INNER copy docs/implementation/patch-surface.md on v8-int -- match the .8 batch (single-repo), verify against codex/CLAUDE.md. // SANDBOX PATCH: mark all upstream-canonical edits.\n\nBUILD via Git Bash codex-cargo.sh (clang-cl/lld-link/xwin): cargo check -p codex-core (+ codex-tui if the experimental picker is touched) + targeted detector/session/shell_spec/environment_context tests. This is a Windows box so #[cfg(windows)] compiles. EOL hygiene (git diff --numstat --ignore-all-space; revert LF->CRLF churn). Known false-alarms: spec_plan_tests.rs rustfmt quirk; reset_memories STATUS_STACK_OVERFLOW. Drive Phase 5a code review-fix convergence to terminal. codexu CLAUDE.md gitignored -- do NOT git add it. Commit on ralph/codex-v8-int; report SHA(s)."
         }
       }
+    },
+    {
+      "id": "codex-upstream-rebase-to-0.139",
+      "scope": "codex",
+      "lifecycle": "tracked",
+      "status": "todo",
+      "lastTouchedAt": "2026-06-13",
+      "kanbanCards": [
+        {
+          "className": "cmd-warn",
+          "html": "REBASE (operator-flagged 2026-06-13: \"we are on .135 and .139 is currently released upstream\"). The fork codex is based on upstream rust-v0.135.0; upstream has advanced to ~0.139. Rebase the fork sandbox-patches onto the newer upstream base. MAJOR effort: the v0.135.0 rebase alone spawned ~6 <code>codex-rebase-debt-fix-*</code> sub-tasks. Driven by <code>codex/.claude/commands/rebase-upstream.md</code> with the FULL closeout discipline: Phase 5a (<code>cargo check --workspace</code> HARD gate; file debt-fix tasks per crate) -&gt; release cut (version bump + build + tag + GitHub Release via /publish-sandbox-patch) -&gt; Phase 5b (invariant-check CI closeout on gim-home/codex, or interim closeout per <code>escalate-gim-home-actions-policy</code>). SEQUENCE AFTER the .8 release -- rebasing moves the base out from under the in-flight v8-int .8 accumulation. CODEX SUBMODULE."
+        }
+      ],
+      "command": {
+        "name": "codex-upstream-rebase-to-0.139",
+        "prompts": {
+          "plan": "/plan-with-ralph (OR drive /rebase-upstream directly per the rebase-as-closeout discipline in codexu AGENTS.md).\n\nRebase the codex fork sandbox-patches from upstream rust-v0.135.0 onto rust-v0.139.x (CONFIRM the exact latest upstream tag at rebase time -- \"0.139\" is the operator estimate). FIRST assess the upstream delta 0.135->0.139: enumerate the highest-conflict fork patches against the upstream-hot surfaces the fork edits (session.rs, exec/shell, tool specs, features registry, multi_agents, tui) and the SANDBOX PATCH registry (codex/docs/implementation/patch-surface.md) to predict the conflict set + likely debt-fix crates.\n\nTHEN drive codex/.claude/commands/rebase-upstream.md end-to-end: Phase 5a HARD gate `cargo check --workspace` (from codex/external/repos/codex-patched/codex-rs via Git Bash codex-cargo.sh; file codex-rebase-debt-fix-<crate> tasks for any breakage BEFORE proceeding); Steps 10-12 release cut via /publish-sandbox-patch (Cargo.toml version bump, release build, tag inner + wrapper gitlink, GitHub Release on gim-home/codex, codexu pointer bump); Phase 5b invariant-check CI closeout (or interim closeout citing escalate-gim-home-actions-policy).\n\nDEPENDS ON: the .8 release shipping FIRST -- do NOT start while the v8-int .8 accumulation is in flight (the rebase changes the base out from under it). CODEX SUBMODULE; canonical inner checkout; cargo builds ONLY via Git Bash codex-cargo.sh (clang-cl/lld-link/xwin). Lead handles the multi-repo ship ceremony + pushes."
+        }
+      }
     }
   ],
   "phaseTree": [
