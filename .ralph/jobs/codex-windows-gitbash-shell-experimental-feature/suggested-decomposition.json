@@ -1,0 +1,71 @@
+{
+  "clusters": [
+    {
+      "name": "feature-and-detector",
+      "stories": ["US-001", "US-002"],
+      "phase": 1,
+      "dependsOn": [],
+      "fileOverlapEvidence": {
+        "sharedFiles": [],
+        "exclusiveFiles": [
+          "codex/external/repos/codex-patched/codex-rs/features/src/lib.rs",
+          "codex/external/repos/codex-patched/codex-rs/core/src/lib.rs",
+          "codex/external/repos/codex-patched/codex-rs/core/src/windows_git_bash.rs"
+        ],
+        "risk": "medium"
+      },
+      "executionModeRationale": "This cluster is foundational and should run first because the session and tool-spec stories depend on the feature key and detector API."
+    },
+    {
+      "name": "session-selection-and-warning",
+      "stories": ["US-003"],
+      "phase": 2,
+      "dependsOn": ["feature-and-detector"],
+      "fileOverlapEvidence": {
+        "sharedFiles": [
+          "codex/external/repos/codex-patched/codex-rs/core/src/session/session.rs"
+        ],
+        "exclusiveFiles": [
+          "codex/external/repos/codex-patched/codex-rs/core/src/session/tests.rs"
+        ],
+        "risk": "medium"
+      },
+      "executionModeRationale": "This cluster must follow the detector because it wires the detector into Session::new and verifies explicit override precedence and fallback warnings."
+    },
+    {
+      "name": "model-facing-shell-hints",
+      "stories": ["US-004"],
+      "phase": 3,
+      "dependsOn": ["session-selection-and-warning"],
+      "fileOverlapEvidence": {
+        "sharedFiles": [
+          "codex/external/repos/codex-patched/codex-rs/core/src/session/turn_context.rs",
+          "codex/external/repos/codex-patched/codex-rs/core/src/tools/spec_plan.rs",
+          "codex/external/repos/codex-patched/codex-rs/core/src/tools/handlers/shell_spec.rs"
+        ],
+        "exclusiveFiles": [
+          "codex/external/repos/codex-patched/codex-rs/core/src/tools/handlers/shell_spec_tests.rs",
+          "codex/external/repos/codex-patched/codex-rs/core/src/context/environment_context_tests.rs",
+          "codex/external/repos/codex-patched/codex-rs/core/src/tools/handlers/unified_exec/exec_command.rs",
+          "codex/external/repos/codex-patched/codex-rs/core/src/tools/handlers/shell/shell_command.rs"
+        ],
+        "risk": "high"
+      },
+      "executionModeRationale": "This is load-bearing for correctness because the model must receive Bash syntax hints when the active shell is Git Bash. It touches tool registration and exact spec tests, so it should be serialized after the active shell is known."
+    },
+    {
+      "name": "registry-and-verification",
+      "stories": ["US-005"],
+      "phase": 4,
+      "dependsOn": ["model-facing-shell-hints"],
+      "fileOverlapEvidence": {
+        "sharedFiles": [],
+        "exclusiveFiles": [
+          "codex/docs/implementation/patch-surface.md"
+        ],
+        "risk": "low"
+      },
+      "executionModeRationale": "Docs and final verification depend on the exact implemented seams, invariant number, and test names from the previous clusters."
+    }
+  ]
+}
