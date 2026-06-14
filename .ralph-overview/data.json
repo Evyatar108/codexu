@@ -8827,7 +8827,7 @@
       "scope": "codex",
       "lifecycle": "tracked",
       "status": "active",
-      "lastTouchedAt": "2026-06-12",
+      "lastTouchedAt": "2026-06-13",
       "kanbanCards": [
         {
           "className": "cmd-warn",
@@ -8840,6 +8840,10 @@
         {
           "className": "cmd-ok",
           "html": "PLAN SHIPPED @ <code>52428190</code> (merged to main; plan @ .ralph/jobs/codex-bg-wake-payload-overflow-spill-to-file/plan.md). 3 stories. Implements D-001 (experimental tee-to-session-artifact). Seam: core/src/unified_exec/async_watcher.rs (wake path) + process_manager.rs (ProcessEntry.transcript + HeadTailBuffer) + features/src/lib.rs (new default-off Feature) + tasks/mod.rs coalescing. WIRE CONTRACT PINNED (Phase-4 review caught + fixed the gap): spill artifact format + exact <code>&lt;output_artifact_path&gt;</code> XML tag shape for BOTH single-task and coalesced notifications. Tests: codex-invariant-tests background_{notifications,completion}.rs + process_manager_tests + resume/ephemeral suites. SANDBOX-PATCH-mark + patch-surface.md register. READY FOR IMPL (codex canonical-checkout, lead-coordinated; cargo test -p codex-core unified_exec + codex-invariant-tests). NOTE: external Codex/Copilot review legs hung (best-effort); the local reviewer + partial Copilot review covered the plan."
+        },
+        {
+          "className": "cmd-ok",
+          "html": "IMPL COMMITTED @ <code>8fb378ad</code> on ralph/codex-v8-int (member impl-bgwake; 15 files, +683/-37). All 3 stories (D-001 spill-to-artifact): NEW core/src/unified_exec/background_output_artifact.rs (269 lines) tees full background output to a session-scoped artifact under ~/.codex/sessions/&lt;conversation&gt;/ DURING streaming; the inline 16 KiB head/tail wake preview is UNCHANGED; the bg-notification coalescer (tasks/mod.rs) now carries the &lt;output_artifact_path&gt; recovery ref for single + coalesced notifications; wired via process_manager/async_watcher/process. Gated behind a NEW default-off experimental Feature (features/src/lib.rs). Inner docs/implementation/patch-surface.md row added. cargo check -p codex-core GREEN (2m13s) -- and RESOLVED the pre-existing 'transcript field never read' dead-code warning (the field is now wired). Tests added (async_watcher_tests, process_manager_tests, tasks/mod_tests, process_tests, features/tests). NOT on origin/main -- QUEUED for the .8 release cut; task stays tracked until .8 ships."
         }
       ],
       "command": {
