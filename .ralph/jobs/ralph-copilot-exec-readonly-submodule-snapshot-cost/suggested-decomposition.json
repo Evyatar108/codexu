@@ -1,0 +1,40 @@
+{
+  "clusters": [
+    {
+      "name": "snapshot-core",
+      "stories": ["US-001", "US-002", "US-003"],
+      "phase": 1,
+      "dependsOn": [],
+      "fileOverlapEvidence": {
+        "sharedFiles": ["plugins/ralph/src/worktree-snapshot.mjs", "plugins/ralph/tests/test-worktree-snapshot.mjs"],
+        "exclusiveFiles": [],
+        "risk": "high"
+      },
+      "executionModeRationale": "These stories all change the nested snapshot shape and restore path in worktree-snapshot.mjs, so they must be implemented as one serial core slice to avoid incompatible snapshot schemas."
+    },
+    {
+      "name": "copilot-guard-integration",
+      "stories": ["US-004"],
+      "phase": 2,
+      "dependsOn": ["snapshot-core"],
+      "fileOverlapEvidence": {
+        "sharedFiles": [],
+        "exclusiveFiles": ["plugins/ralph/src/copilot-exec.mjs", "plugins/ralph/tests/test-copilot-readonly-guard.mjs"],
+        "risk": "medium"
+      },
+      "executionModeRationale": "This depends on the safe snapshot core because it re-enables the guard and asserts child-launch behavior; it should run only after the core fast-path and budget semantics are stable."
+    },
+    {
+      "name": "release-metadata",
+      "stories": ["US-005"],
+      "phase": 3,
+      "dependsOn": ["copilot-guard-integration"],
+      "fileOverlapEvidence": {
+        "sharedFiles": ["plugins/ralph/CHANGELOG.md", "plugins/ralph/AGENTS.md", "plugins/ralph/.claude-plugin/plugin.json", "plugins/ralph/.github/plugin/plugin.json", "plugins/ralph/.codex-plugin/plugin.json", ".claude-plugin/marketplace.json", ".github/plugin/marketplace.json", ".agents/plugins/marketplace.json"],
+        "exclusiveFiles": [],
+        "risk": "medium"
+      },
+      "executionModeRationale": "Release metadata must be serialized after behavior and tests are known so the version notes accurately describe the shipped surface and all six stamps remain in sync."
+    }
+  ]
+}

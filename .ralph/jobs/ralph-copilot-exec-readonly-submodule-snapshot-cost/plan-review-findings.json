@@ -1,0 +1,38 @@
+{
+  "planFile": "D:\\harness-efforts\\codexu\\.ralph\\jobs\\.staging\\20260613T235952Z-plan-copilot-exec-snapshot-dfb4aa8c\\draft-plan.md",
+  "repoDir": "D:\\harness-efforts\\codexu\\.ralph\\jobs\\ralph-copilot-exec-readonly-submodule-snapshot-cost\\worktree\\plan",
+  "findings": [
+    {
+      "id": "F-001",
+      "severity": "High",
+      "source": "claude",
+      "status": "resolved",
+      "description": "Nested-within-nested repos could lose whole-cwd protection if discovery stopped at the first .git boundary.",
+      "resolution": "Plan now requires a complete initialized nested-root forest, parent-child skip semantics, and parent -> submodule -> child-submodule regression coverage."
+    },
+    {
+      "id": "F-002",
+      "severity": "High",
+      "source": "claude",
+      "status": "resolved",
+      "description": "Index-only and mode-only nested repo mutations were not explicitly covered by a byte-content comparison plan.",
+      "resolution": "Plan now requires independent post-run index/mode comparison and tests for unstaging, restaging, partially staged reset, staged add/delete, and update-index chmod."
+    },
+    {
+      "id": "F-003",
+      "severity": "Medium",
+      "source": "claude",
+      "status": "resolved",
+      "description": "Spill and budget design did not require stat-first reservation before reading large dirty/untracked files.",
+      "resolution": "Plan now requires lstat-before-read, budget reservation before capture, streaming spill outside cwd, narrow budget handling, and cleanup on clean/revert/signal/budget paths."
+    },
+    {
+      "id": "F-004",
+      "severity": "Medium",
+      "source": "claude",
+      "status": "resolved",
+      "description": "No-whole-tree byte-capture validation could be too loose if it relied only on peak memory or aggregate stats.",
+      "resolution": "Plan now requires deterministic read-spy/test-hook instrumentation that fails on clean tracked large-submodule byte reads plus captured-byte stats limited to dirty/untracked paths."
+    }
+  ]
+}
