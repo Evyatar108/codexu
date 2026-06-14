@@ -256,7 +256,7 @@
       "scope": "codex",
       "lifecycle": "tracked",
       "status": "todo",
-      "lastTouchedAt": "2026-06-12",
+      "lastTouchedAt": "2026-06-13",
       "kanbanCards": [
         {
           "className": "cmd-warn",
@@ -265,6 +265,10 @@
         {
           "className": "cmd-ok",
           "html": "FIX DIRECTION: the gate should check (a) the SUBMODULE&#39;s OWN working tree is clean (cd external/repos/codex-patched; git status --porcelain shows only untracked .worktrees/) -- this is the real &quot;no dirty rustfmt overlay / no uncommitted build source&quot; intent; AND (b) the WRAPPER&#39;s tracked files OTHER THAN the external/repos/codex-patched gitlink line are clean. It must NOT abort merely because the submodule gitlink pointer is ahead of the wrapper&#39;s recorded SHA (the release reconciles that). Refine the Step-0 bash in publish-sandbox-patch.md accordingly. This is a codex WRAPPER-only doc/skill change, no version bump."
+        },
+        {
+          "className": "cmd-ok",
+          "html": "PREFLIGHT-GATE FIX committed @ <code>6a4bf4713</code> on branch ralph/codex-publish-preflight-gate-excludes-submodule-gitlink (member impl-preflight-gate; codex WRAPPER, .claude/commands/publish-sandbox-patch.md ONLY). Step-0 gate now filters out ONLY the expected external/repos/codex-patched gitlink line, still aborting on any other dirty wrapper file or dirty submodule source. Dry-run VERIFIED: PASSES on the live .7-style state (M gitlink + allowed ?? .worktrees/), ABORTS on synthetic dirty wrapper/submodule files. NOT merged to wrapper main -- the .8 release cut MUST FF-merge this branch into wrapper main as STEP 1 (before running /publish-sandbox-patch) so the cut uses the fixed gate. Task stays tracked; ships with the .8 cut."
         }
       ],
       "command": {
