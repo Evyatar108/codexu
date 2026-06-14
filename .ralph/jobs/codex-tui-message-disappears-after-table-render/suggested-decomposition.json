@@ -1,0 +1,20 @@
+{
+  "clusters": [
+    {
+      "name": "retained-viewport-fix",
+      "stories": ["US-001", "US-002", "US-003"],
+      "phase": 1,
+      "dependsOn": [],
+      "fileOverlapEvidence": {
+        "sharedFiles": [
+          "codex\\external\\repos\\codex-patched\\codex-rs\\tui\\src\\chatwidget\\committed_transcript.rs",
+          "codex\\external\\repos\\codex-patched\\codex-rs\\tui\\src\\app\\tests.rs",
+          "codex\\external\\repos\\codex-patched\\docs\\implementation\\patch-surface.md"
+        ],
+        "exclusiveFiles": [],
+        "risk": "medium"
+      },
+      "executionModeRationale": "Run serially because the stories all target the same codex inner checkout and the policy, regression test, and patch-surface invariant must agree before verification."
+    }
+  ]
+}

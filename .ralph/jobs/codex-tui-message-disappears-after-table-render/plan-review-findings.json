@@ -1,0 +1,46 @@
+{
+  "planFile": "D:\\harness-efforts\\codexu\\.ralph\\jobs\\codex-tui-message-disappears-after-table-render\\worktree\\plan\\.ralph\\jobs\\codex-tui-message-disappears-after-table-render\\plan.md",
+  "repoDir": "D:\\harness-efforts\\codexu\\.ralph\\jobs\\codex-tui-message-disappears-after-table-render\\worktree\\plan",
+  "findings": [
+    {
+      "id": "F-001",
+      "severity": "High",
+      "source": "plan-reviewer",
+      "status": "fixed",
+      "summary": "Verification command referenced a non-existent local helper.",
+      "resolution": "Replaced verification commands with cargo check from codex-rs and just test from codex-patched root."
+    },
+    {
+      "id": "F-002",
+      "severity": "High",
+      "source": "plan-reviewer",
+      "status": "fixed",
+      "summary": "visible_height() consistency was mentioned as a risk but not enforced.",
+      "resolution": "Added explicit plan, story, and acceptance criteria requiring visible_height() and render() to share the committed-reservation policy."
+    },
+    {
+      "id": "F-003",
+      "severity": "Medium",
+      "source": "plan-reviewer",
+      "status": "fixed",
+      "summary": "A one-row reservation could show only a blank separator instead of readable prompt text.",
+      "resolution": "Changed the regression and policy acceptance criteria to require identifiable committed-cell text in the live render."
+    },
+    {
+      "id": "F-004",
+      "severity": "Medium",
+      "source": "plan-reviewer",
+      "status": "fixed",
+      "summary": "Existing committed-only retained viewport snapshot was not explicitly guarded.",
+      "resolution": "Added acceptance criteria that the existing retained_transcript_main_view_tail snapshot remains unchanged."
+    },
+    {
+      "id": "F-005",
+      "severity": "Low",
+      "source": "plan-reviewer",
+      "status": "fixed",
+      "summary": "New SANDBOX PATCH marker requirement was not explicit enough.",
+      "resolution": "Added story acceptance criteria requiring new or modified retained-allocation lines to carry a SANDBOX PATCH marker."
+    }
+  ]
+}
