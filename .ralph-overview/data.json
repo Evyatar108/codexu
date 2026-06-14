@@ -8826,11 +8826,15 @@
       "scope": "crews",
       "lifecycle": "tracked",
       "status": "active",
-      "lastTouchedAt": "2026-06-11",
+      "lastTouchedAt": "2026-06-14",
       "kanbanCards": [
         {
           "className": "cmd-warn",
           "html": "BUG/RELIABILITY (operator: \"we must fix this issue\", 2026-06-11). A DISPLACED (takeover) or UNBOUND (bind-fail) crews member is still alive + emits done/question/blocked, but the reports SILENTLY fail to reach the lead (Stop hook cannot write the outbox without manifest ownership) -> the lead misses it; the operator has manually caught plan-hookshell, plan-multirepo2, impl-overviewdata-job1. The CAUSES are fixed (first-bind v3.21.3, takeover v3.21.4); this is DEFENSE-IN-DEPTH: notify the lead (or fallback-deliver) whenever a report cannot reach the outbox, for ANY cause. Extends crews-member-crash-auto-notify-lead (which only covers CRASHES, not displaced/unbound-but-alive). IMPL serializes after impl-sscaveats (same plugin)."
+        },
+        {
+          "className": "cmd-warn",
+          "html": "FRESH REPRO + SMOKING GUN (2026-06-14, lead overview-bookkeeper session ba496dad). The COPILOT plan member <code>plan-copilot-exec-snapshot</code> (a <code>/plan-with-ralph</code> multi-lens member, manifest sessionId 8eee2ea4) finished a clean plan (codexu commit 91d2f603, 5 stories) and emitted its <code>kind=done</code> report. The report landed in the member OUTBOX (read-member seq 22) but NEVER reached the lead mailbox: a definitive <code>review-mail --peek</code> showed 0 unreviewed entries at reviewedSeq 710, and a fresh re-arm + peek STILL showed nothing -- so this is NOT the listener-silent-reap-catches-up-on-re-arm mode (that sibling task), the notification truly never enqueued to the lead. The operator had to RELAY the member's done text manually. EVIDENCE in <code>.crews/logs/crews.log</code>: (a) ZERO log lines mention the member by name OR by its session id 8eee2ea4 (its Stop-hook/report events were never logged in the lead's crews.log); (b) SMOKING GUN -- two <code>member-crash-sweep-failed ... LockTimeoutError: timed out after 2000ms acquiring .crews/crews/ralph-pipeline/liveness-notifications.json.lock</code> entries (02:17:51Z, 02:18:54Z) during the 3-member concurrent batch, i.e. the liveness/notification path is LOSING to lock contention under concurrency. HYPOTHESES (for the investigation member to settle against source, NOT yet root-caused): (1) the <code>/plan-with-ralph</code> codex-lens fan-out hijacked the member actor (the documented 'crews actor hijack' pattern: a codex subprocess's bundled crews SessionStart re-binds the actor under its own session, breaking the parent member's report routing); (2) the <code>liveness-notifications.json.lock</code> 2000ms timeout drops the proactive-notification enqueue under concurrent-batch lock pressure. The done IS recoverable from the member outbox (read-member --all), so the durable record survives -- only the WAKE is lost. Repro conditions: 3 concurrent members + heavy .crews lock contention (same window showed repeated git index.lock collisions too)."
         }
       ],
       "command": {
