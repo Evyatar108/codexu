@@ -1,0 +1,35 @@
+[
+  {
+    "id": "F-001",
+    "severity": "High",
+    "source": "consensus",
+    "status": "fixed",
+    "title": "Do not rely on the gate wrapper to restore missing Claude rows",
+    "description": "A feature-off cache contains a post-filtered model list, so `GatedModelsManager` cannot reconstruct chat-only Claude rows after the gate turns on.",
+    "resolution": "The plan chooses cache identity mismatch before applying cached models as the exact fix seam and explicitly avoids picker/wrapper filter changes.",
+    "planFile": "draft-plan.md",
+    "repoDir": "D:/harness-efforts/codexu/.ralph/jobs/codex-anthropic-models-not-in-model-picker-when-enabled/worktree/plan"
+  },
+  {
+    "id": "F-002",
+    "severity": "Medium",
+    "source": "consensus",
+    "status": "fixed",
+    "title": "Preserve steady-state cache hits",
+    "description": "A gate-aware cache fix could accidentally bypass the 300s TTL benefit on every startup if it forces refetches unconditionally.",
+    "resolution": "Acceptance criteria and tests now require a matching identity fresh cache to avoid a second fetch.",
+    "planFile": "draft-plan.md",
+    "repoDir": "D:/harness-efforts/codexu/.ralph/jobs/codex-anthropic-models-not-in-model-picker-when-enabled/worktree/plan"
+  },
+  {
+    "id": "F-003",
+    "severity": "Medium",
+    "source": "consensus",
+    "status": "fixed",
+    "title": "Patch-surface documentation is required for upstream-canonical edits",
+    "description": "The fix edits upstream-canonical codex-rs crates, so codex fork guidance requires SANDBOX PATCH markers and patch-surface documentation.",
+    "resolution": "The plan includes `codex/docs/implementation/patch-surface.md` and explicit SANDBOX PATCH documentation acceptance criteria.",
+    "planFile": "draft-plan.md",
+    "repoDir": "D:/harness-efforts/codexu/.ralph/jobs/codex-anthropic-models-not-in-model-picker-when-enabled/worktree/plan"
+  }
+]

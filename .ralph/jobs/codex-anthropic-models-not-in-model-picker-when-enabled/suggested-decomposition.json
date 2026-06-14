@@ -1,0 +1,37 @@
+{
+  "clusters": [
+    {
+      "name": "cache-identity-plumbing",
+      "stories": ["US-001"],
+      "phase": 1,
+      "dependsOn": [],
+      "fileOverlapEvidence": {
+        "sharedFiles": [],
+        "exclusiveFiles": [
+          "codex/external/repos/codex-patched/codex-rs/models-manager/src/cache.rs",
+          "codex/external/repos/codex-patched/codex-rs/models-manager/src/manager.rs",
+          "codex/external/repos/codex-patched/codex-rs/models-manager/src/manager_tests.rs"
+        ],
+        "risk": "medium"
+      },
+      "executionModeRationale": "This story owns the core cache schema and manager eligibility seam. It must land before provider-specific wiring can compile against the new identity API."
+    },
+    {
+      "name": "copilot-gate-identity-and-docs",
+      "stories": ["US-002"],
+      "phase": 2,
+      "dependsOn": ["cache-identity-plumbing"],
+      "fileOverlapEvidence": {
+        "sharedFiles": [
+          "codex/external/repos/codex-patched/codex-rs/models-manager/src/manager.rs"
+        ],
+        "exclusiveFiles": [
+          "codex/external/repos/codex-patched/codex-rs/model-provider/src/copilot_models_endpoint.rs",
+          "codex/docs/implementation/patch-surface.md"
+        ],
+        "risk": "medium"
+      },
+      "executionModeRationale": "This story depends on the cache identity API and should be serialized to avoid trait/API churn conflicts. It wires the Copilot gate identity and documents the new fork invariant."
+    }
+  ]
+}
