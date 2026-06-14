@@ -9115,6 +9115,25 @@
           "plan": "/plan-with-ralph (OR drive /rebase-upstream directly per the rebase-as-closeout discipline in codexu AGENTS.md).\n\nRebase the codex fork sandbox-patches from upstream rust-v0.135.0 onto rust-v0.139.x (CONFIRM the exact latest upstream tag at rebase time -- \"0.139\" is the operator estimate). FIRST assess the upstream delta 0.135->0.139: enumerate the highest-conflict fork patches against the upstream-hot surfaces the fork edits (session.rs, exec/shell, tool specs, features registry, multi_agents, tui) and the SANDBOX PATCH registry (codex/docs/implementation/patch-surface.md) to predict the conflict set + likely debt-fix crates.\n\nTHEN drive codex/.claude/commands/rebase-upstream.md end-to-end: Phase 5a HARD gate `cargo check --workspace` (from codex/external/repos/codex-patched/codex-rs via Git Bash codex-cargo.sh; file codex-rebase-debt-fix-<crate> tasks for any breakage BEFORE proceeding); Steps 10-12 release cut via /publish-sandbox-patch (Cargo.toml version bump, release build, tag inner + wrapper gitlink, GitHub Release on gim-home/codex, codexu pointer bump); Phase 5b invariant-check CI closeout (or interim closeout citing escalate-gim-home-actions-policy).\n\nDEPENDS ON: the .8 release shipping FIRST -- do NOT start while the v8-int .8 accumulation is in flight (the rebase changes the base out from under it). CODEX SUBMODULE; canonical inner checkout; cargo builds ONLY via Git Bash codex-cargo.sh (clang-cl/lld-link/xwin). Lead handles the multi-repo ship ceremony + pushes."
         }
       }
+    },
+    {
+      "id": "codex-tui-message-disappears-after-table-render",
+      "scope": "codex",
+      "lifecycle": "tracked",
+      "status": "active",
+      "lastTouchedAt": "2026-06-13",
+      "kanbanCards": [
+        {
+          "className": "cmd-warn",
+          "html": "BUG (operator 2026-06-13). When codex outputs a TABLE (operator pasted a ~20-line table, shown in the composer as <code>[Paste #1 - 20 lines]</code>), AFTER the table is printed the message codex sent SUDDENLY DISAPPEARS from the terminal -- it is no longer rendered in the main view. Pressing <code>Ctrl+T</code> (transcript view) in that view DOES render it -- so the message is still in the transcript model but the MAIN-VIEW render dropped it after the table/paste render. Unknown whether upstream-native or caused by one of our fork TUI patches (prime suspects: retained_transcript_viewport, history-cell / resize-reprint / viewport work). Read-only investigation in flight (member <code>investigate-table-message-disappear</code>): locate the table + paste-placeholder + assistant-message render path, git-blame to determine upstream-vs-fork, identify the fix direction. CODEX TUI."
+        }
+      ],
+      "command": {
+        "name": "codex-tui-message-disappears-after-table-render",
+        "prompts": {
+          "brainstorm": "/brainstorm-with-ralph (only if the investigation finds competing fix approaches; otherwise go straight to plan).\n\nOperator (2026-06-13) hit a codex TUI bug: a sent message DISAPPEARS from the main view after a table/paste is rendered, but Ctrl+T (transcript) still shows it. Start from the read-only findings at .ralph/investigations/codex-tui-message-disappears-after-table-render/findings.md (is it upstream or a fork patch; the exact render path + file:line; the fix direction). Recommend the minimal-conflict-surface fix per codex/CLAUDE.md Tenant 1 (overlay-first; if an upstream-canonical edit, SANDBOX-PATCH-mark + patch-surface row). CODEX TUI submodule."
+        }
+      }
     }
   ],
   "phaseTree": [
