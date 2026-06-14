@@ -9261,6 +9261,25 @@
           }
         ]
       }
+    },
+    {
+      "id": "codex-anthropic-models-not-in-model-picker-when-enabled",
+      "scope": "codex",
+      "lifecycle": "tracked",
+      "status": "active",
+      "lastTouchedAt": "2026-06-14",
+      "kanbanCards": [
+        {
+          "className": "cmd-warn",
+          "html": "BUG (operator 2026-06-14, on the .8 release / another PC). The operator enabled the anthropic models experimental feature (Feature::AnthropicModels -- made visible/toggleable in the /experimental picker by the .8 expfeatures bundle, commit 43ac1269) AND RESTARTED codex, but anthropic/claude models STILL do not appear in <code>/model</code>. Restart did NOT help (operator-confirmed). Read-only investigation in flight (member <code>investigate-anthropic-model-picker</code>): trace the /model picker (live /models fetch from the Copilot API + the filter model_picker_enabled &amp;&amp; capabilities.type==chat &amp;&amp; supported_endpoints has /responses), the anthropic gate (model-provider/src/anthropic_gate.rs), whether enabling Feature::AnthropicModels actually affects what /models returns or what the picker shows, the models_cache.json TTL/refresh, and whether claude is meant to be config-set (model = claude-*) vs picker-listed. Settle: bug vs expected vs wiring gap + the fix direction. CODEX."
+        }
+      ],
+      "command": {
+        "name": "codex-anthropic-models-not-in-model-picker-when-enabled",
+        "prompts": {
+          "brainstorm": "/brainstorm-with-ralph (or straight to plan if the investigation finds a concrete fix). Operator (2026-06-14) on .8: enabled Feature::AnthropicModels + restarted but claude models do not show in /model. Start from the read-only findings at .ralph/investigations/codex-anthropic-models-not-in-model-picker/findings.md. Recommend the minimal-conflict-surface fix per codex/CLAUDE.md Tenant 1. CODEX."
+        }
+      }
     }
   ],
   "phaseTree": [
