@@ -6780,7 +6780,7 @@
     {
       "id": "ralph-copilot-exec-readonly-submodule-snapshot-cost",
       "scope": "ralph",
-      "lifecycle": "tracked",
+      "lifecycle": "merged",
       "status": "warn",
       "lastTouchedAt": "2026-06-14",
       "kanbanCards": [
@@ -6810,6 +6810,17 @@
           "plan": "/plan-with-ralph --from-brainstorm .ralph/brainstorms/ralph-copilot-exec-readonly-submodule-snapshot-cost/ \"Plan D-001: per-submodule git fast-path in ralph-orchestration read-only revert guard (worktree-snapshot.mjs). Each initialized submodule discovered by findNestedRepoRoots (L311) is snapshotted via its OWN git fast-path (git ls-files -z / ls-files --stage -z / status --porcelain -z -uall rooted at the submodule), mirroring the parent-tree path (L337/L363/L370): clean tracked files restored at revert from the submodule HEAD/index blobs (NOT held in heap), only pre-existing dirty+untracked byte-captured (L196/L301). Add findNestedRepoRoots de-dup/boundary-stop (no nested-within-nested double byte-read). PRESERVE whole-cwd protection for ANY initialized nested repo (not just the plugin-edit zone -- that is the distinction from rejected D-002). Exact index/restore fidelity for clean/dirty-unstaged/staged/partially-staged/staged-deletion/rename/mode-bit + dirty-binary spill. Add a fail-closed resource budget (total-bytes/file-count cap) that aborts BEFORE the Copilot child launches with a DISTINCT diagnostic (never silent partial snapshot). Regression fixture: 2-submodule parent (clean large codex-like + ai-developer-toolkit-like), stub read-only child writing out-of-zone into each, assert exit 3 + exact byte/index restoration + a no-whole-tree-Buffer/peak-memory assertion on the clean large submodule. Bump ralph-orchestration appropriately. See selected-direction.md + brainstorm-synthesis.md.\"",
           "impl": "/implement-with-ralph --from-plan .ralph/jobs/ralph-copilot-exec-readonly-submodule-snapshot-cost/plan.md --autonomous \"Implement the Copilot read-only submodule snapshot fast-path per the committed plan (5 stories US-001..US-005). TARGET: ralph (ralph-orchestration) plugin in the ai-developer-toolkit submodule -- single-repo; create a worktree INSIDE the submodule on a topic branch off main. US-001: findNestedRepoRoots() returns a complete de-duplicated nested-repo FOREST (parent->submodule->child), parent capture skips child roots, existing parent-tree snapshot unchanged. US-002: restore nested repos from git HEAD/index blobs (clean tracked files NOT held in heap), byte-exact for dirty-unstaged/staged/partially-staged/staged-deletion/rename/mode-bit/untracked/dirty-binary, and index-only/mode-only mutations reverted even when bytes unchanged; nested child submodules protected independently. US-003: fail-closed resource budget (reserve file-count + bytes BEFORE reading/streaming), spill large/binary dirty content outside the protected cwd without whole-file heap alloc, dedicated error on budget-exceed BEFORE any partial snapshot, spill cleanup on clean/violation/signal/budget paths, and a deterministic read-spy test hook that FAILS if clean tracked large-submodule files are byte-read. US-004: re-enable READONLY_SNAPSHOT_ENABLED, narrow budget-error catch around captureSnapshot() before runCopilot(), distinct sentinel + distinct non-zero status + no child spawn on budget-exceed, and an integration test where a child write inside BOTH ai-developer-toolkit-like and codex-like initialized submodules is reverted + reported exit 3. US-005: bump the ralph plugin version + sync the 3 plugin manifests + 3 marketplace indexes + CHANGELOG + AGENTS. Drive Phase 5a (code) + 5b (docs) to terminal. Two-commit submodule flow; the LEAD handles FF-merge + codexu pointer bump + push. Report the submodule commit SHA(s) + topic branch + worktree.\""
         }
+      },
+      "shipManifest": {
+        "shippedAt": "2026-06-14",
+        "summary": "Shipped as ralph (ralph-orchestration) 5.60.0 (toolkit main 1f7ecc3e -> pushed origin/gim-home/personal; codexu pointer bump d77ee641; copilot plugin update applied). Implements the Copilot read-only submodule-snapshot fast-path (5 stories): de-duplicated nested-repo forest discovery; restore nested repos from git HEAD/index blobs (clean tracked files not heap-held) covering dirty/staged/partial/delete/rename/mode/binary/untracked/gitlink edge cases; fail-closed resource budget with spill-cleanup + a read-spy hook; re-enabled READONLY_SNAPSHOT_ENABLED with a budget sentinel + dual initialized-submodule exit-3 coverage. The impl member's own Phase-5a review caught + fixed 3 High edge-case bugs (clean reset/checkout bytes, parent gitlink index, newly-created nested dirs). 36/36 focused tests + release gates green; docs review clear.",
+        "commits": [
+          {
+            "sha": "1f7ecc3e",
+            "oneLine": "feat: restore copilot readonly submodule snapshots",
+            "repo": "ai-developer-toolkit"
+          }
+        ]
       }
     },
     {
@@ -8972,7 +8983,7 @@
     {
       "id": "crews-review-mail-history-recovery-and-log-rotation",
       "scope": "crews",
-      "lifecycle": "tracked",
+      "lifecycle": "merged",
       "status": "active",
       "lastTouchedAt": "2026-06-14",
       "kanbanCards": [
@@ -8990,6 +9001,17 @@
         "prompts": {
           "impl": "/implement-with-ralph --autonomous \"Harden the crews lead review-surfacing path so a member done that was already consumed into mailbox-history can still be recovered, and so crews.log is not destroyed at rotation. Root cause settled @ .ralph/investigations/crews-undeliverable-report-delivery-gap/findings.md (a done delivered to inbox seq 707 + listener-consumed, then the lead cursor advanced to 710, leaving --peek empty and the report un-acted-on -- a cursor-after-consume surfacing gap, NOT a never-enqueued failure). TARGET: crews plugin in the ai-developer-toolkit submodule; create a worktree INSIDE the submodule on a topic branch off main; two-commit submodule flow; lead handles FF + codexu pointer bump. PART 1 (recovery read surface): in hooks/commands/review-mail.js near the cursor logic (review-mail.js:221-270), add a NON-cursor-advancing recovery mode -- e.g. a `--recover-outbox <id>` and/or `--recover-member <name>` flag (and/or accept it when --peek returns empty) that searches a BOUNDED recent window of the lead's mailbox-history.jsonl for payload.outboxId / payload.memberName and prints the expanded matching row(s) WITHOUT advancing lastReviewedSeq. This gives the lead a deterministic 'where did that done go?' path after the cursor has already advanced. PART 2 (log retention): in appendLog() (hooks/mailbox.js:992-1003), rotate to crews.log.1 (rename) BEFORE unlinking at MAX_LOG_BYTES=64KiB instead of deleting the whole current log, so the Stop-time 'notified lead of proactive done batch' line survives for postmortem. Do NOT change report-routing semantics, mailbox locks, the crash-notify latch, or listener ownership (the investigation explicitly scopes those OUT). Add tests: (a) a recovery query by outboxId/memberName finds a consumed history row and does NOT move the cursor; (b) appendLog at >64KiB preserves the prior log as crews.log.1. crews version bump + marketplace sync (all indexes carrying crews version) + CHANGELOG + AGENTS. Run crews tests via plugins/crews/tests/run.js. Drive Phase 5a/5b to terminal. Report the submodule commit SHA + topic branch + worktree.\""
         }
+      },
+      "shipManifest": {
+        "shippedAt": "2026-06-14",
+        "summary": "Shipped as crews 3.23.2 (toolkit main d1c172ac -> pushed origin/gim-home/personal; codexu pointer bump d77ee641; copilot plugin update applied). Fixes the cursor-after-consume delivery-gap surfacing bug root-caused this session: adds `review-mail --recover-outbox <id>` / `--recover-member <name>` -- a non-cursor-advancing recovery read over a bounded window of mailbox-history (returns the expanded consumed row WITHOUT advancing lastReviewedSeq), and rotates crews.log to crews.log.1 at 64KiB instead of deleting it. 294/294 crews suite green; report-routing/locks/latch/listener-ownership left untouched.",
+        "commits": [
+          {
+            "sha": "d1c172ac",
+            "oneLine": "fix(crews): recover reviewed mail and retain rotated logs",
+            "repo": "ai-developer-toolkit"
+          }
+        ]
       }
     },
     {
