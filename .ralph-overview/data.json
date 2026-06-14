@@ -8040,9 +8040,9 @@
     {
       "id": "crews-review-mail-overview-plan-conformance",
       "scope": "crews",
-      "lifecycle": "tracked",
+      "lifecycle": "merged",
       "status": "active",
-      "lastTouchedAt": "2026-06-10",
+      "lastTouchedAt": "2026-06-14",
       "kanbanCards": [
         {
           "className": "cmd-warn",
@@ -8058,6 +8058,22 @@
         "prompts": {
           "impl": "/implement-with-ralph --from-plan .ralph/jobs/crews-review-mail-overview-plan-conformance/plan.md --autonomous \"Implement per the committed plan: make lib/review-kind-summary.js emit the richer approved overview schema (headline, LOSSLESS counts, full actionable[] with cap+truncatedActionable flag, per-senders, needsActionCount). PRESERVE v3.19.0 correct behaviors (payload.entries[] flattening, no-kind->direct, the actionable-kind set, the 21-progress+buried-done regression pin) + CREWS_REVIEW_MAIL_OVERVIEW=off byte-shape compat on all 3 surfaces + the body-free listener envelope (v3.19.1). Tests extend the v3.19.0 suite without breaking its pins. Plugin-side; version bump + marketplace sync + CHANGELOG + AGENTS.md; two-commit submodule flow. SERIALIZE: this bumps crews version files -- rebase onto current crews main after any other crews impl (reviewmailfirst/tabtitle/pidalive) lands.\""
         }
+      },
+      "shipManifest": {
+        "shippedAt": "2026-06-14",
+        "summary": "Shipped crews 3.23.1. The review-mail `overview` object is now conformant with the approved summary-header plan: it emits a `headline` string, lossless per-literal-kind `counts` (no `other` bucket), `senders`, `needsActionCount`, collapsedCount-weighted `totalEntries`/`shownRows`, and -- the key fix -- the FULL capped `actionable[]` array (every non-progress entry, seq-ordered, with OVERVIEW_ACTIONABLE_CAP=100 truncation keeping the last actionable on overflow), replacing the lossy 3.19.0 `firstActionable`/`lastActionable` pair. Routed-kind handling (member-reply / member-question-request) is classified before the inner report kind across review-mail, /wake, collapse-key, and review-required so replies are no longer miscounted as new questions/blocks; the listener path stays counts-only. CREWS_REVIEW_MAIL_OVERVIEW=off remains a byte-identical opt-out.\n\nPhase 5a/5b convergence folded all reviewer findings into the single commit (High stale-doc in AGENTS.md, CHANGELOG key-order note, ordering/classification fixes in review-kind-summary.js + collapse-key.js + review-required.js, and the updated integration test). Merge-gate verification ran the full crews suite at the final commit: 293/294 (the lone failure, pretooluse-ask-user-question.test.js, passes standalone -- the known crews-pretooluse-hook-errored-under-concurrent-spawn-burst concurrency flake), and the finding-flagged integration/review-flow.test.js passes (exit 0). copilot plugin update took the dev box from crews v3.23.0 -> v3.23.1 live.",
+        "commits": [
+          {
+            "sha": "1e311aa2",
+            "oneLine": "fix(crews): conform review-mail overview schema",
+            "repo": "ai-developer-toolkit"
+          },
+          {
+            "sha": "6bc9de7d",
+            "oneLine": "chore(crews): bump to 3.23.1 (review-mail overview actionable[] conformance)",
+            "repo": "codexu"
+          }
+        ]
       }
     },
     {
