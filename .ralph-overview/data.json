@@ -9052,6 +9052,25 @@
           "impl": "You are the IMPL member for crews-report-routing-and-tag-enforcement-gap. Fix the Stop-hook tag-enforcement gap. Plugin: ai-developer-toolkit/plugins/crews. Work in a worktree inside the ai-developer-toolkit submodule (git -C ai-developer-toolkit worktree add .worktrees/<task> -b ralph/<task> main); commit there; the LEAD does the two-commit submodule flow + version bump + marketplace sync at ship.\n\nROOT CAUSE (investigation 61b11971): the Stop hook system.notification boundary exemption (hooks/stop.js:1005-1024) lets a member end its turn WITHOUT a <|report kind|> tag when the turn follows a system.notification boundary (\"stop allowed (system.notification ack; no kind tag required)\"). Meant for short notification-acks, it lets SUBSTANTIVE completion prose through untagged -> no terminal outbox row -> never routed to the lead -> the lead silently misses the report (observed live: investigate-resumetrigger finished + printed its verdict as prose but emitted no tag, empty outbox).\n\nFIX: (1) NARROW the exemption to TRUE short ack-style turns only (gate on prose substance/length / the turn being a pure notification ack) and ENFORCE the missing-kind block for substantive prose after a notification boundary. (2) Regression tests: substantive completion prose after a system.notification MUST be blocked until a kind tag is emitted; a genuine short ack stays allowed. (3) Telemetry/log when proactive routing is skipped due to a missing terminal row.\n\nVerify the crews test suite passes (Git Bash first on PATH on Windows). codexu root CLAUDE.md is gitignored. Report kind=done with commit SHA + branch + the narrowed-exemption logic + test coverage."
         }
       }
+    },
+    {
+      "id": "codex-windows-gitbash-shell-experimental-feature",
+      "scope": "codex",
+      "lifecycle": "tracked",
+      "status": "active",
+      "lastTouchedAt": "2026-06-13",
+      "kanbanCards": [
+        {
+          "className": "cmd-warn",
+          "html": "FEATURE REQUEST (operator 2026-06-13). Re-add the ability to use GIT BASH as the shell instead of PowerShell on Windows in codex, gated behind a DEFAULT-OFF experimental Feature (fork convention: codex-rs features/src/lib.rs registry, visible + toggleable in the /experimental picker). Operator recalls an earlier fork version had this patch and suspects it was LOST in the git subtree-&gt;submodule history truncation. Read-only investigation in flight (member <code>investigate-codex-gitbash-shell</code>) to settle the lost-patch claim, locate the current Windows shell-selection code (file:line), and scope the new Feature. CODEX SUBMODULE."
+        }
+      ],
+      "command": {
+        "name": "codex-windows-gitbash-shell-experimental-feature",
+        "prompts": {
+          "brainstorm": "/brainstorm-with-ralph\n\nOperator (2026-06-13) wants GIT-BASH-as-shell-on-Windows re-added as a DEFAULT-OFF codex EXPERIMENTAL FEATURE. VERIFY FEASIBILITY -- do NOT rubber-stamp. Start from the read-only findings at .ralph/investigations/codex-windows-gitbash-shell/findings.md (G1: did the patch exist + was it lost in the subtree->submodule migration, recoverable SHA?; G2: current Windows shell-selection code at file:line; G3: how the experimental-features gate threads to the shell-select call site). Recommend: cherry-pick/resurrect the lost patch vs a fresh minimal impl; the new Feature name + staging (match the visible LegacyPasteBurstHeuristic / UserMessageStyling pattern in features/src/lib.rs: Stage::Experimental, default false, experimental-menu metadata); the Git-Bash path-resolution approach (prefer C:\\Program Files\\Git\\bin\\bash.exe over WSL System32 bash; auto-detect vs config path); the patch-surface.md row + // SANDBOX PATCH: marker; and the upstream conflict surface. Output recommendedDirection + conflict surface for a follow-up /plan-with-ralph. CODEX submodule."
+        }
+      }
     }
   ],
   "phaseTree": [
