@@ -23,8 +23,8 @@ Agent-readable Ralph pipeline state is emitted as `.ralph-overview/generated/ral
 | Plugin | Pinned version | Source |
 |---|---:|---|
 | `ralph-overview` | `2.11.0` | `ai-developer-toolkit/plugins/ralph-overview/.claude-plugin/plugin.json` |
-| `crews` | `3.23.1` | `ai-developer-toolkit/plugins/crews/.claude-plugin/plugin.json` |
-| `ralph` (`ralph-orchestration`) | `5.59.0` | `ai-developer-toolkit/plugins/ralph/.claude-plugin/plugin.json` |
+| `crews` | `3.23.2` | `ai-developer-toolkit/plugins/crews/.claude-plugin/plugin.json` |
+| `ralph` (`ralph-orchestration`) | `5.60.0` | `ai-developer-toolkit/plugins/ralph/.claude-plugin/plugin.json` |
 <!-- END: active-plugin-versions -->
 
 The table above is the CI invariant's source of truth. Update it in the same
