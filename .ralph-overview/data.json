@@ -78,7 +78,7 @@
       "scope": "codex",
       "lifecycle": "tracked",
       "status": "todo",
-      "lastTouchedAt": "2026-06-12",
+      "lastTouchedAt": "2026-06-14",
       "kanbanCards": [
         {
           "className": "cmd-warn",
@@ -87,6 +87,10 @@
         {
           "className": "cmd-ok",
           "html": "SOURCE (audit): the visible Feature is UserMessageStyling @ features/src/lib.rs:999-1011 (Stage::Experimental, default false), wired at tui/src/chatwidget/constructor.rs:35-40. The stale launcher style_user_messages key remains. RECOMMENDATION: do NOT create a new Feature; either MAP the launcher key to the existing features.user_message_styling=<bool> (so old configs still work) OR remove/deprecate it. Conflict surface: low; prevents a dead config knob from diverging from the visible Feature."
+        },
+        {
+          "className": "cmd-ok",
+          "html": "IMPL committed on <code>ralph/codex-v8-int</code> @ <code>43ac126981</code> (bundled, Story 4). Chose the COMPATIBILITY-MAPPING option (option a): the legacy top-level <code>style_user_messages</code> config key now maps to <code>features.user_message_styling</code> ONLY when the canonical key is absent, so existing configs that set the old key still take effect and do not silently break. No new Feature created (UserMessageStyling already exists). Verified no live Rust/TOML/Markdown <code>style_user_messages</code> references remained in codex-rs/docs; the stale key lived in the launcher/config seam. cargo check green. NOT yet on origin/main -- ships with the .8 cut."
         }
       ],
       "command": {
@@ -103,7 +107,7 @@
       "scope": "codex",
       "lifecycle": "tracked",
       "status": "todo",
-      "lastTouchedAt": "2026-06-12",
+      "lastTouchedAt": "2026-06-14",
       "kanbanCards": [
         {
           "className": "cmd-warn",
@@ -112,6 +116,10 @@
         {
           "className": "cmd-ok",
           "html": "INVESTIGATION done (read-only, 2026-06-13, .ralph/investigations/codex-managed-hooks-semantics-naming/findings.md). FORK CHANGE: commit 883f75f50a \"skip managed/admin-config hooks by default with opt-in\" -- upstream has NO such gate. TRUTH TABLE (aligned with intent, NOT inverted): Feature::ManagedHooks=false (default) => managed hooks SUPPRESSED; =true => honored/executed (features/src/lib.rs:1012-1021; hooks/src/managed_gate.rs:4-55; runtime suppression session/mod.rs:3391-3393 + registry.rs:84-88 + engine/mod.rs:144-151). Enable: --enable-managed-hooks / features.managed_hooks=true / CODEX_ENABLE_MANAGED_HOOKS (cli/src/main.rs:805-852). RECOMMENDATION: KEEP the name + opt-in semantics (default-off already matches intent); make it VISIBLE in /experimental with explicit copy (\"Allow managed (admin) hooks\", description noting off-by-default); + ADD the MISSING patch-surface.md entry (the audit found NO managed-hooks entry in either wrapper or inner patch-surface.md)."
+        },
+        {
+          "className": "cmd-ok",
+          "html": "IMPL committed on <code>ralph/codex-v8-int</code> @ <code>43ac126981</code> (bundled, Story 2). <code>Feature::ManagedHooks</code> now VISIBLE in <code>/experimental</code> as 'Allow managed (admin) hooks', default OFF, PRESERVING the existing suppress-when-off / honor-when-on semantics (NOT renamed, default NOT flipped, per the investigation recommendation against DisableManagedHooks). Enable paths intact (<code>--enable-managed-hooks</code>, <code>features.managed_hooks=true</code>, <code>CODEX_ENABLE_MANAGED_HOOKS</code>). Added the MISSING patch-surface entry (§20) documenting the fork skip-managed-hooks-by-default opt-in gate (origin commit 883f75f50a) + the new picker visibility. cargo check + managed-gate test green. NOT yet on origin/main -- ships with the .8 cut."
         }
       ],
       "command": {
@@ -128,7 +136,7 @@
       "scope": "codex",
       "lifecycle": "tracked",
       "status": "todo",
-      "lastTouchedAt": "2026-06-12",
+      "lastTouchedAt": "2026-06-14",
       "kanbanCards": [
         {
           "className": "cmd-warn",
@@ -137,6 +145,10 @@
         {
           "className": "cmd-ok",
           "html": "ROOT CAUSE (source-settled, read-only 2026-06-13, .ralph/investigations/codex-anthropic-expfeature-visibility/findings.md): Feature::AnthropicModels is Stage::Stable default-false (features/src/lib.rs:978-985); the picker filter at features/src/lib.rs:47-61 + tui/src/chatwidget/settings_popups.rs:248-261 only includes specs whose stage yields experimental menu metadata, excluding Stable. paste-burst (LegacyPasteBurstHeuristic) + user-styling (UserMessageStyling) ARE visible. Enable today: --enable anthropic_models / -c features.anthropic_models=true / [features] anthropic_models=true (--enable-anthropic is a compat shortcut, cli/src/main.rs:797-846). FIX: change AnthropicModels stage so it appears + is toggleable in /experimental (match how LegacyPasteBurstHeuristic/UserMessageStyling are staged), keeping default OFF + the existing enable mechanisms working."
+        },
+        {
+          "className": "cmd-ok",
+          "html": "IMPL committed on <code>ralph/codex-v8-int</code> @ <code>43ac126981</code> ('Expose fork experimental feature gates', bundled 4 stories, +265 lines). THIS story (Story 1): <code>Feature::AnthropicModels</code> changed to <code>Stage::Experimental</code> (default OFF) so it is now VISIBLE + toggleable in the <code>/experimental</code> picker, matching the LegacyPasteBurstHeuristic/UserMessageStyling staging. All canonical enable paths preserved (<code>--enable anthropic_models</code>, <code>-c features.anthropic_models=true</code>, <code>[features] anthropic_models=true</code>, <code>--enable-anthropic</code> compat shortcut), the picker toggle converges on the same Feature state feeding the existing anthropic runtime gate. patch-surface §17 extended. cargo check -p codex-core + codex-tui PASSED; registry + anthropic-gate + picker tests green. NOT yet on origin/main -- ships with the eventual 0.135.0-copilot-api.8 release cut."
         }
       ],
       "command": {
@@ -153,7 +165,7 @@
       "scope": "codex",
       "lifecycle": "tracked",
       "status": "todo",
-      "lastTouchedAt": "2026-06-12",
+      "lastTouchedAt": "2026-06-14",
       "kanbanCards": [
         {
           "className": "cmd-warn",
@@ -162,6 +174,10 @@
         {
           "className": "cmd-ok",
           "html": "CURRENT STATE (source-settled, read-only 2026-06-13, .ralph/investigations/codex-anthropic-expfeature-visibility/findings.md): auto_load_claude_md is NOT a Feature; the production path is the explicit <code>project_doc_fallback_filenames</code> config (default EMPTY), with CLAUDE.md loaded only when configured (config/src/config_toml.rs:85-87; core/src/agents_md.rs:335-349). FIX: migrate the CLAUDE.md auto-load behavior to a default-OFF experimental Feature (e.g. AutoLoadClaudeMd) staged VISIBLE in /experimental like LegacyPasteBurstHeuristic/UserMessageStyling, while preserving the explicit project_doc_fallback_filenames config as the lower-level mechanism (or wiring the Feature to populate it)."
+        },
+        {
+          "className": "cmd-ok",
+          "html": "IMPL committed on <code>ralph/codex-v8-int</code> @ <code>43ac126981</code> (bundled, Story 3). New default-OFF <code>Feature::AutoLoadClaudeMd</code> added to the registry, staged VISIBLE in <code>/experimental</code>. When ENABLED it appends CLAUDE.md as an AGENTS-md fallback AFTER any explicit <code>project_doc_fallback_filenames</code> (config_toml.rs + agents_md.rs); behavior UNCHANGED when OFF (default: no CLAUDE.md auto-load unless explicitly configured). config.schema.json regenerated. patch-surface §17 extended. cargo check + agents_md fallback tests green. NOT yet on origin/main -- ships with the .8 cut."
         }
       ],
       "command": {
