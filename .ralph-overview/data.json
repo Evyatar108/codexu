@@ -76,7 +76,7 @@
     {
       "id": "codex-style-user-messages-stale-launcher-key-cleanup",
       "scope": "codex",
-      "lifecycle": "tracked",
+      "lifecycle": "merged",
       "status": "todo",
       "lastTouchedAt": "2026-06-14",
       "kanbanCards": [
@@ -100,12 +100,23 @@
         "prompts": {
           "impl": "/implement-with-ralph --autonomous \"Clean up the stale style_user_messages launcher key, per the fork-features audit @ .ralph/investigations/codex-fork-features-experimental-audit/findings.md. CONTEXT: style_user_messages was migrated to the visible experimental Feature::UserMessageStyling (shipped .6; features/src/lib.rs:999-1011, Stage::Experimental default false; wired at tui/src/chatwidget/constructor.rs:35-40). But a STALE launcher style_user_messages key remains -- a dead config knob that can diverge from the Feature (e.g. a user sets the old key and gets no effect, or conflicting state). FIRST find the stale launcher key (grep for style_user_messages across the launcher / copilot-fork launcher config + core config + config_toml). THEN choose the low-conflict fix: (a) MAP the old launcher key to the shipped features.user_message_styling=<bool> so existing configs still take effect (preferred if any users may rely on it), OR (b) REMOVE/DEPRECATE the dead key with a clear deprecation note if it is genuinely unused. Do NOT create a new Feature; the Feature already exists. Preserve backward compatibility -- do not silently break a config.toml that sets the old key. CODEX submodule -- lead-coordinated in the canonical inner checkout codex/external/repos/codex-patched on branch ralph/codex-v8-int (the .8 accumulation branch), NOT a worktree. Build/verify via files/codex-cargo.sh: cargo check -p codex-core (+ codex-tui if the launcher seam touches it) + targeted config tests. SANDBOX-PATCH-mark + register in docs/implementation/patch-surface.md if the key removal/mapping changes documented divergence. Drive Phase 5a to terminal. Known false-alarms (NOT blockers): reset_memories STATUS_STACK_OVERFLOW; spec_plan_tests.rs rustfmt quirk. EOL hygiene: revert LF->CRLF churn before commit. Report the SHA + branch + which option (map vs remove) + confirmation no existing config breaks.\""
         }
+      },
+      "shipManifest": {
+        "shippedAt": "2026-06-14",
+        "summary": "Shipped in codex 0.135.0-copilot-api.8 (wrapper 381da3d4 / inner version-bump 1b1348cb; GitHub Release https://github.com/gim-home/codex/releases/tag/v0.135.0-copilot-api.8) (expfeatures bundle 43ac1269). The stale launcher style_user_messages key was reconciled with Feature::UserMessageStyling (legacy-key compat mapping) so the dead knob can no longer diverge; backward-compat preserved.",
+        "commits": [
+          {
+            "sha": "43ac1269",
+            "oneLine": "Expose fork experimental feature gates",
+            "repo": "codex"
+          }
+        ]
       }
     },
     {
       "id": "codex-managed-hooks-visible-experimental-plus-patch-surface",
       "scope": "codex",
-      "lifecycle": "tracked",
+      "lifecycle": "merged",
       "status": "todo",
       "lastTouchedAt": "2026-06-14",
       "kanbanCards": [
@@ -129,12 +140,23 @@
         "prompts": {
           "impl": "/implement-with-ralph --autonomous \"Make the codex managed-hooks feature discoverable + clearly documented, per the source-settled investigation @ .ralph/investigations/codex-managed-hooks-semantics-naming/findings.md. CONTEXT: the fork (commit 883f75f50a) disables managed/admin-config hooks by DEFAULT via an opt-in gate Feature::ManagedHooks -- upstream has no such gate. Current semantics (KEEP these, do NOT rename, do NOT flip the default -- the investigation recommends against DisableManagedHooks-default-on due to double-negative + config-migration break + upstream divergence): ManagedHooks=false (default) => managed hooks SUPPRESSED; =true => honored/executed. THE FIX (two parts): (1) Make Feature::ManagedHooks VISIBLE + toggleable in /experimental by changing its stage from Stage::Stable to Stage::Experimental with CLEAR menu copy -- a label like \\\"Allow managed (admin) hooks\\\" and a description stating it is OFF by default and that enabling it honors admin/managed-config-pushed hooks (an enterprise/privileged surface). Match how the already-visible fork features LegacyPasteBurstHeuristic (features/src/lib.rs:986-998) + UserMessageStyling (features/src/lib.rs:999-1011) are staged. Keep DEFAULT OFF (Experimental stage, default false). Preserve ALL existing enable mechanisms unchanged: --enable-managed-hooks, features.managed_hooks=true, CODEX_ENABLE_MANAGED_HOOKS (cli/src/main.rs:805-852; config/mod.rs:2590-2603) -- no flag/env/key rename, no config migration. Confirm toggling it in /experimental converges on the same Feature state as the CLI/env/config paths and the gate (hooks/src/managed_gate.rs:4-55) still suppresses-when-off / honors-when-on. (2) ADD the MISSING patch-surface.md entry for the managed-hooks divergence (the audit found NO entry in either wrapper codex/docs/implementation/patch-surface.md or inner docs/implementation/patch-surface.md for ManagedHooks/managed_hooks/CODEX_ENABLE_MANAGED_HOOKS) -- document the fork skip-by-default-with-opt-in behavior (originating commit 883f75f50a) + the new picker visibility. CODEX submodule -- lead-coordinated in the canonical inner checkout codex/external/repos/codex-patched on branch ralph/codex-v8-int (the .8 accumulation branch), NOT a worktree. Build/verify via files/codex-cargo.sh: cargo check -p codex-core + codex-tui + targeted feature-registry/picker + managed-gate tests. Drive Phase 5a to terminal. Known false-alarms (NOT blockers): reset_memories STATUS_STACK_OVERFLOW; spec_plan_tests.rs rustfmt quirk. EOL hygiene: revert LF->CRLF churn before commit. Report the SHA + branch + the stage+copy change + confirmation default stays OFF + all enable paths intact + the patch-surface entry added.\""
         }
+      },
+      "shipManifest": {
+        "shippedAt": "2026-06-14",
+        "summary": "Shipped in codex 0.135.0-copilot-api.8 (wrapper 381da3d4 / inner version-bump 1b1348cb; GitHub Release https://github.com/gim-home/codex/releases/tag/v0.135.0-copilot-api.8) (expfeatures bundle 43ac1269). Feature::ManagedHooks is now Stage::Experimental + visible as \"Allow managed (admin) hooks\" (default-off, suppresses managed hooks when off), plus the missing patch-surface row documenting the fork skip-by-default behavior.",
+        "commits": [
+          {
+            "sha": "43ac1269",
+            "oneLine": "Expose fork experimental feature gates",
+            "repo": "codex"
+          }
+        ]
       }
     },
     {
       "id": "codex-anthropic-models-visible-in-experimental-picker",
       "scope": "codex",
-      "lifecycle": "tracked",
+      "lifecycle": "merged",
       "status": "todo",
       "lastTouchedAt": "2026-06-14",
       "kanbanCards": [
@@ -158,12 +180,23 @@
         "prompts": {
           "impl": "/implement-with-ralph --autonomous \"Make the anthropic experimental feature VISIBLE + toggleable in the codex /experimental picker, per the source-settled investigation @ .ralph/investigations/codex-anthropic-expfeature-visibility/findings.md. THE GAP: Feature::AnthropicModels is the sole anthropic authority (shipped .6) but is registered as Stage::Stable (features/src/lib.rs:978-985), and the /experimental picker only lists features whose stage returns experimental-menu metadata (features/src/lib.rs:47-61 + tui/src/chatwidget/settings_popups.rs:248-261), so anthropic is filtered OUT -- the operator does not see it in the menu. FIX: change the AnthropicModels stage so it appears + is toggleable in /experimental, MATCHING how the already-visible migrated features LegacyPasteBurstHeuristic (features/src/lib.rs:986-998) and UserMessageStyling (features/src/lib.rs:999-1011) are staged. Keep DEFAULT OFF and keep ALL existing enable mechanisms working (--enable anthropic_models, -c features.anthropic_models=true, [features] anthropic_models=true, and the --enable-anthropic compat shortcut at cli/src/main.rs:797-846). Verify toggling it in /experimental actually enables the anthropic gate (model-provider/src/anthropic_gate.rs) the same way the config/flag paths do -- i.e. the picker toggle and the CLI/config paths converge on the same Feature state. Confirm paste-burst + user-styling pickers still behave. CODEX submodule -- lead-coordinated in the canonical inner checkout codex/external/repos/codex-patched on branch ralph/codex-v8-int (the .8 accumulation branch), NOT a worktree. Build/verify via files/codex-cargo.sh: cargo check -p codex-tui + cargo check -p codex-core + targeted feature-registry/picker tests. SANDBOX-PATCH-mark + register in docs/implementation/patch-surface.md (extend the flags-to-experimental-features entry). Drive Phase 5a to terminal. Known false-alarms (NOT blockers): reset_memories STATUS_STACK_OVERFLOW; spec_plan_tests.rs rustfmt quirk. EOL hygiene: revert LF->CRLF churn before commit. Report the SHA + branch + the stage change + confirmation anthropic now shows + toggles in /experimental with default OFF + all enable paths intact.\""
         }
+      },
+      "shipManifest": {
+        "shippedAt": "2026-06-14",
+        "summary": "Shipped in codex 0.135.0-copilot-api.8 (wrapper 381da3d4 / inner version-bump 1b1348cb; GitHub Release https://github.com/gim-home/codex/releases/tag/v0.135.0-copilot-api.8) (part of the 4-story expfeatures-visibility bundle, commit 43ac1269). Feature::AnthropicModels is now Stage::Experimental + visible/toggleable in the /experimental picker (was Stable -> filtered out), default-off, all enable paths intact.",
+        "commits": [
+          {
+            "sha": "43ac1269",
+            "oneLine": "Expose fork experimental feature gates",
+            "repo": "codex"
+          }
+        ]
       }
     },
     {
       "id": "codex-auto-load-claude-md-to-experimental-feature",
       "scope": "codex",
-      "lifecycle": "tracked",
+      "lifecycle": "merged",
       "status": "todo",
       "lastTouchedAt": "2026-06-14",
       "kanbanCards": [
@@ -187,12 +220,23 @@
         "prompts": {
           "impl": "/implement-with-ralph --autonomous \"Migrate auto_load_claude_md to a default-OFF experimental Feature, per the source-settled investigation @ .ralph/investigations/codex-anthropic-expfeature-visibility/findings.md. CONTEXT: the flags-to-experimental-features migration (shipped .6) covered anthropic + disable_paste_burst + style_user_messages, but auto_load_claude_md was left as ad-hoc config: today the CLAUDE.md auto-load is driven by project_doc_fallback_filenames (default EMPTY; config/src/config_toml.rs:85-87) and CLAUDE.md is loaded only when configured (core/src/agents_md.rs:335-349). FIX: add a new experimental Feature (e.g. Feature::AutoLoadClaudeMd) in codex-rs/features/src/lib.rs, DEFAULT OFF, staged VISIBLE in /experimental MATCHING how LegacyPasteBurstHeuristic (features/src/lib.rs:986-998) + UserMessageStyling (features/src/lib.rs:999-1011) are staged (so it shows + toggles in the picker). Wire the Feature so that when ENABLED it auto-loads CLAUDE.md (e.g. by populating/defaulting project_doc_fallback_filenames to include CLAUDE.md, or gating the agents_md.rs fallback on the Feature) -- preserving the explicit project_doc_fallback_filenames config as the lower-level override. Keep behavior UNCHANGED when the Feature is OFF (default: no CLAUDE.md auto-load unless explicitly configured). CODEX submodule -- lead-coordinated in the canonical inner checkout codex/external/repos/codex-patched on branch ralph/codex-v8-int (the .8 accumulation branch), NOT a worktree. Build/verify via files/codex-cargo.sh: cargo check -p codex-core + codex-tui + targeted agents_md / feature-registry tests. SANDBOX-PATCH-mark + register in docs/implementation/patch-surface.md (extend the flags-to-experimental-features entry). Drive Phase 5a to terminal. Known false-alarms (NOT blockers): reset_memories STATUS_STACK_OVERFLOW; spec_plan_tests.rs rustfmt quirk. EOL hygiene: revert LF->CRLF churn before commit. Report the SHA + branch + the new Feature + how enabling it auto-loads CLAUDE.md + confirmation default-OFF preserves current behavior + it shows in /experimental.\""
         }
+      },
+      "shipManifest": {
+        "shippedAt": "2026-06-14",
+        "summary": "Shipped in codex 0.135.0-copilot-api.8 (wrapper 381da3d4 / inner version-bump 1b1348cb; GitHub Release https://github.com/gim-home/codex/releases/tag/v0.135.0-copilot-api.8) (expfeatures bundle 43ac1269). New default-OFF Feature::AutoLoadClaudeMd: enabling it auto-loads CLAUDE.md (via project_doc_fallback_filenames); default behavior unchanged when off; visible in /experimental.",
+        "commits": [
+          {
+            "sha": "43ac1269",
+            "oneLine": "Expose fork experimental feature gates",
+            "repo": "codex"
+          }
+        ]
       }
     },
     {
       "id": "codex-console-mode-corruption-tracer",
       "scope": "codex",
-      "lifecycle": "tracked",
+      "lifecycle": "merged",
       "status": "todo",
       "lastTouchedAt": "2026-06-14",
       "kanbanCards": [
@@ -220,12 +264,23 @@
         "prompts": {
           "impl": "/implement-with-ralph --autonomous \"Implement the opt-in Windows console-mode-corruption TRACER per the design spike @ .ralph/investigations/codex-console-mode-corruption-tracer/design-spike.md. GOAL: capture WHAT flips the Windows console input mode mid-session (the [I/[O + broken-input bug) so the operator can reproduce + fingerprint the culprit. DESIGN (mirror the existing CODEX_STREAM_TRACE=1 stream-cut tracer -- read .agents/skills/diagnose-codex-stream-cut + the codex-stream-diagnostics crate for the pattern): (1) env-gate CODEX_CONSOLE_MODE_TRACE=1, Windows-only (cfg(windows)), DEFAULT-OFF with a cached env check so it is ZERO-overhead when disabled (no per-poll syscall when off). (2) When ON, snapshot GetConsoleMode BEFORE each crossterm event read at codex-rs/tui/src/tui/event_stream.rs:178-220 and compare to codex EXPECTED mode (disallowed raw bits cleared: ENABLE_LINE_INPUT/ENABLE_ECHO_INPUT/ENABLE_PROCESSED_INPUT; ENABLE_VIRTUAL_TERMINAL_INPUT cleared; focus reporting off). (3) On a DELTA, append a JSONL record to a sidecar (console-mode-trace.jsonl near the session/rollout dir, same convention as the stream-cut sidecar) with: timestamp, NAMED before/after mode-bit flags (not raw hex), the unexpected bits, the last input event, and a recent STRUCTURAL-ACTION marker (what codex just did -- e.g. a shell-exec/unified-exec child ran, a sub-agent spawned, a resize). Source the context marker from a small TUI-local field updated in TuiEventStream / App::handle_tui_event / App::handle_thread_event_now (per the design doc). Metadata-only / privacy-canary approach like the stream-cut tracer (hash IDs, no payload content). (4) Add a privacy/off-path test asserting the tracer is a no-op + writes nothing when the env var is unset. CODEX submodule -- lead-coordinated in the canonical inner checkout codex/external/repos/codex-patched, NOT a worktree. Build/verify via files/codex-cargo.sh: cargo check -p codex-tui (+ codex-stream-diagnostics if used) + the off-path test. SANDBOX-PATCH-mark + register in docs/implementation/patch-surface.md. Drive Phase 5a to terminal. DELIVERABLE incl. a short operator runbook (set the env var -> reproduce mid-session -> read the sidecar -> classify the first delta by unexpected bits + marker) added to the diagnose-codex-stream-cut skill OR a sibling skill/doc. Report the commit SHA + branch + the gate/snapshot/sidecar shape + the runbook location. NOTE: this is INDEPENDENT of the self-heal FIX task (codex-tui-input-mode-full-guard-windows-recur) -- this only OBSERVES; do not implement the fix here.\""
         }
+      },
+      "shipManifest": {
+        "shippedAt": "2026-06-14",
+        "summary": "Shipped in codex 0.135.0-copilot-api.8 (wrapper 381da3d4 / inner version-bump 1b1348cb; GitHub Release https://github.com/gim-home/codex/releases/tag/v0.135.0-copilot-api.8) (same commit 5b8aec23 as the input-mode self-heal). Opt-in CODEX_CONSOLE_MODE_TRACE=1 console-mode corruption tracer, default-off, records the corruption delta BEFORE the self-heal repairs it (diagnostic for the input-mode recurrence).",
+        "commits": [
+          {
+            "sha": "5b8aec23",
+            "oneLine": "Self-heal Windows console input mode (incl. tracer)",
+            "repo": "codex"
+          }
+        ]
       }
     },
     {
       "id": "codex-tui-input-mode-full-guard-windows-recur",
       "scope": "codex",
-      "lifecycle": "tracked",
+      "lifecycle": "merged",
       "status": "todo",
       "lastTouchedAt": "2026-06-14",
       "kanbanCards": [
@@ -249,14 +304,25 @@
         "prompts": {
           "impl": "/implement-with-ralph --autonomous \"Fix the mid-session Windows input-mode corruption in codex-tui per the source-settled root cause @ .ralph/investigations/codex-focus-leak-recur-after-subagent-v6/findings.md. SYMPTOMS (operator live on .6, mid-session after agent work/sub-agent spawn): [I/[O focus reports flood as literal text; Backspace echoes as space instead of deleting; Enter does not submit + Escape does not stop the agent; special keys (Page Down etc.) input as literal characters. ROOT CAUSE: the .5 focus-leak fix only guards the ENABLE_VIRTUAL_TERMINAL_INPUT bit at setup/restore sites, but the Windows raw-mode bits (ENABLE_LINE_INPUT | ENABLE_ECHO_INPUT | ENABLE_PROCESSED_INPUT) can be corrupted mid-session and are NEVER re-asserted before normal event reads (codex-rs/tui/src/tui/event_stream.rs:178-220). codex keeps polling input without repairing full TUI input mode. THE FIX: add a Windows full-input-mode guard (e.g. a reassert_input_mode() helper in codex-rs/tui/src/tui.rs alongside the existing enter_codex_tui_input_mode / set_modes / restore helpers at tui.rs:414-449,1351-1397) that re-asserts the COMPLETE expected console input mode on Windows -- raw-mode bits CLEARED (no ENABLE_LINE_INPUT/ENABLE_ECHO_INPUT/ENABLE_PROCESSED_INPUT), ENABLE_VIRTUAL_TERMINAL_INPUT cleared, focus-event reporting OFF -- and CALL it before event reads / on every event-stream resume (event_stream.rs:178-220) so codex SELF-HEALS even if something clobbered the console mode mid-session. Make it idempotent + cheap (only SetConsoleMode if the live mode differs from expected, to avoid per-poll syscall churn). ALSO: stop enabling xterm focus-event reporting on Windows unless actually needed (the [I/[O leak). Keep it Windows-gated (cfg(windows)); do NOT change POSIX behavior. CODEX submodule -- lead-coordinated in the canonical inner checkout codex/external/repos/codex-patched on branch ralph/codex-v7-int (or the next accumulation branch the lead sets up), NOT a worktree (overlay relative-paths break cargo). Build/verify via files/codex-cargo.sh: cargo check -p codex-tui + targeted tui input/event tests. Verify (manual repro guidance in the report): mid-session after agent work the input stays correct -- Backspace deletes, Enter submits, Escape stops, special keys act, no [I/[O. SANDBOX-PATCH-mark + register in docs/implementation/patch-surface.md (the .5 focus-leak patch entry should be extended). Drive Phase 5a to terminal. Known false-alarms (NOT blockers): reset_memories STATUS_STACK_OVERFLOW (Windows harness); spec_plan_tests.rs rustfmt quirk. EOL hygiene: revert LF->CRLF whitespace-only churn before commit. Report the commit SHA + branch + the guard added + how it self-heals + the manual repro verification.\""
         }
+      },
+      "shipManifest": {
+        "shippedAt": "2026-06-14",
+        "summary": "Shipped in codex 0.135.0-copilot-api.8 (wrapper 381da3d4 / inner version-bump 1b1348cb; GitHub Release https://github.com/gim-home/codex/releases/tag/v0.135.0-copilot-api.8). The Windows console input mode now self-heals mid-session: codex detects the corrupted input mode (the live `[I` / broken Backspace/Enter/Escape bug the operator hit on .6 after agent/sub-agent work) and repairs it instead of leaving the TUI broken.",
+        "commits": [
+          {
+            "sha": "5b8aec23",
+            "oneLine": "Self-heal Windows console input mode",
+            "repo": "codex"
+          }
+        ]
       }
     },
     {
       "id": "codex-publish-preflight-gate-excludes-submodule-gitlink",
       "scope": "codex",
-      "lifecycle": "tracked",
+      "lifecycle": "merged",
       "status": "todo",
-      "lastTouchedAt": "2026-06-13",
+      "lastTouchedAt": "2026-06-14",
       "kanbanCards": [
         {
           "className": "cmd-warn",
@@ -278,6 +344,17 @@
         "prompts": {
           "impl": "/implement-with-ralph --autonomous \"Refine the Step-0 assert-clean-or-abort preflight gate in codex/.claude/commands/publish-sandbox-patch.md (added by the overlay-fmt fix ac5fa72b). THE BUG (lead-observed 2026-06-13 during the .7 release): the gate counts the submodule gitlink pointer (external/repos/codex-patched) as dirty tracked source and ABORTS Step 0, but the gitlink being ahead is the NORMAL pre-release state -- the inner submodule has the new fix commits and the wrapper gitlink has not been re-pointed yet; the release flow itself reconciles it in its wrapper-gitlink commit. As written the gate blocks EVERY release. FIX: change the Step-0 check to (a) verify the SUBMODULE working tree is clean -- run git -C external/repos/codex-patched status --porcelain and require it to be empty except untracked dirs like .worktrees/ (this captures the real intent: no dirty rustfmt overlay / no uncommitted build source); AND (b) verify the WRAPPER tracked files OTHER THAN the external/repos/codex-patched gitlink line are clean -- i.e. git status --porcelain --untracked-files=no filtered to drop the single gitlink line for external/repos/codex-patched. ABORT only if (a) the submodule tree is dirty OR (b) a wrapper tracked file other than the gitlink is dirty. Do NOT abort merely because the gitlink pointer is ahead. Keep the abort message clear + the remediation actionable. This is a codex WRAPPER-only skill/doc change (codex/.claude/commands/publish-sandbox-patch.md), NO inner submodule change, NO version bump, NO cargo build (markdown + embedded bash only). Per codexu AGENTS.md the lead handles FF-merge + push; commit on a topic branch in a codex/ worktree. VERIFY: dry-run the new check logic against the exact .7-style state (submodule clean + gitlink ahead) and confirm it PASSES; dry-run against a synthetic dirty overlay file and confirm it ABORTS. Report the commit SHA + branch + the new gate logic.\""
         }
+      },
+      "shipManifest": {
+        "shippedAt": "2026-06-14",
+        "summary": "Shipped in codex 0.135.0-copilot-api.8 (wrapper 381da3d4 / inner version-bump 1b1348cb; GitHub Release https://github.com/gim-home/codex/releases/tag/v0.135.0-copilot-api.8) (FF-merged into wrapper main as the first step of the .8 cut; part of wrapper 381da3d4). The publish-sandbox-patch Step-0 assert-clean gate now filters out only the expected external/repos/codex-patched gitlink line (which is normally ahead pre-release) while still aborting on any other dirty wrapper file or dirty submodule source -- so the gate no longer blocks every release. Validated live: it passed during the .8 cut.",
+        "commits": [
+          {
+            "sha": "6a4bf4713",
+            "oneLine": "Fix publish preflight gitlink gate",
+            "repo": "codex"
+          }
+        ]
       }
     },
     {
@@ -8825,9 +8902,9 @@
     {
       "id": "codex-bg-wake-payload-overflow-spill-to-file",
       "scope": "codex",
-      "lifecycle": "tracked",
+      "lifecycle": "merged",
       "status": "active",
-      "lastTouchedAt": "2026-06-13",
+      "lastTouchedAt": "2026-06-14",
       "kanbanCards": [
         {
           "className": "cmd-warn",
@@ -8852,6 +8929,17 @@
           "brainstorm": "Brainstorm: when the codex non-blocking background-completion wake payload TRUNCATES large process output, should it SPILL the full output to a FILE (with a path/command the agent can read), matching Claude Code + Copilot truncated-tool-output behavior?\n\nCONTEXT: codex-nonblocking-bg-completion-surfacing (commit 7133aca92) enriched the watcher wake payload to carry the process transcript INLINE with a sensible cap (mirroring the old await_background_completion truncation: a 1 MiB head/tail buffer). await_background_completion was DELETED, so the wake payload is now the ONLY way the agent sees the output. If output exceeds the cap, the truncated middle is LOST (no retrieval path) -- unlike Claude Code / Copilot, which write the FULL output to a file + give the agent a path/command to read the overflow.\n\nSTEP 1 -- CONFIRM current behavior (cite file:line in 7133aca92 / async_watcher.rs): does the enriched wake payload spill overflow to a file, or just truncate (head/tail) with a marker? (Expected: just truncates.)\nSTEP 2 -- DESIGN file-spill-on-overflow for parity with Claude Code / Copilot: on truncation, persist the FULL aggregated output to a file (session-scoped temp / ~/.codex / rollout path?) + include in the wake notification a clear \"[output truncated; full output at <path>]\" marker (and/or a command the agent can run to read it). Evaluate: where to write, lifecycle/cleanup, size limits, how the agent reads it (a tool vs a path it cats), and how Claude Code / Copilot implement their truncation-spill UX (reference for parity). Keep fork-tenet-1 overlay where possible; minimal upstream-canonical seam.\n\nDELIVERABLE: recommended direction + the confirmed current behavior. Brainstorm.json under .ralph/brainstorms/codex-bg-wake-payload-overflow-spill-to-file/.",
           "impl": "/implement-with-ralph --from-plan .ralph/jobs/codex-bg-wake-payload-overflow-spill-to-file/plan.md --autonomous\n\nImplement D-001 per the committed 3-story plan: tee the background-process transcript to a session-scoped artifact under ~/.codex/sessions/<conversation>/ DURING streaming (the existing inline 16 KiB head/tail truncation in async_watcher.rs stays as the inline preview), and widen the bg-notification coalescer (tasks/mod.rs, currently task_id + exit_code) to carry a recovery reference using the pinned <output_artifact_path> XML tag for both single + coalesced notifications. Gate the whole behavior behind a NEW default-off codex experimental Feature (features/src/lib.rs); SANDBOX-PATCH-mark + register in docs/implementation/patch-surface.md (coordinate with codex-patch-surface-divergence-registry-refresh). Touch: async_watcher.rs, process_manager.rs, features/src/lib.rs, tasks/mod.rs. Tests: codex-invariant-tests background_{notifications,completion}.rs + process_manager_tests + resume/ephemeral suites. CODEX submodule, lead-coordinated in the canonical checkout. Drive Phase 5a/5b to terminal."
         }
+      },
+      "shipManifest": {
+        "shippedAt": "2026-06-14",
+        "summary": "Shipped in codex 0.135.0-copilot-api.8 (wrapper 381da3d4 / inner version-bump 1b1348cb; GitHub Release https://github.com/gim-home/codex/releases/tag/v0.135.0-copilot-api.8). D-001: a new default-off experimental Feature tees full background-process output to a session-scoped artifact under ~/.codex/sessions/<id>/ DURING streaming (the inline 16 KiB head/tail wake preview is unchanged), and the bg-notification coalescer now carries an <output_artifact_path> recovery reference for single + coalesced notifications. Also resolved a pre-existing dead-code warning by wiring the transcript field.",
+        "commits": [
+          {
+            "sha": "8fb378ad",
+            "oneLine": "Spill background wake output to artifacts",
+            "repo": "codex"
+          }
+        ]
       }
     },
     {
@@ -9068,9 +9156,9 @@
     {
       "id": "codex-windows-gitbash-shell-experimental-feature",
       "scope": "codex",
-      "lifecycle": "tracked",
+      "lifecycle": "merged",
       "status": "active",
-      "lastTouchedAt": "2026-06-13",
+      "lastTouchedAt": "2026-06-14",
       "kanbanCards": [
         {
           "className": "cmd-warn",
@@ -9099,6 +9187,17 @@
           "plan": "/plan-with-ralph\n\nPlan a DEFAULT-OFF codex EXPERIMENTAL FEATURE that uses Git Bash as the default Windows shell when detected. Base everything on .ralph/investigations/codex-windows-gitbash-shell/findings.md (G1-G4, file:line-cited). APPROACH = fresh minimal impl (NOT cherry-pick of 1d828e5947/fff065934c), per G4.\n\nSCOPE (codex INNER checkout codex/external/repos/codex-patched/codex-rs):\n1. features/src/lib.rs: add Feature::WindowsGitBashShell + default-off VISIBLE FeatureSpec (key windows_git_bash_shell, Stage::Experimental, default_enabled:false), matching LegacyPasteBurstHeuristic/UserMessageStyling (enum ~:137-145, specs ~:1005-1030). // SANDBOX PATCH: mark.\n2. NEW core/src/windows_git_bash.rs (#[cfg(windows)]): Git-for-Windows-FIRST detector reusing launcher logic (codex-rs-overlay/codex-copilot-launcher/src/setup.rs:188-216,222-267); MUST NOT use bare which(\"bash\") first (WSL PATH gotcha). Return shell::get_shell(ShellType::Bash, Some(&path)).\n3. core/src/session/session.rs:840-860: after user_shell_override + ShellZshFork, before default_user_shell(), if features.enabled(WindowsGitBashShell) && detector hits, use it; else current PowerShell default. Explicit launcher default_shell still WINS.\n4. Tests: detector candidate-ordering (model after launcher setup.rs:318-350) + session default-shell selection (off -> PowerShell; on + detected -> Bash).\n5. // SANDBOX PATCH: markers + new row/invariant in WRAPPER registry codex/docs/implementation/patch-surface.md (do NOT edit the smaller inner copy).\n6. MODEL-FACING PROMPT/TOOL-DESC SHELL-AWARENESS (operator-flagged 2026-06-13, REQUIRED): find EVERY place codex tells the MODEL which Windows shell/syntax to use -- shell_spec.rs:181-196 (\"Runs a PowerShell command\"), the unified_exec spec, the BASE/SYSTEM prompt(s), any guidance naming PowerShell/pwsh/Windows -- and design how each becomes consistent with the active session shell (bash when feature ON, PowerShell when OFF). If static at compile time, specify the mechanism to make it conditional on the resolved shell / flag, or document why a piece is infeasible + propose the best alternative. Add tests asserting the hint matches the active shell on/off.\n\nDEFAULTS (operator-approved 2026-06-13): (a) auto-detect only; explicit launcher default_shell stays the custom-path escape hatch. (b) WARN when feature ON but Git Bash not detected, then fall back to PowerShell. (c) model-facing hints = NOW IN SCOPE (item 6), not static/out-of-scope.\n\nCONFLICT SURFACE: moderate-but-clean (shell.rs/session.rs upstream-hot but additive); do NOT alter generic get_bash_shell()/get_shell_path() ordering. IMPL-phase note for the plan: impl runs in the canonical inner checkout on ralph/codex-v8-int (cargo cannot build from a worktree), gated default-off, queued for the .8 release. Lead handles FF-merge + push.",
           "impl": "IMPL (direct, canonical inner checkout, NOT /implement-with-ralph -- cargo cannot build from a worktree).\n\ncwd = codex/external/repos/codex-patched (codex-rs/); branch ralph/codex-v8-int (implement DIRECTLY, sole editor, no worktree, no push -- lead pushes at the .8 cut). Spec = .ralph/jobs/codex-windows-gitbash-shell-experimental-feature/plan.md (5 stories US-001..005).\n\nCRITICAL CONSTRAINT (child-process findings @ .ralph/investigations/codex-windows-gitbash-shell/child-process-fix-findings.md): PRESERVE the Windows Job Object child-tree cleanup (f11c5d8d). Detector returns a normal shell::Shell via get_shell(ShellType::Bash, Some(&path)); Git Bash flows through the EXISTING exec_command/unified_exec/session-shell path. NO new direct tokio::process spawn for Git Bash; NO features.unified_exec=false guard; keep features.unified_exec=true Copilot policy; do NOT change unified_exec semantics / derive_exec_args. ADD a regression test that bash sessions route through the existing exec path (no bypass).\n\nPATCH-SURFACE (US-005): the plan says wrapper copy, but the established .8 convention (commits 43ac126981, 5b8aec23) registers in the INNER copy docs/implementation/patch-surface.md on v8-int -- match the .8 batch (single-repo), verify against codex/CLAUDE.md. // SANDBOX PATCH: mark all upstream-canonical edits.\n\nBUILD via Git Bash codex-cargo.sh (clang-cl/lld-link/xwin): cargo check -p codex-core (+ codex-tui if the experimental picker is touched) + targeted detector/session/shell_spec/environment_context tests. This is a Windows box so #[cfg(windows)] compiles. EOL hygiene (git diff --numstat --ignore-all-space; revert LF->CRLF churn). Known false-alarms: spec_plan_tests.rs rustfmt quirk; reset_memories STATUS_STACK_OVERFLOW. Drive Phase 5a code review-fix convergence to terminal. codexu CLAUDE.md gitignored -- do NOT git add it. Commit on ralph/codex-v8-int; report SHA(s)."
         }
+      },
+      "shipManifest": {
+        "shippedAt": "2026-06-14",
+        "summary": "Shipped in codex 0.135.0-copilot-api.8 (wrapper 381da3d4 / inner version-bump 1b1348cb; GitHub Release https://github.com/gim-home/codex/releases/tag/v0.135.0-copilot-api.8). New default-off Feature::WindowsGitBashShell (key windows_git_bash_shell, visible in /experimental): when enabled on Windows and no explicit default_shell override exists, codex auto-detects Git Bash (Git-for-Windows-first ordering, avoiding the WSL System32 bash gotcha) and uses it as the session shell. Model-facing shell tool descriptions become active-shell-aware (bash vs PowerShell). Cross-platform-safe (#[cfg(not(windows))] no-op) and preserves the Windows Job Object child-tree cleanup (no new spawn path). Operator-requested; the original launcher-era patch had been lost in the subtree->submodule migration.",
+        "commits": [
+          {
+            "sha": "fd331d2f",
+            "oneLine": "Add Windows Git Bash shell experiment",
+            "repo": "codex"
+          }
+        ]
       }
     },
     {
@@ -9123,9 +9222,9 @@
     {
       "id": "codex-tui-message-disappears-after-table-render",
       "scope": "codex",
-      "lifecycle": "tracked",
+      "lifecycle": "merged",
       "status": "active",
-      "lastTouchedAt": "2026-06-13",
+      "lastTouchedAt": "2026-06-14",
       "kanbanCards": [
         {
           "className": "cmd-warn",
@@ -9150,6 +9249,17 @@
           "plan": "/plan-with-ralph\n\nPlan the fix for the retained_transcript_viewport live-view drop (a fork-patch bug; findings @ .ralph/investigations/codex-tui-message-disappears-after-table-render/findings.md). ROOT CAUSE: RetainedTranscriptViewportRenderable at tui/src/chatwidget/committed_transcript.rs:155-208,212-247 reverse-walks committed cells + clips anything outside the height budget, so a tall active tail (table/big paste) drops a PRECEDING committed message cell from the live view (Ctrl+T transcript overlay still shows it; data is intact in App::transcript_cells). FIX (minimal-conflict-surface per codex/CLAUDE.md Tenant 1): adjust the retained-viewport row-allocation policy -- pin recent committed context (esp. the current user prompt) and/or reserve committed rows before the active tail consumes the budget; do NOT touch markdown/table rendering. Add a regression test for the tall-block-drops-preceding-message case. Also close the patch-surface doc gap: add the retained_transcript_viewport key/row to docs/implementation/patch-surface.md. retained_transcript_viewport stays DEFAULT-OFF. CODEX TUI submodule; lead decides at plan time whether the impl rides v8-int or its own branch.",
           "impl": "IMPL (direct, canonical inner checkout on v8-int, NOT /implement-with-ralph -- cargo cannot build from a worktree). QUEUED behind impl-bgwake (codex-inner impls serialize on the canonical checkout). cwd = codex/external/repos/codex-patched (codex-rs/); branch ralph/codex-v8-int (or its own branch -- lead decides at spawn time). Spec = .ralph/jobs/codex-tui-message-disappears-after-table-render/plan.md (3 stories).\n\nFIX = option (a): reserve/pin recent committed rows in RetainedTranscriptViewportRenderable::render() (tui/src/chatwidget/committed_transcript.rs) BEFORE assigning rows to the active tail, so a tall active table/paste tail cannot evict a preceding committed message from the live view; keep visible_height() using the SAME reservation policy as render() (geometry must agree). Do NOT touch markdown/table rendering, table holdback, generic HistoryCell height measurement, or the non-retained path.\n\nAdd the regression test in tui/src/app/tests.rs near retained_transcript_main_view_renders_visible_tail_snapshot (committed message + tall active table-like tail must NOT drop the message; assert READABLE prompt text, not just a separator row). Update inner docs/implementation/patch-surface.md &sect;16 with the retained_transcript_viewport key + the no-eviction invariant + the enforcing test. Keep the feature DEFAULT-OFF. // SANDBOX PATCH: mark all upstream-canonical edits.\n\nBUILD via Git Bash codex-cargo.sh: cargo check -p codex-tui + the targeted retained-viewport/render tests (Windows-friendly). EOL hygiene. Drive Phase 5a code review-fix convergence to terminal. codexu CLAUDE.md is gitignored -- do NOT git add it. Commit on the branch; report SHA(s)."
         }
+      },
+      "shipManifest": {
+        "shippedAt": "2026-06-14",
+        "summary": "Shipped in codex 0.135.0-copilot-api.8 (wrapper 381da3d4 / inner version-bump 1b1348cb; GitHub Release https://github.com/gim-home/codex/releases/tag/v0.135.0-copilot-api.8). Fixes the operator-reported bug where a message disappears from the live view after a table/large-paste renders (Ctrl+T still showed it). Root cause was the fork feature retained_transcript_viewport: RetainedTranscriptViewportRenderable let a tall active tail consume the whole viewport and evict a preceding committed message. Fix reserves the readable suffix of the most recent committed cell (shared render()/visible_height() policy) so committed context cannot be evicted. Regression test + patch-surface no-eviction invariant added; feature stays default-off.",
+        "commits": [
+          {
+            "sha": "e3edc3fd",
+            "oneLine": "Prevent retained viewport active tail eviction",
+            "repo": "codex"
+          }
+        ]
       }
     }
   ],
