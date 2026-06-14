@@ -888,7 +888,7 @@
       "scope": "codex",
       "lifecycle": "tracked",
       "status": "active",
-      "lastTouchedAt": "2026-06-12",
+      "lastTouchedAt": "2026-06-13",
       "kanbanCards": [
         {
           "className": "cmd-warn",
@@ -897,6 +897,10 @@
         {
           "className": "cmd-ok",
           "html": "PLAN SHIPPED @ <code>90c6bb5e</code> (merged to main; plan @ .ralph/jobs/codex-patch-surface-divergence-registry-refresh/plan.md). 4 stories. Covers the maintained .5 release base; retires EVERY stale paste-burst instruction site (incl codex/CLAUDE.md); adds the missing agent-name marker scope for tool_lifecycle.rs alongside multi_agents.rs; makes audit_invariants.sh verification explicit; registers the 4 new .5 patches + which Features are fork-added. READY FOR IMPL (codex submodule doc + markers; lead-coordinated in canonical checkout, no build needed)."
+        },
+        {
+          "className": "cmd-warn",
+          "html": "DEFERRED + STALE (lead 2026-06-13). The committed plan (.ralph/jobs/codex-patch-surface-divergence-registry-refresh/plan.md) is stamped for the .5/.130 line and assumes '.5 patches tagged at HEAD, no accumulation branch' -- OUTDATED: we are now at .7 RELEASED + .8 ACCUMULATING on ralph/codex-v8-int. Also NOT pure doc-only: it is DUAL-SURFACE -- wrapper registry (codex/docs/implementation/patch-surface.md + audit_invariants.sh) PLUS inner-submodule source markers (tool_lifecycle.rs, multi_agents.rs, resume_picker.rs on v8-int). DECISION (operator 2026-06-13): DEFER -&gt; re-plan AFTER the .8 release ships, as prep for codex-upstream-rebase-to-0.139 (an accurate ledger makes the .139 rebase smoother). The existing plan/impl seeds are INVALIDATED until re-planned for the released .8 state."
         }
       ],
       "command": {
