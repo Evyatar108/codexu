@@ -9138,6 +9138,10 @@
         {
           "className": "cmd-ok",
           "html": "PLAN SHIPPED @ <code>10a078aa</code> (FF-merged to main; plan @ .ralph/jobs/codex-tui-message-disappears-after-table-render/plan.md). 3 stories. CHOSEN FIX = option (a): reserve/pin recent committed rows in RetainedTranscriptViewportRenderable::render() (committed_transcript.rs) BEFORE the active tail consumes the viewport, so a tall table/paste tail cannot evict a preceding committed message; keep visible_height() consistent with render(); + a regression test (app/tests.rs) + inner patch-surface.md &sect;16 row (the retained_transcript_viewport key + no-eviction invariant). Feature stays DEFAULT-OFF; non-retained path unchanged. Minimal-conflict-surface (local to fork-owned retained-viewport code). IMPL QUEUED behind impl-bgwake (serial on v8-int)."
+        },
+        {
+          "className": "cmd-ok",
+          "html": "IMPL COMMITTED @ <code>e3edc3fd</code> on ralph/codex-v8-int (member impl-table-bug-fix; 5 files, +181/-25). The retained_transcript_viewport NO-EVICTION fix: RetainedTranscriptViewportRenderable now uses a SHARED reservation policy for render() + visible_height() (geometry agrees) -- it reserves the wrapped readable suffix of the most recent committed cell (capped at max_height-1) so committed text stays identifiable while the active tail keeps &gt;=1 row. A tall table/paste active tail can no longer evict a preceding committed message from the live view. Regression test retained_transcript_main_view_keeps_recent_committed_text_above_tall_active_tail (StreamingAgentTailCell; asserts committed prompt visible + active-tail bottom visible + top clipped) + an accepted insta snapshot. Inner docs/implementation/patch-surface.md updated with the exact retained_transcript_viewport key + no-eviction invariant + enforcing test. cargo check -p codex-tui GREEN + test -p codex-tui retained_transcript: 5 passed/0 failed (member); lead independent codex-tui check GREEN. Feature stays DEFAULT-OFF; non-retained path unchanged. NOT on origin/main -- QUEUED for the .8 release cut; task stays tracked until .8 ships."
         }
       ],
       "command": {
