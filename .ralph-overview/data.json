@@ -178,7 +178,7 @@
       "scope": "codex",
       "lifecycle": "tracked",
       "status": "todo",
-      "lastTouchedAt": "2026-06-12",
+      "lastTouchedAt": "2026-06-14",
       "kanbanCards": [
         {
           "className": "cmd-ok",
@@ -191,6 +191,10 @@
         {
           "className": "cmd-warn",
           "html": "DESIGN SPIKE in progress (read-only). Mirror the existing CODEX_STREAM_TRACE / diagnose-codex-stream-cut tracer pattern: env-gated default-OFF zero-overhead instrumentation that snapshots GetConsoleMode before each event read (event_stream.rs:178-220), compares to codex expected mode, and on a DELTA appends a JSONL sidecar record (named mode-bit flags + timestamp + context: last event / whether a tool-exec child or agent just ran). Then reproduce mid-session + read the sidecar to disambiguate culprit hypotheses (exec-child vs conhost/resize vs crossterm re-push). Independent of the self-heal FIX. Design doc -> .ralph/investigations/codex-console-mode-corruption-tracer/design-spike.md."
+        },
+        {
+          "className": "cmd-ok",
+          "html": "IMPL committed on <code>ralph/codex-v8-int</code> @ <code>5b8aec23bf</code> (combined with the sibling fix; <code>console_mode_trace.rs</code> +710 lines + <code>docs/implementation/console-mode-trace-runbook.md</code>). Opt-in <code>CODEX_CONSOLE_MODE_TRACE=1</code>, Windows-only, default-OFF zero-overhead (cached env gate). Snapshots GetConsoleMode before crossterm reads (event_stream.rs) and records the DELTA BEFORE the sibling fix re-asserts (so the corruption stays observable), appending console-mode-trace.jsonl with NAMED before/after flags + unexpected bits + last input event + a recent structural-action marker. Off-path TEST asserts no-op + no writes when the env var is unset. Operator runbook at docs/implementation/console-mode-trace-runbook.md; registered in patch-surface.md. <code>cargo check</code> PASSED + tracer off-path test run. NOT yet on origin/main -- accumulates on the .8 branch; ships with the eventual .8 release cut."
         }
       ],
       "command": {
@@ -207,7 +211,7 @@
       "scope": "codex",
       "lifecycle": "tracked",
       "status": "todo",
-      "lastTouchedAt": "2026-06-12",
+      "lastTouchedAt": "2026-06-14",
       "kanbanCards": [
         {
           "className": "cmd-warn",
@@ -216,6 +220,10 @@
         {
           "className": "cmd-ok",
           "html": "ROOT CAUSE (source-settled, read-only investigation 2026-06-13, .ralph/investigations/codex-focus-leak-recur-after-subagent-v6/findings.md). Q0: codex .6 does NOT leave ENABLE_VIRTUAL_TERMINAL_INPUT on by default -- startup clears it (tui.rs:1365-1379) and codex-owned restores keep it cleared (tui.rs:414-449,1351-1361,1384-1397), so the .5 fix on THAT bit works. THE GAP IS BROADER: the raw-mode bits (ENABLE_LINE_INPUT | ENABLE_ECHO_INPUT | ENABLE_PROCESSED_INPUT) can be corrupted mid-session and are NEVER re-asserted before normal event reads (event_stream.rs:178-220; crossterm raw bits at crossterm/src/terminal/sys/windows.rs:17-39). That explains ALL symptoms (line-input/echo back on -> backspace echoes + Enter cooked; processed-input + focus reporting -> [I/[O + special keys as literal chars). NOTE: no source-citable built-in sub-agent path re-enables the mode -- codex built-in spawn is IN-PROCESS (multi_agents/spawn.rs:79-139), not an inherited-console OS child; so whatever corrupts the mode, the robust finding is codex must SELF-HEAL the full input mode before event reads. FIX: a Windows full-input-mode guard in tui.rs that re-asserts the complete expected console mode (raw bits cleared + VT-input cleared + focus reporting off) before event reads / on every event-stream resume; + stop enabling xterm focus reporting on Windows unless needed."
+        },
+        {
+          "className": "cmd-ok",
+          "html": "IMPL committed on <code>ralph/codex-v8-int</code> @ <code>5b8aec23bf</code> (combined commit 'Self-heal Windows console input mode', +1016 lines). PART A (this task): a Windows full-input-mode self-heal guard in tui.rs that re-asserts the complete expected console mode (raw bits cleared + VT-input cleared + focus reporting OFF) before crossterm event reads / on every event-stream resume (event_stream.rs); idempotent (only SetConsoleMode when live GetConsoleMode differs from expected); xterm focus-event reporting now off on Windows; cfg(windows)-gated, no POSIX change. <code>cargo check -p codex-tui</code> PASSED + targeted input-mode/event-stream tests run + EOL hygiene clean. Resumed from a prior member that wrote the code but DIED mid-build before committing (work preserved, compile-verified, committed). NOT yet on origin/main -- accumulates on the .8 branch; ships with the eventual 0.135.0-copilot-api.8 release cut."
         }
       ],
       "command": {
