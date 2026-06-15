@@ -154,29 +154,6 @@
       }
     },
     {
-      "id": "codex-anthropic-models-not-in-model-picker-when-enabled",
-      "scope": "codex",
-      "lifecycle": "tracked",
-      "status": "active",
-      "lastTouchedAt": "2026-06-14",
-      "kanbanCards": [
-        {
-          "className": "cmd-ok",
-          "html": "IMPL DONE @ <code>c7cf5413b0</code> on <code>ralph/codex-v9-int</code> (NOT origin/main; member impl-anthropic-cache 2026-06-14). 2-story plan (020d4bc0) implemented + FULLY TESTED. US-001 (models-manager): optional ModelsCacheIdentity persisted in ModelsCache; load_fresh() rejects missing/mismatched identity only when an expected identity is supplied (legacy cache deserialization preserved); manager passes + persists identity. US-002 (model-provider): CopilotModelsEndpoint::cache_identity() = provider copilot + anthropic_models_resolved() gate; picker filter UNCHANGED. patch-surface &sect;23 added; // SANDBOX PATCH: marked. VERIFY: cargo check green on codex-models-manager (4m02s) + codex-model-provider (2m26s) + codex-core (4m34s); TESTS RAN GREEN -- 17 models-manager (incl refresh_available_models_refetches_copilot_cache_when_anthropic_gate_changes + ..._uses_cache_when_identity_matches) + 7 model-provider chat_transport (incl chat_only_row_hidden_until_anthropic_enabled, wire_route_survives_models_cache_round_trip, cache_identity_tracks_resolved_anthropic_gate). REACHES USERS at the next release cut (.9 accumulation on v9-int)."
-        },
-        {
-          "className": "cmd-ok",
-          "html": "ROOT CAUSE + PLAN (2026-06-13/14). Operator-confirmed .8 bug: after enabling anthropic models + restarting, /model still did NOT show them; DELETING models_cache.json fixed it. The /model catalog is served from a cached models_cache.json (300s TTL, OnlineIfUncached) whose freshness check IGNORED the anthropic gate -- so a stale feature-off cache (GPT only) was reused within the TTL even after enabling + restarting. The picker filter (copilot_models_endpoint.rs) IS gate-aware, but cache freshness was not. FIX (plan 020d4bc0, 2 stories): key cache identity by provider + anthropic_models_resolved() so toggling the gate invalidates the cache. Plan @ .ralph/jobs/codex-anthropic-models-not-in-model-picker-when-enabled/plan.md."
-        }
-      ],
-      "command": {
-        "name": "codex-anthropic-models-not-in-model-picker-when-enabled",
-        "prompts": {
-          "impl": "/implement-with-ralph --from-plan .ralph/jobs/codex-anthropic-models-not-in-model-picker-when-enabled/plan.md --autonomous (codex-inner; direct-impl in the canonical checkout on the accumulation branch, NOT a worktree; US-001 cache identity in models-manager + US-002 copilot endpoint identity with anthropic_models_resolved + a no-network refetch-on-enable regression; inner patch-surface row; SANDBOX PATCH markers; Phase 5a). SHIPPED on v9-int @ c7cf5413b0."
-        }
-      }
-    },
-    {
       "id": "codex-anthropic-models-visible-in-experimental-picker",
       "scope": "codex",
       "lifecycle": "merged",
@@ -727,6 +704,10 @@
       "status": "active",
       "lastTouchedAt": "2026-06-14",
       "kanbanCards": [
+        {
+          "className": "cmd-ok",
+          "html": "NEAR-TERM SPLIT SHIPPED in codex 0.135.0-copilot-api.9 (wrapper 68e90320 / inner c49e8141; GitHub Release https://github.com/gim-home/codex/releases/tag/v0.135.0-copilot-api.9) @ <code>a5fc05d1dd</code> -- the Windows-only default-on flip is NOW IN USERS&#39; HANDS (fixes the broken Windows paste). REMAINING ON THIS TASK: the ORIGINAL perf + dropped-text robustness (direction B -- typing lag + lossy/early-submit grouping in paste_burst.rs); that harder transport-aware work stays OPEN, so this task stays tracked."
+        },
         {
           "className": "cmd-ok",
           "html": "IMPL DONE (near-term Windows-default split) @ <code>a5fc05d1dd</code> on <code>ralph/codex-v9-int</code> (NOT origin/main; member impl-paste-default-win 2026-06-14). Approach A: Feature::LegacyPasteBurstHeuristic default_enabled = cfg!(windows) (features/src/lib.rs) -- Windows default-ON (where crossterm has no Event::Paste), non-Windows default-OFF (real bracketed-paste path), explicit opt-out preserved BOTH ways (features.legacy_paste_burst_heuristic=false AND legacy disable_paste_burst=true). Heuristic ALGORITHM untouched (no paste_burst.rs change). patch-surface &sect;17a added; // SANDBOX PATCH: marked. VERIFY: cargo check -p codex-core (6m26s) + -p codex-tui (6m03s) PASSED; diff --check clean; no EOL-only churn. CAVEAT: the added config tests could not EXECUTE -- blocked by the pre-existing unrelated spec_plan_tests.rs delimiter false-alarm + stale core/tests/suite API drift (NOT this change); the fix itself compiles clean. Re-run the tests at release-cut once the harness false-alarm clears. STILL OPEN on this task: the robustness work (direction B -- typing lag + lossy/early-submit grouping). REACHES USERS only at the next release cut (currently v9-int accumulation)."
@@ -9359,10 +9340,14 @@
     {
       "id": "codex-anthropic-models-not-in-model-picker-when-enabled",
       "scope": "codex",
-      "lifecycle": "tracked",
+      "lifecycle": "merged",
       "status": "active",
       "lastTouchedAt": "2026-06-14",
       "kanbanCards": [
+        {
+          "className": "cmd-ok",
+          "html": "IMPL + SHIPPED in codex 0.135.0-copilot-api.9 (wrapper 68e90320 / inner c49e8141; GitHub Release https://github.com/gim-home/codex/releases/tag/v0.135.0-copilot-api.9) @ <code>c7cf5413b0</code> (member impl-anthropic-cache 2026-06-14). 2-story plan (020d4bc0) FULLY TESTED. US-001 (models-manager): optional ModelsCacheIdentity persisted in ModelsCache; load_fresh() rejects missing/mismatched identity only when an expected identity is supplied (legacy deserialization preserved); manager passes + persists identity. US-002 (model-provider): CopilotModelsEndpoint::cache_identity() = provider copilot + anthropic_models_resolved(); picker filter UNCHANGED. patch-surface &sect;23 added; // SANDBOX PATCH: marked. cargo check green on models-manager + model-provider + core; TESTS RAN GREEN -- 17 models-manager (incl refresh_available_models_refetches_copilot_cache_when_anthropic_gate_changes) + 7 model-provider chat_transport (incl cache_identity_tracks_resolved_anthropic_gate). NOW IN USERS&#39; HANDS via the .9 release."
+        },
         {
           "className": "cmd-warn",
           "html": "BUG (operator 2026-06-14, on the .8 release / another PC). The operator enabled the anthropic models experimental feature (Feature::AnthropicModels -- made visible/toggleable in the /experimental picker by the .8 expfeatures bundle, commit 43ac1269) AND RESTARTED codex, but anthropic/claude models STILL do not appear in <code>/model</code>. Restart did NOT help (operator-confirmed). Read-only investigation in flight (member <code>investigate-anthropic-model-picker</code>): trace the /model picker (live /models fetch from the Copilot API + the filter model_picker_enabled &amp;&amp; capabilities.type==chat &amp;&amp; supported_endpoints has /responses), the anthropic gate (model-provider/src/anthropic_gate.rs), whether enabling Feature::AnthropicModels actually affects what /models returns or what the picker shows, the models_cache.json TTL/refresh, and whether claude is meant to be config-set (model = claude-*) vs picker-listed. Settle: bug vs expected vs wiring gap + the fix direction. CODEX."
@@ -9382,6 +9367,17 @@
           "plan": "/plan-with-ralph. Fix the anthropic /model stale-cache bug (findings @ .ralph/investigations/codex-anthropic-models-not-in-model-picker/findings.md). ROOT CAUSE: the Copilot models cache (~/.codex/models_cache.json, 300s TTL, OnlineIfUncached) freshness ignores the Feature::AnthropicModels gate state, so enabling the feature + restarting within the TTL reuses the feature-off cached catalog (no Claude). The gate is already wired into the picker filter (copilot_models_endpoint.rs:242-265). FIX (minimal-conflict-surface per codex/CLAUDE.md Tenant 1): include the Anthropic gate/provider identity in the cache eligibility/key, OR force a Copilot /models refetch when the resolved gate changes (invalidate-on-gate-transition). Add a test: a feature-off cache must NOT satisfy a feature-on model/list; toggling the gate refetches/re-filters. Behavior unchanged when the gate is unchanged. CODEX inner; impl on the post-.8 accumulation branch (ralph/codex-v9-int) or its own branch.",
           "impl": "IMPL (direct, canonical inner checkout on v9-int, NOT /implement-with-ralph -- cargo cannot build from a worktree). QUEUED behind impl-feature-pruning (inner-codex serializes on the canonical checkout). cwd = codex/external/repos/codex-patched (codex-rs/); branch ralph/codex-v9-int (or its own branch). Spec = .ralph/jobs/codex-anthropic-models-not-in-model-picker-when-enabled/plan.md (2 stories).\n\nFIX (a): cache-identity metadata. Key the Copilot models cache by an identity that includes anthropic_models_resolved() (and any other gate that shapes the eligible model set); the existing cache-miss path = invalidation, so a feature-off cache no longer satisfies a feature-on model/list. PRESERVE steady-state TTL cache hits when the gate is unchanged (no extra refetch every start). Seam: ModelsCacheManager::load_fresh()/persist_cache(), OpenAiModelsManager::try_load_cache()/fetch_and_update_models(), a ModelsEndpointClient::cache_identity() default + CopilotModelsEndpoint identity including anthropic_models_resolved(). Do NOT change the picker filter (copilot_models_endpoint.rs:242-265 is already correct) or unrelated fetch/transport semantics.\n\nTESTS: US-001 steady-state cache-hit (unchanged gate -> cache reused) + cache-identity eligibility; US-002 feature-off cache must NOT satisfy a feature-on model/list (toggling the gate refetches so Claude appears when the /models response includes it -- mock /models, no network). Update the inner patch-surface.md (SANDBOX PATCH on upstream-canonical edits). Build via Git Bash codex-cargo.sh: cargo check -p codex-core (+ the model-provider crate) + the targeted cache/models tests. Drive Phase 5a. Commit on the branch."
         }
+      },
+      "shipManifest": {
+        "shippedAt": "2026-06-14",
+        "summary": "Shipped in codex 0.135.0-copilot-api.9 (wrapper 68e90320 / inner c49e8141; GitHub Release https://github.com/gim-home/codex/releases/tag/v0.135.0-copilot-api.9). Fixes the operator-confirmed bug where anthropic /model models did not appear after enabling + restarting within the 300s models_cache.json TTL: cache identity is now keyed by provider + anthropic_models_resolved(), so toggling the gate invalidates the cache and forces a refetch. 2 stories, fully tested (17 models-manager + 7 model-provider tests green incl the no-network refetch-on-enable regression).",
+        "commits": [
+          {
+            "sha": "c7cf5413",
+            "oneLine": "Fix Copilot model cache gate identity",
+            "repo": "codex"
+          }
+        ]
       }
     }
   ],
