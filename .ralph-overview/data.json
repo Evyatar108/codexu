@@ -700,7 +700,7 @@
     {
       "id": "codex-paste-guard-perf-and-dropped-text",
       "scope": "codex",
-      "lifecycle": "tracked",
+      "lifecycle": "merged",
       "status": "active",
       "lastTouchedAt": "2026-06-14",
       "kanbanCards": [
@@ -748,12 +748,28 @@
           "plan": "/plan-with-ralph -- DIRECTION DECIDED (operator 2026-06-14) = (B): keep the paste guard ENABLED by default and build a robust non-bracketed fallback; do NOT plan option (A) -- bracketed paste does not work in the operator's terminal. Findings @ .ralph/investigations/codex-paste-guard-perf-and-dropped-text/findings.md.\n\nROOT CAUSE: the heuristic paste-burst fallback (tui/src/bottom_pane/paste_burst.rs) causes the typing lag (first-char hold + delayed-redraw scheduling on the hot typing path) AND the dropped/split paste on slow PCs (short idle-timeout burst close; multiline pastes can early-submit when the 120ms Enter-suppress window expires). codex already has the authoritative bracketed-paste Event::Paste path.\n\nDIRECTION DECIDED (operator 2026-06-14) = (B): keep the paste guard ENABLED by default and build a ROBUST non-bracketed fallback (the better working thing). Do NOT plan option (A) (disable-by-default / rely on bracketed paste): the operator confirmed bracketed paste DOES NOT WORK in their terminal, so it is not viable.\n\n.8 MIGRATION (verified by patch-surface re-plan b834baab -- do NOT re-derive): the old disable_paste_burst unwrap_or(...) default seam at core/src/config/mod.rs:3576 is GONE; the paste-burst default now resolves via Feature::LegacyPasteBurstHeuristic + a compat adapter at core/src/config/mod.rs:2577-2588. The plan MUST FLIP the default to ENABLED on Windows: source-verified, .8 currently DEFAULTS the heuristic OFF (Feature::LegacyPasteBurstHeuristic default_enabled:false; disable_paste_burst=!enabled at config/mod.rs:2631-2633; default test config_tests.rs:9243-9255), which breaks Windows paste entirely. Make it WINDOWS-ONLY default-on (Unix keeps the working Event::Paste path so the slow heuristic stays off there); see findings @ .ralph/investigations/codex-bracketed-paste-fails-windows-terminal/findings.md.\n\nROBUST-FALLBACK WORK: (1) eliminate the typing lag -- the first-char hold + delayed-redraw scheduling on the hot typing path; (2) make burst grouping LOSSLESS under slow IO -- the time-window design splits one physical paste on a short idle timeout and can early-submit multiline payloads when the 120ms Enter-suppress window expires; needs a transport-aware strategy (e.g. longer re-arming timeout + a lossless flush). STUDY Claude Code's paste capture at D:/harness-efforts/claude-code/worktrees/main for the design.\n\nSEPARATE/OPTIONAL (note, do not block): investigate WHY bracketed paste fails in the operator's terminal -- if codex's bracketed-paste enable/handling is broken for some terminals, fixing that is orthogonal (and could later make option A viable). CODEX inner. Minimize upstream conflict (fork tenet).",
           "impl": "IMPL (direct, canonical inner checkout codex/external/repos/codex-patched on the v10-int accumulation branch, NOT /implement-with-ralph -- cargo cannot build from a worktree). Spec = .ralph/jobs/codex-paste-guard-perf-and-dropped-text/plan.md (robustness half, 3 stories US-001..US-003). US-001 rework PasteBurst: remove the first-char hold from the normal ASCII typing path; retro-capture only after a stream proves paste-like; let active bursts rearm on likely-continuation input before idle flush. US-002 ChatComposer integration + slow-paste tests: no first-char lag; slow/fragmented paste not split into multiple submits; multiline Enter never early-submits while the heuristic is active; non-char keys flush buffered paste first; the bracketed-paste path UNCHANGED. US-003 // SANDBOX PATCH: markers + inner patch-surface row + module docstring updates. Keep the LegacyPasteBurstHeuristic gate + the .9 Windows-default UNCHANGED. Build via Git Bash codex-cargo.sh: cargo check -p codex-tui + targeted tests (cargo test -p codex-tui paste_burst / chat_composer + the new slow-producer + mixed-paste regressions). Drive Phase 5a. Commit on v10-int."
         }
+      },
+      "shipManifest": {
+        "shippedAt": "2026-06-15",
+        "summary": "Shipped across two releases: the Windows-default-on flip in codex 0.135.0-copilot-api.9 (a5fc05d1) and the heuristic robustness rework in 0.135.0-copilot-api.10 (48a2f99; wrapper 720ad774 / GitHub Release https://github.com/gim-home/codex/releases/tag/v0.135.0-copilot-api.10). The paste-burst heuristic now defaults ON for Windows (where crossterm has no Event::Paste) and is robust: no first-char typing lag, and rearmable bursts so a slow producer cannot split or early-submit a paste. Bracketed-paste path + non-Windows defaults unchanged. Tested (paste_burst 12 + chat_composer 192).",
+        "commits": [
+          {
+            "sha": "a5fc05d1",
+            "oneLine": "enable paste burst heuristic by default on Windows (.9)",
+            "repo": "codex"
+          },
+          {
+            "sha": "48a2f99",
+            "oneLine": "make paste burst heuristic rearmable (.10)",
+            "repo": "codex"
+          }
+        ]
       }
     },
     {
       "id": "codex-experimental-feature-live-toggle-no-restart",
       "scope": "codex",
-      "lifecycle": "tracked",
+      "lifecycle": "merged",
       "status": "active",
       "lastTouchedAt": "2026-06-14",
       "kanbanCards": [
@@ -785,6 +801,17 @@
           "plan": "/plan-with-ralph -- small targeted fix to make the Anthropic model gate (Feature::AnthropicModels) take effect in /model WITHOUT a restart. Findings @ .ralph/investigations/codex-experimental-feature-live-toggle-no-restart/findings.md (read it; do not re-derive). MECHANISM: the gate is read live, but /model is backed by an immutable bootstrap ModelCatalog and GatedModelsManager captures the gate at session construction. CHANGE: after /experimental persists Feature::AnthropicModels, (1) make the gated models manager use a LIVE gate or rebuild it, (2) rerun app-server model/list, (3) construct a new ModelCatalog + swap it into App/ChatWidget, (4) redraw/reopen the picker. Couples with the .9 cache-identity fix (c7cf5413) which already makes a re-consult refetch on gate change. Scope (operator 2026-06-14): BUNDLE THREE features made live-toggleable -- the anthropic model gate + LegacyPasteBurstHeuristic + UserMessageStyling. The paste-burst + user-styling ones are feasible small hooks (extend the existing set_feature_enabled() live-patch path; read the findings for their exact consumption sites). EXCLUDE the restart-bound features + do NOT build a general framework. CODEX inner; minimize upstream conflict.",
           "impl": "IMPL (direct, canonical inner checkout codex/external/repos/codex-patched on a fresh post-.9 accumulation branch ralph/codex-v10-int off the .9 release c49e8141, NOT /implement-with-ralph -- cargo cannot build from a worktree). Spec = .ralph/jobs/codex-experimental-feature-live-toggle-no-restart/plan.md (3 serialized stories US-001..US-003). Implement all 3: US-001 anthropic model-catalog live refresh on /experimental toggle (live gate + rerun model/list + new ModelCatalog swap into App/ChatWidget + redraw picker; disabled-Claude fallback updates the ACTIVE model not just the catalog); US-002 paste-burst live toggle via set_feature_enabled() -> composer disable_paste_burst; US-003 user-styling live toggle via set_feature_enabled() style gate + redraw. Each: keep DEFAULT + existing enable paths + restart behavior UNCHANGED; ONLY make the mid-session toggle apply live. SANDBOX PATCH markers + inner patch-surface.md row. Build via Git Bash codex-cargo.sh (check touched crates: models-manager, model-provider, app-server, tui, core). Drive Phase 5a/5b. Commit on v10-int; lead handles release."
         }
+      },
+      "shipManifest": {
+        "shippedAt": "2026-06-15",
+        "summary": "Shipped in codex 0.135.0-copilot-api.10 (commit 596352d5; wrapper 720ad774 / GitHub Release https://github.com/gim-home/codex/releases/tag/v0.135.0-copilot-api.10). Three experimental features now toggle live in /experimental WITHOUT a restart: the Anthropic model gate (live GatedModelsManager gate + model-catalog refresh after the awaited config reload + active-model fallback), LegacyPasteBurstHeuristic, and UserMessageStyling (both via set_feature_enabled). Defaults/enable-paths/restart unchanged; restart-bound features untouched. Tested (live_feature_toggle_updates + live_model_catalog_refresh + 53 lib + integration).",
+        "commits": [
+          {
+            "sha": "596352d5",
+            "oneLine": "live-toggle selected experimental features",
+            "repo": "codex"
+          }
+        ]
       }
     },
     {
@@ -1022,7 +1049,7 @@
     {
       "id": "codex-v1-agent-thread-limit-not-released-on-completion",
       "scope": "codex",
-      "lifecycle": "tracked",
+      "lifecycle": "merged",
       "status": "active",
       "lastTouchedAt": "2026-06-14",
       "kanbanCards": [
@@ -1053,6 +1080,17 @@
           "investigate": "READ-ONLY investigation (CODEX submodule). Make NO code edits except the findings deliverable; run on a pre/post working-tree snapshot + revert guard.\n\nBUG: v1 (Collab) multi-agent spawning fails with \"Agent spawn failed\" and \"the agent-thread limit is still reached, so I can't spawn this round right now\" EVEN WHEN no agents are currently running (they already finished). Observed in a plain codex session (not crews/ralph). Working hypothesis: the concurrent-agent-thread limit counter is incremented on spawn but NOT decremented when an agent completes / aborts / errors, so the limit saturates permanently for the session.\n\nSTEP 1 -- LOCATE THE LIMIT (cite file:line): find where the agent-thread limit (max concurrent agent threads) is defined and enforced for the v1 Collab path. Look under codex-rs/core/src/tools/handlers/ (the Collab/v1 spawn handler) and any agent-thread registry/semaphore/counter. Identify the exact check that emits the \"agent-thread limit is still reached\" error.\nSTEP 2 -- TRACE INCREMENT vs RELEASE: where is a thread slot ACQUIRED (on spawn) and where is it RELEASED (on agent completion / abort / error)? Is the release path present and correct, or does a finished agent fail to free its slot (the leak)? Check all completion/termination paths (success, cancel, error, parent-turn-end).\nSTEP 3 -- FORK vs UPSTREAM: is this leak fork-introduced (e.g. the fork subagent gate/filter at tool_config.rs:223-228, or the plugin-scope-axis edit) or upstream-native? This matters for divergence tracking (cross-reference codex/docs/implementation/patch-surface.md) and for where to fix / whether to report upstream.\nSTEP 4 -- V2 SCOPE: does the same leak affect the v2 MultiAgentV2 path, or is it v1 (Collab) only?\n\nDELIVERABLE: findings.md under .ralph/investigations/codex-v1-agent-thread-limit-not-released-on-completion/ with the limit location, the increment/release trace, the root cause, a fix recommendation, the fork-vs-upstream verdict, and the v1-vs-v2 scope. Report kind=done with the root cause + fix rec + fork/upstream verdict.",
           "impl": "IMPL (direct, canonical inner checkout, NOT /implement-with-ralph -- cargo cannot build from a worktree). cwd = codex/external/repos/codex-patched (codex-rs/); branch ralph/codex-v9-int (or own branch -- lead decides). Fix per findings @ .ralph/investigations/codex-v1-agent-thread-limit-not-released-on-completion/findings.md.\n\nVERDICT (do NOT re-litigate): NOT a counter leak -- the cap is intentionally on OPEN spawned-agent threads (Completed/Errored children remain reusable via send_input/followup_task until close_agent). The symptom (spawn fails though nothing is running) is a UX/CONTRACT mismatch. The lifecycle code is upstream-native.\n\nFIX (UX/contract, low-risk): (1) reword the AgentLimitReached surface so it reads as an OPEN-agent limit, not a running-agent limit -- the seam is core/src/tools/handlers/multi_agents_common.rs:118-125 (the \"collab spawn failed: agent thread limit reached\" RespondToModel text) and possibly protocol/src/error.rs:86-87; (2) hint that the model/user should close_agent completed agents that are no longer needed; (3) optionally include the currently-OPEN agent names/ids in the error context (live_agents() at core/src/agent/registry.rs:155-166). Optionally tighten the spawn-agent tool descriptions (multi_agents_spec.rs) to make the open-thread semantics explicit. Do NOT release slots on TurnComplete/TurnAborted/Error (explicitly NOT recommended -- breaks the reuse model). // SANDBOX PATCH: mark the upstream-canonical error/description edits + add the inner patch-surface.md row. Build via Git Bash codex-cargo.sh: cargo check -p codex-core + targeted multi_agents tests. Drive Phase 5a. Affects BOTH v1 and v2 (shared AgentControl/AgentRegistry). Commit on the branch."
         }
+      },
+      "shipManifest": {
+        "shippedAt": "2026-06-15",
+        "summary": "Shipped in codex 0.135.0-copilot-api.10 (commit 46488481; wrapper 720ad774 / GitHub Release https://github.com/gim-home/codex/releases/tag/v0.135.0-copilot-api.10). UX/contract fix: the agent-thread-limit error now reads as an OPEN-agent limit, lists the currently-open agents, and hints close_agent (so 'spawn fails though nothing is running' is no longer confusing) -- for both v1 (Collab) and v2. Tool descriptions clarify completed/errored agents still count while open. The cap/lifecycle/reuse-model are intentionally unchanged (no slot release on TurnComplete).",
+        "commits": [
+          {
+            "sha": "46488481",
+            "oneLine": "clarify open agent thread limit",
+            "repo": "codex"
+          }
+        ]
       }
     },
     {
