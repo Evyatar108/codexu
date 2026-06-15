@@ -1,35 +1,3 @@
-**Feasibility**
+External Codex plan review was not run for this re-plan. The previous file content was stale `.5`-era review output and has been replaced to avoid carrying obsolete findings forward.
 
-[High] The branch target is stale/fragile. The plan says land on `ralph/codex-v5-int`, but the inner checkout is currently on `ralph/codex-v6-int`; both point at `.5` today, but `.6` work is already referenced in `codex/docs/implementation/patch-surface.md`. The plan should say “latest active Codex integration branch containing the `.5` seams, currently `ralph/codex-v6-int` if unchanged,” not hard-code v5.
-
-[Medium] The tag naming is imprecise across repos. Wrapper `codex/` has `v0.135.0-copilot-api.5`; inner `codex-rs` has `release/0.135.0-copilot-api.5`. The plan should specify which repo each tag form refers to.
-
-[Medium] The proposed source-marker targets exist and are plausible: `tui/src/multi_agents.rs` has agent-name display logic without a `SANDBOX PATCH` marker, and `tui/src/resume_picker.rs` has the DB-only/lazy reconcile surface. But the plan does not name exact functions/line anchors, so marker placement is still under-specified.
-
-**Completeness**
-
-[High] The plan misses `codex/CLAUDE.md`. It still says `disable_paste_burst` defaults to `true` and instructs rebases to re-apply `unwrap_or(true)`, while live code is `unwrap_or(false)` in `core/src/config/mod.rs`. Leaving this stale agent instruction would preserve the same rebase hazard the task is meant to remove.
-
-[High] `patch-surface.md` has duplicate stale paste-burst sections: one around section 11 near the first half of the file and another later duplicate. The plan says “the paste-burst section” singular; acceptance must require removing/correcting every `unwrap_or(true)` paste-burst instruction in the registry.
-
-[Medium] Verification is incomplete. Because `audit_invariants.sh` is in scope, the plan should require at least `bash -n codex/scripts/audit_invariants.sh` plus `bash codex/scripts/audit_invariants.sh`. “No build” is fine for comment-only Rust marker edits, but not for a shell guard edit.
-
-[Medium] The plan leaves `codex/.claude/commands/rebase-upstream.md` optional. Since that file explicitly routes rebase recovery through `patch-surface.md`, the plan should at least require a grep check proving no stale `.130`/paste-burst or missing new-family references remain there.
-
-**Ordering**
-
-[Medium] The source-marker work should happen on the actual active branch before final registry wording is frozen, or at least in the same story, because the registry must cite exact marker text. The current order says stabilize docs first, then add markers; that risks writing §14/§15 anchors that need churn after source placement.
-
-**Simplicity**
-
-[Low] The four-story serial split is heavier than necessary for a bookkeeping-only change touching mostly one document plus two comment anchors. A simpler two-step implementation would work: first reconcile live source/markers, then update registry/audit/docs in one pass.
-
-**Acceptance Criteria Quality**
-
-[High] “Focused verification hook” is too vague for an autonomous implementer. For each listed family, the AC should name the exact guard: existing test command, `audit_invariants.sh` function, or explicit manual-rebase-audit row.
-
-[Medium] “Appropriately scoped `SANDBOX PATCH` anchors” is subjective. Replace it with exact expected marker labels and the functions/blocks they must sit beside in `multi_agents.rs` and `resume_picker.rs`.
-
-[Medium] The branch AC should not require `ralph/codex-v5-int` specifically. It should require the branch whose HEAD contains `.5` source seams and no newer conflicting source drift, with the current branch checked before editing.
-
-No prior review cycles or amendments are mentioned in the plan.
+Current Phase-4 review was performed by the in-session plan reviewer. See `copilot-plan-review.txt`, `plan-review-findings.json`, and `review-log.json`.

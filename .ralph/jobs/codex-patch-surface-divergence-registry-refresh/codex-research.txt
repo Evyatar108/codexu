@@ -1,67 +1,8 @@
-**Codebase Architecture**
+External Codex research was not run for this re-plan. The current research basis is captured in `research-brief.md` from the researcher/architect agents plus direct git/source evidence:
 
-Codexu vendors the Codex fork through `codex/`, with the patched upstream Rust workspace under `codex/external/repos/codex-patched/codex-rs/`. Fork-only code generally lives in sibling overlay crates under `codex/codex-rs-overlay/`, which are included as workspace members from `codex-rs/Cargo.toml`.
+- wrapper `v0.135.0-copilot-api.8` at `381da3d41`
+- inner release commit `1b1348cb06`
+- `.6/.7/.8` inner commits from `6f0137db45` through `e3edc3fd24`
+- marker counts and paste-burst seam verification from committed `.8` inner HEAD
 
-Key structure:
-- `codex/docs/implementation/patch-surface.md`: canonical divergence registry for rebase.
-- `codex/external/repos/codex-patched/codex-rs/`: upstream-canonical Rust workspace.
-- `codex/codex-rs-overlay/`: fork-exclusive crates such as `codex-copilot`, `codex-copilot-launcher`, `codex-invariant-tests`.
-- `codex/scripts/audit_invariants.sh` and `codex/scripts/audit_network_calls.sh`: grep/static guard scripts.
-- `.ralph/investigations/.../findings.md`: completed audits that should drive this planning task.
-
-The current codex submodule HEAD is tagged `release/0.135.0-copilot-api.5`; the registry header is stale at `0.130.0-copilot-api.*`.
-
-**Feature-Relevant Code**
-
-Primary sources:
-- `.ralph/investigations/codex-fork-patch-marking-and-divergence-audit/findings.md`
-- `.ralph/investigations/codex-fork-flags-to-experimental-features-migration/findings.md`
-- `codex/docs/implementation/patch-surface.md`
-
-Registry mechanics:
-- `patch-surface.md` §14 is the invariant-to-test mapping table.
-- `patch-surface.md` §15 is where named replant recipes live.
-- `codex/CLAUDE.md` requires every upstream-canonical edit to have a `// SANDBOX PATCH:` marker, §14 invariant row, and §15 replant note.
-
-Missing or stale families from the audit:
-- Focus leak: `codex-rs/tui/src/tui.rs`, already marked, not registered.
-- Focus leak recur / VT input lifetime: `codex-rs/tui/src/tui.rs:293`, `:394`, with tests around `virtual_terminal_input_stays_cleared_until_final_exit_restore`.
-- BG completion exec-cell rendering: `codex-rs/tui/src/chatwidget/command_lifecycle.rs:154`.
-- Agent-name display: `codex-rs/tui/src/chatwidget/tool_lifecycle.rs:117`, `codex-rs/tui/src/multi_agents.rs:334`, `:475`; `multi_agents.rs` is missing markers.
-- Knob B: `codex-rs/model-provider/src/copilot_models_endpoint.rs:251`, `:301`, `:363`; `codex-rs/tui/src/chatwidget/status_surfaces.rs:180`.
-- Knob A: `codex-rs/core/src/client.rs:1641`; `codex-rs/model-provider/src/copilot_models_endpoint.rs:372`.
-- Managed hooks off: `codex-rs/hooks/src/managed_gate.rs`, `hooks/src/engine/mod.rs:144`, `core/src/config/mod.rs:2592`.
-- `/resume` DB-only lazy reconcile: `codex-rs/tui/src/resume_picker.rs:112`, `:161`, `:1320`, `:1731`, `:1930`; missing markers.
-- Resize retained viewport: `codex-rs/tui/src/app/resize_reflow.rs`, `tui/src/app.rs:1307`, `tui/tests/suite/resize_reflow.rs`.
-- Paste burst stale entry: `codex-rs/core/src/config/mod.rs:3576` is `unwrap_or(false)`, while `patch-surface.md` still documents retired `unwrap_or(true)` behavior.
-
-**Technical Constraints**
-
-The implementation should be doc + source-marker edits only; no build required.
-
-Minimize upstream-canonical conflict surface: cite `codex/CLAUDE.md` Tenant 1. Since this task mostly registers existing divergence, avoid new logic and keep marker edits adjacent to existing seams.
-
-Do not convert Knob A or Knob B into `Feature` flags. The flags-migration audit classifies Knob A as product metadata policy and Knob B as a product setting backed by `model_context_tier`.
-
-Do explicitly record which `Feature` entries are fork-added or fork-repurposed:
-- `Feature::AnthropicModels`
-- `Feature::ManagedHooks`
-- `Feature::BackgroundProcessNotification`
-- `Feature::McpServerNotifications`
-
-For paste burst, remove or rewrite the stale registry entry. Current code is upstream-like default behavior, so re-marking code would preserve a divergence that no longer exists.
-
-**Implementation Suggestions**
-
-Update `patch-surface.md` header to `0.135.0-copilot-api.5` / upstream `rust-v0.135.0` line, then append new §14 rows after invariant 39. Add matching §15 replant subsections for each family.
-
-Reuse existing focused hooks where possible:
-- `cargo test -p codex-tui initial_picker_page_load_uses_state_db_only first_page_reconcile_surfaces_filesystem_only_session`
-- `cargo test -p codex-tui title_styles_display_name_and_role`
-- `cargo test -p codex-model-provider synthesized_claude_defaults_reasoning_to_medium knob_b_tier`
-- `cargo test -p codex-tui virtual_terminal_input_stays_cleared_until_final_exit_restore`
-- `cargo test -p codex-tui resize_reflow -- --ignored` only as manual smoke, not required build gate.
-
-Add lightweight grep guards to `audit_invariants.sh` only where no durable test already exists, mainly to require `SANDBOX PATCH` markers in `tui/src/multi_agents.rs` and `tui/src/resume_picker.rs`.
-
-Branching: because `.5` is already tagged at HEAD, use a dedicated branch from the current maintained codex line, not the historical `.5` accumulation branch. Preserve the two-commit flow: commit inside the codex submodule first, then commit the updated `codex` gitlink in codexu.
+This file intentionally replaces stale `.5`-era Codex research artifacts from the prior plan run.

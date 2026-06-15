@@ -1,64 +1,8 @@
-I’ll read the provided prompt file and then carry out its instructions.
+Copilot-side research for this re-plan is consolidated in `research-brief.md`.
 
-I found this is a research-only plan-analysis prompt, so I’ll inspect the referenced audit docs and nearby codex registry/source surfaces without changing files.
+Key current-state findings:
 
-I’ll check the registry’s invariant/replant sections and the invariant-audit script so the research can name natural edit points and guard patterns accurately.
-
-I’ll also inspect the referenced .5 commits and live source seams so the recommendations distinguish already-registered, unmarked, and stale entries.
-
-The referenced commit probe finished; I’ll read its summary and then finalize the research analysis.
-
-### Codebase Architecture
-
-`codexu` consumes `codex\` as a wrapper submodule. The relevant code is split between:
-
-- `codex\docs\implementation\patch-surface.md` — wrapper-owned canonical divergence registry.
-- `codex\scripts\audit_invariants.sh` and `codex\scripts\audit_network_calls.sh` — wrapper-owned grep/audit guards.
-- `codex\external\repos\codex-patched\codex-rs\` — inner Rust workspace carrying upstream-canonical Codex patches.
-- `codex\codex-rs-overlay\` — fork-exclusive overlay crates, preferred for low-conflict new behavior.
-
-The project is Rust/Cargo/Just/Bash based. TUI rendering uses `ratatui` and snapshot tests; invariant coverage is split between focused crate tests, overlay tests, and grep guards.
-
-### Feature-Relevant Code
-
-Primary sources:
-
-- `.ralph\investigations\codex-fork-patch-marking-and-divergence-audit\findings.md`
-- `.ralph\investigations\codex-fork-flags-to-experimental-features-migration\findings.md`
-- `codex\docs\implementation\patch-surface.md`
-- `codex\CLAUDE.md` for the marker + registry contract.
-
-Key implementation surfaces:
-
-- Header/stale registry: `codex\docs\implementation\patch-surface.md`, especially old header, §11 paste-burst, §14 invariant table, §15 replant notes.
-- Audit hooks: `codex\scripts\audit_invariants.sh`.
-- Missing markers: `codex\external\repos\codex-patched\codex-rs\tui\src\multi_agents.rs`, `...\tui\src\resume_picker.rs`.
-- Paste-burst reconciliation: `...\core\src\config\mod.rs` currently uses `cfg.disable_paste_burst.unwrap_or(false)`, so the old registry entry claiming `unwrap_or(true)` is stale.
-- Recent patch families:
-  - Focus leak / recur: `...\tui\src\tui.rs`.
-  - BG exec-cell rendering: `...\tui\src\chatwidget\command_lifecycle.rs`.
-  - Agent-name display: `...\tui\src\chatwidget\tool_lifecycle.rs`, `...\tui\src\multi_agents.rs`.
-  - Knob A reasoning: `...\core\src\client.rs`, `...\model-provider\src\copilot_models_endpoint.rs`.
-  - Knob B context tier/status line: `...\config\src\config_toml.rs`, `...\core\src\config\mod.rs`, `...\model-provider\src\copilot_models_endpoint.rs`, `...\tui\src\chatwidget\status_surfaces.rs`.
-  - Managed hooks: `...\features\src\lib.rs`, `...\hooks\src\managed_gate.rs`, `...\hooks\src\engine\mod.rs`, `...\core\src\config\mod.rs`.
-  - `/resume` DB-only: `...\tui\src\resume_picker.rs`.
-  - Retained resize viewport: `...\tui\src\app.rs`, `...\tui\src\app\resize_reflow.rs`, `...\tui\src\chatwidget\committed_transcript.rs`, `...\tui\src\chatwidget\rendering.rs`, `...\tui\src\pager_overlay.rs`.
-
-### Technical Constraints
-
-Every upstream-canonical edit needs a `// SANDBOX PATCH:` marker, a §14 invariant row, and a §15 replant note. The plan should explicitly cite Tenant 1: minimize upstream-canonical conflict surface.
-
-Do not reclassify Knob A or Knob B as feature flags. They are product settings/default policy. The feature registry bookkeeping should instead record fork-added or fork-repurposed `Feature` entries such as `anthropic_models`, `managed_hooks`, `background_process_notification`, and `mcp_server_notifications`.
-
-Use two commits in the future implementation: first commit inner submodule source-marker changes in `codex\external\repos\codex-patched`, then commit wrapper docs/scripts plus the updated submodule gitlink in `codex\`.
-
-Source-marker reconciliation for `.5`-only code should land on the `.5` accumulation line (`ralph/codex-v5-int`, or a dedicated branch based on it), not a branch that omits those source edits.
-
-### Implementation Suggestions
-
-Update the registry header to the maintained `0.135.0-copilot-api.*` line, then make one registry pass driven by the audit matrix plus the four additional `.5` commits: `0f7bf5d4`, `e484d0e5`, `8548182d`, and `0f056863`.
-
-Prefer appending new §14 invariant rows with new numbers rather than renumbering existing rows. Add §15 replant subsections for each missing family, with concrete source seams and focused verification hooks. Extend `audit_invariants.sh` with file-scoped grep checks for required markers and feature-registry bookkeeping; avoid broad tree-wide bans.
-
-For paste-burst, remove or retire the stale §11 divergence entry instead of re-marking source, because current code has reverted to upstream-like `unwrap_or(false)`.
-
+- The authoritative wrapper registry is `codex/docs/implementation/patch-surface.md`.
+- The observed dirty `patch-surface.md` drift is in the inner submodule's vestigial `codex/external/repos/codex-patched/docs/implementation/patch-surface.md`, not the authoritative wrapper registry.
+- The old paste-burst `unwrap_or(true)` seam is retired; current `.8` uses `Feature::LegacyPasteBurstHeuristic` plus compatibility adapters.
+- The plan must include the codex wrapper gitlink bump to any new inner marker commit, while the outer codexu pointer bump remains lead-owned.

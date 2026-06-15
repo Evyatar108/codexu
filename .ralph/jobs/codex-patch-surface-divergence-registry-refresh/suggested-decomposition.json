@@ -1,93 +1,52 @@
 {
   "clusters": [
     {
-      "name": "registry-baseline",
-      "stories": [
-        "US-001"
-      ],
+      "name": "inner-marker-audit",
+      "stories": ["US-001"],
       "phase": 1,
       "dependsOn": [],
       "fileOverlapEvidence": {
-        "sharedFiles": [
-          "codex/docs/implementation/patch-surface.md"
-        ],
-        "exclusiveFiles": [
-          "codex/external/repos/codex-patched/codex-rs/core/src/config/mod.rs"
-        ],
-        "risk": "medium"
-      },
-      "executionModeRationale": "This cluster defines the maintained-series baseline, feature-bookkeeping framing, and stale paste-burst disposition that every later cluster depends on."
-    },
-    {
-      "name": "documented-dot4-families",
-      "stories": [
-        "US-002"
-      ],
-      "phase": 2,
-      "dependsOn": [
-        "registry-baseline"
-      ],
-      "fileOverlapEvidence": {
-        "sharedFiles": [
-          "codex/docs/implementation/patch-surface.md",
-          "codex/scripts/audit_invariants.sh"
-        ],
-        "exclusiveFiles": [
-          "codex/external/repos/codex-patched/codex-rs/tui/src/chatwidget/command_lifecycle.rs",
-          "codex/external/repos/codex-patched/codex-rs/tui/src/chatwidget/status_surfaces.rs",
-          "codex/external/repos/codex-patched/codex-rs/model-provider/src/copilot_models_endpoint.rs",
-          "codex/external/repos/codex-patched/codex-rs/core/src/client.rs",
-          "codex/external/repos/codex-patched/codex-rs/hooks/src/managed_gate.rs"
-        ],
-        "risk": "medium"
-      },
-      "executionModeRationale": "The .4 registry families still share the same ledger and focused guard file, so serial execution is safer than parallel edits that would compete on section numbering and verification-hook wording."
-    },
-    {
-      "name": "dot5-markers-and-registry",
-      "stories": [
-        "US-003"
-      ],
-      "phase": 3,
-      "dependsOn": [
-        "documented-dot4-families"
-      ],
-      "fileOverlapEvidence": {
-        "sharedFiles": [
-          "codex/docs/implementation/patch-surface.md",
-          "codex/scripts/audit_invariants.sh"
-        ],
+        "sharedFiles": [],
         "exclusiveFiles": [
           "codex/external/repos/codex-patched/codex-rs/tui/src/chatwidget/tool_lifecycle.rs",
           "codex/external/repos/codex-patched/codex-rs/tui/src/multi_agents.rs",
           "codex/external/repos/codex-patched/codex-rs/tui/src/resume_picker.rs",
-          "codex/external/repos/codex-patched/codex-rs/tui/src/app/resize_reflow.rs",
-          "codex/external/repos/codex-patched/codex-rs/tui/src/tui.rs"
-        ],
-        "risk": "high"
-      },
-      "executionModeRationale": "This cluster mixes wrapper docs with live upstream-canonical marker edits on the maintained .5 release line, including the coupled tool_lifecycle/multi_agents agent-name seams and resume_picker marker anchors, so it should remain serialized after the .4 ledger pass."
-    },
-    {
-      "name": "audit-and-ship-guidance",
-      "stories": [
-        "US-004"
-      ],
-      "phase": 4,
-      "dependsOn": [
-        "dot5-markers-and-registry"
-      ],
-      "fileOverlapEvidence": {
-        "sharedFiles": [
-          "codex/docs/implementation/patch-surface.md",
-          "codex/scripts/audit_invariants.sh"
-        ],
-        "exclusiveFiles": [
-          "codex/.claude/commands/rebase-upstream.md"
+          "codex/external/repos/codex-patched/codex-rs/**"
         ],
         "risk": "medium"
       },
-      "executionModeRationale": "Final guard wiring and branch-target notes should only happen after the registry rows and source markers are settled, so the implementation guidance matches the finished ledger."
+      "executionModeRationale": "Run first because the wrapper registry must describe the final marker anchor set. Source edits are comment-only but live in the inner submodule and require a separate commit."
+    },
+    {
+      "name": "wrapper-registry-refresh",
+      "stories": ["US-002", "US-003"],
+      "phase": 2,
+      "dependsOn": ["inner-marker-audit"],
+      "fileOverlapEvidence": {
+        "sharedFiles": ["codex/docs/implementation/patch-surface.md"],
+        "exclusiveFiles": [
+          "codex/external/repos/codex-patched",
+          "codex/scripts/audit_invariants.sh",
+          "codex/.claude/commands/rebase-upstream.md"
+        ],
+        "risk": "high"
+      },
+      "executionModeRationale": "Serialize after marker audit because this cluster updates the single large registry file and must encode the marker decisions and stale-row retirements accurately."
+    },
+    {
+      "name": "validation-and-handoff",
+      "stories": ["US-004"],
+      "phase": 3,
+      "dependsOn": ["wrapper-registry-refresh"],
+      "fileOverlapEvidence": {
+        "sharedFiles": [],
+        "exclusiveFiles": [
+          "codex/scripts/audit_network_calls.sh",
+          "codex/scripts/audit_invariants.sh"
+        ],
+        "risk": "medium"
+      },
+      "executionModeRationale": "Run last because validation must inspect both the inner marker commit and wrapper registry commit. It is command-driven and should not run in parallel with edits to the audited files."
     }
   ]
 }
