@@ -1,0 +1,30 @@
+{
+  "planFile": "D:/harness-efforts/codexu/.ralph/jobs/codex-experimental-feature-live-toggle-no-restart/plan.md",
+  "repoDir": "D:/harness-efforts/codexu/.ralph/jobs/codex-experimental-feature-live-toggle-no-restart/worktree/plan",
+  "findings": [
+    {
+      "id": "F-001",
+      "severity": "Medium",
+      "source": "rubber-duck",
+      "title": "Document the Anthropic global-gate ordering invariant",
+      "status": "fixed",
+      "resolution": "Added an explicit invariant that production filtering reads anthropic_models_resolved() after the awaited config write/reload re-installs the global gate."
+    },
+    {
+      "id": "F-002",
+      "severity": "Medium",
+      "source": "rubber-duck",
+      "title": "Specify a flippable test gate for post-construction model-manager tests",
+      "status": "fixed",
+      "resolution": "Specified a private flippable injected gate for tests so AC4 can prove post-construction behavior without mutating the process-global gate."
+    },
+    {
+      "id": "F-003",
+      "severity": "Medium",
+      "source": "rubber-duck",
+      "title": "Require disabled-Claude fallback to update the active model",
+      "status": "fixed",
+      "resolution": "Added explicit active-model fallback requirements and cited ChatWidget::set_model/apply_model_and_effort_without_persist as implementation seams."
+    }
+  ]
+}

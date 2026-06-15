@@ -1,0 +1,60 @@
+{
+  "clusters": [
+    {
+      "name": "anthropic-model-catalog-live-refresh",
+      "stories": ["US-001"],
+      "phase": 1,
+      "dependsOn": [],
+      "fileOverlapEvidence": {
+        "sharedFiles": [
+          "codex-rs/tui/src/chatwidget/settings.rs",
+          "codex-rs/tui/src/app/config_persistence.rs"
+        ],
+        "exclusiveFiles": [
+          "codex-rs/model-provider/src/copilot/gated_models_manager.rs",
+          "codex-rs/model-provider/src/copilot.rs",
+          "codex-rs/tui/src/app_server_session.rs",
+          "codex-rs/tui/src/chatwidget/model_popups.rs",
+          "codex-rs/tui/src/app/tests.rs"
+        ],
+        "risk": "high"
+      },
+      "executionModeRationale": "This cluster owns the riskiest state transition and establishes the catalog setter seam that later TUI-only toggles should not conflict with."
+    },
+    {
+      "name": "paste-burst-live-toggle",
+      "stories": ["US-002"],
+      "phase": 2,
+      "dependsOn": ["anthropic-model-catalog-live-refresh"],
+      "fileOverlapEvidence": {
+        "sharedFiles": [
+          "codex-rs/tui/src/chatwidget/settings.rs"
+        ],
+        "exclusiveFiles": [
+          "codex-rs/tui/src/bottom_pane/mod.rs",
+          "codex-rs/tui/src/bottom_pane/chat_composer.rs",
+          "codex-rs/tui/src/chatwidget/tests/popups_and_settings.rs"
+        ],
+        "risk": "medium"
+      },
+      "executionModeRationale": "This is small but shares the same live-patch handler as US-001, so it should land after the handler shape is settled."
+    },
+    {
+      "name": "user-message-styling-live-toggle",
+      "stories": ["US-003"],
+      "phase": 3,
+      "dependsOn": ["paste-burst-live-toggle"],
+      "fileOverlapEvidence": {
+        "sharedFiles": [
+          "codex-rs/tui/src/chatwidget/settings.rs"
+        ],
+        "exclusiveFiles": [
+          "codex-rs/tui/src/style.rs",
+          "codex-rs/tui/src/chatwidget/tests/popups_and_settings.rs"
+        ],
+        "risk": "low"
+      },
+      "executionModeRationale": "This is the smallest toggle and can be added last to the same handler with minimal risk after the prior two branches exist."
+    }
+  ]
+}
