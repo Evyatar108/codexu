@@ -1023,6 +1023,10 @@
       "lastTouchedAt": "2026-06-14",
       "kanbanCards": [
         {
+          "className": "cmd-ok",
+          "html": "IMPL DONE @ <code>46488481c3</code> on <code>ralph/codex-v10-int</code> (NOT origin/main; member impl-v1-agent-limit-ux 2026-06-14). UX/contract fix: the agent-thread-limit error now reads &quot;open agent thread limit reached&quot; + lists the currently-OPEN agents + hints close_agent (control.rs:183 open-agent helper; multi_agents_common.rs:118 wording; protocol/error.rs:86 generic text). Both v1 + v2 spawn handlers pass open-agent context (multi_agents/spawn.rs:141, multi_agents_v2/spawn.rs:162). Tool descriptions clarify completed/errored agents still count while open (multi_agents_spec.rs:638,710). patch-surface row added; // SANDBOX PATCH: marked. 10 files (+225/-8) incl +117 test lines. VERIFY: cargo check green on codex-core (6m29s) + codex-protocol (1m35s). CONFIRMED UNCHANGED: cap value, lifecycle/accounting, reuse model, no slot release on TurnComplete/TurnAborted/error. (Added tests couldn&#39;t RUN -- blocked by the known spec_plan_tests.rs rustfmt/parse harness false-alarm + unrelated integration API drift; the change compiles clean.) REACHES USERS at the next release cut (.10 accumulation on v10-int)."
+        },
+        {
           "className": "cmd-warn",
           "html": "BUG (operator 2026-06-12). v1 (Collab) multi-agent spawn fails with &quot;Agent spawn failed&quot; + &quot;the agent-thread limit is still reached, so I can&#39;t spawn this round right now&quot; even when NO agents are running (they already finished). KEY OBSERVATION: the agent-thread limit counter is apparently NOT released/decremented when a v1 agent COMPLETES, so the limit stays saturated for the rest of the session and blocks every future spawn. Reproduced in a plain codex session (C:\\TentedRepos\\research\\sydney-outer-loop-context-management), NOT crews/ralph-related -- so it is a general codex/fork bug. READ-ONLY investigation first: root-cause the limit accounting + determine fork-introduced vs upstream + whether v2 is affected too."
         },
