@@ -742,6 +742,25 @@
       }
     },
     {
+      "id": "codex-experimental-feature-live-toggle-no-restart",
+      "scope": "codex",
+      "lifecycle": "tracked",
+      "status": "active",
+      "lastTouchedAt": "2026-06-14",
+      "kanbanCards": [
+        {
+          "className": "cmd-warn",
+          "html": "FEATURE REQUEST (operator 2026-06-14): allow enabling/disabling codex experimental features WITHOUT a restart -- toggling in /experimental should take effect live. Motivator: the Anthropic model gate (after the .9 cache-identity fix c7cf5413, a mid-session models-manager re-consult would refetch/refilter on its own -- the likely-missing piece is a refresh+re-render hook on the /experimental toggle). Different features differ: a model-gate needs a catalog refresh; the paste-burst heuristic is likely read per-keystroke (already live); auto_load_claude_md is startup-bound. READ-ONLY INVESTIGATION in flight (investigate-feature-live-toggle): settle the model-catalog load lifecycle (bootstrap-frozen vs re-consulted), the /experimental toggle runtime effect, whether the gate is read live vs snapshotted into Session/TurnContext, the per-feature hot-reload classification, and the change surface (narrow model-gate-only fix vs general framework). CODEX submodule. Investigation -&gt; plan/impl per findings."
+        }
+      ],
+      "command": {
+        "name": "codex-experimental-feature-live-toggle-no-restart",
+        "prompts": {
+          "investigate": "READ-ONLY (deliverable under .ralph/investigations/codex-experimental-feature-live-toggle-no-restart/). Determine whether enabling/disabling an experimental feature can take effect WITHOUT restart -- PRIMARY: the Anthropic model gate + /model catalog; SECONDARY: per-feature survey. Trace the model-catalog load lifecycle (bootstrap vs live), the /experimental toggle runtime mutation, whether anthropic_models_resolved()/Feature state is read live or snapshotted into Session/TurnContext at startup, and the refresh hook needed (toggle -> models-manager re-consult -> UI re-render; the .9 c7cf5413 cache identity already makes the re-consult refetch on gate change). Classify each Feature as already-live / feasible-with-hook / restart-bound. Recommend small-fix vs plan vs brainstorm + change/conflict surface. Non-destructive pre/post snapshot guard."
+        }
+      }
+    },
+    {
       "id": "codex-windows-bracketed-paste-vt-input",
       "scope": "codex",
       "lifecycle": "tracked",
