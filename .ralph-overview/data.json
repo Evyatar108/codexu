@@ -154,6 +154,29 @@
       }
     },
     {
+      "id": "codex-anthropic-models-not-in-model-picker-when-enabled",
+      "scope": "codex",
+      "lifecycle": "tracked",
+      "status": "active",
+      "lastTouchedAt": "2026-06-14",
+      "kanbanCards": [
+        {
+          "className": "cmd-ok",
+          "html": "IMPL DONE @ <code>c7cf5413b0</code> on <code>ralph/codex-v9-int</code> (NOT origin/main; member impl-anthropic-cache 2026-06-14). 2-story plan (020d4bc0) implemented + FULLY TESTED. US-001 (models-manager): optional ModelsCacheIdentity persisted in ModelsCache; load_fresh() rejects missing/mismatched identity only when an expected identity is supplied (legacy cache deserialization preserved); manager passes + persists identity. US-002 (model-provider): CopilotModelsEndpoint::cache_identity() = provider copilot + anthropic_models_resolved() gate; picker filter UNCHANGED. patch-surface &sect;23 added; // SANDBOX PATCH: marked. VERIFY: cargo check green on codex-models-manager (4m02s) + codex-model-provider (2m26s) + codex-core (4m34s); TESTS RAN GREEN -- 17 models-manager (incl refresh_available_models_refetches_copilot_cache_when_anthropic_gate_changes + ..._uses_cache_when_identity_matches) + 7 model-provider chat_transport (incl chat_only_row_hidden_until_anthropic_enabled, wire_route_survives_models_cache_round_trip, cache_identity_tracks_resolved_anthropic_gate). REACHES USERS at the next release cut (.9 accumulation on v9-int)."
+        },
+        {
+          "className": "cmd-ok",
+          "html": "ROOT CAUSE + PLAN (2026-06-13/14). Operator-confirmed .8 bug: after enabling anthropic models + restarting, /model still did NOT show them; DELETING models_cache.json fixed it. The /model catalog is served from a cached models_cache.json (300s TTL, OnlineIfUncached) whose freshness check IGNORED the anthropic gate -- so a stale feature-off cache (GPT only) was reused within the TTL even after enabling + restarting. The picker filter (copilot_models_endpoint.rs) IS gate-aware, but cache freshness was not. FIX (plan 020d4bc0, 2 stories): key cache identity by provider + anthropic_models_resolved() so toggling the gate invalidates the cache. Plan @ .ralph/jobs/codex-anthropic-models-not-in-model-picker-when-enabled/plan.md."
+        }
+      ],
+      "command": {
+        "name": "codex-anthropic-models-not-in-model-picker-when-enabled",
+        "prompts": {
+          "impl": "/implement-with-ralph --from-plan .ralph/jobs/codex-anthropic-models-not-in-model-picker-when-enabled/plan.md --autonomous (codex-inner; direct-impl in the canonical checkout on the accumulation branch, NOT a worktree; US-001 cache identity in models-manager + US-002 copilot endpoint identity with anthropic_models_resolved + a no-network refetch-on-enable regression; inner patch-surface row; SANDBOX PATCH markers; Phase 5a). SHIPPED on v9-int @ c7cf5413b0."
+        }
+      }
+    },
+    {
       "id": "codex-anthropic-models-visible-in-experimental-picker",
       "scope": "codex",
       "lifecycle": "merged",
