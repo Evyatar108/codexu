@@ -1,0 +1,46 @@
+{
+  "clusters": [
+    {
+      "name": "paste-burst-state-machine",
+      "stories": ["US-001"],
+      "phase": 1,
+      "dependsOn": [],
+      "fileOverlapEvidence": {
+        "sharedFiles": ["codex/external/repos/codex-patched/codex-rs/tui/src/bottom_pane/paste_burst.rs"],
+        "exclusiveFiles": [],
+        "risk": "high"
+      },
+      "executionModeRationale": "This story rewrites the core classifier/buffer semantics that every later composer integration story depends on. It must run first and serially because the same file owns the timing invariants and unit tests."
+    },
+    {
+      "name": "composer-integration-tests",
+      "stories": ["US-002"],
+      "phase": 2,
+      "dependsOn": ["paste-burst-state-machine"],
+      "fileOverlapEvidence": {
+        "sharedFiles": [
+          "codex/external/repos/codex-patched/codex-rs/tui/src/bottom_pane/paste_burst.rs",
+          "codex/external/repos/codex-patched/codex-rs/tui/src/bottom_pane/chat_composer.rs"
+        ],
+        "exclusiveFiles": ["codex/external/repos/codex-patched/codex-rs/tui/src/bottom_pane/mod.rs"],
+        "risk": "high"
+      },
+      "executionModeRationale": "Composer behavior depends on the new state-machine API and shares the same tests around Enter suppression, redraw scheduling, and explicit paste handling, so it should not run in parallel with US-001."
+    },
+    {
+      "name": "patch-surface-and-verification",
+      "stories": ["US-003"],
+      "phase": 3,
+      "dependsOn": ["composer-integration-tests"],
+      "fileOverlapEvidence": {
+        "sharedFiles": [],
+        "exclusiveFiles": [
+          "codex/docs/implementation/patch-surface.md",
+          "codex/scripts/audit_invariants.sh"
+        ],
+        "risk": "medium"
+      },
+      "executionModeRationale": "Documentation and invariant registration can only be accurate after the implementation seam and test names are known. It should run last and validate that every upstream-canonical edit has a SANDBOX PATCH marker or documented reason."
+    }
+  ]
+}
