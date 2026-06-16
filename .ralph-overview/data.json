@@ -1096,9 +1096,9 @@
     {
       "id": "codex-patch-surface-divergence-registry-refresh",
       "scope": "codex",
-      "lifecycle": "tracked",
+      "lifecycle": "merged",
       "status": "active",
-      "lastTouchedAt": "2026-06-14",
+      "lastTouchedAt": "2026-06-16",
       "kanbanCards": [
         {
           "className": "cmd-ok",
@@ -1123,6 +1123,22 @@
           "plan": "Plan the refresh of the codex fork divergence registry so the next upstream rebase can reliably re-apply the full recent patch set. INPUT SPEC: the completed audit at .ralph/investigations/codex-fork-patch-marking-and-divergence-audit/findings.md (read its coverage matrix + file:line evidence; do NOT re-derive).\n\nSCOPE (codex submodule; doc + source-marker edits, no build required):\n1. Refresh codex/docs/implementation/patch-surface.md: update the header (Last Updated / Applies to) from 0.130.0-copilot-api.* to the current maintained series, and add coverage for each missing recent patch family from the audit matrix.\n2. For each missing upstream-canonical edit add a §14 invariant row + a §15 replant note (and any focused audit/test hook needed so it does not silently drop on rebase). Missing families: focus-leak, bg-completion exec-cell rendering, agent-name display, Knob B context-tier/status-line, Knob A reasoning default/threading, managed-hooks-off, /resume DB-only lazy reconcile.\n3. Add the missing // SANDBOX PATCH: markers where the audit found unmarked code: codex-rs/tui/src/multi_agents.rs (agent-name-display seam) and codex-rs/tui/src/resume_picker.rs.\n4. RECONCILE the stale paste-burst entry: current code is unwrap_or(false) (config/mod.rs:3576) but the registry still documents the old unwrap_or(true) divergence (patch-surface.md:651-684). If the revert fully retired the fork divergence, REMOVE the stale registry entry rather than re-marking code.\n\nCONSTRAINTS: edits to .4-shipped source markers reconcile already-released code, so coordinate sequencing with the next (.5) release prep — note in the plan whether marker-adds land on the .5 accumulation branch (ralph/codex-v5-int) or a dedicated branch. Two-commit submodule flow. Minimize upstream conflict (fork tenet).\n\nDELIVERABLE: plan.md + stories outline under .ralph/jobs/codex-patch-surface-divergence-registry-refresh/.",
           "impl": "/implement-with-ralph --from-plan .ralph/jobs/codex-patch-surface-divergence-registry-refresh/plan.md --autonomous\n\nRefresh the codex fork divergence registry per the RE-PLANNED 4-story plan (b834baab, current-through-.8). STORIES: US-001 audit + anchor inner source markers; US-002 refresh patch-surface header + release ledger (base 0.135.0-copilot-api.8 / rust-v0.135.0; retire the stale 0.130.0 header); US-003 update section 14 invariants + section 15 replant notes + audit_invariants.sh guard refs; US-004 validate + handoff. Patch rows to add/update through .8: fast resume history paint, experimental-feature migration, retained transcript typing lag, Copilot prompt context budget, Windows console input self-heal/tracer, fork feature-gate visibility, Windows Git Bash shell, background wake output artifacts, retained viewport no-eviction, plus verify existing chat/Anthropic rows 32-39. RETIRE/CORRECT stale rows: old paste-burst unwrap_or(true) guidance (now Feature::LegacyPasteBurstHeuristic + compat adapter config/mod.rs:2577-2588), .5 tagged-at-HEAD/no-accumulation-branch assumptions, stale 0.130.0 header language. TWO-COMMIT submodule flow INCLUDING the wrapper external/repos/codex-patched gitlink bump to the inner marker commit (Phase-4 finding M2). The inner vestigial docs/implementation/patch-surface.md is OUT OF SCOPE -- the WRAPPER registry is authoritative (Phase-4 finding M1). CODEX submodule, lead-coordinated in the canonical checkout, no build. Drive Phase 5a/5b to terminal."
         }
+      },
+      "shipManifest": {
+        "shippedAt": "2026-06-16",
+        "summary": "Shipped as a docs-only refresh of the codex fork divergence registry — prep for the upcoming codex-upstream-rebase-to-0.139. Two-commit submodule flow.\r\n\r\nInner marker commit b540ef30 (sandbox-patches on Evyatar108/codex-openai-fork) adds missing `// SANDBOX PATCH:` anchors to 9 live fork seams (agents_md.rs, features/legacy.rs, app/thread_routing.rs, chatwidget/constructor.rs, tool_lifecycle.rs, multi_agents.rs, resume_picker.rs, tui/console_mode_trace.rs, tui/event_stream.rs). Marker-only: 20 insertions / 0 deletions, no behavior change.\r\n\r\nWrapper commit 5fd96ad4 (gim-home/codex@main) refreshes docs/implementation/patch-surface.md: header → 0.135.0-copilot-api.10 (base upstream rust-v0.135.0), .6–.10 release ledger, corrects the stale paste-burst `unwrap_or(true)` row to the Feature::LegacyPasteBurstHeuristic model (incl. the .9 Windows default-on rationale — crossterm emits no Event::Paste on Windows), records the full 8-feature fork gate set (AnthropicModels, AutoLoadClaudeMd, LegacyPasteBurstHeuristic, UserMessageStyling, ManagedHooks, WindowsGitBashShell, McpServerNotifications, BackgroundProcessNotification), adds invariants/replant notes through .10, and updates the audit guards (drop deleted arc_monitor.rs, tighten the CLAUDE.md env forbid-pattern + add a positive AutoLoadClaudeMd guard, allowlist reviewed false-positive IP/IPC hits). Both wrapper audits (audit_invariants.sh + audit_network_calls.sh) pass; inner is marker-only so no cargo build was required. Scope was extended from the plan's .8 base to current .10 so the registry is accurate at .139-rebase time. The codexu codex pointer was bumped to the wrapper commit 5fd96ad4.\r\n",
+        "commits": [
+          {
+            "sha": "b540ef30",
+            "oneLine": "docs: mark fork patch seams (inner SANDBOX PATCH anchors)",
+            "repo": "codex"
+          },
+          {
+            "sha": "5fd96ad4",
+            "oneLine": "docs: refresh codex patch surface registry (through .10)",
+            "repo": "codex"
+          }
+        ]
       }
     },
     {
