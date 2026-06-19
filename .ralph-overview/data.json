@@ -9579,6 +9579,24 @@
         "descriptionHtml": "",
         "prompts": {}
       }
+    },
+    {
+      "id": "codex-upstream-rebase-to-0.141",
+      "scope": "codex",
+      "lifecycle": "tracked",
+      "status": "todo",
+      "lastTouchedAt": "2026-06-19",
+      "kanbanCards": [
+        {
+          "className": "cmd-warn",
+          "html": "REBASE (operator-flagged 2026-06-19: &quot;lets do a rebase on 141 I see its a new version&quot; + &quot;check if any changes there affect any of our fork patches or future efforts/tasks&quot;). SINGLE-MINOR bump from the just-shipped 0.140 base: fork tip <code>sandbox-patches</code> @ <code>9615bef64</code> (label 0.140.0-copilot-api.1, base upstream rust-v0.140.0) -&gt; upstream <strong>rust-v0.141.0</strong> (confirmed STABLE; rust-v0.142.0 is alpha-only). Approach = ASSESS-THEN-IMPL. Step 1 (in flight): a READ-ONLY assessment member produces a lightweight conflict forecast per fork-patch family + a BACKLOG-IMPACT scan (does any 0.141 upstream change affect/ease/obsolete/complicate a tracked codex task) at <code>.ralph/investigations/codex-rebase-0141-assessment/findings.md</code>. Step 2: impl per the recommendation (direct rebase-upstream.md, or de-risk-first if a high-churn surface surfaces). Driven by <code>codex/.claude/commands/rebase-upstream.md</code> with FULL closeout (Phase 5a cargo check --workspace + cargo check --release HARD gates, release cut via /publish-sandbox-patch on COPILOT engine, ETW audit, Phase 5b CI/interim closeout). CODEX SUBMODULE."
+        }
+      ],
+      "command": {
+        "name": "codex-upstream-rebase-to-0.141",
+        "descriptionHtml": "",
+        "prompts": {}
+      }
     }
   ],
   "phaseTree": [
