@@ -9382,9 +9382,9 @@
     {
       "id": "codex-upstream-rebase-to-0.140",
       "scope": "codex",
-      "lifecycle": "tracked",
+      "lifecycle": "merged",
       "status": "todo",
-      "lastTouchedAt": "2026-06-16",
+      "lastTouchedAt": "2026-06-19",
       "kanbanCards": [
         {
           "className": "cmd-warn",
@@ -9406,6 +9406,27 @@
           "impl": "DE-RISK FINDINGS (READ FIRST — .ralph/investigations/codex-rebase-0140-p2-p3-derisk/findings.md @ 70cf6810). A read-only spike already resolved the highest-risk replants; these decisions are authoritative, do NOT re-derive:\r\n- P2 remote-control = LEAN ON UPSTREAM (drops HIGH->LOW-MED). Upstream 0.140 deleted set_enabled (old fork Layer 2 is un-replantable) and added native RemoteControlPolicy::DisabledByRequirements that forces desired_state=Disabled->remote_control_target=None at startup AND gates every enable RPC on its first line (ensure_remote_control_allowed, mod.rs:236-259). REPLACE the two deep mod.rs body edits (Inv 8 + Inv 9) with ONE shallow // SANDBOX PATCH: at app-server/src/lib.rs:676-686 forcing `let remote_control_policy = RemoteControlPolicy::DisabledByRequirements;`. Keep launcher Layer 3 (features.remote_control=false) as defense-in-depth. Re-#[ignore] the new +1121-line remote_control tests.\r\n- Q3 cloud-requirements (P8) = RETIRE, not relocate. The whole cloud-requirements crate is deleted at 0.140 (#24621); requirements moved to config/src/config_requirements.rs (system requirements.toml/MDM, NO network); new cloud-config crate has no production network literal. Drop one KNOWN_PATCH_FILES row; audit_network_calls.sh stays clean.\r\n- P4 close_agent->interrupt_agent = v2-ONLY rename (#26994). v1 close_agent tool+method are upstream-retained (now in control/legacy.rs after the #26610 agent-control split). Keep the fork's v1-agent-limit-ux hints as close_agent; swap ONLY the v2-facing description strings to interrupt_agent. Targeted per-string audit, NOT a blanket sed.\r\n- P3 multi-agent tools = MED-HIGH, irreducible. PlannedTools, add_collaboration_tools, and CoreToolRuntime: ToolExecutor<ToolInvocation> all STILL EXIST at 0.140 (async_trait removed #27304, bodies outlined #27299) — so the .135 30-error debt was a squash-DROP, not an upstream deletion, and WILL RECUR if the squash is sloppy. After the squash, VERIFY those producer modules survived before trusting cargo check; the plugin-scope-axis gate anchor (handle_spawn_agent + ToolInvocation destructure), ShellCommandHandler (NOT ShellHandler), and fork-only spawn_top_level_session.rs are all structurally intact. Dominant debt zone: codex-rebase-debt-fix-tools-registration.\r\n- Submodule is grafted/shallow: merge-base is EMPTY and neither tag is an ancestor of b540ef30; use two-dot tree diffs (A..B), NOT three-dot/merge-base semantics, during setup.\r\n\r\nIMPL (serial rebase — drive codex/.claude/commands/rebase-upstream.md end-to-end, NOT a parallel /implement-with-ralph). Spec = .ralph/jobs/codex-upstream-rebase-to-0.140/plan.md (7 stories US-001..US-007, serial-only). TARGET = rust-v0.140.0 (commit 6506579001, NOT 0.139). cwd = codex wrapper + inner canonical checkout (codex/external/repos/codex-patched); cargo builds ONLY via Git Bash codex-cargo.sh (clang-cl/lld-link/xwin).\r\n\r\nUS-001 setup: merge drivers (scripts/setup-merge-drivers.sh), check_submodule_lag.sh confirms latest_stable_tag=rust-v0.140.0, wrapper worktree + submodule init, source scripts/iteration-env.sh.\r\nUS-002 squash-merge rust-v0.140.0 onto sandbox-patches + re-anchor EVERY fork patch per the DE-RISK FINDINGS above: P2 remote-control = LEAN (single policy-force seam, retire Layers 1+2, keep launcher Layer 3) and P3 multi-agent tool registration (verify PlannedTools/add_collaboration_tools/CoreToolRuntime survived the squash; gate + D-002 handler intact) are the highest-risk; ALL 8 feature gates present alongside the 7 new upstream variants; paste-burst keep Feature::LegacyPasteBurstHeuristic default cfg!(windows) + config/mod.rs:2577-2588 compat adapter, do NOT replant unwrap_or(true); resolve obsolescence close_agent->interrupt_agent (P4, v2-only) + cloud-requirements RETIRE (P8/Q3) + ${CLAUDE_PLUGIN_ROOT} re-verify (P18); every // SANDBOX PATCH: marker present or its retirement documented.\r\nUS-003 Phase 5a cargo check --workspace HARD GATE = 0 errors (file codex-rebase-debt-fix-<crate> tasks for large clusters, resolve serially IN-WORKTREE before proceeding); pre-filed debt areas: tools-registration (PlannedTools/CoreToolRuntime), config orphans+new fields, app-server ExecParams, remote_control type/test drift, tui merge-markers, tool_config.rs.\r\nUS-004 static audits: audit_network_calls.sh (0 unpatched/new/IP/IPC/no_proxy) + audit_invariants.sh + silent-drop checklist.\r\nUS-005 release cut via /publish-sandbox-patch: suffix 0.140.0-copilot-api.1 in codex-patched/codex-rs/Cargo.toml, full binary set, runtime ETW audit (elevated, freshly-built codex.exe), pre-tag live Copilot smoke, push inner sandbox-patches + release/<ver> retention tag to Evyatar108/codex-openai-fork.\r\nUS-006 closeout: wrapper gitlink bump gim-home/codex@main (evmitran_microsoft SAML), codexu pointer bump origin+personal, patch-surface.md -> \"Applies to 0.140.0-copilot-api.1\", Phase 5b invariant-check CI green OR interim closeout citing escalate-gim-home-actions-policy + cargo-check log path.\r\nUS-007 lead bookkeeping (lifecycle merged only after on origin/main + shipManifest).\r\n\r\nRELEASE MEMBER MUST RUN ON COPILOT (a codex-engine release self-kills via the publish flow's stray-process cleanup). Multi-account pushes: inner->Evyatar108/codex-openai-fork, wrapper->gim-home (evmitran_microsoft SAML), codexu->origin(evmitran_microsoft)+personal(Evyatar108). Lead handles operator-gated release confirmation + final pointer bumps. This is a MAJOR multi-iteration effort — expect to babysit Phase 5a debt-fix convergence.\r\n"
         },
         "descriptionHtml": ""
+      },
+      "shipManifest": {
+        "shippedAt": "2026-06-19",
+        "summary": "The codex fork was rebased from upstream rust-v0.135.0 onto rust-v0.140.0 and released as v0.140.0-copilot-api.1. Driven end-to-end through codex/.claude/commands/rebase-upstream.md + /publish-sandbox-patch by a copilot impl member, gated by the operator at the release cut and the ETW audit. The de-risk spike (codex-rebase-0140-p2-p3-derisk) front-loaded the two highest-risk replants: P2 remote-control adopted upstream's native RemoteControlPolicy::DisabledByRequirements (#27961) via a single shallow policy-force seam in app-server/src/lib.rs (retiring 2 of 3 fork override layers; the old set_enabled hook was deleted upstream), and the cloud-requirements network-suppression patch was retired (crate deleted #24621). All 63 squash conflicts were resolved preserving the 8 fork feature gates; P4 close_agent->interrupt_agent was handled as a v2-only rename; P18 ${CLAUDE_PLUGIN_ROOT} substitution was re-anchored into upstream's parse-then-substitute flow (relative-cwd rewrite consciously dropped after confirming no shipped plugin .mcp.json relies on it).\r\n\r\nQuality gates: cargo check --workspace --all-targets = 0 errors; cargo check --release = 0 errors (closed a release-only-module gap where tui/src/updates.rs lost serde::Serialize + std::path::PathBuf imports + the dismiss_version fn in the squash, invisible to debug-mode checks); cargo build --release BUILD_EXIT=0 (all 4 shipped bins + rg report 0.140.0-copilot-api.1); audit_network_calls.sh ALL CLEAR (17/17 patched); audit_invariants.sh exit 0; elevated ETW runtime audit = 0 violations both runs (codex contacts only allowlisted api.githubcopilot.com + github.com LBs; the WARN was operator-accepted as benign PID-reuse noise + the pre-existing bare-LF CRLF quirk); pre-tag live Copilot exec smoke returned pong.\r\n\r\nArtifacts: GitHub Release https://github.com/gim-home/codex/releases/tag/v0.140.0-copilot-api.1 (codex-0.140.0-copilot-api.1-win32-x64.tgz, 120.9 MB, 4 bins + rg). Inner Evyatar108/codex-openai-fork sandbox-patches @ 9615bef64 + retention tag release/0.140.0-copilot-api.1. Wrapper gim-home/codex@main a040b9907 + tag v0.140.0-copilot-api.1. codexu submodule pointer bumped 5fd96ad4 -> a040b9907. Phase 5b = interim closeout (invariant-check CI shows startup_failure under the gim-home org-policy block, identical to every prior release; cite escalate-gim-home-actions-policy; the combined local signal stands in). Two follow-ups filed: codex-rebase-0140-debt-spec-plan-tests (18 deferred fork tool-plan tests; none covered the security-critical plugin-scope SubAgent gate) and codex-rebase-0140-remote-control-policy-layer-test (replace the 2 removed obsolete set_enabled tests with a policy-layer force-disable test).\r\n",
+        "commits": [
+          {
+            "sha": "a040b9907",
+            "oneLine": "fix(release): publish codex 0.140.0-copilot-api.1 (wrapper gitlink + tag)",
+            "repo": "gim-home/codex"
+          },
+          {
+            "sha": "9615bef64",
+            "oneLine": "rebase rust-v0.140.0 + Phase-5a/all-targets/release-only fixes (sandbox-patches tip)",
+            "repo": "Evyatar108/codex-openai-fork"
+          },
+          {
+            "sha": "41b7a6d43",
+            "oneLine": "rebase: merge upstream rust-v0.140.0 into sandbox-patches (squash)",
+            "repo": "Evyatar108/codex-openai-fork"
+          }
+        ]
       }
     },
     {
@@ -9521,6 +9542,42 @@
             "repo": "codexu"
           }
         ]
+      }
+    },
+    {
+      "id": "codex-rebase-0140-debt-spec-plan-tests",
+      "scope": "codex",
+      "lifecycle": "tracked",
+      "status": "todo",
+      "lastTouchedAt": "2026-06-19",
+      "kanbanCards": [
+        {
+          "className": "cmd-warn",
+          "html": "FOLLOW-UP from the .140 rebase (shipped v0.140.0-copilot-api.1). During the squash, <code>core/src/tools/spec_plan_tests.rs</code> was taken from upstream-0.140 because the fork copy was pre-existing catastrophically-scrambled WIP that never compiled. ~18 fork tool-plan tests were deferred. The impl member confirmed NONE of the deferred tests covered the security-critical plugin-scope SubAgent gate (that is covered by <code>multi_agents_v2/spawn.rs</code> + <code>multi_agents_tests.rs:4660/4791</code>). This task: re-author the worthwhile fork tool-plan test coverage against the 0.140 <code>PlannedTools</code>/<code>add_collaboration_tools</code>/<code>CoreToolRuntime</code> shapes, or consciously retire the obsolete ones. NON-security; low urgency. Inner repo Evyatar108/codex-openai-fork sandbox-patches."
+        }
+      ],
+      "command": {
+        "name": "codex-rebase-0140-debt-spec-plan-tests",
+        "descriptionHtml": "",
+        "prompts": {}
+      }
+    },
+    {
+      "id": "codex-rebase-0140-remote-control-policy-layer-test",
+      "scope": "codex",
+      "lifecycle": "tracked",
+      "status": "todo",
+      "lastTouchedAt": "2026-06-19",
+      "kanbanCards": [
+        {
+          "className": "cmd-warn",
+          "html": "FOLLOW-UP from the .140 rebase (shipped v0.140.0-copilot-api.1). The P2 remote-control force-disable was re-derived to LEAN on upstream's native <code>RemoteControlPolicy::DisabledByRequirements</code> (#27961) instead of the old 3-layer override. As part of that, 2 obsolete fork tests (<code>remote_control_start_forced_disabled</code>, <code>remote_control_set_enabled_forced_false</code>) were REMOVED because they referenced the now-deleted <code>set_enabled</code> method + <code>initial_enabled</code> param (the retired Inv 8/9 Layer-2 hook), with a SANDBOX PATCH note at <code>app-server-transport/src/transport/remote_control/tests.rs:1077</code>. This task: add a NEW test asserting the policy-layer force-disable holds &mdash; i.e. when <code>RemoteControlPolicy::DisabledByRequirements</code> is forced (the fork's one shallow seam at <code>app-server/src/lib.rs:676-686</code>), both startup (<code>remote_control_target=None</code>) AND the enable-RPC path (<code>ensure_remote_control_allowed</code> -&gt; Err) are closed, so <code>wss://chatgpt.com/...</code> enrollment cannot occur. Privacy-critical regression guard. Inner repo Evyatar108/codex-openai-fork sandbox-patches."
+        }
+      ],
+      "command": {
+        "name": "codex-rebase-0140-remote-control-policy-layer-test",
+        "descriptionHtml": "",
+        "prompts": {}
       }
     }
   ],
