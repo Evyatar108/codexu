@@ -48,30 +48,32 @@
         "exclusiveFiles": [
           "codex/external/repos/codex-patched/codex-rs/app-server-client/src/lib.rs",
           "codex/external/repos/codex-patched/codex-rs/tui/Cargo.toml (codex-happy dep; REQUIRED or cargo check fails)",
-          "codex/external/repos/codex-patched/codex-rs/features/src/lib.rs + features/src/tests.rs (register happy_autoconnect)",
+          "codex/external/repos/codex-patched/codex-rs/features/src/lib.rs + features/src/tests.rs (register remote_session)",
           "codex/codex-rs-overlay/codex-invariant-tests/tests/happy_seam_invariants.rs"
         ],
         "risk": "medium"
       },
-      "executionModeRationale": "The upstream-canonical seam (event tee + happy_tap UnboundedSender + additive handle methods if missing) plus build/feature wiring (tui/Cargo.toml dep + features/src/lib.rs registration) is disjoint from the overlay-crate src/ files, so it can run in parallel with protocol-client. It does NOT edit the root workspace Cargo.toml (US-002 owns that membership add). It shares app.rs with US-006 (attach) and patch-surface.md with US-008, so those serialize after this cluster. MUST complete before integration: US-006 cannot compile the attach call until tui/Cargo.toml depends on codex-happy and happy_autoconnect is a known feature key. Highest-risk cluster; keep it isolated."
+      "executionModeRationale": "The upstream-canonical seam (event tee + happy_tap UnboundedSender + additive handle methods if missing) plus build/feature wiring (tui/Cargo.toml dep + features/src/lib.rs registration) is disjoint from the overlay-crate src/ files, so it can run in parallel with protocol-client. It does NOT edit the root workspace Cargo.toml (US-002 owns that membership add). It shares app.rs with US-006 (attach) and patch-surface.md with US-008, so those serialize after this cluster. MUST complete before integration: US-006 cannot compile the attach call until tui/Cargo.toml depends on codex-happy and remote_session is a known feature key. Highest-risk cluster; keep it isolated."
     },
     {
       "name": "integration",
-      "stories": ["US-006", "US-007"],
+      "stories": ["US-006", "US-007", "US-009"],
       "phase": 3,
       "dependsOn": ["protocol-client", "seam"],
       "fileOverlapEvidence": {
         "sharedFiles": [
-          "codex/external/repos/codex-patched/codex-rs/tui/src/app.rs (attach call)",
-          "codex/codex-rs-overlay/codex-happy/src/attach.rs"
+          "codex/external/repos/codex-patched/codex-rs/tui/src/app.rs (attach/detach call — US-006 + US-009)",
+          "codex/codex-rs-overlay/codex-happy/src/attach.rs (attach + detach API — US-006/US-009)"
         ],
         "exclusiveFiles": [
           "codex/codex-rs-overlay/codex-copilot-launcher/src/main.rs",
-          "codex/codex-rs-overlay/codex-copilot-launcher/src/config.rs"
+          "codex/codex-rs-overlay/codex-copilot-launcher/src/config.rs",
+          "codex/external/repos/codex-patched/codex-rs/tui/src/slash_command.rs (US-009 /remote command)",
+          "codex/external/repos/codex-patched/codex-rs/tui/src/chatwidget/slash_dispatch.rs + settings.rs (US-009 dispatch via set_feature_enabled)"
         ],
         "risk": "medium"
       },
-      "executionModeRationale": "Needs both the crate (US-003/004) and the seam + build/feature wiring (US-005) present and compiling. US-006 delivers attach + launcher wiring + idempotency + fallback + opt-in + Windows parity (via the launcher's existing Windows spawn+wait branch main.rs:176-187; there is no in-repo codex.ps1 to edit); US-007 builds directly on US-006's attach to add full bidirectional control, so the two serialize within the cluster."
+      "executionModeRationale": "Needs both the crate (US-003/004) and the seam + build/feature wiring (US-005) present and compiling. US-006 delivers attach + self-onboard (US-003 when creds absent) + launcher wiring + idempotency + fallback + default-OFF opt-in + Windows parity (via the launcher's existing Windows spawn+wait branch main.rs:176-187; there is no in-repo codex.ps1 to edit); US-007 builds directly on US-006's attach to add full bidirectional control; US-009 adds the per-session /remote on|off slash command, reusing US-006's attach + US-007's clean-detach/teardown semantics and editing the same codex-happy attach surface + tui/src/app.rs, so US-006 -> US-007 -> US-009 serialize within the cluster."
     },
     {
       "name": "audit-drift",

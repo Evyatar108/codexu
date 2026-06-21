@@ -40,9 +40,10 @@ sessions are cryptographically compatible with the existing mobile app.
 **Dependencies:** None (crypto needs no live server). May run in parallel with US-001.
 **Estimated complexity:** medium
 
-## US-003: `getOrCreateSession` (POST /v1/sessions) + auth module
+## US-003: `getOrCreateSession` (POST /v1/sessions) + auth/onboarding module
 **Description:** As the integrated client, I want to create/find a Happy session over HTTP with correct encryption
-mode selection and auth, so a session appears server-side exactly as `happy-cli` would create it.
+mode selection and auth — and, when Happy is enabled but not yet configured, **self-onboard** the codex-native
+identity first — so a session appears server-side exactly as `happy-cli` would create it, even on a fresh machine.
 **Acceptance Criteria:**
 - [ ] `src/api.rs` implements `getOrCreateSession` mirroring `packages/happy-cli/src/api/api.ts` (28-132): `POST
   /v1/sessions` with `{ tag, metadata, agentState?, dataEncryptionKey? }`, dataKey-vs-legacy selection (34-54),
@@ -53,6 +54,14 @@ mode selection and auth, so a session appears server-side exactly as `happy-cli`
   cross-machine `X-Tunnel-Authorization: tunnel <jwt>`) + GitHub device flow mirroring
   `codex-rs-overlay/codex-copilot/src/auth.rs` (login/request_device_code/poll_access_token; secret-perm cred files);
   reads Happy creds from `~/.happy`.
+- [ ] **Self-onboard path:** when `~/.happy` creds are absent, `src/auth.rs` (or a sibling `src/onboard.rs`) mirrors
+  `packages/happy-cli/src/ui/auth.ts doAuth`/`authAndSetupMachineIfNeeded`: run the GitHub device flow
+  (`auth/githubDeviceFlow.ts requestDeviceCode`/`pollForToken` shape), generate the E2EE keypair locally
+  (`tweetnacl.box.keyPair()` equivalent → `crypto_box` 0.9) and write it to `~/.happy/access.key` as dataKey creds
+  (`{publicKey, machineKey}` + token), write `~/.happy/profile.json` from `GET https://api.github.com/user`, and seed
+  `machineId` in `~/.happy/settings.json`. NO server-side account-creation call (the fork has none — identity = GitHub
+  OAuth + Dev-Tunnels ownership). The one-time mobile pairing (`POST /pair/complete`) and a reachable server/tunnel
+  remain the same prerequisites `happy codex`'s first run has and are NOT part of this story.
 - [ ] An integration test (gated/`#[ignore]` if it needs the live server) creates a session using US-001's resolved
   auth; both `dataKey` and `legacy` modes round-trip and the created session is decryptable.
 - [ ] `cargo check -p codex-happy` green.
@@ -91,9 +100,9 @@ sprawling the upstream conflict surface.
   additively (per `probe-a-seam.diff`) ONLY if missing.
 - [ ] `tui/Cargo.toml` declares `codex-happy = { workspace = true }` (REQUIRED for `app.rs` to call
   `codex_happy::attach`; absence fails `cargo check`).
-- [ ] `happy_autoconnect` registered as an experimental feature in `features/src/lib.rs` (Feature enum, default per
-  design) + `features/src/tests.rs`; strict config (`config/src/strict_config.rs` `is_known_feature_key`,
-  `core/src/config/config_loader_tests.rs`) accepts `-c features.happy_autoconnect=...`.
+- [ ] `remote_session` registered as an experimental feature in `features/src/lib.rs` (Feature enum,
+  **default-OFF**) + `features/src/tests.rs`; strict config (`config/src/strict_config.rs` `is_known_feature_key`,
+  `core/src/config/config_loader_tests.rs`) accepts `-c features.remote_session=...`.
 - [ ] All upstream-canonical edits registered in `patch-surface.md` §14 (invariant rows with an enforcement
   mechanism) and §15 as applicable; an enforcing test in `codex-invariant-tests` (`include_str!()` structural
   assertion of the `// SANDBOX PATCH:` markers at the tee + a lossless-transcript test for assistant deltas/
@@ -104,23 +113,30 @@ sprawling the upstream conflict surface.
 **Dependencies:** None for the mechanism, but only mergeable once US-002 exists (the `codex-happy` crate it depends on)
 **Estimated complexity:** medium
 
-## US-006: Launcher wiring + attach + idempotency + fallback + opt-in/kill-switch
-**Description:** As a user, I want raw `codex` with Happy creds to appear on the mobile tree and stream E2EE, with
-no double-wrap and a silent vanilla fallback otherwise.
+## US-006: Launcher wiring + attach + self-onboard + idempotency + fallback + opt-in (default-OFF)
+**Description:** As a user, I want raw `codex` to appear on the mobile tree and stream E2EE once I opt in — with Happy
+creds it connects directly, and with the feature on but no creds it self-onboards (US-003) first — with no double-wrap
+and a silent vanilla fallback when the feature is off, I abort the GitHub login, or the server is unreachable.
 **Acceptance Criteria:**
 - [ ] `codex_happy::attach(tap_rx, request_handle)` is wired in `tui/src/app.rs` (~1137-1204, after `app_server` is
-  constructed, before the main loop), gated on: creds present AND feature enabled AND not already Happy-driven.
+  constructed, before the main loop), gated on: feature enabled AND not already Happy-driven. When creds are absent,
+  attach first invokes US-003's self-onboard (background; the GitHub device-flow prompt is non-blocking) and connects
+  on success.
 - [ ] Launcher (`codex-rs-overlay/codex-copilot-launcher/src/{main.rs, config.rs}`): a config field +
-  `provider_config_flags()` emits `-c features.happy_autoconnect=...` (default-ON build-time + kill switch in
-  `~/.codex-copilot/config.toml` + env override), modeled on the existing `features.remote_control`/`unified_exec`
-  pattern; env/cred state passed to the spawned codex-core.
+  `provider_config_flags()` emits `-c features.remote_session=...` (**default-OFF**; opted in via
+  `~/.codex-copilot/config.toml` / `-c features.remote_session=true` / `--enable remote_session` / env override /
+  `/experimental` / `/remote on`), modeled on the existing `features.remote_control`/`unified_exec` pattern;
+  env/cred state passed to the spawned codex-core.
 - [ ] Idempotency: native autoconnect is suppressed when `HAPPY_CURRENT_SESSION_ID` is set OR the subcommand is
   `app-server` (refs `cli/src/main.rs:627-645`, `runCodex.ts:943-953`, `codexAppServerClient.ts:1003-1023`).
 - [ ] With Happy creds present + feature on, a raw `codex` start surfaces a NEW non-read-only Happy session on the
-  mobile tree within ≤5 s `[tune]` with codex-flavor metadata, streaming E2EE.
+  mobile tree within ≤5 s `[tune]` with codex-flavor metadata, streaming E2EE. With the feature on + no creds, it
+  self-onboards (US-003) first and then surfaces the session (no server-side account-creation step).
 - [ ] `happy codex` and a `codex app-server` child it spawns do NOT create a second/duplicate session.
-- [ ] No creds / not authed / offline: raw `codex` reaches the interactive prompt with ≤300 ms `[tune]` added over
-  the vanilla baseline, no auth prompt, no error; the connect attempt is fully background. Asserted by a test.
+- [ ] Feature OFF (default): raw `codex` is plain vanilla codex (no probe, no added latency). Feature ON but
+  can't-connect (user aborts the GitHub login OR server unreachable/offline): raw `codex` reaches the interactive
+  prompt with ≤300 ms `[tune]` added over the vanilla baseline, no blocking auth prompt, no error; the
+  connect/self-onboard attempt is fully background. Asserted by a test.
 - [ ] Windows parity: the launcher's Windows spawn+wait branch (`main.rs:176-187`) carries identical env/feature/
   idempotency behavior (no in-repo `codex.ps1`). Verified on the Windows path.
 - [ ] `cargo check --workspace` green.
@@ -162,4 +178,24 @@ egress-suppression invariant holds and the two-implementation tax stays visible.
   verified to fail-correctly on a simulated schema bump.
 - [ ] `codex/scripts/audit_network_calls.sh` passes; `cargo check --workspace` green.
 **Dependencies:** US-003, US-004, US-005
+**Estimated complexity:** medium
+
+## US-009: Per-session `/remote on|off` slash command
+**Description:** As a user, I want a dedicated `/remote` command to enable/disable Happy connection for THIS codex
+session mid-session, on top of the `/experimental` + config + startup-flag opt-in surfaces.
+**Acceptance Criteria:**
+- [ ] `SlashCommand::Remote` added to the `SlashCommand` enum in `tui/src/slash_command.rs` (serialized `remote`),
+  with a user-visible description and `on`/`off` argument parsing. Each modified upstream line carries `// SANDBOX PATCH:`.
+- [ ] `/remote on` flips `remote_session` on via the existing `set_feature_enabled` live-toggle
+  (`tui/src/chatwidget/settings.rs:69` — the `UserMessageStyling` precedent at `settings.rs:107-112`) and ATTACHES the
+  `codex-happy` client mid-session (self-onboarding via US-003 if creds are absent), so the session appears on the
+  mobile tree without restarting codex.
+- [ ] `/remote off` flips `remote_session` off and cleanly DETACHES the `codex-happy` client (stops the Happy
+  session/sync, tears down the tap/socket) WITHOUT killing the codex session; codex continues as plain local codex.
+- [ ] `codex-happy::attach` exposes a matching `detach`/teardown entry point (built on US-007's clean abort/teardown
+  semantics) that `/remote off` invokes; re-`/remote on` re-attaches cleanly.
+- [ ] All upstream-canonical edits registered in `patch-surface.md` §14 with an enforcing test; a TUI integration test
+  drives `/remote on` then `/remote off` and asserts attach→detach behavior (session appears, then sync stops, codex
+  stays alive). `cargo check --workspace` green.
+**Dependencies:** US-006, US-007
 **Estimated complexity:** medium
