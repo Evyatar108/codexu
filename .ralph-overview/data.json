@@ -7371,7 +7371,7 @@
       "scope": "codex|codexu",
       "lifecycle": "tracked",
       "status": "active",
-      "lastTouchedAt": "2026-06-08",
+      "lastTouchedAt": "2026-06-21",
       "kanbanCards": [
         {
           "className": "cmd-warn",
@@ -7388,6 +7388,10 @@
         {
           "className": "cmd-ok",
           "html": "Brainstorm v2 shipped 2026-06-08 @ 2a2c8278 (topic ralph/brainstorm-codex-raw-session-happy-daemon-autoconnect-v2; supersedes the read-only v1 @ e27720bc). Direction B: a NATIVE Rust Happy-protocol client overlay crate (codex/codex-rs-overlay/codex-happy), SESSION-SCOPE first, NO happy-cli runtime dep, SPIKE-GATED (D=hybrid happy-cli-owns-wire is the principled fallback). 3-lens consensus + direct source verification. KEY CORRECTION (honors operator intent, corrects framing): the app-server JSON-RPC TRANSPORT collapses (operator was right), BUT pure overlay-only is impossible -- core/src/session/mod.rs:372 Codex{tx_sub,rx_event} is a single-consumer mpsc owned by the TUI (both pub(crate)), so an overlay cannot subscribe; full control needs a BOUNDED upstream-canonical fan-out+inject seam (tui/src/{app_event,app_event_sender,app_server_session,chatwidget/turn_runtime,approval_events}.rs + core/src/session), each line // SANDBOX PATCH-marked + registered in patch-surface.md, sized XL. Phase-0 spike (HARD GATE) must prove: (a) the narrow seam taps 1 turn + exec + patch approval + interrupt + stop in bounded lines; (b) a Rust client round-trips happy-server (getOrCreateSession dataKey+legacy, /v3 send, Socket.IO /v1/updates, metadata/state CAS) with NO server changes. v1 control-scope = session-level ONLY (machine presence / spawn-from-mobile / fork / keepalive deferred to the retained happy-cli daemon = direction D fast-follow). 3 carried costs: perpetual Rust<->TS wire-drift tax (pin+guard), NEW audited network egress INSIDE codex-core (tension with the fork non-Copilot-egress-suppression purpose; strongest D argument), E2EE key-ownership shift into the audited binary."
+        },
+        {
+          "className": "cmd-warn",
+          "html": "PHASE-0 SPIKE IN FLIGHT (operator 2026-06-21: &quot;we are still not at a state where I can easily connect to my codex instances remotely... what do we need to do?&quot; -> chose spike-then-plan). Brainstorm v2 (Direction B @ 2a2c8278) is HARD-GATED on a Phase-0 feasibility spike with 2 throwaway probes: (a) prove a BOUNDED upstream-canonical TUI AppEvent/AppCommand + core/src/session fan-out+inject seam can tap a turn + inject one full turn + exec-approval + patch-approval + interrupt + stop in a registerable line budget (<code>cargo check --workspace</code> passing); (b) prove a native Rust client round-trips POST /v1/sessions (dataKey + legacy), /v3 send, Socket.IO /v1/updates, metadata CAS against a dev happy-server with NO server changes + BYTE-COMPATIBLE crypto vs happy-cli encryption.ts. Outcome = GO (Direction B native Rust codex-happy overlay, full mobile remote control, no happy-cli runtime dep) vs NO-GO (Direction D hybrid happy-cli-owns-wire fallback). Member: spike-raw-autoconnect (copilot). Findings -> .ralph/investigations/codex-raw-autoconnect-spike/findings.md. On GO, a fresh PLAN member follows.\r\n"
         }
       ],
       "command": {
