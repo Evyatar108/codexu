@@ -1,0 +1,37 @@
+**Codebase Architecture**
+
+The repo is a mixed monorepo. The forked Codex engine is a Rust workspace under `codex/external/repos/codex-patched/codex-rs/`; fork-owned overlay crates live beside it in `codex/codex-rs-overlay/`, including the launcher and invariant-test crates. Happy is TypeScript/Node under `packages/happy-cli/`, with shared schemas in `packages/happy-wire/`. Rust uses Cargo; Happy uses pnpm/Vitest/TypeScript.
+
+Raw `codex` currently enters through the overlay launcher at `codex/codex-rs-overlay/codex-copilot-launcher/src/main.rs`. That launcher finds `codex-core`, applies config/env, then replaces itself with core on Unix or spawns/waits on Windows, so it cannot own a session-lifetime Happy client. Config follows `~/.codex-copilot/config.toml` via `codex-copilot-launcher/src/config.rs`.
+
+**Feature-Relevant Code**
+
+Core session control is centered in `codex-rs/core/src/session/mod.rs`: `Codex` owns `tx_sub` and a single `rx_event`; `submit()`, `submit_with_id()`, and `next_event()` are the main APIs. `codex-rs/core/src/session/handlers.rs` processes `Op::UserInput`, `Op::Interrupt`, `Op::ExecApproval`, `Op::PatchApproval`, and `Op::Shutdown`.
+
+The TUI already has the right command abstractions: `codex-rs/tui/src/app_command.rs` defines `AppCommand::{UserTurn, ExecApproval, PatchApproval, Interrupt, Shutdown}`; `codex-rs/tui/src/app_event.rs` has `SubmitThreadOp`; `codex-rs/tui/src/app_event_sender.rs` has helper methods for approvals and interrupts. Event dispatch and routing are in `tui/src/app.rs`, `tui/src/app/event_dispatch.rs`, and `tui/src/app/thread_routing.rs`.
+
+Approval UX/state is in `tui/src/approval_events.rs`, `tui/src/chatwidget/tool_requests.rs`, `tui/src/bottom_pane/approval_overlay.rs`, and `tui/src/app/app_server_requests.rs`. Existing app-server behavior is still useful as an oracle, especially `packages/happy-cli/src/codex/runCodex.ts`, `codexAppServerClient.ts`, and `sessionProtocolMapper` tests.
+
+Happy wire behavior to port lives in `packages/happy-cli/src/api/api.ts` (`getOrCreateSession`), `apiSession.ts` (Socket.IO `/v1/updates`, `/v3` messages, metadata/state CAS, keepalive, RPC), `encryption.ts`, and schemas in `packages/happy-wire/src/sessionProtocol.ts` / `messages.ts`.
+
+Audit/patch policy lives in `codex/docs/implementation/patch-surface.md`, `codex/scripts/audit_network_calls.sh`, and `codex/scripts/runtime_audit_allowlist.txt`.
+
+**Technical Constraints**
+
+A pure overlay implementation is not feasible: `rx_event` is a single-consumer receiver owned by the TUI, and the fields are `pub(crate)`. Full mobile control needs a bounded upstream-canonical seam for event fan-out and command injection.
+
+Every upstream-canonical edit must carry `// SANDBOX PATCH:` and be registered in `patch-surface.md`, with invariant/audit coverage. New Happy server and Dev Tunnels egress must be explicitly allowlisted. `cargo check --workspace` remains the Rust gate.
+
+The native client must not prompt or hang raw `codex` startup. Missing creds, auth failure, or offline server must silently fall back to vanilla Codex. It must disable itself when `HAPPY_CURRENT_SESSION_ID` is set or subcommand is `app-server`.
+
+Crypto compatibility is a hard constraint. Note that `api.ts` computes a `dataEncryptionKey` for data-key mode but currently posts `dataEncryptionKey: null`; the spike should verify whether this is intentional server behavior before Rust copies or “fixes” it.
+
+**Implementation Suggestions**
+
+Start with the Phase-0 spike. Prove two things before product work: a minimal fan-out/injection seam can handle one user turn, exec approval, patch approval, interrupt, and shutdown; and a Rust client can create/sync a session against current happy-server without protocol changes.
+
+If it passes, add `codex/codex-rs-overlay/codex-happy/` as the Rust protocol crate. Structure it around `config`, `credentials/auth`, `crypto`, `wire` serde structs, `session_client`, `socketio`, and a small adapter layer.
+
+Reuse the existing TUI command path rather than inventing a second control model: mobile-originated inputs should become `AppCommand`/`AppEvent` or `Op` submissions; core events should be cloned/fanned out to Happy. Keep launcher changes limited to config/env wiring and idempotency gates.
+
+Use `runCodex.ts` as the behavioral oracle for metadata, state, abort/kill RPC semantics, and session event mapping. Add Rust crypto fixtures generated from TS, socket/session protocol tests, a happy-wire version drift guard, TUI integration tests for remote approvals/interrupt/stop, and patch-surface/network audit invariants.

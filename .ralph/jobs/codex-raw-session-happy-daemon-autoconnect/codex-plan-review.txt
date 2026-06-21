@@ -1,0 +1,27 @@
+### Feasibility
+
+- [High] The plan omits `codex/external/repos/codex-patched/codex-rs/tui/Cargo.toml`. `tui/src/app.rs` cannot call `codex_happy::attach(...)` unless `codex-tui` declares `codex-happy = { workspace = true }`; adding only the workspace member/dependency in root `Cargo.toml` is insufficient and will fail `cargo check`.
+
+- [High] The mobile “stop/kill session” path is not feasible as specified through only `AppServerRequestHandle`. The app-server protocol has `ClientRequest::TurnInterrupt` and `ThreadDelete` in `app-server-protocol/src/protocol/common.rs`, but the current Happy CLI kill/abort behavior in `packages/happy-cli/src/codex/runCodex.ts` includes `permissionHandler.abortAll()`, `client.abortTurnWithFallback(...)`, and full `killSession` process termination. The native in-process plan needs an explicit mapping for `abort` vs `killSession`; otherwise the “interrupt/stop work” acceptance criterion is not satisfied.
+
+- [High] `features.happy_autoconnect` is not just a launcher setting. Unknown feature keys are rejected by strict config paths (`core/src/config/config_loader_tests.rs` covers unknown `features.foo` overrides, and `config/src/strict_config.rs` checks `is_known_feature_key`). The plan must add the feature to `features/src/lib.rs`/`FEATURES`, tests in `features/src/tests.rs`, and config/schema coverage; otherwise the proposed launcher `-c features.happy_autoconnect=...` and core attach gate are invalid.
+
+The prior correction from raw `Codex.rx_event` to the app-server seam looks adequate: `AppServerEvent` is `Clone`, `AppServerClient::next_event()` is the current chokepoint in `tui/src/app.rs`, and `resolve_server_request`/`reject_server_request` already exist.
+
+### Completeness
+
+- [High] Network audit registration is incomplete unless it also requires `// SANDBOX PATCH:` markers in the new overlay egress files. `codex/scripts/audit_network_calls.sh` treats every `OVERLAY_KNOWN_PATCH_FILES` entry as requiring `SANDBOX PATCH`; the plan only explicitly marks the seam lines, not `codex-rs-overlay/codex-happy/src/api.rs` / socket/auth egress sites.
+
+- [Medium] The tee/backpressure behavior is underspecified. `app-server-client/src/lib.rs` distinguishes lossless transcript events from droppable events; a Happy tap that blocks can hang the TUI, while a naive `try_send` can corrupt the mobile transcript. The plan should state the local tap channel policy and tests for lossless assistant deltas/completions under slow mobile/socket reconnect.
+
+### Ordering
+
+- [Medium] Feature registration and `tui/Cargo.toml` dependency wiring must happen before US-006 attach/launcher work. As written, US-006 depends only on `protocol-client` and `seam`, but it also depends on the feature key being known and the TUI crate being able to compile against `codex-happy`.
+
+### Simplicity
+
+No issues found. Given the “no happy-cli process at runtime” and full bidirectional control requirements, the Rust protocol client is a large but coherent approach.
+
+### Acceptance Criteria Quality
+
+- [Medium] Several criteria are not testable enough for autonomous implementation: “within seconds,” “no added startup hang,” “smart reconnect,” and “stop work” need concrete thresholds and observable checks. The plan proposes latency numbers in Open Questions, but those should be promoted into acceptance criteria before implementation.

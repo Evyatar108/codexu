@@ -1,0 +1,103 @@
+{
+  "planFile": "D:/harness-efforts/codexu/.ralph/jobs/.staging/20260621T102021Z-plan-raw-autoconnect-63ae53c2/draft-plan.md",
+  "repoDir": "D:/harness-efforts/codexu",
+  "reviewCycle": 1,
+  "findings": [
+    {
+      "id": "F-001",
+      "severity": "High",
+      "source": "codex",
+      "category": "Feasibility",
+      "sectionRef": "Approach > Files to Create/Modify; US-005",
+      "description": "tui/src/app.rs cannot call codex_happy::attach(...) unless codex-tui declares the codex-happy dependency in tui/Cargo.toml; adding only the root workspace member/dep is insufficient and fails cargo check.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Added tui/Cargo.toml (declare codex-happy = { workspace = true }) to Files to Modify and to US-005's scope; flagged as REQUIRED-or-cargo-check-fails; seam cluster exclusiveFiles updated.",
+      "relevantFiles": ["codex/external/repos/codex-patched/codex-rs/tui/Cargo.toml"]
+    },
+    {
+      "id": "F-002",
+      "severity": "High",
+      "source": "codex",
+      "category": "Feasibility",
+      "sectionRef": "Acceptance Criteria; US-007",
+      "description": "Mobile stop/kill path is not feasible through only AppServerRequestHandle without an explicit abort-vs-killSession mapping; happy-cli runCodex.ts does abortAll() + abortTurnWithFallback() + killSession process termination. Without the mapping the interrupt/stop acceptance criterion is not satisfied.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Added an explicit stop/interrupt-vs-kill semantics paragraph in Approach (interrupt -> TurnInterrupt; stop/kill -> abort turn + cancel pending approvals + optional session teardown, mirroring runCodex.ts) and an explicit abort-vs-killSession mapping subtask in US-007 + acceptance wording.",
+      "relevantFiles": ["packages/happy-cli/src/codex/runCodex.ts"]
+    },
+    {
+      "id": "F-003",
+      "severity": "High",
+      "source": "codex",
+      "category": "Feasibility",
+      "sectionRef": "Approach > Files to Create/Modify; US-005",
+      "description": "features.happy_autoconnect is not just a launcher setting; strict config (config/src/strict_config.rs is_known_feature_key, core/src/config/config_loader_tests.rs) rejects unknown features.* keys. The feature must be registered in features/src/lib.rs + features/src/tests.rs, else the launcher -c features.happy_autoconnect=... and the core attach gate are invalid.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Added features/src/lib.rs + features/src/tests.rs registration of happy_autoconnect to US-005 scope + Files to Modify, matching the fork's experimental-features mechanism; noted strict-config rejection of unknown keys. Ordering note added: must land before US-006.",
+      "relevantFiles": ["codex/external/repos/codex-patched/codex-rs/features/src/lib.rs", "codex/external/repos/codex-patched/codex-rs/config/src/strict_config.rs"]
+    },
+    {
+      "id": "F-004",
+      "severity": "High",
+      "source": "codex",
+      "category": "Completeness",
+      "sectionRef": "US-008; Acceptance Criteria",
+      "description": "audit_network_calls.sh treats every OVERLAY_KNOWN_PATCH_FILES entry as requiring a // SANDBOX PATCH: marker. The plan only marked the seam lines, not the overlay egress sites (codex-happy/src/api.rs, session.rs, auth.rs).",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "US-008 now requires // SANDBOX PATCH: markers on each overlay egress file + listing them in OVERLAY_KNOWN_PATCH_FILES; acceptance criterion updated; runtime_audit_allowlist.txt named explicitly.",
+      "relevantFiles": ["codex/scripts/audit_network_calls.sh"]
+    },
+    {
+      "id": "F-005",
+      "severity": "High",
+      "source": "claude",
+      "category": "Completeness",
+      "sectionRef": "US-006; Files to Create/Modify",
+      "description": "The plan named codex.ps1 as a Windows-parity target, but no codex.ps1 exists in-repo (it is the npm-published shim). As written the Windows-parity portion targets a non-existent file.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Reframed Windows parity to ride the launcher's existing Windows spawn+wait branch (codex-copilot-launcher/src/main.rs:176-187); removed codex.ps1 from Files to Modify and the integration cluster; noted codex.ps1 on PATH is the npm shim, not in-repo.",
+      "relevantFiles": ["codex/codex-rs-overlay/codex-copilot-launcher/src/main.rs"]
+    },
+    {
+      "id": "F-006",
+      "severity": "Medium",
+      "source": "consensus",
+      "category": "Criteria Quality",
+      "sectionRef": "Acceptance Criteria",
+      "description": "Criteria used non-verifiable wording ('within seconds', 'no added startup hang', 'smart reconnect', 'stop work') while the latency budget lived only in Open Questions. An autonomous implementer needs concrete measurable thresholds.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Promoted concrete [tune] thresholds into Acceptance Criteria: appears on tree <=5s; interrupt ceases output <=2s; reconnect/backfill <=10s; no-creds/offline <=300ms added over vanilla baseline with a fully-background connect; smart-reconnect and stop made observable.",
+      "relevantFiles": []
+    },
+    {
+      "id": "F-007",
+      "severity": "Medium",
+      "source": "codex",
+      "category": "Completeness",
+      "sectionRef": "Approach > Architecture; US-005",
+      "description": "Tee/backpressure behavior underspecified: a blocking Happy tap can hang the TUI, a naive try_send can corrupt the mobile transcript. app-server-client distinguishes lossless transcript events from droppable events.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Specified the tap as an UnboundedSender (never backpressures/hangs the TUI; overlay owns buffering/reconnect/drop policy; lossless assistant deltas/completions reach mobile or are re-fetched on reconnect) and added a lossless-transcript-under-slow-mobile/reconnect test to US-005.",
+      "relevantFiles": ["codex/external/repos/codex-patched/codex-rs/app-server-client/src/lib.rs"]
+    },
+    {
+      "id": "F-008",
+      "severity": "Medium",
+      "source": "codex",
+      "category": "Ordering",
+      "sectionRef": "Suggested Decomposition",
+      "description": "Feature registration and tui/Cargo.toml dependency wiring must happen before US-006 attach/launcher work; as written US-006 depended only on protocol-client + seam without making the feature-key/TUI-dep prerequisite explicit.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Folded the tui/Cargo.toml dep + feature registration into US-005 (seam) and added an explicit 'MUST complete before integration' ordering note to the seam cluster (markdown + JSON), since the integration cluster already dependsOn seam.",
+      "relevantFiles": []
+    }
+  ]
+}

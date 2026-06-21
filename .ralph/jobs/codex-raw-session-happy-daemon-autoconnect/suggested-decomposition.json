@@ -1,0 +1,93 @@
+{
+  "clusters": [
+    {
+      "name": "derisk-and-crypto",
+      "stories": ["US-001", "US-002"],
+      "phase": 1,
+      "dependsOn": [],
+      "fileOverlapEvidence": {
+        "sharedFiles": [],
+        "exclusiveFiles": [
+          ".ralph/investigations/codex-raw-autoconnect-spike/ (throwaway de-risk probe + findings)",
+          "codex/codex-rs-overlay/codex-happy/Cargo.toml",
+          "codex/codex-rs-overlay/codex-happy/src/lib.rs",
+          "codex/codex-rs-overlay/codex-happy/src/encryption.rs",
+          "codex/external/repos/codex-patched/codex-rs/Cargo.toml"
+        ],
+        "risk": "low"
+      },
+      "executionModeRationale": "US-001 is a throwaway/findings de-risk (live auth-mode/cap-file resolution); US-002 scaffolds the crate + ports encryption. Disjoint footprints, runnable in parallel. US-002 owns the workspace Cargo.toml edit; US-001 avoids Cargo.toml to prevent a merge race on that one file."
+    },
+    {
+      "name": "protocol-client",
+      "stories": ["US-003", "US-004"],
+      "phase": 2,
+      "dependsOn": ["derisk-and-crypto"],
+      "fileOverlapEvidence": {
+        "sharedFiles": ["codex/codex-rs-overlay/codex-happy/src/lib.rs"],
+        "exclusiveFiles": [
+          "codex/codex-rs-overlay/codex-happy/src/api.rs",
+          "codex/codex-rs-overlay/codex-happy/src/auth.rs",
+          "codex/codex-rs-overlay/codex-happy/src/session.rs",
+          "codex/codex-rs-overlay/codex-happy/src/wire.rs"
+        ],
+        "risk": "low"
+      },
+      "executionModeRationale": "Both stories extend the same new crate (shared lib.rs module wiring) so they serialize internally, but the whole cluster is disjoint from the upstream seam files and can run in parallel with the seam cluster."
+    },
+    {
+      "name": "seam",
+      "stories": ["US-005"],
+      "phase": 2,
+      "dependsOn": [],
+      "fileOverlapEvidence": {
+        "sharedFiles": [
+          "codex/external/repos/codex-patched/codex-rs/tui/src/app.rs (also touched by US-006 attach)",
+          "codex/docs/implementation/patch-surface.md (\u00a714; \u00a74 touched by US-008)"
+        ],
+        "exclusiveFiles": [
+          "codex/external/repos/codex-patched/codex-rs/app-server-client/src/lib.rs",
+          "codex/external/repos/codex-patched/codex-rs/tui/Cargo.toml (codex-happy dep; REQUIRED or cargo check fails)",
+          "codex/external/repos/codex-patched/codex-rs/features/src/lib.rs + features/src/tests.rs (register happy_autoconnect)",
+          "codex/codex-rs-overlay/codex-invariant-tests/tests/happy_seam_invariants.rs"
+        ],
+        "risk": "medium"
+      },
+      "executionModeRationale": "The upstream-canonical seam (event tee + happy_tap UnboundedSender + additive handle methods if missing) plus build/feature wiring (tui/Cargo.toml dep + features/src/lib.rs registration) is disjoint from the overlay-crate src/ files, so it can run in parallel with protocol-client. It does NOT edit the root workspace Cargo.toml (US-002 owns that membership add). It shares app.rs with US-006 (attach) and patch-surface.md with US-008, so those serialize after this cluster. MUST complete before integration: US-006 cannot compile the attach call until tui/Cargo.toml depends on codex-happy and happy_autoconnect is a known feature key. Highest-risk cluster; keep it isolated."
+    },
+    {
+      "name": "integration",
+      "stories": ["US-006", "US-007"],
+      "phase": 3,
+      "dependsOn": ["protocol-client", "seam"],
+      "fileOverlapEvidence": {
+        "sharedFiles": [
+          "codex/external/repos/codex-patched/codex-rs/tui/src/app.rs (attach call)",
+          "codex/codex-rs-overlay/codex-happy/src/attach.rs"
+        ],
+        "exclusiveFiles": [
+          "codex/codex-rs-overlay/codex-copilot-launcher/src/main.rs",
+          "codex/codex-rs-overlay/codex-copilot-launcher/src/config.rs"
+        ],
+        "risk": "medium"
+      },
+      "executionModeRationale": "Needs both the crate (US-003/004) and the seam + build/feature wiring (US-005) present and compiling. US-006 delivers attach + launcher wiring + idempotency + fallback + opt-in + Windows parity (via the launcher's existing Windows spawn+wait branch main.rs:176-187; there is no in-repo codex.ps1 to edit); US-007 builds directly on US-006's attach to add full bidirectional control, so the two serialize within the cluster."
+    },
+    {
+      "name": "audit-drift",
+      "stories": ["US-008"],
+      "phase": 4,
+      "dependsOn": ["protocol-client", "seam"],
+      "fileOverlapEvidence": {
+        "sharedFiles": ["codex/docs/implementation/patch-surface.md (\u00a74 vs the seam's \u00a714)"],
+        "exclusiveFiles": [
+          "codex/scripts/audit_network_calls.sh",
+          "runtime audit allowlist (canonical path to verify at impl time)",
+          "codex/codex-rs-overlay/codex-invariant-tests/tests/happy_wire_drift_guard.rs"
+        ],
+        "risk": "low"
+      },
+      "executionModeRationale": "The egress to allowlist exists only after US-003/004 add the call sites and US-005 lands the seam. It edits patch-surface.md \u00a74 (a different section than the seam's \u00a714) so it serializes after seam to avoid a doc merge race, but is otherwise disjoint from integration and may overlap it on non-patch-surface.md files at the implementer's discretion."
+    }
+  ]
+}
