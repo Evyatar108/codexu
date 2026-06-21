@@ -1,0 +1,139 @@
+diff --git a/codex-rs/app-server-client/src/lib.rs b/codex-rs/app-server-client/src/lib.rs
+index bfcf5522d8..fa95dc74cf 100644
+--- a/codex-rs/app-server-client/src/lib.rs
++++ b/codex-rs/app-server-client/src/lib.rs
+@@ -826,6 +826,64 @@ impl InProcessAppServerRequestHandle {
+         serde_json::from_value(result)
+             .map_err(|source| TypedRequestError::Deserialize { method, source })
+     }
++
++    // SANDBOX PATCH: spike(codex-raw-autoconnect) ΓÇö allow a secondary in-process
++    // consumer (the Happy overlay) to resolve/reject server-originated requests
++    // (e.g. exec/patch approvals) from a cloned request handle.
++    pub async fn resolve_server_request(
++        &self,
++        request_id: RequestId,
++        result: JsonRpcResult,
++    ) -> IoResult<()> {
++        let (response_tx, response_rx) = oneshot::channel();
++        self.command_tx
++            .send(ClientCommand::ResolveServerRequest {
++                request_id,
++                result,
++                response_tx,
++            })
++            .await
++            .map_err(|_| {
++                IoError::new(
++                    ErrorKind::BrokenPipe,
++                    "in-process app-server worker channel is closed",
++                )
++            })?;
++        response_rx.await.map_err(|_| {
++            IoError::new(
++                ErrorKind::BrokenPipe,
++                "in-process app-server resolve channel is closed",
++            )
++        })?
++    }
++
++    // SANDBOX PATCH: spike(codex-raw-autoconnect)
++    pub async fn reject_server_request(
++        &self,
++        request_id: RequestId,
++        error: JSONRPCErrorError,
++    ) -> IoResult<()> {
++        let (response_tx, response_rx) = oneshot::channel();
++        self.command_tx
++            .send(ClientCommand::RejectServerRequest {
++                request_id,
++                error,
++                response_tx,
++            })
++            .await
++            .map_err(|_| {
++                IoError::new(
++                    ErrorKind::BrokenPipe,
++                    "in-process app-server worker channel is closed",
++                )
++            })?;
++        response_rx.await.map_err(|_| {
++            IoError::new(
++                ErrorKind::BrokenPipe,
++                "in-process app-server reject channel is closed",
++            )
++        })?
++    }
+ }
+ 
+ impl AppServerRequestHandle {
+@@ -845,6 +903,22 @@ impl AppServerRequestHandle {
+             Self::Remote(handle) => handle.request_typed(request).await,
+         }
+     }
++
++    // SANDBOX PATCH: spike(codex-raw-autoconnect) ΓÇö enum passthrough. Remote arm
++    // is stubbed for the spike; production would plumb to RemoteAppServerRequestHandle.
++    pub async fn resolve_server_request(
++        &self,
++        request_id: RequestId,
++        result: JsonRpcResult,
++    ) -> IoResult<()> {
++        match self {
++            Self::InProcess(handle) => handle.resolve_server_request(request_id, result).await,
++            Self::Remote(_) => Err(IoError::new(
++                ErrorKind::Unsupported,
++                "resolve_server_request not wired for remote handle in spike",
++            )),
++        }
++    }
+ }
+ 
+ impl AppServerClient {
+diff --git a/codex-rs/tui/src/app.rs b/codex-rs/tui/src/app.rs
+index 68d79d4ccf..a8e88ee67e 100644
+--- a/codex-rs/tui/src/app.rs
++++ b/codex-rs/tui/src/app.rs
+@@ -81,6 +81,7 @@ use crate::version::CODEX_CLI_VERSION;
+ use crate::workspace_command::AppServerWorkspaceCommandRunner;
+ use crate::workspace_command::WorkspaceCommandRunner;
+ use codex_ansi_escape::ansi_escape_line;
++use codex_app_server_client::AppServerEvent; // SANDBOX PATCH: spike(codex-raw-autoconnect)
+ use codex_app_server_client::AppServerRequestHandle;
+ use codex_app_server_client::TypedRequestError;
+ use codex_app_server_protocol::AddCreditsNudgeCreditType;
+@@ -587,6 +588,9 @@ pub(crate) struct App {
+     // Serialize hook enablement writes per hook so stale completions cannot
+     // persist an older toggle after a newer one.
+     pending_hook_enabled_writes: HashMap<String, Option<bool>>,
++    // SANDBOX PATCH: spike(codex-raw-autoconnect) ΓÇö optional secondary sink that
++    // fans every AppServerEvent out to the Happy overlay client. None in vanilla.
++    happy_tap: Option<tokio::sync::mpsc::UnboundedSender<AppServerEvent>>,
+ }
+ 
+ #[derive(Debug, Clone, PartialEq)]
+@@ -1067,6 +1071,8 @@ See the Codex keymap documentation for supported actions and examples."
+             pending_startup_thread_start,
+             pending_plugin_enabled_writes: HashMap::new(),
+             pending_hook_enabled_writes: HashMap::new(),
++            // SANDBOX PATCH: spike(codex-raw-autoconnect)
++            happy_tap: None,
+         };
+         if let Some(entry) = startup_hooks_browser {
+             app.chat_widget.open_hooks_browser(entry);
+@@ -1201,7 +1207,14 @@ See the Codex keymap documentation for supported actions and examples."
+                     }
+                     app_server_event = app_server.next_event(), if listen_for_app_server_events => {
+                         match app_server_event {
+-                            Some(event) => app.handle_app_server_event(&app_server, event).await,
++                            Some(event) => {
++                                // SANDBOX PATCH: spike(codex-raw-autoconnect) ΓÇö fan out
++                                // to the Happy overlay sink before local handling.
++                                if let Some(tap) = app.happy_tap.as_ref() {
++                                    let _ = tap.send(event.clone());
++                                }
++                                app.handle_app_server_event(&app_server, event).await
++                            }
+                             None => {
+                                 listen_for_app_server_events = false;
+                                 tracing::warn!("app-server event stream closed");
