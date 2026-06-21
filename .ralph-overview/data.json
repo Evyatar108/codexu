@@ -9788,6 +9788,10 @@
         {
           "className": "cmd-ok",
           "html": "Brainstorm shipped @ <code>161fbe00</code> (member brainstorm-data-split, copilot). Recommended <strong>D-001: active-vs-archived split</strong> &mdash; HOT file (tracked tasks) + COLD file (merged/archived); loader auto-detects single-vs-split and assembles the identical <code>{tasks:[...]}</code> so projections/watcher/viewer/MCP are unchanged; new tasks always tracked =&gt; create-task skill upserts into hot with ZERO new write interface (split lands first). Per-task files (D-002/D-003) DEFERRED by all 3 lenses (Windows watcher depth-cap). Open decision staged for plan-review: also do D-002 active-set-per-task-files now, or stage. Next: <code>/plan-with-ralph --from-brainstorm</code>.\r\n"
+        },
+        {
+          "className": "cmd-ok",
+          "html": "Plan shipped @ <code>64bc3130</code> (member plan-data-split, copilot, ~40min). <strong>11 stories</strong> across 2 jobs: <strong>Job 1</strong> ralph-overview plugin (US-101..109 &mdash; shared <code>data-store.mjs</code>, split-aware total/seqlock read assembler, store-aware write core with 3-step misfile move, watcher cold-shard awareness, idempotent cold-first <code>migrate-split</code>, v2.12.0); <strong>Job 2</strong> codexu consumer (US-201..202 &mdash; migrate data + submodule pointer, ONLY after Job 1 installed + watcher/MCP restarted). <strong>Phase-4: 8 findings (3 Crit, 3 High, 2 Med) all fixed</strong> over 2 rubber-duck passes. Key correction: brainstorm's \"cold-wins\" torn-move tie-break was ambiguous (torn-ship vs torn-reopen) &rarr; adopted a 3-step misfile-the-source write protocol + a store-generation seqlock + total read path to close a lock-free two-file read race. Two operator-facing items: DUAL-REPO (cannot be one PRD; Job 1 then Job 2) + D-002 staged (per-task files deferred, recommended). Next: <code>/implement-with-ralph --from-plan</code> Job 1 first.\r\n"
         }
       ],
       "command": {
