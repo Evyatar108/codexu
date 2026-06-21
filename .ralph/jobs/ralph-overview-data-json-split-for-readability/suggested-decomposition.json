@@ -1,0 +1,45 @@
+{
+  "clusters": [
+    {
+      "name": "job1-plugin-split",
+      "stories": ["US-101", "US-102", "US-103", "US-104", "US-105", "US-106", "US-107", "US-108", "US-109"],
+      "phase": 1,
+      "dependsOn": [],
+      "fileOverlapEvidence": {
+        "sharedFiles": [
+          "ai-developer-toolkit/plugins/ralph-overview/scripts/lib/data-edit-core.mjs",
+          "ai-developer-toolkit/plugins/ralph-overview/scripts/lib/sync-core.mjs",
+          "ai-developer-toolkit/plugins/ralph-overview/AGENTS.md",
+          "ai-developer-toolkit/plugins/ralph-overview/CHANGELOG.md",
+          "ai-developer-toolkit/plugins/ralph-overview/.github/plugin/plugin.json",
+          "ai-developer-toolkit/plugins/ralph-overview/.claude-plugin/plugin.json",
+          ".claude-plugin/marketplace.json",
+          ".github/plugin/marketplace.json",
+          ".agents/plugins/marketplace.json"
+        ],
+        "exclusiveFiles": [
+          "ai-developer-toolkit/plugins/ralph-overview/scripts/lib/data-store.mjs",
+          "ai-developer-toolkit/plugins/ralph-overview/scripts/migrate-split.mjs"
+        ],
+        "risk": "high"
+      },
+      "executionModeRationale": "All nine stories live in the same plugin and several mutate the same load-bearing files (data-edit-core.mjs, sync-core.mjs) plus the shared version/CHANGELOG/AGENTS/marketplace-index surfaces, so they must serialize within one impl member to avoid conflicting writes. US-101 is the foundation; US-104 (write core, the 3-step misfile move) is the heaviest."
+    },
+    {
+      "name": "job2-codexu-migration",
+      "stories": ["US-201", "US-202"],
+      "phase": 2,
+      "dependsOn": ["job1-plugin-split"],
+      "fileOverlapEvidence": {
+        "sharedFiles": ["AGENTS.md"],
+        "exclusiveFiles": [
+          ".ralph-overview/data.json",
+          ".ralph-overview/data.archived.json",
+          "ai-developer-toolkit (submodule pointer)"
+        ],
+        "risk": "medium"
+      },
+      "executionModeRationale": "Separate repo (codexu). HARD-gated on Job 1 being shipped AND the installed plugin updated to 2.12.0 AND any long-running watcher/MCP restarted — migrating or reading under the old single-file loader/cached reader would silently drop the 231 cold tasks. Cannot be expressed in the same /implement-with-ralph PRD as Job 1; run as a separate Ralph job after the operator gate."
+    }
+  ]
+}

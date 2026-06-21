@@ -1,0 +1,79 @@
+{
+  "planFile": ".ralph/jobs/ralph-overview-data-json-split-for-readability/plan.md",
+  "repoDir": "D:/harness-efforts/codexu",
+  "reviewer": "rubber-duck (Phase-4 design critique)",
+  "findings": [
+    {
+      "id": "F-001",
+      "severity": "Critical",
+      "source": "rubber-duck",
+      "status": "addressed",
+      "category": "crash-safety / correctness",
+      "description": "Original Decision 2 (2-write add-destination-then-remove-source + 'shard-consistency wins' de-dup) is ambiguous: a torn ship (tracked->merged) and a torn reopen (merged->tracked) leave the IDENTICAL on-disk shape (hot copy=tracked, cold copy=merged, BOTH shard-consistent). No deterministic tie-break (cold-wins / hot-wins / shard-consistency) can distinguish them, so one direction always loses a task. lastTouchedAt cannot break the tie (caller-supplied, clocks not totally ordered).",
+      "resolution": "Replaced with a 3-step 'misfile-the-source' write protocol (Decision 2): (1) rewrite source shard with the task updated to its NEW lifecycle in place (misfiled), (2) append the correctly-filed task to the destination shard, (3) remove from source. Every torn duplicate now has exactly one shard-consistent (destination) copy and one misfiled (source) copy, so 'shard-consistent wins' is total and unambiguous in BOTH directions. Validated by a follow-up review pass and pinned with per-step-boundary crash fixtures (US-104 ACs)."
+    },
+    {
+      "id": "F-002",
+      "severity": "Critical",
+      "source": "rubber-duck",
+      "status": "addressed",
+      "category": "migration / data-loss",
+      "description": "With presence-based split detection (cold file exists => split mode), if migration writes the slim hot file BEFORE creating the cold file and crashes, every loader sees legacy mode and reads only the slim hot file, silently dropping the 231 cold tasks (the 'hot-slim + cold-absent' data-loss shape).",
+      "resolution": "migrate-split is COLD-FIRST (Strategy step 8 / US-107): write the cold shard while the full hot file still exists, THEN slim hot. A crash between is recoverable (split mode + de-dup keeps cold copies, next run completes the slim) and never produces hot-slim+cold-absent. Crash-window + idempotency tests required."
+    },
+    {
+      "id": "F-003",
+      "severity": "High",
+      "source": "rubber-duck",
+      "status": "addressed",
+      "category": "deployment / sequencing",
+      "description": "Gating Job 2 only on plugin install is insufficient: an already-running watcher or MCP server with a cached single-file SnapshotReader would regenerate snapshots from hot-only data, or its write tools would write hot-only after split, after migration.",
+      "resolution": "Dual-Repo Sequencing operator gate now requires STOPPING/RESTARTING the watcher + MCP (overview-reset) and confirming the RUNNING plugin is 2.12.0, then running the post-migration sync through a fresh split-aware process (US-201 AC; Risk 3)."
+    },
+    {
+      "id": "F-004",
+      "severity": "High",
+      "source": "rubber-duck",
+      "status": "addressed",
+      "category": "correctness / legacy",
+      "description": "The source-preserving write loader (plain JSON.parse, no normalization) can yield a legacy task with phase:'shipped' and no lifecycle field. Read normalization maps phase->lifecycle=merged, but a lifecycle-only partition rule keeps it hot => physical shard and read-time lifecycle disagree; a legacy checkout fails to fully split.",
+      "resolution": "Decision 4 makes classifyShard ALIAS-AWARE: task.lifecycle ?? mapLegacyPhaseToLifecycle(task.phase), without mutating stored bytes, so a phase-only shipped task partitions to cold. Alias-aware partition AC added (US-101/US-107)."
+    },
+    {
+      "id": "F-005",
+      "severity": "High",
+      "source": "rubber-duck",
+      "status": "addressed",
+      "category": "config / watcher",
+      "description": "config.coldFile was under-specified: if a consumer configures coldFile in a different directory, the depth-0 same-dir watcher (invariant #14) would not see it, silently dropping cold-file change events.",
+      "resolution": "Decision 8 + US-103: config resolution ENFORCES dirname(coldFile) === dirname(dataFile) (throws otherwise). coldFile may relocate the basename only. Same-dir guard AC added."
+    },
+    {
+      "id": "F-006",
+      "severity": "Medium",
+      "source": "rubber-duck",
+      "status": "addressed",
+      "category": "completeness / cache",
+      "description": "Missed read/cache surfaces: parallel-ready-tasks.ts keys PRD-memo + staleness on hot-only dataMtimeMs (cold-only edits don't invalidate); load-prds-by-task-id.mjs has a local data-loader fallback that would read hot-only.",
+      "resolution": "New US-108: switch parallel-ready-tasks to a shared compositeDataMtimeMs(hot,cold); load-prds-by-task-id uses the split-aware assembler / assembled overviewData. Cold-only-edit invalidation test added."
+    },
+    {
+      "id": "F-007",
+      "severity": "Medium",
+      "source": "rubber-duck",
+      "status": "addressed",
+      "category": "validation / de-dup contract",
+      "description": "Readers de-dup duplicates while validation should reject cross-shard duplicates — these conflict unless recoverable torn duplicates are distinguished from arbitrary/manual duplicates.",
+      "resolution": "Decision 2 + US-104/US-106: the auto-recoverable torn shape is EXACTLY one shard-consistent + one misfiled copy. A both-consistent OR both-misfiled duplicate is treated as manual corruption: the LOCKED write path rejects it (data untouched), validate-data flags it. The lock-free read path resolves (consistent-wins, else prefer cold + loud-warn) and never throws (Decision 9). Raw pre-de-dup multiset checked. Manual-dup-rejection AC added."
+    },
+    {
+      "id": "F-008",
+      "severity": "Critical",
+      "source": "rubber-duck (second pass)",
+      "status": "addressed",
+      "category": "concurrency / lock-free read race",
+      "description": "The read assembler (loadOverviewData) is lock-free and reads two files non-atomically. Interleaved with an in-flight 3-step move (or migration), a reader can synthesize (a) a both-consistent duplicate (reads source's old still-consistent copy, then destination's new consistent copy) which the manual-corruption reject rule would FALSELY fail on, or (b) a zero-copy read (reads destination before step 2, then source after step 3 => task transiently in neither). The presence-based split detection has the same race (reader checks cold-absent => legacy, then migration creates cold + slims hot => reader reads slimmed hot in legacy mode, missing cold). Per-file atomic rename prevents partial-JSON but NOT a torn two-file snapshot. The second review pass confirmed the misfile protocol is sound for process crashes but flagged this lock-free-reader gap as Critical.",
+      "resolution": "Decision 9 (new): (1) the READ path is TOTAL — never throws; it resolves duplicates (shard-consistent wins; transient both-consistent/both-misfiled => prefer cold + warn) and tolerates a transient zero-copy as eventual consistency (watcher re-fires on the next shard change). Manual-corruption REJECTION lives only on the LOCKED write path (stable snapshot). (2) A synchronous store-generation seqlock (tiny gitignored marker colocated with the store lock, bumped odd-before / even-after by every move and by migration) makes the lock-free reader read-gen -> read-both(+presence) -> read-gen with bounded retry, falling back to the total read on exhaustion — closing the both-consistent, zero-copy, and migration-presence windows. Synchronous (no async ripple to loadOverviewData call sites), non-blocking for readers, and counter-based (reliable regardless of mtime resolution). US-101 adds the seqlock helpers + readStoreConsistent; US-102/104/107 wire it; an interleaving test covers a mid-move/mid-migration read."
+    }
+  ]
+}
