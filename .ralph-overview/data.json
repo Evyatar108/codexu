@@ -9780,6 +9780,10 @@
         {
           "className": "cmd-warn",
           "html": "BRAINSTORM how to SPLIT/break-down <code>.ralph-overview/data.json</code> &mdash; it is too large to read/edit easily (operator 2026-06-21: &quot;its too large now so we should have a way to split it so we can more easily read it&quot;; ~295 tasks in one hand-curated file). FOUNDATIONAL storage-model change touching the whole ralph-overview read/write surface: the loader (<code>parseOverviewData</code>, auto-detects .json/.js by ext), the <code>data-edit.mjs</code> id-scoped atomic mutation core + its guards, the MCP write tools (same core), the watcher, and the generated projections (<code>active-tasks.json</code>, <code>summary-projection.json</code>, <code>snapshot.json</code>, etc.). Split options to weigh: per-task files (one file per id in a dir), per-scope shards (codex/codexu/crews/...), active-vs-archived split (tracked vs merged/archived), per-lifecycle, or a hybrid. HARD constraints: preserve the id-scoped atomic mutation guarantees + invariants (unique id ACROSS all shards, no dup, valid scope/lifecycle), keep the loader/data-edit/MCP/watcher/projections all working (migrate together or behind a compat shim), minimize merge-conflict surface (a key WIN of splitting &mdash; concurrent agents editing different tasks stop colliding on one file), and KEEP it easy to hand-read/edit (the whole point). <strong>COUPLING:</strong> the <code>ralph-overview-create-task-skill</code> task writes a NEW task, so the storage model chosen here dictates where it writes &mdash; this split brainstorm should land FIRST (or co-design) so the create-task skill targets the final model. SHIP later = ai-developer-toolkit submodule change + codexu pointer bump + plugin version bump + AGENTS.md table + CHANGELOG + a migration of the existing data.json."
+        },
+        {
+          "className": "cmd-ok",
+          "html": "BRAINSTORM IN FLIGHT (member brainstorm-data-split, copilot, ralph-overview plugin design - disjoint from the codex builds). Evaluating split models (per-task files / per-scope shards / active-vs-archived / hybrid) for the ~299-task data.json, grounded in the loader + data-edit core + watcher + projections, with the create-task-skill coupling noted. Read-only design -> selected-direction."
         }
       ],
       "command": {
@@ -9820,6 +9824,10 @@
         {
           "className": "cmd-ok",
           "html": "PLAN SHIPPED @ 46056d5d (3 stories: US-1 input-acceptance probe de-risk w/ inline-plaintext fallback so US-2/3 never blocked; US-2 CORE-ONLY capture/persist/display via core/src/chat_transport/anthropic_sse.rs reasoning_text decode -> ReasoningDelta + accumulator mirroring AssistantMessageItem, OutputItemAdded(Reasoning)->ReasoningContentDelta->OutputItemDone before the assistant message, no new upstream-canonical edits/protocol/gate; US-3 OVERLAY replay payload.rs push_chat_message w/ scoped // SANDBOX PATCH). Signed path OUT OF SCOPE; persisted ResponseItem::Reasoning shape left signature-ready via existing encrypted_content (AC12) - future signed fast-follow needs no persistence rework. Phase-4 (claude+codex+copilot): 11 findings (5 High/6 Medium) all resolved + codex re-review clean. Risks: reasoning-item ordering (open-before-delta, close-before-content AND tool-call), 10K-token/item bound, accepted-vs-honored unsigned replay. READY FOR IMPL (codex-submodule, two-commit flow)."
+        },
+        {
+          "className": "cmd-ok",
+          "html": "IMPL IN FLIGHT (member impl-reasoning-text, copilot, OWN worktree codex/.worktrees/codex-anthropic-reasoning-text on feat/anthropic-reasoning-text off origin/sandbox-patches 834e85408 - ISOLATED from the concurrent autoconnect feat/remote-session build; only shared file patch-surface.md, different sections). Driving the 3 stories (US-1 input-acceptance probe de-risk, US-2 core-only capture/persist/display, US-3 overlay replay). NO release; lead merges."
         }
       ],
       "command": {
