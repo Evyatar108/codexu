@@ -1,0 +1,34 @@
+{
+  "brainstormName": "anthropic-native-messages-signed-cot",
+  "overviewTaskId": "codex-anthropic-native-messages-transport-for-signed-cot",
+  "idea": "Evaluate a native Anthropic /v1/messages transport for Claude-via-Copilot to get faithful SIGNED chain-of-thought continuity (thinking + signature round-trip across the tool loop), versus the cheaper unsigned reasoning_text display+replay capture (sibling task codex-anthropic-chat-reasoning-text-capture-and-replay). Decide: now, fast-follow, or deferred.",
+  "availableLenses": ["codex", "copilot", "devils-advocate"],
+  "missingLenses": [],
+  "candidateDirections": [
+    {
+      "id": "D-001",
+      "name": "Probe-gated signed fast-follow (after unsigned ships)",
+      "summary": "Extend the existing Copilot-auth probe to /v1/messages to validate auth + signed thinking emission + signed replay; only if all three pass, build the overlay-first signed transport as a fast-follow after the unsigned capture, on a shared neutral reasoning-item scaffold.",
+      "contributingLenses": ["codex", "copilot", "devils-advocate"]
+    },
+    {
+      "id": "D-002",
+      "name": "Build the native signed /v1/messages transport now (overlay-first, third WireApi arm)",
+      "summary": "Build the request builder + Messages-SSE parser (stop discarding the signature in anthropic_sse.rs) + a third WireApi/ModelWireRoute arm + wire_route_for/effective_wire_api/client.rs dispatch, in parallel with the unsigned sibling. Highest risk: unprobed endpoint, parallel-edit conflict on the two shared files, permanent third transport. Effort XL.",
+      "contributingLenses": ["codex", "copilot"]
+    },
+    {
+      "id": "D-003",
+      "name": "Defer signed indefinitely; rely on unsigned reasoning_text",
+      "summary": "Accept the unsigned display+replay capture (the only verified Copilot behavior) as the continuity story; revisit signed only if a concrete observable need appears AND the probe proves signatures round-trip through the Copilot proxy.",
+      "contributingLenses": ["devils-advocate"]
+    }
+  ],
+  "recommendedDirection": "D-001",
+  "questionsForSynthesis": [
+    "What minimum probe result justifies the build: signed emission only, or full signed replay through a tool loop? (Synthesis answer: require BOTH.)",
+    "Can the unsigned sibling reserve a neutral persisted-reasoning item shape that later carries signature metadata, so the signed fast-follow extends it rather than re-editing anthropic_sse.rs + payload.rs?",
+    "Does Copilot preserve, rewrite, or reject Anthropic signatures when proxying /v1/messages?",
+    "Should signed Messages get a stricter sub-flag vs. reusing CODEX_ENABLE_ANTHROPIC until validated?"
+  ]
+}
