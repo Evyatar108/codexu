@@ -9713,6 +9713,24 @@
           }
         ]
       }
+    },
+    {
+      "id": "happy-product-rename-from-fork",
+      "scope": "codexu",
+      "lifecycle": "tracked",
+      "status": "todo",
+      "lastTouchedAt": "2026-06-21",
+      "kanbanCards": [
+        {
+          "className": "cmd-warn",
+          "html": "RENAME the &quot;happy&quot; product/brand to something else across the fork (operator 2026-06-21: &quot;I also want to rename happy to something else&quot;). &quot;happy&quot; is the upstream slopus/happy brand inherited by the fork &mdash; it pervades package names (<code>happy-cli</code>, <code>happy-server</code>, <code>happy-app</code>, <code>@slopus/happy-wire</code>), the protocol, the <code>~/.happy</code> credential dir, <code>HAPPY_*</code> env vars (<code>HAPPY_CURRENT_SESSION_ID</code> etc.), config keys, tunnel/host names (happy.evyatar.dev), docs, and UI strings. LARGE cross-cutting rename touching MANY packages + the codex fork's happy-integration seams. <strong>SEQUENCING (operator-decided): do this AFTER the codex-raw-session-happy-daemon-autoconnect plan is IMPLEMENTED + shipped</strong> &mdash; renaming mid-build would thrash that impl (which heavily references happy-cli/happy-server/~/.happy/HAPPY_*). Needs a BRAINSTORM first: pick the new name + decide rename SCOPE (everything vs user-facing only vs keep upstream package names for merge-compat) + the upstream-sync conflict cost (this fork still cherry-picks from slopus/happy, so a deep rename raises every future sync's conflict surface &mdash; a real tradeoff to weigh). Then plan + a staged impl. BLOCKED-BY: codex-raw-session-happy-daemon-autoconnect (impl)."
+        }
+      ],
+      "command": {
+        "name": "happy-product-rename-from-fork",
+        "descriptionHtml": "",
+        "prompts": {}
+      }
     }
   ],
   "phaseTree": [
