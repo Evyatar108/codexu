@@ -9624,6 +9624,24 @@
           }
         ]
       }
+    },
+    {
+      "id": "codex-rebase-debt-cleanup",
+      "scope": "codex",
+      "lifecycle": "tracked",
+      "status": "todo",
+      "lastTouchedAt": "2026-06-20",
+      "kanbanCards": [
+        {
+          "className": "cmd-warn",
+          "html": "BUNDLED rebase follow-up debt cleanup (operator-chosen 2026-06-20 &quot;clean up rebase follow-up debt while context is warm&quot;). ONE serial impl member on the inner <code>sandbox-patches</code> surface (test-only, NO release) covering 4 debt tasks: (A) VERIFY <code>cargo check --workspace --all-targets</code> is GREEN on the shipped 0.141 (<code>50ac507cc</code>) &mdash; confirms <code>codex-test-binaries-compile-debt-baseline</code> + <code>codex-core-test-tree-precompile-breakage</code> are RESOLVED by the rebases (lead bookkeeps); (B) ADD the high-value remote-control policy-layer regression test (<code>codex-rebase-0140-remote-control-policy-layer-test</code>): assert <code>RemoteControlPolicy::DisabledByRequirements</code> closes BOTH startup (<code>remote_control_target=None</code>) AND the enable-RPC path (<code>ensure_remote_control_allowed</code> -&gt; Err) so wss enrollment can't occur; (C) DECIDE re-author-vs-retire on the 18 deferred fork spec-plan tests (<code>codex-rebase-0140-debt-spec-plan-tests</code>; NON-security low-urgency, lean retire-with-doc). Member commits to inner sandbox-patches + pushes to Evyatar108; rides the NEXT release (no version bump, no codexu pointer move)."
+        }
+      ],
+      "command": {
+        "name": "codex-rebase-debt-cleanup",
+        "descriptionHtml": "",
+        "prompts": {}
+      }
     }
   ],
   "phaseTree": [
