@@ -1,0 +1,97 @@
+**Codebase Architecture**
+
+The target is a Rust workspace under `codex/external/repos/codex-patched/codex-rs`, with fork overlay crates in `codex/codex-rs-overlay`. The workspace `Cargo.toml` includes overlay members such as `codex-copilot`, `codex-copilot-launcher`, and `codex-invariant-tests`.
+
+Relevant crates:
+
+- `core`: transport dispatch, stream conversion, session/turn handling.
+- `codex-api`: `ResponseEvent` stream event types.
+- `protocol`: persisted `ResponseItem` / reasoning item models.
+- `model-provider` and `model-provider-info`: model catalog, anthropic gate, `WireApi::ChatCompletions`.
+- `codex-rs-overlay/codex-copilot`: Copilot auth, `/chat/completions` request building, SSE parser.
+
+This fork uses `// SANDBOX PATCH:` markers plus `docs/implementation/patch-surface.md` §14/§15 for upstream-rebase invariants. Local verification policy in this checkout is `cargo check --workspace` plus focused `cargo test -p <crate>`; I did not find a `Justfile` in `codex/`, so any plan that says `just test -p ...` should verify that command exists in the intended environment.
+
+**Feature-Relevant Code**
+
+Capture path:
+
+- `external/repos/codex-patched/codex-rs/core/src/chat_transport/anthropic_sse.rs`
+  - `TranslatedSseEvent` currently has only `Chat(ChatStreamEvent)` and `StreamError`.
+  - `decode_openai_structured_content` currently handles only OpenAI chunks where `delta.content` is an array; it returns early for the observed `delta.content: ""` plus `delta.reasoning_text`.
+  - Existing tests assert normal OpenAI string content is left to the overlay parser, so reasoning capture must be added before the array-content early return.
+
+- `codex-rs-overlay/codex-copilot/src/chat_completions.rs`
+  - `ChatDelta` deserializes only `content: Option<String>` and `tool_calls`.
+  - Empty `content` produces no `ContentDelta`, so a `reasoning_text` chunk should not double-render through the overlay parser.
+
+Transport lifecycle:
+
+- `external/repos/codex-patched/codex-rs/core/src/chat_transport.rs`
+  - `run_chat_stream` feeds raw bytes to both `ChatSseParser` and `AnthropicSseParser`.
+  - `AssistantMessageItem` opens/closes assistant message items for `OutputTextDelta`.
+  - Add a parallel reasoning accumulator here, not in the overlay.
+  - `handle_translated_events` is the natural place to handle a new core-only `TranslatedSseEvent::ReasoningDelta(String)`.
+
+Existing protocol/session support:
+
+- `external/repos/codex-patched/codex-rs/codex-api/src/common.rs`
+  - Existing `ResponseEvent::OutputItemAdded`, `ReasoningContentDelta`, `OutputItemDone`.
+
+- `external/repos/codex-patched/codex-rs/protocol/src/models.rs`
+  - Existing `ResponseItem::Reasoning`.
+  - Existing `ReasoningItemContent::ReasoningText`.
+  - `should_serialize_reasoning_content` serializes `content` when it contains `ReasoningText`.
+
+- `external/repos/codex-patched/codex-rs/core/src/session/turn.rs`
+  - `ReasoningContentDelta` becomes `EventMsg::ReasoningRawContentDelta`.
+  - It errors if there is no active item, so `OutputItemAdded(ResponseItem::Reasoning)` must precede raw deltas.
+  - `OutputItemDone(ResponseItem::Reasoning)` flows through normal item completion/history handling.
+
+Replay path:
+
+- `codex-rs-overlay/codex-copilot/src/payload.rs`
+  - `build_chat_request_body` converts Responses input items to chat messages.
+  - `push_chat_message` currently drops reasoning in the `_ => {}` arm.
+  - This is the right integration point after the 2-turn probe decides whether replay should use assistant `reasoning_text` or inline content.
+
+Dispatch/gating:
+
+- `external/repos/codex-patched/codex-rs/core/src/client.rs`
+  - `WireApi::ChatCompletions` arm builds a Responses request, converts it, then calls `stream_chat_completions`.
+  - It explicitly passes `reasoning_effort` because `supports_reasoning_summaries=false` strips the normal Responses `reasoning` object.
+
+- `external/repos/codex-patched/codex-rs/core/src/chat_transport.rs`
+  - `effective_wire_api` already gates chat routing on `anthropic_models_resolved()`.
+
+**Technical Constraints**
+
+Do not add a new protocol type: the existing `ResponseEvent` and `ResponseItem` shapes are sufficient.
+
+Do not add a redundant feature gate: chat capture is already reached only through `WireApi::ChatCompletions`, which is gated by `Feature::AnthropicModels`.
+
+Reasoning item ordering is load-bearing: open reasoning item, stream `ReasoningContentDelta`, close reasoning item before opening the assistant message item.
+
+Overlay cannot depend on `codex-api`; it deliberately emits neutral `ChatStreamEvent`s to avoid a Cargo cycle. Core owns `ResponseEvent` mapping.
+
+Replay is the scoped overlay exception. It needs a `// SANDBOX PATCH:` marker plus `docs/implementation/patch-surface.md` §14 invariant and §15 replant note.
+
+The field shape for replay is not knowable from this code; the external 2-turn probe must decide it before changing `payload.rs`.
+
+**Implementation Suggestions**
+
+1. First extend `D:/ExtRepos/copilot-thinking-probe/probe.mjs` to test replay acceptance. Decide the exact assistant message shape from live 2-turn behavior.
+
+2. In `anthropic_sse.rs`, add `TranslatedSseEvent::ReasoningDelta(String)` and decode `choices[0].delta.reasoning_text` before checking whether `delta.content` is an array. Skip empty reasoning chunks.
+
+3. In `chat_transport.rs`, add a `ReasoningItem` accumulator mirroring `AssistantMessageItem`. On first reasoning delta, emit `OutputItemAdded(ResponseItem::Reasoning { summary: vec![], content: None, encrypted_content: None, ... })`, then emit `ReasoningContentDelta { content_index: 0, delta }`. Accumulate text and close with `OutputItemDone(ResponseItem::Reasoning { content: Some(vec![ReasoningText { text }]), encrypted_content: None, ... })`.
+
+4. Ensure `handle_event` closes reasoning before the first `ContentDelta` or `ToolCallDelta`; also close at stream finish if no content/tool follows.
+
+5. In `payload.rs`, add a `"reasoning"` arm in `push_chat_message` that extracts stored `ReasoningText` content and emits the probe-approved chat message shape. Keep it plaintext-only and ignore `encrypted_content`.
+
+6. Tests should be focused:
+   - `anthropic_sse.rs`: real empty-content `reasoning_text` fixture; assert core emits reasoning and overlay emits nothing.
+   - `chat_transport.rs`: ordering test for reasoning open → raw delta → reasoning done → assistant open/text.
+   - `protocol` or `context_manager/history_tests.rs`: serialized/persisted `ReasoningText` survives.
+   - `codex-copilot/src/payload.rs`: stored `ResponseItem::Reasoning` maps to the chosen replay field shape.

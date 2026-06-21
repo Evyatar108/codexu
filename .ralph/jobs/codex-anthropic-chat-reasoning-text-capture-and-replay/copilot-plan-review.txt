@@ -1,0 +1,48 @@
+I’ll read the referenced prompt and then execute the requested task.
+
+The prompt is longer than the viewer’s single-read limit, so I’m reading it in sections.
+
+I have the plan context and am reading the remaining review amendments before analyzing the codebase.
+
+I’m validating the plan against the actual codex sources and tests, without making any changes.
+
+The plan worktree doesn’t expose the codex paths at the expected relative location, so I’m locating the actual checkout layout before continuing the review.
+
+The repository is present; I’m switching to path-scoped searches because the initial recursive glob didn’t expand through the submodule layout.
+
+The submodule search still isn’t resolving individual files, so I’m checking the directory tree directly.
+
+The plan worktree’s codex submodule appears empty, so I’m validating against the canonical target checkout named in the plan.
+
+The canonical checkout is outside this task’s permitted file scope, so I’m checking whether the plan worktree has a populated submodule or recorded gitlink I can review locally.
+
+I’m reading the submodule state command output now.
+
+Source verification caveat: the `codex` submodule is not initialized in this plan worktree, and the canonical checkout path is restricted, so I could not independently confirm cited line numbers.
+
+### Feasibility
+
+[Medium] The plan is still carrying an unresolved canonical-ledger question for `docs/implementation/patch-surface.md`. Since `codex/CLAUDE.md` requires D-001 edits to update the patch-surface ledger, the ready-for-impl plan should name exactly one canonical file, not “and/or” between `external/repos/codex-patched/codex-rs/docs/implementation/patch-surface.md` and `codex/docs/implementation/patch-surface.md`.
+
+### Completeness
+
+[High] Replay validation is too weak for the stated “Claude retains prior reasoning across turns” goal. US-001/AC6 defines the accepted field shape largely as HTTP 200 vs 400 from `D:/ExtRepos/copilot-thinking-probe/probe.mjs`; an endpoint may accept unknown fields or accept standalone plaintext while not treating it as reasoning continuity. Add a probe/smoke that demonstrates the chosen shape is semantically used, or explicitly downgrade the fallback to “model-visible plaintext context injection,” not reasoning replay.
+
+[High] The acceptance tests miss the reasoning-then-tool-call path. The plan says `core/src/chat_transport.rs` must close the reasoning item on first content/tool event, and Codex turns often produce tool calls without assistant text. AC3 only asserts reasoning-then-content ordering. Add a test for reasoning chunks followed by `tool_calls` to prove `core/src/session/turn.rs` never sees a tool/function item while the reasoning item is still active.
+
+### Ordering
+
+[Medium] US-001 is both a dependency of US-003 and outside the codex repo, but the “Next Step” only launches one `/implement-with-ralph --from-plan` job. The note acknowledges this dual-repo issue, but an autonomous executor still needs a concrete order: run the probe first and write the decision record to a named job artifact, then start/continue the codex implementation.
+
+### Simplicity
+
+No issues found. The core-owned `TranslatedSseEvent::ReasoningDelta` plus an accumulator mirroring `AssistantMessageItem` is the natural integration point.
+
+### Acceptance Criteria Quality
+
+[High] AC6 should require evidence that the replay shape is honored semantically, not only accepted syntactically. Otherwise AC7 can pass while the main replay requirement is false.
+
+[Medium] AC10 should name the exact patch-surface ledger path after resolving the open question; “docs/implementation/patch-surface.md” is ambiguous in this multi-root layout.
+
+Prior amendments around core-owned `ReasoningDelta`, open-with-`None`/close-with-`Some`, and signature-ready `encrypted_content` look directionally adequate; no regressions found there.
+

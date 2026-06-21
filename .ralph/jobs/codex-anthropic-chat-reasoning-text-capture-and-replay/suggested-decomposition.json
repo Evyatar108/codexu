@@ -1,0 +1,44 @@
+{
+  "clusters": [
+    {
+      "name": "probe-derisk",
+      "stories": ["US-001"],
+      "phase": 1,
+      "dependsOn": [],
+      "fileOverlapEvidence": {
+        "sharedFiles": [],
+        "exclusiveFiles": ["D:/ExtRepos/copilot-thinking-probe/probe.mjs"],
+        "risk": "low"
+      },
+      "executionModeRationale": "Touches only the external probe repo; fully disjoint from the codex source, so it runs in parallel with the core-capture cluster. Its output (the decided replay field shape) gates the overlay-replay cluster."
+    },
+    {
+      "name": "core-capture",
+      "stories": ["US-002"],
+      "phase": 1,
+      "dependsOn": [],
+      "fileOverlapEvidence": {
+        "sharedFiles": ["codex/docs/implementation/patch-surface.md"],
+        "exclusiveFiles": [
+          "external/repos/codex-patched/codex-rs/core/src/chat_transport/anthropic_sse.rs",
+          "external/repos/codex-patched/codex-rs/core/src/chat_transport.rs"
+        ],
+        "risk": "medium"
+      },
+      "executionModeRationale": "All edits are in codex-core and the shared patch-surface ledger; disjoint from the probe repo, so it runs parallel with probe-derisk. It must land before overlay-replay because replay needs captured/persisted reasoning items and shares the patch-surface ledger."
+    },
+    {
+      "name": "overlay-replay",
+      "stories": ["US-003"],
+      "phase": 2,
+      "dependsOn": ["probe-derisk", "core-capture"],
+      "fileOverlapEvidence": {
+        "sharedFiles": ["codex/docs/implementation/patch-surface.md"],
+        "exclusiveFiles": ["codex-rs-overlay/codex-copilot/src/payload.rs"],
+        "risk": "medium"
+      },
+      "executionModeRationale": "Different crate (codex-copilot) than core-capture, but it consumes the probe's field-shape decision and the capture side's persisted items, and it shares the patch-surface ledger with core-capture, so it is serialized into Phase 2 after both Phase-1 clusters."
+    }
+  ]
+}
+

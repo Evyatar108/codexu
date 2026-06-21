@@ -1,0 +1,27 @@
+### Feasibility
+
+[High] The replay fallback is not fully feasible for the “attach to following assistant message” outcome. `codex/codex-rs-overlay/codex-copilot/src/payload.rs:277` processes one item at a time via `push_chat_message(item, messages)`, so attaching a prior `ResponseItem::Reasoning` to the following assistant `message` requires buffering or changing the caller loop at `payload.rs:257-261`. The plan acknowledges attach-vs-standalone but does not specify the implementation if the probe shows attach is required.
+
+[Medium] The patch-surface path is inaccurate in this checkout. `codex/external/repos/codex-patched/codex-rs/docs/implementation/patch-surface.md` does not exist; the live ledger is `codex/docs/implementation/patch-surface.md`. The plan says “and/or confirm,” but AC10 should name the canonical file to avoid violating the D-001 ledger rule.
+
+### Completeness
+
+[High] The plan does not add a concrete bounded-history strategy for plaintext reasoning. Current history truncation clones `ResponseItem::Reasoning` unchanged in `codex/external/repos/codex-patched/codex-rs/core/src/context_manager/history.rs:445-466`, and plaintext reasoning will become model-visible after replay. The plan states the “bounded items” constraint but has no truncation, cap, or regression test for large reasoning content.
+
+[Medium] AC5 and AC7 test persistence and replay as separate pieces, but not the actual end-to-end path: `OutputItemDone(Reasoning)` → rollout/history → `build_responses_request` → `build_chat_request_body` → `push_chat_message`. Add one integration-style test or fixture proving a persisted reasoning item reaches the chat request body in sequence.
+
+### Ordering
+
+[Medium] The core ordering requirement is identified correctly, but the implementation plan should explicitly require `ReasoningMessageItem` to be passed into both `handle_event` and `handle_translated_events` in `core/src/chat_transport.rs`. Otherwise it is easy to close reasoning for `ContentDelta` but miss `ToolCallDelta` or translated events.
+
+### Simplicity
+
+[Medium] The claim that a reasoning variant “cannot live on the overlay’s `ChatStreamEvent`” is overstated. A neutral `ReasoningDelta(String)` could live there without depending on `codex-api`. The chosen core-owned `TranslatedSseEvent::ReasoningDelta` is workable, but the plan should not justify it with an inaccurate dependency-cycle claim.
+
+### Acceptance Criteria Quality
+
+[High] AC6 says HTTP 200 vs 400 decides which replay field shape Copilot “honors.” Acceptance is not the same as honoring; the endpoint may accept and ignore a field. The probe criterion should require evidence that turn 2 behavior changes or, at minimum, clearly downgrade the result to “accepted by transport” rather than “honored.”
+
+[Medium] AC12 is partly code-review-only and vague. Make it testable: feed a reasoning item with both `content:[ReasoningText]` and `encrypted_content:"sig"` through `build_chat_request_body` / `push_chat_message`, assert no panic, assert plaintext replay remains present, and assert the original input item is not mutated.
+
+Prior amendments around lifecycle ordering, `content: None` open / `Some` close, and `just test -p codex-copilot` are adequate. The remaining blockers are replay shape feasibility and bounded plaintext reasoning history.
