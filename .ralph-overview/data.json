@@ -9781,6 +9781,62 @@
           "brainstorm": "Brainstorm how to SPLIT the ralph-overview .ralph-overview/data.json (currently one large hand-curated file, ~295 tasks, too hard to read/edit) into a more readable/maintainable storage model. This is a FOUNDATIONAL change to the ralph-overview plugin's storage layer. Read the current read/write surface to ground the design: the loader (parseOverviewData - auto-detects .json vs .js by extension), the data-edit.mjs id-scoped atomic mutation core (upsert-task/mark-shipped/set-lifecycle/set-prompts/add-kanban-card) + its JSON-parse/count/dup-id guards, the MCP write tools (which call the same core), the watcher (emits the generated sidecars), and the generated projections (active-tasks.json, summary-projection.json, snapshot.json, recommendations.json, dependency-graph.json, tasks/INDEX.md). EVALUATE split options with explicit tradeoffs: (a) per-task files (one JSON per task id in a directory - max readability + min merge-conflict, but the loader must glob+assemble and the id-uniqueness invariant spans files); (b) per-scope shards (codex.json/codexu.json/crews.json/...); (c) active-vs-archived split (tracked tasks hot file + merged/archived cold file - shrinks the hot working set, which is most of the readability pain); (d) per-lifecycle; (e) a hybrid. For the recommended direction, address: how the loader assembles the split form (and stays back-compat / behind a compat shim so nothing breaks at once), how the id-scoped atomic mutation core + the uniqueness/dup guards work ACROSS shards, the migration path for the existing data.json, the effect on the generated projections + watcher, and the hand-edit/readability ergonomics (the whole point). NOTE THE COUPLING with ralph-overview-create-task-skill (the create-task skill writes a new task into whatever model this picks - this split should land first or co-design). Read-only investigation + design; produce a selected-direction the plan phase can build from."
         }
       }
+    },
+    {
+      "id": "codex-anthropic-chat-reasoning-text-capture-and-replay",
+      "scope": "codex",
+      "lifecycle": "tracked",
+      "status": "todo",
+      "lastTouchedAt": "2026-06-21",
+      "kanbanCards": [
+        {
+          "className": "cmd-info",
+          "html": "FINDING (empirically verified 2026-06-21 via a faithful live probe that reuses the fork&#39;s exact Copilot auth + headers; tool at D:\\ExtRepos\\copilot-thinking-probe\\probe.mjs): Copilot <code>/chat/completions</code> streams Claude chain-of-thought as a NON-STANDARD <code>choices[].delta.reasoning_text</code> field (OpenAI chat shape, NOT the Anthropic <code>thinking_delta</code>/<code>content_block_delta</code> shape), gated by <code>reasoning_effort</code> (46 reasoning_text chunks at &quot;high&quot;; ZERO with no reasoning_effort; it precedes content and tool_calls, in both no-tool and tool runs). NO signature is present. So the fork already GENERATES + BILLS this CoT every turn (default reasoning_effort=medium, see codex-knob-a-default-medium) and then discards it."
+        },
+        {
+          "className": "cmd-warn",
+          "html": "DROP POINT: discarded at deserialization &mdash; the overlay ChatSseParser&#39;s delta struct (codex-rs-overlay/codex-copilot/src/chat_completions.rs:172-178) decodes only <code>content</code> + <code>tool_calls</code>, so serde silently drops <code>reasoning_text</code>. NOTE: core/src/chat_transport/anthropic_sse.rs&#39;s <code>thinking_delta</code>/<code>signature_delta</code> handling is effectively DEAD CODE for this endpoint &mdash; Copilot returns OpenAI chat SSE, never the Anthropic Messages SSE shape that parser expects."
+        },
+        {
+          "className": "cmd-ok",
+          "html": "CAPTURE + PERSIST + DISPLAY (core-only, overlay untouched): decode <code>choices[].delta.reasoning_text</code> in core/src/chat_transport/anthropic_sse.rs (extend decode_openai_structured_content) into a new core <code>TranslatedSseEvent::ReasoningDelta</code>; chat_transport then emits <code>OutputItemAdded(ResponseItem::Reasoning)</code> + per-chunk <code>ResponseEvent::ReasoningContentDelta</code> + closing <code>OutputItemDone(Reasoning{content:[ReasoningText], encrypted_content:None})</code> BEFORE the assistant message, mirroring the existing assistant-message lifecycle. Live display is NOT gated by supports_reasoning_summaries (session/turn.rs:2069 stream_item_to_client). This persists CoT into the rollout/history."
+        },
+        {
+          "className": "cmd-warn",
+          "html": "REPLAY (the continuity half &mdash; required so Claude keeps prior CoT; in this stateless chat-completions setup nothing is retained server-side, so without replay the model loses past reasoning): push_chat_message (codex-rs-overlay/codex-copilot/src/payload.rs:322-324) currently DROPS reasoning items &mdash; replay must map a stored <code>ResponseItem::Reasoning</code> back onto the chat assistant message (symmetric <code>reasoning_text</code> field, or inline text). CAVEAT 1: touches the overlay (payload.rs), which D-001 treated as off-limits &mdash; scoped exception needed. CAVEAT 2: NO signature, so this is a best-effort PLAINTEXT echo, not Anthropic&#39;s verified signed-thinking round-trip. PRE-REQ: VERIFY Copilot&#39;s /chat/completions accepts reasoning on INPUT by extending the probe to a 2-turn request before fixing the field shape; the fully-faithful signed path is codex-anthropic-native-messages-transport-for-signed-cot."
+        }
+      ],
+      "command": {
+        "name": "codex-anthropic-chat-reasoning-text-capture-and-replay",
+        "descriptionHtml": "Deserialize, persist, AND replay Claude chain-of-thought (choices[].delta.reasoning_text) over the Copilot /chat/completions transport so reasoning renders live, persists to the rollout, and is fed back on later turns.",
+        "prompts": {
+          "plan": "Capture, persist, and replay Claude chain-of-thought over the /chat/completions transport. (1) CAPTURE+PERSIST (core-only): decode choices[].delta.reasoning_text in core/src/chat_transport/anthropic_sse.rs and surface a Reasoning ResponseItem via chat_transport (OutputItemAdded -> ReasoningContentDelta deltas -> OutputItemDone with ResponseItem::Reasoning{content:[ReasoningText], encrypted_content:None}) before the assistant message, mirroring the existing assistant-message lifecycle; this renders live (not gated by supports_reasoning_summaries) and persists to the rollout. (2) REPLAY: extend push_chat_message (codex-rs-overlay/codex-copilot/src/payload.rs) to re-emit persisted reasoning back onto the assistant chat message so the model retains past CoT. FIRST verify Copilot accepts input reasoning by extending the probe (D:\\ExtRepos\\copilot-thinking-probe) to a 2-turn request; decide the field shape from what the endpoint honors. Add unit tests with a reasoning_text chat-SSE fixture (mirror the codex-copilot ChatSseParser tests). NOTE: capture is core-only; replay needs a scoped overlay change, and is unsigned (faithful signed continuity is codex-anthropic-native-messages-transport-for-signed-cot)."
+        }
+      }
+    },
+    {
+      "id": "codex-anthropic-native-messages-transport-for-signed-cot",
+      "scope": "codex",
+      "lifecycle": "tracked",
+      "status": "todo",
+      "lastTouchedAt": "2026-06-21",
+      "kanbanCards": [
+        {
+          "className": "cmd-info",
+          "html": "Copilot&#39;s /models advertises Claude with <code>supported_endpoints: [&quot;/chat/completions&quot;, &quot;/v1/messages&quot;]</code> (see fixtures in model-provider/src/copilot_models_endpoint.rs:547/613/665/711). The native Anthropic Messages API (<code>/v1/messages</code>) is the ONLY wire that carries SIGNED thinking blocks &mdash; required for faithful cross-turn / tool-loop CoT continuity (preserve the signed thinking block in the assistant turn before each tool_result). The /chat/completions reasoning_text has no signature, so it cannot faithfully round-trip. Claude is NOT on /responses, so the GPT-style encrypted_content path is unavailable."
+        },
+        {
+          "className": "cmd-warn",
+          "html": "Larger lift than the reasoning_text capture: a new transport that builds Anthropic Messages requests and parses Messages SSE (thinking/signature), pointed at Copilot&#39;s /v1/messages, while keeping Copilot auth/billing (same host + token cache). wire_route_for (model-provider/src/copilot_models_endpoint.rs:282-296) currently only recognizes /responses vs /chat/completions and IGNORES /v1/messages; routing + a third WireApi arm would be needed. Decide vs the cheaper unsigned reasoning_text replay (codex-anthropic-chat-reasoning-text-capture-and-replay)."
+        }
+      ],
+      "command": {
+        "name": "codex-anthropic-native-messages-transport-for-signed-cot",
+        "descriptionHtml": "Evaluate (brainstorm-first) a native Anthropic /v1/messages transport for Claude-via-Copilot to get faithful SIGNED chain-of-thought continuity across the tool loop, since /chat/completions cannot round-trip signatures.",
+        "prompts": {
+          "brainstorm": "/brainstorm-with-ralph \"Evaluate adding a native Anthropic /v1/messages transport for Claude-via-Copilot to get faithful signed chain-of-thought continuity (thinking + signature round-trip across the tool loop), versus the cheaper unsigned reasoning_text display+replay capture. Copilot advertises /v1/messages for Claude in supported_endpoints. Weigh: keeps Copilot auth/billing; new request builder + Messages SSE parser; a third WireApi route in wire_route_for; interplay with the existing /chat/completions transport and the anthropic-models gate.\""
+        }
+      }
     }
   ],
   "phaseTree": [
@@ -10504,6 +10560,8 @@
     "codex-channels": "medium"
   },
   "spawnedFrom": {
+    "codex-anthropic-chat-reasoning-text-capture-and-replay": "codex-anthropic-models-support",
+    "codex-anthropic-native-messages-transport-for-signed-cot": "codex-anthropic-models-support",
     "_comment": "Map of childTaskId -> parentTaskId. Populated when a research task or audit task lands and surfaces new follow-up tasks.",
     "agent-tree-rpc": "agent-view-research",
     "session-parent-link": "agent-view-research",
