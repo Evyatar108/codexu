@@ -1,0 +1,20 @@
+[package]
+name = "us001-live-probe"
+version = "0.0.0"
+edition = "2021"
+publish = false
+
+[[bin]]
+name = "us001-live-probe"
+path = "src/main.rs"
+
+[dependencies]
+# crypto (spike-proven byte-compatible set; AES-256-GCM dataKey bundle)
+aes-gcm = "0.10"
+base64 = "0.22"
+# transport (the new native-client de-risk)
+reqwest = { version = "0.12", default-features = false, features = ["json", "blocking"] }
+rust_socketio = "0.6"
+serde_json = "1"
+
+[workspace]
