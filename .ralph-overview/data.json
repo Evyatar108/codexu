@@ -1695,9 +1695,9 @@
     {
       "id": "codex-test-binaries-compile-debt-baseline",
       "scope": "codex",
-      "lifecycle": "tracked",
+      "lifecycle": "merged",
       "status": "active",
-      "lastTouchedAt": "2026-06-10",
+      "lastTouchedAt": "2026-06-21",
       "kanbanCards": [
         {
           "className": "cmd-warn",
@@ -1707,6 +1707,17 @@
       "command": {
         "name": "codex-test-binaries-compile-debt-baseline",
         "descriptionHtml": "Fix the pre-existing codex-core + codex-model-provider TEST-binary compile failures on sandbox-patches (invisible to cargo check, masked by org-blocked CI) + 2 copilot clippy expect_used lints. Flagged by the anthropic-gate impl as candidate follow-up."
+      },
+      "shipManifest": {
+        "shippedAt": "2026-06-21",
+        "summary": "RESOLVED-BY-REBASE (verified 2026-06-21 by the codex-rebase-debt-cleanup member). This pre-existing debt (codex-core + codex-model-provider TEST binaries did not compile on baseline sandbox-patches: spec_plan_tests.rs delimiters, ModelProviderInfo.id, create_oss_provider arity, missing tempfile dev-dep, renamed test-support symbols) was fixed incidentally by the 0.140 rebase full-grind (client.rs reconstruction, ResponseItem.metadata 10 sites, spec_plan_tests taken from upstream) and the 0.141 rebase (which gated cargo check --workspace --all-targets to GREEN). Verification: cargo check --workspace --all-targets on sandbox-patches @ 50ac507cc finished RC=0, 0 errors (9m10s). The whole workspace test tree compiles. (Pre-existing copilot clippy expect_used lints at auth.rs:570 / header_source.rs:54 remain out of scope; cargo check does not run clippy.) No separate fix commit needed; closed via the codex-rebase-debt-cleanup verification (commit 834e854089 worktree).\r\n",
+        "commits": [
+          {
+            "sha": "834e854089",
+            "oneLine": "test(rebase-debt): remote-control policy-layer guard + retire spec-plan tests",
+            "repo": "Evyatar108/codex-openai-fork"
+          }
+        ]
       }
     },
     {
@@ -9288,9 +9299,9 @@
     {
       "id": "codex-core-test-tree-precompile-breakage",
       "scope": "codex",
-      "lifecycle": "tracked",
+      "lifecycle": "merged",
       "status": "active",
-      "lastTouchedAt": "2026-06-11",
+      "lastTouchedAt": "2026-06-21",
       "kanbanCards": [
         {
           "className": "cmd-warn",
@@ -9302,6 +9313,17 @@
         "prompts": {
           "investigate": "Fix the codex-core TEST TREE so it compiles (`just test -p codex-core` / `cargo test -p codex-core` currently fails to COMPILE before any test runs). This is a pre-existing latent breakage: the .3 release (release/0.135.0-copilot-api.3) built the release bins (cargo build --release) and ran `cargo check`, but evidently never COMPILED the codex-core test tree, so test-only compile errors went unnoticed. It blocks ALL codex-core test verification (discovered 2026-06-11 when the bg-awakening fix-member could compile-verify the lib via `check --workspace` but could not run the US-001 regression test).\n\nKNOWN ERRORS (reported by fix-bgseam, on ralph/codex-bg-seam-fix off the bg-awakening tip / .3 base — confirm against origin/sandbox-patches too):\n- core/src/tools/spec_plan_tests.rs: \"mismatched closing delimiter\" around lines ~106, 782, 1733 (a brace/delimiter syntax error).\n- missing ModelProviderInfo.id (a field/symbol the tests reference that no longer exists or was renamed).\n- missing symbols in core/tests/suite/client.rs.\n(There may be more once the first ones are fixed — iterate `bash <session>/files/codex-cargo.sh check --tests -p codex-core` until the test tree compiles.)\n\nBUILD ENV: codex-rs only compiles on this box via the clang-cl/lld-link/xwin wrapper (plain cargo -> \"linker link.exe not found\"). Use the wrapper (files/codex-cargo.sh) in the CANONICAL inner checkout (codex/external/repos/codex-patched), NOT a worktree (the overlay does not resolve from worktrees). Lead coordinates the shared canonical checkout (serialize with other codex build-members).\n\nSCOPE: repair the TEST-TREE COMPILE errors only (make `check --tests -p codex-core` / `test -p codex-core` COMPILE; then ideally the suite runs green). Do NOT change product behavior. If a test references a renamed/removed symbol (e.g. ModelProviderInfo.id), update the test to the current API (confirm the intended replacement from the lib). For the spec_plan_tests.rs delimiter error, find + fix the unbalanced brace. This likely also benefits app-server / other crates whose test trees were never compiled since .3 -- note any sibling breakage found.\n\nVERIFY: `bash <session>/files/codex-cargo.sh test -p codex-core` compiles AND runs (green, or document any genuinely-failing pre-existing tests separately). Commit on a fix branch in the canonical checkout. Report kind=done with the commit SHA + the list of fixed errors + confirmation the test tree compiles + runs.\n\nNOTE: this is the latent root cause that let bg-awakening + Knob B ship UNCOMPILED (their test/behavioral verification was never possible). Fixing it restores test-level verification for all future codex-core work."
         }
+      },
+      "shipManifest": {
+        "shippedAt": "2026-06-21",
+        "summary": "RESOLVED-BY-REBASE (verified 2026-06-21 by the codex-rebase-debt-cleanup member). The codex-core test tree did not compile (spec_plan_tests.rs mismatched delimiters + core/tests/suite/client.rs missing symbols). The 0.140 rebase full-grind reconstructed client.rs (dropped fork copilot test-infra re-planted: CopilotSessionFixture, configure_copilot_session_for_tests, ModelClient::new/.stream signatures) and fixed spec_plan_tests; the 0.141 rebase shipped with cargo check --workspace --all-targets GREEN. Verification: cargo check --workspace --all-targets on sandbox-patches @ 50ac507cc finished RC=0, 0 errors (9m10s) - codex-core test tree compiles. Closed via the codex-rebase-debt-cleanup verification (commit 834e854089 worktree).\r\n",
+        "commits": [
+          {
+            "sha": "834e854089",
+            "oneLine": "test(rebase-debt): remote-control policy-layer guard + retire spec-plan tests",
+            "repo": "Evyatar108/codex-openai-fork"
+          }
+        ]
       }
     },
     {
@@ -9547,9 +9569,9 @@
     {
       "id": "codex-rebase-0140-debt-spec-plan-tests",
       "scope": "codex",
-      "lifecycle": "tracked",
+      "lifecycle": "merged",
       "status": "todo",
-      "lastTouchedAt": "2026-06-19",
+      "lastTouchedAt": "2026-06-21",
       "kanbanCards": [
         {
           "className": "cmd-warn",
@@ -9560,14 +9582,25 @@
         "name": "codex-rebase-0140-debt-spec-plan-tests",
         "descriptionHtml": "",
         "prompts": {}
+      },
+      "shipManifest": {
+        "shippedAt": "2026-06-21",
+        "summary": "RETIRED (consciously, documented) 2026-06-21 via the bundled codex-rebase-debt-cleanup. Added a // SANDBOX PATCH retirement note atop core/src/tools/spec_plan_tests.rs. The ~18 fork-era tool-plan tests deferred by the 0.140 squash are retired rather than re-authored because: the fork's only tool-plan divergence (plugin-scope SubAgent spawn gate) is verified-covered by spawn_agent_rejects_agent_spawner_subagent_context + multi_agent_v2_spawn_agent_rejects_from_subagent_context in multi_agents_tests.rs; surviving fork tool-plan behaviors (multi-agent v1/v2, code-mode, plugin-install, unified-exec/zsh-fork, request_user_input gate) are covered by the current 30 in-file tests; and the deferred names (apply_patch env_id, view_image_*, image_generation, mcp_resource, request_permissions, namespace hiding, test_build_specs_*) are generic upstream features now in upstream's reorganized 0.141 tests. None security-critical. Decision corroborated by a rubber-duck pass (no blocking issues; RETIRE defensible). Committed 834e854089 on inner sandbox-patches (Evyatar108).\r\n",
+        "commits": [
+          {
+            "sha": "834e854089",
+            "oneLine": "test(rebase-debt): remote-control policy-layer guard + retire spec-plan tests",
+            "repo": "Evyatar108/codex-openai-fork"
+          }
+        ]
       }
     },
     {
       "id": "codex-rebase-0140-remote-control-policy-layer-test",
       "scope": "codex",
-      "lifecycle": "tracked",
+      "lifecycle": "merged",
       "status": "todo",
-      "lastTouchedAt": "2026-06-19",
+      "lastTouchedAt": "2026-06-21",
       "kanbanCards": [
         {
           "className": "cmd-warn",
@@ -9578,6 +9611,17 @@
         "name": "codex-rebase-0140-remote-control-policy-layer-test",
         "descriptionHtml": "",
         "prompts": {}
+      },
+      "shipManifest": {
+        "shippedAt": "2026-06-21",
+        "summary": "DONE (2026-06-21, via the bundled codex-rebase-debt-cleanup). Added a fork-owned, SANDBOX-PATCH-marked regression test policy_disabled_by_requirements_blocks_startup_and_runtime_enable in app-server-transport/src/transport/remote_control/tests.rs. Under RemoteControlPolicy::DisabledByRequirements with an adversarial EnabledEphemeral startup it asserts (1) status Disabled + the bound listener never accepts (no backend enrollment contact - observable proxy for remote_control_target==None) and (2) both ensure_remote_control_allowed() and enable_ephemeral() reject with DisabledByRequirements. cargo test -p codex-app-server-transport policy_disabled_by_requirements_blocks_startup_and_runtime_enable = 1 passed. A rubber-duck pass confirmed the test is non-vacuous (with EnabledEphemeral the websocket re-normalizes the URL, so the policy's desired_state=Disabled is what prevents connection) and prompted the explicit ensure_remote_control_allowed assertion. Closes the tests.rs:1077 follow-up note. Committed 834e854089 on inner sandbox-patches (Evyatar108); rides the next release. Follow-up (deferred, non-blocking): a wrapper-side patch-surface.md line mapping Inv 8/9 -> this test, and a fuller app-server-level test that app-server/lib.rs actually passes DisabledByRequirements.\r\n",
+        "commits": [
+          {
+            "sha": "834e854089",
+            "oneLine": "test(rebase-debt): remote-control policy-layer guard + retire spec-plan tests",
+            "repo": "Evyatar108/codex-openai-fork"
+          }
+        ]
       }
     },
     {
@@ -9628,9 +9672,9 @@
     {
       "id": "codex-rebase-debt-cleanup",
       "scope": "codex",
-      "lifecycle": "tracked",
+      "lifecycle": "merged",
       "status": "todo",
-      "lastTouchedAt": "2026-06-20",
+      "lastTouchedAt": "2026-06-21",
       "kanbanCards": [
         {
           "className": "cmd-warn",
@@ -9641,6 +9685,17 @@
         "name": "codex-rebase-debt-cleanup",
         "descriptionHtml": "",
         "prompts": {}
+      },
+      "shipManifest": {
+        "shippedAt": "2026-06-21",
+        "summary": "Bundled rebase follow-up test-debt cleanup. One serial impl member (copilot) on the inner sandbox-patches surface verified and closed 4 tracked debt tasks, committing test-only changes as 834e854089 (pushed to Evyatar108/codex-openai-fork sandbox-patches; rides the next release, no version bump / no codexu pointer move). Diff: 2 files, 83 insertions / 1 deletion (verified pure-LF, no CRLF flip).\r\n\r\n(A) Tasks codex-test-binaries-compile-debt-baseline and codex-core-test-tree-precompile-breakage RESOLVED-BY-REBASE: cargo check --workspace --all-targets on sandbox-patches @ 50ac507cc finished RC=0, 0 errors (9m10s) - the codex-core + codex-model-provider test binaries and the whole workspace test tree now compile, fixed incidentally by the 0.140 full-grind (client.rs reconstruction + ResponseItem.metadata) and the 0.141 rebase (--all-targets gated green). (Pre-existing copilot clippy expect_used lints at auth.rs:570 / header_source.rs:54 are out of scope; cargo check does not run clippy.)\r\n\r\n(B) Task codex-rebase-0140-remote-control-policy-layer-test DONE: added a fork-owned, SANDBOX-PATCH-marked regression test policy_disabled_by_requirements_blocks_startup_and_runtime_enable in app-server-transport/src/transport/remote_control/tests.rs. Under RemoteControlPolicy::DisabledByRequirements with an adversarial EnabledEphemeral startup it asserts (1) status Disabled + the bound listener never accepts (no backend enrollment contact - observable proxy for remote_control_target==None) and (2) both ensure_remote_control_allowed() and enable_ephemeral() reject with DisabledByRequirements. cargo test -p codex-app-server-transport <name> = 1 passed. A rubber-duck pass confirmed the test is non-vacuous and prompted the explicit ensure_remote_control_allowed assertion. Closes the :1077 follow-up note.\r\n\r\n(C) Task codex-rebase-0140-debt-spec-plan-tests RETIRED (consciously, documented): added a // SANDBOX PATCH retirement note atop core/src/tools/spec_plan_tests.rs. The ~18 fork-era tool-plan tests deferred by the 0.140 squash are retired because the fork's only tool-plan divergence (plugin-scope SubAgent spawn gate) is verified-covered by spawn_agent_rejects_agent_spawner_subagent_context + multi_agent_v2_spawn_agent_rejects_from_subagent_context in multi_agents_tests.rs; surviving fork tool-plan behaviors are covered by the current 30 in-file tests; and the deferred names are generic upstream features now in upstream's reorganized 0.141 tests. None security-critical.\r\n\r\nLead follow-up noted by the member (not blocking): the fork's section-14 / Inv 8/9 authority is the WRAPPER-owned patch-surface.md + AGENTS.override.md - a wrapper-side line mapping Inv 8/9 -> the new test would tighten the doc trail (deferred; the test itself is committed and self-documenting via its SANDBOX PATCH marker). The rubber-duck also noted that an app-server-level test (that app-server/lib.rs actually passes DisabledByRequirements) would be a fuller guard than the transport-level test - out of this task's scope.\r\n",
+        "commits": [
+          {
+            "sha": "834e854089",
+            "oneLine": "test(rebase-debt): remote-control policy-layer guard + retire spec-plan tests",
+            "repo": "Evyatar108/codex-openai-fork"
+          }
+        ]
       }
     }
   ],
