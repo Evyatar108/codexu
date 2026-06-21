@@ -1,0 +1,41 @@
+{
+  "brainstormName": "ralph-overview-data-split",
+  "overviewTaskId": "ralph-overview-data-json-split-for-readability",
+  "idea": "Split the ralph-overview .ralph-overview/data.json (one ~1.9MB hand-curated file, 299 tasks, too large to read/edit) into a more readable/maintainable storage model, preserving the id-scoped atomic mutation core, the global invariants (unique id across shards), the loader/data-edit/MCP/watcher/projections, and minimizing merge-conflict surface. Couples with ralph-overview-create-task-skill (a new task must target whatever model is chosen).",
+  "availableLenses": ["codex", "copilot", "devils-advocate"],
+  "missingLenses": [],
+  "candidateDirections": [
+    {
+      "id": "D-001",
+      "name": "Active-vs-archived split (hot tracked file + cold archive file) behind a compat assembler",
+      "summary": "Hot data.json (tracked) + cold data.archived.json (merged+archived); assemble both into the current {tasks:[...]} shape beneath the 3 read chokepoints; mark-shipped/set-lifecycle move tasks hot->cold under one promoted store lock with a crash-safe add-before-remove + load-time de-dup recovery contract.",
+      "contributingLenses": ["codex", "copilot", "devils-advocate"]
+    },
+    {
+      "id": "D-002",
+      "name": "Hybrid: per-task files for the active/tracked set + a single cold archive",
+      "summary": "tasks/active/<id>.json per tracked task (merge-conflict-optimal, conflict-free create-task) + one cold archive blob; deferred because all three lenses flag the N-file directory watch against the plugin's Windows watcher depth-cap correctness contract.",
+      "contributingLenses": ["codex", "copilot", "devils-advocate"]
+    },
+    {
+      "id": "D-003",
+      "name": "Full per-task store with a meta/index file",
+      "summary": "Every task (hot+cold) is its own file with a meta/index; cleanest long-term conflict model but over-rotates for ~300 tasks and amplifies the Windows watcher / N-file-assembly / id->filename / directory-atomicity costs across all tasks.",
+      "contributingLenses": ["codex", "copilot", "devils-advocate"]
+    },
+    {
+      "id": "D-004",
+      "name": "Projection-first: no storage change, better hot view + strictly id-scoped edits",
+      "summary": "Reframe: the existing active-tasks.json + summary-projection.json already give a small hot view; route edits through id-scoped data-edit/MCP tools. Lowest risk but does not shrink the file the operator hand-opens nor cut git conflict surface — informs D-001 rather than replacing it.",
+      "contributingLenses": ["devils-advocate"]
+    }
+  ],
+  "recommendedDirection": "D-001",
+  "questionsForSynthesis": [
+    "Scope of THIS effort: active-vs-archived ONLY (recommended; defer per-task), or also take on per-task files for the active set now to eliminate tracked-task merge conflicts?",
+    "Crash/recovery contract for the cross-file lifecycle move: add-to-cold-before-remove-from-hot + load-time de-dup-prefers-cold, vs a manifest/generation-counter journal — how heavy does it need to be?",
+    "Naming: keep the hot file as data.json (least disruption) with a sibling data.archived.json, or make the split explicit via meta.json + active.json?",
+    "Migration: one-way partition with a short dual-loader deprecation window, or keep a permanent compat shim that auto-detects single-file vs split?",
+    "Create-task coupling: confirm new tasks always upsert into the hot file (tracked), so create-task needs no new write interface under D-001."
+  ]
+}
