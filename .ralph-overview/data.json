@@ -9804,6 +9804,10 @@
         {
           "className": "cmd-warn",
           "html": "REPLAY (the continuity half &mdash; required so Claude keeps prior CoT; in this stateless chat-completions setup nothing is retained server-side, so without replay the model loses past reasoning): push_chat_message (codex-rs-overlay/codex-copilot/src/payload.rs:322-324) currently DROPS reasoning items &mdash; replay must map a stored <code>ResponseItem::Reasoning</code> back onto the chat assistant message (symmetric <code>reasoning_text</code> field, or inline text). CAVEAT 1: touches the overlay (payload.rs), which D-001 treated as off-limits &mdash; scoped exception needed. CAVEAT 2: NO signature, so this is a best-effort PLAINTEXT echo, not Anthropic&#39;s verified signed-thinking round-trip. PRE-REQ: VERIFY Copilot&#39;s /chat/completions accepts reasoning on INPUT by extending the probe to a 2-turn request before fixing the field shape; the fully-faithful signed path is codex-anthropic-native-messages-transport-for-signed-cot."
+        },
+        {
+          "className": "cmd-ok",
+          "html": "PLAN IN FLIGHT (operator 2026-06-21 'spawn members for them'): member plan-anthropic-reasoning (/plan-with-ralph, copilot) scoping the core-only capture/persist/display + the scoped-exception overlay replay, with an early input-acceptance probe-extension de-risk. Signed path is the SEPARATE parallel brainstorm codex-anthropic-native-messages-transport-for-signed-cot."
         }
       ],
       "command": {
@@ -9828,6 +9832,10 @@
         {
           "className": "cmd-warn",
           "html": "Larger lift than the reasoning_text capture: a new transport that builds Anthropic Messages requests and parses Messages SSE (thinking/signature), pointed at Copilot&#39;s /v1/messages, while keeping Copilot auth/billing (same host + token cache). wire_route_for (model-provider/src/copilot_models_endpoint.rs:282-296) currently only recognizes /responses vs /chat/completions and IGNORES /v1/messages; routing + a third WireApi arm would be needed. Decide vs the cheaper unsigned reasoning_text replay (codex-anthropic-chat-reasoning-text-capture-and-replay)."
+        },
+        {
+          "className": "cmd-ok",
+          "html": "BRAINSTORM IN FLIGHT (operator 2026-06-21): member brainstorm-anthropic-signed (/brainstorm-with-ralph, copilot) weighing the native /v1/messages signed-CoT transport (third WireApi arm) vs the cheaper unsigned reasoning_text capture/replay (parallel plan). Read-only design."
         }
       ],
       "command": {
