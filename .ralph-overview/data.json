@@ -7371,7 +7371,7 @@
       "scope": "codex|codexu",
       "lifecycle": "tracked",
       "status": "active",
-      "lastTouchedAt": "2026-06-21",
+      "lastTouchedAt": "2026-06-22",
       "kanbanCards": [
         {
           "className": "cmd-warn",
@@ -7420,6 +7420,10 @@
         {
           "className": "cmd-ok",
           "html": "US-005 SHIPPED (impl-autoconnect-4): the BOUNDED upstream-canonical control seam + Feature::RemoteSession (default-OFF). 4 invariant tests pass, cargo check --workspace=0. Branch tips: inner e3ac2efc7 (Evyatar108), wrapper 2ab75863d (gim-home/codex). The load-bearing architectural piece is in. RESUME at US-006 (launcher wiring + attach + idempotency + fallback + Windows parity): provider_config_flags (codex-copilot-launcher/src/config.rs:80) already emits features.remote_control=false + features.unified_exec=true -> add features.remote_session=<bool> default-OFF modeled identically + SandboxConfig field; the new work is the AppServerEvent->Happy-envelope mapping loop draining tap_rx; codex-happy public API ready (auth/onboard/api/session SessionClient). Then US-007 (inbound TurnStart/Steer/Interrupt + approvals via resolve_server_request, approval double-answer dedup), US-008 (audit allowlist + OVERLAY_KNOWN_PATCH_FILES markers + wire drift guard), US-009 (/remote on|off via set_feature_enabled + attach/detach). 5 of 8 Phase-2 stories done."
+        },
+        {
+          "className": "cmd-ok",
+          "html": "FEATURE COMPLETE (US-001..009) on <code>feat/remote-session</code> &mdash; inner <code>7b572a43f</code> (Evyatar108/codex-openai-fork) + wrapper <code>58b9472a0</code> (gim-home/codex), all pushed. Full bidirectional E2EE remote control: overlay <code>codex-happy</code> crate (crypto/auth/api/onboard/wire/session, byte-compat with happy-cli) + the bounded app-server-boundary seam (<code>happy_tap</code> tee) + outbound AppServerEvent&rarr;Happy mapping + inbound control (turn/approval/interrupt via InboundEvent + resolve_server_request) + network audit (allowlist + audit_network_calls.sh 21/21) + happy-wire drift guard + <code>/remote on|off</code> per-session command. DEFAULT-OFF (<code>Feature::RemoteSession</code>). Per-story Phase 5a/5b reviews all green. NOT yet released &mdash; awaiting lead holistic review + operator-gated release (merge feat/remote-session &rarr; sandbox-patches + /publish-sandbox-patch). DEFERRED to follow-ups: interactive self-onboard (task codex-autoconnect-interactive-self-onboard-remote-on) + the optional US-007 message-consumption ack. Pre-existing rebase debt surfaced (NOT autoconnect's): codex-invariant-tests invariant-15 background_completion.rs (PreparedBackgroundCompletion upstream rename) + codex-happy fmt debt per the pinned 1.95.0 toolchain.\r\n"
         }
       ],
       "command": {
