@@ -1,0 +1,19 @@
+{
+  "clusters": [
+    {
+      "name": "tier1-harness",
+      "stories": ["US-001", "US-002", "US-003", "US-004"],
+      "phase": 1,
+      "dependsOn": [],
+      "fileOverlapEvidence": {
+        "sharedFiles": [
+          "codex/codex-rs-overlay/codex-happy/src/attach.rs",
+          "codex/codex-rs-overlay/codex-happy/src/attach_e2e_tests.rs"
+        ],
+        "exclusiveFiles": [],
+        "risk": "high"
+      },
+      "executionModeRationale": "Serial. Every story mutates attach.rs and the single new attach_e2e_tests.rs file, so parallel execution would guarantee merge conflicts and broken intermediate compiles. The stories are also strictly ordered: refactor (US-001) -> scaffolding + first scenario (US-002) -> approval scenarios (US-003) -> abort/AEAD/default-off scenarios (US-004)."
+    }
+  ]
+}
