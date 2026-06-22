@@ -1179,6 +1179,10 @@
         {
           "className": "cmd-ok",
           "html": "FEATURE COMPLETE (US-001..009) on <code>feat/remote-session</code> &mdash; inner <code>7b572a43f</code> (Evyatar108/codex-openai-fork) + wrapper <code>58b9472a0</code> (gim-home/codex), all pushed. Full bidirectional E2EE remote control: overlay <code>codex-happy</code> crate (crypto/auth/api/onboard/wire/session, byte-compat with happy-cli) + the bounded app-server-boundary seam (<code>happy_tap</code> tee) + outbound AppServerEvent&rarr;Happy mapping + inbound control (turn/approval/interrupt via InboundEvent + resolve_server_request) + network audit (allowlist + audit_network_calls.sh 21/21) + happy-wire drift guard + <code>/remote on|off</code> per-session command. DEFAULT-OFF (<code>Feature::RemoteSession</code>). Per-story Phase 5a/5b reviews all green. NOT yet released &mdash; awaiting lead holistic review + operator-gated release (merge feat/remote-session &rarr; sandbox-patches + /publish-sandbox-patch). DEFERRED to follow-ups: interactive self-onboard (task codex-autoconnect-interactive-self-onboard-remote-on) + the optional US-007 message-consumption ack. Pre-existing rebase debt surfaced (NOT autoconnect's): codex-invariant-tests invariant-15 background_completion.rs (PreparedBackgroundCompletion upstream rename) + codex-happy fmt debt per the pinned 1.95.0 toolchain.\r\n"
+        },
+        {
+          "className": "cmd-ok",
+          "html": "Pre-release review (member review-autoconnect @ <code>5a50c43f</code>) verdict: <strong>GO-WITH-FIXES</strong> &mdash; 0 Critical, 0 reachable High, 1 Medium (DORMANT), 2 Low, 2 Info. VERIFIED CLEAN: crypto byte-compat (5 primitives, OsRng nonces), <code>dataEncryptionKey:null</code> fidelity, approval double-answer dedup safe (in-process app-server no-ops a 2nd resolve &mdash; no double-exec/panic; malformed perms fail-safe to deny), the seam is a pure non-blocking clone-before-handle tee (no panic, no TUI backpressure, vanilla byte-unaffected), inbound drops on AEAD-failure, DEFAULT-OFF + idempotency + 8s connect budget, egress fully audited (loopback + allowlisted GitHub, SANDBOX-PATCH-marked). M1 (Medium, DORMANT, NOT a release blocker): <code>onboard.rs</code> writes <code>~/.happy/access.key</code> 0o644 world-readable (should be 0o600) &mdash; deferred to the self-onboard follow-up since onboard.rs is unwired. L1 (Low): happy_tap tee unbounded (deliberate/tested losslessness, loopback-only) &mdash; optional cap. findings.md: <code>.ralph/investigations/autoconnect-pre-release-review/findings.md</code>. <strong>CLEARED for operator-gated release.</strong>\r\n"
         }
       ],
       "command": {
@@ -1723,6 +1727,10 @@
         {
           "className": "cmd-warn",
           "html": "Split out of autoconnect US-009 by operator decision C (2026-06-22): the interactive GitHub device-flow self-onboard for <code>/remote on</code> when <code>~/.happy</code> creds are absent. <code>onboard.rs</code> (device-flow + E2EE identity) EXISTS but is unwired into the attach path; US-009 ships a 'needs onboarding' message instead. This task wires the device-flow + a NEW TUI callback (overlay background task &rarr; codex TUI prompt) into <code>/remote on</code>. DEPENDS ON the autoconnect story set (codex-raw-session-happy-daemon-autoconnect) landing first."
+        },
+        {
+          "className": "cmd-warn",
+          "html": "SECURITY must-fix (from autoconnect pre-release review <code>5a50c43f</code>, M1 Medium): when this task wires <code>onboard.rs</code> into the runtime attach path, FIX <code>onboard.rs::write_json_atomically</code> so <code>~/.happy/access.key</code> (bearer token + X25519 private machineKey) is written with <strong>0o600</strong> perms (the TS reference uses 0o600/0o700; in-tree precedent <code>codex-copilot/auth.rs:458 write_secret_file</code>). Currently DORMANT (onboard.rs unwired &mdash; not a release blocker for the base autoconnect feature) but MUST land together with the self-onboard activation, else the credential file is world-readable 0o644 on Unix.\r\n"
         }
       ]
     }
