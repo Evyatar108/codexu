@@ -1,0 +1,39 @@
+{
+  "brainstormName": "codex-autoconnect-e2e-conversation-simulation-harness",
+  "overviewTaskId": "codex-autoconnect-e2e-conversation-simulation-harness",
+  "idea": "Audit existing automated coverage of the shipped raw-codex Happy autoconnect (remote_session) feature, then design an end-to-end conversation-simulation / integration-test harness that drives a complete encrypted conversation turn (simulated mobile -> socket -> inbound -> codex turn -> outbound stream -> mobile decrypt+assert) plus the tool-approval round-trip, hermetically (no real model, tunnel, or elevation), runnable as cargo test.",
+  "availableLenses": ["codex", "devils-advocate"],
+  "missingLenses": [
+    {
+      "lens": "copilot",
+      "reason": "copilot-exec --read-only snapshot exceeded the 512MB budget (attempted 547MB) because the repo carries a large .xwin-cache build-artifact tree; lens process exited 5 without producing output. Environment failure, not a content gap."
+    }
+  ],
+  "candidateDirections": [
+    {
+      "id": "D-001",
+      "name": "Two-tier harness: hermetic component-seam overlay-loop test (default CI gate) + retained opt-in live-socket smoke",
+      "summary": "Tier 1 (always-on, hermetic): a cargo-test integration test that drives attach.rs::run_attach's full routing loop via injected channel seams - feed canned AppServerEvents into the tap, inject InboundEvents (mobile message/approve/deny/abort), assert outbound SessionEnvelopes on an observable sink and inbound ClientCommands on a fake AppServerRequestHandle; covers text-turn, approval approve+deny, abort, AEAD-drop, default-off; no model/socket/tunnel/auth. Tier 2 (opt-in #[ignore], nightly): promote the throwaway US-001 probe into a retained live_* test using the real packages/happy-server + a Rust mobile client over the real socket with real crypto-on-wire. Needs a small overlay-internal test seam (extract run_attach_core + a fake request-handle constructor).",
+      "contributingLenses": ["codex", "devils-advocate"]
+    },
+    {
+      "id": "D-002",
+      "name": "Real in-process codex app-server driven by a stubbed model (spike-gated higher-fidelity hermetic turn)",
+      "summary": "Drive a genuine codex turn through the real happy_tap tee with the model stubbed (canned Responses SSE via codex-core's test transport side-channel; never a real Copilot/Claude call). The only direction that exercises the actual app.rs tee + app_server.next_event ordering + real resolve/reject_server_request. Feasibility is uncertain (can codex-core/app-server be instantiated in-process with a canned transport from an overlay test crate, given the copilot provider is fail-closed on base_url?) so it is gated on a tiny spike that observes one genuinely tapped event with no new upstream seam. Effort L-XL; if the spike fails, stay at D-001.",
+      "contributingLenses": ["codex", "devils-advocate"]
+    },
+    {
+      "id": "D-003",
+      "name": "Full real-stack E2E (real happy-server + real codex + stub model) as the primary always-on gate",
+      "summary": "Maximalist: make the always-on CI gate a true wire-level E2E - real packages/happy-server + real codex subprocess (remote_session on, injected test creds, stub model) + Rust mobile client over the real socket. Most faithful, but requires node + a built happy-server + codex-core test harness all running hermetically inside cargo test --workspace on ubuntu+windows, which the invariant-check CI does not have today; heavy and flake-prone as a mandatory gate. Effort XL; better demoted to D-001's opt-in Tier 2.",
+      "contributingLenses": ["codex"]
+    }
+  ],
+  "recommendedDirection": "D-001",
+  "questionsForSynthesis": [
+    "[OPERATOR DECISION] Fidelity scope: is hermetic Tier 1 (D-001) sufficient to answer 'did we test the conversation', or also the opt-in live-socket tier (D-001 Tier 2) and/or the real-app-server stub-model turn (D-002)? This is the one choice that materially changes plan scope (M vs L vs XL).",
+    "[PLAN] Is a small overlay-internal refactor (extract run_attach_core + a test-only constructor exposing the outbound sink + a fake AppServerRequestHandle) acceptable to make Tier 1 possible? Zero upstream-conflict surface, but touches shipped overlay code.",
+    "[PLAN] Should the first retained test be the text-turn round-trip (simplest wiring) or the tool-approval round-trip (highest-risk untested behavior)?",
+    "[INFO] The copilot lens could not run (547MB .xwin-cache blew copilot-exec's --read-only snapshot budget); recurs for any copilot-exec run from the codexu root - related to the existing ralph-copilot-exec-readonly-submodule-snapshot-cost brainstorm."
+  ]
+}
