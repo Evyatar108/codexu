@@ -9800,6 +9800,10 @@
         {
           "className": "cmd-ok",
           "html": "Job 1 SHIPPED to toolkit main (local @ <code>1e1318e7</code>): ralph-overview <strong>v2.12.0</strong> hot/cold split, US-101..109; all gates green (274 tests pass), Phase 5a (1 Medium double-fault relocation window fixed) + Phase 5b (5 findings incl. a real <code>coldFile</code> sync-read-path gap) re-verified clean. Pending operator-gated MARKETPLACE PUBLISH (push gim-home + <code>copilot plugin update</code> + watcher/MCP restart) &rarr; then Job 2 (codexu data migration US-201..202 + submodule pointer bump + AGENTS version table).\r\n"
+        },
+        {
+          "className": "cmd-ok",
+          "html": "Job 1 PUBLISHED (2026-06-22): ralph-overview <strong>v2.12.0</strong> pushed to all toolkit remotes (origin/personal/gim-home @ <code>1e1318e7</code>) + <code>copilot plugin update</code> installed 2.12.0 (was 2.8.1; the MCP-EBUSY lock was cleared by stopping the running overview MCP servers). Next: Job 2 (codexu data migration via <code>data-edit migrate-split</code> + submodule pointer bump + AGENTS version table) &mdash; gated on the running watcher/MCP being 2.12.0.\r\n"
         }
       ],
       "command": {
@@ -9909,6 +9913,26 @@
           "plan": "Probe-gated signed-CoT fast-follow (D-001), only if the operator wants signed verification after the unsigned reasoning_text path ships. STEP 1 (S-sized probe, do FIRST): extend the fork-auth Copilot probe (D:\\ExtRepos\\copilot-thinking-probe) to POST a /v1/messages request for Claude and validate THREE gates: (a) Copilot accepts auth on /v1/messages, (b) it emits Anthropic Messages SSE with signed thinking blocks (thinking + signature), (c) a replayed signed thinking block is ACCEPTED before a tool_result on a 2nd turn. Capture the transcript. On NO-GO (any gate fails / proxy strips or rewrites signatures) -> defer/abandon (D-003), unsigned plaintext replay stands. STEP 2 (only on GO, overlay-first, AFTER the unsigned task ships to avoid the anthropic_sse.rs + payload.rs conflict): build the native Anthropic Messages transport in codex-copilot (request builder + Messages-SSE parser carrying signature), add a third WireApi/ModelWireRoute arm + wire_route_for recognition of /v1/messages + effective_wire_api + the client.rs dispatch arm, keep Copilot auth/billing, respect the anthropic-models gate, and round-trip the signed thinking block across the tool loop. Reuse the unsigned task's neutral persisted-reasoning shape (now extended to carry the signature). Codex-submodule; two-commit flow; cargo check --workspace + --release + --all-targets gates."
         }
       }
+    },
+    {
+      "id": "codex-autoconnect-interactive-self-onboard-remote-on",
+      "scope": "codex",
+      "lifecycle": "tracked",
+      "status": "todo",
+      "lastTouchedAt": "2026-06-22",
+      "command": {
+        "name": "codex-autoconnect-interactive-self-onboard-remote-on",
+        "descriptionHtml": "Wire codex's existing interactive GitHub device-flow self-onboard (<code>onboard.rs</code>) into the <code>/remote on</code> attach path for the creds-absent case. Split out of the raw-codex autoconnect US-009 (operator decision C, 2026-06-22) because the device flow is interactive and surfacing it mid-session needs a TUI callback into the attach/onboard layer &mdash; a new cross-boundary surface.",
+        "prompts": {
+          "plan": "Plan wiring codex's existing onboard.rs (GitHub device-flow + local E2EE identity) into the /remote on attach path for when ~/.happy creds are absent.\n\nContext: the raw-codex autoconnect feature (task codex-raw-session-happy-daemon-autoconnect, branch feat/remote-session in the codex submodule) shipped US-009's /remote on|off toggle + creds-present mid-session attach/detach, but DEFERRED the interactive self-onboard (operator decision C, 2026-06-22). Today /remote on with no creds shows a 'needs onboarding' message and returns without attaching. onboard.rs (codex-rs-overlay/codex-happy/onboard.rs: complete_onboard_with_token + the GitHub device flow + generate_box_keypair tweetnacl-equiv keypair + access.key/profile.json/machineId writes) EXISTS but is unwired into establish()/attach.\n\nScope: when /remote on is invoked with no ~/.happy creds AND the remote_session feature is enabled, run the device flow, surface the verification URL + user code to the user via a NEW TUI callback (the cross-boundary surface: the overlay background attach task must signal the codex TUI to display the prompt and await completion), complete onboarding (write ~/.happy creds), then attach in the same command. Clean cancellation if the user aborts.\n\nBuild on feat/remote-session (stacked, after the autoconnect story set lands + is reviewed). This is a codex-submodule (wrapper gim-home/codex + nested-inner Evyatar108/codex-openai-fork) two-commit effort. Gate the new TUI-callback surface behind the existing Feature::RemoteSession. Add patch-surface.md rows + tests (the device-flow happy-path with a mocked GitHub endpoint + the abort path).\n\nDEPENDS ON: codex-raw-session-happy-daemon-autoconnect (US-001..US-009) landing first.\n\nRUN: /plan-with-ralph codex-autoconnect-interactive-self-onboard-remote-on"
+        }
+      },
+      "kanbanCards": [
+        {
+          "className": "cmd-warn",
+          "html": "Split out of autoconnect US-009 by operator decision C (2026-06-22): the interactive GitHub device-flow self-onboard for <code>/remote on</code> when <code>~/.happy</code> creds are absent. <code>onboard.rs</code> (device-flow + E2EE identity) EXISTS but is unwired into the attach path; US-009 ships a 'needs onboarding' message instead. This task wires the device-flow + a NEW TUI callback (overlay background task &rarr; codex TUI prompt) into <code>/remote on</code>. DEPENDS ON the autoconnect story set (codex-raw-session-happy-daemon-autoconnect) landing first."
+        }
+      ]
     }
   ],
   "phaseTree": [
