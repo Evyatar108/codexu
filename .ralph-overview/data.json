@@ -9796,6 +9796,10 @@
         {
           "className": "cmd-ok",
           "html": "Impl <strong>Job 1 IN FLIGHT</strong> (member impl-split-job1, copilot) @ plan <code>64bc3130</code>. Operator decision 2026-06-21: <strong>proceed + D-002 staged</strong> (per-task active files deferred). Job 1 = ralph-overview plugin US-101..109 (data-store.mjs, split-aware seqlock read assembler, 3-step misfile write core, migrate-split, v2.12.0) in the <code>ai-developer-toolkit</code> submodule on <code>ralph/ralph-overview-data-json-split-for-readability</code>. Job 2 (codexu migration US-201..202) deferred until Job 1 ships + <code>copilot plugin update</code> + watcher/MCP restart.\r\n"
+        },
+        {
+          "className": "cmd-ok",
+          "html": "Job 1 SHIPPED to toolkit main (local @ <code>1e1318e7</code>): ralph-overview <strong>v2.12.0</strong> hot/cold split, US-101..109; all gates green (274 tests pass), Phase 5a (1 Medium double-fault relocation window fixed) + Phase 5b (5 findings incl. a real <code>coldFile</code> sync-read-path gap) re-verified clean. Pending operator-gated MARKETPLACE PUBLISH (push gim-home + <code>copilot plugin update</code> + watcher/MCP restart) &rarr; then Job 2 (codexu data migration US-201..202 + submodule pointer bump + AGENTS version table).\r\n"
         }
       ],
       "command": {
@@ -9811,9 +9815,9 @@
     {
       "id": "codex-anthropic-chat-reasoning-text-capture-and-replay",
       "scope": "codex",
-      "lifecycle": "tracked",
+      "lifecycle": "merged",
       "status": "todo",
-      "lastTouchedAt": "2026-06-21",
+      "lastTouchedAt": "2026-06-22",
       "kanbanCards": [
         {
           "className": "cmd-info",
@@ -9855,6 +9859,22 @@
           "plan": "Capture, persist, and replay Claude chain-of-thought over the /chat/completions transport. (1) CAPTURE+PERSIST (core-only): decode choices[].delta.reasoning_text in core/src/chat_transport/anthropic_sse.rs and surface a Reasoning ResponseItem via chat_transport (OutputItemAdded -> ReasoningContentDelta deltas -> OutputItemDone with ResponseItem::Reasoning{content:[ReasoningText], encrypted_content:None}) before the assistant message, mirroring the existing assistant-message lifecycle; this renders live (not gated by supports_reasoning_summaries) and persists to the rollout. (2) REPLAY: extend push_chat_message (codex-rs-overlay/codex-copilot/src/payload.rs) to re-emit persisted reasoning back onto the assistant chat message so the model retains past CoT. FIRST verify Copilot accepts input reasoning by extending the probe (D:\\ExtRepos\\copilot-thinking-probe) to a 2-turn request; decide the field shape from what the endpoint honors. Add unit tests with a reasoning_text chat-SSE fixture (mirror the codex-copilot ChatSseParser tests). NOTE: capture is core-only; replay needs a scoped overlay change, and is unsigned (faithful signed continuity is codex-anthropic-native-messages-transport-for-signed-cot).",
           "impl": "IMPL the unsigned Claude reasoning_text capture/persist/display + replay over /chat/completions, per .ralph/jobs/codex-anthropic-chat-reasoning-text-capture-and-replay/plan.md (3 stories). Codex-submodule effort, two-commit flow (inner submodule commit -> Evyatar108/codex-openai-fork; wrapper commit incl. pointer -> gim-home/codex). Run on COPILOT.\r\n\r\nUS-1 FIRST (de-risk): extend the fork-auth probe (D:\\ExtRepos\\copilot-thinking-probe) to a 2-turn request to verify Copilot /chat/completions ACCEPTS reasoning on INPUT before committing the replay field shape (reasoning_text vs inline text); ship an inline-plaintext standalone fallback so US-2/3 are never blocked.\r\n\r\nUS-2 (core-only): decode choices[].delta.reasoning_text in core/src/chat_transport/anthropic_sse.rs (extend decode_openai_structured_content) -> new TranslatedSseEvent::ReasoningDelta + a reasoning-item accumulator mirroring AssistantMessageItem; chat_transport emits OutputItemAdded(ResponseItem::Reasoning) + per-chunk ReasoningContentDelta + closing OutputItemDone(Reasoning{content:[ReasoningText], encrypted_content:None}) BEFORE the assistant message; live display NOT gated by supports_reasoning_summaries; persists to rollout. NO new upstream-canonical edits / protocol types / feature gate (inherently anthropic-gated).\r\n\r\nUS-3 (overlay): extend push_chat_message (codex-rs-overlay/codex-copilot/src/payload.rs) to re-emit persisted reasoning onto the assistant chat message so the model retains prior CoT; scoped // SANDBOX PATCH exception + patch-surface.md 14/15.\r\n\r\nKeep the persisted Reasoning shape signature-ready (encrypted_content field) per AC12 - do NOT build the signed path (separate task codex-anthropic-native-messages-transport-for-signed-cot). Watch the reasoning-item ordering invariants (open-before-delta; close-before-content AND before tool_calls) + the 10K-token-per-item bound. Respect the anthropic-models gate + codex-knob-a-default-medium (default reasoning_effort=medium).\r\n\r\nGates: cargo check --workspace + --release + --all-targets; parser unit tests for reasoning_text decode + a rollout-persistence test + a replay round-trip test. Phase 5a/5b to terminal-clean. Commit on a topic branch (e.g. feat/anthropic-reasoning-text) pushed to Evyatar108 (inner) + gim-home (wrapper); NO release (rides a future one); lead owns merge to sandbox-patches + any release. codexu CLAUDE.md gitignored - never git-add it.\r\n"
         }
+      },
+      "shipManifest": {
+        "shippedAt": "2026-06-22",
+        "summary": "Shipped codex 0.141.0-copilot-api.2 — the anthropic reasoning_text capture+replay feature. Copilot's /chat/completions streams Claude chain-of-thought as a non-standard reasoning_text delta (gated by reasoning_effort, no signature) that the fork previously billed for and then discarded. This captures it (core anthropic_sse.rs + chat_transport.rs) and replays it across turns (overlay codex-copilot/payload.rs) with a strict per-item AND aggregate byte cap on model-visible reasoning history.\r\n\r\nPhase 5a code review caught + fixed a genuine panic-risk: within a single network read the two-parser drain could emit a same-chunk reasoning line and content line out of order (assistant message opened before the reasoning item), nulling the active item; fixed by draining the anthropic parser first per chunk. No new experimental Feature flag was added — capture is inherently scoped to the ChatCompletions wire, already gated by anthropic_models_resolved(), and is on-by-default for Claude models at reasoning_effort=medium.\r\n\r\nReleased with ETW Violations=0: gim-home/codex main 933622668 + inner Evyatar108/codex-openai-fork sandbox-patches 45b179f3b, tag v0.141.0-copilot-api.2 + retention tag release/0.141.0-copilot-api.2, GitHub Release asset codex-0.141.0-copilot-api.2-win32-x64.tgz uploaded (123.3MB, digest verified). The codexu codex submodule pointer was bumped to 933622668.\r\n",
+        "commits": [
+          {
+            "sha": "933622668d6793c50ec7e98eb1e8e7d98ccd9c76",
+            "oneLine": "release: codex 0.141.0-copilot-api.2 — anthropic reasoning_text capture+replay (wrapper)",
+            "repo": "gim-home/codex"
+          },
+          {
+            "sha": "45b179f3b5c13eee07c1cd2decb79f31115c9c63",
+            "oneLine": "reasoning_text capture+replay + strict byte cap + same-chunk ordering fix (inner)",
+            "repo": "Evyatar108/codex-openai-fork"
+          }
+        ]
       }
     },
     {
