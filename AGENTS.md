@@ -22,7 +22,7 @@ Agent-readable Ralph pipeline state is emitted as `.ralph-overview/generated/ral
 <!-- BEGIN: active-plugin-versions -->
 | Plugin | Pinned version | Source |
 |---|---:|---|
-| `ralph-overview` | `2.11.0` | `ai-developer-toolkit/plugins/ralph-overview/.claude-plugin/plugin.json` |
+| `ralph-overview` | `2.12.0` | `ai-developer-toolkit/plugins/ralph-overview/.claude-plugin/plugin.json` |
 | `crews` | `3.23.2` | `ai-developer-toolkit/plugins/crews/.claude-plugin/plugin.json` |
 | `ralph` (`ralph-orchestration`) | `5.60.0` | `ai-developer-toolkit/plugins/ralph/.claude-plugin/plugin.json` |
 <!-- END: active-plugin-versions -->
@@ -220,6 +220,16 @@ When picking the next batch:
 Two files describe task state; they coexist and must not be conflated.
 
 ### `.ralph-overview/data.json` — hand-curated, lead-owned
+
+**Two-shard storage (ralph-overview ≥ 2.12.0):** the hand-curated store is split into a
+HOT shard `.ralph-overview/data.json` (tracked/active tasks + metadata) and a COLD shard
+`.ralph-overview/data.archived.json` (merged + archived tasks). The loader auto-detects
+single-file (legacy) vs split and assembles the identical `{tasks:[...]}`, so every
+consumer (watcher/MCP/viewer/projections) is unchanged. `data-edit`
+(`mark-shipped`/`set-lifecycle`) moves a task between shards crash-safely under one store
+lock. Edit the HOT file for active backlog work; the COLD file is touched only when a task
+ships/archives. (Reading the full file into agent context is now ~5x smaller — the whole
+point of the split.)
 
 Stable task definitions: `id`, `scope`, `lifecycle`, `status`,
 `lastTouchedAt`, `shipManifest`, legacy `mergeCommit`, `kanbanCards`, and `command{name,

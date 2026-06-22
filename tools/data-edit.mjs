@@ -1,4 +1,9 @@
 #!/usr/bin/env node
+// Thin wrapper that dispatches to the installed/in-tree ralph-overview `data-edit`.
+// As of ralph-overview 2.12.0 the store is two shards: the HOT `.ralph-overview/data.json`
+// (tracked tasks + metadata) + the COLD `.ralph-overview/data.archived.json`
+// (merged/archived). `mark-shipped`/`set-lifecycle` move tasks between shards crash-safely
+// under one store lock; the loader auto-detects single-file (legacy) vs split.
 import { spawn } from 'node:child_process'
 import path from 'node:path'
 import process from 'node:process'
