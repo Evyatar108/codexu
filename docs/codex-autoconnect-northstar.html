@@ -1,0 +1,1012 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Northstar · raw-codex autoconnect, zero-friction</title>
+<style>
+  :root {
+    --bg: #0a0e1a;
+    --panel: #121a30;
+    --panel-2: #0f1626;
+    --ink: #e8ecf8;
+    --muted: #97a3c4;
+    --border: #25304f;
+    --user: #94a3b8;
+    --codex: #f59e0b;
+    --daemon: #34d399;
+    --server: #60a5fa;
+    --tunnel: #a78bfa;
+    --client: #f472b6;
+    --github: #7c8aa8;
+    --open: #fb7185;
+    --e2ee: #fbbf24;
+    --ok: #34d399;
+    --shadow: 0 10px 40px rgba(0,0,0,.45);
+    --radius: 14px;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background:
+      radial-gradient(1200px 600px at 80% -10%, rgba(124,108,255,.10), transparent 60%),
+      radial-gradient(1000px 500px at -10% 10%, rgba(52,211,153,.08), transparent 55%),
+      var(--bg);
+    color: var(--ink);
+    font: 15px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    padding-bottom: 80px;
+  }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 0 22px; }
+  code, .mono {
+    font-family: "SF Mono", ui-monospace, SFMono-Regular, "Cascadia Code", Consolas, monospace;
+    font-size: .9em;
+  }
+  code {
+    background: rgba(255,255,255,.06);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 1px 6px;
+    color: #d8e0ff;
+    white-space: nowrap;
+  }
+
+  /* ---------- header ---------- */
+  header.hero {
+    padding: 46px 0 10px;
+  }
+  .eyebrow {
+    text-transform: uppercase;
+    letter-spacing: .18em;
+    font-size: 12px;
+    color: var(--muted);
+    font-weight: 600;
+  }
+  h1 {
+    font-size: 38px;
+    line-height: 1.1;
+    margin: 10px 0 8px;
+    letter-spacing: -.02em;
+  }
+  h1 .grad {
+    background: linear-gradient(90deg, var(--codex), var(--client) 55%, var(--tunnel));
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  .sub { color: var(--muted); font-size: 17px; max-width: 820px; }
+
+  .draft-banner {
+    margin: 22px 0 8px;
+    border: 1px solid rgba(251,113,133,.45);
+    background: linear-gradient(90deg, rgba(251,113,133,.14), rgba(251,113,133,.04));
+    border-radius: 12px;
+    padding: 12px 16px;
+    display: flex; gap: 12px; align-items: flex-start;
+    font-size: 14px;
+  }
+  .draft-banner .tag {
+    flex: none;
+    background: var(--open); color: #2a0a12;
+    font-weight: 800; letter-spacing: .06em;
+    padding: 3px 9px; border-radius: 7px; font-size: 12px;
+  }
+  .draft-banner b { color: #ffd7de; }
+
+  section { margin-top: 56px; scroll-margin-top: 20px; }
+  .sec-head { display: flex; align-items: baseline; gap: 14px; margin-bottom: 6px; }
+  .sec-num {
+    font: 700 13px/1 ui-monospace, monospace;
+    color: var(--tunnel);
+    border: 1px solid var(--border);
+    border-radius: 999px; padding: 6px 10px;
+    background: var(--panel-2);
+  }
+  h2 { font-size: 25px; margin: 0; letter-spacing: -.01em; }
+  .sec-lede { color: var(--muted); margin: 8px 0 20px; max-width: 860px; }
+
+  .card {
+    background: linear-gradient(180deg, var(--panel), var(--panel-2));
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 22px;
+  }
+
+  /* ---------- northstar one-liner pipeline ---------- */
+  .pipe {
+    display: flex; flex-wrap: wrap; align-items: stretch; gap: 0;
+    border-radius: var(--radius); overflow: hidden;
+    border: 1px solid var(--border);
+  }
+  .pipe .step {
+    flex: 1 1 0; min-width: 150px;
+    padding: 16px 16px 16px 26px;
+    position: relative;
+    background: var(--panel-2);
+    display: flex; flex-direction: column; gap: 4px; justify-content: center;
+  }
+  .pipe .step + .step { border-left: 1px solid var(--border); }
+  .pipe .step .k { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .12em; }
+  .pipe .step .v { font-weight: 700; font-size: 14px; }
+  .pipe .step .v .mono { font-weight: 700; }
+  .pipe .step::after {
+    content: ""; position: absolute; right: -11px; top: 50%; transform: translateY(-50%) rotate(45deg);
+    width: 20px; height: 20px; background: var(--panel-2);
+    border-top: 1px solid var(--border); border-right: 1px solid var(--border);
+    z-index: 2;
+  }
+  .pipe .step:last-child::after { display: none; }
+  .pipe .step.accent { background: linear-gradient(180deg, rgba(245,158,11,.16), rgba(245,158,11,.04)); }
+  .pipe .step.accent::after { background: #1d1a13; }
+  .pipe .step.goal { background: linear-gradient(180deg, rgba(244,114,182,.18), rgba(244,114,182,.04)); }
+
+  /* ---------- legend ---------- */
+  .legend { display: flex; flex-wrap: wrap; gap: 10px 18px; margin-top: 18px; }
+  .legend .li { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); }
+  .swatch { width: 14px; height: 14px; border-radius: 4px; flex: none; border: 1px solid rgba(255,255,255,.18); }
+  .swatch.dashed { background: transparent; border: 2px dashed var(--open); }
+
+  /* ---------- diagram shell ---------- */
+  .diagram-shell { display: grid; grid-template-columns: 1fr 320px; gap: 18px; align-items: start; }
+  @media (max-width: 920px) { .diagram-shell { grid-template-columns: 1fr; } }
+  .diagram { background: var(--panel-2); border: 1px solid var(--border); border-radius: var(--radius); padding: 8px; }
+  .diagram svg { width: 100%; height: auto; display: block; }
+
+  .toggle-row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 14px; }
+  .toggle-row .label { font-size: 13px; color: var(--muted); margin-right: 4px; }
+  .seg { display: inline-flex; border: 1px solid var(--border); border-radius: 10px; overflow: hidden; background: var(--panel-2); }
+  .seg button {
+    appearance: none; border: 0; background: transparent; color: var(--muted);
+    font: 600 13px/1 inherit; padding: 9px 14px; cursor: pointer; transition: .15s;
+  }
+  .seg button + button { border-left: 1px solid var(--border); }
+  .seg button.on { background: linear-gradient(180deg, rgba(124,108,255,.30), rgba(124,108,255,.12)); color: #fff; }
+  .open-pill {
+    font-size: 11px; font-weight: 800; letter-spacing: .05em;
+    color: #2a0a12; background: var(--open); padding: 3px 8px; border-radius: 999px;
+  }
+
+  /* node detail side panel */
+  .detail {
+    background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 16px; position: sticky; top: 16px; min-height: 220px;
+  }
+  .detail .hint { color: var(--muted); font-size: 13px; }
+  .detail h4 { margin: 2px 0 8px; font-size: 16px; display: flex; align-items: center; gap: 8px; }
+  .detail .dot { width: 11px; height: 11px; border-radius: 3px; flex: none; }
+  .detail p { margin: 0 0 8px; font-size: 13.5px; color: #cdd6f2; }
+  .detail .cite { font-size: 12px; color: var(--muted); border-top: 1px dashed var(--border); padding-top: 8px; margin-top: 10px; }
+
+  svg .node { cursor: pointer; }
+  svg .node rect { transition: filter .15s, opacity .15s; }
+  svg .node:hover rect.box, svg .node.sel rect.box { filter: brightness(1.22); }
+  svg text { fill: var(--ink); }
+  svg .t-title { font: 700 14px/1 inherit; }
+  svg .t-sub { font: 500 11.5px/1 inherit; fill: var(--muted); }
+  svg .t-edge { font: 600 11px/1 inherit; fill: #c7d0ee; }
+  svg .t-band { font: 700 13px/1 inherit; }
+
+  /* ---------- flow / sequence ---------- */
+  .flow-shell { display: grid; grid-template-columns: 1fr 340px; gap: 18px; align-items: start; }
+  @media (max-width: 980px) { .flow-shell { grid-template-columns: 1fr; } }
+  .flow-controls { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
+  .btn {
+    appearance: none; border: 1px solid var(--border); background: var(--panel);
+    color: var(--ink); border-radius: 10px; padding: 9px 16px; font: 600 14px/1 inherit; cursor: pointer;
+    transition: .15s;
+  }
+  .btn:hover { border-color: var(--tunnel); }
+  .btn:disabled { opacity: .4; cursor: default; }
+  .btn.primary { background: linear-gradient(180deg, rgba(124,108,255,.45), rgba(124,108,255,.2)); border-color: rgba(124,108,255,.6); }
+  .stepcount { font: 700 13px/1 ui-monospace, monospace; color: var(--muted); }
+  .progress { height: 5px; background: var(--panel-2); border-radius: 999px; overflow: hidden; border: 1px solid var(--border); flex: 1; min-width: 120px; }
+  .progress > i { display: block; height: 100%; background: linear-gradient(90deg, var(--codex), var(--client)); transition: width .25s; }
+
+  .step-detail { background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px; position: sticky; top: 16px; }
+  .step-detail .badge-row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+  .badge { font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 999px; letter-spacing: .04em; }
+  .badge.first { background: rgba(96,165,250,.18); color: #bcd6ff; border: 1px solid rgba(96,165,250,.4); }
+  .badge.every { background: rgba(52,211,153,.16); color: #baf3da; border: 1px solid rgba(52,211,153,.4); }
+  .badge.open { background: var(--open); color: #2a0a12; }
+  .step-detail h4 { margin: 4px 0 8px; font-size: 18px; }
+  .step-detail p { color: #cdd6f2; font-size: 14px; margin: 0 0 10px; }
+  .step-detail .cite { font-size: 12px; color: var(--muted); border-top: 1px dashed var(--border); padding-top: 9px; }
+  .seqwrap { background: var(--panel-2); border: 1px solid var(--border); border-radius: var(--radius); padding: 10px; }
+  .seqwrap svg { width: 100%; height: auto; display: block; }
+  svg .lane-head { font: 700 11.5px/1 inherit; }
+  svg .lane-sub { font: 500 10px/1 inherit; fill: var(--muted); }
+  svg .msg-label { font: 600 11px/1 inherit; fill: #d4ddf6; }
+  svg .arrow-row { transition: opacity .2s; }
+
+  /* ---------- contrast ---------- */
+  .contrast { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+  @media (max-width: 820px) { .contrast { grid-template-columns: 1fr; } }
+  .col-head { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+  .col-head .pill { font-size: 11px; font-weight: 800; letter-spacing: .08em; padding: 4px 10px; border-radius: 999px; text-transform: uppercase; }
+  .pill.now { background: rgba(148,163,184,.2); color: #cdd6e8; border: 1px solid var(--border); }
+  .pill.star { background: linear-gradient(90deg, var(--codex), var(--client)); color: #2a160a; }
+  .col-head h3 { margin: 0; font-size: 18px; }
+  ul.checklist { list-style: none; margin: 10px 0 0; padding: 0; }
+  ul.checklist li { position: relative; padding: 7px 0 7px 30px; font-size: 14px; border-bottom: 1px dashed var(--border); color: #d6def3; }
+  ul.checklist li:last-child { border-bottom: 0; }
+  ul.checklist li::before {
+    position: absolute; left: 2px; top: 7px; width: 19px; height: 19px; border-radius: 6px;
+    display: grid; place-items: center; font-size: 12px; font-weight: 800;
+  }
+  ul.checklist.friction li::before { content: "✕"; background: rgba(251,113,133,.16); color: var(--open); border: 1px solid rgba(251,113,133,.4); }
+  ul.checklist.smooth li::before { content: "✓"; background: rgba(52,211,153,.16); color: var(--ok); border: 1px solid rgba(52,211,153,.4); }
+  .keepbox { margin-top: 14px; border: 1px solid rgba(96,165,250,.35); background: rgba(96,165,250,.08); border-radius: 10px; padding: 12px 14px; font-size: 13.5px; color: #cfe0ff; }
+
+  /* ---------- decisions ---------- */
+  .dec-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+  @media (max-width: 820px) { .dec-grid { grid-template-columns: 1fr; } }
+  .opt { border: 1px solid var(--border); border-radius: var(--radius); padding: 18px; background: var(--panel-2); transition: .18s; position: relative; }
+  .opt.A { border-top: 3px solid var(--codex); }
+  .opt.B { border-top: 3px solid var(--daemon); }
+  .opt h4 { margin: 4px 0 4px; font-size: 17px; }
+  .opt .tagline { color: var(--muted); font-size: 13px; margin-bottom: 12px; }
+  .pc { margin: 10px 0 0; }
+  .pc .h { font-size: 12px; text-transform: uppercase; letter-spacing: .1em; color: var(--muted); margin-bottom: 4px; }
+  .pc ul { margin: 0 0 6px; padding-left: 18px; }
+  .pc ul li { font-size: 13.5px; margin: 3px 0; color: #d6def3; }
+  .pc.pro li::marker { color: var(--ok); }
+  .pc.con li::marker { color: var(--open); }
+  .verdict { margin-top: 26px; }
+  .openq { border: 1px solid rgba(251,113,133,.4); background: rgba(251,113,133,.07); border-radius: 12px; padding: 16px 18px; margin-top: 18px; }
+  .openq h4 { margin: 0 0 6px; display: flex; align-items: center; gap: 10px; font-size: 16px; }
+  .openq p { margin: 0; font-size: 14px; color: #f3d6dc; }
+
+  /* principles strip */
+  .principles { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; margin-top: 20px; }
+  .principle { border: 1px solid var(--border); border-radius: 12px; padding: 14px; background: var(--panel-2); }
+  .principle .ic { font-size: 18px; }
+  .principle h5 { margin: 6px 0 5px; font-size: 14px; }
+  .principle p { margin: 0; font-size: 12.5px; color: var(--muted); }
+
+  footer.cites { margin-top: 60px; border-top: 1px solid var(--border); padding-top: 22px; color: var(--muted); font-size: 13px; }
+  footer.cites h3 { color: var(--ink); font-size: 15px; margin: 0 0 10px; }
+  footer.cites ul { margin: 0; padding-left: 18px; }
+  footer.cites li { margin: 5px 0; }
+  .toc { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; }
+  .toc a { font-size: 13px; color: var(--muted); text-decoration: none; border: 1px solid var(--border); padding: 6px 12px; border-radius: 999px; background: var(--panel-2); }
+  .toc a:hover { color: #fff; border-color: var(--tunnel); }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="hero">
+    <div class="eyebrow">Design doc · Northstar visualization</div>
+    <h1>Raw-codex autoconnect, <span class="grad">zero-friction</span></h1>
+    <p class="sub">
+      Install <b>only</b> the codex fork. Run <code>/remote on</code>. Codex self-onboards and its
+      session becomes discoverable + controllable in the Happy app — over Microsoft Dev Tunnels,
+      with <b>no manual happy-cli setup</b> and <b>no central server</b>.
+    </p>
+
+    <div class="draft-banner">
+      <span class="tag">DRAFT</span>
+      <div>
+        <b>DRAFT — daemon-ownership pending the <code>codex-autoconnect-self-contained-zero-friction</code>
+        brainstorm</b> (running in parallel as <code>brainstorm-selfcontained2</code>).
+        This doc shows the agreed architecture and renders that one open decision <b>both ways</b> so the
+        operator can choose. Everything marked <span class="open-pill">OPEN</span> is not yet decided.
+      </div>
+    </div>
+
+    <nav class="toc">
+      <a href="#oneline">① One line</a>
+      <a href="#arch">② Architecture</a>
+      <a href="#flow">③ Zero-friction flow</a>
+      <a href="#contrast">④ Today vs northstar</a>
+      <a href="#decide">⑤ Open decisions</a>
+    </nav>
+  </header>
+
+  <!-- ====================== 1 · ONE LINE ====================== -->
+  <section id="oneline">
+    <div class="sec-head"><span class="sec-num">01</span><h2>The northstar in one line</h2></div>
+    <p class="sec-lede">A codex-first new user reaches a remotely-controllable, end-to-end-encrypted session
+      with a single install and a single command.</p>
+
+    <div class="pipe">
+      <div class="step accent">
+        <span class="k">install</span>
+        <span class="v">Only the <span class="mono">codex</span> fork</span>
+      </div>
+      <div class="step">
+        <span class="k">run</span>
+        <span class="v"><code>/remote on</code></span>
+      </div>
+      <div class="step">
+        <span class="k">self-onboard</span>
+        <span class="v">GitHub device flow in the codex TUI</span>
+      </div>
+      <div class="step">
+        <span class="k">daemon up</span>
+        <span class="v">Per-machine daemon + embedded happy-server</span>
+      </div>
+      <div class="step">
+        <span class="k">expose</span>
+        <span class="v">Private Microsoft Dev Tunnel</span>
+      </div>
+      <div class="step goal">
+        <span class="k">result</span>
+        <span class="v">Discoverable &amp; controllable in the Happy app — E2EE</span>
+      </div>
+    </div>
+
+    <div class="principles">
+      <div class="principle">
+        <div class="ic">🚫🗄️</div>
+        <h5>No central server</h5>
+        <p>No broker, relay, or pub-sub. Nothing transits a Happy broker, the phone, or the mobile app —
+          the only channel is Microsoft Dev Tunnels.</p>
+      </div>
+      <div class="principle">
+        <div class="ic">📦🖥️</div>
+        <h5>Embedded server = the session plane</h5>
+        <p>The per-daemon happy-server is load-bearing (pair · <code>/v3</code> · Socket.IO). The 3-lens
+          verdict (<code>906ed67b</code>): it cannot be dropped.</p>
+      </div>
+      <div class="principle">
+        <div class="ic">🔌🌐</div>
+        <h5>Dev Tunnels are the sole path</h5>
+        <p>Discovery, rendezvous, signaling, data, and auth all ride Microsoft Dev Tunnels — operator
+          machines are enumerated with <code>devtunnel list --json</code>. The exact Happy-client rendezvous
+          for a fresh codex-onboarded machine is still <b>OPEN</b>.</p>
+      </div>
+      <div class="principle">
+        <div class="ic">🔐</div>
+        <h5>End-to-end encrypted</h5>
+        <p>Message bodies + agent state are ciphertext on the wire; only session metadata is plaintext.
+          Trust = operator tunnel ownership + TOFU pinning + sealing.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ====================== 2 · ARCHITECTURE ====================== -->
+  <section id="arch">
+    <div class="sec-head"><span class="sec-num">02</span><h2>Architecture</h2></div>
+    <p class="sec-lede">One machine. The codex session talks to a <b>local</b> embedded happy-server; that server is
+      exposed over a private Dev Tunnel; Happy clients (remote or local) discover and connect to it.
+      <b>Hover or tap any block</b> for detail. Use the toggle to see the open daemon-ownership decision both ways.</p>
+
+    <div class="toggle-row">
+      <span class="label">Daemon ownership</span>
+      <div class="seg" id="ownerSeg">
+        <button data-owner="A" class="on">Option A · codex-native</button>
+        <button data-owner="B">Option B · happy-cli (auto-managed)</button>
+      </div>
+      <span class="open-pill">OPEN DECISION</span>
+    </div>
+
+    <div class="diagram-shell">
+      <div class="diagram">
+        <svg id="archSvg" viewBox="0 0 1200 660" role="img" aria-label="Architecture diagram">
+          <defs>
+            <marker id="ah" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+              <path d="M0,0 L8,3 L0,6 Z" fill="#c7d0ee"/>
+            </marker>
+            <marker id="ah-e2ee" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+              <path d="M0,0 L8,3 L0,6 Z" fill="#fbbf24"/>
+            </marker>
+            <marker id="ah-red" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+              <path d="M0,0 L8,3 L0,6 Z" fill="#fb7185"/>
+            </marker>
+          </defs>
+
+          <!-- machine boundary -->
+          <rect x="28" y="28" width="900" height="330" rx="16" fill="rgba(255,255,255,.015)" stroke="#33406a" stroke-dasharray="2 0"/>
+          <text x="48" y="54" class="t-band" style="fill:#aeb9da">THIS MACHINE · operator-owned</text>
+          <text x="48" y="72" class="t-sub">no phone, no mobile app, no central server in the trust path</text>
+
+          <!-- codex node -->
+          <g class="node" data-key="codex">
+            <rect class="box" x="60" y="120" width="250" height="150" rx="12" fill="rgba(245,158,11,.14)" stroke="#f59e0b" stroke-width="1.5"/>
+            <text x="80" y="150" class="t-title" style="fill:#fcd690">codex session</text>
+            <text x="80" y="172" class="t-sub">TUI + in-process app-server</text>
+            <text x="80" y="190" class="t-sub">codex-happy overlay</text>
+            <text x="80" y="206" class="t-sub">(native Rust Happy client)</text>
+            <text x="80" y="236" class="t-sub" style="fill:#f59e0b">/remote on → attach</text>
+          </g>
+
+          <!-- embedded happy-server node -->
+          <g class="node" data-key="server">
+            <rect class="box" x="600" y="120" width="280" height="150" rx="12" fill="rgba(96,165,250,.14)" stroke="#60a5fa" stroke-width="1.5"/>
+            <text x="620" y="150" class="t-title" style="fill:#bcd6ff">Embedded happy-server</text>
+            <text x="620" y="171" class="t-sub" style="fill:#60a5fa; font-weight:700">THE SESSION PLANE</text>
+            <text x="620" y="190" class="t-sub">pair · /v3 · Socket.IO /v1/updates</text>
+            <text x="620" y="208" class="t-sub">binds 127.0.0.1 (tunnel + loopback)</text>
+            <text x="620" y="236" class="t-sub">stores E2EE ciphertext verbatim</text>
+          </g>
+
+          <!-- codex -> server edge -->
+          <line x1="310" y1="195" x2="600" y2="195" stroke="#fbbf24" stroke-width="2" marker-end="url(#ah-e2ee)"/>
+          <text x="455" y="186" class="t-edge" text-anchor="middle" style="fill:#fbbf24">🔐 127.0.0.1:&lt;tunnelPort&gt;</text>
+          <text x="455" y="212" class="t-edge" text-anchor="middle">loopback · no auth header</text>
+
+          <!-- daemon ownership region (JS-driven) -->
+          <g id="ownerRegion"></g>
+
+          <!-- ghost: rejected central server (right column) -->
+          <g>
+            <rect x="980" y="150" width="195" height="120" rx="12" fill="rgba(251,113,133,.05)" stroke="#fb7185" stroke-width="1.5" stroke-dasharray="7 5"/>
+            <text x="1077" y="178" text-anchor="middle" class="t-sub" style="fill:#fb7185; font-weight:700">Central / external</text>
+            <text x="1077" y="195" text-anchor="middle" class="t-sub" style="fill:#fb7185; font-weight:700">happy-server</text>
+            <text x="1077" y="214" text-anchor="middle" class="t-sub">broker · relay · pub-sub</text>
+            <text x="1077" y="248" text-anchor="middle" class="t-band" style="fill:#fb7185">NONE — rejected</text>
+            <line x1="985" y1="155" x2="1170" y2="265" stroke="#fb7185" stroke-width="1.5"/>
+            <line x1="1170" y1="155" x2="985" y2="265" stroke="#fb7185" stroke-width="1.5"/>
+          </g>
+          <path d="M928,210 C955,210 958,210 980,210" fill="none" stroke="#fb7185" stroke-width="1.5" stroke-dasharray="5 5"/>
+          <text x="953" y="200" class="t-edge" text-anchor="middle" style="fill:#fb7185">✗ no broker</text>
+
+          <!-- server -> tunnel -->
+          <line x1="720" y1="270" x2="520" y2="406" stroke="#a78bfa" stroke-width="2" marker-end="url(#ah)"/>
+          <text x="648" y="345" class="t-edge" text-anchor="middle" style="fill:#c4b5fd">hosts the server</text>
+          <text x="648" y="361" class="t-edge" text-anchor="middle" style="fill:#c4b5fd">(one public ingress)</text>
+
+          <!-- Dev Tunnel band -->
+          <g class="node" data-key="tunnel">
+            <rect class="box" x="28" y="406" width="900" height="80" rx="14" fill="rgba(167,139,250,.16)" stroke="#a78bfa" stroke-width="1.5"/>
+            <text x="48" y="436" class="t-title" style="fill:#cabcff">Microsoft Dev Tunnel</text>
+            <text x="48" y="458" class="t-sub">private · operator-owned · gateway admits only with the operator's connect-token (then strips it)</text>
+            <text x="48" y="475" class="t-sub">discovery = <tspan style="fill:#cabcff">devtunnel list --json</tspan> · rendezvous + data + signaling + auth all ride this tunnel</text>
+            <text x="905" y="450" text-anchor="end" class="t-band" style="fill:#fbbf24">🔐 E2EE</text>
+          </g>
+
+          <!-- tunnel -> clients -->
+          <line x1="180" y1="486" x2="180" y2="540" stroke="#f472b6" stroke-width="2" marker-end="url(#ah)"/>
+          <line x1="470" y1="486" x2="470" y2="540" stroke="#f472b6" stroke-width="2" marker-end="url(#ah)"/>
+          <line x1="765" y1="486" x2="765" y2="540" stroke="#f472b6" stroke-width="2" stroke-dasharray="5 4" marker-end="url(#ah)"/>
+          <text x="610" y="520" class="t-edge" text-anchor="middle" style="fill:#f9a8d4">discover · connect · stream — E2EE, both directions</text>
+          <text x="845" y="512" class="t-edge" text-anchor="start" style="fill:#f9a8d4">loopback</text>
+
+          <!-- clients -->
+          <g class="node" data-key="appremote">
+            <rect class="box" x="60" y="540" width="240" height="96" rx="12" fill="rgba(244,114,182,.14)" stroke="#f472b6" stroke-width="1.5"/>
+            <text x="80" y="570" class="t-title" style="fill:#fbcfe8">Happy app</text>
+            <text x="80" y="591" class="t-sub">mobile · remote</text>
+            <text x="80" y="612" class="t-sub">the original "drive codex from your phone"</text>
+          </g>
+          <g class="node" data-key="webapp">
+            <rect class="box" x="350" y="540" width="240" height="96" rx="12" fill="rgba(244,114,182,.14)" stroke="#f472b6" stroke-width="1.5"/>
+            <text x="370" y="570" class="t-title" style="fill:#fbcfe8">Happy webapp</text>
+            <text x="370" y="591" class="t-sub">browser client</text>
+            <text x="370" y="612" class="t-sub">same session plane, same E2EE</text>
+          </g>
+          <g class="node" data-key="applocal">
+            <rect class="box" x="640" y="540" width="260" height="96" rx="12" fill="rgba(244,114,182,.14)" stroke="#f472b6" stroke-width="1.5"/>
+            <text x="660" y="570" class="t-title" style="fill:#fbcfe8">Happy app · local</text>
+            <text x="660" y="591" class="t-sub">same machine</text>
+            <text x="660" y="612" class="t-sub">loopback to the same server (no tunnel hop)</text>
+          </g>
+        </svg>
+      </div>
+
+      <aside class="detail" id="archDetail">
+        <div class="hint" id="archHint">Hover or tap a block in the diagram to inspect it. Toggle the daemon
+          ownership above to redraw the green region.</div>
+        <div id="archBody" style="display:none">
+          <h4><span class="dot" id="archDot"></span><span id="archTitle"></span></h4>
+          <div id="archText"></div>
+          <div class="cite" id="archCite"></div>
+        </div>
+      </aside>
+    </div>
+
+    <div class="legend" id="legend">
+      <div class="li"><span class="swatch" style="background:var(--codex)"></span> codex session / overlay</div>
+      <div class="li"><span class="swatch" style="background:var(--daemon)"></span> per-machine daemon</div>
+      <div class="li"><span class="swatch" style="background:var(--server)"></span> embedded happy-server (session plane)</div>
+      <div class="li"><span class="swatch" style="background:var(--tunnel)"></span> Microsoft Dev Tunnel</div>
+      <div class="li"><span class="swatch" style="background:var(--client)"></span> Happy clients</div>
+      <div class="li"><span class="swatch" style="background:var(--e2ee)"></span> E2EE wire</div>
+      <div class="li"><span class="swatch dashed"></span> rejected / not in the path</div>
+    </div>
+  </section>
+
+  <!-- ====================== 3 · FLOW ====================== -->
+  <section id="flow">
+    <div class="sec-head"><span class="sec-num">03</span><h2>The zero-friction new-user flow</h2></div>
+    <p class="sec-lede">Step through what happens from a cold machine to a live, remotely-controllable session.
+      Use <b>Prev / Next</b> or the <b>← →</b> arrow keys. Blue = first-run only; green = every run.</p>
+
+    <div class="flow-controls">
+      <button class="btn" id="prevBtn">← Prev</button>
+      <button class="btn primary" id="nextBtn">Next →</button>
+      <span class="stepcount" id="stepCount"></span>
+      <span class="progress"><i id="progFill"></i></span>
+    </div>
+
+    <div class="flow-shell">
+      <div class="seqwrap">
+        <svg id="seqSvg" viewBox="0 0 1000 620" role="img" aria-label="Sequence diagram"></svg>
+      </div>
+      <aside class="step-detail">
+        <div class="badge-row" id="badgeRow"></div>
+        <h4 id="stepTitle"></h4>
+        <p id="stepText"></p>
+        <div class="cite" id="stepCite"></div>
+      </aside>
+    </div>
+  </section>
+
+  <!-- ====================== 4 · CONTRAST ====================== -->
+  <section id="contrast">
+    <div class="sec-head"><span class="sec-num">04</span><h2>Today vs the northstar</h2></div>
+    <p class="sec-lede">The autoconnect overlay already ships and works — but today it leans on happy-cli for the
+      daemon, the tunnel, and onboarding. The northstar removes that friction.</p>
+
+    <div class="contrast">
+      <div class="card">
+        <div class="col-head"><span class="pill now">Today</span><h3>Works, but happy-cli-gated</h3></div>
+        <ul class="checklist friction">
+          <li>Install <b>happy-cli</b> (Node) <i>separately</i> from codex.</li>
+          <li>Onboard via happy-cli (<code>happy</code> / <code>happy codex</code>) — not codex.</li>
+          <li>Run the <b>happy-cli daemon</b>: it writes <code>~/.happy/machine.json</code>, binds the
+            <code>127.0.0.1</code> listeners, and hosts the Dev Tunnel.</li>
+          <li>Only <i>then</i> does raw codex autoconnect (<code>remote_session</code>) connect to the
+            per-daemon happy-server at <code>127.0.0.1:&lt;tunnelPort&gt;</code>.</li>
+        </ul>
+        <div class="keepbox">✅ Already correct today: the codex-happy overlay connects to the <b>local per-daemon</b>
+          happy-server — never an external one. The architecture is right; only the <b>setup friction</b> is the gap.</div>
+      </div>
+
+      <div class="card">
+        <div class="col-head"><span class="pill star">Northstar</span><h3>Codex-first, self-contained</h3></div>
+        <ul class="checklist smooth">
+          <li>Install <b>only the codex fork</b>. No separate happy-cli step.</li>
+          <li>Codex <b>self-onboards</b>: GitHub device flow shown right in the TUI, mints its own
+            <code>~/.happy</code> creds (<code>access.key</code> hardened to <code>0o600</code> — the M1 fix this work carries).</li>
+          <li>The per-machine daemon (embedded happy-server) comes up <b>frictionlessly</b> —
+            <span class="open-pill">OPEN</span> codex-native <i>or</i> auto-managed happy-cli.</li>
+          <li>Session is discoverable + controllable in the Happy app over Dev Tunnels.
+            Subsequent runs just connect.</li>
+        </ul>
+        <div class="keepbox" style="border-color:rgba(52,211,153,.35);background:rgba(52,211,153,.08);color:#c8f3df">
+          🎯 Same architecture, zero setup tax: one install, one <code>/remote on</code>, and the phone/web/local
+          Happy clients see the session — still no central server.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ====================== 5 · DECISIONS ====================== -->
+  <section id="decide">
+    <div class="sec-head"><span class="sec-num">05</span><h2>Open decisions for the operator</h2></div>
+    <p class="sec-lede">These are deliberately <b>not</b> decided in this doc. The parallel brainstorm
+      (<code>codex-autoconnect-self-contained-zero-friction</code>) will recommend; the operator decides.</p>
+
+    <h3 style="margin:6px 0 4px; font-size:18px; display:flex; align-items:center; gap:10px;">
+      <span class="open-pill">D1 · central</span> Who owns the per-machine daemon?</h3>
+    <p style="color:var(--muted); margin:0 0 16px; max-width:860px;">Both keep the load-bearing embedded happy-server
+      (the session plane) — they differ only in <b>who starts and ships it</b>. Toggle the architecture diagram above to
+      see each one drawn.</p>
+
+    <div class="dec-grid">
+      <div class="opt A">
+        <h4>Option A · codex-native daemon</h4>
+        <div class="tagline">Codex itself bundles &amp; starts the embedded happy-server.</div>
+        <div class="pc pro"><div class="h">Pros</div>
+          <ul>
+            <li>True "install <b>only</b> codex" — nothing else on the machine.</li>
+            <li>Fewer moving parts to install, version, and ship.</li>
+            <li>No Node runtime dependency for the daemon.</li>
+          </ul>
+        </div>
+        <div class="pc con"><div class="h">Cons</div>
+          <ul>
+            <li>Must port / embed the happy-server (and tunnel mgmt) into the fork — larger surface.</li>
+            <li>Re-implements daemon lifecycle codex doesn't own today.</li>
+            <li>Higher upstream-conflict / maintenance cost in the fork.</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="opt B">
+        <h4>Option B · happy-cli daemon, made frictionless</h4>
+        <div class="tagline">Codex auto-installs &amp; auto-starts the existing happy-cli daemon on demand.</div>
+        <div class="pc pro"><div class="h">Pros</div>
+          <ul>
+            <li>Reuses the proven happy-cli daemon, tunnel mgmt &amp; <code>machine.json</code> contract.</li>
+            <li>Much smaller fork change — codex just orchestrates an existing component.</li>
+            <li>happy-cli keeps evolving the daemon independently.</li>
+          </ul>
+        </div>
+        <div class="pc con"><div class="h">Cons</div>
+          <ul>
+            <li>A Node/happy-cli install still exists — just hidden behind auto-install.</li>
+            <li>Codex must manage another process's lifecycle &amp; failures.</li>
+            <li>Not literally "only codex on disk."</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <div class="openq verdict">
+      <h4><span class="open-pill">D2 · discovery</span> How does a Happy client find <i>this machine's</i> tunnel?</h4>
+      <p>Reuse the Scope-A <code>devtunnel list --json</code> discovery + Dev-Tunnel rendezvous as-is, or add an
+        explicit pairing/registration step so the app can locate the machine? The rendezvous mechanism for a
+        <b>fresh, codex-onboarded</b> machine is not yet pinned. <b>OPEN — pending the brainstorm.</b></p>
+    </div>
+  </section>
+
+  <footer class="cites">
+    <h3>Grounded in (sources)</h3>
+    <ul>
+      <li><code>AGENTS.md</code> → Fork context → <b>"Server architecture"</b> — per-daemon happy-server + Dev Tunnels, no central broker; autoconnect → <code>127.0.0.1:&lt;tunnelPort&gt;</code> from <code>~/.happy/machine.json</code>.</li>
+      <li><code>plans/agent-comms-design.md</code> <b>§5 (Scope A)</b> — Dev Tunnels as sole channel; discovery <code>devtunnel list --json</code>; embedded happy-server is load-bearing; two-layer auth (connect-token + Ed25519 + sealed body). 3-lens verdict <code>906ed67b</code>.</li>
+      <li><code>codex/codex-rs-overlay/codex-happy/</code> — <code>auth.rs</code> (<code>read_machine_state</code>, <code>tunnel_local_base_url</code>), <code>onboard.rs</code> (GitHub device flow self-onboard, mints <code>~/.happy</code> creds), <code>attach.rs</code> (<code>maybe_attach</code>; falls back to vanilla codex without creds).</li>
+      <li>Task <code>codex-autoconnect-self-contained-zero-friction</code> brainstorm prompt — the zero-friction bar and the daemon-ownership open question.</li>
+    </ul>
+    <p style="margin-top:14px">DRAFT — daemon-ownership pending the <code>codex-autoconnect-self-contained-zero-friction</code> brainstorm (<code>brainstorm-selfcontained2</code>).</p>
+  </footer>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  /* ------------------------------------------------------------------ *
+   * 2 · Architecture: node detail panel + daemon-ownership toggle
+   * ------------------------------------------------------------------ */
+  var ARCH = {
+    codex: {
+      color: "#f59e0b",
+      title: "codex session",
+      html: "<p>The patched codex CLI: its TUI plus an <b>in-process app-server</b>. The fork-exclusive " +
+            "<code>codex-happy</code> overlay is a native Rust Happy client — it speaks the Happy wire " +
+            "protocol directly, so <b>no happy-cli process is needed at runtime</b>.</p>" +
+            "<p><code>/remote on</code> enables the <code>remote_session</code> feature, which calls " +
+            "<code>maybe_attach</code> to mirror the session E2EE and accept inbound control.</p>",
+      cite: "codex-happy/lib.rs, attach.rs::maybe_attach"
+    },
+    server: {
+      color: "#60a5fa",
+      title: "Embedded happy-server — the session plane",
+      html: "<p>Each daemon embeds its <b>own</b> happy-server. This is the load-bearing piece: it serves " +
+            "pairing, <code>/v3</code>, and the Socket.IO <code>/v1/updates</code> session stream that the Happy " +
+            "app pairs and syncs against.</p>" +
+            "<p>It binds two <code>127.0.0.1</code> listeners — a <b>tunnel</b> listener (session/v3/socket, no auth " +
+            "header) and a <b>loopback</b> listener (<code>/v2/me/*</code>). It stores E2EE ciphertext verbatim; it " +
+            "does no decryption.</p>" +
+            "<p>The 3-lens verdict (<code>906ed67b</code>): you <b>cannot drop</b> this — it IS the session plane.</p>",
+      cite: "agent-comms-design.md §5.2; auth.rs (tunnel/loopback listeners)"
+    },
+    tunnel: {
+      color: "#a78bfa",
+      title: "Microsoft Dev Tunnel",
+      html: "<p>The <b>sole</b> network channel for data, signaling, rendezvous, discovery, and auth. The tunnel is " +
+            "<b>private &amp; operator-owned</b>: the gateway admits a connection only when the client presents the " +
+            "operator's connect-token, then <i>strips</i> it before forwarding.</p>" +
+            "<p>Discovery is the Dev Tunnels management plane itself: <code>devtunnel list --json</code> returns the " +
+            "operator's own machines. Nothing routes through a phone, the mobile app, or a central broker.</p>",
+      cite: "agent-comms-design.md §5.1, §5.4, §5.5"
+    },
+    daemonA: {
+      color: "#34d399",
+      title: "Per-machine daemon — Option A (codex-native)",
+      html: "<p><b>OPEN decision, shown as Option A.</b> Codex itself bundles and starts the embedded " +
+            "happy-server, so the user installs <b>only codex</b>. Codex owns the daemon lifecycle and the " +
+            "Dev-Tunnel hosting. (Whether that runs in the codex process or a codex-spawned helper is a " +
+            "design detail left to the plan.)</p>",
+      cite: "brainstorm: codex-autoconnect-self-contained-zero-friction (OPEN)"
+    },
+    daemonB: {
+      color: "#34d399",
+      title: "Per-machine daemon — Option B (happy-cli, auto-managed)",
+      html: "<p><b>OPEN decision, shown as Option B.</b> The existing happy-cli daemon hosts the embedded " +
+            "happy-server; codex <b>auto-installs and auto-starts</b> it on demand. Smaller fork change, but a " +
+            "Node/happy-cli install still exists behind the scenes.</p>",
+      cite: "brainstorm: codex-autoconnect-self-contained-zero-friction (OPEN)"
+    },
+    appremote: {
+      color: "#f472b6",
+      title: "Happy app · remote (mobile)",
+      html: "<p>The phone client. It discovers the machine over Dev Tunnels and connects to the embedded " +
+            "happy-server to view and drive the codex session — fully end-to-end encrypted. The phone is never a " +
+            "relay; it is just another client of the per-machine session plane.</p>",
+      cite: "agent-comms-design.md §5; AGENTS.md Server architecture"
+    },
+    webapp: {
+      color: "#f472b6",
+      title: "Happy webapp",
+      html: "<p>A browser client of the same session plane, with the same E2EE and the same Dev-Tunnels discovery " +
+            "and connect path.</p>",
+      cite: "AGENTS.md Server architecture"
+    },
+    applocal: {
+      color: "#f472b6",
+      title: "Happy app · local (same machine)",
+      html: "<p>A Happy client on the same machine reaches the identical embedded happy-server over " +
+            "<b>loopback — no tunnel hop</b> — the 'local' half of \"remote or local.\" It is drawn under the " +
+            "same plane here for simplicity; the same session plane, the same E2EE.</p>",
+      cite: "AGENTS.md Server architecture"
+    }
+  };
+
+  var currentOwner = "A";
+
+  function renderOwnerRegion(owner) {
+    var g = document.getElementById("ownerRegion");
+    if (!g) return;
+    // Container around the embedded happy-server, plus a connector from codex.
+    // Option A: codex-native (amber-dashed boundary = part of codex's ownership).
+    // Option B: separate happy-cli daemon (solid emerald = distinct process).
+    var isA = owner === "A";
+    var stroke = isA ? "#f59e0b" : "#34d399";
+    var dash = isA ? "8 5" : "2 0";
+    var fill = isA ? "rgba(245,158,11,.05)" : "rgba(52,211,153,.07)";
+    var label1 = isA ? "Per-machine daemon = CODEX-NATIVE" : "Per-machine daemon = happy-cli";
+    var label2 = isA ? "(codex bundles + starts the embedded happy-server)" : "(codex auto-installs + auto-starts it)";
+    var connText = isA ? "codex bundles + starts it — install ONLY codex" : "auto-install + auto-start happy-cli";
+    var dataKey = isA ? "daemonA" : "daemonB";
+
+    // container wraps the server node (x 600..880, y 120..270) with padding
+    var cx = 560, cy = 96, cw = 360, ch = 198;
+    var svgns = "http://www.w3.org/2000/svg";
+    g.innerHTML = "";
+
+    var container = document.createElementNS(svgns, "rect");
+    container.setAttribute("x", cx); container.setAttribute("y", cy);
+    container.setAttribute("width", cw); container.setAttribute("height", ch);
+    container.setAttribute("rx", "16");
+    container.setAttribute("fill", fill);
+    container.setAttribute("stroke", stroke);
+    container.setAttribute("stroke-width", "1.6");
+    container.setAttribute("stroke-dasharray", dash);
+    g.appendChild(container);
+
+    var t1 = document.createElementNS(svgns, "text");
+    t1.setAttribute("x", cx + cw / 2); t1.setAttribute("y", cy + 22);
+    t1.setAttribute("text-anchor", "middle"); t1.setAttribute("class", "t-band");
+    t1.setAttribute("style", "fill:" + stroke); t1.textContent = label1;
+    g.appendChild(t1);
+
+    var t2 = document.createElementNS(svgns, "text");
+    t2.setAttribute("x", cx + cw / 2); t2.setAttribute("y", cy + 40);
+    t2.setAttribute("text-anchor", "middle"); t2.setAttribute("class", "t-sub");
+    t2.textContent = label2;
+    g.appendChild(t2);
+
+    // connector from codex (right edge ~310,240) to container (left edge 560,250)
+    var conn = document.createElementNS(svgns, "path");
+    conn.setAttribute("d", "M310,240 C420,300 470,300 560,270");
+    conn.setAttribute("fill", "none");
+    conn.setAttribute("stroke", stroke);
+    conn.setAttribute("stroke-width", "1.8");
+    conn.setAttribute("stroke-dasharray", "6 4");
+    conn.setAttribute("marker-end", "url(#ah)");
+    g.appendChild(conn);
+
+    var ct = document.createElementNS(svgns, "text");
+    ct.setAttribute("x", 435); ct.setAttribute("y", 296);
+    ct.setAttribute("text-anchor", "middle"); ct.setAttribute("class", "t-edge");
+    ct.setAttribute("style", "fill:" + stroke); ct.textContent = connText;
+    g.appendChild(ct);
+
+    // make the container a clickable detail target
+    var hit = document.createElementNS(svgns, "g");
+    hit.setAttribute("class", "node");
+    hit.setAttribute("data-key", dataKey);
+    var hitRect = document.createElementNS(svgns, "rect");
+    hitRect.setAttribute("class", "box");
+    hitRect.setAttribute("x", cx); hitRect.setAttribute("y", cy);
+    hitRect.setAttribute("width", cw); hitRect.setAttribute("height", 30);
+    hitRect.setAttribute("rx", "10");
+    hitRect.setAttribute("fill", "transparent");
+    hit.appendChild(hitRect);
+    g.appendChild(hit);
+    wireNode(hit);
+  }
+
+  function showArchDetail(key) {
+    var d = ARCH[key];
+    if (!d) return;
+    document.getElementById("archHint").style.display = "none";
+    document.getElementById("archBody").style.display = "block";
+    document.getElementById("archDot").style.background = d.color;
+    document.getElementById("archTitle").textContent = d.title;
+    document.getElementById("archText").innerHTML = d.html;
+    document.getElementById("archCite").innerHTML = "Source · " + d.cite;
+    var svg = document.getElementById("archSvg");
+    var nodes = svg.querySelectorAll(".node");
+    for (var i = 0; i < nodes.length; i++) nodes[i].classList.remove("sel");
+  }
+
+  function wireNode(node) {
+    var key = node.getAttribute("data-key");
+    node.addEventListener("mouseenter", function () { showArchDetail(key); });
+    node.addEventListener("click", function () {
+      showArchDetail(key);
+      var svg = document.getElementById("archSvg");
+      var nodes = svg.querySelectorAll(".node");
+      for (var i = 0; i < nodes.length; i++) nodes[i].classList.remove("sel");
+      node.classList.add("sel");
+    });
+  }
+
+  var staticNodes = document.querySelectorAll("#archSvg .node[data-key]");
+  for (var i = 0; i < staticNodes.length; i++) wireNode(staticNodes[i]);
+
+  var seg = document.getElementById("ownerSeg");
+  seg.addEventListener("click", function (e) {
+    var btn = e.target.closest("button[data-owner]");
+    if (!btn) return;
+    currentOwner = btn.getAttribute("data-owner");
+    var btns = seg.querySelectorAll("button");
+    for (var j = 0; j < btns.length; j++) btns[j].classList.remove("on");
+    btn.classList.add("on");
+    renderOwnerRegion(currentOwner);
+    showArchDetail(currentOwner === "A" ? "daemonA" : "daemonB");
+  });
+  renderOwnerRegion(currentOwner);
+
+  /* ------------------------------------------------------------------ *
+   * 3 · Sequence diagram step-through
+   * ------------------------------------------------------------------ */
+  var LANES = [
+    { id: "user",   head: "New user",      sub: "human",            color: "#94a3b8" },
+    { id: "codex",  head: "codex",         sub: "TUI + overlay",    color: "#f59e0b" },
+    { id: "daemon", head: "Daemon",        sub: "embedded server",  color: "#34d399" },
+    { id: "github", head: "GitHub",        sub: "device flow",      color: "#7c8aa8" },
+    { id: "tunnel", head: "Dev Tunnel",    sub: "private",          color: "#a78bfa" },
+    { id: "app",    head: "Happy app",     sub: "remote / local",   color: "#f472b6" }
+  ];
+
+  // Each arrow: {step, from, to, label, kind, dashed}
+  var ARROWS = [
+    { step: 1, from: "user",   to: "codex",  label: "install ONLY codex; run `codex`" },
+    { step: 2, from: "user",   to: "codex",  label: "/remote on" },
+    { step: 3, from: "codex",  to: "github", label: "device flow — show verify URL + code in the TUI", kind: "first" },
+    { step: 3, from: "user",   to: "github", label: "open URL, enter code (browser, out-of-band)", kind: "first", dashed: true },
+    { step: 3, from: "github", to: "codex",  label: "access token (after approval)", kind: "first" },
+    { step: 4, from: "codex",  to: "codex",  label: "mint ~/.happy creds: E2EE keypair · profile · machineId (access.key 0o600)", kind: "first" },
+    { step: 5, from: "codex",  to: "daemon", label: "bring up per-machine daemon (embedded happy-server)", kind: "open" },
+    { step: 6, from: "daemon", to: "tunnel", label: "expose embedded server via private Dev Tunnel (operator-owned)" },
+    { step: 7, from: "codex",  to: "daemon", label: "create + stream session → 127.0.0.1:<tunnelPort> (E2EE)" },
+    { step: 8, from: "app",    to: "tunnel", label: "discover machine: devtunnel list --json + connect (connect-token)", kind: "open" },
+    { step: 8, from: "tunnel", to: "daemon", label: "forward to the embedded happy-server" },
+    { step: 9, from: "daemon", to: "app",    label: "session visible + controllable — E2EE (remote or local)" },
+    { step: 10, from: "codex", to: "daemon", label: "subsequent runs: creds exist → just connect (fast path)", kind: "every" }
+  ];
+
+  var STEPS = [
+    { title: "Install only codex", text: "The new user installs the patched codex fork and nothing else — no happy-cli, no Node daemon to set up by hand.", cite: "Northstar bar; AGENTS.md Server architecture" },
+    { title: "Run /remote on", text: "Inside codex, the user turns on remote control. This enables the remote_session feature, which arms the codex-happy overlay attach path.", cite: "remote_session feature; attach.rs::maybe_attach" },
+    { title: "Self-onboard via GitHub device flow", text: "First run only: with no ~/.happy creds present, codex runs the GitHub device flow and surfaces the verification URL + user code directly in the TUI. The user approves in a browser; codex polls for the token. No happy-cli onboarding.", cite: "onboard.rs (request_device_code / poll_for_token)", first: true },
+    { title: "Codex mints its own credentials", text: "First run only: codex generates a local E2EE keypair, writes ~/.happy/access.key, profile.json, and seeds machineId — entirely codex-owned, no server-side account creation. The northstar also hardens access.key to 0o600 perms (the M1 fix that travels with this work).", cite: "onboard.rs; M1 access.key 0o600 fix (target)", first: true },
+    { title: "Per-machine daemon comes up", text: "The daemon hosting the embedded happy-server (the session plane) starts and binds its 127.0.0.1 listeners. WHO owns this daemon — codex-native vs auto-managed happy-cli — is the open decision.", cite: "agent-comms-design.md §5.2 (OPEN: daemon ownership)", open: true },
+    { title: "Expose over a private Dev Tunnel", text: "The daemon publishes the embedded happy-server through a single private, operator-owned Microsoft Dev Tunnel — the one public ingress. No second tunnel port.", cite: "agent-comms-design.md §5.3 (co-located ingest)" },
+    { title: "Codex streams its session locally", text: "Codex creates and mirrors its session to the LOCAL embedded happy-server at 127.0.0.1:<tunnelPort>, end-to-end encrypted. It never talks to an external server.", cite: "auth.rs::tunnel_local_base_url; api.rs / session.rs" },
+    { title: "Happy app discovers + connects", text: "A Happy client enumerates the operator's machines with devtunnel list --json and connects through the tunnel; the gateway admits it with the operator's connect-token and forwards to the embedded server. The EXACT rendezvous for a fresh codex-onboarded machine (how the app maps to this session) is OPEN.", cite: "agent-comms-design.md §5.4 (OPEN: Happy-client rendezvous)", open: true },
+    { title: "Session is live + controllable", text: "The session appears in the Happy app — remote (phone/web) or local — fully E2EE in both directions. The user can view the transcript and drive turns from the client.", cite: "AGENTS.md Server architecture; attach.rs (inbound control)" },
+    { title: "Subsequent runs just connect", text: "Every later run: creds already exist, so codex skips onboarding and connects straight through. Zero friction after the first time.", cite: "attach.rs (creds-present fast path)", every: true }
+  ];
+
+  var TOTAL = STEPS.length;
+  var current = 1;
+
+  var laneX = {};
+  (function () {
+    var n = LANES.length, left = 90, right = 950;
+    var gap = (right - left) / (n - 1);
+    for (var k = 0; k < n; k++) laneX[LANES[k].id] = Math.round(left + gap * k);
+  })();
+
+  var HEAD_Y = 64;
+  var ROW_TOP = 110;
+  var ROW_H = 36;
+  var svgns = "http://www.w3.org/2000/svg";
+
+  function el(name, attrs, text) {
+    var e = document.createElementNS(svgns, name);
+    for (var a in attrs) if (attrs.hasOwnProperty(a)) e.setAttribute(a, attrs[a]);
+    if (text != null) e.textContent = text;
+    return e;
+  }
+
+  function rowYForIndex(idx) { return ROW_TOP + idx * ROW_H; }
+
+  function buildSeq() {
+    var svg = document.getElementById("seqSvg");
+    svg.innerHTML = "";
+
+    var defs = el("defs", {});
+    ["#c7d0ee", "#fbbf24", "#fb7185", "#34d399"].forEach(function (c, idx) {
+      var m = el("marker", { id: "sa" + idx, markerWidth: 9, markerHeight: 9, refX: 7, refY: 3, orient: "auto", markerUnits: "strokeWidth" });
+      m.appendChild(el("path", { d: "M0,0 L7,3 L0,6 Z", fill: c }));
+      defs.appendChild(m);
+    });
+    svg.appendChild(defs);
+
+    var totalRows = ARROWS.length;
+    var bottom = rowYForIndex(totalRows) + 16;
+
+    // lifelines + heads
+    LANES.forEach(function (ln) {
+      var x = laneX[ln.id];
+      svg.appendChild(el("line", { x1: x, y1: HEAD_Y + 18, x2: x, y2: bottom, stroke: "#2b3760", "stroke-width": 1.5, "stroke-dasharray": "3 5" }));
+      var box = el("rect", { x: x - 56, y: HEAD_Y - 22, width: 112, height: 42, rx: 9, fill: "rgba(255,255,255,.03)", stroke: ln.color, "stroke-width": 1.4 });
+      svg.appendChild(box);
+      svg.appendChild(el("text", { x: x, y: HEAD_Y - 4, "text-anchor": "middle", class: "lane-head", style: "fill:" + ln.color }, ln.head));
+      svg.appendChild(el("text", { x: x, y: HEAD_Y + 11, "text-anchor": "middle", class: "lane-sub" }, ln.sub));
+    });
+
+    // arrows
+    ARROWS.forEach(function (ar, idx) {
+      var y = rowYForIndex(idx);
+      var g = el("g", { class: "arrow-row", "data-step": ar.step, id: "ar" + idx });
+      var x1 = laneX[ar.from], x2 = laneX[ar.to];
+      var color = "#c7d0ee", mk = "url(#sa0)";
+      if (ar.kind === "open") { color = "#fb7185"; mk = "url(#sa2)"; }
+      else if (ar.kind === "every") { color = "#34d399"; mk = "url(#sa3)"; }
+      else if (ar.label.indexOf("E2EE") >= 0 || ar.label.indexOf("0o600") >= 0 || ar.label.indexOf("creds") >= 0) { color = "#fbbf24"; mk = "url(#sa1)"; }
+
+      if (ar.from === ar.to) {
+        // self-message loop
+        var lx = x1;
+        var p = el("path", { d: "M" + lx + "," + (y - 9) + " h54 v18 h-54", fill: "none", stroke: color, "stroke-width": 2, "marker-end": mk, "stroke-dasharray": ar.dashed ? "5 4" : "0" });
+        g.appendChild(p);
+        g.appendChild(el("text", { x: lx + 64, y: y - 2, class: "msg-label" }, ar.label));
+      } else {
+        var dir = x2 > x1 ? 1 : -1;
+        var sx = x1 + dir * 4, ex = x2 - dir * 6;
+        g.appendChild(el("line", { x1: sx, y1: y, x2: ex, y2: y, stroke: color, "stroke-width": 2, "marker-end": mk, "stroke-dasharray": ar.dashed ? "5 4" : "0" }));
+        var midx = (x1 + x2) / 2;
+        g.appendChild(el("text", { x: midx, y: y - 7, "text-anchor": "middle", class: "msg-label" }, ar.label));
+      }
+      svg.appendChild(g);
+    });
+
+    svg.setAttribute("viewBox", "0 0 1000 " + (bottom + 10));
+  }
+
+  function renderStep() {
+    // arrows visibility by step
+    ARROWS.forEach(function (ar, idx) {
+      var g = document.getElementById("ar" + idx);
+      if (!g) return;
+      if (ar.step < current) g.style.opacity = "0.26";
+      else if (ar.step === current) g.style.opacity = "1";
+      else g.style.opacity = "0.06";
+    });
+
+    var s = STEPS[current - 1];
+    document.getElementById("stepTitle").textContent = current + ". " + s.title;
+    document.getElementById("stepText").textContent = s.text;
+    document.getElementById("stepCite").innerHTML = "Source · " + s.cite;
+
+    var badges = "";
+    if (s.first) badges += '<span class="badge first">first run only</span>';
+    if (s.every) badges += '<span class="badge every">every run</span>';
+    if (s.open) badges += '<span class="badge open">OPEN</span>';
+    document.getElementById("badgeRow").innerHTML = badges;
+
+    document.getElementById("stepCount").textContent = "Step " + current + " / " + TOTAL;
+    document.getElementById("progFill").style.width = (current / TOTAL * 100) + "%";
+    document.getElementById("prevBtn").disabled = current === 1;
+    document.getElementById("nextBtn").disabled = current === TOTAL;
+  }
+
+  function go(delta) {
+    var n = current + delta;
+    if (n < 1) n = 1;
+    if (n > TOTAL) n = TOTAL;
+    current = n;
+    renderStep();
+  }
+
+  document.getElementById("prevBtn").addEventListener("click", function () { go(-1); });
+  document.getElementById("nextBtn").addEventListener("click", function () { go(1); });
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "ArrowLeft") { go(-1); }
+    else if (e.key === "ArrowRight") { go(1); }
+  });
+
+  buildSeq();
+  renderStep();
+})();
+</script>
+</body>
+</html>
