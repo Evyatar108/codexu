@@ -1728,6 +1728,23 @@
           "html": "DRAFT shipped @ <code>85d2dfba</code> (member design-doc-northstar): interactive self-contained <code>docs/codex-autoconnect-northstar.html</code> &mdash; SVG architecture (codex session &rarr; per-daemon embedded happy-server <code>127.0.0.1:&lt;tunnelPort&gt;</code> &rarr; Dev Tunnel &rarr; Happy clients remote/local; crossed-out NO central server; E2EE), hover-for-cited-details, A/B daemon-ownership toggle, step-through new-user flow (first-run/every-run/OPEN badges), today-vs-northstar. PENDING FINAL UPDATE: shows 2 daemon options (codex-native vs auto-managed happy-cli); operator raised a 3rd (native Rust happy-server crate) 2026-06-23 &mdash; add it + lock the chosen approach after the feasibility decision.\r\n"
         }
       ]
+    },
+    {
+      "id": "codex-autoconnect-rust-crate-feasibility-spike",
+      "scope": "codexu|codex",
+      "lifecycle": "tracked",
+      "status": "todo",
+      "lastTouchedAt": "2026-06-23",
+      "command": {
+        "name": "codex-autoconnect-rust-crate-feasibility-spike",
+        "descriptionHtml": "READ-ONLY feasibility spike (operator 2026-06-23): measure the MINIMAL happy-server surface a codex session + the Happy app actually need (vs the full pair/push/sessions/v3/Socket.IO plane), and assess whether a SCOPED native Rust \"happy-server crate\" is viable &mdash; so the operator decides bundle-Node vs native-Rust-crate with data, not vibes. The <code>906ed67b</code>/36ac8e09 brainstorm rejected a FULL Rust reimplementation, but never sized a scoped one. Gates the <code>codex-autoconnect-self-contained-zero-friction</code> approach decision. Findings under <code>.ralph/investigations/codex-autoconnect-rust-crate-feasibility/</code>."
+      },
+      "kanbanCards": [
+        {
+          "className": "cmd-warn",
+          "html": "SPIKE IN FLIGHT (member spike-rustcrate, copilot, READ-ONLY): does codex need the FULL happy-server, or a small subset? Inventory the endpoints/socket-events the codex session (<code>codex-happy/{api,session,auth,attach}.rs</code>) + the Happy app (<code>packages/happy-app</code>) exercise; size a scoped native Rust crate (effort + the Node-protocol divergence tax) vs bundling Node. Recommendation: bundle-sidecar vs scoped-Rust-crate. Gates the self-contained approach decision."
+        }
+      ]
     }
   ],
   "phaseTree": [
