@@ -1,0 +1,64 @@
+{
+  "brainstormName": "codex-autoconnect-self-contained-zero-friction",
+  "overviewTaskId": "codex-autoconnect-self-contained-zero-friction",
+  "idea": "Make raw-codex remote_session autoconnect ZERO-friction for a codex-first new user, riding the agent-comms Scope-A per-machine-daemon + Microsoft Dev Tunnels architecture (NO central happy-server). Bar: install ONLY the codex fork -> /remote on -> codex self-onboards -> its session is discoverable+streamable by Happy clients (app/webapp, remote or local) over Dev Tunnels.",
+  "availableLenses": ["codex", "copilot", "devils-advocate"],
+  "missingLenses": [],
+  "verifiedFacts": {
+    "perDaemonNotCentral": "CONFIRMED. codex-happy/src/attach.rs:343-379 establish() reads ~/.happy/access.key + ~/.happy/machine.json, base_url=machine.tunnel_local_base_url()=http://127.0.0.1:<tunnelPort> (auth.rs:84-86), POST /v1/sessions no-auth (api.rs:1-7,178-187). The embedded per-machine happy-server (loopback tunnel listener), NOT a central one. auth.rs:7-13/79-83: cross-machine reach is the happy daemon's Dev-Tunnels hop, not codex's.",
+    "freshMachineDependencyChain": "All four prerequisites are produced by the happy-cli DAEMON today: (1) ~/.happy/access.key creds (authAndSetupMachineIfNeeded); (2) ~/.happy/machine.json tunnelPort (daemon/AGENTS.md S5); (3) embedded happy-server bound to 127.0.0.1:tunnelPort via dualListenerBinding.ts:36-69 -> happy-server createApp; (4) Dev Tunnel exposing tunnelPort via tunnelManager.ts. No daemon => establish() returns None => SILENT fallback to vanilla codex.",
+    "selfOnboardGap": "onboard.rs is a COMPLETE but UNWIRED mechanism (device flow + write_credentials + profile.json + settings.json::machineId). /remote on (slash_dispatch.rs, US-009) only checks credentials_ready() and surfaces a hint; never calls onboard. Even wired, onboard mints creds ONLY (its doc lines 14-18 scope out machine.json/server/tunnel/pairing).",
+    "m1PermsGap": "onboard.rs::write_credentials -> write_json_atomically does NO chmod; ~/.happy/access.key (private key) lands at default umask perms. Fix = 0o600 on Unix.",
+    "loadBearingVerdict": "906ed67b unanimous: embedded per-daemon happy-server is load-bearing (pair/push/sessions/v3/Socket.IO plane the app syncs against) and cannot be rebuilt away. Daemon stays; only central server dropped."
+  },
+  "candidateDirections": [
+    {
+      "id": "D-001",
+      "name": "Codex-owned lifecycle with bundled happy-cli/happy-server sidecar",
+      "summary": "codex ships + manages the Node happy-cli/happy-server as a codex-owned sidecar; reuses the load-bearing embedded happy-server; literally satisfies 'install only codex'. Risk: Node bundle weight, signing/AV, release coupling. RECOMMENDED ownership.",
+      "contributingLenses": ["codex", "copilot", "devils-advocate"],
+      "effort": "M-L"
+    },
+    {
+      "id": "D-002",
+      "name": "Codex auto-installs + starts the existing happy-cli daemon on /remote on",
+      "summary": "codex detects no daemon, runs npm i -g happy-coder + happy daemon start. Lowest divergence but highest runtime friction (Node prereq, npm perms, AV, offline, version skew) and the dominant failure is the existing SILENT fallback to vanilla codex. Fallback option; needs a strict compat contract + non-silent diagnostics.",
+      "contributingLenses": ["codex", "copilot", "devils-advocate"],
+      "effort": "M"
+    },
+    {
+      "id": "D-003",
+      "name": "Phased: ship codex-owned LOCAL bootstrap first, defer cross-machine app discovery",
+      "summary": "Phasing overlay (composes with D-001 or D-002): ship creds + one embedded server + machine.json + localhost/webapp pairing first (no tunnel/discovery), then design cross-machine app discovery over Dev Tunnels separately. Isolates the one genuinely-unsolved piece (the app is not running devtunnel list; no central registry).",
+      "contributingLenses": ["devils-advocate"],
+      "effort": "S-M for phase 1"
+    },
+    {
+      "id": "D-004",
+      "name": "Codex-native Rust daemon / single-session session-plane rebuild (REJECTED per 906ed67b)",
+      "summary": "Reimplement the Happy session plane natively in Rust inside codex. Smallest distribution but recreates a subtly-incompatible second Happy server; route set tends to expand to most of pair/push/sessions/v3/Socket.IO. Documented-rejected by the prior 3-lens verdict; recorded only to show why it is out.",
+      "contributingLenses": ["codex", "copilot"],
+      "effort": "XL"
+    }
+  ],
+  "recommendedDirection": "D-001",
+  "recommendationNote": "Daemon-ownership = D-001 (bundled sidecar), shipped PHASED per D-003. Phase 1 (codex overlay, local, low conflict): wire onboard.rs into /remote on + M1 0o600 + make establish() failure a hard diagnosed error not a silent vanilla fallback (absorbs codex-autoconnect-interactive-self-onboard-remote-on). Phase 2: codex-managed headless single-tenant daemon start (bundled sidecar preferred; auto-install D-002 the fallback). Phase 3: app-side discoverability/pairing over Dev Tunnels (likely its own brainstorm). D-004 rejected.",
+  "crossRepoSurface": {
+    "codexFork": ["codex-happy/src/slash_dispatch.rs + event_dispatch.rs (wire onboard on /remote on; non-silent failure UX)", "codex-happy/src/onboard.rs (wire it; add 0o600 M1)", "codex-happy/src/attach.rs (distinguish no-daemon vs no-creds for diagnostics)", "NEW codex-happy daemon-lifecycle module (start/health/restart/stop of the codex-owned sidecar)", "codex-copilot-launcher + .github/workflows/publish-npm.yml + package scripts (D-001 bundling, or D-002 install/start orchestration)"],
+    "codexuPackages": ["happy-cli/src/daemon/ (headless/codex-managed start path: embedded server + machine.json + tunnel)", "happy-cli/src/tunnel/tunnelManager.ts (Dev Tunnel exposure, exists)", "happy-server/ (embedded server reused as-is, load-bearing)", "happy-wire/ (machine.json/session-metadata schema alignment)", "happy-app/ (Phase-3 discoverability/pairing over Dev Tunnels, the open piece)"],
+    "sequencingNotes": "codex overlay edits are overlay-first (low upstream conflict; SANDBOX-PATCH markers already present). codex submodule edits require two-commit + submodule-pointer-bump discipline. happy-cli headless-start ~M; D-001 bundling adds release-engineering ~M-L; Phase-3 discoverability is the biggest unknown (potentially XL, own brainstorm)."
+  },
+  "operatorDecisions": [
+    "Daemon ownership: bundled sidecar (D-001, recommended) vs auto-install happy-cli (D-002)? Hinges on whether 'install ONLY codex' means shipped artifacts (-> bundle) or user-visible steps (-> auto-install acceptable). Trade: Node bundle weight + release coupling vs npm-install fragility + silent-fallback risk.",
+    "Discoverability mechanism for the Happy app over Dev Tunnels (no central registry; app is not running devtunnel list): pairing-records-tunnel-URL (+QR/deep-link) vs local-first-only vs other. Genuinely unsolved; likely its own brainstorm/spike.",
+    "Phasing (D-003): local-first then defer cross-machine discovery, or attempt full cross-machine on day one?"
+  ],
+  "questionsForSynthesis": [
+    "Does 'install ONLY codex' mean shipped artifacts (forces bundling) or user-visible steps (allows auto-install)?",
+    "Where is the durable machine-to-user discovery record stored if there is no central happy-server and the Happy app is not running devtunnel list?",
+    "What user-visible error appears when daemon bootstrap fails, instead of attach.rs silently returning None and falling back to vanilla codex?",
+    "Who owns version/protocol compatibility across attach.rs, machine.json schema, embedded happy-server API, Socket.IO/session-plane, and Happy app expectations?",
+    "How is singleton ownership enforced when an existing happy-cli-first user already has a daemon/tunnel and codex also tries to host one?",
+    "Is cross-machine mobile discovery a day-one requirement, or would a one-machine localhost webapp deliver honest zero-friction sooner?"
+  ]
+}
