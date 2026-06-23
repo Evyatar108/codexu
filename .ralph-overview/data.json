@@ -1743,6 +1743,10 @@
         {
           "className": "cmd-warn",
           "html": "SPIKE IN FLIGHT (member spike-rustcrate, copilot, READ-ONLY): does codex need the FULL happy-server, or a small subset? Inventory the endpoints/socket-events the codex session (<code>codex-happy/{api,session,auth,attach}.rs</code>) + the Happy app (<code>packages/happy-app</code>) exercise; size a scoped native Rust crate (effort + the Node-protocol divergence tax) vs bundling Node. Recommendation: bundle-sidecar vs scoped-Rust-crate. Gates the self-contained approach decision."
+        },
+        {
+          "className": "cmd-ok",
+          "html": "Feasibility spike shipped @ <code>be6f27b3</code> (member spike-rustcrate, READ-ONLY). VERDICT: <strong>QUALIFIED-NO for v1 &mdash; BUNDLE Node</strong> (scoped-Rust kept as a documented future option). Minimal surface = ~8 route-groups + 1 Socket.IO namespace + ~7 tables (vs full 15/8/22 &mdash; drops ~40-50% routes + ~2/3 models, but ALL hard parts &mdash; Socket.IO server, RPC bridge, JWT+pairing, seq+CAS store, room/presence fan-out &mdash; are must-keep; droppables are easy CRUD). Scoped-Rust effort = <strong>L</strong> (de-risked: crypto/wire/Socket.IO-CLIENT already native Rust in codex-happy; embedded single-process sheds Redis/multi-replica). Bundle wins because 2 costs survive scoping: (1) reimplement the Socket.IO SERVER against the UNMODIFIABLE React-Native app (HIGH compat risk); (2) STRUCTURAL divergence tax (the Node server tracks the app free via shared <code>@slopus/happy-wire</code>; a Rust crate must chase every protocol change). Reframe: codex's session-half is ALREADY native Rust &mdash; Node is needed ONLY for the server role mediating the app. <code>.ralph/investigations/codex-autoconnect-rust-crate-feasibility/findings.md</code>. Confirms the brainstorm's bundle rec WITH DATA.\r\n"
         }
       ]
     }
