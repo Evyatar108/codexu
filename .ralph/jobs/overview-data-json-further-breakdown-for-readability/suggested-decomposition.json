@@ -1,0 +1,59 @@
+{
+  "clusters": [
+    {
+      "name": "projection-core",
+      "stories": ["US-001", "US-002"],
+      "phase": 1,
+      "dependsOn": [],
+      "fileOverlapEvidence": {
+        "sharedFiles": [
+          "ai-developer-toolkit/plugins/ralph-overview/scripts/lib/emit-projections.mjs",
+          "ai-developer-toolkit/plugins/ralph-overview/scripts/lib/emit-projections.test.mjs",
+          "ai-developer-toolkit/plugins/ralph-overview/scripts/lib/sync-core.test.mjs"
+        ],
+        "exclusiveFiles": [
+          "ai-developer-toolkit/plugins/ralph-overview/scripts/lib/default-config.mjs",
+          "ai-developer-toolkit/plugins/ralph-overview/scripts/lib/resolve-config.mjs",
+          "ai-developer-toolkit/plugins/ralph-overview/scripts/lib/default-config.d.mts",
+          "ai-developer-toolkit/plugins/ralph-overview/templates/overview-config.schema.json"
+        ],
+        "risk": "low"
+      },
+      "executionModeRationale": "US-001 and US-002 both edit emit-projections.mjs and its test file, so they must be serialized within one cluster; the lean projection reuses the helper US-001 extends."
+    },
+    {
+      "name": "index-nav",
+      "stories": ["US-003"],
+      "phase": 1,
+      "dependsOn": [],
+      "fileOverlapEvidence": {
+        "sharedFiles": [],
+        "exclusiveFiles": [
+          "ai-developer-toolkit/plugins/ralph-overview/scripts/lib/emit-tasks-index.mjs"
+        ],
+        "risk": "low"
+      },
+      "executionModeRationale": "Touches only the tasks-index generator, disjoint from the projection emitter, so it can run in parallel with projection-core."
+    },
+    {
+      "name": "docs-and-release",
+      "stories": ["US-004", "US-005"],
+      "phase": 2,
+      "dependsOn": ["projection-core", "index-nav"],
+      "fileOverlapEvidence": {
+        "sharedFiles": ["AGENTS.md"],
+        "exclusiveFiles": [
+          "ai-developer-toolkit/plugins/ralph-overview/.claude-plugin/plugin.json",
+          "ai-developer-toolkit/plugins/ralph-overview/CHANGELOG.md",
+          "ai-developer-toolkit/.claude-plugin/marketplace.json",
+          "ai-developer-toolkit/.github/plugin/marketplace.json",
+          "ai-developer-toolkit/.agents/plugins/marketplace.json",
+          ".ralph-overview/config.json",
+          ".ralph/overview-config.schema.json"
+        ],
+        "risk": "medium"
+      },
+      "executionModeRationale": "Docs + version bump must reflect the final code from phase 1, and both US-004 and US-005 edit codexu AGENTS.md, so they serialize in one cluster after the code lands."
+    }
+  ]
+}

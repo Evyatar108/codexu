@@ -1,0 +1,14 @@
+I’ll read the referenced prompt file, then carry out the requested work in this checkout.
+
+I’ll inspect the projection, config, sync, index, docs, and test surfaces that the requested read-view work would touch.
+
+I found the existing projection hook and index builder; I’m checking config resolution, tests, and snapshot shape to identify exact integration points and constraints.
+
+The projection tests already cover several invariants, but I need a narrower look at snapshot task fields and docs routing because the new per-scope index depends on what the snapshot currently carries.
+
+A repo-root AGENTS.md search was blocked by the tool permission hook, so I’ll keep the docs analysis to plugin-visible files and explicitly note the external codexu AGENTS.md as a required consumer-side update.Next I’m checking the skill guidance and sync/projection tests to see where routing and coverage should be updated.
+
+Snapshot tasks are built by shallow-copying overview tasks, so per-scope grouping can use `task.scope` if the consumer data has it; I’m doing one final narrow schema/type search to confirm field naming and any test omissions.
+
+The schema search confirms `scope` is a normal task field and `writeSidecar` already fixtures it; I’m checking the task type and snapshot schema before drafting the research summary.
+

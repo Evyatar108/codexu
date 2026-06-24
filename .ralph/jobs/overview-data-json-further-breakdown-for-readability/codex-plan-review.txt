@@ -1,0 +1,37 @@
+**Feasibility**
+
+- [High] The consumer-side targets in US-004 do not exist in the current repo root: `.ralph-overview/config.json` and `.ralph/overview-config.schema.json` are absent under `D:\harness-efforts\codexu\ai-developer-toolkit`. The plan’s consumer config/schema edits and “current corpus” generated-file checks are not implementable in this checkout unless another consumer worktree is supplied.
+
+- [High] Release bookkeeping is incomplete. The plugin has three engine manifests with versions: `.claude-plugin/plugin.json`, `.github/plugin/plugin.json`, and `.codex-plugin/plugin.json`, all currently `2.12.0`. The plan lists only `.claude-plugin/plugin.json` / generic `plugin.json`, plus marketplace indexes. A `2.13.0` release should bump all engine manifests that advertise plugin version.
+
+- [Medium] The schema-drift research is partly stale. `templates/overview-config.schema.json` already lists `activeTasksJson` and `summaryProjectionJson`; only `leanTasksJson` needs adding there.
+
+**Completeness**
+
+- [Medium] The plan misses `templates/overview-config.template.json`. `scripts/init-consumer.mjs` copies that template into new consumers, so `leanTasksJson` should be added there too. Related tests in `tools/overview-viewer/src/__tests__/config.test.ts` and `tools/overview-mcp/src/__tests__/init-consumer.test.ts` should be updated.
+
+- [Medium] Plugin docs are underspecified. `README.md` currently says “two lazy read projections,” and `docs/configuration.md` omits the projection output keys from the outputs table. Those should be explicit release/docs changes, not only `AGENTS.md`.
+
+- [Medium] `tools/overview-viewer/src/__tests__/scripts.d.ts` duplicates the `RalphOverviewConfig.outputs` type shape and already lacks the current projection keys. Backfilling only `scripts/lib/default-config.d.mts` leaves this test declaration stale.
+
+- [Medium] `scripts/lib/emit-tasks-index.test.mjs` is not included in `package.json`’s explicit `test:lib` file list. If the nav assertion is added there, `npm test` will not run it unless the script is updated or the assertion is placed in an already-listed test.
+
+- [Medium] `scripts/lib/emit-projections.mjs::stripColdBodies` currently returns the original task when `command` is missing. The plan should explicitly require `kanbanCards` stripping to happen independently of `command`, otherwise commandless tasks with cards can leak raw `html`.
+
+**Ordering**
+
+- [Medium] Resolve the missing consumer-file target before US-004/US-005. As written, the docs-and-release cluster depends on files that are not present in this checkout.
+
+- [Low] The main code ordering is otherwise sound: projection helper before lean projection, index nav parallel to projection work, release last.
+
+**Simplicity**
+
+- [Low] The approach is appropriately small. The only simplification I’d make is to define `lean-tasks.json` as exactly `tracked tasks + stripColdBodiesV2`, and avoid corpus-specific byte-baseline machinery beyond targeted regression assertions.
+
+**Acceptance Criteria Quality**
+
+- [Medium] “Small fraction” and “materially smaller” are vague. Use a concrete threshold or relational checks, e.g. `lean < activeTasksJson` and `lean < 40% of data.json` on the fixture/corpus.
+
+- [Medium] “active-tasks.json byte-identical” is unstable through `sync-core` because `emitProjections` stamps `generatedAt` with `new Date()` when no timestamp is passed. Either mock time, compare only `.tasks`, or normalize `generatedAt`.
+
+- [Low] Define prompt `present` flags as property-existence or truthiness. Without that, empty-string prompts are ambiguous.

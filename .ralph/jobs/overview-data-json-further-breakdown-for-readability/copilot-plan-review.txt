@@ -1,0 +1,30 @@
+I’ll open the referenced prompt and inspect the current plugin state before making changes.
+
+I’m in review mode for the provided plan, so I’ll verify the referenced seams and constraints without modifying files.
+
+### Feasibility
+
+[Medium] The byte-identical `active-tasks.json` integration check needs a stable timestamp. `emitProjections()` uses `new Date().toISOString()` unless `generatedAt` is passed, and `sync-core.mjs::emitAgentArtifacts()` does not pass `state.generatedAt`. The plan should either freeze time in the test, compare only stable payload fields, or change `emitAgentArtifacts()` to pass `generatedAt: state.generatedAt`.
+
+### Completeness
+
+[High] Release bookkeeping omits two versioned plugin manifests: `plugins/ralph-overview/.github/plugin/plugin.json` and `plugins/ralph-overview/.codex-plugin/plugin.json`, both currently at `2.12.0`. Bumping only `.claude-plugin/plugin.json` plus marketplace indexes would leave Copilot/Codex plugin metadata stale.
+
+[Medium] Config/docs coverage is incomplete. The plan updates defaults, resolver, `.d.mts`, and schema, but should also add `leanTasksJson` to `templates/overview-config.template.json` and the `docs/configuration.md` outputs table so new scaffolds and config docs match the runtime surface.
+
+[Medium] The `tasks/INDEX.md` scope navigation needs an explicit anchor/link strategy. Task IDs may include `.`, `/`, `_`, and `-`; current headings are plain `## ${taskId}` with no stable explicit anchors. The plan should specify either generated `<a id="...">` anchors or a tested slug algorithm, and cover multi-scope plus punctuation IDs.
+
+### Ordering
+
+No issues found.
+
+### Simplicity
+
+No issues found. Reusing `emit-projections.mjs` and extending the existing config path pattern is the right integration point.
+
+### Acceptance Criteria Quality
+
+[Medium] “Small fraction” / “materially smaller” is not objectively verifiable. Add a concrete threshold for the current corpus, e.g. `lean-tasks.json` is `<25%` of `data.json` and smaller than `active-tasks.json`.
+
+[Medium] Prompt presence flags need exact semantics: property exists vs non-empty string vs truthy value. Define this in the plan and test all three prompt keys so implementers produce consistent output.
+
