@@ -1,0 +1,35 @@
+{
+  "brainstormName": "codex-anthropic-model-persists-without-enable-flag",
+  "overviewTaskId": "codex-anthropic-model-persists-without-enable-flag",
+  "idea": "Decide the correct behavior when a PERSISTED Anthropic model and the Anthropic experimental gate (features.anthropic_models, default OFF) get out of sync (model persisted ON via ~/.codex/config.toml::model, gate OFF because --enable-anthropic/env is per-run). Operator-reported on the 0.141.0-copilot-api.3 build: a persisted claude-opus-4.8 with the gate off routes to the Responses API and fails every message (WARN 'Model metadata for claude-opus-4.8 not found' + ERROR 'model ... not supported') until the user manually changes the model.",
+  "availableLenses": ["codex", "copilot", "devils-advocate"],
+  "missingLenses": [],
+  "candidateDirections": [
+    {
+      "id": "D-001",
+      "name": "Verify-and-harden: keep behavior #2 (fail-closed reversion) + add the missing cold-startup/exec advisory + end-to-end regression tests",
+      "summary": "The operator's exact desync is very likely already fixed on api-3 by a multi-layer fail-closed reversion (defenses landed 2026-06-13/14, after the 2026-06-10 report). Keep the gate authoritative and config.toml untouched; the genuine remaining gap is that the cold-startup substitution is SILENT (unlike the live /experimental toggle). Add a one-time advisory for TUI cold start AND exec/headless, an end-to-end regression suite (exec, stale models_cache.json, bypass attempt, advisory), and a guard test that all session/model-list construction flows through GatedModelsManager.",
+      "contributingLenses": ["codex", "copilot", "devils-advocate"]
+    },
+    {
+      "id": "D-002",
+      "name": "Couple-the-persists: persist canonical features.anthropic_models=true when an Anthropic model is selected/persisted (behavior #3)",
+      "summary": "Make the gate and model never desync by writing the canonical features.anthropic_models config key (not an ad-hoc bool) when the user selects/persists a Claude model. Best preserves explicit user intent, but changes persistent config as a side effect of model selection (consent/config-surprise for a per-run --enable-anthropic user) and needs a clear UI notice.",
+      "contributingLenses": ["codex", "copilot", "devils-advocate"]
+    },
+    {
+      "id": "D-003",
+      "name": "Selection-time fail-closed guard (behavior #4) — defense-in-depth only",
+      "summary": "Refuse to select/persist an Anthropic model when the gate-filtered catalog excludes it. Prevents NEW bad states but does not repair the EXISTING persisted bad state (the repro picks Claude while the gate is on, then desyncs on the next gate-off run), and the picker already filters Claude when the gate is off — so it cannot be the primary fix; runtime reconciliation (D-001) is still required.",
+      "contributingLenses": ["codex", "copilot"]
+    }
+  ],
+  "recommendedDirection": "D-001",
+  "questionsForSynthesis": [
+    "Leave config.toml::model untouched (preference preserved for re-enable; recurring silent mismatch) vs rewrite it (no mismatch; silent loss of the Claude preference)? Synthesis recommends leaving it untouched + adding the advisory.",
+    "Non-TUI/exec advisory shape: a core WarningEvent, a stderr startup line, or both?",
+    "Test breadth: one exact operator-scenario integration test, or separate coverage for TUI bootstrap, app-server model/list, exec, and sub-agent inherited-model paths?",
+    "Should an explicit -m claude-* with the gate off hard-error or follow the same silent-fallback rule?",
+    "Is the highest-risk gating invariant (all production session/model-list surfaces go through GatedModelsManager) worth a dedicated guard test to protect against future SharedModelsManager refactors?"
+  ]
+}
