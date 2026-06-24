@@ -1,0 +1,35 @@
+{
+  "brainstormName": "overview-data-json-further-breakdown-for-readability",
+  "overviewTaskId": "overview-data-json-further-breakdown-for-readability",
+  "idea": "A FURTHER readability/navigation breakdown of .ralph-overview/data.json beyond the shipped hot/cold two-shard split (ralph-overview 2.12.0), without breaking the loader/watcher/MCP/viewer/projection consumers that all assemble one {tasks:[...]}.",
+  "availableLenses": ["codex", "copilot", "devils-advocate"],
+  "missingLenses": [],
+  "candidateDirections": [
+    {
+      "id": "D-001",
+      "name": "Generated lean read views + projection routing — canonical hot/cold storage unchanged",
+      "summary": "Keep hot/cold storage as-is; add a tracked-only + fully-body-stripped active-summary-tasks.json, strip kanbanCards in summary-projection.json, extend tasks/INDEX.md (per-scope), and route docs/skills/agents to read the lean projection+index first. Zero loader/watcher/data-edit change; attacks the real ~76%-body-bulk + discoverability problem.",
+      "contributingLenses": ["codex", "copilot", "devils-advocate"]
+    },
+    {
+      "id": "D-002",
+      "name": "Body-sidecar extraction — move prompt/descriptionHtml (and maybe kanbanCards) bodies out of data.json, keep the task spine + lifecycle partition",
+      "summary": "If the canonical EDIT file itself must shrink: extract the measured 76% body bulk (command.prompts ~180KB + kanbanCards ~122KB) into SAME-DIR sibling sidecars hydrated by the loader before normalize, keeping the assembled {tasks:[...]} byte-equivalent and the lifecycle-based 2-shard move contract unchanged. Only pursue if D-001 proves insufficient; must keep sidecars same-dir (watcher invariant #14) and prove source-preserving data-edit round-trip.",
+      "contributingLenses": ["devils-advocate", "codex"]
+    },
+    {
+      "id": "D-003",
+      "name": "Per-scope or per-task subdirectory shards (literal seed options 1 & 2) — reject unless a flat, ordered, watcher-safe contract is proven first",
+      "summary": "The literal data/<scope>.json or data/tasks/<id>.json layout: all three lenses flag that a NEW subdirectory breaks the depth-0 same-dir watcher (invariant #14 -> Windows cold-start hang), needs a deterministic order-owner manifest or it churns snapshots/projections, and multiplies the crash-safe N-way move + seqlock cases. Gated behind a read-only byte-parity + watcher-smoke prototype; not the recommended first move.",
+      "contributingLenses": ["codex", "copilot", "devils-advocate"]
+    }
+  ],
+  "recommendedDirection": "D-001",
+  "questionsForSynthesis": [
+    "What exact read op is painful: human editing of canonical rows, agent listing/triage, or agent loading full prompt bodies for execution? (D-001 vs D-002)",
+    "Why are agents still opening data.json when summary-projection.json + tasks/INDEX.md already exist? Skill/doc/tool-routing gap rather than a storage gap?",
+    "Should summary-projection.json also strip kanbanCards, and should a tracked-only + fully-stripped active-summary-tasks.json exist before ANY storage change?",
+    "If canonical editability is the real pain, can data-edit / overview MCP tools provide focused per-task views + body editors so humans rarely open the whole JSON?",
+    "If any further split is ever pursued: who owns task order, and can it be tested byte-identical against snapshot/projection output on the current ~307-task corpus?"
+  ]
+}
