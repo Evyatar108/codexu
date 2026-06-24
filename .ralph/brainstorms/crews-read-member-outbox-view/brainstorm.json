@@ -1,0 +1,58 @@
+{
+  "brainstormName": "crews-read-member-outbox-view",
+  "overviewTaskId": "crews-read-member-outbox-view",
+  "idea": "Make it easy to VIEW A SPECIFIC MEMBER'S OUTPUT — the reports it SENT (done/progress/question/blocked) — rather than only reading the lead's aggregated mailbox-history or hand-reading raw JSONL. Surface left open by the operator.",
+  "availableLenses": ["codex", "copilot", "devils-advocate"],
+  "missingLenses": [],
+  "premiseCorrection": {
+    "claim": "Task filing asserted read-member reads the member INBOX/mailbox-history (RECEIVED), and there is no command for the sent/outbox direction.",
+    "verdict": "FALSE — read-member ALREADY reads the member OUTBOX (its SENT reports). Confirmed independently by all three lenses against source.",
+    "sourcePoints": [
+      "ai-developer-toolkit/plugins/crews/hooks/commands/read-member.js:92 (handler: readOutbox(name, crew, stateCwd))",
+      "ai-developer-toolkit/plugins/crews/hooks/mailbox.js:821-824 (readOutbox reads getOutboxPath via readJsonLinesStrict)",
+      "ai-developer-toolkit/plugins/crews/hooks/paths.js:215-218 (getOutboxPath -> <actorDir>/outbox.jsonl); :220-223 (getInboxHistoryPath -> mailbox-history.jsonl, read by review-mail not read-member)",
+      "ai-developer-toolkit/plugins/crews/hooks/mailbox.js:975-986 (formatOutboxEntries renders seq/writtenAt/kind/summary/body)",
+      "ai-developer-toolkit/plugins/crews/hooks/commands/read-member.js:139 (registry description: 'pull new outbox envelopes from one member')",
+      "ai-developer-toolkit/plugins/crews/hooks/commands/review-mail.js:306-310 (review-mail, not read-member, reads inbox history)"
+    ],
+    "evidence": "A live member outbox was 989,598 bytes containing 147 progress rows and exactly 1 done row, demonstrating the kind-filter need."
+  },
+  "candidateDirections": [
+    {
+      "id": "D-001",
+      "name": "Evolve read-member: display-only --kind/--no-progress filters + explicit sent-report wording + clarifying alias",
+      "summary": "Fix the actual pain (discoverability + progress noise) on the surface that already reads the outbox: add display-only --kind <k[,k...]> and --no-progress (cursor advances over the UNFILTERED fresh set, mirroring review-mail collapse; disclose hidden-by-filter), rewrite description/usage/SKILL.md/AGENTS to say 'reports this member SENT / member output / outbox', and add a clarifying registry alias (read-member-reports). No new state semantics.",
+      "contributingLenses": ["codex", "copilot", "devils-advocate"]
+    },
+    {
+      "id": "D-002",
+      "name": "First-class read-member-reports command as a thin delegating wrapper",
+      "summary": "Discoverability dial / alternative to the D-001 alias: register a real command (shows in tools/crews.js help + generates its own Claude/Copilot/Codex skill) that delegates to the shared read-member handler/parser/formatter (no second outbox reader). Choose this only if alias-only discoverability is insufficient, because tools/crews.js lists command names not aliases (crews.js:11-15).",
+      "contributingLenses": ["codex", "copilot", "devils-advocate"]
+    },
+    {
+      "id": "D-003",
+      "name": "Optional forensic delivery-context view (join member outbox + lead mailbox-history)",
+      "summary": "Deferred follow-up: only if the real goal is 'what reached the lead and when reviewed/acked'. Annotate sent reports with delivery/consume timestamps from the lead's mailbox-history via outboxId/outboxSeq/reportId back-references. Partial (progress-only rows may have no lead row); must NOT join by seq alone (inbox seq != outbox seq). Operator's stated ask points away from this toward the per-member sent log.",
+      "contributingLenses": ["codex", "devils-advocate"]
+    }
+  ],
+  "rejectedDirections": [
+    {
+      "name": "Add a --sent/--output MODE to read-member",
+      "reason": "read-member's DEFAULT is already the sent/outbox direction; a --sent flag implies the default reads the inbox and ENTRENCHES the misconception that caused the task to be misfiled. All three lenses reject it (red_flag: true)."
+    },
+    {
+      "name": "Docs-only / skill-only ergonomics with no filter",
+      "reason": "Too weak: the progress-noise problem (observed 147:1 progress:done) remains; operators still scan/hand-filter JSONL."
+    }
+  ],
+  "recommendedDirection": "D-001",
+  "questionsForSynthesis": [
+    "Main decision: is a clarifying alias enough, or is a registered read-member-reports command required so it surfaces in tools/crews.js help and generates its own Copilot/Codex skill? (tools/crews.js:11-15 lists names, not aliases.)",
+    "Should docs steer operators to '--all --pretty' or '--peek --pretty' as the default 'show me what this member sent' invocation?",
+    "Should --kind accept comma-separated multi-kind values, or stay repeatable/single-value for simpler slash parsing?",
+    "Should --no-progress mean exactly kind !== 'progress', or also suppress rows with missing/legacy kind?",
+    "Are member writtenAt + member seq sufficient for v1, or do operators need delivery/consume timestamps (-> D-003)?"
+  ]
+}
