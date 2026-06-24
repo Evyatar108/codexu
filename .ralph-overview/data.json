@@ -1608,7 +1608,7 @@
       "scope": "codex",
       "lifecycle": "tracked",
       "status": "todo",
-      "lastTouchedAt": "2026-06-21",
+      "lastTouchedAt": "2026-06-24",
       "kanbanCards": [
         {
           "className": "cmd-info",
@@ -1625,6 +1625,10 @@
         {
           "className": "cmd-ok",
           "html": "BRAINSTORM SHIPPED @ 2db146c0 (3-lens codex+copilot+devils-advocate, unanimous; .ralph/brainstorms/anthropic-native-messages-signed-cot/). VERDICT (answers operator 2026-06-21 &quot;do we need to move to /v1/messages?&quot;): NO &mdash; stay on /chat/completions (the unsigned reasoning_text capture/replay path). The ONLY benefit of /v1/messages is SIGNED CoT continuity (cryptographically signed thinking blocks round-tripped across the tool loop; chat completions reasoning_text has NO signature). But it is an EVIDENCE problem: Copilot /v1/messages has NEVER been probed (exists only as supported_endpoints fixture strings; wire_route_for ignores it), so whether signatures survive the Copilot proxy is unknown &mdash; if stripped/rejected, signed = no better than unsigned for a permanent third-transport cost (new request builder + Messages-SSE parser + a third WireApi/ModelWireRoute arm + wire_route_for + client.rs dispatch; full build sized XL, the probe S). DIRECTION D-001 = probe-gated fast-follow: extend the fork-auth probe to /v1/messages, validate 3 gates (auth accepted / signed thinking+signature emitted / signed thinking accepted on REPLAY before tool_result); on GO build overlay-first AS A FAST-FOLLOW AFTER the unsigned sibling ships; on NO-GO defer/abandon (D-003). SEQUENCING: must run AFTER codex-anthropic-chat-reasoning-text-capture-and-replay, NOT parallel (both touch core anthropic_sse.rs + overlay payload.rs push_chat_message). Relayed to the unsigned plan: reserve a neutral/extensible persisted-reasoning shape for future signature metadata. OPEN Q for operator: what user-visible failure does signed continuity fix that unsigned plaintext replay cannot? (real usage of the unsigned path will reveal). NEXT (operator-gated): only if signed verification is wanted, spawn the S-sized /v1/messages probe."
+        },
+        {
+          "className": "cmd-info",
+          "html": "PROBE SPIKE IN FLIGHT (operator 2026-06-24: \"I want us to still check the signed reasoning thing\"). Member <code>probe-signedcot</code> (copilot) extends the existing faithful probe <code>D:\\ExtRepos\\copilot-thinking-probe\\probe.mjs</code> (mirrors fork Copilot auth) to POST an Anthropic Messages request to <code>api.githubcopilot.com/v1/messages</code> with thinking enabled, then runs a TWO-TURN capture to settle the 3 gates: (a) auth accepted, (b) signed thinking+signature emitted, (c) signed thinking accepted ON REPLAY before tool_result (decisive). GO requires BOTH (b)+(c). Verdict + raw-capture evidence -> .ralph/investigations/anthropic-signed-cot-v1messages-probe/. NO codex-rs build; this is the S-sized gate before the XL transport.\r\n"
         }
       ],
       "command": {
