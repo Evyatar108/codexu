@@ -1,0 +1,26 @@
+I’ll read the referenced prompt file, then carry out the requested work end-to-end.
+
+I’m going to verify the plan against the current crews plugin source and tests, then return only the plan-review findings.
+
+### Feasibility
+
+No issues found.
+
+### Completeness
+
+[Medium] The plan makes the in-lock manifest re-read optional. Moving append later means a candidate can sit in memory while the scan finishes, then append after `clear-member`/resume/intent markers changed. Re-reading only the candidate manifest under the brief lock before append would preserve skip guards without reintroducing CIM under lock. Consider making that required.
+
+### Ordering
+
+No issues found.
+
+### Simplicity
+
+No issues found.
+
+### Acceptance Criteria Quality
+
+[Medium] The fail-soft PreToolUse criterion should specify the fixture must satisfy unrelated gates, especially lead listener state, so the test proves “sweep error does not deny” rather than accidentally observing the normal listener-arm block.
+
+[Low] The lock-window criterion allows either a held-lock fixture or injected seam. Prefer the injected seam/order assertion as the primary requirement; a real held-lock test risks a 2s timeout dependency and Windows flakiness.
+

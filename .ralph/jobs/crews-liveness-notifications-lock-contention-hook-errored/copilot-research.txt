@@ -1,0 +1,69 @@
+I’ll read the referenced prompt first, then inspect the relevant repo areas before changing anything.
+
+I’ve got the task: this is a research-only plan input, so I’ll inspect the crews plugin and report architecture, relevant code, constraints, and a recommended approach without editing files.
+
+I’m narrowing the scan to the crews plugin now, focusing on the sweep implementation, lock helper, call sites, and existing tests.
+
+I’ve found the core implementation and the project notes; I’m checking the exact lock scope, call-site error handling, and test seams so the recommendation is source-grounded.
+
+### Codebase Architecture
+
+`ai-developer-toolkit/plugins/crews` is a JavaScript-only plugin with synchronous Node hooks. Core layout:
+
+- `hooks/`: engine hook entrypoints and protocol/state helpers.
+- `lib/`: long-running listener loop and pure runtime helpers.
+- `tools/crews.js`: dispatcher CLI for commands.
+- `tests/`: per-file worker test runner via `node tests/run.js`; targeted tests can be run by filename.
+
+No package-level build/typecheck exists for crews; validation is `node plugins/crews/tests/run.js` plus `node --check` for touched JS files when needed.
+
+### Feature-Relevant Code
+
+Primary file: `ai-developer-toolkit/plugins/crews/hooks/member-crash-notifications.js`.
+
+Current issue is at `sweepMemberCrashNotifications()`:
+
+- `withStateFileLock(getLatchPath(crew, cwd), cwd, () => { ... })` wraps the entire sweep at lines 262-350.
+- Inside that lock it runs `listNames`, per-member `readManifest`, `getMemberHealth`, ownership checks, mailbox append, and latch write.
+- The latch file is `<crewRoot>/liveness-notifications.json`; helpers are `readLatch`, `readLatchSignature`, `setLatchSignature`, `clearLatchSignature`.
+- `resetMemberCrashNotificationLatch()` also locks the same latch at lines 357-376, but only for the clear-member path.
+
+Lock implementation: `hooks/locks.js`:
+
+- `withStateFileLock(file, cwd, fn, timeoutMs)` uses `acquireLock(file + ".lock", timeout || DEFAULT_MAILBOX_LOCK_TIMEOUT_MS)`.
+- `DEFAULT_MAILBOX_LOCK_TIMEOUT_MS` is 2000ms.
+- Dead/stale holder recovery exists through `lockCanBeStolen`, `isDeadLocalHolderLock`, and `lockIsStealable`, but live holders are not stealable.
+
+Sweep call sites are already fail-soft:
+
+- `hooks/pre-tool-use.js` lines 475-484 catches and logs `via=pre-tool-use`.
+- `hooks/stop.js` lines 912-921 catches and logs `via=stop`.
+- `hooks/session-start.js` lines 509-517 catches and logs `via=session-start`.
+- `lib/listener-loop.js` lines 418-431 catches and logs listener heartbeat sweep failures.
+
+Tests to extend:
+
+- `tests/member-crash-notifications.test.js`: skip guards, latch persistence, throttle behavior.
+- `tests/member-crash-backstop-reset.test.js`: source-grep coverage for call-site wiring and reset path.
+- Add hook-level fail-soft regression coverage using existing subprocess styles in `pretooluse-*.test.js` or `tests/lib/scenario.js`.
+
+### Technical Constraints
+
+The latch lock only needs to serialize dedupe state, not the O(N) scan. Current code holds the lock across `getMemberHealth`, which on Windows may call CIM via `health.js::resolvePidAlive`, making lock duration scale with crew size and live-PID members.
+
+Persist-after-append is load-bearing: mailbox append must happen before setting/writing the latch. If latch write fails, duplicate notifications are acceptable; lost notifications are not.
+
+Moving the scan outside the latch does not materially weaken the six skip guards because the current latch never protects member manifests or health state anyway. For extra stale-candidate safety, re-read only candidate manifests under the short lock before append, but do not re-run the full crew scan there.
+
+### Implementation Suggestions
+
+Recommended primary plan: refactor `sweepMemberCrashNotifications` into two phases.
+
+1. Scan outside the latch: build `candidates[]` containing `{ name, health, signature, detectedAt, message/payload }` after all six skip guards pass. This phase may do `listNames`, `readManifest`, `getMemberHealth`, and ownership checks without holding `liveness-notifications.json.lock`.
+
+2. Lock briefly only for dedupe and writes: inside `withStateFileLock(getLatchPath(...))`, read latch, skip candidates whose signature is already latched, append `member-crashed`, then set latch signature and write latch. This preserves no-double-notify because concurrent sweeps serialize at dedupe time.
+
+Keep all four call sites fail-soft exactly as-is and add an explicit regression test that forces `sweepMemberCrashNotifications` to throw/lock-timeout from `pre-tool-use.js` and asserts the hook allows the tool rather than returning a denial.
+
+I would not raise the 2000ms timeout. After shrinking the lock window it should be sufficient; raising it would make hook hot paths block longer. Shared throttling between listener and turn-boundary sweepers is a reasonable secondary optimization, but it is not the root fix.
+

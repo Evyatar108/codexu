@@ -1,0 +1,24 @@
+{
+  "clusters": [
+    {
+      "name": "crews-liveness-lock-fix",
+      "stories": ["US-001", "US-002", "US-003"],
+      "phase": 1,
+      "dependsOn": [],
+      "fileOverlapEvidence": {
+        "sharedFiles": [
+          "ai-developer-toolkit/plugins/crews/hooks/member-crash-notifications.js",
+          "ai-developer-toolkit/plugins/crews/tests/member-crash-notifications.test.js",
+          "ai-developer-toolkit/plugins/crews/.claude-plugin/plugin.json",
+          "ai-developer-toolkit/plugins/crews/.github/plugin/plugin.json",
+          "ai-developer-toolkit/plugins/crews/.codex-plugin/plugin.json",
+          "ai-developer-toolkit/plugins/crews/CHANGELOG.md",
+          "AGENTS.md"
+        ],
+        "exclusiveFiles": [],
+        "risk": "high"
+      },
+      "executionModeRationale": "Serial. All three stories mutate the same crews plugin and US-003 touches the shared release stamps (6 version files), CHANGELOG.md, and the codexu AGENTS.md active-plugin-versions table; running them in parallel would conflict on those files. Implement US-001 -> (optional US-002) -> US-003 in one job."
+    }
+  ]
+}

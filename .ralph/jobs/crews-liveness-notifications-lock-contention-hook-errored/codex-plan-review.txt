@@ -1,0 +1,23 @@
+### Feasibility
+
+[Medium] The lock-window test strategy is underspecified and slightly contradictory. `member-crash-notifications.js` closes over `withStateFileLock` and `getMemberHealth` at module load, while `_internal` only exposes helper functions, not those dependencies. The plan says to keep `_internal` seam shapes stable, but also suggests a wrapped lock seam. Amend the plan to say either “write a new test file that monkeypatches `../hooks/locks` and `../hooks/health` before requiring the helper” or explicitly allow a new `_internal` test seam. Relevant files: `ai-developer-toolkit/plugins/crews/hooks/member-crash-notifications.js:59`, `:75`, `:384`.
+
+### Completeness
+
+[Medium] If US-002 ships, the plan needs a more explicit listener-delivery test. `listener-loop.js` only calls `deliver('crash-sweep')` when the sweep returns `appended > 0`; a shared stamp throttle could make the listener skip a scan after a hook-side sweep touched the stamp. Either defer US-002 as recommended, or require a test proving the listener still wakes/drains when the hook backstop appended a crash notice. Relevant file: `ai-developer-toolkit/plugins/crews/lib/listener-loop.js:424`, `:432`.
+
+[Medium] US-003 should explicitly call out the submodule two-commit flow: commit crews changes inside `ai-developer-toolkit/`, then update the parent codexu submodule pointer and root `AGENTS.md` active-plugin table. The plan implies this, but an autonomous implementer could otherwise leave only a dirty submodule in the parent repo.
+
+### Ordering
+
+No issues found. The serial US-001 → optional US-002 → US-003 order is correct, especially because version stamps and changelog files conflict.
+
+### Simplicity
+
+No issues found. Moving only the expensive scan outside the latch lock is the smallest fix; raising the timeout or changing lock stealing would be worse for the hot path.
+
+### Acceptance Criteria Quality
+
+[Medium] The “lock-window invariant” AC is testable, but should specify the intended mechanism: pre-require monkeypatch, explicit `_internal` seam, or external held-lock fixture with an observable scan side effect. As written, it leaves too much room for a timing-based/flaky test.
+
+Prior review amendments look mostly adequate: the plan correctly keeps persist-after-append ordering, dedupe under the latch lock, and treats the Copilot manifest re-read suggestion as optional rather than required.

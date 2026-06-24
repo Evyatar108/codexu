@@ -1,0 +1,67 @@
+{
+  "planFile": "D:/harness-efforts/codexu/.ralph/jobs/.staging/20260624T181037Z-plan-livenesslock-13eddb39/draft-plan.md",
+  "repoDir": "D:/harness-efforts/codexu/.ralph/jobs/crews-liveness-notifications-lock-contention-hook-errored/worktree/plan",
+  "reviewCycle": 1,
+  "findings": [
+    {
+      "id": "F-001",
+      "severity": "Medium",
+      "source": "consensus",
+      "category": "Acceptance Criteria Quality",
+      "sectionRef": "Acceptance Criteria > Lock-window invariant",
+      "description": "The lock-window AC ('scan ran without the lock') was underspecified and slightly contradictory: the module destructures withStateFileLock (member-crash-notifications.js:59) and getMemberHealth (:75) at load and _internal (:384) does not expose them, yet the plan said to keep _internal shapes stable AND suggested a wrapped lock seam. Flagged by Claude (Medium), Codex (Medium x2), Copilot (Low, also warned the held-lock fixture risks the 2s LockTimeout + Windows flakiness).",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Rewrote the lock-window AC to require a deterministic call-order assertion via ONE specified mechanism: (preferred) an additive optional args.withStateFileLock seam (default real) with a recording wrapper, or (alternative) monkeypatch-before-require of ../hooks/locks + ../hooks/health. Bare timing claims and real held-lock 2s fixtures are explicitly disallowed. Updated Implementation Strategy, Files-to-Modify, Risk Areas split-export note, and the new-test-file description to match.",
+      "relevantFiles": ["ai-developer-toolkit/plugins/crews/hooks/member-crash-notifications.js", "ai-developer-toolkit/plugins/crews/hooks/locks.js", "ai-developer-toolkit/plugins/crews/hooks/health.js"]
+    },
+    {
+      "id": "F-002",
+      "severity": "Medium",
+      "source": "consensus",
+      "category": "Completeness / Correctness",
+      "sectionRef": "Approach > Architecture (Phase B)",
+      "description": "The candidate-manifest re-read under the brief lock was framed as OPTIONAL, but moving the append to a later phase grows the scan->append window (Phase A computes all candidates before Phase B appends any), so a member that gets /stop-member or /clear-member or resumes during the (now multi-second) scan window could receive a false member-crashed notification — the F-001-class guard the persist-after-append logic protects against. Flagged by Copilot (Medium, make required); Codex independently suggested revalidating final candidates before append.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Made the per-candidate manifest re-validation under the brief lock REQUIRED: re-read the candidate manifest and re-check the cheap manifest-based guards (#1 role, #2 intentionally-stopped, #3 recoverable, #5 ownership) before appendSystemMailbox; skip if any now fails. getMemberHealth is NOT re-run under the lock (avoids reintroducing per-candidate CIM). Added a dedicated AC, an In-Scope bullet, a Risk-Areas entry, and an Open-Question on re-validation depth.",
+      "relevantFiles": ["ai-developer-toolkit/plugins/crews/hooks/member-crash-notifications.js"]
+    },
+    {
+      "id": "F-003",
+      "severity": "Medium",
+      "source": "copilot",
+      "category": "Acceptance Criteria Quality",
+      "sectionRef": "Acceptance Criteria > Fail-soft invariant",
+      "description": "The fail-soft PreToolUse AC did not require the test fixture to satisfy the other PreToolUse gates (esp. an armed listener / listenerState). Without that, the test could pass for the wrong reason — observing the normal arm-first block — rather than proving 'sweep error does not deny the tool'.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Strengthened the fail-soft AC to require the fixture satisfy lead role + armed listener + no pending review-required mail + a non-.crews-write tool, and to assert an allow/no-deny decision while the injected sweep throws.",
+      "relevantFiles": ["ai-developer-toolkit/plugins/crews/hooks/pre-tool-use.js"]
+    },
+    {
+      "id": "F-004",
+      "severity": "Medium",
+      "source": "codex",
+      "category": "Completeness (US-002)",
+      "sectionRef": "Preliminary Story Decomposition > US-002",
+      "description": "If the optional US-002 throttle-unification ships, a shared per-lead stamp could let the listener-loop skip its own sweep after the hook backstop already touched the stamp; since lib/listener-loop.js:424,432 only calls deliver('crash-sweep') when its own sweep returns appended>0, the listener might not promptly deliver a crash notice the hook-side sweep appended. Claude separately asked that US-002's optional status be explicit about not gating the bugfix ACs.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Added a US-002 'does NOT gate the bugfix' callout and a requirement that, IF shipped, US-002 includes a listener-delivery test proving the listener still wakes/drains a hook-appended crash notice (via the next fs.watch wake). Reinforced the deferral recommendation.",
+      "relevantFiles": ["ai-developer-toolkit/plugins/crews/lib/listener-loop.js"]
+    },
+    {
+      "id": "F-005",
+      "severity": "Medium",
+      "source": "codex",
+      "category": "Completeness (US-003)",
+      "sectionRef": "Preliminary Story Decomposition > US-003",
+      "description": "US-003 (release ceremony) implied but did not spell out the submodule two-commit flow; an autonomous implementer could leave a dirty ai-developer-toolkit submodule in the parent codexu repo.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "US-003 now explicitly: (a) the impl member commits the crews changes (6 version stamps via scripts/bump-version.js, tests/version.test.js, prepended CHANGELOG.md) INSIDE ai-developer-toolkit on its topic branch (no dirty submodule); (b) the LEAD owns the codexu parent-pointer bump + root AGENTS.md active-plugin-versions table after merging the submodule branch.",
+      "relevantFiles": ["ai-developer-toolkit/plugins/crews/scripts/bump-version.js", "AGENTS.md"]
+    }
+  ]
+}

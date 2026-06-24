@@ -1,0 +1,70 @@
+**Codebase Architecture**
+The relevant code is in the `ai-developer-toolkit` submodule, under `plugins/crews`. It is plain CommonJS Node, no `package.json` in the crews plugin itself, with tests run by `node tests/run.js`.
+
+Key layout:
+- `hooks/`: hook entry points and state helpers.
+- `lib/`: long-running listener logic.
+- `tools/` and `hooks/commands/`: CLI/slash command handlers.
+- `tests/`: standalone `.test.js` files run in worker processes by `tests/run.js`.
+
+State lives on disk under `.crews/crews/<crew>/...`; the latch in question is `.crews/crews/<crew>/liveness-notifications.json`.
+
+**Feature-Relevant Code**
+Primary implementation point: [member-crash-notifications.js](D:/harness-efforts/codexu/.ralph/jobs/crews-liveness-notifications-lock-contention-hook-errored/worktree/plan/ai-developer-toolkit/plugins/crews/hooks/member-crash-notifications.js:238). `sweepMemberCrashNotifications()` currently acquires `withStateFileLock(getLatchPath(...))` before `listNames`, `readManifest`, `getMemberHealth`, skip guards, mailbox append, and latch write. That is the long-held lock.
+
+Latch reset path: [member-crash-notifications.js](D:/harness-efforts/codexu/.ralph/jobs/crews-liveness-notifications-lock-contention-hook-errored/worktree/plan/ai-developer-toolkit/plugins/crews/hooks/member-crash-notifications.js:357), called by [clear-member.js](D:/harness-efforts/codexu/.ralph/jobs/crews-liveness-notifications-lock-contention-hook-errored/worktree/plan/ai-developer-toolkit/plugins/crews/hooks/commands/clear-member.js:82).
+
+Locking primitive: [locks.js](D:/harness-efforts/codexu/.ralph/jobs/crews-liveness-notifications-lock-contention-hook-errored/worktree/plan/ai-developer-toolkit/plugins/crews/hooks/locks.js:171). `withStateFileLock()` uses `DEFAULT_MAILBOX_LOCK_TIMEOUT_MS = 2000`; dead/stale lock stealing is already in `acquireLock()` via `lockCanBeStolen()`.
+
+Fail-soft call sites:
+- [pre-tool-use.js](D:/harness-efforts/codexu/.ralph/jobs/crews-liveness-notifications-lock-contention-hook-errored/worktree/plan/ai-developer-toolkit/plugins/crews/hooks/pre-tool-use.js:466)
+- [stop.js](D:/harness-efforts/codexu/.ralph/jobs/crews-liveness-notifications-lock-contention-hook-errored/worktree/plan/ai-developer-toolkit/plugins/crews/hooks/stop.js:907)
+- [session-start.js](D:/harness-efforts/codexu/.ralph/jobs/crews-liveness-notifications-lock-contention-hook-errored/worktree/plan/ai-developer-toolkit/plugins/crews/hooks/session-start.js:504)
+- [listener-loop.js](D:/harness-efforts/codexu/.ralph/jobs/crews-liveness-notifications-lock-contention-hook-errored/worktree/plan/ai-developer-toolkit/plugins/crews/lib/listener-loop.js:408)
+
+Expensive scan inputs:
+- `listNames()` in [actors.js](D:/harness-efforts/codexu/.ralph/jobs/crews-liveness-notifications-lock-contention-hook-errored/worktree/plan/ai-developer-toolkit/plugins/crews/hooks/actors.js:1606)
+- `readManifest()` in [actors.js](D:/harness-efforts/codexu/.ralph/jobs/crews-liveness-notifications-lock-contention-hook-errored/worktree/plan/ai-developer-toolkit/plugins/crews/hooks/actors.js:630)
+- `getMemberHealth()` in [health.js](D:/harness-efforts/codexu/.ralph/jobs/crews-liveness-notifications-lock-contention-hook-errored/worktree/plan/ai-developer-toolkit/plugins/crews/hooks/health.js:126), which can call Windows CIM through `describeProcess()`.
+
+Relevant tests:
+- `tests/member-crash-notifications.test.js`
+- `tests/member-crash-backstop-reset.test.js`
+- `tests/integration/member-crash-listener-delivery.test.js`
+- `tests/run.js`
+
+**Technical Constraints**
+The latch shape and signature format are documented in `member-crash-notifications.js`: `{ memberCrash: { [leadName]: { [memberName]: signature } } }`.
+
+`appendSystemMailbox()` in [mailbox.js](D:/harness-efforts/codexu/.ralph/jobs/crews-liveness-notifications-lock-contention-hook-errored/worktree/plan/ai-developer-toolkit/plugins/crews/hooks/mailbox.js:544) does schema validation and takes the recipient mailbox lock. The crash path must preserve append-before-latch-write: latch persistence only after mailbox append succeeds.
+
+Do not raise the latch timeout. That would make hook hot paths wait longer. The right fix is reducing lock duration.
+
+Moving the scan outside the latch lock is safe for the latch invariant because the latch lock never protected manifests, process health, or ownership. Those are already snapshot reads. For stronger race resistance, revalidate only final candidates before appending; that keeps lock cost proportional to notify candidates, not all members.
+
+**Implementation Suggestions**
+Use approach 1 as the primary fix: split sweep into two phases.
+
+1. Outside the latch lock, collect crash candidates:
+   - `listNames`
+   - `readManifest`
+   - six skip guards
+   - `getMemberHealth`
+   - `buildDeadSignature`
+   - candidate payload construction
+
+2. Inside `withStateFileLock`, do only:
+   - `readLatch`
+   - per-candidate dedupe check
+   - `appendSystemMailbox`
+   - `setLatchSignature`
+   - one latch write if dirty
+
+This preserves no-double-notify because concurrent sweepers serialize at the latch update. It also preserves persist-after-append because the latch is still written only after successful mailbox append.
+
+I would not make shared heartbeat/pre-tool throttling the primary fix. It can reduce redundant work, but it also delays detection and becomes less important once the lock hold is tiny.
+
+Add regression tests for:
+- A thrown `LockTimeoutError` from sweep does not make `pre-tool-use` deny or throw.
+- Candidate collection does not occur under `liveness-notifications.json.lock`.
+- Existing `member-crash-notifications.test.js`, `member-crash-backstop-reset.test.js`, and listener delivery coverage stay green.
