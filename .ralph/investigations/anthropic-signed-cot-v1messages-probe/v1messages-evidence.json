@@ -1,0 +1,67 @@
+{
+  "endpoint": "https://api.githubcopilot.com/v1/messages",
+  "model": "claude-sonnet-4.6",
+  "ranAt": "2026-06-24T17:33:52.927Z",
+  "gates": {
+    "a_auth_accepted": {
+      "pass": true,
+      "status": 200,
+      "statusText": "OK",
+      "contentType": "text/event-stream",
+      "rawFile": "raw-v1messages-claude-sonnet-4.6-turn1-2026-06-24T17-34-00-089Z.sse"
+    },
+    "b_signed_emitted": {
+      "pass": true,
+      "thinkingPresent": true,
+      "signaturePresent": true,
+      "signatureChars": 748,
+      "rawFile": "raw-v1messages-claude-sonnet-4.6-turn1-2026-06-24T17-34-00-089Z.sse"
+    },
+    "c_signed_replay_accepted": {
+      "pass": true,
+      "genuine": {
+        "accepted": true,
+        "status": 200,
+        "statusText": "OK",
+        "errorBody": null,
+        "rawFile": "raw-v1messages-claude-sonnet-4.6-turn2-genuine-2026-06-24T17-34-04-302Z.sse"
+      },
+      "tamperedControl": {
+        "rejected": true,
+        "status": 400,
+        "statusText": "Bad Request",
+        "errorBody": "{\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"messages.1.content.0: Invalid `signature` in `thinking` block\"},\"request_id\":\"req_vrtx_011CcNVBWsS9DRbWw9C53Zzx\"}",
+        "rawFile": "raw-v1messages-claude-sonnet-4.6-turn2-tampered-2026-06-24T17-34-04-914Z.sse"
+      },
+      "signatureEnforced": true,
+      "signatureIgnored": false
+    }
+  },
+  "turns": {
+    "turn1": {
+      "status": 200,
+      "stopReason": "tool_use",
+      "blocks": [
+        {
+          "type": "thinking",
+          "thinkingChars": 350,
+          "signatureChars": 748,
+          "signaturePresent": true
+        },
+        {
+          "type": "text"
+        },
+        {
+          "type": "tool_use",
+          "name": "record_answer",
+          "id": "toolu_vrtx_01BpvnHK3td4VMa9Wp2yef3B",
+          "input": {
+            "answer": 0.05
+          }
+        }
+      ]
+    }
+  },
+  "verdict": "GO",
+  "verdictRationale": "All three gates pass; genuine signature accepted AND tampered rejected => signature preserved+enforced end-to-end."
+}

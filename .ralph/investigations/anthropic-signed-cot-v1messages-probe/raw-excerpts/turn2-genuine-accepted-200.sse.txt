@@ -1,0 +1,11 @@
+# Turn-2a raw SSE excerpt (GENUINE signature replay).  ->  HTTP 200 OK
+# Request replayed the captured signed `thinking` block (verbatim text + real signature) in the assistant
+# turn, followed by its tool_use, immediately before a tool_result. Proves gate (c): the proxy PRESERVED
+# the signature end-to-end and ACCEPTED the replay (the model continues; stop_reason=end_turn).
+
+data: {"message":{"content":[],"id":"msg_vrtx_01J4njKMorr1NM1vCZSXQrwN","model":"claude-sonnet-4-6","role":"assistant","stop_details":null,"stop_reason":null,"stop_sequence":null,"type":"message","usage":{"cache_creation":{"ephemeral_1h_input_tokens":0,"ephemeral_5m_input_tokens":0},"cache_creation_input_tokens":0,"cache_read_input_tokens":0,"input_tokens":917,"output_tokens":7}},"type":"message_start"}
+data: {"delta":{"thinking":"The ball costs $0.05","type":"thinking_delta"},"index":0,"type":"content_block_delta"}
+data: {"delta":{"thinking":".","type":"thinking_delta"},"index":0,"type":"content_block_delta"}
+data: {"delta":{"thinking":"","type":"thinking_delta"},"index":0,"type":"content_block_delta"}
+... (deltas elided) ...
+data: {"copilot_usage":{"token_details":[{"batch_size":1000000,"cost_per_batch":300000000000,"token_count":917,"token_type":"input"},{"batch_size":1000000,"cost_per_batch":30000000000,"token_count":0,"token_type":"cache_read"},{"batch_size":1000000,"cost_per_batch":375000000000,"token_count":0,"token_type":"cache_write"},{"batch_size":1000000,"cost_per_batch":1500000000000,"token_count":248,"token_type":"output"}],"total_nano_aiu":647100000},"delta":{"stop_details":null,"stop_reason":"end_turn","stop_sequence":null},"type":"message_delta","usage":{"cache_creation_input_tokens":0,"cache_read_input_tokens":0,"input_tokens":917,"output_tokens":248,"output_tokens_details":{"thinking_tokens":13}}}

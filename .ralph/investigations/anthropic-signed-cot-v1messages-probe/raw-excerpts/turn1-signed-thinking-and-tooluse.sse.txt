@@ -1,0 +1,19 @@
+# Turn-1 raw SSE excerpt (auth-scrubbed: response body only, no request headers).
+# Endpoint: POST https://api.githubcopilot.com/v1/messages  ->  HTTP 200 OK, content-type text/event-stream
+# Proves gate (a) auth accepted + gate (b) signed `thinking` + `signature` emitted alongside a tool_use block.
+
+data: {"message":{"content":[],"id":"msg_vrtx_01RgqW7Mq1EAsK7iSz9YRKnp","model":"claude-sonnet-4-6","role":"assistant","stop_details":null,"stop_reason":null,"stop_sequence":null,"type":"message","usage":{"cache_creation":{"ephemeral_1h_input_tokens":0,"ephemeral_5m_input_tokens":0},"cache_creation_input_tokens":0,"cache_read_input_tokens":0,"input_tokens":669,"output_tokens":3}},"type":"message_start"}
+event: content_block_start
+data: {"content_block":{"signature":"","thinking":"","type":"thinking"},"index":0,"type":"content_block_start"}
+event: content_block_start
+data: {"content_block":{"text":"","type":"text"},"index":1,"type":"content_block_start"}
+event: content_block_start
+data: {"content_block":{"id":"toolu_vrtx_01BpvnHK3td4VMa9Wp2yef3B","input":{},"name":"record_answer","type":"tool_use"},"index":2,"type":"content_block_start"}
+data: {"delta":{"thinking":"Let me reason","type":"thinking_delta"},"index":0,"type":"content_block_delta"}
+data: {"delta":{"thinking":" through this carefully","type":"thinking_delta"},"index":0,"type":"content_block_delta"}
+data: {"delta":{"thinking":".\n\nLet the","type":"thinking_delta"},"index":0,"type":"content_block_delta"}
+... (thinking_delta stream elided) ...
+data: {"delta":{"signature":"EqwECmcIDxACGAIqQPl332rf0aw76GLzUZFQpAKUZa0SJ2AaPT86wOvnczVETf8wTHldx/XAmCzXb5wf/s+jIjX6ryCMEwn6yDSpajgyEWNsYXVkZS1zb25uZXQtNC02OABCCHRoaW5raW5nEgzx8YqzicgJG8RO54gaDENkVigExHQUcvA8IiIw1qJ44q+RlgMa9ClCjVggif4IihMTs71WLLxyWUQfrcbqARDU2Jn9PYzVwiL6d/lcKvICrzF3Akq7SbZH42YdxXHPVf2J9B4eRKv6aSnnjwPPjiZ4iP8x36+hyJRMwK+SMyzpv+CCC/f/r4jmzTrkkpWLGfBIcuyMNpHscQTtrAO9W/W+IqNkDeSoJ6qGf2AD/o/BKgR5rhqZCQ7EnwdJsrzioTbQKGPriq7tTK+MeBdeeSxAAExmjG91IYzAtbfbK5zIxM7abct7NjnndLBhQ/BDCw3beuO3LBUhth6faWvBKAr1z055RhixUiWPBuj93HShPEIDBYXHzo95qzNEcCbkdfkN/I5tkekPF7OIJnp2Z6+X/MHpefkUsvNF4Xt+3hMo+JKMmpABMPU0hNorl9HvOph/UuwANTcovxfNVtQJezywZrImFvLL/RtRC9lgW+88zJAOrx+HyaYHcGMo4ZVjxl4fbGb7trWyJLdO/TYUpeGDpgtSGnkt7Knbyvp2waU5vEwXegoR2RB8MiXl/J9qmjuWHWO+v2ICaye0bd7tDl0kjxgB","type":"signature_delta"},"index":0,"type":"content_block_delta"}
+data: {"delta":{"partial_json":"","type":"input_json_delta"},"index":2,"type":"content_block_delta"}
+data: {"delta":{"partial_json":"{\"answe","type":"input_json_delta"},"index":2,"type":"content_block_delta"}
+data: {"copilot_usage":{"token_details":[{"batch_size":1000000,"cost_per_batch":300000000000,"token_count":669,"token_type":"input"},{"batch_size":1000000,"cost_per_batch":30000000000,"token_count":0,"token_type":"cache_read"},{"batch_size":1000000,"cost_per_batch":375000000000,"token_count":0,"token_type":"cache_write"},{"batch_size":1000000,"cost_per_batch":1500000000000,"token_count":501,"token_type":"output"}],"total_nano_aiu":952200000},"delta":{"stop_details":null,"stop_reason":"tool_use","stop_sequence":null},"type":"message_delta","usage":{"cache_creation_input_tokens":0,"cache_read_input_tokens":0,"input_tokens":669,"output_tokens":501,"output_tokens_details":{"thinking_tokens":160}}}

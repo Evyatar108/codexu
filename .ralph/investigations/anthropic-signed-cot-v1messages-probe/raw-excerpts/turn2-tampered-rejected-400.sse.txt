@@ -1,0 +1,5 @@
+# Turn-2b raw response (TAMPERED signature, negative control).  ->  HTTP 400 Bad Request
+# Identical to turn-2a except one signature char was flipped. The proxy REJECTS it, proving the signature
+# is actually VALIDATED/ENFORCED end-to-end (not merely passed through or ignored).
+
+{"type":"error","error":{"type":"invalid_request_error","message":"messages.1.content.0: Invalid `signature` in `thinking` block"},"request_id":"req_vrtx_011CcNVBWsS9DRbWw9C53Zzx"}
