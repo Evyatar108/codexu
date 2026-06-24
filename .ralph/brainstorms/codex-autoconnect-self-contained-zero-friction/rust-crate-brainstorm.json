@@ -1,0 +1,91 @@
+{
+  "brainstormName": "codex-autoconnect-self-contained-zero-friction",
+  "iteration": "rust-crate",
+  "overviewTaskId": "codex-autoconnect-self-contained-zero-friction",
+  "supersedes": "the prior-iteration bundled-sidecar verdict (brainstorm.json @ 36ac8e09 / selected-direction.md D-001 Node sidecar), VOIDED by the operator 2026-06-23",
+  "idea": "Design the native-Rust embedded happy-server crate that makes raw-codex autoconnect (remote_session) fully Node-free + zero-friction: install ONLY the codex fork -> /remote on -> codex self-onboards + runs its OWN embedded Rust per-machine session server, discoverable by Happy clients over Microsoft Dev Tunnels. NO Node, NO central server. KEY decision: (a) reimplement the scoped EXISTING happy-server surface in Rust vs (b) co-design a minimal codex-specific wire (edit packages/happy-app + packages/happy-wire).",
+  "availableLenses": ["codex", "copilot", "devils-advocate"],
+  "missingLenses": [],
+  "pivotPremise": "Operator-corrected 2026-06-23: the prior spike's 'bundle Node wins' verdict is VOIDED. Its two assumptions are FALSE: (1) the Happy app + wire are NOT unmodifiable/out-of-control — packages/happy-app + packages/happy-wire are OUR fork; we control both ends; (2) upstream divergence from slopus/happy is ACCEPTED. So the native Rust crate is PREFERRED, not rejected. The spike's surface-inventory DATA remains valid; only its verdict-premise was wrong.",
+  "validSpikeData": {
+    "minimalSurface": "~8 HTTP route groups + 1 realtime namespace (today Socket.IO /v1/updates) + ~7 DB tables; droppable: social/feed/kv/voice/artifacts/github/usage/dev.",
+    "mustKeepHardParts": "Socket.IO SERVER half, RPC bridge (rpc-call->rpc-request->ack), JWT+pairing (challenge-response + QR account pairing), event-sourced store (per-session monotonic seq + localId idempotency dedup + CAS by expectedVersion), room/presence fan-out.",
+    "alreadyNativeRust": "codex-happy: encryption.rs (E2EE, byte-compatible with RustCrypto), wire.rs (@slopus/happy-wire serde), session.rs+session_state.rs+inbound.rs (Socket.IO CLIENT + session sync + inbound control), onboard.rs (GitHub device flow + cred mint; BUILT but UNWIRED).",
+    "embeddedShedsScaling": "Single-process embedded server drops ALL the Node server's hardest code: Redis streams Socket.IO adapter, cross-replica fetchSockets, multi-replica RPC/presence backoff.",
+    "spikeEffortForOptionA": "L (large). Single largest risk = Socket.IO-server wire-compat (engine.io handshake, polling<->ws upgrade, rooms, emitWithAck, reconnection) vs the real app; NOT bought down by scoping.",
+    "pathCorrection": "codex-happy lives at codex/codex-rs-overlay/codex-happy/ (overlay, zero upstream-conflict per codex/CLAUDE.md tenet 1), NOT external/repos/codex-patched/... (the codex lens mislocated it). The NEW server crate should likewise be a new overlay crate codex/codex-rs-overlay/codex-happy-server/."
+  },
+  "keyClarification": "The app's pairing/account/session-list surface is plain HTTP/REST (trivial axum); the ONLY realtime transport is the single Socket.IO /v1/updates connection (live update stream + rpc-call + session-message-range). So the recommended 'hybrid' is a TRANSPORT swap (replace that one Socket.IO connection with one plain WebSocket carrying the same message shapes) while KEEPING happy-wire schemas byte-stable. One realtime transport, not two -> bounded app change + bounded version skew -> NOT a schema fork.",
+  "candidateDirections": [
+    {
+      "id": "D-001",
+      "name": "Hybrid: REST pairing/list + plain-WS for the session/RPC hot path (transport swap, schemas stable)",
+      "summary": "New Rust overlay server crate: axum HTTP routes (~8 must-keep) + SQLite store (seq+localId dedup+CAS) + JWT/pairing + a PLAIN WebSocket replacing the Socket.IO /v1/updates namespace (same update/rpc/range message shapes) + single-process room/presence/RPC. Reuse codex-happy encryption.rs+wire.rs. App + codex client swap their realtime transport (Socket.IO -> plain WS) behind a per-machine capability flag; happy-wire SCHEMAS unchanged. Deletes the dominant Socket.IO-server-parity risk WITHOUT a schema fork. RECOMMENDED.",
+      "contributingLenses": ["codex", "copilot", "devils-advocate"],
+      "effort": "M (Rust server) + M (app/client transport swap)",
+      "residualRisk": "App-side transport swap on the e-ink tablet: the auth.lastSeenSeq replay + replay-overflow + the TWO seq domains (updateData.seq account-global replay vs session.seq pagination) must be re-expressed over plain-WS with IDENTICAL semantics or you get empty chats / broken pagination. Dual-stack window if non-BOOX clients must keep working."
+    },
+    {
+      "id": "D-002",
+      "name": "Option (a): Rust reimplements the scoped EXISTING Socket.IO surface, ZERO app/wire change",
+      "summary": "A Rust Socket.IO SERVER (e.g. socketioxide) byte-compatible with socket.io-client v4 + the app's exact expectations at /v1/updates; same HTTP routes/store/auth. Zero change to packages/happy-app or packages/happy-wire. Lowest rollout friction; fully preserves the app/server/wire contract + any non-operator clients. BUT effort stays L: Socket.IO-server-parity is the un-bought-down risk; a subtly-incompatible server 'looks healthy' while breaking one hot path. Gate: a real-app socketioxide smoke (connect->replay->emitWithAck->rpc->reconnect) BEFORE building the rest.",
+      "contributingLenses": ["codex", "copilot", "devils-advocate"],
+      "effort": "L"
+    },
+    {
+      "id": "D-003",
+      "name": "Option (b, full): minimal codex-specific wire incl. SLIMMED schemas (product fork)",
+      "summary": "D-001's transport swap PLUS slimming happy-wire/src/sessionProtocol.ts + messages.ts to a codex-only subset and rewriting codex-happy/src/session.rs onto the new wire. Smallest Rust server / cleanest codex-only protocol, but HIGHEST blast radius: happy-wire is shared by app+server+CLI/session producers+codex-happy mirror; slimming forks the app from BOTH the Node daemon (happy-cli-first users) and future upstream merges, risks a SECOND subtly-incompatible session server, and re-points the weakest device (e-ink) to a new transport. Justified ONLY with explicit product decisions (no external clients, BOOX force-updatable in lockstep, Node-daemon compat abandoned, dual-stack tolerated).",
+      "contributingLenses": ["codex", "copilot", "devils-advocate"],
+      "effort": "S-M Rust mechanics + M-L app/wire migration + dual-stack + future merge debt"
+    }
+  ],
+  "recommendedDirection": "D-001",
+  "recommendationNote": "Recommend the HYBRID (D-001) transport-swap as the Rust-crate SHAPE, at revised effort M (vs the spike's L for pure-a) — the L->M reduction comes entirely from DELETING Socket.IO-server protocol parity (the spike's headline un-bought-down risk) since we own both ends. BUT the recommendation is GATED, not unconditional: per the Devil's-Advocate red flag, zero-friction is mostly lifecycle/onboarding/discovery, which is INDEPENDENT of the server's language. So Phase 1 (self-onboard + codex-owned lifecycle) is server-AGNOSTIC and ships the bulk of zero-friction first; the Rust server (Phase 2) is gated behind Phase 0 (operator decision #1 + a live transport spike on a real BOOX build). Avoid pure-(a) D-002 (Socket.IO-server-parity is the L-risk scoping doesn't reduce) and avoid pure-(b) D-003 (schema-slim = product-fork blast radius on the e-ink tablet) unless the operator makes the compatibility decisions D-003 requires.",
+  "devilsAdvocateRedFlag": {
+    "raised": true,
+    "finding": "The pivot conflates 'we control SOURCE' with 'we control DEPLOYED CLIENTS + COMPATIBILITY.' The Rust-crate killer: a first-run dogfood where codex wires onboard.rs into /remote on, supervises the EXISTING embedded Node happy-server as an internal sidecar, writes machine.json, disables the silent fallback, and the current app pairs/syncs over the existing Socket.IO/wire with NO user-installed happy-cli and NO app changes — would prove zero-friction is mainly lifecycle, not a server rewrite. The unsolved cross-machine APP discovery problem is identical for Rust and Node (agent-comms §5 gives only daemon<->daemon devtunnel list; the app cannot run it).",
+    "handledBy": "Not relitigating the pivot. Folded into sequencing: Phase 1 is server-agnostic (ships zero-friction regardless of server choice); operator decision #1 explicitly tests whether Node-free is the real requirement; the Rust server is gated behind Phase 0."
+  },
+  "decomposition": [
+    {"phase": "0", "name": "Operator decision + go/no-go transport spike (GATE)", "detail": "Resolve operator decision #1 (Node-free hard-required?). If Rust proceeds, run the D-001 transport spike (or D-002 Socket.IO smoke if pure-a chosen) on a real BOOX build: ONE session round-trip (replay from auth.lastSeenSeq -> live new-message/update-session -> one rpc-call->ack -> session-message-range backfill -> reconnect) E2EE. Pass => proceed; fail => fall back."},
+    {"phase": "1", "name": "codex self-onboard + lifecycle (server-AGNOSTIC)", "detail": "ABSORBS task codex-autoconnect-interactive-self-onboard-remote-on. Wire onboard.rs device flow into /remote on when credentials_ready()==false; M1 fix chmod ~/.happy/access.key 0o600 on Unix in onboard.rs::write_credentials; make establish() failure a HARD diagnosed /remote error (no-daemon vs no-creds), NOT today's silent vanilla fallback (attach.rs); codex-managed daemon lifecycle (start/health/restart/stop the embedded server, write machine.json tunnelPort, bring up the Dev Tunnel). Ships the bulk of zero-friction regardless of eventual server choice."},
+    {"phase": "2", "name": "embedded Rust session-server crate (GATED by Phase 0; D-001 shape)", "detail": "NEW overlay crate codex/codex-rs-overlay/codex-happy-server/ (zero upstream-conflict). Reuse codex-happy encryption.rs+wire.rs+store patterns. axum HTTP routes (~8 must-keep) + SQLite store (seq+localId dedup+CAS) + JWT/pairing + plain-WS /v1/updates + single-process room/presence + RPC bridge."},
+    {"phase": "3", "name": "app + codex-client transport adapter", "detail": "packages/happy-app/sources/sync/{apiSocket.ts,socketOptions.ts,sync.ts}: plain-WS transport adapter behind a per-machine capability flag (non-codex machines keep Socket.IO during migration); PRESERVE auth.lastSeenSeq replay + replay-overflow + the two seq domains EXACTLY. codex/codex-rs-overlay/codex-happy/src/session.rs: swap Socket.IO client -> plain-WS client (sync logic unchanged). packages/happy-wire/src/: minimal transport framing if needed; KEEP message/update schemas stable (slimming = D-003)."},
+    {"phase": "4", "name": "cross-machine APP discovery over Dev Tunnels (DEFERRED — likely its own brainstorm)", "detail": "Genuinely unsolved: the phone/webapp is NOT running devtunnel list and there is no central registry; daemon<->daemon discovery (agent-comms §5) does NOT solve app<->machine discovery. FLAG as its own brainstorm/spike. Must NOT gate Phases 1-3 (localhost/webapp pairing delivers honest local zero-friction first)."}
+  ],
+  "crossRepoSurface": {
+    "codexFork": [
+      "codex/codex-rs-overlay/codex-happy/src/onboard.rs (wire into /remote on; M1 0o600)",
+      "codex/codex-rs-overlay/codex-happy/src/attach.rs (hard-diagnosed establish() failure; kill silent vanilla fallback)",
+      "codex/codex-rs-overlay/codex-happy/src/session.rs (Ph3 transport swap Socket.IO->plain-WS)",
+      "codex/codex-rs-overlay/codex-happy/src/auth.rs",
+      "NEW codex/codex-rs-overlay/codex-happy-server/ (the embedded Rust session server; overlay = zero upstream-conflict)",
+      "codex launcher + /remote command seam + .github/workflows/publish-npm.yml packaging (codex owns the lifecycle)"
+    ],
+    "codexuPackages": [
+      "packages/happy-app/sources/sync/apiSocket.ts + socketOptions.ts + sync.ts (Ph3 plain-WS transport adapter behind per-machine capability flag)",
+      "packages/happy-wire/src/ (Ph3 transport framing; schemas STABLE — do not slim, that is D-003)",
+      "packages/happy-server/ (REUSED as the Rust port's reference; not edited unless keeping Node-daemon parity; also the fallback if operator keeps Node)"
+    ],
+    "sequencingNotes": "codex overlay edits are overlay-first (zero upstream-conflict; SANDBOX-PATCH markers only at the 1-3 line attach/launcher seams). codex submodule edits require two-commit + submodule-pointer-bump discipline. Phase 1 (lifecycle/onboard) is codex-only + low-conflict and ships first. Phase 4 (app discovery) is the biggest unknown — own brainstorm. codexu root CLAUDE.md is gitignored; fork-level guidance edits go in AGENTS.md only."
+  },
+  "operatorDecisions": [
+    "TOP DECISION: Is 'Node-free' a HARD requirement (security/distribution/no-Node-runtime in the codex artifact), OR is 'codex is the only user-visible install' sufficient (a codex-supervised Node sidecar already satisfies that)? Determines whether the Rust server is on the zero-friction critical path at all.",
+    "a vs b vs hybrid: recommend HYBRID (D-001) transport-swap — app transport may change (pivot allows it) but wire SCHEMAS stay stable. Confirm schemas must NOT be slimmed (else D-003).",
+    "Compatibility scope: which deployed clients must keep working — only the maintainer's BOOX tablets (force-updatable via App Distribution), or also existing iOS/Android/web/desktop installs + happy-cli-first Node-daemon users? Narrow => transport swap is safe; broad => dual-stack migration required.",
+    "Single-per-machine ownership: when both happy-cli and raw codex are installed, who owns the machine's session plane + tunnel (shared / mutual-exclusion / takeover / two identities)? Split-brain risk.",
+    "Phase-4 app discovery: file its own brainstorm now, or accept local-first-only for v1?"
+  ],
+  "questionsForSynthesis": [
+    "Is byte-stable app/wire compatibility actually required for any NON-operator user, or is it inherited caution from the voided spike?",
+    "Exact mandatory route groups + DB tables for local-first v1 (the spike's ~8-group/~7-table superset vs a reduced pair/account/session/machine surface)?",
+    "Version-skew governance across happy-wire (TS) <-> codex-happy Rust serde mirror <-> Rust server <-> app after independent edits?",
+    "SQLite from day one (durable) vs in-memory with an append-only migration path?",
+    "Can socketioxide (option a) satisfy the exact mobile/web socket.io-client behavior through the Dev Tunnels gateway without polling fallback?",
+    "Does option (b)/hybrid require changing codex-happy/src/session.rs too (yes for the transport swap), and where does the protocol boundary live so future upstream merges hit only packages/happy-app adapters, not codex-happy server internals?",
+    "What is the first go/no-go spike: Node-sidecar zero-friction dogfood (DA kill-test), Rust transport compatibility against the real app, or app-discovery over Dev Tunnels?"
+  ],
+  "readyForPlanning": true,
+  "planningEntry": "/plan-with-ralph .ralph/brainstorms/codex-autoconnect-self-contained-zero-friction/rust-crate-brainstorm-synthesis.md (recommend scoping the plan to Phase 0 GATE + Phase 1 lifecycle/onboard first, which is server-agnostic and low-conflict; Phases 2-3 follow the operator's Node-free decision; Phase 4 is a separate brainstorm)."
+}
