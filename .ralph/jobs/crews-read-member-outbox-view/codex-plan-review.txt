@@ -1,0 +1,18 @@
+**Feasibility**
+- [High] D-002 is feasible, but the delegation plan is underspecified in a way that can break `read-member-reports --help` and error text. `hooks/commands/runtime.js` uses `surface.usage || command.usage` for CLI help, so a module that “re-exports read-member’s surfaces” from `hooks/commands/read-member.js` will keep the old `node read-member.js ...` / `/crews:read-member` usage unless it clones and overrides `surfaces.cli.usage`. The reused parser/formatter also hard-codes `/read-member` in usage/errors. The D-002 amendment is directionally adequate, but it needs explicit wrapper/clone guidance for command-specific usage while sharing the handler/filter logic.
+
+**Completeness**
+- [High] The plan misses briefing golden updates. Lead-visible command changes flow into the generated command list in the session briefing, and `tests/briefing-render.test.js` compares `tests/golden/briefing-lead.md` exactly. Changing `read-member` usage/description and adding `read-member-reports` will require updating that golden; otherwise the full `tests/run.js` suite will fail.
+- [Medium] The decided `--kind` + `--no-progress` AND behavior is only in Open Questions, not in tests/ACs. Add a regression test for combined filters and for the “legacy/missing kind rows shown by `--no-progress`, excluded by `--kind`” contract if that behavior is intended to be durable.
+- [Medium] The verification plan should explicitly tee the first full test run to a file per repo instructions, e.g. `node tests/run.js 2>&1 | tee test-output-read-member-outbox-view.log`. The current AC says the suite passes but omits the required log-retention workflow.
+- [Low] If this version bump is intended as a shipped plugin release, the plan should include `CHANGELOG.md` alongside `AGENTS.md` and the six version stamps. The repo has a plugin changelog and the release workflow normally keeps it in sync.
+
+**Ordering**
+No issues found. The code-before-regeneration order is right: implement registry/module changes, then regenerate skills, then run drift checks and the full suite.
+
+**Simplicity**
+- [Medium] “Same handler/parser/formatter” is a bit too rigid for D-002. The simpler maintainable shape is a shared read-member implementation plus a small command factory or cloned surfaces that override only name/usage/error-prefix strings. Reusing the same surface object directly is fragile because command metadata and CLI help are embedded on the surface.
+
+**Acceptance Criteria Quality**
+- [Medium] AC5’s requirement that `read-member-reports` reaches the “SAME read-member handler/parser/formatter” conflicts with the need for command-specific `--help` and usage errors. Reword it to require shared underlying read/filter/cursor logic, while allowing wrapped parser/formatter surfaces for `read-member-reports` metadata.
+- [Low] AC4 should say “stdout remains the byte-identical bare JSON array for unfiltered `read-member` CLI output.” The legacy `tools/read-member.js` shim also emits a deprecation warning on stderr, so “CLI call” without “stdout” is slightly ambiguous.

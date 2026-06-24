@@ -1,0 +1,38 @@
+I’ll read the provided prompt file and use it as the task source.
+
+The prompt is larger than the viewer limit, so I’ll read it in sections and then implement the requested change.
+
+I’ll verify the plan against the current crews command, registry, generator, and pinned tests.
+
+I found the core command surfaces match the plan’s premise; I’ll check runtime dispatch and tests for edge cases in the proposed delegation.
+
+The main plan is implementable; I’m checking release/documentation expectations and command-shape details for missing coverage.
+
+One root-level search was denied by policy, so I’ll rely on accessible crews plugin files for the review.
+
+Note: access to root `AGENTS.md` was denied by policy, so I reviewed against the provided plan plus accessible crews plugin files.
+
+### Feasibility
+
+[High] The D-002 delegation plan can accidentally leave `read-member-reports --help` showing `read-member` usage. `hooks/commands/runtime.js:59-61` prefers `surface.usage || command.usage`; `read-member.js:150-154` has `surfaces.cli.usage: USAGE`. A wrapper that “re-exports read-member’s surfaces/handler with its own name/description/usage” will not affect CLI help unless it also clones/overrides `surfaces.cli.usage`.
+
+### Completeness
+
+[High] The plan omits `plugins/crews/CHANGELOG.md` from release updates. Crews release notes repeatedly document version ships touching `CHANGELOG.md` and `AGENTS.md` together, e.g. `plugins/crews/AGENTS.md:142-144` and recent entries around `:3300`, `:3498`, `:3662`. Since the plan includes a version bump, the changelog should be in files-to-modify and acceptance criteria.
+
+[Medium] If `read-member-reports` reuses `read-member` formatters verbatim, errors still say `/read-member` (`hooks/commands/read-member.js:125-129`) and missing-argument usage says `/read-member` (`:29-31`). That does not break the data path, but it weakens the discoverability goal of a first-class renamed surface.
+
+### Ordering
+
+No issues found.
+
+### Simplicity
+
+No issues found. The display-only filter approach and delegating command are consistent with existing registry/runtime patterns.
+
+### Acceptance Criteria Quality
+
+[Medium] AC5 says delegation is “verified by a dispatcher test,” but should explicitly require per-command help for `read-member-reports --help` to mention `read-member-reports`, not `read-member`, because runtime help uses `surfaces.cli.usage`.
+
+[Medium] AC6 should include `CHANGELOG.md` alongside `AGENTS.md`, generated skills, and version stamps so the release documentation contract is verifiable.
+

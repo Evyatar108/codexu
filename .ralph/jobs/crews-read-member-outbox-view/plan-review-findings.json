@@ -1,0 +1,89 @@
+{
+  "planFile": "draft-plan.md",
+  "repoDir": "D:/harness-efforts/codexu/ai-developer-toolkit/plugins/crews",
+  "generatedAt": "2026-06-24",
+  "reviewers": ["claude", "codex", "copilot"],
+  "findings": [
+    {
+      "id": "F-001",
+      "severity": "High",
+      "category": "Feasibility",
+      "source": "consensus",
+      "status": "resolved",
+      "description": "D-002 delegation under-specified: runtime.js:59-61 derives CLI --help from `surface.usage || command.usage`, and read-member's reused parseSlash/formatError hard-code `/read-member` (read-member.js:29-31, :125-129). A naive surfaces re-export would make `read-member-reports --help` and errors say `read-member`.",
+      "resolution": "Plan now specifies a command FACTORY / shared core parameterized by command identity: share parse/filter/cursor/handler/format LOGIC, override own name/description/usage/surfaces.cli.usage + slash usage + error-prefix. AC5 + US-004 require `read-member-reports --help` to show its own identity, asserted by the dispatcher test. (Flagged by codex + copilot; Claude raised the related coverage gap.)"
+    },
+    {
+      "id": "F-002",
+      "severity": "High",
+      "category": "Completeness",
+      "source": "codex",
+      "status": "resolved",
+      "description": "Plan missed the lead briefing golden. The lead cheat-sheet renders `${usage} — ${description}` per lead-visible command (slashCommandsCheatSheet -> listCommands('lead')), and tests/briefing-render.test.js byte-compares tests/golden/briefing-lead.md. Both the read-member wording rewrite AND a new lead-visible read-member-reports change it.",
+      "resolution": "Verified the cheat-sheet enumeration in source. Added tests/golden/briefing-lead.md regeneration to Files-to-Modify, Technical Constraints, Risk Areas, AC6b, US-005, US-007, and the decomposition sharedFiles. briefing-member.md is unaffected (lead-only commands)."
+    },
+    {
+      "id": "F-003",
+      "severity": "High",
+      "category": "Completeness",
+      "source": "copilot",
+      "status": "resolved",
+      "description": "Plan omitted plugins/crews/CHANGELOG.md from the release. Crews releases keep CHANGELOG.md + AGENTS.md in lockstep with the 6 version stamps.",
+      "resolution": "Added CHANGELOG.md `## 3.24.0` prepend to Files-to-Modify, Technical Constraints, AC6, and US-006. Confirmed CHANGELOG.md exists (head `## 3.23.2`)."
+    },
+    {
+      "id": "F-004",
+      "severity": "High",
+      "category": "Completeness",
+      "source": "claude",
+      "status": "resolved",
+      "description": "The 'unaffected (verified)' callout for other pinned command-list tests was unsafe; a lead-visible CLI command may break more than the two pinned arrays.",
+      "resolution": "Source-checked the remaining candidates: dispatcher-routes (curated subset), shim-deprecation (shim-dir derived; no shim for read-member-reports), command-compat-list-members (member rows not commands), cheatsheet (fixed local list), tool-help (legacy shims), briefing-discoverability (>=20 lower bound) are NOT auto-broken; briefing-lead.md golden IS (F-002). Softened the plan to 'run the full suite; the suite is the source of truth' with the known-breaker + not-affected list explicit (Files-to-Modify, US-007 AC)."
+    },
+    {
+      "id": "F-005",
+      "severity": "Medium",
+      "category": "Criteria Quality",
+      "source": "consensus",
+      "status": "resolved",
+      "description": "AC/test combinatorics too loose: --kind combined with --all/--since/--peek; both --kind and --no-progress together (AND); the legacy/missing-kind contract; empty-outbox; were only in Open Questions, not in ACs/tests.",
+      "resolution": "AC1 + AC4 spell out the combinations; US-007 + US-002 add explicit regression tests for combined filters, legacy/missing-kind, --all/--since/--peek interaction, empty outbox. (Claude + codex + copilot.)"
+    },
+    {
+      "id": "F-006",
+      "severity": "Medium",
+      "category": "Acceptance Criteria Quality",
+      "source": "copilot",
+      "status": "resolved",
+      "description": "AC5 should explicitly require per-command help for read-member-reports --help to mention read-member-reports, not read-member.",
+      "resolution": "Folded into F-001 resolution: AC5 + US-004 require correct identity in help/error text, asserted by the dispatcher test."
+    },
+    {
+      "id": "F-007",
+      "severity": "Medium",
+      "category": "Process",
+      "source": "codex",
+      "status": "resolved",
+      "description": "Verification AC should tee the first full test run to a file per repo instructions.",
+      "resolution": "AC8 + US-007 now specify `node tests/run.js 2>&1 | tee test-output-read-member-outbox-view.log` and grep-the-log-instead-of-rerun."
+    },
+    {
+      "id": "F-008",
+      "severity": "Low",
+      "category": "Clarity",
+      "source": "codex",
+      "status": "resolved",
+      "description": "AC4 should say STDOUT remains the byte-identical bare JSON array (the legacy tools/read-member.js shim emits a stderr deprecation warning).",
+      "resolution": "AC4 reworded to specify STDOUT; STDERR shim warning noted as unchanged."
+    },
+    {
+      "id": "F-009",
+      "severity": "Low",
+      "category": "Simplicity",
+      "source": "codex",
+      "status": "resolved",
+      "description": "'Same handler/parser/formatter' is too rigid for D-002; a shared core + command factory overriding only identity strings is the maintainable shape.",
+      "resolution": "Adopted the factory/shared-core framing throughout (Architecture, Constraints, US-004). Same resolution as F-001."
+    }
+  ]
+}
