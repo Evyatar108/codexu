@@ -1,0 +1,34 @@
+I’ll read the prompt file and then carry out its instructions.
+
+I’ll validate the plan against the referenced codex files and then return only the requested review findings.
+
+### Feasibility
+
+- [High] The plan worktree’s `codex/` submodule is not initialized, so the referenced codex paths are absent locally. Add an explicit preflight: `git submodule update --init --recursive`, then create/use the codex submodule worktree required by repo rules before implementation.
+
+- [High] Q2 is still unresolved, but it determines the core `/remote on` control flow. The plan should choose either an `AppEvent` round-trip or an inline/background `slash_dispatch.rs` flow before implementation, otherwise an autonomous agent may create duplicate attach paths or block the TUI while polling device flow.
+
+- [High] `SessionPlaneSupervisor::stop()` is underspecified for Phase 1’s shared Node daemon. If Codex stops/restarts a Happy daemon it did not exclusively own, it can disrupt existing Happy CLI/mobile sessions. The plan needs an ownership rule: start/health/probe are Phase 1; stop/restart only for a Codex-owned child or deferred to Phase 2.
+
+### Completeness
+
+- [High] The plan omits the required codex submodule ship mechanics: codex-side commit in a submodule worktree, push to the codex remote, then a separate codexu parent commit that bumps the `codex/` pointer. This is a repo workflow requirement, not optional bookkeeping.
+
+- [High] The `access.key` permission fix says “chmod after atomic write.” For a secret, that may leave a too-permissive transient file depending on `write_json_atomically` and umask. The plan should require secure creation of the temp file itself, or verify the helper already creates temp files at `0o600`, not only final chmod.
+
+- [Medium] The daemon readiness contract should explicitly include `machine.json`, both listener ports, and loopback capability presence. The happy-cli source shows `daemonClient.ensureDaemonReady()` requires capability plus TCP probes; mirroring only port checks risks accepting a half-ready daemon.
+
+### Ordering
+
+- [High] US-003 self-onboard depends on the chosen async TUI surfacing path from Q2, but Q2 is left open. Resolve that before US-002/US-003 so `AttachError`, onboarding progress, and final attach errors use one event/message path.
+
+### Simplicity
+
+No issues found.
+
+### Acceptance Criteria Quality
+
+- [High] The ACs do not require a test for “happy-cli missing from PATH” / no Phase-1 daemon available, even though Q1 says this is central. Add an AC that `/remote on` after successful self-onboard reports a categorized `NoDaemon` error when no daemon binary is available.
+
+- [Medium] The AC “impl-time by wiping `~/.happy`” is not precise enough for autonomous verification. Specify using a temp `HAPPY_HOME_DIR` fixture so the test does not mutate a developer’s real credentials.
+

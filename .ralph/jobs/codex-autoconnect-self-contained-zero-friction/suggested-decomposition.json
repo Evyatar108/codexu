@@ -1,0 +1,25 @@
+{
+  "clusters": [
+    {
+      "name": "codex-autoconnect-phase1-serial",
+      "stories": ["US-001", "US-002", "US-003", "US-004"],
+      "phase": 1,
+      "dependsOn": [],
+      "fileOverlapEvidence": {
+        "sharedFiles": [
+          "codex/codex-rs-overlay/codex-happy/src/attach.rs",
+          "codex/external/repos/codex-patched/codex-rs/tui/src/chatwidget/slash_dispatch.rs",
+          "codex/codex-rs-overlay/codex-happy/src/lib.rs",
+          "codex/docs/implementation/patch-surface.md"
+        ],
+        "exclusiveFiles": [
+          "codex/codex-rs-overlay/codex-happy/src/onboard.rs",
+          "codex/codex-rs-overlay/codex-happy/src/remote_on.rs",
+          "codex/codex-rs-overlay/codex-happy/src/daemon_supervisor.rs"
+        ],
+        "risk": "high"
+      },
+      "executionModeRationale": "US-002/US-003/US-004 all modify the same upstream-canonical hot file (tui/src/chatwidget/slash_dispatch.rs), the same overlay attach.rs, and the same patch-surface.md, and must land on one coherent codex submodule branch with a single submodule-pointer bump. Parallel execution would produce conflicting edits to those shared seams and to patch-surface.md. Run serially in dependency order US-001 -> US-002 -> US-003 -> US-004. US-001 (the 0o600 chmod) is independent and could land first in isolation, but is too small to justify a separate cluster."
+    }
+  ]
+}
