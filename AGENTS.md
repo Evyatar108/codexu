@@ -792,8 +792,10 @@ handoff). Re-bind it EARLY, before arming:
   real native spawn-child fan-out (ralph 5.56.0 D-002). EXCEPTION: HEAVY
   multi-lens work (brainstorm / plan members that fan out
   codex+copilot+devil's-advocate lenses) stays on **copilot** for reliability —
-  concurrent heavy multi-lens members are the documented resource-exhaustion /
-  crash-prone workload — so spawn those with explicit `--engine copilot` (the
+  heavy multi-lens members are the more crash-prone workload under heavy load
+  (see the retired-cap note under "Continuous-flow pipeline"; this is an
+  ENGINE-reliability point, NOT a count cap) — so spawn those with explicit
+  `--engine copilot` (the
   `spawn-copilot-from-file.js` helper forces it). For routine impls, a bare
   spawn (codex) is the default; `spawn-from-file.js` also sets
   `CREWS_ENGINE=codex` explicitly. If codex regresses, revert per the
@@ -1026,17 +1028,21 @@ throughput while the lead is awake to babysit.
 
 The rules that make it safe:
 
-- **Concurrency cap is engine-and-weight-aware, not a flat count.** The
-  documented crash mode (2026-06-06) is concurrent **heavy multi-lens**
-  members — brainstorm/plan members that fan out 3 xhigh lenses
-  (codex+copilot+devil's-advocate) — dying from resource exhaustion. Impls
-  fan out far less (one review lens in Phase 5a). So:
-  - Keep **heavy multi-lens (brainstorm/plan) members to ~2 concurrent**.
-  - **Impls can run ~3 concurrent**; when one member is HEAVY (a Rust
-    `cargo` build like the anthropic transport, or a release build), cap the
-    TOTAL at ~3 and don't add a second heavy member.
-  - Read the live roster + each member's phase before topping up; never spawn
-    blind to count.
+- **No capacity cap on member count (operator decision 2026-06-24).** There is
+  NO fixed concurrency limit — spawn whatever is surface-disjoint (see the
+  four-level disjointness rule below), and only back off if something *actually*
+  crashes. The earlier "~2 concurrent heavy multi-lens" heuristic has been
+  RETIRED: it was an over-cautious extrapolation from a SINGLE observed event
+  (2026-06-06, session c62b26f0: two concurrent multi-lens brainstorm members
+  died with a `.crews` lock-file crash), not a measured limit, and the operator
+  explicitly removed it ("we dont have a capacity cap"). Keep that 2026-06-06
+  event in mind only as a *failure mode to recognize* (multi-lens members fan
+  out 3 xhigh lenses each, so heavy concurrent load can surface transient
+  Windows `.crews` lock contention) — if a member dies pidAlive:false with no
+  deliverable, respawn it and, if it recurs under load, THEN serialize that
+  specific batch. Do not pre-emptively throttle. Still read the live roster +
+  each member's phase before topping up so spawns stay disjoint — that is a
+  correctness check, not a count cap.
 
 - **Top-up candidate must be disjoint at ALL FOUR levels** (extends the
   three-level rule above): repo, plugin (within a submodule), shared-docs,
