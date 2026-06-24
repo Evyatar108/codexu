@@ -1795,6 +1795,25 @@
         },
         "descriptionHtml": ""
       }
+    },
+    {
+      "id": "overview-data-json-further-breakdown-for-readability",
+      "scope": "ralph-overview",
+      "lifecycle": "tracked",
+      "status": "active",
+      "lastTouchedAt": "2026-06-24",
+      "kanbanCards": [
+        {
+          "className": "cmd-warn",
+          "html": "DX/READABILITY (operator ask, 2026-06-24): <code>.ralph-overview/data.json</code> is too large to read/navigate comfortably. NOTE: a hot/cold two-shard split ALREADY shipped in <strong>ralph-overview 2.12.0</strong> (HOT <code>data.json</code> = tracked/active tasks; COLD <code>data.archived.json</code> = merged/archived; <code>data-edit migrate-split</code> + auto-detecting loader; ~5x smaller active file). This task asks whether a FURTHER breakdown beyond hot/cold meaningfully improves human readability/navigation — e.g. per-scope shards (crews / codex / ralph-overview / happy), per-task files under a directory, or a generated human-readable index — WITHOUT breaking the loader/watcher/MCP/viewer/projection consumers that all assemble a single <code>{tasks:[...]}</code>. Operator chose to brainstorm it."
+        }
+      ],
+      "command": {
+        "name": "overview-data-json-further-breakdown-for-readability",
+        "prompts": {
+          "brainstorm": "Brainstorm + design a FURTHER breakdown of the hand-curated overview store for human readability/navigation, building ON TOP of the hot/cold two-shard split that already shipped in ralph-overview 2.12.0.\n\nVERIFIED STARTING POINT (re-confirm against source, cite file:line):\n- ralph-overview >= 2.12.0 already splits the store into HOT `.ralph-overview/data.json` (tracked/active tasks + metadata) and COLD `.ralph-overview/data.archived.json` (merged + archived). The loader auto-detects single-file vs split and assembles the identical `{tasks:[...]}`; `data-edit` (mark-shipped/set-lifecycle) moves a task between shards under one store lock; `data-edit migrate-split` performs the partition. Find the loader, the shard-resolution, and the `migrate-split` verb in the ralph-overview plugin and cite them.\n- ALL downstream consumers (the sync watcher, the MCP server, the React viewer, and the generated projections active-tasks.json / summary-projection.json / snapshot.json) consume the ASSEMBLED `{tasks:[...]}`. Any further split MUST keep that assembled shape byte-for-byte identical so every consumer is unchanged.\n\nTHE PROBLEM: even the HOT shard is large and hard for a human (and an agent loading it into context) to read/navigate. The operator wants it easier to read.\n\nDESIGN OPTIONS to weigh (recommend ONE, with tradeoffs + a migration/back-compat path):\n1. Per-SCOPE shards (e.g. `.ralph-overview/data/<scope>.json` for crews / codex / ralph-overview / happy / ...), assembled by the loader. Pro: a reader opens just the scope they care about. Con: cross-scope moves; scope is currently a per-task field, not a partition key.\n2. Per-TASK files (a directory `.ralph-overview/data/tasks/<id>.json`), assembled by the loader. Pro: minimal diffs, trivially navigable, git-blame per task. Con: hundreds of files; loader must glob+merge deterministically; ordering.\n3. Keep one file but improve READABILITY (stable key ordering, a generated human index `tasks/INDEX.md` already exists — extend it; or a generated per-scope read-only markdown/html view). Pro: zero loader change. Con: doesn't shrink the canonical file.\n4. A hybrid: keep hot/cold for lifecycle, add a generated read-only per-scope or per-task VIEW (markdown/html) for humans while the canonical store stays as-is.\n\nEVALUATE: the exact loader/assembly seam (file:line) and whether it can deterministically merge a directory of shards; how `data-edit` verbs (upsert-task/mark-shipped/set-lifecycle/add-kanban-card/set-prompts) would target the right shard; the invariant-check/CI implications; the `migrate-*` verb pattern already used; ordering/determinism so generated projections don't churn; and whether the win is worth the loader complexity vs. option 3/4 (generated views) which keep the store single-file. Cross-engine + agent-context-size angle (a smaller per-scope read is the real agent win).\n\nDELIVERABLE: recommended direction (which option + why), the loader/assembly + data-edit seam (file:line), a migration verb sketch (mirroring migrate-split), back-compat for existing single/hot-cold layouts, and a test plan. Write brainstorm.json under .ralph/brainstorms/overview-data-json-further-breakdown-for-readability/. Brainstorm only. This is a ralph-overview-plugin + .ralph-overview/-data surface (disjoint from crews/codex/happy work)."
+        }
+      }
     }
   ],
   "phaseTree": [
