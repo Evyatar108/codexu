@@ -1207,7 +1207,7 @@
       "scope": "codex",
       "lifecycle": "tracked",
       "status": "active",
-      "lastTouchedAt": "2026-06-09",
+      "lastTouchedAt": "2026-06-24",
       "kanbanCards": [
         {
           "className": "cmd-warn",
@@ -1639,6 +1639,10 @@
         {
           "className": "cmd-ok",
           "html": "PROBE COMPLETE @ <code>03a3e1ce</code> (2026-06-24, operator \"I want us to still check the signed reasoning thing\"). <strong>VERDICT: GO</strong> — signed CoT over Copilot's <code>/v1/messages</code> is feasible, verified live against the proxy. Per gate: <strong>(a) auth accepted</strong> — HTTP 200 on <code>/v1/messages</code> with the fork's Copilot bearer; <strong>(b) signed thinking emitted</strong> — Anthropic <code>thinking</code> block + a <strong>748-char signature</strong> in turn-1 SSE; <strong>(c) signed replay accepted/enforced</strong> — a genuine signed thinking block replayed before <code>tool_result</code> was accepted (200), while a TAMPERED signature was rejected (400), proving the proxy <em>preserves AND cryptographically enforces</em> the signature end-to-end (not blind passthrough). Evidence: <code>.ralph/investigations/anthropic-signed-cot-v1messages-probe/</code> (findings.md + transport sketch, probe-v1messages.mjs, v1messages-evidence.json, auth-scrubbed SSE excerpts for all 3 gates). The sequencing prereq is ALREADY met — the unsigned <code>reasoning_text</code> capture/replay sibling shipped (codex 0.141.0-copilot-api.2, merged). So the signed <code>/v1/messages</code> transport build (XL) is now UNBLOCKED. OPERATOR DECISION PENDING: build the third WireApi/transport arm now, or defer (unsigned plaintext replay already works in production).\r\n"
+        },
+        {
+          "className": "cmd-info",
+          "html": "DECISION (operator 2026-06-24): DEFER the signed /v1/messages transport build, gated on verifying the UNSIGNED path first. Rationale: Anthropic CoT ALREADY works on the current /chat/completions API (unsigned reasoning_text capture/replay, shipped codex 0.141.0-copilot-api.2); /v1/messages only adds CRYPTOGRAPHICALLY-SIGNED CoT (probe = GO, proxy preserves+enforces the signature). Signed is optional robustness, NOT a missing feature. Operator asked: \"did we verify [unsigned] works as expected in /chat/completions?\" Answer: parser unit tests (codex-copilot 17/17) + routing test + a live spike verify the WIRE format, but NO deterministic end-to-end agentic-turn test exists (tracked as codex-anthropic-transport-us008-e2e-test). NEXT: close that e2e gap first (plan-us008 spawned 2026-06-24, expanded to assert reasoning CAPTURE on turn 1 + REPLAY continuity + byte-cap on turn 2, not just function_call/usage). REVISIT the signed-transport build only if the unsigned e2e reveals a real continuity problem. GO findings stay on file at .ralph/investigations/anthropic-signed-cot-v1messages-probe/.\r\n"
         }
       ],
       "command": {
