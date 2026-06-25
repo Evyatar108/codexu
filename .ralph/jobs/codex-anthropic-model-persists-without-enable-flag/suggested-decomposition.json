@@ -1,0 +1,36 @@
+{
+  "clusters": [
+    {
+      "name": "harden-tests-and-ledger",
+      "stories": ["US-001", "US-002", "US-003"],
+      "phase": 1,
+      "dependsOn": [],
+      "fileOverlapEvidence": {
+        "sharedFiles": [
+          "model-provider/src/copilot.rs",
+          "model-provider/src/copilot/gated_models_manager.rs",
+          "codex/docs/implementation/patch-surface.md"
+        ],
+        "exclusiveFiles": [],
+        "risk": "low"
+      },
+      "executionModeRationale": "US-001 and US-002 add tests to the same model-provider test module and US-003 updates the patch-surface ledger that names those tests; they are small, tightly coupled, and must land together. Run as one serial impl member."
+    },
+    {
+      "name": "advisory-optional",
+      "stories": ["US-004"],
+      "phase": 2,
+      "dependsOn": ["harden-tests-and-ledger"],
+      "fileOverlapEvidence": {
+        "sharedFiles": [],
+        "exclusiveFiles": [
+          "tui/src/app_server_session.rs",
+          "core/src/session/turn_context.rs",
+          "core/src/session/mod.rs"
+        ],
+        "risk": "medium"
+      },
+      "executionModeRationale": "Behavior change on a disjoint surface (core + tui + snapshot), independent of and deferrable relative to the test cluster. Run only if the lead/operator opts in; otherwise file as a separate follow-up."
+    }
+  ]
+}

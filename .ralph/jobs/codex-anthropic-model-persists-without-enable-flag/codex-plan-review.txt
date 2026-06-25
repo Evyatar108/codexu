@@ -1,0 +1,31 @@
+### Feasibility
+
+[High] `serial_test` is not available to `codex-model-provider` yet. The plan requires `#[serial_test::serial]`, but `codex/external/repos/codex-patched/codex-rs/model-provider/Cargo.toml:42` has dev-deps for `pretty_assertions`, `serde_json`, `tokio`, and `wiremock`, not `serial_test`. Add `serial_test = { workspace = true }` or the proposed tests will not compile.
+
+[Medium] The global gate setup should explicitly set the gate off at test start, not only reset at the end. `model-provider/src/anthropic_gate.rs` is process-global, and `model-provider/src/copilot_models_endpoint.rs:587-603` already flips it. The new tests should call `install_anthropic_gate(false)` before constructing/using the manager and reset after, ideally with minimal code between set/reset.
+
+### Completeness
+
+[High] US-002 only proves the `config_model_catalog: Some(...)` branch of `CopilotModelProvider::models_manager()` at `model-provider/src/copilot.rs:123`. The live `/models` branch at `model-provider/src/copilot.rs:140` is the normal no-catalog production path, but the plan accepts a comment/ledger note as coverage. That does not guard the branch. Add either a real static invariant in `codex/scripts/audit_invariants.sh` checking both wrap sites, or a mockable live-branch test if feasible.
+
+[Medium] If a static guard is added, the files and verification list are incomplete. The plan mentions source-anchored guarding, but does not list `codex/scripts/audit_invariants.sh` or require `bash scripts/audit_invariants.sh`. Invariant 39 lives at `codex/docs/implementation/patch-surface.md:877`, so the ledger update should point to the actual enforcing mechanism.
+
+[Medium] The commit layering is under-specified for nested repos. Code edits are in `codex/external/repos/codex-patched/codex-rs/...`, the invariant ledger is in `codex/docs/implementation/patch-surface.md`, and codexu needs the outer `codex/` pointer bump. The plan should state the order: inner patched repo commit, codex wrapper commit with pointer/docs, then codexu pointer bump.
+
+### Ordering
+
+[Medium] Add the `model-provider/Cargo.toml` dev-dependency before writing tests that import `serial_test`, otherwise the first verification loop fails at compile time.
+
+[Medium] If US-002 is meant to include a static invariant, add/update that guard before updating Invariant 39 to claim enforcement. Otherwise the ledger will name protection that does not exist yet.
+
+### Simplicity
+
+No issues found. Keeping US-001/US-002 in `model-provider/src/copilot.rs`’s existing test module is the simplest natural integration point.
+
+### Acceptance Criteria Quality
+
+[High] The US-002 acceptance criterion is too weak: “online branch covered by the `// SANDBOX PATCH` anchor + a note” is not testable enforcement. Make it concrete, e.g. “`bash scripts/audit_invariants.sh` fails if either `copilot.rs:123` or `copilot.rs:140` stops returning `GatedModelsManager::wrap(...)`.”
+
+[Medium] The optional US-004 criterion is clear technically, but the plan still has an open decision about whether to include it. Before autonomous implementation, mark US-004 explicitly deferred or explicitly in-scope so the implementer does not expand the ship accidentally.
+
+No prior review cycles or amendments were mentioned, so there are no review-fix regressions to assess.
