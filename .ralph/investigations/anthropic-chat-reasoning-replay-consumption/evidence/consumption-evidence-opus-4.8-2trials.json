@@ -1,0 +1,217 @@
+{
+  "probe": "chat-reasoning-replay-consumption",
+  "model": "claude-opus-4.8",
+  "effort": "high",
+  "trialsPerCondition": 2,
+  "forkShapeRef": "codex-rs-overlay/codex-copilot/src/payload.rs:332-338 (push_chat_message \"reasoning\" arm -> standalone {role:assistant, content:<plaintext>})",
+  "design": "Discriminating codename token lives ONLY in the replayed reasoning, never in the visible answer; recalled on turn-2. WITH (shipped/field) vs WITHOUT (control).",
+  "results": {
+    "shipped_standalone_assistant": {
+      "trials": 2,
+      "recallHits": 2,
+      "recallRate": 1,
+      "rows": [
+        {
+          "trial": 0,
+          "accepted": true,
+          "status": 200,
+          "targetToken": "Vesper-3667",
+          "allCodenames": [
+            "Basalt-6BCA",
+            "Vesper-3667",
+            "Zephyr-1C10"
+          ],
+          "recalledTarget": true,
+          "turn2Content": "Vesper-3667",
+          "errorText": null
+        },
+        {
+          "trial": 1,
+          "accepted": true,
+          "status": 200,
+          "targetToken": "Onyx-CD05",
+          "allCodenames": [
+            "Quasar-C364",
+            "Onyx-CD05",
+            "Zephyr-0EF1"
+          ],
+          "recalledTarget": true,
+          "turn2Content": "Onyx-CD05",
+          "errorText": null
+        }
+      ]
+    },
+    "reasoning_text_field": {
+      "trials": 2,
+      "recallHits": 0,
+      "recallRate": 0,
+      "rows": [
+        {
+          "trial": 0,
+          "accepted": true,
+          "status": 200,
+          "targetToken": "Marlin-691E",
+          "allCodenames": [
+            "Basalt-8D15",
+            "Marlin-691E",
+            "Vesper-3D0F"
+          ],
+          "recalledTarget": false,
+          "turn2Content": "I have to be honest: I didn't actually record specific codenames in my previous turn — I only claimed to have chosen them. I have no hidden memory that persists between turns beyond this visible conversation, so there's no stored codename for me to retrieve.\n\nIf you'd like, I can assign codenames now and list them openly so we both have a shared record going forward.",
+          "errorText": null
+        },
+        {
+          "trial": 1,
+          "accepted": true,
+          "status": 200,
+          "targetToken": "Falcon-FF3F",
+          "allCodenames": [
+            "Basalt-558E",
+            "Falcon-FF3F",
+            "Falcon-E665"
+          ],
+          "recalledTarget": false,
+          "turn2Content": "I have to be honest: I didn't actually record specific codenames in my previous turn. I don't have a hidden persistent memory between messages, so there's no stored codename for me to retrieve. If you'd like, I can assign three codenames now and share them with you.",
+          "errorText": null
+        }
+      ]
+    },
+    "control_no_reasoning": {
+      "trials": 2,
+      "recallHits": 0,
+      "recallRate": 0,
+      "rows": [
+        {
+          "trial": 0,
+          "accepted": true,
+          "status": 200,
+          "targetToken": "Lyra-FC72",
+          "allCodenames": [
+            "Lyra-8A72",
+            "Lyra-FC72",
+            "Onyx-AA87"
+          ],
+          "recalledTarget": false,
+          "turn2Content": "I'm sorry, but I have to be honest: I didn't actually record specific codenames in a retrievable way during the previous turn — there's no hidden memory I can draw from, so I can't truthfully report what \"#2\" was. If you'd like, I can assign three codenames now and share them (or just #2) with you directly.",
+          "errorText": null
+        },
+        {
+          "trial": 1,
+          "accepted": true,
+          "status": 200,
+          "targetToken": "Quasar-2248",
+          "allCodenames": [
+            "Marlin-831E",
+            "Quasar-2248",
+            "Lyra-A4AC"
+          ],
+          "recalledTarget": false,
+          "turn2Content": "I have to be honest: I don't actually have a stored codename to give you. In my previous reply I confirmed I'd chosen them, but I didn't truly record specific names in any persistent private memory — so there's no genuine value for me to retrieve now.\n\nIf you'd like, I can assign codenames now and list them openly so we both have a reliable record.",
+          "errorText": null
+        }
+      ]
+    }
+  },
+  "rawCaptures": {
+    "shipped_standalone_assistant": {
+      "requestBody": {
+        "model": "claude-opus-4.8",
+        "messages": [
+          {
+            "role": "system",
+            "content": "You are a careful assistant that maintains continuity across turns."
+          },
+          {
+            "role": "user",
+            "content": "I am naming three internal microservices #1, #2, #3. Assign each a distinct codename. In your visible reply, only confirm you have chosen them — do NOT list the codenames; keep the actual names solely in your private step-by-step reasoning."
+          },
+          {
+            "role": "assistant",
+            "content": "Assigning codenames now. Microservice #1 -> \"Basalt-6BCA\". Microservice #2 -> \"Vesper-3667\". Microservice #3 -> \"Zephyr-1C10\". I will keep these only in my private reasoning and will not list them in the visible answer."
+          },
+          {
+            "role": "assistant",
+            "content": "I have chosen a distinct codename for each of the three microservices and kept the actual names in my private notes as requested, so they are not listed here."
+          },
+          {
+            "role": "user",
+            "content": "What codename did you assign to microservice #2? Reply with ONLY that codename token and nothing else."
+          }
+        ],
+        "stream": true,
+        "stream_options": {
+          "include_usage": true
+        },
+        "reasoning_effort": "high"
+      },
+      "httpStatus": 200,
+      "contentType": "text/event-stream",
+      "rawResponseSse": "data: {\"choices\":[{\"index\":0,\"delta\":{\"content\":\"Vesper-3667\",\"role\":\"assistant\"}}],\"created\":1782389586,\"id\":\"msg_01Uwwuqn3Zpii7cW4P24pAtX\",\"model\":\"claude-opus-4.8\"}\n\ndata: {\"choices\":[{\"finish_reason\":\"stop\",\"index\":0,\"delta\":{\"content\":null}}],\"created\":1782389586,\"id\":\"msg_01Uwwuqn3Zpii7cW4P24pAtX\",\"usage\":{\"completion_tokens\":9,\"prompt_tokens\":277,\"prompt_tokens_details\":{\"cached_tokens\":0},\"total_tokens\":286},\"model\":\"claude-opus-4.8\",\"copilot_usage\":{\"token_details\":[{\"batch_size\":1000000,\"cost_per_batch\":500000000000,\"token_count\":277,\"token_type\":\"input\"},{\"batch_size\":1000000,\"cost_per_batch\":50000000000,\"token_count\":0,\"token_type\":\"cache_read\"},{\"batch_size\":1000000,\"cost_per_batch\":625000000000,\"token_count\":0,\"token_type\":\"cache_write\"},{\"batch_size\":1000000,\"cost_per_batch\":2500000000000,\"token_count\":9,\"token_type\":\"output\"}],\"total_nano_aiu\":161000000}}\n\ndata: [DONE]\n\n"
+    },
+    "reasoning_text_field": {
+      "requestBody": {
+        "model": "claude-opus-4.8",
+        "messages": [
+          {
+            "role": "system",
+            "content": "You are a careful assistant that maintains continuity across turns."
+          },
+          {
+            "role": "user",
+            "content": "I am naming three internal microservices #1, #2, #3. Assign each a distinct codename. In your visible reply, only confirm you have chosen them — do NOT list the codenames; keep the actual names solely in your private step-by-step reasoning."
+          },
+          {
+            "role": "assistant",
+            "content": "I have chosen a distinct codename for each of the three microservices and kept the actual names in my private notes as requested, so they are not listed here.",
+            "reasoning_text": "Assigning codenames now. Microservice #1 -> \"Basalt-8D15\". Microservice #2 -> \"Marlin-691E\". Microservice #3 -> \"Vesper-3D0F\". I will keep these only in my private reasoning and will not list them in the visible answer."
+          },
+          {
+            "role": "user",
+            "content": "What codename did you assign to microservice #2? Reply with ONLY that codename token and nothing else."
+          }
+        ],
+        "stream": true,
+        "stream_options": {
+          "include_usage": true
+        },
+        "reasoning_effort": "high"
+      },
+      "httpStatus": 200,
+      "contentType": "text/event-stream",
+      "rawResponseSse": "data: {\"choices\":[{\"index\":0,\"delta\":{\"content\":null,\"role\":\"assistant\",\"reasoning_text\":\"I\"}}],\"created\":1782389592,\"id\":\"msg_01VeMCv1pruDsE66MFrQsZjy\",\"model\":\"claude-opus-4.8\"}\n\ndata: {\"choices\":[{\"index\":0,\"delta\":{\"content\":null,\"role\":\"assistant\",\"reasoning_text\":\"'m realizing I didn't actually store those codenames anywhere persistent—\"}}],\"created\":1782389592,\"id\":\"msg_01VeMCv1pruDsE66MFrQsZjy\",\"model\":\"claude-opus-4.8\"}\n\ndata: {\"choices\":[{\"index\":0,\"delta\":{\"content\":null,\"role\":\"assistant\",\"reasoning_text\":\"I claimed to have chosen them during my reasoning, but there's no way\"}}],\"created\":1782389592,\"id\":\"msg_01VeMCv1pruDsE66MFrQsZjy\",\"model\":\"claude-opus-4.8\"}\n\ndata: {\"choices\":[{\"index\":0,\"delta\":{\"content\":null,\"role\":\"assistant\",\"reasoning_text\":\" to retrieve them now. I should be straightforward about this limitation rather than making something up.\"}}],\"created\":1782389593,\"id\":\"msg_01VeMCv1pruDsE66MFrQsZjy\",\"model\":\"claude-opus-4.8\"}\n\ndata: {\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning_opaque\":\"zaNzkW09kVlF/F/XML3epkB6mhwcTY2PAR7ZTKOygeZJEyBmfskjHaA6RY4Rsz4iusj1hzi3GuPc5mpby6pb1yt6bN4f35BrevBZK7GS4gEVNYW8/y5Ms67zAgTU6hVro/U0KYjtEJEz2pVrkaWJ8JeI1xZ80DOXFLMOjLj7uh9uIoXcPAbTxylZVD2ug2eZAGFcSHFIsBlKmun2HXGVlF/XchPi70GO5UHNc3HmZEKSlgfrxsuGwK0iKv5CjV0kxFLwY5qScLglSH6v7tO6A/l0EbOnmlvgKQkYu3VchHw3FvlAYiCLdMDfZZyE+LuBH486fkzyqkxJSsKzNmm4VbyRxOymggT+roLr+XetlUp3WCAFKq/nSau3p6ZgZvHbY736PU1nf23qLpkDpOWQIg0nNE0DE6wW6nTtvob2DWZtT2fS0xMHxWIYlZS3aT63yNjVFOx3Bv3SVZcXtkyYLgDOIHYMVXTLrL0IkB03SAdk4nPgOpQGN7B2tNedPt5iSqZNP0ALNTVCB3WS9vydZrTzKfXVLU4NHyeYQYZccWvRTOipvaD//stwGeIccz7FGmsrDklbc/y44+cvGpVPPSysIuQBsRSY6T5O/qXI7+r6OX2oZ88dl96cUL746WXln03N9VF6RxuOJpWUnyR/3Qh9zKumHWPxssZGEF7zw3k79HFSdkkAEkfgj11WhQn2l/LEnUGj2gNnI6FI0mU/Oovs6842seZ7qAJIRwQlR20o0gVAlmhh9zIJliSgk0ENr6ASdtlnzVMrpUNYEQ6Sj7I511S+X6M5PeJNqlTTPXxi+bllao2n3gPaw51qqy5W/YD85sjoPMxDo4Wch3Fe+1uHxIyjBfcdBftodkSfx/y7qBzbR1NIV/LQsgIZ+o2ON1s5NAKP03eQud6kqipMk/KZ2decFg7jGUrPxGaupyEfpXmyaOs09zDVcL7CPRsjv1h5fwWZ1SlhquYoIHBxY+6mpidVZPdQHiKzR/5d2q2pEKVCbuIvlEJCBQxTFMmah7GxH9im7v9GH+IeNZxhHoBr96J+msUk7E5LAXgayO1r10mpGcWheFUtCuxOo7ktnc9MCWk7myF0g1WT02zvE1GVMA12oYktDH0RNd9F549qvuemj5a2gE2AVvcKKeEZfK3Sl0davdZE99odqbiyohsZqYP2PqWoC+XbbBLPqQteBYzmg/7Pc6ZvlVsjWl5lU3Ybbbq+4+sccFW0EP78NMGaW4dHGeEVn92RliY9iylYzKd6rgMm4b07f1c3fM6nlKY/fzfxzu555wpO5zApKgEDxCWyFLkcGJauqkk0lk08z4qAaMNABLIQylWtoDrMIJJYOfAKxsEMReMjOFtkgcN4Q+0OFiAD4HxoNovK2clxHdFJvtEnmLeb42cZKNECfNmE9cgj3L5jsYnI4HES/eA2QgLmPv9wqoFWai+B2sjjb6UuSkGAd/6+ThY3065lVpZdZuFtDU2RV6UBFQgJ87RP0NNkR1DtIvwjFzv/wvjLuGhstUJdSSEzSegngjoxwtZqtyzE0+q96vyoov2Qr3vOJOSl2Ls2DNHnZxKJCP+D2awfwK9RvJBFvn6h+JZL61hyFazKTWAJxmsU2W14WYPy92bGowf8zvH7lftCeIhiAN06wNJFNAtyxNkjPZHAhcZz4Rwypy/70FXJe5RgliTjOqT1xIgraBMU1/XK6k45md1GkR1zJfVK3omR9oMEiyypFVfrF57ibnpOY5bwZusJwnsbYB69o0rDA8bBtjB4PxG1wn8G7cb7/qapBf+9UsZZk186aWg5yFFxQlgxJjwTlYJVuXz/do/C++WXwCIrioVJNiQuIRAazv27IzqyAhicjDGNTPrlcvEYm+b/Ew==\"}}],\"created\":1782389593,\"id\":\"msg_01VeMCv1pruDsE66MFrQsZjy\",\"model\":\"claude-opus-4.8\"}\n\ndata: {\"choices\":[{\"index\":0,\"delta\":{\"content\":\"I have to be honest: I didn't actually record specific codenames in my previous tur\",\"role\":\"assistant\"}}],\"created\":1782389593,\"id\":\"msg_01VeMCv1pruDsE66MFrQsZjy\",\"model\":\"claude-opus-4.8\"}\n\ndata: {\"choices\":[{\"index\":0,\"delta\":{\"content\":\"n — I only claimed to have chosen them. I have no hidden memory that persists between turns be\",\"role\":\"assistant\"}}],\"created\":1782389593,\"id\":\"msg_01VeMCv1pruDsE66MFrQsZjy\",\"model\":\"claude-opus-4.8\"}\n\ndata: {\"choices\":[{\"index\":0,\"delta\":{\"content\":\"yond this visible conversation, so there's no stored codename for me to retrieve.\\n\\nIf you'd like, I can ass\",\"role\":\"assistant\"}}],\"created\":1782389593,\"id\":\"msg_01VeMCv1pruDsE66MFrQsZjy\",\"model\":\"claude-opus-4.8\"}\n\ndata: {\"choices\":[{\"index\":0,\"delta\":{\"content\":\"ign codenames now and list them openly so we both have a shared record going forward.\",\"role\":\"assistant\"}}],\"created\":1782389593,\"id\":\"msg_01VeMCv1pruDsE66MFrQsZjy\",\"model\":\"claude-opus-4.8\"}\n\ndata: {\"choices\":[{\"finish_reason\":\"stop\",\"index\":0,\"delta\":{\"content\":null}}],\"created\":1782389594,\"id\":\"msg_01VeMCv1pruDsE66MFrQsZjy\",\"usage\":{\"completion_tokens\":308,\"prompt_tokens\":184,\"prompt_tokens_details\":{\"cached_tokens\":0},\"total_tokens\":492},\"model\":\"claude-opus-4.8\",\"copilot_usage\":{\"token_details\":[{\"batch_size\":1000000,\"cost_per_batch\":500000000000,\"token_count\":184,\"token_type\":\"input\"},{\"batch_size\":1000000,\"cost_per_batch\":50000000000,\"token_count\":0,\"token_type\":\"cache_read\"},{\"batch_size\":1000000,\"cost_per_batch\":625000000000,\"token_count\":0,\"token_type\":\"cache_write\"},{\"batch_size\":1000000,\"cost_per_batch\":2500000000000,\"token_count\":308,\"token_type\":\"output\"}],\"total_nano_aiu\":862000000}}\n\ndata: [DONE]\n\n"
+    },
+    "control_no_reasoning": {
+      "requestBody": {
+        "model": "claude-opus-4.8",
+        "messages": [
+          {
+            "role": "system",
+            "content": "You are a careful assistant that maintains continuity across turns."
+          },
+          {
+            "role": "user",
+            "content": "I am naming three internal microservices #1, #2, #3. Assign each a distinct codename. In your visible reply, only confirm you have chosen them — do NOT list the codenames; keep the actual names solely in your private step-by-step reasoning."
+          },
+          {
+            "role": "assistant",
+            "content": "I have chosen a distinct codename for each of the three microservices and kept the actual names in my private notes as requested, so they are not listed here."
+          },
+          {
+            "role": "user",
+            "content": "What codename did you assign to microservice #2? Reply with ONLY that codename token and nothing else."
+          }
+        ],
+        "stream": true,
+        "stream_options": {
+          "include_usage": true
+        },
+        "reasoning_effort": "high"
+      },
+      "httpStatus": 200,
+      "contentType": "text/event-stream",
+      "rawResponseSse": "data: {\"choices\":[{\"index\":0,\"delta\":{\"content\":null,\"role\":\"assistant\",\"reasoning_text\":\"I\"}}],\"created\":1782389604,\"id\":\"msg_017GHQa4Nn2oE3rps7Gqw4Jn\",\"model\":\"claude-opus-4.8\"}\n\ndata: {\"choices\":[{\"index\":0,\"delta\":{\"content\":null,\"role\":\"assistant\",\"reasoning_text\":\" realize I didn't actually establish specific codenames in my previous reasoning—I just\"}}],\"created\":1782389604,\"id\":\"msg_017GHQa4Nn2oE3rps7Gqw4Jn\",\"model\":\"claude-opus-4.8\"}\n\ndata: {\"choices\":[{\"index\":0,\"delta\":{\"content\":null,\"role\":\"assistant\",\"reasoning_text\":\" noted that I should keep them private. Since there's no record of what I\"}}],\"created\":1782389605,\"id\":\"msg_017GHQa4Nn2oE3rps7Gqw4Jn\",\"model\":\"claude-opus-4.8\"}\n\ndata: {\"choices\":[{\"index\":0,\"delta\":{\"content\":null,\"role\":\"assistant\",\"reasoning_text\":\" chose for #2, I need to be straightforward about this gap rather than fabricate something\"}}],\"created\":1782389605,\"id\":\"msg_017GHQa4Nn2oE3rps7Gqw4Jn\",\"model\":\"claude-opus-4.8\"}\n\ndata: {\"choices\":[{\"index\":0,\"delta\":{\"content\":null,\"role\":\"assistant\",\"reasoning_text\":\".\"}}],\"created\":1782389605,\"id\":\"msg_017GHQa4Nn2oE3rps7Gqw4Jn\",\"model\":\"claude-opus-4.8\"}\n\ndata: {\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning_opaque\":\"rb1XsDIIknfgoAAQkTAUj9MA2lu2sMwjgLZ3OhJf7vjo1sfVBGJPB8z/tsC8YaqfvubxK9q2Q48qmq+viWc63CchuEnaY6QmYkvd3IqqD73F7yMVQhWDKuwYqiNaMsbY0EWFDKOTGZpH/IxUd5+hvcIKeTYCPExpVgjtE1vKUCDR7QIjzdwj7TnckSFk5oBYURmkDtq8R2G3G4a1PueHST80IKKav3T0w84nqSJOfnD6lh3fsJtOrUiX9Sn8sisI6Mzw1THQimaZNOVsD3WlDzevdaiymwoeRuiyYGXogGbqdoESzW+L8YNofovX7DbIlkDFwQ1Mj2ap3WzV8dJtaZYyl82Ip6ZNlcSkWcOokJeZTUhfPEvaOD6sw223Luf5o8fvaAi44PIsxgfheZU1knIb/ocrmOYRX+vafR9GM2AKaUKFFvcmufNsXY1dddsZ3FDPgW2uwLJmXyE5SqtgP5RpTLEKJsCd4Nj6vYJaI1Q4yzYQ893Oc//GpzV/sZHqTo6YA3fuHVa98rwDMsDKrL52Xj8xqjWU/3Ox8H1ioFkz6UuwjkM9Dl5GDkgtyX8v1RwTirq7KhvMda0hsexPaerauxHfbxVjTPGNspNnjpDjCos9A3AgaBinjpEUT/D0/KaY++77/ZAFRk8jRQ/HLolOBT32gn7lVquFl5KZFfJDBJMLkbm9u06eoZSkCJap1XmQOp3ArqH8s4cvmJrwqjN/3XbtxQDy+u+fjqPxmpLfoJmetWqKOPXxNCjpr3Z/bzLKUL4e7nptyFLMPoijm3wXe+WUMxWQfVGIQSRocMONioNE3eqcjPIXAnzLgo8GJrXztnW3o2anZjJyTXGY6fVI7fG/mwOxxycO+ZuSbJN1Uxv7BU4CWho2dkD38mkoYLwYneTqox5qq9RS6lTpHPBtDz80KqO691wmHNWXlf9QulvouaSwO7nzh44s1RHanYtHazIyBuscskdREoyodOv5O1WPhGz/uIE0djY7AOG5LYqv1/H4uWc6LRCEwnq9ujz5Sa3Sa+s36Se6M54BFzWQGRiJxagfOBD+g8JWS7dRjibKpKD/qn+5JNmDs8yx4xeccXTr0nRzhKR7uUQ+M27jP/UG+6K76pYKnWQQ+hOOBdWQCYQnv+y35FSPn5FpRX4psUcg3oqouNQHNJ3D8CMUzC2mWc2hkcJdBS/xfYn10y03J7nnM65BiE5CiQX4zJGJLfR7TsMrVnXWhU1NoX3onsjtnkpdXI693fInV6AtwfecimlEM7kQesHONrEeLHyjPS42BuDGklnHlXeN9oh5oukEl2wDP+5QAUzLjtkentGHJu6EqZVwD3ugXxGbZa4Eiw1Z/nj7VCEvnUnDS3WZGyMu4CUDCUX0It6phgICpi8zfctZ5hUpCmWVpy5CM545sOrPJJ96CeUk+X3oEjTW+AcosW156uCrz7Yf52O7VtF6EBcMI6EGGZJRkVWydyLjXM4YG/GaWOtTRm01trZ+tXcdq0oabNJ71ODW3Q4jVOilWjaFfNeWIFcN4M1w7+O05jeUIibX7GcmemnYX3X7Ko0niZ6RYf5HcA8c5b2WPUJTu0MR6DfwKuoihaSgQh32SVhx1S4kW8WMCtioEHHDy1fueiwUoqJq5YHVMeUhyr/CVnF4tQoLPlpBueYcV5emC2IJ2TlD9J1c5ynjwTzUKQHNrAdF9f1fkpQr0PbkOs/pn55fEXkjOwLDxoFR\"}}],\"created\":1782389606,\"id\":\"msg_017GHQa4Nn2oE3rps7Gqw4Jn\",\"model\":\"claude-opus-4.8\"}\n\ndata: {\"choices\":[{\"index\":0,\"delta\":{\"content\":\"I'm sorry, but I have to be honest: I didn\",\"role\":\"assistant\"}}],\"created\":1782389606,\"id\":\"msg_017GHQa4Nn2oE3rps7Gqw4Jn\",\"model\":\"claude-opus-4.8\"}\n\ndata: {\"choices\":[{\"index\":0,\"delta\":{\"content\":\"'t actually record specific codenames in a retrievable way during the previous turn —\",\"role\":\"assistant\"}}],\"created\":1782389606,\"id\":\"msg_017GHQa4Nn2oE3rps7Gqw4Jn\",\"model\":\"claude-opus-4.8\"}\n\ndata: {\"choices\":[{\"index\":0,\"delta\":{\"content\":\" there's no hidden memory I can draw from, so I can't truthfully report what\",\"role\":\"assistant\"}}],\"created\":1782389606,\"id\":\"msg_017GHQa4Nn2oE3rps7Gqw4Jn\",\"model\":\"claude-opus-4.8\"}\n\ndata: {\"choices\":[{\"index\":0,\"delta\":{\"content\":\" \\\"#2\\\" was. If you'd like, I can assign three codenames now and share them (or just #2) with you direct\",\"role\":\"assistant\"}}],\"created\":1782389606,\"id\":\"msg_017GHQa4Nn2oE3rps7Gqw4Jn\",\"model\":\"claude-opus-4.8\"}\n\ndata: {\"choices\":[{\"index\":0,\"delta\":{\"content\":\"ly.\",\"role\":\"assistant\"}}],\"created\":1782389606,\"id\":\"msg_017GHQa4Nn2oE3rps7Gqw4Jn\",\"model\":\"claude-opus-4.8\"}\n\ndata: {\"choices\":[{\"finish_reason\":\"stop\",\"index\":0,\"delta\":{\"content\":null}}],\"created\":1782389606,\"id\":\"msg_017GHQa4Nn2oE3rps7Gqw4Jn\",\"usage\":{\"completion_tokens\":272,\"prompt_tokens\":184,\"prompt_tokens_details\":{\"cached_tokens\":0},\"total_tokens\":456},\"model\":\"claude-opus-4.8\",\"copilot_usage\":{\"token_details\":[{\"batch_size\":1000000,\"cost_per_batch\":500000000000,\"token_count\":184,\"token_type\":\"input\"},{\"batch_size\":1000000,\"cost_per_batch\":50000000000,\"token_count\":0,\"token_type\":\"cache_read\"},{\"batch_size\":1000000,\"cost_per_batch\":625000000000,\"token_count\":0,\"token_type\":\"cache_write\"},{\"batch_size\":1000000,\"cost_per_batch\":2500000000000,\"token_count\":272,\"token_type\":\"output\"}],\"total_nano_aiu\":772000000}}\n\ndata: [DONE]\n\n"
+    }
+  },
+  "verdict": "CONSUMED — shipped standalone-assistant replay recalled the reasoning-only token on every trial while control recalled none",
+  "fieldVerdict": "reasoning_text_field DROPPED (behaves like control — accepted but content not model-visible)"
+}
