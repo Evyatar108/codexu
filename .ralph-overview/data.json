@@ -1212,6 +1212,10 @@
         {
           "className": "cmd-warn",
           "html": "Follow-up to codex-anthropic-models-support (D-001 transport, shipped 2026-06-09). US-008 deterministic end-to-end test was NOT written. The live spike + parser unit tests (codex-copilot 17/17) + routing test cover the wire format + mapping, but a full agentic-turn deterministic test (chat-SSE mock via a `core_test_support::responses`-style harness) is still missing. CODEX SUBMODULE task."
+        },
+        {
+          "className": "cmd-ok",
+          "html": "PLAN SHIPPED @ <code>f2d11218</code> (2026-06-24). 3 stories, 12 Phase-4 findings (0 Crit) resolved over 2 review rounds. The deterministic end-to-end test of the unsigned /chat/completions Claude-CoT capture/replay — the operator's gating verification before deciding on the signed /v1/messages transport. IMPORTANT CORRECTION (planner caught it): the lead's seed said \"per-item + AGGREGATE BYTE cap\" but the actual code uses a per-item TOKEN cap (tokens/item per codex \"Model visible context\"), NOT an aggregate byte cap. US-001 (per-item cap test) is independent; US-002->US-003 build the headline multi-turn wiremock e2e (network-gated capstone). OPEN QUESTION (operator decision before impl): should the e2e ALSO exercise a history/compaction AGGREGATE cap (larger scope), or stay scoped to the per-item token cap that actually exists? Plan under .ralph/jobs/codex-anthropic-transport-us008-e2e-test/.\r\n"
         }
       ],
       "command": {
