@@ -22,7 +22,7 @@ Agent-readable Ralph pipeline state is emitted as `.ralph-overview/generated/ral
 <!-- BEGIN: active-plugin-versions -->
 | Plugin | Pinned version | Source |
 |---|---:|---|
-| `ralph-overview` | `2.12.0` | `ai-developer-toolkit/plugins/ralph-overview/.claude-plugin/plugin.json` |
+| `ralph-overview` | `2.13.0` | `ai-developer-toolkit/plugins/ralph-overview/.claude-plugin/plugin.json` |
 | `crews` | `3.24.0` | `ai-developer-toolkit/plugins/crews/.claude-plugin/plugin.json` |
 | `ralph` (`ralph-orchestration`) | `5.60.0` | `ai-developer-toolkit/plugins/ralph/.claude-plugin/plugin.json` |
 <!-- END: active-plugin-versions -->
@@ -277,6 +277,7 @@ snapshot. Agents querying the canonical task list should read
 - `.ralph-overview/generated/snapshot.json` — aggregated snapshot for agents
 - `.ralph-overview/generated/active-tasks.json` — tracked-task projection for live backlog reads
 - `.ralph-overview/generated/summary-projection.json` — all-task projection with prompt/body bulk stripped
+- `.ralph-overview/generated/lean-tasks.json` — tracked-only AND fully body-stripped projection (the smallest tracked read, ~14% of the hot shard; prefer for agent backlog reads)
 - `.ralph-overview/generated/recommendations.json` — ranked next-task list
 - `.ralph-overview/generated/dependency-graph.json` — DAG
 - `.ralph-overview/generated/activity.jsonl` — append-only audit log
