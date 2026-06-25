@@ -1,0 +1,20 @@
+{
+  "clusters": [
+    {
+      "name": "windows-hook-native-shell",
+      "stories": ["US-001", "US-002", "US-003"],
+      "phase": 1,
+      "dependsOn": [],
+      "fileOverlapEvidence": {
+        "sharedFiles": [
+          "core/src/session/mod.rs",
+          "core/src/session/ (test module)",
+          "codex/docs/implementation/patch-surface.md"
+        ],
+        "exclusiveFiles": [],
+        "risk": "high"
+      },
+      "executionModeRationale": "All three stories edit the same core seam (core/src/session/mod.rs), its test module, and shared codex docs; US-002 and US-003 require the US-001 change to exist first. Run serially as one implementation unit — there is no internal parallelism."
+    }
+  ]
+}

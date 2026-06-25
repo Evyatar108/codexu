@@ -1,0 +1,71 @@
+{
+  "planFile": ".ralph/jobs/codex-hook-executor-windows-native-shell/plan.md",
+  "repoDir": "codex/external/repos/codex-patched/codex-rs",
+  "reviewers": ["rubber-duck (claude-opus-4.8)"],
+  "summary": "Single-reviewer Phase-4 design critique (rubber-duck, opus-4.8). Core design confirmed sound: single chokepoint (build_hooks_for_config) verified, the None -> empty-program -> cmd.exe mechanism verified against registry.rs:80 + command_runner.rs:104-126, Strategy A correctly fixes BOTH git-bash and WSL cases, Strategy B rightly rejected, and both verify-only claims hold. Two must-fix findings (B1, B2) and four doc/robustness findings (N1-N4) were ALL adopted into the plan before finalization.",
+  "findings": [
+    {
+      "id": "F-001",
+      "severity": "High",
+      "source": "rubber-duck",
+      "status": "resolved",
+      "title": "shell.shell_type is a pub(crate) FIELD, not a method",
+      "detail": "The plan's predicate used shell.shell_type() which would not compile. core/src/shell.rs:11 declares `pub(crate) shell_type: ShellType`; the only method is name(). build_hooks_for_config is in codex-core (same crate) so it accesses the field directly.",
+      "resolution": "Plan updated: predicate uses field access `shell.shell_type`; the suggested shell_type() accessor was removed (no API widening)."
+    },
+    {
+      "id": "F-002",
+      "severity": "High",
+      "source": "rubber-duck",
+      "status": "resolved",
+      "title": "Naive truth-table test fails on ubuntu CI",
+      "detail": "invariant-check.yml runs `cargo test --workspace` on ubuntu AND windows. A predicate that is false on non-Windows makes assert!(...(bash)) fail on Linux.",
+      "resolution": "Plan updated: unit-test assertions are platform-gated (POSIX rows == cfg!(windows); PowerShell/Cmd always false). AC updated to require green on both platforms."
+    },
+    {
+      "id": "F-003",
+      "severity": "Medium",
+      "source": "rubber-duck",
+      "status": "resolved",
+      "title": "Use cfg!(windows) in the fn body, not #[cfg] on the fn/import",
+      "detail": "Gating the fn or the ShellType import with #[cfg(windows)] leaves ShellType unused on the other platform and breaks the cross-platform build. cfg!(windows) is const-false on non-Windows but still type-checks the matches!.",
+      "resolution": "Plan updated to a single un-gated fn: `cfg!(windows) && matches!(shell.shell_type, ...)`."
+    },
+    {
+      "id": "F-004",
+      "severity": "Medium",
+      "source": "rubber-duck",
+      "status": "resolved",
+      "title": "Regression test should not depend on node/bash being installed",
+      "detail": "A test resolving `node <backslash-path>` needs a real Windows node + bash path and is brittle. A cmd-only expansion `echo %OS%` -> assert stdout contains Windows_NT pins the interpreter switch with zero external dependency (bogus bash path is never invoked after the fix).",
+      "resolution": "Plan + stories + AC updated to the `echo %OS%` -> Windows_NT behavioral test shape (Windows-gated)."
+    },
+    {
+      "id": "F-005",
+      "severity": "Low",
+      "source": "rubber-duck",
+      "status": "resolved",
+      "title": "Document post-fix interpreter-on-PATH constraint (WSL node)",
+      "detail": "After the fix a git-bash/WSL hook runs under cmd.exe and needs a Windows interpreter on PATH; a WSL-only node still won't run hooks (unsolvable without path translation; prior behavior was already broken).",
+      "resolution": "Added as a Risk bullet and required in the patch-surface §15 note."
+    },
+    {
+      "id": "F-006",
+      "severity": "Low",
+      "source": "rubber-duck",
+      "status": "resolved",
+      "title": "Document that a bare POSIX command now runs under cmd.exe",
+      "detail": "A hook authored with POSIX-only syntax in the bare `command` field, relying on a git-bash session shell, now runs under cmd.exe on Windows. Escape hatch = the `command_windows` field (discovery.rs:470). Net-positive (the prior path was already broken by mangling).",
+      "resolution": "Required in the patch-surface §15 note; the existing Risk bullet about bash-semantics hooks already references command_windows."
+    },
+    {
+      "id": "F-007",
+      "severity": "Low",
+      "source": "rubber-duck",
+      "status": "wont_fix",
+      "title": "Spaces in plugin-root path break cmd.exe token-splitting",
+      "detail": "An unquoted `node ${CLAUDE_PLUGIN_ROOT}/...` with a space-containing install root (C:\\Users\\John Doe\\...) breaks under cmd.exe. This is pre-existing hooks.json authoring (bash would break too) and a property of the native default, not introduced by this fix.",
+      "resolution": "Out of scope; already flagged in plan Risk Areas + Out of Scope so it is not mistaken for a regression. No action in this plan."
+    }
+  ]
+}
