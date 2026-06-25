@@ -1,0 +1,106 @@
+{
+  "planFile": "D:/harness-efforts/codexu/.ralph/jobs/.staging/20260625T212207Z-plan-overview-parallel-ready-r-1121827e/draft-plan.md",
+  "repoDir": "D:/harness-efforts/codexu/ai-developer-toolkit/plugins/ralph-overview",
+  "reviewCycle": 1,
+  "findings": [
+    {
+      "id": "F-001",
+      "severity": "High",
+      "source": "codex",
+      "classification": "fixable",
+      "category": "Completeness",
+      "sectionRef": "Files to Create/Modify + Acceptance Criteria",
+      "description": "Release step omitted the per-engine plugin.json manifests. Only .claude-plugin/plugin.json was listed, but .github/plugin/plugin.json (v line 4) and .codex-plugin/plugin.json (v line 3) also carry version 2.13.0 (verified against source). A 2.14.0 release must bump all three plugin.json manifests plus the three marketplace indexes or Codex/Copilot metadata stays stale.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Added .codex-plugin/plugin.json and .github/plugin/plugin.json to Files to Modify; AC10 now requires all three manifests + three indexes at 2.14.0; Risk Areas calls out the six version files.",
+      "relevantFiles": [
+        "plugins/ralph-overview/.claude-plugin/plugin.json",
+        "plugins/ralph-overview/.codex-plugin/plugin.json",
+        "plugins/ralph-overview/.github/plugin/plugin.json"
+      ]
+    },
+    {
+      "id": "F-002",
+      "severity": "High",
+      "source": "consensus",
+      "classification": "fixable",
+      "category": "Completeness",
+      "sectionRef": "Files to Create/Modify (viewer test) + Acceptance Criteria #6/#8/#9",
+      "description": "The unblock regression cases are driven by a SHARED fixture scripts/lib/fixtures/unblock-candidates-truth-table.json consumed by BOTH the Node test (unblock-candidates.test.mjs) and the co-located viewer test (tools/overview-viewer/src/utils/unblockCandidates.test.ts). The two gates have different alias-awareness: Node classifyShard maps legacy phase shipped/closed to merged/archived, but the viewer taskLifecycle returns raw phase. A legacy-phase candidate case in the shared fixture would make the viewer test FAIL (test:viewer). Codex flagged the missing fixture (Medium); Claude flagged the deeper viewer-failure hazard + the wrong viewer test path (High).",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Split test approach: shared fixture gets only modern lifecycle:merged/archived candidate cases (exercised by both Node + viewer); legacy phase:shipped/closed cases are Node-only inline (unblock-candidates.test.mjs + score-recommendations.test.mjs). Added the shared fixture to Files to Modify; corrected the viewer test path to src/utils/ and noted it requires no new file; documented the constraint in Technical Constraints + Risk Areas.",
+      "relevantFiles": [
+        "plugins/ralph-overview/scripts/lib/fixtures/unblock-candidates-truth-table.json",
+        "plugins/ralph-overview/scripts/lib/unblock-candidates.test.mjs",
+        "plugins/ralph-overview/tools/overview-viewer/src/utils/unblockCandidates.test.ts"
+      ]
+    },
+    {
+      "id": "F-003",
+      "severity": "Medium",
+      "source": "copilot",
+      "classification": "fixable",
+      "category": "Completeness",
+      "sectionRef": "Out of Scope",
+      "description": "blockerSummary() in unblock-candidates.mjs reads blocker completion as a literal lifecycle === 'merged' (not alias-aware), so a blocker with legacy phase:'shipped' and no lifecycle is not treated as merged. Weakens the 'alias-aware' claim for the shared predicate.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Explicitly marked OUT OF SCOPE: this is the pre-existing v2.8.0 BLOCKER-completion check, distinct from this fix's CANDIDATE-lifecycle exclusion. Documented in Out of Scope + Open Questions with a follow-up note.",
+      "relevantFiles": ["plugins/ralph-overview/scripts/lib/unblock-candidates.mjs"]
+    },
+    {
+      "id": "F-004",
+      "severity": "Medium",
+      "source": "copilot",
+      "classification": "fixable",
+      "category": "Criteria Quality",
+      "sectionRef": "Acceptance Criteria #4",
+      "description": "AC4 names overview.unblock_candidates without identifying the MCP tool file or a direct test, risking an autonomous agent stopping at lib tests.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Clarified the mechanism (verified against source): the MCP tool tools/overview-mcp/src/tools/unblock-candidates.ts:45-46 reads snapshot.tasks[].unblockCandidate, which is set by the gated computeUnblockCandidate in emit-snapshot.mjs, so it is fixed transitively. emit-snapshot.test.mjs is the named evidence (AC7).",
+      "relevantFiles": ["plugins/ralph-overview/tools/overview-mcp/src/tools/unblock-candidates.ts"]
+    },
+    {
+      "id": "F-005",
+      "severity": "Low",
+      "source": "codex",
+      "classification": "fixable",
+      "category": "Simplicity",
+      "sectionRef": "Files to Create/Modify (viewer test)",
+      "description": "Viewer test target was placed under tools/overview-viewer/src/__tests__/ as a possible new file; the existing direct unit test lives co-located at src/utils/unblockCandidates.test.ts and already consumes the shared fixture.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Corrected: extend via the shared fixture; the existing co-located viewer test inherits the new cases with no new file (AC8). Removed the __tests__ row.",
+      "relevantFiles": ["plugins/ralph-overview/tools/overview-viewer/src/utils/unblockCandidates.test.ts"]
+    },
+    {
+      "id": "F-006",
+      "severity": "Low",
+      "source": "codex",
+      "classification": "fixable",
+      "category": "Criteria Quality",
+      "sectionRef": "Acceptance Criteria #9",
+      "description": "AC9 required saving test output 'to a log per repo convention' without naming concrete log paths.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "AC9 now names test-output-lib.log, test-output-viewer.log, test-output-typecheck.log.",
+      "relevantFiles": []
+    },
+    {
+      "id": "F-007",
+      "severity": "Low",
+      "source": "claude",
+      "classification": "fixable",
+      "category": "Criteria Quality",
+      "sectionRef": "Risk Areas",
+      "description": "Risk Areas understated the shared-fixture coupling (three test consumers across two workspaces with different alias-awareness).",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Risk Areas now names the specific shared-fixture / viewer-non-alias hazard (folded with F-002).",
+      "relevantFiles": []
+    }
+  ]
+}

@@ -1,0 +1,40 @@
+I’ll read the referenced prompt and inspect the repo context before making changes.
+
+I’ll trace the recommendation path and related tests so the research report is grounded in the current code.
+
+The main bug path is in the watcher scoring library; I’m checking the canonical lifecycle alias helpers and artifact emitters next.
+
+I’ve confirmed the watcher recommendations path is the gap; I’m checking tests and manifest surfaces needed for a complete plan.
+
+I have enough to map the fix; I’m doing one final targeted search for the sync/snapshot integration points.
+
+### Codebase Architecture
+
+Relevant worktree: `D:\harness-efforts\codexu\ai-developer-toolkit`, plugin root `plugins\ralph-overview`.
+
+`ralph-overview` is a Node 20 ESM plugin with shared script libraries in `scripts\lib\`, a TypeScript MCP server in `tools\overview-mcp\`, and a React 19 + Vite 8 viewer in `tools\overview-viewer\`. Plugin-local tests use Vitest via `npm run test:lib`; the script explicitly enumerates test files, so new test files must be added there unless extending existing wired tests.
+
+### Feature-Relevant Code
+
+The remaining leak is in `scripts\lib\score-recommendations.mjs`. `scoreRecommendations()` builds `topRecommendations` from `byTaskId`, excludes only `stage === 'shipped'`, and never checks `OverviewTask.lifecycle`. It also maps `findUnblockCandidates(overviewData)` into actionable `unblockCandidates`.
+
+`script\lib\unblock-candidates.mjs` is the central unblock predicate. `computeUnblockCandidate()` only checks `status === 'blocked'`, `blockedOn`, and blocker lifecycles; it does not exclude the blocked task itself when it is `merged` or `archived`.
+
+`script\lib\emit-snapshot.mjs` also calls `computeUnblockCandidate()` directly to add `snapshotTask.unblockCandidate = true`, so fixing only `scoreRecommendations()` would still allow viewer NOTIFY chips to leak through snapshot task flags.
+
+The canonical alias-aware lifecycle helper is already available in `scripts\lib\data-store.mjs`: `classifyShard(task)` returns `'cold'` for `merged` / `archived`, using `resolveTaskLifecycle()` from `scripts\lib\task-aliases.mjs` so legacy `phase: shipped` and `phase: closed` are handled.
+
+### Technical Constraints
+
+Keep lifecycle and Ralph stage separate; do not collapse `lifecycle` into `stage`. Do not retouch `tools\overview-mcp\src\tools\parallel-ready-tasks.ts`; it already has a lifecycle gate. Unknown `byTaskId` entries absent from `overviewData.tasks` must remain eligible, so the exclusion should only remove known cold tasks.
+
+Release metadata likely needs updating for this behavioral fix: `plugins\ralph-overview\.claude-plugin\plugin.json`, `.github\plugin\plugin.json`, `.codex-plugin\plugin.json`, root marketplace indexes, `CHANGELOG.md`, and `AGENTS.md`.
+
+### Implementation Suggestions
+
+Use `classifyShard(task) === 'cold'` as the reusable predicate. Filter `topRecommendations` before scoring, using `tasksById.get(taskId)`; an undefined task classifies as hot, preserving unknown watcher entries.
+
+Put the unblock exclusion in `computeUnblockCandidate()` rather than only in `scoreRecommendations()`, because `buildSnapshot()` uses that predicate directly for snapshot task `unblockCandidate` flags.
+
+Extend `scripts\lib\score-recommendations.test.mjs` for merged, archived, legacy `phase` aliases, tracked regressions, unknown watcher entries, and merged unblock candidates. Add or adjust `scripts\lib\emit-snapshot.test.mjs` if you want a thin assertion that snapshot task NOTIFY flags inherit the fix.
+

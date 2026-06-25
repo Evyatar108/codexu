@@ -1,0 +1,24 @@
+{
+  "clusters": [
+    {
+      "name": "recommendations-lifecycle-gate",
+      "stories": ["US-001", "US-002", "US-003"],
+      "phase": 1,
+      "dependsOn": [],
+      "fileOverlapEvidence": {
+        "sharedFiles": [
+          "plugins/ralph-overview/.claude-plugin/plugin.json",
+          "plugins/ralph-overview/CHANGELOG.md",
+          "plugins/ralph-overview/AGENTS.md"
+        ],
+        "exclusiveFiles": [
+          "plugins/ralph-overview/scripts/lib/score-recommendations.mjs",
+          "plugins/ralph-overview/scripts/lib/unblock-candidates.mjs",
+          "plugins/ralph-overview/tools/overview-viewer/src/utils/unblockCandidates.ts"
+        ],
+        "risk": "high"
+      },
+      "executionModeRationale": "Single plugin, single member, serial. US-003 (release ceremony: version bump + three marketplace indexes + CHANGELOG + AGENTS.md) depends on US-001 (Node lib gate + tests) and US-002 (viewer NOTIFY gate + test) being green. Splitting across parallel members would race the single plugin version bump and the shared CHANGELOG/AGENTS.md metadata files, with no parallelism benefit."
+    }
+  ]
+}

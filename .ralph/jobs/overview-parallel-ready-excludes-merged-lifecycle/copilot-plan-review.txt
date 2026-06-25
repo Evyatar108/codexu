@@ -1,0 +1,26 @@
+I’ll read the referenced prompt and inspect the relevant workspace state before making changes.
+
+The prompt is larger than the direct read limit, so I’ll page through the task file and extract the requirements.
+
+I’ll verify the plan’s file and API references against the plugin code, then produce the requested plan review only.
+
+I’ve verified the referenced modules and imports against the current tree; I’ll now provide the requested review findings.### Feasibility
+
+No issues found.
+
+### Completeness
+
+[Medium] The plan’s Node-side alias-awareness is limited to candidate exclusion, but `scripts/lib/unblock-candidates.mjs::blockerSummary()` still reads blocker completion as `task.lifecycle === 'merged'`. If raw legacy fixtures or consumers include blockers with `phase: 'shipped'` and no `lifecycle`, `computeUnblockCandidate()` will not treat them as merged. This does not break the stated exclusion ACs, but it weakens the “alias-aware lifecycle” claim for the shared unblock predicate. Consider reusing `resolveTaskLifecycle()` or `classifyShard()` for blocker summaries too, or explicitly call this out as out of scope.
+
+### Ordering
+
+No issues found.
+
+### Simplicity
+
+No issues found. The proposed gates are at the right integration points: `scoreRecommendations()` for stage-keyed recommendations, shared Node `computeUnblockCandidate()` for derived/MCP unblock surfaces, and viewer `computeUnblockCandidate()` for client-side NOTIFY recomputation.
+
+### Acceptance Criteria Quality
+
+[Medium] AC4 lists downstream consequences including `overview.unblock_candidates`, but the plan does not identify the MCP tool file or add a direct MCP-level regression test. Because `overview.unblock_candidates` likely delegates to `findUnblockCandidates()`, the behavior should inherit correctly, but an autonomous agent may stop at lib tests without proving the named MCP surface. Add either the MCP handler path/test expectation or clarify that the shared predicate test is sufficient evidence for that surface.
+

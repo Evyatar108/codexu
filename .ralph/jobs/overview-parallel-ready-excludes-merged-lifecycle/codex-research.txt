@@ -1,0 +1,56 @@
+**Codebase Architecture**
+
+`ralph-overview` is a Node/TypeScript plugin with three main runtime surfaces:
+
+- Root ESM scripts under `scripts/` and `scripts/lib/`: sync watcher, derivation, snapshots, recommendations, data loading, and data mutation.
+- MCP workspace under `tools/overview-mcp/`: TypeScript MCP server, built with `tsc`, using `@modelcontextprotocol/sdk`, `zod`, and imports back into `scripts/lib`.
+- Viewer workspace under `tools/overview-viewer/`: React 19 + Vite 8 dashboard, TypeScript, Vitest/jsdom tests.
+
+Build/test is driven by root [package.json](<D:/harness-efforts/codexu/ai-developer-toolkit/plugins/ralph-overview/package.json>) with `npm run test:lib`, `npm run test:viewer`, `npm run typecheck`. Plugin release version is in `.claude-plugin/plugin.json`, `.github/plugin/plugin.json`, and `.codex-plugin/plugin.json`, currently `2.13.0`; root package version is just a private workspace wrapper.
+
+**Feature-Relevant Code**
+
+The watcher recommendation path is:
+
+- [scripts/lib/sync-core.mjs](<D:/harness-efforts/codexu/ai-developer-toolkit/plugins/ralph-overview/scripts/lib/sync-core.mjs:535>) loads assembled overview data, calls `emitDerivedArtifacts`, then emits agent artifacts.
+- [scripts/lib/emit-derived-artifacts.mjs](<D:/harness-efforts/codexu/ai-developer-toolkit/plugins/ralph-overview/scripts/lib/emit-derived-artifacts.mjs:28>) calls `scoreRecommendations(...)` and writes `recommendations.json`.
+- [scripts/lib/emit-snapshot.mjs](<D:/harness-efforts/codexu/ai-developer-toolkit/plugins/ralph-overview/scripts/lib/emit-snapshot.mjs:21>) recomputes `unblockCandidate` on snapshot tasks, then flattens wrapped recommendations at lines 42-50.
+- [scripts/lib/score-recommendations.mjs](<D:/harness-efforts/codexu/ai-developer-toolkit/plugins/ralph-overview/scripts/lib/score-recommendations.mjs:42>) builds `tasksById`, emits unblock candidates, then builds `topRecommendations` from `Object.entries(byTaskId)`. Current filters only exclude `stage === 'shipped'` and unblock-candidate duplicates at lines 75-76.
+- [scripts/lib/unblock-candidates.mjs](<D:/harness-efforts/codexu/ai-developer-toolkit/plugins/ralph-overview/scripts/lib/unblock-candidates.mjs:1>) gates only on `task.status === 'blocked'`, `blockedOn.length`, and blockers’ literal `lifecycle === 'merged'`; it does not gate the blocked task’s lifecycle.
+- [scripts/lib/data-store.mjs](<D:/harness-efforts/codexu/ai-developer-toolkit/plugins/ralph-overview/scripts/lib/data-store.mjs:18>) already provides `COLD_LIFECYCLES` and alias-aware `classifyShard(task)` via `resolveTaskLifecycle`.
+- [scripts/lib/task-aliases.mjs](<D:/harness-efforts/codexu/ai-developer-toolkit/plugins/ralph-overview/scripts/lib/task-aliases.mjs:20>) maps legacy `phase: shipped` to `merged` and `phase: closed` to `archived`.
+
+Important extra integration point: the viewer also recomputes NOTIFY chips client-side:
+
+- [tools/overview-viewer/src/utils/unblockCandidates.ts](<D:/harness-efforts/codexu/ai-developer-toolkit/plugins/ralph-overview/tools/overview-viewer/src/utils/unblockCandidates.ts:3>) has a duplicated `computeUnblockCandidate`.
+- [tools/overview-viewer/src/components/TaskCommand.tsx](<D:/harness-efforts/codexu/ai-developer-toolkit/plugins/ralph-overview/tools/overview-viewer/src/components/TaskCommand.tsx:452>) uses it for command-row NOTIFY chips.
+- [tools/overview-viewer/src/components/Kanban.tsx](<D:/harness-efforts/codexu/ai-developer-toolkit/plugins/ralph-overview/tools/overview-viewer/src/components/Kanban.tsx:40>) uses it for kanban NOTIFY pills.
+
+The MCP ready-task path is already separate and fixed: [tools/overview-mcp/src/tools/parallel-ready-tasks.ts](<D:/harness-efforts/codexu/ai-developer-toolkit/plugins/ralph-overview/tools/overview-mcp/src/tools/parallel-ready-tasks.ts:24>) has `EXCLUDED_LIFECYCLES`, applied at line 141. Do not rework that for this feature.
+
+**Technical Constraints**
+
+- Preserve the two-axis model: `OverviewTask.lifecycle` is bookkeeper state; `RalphPipelineState.stage` is watcher state.
+- Unknown lifecycle must remain actionable: a `byTaskId` entry absent from `overviewData.tasks` should not be excluded.
+- Use `classifyShard(task) === 'cold'` in Node-side `scripts/lib` code instead of duplicating `merged`/`archived` sets.
+- Do not import `scripts/lib/data-store.mjs` into browser code: it imports `node:fs`, so the viewer needs a browser-safe mirror/helper, likely in `tools/overview-viewer/src/utils/taskAliases.ts`.
+- No new dependencies are needed.
+- First test run should tee output to a file per repo convention.
+
+**Implementation Suggestions**
+
+Add a small cold-task predicate in `scripts/lib/score-recommendations.mjs` using `classifyShard(tasksById.get(taskId)) === 'cold'`, and filter `Object.entries(byTaskId)` before scoring. Because `classifyShard(undefined)` resolves hot, missing `overviewData.tasks` entries will still appear.
+
+Fix unblock at the source: import `classifyShard` in `scripts/lib/unblock-candidates.mjs` and return non-candidate when the blocked task itself is cold. Do this inside `computeUnblockCandidate`, not only `findUnblockCandidates`, because `emit-snapshot.mjs` calls `computeUnblockCandidate` directly and MCP `overview.unblock_candidates` later reads snapshot task flags.
+
+Mirror the blocked-task cold check in `tools/overview-viewer/src/utils/unblockCandidates.ts`, using a browser-safe alias-mapped lifecycle helper. Add tests in `score-recommendations.test.mjs`, plus a focused `emit-snapshot.test.mjs` or `unblock-candidates.test.mjs` case, and viewer tests for no NOTIFY on merged/archived blocked tasks.
+
+Verification likely needs:
+
+```powershell
+npm run test:lib 2>&1 | Tee-Object -FilePath test-output-ready-list-lifecycle.log
+npm run test:viewer 2>&1 | Tee-Object -FilePath test-output-viewer-unblock.log
+npm run typecheck
+```
+
+For release work, bump plugin manifests and the three marketplace indexes, add `CHANGELOG.md` and `AGENTS.md` notes, then run the Codex marketplace policy validator from repo root.
