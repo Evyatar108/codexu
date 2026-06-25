@@ -1,0 +1,151 @@
+{
+  "planFile": "D:/harness-efforts/codexu/.ralph/jobs/.staging/20260624T233247Z-plan-us008-230fc936/draft-plan.md",
+  "repoDir": "D:/harness-efforts/codexu",
+  "reviewCycle": 2,
+  "findings": [
+    {
+      "id": "F-001",
+      "severity": "High",
+      "source": "consensus",
+      "category": "Feasibility",
+      "sectionRef": "Approach > Copilot-session enablement",
+      "description": "Auth enablement should commit to Option A (seed fake token cache) rather than defer Option A vs B. build_cached_headers -> auth.copilot_token(force_refresh=false) returns the cached token with NO network when expires_at > now+60 (header_source.rs:89-97, auth.rs:170-177), so a future-expiring seeded token avoids any live exchange and any production edit.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Plan now commits to Option A as the approach (with the source proof in Technical Constraints #2 and Approach), demotes Option B to a fallback used only if the fixture/preflight is infeasible.",
+      "relevantFiles": ["codex/codex-rs-overlay/codex-copilot/src/header_source.rs", "codex/codex-rs-overlay/codex-copilot/src/auth.rs"]
+    },
+    {
+      "id": "F-002",
+      "severity": "High",
+      "source": "codex",
+      "category": "Feasibility",
+      "sectionRef": "Approach > Copilot-session enablement (Option A)",
+      "description": "Option A must seed COPILOT_API_HOME (AppPaths::from_env reads it, paths.rs:15; fallback ~/.local/share/copilot-api), NOT CODEX_HOME. Seeding the wrong env fails to satisfy auth and risks reading the developer's real Copilot cache.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Plan corrected to set+restore COPILOT_API_HOME to a temp dir and seed copilot_token there (Approach, Risk #1, US-002 strategy, AC).",
+      "relevantFiles": ["codex/codex-rs-overlay/codex-copilot/src/paths.rs"]
+    },
+    {
+      "id": "F-003",
+      "severity": "High",
+      "source": "codex",
+      "category": "Feasibility",
+      "sectionRef": "Approach > chat-SSE harness",
+      "description": "The mock must mount POST /v1/chat/completions, not /chat/completions: TestCodexBuilder sets provider base_url to {server}/v1 (test_codex.rs:364) and send_chat_request appends /chat/completions (chat_completions.rs:31). Wrong path = test silently matches nothing.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Plan updated to mount /v1/chat/completions (or override config.model_provider.base_url) across Approach, Files, Risk, AC, Scope.",
+      "relevantFiles": ["codex/external/repos/codex-patched/codex-rs/core/tests/common/test_codex.rs", "codex/codex-rs-overlay/codex-copilot/src/chat_completions.rs"]
+    },
+    {
+      "id": "F-004",
+      "severity": "High",
+      "source": "codex",
+      "category": "Completeness",
+      "sectionRef": "Open Questions / US-003 setup",
+      "description": "Chat-route model setup is load-bearing, not an open question: the e2e must set a ModelWireRoute::ChatCompletions model via with_model_info_override(...) plus install_anthropic_gate(true), else client.rs:1632 routes through Responses and the chat path never runs.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Promoted into US-003 strategy + AC + Risk as a concrete setup step (with_model_info_override + install_anthropic_gate(true)); Open Question #4 now only asks for the exact slug + override mechanism confirmation.",
+      "relevantFiles": ["codex/external/repos/codex-patched/codex-rs/core/src/client.rs", "codex/external/repos/codex-patched/codex-rs/core/src/chat_transport.rs"]
+    },
+    {
+      "id": "F-005",
+      "severity": "Medium",
+      "source": "consensus",
+      "category": "Criteria Quality",
+      "sectionRef": "Acceptance Criteria",
+      "description": "The network-gated full-loop e2e has no autonomously-verifiable in-loop gate (sandbox disables localhost TCP -> skip_if_no_network; gim-home CI org-policy-blocked). The most important assertions could be marked done without running.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Added a 'Verifiability layering' principle: central assertions are made verifiable WITHOUT network (US-001, the gated ACs via build_chat_request_body + parser tests); the wiremock multi-turn loop is a network-gated capstone (US-003) run outside the sandbox with pasted evidence, not the sole gate for any AC. Decomposition re-ordered (US-001 first).",
+      "relevantFiles": []
+    },
+    {
+      "id": "F-006",
+      "severity": "Medium",
+      "source": "codex",
+      "category": "Completeness",
+      "sectionRef": "US-001 / Acceptance Criteria",
+      "description": "The per-item byte-cap test (build_chat_body_caps_oversized_replayed_reasoning, payload.rs:856) and the absent-effort test (payload.rs:744) already exist; strengthen them (exact tail/boundary) rather than adding duplicates.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "US-001 strategy + AC reworded to STRENGTHEN the named existing tests (:856 exact tail, :744/:729 effort, :767/:800 replay), no duplicates.",
+      "relevantFiles": ["codex/codex-rs-overlay/codex-copilot/src/payload.rs"]
+    },
+    {
+      "id": "F-007",
+      "severity": "Medium",
+      "source": "claude",
+      "category": "Completeness",
+      "sectionRef": "Files to Create > leaf test crate dev-deps",
+      "description": "The leaf crate is specified to dev-depend on core_test_support, but core_test_support has no workspace key and codex-invariant-tests (the cited precedent) does not dev-depend on it; the overlay->core_test_support path is unproven and load-bearing.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Added a US-002 PREFLIGHT (cargo metadata/trial manifest) to confirm core_test_support is nameable from the overlay leaf crate before building US-003; recorded as a Risk and an AC; fallback (core/tests/suite/) documented and gated on the preflight in Open Question #3.",
+      "relevantFiles": ["codex/external/repos/codex-patched/codex-rs/core/tests/common/Cargo.toml", "codex/codex-rs-overlay/codex-invariant-tests/Cargo.toml"]
+    },
+    {
+      "id": "F-008",
+      "severity": "Medium",
+      "source": "codex",
+      "category": "Criteria Quality",
+      "sectionRef": "Acceptance Criteria",
+      "description": "'Same-chunk ordering confirmed via existing test' is not verifiable unless it names the exact test + command. 'reasoning_effort-absent (or gate-off) negative guard' is ambiguous and partly redundant (absent-effort test exists; gate-off is awkward with a process-global gate).",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "AC now cites single_read_with_reasoning_and_content_keeps_reasoning_first (chat_transport.rs:1096) by name + the just test -p command; dropped 'gate-off' and kept a single concrete absent/present-effort requirement (:744/:729).",
+      "relevantFiles": ["codex/external/repos/codex-patched/codex-rs/core/src/chat_transport.rs"]
+    },
+    {
+      "id": "F-009",
+      "severity": "Medium",
+      "source": "codex",
+      "category": "Ordering",
+      "sectionRef": "Implementation Strategy",
+      "description": "US-001 as a standalone production-facing 'enablement' story risks unnecessary chat_transport.rs production changes; the cache-seeding fixture belongs with the e2e fixture, not a separate seam.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Restructured: US-001 is now the no-network deterministic assertions (no production change); the COPILOT_API_HOME token-cache fixture lives WITH the e2e in US-002 (test-only), not a standalone production seam.",
+      "relevantFiles": []
+    },
+    {
+      "id": "F-010",
+      "severity": "Medium",
+      "source": "claude",
+      "category": "Completeness",
+      "sectionRef": "Research Findings > Technical Constraints #1",
+      "description": "Dep/dev-dep labeling imprecision: anyhow/codex-client/reqwest/serde/tokio are regular [dependencies], only wiremock/tempfile/pretty_assertions are [dev-dependencies]. The cycle conclusion itself is correct.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Constraint #1 corrected to label regular deps vs dev-deps accurately, with the verified cycle citations (core/Cargo.toml:36, core/tests/common/Cargo.toml:20).",
+      "relevantFiles": ["codex/codex-rs-overlay/codex-copilot/Cargo.toml"]
+    },
+    {
+      "id": "F-011",
+      "severity": "High",
+      "source": "re-review",
+      "category": "Feasibility",
+      "sectionRef": "Files to Create > leaf crate dev-deps",
+      "description": "The leaf crate Cargo.toml dep list is incomplete for the US-003 setup: the e2e calls codex_model_provider::install_anthropic_gate and uses codex_protocol::openai_models::ModelWireRoute (to set ModelInfo.wire_route via test_codex.rs:283), neither of which was listed.",
+      "status": "fixed",
+      "fixedInIteration": 2,
+      "resolution": "Added codex-model-provider and codex-protocol to the leaf crate dev-deps (Files, US-002 AC, stories-outline), with codex-features noted only if the config-feature gate path is used.",
+      "relevantFiles": ["codex/external/repos/codex-patched/codex-rs/model-provider/src/lib.rs", "codex/external/repos/codex-patched/codex-rs/core/tests/common/test_codex.rs"]
+    },
+    {
+      "id": "F-012",
+      "severity": "High",
+      "source": "re-review",
+      "category": "Ordering",
+      "sectionRef": "US-003 setup",
+      "description": "Gate ordering trap: config/mod.rs:2832 re-derives the gate from Feature::AnthropicModels during test_codex().build(), so install_anthropic_gate(true) called BEFORE build() is silently reset to false and chat_transport.rs:64-75 routes the chat-hinted model back through Responses (the /v1/chat/completions mock never fires).",
+      "status": "fixed",
+      "fixedInIteration": 2,
+      "resolution": "Pinned the ordering in US-003 strategy + Risk + AC + stories-outline: enable Feature::AnthropicModels in the builder config before build(), OR call install_anthropic_gate(true) AFTER build() and before the first submitted turn (never before build()).",
+      "relevantFiles": ["codex/external/repos/codex-patched/codex-rs/core/src/config/mod.rs", "codex/external/repos/codex-patched/codex-rs/core/src/chat_transport.rs"]
+    }
+  ]
+}

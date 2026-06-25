@@ -1,0 +1,21 @@
+Re-review scope honored: I did not re-raise the prior fixed items. I found no Critical issues, but two new High issues remain.
+
+### Feasibility
+
+[High] The proposed `codex/codex-rs-overlay/codex-copilot-e2e-tests/Cargo.toml` dependency list is incomplete for the stated US-003 setup. The test needs to call `codex_model_provider::install_anthropic_gate` from `codex/external/repos/codex-patched/codex-rs/model-provider/src/lib.rs`, and it needs `codex_protocol::openai_models::ModelWireRoute` to set `ModelInfo.wire_route` via `core/tests/common/test_codex.rs:283`. Those crates are workspace deps in `codex-rs/Cargo.toml`, but the plan only lists `core_test_support`, `codex-copilot`, `codex-core`, `wiremock`, `tokio`, `tempfile`, and `pretty_assertions`. Add at least `codex-model-provider = { workspace = true }` and `codex-protocol = { workspace = true }`; if the gate fix below enables the feature through config, also add `codex-features = { workspace = true }`.
+
+### Completeness
+
+No issues found.
+
+### Ordering
+
+[High] The revised gate setup is still not adequate unless the plan pins the order. `core/src/config/mod.rs:2832` calls `codex_model_provider::install_anthropic_gate(features.enabled(Feature::AnthropicModels))` during config build, so a test that calls `install_anthropic_gate(true)` before `test_codex().build(&server)` can be silently reset to false. Then `core/src/chat_transport.rs:64-75` routes the chat-hinted model back through Responses, and the `/v1/chat/completions` mock never exercises the target path. The plan should require either enabling `Feature::AnthropicModels` in the `TestCodexBuilder` config before build, or calling `install_anthropic_gate(true)` after `build()` and before the first submitted turn.
+
+### Simplicity
+
+No issues found.
+
+### Acceptance Criteria Quality
+
+No issues found.
