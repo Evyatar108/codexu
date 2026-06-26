@@ -8758,6 +8758,64 @@
           }
         ]
       }
+    },
+    {
+      "id": "codex-hook-executor-windows-native-shell",
+      "scope": "codex",
+      "lifecycle": "merged",
+      "status": "re-verify-pending",
+      "lastTouchedAt": "2026-06-26T14:30:41.075Z",
+      "kanbanCards": [
+        {
+          "className": "cmd-warn",
+          "html": "BUG (operator 2026-06-11). codex runs crews hooks via WSL bash on Windows, mangling the Windows plugin path -> <code>PreToolUse/PostToolUse hook (failed) error: hook exited with code 1</code>. Captured: <code>Cannot find module '/mnt/c/TentedRepos/C:Usersevmitran.codexplugins...'</code> (backslashes stripped + resolved against WSL cwd). Operator expects PowerShell/cmd, not bash. Investigate codex hook-executor shell selection + FIX to native Windows shell (or direct node spawn). CODEX SUBMODULE."
+        },
+        {
+          "className": "cmd-ok",
+          "html": "ROOT CAUSE + FIX confirmed against source (plan-hookshell investigation 2026-06-11, before it was displaced; findings in staging .ralph/jobs/.staging/20260611T053724Z-plan-hookshell-d2ba601b/feature-request.txt). Execution path: core/src/session/mod.rs::build_hooks_for_config (~3360-3386) -&gt; user_shell.derive_exec_args -&gt; HooksConfig.shell_program/args -&gt; hooks/src/registry.rs:79 CommandShell -&gt; hooks/src/engine/command_runner.rs:103-117 Command::new(shell.program).args(shell.args).arg(handler.command). CORRECTION to the earlier \"codex uses bash\" framing: codex default shell is actually PowerShell on Windows (shell.rs:312-318), NOT bash; user_shell_override is always None; the launcher -c default_shell is a DEAD key. The REAL bug: <code>${CLAUDE_PLUGIN_ROOT}</code> is ENV-ONLY (hooks/src/engine/discovery.rs:225 = plugin_root.display() -&gt; Windows backslashes) and is NEVER substituted into the hook command STRING (unlike the fork .mcp.json path via mcp_substitution.rs / loader.rs:1069). So the command breaks on Windows under EVERY shell: PowerShell/cmd do not expand ${VAR}; and a which(\"bash\")-&gt;WSL-bash path produces the operator /mnt/c module error. FIX: (A) substitute plugin-root tokens into the hook command string, forward-slash-normalized on Windows (extend the mcp_substitution.rs overlay precedent); (B) force a Windows-native hook shell (cmd.exe /C) so Windows node runs. Regression test in codex-rs-overlay/codex-invariant-tests/. READY FOR IMPL."
+        },
+        {
+          "className": "cmd-warn",
+          "html": "NOT READY FOR IMPL (operator-flagged 2026-06-11): plan-hookshell findings CONTRADICT the operator codex-agent live repro. Agent (affected machine) saw ${CLAUDE_PLUGIN_ROOT} EXPAND to the Windows path (codex DID substitute it) then bash mangled it; plan-hookshell claimed it is env-only / NEVER substituted. Also unresolved: WHY bash on Windows when the agent shell tool uses PowerShell, and WHICH macro the .codex-plugin hooks.json actually uses (${CLAUDE_PLUGIN_ROOT} vs a codex-specific ${CODEX_PLUGIN_ROOT}) + whether codex substitutes it. Spawned read-only re-investigation (investigate-hookmacro) to settle the contradiction + answer the 3 questions BEFORE any impl. The earlier impl seed may be wrong; re-confirm root cause first."
+        },
+        {
+          "className": "cmd-ok",
+          "html": "CORRECTED VERDICT (re-investigation investigate-hookmacro, commit a3c7c24c, 2026-06-11) — REVERSES plan-hookshell. On codex 0.135 Windows: (1) codex does NOT run hooks via bash; it uses the SAME user shell as the agent shell tool = PowerShell (shell.rs:316-318 always returns PowerShell; command_runner.rs uses COMSPEC/cmd.exe /C otherwise; session/mod.rs:3366-3384). (2) codex DOES substitute the plugin-root macro INTO the hook command string (discovery.rs:467-469, command.replace(\"${key}\",value)) — plan-hookshell MISSED this; codex supports both ${CLAUDE_PLUGIN_ROOT} and ${CODEX_PLUGIN_ROOT}; the crews .codex-plugin/hooks/hooks.json uses ${CLAUDE_PLUGIN_ROOT} and it expands. (3) The /mnt/c bash error is a RED HERRING — it came from the operator codex-agent copying the substituted command and running it UNDER BASH itself, NOT from codex hook execution; the substituted command WORKS under PowerShell, FAILS only under bash. plan-hookshell's fix (\"substitute token + cmd.exe /C\") is MOOT (already substitutes) + INFEASIBLE (cannot force cmd.exe from hooks.json). ACTION: operator should RE-VERIFY whether PreToolUse/PostToolUse hooks ACTUALLY fail on codex 0.135 with real execution (the agent repro was misleading). Only residual nit: normalize mixed path separators (C:\\...\\3.21.3/hooks/...) / quote the command for robustness — minor, NOT a blocker."
+        },
+        {
+          "className": "cmd-ok",
+          "html": "Plan shipped @ <code>56e1ea65</code> (orig 722ac700). 3 stories US-001/002/003, 1 serial cluster (shared seam core/src/session/mod.rs, no parallelism). Phase-4: 7 findings, 6 resolved. Fix routes Windows POSIX-shell hook exec to native cmd.exe, gated via codex experimental-features. Next: spawn impl."
+        }
+      ],
+      "command": {
+        "name": "codex-hook-executor-windows-native-shell",
+        "prompts": {
+          "plan": "Investigate + FIX: codex executes crews hooks via (WSL) bash on Windows, mangling the Windows plugin path, so PreToolUse/PostToolUse hooks crash with \"exited with code 1\".\n\nTHE BUG (operator machine, repo C:\\TentedRepos, codex crews 3.21.3): codex runs the hook command (node ${CLAUDE_PLUGIN_ROOT}/hooks/codex-pre-tool-use.js) and it fails because the Windows path is executed under bash. Captured error: Cannot find module '/mnt/c/TentedRepos/C:Usersevmitran.codexpluginscacheai-developer-toolkitcrews3.21.3/hooks/codex-pre-tool-use.js' -- the backslashes were stripped (bash escapes) and the leftover resolved against the WSL cwd (/mnt/c/...). So the hook never loads -> exit 1 -> \"PreToolUse hook (failed)\". Codex hides the stderr behind the exit code (see it via ~/.codex/log codex logs / RUST_LOG / running the hook manually).\n\nSTEP 1 (confirm against SOURCE, cite file:line in the codex inner submodule core-plugins / hook executor): HOW does codex execute hooks on Windows? Does it shell out via `bash -c \"<cmd>\"` (a POSIX-first design)? Is there a win32 branch? Does it `spawn` node directly or always go through a shell? Operator EXPECTS PowerShell/cmd, not bash. On Windows a bare `bash` resolves to WSL's C:\\Windows\\System32\\bash.exe first on PATH (known gotcha) -> WSL bash -> /mnt/c mangling. Confirm whether the cause is (i) codex hardcoding bash, (ii) no win32 shell branch, or (iii) WSL-bash-first-on-PATH leaking in.\n\nSTEP 2 (FIX): make codex run hooks via the NATIVE Windows shell (PowerShell/cmd) on win32 -- or spawn node directly without a shell so the Windows backslash path works -- so a Windows ${CLAUDE_PLUGIN_ROOT} path loads correctly. Prefer fork-tenet-1 overlay placement; minimal upstream-canonical seam + SANDBOX PATCH markers + patch-surface entry if an upstream file must change. Add a regression test (a Windows-path hook command loads under the chosen execution path). Build/verify is LEAD-OWNED (codex overlay pin); cargo check --workspace locally.\n\nNOTE: the crews .codex-plugin/hooks/hooks.json command format is part of the surface -- if codex cannot avoid bash, a shell-portable command is the fallback fix layer; evaluate both and recommend. WORKTREE: codex inner submodule (+ crews .codex-plugin if the fallback). Do NOT git push / gh switch.",
+          "impl": "You are the IMPL-phase member for task codex-hook-executor-windows-native-shell.\r\n\r\nPhase discipline: produce only the implementation commits per the plan; do NOT chain into another task. Per codexu AGENTS.md the lead handles FF-merge + push (ask-before-pushing); your scope is local commit on topic branch ralph/codex-hook-executor-windows-native-shell inside a codex submodule worktree.\r\n\r\nThe /implement-with-ralph skill manages the worktree + Phase 5a (code review-fix convergence) + Phase 5b (docs review-fix convergence). Drive ALL phases to terminal review:{code:'clean',docs:'clean'} — do NOT stop at Phase 4 stories-pass.\r\n\r\nPLAN: .ralph/jobs/codex-hook-executor-windows-native-shell/plan.md (Phase-4 reviewed; 7 findings, 6 resolved). Decomposition: 1 serial cluster, US-001/US-002/US-003 (NO internal parallelism — all three edit the same seam).\r\n\r\nScope: route Windows POSIX-shell hook execution to the native cmd.exe path. Shared seam: core/src/session/mod.rs + its test module + codex/docs/implementation/patch-surface.md (add an invariant row). Gate fork-divergent behavior via codex's experimental-features mechanism (features/src/lib.rs Feature enum, default off), NOT an ad-hoc config bool.\r\n\r\nCodex submodule gates: BEFORE editing, run the workspace-parse preflight `cd codex/external/repos/codex-patched/codex-rs && cargo metadata --no-deps --format-version 1` (non-zero = inherited overlay gap, surface it). Phase-5a typecheck gate is `cargo check --workspace` (~6 min) — run it locally. `cargo build --release` stays deferred to CI.\r\n\r\ncodexu root CLAUDE.md is gitignored — do NOT git add CLAUDE.md. Fork-level guidance edits go in codexu/AGENTS.md only. Submodule edits use the two-commit flow (commit + push the submodule first; the lead records the pointer bump).\r\n\r\nAfter local commit, report kind=done with: submodule commit SHA + topic branch + worktree path + brief summary of fixed ACs.\r\n\r\nRUN: /implement-with-ralph --from-plan .ralph/jobs/codex-hook-executor-windows-native-shell/plan.md --autonomous\r\n"
+        },
+        "descriptionHtml": ""
+      },
+      "shipManifest": {
+        "shippedAt": "2026-06-26T14:30:41.075Z",
+        "summary": "Shipped the Windows git-bash-shell hook routing fix (the operator's original session ask). Codex plugin hooks now run through the native cmd.exe shell (cmd.exe /C) when the session shell is a POSIX shell (Bash/Zsh/Sh), gated behind the new Feature::WindowsGitBashShell experimental feature. This fixes the mangled-${CLAUDE_PLUGIN_ROOT}-backslash crashes and the bare-bash->WSL-bash case on Windows.\r\n\r\nTwo fork-added free fns (hook_shell_should_use_native predicate with cfg!(windows) in body + hook_shell_invocation seam) in core/src/session/mod.rs, // SANDBOX PATCH-marked, plus platform-gated truth-table + seam-output tests in hook_shell_tests.rs and a behavioral command_runner test (empty_program_runs_command_through_native_cmd via cmd.exe). Phase 5b docs: patch-surface.md section 14 invariant 61 + section 15 replant note + a regression-history entry.\r\n\r\nVerification: cargo check --workspace PASS; the member's new tests green. Caveat: 3 pre-existing hooks-crate test failures (generated_hook_schemas_match_fixtures, plugin_hook_*) the member did not touch -- flagged as pre-existing, not introduced by this change. Release binary DEFERRED per operator (merge-only, like autoconnect Phase 1); consumers pick it up at the next codex release cut. Ship is 3-level: inner codex-patched sandbox-patches (cdb3cb1c3e, pushed to Evyatar108/codex-openai-fork) -> wrapper codex main (5c838cf874, pushed to gim-home/codex) -> codexu pointer bump (a8b149e1).\r\n",
+        "commits": [
+          {
+            "sha": "cdb3cb1c3e",
+            "oneLine": "fix(hooks): run Windows plugin hooks via the native shell for POSIX session shells",
+            "repo": "codex-openai-fork (inner sandbox-patches)"
+          },
+          {
+            "sha": "5c838cf874",
+            "oneLine": "fix(hooks): route Windows plugin hooks to the native shell (docs + codex-patched gitlink)",
+            "repo": "codex (wrapper main)"
+          },
+          {
+            "sha": "a8b149e1",
+            "oneLine": "chore(codex): bump codex pointer for Windows git-bash-shell hook routing",
+            "repo": "codexu"
+          }
+        ]
+      }
     }
   ]
 }
