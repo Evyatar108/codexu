@@ -1,0 +1,34 @@
+I’ll read the referenced task prompt and inspect the repo context before making changes.
+
+I found this is a plan-review prompt, so I’ll validate the plan against the current staged code without editing anything.
+
+### Feasibility
+
+[Medium] The plan’s dependency rationale says `tui` cannot name `tokio::sync` types, but existing TUI code reportedly already uses `tokio::sync::mpsc` in files like `tui/src/chatwidget.rs` / `tui/src/app.rs`. The chosen overlay-owned handle is still feasible and probably correct, but the rationale is misleading and could over-constrain implementation choices.
+
+[Medium] File paths are ambiguous about repo root. The plan is stored in codexu, but code changes target the `codex/` submodule. Paths like `codex-rs-overlay/...`, `external/repos/...`, and `docs/implementation/...` are correct only relative to the codex submodule root, not `D:/harness-efforts/codexu`. The plan should explicitly state the implementation cwd / target repo.
+
+### Completeness
+
+[High] The plan adds `ChatWidget::remote_on_cancel` but does not cover widget replacement / lifecycle paths. If `App::replace_chat_widget` or session/thread replacement preserves `remote_connection` today, it must explicitly preserve, cancel, or drop `remote_on_cancel`; otherwise an in-flight onboard can become uncancellable from the new widget.
+
+[Medium] The plan requires a patch-surface row but does not list the enforcing invariant test file as a modification target. If a new invariant row claims enforcement for the cancel field, `.cancel()` call, or `Cancelled` notice mapping, `codex-rs-overlay/codex-invariant-tests/tests/happy_seam_invariants.rs` likely needs updating too.
+
+[Medium] The feature request asks the abort-path test to assert a cancellation notice. The plan’s hermetic overlay test asserts `Err(OnboardError::Cancelled)` and no credential writes, while notice mapping is only an untested TUI requirement. Either add a test/marker for the notice mapping or explicitly justify why seam coverage is sufficient.
+
+### Ordering
+
+No issues found.
+
+### Simplicity
+
+[Low] For re-entry, explicitly calling `.cancel()` on any existing handle before replacing it in `/remote on` would be clearer than relying only on watch sender-drop semantics. This is not required for correctness if sender-drop cancellation is tested.
+
+### Acceptance Criteria Quality
+
+[High] “Promptly” is not measurable. The abort-path test should bound cancellation, e.g. `tokio::time::timeout(Duration::from_secs(2), join)` after `cancel()`, so it proves the poll does not wait for `expires_in`.
+
+[Medium] The plan says sender-drop should cancel a previous `/remote on`, but no AC requires testing that behavior. Add an AC that drops/replaces the sender and asserts `Err(OnboardError::Cancelled)`, or remove the claimed behavior.
+
+[Medium] “Each new upstream-canonical line carries `// SANDBOX PATCH: remote_session`” is too literal for multi-line Rust blocks. Rephrase to require each new upstream-canonical seam/block to be covered by an adjacent marker and enforced by the invariant test.
+

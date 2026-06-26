@@ -1,0 +1,38 @@
+{
+  "clusters": [
+    {
+      "name": "overlay-cancellation",
+      "stories": ["US-001"],
+      "phase": 1,
+      "dependsOn": [],
+      "fileOverlapEvidence": {
+        "sharedFiles": [],
+        "exclusiveFiles": [
+          "codex-rs-overlay/codex-happy/src/onboard.rs",
+          "codex-rs-overlay/codex-happy/src/remote_on.rs",
+          "codex-rs-overlay/codex-happy/src/remote_on_tests.rs"
+        ],
+        "risk": "low"
+      },
+      "executionModeRationale": "Overlay-only, zero upstream-canonical surface, fully unit-testable; the smallest coherent stage and a clean first landing."
+    },
+    {
+      "name": "tui-wiring-and-docs",
+      "stories": ["US-002"],
+      "phase": 2,
+      "dependsOn": ["overlay-cancellation"],
+      "fileOverlapEvidence": {
+        "sharedFiles": [],
+        "exclusiveFiles": [
+          "external/repos/codex-patched/codex-rs/tui/src/chatwidget.rs",
+          "external/repos/codex-patched/codex-rs/tui/src/chatwidget/slash_dispatch.rs",
+          "external/repos/codex-patched/codex-rs/tui/src/app/session_lifecycle.rs",
+          "codex-rs-overlay/codex-invariant-tests/tests/happy_seam_invariants.rs",
+          "docs/implementation/patch-surface.md"
+        ],
+        "risk": "low"
+      },
+      "executionModeRationale": "Consumes US-001's OnboardCancel/OnboardError::Cancelled API (compile-time dependency), so it must run after Cluster 1. Files are otherwise disjoint from Cluster 1."
+    }
+  ]
+}

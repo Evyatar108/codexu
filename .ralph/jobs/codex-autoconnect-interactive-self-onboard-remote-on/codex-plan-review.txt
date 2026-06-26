@@ -1,0 +1,29 @@
+### Feasibility
+
+[High] The plan’s file paths are wrong from the codexu repo root. The real files are under the `codex/` submodule, e.g. `codex/codex-rs-overlay/codex-happy/src/onboard.rs`, `codex/external/repos/codex-patched/codex-rs/tui/src/chatwidget/slash_dispatch.rs`, and `codex/docs/implementation/patch-surface.md`. The listed paths like `codex-rs-overlay/...`, `external/repos/...`, and `docs/implementation/...` do not exist from `D:/harness-efforts/codexu`. An autonomous implementer could create/edit the wrong paths unless the plan is corrected.
+
+[Medium] The dependency constraint “TUI cannot name/construct `tokio::sync` channel types” is inaccurate. `tui/src/chatwidget.rs`, `tui/src/app.rs`, and `tui/src/app_event_sender.rs` already import `tokio::sync::mpsc`, and `tui/Cargo.toml` also enables `tokio-stream` with `sync`. This does not make the chosen overlay-owned handle infeasible, but the rationale is misleading and may cause unnecessary API design constraints.
+
+### Completeness
+
+[High] The plan adds a new `ChatWidget` field but only names `chatwidget.rs` and constructor initialization. `App::replace_chat_widget` in `codex/external/repos/codex-patched/codex-rs/tui/src/app/session_lifecycle.rs` currently preserves `remote_connection` across widget replacement; it should explicitly decide whether to transfer, cancel, or drop `remote_on_cancel` during session/thread replacement. Without this, an in-flight onboard may become uncancellable from the replacement widget.
+
+[Medium] The plan claims sender-drop should cancel the old flow on a second `/remote on`, but the acceptance criteria only test explicit `cancel()`. If re-entry cancellation is desired, add a test that drops/replaces the `OnboardCancel` sender and asserts `Err(OnboardError::Cancelled)`. Otherwise, remove that claimed behavior from the plan.
+
+[Medium] The patch-surface invariant update is underspecified. Existing invariant 60 in `codex/codex-rs-overlay/codex-invariant-tests/tests/happy_seam_invariants.rs` only checks `run_self_onboard`, `has_credentials`, and `ensure_running`; it will not enforce the new cancel field, `.cancel()` call, or `Cancelled` notice mapping unless the invariant test itself is updated. The plan mentions a new docs row, but not the required invariant-test edits.
+
+### Ordering
+
+No issues found. Overlay API first, then TUI wiring, is the correct dependency order.
+
+### Simplicity
+
+[Low] The plan can be simpler by making `/remote on` explicitly cancel any existing stored handle before replacing it, instead of relying only on watch sender-drop semantics. That would make re-entry behavior clearer and less dependent on a custom listener implementation detail.
+
+### Acceptance Criteria Quality
+
+[High] The “promptly” criterion is not measurable. Add a bounded assertion, e.g. wrap the abort-path test in `tokio::time::timeout(Duration::from_secs(2), join)` after cancellation, so the test proves it does not wait for `expires_in`.
+
+[Medium] “Each new upstream-canonical line carries `// SANDBOX PATCH: remote_session`” is ambiguous for multi-line expressions and struct fields. Existing files usually mark blocks rather than every physical line. Rephrase to require every new upstream-canonical seam/block to be covered by an adjacent marker and enforced by `happy_seam_invariants`.
+
+[Medium] The final verification commands omit the real working directory. Since the Rust workspace is under `codex/external/repos/codex-patched/codex-rs`, acceptance criteria should state where to run `cargo check --workspace`, `cargo test -p codex-happy`, and `just fmt/fix`.

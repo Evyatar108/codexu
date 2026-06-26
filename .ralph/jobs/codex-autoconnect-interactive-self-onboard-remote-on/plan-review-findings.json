@@ -1,0 +1,130 @@
+{
+  "planFile": "D:/harness-efforts/codexu/.ralph/jobs/.staging/20260626T002647Z-plan-autoconnect-interactive-r-d11bcdc2/draft-plan.md",
+  "repoDir": "D:/harness-efforts/codexu",
+  "reviewCycle": 1,
+  "findings": [
+    {
+      "id": "F-001",
+      "severity": "High",
+      "source": "consensus",
+      "category": "Completeness",
+      "sectionRef": "Approach > Files to Create/Modify",
+      "description": "ChatWidget gains remote_on_cancel but the plan did not cover widget-replacement lifecycle. App::replace_chat_widget (session_lifecycle.rs:336) explicitly transfers remote_connection to the replacement widget; without an analogous transfer of remote_on_cancel an in-flight onboard becomes uncancellable across thread-switch/resume/fork.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Added session_lifecycle.rs to Files to Modify with a remote_on_cancel transfer beside the remote_connection line; added an AC and a Risk-Areas bullet. Verified against source: session_lifecycle.rs:336.",
+      "relevantFiles": ["external/repos/codex-patched/codex-rs/tui/src/app/session_lifecycle.rs"]
+    },
+    {
+      "id": "F-002",
+      "severity": "High",
+      "source": "consensus",
+      "category": "Criteria Quality",
+      "sectionRef": "Acceptance Criteria",
+      "description": "The 'promptly' cancellation criterion is not measurable.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Abort-path AC now bounds the assertion in tokio::time::timeout(Duration::from_secs(2), join) after cancel(), proving the poll does not wait for expires_in."
+    },
+    {
+      "id": "F-003",
+      "severity": "Medium",
+      "source": "consensus",
+      "category": "Feasibility",
+      "sectionRef": "Approach > Files to Create/Modify",
+      "description": "File paths are ambiguous about repo root: code paths are relative to the codex submodule, not codexu root.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Added an explicit Target-repo+cwd note: all code paths are relative to D:/harness-efforts/codexu/codex/ (a codex-submodule worktree); the cargo/just workspace is codex/external/repos/codex-patched/codex-rs."
+    },
+    {
+      "id": "F-004",
+      "severity": "Medium",
+      "source": "consensus",
+      "category": "Feasibility",
+      "sectionRef": "Research Findings > Technical Constraints",
+      "description": "The dependency rationale 'TUI cannot name tokio::sync types' is inaccurate; tui already uses tokio::sync::mpsc via Cargo feature unification.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Corrected the rationale: tokio::sync IS usable in tui via feature unification; Option A is chosen for cohesion + zero Cargo edits, not because tui 'cannot' name the types."
+    },
+    {
+      "id": "F-005",
+      "severity": "Medium",
+      "source": "consensus",
+      "category": "Completeness",
+      "sectionRef": "Approach > Files to Create/Modify",
+      "description": "Patch-surface invariant test (happy_seam_invariants.rs) not listed as a modification target; invariant_60 only checks run_self_onboard/has_credentials/ensure_running and would not enforce the new cancel seam.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Added happy_seam_invariants.rs to Files to Modify with a new invariant_61 asserting the cancel seam markers + an AC. Verified against source: happy_seam_invariants.rs:287-320.",
+      "relevantFiles": ["codex-rs-overlay/codex-invariant-tests/tests/happy_seam_invariants.rs"]
+    },
+    {
+      "id": "F-006",
+      "severity": "Medium",
+      "source": "consensus",
+      "category": "Criteria Quality",
+      "sectionRef": "Acceptance Criteria",
+      "description": "The sender-drop re-entry cancellation behavior was claimed but not tested.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "/remote on now explicitly cancels any existing handle before replacing it; added a re-entry test AC asserting sender-drop/replace yields Err(Cancelled)."
+    },
+    {
+      "id": "F-007",
+      "severity": "Medium",
+      "source": "consensus",
+      "category": "Criteria Quality",
+      "sectionRef": "Acceptance Criteria",
+      "description": "'Each new upstream-canonical line carries // SANDBOX PATCH: remote_session' is too literal for multi-line Rust blocks.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Reworded to require each new upstream-canonical seam/block to be covered by an adjacent marker, enforced by happy_seam_invariants (invariant_61)."
+    },
+    {
+      "id": "F-008",
+      "severity": "Medium",
+      "source": "copilot",
+      "category": "Completeness",
+      "sectionRef": "Approach > Architecture",
+      "description": "Feature request asks the abort-path test to assert a cancellation notice, but the plan left notice-mapping as an untested TUI requirement.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "run_self_onboard now emits a cancellation OnboardNotice through the sink before returning Err(Cancelled), so the overlay abort-path test asserts the notice hermetically."
+    },
+    {
+      "id": "F-009",
+      "severity": "Medium",
+      "source": "claude",
+      "category": "Feasibility",
+      "sectionRef": "Approach > Architecture",
+      "description": "The poll_for_token restructure mitigation ('keep body intact inside the select arm') was misleading: the loop body has early returns that would break if wrapped in an inner async{} inside select!.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Switched to the minimal shape (top-of-loop is_cancelled() check + select! on the sleep await only), leaving the retry/return ladder untouched; added an explicit do-NOT-wrap warning and a Risk bullet citing the early-return line numbers."
+    },
+    {
+      "id": "F-010",
+      "severity": "Medium",
+      "source": "codex",
+      "category": "Criteria Quality",
+      "sectionRef": "Acceptance Criteria",
+      "description": "Verification commands omit the working directory (the Rust workspace is under codex/external/repos/codex-patched/codex-rs).",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "ACs now state the cwd for cargo check --workspace, cargo test, and just fmt/fix."
+    },
+    {
+      "id": "F-011",
+      "severity": "Low",
+      "source": "consensus",
+      "category": "Simplicity",
+      "sectionRef": "Approach > Implementation Strategy",
+      "description": "Relying only on watch sender-drop for re-entry cancellation is less clear than explicitly cancelling the existing handle before replacing it.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "/remote on now explicitly .cancel()s any existing remote_on_cancel before storing the new handle (sender-drop remains a tested backstop)."
+    }
+  ]
+}
