@@ -1264,35 +1264,6 @@
       }
     },
     {
-      "id": "overview-parallel-ready-excludes-merged-lifecycle",
-      "scope": "codexu|ralph-overview",
-      "lifecycle": "tracked",
-      "status": "active",
-      "lastTouchedAt": "2026-06-10",
-      "kanbanCards": [
-        {
-          "className": "cmd-warn",
-          "html": "Filed 2026-06-09. BUG (bites the bookkeeper every batch-selection): the ralph-overview MCP `overview.parallel_ready_tasks` (and the watcher-generated recommendations/readyTasks/snapshot) surface tasks whose bookkeeper OverviewTask.lifecycle is already 'merged' (or 'archived') as READY/actionable. OBSERVED 2026-06-09: parallel_ready_tasks returned crews-codex-inner-pid-capture-not-resolving, codex-marketplace-add-gim-home-failure, codex-v135-network-audit-and-code-review, ralph-orchestration-spawn-target-repo-override-flag, crews-arm-chaining-footgun-guard, crews-proactive-done-auto-consumed-silent-lead-miss etc. as 'plan-ready'/ready -- but ALL are lifecycle=merged in data.json. ROOT: the ready-list is computed from the watcher's RalphPipelineState.stage axis WITHOUT reconciling the OverviewTask.lifecycle axis (the intentional two-file split). A merged task can still carry a non-terminal watcher stage (or a stale/never-updated snapshot stage), so it leaks into the ready list. FIX: the parallel_ready_tasks + recommendations computation (ralph-overview plugin: MCP server + sync library) must EXCLUDE tasks whose lifecycle is 'merged' or 'archived' (join the two axes). Add a regression test (a merged-lifecycle task with a non-terminal stage must NOT appear in parallel_ready_tasks). Plugin-side (ai-developer-toolkit/plugins/ralph-overview); two-commit submodule flow at ship."
-        },
-        {
-          "className": "cmd-warn",
-          "html": "Plan member plan-readylifecycle reached Phase 4 (both review lenses ran) but its listener crashed with IdentityMismatchError (session diverged from manifest owner) before committing — plan branch had 0 commits, work uncommitted/lost. SECOND such copilot-member identity-mismatch crash this session (after bs-modelknobs) — a recurring crews identity-ownership bug. Re-plan is cheap (fix is well-scoped). Needs re-spawn."
-        },
-        {
-          "className": "cmd-ok",
-          "html": "Plan shipped @ <code>dcc6e99a</code> (orig 5315c643). 3 stories US-001/002/003, 1 serial cluster, 7 Phase-4 findings resolved, re-review CONVERGED. ralph-overview: exclude merged-lifecycle from parallel-ready/recommendations (score-recommendations.mjs + unblock-candidates.mjs + viewer unblockCandidates.ts); US-003=release ceremony. Next: spawn impl (plugin VERSION ship)."
-        }
-      ],
-      "command": {
-        "name": "overview-parallel-ready-excludes-merged-lifecycle",
-        "prompts": {
-          "plan": "Plan the fix so the ralph-overview ready-list / recommendations never surface bookkeeper-merged (or archived) tasks as actionable. PROBLEM: `overview.parallel_ready_tasks` (MCP) + the watcher recommendations/readyTasks/snapshot compute readiness from the watcher RalphPipelineState.stage axis and do NOT reconcile the OverviewTask.lifecycle axis (the two-file split: .ralph-overview/data.json lifecycle vs .ralph-overview/generated/ralph-state stage). A lifecycle=merged task with a non-terminal/stale stage leaks into the ready list (observed 2026-06-09: ~6 merged tasks shown as 'ready'). FIRST trace where readyTasks/recommendations are computed in the ralph-overview plugin (the sync library + the MCP server `parallel_ready_tasks` handler) and where lifecycle is (or isn't) joined. THEN fix: exclude tasks whose OverviewTask.lifecycle is 'merged' or 'archived' from parallel_ready_tasks AND from the recommendations/snapshot readyTasks. Keep the two-axis split (do NOT collapse them) -- just gate the ready-list on lifecycle. Add regression tests: a merged-lifecycle task with stage=implementing|plan-ready|etc. must NOT appear in parallel_ready_tasks or recommendations; a tracked task with a ready stage still appears. Plugin-side (ai-developer-toolkit/plugins/ralph-overview) only; version bump + marketplace sync as the plugin convention requires; two-commit submodule flow (lead bumps codexu pointer).",
-          "impl": "You are the IMPL-phase member for task overview-parallel-ready-excludes-merged-lifecycle.\r\n\r\nPhase discipline: produce only the implementation commits per the plan; do NOT chain into another task. Per codexu AGENTS.md the lead handles FF-merge + push (ask-before-pushing); your scope is local commit on topic branch ralph/overview-parallel-ready-excludes-merged-lifecycle inside an ai-developer-toolkit submodule worktree (git -C ai-developer-toolkit worktree add ai-developer-toolkit/.worktrees/overview-parallel-ready-excludes-merged-lifecycle -b ralph/overview-parallel-ready-excludes-merged-lifecycle main).\r\n\r\nThe /implement-with-ralph skill manages Phase 5a (code review-fix convergence) + Phase 5b (docs review-fix convergence). Drive ALL phases to terminal review:{code:'clean',docs:'clean'} — do NOT stop at Phase 4 stories-pass.\r\n\r\nPLAN: .ralph/jobs/overview-parallel-ready-excludes-merged-lifecycle/plan.md (Phase-4 reviewed; 7 findings resolved; re-review CONVERGED). Decomposition: 1 serial cluster, US-001/US-002/US-003 (single plugin, no parallelism).\r\n\r\nScope (ralph-overview plugin): the parallel-ready / recommendations path must EXCLUDE merged-lifecycle tasks. US-001 = Node lib gate + tests in plugins/ralph-overview/scripts/lib/score-recommendations.mjs + unblock-candidates.mjs. US-002 = viewer NOTIFY gate + test in tools/overview-viewer/src/utils/unblockCandidates.ts. US-003 = release ceremony (version bump in plugin.json + the THREE marketplace indexes + CHANGELOG.md + AGENTS.md) — depends on US-001/US-002 green.\r\n\r\nThis is a ralph-overview plugin VERSION ship: bump per the plugin's release convention. The LEAD does the FF-merge + multi-remote push + codexu pointer bump + active-plugin-versions table + copilot plugin update at ship time. Run the crews test discipline as applicable; for ralph-overview run its own tests. Git Bash must be first on PATH on Windows for bash-stub tests.\r\n\r\ncodexu root CLAUDE.md is gitignored — do NOT git add CLAUDE.md. Submodule edits use the two-commit flow.\r\n\r\nAfter local commit, report kind=done with: submodule commit SHA + topic branch + worktree path + the new ralph-overview version + brief summary of fixed ACs.\r\n\r\nRUN: /implement-with-ralph --from-plan .ralph/jobs/overview-parallel-ready-excludes-merged-lifecycle/plan.md --autonomous\r\n"
-        },
-        "descriptionHtml": ""
-      }
-    },
-    {
       "id": "crews-listener-silent-reap-across-idle-investigation",
       "scope": "crews",
       "lifecycle": "tracked",
