@@ -1586,39 +1586,6 @@
       }
     },
     {
-      "id": "codex-autoconnect-interactive-self-onboard-remote-on",
-      "scope": "codex",
-      "lifecycle": "tracked",
-      "status": "todo",
-      "lastTouchedAt": "2026-06-22",
-      "command": {
-        "name": "codex-autoconnect-interactive-self-onboard-remote-on",
-        "descriptionHtml": "Wire codex's existing interactive GitHub device-flow self-onboard (<code>onboard.rs</code>) into the <code>/remote on</code> attach path for the creds-absent case. Split out of the raw-codex autoconnect US-009 (operator decision C, 2026-06-22) because the device flow is interactive and surfacing it mid-session needs a TUI callback into the attach/onboard layer &mdash; a new cross-boundary surface.",
-        "prompts": {
-          "plan": "Plan wiring codex's existing onboard.rs (GitHub device-flow + local E2EE identity) into the /remote on attach path for when ~/.happy creds are absent.\n\nContext: the raw-codex autoconnect feature (task codex-raw-session-happy-daemon-autoconnect, branch feat/remote-session in the codex submodule) shipped US-009's /remote on|off toggle + creds-present mid-session attach/detach, but DEFERRED the interactive self-onboard (operator decision C, 2026-06-22). Today /remote on with no creds shows a 'needs onboarding' message and returns without attaching. onboard.rs (codex-rs-overlay/codex-happy/onboard.rs: complete_onboard_with_token + the GitHub device flow + generate_box_keypair tweetnacl-equiv keypair + access.key/profile.json/machineId writes) EXISTS but is unwired into establish()/attach.\n\nScope: when /remote on is invoked with no ~/.happy creds AND the remote_session feature is enabled, run the device flow, surface the verification URL + user code to the user via a NEW TUI callback (the cross-boundary surface: the overlay background attach task must signal the codex TUI to display the prompt and await completion), complete onboarding (write ~/.happy creds), then attach in the same command. Clean cancellation if the user aborts.\n\nBuild on feat/remote-session (stacked, after the autoconnect story set lands + is reviewed). This is a codex-submodule (wrapper gim-home/codex + nested-inner Evyatar108/codex-openai-fork) two-commit effort. Gate the new TUI-callback surface behind the existing Feature::RemoteSession. Add patch-surface.md rows + tests (the device-flow happy-path with a mocked GitHub endpoint + the abort path).\n\nDEPENDS ON: codex-raw-session-happy-daemon-autoconnect (US-001..US-009) landing first.\n\nRUN: /plan-with-ralph codex-autoconnect-interactive-self-onboard-remote-on",
-          "impl": "You are the IMPL-phase member for task codex-autoconnect-interactive-self-onboard-remote-on (NARROW cancellation scope).\r\n\r\nPhase discipline: produce only the implementation commits per the plan; do NOT chain into another task. Per codexu AGENTS.md the lead handles FF-merge + push (ask-before-pushing); your scope is local commit on topic branch ralph/codex-autoconnect-interactive-self-onboard-remote-on inside a codex submodule worktree.\r\n\r\nThe /implement-with-ralph skill manages the worktree + Phase 5a (code review-fix convergence) + Phase 5b (docs review-fix convergence). Drive ALL phases to terminal review:{code:'clean',docs:'clean'} — do NOT stop at Phase 4 stories-pass.\r\n\r\nPLAN: .ralph/jobs/codex-autoconnect-interactive-self-onboard-remote-on/plan.md (Phase-4 reviewed; 11 findings, 0 Crit/2 High, all resolved). IMPORTANT scope note: the self-onboard wiring is ALREADY SHIPPED (Phase 1) — this task is ONLY the in-flight cancellation/abort delta. Do NOT re-implement self-onboard.\r\n\r\nDecomposition (2 sequential clusters):\r\n- US-001 \"overlay-cancellation\" (Phase 1, low risk, overlay-only): add an OnboardCancel / OnboardError::Cancelled API + abort handling in codex-rs-overlay/codex-happy/src/onboard.rs + remote_on.rs + remote_on_tests.rs. Smallest coherent first landing, fully unit-testable.\r\n- US-002 \"tui-wiring-and-docs\" (Phase 2, depends on US-001's API): wire /remote off to abort an in-flight device-flow poll in tui/src/chatwidget/slash_dispatch.rs + chatwidget.rs + app/session_lifecycle.rs; cleanup the stale comment at slash_dispatch.rs:815-821; add a happy_seam_invariants.rs test + a patch-surface.md invariant row.\r\n\r\nCodex submodule gates: BEFORE editing, run `cd codex/external/repos/codex-patched/codex-rs && cargo metadata --no-deps --format-version 1` (non-zero = inherited overlay gap, surface it). Phase-5a typecheck gate is `cargo check --workspace` locally. `cargo build --release` stays deferred to CI.\r\n\r\ncodexu root CLAUDE.md is gitignored — do NOT git add CLAUDE.md. Fork-level guidance edits go in codexu/AGENTS.md only. Submodule edits use the two-commit flow.\r\n\r\nAfter local commit, report kind=done with: submodule commit SHA + topic branch + worktree path + brief summary of fixed ACs.\r\n\r\nRUN: /implement-with-ralph --from-plan .ralph/jobs/codex-autoconnect-interactive-self-onboard-remote-on/plan.md --autonomous\r\n"
-        }
-      },
-      "kanbanCards": [
-        {
-          "className": "cmd-warn",
-          "html": "Split out of autoconnect US-009 by operator decision C (2026-06-22): the interactive GitHub device-flow self-onboard for <code>/remote on</code> when <code>~/.happy</code> creds are absent. <code>onboard.rs</code> (device-flow + E2EE identity) EXISTS but is unwired into the attach path; US-009 ships a 'needs onboarding' message instead. This task wires the device-flow + a NEW TUI callback (overlay background task &rarr; codex TUI prompt) into <code>/remote on</code>. DEPENDS ON the autoconnect story set (codex-raw-session-happy-daemon-autoconnect) landing first."
-        },
-        {
-          "className": "cmd-warn",
-          "html": "SECURITY must-fix (from autoconnect pre-release review <code>5a50c43f</code>, M1 Medium): when this task wires <code>onboard.rs</code> into the runtime attach path, FIX <code>onboard.rs::write_json_atomically</code> so <code>~/.happy/access.key</code> (bearer token + X25519 private machineKey) is written with <strong>0o600</strong> perms (the TS reference uses 0o600/0o700; in-tree precedent <code>codex-copilot/auth.rs:458 write_secret_file</code>). Currently DORMANT (onboard.rs unwired &mdash; not a release blocker for the base autoconnect feature) but MUST land together with the self-onboard activation, else the credential file is world-readable 0o644 on Unix.\r\n"
-        },
-        {
-          "className": "cmd-warn",
-          "html": "ABSORBED into the unified zero-friction effort <code>codex-autoconnect-self-contained-zero-friction</code> (operator 2026-06-23): the interactive self-onboard is now scoped TOGETHER with the daemon-decoupling (codex connecting directly to happy-server) since they compose &mdash; the self-onboard mints the creds + server URL the direct connection then uses. The unified brainstorm produces the decomposition; this task remains the self-onboard component, and the M1 <code>access.key</code> 0o600 perms fix travels with it.\r\n"
-        },
-        {
-          "className": "cmd-ok",
-          "html": "Plan shipped @ <code>10fd3307</code> (orig 441503dc, branch pushed to origin). NARROW cancellation plan: 2 sequential stories US-001 overlay-cancellation (OnboardCancel/OnboardError::Cancelled API, overlay-only) + US-002 tui-wiring-and-docs (/remote off aborts in-flight device-flow poll + stale-comment cleanup + patch-surface invariant). 11 Phase-4 findings (0 Crit/2 High) all resolved. Self-onboard was already shipped Phase 1; this is only the abort delta. Next: spawn impl."
-        }
-      ]
-    },
-    {
       "id": "codex-prerelease-rebase-debt-invariant15-and-codex-happy-fmt",
       "scope": "codex",
       "lifecycle": "tracked",
