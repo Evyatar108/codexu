@@ -1,0 +1,106 @@
+{
+  "clusters": [
+    {
+      "name": "probe-gate",
+      "stories": ["US-001"],
+      "phase": 1,
+      "dependsOn": [],
+      "fileOverlapEvidence": {
+        "sharedFiles": [],
+        "exclusiveFiles": [
+          "D:/ExtRepos/copilot-thinking-probe/probe.mjs",
+          ".ralph/jobs/codex-anthropic-native-messages-transport-for-signed-cot/probe-decision.md"
+        ],
+        "risk": "low"
+      },
+      "executionModeRationale": "Touches only the external probe repo plus a decision artifact; fully disjoint from codex source. It is the GO/NO-GO gate for every other cluster, so nothing else may start until it returns GO."
+    },
+    {
+      "name": "routing-skeleton",
+      "stories": ["US-002"],
+      "phase": 2,
+      "dependsOn": ["probe-gate"],
+      "fileOverlapEvidence": {
+        "sharedFiles": [
+          "external/repos/codex-patched/codex-rs/core/src/chat_transport.rs",
+          "external/repos/codex-patched/codex-rs/core/src/client.rs",
+          "docs/implementation/patch-surface.md"
+        ],
+        "exclusiveFiles": [
+          "external/repos/codex-patched/codex-rs/model-provider-info/src/lib.rs",
+          "external/repos/codex-patched/codex-rs/protocol/src/openai_models.rs",
+          "external/repos/codex-patched/codex-rs/config/src/thread_config/remote.rs",
+          "external/repos/codex-patched/codex-rs/model-provider/src/copilot_models_endpoint.rs",
+          "external/repos/codex-patched/codex-rs/model-provider/src/copilot/gated_models_manager.rs",
+          "external/repos/codex-patched/codex-rs/features/src/lib.rs",
+          "external/repos/codex-patched/codex-rs/model-provider/src/anthropic_gate.rs",
+          "external/repos/codex-patched/codex-rs/core/src/config/mod.rs"
+        ],
+        "risk": "medium"
+      },
+      "executionModeRationale": "Adds the enum/route/gate seams plus a degrade-to-chat dispatch stub; compiles independently and is inert (always degrades to the working unsigned path). Must land first and alone because its chat_transport.rs/client.rs/patch-surface.md edits overlap the dispatch-join cluster."
+    },
+    {
+      "name": "inbound-capture",
+      "stories": ["US-003"],
+      "phase": 3,
+      "dependsOn": ["routing-skeleton"],
+      "fileOverlapEvidence": {
+        "sharedFiles": [
+          "external/repos/codex-patched/codex-rs/core/src/chat_transport.rs",
+          "docs/implementation/patch-surface.md"
+        ],
+        "exclusiveFiles": [
+          "external/repos/codex-patched/codex-rs/core/src/chat_transport/anthropic_sse.rs"
+        ],
+        "risk": "medium"
+      },
+      "executionModeRationale": "Surfaces the thinking/signature deltas and persists the signature into encrypted_content; serialized after routing-skeleton because both edit core/src/chat_transport.rs and the patch-surface ledger. File-disjoint from outbound-builder, so the two may run in parallel if a coordinator manages the shared patch-surface.md prepend."
+    },
+    {
+      "name": "outbound-builder",
+      "stories": ["US-004"],
+      "phase": 3,
+      "dependsOn": ["probe-gate"],
+      "fileOverlapEvidence": {
+        "sharedFiles": [],
+        "exclusiveFiles": [
+          "codex-rs-overlay/codex-copilot/src/anthropic_messages.rs",
+          "codex-rs-overlay/codex-copilot/src/payload.rs"
+        ],
+        "risk": "low"
+      },
+      "executionModeRationale": "A new overlay file (zero upstream conflict surface) consuming only the frozen encrypted_content slot; file-disjoint from inbound-capture, so it can run in parallel with it. It does not touch routing, so it only needs the probe GO."
+    },
+    {
+      "name": "dispatch-join",
+      "stories": ["US-005"],
+      "phase": 4,
+      "dependsOn": ["routing-skeleton", "inbound-capture", "outbound-builder"],
+      "fileOverlapEvidence": {
+        "sharedFiles": [
+          "external/repos/codex-patched/codex-rs/core/src/chat_transport.rs",
+          "external/repos/codex-patched/codex-rs/core/src/client.rs",
+          "docs/implementation/patch-surface.md"
+        ],
+        "exclusiveFiles": [
+          "external/repos/codex-patched/codex-rs/core/tests/suite/signed_messages_roundtrip.rs"
+        ],
+        "risk": "medium"
+      },
+      "executionModeRationale": "Replaces the dispatch stub with the real WireApi::AnthropicMessages arm plus the stream_anthropic_messages driver and adds the round-trip integration test; depends on all three Phase-2/3 clusters and re-touches the shared core files, so it serializes last among the build clusters."
+    },
+    {
+      "name": "harden-verify",
+      "stories": ["US-006"],
+      "phase": 5,
+      "dependsOn": ["dispatch-join"],
+      "fileOverlapEvidence": {
+        "sharedFiles": ["docs/implementation/patch-surface.md"],
+        "exclusiveFiles": ["scripts/audit_network_calls.sh"],
+        "risk": "low"
+      },
+      "executionModeRationale": "Network-audit allowlist plus consolidated section 15 replant note plus full local cargo gates plus dogfood smoke; runs after the join is complete so the audit reflects the final egress surface."
+    }
+  ]
+}

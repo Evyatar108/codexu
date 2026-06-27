@@ -1,0 +1,70 @@
+I’ll read the referenced prompt file first, then carry out the requested task end-to-end.
+
+The prompt is research-only. I’ll inspect the codex submodule and overlay at the required absolute paths, without modifying files.
+
+The codex paths are blocked by the environment’s access policy, so I can’t inspect those source files directly. I’ll provide the research result from the supplied task context and the limited accessible repository metadata.
+
+### Codebase Architecture
+
+Source access to `D:\harness-efforts\codexu\codex\...` was blocked by the environment access policy, so this is based on the supplied task context plus visible repo metadata.
+
+`codexu` is a parent repo with load-bearing submodules, including `codex` at `f779aec7...` and `ai-developer-toolkit`. The signed-CoT work targets the `codex` Rust workspace under:
+
+`D:\harness-efforts\codexu\codex\external\repos\codex-patched\codex-rs\`
+
+Relevant structure from the task context:
+- `core\src\...`: runtime client, chat transport, SSE parsing.
+- `model-provider\src\...`: Copilot model/provider endpoint routing.
+- `codex-rs-overlay\codex-copilot\...`: fork overlay code for Copilot-specific request/payload behavior.
+- `docs\implementation\patch-surface.md`: ledger for fork patch-surface decisions.
+- External probe repo: `D:\ExtRepos\copilot-thinking-probe\probe.mjs`.
+
+Primary implementation language is Rust for codex; the probe is Node.js.
+
+### Feature-Relevant Code
+
+Directly relevant files/seams named by the task:
+
+- `core\src\client.rs`
+  - Existing dispatch point around `client.rs:1675`.
+  - Eventual GO-path would need a third transport dispatch arm.
+
+- `core\src\chat_transport\anthropic_sse.rs`
+  - Existing Anthropic SSE parser.
+  - Context says `thinking_delta` / `signature_delta` handling exists but is dead over `/chat/completions`.
+  - Existing signature discard around `anthropic_sse.rs:174-176` is relevant only on GO.
+
+- `model-provider\src\copilot_models_endpoint.rs`
+  - Existing `wire_route_for` around lines `282-296`.
+  - `/v1/messages` appears only in test fixture strings around `547/613/665/711`.
+  - Eventual GO-path would extend `WireApi`, `ModelWireRoute`, `effective_wire_api`, and route detection.
+
+- `codex-rs-overlay\codex-copilot\...\payload.rs`
+  - `push_chat_message` is the relevant overlay payload integration point.
+  - It overlaps with the unsigned sibling task’s reasoning capture/replay work.
+
+- `D:\ExtRepos\copilot-thinking-probe\probe.mjs`
+  - Natural first deliverable.
+  - Should be extended before any codex-rs transport code changes.
+
+### Technical Constraints
+
+- The first deliverable is **probe-only**: no codex-rs transport edits before GO.
+- GO requires all three gates:
+  1. Copilot bearer auth accepted by `POST https://api.githubcopilot.com/v1/messages`.
+  2. SSE emits signed `thinking` plus `signature`.
+  3. A second turn accepts replayed signed thinking before `tool_result`.
+- Endpoint availability alone is insufficient.
+- Signed work must sequence **after** `codex-anthropic-chat-reasoning-text-capture-and-replay`, because both touch `anthropic_sse.rs` and overlay `payload.rs::push_chat_message`.
+- The shared persisted reasoning shape should be neutral now and later able to carry `signature`.
+- If implementation proceeds, codex submodule changes require a two-commit flow: submodule commit first, then parent codexu pointer bump.
+- Overlay-first is required; upstream-canonical edits should be limited to routing/dispatch seams that cannot live in overlay.
+
+### Implementation Suggestions
+
+Start with the probe extension only. Reuse the existing Copilot auth/token/header logic in `D:\ExtRepos\copilot-thinking-probe\probe.mjs`, add a minimal Anthropic Messages request to `/v1/messages`, and persist raw SSE captures for both turns. The second turn should replay the signed thinking block before a `tool_result`, because that is the decisive compatibility gate.
+
+Record the verdict as GO/NO-GO with raw capture citations for each gate. On NO-GO, stop and recommend relying on unsigned `reasoning_text` capture/replay.
+
+On GO, plan a fast-follow transport after the unsigned sibling lands: add a third `WireApi`/`ModelWireRoute` arm, teach `wire_route_for` about `/v1/messages`, update `effective_wire_api`, add the `client.rs` dispatch arm, implement a Messages request builder and SSE parser, and reuse the neutral persisted reasoning item shape rather than reworking the unsigned sibling’s storage model.
+

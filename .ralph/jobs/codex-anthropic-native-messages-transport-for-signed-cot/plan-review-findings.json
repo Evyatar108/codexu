@@ -1,0 +1,196 @@
+{
+  "planFile": "D:/harness-efforts/codexu/.ralph/jobs/.staging/20260627T030406Z-plan-signedcot-i1-ffaba340/draft-plan.md",
+  "repoDir": "D:/harness-efforts/codexu/codex",
+  "findings": [
+    {
+      "id": "F-001",
+      "severity": "High",
+      "source": "copilot",
+      "category": "Feasibility",
+      "section": "Next Step",
+      "description": "Next Step still emits an executable /implement-with-ralph task() chain despite the plan stating the nested 2-repo change cannot use it. An agent would follow the executable instruction and drop either the inner codex-patched commit or the wrapper ledger/pointer commit.",
+      "status": "resolved",
+      "resolution": "Rewrote Next Step to lead with the direct two-commit impl flow and removed the auto-chaining /implement-with-ralph task() block; replaced with explicit lead-decision guidance + per-story manual sequence."
+    },
+    {
+      "id": "F-002",
+      "severity": "High",
+      "source": "consensus",
+      "category": "Ordering",
+      "section": "Suggested Decomposition / US-004",
+      "description": "US-004 (outbound builder) is marked depends-only-on-probe and parallel with US-003, but its tests use real ResponseItem::Reasoning{encrypted_content:Some} behavior produced by US-003. Risk of coupling.",
+      "status": "resolved",
+      "resolution": "US-004 now defines its own fixture contract (construct ResponseItem::Reasoning{encrypted_content:Some(sig)} directly, independent of the US-003 parser) to stay parallel-safe; noted the safer serialize-after-US-003 fallback."
+    },
+    {
+      "id": "F-003",
+      "severity": "High",
+      "source": "claude",
+      "category": "Feasibility",
+      "section": "Research Findings / AC14 / Files-to-Modify",
+      "description": "STALE CITATION on a protected surface: plan claimed patch-surface.md §14 max ID = 53, next free = 54. Actual max = 62 (invariants 54-62 = remote_session/codex-happy seams already shipped). Following the plan would author duplicate invariant IDs colliding with shipped rows. Verified directly: max numeric §14 ID = 62.",
+      "status": "resolved",
+      "resolution": "Corrected to max=62, next free=63 everywhere (Research Findings ledger, AC14, Files-to-Modify, Risk). Noted the stale snapshot."
+    },
+    {
+      "id": "F-004",
+      "severity": "Medium",
+      "source": "claude",
+      "category": "Completeness",
+      "section": "Files-to-Modify / US-002",
+      "description": "Missing integration point: a third exhaustive match over WireApi at config/src/thread_config/remote.rs:291-300 (proto_wire_api, #[cfg(test)]). A 3rd WireApi variant forces a new arm there (cargo check --all-targets catches it).",
+      "status": "resolved",
+      "resolution": "Added remote.rs:291-300 (cfg(test) proto_wire_api helper) to US-002 Files-to-Modify; maps AnthropicMessages -> proto::WireApi::Unspecified like ChatCompletions."
+    },
+    {
+      "id": "F-005",
+      "severity": "Medium",
+      "source": "claude",
+      "category": "Feasibility",
+      "section": "Approach / AC5",
+      "description": "effective_wire_api_gated takes a single anthropic_enabled bool. The signed sub-flag is a second independent gate; threading it as a hidden resolver read inside the gated fn would make degrade-vs-route untestable without process-global state. Thread it as an explicit param mirroring anthropic_enabled.",
+      "status": "resolved",
+      "resolution": "AC5 + Architecture now require threading the signed flag as an explicit parameter to effective_wire_api_gated (mirroring anthropic_enabled), with the resolver read only at the effective_wire_api wrapper."
+    },
+    {
+      "id": "F-006",
+      "severity": "High",
+      "source": "codex",
+      "category": "Feasibility",
+      "section": "AC15",
+      "description": "AC15 used `just test -p`. The justfile is at external/repos/codex-patched/justfile (not under codex-rs/), and the [windows] just test recipe fails from Git Bash (exit 9009). cargo test -p is the robust path.",
+      "status": "resolved",
+      "resolution": "AC15 now specifies `cargo test -p <crate>` from external/repos/codex-patched/codex-rs/ as primary, with `just test -p` as the AGENTS.override.md-preferred alternative that may fail in a Windows Git-Bash shell."
+    },
+    {
+      "id": "F-007",
+      "severity": "High",
+      "source": "codex",
+      "category": "Feasibility/Criteria",
+      "section": "Approach decision 2 / AC6",
+      "description": "US-002 is not truly inert if anthropic_signed_messages is enabled before US-005: effective_wire_api would route to WireApi::AnthropicMessages while the dispatch arm is only a stub, breaking the model path. AC6 'stub/guard that cannot panic' is too vague.",
+      "status": "resolved",
+      "resolution": "US-002's effective_wire_api AnthropicMessages arm degrades to ChatCompletions UNCONDITIONALLY until US-005; the US-002 client.rs stub arm delegates to stream_chat_completions (runs unsigned, never selected as signed). AC6 made concrete (delegates to chat path). US-005 flips the gate to honor the sub-flag."
+    },
+    {
+      "id": "F-008",
+      "severity": "High",
+      "source": "codex",
+      "category": "Completeness",
+      "section": "Files-to-Modify / US-002",
+      "description": "The new feature gate needs a config install path. Feature::AnthropicModels is installed via install_anthropic_gate at config build (core/src/config/mod.rs). The plan listed a resolver but not the config install for anthropic_signed_messages; without it the flag stays false.",
+      "status": "resolved",
+      "resolution": "Added core/src/config/mod.rs (install the signed sub-flag at config build, mirror install_anthropic_gate) to US-002 Files-to-Modify + AC."
+    },
+    {
+      "id": "F-009",
+      "severity": "High",
+      "source": "codex",
+      "category": "Completeness",
+      "section": "Files-to-Modify / US-002",
+      "description": "Model cache identity must include the signed sub-flag. copilot_models_endpoint.rs:180 keys cache eligibility only on anthropic_models via .with_request_shape. Since wire_route now varies by anthropic_signed_messages, stale models_cache.json rows preserve the wrong route.",
+      "status": "resolved",
+      "resolution": "Added: extend cache_identity at copilot_models_endpoint.rs:178-181 with .with_request_shape(\"anthropic_signed_messages\", ...) so a sub-flag change invalidates the cache; AC + cache-identity test added."
+    },
+    {
+      "id": "F-010",
+      "severity": "High",
+      "source": "codex",
+      "category": "Completeness",
+      "section": "Files-to-Modify / US-002",
+      "description": "GatedModelsManager (model-provider/src/copilot/gated_models_manager.rs:41,62) hides Anthropic rows by checking wire_route != ChatCompletions when the gate is off. A ModelWireRoute::AnthropicMessages row leaks through unless the filter is extended.",
+      "status": "resolved",
+      "resolution": "Added gated_models_manager.rs to US-002 Files-to-Modify: extend the visibility filter so AnthropicMessages rows are hidden when anthropic_models (and/or the signed sub-flag) is off; gating test added."
+    },
+    {
+      "id": "F-011",
+      "severity": "Medium",
+      "source": "codex",
+      "category": "Completeness",
+      "section": "AC10",
+      "description": "core/src/context_manager/history.rs estimates ResponseItem::Reasoning{encrypted_content:Some(..)} as encrypted reasoning and ignores plaintext content for token accounting. Signed thinking sends plaintext + signature; AC10 should cover history/token accounting, not only request-builder capping.",
+      "status": "resolved",
+      "resolution": "AC10 expanded to require history/token-accounting correctness for a signed reasoning item (encrypted_content:Some + plaintext content), verifying the bound holds in history estimation, not just at the request builder."
+    },
+    {
+      "id": "F-012",
+      "severity": "Medium",
+      "source": "codex",
+      "category": "Completeness",
+      "section": "US-002",
+      "description": "synthesize_from_capabilities gives Claude chat rows a medium default reasoning level only when wire_route == ChatCompletions (copilot_models_endpoint.rs:463). The new AnthropicMessages route should get the same default or signed Claude may regress to the first advertised level.",
+      "status": "resolved",
+      "resolution": "Added to US-002: extend the default-reasoning-level branch (copilot_models_endpoint.rs:463) to treat AnthropicMessages like ChatCompletions."
+    },
+    {
+      "id": "F-013",
+      "severity": "Medium",
+      "source": "codex",
+      "category": "Simplicity",
+      "section": "Approach",
+      "description": "The signed sub-flag is read across wire_route_for, effective_wire_api_gated, model cache identity, config install, and model filtering. Add a single exported resolver anthropic_signed_messages_resolved() used everywhere to reduce drift.",
+      "status": "resolved",
+      "resolution": "Architecture now mandates a single exported anthropic_signed_messages_resolved() (+ install) pair in anthropic_gate.rs (mirroring the anthropic_models pair), used at every routing/cache/filter site."
+    },
+    {
+      "id": "F-014",
+      "severity": "Medium",
+      "source": "codex",
+      "category": "Criteria Quality",
+      "section": "AC13",
+      "description": "AC13 overstates the audit shape: runtime_audit_allowlist.txt is host-level (already includes api.githubcopilot.com); audit_network_calls.sh does not maintain a Copilot inference path allowlist. AC13 should name the exact grep/audit invariant to add for /v1/messages.",
+      "status": "resolved",
+      "resolution": "AC13 reworded: the egress host is already allowed; the new control is a §14 grep-guard invariant asserting the ONLY Copilot inference paths in source are /chat/completions and /v1/messages, plus extending Invariant 38's documented path set. No false claim about a path allowlist in audit_network_calls.sh."
+    },
+    {
+      "id": "F-015",
+      "severity": "High",
+      "source": "copilot",
+      "category": "Feasibility",
+      "section": "AC9",
+      "description": "AC9 allowed encrypted_content:None to 'fall back to plaintext/omit' in the Anthropic Messages builder. An unsigned plaintext thinking block is not equivalent to a signed Anthropic thinking block and may be rejected or silently lose continuity.",
+      "status": "resolved",
+      "resolution": "AC9 now requires that a reasoning item with encrypted_content:None emits NO thinking block (omit), never an unsigned thinking block; a test asserts no unsigned thinking is emitted on the Messages path. (Continuity for unsigned items is the chat-completions transport's job.)"
+    },
+    {
+      "id": "F-016",
+      "severity": "High",
+      "source": "copilot",
+      "category": "Completeness",
+      "section": "Acceptance Criteria (new)",
+      "description": "No AC specifies/tests the Anthropic Messages translation of system prompts, tools/tool_choice, multiple tool calls, and text-only turns. A transport can pass the reasoning-ordering test while sending invalid Anthropic system/tools/content.",
+      "status": "resolved",
+      "resolution": "Added AC9b (request-builder fidelity): system prompt -> top-level system, tools/tool_choice -> Anthropic tools schema, multiple tool calls preserved, and a text-only turn produces a valid messages[] with no thinking/tool blocks; fixtures for each."
+    },
+    {
+      "id": "F-017",
+      "severity": "High",
+      "source": "copilot",
+      "category": "Completeness",
+      "section": "AC7 / AC8",
+      "description": "Parser/persistence ACs do not require binding signature_delta to the correct content block index / following tool_use. Signed replay correctness depends on preserving the exact thinking block adjacent to its matching tool call, especially with multiple content blocks.",
+      "status": "resolved",
+      "resolution": "AC7/AC8 extended with a multi-block fixture (multiple thinking/tool content blocks, different/out-of-order indices) asserting each signature binds to its own thinking block and the correct adjacent tool_use, with no cross-binding."
+    },
+    {
+      "id": "F-018",
+      "severity": "Medium",
+      "source": "copilot",
+      "category": "Completeness",
+      "section": "AC1 / AC2",
+      "description": "Probe captures use Copilot bearer auth but the plan does not say where captures live, whether committed, or how auth/request secrets are redacted.",
+      "status": "resolved",
+      "resolution": "AC1/AC2 now require committing only sanitized captures (Authorization/bearer + account-id redacted) under the job dir; raw sensitive captures stay out of git (probe writes them to a gitignored path)."
+    },
+    {
+      "id": "F-019",
+      "severity": "Medium",
+      "source": "copilot",
+      "category": "Criteria Quality",
+      "section": "AC14",
+      "description": "AC14 'every upstream-canonical edited line needs a // SANDBOX PATCH: marker' is hard to apply literally to multi-line enum/test/doc edits and produces noisy comments.",
+      "status": "resolved",
+      "resolution": "AC14 reworded: every upstream-canonical edit HUNK / new variant / new seam carries a // SANDBOX PATCH: marker and a §14 ledger row + §15 replant note, rather than a literal per-line marker."
+    }
+  ]
+}

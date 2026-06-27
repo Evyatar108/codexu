@@ -1,0 +1,36 @@
+I’ll read the provided prompt and inspect the repo context before making changes.
+
+I’m validating the plan’s file and API claims against the codex source now.
+
+Source validation note: access to the codex source paths was denied locally and GitHub access to `gim-home/codex` was SAML-blocked, so file:line claims could not be independently verified.
+
+### Feasibility
+
+[Critical] The plan correctly says this is a nested two-repo change that `/implement-with-ralph` cannot express, but the Next Step still instructs running `/implement-with-ralph --from-plan`. That violates the repo rule against blindly chaining dual-repo plans into `/implement-with-ralph` and is likely to drop either the inner `codex-patched` commit or the wrapper ledger/pointer commit. Replace the handoff with a direct two-commit impl flow, or split into separate repo-scoped jobs.
+
+[High] AC9 allows `encrypted_content: None` to “fall back to plaintext/omit” in the Anthropic Messages builder. Plaintext thinking without a signature is not equivalent to a signed Anthropic `thinking` block and may be rejected or silently lose continuity. Require either omission plus documented downgrade behavior, or a route fallback to chat-completions; add a test that no unsigned `thinking` block is emitted.
+
+### Completeness
+
+[High] The plan identifies outbound `system`/`tools` translation fidelity as an open question, but no acceptance criterion specifies or tests that mapping. A transport can satisfy the reasoning ordering test while still sending invalid Anthropic `system`, `tools`, `tool_choice`, or message content. Add concrete builder ACs and fixtures for system prompts, tool schemas, multiple tool calls, and normal text-only turns.
+
+[High] The parser/persistence ACs do not require binding a `signature_delta` to the correct content block index or following `tool_use`. Signed replay correctness depends on preserving the exact `thinking` block adjacent to its matching tool call, especially with multiple content blocks. Add tests with multiple thinking/tool blocks and out-of-order/different-index deltas.
+
+[Medium] AC1/AC2 require raw probe captures but do not define where captures live, whether they are committed, or how auth/request metadata is redacted. Since the probe uses Copilot bearer auth, the plan should explicitly commit only sanitized artifacts and keep raw sensitive captures out of git.
+
+### Ordering
+
+[High] The handoff order is unsafe: the plan says “prefer direct impl” but then gives an autonomous `/implement-with-ralph` command after merge. That is not just a documentation inconsistency; it is the executable instruction an agent will follow.
+
+[Medium] The outbound-builder cluster depends only on the probe, but its request shape depends on decisions from inbound signature representation and the US-001 accepted body. Either serialize it after a shared schema fixture is produced, or make US-001 emit a committed request/response fixture that US-004 must consume.
+
+### Simplicity
+
+No issues found. The separate signed feature flag and reuse of the existing SSE parser are reasonable if the source validation confirms the claimed seams.
+
+### Acceptance Criteria Quality
+
+[High] AC16 weakens the live-proxy confidence requirement by allowing the manual dogfood to be deferred with only the mock round-trip as evidence. Because this feature’s central risk is proxy acceptance of signed replay, the plan should require either the live dogfood before enabling the sub-flag anywhere beyond tests, or an explicit “land dark, not operator-usable” closeout state.
+
+[Medium] AC14 says every upstream-canonical edited line needs a `// SANDBOX PATCH:` marker. That is hard to apply literally to multi-line enum/test/doc edits and may cause noisy comments. Rephrase to require every upstream-canonical edit hunk or new variant/seam to be marked and covered by §14/§15 ledger rows.
+

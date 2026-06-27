@@ -1,0 +1,33 @@
+### Feasibility
+
+[High] AC15’s verification commands are not runnable as written. I found no `Justfile`/`justfile` under `codex/` or `codex/external/repos/codex-patched/codex-rs/`, so `just test -p ...` will fail. Use `cargo test -p codex-core`, `cargo test -p codex-copilot`, etc., from `codex/external/repos/codex-patched/codex-rs/`.
+
+[High] US-002 is not truly “inert” if `anthropic_signed_messages` is enabled before US-005. The plan says `effective_wire_api_gated` should map `ModelWireRoute::AnthropicMessages` to `WireApi::AnthropicMessages` when the sub-flag is on, but the dispatch arm is only a stub. That can break the model path during US-002. The stub must explicitly delegate to the existing chat path, or US-002 must not route to `AnthropicMessages` until the real driver exists.
+
+### Completeness
+
+[High] The new feature gate is missing a required config install path. Existing `Feature::AnthropicModels` is installed in `codex/external/repos/codex-patched/codex-rs/core/src/config/mod.rs`, then exposed through `model-provider/src/anthropic_gate.rs`. The plan mentions adding a resolver, but does not list updating `core/src/config/mod.rs`; without that, `anthropic_signed_messages` will remain effectively false.
+
+[High] The model cache identity must include the signed sub-flag. `copilot_models_endpoint.rs` currently keys cache eligibility only on `anthropic_models` via `.with_request_shape("anthropic_models", ...)`. Since `wire_route` would now vary by `anthropic_signed_messages`, stale `models_cache.json` rows can preserve the wrong route.
+
+[High] `GatedModelsManager` must be updated for the new route. `model-provider/src/copilot/gated_models_manager.rs` currently hides Anthropic rows by checking `model.wire_route != ModelWireRoute::ChatCompletions` when `anthropic_models` is off. A cached/configured `ModelWireRoute::AnthropicMessages` row would bypass that filter unless this comparison is extended.
+
+[Medium] Context/token accounting is not covered. `core/src/context_manager/history.rs` estimates `ResponseItem::Reasoning { encrypted_content: Some(..) }` as encrypted reasoning and ignores plaintext `content`. For signed thinking, the builder sends plaintext thinking plus signature; AC10 should include history/token accounting, not only request-builder capping.
+
+[Medium] `synthesize_from_capabilities` gives Claude chat rows a medium default reasoning level only when `wire_route == ChatCompletions`. The new `AnthropicMessages` route should likely get the same default, or signed Claude may regress to the first advertised level.
+
+### Ordering
+
+[High] US-004 depends on the signed persistence shape from US-003 if its tests use real `ResponseItem::Reasoning { encrypted_content: Some(signature) }` behavior. The plan says US-004 depends only on probe GO and can run in parallel with US-003, but the safest ordering is US-003 first, or US-004 must define its own fixture contract independent of parser/persistence changes.
+
+### Simplicity
+
+[Medium] A separate `Feature::AnthropicSignedMessages` is reasonable, but the plan spreads the gate across `wire_route_for`, `effective_wire_api_gated`, model cache identity, config install, and runtime model filtering. To reduce drift, add a single exported resolver like `anthropic_signed_messages_resolved()` and use it everywhere routing/cache/filter behavior changes.
+
+### Acceptance Criteria Quality
+
+[High] AC6 is too vague: “stub/guard that cannot panic” does not specify behavior. It should require either “delegates to `stream_chat_completions`” or “returns a fatal unsupported error only in tests and cannot be selected in runtime routing.”
+
+[Medium] AC13 overstates the current audit shape. `scripts/runtime_audit_allowlist.txt` is host-level and already includes `api.githubcopilot.com`; `scripts/audit_network_calls.sh` does not maintain a path allowlist for Copilot inference paths. AC13 should name the exact grep/audit invariant to add for `/v1/messages`.
+
+No prior review-cycle amendments were referenced, so there are no regression fixes to assess.
