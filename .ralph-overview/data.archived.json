@@ -9023,6 +9023,81 @@
           }
         ]
       }
+    },
+    {
+      "id": "codex-anthropic-native-messages-transport-for-signed-cot",
+      "scope": "codex",
+      "lifecycle": "merged",
+      "status": "todo",
+      "lastTouchedAt": "2026-06-27",
+      "kanbanCards": [
+        {
+          "className": "cmd-info",
+          "html": "Copilot&#39;s /models advertises Claude with <code>supported_endpoints: [&quot;/chat/completions&quot;, &quot;/v1/messages&quot;]</code> (see fixtures in model-provider/src/copilot_models_endpoint.rs:547/613/665/711). The native Anthropic Messages API (<code>/v1/messages</code>) is the ONLY wire that carries SIGNED thinking blocks &mdash; required for faithful cross-turn / tool-loop CoT continuity (preserve the signed thinking block in the assistant turn before each tool_result). The /chat/completions reasoning_text has no signature, so it cannot faithfully round-trip. Claude is NOT on /responses, so the GPT-style encrypted_content path is unavailable."
+        },
+        {
+          "className": "cmd-warn",
+          "html": "Larger lift than the reasoning_text capture: a new transport that builds Anthropic Messages requests and parses Messages SSE (thinking/signature), pointed at Copilot&#39;s /v1/messages, while keeping Copilot auth/billing (same host + token cache). wire_route_for (model-provider/src/copilot_models_endpoint.rs:282-296) currently only recognizes /responses vs /chat/completions and IGNORES /v1/messages; routing + a third WireApi arm would be needed. Decide vs the cheaper unsigned reasoning_text replay (codex-anthropic-chat-reasoning-text-capture-and-replay)."
+        },
+        {
+          "className": "cmd-ok",
+          "html": "BRAINSTORM IN FLIGHT (operator 2026-06-21): member brainstorm-anthropic-signed (/brainstorm-with-ralph, copilot) weighing the native /v1/messages signed-CoT transport (third WireApi arm) vs the cheaper unsigned reasoning_text capture/replay (parallel plan). Read-only design."
+        },
+        {
+          "className": "cmd-ok",
+          "html": "BRAINSTORM SHIPPED @ 2db146c0 (3-lens codex+copilot+devils-advocate, unanimous; .ralph/brainstorms/anthropic-native-messages-signed-cot/). VERDICT (answers operator 2026-06-21 &quot;do we need to move to /v1/messages?&quot;): NO &mdash; stay on /chat/completions (the unsigned reasoning_text capture/replay path). The ONLY benefit of /v1/messages is SIGNED CoT continuity (cryptographically signed thinking blocks round-tripped across the tool loop; chat completions reasoning_text has NO signature). But it is an EVIDENCE problem: Copilot /v1/messages has NEVER been probed (exists only as supported_endpoints fixture strings; wire_route_for ignores it), so whether signatures survive the Copilot proxy is unknown &mdash; if stripped/rejected, signed = no better than unsigned for a permanent third-transport cost (new request builder + Messages-SSE parser + a third WireApi/ModelWireRoute arm + wire_route_for + client.rs dispatch; full build sized XL, the probe S). DIRECTION D-001 = probe-gated fast-follow: extend the fork-auth probe to /v1/messages, validate 3 gates (auth accepted / signed thinking+signature emitted / signed thinking accepted on REPLAY before tool_result); on GO build overlay-first AS A FAST-FOLLOW AFTER the unsigned sibling ships; on NO-GO defer/abandon (D-003). SEQUENCING: must run AFTER codex-anthropic-chat-reasoning-text-capture-and-replay, NOT parallel (both touch core anthropic_sse.rs + overlay payload.rs push_chat_message). Relayed to the unsigned plan: reserve a neutral/extensible persisted-reasoning shape for future signature metadata. OPEN Q for operator: what user-visible failure does signed continuity fix that unsigned plaintext replay cannot? (real usage of the unsigned path will reveal). NEXT (operator-gated): only if signed verification is wanted, spawn the S-sized /v1/messages probe."
+        },
+        {
+          "className": "cmd-info",
+          "html": "PROBE SPIKE IN FLIGHT (operator 2026-06-24: \"I want us to still check the signed reasoning thing\"). Member <code>probe-signedcot</code> (copilot) extends the existing faithful probe <code>D:\\ExtRepos\\copilot-thinking-probe\\probe.mjs</code> (mirrors fork Copilot auth) to POST an Anthropic Messages request to <code>api.githubcopilot.com/v1/messages</code> with thinking enabled, then runs a TWO-TURN capture to settle the 3 gates: (a) auth accepted, (b) signed thinking+signature emitted, (c) signed thinking accepted ON REPLAY before tool_result (decisive). GO requires BOTH (b)+(c). Verdict + raw-capture evidence -> .ralph/investigations/anthropic-signed-cot-v1messages-probe/. NO codex-rs build; this is the S-sized gate before the XL transport.\r\n"
+        },
+        {
+          "className": "cmd-ok",
+          "html": "PROBE COMPLETE @ <code>03a3e1ce</code> (2026-06-24, operator \"I want us to still check the signed reasoning thing\"). <strong>VERDICT: GO</strong> — signed CoT over Copilot's <code>/v1/messages</code> is feasible, verified live against the proxy. Per gate: <strong>(a) auth accepted</strong> — HTTP 200 on <code>/v1/messages</code> with the fork's Copilot bearer; <strong>(b) signed thinking emitted</strong> — Anthropic <code>thinking</code> block + a <strong>748-char signature</strong> in turn-1 SSE; <strong>(c) signed replay accepted/enforced</strong> — a genuine signed thinking block replayed before <code>tool_result</code> was accepted (200), while a TAMPERED signature was rejected (400), proving the proxy <em>preserves AND cryptographically enforces</em> the signature end-to-end (not blind passthrough). Evidence: <code>.ralph/investigations/anthropic-signed-cot-v1messages-probe/</code> (findings.md + transport sketch, probe-v1messages.mjs, v1messages-evidence.json, auth-scrubbed SSE excerpts for all 3 gates). The sequencing prereq is ALREADY met — the unsigned <code>reasoning_text</code> capture/replay sibling shipped (codex 0.141.0-copilot-api.2, merged). So the signed <code>/v1/messages</code> transport build (XL) is now UNBLOCKED. OPERATOR DECISION PENDING: build the third WireApi/transport arm now, or defer (unsigned plaintext replay already works in production).\r\n"
+        },
+        {
+          "className": "cmd-info",
+          "html": "DECISION (operator 2026-06-24): DEFER the signed /v1/messages transport build, gated on verifying the UNSIGNED path first. Rationale: Anthropic CoT ALREADY works on the current /chat/completions API (unsigned reasoning_text capture/replay, shipped codex 0.141.0-copilot-api.2); /v1/messages only adds CRYPTOGRAPHICALLY-SIGNED CoT (probe = GO, proxy preserves+enforces the signature). Signed is optional robustness, NOT a missing feature. Operator asked: \"did we verify [unsigned] works as expected in /chat/completions?\" Answer: parser unit tests (codex-copilot 17/17) + routing test + a live spike verify the WIRE format, but NO deterministic end-to-end agentic-turn test exists (tracked as codex-anthropic-transport-us008-e2e-test). NEXT: close that e2e gap first (plan-us008 spawned 2026-06-24, expanded to assert reasoning CAPTURE on turn 1 + REPLAY continuity + byte-cap on turn 2, not just function_call/usage). REVISIT the signed-transport build only if the unsigned e2e reveals a real continuity problem. GO findings stay on file at .ralph/investigations/anthropic-signed-cot-v1messages-probe/.\r\n"
+        },
+        {
+          "className": "cmd-ok",
+          "html": "EVIDENCE UPDATE (2026-06-25): the DEFER decision is now EVIDENCE-BACKED. The sibling verification codex-anthropic-chat-reasoning-replay-consumption-verification (shipped @97ec3531) proved LIVE that the unsigned /chat/completions reasoning replay IS CONSUMED by the model (reasoning-only token recalled 3/3 sonnet + 2/2 opus via the standalone-assistant-message shape, payload.rs:332-338). So Anthropic CoT continuity WORKS today on the current API; signed /v1/messages is confirmed OPTIONAL. Signed transport stays DEFERRED unless a concrete need for cryptographic signature enforcement arises.\r\n"
+        },
+        {
+          "className": "cmd-ok",
+          "html": "Plan shipped @ <code>67904c48</code> (orig 853001f6). 6 stories/6 clusters, 19 Phase-4 findings resolved. PROBE-GATED: US-001 probe (/v1/messages signed thinking on Copilot auth) is the GO/NO-GO gate. On GO: routing-skeleton -> inbound-capture + outbound-builder -> dispatch-join -> harden-verify. Head-start: AnthropicSseParser already decodes Messages SSE. Nested 2-repo (codex inner+overlay+wrapper). Next: spawn impl (probe first)."
+        }
+      ],
+      "command": {
+        "name": "codex-anthropic-native-messages-transport-for-signed-cot",
+        "descriptionHtml": "Evaluate (brainstorm-first) a native Anthropic /v1/messages transport for Claude-via-Copilot to get faithful SIGNED chain-of-thought continuity across the tool loop, since /chat/completions cannot round-trip signatures.",
+        "prompts": {
+          "brainstorm": "/brainstorm-with-ralph \"Evaluate adding a native Anthropic /v1/messages transport for Claude-via-Copilot to get faithful signed chain-of-thought continuity (thinking + signature round-trip across the tool loop), versus the cheaper unsigned reasoning_text display+replay capture. Copilot advertises /v1/messages for Claude in supported_endpoints. Weigh: keeps Copilot auth/billing; new request builder + Messages SSE parser; a third WireApi route in wire_route_for; interplay with the existing /chat/completions transport and the anthropic-models gate.\"",
+          "plan": "Probe-gated signed-CoT fast-follow (D-001), only if the operator wants signed verification after the unsigned reasoning_text path ships. STEP 1 (S-sized probe, do FIRST): extend the fork-auth Copilot probe (D:\\ExtRepos\\copilot-thinking-probe) to POST a /v1/messages request for Claude and validate THREE gates: (a) Copilot accepts auth on /v1/messages, (b) it emits Anthropic Messages SSE with signed thinking blocks (thinking + signature), (c) a replayed signed thinking block is ACCEPTED before a tool_result on a 2nd turn. Capture the transcript. On NO-GO (any gate fails / proxy strips or rewrites signatures) -> defer/abandon (D-003), unsigned plaintext replay stands. STEP 2 (only on GO, overlay-first, AFTER the unsigned task ships to avoid the anthropic_sse.rs + payload.rs conflict): build the native Anthropic Messages transport in codex-copilot (request builder + Messages-SSE parser carrying signature), add a third WireApi/ModelWireRoute arm + wire_route_for recognition of /v1/messages + effective_wire_api + the client.rs dispatch arm, keep Copilot auth/billing, respect the anthropic-models gate, and round-trip the signed thinking block across the tool loop. Reuse the unsigned task's neutral persisted-reasoning shape (now extended to carry the signature). Codex-submodule; two-commit flow; cargo check --workspace + --release + --all-targets gates.",
+          "impl": "You are the IMPL-phase member for task codex-anthropic-native-messages-transport-for-signed-cot.\r\n\r\nPhase discipline: implement per the committed plan; do NOT chain into another task. Per codexu AGENTS.md the LEAD handles FF-merge + push; your scope is local commits on topic branch ralph/codex-anthropic-native-messages-transport-for-signed-cot in a codex submodule worktree.\r\n\r\nPLAN: .ralph/jobs/codex-anthropic-native-messages-transport-for-signed-cot/plan.md (Phase-4 reviewed; 19 findings resolved). PROBE-GATED, 6 clusters:\r\n- US-001 \"probe-gate\" FIRST: extend the external probe D:/ExtRepos/copilot-thinking-probe to POST a /v1/messages request on Copilot auth and validate the three gates (auth accepted, signed thinking+signature emitted, replayed signed block accepted before a tool_result on turn 2). Write probe-decision.md with GO/NO-GO. NOTHING else starts until GO. On NO-GO -> STOP and report; the unsigned plaintext replay stands (this is an acceptable terminal outcome).\r\n- ON GO only: US-002 routing-skeleton (WireApi/ModelWireRoute/effective_wire_api/wire_route_for seams + degrade-to-chat dispatch stub, inert) -> US-003 inbound-capture (surface thinking_delta/signature_delta in anthropic_sse.rs, persist signature into ResponseItem::Reasoning.encrypted_content) + US-004 outbound-builder (NEW overlay file codex-rs-overlay/codex-copilot/src/anthropic_messages.rs, zero upstream conflict) -> US-005 dispatch-join (real WireApi::AnthropicMessages arm + stream driver + round-trip integration test) -> US-006 harden-verify (network-audit allowlist + patch-surface replant + full cargo gates + dogfood).\r\n\r\nHEAD-START (plan-verified): the AnthropicSseParser ALREADY decodes Messages SSE (just drops thinking/signature at the _ => {} arm) — extend, don't rebuild.\r\n\r\nNESTED 2-REPO: touches codex inner (codex-patched) + overlay (codex-rs-overlay) + wrapper docs (patch-surface.md). The ralph runner cannot express this cleanly yet (ralph-orchestration-multi-repo-single-job-support Inc 1 is the fix, not yet shipped) — so do a DIRECT impl with the two-commit flow + cargo gates (Phase 5a: cargo check --workspace + --release + --all-targets) + a code-review pass + lockstep docs (Phase 5b), like the sibling codex tasks this session. Gate fork-divergent behavior via codex's EXPERIMENTAL-FEATURES mechanism, not ad-hoc bools.\r\n\r\ncodexu root CLAUDE.md is gitignored — do NOT git add CLAUDE.md. Two-commit submodule flow.\r\n\r\nReport kind=done with: the probe verdict (GO/NO-GO) + (on GO) inner + overlay + wrapper commit SHAs + branch + worktree path + fixed ACs.\r\n\r\nRUN: /implement-with-ralph --from-plan .ralph/jobs/codex-anthropic-native-messages-transport-for-signed-cot/plan.md --autonomous\r\n"
+        }
+      },
+      "shipManifest": {
+        "shippedAt": "2026-06-27",
+        "summary": "Shipped the experimental signed chain-of-thought (CoT) transport for codex's Copilot provider: a native Anthropic /v1/messages path that preserves per-block reasoning signatures (encrypted_content) instead of degrading to /chat/completions. Gated behind a new experimental Feature flag (off by default), so it is inert until explicitly enabled.\n\nThe change spans the inner codex-patched (WireApi/ModelWireRoute enums + Deserialize unknown-variant lists, anthropic_gate signed-messages gate pair, GatedModelsManager filter broadened to hide all Anthropic routes when anthropic off, copilot_models_endpoint wire_route_for + signed threading + cache identity + reasoning defaults, chat_transport effective_wire_api_gated 4-arm routing, a dedicated messages_stream.rs signed driver emitting per-block Reasoning items, anthropic_sse signature capture, history token-accounting for signed reasoning) and the wrapper overlay (codex-copilot/anthropic_messages.rs Messages request builder + send_messages_request POST helper with Anthropic headers, patch-surface Inv 63-68, network-audit allowlist). Rubber-duck Phase-5a review caught + fixed two real edges: the AnthropicMessages route now requires has_chat so the signed-off degrade to ChatCompletions is always a valid target, and the signed flag is carried in cache identity to prevent stale signed-on routes leaking.\n\nAll cargo gates green (cargo check --workspace, 0 errors, 13m) + network-call audit green; code-review High fixed. Landed via the standard 3-level codex source flow (inner sandbox-patches -> wrapper main -> codexu pointer). The release BINARY is DEFERRED to a separate /publish-sandbox-patch cut (current base v0.141.0-copilot-api.3; this is +7 commits past the tag). Two follow-ups stay tracked: codex-anthropic-transport-us008-e2e-test (live E2E) and codex-anthropic-transport-bazel-lock-regen.",
+        "commits": [
+          {
+            "sha": "16175abdc0",
+            "oneLine": "feat(copilot): signed chain-of-thought via native Anthropic Messages transport",
+            "repo": "codex-patched"
+          },
+          {
+            "sha": "ed44c1d030",
+            "oneLine": "feat(codex): signed-CoT Anthropic Messages overlay builder + patch-surface (Inv 63-68)",
+            "repo": "codex"
+          },
+          {
+            "sha": "0d328b9f",
+            "oneLine": "chore(codex): bump pointer to signed-CoT Anthropic Messages transport",
+            "repo": "codexu"
+          }
+        ]
+      }
     }
   ]
 }
