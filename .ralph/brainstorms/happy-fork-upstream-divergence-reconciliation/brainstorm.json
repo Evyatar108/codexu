@@ -1,0 +1,41 @@
+{
+  "brainstormName": "happy-fork-upstream-divergence-reconciliation",
+  "overviewTaskId": "happy-fork-upstream-divergence-reconciliation",
+  "idea": "Recommend a divergence-management strategy so the codexu happy fork can keep merging upstream slopus/happy changes (like the codex fork's upstream-sync) while retaining fork-unique value, triggered by the discovery that the fork deleted upstream's bearer-token auth plane and dropped E2E session-body encryption. Deliver a keep-vs-restore divergence audit, a feasibility verdict on restoring auth+E2E under the embedded single-user-per-daemon model, a recommended merge/upstream-sync strategy, and the relation to the held public-server task.",
+  "availableLenses": ["devils-advocate", "codex", "copilot"],
+  "missingLenses": [],
+  "candidateDirections": [
+    {
+      "id": "D-001",
+      "name": "Current-tree upstream cadence via a happy patch-surface catalogue + subtree baseline",
+      "summary": "Lowest-disruption process: add a slopus/happy remote, establish a synthetic subtree baseline (no git-DAG ancestry exists), adopt the codex-fork discipline (numbered invariant catalogue + periodic per-release intake) adapted to inline divergence, prioritizing happy-app. Cheapest validation = a per-package conflict heatmap from one trial intake.",
+      "contributingLenses": ["codex", "copilot", "devils-advocate"]
+    },
+    {
+      "id": "D-002",
+      "name": "Restore auth + E2E first (single-user-collapsed) as the reconciliation wedge",
+      "summary": "Re-add upstream's enableAuthentication/verifyToken collapsed to one operator identity + re-wire encrypt()/decrypt() (reusing happy-agent/encryption.ts) behind a default-off flag. Unblocks the held public-server task AND de-risks the hottest merge-hostile files. Gated by a spike (one route + socket + one v3 round-trip) that must not break codex streaming / BOOX pairing / reintroduce multi-tenant scoping.",
+      "contributingLenses": ["codex", "copilot", "devils-advocate"]
+    },
+    {
+      "id": "D-003",
+      "name": "Re-fork from current upstream and re-apply fork value behind seams/flags",
+      "summary": "Cleanest long-term mergeability but XL effort: re-vendor current slopus/happy, re-introduce fork-unique behavior (single-user daemon, codex app-server, e-ink UX) behind config flags / adapter seams. Disconfirmed if the minimal vertical slice still needs wholesale rewrites of upstream auth/routing/event-fan-out rather than additive seams (likely, since the deployment-model change is non-additive on shared surfaces).",
+      "contributingLenses": ["codex", "copilot"]
+    },
+    {
+      "id": "D-004",
+      "name": "Decouple the goals - edge-auth for public exposure, cherry-pick-only for upstream",
+      "summary": "Devil's-Advocate reframe: public-exposure safety (urgent) and long-term mergeability (a process) are orthogonal. Cheapest safe exposure is a Cloudflare Access / mTLS edge in front of the unchanged loopback server (zero happy-server change), with on-demand cherry-pick of wanted upstream fixes. Does NOT reduce divergence, so it is the fallback when D-002's spike fails, not the primary strategy.",
+      "contributingLenses": ["devils-advocate"]
+    }
+  ],
+  "recommendedDirection": "D-002",
+  "questionsForSynthesis": [
+    "Is public exposure urgent enough to justify the security-first detour (D-002) before broader upstream-sync hygiene (D-001)?",
+    "Must happy-server itself carry the full verifier boundary, or is a third-party authenticating edge acceptable (which solves exposure but not divergence)?",
+    "Minimum E2E guarantee: only session bodies, or also metadata / daemon-state / files / push payloads? (Metadata, daemon-state, and agent-comms are already encrypted; session bodies are the gap.)",
+    "What upstream commit is codexu's import baseline, and what per-package conflict budget/month before broad cadence is declared failed in favor of selective cherry-pick?",
+    "Who owns keeping the KEEP / KEEP-DELETED divergence catalogue current after each upstream intake?"
+  ]
+}
