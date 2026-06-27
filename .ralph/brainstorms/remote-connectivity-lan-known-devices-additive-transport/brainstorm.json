@@ -1,0 +1,36 @@
+{
+  "brainstormName": "remote-connectivity-lan-known-devices-additive-transport",
+  "overviewTaskId": "remote-connectivity-lan-known-devices-additive-transport",
+  "idea": "ADD a LAN-based, known-devices-only remote-session connectivity transport ALONGSIDE Microsoft Dev Tunnels (Dev Tunnels stays default; LAN is opt-in/selectable). Motivation: the operator's corporate policy blocks Dev Tunnels, making the remote-session feature unusable. Primary target: Android e-ink tablet.",
+  "availableLenses": ["codex", "copilot", "devils-advocate"],
+  "missingLenses": [],
+  "candidateDirections": [
+    {
+      "id": "D-001",
+      "name": "Additive opt-in LAN listener gated by a NEW fail-closed server-side per-device cryptographic auth mode",
+      "summary": "New happy-server auth:'lan' mode + a LanDaemonProvider on the existing DaemonTunnelProvider seam + a codex Feature gate (default off); the known-devices allowlist is enforced cryptographically per-request at the listener (signed-request reusing Ed25519/X25519 TOFU keys, or mTLS), covering /pair/complete, all tunnel routes and the Socket.IO handshake, fail-closed, before any non-loopback bind. Dev Tunnels stays the unchanged default.",
+      "contributingLenses": ["codex", "copilot", "devils-advocate"]
+    },
+    {
+      "id": "D-002",
+      "name": "Challenge the premise: reuse a policy-permitted outbound tunnel the operator already runs (Cloudflare provider-swap)",
+      "summary": "The operator already runs happy.evyatar.dev (a Cloudflare Tunnel). cloudflared is outbound-only (no LAN bind), so a CloudflareTunnelDaemonProvider preserves the entire gateway-as-identity-gate security model with ZERO teardown and could make the LAN effort unnecessary. Conflicts with the operator's 'no cloud' motivation; resolve with one operator question first.",
+      "contributingLenses": ["devils-advocate"]
+    },
+    {
+      "id": "D-003",
+      "name": "External cryptographic mesh (raw WireGuard) as the known-device boundary",
+      "summary": "Device identity = a pinned WireGuard public key enforced by the kernel before packets reach the loopback-bound listener, preserving the existing auth model with no new server mode. Dominant risk (all 3 lenses): the corp policy that blocks Dev Tunnels likely also blocks Tailscale coordination/DERP and may block UDP/client-isolated Wi-Fi, making it DOA; raw WG avoids the cloud but is heavy on e-ink.",
+      "contributingLenses": ["codex", "copilot", "devils-advocate"]
+    }
+  ],
+  "recommendedDirection": "D-001",
+  "questionsForSynthesis": [
+    "PREMISE GATE (cheapest, do first): does the tablet currently reach happy.evyatar.dev (the operator's existing Cloudflare Tunnel) over the corporate network, and is 'no cloud at all' a hard requirement? If the tunnel works and cloud is acceptable, D-002 is far cheaper and the LAN effort may be unnecessary.",
+    "PHYSICAL-REACHABILITY PROBE: is the corp Wi-Fi AP/client-isolated or does it filter inbound LAN ports? If LAN peers can't see each other, every same-network transport is a NO-GO regardless of auth design.",
+    "Enforcement mechanism for D-001: per-device public-key signed-request (reuse Ed25519/X25519 TOFU material) vs mTLS client certs vs HMAC+nonce — which best balances airtight-ness vs React-Native/BOOX feasibility?",
+    "Concurrency: a THIRD listener alongside the live Dev Tunnels listener, or a user-selected single remote listener (Dev Tunnels default, LAN opt-in per daemon start)?",
+    "Discovery on e-ink: QR/manual LAN URL (reachability only) first with mDNS as non-security convenience later; how is DHCP IP churn / re-pinning handled, and where does the operator revoke known LAN devices?",
+    "Does relaxing the fork's own 'never expose on 0.0.0.0/LAN/tunnels' invariant (packages/happy-cli/AGENTS.md Codex Transport Security Model) require a formal sign-off + docs/security-model.md update?"
+  ]
+}
