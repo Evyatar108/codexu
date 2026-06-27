@@ -1,0 +1,35 @@
+### Feasibility
+
+[High] The LAN transport has no concrete daemon-side opt-in source. `packages/happy-cli/src/daemon/run.ts:210-211` always constructs `DevTunnelsDaemonProvider`, and `dualListenerBinding()` immediately loads the host tunnel. A Codex `Feature` flag in the Rust submodule cannot by itself change daemon startup behavior before `/remote on` runs. The plan needs a specific persisted/env/CLI setting read by `happy-cli` before `dualListenerBinding()`.
+
+[High] The proposed Fastify `onRequest` verifier conflicts with the signed body-hash requirement. In Fastify, `onRequest` runs before body parsing; computing a body hash there means buffering/consuming the stream unless raw-body handling is added. The plan should specify raw-body capture or split verification between `onRequest` and `preValidation`/`preHandler`.
+
+[High] Codex paths/prereqs are not implementable as written in this worktree. `codex` is an uninitialized submodule (`git submodule status` shows `-f779... codex`), and the referenced paths under `codex/external/repos/codex-patched/...` do not resolve. Add `git submodule update --init --recursive codex` as a prerequisite and verify the actual paths before US-008.
+
+### Completeness
+
+[High] Enrollment/revocation lacks server API shape. The plan names a known-device allowlist and Settings revoke UI, but does not define routes for listing/revoking devices or the auth rule for those routes. Without that, the AC “revoking it in Settings UI causes the verifier to fail closed” is not actionable.
+
+[High] The out-of-band QR/PIN enrollment gate is underspecified on the daemon side. The plan says “daemon-displayed QR/PIN secret,” but no happy-cli command, startup output, file, or control API is listed to mint/display/expire that secret.
+
+[Medium] New LAN proof headers are not reflected in CORS/socket allowed headers. `packages/happy-server/sources/app/api/api.ts:61-64` and `socket.ts` hard-code `X-Tunnel-Authorization`, `X-Loopback-Capability`, `X-Happy-Client`, and `Content-Type`. If web/desktop uses LAN, custom signature headers will fail preflight unless added.
+
+[Medium] The app/wire contract is left too open. `packages/happy-wire/src/tunnel/types.ts` requires `machineId`, `tunnelId`, `url`, `tags`, `lastSeenAt`, `owner`, while LAN pairing has no Dev Tunnel `tunnelId` or connect token. The plan notes this as an open question, but US-006 depends on it.
+
+### Ordering
+
+[High] US-005 depends on more than “server contract frozen”; it also needs the daemon opt-in/config contract. Provider selection in `packages/happy-cli/src/daemon/run.ts` must be designed before server/app parallelization, because it determines advertised URL shape, auth mode, host bind, and `machine.json` migration.
+
+[Medium] US-004 should include CORS/header and raw-body tests before app work starts. Otherwise the app may implement headers/canonicalization that the server cannot actually receive or verify.
+
+### Simplicity
+
+[Medium] Reusing `agentComms/peerAuth.ts` directly from `happy-cli` is probably the wrong package boundary. Since `happy-server` already has `@noble/ed25519`, `@noble/hashes`, `privacy-kit`, and `tweetnacl`, extract or duplicate a small canonical signer/verifier in the appropriate package rather than coupling `happy-server` to CLI internals.
+
+### Acceptance Criteria Quality
+
+[High] “A blessed device completes a remote session from the BOOX over Wi-Fi” is not autonomously verifiable unless the plan defines a non-device integration test or marks the physical BOOX test as manual evidence.
+
+[Medium] “Dev Tunnels remains byte-for-byte unchanged” is too vague. Pin this to tests/observable behavior: default provider is `DevTunnelsDaemonProvider`, default bind remains `127.0.0.1`, and existing pairing/socket tests pass unchanged.
+
+[Medium] Signature canonicalization AC is not specific enough. It should name exact headers, canonical path/query handling, timestamp skew, nonce storage lifetime, socket handshake canonical form, and replay failure expectations.

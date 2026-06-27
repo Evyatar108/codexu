@@ -1,0 +1,34 @@
+I’ll read the referenced prompt and inspect the repo context before making changes.
+
+The prompt is longer than a single default read, so I’m going to page it and extract the actionable requirements.
+
+I’m going to verify the plan’s referenced seams against the current worktree, then return a review-only finding set.
+
+I found the core happy-server auth seams match the plan; I’m checking adjacent CLI/app/wire contracts for missing integration points before finalizing findings.
+
+### Feasibility
+
+- [High] The plan requires a Fastify global `onRequest` verifier to sign `method + path + body-hash`, but `onRequest` runs before body parsing in `packages/happy-server/sources/app/api/api.ts`. Without a raw-body/preParsing design, the implementer must either consume the stream before handlers or omit the body hash, weakening the LAN auth contract for `pairRoutes.ts` and session routes.
+
+- [High] The plan references codex files and cargo checks, but this worktree’s `codex` submodule is not initialized (`git submodule status` shows a leading `-`). Add an explicit submodule init/worktree preflight before US-008.
+
+### Completeness
+
+- [High] Enrollment/revocation is under-specified. `pairRoutes.ts` only has `/pair/complete` and `/pair/connect`; the plan does not define the LAN enrollment endpoint, one-time QR/PIN validation, expiry/rate limits, pin-store write, list/revoke API, or how the Settings revoke UI reaches that API.
+
+- [High] LAN transport cannot be represented cleanly by the current tunnel schemas. `packages/happy-cli/src/tunnel/types.ts` and `packages/happy-wire/src/tunnel/types.ts` require Dev-Tunnels-shaped fields like `tunnelId`, `tunnelName`, `tags`, and `owner`. The plan leaves `happy-wire` as an open question, but app pairing/manual URL needs a concrete discriminated transport shape.
+
+- [Medium] CORS/socket allowed headers in `api.ts` and `socket.ts` only include `X-Tunnel-Authorization`, `X-Loopback-Capability`, `X-Happy-Client`, and `Content-Type`. The LAN proof headers must be added or web/preflight and Socket.IO fallback paths may fail before auth runs.
+
+### Ordering
+
+- [High] Security-model/AGENTS amendments are last, but the code stories relax a protected bind/auth invariant earlier. Move the reviewed invariant amendment/sign-off alongside the server contract story, then refine docs at the end.
+
+### Simplicity
+
+No issues found.
+
+### Acceptance Criteria Quality
+
+- [Medium] “Formal sign-off” and “BOOX over Wi-Fi” are not self-contained verification steps. Specify the sign-off artifact/approver and whether BOOX validation is a required manual gate or can be substituted by an automated LAN integration test in CI/worktree environments.
+

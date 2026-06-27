@@ -1,0 +1,97 @@
+{
+  "clusters": [
+    {
+      "name": "cluster-preflight",
+      "stories": ["US-001"],
+      "phase": 1,
+      "dependsOn": [],
+      "fileOverlapEvidence": {
+        "sharedFiles": [],
+        "exclusiveFiles": ["throwaway bind-probe branch (no committed source)"],
+        "risk": "low"
+      },
+      "executionModeRationale": "Standalone validation gate with no committed code overlap; must complete and pass before the build commits."
+    },
+    {
+      "name": "cluster-server",
+      "stories": ["US-002", "US-003", "US-004"],
+      "phase": 2,
+      "dependsOn": ["cluster-preflight"],
+      "fileOverlapEvidence": {
+        "sharedFiles": [
+          "packages/happy-server/sources/index.ts",
+          "packages/happy-server/sources/app/api/api.ts",
+          "packages/happy-server/sources/app/api/socket.ts",
+          "packages/happy-server/sources/app/api/routes/pairRoutes.ts",
+          "packages/happy-server/sources/app/api/auth/lanDeviceAuth.ts"
+        ],
+        "exclusiveFiles": [],
+        "risk": "high"
+      },
+      "executionModeRationale": "All three stories edit the same happy-server auth surface (the security core) and must run serially within one cluster; this is the highest-risk work and the contract every other cluster binds to."
+    },
+    {
+      "name": "cluster-cli",
+      "stories": ["US-005"],
+      "phase": 3,
+      "dependsOn": ["cluster-server"],
+      "fileOverlapEvidence": {
+        "sharedFiles": [],
+        "exclusiveFiles": [
+          "packages/happy-cli/src/daemon/run.ts",
+          "packages/happy-cli/src/daemon/dualListenerBinding.ts",
+          "packages/happy-cli/src/persistence.ts",
+          "packages/happy-cli/src/tunnel/lanDaemonProvider.ts",
+          "packages/happy-cli/src/types/happy-server.d.ts"
+        ],
+        "risk": "medium"
+      },
+      "executionModeRationale": "happy-cli is a separate package with no file overlap with happy-app or codex, so it runs in parallel with cluster-app once the server contract is frozen; depends on cluster-server so the LAN bind is never permitted without the verifier."
+    },
+    {
+      "name": "cluster-app",
+      "stories": ["US-006", "US-007"],
+      "phase": 3,
+      "dependsOn": ["cluster-server"],
+      "fileOverlapEvidence": {
+        "sharedFiles": [
+          "packages/happy-app/sources/auth/*",
+          "packages/happy-app/sources/sync/*",
+          "packages/happy-app/sources/app/(app)/settings/*",
+          "packages/happy-app/sources/text/* (i18n)"
+        ],
+        "exclusiveFiles": [],
+        "risk": "medium"
+      },
+      "executionModeRationale": "Both stories edit the same happy-app sync/auth/settings + i18n surface and must run serially within the cluster; the cluster is a separate package from cli/codex so it runs in parallel with cluster-cli."
+    },
+    {
+      "name": "cluster-codex",
+      "stories": ["US-008"],
+      "phase": 4,
+      "dependsOn": ["cluster-cli"],
+      "fileOverlapEvidence": {
+        "sharedFiles": [],
+        "exclusiveFiles": [
+          "codex/external/repos/codex-patched/codex-rs/features/src/lib.rs",
+          "codex/codex-rs-overlay/codex-happy/src/remote_on.rs",
+          "codex/codex-rs-overlay/codex-happy/src/daemon_supervisor.rs"
+        ],
+        "risk": "medium"
+      },
+      "executionModeRationale": "codex is a separate submodule repo (own worktree + two-commit flow); depends on cluster-cli so the transport it gates exists, but is otherwise file-disjoint."
+    },
+    {
+      "name": "cluster-docs",
+      "stories": ["US-009"],
+      "phase": 5,
+      "dependsOn": ["cluster-server", "cluster-cli", "cluster-app", "cluster-codex"],
+      "fileOverlapEvidence": {
+        "sharedFiles": ["docs/security-model.md", "packages/happy-cli/AGENTS.md"],
+        "exclusiveFiles": [],
+        "risk": "low"
+      },
+      "executionModeRationale": "Documentation records the final reviewed model, so it lands last after every code cluster; low risk but depends on all to describe the shipped behavior accurately."
+    }
+  ]
+}

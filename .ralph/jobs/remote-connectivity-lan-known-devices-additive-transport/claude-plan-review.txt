@@ -1,0 +1,20 @@
+Claude (opus-4.8) plan review — initial.
+
+Verification summary (citations accurate): assertOperatorIdentityGate at index.ts:101-108, called :118; listen host index.ts:195; auth-union at index.ts:25/45, api.ts:51, socket.ts:19 all "tunnel"|"loopback"; route mount api.ts:104-117 (both-listener accountRoutes/machineSelfRoutes; tunnel-only block matches); /pair/complete pairRoutes.ts:65-119 + ECDH :100-104 and /pair/connect :123-150 (both unauthenticated); socket socket.ts:56-96, io.use :136, path /v1/updates :110; run.ts:210-211 hardcoded DevTunnelsDaemonProvider; codex WS-transport loopback invariant present in packages/happy-cli/AGENTS.md (~line 286).
+
+Severity: High
+Category: Completeness
+Section: Risk Areas ("Route-coverage gap") + Acceptance Criteria (hostile-client) + Approach > Architecture
+Description: The route-coverage completeness anchor is incomplete. The plan verifies enumeration "against api.ts:104-117" and the decisive hostile-client AC lists /pair/complete, /pair/connect, /files/*, accountRoutes/machineSelfRoutes, tunnel-only routes, and the socket handshake — but THREE reachable HTTP entry points are registered OUTSIDE that line range and are absent from the AC list: GET / welcome (api.ts:66, before the enumerated range); GET /health (enableMonitoring.ts:27, registered via api.ts:76; runs a DB query SELECT 1, so an unauthenticated LAN client can probe liveness/DB load); GET /files/* (api.ts:84, conditional on isLocalStorage()). The chosen global onRequest-hook design DOES structurally cover all routes, so the implementation can be correct — but a hostile-client test built from the plan's enumerated list (the AC's verification basis) would pass while / and /health remain reachable unauthenticated. Fix: anchor completeness on "all Fastify routes incl. those registered in enableMonitoring + the bare / + /files/*", and add /health and / to the hostile-client AC enumeration (or to an explicit, justified public-path allowlist).
+
+Severity: Medium
+Category: Completeness
+Section: Risk Areas ("Route-coverage gap" — "explicit (empty) public-path allowlist")
+Description: With an empty allowlist the global verifier also fail-closes /health, which is the only non-DB-trivial liveness endpoint. enableMonitoring also already installs its own onRequest hook (enableMonitoring.ts:8) — the plan should state the LAN verifier hook's ordering relative to it and explicitly decide /health's disposition (gate it vs. allowlist it). Quality/clarity gap, not an AC blocker, since per-daemon embedded mode has no external load-balancer probe requirement.
+
+Severity: Low
+Category: Criteria Quality
+Section: Research Findings > Codebase Context (codex AGENTS.md:288)
+Description: The codex WS-transport invariant is cited as packages/happy-cli/AGENTS.md:288 but the actual sentence sits ~2 lines earlier (~286). Cosmetic; the scope-correction (this invariant is UNCHANGED; only assertOperatorIdentityGate is relaxed) is correct and well-stated.
+
+Ordering / overall: The dependency graph in Suggested Decomposition / suggested-decomposition.json is coherent: serial security spine (preflight -> server contract -> enforcement -> tests), then repo-disjoint parallel cluster-cli || cluster-app off cluster-server, cluster-codex after cluster-cli, docs last. No ordering defects. The enrollment chicken-and-egg / no-self-enrollment property and same-verifier-instance requirement are both explicitly captured. Option B (single non-loopback listener) correctly preserves the loopback listener for codex-happy and the non-crossing-auth invariant.

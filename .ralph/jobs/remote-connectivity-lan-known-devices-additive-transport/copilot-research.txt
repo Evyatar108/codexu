@@ -1,0 +1,53 @@
+I’ll read the referenced prompt and then carry out the requested work end-to-end.
+
+I’ll inspect the server, CLI, app, and codex overlay seams named in the request, without changing files.
+
+The initial path hints were partly stale; I’m narrowing to the actual source layout and the codex files called out by the prompt.
+
+I have the main seams; I’m checking route auth usage and test coverage so the research distinguishes existing no-op tunnel auth from the new LAN gate.
+
+Research complete. The main finding is that today’s “tunnel auth” is a **no-op inside happy-server** and depends entirely on Dev Tunnels + loopback bind, so LAN support must add a real server-side request/socket verifier rather than just another provider.
+
+### Codebase Architecture
+
+Monorepo using pnpm workspaces, TypeScript packages for `happy-server`, `happy-cli`, `happy-app`, and `happy-wire`. `happy-server` is Fastify + Socket.IO, embedded per daemon via `createApp()` in `packages\happy-server\sources\index.ts`. `happy-cli` owns daemon startup and listener binding in `packages\happy-cli\src\daemon\run.ts` and `dualListenerBinding.ts`. `happy-app` is Expo React Native with sync/auth under `sources\auth` and `sources\sync`.
+
+Codex-specific absolute paths were permission-denied in this environment, so verify `features\src\lib.rs`, `remote_on.rs`, and `daemon_supervisor.rs` during planning.
+
+### Feature-Relevant Code
+
+Key server seams:
+- `packages\happy-server\sources\index.ts`: `HappyServerConfig`, `CreateAppConfig`, `auth?: "tunnel" | "loopback"`, and `assertOperatorIdentityGate()`.
+- `packages\happy-server\sources\app\api\api.ts`: `configureApi()` decorates `authenticateTunnel` as `async function () {}`, chooses loopback vs tunnel auth, registers route surfaces.
+- `packages\happy-server\sources\app\api\routes\pairRoutes.ts`: `/pair/complete` and `/pair/connect` have no `preHandler`, so a route-level `app.authenticate` change alone will not protect LAN pairing.
+- `packages\happy-server\sources\app\api\socket.ts`: `createSocketAuthMiddleware()` only enforces `X-Loopback-Capability` for `auth === "loopback"`; tunnel accepts unauthenticated backend handshakes.
+- Tests to extend: `index.spec.ts`, `dualListenerBinding.test.ts`, `app\api\socket.spec.ts`, `app\api\routes\pairRoutes.test.ts`.
+
+CLI seams:
+- `packages\happy-cli\src\tunnel\provider.ts`: `DaemonTunnelProvider`.
+- `packages\happy-cli\src\tunnel\devTunnelsDaemonProvider.ts`: current provider implementation.
+- `packages\happy-cli\src\daemon\dualListenerBinding.ts`: creates tunnel + loopback embedded servers.
+- `packages\happy-cli\src\daemon\bindListenersAndWriteCapability.ts`: writes loopback capability only after listeners bind.
+- `packages\happy-cli\src\persistence.ts`: `MachineLocallyPersistedState` only stores Dev Tunnel/loopback fields today.
+
+App seams:
+- `packages\happy-app\sources\auth\pairing.ts`: Dev Tunnels OAuth + `/pair/complete`.
+- `packages\happy-app\sources\auth\tokenStorage.ts`: credentials store has only Dev Tunnels fields; old `pinnedPubkey`/`sessionKey` shapes are explicitly filtered.
+- `packages\happy-app\sources\auth\machineAuth.ts` and `sources\sync\socketOptions.ts`: always inject `X-Tunnel-Authorization`.
+- Settings/UI: `sources\components\SettingsView.tsx`, `sources\app\(app)\settings\features.tsx`, `sources\app\(app)\machine\[id].tsx`.
+- Shared tunnel schema: `packages\happy-wire\src\tunnel\types.ts`.
+
+### Technical Constraints
+
+LAN must not reuse `auth: "tunnel"` unchanged: backend tunnel auth is intentionally empty because Dev Tunnels strips/verifies the gateway header. `assertOperatorIdentityGate()` currently rejects non-loopback for non-loopback auth unless `auth === "loopback"`; add a distinct `auth: "lan"` and require an active verifier before permitting non-loopback binds.
+
+A LAN guard must cover `/pair/complete`, all tunnel-only REST routes, `/files/*` if local file serving is enabled, and Socket.IO handshakes. Pairing is especially sensitive because it can self-enroll today if exposed without Dev Tunnels.
+
+### Implementation Suggestions
+
+Add a shared `LanDeviceAuthVerifier` in happy-server and thread it through `CreateAppConfig`, `ConfigureApiOptions`, and `StartSocketOptions`. Use an `onRequest` hook for `auth === "lan"` so even `/pair/complete` is fail-closed; extend Socket.IO middleware with the same verifier.
+
+Prefer signed-request auth over mTLS: React Native mTLS is high-friction. Use per-device Ed25519 keys, canonical request signing over method/path/body hash/timestamp/nonce, a short replay window, and a daemon-side known-device allowlist. Do not allow LAN self-enrollment; bless devices through an existing trusted path or local/QR operator action.
+
+Implement `LanDaemonProvider` beside `DevTunnelsDaemonProvider`, extend daemon state with LAN endpoint metadata, and keep Dev Tunnels default behavior unchanged. In the app, make transport explicit in credentials (`dev-tunnels` vs `lan`) and route headers/socket options through transport-specific builders. Update `docs\security-model.md` and package AGENTS guidance to document the reviewed LAN exception.
+
