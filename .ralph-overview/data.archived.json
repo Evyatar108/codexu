@@ -8958,6 +8958,36 @@
           }
         ]
       }
+    },
+    {
+      "id": "crews-pretooluse-failopen-on-manifest-write-eperm",
+      "scope": "crews",
+      "lifecycle": "merged",
+      "status": "active",
+      "lastTouchedAt": "2026-06-27T05:07:18.678Z",
+      "kanbanCards": [
+        {
+          "className": "cmd-warn",
+          "html": "BUG (observed 2026-06-26/27, 3-member load): lead PreToolUse hook fails CLOSED (\"Denied by preToolUse hook (hook errored)\") when its OWN manifest.json atomic-rename hits EPERM (concurrent open-handle contention; .crews is ALREADY Defender-excluded so NOT Defender). v3.5.0 EPERM-retry + v3.24.x fail-open (LockTimeoutError) do not cover this path. FIX: lead hook fail-OPEN on manifest-write EPERM (best-effort persist; never deny the tool) + FILE_SHARE_DELETE on manifest reads + regression test. Ships crews 3.24.5. Stage: impl-ready."
+        }
+      ],
+      "command": {
+        "name": "crews-pretooluse-failopen-on-manifest-write-eperm",
+        "prompts": {
+          "impl": "You are the IMPL-phase member for task crews-pretooluse-failopen-on-manifest-write-eperm.\r\n\r\nPhase discipline: implement the fix; do NOT chain into another task. Per codexu AGENTS.md the LEAD handles FF-merge + push; your scope is local commits on topic branch ralph/crews-pretooluse-failopen-on-manifest-write-eperm in an ai-developer-toolkit submodule worktree (git -C ai-developer-toolkit worktree add ai-developer-toolkit/.worktrees/crews-pretooluse-failopen-on-manifest-write-eperm -b ralph/crews-pretooluse-failopen-on-manifest-write-eperm main). Branch from CURRENT main (crews 3.24.4).\r\n\r\nBUG: under heavy concurrent load (3+ members), the lead's PreToolUse hook fails CLOSED (\"Denied by preToolUse hook (hook errored)\") when ITS OWN manifest.json atomic-write rename hits EPERM. Root cause: concurrent open handles on manifest.json (the lead hook + crash-sweep read member manifests while a member atomic-renames its own; Windows EPERMs the rename while any process holds the file open). The v3.5.0 EPERM auto-recovery (extended retry budget) + the v3.24.1/3.24.2 fail-open (for LockTimeoutError) do NOT cover this manifest-write-EPERM-in-the-lead-hook fail-closed path.\r\n\r\nEVIDENCE (verify in the source + crews.log): `hook-write-budget-exhausted ... err=EPERM: operation not permitted, rename 'manifest.json.<tmp>' -> 'manifest.json'` logged for plan-ralphmultirepo-i1 + impl-crewstabtitle-i1; the lead saw repeated \"Denied by preToolUse hook (hook errored)\" denials under a 3-member load, and ZERO once load dropped to 0. NOTE: `.crews` is ALREADY Windows-Defender-excluded, so this is NOT Defender scan pressure -- it is concurrent-open-handle contention.\r\n\r\nFIX (confirm the exact code paths first):\r\n1. Make the PreToolUse hook (and any lead-hook manifest-write path) FAIL-OPEN on a manifest-write EPERM: the hook's own manifest persistence is best-effort and must NEVER deny or error the lead's tool call just because it couldn't rename its manifest. Log it as advisory and ALLOW the tool.\r\n2. Consider cutting the EPERM rate at the source: open manifest READS (liveness checks, crash-sweep) with FILE_SHARE_DELETE / the Node-equivalent share mode so concurrent reads don't block the writer's rename.\r\n3. Add a regression test that simulates an EPERM-on-rename in the hook manifest-write path and asserts the tool is ALLOWED (not denied / not \"hook errored\").\r\n\r\nThis is a crews plugin VERSION ship (3.24.4 -> 3.24.5). Run the full crews test suite via plugins/crews/tests/run.js (Git Bash first on PATH on Windows). codexu root CLAUDE.md is gitignored -- do NOT git add CLAUDE.md. Two-commit submodule flow. Drive Phase 5a (tests + a code-review pass) + Phase 5b (docs: CHANGELOG + AGENTS.md) to terminal clean.\r\n\r\nReport kind=done with: commit SHA + topic branch + worktree path + new crews version + the fail-open mechanism + test coverage.\r\n"
+        }
+      },
+      "shipManifest": {
+        "shippedAt": "2026-06-27T05:07:18.678Z",
+        "summary": "Shipped crews 3.24.5, fixing the lead PreToolUse hook failing CLOSED on its own manifest.json atomic-write rename EPERM under heavy concurrent load. The hook (across the codex/copilot/claude pre-tool-use variants + the shared safe-io atomic-write helper) now fails OPEN on a manifest-write EPERM: the hook's manifest persistence is best-effort and must never deny or error the lead's tool call just because it couldn't rename its manifest. Reads are also opened with a delete-sharing mode to cut the EPERM rate at the source (concurrent reads no longer block the writer's rename).\r\n\r\nRoot cause (corrected this session): concurrent open handles on manifest.json -- the lead hook + crash-sweep read member manifests while a member atomic-renames its own, so Windows EPERMs the rename. This is NOT Defender scan pressure (.crews is already Windows-Defender-excluded); the prior v3.5.0 EPERM-retry and v3.24.1/3.24.2 fail-open (for LockTimeoutError) did not cover this manifest-write-EPERM-in-the-lead-hook fail-closed path. Evidence: crews.log hook-write-budget-exhausted err=EPERM for two members + repeated lead \"Denied by preToolUse hook (hook errored)\" denials under a 3-member load, and ZERO once load dropped to 0.\r\n\r\nVerification: 300/300 crews tests green, including a new 271-line regression test (pretooluse-manifest-write-eperm-fails-open.test.js) that simulates an EPERM-on-rename in the hook manifest-write path and asserts the tool is ALLOWED (not denied / not \"hook errored\"). Installed + active on the lead this session.\r\n",
+        "commits": [
+          {
+            "sha": "95415379",
+            "oneLine": "fix(crews): PreToolUse fails open on manifest-write rename EPERM (3.24.5)",
+            "repo": "ai-developer-toolkit"
+          }
+        ]
+      }
     }
   ]
 }
