@@ -1,0 +1,42 @@
+{
+  "brainstormName": "overview-naming-rebrand",
+  "overviewTaskId": "overview-naming-rebrand",
+  "idea": "Rename the 'overview' concept across the project. The word is too generic — it does not tell a new contributor what the system actually IS (a hand-curated task roadmap fused with watcher-derived runtime pipeline state). Pick the new name AND scope the rename (full / surface-only / plugin-keeps-name / additive-alias), with a grep-grounded surface inventory, effort estimate, migration strategy, risk areas, and sequencing.",
+  "availableLenses": ["codex", "copilot", "devils-advocate", "simplification", "inventory"],
+  "missingLenses": [],
+  "candidateDirections": [
+    {
+      "id": "D-001",
+      "name": "\"Roadmap\" canonical name + define-first + surface/additive scope (keep technical identity)",
+      "summary": "Adopt 'roadmap' as the canonical human-facing concept word; ship a one-line definition + glossary (with the two-part vocab roadmap=authored / status=derived) first; rename only human-facing surfaces (prose, the overview-bookkeeper role, viewer title, additive npm script aliases) plus non-destructive technical aliases (dual MCP tool names, export type New=Old, dual env var, data-dir fallback); KEEP the ralph-overview plugin/npm/marketplace name, the mcp__ralph-overview__* namespace, the .ralph-overview/ data dir, and the Overview* types. Scope = option 2 (surface-only ~200u) + option 4 (additive-alias ~40u), NOT option 1 (full ~575u).",
+      "contributingLenses": ["codex", "copilot", "devils-advocate", "simplification", "inventory"]
+    },
+    {
+      "id": "D-002",
+      "name": "Full hard rename to \"roadmap\" via additive aliases over 2 minors (clean-end-state maximalist)",
+      "summary": "Rename everything incl. plugin package, mcp__ralph-overview__* namespace, .ralph-overview/ data dir, the 22 Overview* types, wrapper + env var — shipped additively (old names alias) and deprecated over two minors. ~575 units FULL (PLUGIN-KEEPS-NAME partial ~430). Cannot be atomically safe: per-machine ~/.copilot|~/.claude settings and the immutable 60k .ralph/ history keep the old vocabulary alive, so a true single-vocabulary end-state is unreachable.",
+      "contributingLenses": ["codex", "copilot", "inventory"]
+    },
+    {
+      "id": "D-003",
+      "name": "Glossary-only / no rename (the 5%-effort floor)",
+      "summary": "Change zero interfaces; add a one-sentence tagline + a glossary mapping 'overview' to the concept + a 'what it is / what it is NOT' box; optionally rename the single most operator-facing string. ~10-40 units. Argues the real friction is conceptual (two-file split + three phase axes), not lexical. Folded into D-001 as its first phase; the gap it leaves (daily speech still says a vague word) is what D-001 closes by also adopting 'roadmap'.",
+      "contributingLenses": ["devils-advocate", "simplification"]
+    },
+    {
+      "id": "D-004",
+      "name": "Two-part layer vocabulary — \"roadmap\" (authored) + \"status\" (derived)",
+      "summary": "Name the two LAYERS precisely instead of (or alongside) one umbrella word: roadmap = hand-authored data.json intent; status / pipeline-state = watcher-derived generated/ralph-state. The merged surface stays a thin compositional label. The only option that genuinely shortens onboarding (the two words ARE the explanation) but adds a third noun for the merged surface. Adopted inside D-001's glossary.",
+      "contributingLenses": ["simplification"]
+    }
+  ],
+  "recommendedDirection": "D-001",
+  "questionsForSynthesis": [
+    "Confirm the canonical word is 'roadmap' vs. 'board' (the simplification lens's least-bad single word, since a kanban board natively implies cards + lanes = intent + state).",
+    "Rename the overview-bookkeeper role to roadmap-bookkeeper this pass, or defer (it appears in live .crews/ state and ~95 doc refs)?",
+    "Adopt the two-part glossary vocabulary (roadmap + status) as the canonical layer names?",
+    "Dual-register the 11 MCP tools now (additive ~16u), or leave MCP entirely on 'overview' and rename only human surfaces?",
+    "Is the operator's objection to the word in HUMAN-facing surfaces (cheap, one safe PR = D-001) or MACHINE interfaces (mcp__ralph-overview__*, .ralph-overview/ paths — expensive, cross-machine, non-atomic = D-002)?",
+    "Confirm acceptance of permanent dual-vocabulary (live 'roadmap' + frozen 'overview' in immutable .ralph/ history), the unavoidable end-state of any scope short of the impossible full rename."
+  ]
+}
