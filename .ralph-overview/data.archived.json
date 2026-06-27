@@ -8988,6 +8988,41 @@
           }
         ]
       }
+    },
+    {
+      "id": "crews-hook-walltime-timeout-failopen-all-entrypoints",
+      "scope": "crews",
+      "lifecycle": "merged",
+      "status": "active",
+      "lastTouchedAt": "2026-06-27",
+      "kanbanCards": [
+        {
+          "className": "cmd-ok",
+          "html": "crews 3.24.6 fix for the hook-PROCESS-TIMEOUT root cause exposed by the 5-member load verification."
+        }
+      ],
+      "command": {
+        "name": "crews-hook-walltime-timeout-failopen-all-entrypoints",
+        "prompts": {
+          "impl": "shipped 3.24.6 (see shipManifest)"
+        }
+      },
+      "shipManifest": {
+        "shippedAt": "2026-06-27",
+        "summary": "Shipped crews 3.24.6, the proper fix for the hook failures the 5-concurrent-member load verification exposed. Root cause (investigation .ralph/investigations/crews-policy-hook-and-residual-eperm/): the failures were HOOK-PROCESS TIMEOUTS, not the caught manifest-write EPERM that 3.24.5 handled -- under heavy load the crews hook process blocked long enough that the Copilot runtime killed it at its ~30s limit BEFORE the JS fail-open could run. 3.24.6 adds a hook WALL-BUDGET on Stop + SessionStart (crash-sweep) and extends LockTimeout/transient-rename FAIL-OPEN to ALL hook entry points (PreToolUse/PostToolUse/Stop/SessionStart/UserPromptSubmit across base/copilot/codex) so no hook ever fails closed or blocks past its budget. 301/301 tests + code review clean.\n\nOPEN FOLLOW-UP: the lead's 'Tool result blocked: Policy hook failed' recurred even AFTER installing 3.24.6 -- it appears to be a Copilot-CLI-level policy hook (outside crews), distinct from the crews member 'hook errored' that 3.24.6 fixes. Needs separate confirmation.",
+        "commits": [
+          {
+            "sha": "143a62cc",
+            "oneLine": "fix(crews): hook wall-budget + fail-open all entrypoints (3.24.6)",
+            "repo": "ai-developer-toolkit"
+          },
+          {
+            "sha": "592e2503",
+            "oneLine": "chore(toolkit): bump codexu pointer for crews 3.24.6",
+            "repo": "codexu"
+          }
+        ]
+      }
     }
   ]
 }
