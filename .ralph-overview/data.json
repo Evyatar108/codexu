@@ -1620,6 +1620,25 @@
           "html": "VERDICT PREMISE CORRECTED (operator 2026-06-23): the \"bundle Node / qualified-NO\" conclusion assumed (1) the Socket.IO server must match an UNMODIFIABLE React-Native app and (2) a Rust server must CHASE a protocol the fork doesn't control. BOTH are FALSE &mdash; <code>packages/happy-app</code> + <code>packages/happy-wire</code> are OUR fork; we own both ends. So the two \"bundle wins\" costs collapse and the operator chose the native Rust crate. The surface-INVENTORY data in findings.md (≈8 routes + 1 socket ns + ~7 tables; L for the scoped existing surface) remains valid + is a key input to the Rust-crate brainstorm; only the verdict is superseded.\r\n"
         }
       ]
+    },
+    {
+      "id": "remote-connectivity-lan-known-devices-additive-transport",
+      "scope": "codexu|codex",
+      "lifecycle": "tracked",
+      "status": "active",
+      "lastTouchedAt": "2026-06-26",
+      "kanbanCards": [
+        {
+          "className": "cmd-warn",
+          "html": "BUG/FEATURE (operator 2026-06-26): \"Microsoft Tunnels are not usable for me [corp policy], I want to ... support something like LAN but also for it to only be from devices I know\" + \"not change, but support something else too\". => ADD a LAN-based, KNOWN-DEVICES-ONLY remote-session transport ALONGSIDE (not replacing) Dev Tunnels; selectable/opt-in; the device allowlist is the security boundary. Stage: brainstorm. Priority: queue after current batch (operator: queue_after)."
+        }
+      ],
+      "command": {
+        "name": "remote-connectivity-lan-known-devices-additive-transport",
+        "prompts": {
+          "brainstorm": "Operator requirement (2026-06-26): ADD a LAN-based, known-devices-only remote-session connectivity transport ALONGSIDE the existing Microsoft Dev Tunnels path -- do NOT replace Dev Tunnels. Operator clarification: \"not change, but support something else too.\" Motivation: the operator's CORPORATE/ORG POLICY BLOCKS Microsoft Dev Tunnels, so they currently cannot use the remote-session feature at all; a LAN option (devices on the same trusted network, restricted to an allowlist of KNOWN devices) would unblock them without routing through Microsoft/cloud.\n\nThis is an ADDITIVE, SELECTABLE transport: the existing Dev Tunnels path MUST keep working unchanged and stay the default; the new LAN transport is a user-selectable, opt-in alternative.\n\nBRAINSTORM SCOPE (investigate + recommend; do NOT rubber-stamp the operator's lean -- verify feasibility and surface the real conflict surface):\n1. CURRENT STATE (source-verify, cite file:line): how does remote-session connectivity work today? How a device reaches happy-server for /remote on (the Dev Tunnels path), WHERE the transport is selected/configured, and the trust/auth model (the self-onboard GitHub device-flow + happy creds). Span the codex-happy overlay (codex submodule) + happy-server (codexu).\n2. LAN TRANSPORT OPTIONS: evaluate same-network device->happy-server connectivity. happy-server already binds localhost:3005 -> consider LAN-bind + discovery. Approaches: direct LAN IP/host, mDNS/zeroconf discovery; and the KNOWN-DEVICES restriction: explicit IP/host allowlist vs device-pairing keys/tokens vs mutual-TLS with known device certs vs a WireGuard/Tailscale-style mesh. Trade-offs: security boundary, setup friction, e-ink/tablet constraints, NAT/firewall, coexistence with Dev Tunnels.\n3. SELECTABILITY: how to make the transport pluggable/selectable so Dev Tunnels stays default and LAN is opt-in, without forking the connection code. Gate fork-divergent behavior via codex's EXPERIMENTAL-FEATURES mechanism (features/src/lib.rs Feature enum, default off), NOT an ad-hoc config bool -- consistent with the fork convention.\n4. CONFLICT SURFACE: what fork-divergent edits this needs (codex-happy overlay, happy-server, any upstream seams), whether it touches the same files as the recently-shipped autoconnect / self-onboard / cancellation work, and the upstream-contribution implications.\n5. SECURITY (load-bearing): the \"known devices\" allowlist MUST be the security boundary -- a LAN transport without device restriction is a footgun (any device on the network could connect to a remote coding session). Make allowlist enforcement airtight in the recommendation; call out the failure mode where the allowlist is bypassable.\n\nDELIVERABLE: a recommended direction with the chosen LAN mechanism + known-devices enforcement model + selectability/feature-gating design + conflict-surface analysis + a feasibility GO/NO-GO. Keep the Android e-ink tablet as the primary target device. Heavy multi-lens brainstorm (codex + copilot + devil's-advocate) on the copilot engine."
+        }
+      }
     }
   ],
   "phaseTree": [
