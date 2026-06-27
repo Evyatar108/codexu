@@ -9098,6 +9098,41 @@
           }
         ]
       }
+    },
+    {
+      "id": "ralph-overview-data-guard-shell-read-false-positive",
+      "scope": "ralph-overview",
+      "lifecycle": "merged",
+      "status": "active",
+      "lastTouchedAt": "2026-06-27",
+      "kanbanCards": [
+        {
+          "className": "cmd-warn",
+          "html": "Copilot data.json write-guard (copilot-pre-tool-use-data-edit.js) false-positives on READ-ONLY `node -e` commands: the `>>?` redirection regex matches the `>` in JS arrow functions (x=&gt;x). Blocks members merely inspecting data.json. Also UNDER-broad (misses node fs.writeFileSync writes)."
+        }
+      ],
+      "command": {
+        "name": "ralph-overview-data-guard-shell-read-false-positive",
+        "prompts": {
+          "impl": "Fix a FALSE-POSITIVE in the ralph-overview Copilot PreToolUse data.json write-guard.\n\nFILE: ai-developer-toolkit/plugins/ralph-overview/hooks/copilot-pre-tool-use-data-edit.js\n\nBUG: the SHELL_TOOLS branch blocks when `mentionsDataFile(command) && WRITE_INDICATORS.test(command)`, with WRITE_INDICATORS = /(>>?|set-content|add-content|out-file|\\btee\\b)/i. The `>>?` alternative matches the `>` inside JS arrow functions (`x=>x...`) and `>=` comparisons, so a READ-ONLY `node -e \"...JSON.parse(readFileSync('.ralph-overview/data.json'))... .find(x=>x.lifecycle...)\"` command is wrongly blocked as a redirection write. A member merely INSPECTING data.json shape gets denied.\n\nThe base (Claude) variant hooks/pre-tool-use-data-edit.js is CORRECT (only guards the dedicated Edit/Write/MultiEdit/apply_patch tools, never shell) — do NOT change its behavior or block reads there.\n\nFIX (Copilot variant only): make the shell write-detection PRECISE — only block when a WRITE actually TARGETS data.json. Specifically:\n(a) real shell redirection `>`/`>>` to the data.json path (e.g. /(>>?)\\s*(?:['\\\"]?)[^|;&]*\\.ralph-overview[\\\\/]data\\.json/), NOT a `=>` arrow or `>=` comparison;\n(b) PowerShell write-cmdlets (Set-Content / Add-Content / Out-File / Tee-Object) whose target/-Path is data.json;\n(c) ALSO catch `node -e` / `node --eval` scripts that call fs.writeFileSync / writeFile / appendFileSync / createWriteStream targeting data.json (currently MISSED — the guard has both an over-broad AND an under-broad hole).\nMust NOT block reads: readFileSync / Get-Content / require / import + arrow-function filters + `>`-comparisons where data.json is only READ.\n\nACCEPTANCE (add/extend unit tests for the hook — check for an existing test surface under plugins/ralph-overview/ for the data-edit guard; if none, add one):\n- read-only `node -e` with `x=>x` arrows referencing data.json  => ALLOW (regression test for THIS bug)\n- `Set-Content -Path .ralph-overview/data.json ...`             => BLOCK\n- `something > .ralph-overview/data.json`                        => BLOCK\n- `node -e \"fs.writeFileSync('.ralph-overview/data.json', ...)\"` => BLOCK (closes the under-broad hole)\n- a `>` redirection to some-other-file while data.json is only READ => ALLOW\n- the existing edit-tool block cases stay BLOCK; Claude variant unit cases unchanged.\n\nBump plugins/ralph-overview/.claude-plugin/plugin.json version (patch), update the 3 marketplace indexes (.claude-plugin/, .github/plugin/, .agents/plugins/ marketplace.json) per toolkit AGENTS.md invariant #6, prepend CHANGELOG.md, and update the active-plugin-versions table in codexu AGENTS.md in the codexu pointer commit. Drive /implement-with-ralph Phase 5a (code) + 5b (docs) to terminal-clean before reporting done. Topic branch ralph/ralph-overview-data-guard-shell-read-false-positive in an ai-developer-toolkit submodule worktree; lead does the FF + 3-remote push + pointer bump."
+        }
+      },
+      "shipManifest": {
+        "shippedAt": "2026-06-27",
+        "summary": "Shipped ralph-overview 2.14.1 -- fixes the Copilot data.json write-guard false-positive. The guard's shell-tool branch blocked when a command mentioned data.json AND matched WRITE_INDICATORS=/(>>?|set-content|add-content|out-file|tee)/i, but >>? matched the > inside JS arrow functions (x=>x) and >= comparisons, so a read-only `node -e` inspecting data.json was wrongly denied -- and it ALSO missed node-eval fs.writeFileSync writes (the guard was over- AND under-broad). Replaced WRITE_INDICATORS with three precise patterns that block only when a write TARGETS data.json: (a) real >/>> redirection to the path (lookbehind rejects =>, lookahead rejects >=, bare path-token blocks comparison false-positives); (b) PowerShell write-cmdlets on the path; (c) node-eval write fns (writeFileSync/writeFile/appendFileSync/appendFile/createWriteStream) on the path. Reads stay allowed; the Claude variant is untouched. 20/20 hook tests pass (14 original + 6 new regression cases).\n\nDiscovered + filed LIVE during the crews-3.24.6 hook-fix verification batch, when the create-task-skill brainstorm member hit the false positive while inspecting data.json (and the impl member itself was blocked by the OLD guard twice during the fix -- confirming the bug live).\n\nOPS NOTE: the `copilot plugin update` install step hit a transient Windows file-lock (os error 32) that emptied the installed plugin dir mid-update, which briefly caused session-wide 'hook errored' on create/edit across agents (the registered hook script went missing). Recovered by restoring the 2.14.1 plugin tree from the toolkit source into the install dir; verified functionally (read-only node -e with x=>x arrows ALLOWED; Set-Content + > redirection to data.json DENIED).",
+        "commits": [
+          {
+            "sha": "611f15a6",
+            "oneLine": "fix(ralph-overview): precise Copilot data.json shell write-guard (2.14.1)",
+            "repo": "ai-developer-toolkit"
+          },
+          {
+            "sha": "f95873bc",
+            "oneLine": "chore(toolkit): bump codexu pointer for ralph-overview 2.14.1",
+            "repo": "codexu"
+          }
+        ]
+      }
     }
   ]
 }
