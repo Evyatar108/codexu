@@ -1,0 +1,36 @@
+{
+  "brainstormName": "ralph-overview-create-task-skill",
+  "overviewTaskId": "ralph-overview-create-task-skill",
+  "idea": "Design a new cross-engine ralph-overview guided skill that interactively CREATES a tracked task in .ralph-overview/data.json, reusing the shared upsert-task mutation core, performing the dup-id/JSON/count guards + a confirmation diff, and doing NO git side-effects. Operator fixed 4 constraints: (1) interactive input, (2) write-only automation (no git stage/commit/push), (3) reuse the shared data-edit-core upsert-task path (not a fresh re-impl), (4) cross-engine Claude Code + Copilot CLI.",
+  "availableLenses": ["codex", "copilot", "devils-advocate"],
+  "missingLenses": [],
+  "candidateDirections": [
+    {
+      "id": "D-001",
+      "name": "Guided create-only skill with a SKILL-LEVEL no-clobber guard (thin, ship-fast)",
+      "summary": "New skills/create-task/SKILL.md + generated Copilot mirror only; dup pre-check from summary-projection.json (ALL tasks incl cold), confirm-before-write, fail-closed when non-interactive, write once via overview.upsert_task (or data-edit CLI). No core change; residual TOCTOU window remains.",
+      "contributingLenses": ["codex", "copilot", "devils-advocate"]
+    },
+    {
+      "id": "D-002",
+      "name": "Guided create-only skill + a createOnly flag pushed INTO the shared core (airtight guard)",
+      "summary": "Everything in D-001 PLUS extend the existing upsert-task core with a createOnly/failIfExists option (+ CLI --create-only + MCP Zod field), so the no-clobber guard runs inside the data-file lock over the hot+cold union and cannot be raced or miss a cold-shard collision. The skill is the thin wrapper. Recommended because there is no delete/undo verb and the clobber is silent + irreversible.",
+      "contributingLenses": ["devils-advocate", "codex", "copilot"]
+    },
+    {
+      "id": "D-003",
+      "name": "Question whether a 5th skill is the right unit (compose verbs / extend overview-init / document the MCP tool)",
+      "summary": "Cheaper packagings to price first: compose from existing verbs, extend overview-init's dry-run->confirm->apply, or do nothing and document overview.upsert_task. Recorded as a sanity check; loses to D-001/D-002 on the operator's explicit 'new interactive skill' ask and leaves the clobber+convention gap unaddressed.",
+      "contributingLenses": ["devils-advocate", "codex", "copilot"]
+    }
+  ],
+  "recommendedDirection": "D-002",
+  "questionsForSynthesis": [
+    "GATING: Is extending the shared core with createOnly/failIfExists in scope (-> D-002, airtight guard), or does 'reuse the core' mean freeze it (-> D-001, skill-only, race-prone)?",
+    "Non-interactive/sub-agent contract with no human to confirm: fail-closed + emit the assembled object, or refuse outright? (No undo verb -> an unconfirmed write is unrecoverable.)",
+    "Which read source backs the dup pre-check, and does it enumerate COLD (merged/archived) tasks? summary-projection.json does; active-tasks.json/lean-tasks.json do NOT.",
+    "Slash-command name: /create-task vs /file-task vs /new-task.",
+    "Should scope be a closed multiple-choice list (codex|crews|codexu|ralph-overview|ralph|ops|bookkeeping + pipe-multi + other) rather than free text?",
+    "Non-interactive fallback: thin convention-applying flags only (recommended) or none? Raw --spec <file> JSON is rejected by all lenses as redundant with data-edit upsert-task --json."
+  ]
+}
