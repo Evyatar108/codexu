@@ -1,0 +1,38 @@
+I’ll read the provided prompt file first, then carry out the requested work.
+
+I’m going to verify the plan against the ralph plugin sources so the review is grounded in the actual implementation surface.
+
+Direct file tools were denied for the repo paths, so I’ll inspect from the current workspace via PowerShell instead.
+
+Local repo inspection is blocked by tool permissions, so I’ll verify against the GitHub repositories instead.
+
+### Feasibility
+
+[High] The scaffolder design is not executable/testable as planned. `skills/scaffold-multi-repo-jobs/SKILL.md` is only an LLM workflow, but AC4/AC6 require `tests/test-scaffold-multi-repo-jobs.mjs` to run a fixture that produces job dirs, `prd.json`, and manifests. Existing `convert-to-ralph-prd` is also a skill, not a deterministic Node CLI. Add a testable `src/scaffold-multi-repo-jobs.mjs` or shared lib, with the skill as a thin wrapper.
+
+[High] The plan both pre-generates `prd.json`/worktrees and emits run commands using `$ralph-orchestration:implement-with-ralph --from-plan ... --target-repo ...`. In `implement-with-ralph/SKILL.md`, `--from-plan` routes through Phase 0 then Phase 2 PRD generation; it does not simply consume an existing scaffolded `prd.json`. For pre-scaffolded job dirs, the manifest should likely use `--run-only --job <jobDir>`, or the scaffolder should stop before PRD/worktree creation.
+
+[High] Stage A includes `D:/harness-efforts/codexu/AGENTS.md`, while the target worktree is explicitly `ai-developer-toolkit/plugins/ralph`. A single Ralph job has one `prd.json.repoDir`; this cross-repo doc edit cannot be satisfied by the same ai-developer-toolkit implementation job without violating the one-repo constraint the plan is adding. Split the codexu AGENTS update into a separate lead-owned/wrapper job or defer until the splitter exists.
+
+### Completeness
+
+[High] The exact codex skill mention token is called out as open, but no acceptance criterion requires proving the token is registered. AC6 only checks that the generated command contains `$ralph-orchestration:implement-with-ralph`; that would pass even if the token is wrong and codex still hand-rolls. Add verification evidence from the codex skill registry/probe.
+
+[Medium] The plan mentions adding `scaffold-multi-repo-jobs` to `USER_SKILLS` in `scripts/generate-copilot-artifacts.mjs`, which is necessary, and plugin manifests expose skill directories. But if the new skill contains any `Agent(` or prose delegation sites, `codex-lowering.mjs` inventories must be updated; the plan says this conditionally, but AC8 should explicitly require the inventory checks to pass.
+
+### Ordering
+
+[High] The plan says “ship Increment 1, dogfood, THEN start Increment 2,” but the suggested decomposition still presents one serial `/implement-with-ralph --from-plan ...` over US-001..US-008. Ralph will not naturally pause for lead-owned release/dogfood between US-003 and US-004. Split this into two implementation plans/jobs or make US-004..US-008 explicitly out of scope until v5.61.0 has shipped.
+
+### Simplicity
+
+[Medium] Independent job dirs plus a standalone manifest is simpler than modifying `group-schema.json`; that choice is sound. The over-complexity is in making the scaffolder an LLM skill while expecting deterministic node tests. A small executable scaffolder core plus generated/docs wrapper would reduce ambiguity.
+
+### Acceptance Criteria Quality
+
+[High] AC4/AC6 are not implementable as written unless a deterministic executable scaffolder exists. They require fixture-driven generation of PRDs and manifests, but the file list only adds a prose skill.
+
+[High] AC2 and AC5 should settle whether generated jobs are launched with `--from-plan` or resumed with `--run-only --job`. As written they conflict with the planned pre-generated `prd.json` artifacts.
+
+[Medium] AC1 is specific enough for the validator fixture, but the plan’s broader “all writable file references” language should be narrowed to “best-effort extraction from PRD plus optional plan,” matching the acknowledged heuristic limit.
+

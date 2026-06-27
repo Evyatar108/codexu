@@ -1,0 +1,129 @@
+{
+  "planFile": "draft-plan.md",
+  "repoDir": "D:/harness-efforts/codexu/ai-developer-toolkit/plugins/ralph",
+  "reviewers": [
+    "codex",
+    "copilot",
+    "claude-rubber-duck"
+  ],
+  "convergence": "All findings addressed in the finalized plan. 3-way consensus on F-001 (executable CLI), F-003 (--run-only run command), F-004 (lead-owned cross-repo edits), F-005 (two separate Ralph jobs). Copilot added F-012 (codex token-probe evidence) and F-013 (lowering inventory checks). Zero open Critical/High after revision.",
+  "findings": [
+    {
+      "id": "F-001",
+      "severity": "Critical",
+      "source": "consensus",
+      "status": "addressed",
+      "title": "Increment 2 needs an executable src/scaffold-multi-repo-jobs.mjs CLI; skill alone is untestable",
+      "detail": "run.mjs runs node:test files, not skill prose. AC4/AC6/AC7 require deterministic generation a markdown skill can't provide; risks the same hand-roll failure.",
+      "fix": "Add src/scaffold-multi-repo-jobs.mjs CLI; the SKILL.md is a thin wrapper. Tests exercise the CLI."
+    },
+    {
+      "id": "F-002",
+      "severity": "Critical",
+      "source": "consensus",
+      "status": "addressed",
+      "title": "convert-to-ralph-prd --batch cannot set additionalDirs",
+      "detail": "additionalDirs is populated by an interactive Step-6 question, skipped in --batch; there is no --additional-dir flag. The 'other repos appear only in additionalDirs' claim is unsupported by the current converter.",
+      "fix": "Scaffolder post-processes each generated prd.json to inject additionalDirs[] (node write). Alternative (deferred): add a repeatable --additional-dir flag to convert-to-ralph-prd."
+    },
+    {
+      "id": "F-003",
+      "severity": "High",
+      "source": "claude",
+      "status": "addressed",
+      "title": "Manifest run command --from-plan re-runs Phase 2 and overwrites the pre-seeded prd.json",
+      "detail": "The scaffolder pre-generates scoped prd.json seeds that the validator approves, but --from-plan runs Phase 0->2 which regenerates/overwrites the PRD.",
+      "fix": "Emit run command as $ralph-orchestration:implement-with-ralph --run-only --job <jobDir> --autonomous (skips planning, uses the existing prd.json). Verify --run-only executes stories on a fresh pre-seeded job."
+    },
+    {
+      "id": "F-004",
+      "severity": "Critical",
+      "source": "codex",
+      "status": "addressed",
+      "title": "codexu wrapper edits (AGENTS.md + active-plugin-versions table) are outside the submodule target repo",
+      "detail": "Ralph writes one repo per job (the ai-developer-toolkit submodule). The codexu AGENTS.md 'Dual-repo plans' bullet AND the root active-plugin-versions table (CI invariant, must move in the same commit as the submodule pointer bump) cannot be impl stories without writing outside the target repo.",
+      "fix": "Remove codexu edits from US-002. Make them LEAD-owned wrapper ship steps (pointer bump + active-plugin-versions table + Dual-repo bullet), documented as the ship ceremony. This is the feature's own multi-repo split applied to itself."
+    },
+    {
+      "id": "F-005",
+      "severity": "High",
+      "source": "codex",
+      "status": "addressed",
+      "title": "Autonomous run won't stop after US-003 for the Increment-1 ship + dogfood",
+      "detail": "A single --from-plan PRD/story list runs straight into Stage B; it won't pause for lead shipping, pointer bump, table update, and dogfooding.",
+      "fix": "Recommend TWO separate Ralph jobs: implement+ship Increment 1 (US-001..US-003 -> v5.61.0) first, then Increment 2 (US-004..US-008 -> v5.62.0). Make this the primary Next Step."
+    },
+    {
+      "id": "F-006",
+      "severity": "High",
+      "source": "consensus",
+      "status": "addressed",
+      "title": "Validator should check a structured write-scope artifact, not just prose",
+      "detail": "PRD criteria often omit paths; prose extraction misses cross-repo writes or confuses read-context citations with write intent.",
+      "fix": "Scaffolder emits a machine-readable writeScope/assignedPaths per job from the repo-map; validator checks that primary, with prose scanning as a secondary warning layer."
+    },
+    {
+      "id": "F-007",
+      "severity": "High",
+      "source": "claude",
+      "status": "addressed",
+      "title": "Codex nested ship-gate sequence under-specified in the manifest",
+      "detail": "The exact ordered codex nested sequence is not a required manifest field: member inner worktree push -> inner SHA reachable on sandbox-patches -> canonical inner FF -> wrapper docs/gitlink commit on main -> push wrapper remotes.",
+      "fix": "ship-order-manifest schema requires the ordered shipGate steps; US-006 + AC6 require the exact codex nested sequence in a fixture."
+    },
+    {
+      "id": "F-008",
+      "severity": "Medium",
+      "source": "codex",
+      "status": "addressed",
+      "title": "New schemas not validated anywhere",
+      "detail": "repo-map-schema.json and ship-order-manifest-schema.json are created but the plan doesn't validate emitted artifacts against them.",
+      "fix": "test-scaffold-multi-repo-jobs.mjs validates the emitted repo-map + manifest against their schemas."
+    },
+    {
+      "id": "F-009",
+      "severity": "Medium",
+      "source": "codex",
+      "status": "addressed",
+      "title": "US-007 should depend on US-006 too",
+      "detail": "US-007 asserts nested-topology behavior from US-006 but only lists dependsOn US-005.",
+      "fix": "US-007 dependsOn US-005 AND US-006."
+    },
+    {
+      "id": "F-010",
+      "severity": "Medium",
+      "source": "claude",
+      "status": "addressed",
+      "title": "Ship-order manifest discoverability",
+      "detail": "Independent seeds + manifest is right, but leads need to discover/resume the manifest.",
+      "fix": "Scaffolder records the manifest path in each generated job's prd.json/notepad (lightweight discoverability hook)."
+    },
+    {
+      "id": "F-011",
+      "severity": "Medium",
+      "source": "consensus",
+      "status": "addressed",
+      "title": "AC7 must be concretely verifiable",
+      "detail": "'test/inspection confirms no cross-repo push' is superficially satisfiable while shell snippets sneak into executable paths.",
+      "fix": "Assert the scaffolder CLI never invokes git push / pointer bump / rollback via mocked execFileSync; those strings allowed only in manifest text fixtures."
+    },
+    {
+      "id": "F-012",
+      "severity": "High",
+      "source": "copilot",
+      "status": "addressed",
+      "title": "AC6 must prove the codex token is REGISTERED, not just present in the string",
+      "detail": "A string-contains check of $ralph-orchestration:implement-with-ralph passes even if the token is wrong and codex still hand-rolls.",
+      "fix": "AC6 now requires a codex skill-list/registry probe transcript as evidence that the exact token loads the skill body."
+    },
+    {
+      "id": "F-013",
+      "severity": "Medium",
+      "source": "copilot",
+      "status": "addressed",
+      "title": "AC8 should explicitly require the codex-lowering inventory checks to pass",
+      "detail": "If the new skill adds Agent(/prose-delegation sites, AGENT_SITE_INVENTORY/PROSE_SITE_INVENTORY must be updated or the Codex generator test fails on drift.",
+      "fix": "US-008 + AC8 now require updating the inventories in the same commit and the Codex generator test passing with no drift."
+    }
+  ]
+}

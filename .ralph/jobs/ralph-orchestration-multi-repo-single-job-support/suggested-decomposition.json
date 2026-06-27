@@ -1,0 +1,57 @@
+{
+  "clusters": [
+    {
+      "name": "increment-1-splitter-foundation",
+      "stories": ["US-001", "US-002", "US-003"],
+      "phase": 1,
+      "dependsOn": [],
+      "fileOverlapEvidence": {
+        "sharedFiles": [
+          "plugins/ralph/CHANGELOG.md",
+          "plugins/ralph/.claude-plugin/plugin.json",
+          "plugins/ralph/.github/plugin/plugin.json",
+          "plugins/ralph/.codex-plugin/plugin.json",
+          ".claude-plugin/marketplace.json",
+          ".github/plugin/marketplace.json",
+          ".agents/plugins/marketplace.json",
+          "plugins/ralph/AGENTS.md"
+        ],
+        "exclusiveFiles": [
+          "plugins/ralph/src/validate-prd-scope.mjs",
+          "plugins/ralph/tests/test-validate-prd-scope.mjs",
+          "plugins/ralph/docs/multi-repo-split.md"
+        ],
+        "risk": "medium"
+      },
+      "executionModeRationale": "Serial. The three stories converge on the same six version-stamp files, CHANGELOG, and regenerated mirrors; they must run in order and ship together as v5.61.0."
+    },
+    {
+      "name": "increment-2-scaffolder",
+      "stories": ["US-004", "US-005", "US-006", "US-007", "US-008"],
+      "phase": 2,
+      "dependsOn": ["increment-1-splitter-foundation"],
+      "fileOverlapEvidence": {
+        "sharedFiles": [
+          "plugins/ralph/CHANGELOG.md",
+          "plugins/ralph/.claude-plugin/plugin.json",
+          "plugins/ralph/.github/plugin/plugin.json",
+          "plugins/ralph/.codex-plugin/plugin.json",
+          ".claude-plugin/marketplace.json",
+          ".github/plugin/marketplace.json",
+          ".agents/plugins/marketplace.json",
+          "plugins/ralph/AGENTS.md",
+          "plugins/ralph/scripts/generate-copilot-artifacts.mjs"
+        ],
+        "exclusiveFiles": [
+          "plugins/ralph/src/scaffold-multi-repo-jobs.mjs",
+          "plugins/ralph/skills/scaffold-multi-repo-jobs/SKILL.md",
+          "plugins/ralph/schemas/repo-map-schema.json",
+          "plugins/ralph/schemas/ship-order-manifest-schema.json",
+          "plugins/ralph/tests/test-scaffold-multi-repo-jobs.mjs"
+        ],
+        "risk": "high"
+      },
+      "executionModeRationale": "Serial, after Increment 1 ships. The scaffolder hard-gates on validate-prd-scope.mjs (US-001) and the convention docs (US-002), and converges on the same version/doc/generator files; ships as v5.62.0."
+    }
+  ]
+}

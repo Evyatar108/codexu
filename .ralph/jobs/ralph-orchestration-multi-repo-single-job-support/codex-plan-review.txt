@@ -1,0 +1,31 @@
+**Feasibility**
+
+[High] Increment 2 is not implementable as testable automation as written. The plan creates only `plugins/ralph/skills/scaffold-multi-repo-jobs/SKILL.md`, but `plugins/ralph/tests/run.mjs` runs Node test files, not skill prose. AC4/AC5 need an executable helper, likely `plugins/ralph/src/scaffold-multi-repo-jobs.mjs`, with the skill wrapping that helper.
+
+[High] The plan relies on `convert-to-ralph-prd --batch` setting `additionalDirs`, but `plugins/ralph/skills/convert-to-ralph-prd/SKILL.md` has no batch `--add-dir` / `--additional-dir` flag. `additionalDirs` is documented as optional and populated by an interactive question around Step 6. AC4 cannot be satisfied via the described command unless the plan adds a flag or post-processes `prd.json`.
+
+[High] `validate-prd-scope.mjs` is expected to reject cross-repo writes, but `plugins/ralph/schemas/prd-schema.json` has no structured writable-file field. Parsing `acceptanceCriteria`, `notes`, and plan prose is useful as a guardrail, but it cannot enforce the core invariant when stories omit paths or describe work abstractly.
+
+**Completeness**
+
+[Critical] The plan bumps Ralph to v5.61.0/v5.62.0 and includes codexu submodule pointer flow, but it does not update the root `AGENTS.md` active-plugin-versions table. The repo-level instructions state that table is the CI invariant source of truth and must be updated in the same commit as any `ai-developer-toolkit` submodule pointer bump changing plugin manifests.
+
+[High] Increment 1 includes `D:/harness-efforts/codexu/AGENTS.md` in AC2/US-002 while the target job is explicitly the `ai-developer-toolkit` submodule. Since Ralph still writes one repo per job, the plan needs a separate lead-owned wrapper commit/story for the codexu doc/table updates, or it will either fail AC2 or encourage the impl job to edit outside its target repo.
+
+[Medium] The new `repo-map-schema.json` and `ship-order-manifest-schema.json` are created, but the plan does not say how they are validated. Add a concrete validator path in the scaffolder tests, for example schema validation during `test-scaffold-multi-repo-jobs.mjs`.
+
+**Ordering**
+
+[High] Stage A says “ship as v5.61.0, dogfood, THEN start Increment 2,” but the single PRD/story list continues directly into Stage B. An autonomous `/implement-with-ralph --from-plan` run will not naturally stop after US-003 for lead shipping, submodule pointer bump, root table update, and dogfooding. Split this into two jobs or make US-003 terminal with explicit follow-up creation.
+
+[Medium] US-007 depends on US-006 for nested-topology assertions, but the decomposition only lists `dependsOn US-005`. Make US-007 depend on both US-005 and US-006.
+
+**Simplicity**
+
+[Medium] The validator should avoid trying to infer too much from arbitrary prose. A simpler, more reliable path is to have the scaffolder emit a structured per-job write-scope list from the repo-map assignments, then validate that list plus obvious plan paths.
+
+**Acceptance Criteria Quality**
+
+[High] AC4 says stories “only touch that repo,” but there is no structured story field to prove that. Reword it to require a generated `writeScope`/`assignedPaths` artifact and validate those paths, with prose scanning as secondary evidence.
+
+[Medium] AC7 says “test/inspection confirms” no push/pointer-bump/rollback automation. Make this concrete: grep the new scaffolder/helper for forbidden commands (`git push`, `git add <submodule>`, rollback verbs) and assert they appear only in manifest text fixtures.
