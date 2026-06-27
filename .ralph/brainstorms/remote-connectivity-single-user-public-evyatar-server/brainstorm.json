@@ -1,0 +1,49 @@
+{
+  "brainstormName": "remote-connectivity-single-user-public-evyatar-server",
+  "overviewTaskId": "remote-connectivity-single-user-public-evyatar-server",
+  "idea": "Build a SINGLE-USER (single-tenant) happy-server exposed PUBLICLY on the operator's own evyatar.dev domain as the codexu remote-session transport, secured the way Happy already works (QR-code device pairing + E2E encryption), reached via an OUTBOUND-ONLY tunnel (e.g. Cloudflare named tunnel) so it works remotely from anywhere and sidesteps the corporate Microsoft-Dev-Tunnels block. Replaces the shelved same-LAN approach. Primary device: Android e-ink tablet (BOOX).",
+  "availableLenses": ["codex", "copilot", "devils-advocate"],
+  "missingLenses": [],
+  "candidateDirections": [
+    {
+      "id": "D-001",
+      "name": "Public per-daemon endpoint: NEW fail-closed app-layer paired-device verifier (the operator's QR/E2E boundary) + MANDATORY authenticating edge as defense-in-depth",
+      "summary": "Expose the embedded per-daemon happy-server over an outbound Cloudflare tunnel to evyatar.dev via a CloudflareTunnelDaemonProvider on the existing DaemonTunnelProvider seam; add a new happy-server auth:'public' mode that permits non-loopback exposure ONLY when a fail-closed Ed25519 challenge-response device verifier covers /pair/complete (closed behind a pre-shared-QR-secret + bounded pairing window), EVERY tunnel route, and the Socket.IO handshake (websocket+polling); gate via codex Feature (default off) + /remote on; reuse the app's existing custom-server-url + QR/E2E pairing; layer a mandatory Cloudflare Access/mTLS edge as defense-in-depth. Makes the operator's 'QR+E2E is the boundary' model actually true.",
+      "contributingLenses": ["codex", "copilot", "devils-advocate"]
+    },
+    {
+      "id": "D-002",
+      "name": "Edge-only: terminate auth at the Cloudflare edge (Access service-token / mTLS); keep happy-server loopback-only and UNCHANGED",
+      "summary": "cloudflared connects to 127.0.0.1 exactly as today so assertOperatorIdentityGate stays intact and happy-server source is untouched; a Cloudflare Access service-token / mTLS policy at the edge replaces the Dev Tunnels gateway 1:1. Strictly least code/risk, but reintroduces a cloud vendor kill-switch, fails OPEN silently if misconfigured (socket is the fail-open spot), does NOT match the operator's in-app QR/E2E intent, and must prove Cloudflare Access can gate the Socket.IO WebSocket upgrade + polling fallback. Strongest IF a cloud auth edge is acceptable.",
+      "contributingLenses": ["devils-advocate", "codex", "copilot"]
+    },
+    {
+      "id": "D-003",
+      "name": "On-demand / ephemeral tunnel: expose the public endpoint only WHILE a session is active (surface reduction; a modifier on D-001/D-002)",
+      "summary": "A single occasional user doesn't justify a 24/7 internet-exposed endpoint; the /remote on toggle raises the tunnel on demand and tears it down after, shrinking the attack window from 'always' to 'minutes'. Composes with the winning auth model. Risk: the app caches a fixed tunnelUrl from /pair/complete (pairRoutes.ts:106-117) + daemon machine.json, so a rotating URL may break BOOX reconnect/persistence; a NAMED Cloudflare tunnel keeps a stable hostname while still being on-demand.",
+      "contributingLenses": ["devils-advocate", "copilot"]
+    },
+    {
+      "id": "D-004",
+      "name": "Separate thin relay on evyatar.dev forwarding only opaque encrypted frames",
+      "summary": "Likely NO-GO / out of scope: reintroduces a central-server / second control-plane the fork rejects (the embedded per-daemon happy-server must remain the session plane). Current routes carry server-side session semantics that can't all be opaque frames, so the relay either becomes a second happy-server or fails to support existing behavior. SKIP unless D-001 and D-002 are both ruled out.",
+      "contributingLenses": ["codex"]
+    },
+    {
+      "id": "D-005",
+      "name": "Reject public exposure; keep LAN/mesh as the only transport",
+      "summary": "Anti-direction captured for completeness. The operator already shelved LAN (it doesn't work remotely from arbitrary networks; corp Wi-Fi AP/client-isolation + blocked UDP make it unreliable), so it fails the core 'works from anywhere' requirement. Keep LAN only as a niche OFFLINE fallback after the public endpoint is proven safe.",
+      "contributingLenses": ["copilot"]
+    }
+  ],
+  "recommendedDirection": "D-001",
+  "questionsForSynthesis": [
+    "PREMISE GATE (answer first): is 'no cloud / no third-party auth edge' a hard requirement, or just 'nothing through Microsoft specifically'? Decides D-001-layered vs D-002-edge-only vs D-001-app-layer-only.",
+    "Enforcement mechanism for the app-layer verifier: Ed25519 signed-request reusing TOFU keys vs mTLS client certs vs HMAC+nonce — best balance of airtight-ness vs React-Native/BOOX feasibility?",
+    "Can the chosen mechanism (edge token OR app-layer Ed25519) gate the Socket.IO /v1/updates WebSocket upgrade AND its polling fallback with the same fail-closed guarantee? This is the single most likely gap (socket.ts tunnel-mode is fail-open today).",
+    "/pair/complete pairing-window UX on e-ink: who opens it, how long, clock-skew tolerance, retries; how is the pre-shared QR secret generated and surfaced? (The per-IP rate limit is botnet-bypassable and must NOT be the self-enrollment defense.)",
+    "Standing vs on-demand (D-003): does the operator need a 24/7 endpoint, or does /remote on-gated ephemeral exposure meet the usage pattern? Can the BOOX tolerate a rotating tunnelUrl, or must the Cloudflare tunnel be NAMED (stable hostname)?",
+    "Threat model for a leaked cloudflared credential on this Windows box (LocalSystem-profile cred-path gotcha); device revocation / key-rotation story for a lost BOOX (single-user = one all-powerful identity, no per-tenant containment).",
+    "Docs reconciliation: the fork's AGENTS.md + docs/fork-notes.md still say 'never happy.evyatar.dev / never a Cloudflare provider-swap'; the operator's 2026-06-27 single-tenant-personal-server decision supersedes that and planning/impl must update those + packages/happy-cli/AGENTS.md no-exposure invariant + docs/security-model.md in lockstep."
+  ]
+}

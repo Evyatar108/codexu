@@ -1,0 +1,45 @@
+---
+overviewTaskId: remote-connectivity-single-user-public-evyatar-server
+---
+
+## Direction
+D-001 — Public per-daemon endpoint secured by a NEW fail-closed app-layer paired-device verifier (the operator's QR/E2E boundary made real) PLUS a mandatory authenticating Cloudflare edge (Access service-token / mTLS) as defense-in-depth. Expose the operator's single embedded per-daemon happy-server publicly on evyatar.dev via an outbound-only Cloudflare tunnel, but only AFTER the app layer gains a per-request/per-handshake fail-closed cryptographic device gate covering `/pair/complete`, every tunnel route, and the Socket.IO handshake — because today the Dev Tunnels gateway is the *entire* boundary and a plain public tunnel would ship an open key-material self-enrollment endpoint to the internet.
+
+## Goal
+A codexu operator whose corporate policy blocks Microsoft Dev Tunnels can reach their own per-machine Happy session plane from ANYWHERE on the internet: their daemon's embedded happy-server is published at `https://happy.evyatar.dev` (or a subdomain) through an outbound-only Cloudflare named tunnel (no inbound ports, nothing through Microsoft), and the Android e-ink BOOX tablet pairs to it via the existing QR + E2E flow. Public exposure is SAFE because a server-side, fail-closed, cryptographic paired-device verifier gates every HTTP route and the Socket.IO handshake, `/pair/complete` is closed to open self-enrollment, and a mandatory Cloudflare Access / mTLS edge sits in front as defense-in-depth. A hostile internet client that reaches the public URL cannot self-enroll, create a session, enumerate routes, or read any plaintext. The whole variant is single-tenant (serves only the operator) and opt-in, gated by the codex experimental-features mechanism (default off) + `/remote on`; the Dev Tunnels path stays available/unchanged for users who can use it.
+
+## Scope
+### In Scope
+- A new happy-server `auth: 'public'` mode that EXTENDS `assertOperatorIdentityGate` (`packages/happy-server/sources/index.ts:101-108`) to permit a non-loopback/tunnel exposure ONLY when a fail-closed per-request device verifier is active, replacing the no-op `authenticateTunnel` (`packages/happy-server/sources/app/api/api.ts:79`) with a real Ed25519 challenge-response (server nonce, replay-protected) reusing the existing Ed25519/X25519 TOFU key material.
+- Closing `/pair/complete` (`packages/happy-server/sources/app/api/routes/pairRoutes.ts:59-119`) open enrollment: gated by a pre-shared QR secret + a short operator-opened pairing window; 401 (no key material) outside the window. Apply the verifier across `/pair/connect`, all tunnel-only routes (account/machineSelf/session/v3Session/push/version/dev), and the Socket.IO handshake incl. the polling fallback (`packages/happy-server/sources/app/api/socket.ts:57-92,136`).
+- A `CloudflareTunnelDaemonProvider` implementing the existing `DaemonTunnelProvider` interface (`packages/happy-cli/src/tunnel/provider.ts:14-18`), selected at `packages/happy-cli/src/daemon/run.ts:211`, advertising the evyatar.dev URL; the daemon binding/persistence wiring.
+- A mandatory authenticating Cloudflare edge (Access service-token / mTLS) in front, verified to gate the Socket.IO WebSocket upgrade + polling fallback with the same fail-closed policy as REST.
+- happy-app: reuse the existing custom-server-url support (`packages/happy-app/sources/sync/serverConfig.ts`, Settings `app/(app)/server.tsx`) to point at evyatar.dev; attach the device proof in `sources/sync/socketOptions.ts`; reuse QR/E2E pairing (`sources/auth/pairing.ts`).
+- Codex opt-in: gate the variant via the `Feature` enum (default off; `codex/external/repos/codex-patched/codex-rs/features/src/lib.rs`) and the `/remote on` surface (`codex/codex-rs-overlay/codex-happy/src/remote_on.rs`).
+- Docs in lockstep: update fork `AGENTS.md` + `docs/fork-notes.md` (supersede the "never happy.evyatar.dev / never Cloudflare provider-swap" note for this single-tenant decision), relax the `packages/happy-cli/AGENTS.md` "never expose on 0.0.0.0/LAN/tunnels" invariant with a reviewed amendment, and update `docs/security-model.md`.
+
+### Out of Scope
+- Any change to the default Dev Tunnels behavior, the loopback listener, or codex-happy's same-machine loopback attach (always `127.0.0.1:<tunnelPort>`).
+- A MULTI-TENANT / shared central happy-server. This is the operator's OWN single-user daemon server; no per-user data-isolation work.
+- D-004 (separate thin relay) — reintroduces a central control plane the fork rejects; only revisit if D-001/D-002 are both ruled out.
+- The same-LAN transport (D-005) as a primary path — LAN stays only as a niche OFFLINE fallback.
+- Using the per-IP rate limit as the self-enrollment defense (it is botnet-bypassable).
+
+## Criteria
+- DECISIVE: a hostile internet client that reaches the public URL is fail-closed rejected on `/pair/complete` (401, NO key material), every tunnel-only HTTP route, AND the Socket.IO handshake (websocket + polling) — it cannot self-enroll, create a session, enumerate routes, or read any plaintext.
+- `assertOperatorIdentityGate` still throws on a bare non-loopback bind unless the fail-closed device verifier (and configured edge-auth expectation) is active.
+- A blessed device (paired key) completes a remote session from the BOOX over the public evyatar.dev endpoint with Dev Tunnels disabled, from a network off the home LAN.
+- `/pair/complete` returns key material ONLY inside an operator-opened pairing window to a caller presenting the pre-shared QR secret; replay-protected.
+- The Cloudflare Access / mTLS edge is proven to gate the WebSocket upgrade with the same fail-closed policy as REST.
+- The variant is opt-in/default-off (codex Feature flag off by default); Dev Tunnels path unchanged.
+- Existing happy-server / happy-cli / happy-app tests pass; the new auth mode has its own coverage (route-table + socket-handshake fail-closed enumeration test; the `/pair/complete`-leaks-no-key-material assertion).
+
+## Context
+- **Full-mode three-lens convergence (codex + copilot + devils-advocate).** All three independently identified the same crux and the devil's-advocate raised a red_flag: the premise "QR+E2E is the boundary so public exposure is safe" is FALSE against source — today the Microsoft Dev Tunnels gateway is the entire boundary (`authenticateTunnel` is a no-op at `api.ts:79`; the socket handshake is fail-open in tunnel mode; `/pair/complete` returns server pubkeys + a derived `mobileSharedSecret` to ANY caller behind only a 30/min per-IP limit). `curl -X POST https://<host>/pair/complete -d '{}'` returns 200 with key material today. So this is NOT a transport swap — it is a from-scratch application-layer auth-plane build, and "single-user" REMOVES the only blast-radius limiter (one gap = total compromise). E2E protects content, not route access.
+- **Feasibility GO — conditioned on hard preconditions:** (1) build the fail-closed verifier FIRST and prove the decisive acceptance test before any public exposure; (2) close `/pair/complete` open enrollment; (3) mandatory authenticating edge as defense-in-depth. A naive provider-swap is a NO-GO.
+- **Premise gate to resolve BEFORE planning (the key decision):** is "no cloud / no third-party auth edge" a HARD requirement, or just "nothing through Microsoft"? If a Cloudflare auth edge is acceptable, D-002 (edge-only, server unchanged) is dramatically cheaper, or D-001-with-mandatory-edge is most robust; if "no third-party edge" is mandatory, the app-layer verifier must carry 100% of the boundary (highest-risk path) and the operator must accept that Cloudflare can policy-block them exactly as Dev Tunnels did.
+- **Existing seams minimize forking:** the app already targets a custom server URL (no new app code to point at evyatar.dev); `DaemonTunnelProvider` is a single provider seam; `loopbackCapability.ts` is the reusable fail-closed per-request primitive to model the remote verifier on; codex `Feature` gate for opt-in.
+- **Surface-reduction option (D-003):** consider on-demand / `/remote on`-gated ephemeral exposure (with a NAMED tunnel for a stable hostname) to shrink the 24/7 attack surface, if the BOOX tolerates the reconnect model.
+- **Relation to LAN (shelved):** this REPLACES `remote-connectivity-lan-known-devices-additive-transport`; its server-side fail-closed per-device crypto-auth analysis maps directly onto the verifier here (same core problem, outbound tunnel instead of LAN bind). Its devil's-advocate D-002 (Cloudflare provider-swap) was the seed of this task.
+- **Conflict surface:** XL, spanning happy-server (auth/pairing/socket/public-exposure hardening), happy-cli (Cloudflare provider + persistence), happy-app (sync/socketOptions + settings), codex Feature + `/remote on`, plus the cloudflared/evyatar.dev ops (DNS/cert; note the Windows LocalSystem `.cloudflared` cred-path gotcha). Fork-only; not cleanly upstreamable.
+- Full per-lens analysis + verified source findings: `brainstorm-synthesis.md` (this directory).
