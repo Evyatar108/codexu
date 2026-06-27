@@ -254,6 +254,18 @@ This is the workflow the 2026-04-22 batch used after the merge: Metro on `/d/h` 
 
 ## Cloudflare tunnel (local server from your phone/tablet)
 
+> **⚠️ SUPERSEDED / RETIRED (operator confirmed 2026-06-27).** The central
+> `https://happy.evyatar.dev` happy-server + named Cloudflare Tunnel below is
+> **no longer in use**. The architecture moved/is-moving to **distributed
+> per-daemon** (each machine embeds its own happy-server, no central broker —
+> see AGENTS.md "Server architecture" + task `agent-comms` Scope A). Bookkeepers
+> must NOT propose reusing `happy.evyatar.dev` or a "Cloudflare provider-swap"
+> when scoping connectivity work. Microsoft Dev Tunnels is also blocked by the
+> operator's corp policy; an additive LAN/known-devices transport is the active
+> direction (task `remote-connectivity-lan-known-devices-additive-transport`).
+> The Cloudflare + Windows-services material below is kept for historical /
+> recovery reference only.
+
 Happy-server runs from `D:\harness-efforts\happy` via `pnpm --filter happy-server standalone:dev` (embedded PGlite, no Docker) on `http://localhost:3005`. A named Cloudflare Tunnel fronts it at the stable URL **`https://happy.evyatar.dev`**. The `cloudflared` binary is installed at `C:\Program Files (x86)\cloudflared\cloudflared.exe` (via `winget install Cloudflare.cloudflared`); config lives at `~/.cloudflared/`.
 
 ### Current setup (as of 2026-04-22)
