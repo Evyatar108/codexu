@@ -1,0 +1,61 @@
+{
+  "planFile": "D:/harness-efforts/codexu/.ralph/jobs/crews-listener-silent-reap-across-idle-investigation/plan.md",
+  "repoDir": "D:/harness-efforts/codexu/.ralph/jobs/crews-listener-silent-reap-across-idle-investigation/worktree/plan",
+  "reviewCycle": 1,
+  "findings": [
+    {
+      "id": "F-001",
+      "severity": "Medium",
+      "source": "codex",
+      "classification": "fixable",
+      "phase": "docs",
+      "category": "acceptance-criteria",
+      "sectionRef": "Overview / Open Questions",
+      "description": "The plan must not promise no-turn real-time delivery after an external reap while detach and standalone supervisors remain forbidden.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Plan now defines the enforceable bound as zero loss plus next session-bound event/re-arm initial-scan delivery, and calls out the no-turn wall-clock limitation.",
+      "relevantFiles": ["plan.md"],
+      "suggestedFix": "State the boundary explicitly in Overview, Acceptance Criteria, and Open Questions."
+    },
+    {
+      "id": "F-002",
+      "severity": "Medium",
+      "source": "codex",
+      "classification": "fixable",
+      "phase": "code",
+      "category": "regression-risk",
+      "sectionRef": "Risk Areas / US-002",
+      "description": "Identity-aware demotion could allow duplicate active listeners if true listener identity is classified too strictly.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Plan now requires preserving same-listener redundant-arm skip tests and adding foreign/recycled PID demotion tests.",
+      "relevantFiles": [
+        "ai-developer-toolkit/plugins/crews/hooks/actors.js",
+        "ai-developer-toolkit/plugins/crews/hooks/actor-state.js",
+        "ai-developer-toolkit/plugins/crews/tests/listener-redundant-arm-skip.test.js",
+        "ai-developer-toolkit/plugins/crews/tests/duplicate-listener-exited-rearm.test.js"
+      ],
+      "suggestedFix": "Pin both true-active and foreign/recycled branches in tests."
+    },
+    {
+      "id": "F-003",
+      "severity": "Medium",
+      "source": "codex",
+      "classification": "fixable",
+      "phase": "docs",
+      "category": "release-surface",
+      "sectionRef": "Files to Create/Modify / US-004",
+      "description": "Crews release surfaces must include version manifests, marketplaces, changelog, AGENTS notes, and version tests.",
+      "status": "fixed",
+      "fixedInIteration": 1,
+      "resolution": "Plan now includes a release-verification story and explicit version/changelog/AGENTS files.",
+      "relevantFiles": [
+        "ai-developer-toolkit/plugins/crews/AGENTS.md",
+        "ai-developer-toolkit/plugins/crews/CHANGELOG.md",
+        "ai-developer-toolkit/plugins/crews/tests/version.test.js"
+      ],
+      "suggestedFix": "Add a release story and acceptance criteria."
+    }
+  ]
+}

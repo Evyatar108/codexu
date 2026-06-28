@@ -1,0 +1,25 @@
+# Codex Plan Review
+
+## Findings
+
+### F-001 - Medium - Clarify the no-turn latency boundary
+
+The original brainstorm goal says "no reliance on a human eventually typing," but under the operator's no-detach constraint an external SIGKILL-class reap leaves no session-bound process alive. The plan must avoid promising real-time delivery during a no-turn external reap. It should instead define the tested contract as zero loss plus delivery on the next session-bound hook/re-arm initial scan.
+
+Resolution: fixed in `plan.md` Overview, Acceptance Criteria, and Open Questions.
+
+### F-002 - Medium - Protect duplicate listener guard behavior
+
+Identity-aware demotion could become too strict and allow duplicate listeners. The plan needs explicit same-listener skip tests as well as foreign/recycled PID demotion tests.
+
+Resolution: fixed in Risk Areas, US-002, and acceptance criteria.
+
+### F-003 - Medium - Include release/version surfaces
+
+The crews plugin release ceremony requires version stamps, manifest/marketplace parity, CHANGELOG, and AGENTS updates. The plan originally focused on logic and tests; release surfaces must be part of the implementation story.
+
+Resolution: fixed in Files to Create/Modify, US-004, and acceptance criteria.
+
+## Verdict
+
+Plan is ready for implementation after the above amendments. Remaining risk is implementation detail, not planning ambiguity.

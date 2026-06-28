@@ -1,0 +1,55 @@
+{
+  "clusters": [
+    {
+      "name": "listener-core-hardening",
+      "stories": ["US-001"],
+      "phase": 1,
+      "dependsOn": [],
+      "fileOverlapEvidence": {
+        "sharedFiles": ["ai-developer-toolkit/plugins/crews/lib/listener-loop.js"],
+        "exclusiveFiles": ["ai-developer-toolkit/plugins/crews/tests/listener-watch-recreate.test.js"],
+        "risk": "high"
+      },
+      "executionModeRationale": "This should run first and serially because it changes the long-lived listener process and creates the telemetry contract later stories depend on."
+    },
+    {
+      "name": "identity-and-recovery",
+      "stories": ["US-002", "US-003"],
+      "phase": 2,
+      "dependsOn": ["listener-core-hardening"],
+      "fileOverlapEvidence": {
+        "sharedFiles": [
+          "ai-developer-toolkit/plugins/crews/hooks/actors.js",
+          "ai-developer-toolkit/plugins/crews/hooks/actor-state.js",
+          "ai-developer-toolkit/plugins/crews/hooks/pre-tool-use.js",
+          "ai-developer-toolkit/plugins/crews/hooks/stop.js"
+        ],
+        "exclusiveFiles": [
+          "ai-developer-toolkit/plugins/crews/hooks/listener-identity.js",
+          "ai-developer-toolkit/plugins/crews/tests/listener-identity-recycle.test.js",
+          "ai-developer-toolkit/plugins/crews/tests/listener-dead-window-recovery.test.js"
+        ],
+        "risk": "high"
+      },
+      "executionModeRationale": "Identity and hook recovery must be implemented together because either half alone can preserve the false-armed dead window. Run serially after listener-core-hardening."
+    },
+    {
+      "name": "release-verification",
+      "stories": ["US-004"],
+      "phase": 3,
+      "dependsOn": ["identity-and-recovery"],
+      "fileOverlapEvidence": {
+        "sharedFiles": [
+          "ai-developer-toolkit/plugins/crews/AGENTS.md",
+          "ai-developer-toolkit/plugins/crews/CHANGELOG.md",
+          "ai-developer-toolkit/plugins/crews/.claude-plugin/plugin.json",
+          "ai-developer-toolkit/plugins/crews/.codex-plugin/plugin.json",
+          "ai-developer-toolkit/plugins/crews/.github/plugin/plugin.json"
+        ],
+        "exclusiveFiles": ["ai-developer-toolkit/plugins/crews/tests/version.test.js"],
+        "risk": "medium"
+      },
+      "executionModeRationale": "Version and docs should land only after behavior and tests settle, because the release note must describe the final contract."
+    }
+  ]
+}
