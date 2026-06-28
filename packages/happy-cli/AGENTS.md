@@ -42,6 +42,13 @@ Happy CLI (`handy-cli`) is a command-line tool that wraps Claude Code to enable 
 - When a `runCodex` test mocks `node:child_process`, use a partial mock that preserves real exports and overrides only `execSync`; `@slopus/happy-wire/node` reaches `execFile` through persistence imports.
 - `logger.debug()` swallows file append errors unless `DEBUG=1`; set `DEBUG=1` before dynamic import when a test needs to prove caller-level logger failure isolation.
 
+### Test skip-list / quarantine
+
+- `pnpm --filter happy test` runs the deterministic unit Vitest project by default. Integration Vitest projects are intentionally omitted unless `RUN_INTEGRATION=1` is set, because their setup needs local DB/auth/agent prerequisites and otherwise fails before per-test `skipIf` guards can run.
+- `RUN_INTEGRATION=1` enables the integration Vitest projects; existing per-test prerequisites still apply. Known extra gates include `RUN_CLAUDE_INTEGRATION=1` for `queryInitMetadata.integration.test.ts`, `RUN_CODEX_INTEGRATION=1` for Codex app-server integration coverage, and OpenClaw gateway env vars for OpenClaw tests. `HAPPY_RUN_SANDBOX_NETWORK_TESTS=1` is set by global setup for package test runs, but set it explicitly for file-scoped network integration runs.
+- To run the integration projects, use `RUN_INTEGRATION=1 npm_config_script_shell=bash pnpm --filter happy test` from a machine with the integration prerequisites installed.
+- Keep any future unit-test quarantine small, prerequisite-conditional, and documented here with the owning issue/task. Do not skip pure unit tests to hide deterministic regressions.
+
 ### Logging
 - All debugging through file logs to avoid disturbing Claude sessions
 - Console output only for user-facing messages

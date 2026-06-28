@@ -8,6 +8,16 @@ import { existsSync } from 'node:fs'
 import { getProjectPath } from './path'
 import { getSessionLogMessageKey, normalizeSessionLogMessage } from './normalizeSessionLogMessage'
 
+async function waitForMessageCount(messages: RawJSONLines[], count: number, timeoutMs = 2_000): Promise<void> {
+  const start = Date.now()
+  while (messages.length < count) {
+    if (Date.now() - start > timeoutMs) {
+      throw new Error(`Timed out waiting for ${count} messages; received ${messages.length}`)
+    }
+    await new Promise(resolve => setTimeout(resolve, 20))
+  }
+}
+
 describe('sessionScanner', () => {
   let testDir: string
   let projectDir: string
@@ -65,7 +75,7 @@ describe('sessionScanner', () => {
     // Write first line
     await writeFile(sessionFile1, lines1[0] + '\n')
     scanner.onNewSession(sessionId1)
-    await new Promise(resolve => setTimeout(resolve, 100))
+    await waitForMessageCount(collectedMessages, 1)
     
     expect(collectedMessages).toHaveLength(1)
     expect(collectedMessages[0].type).toBe('user')
@@ -78,7 +88,7 @@ describe('sessionScanner', () => {
     // Write second line with delay
     await new Promise(resolve => setTimeout(resolve, 50))
     await appendFile(sessionFile1, lines1[1] + '\n')
-    await new Promise(resolve => setTimeout(resolve, 200))
+    await waitForMessageCount(collectedMessages, 2)
     
     expect(collectedMessages).toHaveLength(2)
     expect(collectedMessages[1].type).toBe('assistant')
@@ -104,7 +114,7 @@ describe('sessionScanner', () => {
     await writeFile(sessionFile2, initialContent)
     
     scanner.onNewSession(sessionId2)
-    await new Promise(resolve => setTimeout(resolve, 100))
+    await waitForMessageCount(collectedMessages, phase1Count + 1)
     
     // Should have added only 1 new message (summary) 
     // The historical user + assistant messages (lines 1-2) are deduplicated because they have same UUIDs
@@ -114,7 +124,7 @@ describe('sessionScanner', () => {
     // Write new messages (user asks for ls tool) - this is line 3
     await new Promise(resolve => setTimeout(resolve, 50))
     await appendFile(sessionFile2, lines2[3] + '\n')
-    await new Promise(resolve => setTimeout(resolve, 200))
+    await waitForMessageCount(collectedMessages, phase1Count + 2)
     
     // Find the user message we just added
     const userMessages = collectedMessages.filter(m => m.type === 'user')
@@ -129,7 +139,7 @@ describe('sessionScanner', () => {
       await new Promise(resolve => setTimeout(resolve, 50))
       await appendFile(sessionFile2, lines2[i] + '\n')
     }
-    await new Promise(resolve => setTimeout(resolve, 300))
+    await waitForMessageCount(collectedMessages, phase1Count + 5, 4_000)
     
     // Final count check
     const finalMessages = collectedMessages.slice(phase1Count)
@@ -222,7 +232,7 @@ describe('sessionScanner', () => {
       onMessage: (msg) => collectedMessages.push(msg)
     })
     scanner.onNewSession(sessionId)
-    await new Promise(resolve => setTimeout(resolve, 200))
+    await waitForMessageCount(collectedMessages, 1)
 
     expect(collectedMessages).toHaveLength(1)
     expect(collectedMessages[0]).toEqual({

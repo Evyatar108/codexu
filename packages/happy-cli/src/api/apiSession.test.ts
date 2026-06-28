@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ApiSessionClient, MessageConsumptionTimeoutError } from './apiSession';
-import { decodeBase64, decrypt, encodeBase64, encrypt } from './encryption';
+import { encodeBase64, encrypt } from './encryption';
 import type { Update } from './types';
 
 const {
@@ -145,16 +145,16 @@ function encryptContent(session: ReturnType<typeof makeSession>, content: unknow
     return encodeBase64(encrypt(session.encryptionKey, session.encryptionVariant, content));
 }
 
-function decryptPostedMessage(session: ReturnType<typeof makeSession>, index = 0, callIndex = 0): any {
-    const payload = mockAxiosPost.mock.calls[callIndex][1];
-    return decrypt(
-        session.encryptionKey,
-        session.encryptionVariant,
-        decodeBase64(payload.messages[index].content)
-    );
+function plaintextContent(content: unknown): string {
+    return JSON.stringify(content);
 }
 
-function createNewMessageUpdate(seq: number, encryptedContent: string): Update {
+function parsePostedMessage(index = 0, callIndex = 0): any {
+    const payload = mockAxiosPost.mock.calls[callIndex][1];
+    return JSON.parse(payload.messages[index].content);
+}
+
+function createNewMessageUpdate(seq: number, serializedContent: string): Update {
     return {
         id: `upd-${seq}`,
         seq,
@@ -168,7 +168,7 @@ function createNewMessageUpdate(seq: number, encryptedContent: string): Update {
                 localId: null,
                 content: {
                     t: 'encrypted',
-                    c: encryptedContent
+                    c: serializedContent
                 },
                 createdAt: Date.now(),
                 updatedAt: Date.now(),
@@ -177,7 +177,7 @@ function createNewMessageUpdate(seq: number, encryptedContent: string): Update {
     };
 }
 
-function createUpdateSessionUpdate(session: ReturnType<typeof makeSession>, version: number, metadata: unknown): Update {
+function createUpdateSessionUpdate(version: number, metadata: unknown): Update {
     return {
         id: `upd-session-${version}`,
         seq: version,
@@ -187,7 +187,7 @@ function createUpdateSessionUpdate(session: ReturnType<typeof makeSession>, vers
             id: 'test-session-id',
             metadata: {
                 version,
-                value: encryptContent(session, metadata),
+                value: plaintextContent(metadata),
             },
         },
     };
@@ -277,7 +277,7 @@ describe('ApiSessionClient v3 messages API migration', () => {
         };
 
         await waitForSocketInit(mockSocket);
-        emitSocketEvent('update', createUpdateSessionUpdate(session, 1, nextMetadata));
+        emitSocketEvent('update', createUpdateSessionUpdate(1, nextMetadata));
 
         const received: unknown[] = [];
         client.onAgentConfiguration((configuration) => received.push(configuration));
@@ -303,7 +303,7 @@ describe('ApiSessionClient v3 messages API migration', () => {
         client.onAgentConfiguration((configuration) => received.push(configuration));
 
         await waitForSocketInit(mockSocket);
-        emitSocketEvent('update', createUpdateSessionUpdate(session, 1, { ...session.metadata }));
+        emitSocketEvent('update', createUpdateSessionUpdate(1, { ...session.metadata }));
 
         expect(received).toEqual([]);
     });
@@ -337,11 +337,7 @@ describe('ApiSessionClient v3 messages API migration', () => {
         expect((client as any).pendingOutbox).toHaveLength(0);
         expect((client as any).lastSeq).toBe(1);
 
-        const decrypted = decrypt(
-            session.encryptionKey,
-            session.encryptionVariant,
-            decodeBase64(payload.messages[0].content)
-        );
+        const decrypted = JSON.parse(payload.messages[0].content);
         expect(decrypted).toEqual({
             role: 'agent',
             content: {
@@ -450,11 +446,7 @@ describe('ApiSessionClient v3 messages API migration', () => {
         const payload = mockAxiosPost.mock.calls[0][1];
         expect(payload.messages).toHaveLength(1);
 
-        const sessionUser = decrypt(
-            session.encryptionKey,
-            session.encryptionVariant,
-            decodeBase64(payload.messages[0].content)
-        );
+        const sessionUser = JSON.parse(payload.messages[0].content);
         expect(sessionUser).toMatchObject({
             role: 'session',
             content: {
@@ -539,7 +531,7 @@ describe('ApiSessionClient v3 messages API migration', () => {
             expect(mockAxiosPost).toHaveBeenCalledTimes(1);
         });
         expect(mockMapClaudeLogMessageToSessionEnvelopes).toHaveBeenCalledTimes(1);
-        expect(decryptPostedMessage(session)).toMatchObject({
+        expect(parsePostedMessage()).toMatchObject({
             role: 'session',
             content: {
                 role: 'user',
@@ -571,7 +563,7 @@ describe('ApiSessionClient v3 messages API migration', () => {
             expect(mockAxiosPost).toHaveBeenCalledTimes(1);
         });
         expect(mockMapClaudeLogMessageToSessionEnvelopes).toHaveBeenCalledTimes(1);
-        expect(decryptPostedMessage(session)).toMatchObject({
+        expect(parsePostedMessage()).toMatchObject({
             role: 'session',
             content: {
                 role: 'user',
@@ -599,7 +591,7 @@ describe('ApiSessionClient v3 messages API migration', () => {
             expect(mockAxiosPost).toHaveBeenCalledTimes(1);
         });
         expect(mockMapClaudeLogMessageToSessionEnvelopes).toHaveBeenCalledTimes(1);
-        expect(decryptPostedMessage(session)).toMatchObject({
+        expect(parsePostedMessage()).toMatchObject({
             role: 'session',
             content: {
                 role: 'user',
@@ -640,7 +632,7 @@ describe('ApiSessionClient v3 messages API migration', () => {
             expect(mockAxiosPost).toHaveBeenCalledTimes(2);
         });
         expect(mockMapClaudeLogMessageToSessionEnvelopes).toHaveBeenCalledTimes(1);
-        expect(decryptPostedMessage(session, 0, 1)).toMatchObject({
+        expect(parsePostedMessage(0, 1)).toMatchObject({
             role: 'session',
             content: {
                 role: 'agent',
@@ -675,11 +667,7 @@ describe('ApiSessionClient v3 messages API migration', () => {
         });
 
         const payload = mockAxiosPost.mock.calls[0][1];
-        const decrypted = decrypt(
-            session.encryptionKey,
-            session.encryptionVariant,
-            decodeBase64(payload.messages[0].content)
-        );
+        const decrypted = JSON.parse(payload.messages[0].content);
 
         expect(decrypted).toEqual({
             role: 'session',
@@ -712,11 +700,7 @@ describe('ApiSessionClient v3 messages API migration', () => {
         const payload = mockAxiosPost.mock.calls[0][1];
         expect(payload.messages).toHaveLength(1);
 
-        const sessionUser = decrypt(
-            session.encryptionKey,
-            session.encryptionVariant,
-            decodeBase64(payload.messages[0].content)
-        );
+        const sessionUser = JSON.parse(payload.messages[0].content);
         expect(sessionUser).toMatchObject({
             role: 'session',
             content: {
@@ -750,11 +734,7 @@ describe('ApiSessionClient v3 messages API migration', () => {
         const payload = mockAxiosPost.mock.calls[0][1];
         expect(payload.messages).toHaveLength(1);
 
-        const sessionOnly = decrypt(
-            session.encryptionKey,
-            session.encryptionVariant,
-            decodeBase64(payload.messages[0].content)
-        );
+        const sessionOnly = JSON.parse(payload.messages[0].content);
 
         expect(sessionOnly).toMatchObject({
             role: 'session',
@@ -787,11 +767,7 @@ describe('ApiSessionClient v3 messages API migration', () => {
         });
 
         const payload = mockAxiosPost.mock.calls[0][1];
-        const decrypted = decrypt(
-            session.encryptionKey,
-            session.encryptionVariant,
-            decodeBase64(payload.messages[0].content)
-        );
+        const decrypted = JSON.parse(payload.messages[0].content);
 
         expect(decrypted).toEqual({
             role: 'agent',
@@ -851,11 +827,7 @@ describe('ApiSessionClient v3 messages API migration', () => {
         });
 
         const payload = mockAxiosPost.mock.calls[0][1];
-        const decrypted = decrypt(
-            session.encryptionKey,
-            session.encryptionVariant,
-            decodeBase64(payload.messages[0].content)
-        );
+        const decrypted = JSON.parse(payload.messages[0].content);
 
         expect(decrypted).toEqual({
             role: 'agent',
@@ -905,16 +877,8 @@ describe('ApiSessionClient v3 messages API migration', () => {
         const payload = mockAxiosPost.mock.calls[0][1];
         expect(payload.messages).toHaveLength(2);
 
-        const typed = decrypt(
-            session.encryptionKey,
-            session.encryptionVariant,
-            decodeBase64(payload.messages[0].content)
-        ) as any;
-        const fallback = decrypt(
-            session.encryptionKey,
-            session.encryptionVariant,
-            decodeBase64(payload.messages[1].content)
-        );
+        const typed = JSON.parse(payload.messages[0].content) as any;
+        const fallback = JSON.parse(payload.messages[1].content);
 
         expect(typed).toMatchObject({
             role: 'session',
@@ -948,11 +912,7 @@ describe('ApiSessionClient v3 messages API migration', () => {
 
         const metadataPayload = mockSocket.emitWithAck.mock.calls.find((call: any[]) => call[0] === 'update-metadata')?.[1];
         expect(metadataPayload).toBeTruthy();
-        const metadata = decrypt(
-            session.encryptionKey,
-            session.encryptionVariant,
-            decodeBase64(metadataPayload.metadata)
-        ) as any;
+        const metadata = JSON.parse(metadataPayload.metadata) as any;
         expect(metadata.latestBoundary).toEqual({
             id: typed.content.id,
             kind: 'clear',
@@ -1309,7 +1269,7 @@ describe('ApiSessionClient v3 messages API migration', () => {
             content: { type: 'text', text: 'fast-path' }
         };
 
-        emitSocketEvent('update', createNewMessageUpdate(2, encryptContent(session, userMessage)));
+        emitSocketEvent('update', createNewMessageUpdate(2, plaintextContent(userMessage)));
 
         expect(onUserMessage).toHaveBeenCalledTimes(1);
         expect(onUserMessage).toHaveBeenCalledWith(userMessage);
@@ -1329,7 +1289,7 @@ describe('ApiSessionClient v3 messages API migration', () => {
             }
         });
 
-        emitSocketEvent('update', createNewMessageUpdate(3, encryptContent(session, {
+        emitSocketEvent('update', createNewMessageUpdate(3, plaintextContent({
             role: 'user',
             content: { type: 'text', text: 'gap' }
         })));
@@ -1351,7 +1311,7 @@ describe('ApiSessionClient v3 messages API migration', () => {
             }
         });
 
-        emitSocketEvent('update', createNewMessageUpdate(1, encryptContent(session, {
+        emitSocketEvent('update', createNewMessageUpdate(1, plaintextContent({
             role: 'user',
             content: { type: 'text', text: 'first' }
         })));
@@ -1374,11 +1334,11 @@ describe('ApiSessionClient v3 messages API migration', () => {
             }
         });
 
-        emitSocketEvent('update', createNewMessageUpdate(5, encryptContent(session, {
+        emitSocketEvent('update', createNewMessageUpdate(5, plaintextContent({
             role: 'user',
             content: { type: 'text', text: 'duplicate' }
         })));
-        emitSocketEvent('update', createNewMessageUpdate(4, encryptContent(session, {
+        emitSocketEvent('update', createNewMessageUpdate(4, plaintextContent({
             role: 'user',
             content: { type: 'text', text: 'stale' }
         })));
@@ -1472,7 +1432,7 @@ describe('ApiSessionClient v3 messages API migration', () => {
             }
         });
 
-        emitSocketEvent('update', createNewMessageUpdate(1, encryptContent(session, {
+        emitSocketEvent('update', createNewMessageUpdate(1, plaintextContent({
             role: 'user',
             content: { type: 'text', text: 'after-close' }
         })));
@@ -1573,7 +1533,7 @@ describe('ApiSessionClient v3 messages API migration', () => {
         await expect(seqPromise).resolves.toBe(1);
 
         (client as any).lastSeq = 1;
-        emitSocketEvent('update', createNewMessageUpdate(2, encryptContent(session, {
+        emitSocketEvent('update', createNewMessageUpdate(2, plaintextContent({
             role: 'session',
             content: {
                 id: 'consumption-1',
@@ -1758,7 +1718,7 @@ describe('ApiSessionClient v3 messages API migration', () => {
 
         const receipts = mockAxiosPost.mock.calls.slice(1).flatMap((call, callOffset) => {
             const payload = call[1];
-            return payload.messages.map((_message: unknown, index: number) => decryptPostedMessage(session, index, callOffset + 1));
+            return payload.messages.map((_message: unknown, index: number) => parsePostedMessage(index, callOffset + 1));
         }).filter((message) => message.role === 'session' && message.content?.ev?.t === 'message-consumption');
 
         const uniqueReceiptIds = [...new Set(receipts.map((receipt) => receipt.content.ev.messageId))];

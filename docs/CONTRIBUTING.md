@@ -94,6 +94,11 @@ pnpm --filter happy test
 pnpm --filter happy cli:install   # Build + link this workspace as the global `happy` + restart daemon
 ```
 
+`pnpm --filter happy test` runs the deterministic unit Vitest project by default.
+Integration Vitest projects are opt-in with `RUN_INTEGRATION=1` and may still
+require test-specific prerequisites such as Claude/Codex/OpenClaw integration
+env vars.
+
 `cli:install` replaces the `happy` binary installed from npm with a symlink to this workspace.
 It reuses `~/.happy/` (auth, sessions) — no separate dev home. To undo:
 

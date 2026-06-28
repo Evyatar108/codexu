@@ -15,6 +15,7 @@ const execFileAsync = promisify(execFile);
 const testDir = dirname(fileURLToPath(import.meta.url));
 const packageRoot = resolve(testDir, '..', '..');
 const writerUrl = pathToFileURL(resolve(testDir, 'writer.ts')).href;
+const rmOptions = { recursive: true, force: true, maxRetries: 5, retryDelay: 50 } as const;
 
 let tempRoots: string[] = [];
 
@@ -26,7 +27,7 @@ async function createTempRoot(): Promise<string> {
 
 describe('happy-cli ledger writer', () => {
   afterEach(async () => {
-    await Promise.all(tempRoots.map((root) => rm(root, { recursive: true, force: true })));
+    await Promise.all(tempRoots.map((root) => rm(root, rmOptions)));
     tempRoots = [];
   });
 

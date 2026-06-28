@@ -85,7 +85,7 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
-    await server.stop();
+    await server?.stop();
     await fs.rm(tempHome, rmOptions);
 });
 

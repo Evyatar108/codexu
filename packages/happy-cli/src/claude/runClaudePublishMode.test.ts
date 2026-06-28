@@ -177,6 +177,7 @@ function createLocalSessionState(overrides: Partial<{
     return {
         pendingSwitch: overrides.pendingSwitch,
         deferredSwitchCompleting: overrides.deferredSwitchCompleting ?? false,
+        setLedgerIdleReachedHandler: vi.fn(),
         notifyLegacyMessageBeforeQueue: vi.fn(),
         onTurnStarted: vi.fn(async () => {}),
         onTurnCompleted: vi.fn(async () => {}),

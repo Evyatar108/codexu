@@ -1,6 +1,102 @@
 import { defineConfig } from 'vitest/config'
 import { resolve } from 'node:path'
 
+const runIntegration = process.env.RUN_INTEGRATION === '1'
+
+const integrationProjects = [
+    {
+        extends: true,
+        test: {
+            name: 'integration-empty',
+            fileParallelism: false,
+            hookTimeout: 120_000,
+            maxWorkers: 1,
+            minWorkers: 1,
+            testTimeout: 60_000,
+            include: [
+                'src/claude/claude.integration.test.ts',
+                'src/claude/claudeLocalLauncher.integration.test.ts',
+                'src/codex/codex.integration.test.ts',
+                'src/sandbox/network.integration.test.ts',
+            ],
+            setupFiles: ['./src/testing/integration.setup.empty.ts'],
+            sequence: {
+                groupOrder: 1,
+            },
+        },
+    },
+    {
+        extends: true,
+        test: {
+            name: 'integration-claude-utils',
+            fileParallelism: false,
+            hookTimeout: 60_000,
+            maxWorkers: 1,
+            minWorkers: 1,
+            testTimeout: 60_000,
+            include: [
+                'src/claude/utils/queryInitMetadata.integration.test.ts',
+            ],
+            sequence: {
+                groupOrder: 2,
+            },
+        },
+    },
+    {
+        extends: true,
+        test: {
+            name: 'integration-plan-mode',
+            fileParallelism: false,
+            hookTimeout: 120_000,
+            maxWorkers: 1,
+            minWorkers: 1,
+            testTimeout: 180_000,
+            include: [
+                'src/claude/planMode.integration.test.ts',
+            ],
+            sequence: {
+                groupOrder: 2,
+            },
+        },
+    },
+    {
+        extends: true,
+        test: {
+            name: 'integration-authenticated',
+            fileParallelism: false,
+            hookTimeout: 120_000,
+            maxWorkers: 1,
+            minWorkers: 1,
+            testTimeout: 60_000,
+            include: [
+                'src/daemon/daemon.integration.test.ts',
+                'src/openclaw/openclaw.integration.test.ts',
+            ],
+            setupFiles: ['./src/testing/integration.setup.authenticated.ts'],
+            sequence: {
+                groupOrder: 3,
+            },
+        },
+    },
+    {
+        extends: true,
+        test: {
+            name: 'integration-agent-comms',
+            fileParallelism: false,
+            maxWorkers: 1,
+            minWorkers: 1,
+            testTimeout: 60_000,
+            include: [
+                'src/agentComms/scopeA.integration.test.ts',
+                'src/agentComms/mailbox.crossProcess.integration.test.ts',
+            ],
+            sequence: {
+                groupOrder: 1,
+            },
+        },
+    },
+]
+
 export default defineConfig({
     test: {
         globals: false,
@@ -13,102 +109,14 @@ export default defineConfig({
                     name: 'unit',
                     include: ['src/**/*.test.ts'],
                     exclude: ['src/**/*.integration.test.ts'],
+                    hookTimeout: 60_000,
+                    testTimeout: 30_000,
                     sequence: {
                         groupOrder: 0,
                     },
                 },
             },
-            {
-                extends: true,
-                test: {
-                    name: 'integration-empty',
-                    fileParallelism: false,
-                    hookTimeout: 120_000,
-                    maxWorkers: 1,
-                    minWorkers: 1,
-                    testTimeout: 60_000,
-                    include: [
-                        'src/claude/claude.integration.test.ts',
-                        'src/claude/claudeLocalLauncher.integration.test.ts',
-                        'src/codex/codex.integration.test.ts',
-                        'src/sandbox/network.integration.test.ts',
-                    ],
-                    setupFiles: ['./src/testing/integration.setup.empty.ts'],
-                    sequence: {
-                        groupOrder: 1,
-                    },
-                },
-            },
-            {
-                extends: true,
-                test: {
-                    name: 'integration-claude-utils',
-                    fileParallelism: false,
-                    hookTimeout: 60_000,
-                    maxWorkers: 1,
-                    minWorkers: 1,
-                    testTimeout: 60_000,
-                    include: [
-                        'src/claude/utils/queryInitMetadata.integration.test.ts',
-                    ],
-                    sequence: {
-                        groupOrder: 2,
-                    },
-                },
-            },
-            {
-                extends: true,
-                test: {
-                    name: 'integration-plan-mode',
-                    fileParallelism: false,
-                    hookTimeout: 120_000,
-                    maxWorkers: 1,
-                    minWorkers: 1,
-                    testTimeout: 180_000,
-                    include: [
-                        'src/claude/planMode.integration.test.ts',
-                    ],
-                    sequence: {
-                        groupOrder: 2,
-                    },
-                },
-            },
-            {
-                extends: true,
-                test: {
-                    name: 'integration-authenticated',
-                    fileParallelism: false,
-                    hookTimeout: 120_000,
-                    maxWorkers: 1,
-                    minWorkers: 1,
-                    testTimeout: 60_000,
-                    include: [
-                        'src/daemon/daemon.integration.test.ts',
-                        'src/openclaw/openclaw.integration.test.ts',
-                    ],
-                    setupFiles: ['./src/testing/integration.setup.authenticated.ts'],
-                    sequence: {
-                        groupOrder: 3,
-                    },
-                },
-            },
-            {
-                extends: true,
-                test: {
-                    name: 'integration-agent-comms',
-                    fileParallelism: false,
-                    maxWorkers: 1,
-                    minWorkers: 1,
-                    testTimeout: 60_000,
-                    include: [
-                        'src/agentComms/scopeA.integration.test.ts',
-                        'src/agentComms/mailbox.crossProcess.integration.test.ts',
-                    ],
-                    sequence: {
-                        groupOrder: 1,
-                    },
-                },
-            },
+            ...(runIntegration ? integrationProjects : []),
         ],
         coverage: {
             provider: 'v8',

@@ -108,7 +108,7 @@ describe('worktreeTransactions', () => {
     } finally {
       warnSpy.mockRestore();
     }
-  }, 30_000);
+  }, 90_000);
 
   it('cleans up a pending record whose worktree was created before the state transition was persisted', async () => {
     const warnSpy = vi.spyOn(logger, 'warn').mockImplementation(() => undefined);

@@ -11,6 +11,7 @@ const execFileAsync = promisify(execFile);
 const testDir = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(testDir, '..', '..', '..', '..');
 const renderRoadmapCli = join(repoRoot, 'tools', 'render-roadmap.ts');
+const rmOptions = { recursive: true, force: true, maxRetries: 5, retryDelay: 50 } as const;
 
 let tempRoots: string[] = [];
 
@@ -53,7 +54,7 @@ async function archive(root: string, runId: string): Promise<void> {
 
 describe('render-roadmap CLI', () => {
   afterEach(async () => {
-    await Promise.all(tempRoots.map((root) => rm(root, { recursive: true, force: true })));
+    await Promise.all(tempRoots.map((root) => rm(root, rmOptions)));
     tempRoots = [];
   });
 
