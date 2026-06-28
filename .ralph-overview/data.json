@@ -1674,7 +1674,7 @@
       "scope": "codex|codexu",
       "lifecycle": "tracked",
       "status": "active",
-      "lastTouchedAt": "2026-06-28T09:59:54.484Z",
+      "lastTouchedAt": "2026-06-28T10:31:35.613Z",
       "kanbanCards": [
         {
           "className": "cmd-warn",
@@ -1687,6 +1687,10 @@
         {
           "className": "cmd-warn",
           "html": "OPERATOR PIVOT 2026-06-28 -> D-004 (supersedes D-001): the core pain is crews Layer B's FILE-LOCKS + per-process HOOKS (EPERM/LockTimeout/listener-reap), not tab-spawning. New direction: ONE persistent daemon (codex app-server if feasible on Windows, else a small dedicated daemon) becomes the SOLE OWNER/WRITER of the coordination files; members talk to it via IPC -- no locks, no hooks -- keeping durability (cursor + audit + operator gates + crash-recovery). Cross-engine drop is ACCEPTED (codex-only OK). D-004 brainstorm (bs-daemon-d004-i1) in flight."
+        },
+        {
+          "className": "cmd-ok",
+          "html": "D-004 brainstorm refined @ 00e52a13: <b>GO on killing the LOCKS, NO on fully killing the HOOKS.</b> Your single-daemon idea is ADOPTED and is ~80% ALREADY SHIPPED -- packages/happy-cli/src/agentComms/ (mailbox.ts + recovery.ts + the daemon /agent-comms/send route) is already the single-writer-daemon + durable-mailbox. BUT the hard operator-gate (review-mail turn-veto) needs a hook: in this fork codex members have a working Stop hook (crews/.codex-plugin/hooks) honoring decision:block -- so keep a THIN hook (zero file I/O, just queries the daemon over loopback). CAVEAT: dominant crews EPERM is READER-induced (FILE_SHARE_DELETE rename race at pre-tool-use.js:583); single-WRITER daemon only fixes it if member READS also route through the daemon (single-ACCESSOR). DECISIVE OPEN Q for operator: accept an advisory/cooperative daemon gate (-> fully hook-free D-002) OR require hard decision:block turn-veto parity (-> D-001 thin-hook)?"
         }
       ],
       "command": {
