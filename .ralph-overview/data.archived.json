@@ -9265,6 +9265,41 @@
           }
         ]
       }
+    },
+    {
+      "id": "ralph-overview-remove-data-guard-hook",
+      "scope": "ralph-overview",
+      "lifecycle": "merged",
+      "status": "active",
+      "lastTouchedAt": "2026-06-28T08:50:19.655Z",
+      "kanbanCards": [
+        {
+          "className": "cmd-warn",
+          "html": "Operator directive 2026-06-27: REMOVE the ralph-overview data.json write-guard PreToolUse hook entirely (Claude + Copilot variants + registrations). It fails CLOSED when its own script goes missing (e.g. `copilot plugin update` emptying the install dir, os error 32) -> session-wide 'hook errored' denials across ALL agents (2 outages 2026-06-27). Best-effort only anyway. Durable guards remain: data-edit helper convention + pre-commit/CI backstop."
+        }
+      ],
+      "command": {
+        "name": "ralph-overview-remove-data-guard-hook",
+        "prompts": {
+          "impl": "Remove the ralph-overview .ralph-overview/data.json write-guard PreToolUse hook ENTIRELY (both the Claude and Copilot variants). This hook fails CLOSED when its own script is missing -- e.g. when `copilot plugin update` transiently empties the installed plugin dir (Windows os error 32, file-in-use) -- which makes the Copilot/Claude runtime report 'Denied by preToolUse hook (hook errored)' for EVERY create/edit/shell tool call across ALL running agent sessions, a session-wide outage. It did this TWICE on 2026-06-27. The guard was also best-effort only (Copilot does not honor preToolUse deny for built-in edit tools before the dialog renders). The durable replacement guards remain: the `node bin/ralph-overview.mjs data-edit <verb>` helper convention (id-scoped/atomic/invariant-checked) + the pre-commit/CI backstop. Operator directive 2026-06-27: remove the hook from the plugin.\n\nTARGET REPO: the ai-developer-toolkit SUBMODULE at D:/harness-efforts/codexu/ai-developer-toolkit (plugins/ralph-overview). Work INSIDE a worktree of that submodule:\n  git -C D:/harness-efforts/codexu/ai-developer-toolkit worktree add .worktrees/ralph-overview-remove-data-guard-hook -b ralph/ralph-overview-remove-data-guard-hook main\n\nREMOVE (delete) under plugins/ralph-overview/:\n  - hooks/pre-tool-use-data-edit.js        (Claude variant)\n  - hooks/copilot-pre-tool-use-data-edit.js (Copilot variant)\n  - hooks/hooks.json                        (Claude auto-discovered hook registration)\n  - hooks/__tests__/                        (the hook unit tests -- the data-edit guard tests; remove the whole dir IF it only tests the removed hook; if it tests anything else, remove only the guard test files)\n  - .github/plugin/hooks.json               (Copilot hook registration)\n  - if the hooks/ directory is left EMPTY after the deletions, remove it.\n\nEDIT plugins/ralph-overview/.github/plugin/plugin.json: remove the `\"hooks\": \".github/plugin/hooks.json\"` field entirely (Copilot will no longer register any hook for this plugin). Verify the JSON still parses + keeps the rest of the manifest intact.\n\nGREP for stragglers: ensure NO remaining reference to the removed hook files anywhere in plugins/ralph-overview/ (scripts, generate-copilot-artifacts, .copilot-plugin mirrors, package.json test scripts, README/installation docs). If generate-copilot-artifacts.mjs or any mirror emits a hooks reference, update it. Run the plugin's own test command (npm run test:lib or the documented test surface) to confirm nothing references the deleted files.\n\nDOCS: in plugins/ralph-overview/AGENTS.md, find the 'Engine-aware data.json write-guard hook (the plugin's first hooks)' subsection (under the Unreleased / write-tooling section) and REPLACE it with a short note that the hook was REMOVED (cite the fail-closed-on-missing-script -> session-wide-outage rationale + the 2026-06-27 incidents) and that the durable guards are now the data-edit helper convention + the pre-commit/CI backstop only. Update any other AGENTS.md mention of the hook (e.g. the v2.14.1 'precise Copilot data.json shell write-guard' note -- mark it superseded by removal). Prepend a CHANGELOG.md entry.\n\nVERSION: bump the ralph-overview version stamp in plugins/ralph-overview/.claude-plugin/plugin.json AND all 3 marketplace indexes (.claude-plugin/marketplace.json, .github/plugin/marketplace.json, .agents/plugins/marketplace.json) -- per toolkit AGENTS.md invariant #6. Run node tools/validate-codex-marketplace-policy.mjs.\n\nThe LEAD does the FF-merge + 3-remote push + codexu pointer bump + AGENTS.md active-plugin-versions table edit (ralph-overview -> new version) + the codexu AGENTS.md notes about the removed hook. Commit only on your submodule topic branch. codexu root CLAUDE.md is gitignored -- do NOT git add CLAUDE.md. Body-canonical convention.\n\nDrive /implement-with-ralph Phase 5a (code review-fix) + 5b (docs review-fix) to terminal-clean before reporting done. Report kind=done with the submodule commit SHA(s) + topic branch + worktree path + the new ralph-overview version + confirmation that the hooks dir + plugin.json hooks field are gone."
+        }
+      },
+      "shipManifest": {
+        "shippedAt": "2026-06-28T08:50:19.655Z",
+        "summary": "Removed the ralph-overview .ralph-overview/data.json write-guard PreToolUse hook entirely (both Claude and Copilot variants) as ralph-overview 2.14.3. The hook failed CLOSED when its own script went missing -- which copilot plugin update triggers by transiently emptying the installed plugin dir (Windows os error 32, file-in-use) -- causing the runtime to deny EVERY create/edit/shell tool call across ALL active agent sessions (two session-wide outages on 2026-06-27). The guard was also only best-effort (Copilot does not honor preToolUse deny for built-in edit tools). Deleted: hooks/pre-tool-use-data-edit.js, hooks/copilot-pre-tool-use-data-edit.js, hooks/hooks.json, hooks/__tests__/pre-tool-use-data-edit.test.mjs (hooks dir now gone), .github/plugin/hooks.json; removed the hooks field from .github/plugin/plugin.json. Docs (AGENTS.md, CHANGELOG.md, README.md, docs/extending.md) updated to record the removal and that the durable guards are now the data-edit helper convention + the pre-commit/CI backstop only.\n\nShipped via the toolkit two-commit flow: topic branch FF-merged (bf383b14) onto current toolkit main and pushed to all three remotes (origin/gim-home/personal); codexu submodule pointer + AGENTS active-plugin-versions table bumped to 2.14.3 (c8bbc584) and pushed origin + personal. The installed plugin was updated to 2.14.3: the update itself hit the empty-install race again (os error 32), but recovery by robocopy from the 2.14.3 source left a hook-free install -- which permanently eliminates this outage class (no hook script remains to go missing on future updates).",
+        "commits": [
+          {
+            "sha": "c8bbc584",
+            "oneLine": "chore(toolkit): bump pointer for ralph-overview 2.14.3 (remove data-guard hook)",
+            "repo": "codexu"
+          },
+          {
+            "sha": "bf383b14",
+            "oneLine": "fix(ralph-overview): remove data guard hook",
+            "repo": "ai-developer-toolkit"
+          }
+        ]
+      }
     }
   ]
 }
