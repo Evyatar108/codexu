@@ -802,6 +802,32 @@ handoff). Re-bind it EARLY, before arming:
   `CREWS_ENGINE=codex` explicitly. If codex regresses, revert per the
   engine-policy bullet above.
 
+- **Codex member reasoning effort = global `~/.codex/config.toml`
+  `model_reasoning_effort` (codified 2026-06-27; operator set `xhigh`).** The
+  crews launcher has NO per-spawn reasoning-effort override (it only passes the
+  positional prompt + `-c 'tui.terminal_title=[]'` + the sandbox-bypass flag —
+  see `ai-developer-toolkit/plugins/crews/hooks/actors.js` `buildLauncherCommand`
+  codex branch), so a codex crew member inherits whatever
+  `model_reasoning_effort` is set in the operator's `~/.codex/config.toml`. The
+  operator wants codex crew members at MAX reasoning, so that global default is
+  now `xhigh` (was `medium`). CAVEAT: this is GLOBAL — it affects every codex
+  session on the box (manual codex, ralph codex members, etc.), not just crews
+  members. To change a single member's effort you'd need a per-spawn `-c
+  model_reasoning_effort=<v>` plumbed through the crews launcher (not built
+  today; a candidate follow-up if per-member effort control is ever wanted).
+  Revert with `model_reasoning_effort = "medium"` in that file.
+
+- **Codex spawn prompts: the `RUN:`/line-start skill mention is auto-namespaced
+  by the crews launcher — bare `$plan-with-ralph` or `/plan-with-ralph` both
+  work.** codex injects a skill's SKILL.md only on a `$ralph-orchestration:<slug>`
+  mention (NOT `/slash`, which is inert for codex). The crews launcher's
+  `rewriteCodexSkillMention` (crews v3.17.0+) rewrites the FIRST resolvable ralph
+  mention (`$<slug>` or `/<slug>`) to the namespaced `$ralph-orchestration:<slug>`
+  form for codex members only, so one mention anywhere in the prompt injects the
+  body. Do NOT hand-write `/ralph-orchestration:plan-with-ralph` (a namespaced
+  SLASH command) — that's an inert built-in-command lookup on every engine and is
+  what made a member report `Unknown command: /ralph-orchestration:plan-with-ralph`.
+
 - **When seeding a brainstorm with the operator's directional preference,
   instruct it to VERIFY FEASIBILITY, not rubber-stamp (codified 2026-06-08).**
   The raw-codex-autoconnect v2 seed leaned hard toward one option (native
