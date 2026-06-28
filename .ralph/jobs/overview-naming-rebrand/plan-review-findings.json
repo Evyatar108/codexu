@@ -1,0 +1,140 @@
+{
+  "planFile": "D:/harness-efforts/codexu/.ralph/jobs/.staging/20260628T000322Z-plan-naming-i1-5e46ad12/draft-plan.md",
+  "repoDir": "D:/harness-efforts/codexu/.ralph/jobs/overview-naming-rebrand/worktree/plan",
+  "reviewCycle": 2,
+  "findings": [
+    {
+      "id": "F-001",
+      "severity": "Medium",
+      "source": "claude",
+      "category": "Criteria Quality",
+      "sectionRef": "Files to Create/Modify (package.json) / US-003",
+      "description": "Aliasing sync-ralph-state to sync-roadmap-state mislabels the watcher-derived STATUS/pipeline-state sync as 'roadmap', contradicting the plan's own two-part glossary (status != roadmap).",
+      "status": "fixed",
+      "resolution": "Dropped the sync-roadmap-state/:watch aliases entirely. sync-ralph-state stays unchanged (already carries no 'overview'); only roadmap/roadmap:dev/roadmap:build/roadmap:build:preview alias the overview* keys. Updated Files, US-003, In-Scope, and the npm AC.",
+      "relevantFiles": ["package.json"]
+    },
+    {
+      "id": "F-002",
+      "severity": "Medium",
+      "source": "claude",
+      "category": "Feasibility",
+      "sectionRef": "Approach > Architecture (semantic-rename rule) / US-002",
+      "description": "The 'preserve generic ## Overview headings' rule is too blunt; AGENTS.md ## Overview data — two-file split is a SYSTEM reference and a legitimate rename target. An impl agent could wrongly skip it.",
+      "status": "fixed",
+      "resolution": "Clarified the test is the REFERENT not the ## form; explicitly named AGENTS.md ## Overview data as a rename target and added it to the living-docs AC.",
+      "relevantFiles": ["AGENTS.md"]
+    },
+    {
+      "id": "F-003",
+      "severity": "Low",
+      "source": "claude",
+      "category": "Criteria Quality",
+      "sectionRef": "Acceptance Criteria (MCP smoke test)",
+      "description": "AC referenced overview.parallel_ready_tasks (internal registration key) rather than the consumer-facing tool id mcp__ralph-overview__overview_parallel_ready_tasks.",
+      "status": "fixed",
+      "resolution": "AC now uses the full consumer-facing tool id and notes the dot form is the internal registration key."
+    },
+    {
+      "id": "F-004",
+      "severity": "High",
+      "source": "copilot",
+      "category": "Completeness",
+      "sectionRef": "Files to Create/Modify / US-007",
+      "description": "Version-bump scope incomplete: only .claude-plugin/plugin.json named, but plugin AGENTS.md:184-187 requires marketplace + manifest versions in sync (.codex-plugin/plugin.json, .github/plugin/plugin.json, and 3 marketplace.json indexes).",
+      "status": "fixed",
+      "resolution": "Expanded the version-bump bullet + US-007 to enumerate all manifests + 3 marketplace indexes and cite the plugin's own ceremony; added a version-sync AC requiring all to equal the bumped value + the codexu table.",
+      "relevantFiles": [
+        "ai-developer-toolkit/plugins/ralph-overview/.claude-plugin/plugin.json",
+        "ai-developer-toolkit/plugins/ralph-overview/.codex-plugin/plugin.json",
+        "ai-developer-toolkit/plugins/ralph-overview/.github/plugin/plugin.json",
+        "ai-developer-toolkit/.claude-plugin/marketplace.json",
+        "ai-developer-toolkit/.github/plugin/marketplace.json",
+        "ai-developer-toolkit/.agents/plugins/marketplace.json"
+      ]
+    },
+    {
+      "id": "F-005",
+      "severity": "High",
+      "source": "copilot",
+      "category": "Completeness",
+      "sectionRef": "Optional additive technical aliases / US-004, US-006",
+      "description": "Optional-alias integration points under-specified: codexu bin/ralph-overview.mjs is GENERATED from templates/consumer-ralph-overview.mjs (so the env dual-read must edit the template + regen, not hand-edit), and MCP dual-register spans 11 registrations across 7 files (init.ts, validate-data.ts, parallel-ready-tasks.ts, expand-task-context.ts, unblock-candidates.ts, data-write.ts, server.ts) + stdio-tools-list tests, not just data-write.ts.",
+      "status": "fixed",
+      "resolution": "Reworked US-004 to a template edit (+ test) + codexu wrapper regen; corrected the bin/ralph-overview.mjs bullet to forbid hand-edits. Expanded US-006/Files to list all 11 MCP registration files + tests/skills/docs and marked it all-or-nothing with a DEFER recommendation.",
+      "relevantFiles": [
+        "ai-developer-toolkit/plugins/ralph-overview/templates/consumer-ralph-overview.mjs",
+        "ai-developer-toolkit/plugins/ralph-overview/tools/overview-mcp/src/server.ts",
+        "ai-developer-toolkit/plugins/ralph-overview/tools/overview-mcp/src/tools/data-write.ts"
+      ]
+    },
+    {
+      "id": "F-006",
+      "severity": "Medium",
+      "source": "copilot",
+      "category": "Completeness",
+      "sectionRef": "Viewer visible text / US-005",
+      "description": "Viewer surface list misses strings + tests: TopLevelSurfaces.tsx:56,60,62,64 (not only 108-109), overview.html:9 'Loading overview data…', PipelineOverview.tsx:26,35 aria-label, and the asserting tests devServerHtml.test.ts:14,17 + pipelineOverview.test.tsx:52.",
+      "status": "fixed",
+      "resolution": "Added all missing strings + the two test files to the viewer Files list, US-005, the sidecar exclusiveFiles, and a viewer-test-suite AC; added the rg discovery command.",
+      "relevantFiles": [
+        "ai-developer-toolkit/plugins/ralph-overview/tools/overview-viewer/overview.html",
+        "ai-developer-toolkit/plugins/ralph-overview/tools/overview-viewer/src/components/PipelineOverview.tsx",
+        "ai-developer-toolkit/plugins/ralph-overview/tools/overview-viewer/src/components/TopLevelSurfaces.tsx",
+        "ai-developer-toolkit/plugins/ralph-overview/tools/overview-viewer/src/__tests__/devServerHtml.test.ts",
+        "ai-developer-toolkit/plugins/ralph-overview/tools/overview-viewer/src/__tests__/pipelineOverview.test.tsx"
+      ]
+    },
+    {
+      "id": "F-007",
+      "severity": "High",
+      "source": "copilot",
+      "category": "Completeness",
+      "sectionRef": "Scope / Open Questions",
+      "description": "Plan narrows D-001's literal ~1,880-occurrence prose sweep to living-docs-only while claiming to inherit D-001, leaving acceptance underspecified and the deviation implicit.",
+      "status": "fixed",
+      "resolution": "Made the narrowing EXPLICIT in In-Scope as a 'living-docs-first' interpretation and sharpened Q6 to require operator sign-off (approve living-docs-first vs. full D-001 sweep). This is a flagged decision, not a silent inheritance.",
+      "relevantFiles": []
+    },
+    {
+      "id": "F-008",
+      "severity": "Medium",
+      "source": "copilot",
+      "category": "Criteria Quality",
+      "sectionRef": "Acceptance Criteria",
+      "description": "Key ACs were reviewer-judgment / history-order dependent ('present BEFORE any rename', 'reviewer confirms nothing technical renamed') and not auto-verifiable from one final commit.",
+      "status": "fixed",
+      "resolution": "Replaced with auto-verifiable grep ACs (no new .ralph-roadmap/mcp__ralph-roadmap/ralph-roadmap/bin/ralph-roadmap; files overview.html + bin/ralph-overview.mjs intact; old overview* scripts remain; .crews/** has no roadmap-bookkeeper unless Q2 approved) and encoded define-first as a separate ordered story."
+    },
+    {
+      "id": "F-009",
+      "severity": "Medium",
+      "source": "copilot",
+      "category": "Ordering",
+      "sectionRef": "Suggested Decomposition / Overview / Files",
+      "description": "Cross-repo order contradictory: Overview said submodule-first then codexu pointer bump, but Files labeled codexu 'commit set #1' / toolkit '#2' and phases ran codexu-surface (phase 1) before toolkit-surface (phase 2).",
+      "status": "fixed",
+      "resolution": "Separated codexu docs/scripts surface (independent) from the codexu pointer/version-table ship. Toolkit lands first (phase 1, parallel with codexu-surface); ship-coordination (phase 2) depends on both. Updated Overview, Files headers, decomposition prose, and the JSON sidecar; encoded the ralph-overview-create-task-skill serialization as a ship dependency."
+    },
+    {
+      "id": "F-010",
+      "severity": "High",
+      "source": "copilot",
+      "category": "Ordering",
+      "sectionRef": "Files / US-007 / Suggested Decomposition / JSON sidecar (round 2)",
+      "description": "Round-2: version/table ownership still split — the active-plugin-versions table update appeared in the codexu-surface AGENTS.md bullet, and the version bump was claimed by BOTH toolkit-surface (Files) and ship-coordination (US-007 + JSON sharedFiles).",
+      "status": "fixed",
+      "resolution": "Single-sourced ownership: toolkit-surface OWNS the plugin version bump (CHANGELOG + 3 manifests + 3 marketplace indexes) as its final ship step; ship-coordination owns ONLY the codexu submodule pointer + codexu AGENTS.md table (set to that value). Removed the table clause from the codexu-surface AGENTS.md bullet; reworded US-007; updated the decomposition prose + JSON exclusiveFiles accordingly."
+    },
+    {
+      "id": "F-011",
+      "severity": "High",
+      "source": "copilot",
+      "category": "Ordering",
+      "sectionRef": "US-004 / suggested-decomposition.json (round 2)",
+      "description": "Round-2: optional US-004 codexu wrapper regen was described in prose but not formally owned in the JSON sidecar (ship-coordination.stories was [US-007] and omitted bin/ralph-overview.mjs), so a sidecar-following impl agent could miss the generated wrapper update if Q4 landed.",
+      "status": "fixed",
+      "resolution": "Added US-004 to ship-coordination.stories and bin/ralph-overview.mjs to its exclusiveFiles, with a rationale noting US-004 is one optional feature split across toolkit-surface (template edit) and ship-coordination (codexu wrapper regen). reviewer-claude returned 'No issues found' on the same round-2 re-review."
+    }
+  ]
+}

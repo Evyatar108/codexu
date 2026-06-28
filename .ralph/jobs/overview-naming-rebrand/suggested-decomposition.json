@@ -1,0 +1,68 @@
+{
+  "clusters": [
+    {
+      "name": "codexu-surface",
+      "stories": ["US-001", "US-002", "US-003"],
+      "phase": 1,
+      "dependsOn": [],
+      "fileOverlapEvidence": {
+        "sharedFiles": ["AGENTS.md"],
+        "exclusiveFiles": [
+          "README.md",
+          "plans/codexu-roadmap.md",
+          "docs/fork-roadmap.md",
+          "docs/submodule-rollback.md",
+          "package.json"
+        ],
+        "risk": "medium"
+      },
+      "executionModeRationale": "One serial cluster in the codexu-primary checkout. US-001 (insert define-first glossary) must precede US-002 (rename system references in the body) on AGENTS.md; US-003 (additive roadmap* npm aliases) is independent and folds in. codexu-surface edits AGENTS.md PROSE only; it does NOT touch the active-plugin-versions table (that is ship-coordination's). No submodule/contract dependency, so this runs in PARALLEL with toolkit-surface (different repo, git-index-disjoint)."
+    },
+    {
+      "name": "toolkit-surface",
+      "stories": ["US-005", "US-006", "US-004"],
+      "phase": 1,
+      "dependsOn": [],
+      "fileOverlapEvidence": {
+        "sharedFiles": [
+          "ai-developer-toolkit/plugins/ralph-overview/AGENTS.md",
+          "ai-developer-toolkit/plugins/ralph-overview/CHANGELOG.md"
+        ],
+        "exclusiveFiles": [
+          "ai-developer-toolkit/plugins/ralph-overview/tools/overview-viewer/AGENTS.md",
+          "ai-developer-toolkit/plugins/ralph-overview/tools/overview-viewer/overview.html",
+          "ai-developer-toolkit/plugins/ralph-overview/tools/overview-viewer/src/App.tsx",
+          "ai-developer-toolkit/plugins/ralph-overview/tools/overview-viewer/src/components/PipelineOverview.tsx",
+          "ai-developer-toolkit/plugins/ralph-overview/tools/overview-viewer/src/components/TopLevelSurfaces.tsx",
+          "ai-developer-toolkit/plugins/ralph-overview/tools/overview-viewer/src/__tests__/devServerHtml.test.ts",
+          "ai-developer-toolkit/plugins/ralph-overview/tools/overview-viewer/src/__tests__/pipelineOverview.test.tsx",
+          "ai-developer-toolkit/plugins/ralph-overview/tools/overview-viewer/src/types.ts",
+          "ai-developer-toolkit/plugins/ralph-overview/tools/overview-mcp/src/server.ts",
+          "ai-developer-toolkit/plugins/ralph-overview/tools/overview-mcp/src/tools/data-write.ts",
+          "ai-developer-toolkit/plugins/ralph-overview/scripts/lib/data-store.mjs",
+          "ai-developer-toolkit/plugins/ralph-overview/templates/consumer-ralph-overview.mjs",
+          "ai-developer-toolkit/plugins/ralph-overview/.claude-plugin/plugin.json",
+          "ai-developer-toolkit/plugins/ralph-overview/.codex-plugin/plugin.json",
+          "ai-developer-toolkit/plugins/ralph-overview/.github/plugin/plugin.json",
+          "ai-developer-toolkit/.claude-plugin/marketplace.json",
+          "ai-developer-toolkit/.github/plugin/marketplace.json",
+          "ai-developer-toolkit/.agents/plugins/marketplace.json"
+        ],
+        "risk": "medium"
+      },
+      "executionModeRationale": "One serial cluster inside an ai-developer-toolkit submodule worktree; file-disjoint from codexu-surface (different repo) so it runs in parallel. Define-first (US-005 viewer block) precedes the US-005 viewer-text/a11y rename + the asserting viewer tests. THIS cluster OWNS the plugin version bump (CHANGELOG + all 3 plugin manifests + 3 marketplace indexes) as its final ship step. US-006 (type aliases low-risk; MCP dual-register + data-dir fallback higher-risk, recommend DEFER) and US-004's template edit (consumer-ralph-overview.mjs + its test) are OPTIONAL (Q4) and depend on US-005; US-004's regenerated codexu bin/ralph-overview.mjs is recorded by ship-coordination. MUST SERIALIZE at ship with the sibling task ralph-overview-create-task-skill (same plugin)."
+    },
+    {
+      "name": "ship-coordination",
+      "stories": ["US-007", "US-004"],
+      "phase": 2,
+      "dependsOn": ["codexu-surface", "toolkit-surface"],
+      "fileOverlapEvidence": {
+        "sharedFiles": ["AGENTS.md"],
+        "exclusiveFiles": ["bin/ralph-overview.mjs"],
+        "risk": "high"
+      },
+      "executionModeRationale": "Runs AFTER both surface clusters, in the codexu-primary checkout. It records ONLY the codexu side in ONE commit: the ai-developer-toolkit submodule gitlink (pointer) bump + the codexu AGENTS.md active-plugin-versions table set to the version toolkit-surface already bumped (it does NOT re-bump plugin manifests/indexes/CHANGELOG) + the regenerated bin/ralph-overview.mjs if US-004 (Q4) landed. Touches AGENTS.md (also edited as prose by codexu-surface) so it must run after codexu-surface; the cross-repo pointer + version-table lockstep gates the CI invariant, so it cannot parallelize with the surface clusters. US-004 appears here (codexu wrapper regen) and in toolkit-surface (template edit) — it is a single optional feature split across the two repos."
+    }
+  ]
+}
