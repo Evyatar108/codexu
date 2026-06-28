@@ -1,0 +1,39 @@
+{
+  "brainstormName": "codex-native-orchestration-crews-replacement-feasibility",
+  "overviewTaskId": "codex-native-orchestration-crews-replacement-feasibility",
+  "idea": "Design a codex-native orchestration layer that could RETIRE the crews plugin entirely (operator lean: full replacement), leveraging the codex app-server daemon + multi-agent-v2 + native async message-injection. Verify feasibility rigorously; produce an honest GO/PARTIAL/NO-GO verdict with a gap inventory and migration path, confronting the prior 'complementary' verdict.",
+  "verdict": "PARTIAL-REDUCTION-ONLY",
+  "availableLenses": ["codex", "copilot", "devils-advocate"],
+  "missingLenses": [],
+  "candidateDirections": [
+    {
+      "id": "D-001",
+      "name": "SHRINK crews to the durable+operator layer; move only in-session fan-out to codex-native",
+      "summary": "Partial reduction: port 3-wide in-session fan-out (brainstorm lenses, plan reviewers, Phase 5.5 retrospectives) to codex multi-agent v2/app-server within the 4-thread cap and adopt the codex-native WAKE per durable-mailbox-channel-wake.md, while KEEPING crews' thin filesystem mailbox + operator review-gate layer until codex grows the residual primitives. Sheds wt.exe-tab spawn fragility without a Layer-B rewrite.",
+      "effort": "L",
+      "contributingLenses": ["codex", "copilot", "devils-advocate"]
+    },
+    {
+      "id": "D-002",
+      "name": "NOT-YET full replacement: build app-server peer-session orchestration first",
+      "summary": "The operator's full-replacement lean, honestly scoped as an XL second-system rewrite. Seams exist (spawn_top_level_session.rs for peer spawn, agentComms/ as a started durable layer, MCP-notif wake), but it RELOCATES fragility into happy-cli rather than removing it, re-implements battle-tested Layer-B behavior from scratch, and silently drops cross-engine model diversity. Gated on Windows app-server lifecycle + durable cross-session mailbox + operator-gate product. Verdict: NOT-YET.",
+      "effort": "XL",
+      "contributingLenses": ["codex", "copilot", "devils-advocate"]
+    },
+    {
+      "id": "D-003",
+      "name": "Cheaper non-rewrite alternatives: point-fix crews' Windows hot spots; decide cross-engine explicitly",
+      "summary": "Target crews' localized Windows-fragility hot spots (EPERM/rename lock race, listener silent-reap) with heartbeat-liveness + auto re-arm, far cheaper than a substrate swap; and make dropping cross-engine an explicit operator decision rather than a silent capability deletion. Validate by bisecting the last ~20 crash incidents.",
+      "effort": "M",
+      "contributingLenses": ["devils-advocate", "copilot"]
+    }
+  ],
+  "recommendedDirection": "D-001",
+  "questionsForSynthesis": [
+    "Is the operator's pain primarily (a) wt.exe tab/process spawning, (b) on-disk lock contention / EPERM rename races, or (c) the hook-heavy Node surface itself? Only (c) truly motivates full replacement.",
+    "Will the operator stop using copilot/claude brainstorm/plan lenses? If not, full codex-only replacement silently deletes cross-engine model diversity this very brainstorm depends on (brainstorm-with-ralph SKILL.md:113-161).",
+    "Given plans/durable-mailbox-channel-wake.md §3 already rejected codex-native crews storage and kept the filesystem mailbox, does 'codex-native replacement' really mean 'crews mailbox + operator gates rewritten in TypeScript under happy-cli/agentComms'? If so, what NEW capability justifies the rewrite over hardening crews in place?",
+    "Is app-server thread-level isolation (one daemon, N threads) acceptable, or must the replacement preserve separate OS/top-level sessions for fault isolation + per-tab operator attach?",
+    "What concrete primitive must ship next to flip PARTIAL -> GO: durable peer mailbox, operator gates, or Windows app-server session lifecycle?"
+  ]
+}
