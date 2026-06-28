@@ -14,7 +14,7 @@
         ],
         "risk": "low"
       },
-      "executionModeRationale": "US-001 only strengthens existing inline #[cfg(test)] modules with no network and no new crate, so it is independent of the capstone and ships the gated no-network acceptance criteria first; it can even run in parallel with US-002 since it touches disjoint files."
+      "executionModeRationale": "US-001 only strengthens existing inline #[cfg(test)] modules with no network and no new file, so it is independent of the capstone and ships the gated no-network acceptance criteria first; it can even run in parallel with US-002 since it touches disjoint files."
     },
     {
       "name": "capstone",
@@ -23,16 +23,17 @@
       "dependsOn": ["deterministic-assertions"],
       "fileOverlapEvidence": {
         "sharedFiles": [
-          "codex/codex-rs-overlay/codex-copilot-e2e-tests/Cargo.toml",
-          "codex/codex-rs-overlay/codex-copilot-e2e-tests/tests/common/chat_sse.rs",
-          "codex/codex-rs-overlay/codex-copilot-e2e-tests/tests/chat_reasoning_e2e.rs"
+          "codex/external/repos/codex-patched/codex-rs/core/tests/common/chat_sse.rs",
+          "codex/external/repos/codex-patched/codex-rs/core/tests/common/lib.rs",
+          "codex/external/repos/codex-patched/codex-rs/core/tests/suite/chat_completions.rs",
+          "codex/external/repos/codex-patched/codex-rs/core/tests/suite/mod.rs"
         ],
         "exclusiveFiles": [
-          "codex/external/repos/codex-patched/codex-rs/Cargo.toml"
+          "codex/external/repos/codex-patched/codex-rs/core/tests/common/Cargo.toml"
         ],
         "risk": "high"
       },
-      "executionModeRationale": "US-002 (new overlay leaf crate + chat-SSE harness + COPILOT_API_HOME token-cache fixture, with the core_test_support reachability preflight) and US-003 (the multi-turn wiremock test_codex e2e that consumes them) share the new leaf crate and the process-global anthropic gate; US-003 cannot compile until US-002 lands, so they MUST serialize. dependsOn deterministic-assertions is an ordering preference (US-001 should land first to de-risk), not a hard code dependency."
+      "executionModeRationale": "US-002 (chat-SSE harness in core/tests/common/chat_sse.rs + COPILOT_API_HOME token-cache fixture + lib.rs/Cargo.toml registration) and US-003 (the multi-turn wiremock test_codex e2e at core/tests/suite/chat_completions.rs that consumes them) share the new harness and the process-global anthropic gates; US-003 cannot compile until US-002 lands, so they MUST serialize. dependsOn deterministic-assertions is an ordering preference (US-001 should land first to de-risk), not a hard code dependency. NOTE: recommended home is core/tests/suite (patch-surface invariant-37 location, no dependency cycle, no preflight); the overlay leaf crate codex-copilot-e2e-tests is the documented alternative."
     }
   ]
 }
