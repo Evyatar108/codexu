@@ -1,0 +1,36 @@
+{
+  "brainstormName": "crews-listener-silent-reap-across-idle-investigation",
+  "overviewTaskId": "crews-listener-silent-reap-across-idle-investigation",
+  "idea": "Investigate + design a fix for the silently-reaped crews lead listener across long idle/between-turns gaps, keeping the listener SESSION-BOUND (no detach:true). Root-cause the silent exit (external runtime reap of the attached async shell vs. internal fs.watch-drain because all listener timers are .unref()'d) and design a session-bound solution that survives idle gaps.",
+  "availableLenses": ["codex", "copilot", "devils-advocate"],
+  "missingLenses": [],
+  "candidateDirections": [
+    {
+      "id": "D-001",
+      "name": "Reframe: make the dead-window provably lossless, promptly self-healing, and deadlock-free (treat listener death as EXPECTED)",
+      "summary": "Target delivery-correctness, not process-longevity; cause-agnostic. Record listener start-time/identity (not bare PID) to collapse the Windows PID-recycle >=5-min self-heal floor, add a listener-independent idle sweep/turn-trigger to kill the autonomous deadlock, and assert a tested zero-loss + latency-bound contract.",
+      "contributingLenses": ["codex", "copilot", "devils-advocate"]
+    },
+    {
+      "id": "D-002",
+      "name": "Fix the internal fs.watch-drain unconditionally + fold exit/signal instrumentation into the fix (no standalone investigation task)",
+      "summary": "Recreate fs.watch on error/close (the no-op handler never recreates) and decouple a ref'd parent/ppid-liveness anchor (exits-when-orphaned) from the fail-soft notify path; do NOT naively un-unref the poll timer (resurrects the orphan zombie). Fold process.on('exit')+SIGTERM/SIGINT/SIGHUP/SIGBREAK loggers in so the next silent death self-classifies external-reap vs internal-drain for free.",
+      "contributingLenses": ["codex", "copilot", "devils-advocate"]
+    },
+    {
+      "id": "D-003",
+      "name": "Explicitly REJECT the supervisor/watchdog as dead-on-arrival (guardrail, not a build)",
+      "summary": "A session-bound supervisor would be another attached async shell subject to the same reap (detach forbidden); the only never-reaped supervisor is the hook system, but hooks fire only on turns and cannot heal a no-turn idle window. Supervisor collapses into D-001's listener-independent turn-trigger + bulletproof hook re-arm. Plan must not file a watchdog process.",
+      "contributingLenses": ["devils-advocate"]
+    }
+  ],
+  "recommendedDirection": "D-001",
+  "questionsForSynthesis": [
+    "Is the failure a message-LOSS bug or a LATENCY/LIVENESS bug? v3.6.2 epoch + via=initial prevent loss, but self-heal degrades to a >=5-min floor when a reaped listener's Windows PID is recycled (isProcessAlive EPERM->true). Record listener start-time/identity (not bare PID) so recycled PIDs demote immediately?",
+    "In the autonomous (no-operator) case, what triggers the lead's next turn if the dead listener was the only wake source? Does the plan need a listener-independent turn-trigger / hook-driven idle sweep to avoid a self-perpetuating deadlock?",
+    "Can runtime-reap vs fs.watch-drain be settled WITHOUT a standalone instrumentation task, by folding a 3-line process.on('exit')/signal logger into the watcher-recreate fix and letting the next death self-classify? (All three lenses: yes.)",
+    "Does the operator's 'always arm indefinitely, never --timeout-ms' guidance INCREASE exposure by removing the hardTimer (listener-loop.js:539 is conditional), leaving fs.watch as the literal sole ref'd keepalive? Revisit it here?",
+    "Should the unref'd timers stay unref'd? They encode anti-orphan-zombie intent; the right design decouples a ref'd parent/ppid-liveness anchor (exits-when-orphaned) from the fail-soft fs.watch+poll notify mechanism.",
+    "What is the acceptable, asserted latency BOUND for a member 'done' that lands in a dead-idle window, and is the dead window on the lead INBOX listener, the wait-for-any-member OUTBOX watcher, or both?"
+  ]
+}
