@@ -9133,6 +9133,42 @@
           }
         ]
       }
+    },
+    {
+      "id": "happy-cli-test-baseline-failures-cleanup",
+      "scope": "codexu",
+      "lifecycle": "merged",
+      "status": "active",
+      "lastTouchedAt": "2026-06-28T04:56:06.788Z",
+      "kanbanCards": [
+        {
+          "className": "cmd-warn",
+          "html": "Follow-up surfaced by agent-comms-scope-a-live-cross-machine-wiring (2026-06-09). The package-wide `pnpm --filter happy test` baseline has ~49 pre-existing unrelated failures on main, which forced every story in that impl to fall back from the full-suite gate to a targeted agentComms test gate (a `hard-gate-not-met` against a red baseline). Triage + fix (or quarantine) the baseline failures so future impls can use the full-suite gate as a real acceptance signal."
+        },
+        {
+          "className": "cmd-ok",
+          "html": "Plan shipped @ 7d84d7e0 — 7 stories triaging 59 baseline `pnpm --filter happy test` failures into 7 root-cause clusters. Key decision (3-reviewer-unanimous): Option B config-level integration gating (RUN_INTEGRATION=1) after finding setup-gating unimplementable. 15 review findings all addressed. Impl-ready (codexu primary, packages/happy-cli)."
+        }
+      ],
+      "command": {
+        "name": "happy-cli-test-baseline-failures-cleanup",
+        "prompts": {
+          "plan": "Triage the ~49 pre-existing `pnpm --filter happy test` failures on main. Group by root cause, fix the straightforward ones, and quarantine/skip-with-issue the rest so the full happy suite goes green (or has a documented, small, tracked skip-list). Goal: restore the full-suite test gate as a trustworthy acceptance signal for future happy-cli impls.",
+          "impl": "You are the IMPL-phase member for task happy-cli-test-baseline-failures-cleanup.\n\nPhase discipline: implement per the committed plan; do NOT chain into another task. The /implement-with-ralph skill manages its worktree + Phase 5a (code review-fix convergence) + Phase 5b (docs review-fix convergence). Drive ALL phases to terminal-clean (review: {code:'clean', docs:'clean'}) before reporting done -- do NOT stop at Phase 4 stories-pass.\n\nPer codexu AGENTS.md: the LEAD (overview-bookkeeper) does the FF-merge + push (origin/personal[/gim-home]) + any pointer bump. Commit only on your topic branch in the skill-managed worktree. codexu root CLAUDE.md is gitignored -- do NOT git add CLAUDE.md; fork-level guidance edits go in codexu/AGENTS.md only. Body-canonical convention.\n\nScope: packages/happy-cli in codexu PRIMARY (not a submodule). Capture the test output to a file once, then grep it (per AGENTS.md). The acceptance signal is the full happy suite green OR a small documented tracked skip-list. Option B = config-level RUN_INTEGRATION=1 gating for integration tests.\n\nThe plan is at .ralph/jobs/happy-cli-test-baseline-failures-cleanup/plan.md (Phase-4 reviewed).\n\nAfter local commit(s), report kind=done with the commit SHA(s) + topic branch + a brief summary of the implemented stories.\n\nRUN: /implement-with-ralph --from-plan .ralph/jobs/happy-cli-test-baseline-failures-cleanup/plan.md --autonomous"
+        },
+        "descriptionHtml": ""
+      },
+      "shipManifest": {
+        "shippedAt": "2026-06-28T04:56:06.788Z",
+        "summary": "Restored the happy-cli vitest baseline to green by adopting plan Option B: integration tests are now gated behind RUN_INTEGRATION=1 via a dedicated integrationProjects array in vitest.config.ts, so the default \u000bitest gate runs only the deterministic unit suite (green) while the env-gated integration projects run on demand with serialized workers and extended timeouts. Several unit tests that depended on integration-only side effects (apiSession, scopeB, runClaude, runClaudePublishMode, sessionScanner, worktreeTransactions, ledger writer, renderRoadmap) were trimmed/adjusted to the unit-safe baseline.\n\nDocumentation was updated in lockstep: docs/CONTRIBUTING.md and packages/happy-cli/AGENTS.md note the RUN_INTEGRATION=1 convention for running the integration suite locally. Shipped as a single codexu-primary commit (de23f5a7) on main; no submodule pointer or plugin version bump involved.\n\nResumed after the original impl member's terminal was accidentally closed mid-run; the resumed codex member (impl-happycli-i2) completed the implementation in the skill-managed worktree and reported the default test gate green. The lead discarded superseded uncommitted spillover that had leaked into the primary checkout, rebased the topic branch onto current main (additions-only verified), and fast-forwarded.",
+        "commits": [
+          {
+            "sha": "de23f5a7",
+            "oneLine": "test(happy-cli): restore baseline suite",
+            "repo": "codexu"
+          }
+        ]
+      }
     }
   ]
 }
