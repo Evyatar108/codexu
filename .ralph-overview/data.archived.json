@@ -9169,6 +9169,56 @@
           }
         ]
       }
+    },
+    {
+      "id": "codex-anthropic-transport-us008-e2e-test",
+      "scope": "codex",
+      "lifecycle": "merged",
+      "status": "active",
+      "lastTouchedAt": "2026-06-28T05:41:53.824Z",
+      "kanbanCards": [
+        {
+          "className": "cmd-warn",
+          "html": "Follow-up to codex-anthropic-models-support (D-001 transport, shipped 2026-06-09). US-008 deterministic end-to-end test was NOT written. The live spike + parser unit tests (codex-copilot 17/17) + routing test cover the wire format + mapping, but a full agentic-turn deterministic test (chat-SSE mock via a `core_test_support::responses`-style harness) is still missing. CODEX SUBMODULE task."
+        },
+        {
+          "className": "cmd-ok",
+          "html": "PLAN SHIPPED @ <code>f2d11218</code> (2026-06-24). 3 stories, 12 Phase-4 findings (0 Crit) resolved over 2 review rounds. The deterministic end-to-end test of the unsigned /chat/completions Claude-CoT capture/replay — the operator's gating verification before deciding on the signed /v1/messages transport. IMPORTANT CORRECTION (planner caught it): the lead's seed said \"per-item + AGGREGATE BYTE cap\" but the actual code uses a per-item TOKEN cap (tokens/item per codex \"Model visible context\"), NOT an aggregate byte cap. US-001 (per-item cap test) is independent; US-002->US-003 build the headline multi-turn wiremock e2e (network-gated capstone). OPEN QUESTION (operator decision before impl): should the e2e ALSO exercise a history/compaction AGGREGATE cap (larger scope), or stay scoped to the per-item token cap that actually exists? Plan under .ralph/jobs/codex-anthropic-transport-us008-e2e-test/.\r\n"
+        },
+        {
+          "className": "cmd-ok",
+          "html": "Plan shipped @ 49134ef0 — 3 stories; a source-verified --improve refresh of the prior plan (f2d11218) for the now-shipped signed /v1/messages transport: dual-gate routing + server-level egress assertion + test-home flip to core/tests/suite/chat_completions.rs + refreshed citations. Phase-4 reviewed (opus-4.8 rubber-duck, 6 findings fixed incl. claude-slug-panic + tautological-assertion). Impl-ready (codex submodule)."
+        }
+      ],
+      "command": {
+        "name": "codex-anthropic-transport-us008-e2e-test",
+        "prompts": {
+          "plan": "Add US-008: a deterministic end-to-end test exercising a full agentic turn over the Claude `/chat/completions` transport using a chat-SSE mock (mirror the existing `core_test_support::responses` harness for the /responses path). Assert typed function_call assembly, usage, and no /responses regression.",
+          "impl": "You are the IMPL-phase member for task codex-anthropic-transport-us008-e2e-test.\n\nPhase discipline: implement per the committed plan; do NOT chain into another task. The /implement-with-ralph skill manages its worktree + Phase 5a (code review-fix convergence) + Phase 5b (docs review-fix convergence). Drive ALL phases to terminal-clean (review: {code:'clean', docs:'clean'}) before reporting done -- do NOT stop at Phase 4 stories-pass.\n\nPer codexu AGENTS.md: the LEAD (overview-bookkeeper) does the FF-merge + push (origin/personal[/gim-home]) + any pointer bump. Commit only on your topic branch in the skill-managed worktree. codexu root CLAUDE.md is gitignored -- do NOT git add CLAUDE.md; fork-level guidance edits go in codexu/AGENTS.md only. Body-canonical convention.\n\nScope: codex submodule (codex/external/repos/codex-patched/codex-rs core tests). Needs a codex-patched worktree + the cargo check --workspace gate. Mirrors the existing core_test_support::responses harness for a chat-SSE mock. The 3-level ship (inner sandbox-patches -> wrapper -> codexu pointer) is the LEAD job at ship time.\n\nThe plan is at .ralph/jobs/codex-anthropic-transport-us008-e2e-test/plan.md (Phase-4 reviewed).\n\nAfter local commit(s), report kind=done with the commit SHA(s) + topic branch + a brief summary of the implemented stories.\n\nRUN: /implement-with-ralph --from-plan .ralph/jobs/codex-anthropic-transport-us008-e2e-test/plan.md --autonomous"
+        },
+        "descriptionHtml": ""
+      },
+      "shipManifest": {
+        "shippedAt": "2026-06-28T05:41:53.824Z",
+        "summary": "Added the US-008 end-to-end test capstone for the signed chain-of-thought Anthropic Messages transport (the transport itself shipped earlier this session). The inner codex-patched commit adds a deterministic chat-completions SSE mock harness (codex-rs/core/tests/common/chat_sse.rs, +321) plus a new reasoning-replay test suite (codex-rs/core/tests/suite/chat_completions.rs, +263) wired into the common test lib and suite mod -- 588 lines, test-only, no production code. The wrapper overlay commit strengthens codex-copilot/src/payload.rs chat reasoning replay coverage (+53/-12).\n\nShipped via the 3-level codex ceremony: inner sandbox-patches FF + push to Evyatar108/codex-openai-fork (16175abdc0..b0364d629e); wrapper FF + push to gim-home/codex main (ed44c1d030..95d4a98106); codexu codex submodule pointer bump (6d17968e) pushed to origin + personal. The member verified focused capstone tests, codex-copilot tests, and cargo check --workspace all green. No release build/cut required since the change is test-only and does not alter the shipped binary.\n\nResumed after the original codex impl member's terminal was accidentally closed mid-compile; the resumed member (impl-us008-i2) continued from the existing codex-patched nested worktree and drove to terminal-clean.",
+        "commits": [
+          {
+            "sha": "6d17968e",
+            "oneLine": "chore(codex): bump pointer for US-008 anthropic-transport e2e test",
+            "repo": "codexu"
+          },
+          {
+            "sha": "95d4a98106",
+            "oneLine": "test(copilot): strengthen chat reasoning replay coverage",
+            "repo": "codex"
+          },
+          {
+            "sha": "b0364d629e",
+            "oneLine": "test(core): cover chat completions reasoning replay",
+            "repo": "codex-patched"
+          }
+        ]
+      }
     }
   ]
 }
