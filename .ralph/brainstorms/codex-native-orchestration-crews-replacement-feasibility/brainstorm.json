@@ -1,39 +1,41 @@
 {
   "brainstormName": "codex-native-orchestration-crews-replacement-feasibility",
   "overviewTaskId": "codex-native-orchestration-crews-replacement-feasibility",
-  "idea": "Design a codex-native orchestration layer that could RETIRE the crews plugin entirely (operator lean: full replacement), leveraging the codex app-server daemon + multi-agent-v2 + native async message-injection. Verify feasibility rigorously; produce an honest GO/PARTIAL/NO-GO verdict with a gap inventory and migration path, confronting the prior 'complementary' verdict.",
-  "verdict": "PARTIAL-REDUCTION-ONLY",
+  "idea": "D-004 (operator direction, supersedes prior D-001): make ONE persistent daemon the sole owner/writer of crews' durable coordination files, with members talking to it over IPC instead of file-locks + per-process hooks. Preserve Layer B durability (cursor + audit history + operator review-gates + crash-recovery) while eliminating the lock-contention (EPERM/LockTimeout) and hook fragility. Codex-only members acceptable. Daemon vehicle: codex app-server if feasible on Windows, else the happy-cli daemon, else a small dedicated sidecar.",
   "availableLenses": ["codex", "copilot", "devils-advocate"],
   "missingLenses": [],
   "candidateDirections": [
     {
       "id": "D-001",
-      "name": "SHRINK crews to the durable+operator layer; move only in-session fan-out to codex-native",
-      "summary": "Partial reduction: port 3-wide in-session fan-out (brainstorm lenses, plan reviewers, Phase 5.5 retrospectives) to codex multi-agent v2/app-server within the 4-thread cap and adopt the codex-native WAKE per durable-mailbox-channel-wake.md, while KEEPING crews' thin filesystem mailbox + operator review-gate layer until codex grows the residual primitives. Sheds wt.exe-tab spawn fragility without a Layer-B rewrite.",
-      "effort": "L",
+      "name": "Happy-cli daemon owns Layer-B state + a THIN codex hook for the hard gate",
+      "summary": "happy-cli 127.0.0.1 daemon becomes the single-writer owner of crews' coordination state (kills the multi-process locks; substrate ~80% shipped as agent-comms Scope B), while a thin codex Stop/PreToolUse hook that does zero file I/O keeps querying the daemon to preserve the hard decision:block turn-veto. Recommended PARTIAL->GO path.",
       "contributingLenses": ["codex", "copilot", "devils-advocate"]
     },
     {
       "id": "D-002",
-      "name": "NOT-YET full replacement: build app-server peer-session orchestration first",
-      "summary": "The operator's full-replacement lean, honestly scoped as an XL second-system rewrite. Seams exist (spawn_top_level_session.rs for peer spawn, agentComms/ as a started durable layer, MCP-notif wake), but it RELOCATES fragility into happy-cli rather than removing it, re-implements battle-tested Layer-B behavior from scratch, and silently drops cross-engine model diversity. Gated on Windows app-server lifecycle + durable cross-session mailbox + operator-gate product. Verdict: NOT-YET.",
-      "effort": "XL",
-      "contributingLenses": ["codex", "copilot", "devils-advocate"]
+      "name": "Pure daemon, NO per-process hooks (operator's literal wish) with explicit acceptance the hard gate degrades to advisory",
+      "summary": "Members run with ZERO hooks; the daemon enforces review server-side by refusing the next IPC op + a between-turns MCP wake. Fully grants the verbatim wish but LOSES the hard turn-block (only a Stop hook can veto a codex turn-end), so adopt only with knowing operator acceptance of a soft/advisory gate.",
+      "contributingLenses": ["devils-advocate", "copilot"]
     },
     {
       "id": "D-003",
-      "name": "Cheaper non-rewrite alternatives: point-fix crews' Windows hot spots; decide cross-engine explicitly",
-      "summary": "Target crews' localized Windows-fragility hot spots (EPERM/rename lock race, listener silent-reap) with heartbeat-liveness + auto re-arm, far cheaper than a substrate swap; and make dropping cross-engine an explicit operator decision rather than a silent capability deletion. Validate by bisecting the last ~20 crash incidents.",
-      "effort": "M",
-      "contributingLenses": ["devils-advocate", "copilot"]
+      "name": "Point-fix crews' Windows lock sites; question whether a daemon is needed at all",
+      "summary": "Avoid a second-system rewrite: share-delete manifest reads to kill the reader-rename race, an in-process write-queue for the lead, and lean on the fact codex-only migration already shrinks N. Corroborated by prior-brainstorm D-003 + durable-mailbox-channel-wake.md \u00a73 (which already rejected moving crews storage off the filesystem mailbox).",
+      "contributingLenses": ["devils-advocate"]
+    },
+    {
+      "id": "D-004",
+      "name": "Codex app-server itself as the coordination daemon (NO-GO on Windows now)",
+      "summary": "Answers the operator's 'app server if possible?' explicitly: ruled out today because the Rust app-server-daemon is Unix-only, its websocket transport is experimental/unsupported, and the happy-cli app-server client is one-thread-per-process / one-server-per-cwd. Revisit only if codex ships supported Windows daemon lifecycle + durable multi-client coordination + a hard turn-complete policy hook.",
+      "contributingLenses": ["copilot"]
     }
   ],
   "recommendedDirection": "D-001",
   "questionsForSynthesis": [
-    "Is the operator's pain primarily (a) wt.exe tab/process spawning, (b) on-disk lock contention / EPERM rename races, or (c) the hook-heavy Node surface itself? Only (c) truly motivates full replacement.",
-    "Will the operator stop using copilot/claude brainstorm/plan lenses? If not, full codex-only replacement silently deletes cross-engine model diversity this very brainstorm depends on (brainstorm-with-ralph SKILL.md:113-161).",
-    "Given plans/durable-mailbox-channel-wake.md §3 already rejected codex-native crews storage and kept the filesystem mailbox, does 'codex-native replacement' really mean 'crews mailbox + operator gates rewritten in TypeScript under happy-cli/agentComms'? If so, what NEW capability justifies the rewrite over hardening crews in place?",
-    "Is app-server thread-level isolation (one daemon, N threads) acceptable, or must the replacement preserve separate OS/top-level sessions for fault isolation + per-tab operator attach?",
-    "What concrete primitive must ship next to flip PARTIAL -> GO: durable peer mailbox, operator gates, or Windows app-server session lifecycle?"
+    "Does the operator ACCEPT downgrading the hard turn-block (Stop decision:block) to a cooperative/advisory daemon gate (-> D-002), or is hard parity required (-> D-001 thin hook)? This single decision picks the direction.",
+    "Forensics: do the EPERM/LockTimeout incidents originate in concurrent WRITES (a single-writer daemon fixes these) or concurrent manifest READS (the FILE_SHARE_DELETE rename race at pre-tool-use.js:583, which needs single-ACCESSOR)? Decides the rewrite size.",
+    "Must history.jsonl become fail-loud (it is best-effort today at mailbox.ts:255-266) before crews audit behavior is retired?",
+    "Who owns the daemon's Windows lifecycle (start-on-login, crash-restart, supervised service), and is the daemon-SPOF blast radius acceptable vs today's localized per-member lock contention?",
+    "Is cross-engine loss (Claude/Copilot members) fully accepted for ralph brainstorm/plan lenses too, or only for routine members?"
   ]
 }

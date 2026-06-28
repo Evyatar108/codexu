@@ -3,70 +3,41 @@ overviewTaskId: codex-native-orchestration-crews-replacement-feasibility
 ---
 
 ## Direction
-D-001 — SHRINK crews to its durable+operator coordination layer; move only in-session fan-out to codex-native. Full codex-native replacement of crews is NOT-YET feasible (gated on three missing primitives), so the honest, value-positive path is a partial reduction rather than a rewrite.
+D-001 — Happy-cli daemon owns Layer-B coordination state + a THIN codex hook for the hard gate. Make the existing happy-cli `127.0.0.1` daemon the single-writer owner of crews' coordination files (killing the multi-process EPERM/LockTimeout locks; the substrate is ~80% already shipped as agent-comms Scope B), while a thin codex Stop/PreToolUse hook that does ZERO file I/O keeps querying the daemon to preserve the hard `decision:'block'` turn-veto.
+
+> **Headline verdict: PARTIAL — GO on dropping the LOCKS, NO on dropping the HOOKS.** D-004's verbatim "without hooks AND locks" welds two separable mechanisms with opposite risk profiles. The single-writer daemon legitimately removes the cross-process lock failure class (Node's event loop serializes daemon-internal writes; the in-process `inboxChains` chain has no `LockTimeout`/EPERM). But removing the per-process hooks throws out the hard operator-gate: in THIS fork, codex members have a working Stop hook (`crews/.codex-plugin/hooks/hooks.json` → `codex-stop.js`; `codex-shim.js` honors `decision:'block'`; `tests/progress-bg-gate-codex.test.js` proves a hard turn-block), and that hook — not the lock, not the daemon — is the ONLY seam that can veto a codex member's turn-end. D-001 keeps the gate, drops the locks.
 
 ## Goal
-
-A documented partial-migration in which crews' fragile in-session fan-out is replaced by codex-native primitives, while crews' battle-tested durable coordination layer is preserved — with a written, source-grounded GO/PARTIAL/NO-GO verdict that the operator can use to decide the cross-engine question and to know exactly which primitive must ship before "full replacement" becomes feasible.
-
-Concretely, after this direction is planned + implemented:
-
-- One representative ralph in-session fan-out site (brainstorm lenses, plan reviewers, OR Phase 5.5 retrospectives — all 3-wide, fitting codex's default 4-thread cap) runs on codex multi-agent v2 / app-server instead of spawning crews members in separate `wt.exe` tabs.
-- Mailbox WAKE is routed through the codex-native MCP-notification → `MessageQueue2` seam (per `plans/durable-mailbox-channel-wake.md`), while the durable mailbox store stays on the filesystem.
-- Crews' Layer B (durable cross-session mailbox + cursor/history, review-mail gates, Stop/PreToolUse enforcement, operator channel, crash-sweep/takeover) remains intact and authoritative.
-- A measurement exists for whether hook/listener pressure actually dropped, and a profile of where the EPERM/lock-contention/listener-silent-reap incidents originate (fan-out spawn paths vs. mailbox/manifest lock paths).
-
-Explicitly NOT this work: rewriting crews' durable mailbox into `packages/happy-cli/src/agentComms/`; dropping cross-engine support; adopting the Unix-only upstream Rust `app-server-daemon`; building a codex-only orchestration daemon.
+A codex-only crew where ALL durable coordination state (mailbox + monotonic cursor, append-only audit history, review-required gate cursor, member registry, crash/takeover state, operator channel) is owned and serialized by a SINGLE persistent happy-cli daemon over a loopback IPC control plane — with NO cross-process file locks on crews' coordination files — while a thin per-process codex Stop/PreToolUse hook (doing zero file I/O) preserves the hard `decision:'block'` operator gate by querying the daemon. End state: zero `LockTimeoutError`/EPERM in crews.log under a multi-member load, the hard review-mail turn-block still fires on an unreviewed codex member, and durable mail survives a daemon restart / reboot and is redelivered to offline members.
 
 ## Scope
-
 ### In Scope
-- Port exactly ONE in-session fan-out site from a crews-member spawn pattern to codex multi-agent v2 / app-server, within the default 4-thread cap (`codex/external/repos/codex-patched/codex-rs/features/src/feature_configs.rs:7-39`).
-- Wire the mailbox WAKE through the existing codex-native MCP-notification consumer (`packages/happy-cli/src/codex/mcpNotificationConsumer.ts:1-21,96-177`; `core/src/tasks/mod.rs:570-614,889-915`) per `plans/durable-mailbox-channel-wake.md:113-150`, leaving the filesystem mailbox store untouched.
-- Keep crews' Layer B as-is (`ai-developer-toolkit/plugins/crews/hooks/mailbox.js`, `lib/listener-loop.js`, `hooks/stop.js`, `hooks/pre-tool-use.js`, `hooks/protocol/envelope.js`, `hooks/member-crash-notifications.js`).
-- Instrumentation/profiling to attribute crews crash incidents to spawn paths vs. lock paths.
-- A short markdown deliverable documenting the verdict, the capability map, and the "what must ship to flip to GO" gate list.
+- Vehicle: the existing **happy-cli daemon** (Node, Windows-supported, already the single-writer for agent-comms inboxes via `POST /agent-comms/send → appendMessage`). NOT the codex Rust app-server-daemon (Unix-only).
+- Move `consumePending` + cursor-advance OFF the per-session bridge INTO the daemon (the lock-killing primitive — removes the `mailbox.ts` cross-process `withInboxLock` second-writer).
+- Add daemon-owned Layer-B protocol: review-required cursor as a gate (`lastReviewRequiredSeq` vs `lastReviewedSeq`), ack/decision rows, operator-direct/escalate/member-reply semantics, crash/liveness/takeover generation state, member registry.
+- A THIN codex Stop/PreToolUse hook rewritten to QUERY the daemon over loopback instead of grabbing `withManifestLock`; it emits `decision:'block'` when the daemon reports reviewed < required. Zero file I/O in the hook.
+- Loopback IPC over the shipped `HAPPY_DAEMON_CONTROL_URL` control plane (`X-Loopback-Capability` auth); named pipe as a later Windows-hardening swap.
+- Restart/recovery: daemon persists `mailbox.json` + `history.jsonl`; offline members re-read on reconnect (extend `recovery.ts`).
 
 ### Out of Scope
-- Full retirement of crews (D-002 — NOT-YET; XL second-system rewrite).
-- Building/extending `packages/happy-cli/src/agentComms/` into a crews replacement.
-- Dropping cross-engine (Claude/Copilot/Codex) support — a separate operator-gated decision.
-- Adopting the upstream Rust `app-server-daemon` crate (Unix-only: `app-server-daemon/README.md:13-15`).
-- Hard mid-LLM-call preemption (`plans/async-events-design.md:33-36,389-396`).
-- Any change to crews' durable mailbox storage shape.
+- The codex Rust app-server-daemon as the file-owner (Unix-only — `app-server-daemon/README.md`). Revisit only if it gains Windows lifecycle + durable multi-client coordination + a hard turn-complete policy hook.
+- Pure no-hooks enforcement (D-002) — deferred behind an explicit operator decision; it loses the hard gate.
+- Keeping Claude/Copilot members alive (operator accepted codex-only for members; cross-engine lenses are a separate open question).
+- Codex submodule edits (D-001 needs none — app-server stays the session engine).
 
 ## Criteria
-
-1. One ralph in-session fan-out site demonstrably runs via codex multi-agent v2 / app-server (no `wt.exe` tab spawned for that fan-out), with the result collected back into the ralph flow unchanged.
-2. The ported site's wake is delivered through the codex-native MCP-notification → `MessageQueue2` path, verified between-turns, with the filesystem mailbox store unchanged and crews review-mail still functional.
-3. Crews' Layer B (review-mail cursor monotonicity, Stop/PreToolUse gates, operator channel, crash-sweep) passes its existing tests unchanged after the port.
-4. A measured before/after of hook/listener pressure for the ported workflow, plus an incident attribution (≥ last ~20 crews crash incidents bisected: fraction in spawn/wt.exe paths vs. mailbox/manifest lock paths `hooks/actors.js:1470-1474,1536-1542`).
-5. A committed markdown verdict doc stating PARTIAL-REDUCTION-ONLY with the three gating blockers for full replacement (Windows app-server session lifecycle; durable cross-session mailbox surviving daemon restart; operator review-gate product) and the concrete primitive whose shipping would flip the verdict to GO.
-6. No regression: cross-engine fan-out (copilot/claude lenses) still works for non-ported sites.
+- Under a 5-member concurrent codex crew, crews.log shows ZERO `LockTimeoutError`/EPERM/`UNKNOWN`-on-rename incidents on coordination writes (vs the documented multi-incident baseline).
+- The hard review-mail gate still fires: an unreviewed codex member's turn-end is HARD-blocked via `decision:'block'` (assert against the existing `progress-bg-gate-codex.test.js` harness shape) — the daemon-querying thin hook returns the block.
+- A durable message survives a daemon restart AND a machine reboot and is redelivered to an OFFLINE member on reconnect (one wake, no double-consume, cursor monotonic).
+- No per-session bridge writes `mailbox.json`/cursor files; the daemon is the single writer (verify no `mailbox.lock` is needed for the send→drain→review path).
+- Forensics gate satisfied: confirm whether the dominant crews EPERM site is concurrent WRITES (daemon fixes) or concurrent READS (the `FILE_SHARE_DELETE` rename race — needs member reads ALSO via the daemon, i.e. single-ACCESSOR). The plan must size the rewrite accordingly.
+- Audit decision recorded: `history.jsonl` is either accepted best-effort for the pilot or made fail-loud before crews Layer B is retired.
 
 ## Context
+Synthesis highlights (full detail in `brainstorm-synthesis.md`):
+- **Substrate is ~80% shipped, NOT a from-scratch rewrite.** `packages/happy-cli/src/agentComms/` (mailbox.ts + recovery.ts + ingestHandler.ts + the daemon `/agent-comms/send` route) already implements the single-writer-daemon + durable-mailbox model — exactly what `durable-mailbox-channel-wake.md` §6 step 2 describes ("the daemon is the single writer for B's inbox"). This directly answers the prior gap #2 (codex v2 mailbox in-memory, can't survive restart).
+- **Decisive correction to the prior brainstorm (Devil's Advocate, source-grounded):** the prior "codex has NO Stop-hook" is STALE for the gim-home/codex fork — codex members have a working hook surface that honors `decision:'block'`. The locks and the hooks are SEPARABLE: drop the locks (safe), keep a thin hook for the gate.
+- **Does it actually kill the locks?** Yes for the WRITE path once consume+cursor move into the daemon (in-process `inboxChains` serializer, no cross-process lock). BUT crews' dominant EPERM is READER-induced (the v3.24.5 `FILE_SHARE_DELETE` rename race at `pre-tool-use.js:583`) — a single-WRITER daemon does not fix it unless member READS also route through the daemon (single-ACCESSOR). Forensics decides the rewrite size.
+- **Residual risks:** the daemon is a NEW single point of failure with a real Windows-service lifecycle (codexu fork-notes landmines: LocalSystem profile, sc.exe quoting, attached-async-shell silent reap); a daemon crash takes ALL members down at once vs today's localized contention. Price this into the plan.
 
-### Brainstorm synthesis highlights (3-lens convergence: codex + copilot + devils-advocate)
-
-- **Verdict (unanimous): PARTIAL-REDUCTION-ONLY.** Full codex-native replacement is NOT-YET feasible. Codex lens: "PARTIAL now, NOT-YET for retiring crews entirely." Copilot lens: "NOT-YET for full replacement." Devil's Advocate: "NO-GO on full; SHRINK is the honest answer," `red_flag: true`.
-- **The reframe:** crews is two welded layers. Layer A (in-session fan-out) maps cleanly onto codex multi-agent v2 / `spawn_top_level_session.rs` / async injection. Layer B (durable cross-session mailbox + cursor/history + review-mail gates + operator channel + crash-sweep) has NO codex-native equivalent. "Retire crews entirely" = reimplement Layer B from scratch.
-- **Decisive disconfirming evidence:** the fork's own canonical design doc `plans/durable-mailbox-channel-wake.md:23,47-52` already rejected codex-native crews storage (loss of cursor, audit, crash-recovery — the v2 mailbox "cannot survive a daemon restart" — and cross-machine fan-out) and keeps crews' filesystem mailbox, swapping ONLY the wake to codex-native. `packages/happy-cli/src/agentComms/` is already a partial TS rebuild of Layer B — fragility relocated, not removed.
-- **Codex-native seams that DO exist:** `core/src/tools/handlers/spawn_top_level_session.rs:29-171` (`SpawnTopLevelSessionHandler` spawns a top-level Happy session via the local Happy daemon, `HAPPY_DAEMON_CONTROL_URL`) + `spec_plan.rs:718-724`; multi-agent v2 (`multi_agents_v2/spawn.rs` — but root-only depth-1, session-bounded, `core/src/config/mod.rs:188-196`, `core/src/session/mod.rs:1690-1758`); MCP-notif wake.
-
-### Disconfirming observations to carry into plan + impl
-
-- If profiling shows >50% of crews incidents originate in mailbox/manifest LOCK paths (`hooks/actors.js:1470-1474,1536-1542`) rather than spawn/`wt.exe` paths, then shrinking the fan-out layer does NOT fix the dominant failure mode — the plan must pivot toward D-003 (point-fix the lock/listener hot spots) instead.
-- If the operator's real pain is the hook-heavy Node surface (PreToolUse/Stop firing on every tool call), shrinking still leaves Layer B as Node hooks, so the felt fragility may not drop — surface this to the operator before committing impl.
-
-### Open questions for the operator (gate the cross-engine + scope decisions)
-
-1. Primary pain source: (a) tab/process spawning, (b) lock contention / EPERM races, or (c) the hook-heavy Node surface? Each implies a different fix; only (c) motivates full replacement.
-2. Will copilot/claude brainstorm/plan lenses be retired? If not, full codex-only replacement is off the table (it deletes model diversity this brainstorm depends on, `brainstorm-with-ralph SKILL.md:113-161`).
-3. Is app-server thread-level isolation (one daemon, N threads) acceptable, or must separate OS/top-level sessions be preserved for fault isolation + per-tab operator attach?
-
-### Conflict surface
-
-- **codex submodule:** `core/src/tools/handlers/spawn_top_level_session.rs`, `core/src/tools/handlers/multi_agents_v2/`, `core/src/tasks/mod.rs`, `app-server/src/request_processors/`, `app-server-protocol/src/protocol/v2/`. Overlay `codex/codex-rs-overlay/`.
-- **codexu / happy-cli:** `packages/happy-cli/src/codex/` (app-server lifecycle + MCP-notif wake) and `packages/happy-cli/src/agentComms/` (do NOT extend into a crews replacement here).
-- **crews plugin:** shrinks (fan-out removed) but Layer B retained.
-- **ralph plugin:** the fan-out call site(s) that move to codex v2.
+Decisive open question to resolve before/early in planning (operator-gated): **does the operator accept downgrading the hard turn-block to a cooperative/advisory daemon gate (→ D-002), or is hard `decision:'block'` parity required (→ this D-001 thin-hook design)?** D-001 is the recommendation precisely because it preserves the operator-in-the-loop hard control that is crews Layer B's actual value, while still eliminating the lock fragility the operator asked to kill.
