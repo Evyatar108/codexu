@@ -1,0 +1,67 @@
+{
+  "clusters": [
+    {
+      "name": "rebaseline",
+      "stories": ["US-000"],
+      "phase": 0,
+      "dependsOn": [],
+      "fileOverlapEvidence": {
+        "sharedFiles": [],
+        "exclusiveFiles": [],
+        "risk": "low"
+      },
+      "executionModeRationale": "Pure measurement (writes job-dir artifacts only); gates every downstream story by establishing which clusters persist unloaded. Must complete before any fix."
+    },
+    {
+      "name": "unit-fixes",
+      "stories": ["US-001", "US-002", "US-003"],
+      "phase": 1,
+      "dependsOn": ["rebaseline"],
+      "fileOverlapEvidence": {
+        "sharedFiles": [],
+        "exclusiveFiles": [
+          "packages/happy-cli/src/claude/runClaude.test.ts",
+          "packages/happy-cli/src/claude/runClaudePublishMode.test.ts",
+          "packages/happy-cli/src/api/apiSession.test.ts",
+          "packages/happy-cli/src/claude/utils/sessionScanner.test.ts",
+          "packages/happy-cli/src/commands/codexCommand.test.ts",
+          "packages/happy-cli/src/ledger/writer.test.ts"
+        ],
+        "risk": "low"
+      },
+      "executionModeRationale": "US-001/US-002/US-003 touch fully disjoint test files with no shared config, so they can run in parallel once Story 0 establishes ground truth."
+    },
+    {
+      "name": "config-and-timing",
+      "stories": ["US-004", "US-005"],
+      "phase": 2,
+      "dependsOn": ["rebaseline", "unit-fixes"],
+      "fileOverlapEvidence": {
+        "sharedFiles": ["packages/happy-cli/vitest.config.ts"],
+        "exclusiveFiles": [
+          "packages/happy-cli/src/agentComms/scopeB.test.ts",
+          "packages/happy-cli/src/roadmap/renderRoadmap.test.ts",
+          "packages/happy-cli/src/claude/utils/claudeFindLastSession.test.ts",
+          "packages/happy-cli/src/codex/codexAppServerClient.test.ts",
+          "packages/happy-cli/src/daemon/controlServer.spawnSessionFromSession.test.ts",
+          "packages/happy-cli/src/daemon/spawnInWorktree.test.ts",
+          "packages/happy-cli/src/daemon/worktreeTransactions.test.ts"
+        ],
+        "risk": "medium"
+      },
+      "executionModeRationale": "US-004 (unit testTimeout) and US-005 (integration project gating) BOTH edit packages/happy-cli/vitest.config.ts, so they are bundled into one serialized story-pair to avoid a conflicting edit; run after the unit fixes so the gate signal is clean."
+    },
+    {
+      "name": "acceptance-closeout",
+      "stories": ["US-006"],
+      "phase": 3,
+      "dependsOn": ["unit-fixes", "config-and-timing"],
+      "fileOverlapEvidence": {
+        "sharedFiles": [],
+        "exclusiveFiles": ["packages/happy-cli/AGENTS.md"],
+        "risk": "low"
+      },
+      "executionModeRationale": "Final green verification and skip-list documentation require all prior clusters landed; it owns AGENTS.md exclusively."
+    }
+  ]
+}

@@ -1,0 +1,31 @@
+**Feasibility**
+
+- [High] The integration “setup boundary skip” is not implementable as stated. `vitest` `setupFiles` can fail or no-op, but they do not skip an entire project by themselves. If `installIntegrationEnvironment()` is caught/no-oped, several integration files still call `getIntegrationEnv()` at module load and will throw before any `describe.skipIf`: `packages/happy-cli/src/testing/currentIntegrationEnv.ts:8-10`, `src/claude/claude.integration.test.ts:34`, `src/codex/codex.integration.test.ts:33`, `src/openclaw/openclaw.integration.test.ts:39`, `src/daemon/daemon.integration.test.ts:57`. The plan must add a concrete mechanism, e.g. sentinel unavailable environment plus explicit suite skips, or project selection/exclusion outside setup.
+
+- [Low] The cluster-A diagnosis looks accurate: production calls `sessionInstance.setLedgerIdleReachedHandler(...)` in `packages/happy-cli/src/claude/runClaude.ts:724`; the real method exists in `src/claude/session.ts:163`; both test files define their own hoisted `mockSession` in `runClaude.test.ts:5-8` and `runClaudePublishMode.test.ts:5-10`.
+
+**Completeness**
+
+- [High] The file list for cluster D omits the likely required integration point, `packages/happy-cli/src/testing/currentIntegrationEnv.ts`, and likely also needs edits in the integration test files that top-level-read the env. Without those, AC6 will still error with `No active integration environment`.
+
+- [Medium] The plan requires recording re-baseline and apiSession classification notes “in the job dir,” but does not name files. For an autonomous impl, specify durable paths such as `.ralph/jobs/happy-cli-test-baseline-failures-cleanup/rebaseline.out` and `apiSession-triage.md`.
+
+- [Medium] AC9 says “No previously-passing test is broken,” but the plan’s final full green run can hide regressions if newly skipped tests include previously passing cases. The re-baseline should produce a machine-readable list of failing/skipped tests before edits and compare final skip/fail counts against it.
+
+**Ordering**
+
+- [Medium] US-000 is marked mandatory first, but the suggested decomposition groups `US-000, US-001, US-002, US-003` together in phase 1 with `Depends on: None`. A parallel runner could start fixes before the baseline capture. Make US-000 its own phase 0 and make every other story depend on it.
+
+**Simplicity**
+
+- [Medium] Editing repo-root `environments/environments.ts` is probably unnecessary for quarantine. The narrower approach is to handle unavailable migration in `packages/happy-cli/src/testing/installIntegrationEnvironment.ts` / `integrationEnvironment.ts` / `currentIntegrationEnv.ts`, then gate affected suites. Keep root env changes only for a real migration bug.
+
+**Acceptance Criteria Quality**
+
+- [High] AC6 is not specific enough and currently conflicts with the code shape. It should state exactly how an unavailable integration environment is represented and which suites must skip, including `currentIntegrationEnv.ts` behavior.
+
+- [Medium] AC5 uses subjective language: “genuinely environment/timing-bound.” Require concrete evidence: isolated run output, failed deterministic fix attempt or reason, and the exact skip condition.
+
+- [Medium] AC8 says the skip count must be “small” but gives no threshold. Specify a maximum count or require the final count to equal named rows in the skip-list.
+
+No prior review cycles or amendments were mentioned, so there are no amendment regressions to check.

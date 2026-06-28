@@ -1,0 +1,24 @@
+I’ll read the referenced prompt, then carry out the requested work without polling any background shell.
+
+I’ll verify the plan against the actual happy-cli test/config surfaces and then return only the review findings.
+
+### Feasibility
+
+- [High] The integration “setup-boundary skip” is not implementable with the listed files alone. If `installIntegrationEnvironment()` no-ops after migration failure, several integration files still call `getIntegrationEnv()` at module load (`src/testing/currentIntegrationEnv.ts`, used by `src/claude/claude.integration.test.ts`, `src/codex/codex.integration.test.ts`, `src/daemon/daemon.integration.test.ts`, `src/openclaw/openclaw.integration.test.ts`) before any `describe.skipIf` can run, so they will still hard-fail with `No active integration environment`. The plan must include a concrete fallback/skip contract and likely changes to `currentIntegrationEnv.ts` and/or those integration files.
+
+### Completeness
+
+- [High] The files-to-modify list omits the integration consumers needed to satisfy AC6. Existing per-test gates check binaries/gateways, not “integration env unavailable”, and `getIntegrationEnv()` throws synchronously. Without adding an env-availability flag or nullable accessor and wiring it into affected test files, `pnpm --filter happy test` cannot report clean skips when migration prerequisites are absent.
+
+### Ordering
+
+No issues found.
+
+### Simplicity
+
+No issues found.
+
+### Acceptance Criteria Quality
+
+- [Medium] AC1 requires an “isolated, unloaded” re-baseline but does not define an objective threshold or artifact filename. Since the original failure capture was explicitly load-confounded, the autonomous implementer needs a deterministic record path and criteria for deciding whether C/D persisted versus load noise.
+
