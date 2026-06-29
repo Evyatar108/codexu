@@ -1,0 +1,81 @@
+### Codebase Architecture
+
+This is a pnpm monorepo with TypeScript/React Native plus a Rust Codex submodule.
+
+- `packages/happy-server`: Fastify 5 TypeScript server, Socket.IO 4, PGlite/Prisma, Vitest. Public API is exported from `packages/happy-server/sources/index.ts`.
+- `packages/happy-cli`: Node TypeScript CLI/daemon package. It embeds `happy-server`, manages local machine state in `~/.happy`, starts the tunnel provider, and runs sessions.
+- `packages/happy-app`: Expo/React Native app for Android/iOS/web/Tauri. It stores credentials with `expo-secure-store` or web `localStorage`, talks to the server over HTTP and Socket.IO.
+- `codex/`: submodule containing the forked Rust Codex tree and overlay crates. `codex/codex-rs-overlay/codex-happy` is the Happy remote-session overlay; `codex/external/repos/codex-patched/codex-rs/features` owns experimental feature flags.
+- Docs and fork policy are in `AGENTS.md`, `docs/fork-notes.md`, package `AGENTS.md` files, and `docs/security-model.md`.
+
+Build/test tools: pnpm 10, TypeScript 5.9, Vitest, Expo 55 / React Native 0.83, Rust Cargo for Codex, pkgroll for TS packages.
+
+### Feature-Relevant Code
+
+Server auth and exposure:
+
+- `packages/happy-server/sources/index.ts`: `HappyServerConfig` / `CreateAppConfig` currently accept `auth?: "tunnel" | "loopback"`. `assertOperatorIdentityGate()` refuses non-loopback tunnel binds unless `auth === "loopback"`.
+- `packages/happy-server/sources/app/api/api.ts`: `configureApi()` decorates `authenticateTunnel` as a no-op and maps `authenticate` to loopback capability only for `auth === "loopback"`.
+- `packages/happy-server/sources/app/api/auth/loopbackCapability.ts`: good simple fail-closed model: reads a token from disk and returns `401` when missing or wrong.
+- `packages/happy-server/sources/app/api/routes/pairRoutes.ts`: `/pair/complete` and `/pair/connect` return TOFU public keys and optional `mobileSharedSecret`; today they rely on Dev Tunnels gateway auth and have no Happy-side pre-handler.
+- `packages/happy-server/sources/app/api/socket.ts`: Socket.IO auth only checks `X-Loopback-Capability` for loopback; tunnel mode accepts handshakes after basic client shape validation. CORS headers must be extended for new proof headers.
+- Protected route pattern: `accountRoutes.ts`, `machineSelfRoutes.ts`, `sessionRoutes.ts`, `v3SessionRoutes.ts`, `pushRoutes.ts`, `agentCommsIngestRoutes.ts` use `app.authenticate`; `pairRoutes.ts` currently does not.
+
+CLI/daemon integration:
+
+- `packages/happy-cli/src/tunnel/provider.ts`: `DaemonTunnelProvider` seam: `createHostTunnel`, `loadHostTunnel`, `stop`.
+- `packages/happy-cli/src/tunnel/devTunnelsDaemonProvider.ts`: provider precedent.
+- `packages/happy-cli/src/daemon/run.ts`: hard-codes `TunnelManager`, `DevTunnelsDaemonProvider`, and Dev Tunnels agent-comms delivery.
+- `packages/happy-cli/src/daemon/dualListenerBinding.ts`: creates tunnel listener with `auth: "tunnel"` and loopback listener with `auth: "loopback"`. Natural place to select `auth: "public"` for Cloudflare mode.
+- `packages/happy-cli/src/persistence.ts`: `MachineLocallyPersistedState` only stores `{ machineId, tunnelPort, loopbackPort, tunnelId, lastTunnelUrl }`.
+
+Crypto precedents:
+
+- `packages/happy-cli/src/tofu/keypairManager.ts`: creates daemon Ed25519 and X25519 keypairs under `~/.happy`.
+- `packages/happy-cli/src/agentComms/peerAuth.ts`: reusable patterns for stable JSON signing, Ed25519 verification, X25519 sealing, TOFU pinning, fingerprints, and local pin-store layout.
+
+App integration:
+
+- `packages/happy-app/sources/sync/serverConfig.ts`: already supports global and per-machine custom server URLs.
+- `packages/happy-app/sources/app/(app)/server.tsx`: validates custom URL by `GET /`.
+- `packages/happy-app/sources/auth/pairing.ts`: current pairing obtains Dev Tunnels connect token and sends `X-Tunnel-Authorization` to `/pair/complete`.
+- `packages/happy-app/sources/auth/machineAuth.ts`: `getMachineAuthHeaders()` only emits Dev Tunnels auth.
+- `packages/happy-app/sources/sync/socketOptions.ts`: Socket.IO headers come from `getMachineAuthHeaders()`; currently `transports: ['websocket']`, despite server supporting polling too.
+- `packages/happy-app/sources/auth/tokenStorage.ts`: `AuthCredentials` only preserves Dev Tunnels fields; old `pinnedPubkey` / `sessionKey` shapes are explicitly filtered.
+
+Codex opt-in:
+
+- `codex/external/repos/codex-patched/codex-rs/features/src/lib.rs`: existing `Feature::RemoteSession`, key `remote_session`, Experimental, default off.
+- `codex/codex-rs-overlay/codex-happy/src/auth.rs`: reads `~/.happy/machine.json` and builds local `http://127.0.0.1:<tunnelPort>`.
+- `codex/codex-rs-overlay/codex-happy/src/daemon_supervisor.rs`: readiness is local machine state plus TCP probe. Keep this path local.
+
+### Technical Constraints
+
+The feature request is feasible, but it is not a provider swap. The current security model explicitly makes Microsoft Dev Tunnels the remote identity boundary; Happy-side tunnel auth is absent.
+
+Key constraints:
+
+- `auth` is a closed string union across server config, API config, socket config, tests, CLI typings, and `packages/happy-cli/src/types/happy-server.d.ts`.
+- Public exposure must be fail-closed at startup and per request. `assertOperatorIdentityGate()` should not permit `0.0.0.0` or public tunnel mode unless verifier config and edge-auth expectation are present.
+- `/pair/complete` is special: it cannot use the post-pair device verifier before a device is enrolled. It needs a separate pairing-window plus QR/pre-shared secret gate.
+- Socket.IO proof verification must cover both WebSocket and polling. Server CORS and Socket.IO `allowedHeaders` need new proof headers.
+- Server/CLI already depend on `@noble/ed25519`, `@noble/hashes`, and `tweetnacl`; `happy-app` does not. The mobile proof implementation needs a React Native-compatible crypto choice.
+- Existing app credential normalization strips unknown fields. New public-device fields must be added to `AUTH_CREDENTIALS_KEYS` and validators.
+- Codex same-machine attach must remain loopback/local and should not use the public URL.
+- Docs currently warn against `happy.evyatar.dev` / Cloudflare provider-swap. They need a narrow amendment for this single-user per-daemon public mode only.
+
+### Implementation Suggestions
+
+Recommended order:
+
+1. Build a reusable `publicDeviceVerifier` in `happy-server` first. Give it a Fastify pre-handler and a Socket.IO middleware adapter. Protocol should include device id/public key, server nonce or timestamp window, method/path/body hash or socket handshake payload, Ed25519 signature, and replay cache.
+2. Add `auth: "public"` to server config types. In `configureApi()`, map `auth === "public"` to the verifier, not to `authenticateTunnel`. Extend CORS headers.
+3. Tighten `assertOperatorIdentityGate()` so public/non-loopback exposure is allowed only with verifier config plus configured Cloudflare edge expectation.
+4. Split pairing auth from normal device auth. Gate `/pair/complete` with operator-opened pairing window plus QR secret; return key material only inside that window. Add `/pair/connect` protection appropriate to post-pair refresh.
+5. Add route-table tests that enumerate tunnel-only REST routes and assert unauthenticated public mode returns `401`; add explicit `/pair/complete` “no key material outside window” tests; add Socket.IO WebSocket and polling handshake rejection tests.
+6. Add `CloudflareTunnelDaemonProvider` behind `DaemonTunnelProvider`, then update `run.ts` / `dualListenerBinding.ts` to select provider and `auth: "public"` only under the opt-in mode.
+7. Extend app credentials, pairing, `machineAuth.ts`, and `socketOptions.ts` to store/generate public-device proofs. Keep Dev Tunnels credentials working unchanged.
+8. Gate the variant with Codex experimental config or a submode of `remote_session`, but leave `codex-happy` local attach behavior unchanged.
+9. Update `docs/security-model.md`, root/package `AGENTS.md`, and `docs/fork-notes.md` in the same change.
+
+Unresolved design choices to settle before implementation: exact proof envelope/replay cache shape, server-side paired-device key store path, backend verification of Cloudflare Access/mTLS expectations, and the mobile crypto dependency.

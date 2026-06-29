@@ -1,0 +1,39 @@
+### Feasibility
+
+[Critical] The plan directly conflicts with the current repo-level architecture rule in [AGENTS.md](D:/harness-efforts/codexu/AGENTS.md:12): “never happy.evyatar.dev” and do not reuse the retired Cloudflare-tunnel’d central instance or a “Cloudflare provider-swap.” The plan’s core deliverable is `https://happy.evyatar.dev` via Cloudflare. The plan says docs will be updated to supersede this, but no current repo amendment exists, so implementation would start from a constraint violation.
+
+[High] The `/pair/complete` “QR secret + operator-opened pairing window” design is stale against the app. Current pairing is GitHub device-flow plus Dev Tunnels connect token in [pairing.ts](D:/harness-efforts/codexu/packages/happy-app/sources/auth/pairing.ts:31), and repo docs say QR pairing was removed. Implementing this needs a new enrollment UX and secret delivery path, not just server changes.
+
+[High] The plan misses `/pair/connect`. [pairRoutes.ts](D:/harness-efforts/codexu/packages/happy-server/sources/app/api/routes/pairRoutes.ts:123) returns key material and optional `mobileSharedSecret` with no `preHandler`; gating only `/pair/complete` still leaves an internet-reachable key endpoint.
+
+[High] Mandatory Cloudflare Access/mTLS is an unresolved prerequisite, not an implementation detail. The plan leaves “Cloudflare Access vs mTLS for BOOX” open while requiring “Blessed BOOX completes a remote session.” The app currently only injects Dev Tunnels headers via [machineAuth.ts](D:/harness-efforts/codexu/packages/happy-app/sources/auth/machineAuth.ts:21) and socket headers via [socketOptions.ts](D:/harness-efforts/codexu/packages/happy-app/sources/sync/socketOptions.ts:20); there is no specified way to store or present Access service-token headers or client certs for HTTP and Socket.IO.
+
+### Completeness
+
+[High] Route coverage is underspecified. The plan says “every tunnel-only route,” but public exposure must account for all remotely reachable routes, including unauthenticated [versionRoutes.ts](D:/harness-efforts/codexu/packages/happy-server/sources/app/api/routes/versionRoutes.ts:7), optional unauthenticated [devRoutes.ts](D:/harness-efforts/codexu/packages/happy-server/sources/app/api/routes/devRoutes.ts:8), `/health` from monitoring, and both pair endpoints. A public mode likely needs a global fail-closed hook with an explicit allowlist, not piecemeal `app.authenticate`.
+
+[High] The plan states build order includes `happy-wire`, but the files-to-modify list omits `packages/happy-wire`. For a signed request/nonce/body-hash protocol shared by server, app, CLI, and codex, the canonical payload schema and test vectors need to live in a shared package or the clients will drift.
+
+[Medium] App persistence changes are under-scoped. [tokenStorage.ts](D:/harness-efforts/codexu/packages/happy-app/sources/auth/tokenStorage.ts:43) strips unknown credential fields via `AUTH_CREDENTIALS_KEYS`; public-mode keys, device private key references, Access credentials, nonce state, or key version fields must be explicitly modeled and migration-tested.
+
+[Medium] Docs coverage is incomplete. The plan lists `docs/security-model.md`, `docs/fork-notes.md`, `AGENTS.md`, and `packages/happy-cli/AGENTS.md`, but existing public-auth statements also appear in `docs/api.md`, `docs/backend-architecture.md`, `docs/cli-architecture.md`, `packages/happy-server/AGENTS.md`, and `packages/happy-app/AGENTS.md`.
+
+### Ordering
+
+[High] `codex-gate` has `Depends on: None`, but `/remote on` currently attaches to local `127.0.0.1:<tunnelPort>` via [auth.rs](D:/harness-efforts/codexu/codex/codex-rs-overlay/codex-happy/src/auth.rs:84). Any codex-facing public transport behavior depends on the CLI/server public listener and persisted machine state contract being settled first.
+
+[Medium] `app-proof` depends only on server-auth-plane, but it also depends on the selected Cloudflare edge mechanism and token/cert persistence. Without that, app work can pass unit tests and still fail the mandatory edge acceptance test.
+
+### Simplicity
+
+[Medium] Given the mandatory Cloudflare Access edge, the plan should explicitly justify why D-002 edge-only is rejected. The plan currently combines an expensive app-layer auth plane with mandatory edge auth, but does not state why keeping happy-server loopback-only behind Access is insufficient for the single-user goal.
+
+[Medium] The server auth plane should be framed as a global public-mode guard plus explicit enrollment exceptions. That is simpler and safer than extending each route’s existing `app.authenticate` usage, because current routes are inconsistent.
+
+### Acceptance Criteria Quality
+
+[High] “Blessed BOOX completes a remote session over evyatar.dev” is not independently implementable until the edge-auth mechanism is chosen and its app credential flow is specified.
+
+[High] “Every tunnel-only route” is too vague for autonomous verification. The AC should name the exact route inventory or require a generated/maintained route enumeration test that proves all non-allowlisted routes return 401 without key material.
+
+[Medium] “Dev Tunnels unchanged” needs concrete regression checks: existing `/pair/complete` with `X-Tunnel-Authorization`, websocket `websocket` transport, polling server support, and app `transports: ['websocket']` behavior should be named.

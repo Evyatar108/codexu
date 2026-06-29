@@ -1,0 +1,136 @@
+{
+  "planFile": ".ralph/jobs/.staging/20260629T101645Z-plan-singleuser-i1-fdb0dd8f/draft-plan.md",
+  "repoDir": "D:/harness-efforts/codexu/.ralph/jobs/remote-connectivity-single-user-public-evyatar-server/worktree/plan",
+  "findings": [
+    {
+      "id": "F-001",
+      "severity": "Critical",
+      "source": "codex",
+      "status": "fixed",
+      "category": "feasibility",
+      "summary": "Plan must explicitly state the operator-approved supersession of AGENTS.md 'never happy.evyatar.dev / never Cloudflare provider-swap' for this single-tenant case, scheduled early so impl does not start from a constraint violation.",
+      "fixedInIteration": 1,
+      "resolution": "Added explicit operator-approved supersession of the fork-level happy.evyatar.dev/Cloudflare guardrail and scheduled it as a Phase 0 prerequisite before implementation."
+    },
+    {
+      "id": "F-002",
+      "severity": "High",
+      "source": "consensus",
+      "status": "fixed",
+      "category": "completeness",
+      "summary": "/pair/connect (pairRoutes.ts:121-150) returns key material with no preHandler; must be explicitly enumerated as a must-gate route, not just /pair/complete.",
+      "fixedInIteration": 1,
+      "resolution": "Amended the plan to explicitly require /pair/connect to be device-verifier gated before returning key material and to include it in scope, story decomposition, and fail-closed acceptance coverage."
+    },
+    {
+      "id": "F-003",
+      "severity": "High",
+      "source": "claude",
+      "status": "fixed",
+      "category": "completeness",
+      "summary": "/files/* (api.ts:84) is public when local storage enabled; must be covered by the public-mode fail-closed gate/allowlist.",
+      "fixedInIteration": 2,
+      "resolution": "Added explicit public-mode handling and fail-closed acceptance coverage for the local-storage /files/* route."
+    },
+    {
+      "id": "F-004",
+      "severity": "High",
+      "source": "codex",
+      "status": "fixed",
+      "category": "completeness",
+      "summary": "Replace piecemeal app.authenticate with a global fail-closed public-mode hook + explicit allowlist; cover /health, versionRoutes, devRoutes, both pair endpoints, /files/*.",
+      "fixedInIteration": 3,
+      "resolution": "Amended the plan to replace piecemeal public-route auth with a global fail-closed hook plus explicit allowlist covering health, version/dev routes, pair endpoints, files, and route enumeration tests."
+    },
+    {
+      "id": "F-005",
+      "severity": "High",
+      "source": "codex",
+      "status": "fixed",
+      "category": "completeness",
+      "summary": "happy-wire omitted from files-to-modify though it is the build-order root; signed-request/nonce/body-hash envelope schema + test vectors must live in @slopus/happy-wire so server/app/cli/codex do not drift.",
+      "fixedInIteration": 1,
+      "resolution": "Added happy-wire to the plan as the source of the signed-request nonce/body-hash schema and deterministic cross-runtime test vectors, with downstream server/app/cli/codex consumption called out."
+    },
+    {
+      "id": "F-006",
+      "severity": "High",
+      "source": "codex",
+      "status": "fixed",
+      "category": "feasibility",
+      "summary": "Cloudflare Access vs mTLS is an unresolved prerequisite, not an open question; choose mechanism + specify how app stores/presents the token/cert for HTTP and Socket.IO before app-proof work.",
+      "fixedInIteration": 2,
+      "resolution": "Resolved the edge-auth prerequisite by selecting Cloudflare Access service tokens and specifying app storage/header flow for HTTP and Socket.IO before app-proof work."
+    },
+    {
+      "id": "F-007",
+      "severity": "High",
+      "source": "codex",
+      "status": "fixed",
+      "category": "ordering",
+      "summary": "codex-gate dependsOn None is wrong; /remote on uses local 127.0.0.1 attach and any public behavior depends on cli/server public-listener + persisted machine-state contract.",
+      "fixedInIteration": 3,
+      "resolution": "Updated the codex-gate ordering so US-008 depends on cli-provider and clarified that codex public behavior flows through the CLI/server public-listener and persisted machine-state contract."
+    },
+    {
+      "id": "F-008",
+      "severity": "High",
+      "source": "consensus",
+      "status": "fixed",
+      "category": "acceptance",
+      "summary": "AC 'every tunnel-only route' is unverifiable; require a generated route-enumeration test asserting all non-allowlisted routes return 401 with no key material.",
+      "fixedInIteration": 4,
+      "resolution": "Added a concrete generated route-inventory acceptance test requirement for all non-allowlisted public routes to return 401 without leaking key material."
+    },
+    {
+      "id": "F-009",
+      "severity": "High",
+      "source": "codex",
+      "status": "fixed",
+      "category": "acceptance",
+      "summary": "AC 'blessed BOOX completes remote session' not independently implementable until edge-auth mechanism + app credential flow are specified.",
+      "fixedInIteration": 5,
+      "resolution": "Specified the public pairing invite/manual-entry flow, Access service-token policy, BOOX credential persistence, and header use required for the remote-session acceptance criterion."
+    },
+    {
+      "id": "F-010",
+      "severity": "Medium",
+      "source": "codex",
+      "status": "open",
+      "category": "feasibility",
+      "summary": "/pair/complete QR-secret+window enrollment is stale vs current GitHub device-flow pairing; needs explicit new enrollment UX + secret delivery path scoped, not just server gate."
+    },
+    {
+      "id": "F-011",
+      "severity": "Medium",
+      "source": "codex",
+      "status": "open",
+      "category": "completeness",
+      "summary": "tokenStorage AUTH_CREDENTIALS_KEYS strips unknown fields; public-mode device key refs, nonce/key-version, Access creds must be modeled + migration-tested."
+    },
+    {
+      "id": "F-012",
+      "severity": "Medium",
+      "source": "codex",
+      "status": "open",
+      "category": "completeness",
+      "summary": "Docs list incomplete: also docs/api.md, docs/backend-architecture.md, docs/cli-architecture.md, packages/happy-server/AGENTS.md, packages/happy-app/AGENTS.md."
+    },
+    {
+      "id": "F-013",
+      "severity": "Medium",
+      "source": "codex",
+      "status": "open",
+      "category": "simplicity",
+      "summary": "Add explicit rationale why D-002 edge-only is rejected vs combined app-layer+edge for single-user goal."
+    },
+    {
+      "id": "F-014",
+      "severity": "Medium",
+      "source": "codex",
+      "status": "open",
+      "category": "acceptance",
+      "summary": "'Dev Tunnels unchanged' needs concrete regression checks: existing /pair/complete X-Tunnel-Authorization, ws transport, polling, app transports:['websocket']."
+    }
+  ]
+}
