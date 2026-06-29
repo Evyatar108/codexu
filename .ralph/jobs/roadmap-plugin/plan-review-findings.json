@@ -1,0 +1,39 @@
+{
+  "plan": "plan.md",
+  "reviewers": ["self-phase4"],
+  "findings": [
+    {
+      "id": "F-001",
+      "severity": "High",
+      "status": "resolved",
+      "phase": "plan",
+      "title": "record-run has no data-edit verb",
+      "detail": "data-edit exposes only upsert-task/mark-shipped/set-lifecycle/add-kanban-card/set-prompts. runs[] append is unsupported. US-004 bounds this to a re-parse+atomic-write helper, not a raw clobber, and forbids adding ralph-overview verbs (submodule/out of scope)."
+    },
+    {
+      "id": "F-002",
+      "severity": "Medium",
+      "status": "resolved",
+      "phase": "plan",
+      "title": "MCP surface redundancy",
+      "detail": "ralph-overview already ships 5 id-scoped write tools; second MCP surface ~80% redundant. Operator chose skill-commands; MCP deferred. Recorded in plan + README story."
+    },
+    {
+      "id": "F-003",
+      "severity": "Medium",
+      "status": "resolved",
+      "phase": "plan",
+      "title": "data-edit dep-missing failure mode",
+      "detail": "Wrapper errors on missing @babel/parser when installed plugin deps absent. Skills must document copilot plugin update / npm install recovery; prefer in-tree dispatcher."
+    },
+    {
+      "id": "F-004",
+      "severity": "Low",
+      "status": "resolved",
+      "phase": "plan",
+      "title": "status vs lifecycle conflation risk",
+      "detail": "take-task flips status; update-status flips lifecycle. Plan documents the axis split to prevent misuse."
+    }
+  ],
+  "openCriticalHigh": 0
+}
