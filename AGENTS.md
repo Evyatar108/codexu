@@ -1023,8 +1023,13 @@ surfaces at THREE levels:
    targeting different plugins (`plugins/crews/`, `plugins/ralph/`,
    `plugins/ralph-overview/`) are parallel-safe at the plugin code level.
    BUT every plugin ship needs to bump `plugin.json`, edit `AGENTS.md`, and
-   prepend `CHANGELOG.md` — and 3 of the 4 marketplace indexes carry
-   `version` fields per plugin. Two impls targeting THE SAME plugin produce
+   prepend `CHANGELOG.md` — and a version bump is SIX version stamps, not
+   four: 3 per-plugin manifests (`<plugin>/.claude-plugin/plugin.json`,
+   `<plugin>/.codex-plugin/plugin.json`, `<plugin>/.github/plugin/plugin.json`)
+   + 3 marketplace indexes (`.claude-plugin/`, `.github/plugin/`,
+   `.agents/plugins/`). The `.codex-plugin` + `.github/plugin` manifests are
+   the classic miss (ralph-overview 2.15.0 shipped with both stale). Two impls
+   targeting THE SAME plugin produce
    conflicting version-file writes and conflicting AGENTS.md/CHANGELOG.md
    prepends. **Same-plugin parallel = conflict; must serialize.**
 
