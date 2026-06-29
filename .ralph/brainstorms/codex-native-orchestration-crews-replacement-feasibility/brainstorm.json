@@ -1,14 +1,14 @@
 {
   "brainstormName": "codex-native-orchestration-crews-replacement-feasibility",
   "overviewTaskId": "codex-native-orchestration-crews-replacement-feasibility",
-  "idea": "FULLY hook-free codex-only crews: a single daemon owns coordination files (no locks) AND push-injects mail into each member's conversation (no Stop-hook veto). Round 3 override of round-2 thin-hook verdict.",
-  "availableLenses": ["codex", "copilot", "devils-advocate"],
-  "missingLenses": [],
+  "idea": "Round 4: fully-hook-free crews with NO rehost — add a loopback mail-inject endpoint to native codex feeding the inject primitives, daemon owns files + injects + reads app-server events; zero hooks, zero rehost.",
+  "availableLenses": ["codex", "devils-advocate"],
+  "missingLenses": [{"lens": "copilot", "reason": "malformed (read-only snapshot budget exceeded on .xwin-cache)"}],
   "candidateDirections": [
-    { "id": "D-001", "name": "Rehost members into happy-cli runCodex; daemon owns files + inject mail + stream-parse output; ZERO crews Node hooks", "summary": "Only path that truly zeroes crews hooks and honors the override; ferry survives as in-process plumbing; soft gate.", "contributingLenses": ["codex", "copilot", "devils-advocate"] },
-    { "id": "D-002", "name": "Native codex tabs stay; daemon owns files; one thin ferry-bridge replaces 4 hooks", "summary": "PARTIAL — fewer hooks not zero; cheapest if rehost too costly.", "contributingLenses": ["devils-advocate"] },
-    { "id": "D-003", "name": "Point-fix locks + advisory gate, no daemon, keep hooks", "summary": "Smallest; fails the operator zero-hook goal.", "contributingLenses": ["devils-advocate"] }
+    {"id": "D-001", "name": "Native codex loopback-IPC inject endpoint (no rehost, no happy-server)", "summary": "Thin overlay listener wired to inject_if_running + maybe_start_turn_for_pending_work; daemon owns files + injects + reads AppServerEvent stream; zero rehost, zero crews hooks.", "contributingLenses": ["codex", "devils-advocate"]},
+    {"id": "D-002", "name": "Reuse codex-happy attach over per-daemon happy-server", "summary": "Encode crews mail as Happy session messages via existing attach inbound; max reuse but re-adds per-daemon happy-server + remote_session dep.", "contributingLenses": ["codex"]},
+    {"id": "D-003", "name": "Bounded file-ownership-only daemon, keep hooks", "summary": "Daemon sole-writes mailbox/cursor/review/crash to kill lock races; members stay native tabs + keep hooks; ~80% win, no inject, no patch, no SPOF.", "contributingLenses": ["devils-advocate"]}
   ],
   "recommendedDirection": "D-001",
-  "questionsForSynthesis": ["Rehost members into happy-cli runCodex acceptable?", "Is in-process ferry hook-free enough?", "SPOF + soft-gate vs localized lock contention acceptable?"]
+  "questionsForSynthesis": ["external IPC vs in-process embed patch size?", "codex-only mono-engine acceptable?", "daemon SPOF recovery vs hooks fail-open?", "is file-ownership-only (D-003) enough?"]
 }
