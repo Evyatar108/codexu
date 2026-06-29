@@ -1,0 +1,10 @@
+{
+  "clusters": [
+    { "name": "codex-spike-reach", "stories": ["US-000", "US-001"], "phase": 1, "dependsOn": [], "fileOverlap": { "shared": ["codex submodule", "happy-cli probe"], "risk": "high" }, "execution_mode": "serial", "rationale": "US-000 BLOCKING gate decides app-server-reuse (likely 0 patch) vs core wake wrapper vs overlay; US-001 only if b/c. Decide D-003 retreat first." },
+    { "name": "happy-cli-daemon", "stories": ["US-002", "US-003", "US-004", "US-005"], "phase": 2, "dependsOn": ["codex-spike-reach"], "fileOverlap": { "shared": ["packages/happy-cli/src/agentComms", "packages/happy-cli/src/daemon"], "risk": "medium" }, "execution_mode": "serial", "rationale": "inject client, event reader+identity, sole-writer+ack, SPOF — one repo job." },
+    { "name": "crews-shrink", "stories": ["US-006", "US-007"], "phase": 3, "dependsOn": ["happy-cli-daemon"], "fileOverlap": { "shared": ["ai-developer-toolkit/plugins/crews"], "risk": "medium" }, "execution_mode": "serial", "rationale": "drop all 5 hooks + pilot after daemon-inject works." }
+  ],
+  "multiRepo": true,
+  "repos": ["codex (submodule)", "codexu/packages/happy-cli", "ai-developer-toolkit/plugins/crews"],
+  "note": "3 repo roots: lead splits into 3 scoped per-repo jobs per docs/multi-repo-split.md. US-000 is a blocking gate that can collapse codex work to ~0 (app-server reuse) or trigger D-003 retreat. Do NOT chain a single --parallel job."
+}
