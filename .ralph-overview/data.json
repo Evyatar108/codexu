@@ -1618,40 +1618,6 @@
       }
     },
     {
-      "id": "ralph-overview-roadmap-import-skill",
-      "scope": "ralph-overview",
-      "lifecycle": "tracked",
-      "status": "active",
-      "lastTouchedAt": "2026-06-27",
-      "kanbanCards": [
-        {
-          "className": "cmd-warn",
-          "html": "No skill exists to bulk-import an existing repo roadmap (ROADMAP.md / TODO / GH issues) into .ralph-overview/data.json -- onboarding a new repo means hand-authoring every task. Sibling to the interactive single-task create-task skill."
-        },
-        {
-          "className": "cmd-warn",
-          "html": "Gap: no bulk roadmap-doc -> data.json importer; create-task is one-at-a-time. Build reusable importer skill in ralph-overview reusing createOnly mutation core. roadmap-plugin (codexu-local single-task wrappers) does NOT replace it."
-        },
-        {
-          "className": "cmd-ok",
-          "html": "Brainstorm shipped @ 6c335483 (3-lens converged): D-001 skill-only /import-roadmap in ralph-overview, single-format ROADMAP.md ##+bullets -> tasks via create-task createOnly (NO batch verb: N atomic writes). Mandatory: editable proposed-tasks.json curate gate + fail-soft skip-existing idempotent apply. Defer CLI/gh/tables. OpenQ: justify SKILL vs thin /create-task loop. Spawn plan next."
-        },
-        {
-          "className": "cmd-ok",
-          "html": "Plan shipped @ 04f0719: 4 serial stories (US-001 SKILL.md import-roadmap, US-002 copilot mirror, US-003 v2.14.3->2.15.0 + 3 indexes + CHANGELOG, US-004 AGENTS tables); 6 Phase-4 findings fixed; SKILL-vs-loop OpenQ resolved. Single ralph-overview submodule job. Impl next."
-        }
-      ],
-      "command": {
-        "name": "ralph-overview-roadmap-import-skill",
-        "prompts": {
-          "brainstorm": "/brainstorm-with-ralph Brainstorm a new SKILL for the ralph-overview plugin that IMPORTS an existing roadmap document from a user's repo and converts it into the .ralph-overview/data.json task format we use for ralph-orchestration.\n\n## What it does\nTake a human-authored roadmap artifact already living in a repo -- a ROADMAP.md, a TODO.md / backlog doc, a checkbox task list, a markdown table of features, or a set of GitHub issues (via gh CLI) -- and produce validated tracked tasks in data.json (each with id, scope, lifecycle=tracked, status, lastTouchedAt, the cmd-warn problem-statement kanban card, and optionally a stage seed for brainstorm/plan/impl).\n\n## Design questions to lens against\n(1) INPUT FORMATS: which to support first (freeform markdown headings/bullets, checkbox lists `- [ ]`, markdown tables, GH issues). How robust must parsing be vs. asking the user to point at a section.\n(2) MAPPING: how to map a loose roadmap line to our schema -- id slugging (collision-safe), scope inference (heuristic vs ask), problem-statement card authoring from the roadmap text, when to emit a stage seed vs leave it for later.\n(3) AMBIGUITY: underspecified items -- ask interactively vs best-effort-with-flag. How much to infer.\n(4) DEDUP: detect items that already map to an existing task id (don't double-file). Across BOTH hot + cold shards.\n(5) CORE REUSE (operator-fixed): MUST reuse the shared id-scoped, atomic, invariant-checked mutation core that backs `node tools/data-edit.mjs upsert-task` (the plugin lib the MCP write tools call), NOT a fresh re-implementation. WRITE-ONLY automation: validated upsert + JSON-parse + task-count + dup-id guards + print a diff for confirmation; does NOT git stage/commit/push (lead/operator owns git side-effects).\n(6) CROSS-ENGINE: Claude Code + Copilot CLI, like the other ralph-overview skills (/triage, /work-on, /blocker-report, /expand-task).\n(7) RELATIONSHIP to ralph-overview-create-task-skill (interactive SINGLE-task creation): this is the BULK/IMPORT sibling. Decide whether they share a common core/flow or are cleanly distinct skills, and how to avoid duplicated logic.\n\nDESIGN the skill: the slash-command name + surface, the input-detection/parsing flow, the field-mapping + ambiguity-resolution UX on both engines, the dedup strategy, and the exact reuse seam into the shared mutation core. Pick a recommendedDirection and analyze the conflict surface (which plugin files it touches, overlap with create-task-skill).",
-          "plan": "/plan-with-ralph --from-brainstorm .ralph/brainstorms/ralph-overview-roadmap-import-skill/ -- skill-only /import-roadmap in ralph-overview: ROADMAP.md ##+bullets -> createOnly tasks, editable proposed-tasks.json curate gate, fail-soft skip-existing apply, bump plugin.json+CHANGELOG+AGENTS table; address SKILL-vs-loop open Q; defer CLI/gh/tables",
-          "impl": "Impl import-roadmap skill per plan 04f0719 (.ralph/jobs/ralph-overview-roadmap-import-skill/plan.md): SKILL.md + copilot mirror + v2.15.0 bump + 3 indexes + CHANGELOG + AGENTS table. RUN: /implement-with-ralph --from-plan .ralph/jobs/ralph-overview-roadmap-import-skill/plan.md --autonomous"
-        },
-        "descriptionHtml": ""
-      }
-    },
-    {
       "id": "ralph-codex-iteration-implementer-effort-high",
       "scope": "ralph-orchestration",
       "lifecycle": "tracked",
