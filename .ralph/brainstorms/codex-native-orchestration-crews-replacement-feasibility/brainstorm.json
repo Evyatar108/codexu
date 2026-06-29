@@ -1,41 +1,14 @@
 {
   "brainstormName": "codex-native-orchestration-crews-replacement-feasibility",
   "overviewTaskId": "codex-native-orchestration-crews-replacement-feasibility",
-  "idea": "D-004 (operator direction, supersedes prior D-001): make ONE persistent daemon the sole owner/writer of crews' durable coordination files, with members talking to it over IPC instead of file-locks + per-process hooks. Preserve Layer B durability (cursor + audit history + operator review-gates + crash-recovery) while eliminating the lock-contention (EPERM/LockTimeout) and hook fragility. Codex-only members acceptable. Daemon vehicle: codex app-server if feasible on Windows, else the happy-cli daemon, else a small dedicated sidecar.",
+  "idea": "FULLY hook-free codex-only crews: a single daemon owns coordination files (no locks) AND push-injects mail into each member's conversation (no Stop-hook veto). Round 3 override of round-2 thin-hook verdict.",
   "availableLenses": ["codex", "copilot", "devils-advocate"],
   "missingLenses": [],
   "candidateDirections": [
-    {
-      "id": "D-001",
-      "name": "Happy-cli daemon owns Layer-B state + a THIN codex hook for the hard gate",
-      "summary": "happy-cli 127.0.0.1 daemon becomes the single-writer owner of crews' coordination state (kills the multi-process locks; substrate ~80% shipped as agent-comms Scope B), while a thin codex Stop/PreToolUse hook that does zero file I/O keeps querying the daemon to preserve the hard decision:block turn-veto. Recommended PARTIAL->GO path.",
-      "contributingLenses": ["codex", "copilot", "devils-advocate"]
-    },
-    {
-      "id": "D-002",
-      "name": "Pure daemon, NO per-process hooks (operator's literal wish) with explicit acceptance the hard gate degrades to advisory",
-      "summary": "Members run with ZERO hooks; the daemon enforces review server-side by refusing the next IPC op + a between-turns MCP wake. Fully grants the verbatim wish but LOSES the hard turn-block (only a Stop hook can veto a codex turn-end), so adopt only with knowing operator acceptance of a soft/advisory gate.",
-      "contributingLenses": ["devils-advocate", "copilot"]
-    },
-    {
-      "id": "D-003",
-      "name": "Point-fix crews' Windows lock sites; question whether a daemon is needed at all",
-      "summary": "Avoid a second-system rewrite: share-delete manifest reads to kill the reader-rename race, an in-process write-queue for the lead, and lean on the fact codex-only migration already shrinks N. Corroborated by prior-brainstorm D-003 + durable-mailbox-channel-wake.md \u00a73 (which already rejected moving crews storage off the filesystem mailbox).",
-      "contributingLenses": ["devils-advocate"]
-    },
-    {
-      "id": "D-004",
-      "name": "Codex app-server itself as the coordination daemon (NO-GO on Windows now)",
-      "summary": "Answers the operator's 'app server if possible?' explicitly: ruled out today because the Rust app-server-daemon is Unix-only, its websocket transport is experimental/unsupported, and the happy-cli app-server client is one-thread-per-process / one-server-per-cwd. Revisit only if codex ships supported Windows daemon lifecycle + durable multi-client coordination + a hard turn-complete policy hook.",
-      "contributingLenses": ["copilot"]
-    }
+    { "id": "D-001", "name": "Rehost members into happy-cli runCodex; daemon owns files + inject mail + stream-parse output; ZERO crews Node hooks", "summary": "Only path that truly zeroes crews hooks and honors the override; ferry survives as in-process plumbing; soft gate.", "contributingLenses": ["codex", "copilot", "devils-advocate"] },
+    { "id": "D-002", "name": "Native codex tabs stay; daemon owns files; one thin ferry-bridge replaces 4 hooks", "summary": "PARTIAL — fewer hooks not zero; cheapest if rehost too costly.", "contributingLenses": ["devils-advocate"] },
+    { "id": "D-003", "name": "Point-fix locks + advisory gate, no daemon, keep hooks", "summary": "Smallest; fails the operator zero-hook goal.", "contributingLenses": ["devils-advocate"] }
   ],
   "recommendedDirection": "D-001",
-  "questionsForSynthesis": [
-    "Does the operator ACCEPT downgrading the hard turn-block (Stop decision:block) to a cooperative/advisory daemon gate (-> D-002), or is hard parity required (-> D-001 thin hook)? This single decision picks the direction.",
-    "Forensics: do the EPERM/LockTimeout incidents originate in concurrent WRITES (a single-writer daemon fixes these) or concurrent manifest READS (the FILE_SHARE_DELETE rename race at pre-tool-use.js:583, which needs single-ACCESSOR)? Decides the rewrite size.",
-    "Must history.jsonl become fail-loud (it is best-effort today at mailbox.ts:255-266) before crews audit behavior is retired?",
-    "Who owns the daemon's Windows lifecycle (start-on-login, crash-restart, supervised service), and is the daemon-SPOF blast radius acceptable vs today's localized per-member lock contention?",
-    "Is cross-engine loss (Claude/Copilot members) fully accepted for ralph brainstorm/plan lenses too, or only for routine members?"
-  ]
+  "questionsForSynthesis": ["Rehost members into happy-cli runCodex acceptable?", "Is in-process ferry hook-free enough?", "SPOF + soft-gate vs localized lock contention acceptable?"]
 }
