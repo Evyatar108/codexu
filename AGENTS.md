@@ -1314,6 +1314,21 @@ canonical "closeout-missed → file separate task to drive it" pattern.
 
 ### Architectural-fix preference
 
+- **The codex fork (`codex-patched` + `codex-rs-overlay`) is OURS to EXTEND —
+  treat fork-extension as a first-class option, not codex as a black-box
+  engine to adapt around (codified 2026-06-28).** A small overlay patch is a
+  normal move (we ship them routinely). When seeding any codex-orchestration /
+  crews-replacement / autoconnect brainstorm, EXPLICITLY state this so the
+  design considers "add a thin endpoint/seam to native codex" alongside "wrap
+  it in happy-cli / runCodex / adapt around it." Root cause of a 4-round
+  crews-replacement brainstorm churn: seeds emphasized crews/happy-cli +
+  "app-server-if-feasible" and the disconfirming baseline
+  (`plans/durable-mailbox-channel-wake.md`) leaned keep-crews, so rounds 2-3
+  concluded "rehost members into happy-cli runCodex" (the off-the-shelf inject
+  consumer) — until the operator noted "the fork is ours," and round 4 found a
+  cheaper native-codex inject endpoint (zero hooks/locks/rehost). Bake
+  fork-extension into the seed up front.
+
 - **When a long-running coordination component (MCP server, watcher,
   daemon) misbehaves in normal multi-session use, propose an architectural
   fix — NOT a process-kill workaround.** "Kill the conflicting watchers and
