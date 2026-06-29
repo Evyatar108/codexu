@@ -1,0 +1,46 @@
+{
+  "brainstormName": "ralph-overview-roadmap-import-skill",
+  "overviewTaskId": "ralph-overview-roadmap-import-skill",
+  "idea": "A reusable ralph-overview marketplace skill that imports an existing roadmap doc (ROADMAP.md headings/bullets, TODO/checkbox lists, markdown tables, or gh issues) into validated tracked tasks in .ralph-overview/data.json, reusing the createOnly mutation core; dedup ids vs hot+cold shards; confirm parsed set before write; cheapest first version (1-2 formats), defer rest.",
+  "availableLenses": ["codex", "copilot", "devils-advocate"],
+  "missingLenses": [],
+  "candidateDirections": [
+    {
+      "id": "D-001",
+      "name": "Skill-only single-format checkbox/heading importer reusing create-task path",
+      "summary": "New /import-roadmap skill parses one format (ROADMAP.md ## headings + - / - [ ] bullets) inline, assembles canonical create-task shapes, writes via overview.upsert_task createOnly + data-edit --create-only fallback; no new core code or dispatcher subcommand.",
+      "contributingLenses": ["codex", "copilot", "devils-advocate"]
+    },
+    {
+      "id": "D-002",
+      "name": "Mandatory dry-run preview + editable proposed-tasks.json curate gate",
+      "summary": "Non-writing pass normalizes candidates, dedups vs hot+cold, emits exact createOnly ops to an editable proposed-tasks.json so operator prunes/edits scope + seeds prompts (kebab heading yields inert stubs without it) before any write.",
+      "contributingLenses": ["copilot", "devils-advocate"]
+    },
+    {
+      "id": "D-003",
+      "name": "Idempotent fail-soft batch apply with manifest (skip-existing, continue)",
+      "summary": "No batch verb exists (runVerb = one task per lock/atomicWrite), so apply is N inserts: skip-existing, continue on per-item createOnly reject, print created/skipped/collided/invalid manifest, deterministic kebab makes re-run a no-op.",
+      "contributingLenses": ["devils-advocate"]
+    },
+    {
+      "id": "D-004",
+      "name": "Deterministic import-roadmap CLI + lib + thin skill wrapper",
+      "summary": "scripts/lib/import-roadmap.mjs + bin dispatcher subcommand + tests + machine dry-run; overbuilt for v1, defer until skill fragility is proven.",
+      "contributingLenses": ["codex"]
+    },
+    {
+      "id": "D-005",
+      "name": "GitHub issues + markdown tables deferred behind same canonical writer",
+      "summary": "Defer gh issues (auth/remote/pagination/rate-limit scope creep) and tables; accept only operator-supplied JSON export later if needed.",
+      "contributingLenses": ["codex", "copilot"]
+    }
+  ],
+  "recommendedDirection": "D-001",
+  "questionsForSynthesis": [
+    "How often does a consumer have a parseable ROADMAP.md? If roadmaps are imported once, does this justify a SKILL vs a thin /create-task loop?",
+    "Imported stubs have no derivable prompts seeds; an editable proposed-tasks.json (D-002) is the curate gate that makes them trackable — confirm that gate is non-negotiable.",
+    "On mid-batch createOnly reject: skip-existing+continue (D-003) not abort — confirm idempotent deterministic-kebab re-run is acceptable.",
+    "v1 input format: ROADMAP.md heading+checkbox/bullet only, tables + gh issues deferred?"
+  ]
+}
