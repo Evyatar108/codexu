@@ -1674,7 +1674,7 @@
       "scope": "codex|codexu",
       "lifecycle": "tracked",
       "status": "active",
-      "lastTouchedAt": "2026-06-29T07:01:34.013Z",
+      "lastTouchedAt": "2026-06-29T07:09:11.898Z",
       "kanbanCards": [
         {
           "className": "cmd-warn",
@@ -1715,6 +1715,10 @@
         {
           "className": "cmd-warn",
           "html": "CAUTION: US-000 spike 0-codex-patch verdict (A) CONTESTED vs round-4 @26becdba (inject primitives in-process, attach.rs needs ~/.happy+remote_session = small patch likely). verify-zeropatch-i1 settling against source. Do NOT start full impl until verdict: ZERO-PATCH (reuse remote_session) vs PATCH-REQUIRED (overlay local-IPC seam). Impl scope/effort hinges on this."
+        },
+        {
+          "className": "cmd-ok",
+          "html": "RESOLVED (verify-zeropatch-i1): spike A was MISLEADING. Native & codex injection = PATCH-REQUIRED (small overlay inject seam, per D-006) -- operator skepticism correct. 0-patch ONLY if members run via remote_session+loopback happy-server or app-server stdio (a wrap/rehost). So impl = small codex overlay patch (native, clean, our fork) OR wrap-no-patch. Recommend small overlay patch. NOT single-repo: codex overlay + happy-cli daemon + crews hooks."
         }
       ],
       "command": {
