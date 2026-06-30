@@ -1,0 +1,77 @@
+{
+  "plan": "plan.md",
+  "reviewers": ["self-phase4"],
+  "findings": [
+    {
+      "id": "F-001",
+      "severity": "high",
+      "status": "resolved",
+      "title": "happy-server must stay compilable between US-001 (schema move-out) and US-006 (route delete)",
+      "detail": "US-001 relocates SenderKeysSchema/AgentCommsIngestBodySchema/routeHopValidation/hasDuplicate to @slopus/happy-wire, but the happy-server route that consumes them is not deleted until US-006. If US-001 just deletes the symbols from happy-server, agentCommsIngestRoutes.ts stops compiling for the whole gap. RESOLUTION: US-001 AC now mandates re-pointing the still-present agentCommsIngestRoutes.ts to import the moved symbols from @slopus/happy-wire so `pnpm --filter happy-server build` is green after US-001 alone; US-006 then deletes the file. Ordering hazard removed."
+    },
+    {
+      "id": "F-002",
+      "severity": "high",
+      "status": "resolved",
+      "title": "routeHopValidation is not inside ingestHandler.ts; the new listener must call it or MAX_HOPS/hopPath caps are silently lost",
+      "detail": "ingestHandler.ts validates target-machine + channel/kind but does NOT check hopCount > MAX_HOPS or hopPath duplicate/loop — those run in the happy-server ROUTE via routeHopValidation. Moving ingest to a new listener risks dropping hop enforcement. RESOLUTION: US-002 scope+AC explicitly require the listener to run routeHopValidation before invoking the handler, with unit tests for MAX_HOPS / duplicate hopPath / target-in-hopPath returning 400. Added an explicit note to the plan Risk section."
+    },
+    {
+      "id": "F-003",
+      "severity": "high",
+      "status": "resolved",
+      "title": "D-004 Option A depends on devtunnel forwarding a second registered port; unverified assumption could invalidate the whole approach",
+      "detail": "Option A (second forwarded Dev Tunnel port) assumes `devtunnel host <tunnelId>` forwards a second registered port to the same-numbered local port and that it is reachable with the same tunnel-scoped connect token. If false, Option A cannot work. RESOLUTION: US-003 now requires a real `devtunnel` two-port smoke (register two ports, host, curl the second through the tunnel) BEFORE impl depends on it, with an explicit escalate-and-fall-back-to-Option-B path. Recorded as a load-bearing assumption in the plan Risk section."
+    },
+    {
+      "id": "F-004",
+      "severity": "high",
+      "status": "resolved",
+      "title": "Existing peer pins lack ingestPort and would resolve to the old happy-server port (now 404)",
+      "detail": "After Option A, ingestUrl selects the peer's ingest port from the pin hint. A peer pinned before this change has no ingestPort, so discovery resolves to the old tunnel-port URL which no longer serves ingest. RESOLUTION: Scope A live cross-machine delivery is still deferred/unwired (plan §5.6), so no production pins exist today — acceptable. US-005 AC now requires resolvePeerTarget to emit a clear, actionable error when a pinned peer has no ingestPort (instead of silently targeting the wrong port), and the plan documents that pins created from now on must include ingestPort."
+    },
+    {
+      "id": "F-005",
+      "severity": "high",
+      "status": "resolved",
+      "title": "Tablet/CLI mobile+session plane must not be stranded by removing the embedded server",
+      "detail": "The brainstorm's central guardrail: the embedded happy-server stays for the tablet/CLI mobile+session plane; only the ingest path moves. RESOLUTION: Option A keeps the embedded server bind path byte-for-byte unchanged (no serverFactory dispatch, no Socket.IO-on-shared-server). US-004 only stops injecting agentCommsIngest into sharedContext and US-006 removes the route; the embedded tunnel+loopback listeners and their other routes are untouched. Acceptance criterion #2 in plan.md asserts the embedded server still starts and serves the tablet plane."
+    },
+    {
+      "id": "F-006",
+      "severity": "medium",
+      "status": "resolved",
+      "title": "ingest listener must serve ONLY POST /agent-comms/ingest on the second public port",
+      "detail": "The second forwarded port is publicly reachable through the Dev Tunnel gateway with the same no-backend-layer-1 trust model as today's single-port ingest. It must not accidentally expose anything else. RESOLUTION: US-002 specifies a single-route Fastify instance (one POST route only), mirroring controlServer.ts; tests assert only that route exists. No new risk class vs. today's ingest trust model."
+    },
+    {
+      "id": "F-007",
+      "severity": "medium",
+      "status": "resolved",
+      "title": "No X-Loopback-Capability gate on the ingest listener (ingest arrives via tunnel, not loopback)",
+      "detail": "Ingest traffic arrives over the Dev Tunnel (gateway-validated, X-Tunnel-Authorization stripped before the backend), not via the loopback control channel. Adding a loopback-capability gate would reject legitimate ingest. RESOLUTION: US-002 explicitly omits the X-Loopback-Capability gate; the 127.0.0.1 bind + the Dev Tunnels gateway IS layer 1, matching the existing /agent-comms/send control-route pattern and the no-op authenticateTunnel decorator (api.ts:77-79)."
+    },
+    {
+      "id": "F-008",
+      "severity": "medium",
+      "status": "resolved",
+      "title": "happy-wire dist must be rebuilt after the schema relocation",
+      "detail": "happy-server's older module resolution consumes happy-wire's built dist, not its TS source. Relocating the schema without rebuilding would break happy-server's import. RESOLUTION: US-001 scope includes `pnpm --filter happy-wire build` after the move, per packages/happy-wire/AGENTS.md, before downstream typechecks run."
+    },
+    {
+      "id": "F-009",
+      "severity": "medium",
+      "status": "resolved",
+      "title": "ingestPort must be a stable persisted port matching the registered tunnel port (not port:0)",
+      "detail": "`devtunnel host` forwards a registered tunnel port to the SAME-numbered local port, so the listener cannot bind an ephemeral port:0 — it must bind the exact persisted ingestPort that was registered via ensurePort. RESOLUTION: US-003 persists ingestPort in machine.json (allocate once via pickFreeLoopbackPort when absent, reuse otherwise) and registers that exact port on the tunnel before startHost; US-002's listener binds that provided port. Captured in the plan Risk section."
+    },
+    {
+      "id": "F-010",
+      "severity": "low",
+      "status": "resolved",
+      "title": "scopeA.integration.test.ts hard-codes the old ingest URL and a fetch mock",
+      "detail": "The integration test asserts the URL https://machine-b-3005.devtunnels.ms/agent-comms/ingest and uses a fetch mock that calls the handler directly. After the port change + real-listener round-trip it must be updated. RESOLUTION: US-007 updates the expected URL to the ingest-port host and boots the real ingestServer for an append round-trip while keeping the full crypto-rejection + spawn-approval matrix."
+    }
+  ],
+  "openCriticalHigh": 0
+}
