@@ -1,0 +1,68 @@
+{
+  "task": "codex-autoconnect-northstar-design-doc",
+  "recommendedDirection": "D-001 — Two planes + pluggable transports: the codex app-server v2 request surface is the universal CONTROL plane, the per-daemon embedded happy-server is the universal SESSION plane, and Happy-app remote-control, the crews daemon-inject, and the public evyatar.dev endpoint are three consumers of those same two planes (not three separate features).",
+  "directions": [
+    {
+      "id": "D-001",
+      "summary": "Unify on two planes + pluggable transports. CONTROL plane = codex app-server v2 requests (turn/start, turn/steer, turn/interrupt, thread/inject_items, approvals) driven in-process by the native codex-happy overlay (attach/inbound/mapping). SESSION plane = the per-daemon embedded happy-server (/v1/updates, /v3, /pair/*, /agent-comms/ingest) that codex-happy/session.rs is the native client of. Transports (loopback, Dev Tunnels, Cloudflare public, future LAN) are pluggable carriers of the same protocol, secured by one @slopus/happy-wire app-layer contract. Happy app, crews daemon, and the public endpoint are additive DRIVERS/TRANSPORTS over the same two planes.",
+      "pros": [
+        "Zero / near-zero new upstream-canonical codex patch: the app-server already exposes the complete remote-drive surface and the codex-happy overlay already drives it (attach.rs:1038 + inbound.rs plan_turn). Honors codex tenant #1 (minimize conflict surface).",
+        "Each adjacent workstream collapses into an ADDITIVE consumer: crews daemon-inject is just a SECOND driver of turn/start+turn/steer; the public endpoint is just another TRANSPORT for the same session plane. No duplicated transport/auth stacks.",
+        "Crypto + wire contract defined ONCE in @slopus/happy-wire and consumed by server/app/cli/codex-happy, killing the current two-Ed25519-scheme drift (public device-verifier vs agent-comms Scope A peer auth).",
+        "Matches every operator invariant already on record: no central server (per-daemon embedded happy-server is the hub), pluggable transport (Dev Tunnels OR Cloudflare OR LAN), and 'the fork is ours to extend'.",
+        "codex stays loopback-only on every transport (daemon_supervisor.rs attaches to 127.0.0.1:<tunnelPort>), so the public edge / Dev-Tunnel edge is always the daemon's concern, never codex's — a clean, stable security boundary."
+      ],
+      "cons": [
+        "Needs a deliberate transport-abstraction layer in happy-cli (generalize DaemonTunnelProvider / dualListenerBinding) and a reconciliation of the two Ed25519 envelopes into one happy-wire contract — real, if bounded, refactor.",
+        "The 'idle-wake' control verb must be settled first (M1): thread/inject_items is RECORD-only (no turn) and turn/steer errors when idle, so 'make the agent ACT on an injected message' is turn/start today — fine for mobile, but it bypasses the gated try_start_turn_if_idle semantics an extension might want.",
+        "The crews daemon driver is codex-only (mono-engine): Claude/Copilot members have no app-server inject seam.",
+        "Steady state keeps a Node embedded happy-server (Phase-2 Rust server not built), so happy-cli cannot actually be dropped yet."
+      ]
+    },
+    {
+      "id": "D-002",
+      "summary": "Native-maximal: push everything into codex (codex-happy + a NEW app-server turn/startIfIdle verb delegating to CodexThread::try_start_turn_if_idle) and shrink happy-cli to a thin transport/host shell.",
+      "pros": [
+        "Most native, least Node; strongly aligned with 'the fork is ours to extend'.",
+        "A first-class gated idle-wake request (turn/startIfIdle) gives extensions/daemons the correct 'don't trample queued user work / Plan mode' semantics instead of a blunt turn/start.",
+        "One language (Rust) for control + session if paired with the Phase-2 embedded server."
+      ],
+      "cons": [
+        "Adds upstream-canonical app-server surface (new v2 ClientRequest + processor + schema), widening rebase conflict surface — against codex tenant #1 and the overlay-first rule.",
+        "The embedded happy-server is still Node today; you cannot drop happy-cli until the Phase-2 Rust server lands, so 'thin happy-cli' is aspirational for the near term.",
+        "Bigger codex blast radius and slower to ship; over-builds for the crews/mobile cases that turn/start already covers."
+      ]
+    },
+    {
+      "id": "D-003",
+      "summary": "Keep the three workstreams independent; only standardize the shared @slopus/happy-wire signed-request contract as the single common artifact, and let each workstream ship on its own seam.",
+      "pros": [
+        "Least coordination overhead; each workstream ships on its own cadence.",
+        "Still removes the worst drift risk by forcing one signed-request schema + test vectors."
+      ],
+      "cons": [
+        "Defeats the task's purpose — there is no unifying north-star architecture, just three features that happen to share a schema.",
+        "Duplicated transport-selection and session-plane wiring across happy-cli paths; long-term maintenance tax and divergence.",
+        "Misses the leverage insight that all three are consumers of the SAME control + session planes."
+      ]
+    },
+    {
+      "id": "D-004",
+      "summary": "Central broker reuse — route remote-control / fan-out through a shared central happy-server (e.g. a revived happy.evyatar.dev central instance).",
+      "pros": [
+        "Conceptually simple device-reachability story (one well-known address)."
+      ],
+      "cons": [
+        "Explicitly REJECTED by AGENTS.md ('no central server; each daemon embeds its own happy-server') and agent-comms-design.md §5.2 (the embedded happy-server is an endpoint, not a broker; central broker is rejected).",
+        "The retired happy.evyatar.dev central instance is flagged do-not-reuse; the single-user plan exposes the operator's OWN per-daemon server, not a broker.",
+        "Listed only to record the rejected option."
+      ]
+    }
+  ],
+  "openQuestions": [
+    "Idle-wake verb (the single most load-bearing seam, = crews-replacement US-000): reuse turn/start (works today via inbound.rs plan_turn, but bypasses try_start_turn_if_idle's gating for queued user work / Plan mode) vs add a gated app-server turn/startIfIdle request delegating to the already-pub CodexThread::try_start_turn_if_idle (codex_thread.rs:318)? Which semantic does mobile-message want vs crews-mail?",
+    "One crypto contract or two siblings? agent-comms Scope A peer auth uses Ed25519 server-key + X25519 ecdh-key (TofuKeypairs), explicitly NOT machineKey (agent-comms §5.5); the public transport uses Ed25519 paired-DEVICE keys + Cloudflare Access. Can these truly unify into one @slopus/happy-wire signed-request envelope (machine<->machine vs device<->server have different key roles + pinning), or do they stay sibling schemas sharing only canonicalization/nonce/body-hash?",
+    "Phase-2 embedded Rust session server timing: the embedded happy-server is still Node (happy-cli); codex-happy/daemon_supervisor.rs Phase-2 Rust server is unbuilt. Is 'native codex-happy client + Node embedded server' the steady state, or is the Rust server a north-star prerequisite (it is what would let /remote on run fully Node-free and let happy-cli shrink)?",
+    "Mono-engine acceptable? The crews daemon-inject driver only works for codex members (no app-server seam for Claude/Copilot). Is codex-only the accepted north-star, or is a cross-engine driver abstraction in scope?"
+  ]
+}
