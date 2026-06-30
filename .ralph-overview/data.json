@@ -1724,6 +1724,10 @@
         {
           "className": "cmd-ok",
           "html": "RESOLVED (verify-zeropatch-i1): spike A was MISLEADING. Native & codex injection = PATCH-REQUIRED (small overlay inject seam, per D-006) -- operator skepticism correct. 0-patch ONLY if members run via remote_session+loopback happy-server or app-server stdio (a wrap/rehost). So impl = small codex overlay patch (native, clean, our fork) OR wrap-no-patch. Recommend small overlay patch. NOT single-repo: codex overlay + happy-cli daemon + crews hooks."
+        },
+        {
+          "className": "cmd-ok",
+          "html": "P1 (codex US-001 loopback_inject seam) SHIPPED via sub-agent @ codexu 6c7a1041. Inner b73319be29 (sandbox-patches) + wrapper 71869c89b4 (codex main, gim-home). Inert default-off Feature::LoopbackInject (mirrors RemoteSession) + 2 SANDBOX PATCH markers pinning pub CodexThread::inject_if_running (steer) + try_start_turn_if_idle (idle-wake) + patch-surface invariants 69/70 + rebase-guard tests. cargo check --workspace PASSED; 11 invariant tests pass. No release (inert until P2). Compatible w/ northstar M1 (both turn/start & startIfIdle go through these pinned wrappers). NEXT: P2 happy-cli loopback daemon, then P3 crews hook removal."
         }
       ],
       "command": {
