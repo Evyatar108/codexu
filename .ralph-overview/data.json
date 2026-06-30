@@ -1489,7 +1489,8 @@
         "name": "codex-autoconnect-northstar-design-doc",
         "descriptionHtml": "Produce a self-contained INTERACTIVE HTML design doc (<code>docs/codex-autoconnect-northstar.html</code>) visualizing the NORTHSTAR for raw-codex autoconnect zero-friction &mdash; the per-machine-daemon + Microsoft Dev Tunnels architecture (no central server), the zero-friction new-user flow, current-vs-northstar, and the daemon-ownership open decision shown both ways &mdash; so the operator can easily understand + decide. Operator 2026-06-23: \"some design doc with diagrams etc that show a visualization of the flow (expected, northstar)... It can be html.\" Companion to <code>codex-autoconnect-self-contained-zero-friction</code> (whose brainstorm settles the daemon-ownership in parallel).",
         "prompts": {
-          "brainstorm": "/brainstorm-with-ralph North-star design doc for happy remote-control of codex via its app-server (thread/inject_items + turn/steer + remote_session), tying together crews-replacement P2 daemon + single-user public server; sequence milestones"
+          "brainstorm": "/brainstorm-with-ralph North-star design doc for happy remote-control of codex via its app-server (thread/inject_items + turn/steer + remote_session), tying together crews-replacement P2 daemon + single-user public server; sequence milestones",
+          "plan": "Plan the north-star milestones from brainstorm 3028bd29 (.ralph/brainstorms/codex-autoconnect-northstar-design-doc/selected-direction.md). Sequence M1 control-verb decision (BLOCKING) -> M2 unify happy-wire signed-request contract -> M3 pluggable transport abstraction. Note ties to crews-replacement P2 + single-user public server."
         }
       },
       "kanbanCards": [
@@ -1500,6 +1501,10 @@
         {
           "className": "cmd-ok",
           "html": "DRAFT shipped @ <code>85d2dfba</code> (member design-doc-northstar): interactive self-contained <code>docs/codex-autoconnect-northstar.html</code> &mdash; SVG architecture (codex session &rarr; per-daemon embedded happy-server <code>127.0.0.1:&lt;tunnelPort&gt;</code> &rarr; Dev Tunnel &rarr; Happy clients remote/local; crossed-out NO central server; E2EE), hover-for-cited-details, A/B daemon-ownership toggle, step-through new-user flow (first-run/every-run/OPEN badges), today-vs-northstar. PENDING FINAL UPDATE: shows 2 daemon options (codex-native vs auto-managed happy-cli); operator raised a 3rd (native Rust happy-server crate) 2026-06-23 &mdash; add it + lock the chosen approach after the feasibility decision.\r\n"
+        },
+        {
+          "className": "cmd-ok",
+          "html": "Brainstorm shipped @ 3028bd29: D-001 two-planes + pluggable transports. App-server v2 = universal CONTROL plane; per-daemon embedded happy-server = universal SESSION plane; Happy app + crews daemon-inject + public evyatar.dev are 3 CONSUMERS of the same 2 planes. Milestones M0(shipped)->M7. KEY CORRECTION: thread/inject_items is record-only (codex_thread.rs:456); making agent ACT needs turn/start (turn/steer errors when idle, turn_processor.rs:857) -> crews driver near-zero codex patch via turn/start. OpenQ: turn/start vs gated turn/startIfIdle; one crypto contract or two; Phase-2 Rust server timing."
         }
       ]
     },
