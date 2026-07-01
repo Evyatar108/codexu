@@ -1,0 +1,83 @@
+{
+  "task": "codex-autoconnect-auto-daemon-and-auto-attach",
+  "researchOnly": true,
+  "date": "2026-07-01",
+  "recommendedDirection": "D-001 — New default-off experimental Feature::RemoteAutoAttach whose startup trigger reuses the shipped /remote on machinery (daemon ensure_running + SetRemoteSession) minus the interactive onboard, so a fresh codex TUI attaches to Happy with nothing typed once credentials exist.",
+  "sources": [
+    "codex/external/repos/codex-patched/codex-rs/tui/src/app.rs:770,1028-1055,597,1243",
+    "codex/external/repos/codex-patched/codex-rs/tui/src/chatwidget/slash_dispatch.rs:79-149",
+    "codex/external/repos/codex-patched/codex-rs/tui/src/app/event_dispatch.rs:52-84,119",
+    "codex/external/repos/codex-patched/codex-rs/tui/src/app_event.rs:214,223",
+    "codex/external/repos/codex-patched/codex-rs/features/src/lib.rs:177,1078-1087",
+    "codex/codex-rs-overlay/codex-happy/src/attach.rs:108-127,168-190,210-224,447-503,746",
+    "codex/codex-rs-overlay/codex-happy/src/daemon_supervisor.rs (SessionPlaneSupervisor, NodeDaemonSupervisor::with_os_host, ensure_running, spawn_happy_daemon)",
+    "codex/codex-rs-overlay/codex-copilot-launcher/src/config.rs:8,29-36,120-131",
+    "codex/docs/implementation/patch-surface.md §14 rows 54,55,56,59,60,62",
+    "codex/.ralph/brainstorms/codex-autoconnect-northstar-design-doc/selected-direction.md (M0 baseline)"
+  ],
+  "directions": [
+    {
+      "id": "D-001",
+      "summary": "Add a new experimental gate Feature::RemoteAutoAttach (key remote_auto_attach, Stage::Experimental, default_enabled:false), mirroring Feature::RemoteSession (features/src/lib.rs:177,1078-1087). In App::run (tui/src/app.rs, the async constructor at :770), next to the existing happy_tap gate (:1028-1048), when RemoteAutoAttach is enabled spawn a silent background auto_attach_flow that reuses the exact /remote on sequence minus the interactive device-flow: (1) if codex_happy::attach::has_credentials() is false, emit ONE passive onboarding hint (AppEvent::RemoteSessionNotice, Info level) — 'Run /remote on to connect this session to Happy' — and return (no error, no auto-browser); (2) otherwise NodeDaemonSupervisor::with_os_host(home).ensure_running() (start-if-absent daemon, daemon_supervisor.rs); (3) send AppEvent::SetRemoteSession{enabled:true} (app_event.rs:214), which drives the SINGLE existing attach path apply_remote_session_toggle -> maybe_attach_reporting (event_dispatch.rs:52-84). Per-session opt-out is the already-shipped /remote off (drops happy_tap). Optional launcher convenience: add enable_remote_auto_attach to ~/.codex-copilot/config.toml (config.rs), emitted only-when-opted-in exactly like enable_remote_session (config.rs:129-131), so the operator sets it once and every subsequent session auto-attaches.",
+      "pros": [
+        "Smallest wedge: reuses 100% of the shipped M0 attach + daemon-supervisor + SetRemoteSession machinery; the ONLY genuinely new code is one Feature enum+spec, one small startup trigger in app.rs, and one auto_attach_flow function that is a trimmed copy of remote_on_flow (slash_dispatch.rs:79-149).",
+        "Honors the operator's explicit convention: a NEW experimental feature (default-off 'until proven'), not an ad-hoc config bool — exactly parallel to Feature::RemoteSession (patch-surface §14 row 55).",
+        "Cannot regress the manual /remote on path: both funnel through the same SetRemoteSession -> apply_remote_session_toggle -> single attach chain; auto is just the default that fires the same intent automatically. Vanilla codex (feature off) is byte-identical to today.",
+        "Daemon lifecycle requirements fall out for free: ensure_running is start-if-absent + health-only and NEVER stops/restarts a foreign daemon (F-005, daemon_supervisor.rs); spawn_happy_daemon is detached (Stdio::null) so the daemon stays resident after codex exits — 'auto-start on first session, stays resident, not per-session spawn, not a boot service' with zero new lifecycle code.",
+        "Non-blocking: the trigger is a tokio::spawn using app_event_tx.clone(); the first interactive prompt is never delayed (same guarantee maybe_attach already gives, attach.rs:168-190).",
+        "The launcher config.toml flag gives a true 'set-once' zero-friction surface without ever force-emitting the feature (mirrors the deliberate remote_session never-force policy, config.rs:29-36)."
+      ],
+      "cons": [
+        "Adds a new upstream-canonical surface (one more Feature variant/spec + a few lines in app.rs, a new AppEvent-driven flow) that must be replanted on each /rebase-upstream and needs a new patch-surface §14 invariant row + §15 replant note.",
+        "Status coherence gap: apply_remote_session_toggle attaches but does NOT flip Feature::RemoteSession (only the /remote slash handler calls set_feature_enabled, slash_dispatch.rs:841), so `/remote` would report 'off' while auto-attached unless the auto path also flips the flag (small extra step — see open question).",
+        "Attach-failure verbosity: reusing maybe_attach_reporting surfaces SessionCreateFailed/ConnectFailed loudly; a background auto-attach may prefer a quieter notice than the intent path (minor; creds+daemon were just verified so a failure here is genuinely worth surfacing)."
+      ]
+    },
+    {
+      "id": "D-002",
+      "summary": "No new feature: overload the existing Feature::RemoteSession so that when it is enabled at startup the constructor path (app.rs:1034) ALSO runs ensure_running before attaching, making remote_session=true mean 'auto-start daemon + auto-attach'.",
+      "pros": [
+        "Zero new Feature surface; one gate to reason about.",
+        "Fewer patch-surface rows."
+      ],
+      "cons": [
+        "Violates the operator's stated convention of a NEW default-off experimental feature.",
+        "Silently changes the meaning of the shipped remote_session=true (today: 'attach to an ALREADY-running daemon, silent fallback if none' — establish_at returns NoDaemon and falls back, attach.rs:463) into 'start a daemon' — a behavior regression for anyone who set remote_session=true expecting the current silent semantics.",
+        "Conflates 'mirror this session' with 'own the machine daemon lifecycle', removing the ability to opt into mirroring-without-autostart."
+      ]
+    },
+    {
+      "id": "D-003",
+      "summary": "Launcher-driven daemon prestart: have codex-copilot-launcher spawn `happy daemon start-sync` before exec'ing codex-core, and gate attach separately.",
+      "pros": [
+        "Daemon is ready before the TUI even starts, so the attach's 8s CONNECT_BUDGET (attach.rs) never races daemon bring-up.",
+        "The launcher already owns first-run setup and config emission (config.rs)."
+      ],
+      "cons": [
+        "Too coarse: the launcher runs for EVERY codex invocation (including headless `codex exec`, non-remote sessions, and users who never onboarded), so it would start a daemon unconditionally — the opposite of 'only once onboarded'.",
+        "The launcher cannot self-onboard-gate cleanly and cannot drive the in-process attach (attach is TUI-internal via happy_tap, app.rs:597/1243), so it solves only half the problem.",
+        "Its genuinely useful part — a persistent `enable_remote_auto_attach` config.toml flag — is already folded into D-001 as the set-once surface, without the unconditional-daemon downside."
+      ]
+    },
+    {
+      "id": "D-004",
+      "summary": "Auto-run the full interactive GitHub device-flow onboard at startup when no creds exist, so even a never-onboarded machine attaches with nothing typed.",
+      "pros": [
+        "Truly zero-typing even on first ever run."
+      ],
+      "cons": [
+        "Intrusive and user-hostile: opens a browser + prints a device code on the FIRST fresh codex a user ever launches, before any consent.",
+        "Directly contradicts the operator's failure-mode requirement: 'no creds yet -> fall back to the onboarding prompt rather than erroring' (a PROMPT, not an auto-launched device flow).",
+        "Onboarding is inherently interactive (minutes-long poll, remote_on.rs run_self_onboard); forcing it at startup breaks the 'zero friction' goal it purports to serve."
+      ]
+    }
+  ],
+  "openQuestions": [
+    "Naming: Feature::RemoteAutoAttach / key remote_auto_attach vs Feature::AutoRemoteSession — pick one and register it in the fork-visibility cluster next to RemoteSession/LoopbackInject (features/src/lib.rs:177-182).",
+    "Should the auto-attach path also call set_feature_enabled(Feature::RemoteSession, true) so `/remote` status + `/remote off` semantics stay coherent, or introduce a distinct runtime 'attached' indicator? apply_remote_session_toggle does not flip the flag today (event_dispatch.rs:52-84).",
+    "Quiet vs loud attach failures at startup: reuse maybe_attach_reporting (loud, like /remote on) or add a quiet variant/flag on SetRemoteSession for the background auto path?",
+    "SessionConflict is NOT a real AttachError variant today — attach.rs:108-127 defines only NoCredentials/NoDaemon/SessionCreateFailed/ConnectFailed, and session_tag() is a fresh Uuid per attach (attach.rs:746) so concurrent auto-attached sessions each get a distinct Happy session and do NOT collide. Confirm the operator's 'SessionConflict' concern belongs to the sibling codex-daemon-same-identity-reattach task (resume/fork racing the SAME session id), not this wedge.",
+    "Mid-session daemon crash: start_smart_reconnect (attach.rs:502) handles transient socket drops, but if the daemon PROCESS dies its tunnel listener vanishes and reconnect fails; auto-respawn mid-session is not handled by ensure_running (which only start-if-absent at session start). Is next-session respawn sufficient for v1, or is a mid-session watchdog in scope?",
+    "Do we want an env-var per-session opt-out (e.g. HAPPY_NO_AUTO_ATTACH=1) for scripted/CI codex runs, in addition to /remote off, so automation can suppress attach without touching config? (Mirror the HAPPY_CURRENT_SESSION_ID skip guard, attach.rs:67-70/202.)"
+  ]
+}
