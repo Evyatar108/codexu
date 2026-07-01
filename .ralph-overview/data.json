@@ -1728,6 +1728,10 @@
         {
           "className": "cmd-ok",
           "html": "P1 (codex US-001 loopback_inject seam) SHIPPED via sub-agent @ codexu 6c7a1041. Inner b73319be29 (sandbox-patches) + wrapper 71869c89b4 (codex main, gim-home). Inert default-off Feature::LoopbackInject (mirrors RemoteSession) + 2 SANDBOX PATCH markers pinning pub CodexThread::inject_if_running (steer) + try_start_turn_if_idle (idle-wake) + patch-surface invariants 69/70 + rebase-guard tests. cargo check --workspace PASSED; 11 invariant tests pass. No release (inert until P2). Compatible w/ northstar M1 (both turn/start & startIfIdle go through these pinned wrappers). NEXT: P2 happy-cli loopback daemon, then P3 crews hook removal."
+        },
+        {
+          "className": "cmd-ok",
+          "html": "M1 control-verb DECIDED (operator 2026-06-30): REUSE existing app-server turn/start (idle-wake) + turn/steer (running) + thread/inject_items (record) over the daemon's existing loopback ws -> ZERO further codex patch. Mirror inbound.rs::plan_turn Start-vs-Steer logic. P2 (US-002..005 happy-cli daemon) is now pure happy-cli, no codex edit. Spawning P2 impl next."
         }
       ],
       "command": {
