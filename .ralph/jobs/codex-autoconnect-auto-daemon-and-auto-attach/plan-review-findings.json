@@ -1,0 +1,87 @@
+{
+  "plan": "plan.md",
+  "reviewers": ["self-phase4"],
+  "generatedAt": "2026-06-29",
+  "task": "codex-autoconnect-auto-daemon-and-auto-attach",
+  "summary": "Self-review of the auto-daemon + auto-attach wedge plan. Three High-severity correctness risks were identified and resolved by tightening the plan text (app_event_tx move ordering, Q1 flip must target the ChatWidget config, include_str! compile-time ordering). Remaining findings are Medium/Low and are documented as impl-time confirmations or accepted trade-offs. No open Critical/High findings remain.",
+  "findings": [
+    {
+      "id": "H1",
+      "severity": "high",
+      "status": "resolved",
+      "title": "app_event_tx is moved into the App struct literal before the auto-attach trigger could clone it",
+      "detail": "In app.rs, `app_event_tx` is MOVED into the `Self { .. }` struct literal (~:1052). If the RemoteAutoAttach startup trigger were placed after that move it would fail to borrow. RESOLVED: the plan (M-B and §7 risk 1) mandates placing the trigger AFTER the happy_tap gate (~:1048) but BEFORE the struct literal (~:1050), and passing `app_event_tx.clone()` into auto_attach_flow so the original still moves into the struct. Mirrors how maybe_attach obtains its sender in the same window."
+    },
+    {
+      "id": "H2",
+      "severity": "high",
+      "status": "resolved",
+      "title": "Q1 status-coherence flip must mutate the ChatWidget's config.features, not App.config.features",
+      "detail": "Bare `/remote` status reads `self.config.features.enabled(Feature::RemoteSession)` on the ChatWidget (slash_dispatch.rs:501). There are two separate feature sets (App.config vs ChatWidget.config). Flipping App.config would leave `/remote` still reporting 'off'. RESOLVED: §4 item 6 now explicitly states the flip calls `self.chat_widget.set_feature_enabled(Feature::RemoteSession, true)` (settings.rs:70 mutates the ChatWidget copy), which is both necessary and sufficient because no mid-session consumer keys off App.config.features(RemoteSession) (the tee at app.rs:1243 gates on happy_tap)."
+    },
+    {
+      "id": "H3",
+      "severity": "high",
+      "status": "resolved",
+      "title": "include_str! for the new module is compile-time; invariant test crate won't compile until the module file exists",
+      "detail": "invariant_72 adds a `REMOTE_AUTO_ATTACH_RS = include_str!(\"../../../external/repos/codex-patched/codex-rs/tui/src/remote_auto_attach.rs\")` const. include_str! is resolved at compile time, so the codex-invariant-tests crate fails to compile if the module file is absent — which would break `cargo check --workspace`. RESOLVED: M-B now states the new tui/src/remote_auto_attach.rs module must be created first, in the same commit as invariant_72, and the ordering gotcha is called out in §9 (build/verify) and the invariant-test bullet."
+    },
+    {
+      "id": "M1",
+      "severity": "medium",
+      "status": "open",
+      "title": "Feature enum must be in scope in event_dispatch.rs for the Q1 flip",
+      "detail": "The Q1 flip references `Feature::RemoteSession` inside apply_remote_session_toggle (event_dispatch.rs). The plan notes to verify `Feature` is imported (via `use super::*` or an explicit `use codex_features::Feature;`) and add the import if missing. Low-risk and caught immediately by `cargo check --workspace`, so left as an impl-time confirmation rather than a blocker."
+    },
+    {
+      "id": "M2",
+      "severity": "medium",
+      "status": "open",
+      "title": "AppEventSender::send signature and RemoteSessionNotice field names must be confirmed at impl time",
+      "detail": "auto_attach_flow constructs `AppEvent::RemoteSessionNotice { level, .. }` and calls `tx.send(..)`. The plan derives the shape from remote_on_flow usage (slash_dispatch.rs) but the exact notice struct field names / level enum path (RemoteSessionNoticeLevel::{Info,Error}) should be confirmed against app_event.rs at impl time. Mechanical; compiler-verified."
+    },
+    {
+      "id": "M3",
+      "severity": "medium",
+      "status": "resolved",
+      "title": "auto_attach_flow's new module needs pub(crate) tui-internal types reachable",
+      "detail": "The module uses AppEvent / AppEventSender / RemoteSessionNoticeLevel (pub(crate) in the tui crate) and codex_happy::{ensure_running, has_credentials, ...}. RESOLVED: the plan places the module INSIDE the tui crate (tui/src/remote_auto_attach.rs, declared via `mod remote_auto_attach;` in tui/src/lib.rs), so pub(crate) access is legal; the tui crate already depends on codex_happy (app.rs uses it). An overlay crate was explicitly rejected in §3 for exactly this reason."
+    },
+    {
+      "id": "M4",
+      "severity": "medium",
+      "status": "resolved",
+      "title": "Coexistence of remote_session=true and remote_auto_attach=true must not double-attach or spawn two daemons",
+      "detail": "RESOLVED (§5): constructor maybe_attach runs first and sets happy_tap=Some; the auto flow's SetRemoteSession{true} reaches apply_remote_session_toggle whose happy_tap.is_none() guard skips a second attach (but the Q1 flip, placed before that guard, still runs). ensure_running is start-if-absent so it probes a running daemon and returns Ok without spawning a second one. should_skip_attach (HAPPY_CURRENT_SESSION_ID) plus fresh session_tag() UUID per attach give double-wrap + collision protection for free. No SessionConflict AttachError variant exists."
+    },
+    {
+      "id": "M5",
+      "severity": "medium",
+      "status": "resolved",
+      "title": "Adjacent feature-spec tests must not regress when adding the RemoteAutoAttach spec",
+      "detail": "RESOLVED: RemoteAutoAttach is Stage::Experimental + default_enabled:false, so under_development_features_are_disabled_by_default (tests.rs:18, UnderDevelopment-only) and default_enabled_features_are_stable (tests.rs:31, default-enabled-only) are unaffected. Only fork_visibility_features_are_experimental_and_disabled_by_default (tests.rs:233) needs the new tuple appended. Noted in M-A."
+    },
+    {
+      "id": "L1",
+      "severity": "low",
+      "status": "open",
+      "title": "Passive onboarding hint may fire on every no-credentials session (UX noise)",
+      "detail": "When !has_credentials(), auto_attach_flow emits a passive Info hint ('Run /remote on') every startup. For a user who has deliberately not onboarded, this repeats each session. Accepted for v1 (Info level, non-blocking, matches operator Q2 exception). Tracked as an open question in plan §8 — a future HAPPY_NO_AUTO_ATTACH env guard or one-shot suppression is deferred."
+    },
+    {
+      "id": "L2",
+      "severity": "low",
+      "status": "open",
+      "title": "Launcher SandboxConfig test-literal churn (M-D)",
+      "detail": "Adding enable_remote_auto_attach to SandboxConfig requires updating ~15 struct literals in codec-copilot-launcher tests. Mechanical, compiler-enforced (missing-field errors are exhaustive), overlay crate = zero upstream surface. Noted in M-D."
+    },
+    {
+      "id": "L3",
+      "severity": "low",
+      "status": "resolved",
+      "title": "rustfmt scope wording vs repo-canonical just fmt",
+      "detail": "The task said 'format only changed files with rustfmt'; the codex-patched repo's canonical formatter is `just fmt` (formats the codex-rs workspace but only rewrites files needing changes). RESOLVED: §9 documents `just fmt` as the canonical command and clarifies it only touches files that actually need formatting, satisfying the 'changed files only' intent."
+    }
+  ],
+  "openCriticalHigh": 0
+}
