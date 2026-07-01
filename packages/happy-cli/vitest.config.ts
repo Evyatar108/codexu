@@ -89,6 +89,7 @@ const integrationProjects = [
             include: [
                 'src/agentComms/scopeA.integration.test.ts',
                 'src/agentComms/mailbox.crossProcess.integration.test.ts',
+                'src/agentComms/daemonRecovery.integration.test.ts',
             ],
             sequence: {
                 groupOrder: 1,

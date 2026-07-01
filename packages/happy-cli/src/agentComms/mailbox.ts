@@ -110,6 +110,26 @@ export function inboxDirFor(sessionId: string): string {
     return path.join(agentCommsRoot(), sessionId);
 }
 
+/**
+ * List every inbox session id currently on disk under the agent-comms root.
+ * Used by daemon SPOF recovery (US-005) to find inboxes that may hold
+ * un-observed mail after a daemon restart. Absent root ⇒ empty list; only
+ * directory entries matching {@link SESSION_ID_REGEX} are returned.
+ */
+export async function listInboxes(): Promise<string[]> {
+    let names: string[];
+    try {
+        const entries = await fs.readdir(agentCommsRoot(), { withFileTypes: true });
+        names = entries
+            .filter((e) => e.isDirectory() && SESSION_ID_REGEX.test(e.name))
+            .map((e) => e.name);
+    } catch (error) {
+        if ((error as NodeJS.ErrnoException).code === 'ENOENT') return [];
+        throw error;
+    }
+    return names;
+}
+
 export function inboxPathFor(sessionId: string): string {
     return path.join(inboxDirFor(sessionId), 'mailbox.json');
 }
