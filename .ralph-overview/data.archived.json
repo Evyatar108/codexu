@@ -9397,6 +9397,74 @@
         ]
       },
       "lastTouchedAt": "2026-07-02T03:30:00Z"
+    },
+    {
+      "id": "agent-comms-serverless-scope-a-discovery",
+      "scope": "codexu",
+      "lifecycle": "merged",
+      "status": "active",
+      "lastTouchedAt": "2026-07-02T05:00:00Z",
+      "kanbanCards": [
+        {
+          "className": "cmd-warn",
+          "html": "Filed 2026-06-08 by operator request. CONTEXT: the agent-comms design (plans/agent-comms-design.md §5 \"Scope A\", shipped with task agent-comms @ 2a47a29c, plan @ a2e0f0ed) already pins cross-machine session discovery + transport on Microsoft Dev Tunnels END-TO-END (data + signaling + rendezvous + discovery + auth), with NO central happy-server broker/relay -- discovery via 'devtunnel list --json' (the Dev Tunnels management plane IS the per-identity registry, machines keyed codexu-&lt;hostname&gt;). The ONE remaining \"server\" is the EMBEDDED per-daemon happy-server that hosts the Scope A ingest sink (POST /agent-comms/ingest) because the loopback control server is bound to 127.0.0.1 and cannot accept tunnel traffic (§5.2). OPERATOR GOAL: drop EVEN the embedded per-daemon happy-server -- discovery AND ingest done purely over Dev Tunnels with no happy-server at all. OPEN QUESTION for the brainstorm member to settle against SOURCE: what minimal tunnel-facing listener replaces the embedded happy-server (a tiny daemon HTTP listener in happy-cli; rebinding/extending the loopback control server to a tunnel-accessible port; the codex app-server itself; or a raw socket), while PRESERVING the §5.4 two-layer auth (operator-tunnel-ownership connect-token at the gateway + TOFU Ed25519 peer-pinning + ECDH-sealed body) and the hard requirement that Dev Tunnels stays the SOLE channel (nothing via phone/app/central server/relay). Note: Scope A live cross-machine networking was DEFERRED at agent-comms ship (design+skeleton only; §5.6) and was never re-filed as a follow-up -- this task also covers that gap. Related: codex-raw-session-happy-daemon-autoconnect (raw-session discoverability). Scope = codexu (happy-cli daemon/tunnelManager + happy-server embedded ingest). Research is delegated to the brainstorm member; not pre-judged."
+        },
+        {
+          "className": "cmd-ok",
+          "html": "Brainstorm shipped 2026-06-08 @ 906ed67b (cherry-picked to main; orig 96b64d8c). 3 lenses (codex+copilot+devils-advocate) all source-cited + UNANIMOUS. <b>VERDICT on \"can we drop happy-server?\": NO from the daemon</b> -- the embedded happy-server IS the tablet/CLI session plane (pair/push/sessions/v3/Socket.IO; the e-ink app pairs+syncs against the per-daemon embedded server over the tunnel: happy-server api.ts:101-117, happy-app pairing.ts:139-177, sync.ts:1172-1180). <b>YES from the Scope A ingest path</b>: D-001 = a tiny happy-cli-owned HTTP listener serving ONLY POST /agent-comms/ingest -> the existing daemon-injected agentCommsIngest closure (run.ts:219-241), preserving the 5.4 two-layer auth + 5.3 devtunnel-list discovery UNCHANGED (they already live in happy-cli, not happy-server). The operator's \"no server at all\" conflates ingest-decouple (feasible, M) vs daemon-wide removal (separate multi-epic, D-002 deferred). DA red flag: \"tiny\" listener re-owns a 2nd HTTP stack -- weigh vs just leaving ingest on happy-server. Also outlines the deferred 5.6 live two-machine wiring."
+        },
+        {
+          "className": "cmd-ok",
+          "html": "Plan shipped @ 6f0c4918: happy-cli-owned ingest listener (single-route Fastify ingestServer.ts serving POST /agent-comms/ingest -> existing agentCommsIngest handler). Embedded happy-server STAYS for tablet/CLI session plane; only ingest route moves. D-004 Option A (2nd forwarded Dev Tunnel port, ingestPort in machine.json) -- flagged for operator confirm at US-001 vs Option-B single-port dispatch fallback. Schema relocates to @slopus/happy-wire. 8 stories, 5 Highs resolved, openCriticalHigh:0."
+        }
+      ],
+      "command": {
+        "name": "agent-comms-serverless-scope-a-discovery",
+        "prompts": {
+          "brainstorm": "/brainstorm-with-ralph agent-comms-serverless-scope-a-discovery \"OPERATOR INTENT (lean, 2026-06-08): make cross-machine agent/session discovery + message ingest work over Microsoft Dev Tunnels with NO happy-server at all -- not even the EMBEDDED per-daemon happy-server that today hosts the Scope A ingest sink. The operator does NOT want a central server (already rejected by the shipped design) AND now wants to eliminate the embedded per-daemon happy-server too. STUDY FIRST (do not re-derive): plans/agent-comms-design.md §5 (Scope A) -- the shipped, operator-blessed design (task agent-comms @ 2a47a29c, plan @ a2e0f0ed). It already does: discovery via 'devtunnel list --json' where the Dev Tunnels MANAGEMENT PLANE is the per-identity registry (machines keyed codexu-<hostname>, same GitHub operator login on every daemon); §5.4 two-layer auth = operator-tunnel-ownership connect-token consumed+stripped at the Dev Tunnels gateway + TOFU Ed25519 peer-pinning + ECDH-sealed body; §5.2 the embedded happy-server exists ONLY because the loopback control server is bound to 127.0.0.1 and cannot accept tunnel traffic, so the tunnel forwards to the embedded happy-server's port for POST /agent-comms/ingest.  CENTRAL QUESTION (settle against SOURCE, cite file:line, EVALUATE RIGOROUSLY -- do NOT rubber-stamp the lean): what is the MINIMAL tunnel-facing listener that replaces the embedded happy-server for ingest? Compare at least: (1) a tiny purpose-built HTTP listener inside the happy-cli daemon (not a full happy-server) bound to a tunnel-forwardable port; (2) rebinding/extending the existing loopback control server to accept tunnel traffic (and the security implications of un-loopback-ing it); (3) the codex app-server itself as the ingest surface; (4) a raw/WebSocket socket the tunnel forwards. For EACH: does it preserve the §5.4 two-layer auth and the §5.3 mgmt-plane discovery unchanged? Does it keep Dev Tunnels the SOLE channel for data+signaling+rendezvous+discovery+auth (HARD REQUIREMENT -- nothing via phone/app/central server/relay)? What is the happy-cli / happy-server delta (can happy-server be removed from the daemon process entirely, or is it load-bearing elsewhere -- pairing, encrypted session sync, etc.)?  ALSO: Scope A live cross-machine networking was DEFERRED at the agent-comms ship (§5.6 = design+skeleton only; TunnelManager.listOperatorTunnels()+mintConnectToken() exist with unit tests + a manual two-machine smoke in §8, but no live wiring) and was never re-filed -- so a recommended direction should also outline the live-impl path (real devtunnel host each side, real cross-machine envelope round-trip, operator-approval UI for cross-machine spawns).  DELIVER: a recommended direction with the chosen minimal listener, an explicit verdict on whether happy-server can be fully removed from the daemon, the auth/discovery-preservation proof, an edit-budget across happy-cli + happy-server (+ any codex touch), and the open risks. Cross-reference codex-raw-session-happy-daemon-autoconnect (raw codex session discoverability shares this transport).\"",
+          "plan": "/plan-with-ralph --from-brainstorm .ralph/brainstorms/agent-comms-serverless-scope-a-discovery/selected-direction.md \"Plan D-001: a minimal happy-cli-OWNED HTTP ingest listener that replaces the embedded happy-server FOR THE SCOPE A INGEST PATH ONLY (NOT daemon-wide -- happy-server stays for the tablet/CLI mobile+session plane). Serve ONLY POST /agent-comms/ingest (prefer Fastify+Zod, mirroring daemon/controlServer.ts) and delegate to the existing daemon-injected agentCommsIngest closure (run.ts:219-241) UNCHANGED; keep peerAuth.ts as the crypto. Relocate AgentCommsIngestBodySchema + routeHopValidation to @slopus/happy-wire (or a happy-cli shared module) so the listener does NOT import happy-server. Decide+implement the port model (D-004): a SECOND devtunnel-forwarded port for ingest vs co-located -- chosen to keep 5.3 devtunnel-list discovery + peerTransport.ingestUrl() unchanged. Retire the happy-server agentCommsIngestRoutes route + the agentCommsIngest config slot once the listener owns ingest. PRESERVE BYTE-FOR-BYTE: 5.4 two-layer auth (gateway connect-token layer1 -- backend never inspects X-Tunnel-Authorization; TOFU Ed25519 + ECDH sealed-body layer2 via peerAuth.ts) and 5.3 discovery (TunnelManager.listOperatorTunnels/mintConnectToken untouched; outbound peerTransport still posts /agent-comms/ingest). HARD REQUIREMENT: Dev Tunnels stays the SOLE channel for data+signaling+rendezvous+discovery+auth (nothing via phone/app/central server/relay). Tests: malformed body, MAX_HOPS/hop-loop/duplicate, unknown peer, signature failure, sealed-body open failure, successful append; outbound peerTransport unchanged. Edit budget: happy-cli M, happy-server S, codex NONE. Scope = codexu. ALSO outline (separate follow-up, do NOT build here) the deferred design-5.6 live two-machine wiring: real devtunnel host each side + a real cross-machine signed+sealed round-trip (the 8 manual smoke) + an operator-approval UI at the remote daemon before any cross-machine spawn; cross-reference codex-raw-session-happy-daemon-autoconnect.\"",
+          "impl": "Impl per plan 6f0c4918 (.ralph/jobs/agent-comms-serverless-scope-a-discovery/plan.md). happy-cli-owned ingest listener; embedded happy-server stays. 8 stories. CONFIRM D-004 Option A (2nd Dev Tunnel port) vs Option B at US-001 before relying on devtunnel multi-port. Schema -> @slopus/happy-wire then retire happy-server ingest route. Scope: codexu/happy-cli + happy-wire + happy-server."
+        },
+        "descriptionHtml": ""
+      },
+      "shipManifest": {
+        "shippedAt": "2026-07-02T05:00:00Z",
+        "summary": "Shipped Scope A serverless ingest: a minimal happy-cli-owned HTTP ingest listener replaces the embedded happy-server FOR THE INGEST PATH ONLY (happy-server stays for the tablet/CLI mobile+session plane). D-004 Option A (second forwarded Dev Tunnel port + persisted machine.json ingestPort). 8 stories US-001..008 via sub-agent from plan 6f0c4918 (SHAs are post-rebase landed on main). Green: happy-server 87/87, happy-cli 147/147 + 7/7 integration, happy-wire built; US-006 retired the happy-server route with a 404 topology regression on both listeners. FOLLOW-UP (separate task agent-comms-scope-a-two-machine-dev-tunnels-smoke): live two-port devtunnel cross-machine smoke not run (all coverage hermetic).",
+        "commits": [
+          {
+            "sha": "1ec5745a",
+            "oneLine": "US-001 relocate ingest schema+hop validation to happy-wire"
+          },
+          {
+            "sha": "dc2620b5",
+            "oneLine": "US-002 happy-cli ingest listener"
+          },
+          {
+            "sha": "ca0a0c8b",
+            "oneLine": "US-003 second Dev Tunnel ingest port"
+          },
+          {
+            "sha": "d97df65d",
+            "oneLine": "US-004 serve ingest from happy-cli not happy-server"
+          },
+          {
+            "sha": "b4adc9e8",
+            "oneLine": "US-005 outbound ingest port selection"
+          },
+          {
+            "sha": "2d051e16",
+            "oneLine": "US-006 retire happy-server ingest route"
+          },
+          {
+            "sha": "587f2861",
+            "oneLine": "US-007 e2e + hop-limit regression"
+          },
+          {
+            "sha": "4cf1c181",
+            "oneLine": "US-008 docs"
+          }
+        ]
+      }
     }
   ]
 }
