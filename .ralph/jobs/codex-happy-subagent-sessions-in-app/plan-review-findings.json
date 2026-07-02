@@ -1,0 +1,77 @@
+{
+  "plan": "codex-happy-subagent-sessions-in-app",
+  "reviewers": ["self-phase4"],
+  "openCriticalHigh": 0,
+  "findings": [
+    {
+      "id": "F1",
+      "severity": "high",
+      "status": "resolved",
+      "title": "Synthetic Agent parent could be emitted with a null turn when the primary thread is idle",
+      "detail": "The app drops agent-role envelopes without a `turn` (packages/happy-app/sources/sync/typesRaw.ts:517). `ControlState::active_turn_id()` returns None when the primary is idle. A child registered while the primary has no active turn would produce a synthetic parent with turn=None -> silently dropped -> orphaned child envelopes with no parent to nest under. RESOLVED: plan §3 step 4 now specifies `take_pending_child_announcements()` DEFERS any child whose primary turn is None (leaves announced=false) and re-offers it on the next drain once active_turn_id() is Some. Added Risk R2b + AC-6b (unit test)."
+    },
+    {
+      "id": "F2",
+      "severity": "high",
+      "status": "resolved",
+      "title": "Verify a child thread's TurnStarted cannot clobber the primary active turn used by the synthetic parent",
+      "detail": "The synthetic parent anchors on `active_turn_id()`; if that field tracked the most-recent turn across ALL threads, a child's TurnStarted would overwrite it and the synthetic parent would land on the child's turn (wrong). VERIFIED against source (codex-rs-overlay/codex-happy/src/inbound.rs:122-133): `active_turn_id` is already primary-scoped — TurnStarted sets it ONLY when `self.is_primary(&n.thread_id)`, TurnCompleted clears it ONLY for the primary. So no clobbering occurs; the design is safe as written. RESOLVED by source verification; plan §2.2 now documents this reliance explicitly so a rebase that widens the guard is caught (and the invariant/rebase note covers the seam)."
+    },
+    {
+      "id": "F3",
+      "severity": "medium",
+      "status": "resolved",
+      "title": "Child turn-boundary envelopes may render as odd nested turn dividers in the sidechain",
+      "detail": "A child thread emits its own TurnStarted/TurnCompleted. If map_notification maps those to turn-boundary SessionEvents tagged subagent:Some, the sidechain could show spurious nested 'turn' dividers. RESOLVED (decision): plan Risk R2c + AC-6c specify SUPPRESSING child turn-boundary envelopes — for non-primary threads emit only item envelopes (exec/patch/message). The sidechain is anchored solely by the synthetic Agent parent. Impl confirms clean rendering; suppression is the safe default."
+    },
+    {
+      "id": "F4",
+      "severity": "medium",
+      "status": "resolved",
+      "title": "Drain-site ordering between announcement emission and map_event output was under-specified",
+      "detail": "If the synthetic parent is emitted AFTER the child's own envelopes within the same drain iteration (fallback registration path, where the child is registered on the same notification that yields its first item envelope), the app would see a child before its parent. RESOLVED: plan §3 step 4 now spells out the exact per-event order at BOTH drain sites: observe -> take_pending_child_announcements -> emit announcements FIRST, then map_event output. Covered by the AC-6 ordering test and enforced symmetrically at both sites (Risk R3/R4)."
+    },
+    {
+      "id": "F5",
+      "severity": "medium",
+      "status": "open",
+      "title": "Synthetic-parent (no tool-call-end) TaskView rendering is only manually verifiable (Q-4)",
+      "detail": "Whether an 'Agent' tool-call with no matching tool-call-end renders as a stable, non-spinning parent in the app's TaskView cannot be verified by a codex-side unit test. This is an accepted residual risk carried as impl-time verification AC-9 (live codex + Happy app pairing). Fallback if it spins: emit a terminal marker / synthetic tool-call-end (still overlay-only, no app change). Left OPEN by design — it is an impl-phase manual gate, not a plan defect."
+    },
+    {
+      "id": "F6",
+      "severity": "low",
+      "status": "open",
+      "title": "Invariant number 74 assumes the current §14 max (73) is unchanged at impl time",
+      "detail": "The plan assigns invariant row 74 based on the verified current max of 73 in codex/docs/implementation/patch-surface.md §14. A parallel ship could add rows before this lands. Impl member MUST re-confirm the current max invariant number and use max+1 (and the matching invariant_NN_ test name). Low risk, mechanical."
+    },
+    {
+      "id": "F7",
+      "severity": "low",
+      "status": "resolved",
+      "title": "cuid2 leading-character shape",
+      "detail": "isCuid (sessionProtocol.ts:138-143) requires only ^[0-9a-z]+$ and length 2..=32 — a leading digit is valid, so raw sha256-hex[..24] passes. RESOLVED: recommended the deterministic approach with an OPTIONAL fixed 's' prefix ('s' + 23 hex = 24) purely cosmetic to mimic real cuid2 shape; not required for validity. Documented in plan §7."
+    },
+    {
+      "id": "F8",
+      "severity": "low",
+      "status": "resolved",
+      "title": "Child item envelopes must carry a non-null turn id",
+      "detail": "Child item envelopes (subagent-tagged) must carry a valid turn or be dropped by the app's no-turn filter. VERIFIED: child Item/Turn notifications reference the child thread's own (non-null) turn id, which map_event uses. RESOLVED — child envelopes use the child's own turn id; only turn-boundary envelopes are suppressed (F3), not item envelopes. Covered by AC-3/AC-4/AC-8."
+    },
+    {
+      "id": "F9",
+      "severity": "medium",
+      "status": "resolved",
+      "title": "Gate-OFF must suppress at BOTH registration and mapping to be airtight",
+      "detail": "If suppression were implemented only in map_event, a child could still be registered and announced while OFF (leaking a synthetic parent). RESOLVED: plan gates BOTH layers — observe() does not register children when SubagentSessions::Disabled (so take_pending_child_announcements is always empty), AND map_event returns empty for non-primary threads when Disabled. AC-7 asserts primary-thread output is byte-identical to today's subagent:None (zero regression to top-level auto-attach). Belt-and-suspenders."
+    },
+    {
+      "id": "F10",
+      "severity": "low",
+      "status": "resolved",
+      "title": "Scope-violation guard is explicit and machine-checkable",
+      "detail": "Risk of an impl member editing packages/happy-{app,wire,server}. RESOLVED: AC-11 requires `git diff` to touch no file under those three packages and the wire drift-guard (invariant 58) to stay green — a concrete, checkable scope gate. Reinforced in §6 Scope (hard out-of-scope) and §2.8 (app-side machinery is CITE-ONLY)."
+    }
+  ]
+}
