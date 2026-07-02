@@ -1751,6 +1751,26 @@
           "html": "Found during auto-attach dogfood 2026-07-02: happy_on_path() (daemon_supervisor.rs) checks file EXISTENCE not RESOLVABILITY, and spawn_happy_daemon() ignores child exit code. A dangling happy.cmd shim (missing node_modules/happy) passes the gate -> daemon exits MODULE_NOT_FOUND -> only caught by full start-budget timeout with generic message. Fix: capture daemon early exit/stderr so RemoteSessionNotice says WHY. Low-risk hardening; feature still fails LOUD (just slow+generic)."
         }
       ]
+    },
+    {
+      "id": "cf-single-user-server-pair-complete-device-key-registration",
+      "scope": "codexu|happy-server",
+      "lifecycle": "tracked",
+      "status": "todo",
+      "command": {
+        "name": "cf-single-user-server-pair-complete-device-key-registration",
+        "descriptionHtml": "Close the enrollment->verification loop for the single-user public happy-server: /pair/complete must PERSIST/PIN the pairing app's Ed25519 device public key into the verifier's authorized-devices set, so an enrolled device can actually authenticate its device proofs. Today the app sends deviceEd25519PublicKey+deviceKeyId at /pair/complete but the server's zod schema strips unknowns and never registers them, so the verifier's device list stays empty and no device can authenticate. Discovered by US-007. Gates end-to-end usability of the whole feature.",
+        "warnings": [],
+        "prompts": {
+          "impl": "Impl server-side device-key registration for the single-user public happy-server (feature remote-connectivity-single-user-public-evyatar-server, Phase 1 @ e9b0a152 + US-006 @ 9dd2a1a5 + US-007 @ e43c1c19 shipped). THE GAP (from US-007): the happy-app sends deviceEd25519PublicKey + deviceKeyId to /pair/complete, but happy-server pairRoutes.ts /pair/complete uses a zod .object() that strips unknowns and never persists the device public key. The Phase-1 verifier (packages/happy-server/sources/app/api/auth/remoteDeviceAuth.ts) checks device proofs against a PublicAuthConfig.devices list that US-006 buildPublicMode() starts EMPTY intending /pair/complete to enroll the first device. So the loop is broken: enrolled device's key is never pinned -> verifier has nothing to match -> device can't authenticate. FIX: (1) extend the /pair/complete request schema to accept deviceEd25519PublicKey + deviceKeyId (validate shape); (2) inside the operator-window + valid-QR-secret path (do NOT weaken that gate), TOFU-pin the device public key into the verifier's authorized-devices set (persist it in the per-daemon machine state/public-auth store the verifier reads); (3) make the persisted device set the source of truth the remoteDeviceAuth verifier checks against (so subsequent device-proof requests from that device succeed, and un-enrolled keys still fail closed); (4) add a spec proving: enroll-then-authenticate succeeds end-to-end, an un-enrolled device key fails closed, and enrollment still requires the operator window + QR secret. ALSO decide the socket transport-fallback nonce issue US-007 flagged: the app builds one nonce shared across ws+polling extraHeaders; a ws->polling fallback would re-send the same nonce and the server's single-use-nonce check rejects the 2nd as replayed_nonce -- either document reconnection:false as required, or allow a per-transport nonce / a bounded single-handshake exception. Scope: happy-server (+ happy-cli persistence if the device store lives there; + happy-wire if the /pair/complete schema is shared). Keep Dev Tunnels/loopback unchanged. Worktree in codexu. cargo N/A (TS). Run happy-server typecheck + full suite + the new enroll-then-auth spec."
+        }
+      },
+      "kanbanCards": [
+        {
+          "className": "cmd-warn",
+          "html": "BLOCKS end-to-end usability of remote-connectivity-single-user-public-evyatar-server. Found by US-007: app sends deviceEd25519PublicKey+deviceKeyId to /pair/complete but happy-server strips+ignores them, so the verifier's authorized-devices set stays empty and NO enrolled device can authenticate. Fix: TOFU-pin the device key at /pair/complete (inside the operator-window+QR gate) into the store the remoteDeviceAuth verifier reads; add enroll-then-authenticate spec. Also decide the ws->polling shared-nonce replay (reconnection:false vs per-transport nonce). Impl-ready seed set."
+        }
+      ]
     }
   ],
   "phaseTree": [
