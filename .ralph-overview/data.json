@@ -1747,6 +1747,26 @@
         },
         "descriptionHtml": ""
       }
+    },
+    {
+      "id": "codex-happy-subagent-sessions-in-app",
+      "scope": "codex|codexu",
+      "lifecycle": "tracked",
+      "status": "todo",
+      "command": {
+        "name": "codex-happy-subagent-sessions-in-app",
+        "descriptionHtml": "Extend codex->Happy autoconnect so v1/v2 multi-agent SUB-sessions (spawn_agent children) also appear in the Happy app, not just the top-level session. Deferred from codex-autoconnect-auto-daemon-and-auto-attach (which shipped top-level only).",
+        "warnings": [],
+        "prompts": {
+          "brainstorm": "/brainstorm-with-ralph Extend codex->Happy autoconnect so v1/v2 multi-agent SUB-sessions appear in Happy, not just the top-level session. CONTEXT: the top-level auto-attach just shipped (codex-autoconnect-auto-daemon-and-auto-attach: Feature::RemoteAutoAttach, daemon ensure_running -> AppEvent::SetRemoteSession, the happy_tap app-server tee maps AppServerEvent->Happy envelopes). The raw-session remote-control feature (codex-raw-session-happy-daemon-autoconnect) built the codex-happy overlay crate + happy_tap tee + outbound mapping + inbound control. Codex multi-agents: v1 = Collab (default-on, legacy), v2 = MultiAgentV2 (default-off) via spawn_agent; the fork's only edit is a plugin-scope-axis subagent gate (see codex-child-spawn-tools + codex-crews-vs-multi-agent-v2 investigations). READ-ONLY research: how does a spawn_agent child surface today (does happy_tap see child AppServerEvents? do children get their own session/thread id? does the Happy app model nested sessions or only flat ones?). Determine the SMALLEST wedge to make child sessions visible/attachable in Happy: (a) does each child already emit AppServerEvents through the same app-server the tee taps, needing only mapping+registration, or (b) does it need a per-child attach? What identity does a child carry (session_tag/thread id)? Does the Happy app UI/wire even represent a parent->child relationship, or would children appear as flat siblings? Recommend ONE direction + milestones. Cite file:line in codex-rs-overlay/codex-happy, the app-server multi_agents_v2 handlers, and packages/happy-app + happy-wire session model. Gate behind an experimental Feature (default-off) like RemoteAutoAttach. Note coordination with the shipped top-level auto-attach (do not regress it)."
+        }
+      },
+      "kanbanCards": [
+        {
+          "className": "cmd-warn",
+          "html": "Deferred follow-up from codex-autoconnect-auto-daemon-and-auto-attach (shipped top-level only @ 5f482d8f). Make v1/v2 spawn_agent CHILD sessions also appear in Happy. Brainstorm spawned (read-only research: does happy_tap already see child AppServerEvents? child identity? does Happy wire model nested sessions?). Gate behind default-off experimental Feature."
+        }
+      ]
     }
   ],
   "phaseTree": [
