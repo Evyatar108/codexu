@@ -51,6 +51,13 @@ declare module 'happy-server' {
     freshnessMs?: number;
     clockSkewMs?: number;
     pairing?: PublicPairingConfig;
+    /**
+     * Durable-persistence hook invoked after a NEW device is TOFU-pinned via
+     * `/pair/complete`. The daemon wires this to persist the enrolled device so it
+     * survives a daemon restart. Awaited best-effort; a persistence failure does not
+     * unpin the in-memory device.
+     */
+    onDeviceEnrolled?: (device: RemoteDeviceRecord, allDevices: RemoteDeviceRecord[]) => void | Promise<void>;
     now?: () => number;
   }
 

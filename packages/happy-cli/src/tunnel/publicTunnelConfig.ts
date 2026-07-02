@@ -117,6 +117,12 @@ export interface BuildPublicModeInput {
   machineId: string;
   /** Already-paired devices (default none; first pairing enrolls one). */
   devices?: RemoteDeviceRecord[];
+  /**
+   * Durable-persistence hook invoked by the embedded happy-server after a NEW
+   * device is TOFU-pinned via `/pair/complete`. The daemon wires this to persist
+   * the enrolled device so the pin survives a daemon restart.
+   */
+  onDeviceEnrolled?: (device: RemoteDeviceRecord, allDevices: RemoteDeviceRecord[]) => void | Promise<void>;
   now?: () => Date;
 }
 
@@ -164,6 +170,7 @@ export function buildPublicMode(input: BuildPublicModeInput): PublicMode {
     },
     ...(input.config.freshnessMs !== undefined ? { freshnessMs: input.config.freshnessMs } : {}),
     ...(input.config.clockSkewMs !== undefined ? { clockSkewMs: input.config.clockSkewMs } : {}),
+    ...(input.onDeviceEnrolled !== undefined ? { onDeviceEnrolled: input.onDeviceEnrolled } : {}),
     pairing: {
       secret: pairSecret,
       windowOpenedAt: issuedAt.getTime(),

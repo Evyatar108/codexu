@@ -26,6 +26,7 @@ class Configuration {
   public readonly machineFile: string
   public readonly publicTunnelFile: string
   public readonly publicPairingInviteFile: string
+  public readonly publicPairedDevicesFile: string
   public readonly currentCliVersion: string
 
   public readonly isExperimentalEnabled: boolean
@@ -61,6 +62,9 @@ class Configuration {
     // restricted file inside the 0700 happyHomeDir alongside access.key.
     this.publicTunnelFile = join(this.happyHomeDir, 'public-tunnel.json')
     this.publicPairingInviteFile = join(this.happyHomeDir, 'public-pairing-invite.json')
+    // TOFU-pinned devices enrolled via `/pair/complete`, persisted so they survive a
+    // daemon restart (the in-memory verifier is authoritative for the running process).
+    this.publicPairedDevicesFile = join(this.happyHomeDir, 'public-paired-devices.json')
 
     this.isExperimentalEnabled = ['true', '1', 'yes'].includes(process.env.HAPPY_EXPERIMENTAL?.toLowerCase() || '');
     this.disableCaffeinate = ['true', '1', 'yes'].includes(process.env.HAPPY_DISABLE_CAFFEINATE?.toLowerCase() || '');

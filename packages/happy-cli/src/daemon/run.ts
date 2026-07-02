@@ -41,6 +41,7 @@ import { DevTunnelsDaemonProvider } from '@/tunnel/devTunnelsDaemonProvider';
 import { CloudflareTunnelDaemonProvider } from '@/tunnel/cloudflareTunnelDaemonProvider';
 import type { DaemonTunnelProvider } from '@/tunnel/provider';
 import { assertPublicBindReady, buildPublicMode, isPublicTunnelOptedIn, readPublicTunnelConfig, writePublicPairingInvite, type PublicMode } from '@/tunnel/publicTunnelConfig';
+import { createDeviceEnrollmentPersister, readPublicPairedDevices } from '@/tunnel/publicPairedDevices';
 import { forkSession } from './forkSession';
 import { spawnSessionFromSession } from './spawnSessionFromSession';
 import { spawnInWorktree } from './spawnInWorktree';
@@ -242,7 +243,17 @@ export async function startDaemon(): Promise<void> {
       const publicTunnelConfig = await readPublicTunnelConfig();
       assertPublicBindReady(publicTunnelConfig);
       const serverUrl = `https://${publicTunnelConfig.hostname}`;
-      publicMode = buildPublicMode({ config: publicTunnelConfig, serverUrl, machineId });
+      // Re-seed the verifier with devices pinned in earlier daemon runs so a paired
+      // device does not have to re-pair after a restart, and persist any NEW device
+      // enrolled via `/pair/complete` during this run.
+      const persistedDevices = await readPublicPairedDevices();
+      publicMode = buildPublicMode({
+        config: publicTunnelConfig,
+        serverUrl,
+        machineId,
+        devices: persistedDevices,
+        onDeviceEnrolled: createDeviceEnrollmentPersister(),
+      });
       tunnelProvider = new CloudflareTunnelDaemonProvider({
         hostname: publicTunnelConfig.hostname,
         tunnelName: publicTunnelConfig.tunnelName,
