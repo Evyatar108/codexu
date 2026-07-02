@@ -1,4 +1,5 @@
 import { timingSafeEqual } from "crypto";
+import { decodeBase64 } from "privacy-kit";
 import {
     PUBLIC_DEVICE_PROOF_CLOCK_SKEW_MS,
     PUBLIC_DEVICE_PROOF_FRESHNESS_MS,
@@ -65,8 +66,53 @@ export interface PublicAuthConfig {
     clockSkewMs?: number;
     /** Operator pairing window for `/pair/complete` (US-003). */
     pairing?: PublicPairingConfig;
+    /**
+     * Optional durable-persistence hook invoked after a NEW device is TOFU-pinned
+     * via `/pair/complete` enrollment. The single embedded daemon owner (happy-cli)
+     * wires this to persist the enrolled device so it survives a daemon restart —
+     * without it, enrollment is in-memory only for the current process lifetime.
+     * Called with the freshly pinned device and the full current device list. It is
+     * awaited best-effort; a persistence failure does NOT unpin the in-memory device
+     * (the verifier is the source of truth for the current process).
+     */
+    onDeviceEnrolled?: (device: RemoteDeviceRecord, allDevices: RemoteDeviceRecord[]) => void | Promise<void>;
     /** Injectable clock for tests. */
     now?: () => number;
+}
+
+/** Ed25519 public keys are exactly 32 bytes; base64 of 32 bytes is 44 chars (padded). */
+const ED25519_PUBLIC_KEY_BYTES = 32;
+/** Conservative charset + length bound for a device `keyId` (fingerprint/label-like). */
+const DEVICE_KEY_ID_PATTERN = /^[A-Za-z0-9._:-]{1,128}$/;
+
+/** True when `keyId` is a well-formed device identifier (charset + length bound). */
+export function isValidDeviceKeyId(keyId: string): boolean {
+    return DEVICE_KEY_ID_PATTERN.test(keyId);
+}
+
+/** True when `publicKey` decodes as a 32-byte Ed25519 public key (base64). */
+export function isValidEd25519PublicKeyBase64(publicKey: string): boolean {
+    let bytes: Uint8Array;
+    try {
+        bytes = decodeBase64(publicKey);
+    } catch {
+        return false;
+    }
+    return bytes.length === ED25519_PUBLIC_KEY_BYTES;
+}
+
+/** Validates the shape of a device-enrollment record before it is pinned. */
+export function isValidDeviceRecordShape(record: RemoteDeviceRecord): boolean {
+    return isValidDeviceKeyId(record.keyId) && isValidEd25519PublicKeyBase64(record.publicKey);
+}
+
+/** Outcome of a device-enrollment attempt against the live verifier. */
+export interface DeviceEnrollResult {
+    ok: boolean;
+    /** Present on failure. `invalid_device_key` | `device_key_conflict`. */
+    reason?: string;
+    /** true when a NEW device was pinned; false on an idempotent re-enroll of the same key. */
+    enrolled?: boolean;
 }
 
 export const CF_ACCESS_CLIENT_ID_HEADER = "cf-access-client-id";
@@ -138,6 +184,17 @@ export interface RemoteDeviceVerifyInput {
 
 export interface RemoteDeviceVerifier {
     verify(input: RemoteDeviceVerifyInput): Promise<RemoteDeviceProofResult>;
+    /**
+     * TOFU-pins a device into the live verifier's authorized set. Idempotent for an
+     * identical (keyId, publicKey) pair; rejects a conflicting publicKey for an
+     * already-pinned keyId (`device_key_conflict`) without overwriting; rejects a
+     * malformed record (`invalid_device_key`). The mutation is visible immediately to
+     * the shared `verify` path used by BOTH the HTTP guard and the socket handshake
+     * because they read this same map.
+     */
+    enroll(record: RemoteDeviceRecord): DeviceEnrollResult;
+    /** Snapshot of currently pinned devices (for durable persistence hooks). */
+    listDevices(): RemoteDeviceRecord[];
 }
 
 /**
@@ -162,37 +219,68 @@ export function createRemoteDeviceVerifier(
         }
     }
 
+    /**
+     * Proof verification: well-formed envelope, known+pinned key, freshness, strict
+     * single-use nonce (replay cache), then the cryptographic signature bound to
+     * method+path. Used by BOTH the HTTP guard and the socket handshake — a nonce is
+     * consumed exactly once across transports, so a reused nonce always fails closed.
+     */
+    async function verify(
+        { method, path, header }: RemoteDeviceVerifyInput,
+    ): Promise<RemoteDeviceProofResult> {
+        const envelope = decodePublicDeviceProofHeader(header);
+        if (!envelope) {
+            return { ok: false, reason: "missing_or_malformed_proof" };
+        }
+        const device = devicesByKeyId.get(envelope.keyId);
+        if (!device) {
+            return { ok: false, reason: "unknown_key" };
+        }
+        if (envelope.publicKey !== device.publicKey) {
+            return { ok: false, reason: "public_key_mismatch" };
+        }
+        const nowMs = now();
+        if (!isPublicProofFresh(envelope.issuedAt, nowMs, windowMs, clockSkewMs)) {
+            return { ok: false, reason: "stale_proof" };
+        }
+        if (seenNonces.has(envelope.nonce)) {
+            return { ok: false, reason: "replayed_nonce" };
+        }
+        const verification = await verifyPublicRequest(envelope, {
+            method,
+            path,
+            expectedPublicKey: device.publicKey,
+        });
+        if (!verification.ok) {
+            return { ok: false, reason: verification.reason };
+        }
+        pruneNonces(nowMs);
+        seenNonces.set(envelope.nonce, envelope.issuedAt + windowMs + clockSkewMs);
+        return { ok: true, keyId: envelope.keyId, envelope };
+    }
+
     return {
-        async verify({ method, path, header }) {
-            const envelope = decodePublicDeviceProofHeader(header);
-            if (!envelope) {
-                return { ok: false, reason: "missing_or_malformed_proof" };
+        verify,
+        enroll(record) {
+            if (!isValidDeviceRecordShape(record)) {
+                return { ok: false, reason: "invalid_device_key" };
             }
-            const device = devicesByKeyId.get(envelope.keyId);
-            if (!device) {
-                return { ok: false, reason: "unknown_key" };
+            const existing = devicesByKeyId.get(record.keyId);
+            if (existing) {
+                if (existing.publicKey === record.publicKey) {
+                    return { ok: true, enrolled: false };
+                }
+                // TOFU: a pinned keyId may not be rebound to a different public key.
+                return { ok: false, reason: "device_key_conflict" };
             }
-            if (envelope.publicKey !== device.publicKey) {
-                return { ok: false, reason: "public_key_mismatch" };
-            }
-            const nowMs = now();
-            if (!isPublicProofFresh(envelope.issuedAt, nowMs, windowMs, clockSkewMs)) {
-                return { ok: false, reason: "stale_proof" };
-            }
-            if (seenNonces.has(envelope.nonce)) {
-                return { ok: false, reason: "replayed_nonce" };
-            }
-            const verification = await verifyPublicRequest(envelope, {
-                method,
-                path,
-                expectedPublicKey: device.publicKey,
-            });
-            if (!verification.ok) {
-                return { ok: false, reason: verification.reason };
-            }
-            pruneNonces(nowMs);
-            seenNonces.set(envelope.nonce, envelope.issuedAt + windowMs + clockSkewMs);
-            return { ok: true, keyId: envelope.keyId, envelope };
+            devicesByKeyId.set(record.keyId, { keyId: record.keyId, publicKey: record.publicKey });
+            return { ok: true, enrolled: true };
+        },
+        listDevices() {
+            return Array.from(devicesByKeyId.values(), (device) => ({
+                keyId: device.keyId,
+                publicKey: device.publicKey,
+            }));
         },
     };
 }
@@ -322,6 +410,13 @@ export interface PublicAuthRuntime {
     bodyHashGuard: (request: any, reply: any) => Promise<unknown>;
     /** Socket.IO handshake check (ws + polling); returns ok/reason without throwing. */
     verifySocketHandshake: (headers: Record<string, unknown>) => Promise<RemoteDeviceProofResult>;
+    /**
+     * TOFU-enrolls a device into the live verifier (see `RemoteDeviceVerifier.enroll`)
+     * and awaits the durable-persistence hook on a new pin. Wired into `/pair/complete`
+     * so a device paired inside the operator window is pinned into the SAME verifier
+     * instance the HTTP guard + socket handshake read — closing the enroll->verify gap.
+     */
+    enrollDevice: (record: RemoteDeviceRecord) => Promise<DeviceEnrollResult>;
 }
 
 /**
@@ -387,8 +482,33 @@ export function createPublicAuthRuntime(config: PublicAuthConfig): PublicAuthRun
             return { ok: false, reason: "edge_access_denied" };
         }
         const header = headerString(headers[PUBLIC_DEVICE_PROOF_HEADER]);
+        // Strict single-use, identical to the HTTP guard: the handshake proof's nonce is
+        // consumed exactly once. The app MUST connect with `reconnection: false` and a
+        // single transport (or mint a fresh per-transport nonce) so a ws->polling fallback
+        // does not re-present the consumed nonce — a reused nonce fails closed as
+        // `replayed_nonce`. This keeps replay protection strict rather than granting a
+        // socket-only exception (US-007 flag; documented for US-009 edge ops).
         return verifier.verify({ method: SOCKET_PROOF_METHOD, path: SOCKET_PROOF_PATH, header });
     }
 
-    return { verifier, edge, config, pairingGate, httpGuard, bodyHashGuard, verifySocketHandshake };
+    /**
+     * TOFU-enrolls a device into the live verifier and, on a genuinely NEW pin,
+     * awaits the optional durable-persistence hook. Returns the enrollment outcome
+     * so the caller (`/pair/complete`) can map it to an HTTP status. The persistence
+     * hook is best-effort: if it throws, the device stays pinned in-memory (the
+     * verifier is authoritative for the current process) and the error propagates so
+     * the route can decide how to surface it.
+     */
+    async function enrollDevice(record: RemoteDeviceRecord): Promise<DeviceEnrollResult> {
+        const result = verifier.enroll(record);
+        if (result.ok && result.enrolled && config.onDeviceEnrolled) {
+            await config.onDeviceEnrolled(
+                { keyId: record.keyId, publicKey: record.publicKey },
+                verifier.listDevices(),
+            );
+        }
+        return result;
+    }
+
+    return { verifier, edge, config, pairingGate, httpGuard, bodyHashGuard, verifySocketHandshake, enrollDevice };
 }
