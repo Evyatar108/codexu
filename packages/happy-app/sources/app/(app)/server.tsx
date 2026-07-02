@@ -10,6 +10,8 @@ import { Modal } from '@/modal';
 import { layout } from '@/components/layout';
 import { t } from '@/text';
 import { getServerUrl, setServerUrl, validateServerUrl, getServerInfo } from '@/sync/serverConfig';
+import { useAuth } from '@/auth/AuthContext';
+import { enrollPublicServer, PublicEnrollmentError } from '@/auth/publicEnrollment';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 
 const stylesheet = StyleSheet.create((theme) => ({
@@ -79,10 +81,12 @@ export default function ServerConfigScreen() {
     const { theme } = useUnistyles();
     const styles = stylesheet;
     const router = useRouter();
+    const auth = useAuth();
     const serverInfo = getServerInfo();
     const [inputUrl, setInputUrl] = useState(serverInfo.isCustom ? getServerUrl() : '');
     const [error, setError] = useState<string | null>(null);
     const [isValidating, setIsValidating] = useState(false);
+    const [inviteToken, setInviteToken] = useState('');
 
     const validateServer = async (url: string): Promise<boolean> => {
         try {
@@ -158,6 +162,33 @@ export default function ServerConfigScreen() {
         }
     };
 
+    const handleImportInvite = async () => {
+        const token = inviteToken.trim();
+        if (!token) {
+            Modal.alert(t('common.error'), t('server.publicPairing.invalidInvite'));
+            return;
+        }
+        try {
+            const result = await enrollPublicServer(token);
+            await auth.login(result.credentials);
+            setInviteToken('');
+            if (router.canGoBack()) {
+                router.back();
+            } else {
+                router.replace('/');
+            }
+        } catch (err) {
+            const isInviteProblem = err instanceof PublicEnrollmentError
+                && (err.code === 'invalid_invite' || err.code === 'invite_expired');
+            Modal.alert(
+                t('common.error'),
+                isInviteProblem
+                    ? t('server.publicPairing.invalidInvite')
+                    : t('server.publicPairing.failed'),
+            );
+        }
+    };
+
     return (
         <>
             <Stack.Screen
@@ -226,6 +257,29 @@ export default function ServerConfigScreen() {
                                     {t('server.currentlyUsingCustomServer')}
                                 </Text>
                             )}
+                        </View>
+                    </ItemGroup>
+
+                    <ItemGroup
+                        title={t('server.publicPairing.sectionTitle')}
+                        footer={t('server.publicPairing.sectionFooter')}
+                    >
+                        <View style={styles.contentContainer}>
+                            <TextInput
+                                style={styles.textInput}
+                                value={inviteToken}
+                                onChangeText={setInviteToken}
+                                placeholder={t('server.publicPairing.invitePlaceholder')}
+                                placeholderTextColor={theme.colors.input.placeholder}
+                                autoCapitalize="none"
+                                autoCorrect={false}
+                                multiline
+                            />
+                            <RoundButton
+                                title={t('server.publicPairing.pairButton')}
+                                size="normal"
+                                action={handleImportInvite}
+                            />
                         </View>
                     </ItemGroup>
 

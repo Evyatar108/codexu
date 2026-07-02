@@ -3,6 +3,7 @@ import { useAuth } from "@/auth/AuthContext";
 import { Text, View, Image, Platform, FlatList } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as React from 'react';
+import { useRouter } from 'expo-router';
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
 import { useIsLandscape } from "@/utils/responsive";
 import { Typography } from "@/constants/Typography";
@@ -68,6 +69,7 @@ function isMachineOnline(machine: MachineTunnel): boolean {
 export function NotAuthenticated({ tunnelProvider }: NotAuthenticatedProps = {}) {
     const { theme } = useUnistyles();
     const auth = useAuth();
+    const router = useRouter();
     const isLandscape = useIsLandscape();
     const insets = useSafeAreaInsets();
     const [pendingPairing, setPendingPairing] = React.useState<PendingPairing | null>(null);
@@ -196,6 +198,13 @@ export function NotAuthenticated({ tunnelProvider }: NotAuthenticatedProps = {})
                     title={t('welcome.pairMachine')}
                     action={pairMachine}
                 />
+                <View style={styles.secondaryButton}>
+                    <RoundButton
+                        title={t('server.publicPairing.pairButton')}
+                        display="inverted"
+                        onPress={() => router.push('/server')}
+                    />
+                </View>
             </View>
         </View>
     );
@@ -222,6 +231,13 @@ export function NotAuthenticated({ tunnelProvider }: NotAuthenticatedProps = {})
                             title={t('welcome.pairMachine')}
                             action={pairMachine}
                         />
+                        <View style={styles.secondaryButton}>
+                            <RoundButton
+                                title={t('server.publicPairing.pairButton')}
+                                display="inverted"
+                                onPress={() => router.push('/server')}
+                            />
+                        </View>
                     </View>
                 </View>
             </View>
@@ -421,6 +437,9 @@ const styles = StyleSheet.create((theme) => ({
         maxWidth: 280,
         width: '100%',
         marginBottom: 16,
+    },
+    secondaryButton: {
+        marginTop: 12,
     },
     // Landscape styles
     landscapeContainer: {

@@ -56,6 +56,9 @@ vi.mock('@/auth/pairing', () => ({
     credentialsFromPairMachine: mocks.credentialsFromPairMachine,
 }));
 vi.mock('@/text', () => ({ t: (key: string, params?: Record<string, string>) => params?.login ? `${key}:${params.login}` : key }));
+vi.mock('expo-router', () => ({
+    useRouter: () => ({ push: vi.fn(), replace: vi.fn(), back: vi.fn(), canGoBack: () => false }),
+}));
 
 import { MachinePicker } from './index';
 import type { MachineTunnel } from '@/sync/tunnelProvider';

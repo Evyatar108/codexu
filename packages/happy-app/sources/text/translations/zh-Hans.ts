@@ -429,6 +429,15 @@ export const zhHans: TranslationStructure = {
     },
 
     server: {
+        publicPairing: {
+            sectionTitle: 'Public Server Pairing',
+            sectionFooter: 'Paste a pairing invite to connect this device to a public Happy server. The invite carries the Cloudflare Access credentials and a one-time pairing secret.',
+            invitePlaceholder: 'Paste pairing invite',
+            pairButton: 'Pair with public server',
+            invalidInvite: 'That pairing invite is invalid or has expired.',
+            failed: 'Pairing failed. Check the invite and try again.',
+        },
+
         // Used by Server Configuration screen (app/(app)/server.tsx)
         serverConfiguration: '服务器配置',
         enterServerUrl: '请输入服务器 URL',
