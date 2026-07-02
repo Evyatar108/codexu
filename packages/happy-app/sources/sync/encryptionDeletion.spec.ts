@@ -24,6 +24,7 @@ const allowedMatches: AllowedMatch[] = [
     { file: 'packages/happy-app/sources/sync/sync.ts', pattern: /expo-crypto/, reason: 'randomUUID for local optimistic IDs' },
     { file: 'packages/happy-app/sources/utils/oauth.ts', pattern: /expo-crypto/, reason: 'OAuth PKCE verifier generation' },
     { file: 'packages/happy-app/sources/utils/worktree.ts', pattern: /expo-crypto/, reason: 'worktree id generation' },
+    { file: 'packages/happy-app/sources/auth/deviceKeypair.ts', pattern: /expo-crypto/, reason: 'Ed25519 device keypair + nonce CSPRNG for public-server device proof (US-007)' },
 ];
 
 function findMatches(pattern: RegExp): Array<{ file: string; line: string }> {

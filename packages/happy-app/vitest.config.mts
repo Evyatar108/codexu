@@ -46,6 +46,13 @@ export default defineConfig({
                 replacement: resolve('./sources/_test-stubs/expoSecureStoreStub.ts'),
             },
             {
+                // expo-crypto pulls in expo-modules-core / native random bindings
+                // that are absent in the node runner. Device-key specs inject their
+                // own deterministic generators, so a counter-based stub is enough.
+                find: /^expo-crypto$/,
+                replacement: resolve('./sources/_test-stubs/expoCryptoStub.ts'),
+            },
+            {
                 // Same reason as expo-secure-store: expo-constants pulls in
                 // expo-modules-core which breaks outside a React-Native runtime.
                 find: /^expo-constants$/,
