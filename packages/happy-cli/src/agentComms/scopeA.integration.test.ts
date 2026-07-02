@@ -24,6 +24,7 @@ let mailbox: typeof import('./mailbox');
 let peerDelivery: typeof import('./peerDelivery');
 let peerTransport: typeof import('./peerTransport');
 let ingestHandler: typeof import('./ingestHandler');
+let ingestServer: typeof import('./ingestServer');
 let spawnApproval: typeof import('./spawnApproval');
 
 function fixedSecret(seed: number): Uint8Array {
@@ -111,11 +112,12 @@ describe('Scope A hermetic round-trip', () => {
         await fs.mkdir(homeB, { recursive: true });
         process.env.HAPPY_HOME_DIR = homeB;
         vi.resetModules();
-        [mailbox, peerDelivery, peerTransport, ingestHandler, spawnApproval] = await Promise.all([
+        [mailbox, peerDelivery, peerTransport, ingestHandler, ingestServer, spawnApproval] = await Promise.all([
             import('./mailbox'),
             import('./peerDelivery'),
             import('./peerTransport'),
             import('./ingestHandler'),
+            import('./ingestServer'),
             import('./spawnApproval'),
         ]);
         keysA = await fixtureKeypairs(30);
@@ -346,5 +348,107 @@ describe('Scope A hermetic round-trip', () => {
         expect(spawnSessionFromSession).not.toHaveBeenCalled();
         expect(deliverRemote).not.toHaveBeenCalled();
         expect(appendMessage).not.toHaveBeenCalled();
+    });
+
+    it('round-trips a signed+sealed message through the REAL happy-cli ingest listener over HTTP into the remote mailbox', async () => {
+        await pinPeerKeys(homeB, 'machine-a', { ...peerKeys(keysA), approvedForSpawn: false });
+        // Boot the real happy-cli-owned Fastify ingest listener (US-002) on an
+        // ephemeral loopback port, backed by the real cryptographic + mailbox
+        // handler (US-001 relocated schema/hop-check now lives in @slopus/happy-wire).
+        const handlerB = ingestHandler.createAgentCommsIngestHandler({
+            happyHomeDir: homeB,
+            localMachineId: 'machine-b',
+            tofuKeypairs: keysB,
+            spawnSessionFromSession: vi.fn(),
+            deliverRemote: vi.fn(),
+            appendMessage: mailbox.appendMessage,
+        });
+        const server = await ingestServer.startAgentCommsIngestServer({ port: 0, handler: handlerB });
+        try {
+            // Pin machine-b in homeA with the listener's forwarded ingest port so the
+            // outbound resolver (US-005) selects the ingest port URL, not the embedded
+            // happy-server port. The tunnel advertises BOTH ports; only the ingest port
+            // maps to the real listener's loopback bind.
+            await pinPeerKeys(homeA, 'machine-b', {
+                ...peerKeys(keysB),
+                tunnelName: 'codexu-machine-b',
+                tunnelId: 'tunnel-b',
+                ingestPort: server.port,
+            });
+            const tunnelManager = {
+                listOperatorTunnels: () => [{
+                    tunnelId: 'tunnel-b',
+                    tunnelName: 'codexu-machine-b',
+                    tunnelUrl: 'https://machine-b-3005.devtunnels.ms',
+                    ports: [
+                        { portNumber: 3005, portUri: 'https://machine-b-3005.devtunnels.ms' },
+                        { portNumber: server.port, portUri: `http://127.0.0.1:${server.port}` },
+                    ],
+                }],
+                mintConnectToken: (tunnelId: string) => `token-for-${tunnelId}`,
+            };
+            // Default fetchImpl = global fetch => a REAL HTTP POST over the loopback
+            // socket to the real listener (no stubbed transport).
+            const transport = new peerTransport.DevTunnelsPeerTransport(tunnelManager);
+            const deliverRemote = peerDelivery.createDevTunnelsAgentCommsDeliverRemote({
+                happyHomeDir: homeA,
+                localKeypairs: keysA,
+                tunnelManager,
+                transport,
+            });
+            const envelope = createAgentCommsEnvelope({
+                from: { machineId: 'machine-a', sessionId: 'sender' },
+                to: { machineId: 'machine-b', sessionId: 'e2e-target' },
+                body: { text: 'real listener round-trip' },
+            }, { selfMachineId: 'machine-a', hasLocalSession: sessionId => sessionId === 'sender' });
+
+            const ack = await deliverRemote(envelope);
+
+            expect(ack.seq).toBe(1);
+            const pending = await mailbox.readPending('e2e-target');
+            expect(pending).toHaveLength(1);
+            expect((pending[0].body as AgentCommsEnvelope)).toMatchObject({
+                id: envelope.id,
+                scope: 'A',
+                hopCount: 1,
+                hopPath: ['machine-a:sender', 'machine-b:daemon-machine-b'],
+                body: { text: 'real listener round-trip' },
+            });
+        } finally {
+            await server.stop();
+        }
+    });
+
+    it('rejects a hop-limit-violating envelope at the REAL listener with HTTP 400 before the crypto handler runs', async () => {
+        // routeHopValidation (relocated to @slopus/happy-wire in US-001) is enforced
+        // by the listener itself (US-002) ahead of the injected handler. A duplicate
+        // hopPath entry must be rejected as HTTP 400 without ever appending.
+        const appendMessage = vi.fn(async () => ({ id: 'unexpected', seq: 99 }));
+        const handlerB = ingestHandler.createAgentCommsIngestHandler({
+            happyHomeDir: homeB,
+            localMachineId: 'machine-b',
+            tofuKeypairs: keysB,
+            spawnSessionFromSession: vi.fn(),
+            deliverRemote: vi.fn(),
+            appendMessage,
+        });
+        const server = await ingestServer.startAgentCommsIngestServer({ port: 0, handler: handlerB });
+        try {
+            const dupHopEnvelope = scopeAEnvelope({
+                id: 'env-real-hop-violation',
+                hopCount: 2,
+                hopPath: ['machine-a:sender', 'machine-a:sender'],
+            });
+            const payload = await signedSealedPayload(dupHopEnvelope, keysA, keysB);
+            const response = await fetch(`http://127.0.0.1:${server.port}/agent-comms/ingest`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload),
+            });
+            expect(response.status).toBe(400);
+            expect(appendMessage).not.toHaveBeenCalled();
+        } finally {
+            await server.stop();
+        }
     });
 });
