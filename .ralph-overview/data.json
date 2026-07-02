@@ -1765,6 +1765,10 @@
         {
           "className": "cmd-warn",
           "html": "Deferred follow-up from codex-autoconnect-auto-daemon-and-auto-attach (shipped top-level only @ 5f482d8f). Make v1/v2 spawn_agent CHILD sessions also appear in Happy. Brainstorm spawned (read-only research: does happy_tap already see child AppServerEvents? child identity? does Happy wire model nested sessions?). Gate behind default-off experimental Feature."
+        },
+        {
+          "className": "cmd-ok",
+          "html": "Brainstorm shipped @ d0cbafa8: D-001 overlay-only thread-aware sidechain nesting. KEY: child events ALREADY flow through happy_tap (app.rs:1254 tees every next_event; in_process.rs:490-501 auto-attaches listener to every new thread incl. subagents), and Happy wire ALREADY models nesting via sidechain (sessionProtocol.ts:138-143 subagent=cuid2; typesRaw.ts:522-523 parentUUID=subagent=isSidechain; reducerTracer nests under Task/Agent tool-call). So ZERO app/wire/server changes -- ENTIRELY in codex-happy overlay, gated default-off Feature::RemoteSubagentSessions. Latent bug today: mapping.rs:57,69,184 is thread-blind + hardcodes subagent:None so children flatten into parent. v1 Collab spawn events dropped (bespoke_event_handling.rs:846-853) so design keys off child thread_id not spawn event. Milestones M-A..M-H. 3 open Qs for operator."
         }
       ]
     }
