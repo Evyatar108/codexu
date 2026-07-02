@@ -4,9 +4,23 @@ import * as os from "os";
 import * as path from "path";
 import { type Fastify } from "../types";
 import { type TofuHandshakeConfig } from "../api";
+import { type PairingGate } from "../auth/remoteDeviceAuth";
 
 export interface PairRoutePaths {
     profile?: string;
+}
+
+/** Public-mode gating for the pre-enrollment `/pair/complete` route. */
+export interface PairRouteAuthOptions {
+    /**
+     * True when this listener is bound for public-internet exposure. In public
+     * mode `/pair/complete` fails closed unless the operator pairing gate passes;
+     * the historical Dev Tunnels behavior (gateway token is the identity gate) is
+     * preserved only when this is false.
+     */
+    publicMode?: boolean;
+    /** The operator pairing-window + QR-secret + replay gate (required in public mode). */
+    pairingGate?: PairingGate;
 }
 
 function defaultProfilePath(): string {
@@ -56,12 +70,17 @@ function isPairRateLimited(ip: string, now: number): boolean {
     return false;
 }
 
-export function pairRoutes(app: Fastify, tofuConfig: TofuHandshakeConfig, paths: PairRoutePaths = {}) {
+export function pairRoutes(app: Fastify, tofuConfig: TofuHandshakeConfig, paths: PairRoutePaths = {}, authOptions: PairRouteAuthOptions = {}) {
     // POST /pair/complete — single-step pair + refresh. Gateway X-Tunnel-Authorization
     // (Dev Tunnels connect token) is the identity gate; the per-machine GitHub device
     // flow that Sprint A originally specified was redundant on a personal fork because
     // ownership of the tunnel already proves the caller is the operator. Identity is
     // read from the locally-onboarded profile.json (written by `happy auth login --force`).
+    //
+    // In public mode this route is the ONLY path that can hand key material to a
+    // not-yet-paired device, so it fails closed behind the operator pairing gate
+    // (window + pre-shared QR secret + single-use nonce). No gate pass → 401 with
+    // no key material.
     app.post('/pair/complete', {
         schema: {
             body: z.object({
@@ -79,6 +98,7 @@ export function pairRoutes(app: Fastify, tofuConfig: TofuHandshakeConfig, paths:
                         mobileSharedSecret: z.string().optional(),
                     }),
                 }),
+                401: z.object({ error: z.string() }),
                 429: z.object({ error: z.string() }),
                 503: z.object({ error: z.string() }),
             },
@@ -86,6 +106,17 @@ export function pairRoutes(app: Fastify, tofuConfig: TofuHandshakeConfig, paths:
     }, async (request, reply) => {
         if (isPairRateLimited(request.ip, Date.now())) {
             return reply.code(429).send({ error: "rate_limited" });
+        }
+        // Public mode fail-closed pairing gate. Runs BEFORE any key material is
+        // assembled so a denied request leaks nothing.
+        if (authOptions.publicMode) {
+            if (!authOptions.pairingGate) {
+                return reply.code(401).send({ error: "pairing_window_closed" });
+            }
+            const gate = authOptions.pairingGate.check(request.headers);
+            if (!gate.ok) {
+                return reply.code(401).send({ error: "pairing_denied" });
+            }
         }
         if (!tofuConfig.tofuPublicKeys) {
             return reply.code(503).send({ error: "tofu_public_keys_unavailable" });
@@ -119,7 +150,9 @@ export function pairRoutes(app: Fastify, tofuConfig: TofuHandshakeConfig, paths:
     });
 
     // /pair/connect — tunnel-level auth (X-Tunnel-Authorization with real Dev Tunnels connect JWT)
-    // is the security gate. No GitHub token required here — Dev Tunnels already verified identity.
+    // is the security gate in tunnel mode. In public mode this route is registered behind the
+    // global fail-closed onRequest hook with the `deviceProof` policy, so the request never
+    // reaches this handler without a valid Cloudflare Access edge check + Ed25519 device proof.
     app.post("/pair/connect", {
         schema: {
             body: z.object({

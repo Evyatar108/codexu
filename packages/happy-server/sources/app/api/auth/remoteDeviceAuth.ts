@@ -70,6 +70,11 @@ export interface PublicAuthConfig {
 export const CF_ACCESS_CLIENT_ID_HEADER = "cf-access-client-id";
 export const CF_ACCESS_CLIENT_SECRET_HEADER = "cf-access-client-secret";
 
+/** Pre-shared QR secret the operator surfaces to open a pairing attempt. */
+export const PAIRING_SECRET_HEADER = "x-happy-pairing-secret";
+/** Single-use nonce the mobile presents so a captured pairing request cannot be replayed. */
+export const PAIRING_NONCE_HEADER = "x-happy-pairing-nonce";
+
 /** Fixed method/path binding a device signs for the Socket.IO handshake proof. */
 export const SOCKET_PROOF_METHOD = "GET";
 export const SOCKET_PROOF_PATH = "/v1/updates";
@@ -245,10 +250,59 @@ export function resolvePublicRoutePolicy(method: string, routePath: string | und
     return entry ? entry.policy : null;
 }
 
+export interface PairingGateResult {
+    ok: boolean;
+    reason?: string;
+}
+
+export interface PairingGate {
+    /** Validates the operator pairing window, pre-shared QR secret, and single-use nonce. */
+    check(headers: Record<string, unknown>): PairingGateResult;
+}
+
+/**
+ * Builds the `/pair/complete` gate for public mode. This is the ONLY route that
+ * can return key material to a not-yet-paired device, so it fails closed unless
+ * ALL of the following hold: the operator has opened a pairing window (now within
+ * [windowOpenedAt, windowClosesAt]); the caller presents the pre-shared QR secret
+ * (constant-time compared); and the caller presents a nonce that has not been used
+ * before in this window (single-use → replay protection). Everything else → 401.
+ */
+export function createPairingGate(config: PublicPairingConfig): PairingGate {
+    const now = config.now ?? (() => Date.now());
+    const consumedNonces = new Set<string>();
+    return {
+        check(headers) {
+            const nowMs = now();
+            if (nowMs < config.windowOpenedAt) {
+                return { ok: false, reason: "pairing_window_not_open" };
+            }
+            if (nowMs > config.windowClosesAt) {
+                return { ok: false, reason: "pairing_window_closed" };
+            }
+            const secret = headerString(headers[PAIRING_SECRET_HEADER]);
+            if (!secret || !constantTimeEqual(secret, config.secret)) {
+                return { ok: false, reason: "pairing_secret_invalid" };
+            }
+            const nonce = headerString(headers[PAIRING_NONCE_HEADER]);
+            if (!nonce) {
+                return { ok: false, reason: "pairing_nonce_required" };
+            }
+            if (consumedNonces.has(nonce)) {
+                return { ok: false, reason: "pairing_nonce_replayed" };
+            }
+            consumedNonces.add(nonce);
+            return { ok: true };
+        },
+    };
+}
+
 export interface PublicAuthRuntime {
     verifier: RemoteDeviceVerifier;
     edge: EdgeAccessConfig;
     config: PublicAuthConfig;
+    /** Operator pairing-window + QR-secret + replay gate for `/pair/complete`, if configured. */
+    pairingGate?: PairingGate;
     /** Fastify `onRequest` hook that fail-closes every public-mode HTTP route. */
     httpGuard: (request: any, reply: any) => Promise<unknown>;
     /** Socket.IO handshake check (ws + polling); returns ok/reason without throwing. */
@@ -263,6 +317,7 @@ export interface PublicAuthRuntime {
 export function createPublicAuthRuntime(config: PublicAuthConfig): PublicAuthRuntime {
     const verifier = createRemoteDeviceVerifier(config);
     const edge = config.edge;
+    const pairingGate = config.pairing ? createPairingGate(config.pairing) : undefined;
 
     async function httpGuard(request: any, reply: any): Promise<unknown> {
         // CORS preflight is handled by @fastify/cors and must not be blocked here.
@@ -298,5 +353,5 @@ export function createPublicAuthRuntime(config: PublicAuthConfig): PublicAuthRun
         return verifier.verify({ method: SOCKET_PROOF_METHOD, path: SOCKET_PROOF_PATH, header });
     }
 
-    return { verifier, edge, config, httpGuard, verifySocketHandshake };
+    return { verifier, edge, config, pairingGate, httpGuard, verifySocketHandshake };
 }

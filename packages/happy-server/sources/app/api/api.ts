@@ -121,7 +121,10 @@ export function configureApi(app: any, tofuConfig: TofuHandshakeConfig = { local
 
     // Routes only available on the tunnel listener (not loopback)
     if (options.auth !== "loopback") {
-        pairRoutes(typed, tofuConfig, options.paths);
+        pairRoutes(typed, tofuConfig, options.paths, {
+            publicMode: options.auth === "public",
+            pairingGate: publicAuthRuntime?.pairingGate,
+        });
         pushRoutes(typed, tofuConfig);
     sessionRoutes(typed, eventRouter, { localMachineId: tofuConfig.localUserId });
         devRoutes(typed);
