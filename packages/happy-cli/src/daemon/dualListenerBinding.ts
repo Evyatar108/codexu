@@ -1,4 +1,4 @@
-import type { CreateAppConfig, HappyServerHandle, HappyServerSharedContext } from 'happy-server';
+import type { CreateAppConfig, HappyServerHandle, HappyServerSharedContext, PublicAuthConfig } from 'happy-server';
 
 import type { MachineLocallyPersistedState } from '@/persistence';
 import type { DaemonTunnelProvider } from '@/tunnel/provider';
@@ -22,6 +22,18 @@ export type DualListenerBindingOptions = {
   machineInfo?: {
     hostname: string;
     owner: string;
+  };
+  /**
+   * When present, the outbound (tunnel) listener is bound in `auth:"public"` mode
+   * with the given fail-closed device verifier + edge config instead of the default
+   * `auth:"tunnel"`. Only set when the operator opted into the Cloudflare public
+   * provider. The embedded server still binds 127.0.0.1 (cloudflared forwards the
+   * public hostname to loopback), so the server-side operator-identity gate is
+   * satisfied even before the first device is paired.
+   */
+  publicListener?: {
+    auth: 'public';
+    publicAuth: PublicAuthConfig;
   };
   createAppFactory?: CreateAppFactory;
 };
@@ -61,7 +73,8 @@ export async function dualListenerBinding(options: DualListenerBindingOptions): 
   const tunnel = create({
     ...shared,
     port: state.tunnelPort,
-    auth: 'tunnel',
+    auth: options.publicListener?.auth ?? 'tunnel',
+    ...(options.publicListener ? { publicAuth: options.publicListener.publicAuth } : {}),
     paths: options.paths,
     machineState,
   });

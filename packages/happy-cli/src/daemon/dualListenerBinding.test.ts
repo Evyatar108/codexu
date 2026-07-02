@@ -112,6 +112,56 @@ describe('dualListenerBinding', () => {
     expect(manager.stop).toHaveBeenCalledTimes(1);
   });
 
+  it('binds the tunnel listener in public auth mode when publicListener is set', async () => {
+    const tunnelProvider: DaemonTunnelProvider = {
+      loadHostTunnel: vi.fn().mockResolvedValue(tunnelConfig),
+      createHostTunnel: vi.fn(),
+      stop: vi.fn(),
+    };
+    const start = vi.fn().mockResolvedValue(undefined);
+    const stop = vi.fn().mockResolvedValue(undefined);
+    const createAppFactory = vi.fn(() => ({ app: {} as any, eventRouter: {}, start, stop }));
+    const publicAuth = {
+      devices: [],
+      edge: { serviceTokens: [{ clientId: 'cf-id', clientSecret: 'cf-secret' }] },
+      pairing: { secret: 'pair-secret', windowOpenedAt: 1000, windowClosesAt: 2000 },
+    };
+
+    await dualListenerBinding({
+      sharedContext: {
+        dataDir: '/tmp/happy',
+        machineKey: 'machine-key',
+        localUserId: 'machine-1',
+        tofuPublicKeys: { ed25519PublicKey: 'ed25519-public', x25519PublicKey: 'x25519-public' },
+      },
+      tunnelProvider,
+      paths: {
+        profile: '/tmp/happy/profile.json',
+        accountSettings: '/tmp/happy/account-settings.json',
+        loopbackCap: '/tmp/happy/loopback-cap.txt',
+      },
+      machineState: () => ({
+        machineId: 'machine-1',
+        tunnelPort: 62000,
+        loopbackPort: 62001,
+        tunnelId: 'happy-machine-1',
+        lastTunnelUrl: tunnelConfig.tunnelUrl,
+      }),
+      publicListener: { auth: 'public', publicAuth },
+      createAppFactory,
+    });
+
+    // Tunnel listener carries auth:"public" + publicAuth; loopback stays loopback.
+    expect(createAppFactory).toHaveBeenNthCalledWith(1, expect.objectContaining({
+      auth: 'public',
+      port: 62000,
+      publicAuth,
+    }));
+    expect(createAppFactory).toHaveBeenNthCalledWith(2, expect.objectContaining({ auth: 'loopback', port: 62001 }));
+    // Public bind never carries publicAuth on the loopback listener.
+    expect(createAppFactory).toHaveBeenNthCalledWith(2, expect.not.objectContaining({ publicAuth: expect.anything() }));
+  });
+
   it('stops partial startup when the second listener cannot bind', async () => {
     const tunnelProvider: DaemonTunnelProvider = {
       loadHostTunnel: vi.fn().mockResolvedValue(tunnelConfig),

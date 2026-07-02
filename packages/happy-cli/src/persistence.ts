@@ -98,10 +98,32 @@ export interface MachineLocallyPersistedState {
   ingestPort?: number;
   tunnelId: string;
   lastTunnelUrl: string | null;
+  /**
+   * Public (Cloudflare named-tunnel) listener metadata, present only when the
+   * operator opted into public mode (HAPPY_TUNNEL_PROVIDER=cloudflare). Optional
+   * for back-compat: Dev Tunnels pins lack it. The public listener reuses
+   * `tunnelPort` as its local bind (cloudflared forwards the hostname to
+   * 127.0.0.1:tunnelPort), so no separate port is stored here.
+   */
+  publicListener?: {
+    hostname: string;
+    tunnelName: string;
+  };
 }
 
 function isValidPort(port: unknown): port is number {
   return typeof port === 'number' && Number.isInteger(port) && port > 0 && port <= 65535;
+}
+
+function isValidPublicListener(value: unknown): value is { hostname: string; tunnelName: string } {
+  return (
+    typeof value === 'object'
+    && value !== null
+    && typeof (value as { hostname?: unknown }).hostname === 'string'
+    && ((value as { hostname: string }).hostname).length > 0
+    && typeof (value as { tunnelName?: unknown }).tunnelName === 'string'
+    && ((value as { tunnelName: string }).tunnelName).length > 0
+  );
 }
 
 export async function readSettings(): Promise<Settings> {
@@ -347,6 +369,10 @@ export async function readMachineState(machineIdFallback?: string): Promise<Mach
       // add it to the rewrite condition below: a missing ingestPort must not force
       // a spurious migration write on read for legacy pins.
       ...(isValidPort(parsed.ingestPort) ? { ingestPort: parsed.ingestPort } : {}),
+      // Preserve public-listener metadata when present (public opt-in mode). Like
+      // ingestPort, it is NOT part of the rewrite condition: its absence must not
+      // trigger a spurious migration write for Dev Tunnels pins.
+      ...(isValidPublicListener(parsed.publicListener) ? { publicListener: parsed.publicListener } : {}),
     };
     if (!isValidPort(parsed.tunnelPort) || !isValidPort(parsed.loopbackPort) || parsed.machineId !== migrated.machineId || parsed.tunnelUrl !== undefined) {
       await writeMachineState(migrated);

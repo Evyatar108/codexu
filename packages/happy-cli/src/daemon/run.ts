@@ -38,6 +38,9 @@ import { createAgentCommsIngestHandler } from '@/agentComms/ingestHandler';
 import { startAgentCommsIngestServer } from '@/agentComms/ingestServer';
 import { TunnelManager } from '@/tunnel/tunnelManager';
 import { DevTunnelsDaemonProvider } from '@/tunnel/devTunnelsDaemonProvider';
+import { CloudflareTunnelDaemonProvider } from '@/tunnel/cloudflareTunnelDaemonProvider';
+import type { DaemonTunnelProvider } from '@/tunnel/provider';
+import { assertPublicBindReady, buildPublicMode, isPublicTunnelOptedIn, readPublicTunnelConfig, writePublicPairingInvite, type PublicMode } from '@/tunnel/publicTunnelConfig';
 import { forkSession } from './forkSession';
 import { spawnSessionFromSession } from './spawnSessionFromSession';
 import { spawnInWorktree } from './spawnInWorktree';
@@ -230,7 +233,35 @@ export async function startDaemon(): Promise<void> {
 
     let machineState = await resolveMachineState(machineId);
     const tunnelManager = new TunnelManager();
-    const tunnelProvider = new DevTunnelsDaemonProvider({ manager: tunnelManager });
+    // Provider selection (opt-in only). Default stays Dev Tunnels; the Cloudflare
+    // public provider is chosen ONLY when the operator sets
+    // HAPPY_TUNNEL_PROVIDER=cloudflare AND supplies a valid public-tunnel.json.
+    let tunnelProvider: DaemonTunnelProvider;
+    let publicMode: PublicMode | null = null;
+    if (isPublicTunnelOptedIn()) {
+      const publicTunnelConfig = await readPublicTunnelConfig();
+      assertPublicBindReady(publicTunnelConfig);
+      const serverUrl = `https://${publicTunnelConfig.hostname}`;
+      publicMode = buildPublicMode({ config: publicTunnelConfig, serverUrl, machineId });
+      tunnelProvider = new CloudflareTunnelDaemonProvider({
+        hostname: publicTunnelConfig.hostname,
+        tunnelName: publicTunnelConfig.tunnelName,
+      });
+      machineState = {
+        ...machineState,
+        publicListener: {
+          hostname: publicTunnelConfig.hostname,
+          tunnelName: publicTunnelConfig.tunnelName,
+        },
+      };
+      await writeMachineState(machineState);
+      const inviteToken = await writePublicPairingInvite(configuration.publicPairingInviteFile, publicMode.invite);
+      logger.debug(`[DAEMON RUN] Public mode enabled via Cloudflare named tunnel ${publicTunnelConfig.tunnelName} -> ${serverUrl}`);
+      console.log(`Happy public pairing invite (machine ${machineId}, expires ${publicMode.invite.expiresAt}):`);
+      console.log(inviteToken);
+    } else {
+      tunnelProvider = new DevTunnelsDaemonProvider({ manager: tunnelManager });
+    }
     const deliverRemote = createDevTunnelsAgentCommsDeliverRemote({
       localKeypairs: tofuKeypairs,
       tunnelManager,
@@ -288,6 +319,7 @@ export async function startDaemon(): Promise<void> {
           hostname: initialMachineMetadata.host,
           owner: machineId,
         },
+        ...(publicMode ? { publicListener: { auth: 'public' as const, publicAuth: publicMode.publicAuth } } : {}),
       }, configuration.happyHomeDir);
     } catch (bindError) {
       await ingestServer.stop();

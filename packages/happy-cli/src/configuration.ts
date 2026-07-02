@@ -24,6 +24,8 @@ class Configuration {
   public readonly daemonLockFile: string
   public readonly sessionsFile: string
   public readonly machineFile: string
+  public readonly publicTunnelFile: string
+  public readonly publicPairingInviteFile: string
   public readonly currentCliVersion: string
 
   public readonly isExperimentalEnabled: boolean
@@ -54,6 +56,11 @@ class Configuration {
     this.daemonLockFile = join(this.happyHomeDir, 'daemon.state.json.lock')
     this.sessionsFile = join(this.happyHomeDir, 'sessions.json')
     this.machineFile = join(this.happyHomeDir, 'machine.json')
+    // Public (Cloudflare named-tunnel) opt-in config + emitted pairing invite.
+    // The config holds Cloudflare Access service-token secrets, so it is a
+    // restricted file inside the 0700 happyHomeDir alongside access.key.
+    this.publicTunnelFile = join(this.happyHomeDir, 'public-tunnel.json')
+    this.publicPairingInviteFile = join(this.happyHomeDir, 'public-pairing-invite.json')
 
     this.isExperimentalEnabled = ['true', '1', 'yes'].includes(process.env.HAPPY_EXPERIMENTAL?.toLowerCase() || '');
     this.disableCaffeinate = ['true', '1', 'yes'].includes(process.env.HAPPY_DISABLE_CAFFEINATE?.toLowerCase() || '');

@@ -19,6 +19,41 @@ declare module 'happy-server' {
 
   export type MachineStateGetter = () => MachineSelfState | Promise<MachineSelfState>;
 
+  /** A paired device allowed to present Ed25519 signed-request proofs (public mode). */
+  export interface RemoteDeviceRecord {
+    keyId: string;
+    publicKey: string;
+    label?: string;
+  }
+
+  /** A Cloudflare Access service token (client id + secret pair). */
+  export interface EdgeAccessServiceToken {
+    clientId: string;
+    clientSecret: string;
+  }
+
+  export interface EdgeAccessConfig {
+    serviceTokens: EdgeAccessServiceToken[];
+  }
+
+  /** Operator-opened pairing window + pre-shared secret gate for `/pair/complete`. */
+  export interface PublicPairingConfig {
+    secret: string;
+    windowOpenedAt: number;
+    windowClosesAt: number;
+    now?: () => number;
+  }
+
+  /** Fail-closed public listener auth: pinned device verifier + mandatory edge check. */
+  export interface PublicAuthConfig {
+    devices: RemoteDeviceRecord[];
+    edge: EdgeAccessConfig;
+    freshnessMs?: number;
+    clockSkewMs?: number;
+    pairing?: PublicPairingConfig;
+    now?: () => number;
+  }
+
   export interface TofuPublicKeys {
     ed25519PublicKey: string | Uint8Array;
     x25519PublicKey: string | Uint8Array;
@@ -34,7 +69,8 @@ declare module 'happy-server' {
     tofuPublicKeys?: TofuPublicKeys;
     host?: string;
     publicUrl?: string;
-    auth?: 'tunnel' | 'loopback';
+    auth?: 'tunnel' | 'loopback' | 'public';
+    publicAuth?: PublicAuthConfig;
     paths?: ApiPaths;
     machineState?: MachineStateGetter;
     enablePrettyLogs?: boolean;
@@ -52,7 +88,8 @@ declare module 'happy-server' {
   export interface CreateAppConfig extends HappyServerSharedContext {
     port: number;
     host?: string;
-    auth?: 'tunnel' | 'loopback';
+    auth?: 'tunnel' | 'loopback' | 'public';
+    publicAuth?: PublicAuthConfig;
     paths?: ApiPaths;
     machineState?: MachineStateGetter;
   }
