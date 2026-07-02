@@ -35,6 +35,7 @@ import { pickFreeLoopbackPort } from '@/utils/pickFreeLoopbackPort';
 import { loadOrCreateTofuKeypairs } from '@/tofu/keypairManager';
 import { createDevTunnelsAgentCommsDeliverRemote } from '@/agentComms/peerDelivery';
 import { createAgentCommsIngestHandler } from '@/agentComms/ingestHandler';
+import { startAgentCommsIngestServer } from '@/agentComms/ingestServer';
 import { TunnelManager } from '@/tunnel/tunnelManager';
 import { DevTunnelsDaemonProvider } from '@/tunnel/devTunnelsDaemonProvider';
 import { forkSession } from './forkSession';
@@ -45,6 +46,7 @@ import { stopTrackedSession } from './stopTrackedSession';
 import { loopbackCapabilityPath } from './loopbackCapability';
 import { getLocalMachine } from './getLocalMachine';
 import { bindListenersAndWriteCapability } from './bindListenersAndWriteCapability';
+import type { DualListenerBindingHandle } from './dualListenerBinding';
 import { buildDaemonSpawnArgs, createSpawnFromSessionMetadataUpdater, daemonSpawnWindowName } from './runSpawnHelpers';
 
 // Prepare initial metadata
@@ -250,26 +252,47 @@ export async function startDaemon(): Promise<void> {
       spawnSessionFromSession: options => spawnSessionFromSessionHandlerReady.then(handler => handler(options)),
       deliverRemote,
     });
-    const listenerBinding = await bindListenersAndWriteCapability({
-      sharedContext: {
-        dataDir: configuration.happyHomeDir,
-        machineKey: tofuKeypairs.ed25519PublicKey,
-        localUserId: machineId,
-        tofuPublicKeys: tofuPublicKeysConfig,
-        agentCommsIngest,
-      },
-      tunnelProvider,
-      paths: {
-        profile: join(configuration.happyHomeDir, 'profile.json'),
-        accountSettings: join(configuration.happyHomeDir, 'account-settings.json'),
-        loopbackCap: loopbackCapabilityPath(configuration.happyHomeDir),
-      },
-      machineState: () => machineState,
-      machineInfo: {
-        hostname: initialMachineMetadata.host,
-        owner: machineId,
-      },
-    }, configuration.happyHomeDir);
+    // Scope A: serve agent-comms ingest from a happy-cli-owned loopback listener
+    // instead of injecting the handler into the embedded happy-server. The ingest
+    // port is forwarded as a second Dev Tunnel port (see resolveMachineState +
+    // dualListenerBinding). Bind it before the embedded servers/tunnel so the
+    // loopback port is accepting connections before the tunnel forwards it.
+    if (machineState.ingestPort === undefined) {
+      throw new Error('resolveMachineState did not allocate an agent-comms ingestPort');
+    }
+    const ingestServer = await startAgentCommsIngestServer({
+      port: machineState.ingestPort,
+      handler: agentCommsIngest,
+    });
+    logger.debug(`[DAEMON RUN] Agent-comms ingest listener started on 127.0.0.1:${ingestServer.port}`);
+    let listenerBinding: DualListenerBindingHandle;
+    try {
+      listenerBinding = await bindListenersAndWriteCapability({
+        sharedContext: {
+          dataDir: configuration.happyHomeDir,
+          machineKey: tofuKeypairs.ed25519PublicKey,
+          localUserId: machineId,
+          tofuPublicKeys: tofuPublicKeysConfig,
+          // agentCommsIngest is intentionally NOT injected here: ingest is served
+          // by the happy-cli-owned listener above (Scope A). The embedded server
+          // keeps the rest of the mobile+session plane.
+        },
+        tunnelProvider,
+        paths: {
+          profile: join(configuration.happyHomeDir, 'profile.json'),
+          accountSettings: join(configuration.happyHomeDir, 'account-settings.json'),
+          loopbackCap: loopbackCapabilityPath(configuration.happyHomeDir),
+        },
+        machineState: () => machineState,
+        machineInfo: {
+          hostname: initialMachineMetadata.host,
+          owner: machineId,
+        },
+      }, configuration.happyHomeDir);
+    } catch (bindError) {
+      await ingestServer.stop();
+      throw bindError;
+    }
     const tunnelConfig = listenerBinding.tunnelConfig;
     machineState = {
       ...machineState,
@@ -280,6 +303,7 @@ export async function startDaemon(): Promise<void> {
       await writeMachineState(machineState);
     } catch (writeError) {
       await listenerBinding.stop();
+      await ingestServer.stop();
       throw writeError;
     }
     const embeddedServerPort = machineState.tunnelPort;
@@ -1036,6 +1060,7 @@ export async function startDaemon(): Promise<void> {
         // leaving nothing running once we also exit.
         apiMachine.shutdown();
         await listenerBinding.stop();
+        await ingestServer.stop();
         await stopControlServer();
         await cleanupDaemonState();
         await releaseDaemonLock(daemonLockHandle);
@@ -1105,6 +1130,7 @@ export async function startDaemon(): Promise<void> {
 
       apiMachine.shutdown();
       await listenerBinding.stop();
+      await ingestServer.stop();
       await stopControlServer();
       await cleanupDaemonState();
       await stopCaffeinate();
