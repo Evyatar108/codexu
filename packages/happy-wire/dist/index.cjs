@@ -591,6 +591,26 @@ const AgentCommsEnvelopeSchema = z__namespace.object({
   hopPath: z__namespace.array(z__namespace.string().min(1)),
   body: z__namespace.unknown()
 });
+const SenderKeysSchema = z__namespace.object({
+  ed25519PublicKey: z__namespace.string().min(1),
+  ecdhPublicKey: z__namespace.string().min(1),
+  ed25519Fingerprint: z__namespace.string().min(1).optional()
+});
+const AgentCommsIngestBodySchema = z__namespace.object({
+  envelope: AgentCommsEnvelopeSchema,
+  signature: z__namespace.string().min(1),
+  senderKeys: SenderKeysSchema
+});
+function hasDuplicate(values) {
+  return new Set(values).size !== values.length;
+}
+function routeHopValidation(envelope) {
+  if (envelope.hopCount > MAX_HOPS) return `hopCount ${envelope.hopCount} exceeds MAX_HOPS ${MAX_HOPS}`;
+  if (hasDuplicate(envelope.hopPath)) return "hopPath contains a duplicate session";
+  const targetRefs = /* @__PURE__ */ new Set([envelope.to.sessionId]);
+  if (envelope.to.machineId) targetRefs.add(`${envelope.to.machineId}:${envelope.to.sessionId}`);
+  return envelope.hopPath.some((ref) => targetRefs.has(ref)) ? "hopPath already contains the target session" : null;
+}
 
 const MachineTunnelSchema = z__namespace.object({
   machineId: z__namespace.string(),
@@ -604,6 +624,7 @@ const MachineTunnelSchema = z__namespace.object({
 exports.AgentCommsChannelSchema = AgentCommsChannelSchema;
 exports.AgentCommsEnvelopeSchema = AgentCommsEnvelopeSchema;
 exports.AgentCommsFromSchema = AgentCommsFromSchema;
+exports.AgentCommsIngestBodySchema = AgentCommsIngestBodySchema;
 exports.AgentCommsKindSchema = AgentCommsKindSchema;
 exports.AgentCommsScopeSchema = AgentCommsScopeSchema;
 exports.AgentCommsToSchema = AgentCommsToSchema;
@@ -637,6 +658,7 @@ exports.MessageContentSchema = MessageContentSchema;
 exports.MessageMetaSchema = MessageMetaSchema;
 exports.MessageSentLedgerRecordSchema = MessageSentLedgerRecordSchema;
 exports.PendingPermissionLedgerRecordSchema = PendingPermissionLedgerRecordSchema;
+exports.SenderKeysSchema = SenderKeysSchema;
 exports.SessionGetAgentTreeRequestSchema = SessionGetAgentTreeRequestSchema;
 exports.SessionGetAgentTreeResponseSchema = SessionGetAgentTreeResponseSchema;
 exports.SessionMessageContentSchema = SessionMessageContentSchema;
@@ -669,6 +691,7 @@ exports.forkBoilerplateEntry = forkBoilerplateEntry;
 exports.localCommandCaveatEntry = localCommandCaveatEntry;
 exports.makeWrappedTagEntry = makeWrappedTagEntry;
 exports.nonRenderableEntries = nonRenderableEntries;
+exports.routeHopValidation = routeHopValidation;
 exports.sessionAgentConfigurationChangedEventSchema = sessionAgentConfigurationChangedEventSchema;
 exports.sessionContextBoundaryEventSchema = sessionContextBoundaryEventSchema;
 exports.sessionContextBoundaryKindSchema = sessionContextBoundaryKindSchema;

@@ -6128,6 +6128,187 @@ declare const AgentCommsEnvelopeSchema: z.ZodObject<{
     correlationId?: string | undefined;
 }>;
 type AgentCommsEnvelope = z.infer<typeof AgentCommsEnvelopeSchema>;
+/**
+ * Sender public-key material carried alongside a Scope A ingest envelope.
+ *
+ * These are the pinned peer's Ed25519/X25519 public keys (and optional
+ * fingerprint) used by the receiving daemon to verify the detached signature
+ * and open the sealed body. See `plans/agent-comms-design.md` §5.4.
+ */
+declare const SenderKeysSchema: z.ZodObject<{
+    ed25519PublicKey: z.ZodString;
+    ecdhPublicKey: z.ZodString;
+    ed25519Fingerprint: z.ZodOptional<z.ZodString>;
+}, "strip", z.ZodTypeAny, {
+    ed25519PublicKey: string;
+    ecdhPublicKey: string;
+    ed25519Fingerprint?: string | undefined;
+}, {
+    ed25519PublicKey: string;
+    ecdhPublicKey: string;
+    ed25519Fingerprint?: string | undefined;
+}>;
+type SenderKeys = z.infer<typeof SenderKeysSchema>;
+/**
+ * Wire body for the Scope A `POST /agent-comms/ingest` endpoint.
+ *
+ * The receiving daemon's ingest listener validates this shape at the Zod
+ * boundary, runs `routeHopValidation`, then delegates cryptographic
+ * verification and mailbox append to the daemon-injected handler.
+ */
+declare const AgentCommsIngestBodySchema: z.ZodObject<{
+    envelope: z.ZodObject<{
+        v: z.ZodLiteral<1>;
+        id: z.ZodString;
+        ts: z.ZodNumber;
+        from: z.ZodObject<{
+            machineId: z.ZodString;
+            sessionId: z.ZodString;
+        }, "strip", z.ZodTypeAny, {
+            sessionId: string;
+            machineId: string;
+        }, {
+            sessionId: string;
+            machineId: string;
+        }>;
+        to: z.ZodObject<{
+            machineId: z.ZodOptional<z.ZodString>;
+            sessionId: z.ZodString;
+        }, "strip", z.ZodTypeAny, {
+            sessionId: string;
+            machineId?: string | undefined;
+        }, {
+            sessionId: string;
+            machineId?: string | undefined;
+        }>;
+        scope: z.ZodEnum<["B", "C", "A"]>;
+        channel: z.ZodEnum<["message", "spawn"]>;
+        kind: z.ZodEnum<["request", "reply", "notify", "spawn-request", "spawn-result"]>;
+        correlationId: z.ZodOptional<z.ZodString>;
+        hopCount: z.ZodNumber;
+        hopPath: z.ZodArray<z.ZodString, "many">;
+        body: z.ZodUnknown;
+    }, "strip", z.ZodTypeAny, {
+        id: string;
+        kind: "request" | "reply" | "notify" | "spawn-request" | "spawn-result";
+        v: 1;
+        ts: number;
+        from: {
+            sessionId: string;
+            machineId: string;
+        };
+        to: {
+            sessionId: string;
+            machineId?: string | undefined;
+        };
+        scope: "B" | "C" | "A";
+        channel: "message" | "spawn";
+        hopCount: number;
+        hopPath: string[];
+        body?: unknown;
+        correlationId?: string | undefined;
+    }, {
+        id: string;
+        kind: "request" | "reply" | "notify" | "spawn-request" | "spawn-result";
+        v: 1;
+        ts: number;
+        from: {
+            sessionId: string;
+            machineId: string;
+        };
+        to: {
+            sessionId: string;
+            machineId?: string | undefined;
+        };
+        scope: "B" | "C" | "A";
+        channel: "message" | "spawn";
+        hopCount: number;
+        hopPath: string[];
+        body?: unknown;
+        correlationId?: string | undefined;
+    }>;
+    signature: z.ZodString;
+    senderKeys: z.ZodObject<{
+        ed25519PublicKey: z.ZodString;
+        ecdhPublicKey: z.ZodString;
+        ed25519Fingerprint: z.ZodOptional<z.ZodString>;
+    }, "strip", z.ZodTypeAny, {
+        ed25519PublicKey: string;
+        ecdhPublicKey: string;
+        ed25519Fingerprint?: string | undefined;
+    }, {
+        ed25519PublicKey: string;
+        ecdhPublicKey: string;
+        ed25519Fingerprint?: string | undefined;
+    }>;
+}, "strip", z.ZodTypeAny, {
+    envelope: {
+        id: string;
+        kind: "request" | "reply" | "notify" | "spawn-request" | "spawn-result";
+        v: 1;
+        ts: number;
+        from: {
+            sessionId: string;
+            machineId: string;
+        };
+        to: {
+            sessionId: string;
+            machineId?: string | undefined;
+        };
+        scope: "B" | "C" | "A";
+        channel: "message" | "spawn";
+        hopCount: number;
+        hopPath: string[];
+        body?: unknown;
+        correlationId?: string | undefined;
+    };
+    signature: string;
+    senderKeys: {
+        ed25519PublicKey: string;
+        ecdhPublicKey: string;
+        ed25519Fingerprint?: string | undefined;
+    };
+}, {
+    envelope: {
+        id: string;
+        kind: "request" | "reply" | "notify" | "spawn-request" | "spawn-result";
+        v: 1;
+        ts: number;
+        from: {
+            sessionId: string;
+            machineId: string;
+        };
+        to: {
+            sessionId: string;
+            machineId?: string | undefined;
+        };
+        scope: "B" | "C" | "A";
+        channel: "message" | "spawn";
+        hopCount: number;
+        hopPath: string[];
+        body?: unknown;
+        correlationId?: string | undefined;
+    };
+    signature: string;
+    senderKeys: {
+        ed25519PublicKey: string;
+        ecdhPublicKey: string;
+        ed25519Fingerprint?: string | undefined;
+    };
+}>;
+type AgentCommsIngestBody = z.infer<typeof AgentCommsIngestBodySchema>;
+/** The daemon-injected closure that performs auth + mailbox delivery for an ingest body. */
+type AgentCommsIngestHandler = (body: AgentCommsIngestBody) => Promise<{
+    id: string;
+    seq: number;
+}>;
+/**
+ * Backend-observable hop checks performed before an ingest body reaches the
+ * cryptographic handler. Returns a human-readable error string when the
+ * envelope violates a hop invariant (hop-count cap, duplicate hop, or the
+ * hopPath already containing the target session), or `null` when it is valid.
+ */
+declare function routeHopValidation(envelope: AgentCommsEnvelope): string | null;
 
 declare const MachineTunnelSchema: z.ZodObject<{
     machineId: z.ZodString;
@@ -6153,5 +6334,5 @@ declare const MachineTunnelSchema: z.ZodObject<{
 }>;
 type MachineTunnel = z.infer<typeof MachineTunnelSchema>;
 
-export { AgentCommsChannelSchema, AgentCommsEnvelopeSchema, AgentCommsFromSchema, AgentCommsKindSchema, AgentCommsScopeSchema, AgentCommsToSchema, AgentMessageSchema, AgentTreeDeltaSchema, AgentTreeEdgeSchema, AgentTreeNodeAddedDeltaSchema, AgentTreeNodeRemovedDeltaSchema, AgentTreeNodeSchema, AgentTreeNodeStatusChangedDeltaSchema, AgentTreePendingSpawnStartedDeltaSchema, AgentTreeSnapshotSchema, AgentTreeUpdateInboundPayloadSchema, AgentTreeUpdateOutboundPayloadSchema, ApiMessageSchema, ApiUpdateMachineStateSchema, ApiUpdateNewMessageSchema, ApiUpdateSessionStateSchema, CoreUpdateBodySchema, CoreUpdateContainerSchema, DoneLedgerRecordSchema, ErrorLedgerRecordSchema, IdleReachedLedgerRecordSchema, LastOutputSummaryLedgerRecordSchema, LedgerErrorCodeSchema, LedgerRecordSchema, LegacyMessageContentSchema, MAX_HOPS, MachineTunnelSchema, MessageContentSchema, MessageMetaSchema, MessageSentLedgerRecordSchema, PendingPermissionLedgerRecordSchema, SessionGetAgentTreeRequestSchema, SessionGetAgentTreeResponseSchema, SessionMessageContentSchema, SessionMessageRangeRequestSchema, SessionMessageRangeResponseSchema, SessionMessageSchema, SessionProtocolMessageSchema, SpawnLedgerRecordSchema, TofuHandshakeMessageSchema, TofuPubkeysEventSchema, TofuPublicKeysSchema, TofuSessionKeyExchangeSchema, UpdateBodySchema, UpdateMachineBodySchema, UpdateNewMessageBodySchema, UpdateSchema, UpdateSessionBodySchema, UserMessageSchema, ValidationAttachedLedgerRecordSchema, VersionedEncryptedValueSchema, VersionedMachineEncryptedValueSchema, VersionedNullableEncryptedValueSchema, VoiceConversationDeniedSchema, VoiceConversationGrantedSchema, VoiceConversationResponseSchema, VoiceUsageResponseSchema, createEnvelope, findSenderDropEntry, forkBoilerplateEntry, localCommandCaveatEntry, makeWrappedTagEntry, nonRenderableEntries, sessionAgentConfigurationChangedEventSchema, sessionContextBoundaryEventSchema, sessionContextBoundaryKindSchema, sessionContextBoundaryTriggeredBySchema, sessionEnvelopeSchema, sessionEventSchema, sessionFileEventSchema, sessionMessageConsumptionEventSchema, sessionRoleSchema, sessionServiceMessageEventSchema, sessionStartEventSchema, sessionStopEventSchema, sessionTextEventSchema, sessionToolCallEndEventSchema, sessionToolCallStartEventSchema, sessionTurnEndEventSchema, sessionTurnEndStatusSchema, sessionTurnStartEventSchema, skillBodyEntry, systemReminderEntry };
-export type { AgentCommsChannel, AgentCommsEnvelope, AgentCommsFrom, AgentCommsKind, AgentCommsScope, AgentCommsTo, AgentMessage, AgentTreeDelta, AgentTreeEdge, AgentTreeNode, AgentTreeNodeAddedDelta, AgentTreeNodeRemovedDelta, AgentTreeNodeStatusChangedDelta, AgentTreePendingSpawnStartedDelta, AgentTreeSnapshot, AgentTreeUpdateInboundPayload, AgentTreeUpdateOutboundPayload, ApiMessage, ApiUpdateMachineState, ApiUpdateNewMessage, ApiUpdateSessionState, CoreUpdateBody, CoreUpdateContainer, CreateEnvelopeOptions, LedgerErrorCode, LedgerRecord, LegacyMessageContent, MachineTunnel, MessageContent, MessageMeta, NonRenderableEntry, RawClaudeMessageMatchInput, ReceiverRegexFactory, SessionAgentConfigurationChangedEvent, SessionContextBoundaryEvent, SessionContextBoundaryKind, SessionContextBoundaryTriggeredBy, SessionEnvelope, SessionEvent, SessionGetAgentTreeRequest, SessionGetAgentTreeResponse, SessionMessage, SessionMessageConsumptionEvent, SessionMessageContent, SessionMessageRangeRequest, SessionMessageRangeResponse, SessionProtocolMessage, SessionRole, SessionTurnEndStatus, TofuHandshakeMessage, TofuPubkeysEvent, TofuPublicKeys, TofuSessionKeyExchange, Update, UpdateBody, UpdateMachineBody, UpdateNewMessageBody, UpdateSessionBody, UserMessage, VersionedEncryptedValue, VersionedMachineEncryptedValue, VersionedNullableEncryptedValue, VoiceConversationResponse, VoiceUsageResponse };
+export { AgentCommsChannelSchema, AgentCommsEnvelopeSchema, AgentCommsFromSchema, AgentCommsIngestBodySchema, AgentCommsKindSchema, AgentCommsScopeSchema, AgentCommsToSchema, AgentMessageSchema, AgentTreeDeltaSchema, AgentTreeEdgeSchema, AgentTreeNodeAddedDeltaSchema, AgentTreeNodeRemovedDeltaSchema, AgentTreeNodeSchema, AgentTreeNodeStatusChangedDeltaSchema, AgentTreePendingSpawnStartedDeltaSchema, AgentTreeSnapshotSchema, AgentTreeUpdateInboundPayloadSchema, AgentTreeUpdateOutboundPayloadSchema, ApiMessageSchema, ApiUpdateMachineStateSchema, ApiUpdateNewMessageSchema, ApiUpdateSessionStateSchema, CoreUpdateBodySchema, CoreUpdateContainerSchema, DoneLedgerRecordSchema, ErrorLedgerRecordSchema, IdleReachedLedgerRecordSchema, LastOutputSummaryLedgerRecordSchema, LedgerErrorCodeSchema, LedgerRecordSchema, LegacyMessageContentSchema, MAX_HOPS, MachineTunnelSchema, MessageContentSchema, MessageMetaSchema, MessageSentLedgerRecordSchema, PendingPermissionLedgerRecordSchema, SenderKeysSchema, SessionGetAgentTreeRequestSchema, SessionGetAgentTreeResponseSchema, SessionMessageContentSchema, SessionMessageRangeRequestSchema, SessionMessageRangeResponseSchema, SessionMessageSchema, SessionProtocolMessageSchema, SpawnLedgerRecordSchema, TofuHandshakeMessageSchema, TofuPubkeysEventSchema, TofuPublicKeysSchema, TofuSessionKeyExchangeSchema, UpdateBodySchema, UpdateMachineBodySchema, UpdateNewMessageBodySchema, UpdateSchema, UpdateSessionBodySchema, UserMessageSchema, ValidationAttachedLedgerRecordSchema, VersionedEncryptedValueSchema, VersionedMachineEncryptedValueSchema, VersionedNullableEncryptedValueSchema, VoiceConversationDeniedSchema, VoiceConversationGrantedSchema, VoiceConversationResponseSchema, VoiceUsageResponseSchema, createEnvelope, findSenderDropEntry, forkBoilerplateEntry, localCommandCaveatEntry, makeWrappedTagEntry, nonRenderableEntries, routeHopValidation, sessionAgentConfigurationChangedEventSchema, sessionContextBoundaryEventSchema, sessionContextBoundaryKindSchema, sessionContextBoundaryTriggeredBySchema, sessionEnvelopeSchema, sessionEventSchema, sessionFileEventSchema, sessionMessageConsumptionEventSchema, sessionRoleSchema, sessionServiceMessageEventSchema, sessionStartEventSchema, sessionStopEventSchema, sessionTextEventSchema, sessionToolCallEndEventSchema, sessionToolCallStartEventSchema, sessionTurnEndEventSchema, sessionTurnEndStatusSchema, sessionTurnStartEventSchema, skillBodyEntry, systemReminderEntry };
+export type { AgentCommsChannel, AgentCommsEnvelope, AgentCommsFrom, AgentCommsIngestBody, AgentCommsIngestHandler, AgentCommsKind, AgentCommsScope, AgentCommsTo, AgentMessage, AgentTreeDelta, AgentTreeEdge, AgentTreeNode, AgentTreeNodeAddedDelta, AgentTreeNodeRemovedDelta, AgentTreeNodeStatusChangedDelta, AgentTreePendingSpawnStartedDelta, AgentTreeSnapshot, AgentTreeUpdateInboundPayload, AgentTreeUpdateOutboundPayload, ApiMessage, ApiUpdateMachineState, ApiUpdateNewMessage, ApiUpdateSessionState, CoreUpdateBody, CoreUpdateContainer, CreateEnvelopeOptions, LedgerErrorCode, LedgerRecord, LegacyMessageContent, MachineTunnel, MessageContent, MessageMeta, NonRenderableEntry, RawClaudeMessageMatchInput, ReceiverRegexFactory, SenderKeys, SessionAgentConfigurationChangedEvent, SessionContextBoundaryEvent, SessionContextBoundaryKind, SessionContextBoundaryTriggeredBy, SessionEnvelope, SessionEvent, SessionGetAgentTreeRequest, SessionGetAgentTreeResponse, SessionMessage, SessionMessageConsumptionEvent, SessionMessageContent, SessionMessageRangeRequest, SessionMessageRangeResponse, SessionProtocolMessage, SessionRole, SessionTurnEndStatus, TofuHandshakeMessage, TofuPubkeysEvent, TofuPublicKeys, TofuSessionKeyExchange, Update, UpdateBody, UpdateMachineBody, UpdateNewMessageBody, UpdateSessionBody, UserMessage, VersionedEncryptedValue, VersionedMachineEncryptedValue, VersionedNullableEncryptedValue, VoiceConversationResponse, VoiceUsageResponse };

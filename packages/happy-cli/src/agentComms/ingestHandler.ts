@@ -1,5 +1,4 @@
-import type { AgentCommsEnvelope } from '@slopus/happy-wire';
-import type { AgentCommsIngestBody } from 'happy-server';
+import type { AgentCommsEnvelope, AgentCommsIngestBody } from '@slopus/happy-wire';
 import { decodeBase64 } from '@/api/encryption';
 import type { SpawnSessionFromSessionRpcOptions } from '@/api/apiMachine';
 import type { SpawnSessionResult } from '@/modules/common/registerCommonHandlers';

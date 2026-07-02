@@ -2,9 +2,11 @@ import { describe, expect, it } from 'vitest';
 import {
   AgentCommsChannelSchema,
   AgentCommsEnvelopeSchema,
+  AgentCommsIngestBodySchema,
   AgentCommsKindSchema,
   AgentCommsScopeSchema,
   MAX_HOPS,
+  routeHopValidation,
   type AgentCommsEnvelope,
 } from './index';
 
@@ -146,5 +148,96 @@ describe('AgentCommsEnvelope', () => {
 
   it('exposes MAX_HOPS as the documented cap of 4', () => {
     expect(MAX_HOPS).toBe(4);
+  });
+});
+
+const validIngestBody = {
+  envelope: {
+    v: 1,
+    id: 'env-1',
+    ts: 1,
+    from: { machineId: 'machine-a', sessionId: 'sender' },
+    to: { machineId: 'machine-b', sessionId: 'target' },
+    scope: 'A',
+    channel: 'message',
+    kind: 'request',
+    hopCount: 0,
+    hopPath: ['machine-a:sender'],
+    body: { nonce: 'n', ciphertext: 'c' },
+  },
+  signature: 'sig',
+  senderKeys: {
+    ed25519PublicKey: 'ed-pub',
+    ecdhPublicKey: 'ecdh-pub',
+    ed25519Fingerprint: 'SHA256:abc',
+  },
+};
+
+describe('AgentCommsIngestBodySchema', () => {
+  it('accepts a well-formed signed/sealed ingest body', () => {
+    const parsed = AgentCommsIngestBodySchema.parse(validIngestBody);
+    expect(parsed.envelope.scope).toBe('A');
+    expect(parsed.signature).toBe('sig');
+    expect(parsed.senderKeys.ecdhPublicKey).toBe('ecdh-pub');
+  });
+
+  it('accepts a body without the optional ed25519Fingerprint', () => {
+    const { ed25519Fingerprint, ...senderKeys } = validIngestBody.senderKeys;
+    const parsed = AgentCommsIngestBodySchema.parse({ ...validIngestBody, senderKeys });
+    expect(parsed.senderKeys.ed25519Fingerprint).toBeUndefined();
+  });
+
+  it('rejects an empty signature', () => {
+    expect(() => AgentCommsIngestBodySchema.parse({ ...validIngestBody, signature: '' })).toThrow();
+  });
+
+  it('rejects senderKeys missing the ecdh public key', () => {
+    const { ecdhPublicKey, ...senderKeys } = validIngestBody.senderKeys;
+    expect(() => AgentCommsIngestBodySchema.parse({ ...validIngestBody, senderKeys })).toThrow();
+  });
+
+  it('rejects a body whose envelope is malformed', () => {
+    const envelope = { ...validIngestBody.envelope, scope: 'D' };
+    expect(() => AgentCommsIngestBodySchema.parse({ ...validIngestBody, envelope })).toThrow();
+  });
+});
+
+describe('routeHopValidation', () => {
+  const baseEnvelope: AgentCommsEnvelope = {
+    v: 1,
+    id: 'env-hop',
+    ts: 1,
+    from: { machineId: 'machine-a', sessionId: 'sender' },
+    to: { machineId: 'machine-b', sessionId: 'target' },
+    scope: 'A',
+    channel: 'message',
+    kind: 'request',
+    hopCount: 0,
+    hopPath: ['machine-a:sender'],
+    body: { text: 'hello' },
+  };
+
+  it('returns null for a valid envelope', () => {
+    expect(routeHopValidation(baseEnvelope)).toBeNull();
+  });
+
+  it('flags hopCount > MAX_HOPS', () => {
+    const envelope = { ...baseEnvelope, hopCount: MAX_HOPS + 1 };
+    expect(routeHopValidation(envelope)).toContain('exceeds MAX_HOPS');
+  });
+
+  it('flags a duplicate hop in hopPath', () => {
+    const envelope = { ...baseEnvelope, hopPath: ['machine-a:sender', 'machine-a:sender'] };
+    expect(routeHopValidation(envelope)).toBe('hopPath contains a duplicate session');
+  });
+
+  it('flags hopPath already containing the bare target sessionId', () => {
+    const envelope = { ...baseEnvelope, hopPath: ['target'] };
+    expect(routeHopValidation(envelope)).toBe('hopPath already contains the target session');
+  });
+
+  it('flags hopPath already containing the machine-qualified target ref', () => {
+    const envelope = { ...baseEnvelope, hopPath: ['machine-b:target'] };
+    expect(routeHopValidation(envelope)).toBe('hopPath already contains the target session');
   });
 });

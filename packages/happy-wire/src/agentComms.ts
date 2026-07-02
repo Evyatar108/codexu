@@ -61,3 +61,52 @@ export const AgentCommsEnvelopeSchema = z.object({
   body: z.unknown(),
 });
 export type AgentCommsEnvelope = z.infer<typeof AgentCommsEnvelopeSchema>;
+
+/**
+ * Sender public-key material carried alongside a Scope A ingest envelope.
+ *
+ * These are the pinned peer's Ed25519/X25519 public keys (and optional
+ * fingerprint) used by the receiving daemon to verify the detached signature
+ * and open the sealed body. See `plans/agent-comms-design.md` §5.4.
+ */
+export const SenderKeysSchema = z.object({
+  ed25519PublicKey: z.string().min(1),
+  ecdhPublicKey: z.string().min(1),
+  ed25519Fingerprint: z.string().min(1).optional(),
+});
+export type SenderKeys = z.infer<typeof SenderKeysSchema>;
+
+/**
+ * Wire body for the Scope A `POST /agent-comms/ingest` endpoint.
+ *
+ * The receiving daemon's ingest listener validates this shape at the Zod
+ * boundary, runs `routeHopValidation`, then delegates cryptographic
+ * verification and mailbox append to the daemon-injected handler.
+ */
+export const AgentCommsIngestBodySchema = z.object({
+  envelope: AgentCommsEnvelopeSchema,
+  signature: z.string().min(1),
+  senderKeys: SenderKeysSchema,
+});
+export type AgentCommsIngestBody = z.infer<typeof AgentCommsIngestBodySchema>;
+
+/** The daemon-injected closure that performs auth + mailbox delivery for an ingest body. */
+export type AgentCommsIngestHandler = (body: AgentCommsIngestBody) => Promise<{ id: string; seq: number }>;
+
+function hasDuplicate(values: readonly string[]): boolean {
+  return new Set(values).size !== values.length;
+}
+
+/**
+ * Backend-observable hop checks performed before an ingest body reaches the
+ * cryptographic handler. Returns a human-readable error string when the
+ * envelope violates a hop invariant (hop-count cap, duplicate hop, or the
+ * hopPath already containing the target session), or `null` when it is valid.
+ */
+export function routeHopValidation(envelope: AgentCommsEnvelope): string | null {
+  if (envelope.hopCount > MAX_HOPS) return `hopCount ${envelope.hopCount} exceeds MAX_HOPS ${MAX_HOPS}`;
+  if (hasDuplicate(envelope.hopPath)) return 'hopPath contains a duplicate session';
+  const targetRefs = new Set([envelope.to.sessionId]);
+  if (envelope.to.machineId) targetRefs.add(`${envelope.to.machineId}:${envelope.to.sessionId}`);
+  return envelope.hopPath.some(ref => targetRefs.has(ref)) ? 'hopPath already contains the target session' : null;
+}
