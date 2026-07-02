@@ -265,6 +265,22 @@ This is the workflow the 2026-04-22 batch used after the merge: Metro on `/d/h` 
 > direction (task `remote-connectivity-lan-known-devices-additive-transport`).
 > The Cloudflare + Windows-services material below is kept for historical /
 > recovery reference only.
+>
+> **SCOPED SUPERSESSION (operator-approved 2026-06-29, task
+> `remote-connectivity-single-user-public-evyatar-server`).** For that ONE
+> task, `happy.evyatar.dev` + a Cloudflare named tunnel are being brought back
+> **deliberately**, but with a different meaning than the retired central
+> instance: it fronts the operator's **own embedded per-daemon single-tenant
+> happy-server** (still no central broker, still exactly one user per process),
+> chosen because the operator's corporate policy blocks Microsoft Dev Tunnels.
+> Cloudflare Access is **mandatory edge defense-in-depth on top of** a new
+> fail-closed app-layer Ed25519 paired-device verifier — it is NOT the boundary
+> on its own, and this is NOT a "Cloudflare provider-swap" of the old central
+> server. The app-layer verifier must ship and pass its decisive route-inventory
+> acceptance test before any public-bind/Cloudflare exposure lands. Opt-in,
+> default-off; the Dev Tunnels/loopback path stays unchanged. This supersession
+> is scoped to that single task only; every other connectivity task still
+> follows the blanket guardrail above.
 
 Happy-server runs from `D:\harness-efforts\happy` via `pnpm --filter happy-server standalone:dev` (embedded PGlite, no Docker) on `http://localhost:3005`. A named Cloudflare Tunnel fronts it at the stable URL **`https://happy.evyatar.dev`**. The `cloudflared` binary is installed at `C:\Program Files (x86)\cloudflared\cloudflared.exe` (via `winget install Cloudflare.cloudflared`); config lives at `~/.cloudflared/`.
 
