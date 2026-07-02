@@ -1581,6 +1581,10 @@
         {
           "className": "cmd-ok",
           "html": "PHASE 2 US-008 (codex gate) SHIPPED @ codexu 8a99c07e (inner 587a6a8ab8 sandbox-patches/Evyatar108, wrapper 263000a2b1 codex main/gim-home). Feature::RemotePublicServer (key remote_public_server, Experimental, default-off) -- a PURE opt-in marker with ZERO codex runtime gate read; public exposure owned by the CLI (US-006 HAPPY_TUNNEL_PROVIDER=cloudflare). /remote on stays LOOPBACK-only: invariant 75 asserts codex-happy/src/auth.rs MachineListenerState base URLs stay http://127.0.0.1 with no https/evyatar host (a future re-point to the public URL fails the guard). cargo check --workspace green; invariant 75 (2 tests) + fork-visibility pass. No release (inert default-off). Remaining: US-007 app (in flight), US-009 edge ops (operator-run), US-010 docs."
+        },
+        {
+          "className": "cmd-ok",
+          "html": "PHASE 2 US-007 (happy-app device-proof) SHIPPED @ e43c1c19. @noble/ed25519 validated under Hermes (sync SHA-512 hook + expo-crypto CSPRNG, NO WebCrypto); publicDeviceProof reproduces server PUBLIC_DEVICE_AUTH_TEST_VECTOR byte-for-byte. tokenStorage +5 fields (cloudflareAccessClientId/Secret, deviceKeyId, devicePublicKey, deviceSecretKey) migration-tested; encryptionDeletion.spec still enforces E2E-crypto absence. Pairing-invite enrollment (base64url import, static e-ink UI, en-only i18n x10 locales). Device proof + CF-Access on HTTP (tunnelFetch/getMachineAuthHeaders) + Socket.IO (polling + both transports). 1126 tests pass. Headers: CF-Access-Client-Id/Secret, x-happy-device-proof, x-happy-pairing-secret/nonce. 2 GAPS FILED: server device-key registration at /pair/complete + socket transport-fallback nonce. i18n en-only follow-up."
         }
       ],
       "command": {
