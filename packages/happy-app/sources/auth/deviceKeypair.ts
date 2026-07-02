@@ -41,8 +41,8 @@ export async function generateDeviceKeypair(): Promise<DeviceKeypair> {
 /**
  * Fresh base64 nonce sourced from the platform CSPRNG for device-proof and
  * pairing replay protection. Uses expo-crypto rather than @noble's
- * `generatePublicRequestNonce` (which falls back to Math.random when
- * globalThis.crypto is absent, as it is on Hermes).
+ * `generatePublicRequestNonce` (which falls back to Math.random when the
+ * Web Crypto global is absent, as it is on Hermes).
  */
 export function generateSecureNonce(byteLength = 24): string {
     return encodeBase64(getRandomBytes(byteLength));

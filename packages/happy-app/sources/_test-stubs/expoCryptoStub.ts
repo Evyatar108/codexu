@@ -1,8 +1,8 @@
-// Minimal stub for `expo-crypto` used only by the Vitest node runner. The real
-// module depends on expo-modules-core internals that assume a React-Native /
-// Metro runtime. Tests that transitively import device key material inject their
-// own deterministic generators, so a counter-based byte source is sufficient
-// here and keeps module import chains loading cleanly.
+// Minimal stub for the Expo Crypto native module used only by the Vitest node
+// runner. The real module depends on expo-modules-core internals that assume a
+// React-Native / Metro runtime. Tests that transitively import device key
+// material inject their own deterministic generators, so a counter-based byte
+// source is sufficient here and keeps module import chains loading cleanly.
 
 let counter = 0;
 
