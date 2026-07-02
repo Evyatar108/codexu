@@ -294,7 +294,7 @@ export class TunnelManager {
     return config;
   }
 
-  async loadForDaemon(localPort: number): Promise<TunnelConfig> {
+  async loadForDaemon(localPort: number, additionalPorts: number[] = []): Promise<TunnelConfig> {
     const config = readTunnelConfig(this.happyHomeDir);
     if (!config) {
       throw new Error('Dev Tunnel is not initialized. Run `happy init` before starting the daemon.');
@@ -302,6 +302,12 @@ export class TunnelManager {
 
     await this.autoRenewIfNeeded(config);
     await this.ensurePort(config.tunnelId, localPort);
+    // Register any additional forwarded ports (Scope A ingest port) idempotently so
+    // `devtunnel host` forwards them alongside the primary tunnel port.
+    for (const extraPort of additionalPorts) {
+      if (extraPort === localPort) continue;
+      await this.ensurePort(config.tunnelId, extraPort);
+    }
     // Always re-derive the port-specific URL from `devtunnel show --json` so the
     // daemon never publishes a stale base-tunnel URL into `tofuConfig.publicUrl`.
     const show = this.runner('devtunnel', ['show', config.tunnelId, '--json']);

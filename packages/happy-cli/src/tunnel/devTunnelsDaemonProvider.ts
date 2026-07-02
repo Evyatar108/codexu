@@ -72,7 +72,9 @@ export class DevTunnelsDaemonProvider implements DaemonTunnelProvider {
   }
 
   async loadHostTunnel(options: LoadHostTunnelOptions): Promise<TunnelConfig> {
-    const config = await this.manager.loadForDaemon(options.port);
+    const config = options.additionalPorts && options.additionalPorts.length > 0
+      ? await this.manager.loadForDaemon(options.port, options.additionalPorts)
+      : await this.manager.loadForDaemon(options.port);
     this.applyTags(config.tunnelId, normalizeTags(null, options.extraTags));
     this.manager.startHost(config, options.port);
     return config;

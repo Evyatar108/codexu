@@ -67,29 +67,49 @@ export const initialMachineMetadata: MachineMetadata = {
   resumeSupport: { ...detectResumeSupport(), rpcAvailable: true, forkRpcAvailable: true },
 };
 
+async function pickDistinctLoopbackPort(taken: number[]): Promise<number> {
+  let port = await pickFreeLoopbackPort();
+  while (taken.includes(port)) {
+    port = await pickFreeLoopbackPort();
+  }
+  return port;
+}
+
 async function resolveMachineState(machineId: string): Promise<MachineLocallyPersistedState> {
   const machineState = await readMachineState(machineId);
   if (machineState) {
-    if (machineState.machineId !== machineId) {
-      const updated = { ...machineState, machineId };
+    let updated: MachineLocallyPersistedState = machineState;
+    let changed = false;
+    if (updated.machineId !== machineId) {
+      updated = { ...updated, machineId };
+      changed = true;
+    }
+    if (updated.tunnelPort === updated.loopbackPort) {
+      const loopbackPort = await pickDistinctLoopbackPort([updated.tunnelPort]);
+      updated = { ...updated, loopbackPort };
+      changed = true;
+    }
+    // Scope A: ensure a distinct ingest port. Pins written before Scope A lack it,
+    // and a persisted one must not collide with the tunnel/loopback ports.
+    if (
+      updated.ingestPort === undefined
+      || updated.ingestPort === updated.tunnelPort
+      || updated.ingestPort === updated.loopbackPort
+    ) {
+      const ingestPort = await pickDistinctLoopbackPort([updated.tunnelPort, updated.loopbackPort]);
+      updated = { ...updated, ingestPort };
+      changed = true;
+    }
+    if (changed) {
       await writeMachineState(updated);
-      return updated;
     }
-    if (machineState.tunnelPort !== machineState.loopbackPort) {
-      return machineState;
-    }
-    const loopbackPort = await pickFreeLoopbackPort();
-    const updated = { ...machineState, loopbackPort };
-    await writeMachineState(updated);
     return updated;
   }
 
   const tunnelPort = await pickFreeLoopbackPort();
-  let loopbackPort = await pickFreeLoopbackPort();
-  while (loopbackPort === tunnelPort) {
-    loopbackPort = await pickFreeLoopbackPort();
-  }
-  const created = { machineId, tunnelPort, loopbackPort, tunnelId: '', lastTunnelUrl: null };
+  const loopbackPort = await pickDistinctLoopbackPort([tunnelPort]);
+  const ingestPort = await pickDistinctLoopbackPort([tunnelPort, loopbackPort]);
+  const created = { machineId, tunnelPort, loopbackPort, ingestPort, tunnelId: '', lastTunnelUrl: null };
   await writeMachineState(created);
   return created;
 }

@@ -35,7 +35,12 @@ export type DualListenerBindingHandle = {
 
 export async function dualListenerBinding(options: DualListenerBindingOptions): Promise<DualListenerBindingHandle> {
   const state = options.machineState();
-  const tunnelConfig = await options.tunnelProvider.loadHostTunnel({ port: state.tunnelPort });
+  const additionalPorts = state.ingestPort ? [state.ingestPort] : [];
+  const tunnelConfig = await options.tunnelProvider.loadHostTunnel(
+    additionalPorts.length > 0
+      ? { port: state.tunnelPort, additionalPorts }
+      : { port: state.tunnelPort },
+  );
   const create = options.createAppFactory ?? (await importHappyServer('happy-server')).createApp;
   const machineState = () => {
     const current = options.machineState();

@@ -90,6 +90,12 @@ export interface MachineLocallyPersistedState {
   machineId: string;
   tunnelPort: number;
   loopbackPort: number;
+  /**
+   * Loopback port for the happy-cli-owned agent-comms ingest listener. Forwarded
+   * on the Dev Tunnel as a second port (Scope A). Optional for back-compat: pins
+   * written before Scope A lack it, and the daemon allocates one on next start.
+   */
+  ingestPort?: number;
   tunnelId: string;
   lastTunnelUrl: string | null;
 }
@@ -336,6 +342,11 @@ export async function readMachineState(machineIdFallback?: string): Promise<Mach
         : typeof parsed.tunnelUrl === 'string'
           ? parsed.tunnelUrl
           : null,
+      // Preserve ingestPort when a Scope A-era pin carries a valid one; leave it
+      // absent otherwise so the daemon (resolveMachineState) allocates it. Do NOT
+      // add it to the rewrite condition below: a missing ingestPort must not force
+      // a spurious migration write on read for legacy pins.
+      ...(isValidPort(parsed.ingestPort) ? { ingestPort: parsed.ingestPort } : {}),
     };
     if (!isValidPort(parsed.tunnelPort) || !isValidPort(parsed.loopbackPort) || parsed.machineId !== migrated.machineId || parsed.tunnelUrl !== undefined) {
       await writeMachineState(migrated);

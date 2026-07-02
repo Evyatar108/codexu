@@ -8,6 +8,12 @@ export type CreateHostTunnelOptions = {
 
 export type LoadHostTunnelOptions = {
   port: number;
+  /**
+   * Extra local ports to register + forward on the same Dev Tunnel (Scope A ingest
+   * port). Each is registered idempotently via `devtunnel port create`; `devtunnel
+   * host` forwards all registered ports.
+   */
+  additionalPorts?: number[];
   extraTags?: string[];
 };
 

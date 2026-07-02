@@ -67,4 +67,55 @@ describe('machine state persistence', () => {
       lastTunnelUrl: 'https://happy-machine-1.devtunnels.ms',
     });
   });
+
+  it('preserves a valid ingestPort without rewriting the pin (Scope A)', async () => {
+    const dir = await mkdtemp(path.join(os.tmpdir(), 'happy-machine-state-'));
+    const pin = {
+      machineId: 'machine-1',
+      tunnelPort: 62000,
+      loopbackPort: 62001,
+      ingestPort: 62002,
+      tunnelId: 'happy-machine-1',
+      lastTunnelUrl: 'https://happy-machine-1.devtunnels.ms',
+    };
+    await writeFile(path.join(dir, 'machine.json'), JSON.stringify(pin));
+    const { readMachineState } = await loadPersistence(dir);
+
+    await expect(readMachineState('machine-1')).resolves.toEqual(pin);
+    // No spurious migration rewrite: the on-disk bytes are unchanged.
+    await expect(readFile(path.join(dir, 'machine.json'), 'utf-8').then(JSON.parse)).resolves.toEqual(pin);
+  });
+
+  it('omits ingestPort for legacy pins that lack it (back-compat; daemon allocates later)', async () => {
+    const dir = await mkdtemp(path.join(os.tmpdir(), 'happy-machine-state-'));
+    await writeFile(path.join(dir, 'machine.json'), JSON.stringify({
+      machineId: 'machine-1',
+      tunnelPort: 62000,
+      loopbackPort: 62001,
+      tunnelId: 'happy-machine-1',
+      lastTunnelUrl: 'https://happy-machine-1.devtunnels.ms',
+    }));
+    const { readMachineState } = await loadPersistence(dir);
+
+    const state = await readMachineState('machine-1');
+    expect(state).not.toBeNull();
+    expect(state).not.toHaveProperty('ingestPort');
+  });
+
+  it('drops an invalid ingestPort so the daemon reallocates a valid one', async () => {
+    const dir = await mkdtemp(path.join(os.tmpdir(), 'happy-machine-state-'));
+    await writeFile(path.join(dir, 'machine.json'), JSON.stringify({
+      machineId: 'machine-1',
+      tunnelPort: 62000,
+      loopbackPort: 62001,
+      ingestPort: 0,
+      tunnelId: 'happy-machine-1',
+      lastTunnelUrl: 'https://happy-machine-1.devtunnels.ms',
+    }));
+    const { readMachineState } = await loadPersistence(dir);
+
+    const state = await readMachineState('machine-1');
+    expect(state).not.toBeNull();
+    expect(state).not.toHaveProperty('ingestPort');
+  });
 });

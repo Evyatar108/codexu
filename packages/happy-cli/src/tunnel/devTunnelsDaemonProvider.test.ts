@@ -142,4 +142,20 @@ describe('DevTunnelsDaemonProvider', () => {
     expect(manager.loadForDaemon).toHaveBeenCalledWith(62001);
     expect(manager.startHost).toHaveBeenCalledWith(config, 62001);
   });
+
+  it('forwards additional ingest ports to loadForDaemon (Scope A second port)', async () => {
+    const manager = {
+      init: vi.fn(),
+      loadForDaemon: vi.fn().mockResolvedValue(config),
+      startHost: vi.fn(),
+      stop: vi.fn(),
+    };
+    const provider = new DevTunnelsDaemonProvider({ manager });
+
+    await provider.loadHostTunnel({ port: 62001, additionalPorts: [62002] });
+
+    expect(manager.loadForDaemon).toHaveBeenCalledWith(62001, [62002]);
+    // The host still forwards from the primary tunnel port; devtunnel host forwards all registered ports.
+    expect(manager.startHost).toHaveBeenCalledWith(config, 62001);
+  });
 });

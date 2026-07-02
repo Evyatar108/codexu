@@ -79,4 +79,68 @@ describe('TunnelManager', () => {
     expect(calls.some((call) => call[1] === 'create')).toBe(false);
     expect(calls).toContainEqual(['devtunnel', 'port', 'create', 'existing-tunnel', '--port-number', '62000', '--protocol', 'http']);
   });
+
+  it('registers additional forwarded ports on daemon load (Scope A ingest port)', async () => {
+    const calls: string[][] = [];
+    const runner: CommandRunner = (command, args) => {
+      calls.push([command, ...args]);
+      if (args[0] === 'show') {
+        return {
+          status: 0,
+          stdout: JSON.stringify({ tunnel: { ports: [{ portUri: 'https://existing-tunnel-62000.usw2.devtunnels.ms' }] } }),
+          stderr: '',
+        };
+      }
+      return { status: 0, stdout: '', stderr: '' };
+    };
+    const happyHomeDir = tempHome();
+    await writeTunnelConfig({
+      tunnelId: 'existing-tunnel',
+      tunnelName: 'existing-tunnel',
+      tunnelUrl: 'https://existing-tunnel.devtunnels.ms',
+      createdAt: '2026-05-01T00:00:00.000Z',
+    }, happyHomeDir);
+
+    const manager = new TunnelManager({
+      happyHomeDir,
+      runner,
+      now: () => new Date('2026-05-05T00:00:00.000Z'),
+    });
+    await manager.loadForDaemon(62000, [62002]);
+
+    expect(calls).toContainEqual(['devtunnel', 'port', 'create', 'existing-tunnel', '--port-number', '62000', '--protocol', 'http']);
+    expect(calls).toContainEqual(['devtunnel', 'port', 'create', 'existing-tunnel', '--port-number', '62002', '--protocol', 'http']);
+  });
+
+  it('does not double-register when an additional port equals the primary port', async () => {
+    const calls: string[][] = [];
+    const runner: CommandRunner = (command, args) => {
+      calls.push([command, ...args]);
+      if (args[0] === 'show') {
+        return {
+          status: 0,
+          stdout: JSON.stringify({ tunnel: { ports: [{ portUri: 'https://existing-tunnel-62000.usw2.devtunnels.ms' }] } }),
+          stderr: '',
+        };
+      }
+      return { status: 0, stdout: '', stderr: '' };
+    };
+    const happyHomeDir = tempHome();
+    await writeTunnelConfig({
+      tunnelId: 'existing-tunnel',
+      tunnelName: 'existing-tunnel',
+      tunnelUrl: 'https://existing-tunnel.devtunnels.ms',
+      createdAt: '2026-05-01T00:00:00.000Z',
+    }, happyHomeDir);
+
+    const manager = new TunnelManager({
+      happyHomeDir,
+      runner,
+      now: () => new Date('2026-05-05T00:00:00.000Z'),
+    });
+    await manager.loadForDaemon(62000, [62000]);
+
+    const portCreateCalls = calls.filter((call) => call[1] === 'port' && call[2] === 'create');
+    expect(portCreateCalls).toHaveLength(1);
+  });
 });
