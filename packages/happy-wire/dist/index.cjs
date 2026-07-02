@@ -829,6 +829,102 @@ const PUBLIC_DEVICE_AUTH_TEST_VECTOR = {
   headerBase64: "eyJ2IjoxLCJrZXlJZCI6ImRldmljZS10ZXN0LWtleSIsInB1YmxpY0tleSI6IkE2RUh2L1BPRUw0ZGNOMFk1MHZBbVdmazFqQ2JwUTFmSGR5R1pCSlZNYmc9Iiwibm9uY2UiOiJibTl1WTJVdE1EQXdNREF3TURBd01EQXdNREF3TURBd01EQT0iLCJpc3N1ZWRBdCI6MTczNTY4OTYwMDAwMCwibWV0aG9kIjoiUE9TVCIsInBhdGgiOiIvcGFpci9jb25uZWN0IiwiYm9keUhhc2giOiJ4NGpPeHk3bTRhaE1vdW45VmdJUGszNktWS29PYVhhN0liWVpDaGZEaGl3PSIsInNpZ25hdHVyZSI6IjZBMzF6Z2UwczV5ZjZYSHFMREFwNGdkdFo1azBuelNKSWsxWUY1SWRmWGlZOGtMLzVNcUFqdk5GU2dTV043ckRtWUQ4RjIxTWQrQzJSOGNSQUZ6bEJ3PT0ifQ=="
 };
 
+const PUBLIC_PAIRING_INVITE_VERSION = 1;
+const PUBLIC_PAIRING_INVITE_DEFAULT_TTL_MS = 10 * 60 * 1e3;
+const CloudflareAccessServiceTokenSchema = z__namespace.object({
+  clientId: z__namespace.string().min(1),
+  clientSecret: z__namespace.string().min(1)
+});
+const PublicPairingInviteSchema = z__namespace.object({
+  version: z__namespace.literal(PUBLIC_PAIRING_INVITE_VERSION),
+  serverUrl: z__namespace.string().url(),
+  machineId: z__namespace.string().min(1),
+  pairSecret: z__namespace.string().min(1),
+  cloudflareAccess: CloudflareAccessServiceTokenSchema,
+  issuedAt: z__namespace.string().datetime(),
+  expiresAt: z__namespace.string().datetime()
+});
+function generatePairSecret(byteLength = 24) {
+  return generatePublicRequestNonce(byteLength);
+}
+function toDate(value) {
+  if (value === void 0) return null;
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    throw new Error("Invalid date supplied to public pairing invite");
+  }
+  return date;
+}
+function createPublicPairingInvite(input) {
+  const issuedAtDate = toDate(input.issuedAt) ?? /* @__PURE__ */ new Date();
+  const ttlMs = input.ttlMs ?? PUBLIC_PAIRING_INVITE_DEFAULT_TTL_MS;
+  const expiresAtDate = toDate(input.expiresAt) ?? new Date(issuedAtDate.getTime() + ttlMs);
+  return PublicPairingInviteSchema.parse({
+    version: PUBLIC_PAIRING_INVITE_VERSION,
+    serverUrl: input.serverUrl,
+    machineId: input.machineId,
+    pairSecret: input.pairSecret ?? generatePairSecret(),
+    cloudflareAccess: {
+      clientId: input.cloudflareAccess.clientId,
+      clientSecret: input.cloudflareAccess.clientSecret
+    },
+    issuedAt: issuedAtDate.toISOString(),
+    expiresAt: expiresAtDate.toISOString()
+  });
+}
+function isPublicPairingInviteValid(invite, now = /* @__PURE__ */ new Date()) {
+  const parsed = PublicPairingInviteSchema.safeParse(invite);
+  if (!parsed.success) return false;
+  const issuedAt = new Date(parsed.data.issuedAt).getTime();
+  const expiresAt = new Date(parsed.data.expiresAt).getTime();
+  const nowMs = now.getTime();
+  return nowMs >= issuedAt && nowMs <= expiresAt;
+}
+function toBase64Url(text) {
+  const bytes = new TextEncoder().encode(text);
+  return encodeBase64(bytes).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+}
+function fromBase64Url(token) {
+  const standard = token.replace(/-/g, "+").replace(/_/g, "/");
+  return new TextDecoder().decode(decodeBase64(standard));
+}
+function encodePublicPairingInvite(invite) {
+  const validated = PublicPairingInviteSchema.parse(invite);
+  return toBase64Url(JSON.stringify(validated));
+}
+function decodePublicPairingInvite(token) {
+  if (!token) return null;
+  let json;
+  try {
+    json = fromBase64Url(token.trim());
+  } catch {
+    return null;
+  }
+  let parsed;
+  try {
+    parsed = JSON.parse(json);
+  } catch {
+    return null;
+  }
+  const result = PublicPairingInviteSchema.safeParse(parsed);
+  return result.success ? result.data : null;
+}
+const PUBLIC_PAIRING_INVITE_TEST_VECTOR = (() => {
+  const invite = {
+    version: PUBLIC_PAIRING_INVITE_VERSION,
+    serverUrl: "https://happy.evyatar.dev",
+    machineId: "machine-test-0001",
+    pairSecret: "cGFpci1zZWNyZXQtZml4dHVyZQ==",
+    cloudflareAccess: {
+      clientId: "cf-access-client-id.example",
+      clientSecret: "cf-access-client-secret-value"
+    },
+    issuedAt: "2026-05-11T12:00:00.000Z",
+    expiresAt: "2026-05-11T12:10:00.000Z"
+  };
+  return { invite, token: encodePublicPairingInvite(invite) };
+})();
+
 const MachineTunnelSchema = z__namespace.object({
   machineId: z__namespace.string(),
   tunnelId: z__namespace.string(),
@@ -860,6 +956,7 @@ exports.ApiMessageSchema = ApiMessageSchema;
 exports.ApiUpdateMachineStateSchema = ApiUpdateMachineStateSchema;
 exports.ApiUpdateNewMessageSchema = ApiUpdateNewMessageSchema;
 exports.ApiUpdateSessionStateSchema = ApiUpdateSessionStateSchema;
+exports.CloudflareAccessServiceTokenSchema = CloudflareAccessServiceTokenSchema;
 exports.CoreUpdateBodySchema = CoreUpdateBodySchema;
 exports.CoreUpdateContainerSchema = CoreUpdateContainerSchema;
 exports.DoneLedgerRecordSchema = DoneLedgerRecordSchema;
@@ -880,7 +977,11 @@ exports.PUBLIC_DEVICE_PROOF_DOMAIN = PUBLIC_DEVICE_PROOF_DOMAIN;
 exports.PUBLIC_DEVICE_PROOF_ENVELOPE_VERSION = PUBLIC_DEVICE_PROOF_ENVELOPE_VERSION;
 exports.PUBLIC_DEVICE_PROOF_FRESHNESS_MS = PUBLIC_DEVICE_PROOF_FRESHNESS_MS;
 exports.PUBLIC_DEVICE_PROOF_HEADER = PUBLIC_DEVICE_PROOF_HEADER;
+exports.PUBLIC_PAIRING_INVITE_DEFAULT_TTL_MS = PUBLIC_PAIRING_INVITE_DEFAULT_TTL_MS;
+exports.PUBLIC_PAIRING_INVITE_TEST_VECTOR = PUBLIC_PAIRING_INVITE_TEST_VECTOR;
+exports.PUBLIC_PAIRING_INVITE_VERSION = PUBLIC_PAIRING_INVITE_VERSION;
 exports.PendingPermissionLedgerRecordSchema = PendingPermissionLedgerRecordSchema;
+exports.PublicPairingInviteSchema = PublicPairingInviteSchema;
 exports.PublicSignedRequestEnvelopeSchema = PublicSignedRequestEnvelopeSchema;
 exports.SenderKeysSchema = SenderKeysSchema;
 exports.SessionGetAgentTreeRequestSchema = SessionGetAgentTreeRequestSchema;
@@ -911,14 +1012,19 @@ exports.VoiceConversationResponseSchema = VoiceConversationResponseSchema;
 exports.VoiceUsageResponseSchema = VoiceUsageResponseSchema;
 exports.canonicalRequestStringToSign = canonicalRequestStringToSign;
 exports.createEnvelope = createEnvelope;
+exports.createPublicPairingInvite = createPublicPairingInvite;
 exports.decodeBase64 = decodeBase64;
 exports.decodePublicDeviceProofHeader = decodePublicDeviceProofHeader;
+exports.decodePublicPairingInvite = decodePublicPairingInvite;
 exports.encodeBase64 = encodeBase64;
 exports.encodePublicDeviceProofHeader = encodePublicDeviceProofHeader;
+exports.encodePublicPairingInvite = encodePublicPairingInvite;
 exports.findSenderDropEntry = findSenderDropEntry;
 exports.forkBoilerplateEntry = forkBoilerplateEntry;
+exports.generatePairSecret = generatePairSecret;
 exports.generatePublicRequestNonce = generatePublicRequestNonce;
 exports.hashRequestBody = hashRequestBody;
+exports.isPublicPairingInviteValid = isPublicPairingInviteValid;
 exports.isPublicProofFresh = isPublicProofFresh;
 exports.localCommandCaveatEntry = localCommandCaveatEntry;
 exports.makeWrappedTagEntry = makeWrappedTagEntry;

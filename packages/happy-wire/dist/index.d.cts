@@ -6444,6 +6444,101 @@ interface PublicDeviceAuthTestVector {
 }
 declare const PUBLIC_DEVICE_AUTH_TEST_VECTOR: PublicDeviceAuthTestVector;
 
+declare const PUBLIC_PAIRING_INVITE_VERSION: 1;
+/** Default lifetime of a pairing invite when no explicit expiry/ttl is supplied. */
+declare const PUBLIC_PAIRING_INVITE_DEFAULT_TTL_MS: number;
+declare const CloudflareAccessServiceTokenSchema: z.ZodObject<{
+    clientId: z.ZodString;
+    clientSecret: z.ZodString;
+}, "strip", z.ZodTypeAny, {
+    clientId: string;
+    clientSecret: string;
+}, {
+    clientId: string;
+    clientSecret: string;
+}>;
+type CloudflareAccessServiceToken = z.infer<typeof CloudflareAccessServiceTokenSchema>;
+declare const PublicPairingInviteSchema: z.ZodObject<{
+    version: z.ZodLiteral<1>;
+    serverUrl: z.ZodString;
+    machineId: z.ZodString;
+    pairSecret: z.ZodString;
+    cloudflareAccess: z.ZodObject<{
+        clientId: z.ZodString;
+        clientSecret: z.ZodString;
+    }, "strip", z.ZodTypeAny, {
+        clientId: string;
+        clientSecret: string;
+    }, {
+        clientId: string;
+        clientSecret: string;
+    }>;
+    issuedAt: z.ZodString;
+    expiresAt: z.ZodString;
+}, "strip", z.ZodTypeAny, {
+    version: 1;
+    machineId: string;
+    issuedAt: string;
+    serverUrl: string;
+    pairSecret: string;
+    cloudflareAccess: {
+        clientId: string;
+        clientSecret: string;
+    };
+    expiresAt: string;
+}, {
+    version: 1;
+    machineId: string;
+    issuedAt: string;
+    serverUrl: string;
+    pairSecret: string;
+    cloudflareAccess: {
+        clientId: string;
+        clientSecret: string;
+    };
+    expiresAt: string;
+}>;
+type PublicPairingInvite = z.infer<typeof PublicPairingInviteSchema>;
+interface CreatePublicPairingInviteInput {
+    serverUrl: string;
+    machineId: string;
+    cloudflareAccess: CloudflareAccessServiceToken;
+    /** One-time pairing-window secret. Generated when omitted. */
+    pairSecret?: string;
+    issuedAt?: Date | string;
+    /** Invite lifetime; ignored when `expiresAt` is supplied. */
+    ttlMs?: number;
+    expiresAt?: Date | string;
+}
+/** Generate a fresh, high-entropy one-time pairing secret. */
+declare function generatePairSecret(byteLength?: number): string;
+/**
+ * Assemble a validated {@link PublicPairingInvite}. Generates a fresh
+ * `pairSecret` and a bounded `issuedAt`/`expiresAt` window unless overridden.
+ */
+declare function createPublicPairingInvite(input: CreatePublicPairingInviteInput): PublicPairingInvite;
+/**
+ * True when `invite` parses against the schema and `now` falls within
+ * `[issuedAt, expiresAt]`. Never throws.
+ */
+declare function isPublicPairingInviteValid(invite: unknown, now?: Date): boolean;
+/** Encode a validated invite as a compact base64url token (QR / manual entry). */
+declare function encodePublicPairingInvite(invite: PublicPairingInvite): string;
+/**
+ * Decode + validate a base64url invite token. Returns null when the token is
+ * malformed, not valid base64url, not JSON, or fails schema validation.
+ */
+declare function decodePublicPairingInvite(token: string | undefined | null): PublicPairingInvite | null;
+interface PublicPairingInviteTestVector {
+    invite: PublicPairingInvite;
+    token: string;
+}
+/**
+ * Deterministic round-trip fixture shared with consumers (US-007 app import).
+ * `token` is the canonical base64url encoding of `invite`.
+ */
+declare const PUBLIC_PAIRING_INVITE_TEST_VECTOR: PublicPairingInviteTestVector;
+
 declare const MachineTunnelSchema: z.ZodObject<{
     machineId: z.ZodString;
     tunnelId: z.ZodString;
@@ -6468,5 +6563,5 @@ declare const MachineTunnelSchema: z.ZodObject<{
 }>;
 type MachineTunnel = z.infer<typeof MachineTunnelSchema>;
 
-export { AgentCommsChannelSchema, AgentCommsEnvelopeSchema, AgentCommsFromSchema, AgentCommsIngestBodySchema, AgentCommsKindSchema, AgentCommsScopeSchema, AgentCommsToSchema, AgentMessageSchema, AgentTreeDeltaSchema, AgentTreeEdgeSchema, AgentTreeNodeAddedDeltaSchema, AgentTreeNodeRemovedDeltaSchema, AgentTreeNodeSchema, AgentTreeNodeStatusChangedDeltaSchema, AgentTreePendingSpawnStartedDeltaSchema, AgentTreeSnapshotSchema, AgentTreeUpdateInboundPayloadSchema, AgentTreeUpdateOutboundPayloadSchema, ApiMessageSchema, ApiUpdateMachineStateSchema, ApiUpdateNewMessageSchema, ApiUpdateSessionStateSchema, CoreUpdateBodySchema, CoreUpdateContainerSchema, DoneLedgerRecordSchema, ErrorLedgerRecordSchema, IdleReachedLedgerRecordSchema, LastOutputSummaryLedgerRecordSchema, LedgerErrorCodeSchema, LedgerRecordSchema, LegacyMessageContentSchema, MAX_HOPS, MachineTunnelSchema, MessageContentSchema, MessageMetaSchema, MessageSentLedgerRecordSchema, PUBLIC_DEVICE_AUTH_TEST_VECTOR, PUBLIC_DEVICE_PROOF_CLOCK_SKEW_MS, PUBLIC_DEVICE_PROOF_DOMAIN, PUBLIC_DEVICE_PROOF_ENVELOPE_VERSION, PUBLIC_DEVICE_PROOF_FRESHNESS_MS, PUBLIC_DEVICE_PROOF_HEADER, PendingPermissionLedgerRecordSchema, PublicSignedRequestEnvelopeSchema, SenderKeysSchema, SessionGetAgentTreeRequestSchema, SessionGetAgentTreeResponseSchema, SessionMessageContentSchema, SessionMessageRangeRequestSchema, SessionMessageRangeResponseSchema, SessionMessageSchema, SessionProtocolMessageSchema, SpawnLedgerRecordSchema, TofuHandshakeMessageSchema, TofuPubkeysEventSchema, TofuPublicKeysSchema, TofuSessionKeyExchangeSchema, UpdateBodySchema, UpdateMachineBodySchema, UpdateNewMessageBodySchema, UpdateSchema, UpdateSessionBodySchema, UserMessageSchema, ValidationAttachedLedgerRecordSchema, VersionedEncryptedValueSchema, VersionedMachineEncryptedValueSchema, VersionedNullableEncryptedValueSchema, VoiceConversationDeniedSchema, VoiceConversationGrantedSchema, VoiceConversationResponseSchema, VoiceUsageResponseSchema, canonicalRequestStringToSign, createEnvelope, decodeBase64, decodePublicDeviceProofHeader, encodeBase64, encodePublicDeviceProofHeader, findSenderDropEntry, forkBoilerplateEntry, generatePublicRequestNonce, hashRequestBody, isPublicProofFresh, localCommandCaveatEntry, makeWrappedTagEntry, nonRenderableEntries, normalizeMethod, routeHopValidation, sessionAgentConfigurationChangedEventSchema, sessionContextBoundaryEventSchema, sessionContextBoundaryKindSchema, sessionContextBoundaryTriggeredBySchema, sessionEnvelopeSchema, sessionEventSchema, sessionFileEventSchema, sessionMessageConsumptionEventSchema, sessionRoleSchema, sessionServiceMessageEventSchema, sessionStartEventSchema, sessionStopEventSchema, sessionTextEventSchema, sessionToolCallEndEventSchema, sessionToolCallStartEventSchema, sessionTurnEndEventSchema, sessionTurnEndStatusSchema, sessionTurnStartEventSchema, signPublicRequest, skillBodyEntry, systemReminderEntry, verifyPublicRequest };
-export type { AgentCommsChannel, AgentCommsEnvelope, AgentCommsFrom, AgentCommsIngestBody, AgentCommsIngestHandler, AgentCommsKind, AgentCommsScope, AgentCommsTo, AgentMessage, AgentTreeDelta, AgentTreeEdge, AgentTreeNode, AgentTreeNodeAddedDelta, AgentTreeNodeRemovedDelta, AgentTreeNodeStatusChangedDelta, AgentTreePendingSpawnStartedDelta, AgentTreeSnapshot, AgentTreeUpdateInboundPayload, AgentTreeUpdateOutboundPayload, ApiMessage, ApiUpdateMachineState, ApiUpdateNewMessage, ApiUpdateSessionState, CanonicalRequestFields, CoreUpdateBody, CoreUpdateContainer, CreateEnvelopeOptions, LedgerErrorCode, LedgerRecord, LegacyMessageContent, MachineTunnel, MessageContent, MessageMeta, NonRenderableEntry, PublicDeviceAuthTestVector, PublicRequestVerification, PublicSignedRequestEnvelope, RawClaudeMessageMatchInput, ReceiverRegexFactory, SenderKeys, SessionAgentConfigurationChangedEvent, SessionContextBoundaryEvent, SessionContextBoundaryKind, SessionContextBoundaryTriggeredBy, SessionEnvelope, SessionEvent, SessionGetAgentTreeRequest, SessionGetAgentTreeResponse, SessionMessage, SessionMessageConsumptionEvent, SessionMessageContent, SessionMessageRangeRequest, SessionMessageRangeResponse, SessionProtocolMessage, SessionRole, SessionTurnEndStatus, SignPublicRequestInput, TofuHandshakeMessage, TofuPubkeysEvent, TofuPublicKeys, TofuSessionKeyExchange, Update, UpdateBody, UpdateMachineBody, UpdateNewMessageBody, UpdateSessionBody, UserMessage, VerifyPublicRequestContext, VersionedEncryptedValue, VersionedMachineEncryptedValue, VersionedNullableEncryptedValue, VoiceConversationResponse, VoiceUsageResponse };
+export { AgentCommsChannelSchema, AgentCommsEnvelopeSchema, AgentCommsFromSchema, AgentCommsIngestBodySchema, AgentCommsKindSchema, AgentCommsScopeSchema, AgentCommsToSchema, AgentMessageSchema, AgentTreeDeltaSchema, AgentTreeEdgeSchema, AgentTreeNodeAddedDeltaSchema, AgentTreeNodeRemovedDeltaSchema, AgentTreeNodeSchema, AgentTreeNodeStatusChangedDeltaSchema, AgentTreePendingSpawnStartedDeltaSchema, AgentTreeSnapshotSchema, AgentTreeUpdateInboundPayloadSchema, AgentTreeUpdateOutboundPayloadSchema, ApiMessageSchema, ApiUpdateMachineStateSchema, ApiUpdateNewMessageSchema, ApiUpdateSessionStateSchema, CloudflareAccessServiceTokenSchema, CoreUpdateBodySchema, CoreUpdateContainerSchema, DoneLedgerRecordSchema, ErrorLedgerRecordSchema, IdleReachedLedgerRecordSchema, LastOutputSummaryLedgerRecordSchema, LedgerErrorCodeSchema, LedgerRecordSchema, LegacyMessageContentSchema, MAX_HOPS, MachineTunnelSchema, MessageContentSchema, MessageMetaSchema, MessageSentLedgerRecordSchema, PUBLIC_DEVICE_AUTH_TEST_VECTOR, PUBLIC_DEVICE_PROOF_CLOCK_SKEW_MS, PUBLIC_DEVICE_PROOF_DOMAIN, PUBLIC_DEVICE_PROOF_ENVELOPE_VERSION, PUBLIC_DEVICE_PROOF_FRESHNESS_MS, PUBLIC_DEVICE_PROOF_HEADER, PUBLIC_PAIRING_INVITE_DEFAULT_TTL_MS, PUBLIC_PAIRING_INVITE_TEST_VECTOR, PUBLIC_PAIRING_INVITE_VERSION, PendingPermissionLedgerRecordSchema, PublicPairingInviteSchema, PublicSignedRequestEnvelopeSchema, SenderKeysSchema, SessionGetAgentTreeRequestSchema, SessionGetAgentTreeResponseSchema, SessionMessageContentSchema, SessionMessageRangeRequestSchema, SessionMessageRangeResponseSchema, SessionMessageSchema, SessionProtocolMessageSchema, SpawnLedgerRecordSchema, TofuHandshakeMessageSchema, TofuPubkeysEventSchema, TofuPublicKeysSchema, TofuSessionKeyExchangeSchema, UpdateBodySchema, UpdateMachineBodySchema, UpdateNewMessageBodySchema, UpdateSchema, UpdateSessionBodySchema, UserMessageSchema, ValidationAttachedLedgerRecordSchema, VersionedEncryptedValueSchema, VersionedMachineEncryptedValueSchema, VersionedNullableEncryptedValueSchema, VoiceConversationDeniedSchema, VoiceConversationGrantedSchema, VoiceConversationResponseSchema, VoiceUsageResponseSchema, canonicalRequestStringToSign, createEnvelope, createPublicPairingInvite, decodeBase64, decodePublicDeviceProofHeader, decodePublicPairingInvite, encodeBase64, encodePublicDeviceProofHeader, encodePublicPairingInvite, findSenderDropEntry, forkBoilerplateEntry, generatePairSecret, generatePublicRequestNonce, hashRequestBody, isPublicPairingInviteValid, isPublicProofFresh, localCommandCaveatEntry, makeWrappedTagEntry, nonRenderableEntries, normalizeMethod, routeHopValidation, sessionAgentConfigurationChangedEventSchema, sessionContextBoundaryEventSchema, sessionContextBoundaryKindSchema, sessionContextBoundaryTriggeredBySchema, sessionEnvelopeSchema, sessionEventSchema, sessionFileEventSchema, sessionMessageConsumptionEventSchema, sessionRoleSchema, sessionServiceMessageEventSchema, sessionStartEventSchema, sessionStopEventSchema, sessionTextEventSchema, sessionToolCallEndEventSchema, sessionToolCallStartEventSchema, sessionTurnEndEventSchema, sessionTurnEndStatusSchema, sessionTurnStartEventSchema, signPublicRequest, skillBodyEntry, systemReminderEntry, verifyPublicRequest };
+export type { AgentCommsChannel, AgentCommsEnvelope, AgentCommsFrom, AgentCommsIngestBody, AgentCommsIngestHandler, AgentCommsKind, AgentCommsScope, AgentCommsTo, AgentMessage, AgentTreeDelta, AgentTreeEdge, AgentTreeNode, AgentTreeNodeAddedDelta, AgentTreeNodeRemovedDelta, AgentTreeNodeStatusChangedDelta, AgentTreePendingSpawnStartedDelta, AgentTreeSnapshot, AgentTreeUpdateInboundPayload, AgentTreeUpdateOutboundPayload, ApiMessage, ApiUpdateMachineState, ApiUpdateNewMessage, ApiUpdateSessionState, CanonicalRequestFields, CloudflareAccessServiceToken, CoreUpdateBody, CoreUpdateContainer, CreateEnvelopeOptions, CreatePublicPairingInviteInput, LedgerErrorCode, LedgerRecord, LegacyMessageContent, MachineTunnel, MessageContent, MessageMeta, NonRenderableEntry, PublicDeviceAuthTestVector, PublicPairingInvite, PublicPairingInviteTestVector, PublicRequestVerification, PublicSignedRequestEnvelope, RawClaudeMessageMatchInput, ReceiverRegexFactory, SenderKeys, SessionAgentConfigurationChangedEvent, SessionContextBoundaryEvent, SessionContextBoundaryKind, SessionContextBoundaryTriggeredBy, SessionEnvelope, SessionEvent, SessionGetAgentTreeRequest, SessionGetAgentTreeResponse, SessionMessage, SessionMessageConsumptionEvent, SessionMessageContent, SessionMessageRangeRequest, SessionMessageRangeResponse, SessionProtocolMessage, SessionRole, SessionTurnEndStatus, SignPublicRequestInput, TofuHandshakeMessage, TofuPubkeysEvent, TofuPublicKeys, TofuSessionKeyExchange, Update, UpdateBody, UpdateMachineBody, UpdateNewMessageBody, UpdateSessionBody, UserMessage, VerifyPublicRequestContext, VersionedEncryptedValue, VersionedMachineEncryptedValue, VersionedNullableEncryptedValue, VoiceConversationResponse, VoiceUsageResponse };
