@@ -1,11 +1,16 @@
 import { describe, expect, it } from "vitest";
 import {
+    signPublicRequest,
+    hashRequestBody,
+} from "@slopus/happy-wire";
+import {
     CF_ACCESS_CLIENT_ID_HEADER,
     CF_ACCESS_CLIENT_SECRET_HEADER,
     PAIRING_NONCE_HEADER,
     PAIRING_SECRET_HEADER,
     checkEdgeAccess,
     createPairingGate,
+    createPublicAuthRuntime,
     resolvePublicRoutePolicy,
 } from "./remoteDeviceAuth";
 
@@ -113,5 +118,80 @@ describe("resolvePublicRoutePolicy — default-deny allowlist", () => {
         expect(resolvePublicRoutePolicy("GET", "/totally/unknown")).toBeNull();
         expect(resolvePublicRoutePolicy("PUT", "/v1/sessions")).toBeNull();
         expect(resolvePublicRoutePolicy("GET", undefined)).toBeNull();
+    });
+});
+
+describe("bodyHashGuard — signed body-hash binding (US-005a)", () => {
+    const seed = Uint8Array.from({ length: 32 }, (_, i) => (i + 3) & 0xff);
+    const keyId = "unit-device";
+
+    async function runtimeWithDevice() {
+        const seedEnvelope = await signPublicRequest({
+            method: "POST",
+            path: "/v1/version",
+            keyId,
+            nonce: "seed-nonce",
+            issuedAt: Date.now(),
+            bodyHash: hashRequestBody(null),
+        }, seed);
+        return createPublicAuthRuntime({
+            devices: [{ keyId, publicKey: seedEnvelope.publicKey }],
+            edge: { serviceTokens: [] },
+        });
+    }
+
+    function fakeReply() {
+        const captured: { statusCode?: number; payload?: unknown } = {};
+        const reply: any = {
+            code(status: number) { captured.statusCode = status; return reply; },
+            send(payload: unknown) { captured.payload = payload; return reply; },
+        };
+        return { reply, captured };
+    }
+
+    async function envelopeFor(bodyHash: string, nonce: string, method = "POST", path = "/v1/version") {
+        return signPublicRequest({ method, path, keyId, nonce, issuedAt: Date.now(), bodyHash }, seed);
+    }
+
+    it("passes when no authenticated envelope is present (non device-proof route)", async () => {
+        const runtime = await runtimeWithDevice();
+        const { reply, captured } = fakeReply();
+        await runtime.bodyHashGuard({}, reply);
+        expect(captured.statusCode).toBeUndefined();
+    });
+
+    it("rejects 401 body_hash_mismatch when the body differs from the signed hash (the exploit)", async () => {
+        const runtime = await runtimeWithDevice();
+        const envelope = await envelopeFor(hashRequestBody('{"a":1}'), "n-mismatch");
+        const { reply, captured } = fakeReply();
+        await runtime.bodyHashGuard({ publicDeviceEnvelope: envelope, rawBody: Buffer.from('{"a":2}') }, reply);
+        expect(captured.statusCode).toBe(401);
+        expect(captured.payload).toEqual({ error: "body_hash_mismatch" });
+    });
+
+    it("passes when the body matches the signed hash", async () => {
+        const runtime = await runtimeWithDevice();
+        const bodyStr = '{"a":1}';
+        const envelope = await envelopeFor(hashRequestBody(bodyStr), "n-match");
+        const { reply, captured } = fakeReply();
+        await runtime.bodyHashGuard({ publicDeviceEnvelope: envelope, rawBody: Buffer.from(bodyStr) }, reply);
+        expect(captured.statusCode).toBeUndefined();
+    });
+
+    it("fails closed when a body-bearing proof has no captured raw body (empty hash != signed non-empty hash)", async () => {
+        const runtime = await runtimeWithDevice();
+        const envelope = await envelopeFor(hashRequestBody('{"a":1}'), "n-nobody");
+        const { reply, captured } = fakeReply();
+        await runtime.bodyHashGuard({ publicDeviceEnvelope: envelope }, reply);
+        expect(captured.statusCode).toBe(401);
+        expect(captured.payload).toEqual({ error: "body_hash_mismatch" });
+    });
+
+    it("passes a bodyless proof (empty-body hash) when no raw body is present", async () => {
+        const runtime = await runtimeWithDevice();
+        const envelope = await envelopeFor(hashRequestBody(null), "n-empty", "GET", "/");
+        const { reply, captured } = fakeReply();
+        await runtime.bodyHashGuard({ publicDeviceEnvelope: envelope }, reply);
+        expect(captured.statusCode).toBeUndefined();
     });
 });

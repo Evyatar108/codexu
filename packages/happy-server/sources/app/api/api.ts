@@ -90,7 +90,28 @@ export function configureApi(app: any, tofuConfig: TofuHandshakeConfig = { local
             throw new Error('CRITICAL: auth "public" requires a publicAuth verifier + edge configuration. Refusing to configure a public listener without a fail-closed device verifier.');
         }
         publicAuthRuntime = createPublicAuthRuntime(options.publicAuth);
+        // Capture the EXACT raw body bytes the client hashed so the signed bodyHash
+        // can be enforced by the preValidation bodyHashGuard. parseAs:'buffer' hands
+        // us the raw bytes; we still JSON.parse them ourselves so route handlers
+        // receive the parsed object they expect (verified in tests). We deliberately
+        // do NOT re-serialize the parsed JSON to hash it — canonicalization drift
+        // between client and server would cause false rejections; only the bytes on
+        // the wire are authoritative. This override applies to public mode only.
+        fastifyApp.addContentTypeParser('application/json', { parseAs: 'buffer' }, function (request: any, body: Buffer, done: (err: Error | null, body?: unknown) => void) {
+            request.rawBody = body;
+            if (body.length === 0) {
+                done(null, undefined);
+                return;
+            }
+            try {
+                done(null, JSON.parse(body.toString('utf8')));
+            } catch (err) {
+                (err as any).statusCode = 400;
+                done(err as Error, undefined);
+            }
+        });
         fastifyApp.addHook('onRequest', publicAuthRuntime.httpGuard);
+        fastifyApp.addHook('preValidation', publicAuthRuntime.bodyHashGuard);
     }
 
     // Serve local files when using local storage

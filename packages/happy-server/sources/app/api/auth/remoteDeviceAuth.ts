@@ -4,8 +4,10 @@ import {
     PUBLIC_DEVICE_PROOF_FRESHNESS_MS,
     PUBLIC_DEVICE_PROOF_HEADER,
     decodePublicDeviceProofHeader,
+    hashRequestBody,
     isPublicProofFresh,
     verifyPublicRequest,
+    type PublicSignedRequestEnvelope,
 } from "@slopus/happy-wire";
 
 // ---------------------------------------------------------------------------
@@ -124,6 +126,8 @@ export interface RemoteDeviceProofResult {
     ok: boolean;
     reason?: string;
     keyId?: string;
+    /** The authenticated envelope (present only when ok). Carries the signed bodyHash. */
+    envelope?: PublicSignedRequestEnvelope;
 }
 
 export interface RemoteDeviceVerifyInput {
@@ -188,7 +192,7 @@ export function createRemoteDeviceVerifier(
             }
             pruneNonces(nowMs);
             seenNonces.set(envelope.nonce, envelope.issuedAt + windowMs + clockSkewMs);
-            return { ok: true, keyId: envelope.keyId };
+            return { ok: true, keyId: envelope.keyId, envelope };
         },
     };
 }
@@ -305,6 +309,17 @@ export interface PublicAuthRuntime {
     pairingGate?: PairingGate;
     /** Fastify `onRequest` hook that fail-closes every public-mode HTTP route. */
     httpGuard: (request: any, reply: any) => Promise<unknown>;
+    /**
+     * Fastify `preValidation` hook that enforces the signed body-hash binding. The
+     * onRequest `httpGuard` verifies the signature over method+path only (it runs
+     * before the body is parsed), so a valid proof would otherwise authorize ANY
+     * body. This second hook — run after the raw body has been captured — recomputes
+     * the body hash and rejects (401) unless it matches the authenticated envelope's
+     * signed `bodyHash`, closing the body-swap gap. Fail-closed: a body-bearing
+     * device-proof route whose raw body cannot be captured hashes to the empty-body
+     * hash, which will not match a non-empty signed hash, so it is rejected too.
+     */
+    bodyHashGuard: (request: any, reply: any) => Promise<unknown>;
     /** Socket.IO handshake check (ws + polling); returns ok/reason without throwing. */
     verifySocketHandshake: (headers: Record<string, unknown>) => Promise<RemoteDeviceProofResult>;
 }
@@ -343,6 +358,28 @@ export function createPublicAuthRuntime(config: PublicAuthConfig): PublicAuthRun
         if (!result.ok) {
             return reply.code(401).send({ error: "device_proof_required" });
         }
+        // Carry the authenticated envelope so the preValidation bodyHashGuard can
+        // enforce the signed body-hash binding once the raw body is available.
+        request.publicDeviceEnvelope = result.envelope;
+    }
+
+    /**
+     * preValidation hook: enforces that the actual request body matches the body
+     * the device signed. Only device-proof routes carry `publicDeviceEnvelope`
+     * (pairComplete and unauthenticated routes do not reach here with one), so
+     * this is a no-op for them. Bodyless requests hash to the empty-body hash and
+     * match a bodyless-signed proof; body-bearing requests must match exactly.
+     */
+    async function bodyHashGuard(request: any, reply: any): Promise<unknown> {
+        const envelope = request.publicDeviceEnvelope as PublicSignedRequestEnvelope | undefined;
+        if (!envelope) {
+            return;
+        }
+        const rawBody = request.rawBody as Uint8Array | string | undefined;
+        const actualBodyHash = hashRequestBody(rawBody ?? null);
+        if (actualBodyHash !== envelope.bodyHash) {
+            return reply.code(401).send({ error: "body_hash_mismatch" });
+        }
     }
 
     async function verifySocketHandshake(headers: Record<string, unknown>): Promise<RemoteDeviceProofResult> {
@@ -353,5 +390,5 @@ export function createPublicAuthRuntime(config: PublicAuthConfig): PublicAuthRun
         return verifier.verify({ method: SOCKET_PROOF_METHOD, path: SOCKET_PROOF_PATH, header });
     }
 
-    return { verifier, edge, config, pairingGate, httpGuard, verifySocketHandshake };
+    return { verifier, edge, config, pairingGate, httpGuard, bodyHashGuard, verifySocketHandshake };
 }

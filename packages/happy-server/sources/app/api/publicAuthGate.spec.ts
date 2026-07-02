@@ -67,14 +67,14 @@ function edgeHeaders(): Record<string, string> {
     };
 }
 
-async function buildProofHeader(method: string, path: string): Promise<string> {
+async function buildProofHeader(method: string, path: string, bodyHash?: string): Promise<string> {
     const envelope = await signPublicRequest({
         method,
         path,
         keyId: deviceKeyId,
         nonce: generatePublicRequestNonce(),
         issuedAt: Date.now(),
-        bodyHash: hashRequestBody(null),
+        bodyHash: bodyHash ?? hashRequestBody(null),
     }, deviceSeed);
     return encodePublicDeviceProofHeader(envelope);
 }
@@ -235,6 +235,45 @@ describe("US-005 public-mode fail-closed route inventory (THE GATE)", () => {
         });
         expect(response.statusCode).toBe(200);
         expect(response.body).toContain("Welcome to Happy Server!");
+    });
+
+    it("BODY-SWAP EXPLOIT: a device proof bound to body A is REJECTED (401 body_hash_mismatch) when replayed with body B", async () => {
+        // Both bodies are schema-valid for POST /v1/version, so a rejection here is
+        // the signed body-hash binding — NOT schema validation — doing its job.
+        const bodyA = JSON.stringify({ platform: "ios", version: "1.0.0", app_id: "com.happy.legit" });
+        const bodyB = JSON.stringify({ platform: "android", version: "9.9.9", app_id: "com.attacker.swapped" });
+        // Proof authorizes (POST, /v1/version) for the exact bytes of body A.
+        const proof = await buildProofHeader("POST", "/v1/version", hashRequestBody(bodyA));
+        const response = await app.inject({
+            method: "POST",
+            url: "/v1/version",
+            headers: {
+                ...edgeHeaders(),
+                [PUBLIC_DEVICE_PROOF_HEADER]: proof,
+                "content-type": "application/json",
+            },
+            payload: bodyB, // attacker swaps in a different body under the same proof
+        });
+        expect(response.statusCode).toBe(401);
+        expect(response.json()).toEqual({ error: "body_hash_mismatch" });
+    });
+
+    it("HONEST CONTROL: a device proof bound to body A is admitted (200) when the request carries the exact body A", async () => {
+        const bodyA = JSON.stringify({ platform: "ios", version: "1.0.0", app_id: "com.happy.legit" });
+        const proof = await buildProofHeader("POST", "/v1/version", hashRequestBody(bodyA));
+        const response = await app.inject({
+            method: "POST",
+            url: "/v1/version",
+            headers: {
+                ...edgeHeaders(),
+                [PUBLIC_DEVICE_PROOF_HEADER]: proof,
+                "content-type": "application/json",
+            },
+            payload: bodyA, // exact bytes the proof was signed over
+        });
+        // Passes edge + device proof + body-hash binding + schema → handler responds 200.
+        expect(response.statusCode).toBe(200);
+        expect(response.json()).toHaveProperty("updateUrl");
     });
 
     it("POSITIVE CONTROL: /pair/complete inside the operator window + valid QR secret + device proof is admitted past the gate", async () => {
