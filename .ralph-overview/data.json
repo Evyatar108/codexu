@@ -1741,6 +1741,24 @@
           "html": "Brainstorm shipped @ d0cbafa8: D-001 overlay-only thread-aware sidechain nesting. KEY: child events ALREADY flow through happy_tap (app.rs:1254 tees every next_event; in_process.rs:490-501 auto-attaches listener to every new thread incl. subagents), and Happy wire ALREADY models nesting via sidechain (sessionProtocol.ts:138-143 subagent=cuid2; typesRaw.ts:522-523 parentUUID=subagent=isSidechain; reducerTracer nests under Task/Agent tool-call). So ZERO app/wire/server changes -- ENTIRELY in codex-happy overlay, gated default-off Feature::RemoteSubagentSessions. Latent bug today: mapping.rs:57,69,184 is thread-blind + hardcodes subagent:None so children flatten into parent. v1 Collab spawn events dropped (bespoke_event_handling.rs:846-853) so design keys off child thread_id not spawn event. Milestones M-A..M-H. 3 open Qs for operator."
         }
       ]
+    },
+    {
+      "id": "codex-daemon-supervisor-resolvability-and-exit-code",
+      "scope": "codex",
+      "lifecycle": "tracked",
+      "status": "todo",
+      "command": {
+        "name": "codex-daemon-supervisor-resolvability-and-exit-code",
+        "descriptionHtml": "Harden NodeDaemonSupervisor: happy_on_path() is a file-existence check not a resolvability check, and spawn_happy_daemon() ignores the child exit code -- so a present-but-broken happy shim (dangling node_modules) passes the gate, the spawned daemon exits MODULE_NOT_FOUND, and failure is only detected via the full start-budget port-probe timeout with a generic not-ready message. Capture/log the daemon early exit code+stderr so the RemoteSessionNotice can surface WHY it did not start.",
+        "warnings": [],
+        "prompts": {}
+      },
+      "kanbanCards": [
+        {
+          "className": "cmd-warn",
+          "html": "Found during auto-attach dogfood 2026-07-02: happy_on_path() (daemon_supervisor.rs) checks file EXISTENCE not RESOLVABILITY, and spawn_happy_daemon() ignores child exit code. A dangling happy.cmd shim (missing node_modules/happy) passes the gate -> daemon exits MODULE_NOT_FOUND -> only caught by full start-budget timeout with generic message. Fix: capture daemon early exit/stderr so RemoteSessionNotice says WHY. Low-risk hardening; feature still fails LOUD (just slow+generic)."
+        }
+      ]
     }
   ],
   "phaseTree": [
