@@ -3,7 +3,6 @@ import { mkdir } from "fs/promises";
 import path from "path";
 import type { EventRouter } from "./app/events/eventRouter";
 import type { ApiPaths, MachineStateGetter } from "./app/api/api";
-import type { AgentCommsIngestHandler } from "./app/api/routes/agentCommsIngestRoutes";
 import { decodeBase64 } from "privacy-kit";
 import { db, getPGlite } from "./storage/db";
 
@@ -25,7 +24,6 @@ export interface HappyServerConfig {
     auth?: "tunnel" | "loopback";
     paths?: ApiPaths;
     machineState?: MachineStateGetter;
-    agentCommsIngest?: AgentCommsIngestHandler;
     enablePrettyLogs?: boolean;
 }
 
@@ -35,7 +33,6 @@ export interface HappyServerSharedContext {
     localUserId?: string;
     tofuPublicKeys?: TofuPublicKeys;
     publicUrl?: string;
-    agentCommsIngest?: AgentCommsIngestHandler;
     enablePrettyLogs?: boolean;
 }
 
@@ -171,7 +168,6 @@ export function createApp(config: CreateAppConfig): HappyServerHandle {
             auth: config.auth,
             paths: config.paths,
             machineState: config.machineState,
-            agentCommsIngest: config.agentCommsIngest,
             onEventRouter: (router) => {
                 eventRouter = router;
             },

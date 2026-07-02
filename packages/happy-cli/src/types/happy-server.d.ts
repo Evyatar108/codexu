@@ -1,6 +1,5 @@
 declare module 'happy-server' {
   import type { FastifyInstance } from 'fastify';
-  import type { AgentCommsEnvelope } from '@slopus/happy-wire';
 
   export interface ApiPaths {
     profile?: string;
@@ -20,18 +19,6 @@ declare module 'happy-server' {
 
   export type MachineStateGetter = () => MachineSelfState | Promise<MachineSelfState>;
 
-  export interface AgentCommsIngestBody {
-    envelope: AgentCommsEnvelope;
-    signature: string;
-    senderKeys: {
-      ed25519PublicKey: string;
-      ecdhPublicKey: string;
-      ed25519Fingerprint?: string;
-    };
-  }
-
-  export type AgentCommsIngestHandler = (body: AgentCommsIngestBody) => Promise<{ id: string; seq: number }>;
-
   export interface TofuPublicKeys {
     ed25519PublicKey: string | Uint8Array;
     x25519PublicKey: string | Uint8Array;
@@ -50,7 +37,6 @@ declare module 'happy-server' {
     auth?: 'tunnel' | 'loopback';
     paths?: ApiPaths;
     machineState?: MachineStateGetter;
-    agentCommsIngest?: AgentCommsIngestHandler;
     enablePrettyLogs?: boolean;
   }
 
@@ -60,7 +46,6 @@ declare module 'happy-server' {
     localUserId?: string;
     tofuPublicKeys?: TofuPublicKeys;
     publicUrl?: string;
-    agentCommsIngest?: AgentCommsIngestHandler;
     enablePrettyLogs?: boolean;
   }
 

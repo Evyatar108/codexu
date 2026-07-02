@@ -56,7 +56,6 @@ describe("dual-listener network binding", () => {
         const tunnelPort = await getFreePort();
         const loopbackPort = await getFreePort();
         const config = createTofuConfig();
-        const agentCommsIngest = async () => ({ id: "ingested-1", seq: 1 });
         const shared = {
             paths: { profile, accountSettings, loopbackCap },
             machineState: () => ({
@@ -68,7 +67,6 @@ describe("dual-listener network binding", () => {
                 lastSeenAt: "2026-05-11T12:00:00.000Z",
                 owner: "octocat",
             }),
-            agentCommsIngest,
         };
         const tunnel = createApi();
         const loopback = createApi();
@@ -117,14 +115,14 @@ describe("dual-listener network binding", () => {
                 ed25519Fingerprint: "SHA256:abc",
             },
         };
+        // Scope A ingest is no longer served by the embedded happy-server on either
+        // listener — the route was retired and moved to the happy-cli-owned ingest
+        // listener on its own forwarded port. Both listeners must now 404.
         await expect(fetch(`http://127.0.0.1:${tunnelPort}/agent-comms/ingest`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(ingestBody),
-        }).then(async response => ({ status: response.status, body: await response.json() }))).resolves.toEqual({
-            status: 200,
-            body: { id: "ingested-1", seq: 1 },
-        });
+        }).then(response => response.status)).resolves.toBe(404);
         await expect(fetch(`http://127.0.0.1:${loopbackPort}/agent-comms/ingest`, {
             method: "POST",
             headers: { ...loopbackHeaders, "Content-Type": "application/json" },
