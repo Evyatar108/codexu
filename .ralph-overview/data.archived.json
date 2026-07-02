@@ -9348,6 +9348,55 @@
           }
         ]
       }
+    },
+    {
+      "id": "codex-autoconnect-auto-daemon-and-auto-attach",
+      "scope": "codex|codexu",
+      "lifecycle": "merged",
+      "status": "todo",
+      "command": {
+        "name": "codex-autoconnect-auto-daemon-and-auto-attach",
+        "descriptionHtml": "Make codex sessions appear in Happy with ZERO per-session friction: the daemon auto-starts (first session, stays resident) and every codex session auto-attaches by default (opt-out) once onboarded. Groundwork (manual /remote on self-onboard + daemon supervisor) already shipped; this closes the gap to always-on.",
+        "warnings": [],
+        "prompts": {
+          "brainstorm": "/brainstorm-with-ralph Auto-connect + auto-daemon so codex sessions appear in Happy with ZERO per-session friction. GROUNDWORK ALREADY SHIPPED (do NOT re-scope it): /remote on interactive self-onboard (device-flow -> ~/.happy creds -> attach), the raw-session codex<->Happy remote-control feature (codex-happy overlay crate, happy_tap app-server tee, inbound turn/approval/interrupt), typed AttachError (NoCredentials/NoDaemon/SessionConflict), a daemon supervisor, and /remote off cancel. Read their shipManifests + codex/codex-rs-overlay/codex-happy/src + codex/docs/implementation/patch-surface.md before proposing anything. OPERATOR-CHOSEN TARGET BEHAVIOR (bake in as the lean; verify feasibility, do NOT rubber-stamp): (1) DAEMON auto-starts on the first codex session and stays resident (not per-session, not an OS boot service); (2) every codex session AUTO-ATTACHES to Happy BY DEFAULT once onboarded, opt-out per session, gated behind an experimental Feature (default-off until proven, like RemoteSession); (3) scope = TOP-LEVEL sessions only for now (v1/v2 multi-agent sub-sessions surfacing in Happy is explicitly DEFERRED). Crews-replacement is SKIPPED - operator relies on codex v1/v2 multi-agents, so do NOT propose the loopback daemon / crews hook removal. Produce: the smallest wedge that makes a fresh `codex` invocation show up in Happy with no /remote on typed, the daemon lifecycle (auto-start trigger, resident model, single-instance guard, reattach on same identity - see codex-daemon-same-identity-reattach), the opt-out surface, failure modes (no creds yet -> fall back to onboarding prompt; daemon crash -> respawn), and the experimental-feature gating. Recommend ONE direction + sequenced milestones. Read-only research; cite file:line.",
+          "plan": "/plan-with-ralph --from-brainstorm .ralph/brainstorms/codex-autoconnect-auto-daemon-and-auto-attach/selected-direction.md -- D-001 default-off Feature::RemoteAutoAttach. OPERATOR DECISIONS: (Q1) auto-attach flips RemoteSession=true so /remote status is coherent; (Q2) LOUD failures via maybe_attach_reporting EXCEPT NoCredentials falls back to onboarding prompt (not a loud error). Milestones M-A..M-E. Insertion app.rs:1034. codex submodule change; cargo check --workspace gate; patch-surface invariant + rebase-guard test.",
+          "impl": "Impl per plan d73efc61 (.ralph/jobs/codex-autoconnect-auto-daemon-and-auto-attach/plan.md). 5 stories M-A..M-E. CODEX SUBMODULE. Feature::RemoteAutoAttach (default-off, mirror RemoteSession) + auto_attach_flow in new tui/src/remote_auto_attach.rs + trigger at app.rs::App::run + flip RemoteSession=true on ChatWidget config + launcher enable_remote_auto_attach + patch-surface invariants 71/72/73 + rebase-guard test. cargo check --workspace gate; rustfmt changed files only; two-commit flow (inner sandbox-patches then wrapper gitlink). Auto + manual /remote on coexist. RUN: /implement-with-ralph --from-plan .ralph/jobs/codex-autoconnect-auto-daemon-and-auto-attach/plan.md --autonomous"
+        }
+      },
+      "kanbanCards": [
+        {
+          "className": "cmd-warn",
+          "html": "Operator pivot 2026-07-01: SKIP crews-replacement P3 (rely on codex v1/v2 multi-agents); instead deliver ZERO-friction auto-connect + auto-daemon so codex sessions appear in Happy without typing /remote on. Target: daemon auto-starts on 1st session + stays resident; sessions auto-attach by default (opt-out) behind default-off experimental Feature; top-level only (sub-agents deferred). Groundwork already shipped (self-onboard + supervisor + raw-session remote-control). Brainstorm spawned."
+        },
+        {
+          "className": "cmd-ok",
+          "html": "Brainstorm shipped @ 2b824617: D-001 default-off Feature::RemoteAutoAttach. Startup trigger at tui/src/app.rs:1034 (sibling to RemoteSession maybe_attach gate) reuses shipped /remote on machinery (NodeDaemonSupervisor.ensure_running via spawn_happy_daemon detached=resident + SetRemoteSession) MINUS interactive onboard. Milestones M-A feature reg -> M-B auto_attach_flow+trigger -> M-C opt-out -> M-D launcher enable_remote_auto_attach set-once -> M-E patch-surface+audit. Source correction: NO SessionConflict AttachError variant; session_tag()=fresh UUID/attach so no collision. OPERATOR DECISIONS 2026-07-01: (Q1) auto-attach FLIPS RemoteSession=true for /remote status coherence; (Q2) LOUD attach failures (reuse maybe_attach_reporting) EXCEPT no-creds falls back to onboarding prompt. Plan spawned."
+        },
+        {
+          "className": "cmd-ok",
+          "html": "Plan shipped @ d73efc61: 5 stories M-A..M-E. Wedge = default-off Feature::RemoteAutoAttach + startup trigger in app.rs::App::run (after happy_tap gate, uses app_event_tx.clone()) + trimmed auto_attach_flow in new tui/src/remote_auto_attach.rs (reuses ensure_running -> SetRemoteSession, minus interactive onboard). ~24 lines upstream surface, vanilla byte-unaffected. Decisions baked: Q1 flip RemoteSession=true on CHATWIDGET config via apply_remote_session_toggle; Q2 LOUD failures via maybe_attach_reporting EXCEPT NoCredentials->passive Info onboarding hint. Invariants 71/72/73. 3 Highs resolved (app_event_tx move-order; ChatWidget-not-App config; include_str! compile ordering). cargo check --workspace HARD gate; two-commit submodule flow. Impl next."
+        }
+      ],
+      "shipManifest": {
+        "shippedAt": "2026-07-02T03:30:00Z",
+        "summary": "Shipped zero-friction auto-connect + auto-daemon for codex (operator flagship). A default-off experimental Feature::RemoteAutoAttach: once enabled (once) on an onboarded machine, every fresh codex TUI session auto-attaches to the Happy app at startup with nothing typed -- daemon ensure_running (resident, start-if-absent) then AppEvent::SetRemoteSession, reusing the shipped /remote on machinery minus the interactive onboard. Q1: auto path flips RemoteSession=true on the ChatWidget config so bare /remote reports coherent status. Q2: genuine failures (NoDaemon/ConnectFailed) are loud via maybe_attach_reporting, EXCEPT no-creds -> a single passive Info onboarding hint (invites /remote on, no auto device-flow). Manual /remote on still coexists. 5 stories M-A..M-E via sub-agent (brainstorm 2b824617 -> plan d73efc61 -> impl). Vanilla codex byte-unaffected (default-off experimental gate, mirrors RemoteSession). cargo check --workspace green; 61 focused tests pass incl. new patch-surface invariants 71/72/73 + rebase-guard tests. No release cut (inert until flag enabled). Top-level sessions only; v1/v2 sub-agent sessions deferred.",
+        "commits": [
+          {
+            "sha": "8471a59e0e",
+            "oneLine": "feat(tui) auto-attach fresh codex sessions to Happy at startup (inner)"
+          },
+          {
+            "sha": "195b848d28",
+            "oneLine": "feat(overlay) remote_auto_attach launcher flag + invariants (wrapper)"
+          },
+          {
+            "sha": "5f482d8f",
+            "oneLine": "chore(codex) bump pointer for remote_auto_attach (codexu)"
+          }
+        ]
+      },
+      "lastTouchedAt": "2026-07-02T03:30:00Z"
     }
   ]
 }
