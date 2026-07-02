@@ -1577,6 +1577,10 @@
         {
           "className": "cmd-ok",
           "html": "PHASE 2 US-006 (happy-cli CloudflareTunnelDaemonProvider) SHIPPED @ 9dd2a1a5. Outbound Cloudflare NAMED tunnel provider (injectable CommandRunner, no real cloudflared in tests), selected OPT-IN via HAPPY_TUNNEL_PROVIDER=cloudflare + restricted public-tunnel.json (hostname/tunnelName/serviceTokens); default DevTunnels+loopback unchanged. Public pairing-invite contract in happy-wire (src/publicPairingInvite.ts: {version,serverUrl,machineId,pairSecret,cloudflareAccess:{clientId,clientSecret},issuedAt,expiresAt} + base64url encode/decode + test vector) for app US-007 reuse. assertPublicBindReady() fail-closed unless >=1 Access service token (mirrors server gate); buildPublicMode couples PublicAuthConfig+invite via one shared one-time secret + aligned pairing window. 76 tests pass. NEXT: US-007 app (needs RN Ed25519 lib decision) + US-008 codex gate (unblocked, disjoint)."
+        },
+        {
+          "className": "cmd-ok",
+          "html": "PHASE 2 US-008 (codex gate) SHIPPED @ codexu 8a99c07e (inner 587a6a8ab8 sandbox-patches/Evyatar108, wrapper 263000a2b1 codex main/gim-home). Feature::RemotePublicServer (key remote_public_server, Experimental, default-off) -- a PURE opt-in marker with ZERO codex runtime gate read; public exposure owned by the CLI (US-006 HAPPY_TUNNEL_PROVIDER=cloudflare). /remote on stays LOOPBACK-only: invariant 75 asserts codex-happy/src/auth.rs MachineListenerState base URLs stay http://127.0.0.1 with no https/evyatar host (a future re-point to the public URL fails the guard). cargo check --workspace green; invariant 75 (2 tests) + fork-visibility pass. No release (inert default-off). Remaining: US-007 app (in flight), US-009 edge ops (operator-run), US-010 docs."
         }
       ],
       "command": {
