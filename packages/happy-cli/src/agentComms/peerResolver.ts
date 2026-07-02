@@ -41,7 +41,7 @@ export async function resolvePeerTarget(machineId: string, options: ResolvePeerT
     }
 
     const tunnel = matches[0]!;
-    const url = ingestUrl(tunnel);
+    const url = ingestUrl(tunnel, pinned.ingestPort);
     if (!url) {
         throw new Error(`agent-comms peer ${machineId} matched Dev Tunnel ${tunnel.tunnelId} without an ingest URL`);
     }

@@ -60,4 +60,49 @@ describe('resolvePeerTarget', () => {
             tunnelManager: { listOperatorTunnels: () => [tunnel] },
         })).rejects.toThrow(/no reachable Dev Tunnel match/);
     });
+
+    it('selects the pinned ingest port from a two-port tunnel (Scope A)', async () => {
+        const twoPortTunnel: OperatorTunnel = {
+            tunnelId: 'tunnel-guid-two-port',
+            tunnelName: 'codexu-two-port',
+            // tunnelUrl points at the embedded-server port; the ingest port is a second forward.
+            tunnelUrl: 'https://peer-3005.devtunnels.ms',
+            ports: [
+                { portNumber: 3005, portUri: 'https://peer-3005.devtunnels.ms' },
+                { portNumber: 4010, portUri: 'https://peer-4010.devtunnels.ms' },
+            ],
+        };
+        await pinPeerKeys(tempHome, 'machine-two-port', {
+            ed25519PublicKey: 'ZWQ=',
+            ecdhPublicKey: 'ZWNkaA==',
+            tunnelId: 'tunnel-guid-two-port',
+            ingestPort: 4010,
+        });
+
+        const resolved = await resolvePeerTarget('machine-two-port', {
+            happyHomeDir: tempHome,
+            tunnelManager: { listOperatorTunnels: () => [twoPortTunnel] },
+        });
+        expect(resolved.ingestUrl).toBe('https://peer-4010.devtunnels.ms/agent-comms/ingest');
+    });
+
+    it('fails closed when the pinned ingest port is not forwarded on the tunnel', async () => {
+        const oneForwardedPort: OperatorTunnel = {
+            tunnelId: 'tunnel-guid-missing-ingest',
+            tunnelName: 'codexu-missing-ingest',
+            tunnelUrl: 'https://peer-3005.devtunnels.ms',
+            ports: [{ portNumber: 3005, portUri: 'https://peer-3005.devtunnels.ms' }],
+        };
+        await pinPeerKeys(tempHome, 'machine-missing-ingest', {
+            ed25519PublicKey: 'ZWQ=',
+            ecdhPublicKey: 'ZWNkaA==',
+            tunnelId: 'tunnel-guid-missing-ingest',
+            ingestPort: 4010,
+        });
+
+        await expect(resolvePeerTarget('machine-missing-ingest', {
+            happyHomeDir: tempHome,
+            tunnelManager: { listOperatorTunnels: () => [oneForwardedPort] },
+        })).rejects.toThrow(/without an ingest URL/);
+    });
 });

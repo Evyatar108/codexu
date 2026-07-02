@@ -5,7 +5,8 @@
  * and connect-token minting are injectable/testable, while live two-machine
  * delivery is deferred to the Scope A follow-up. The only supported network path
  * in this design is daemon-to-daemon over Microsoft Dev Tunnels into the remote
- * daemon's embedded happy-server `/agent-comms/ingest` route.
+ * daemon's happy-cli-owned `/agent-comms/ingest` listener, forwarded as a second
+ * Dev Tunnel port alongside the embedded happy-server port (Scope A).
  */
 
 import type { AgentCommsEnvelope } from '@slopus/happy-wire';
@@ -41,8 +42,19 @@ export type FetchLike = (url: string, init: {
     body: string;
 }) => Promise<{ ok: boolean; status: number; json(): Promise<unknown>; text(): Promise<string> }>;
 
-export function ingestUrl(tunnel: OperatorTunnel): string | null {
-    const base = tunnel.tunnelUrl ?? tunnel.ports.find(port => port.portUri)?.portUri;
+export function ingestUrl(tunnel: OperatorTunnel, ingestPort?: number): string | null {
+    let base: string | undefined;
+    if (ingestPort !== undefined) {
+        // Scope A forwards two ports on the same tunnel (embedded happy-server +
+        // happy-cli ingest listener). Select the port that maps to the peer's
+        // ingest listener, and fail closed if it is not currently forwarded rather
+        // than silently delivering to the wrong (embedded-server) port.
+        base = tunnel.ports.find(port => port.portNumber === ingestPort && port.portUri)?.portUri;
+        if (!base) return null;
+    } else {
+        // Legacy pin / single-port peer: fall back to the tunnel's primary port URL.
+        base = tunnel.tunnelUrl ?? tunnel.ports.find(port => port.portUri)?.portUri;
+    }
     return base ? `${base.replace(/\/$/u, '')}/agent-comms/ingest` : null;
 }
 

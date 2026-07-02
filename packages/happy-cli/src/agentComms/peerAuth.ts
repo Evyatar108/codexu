@@ -29,6 +29,12 @@ export interface PeerPublicKeys {
 export interface PeerConfigHints {
     tunnelName?: string;
     tunnelId?: string;
+    /**
+     * The peer's forwarded ingest port (Scope A). Scope A forwards two Dev Tunnel
+     * ports — the embedded happy-server port and the happy-cli ingest port — so the
+     * outbound resolver needs the peer's ingest port to target the right one.
+     */
+    ingestPort?: number;
     approvedForSpawn?: boolean;
 }
 
@@ -121,6 +127,7 @@ export async function pinPeerKeys(happyHomeDir: string, machineId: string, publi
         pinnedAt: existing?.pinnedAt ?? now.toISOString(),
         tunnelName: publicKeys.tunnelName ?? existing?.tunnelName,
         tunnelId: publicKeys.tunnelId ?? existing?.tunnelId,
+        ingestPort: publicKeys.ingestPort ?? existing?.ingestPort,
         approvedForSpawn: publicKeys.approvedForSpawn ?? existing?.approvedForSpawn,
     };
     await fs.mkdir(path.dirname(peerPinStorePath(happyHomeDir)), { recursive: true });

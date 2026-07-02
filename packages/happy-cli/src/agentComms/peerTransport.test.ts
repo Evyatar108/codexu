@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { AgentCommsEnvelope } from '@slopus/happy-wire';
-import { DevTunnelsPeerTransport } from './peerTransport';
+import { DevTunnelsPeerTransport, ingestUrl } from './peerTransport';
 import type { OperatorTunnel } from '@/tunnel/tunnelManager';
 
 const envelope: AgentCommsEnvelope = {
@@ -16,6 +16,41 @@ const envelope: AgentCommsEnvelope = {
     hopPath: ['machine-guid-a:sender'],
     body: { v: 1, nonce: 'n', ciphertext: 'c' },
 };
+
+describe('ingestUrl', () => {
+    it('selects the forwarded port matching the pinned ingest port (Scope A two-port tunnel)', () => {
+        const tunnel: OperatorTunnel = {
+            tunnelId: 'codexu-two-port',
+            tunnelName: 'codexu-two-port',
+            tunnelUrl: 'https://peer-3005.devtunnels.ms',
+            ports: [
+                { portNumber: 3005, portUri: 'https://peer-3005.devtunnels.ms' },
+                { portNumber: 4010, portUri: 'https://peer-4010.devtunnels.ms' },
+            ],
+        };
+        expect(ingestUrl(tunnel, 4010)).toBe('https://peer-4010.devtunnels.ms/agent-comms/ingest');
+    });
+
+    it('returns null (fail closed) when the pinned ingest port is not forwarded', () => {
+        const tunnel: OperatorTunnel = {
+            tunnelId: 'codexu-one-port',
+            tunnelName: 'codexu-one-port',
+            tunnelUrl: 'https://peer-3005.devtunnels.ms',
+            ports: [{ portNumber: 3005, portUri: 'https://peer-3005.devtunnels.ms' }],
+        };
+        expect(ingestUrl(tunnel, 4010)).toBeNull();
+    });
+
+    it('falls back to the primary port URL when no ingest port is given (legacy/single-port)', () => {
+        const tunnel: OperatorTunnel = {
+            tunnelId: 'codexu-legacy',
+            tunnelName: 'codexu-legacy',
+            tunnelUrl: 'https://peer-3005.devtunnels.ms',
+            ports: [{ portNumber: 3005, portUri: 'https://peer-3005.devtunnels.ms' }],
+        };
+        expect(ingestUrl(tunnel)).toBe('https://peer-3005.devtunnels.ms/agent-comms/ingest');
+    });
+});
 
 describe('DevTunnelsPeerTransport', () => {
     it('treats codexu-<hostname> as a host hint, not an authoritative machineId', async () => {
