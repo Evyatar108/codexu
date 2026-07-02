@@ -19,6 +19,16 @@ export interface AuthCredentials {
     connectToken?: string;
     connectTokenExpiry?: number;
     tunnelId?: string;
+    // Public-server (single-user evyatar.dev) mode. Present only when the device
+    // was enrolled via a public pairing invite; absent for the default Dev
+    // Tunnels path. Their presence is what switches request auth into public
+    // mode (CF-Access headers + Ed25519 device proof) — see machineAuth.ts.
+    cloudflareAccessClientId?: string;
+    cloudflareAccessClientSecret?: string;
+    deviceKeyId?: string;
+    devicePublicKey?: string;
+    /** Base64 Ed25519 seed (32 bytes). Sensitive; persisted via SecureStore/localStorage. */
+    deviceSecretKey?: string;
 }
 
 interface StoredMachineCredentials {
@@ -41,6 +51,8 @@ const AUTH_CREDENTIALS_KEYS = new Set<string>([
     'machineId', 'tunnelUrl', 'firstSeenAt',
     'login', 'avatarUrl', 'deviceCode', 'deviceCodeExpiresAt',
     'connectToken', 'connectTokenExpiry', 'tunnelId',
+    'cloudflareAccessClientId', 'cloudflareAccessClientSecret',
+    'deviceKeyId', 'devicePublicKey', 'deviceSecretKey',
 ]);
 
 function normalizeAuthCredentials(value: unknown): AuthCredentials | null {
@@ -62,7 +74,12 @@ function normalizeAuthCredentials(value: unknown): AuthCredentials | null {
         || (candidate.deviceCodeExpiresAt !== undefined && typeof candidate.deviceCodeExpiresAt !== 'number')
         || (candidate.connectToken !== undefined && typeof candidate.connectToken !== 'string')
         || (candidate.connectTokenExpiry !== undefined && typeof candidate.connectTokenExpiry !== 'number')
-        || (candidate.tunnelId !== undefined && typeof candidate.tunnelId !== 'string')) {
+        || (candidate.tunnelId !== undefined && typeof candidate.tunnelId !== 'string')
+        || (candidate.cloudflareAccessClientId !== undefined && typeof candidate.cloudflareAccessClientId !== 'string')
+        || (candidate.cloudflareAccessClientSecret !== undefined && typeof candidate.cloudflareAccessClientSecret !== 'string')
+        || (candidate.deviceKeyId !== undefined && typeof candidate.deviceKeyId !== 'string')
+        || (candidate.devicePublicKey !== undefined && typeof candidate.devicePublicKey !== 'string')
+        || (candidate.deviceSecretKey !== undefined && typeof candidate.deviceSecretKey !== 'string')) {
         return null;
     }
     const normalized: Record<string, unknown> = {};

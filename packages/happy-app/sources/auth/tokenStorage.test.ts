@@ -246,4 +246,86 @@ describe('TokenStorage', () => {
             })
         );
     });
+
+    // --- Public-server (evyatar.dev) credential migration (US-007) ---
+
+    const publicCredentials: AuthCredentials = {
+        machineId: 'machine-public',
+        tunnelUrl: 'https://happy.evyatar.dev',
+        firstSeenAt: 789,
+        login: 'octocat',
+        cloudflareAccessClientId: 'cf-access-client-id.example',
+        cloudflareAccessClientSecret: 'cf-access-client-secret-value',
+        deviceKeyId: 'device-key-1',
+        devicePublicKey: 'cHVibGljLWtleS1iYXNlNjQ=',
+        deviceSecretKey: 'c2VjcmV0LWtleS1iYXNlNjQ=',
+    };
+
+    it('round-trips public-mode Access + device-key fields through set/get', async () => {
+        secureStore.getItemAsync.mockResolvedValueOnce(null);
+        await expect(TokenStorage.setCredentials(publicCredentials)).resolves.toBe(true);
+
+        expect(secureStore.setItemAsync).toHaveBeenCalledWith(
+            'machine_credentials',
+            JSON.stringify({
+                primaryMachineId: 'machine-public',
+                machines: [publicCredentials],
+                devTunnelsAccess: null,
+            })
+        );
+
+        secureStore.getItemAsync.mockResolvedValue(JSON.stringify({
+            primaryMachineId: 'machine-public',
+            machines: [publicCredentials],
+            devTunnelsAccess: null,
+        }));
+        await expect(TokenStorage.getCredentials()).resolves.toEqual(publicCredentials);
+    });
+
+    it('upgrades existing Dev Tunnels storage with a public machine without mutating the old entry', async () => {
+        secureStore.getItemAsync.mockResolvedValueOnce(JSON.stringify({
+            primaryMachineId: 'machine-1',
+            machines: [credentials],
+            devTunnelsAccess: 'oauth-token-8',
+        }));
+
+        await expect(TokenStorage.setCredentials(publicCredentials)).resolves.toBe(true);
+
+        // The pre-existing Dev Tunnels machine is preserved byte-for-byte (no new
+        // public fields injected); the public machine is appended and becomes primary.
+        expect(secureStore.setItemAsync).toHaveBeenCalledWith(
+            'machine_credentials',
+            JSON.stringify({
+                primaryMachineId: 'machine-public',
+                machines: [credentials, publicCredentials],
+                devTunnelsAccess: 'oauth-token-8',
+            })
+        );
+    });
+
+    it('loads pre-existing Dev Tunnels credentials that predate the public fields unchanged', async () => {
+        // A blob written before US-007 has none of the new keys. Loading it must
+        // return it exactly, without materializing undefined public-mode fields.
+        secureStore.getItemAsync.mockResolvedValue(JSON.stringify({
+            primaryMachineId: 'machine-1',
+            machines: [credentials],
+            devTunnelsAccess: null,
+        }));
+
+        const loaded = await TokenStorage.getCredentials();
+        expect(loaded).toEqual(credentials);
+        expect(loaded).not.toHaveProperty('cloudflareAccessClientId');
+        expect(loaded).not.toHaveProperty('deviceSecretKey');
+    });
+
+    it('drops a public machine whose device key fields are the wrong type', async () => {
+        const corrupt = { ...publicCredentials, machineId: 'machine-corrupt', deviceSecretKey: 123 };
+        secureStore.getItemAsync.mockResolvedValue(JSON.stringify({
+            primaryMachineId: 'machine-public',
+            machines: [publicCredentials, corrupt],
+            devTunnelsAccess: null,
+        }));
+
+        await expect(TokenStorage.getCredentialsList()).resolves.toEqual([publicCredentials]);
+    });
 });
