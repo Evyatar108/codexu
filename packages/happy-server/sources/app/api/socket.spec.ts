@@ -43,6 +43,14 @@ vi.mock("@/app/events/eventRouter", () => ({
 }));
 
 import { configureRedisStreamsAdapter, createSocketAuthMiddleware, startSocket } from "./socket";
+import { createPublicAuthRuntime } from "./auth/remoteDeviceAuth";
+import {
+    signPublicRequest,
+    encodePublicDeviceProofHeader,
+    generatePublicRequestNonce,
+    hashRequestBody,
+    type PublicSignedRequestEnvelope,
+} from "@slopus/happy-wire";
 import type { ReplayResult, UpdatePayload } from "@/app/events/eventRouter";
 
 function createFakeIo() {
@@ -302,5 +310,147 @@ describe("startSocket replay handshake", () => {
         expect(socket.emit).toHaveBeenCalledWith("replay-overflow", { replayOverflow: true, currentSeq: 2000 });
         expect(socket.emit.mock.calls.filter(([eventName]) => eventName === "replay-overflow")).toHaveLength(1);
         expect(socket.emit.mock.calls.filter(([eventName]) => eventName === "update")).toHaveLength(0);
+    });
+});
+
+// US-002: public-mode Socket.IO handshake verifier. The handshake is an HTTP
+// request for BOTH the websocket (upgrade) and polling transports, so this
+// single middleware — running once per connection with socket.handshake.headers
+// — is the enforcement point for both. These tests prove the previously
+// fail-open tunnel branch is closed for public exposure: no proof, a bad edge
+// check, a replayed nonce, and a missing verifier all reject; only a valid
+// edge + Ed25519 proof over GET /v1/updates is accepted.
+describe("createSocketAuthMiddleware — US-002 public device-proof handshake", () => {
+    const SOCKET_METHOD = "GET";
+    const SOCKET_PATH = "/v1/updates";
+    const deviceSeed = Uint8Array.from({ length: 32 }, (_, i) => (i + 3) & 0xff);
+    const keyId = "socket-device";
+
+    async function buildSocketProof(opts: { issuedAt?: number; nonce?: string } = {}): Promise<{ header: string; envelope: PublicSignedRequestEnvelope }> {
+        const envelope = await signPublicRequest({
+            method: SOCKET_METHOD,
+            path: SOCKET_PATH,
+            keyId,
+            nonce: opts.nonce ?? generatePublicRequestNonce(),
+            issuedAt: opts.issuedAt ?? Date.now(),
+            bodyHash: hashRequestBody(null),
+        }, deviceSeed);
+        return { header: encodePublicDeviceProofHeader(envelope), envelope };
+    }
+
+    it("rejects a handshake with no device proof header", async () => {
+        const { envelope } = await buildSocketProof();
+        const runtime = createPublicAuthRuntime({
+            devices: [{ keyId, publicKey: envelope.publicKey }],
+            edge: { serviceTokens: [] },
+        });
+        const middleware = createSocketAuthMiddleware({ localUserId: "operator" }, { auth: "public", publicAuthRuntime: runtime });
+        const socket = fakeSocket({});
+        const next = vi.fn();
+
+        await middleware(socket, next);
+
+        expect(next).toHaveBeenCalledWith(new Error("Unauthorized"));
+    });
+
+    it("accepts a valid device proof (covers ws + polling: one handshake check for both)", async () => {
+        const { header, envelope } = await buildSocketProof();
+        const runtime = createPublicAuthRuntime({
+            devices: [{ keyId, publicKey: envelope.publicKey }],
+            edge: { serviceTokens: [] },
+        });
+        const tofuPublicKeys = { ed25519PublicKey: "ed", x25519PublicKey: "x" };
+        const middleware = createSocketAuthMiddleware({ localUserId: "operator", tofuPublicKeys }, { auth: "public", publicAuthRuntime: runtime });
+        const socket = fakeSocket({ "x-happy-device-proof": header });
+        const next = vi.fn();
+
+        await middleware(socket, next);
+
+        expect(next).toHaveBeenCalledWith();
+        expect(socket.data.tofuPublicKeys).toEqual(tofuPublicKeys);
+    });
+
+    it("rejects when edge service tokens are configured but CF-Access headers are absent", async () => {
+        const { header, envelope } = await buildSocketProof();
+        const runtime = createPublicAuthRuntime({
+            devices: [{ keyId, publicKey: envelope.publicKey }],
+            edge: { serviceTokens: [{ clientId: "cf-id", clientSecret: "cf-secret" }] },
+        });
+        const middleware = createSocketAuthMiddleware({ localUserId: "operator" }, { auth: "public", publicAuthRuntime: runtime });
+        const socket = fakeSocket({ "x-happy-device-proof": header });
+        const next = vi.fn();
+
+        await middleware(socket, next);
+
+        expect(next).toHaveBeenCalledWith(new Error("Unauthorized"));
+    });
+
+    it("accepts a valid proof plus matching CF-Access edge headers", async () => {
+        const { header, envelope } = await buildSocketProof();
+        const runtime = createPublicAuthRuntime({
+            devices: [{ keyId, publicKey: envelope.publicKey }],
+            edge: { serviceTokens: [{ clientId: "cf-id", clientSecret: "cf-secret" }] },
+        });
+        const middleware = createSocketAuthMiddleware({ localUserId: "operator" }, { auth: "public", publicAuthRuntime: runtime });
+        const socket = fakeSocket({
+            "x-happy-device-proof": header,
+            "cf-access-client-id": "cf-id",
+            "cf-access-client-secret": "cf-secret",
+        });
+        const next = vi.fn();
+
+        await middleware(socket, next);
+
+        expect(next).toHaveBeenCalledWith();
+    });
+
+    it("rejects a replayed nonce on the socket transport", async () => {
+        const { header, envelope } = await buildSocketProof();
+        const runtime = createPublicAuthRuntime({
+            devices: [{ keyId, publicKey: envelope.publicKey }],
+            edge: { serviceTokens: [] },
+        });
+        const middleware = createSocketAuthMiddleware({ localUserId: "operator" }, { auth: "public", publicAuthRuntime: runtime });
+
+        const first = vi.fn();
+        await middleware(fakeSocket({ "x-happy-device-proof": header }), first);
+        expect(first).toHaveBeenCalledWith();
+
+        const second = vi.fn();
+        await middleware(fakeSocket({ "x-happy-device-proof": header }), second);
+        expect(second).toHaveBeenCalledWith(new Error("Unauthorized"));
+    });
+
+    it("rejects a proof signed for a different method/path (cross-route replay)", async () => {
+        // Sign for POST /pair/connect but present on the GET /v1/updates handshake.
+        const envelope = await signPublicRequest({
+            method: "POST",
+            path: "/pair/connect",
+            keyId,
+            nonce: generatePublicRequestNonce(),
+            issuedAt: Date.now(),
+            bodyHash: hashRequestBody(null),
+        }, deviceSeed);
+        const runtime = createPublicAuthRuntime({
+            devices: [{ keyId, publicKey: envelope.publicKey }],
+            edge: { serviceTokens: [] },
+        });
+        const middleware = createSocketAuthMiddleware({ localUserId: "operator" }, { auth: "public", publicAuthRuntime: runtime });
+        const socket = fakeSocket({ "x-happy-device-proof": encodePublicDeviceProofHeader(envelope) });
+        const next = vi.fn();
+
+        await middleware(socket, next);
+
+        expect(next).toHaveBeenCalledWith(new Error("Unauthorized"));
+    });
+
+    it("fails closed when public mode is set but no verifier is configured", async () => {
+        const middleware = createSocketAuthMiddleware({ localUserId: "operator" }, { auth: "public" });
+        const socket = fakeSocket({});
+        const next = vi.fn();
+
+        await middleware(socket, next);
+
+        expect(next).toHaveBeenCalledWith(new Error("Unauthorized"));
     });
 });

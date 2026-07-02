@@ -70,6 +70,28 @@ export function createSocketAuthMiddleware(tofuConfig: TofuHandshakeConfig, sock
             }
         }
 
+        // Public mode: fail-closed device-proof handshake on BOTH transports.
+        // The initial handshake is an HTTP request for websocket (upgrade) and
+        // polling alike, so its headers carry the Cloudflare Access + device
+        // proof; this middleware runs once per connection and rejects any
+        // handshake lacking a valid edge check + Ed25519 proof. This closes the
+        // previously fail-open tunnel branch for public exposure. Tunnel and
+        // loopback behavior is unchanged.
+        if (socketOptions.auth === 'public') {
+            const runtime = socketOptions.publicAuthRuntime;
+            if (!runtime) {
+                log({ module: 'websocket' }, 'Public socket handshake rejected: no verifier configured');
+                next(new Error('Unauthorized'));
+                return;
+            }
+            const result = await runtime.verifySocketHandshake(socket.handshake.headers);
+            if (!result.ok) {
+                log({ module: 'websocket' }, `Public socket handshake rejected: ${result.reason}`);
+                next(new Error('Unauthorized'));
+                return;
+            }
+        }
+
         const clientType = socket.handshake.auth.clientType as 'session-scoped' | 'user-scoped' | 'machine-scoped' | undefined;
         const sessionId = socket.handshake.auth.sessionId as string | undefined;
         const machineId = socket.handshake.auth.machineId as string | undefined;
@@ -104,7 +126,7 @@ export function startSocket(app: Fastify, tofuConfig: TofuHandshakeConfig = { lo
             origin: allowedOrigins.length === 0 ? false : allowedOrigins,
             methods: ["GET", "POST", "OPTIONS"],
             credentials: true,
-            allowedHeaders: ["X-Tunnel-Authorization", "X-Loopback-Capability", "X-Happy-Client", "Content-Type"]
+            allowedHeaders: ["X-Tunnel-Authorization", "X-Loopback-Capability", "X-Happy-Client", "Content-Type", "X-Happy-Device-Proof", "CF-Access-Client-Id", "CF-Access-Client-Secret"]
         },
         transports: ['websocket', 'polling'],
         pingTimeout: 45000,
