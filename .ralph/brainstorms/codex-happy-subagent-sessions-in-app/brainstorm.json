@@ -1,0 +1,131 @@
+{
+  "task": "codex-happy-subagent-sessions-in-app",
+  "recommendedDirection": "D-001 — Overlay-only thread-aware sidechain nesting: register each codex subagent thread with a minted cuid2 in ControlState, synthesize a parent Agent tool-call, tag child-thread envelopes subagent:<cuid2>, and reuse Happy's existing Task-sidechain UI; gated behind a new default-off Feature::RemoteSubagentSessions.",
+  "researchOnly": true,
+  "keyFindings": {
+    "childEventsFlowThroughHappyTap": {
+      "answer": "YES",
+      "citations": [
+        "codex/external/repos/codex-patched/codex-rs/tui/src/app.rs:1254 (happy_tap tees every next_event before per-thread demux)",
+        "codex/external/repos/codex-patched/codex-rs/app-server/src/in_process.rs:490-501 (thread_created_rx auto-attaches in-process listener to every new thread, incl. subagents)",
+        "codex/external/repos/codex-patched/codex-rs/app-server-protocol/src/protocol/v2/item.rs:1118-1199 (per-thread notifications carry thread_id)"
+      ]
+    },
+    "childIdentity": {
+      "answer": "Own server-assigned thread_id; subagent threads have parent_thread_id=Some, root has None; disambiguable by existing ControlState",
+      "citations": [
+        "codex/codex-rs-overlay/codex-happy/src/inbound.rs:95 (primary_thread_id)",
+        "codex/codex-rs-overlay/codex-happy/src/inbound.rs:118-120,183-185 (lock_primary_if_root via ThreadStarted.parent_thread_id)",
+        "codex/codex-rs-overlay/codex-happy/src/inbound.rs:190 (is_primary helper)",
+        "codex/codex-rs-overlay/codex-happy/src/inbound.rs:174-178 (adopt_thread lazy fallback)"
+      ],
+      "constraint": "Happy wire requires subagent to be a cuid2 (sessionProtocol.ts:138-143 isCuid); codex thread_ids are UUIDs, so the overlay must MINT a cuid2 per child and keep a thread_id->cuid2 map."
+    },
+    "happyWireModelsNesting": {
+      "answer": "YES — as sidechains within ONE session (not separate child sessions)",
+      "citations": [
+        "packages/happy-wire/src/sessionProtocol.ts:138-143 (SessionEnvelope.subagent: cuid2)",
+        "packages/happy-app/sources/sync/typesRaw.ts:522-523 (parentUUID = envelope.subagent -> isSidechain)",
+        "packages/happy-app/sources/sync/typesRaw.ts:645-656 (tool-call-start.args normalizes to input)",
+        "packages/happy-app/sources/sync/reducer/reducerTracer.ts:130 (isSubagentToolCall = name in {Task,Agent})",
+        "packages/happy-app/sources/sync/reducer/reducerTracer.ts:121-128 (getToolCallParentIds via input.sessionSubagent)",
+        "packages/happy-app/sources/sync/reducer/reducer.spec.ts:3627 (test: nests subagent-linked sidechain under parent tool calls)"
+      ]
+    },
+    "v1VsV2": {
+      "answer": "Version-agnostic. Key off child thread_id, NOT the engine-specific spawn event. v1 Collab spawn events (CollabAgentSpawnBegin/End) are DROPPED at the app-server, so they are invisible at the tap; v2 emits SubAgentActivity. But both create real child threads whose item/turn notifications flow (auto-attach) tagged with thread_id, so the identity/mapping mechanism covers both. v1 (Collab) is default-ON = the common case works out of the box.",
+      "citations": [
+        "codex/external/repos/codex-patched/codex-rs/core/src/tools/handlers/multi_agents/spawn.rs:85,197 (v1 emits CollabAgentSpawnBegin/End)",
+        "codex/external/repos/codex-patched/codex-rs/app-server/src/bespoke_event_handling.rs:846-853 (CollabAgentSpawnBegin/End DROPPED)",
+        "codex/external/repos/codex-patched/codex-rs/core/src/tools/handlers/multi_agents_v2/spawn.rs (v2 emits SubAgentActivityEvent)",
+        "codex/external/repos/codex-patched/codex-rs/app-server-protocol/src/protocol/v2/item.rs:349-354 (ThreadItem::SubAgentActivity{agent_thread_id, agent_path})",
+        "codex/external/repos/codex-patched/codex-rs/features/src/lib.rs (Collab default-ON, MultiAgentV2 default-OFF)"
+      ]
+    },
+    "currentMappingGap": {
+      "note": "mapping.rs is thread-blind today: map_notification reads only turn_id (never thread_id), and envelope() hardcodes subagent:None. So child events already get flattened into the parent transcript in a top-level remote session (Collab default-on) as a latent bug. The new feature fixes this and must coordinate to not regress top-level auto-attach.",
+      "citations": [
+        "codex/codex-rs-overlay/codex-happy/src/mapping.rs:57,69 (map_event/map_notification, no thread_id)",
+        "codex/codex-rs-overlay/codex-happy/src/mapping.rs:184 (envelope hardcodes subagent: None)",
+        "codex/codex-rs-overlay/codex-happy/src/attach.rs:275,401 (map_event call sites; ControlState in scope at both)"
+      ]
+    }
+  },
+  "directions": [
+    {
+      "id": "D-001",
+      "summary": "Overlay-only nested sidechain wedge: ControlState child registry (thread_id -> minted cuid2), synthesize a parent Agent/Task tool-call, make mapping.rs thread-aware (tag child-thread envelopes subagent:<cuid2>), reuse Happy's existing Task-sidechain UI; new default-off Feature::RemoteSubagentSessions; reuse existing happy_tap seam.",
+      "pros": [
+        "Zero app / happy-wire / happy-server changes — reuses existing subagent/sidechain/TaskView machinery already shipped in the app",
+        "Reuses the existing tap seam (app.rs:1254) — no new TUI seam, top-level tap invariants untouched",
+        "Self-contained in inbound.rs + mapping.rs + small attach.rs wiring (files the raw-session ship already owns)",
+        "Version-agnostic (keys off thread_id, covers v1 default-on and v2 identically)",
+        "Fixes the latent child-flattening bug as a side effect of becoming thread-aware",
+        "Correct UX: matches Claude-Code Task nesting"
+      ],
+      "cons": [
+        "Requires minting a cuid2 in the overlay (small dep/helper)",
+        "Requires a synthetic parent tool-call whose clean rendering (no tool-call-end) needs validation",
+        "Gate-off suppression is a behavior change to the shipped top-level path (needs operator ack)"
+      ],
+      "recommended": true
+    },
+    {
+      "id": "D-002",
+      "summary": "Flat tag only: tag child-thread envelopes with subagent:<cuid2> but do NOT synthesize a parent Agent/Task tool-call.",
+      "pros": [
+        "Slightly less code than D-001 (no synthetic tool-call)"
+      ],
+      "cons": [
+        "App nests a sidechain ONLY under a parent tool-call whose input.sessionSubagent matches (reducerTracer.ts:121-132); with no parent, sidechain messages have parentUUID set but no anchor -> likely orphaned/hidden, so children may not render at all",
+        "Does not deliver visible nesting; effectively worse than the status quo for the child transcript"
+      ],
+      "recommended": false
+    },
+    {
+      "id": "D-003",
+      "summary": "Separate Happy session per child: open a new SessionClient/session per subagent thread so each child appears as its own top-level session.",
+      "pros": [
+        "Children get full independent session UIs"
+      ],
+      "cons": [
+        "The session wire has NO parent->child session link — children would be disconnected flat sessions with no nesting/relationship",
+        "Much heavier: multiplies daemon/session/pairing churn per child",
+        "Does not match the north-star two-plane model or the Task-nesting UX",
+        "Large new surface vs the overlay-only wedge"
+      ],
+      "recommended": false
+    },
+    {
+      "id": "D-004",
+      "summary": "Standalone gate-off fix only: suppress child-thread events when the feature is OFF to remove today's flattening, without building nesting.",
+      "pros": [
+        "Tiny; removes the confusing flatten immediately",
+        "Is effectively a sub-decision of D-001's gate-off behavior (M-F)"
+      ],
+      "cons": [
+        "Does not surface children at all (the actual goal); only a cleanup",
+        "Best folded INTO D-001 as its gate-off branch rather than shipped alone"
+      ],
+      "recommended": false
+    }
+  ],
+  "milestones": [
+    "M-A · Add default-off Feature::RemoteSubagentSessions (Experimental) mirroring Feature::RemoteSession in features/src/lib.rs; fork-visibility test; patch-surface §14 row + §15 replant note.",
+    "M-B · Child registry in ControlState (inbound.rs): HashMap<child_thread_id, cuid2> + register_child/child_cuid2; populate on ThreadStarted{parent_thread_id:Some} (primary path) and first non-primary item/turn thread_id (fallback); cuid2 mint helper. Unit tests.",
+    "M-C · Thread-aware outbound mapping (mapping.rs): thread &ControlState into map_event/map_notification/map_item_*; read thread_id; primary -> subagent:None, child -> subagent:Some(cuid2); envelope() takes a subagent arg (drop hardcoded None at :184). Unit tests.",
+    "M-D · Synthetic parent tool-call: on child registration emit one ToolCallStart(name:'Agent', args.sessionSubagent=cuid2, args.prompt=label, args.subagent_type=agent_path|'subagent') on the primary turn. Unit test.",
+    "M-E · Wire into both drain sites (attach.rs:275 pre-connect + attach.rs:401 connected): pass &control into mapping; reuse existing happy_tap seam (app.rs:1254), no new TUI seam; gate all child behavior on Feature::RemoteSubagentSessions.",
+    "M-F · Gate-off coordination / do-not-regress: when OFF suppress non-primary-thread envelopes (fixes today's flatten, preserves top-level parity); flag the behavior change for operator ack; when ON, nest.",
+    "M-G · (defer) Optional child lifecycle enrichment: start{title}/stop{} + child turn-end tagged with cuid2 (app currently drops start/stop, typesRaw.ts:568-570).",
+    "M-H · Patch-surface + audit closeout: §14 row; confirm zero new upstream-canonical seam (tap reused); wire-drift guard (US-008) unaffected (subagent field pre-exists); cargo check --workspace + overlay cargo test."
+  ],
+  "openQuestions": [
+    "Q-1 (needs operator ack): when the feature is OFF, suppress child-thread events (cleaner top-level parity but a behavior change to the shipped path) vs keep today's flatten? Recommendation: suppress.",
+    "Q-2: which crate/impl mints a cuid2 in the overlay? App strictly requires subagent to be cuid2 (sessionProtocol.ts:140); envelope id is unconstrained. Add a small dep/vendored generator and confirm it passes isCuid.",
+    "Q-3: is ThreadStarted delivered to the in-process tap for auto-attached subagent threads, or only their item/turn notifications? If not, registration relies on the first-non-primary-item/turn fallback (design covers both).",
+    "Q-4: does a synthetic Agent/Task tool-call with no matching tool-call-end render cleanly in TaskView (or spin forever)? Is name:'Agent' or 'Task' the better label? Validate vs reducerTracer + TaskView.",
+    "Q-5: nesting depth — fork gates spawn_agent from SubAgent sessions (top-level-only) and v1 depth-strips, so v1 default is practically depth-1; v2 can go deeper. Scope depth-1 first.",
+    "Q-6: confirm map_item_completed (mapping.rs:107) yields a readable Text envelope for the child's final AgentMessage once tagged (same code path, just tagged)."
+  ]
+}
