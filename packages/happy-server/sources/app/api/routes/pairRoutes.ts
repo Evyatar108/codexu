@@ -4,7 +4,7 @@ import * as os from "os";
 import * as path from "path";
 import { type Fastify } from "../types";
 import { type TofuHandshakeConfig } from "../api";
-import { type PairingGate } from "../auth/remoteDeviceAuth";
+import { type PairingGate, type DeviceEnrollResult } from "../auth/remoteDeviceAuth";
 
 export interface PairRoutePaths {
     profile?: string;
@@ -21,6 +21,13 @@ export interface PairRouteAuthOptions {
     publicMode?: boolean;
     /** The operator pairing-window + QR-secret + replay gate (required in public mode). */
     pairingGate?: PairingGate;
+    /**
+     * TOFU-enrolls the pairing device's Ed25519 public key into the live verifier
+     * (public mode only). Invoked ONLY after the pairing gate + profile checks pass,
+     * so a device is pinned exactly when pairing actually succeeds. Absent in tunnel
+     * mode (device proofs are not used there), where device key fields are ignored.
+     */
+    enrollDevice?: (record: { keyId: string; publicKey: string }) => Promise<DeviceEnrollResult>;
 }
 
 function defaultProfilePath(): string {
@@ -85,6 +92,12 @@ export function pairRoutes(app: Fastify, tofuConfig: TofuHandshakeConfig, paths:
         schema: {
             body: z.object({
                 mobileEcdhPublicKey: z.string().optional(),
+                // Device-key enrollment (public mode). The app sends its Ed25519 device
+                // public key + id so the server can TOFU-pin it into the verifier that
+                // guards every subsequent request. Optional for back-compat (tunnel mode
+                // and legacy callers omit them); shape is validated in the handler.
+                deviceEd25519PublicKey: z.string().optional(),
+                deviceKeyId: z.string().optional(),
             }),
             response: {
                 200: z.object({
@@ -98,7 +111,9 @@ export function pairRoutes(app: Fastify, tofuConfig: TofuHandshakeConfig, paths:
                         mobileSharedSecret: z.string().optional(),
                     }),
                 }),
+                400: z.object({ error: z.string() }),
                 401: z.object({ error: z.string() }),
+                409: z.object({ error: z.string() }),
                 429: z.object({ error: z.string() }),
                 503: z.object({ error: z.string() }),
             },
@@ -125,6 +140,34 @@ export function pairRoutes(app: Fastify, tofuConfig: TofuHandshakeConfig, paths:
         const profile = await readProfile(paths.profile ?? defaultProfilePath());
         if (!profile) {
             return reply.code(503).send({ error: "local_profile_unavailable" });
+        }
+
+        // TOFU device-key enrollment (public mode only). Runs AFTER the pairing gate +
+        // profile checks, so a device is pinned exactly when pairing genuinely succeeds
+        // (a denied gate or missing profile pins nothing). Enrollment is best-effort for
+        // back-compat: legacy callers that omit both fields still pair normally. When a
+        // device key IS supplied it must be well-formed and non-conflicting, else the
+        // request fails closed (400/409) with NO key material returned.
+        if (authOptions.enrollDevice) {
+            const { deviceEd25519PublicKey, deviceKeyId } = request.body;
+            const hasKey = deviceEd25519PublicKey !== undefined;
+            const hasId = deviceKeyId !== undefined;
+            if (hasKey || hasId) {
+                if (!hasKey || !hasId) {
+                    // Partial device identity is malformed — both fields are required together.
+                    return reply.code(400).send({ error: "invalid_device_key" });
+                }
+                const result = await authOptions.enrollDevice({
+                    keyId: deviceKeyId,
+                    publicKey: deviceEd25519PublicKey,
+                });
+                if (!result.ok) {
+                    if (result.reason === "device_key_conflict") {
+                        return reply.code(409).send({ error: "device_key_conflict" });
+                    }
+                    return reply.code(400).send({ error: "invalid_device_key" });
+                }
+            }
         }
 
         let mobileSharedSecret: string | undefined;

@@ -145,6 +145,7 @@ export function configureApi(app: any, tofuConfig: TofuHandshakeConfig = { local
         pairRoutes(typed, tofuConfig, options.paths, {
             publicMode: options.auth === "public",
             pairingGate: publicAuthRuntime?.pairingGate,
+            enrollDevice: publicAuthRuntime?.enrollDevice,
         });
         pushRoutes(typed, tofuConfig);
     sessionRoutes(typed, eventRouter, { localMachineId: tofuConfig.localUserId });
