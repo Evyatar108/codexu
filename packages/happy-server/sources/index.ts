@@ -3,6 +3,7 @@ import { mkdir } from "fs/promises";
 import path from "path";
 import type { EventRouter } from "./app/events/eventRouter";
 import type { ApiPaths, MachineStateGetter } from "./app/api/api";
+import type { PublicAuthConfig } from "./app/api/auth/remoteDeviceAuth";
 import { decodeBase64 } from "privacy-kit";
 import { db, getPGlite } from "./storage/db";
 
@@ -21,7 +22,8 @@ export interface HappyServerConfig {
     tofuPublicKeys?: TofuPublicKeys;
     host?: string;
     publicUrl?: string;
-    auth?: "tunnel" | "loopback";
+    auth?: "tunnel" | "loopback" | "public";
+    publicAuth?: PublicAuthConfig;
     paths?: ApiPaths;
     machineState?: MachineStateGetter;
     enablePrettyLogs?: boolean;
@@ -39,7 +41,8 @@ export interface HappyServerSharedContext {
 export interface CreateAppConfig extends HappyServerSharedContext {
     port: number;
     host?: string;
-    auth?: "tunnel" | "loopback";
+    auth?: "tunnel" | "loopback" | "public";
+    publicAuth?: PublicAuthConfig;
     paths?: ApiPaths;
     machineState?: MachineStateGetter;
 }
@@ -166,6 +169,7 @@ export function createApp(config: CreateAppConfig): HappyServerHandle {
             x25519SecretKey: config.tofuPublicKeys?.x25519SecretKey,
         }, {
             auth: config.auth,
+            publicAuth: config.publicAuth,
             paths: config.paths,
             machineState: config.machineState,
             onEventRouter: (router) => {

@@ -1,5 +1,7 @@
 import * as z from 'zod';
 import { isCuid, createId } from '@paralleldrive/cuid2';
+import * as ed from '@noble/ed25519';
+import { sha512, sha256 } from '@noble/hashes/sha2.js';
 
 const sessionRoleSchema = z.union([z.literal("user"), z.literal("agent")]);
 const sessionTextEventSchema = z.object({
@@ -591,6 +593,220 @@ function routeHopValidation(envelope) {
   return envelope.hopPath.some((ref) => targetRefs.has(ref)) ? "hopPath already contains the target session" : null;
 }
 
+ed.hashes.sha512 = (message) => sha512(message);
+const BASE64_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+const BASE64_LOOKUP = (() => {
+  const table = new Int16Array(128).fill(-1);
+  for (let i = 0; i < BASE64_ALPHABET.length; i++) {
+    table[BASE64_ALPHABET.charCodeAt(i)] = i;
+  }
+  return table;
+})();
+function encodeBase64(bytes) {
+  let out = "";
+  for (let i = 0; i < bytes.length; i += 3) {
+    const hasByte1 = i + 1 < bytes.length;
+    const hasByte2 = i + 2 < bytes.length;
+    const b0 = bytes[i];
+    const b1 = hasByte1 ? bytes[i + 1] : 0;
+    const b2 = hasByte2 ? bytes[i + 2] : 0;
+    const triple = b0 << 16 | b1 << 8 | b2;
+    out += BASE64_ALPHABET[triple >> 18 & 63];
+    out += BASE64_ALPHABET[triple >> 12 & 63];
+    out += hasByte1 ? BASE64_ALPHABET[triple >> 6 & 63] : "=";
+    out += hasByte2 ? BASE64_ALPHABET[triple & 63] : "=";
+  }
+  return out;
+}
+function decodeBase64(text) {
+  let clean = "";
+  for (let i = 0; i < text.length; i++) {
+    const code = text.charCodeAt(i);
+    if (code < 128 && BASE64_LOOKUP[code] !== -1) {
+      clean += text[i];
+    } else if (text[i] !== "=" && text[i] !== "\n" && text[i] !== "\r" && text[i] !== " " && text[i] !== "	") {
+      throw new Error("invalid base64 input");
+    }
+  }
+  const outLen = Math.floor(clean.length * 3 / 4);
+  const out = new Uint8Array(outLen);
+  let acc = 0;
+  let bits = 0;
+  let oi = 0;
+  for (let i = 0; i < clean.length; i++) {
+    acc = acc << 6 | BASE64_LOOKUP[clean.charCodeAt(i)];
+    bits += 6;
+    if (bits >= 8) {
+      bits -= 8;
+      out[oi++] = acc >> bits & 255;
+    }
+  }
+  return out;
+}
+const PUBLIC_DEVICE_PROOF_ENVELOPE_VERSION = 1;
+const PUBLIC_DEVICE_PROOF_DOMAIN = "happy-public-device-proof/v1";
+const PUBLIC_DEVICE_PROOF_HEADER = "x-happy-device-proof";
+const PUBLIC_DEVICE_PROOF_FRESHNESS_MS = 5 * 60 * 1e3;
+const PUBLIC_DEVICE_PROOF_CLOCK_SKEW_MS = 60 * 1e3;
+const PublicSignedRequestEnvelopeSchema = z.object({
+  v: z.literal(PUBLIC_DEVICE_PROOF_ENVELOPE_VERSION),
+  keyId: z.string().min(1),
+  publicKey: z.string().min(1),
+  nonce: z.string().min(1),
+  issuedAt: z.number().int().nonnegative(),
+  method: z.string().min(1),
+  path: z.string().min(1),
+  bodyHash: z.string().min(1),
+  signature: z.string().min(1)
+});
+function normalizeMethod(method) {
+  return method.toUpperCase();
+}
+function canonicalRequestStringToSign(fields) {
+  return [
+    PUBLIC_DEVICE_PROOF_DOMAIN,
+    normalizeMethod(fields.method),
+    fields.path,
+    fields.keyId,
+    fields.publicKey,
+    fields.nonce,
+    String(fields.issuedAt),
+    fields.bodyHash
+  ].join("\n");
+}
+function hashRequestBody(body) {
+  let bytes;
+  if (body == null) {
+    bytes = new Uint8Array();
+  } else if (typeof body === "string") {
+    bytes = new TextEncoder().encode(body);
+  } else {
+    bytes = body;
+  }
+  return encodeBase64(sha256(bytes));
+}
+function generatePublicRequestNonce(byteLength = 24) {
+  const bytes = new Uint8Array(byteLength);
+  const cryptoObj = globalThis.crypto;
+  if (cryptoObj && typeof cryptoObj.getRandomValues === "function") {
+    cryptoObj.getRandomValues(bytes);
+  } else {
+    for (let i = 0; i < byteLength; i++) {
+      bytes[i] = Math.floor(Math.random() * 256);
+    }
+  }
+  return encodeBase64(bytes);
+}
+async function signPublicRequest(input, secretKey) {
+  const method = normalizeMethod(input.method);
+  const publicKey = encodeBase64(await ed.getPublicKeyAsync(secretKey));
+  const canonical = canonicalRequestStringToSign({
+    method,
+    path: input.path,
+    keyId: input.keyId,
+    publicKey,
+    nonce: input.nonce,
+    issuedAt: input.issuedAt,
+    bodyHash: input.bodyHash
+  });
+  const signature = encodeBase64(await ed.signAsync(new TextEncoder().encode(canonical), secretKey));
+  return {
+    v: PUBLIC_DEVICE_PROOF_ENVELOPE_VERSION,
+    keyId: input.keyId,
+    publicKey,
+    nonce: input.nonce,
+    issuedAt: input.issuedAt,
+    method,
+    path: input.path,
+    bodyHash: input.bodyHash,
+    signature
+  };
+}
+async function verifyPublicRequest(envelope, context) {
+  const parsed = PublicSignedRequestEnvelopeSchema.safeParse(envelope);
+  if (!parsed.success) {
+    return { ok: false, reason: "invalid_envelope" };
+  }
+  const env = parsed.data;
+  if (normalizeMethod(env.method) !== normalizeMethod(context.method)) {
+    return { ok: false, reason: "method_mismatch" };
+  }
+  if (env.path !== context.path) {
+    return { ok: false, reason: "path_mismatch" };
+  }
+  if (context.bodyHash !== void 0 && env.bodyHash !== context.bodyHash) {
+    return { ok: false, reason: "body_hash_mismatch" };
+  }
+  if (context.expectedPublicKey !== void 0 && env.publicKey !== context.expectedPublicKey) {
+    return { ok: false, reason: "public_key_mismatch" };
+  }
+  let publicKeyBytes;
+  let signatureBytes;
+  try {
+    publicKeyBytes = decodeBase64(env.publicKey);
+    signatureBytes = decodeBase64(env.signature);
+  } catch {
+    return { ok: false, reason: "invalid_base64" };
+  }
+  if (publicKeyBytes.length !== 32) {
+    return { ok: false, reason: "invalid_public_key_length" };
+  }
+  if (signatureBytes.length !== 64) {
+    return { ok: false, reason: "invalid_signature_length" };
+  }
+  const canonical = canonicalRequestStringToSign(env);
+  let valid = false;
+  try {
+    valid = await ed.verifyAsync(signatureBytes, new TextEncoder().encode(canonical), publicKeyBytes);
+  } catch {
+    valid = false;
+  }
+  return valid ? { ok: true } : { ok: false, reason: "signature_invalid" };
+}
+function isPublicProofFresh(issuedAt, now, windowMs = PUBLIC_DEVICE_PROOF_FRESHNESS_MS, clockSkewMs = PUBLIC_DEVICE_PROOF_CLOCK_SKEW_MS) {
+  return issuedAt <= now + clockSkewMs && issuedAt >= now - windowMs;
+}
+function encodePublicDeviceProofHeader(envelope) {
+  return encodeBase64(new TextEncoder().encode(JSON.stringify(envelope)));
+}
+function decodePublicDeviceProofHeader(header) {
+  if (!header) {
+    return null;
+  }
+  try {
+    const json = new TextDecoder().decode(decodeBase64(header));
+    const parsed = PublicSignedRequestEnvelopeSchema.safeParse(JSON.parse(json));
+    return parsed.success ? parsed.data : null;
+  } catch {
+    return null;
+  }
+}
+const PUBLIC_DEVICE_AUTH_TEST_VECTOR = {
+  seedHex: "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+  keyId: "device-test-key",
+  publicKeyBase64: "A6EHv/POEL4dcN0Y50vAmWfk1jCbpQ1fHdyGZBJVMbg=",
+  nonceBase64: "bm9uY2UtMDAwMDAwMDAwMDAwMDAwMDAwMDA=",
+  issuedAt: 17356896e5,
+  method: "POST",
+  path: "/pair/connect",
+  body: '{"mobileEcdhPublicKey":"AAECAwQFBgcICQoLDA0ODw=="}',
+  bodyHashBase64: "x4jOxy7m4ahMoun9VgIPk36KVKoOaXa7IbYZChfDhiw=",
+  canonicalString: "happy-public-device-proof/v1\nPOST\n/pair/connect\ndevice-test-key\nA6EHv/POEL4dcN0Y50vAmWfk1jCbpQ1fHdyGZBJVMbg=\nbm9uY2UtMDAwMDAwMDAwMDAwMDAwMDAwMDA=\n1735689600000\nx4jOxy7m4ahMoun9VgIPk36KVKoOaXa7IbYZChfDhiw=",
+  signatureBase64: "6A31zge0s5yf6XHqLDAp4gdtZ5k0nzSJIk1YF5IdfXiY8kL/5MqAjvNFSgSWN7rDmYD8F21Md+C2R8cRAFzlBw==",
+  envelope: {
+    v: PUBLIC_DEVICE_PROOF_ENVELOPE_VERSION,
+    keyId: "device-test-key",
+    publicKey: "A6EHv/POEL4dcN0Y50vAmWfk1jCbpQ1fHdyGZBJVMbg=",
+    nonce: "bm9uY2UtMDAwMDAwMDAwMDAwMDAwMDAwMDA=",
+    issuedAt: 17356896e5,
+    method: "POST",
+    path: "/pair/connect",
+    bodyHash: "x4jOxy7m4ahMoun9VgIPk36KVKoOaXa7IbYZChfDhiw=",
+    signature: "6A31zge0s5yf6XHqLDAp4gdtZ5k0nzSJIk1YF5IdfXiY8kL/5MqAjvNFSgSWN7rDmYD8F21Md+C2R8cRAFzlBw=="
+  },
+  headerBase64: "eyJ2IjoxLCJrZXlJZCI6ImRldmljZS10ZXN0LWtleSIsInB1YmxpY0tleSI6IkE2RUh2L1BPRUw0ZGNOMFk1MHZBbVdmazFqQ2JwUTFmSGR5R1pCSlZNYmc9Iiwibm9uY2UiOiJibTl1WTJVdE1EQXdNREF3TURBd01EQXdNREF3TURBd01EQT0iLCJpc3N1ZWRBdCI6MTczNTY4OTYwMDAwMCwibWV0aG9kIjoiUE9TVCIsInBhdGgiOiIvcGFpci9jb25uZWN0IiwiYm9keUhhc2giOiJ4NGpPeHk3bTRhaE1vdW45VmdJUGszNktWS29PYVhhN0liWVpDaGZEaGl3PSIsInNpZ25hdHVyZSI6IjZBMzF6Z2UwczV5ZjZYSHFMREFwNGdkdFo1azBuelNKSWsxWUY1SWRmWGlZOGtMLzVNcUFqdk5GU2dTV043ckRtWUQ4RjIxTWQrQzJSOGNSQUZ6bEJ3PT0ifQ=="
+};
+
 const MachineTunnelSchema = z.object({
   machineId: z.string(),
   tunnelId: z.string(),
@@ -600,4 +816,4 @@ const MachineTunnelSchema = z.object({
   owner: z.string()
 });
 
-export { AgentCommsChannelSchema, AgentCommsEnvelopeSchema, AgentCommsFromSchema, AgentCommsIngestBodySchema, AgentCommsKindSchema, AgentCommsScopeSchema, AgentCommsToSchema, AgentMessageSchema, AgentTreeDeltaSchema, AgentTreeEdgeSchema, AgentTreeNodeAddedDeltaSchema, AgentTreeNodeRemovedDeltaSchema, AgentTreeNodeSchema, AgentTreeNodeStatusChangedDeltaSchema, AgentTreePendingSpawnStartedDeltaSchema, AgentTreeSnapshotSchema, AgentTreeUpdateInboundPayloadSchema, AgentTreeUpdateOutboundPayloadSchema, ApiMessageSchema, ApiUpdateMachineStateSchema, ApiUpdateNewMessageSchema, ApiUpdateSessionStateSchema, CoreUpdateBodySchema, CoreUpdateContainerSchema, DoneLedgerRecordSchema, ErrorLedgerRecordSchema, IdleReachedLedgerRecordSchema, LastOutputSummaryLedgerRecordSchema, LedgerErrorCodeSchema, LedgerRecordSchema, LegacyMessageContentSchema, MAX_HOPS, MachineTunnelSchema, MessageContentSchema, MessageMetaSchema, MessageSentLedgerRecordSchema, PendingPermissionLedgerRecordSchema, SenderKeysSchema, SessionGetAgentTreeRequestSchema, SessionGetAgentTreeResponseSchema, SessionMessageContentSchema, SessionMessageRangeRequestSchema, SessionMessageRangeResponseSchema, SessionMessageSchema, SessionProtocolMessageSchema, SpawnLedgerRecordSchema, TofuHandshakeMessageSchema, TofuPubkeysEventSchema, TofuPublicKeysSchema, TofuSessionKeyExchangeSchema, UpdateBodySchema, UpdateMachineBodySchema, UpdateNewMessageBodySchema, UpdateSchema, UpdateSessionBodySchema, UserMessageSchema, ValidationAttachedLedgerRecordSchema, VersionedEncryptedValueSchema, VersionedMachineEncryptedValueSchema, VersionedNullableEncryptedValueSchema, VoiceConversationDeniedSchema, VoiceConversationGrantedSchema, VoiceConversationResponseSchema, VoiceUsageResponseSchema, createEnvelope, findSenderDropEntry, forkBoilerplateEntry, localCommandCaveatEntry, makeWrappedTagEntry, nonRenderableEntries, routeHopValidation, sessionAgentConfigurationChangedEventSchema, sessionContextBoundaryEventSchema, sessionContextBoundaryKindSchema, sessionContextBoundaryTriggeredBySchema, sessionEnvelopeSchema, sessionEventSchema, sessionFileEventSchema, sessionMessageConsumptionEventSchema, sessionRoleSchema, sessionServiceMessageEventSchema, sessionStartEventSchema, sessionStopEventSchema, sessionTextEventSchema, sessionToolCallEndEventSchema, sessionToolCallStartEventSchema, sessionTurnEndEventSchema, sessionTurnEndStatusSchema, sessionTurnStartEventSchema, skillBodyEntry, systemReminderEntry };
+export { AgentCommsChannelSchema, AgentCommsEnvelopeSchema, AgentCommsFromSchema, AgentCommsIngestBodySchema, AgentCommsKindSchema, AgentCommsScopeSchema, AgentCommsToSchema, AgentMessageSchema, AgentTreeDeltaSchema, AgentTreeEdgeSchema, AgentTreeNodeAddedDeltaSchema, AgentTreeNodeRemovedDeltaSchema, AgentTreeNodeSchema, AgentTreeNodeStatusChangedDeltaSchema, AgentTreePendingSpawnStartedDeltaSchema, AgentTreeSnapshotSchema, AgentTreeUpdateInboundPayloadSchema, AgentTreeUpdateOutboundPayloadSchema, ApiMessageSchema, ApiUpdateMachineStateSchema, ApiUpdateNewMessageSchema, ApiUpdateSessionStateSchema, CoreUpdateBodySchema, CoreUpdateContainerSchema, DoneLedgerRecordSchema, ErrorLedgerRecordSchema, IdleReachedLedgerRecordSchema, LastOutputSummaryLedgerRecordSchema, LedgerErrorCodeSchema, LedgerRecordSchema, LegacyMessageContentSchema, MAX_HOPS, MachineTunnelSchema, MessageContentSchema, MessageMetaSchema, MessageSentLedgerRecordSchema, PUBLIC_DEVICE_AUTH_TEST_VECTOR, PUBLIC_DEVICE_PROOF_CLOCK_SKEW_MS, PUBLIC_DEVICE_PROOF_DOMAIN, PUBLIC_DEVICE_PROOF_ENVELOPE_VERSION, PUBLIC_DEVICE_PROOF_FRESHNESS_MS, PUBLIC_DEVICE_PROOF_HEADER, PendingPermissionLedgerRecordSchema, PublicSignedRequestEnvelopeSchema, SenderKeysSchema, SessionGetAgentTreeRequestSchema, SessionGetAgentTreeResponseSchema, SessionMessageContentSchema, SessionMessageRangeRequestSchema, SessionMessageRangeResponseSchema, SessionMessageSchema, SessionProtocolMessageSchema, SpawnLedgerRecordSchema, TofuHandshakeMessageSchema, TofuPubkeysEventSchema, TofuPublicKeysSchema, TofuSessionKeyExchangeSchema, UpdateBodySchema, UpdateMachineBodySchema, UpdateNewMessageBodySchema, UpdateSchema, UpdateSessionBodySchema, UserMessageSchema, ValidationAttachedLedgerRecordSchema, VersionedEncryptedValueSchema, VersionedMachineEncryptedValueSchema, VersionedNullableEncryptedValueSchema, VoiceConversationDeniedSchema, VoiceConversationGrantedSchema, VoiceConversationResponseSchema, VoiceUsageResponseSchema, canonicalRequestStringToSign, createEnvelope, decodeBase64, decodePublicDeviceProofHeader, encodeBase64, encodePublicDeviceProofHeader, findSenderDropEntry, forkBoilerplateEntry, generatePublicRequestNonce, hashRequestBody, isPublicProofFresh, localCommandCaveatEntry, makeWrappedTagEntry, nonRenderableEntries, normalizeMethod, routeHopValidation, sessionAgentConfigurationChangedEventSchema, sessionContextBoundaryEventSchema, sessionContextBoundaryKindSchema, sessionContextBoundaryTriggeredBySchema, sessionEnvelopeSchema, sessionEventSchema, sessionFileEventSchema, sessionMessageConsumptionEventSchema, sessionRoleSchema, sessionServiceMessageEventSchema, sessionStartEventSchema, sessionStopEventSchema, sessionTextEventSchema, sessionToolCallEndEventSchema, sessionToolCallStartEventSchema, sessionTurnEndEventSchema, sessionTurnEndStatusSchema, sessionTurnStartEventSchema, signPublicRequest, skillBodyEntry, systemReminderEntry, verifyPublicRequest };

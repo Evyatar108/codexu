@@ -13,11 +13,13 @@ import { machineUpdateHandler } from "./socket/machineUpdateHandler";
 import { sessionMessageRangeHandler } from "./socket/sessionMessageRangeHandler";
 import type { TofuHandshakeConfig } from "./api";
 import { makeLoopbackTokenReader, type LoopbackCapabilityPaths } from "./auth/loopbackCapability";
+import type { PublicAuthRuntime } from "./auth/remoteDeviceAuth";
 import { parseCorsOrigins } from "./utils/parseCorsOrigins";
 
 export interface StartSocketOptions {
-    auth?: "tunnel" | "loopback";
+    auth?: "tunnel" | "loopback" | "public";
     paths?: LoopbackCapabilityPaths;
+    publicAuthRuntime?: PublicAuthRuntime;
 }
 
 export function configureRedisStreamsAdapter(io: Server): Redis | undefined {

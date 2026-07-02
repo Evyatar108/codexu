@@ -7,4 +7,5 @@ export * from './nonRenderablePolicy';
 export * from './ledger';
 export * from './agentTree';
 export * from './agentComms';
+export * from './publicDeviceAuth';
 export * from './tunnel/types';

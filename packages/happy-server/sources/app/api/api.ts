@@ -18,6 +18,7 @@ import { machineSelfRoutes, type MachineSelfState } from "./routes/machineSelfRo
 import { isLocalStorage, getLocalFilesDir } from "@/storage/files";
 import type { EventRouter } from "@/app/events/eventRouter";
 import { verifyLoopbackCapability, type LoopbackCapabilityPaths } from "./auth/loopbackCapability";
+import { createPublicAuthRuntime, type PublicAuthConfig, type PublicAuthRuntime } from "./auth/remoteDeviceAuth";
 import * as path from "path";
 import * as fs from "fs";
 
@@ -47,7 +48,8 @@ export function createApi() {
 }
 
 export interface ConfigureApiOptions {
-    auth?: "tunnel" | "loopback";
+    auth?: "tunnel" | "loopback" | "public";
+    publicAuth?: PublicAuthConfig;
     paths?: ApiPaths;
     machineState?: MachineStateGetter;
     onEventRouter?: (eventRouter: EventRouter) => void;
@@ -77,6 +79,20 @@ export function configureApi(app: any, tofuConfig: TofuHandshakeConfig = { local
     typed.decorate('authenticateTunnel', async function (_request: any) {});
     typed.decorate('authenticate', options.auth === "loopback" ? typed.verifyLoopbackCapability : typed.authenticateTunnel);
 
+    // Fail-closed public-mode boundary. Installed BEFORE any public route is
+    // registered so every method/path is denied (401) unless it appears in the
+    // explicit policy allowlist with a valid device proof (or is /pair/complete
+    // inside the operator pairing window). This is the application-layer boundary
+    // for public internet exposure; the default tunnel/loopback paths are untouched.
+    let publicAuthRuntime: PublicAuthRuntime | undefined;
+    if (options.auth === "public") {
+        if (!options.publicAuth) {
+            throw new Error('CRITICAL: auth "public" requires a publicAuth verifier + edge configuration. Refusing to configure a public listener without a fail-closed device verifier.');
+        }
+        publicAuthRuntime = createPublicAuthRuntime(options.publicAuth);
+        fastifyApp.addHook('onRequest', publicAuthRuntime.httpGuard);
+    }
+
     // Serve local files when using local storage
     if (isLocalStorage()) {
         fastifyApp.get('/files/*', function (request, reply) {
@@ -96,7 +112,7 @@ export function configureApi(app: any, tofuConfig: TofuHandshakeConfig = { local
         });
     }
 
-    const eventRouter = startSocket(typed, tofuConfig, { auth: options.auth, paths: options.paths });
+    const eventRouter = startSocket(typed, tofuConfig, { auth: options.auth, paths: options.paths, publicAuthRuntime });
     options.onEventRouter?.(eventRouter);
 
     // Routes available on both tunnel and loopback listeners

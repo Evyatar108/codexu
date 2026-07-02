@@ -2,6 +2,8 @@
 
 var z = require('zod');
 var cuid2 = require('@paralleldrive/cuid2');
+var ed = require('@noble/ed25519');
+var sha2_js = require('@noble/hashes/sha2.js');
 
 function _interopNamespaceDefault(e) {
   var n = Object.create(null);
@@ -21,6 +23,7 @@ function _interopNamespaceDefault(e) {
 }
 
 var z__namespace = /*#__PURE__*/_interopNamespaceDefault(z);
+var ed__namespace = /*#__PURE__*/_interopNamespaceDefault(ed);
 
 const sessionRoleSchema = z__namespace.union([z__namespace.literal("user"), z__namespace.literal("agent")]);
 const sessionTextEventSchema = z__namespace.object({
@@ -612,6 +615,220 @@ function routeHopValidation(envelope) {
   return envelope.hopPath.some((ref) => targetRefs.has(ref)) ? "hopPath already contains the target session" : null;
 }
 
+ed__namespace.hashes.sha512 = (message) => sha2_js.sha512(message);
+const BASE64_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+const BASE64_LOOKUP = (() => {
+  const table = new Int16Array(128).fill(-1);
+  for (let i = 0; i < BASE64_ALPHABET.length; i++) {
+    table[BASE64_ALPHABET.charCodeAt(i)] = i;
+  }
+  return table;
+})();
+function encodeBase64(bytes) {
+  let out = "";
+  for (let i = 0; i < bytes.length; i += 3) {
+    const hasByte1 = i + 1 < bytes.length;
+    const hasByte2 = i + 2 < bytes.length;
+    const b0 = bytes[i];
+    const b1 = hasByte1 ? bytes[i + 1] : 0;
+    const b2 = hasByte2 ? bytes[i + 2] : 0;
+    const triple = b0 << 16 | b1 << 8 | b2;
+    out += BASE64_ALPHABET[triple >> 18 & 63];
+    out += BASE64_ALPHABET[triple >> 12 & 63];
+    out += hasByte1 ? BASE64_ALPHABET[triple >> 6 & 63] : "=";
+    out += hasByte2 ? BASE64_ALPHABET[triple & 63] : "=";
+  }
+  return out;
+}
+function decodeBase64(text) {
+  let clean = "";
+  for (let i = 0; i < text.length; i++) {
+    const code = text.charCodeAt(i);
+    if (code < 128 && BASE64_LOOKUP[code] !== -1) {
+      clean += text[i];
+    } else if (text[i] !== "=" && text[i] !== "\n" && text[i] !== "\r" && text[i] !== " " && text[i] !== "	") {
+      throw new Error("invalid base64 input");
+    }
+  }
+  const outLen = Math.floor(clean.length * 3 / 4);
+  const out = new Uint8Array(outLen);
+  let acc = 0;
+  let bits = 0;
+  let oi = 0;
+  for (let i = 0; i < clean.length; i++) {
+    acc = acc << 6 | BASE64_LOOKUP[clean.charCodeAt(i)];
+    bits += 6;
+    if (bits >= 8) {
+      bits -= 8;
+      out[oi++] = acc >> bits & 255;
+    }
+  }
+  return out;
+}
+const PUBLIC_DEVICE_PROOF_ENVELOPE_VERSION = 1;
+const PUBLIC_DEVICE_PROOF_DOMAIN = "happy-public-device-proof/v1";
+const PUBLIC_DEVICE_PROOF_HEADER = "x-happy-device-proof";
+const PUBLIC_DEVICE_PROOF_FRESHNESS_MS = 5 * 60 * 1e3;
+const PUBLIC_DEVICE_PROOF_CLOCK_SKEW_MS = 60 * 1e3;
+const PublicSignedRequestEnvelopeSchema = z__namespace.object({
+  v: z__namespace.literal(PUBLIC_DEVICE_PROOF_ENVELOPE_VERSION),
+  keyId: z__namespace.string().min(1),
+  publicKey: z__namespace.string().min(1),
+  nonce: z__namespace.string().min(1),
+  issuedAt: z__namespace.number().int().nonnegative(),
+  method: z__namespace.string().min(1),
+  path: z__namespace.string().min(1),
+  bodyHash: z__namespace.string().min(1),
+  signature: z__namespace.string().min(1)
+});
+function normalizeMethod(method) {
+  return method.toUpperCase();
+}
+function canonicalRequestStringToSign(fields) {
+  return [
+    PUBLIC_DEVICE_PROOF_DOMAIN,
+    normalizeMethod(fields.method),
+    fields.path,
+    fields.keyId,
+    fields.publicKey,
+    fields.nonce,
+    String(fields.issuedAt),
+    fields.bodyHash
+  ].join("\n");
+}
+function hashRequestBody(body) {
+  let bytes;
+  if (body == null) {
+    bytes = new Uint8Array();
+  } else if (typeof body === "string") {
+    bytes = new TextEncoder().encode(body);
+  } else {
+    bytes = body;
+  }
+  return encodeBase64(sha2_js.sha256(bytes));
+}
+function generatePublicRequestNonce(byteLength = 24) {
+  const bytes = new Uint8Array(byteLength);
+  const cryptoObj = globalThis.crypto;
+  if (cryptoObj && typeof cryptoObj.getRandomValues === "function") {
+    cryptoObj.getRandomValues(bytes);
+  } else {
+    for (let i = 0; i < byteLength; i++) {
+      bytes[i] = Math.floor(Math.random() * 256);
+    }
+  }
+  return encodeBase64(bytes);
+}
+async function signPublicRequest(input, secretKey) {
+  const method = normalizeMethod(input.method);
+  const publicKey = encodeBase64(await ed__namespace.getPublicKeyAsync(secretKey));
+  const canonical = canonicalRequestStringToSign({
+    method,
+    path: input.path,
+    keyId: input.keyId,
+    publicKey,
+    nonce: input.nonce,
+    issuedAt: input.issuedAt,
+    bodyHash: input.bodyHash
+  });
+  const signature = encodeBase64(await ed__namespace.signAsync(new TextEncoder().encode(canonical), secretKey));
+  return {
+    v: PUBLIC_DEVICE_PROOF_ENVELOPE_VERSION,
+    keyId: input.keyId,
+    publicKey,
+    nonce: input.nonce,
+    issuedAt: input.issuedAt,
+    method,
+    path: input.path,
+    bodyHash: input.bodyHash,
+    signature
+  };
+}
+async function verifyPublicRequest(envelope, context) {
+  const parsed = PublicSignedRequestEnvelopeSchema.safeParse(envelope);
+  if (!parsed.success) {
+    return { ok: false, reason: "invalid_envelope" };
+  }
+  const env = parsed.data;
+  if (normalizeMethod(env.method) !== normalizeMethod(context.method)) {
+    return { ok: false, reason: "method_mismatch" };
+  }
+  if (env.path !== context.path) {
+    return { ok: false, reason: "path_mismatch" };
+  }
+  if (context.bodyHash !== void 0 && env.bodyHash !== context.bodyHash) {
+    return { ok: false, reason: "body_hash_mismatch" };
+  }
+  if (context.expectedPublicKey !== void 0 && env.publicKey !== context.expectedPublicKey) {
+    return { ok: false, reason: "public_key_mismatch" };
+  }
+  let publicKeyBytes;
+  let signatureBytes;
+  try {
+    publicKeyBytes = decodeBase64(env.publicKey);
+    signatureBytes = decodeBase64(env.signature);
+  } catch {
+    return { ok: false, reason: "invalid_base64" };
+  }
+  if (publicKeyBytes.length !== 32) {
+    return { ok: false, reason: "invalid_public_key_length" };
+  }
+  if (signatureBytes.length !== 64) {
+    return { ok: false, reason: "invalid_signature_length" };
+  }
+  const canonical = canonicalRequestStringToSign(env);
+  let valid = false;
+  try {
+    valid = await ed__namespace.verifyAsync(signatureBytes, new TextEncoder().encode(canonical), publicKeyBytes);
+  } catch {
+    valid = false;
+  }
+  return valid ? { ok: true } : { ok: false, reason: "signature_invalid" };
+}
+function isPublicProofFresh(issuedAt, now, windowMs = PUBLIC_DEVICE_PROOF_FRESHNESS_MS, clockSkewMs = PUBLIC_DEVICE_PROOF_CLOCK_SKEW_MS) {
+  return issuedAt <= now + clockSkewMs && issuedAt >= now - windowMs;
+}
+function encodePublicDeviceProofHeader(envelope) {
+  return encodeBase64(new TextEncoder().encode(JSON.stringify(envelope)));
+}
+function decodePublicDeviceProofHeader(header) {
+  if (!header) {
+    return null;
+  }
+  try {
+    const json = new TextDecoder().decode(decodeBase64(header));
+    const parsed = PublicSignedRequestEnvelopeSchema.safeParse(JSON.parse(json));
+    return parsed.success ? parsed.data : null;
+  } catch {
+    return null;
+  }
+}
+const PUBLIC_DEVICE_AUTH_TEST_VECTOR = {
+  seedHex: "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+  keyId: "device-test-key",
+  publicKeyBase64: "A6EHv/POEL4dcN0Y50vAmWfk1jCbpQ1fHdyGZBJVMbg=",
+  nonceBase64: "bm9uY2UtMDAwMDAwMDAwMDAwMDAwMDAwMDA=",
+  issuedAt: 17356896e5,
+  method: "POST",
+  path: "/pair/connect",
+  body: '{"mobileEcdhPublicKey":"AAECAwQFBgcICQoLDA0ODw=="}',
+  bodyHashBase64: "x4jOxy7m4ahMoun9VgIPk36KVKoOaXa7IbYZChfDhiw=",
+  canonicalString: "happy-public-device-proof/v1\nPOST\n/pair/connect\ndevice-test-key\nA6EHv/POEL4dcN0Y50vAmWfk1jCbpQ1fHdyGZBJVMbg=\nbm9uY2UtMDAwMDAwMDAwMDAwMDAwMDAwMDA=\n1735689600000\nx4jOxy7m4ahMoun9VgIPk36KVKoOaXa7IbYZChfDhiw=",
+  signatureBase64: "6A31zge0s5yf6XHqLDAp4gdtZ5k0nzSJIk1YF5IdfXiY8kL/5MqAjvNFSgSWN7rDmYD8F21Md+C2R8cRAFzlBw==",
+  envelope: {
+    v: PUBLIC_DEVICE_PROOF_ENVELOPE_VERSION,
+    keyId: "device-test-key",
+    publicKey: "A6EHv/POEL4dcN0Y50vAmWfk1jCbpQ1fHdyGZBJVMbg=",
+    nonce: "bm9uY2UtMDAwMDAwMDAwMDAwMDAwMDAwMDA=",
+    issuedAt: 17356896e5,
+    method: "POST",
+    path: "/pair/connect",
+    bodyHash: "x4jOxy7m4ahMoun9VgIPk36KVKoOaXa7IbYZChfDhiw=",
+    signature: "6A31zge0s5yf6XHqLDAp4gdtZ5k0nzSJIk1YF5IdfXiY8kL/5MqAjvNFSgSWN7rDmYD8F21Md+C2R8cRAFzlBw=="
+  },
+  headerBase64: "eyJ2IjoxLCJrZXlJZCI6ImRldmljZS10ZXN0LWtleSIsInB1YmxpY0tleSI6IkE2RUh2L1BPRUw0ZGNOMFk1MHZBbVdmazFqQ2JwUTFmSGR5R1pCSlZNYmc9Iiwibm9uY2UiOiJibTl1WTJVdE1EQXdNREF3TURBd01EQXdNREF3TURBd01EQT0iLCJpc3N1ZWRBdCI6MTczNTY4OTYwMDAwMCwibWV0aG9kIjoiUE9TVCIsInBhdGgiOiIvcGFpci9jb25uZWN0IiwiYm9keUhhc2giOiJ4NGpPeHk3bTRhaE1vdW45VmdJUGszNktWS29PYVhhN0liWVpDaGZEaGl3PSIsInNpZ25hdHVyZSI6IjZBMzF6Z2UwczV5ZjZYSHFMREFwNGdkdFo1azBuelNKSWsxWUY1SWRmWGlZOGtMLzVNcUFqdk5GU2dTV043ckRtWUQ4RjIxTWQrQzJSOGNSQUZ6bEJ3PT0ifQ=="
+};
+
 const MachineTunnelSchema = z__namespace.object({
   machineId: z__namespace.string(),
   tunnelId: z__namespace.string(),
@@ -657,7 +874,14 @@ exports.MachineTunnelSchema = MachineTunnelSchema;
 exports.MessageContentSchema = MessageContentSchema;
 exports.MessageMetaSchema = MessageMetaSchema;
 exports.MessageSentLedgerRecordSchema = MessageSentLedgerRecordSchema;
+exports.PUBLIC_DEVICE_AUTH_TEST_VECTOR = PUBLIC_DEVICE_AUTH_TEST_VECTOR;
+exports.PUBLIC_DEVICE_PROOF_CLOCK_SKEW_MS = PUBLIC_DEVICE_PROOF_CLOCK_SKEW_MS;
+exports.PUBLIC_DEVICE_PROOF_DOMAIN = PUBLIC_DEVICE_PROOF_DOMAIN;
+exports.PUBLIC_DEVICE_PROOF_ENVELOPE_VERSION = PUBLIC_DEVICE_PROOF_ENVELOPE_VERSION;
+exports.PUBLIC_DEVICE_PROOF_FRESHNESS_MS = PUBLIC_DEVICE_PROOF_FRESHNESS_MS;
+exports.PUBLIC_DEVICE_PROOF_HEADER = PUBLIC_DEVICE_PROOF_HEADER;
 exports.PendingPermissionLedgerRecordSchema = PendingPermissionLedgerRecordSchema;
+exports.PublicSignedRequestEnvelopeSchema = PublicSignedRequestEnvelopeSchema;
 exports.SenderKeysSchema = SenderKeysSchema;
 exports.SessionGetAgentTreeRequestSchema = SessionGetAgentTreeRequestSchema;
 exports.SessionGetAgentTreeResponseSchema = SessionGetAgentTreeResponseSchema;
@@ -685,12 +909,21 @@ exports.VoiceConversationDeniedSchema = VoiceConversationDeniedSchema;
 exports.VoiceConversationGrantedSchema = VoiceConversationGrantedSchema;
 exports.VoiceConversationResponseSchema = VoiceConversationResponseSchema;
 exports.VoiceUsageResponseSchema = VoiceUsageResponseSchema;
+exports.canonicalRequestStringToSign = canonicalRequestStringToSign;
 exports.createEnvelope = createEnvelope;
+exports.decodeBase64 = decodeBase64;
+exports.decodePublicDeviceProofHeader = decodePublicDeviceProofHeader;
+exports.encodeBase64 = encodeBase64;
+exports.encodePublicDeviceProofHeader = encodePublicDeviceProofHeader;
 exports.findSenderDropEntry = findSenderDropEntry;
 exports.forkBoilerplateEntry = forkBoilerplateEntry;
+exports.generatePublicRequestNonce = generatePublicRequestNonce;
+exports.hashRequestBody = hashRequestBody;
+exports.isPublicProofFresh = isPublicProofFresh;
 exports.localCommandCaveatEntry = localCommandCaveatEntry;
 exports.makeWrappedTagEntry = makeWrappedTagEntry;
 exports.nonRenderableEntries = nonRenderableEntries;
+exports.normalizeMethod = normalizeMethod;
 exports.routeHopValidation = routeHopValidation;
 exports.sessionAgentConfigurationChangedEventSchema = sessionAgentConfigurationChangedEventSchema;
 exports.sessionContextBoundaryEventSchema = sessionContextBoundaryEventSchema;
@@ -710,5 +943,7 @@ exports.sessionToolCallStartEventSchema = sessionToolCallStartEventSchema;
 exports.sessionTurnEndEventSchema = sessionTurnEndEventSchema;
 exports.sessionTurnEndStatusSchema = sessionTurnEndStatusSchema;
 exports.sessionTurnStartEventSchema = sessionTurnStartEventSchema;
+exports.signPublicRequest = signPublicRequest;
 exports.skillBodyEntry = skillBodyEntry;
 exports.systemReminderEntry = systemReminderEntry;
+exports.verifyPublicRequest = verifyPublicRequest;

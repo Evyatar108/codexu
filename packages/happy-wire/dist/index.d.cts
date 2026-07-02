@@ -6310,6 +6310,140 @@ type AgentCommsIngestHandler = (body: AgentCommsIngestBody) => Promise<{
  */
 declare function routeHopValidation(envelope: AgentCommsEnvelope): string | null;
 
+declare function encodeBase64(bytes: Uint8Array): string;
+declare function decodeBase64(text: string): Uint8Array;
+declare const PUBLIC_DEVICE_PROOF_ENVELOPE_VERSION: 1;
+/**
+ * Domain-separation prefix for the canonical string that a paired device signs.
+ * Binding this into every signature prevents a signature produced for another
+ * purpose (e.g. a peer-auth handshake) from being replayed as a device proof.
+ */
+declare const PUBLIC_DEVICE_PROOF_DOMAIN = "happy-public-device-proof/v1";
+/**
+ * HTTP + Socket.IO handshake header that carries the base64-encoded JSON
+ * envelope. Lower-case because Node/Fastify/Socket.IO normalize header names.
+ */
+declare const PUBLIC_DEVICE_PROOF_HEADER = "x-happy-device-proof";
+/** Default freshness window (5 minutes) for a proof's issuedAt timestamp. */
+declare const PUBLIC_DEVICE_PROOF_FRESHNESS_MS: number;
+/** Allowed forward clock skew (1 minute) between a device and the server. */
+declare const PUBLIC_DEVICE_PROOF_CLOCK_SKEW_MS: number;
+declare const PublicSignedRequestEnvelopeSchema: z.ZodObject<{
+    v: z.ZodLiteral<1>;
+    keyId: z.ZodString;
+    publicKey: z.ZodString;
+    nonce: z.ZodString;
+    issuedAt: z.ZodNumber;
+    method: z.ZodString;
+    path: z.ZodString;
+    bodyHash: z.ZodString;
+    signature: z.ZodString;
+}, "strip", z.ZodTypeAny, {
+    path: string;
+    v: 1;
+    signature: string;
+    keyId: string;
+    publicKey: string;
+    nonce: string;
+    issuedAt: number;
+    method: string;
+    bodyHash: string;
+}, {
+    path: string;
+    v: 1;
+    signature: string;
+    keyId: string;
+    publicKey: string;
+    nonce: string;
+    issuedAt: number;
+    method: string;
+    bodyHash: string;
+}>;
+type PublicSignedRequestEnvelope = z.infer<typeof PublicSignedRequestEnvelopeSchema>;
+declare function normalizeMethod(method: string): string;
+interface CanonicalRequestFields {
+    method: string;
+    path: string;
+    keyId: string;
+    publicKey: string;
+    nonce: string;
+    issuedAt: number;
+    bodyHash: string;
+}
+/**
+ * Builds the exact string a device signs. The field order is fixed and each
+ * field is on its own line; the values themselves are opaque base64/ascii and
+ * never contain a newline, so the encoding is unambiguous.
+ */
+declare function canonicalRequestStringToSign(fields: CanonicalRequestFields): string;
+/** SHA-256 of the raw request body, base64-encoded. Empty body hashes the empty string. */
+declare function hashRequestBody(body: Uint8Array | string | null | undefined): string;
+/** Generates a random base64 nonce. 24 bytes → 192 bits of entropy by default. */
+declare function generatePublicRequestNonce(byteLength?: number): string;
+interface SignPublicRequestInput {
+    method: string;
+    path: string;
+    keyId: string;
+    nonce: string;
+    issuedAt: number;
+    bodyHash: string;
+}
+/**
+ * Produces a signed-request envelope for an already-paired device. `secretKey`
+ * is the 32-byte Ed25519 seed; the public key is derived from it so the
+ * envelope is internally self-consistent.
+ */
+declare function signPublicRequest(input: SignPublicRequestInput, secretKey: Uint8Array): Promise<PublicSignedRequestEnvelope>;
+interface VerifyPublicRequestContext {
+    /** Actual HTTP method of the incoming request. */
+    method: string;
+    /** Actual matched route path (or URL path) of the incoming request. */
+    path: string;
+    /** Actual base64 SHA-256 of the incoming body. If provided, it must equal the signed bodyHash. */
+    bodyHash?: string;
+    /** Pinned device public key (base64). If provided, the envelope's publicKey must match it exactly. */
+    expectedPublicKey?: string;
+}
+interface PublicRequestVerification {
+    ok: boolean;
+    reason?: string;
+}
+/**
+ * Cryptographically verifies a signed-request envelope and its binding to the
+ * incoming request (method, path, and — when supplied — body hash and pinned
+ * key). This is intentionally stateless: freshness (issuedAt) and single-use
+ * (nonce) enforcement live in the server-side verifier that owns a clock and a
+ * replay cache. Returns { ok:false, reason } rather than throwing so callers
+ * fail closed on any error.
+ */
+declare function verifyPublicRequest(envelope: unknown, context: VerifyPublicRequestContext): Promise<PublicRequestVerification>;
+/**
+ * True when a proof's issuedAt falls inside the freshness window relative to
+ * `now`, tolerating a small forward clock skew. Server-side helper; kept here so
+ * the freshness policy is defined next to the envelope it guards.
+ */
+declare function isPublicProofFresh(issuedAt: number, now: number, windowMs?: number, clockSkewMs?: number): boolean;
+/** Encodes an envelope into the base64 header string carried on requests/handshakes. */
+declare function encodePublicDeviceProofHeader(envelope: PublicSignedRequestEnvelope): string;
+/** Parses the base64 header string back into a validated envelope, or null if malformed. */
+declare function decodePublicDeviceProofHeader(header: string | undefined | null): PublicSignedRequestEnvelope | null;
+interface PublicDeviceAuthTestVector {
+    seedHex: string;
+    keyId: string;
+    publicKeyBase64: string;
+    nonceBase64: string;
+    issuedAt: number;
+    method: string;
+    path: string;
+    body: string;
+    bodyHashBase64: string;
+    canonicalString: string;
+    signatureBase64: string;
+    envelope: PublicSignedRequestEnvelope;
+    headerBase64: string;
+}
+declare const PUBLIC_DEVICE_AUTH_TEST_VECTOR: PublicDeviceAuthTestVector;
+
 declare const MachineTunnelSchema: z.ZodObject<{
     machineId: z.ZodString;
     tunnelId: z.ZodString;
@@ -6334,5 +6468,5 @@ declare const MachineTunnelSchema: z.ZodObject<{
 }>;
 type MachineTunnel = z.infer<typeof MachineTunnelSchema>;
 
-export { AgentCommsChannelSchema, AgentCommsEnvelopeSchema, AgentCommsFromSchema, AgentCommsIngestBodySchema, AgentCommsKindSchema, AgentCommsScopeSchema, AgentCommsToSchema, AgentMessageSchema, AgentTreeDeltaSchema, AgentTreeEdgeSchema, AgentTreeNodeAddedDeltaSchema, AgentTreeNodeRemovedDeltaSchema, AgentTreeNodeSchema, AgentTreeNodeStatusChangedDeltaSchema, AgentTreePendingSpawnStartedDeltaSchema, AgentTreeSnapshotSchema, AgentTreeUpdateInboundPayloadSchema, AgentTreeUpdateOutboundPayloadSchema, ApiMessageSchema, ApiUpdateMachineStateSchema, ApiUpdateNewMessageSchema, ApiUpdateSessionStateSchema, CoreUpdateBodySchema, CoreUpdateContainerSchema, DoneLedgerRecordSchema, ErrorLedgerRecordSchema, IdleReachedLedgerRecordSchema, LastOutputSummaryLedgerRecordSchema, LedgerErrorCodeSchema, LedgerRecordSchema, LegacyMessageContentSchema, MAX_HOPS, MachineTunnelSchema, MessageContentSchema, MessageMetaSchema, MessageSentLedgerRecordSchema, PendingPermissionLedgerRecordSchema, SenderKeysSchema, SessionGetAgentTreeRequestSchema, SessionGetAgentTreeResponseSchema, SessionMessageContentSchema, SessionMessageRangeRequestSchema, SessionMessageRangeResponseSchema, SessionMessageSchema, SessionProtocolMessageSchema, SpawnLedgerRecordSchema, TofuHandshakeMessageSchema, TofuPubkeysEventSchema, TofuPublicKeysSchema, TofuSessionKeyExchangeSchema, UpdateBodySchema, UpdateMachineBodySchema, UpdateNewMessageBodySchema, UpdateSchema, UpdateSessionBodySchema, UserMessageSchema, ValidationAttachedLedgerRecordSchema, VersionedEncryptedValueSchema, VersionedMachineEncryptedValueSchema, VersionedNullableEncryptedValueSchema, VoiceConversationDeniedSchema, VoiceConversationGrantedSchema, VoiceConversationResponseSchema, VoiceUsageResponseSchema, createEnvelope, findSenderDropEntry, forkBoilerplateEntry, localCommandCaveatEntry, makeWrappedTagEntry, nonRenderableEntries, routeHopValidation, sessionAgentConfigurationChangedEventSchema, sessionContextBoundaryEventSchema, sessionContextBoundaryKindSchema, sessionContextBoundaryTriggeredBySchema, sessionEnvelopeSchema, sessionEventSchema, sessionFileEventSchema, sessionMessageConsumptionEventSchema, sessionRoleSchema, sessionServiceMessageEventSchema, sessionStartEventSchema, sessionStopEventSchema, sessionTextEventSchema, sessionToolCallEndEventSchema, sessionToolCallStartEventSchema, sessionTurnEndEventSchema, sessionTurnEndStatusSchema, sessionTurnStartEventSchema, skillBodyEntry, systemReminderEntry };
-export type { AgentCommsChannel, AgentCommsEnvelope, AgentCommsFrom, AgentCommsIngestBody, AgentCommsIngestHandler, AgentCommsKind, AgentCommsScope, AgentCommsTo, AgentMessage, AgentTreeDelta, AgentTreeEdge, AgentTreeNode, AgentTreeNodeAddedDelta, AgentTreeNodeRemovedDelta, AgentTreeNodeStatusChangedDelta, AgentTreePendingSpawnStartedDelta, AgentTreeSnapshot, AgentTreeUpdateInboundPayload, AgentTreeUpdateOutboundPayload, ApiMessage, ApiUpdateMachineState, ApiUpdateNewMessage, ApiUpdateSessionState, CoreUpdateBody, CoreUpdateContainer, CreateEnvelopeOptions, LedgerErrorCode, LedgerRecord, LegacyMessageContent, MachineTunnel, MessageContent, MessageMeta, NonRenderableEntry, RawClaudeMessageMatchInput, ReceiverRegexFactory, SenderKeys, SessionAgentConfigurationChangedEvent, SessionContextBoundaryEvent, SessionContextBoundaryKind, SessionContextBoundaryTriggeredBy, SessionEnvelope, SessionEvent, SessionGetAgentTreeRequest, SessionGetAgentTreeResponse, SessionMessage, SessionMessageConsumptionEvent, SessionMessageContent, SessionMessageRangeRequest, SessionMessageRangeResponse, SessionProtocolMessage, SessionRole, SessionTurnEndStatus, TofuHandshakeMessage, TofuPubkeysEvent, TofuPublicKeys, TofuSessionKeyExchange, Update, UpdateBody, UpdateMachineBody, UpdateNewMessageBody, UpdateSessionBody, UserMessage, VersionedEncryptedValue, VersionedMachineEncryptedValue, VersionedNullableEncryptedValue, VoiceConversationResponse, VoiceUsageResponse };
+export { AgentCommsChannelSchema, AgentCommsEnvelopeSchema, AgentCommsFromSchema, AgentCommsIngestBodySchema, AgentCommsKindSchema, AgentCommsScopeSchema, AgentCommsToSchema, AgentMessageSchema, AgentTreeDeltaSchema, AgentTreeEdgeSchema, AgentTreeNodeAddedDeltaSchema, AgentTreeNodeRemovedDeltaSchema, AgentTreeNodeSchema, AgentTreeNodeStatusChangedDeltaSchema, AgentTreePendingSpawnStartedDeltaSchema, AgentTreeSnapshotSchema, AgentTreeUpdateInboundPayloadSchema, AgentTreeUpdateOutboundPayloadSchema, ApiMessageSchema, ApiUpdateMachineStateSchema, ApiUpdateNewMessageSchema, ApiUpdateSessionStateSchema, CoreUpdateBodySchema, CoreUpdateContainerSchema, DoneLedgerRecordSchema, ErrorLedgerRecordSchema, IdleReachedLedgerRecordSchema, LastOutputSummaryLedgerRecordSchema, LedgerErrorCodeSchema, LedgerRecordSchema, LegacyMessageContentSchema, MAX_HOPS, MachineTunnelSchema, MessageContentSchema, MessageMetaSchema, MessageSentLedgerRecordSchema, PUBLIC_DEVICE_AUTH_TEST_VECTOR, PUBLIC_DEVICE_PROOF_CLOCK_SKEW_MS, PUBLIC_DEVICE_PROOF_DOMAIN, PUBLIC_DEVICE_PROOF_ENVELOPE_VERSION, PUBLIC_DEVICE_PROOF_FRESHNESS_MS, PUBLIC_DEVICE_PROOF_HEADER, PendingPermissionLedgerRecordSchema, PublicSignedRequestEnvelopeSchema, SenderKeysSchema, SessionGetAgentTreeRequestSchema, SessionGetAgentTreeResponseSchema, SessionMessageContentSchema, SessionMessageRangeRequestSchema, SessionMessageRangeResponseSchema, SessionMessageSchema, SessionProtocolMessageSchema, SpawnLedgerRecordSchema, TofuHandshakeMessageSchema, TofuPubkeysEventSchema, TofuPublicKeysSchema, TofuSessionKeyExchangeSchema, UpdateBodySchema, UpdateMachineBodySchema, UpdateNewMessageBodySchema, UpdateSchema, UpdateSessionBodySchema, UserMessageSchema, ValidationAttachedLedgerRecordSchema, VersionedEncryptedValueSchema, VersionedMachineEncryptedValueSchema, VersionedNullableEncryptedValueSchema, VoiceConversationDeniedSchema, VoiceConversationGrantedSchema, VoiceConversationResponseSchema, VoiceUsageResponseSchema, canonicalRequestStringToSign, createEnvelope, decodeBase64, decodePublicDeviceProofHeader, encodeBase64, encodePublicDeviceProofHeader, findSenderDropEntry, forkBoilerplateEntry, generatePublicRequestNonce, hashRequestBody, isPublicProofFresh, localCommandCaveatEntry, makeWrappedTagEntry, nonRenderableEntries, normalizeMethod, routeHopValidation, sessionAgentConfigurationChangedEventSchema, sessionContextBoundaryEventSchema, sessionContextBoundaryKindSchema, sessionContextBoundaryTriggeredBySchema, sessionEnvelopeSchema, sessionEventSchema, sessionFileEventSchema, sessionMessageConsumptionEventSchema, sessionRoleSchema, sessionServiceMessageEventSchema, sessionStartEventSchema, sessionStopEventSchema, sessionTextEventSchema, sessionToolCallEndEventSchema, sessionToolCallStartEventSchema, sessionTurnEndEventSchema, sessionTurnEndStatusSchema, sessionTurnStartEventSchema, signPublicRequest, skillBodyEntry, systemReminderEntry, verifyPublicRequest };
+export type { AgentCommsChannel, AgentCommsEnvelope, AgentCommsFrom, AgentCommsIngestBody, AgentCommsIngestHandler, AgentCommsKind, AgentCommsScope, AgentCommsTo, AgentMessage, AgentTreeDelta, AgentTreeEdge, AgentTreeNode, AgentTreeNodeAddedDelta, AgentTreeNodeRemovedDelta, AgentTreeNodeStatusChangedDelta, AgentTreePendingSpawnStartedDelta, AgentTreeSnapshot, AgentTreeUpdateInboundPayload, AgentTreeUpdateOutboundPayload, ApiMessage, ApiUpdateMachineState, ApiUpdateNewMessage, ApiUpdateSessionState, CanonicalRequestFields, CoreUpdateBody, CoreUpdateContainer, CreateEnvelopeOptions, LedgerErrorCode, LedgerRecord, LegacyMessageContent, MachineTunnel, MessageContent, MessageMeta, NonRenderableEntry, PublicDeviceAuthTestVector, PublicRequestVerification, PublicSignedRequestEnvelope, RawClaudeMessageMatchInput, ReceiverRegexFactory, SenderKeys, SessionAgentConfigurationChangedEvent, SessionContextBoundaryEvent, SessionContextBoundaryKind, SessionContextBoundaryTriggeredBy, SessionEnvelope, SessionEvent, SessionGetAgentTreeRequest, SessionGetAgentTreeResponse, SessionMessage, SessionMessageConsumptionEvent, SessionMessageContent, SessionMessageRangeRequest, SessionMessageRangeResponse, SessionProtocolMessage, SessionRole, SessionTurnEndStatus, SignPublicRequestInput, TofuHandshakeMessage, TofuPubkeysEvent, TofuPublicKeys, TofuSessionKeyExchange, Update, UpdateBody, UpdateMachineBody, UpdateNewMessageBody, UpdateSessionBody, UserMessage, VerifyPublicRequestContext, VersionedEncryptedValue, VersionedMachineEncryptedValue, VersionedNullableEncryptedValue, VoiceConversationResponse, VoiceUsageResponse };
