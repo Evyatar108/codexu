@@ -208,6 +208,8 @@ The project has pending Prisma migrations that need to be applied:
 
 The active route surface is intentionally small: `pairRoutes`, `accountRoutes`, `machineSelfRoutes`, `sessionRoutes`, `v3SessionRoutes`, `pushRoutes`, `versionRoutes`, and `devRoutes`. The obsolete artifact, feed, voice, key-value, access-key, user/friends, usage, and machine-directory modules were deleted in Sprint E and must not be re-registered without a new plan.
 
+The Scope A agent-comms ingest route (`POST /agent-comms/ingest`) is intentionally **not** a happy-server route. It was moved out of the embedded server to a happy-cli-owned standalone Fastify listener on a second forwarded Dev Tunnel port (D-004 Option A); its request-shape schema and hop check live in `@slopus/happy-wire`. Do not re-add `agentCommsIngestRoutes` here — the embedded server must 404 on that path.
+
 ### Pair protocol (BOOX-validated 2026-05-13)
 
 `pairRoutes` exposes **one** pair endpoint: `POST /pair/complete`. Identity is read

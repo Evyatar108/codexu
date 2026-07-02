@@ -177,6 +177,8 @@ Nothing — not data, not signaling, not rendezvous, not discovery, not auth —
 
 ### 5.2 Embedded happy-server is the local endpoint, not a broker
 
+> **SUPERSEDED for the ingest path (job `agent-comms-serverless-scope-a-discovery`, D-004 Option A).** The Scope A ingest route (`POST /agent-comms/ingest`) NO LONGER lives on the embedded happy-server. It moved to a happy-cli-owned standalone Fastify listener (`packages/happy-cli/src/agentComms/ingestServer.ts`) bound to `127.0.0.1` on a **second forwarded Dev Tunnel port** (a distinct `ingestPort` persisted in `machine.json`). The embedded happy-server now 404s on that path and stays only for the tablet/CLI mobile+session plane. The request-shape schema + hop check moved to `@slopus/happy-wire`; the daemon-injected callback (crypto verify + `mailbox.appendMessage`) is unchanged. §5.2/§5.3-D-004/§5.7 below describe the ORIGINAL embedded-route design and are retained for history. The "not a broker / not a relay" guarantee is unaffected — the listener is still a purely local daemon endpoint.
+
 Each daemon already runs an **embedded** happy-server alongside the loopback control server. The Scope A ingest route (`POST /agent-comms/ingest`) lives on this embedded happy-server because the loopback control server is bound to `127.0.0.1` and cannot accept tunnel traffic. The tunnel forwards to the embedded happy-server's port.
 
 This is **NOT** a broker or relay:
@@ -190,7 +192,7 @@ A central happy-server broker/relay (one shared server fanning messages between 
 
 ### 5.3 Decisions for live wiring
 
-**D-004 — co-located ingest.** Scope A ingest rides the existing forwarded happy-server tunnel port. The daemon must not create a second Dev Tunnel port for agent-comms; the already-hosted tunnel-auth listener exposes the embedded happy-server route and remains the one public ingress. This keeps D-001's seam-compatible shape: happy-server owns the HTTP route and validation boundary, while happy-cli injects the daemon callback that opens, verifies, and delivers the envelope to the local mailbox.
+**D-004 — co-located ingest.** _(SUPERSEDED by job `agent-comms-serverless-scope-a-discovery`, operator-decided Option A: a second forwarded Dev Tunnel port with a persisted `ingestPort`. The original co-located decision below is retained for history.)_ Scope A ingest rides the existing forwarded happy-server tunnel port. The daemon must not create a second Dev Tunnel port for agent-comms; the already-hosted tunnel-auth listener exposes the embedded happy-server route and remains the one public ingress. This keeps D-001's seam-compatible shape: happy-server owns the HTTP route and validation boundary, while happy-cli injects the daemon callback that opens, verifies, and delivers the envelope to the local mailbox.
 
 **D-005 — peer-to-tunnel resolver.** Outbound Scope A delivery resolves `to.machineId` through local peer config at send time. The resolver joins the operator-authored/TOFU-pinned peer record (`<happyHomeDir>/agent-comms/peers.json`, extended with optional `tunnelName` and/or `tunnelId` hints plus `approvedForSpawn`) to the current `TunnelManager.listOperatorTunnels()` result, then returns the peer's `tunnelId`, `/agent-comms/ingest` URL, ECDH public key, and spawn approval bit. It must never derive `machineId` by stripping `codexu-<hostname>` or any other tunnel-name convention; tunnel names are hints only.
 
@@ -270,7 +272,9 @@ This still requires pre-pinned peers. First-contact auto-exchange remains deferr
 
 ### 5.7 Ingest endpoint
 
-`packages/happy-server/sources/app/api/routes/agentCommsIngestRoutes.ts` defines:
+> **SUPERSEDED (job `agent-comms-serverless-scope-a-discovery`).** `agentCommsIngestRoutes.ts` was deleted from happy-server; the route is now defined by `packages/happy-cli/src/agentComms/ingestServer.ts`. The `AgentCommsIngestBodySchema` + `routeHopValidation` moved to `@slopus/happy-wire`. The `HappyServerConfig.agentCommsIngest` callback slot was removed from both happy-server and the CLI's `types/happy-server.d.ts` shim; the daemon now injects the handler directly into `startAgentCommsIngestServer`. The backend-enforced validation order below is otherwise unchanged and still describes the current listener.
+
+`packages/happy-cli/src/agentComms/ingestServer.ts` defines:
 
 ```
 POST /agent-comms/ingest
