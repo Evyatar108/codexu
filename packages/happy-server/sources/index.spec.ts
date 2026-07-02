@@ -140,6 +140,57 @@ describe("operator identity gate", () => {
     it("permits non-loopback binds when auth is loopback", () => {
         expect(() => assertOperatorIdentityGate({ host: "0.0.0.0", auth: "loopback" })).not.toThrow();
     });
+
+    // US-004: public mode is the only mode allowed to bind a non-loopback host,
+    // and only with a fail-closed device verifier AND an edge-auth expectation.
+    it("refuses a bare public bind on a non-loopback host (no publicAuth)", () => {
+        expect(() => assertOperatorIdentityGate({ host: "0.0.0.0", auth: "public" }))
+            .toThrow(/refusing to start happy-server public listener bound to non-loopback host/);
+    });
+
+    it("refuses a public bind on a non-loopback host with a verifier but no edge tokens", () => {
+        expect(() => assertOperatorIdentityGate({
+            host: "0.0.0.0",
+            auth: "public",
+            publicAuth: {
+                devices: [{ keyId: "d", publicKey: "pk" }],
+                edge: { serviceTokens: [] },
+            },
+        })).toThrow(/without a fail-closed device verifier AND a Cloudflare Access edge expectation/);
+    });
+
+    it("refuses a public bind on a non-loopback host with edge tokens but no paired device", () => {
+        expect(() => assertOperatorIdentityGate({
+            host: "0.0.0.0",
+            auth: "public",
+            publicAuth: {
+                devices: [],
+                edge: { serviceTokens: [{ clientId: "id", clientSecret: "secret" }] },
+            },
+        })).toThrow(/without a fail-closed device verifier AND a Cloudflare Access edge expectation/);
+    });
+
+    it("permits a public bind on a non-loopback host with verifier + edge expectation", () => {
+        expect(() => assertOperatorIdentityGate({
+            host: "0.0.0.0",
+            auth: "public",
+            publicAuth: {
+                devices: [{ keyId: "d", publicKey: "pk" }],
+                edge: { serviceTokens: [{ clientId: "id", clientSecret: "secret" }] },
+            },
+        })).not.toThrow();
+    });
+
+    it("permits a public bind on loopback without requiring edge tokens", () => {
+        expect(() => assertOperatorIdentityGate({
+            host: "127.0.0.1",
+            auth: "public",
+            publicAuth: {
+                devices: [{ keyId: "d", publicKey: "pk" }],
+                edge: { serviceTokens: [] },
+            },
+        })).not.toThrow();
+    });
 });
 
 async function triggerMachineUpdateState(machineId: string, encryptedDaemonState: string, expectedVersion: number) {
