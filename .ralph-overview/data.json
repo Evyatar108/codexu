@@ -1589,6 +1589,10 @@
         {
           "className": "cmd-ok",
           "html": "END-TO-END ENROLLMENT GAP CLOSED @ 6484be7f..6079a20f (task cf-single-user-server-pair-complete-device-key-registration, security-reviewed clean). /pair/complete now TOFU-pins the app device key into the mutable verifier both HTTP+socket read; happy-cli persists across restarts. An enrolled device can now actually authenticate. Feature is now FUNCTIONALLY COMPLETE except: US-009 Cloudflare Access edge ops (OPERATOR-run: create Access service-token app on happy.evyatar.dev + cloudflared LocalSystem creds) + US-010 docs. App must use reconnection:false/single-transport (or per-transport nonce) per the socket-nonce decision."
+        },
+        {
+          "className": "cmd-ok",
+          "html": "US-009 Cloudflare Access EDGE OPS DONE (2026-07-02, driven by lead via CF API — bypassed the broken Zero-Trust dashboard onboarding loop by creating the Access ORG directly via API: evyatar-codexu.cloudflareaccess.com). Created: service token 'happy-daemon-boox', Access app on happy.evyatar.dev (aud 3978a5b7...), non_identity service-token-only policy, DNS happy.evyatar.dev->tunnel 'happy'. VERIFIED: GET /health WITHOUT service token ->403 (Access fail-closed), WITH token ->200 (passes). Account already had billing (r2_paid) so no card issue; loop was the missing-tenant variant. Secrets + drop-in daemon public-tunnel.json + summary in session files (cf-access-service-token.SECRET.json / public-tunnel.READY.json / cf-us009-summary.md, NOT committed). REUSE CAVEAT: 'happy' tunnel has an existing connector (200 on /health = leftover origin); daemon's own connector must take over ingress -> local public happy-server. Remaining: US-010 docs + bring-up (place public-tunnel.json, enable HAPPY_TUNNEL_PROVIDER=cloudflare, app pairing invite creds, reconcile old connector)."
         }
       ],
       "command": {
