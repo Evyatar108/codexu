@@ -1,0 +1,82 @@
+{
+  "plan": "D:/harness-efforts/codexu/.ralph/jobs/happy-upstream-conflict-surface-and-merge-strategy/plan.md",
+  "reviewers": ["self-phase4"],
+  "reviewedArtifacts": [
+    ".ralph/jobs/happy-upstream-conflict-surface-and-merge-strategy/plan.md",
+    ".ralph/jobs/happy-upstream-conflict-surface-and-merge-strategy/stories-outline.md"
+  ],
+  "openCriticalHigh": 0,
+  "summary": "Self Phase-4 review of the M0 (catalogue) + M1 (R1-R4 seam relocations) plan. The dominant risk is that a literal reading of the task ('re-activate encrypt()/decrypt()', 'restore upstream enableAuthentication') would produce a BEHAVIOR-CHANGING result that either breaks E2E data-format or regresses the shipped single-user public server. Both were caught and resolved by re-scoping M1 to strictly behavior-preserving relocations and deferring real re-enablement. All Highs resolved; no open Critical/High.",
+  "findings": [
+    {
+      "id": "F1",
+      "severity": "high",
+      "status": "resolved",
+      "title": "Literal 're-activate encrypt()/decrypt()' (R2) is behavior- AND at-rest-format-changing, not a relocation",
+      "detail": "Verified src/api/encryption.ts encrypt/decrypt are REAL crypto (tweetnacl secretbox / AES-GCM), NOT identity pass-throughs. Today apiSession.ts sends plaintext JSON (:659), live-receives plaintext (:316 JSON.parse), but fetch-catch-up path already calls decrypt (:575) — an asymmetry that would throw on plaintext (latent bug). Literally routing send/receive through encrypt/decrypt would (a) change wire + at-rest bytes (plaintext->ciphertext), (b) make already-stored plaintext messages undecryptable, (c) depend on unverified single-user cross-device key distribution. That violates the task's own BEHAVIOR-PRESERVING rule. RESOLUTION: M1-S4 (R2) is re-scoped to a behavior-preserving codec RELOCATION — extract the exact current send/receive byte logic (including the fetch-decrypt asymmetry, preserved verbatim, not fixed) into a fork-owned sessionPayloadCodec.ts seam that reproduces today's identical bytes; a golden byte-for-byte test locks it. REAL E2E re-enablement is EXPLICITLY DEFERRED to a separate behavior-changing milestone (plan Scope-Out + Open Question OQ-1). Documented as the #1 open design tension."
+    },
+    {
+      "id": "F2",
+      "severity": "high",
+      "status": "resolved",
+      "title": "Restoring upstream enableAuthentication could reintroduce a reachable/interfering auth path and regress the public server",
+      "detail": "HARD CONSTRAINT is to not regress the shipped single-user PUBLIC server (fail-closed Ed25519 verifier, two-layer boundary, US-005 route inventory). Re-adding upstream's multi-tenant bearer-auth file risks (a) an active global hook/decorator that runs in fork modes, or (b) reintroducing per-request userId threading that happy-server AGENTS.md forbids (embedded, one-user-per-process). RESOLUTION: R1a restores upstream enableAuthentication.ts as 'present-but-overlaid' (dormant) ONLY after a preflight that fetches upstream's real file from the M0-S2 mirror and confirms it registers NO active hook; if it does, keep it KEEP-DELETED (accept the delete-conflict) instead of restoring. All 5 HARD gates (publicAuthGate US-005, remoteDeviceAuth US-005a body-hash, deviceEnrollment, socket, index/dualListenerBinding) are acceptance criteria that must pass UNCHANGED for every auth-plane story; plan + stories updated to add the preflight + dormancy proof to M1-S2 AC."
+    },
+    {
+      "id": "F3",
+      "severity": "medium",
+      "status": "resolved",
+      "title": "Catalogue rows anchored on bare line numbers will rot across intakes",
+      "detail": "The codex patch-surface.md model survives rebases because rows anchor on file+symbol+marker, not line numbers (which drift every edit and every intake). Initial draft used a `file:line` table column. RESOLUTION: plan §4 + M0-S1 story updated — the invariant-to-guard table column is now `file:symbol (line hint)`; rows anchor on a stable symbol/function + its // FORK PATCH: marker, with line numbers as a drift-prone hint only. AC updated to require symbol+marker anchoring."
+    },
+    {
+      "id": "F4",
+      "severity": "medium",
+      "status": "resolved",
+      "title": "M0 source markers themselves add lines vs upstream (marker irony) — could grow conflict surface if applied to all 359 modified files",
+      "detail": "A // FORK PATCH: comment is itself a +1 line vs canonical, so blanket-marking every inline-modified happy file (359) would ADD conflict noise, the opposite of the goal. RESOLUTION: markers are RESERVED for the strategically-significant must-survive surface (the R1-R4 hotspots + KEEP-DELETED guards). The long tail is handled by a documented per-intake process (catalogue grows per intake, mirroring codex's per-rebase cadence), NOT by marking everything. Documented in plan §4 (scope discipline) + §7 risk. happy-app is catalogued rows-only (no source markers) since it is not refactored in M1."
+    },
+    {
+      "id": "F5",
+      "severity": "medium",
+      "status": "resolved",
+      "title": "R1a/R1b/R3 touch shared happy-server auth files — parallelizing them would conflict",
+      "detail": "M1-S1 (R3 index.ts), M1-S2 (R1a api.ts + auth/), M1-S3 (R1b socket.ts + auth/) all touch the happy-server auth surface and share the new fork/ + auth/ helper shape. RESOLUTION: stories-outline serializes them as a chain (R3 -> R1a -> R1b) and marks R2 (cli) + R4 (cli) as disjoint parallel tracks. Dependency diagram + 'M1 parallelizable across three disjoint tracks' note added. M1-S1 is designated first to establish the fork/ dir pattern."
+    },
+    {
+      "id": "F6",
+      "severity": "medium",
+      "status": "open",
+      "title": "Import-baseline commit is inferred (~2026-05-03), not pinned to a real SHA",
+      "detail": "The assessment inferred the vendoring date; a precise 3-way at intake needs a real baseline SHA. Left OPEN by design: M0-S2 is the dedicated story that tree-matches a stable upstream file to pin the real baseline SHA + records the upstream mirror/remote (slopus/happy read-only remote OR D:/harness-efforts/happy). Not a plan defect — it is scheduled work with its own AC. Tracked as Open Question OQ-3."
+    },
+    {
+      "id": "F7",
+      "severity": "low",
+      "status": "resolved",
+      "title": "fetch-path decrypt asymmetry (apiSession.ts:575) is a latent bug — risk of 'fixing' it during R2 relocation",
+      "detail": "The fetch/catch-up path calls decrypt on messages that were sent as plaintext, which would throw and silently drop catch-up messages. It is tempting to 'fix' this during the R2 codec extraction, but that would be a behavior CHANGE. RESOLUTION: R2 preserves the asymmetry verbatim (relocation reproduces identical bytes + identical code paths, bug included); the fix is called out as separate deferred work in the catalogue replant note + Open Question. Golden test locks current behavior including the asymmetry."
+    },
+    {
+      "id": "F8",
+      "severity": "low",
+      "status": "resolved",
+      "title": "Build/test commands must match real package names + Git Bash quirk",
+      "detail": "Verified package.json names: happy-server (name 'happy-server', build 'tsc --noEmit'+pkgroll, test 'vitest run'), happy-cli (name 'happy', test 'pnpm run build && vitest run'), happy-app (name 'happy-app'). RESOLUTION: plan build/test section uses `pnpm --filter happy-server ...`, `pnpm --filter happy ...` (cli), and the documented `npm_config_script_shell=bash` Git Bash quirk + file-scoped `pnpm --filter happy exec vitest run <paths>` for iteration. Commands confirmed accurate against the manifests."
+    },
+    {
+      "id": "F9",
+      "severity": "low",
+      "status": "resolved",
+      "title": "R4 forkHooks module-creation ordering across M1-S5/S6/S7",
+      "detail": "R4a/R4b/R4c (runCodex.ts / runClaude.ts / daemon/run.ts -> forkHooks.onXxx delegating to existing overlays) all need the forkHooks module. RESOLUTION: M1-S5 (R4a) creates forkHooks.ts and S6/S7 depend on it; stories-outline records the dependency. These are cli-side and disjoint from the srv-auth chain, so they parallelize with R2 but serialize internally on the shared forkHooks module."
+    },
+    {
+      "id": "F10",
+      "severity": "low",
+      "status": "open",
+      "title": "happy-app .gitattributes merge=union for translations assumes the i18n loader tolerates duplicate keys",
+      "detail": "M0-S3 proposes `packages/happy-app/sources/text/** merge=union` to auto-resolve translation conflicts, but merge=union can produce duplicate keys. Left OPEN with a mitigation baked into M0-S3 AC: first verify the i18n loader tolerates duplicate keys; if not, fall back to a fork-namespace-strings approach. Not blocking M0/M1 core (auth/E2E) work. Tracked as Open Question OQ-4."
+    }
+  ]
+}
