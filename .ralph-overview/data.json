@@ -1728,6 +1728,10 @@
         {
           "className": "cmd-ok",
           "html": "Plan M0+M1 shipped: 14 stories (M0=7 catalogue, M1=7 seam relocations). M0 = docs/happy-patch-surface.md (codex-style; marker '// FORK PATCH: [KEEP|KEEP-DELETED|RESTORE] <reason> (invariant HS-/HC-/HA-)', symbol-anchored, reserved for must-survive hunks not all 359 files). M1 behavior-preserving relocations: R3 operator gate->fork/operatorIdentityGate.ts; R1a api.ts auth->forkAuthPlane.ts (restore upstream enableAuthentication dormant); R1b socket.ts->auth/ helpers; R2 cli E2E send/recv->sessionPayloadCodec.ts (BYTE-IDENTICAL relocation, real E2E re-enable DEFERRED); R4 codex/daemon wiring->forkHooks.onXxx(). HARD CONSTRAINT honored: all 5 public-server gates (US-005 route-inventory, US-005a body-hash, deviceEnrollment, socket, dualListenerBinding) re-run unchanged. 2 Highs resolved, 0 open. OPEN Q: confirm R2 is relocation-only (real E2E re-enablement = separate milestone, would change at-rest format + needs single-user cross-device key distribution)."
+        },
+        {
+          "className": "cmd-ok",
+          "html": "M0 (patch-surface catalogue) SHIPPED @ 7fbb300f. Purely additive (12 files +496/-0, NO behavior change): docs/happy-patch-surface.md (314 lines, 21 invariants HS-1..7/HC-1..7/HA-1..7, buckets KEEP/KEEP-DELETED/RESTORE-R1..R4), 12 // FORK PATCH: markers across 9 upstream-canonical files (server api.ts/socket.ts/v3SessionRoutes.ts/index.ts, cli apiSession.ts/runCodex.ts/runClaude.ts/daemon-run.ts/apiMachine.ts), .gitattributes (pnpm-lock+dist merge=ours; translations merge=union verified UNSAFE-skipped), scripts/audit-happy-fork-patches.mjs (zero drift). Baseline pinned: import ~cli-1.1.8 @ b72fd811 (2026-04-27, inferred temporal anchor NOT merge-base), forward target cli-1.1.10 @ 71c417e1 (2026-06-23). Both typechecks exit 0. SURFACED LATENT BUG HC-3: fork fetch/cold-start still calls decrypt() while send+live-receive are plaintext -> fetched plaintext replay silently dropped; documented as RESTORE-R2, to fix in M1-R2 codec seam. NEXT: M1 seam relocations (R1-R4) when operator ready."
         }
       ]
     }
