@@ -111,7 +111,38 @@ Paths relative to `packages/happy-app/sources/` unless noted. See [`packages/hap
 
 ## 6. Baseline record
 
-<!-- M0-S2: baseline pin -->
+| Field | Value |
+|---|---|
+| **Import baseline (inferred)** | `cli-1.1.8` → `b72fd8111a43395e9991cfbdabba36f5a3285e5e` (upstream `slopus/happy`, 2026-04-27) |
+| **Latest upstream release / forward import target** | `cli-1.1.10` → `71c417e1092e73cf34eb24f9601d569394c1f359` (2026-06-23) |
+| **Upstream mirror clone (read-only reference)** | `D:/harness-efforts/happy` — remotes: `origin` = `slopus/happy`, `fork` = `Evyatar108/happy` |
+
+**Why the baseline is *inferred*, not an exact merge-base.** codexu vendors happy as a
+**history-detached copy**: there is no shared commit history with `slopus/happy`, so no `git merge-base`
+exists. An exact per-file tree-match is also not achievable — an 8-file sample of upstream-canonical
+files (`packages/happy-wire/src/index.ts`, `.../text/translations/pl.ts`,
+`.../components/StyledText.tsx`, `packages/happy-cli/src/index.ts`,
+`.../happy-server/.../v3SessionRoutes.ts`, `docs/README.md`, `README.md`, `.../theme.ts`) matched
+**0/8** byte-for-byte against *either* `cli-1.1.8` or `cli-1.1.10`, confirming the fork has diverged
+across the board (even "stable" files are fork-touched). The pin is therefore a **temporal/release
+anchor**, not a merge-base.
+
+**How the anchor was chosen.** The conflict-surface investigation
+([`.ralph/investigations/happy-upstream-conflict-surface/`](../.ralph/investigations/happy-upstream-conflict-surface/))
+dated the vendored import at ~2026-05-03. `cli-1.1.8` (2026-04-27) is the last upstream release at or
+before that date; the upstream release cadence around the import was `cli-1.1.7` (2026-04-20) →
+`cli-1.1.8` (2026-04-27) → `cli-1.1.10` (2026-06-23). **There is no `cli-1.1.9` tag** (the
+`cli-v1.1.8-evy.*` tags in the mirror are *fork* tags, not upstream). So `cli-1.1.8` is the tightest
+defensible upstream anchor for the imported tree.
+
+**SHA-resolution gotcha.** `gh api repos/slopus/happy/releases/tags/cli-1.1.10` returns
+`target_commitish: "main"` (the release's *branch*, not its commit). Resolve exact release SHAs via the
+mirror clone's tags (`git -C D:/harness-efforts/happy rev-list -n1 <tag>`), **not** the API
+`target_commitish`.
+
+**On the next import**, re-run the sampling against the new upstream tag and, if a tighter anchor can be
+tree-matched, update this record + the header + the [§9 cadence](#9-ownership--cadence) note.
+
 
 ## 7. `.gitattributes` merge policy
 
