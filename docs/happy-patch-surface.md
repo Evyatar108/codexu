@@ -303,4 +303,8 @@ need no relocation.
   per the RESTORE bucket) before committing a new permanent inline KEEP. Mirror the codex tenant in
   [`codex/docs/implementation/patch-surface.md`](../codex/docs/implementation/patch-surface.md) §14.
 - **Audit helper**: [`scripts/audit-happy-fork-patches.mjs`](../scripts/audit-happy-fork-patches.mjs)
-  cross-checks the in-code markers against this catalogue (advisory). <!-- M0-S7: adjust if deferred -->
+  cross-checks the in-code `// FORK PATCH:` markers against this catalogue (advisory) — it flags orphan
+  markers, undermarked rows, and unexpected markers on guard-by-absence rows. Run it from the repo root:
+  `node scripts/audit-happy-fork-patches.mjs` (exits 0 + prints a report in M0; pass `--strict` to exit
+  non-zero on drift for CI). As of M0 it reports **zero drift**: 12 markers in code (5 `HS-*`, 7 `HC-*`)
+  match the 12 inline-marker rows; the 7 `HA-*` rows and `HS-6`/`HS-7` are intentionally marker-free.
