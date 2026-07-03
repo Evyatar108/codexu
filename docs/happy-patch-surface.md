@@ -79,7 +79,13 @@ upstream is deliberately collapsed. See [`packages/happy-server/AGENTS.md`](../p
 
 | # | file:symbol (line hint) | bucket | invariant — why it must survive | marker? | test / guard | replant note |
 |---|---|---|---|---|---|---|
-<!-- M0-S4: happy-server rows -->
+| HS-1 | `app/api/api.ts:79` — `configureApi` → `authenticateTunnel` / `authenticate` decorators | RESTORE-R1 | No-op tunnel authenticator + mode-selecting `authenticate` implement the fork's **single-user** auth plane; upstream ships a multi-tenant bearer verifier. Take-upstream reinstates per-request user auth. | ✅ inline | `publicAuthGate.spec.ts`, `socket.spec.ts` | [§8 R1](#r1--auth-plane-hs-1-hs-2-hs-3) |
+| HS-2 | `app/api/api.ts:86` — `configureApi` → public-mode block | RESTORE-R1 | Shipped public-server **fail-closed** boundary: buffer body parser (captures `rawBody` for the bodyHash), `onRequest` `httpGuard`, `preValidation` `bodyHashGuard`. Losing it fails **open** on public internet exposure. | ✅ inline | `publicAuthGate.spec.ts` (default-deny + body-hash), `deviceEnrollment.spec.ts` | [§8 R1](#r1--auth-plane-hs-1-hs-2-hs-3) |
+| HS-3 | `app/api/socket.ts:80` — `createSocketAuthMiddleware` → public / loopback branches | RESTORE-R1 | Fork's fail-closed **device-proof** Socket.IO handshake (public) + loopback-capability check. Upstream's middleware has neither; take-upstream fails open on the socket plane. | ✅ inline | `socket.spec.ts`, `remoteDeviceAuth.spec.ts` | [§8 R1](#r1--auth-plane-hs-1-hs-2-hs-3) |
+| HS-4 | `app/api/routes/v3SessionRoutes.ts:166` — session-message `content` envelope | RESTORE-R2 | Server persists `{ t:'encrypted', c }` but performs **no crypto**; the label is honest only if the client encrypted (today the CLI sends plaintext — see `HC-1`). R2 server half; documented honesty caveat. | ✅ inline | `v3SessionRoutes.test.ts` | [§8 R2](#r2-server-half--session-message-envelope-hs-4) |
+| HS-5 | `index.ts:92` — `LOOPBACK_HOSTS` / `isLoopbackHost` / `assertOperatorIdentityGate` | RESTORE-R3 | Bind-host **operator-identity gate**: refuses a non-loopback bind unless public-mode with a fail-closed device verifier **and** a Cloudflare Access edge expectation. The single-user server's core safety rail. | ✅ inline (1 representative marker) | `publicAuthGate.spec.ts`, unit assertions on `assertOperatorIdentityGate` | [§8 R3](#r3--operator-identity-gate-hs-5) |
+| HS-6 | `prisma/schema.prisma` — multi-tenant identity models | KEEP-DELETED | Fork collapsed the multi-tenant identity graph: `model Account`, `AccountAuthRequest`, `AccountPushToken`, `UserRelationship`, `GithubUser` and every `accountId`/`userId` FK on `Session`/`Machine` are **removed** (single-user, one-process). Take-upstream resurrects multi-tenancy. | ❌ (nothing to mark) | schema carries no `User`/`Account` model; server compiles with **no** per-request `userId` threading (happy-server AGENTS.md hard rule) | [§8 guard-by-absence](#guard-by-absence-hs-6-hs-7) |
+| HS-7 | `app/api/api.ts:140-154` — route-registration allowlist | KEEP-DELETED | Fork ships a **curated** single-user route surface. Upstream route files the fork removed MUST stay removed: `accessKeysRoutes`, `artifactsRoutes`, `attachmentRoutes`, `authRoutes`, `connectRoutes`, `feedRoutes`, `kvRoutes`, `userRoutes`, `voiceRoutes`, and multi-machine `machinesRoutes` (replaced by `machineSelfRoutes`). Take-upstream re-adds + re-registers them. | ❌ | `publicAuthGate.spec.ts` (default-deny denies any non-allowlisted path); the `api.ts` registration block **is** the allowlist | [§8 guard-by-absence](#guard-by-absence-hs-6-hs-7) |
 
 ## 4. happy-cli invariants (`HC-*`)
 
@@ -204,7 +210,43 @@ markers + attributes, no behavior change). Flagged here for a later milestone.
 Per-surface prose on *how* to re-apply the RESTORE hunks when their file has moved or been rewritten
 upstream. (KEEP hunks that are stable enough to re-anchor by grep alone do not need a note.)
 
-<!-- M0-S4/S5: replant notes -->
+### R1 — auth plane (HS-1, HS-2, HS-3)
+
+On import, upstream's `api.ts` auth region and `socket.ts` middleware will look very different
+(multi-tenant bearer verifier; no device-proof). Re-grep the three `RESTORE-R1` markers, then re-apply:
+keep the no-op `authenticateTunnel`, the mode-selecting `authenticate`, the **entire** public-mode block
+(buffer parser + `httpGuard` + `bodyHashGuard`, install order preserved), and the socket public +
+loopback branches. **Do not reintroduce per-request `userId` threading.** M1-R1 relocates all of this
+into `packages/happy-server/sources/app/api/auth/forkAuthPlane.ts` (extending the existing
+`auth/loopbackCapability.ts` / `auth/remoteDeviceAuth.ts` overlay), after which `api.ts` / `socket.ts`
+shrink to a 1-line seam call and these rows become RESTORE-done. Re-run the five HARD gates (route
+inventory, body-hash, device enrollment, socket handshake, bind gate) before and after.
+
+### R2 (server half) — session-message envelope (HS-4)
+
+The `{ t:'encrypted', c }` envelope shape must survive — it is the at-rest / wire format the app and CLI
+expect. The server does **no** crypto; the label's honesty depends on the CLI (`HC-1`/`HC-2`/`HC-3`),
+which today sends plaintext. **Do not "fix" the label to `{ t:'plain' }` on import** — that breaks the
+app decoder path and the envelope contract. M1-R2 documents the asymmetry behind a codec seam **without
+changing bytes**; actually re-enabling encryption is a separate behavior-changing milestone (see plan §9
+open questions).
+
+### R3 — operator-identity gate (HS-5)
+
+`index.ts` is substantially fork-owned (the whole embedded `createApp` / bootstrap). The gate must run
+once at `createApp` entry. Re-apply the loopback host set + `isLoopbackHost` + `assertOperatorIdentityGate`
+and its single call site. M1-R3 extracts these into a fork `fork/` module — the smallest, first M1 seam
+(it establishes the `fork/` dir pattern the other seams follow).
+
+### Guard-by-absence (HS-6, HS-7)
+
+These rows have **no marker** (the code is gone). On import, a take-upstream 3-way merge will try to
+re-add the deleted models/routes as "upstream additions" — **reject those hunks.** The durable guards
+are: the prisma schema's shape (no `User`/`Account`), the `api.ts` route-registration allowlist, and
+`publicAuthGate.spec.ts` default-deny. If any deleted construct sneaks back, those should fail (or the
+importer catches it against these rows).
+
+<!-- M0-S5: cli replant notes -->
 
 ---
 

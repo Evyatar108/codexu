@@ -163,6 +163,7 @@ export function v3SessionRoutes(app: Fastify, eventRouter: EventRouter) {
                     data: {
                         sessionId,
                         seq: seqs[i],
+                        // FORK PATCH: RESTORE-R2 server writes the {t:'encrypted'} envelope but performs NO crypto (label is only honest if the client encrypted); R2 server half (invariant HS-4)
                         content: {
                             t: 'encrypted',
                             c: message.content

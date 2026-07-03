@@ -76,6 +76,7 @@ export function configureApi(app: any, tofuConfig: TofuHandshakeConfig = { local
     enableMonitoring(typed);
     enableErrorHandlers(typed);
     typed.decorate('verifyLoopbackCapability', verifyLoopbackCapability(options.paths));
+    // FORK PATCH: RESTORE-R1 fork single-user auth wiring — no-op tunnel authenticator + mode-selecting `authenticate`; relocate to auth/forkAuthPlane.ts in M1 (invariant HS-1)
     typed.decorate('authenticateTunnel', async function (_request: any) {});
     typed.decorate('authenticate', options.auth === "loopback" ? typed.verifyLoopbackCapability : typed.authenticateTunnel);
 
@@ -85,6 +86,7 @@ export function configureApi(app: any, tofuConfig: TofuHandshakeConfig = { local
     // inside the operator pairing window). This is the application-layer boundary
     // for public internet exposure; the default tunnel/loopback paths are untouched.
     let publicAuthRuntime: PublicAuthRuntime | undefined;
+    // FORK PATCH: RESTORE-R1 shipped public-mode fail-closed boundary (buffer body parser + httpGuard + bodyHashGuard); MUST survive import; relocate to auth/forkAuthPlane.ts in M1 (invariant HS-2)
     if (options.auth === "public") {
         if (!options.publicAuth) {
             throw new Error('CRITICAL: auth "public" requires a publicAuth verifier + edge configuration. Refusing to configure a public listener without a fail-closed device verifier.');

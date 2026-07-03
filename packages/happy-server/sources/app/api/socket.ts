@@ -77,6 +77,7 @@ export function createSocketAuthMiddleware(tofuConfig: TofuHandshakeConfig, sock
         // handshake lacking a valid edge check + Ed25519 proof. This closes the
         // previously fail-open tunnel branch for public exposure. Tunnel and
         // loopback behavior is unchanged.
+        // FORK PATCH: RESTORE-R1 fork public device-proof handshake (fail-closed) + loopback capability branch; relocate to auth/ helpers in M1 (invariant HS-3)
         if (socketOptions.auth === 'public') {
             const runtime = socketOptions.publicAuthRuntime;
             if (!runtime) {

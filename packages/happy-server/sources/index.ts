@@ -89,6 +89,7 @@ function machineKeyToSeed(machineKey: string | Uint8Array) {
     return Buffer.from(machineKey).toString("base64");
 }
 
+// FORK PATCH: RESTORE-R3 operator-identity gate (loopback host set + isLoopbackHost + assertOperatorIdentityGate); relocate to fork/ dir in M1 (invariant HS-5)
 const LOOPBACK_HOSTS = new Set(["127.0.0.1", "::1", "0:0:0:0:0:0:0:1", "localhost"]);
 
 export function isLoopbackHost(host: string | undefined): boolean {
