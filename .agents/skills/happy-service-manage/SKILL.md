@@ -9,6 +9,20 @@ description: >
 
 # /happy-service-manage -- Windows-service ops for happy-server + cloudflared
 
+> **Scope note — this skill manages the LEGACY central standalone setup.** It
+> covers the standalone happy-server (run from `D:\harness-efforts\happy` on
+> `localhost:3005`) fronted by a bare-`ingress` cloudflared Windows service (a
+> simple `ingress: http://localhost:3005` config, NO Cloudflare Access, service
+> tokens, or app-layer device verifier). This is **not** the opt-in, default-off
+> single-user public daemon mode shipped 2026-07 (`HAPPY_TUNNEL_PROVIDER=cloudflare`
+> + `public-tunnel.json` + a Cloudflare Access service-token edge + a fail-closed
+> Ed25519 paired-device verifier), which the happy-cli daemon manages itself via
+> its own outbound `cloudflared tunnel run` provider — no Windows services and no
+> `nssm`. For that mode, see
+> [`docs/security-model.md` → Optional Public Mode](../../docs/security-model.md#optional-public-mode-single-user-evyatardev-server-opt-in-default-off)
+> and [`docs/fork-notes.md` → Single-user public mode](../../docs/fork-notes.md#single-user-public-mode-opt-in-shipped);
+> this skill does not apply to it.
+
 ## Preconditions (verify before using this skill)
 
 1. Both services are installed:
