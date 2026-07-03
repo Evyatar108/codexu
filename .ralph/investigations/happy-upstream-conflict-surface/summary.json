@@ -1,0 +1,98 @@
+{
+  "task": "happy-upstream-conflict-surface-and-merge-strategy",
+  "mode": "read-only research (no source edits, no commit, no merge/rebase executed)",
+  "date": "2026-07-02",
+  "comparedAgainst": {
+    "upstream": "slopus/happy origin/main f6adffb4 (2026-07-02)",
+    "upstreamLatestRelease": "cli-1.1.10 -> 71c417e1 (2026-06-23)",
+    "codexu": "HEAD 48cadb9f"
+  },
+  "topology": {
+    "summary": "codexu/packages/happy-* is a VENDORED, history-detached copy that is the LIVE fork and has NO git merge-base with slopus/happy; the standalone Evyatar108/happy clone is a TRUE git fork (has ancestry) but is FROZEN at 2026-05-02 and lacks all codexu-era work, so it is not a viable inbound-merge vehicle. Upstream intake must be selective cherry-pick / manual port, not DAG rebase or a single 3-way merge.",
+    "codexuRemotes": ["origin=evmitran_microsoft/codexu", "personal=Evyatar108/codexu"],
+    "mergeBaseWithUpstream": "NONE (upstream HEAD f6adffb4 and 21c6ced0 absent from codexu object store; import via monorepo restructure 7f178466 2026-01-27, 1163-file bulk import, no slopus ancestry)",
+    "standaloneFork": {
+      "path": "D:/harness-efforts/happy",
+      "remote": "fork=Evyatar108/happy, origin=slopus/happy",
+      "isTrueFork": true,
+      "mergeBaseWithUpstream": "f6083b48 (2026-04-22)",
+      "headCommit": "b592d917 (2026-05-02, docs commit)",
+      "aheadBehindUpstream": "338 ahead / 293 behind",
+      "role": "outbound PR-staging repo only; frozen; NOT codexu's inbound mirror",
+      "divergentFromCodexu": "yes (e.g. happy-app: 139 modified + 122 codexu-only + 93 forkstd-only)"
+    },
+    "behindUpstream": "~194 commits (179 touching packages/) and ~2 releases (cli-1.1.8 -> cli-1.1.10) since codexu's ~2026-05-03 sync baseline",
+    "packageSet": "codexu = upstream 7 packages (codium, happy-agent, happy-app-logs, happy-app, happy-cli, happy-server, happy-wire) + codexu-plugin + codexu-options-mode-plugin; happy-wire/happy-agent/codium are UPSTREAM packages, not fork-added"
+  },
+  "divergence": {
+    "note": "inline-M = exists in both trees, differs = conflict candidate; fork-excl-A = codexu-only = zero conflict; upstream-only-D = fork-deleted = deletion-conflict candidate. hardConflictNextMerge = codexu inline-M INTERSECT upstream-changed-since-~2026-05-03 (the files that WILL conflict on the next intake).",
+    "perPackage": {
+      "happy-app":    { "inlineModified": 176, "forkExclusiveAdded": 255, "upstreamOnlyDeleted": 163, "linesAdded": 48058, "linesDeleted": 40120, "hardConflictNextMerge": 101 },
+      "happy-cli":    { "inlineModified": 111, "forkExclusiveAdded": 178, "upstreamOnlyDeleted": 43,  "linesAdded": 40655, "linesDeleted": 12100, "hardConflictNextMerge": 58 },
+      "happy-server": { "inlineModified": 45,  "forkExclusiveAdded": 25,  "upstreamOnlyDeleted": 36,  "linesAdded": 6278,  "linesDeleted": 7263,  "hardConflictNextMerge": 23 },
+      "happy-agent":  { "inlineModified": 18,  "forkExclusiveAdded": 13,  "upstreamOnlyDeleted": 0,   "linesAdded": 7591,  "linesDeleted": 800,   "hardConflictNextMerge": 2 },
+      "happy-wire":   { "inlineModified": 9,   "forkExclusiveAdded": 28,  "upstreamOnlyDeleted": 0,   "linesAdded": 17888, "linesDeleted": 43,    "hardConflictNextMerge": 3, "caveat": "+17888 dominated by tracked dist/ build artifacts + README, not source" }
+    },
+    "totals": { "inlineModified": 359, "forkExclusiveAdded": 499, "upstreamOnlyDeleted": 242, "hardConflictNextMerge": 187 }
+  },
+  "hotspots": [
+    { "file": "packages/happy-app/sources/sync/sync.ts", "kind": "inline", "risk": "high", "churn": "+1004/-1607", "note": "core sync loop rewritten; upstream-active every release" },
+    { "file": "packages/happy-app/sources/sync/storage.ts", "kind": "inline", "risk": "high", "churn": "+745/-681" },
+    { "file": "packages/happy-cli/src/api/apiSession.ts:659,316", "kind": "inline", "risk": "high", "churn": "+539/-445", "note": "E2E encrypt() dropped at send; plaintext JSON.parse on receive" },
+    { "file": "packages/happy-server/sources/app/api/socket.ts:61-95", "kind": "inline", "risk": "high", "churn": "+154/-117", "note": "fail-open Socket.IO handshake in tunnel mode" },
+    { "file": "packages/happy-server/sources/app/api/api.ts:79-80", "kind": "inline", "risk": "high", "churn": "+120/-128", "note": "authenticateTunnel no-op; deleted upstream enableAuthentication" },
+    { "file": "packages/happy-app/sources/sync/reducer/reducer.ts", "kind": "inline", "risk": "high", "churn": "+440/-140" },
+    { "file": "packages/happy-app/sources/-session/SessionView.tsx", "kind": "inline", "risk": "high", "churn": "+573/-517" },
+    { "file": "packages/happy-cli/src/codex/codexAppServerClient.ts", "kind": "inline", "risk": "medium-high", "churn": "+1245/-381", "note": "fork-unique codex feature living inline in shared package, upstream-active neighbors" },
+    { "file": "packages/happy-app/sources/components/AgentInput.tsx", "kind": "inline", "risk": "medium", "churn": "+901/-425" },
+    { "file": "packages/happy-app/sources/components/ChatList.tsx", "kind": "inline", "risk": "medium", "churn": "+354/-258", "note": "e-ink/perf; PR #1154 pattern" },
+    { "file": "packages/happy-server/sources/index.ts:101-108", "kind": "inline", "risk": "medium", "churn": "+235/-45", "note": "assertOperatorIdentityGate bind-gate + dual-listener wiring" },
+    { "file": "packages/happy-server/prisma/schema.prisma", "kind": "inline", "risk": "medium", "churn": "+55/-350", "note": "single-tenant collapse (multi-tenant userId dropped); KEEP-DELETED" },
+    { "file": "packages/happy-server/sources/app/api/routes/v3SessionRoutes.ts:166-168", "kind": "inline", "risk": "medium", "churn": "+12/-38", "note": "plaintext mislabeled {t:'encrypted'}" },
+    { "file": "packages/happy-cli/src/claude/runClaude.ts", "kind": "inline", "risk": "medium", "churn": "+271/-486" },
+    { "file": "packages/happy-cli/src/daemon/run.ts", "kind": "inline", "risk": "medium", "churn": "+325/-109", "note": "daemon codex/tunnel wiring injected into upstream file" },
+    { "file": "packages/happy-app/sources/text/_default.ts + translations/{pl,ru,es,ja,ca}.ts", "kind": "inline", "risk": "low-mechanical", "churn": "~+253/-290 each", "note": "~10 recurring mechanical translation conflicts" },
+    { "file": "packages/happy-cli/src/{codex,agentComms,daemon,tunnel}/**", "kind": "exclusive", "risk": "none", "note": "41+33+30+13 fork-exclusive files; new dirs, no upstream equivalent = zero conflict (overlay discipline already working)" },
+    { "file": "packages/happy-app/sources/{components(new),sync(new),hooks,auth}/** + android/app/**", "kind": "exclusive", "risk": "none", "note": "255 fork-exclusive files" },
+    { "file": "packages/happy-wire/src/{node,tunnel,publicDeviceAuth.ts}", "kind": "exclusive", "risk": "none" }
+  ],
+  "refactors": [
+    { "from": "happy-server/.../api.ts:79-80 + socket.ts:61-95 + auth/auth.ts (deleted verifyToken)", "toSeam": "restore upstream enableAuthentication.ts verbatim; single-user collapse in fork-owned auth/singleUserVerifier.ts delegating on tofuConfig.localUserId (the D-002 wedge)", "effort": "M", "conflictReduction": "high" },
+    { "from": "happy-cli/.../apiSession.ts:659,316 + happy-server/.../v3SessionRoutes.ts:166-168", "toSeam": "re-activate upstream encrypt()/decrypt() call sites (single-operator key; reuse happy-agent/src/encryption.ts); stop plaintext mislabel", "effort": "S-M", "conflictReduction": "high" },
+    { "from": "happy-server/.../index.ts:101-108", "toSeam": "extract assertOperatorIdentityGate + dual-listener wiring into sources/fork/operatorIdentityGate.ts; index.ts stays thin upstream file with 1 call", "effort": "S", "conflictReduction": "medium" },
+    { "from": "happy-cli/.../{runCodex,runClaude,daemon/run,apiMachine}.ts inline fork blocks", "toSeam": "replace with forkHooks.onXxx() calls whose bodies live in the already-isolated src/codex/ and src/daemon/ overlays; shrink wiring footprint in upstream files", "effort": "M-per-file", "conflictReduction": "medium" },
+    { "from": "happy-app/.../{ChatList,SessionView,AgentInput,MarkdownView}.tsx inline e-ink branching", "toSeam": "default-off e-ink behavior behind fork hooks/components (useEinkMode, <EinkChatList>); extend existing 63-new-component pattern", "effort": "M", "conflictReduction": "medium" },
+    { "from": "happy-app/sources/text/_default.ts + translations/*", "toSeam": "separate fork-namespace strings file and/or .gitattributes merge=union on translation files", "effort": "S", "conflictReduction": "low-per-file (removes ~10 recurring conflicts)" },
+    { "from": "happy-wire/dist/** + happy-agent/dist/** (tracked build output)", "toSeam": "gitignore dist/ or .gitattributes merge=ours; build in CI", "effort": "S", "conflictReduction": "low (removes generated-artifact noise)" },
+    { "from": "happy-app/sources/sync/{sync,storage,ops,reducer}.ts (core reducer rewrite)", "toSeam": "DO NOT overlay; minimize gratuitous diff + upstream the good parts (PR #1154 pattern) + accept manual 3-way as the tracked cost center", "effort": "L/ongoing", "conflictReduction": "low-medium (honest residual)" },
+    { "from": "happy-server/prisma/schema.prisma single-tenant collapse", "toSeam": "KEEP-DELETED catalogue entry; not overlay-able (single schema file); mostly deletions so rarely conflicts", "effort": "n/a", "conflictReduction": "track-only" }
+  ],
+  "strategy": {
+    "approach": "Release-anchored SELECTIVE intake (cherry-pick + manual port) governed by a new docs/happy-patch-surface.md invariant catalogue, with a conflict-surface paydown roadmap led by the D-002 auth+E2E restore. NOT a DAG rebase (no merge-base exists), NOT a single big-bang 3-way merge (187 conflicts).",
+    "rejectedAlternatives": {
+      "dagRebase": "impossible for codexu (no shared ancestry with slopus/happy)",
+      "bigBang3WayMerge": "needs synthetic baseline graft; dumps all 187 conflicts at once on fragile paths; reserve only if selective intake proves too slow",
+      "reForkD003": "XL; declines by default (throws away ~1200+ fork commits); revisit only if heatmap proves tree unmaintainable (it does not)"
+    },
+    "anchor": "upstream RELEASE tags, not HEAD (latest cli-1.1.10 = 71c417e1, 2026-06-23); matches happy-upstream-sync skill + codex rebase discipline",
+    "cadence": "every upstream release OR every 4 weeks, whichever first; sooner for security fix or >30-commit release; per-intake prioritize happy-app, then happy-cli, then happy-server (post-D-002)",
+    "tooling": ".gitattributes merge=union on happy-app translations, merge=ours/gitignore on tracked dist/ and lockfiles; docs/happy-patch-surface.md mirroring codex/docs/implementation/patch-surface.md (numbered invariants + // FORK PATCH: markers, KEEP/KEEP-DELETED/RESTORE buckets); add slopus/happy remote to codexu (or keep D:/harness-efforts/happy as mirror) + record import-baseline commit",
+    "firstMergeRecommendation": "Do the first intake SOON (next cycle) - codexu is ~194 commits / ~2 releases / ~2 months behind and the gap grows ~50-100 commits/month. But run it as a TRIAGED, package-sequenced intake, not a big merge. Wholesale-merge risk today = MEDIUM-HIGH (187 conflicts); triaged per-package cherry-pick risk = LOW-MEDIUM. Sequence: (M0) baseline+catalogue+gitattributes; (M1) ship D-002 auth+E2E restore + R3 to shrink server/cli hotspots FIRST; (M2) first release-anchored intake on happy-app @ cli-1.1.10; (M3) happy-cli + R4 wiring extraction; (M4) happy-server last (post-D-002); (M5) steady-state per-release cadence. Update the catalogue after each intake."
+  },
+  "milestones": [
+    "M0 Baseline & catalogue (S): upstream remote/mirror, record import baseline, create docs/happy-patch-surface.md + .gitattributes",
+    "M1 D-002 auth+E2E restore (M): retires api.ts/socket.ts/v3SessionRoutes.ts hotspots + shrinks apiSession.ts; do R3 alongside",
+    "M2 First intake happy-app @ cli-1.1.10 (L): triaged cherry-pick/manual/skip; land UI/perf fixes; apply R6 translations",
+    "M3 happy-cli intake + R4 (M): extract codex/daemon wiring hooks",
+    "M4 happy-server intake (S, post-D-002)",
+    "M5 Steady state: per-release cadence; catalogue updated each intake; migrate e-ink edits to hooks (R5); upstream sync residual (R8)"
+  ],
+  "openQuestions": [
+    "Exact import baseline SHA is inferred from the ~2026-05-03 sync note + commit dates, not a verified tree-match; M0 should pin it by tree-matching a stable file.",
+    "happy-app/sources/sync/* residual: after R1-R6, most of happy-app's 101 hard-conflicts remain in the rewritten sync/reducer. Is the fork willing to upstream those, or permanently own manual 3-way there? Overlay cannot fix this surface.",
+    ".gitattributes merge=union on translations can produce duplicate keys; confirm the i18n loader dedupes or prefer a separate fork-namespace strings file.",
+    "Standalone Evyatar108/happy fate: keep as outbound-PR staging only, or resync/retire? It is 2 months stale and off codexu's inbound path.",
+    "Ownership: who runs the per-release intake and keeps the KEEP/KEEP-DELETED catalogue current? Without a named owner + visible cadence the catalogue rots.",
+    "happy-cli/src/codex/* sits next to upstream-active files; will upstream's own codex/ACP work start colliding? If so R4 hook-extraction gets more urgent."
+  ]
+}
