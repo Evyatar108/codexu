@@ -127,7 +127,13 @@ Paths relative to `packages/happy-app/sources/` unless noted. See [`packages/hap
 
 | # | file:symbol | bucket | invariant — why it conflicts / must survive | marker? | test / guard | replant note |
 |---|---|---|---|---|---|---|
-<!-- M0-S6: happy-app rows -->
+| HA-1 | `sync/sync.ts` — top-level sync orchestrator | KEEP | Fork's single-user / embedded-server / loopback sync loop diverges broadly from upstream's multi-account sync. Conflicts on nearly every import; a **manual three-way merge** each time. | ❌ (doc-only in M0) | `pnpm typecheck`; `sync/*.spec.ts` (`messageWindow`, `applyPrefetchedRange`) | deferred M2+ (sync plane, ~R5) |
+| HA-2 | `sync/storage.ts` — client session/message store | KEEP | Fork's storage shape tracks the collapsed single-user session model (no account graph). Large fork-owned surface. | ❌ (doc-only in M0) | `pnpm typecheck`; `sync/encryptionDeletion.spec.ts` | deferred M2+ (sync plane, ~R5) |
+| HA-3 | `sync/reducer/reducer.ts` — message→event reducer | KEEP | Fork reducer carries the typed context-boundary handling and e-ink-friendly accumulation. Conflicts with upstream reducer changes. | ❌ (doc-only in M0) | `sync/reducer/reducer.spec.ts`, `messageToEvent.spec.ts` | deferred M2+ (sync plane, ~R5) |
+| HA-4 | `-session/SessionView.tsx` — session screen | KEEP | Fork's chat surface is tuned for the **e-ink tablet** (static UI, no smooth-scroll/continuous repaint). Broadly rewritten vs upstream. | ❌ (doc-only in M0) | `pnpm typecheck`; visual/e-ink review | deferred M2+ (UI plane, ~R8) |
+| HA-5 | `components/ChatList.tsx` — message list | KEEP | Fork's inverted-FlatList perf work + `BoundaryDivider` rendering (shipped upstream as PR #1154, but fork carries adjacent e-ink tuning). | ❌ (doc-only in M0) | `components/ChatList.preBoundaryHistory.test.tsx` | deferred M2+ (UI plane, ~R8) |
+| HA-6 | `components/AgentInput.tsx` — composer | KEEP | Fork input diverges on modes/attachments/keyboard for the e-ink target. High-churn conflict surface. | ❌ (doc-only in M0) | `components/AgentInput.{mode,attachments,keyboard,activeRegression}.test.tsx` | deferred M2+ (UI plane, ~R8) |
+| HA-7 | `text/_default.ts` + `text/translations/*.ts` — i18n | KEEP | Fork-added translation keys must survive import. **`merge=union` is UNSAFE here** (typed nested TS object modules; duplicate keys error `TS1117` and arrow-value splits break syntax — see §7). Merge is manual or via a future fork-namespaced strings file. | ❌ (doc-only in M0) | `text/translations.test.ts` (structural parity) | deferred M2+ (i18n plane, ~R6) |
 
 ---
 
