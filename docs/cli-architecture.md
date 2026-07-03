@@ -208,6 +208,14 @@ CLI and daemon traffic uses two independent credentials when crossing a private 
 
 `src/tunnel/tunnelManager.ts` creates private tunnels and must not add anonymous access flags. The app and happy-agent refresh Dev Tunnels connect tokens before tunnel HTTP/Socket.IO calls.
 
+#### Public mode (opt-in, single-user `happy.evyatar.dev`)
+
+Shipped and verified 2026-07. When the operator opts in with `HAPPY_TUNNEL_PROVIDER=cloudflare` and a `~/.happy/public-tunnel.json` (default-off otherwise), the daemon exposes the embedded server publicly through an **outbound-only** Cloudflare named tunnel instead of a Dev Tunnel, and the Dev Tunnels connect-token scheme above is replaced by a device-identity scheme:
+
+- `src/tunnel/cloudflareTunnelDaemonProvider.ts` runs `cloudflared tunnel run` (dials the Cloudflare edge, forwards to `127.0.0.1:<port>`; opens no inbound port). The provider-selection switch and config schema live in `src/tunnel/publicTunnelConfig.ts`; `assertPublicBindReady()` fail-closes if the config is absent or has no Cloudflare Access service tokens.
+- `public-tunnel.json` (mode `0600`, carries secrets) supplies `hostname`, `tunnelName`, `cloudflareAccess.serviceTokens[]`, and optional `pairing.windowMs` / `freshnessMs` / `clockSkewMs`.
+- Every client request carries an Ed25519 device proof (`x-happy-device-proof`) verified fail-closed by happy-server (the primary boundary) plus Cloudflare Access service-token headers (`CF-Access-Client-Id` / `CF-Access-Client-Secret`, mandatory edge defense-in-depth). Enrolled device keys are TOFU-pinned and persisted to `~/.happy/public-paired-devices.json` across restarts. See [`docs/security-model.md`](security-model.md#optional-public-mode-single-user-evyatardev-server-opt-in-default-off) and [`docs/fork-notes.md`](fork-notes.md#single-user-public-mode-opt-in-shipped).
+
 ### Encryption
 
 ```mermaid
@@ -291,6 +299,8 @@ flowchart TD
 7. It calls `tunnelManager.startHost(...)`, which spawns a detached `devtunnel host <tunnelId> --port-number <port>` child that forwards public traffic to the loopback port.
 8. It starts the local **control server** for IPC.
 9. It registers the machine with the upstream coordination service (the metadata payload now includes `tunnelUrl`) and keeps a map of tracked child sessions.
+
+When public mode is opted in (`HAPPY_TUNNEL_PROVIDER=cloudflare` + a valid `public-tunnel.json`), step 7's Dev Tunnel host is replaced by the outbound Cloudflare named-tunnel provider (`cloudflareTunnelDaemonProvider.ts`), `assertPublicBindReady()` gates startup, and the daemon writes a one-time public pairing invite for device enrollment (see [Public mode](#public-mode-opt-in-single-user-happyevyatardev) above). All other lifecycle steps are unchanged.
 
 ### Control server (local IPC)
 

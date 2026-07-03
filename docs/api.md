@@ -19,6 +19,13 @@ Tunnel-facing requests use the Dev Tunnels gateway as the remote identity gate:
 - After forwarding, happy-server treats tunnel requests as the single local operator and sets request identity from `tofuConfig.localUserId`.
 - Loopback callers do not use the Dev Tunnels header; they must present `X-Loopback-Capability` on the loopback listener.
 
+In the opt-in, default-off **public mode** (`options.auth === "public"`, the single-user `happy.evyatar.dev` server — see [`docs/security-model.md`](security-model.md#optional-public-mode-single-user-evyatardev-server-opt-in-default-off)), remote identity is not delegated to a gateway. Instead:
+
+- A global fail-closed `onRequest` hook is installed before route registration; any method/path not in the explicit route-policy allowlist returns `401`.
+- Allowlisted `deviceProof` routes require a valid Ed25519 device proof in `x-happy-device-proof` (single-use nonce, freshness-bounded, signature bound to method + path), and a `preValidation` guard rejects (`401`) unless the request body's SHA-256 matches the signed `bodyHash`.
+- Every request must additionally carry Cloudflare Access service-token headers (`CF-Access-Client-Id` / `CF-Access-Client-Secret`), enforced at the Cloudflare edge (missing/incorrect → `403`) and re-checked server-side.
+- Only operator-enrolled (TOFU-pinned) device keys can present proofs; identity is the pinned device, not a gateway JWT.
+
 ## Pairing Flow (revised 2026-05-13)
 
 - `POST /pair/complete`
@@ -28,6 +35,8 @@ Tunnel-facing requests use the Dev Tunnels gateway as the remote identity gate:
 
 - `POST /pair/connect`
   - Completes the machine connect step after the client has accepted the TOFU identity.
+
+In public mode `/pair/complete` is the only pre-enrollment route (allowlist policy `pairComplete`): it passes the Cloudflare Access edge check but requires no device proof (the device is not yet paired). The handler enforces the operator pairing window, a pre-shared pairing secret (`x-happy-pairing-secret`) sourced from the one-time public pairing invite, and a single-use pairing nonce (`x-happy-pairing-nonce`); only inside the window with a valid secret and unused nonce does it return key material and TOFU-pin the app's Ed25519 device key. A conflicting public key for an already-pinned device id is refused (`409`, `device_key_conflict`). `/pair/connect` remains a `deviceProof` route.
 
 The old `/pair/start` (GET) + `/pair/status` (POST) two-step device flow, the per-machine `GITHUB_CLIENT_ID` env var, and the `HAPPY_TUNNEL_GITHUB_OWNER` enforcement check were all deleted during BOOX validation 2026-05-13 — they were redundant on a personal fork because tunnel ownership already proves operator identity. See `packages/happy-app/scripts/sprint-a-gap.md` "R-D18 path (b) implementation log".
 

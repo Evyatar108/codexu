@@ -49,7 +49,7 @@ graph TB
 - Database: PGlite (embedded Postgres) by default via Prisma; external Postgres is opt-in for the standalone deployment shape.
 - Cache/bus: Redis is optional. When `REDIS_URL` is set, the Socket.IO Redis-streams adapter is enabled for multi-process fan-out. In the embedded per-machine deployment Redis is not used.
 - Blob storage: local filesystem (`<dataDir>/files`) by default; S3-compatible storage is opt-in when `S3_HOST` and friends are set.
-- Auth: private Dev Tunnels gateway access is carried by `X-Tunnel-Authorization: tunnel <connect-jwt>` (Microsoft's standard scheme; consumed + stripped by the gateway). After the gateway admits a tunnel request, happy-server uses `tofuConfig.localUserId`; loopback listeners continue to require `X-Loopback-Capability`.
+- Auth: private Dev Tunnels gateway access is carried by `X-Tunnel-Authorization: tunnel <connect-jwt>` (Microsoft's standard scheme; consumed + stripped by the gateway). After the gateway admits a tunnel request, happy-server uses `tofuConfig.localUserId`; loopback listeners continue to require `X-Loopback-Capability`. An opt-in, default-off **public mode** (`options.auth === "public"`, the single-user `happy.evyatar.dev` server) instead enforces a global default-deny hook + route-policy allowlist, a fail-closed Ed25519 paired-device verifier (device proof + single-use nonce + body-hash binding, primary boundary), and mandatory Cloudflare Access service tokens at the edge — see [Authentication and pairing](#authentication-and-pairing-revised-2026-05-13) and [`docs/security-model.md`](security-model.md#optional-public-mode-single-user-evyatardev-server-opt-in-default-off).
 - Crypto: privacy-kit `KeyTree` derived from the per-machine `HANDY_MASTER_SECRET` (set by `createHappyServer()` from the configured `machineKey`). Used only for server-side service-token storage.
 - Push: Expo push notifications are delivered directly from happy-server via `sendSessionPushEvent` to tokens stored per (machineId, deviceId).
 - Metrics: Prometheus-style `/metrics` server + per-request HTTP metrics.
@@ -184,6 +184,12 @@ The backend does not store accounts or passwords. Pairing identity comes from `~
 
 The gateway connect-token is refreshed by the client via `connectTokenRefresh.ts` against the Dev Tunnels API.
 
+In the opt-in, default-off **public mode** (`options.auth === "public"`, the single-user `happy.evyatar.dev` server) the pairing and per-request auth model is different — identity is a paired device, not a gateway JWT:
+
+- Enrollment starts from a one-time public pairing invite emitted by the daemon (`@slopus/happy-wire` `publicPairingInvite.ts`: base64url `{ version, serverUrl, machineId, pairSecret, cloudflareAccess: { clientId, clientSecret }, issuedAt, expiresAt }`). The app imports it and calls `POST /pair/complete` inside the operator pairing window with the Cloudflare Access headers, the pre-shared pairing secret (`x-happy-pairing-secret`), a single-use pairing nonce (`x-happy-pairing-nonce`), and its Ed25519 device public key. The server TOFU-pins that device key (`enroll()`), immediately visible to both the HTTP guard and the Socket.IO handshake; a conflicting key for a pinned device id → `409`.
+- All subsequent HTTP and WebSocket calls present an Ed25519 device proof in `x-happy-device-proof` (single-use nonce, freshness-bounded, signature bound to method + path, plus a `preValidation` body-hash guard) and the Cloudflare Access service-token headers. Any un-allowlisted route, missing/invalid proof, body-hash mismatch, or missing edge headers fails closed. The verifier is the primary boundary; Cloudflare Access is mandatory edge defense-in-depth. Full threat model in [`docs/security-model.md`](security-model.md#optional-public-mode-single-user-evyatardev-server-opt-in-default-off).
+- The Socket.IO handshake verifier covers both websocket and polling transports; because the socket nonce is strict single-use, public-mode clients connect with `reconnection: false` and a single transport.
+
 The legacy `auth` module (`sources/app/auth/auth.ts`) still exists and is initialized at startup, but it is no longer used to authenticate HTTP requests. It is retained for internal helpers (e.g., the GitHub ephemeral token used by integrations) and for the standalone deployment shape.
 
 ## Realtime sync architecture
@@ -223,7 +229,7 @@ Socket.IO connections are tagged by scope at handshake time:
 - `session-scoped`: receives updates only for one session.
 - `machine-scoped`: daemon connections for machine state.
 
-The Socket.IO middleware in `sources/app/api/socket.ts` enforces the same tunnel/loopback gate as the HTTP layer before any connection is accepted, then attaches `userId`, `clientType`, `sessionId`, `machineId`, and the TOFU public keys to `socket.data`. On connection, it emits a `tofu-pubkeys` event so clients that connected via Socket.IO directly can perform the TOFU pin.
+The Socket.IO middleware in `sources/app/api/socket.ts` enforces the same tunnel/loopback gate as the HTTP layer before any connection is accepted, then attaches `userId`, `clientType`, `sessionId`, `machineId`, and the TOFU public keys to `socket.data`. On connection, it emits a `tofu-pubkeys` event so clients that connected via Socket.IO directly can perform the TOFU pin. In public mode the middleware instead runs the Ed25519 device-proof handshake verifier on both the websocket and polling transports (fixed proof binding `GET /v1/updates`, single-use nonce), rejecting any handshake without a valid proof + Cloudflare Access headers.
 
 ### Event router
 `EventRouter` (`sources/app/events/eventRouter.ts`) maintains per-user connection sets and routes:

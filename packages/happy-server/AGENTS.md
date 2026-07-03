@@ -210,6 +210,8 @@ The active route surface is intentionally small: `pairRoutes`, `accountRoutes`, 
 
 The Scope A agent-comms ingest route (`POST /agent-comms/ingest`) is intentionally **not** a happy-server route. It was moved out of the embedded server to a happy-cli-owned standalone Fastify listener on a second forwarded Dev Tunnel port (D-004 Option A); its request-shape schema and hop check live in `@slopus/happy-wire`. Do not re-add `agentCommsIngestRoutes` here — the embedded server must 404 on that path.
 
+In the opt-in, default-off public mode (`options.auth === "public"`), this route surface is additionally protected by a **global default-deny** `onRequest` hook installed before route registration plus an explicit `PUBLIC_ROUTE_POLICY_ALLOWLIST` (in `app/api/auth/remoteDeviceAuth.ts`): any method/path not on the allowlist returns `401`. Adding a new route therefore requires deliberately assigning it a policy (`deviceProof` or the pre-enrollment `pairComplete`) — a new route fails closed until it is. The decisive acceptance test derives the route inventory from the live Fastify app and asserts every non-allowlisted route returns `401` with no key material.
+
 ### Pair protocol (BOOX-validated 2026-05-13)
 
 `pairRoutes` exposes **one** pair endpoint: `POST /pair/complete`. Identity is read
@@ -224,6 +226,8 @@ the Dev Tunnels gateway's `X-Tunnel-Authorization` check is the only identity ga
   Happy-specific tunnel claim.
 - `/pair/connect` (separate post-pair re-auth endpoint) is retained.
 
+In public mode, `/pair/complete` is the only pre-enrollment route (allowlist policy `pairComplete`): it passes the Cloudflare Access edge check but requires no device proof (the device is not yet paired), and the handler enforces the operator pairing window + a pre-shared pairing secret (`x-happy-pairing-secret`) + a single-use pairing nonce (`x-happy-pairing-nonce`). Only inside the window with a valid secret does it return key material and TOFU-pin the app's Ed25519 device key (`enroll()`), immediately visible to both the HTTP guard and the Socket.IO handshake; a conflicting key for a pinned device id → `409` (`device_key_conflict`). `/pair/connect` is a `deviceProof` route in public mode.
+
 ### Tunnel-auth headers (BOOX-validated 2026-05-13, updated after claim removal)
 
 Microsoft's Dev Tunnels gateway consumes `X-Tunnel-Authorization: tunnel <connect-jwt>`
@@ -234,6 +238,40 @@ requests continue to require `X-Loopback-Capability`.
 
 CORS allowlists in `app/api/api.ts` and `app/api/socket.ts` include
 `X-Tunnel-Authorization` for browser preflight pass-through to the gateway.
+
+### Public-mode auth plane (opt-in, single-user `happy.evyatar.dev`)
+
+Shipped and verified 2026-07 (`options.auth === "public"`, default-off; the
+single-user public server). This mode does not delegate identity to a gateway —
+it enforces a fail-closed application-layer boundary in
+`app/api/auth/remoteDeviceAuth.ts` as the **primary** boundary, with Cloudflare
+Access service tokens as **mandatory edge defense-in-depth**. Full threat model:
+[`docs/security-model.md` → Optional Public Mode](../../docs/security-model.md#optional-public-mode-single-user-evyatardev-server-opt-in-default-off).
+
+- **Ed25519 device proof.** Every `deviceProof` request must carry
+  `x-happy-device-proof` — a base64 JSON envelope from `@slopus/happy-wire`
+  (`publicDeviceAuth.ts`) whose canonical string binds `method + path + keyId +
+  publicKey + nonce + issuedAt + bodyHash`. Verification is fail-closed:
+  well-formed → pinned public key → freshness (5-min window, +1-min skew) →
+  single-use nonce → signature over method + path. The verifier is **mutable**
+  (`enroll()` TOFU-pins device keys) and shared across HTTP + socket transports
+  so a nonce is consumed exactly once everywhere.
+- **Body-hash binding.** A `preValidation` guard recomputes the raw body's
+  SHA-256 and rejects (`401`) unless it matches the signed `bodyHash`; it
+  fail-closes when the raw body cannot be captured. The `onRequest` guard only
+  verifies method + path because it runs before body parse.
+- **Socket.IO handshake.** The proof is required on both the websocket and
+  polling transports (fixed binding `GET /v1/updates`); the old fail-open tunnel
+  branch is closed. Because the socket nonce is strict single-use, clients
+  connect `reconnection: false` + single transport.
+- **Cloudflare Access edge.** `checkEdgeAccess` re-validates
+  `CF-Access-Client-Id` / `CF-Access-Client-Secret` (constant-time) so the edge
+  expectation is fail-closed even if a request bypasses the edge; the edge
+  itself returns `403` on missing/incorrect tokens.
+- CORS allowlists in `app/api/api.ts` and `app/api/socket.ts` additionally
+  include the device-proof and Cloudflare Access headers for browser preflight.
+- Uses `privacyKit.decodeBase64` / `encodeBase64` for envelope bytes; keep the
+  4-space-tab, `.spec.ts` conventions when touching this module.
 
 ## Production Deployment (NOT needed for local standalone dev)
 
