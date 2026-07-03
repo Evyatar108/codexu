@@ -1719,6 +1719,10 @@
         {
           "className": "cmd-warn",
           "html": "Operator ask 2026-07-02: assess conflict surface vs upstream slopus/happy + decide rebase/merge cadence + identify refactors to shrink conflict surface (mirror codex-rs-overlay + patch-surface discipline). Fork diverged a lot (e-ink, autoconnect, public server + Ed25519 verifier, agent-comms, subagent-sessions). Investigation spawned: resolve topology, quantify divergence, find inline-edit hotspots, recommend overlay/extension-point refactors + a rebase strategy."
+        },
+        {
+          "className": "cmd-ok",
+          "html": "Assessment shipped @ (see commit): TOPOLOGY = codexu happy-* is a vendored HISTORY-DETACHED copy with NO git merge-base to slopus/happy; standalone Evyatar108/happy frozen 2026-05-02 (outbound-PR staging only). So intake = SELECTIVE cherry-pick/manual port, NOT rebase/big-bang merge. DIVERGENCE: 359 inline-edited files, 187 hard-conflict (app 101 / cli 58 / server 23); ~194 commits / ~2 releases / ~2 months behind (latest cli-1.1.10 2026-06-23). HOTSPOTS: sync.ts (core rewrite), apiSession.ts (E2E dropped), socket.ts+api.ts (fail-open handshake/authenticateTunnel no-op = deleted auth plane), storage.ts/reducer.ts, index.ts+schema.prisma (single-tenant collapse). Additive dirs (codex/agentComms/tunnel) = ZERO conflict. STRATEGY: release-anchored selective intake + new docs/happy-patch-surface.md invariant catalogue (codex-style); milestones M0 baseline+catalogue -> M1 D-002 auth+E2E restore-as-overlay -> M2 app -> M3 cli -> M4 server. REFACTORS: R1 restore upstream enableAuthentication + single-user OVERLAY (HIGH), R2 re-activate encrypt/decrypt call sites (HIGH), R3 extract assertOperatorIdentityGate to fork hook (MED), R4 inline codex/daemon wiring -> forkHooks.onXxx (MED), R6/R7 .gitattributes merge=union/ours. First merge SOON but triaged+package-sequenced."
         }
       ]
     }
