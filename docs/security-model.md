@@ -4,6 +4,8 @@ Audience: developers working on Happy's daemon, server, agent, and app transport
 
 This document records the current Dev Tunnels security contract. The Happy-specific tunnel claim layer has been removed. Remote callers are admitted by the Microsoft Dev Tunnels gateway using `X-Tunnel-Authorization: tunnel <connect-jwt>`; local callers are admitted by the loopback capability token. The removed X25519 RPC payload encryption layer remains out of the current transport contract.
 
+There is also an **opt-in, default-off** public exposure mode — a single-user public happy-server at `https://happy.evyatar.dev` fronted by an outbound Cloudflare named tunnel — with its own fail-closed application-layer boundary. It is documented in [Optional Public Mode](#optional-public-mode-single-user-evyatardev-server-opt-in-default-off) below. When the mode is not enabled, everything else in this document is unchanged.
+
 ## Trust Model
 
 The Dev Tunnels design uses two independent gates:
@@ -45,6 +47,64 @@ The operator identity gate is the pair **Dev Tunnels gateway + `127.0.0.1` bind*
 Identity is read at pair time from `~/.happy/profile.json` (written by `happy auth login --force` on the daemon machine via a one-time GitHub device flow against `Iv1.e7b89e013f801f03`, the public devtunnel OAuth app). The previous `HAPPY_TUNNEL_GITHUB_OWNER` enforcement gate was removed during BOOX validation 2026-05-13, and the later Happy claim layer was removed by the remove-tunnel-claim-layer plan. Tunnel ownership at the Dev Tunnels gateway is now the only remote identity gate. Anyone who has the daemon's local filesystem AND can reach its Dev Tunnel **is** the operator. This is appropriate for the single-operator personal-fork posture; a public multi-tenant deployment would need to reintroduce a per-tunnel ownership check.
 
 The Prometheus metrics endpoint is unchanged by this work. In standalone mode it still binds according to its configured host, including `0.0.0.0` when requested, and it does not use Dev Tunnels or loopback capability authentication.
+
+## Optional Public Mode: Single-User evyatar.dev Server (opt-in, default-off)
+
+Shipped and verified 2026-07. This mode exposes the operator's **own embedded per-daemon single-tenant** happy-server (exactly one user per process) publicly at `https://happy.evyatar.dev` through an **outbound-only** Cloudflare named tunnel, because the operator's corporate policy blocks Microsoft Dev Tunnels. It is **not** a return to a central multi-tenant server and **not** a Cloudflare "provider-swap" of the retired central instance — it is still the per-daemon embedded server, and Cloudflare is mandatory edge defense-in-depth layered on top of a new fail-closed app-layer verifier, never the boundary by itself.
+
+It is enabled only when the operator sets `HAPPY_TUNNEL_PROVIDER=cloudflare` **and** supplies a valid `~/.happy/public-tunnel.json` (hostname, tunnel name, and at least one Cloudflare Access service token). Absent either, the daemon keeps the Dev Tunnels + loopback contract described above, unchanged. Codex `/remote on` stays LOOPBACK-only (it attaches to the local `127.0.0.1` daemon listener and never targets the public URL).
+
+Two independent gates protect public mode, layered defense-in-depth. The **app-layer Ed25519 paired-device verifier is the PRIMARY boundary**; the **Cloudflare Access service-token edge is MANDATORY defense-in-depth in front of it**. The verifier ships and passes its decisive route-inventory acceptance test independently of the edge, so the boundary never depends on Cloudflare's correctness.
+
+### Primary boundary: fail-closed Ed25519 paired-device verifier
+
+`packages/happy-server/sources/app/api/auth/remoteDeviceAuth.ts` verifies an Ed25519 signature from an already-paired, TOFU-pinned device on every public-mode request. The signed-request envelope, canonicalization, and deterministic cross-runtime test vectors live in `@slopus/happy-wire` (`publicDeviceAuth.ts`) so server, app, cli, and codex cannot drift:
+
+- The device signs a domain-separated canonical string binding `method + path + keyId + publicKey + nonce + issuedAt + bodyHash` (domain prefix `happy-public-device-proof/v1`).
+- The base64 JSON envelope rides the `x-happy-device-proof` header on both HTTP and the Socket.IO handshake.
+- Verification is fail-closed and enforces, in order: well-formed envelope → known + pinned public key (pinned exactly, no rebind) → freshness (`issuedAt` within a 5-minute window, +1-minute forward clock skew) → **strict single-use nonce** (replay cache) → cryptographic signature bound to method + path. Any failure returns 401 with no key material.
+- The same verifier instance backs BOTH the HTTP guard and the socket handshake, so a nonce is consumed exactly once across transports.
+
+### Mandatory edge: Cloudflare Access service tokens
+
+A Cloudflare Access self-hosted application on `happy.evyatar.dev` (Zero Trust org `evyatar-codexu.cloudflareaccess.com`) enforces a service-token (`non_identity`) policy. Every request must carry `CF-Access-Client-Id` + `CF-Access-Client-Secret`; the edge rejects missing/incorrect tokens with **403** before the request reaches the origin, and valid tokens pass through to the app-layer verifier. The server independently re-checks the service-token headers (`checkEdgeAccess`, constant-time compare) so the edge expectation is fail-closed even if a request bypasses the edge. Verified end-to-end: `/health` without a token → 403, with a valid token → 200; the WS upgrade is gated identically. mTLS is explicitly out of scope until the app has native client-certificate storage.
+
+### Global default-deny + explicit route allowlist
+
+Public mode is **not** secured by piecemeal per-route `preHandler`s. `configureApi()` installs a global fail-closed Fastify `onRequest` hook **before any route is registered**, and every method/path is denied (401) unless it appears in the explicit `PUBLIC_ROUTE_POLICY_ALLOWLIST` with a named policy:
+
+- `deviceProof` — requires a valid Ed25519 device proof (and the edge headers). Covers `/health`, `/`, `/files/*`, version/dev routes, `/pair/connect`, push routes, `/v2/me/*`, and the session routes.
+- `pairComplete` — the ONLY pre-enrollment policy (`/pair/complete`): it passes the edge check then reaches the handler, which enforces the operator pairing window + QR secret + replay (see Enrollment below). It never requires a device proof because the device is not yet paired.
+
+Any newly registered route that is not deliberately added to the allowlist **fails closed**. The decisive acceptance test derives the route inventory from the live Fastify app (not a hand-maintained list) and asserts every non-allowlisted route returns 401 with no key material.
+
+### Body-hash binding
+
+The `onRequest` guard verifies the signature over method + path only, because it runs before the body is parsed — so a valid proof would otherwise authorize any body. A second `preValidation` `bodyHashGuard` runs after the raw body is captured, recomputes the SHA-256 body hash, and rejects (401) unless it matches the authenticated envelope's signed `bodyHash`, closing the body-swap gap. Fail-closed: a body-bearing route whose raw body cannot be captured hashes to the empty-body hash, which will not match a non-empty signed hash, so it is rejected too.
+
+### Socket.IO handshake (websocket + polling)
+
+The socket middleware demands a device proof on BOTH the websocket and polling transports (the old fail-open tunnel branch is closed), using a fixed proof binding of `GET /v1/updates`. CORS/allowedHeaders are extended to carry the device-proof and CF-Access headers for browser preflight. Because the socket nonce is **strict single-use**, the app must connect with `reconnection: false` and a single transport — a reused nonce always fails closed.
+
+### Enrollment (TOFU device pinning)
+
+First contact is explicit and operator-gated; there is no open self-enrollment:
+
+1. When the daemon brings up the public listener it emits a one-time **public pairing invite** (`@slopus/happy-wire` `publicPairingInvite.ts`): a compact base64url `{ version, serverUrl, machineId, pairSecret, cloudflareAccess: { clientId, clientSecret }, issuedAt, expiresAt }` (default 10-minute TTL), surfaced via QR or manual entry.
+2. The app imports the invite and validates the server using the CF-Access headers from the invite.
+3. The app calls `POST /pair/complete` with the CF-Access headers, the pre-shared pairing secret (`x-happy-pairing-secret`), a single-use pairing nonce (`x-happy-pairing-nonce`), and its device public key. The pairing gate returns key material **only** inside the operator-opened window with a valid secret and an unused nonce; everything else → 401.
+4. On success the device Ed25519 public key is **TOFU-pinned** into the live verifier (`enroll()`), visible immediately to both the HTTP guard and the socket handshake. Re-enroll of the same `(keyId, publicKey)` is idempotent; a conflicting public key for an already-pinned `keyId` is refused (`device_key_conflict` → 409) and never overwrites the pin.
+5. happy-cli persists pinned devices to `~/.happy/public-paired-devices.json` (via the `onDeviceEnrolled` hook) so pins survive a daemon restart.
+6. Thereafter the app presents the device proof (`x-happy-device-proof`) plus the CF-Access headers on **every** HTTP request and on the Socket.IO handshake (polling and websocket).
+
+### Public-mode threat model summary
+
+- **Default-deny.** Un-allowlisted routes and un-proofed requests fail closed (401); the route inventory is derived from the live app so a new route cannot silently open a hole.
+- **Replay protection.** Single-use nonces on both the device proof (shared across HTTP + ws/polling) and the `/pair/complete` pairing nonce; freshness-bounded proofs with a bounded clock-skew allowance.
+- **Body-hash binding.** The signed proof commits to the exact request body, so a captured proof cannot be replayed against a different body.
+- **TOFU device pinning.** Only operator-enrolled device keys can present proofs; a pinned key cannot be silently rebound.
+- **Edge defense-in-depth.** The mandatory Cloudflare Access service-token layer rejects unauthenticated traffic (HTTP + WS upgrade) at the edge before it reaches the origin, and the origin re-checks it.
+- **Non-goals.** Multi-tenant isolation, key revocation for a lost device, and Cloudflare mTLS are out of scope for the single-user posture; a public multi-user deployment would need all three.
 
 ## Replay Protection (post-claim removal)
 

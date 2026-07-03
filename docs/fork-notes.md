@@ -266,25 +266,85 @@ This is the workflow the 2026-04-22 batch used after the merge: Metro on `/d/h` 
 > The Cloudflare + Windows-services material below is kept for historical /
 > recovery reference only.
 >
-> **SCOPED SUPERSESSION (operator-approved 2026-06-29, task
-> `remote-connectivity-single-user-public-evyatar-server`).** For that ONE
-> task, `happy.evyatar.dev` + a Cloudflare named tunnel are being brought back
-> **deliberately**, but with a different meaning than the retired central
-> instance: it fronts the operator's **own embedded per-daemon single-tenant
-> happy-server** (still no central broker, still exactly one user per process),
-> chosen because the operator's corporate policy blocks Microsoft Dev Tunnels.
-> Cloudflare Access is **mandatory edge defense-in-depth on top of** a new
-> fail-closed app-layer Ed25519 paired-device verifier — it is NOT the boundary
-> on its own, and this is NOT a "Cloudflare provider-swap" of the old central
-> server. The app-layer verifier must ship and pass its decisive route-inventory
-> acceptance test before any public-bind/Cloudflare exposure lands. Opt-in,
-> default-off; the Dev Tunnels/loopback path stays unchanged. This supersession
-> is scoped to that single task only; every other connectivity task still
-> follows the blanket guardrail above.
+> **SCOPED SUPERSESSION — SHIPPED + VERIFIED 2026-07 (operator-approved
+> 2026-06-29, task `remote-connectivity-single-user-public-evyatar-server`).**
+> For that ONE task, `happy.evyatar.dev` + a Cloudflare named tunnel were
+> brought back **deliberately**, but with a different meaning than the retired
+> central instance: the URL now fronts the operator's **own embedded per-daemon
+> single-tenant happy-server** (still no central broker, still exactly one user
+> per process), chosen because the operator's corporate policy blocks Microsoft
+> Dev Tunnels. Cloudflare Access is **mandatory edge defense-in-depth on top
+> of** a fail-closed app-layer Ed25519 paired-device verifier — it is NOT the
+> boundary on its own, and this is NOT a "Cloudflare provider-swap" of the old
+> central server. The app-layer verifier shipped and passed its decisive
+> route-inventory acceptance test (default-deny; every un-allowlisted route →
+> 401) as the primary boundary, and the Cloudflare Access service-token edge is
+> live and verified (`/health` without a token → 403, with a valid token →
+> 200). Opt-in, default-off; the Dev Tunnels/loopback path is unchanged, and
+> codex `/remote on` stays LOOPBACK-only. This supersession remains scoped to
+> that single task only; every other connectivity task still follows the
+> blanket guardrail above. Full threat model:
+> [`docs/security-model.md` → Optional Public Mode](security-model.md#optional-public-mode-single-user-evyatardev-server-opt-in-default-off).
+> The public-mode operational shape (opt-in env var, `public-tunnel.json`,
+> outbound named tunnel) is in the **[Single-user public mode](#single-user-public-mode-opt-in-shipped)**
+> subsection below; the central `ingress: http://localhost:3005` setup in the
+> rest of this section is the RETIRED historical instance, kept for reference.
 
-Happy-server runs from `D:\harness-efforts\happy` via `pnpm --filter happy-server standalone:dev` (embedded PGlite, no Docker) on `http://localhost:3005`. A named Cloudflare Tunnel fronts it at the stable URL **`https://happy.evyatar.dev`**. The `cloudflared` binary is installed at `C:\Program Files (x86)\cloudflared\cloudflared.exe` (via `winget install Cloudflare.cloudflared`); config lives at `~/.cloudflared/`.
+**Retired central setup (historical reference only — superseded by the opt-in
+single-user public mode above).** Happy-server runs from `D:\harness-efforts\happy` via `pnpm --filter happy-server standalone:dev` (embedded PGlite, no Docker) on `http://localhost:3005`. A named Cloudflare Tunnel fronts it at the stable URL **`https://happy.evyatar.dev`**. The `cloudflared` binary is installed at `C:\Program Files (x86)\cloudflared\cloudflared.exe` (via `winget install Cloudflare.cloudflared`); config lives at `~/.cloudflared/`.
 
-### Current setup (as of 2026-04-22)
+### Single-user public mode (opt-in, shipped)
+
+This is the CURRENT, shipped way to reach a per-daemon happy-server over
+`happy.evyatar.dev` — distinct from the retired central `ingress:
+http://localhost:3005` setup documented in the rest of this section. It is
+**opt-in and default-off**: the daemon keeps its Dev Tunnels + loopback
+behavior unless you deliberately enable it.
+
+- **Opt-in switch:** set `HAPPY_TUNNEL_PROVIDER=cloudflare` (case-insensitive)
+  and supply a `~/.happy/public-tunnel.json`. Absent either, nothing changes.
+- **`public-tunnel.json` shape (carries secrets — mode `0600`, never commit):**
+  ```jsonc
+  {
+    "hostname": "happy.evyatar.dev",          // your Access-protected hostname
+    "tunnelName": "<named-cloudflare-tunnel>", // pre-created via `cloudflared tunnel create`
+    "cloudflareAccess": {
+      "serviceTokens": [                        // >= 1 required; empty fail-closes
+        { "clientId": "<cf-access-client-id>", "clientSecret": "<cf-access-client-secret>" }
+      ]
+    },
+    "pairing": { "windowMs": 600000 },          // optional operator pairing window
+    "freshnessMs": 300000,                       // optional device-proof freshness (default 5 min)
+    "clockSkewMs": 60000                          // optional clock-skew allowance (default 1 min)
+  }
+  ```
+  (Values above are placeholders — real client IDs/secrets and tunnel
+  credentials never go in the repo.)
+- **Outbound-only tunnel:** `CloudflareTunnelDaemonProvider` runs `cloudflared
+  tunnel run` OUTBOUND-only — it dials the Cloudflare edge and forwards to
+  `127.0.0.1:<port>`; no inbound port is opened on the host. The named tunnel
+  must already exist (`cloudflared tunnel create`).
+- **Fail-closed startup:** `assertPublicBindReady()` refuses to bind publicly if
+  the config is missing or `serviceTokens` is empty — it never silently
+  downgrades to an unprotected public bind.
+- **Two-layer boundary:** a Cloudflare Access self-hosted application (service
+  token / `non_identity` policy; Zero Trust org
+  `evyatar-codexu.cloudflareaccess.com`) is mandatory edge defense-in-depth in
+  front of a fail-closed app-layer Ed25519 paired-device verifier (the primary
+  boundary). Full details + threat model in
+  [`docs/security-model.md`](security-model.md#optional-public-mode-single-user-evyatardev-server-opt-in-default-off).
+- **Enrollment:** the daemon emits a one-time public pairing invite (base64url;
+  server URL + machine id + pairing secret + Access client id/secret + TTL);
+  the app imports it, calls `/pair/complete` inside the operator window with the
+  QR/pairing secret, and its Ed25519 device key is TOFU-pinned. happy-cli
+  persists pinned devices to `~/.happy/public-paired-devices.json` so they
+  survive a daemon restart. The app then presents a device proof
+  (`x-happy-device-proof`) + the CF-Access headers on every HTTP request and on
+  the Socket.IO handshake, and must connect with `reconnection: false` +
+  a single transport (the socket nonce is strict single-use).
+
+
+### Current setup (retired central instance, as of 2026-04-22)
 
 - **Tunnel name:** `happy`
 - **Tunnel ID:** `ebd51c79-c883-4850-a9bd-403c1513ed36`
