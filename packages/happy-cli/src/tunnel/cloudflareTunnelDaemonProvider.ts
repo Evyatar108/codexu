@@ -199,25 +199,96 @@ export class CloudflareTunnelDaemonProvider implements DaemonTunnelProvider {
 
 /**
  * Extract the tunnel UUID matching `name` from `cloudflared tunnel list --output json`.
- * The output is a JSON array of `{ id, name, ... }` records; returns null when absent.
+ *
+ * The intended payload is a JSON array of `{ id, name, ... }` records, but real
+ * cloudflared output is not clean: it interleaves the array with human/log noise
+ * and — since ~2026.5.0 — an "outdated version" WARNING emitted as a SEPARATE
+ * top-level JSON object line AFTER the array, e.g.
+ *
+ *   [ { "id": "...", "name": "happy", ... } ]
+ *   {"level":"warn","message":"Your version ... is outdated ...","time":"..."}
+ *
+ * A naive `JSON.parse(output.slice(firstBracket))` throws on that trailing object
+ * (trailing data after the array) and used to make the daemon FATAL with
+ * "named tunnel was not found" even though the tunnel exists. To stay robust to
+ * leading/trailing/interleaved non-JSON, we scan for every balanced top-level
+ * JSON value (array or object), parse each independently, and search the flattened
+ * records. Returns null when the name is genuinely absent or nothing parses; it
+ * never throws. Both a bare array and a single object are supported.
  */
 export function parseCloudflareTunnelId(output: string, name: string): string | null {
-  const start = output.search(/[[{]/);
-  if (start < 0) return null;
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(output.slice(start));
-  } catch {
-    return null;
-  }
-  const records = Array.isArray(parsed) ? parsed : [parsed];
-  for (const record of records) {
-    if (record && typeof record === 'object') {
-      const rec = record as Record<string, unknown>;
-      if (rec.name === name && typeof rec.id === 'string' && rec.id.length > 0) {
-        return rec.id;
+  for (const value of extractTopLevelJsonValues(output)) {
+    const records = Array.isArray(value) ? value : [value];
+    for (const record of records) {
+      if (record && typeof record === 'object') {
+        const rec = record as Record<string, unknown>;
+        if (rec.name === name && typeof rec.id === 'string' && rec.id.length > 0) {
+          return rec.id;
+        }
       }
     }
   }
   return null;
+}
+
+/**
+ * Walk `output` and return every balanced top-level JSON value (array or object)
+ * that parses, ignoring any surrounding/interleaving non-JSON noise. A bracket that
+ * does not begin valid JSON (stray `[`/`{` in log text) is skipped and scanning
+ * resumes at the next character.
+ */
+function extractTopLevelJsonValues(output: string): unknown[] {
+  const values: unknown[] = [];
+  let index = 0;
+  while (index < output.length) {
+    const char = output[index];
+    if (char === '[' || char === '{') {
+      const end = findBalancedEnd(output, index);
+      if (end > index) {
+        try {
+          values.push(JSON.parse(output.slice(index, end + 1)));
+          index = end + 1;
+          continue;
+        } catch {
+          // Not valid JSON despite balanced brackets; treat as noise and advance.
+        }
+      }
+    }
+    index += 1;
+  }
+  return values;
+}
+
+/**
+ * Given the index of an opening `[`/`{`, return the index of its matching close
+ * bracket (respecting nested brackets and string literals), or -1 if unbalanced.
+ */
+function findBalancedEnd(output: string, start: number): number {
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+  for (let i = start; i < output.length; i += 1) {
+    const char = output[i];
+    if (inString) {
+      if (escaped) {
+        escaped = false;
+      } else if (char === '\\') {
+        escaped = true;
+      } else if (char === '"') {
+        inString = false;
+      }
+      continue;
+    }
+    if (char === '"') {
+      inString = true;
+    } else if (char === '[' || char === '{') {
+      depth += 1;
+    } else if (char === ']' || char === '}') {
+      depth -= 1;
+      if (depth === 0) {
+        return i;
+      }
+    }
+  }
+  return -1;
 }

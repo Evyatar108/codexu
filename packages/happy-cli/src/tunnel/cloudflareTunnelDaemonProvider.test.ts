@@ -58,6 +58,45 @@ describe('parseCloudflareTunnelId', () => {
     expect(parseCloudflareTunnelId(noisy, 'happy-evyatar')).toBe('11111111-2222-3333-4444-555555555555');
   });
 
+  it('finds the tunnel when an outdated-version WARNING object trails the array', () => {
+    // cloudflared >= 2026.5.0 appends this as a SEPARATE top-level JSON object line
+    // AFTER the tunnel-list array; a naive JSON.parse(slice) throws on the trailing data.
+    const withWarning =
+      `${TUNNEL_LIST_JSON}\n` +
+      `{"level":"warn","message":"Your version 2026.5.0 is outdated. We recommend upgrading.","time":"2026-05-11T00:00:00Z"}`;
+    expect(parseCloudflareTunnelId(withWarning, 'happy-evyatar')).toBe('11111111-2222-3333-4444-555555555555');
+  });
+
+  it('finds the tunnel when a warning object leads the array', () => {
+    const leadingWarning =
+      `{"level":"warn","message":"Your version is outdated.","time":"2026-05-11T00:00:00Z"}\n` +
+      `${TUNNEL_LIST_JSON}`;
+    expect(parseCloudflareTunnelId(leadingWarning, 'happy-evyatar')).toBe('11111111-2222-3333-4444-555555555555');
+  });
+
+  it('resolves a single bare object (not wrapped in an array)', () => {
+    const single = JSON.stringify({ id: '99999999-0000-0000-0000-000000000000', name: 'happy-evyatar' });
+    expect(parseCloudflareTunnelId(single, 'happy-evyatar')).toBe('99999999-0000-0000-0000-000000000000');
+  });
+
+  it('resolves a single object even with a trailing warning object', () => {
+    const single =
+      `${JSON.stringify({ id: '99999999-0000-0000-0000-000000000000', name: 'happy-evyatar' })}\n` +
+      `{"level":"warn","message":"outdated"}`;
+    expect(parseCloudflareTunnelId(single, 'happy-evyatar')).toBe('99999999-0000-0000-0000-000000000000');
+  });
+
+  it('does not match a name that only appears inside the warning object', () => {
+    const withWarning =
+      `${TUNNEL_LIST_JSON}\n` +
+      `{"level":"warn","name":"decoy","message":"outdated"}`;
+    expect(parseCloudflareTunnelId(withWarning, 'decoy')).toBeNull();
+  });
+
+  it('returns null on malformed JSON after the opening bracket', () => {
+    expect(parseCloudflareTunnelId('[ { "id": "x", "name": "happy-evyatar" ', 'happy-evyatar')).toBeNull();
+  });
+
   it('returns null on non-JSON output', () => {
     expect(parseCloudflareTunnelId('cloudflared: command not found', 'happy-evyatar')).toBeNull();
   });
