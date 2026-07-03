@@ -163,6 +163,10 @@ before that date; the upstream release cadence around the import was `cli-1.1.7`
 `cli-v1.1.8-evy.*` tags in the mirror are *fork* tags, not upstream). So `cli-1.1.8` is the tightest
 defensible upstream anchor for the imported tree.
 
+**Corroborating signal.** The fork's own `packages/happy-cli/package.json` version is
+`happy@1.1.8-evy.11` — a fork-suffixed derivative of upstream `1.1.8`, directly consistent with a
+`cli-1.1.8` import base (independent of the tree-sampling above).
+
 **SHA-resolution gotcha.** `gh api repos/slopus/happy/releases/tags/cli-1.1.10` returns
 `target_commitish: "main"` (the release's *branch*, not its commit). Resolve exact release SHAs via the
 mirror clone's tags (`git -C D:/harness-efforts/happy rev-list -n1 <tag>`), **not** the API
