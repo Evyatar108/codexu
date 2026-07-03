@@ -146,7 +146,58 @@ tree-matched, update this record + the header + the [§9 cadence](#9-ownership--
 
 ## 7. `.gitattributes` merge policy
 
-<!-- M0-S3: gitattributes policy + i18n dedupe finding -->
+The repo-root [`.gitattributes`](../.gitattributes) carries the fork's import-merge strategies.
+
+| Path pattern | Strategy | Rationale |
+|---|---|---|
+| `pnpm-lock.yaml` | `merge=ours` | Tracked by **both** upstream and the fork; conflicts on nearly every import. On import (fork = "ours") we keep the fork lockfile and re-run `pnpm install`. High-value rule. |
+| `packages/happy-wire/dist/**`, `packages/happy-agent/dist/**` | `merge=ours` (defensive) | Committed build outputs. **Upstream tracks 0 dist files** (it gitignores `dist/`), so these do not actually conflict on an upstream import — the rule is belt-and-suspenders in case upstream ever starts tracking them. |
+| `packages/happy-app/sources/text/**` | **NOT `merge=union`** — deliberately omitted | See the i18n dedupe finding below. |
+
+### Required one-time setup (`merge=ours` driver)
+
+Git has **no built-in `ours` merge driver**; `.gitattributes merge=ours` is inert until the driver is
+defined in repo-local config (which is **not** committed). On the import host, run once:
+
+```bash
+git config merge.ours.driver true
+```
+
+Without it, the `merge=ours` lines fall back to a normal 3-way merge (git prints a
+"merge driver ours not defined" warning). Add this to the import runbook.
+
+### i18n dedupe finding (open question #4 — resolved: `merge=union` is UNSAFE)
+
+The plan floated `packages/happy-app/sources/text/** merge=union` to auto-collapse the recurring
+mechanical translation conflicts. **Verified unsafe — not applied.** Evidence:
+
+- The translation files are **typed nested TS object modules** (`sources/text/_default.ts` +
+  `sources/text/translations/<code>.ts`), each constrained to `TranslationStructure` and cross-checked
+  by a parity test (`sources/text/translations.test.ts`). They are **not** flat key=value resource
+  files (`.properties` / `strings.xml`) where `union` is idiomatic.
+- **`tsc --strict` rejects duplicate object-literal keys with error `TS1117`** ("An object literal
+  cannot have multiple properties with the same name") — empirically confirmed in this worktree. A
+  `union` merge that concatenates both sides of a conflicting hunk readily produces duplicate keys,
+  which then **fail the type build**.
+- The runtime loader (`t(...)` in `sources/text/index.ts`) navigates the object by dot-path with JS
+  last-wins semantics, so it *would* tolerate duplicate keys **at runtime** — but the build (`tsc`) and
+  the parity test gate first, so runtime tolerance is moot.
+- `union` also concatenates hunks blindly, so a conflict spanning a multi-line arrow-function
+  translation value can splice two partial fragments into **syntactically invalid** TS.
+
+**Direction (deferred to M2+, tracked as R6).** The correct fix for translation-merge churn is a
+**fork-namespace strings file** (fork-added keys live in a separate module the importer never
+conflicts on), not a mechanical union merge. Until then, translation conflicts are resolved by the
+normal manual three-way merge (see the [§5 happy-app inventory](#5-happy-app-inventory-ha) `HA-7` row).
+
+### gitignore-alignment note (deferred)
+
+`packages/happy-wire/dist/**` and `packages/happy-agent/dist/**` are **tracked despite** the root
+`.gitignore` `dist/` rule (they were force-added so workspace consumers get prebuilt output without a
+build step; upstream does not do this). Aligning that inconsistency (untracking + relying on a build
+step, or force-tracking explicitly) is a **packaging change** and is out of scope for M0 (docs +
+markers + attributes, no behavior change). Flagged here for a later milestone.
+
 
 ## 8. Replant notes
 

@@ -1,0 +1,22 @@
+# Happy fork merge strategies. Rationale + the required one-time `merge=ours`
+# driver setup are documented in docs/happy-patch-surface.md §7.
+
+# pnpm-lock.yaml is tracked by BOTH upstream (slopus/happy) and this fork and
+# conflicts on nearly every upstream import. On import (fork = "ours") we keep
+# the fork lockfile and re-run `pnpm install`, so take-ours is correct.
+# NOTE: requires `git config merge.ours.driver true` on the import host (see §7);
+# without it this line is inert (falls back to a normal 3-way merge).
+pnpm-lock.yaml merge=ours
+
+# Committed build outputs. Upstream gitignores dist/ (tracks 0 dist files), so
+# these do not actually conflict on an upstream import — this is a defensive
+# belt-and-suspenders rule. The real issue is a gitignore-alignment
+# inconsistency (these are tracked despite the root `dist/` ignore); untracking
+# is a packaging change deliberately deferred out of M0. See §7.
+packages/happy-wire/dist/** merge=ours
+packages/happy-agent/dist/** merge=ours
+
+# NOTE: `merge=union` is deliberately NOT applied to
+# packages/happy-app/sources/text/** — the translation files are typed nested
+# TS object modules, and a union merge that produces duplicate keys fails the
+# type build (tsc TS1117). See docs/happy-patch-surface.md §7 (open question #4).
