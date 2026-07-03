@@ -1,11 +1,17 @@
 import { spawn, spawnSync, type ChildProcess } from 'node:child_process';
+import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
+import { homedir } from 'node:os';
+import { join } from 'node:path';
 
+import { configuration } from '@/configuration';
 import { logger } from '@/ui/logger';
 import type { CommandRunner, ProcessSpawner } from './tunnelManager';
 import type { CreateHostTunnelOptions, DaemonTunnelProvider, LoadHostTunnelOptions } from './provider';
 import { TunnelConfigSchema, type TunnelConfig } from './types';
 
 const DEFAULT_CLOUDFLARED_COMMAND = 'cloudflared';
+const DAEMON_CONFIG_DIR_NAME = 'cloudflared';
+const DAEMON_CONFIG_FILE_NAME = 'config.yml';
 
 // Hostnames like `happy.evyatar.dev`: dotted labels of alphanumerics/hyphens, no leading/trailing hyphen per label.
 const HOSTNAME_PATTERN = /^(?=.{1,253}$)([A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?)(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?)+$/;
@@ -44,6 +50,24 @@ export type CloudflareTunnelDaemonProviderOptions = {
   cloudflaredCommand?: string;
   /** When true (default), idempotently ensure the DNS route exists before running. */
   ensureDnsRoute?: boolean;
+  /**
+   * Directory the daemon writes its OWN cloudflared config into. Defaults to
+   * `<happyHomeDir>/cloudflared`. Kept separate from the global `~/.cloudflared`
+   * so the daemon's ingress is authoritative and never merges with a stray
+   * operator-global `config.yml`.
+   */
+  configDir?: string;
+  /**
+   * Directory holding the tunnel credentials JSON (`<tunnel-id>.json`) that
+   * `cloudflared tunnel create` writes. Defaults to `~/.cloudflared`.
+   */
+  cloudflaredHomeDir?: string;
+};
+
+/** Values resolved during {@link CloudflareTunnelDaemonProvider.prepare} and reused when spawning the host. */
+type CloudflaredRunContext = {
+  tunnelId: string;
+  credentialsFile: string;
 };
 
 /**
@@ -67,6 +91,8 @@ export class CloudflareTunnelDaemonProvider implements DaemonTunnelProvider {
   private readonly now: () => Date;
   private readonly cloudflared: string;
   private readonly ensureDns: boolean;
+  private readonly configDir: string;
+  private readonly cloudflaredHomeDir: string;
   private hostProcess: ChildProcess | null = null;
 
   constructor(options: CloudflareTunnelDaemonProviderOptions) {
@@ -85,11 +111,13 @@ export class CloudflareTunnelDaemonProvider implements DaemonTunnelProvider {
     this.now = options.now ?? (() => new Date());
     this.cloudflared = options.cloudflaredCommand ?? DEFAULT_CLOUDFLARED_COMMAND;
     this.ensureDns = options.ensureDnsRoute ?? true;
+    this.configDir = options.configDir ?? join(configuration.happyHomeDir, DAEMON_CONFIG_DIR_NAME);
+    this.cloudflaredHomeDir = options.cloudflaredHomeDir ?? join(homedir(), '.cloudflared');
   }
 
   async createHostTunnel(options: CreateHostTunnelOptions): Promise<TunnelConfig> {
-    const config = await this.prepare();
-    this.startHost(options.port);
+    const { config, runContext } = await this.prepare();
+    this.startHost(options.port, runContext);
     return config;
   }
 
@@ -102,8 +130,8 @@ export class CloudflareTunnelDaemonProvider implements DaemonTunnelProvider {
         `ignoring additionalPorts ${options.additionalPorts.join(',')}`,
       );
     }
-    const config = await this.prepare();
-    this.startHost(options.port);
+    const { config, runContext } = await this.prepare();
+    this.startHost(options.port, runContext);
     return config;
   }
 
@@ -117,18 +145,20 @@ export class CloudflareTunnelDaemonProvider implements DaemonTunnelProvider {
     this.hostProcess = null;
   }
 
-  private async prepare(): Promise<TunnelConfig> {
+  private async prepare(): Promise<{ config: TunnelConfig; runContext: CloudflaredRunContext }> {
     this.assertCloudflaredInstalled();
     const tunnelId = this.resolveTunnelId();
+    const credentialsFile = this.resolveCredentialsFile(tunnelId);
     if (this.ensureDns) {
       this.ensureDnsRoute();
     }
-    return TunnelConfigSchema.parse({
+    const config = TunnelConfigSchema.parse({
       tunnelId,
       tunnelName: this.tunnelName,
       tunnelUrl: `https://${this.hostname}`,
       createdAt: this.now().toISOString(),
     });
+    return { config, runContext: { tunnelId, credentialsFile } };
   }
 
   private assertCloudflaredInstalled(): void {
@@ -158,6 +188,26 @@ export class CloudflareTunnelDaemonProvider implements DaemonTunnelProvider {
     return tunnelId;
   }
 
+  /**
+   * Resolve the tunnel credentials JSON that `cloudflared tunnel create` wrote for
+   * this tunnel (default `~/.cloudflared/<tunnel-id>.json`). It is referenced by the
+   * daemon-owned config so `cloudflared tunnel run` can authenticate the tunnel by
+   * UUID without needing `cert.pem`. Fails loud when absent rather than letting
+   * cloudflared start against an unexpected credentials location.
+   */
+  private resolveCredentialsFile(tunnelId: string): string {
+    const credentialsFile = join(this.cloudflaredHomeDir, `${tunnelId}.json`);
+    if (!existsSync(credentialsFile)) {
+      throw new Error(
+        `Cloudflare tunnel credentials file for "${this.tunnelName}" (${tunnelId}) was not found at ` +
+        `${credentialsFile}. \`cloudflared tunnel create ${this.tunnelName}\` writes this file; re-run ` +
+        `tunnel creation, or set cloudflaredHomeDir to the directory that holds <tunnel-id>.json. ` +
+        `(Follow-up: a non-default credentials location is not yet auto-discovered.)`,
+      );
+    }
+    return credentialsFile;
+  }
+
   private ensureDnsRoute(): void {
     const result = this.runner(this.cloudflared, ['tunnel', 'route', 'dns', this.tunnelName, this.hostname]);
     if (result.status === 0) {
@@ -173,17 +223,27 @@ export class CloudflareTunnelDaemonProvider implements DaemonTunnelProvider {
     );
   }
 
-  private startHost(localPort: number): void {
+  private startHost(localPort: number, runContext: CloudflaredRunContext): void {
     if (this.hostProcess) return;
+
+    // BUG 2 FIX: make the daemon's ingress authoritative regardless of any global
+    // `~/.cloudflared/config.yml`. cloudflared reads the global config.yml by default,
+    // and its `ingress:` rules WIN over `--url` — a stale operator config (e.g. one
+    // routing the hostname at a now-dead origin) silently caused every request through
+    // the tunnel to 502. We instead write our OWN config with an explicit ingress and
+    // run `cloudflared tunnel --config <ours> run`, so the global config is NOT consulted
+    // (passing --config overrides the default config path entirely). The config pins the
+    // tunnel by UUID + credentials-file so no `cert.pem` lookup is needed at run time.
+    const configPath = this.writeDaemonConfig(localPort, runContext);
 
     // Outbound-only: cloudflared connects OUT to the Cloudflare edge and forwards
     // inbound HTTPS to the embedded server on loopback. No inbound port is opened here.
+    // `--config` must precede `run` (it is a `tunnel` command option, not a `run` option).
     this.hostProcess = this.spawner(this.cloudflared, [
       'tunnel',
+      '--config',
+      configPath,
       'run',
-      '--url',
-      `http://127.0.0.1:${localPort}`,
-      this.tunnelName,
     ]);
     this.hostProcess.on('error', (error) => {
       logger.debug(`[CF-TUNNEL] cloudflared host failed for ${this.tunnelName}: ${error.message}`);
@@ -193,7 +253,35 @@ export class CloudflareTunnelDaemonProvider implements DaemonTunnelProvider {
       this.hostProcess = null;
     });
     this.hostProcess.unref?.();
-    logger.debug(`[CF-TUNNEL] Started cloudflared host for ${this.tunnelName} -> 127.0.0.1:${localPort}`);
+    logger.debug(`[CF-TUNNEL] Started cloudflared host for ${this.tunnelName} (config ${configPath}) -> 127.0.0.1:${localPort}`);
+  }
+
+  /**
+   * Write the daemon-owned cloudflared config that makes the ingress authoritative.
+   * Lives under a happy-owned dir (not `~/.cloudflared`) so it never merges with a
+   * stray global `config.yml`. Returns the config file path.
+   */
+  private writeDaemonConfig(localPort: number, runContext: CloudflaredRunContext): string {
+    mkdirSync(this.configDir, { recursive: true, mode: 0o700 });
+    const configPath = join(this.configDir, DAEMON_CONFIG_FILE_NAME);
+    // hostname/tunnelId are constrained (regex/UUID); the credentials path is the only
+    // free-form value, so single-quote it (YAML single-quotes take backslashes literally,
+    // which keeps Windows paths intact; a literal `'` is escaped by doubling).
+    const credentialsYaml = `'${runContext.credentialsFile.replace(/'/g, "''")}'`;
+    const yaml = [
+      `tunnel: ${runContext.tunnelId}`,
+      `credentials-file: ${credentialsYaml}`,
+      'ingress:',
+      `  - hostname: ${this.hostname}`,
+      `    service: http://127.0.0.1:${localPort}`,
+      '  - service: http_status:404',
+      '',
+    ].join('\n');
+    writeFileSync(configPath, yaml, { mode: 0o600 });
+    logger.debug(
+      `[CF-TUNNEL] Wrote daemon cloudflared config ${configPath} (ingress ${this.hostname} -> 127.0.0.1:${localPort})`,
+    );
+    return configPath;
   }
 }
 

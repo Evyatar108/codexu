@@ -1,12 +1,17 @@
 import { EventEmitter } from 'node:events';
-import { describe, expect, it, vi } from 'vitest';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { CloudflareTunnelDaemonProvider, parseCloudflareTunnelId } from './cloudflareTunnelDaemonProvider';
 import type { CommandResult, CommandRunner, ProcessSpawner } from './tunnelManager';
 
+const HAPPY_TUNNEL_ID = '11111111-2222-3333-4444-555555555555';
+
 const TUNNEL_LIST_JSON = JSON.stringify([
   { id: 'aaaaaaaa-1111-2222-3333-444444444444', name: 'other-tunnel' },
-  { id: '11111111-2222-3333-4444-555555555555', name: 'happy-evyatar' },
+  { id: HAPPY_TUNNEL_ID, name: 'happy-evyatar' },
 ]);
 
 type FakeChild = EventEmitter & { kill: ReturnType<typeof vi.fn>; unref: ReturnType<typeof vi.fn> };
@@ -103,6 +108,30 @@ describe('parseCloudflareTunnelId', () => {
 });
 
 describe('CloudflareTunnelDaemonProvider', () => {
+  // Bug 2 makes the daemon write its OWN cloudflared config (referencing the tunnel
+  // credentials file) instead of relying on the global `~/.cloudflared/config.yml`.
+  // These temp dirs stand in for the daemon config dir and the cloudflared home dir
+  // (which holds `<tunnel-id>.json`), so the tests exercise the real fs behavior
+  // without touching the operator's machine.
+  let configDir: string;
+  let cloudflaredHomeDir: string;
+
+  beforeEach(() => {
+    configDir = mkdtempSync(join(tmpdir(), 'happy-cf-config-'));
+    cloudflaredHomeDir = mkdtempSync(join(tmpdir(), 'happy-cf-home-'));
+    // The credentials file `cloudflared tunnel create` writes for the resolved tunnel.
+    writeFileSync(join(cloudflaredHomeDir, `${HAPPY_TUNNEL_ID}.json`), JSON.stringify({ TunnelID: HAPPY_TUNNEL_ID }));
+  });
+
+  afterEach(() => {
+    rmSync(configDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 50 });
+    rmSync(cloudflaredHomeDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 50 });
+  });
+
+  function daemonConfigPath(): string {
+    return join(configDir, 'config.yml');
+  }
+
   it('rejects an unsafe hostname before any subprocess runs', () => {
     expect(() => new CloudflareTunnelDaemonProvider({
       hostname: 'evil;rm -rf/',
@@ -131,6 +160,8 @@ describe('CloudflareTunnelDaemonProvider', () => {
       runner: makeRunner({ calls }),
       spawner,
       now: () => new Date('2026-05-11T12:00:00.000Z'),
+      configDir,
+      cloudflaredHomeDir,
     });
 
     const config = await provider.createHostTunnel({ port: 62000, machineId: 'machine-123' });
@@ -143,10 +174,21 @@ describe('CloudflareTunnelDaemonProvider', () => {
     });
     expect(calls).toContainEqual(['cloudflared', 'tunnel', 'list', '--output', 'json']);
     expect(calls).toContainEqual(['cloudflared', 'tunnel', 'route', 'dns', 'happy-evyatar', 'happy.evyatar.dev']);
+    // Bug 2: the daemon runs cloudflared with its OWN --config so the global
+    // ~/.cloudflared/config.yml can no longer override the intended ingress.
+    // No positional tunnel name and no --url: the config file is authoritative.
     expect(spawned).toEqual([[
-      'cloudflared', 'tunnel', 'run', '--url', 'http://127.0.0.1:62000', 'happy-evyatar',
+      'cloudflared', 'tunnel', '--config', daemonConfigPath(), 'run',
     ]]);
+    expect(spawned[0]).not.toContain('--url');
     expect(child.unref).toHaveBeenCalled();
+
+    const written = readFileSync(daemonConfigPath(), 'utf8');
+    expect(written).toContain(`tunnel: ${HAPPY_TUNNEL_ID}`);
+    expect(written).toContain(join(cloudflaredHomeDir, `${HAPPY_TUNNEL_ID}.json`));
+    expect(written).toContain('hostname: happy.evyatar.dev');
+    expect(written).toContain('service: http://127.0.0.1:62000');
+    expect(written).toContain('service: http_status:404');
   });
 
   it('loadHostTunnel starts the same outbound host and ignores additionalPorts', async () => {
@@ -162,13 +204,15 @@ describe('CloudflareTunnelDaemonProvider', () => {
         return child as unknown as ReturnType<ProcessSpawner>;
       },
       now: () => new Date('2026-05-11T12:00:00.000Z'),
+      configDir,
+      cloudflaredHomeDir,
     });
 
     const config = await provider.loadHostTunnel({ port: 62000, additionalPorts: [62001] });
 
     expect(config.tunnelUrl).toBe('https://happy.evyatar.dev');
     expect(spawned).toEqual([[
-      'cloudflared', 'tunnel', 'run', '--url', 'http://127.0.0.1:62000', 'happy-evyatar',
+      'cloudflared', 'tunnel', '--config', daemonConfigPath(), 'run',
     ]]);
   });
 
@@ -186,6 +230,8 @@ describe('CloudflareTunnelDaemonProvider', () => {
         },
       }),
       spawner: () => child as unknown as ReturnType<ProcessSpawner>,
+      configDir,
+      cloudflaredHomeDir,
     });
 
     await expect(provider.createHostTunnel({ port: 62000, machineId: 'm' })).resolves.toMatchObject({
@@ -222,11 +268,64 @@ describe('CloudflareTunnelDaemonProvider', () => {
       tunnelName: 'happy-evyatar',
       runner: makeRunner({ calls: [] }),
       spawner: () => child as unknown as ReturnType<ProcessSpawner>,
+      configDir,
+      cloudflaredHomeDir,
     });
 
     await provider.createHostTunnel({ port: 62000, machineId: 'm' });
     provider.stop();
 
     expect(child.kill).toHaveBeenCalledWith('SIGTERM');
+  });
+
+  it('fails loud when the tunnel credentials file is missing instead of silently 502-ing', async () => {
+    // Empty cloudflaredHomeDir: no `<tunnel-id>.json` present.
+    rmSync(join(cloudflaredHomeDir, `${HAPPY_TUNNEL_ID}.json`), { force: true });
+    const spawned: string[][] = [];
+    const provider = new CloudflareTunnelDaemonProvider({
+      hostname: 'happy.evyatar.dev',
+      tunnelName: 'happy-evyatar',
+      runner: makeRunner({ calls: [] }),
+      spawner: (command, args) => {
+        spawned.push([command, ...args]);
+        return makeFakeChild() as unknown as ReturnType<ProcessSpawner>;
+      },
+      configDir,
+      cloudflaredHomeDir,
+    });
+
+    await expect(provider.createHostTunnel({ port: 62000, machineId: 'm' }))
+      .rejects.toThrow(/credentials file.*was not found/);
+    // It must fail before spawning a cloudflared host that would 502.
+    expect(spawned).toEqual([]);
+  });
+
+  it('daemon config ingress overrides any global config (self-owned --config path is authoritative)', async () => {
+    const spawned: string[][] = [];
+    const child = makeFakeChild();
+    const provider = new CloudflareTunnelDaemonProvider({
+      hostname: 'happy.evyatar.dev',
+      tunnelName: 'happy-evyatar',
+      runner: makeRunner({ calls: [] }),
+      spawner: (command, args) => {
+        spawned.push([command, ...args]);
+        return child as unknown as ReturnType<ProcessSpawner>;
+      },
+      configDir,
+      cloudflaredHomeDir,
+    });
+
+    await provider.createHostTunnel({ port: 62000, machineId: 'm' });
+
+    // The spawn must reference our own --config (not defer to ~/.cloudflared/config.yml).
+    expect(spawned[0]).toContain('--config');
+    expect(spawned[0][spawned[0].indexOf('--config') + 1]).toBe(daemonConfigPath());
+
+    // And that config pins the ingress the daemon intends, with a catch-all 404 so a
+    // stale/foreign hostname rule cannot leak through.
+    const written = readFileSync(daemonConfigPath(), 'utf8');
+    expect(written).toMatch(/ingress:/);
+    expect(written).toMatch(/- hostname: happy\.evyatar\.dev\s+service: http:\/\/127\.0\.0\.1:62000/);
+    expect(written).toMatch(/- service: http_status:404/);
   });
 });
