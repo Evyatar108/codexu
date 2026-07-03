@@ -1701,6 +1701,26 @@
           "html": "Found during auto-attach dogfood 2026-07-02: happy_on_path() (daemon_supervisor.rs) checks file EXISTENCE not RESOLVABILITY, and spawn_happy_daemon() ignores child exit code. A dangling happy.cmd shim (missing node_modules/happy) passes the gate -> daemon exits MODULE_NOT_FOUND -> only caught by full start-budget timeout with generic message. Fix: capture daemon early exit/stderr so RemoteSessionNotice says WHY. Low-risk hardening; feature still fails LOUD (just slow+generic)."
         }
       ]
+    },
+    {
+      "id": "happy-upstream-conflict-surface-and-merge-strategy",
+      "scope": "codexu|happy",
+      "lifecycle": "tracked",
+      "status": "todo",
+      "command": {
+        "name": "happy-upstream-conflict-surface-and-merge-strategy",
+        "descriptionHtml": "Assess the conflict surface between our fork's happy-* packages and upstream slopus/happy, decide when/how to rebase/merge upstream updates, and identify refactors that would shrink the conflict surface for a smoother merge (mirroring the codex fork's overlay + patch-surface discipline).",
+        "warnings": [],
+        "prompts": {
+          "brainstorm": "/brainstorm-with-ralph Assess the conflict surface between our fork's happy-* packages (packages/happy-cli, happy-server, happy-app, happy-wire in the codexu monorepo) and UPSTREAM slopus/happy, and produce a merge/rebase strategy + refactor recommendations to REDUCE the conflict surface. CONTEXT: the fork has diverged substantially (e-ink/tablet UX, codex autoconnect + remote-control, the single-user public happy-server + Ed25519 device verifier, agent-comms Scope A, subagent-sessions, many happy-cli daemon/codex features). Upstream keeps shipping. We want the latest upstream updates without a painful merge. RELATIONSHIP: AGENTS.md says Fork=Evyatar108/happy (remote 'fork'), upstream slopus/happy is 'origin'; skills exist: .agents/skills/happy-upstream-sync (periodic 2-4 week review procedure) + .agents/skills/happy-triage-upstream-prs. A standalone fork clone lives at D:/harness-efforts/happy (git remote origin=slopus/happy, fork=Evyatar108/happy) which can fetch upstream for diffing. FIRST resolve the TOPOLOGY: how do codexu/packages/happy-* relate to the standalone Evyatar108/happy fork and to upstream slopus/happy (subtree? independent copy? divergent?) and what's the current merge-base vs upstream HEAD/latest release. THEN assess: (1) quantify divergence (files changed, hotspot files with heavy fork edits, LOC); (2) identify the CONFLICT-SURFACE HOTSPOTS -- upstream-canonical files we edited inline that will conflict on the next upstream merge (vs fork-exclusive new files that won't); (3) recommend REFACTORS to reduce conflict surface -- can fork edits move into overlay files / extension points / hooks / config-driven seams (the way codex uses codex-rs-overlay + docs/implementation/patch-surface.md invariants to keep upstream-canonical edits minimal)? Which specific inline edits are worth relocating? (4) recommend a REBASE-vs-MERGE strategy + cadence (anchor on upstream stable releases like the codex rebase discipline?), tooling (merge drivers?), and a patch-surface-style inventory doc for happy so future merges are navigable. Read the fork's happy-* AGENTS.md files, the two upstream skills, and compare against real upstream source (use the D:/harness-efforts/happy clone's upstream remote or gh to inspect slopus/happy). Cite file:line for the hotspots. Recommend ONE direction + sequenced milestones. Read-only research."
+        }
+      },
+      "kanbanCards": [
+        {
+          "className": "cmd-warn",
+          "html": "Operator ask 2026-07-02: assess conflict surface vs upstream slopus/happy + decide rebase/merge cadence + identify refactors to shrink conflict surface (mirror codex-rs-overlay + patch-surface discipline). Fork diverged a lot (e-ink, autoconnect, public server + Ed25519 verifier, agent-comms, subagent-sessions). Investigation spawned: resolve topology, quantify divergence, find inline-edit hotspots, recommend overlay/extension-point refactors + a rebase strategy."
+        }
+      ]
     }
   ],
   "phaseTree": [
