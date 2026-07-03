@@ -93,11 +93,27 @@ Paths relative to `packages/happy-cli/src/` unless noted. See [`packages/happy-c
 
 | # | file:symbol (line hint) | bucket | invariant — why it must survive | marker? | test / guard | replant note |
 |---|---|---|---|---|---|---|
-<!-- M0-S5: happy-cli rows -->
+| HC-1 | `api/apiSession.ts:659` — `enqueueMessageWithDelivery` send path | RESTORE-R2 | Fork serializes message content as **plaintext JSON** (`const encrypted = JSON.stringify(content)` — the name is a misnomer); no E2E encryption on send. Take-upstream reinstates `encrypt()`. Pairs with the server's honest-only-if-encrypted `{t:'encrypted'}` label (`HS-4`). | ✅ inline | `api/apiSession.test.ts` | [§8 R2-cli](#r2-cli-half--e2e-codec-asymmetry-hc-1-hc-2-hc-3) |
+| HC-2 | `api/apiSession.ts:316` — live-receive socket update | RESTORE-R2 | Live-receive path `JSON.parse(...content.c)` treats `c` as **plaintext** (no `decrypt()`), mirroring the plaintext send path. Take-upstream reinstates decrypt-on-receive. | ✅ inline | `api/apiSession.test.ts` | [§8 R2-cli](#r2-cli-half--e2e-codec-asymmetry-hc-1-hc-2-hc-3) |
+| HC-3 | `api/apiSession.ts:575` — fetch / cold-start replay path | RESTORE-R2 | The fetch path **still calls `decrypt()`** while send + live-receive are plaintext — a **latent asymmetry**: fetched replay of plaintext messages throws and is dropped (logged "Failed to decrypt fetched message"). The R2 codec seam must unify all three paths (do not "fix" one in isolation). | ✅ inline | `api/apiSession.test.ts`, `api/apiSession.consumptionAckTimeout.test.ts` | [§8 R2-cli](#r2-cli-half--e2e-codec-asymmetry-hc-1-hc-2-hc-3) |
+| HC-4 | `codex/runCodex.ts:78` — `runCodex` entry | RESTORE-R4 | Fork's codex agent-loop wiring is heavily rewritten vs upstream (embedded app-server, agent-tree, MCP notification routing, sandbox). One **entry-point** marker flags the seam; the body is ~entirely fork-owned. | ✅ inline (entry only) | `codex/runCodex.fork.test.ts`, `codex/runCodex.turnLifecycle.test.ts` | [§8 R4](#r4--codex--daemon-wiring-hc-4-hc-5-hc-6-hc-7) |
+| HC-5 | `claude/runClaude.ts:60` — `runClaude` entry | RESTORE-R4 | Fork's claude agent-loop wiring diverges from upstream (hook server, permission handling, session protocol mapping). Entry-point marker only. | ✅ inline (entry only) | `claude/runClaude.test.ts` | [§8 R4](#r4--codex--daemon-wiring-hc-4-hc-5-hc-6-hc-7) |
+| HC-6 | `daemon/run.ts:123` — `startDaemon` entry | RESTORE-R4 | Fork daemon **embeds the happy-server** and allocates loopback/tunnel/ingest ports (upstream daemon is a thin remote client). Entry-point marker only. | ✅ inline (entry only) | `daemon/daemon.integration.test.ts`, `daemon/run.spawnFromSession.test.ts` | [§8 R4](#r4--codex--daemon-wiring-hc-4-hc-5-hc-6-hc-7) |
+| HC-7 | `api/apiMachine.ts:111` — `ApiMachineClient` class | RESTORE-R4 | Fork's machine client (embedded-server spawn + daemon RPC handlers) diverges from upstream's multi-machine model. Entry-point marker only. | ✅ inline (entry only) | `api/apiMachine.keepalive.test.ts`, `api/forkSession.rpc.test.ts` | [§8 R4](#r4--codex--daemon-wiring-hc-4-hc-5-hc-6-hc-7) |
 
 ### Zero-conflict overlay directories (context only — NO markers)
 
-<!-- M0-S5: overlay context rows -->
+Large parts of the fork's happy-cli surface live in directories that upstream **does not have at all**
+(fork-only features). They never three-way-conflict — an import cannot touch a file upstream lacks — so
+they get **no markers** and only a context row here. If upstream ever introduces a same-named dir, revisit.
+
+| overlay dir (under `packages/happy-cli/src/`) | upstream-canonical files | fork-only files | conflict risk |
+|---|---:|---:|---|
+| `codex/` | 20 | 41 | Canonical files (`runCodex.ts` etc.) are catalogued as `HC-4`; the 41 fork-only files are zero-conflict. |
+| `daemon/` | 12 | 30 | `run.ts` etc. catalogued as `HC-6`; the 30 fork-only files are zero-conflict. |
+| `agentComms/` | 0 | 33 | Entire dir is fork-only (Scope-A mailbox/peer transport) — zero-conflict. |
+| `tunnel/` | 0 | 13 | Entire dir is fork-only (cloudflare/dev-tunnel providers) — zero-conflict. |
+| **total fork-only** | — | **117** | No markers; import-safe by construction. |
 
 ## 5. happy-app inventory (`HA-*`)
 
@@ -246,7 +262,28 @@ are: the prisma schema's shape (no `User`/`Account`), the `api.ts` route-registr
 `publicAuthGate.spec.ts` default-deny. If any deleted construct sneaks back, those should fail (or the
 importer catches it against these rows).
 
-<!-- M0-S5: cli replant notes -->
+### R2 (cli half) — E2E codec asymmetry (HC-1, HC-2, HC-3)
+
+The fork simplified the single-user loopback path by sending/receiving message content as **plaintext
+JSON**, but left the **fetch/cold-start** path calling `decrypt()`. On import, re-grep the three
+`RESTORE-R2` markers in `apiSession.ts` and keep the plaintext send (`HC-1`) + plaintext live-receive
+(`HC-2`); **do not** let take-upstream reinstate `encrypt()`/`decrypt()` on those two paths in isolation.
+The fetch path (`HC-3`) is the odd one out — a **latent bug**, not a feature: fetched replay of a
+plaintext message throws in `decrypt()` and is silently dropped. M1-R2 introduces a codec seam
+(`encodeSessionMessage` / `decodeSessionMessage`) that unifies all three paths **without changing bytes
+on the wire**, at which point the asymmetry is fixable in one place. Re-enabling real E2E encryption is a
+separate behavior-changing milestone (see plan §9). The server half is `HS-4`.
+
+### R4 — codex / daemon wiring (HC-4, HC-5, HC-6, HC-7)
+
+These four entry points (`runCodex`, `runClaude`, `startDaemon`, `ApiMachineClient`) are heavily
+fork-rewritten — hundreds of diverged lines each, not a hunk. The single entry-point marker is a
+**breadcrumb**, not a full patch record: on import these files are a **manual three-way merge** regardless
+(budget time for it). M1-R4 relocates the fork-specific wiring behind `forkHooks.onCodex()` /
+`onClaude()` / `onDaemonRun()` / `onMachine()` so the entry functions shrink toward the upstream shape and
+the fork logic lives in one `forkHooks` module. The 117 fork-only files under `codex/`, `daemon/`,
+`agentComms/`, and `tunnel/` (see §4) are **not** part of R4 — they are zero-conflict by construction and
+need no relocation.
 
 ---
 

@@ -108,6 +108,7 @@ export type SpawnSessionFromSessionRpcOptions = {
 const PARENT_SESSION_ID_MAX_LENGTH = 128;
 const PARENT_SESSION_ID_SHAPE = /^[A-Za-z0-9_-]+$/;
 
+// FORK PATCH: RESTORE-R4 fork machine client (embedded-server spawn + daemon RPC handlers diverge from upstream multi-machine model); relocate fork wiring behind forkHooks.onMachine() in M1 (invariant HC-7)
 export class ApiMachineClient {
     private socket: Socket<ServerToDaemonEvents, DaemonToServerEvents> | null = null;
     private socketReady: Promise<void> = new Promise(() => { /* resolves only after connect() assigns this.socket */ });

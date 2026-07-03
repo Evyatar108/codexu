@@ -57,6 +57,7 @@ export interface StartOptions {
     jsRuntime?: JsRuntime
 }
 
+// FORK PATCH: RESTORE-R4 fork claude agent-loop wiring (heavily rewritten vs upstream); this is the claude entry seam — relocate fork hooks behind forkHooks.onClaude() in M1 (invariant HC-5)
 export async function runClaude(credentials: Credentials, options: StartOptions = {}): Promise<void> {
     logger.debug(`[CLAUDE] ===== CLAUDE MODE STARTING =====`);
     logger.debug(`[CLAUDE] This is the Claude agent, NOT Gemini`);

@@ -120,6 +120,7 @@ async function resolveMachineState(machineId: string): Promise<MachineLocallyPer
   return created;
 }
 
+// FORK PATCH: RESTORE-R4 fork daemon embeds the happy-server and picks loopback/tunnel/ingest ports (upstream daemon is a thin client); relocate fork wiring behind forkHooks.onDaemonRun() in M1 (invariant HC-6)
 export async function startDaemon(): Promise<void> {
   // We don't have cleanup function at the time of server construction
   // Control flow is:

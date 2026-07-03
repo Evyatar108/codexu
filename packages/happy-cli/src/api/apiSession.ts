@@ -313,6 +313,7 @@ export class ApiSessionClient extends EventEmitter {
                         this.receiveSync.invalidate();
                         return;
                     }
+                    // FORK PATCH: RESTORE-R2 live-receive path parses content.c as plaintext JSON (no decrypt); mirrors the plaintext send path; relocate behind a codec seam in M1 (invariant HC-2)
                     const body = JSON.parse(data.body.message.content.c);
                     logger.debugLargeJson('[SOCKET] [UPDATE] Received update:', body)
                     this.routeIncomingMessage(body, {
@@ -572,6 +573,7 @@ export class ApiSessionClient extends EventEmitter {
                 }
 
                 try {
+                    // FORK PATCH: RESTORE-R2 fetch/cold-start path still calls decrypt() while send + live-receive are plaintext — latent asymmetry (fetched replay of plaintext messages fails to decode and is dropped); the R2 codec seam must unify all three paths in M1 (invariant HC-3)
                     const body = decrypt(this.encryptionKey, this.encryptionVariant, decodeBase64(message.content.c));
                     this.routeIncomingMessage(body, {
                         id: message.id,
@@ -656,6 +658,7 @@ export class ApiSessionClient extends EventEmitter {
     }
 
     private enqueueMessageWithDelivery(content: unknown, invalidate: boolean = true): Promise<MessageDelivery> {
+        // FORK PATCH: RESTORE-R2 send path serializes plaintext JSON (local `encrypted` is a misnomer); fork performs NO E2E encryption on send; relocate behind a codec seam in M1 (invariant HC-1)
         const encrypted = JSON.stringify(content);
         const localId = randomUUID();
         let resolve!: (delivery: MessageDelivery) => void;

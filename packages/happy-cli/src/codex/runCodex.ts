@@ -75,6 +75,7 @@ function describeCodexFailure(msg: any): string | null {
 /**
  * Main entry point for the codex command with ink UI
  */
+// FORK PATCH: RESTORE-R4 fork codex agent-loop wiring (heavily rewritten vs upstream); this is the codex entry seam — relocate fork hooks behind forkHooks.onCodex() in M1 (invariant HC-4)
 export async function runCodex(opts: {
     credentials: Credentials;
     startedBy?: 'daemon' | 'terminal';
