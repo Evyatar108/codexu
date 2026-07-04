@@ -17,7 +17,7 @@ import { startCaffeinate, stopCaffeinate } from '@/utils/caffeinate';
 import packageJson from '../../package.json';
 import { getEnvironmentInfo } from '@/ui/doctor';
 import { spawnHappyCLI } from '@/utils/spawnHappyCLI';
-import { writeDaemonState, DaemonLocallyPersistedState, readDaemonState, acquireDaemonLock, releaseDaemonLock, readPersistedSessions, persistSession, readMachineState, writeMachineState, type MachineLocallyPersistedState } from '@/persistence';
+import { writeDaemonState, DaemonLocallyPersistedState, readDaemonState, acquireDaemonLock, releaseDaemonLock, readPersistedSessions, persistSession } from '@/persistence';
 import type { PersistedSession } from '@/persistence';
 
 import { cleanupDaemonState, isDaemonRunningCurrentlyInstalledHappyVersion, stopDaemon } from './controlClient';
@@ -31,26 +31,13 @@ import { detectCLIAvailability } from '@/utils/detectCLI';
 import { buildResumeLaunch } from '@/resume/handleResumeCommand';
 import { detectResumeSupport } from '@/resume/localHappyAgentAuth';
 import { encodeBase64, decodeBase64, decrypt } from '@/api/encryption';
-import { pickFreeLoopbackPort } from '@/utils/pickFreeLoopbackPort';
-import { loadOrCreateTofuKeypairs } from '@/tofu/keypairManager';
-import { createDevTunnelsAgentCommsDeliverRemote } from '@/agentComms/peerDelivery';
-import { createAgentCommsIngestHandler } from '@/agentComms/ingestHandler';
-import { startAgentCommsIngestServer } from '@/agentComms/ingestServer';
-import { TunnelManager } from '@/tunnel/tunnelManager';
-import { DevTunnelsDaemonProvider } from '@/tunnel/devTunnelsDaemonProvider';
-import { CloudflareTunnelDaemonProvider } from '@/tunnel/cloudflareTunnelDaemonProvider';
-import type { DaemonTunnelProvider } from '@/tunnel/provider';
-import { assertPublicBindReady, buildPublicMode, isPublicTunnelOptedIn, readPublicTunnelConfig, writePublicPairingInvite, type PublicMode } from '@/tunnel/publicTunnelConfig';
-import { createDeviceEnrollmentPersister, readPublicPairedDevices } from '@/tunnel/publicPairedDevices';
+import { onDaemonRun } from '@/fork/forkHooks';
 import { forkSession } from './forkSession';
 import { spawnSessionFromSession } from './spawnSessionFromSession';
 import { spawnInWorktree } from './spawnInWorktree';
 import { recoverPending } from './worktreeTransactions';
 import { stopTrackedSession } from './stopTrackedSession';
-import { loopbackCapabilityPath } from './loopbackCapability';
 import { getLocalMachine } from './getLocalMachine';
-import { bindListenersAndWriteCapability } from './bindListenersAndWriteCapability';
-import type { DualListenerBindingHandle } from './dualListenerBinding';
 import { buildDaemonSpawnArgs, createSpawnFromSessionMetadataUpdater, daemonSpawnWindowName } from './runSpawnHelpers';
 
 // Prepare initial metadata
@@ -73,54 +60,6 @@ export const initialMachineMetadata: MachineMetadata = {
   resumeSupport: { ...detectResumeSupport(), rpcAvailable: true, forkRpcAvailable: true },
 };
 
-async function pickDistinctLoopbackPort(taken: number[]): Promise<number> {
-  let port = await pickFreeLoopbackPort();
-  while (taken.includes(port)) {
-    port = await pickFreeLoopbackPort();
-  }
-  return port;
-}
-
-async function resolveMachineState(machineId: string): Promise<MachineLocallyPersistedState> {
-  const machineState = await readMachineState(machineId);
-  if (machineState) {
-    let updated: MachineLocallyPersistedState = machineState;
-    let changed = false;
-    if (updated.machineId !== machineId) {
-      updated = { ...updated, machineId };
-      changed = true;
-    }
-    if (updated.tunnelPort === updated.loopbackPort) {
-      const loopbackPort = await pickDistinctLoopbackPort([updated.tunnelPort]);
-      updated = { ...updated, loopbackPort };
-      changed = true;
-    }
-    // Scope A: ensure a distinct ingest port. Pins written before Scope A lack it,
-    // and a persisted one must not collide with the tunnel/loopback ports.
-    if (
-      updated.ingestPort === undefined
-      || updated.ingestPort === updated.tunnelPort
-      || updated.ingestPort === updated.loopbackPort
-    ) {
-      const ingestPort = await pickDistinctLoopbackPort([updated.tunnelPort, updated.loopbackPort]);
-      updated = { ...updated, ingestPort };
-      changed = true;
-    }
-    if (changed) {
-      await writeMachineState(updated);
-    }
-    return updated;
-  }
-
-  const tunnelPort = await pickFreeLoopbackPort();
-  const loopbackPort = await pickDistinctLoopbackPort([tunnelPort]);
-  const ingestPort = await pickDistinctLoopbackPort([tunnelPort, loopbackPort]);
-  const created = { machineId, tunnelPort, loopbackPort, ingestPort, tunnelId: '', lastTunnelUrl: null };
-  await writeMachineState(created);
-  return created;
-}
-
-// FORK PATCH: RESTORE-R4 fork daemon embeds the happy-server and picks loopback/tunnel/ingest ports (upstream daemon is a thin client); relocate fork wiring behind forkHooks.onDaemonRun() in M1 (invariant HC-6)
 export async function startDaemon(): Promise<void> {
   // We don't have cleanup function at the time of server construction
   // Control flow is:
@@ -228,132 +167,16 @@ export async function startDaemon(): Promise<void> {
     await recoverPending(configuration.happyHomeDir);
     logger.debug('[DAEMON RUN] Pending worktree transaction recovery complete');
 
-    const tofuKeypairs = await loadOrCreateTofuKeypairs(configuration.happyHomeDir);
-    if (tofuKeypairs.createdEd25519) {
-      console.log(`Happy server Ed25519 fingerprint: ${tofuKeypairs.ed25519Fingerprint}`);
-    }
-
-    let machineState = await resolveMachineState(machineId);
-    const tunnelManager = new TunnelManager();
-    // Provider selection (opt-in only). Default stays Dev Tunnels; the Cloudflare
-    // public provider is chosen ONLY when the operator sets
-    // HAPPY_TUNNEL_PROVIDER=cloudflare AND supplies a valid public-tunnel.json.
-    let tunnelProvider: DaemonTunnelProvider;
-    let publicMode: PublicMode | null = null;
-    if (isPublicTunnelOptedIn()) {
-      const publicTunnelConfig = await readPublicTunnelConfig();
-      assertPublicBindReady(publicTunnelConfig);
-      const serverUrl = `https://${publicTunnelConfig.hostname}`;
-      // Re-seed the verifier with devices pinned in earlier daemon runs so a paired
-      // device does not have to re-pair after a restart, and persist any NEW device
-      // enrolled via `/pair/complete` during this run.
-      const persistedDevices = await readPublicPairedDevices();
-      publicMode = buildPublicMode({
-        config: publicTunnelConfig,
-        serverUrl,
-        machineId,
-        devices: persistedDevices,
-        onDeviceEnrolled: createDeviceEnrollmentPersister(),
-      });
-      tunnelProvider = new CloudflareTunnelDaemonProvider({
-        hostname: publicTunnelConfig.hostname,
-        tunnelName: publicTunnelConfig.tunnelName,
-      });
-      machineState = {
-        ...machineState,
-        publicListener: {
-          hostname: publicTunnelConfig.hostname,
-          tunnelName: publicTunnelConfig.tunnelName,
-        },
-      };
-      await writeMachineState(machineState);
-      const inviteToken = await writePublicPairingInvite(configuration.publicPairingInviteFile, publicMode.invite);
-      logger.debug(`[DAEMON RUN] Public mode enabled via Cloudflare named tunnel ${publicTunnelConfig.tunnelName} -> ${serverUrl}`);
-      console.log(`Happy public pairing invite (machine ${machineId}, expires ${publicMode.invite.expiresAt}):`);
-      console.log(inviteToken);
-    } else {
-      tunnelProvider = new DevTunnelsDaemonProvider({ manager: tunnelManager });
-    }
-    const deliverRemote = createDevTunnelsAgentCommsDeliverRemote({
-      localKeypairs: tofuKeypairs,
-      tunnelManager,
-    });
-    let resolveSpawnSessionFromSessionHandler!: (handler: (options: SpawnSessionFromSessionRpcOptions) => Promise<SpawnSessionResult>) => void;
-    const spawnSessionFromSessionHandlerReady = new Promise<(options: SpawnSessionFromSessionRpcOptions) => Promise<SpawnSessionResult>>(
-      (resolve) => { resolveSpawnSessionFromSessionHandler = resolve; }
-    );
-    const tofuPublicKeysConfig = {
-      ed25519PublicKey: tofuKeypairs.ed25519PublicKey,
-      x25519PublicKey: tofuKeypairs.ecdhPublicKey,
-      x25519SecretKey: tofuKeypairs.ecdhPrivateKey,
-      ed25519Fingerprint: tofuKeypairs.ed25519Fingerprint,
-    };
-    const agentCommsIngest = createAgentCommsIngestHandler({
-      happyHomeDir: configuration.happyHomeDir,
-      localMachineId: machineId,
-      tofuKeypairs,
-      spawnSessionFromSession: options => spawnSessionFromSessionHandlerReady.then(handler => handler(options)),
+    // FORK PATCH: RESTORE-R4-done fork daemon wiring (embed happy-server, select tunnel provider, stand up agent-comms ingest) relocated to fork/forkHooks.onDaemonRun (invariant HC-6)
+    const {
+      embeddedServerPort,
+      tunnelConfig,
+      listenerBinding,
+      ingestServer,
       deliverRemote,
-    });
-    // Scope A: serve agent-comms ingest from a happy-cli-owned loopback listener
-    // instead of injecting the handler into the embedded happy-server. The ingest
-    // port is forwarded as a second Dev Tunnel port (see resolveMachineState +
-    // dualListenerBinding). Bind it before the embedded servers/tunnel so the
-    // loopback port is accepting connections before the tunnel forwards it.
-    if (machineState.ingestPort === undefined) {
-      throw new Error('resolveMachineState did not allocate an agent-comms ingestPort');
-    }
-    const ingestServer = await startAgentCommsIngestServer({
-      port: machineState.ingestPort,
-      handler: agentCommsIngest,
-    });
-    logger.debug(`[DAEMON RUN] Agent-comms ingest listener started on 127.0.0.1:${ingestServer.port}`);
-    let listenerBinding: DualListenerBindingHandle;
-    try {
-      listenerBinding = await bindListenersAndWriteCapability({
-        sharedContext: {
-          dataDir: configuration.happyHomeDir,
-          machineKey: tofuKeypairs.ed25519PublicKey,
-          localUserId: machineId,
-          tofuPublicKeys: tofuPublicKeysConfig,
-          // agentCommsIngest is intentionally NOT injected here: ingest is served
-          // by the happy-cli-owned listener above (Scope A). The embedded server
-          // keeps the rest of the mobile+session plane.
-        },
-        tunnelProvider,
-        paths: {
-          profile: join(configuration.happyHomeDir, 'profile.json'),
-          accountSettings: join(configuration.happyHomeDir, 'account-settings.json'),
-          loopbackCap: loopbackCapabilityPath(configuration.happyHomeDir),
-        },
-        machineState: () => machineState,
-        machineInfo: {
-          hostname: initialMachineMetadata.host,
-          owner: machineId,
-        },
-        ...(publicMode ? { publicListener: { auth: 'public' as const, publicAuth: publicMode.publicAuth } } : {}),
-      }, configuration.happyHomeDir);
-    } catch (bindError) {
-      await ingestServer.stop();
-      throw bindError;
-    }
-    const tunnelConfig = listenerBinding.tunnelConfig;
-    machineState = {
-      ...machineState,
-      tunnelId: tunnelConfig.tunnelId,
-      lastTunnelUrl: tunnelConfig.tunnelUrl,
-    };
-    try {
-      await writeMachineState(machineState);
-    } catch (writeError) {
-      await listenerBinding.stop();
-      await ingestServer.stop();
-      throw writeError;
-    }
-    const embeddedServerPort = machineState.tunnelPort;
-    logger.debug(`[DAEMON RUN] Embedded happy-server tunnel listener started on 127.0.0.1:${machineState.tunnelPort}`);
-    logger.debug(`[DAEMON RUN] Embedded happy-server loopback listener started on 127.0.0.1:${machineState.loopbackPort}`);
-    logger.debug(`[DAEMON RUN] Dev Tunnel host started for ${tunnelConfig.tunnelUrl}`);
+      spawnSessionFromSessionHandlerReady,
+      resolveSpawnSessionFromSessionHandler,
+    } = await onDaemonRun({ machineId, hostname: initialMachineMetadata.host });
 
     // Setup state - key by PID
     const pidToTrackedSession = new Map<number, TrackedSession>();
