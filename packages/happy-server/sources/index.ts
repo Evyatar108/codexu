@@ -6,6 +6,9 @@ import type { ApiPaths, MachineStateGetter } from "./app/api/api";
 import type { PublicAuthConfig } from "./app/api/auth/remoteDeviceAuth";
 import { decodeBase64 } from "privacy-kit";
 import { db, getPGlite } from "./storage/db";
+// FORK PATCH: [RESTORE-R3-done] operator-identity gate now lives in ./fork/operatorIdentityGate (invariant HS-5); re-exported here to preserve the index.ts public surface
+import { assertOperatorIdentityGate } from "./fork/operatorIdentityGate";
+export { assertOperatorIdentityGate };
 
 export interface TofuPublicKeys {
     ed25519PublicKey: string | Uint8Array;
@@ -89,45 +92,6 @@ function machineKeyToSeed(machineKey: string | Uint8Array) {
     return Buffer.from(machineKey).toString("base64");
 }
 
-// FORK PATCH: RESTORE-R3 operator-identity gate (loopback host set + isLoopbackHost + assertOperatorIdentityGate); relocate to fork/ dir in M1 (invariant HS-5)
-const LOOPBACK_HOSTS = new Set(["127.0.0.1", "::1", "0:0:0:0:0:0:0:1", "localhost"]);
-
-export function isLoopbackHost(host: string | undefined): boolean {
-    if (!host) {
-        return true;
-    }
-    return LOOPBACK_HOSTS.has(host.toLowerCase());
-}
-
-export function assertOperatorIdentityGate(config: Pick<CreateAppConfig, "auth" | "host" | "publicAuth">): void {
-    const resolvedHost = config.host || "127.0.0.1";
-    const boundToPublicHost = !isLoopbackHost(resolvedHost);
-
-    if (config.auth === "public") {
-        // Public mode is the ONLY mode permitted to bind a non-loopback host, and
-        // only when a fail-closed device verifier AND an edge-auth expectation are
-        // present. A "bare" public bind — public mode on a public host without any
-        // paired device or without a Cloudflare Access service token — is refused,
-        // because it would expose routes with no working application-layer boundary.
-        if (boundToPublicHost) {
-            const hasVerifier = !!config.publicAuth && config.publicAuth.devices.length > 0;
-            const hasEdgeExpectation = !!config.publicAuth && config.publicAuth.edge.serviceTokens.length > 0;
-            if (!hasVerifier || !hasEdgeExpectation) {
-                const message = `CRITICAL: refusing to start happy-server public listener bound to non-loopback host "${resolvedHost}" without a fail-closed device verifier AND a Cloudflare Access edge expectation. Configure publicAuth.devices (at least one paired device) and publicAuth.edge.serviceTokens before binding a public host.`;
-                console.error(message);
-                throw new Error(message);
-            }
-        }
-        return;
-    }
-
-    if (config.auth !== "loopback" && boundToPublicHost) {
-        const message = `CRITICAL: refusing to start happy-server tunnel listener bound to non-loopback host "${resolvedHost}". The tunnel listener collapses identity to tofuConfig.localUserId and relies on the Dev Tunnels gateway plus a loopback bind as its operator identity gate. Bind to 127.0.0.1 (or set auth: "loopback") instead.`;
-        console.error(message);
-        throw new Error(message);
-    }
-}
-
 function publicKeyToBase64(publicKey: string | Uint8Array): string {
     if (typeof publicKey === "string") {
         return publicKey;
@@ -136,6 +100,7 @@ function publicKeyToBase64(publicKey: string | Uint8Array): string {
 }
 
 export function createApp(config: CreateAppConfig): HappyServerHandle {
+    // FORK PATCH: [RESTORE-R3-done] operator-identity gate relocated to ./fork/operatorIdentityGate (invariant HS-5)
     assertOperatorIdentityGate(config);
     const app = fastify({ logger: false });
     let isConfigured = false;
