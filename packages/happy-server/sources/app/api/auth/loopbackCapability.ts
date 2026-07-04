@@ -22,6 +22,29 @@ export function makeLoopbackTokenReader(paths: LoopbackCapabilityPaths = {}) {
     };
 }
 
+// FORK PATCH: [RESTORE-R1b-done] socket loopback-capability handshake verifier relocated from socket.ts `createSocketAuthMiddleware` (invariant HS-3)
+/**
+ * Build the Socket.IO loopback-capability handshake verifier used when
+ * `auth === 'loopback'`.
+ *
+ * Behavior-preserving relocation of the inline loopback branch that previously
+ * lived in `socket.ts` `createSocketAuthMiddleware`. The capability-token reader
+ * is created ONCE here (at middleware-construction time, not per connection) so
+ * its mtime cache survives across handshakes exactly as before the relocation.
+ * Returns `true` only when a non-empty expected token matches the handshake's
+ * `x-loopback-capability` header; otherwise `false` — the thin dispatcher maps
+ * `false` to a fail-closed `next(new Error('Unauthorized'))`.
+ */
+export function makeLoopbackSocketVerifier(paths: LoopbackCapabilityPaths = {}) {
+    const readCapability = makeLoopbackTokenReader(paths);
+
+    return async function verifyLoopbackSocketHandshake(headers: Record<string, unknown>): Promise<boolean> {
+        const expectedToken = await readCapability();
+        const actualToken = headers["x-loopback-capability"] as string | undefined;
+        return Boolean(expectedToken && actualToken && actualToken === expectedToken);
+    };
+}
+
 export function verifyLoopbackCapability(paths: LoopbackCapabilityPaths = {}) {
     const readCapability = makeLoopbackTokenReader(paths);
 

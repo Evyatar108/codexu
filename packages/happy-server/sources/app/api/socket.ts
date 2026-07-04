@@ -12,8 +12,8 @@ import { sessionUpdateHandler } from "./socket/sessionUpdateHandler";
 import { machineUpdateHandler } from "./socket/machineUpdateHandler";
 import { sessionMessageRangeHandler } from "./socket/sessionMessageRangeHandler";
 import type { TofuHandshakeConfig } from "./api";
-import { makeLoopbackTokenReader, type LoopbackCapabilityPaths } from "./auth/loopbackCapability";
-import type { PublicAuthRuntime } from "./auth/remoteDeviceAuth";
+import { makeLoopbackSocketVerifier, type LoopbackCapabilityPaths } from "./auth/loopbackCapability";
+import { verifyPublicSocketHandshake, type PublicAuthRuntime } from "./auth/remoteDeviceAuth";
 import { parseCorsOrigins } from "./utils/parseCorsOrigins";
 
 export interface StartSocketOptions {
@@ -56,36 +56,27 @@ export function configureRedisStreamsAdapter(io: Server): Redis | undefined {
 }
 
 export function createSocketAuthMiddleware(tofuConfig: TofuHandshakeConfig, socketOptions: StartSocketOptions = {}) {
-    const readLoopbackToken = socketOptions.auth === 'loopback'
-        ? makeLoopbackTokenReader(socketOptions.paths ?? {})
+    // FORK PATCH: [RESTORE-R1b-done] thin handshake dispatcher; loopback + public device-proof branch bodies relocated to auth/ helpers (invariant HS-3)
+    const verifyLoopbackHandshake = socketOptions.auth === 'loopback'
+        ? makeLoopbackSocketVerifier(socketOptions.paths ?? {})
         : null;
 
     return async function socketAuthMiddleware(socket: any, next: (err?: Error) => void) {
+        // Fail-closed handshake dispatch: pick the mode's relocated helper and reject
+        // (next(Error)) on failure. Loopback checks the capability token; public runs
+        // the device-proof handshake on BOTH ws + polling (strict single-use nonce; the
+        // fail-open tunnel branch stays closed). Tunnel mode has no handshake gate. The
+        // branch bodies live in auth/loopbackCapability.ts + auth/remoteDeviceAuth.ts.
         if (socketOptions.auth === 'loopback') {
-            const capHeader = socket.handshake.headers['x-loopback-capability'] as string | undefined;
-            const expectedToken = await readLoopbackToken!();
-            if (!expectedToken || !capHeader || capHeader !== expectedToken) {
+            const ok = await verifyLoopbackHandshake!(socket.handshake.headers);
+            if (!ok) {
                 next(new Error('Unauthorized'));
                 return;
             }
         }
 
-        // Public mode: fail-closed device-proof handshake on BOTH transports.
-        // The initial handshake is an HTTP request for websocket (upgrade) and
-        // polling alike, so its headers carry the Cloudflare Access + device
-        // proof; this middleware runs once per connection and rejects any
-        // handshake lacking a valid edge check + Ed25519 proof. This closes the
-        // previously fail-open tunnel branch for public exposure. Tunnel and
-        // loopback behavior is unchanged.
-        // FORK PATCH: RESTORE-R1 fork public device-proof handshake (fail-closed) + loopback capability branch; relocate to auth/ helpers in M1 (invariant HS-3)
         if (socketOptions.auth === 'public') {
-            const runtime = socketOptions.publicAuthRuntime;
-            if (!runtime) {
-                log({ module: 'websocket' }, 'Public socket handshake rejected: no verifier configured');
-                next(new Error('Unauthorized'));
-                return;
-            }
-            const result = await runtime.verifySocketHandshake(socket.handshake.headers);
+            const result = await verifyPublicSocketHandshake(socketOptions.publicAuthRuntime, socket.handshake.headers);
             if (!result.ok) {
                 log({ module: 'websocket' }, `Public socket handshake rejected: ${result.reason}`);
                 next(new Error('Unauthorized'));

@@ -512,3 +512,47 @@ export function createPublicAuthRuntime(config: PublicAuthConfig): PublicAuthRun
 
     return { verifier, edge, config, pairingGate, httpGuard, bodyHashGuard, verifySocketHandshake, enrollDevice };
 }
+
+/** Result of the relocated public-mode Socket.IO handshake check. */
+export interface SocketHandshakeAuthResult {
+    ok: boolean;
+    /**
+     * Present only when `ok` is false: the rejection reason surfaced by the thin
+     * dispatcher's websocket log line (`Public socket handshake rejected: <reason>`).
+     * Mirrors the two original inline messages: `"no verifier configured"` for a
+     * missing runtime, otherwise the underlying `RemoteDeviceProofResult.reason`.
+     */
+    reason?: string;
+}
+
+// FORK PATCH: [RESTORE-R1b-done] socket public device-proof handshake branch relocated from socket.ts `createSocketAuthMiddleware` (invariant HS-3)
+/**
+ * Fail-closed Socket.IO handshake check for public mode (`auth === 'public'`).
+ *
+ * Behavior-preserving relocation of the inline public branch that previously lived
+ * in `socket.ts` `createSocketAuthMiddleware`. The handshake is an HTTP request for
+ * BOTH the websocket (upgrade) and polling transports, so this single check — run
+ * once per connection against `socket.handshake.headers` — is the enforcement point
+ * for both. It fails closed (returns `{ ok: false }`) when no verifier is configured
+ * or when the mandatory Cloudflare Access edge check + Ed25519 device proof fail,
+ * closing the previously fail-open tunnel branch for public exposure. The strict
+ * single-use nonce lives in the shared `PublicAuthRuntime.verifySocketHandshake`
+ * verifier (a nonce is consumed exactly once across HTTP + socket transports).
+ *
+ * The log side-effect stays in the thin dispatcher (which already owns `@/utils/log`)
+ * so this module remains free of import-time side effects; the returned `reason`
+ * reproduces the original log text byte-for-byte.
+ */
+export async function verifyPublicSocketHandshake(
+    runtime: PublicAuthRuntime | undefined,
+    headers: Record<string, unknown>,
+): Promise<SocketHandshakeAuthResult> {
+    if (!runtime) {
+        return { ok: false, reason: "no verifier configured" };
+    }
+    const result = await runtime.verifySocketHandshake(headers);
+    if (!result.ok) {
+        return { ok: false, reason: result.reason };
+    }
+    return { ok: true };
+}
