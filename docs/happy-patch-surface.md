@@ -82,7 +82,7 @@ upstream is deliberately collapsed. See [`packages/happy-server/AGENTS.md`](../p
 | HS-1 | `app/api/api.ts:79` — `configureApi` → `authenticateTunnel` / `authenticate` decorators | RESTORE-R1 | No-op tunnel authenticator + mode-selecting `authenticate` implement the fork's **single-user** auth plane; upstream ships a multi-tenant bearer verifier. Take-upstream reinstates per-request user auth. | ✅ inline | `publicAuthGate.spec.ts`, `socket.spec.ts` | [§8 R1](#r1--auth-plane-hs-1-hs-2-hs-3) |
 | HS-2 | `app/api/api.ts:86` — `configureApi` → public-mode block | RESTORE-R1 | Shipped public-server **fail-closed** boundary: buffer body parser (captures `rawBody` for the bodyHash), `onRequest` `httpGuard`, `preValidation` `bodyHashGuard`. Losing it fails **open** on public internet exposure. | ✅ inline | `publicAuthGate.spec.ts` (default-deny + body-hash), `deviceEnrollment.spec.ts` | [§8 R1](#r1--auth-plane-hs-1-hs-2-hs-3) |
 | HS-3 | `app/api/socket.ts:80` — `createSocketAuthMiddleware` → public / loopback branches | RESTORE-R1 | Fork's fail-closed **device-proof** Socket.IO handshake (public) + loopback-capability check. Upstream's middleware has neither; take-upstream fails open on the socket plane. | ✅ inline | `socket.spec.ts`, `remoteDeviceAuth.spec.ts` | [§8 R1](#r1--auth-plane-hs-1-hs-2-hs-3) |
-| HS-4 | `app/api/routes/v3SessionRoutes.ts:166` — session-message `content` envelope | RESTORE-R2 | Server persists `{ t:'encrypted', c }` but performs **no crypto**; the label is honest only if the client encrypted (today the CLI sends plaintext — see `HC-1`). R2 server half; documented honesty caveat. | ✅ inline | `v3SessionRoutes.test.ts` | [§8 R2](#r2-server-half--session-message-envelope-hs-4) |
+| HS-4 | `app/api/routes/v3SessionRoutes.ts:166` — session-message `content` envelope | RESTORE-R2-done | Server persists `{ t:'encrypted', c }` but performs **no crypto**; the label is a **mislabel today** because the CLI sends plaintext (see `HC-1` / the fork codec seam `packages/happy-cli/src/api/sessionPayloadCodec.ts` `encodeOutgoing`). R2 server half; comment-only honesty caveat, no logic change. | ✅ inline | `v3SessionRoutes.test.ts` | [§8 R2](#r2-server-half--session-message-envelope-hs-4) |
 | HS-5 | `fork/operatorIdentityGate.ts` — `LOOPBACK_HOSTS` / `isLoopbackHost` / `assertOperatorIdentityGate` (re-exported from `index.ts`) | RESTORE-R3-done | Bind-host **operator-identity gate**: refuses a non-loopback bind unless public-mode with a fail-closed device verifier **and** a Cloudflare Access edge expectation. The single-user server's core safety rail. Relocated to fork-owned `fork/` seam (M1-R3), behavior-preserving. | ✅ inline (fork-seam header + call-site) | `publicAuthGate.spec.ts`, unit assertions on `assertOperatorIdentityGate` | [§8 R3](#r3--operator-identity-gate-hs-5) |
 | HS-6 | `prisma/schema.prisma` — multi-tenant identity models | KEEP-DELETED | Fork collapsed the multi-tenant identity graph: `model Account`, `AccountAuthRequest`, `AccountPushToken`, `UserRelationship`, `GithubUser` and every `accountId`/`userId` FK on `Session`/`Machine` are **removed** (single-user, one-process). Take-upstream resurrects multi-tenancy. | ❌ (nothing to mark) | schema carries no `User`/`Account` model; server compiles with **no** per-request `userId` threading (happy-server AGENTS.md hard rule) | [§8 guard-by-absence](#guard-by-absence-hs-6-hs-7) |
 | HS-7 | `app/api/api.ts:140-154` — route-registration allowlist | KEEP-DELETED | Fork ships a **curated** single-user route surface. Upstream route files the fork removed MUST stay removed: `accessKeysRoutes`, `artifactsRoutes`, `attachmentRoutes`, `authRoutes`, `connectRoutes`, `feedRoutes`, `kvRoutes`, `userRoutes`, `voiceRoutes`, and multi-machine `machinesRoutes` (replaced by `machineSelfRoutes`). Take-upstream re-adds + re-registers them. | ❌ | `publicAuthGate.spec.ts` (default-deny denies any non-allowlisted path); the `api.ts` registration block **is** the allowlist | [§8 guard-by-absence](#guard-by-absence-hs-6-hs-7) |
@@ -93,9 +93,9 @@ Paths relative to `packages/happy-cli/src/` unless noted. See [`packages/happy-c
 
 | # | file:symbol (line hint) | bucket | invariant — why it must survive | marker? | test / guard | replant note |
 |---|---|---|---|---|---|---|
-| HC-1 | `api/apiSession.ts:659` — `enqueueMessageWithDelivery` send path | RESTORE-R2 | Fork serializes message content as **plaintext JSON** (`const encrypted = JSON.stringify(content)` — the name is a misnomer); no E2E encryption on send. Take-upstream reinstates `encrypt()`. Pairs with the server's honest-only-if-encrypted `{t:'encrypted'}` label (`HS-4`). | ✅ inline | `api/apiSession.test.ts` | [§8 R2-cli](#r2-cli-half--e2e-codec-asymmetry-hc-1-hc-2-hc-3) |
-| HC-2 | `api/apiSession.ts:316` — live-receive socket update | RESTORE-R2 | Live-receive path `JSON.parse(...content.c)` treats `c` as **plaintext** (no `decrypt()`), mirroring the plaintext send path. Take-upstream reinstates decrypt-on-receive. | ✅ inline | `api/apiSession.test.ts` | [§8 R2-cli](#r2-cli-half--e2e-codec-asymmetry-hc-1-hc-2-hc-3) |
-| HC-3 | `api/apiSession.ts:575` — fetch / cold-start replay path | RESTORE-R2 | The fetch path **still calls `decrypt()`** while send + live-receive are plaintext — a **latent asymmetry**: fetched replay of plaintext messages throws and is dropped (logged "Failed to decrypt fetched message"). The R2 codec seam must unify all three paths (do not "fix" one in isolation). | ✅ inline | `api/apiSession.test.ts`, `api/apiSession.consumptionAckTimeout.test.ts` | [§8 R2-cli](#r2-cli-half--e2e-codec-asymmetry-hc-1-hc-2-hc-3) |
+| HC-1 | `api/apiSession.ts:659` — `enqueueMessageWithDelivery` send path (via `api/sessionPayloadCodec.ts` `encodeOutgoing`) | RESTORE-R2-done | Fork serializes message content as **plaintext JSON** (`encodeOutgoing = JSON.stringify(content)` — the local `encrypted` name is a misnomer); no E2E encryption on send. Now routed through the fork codec seam `sessionPayloadCodec.ts` (behavior-preserving relocation, bytes unchanged). Take-upstream reinstates `encrypt()`. Pairs with the server's honest-only-if-encrypted `{t:'encrypted'}` label (`HS-4`). | ✅ inline | `api/sessionPayloadCodec.test.ts`, `api/apiSession.test.ts` | [§8 R2-cli](#r2-cli-half--e2e-codec-asymmetry-hc-1-hc-2-hc-3) |
+| HC-2 | `api/apiSession.ts:316` — live-receive socket update (via `api/sessionPayloadCodec.ts` `decodeIncoming({source:'live'})`) | RESTORE-R2-done | Live-receive path treats `c` as **plaintext** (`decodeIncoming({source:'live'}) = JSON.parse(...content.c)`, no `decrypt()`), mirroring the plaintext send path. Now routed through the fork codec seam `sessionPayloadCodec.ts` (behavior-preserving relocation, bytes unchanged). Take-upstream reinstates decrypt-on-receive. | ✅ inline | `api/sessionPayloadCodec.test.ts`, `api/apiSession.test.ts` | [§8 R2-cli](#r2-cli-half--e2e-codec-asymmetry-hc-1-hc-2-hc-3) |
+| HC-3 | `api/apiSession.ts:575` — fetch / cold-start replay path (via `api/sessionPayloadCodec.ts` `decodeIncoming({source:'fetch'})`) | RESTORE-R2-done | The fetch path **still calls `decrypt()`** (`decodeIncoming({source:'fetch'})`) while send + live-receive are plaintext — a **latent asymmetry**: fetched replay of plaintext messages fails to decode (`decrypt()` returns null **or throws** — e.g. `legacy` `bad nonce size` — variant/length dependent) and is dropped by the fetch call site's try/catch (logged "Failed to decrypt fetched message"). The R2 codec seam `sessionPayloadCodec.ts` unifies all three paths **without fixing this** — a real fix is a format change, out of M1 (do not "fix" one path in isolation). | ✅ inline | `api/sessionPayloadCodec.test.ts`, `api/apiSession.test.ts`, `api/apiSession.consumptionAckTimeout.test.ts` | [§8 R2-cli](#r2-cli-half--e2e-codec-asymmetry-hc-1-hc-2-hc-3) |
 | HC-4 | `codex/runCodex.ts:78` — `runCodex` entry | RESTORE-R4 | Fork's codex agent-loop wiring is heavily rewritten vs upstream (embedded app-server, agent-tree, MCP notification routing, sandbox). One **entry-point** marker flags the seam; the body is ~entirely fork-owned. | ✅ inline (entry only) | `codex/runCodex.fork.test.ts`, `codex/runCodex.turnLifecycle.test.ts` | [§8 R4](#r4--codex--daemon-wiring-hc-4-hc-5-hc-6-hc-7) |
 | HC-5 | `claude/runClaude.ts:60` — `runClaude` entry | RESTORE-R4 | Fork's claude agent-loop wiring diverges from upstream (hook server, permission handling, session protocol mapping). Entry-point marker only. | ✅ inline (entry only) | `claude/runClaude.test.ts` | [§8 R4](#r4--codex--daemon-wiring-hc-4-hc-5-hc-6-hc-7) |
 | HC-6 | `daemon/run.ts:123` — `startDaemon` entry | RESTORE-R4 | Fork daemon **embeds the happy-server** and allocates loopback/tunnel/ingest ports (upstream daemon is a thin remote client). Entry-point marker only. | ✅ inline (entry only) | `daemon/daemon.integration.test.ts`, `daemon/run.spawnFromSession.test.ts` | [§8 R4](#r4--codex--daemon-wiring-hc-4-hc-5-hc-6-hc-7) |
@@ -252,10 +252,11 @@ inventory, body-hash, device enrollment, socket handshake, bind gate) before and
 
 The `{ t:'encrypted', c }` envelope shape must survive — it is the at-rest / wire format the app and CLI
 expect. The server does **no** crypto; the label's honesty depends on the CLI (`HC-1`/`HC-2`/`HC-3`),
-which today sends plaintext. **Do not "fix" the label to `{ t:'plain' }` on import** — that breaks the
-app decoder path and the envelope contract. M1-R2 documents the asymmetry behind a codec seam **without
-changing bytes**; actually re-enabling encryption is a separate behavior-changing milestone (see plan §9
-open questions).
+which today sends plaintext — so the `t:'encrypted'` label is a **mislabel today**. **Do not "fix" the
+label to `{ t:'plain' }` on import** — that breaks the app decoder path and the envelope contract. M1-R2
+routed the CLI half behind the fork codec seam `packages/happy-cli/src/api/sessionPayloadCodec.ts`
+(`encodeOutgoing` / `decodeIncoming`) and documents the asymmetry **without changing bytes**; actually
+re-enabling encryption is a separate behavior-changing milestone (see plan §9 open questions).
 
 ### R3 — operator-identity gate (HS-5)
 
@@ -276,13 +277,17 @@ importer catches it against these rows).
 
 The fork simplified the single-user loopback path by sending/receiving message content as **plaintext
 JSON**, but left the **fetch/cold-start** path calling `decrypt()`. On import, re-grep the three
-`RESTORE-R2` markers in `apiSession.ts` and keep the plaintext send (`HC-1`) + plaintext live-receive
+`RESTORE-R2-done` markers in `apiSession.ts` and keep the plaintext send (`HC-1`) + plaintext live-receive
 (`HC-2`); **do not** let take-upstream reinstate `encrypt()`/`decrypt()` on those two paths in isolation.
 The fetch path (`HC-3`) is the odd one out — a **latent bug**, not a feature: fetched replay of a
-plaintext message throws in `decrypt()` and is silently dropped. M1-R2 introduces a codec seam
-(`encodeSessionMessage` / `decodeSessionMessage`) that unifies all three paths **without changing bytes
-on the wire**, at which point the asymmetry is fixable in one place. Re-enabling real E2E encryption is a
-separate behavior-changing milestone (see plan §9). The server half is `HS-4`.
+plaintext message fails to decode in `decrypt()` (returns null **or throws** — variant/length dependent,
+e.g. `legacy` `bad nonce size`) and is silently dropped by the fetch call site's try/catch. M1-R2 relocated
+all three paths behind the fork codec seam `packages/happy-cli/src/api/sessionPayloadCodec.ts`
+(`encodeOutgoing` / `decodeIncoming({ source: 'live' | 'fetch' })`) — a **behavior-preserving** move that
+reproduces today's exact bytes and preserves the HC-3 silent-drop verbatim (golden round-trip tests in
+`api/sessionPayloadCodec.test.ts` pin it), at which point the asymmetry is fixable in one place.
+Re-enabling real E2E encryption is a separate behavior-changing milestone (see plan §9). The server half
+is `HS-4`.
 
 ### R4 — codex / daemon wiring (HC-4, HC-5, HC-6, HC-7)
 

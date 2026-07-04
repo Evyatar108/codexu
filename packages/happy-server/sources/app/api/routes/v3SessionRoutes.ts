@@ -163,7 +163,7 @@ export function v3SessionRoutes(app: Fastify, eventRouter: EventRouter) {
                     data: {
                         sessionId,
                         seq: seqs[i],
-                        // FORK PATCH: RESTORE-R2 server writes the {t:'encrypted'} envelope but performs NO crypto (label is only honest if the client encrypted); R2 server half (invariant HS-4)
+                        // FORK PATCH: RESTORE-R2-done server writes the {t:'encrypted'} envelope but performs NO crypto — the label is a MISLABEL today because the happy-cli client sends PLAINTEXT (see packages/happy-cli/src/api/sessionPayloadCodec.ts encodeOutgoing / invariant HC-1); server stores the client bytes verbatim. Comment-only honesty caveat, no logic change (invariant HS-4)
                         content: {
                             t: 'encrypted',
                             c: message.content
