@@ -79,13 +79,14 @@ upstream is deliberately collapsed. See [`packages/happy-server/AGENTS.md`](../p
 
 | # | file:symbol (line hint) | bucket | invariant — why it must survive | marker? | test / guard | replant note |
 |---|---|---|---|---|---|---|
-| HS-1 | `app/api/api.ts:79` — `configureApi` → `authenticateTunnel` / `authenticate` decorators | RESTORE-R1 | No-op tunnel authenticator + mode-selecting `authenticate` implement the fork's **single-user** auth plane; upstream ships a multi-tenant bearer verifier. Take-upstream reinstates per-request user auth. | ✅ inline | `publicAuthGate.spec.ts`, `socket.spec.ts` | [§8 R1](#r1--auth-plane-hs-1-hs-2-hs-3) |
-| HS-2 | `app/api/api.ts:86` — `configureApi` → public-mode block | RESTORE-R1 | Shipped public-server **fail-closed** boundary: buffer body parser (captures `rawBody` for the bodyHash), `onRequest` `httpGuard`, `preValidation` `bodyHashGuard`. Losing it fails **open** on public internet exposure. | ✅ inline | `publicAuthGate.spec.ts` (default-deny + body-hash), `deviceEnrollment.spec.ts` | [§8 R1](#r1--auth-plane-hs-1-hs-2-hs-3) |
+| HS-1 | `app/api/auth/forkAuthPlane.ts` — `installForkAuthPlane` → `authenticateTunnel` / `authenticate` decorators (called from `app/api/api.ts`) | RESTORE-R1a-done | No-op tunnel authenticator + mode-selecting `authenticate` implement the fork's **single-user** auth plane; upstream ships a multi-tenant bearer verifier. Take-upstream reinstates per-request user auth. Relocated to fork-owned `auth/forkAuthPlane.ts` seam (M1-R1a), behavior-preserving (no per-request `userId`). | ✅ inline (fork-seam header + call-site) | `publicAuthGate.spec.ts`, `socket.spec.ts`, `forkAuthPlane.spec.ts` | [§8 R1](#r1--auth-plane-hs-1-hs-2-hs-3) |
+| HS-2 | `app/api/auth/forkAuthPlane.ts` — `installForkAuthPlane` → public-mode block (called from `app/api/api.ts`) | RESTORE-R1a-done | Shipped public-server **fail-closed** boundary: buffer body parser (captures `rawBody` for the bodyHash), `onRequest` `httpGuard`, `preValidation` `bodyHashGuard`. Losing it fails **open** on public internet exposure. Relocated to fork-owned `auth/forkAuthPlane.ts` seam (M1-R1a), **hook install order preserved** (httpGuard before route registration), behavior-preserving. | ✅ inline (fork-seam header + call-site) | `publicAuthGate.spec.ts` (default-deny + body-hash), `deviceEnrollment.spec.ts`, `forkAuthPlane.spec.ts` | [§8 R1](#r1--auth-plane-hs-1-hs-2-hs-3) |
 | HS-3 | `app/api/socket.ts:80` — `createSocketAuthMiddleware` → public / loopback branches | RESTORE-R1 | Fork's fail-closed **device-proof** Socket.IO handshake (public) + loopback-capability check. Upstream's middleware has neither; take-upstream fails open on the socket plane. | ✅ inline | `socket.spec.ts`, `remoteDeviceAuth.spec.ts` | [§8 R1](#r1--auth-plane-hs-1-hs-2-hs-3) |
 | HS-4 | `app/api/routes/v3SessionRoutes.ts:166` — session-message `content` envelope | RESTORE-R2-done | Server persists `{ t:'encrypted', c }` but performs **no crypto**; the label is a **mislabel today** because the CLI sends plaintext (see `HC-1` / the fork codec seam `packages/happy-cli/src/api/sessionPayloadCodec.ts` `encodeOutgoing`). R2 server half; comment-only honesty caveat, no logic change. | ✅ inline | `v3SessionRoutes.test.ts` | [§8 R2](#r2-server-half--session-message-envelope-hs-4) |
 | HS-5 | `fork/operatorIdentityGate.ts` — `LOOPBACK_HOSTS` / `isLoopbackHost` / `assertOperatorIdentityGate` (re-exported from `index.ts`) | RESTORE-R3-done | Bind-host **operator-identity gate**: refuses a non-loopback bind unless public-mode with a fail-closed device verifier **and** a Cloudflare Access edge expectation. The single-user server's core safety rail. Relocated to fork-owned `fork/` seam (M1-R3), behavior-preserving. | ✅ inline (fork-seam header + call-site) | `publicAuthGate.spec.ts`, unit assertions on `assertOperatorIdentityGate` | [§8 R3](#r3--operator-identity-gate-hs-5) |
 | HS-6 | `prisma/schema.prisma` — multi-tenant identity models | KEEP-DELETED | Fork collapsed the multi-tenant identity graph: `model Account`, `AccountAuthRequest`, `AccountPushToken`, `UserRelationship`, `GithubUser` and every `accountId`/`userId` FK on `Session`/`Machine` are **removed** (single-user, one-process). Take-upstream resurrects multi-tenancy. | ❌ (nothing to mark) | schema carries no `User`/`Account` model; server compiles with **no** per-request `userId` threading (happy-server AGENTS.md hard rule) | [§8 guard-by-absence](#guard-by-absence-hs-6-hs-7) |
 | HS-7 | `app/api/api.ts:140-154` — route-registration allowlist | KEEP-DELETED | Fork ships a **curated** single-user route surface. Upstream route files the fork removed MUST stay removed: `accessKeysRoutes`, `artifactsRoutes`, `attachmentRoutes`, `authRoutes`, `connectRoutes`, `feedRoutes`, `kvRoutes`, `userRoutes`, `voiceRoutes`, and multi-machine `machinesRoutes` (replaced by `machineSelfRoutes`). Take-upstream re-adds + re-registers them. | ❌ | `publicAuthGate.spec.ts` (default-deny denies any non-allowlisted path); the `api.ts` registration block **is** the allowlist | [§8 guard-by-absence](#guard-by-absence-hs-6-hs-7) |
+| HS-8 | `app/api/utils/enableAuthentication.ts` — upstream `enableAuthentication` (decorates `authenticate` via `auth.verifyToken`) | KEEP-DELETED | Upstream's auth-enable helper decorates `authenticate` by calling `auth.verifyToken(token)` (multi-tenant bearer verification). The fork's `AuthModule` (`app/auth/auth.ts`) collapsed multi-tenant token verification and has **no** `verifyToken` (only `verifyGithubToken`/`createToken`/…). Evaluated for RESTORE (present-but-dormant) during M1-R1a — it registers no active global hook, only a per-request decorator — but restoring it **unmodified** fails `pnpm --filter happy-server typecheck` (`TS2339` `verifyToken`; tsconfig compiles all `sources/**/*`), and restoring it **modified** would defeat the anti-conflict purpose (still a rewrite conflict). So it stays deleted; the fork's auth plane routes through `auth/forkAuthPlane.ts` instead. Take-upstream re-adds it + reintroduces per-request user auth. | ❌ (nothing to mark) | server compiles with **no** `verifyToken` and no per-request `userId` threading; `forkAuthPlane.spec.ts` + `publicAuthGate.spec.ts` pin the fork auth plane's accept/reject | [§8 guard-by-absence](#guard-by-absence-hs-6-hs-7) |
 
 ## 4. happy-cli invariants (`HC-*`)
 
@@ -239,13 +240,18 @@ upstream. (KEEP hunks that are stable enough to re-anchor by grep alone do not n
 ### R1 — auth plane (HS-1, HS-2, HS-3)
 
 On import, upstream's `api.ts` auth region and `socket.ts` middleware will look very different
-(multi-tenant bearer verifier; no device-proof). Re-grep the three `RESTORE-R1` markers, then re-apply:
+(multi-tenant bearer verifier; no device-proof). Re-grep the `RESTORE-R1a-done` markers (api.ts auth
+wiring, now in `auth/forkAuthPlane.ts`) and the remaining `RESTORE-R1` marker (socket.ts), then re-apply:
 keep the no-op `authenticateTunnel`, the mode-selecting `authenticate`, the **entire** public-mode block
 (buffer parser + `httpGuard` + `bodyHashGuard`, install order preserved), and the socket public +
-loopback branches. **Do not reintroduce per-request `userId` threading.** M1-R1 relocates all of this
-into `packages/happy-server/sources/app/api/auth/forkAuthPlane.ts` (extending the existing
-`auth/loopbackCapability.ts` / `auth/remoteDeviceAuth.ts` overlay), after which `api.ts` / `socket.ts`
-shrink to a 1-line seam call and these rows become RESTORE-done. Re-run the five HARD gates (route
+loopback branches. **Do not reintroduce per-request `userId` threading.** **M1-R1a (done)** relocated the
+`api.ts` auth wiring (HS-1, HS-2) into
+`packages/happy-server/sources/app/api/auth/forkAuthPlane.ts` (extending the existing
+`auth/loopbackCapability.ts` / `auth/remoteDeviceAuth.ts` overlay), after which the `api.ts` auth region
+is a 1-line `installForkAuthPlane(...)` seam call — those rows are now `RESTORE-R1a-done`. **M1-R1b
+(pending)** does the same for `socket.ts` (HS-3), still `RESTORE-R1`. Note: upstream's dormant
+`app/api/utils/enableAuthentication.ts` (`auth.verifyToken`) stays **KEEP-DELETED** (HS-8) — the fork's
+`AuthModule` has no `verifyToken`, so restoring it would break typecheck. Re-run the five HARD gates (route
 inventory, body-hash, device enrollment, socket handshake, bind gate) before and after.
 
 ### R2 (server half) — session-message envelope (HS-4)
@@ -271,7 +277,9 @@ These rows have **no marker** (the code is gone). On import, a take-upstream 3-w
 re-add the deleted models/routes as "upstream additions" — **reject those hunks.** The durable guards
 are: the prisma schema's shape (no `User`/`Account`), the `api.ts` route-registration allowlist, and
 `publicAuthGate.spec.ts` default-deny. If any deleted construct sneaks back, those should fail (or the
-importer catches it against these rows).
+importer catches it against these rows). HS-8 (upstream `enableAuthentication.ts` / `auth.verifyToken`)
+is the same shape: the fork's `AuthModule` has no `verifyToken`, so the durable guard is that the server
+typechecks with `verifyToken` absent — reject any take-upstream hunk that re-adds the helper.
 
 ### R2 (cli half) — E2E codec asymmetry (HC-1, HC-2, HC-3)
 
@@ -316,4 +324,6 @@ need no relocation.
   markers, undermarked rows, and unexpected markers on guard-by-absence rows. Run it from the repo root:
   `node scripts/audit-happy-fork-patches.mjs` (exits 0 + prints a report in M0; pass `--strict` to exit
   non-zero on drift for CI). As of M0 it reports **zero drift**: 12 markers in code (5 `HS-*`, 7 `HC-*`)
-  match the 12 inline-marker rows; the 7 `HA-*` rows and `HS-6`/`HS-7` are intentionally marker-free.
+  match the 12 inline-marker rows; the 7 `HA-*` rows and `HS-6`/`HS-7`/`HS-8` are intentionally
+  marker-free. (M1 relocations R1a/R3 move some `HS-*` markers behind fork seams but keep the row↔marker
+  correspondence; re-run the audit to confirm zero drift after each.)

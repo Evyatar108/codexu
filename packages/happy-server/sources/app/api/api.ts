@@ -18,7 +18,8 @@ import { machineSelfRoutes, type MachineSelfState } from "./routes/machineSelfRo
 import { isLocalStorage, getLocalFilesDir } from "@/storage/files";
 import type { EventRouter } from "@/app/events/eventRouter";
 import { verifyLoopbackCapability, type LoopbackCapabilityPaths } from "./auth/loopbackCapability";
-import { createPublicAuthRuntime, type PublicAuthConfig, type PublicAuthRuntime } from "./auth/remoteDeviceAuth";
+import { type PublicAuthConfig } from "./auth/remoteDeviceAuth";
+import { installForkAuthPlane } from "./auth/forkAuthPlane";
 import * as path from "path";
 import * as fs from "fs";
 
@@ -76,45 +77,8 @@ export function configureApi(app: any, tofuConfig: TofuHandshakeConfig = { local
     enableMonitoring(typed);
     enableErrorHandlers(typed);
     typed.decorate('verifyLoopbackCapability', verifyLoopbackCapability(options.paths));
-    // FORK PATCH: RESTORE-R1 fork single-user auth wiring — no-op tunnel authenticator + mode-selecting `authenticate`; relocate to auth/forkAuthPlane.ts in M1 (invariant HS-1)
-    typed.decorate('authenticateTunnel', async function (_request: any) {});
-    typed.decorate('authenticate', options.auth === "loopback" ? typed.verifyLoopbackCapability : typed.authenticateTunnel);
-
-    // Fail-closed public-mode boundary. Installed BEFORE any public route is
-    // registered so every method/path is denied (401) unless it appears in the
-    // explicit policy allowlist with a valid device proof (or is /pair/complete
-    // inside the operator pairing window). This is the application-layer boundary
-    // for public internet exposure; the default tunnel/loopback paths are untouched.
-    let publicAuthRuntime: PublicAuthRuntime | undefined;
-    // FORK PATCH: RESTORE-R1 shipped public-mode fail-closed boundary (buffer body parser + httpGuard + bodyHashGuard); MUST survive import; relocate to auth/forkAuthPlane.ts in M1 (invariant HS-2)
-    if (options.auth === "public") {
-        if (!options.publicAuth) {
-            throw new Error('CRITICAL: auth "public" requires a publicAuth verifier + edge configuration. Refusing to configure a public listener without a fail-closed device verifier.');
-        }
-        publicAuthRuntime = createPublicAuthRuntime(options.publicAuth);
-        // Capture the EXACT raw body bytes the client hashed so the signed bodyHash
-        // can be enforced by the preValidation bodyHashGuard. parseAs:'buffer' hands
-        // us the raw bytes; we still JSON.parse them ourselves so route handlers
-        // receive the parsed object they expect (verified in tests). We deliberately
-        // do NOT re-serialize the parsed JSON to hash it — canonicalization drift
-        // between client and server would cause false rejections; only the bytes on
-        // the wire are authoritative. This override applies to public mode only.
-        fastifyApp.addContentTypeParser('application/json', { parseAs: 'buffer' }, function (request: any, body: Buffer, done: (err: Error | null, body?: unknown) => void) {
-            request.rawBody = body;
-            if (body.length === 0) {
-                done(null, undefined);
-                return;
-            }
-            try {
-                done(null, JSON.parse(body.toString('utf8')));
-            } catch (err) {
-                (err as any).statusCode = 400;
-                done(err as Error, undefined);
-            }
-        });
-        fastifyApp.addHook('onRequest', publicAuthRuntime.httpGuard);
-        fastifyApp.addHook('preValidation', publicAuthRuntime.bodyHashGuard);
-    }
+    // FORK PATCH: [RESTORE-R1a-done] fork single-user + public auth plane wiring — see auth/forkAuthPlane.ts (invariants HS-1, HS-2). Install order (before route/socket registration) is load-bearing for US-005 default-deny.
+    const { publicAuthRuntime } = installForkAuthPlane(fastifyApp, typed, tofuConfig, options);
 
     // Serve local files when using local storage
     if (isLocalStorage()) {
