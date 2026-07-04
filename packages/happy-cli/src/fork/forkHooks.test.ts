@@ -84,7 +84,7 @@ vi.mock('@/daemon/loopbackCapability', () => ({
 }));
 
 import { configuration } from '@/configuration';
-import { onDaemonRun } from '@/fork/forkHooks';
+import { onDaemonRun, onMachineRpc } from '@/fork/forkHooks';
 import { loadOrCreateTofuKeypairs } from '@/tofu/keypairManager';
 import { readMachineState, writeMachineState } from '@/persistence';
 import { createDevTunnelsAgentCommsDeliverRemote } from '@/agentComms/peerDelivery';
@@ -215,5 +215,138 @@ describe('onDaemonRun (M1-S5 / R4a fork daemon wiring hook)', () => {
     const options = { requestId: 'req-1' };
     await expect(spawnSessionFromSession(options)).resolves.toBe(spawnResult);
     expect(handlerSpy).toHaveBeenCalledWith(options);
+  });
+});
+
+// M1-S7 / R4c-ii wiring proof. `onMachineRpc` is a behavior-preserving relocation of
+// the RPC-handler-registration block that used to live inline in
+// `ApiMachineClient.setRPCHandlers`. These tests drive the hook with a fake
+// RpcHandlerManager + spy handlers and assert it registers the exact same fork RPC
+// surface, in the same order, with the same validation + delegation semantics.
+describe('onMachineRpc (M1-S7 / R4c-ii fork machine RPC wiring hook)', () => {
+  function makeCtx() {
+    const registered = new Map<string, (params: any) => any>();
+    const order: string[] = [];
+    const rpcHandlerManager = {
+      registerHandler: vi.fn((method: string, fn: (params: any) => any) => {
+        registered.set(method, fn);
+        order.push(method);
+      }),
+    };
+    const spawnSession = vi.fn(async (_args: any) => ({ type: 'success', sessionId: 'spawned-1' }));
+    const spawnInWorktree = vi.fn(async (_args: any) => ({ type: 'success', sessionId: 'wt-1' }));
+    const spawnSessionFromSession = vi.fn(async (_args: any) => ({ type: 'success', sessionId: 'sfs-1' }));
+    const stopSession = vi.fn(async (_id: string) => true);
+    const requestShutdown = vi.fn(() => {});
+    let currentForkHandler: any = vi.fn(async (_args: any) => ({ type: 'success', sessionId: 'fork-1' }));
+    const getForkSessionHandler = vi.fn(() => currentForkHandler);
+    const syncResumeSessionRpcRegistration = vi.fn(() => { order.push('__syncResume'); });
+    const ctx = {
+      rpcHandlerManager,
+      machineId: 'machine-1',
+      handlers: { spawnSession, spawnInWorktree, spawnSessionFromSession, stopSession, requestShutdown },
+      getForkSessionHandler,
+      syncResumeSessionRpcRegistration,
+    };
+    return {
+      ctx, registered, order,
+      spawnSession, spawnInWorktree, spawnSessionFromSession, stopSession, requestShutdown,
+      getForkSessionHandler, syncResumeSessionRpcRegistration,
+      setForkHandler: (h: any) => { currentForkHandler = h; },
+    };
+  }
+
+  it('registers the full fork RPC surface in the same order as the inline block', () => {
+    const t = makeCtx();
+    onMachineRpc(t.ctx as any);
+    expect(t.order).toEqual([
+      'spawn-happy-session',
+      '__syncResume',
+      'spawn-in-worktree',
+      'spawn-session-from-session',
+      'fork-into-worktree',
+      'stop-session',
+      'stop-daemon',
+    ]);
+    expect(t.syncResumeSessionRpcRegistration).toHaveBeenCalledTimes(1);
+  });
+
+  it('spawn-happy-session delegates to spawnSession with the same params and maps success', async () => {
+    const t = makeCtx();
+    onMachineRpc(t.ctx as any);
+    const handler = t.registered.get('spawn-happy-session')!;
+    const params = { directory: '/repo', sessionId: 's1', machineId: 'other', approvedNewDirectoryCreation: true, agent: 'codex', environmentVariables: { A: '1' }, token: 'tok' };
+    const res = await handler(params);
+    expect(t.spawnSession).toHaveBeenCalledWith(params);
+    expect(res).toEqual({ type: 'success', sessionId: 'spawned-1' });
+  });
+
+  it('spawn-happy-session rejects a missing directory before delegating', async () => {
+    const t = makeCtx();
+    onMachineRpc(t.ctx as any);
+    const handler = t.registered.get('spawn-happy-session')!;
+    await expect(handler({})).rejects.toThrow('Directory is required');
+    expect(t.spawnSession).not.toHaveBeenCalled();
+  });
+
+  it('spawn-in-worktree validates the agent (isSupportedAgent) and injects the machineId', async () => {
+    const t = makeCtx();
+    onMachineRpc(t.ctx as any);
+    const handler = t.registered.get('spawn-in-worktree')!;
+    const bad = await handler({ repoPath: '/r', agent: 'not-an-agent' });
+    expect(bad).toEqual({ type: 'error', errorMessage: 'agent must be one of: claude, codex, gemini, openclaw' });
+    expect(t.spawnInWorktree).not.toHaveBeenCalled();
+
+    const ok = await handler({ repoPath: '/r', agent: 'claude', worktreePath: '/wt', runId: 'run1', token: 'tk' });
+    expect(t.spawnInWorktree).toHaveBeenCalledWith({ machineId: 'machine-1', repoPath: '/r', worktreePath: '/wt', runId: 'run1', agent: 'claude', token: 'tk' });
+    expect(ok).toEqual({ type: 'success', sessionId: 'wt-1' });
+  });
+
+  it('fork-into-worktree reads the CURRENT forkSessionHandler at call time (late binding)', async () => {
+    const t = makeCtx();
+    onMachineRpc(t.ctx as any);
+    const handler = t.registered.get('fork-into-worktree')!;
+
+    // Re-point the handler AFTER registration; the hook must use the new one.
+    const late = vi.fn(async (_a: any) => ({ type: 'success', sessionId: 'late-fork' }));
+    t.setForkHandler(late);
+
+    const res = await handler({ parentSessionId: 'parent1', worktreePath: '/wt' });
+    expect(t.getForkSessionHandler).toHaveBeenCalled();
+    expect(late).toHaveBeenCalledWith({ parentSessionId: 'parent1', worktreePath: '/wt', model: undefined, permissionMode: undefined, effortLevel: undefined });
+    expect(res).toEqual({ type: 'success', sessionId: 'late-fork' });
+  });
+
+  it('fork-into-worktree errors when no handler is published', async () => {
+    const t = makeCtx();
+    onMachineRpc(t.ctx as any);
+    const handler = t.registered.get('fork-into-worktree')!;
+    t.setForkHandler(null);
+    const res = await handler({ parentSessionId: 'parent1', worktreePath: '/wt' });
+    expect(res).toEqual({ type: 'error', errorMessage: 'Fork session handler not available' });
+  });
+
+  it('stop-session validates the id (validateStopSessionId) before stopping', async () => {
+    const t = makeCtx();
+    onMachineRpc(t.ctx as any);
+    const handler = t.registered.get('stop-session')!;
+    await expect(handler({})).rejects.toThrow();
+    expect(t.stopSession).not.toHaveBeenCalled();
+  });
+
+  it('stop-daemon schedules requestShutdown', () => {
+    vi.useFakeTimers();
+    try {
+      const t = makeCtx();
+      onMachineRpc(t.ctx as any);
+      const handler = t.registered.get('stop-daemon')!;
+      const ack = handler({});
+      expect(ack).toEqual({ message: 'Daemon stop request acknowledged, starting shutdown sequence...' });
+      expect(t.requestShutdown).not.toHaveBeenCalled();
+      vi.advanceTimersByTime(100);
+      expect(t.requestShutdown).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

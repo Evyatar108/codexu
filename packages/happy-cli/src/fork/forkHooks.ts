@@ -11,8 +11,19 @@
 // `src/daemon/`, `src/tunnel/`, and `src/agentComms/` — they carry no new
 // behavior. Relocating the call boundary here is behavior-preserving.
 //
-// Sibling hooks R4b/R4c (`onCodexRun`, `onClaudeRun`, `onMachineRpc`) will be
-// added alongside `onDaemonRun` as those stories land; keep the module additive.
+// Sibling hooks for R4b/R4c:
+//   - `onMachineRpc` (this file) — fork daemon RPC-handler registration relocated
+//     out of `api/apiMachine.ts`. Kept here beside `onDaemonRun` because it is
+//     lightweight (no agent-loop / UI imports) and the daemon already loads this
+//     module.
+//   - `onCodexRun` (`fork/onCodexRun.ts`) and `onClaudeRun` (`fork/onClaudeRun.ts`)
+//     — the codex/claude agent-loop bodies relocated out of `codex/runCodex.ts` /
+//     `claude/runClaude.ts`. They live in their OWN fork-owned modules (not this
+//     file) on purpose: they pull in `ink`/`react` and the full agent-loop
+//     dependency surface, and the daemon imports THIS module for `onDaemonRun` —
+//     re-exporting them here would drag that heavy graph into the daemon's
+//     startup, which is not behavior-preserving. `runCodex.ts` / `runClaude.ts`
+//     import those hooks directly.
 
 import { join } from 'path';
 
@@ -32,8 +43,12 @@ import { assertPublicBindReady, buildPublicMode, isPublicTunnelOptedIn, readPubl
 import { createDeviceEnrollmentPersister, readPublicPairedDevices } from '@/tunnel/publicPairedDevices';
 import { bindListenersAndWriteCapability } from '@/daemon/bindListenersAndWriteCapability';
 import { loopbackCapabilityPath } from '@/daemon/loopbackCapability';
+import { isSupportedAgent } from '@/modules/common/registerCommonHandlers';
+import { isValidCodexEffortLevel, isValidCodexRemotePermissionMode } from '@/codex/cliArgs';
+import { validateStopSessionId } from '@/daemon/stopTrackedSession';
 import type { DualListenerBindingHandle } from '@/daemon/dualListenerBinding';
-import type { SpawnSessionFromSessionRpcOptions } from '@/api/apiMachine';
+import type { RpcHandlerManager } from '@/api/rpc/RpcHandlerManager';
+import type { ForkSessionOptions, MachineRpcHandlers, SpawnSessionFromSessionRpcOptions } from '@/api/apiMachine';
 import type { SpawnSessionResult } from '@/modules/common/registerCommonHandlers';
 
 type AgentCommsIngestServerHandle = Awaited<ReturnType<typeof startAgentCommsIngestServer>>;
@@ -258,4 +273,219 @@ export async function onDaemonRun(options: OnDaemonRunOptions): Promise<OnDaemon
     spawnSessionFromSessionHandlerReady,
     resolveSpawnSessionFromSessionHandler,
   };
+}
+
+// Bounds shared by the spawn-session-from-session / fork-into-worktree RPC
+// validators. Relocated verbatim from `api/apiMachine.ts` alongside the handler
+// registration body (M1-S7 / R4c-ii).
+const PARENT_SESSION_ID_MAX_LENGTH = 128;
+const PARENT_SESSION_ID_SHAPE = /^[A-Za-z0-9_-]+$/;
+
+export interface OnMachineRpcContext {
+  /** The client's RPC handler manager the fork handlers register against. */
+  rpcHandlerManager: RpcHandlerManager;
+  /** `this.machine.id` — used to scope spawn-in-worktree / reject cross-machine parents. */
+  machineId: string;
+  /** The spawn/stop/shutdown handler bundle passed to `setRPCHandlers`. */
+  handlers: MachineRpcHandlers;
+  /**
+   * Late-bound accessor for `this.forkSessionHandler`. The fork-into-worktree
+   * handler reads the CURRENT value at RPC-call time (it can be re-assigned after
+   * registration), so this must be an accessor closure, not a snapshot.
+   */
+  getForkSessionHandler: () => ((options: ForkSessionOptions) => Promise<SpawnSessionResult>) | null;
+  /** Bound `this.syncResumeSessionRpcRegistration()` — registers/unregisters the resume handler. */
+  syncResumeSessionRpcRegistration: () => void;
+}
+
+/**
+ * Fork machine RPC wiring: register the daemon-side RPC handlers that back the
+ * fork's single-machine spawn/fork/stop surface (`spawn-happy-session`,
+ * `spawn-in-worktree`, `spawn-session-from-session`, `fork-into-worktree`,
+ * `stop-session`, `stop-daemon`, plus the resume-session registration). Upstream's
+ * multi-machine model does not have these. The body is the verbatim inline block
+ * relocated out of `ApiMachineClient.setRPCHandlers` (M1-S7 / R4c-ii); it only
+ * delegates to the caller-supplied handlers + the `@/daemon` / `@/codex` / common
+ * validators, which are unchanged.
+ */
+// FORK PATCH: [RESTORE-R4-done] fork machine RPC-handler registration relocated out of api/apiMachine.ts (invariant HC-7)
+export function onMachineRpc(context: OnMachineRpcContext): void {
+  const { rpcHandlerManager, machineId, handlers, getForkSessionHandler, syncResumeSessionRpcRegistration } = context;
+  const { spawnSession, spawnInWorktree, spawnSessionFromSession, stopSession, requestShutdown } = handlers;
+
+  // Register spawn session handler
+  rpcHandlerManager.registerHandler('spawn-happy-session', async (params: any) => {
+    const { directory, sessionId, machineId: paramMachineId, approvedNewDirectoryCreation, agent, environmentVariables, token } = params || {};
+    logger.debug(`[API MACHINE] Spawning session with params: ${JSON.stringify(params)}`);
+
+    if (!directory) {
+      throw new Error('Directory is required');
+    }
+
+    const result = await spawnSession({ directory, sessionId, machineId: paramMachineId, approvedNewDirectoryCreation, agent, environmentVariables, token });
+
+    switch (result.type) {
+      case 'success':
+        logger.debug(`[API MACHINE] Spawned session ${result.sessionId}`);
+        return { type: 'success', sessionId: result.sessionId };
+
+      case 'requestToApproveDirectoryCreation':
+        logger.debug(`[API MACHINE] Requesting directory creation approval for: ${result.directory}`);
+        return { type: 'requestToApproveDirectoryCreation', directory: result.directory };
+
+      case 'error':
+        throw new Error(result.errorMessage);
+    }
+  });
+
+  syncResumeSessionRpcRegistration();
+
+  rpcHandlerManager.registerHandler('spawn-in-worktree', async (params: any) => {
+    const { repoPath, worktreePath, runId, agent, token } = params || {};
+
+    if (!isSupportedAgent(agent)) {
+      return { type: 'error', errorMessage: 'agent must be one of: claude, codex, gemini, openclaw' };
+    }
+    if (!repoPath || typeof repoPath !== 'string') {
+      return { type: 'error', errorMessage: 'repoPath is required' };
+    }
+    if (worktreePath !== undefined && worktreePath !== null && typeof worktreePath !== 'string') {
+      return { type: 'error', errorMessage: 'worktreePath must be a string when provided' };
+    }
+    if (runId !== undefined && runId !== null && typeof runId !== 'string') {
+      return { type: 'error', errorMessage: 'runId must be a string when provided' };
+    }
+    if (!spawnInWorktree) {
+      return { type: 'error', errorMessage: 'Spawn-in-worktree handler not available' };
+    }
+
+    return spawnInWorktree({
+      machineId,
+      repoPath,
+      worktreePath: worktreePath ?? undefined,
+      runId: runId ?? undefined,
+      agent,
+      token,
+    });
+  });
+
+  rpcHandlerManager.registerHandler('spawn-session-from-session', async (params: any) => {
+    const { parentSessionId, config } = params || {};
+
+    if (!parentSessionId || typeof parentSessionId !== 'string') {
+      return { type: 'error', errorMessage: 'Parent session ID is required' };
+    }
+    if (parentSessionId.includes(':')) {
+      const [parsedMachineId] = parentSessionId.split(':', 1);
+      if (parsedMachineId && parsedMachineId !== machineId) {
+        return { type: 'error', errorMessage: 'parent session not on this machine' };
+      }
+      return { type: 'error', errorMessage: 'parentSessionId must be a bare local session id' };
+    }
+    if (parentSessionId.length > PARENT_SESSION_ID_MAX_LENGTH || !PARENT_SESSION_ID_SHAPE.test(parentSessionId)) {
+      return { type: 'error', errorMessage: 'parentSessionId must be 1-128 characters of [A-Za-z0-9_-]' };
+    }
+    if (!config || typeof config !== 'object') {
+      return { type: 'error', errorMessage: 'config is required' };
+    }
+    if (!isSupportedAgent(config.agent)) {
+      return { type: 'error', errorMessage: 'agent must be one of: claude, codex, gemini, openclaw' };
+    }
+    for (const field of ['path', 'model', 'permissionMode', 'effortLevel', 'initialMessage'] as const) {
+      const value = config[field];
+      if (value !== undefined && value !== null && typeof value !== 'string') {
+        return { type: 'error', errorMessage: `${field} must be a string when provided` };
+      }
+    }
+    if (config.model === '' || config.permissionMode === '' || config.effortLevel === '') {
+      return { type: 'error', errorMessage: 'model, permissionMode, and effortLevel must be non-empty when provided' };
+    }
+    if (config.effortLevel !== undefined && config.effortLevel !== null && !isValidCodexEffortLevel(config.effortLevel)) {
+      return { type: 'error', errorMessage: 'effortLevel must be one of: none, minimal, low, medium, high, xhigh' };
+    }
+
+    const handler = spawnSessionFromSession;
+    if (!handler) {
+      return { type: 'error', errorMessage: 'Spawn-from-session handler not available' };
+    }
+
+    return handler({
+      parentSessionId,
+      config: {
+        agent: config.agent,
+        path: config.path ?? undefined,
+        model: config.model ?? undefined,
+        permissionMode: config.permissionMode ?? undefined,
+        effortLevel: config.effortLevel ?? undefined,
+        initialMessage: config.initialMessage ?? undefined,
+      },
+    });
+  });
+
+  rpcHandlerManager.registerHandler('fork-into-worktree', async (params: any) => {
+    const { parentSessionId, worktreePath, model, permissionMode, effortLevel } = params || {};
+
+    if (!parentSessionId || typeof parentSessionId !== 'string') {
+      return { type: 'error', errorMessage: 'Parent session ID is required' };
+    }
+    if (parentSessionId.length > PARENT_SESSION_ID_MAX_LENGTH || !PARENT_SESSION_ID_SHAPE.test(parentSessionId)) {
+      return { type: 'error', errorMessage: 'parentSessionId must be 1-128 characters of [A-Za-z0-9_-]' };
+    }
+    if (!worktreePath || typeof worktreePath !== 'string') {
+      return { type: 'error', errorMessage: 'Worktree path is required' };
+    }
+    if (model !== undefined && model !== null && (typeof model !== 'string' || model.length === 0)) {
+      return { type: 'error', errorMessage: 'model must be a non-empty string when provided' };
+    }
+    if (permissionMode !== undefined && permissionMode !== null && !isValidCodexRemotePermissionMode(permissionMode)) {
+      return { type: 'error', errorMessage: 'permissionMode must be one of: default, read-only, safe-yolo, yolo' };
+    }
+    if (effortLevel !== undefined && effortLevel !== null && !isValidCodexEffortLevel(effortLevel)) {
+      return { type: 'error', errorMessage: 'effortLevel must be one of: none, minimal, low, medium, high, xhigh' };
+    }
+
+    const handler = getForkSessionHandler();
+    if (!handler) {
+      return { type: 'error', errorMessage: 'Fork session handler not available' };
+    }
+
+    return handler({
+      parentSessionId,
+      worktreePath,
+      model: model ?? undefined,
+      permissionMode: permissionMode ?? undefined,
+      effortLevel: effortLevel ?? undefined,
+    });
+  });
+
+  // Register stop session handler
+  rpcHandlerManager.registerHandler('stop-session', async (params: any) => {
+    const { sessionId } = params || {};
+
+    const validation = validateStopSessionId(sessionId);
+    if (!validation.ok) {
+      throw new Error(validation.error);
+    }
+
+    const success = await stopSession(validation.sessionId);
+    if (!success) {
+      throw new Error('Session not found or failed to stop');
+    }
+
+    logger.debug(`[API MACHINE] Stopped session ${validation.sessionId}`);
+    return { message: 'Session stopped' };
+  });
+
+  // Register stop daemon handler
+  rpcHandlerManager.registerHandler('stop-daemon', () => {
+    logger.debug('[API MACHINE] Received stop-daemon RPC request');
+
+    // Trigger shutdown callback after a delay
+    setTimeout(() => {
+      logger.debug('[API MACHINE] Initiating daemon shutdown from RPC');
+      requestShutdown();
+    }, 100);
+
+    return { message: 'Daemon stop request acknowledged, starting shutdown sequence...' };
+  });
 }
