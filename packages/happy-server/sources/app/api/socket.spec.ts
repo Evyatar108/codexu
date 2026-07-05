@@ -456,6 +456,106 @@ describe("createSocketAuthMiddleware — US-002 public device-proof handshake", 
     });
 });
 
+describe("createSocketAuthMiddleware — S1 co-resident loopback capability on public handshake", () => {
+    const SOCKET_METHOD = "GET";
+    const SOCKET_PATH = "/v1/updates";
+    const deviceSeed = Uint8Array.from({ length: 32 }, (_, i) => (i + 11) & 0xff);
+    const keyId = "coresident-device";
+    const capabilityToken = "public-coresident-cap-secret";
+    let capabilityPath: string;
+
+    beforeEach(async () => {
+        const dir = await mkdtemp(path.join(os.tmpdir(), "happy-public-cap-"));
+        capabilityPath = path.join(dir, "loopback.cap");
+        await writeFile(capabilityPath, capabilityToken + "\n", { mode: 0o600 });
+    });
+
+    async function buildSocketProof(): Promise<{ header: string; envelope: PublicSignedRequestEnvelope }> {
+        const envelope = await signPublicRequest({
+            method: SOCKET_METHOD,
+            path: SOCKET_PATH,
+            keyId,
+            nonce: generatePublicRequestNonce(),
+            issuedAt: Date.now(),
+            bodyHash: hashRequestBody(null),
+        }, deviceSeed);
+        return { header: encodePublicDeviceProofHeader(envelope), envelope };
+    }
+
+    function publicMiddlewareWith(publicKey: string) {
+        const runtime = createPublicAuthRuntime({
+            devices: [{ keyId, publicKey }],
+            edge: { serviceTokens: [] },
+        });
+        return createSocketAuthMiddleware({ localUserId: "operator" }, {
+            auth: "public",
+            paths: { loopbackCap: capabilityPath },
+            publicAuthRuntime: runtime,
+        });
+    }
+
+    // AC1.1: a valid loopback capability accepts WITHOUT any device proof.
+    it("accepts a valid loopback capability with no device proof (co-resident fast-path)", async () => {
+        const { envelope } = await buildSocketProof();
+        const middleware = publicMiddlewareWith(envelope.publicKey);
+        const socket = fakeSocket({ "x-loopback-capability": capabilityToken });
+        const next = vi.fn();
+
+        await middleware(socket, next);
+
+        expect(next).toHaveBeenCalledWith();
+    });
+
+    // AC1.2: an INVALID capability with no device proof is rejected (fail-closed).
+    it("rejects an invalid capability with no device proof (fail-closed)", async () => {
+        const { envelope } = await buildSocketProof();
+        const middleware = publicMiddlewareWith(envelope.publicKey);
+        const socket = fakeSocket({ "x-loopback-capability": "not-the-secret" });
+        const next = vi.fn();
+
+        await middleware(socket, next);
+
+        expect(next).toHaveBeenCalledWith(new Error("Unauthorized"));
+    });
+
+    // AC1.2: an ABSENT capability with no device proof is rejected (fail-closed).
+    it("rejects an absent capability with no device proof (fail-closed)", async () => {
+        const { envelope } = await buildSocketProof();
+        const middleware = publicMiddlewareWith(envelope.publicKey);
+        const socket = fakeSocket({});
+        const next = vi.fn();
+
+        await middleware(socket, next);
+
+        expect(next).toHaveBeenCalledWith(new Error("Unauthorized"));
+    });
+
+    // AC1.3: a valid device proof with no capability still accepts (device-proof path unchanged).
+    it("still accepts a valid device proof when no capability is presented", async () => {
+        const { header, envelope } = await buildSocketProof();
+        const middleware = publicMiddlewareWith(envelope.publicKey);
+        const socket = fakeSocket({ "x-happy-device-proof": header });
+        const next = vi.fn();
+
+        await middleware(socket, next);
+
+        expect(next).toHaveBeenCalledWith();
+    });
+
+    // AC1.2 fail-through: an invalid capability falls through to the device-proof path,
+    // which accepts when a valid proof is ALSO present.
+    it("falls through to a valid device proof when the capability is invalid", async () => {
+        const { header, envelope } = await buildSocketProof();
+        const middleware = publicMiddlewareWith(envelope.publicKey);
+        const socket = fakeSocket({ "x-loopback-capability": "not-the-secret", "x-happy-device-proof": header });
+        const next = vi.fn();
+
+        await middleware(socket, next);
+
+        expect(next).toHaveBeenCalledWith();
+    });
+});
+
 describe("createSocketAuthMiddleware — CF Access assertion edge check (public mode)", () => {
     const SOCKET_METHOD = "GET";
     const SOCKET_PATH = "/v1/updates";

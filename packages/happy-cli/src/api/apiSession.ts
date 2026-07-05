@@ -259,9 +259,15 @@ export class ApiSessionClient extends EventEmitter {
         });
     }
 
-    private buildSocket(url: string, auth: object): Socket<ServerToClientEvents, ClientToServerEvents> {
+    private buildSocket(url: string, auth: object, extraHeaders?: Record<string, string>): Socket<ServerToClientEvents, ClientToServerEvents> {
         const socket = io(url, {
             auth,
+            // Attached only in public mode (see daemonClient.tunnelSocketIOOptions):
+            // the local loopback capability that authenticates this co-resident
+            // client to the public listener's handshake. Omitted otherwise so
+            // non-public socket options stay unchanged. Honored on the ws upgrade
+            // request in Node (unlike browsers).
+            ...(extraHeaders ? { extraHeaders } : {}),
             path: '/v1/updates',
             reconnection: false,
             transports: ['websocket'],
@@ -371,7 +377,7 @@ export class ApiSessionClient extends EventEmitter {
             this.socket.removeAllListeners();
             this.socket.disconnect();
         }
-        this.socket = this.buildSocket(options.url, auth);
+        this.socket = this.buildSocket(options.url, auth, options.extraHeaders);
         this.socket.connect();
     }
 

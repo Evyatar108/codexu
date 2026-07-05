@@ -140,10 +140,37 @@ export async function tunnelFetch(path: string, init: RequestInit = {}): Promise
   });
 }
 
-export async function tunnelSocketIOOptions(): Promise<{ url: string; auth: Record<string, never> }> {
+export interface TunnelSocketIOOptions {
+  url: string;
+  auth: Record<string, never>;
+  /**
+   * Present only in public mode (opt-in Cloudflare). The daemon's OWN co-resident
+   * socket clients live on the public/tunnel listener (co-located with the app so
+   * app->daemon RPC works) whose Socket.IO handshake enforces a device proof for
+   * REMOTE clients. The daemon instead authenticates with the local loopback
+   * capability — a 0600 per-start secret never sent to remote clients — attached
+   * as a handshake header here.
+   */
+  extraHeaders?: Record<string, string>;
+}
+
+export async function tunnelSocketIOOptions(): Promise<TunnelSocketIOOptions> {
   await ensureDaemonReady();
+  const url = await getTunnelLocalBaseUrl();
+  const state = await machineState();
+  // In public mode the tunnel/public listener gates the handshake with a
+  // device proof; the daemon's own clients present the local loopback
+  // capability instead (accepted co-resident credential). In non-public modes
+  // the tunnel listener has no handshake gate, so the shape stays unchanged.
+  if (state?.publicListener) {
+    return {
+      url,
+      auth: {},
+      extraHeaders: { 'X-Loopback-Capability': await readCapability() },
+    };
+  }
   return {
-    url: await getTunnelLocalBaseUrl(),
+    url,
     auth: {},
   };
 }

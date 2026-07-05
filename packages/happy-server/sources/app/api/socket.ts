@@ -57,7 +57,10 @@ export function configureRedisStreamsAdapter(io: Server): Redis | undefined {
 
 export function createSocketAuthMiddleware(tofuConfig: TofuHandshakeConfig, socketOptions: StartSocketOptions = {}) {
     // FORK PATCH: [RESTORE-R1b-done] thin handshake dispatcher; loopback + public device-proof branch bodies relocated to auth/ helpers (invariant HS-3)
-    const verifyLoopbackHandshake = socketOptions.auth === 'loopback'
+    // The loopback capability verifier is built for BOTH the loopback listener
+    // (its sole credential) AND the public listener (as a co-resident fast-path
+    // credential, checked before device-proof — see the public branch below).
+    const verifyLoopbackHandshake = (socketOptions.auth === 'loopback' || socketOptions.auth === 'public')
         ? makeLoopbackSocketVerifier(socketOptions.paths ?? {})
         : null;
 
@@ -76,11 +79,27 @@ export function createSocketAuthMiddleware(tofuConfig: TofuHandshakeConfig, sock
         }
 
         if (socketOptions.auth === 'public') {
-            const result = await verifyPublicSocketHandshake(socketOptions.publicAuthRuntime, socket.handshake.headers);
-            if (!result.ok) {
-                log({ module: 'websocket' }, `Public socket handshake rejected: ${result.reason}`);
-                next(new Error('Unauthorized'));
-                return;
+            // Co-resident daemon fast-path: the daemon's OWN embedded socket clients
+            // (machine + session) live on THIS public listener (co-located with the
+            // app so app->daemon RPC works) and authenticate with the local loopback
+            // capability — a 0600 per-start secret at paths.loopbackCap that is NEVER
+            // transmitted to remote clients. A valid capability accepts WITHOUT a
+            // device proof. Authorization is by possession of the SECRET only, never
+            // by remote address: cloudflared collapses every remote request to
+            // 127.0.0.1 at the origin, so a loopback-address exemption would authorize
+            // any remote attacker. An absent OR invalid capability falls THROUGH to
+            // the unchanged device-proof path (fail-closed) — a remote client that
+            // cannot obtain or forge the secret still needs a valid device proof.
+            const presentedCapability = socket.handshake.headers['x-loopback-capability'];
+            const acceptedViaCapability = presentedCapability !== undefined
+                && await verifyLoopbackHandshake!(socket.handshake.headers);
+            if (!acceptedViaCapability) {
+                const result = await verifyPublicSocketHandshake(socketOptions.publicAuthRuntime, socket.handshake.headers);
+                if (!result.ok) {
+                    log({ module: 'websocket' }, `Public socket handshake rejected: ${result.reason}`);
+                    next(new Error('Unauthorized'));
+                    return;
+                }
             }
         }
 

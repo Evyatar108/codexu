@@ -101,6 +101,24 @@ describe('daemonClient', () => {
     expect('extraHeaders' in options).toBe(false);
   });
 
+  it('attaches the loopback capability as extraHeaders in public mode', async () => {
+    const client = await loadClient(await makeHome());
+    mocks.readMachineState.mockResolvedValue({
+      machineId: 'machine-1',
+      tunnelPort: 62000,
+      loopbackPort: 62001,
+      tunnelId: 'tunnel-1',
+      lastTunnelUrl: 'https://example.devtunnels.ms',
+      publicListener: { hostname: 'happy.example.dev', tunnelName: 'happy-tunnel' },
+    });
+
+    const options = await client.tunnelSocketIOOptions();
+
+    expect(options.url).toBe('http://127.0.0.1:62000');
+    expect(options.auth).toEqual({});
+    expect(options.extraHeaders).toEqual({ 'X-Loopback-Capability': 'cap-old' });
+  });
+
   it('re-reads a rotated loopback capability after one 401', async () => {
     const homeDir = await makeHome();
     const client = await loadClient(homeDir);

@@ -265,10 +265,16 @@ export class ApiMachineClient {
         });
     }
 
-    private buildSocket(url: string, auth: object): Socket<ServerToDaemonEvents, DaemonToServerEvents> {
+    private buildSocket(url: string, auth: object, extraHeaders?: Record<string, string>): Socket<ServerToDaemonEvents, DaemonToServerEvents> {
         const socket = io(url, {
             transports: ['websocket'],
             auth,
+            // Attached only in public mode (see daemonClient.tunnelSocketIOOptions):
+            // the local loopback capability that authenticates this co-resident
+            // client to the public listener's handshake. Omitted otherwise so
+            // non-public socket options stay unchanged. Honored on the ws upgrade
+            // request in Node (unlike browsers).
+            ...(extraHeaders ? { extraHeaders } : {}),
             path: '/v1/updates',
             reconnection: false,
             autoConnect: false,
@@ -349,7 +355,7 @@ export class ApiMachineClient {
             this.socket.removeAllListeners();
             this.socket.disconnect();
         }
-        this.socket = this.buildSocket(options.url, auth);
+        this.socket = this.buildSocket(options.url, auth, options.extraHeaders);
     }
 
     private async connectToTunnelListener(): Promise<void> {
@@ -359,7 +365,7 @@ export class ApiMachineClient {
         this.socket = this.buildSocket(options.url, {
             ...this.socketAuthBase(),
             ...options.auth,
-        });
+        }, options.extraHeaders);
 
         this.socket.connect();
     }
