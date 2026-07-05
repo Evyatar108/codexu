@@ -1701,32 +1701,6 @@
           "html": "Found during auto-attach dogfood 2026-07-02: happy_on_path() (daemon_supervisor.rs) checks file EXISTENCE not RESOLVABILITY, and spawn_happy_daemon() ignores child exit code. A dangling happy.cmd shim (missing node_modules/happy) passes the gate -> daemon exits MODULE_NOT_FOUND -> only caught by full start-budget timeout with generic message. Fix: capture daemon early exit/stderr so RemoteSessionNotice says WHY. Low-risk hardening; feature still fails LOUD (just slow+generic)."
         }
       ]
-    },
-    {
-      "id": "happy-public-mode-daemon-machine-socket-unauthorized",
-      "scope": "happy-cli",
-      "lifecycle": "tracked",
-      "status": "todo",
-      "lastTouchedAt": "2026-07-05",
-      "kanbanCards": [
-        {
-          "class": "cmd-warn",
-          "html": "BUG (root-caused live 2026-07-05 via webapp bring-up): in PUBLIC mode the daemon's OWN apiMachine socket connects to the public tunnel listener (http://127.0.0.1:<tunnelPort>, e.g. 51371) which enforces Ed25519 device-proof auth, but the daemon presents no device proof — so it loops 'Connection error: Unauthorized' every ~3s forever ([API MACHINE] Connecting to http://127.0.0.1:51371 -> Connection error: Unauthorized, from daemon boot). Consequence: the machine's realtime presence never establishes, so the app shows a realtime 'error' badge (the HTTP-fetched machine list still shows 'last seen just now'). Loopback listener is on 51372 (loopbackPort). Pre-existing; unrelated to the CF-edge or CORS issues."
-        },
-        {
-          "className": "cmd-ok",
-          "html": "Plan shipped @ c3540edb. 5 stories (S1-S5). Recommended fix = Option B2: the daemon's own machine client presents the local X-Loopback-Capability token on the public Socket.IO handshake in public mode; the public listener accepts a valid capability OR a device proof (fail-through). KEY FINDING: routing the daemon to the loopback LISTENER (the task's first idea) would silently BREAK app->daemon RPC (spawn/stop/fork) because the two embedded listeners are independent io servers with NO Redis adapter (isolated RPC rooms). Also fixes a parallel latent session-client bug (apiSession.ts). Machine-socket URL chosen per-connection at daemonClient.ts tunnelSocketIOOptions:143 (shared helper). IMPL SERIALIZED AFTER stream 1 (shares happy-server socket auth surface)."
-        }
-      ],
-      "command": {
-        "name": "happy-public-mode-daemon-machine-socket-unauthorized",
-        "descriptionHtml": "Fix the daemon's own machine socket in public mode. Today apiMachine connects to the tunnel/public listener port (machine.json tunnelPort, e.g. 51371) which in public mode requires an Ed25519 device proof the local daemon can't present -> perpetual Unauthorized reconnect loop -> no realtime machine presence -> app realtime 'error'. Options: (a) in public mode, point the daemon's own apiMachine client at the LOOPBACK listener (loopbackPort, 51372) with the loopback capability token; or (b) have the public listener authorize local/loopback-originating connections (the daemon is co-resident and already trusted). Investigate dualListenerBinding.ts + how apiMachine picks its connect URL (127.0.0.1:tunnelPort). Verify realtime presence + session spawn work end-to-end after the fix.",
-        "warnings": [],
-        "prompts": {
-          "plan": "/plan-with-ralph \"happy-cli public mode: the daemon's own apiMachine socket connects to http://127.0.0.1:<tunnelPort> (the public listener, e.g. 51371) which enforces Ed25519 device-proof auth, so it loops 'Connection error: Unauthorized' forever and the machine's realtime presence never establishes (app shows realtime 'error'). In public mode, route the daemon's own machine client to the LOOPBACK listener (loopbackPort 51372) with the loopback capability token, or authorize local/loopback connections on the public listener. Files: packages/happy-cli/src/daemon/dualListenerBinding.ts, src/api/apiMachine.ts (connect URL = 127.0.0.1:tunnelPort), machine.json {tunnelPort, loopbackPort}. Verify realtime presence + session spawn end-to-end via the web app against happy.evyatar.dev.\"",
-          "impl": "/implement-with-ralph --from-plan .ralph/jobs/happy-public-mode-daemon-machine-socket-unauthorized/plan.md --autonomous  (stories S1-S5; run AFTER stream 1 ships, rebase onto updated main — shares happy-server socket auth)"
-        }
-      }
     }
   ],
   "phaseTree": [

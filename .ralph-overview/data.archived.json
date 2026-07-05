@@ -9816,6 +9816,48 @@
           }
         ]
       }
+    },
+    {
+      "id": "happy-public-mode-daemon-machine-socket-unauthorized",
+      "scope": "happy-cli",
+      "lifecycle": "merged",
+      "status": "todo",
+      "lastTouchedAt": "2026-07-05T23:00:16.097Z",
+      "kanbanCards": [
+        {
+          "class": "cmd-warn",
+          "html": "BUG (root-caused live 2026-07-05 via webapp bring-up): in PUBLIC mode the daemon's OWN apiMachine socket connects to the public tunnel listener (http://127.0.0.1:<tunnelPort>, e.g. 51371) which enforces Ed25519 device-proof auth, but the daemon presents no device proof — so it loops 'Connection error: Unauthorized' every ~3s forever ([API MACHINE] Connecting to http://127.0.0.1:51371 -> Connection error: Unauthorized, from daemon boot). Consequence: the machine's realtime presence never establishes, so the app shows a realtime 'error' badge (the HTTP-fetched machine list still shows 'last seen just now'). Loopback listener is on 51372 (loopbackPort). Pre-existing; unrelated to the CF-edge or CORS issues."
+        },
+        {
+          "className": "cmd-ok",
+          "html": "Plan shipped @ c3540edb. 5 stories (S1-S5). Recommended fix = Option B2: the daemon's own machine client presents the local X-Loopback-Capability token on the public Socket.IO handshake in public mode; the public listener accepts a valid capability OR a device proof (fail-through). KEY FINDING: routing the daemon to the loopback LISTENER (the task's first idea) would silently BREAK app->daemon RPC (spawn/stop/fork) because the two embedded listeners are independent io servers with NO Redis adapter (isolated RPC rooms). Also fixes a parallel latent session-client bug (apiSession.ts). Machine-socket URL chosen per-connection at daemonClient.ts tunnelSocketIOOptions:143 (shared helper). IMPL SERIALIZED AFTER stream 1 (shares happy-server socket auth surface)."
+        }
+      ],
+      "command": {
+        "name": "happy-public-mode-daemon-machine-socket-unauthorized",
+        "descriptionHtml": "Fix the daemon's own machine socket in public mode. Today apiMachine connects to the tunnel/public listener port (machine.json tunnelPort, e.g. 51371) which in public mode requires an Ed25519 device proof the local daemon can't present -> perpetual Unauthorized reconnect loop -> no realtime machine presence -> app realtime 'error'. Options: (a) in public mode, point the daemon's own apiMachine client at the LOOPBACK listener (loopbackPort, 51372) with the loopback capability token; or (b) have the public listener authorize local/loopback-originating connections (the daemon is co-resident and already trusted). Investigate dualListenerBinding.ts + how apiMachine picks its connect URL (127.0.0.1:tunnelPort). Verify realtime presence + session spawn work end-to-end after the fix.",
+        "warnings": [],
+        "prompts": {
+          "plan": "/plan-with-ralph \"happy-cli public mode: the daemon's own apiMachine socket connects to http://127.0.0.1:<tunnelPort> (the public listener, e.g. 51371) which enforces Ed25519 device-proof auth, so it loops 'Connection error: Unauthorized' forever and the machine's realtime presence never establishes (app shows realtime 'error'). In public mode, route the daemon's own machine client to the LOOPBACK listener (loopbackPort 51372) with the loopback capability token, or authorize local/loopback connections on the public listener. Files: packages/happy-cli/src/daemon/dualListenerBinding.ts, src/api/apiMachine.ts (connect URL = 127.0.0.1:tunnelPort), machine.json {tunnelPort, loopbackPort}. Verify realtime presence + session spawn end-to-end via the web app against happy.evyatar.dev.\"",
+          "impl": "/implement-with-ralph --from-plan .ralph/jobs/happy-public-mode-daemon-machine-socket-unauthorized/plan.md --autonomous  (stories S1-S5; run AFTER stream 1 ships, rebase onto updated main — shares happy-server socket auth)"
+        }
+      },
+      "shipManifest": {
+        "shippedAt": "2026-07-05T23:00:16.097Z",
+        "summary": "Fixed the daemon's own machine + session sockets looping 'Connection error: Unauthorized' forever in public mode. Root cause: in public mode the daemon's co-resident embedded socket clients connect to the public/tunnel listener (127.0.0.1:<tunnelPort>) which required an Ed25519 device proof they cannot present. Fix (Option B2): the public Socket.IO handshake now ALSO accepts a valid local X-Loopback-Capability token (the 0600 per-start secret at paths.loopbackCap, never transmitted remotely) as a fast-path, falling THROUGH to the unchanged device-proof path when the capability is absent/invalid (remote clients still fail closed). A shared client helper (daemonClient.ts) attaches the capability on the handshake in public mode only; applied to both the machine client (apiMachine.ts) and the session client (apiSession.ts, which had the identical latent bug). Authorization is by secret possession only, never by remote address (cloudflared collapses remote traffic to 127.0.0.1 at the origin). Rejected the naive 'route the daemon to the loopback LISTENER' fix because the two embedded listeners are independent Socket.IO servers with no Redis adapter, so app->daemon RPC rooms would be isolated (spawn/stop/fork would silently break).\\n\\nVERIFIED LIVE 2026-07-05: rebuilt + restarted the daemon in public mode; the daemon log now shows '[API MACHINE] Connecting to http://127.0.0.1:51371 -> Connected to server -> Keep-alive started -> Daemon state updated successfully' with ZERO Unauthorized lines (was an infinite ~3s loop). 108 happy-server tests (socket.spec.ts +5 new S1) + 20 happy-cli tests (socketTunnelAuth +4 new S3/S4, daemonClient +1 new S2); US-005 route-inventory gate green; both typechecks exit 0.\r\n",
+        "commits": [
+          {
+            "sha": "c3540edb",
+            "oneLine": "plan(happy-cli): daemon own-machine socket uses loopback plane in public mode",
+            "repo": "codexu"
+          },
+          {
+            "sha": "adc0b82c",
+            "oneLine": "fix(happy-cli): daemon own sockets present loopback capability on public handshake",
+            "repo": "codexu"
+          }
+        ]
+      }
     }
   ]
 }
