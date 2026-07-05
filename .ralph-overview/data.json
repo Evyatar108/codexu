@@ -1701,6 +1701,77 @@
           "html": "Found during auto-attach dogfood 2026-07-02: happy_on_path() (daemon_supervisor.rs) checks file EXISTENCE not RESOLVABILITY, and spawn_happy_daemon() ignores child exit code. A dangling happy.cmd shim (missing node_modules/happy) passes the gate -> daemon exits MODULE_NOT_FOUND -> only caught by full start-budget timeout with generic message. Fix: capture daemon early exit/stderr so RemoteSessionNotice says WHY. Low-risk hardening; feature still fails LOUD (just slow+generic)."
         }
       ]
+    },
+    {
+      "id": "happy-public-server-edge-check-cf-jwt-assertion",
+      "scope": "happy-server",
+      "lifecycle": "tracked",
+      "status": "todo",
+      "lastTouchedAt": "2026-07-05",
+      "kanbanCards": [
+        {
+          "class": "cmd-warn",
+          "html": "BUG (root-caused live 2026-07-05 via webapp bring-up): Cloudflare Access strips BOTH CF-Access-Client-Id AND CF-Access-Client-Secret before forwarding to the origin; only the signed Cf-Access-Jwt-Assertion is forwarded. happy-server checkEdgeAccess (app/api/auth/remoteDeviceAuth.ts) re-validates the stripped client-id/secret, so it returns edge_access_denied (401) for EVERY client through the real CF edge — browser AND native. The public server was never verified end-to-end through CF before (earlier 'verified' hit the local :51371 port directly, which still has the headers). Confirmed: direct-to-origin with headers -> device_proof_required (passes); through-CF -> edge_access_denied."
+        },
+        {
+          "class": "cmd-warn",
+          "html": "LOCAL DEBUG UNBLOCK IN TREE (uncommitted, must be reverted/replaced): packages/happy-server/sources/app/api/auth/remoteDeviceAuth.ts checkEdgeAccess currently accepts when the cf-access-jwt-assertion header is merely PRESENT (no signature verification). This is a throwaway session unblock, NOT the fix. The durable fix must verify the assertion cryptographically and remove this."
+        }
+      ],
+      "command": {
+        "name": "happy-public-server-edge-check-cf-jwt-assertion",
+        "descriptionHtml": "Replace happy-server's app-layer checkEdgeAccess (which re-checks the CF-Access client-id/secret that Cloudflare strips) with proper verification of the Cloudflare Cf-Access-Jwt-Assertion header (Option A): verify the JWT signature against the team's JWKS (https://<team>.cloudflareaccess.com/cdn-cgi/access/certs), check aud == the Access app AUD, and (optionally) the service-token common_name. Keep the Ed25519 device proof as the PRIMARY app-layer boundary; the assertion check is the edge defense-in-depth. Remove the uncommitted local debug unblock (present-only acceptance) in remoteDeviceAuth.ts. Update docs/security-model.md + happy-server AGENTS.md 'Public-mode auth plane' (the current text says checkEdgeAccess re-validates the client-id/secret — that is impossible via real CF).",
+        "warnings": [],
+        "prompts": {
+          "plan": "/plan-with-ralph \"happy-server public mode: replace checkEdgeAccess's CF-Access client-id/secret re-check (Cloudflare strips both headers at the edge) with cryptographic verification of the Cf-Access-Jwt-Assertion header CF injects (verify signature vs the team JWKS + aud == Access app AUD). Keep Ed25519 device proof as the primary boundary. Files: packages/happy-server/sources/app/api/auth/remoteDeviceAuth.ts (checkEdgeAccess + verifySocketHandshake both call it), *.spec.ts. Remove the uncommitted local debug unblock (accept-on-assertion-present). HARD gates: re-run publicAuthGate.spec.ts, remoteDeviceAuth.spec.ts, deviceEnrollment.spec.ts, socket.spec.ts. Update docs/security-model.md + happy-server AGENTS.md public-mode auth text.\""
+        }
+      }
+    },
+    {
+      "id": "happy-public-server-web-cors-gaps",
+      "scope": "happy-server",
+      "lifecycle": "tracked",
+      "status": "todo",
+      "lastTouchedAt": "2026-07-05",
+      "kanbanCards": [
+        {
+          "class": "cmd-warn",
+          "html": "GAP (found live 2026-07-05): to reach the public happy-server from a BROWSER (web app), two things are needed that the shipped code/docs don't cover. (1) happy-server allowedHeaders in app/api/api.ts + app/api/socket.ts omit the pairing headers x-happy-pairing-secret / x-happy-pairing-nonce (only Content-Type, X-Happy-Device-Proof, CF-Access-* are listed) — so a /pair/complete CORS preflight answered by the ORIGIN would fail. (2) The Cloudflare Access application needs cors_headers (allow_all_headers + allowed_origins) to answer the preflight, and happy-server needs HAPPY_CORS_ORIGINS set so actual responses carry Access-Control-Allow-Origin. Native clients are immune (no CORS)."
+        },
+        {
+          "class": "cmd-ok",
+          "html": "UNBLOCKED LIVE (config, this session): CF Access app a2331e97-1c27-4582-88a2-5a93014c5337 (happy.evyatar.dev) now has cors_headers { allow_all_headers, allowed_origins:[http://localhost:8081], allowed_methods, max_age 600 }; HAPPY_CORS_ORIGINS=http://localhost:8081 set as a User env var; daemon restarted. This made the browser reach the server end-to-end. The allowedHeaders code gap is still open (masked because CF cors_headers answers the preflight)."
+        }
+      ],
+      "command": {
+        "name": "happy-public-server-web-cors-gaps",
+        "descriptionHtml": "Close the web-client CORS gaps for the public happy-server. (1) Add x-happy-pairing-secret + x-happy-pairing-nonce (and any other public-mode custom headers) to the allowedHeaders arrays in packages/happy-server/sources/app/api/api.ts and app/api/socket.ts. (2) Document the browser bring-up: HAPPY_CORS_ORIGINS env + the Cloudflare Access cors_headers requirement (allow_all_headers + allowed_origins) in docs/security-model.md / docs/fork-notes.md. Extend corsAllowed.test.ts to cover the pairing-header preflight. Note: works today only because CF Access cors_headers answers the preflight; make the origin correct too so it doesn't depend on the edge for preflight header allowance.",
+        "warnings": [],
+        "prompts": {
+          "plan": "/plan-with-ralph \"happy-server public mode web-client CORS: add x-happy-pairing-secret + x-happy-pairing-nonce to allowedHeaders in packages/happy-server/sources/app/api/api.ts and app/api/socket.ts (they list Content-Type/X-Happy-Device-Proof/CF-Access-* but not the pairing headers). Extend app/api/auth/corsAllowed.test.ts. Document the browser bring-up (HAPPY_CORS_ORIGINS + Cloudflare Access cors_headers with allow_all_headers/allowed_origins) in docs/security-model.md + docs/fork-notes.md. parseCorsOrigins reads HAPPY_CORS_ORIGINS (comma-separated, no wildcards).\""
+        }
+      }
+    },
+    {
+      "id": "happy-public-mode-daemon-machine-socket-unauthorized",
+      "scope": "happy-cli",
+      "lifecycle": "tracked",
+      "status": "todo",
+      "lastTouchedAt": "2026-07-05",
+      "kanbanCards": [
+        {
+          "class": "cmd-warn",
+          "html": "BUG (root-caused live 2026-07-05 via webapp bring-up): in PUBLIC mode the daemon's OWN apiMachine socket connects to the public tunnel listener (http://127.0.0.1:<tunnelPort>, e.g. 51371) which enforces Ed25519 device-proof auth, but the daemon presents no device proof — so it loops 'Connection error: Unauthorized' every ~3s forever ([API MACHINE] Connecting to http://127.0.0.1:51371 -> Connection error: Unauthorized, from daemon boot). Consequence: the machine's realtime presence never establishes, so the app shows a realtime 'error' badge (the HTTP-fetched machine list still shows 'last seen just now'). Loopback listener is on 51372 (loopbackPort). Pre-existing; unrelated to the CF-edge or CORS issues."
+        }
+      ],
+      "command": {
+        "name": "happy-public-mode-daemon-machine-socket-unauthorized",
+        "descriptionHtml": "Fix the daemon's own machine socket in public mode. Today apiMachine connects to the tunnel/public listener port (machine.json tunnelPort, e.g. 51371) which in public mode requires an Ed25519 device proof the local daemon can't present -> perpetual Unauthorized reconnect loop -> no realtime machine presence -> app realtime 'error'. Options: (a) in public mode, point the daemon's own apiMachine client at the LOOPBACK listener (loopbackPort, 51372) with the loopback capability token; or (b) have the public listener authorize local/loopback-originating connections (the daemon is co-resident and already trusted). Investigate dualListenerBinding.ts + how apiMachine picks its connect URL (127.0.0.1:tunnelPort). Verify realtime presence + session spawn work end-to-end after the fix.",
+        "warnings": [],
+        "prompts": {
+          "plan": "/plan-with-ralph \"happy-cli public mode: the daemon's own apiMachine socket connects to http://127.0.0.1:<tunnelPort> (the public listener, e.g. 51371) which enforces Ed25519 device-proof auth, so it loops 'Connection error: Unauthorized' forever and the machine's realtime presence never establishes (app shows realtime 'error'). In public mode, route the daemon's own machine client to the LOOPBACK listener (loopbackPort 51372) with the loopback capability token, or authorize local/loopback connections on the public listener. Files: packages/happy-cli/src/daemon/dualListenerBinding.ts, src/api/apiMachine.ts (connect URL = 127.0.0.1:tunnelPort), machine.json {tunnelPort, loopbackPort}. Verify realtime presence + session spawn end-to-end via the web app against happy.evyatar.dev.\""
+        }
+      }
     }
   ],
   "phaseTree": [
