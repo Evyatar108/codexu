@@ -1,0 +1,18 @@
+{
+  "rootCause": "category-2-transport-ordering: app requests transports ['websocket','polling'] (websocket first) with reconnection:false and no tryAllTransports; in a browser the websocket transport cannot carry the Cloudflare Access service-token or device-proof headers, so CF rejects the WS upgrade and engine.io-client (tryAllTransports default false) never falls back to the working polling transport, latching the realtime badge at 'error'. NOT category 1 (socket is attempted) and NOT category 3 (fails before the single-use nonce is ever evaluated).",
+  "confidence": "high",
+  "evidence": [
+    "Live probe: GET https://happy.evyatar.dev/v1/updates/?EIO=4&transport=polling with only CF service-token headers -> 200 '0{\"sid\":...}' (CF Access + CORS + polling transport all work; device proof checked later at namespace).",
+    "Live probe: raw browser WebSocket to wss://happy.evyatar.dev/v1/updates/?EIO=4&transport=websocket -> error @448ms (browser cannot attach CF/device-proof headers to a WS upgrade).",
+    "End-to-end socket.io-client@4.8.1 in-page: app-exact ['websocket','polling'] -> connect_error 'websocket error', engineTransport stuck at 'websocket', never reaches polling; ['polling'] -> connect_error 'Unauthorized' on polling (reaches server verifier); ['websocket','polling']+tryAllTransports:true -> falls back to polling ('Unauthorized').",
+    "engine.io-client@6.6.4 socket.js:509-518 _onError only shifts to next transport when opts.tryAllTransports is set (default false); otherwise emits 'error' and closes.",
+    "socketOptions.ts:56-57 sets transports:['websocket','polling'] + reconnection:false, no tryAllTransports.",
+    "apiSocket.ts:488-493 connect_error handler sets status 'error' with no retry (only disconnect handler reconnects)."
+  ],
+  "recommendedFix": "In packages/happy-app/sources/sync/socketOptions.ts isPublic branch: add tryAllTransports:true and prefer polling on web (Platform.OS==='web' -> transports:['polling']; native keeps ['websocket','polling']). This makes the browser use/fall-back-to the polling transport that actually carries the CF + device-proof headers. Does NOT weaken the single-use-nonce model (proof is consumed once at the Socket.IO namespace over polling; reconnection:false and the fresh-nonce disconnect->connect recovery path in apiSocket.ts are unchanged). Optionally add a bounded first-open connect_error retry in apiSocket.ts for public mode as defense-in-depth.",
+  "filesToChange": [
+    "packages/happy-app/sources/sync/socketOptions.ts",
+    "packages/happy-app/sources/sync/apiSocket.ts (optional, defensive retry only)"
+  ],
+  "primaryCheckoutClean": true
+}
