@@ -19,6 +19,7 @@ function getTunnelHappyClientId(): string {
 export async function buildTunnelSocketOptions(credentials: AuthCredentials, machineId = credentials.machineId, lastSeenSeq?: number): Promise<TunnelSocketOptions> {
     const happyClient = getTunnelHappyClientId();
     const isPublic = isPublicModeCredentials(credentials);
+    const isWeb = Platform.OS === 'web';
     // The socket handshake device-proof binding is FIXED on the server side to
     // GET /v1/updates with an empty body (bodyHash is not checked for sockets).
     // Those SOCKET_PROOF_* constants are server-only (remoteDeviceAuth.ts) and
@@ -53,7 +54,17 @@ export async function buildTunnelSocketOptions(credentials: AuthCredentials, mac
             // CF-Access + device-proof headers on it too.
             ...(isPublic ? { polling: { extraHeaders: headers } } : {}),
         },
-        transports: isPublic ? ['websocket', 'polling'] : ['websocket'],
+        // Public mode over Cloudflare Access: the browser WebSocket API cannot
+        // attach the CF-Access service-token nor the device-proof headers to the
+        // WS upgrade, so on web we connect over polling only (polling carries the
+        // headers). On native the RN websocket layer can attach extraHeaders, so
+        // keep websocket-first with polling as a fallback. tryAllTransports lets
+        // engine.io fall back to polling if the first transport's open fails
+        // instead of terminating (reconnection is off for the single-use nonce).
+        transports: isPublic
+            ? (isWeb ? ['polling'] : ['websocket', 'polling'])
+            : ['websocket'],
+        ...(isPublic ? { tryAllTransports: true } : {}),
         reconnection: false,
     };
 }

@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('expo-constants', () => ({
     default: { expoConfig: { version: '1.2.3' } },
@@ -13,6 +13,7 @@ vi.mock('@/auth/connectTokenRefresh', () => ({
 }));
 
 import { buildTunnelSocketOptions } from './socketOptions';
+import { Platform } from 'react-native';
 import {
     PUBLIC_DEVICE_AUTH_TEST_VECTOR,
     PUBLIC_DEVICE_PROOF_HEADER,
@@ -42,6 +43,12 @@ const publicCredentials: AuthCredentials = {
 };
 
 describe('socketOptions', () => {
+    beforeEach(() => {
+        // buildTunnelSocketOptions reads Platform.OS at call time; keep native as
+        // the default and let individual tests opt into 'web' explicitly.
+        (Platform as { OS: string }).OS = 'ios';
+    });
+
     it('builds Socket.IO options with Dev Tunnels auth and reconnect disabled', async () => {
         const credentials: AuthCredentials = {
             machineId: 'machine-1',
@@ -124,12 +131,15 @@ describe('socketOptions', () => {
         const options = await buildTunnelSocketOptions(credentials);
         expect(options.transports).toEqual(['websocket']);
         expect((options.transportOptions as any).polling).toBeUndefined();
+        expect(options.tryAllTransports).toBeUndefined();
     });
 
     it('builds public-mode options with polling + CF-Access + device proof on every transport', async () => {
         const options = await buildTunnelSocketOptions(publicCredentials);
 
+        // Native (default Platform.OS='ios'): websocket-first with polling fallback.
         expect(options.transports).toEqual(['websocket', 'polling']);
+        expect(options.tryAllTransports).toBe(true);
         expect(options.reconnection).toBe(false);
 
         const transportOptions = options.transportOptions as any;
@@ -154,5 +164,26 @@ describe('socketOptions', () => {
         // single-use nonce for this one-shot (reconnection-off) connection.
         const proofValues = headerSets.map(h => h[PUBLIC_DEVICE_PROOF_HEADER]);
         expect(new Set(proofValues).size).toBe(1);
+    });
+
+    it('uses polling-only transport in public mode on web so the browser socket carries auth headers', async () => {
+        // On web the browser WebSocket API cannot attach CF-Access / device-proof
+        // headers to the WS upgrade, so public mode must connect over polling only.
+        (Platform as { OS: string }).OS = 'web';
+
+        const options = await buildTunnelSocketOptions(publicCredentials);
+
+        expect(options.transports).toEqual(['polling']);
+        expect(options.tryAllTransports).toBe(true);
+        expect(options.reconnection).toBe(false);
+
+        // Polling still carries the CF-Access + device-proof headers.
+        const transportOptions = options.transportOptions as any;
+        const pollingHeaders = transportOptions.polling.extraHeaders as Record<string, string>;
+        expect(pollingHeaders[CF_ACCESS_CLIENT_ID_HEADER]).toBe('cf-id.example');
+        expect(pollingHeaders[CF_ACCESS_CLIENT_SECRET_HEADER]).toBe('cf-secret-value');
+        const envelope = decodePublicDeviceProofHeader(pollingHeaders[PUBLIC_DEVICE_PROOF_HEADER]!);
+        expect(envelope?.method).toBe('GET');
+        expect(envelope?.path).toBe('/v1/updates');
     });
 });
