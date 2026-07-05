@@ -9858,6 +9858,43 @@
           }
         ]
       }
+    },
+    {
+      "id": "happy-app-public-mode-realtime-socket-error",
+      "scope": "happy-app",
+      "lifecycle": "merged",
+      "status": "todo",
+      "lastTouchedAt": "2026-07-05T23:51:58.922Z",
+      "kanbanCards": [
+        {
+          "class": "cmd-warn",
+          "html": "SYMPTOM (observed live 2026-07-05 via webapp bring-up against happy.evyatar.dev): the Happy web app's realtime status badge under 'Terminals' shows a red 'error' even though (a) pairing + the HTTP device-proof path work (machines list 'last seen just now') and (b) the daemon's OWN machine socket now connects cleanly (task happy-public-mode-daemon-machine-socket-unauthorized shipped + verified: '[API MACHINE] Connected to server', 0 Unauthorized). So this is the APP's OWN remote realtime Socket.IO connection, a DISTINCT issue. Diagnostics so far: no server-side socket handshake rejection logged in the daemon log; no socket/realtime error captured in the browser console (the app may not log socket lifecycle to console); a fresh agent-browser reload did NOT heal the badge. Suspected area: public-mode socket uses reconnection:false + single transport + a strict single-use handshake nonce (sources/sync/socketOptions.ts), so after any daemon restart / socket drop the app cannot auto-reconnect and stays 'error' until a truly fresh nonce'd connect; needs investigation of the client socket lifecycle (does a full reload re-init the socket + mint a fresh nonce? is the device-proof/CF-assertion handshake failing silently through CF's websocket/polling edge?). NOTE: this needs the A (Cf-Access-Jwt-Assertion edge) + web-CORS fixes which shipped 2026-07-05, so re-test against current main."
+        }
+      ],
+      "command": {
+        "name": "happy-app-public-mode-realtime-socket-error",
+        "descriptionHtml": "Investigate + fix the Happy web app's realtime Socket.IO connection in public mode (single-user happy.evyatar.dev). The app HTTP path (pairing + machine list) works, and the daemon-side machine socket is fixed, but the app's realtime status badge stays 'error'. Determine whether the app's remote socket (a) never attempts, (b) fails the device-proof/CF-assertion handshake through Cloudflare's websocket/polling edge, or (c) connects once then cannot recover after a drop because public mode uses reconnection:false + single-use nonce. Files: packages/happy-app/sources/sync/apiSocket.ts, sources/sync/socketOptions.ts, sources/sync/sync.ts (realtime status), and the realtime status badge component. Verify end-to-end via the web app: after the fix, the badge goes healthy and live session updates flow. Re-test against current main (the A/B public-server edge+CORS fixes landed 2026-07-05).",
+        "warnings": [],
+        "prompts": {
+          "brainstorm": "/brainstorm-with-ralph \"The Happy web app's realtime Socket.IO badge shows 'error' in public mode (happy.evyatar.dev) even though HTTP device-proof works and the daemon-side machine socket is fixed. Investigate the app's own remote socket lifecycle: apiSocket.ts / socketOptions.ts (reconnection:false + single-use nonce + single transport) / sync.ts realtime status. Is it a no-attempt, a CF websocket/polling edge handshake failure, or a no-recovery-after-drop design issue? Recommend a fix that lets the app maintain/recover its realtime connection in public mode.\""
+        }
+      },
+      "shipManifest": {
+        "shippedAt": "2026-07-05T23:51:58.922Z",
+        "summary": "Fixed the Happy web app's realtime Socket.IO status badge latching at 'error' in public mode (single-user happy.evyatar.dev). Root cause (investigated live, HIGH confidence): the app requested transports ['websocket','polling'] (websocket FIRST) with reconnection:false and no tryAllTransports. In a browser the WebSocket API cannot send custom request headers, so the WS upgrade carried NEITHER the Cloudflare Access token NOR the x-happy-device-proof header, so Cloudflare rejected the upgrade -> engine.io connect_error -> because tryAllTransports defaults to false the client NEVER fell back to polling -> reconnection:false latched the badge at 'error'. Polling itself works end-to-end (verified: GET /v1/updates/?EIO=4&transport=polling returns 200). Fix (packages/happy-app/sources/sync/socketOptions.ts public-mode branch): on web use transports ['polling'] (the transport that actually carries the CF + device-proof headers in a browser); native keeps ['websocket','polling']; both add tryAllTransports:true. reconnection:false + the single-use-nonce security model and the non-public (tunnel/loopback) branch are unchanged.\\n\\nVERIFIED LIVE 2026-07-05: restarted the expo-web dev server with the fix, reloaded the web app against happy.evyatar.dev; the realtime badge now shows 'connected' (green) where it previously showed 'error'. socketOptions.test.ts 7/7 (added web-polling + native-websocket + tryAllTransports assertions); happy-app typecheck exit 0. This completes the webapp end-to-end: pairing + HTTP device-proof + realtime all work through the real Cloudflare path.\r\n",
+        "commits": [
+          {
+            "sha": "291d1456",
+            "oneLine": "investigate(happy-app): root-cause public-mode realtime socket error",
+            "repo": "codexu"
+          },
+          {
+            "sha": "0176bea2",
+            "oneLine": "fix(happy-app): public-mode realtime uses polling+tryAllTransports so the browser socket carries auth headers",
+            "repo": "codexu"
+          }
+        ]
+      }
     }
   ]
 }

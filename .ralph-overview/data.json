@@ -1701,27 +1701,6 @@
           "html": "Found during auto-attach dogfood 2026-07-02: happy_on_path() (daemon_supervisor.rs) checks file EXISTENCE not RESOLVABILITY, and spawn_happy_daemon() ignores child exit code. A dangling happy.cmd shim (missing node_modules/happy) passes the gate -> daemon exits MODULE_NOT_FOUND -> only caught by full start-budget timeout with generic message. Fix: capture daemon early exit/stderr so RemoteSessionNotice says WHY. Low-risk hardening; feature still fails LOUD (just slow+generic)."
         }
       ]
-    },
-    {
-      "id": "happy-app-public-mode-realtime-socket-error",
-      "scope": "happy-app",
-      "lifecycle": "tracked",
-      "status": "todo",
-      "lastTouchedAt": "2026-07-05",
-      "kanbanCards": [
-        {
-          "class": "cmd-warn",
-          "html": "SYMPTOM (observed live 2026-07-05 via webapp bring-up against happy.evyatar.dev): the Happy web app's realtime status badge under 'Terminals' shows a red 'error' even though (a) pairing + the HTTP device-proof path work (machines list 'last seen just now') and (b) the daemon's OWN machine socket now connects cleanly (task happy-public-mode-daemon-machine-socket-unauthorized shipped + verified: '[API MACHINE] Connected to server', 0 Unauthorized). So this is the APP's OWN remote realtime Socket.IO connection, a DISTINCT issue. Diagnostics so far: no server-side socket handshake rejection logged in the daemon log; no socket/realtime error captured in the browser console (the app may not log socket lifecycle to console); a fresh agent-browser reload did NOT heal the badge. Suspected area: public-mode socket uses reconnection:false + single transport + a strict single-use handshake nonce (sources/sync/socketOptions.ts), so after any daemon restart / socket drop the app cannot auto-reconnect and stays 'error' until a truly fresh nonce'd connect; needs investigation of the client socket lifecycle (does a full reload re-init the socket + mint a fresh nonce? is the device-proof/CF-assertion handshake failing silently through CF's websocket/polling edge?). NOTE: this needs the A (Cf-Access-Jwt-Assertion edge) + web-CORS fixes which shipped 2026-07-05, so re-test against current main."
-        }
-      ],
-      "command": {
-        "name": "happy-app-public-mode-realtime-socket-error",
-        "descriptionHtml": "Investigate + fix the Happy web app's realtime Socket.IO connection in public mode (single-user happy.evyatar.dev). The app HTTP path (pairing + machine list) works, and the daemon-side machine socket is fixed, but the app's realtime status badge stays 'error'. Determine whether the app's remote socket (a) never attempts, (b) fails the device-proof/CF-assertion handshake through Cloudflare's websocket/polling edge, or (c) connects once then cannot recover after a drop because public mode uses reconnection:false + single-use nonce. Files: packages/happy-app/sources/sync/apiSocket.ts, sources/sync/socketOptions.ts, sources/sync/sync.ts (realtime status), and the realtime status badge component. Verify end-to-end via the web app: after the fix, the badge goes healthy and live session updates flow. Re-test against current main (the A/B public-server edge+CORS fixes landed 2026-07-05).",
-        "warnings": [],
-        "prompts": {
-          "brainstorm": "/brainstorm-with-ralph \"The Happy web app's realtime Socket.IO badge shows 'error' in public mode (happy.evyatar.dev) even though HTTP device-proof works and the daemon-side machine socket is fixed. Investigate the app's own remote socket lifecycle: apiSocket.ts / socketOptions.ts (reconnection:false + single-use nonce + single transport) / sync.ts realtime status. Is it a no-attempt, a CF websocket/polling edge handshake failure, or a no-recovery-after-drop design issue? Recommend a fix that lets the app maintain/recover its realtime connection in public mode.\""
-        }
-      }
     }
   ],
   "phaseTree": [
