@@ -309,7 +309,10 @@ behavior unless you deliberately enable it.
     "hostname": "happy.evyatar.dev",          // your Access-protected hostname
     "tunnelName": "<named-cloudflare-tunnel>", // pre-created via `cloudflared tunnel create`
     "cloudflareAccess": {
-      "serviceTokens": [                        // >= 1 required; empty fail-closes
+      "teamDomain": "evyatar-codexu.cloudflareaccess.com", // Zero Trust team domain (JWKS issuer)
+      "appAud": "<access-application-aud-tag>",  // Access app AUD the origin verifies against
+      "jwksUrl": "https://evyatar-codexu.cloudflareaccess.com/cdn-cgi/access/certs", // optional; derived from teamDomain when omitted
+      "serviceTokens": [                        // >= 1 required; empty fail-closes (edge policy + invite seed)
         { "clientId": "<cf-access-client-id>", "clientSecret": "<cf-access-client-secret>" }
       ]
     },
@@ -325,13 +328,18 @@ behavior unless you deliberately enable it.
   `127.0.0.1:<port>`; no inbound port is opened on the host. The named tunnel
   must already exist (`cloudflared tunnel create`).
 - **Fail-closed startup:** `assertPublicBindReady()` refuses to bind publicly if
-  the config is missing or `serviceTokens` is empty — it never silently
-  downgrades to an unprotected public bind.
+  the config is missing, `serviceTokens` is empty, or the
+  `cloudflareAccess.teamDomain`/`appAud` needed to verify the edge assertion are
+  absent — it never silently downgrades to an unprotected public bind.
 - **Two-layer boundary:** a Cloudflare Access self-hosted application (service
   token / `non_identity` policy; Zero Trust org
   `evyatar-codexu.cloudflareaccess.com`) is mandatory edge defense-in-depth in
   front of a fail-closed app-layer Ed25519 paired-device verifier (the primary
-  boundary). Full details + threat model in
+  boundary). Real Access strips the `CF-Access-Client-Id`/`CF-Access-Client-Secret`
+  service-token headers before the origin and forwards a signed
+  `Cf-Access-Jwt-Assertion` JWT; the origin cryptographically verifies that JWT
+  (signature via the team-domain JWKS + `iss` + `aud` + `exp`, fail-closed) as
+  the edge check. Full details + threat model in
   [`docs/security-model.md`](security-model.md#optional-public-mode-single-user-evyatardev-server-opt-in-default-off).
 - **Enrollment:** the daemon emits a one-time public pairing invite (base64url;
   server URL + machine id + pairing secret + Access client id/secret + TTL);
@@ -339,9 +347,18 @@ behavior unless you deliberately enable it.
   QR/pairing secret, and its Ed25519 device key is TOFU-pinned. happy-cli
   persists pinned devices to `~/.happy/public-paired-devices.json` so they
   survive a daemon restart. The app then presents a device proof
-  (`x-happy-device-proof`) + the CF-Access headers on every HTTP request and on
-  the Socket.IO handshake, and must connect with `reconnection: false` +
-  a single transport (the socket nonce is strict single-use).
+  (`x-happy-device-proof`) on every HTTP request and on the Socket.IO
+  handshake, and must connect with `reconnection: false` + a single transport
+  (the socket nonce is strict single-use). The `Cf-Access-Jwt-Assertion` edge
+  header is injected by Cloudflare Access itself (not by the app), and the
+  origin verifies it independently of the device proof.
+
+- **Browser CORS bring-up:** a browser-based app client sends its pairing
+  handshake with the `x-happy-pairing-secret` + `x-happy-pairing-nonce`
+  headers, so both are listed in the CORS `allowedHeaders` for the HTTP API and
+  the Socket.IO handler. The `Cf-Access-Jwt-Assertion` header is deliberately
+  NOT in `allowedHeaders`: browsers never send it (Cloudflare Access injects it
+  at the edge), so listing it would be misleading.
 
 
 ### Current setup (retired central instance, as of 2026-04-22)

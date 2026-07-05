@@ -32,8 +32,22 @@ declare module 'happy-server' {
     clientSecret: string;
   }
 
+  /** Cloudflare Access edge-assertion (`Cf-Access-Jwt-Assertion`) expectation. */
+  export interface EdgeAssertionConfig {
+    teamDomain: string;
+    appAud: string;
+    jwksUrl?: string;
+    expectedIdentities?: string[];
+  }
+
   export interface EdgeAccessConfig {
     serviceTokens: EdgeAccessServiceToken[];
+    /**
+     * When present, the origin verifies the CF-injected `Cf-Access-Jwt-Assertion`
+     * JWT (signature + iss + aud + exp) instead of the legacy service-token headers,
+     * which real Cloudflare Access strips before the origin.
+     */
+    assertion?: EdgeAssertionConfig;
   }
 
   /** Operator-opened pairing window + pre-shared secret gate for `/pair/complete`. */

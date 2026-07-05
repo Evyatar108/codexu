@@ -264,12 +264,21 @@ Access service tokens as **mandatory edge defense-in-depth**. Full threat model:
   polling transports (fixed binding `GET /v1/updates`); the old fail-open tunnel
   branch is closed. Because the socket nonce is strict single-use, clients
   connect `reconnection: false` + single transport.
-- **Cloudflare Access edge.** `checkEdgeAccess` re-validates
-  `CF-Access-Client-Id` / `CF-Access-Client-Secret` (constant-time) so the edge
-  expectation is fail-closed even if a request bypasses the edge; the edge
-  itself returns `403` on missing/incorrect tokens.
+- **Cloudflare Access edge.** Real Cloudflare Access strips the
+  `CF-Access-Client-Id` / `CF-Access-Client-Secret` service-token headers before
+  the origin and forwards a signed `Cf-Access-Jwt-Assertion` JWT instead. The
+  origin verifies that assertion in `app/api/auth/edgeAssertion.ts` (via
+  `jose`: `createRemoteJWKSet` against the team-domain JWKS + `jwtVerify`
+  checking signature + `iss` + `aud` + `exp`), fail-closed on any
+  missing/malformed/expired/wrong-aud/wrong-iss token and on JWKS-fetch failure.
+  `isEdgeAllowed` in `remoteDeviceAuth.ts` routes to the assertion verifier when
+  `edge.assertion` (team domain + AUD) is configured, and falls back to the
+  legacy sync `checkEdgeAccess` service-token check only when it is not. The
+  edge itself still returns `403` on an unauthenticated request.
 - CORS allowlists in `app/api/api.ts` and `app/api/socket.ts` additionally
-  include the device-proof and Cloudflare Access headers for browser preflight.
+  include the device-proof and `x-happy-pairing-secret` / `x-happy-pairing-nonce`
+  headers for browser preflight. The `Cf-Access-Jwt-Assertion` header is NOT
+  listed: browsers never send it (Cloudflare Access injects it at the edge).
 - Uses `privacyKit.decodeBase64` / `encodeBase64` for envelope bytes; keep the
   4-space-tab, `.spec.ts` conventions when touching this module.
 

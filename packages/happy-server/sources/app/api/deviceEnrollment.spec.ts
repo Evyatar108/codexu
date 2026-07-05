@@ -10,12 +10,19 @@ import {
     hashRequestBody,
 } from "@slopus/happy-wire";
 import {
-    CF_ACCESS_CLIENT_ID_HEADER,
-    CF_ACCESS_CLIENT_SECRET_HEADER,
     PAIRING_NONCE_HEADER,
     PAIRING_SECRET_HEADER,
     type PublicAuthConfig,
 } from "./auth/remoteDeviceAuth";
+import { buildTestEdgeAssertion } from "./auth/testEdgeAssertion";
+
+// Real Cloudflare Access forwards a signed `Cf-Access-Jwt-Assertion` JWT (the
+// service-token headers are stripped at the edge). The positive controls mint a
+// valid assertion backed by an in-process local JWKS.
+let edgeAssertion: Awaited<ReturnType<typeof buildTestEdgeAssertion>>;
+beforeAll(async () => {
+    edgeAssertion = await buildTestEdgeAssertion();
+});
 
 // ---------------------------------------------------------------------------
 // Enroll -> authenticate acceptance test (the enrollment->verification gap).
@@ -62,10 +69,7 @@ const otherSeed = Uint8Array.from({ length: 32 }, (_, i) => (i + 200) & 0xff);
 const deviceKeyId = "enrolled-device";
 
 function edgeHeaders(): Record<string, string> {
-    return {
-        [CF_ACCESS_CLIENT_ID_HEADER]: EDGE_CLIENT_ID,
-        [CF_ACCESS_CLIENT_SECRET_HEADER]: EDGE_CLIENT_SECRET_SENTINEL,
-    };
+    return edgeAssertion.headers();
 }
 
 /** Derives the base64 Ed25519 public key for a seed (by signing a throwaway proof). */
@@ -115,7 +119,10 @@ afterAll(() => {
 async function buildApp(pairing?: { windowOpenedAt?: number; windowClosesAt?: number }) {
     const publicAuth: PublicAuthConfig = {
         devices: [],
-        edge: { serviceTokens: [{ clientId: EDGE_CLIENT_ID, clientSecret: EDGE_CLIENT_SECRET_SENTINEL }] },
+        edge: {
+            serviceTokens: [{ clientId: EDGE_CLIENT_ID, clientSecret: EDGE_CLIENT_SECRET_SENTINEL }],
+            assertion: edgeAssertion.assertionConfig,
+        },
         pairing: {
             secret: PAIRING_SECRET,
             windowOpenedAt: pairing?.windowOpenedAt ?? 0,

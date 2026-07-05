@@ -18,6 +18,8 @@ const VALID_CONFIG: PublicTunnelConfig = {
   tunnelName: 'happy-evyatar',
   cloudflareAccess: {
     serviceTokens: [{ clientId: 'cf-id', clientSecret: 'cf-secret' }],
+    teamDomain: 'evyatar-codexu.cloudflareaccess.com',
+    appAud: '3978a5b707e4bfa1d94adfef748c8b7549db394cc7d6866e75adc1aaf1ebe88e',
   },
 };
 
@@ -81,6 +83,14 @@ describe('assertPublicBindReady', () => {
   it('passes with at least one service token', () => {
     expect(() => assertPublicBindReady(VALID_CONFIG)).not.toThrow();
   });
+
+  it('throws when teamDomain/appAud is missing (assertion config mandatory)', () => {
+    const noAssertion = {
+      ...VALID_CONFIG,
+      cloudflareAccess: { serviceTokens: VALID_CONFIG.cloudflareAccess.serviceTokens },
+    } as unknown as PublicTunnelConfig;
+    expect(() => assertPublicBindReady(noAssertion)).toThrow(/teamDomain and cloudflareAccess\.appAud are/);
+  });
 });
 
 describe('buildPublicMode', () => {
@@ -96,6 +106,11 @@ describe('buildPublicMode', () => {
     // Devices default to empty (first pairing enrolls one); edge carries the token.
     expect(publicAuth.devices).toEqual([]);
     expect(publicAuth.edge.serviceTokens).toEqual([{ clientId: 'cf-id', clientSecret: 'cf-secret' }]);
+    // The assertion config is threaded from cloudflareAccess.teamDomain/appAud.
+    expect(publicAuth.edge.assertion).toEqual({
+      teamDomain: 'evyatar-codexu.cloudflareaccess.com',
+      appAud: '3978a5b707e4bfa1d94adfef748c8b7549db394cc7d6866e75adc1aaf1ebe88e',
+    });
 
     // The one-time secret is shared: server pairing secret === invite pairSecret.
     expect(publicAuth.pairing?.secret).toBe(invite.pairSecret);
@@ -118,6 +133,27 @@ describe('buildPublicMode', () => {
     });
     expect(publicAuth.freshnessMs).toBe(1000);
     expect(publicAuth.clockSkewMs).toBe(500);
+  });
+
+  it('maps optional jwksUrl + expectedServiceTokenNames into edge.assertion', () => {
+    const { publicAuth } = buildPublicMode({
+      config: {
+        ...VALID_CONFIG,
+        cloudflareAccess: {
+          ...VALID_CONFIG.cloudflareAccess,
+          jwksUrl: 'https://evyatar-codexu.cloudflareaccess.com/cdn-cgi/access/certs',
+          expectedServiceTokenNames: ['operator@example.com'],
+        },
+      },
+      serverUrl: 'https://happy.evyatar.dev',
+      machineId: 'm',
+    });
+    expect(publicAuth.edge.assertion).toEqual({
+      teamDomain: 'evyatar-codexu.cloudflareaccess.com',
+      appAud: '3978a5b707e4bfa1d94adfef748c8b7549db394cc7d6866e75adc1aaf1ebe88e',
+      jwksUrl: 'https://evyatar-codexu.cloudflareaccess.com/cdn-cgi/access/certs',
+      expectedIdentities: ['operator@example.com'],
+    });
   });
 
   it('refuses to build without an edge token', () => {

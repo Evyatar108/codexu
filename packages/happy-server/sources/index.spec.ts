@@ -170,13 +170,30 @@ describe("operator identity gate", () => {
         })).toThrow(/without a fail-closed device verifier AND a Cloudflare Access edge expectation/);
     });
 
-    it("permits a public bind on a non-loopback host with verifier + edge expectation", () => {
+    it("refuses a public bind on a non-loopback host with serviceTokens but no assertion config", () => {
         expect(() => assertOperatorIdentityGate({
             host: "0.0.0.0",
             auth: "public",
             publicAuth: {
                 devices: [{ keyId: "d", publicKey: "pk" }],
                 edge: { serviceTokens: [{ clientId: "id", clientSecret: "secret" }] },
+            },
+        })).toThrow(/Cf-Access-Jwt-Assertion config/);
+    });
+
+    it("permits a public bind on a non-loopback host with verifier + edge expectation", () => {
+        expect(() => assertOperatorIdentityGate({
+            host: "0.0.0.0",
+            auth: "public",
+            publicAuth: {
+                devices: [{ keyId: "d", publicKey: "pk" }],
+                edge: {
+                    serviceTokens: [{ clientId: "id", clientSecret: "secret" }],
+                    assertion: {
+                        teamDomain: "evyatar-codexu.cloudflareaccess.com",
+                        appAud: "3978a5b707e4bfa1d94adfef748c8b7549db394cc7d6866e75adc1aaf1ebe88e",
+                    },
+                },
             },
         })).not.toThrow();
     });

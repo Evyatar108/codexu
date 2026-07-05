@@ -54,7 +54,7 @@ Shipped and verified 2026-07. This mode exposes the operator's **own embedded pe
 
 It is enabled only when the operator sets `HAPPY_TUNNEL_PROVIDER=cloudflare` **and** supplies a valid `~/.happy/public-tunnel.json` (hostname, tunnel name, and at least one Cloudflare Access service token). Absent either, the daemon keeps the Dev Tunnels + loopback contract described above, unchanged. Codex `/remote on` stays LOOPBACK-only (it attaches to the local `127.0.0.1` daemon listener and never targets the public URL).
 
-Two independent gates protect public mode, layered defense-in-depth. The **app-layer Ed25519 paired-device verifier is the PRIMARY boundary**; the **Cloudflare Access service-token edge is MANDATORY defense-in-depth in front of it**. The verifier ships and passes its decisive route-inventory acceptance test independently of the edge, so the boundary never depends on Cloudflare's correctness.
+Two independent gates protect public mode, layered defense-in-depth. The **app-layer Ed25519 paired-device verifier is the PRIMARY boundary**; the **Cloudflare Access edge (a cryptographically-verified `Cf-Access-Jwt-Assertion` JWT) is MANDATORY defense-in-depth in front of it**. The verifier ships and passes its decisive route-inventory acceptance test independently of the edge, so the boundary never depends on Cloudflare's correctness.
 
 ### Primary boundary: fail-closed Ed25519 paired-device verifier
 
@@ -65,9 +65,13 @@ Two independent gates protect public mode, layered defense-in-depth. The **app-l
 - Verification is fail-closed and enforces, in order: well-formed envelope → known + pinned public key (pinned exactly, no rebind) → freshness (`issuedAt` within a 5-minute window, +1-minute forward clock skew) → **strict single-use nonce** (replay cache) → cryptographic signature bound to method + path. Any failure returns 401 with no key material.
 - The same verifier instance backs BOTH the HTTP guard and the socket handshake, so a nonce is consumed exactly once across transports.
 
-### Mandatory edge: Cloudflare Access service tokens
+### Mandatory edge: Cloudflare Access JWT assertion
 
-A Cloudflare Access self-hosted application on `happy.evyatar.dev` (Zero Trust org `evyatar-codexu.cloudflareaccess.com`) enforces a service-token (`non_identity`) policy. Every request must carry `CF-Access-Client-Id` + `CF-Access-Client-Secret`; the edge rejects missing/incorrect tokens with **403** before the request reaches the origin, and valid tokens pass through to the app-layer verifier. The server independently re-checks the service-token headers (`checkEdgeAccess`, constant-time compare) so the edge expectation is fail-closed even if a request bypasses the edge. Verified end-to-end: `/health` without a token → 403, with a valid token → 200; the WS upgrade is gated identically. mTLS is explicitly out of scope until the app has native client-certificate storage.
+A Cloudflare Access self-hosted application on `happy.evyatar.dev` (Zero Trust org `evyatar-codexu.cloudflareaccess.com`) enforces a service-token (`non_identity`) policy at the edge. The app authenticates to the edge by presenting `CF-Access-Client-Id` + `CF-Access-Client-Secret` (sourced from the one-time pairing invite); Cloudflare rejects missing/incorrect tokens with **403** before the request reaches the origin.
+
+Crucially, **Cloudflare Access strips the `CF-Access-Client-Id` / `CF-Access-Client-Secret` headers at the edge and does not forward them to the origin.** Instead it injects a short-lived, RS256-signed JWT in the `Cf-Access-Jwt-Assertion` header. The origin therefore cannot re-check the service-token pair (a naive re-check can never pass through real Cloudflare Access) — it **cryptographically verifies the assertion JWT** in `packages/happy-server/sources/app/api/auth/edgeAssertion.ts` (using [`jose`](https://github.com/panva/jose)): the signature against Cloudflare's rotating JWKS (`https://<teamDomain>/cdn-cgi/access/certs`, fetched + cached + rotated for free by `createRemoteJWKSet`), plus `iss` (`https://<teamDomain>`), `aud` (the Access application AUD tag), and `exp`/`nbf`. Any failure — missing / malformed / expired assertion, wrong `aud` / `iss`, bad signature, or an unreachable JWKS — fails closed (401 `edge_access_denied`). The team domain and AUD are **configuration** (`~/.happy/public-tunnel.json` → `PublicAuthConfig.edge.assertion`), never hardcoded.
+
+`isEdgeAllowed` is the guard the live runtime calls: when an `assertion` expectation is configured (the shipped public-bind path) it verifies the JWT; otherwise it falls back to the legacy synchronous service-token check (`checkEdgeAccess`, constant-time compare), which is retained as a fail-closed fallback for non-public/test paths only. The operator bind gate (`assertOperatorIdentityGate`) and the CLI's `assertPublicBindReady()` both require the assertion config (team domain + AUD) for a public non-loopback bind, so a missing/typo'd assertion config fails fast at startup rather than silently denying every request. mTLS is explicitly out of scope until the app has native client-certificate storage.
 
 ### Global default-deny + explicit route allowlist
 
@@ -84,7 +88,11 @@ The `onRequest` guard verifies the signature over method + path only, because it
 
 ### Socket.IO handshake (websocket + polling)
 
-The socket middleware demands a device proof on BOTH the websocket and polling transports (the old fail-open tunnel branch is closed), using a fixed proof binding of `GET /v1/updates`. CORS/allowedHeaders are extended to carry the device-proof and CF-Access headers for browser preflight. Because the socket nonce is **strict single-use**, the app must connect with `reconnection: false` and a single transport — a reused nonce always fails closed.
+The socket middleware demands a device proof on BOTH the websocket and polling transports (the old fail-open tunnel branch is closed), using a fixed proof binding of `GET /v1/updates`. Because the socket nonce is **strict single-use**, the app must connect with `reconnection: false` and a single transport — a reused nonce always fails closed.
+
+### Browser CORS preflight
+
+For a browser-based app to reach public mode, the CORS `allowedHeaders` (in `app/api/api.ts` and `app/api/socket.ts`) must list every request header the browser sends on a cross-origin request, or the preflight `OPTIONS` fails before the real request. The allowlist carries the device-proof header (`X-Happy-Device-Proof`), the pairing headers (`X-Happy-Pairing-Secret`, `X-Happy-Pairing-Nonce`, sent on `POST /pair/complete`), and the legacy Cloudflare Access client headers (`CF-Access-Client-Id` / `CF-Access-Client-Secret`, which the browser presents to the *edge*). The `Cf-Access-Jwt-Assertion` header is deliberately **NOT** in the allowlist: Cloudflare Access *injects* it between its edge and the origin — a browser never sends it — so listing it in a preflight allowlist would be meaningless. The `corsAllowed.test.ts` preflight test asserts the pairing headers are echoed and the assertion header is absent.
 
 ### Enrollment (TOFU device pinning)
 
@@ -103,7 +111,7 @@ First contact is explicit and operator-gated; there is no open self-enrollment:
 - **Replay protection.** Single-use nonces on both the device proof (shared across HTTP + ws/polling) and the `/pair/complete` pairing nonce; freshness-bounded proofs with a bounded clock-skew allowance.
 - **Body-hash binding.** The signed proof commits to the exact request body, so a captured proof cannot be replayed against a different body.
 - **TOFU device pinning.** Only operator-enrolled device keys can present proofs; a pinned key cannot be silently rebound.
-- **Edge defense-in-depth.** The mandatory Cloudflare Access service-token layer rejects unauthenticated traffic (HTTP + WS upgrade) at the edge before it reaches the origin, and the origin re-checks it.
+- **Edge defense-in-depth.** The mandatory Cloudflare Access layer rejects unauthenticated traffic (HTTP + WS upgrade) at the edge (403) before it reaches the origin; the origin then cryptographically verifies the CF-injected `Cf-Access-Jwt-Assertion` JWT (signature + `iss` + `aud` + `exp`) and fails closed on any mismatch.
 - **Non-goals.** Multi-tenant isolation, key revocation for a lost device, and Cloudflare mTLS are out of scope for the single-user posture; a public multi-user deployment would need all three.
 
 ## Replay Protection (post-claim removal)

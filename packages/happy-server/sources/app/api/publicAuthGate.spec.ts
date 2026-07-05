@@ -10,12 +10,20 @@ import {
     hashRequestBody,
 } from "@slopus/happy-wire";
 import {
-    CF_ACCESS_CLIENT_ID_HEADER,
-    CF_ACCESS_CLIENT_SECRET_HEADER,
     PAIRING_NONCE_HEADER,
     PAIRING_SECRET_HEADER,
     type PublicAuthConfig,
 } from "./auth/remoteDeviceAuth";
+import { buildTestEdgeAssertion } from "./auth/testEdgeAssertion";
+
+// Real Cloudflare Access strips the service-token headers before the origin and
+// forwards a signed `Cf-Access-Jwt-Assertion` JWT instead. The public edge guard
+// verifies that JWT, so the positive controls below present a minted assertion
+// (backed by an in-process local JWKS) rather than client-id/secret headers.
+let edgeAssertion: Awaited<ReturnType<typeof buildTestEdgeAssertion>>;
+beforeAll(async () => {
+    edgeAssertion = await buildTestEdgeAssertion();
+});
 
 // ---------------------------------------------------------------------------
 // US-005 — THE GATE. This is the decisive fail-closed acceptance test for public
@@ -61,10 +69,10 @@ const deviceSeed = Uint8Array.from({ length: 32 }, (_, i) => (i + 11) & 0xff);
 const deviceKeyId = "acceptance-device";
 
 function edgeHeaders(): Record<string, string> {
-    return {
-        [CF_ACCESS_CLIENT_ID_HEADER]: EDGE_CLIENT_ID,
-        [CF_ACCESS_CLIENT_SECRET_HEADER]: EDGE_CLIENT_SECRET_SENTINEL,
-    };
+    // A valid minted CF Access assertion — the edge signal that actually survives
+    // to the origin. The config's serviceTokens remain (legacy) but are bypassed
+    // because an assertion expectation is configured (assertion-first edge guard).
+    return edgeAssertion.headers();
 }
 
 async function buildProofHeader(method: string, path: string, bodyHash?: string): Promise<string> {
@@ -120,7 +128,10 @@ describe("US-005 public-mode fail-closed route inventory (THE GATE)", () => {
 
         const publicAuth: PublicAuthConfig = {
             devices: [{ keyId: deviceKeyId, publicKey: devicePublicKey }],
-            edge: { serviceTokens: [{ clientId: EDGE_CLIENT_ID, clientSecret: EDGE_CLIENT_SECRET_SENTINEL }] },
+            edge: {
+                serviceTokens: [{ clientId: EDGE_CLIENT_ID, clientSecret: EDGE_CLIENT_SECRET_SENTINEL }],
+                assertion: edgeAssertion.assertionConfig,
+            },
             pairing: {
                 secret: "pairing-qr-secret",
                 windowOpenedAt: 0,
@@ -212,6 +223,33 @@ describe("US-005 public-mode fail-closed route inventory (THE GATE)", () => {
         const response = await app.inject({ method: "GET", url: "/__unlisted_probe__", headers: edgeHeaders() });
         expect(response.statusCode).toBe(401);
         expect(response.json()).toEqual({ error: "route_not_allowlisted" });
+    });
+
+    it("fails closed (401 edge_access_denied) when the CF assertion is present but invalid", async () => {
+        // Assertion configured but the presented token is garbage → the edge guard
+        // rejects BEFORE any device-proof/route-policy check (edge is checked first).
+        const response = await app.inject({
+            method: "GET",
+            url: "/",
+            headers: { [edgeAssertion.headerName]: "not-a-valid-assertion" },
+        });
+        expect(response.statusCode).toBe(401);
+        expect(response.json()).toEqual({ error: "edge_access_denied" });
+    });
+
+    it("fails closed (401 edge_access_denied) when an assertion is configured but absent, even with legacy service-token headers", async () => {
+        // A caller presenting only the legacy CF-Access-Client-* headers cannot pass
+        // the assertion-based edge guard — those headers are stripped by real CF.
+        const response = await app.inject({
+            method: "GET",
+            url: "/",
+            headers: {
+                "cf-access-client-id": EDGE_CLIENT_ID,
+                "cf-access-client-secret": EDGE_CLIENT_SECRET_SENTINEL,
+            },
+        });
+        expect(response.statusCode).toBe(401);
+        expect(response.json()).toEqual({ error: "edge_access_denied" });
     });
 
     it("rejects /pair/complete without the operator pairing gate (no key material)", async () => {
@@ -320,7 +358,10 @@ describe("US-005 public-mode Socket.IO handshake (ws + polling, over the wire)",
 
         const publicAuth: PublicAuthConfig = {
             devices: [{ keyId: deviceKeyId, publicKey: deviceSocketKey }],
-            edge: { serviceTokens: [{ clientId: EDGE_CLIENT_ID, clientSecret: EDGE_CLIENT_SECRET_SENTINEL }] },
+            edge: {
+                serviceTokens: [{ clientId: EDGE_CLIENT_ID, clientSecret: EDGE_CLIENT_SECRET_SENTINEL }],
+                assertion: edgeAssertion.assertionConfig,
+            },
         };
 
         app = createApi();
@@ -343,8 +384,7 @@ describe("US-005 public-mode Socket.IO handshake (ws + polling, over the wire)",
             bodyHash: hashRequestBody(null),
         }, deviceSeed);
         return {
-            [CF_ACCESS_CLIENT_ID_HEADER]: EDGE_CLIENT_ID,
-            [CF_ACCESS_CLIENT_SECRET_HEADER]: EDGE_CLIENT_SECRET_SENTINEL,
+            ...edgeAssertion.headers(),
             [PUBLIC_DEVICE_PROOF_HEADER]: encodePublicDeviceProofHeader(envelope),
         };
     }

@@ -29,6 +29,18 @@ export const PublicTunnelConfigSchema = z.object({
     serviceTokens: z
       .array(z.object({ clientId: z.string().min(1), clientSecret: z.string().min(1) }))
       .min(1),
+    /**
+     * Cloudflare Access team domain (e.g. `evyatar-codexu.cloudflareaccess.com`).
+     * The origin uses it to derive the JWKS issuer + certs URL when verifying the
+     * CF-injected `Cf-Access-Jwt-Assertion` JWT. Machine-specific — never hardcoded.
+     */
+    teamDomain: z.string().min(1),
+    /** The Access application AUD tag the assertion's `aud` must include. */
+    appAud: z.string().min(1),
+    /** Optional explicit JWKS certs URL; defaults to the derived team-domain endpoint. */
+    jwksUrl: z.string().url().optional(),
+    /** Optional identity allowlist matched against the assertion's common_name/sub. */
+    expectedServiceTokenNames: z.array(z.string()).optional(),
   }),
   /** Optional pairing-window tuning; defaults to the invite default TTL. */
   pairing: z
@@ -108,6 +120,14 @@ export function assertPublicBindReady(
       'service token is mandatory for the public listener edge (defense in depth).',
     );
   }
+  if (!config.cloudflareAccess.teamDomain || !config.cloudflareAccess.appAud) {
+    throw new Error(
+      'Refusing to enable public mode: cloudflareAccess.teamDomain and cloudflareAccess.appAud are ' +
+      'mandatory. Real Cloudflare Access strips the service-token headers before the origin, so the ' +
+      'origin verifies the CF-injected Cf-Access-Jwt-Assertion JWT — which requires the team domain ' +
+      '(JWKS issuer) and the application AUD to validate.',
+    );
+  }
 }
 
 export interface BuildPublicModeInput {
@@ -167,6 +187,16 @@ export function buildPublicMode(input: BuildPublicModeInput): PublicMode {
         clientId: token.clientId,
         clientSecret: token.clientSecret,
       })),
+      assertion: {
+        teamDomain: input.config.cloudflareAccess.teamDomain,
+        appAud: input.config.cloudflareAccess.appAud,
+        ...(input.config.cloudflareAccess.jwksUrl !== undefined
+          ? { jwksUrl: input.config.cloudflareAccess.jwksUrl }
+          : {}),
+        ...(input.config.cloudflareAccess.expectedServiceTokenNames !== undefined
+          ? { expectedIdentities: input.config.cloudflareAccess.expectedServiceTokenNames }
+          : {}),
+      },
     },
     ...(input.config.freshnessMs !== undefined ? { freshnessMs: input.config.freshnessMs } : {}),
     ...(input.config.clockSkewMs !== undefined ? { clockSkewMs: input.config.clockSkewMs } : {}),

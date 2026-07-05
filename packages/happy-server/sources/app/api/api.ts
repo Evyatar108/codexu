@@ -61,7 +61,11 @@ export function configureApi(app: any, tofuConfig: TofuHandshakeConfig = { local
     const allowedOrigins = parseCorsOrigins();
     fastifyApp.register(import('@fastify/cors'), {
         origin: allowedOrigins.length === 0 ? false : allowedOrigins,
-        allowedHeaders: ['X-Tunnel-Authorization', 'X-Loopback-Capability', 'X-Happy-Client', 'Content-Type', 'X-Happy-Device-Proof', 'CF-Access-Client-Id', 'CF-Access-Client-Secret'],
+        // NOTE: `Cf-Access-Jwt-Assertion` is deliberately NOT listed. Cloudflare
+        // Access INJECTS that header between its edge and the origin; a browser
+        // never sends it, so it must not appear in the preflight allowlist. The
+        // pairing headers below ARE browser-sent (POST /pair/complete).
+        allowedHeaders: ['X-Tunnel-Authorization', 'X-Loopback-Capability', 'X-Happy-Client', 'Content-Type', 'X-Happy-Device-Proof', 'X-Happy-Pairing-Secret', 'X-Happy-Pairing-Nonce', 'CF-Access-Client-Id', 'CF-Access-Client-Secret'],
         methods: ['GET', 'POST', 'PUT', 'DELETE']
     });
     fastifyApp.get('/', function (request, reply) {

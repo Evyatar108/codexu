@@ -23,7 +23,7 @@ In the opt-in, default-off **public mode** (`options.auth === "public"`, the sin
 
 - A global fail-closed `onRequest` hook is installed before route registration; any method/path not in the explicit route-policy allowlist returns `401`.
 - Allowlisted `deviceProof` routes require a valid Ed25519 device proof in `x-happy-device-proof` (single-use nonce, freshness-bounded, signature bound to method + path), and a `preValidation` guard rejects (`401`) unless the request body's SHA-256 matches the signed `bodyHash`.
-- Every request must additionally carry Cloudflare Access service-token headers (`CF-Access-Client-Id` / `CF-Access-Client-Secret`), enforced at the Cloudflare edge (missing/incorrect → `403`) and re-checked server-side.
+- The Cloudflare Access edge returns `403` for an unauthenticated request. Real Access strips the `CF-Access-Client-Id` / `CF-Access-Client-Secret` service-token headers before the origin and forwards a signed `Cf-Access-Jwt-Assertion` JWT; the origin cryptographically verifies that assertion (signature via the team-domain JWKS + `iss` + `aud` + `exp`, fail-closed) as edge defense-in-depth. Browsers never send the assertion header, so it is not in the CORS allowlist.
 - Only operator-enrolled (TOFU-pinned) device keys can present proofs; identity is the pinned device, not a gateway JWT.
 
 ## Pairing Flow (revised 2026-05-13)

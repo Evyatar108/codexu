@@ -29,8 +29,16 @@ export function assertOperatorIdentityGate(config: Pick<CreateAppConfig, "auth" 
         if (boundToPublicHost) {
             const hasVerifier = !!config.publicAuth && config.publicAuth.devices.length > 0;
             const hasEdgeExpectation = !!config.publicAuth && config.publicAuth.edge.serviceTokens.length > 0;
-            if (!hasVerifier || !hasEdgeExpectation) {
-                const message = `CRITICAL: refusing to start happy-server public listener bound to non-loopback host "${resolvedHost}" without a fail-closed device verifier AND a Cloudflare Access edge expectation. Configure publicAuth.devices (at least one paired device) and publicAuth.edge.serviceTokens before binding a public host.`;
+            // The edge boundary that actually survives real Cloudflare Access is the
+            // signed `Cf-Access-Jwt-Assertion` JWT (CF strips the service-token
+            // headers before the origin). Require the assertion config — team domain
+            // + application AUD — so a public bind cannot start with an edge check
+            // that can never pass. A missing/typo'd assertion config fails fast here
+            // rather than silently denying every request in production.
+            const assertion = config.publicAuth?.edge.assertion;
+            const hasAssertionExpectation = !!assertion && !!assertion.teamDomain && !!assertion.appAud;
+            if (!hasVerifier || !hasEdgeExpectation || !hasAssertionExpectation) {
+                const message = `CRITICAL: refusing to start happy-server public listener bound to non-loopback host "${resolvedHost}" without a fail-closed device verifier AND a Cloudflare Access edge expectation (service tokens + a verifiable Cf-Access-Jwt-Assertion config). Configure publicAuth.devices (at least one paired device), publicAuth.edge.serviceTokens, and publicAuth.edge.assertion.teamDomain + .appAud before binding a public host.`;
                 console.error(message);
                 throw new Error(message);
             }

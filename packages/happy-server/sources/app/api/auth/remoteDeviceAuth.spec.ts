@@ -16,10 +16,12 @@ import {
     createPairingGate,
     createPublicAuthRuntime,
     createRemoteDeviceVerifier,
+    isEdgeAllowed,
     isValidDeviceKeyId,
     isValidEd25519PublicKeyBase64,
     resolvePublicRoutePolicy,
 } from "./remoteDeviceAuth";
+import { buildTestEdgeAssertion } from "./testEdgeAssertion";
 
 describe("createPairingGate — US-003 operator pairing window", () => {
     const secret = "qr-shared-secret";
@@ -108,6 +110,93 @@ describe("checkEdgeAccess — Cloudflare Access service token", () => {
             [CF_ACCESS_CLIENT_ID_HEADER]: "id",
             [CF_ACCESS_CLIENT_SECRET_HEADER]: "secret",
         })).toBe(true);
+    });
+});
+
+describe("isEdgeAllowed — assertion-first edge guard with legacy fallback", () => {
+    it("falls back to the legacy service-token check when no assertion is configured", async () => {
+        // No assertion configured + no tokens → open (verifier remains the boundary).
+        await expect(isEdgeAllowed({ serviceTokens: [] }, {})).resolves.toBe(true);
+        // Tokens configured but headers absent → legacy path rejects (fail-closed).
+        await expect(
+            isEdgeAllowed({ serviceTokens: [{ clientId: "id", clientSecret: "secret" }] }, {}),
+        ).resolves.toBe(false);
+        // Matching legacy headers → legacy path accepts.
+        await expect(
+            isEdgeAllowed({ serviceTokens: [{ clientId: "id", clientSecret: "secret" }] }, {
+                [CF_ACCESS_CLIENT_ID_HEADER]: "id",
+                [CF_ACCESS_CLIENT_SECRET_HEADER]: "secret",
+            }),
+        ).resolves.toBe(true);
+    });
+
+    it("verifies the CF assertion (ignoring service-token headers) when assertion is configured", async () => {
+        const edge = await buildTestEdgeAssertion();
+        const config = { serviceTokens: [], assertion: edge.assertionConfig };
+        // Valid minted assertion → accepted, even though no CF-Access-Client-* headers are present.
+        await expect(isEdgeAllowed(config, edge.headers())).resolves.toBe(true);
+        // Missing assertion header → rejected (assertion path is now the edge boundary).
+        await expect(isEdgeAllowed(config, {})).resolves.toBe(false);
+        // Expired assertion → rejected.
+        const expired = await edge.mint({ exp: Math.floor(Date.now() / 1000) - 60 });
+        await expect(isEdgeAllowed(config, edge.headers(expired))).resolves.toBe(false);
+        // A legacy service-token header cannot satisfy the assertion path.
+        await expect(
+            isEdgeAllowed(config, {
+                [CF_ACCESS_CLIENT_ID_HEADER]: "id",
+                [CF_ACCESS_CLIENT_SECRET_HEADER]: "secret",
+            }),
+        ).resolves.toBe(false);
+    });
+});
+
+describe("createPublicAuthRuntime — assertion edge check on HTTP guard + socket handshake", () => {
+    it("rejects a public HTTP request whose CF assertion is missing/invalid but accepts a valid one", async () => {
+        const edge = await buildTestEdgeAssertion();
+        const runtime = createPublicAuthRuntime({
+            devices: [],
+            edge: { serviceTokens: [], assertion: edge.assertionConfig },
+        });
+
+        function reply() {
+            const captured: { code?: number; body?: unknown } = {};
+            return {
+                captured,
+                code(status: number) {
+                    captured.code = status;
+                    return { send(body: unknown) { captured.body = body; return body; } };
+                },
+            };
+        }
+
+        // Missing assertion → edge_access_denied before any device-proof check.
+        const missing = reply();
+        await runtime.httpGuard(
+            { method: "GET", url: "/v1/sessions", headers: {}, routeOptions: { url: "/v1/sessions" } },
+            missing,
+        );
+        expect(missing.captured.code).toBe(401);
+        expect(missing.captured.body).toEqual({ error: "edge_access_denied" });
+
+        // Valid assertion but no device proof → passes the edge, fails at device proof.
+        const noProof = reply();
+        await runtime.httpGuard(
+            { method: "GET", url: "/v1/sessions", headers: edge.headers(), routeOptions: { url: "/v1/sessions" } },
+            noProof,
+        );
+        expect(noProof.captured.code).toBe(401);
+        expect(noProof.captured.body).toEqual({ error: "device_proof_required" });
+    });
+
+    it("rejects a socket handshake with a missing assertion (edge_access_denied)", async () => {
+        const edge = await buildTestEdgeAssertion();
+        const runtime = createPublicAuthRuntime({
+            devices: [],
+            edge: { serviceTokens: [], assertion: edge.assertionConfig },
+        });
+        const denied = await runtime.verifySocketHandshake({});
+        expect(denied.ok).toBe(false);
+        expect(denied.reason).toBe("edge_access_denied");
     });
 });
 

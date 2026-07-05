@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { mkdtemp, writeFile } from "fs/promises";
 import os from "os";
 import path from "path";
@@ -44,6 +44,7 @@ vi.mock("@/app/events/eventRouter", () => ({
 
 import { configureRedisStreamsAdapter, createSocketAuthMiddleware, startSocket } from "./socket";
 import { createPublicAuthRuntime } from "./auth/remoteDeviceAuth";
+import { buildTestEdgeAssertion } from "./auth/testEdgeAssertion";
 import {
     signPublicRequest,
     encodePublicDeviceProofHeader,
@@ -447,6 +448,79 @@ describe("createSocketAuthMiddleware — US-002 public device-proof handshake", 
     it("fails closed when public mode is set but no verifier is configured", async () => {
         const middleware = createSocketAuthMiddleware({ localUserId: "operator" }, { auth: "public" });
         const socket = fakeSocket({});
+        const next = vi.fn();
+
+        await middleware(socket, next);
+
+        expect(next).toHaveBeenCalledWith(new Error("Unauthorized"));
+    });
+});
+
+describe("createSocketAuthMiddleware — CF Access assertion edge check (public mode)", () => {
+    const SOCKET_METHOD = "GET";
+    const SOCKET_PATH = "/v1/updates";
+    const deviceSeed = Uint8Array.from({ length: 32 }, (_, i) => (i + 7) & 0xff);
+    const keyId = "socket-assertion-device";
+    let edge: Awaited<ReturnType<typeof buildTestEdgeAssertion>>;
+
+    beforeAll(async () => {
+        edge = await buildTestEdgeAssertion();
+    });
+
+    async function buildProof(): Promise<{ header: string; envelope: PublicSignedRequestEnvelope }> {
+        const envelope = await signPublicRequest({
+            method: SOCKET_METHOD,
+            path: SOCKET_PATH,
+            keyId,
+            nonce: generatePublicRequestNonce(),
+            issuedAt: Date.now(),
+            bodyHash: hashRequestBody(null),
+        }, deviceSeed);
+        return { header: encodePublicDeviceProofHeader(envelope), envelope };
+    }
+
+    function runtimeFor(publicKey: string) {
+        return createPublicAuthRuntime({
+            devices: [{ keyId, publicKey }],
+            edge: { serviceTokens: [], assertion: edge.assertionConfig },
+        });
+    }
+
+    it("accepts a handshake carrying a valid minted assertion + device proof", async () => {
+        const { header, envelope } = await buildProof();
+        const middleware = createSocketAuthMiddleware(
+            { localUserId: "operator" },
+            { auth: "public", publicAuthRuntime: runtimeFor(envelope.publicKey) },
+        );
+        const socket = fakeSocket({ "x-happy-device-proof": header, ...edge.headers() });
+        const next = vi.fn();
+
+        await middleware(socket, next);
+
+        expect(next).toHaveBeenCalledWith();
+    });
+
+    it("rejects a handshake missing the assertion header even with a valid device proof", async () => {
+        const { header, envelope } = await buildProof();
+        const middleware = createSocketAuthMiddleware(
+            { localUserId: "operator" },
+            { auth: "public", publicAuthRuntime: runtimeFor(envelope.publicKey) },
+        );
+        const socket = fakeSocket({ "x-happy-device-proof": header });
+        const next = vi.fn();
+
+        await middleware(socket, next);
+
+        expect(next).toHaveBeenCalledWith(new Error("Unauthorized"));
+    });
+
+    it("rejects a handshake whose assertion header is invalid/garbage", async () => {
+        const { header, envelope } = await buildProof();
+        const middleware = createSocketAuthMiddleware(
+            { localUserId: "operator" },
+            { auth: "public", publicAuthRuntime: runtimeFor(envelope.publicKey) },
+        );
+        const socket = fakeSocket({ "x-happy-device-proof": header, [edge.headerName]: "garbage-not-a-jwt" });
         const next = vi.fn();
 
         await middleware(socket, next);

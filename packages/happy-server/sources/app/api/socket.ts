@@ -118,7 +118,10 @@ export function startSocket(app: Fastify, tofuConfig: TofuHandshakeConfig = { lo
             origin: allowedOrigins.length === 0 ? false : allowedOrigins,
             methods: ["GET", "POST", "OPTIONS"],
             credentials: true,
-            allowedHeaders: ["X-Tunnel-Authorization", "X-Loopback-Capability", "X-Happy-Client", "Content-Type", "X-Happy-Device-Proof", "CF-Access-Client-Id", "CF-Access-Client-Secret"]
+            // `Cf-Access-Jwt-Assertion` is intentionally absent: Cloudflare Access
+            // injects it origin-side, the browser never sends it. The pairing
+            // headers ARE browser-sent (POST /pair/complete).
+            allowedHeaders: ["X-Tunnel-Authorization", "X-Loopback-Capability", "X-Happy-Client", "Content-Type", "X-Happy-Device-Proof", "X-Happy-Pairing-Secret", "X-Happy-Pairing-Nonce", "CF-Access-Client-Id", "CF-Access-Client-Secret"]
         },
         transports: ['websocket', 'polling'],
         pingTimeout: 45000,

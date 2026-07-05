@@ -10,6 +10,11 @@ import {
     verifyPublicRequest,
     type PublicSignedRequestEnvelope,
 } from "@slopus/happy-wire";
+import {
+    createEdgeAssertionVerifier,
+    type EdgeAssertionConfig,
+    type EdgeAssertionVerifier,
+} from "./edgeAssertion";
 
 // ---------------------------------------------------------------------------
 // Remote device auth plane (public mode)
@@ -41,6 +46,15 @@ export interface EdgeAccessServiceToken {
 
 export interface EdgeAccessConfig {
     serviceTokens: EdgeAccessServiceToken[];
+    /**
+     * Cloudflare Access edge-assertion expectation. When present, the public-mode
+     * edge guard cryptographically verifies the CF-injected `Cf-Access-Jwt-Assertion`
+     * JWT (signature against CF's JWKS + iss + aud + exp) INSTEAD of the legacy
+     * service-token header pair — which real Cloudflare Access strips before the
+     * origin and so can never pass through. The device Ed25519 proof remains the
+     * PRIMARY app-layer boundary; this is additive edge defense in depth.
+     */
+    assertion?: EdgeAssertionConfig;
 }
 
 /** Operator-opened pairing window + pre-shared QR secret gate for `/pair/complete` (US-003). */
@@ -166,6 +180,34 @@ export function checkEdgeAccess(config: EdgeAccessConfig | undefined, headers: R
     return config.serviceTokens.some(
         (token) => constantTimeEqual(token.clientId, clientId) && constantTimeEqual(token.clientSecret, clientSecret),
     );
+}
+
+/**
+ * Fail-closed edge guard used by the live public-mode runtime. When an assertion
+ * expectation is configured (the shipped public bind path), it verifies the
+ * CF-injected `Cf-Access-Jwt-Assertion` JWT — real Cloudflare Access strips the
+ * service-token headers, so the JWT is the only edge signal that survives to the
+ * origin. When no assertion is configured it falls back to the legacy sync
+ * `checkEdgeAccess` service-token check (kept for non-public/test paths and as a
+ * fail-closed legacy fallback).
+ *
+ * `assertionVerifier` should be a verifier built ONCE (via
+ * `createEdgeAssertionVerifier`) and reused so the JWKS is cached/rotated across
+ * requests; `createPublicAuthRuntime` builds and closes over it. When omitted a
+ * per-call verifier is built from `edge.assertion` (used by direct unit tests
+ * that inject a local JWKS).
+ */
+export async function isEdgeAllowed(
+    edge: EdgeAccessConfig | undefined,
+    headers: Record<string, unknown>,
+    assertionVerifier?: EdgeAssertionVerifier,
+): Promise<boolean> {
+    if (edge?.assertion) {
+        const verify = assertionVerifier ?? createEdgeAssertionVerifier(edge.assertion);
+        const result = await verify(headers);
+        return result.ok;
+    }
+    return checkEdgeAccess(edge, headers);
 }
 
 export interface RemoteDeviceProofResult {
@@ -428,6 +470,10 @@ export function createPublicAuthRuntime(config: PublicAuthConfig): PublicAuthRun
     const verifier = createRemoteDeviceVerifier(config);
     const edge = config.edge;
     const pairingGate = config.pairing ? createPairingGate(config.pairing) : undefined;
+    // Built ONCE and closed over so the CF Access JWKS is fetched/cached/rotated
+    // across every request (never per-call). Undefined when no assertion is
+    // configured — the guards then fall back to the legacy service-token check.
+    const assertionVerifier = edge?.assertion ? createEdgeAssertionVerifier(edge.assertion) : undefined;
 
     async function httpGuard(request: any, reply: any): Promise<unknown> {
         // CORS preflight is handled by @fastify/cors and must not be blocked here.
@@ -435,7 +481,7 @@ export function createPublicAuthRuntime(config: PublicAuthConfig): PublicAuthRun
             return;
         }
         // Edge (Cloudflare Access) is mandatory defense-in-depth, checked first.
-        if (!checkEdgeAccess(edge, request.headers)) {
+        if (!(await isEdgeAllowed(edge, request.headers, assertionVerifier))) {
             return reply.code(401).send({ error: "edge_access_denied" });
         }
         const routePath = request.routeOptions?.url as string | undefined;
@@ -478,7 +524,7 @@ export function createPublicAuthRuntime(config: PublicAuthConfig): PublicAuthRun
     }
 
     async function verifySocketHandshake(headers: Record<string, unknown>): Promise<RemoteDeviceProofResult> {
-        if (!checkEdgeAccess(edge, headers)) {
+        if (!(await isEdgeAllowed(edge, headers, assertionVerifier))) {
             return { ok: false, reason: "edge_access_denied" };
         }
         const header = headerString(headers[PUBLIC_DEVICE_PROOF_HEADER]);
