@@ -96,8 +96,8 @@ export class MessageQueue2<T> {
             message,
             mode,
             modeHash,
-            attachments,
             isolate: false,
+            attachments,
             delivery,
         });
 
@@ -350,8 +350,8 @@ export class MessageQueue2<T> {
             mode,
             hash: targetModeHash,
             isolate,
-            consumedMessages,
             attachments,
+            consumedMessages,
         };
     }
 
