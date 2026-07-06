@@ -1799,27 +1799,6 @@
       }
     },
     {
-      "id": "happy-upstream-permanent-remote-and-cadence",
-      "scope": "codexu|ops",
-      "lifecycle": "tracked",
-      "status": "todo",
-      "lastTouchedAt": "2026-07-06",
-      "kanbanCards": [
-        {
-          "class": "cmd-warn",
-          "html": "ENABLING (small): permanent upstream remote + merge=ours driver setup doc + per-release cadence. Prereq-ish for smooth repeated intakes."
-        }
-      ],
-      "command": {
-        "name": "happy-upstream-permanent-remote-and-cadence",
-        "descriptionHtml": "Enabling step for upstream intake: add slopus/happy as a PERMANENT read-only remote to codexu (so 3-way diffs + intakes don't depend on the ad-hoc D:/harness-efforts/happy mirror), document the one-time `git config merge.ours.driver true` setup (required by the .gitattributes merge=ours shims), and establish a per-release sync cadence (watch slopus/happy releases; run a reduction+intake pass per release). Complements the existing periodic-review task happy-upstream-sync. Small. Part of the post-R8 upstream conflict-surface reduction objective (umbrella task happy-fork-upstream-divergence-reconciliation). Approach = the R8 codex-fork playbook: per-divergence KEEP vs DISABLE-for-now triage; for KEEPs relocate fork logic into fork-owned modules (src/fork/ or sources/fork/) + // FORK PATCH: markers + thin call-site seams (never inline edits); RESTORE upstream toward-upstream where the feature is wanted (with a Settings toggle for experimentation) to reduce conflict. Governed by docs/happy-patch-surface.md; assessment at .ralph/investigations/happy-upstream-rebase-assessment-v2/. Upstream target cli-1.1.10 @ 71c417e1 in mirror D:/harness-efforts/happy (remote origin=slopus/happy).",
-        "warnings": [],
-        "prompts": {
-          "plan": "/plan-with-ralph \"Add slopus/happy as a permanent read-only remote to codexu (packages/happy-* map to upstream paths), document the one-time git config merge.ours.driver true setup, and define a per-release upstream sync/intake cadence. Update docs/fork-notes.md + docs/happy-patch-surface.md §7. Small enabling task; complements happy-upstream-sync.\""
-        }
-      }
-    },
-    {
       "id": "happy-gitattributes-packagejson-normalization",
       "scope": "codexu|happy",
       "lifecycle": "tracked",
