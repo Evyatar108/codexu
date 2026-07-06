@@ -215,6 +215,8 @@ type RequestSwitchResponse = {
 const INITIAL_MESSAGES_WINDOW_SIZE = 80;
 const OLDER_MESSAGES_PAGE_SIZE = 80;
 
+// FORK PATCH: [KEEP] Single-user Sync class — permanent manual-three-way cluster (convergent evolution, not liftable fork blocks): loopback/tunnel fetchMachines, no-E2E fetchMessages via decodeApiMessages, deferred-switch sendMessage, optimistic-placeholder socket handlers, PrefetchManager render-window pagination. Extractable helpers already live in zero-conflict fork-only modules (paginationMath/prefetchManager/messageWindow/applyPrefetchedRange/machineSessionId); only these call sites conflict. Start-from-OURS; see docs/happy-patch-surface.md §5 + §8 "R5" intake recipe (invariant HA-1)
+// FORK PATCH: [KEEP-DELETED] Multi-account plane removed — friends/users/feed/artifacts state + apiFeed/apiFriends imports are deliberately absent, and syncSettings drops the upstream feed-event filter. Take-ours; drop any upstream re-add on merge (verify grep count == 0). See HA-1a (invariant HA-1)
 class Sync {
     private static readonly BACKGROUND_SEND_TIMEOUT_MS = 30_000;
     serverID!: string;

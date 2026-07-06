@@ -216,6 +216,7 @@ export type SessionListViewItem =
 // Legacy type for backward compatibility - to be removed
 export type SessionListItem = string | Session;
 
+// FORK PATCH: [KEEP-DELETED] Multi-account store removed — friends/users/feed/artifacts state+methods+hooks and the realtimeMode debounce are deliberately absent from this single-user store. Take-ours; drop any upstream extend on merge (verify unreadSessionIds/applyFriends grep count == 0). See HA-2a (invariant HA-2)
 interface StorageState {
     settings: Settings;
     localSettings: LocalSettings;
@@ -479,6 +480,7 @@ function buildSessionListViewData(
     return listData;
 }
 
+// FORK PATCH: [KEEP] Single-user Zustand store — permanent manual-three-way cluster (convergent evolution, one create() closure not liftable): parent/children DFS tree-grouping (buildSessionRowData/buildSessionListViewData, TreeSessionRowData/depth/machineSessionId), userChosen sticky permission mode, pinned avatars + tree-expanded persistence, render-window older-message pagination fields (hasOlder/oldestLoadedSeq/loadingOlder/renderWindow/activePrefetch). Start-from-OURS; see docs/happy-patch-surface.md §5 + §8 "R5" intake recipe (invariant HA-2)
 export const storage = create<StorageState>()((set, get) => {
     let settings = loadSettings();
     let localSettings = loadLocalSettings();

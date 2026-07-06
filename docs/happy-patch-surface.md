@@ -190,13 +190,23 @@ Paths relative to `packages/happy-app/sources/` unless noted. See [`packages/hap
 > **R8 stage 1 update.** `HA-8` (MarkdownView) has begun relocating under **R8** (M2) — its KEEP hunks
 > now live in `sources/fork/markdown/*` behind a `RESTORE-R8d` seam (see
 > [§8 R8](#r8--happy-app-ui-seams-ha-8-markdownview-stage-1)). `HA-4`/`HA-5`/`HA-6` are re-scoped to
-> RESTORE-R8 targets for later stages; `HA-9`–`HA-12` are added below as planned inventory. `HA-1`/`HA-2`/`HA-3`
-> (sync) and `HA-7` (i18n) remain doc-only for now.
+> RESTORE-R8 targets for later stages; `HA-9`–`HA-12` are added below as planned inventory. `HA-3`
+> (sync reducer) and `HA-7` (i18n) remain doc-only for now.
+
+> **R5 update (sync-plane residual).** `HA-1` (`sync/sync.ts`) and `HA-2` (`sync/storage.ts`) now carry
+> **inline KEEP + KEEP-DELETED markers** (see [§8 R5](#r5--happy-app-sync-plane-ha-1-ha-2)). The brainstorm's
+> honest verdict was **no clean seam / file reduction is achievable** — both files are permanent
+> **manual-three-way clusters** by convergent evolution, so R5 is a *catalogue formalization* (markers +
+> intake recipe), **not** a relocation. The removed multi-account plane is recorded as `HA-1a`/`HA-2a`
+> (KEEP-DELETED); upstream's unread-tracking is recorded as `HA-1b` (RESTORE?, deferred / e-ink-gated).
 
 | # | file:symbol | bucket | invariant — why it conflicts / must survive | marker? | test / guard | replant note |
 |---|---|---|---|---|---|---|
-| HA-1 | `sync/sync.ts` — top-level sync orchestrator | KEEP | Fork's single-user / embedded-server / loopback sync loop diverges broadly from upstream's multi-account sync. Conflicts on nearly every import; a **manual three-way merge** each time. | ❌ (doc-only in M0) | `pnpm typecheck`; `sync/*.spec.ts` (`messageWindow`, `applyPrefetchedRange`) | deferred M2+ (sync plane, ~R5) |
-| HA-2 | `sync/storage.ts` — client session/message store | KEEP | Fork's storage shape tracks the collapsed single-user session model (no account graph). Large fork-owned surface. | ❌ (doc-only in M0) | `pnpm typecheck`; `sync/encryptionDeletion.spec.ts` | deferred M2+ (sync plane, ~R5) |
+| HA-1 | `sync/sync.ts` — `Sync` class (single-user sync orchestrator) | KEEP | Fork's single-user / embedded-server / loopback `Sync` class diverges broadly from upstream's multi-account sync. **Convergent evolution**, not liftable fork blocks: both sides independently rewrote `sendMessage`, `fetchMessages`, `fetchMachines`, and the socket update-handlers, so it is a permanent **manual three-way merge** (22 conflict hunks vs `cli-1.1.10`). Extractable helpers already live in zero-conflict fork-only modules (see the sync-plane overlay note below); only the call sites conflict. | ✅ inline — `[KEEP]` cluster-head at `class Sync` + `[KEEP-DELETED]` multi-account anchor (both cite HA-1) | `pnpm --filter happy-app typecheck`; `sync/messageWindow.spec.ts`, `sync/applyPrefetchedRange.spec.ts`, `sync/machineFallbacks.test.ts` | start-from-OURS — [§8 R5](#r5--happy-app-sync-plane-ha-1-ha-2) intake recipe |
+| HA-1a | `sync/sync.ts` — multi-account plane (removed) | KEEP-DELETED | Fork **removed** the multi-account plane: friends/users/feed/artifacts state, the `apiFeed`/`apiFriends` imports, and the feed-event filter (`friend_request`/`friend_accepted`) inside `syncSettings`. A take-upstream merge silently **resurrects** them. Verified 0 `applyFriends`/`applyFeedItems`/`friendTypes` refs in the fork. | ❌ (guard by absence — annotated by the `[KEEP-DELETED]` marker at the `class Sync` head, which cites numeric parent HA-1; the audit scans numeric IDs only) | `pnpm --filter happy-app typecheck`; grep `applyFriends` / `applyFeedItems` / `friendTypes` == 0 hits | take-ours, mechanical — [§8 R5](#r5--happy-app-sync-plane-ha-1-ha-2) |
+| HA-2 | `sync/storage.ts` — Zustand session/message store | KEEP | Fork's single-user Zustand store (one `create()` closure) diverges broadly: parent/children DFS tree-grouping (`buildSessionRowData`/`buildSessionListViewData`, `TreeSessionRowData`), `userChosen` sticky permission mode, pinned avatars + tree-expanded persistence, and render-window older-message pagination fields. **Convergent evolution** with upstream's unread-tracking rewrite of the same functions — permanent **manual three-way merge** (24 conflict hunks vs `cli-1.1.10`); the store closure cannot be relocated behind a seam. | ✅ inline — `[KEEP]` cluster-head at `create<StorageState>()` + `[KEEP-DELETED]` multi-account anchor at `interface StorageState` (both cite HA-2) | `pnpm --filter happy-app typecheck`; `sync/storage.tree.spec.ts`, `sync/storagePermissionModeUserChosen.test.ts`, `sync/encryptionDeletion.spec.ts` | start-from-OURS — [§8 R5](#r5--happy-app-sync-plane-ha-1-ha-2) intake recipe |
+| HA-2a | `sync/storage.ts` — multi-account store (removed) | KEEP-DELETED | Fork **removed** the multi-account store surface: friends/users/feed/artifacts state+methods+hooks and the `realtimeMode` debounce. A take-upstream merge silently **resurrects** them (and re-adds upstream's unread-tracking — see HA-1b). Verified 0 `unreadSessionIds`/`applyFriends` refs in the fork. | ❌ (guard by absence — annotated by the `[KEEP-DELETED]` marker at the `StorageState` interface, which cites numeric parent HA-2) | `pnpm --filter happy-app typecheck`; grep `unreadSessionIds` / `applyFriends` == 0 hits | take-ours, mechanical — [§8 R5](#r5--happy-app-sync-plane-ha-1-ha-2) |
+| HA-1b | `sync/sync.ts` + `sync/storage.ts` — upstream unread-tracking (absent) | RESTORE? (operator-gated) | Upstream's unread-session tracking (`unreadSessionIds`/`currentViewingSessionId`, `markSessionRead`/`markSessionUnread`/`useIsSessionUnread`, web `webTabTitle`, reconnect `sendAppState(getCurrentAppState())`) — the fork **lacks it entirely**. Adopting it would shrink future conflict but is **entangled**: the `unreadSessionIds` param threads through the exact tree-grouping functions the fork rewrote (adopt-with-manual-merge), and unread badges add e-ink repaint churn. **DEFER (lean no for e-ink)**; if adopted, file its own task with a default-`false` toggle + e-ink perf pass. | ❌ (not adopted — no fork code to mark) | n/a until adopted | if not adopted, drop upstream's unread additions each intake — [§8 R5](#r5--happy-app-sync-plane-ha-1-ha-2) |
 | HA-3 | `sync/reducer/reducer.ts` — message→event reducer | KEEP | Fork reducer carries the typed context-boundary handling and e-ink-friendly accumulation. Conflicts with upstream reducer changes. | ❌ (doc-only in M0) | `sync/reducer/reducer.spec.ts`, `messageToEvent.spec.ts` | deferred M2+ (sync plane, ~R5) |
 | HA-4 | `-session/SessionView.tsx` — session screen | KEEP | Fork's chat surface is tuned for the **e-ink tablet** (static UI, no smooth-scroll/continuous repaint). Broadly rewritten vs upstream. | ✅ `RESTORE-R8a` | `pnpm typecheck`; `-session/SessionView.fileRoute.test.tsx`, `-session/SessionView.intercept.test.ts`, `sync/machineFallbacks.test.ts`, `sync/sync.test.ts` (send call-site audit) | **R8 stage 5 DONE** — 4a–4h KEEP-relocated to `sources/fork/session/*` (composer + pre-send intercept, boundary advisory, context drawer, sidebar, header surfaces); 4i DISABLE deferred; 4j/4k/4l (send-policy / permission-model-effort / visibility sync) KEEP-in-place as **SYNC-R5 residual**; voice-runtime + fork-from-message **out-of-scope / inert**. See [§8 R8 stage 5](#stage-5-this-ship--ha-4--sessionsessionviewtsx). |
 | HA-5 | `components/ChatList.tsx` — message list | KEEP + RESTORE-grouping | Fork's inverted-FlatList perf work + `BoundaryDivider` rendering (shipped upstream as PR #1154, but fork carries adjacent e-ink tuning) **plus** upstream's tool-call/agent-work grouping restored behind a default-flat toggle (operator call #2). | ✅ `RESTORE-R8b` | `components/ChatList.{preBoundaryHistory,viewableItemsAdapter,pageTurn,toolGroupingToggle}.test.*`; `hooks/useGroupedMessages.test.ts` | **R8 stage 2 DONE** — flat e-ink body KEEP-relocated to `sources/fork/chat/*` (5a FlatList tuning, pinch-zoom, page-turn); upstream grouping restored (`useGroupedMessages`, `ToolGroupView`) behind `chatToolGrouping` local setting (**default `'flat'`** = behavior-identical). See [§8 R8 stage 2](#stage-2-this-ship--ha-5-componentschatlisttsx). |
@@ -207,6 +217,14 @@ Paths relative to `packages/happy-app/sources/` unless noted. See [`packages/hap
 | HA-10 | `components/SidebarView.tsx` — sidebar screen | KEEP | Fork's collapsible sidebar is a near-total rewrite (280 vs 97 upstream) for the tablet; upstream's same-named file is a DIFFERENT feature (new-session right sidebar). | ❌ (merge=ours shim — no inline marker) | intake: keep-ours via `.gitattributes` | **R8 stage 6 DONE** — operator call #1 = KEEP-as-shim. `.gitattributes merge=ours` keeps the fork version on import; do not adopt upstream's new-session sidebar. Requires `git config merge.ours.driver true` on import host (§7). |
 | HA-11 | `components/SidebarNavigator.tsx` — sidebar nav | KEEP | Fork simplified the navigator (125 vs 175 upstream); paired with HA-10; upstream's same-named file is the new-session-sidebar nav. | ❌ (merge=ours shim — no inline marker) | intake: keep-ours via `.gitattributes` | **R8 stage 6 DONE** — operator call #1 = KEEP-as-shim; paired with HA-10. |
 | HA-12 | `components/ChatHeaderView.tsx` — chat header | KEEP | Fork's sidebar-restore control + avatar-header redesign (324 vs 176 upstream). | ❌ (merge=ours shim — no inline marker) | intake: keep-ours via `.gitattributes` | **R8 stage 6 DONE** — operator call #1 = KEEP-as-shim (kept the whole fork header incl. the avatar redesign, rather than the selective restore-control-only seam). |
+
+> **Sync-plane fork-only overlay (zero-conflict, import-safe — context only, NO markers).** The R5
+> conflict is entirely in the `sync/sync.ts` and `sync/storage.ts` **call sites** that wire in these
+> fork-only sync modules — the modules themselves never three-way-conflict and need no seam work:
+> `sync/paginationMath.ts`, `sync/prefetchManager.ts`, `sync/messageWindow.ts`,
+> `sync/applyPrefetchedRange.ts`, `sync/machineSessionId.ts`, `sync/sessionGroupOrdering.ts`,
+> `sync/slashCommandIntercept.ts`, `sync/socketOptions.ts`, `sync/tunnelProvider.ts`. Because the
+> extractable logic already lives here, R5 is a *marker + intake-recipe* formalization, not a relocation.
 
 ### Zero-conflict overlay directories (happy-app — context only, NO markers)
 
@@ -670,6 +688,53 @@ JSX) rather than `.ts` as the plan literally wrote; 4e's attachment pipeline fol
 `sources/fork/composer/useFileAttachment.ts`; compose-start tracking lives with `useForkComposer` (consumed
 by `useBoundaryAdvisory`). The two `sync.sendMessage` / machine-fallback source-audit guards
 (`sync/sync.test.ts`, `sync/machineFallbacks.test.ts`) were repointed to the relocated call sites.
+
+---
+
+### R5 — happy-app sync plane (HA-1, HA-2)
+
+**Goal:** *govern* (not eliminate) the fork's residual sync-plane divergence vs upstream so the next
+`cli-1.1.x` intake of `sync/sync.ts` (22 conflict hunks) + `sync/storage.ts` (24 conflict hunks) is a
+repeatable recipe rather than a from-scratch re-merge. The brainstorm's honest verdict is **no clean
+seam / file reduction is achievable** — both files are permanent **manual-three-way clusters** by
+convergent evolution (the extractable helpers already live in zero-conflict fork-only `sync/*` modules;
+only the call sites conflict). This subsection is the replant anchor for **HA-1**/**HA-1a** (sync.ts) and
+**HA-2**/**HA-2a** (storage.ts), plus the deferred **HA-1b** (RESTORE?, unread-tracking). All five rows
+link here. Verified against the in-repo `cli-1.1.10` blobs (`git show cli-1.1.10:packages/happy-app/sources/sync/sync.ts`);
+BASE = true merge-base `cli-1.1.7-89-gdf4cdae8` (not add/add — both files exist at the same path).
+
+**Cluster triage:**
+
+| cluster | file | disposition | intake action |
+|---|---|---|---|
+| multi-account graph (friends/users/feed/artifacts) | both | **KEEP-DELETED** | take-ours (mechanical); never re-add upstream's re-introductions — HA-1a / HA-2a |
+| render-window pagination (`hasOlder`/`renderWindow`/prefetch) | both | manual-3-way (KEEP) | take-ours the call sites; helpers already in `messageWindow`/`prefetchManager`/`applyPrefetchedRange`/`paginationMath` |
+| `sendMessage` (deferred-switch, optimistic placeholder) | sync.ts | manual-3-way (KEEP) | take-ours; re-apply upstream *non-account* bugfixes by hand |
+| `fetchMessages` (no-E2E) | sync.ts | manual-3-way (KEEP) | take-ours; decode via `decodeApiMessages`, **NOT** upstream `decryptMessages` |
+| `fetchMachines` (loopback/tunnel single-user) | sync.ts | manual-3-way (KEEP) | take-ours; keep the loopback/tunnel fallback (guard `machineFallbacks.test.ts`) |
+| socket update-handlers (optimistic-placeholder) | sync.ts | manual-3-way (KEEP) | take-ours; port only upstream's new event *kinds* by hand |
+| tree-grouping (`buildSessionRowData`/`buildSessionListViewData`, `TreeSessionRowData`) | storage.ts | manual-3-way (KEEP) | take-ours; guard `storage.tree.spec.ts`, `storage.parent-children.spec.ts` |
+| `userChosen` sticky permission mode | storage.ts | manual-3-way (KEEP) | take-ours; guard `storagePermissionModeUserChosen.test.ts` |
+| `settingsToSyncPayload` (PUT-based `syncSettings`) | sync.ts | RESTORE? / manual | evaluate upstream's payload shape; the fork drops the feed-event filter — keep dropped (HA-1a) |
+| machine-resilience additions | sync.ts | RESTORE? / manual | operator-gated; adopt only with the loopback fallback preserved |
+| unread-tracking (`unreadSessionIds`, `markSessionRead`, `webTabTitle`) | both | **RESTORE? — DEFERRED** | fork lacks it; do NOT adopt without a task (entangled with tree-grouping + e-ink repaint churn) — HA-1b |
+
+**Recipe (both files — `start-from-OURS`):**
+
+1. **Start from OURS** (`git checkout --ours` the two files), then cherry-pick upstream's *non-account*
+   changes by hand — never `--theirs` wholesale (that resurrects the multi-account plane; see HA-1a/HA-2a).
+2. **`sync/sync.ts`:** prune any upstream imports with no fork backing module (`Encryption`, `apiFeed`,
+   `apiFriends`). Take-ours `fetchMachines` (loopback/tunnel), `sendMessage` (deferred-switch), and
+   `fetchMessages` (decode via `decodeApiMessages`, not `decryptMessages`). Evaluate — do not auto-adopt —
+   any upstream `awaitQueue`/race-ordering port.
+3. **`sync/storage.ts`:** take-ours the multi-account removals (HA-2a), the tree-grouping functions,
+   `userChosen` permission mode, and the render-window pagination fields. If upstream's unread-tracking is
+   adopted later (HA-1b), rethread the `unreadSessionIds` param through the tree-grouping functions by hand
+   under a default-`false` toggle + an e-ink perf pass.
+4. **Verify absence:** grep `applyFriends`, `applyFeedItems`, and `unreadSessionIds` under
+   `packages/happy-app/sources/sync` must return **0** hits unless HA-1b was intentionally adopted.
+5. **Gate:** `pnpm --filter happy-app typecheck` + `node scripts/audit-happy-fork-patches.mjs` (zero drift)
+   + the sync specs listed in the HA-1/HA-2 guard columns.
 
 ---
 
