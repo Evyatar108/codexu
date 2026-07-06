@@ -3,18 +3,12 @@ import { log, logger } from "@/utils/log";
 import { serializerCompiler, validatorCompiler, ZodTypeProvider } from "fastify-type-provider-zod";
 import { onShutdown } from "@/utils/shutdown";
 import { Fastify } from "./types";
-import { pushRoutes } from "./routes/pushRoutes";
-import { sessionRoutes } from "./routes/sessionRoutes";
-import { pairRoutes } from "./routes/pairRoutes";
 import { startSocket } from "./socket";
-import { devRoutes } from "./routes/devRoutes";
-import { versionRoutes } from "./routes/versionRoutes";
 import { enableMonitoring } from "./utils/enableMonitoring";
 import { enableErrorHandlers } from "./utils/enableErrorHandlers";
-import { parseCorsOrigins } from "./utils/parseCorsOrigins";
-import { v3SessionRoutes } from "./routes/v3SessionRoutes";
-import { accountRoutes } from "./routes/accountRoutes";
-import { machineSelfRoutes, type MachineSelfState } from "./routes/machineSelfRoutes";
+import { type MachineSelfState } from "./routes/machineSelfRoutes";
+import { installForkCors } from "@/fork/forkCors";
+import { registerForkRoutes } from "@/fork/registerForkRoutes";
 import { isLocalStorage, getLocalFilesDir } from "@/storage/files";
 import type { EventRouter } from "@/app/events/eventRouter";
 import { verifyLoopbackCapability, type LoopbackCapabilityPaths } from "./auth/loopbackCapability";
@@ -58,16 +52,8 @@ export interface ConfigureApiOptions {
 
 export function configureApi(app: any, tofuConfig: TofuHandshakeConfig = { localUserId: "local-user" }, options: ConfigureApiOptions = {}) {
     const fastifyApp = app as ReturnType<typeof createApi>;
-    const allowedOrigins = parseCorsOrigins();
-    fastifyApp.register(import('@fastify/cors'), {
-        origin: allowedOrigins.length === 0 ? false : allowedOrigins,
-        // NOTE: `Cf-Access-Jwt-Assertion` is deliberately NOT listed. Cloudflare
-        // Access INJECTS that header between its edge and the origin; a browser
-        // never sends it, so it must not appear in the preflight allowlist. The
-        // pairing headers below ARE browser-sent (POST /pair/complete).
-        allowedHeaders: ['X-Tunnel-Authorization', 'X-Loopback-Capability', 'X-Happy-Client', 'Content-Type', 'X-Happy-Device-Proof', 'X-Happy-Pairing-Secret', 'X-Happy-Pairing-Nonce', 'CF-Access-Client-Id', 'CF-Access-Client-Secret'],
-        methods: ['GET', 'POST', 'PUT', 'DELETE']
-    });
+    // FORK PATCH: [KEEP] fork CORS policy relocated to fork/forkCors.ts (invariant HS-7)
+    installForkCors(fastifyApp);
     fastifyApp.get('/', function (request, reply) {
         reply.send('Welcome to Happy Server!');
     });
@@ -106,23 +92,8 @@ export function configureApi(app: any, tofuConfig: TofuHandshakeConfig = { local
     const eventRouter = startSocket(typed, tofuConfig, { auth: options.auth, paths: options.paths, publicAuthRuntime });
     options.onEventRouter?.(eventRouter);
 
-    // Routes available on both tunnel and loopback listeners
-    accountRoutes(typed, { paths: options.paths });
-    machineSelfRoutes(typed, { machineState: options.machineState });
-
-    // Routes only available on the tunnel listener (not loopback)
-    if (options.auth !== "loopback") {
-        pairRoutes(typed, tofuConfig, options.paths, {
-            publicMode: options.auth === "public",
-            pairingGate: publicAuthRuntime?.pairingGate,
-            enrollDevice: publicAuthRuntime?.enrollDevice,
-        });
-        pushRoutes(typed, tofuConfig);
-    sessionRoutes(typed, eventRouter, { localMachineId: tofuConfig.localUserId });
-        devRoutes(typed);
-        versionRoutes(typed);
-        v3SessionRoutes(typed, eventRouter);
-    }
+    // FORK PATCH: [KEEP-DELETED] fork curated route surface relocated to fork/registerForkRoutes.ts; auth plane installed above still runs BEFORE routes (default-deny) (invariant HS-7)
+    registerForkRoutes(typed, eventRouter, tofuConfig, options, publicAuthRuntime);
 
     return typed;
 }
