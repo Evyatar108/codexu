@@ -1,0 +1,80 @@
+{
+  "task": "happy-fork-upstream-divergence-reconciliation",
+  "assessedAt": "2026-07",
+  "forkHead": "58723b9e",
+  "branch": "ralph/assess-upstream-rebase",
+  "upstreamTarget": {
+    "releaseTag": "cli-1.1.10",
+    "releaseSha": "71c417e1092e73cf34eb24f9601d569394c1f359",
+    "originMainSha": "d2ef88de",
+    "note": "cli-1.1.10 is the latest release; origin/main is 3 commits past it; no newer tag exists"
+  },
+  "importBaseline": {
+    "releaseTag": "cli-1.1.8",
+    "sha": "b72fd8111a43395e9991cfbdabba36f5a3285e5e",
+    "note": "temporal/release ANCHOR, NOT a true merge-base (0/8 sampled files matched byte-for-byte)"
+  },
+  "topology": {
+    "canRebase": false,
+    "reason": "history-detached vendored copy; codexu monorepo bulk-imported happy-* (commit 7f178466) with NO slopus ancestry; git merge-base returns nothing",
+    "onlyViableMechanism": "selective cherry-pick / per-file 3-way port governed by docs/happy-patch-surface.md"
+  },
+  "method": "true 3-way git merge-file: BASE=cli-1.1.8 tree, OURS=fork HEAD, THEIRS=cli-1.1.10 tree; extracted via git archive; exit>0 => hard-conflict; skips binary/dist/lockfile/images",
+  "currentConflictFiles": {
+    "method": "true-3way-merge-file-vs-cli-1.1.10",
+    "app": 59,
+    "cli": 33,
+    "server": 9,
+    "agent": 2,
+    "wire": 0,
+    "total": 103
+  },
+  "currentConflictFilesIntersectionProxy": {
+    "method": "name-level fork-touched INTERSECT upstream-touched (prior-style, looser upper bound)",
+    "app": 76,
+    "cli": 44,
+    "server": 14,
+    "agent": 2,
+    "wire": 3,
+    "total": 139
+  },
+  "priorConflictFiles": {
+    "method": "name-level intersection (pre-M1 assessment)",
+    "app": 101,
+    "cli": 58,
+    "server": 23,
+    "agent": 2,
+    "wire": 3,
+    "total": 187,
+    "note": "187 vs 103 is a METHOD+TARGET difference (intersection upper-bound vs true 3-way), NOT an M1 reduction"
+  },
+  "m1Impact": {
+    "hardConflictFilesRemoved": 0,
+    "proof": "identical-method analyzer over pre-M1 f07ef95e, exact-M1-end 228c3829, and post-M1 HEAD 58723b9e all yield app 59 / cli 33 / server 9",
+    "realValue": "conflict LOCALIZATION not count reduction: fork logic relocated into 6 zero-conflict fork-owned modules (forkAuthPlane, operatorIdentityGate, sessionPayloadCodec, onCodexRun, onClaudeRun, forkHooks); per-conflict resolution becomes 're-apply ~1-line seam call' instead of re-deriving a large inline block",
+    "magnitudeDiffLines": {
+      "shrank": {"api.ts": -36, "index.ts": -35, "daemon/run.ts": -179, "apiMachine.ts": -45, "socket.ts": -9},
+      "grew": {"runCodex.ts": 177, "runClaude.ts": 209},
+      "note": "runCodex/runClaude grew because those entry bodies are ~entirely fork-owned (catalogue 'thin reduction only' caveat); low ROI to seam further"
+    }
+  },
+  "additiveZeroConflict": {
+    "forkOnly": 514,
+    "upstreamNewOnIntake": 118,
+    "forkDeletedUpstream": 126
+  },
+  "topHotspots": {
+    "happy-app": ["SessionView.tsx(30)", "sync/storage.ts(24)", "sync/sync.ts(23)", "app/(app)/new/index.tsx(20)", "AgentInput.tsx(12)", "ChatList.tsx(10)", "SidebarView.tsx(10)"],
+    "happy-cli": ["utils/MessageQueue2.ts(12)", "api/apiSession.ts(11)", "apiSession.test.ts(7)", "claude/sessionScanner.ts(6)", "claudeLocalLauncher.ts(4)"],
+    "happy-server": ["api/api.ts(6)", "package.json(5)", "utils/log.ts(4)", "socket.ts(3)"]
+  },
+  "topRecommendations": [
+    {"change": "R8 happy-app e-ink UI seams (SessionView/AgentInput/ChatList/SidebarView/MarkdownView behind fork hooks)", "estReduction": "6-10 app files shrunk/removed", "effort": "M-L"},
+    {"change": "R5 happy-app sync plane (sync.ts/storage.ts/reducer/messageMeta) - upstream-the-good-parts + accept manual 3-way", "estReduction": "LOW-MED count, HIGH magnitude; the honest residual (overlay cannot fix)", "effort": "L"},
+    {"change": "Catalogue + seam un-catalogued CLI hotspots (MessageQueue2.ts, sessionScanner.ts, claudeLocalLauncher.ts)", "estReduction": "3-6 cli files", "effort": "S-M"},
+    {"change": "Mechanical-noise reduction + .gitattributes merge=ours driver for lockfiles/dist + package.json normalization", "estReduction": "3-5 files + ongoing noise", "effort": "S"},
+    {"change": "Permanent upstream remote + per-release sync cadence (first intake soon)", "estReduction": "0 direct; prevents surface growth", "effort": "S"},
+    {"change": "HC-3 latent decrypt asymmetry (fetch/cold-start decrypt() vs plaintext send) - correctness, separate milestone", "estReduction": "0 conflict files; closes latent data bug", "effort": "S-M"}
+  ],
+  "recommendedStrategy": "Release-anchored (cli-1.1.10) selective cherry-pick / per-file 3-way governed by docs/happy-patch-surface.md; package-sequence easiest->hardest: happy-server(9) -> happy-cli(33) -> happy-app(59) -> agent(2)/wire(0); carry fork-only additive trees (codex/agentComms/tunnel/daemon) forward untouched; add permanent upstream remote + per-release cadence; do first intake soon (fork ~2 releases behind)."
+}
