@@ -1753,6 +1753,10 @@
         {
           "className": "cmd-warn",
           "html": "EXECUTION GATED ON OPERATOR REVIEW. Plan autonomy rec = HYBRID: lead may PREPARE server+cli on topic branches to green but PAUSE before merging any stage to main (first behavior-affecting intake across production pkgs; operator away); app needs operator review before execution (~36 uncatalogued hard files + resurrection hazards). REINFORCED by a premise-changing finding: a real merge-base (df4cdae8) DOES exist (§6 corrected @ 2a1e6462) — so a real 'git merge' is now an OPTION (git auto-resolves clean files, surfaces only the 96 catalogued conflicts) vs the planned selective per-file cherry-pick. Operator should choose the strategy before execution."
+        },
+        {
+          "className": "cmd-ok",
+          "html": "SERVER slice PREPARED + staged (NOT merged) on ralph/intake-cli-1.1.10-server (S1 878962b3 / S2 80b9de1e / S3 c52fb9a5 / S4 515cc289). Gates green: typecheck 0, 102 auth tests, audit zero-drift. KEY VALIDATION: S1/S2 were EMPTY commits — the fork's Rsrv reduction (HS-9..HS-16) already pre-absorbed cli-1.1.10's improvements, so no non-fork hunks remained to port. Real intake in S3: v3 backward pagination, 2 GAP files (sessionDelete/files.ts single-user attachment GC, HS-17/18 added), 5 clean-adopts. S4 op-call#2: ADOPT pushSend.ts (flagged redundant/dead), SKIP focusTracker/standalone.spec/multi-tenant planes. 2 REVIEW flags: standalone.ts reclassified clean-adopt->DECLINE (resurrects self-host plane); pushSend.ts redundancy. Awaiting operator review before FF-merge."
         }
       ],
       "command": {
