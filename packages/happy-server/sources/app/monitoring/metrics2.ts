@@ -104,7 +104,12 @@ export const databaseRecordCountGauge = new Gauge({
 
 // Database metrics updater
 export async function updateDatabaseMetrics(): Promise<void> {
-    // Query counts for each table
+    // Single-user fork (HS-6 / HS-13): the multi-tenant `Account` model is
+    // removed, so we count only the 3 fork-schema tables and emit no `accounts`
+    // gauge. Exact db.*.count() is kept (single-user tables are tiny); upstream's
+    // pg_class/reltuples estimate helper (getEstimatedRecordCount) is declined —
+    // it references the removed "Account" table and targets Postgres, not the
+    // fork's embedded PGlite.
     const [sessionCount, messageCount, machineCount] = await Promise.all([
         db.session.count(),
         db.sessionMessage.count(),
@@ -112,7 +117,6 @@ export async function updateDatabaseMetrics(): Promise<void> {
     ]);
 
     // Update metrics
-    databaseRecordCountGauge.set({ table: 'accounts' }, 1);
     databaseRecordCountGauge.set({ table: 'sessions' }, sessionCount);
     databaseRecordCountGauge.set({ table: 'messages' }, messageCount);
     databaseRecordCountGauge.set({ table: 'machines' }, machineCount);
