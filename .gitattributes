@@ -21,6 +21,15 @@ packages/happy-agent/dist/** merge=ours
 # TS object modules, and a union merge that produces duplicate keys fails the
 # type build (tsc TS1117). See docs/happy-patch-surface.md §7 (open question #4).
 
+# NOTE: package.json (all packages) deliberately gets NO merge driver — it is a
+# normal manual 3-way merge on import. `merge=union` produces invalid JSON
+# (duplicate keys / spliced fragments); `merge=ours` would silently discard
+# wanted upstream dep bumps; and field/dep REORDERING toward upstream is
+# counterproductive (happy-cli US-001 proved re-sorting manufactures extra
+# conflicts). Keep fork packaging + fork-only deps; take upstream dep bumps
+# deliberately, one at a time. See docs/happy-patch-surface.md §7
+# (package.json finding) + §4 (happy-cli manifest finding, Trap A/B).
+
 # R8 sidebar trio (HA-10/11/12). These three upstream-canonical filenames exist
 # in BOTH the fork and upstream but are ENTIRELY DIFFERENT features: the fork
 # ships a collapsible e-ink sidebar + sidebar-restore control + avatar header,

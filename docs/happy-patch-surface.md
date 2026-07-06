@@ -293,6 +293,7 @@ The repo-root [`.gitattributes`](../.gitattributes) carries the fork's import-me
 | `pnpm-lock.yaml` | `merge=ours` | Tracked by **both** upstream and the fork; conflicts on nearly every import. On import (fork = "ours") we keep the fork lockfile and re-run `pnpm install`. High-value rule. |
 | `packages/happy-wire/dist/**`, `packages/happy-agent/dist/**` | `merge=ours` (defensive) | Committed build outputs. **Upstream tracks 0 dist files** (it gitignores `dist/`), so these do not actually conflict on an upstream import — the rule is belt-and-suspenders in case upstream ever starts tracking them. |
 | `packages/happy-app/sources/text/**` | **NOT `merge=union`** — deliberately omitted | See the i18n dedupe finding below. |
+| `**/package.json` (all packages) | **No merge driver** — normal manual 3-way | See the package.json finding below. `union` produces invalid JSON; `merge=ours` would discard wanted upstream dep bumps; **field/dep reordering is counterproductive** (proven by happy-cli US-001). |
 
 ### Required one-time setup (`merge=ours` driver)
 
@@ -329,6 +330,33 @@ mechanical translation conflicts. **Verified unsafe — not applied.** Evidence:
 **fork-namespace strings file** (fork-added keys live in a separate module the importer never
 conflicts on), not a mechanical union merge. Until then, translation conflicts are resolved by the
 normal manual three-way merge (see the [§5 happy-app inventory](#5-happy-app-inventory-ha) `HA-7` row).
+
+### package.json churn (no merge driver — resolved: manual 3-way is correct)
+
+The re-scoped gitattributes task evaluated whether `**/package.json` should get a merge driver to
+auto-collapse the recurring manifest conflicts. **Verified: no merge driver is appropriate — leave
+package.json as a normal manual three-way merge.** Evidence:
+
+- **`merge=union` is unsafe (same class as the i18n case).** package.json is JSON; a union merge blindly
+  concatenates both sides of a conflicting hunk, readily producing **duplicate keys** (invalid per the
+  JSON object model / rejected by the manifest parser) or **spliced partial fragments** (syntactically
+  invalid JSON). The churn is not the flat, append-only shape where `union` is idiomatic.
+- **`merge=ours` is too aggressive.** Taking the fork manifest wholesale on import would silently
+  **discard upstream dependency bumps we may want** to adopt deliberately (each with its own testing —
+  see [HS-15](#5-happy-server-inventory-hs) for the happy-server posture: "accept manual-merge, take dep
+  bumps deliberately"). The fork intentionally pins several deps below upstream (e.g. `zod` v3 vs v4,
+  `prisma` 6.11 vs 6.19), so a blanket take-ours would hide those decisions.
+- **Field/dep *reordering* toward upstream is counterproductive — do NOT do it.** happy-cli **US-001**
+  (`430968089`) empirically proved that alphabetically re-sorting deps *manufactures* extra conflicts:
+  re-sorting put `happy-server` adjacent to the version-bumped `fastify-type-provider-zod` line, growing
+  the conflict from 2→3 hunks / 43→49 lines; the reorder was reverted. The two irreducible conflict
+  regions are **fork-required, not reorderable noise** — see the
+  [§4 happy-cli manifest finding](#happy-cli-manifest--import-divergence-is-fork-required-only-conflict-irreducible)
+  (Trap A — do not re-sort; Trap B — silent version-pin merge).
+
+**Direction.** package.json conflicts are resolved by the normal manual three-way merge at each import:
+keep the fork packaging + fork-only deps, and take upstream dependency bumps one at a time with testing.
+No `.gitattributes` entry beyond the documentation row above.
 
 ### gitignore-alignment note (deferred)
 
