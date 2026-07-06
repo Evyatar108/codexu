@@ -3,6 +3,7 @@ import { type Fastify } from "../types";
 import { type TofuHandshakeConfig } from "../api";
 import { listPushTokens, registerPushToken, unregisterPushToken } from "@/app/push/pushNotifications";
 
+// FORK PATCH: [KEEP] server-owned per-machine push registration (single-user) — keys tokens by tofuConfig.localUserId as machineId via @/app/push/pushNotifications; upstream's multi-tenant request.userId + db.accountPushToken (accountId) wiring stays removed with the deleted Account/AccountPushToken models (HS-6) (invariant HS-12)
 export function pushRoutes(app: Fastify, tofuConfig: TofuHandshakeConfig = { localUserId: "local-user" }) {
 
     app.post('/push/register', {

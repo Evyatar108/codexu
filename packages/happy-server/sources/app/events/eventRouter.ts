@@ -275,6 +275,7 @@ class EventRouterSink implements EventRouter {
 
     // === CONNECTION MANAGEMENT (via Socket.IO rooms) ===
 
+    // FORK PATCH: [KEEP] single-user room model — connections carry NO per-connection userId and there are NO `user:${userId}` rooms (KEEP-DELETED single-user); upstream's userId-keyed rooms + `hasActiveNonMachineSocket(userId)` presence query are declined (no fork caller; they reintroduce the user-keyed room graph the single-user server deliberately removed) (invariant HS-10)
     addConnection(connection: ClientConnection): void {
         const socket = connection.socket;
         socket.join(authenticatedRoom);
@@ -356,6 +357,7 @@ class EventRouterSink implements EventRouter {
         });
     }
 
+    // FORK PATCH: [KEEP] fork-only agent-tree delta emission (session-scoped fan-out of @slopus/happy-wire AgentTreeDelta); absent upstream, consumed by app/api/socket/sessionUpdateHandler (invariant HS-10)
     emitAgentTreeUpdate(params: {
         sessionId: string;
         delta: AgentTreeDelta;
