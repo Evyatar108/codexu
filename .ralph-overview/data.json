@@ -1709,6 +1709,27 @@
           "html": "Found during auto-attach dogfood 2026-07-02: happy_on_path() (daemon_supervisor.rs) checks file EXISTENCE not RESOLVABILITY, and spawn_happy_daemon() ignores child exit code. A dangling happy.cmd shim (missing node_modules/happy) passes the gate -> daemon exits MODULE_NOT_FOUND -> only caught by full start-budget timeout with generic message. Fix: capture daemon early exit/stderr so RemoteSessionNotice says WHY. Low-risk hardening; feature still fails LOUD (just slow+generic)."
         }
       ]
+    },
+    {
+      "id": "happy-app-restore-voice-realtime-subsystem",
+      "scope": "happy-app",
+      "lifecycle": "tracked",
+      "status": "todo",
+      "lastTouchedAt": "2026-07-05",
+      "kanbanCards": [
+        {
+          "class": "cmd-warn",
+          "html": "FOLLOW-UP from R8 (operator decision #4 = RESTORE mic/voice). The fork removed upstream's ENTIRE voice/realtime subsystem (@/realtime/RealtimeSession start/stopRealtimeSession, @/realtime/hooks/voiceHooks, components/VoiceAssistantStatusBar, the ElevenLabs agent integration, voice persistence counters). R8 stage 4 (ed9b7b17) restored only the AgentInput mic UI as INERT (mic button + props present, no onMicPress runtime); R8 stage 5 deliberately did NOT import @/realtime/* (fully restoring the subsystem is a large FEATURE restore, out of scope for the conflict-reduction pass). This task restores the @/realtime/ subsystem from upstream cli-1.1.10 (71c417e1) + wires it into SessionView (VoiceAssistantStatusBar, voiceHooks.onVoiceStarted, startRealtimeSession/stopRealtimeSession) + onMicPress so mic/voice is FUNCTIONAL again. Reduces SessionView conflict further (moves toward upstream) AND returns the feature. NOTE: elevenLabsAgentId is already in the app config (agent_6701k211syvvegba4kt7m68nxjmw). Check the fork didn't remove it for a reason (cost/privacy) before restoring."
+        }
+      ],
+      "command": {
+        "name": "happy-app-restore-voice-realtime-subsystem",
+        "descriptionHtml": "Restore the upstream voice/realtime subsystem (@/realtime/*, VoiceAssistantStatusBar, voiceHooks, ElevenLabs agent) that the fork removed, and wire it into SessionView + the AgentInput mic (restored inert in R8 stage 4) so mic/voice works. From upstream cli-1.1.10. Behavior: additive feature restore; also reduces SessionView/AgentInput upstream conflict. Verify against the fork's e-ink/tablet constraints (the voice status bar is shown in the sidebar on tablet per upstream comments). Confirm the fork's removal wasn't deliberate (cost/privacy) before restoring — flag to operator if unclear.",
+        "warnings": [],
+        "prompts": {
+          "brainstorm": "/brainstorm-with-ralph \"Restore the upstream Happy voice/realtime subsystem (@/realtime/RealtimeSession, voiceHooks, VoiceAssistantStatusBar, ElevenLabs agent) removed by the fork, wired into SessionView + the AgentInput mic (restored inert in R8 stage 4). Scope the subsystem's dependencies, the e-ink/tablet placement (voice status bar in sidebar), whether the fork removed it deliberately (cost/privacy/e-ink), and the minimal functional restore. From upstream cli-1.1.10 @ 71c417e1.\""
+        }
+      }
     }
   ],
   "phaseTree": [
