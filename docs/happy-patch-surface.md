@@ -180,6 +180,7 @@ each R8 stage lands it adds a sibling subdir; empty dirs are **not** scaffolded 
 | **Import baseline (inferred)** | `cli-1.1.8` → `b72fd8111a43395e9991cfbdabba36f5a3285e5e` (upstream `slopus/happy`, 2026-04-27) |
 | **Latest upstream release / forward import target** | `cli-1.1.10` → `71c417e1092e73cf34eb24f9601d569394c1f359` (2026-06-23) |
 | **Upstream mirror clone (read-only reference)** | `D:/harness-efforts/happy` — remotes: `origin` = `slopus/happy`, `fork` = `Evyatar108/happy` |
+| **In-repo upstream remote (permanent — PRIMARY reference)** | codexu remote **`upstream-happy`** = `slopus/happy`; fetched refs `upstream-happy/main` (`d2ef88de`) + tag `cli-1.1.10` (`71c417e1`). 3-way diffs + intake run **directly in codexu** — `git show cli-1.1.10:<path>`, `git merge-file` — no external mirror dependency. Refresh per upstream release: `git fetch --no-tags upstream-happy main` + `git fetch --no-tags upstream-happy tag <new-tag>`. |
 
 **Why the baseline is *inferred*, not an exact merge-base.** codexu vendors happy as a
 **history-detached copy**: there is no shared commit history with `slopus/happy`, so no `git merge-base`
@@ -625,6 +626,7 @@ by `useBoundaryAdvisory`). The two `sync.sendMessage` / machine-fallback source-
 - **Cadence**: re-validate this catalogue on **every upstream import** (each `cli-*` bump). For each
   row: confirm the marker still grep-matches, the guard still passes, and the `file:symbol` anchor
   still exists. Re-tree-match the [§6 baseline](#6-baseline-record) if the import advances it.
+- **Per-release intake loop** (concrete): (1) `git fetch --no-tags upstream-happy main` + `git fetch --no-tags upstream-happy tag <new-cli-tag>` (the permanent in-repo `upstream-happy` remote — [§6](#6-baseline-record)); (2) diff the new tag vs the current baseline per package to refresh the conflict heatmap (`git diff <baseline>..<new-tag> -- packages/happy-*` / per-file `git merge-file`); (3) run any pending **reduction** passes (keep/disable triage + overlay seams) for the hottest files first — see the `happy-{cli,server}-conflict-reduction-*` + `happy-app-r5-*` tasks; (4) ensure `git config merge.ours.driver true` is set on the host (§7); (5) selective per-file 3-way **intake** server→cli→app, carrying fork-only trees (`codex/`, `agentComms/`, `tunnel/`, `daemon/`, `sources/fork/`) forward untouched and applying each row's KEEP / KEEP-DELETED / RESTORE / `merge=ours` rule; (6) re-run each package's gates + `node scripts/audit-happy-fork-patches.mjs`; (7) advance the [§6 baseline](#6-baseline-record) to the imported tag.
 - **When adding a row**: prefer the smallest-possible conflict surface first (overlay/seam placement,
   per the RESTORE bucket) before committing a new permanent inline KEEP. Mirror the codex tenant in
   [`codex/docs/implementation/patch-surface.md`](../codex/docs/implementation/patch-surface.md) §14.
