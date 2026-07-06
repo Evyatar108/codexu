@@ -3,6 +3,7 @@ import { buildDeleteSessionUpdate, type EventRouter } from "@/app/events/eventRo
 import { allocateUpdateSeq } from "@/storage/seq";
 import { randomKeyNaked } from "@/utils/randomKeyNaked";
 import { log } from "@/utils/log";
+import { deleteSessionAttachments } from "@/storage/files";
 
 /**
  * Delete a session and all its related data.
@@ -69,6 +70,14 @@ export async function sessionDelete(sessionId: string, eventRouter: EventRouter)
                 payload: updatePayload,
                 recipientFilter: { type: 'user-scoped-only' }
             });
+
+            // FORK PATCH: [KEEP] adopted upstream's session-attachment storage GC on delete (cli-1.1.10), adapted to single-user logging — no `userId`/`ctx.uid` (the account plane was removed with the multi-tenant identity graph, HS-6) (invariant HS-18)
+            try {
+                await deleteSessionAttachments(sessionId);
+                log({ module: 'session-delete', sessionId }, `Attachment blobs deleted`);
+            } catch (err) {
+                log({ module: 'session-delete', sessionId, err }, `Failed to delete attachment blobs (non-fatal)`);
+            }
         });
 
         return true;

@@ -108,6 +108,37 @@ export async function putLocalFile(filePath: string, data: Buffer) {
     fs.writeFileSync(fullPath, data);
 }
 
+/**
+ * Delete all attachments for a session.
+ * Local: removes the session attachments directory.
+ * S3: deletes all objects with prefix "sessions/{sessionId}/attachments/".
+ */
+// FORK PATCH: [KEEP] adopted upstream's session-attachment storage GC (cli-1.1.10), adapted to the fork's lazy configureFilesFromEnv() init — upstream reads env at module load, the fork defers storage config to first use, so this helper must prime it before reading useLocalStorage/s3client (invariant HS-17)
+export async function deleteSessionAttachments(sessionId: string): Promise<void> {
+    configureFilesFromEnv();
+    const prefix = `sessions/${sessionId}/attachments`;
+    if (useLocalStorage) {
+        const dir = path.join(localFilesDir, prefix);
+        if (fs.existsSync(dir)) {
+            fs.rmSync(dir, { recursive: true, force: true });
+        }
+        return;
+    }
+
+    // S3: list and delete all objects under the prefix
+    const stream = s3client.listObjects(s3bucket, prefix + '/', true);
+    const keys: string[] = await new Promise((resolve, reject) => {
+        const collected: string[] = [];
+        stream.on('data', (obj: { name: string }) => { if (obj.name) collected.push(obj.name); });
+        stream.on('end', () => resolve(collected));
+        stream.on('error', reject);
+    });
+
+    if (keys.length > 0) {
+        await s3client.removeObjects(s3bucket, keys);
+    }
+}
+
 export type ImageRef = {
     width: number;
     height: number;
