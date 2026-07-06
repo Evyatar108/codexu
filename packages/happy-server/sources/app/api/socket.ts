@@ -186,24 +186,29 @@ export function startSocket(app: Fastify, tofuConfig: TofuHandshakeConfig = { lo
         }
 
         // Store connection based on type
+        // FORK PATCH: [KEEP-DELETED] single-user connection data — NO per-socket userId (single-user, happy-server AGENTS.md hard rule); upstream's optional happyClient? telemetry IS adopted additively so the connection-registration blocks converge onto upstream (userId removal is the only residual delta) (invariant HS-9)
+        const happyClient = socket.data.happyClient as string | undefined;
         const metadata = { clientType: clientType || 'user-scoped', sessionId, machineId };
         let connection: ClientConnection;
         if (metadata.clientType === 'session-scoped' && sessionId) {
             connection = {
                 connectionType: 'session-scoped',
                 socket,
-                sessionId
+                sessionId,
+                happyClient
             };
         } else if (metadata.clientType === 'machine-scoped' && machineId) {
             connection = {
                 connectionType: 'machine-scoped',
                 socket,
-                machineId
+                machineId,
+                happyClient
             };
         } else {
             connection = {
                 connectionType: 'user-scoped',
-                socket
+                socket,
+                happyClient
             };
         }
         const lastSeenSeq = socket.handshake.auth.lastSeenSeq;
