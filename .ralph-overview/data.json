@@ -1736,31 +1736,6 @@
       }
     },
     {
-      "id": "happy-cli-conflict-reduction-hotspots",
-      "scope": "happy-cli",
-      "lifecycle": "tracked",
-      "status": "todo",
-      "lastTouchedAt": "2026-07-06",
-      "kanbanCards": [
-        {
-          "class": "cmd-warn",
-          "html": "REDUCTION TASK (happy-cli, 33 conflict files — 2nd biggest surface). Top hotspots MessageQueue2.ts (12 hunks) + sessionScanner.ts (6), currently NOT catalogued. Continue the R8 keep/disable + overlay-seam approach. This is the operator's chosen next direction (2026-07-06)."
-        },
-        {
-          "className": "cmd-ok",
-          "html": "Plan shipped @ 04db8a4b. 5 stories: US-000 catalogue+markers (HC-8..HC-19) unblocks US-001 mechanical / US-002 deferred-switch seam→src/fork/ / US-003 MQ2 field-order; US-004 attachment convergence is OPERATOR-GATED (deferred, default KEEP). Honest finding: most CLI drift is load-bearing convergent-evolution, not extractable. Impl driving US-000..US-003."
-        }
-      ],
-      "command": {
-        "name": "happy-cli-conflict-reduction-hotspots",
-        "descriptionHtml": "Reduce the happy-cli upstream conflict surface (33 hard-conflict files vs cli-1.1.10; 2nd biggest after happy-app). Top hotspots: src/api/MessageQueue2.ts (12) + src/agents/sessionScanner.ts (6). Catalogue the currently un-catalogued CLI hunks (add HC-* rows), then keep/disable-triage + overlay-seam per the R8 approach. Some hotspots may be fork features to KEEP-via-seam; others may be low-value DISABLE-reverts. Behavior-preserving; re-run happy-cli tests (npm_config_script_shell=bash pnpm --filter happy test) as the gate. Part of the post-R8 upstream conflict-surface reduction objective (umbrella task happy-fork-upstream-divergence-reconciliation). Approach = the R8 codex-fork playbook: per-divergence KEEP vs DISABLE-for-now triage; for KEEPs relocate fork logic into fork-owned modules (src/fork/ or sources/fork/) + // FORK PATCH: markers + thin call-site seams (never inline edits); RESTORE upstream toward-upstream where the feature is wanted (with a Settings toggle for experimentation) to reduce conflict. Governed by docs/happy-patch-surface.md; assessment at .ralph/investigations/happy-upstream-rebase-assessment-v2/. Upstream target cli-1.1.10 @ 71c417e1 in mirror D:/harness-efforts/happy (remote origin=slopus/happy).",
-        "warnings": [],
-        "prompts": {
-          "plan": "/plan-with-ralph \"Reduce happy-cli upstream conflict surface: catalogue + keep/disable-triage + overlay-seam the 33 conflict files vs cli-1.1.10 (top: src/api/MessageQueue2.ts 12, src/agents/sessionScanner.ts 6). Relocate KEEP fork logic into src/fork/ modules + FORK PATCH markers; RESTORE toward upstream where wanted. Update docs/happy-patch-surface.md HC-* rows. Gate: happy-cli tests. See .ralph/investigations/happy-upstream-rebase-assessment-v2/findings.md.\""
-        }
-      }
-    },
-    {
       "id": "happy-app-r5-sync-plane-residual",
       "scope": "happy-app",
       "lifecycle": "tracked",
@@ -1828,6 +1803,71 @@
           "plan": "/plan-with-ralph \"Perform the first selective upstream intake of cli-1.1.10 into codexu packages/happy-* via per-file 3-way cherry-pick governed by docs/happy-patch-surface.md (history-detached, NOT a rebase). Order server(9)->cli(33)->app; carry fork-only trees untouched; apply catalogue KEEP/KEEP-DELETED/RESTORE/merge=ours rules; re-run all gates. Depends on the reduction+enabling tasks. See .ralph/investigations/happy-upstream-rebase-assessment-v2/findings.md.\""
         }
       }
+    },
+    {
+      "id": "happy-cli-permission-mode-wiring-gap",
+      "lifecycle": "tracked",
+      "command": {
+        "descriptionHtml": "Wire publishPermissionModeIfChanged into runClaude.ts/runCodex.ts (or retire the test). Pre-existing failure on main.",
+        "name": "happy-cli-permission-mode-wiring-gap",
+        "warnings": [],
+        "prompts": {
+          "plan": "/plan-with-ralph \"happy-cli publishPermissionModeWiring.test.ts asserts runClaude.ts + runCodex.ts import AND call publishPermissionModeIfChanged (packages/happy-cli/src/utils/), but they do not — 4 failing tests on main. Investigate git history (cce771476 area) to determine whether the wiring was intentionally removed or never landed. Either wire the helper call into both runners at the permission-mode change site (behavior change — verify it publishes the mode delta correctly), OR if the wiring is deliberately absent, retire/skip the test with a rationale. Gate: pnpm --filter happy typecheck + the full happy test suite green (the 4 failures resolved).\""
+        }
+      },
+      "scope": "happy-cli",
+      "status": "todo",
+      "kanbanCards": [
+        {
+          "class": "cmd-warn",
+          "html": "PRE-EXISTING (surfaced during cli conflict-reduction, NOT caused by it): publishPermissionModeWiring.test.ts has 4 failing tests on main — runClaude.ts + runCodex.ts do not import/call publishPermissionModeIfChanged. The helper exists but is unwired into the runners. Fixing requires adding the runtime call (a behavior change), so it was out of scope for the behavior-preserving reduction. Decide: wire the helper into the runners, OR delete/skip the aspirational test if the wiring was intentionally removed."
+        }
+      ],
+      "lastTouchedAt": "2026-07-06T21:59:17.490Z"
+    },
+    {
+      "id": "happy-cli-attachment-model-convergence-decision",
+      "lifecycle": "tracked",
+      "command": {
+        "descriptionHtml": "OPERATOR-GATED: converge cli attachment model to upstream inline-bytes (US-004 deferred). Default KEEP.",
+        "name": "happy-cli-attachment-model-convergence-decision",
+        "warnings": [
+          "Changes observable attachment behavior; needs operator GO + end-to-end retest."
+        ],
+        "prompts": {
+          "brainstorm": "/brainstorm-with-ralph \"Should happy-cli converge its ref-based attachment model (.happy/attachments/* writeFile-RPC + MessageQueueAttachment{type,ref,mimeType}) to upstream cli-1.1.10 inline-bytes PendingAttachment{data:Uint8Array,mimeType,name}? First VERIFY (read-only, source-cited) whether the ref-indirection is load-bearing for the remote-daemon path — trace who writes/reads .happy/attachments/*, whether large attachment payloads would be a problem inline through the realtime channel, and whether any fork feature depends on the file-ref. Then recommend KEEP vs CONVERGE with the conflict-reduction payoff (HC-8 cluster, ~6-10 hunks) weighed against the behavior change. Reference .ralph/jobs/happy-cli-conflict-reduction-hotspots/ US-004 + docs/happy-patch-surface.md HC-8.\""
+        }
+      },
+      "scope": "happy-cli",
+      "status": "todo",
+      "kanbanCards": [
+        {
+          "class": "cmd-warn",
+          "html": "OPERATOR DECISION NEEDED (US-004 from happy-cli-conflict-reduction, deferred). Converge the fork ref-based MessageQueueAttachment{type,ref,mimeType} + .happy/attachments/* writeFile-RPC model to upstream inline-bytes PendingAttachment{data:Uint8Array,mimeType,name}? Biggest single cli conflict-reduction lever (-6..-10 hunks on MessageQueue2.ts + apiSession.ts + claudeRemoteLauncher.ts) BUT changes observable attachment behavior + removes the ref path as dead code. Bookkeeper deferred to KEEP (default) because ref-indirection is plausibly load-bearing for the remote-daemon architecture (inline bytes push large payloads through the realtime channel instead of the daemon filesystem). Needs: (1) verify whether ref-indirection is used elsewhere, (2) operator GO, (3) end-to-end attachment retest."
+        }
+      ],
+      "lastTouchedAt": "2026-07-06T21:59:17.490Z"
+    },
+    {
+      "id": "happy-app-fetchmachines-resilience-followup",
+      "lifecycle": "tracked",
+      "command": {
+        "descriptionHtml": "Port upstream fetchMachines resilience + awaitQueue race guard into happy-app sync plane (app-r5 7-C).",
+        "name": "happy-app-fetchmachines-resilience-followup",
+        "warnings": [],
+        "prompts": {
+          "plan": "/plan-with-ralph \"Port the upstream cli-1.1.10 fetchMachines resilience improvements + the awaitQueue race guard into happy-app sources/sync/ (sync.ts/storage.ts). See .ralph/brainstorms/happy-app-r5-sync-plane-residual/brainstorm.md item 7-C for the specific divergence. This is a correctness/robustness fix, not a conflict reducer — verify against upstream blob (git show cli-1.1.10:packages/happy-app/sources/sync/sync.ts) and preserve the fork single-Sync-class + e-ink posture. Gate: pnpm --filter happy-app typecheck.\""
+        }
+      },
+      "scope": "happy-app",
+      "status": "todo",
+      "kanbanCards": [
+        {
+          "class": "cmd-warn",
+          "html": "CORRECTNESS follow-up (surfaced by app-r5 sync-plane brainstorm 7-C, cc598916). Port upstream cli-1.1.10 fetchMachines resilience + the awaitQueue race guard into happy-app sources/sync/. Independent of conflict reduction — a real robustness improvement upstream added that the fork lacks. Not a reducer."
+        }
+      ],
+      "lastTouchedAt": "2026-07-06T21:59:17.490Z"
     }
   ],
   "phaseTree": [

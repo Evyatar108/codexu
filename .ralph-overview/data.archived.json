@@ -9989,6 +9989,53 @@
           }
         ]
       }
+    },
+    {
+      "id": "happy-cli-conflict-reduction-hotspots",
+      "scope": "happy-cli",
+      "lifecycle": "merged",
+      "status": "todo",
+      "lastTouchedAt": "2026-07-06T21:58:33.947Z",
+      "kanbanCards": [
+        {
+          "class": "cmd-warn",
+          "html": "REDUCTION TASK (happy-cli, 33 conflict files — 2nd biggest surface). Top hotspots MessageQueue2.ts (12 hunks) + sessionScanner.ts (6), currently NOT catalogued. Continue the R8 keep/disable + overlay-seam approach. This is the operator's chosen next direction (2026-07-06)."
+        },
+        {
+          "className": "cmd-ok",
+          "html": "Plan shipped @ 04db8a4b. 5 stories: US-000 catalogue+markers (HC-8..HC-19) unblocks US-001 mechanical / US-002 deferred-switch seam→src/fork/ / US-003 MQ2 field-order; US-004 attachment convergence is OPERATOR-GATED (deferred, default KEEP). Honest finding: most CLI drift is load-bearing convergent-evolution, not extractable. Impl driving US-000..US-003."
+        }
+      ],
+      "command": {
+        "name": "happy-cli-conflict-reduction-hotspots",
+        "descriptionHtml": "Reduce the happy-cli upstream conflict surface (33 hard-conflict files vs cli-1.1.10; 2nd biggest after happy-app). Top hotspots: src/api/MessageQueue2.ts (12) + src/agents/sessionScanner.ts (6). Catalogue the currently un-catalogued CLI hunks (add HC-* rows), then keep/disable-triage + overlay-seam per the R8 approach. Some hotspots may be fork features to KEEP-via-seam; others may be low-value DISABLE-reverts. Behavior-preserving; re-run happy-cli tests (npm_config_script_shell=bash pnpm --filter happy test) as the gate. Part of the post-R8 upstream conflict-surface reduction objective (umbrella task happy-fork-upstream-divergence-reconciliation). Approach = the R8 codex-fork playbook: per-divergence KEEP vs DISABLE-for-now triage; for KEEPs relocate fork logic into fork-owned modules (src/fork/ or sources/fork/) + // FORK PATCH: markers + thin call-site seams (never inline edits); RESTORE upstream toward-upstream where the feature is wanted (with a Settings toggle for experimentation) to reduce conflict. Governed by docs/happy-patch-surface.md; assessment at .ralph/investigations/happy-upstream-rebase-assessment-v2/. Upstream target cli-1.1.10 @ 71c417e1 in mirror D:/harness-efforts/happy (remote origin=slopus/happy).",
+        "warnings": [],
+        "prompts": {
+          "plan": "/plan-with-ralph \"Reduce happy-cli upstream conflict surface: catalogue + keep/disable-triage + overlay-seam the 33 conflict files vs cli-1.1.10 (top: src/api/MessageQueue2.ts 12, src/agents/sessionScanner.ts 6). Relocate KEEP fork logic into src/fork/ modules + FORK PATCH markers; RESTORE toward upstream where wanted. Update docs/happy-patch-surface.md HC-* rows. Gate: happy-cli tests. See .ralph/investigations/happy-upstream-rebase-assessment-v2/findings.md.\""
+        }
+      },
+      "shipManifest": {
+        "shippedAt": "2026-07-06T21:58:33.947Z",
+        "summary": "Shipped the happy-cli upstream conflict-surface reduction (US-000..US-003; US-004 deferred pending operator GO). All on main, zero audit drift (HC-8..HC-19 catalogued, 93 markers/72 files), typecheck clean. HONEST VERDICT: no net hunk reduction achievable in happy-cli — the divergence is entirely fork-required load-bearing convergent-evolution (remote-daemon protocol, no-central-server push removal HC-18 KEEP-DELETED). Win = full cataloguing + one clean seam.\n\nUS-000 catalogued all hotspots + markers. US-002 HYBRID: extracted the separable request-switch/cancel-pending-switch RPC handlers + wire types to new src/fork/claudeDeferredSwitch.ts, kept the turn-completion state machine in the launcher (AC-3 fallback — it mutates launcher-body locals + the abort() closure). US-003 pure within-hunk field reorder toward upstream order (conflict-neutral, cleans resolution). US-001 REVERTED its reorders after measurement proved them counterproductive (alpha re-sort manufactured an extra conflict) — now documents the verified finding instead.\n\nPre-existing test gap surfaced (NOT a regression): publishPermissionModeWiring.test.ts 4 failures exist identically on base main (runClaude/runCodex do not import/call publishPermissionModeIfChanged) — filed as separate follow-up.\r\n",
+        "commits": [
+          {
+            "sha": "df7bd69c5",
+            "oneLine": "US-000 catalogue HC-8..HC-19 + FORK PATCH markers"
+          },
+          {
+            "sha": "430968089",
+            "oneLine": "US-001 record fork-required-only manifest/import divergence"
+          },
+          {
+            "sha": "6556b7d0a",
+            "oneLine": "US-002 extract Claude deferred-switch RPC handlers to fork module"
+          },
+          {
+            "sha": "70b1351b9",
+            "oneLine": "US-003 reorder MessageQueue2 literal fields toward upstream order"
+          }
+        ]
+      }
     }
   ]
 }
