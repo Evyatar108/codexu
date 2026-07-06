@@ -69,6 +69,14 @@ Rules:
 > them. The actual seam relocations R1–R4 are milestone **M1** and are explicitly out of scope here.
 > See [`.ralph/jobs/happy-upstream-conflict-surface-and-merge-strategy/plan.md`](../.ralph/jobs/happy-upstream-conflict-surface-and-merge-strategy/plan.md) §5.
 
+> **R8 extends RESTORE to happy-app + adds a DISABLE decision.** The M2 **R8** milestone actually
+> *relocates* the happy-app `HA-*` KEEP hunks into `sources/fork/` overlays (see
+> [§8 R8](#r8--happy-app-ui-seams-ha-8-markdownview-stage-1)). Its markers use a **per-file** tag
+> `RESTORE-R8<x>` (e.g. `RESTORE-R8d` = MarkdownView / HA-8). For a few feature-drift hunks R8 instead
+> chooses **DISABLE** = revert the hunk to upstream shape, dropping the fork tweak and recording a
+> re-apply recipe in the R8 note rather than carrying a seam. DISABLE hunks keep **no marker** (the
+> fork behavior is gone); the catalogue row is the durable record.
+
 ---
 
 ## 3. happy-server invariants (`HS-*`)
@@ -126,15 +134,42 @@ Paths relative to `packages/happy-app/sources/` unless noted. See [`packages/hap
 > manual regardless. They are catalogued here so the importer knows to budget three-way-merge time,
 > and so M2+ relocations (R5/R6/R8) have a starting inventory.
 
+> **R8 stage 1 update.** `HA-8` (MarkdownView) has begun relocating under **R8** (M2) — its KEEP hunks
+> now live in `sources/fork/markdown/*` behind a `RESTORE-R8d` seam (see
+> [§8 R8](#r8--happy-app-ui-seams-ha-8-markdownview-stage-1)). `HA-4`/`HA-5`/`HA-6` are re-scoped to
+> RESTORE-R8 targets for later stages; `HA-9`–`HA-12` are added below as planned inventory. `HA-1`/`HA-2`/`HA-3`
+> (sync) and `HA-7` (i18n) remain doc-only for now.
+
 | # | file:symbol | bucket | invariant — why it conflicts / must survive | marker? | test / guard | replant note |
 |---|---|---|---|---|---|---|
 | HA-1 | `sync/sync.ts` — top-level sync orchestrator | KEEP | Fork's single-user / embedded-server / loopback sync loop diverges broadly from upstream's multi-account sync. Conflicts on nearly every import; a **manual three-way merge** each time. | ❌ (doc-only in M0) | `pnpm typecheck`; `sync/*.spec.ts` (`messageWindow`, `applyPrefetchedRange`) | deferred M2+ (sync plane, ~R5) |
 | HA-2 | `sync/storage.ts` — client session/message store | KEEP | Fork's storage shape tracks the collapsed single-user session model (no account graph). Large fork-owned surface. | ❌ (doc-only in M0) | `pnpm typecheck`; `sync/encryptionDeletion.spec.ts` | deferred M2+ (sync plane, ~R5) |
 | HA-3 | `sync/reducer/reducer.ts` — message→event reducer | KEEP | Fork reducer carries the typed context-boundary handling and e-ink-friendly accumulation. Conflicts with upstream reducer changes. | ❌ (doc-only in M0) | `sync/reducer/reducer.spec.ts`, `messageToEvent.spec.ts` | deferred M2+ (sync plane, ~R5) |
-| HA-4 | `-session/SessionView.tsx` — session screen | KEEP | Fork's chat surface is tuned for the **e-ink tablet** (static UI, no smooth-scroll/continuous repaint). Broadly rewritten vs upstream. | ❌ (doc-only in M0) | `pnpm typecheck`; visual/e-ink review | deferred M2+ (UI plane, ~R8) |
-| HA-5 | `components/ChatList.tsx` — message list | KEEP | Fork's inverted-FlatList perf work + `BoundaryDivider` rendering (shipped upstream as PR #1154, but fork carries adjacent e-ink tuning). | ❌ (doc-only in M0) | `components/ChatList.preBoundaryHistory.test.tsx` | deferred M2+ (UI plane, ~R8) |
-| HA-6 | `components/AgentInput.tsx` — composer | KEEP | Fork input diverges on modes/attachments/keyboard for the e-ink target. High-churn conflict surface. | ❌ (doc-only in M0) | `components/AgentInput.{mode,attachments,keyboard,activeRegression}.test.tsx` | deferred M2+ (UI plane, ~R8) |
+| HA-4 | `-session/SessionView.tsx` — session screen | KEEP | Fork's chat surface is tuned for the **e-ink tablet** (static UI, no smooth-scroll/continuous repaint). Broadly rewritten vs upstream. | ❌ (doc-only in M0) | `pnpm typecheck`; visual/e-ink review | **RESTORE-R8a** (SessionView) — later R8 stage; see [§8 R8](#r8--happy-app-ui-seams-ha-8-markdownview-stage-1) |
+| HA-5 | `components/ChatList.tsx` — message list | KEEP | Fork's inverted-FlatList perf work + `BoundaryDivider` rendering (shipped upstream as PR #1154, but fork carries adjacent e-ink tuning). | ❌ (doc-only in M0) | `components/ChatList.preBoundaryHistory.test.tsx` | **RESTORE-R8b** (ChatList) — later R8 stage; see [§8 R8](#r8--happy-app-ui-seams-ha-8-markdownview-stage-1) |
+| HA-6 | `components/AgentInput.tsx` — composer | KEEP | Fork input diverges on modes/attachments/keyboard for the e-ink target. High-churn conflict surface. | ❌ (doc-only in M0) | `components/AgentInput.{mode,attachments,keyboard,activeRegression}.test.tsx` | **RESTORE-R8c** (AgentInput) — later R8 stage; see [§8 R8](#r8--happy-app-ui-seams-ha-8-markdownview-stage-1) |
 | HA-7 | `text/_default.ts` + `text/translations/*.ts` — i18n | KEEP | Fork-added translation keys must survive import. **`merge=union` is UNSAFE here** (typed nested TS object modules; duplicate keys error `TS1117` and arrow-value splits break syntax — see §7). Merge is manual or via a future fork-namespaced strings file. | ❌ (doc-only in M0) | `text/translations.test.ts` (structural parity) | deferred M2+ (i18n plane, ~R6) |
+| HA-8 | `components/markdown/MarkdownView.tsx` — markdown renderer | KEEP | Fork's e-ink markdown rendering (option cards, contrast-safe code/text-weight styling, font-scale wrapper) + fork features (Claude meta-tag pills, session-file autolinking, internal file-link nav, session-aware image loading). Conflicts on nearly every import. | ✅ `RESTORE-R8d` | `components/markdown/*.test.ts` (parseMarkdown, parseMarkdownBlock, processClaudeMetaTags, skillBody, linkUtils) | **R8 stage 1 DONE** — 8a–8h KEEP-relocated to `sources/fork/markdown/*`; 8j KEEP-in-place; 8i DISABLE deferred to US-001. See [§8 R8](#r8--happy-app-ui-seams-ha-8-markdownview-stage-1). |
+| HA-9 | `components/MessageView.tsx` — message renderer | KEEP | Fork's **e-ink user-message band** (grey fill, no bubble `paddingVertical`) + skillBody suppression, chatBodyWidth, boundary divider, attachment chips, nested-depth cap; drops upstream goal/command parsing + fork-from-message long-press. | ❌ (planned R8) | `pnpm typecheck`; visual/e-ink review | **RESTORE-R8e** (MessageView) — later R8 stage; 9f KEEP-DELETED. |
+| HA-10 | `components/SidebarView.tsx` — sidebar screen | KEEP | Fork's collapsible sidebar is a near-total rewrite (280 vs 97 upstream) for the tablet. | ❌ (planned R8) | `pnpm typecheck`; visual/e-ink review | **RESTORE-R8** (sidebar trio) — later R8 stage; KEEP-as-shim + `merge=ours` OR DISABLE, operator call #1. |
+| HA-11 | `components/SidebarNavigator.tsx` — sidebar nav | KEEP | Fork simplified the navigator (125 vs 175 upstream); paired with HA-10. | ❌ (planned R8) | `pnpm typecheck` | **RESTORE-R8** (sidebar trio) — later R8 stage; paired with HA-10, operator call #1. |
+| HA-12 | `components/ChatHeaderView.tsx` — chat header | KEEP | Fork's sidebar-restore control + avatar-header redesign (324 vs 176 upstream). | ❌ (planned R8) | `pnpm typecheck`; visual/e-ink review | **RESTORE-R8** — later R8 stage; full-relocation shim OR selective (restore-control seam only, DISABLE avatar redesign), operator call #1. |
+
+### Zero-conflict overlay directories (happy-app — context only, NO markers)
+
+The happy-app fork overlay lives under [`packages/happy-app/sources/fork/`](../packages/happy-app/sources/fork/README.md).
+Files there are **fork-only** (upstream has no `sources/fork/`), so they never three-way-conflict and carry
+**no markers** — only the canonical seam in the upstream-canonical file carries the `RESTORE-R8<x>` marker. As
+each R8 stage lands it adds a sibling subdir; empty dirs are **not** scaffolded ahead of use.
+
+| overlay subdir (under `packages/happy-app/sources/fork/`) | overlay for | catalogue rows | status |
+|---|---|---|---|
+| `markdown/` | `components/markdown/MarkdownView.tsx` | HA-8 | **R8 stage 1 (this ship)** |
+| `session/` | `-session/SessionView.tsx`, `components/ChatHeaderView.tsx` | HA-4, HA-12 | planned (later R8 stage) |
+| `chat/` | `components/ChatList.tsx` | HA-5 | planned (later R8 stage) |
+| `message/` | `components/MessageView.tsx` | HA-9 | planned (later R8 stage) |
+| `composer/` | `components/AgentInput.tsx` | HA-6 | planned (later R8 stage) |
+| `sidebar/` | `components/SidebarView.tsx`, `components/SidebarNavigator.tsx` | HA-10, HA-11 | planned (later R8 stage, operator-gated) |
 
 ---
 
@@ -311,6 +346,63 @@ the fork logic lives in one `forkHooks` module. The 117 fork-only files under `c
 `agentComms/`, and `tunnel/` (see §4) are **not** part of R4 — they are zero-conflict by construction and
 need no relocation.
 
+### R8 — happy-app UI seams (HA-8 MarkdownView; stage 1)
+
+**Milestone M2.** R8 relocates the happy-app UI hotspots (`HA-4`, `HA-5`, `HA-6`, `HA-8`, `HA-9`, and the
+sidebar trio `HA-10`/`HA-11`/`HA-12`) out of the upstream-canonical components into fork-owned overlays under
+[`packages/happy-app/sources/fork/`](../packages/happy-app/sources/fork/README.md), leaving a thin seam call +
+a per-file `RESTORE-R8<x>` marker in the canonical file. It is the happy-app analog of the server/CLI R1–R4
+seam relocations and of codex's overlay-crate + `// SANDBOX PATCH:` discipline.
+
+Per-file marker letters: `R8a` SessionView (HA-4), `R8b` ChatList (HA-5), `R8c` AgentInput (HA-6),
+`R8d` MarkdownView (HA-8), `R8e` MessageView (HA-9). The sidebar trio (HA-10/11/12) uses full-relocation
+re-export shims + `.gitattributes merge=ours` (or DISABLE), operator-gated (call #1).
+
+**Buckets R8 uses** (in addition to KEEP-DELETED):
+
+- **KEEP (seam-extract):** relocate the fork body into `sources/fork/<area>/<module>`; the canonical file
+  keeps a thin seam call + one `RESTORE-R8<x>` marker. Behavior-identical.
+- **DISABLE (revert-to-upstream):** revert the hunk to the upstream `cli-1.1.10` shape, dropping the fork
+  tweak. **No marker** (the fork behavior is gone); the row records a **re-apply recipe**.
+
+#### Stage 1 (this ship) — HA-8 `components/markdown/MarkdownView.tsx`
+
+Upstream reference: `cli-1.1.10` (`slopus/happy@71c417e1`). The fork MarkdownView diverged across 10
+sub-areas (8a–8j, ~25 hunks). Stage 1 (US-000 scaffold + US-003 KEEP extraction) relocates the KEEP hunks;
+the two DISABLE candidates (8i, 8j) are handled as noted. New overlay modules live under
+`packages/happy-app/sources/fork/markdown/`.
+
+| hunk | divergence | decision | landing (this stage) |
+|---|---|---|---|
+| 8a | e-ink option cards | **KEEP** | `sources/fork/markdown/optionCardStyles.ts` + `ForkOptionsBlock.tsx`; canonical renders `<ForkOptionsBlock>`. |
+| 8b | contrast-safe code-block / text-weight styling | **KEEP** | `sources/fork/markdown/einkMarkdownStyles.ts` (`einkTextWeightStyles`, `einkCodeSpanStyle`); referenced *inside* the canonical `StyleSheet.create` so the `bold`/`semibold`/`code` keys still resolve for the dynamic span-style lookup. |
+| 8c | Claude meta-tags → task-notification pills | **KEEP** | Already fork-only helpers (`processClaudeMetaTags`, `TaskNotificationPill`); canonical keeps the thin pre-process seam call. |
+| 8d | session-file autolinking | **KEEP** | `sources/fork/markdown/sessionFileAutolink.ts` (`addSessionFileLinks`); canonical seam call. |
+| 8e | internal file-link navigation | **KEEP** | `sources/fork/markdown/useMarkdownLinkNav.ts`; canonical uses `useMarkdownLinkNav(props.sessionId)`. |
+| 8f | session-aware image loading (`sessionReadFile`) | **KEEP** | `sources/fork/markdown/SessionAwareImage.tsx` (`SessionImageBlock` + image styles); canonical `RenderImageBlock` delegates. |
+| 8g | animated font-scale wrapper (`useChatFontScale`) | **KEEP** | `sources/fork/markdown/AnimatedMarkdownText.tsx`; canonical text render uses it. |
+| 8h | code-block text scaling | **KEEP** | `einkCodeSpanStyle` in `einkMarkdownStyles.ts` (part of 8b) + the existing `useChatScaledStyles` seam. |
+| 8i | list rendering simplified to inline bullets | **DISABLE (DEFERRED to US-001)** | Not done this stage — see parser-coupling note below. |
+| 8j | table link-trust propagation | **KEEP (conditional-resolved)** | Kept because 8d/8e autolink is kept (plan §5.4: "Revert if 8d/8e deferred; else KEEP"). Stays inline in `RenderTableBlock`. |
+
+**Stage-1 net:** **8 KEEP seam-extractions** (8a, 8b, 8c, 8d, 8e, 8f, 8g, 8h) into `sources/fork/markdown/*`
++ **1 KEEP-in-place** (8j) + **1 DISABLE deferred** (8i). `MarkdownView.tsx` returns *toward* upstream shape
+(its diff vs upstream is now thin seam calls + one marker block, not large inline style/render bodies);
+rendering is behavior-identical. **Actual DISABLE reverts this stage = 0** (8i deferred, 8j kept) — the
+plan's "~2 DISABLE" applies to US-001, not US-003.
+
+**8i DISABLE — deferred to US-001, with re-apply recipe.** 8i cannot be reverted in isolation this stage
+without breaking typecheck: the fork's `components/markdown/parseMarkdown.ts` emits
+`list.items: MarkdownSpan[][]` and `numbered-list.items: {number, spans}[]` (no per-item `depth`), whereas
+the upstream `cli-1.1.10` `RenderListBlock`/`RenderNumberedListBlock` read `item.depth`. A byte-for-byte
+upstream revert of the list renderers therefore also requires reverting `parseMarkdown.ts` to the upstream
+`{depth, spans}` item shape — an out-of-scope, non-behavior-preserving parser change. US-001 (the grouped
+DISABLE-reverts story, gated on operator calls #6/#7 per `stories-outline.md`) owns the paired
+`parseMarkdown.ts` + list-renderer revert. **Re-apply recipe** (if the fork later wants the inline-bullet
+simplification back after US-001): re-inline the simplified list renderers that map `MarkdownSpan[][]`
+directly to bulleted `<Text>` rows (dropping `item.depth`), keeping the fork `parseMarkdown.ts` list-item
+shape.
+
 ---
 
 ## 9. Ownership & cadence
@@ -326,7 +418,9 @@ need no relocation.
   cross-checks the in-code `// FORK PATCH:` markers against this catalogue (advisory) — it flags orphan
   markers, undermarked rows, and unexpected markers on guard-by-absence rows. Run it from the repo root:
   `node scripts/audit-happy-fork-patches.mjs` (exits 0 + prints a report in M0; pass `--strict` to exit
-  non-zero on drift for CI). As of M0 it reports **zero drift**: 12 markers in code (5 `HS-*`, 7 `HC-*`)
-  match the 12 inline-marker rows; the 7 `HA-*` rows and `HS-6`/`HS-7`/`HS-8` are intentionally
-  marker-free. (M1 relocations R1a/R3 move some `HS-*` markers behind fork seams but keep the row↔marker
-  correspondence; re-run the audit to confirm zero drift after each.)
+  non-zero on drift for CI). As of **R8 stage 1**, `HA-8` (MarkdownView) carries `RESTORE-R8d` markers —
+  one at the MarkdownView import seam plus one per relocated `sources/fork/markdown/*` module — each citing
+  `(invariant HA-8)` on the marker line so the audit resolves the ID; the other six `HA-*` rows remain
+  intentionally marker-free until their R8 stage lands. The `HS-*`/`HC-*` marker set is unchanged (M1
+  relocations R1a/R3/R4 keep the row↔marker correspondence). Re-run the audit after each import to confirm
+  zero drift.

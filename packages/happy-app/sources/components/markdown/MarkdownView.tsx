@@ -1,100 +1,39 @@
-import { MarkdownBlock, MarkdownSpan, parseMarkdown } from './parseMarkdown';
+import { MarkdownSpan, parseMarkdown } from './parseMarkdown';
 import * as React from 'react';
-import { Image, Pressable, ScrollView, View, Platform, StyleSheet as RNStyleSheet, type StyleProp, type TextStyle } from 'react-native';
+import { Pressable, View, Platform, type StyleProp, type TextStyle } from 'react-native';
 import { HorizontalScrollView } from '../HorizontalScrollView';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { StyleSheet } from 'react-native-unistyles';
-import { AnimatedText, Text } from '../StyledText';
+import { Text } from '../StyledText';
 import { Typography } from '@/constants/Typography';
 import { SimpleSyntaxHighlighter } from '../SimpleSyntaxHighlighter';
 import { Modal } from '@/modal';
-import { useLocalSetting } from '@/sync/storage';
+import { useLocalSetting, useSession } from '@/sync/storage';
 import { storeTempText } from '@/sync/persistence';
 import { useRouter } from 'expo-router';
 import * as Clipboard from 'expo-clipboard';
-import * as WebBrowser from 'expo-web-browser';
 import { MermaidRenderer } from './MermaidRenderer';
 import { TaskNotificationPill } from './TaskNotificationPill';
 import { t } from '@/text';
-import { isHttpMarkdownLink, isInternalFileLinkUrl, buildInternalFileLinkUrl, parseInternalFileLinkUrl } from './linkUtils';
-import { useChatScaleAnimatedTextStyle, useChatScaledStyles } from '@/hooks/useChatFontScale';
+import { isHttpMarkdownLink } from './linkUtils';
+import { useChatScaledStyles } from '@/hooks/useChatFontScale';
 import processClaudeMetaTags from './processClaudeMetaTags';
-import { sessionReadFile } from '@/sync/ops';
-import { useSession } from '@/sync/storage';
-import { splitSessionFileText } from '@/utils/sessionFileLinks';
+// FORK PATCH: [RESTORE-R8d] happy-app fork overlay seams for MarkdownView (invariant HA-8).
+// The fork's divergent e-ink / session-aware markdown logic is relocated into
+// sources/fork/markdown/* so this file stays close to upstream cli-1.1.10 and
+// the upstream rebase conflict surface stays small. Each import below is a KEEP
+// seam catalogued in docs/happy-patch-surface.md (HA-8: 8a,8b,8d,8e,8f,8g,8h).
+import { AnimatedMarkdownText } from '@/fork/markdown/AnimatedMarkdownText';
+import { addSessionFileLinks } from '@/fork/markdown/sessionFileAutolink';
+import { useMarkdownLinkNav } from '@/fork/markdown/useMarkdownLinkNav';
+import { SessionImageBlock } from '@/fork/markdown/SessionAwareImage';
+import { ForkOptionsBlock } from '@/fork/markdown/ForkOptionsBlock';
+import { einkTextWeightStyles, einkCodeSpanStyle } from '@/fork/markdown/einkMarkdownStyles';
 
 // Option type for callback
 export type Option = {
     title: string;
 };
-
-function addSessionFileLinksToSpans(spans: MarkdownSpan[], sessionRoot: string | null, trustedInternalSpans: Set<MarkdownSpan>): MarkdownSpan[] {
-    if (!sessionRoot) {
-        return spans;
-    }
-
-    return spans.flatMap((span) => {
-        if (span.url || span.styles.includes('code')) {
-            return [span];
-        }
-
-        const segments = splitSessionFileText(span.text, sessionRoot);
-        if (segments.length === 0) {
-            return [span];
-        }
-        if (segments.length === 1 && !segments[0]?.link) {
-            return [span];
-        }
-
-        return segments.map((segment) => {
-            if (!segment.link?.withinSessionRoot) {
-                return { ...span, text: segment.text, url: null };
-            }
-            const trustedSpan: MarkdownSpan = {
-                ...span,
-                text: segment.text,
-                url: buildInternalFileLinkUrl(segment.link.absolutePath, segment.link.line, segment.link.column),
-            };
-            trustedInternalSpans.add(trustedSpan);
-            return trustedSpan;
-        });
-    });
-}
-
-function addSessionFileLinks(blocks: MarkdownBlock[], sessionRoot: string | null): { blocks: MarkdownBlock[]; trustedInternalSpans: Set<MarkdownSpan> } {
-    const trustedInternalSpans = new Set<MarkdownSpan>();
-    if (!sessionRoot) {
-        return { blocks, trustedInternalSpans };
-    }
-
-    const processedBlocks = blocks.map((block) => {
-        if (block.type === 'text' || block.type === 'header') {
-            return { ...block, content: addSessionFileLinksToSpans(block.content, sessionRoot, trustedInternalSpans) };
-        }
-        if (block.type === 'list') {
-            return { ...block, items: block.items.map((item) => addSessionFileLinksToSpans(item, sessionRoot, trustedInternalSpans)) };
-        }
-        if (block.type === 'numbered-list') {
-            return {
-                ...block,
-                items: block.items.map((item) => ({
-                    ...item,
-                    spans: addSessionFileLinksToSpans(item.spans, sessionRoot, trustedInternalSpans),
-                })),
-            };
-        }
-        if (block.type === 'table') {
-            return {
-                ...block,
-                headers: block.headers.map((header) => addSessionFileLinksToSpans(header, sessionRoot, trustedInternalSpans)),
-                rows: block.rows.map((row) => row.map((cell) => addSessionFileLinksToSpans(cell, sessionRoot, trustedInternalSpans))),
-            };
-        }
-        return block;
-    });
-
-    return { blocks: processedBlocks, trustedInternalSpans };
-}
 
 export const MarkdownView = React.memo((props: { 
     markdown: string;
@@ -122,29 +61,7 @@ export const MarkdownView = React.memo((props: {
     const selectable = Platform.OS === 'web' || !markdownCopyV2;
     const router = useRouter();
 
-    const handleLinkPress = React.useCallback((url: string) => {
-        if (isInternalFileLinkUrl(url)) {
-            const fileLink = parseInternalFileLinkUrl(url);
-            if (!fileLink || !props.sessionId) {
-                return;
-            }
-            router.push(`/session/${props.sessionId}/file?path=${fileLink.path}&line=${fileLink.line}&column=${fileLink.column}&refresh=1&view=file`);
-            return;
-        }
-
-        if (!isHttpMarkdownLink(url)) {
-            return;
-        }
-
-        if (Platform.OS === 'web') {
-            if (typeof window !== 'undefined') {
-                window.open(url, '_blank', 'noopener,noreferrer');
-            }
-            return;
-        }
-
-        void WebBrowser.openBrowserAsync(url);
-    }, [props.sessionId, router]);
+    const handleLinkPress = useMarkdownLinkNav(props.sessionId);
 
     const handleLongPress = React.useCallback(() => {
         try {
@@ -174,7 +91,7 @@ export const MarkdownView = React.memo((props: {
                     } else if (block.type === 'mermaid') {
                         return <MermaidRenderer content={block.content} key={index} />;
                     } else if (block.type === 'options') {
-                        return <RenderOptionsBlock items={block.items} key={index} first={index === 0} last={index === blocks.length - 1} selectable={selectable} onOptionPress={props.onOptionPress} />;
+                        return <ForkOptionsBlock items={block.items} key={index} first={index === 0} last={index === blocks.length - 1} selectable={selectable} onOptionPress={props.onOptionPress} />;
                     } else if (block.type === 'table') {
                         return <RenderTableBlock headers={block.headers} rows={block.rows} onLinkPress={handleLinkPress} selectable={selectable} key={index} first={index === 0} last={index === blocks.length - 1} trustedInternalSpans={trustedInternalSpans} />;
                     } else if (block.type === 'image') {
@@ -222,13 +139,6 @@ type RenderSpanProps = {
     onLinkPress: (url: string) => void;
     trustedInternalSpans: Set<MarkdownSpan>;
 };
-
-function AnimatedMarkdownText(props: React.ComponentProps<typeof AnimatedText> & { baseStyle?: StyleProp<TextStyle> }) {
-    const flattenedBaseStyle = RNStyleSheet.flatten(props.baseStyle) ?? {};
-    const animatedTextStyle = useChatScaleAnimatedTextStyle(flattenedBaseStyle.fontSize ?? 0, flattenedBaseStyle.lineHeight);
-
-    return <AnimatedText {...props} style={[props.baseStyle, props.style, animatedTextStyle]} />;
-}
 
 function RenderTextBlock(props: { spans: MarkdownSpan[], first: boolean, last: boolean, selectable: boolean, onLinkPress: (url: string) => void, trustedInternalSpans: Set<MarkdownSpan> }) {
     const textStyle = [style.text, props.first && style.first, props.last && style.last];
@@ -315,126 +225,6 @@ function RenderCodeBlock(props: { content: string, language: string | null, firs
     );
 }
 
-const WEB_REMOTE_IMAGE_URI = /^(?:https?:|data:)/i;
-const WINDOWS_ABSOLUTE_IMAGE_PATH = /^[A-Za-z]:[\\/]/;
-
-function normalizeSessionImagePath(url: string) {
-    let decoded = url;
-    try {
-        decoded = decodeURI(url);
-    } catch {
-        decoded = url;
-    }
-    return decoded.replace(/\\/g, '/');
-}
-
-function isSessionImagePath(url: string) {
-    if (WEB_REMOTE_IMAGE_URI.test(url)) {
-        return false;
-    }
-    return url.startsWith('/') || WINDOWS_ABSOLUTE_IMAGE_PATH.test(url);
-}
-
-function inferImageMime(path: string) {
-    const extension = path.split(/[?#]/, 1)[0]?.split('.').pop()?.toLowerCase();
-    switch (extension) {
-        case 'png':
-            return 'image/png';
-        case 'jpg':
-        case 'jpeg':
-            return 'image/jpeg';
-        case 'gif':
-            return 'image/gif';
-        case 'webp':
-            return 'image/webp';
-        case 'svg':
-            return 'image/svg+xml';
-        default:
-            return 'application/octet-stream';
-    }
-}
-
-function getOriginImageUri(url: string) {
-    if (Platform.OS !== 'web' || !isSessionImagePath(url)) {
-        return url;
-    }
-
-    const normalizedPath = normalizeSessionImagePath(url);
-    if (typeof window === 'undefined' || !window.location?.origin) {
-        return normalizedPath;
-    }
-
-    return `${window.location.origin}/${normalizedPath.replace(/^\/+/, '')}`;
-}
-
-function SessionImageBlock(props: { url: string, alt: string, sessionId?: string }) {
-    const [sourceUri, setSourceUri] = React.useState(() => getOriginImageUri(props.url));
-    const [failed, setFailed] = React.useState(false);
-    const [didTrySessionRead, setDidTrySessionRead] = React.useState(false);
-    const latestUrlRef = React.useRef(props.url);
-    const mountedRef = React.useRef(true);
-    const accessibleLabel = props.alt || 'Markdown image';
-
-    React.useEffect(() => {
-        mountedRef.current = true;
-        return () => {
-            mountedRef.current = false;
-        };
-    }, []);
-
-    React.useEffect(() => {
-        latestUrlRef.current = props.url;
-        setSourceUri(getOriginImageUri(props.url));
-        setFailed(false);
-        setDidTrySessionRead(false);
-    }, [props.url]);
-
-    const handleError = React.useCallback(() => {
-        if (Platform.OS !== 'web' || !isSessionImagePath(props.url)) {
-            return;
-        }
-
-        if (!props.sessionId || didTrySessionRead) {
-            setFailed(true);
-            return;
-        }
-
-        setDidTrySessionRead(true);
-        const normalizedPath = normalizeSessionImagePath(props.url);
-        const requestUrl = props.url;
-        void sessionReadFile(props.sessionId, normalizedPath).then((response) => {
-            if (!mountedRef.current || latestUrlRef.current !== requestUrl) {
-                return;
-            }
-            if (response.success && response.content) {
-                setSourceUri(`data:${inferImageMime(normalizedPath)};base64,${response.content}`);
-                setFailed(false);
-                return;
-            }
-            setFailed(true);
-        }).catch(() => {
-            if (!mountedRef.current || latestUrlRef.current !== requestUrl) {
-                return;
-            }
-            setFailed(true);
-        });
-    }, [didTrySessionRead, props.sessionId, props.url]);
-
-    if (failed) {
-        return <View accessibilityLabel={accessibleLabel} style={[style.image, style.imagePlaceholder]} />;
-    }
-
-    return (
-        <Image
-            source={{ uri: sourceUri }}
-            style={style.image}
-            accessibilityLabel={accessibleLabel}
-            resizeMode="contain"
-            onError={handleError}
-        />
-    );
-}
-
 function RenderImageBlock(props: { url: string, alt: string, sessionId?: string, first: boolean, last: boolean }) {
     return (
         <View style={[style.imageBlock, props.first && style.first, props.last && style.last]}>
@@ -442,43 +232,6 @@ function RenderImageBlock(props: { url: string, alt: string, sessionId?: string,
             {props.alt ? (
                 <AnimatedMarkdownText baseStyle={style.imageCaption}>{props.alt}</AnimatedMarkdownText>
             ) : null}
-        </View>
-    );
-}
-
-function RenderOptionsBlock(props: { 
-    items: string[], 
-    first: boolean, 
-    last: boolean, 
-    selectable: boolean,
-    onOptionPress?: (option: Option) => void 
-}) {
-    return (
-        <View style={[style.optionsContainer, props.first && style.first, props.last && style.last]}>
-            {props.items.map((item, index) => {
-                if (props.onOptionPress) {
-                    return (
-                        <Pressable
-                            key={index}
-                            style={({ pressed }) => [
-                                style.optionItem,
-                                pressed && style.optionItemPressed
-                            ]}
-                            onPress={() => props.onOptionPress?.({ title: item })}
-                        >
-                            <View style={style.optionItemAccent} />
-                            <AnimatedMarkdownText selectable={props.selectable} baseStyle={style.optionText}>{item}</AnimatedMarkdownText>
-                        </Pressable>
-                    );
-                } else {
-                    return (
-                        <View key={index} style={style.optionItem}>
-                            <View style={style.optionItemAccent} />
-                            <AnimatedMarkdownText selectable={props.selectable} baseStyle={style.optionText}>{item}</AnimatedMarkdownText>
-                        </View>
-                    );
-                }
-            })}
         </View>
     );
 }
@@ -627,16 +380,12 @@ const style = StyleSheet.create((theme) => ({
     italic: {
         fontStyle: 'italic',
     },
-    bold: {
-        fontWeight: 'bold',
-    },
-    semibold: {
-        fontWeight: '600',
-    },
-    code: {
-        ...Typography.mono(),
-        color: theme.colors.text,
-    },
+    // FORK PATCH: [RESTORE-R8d] 8b/8h e-ink text-weight + inline-code overrides (invariant HA-8);
+    // values owned by sources/fork/markdown/einkMarkdownStyles.ts. Kept as keys here
+    // so the dynamic span-style lookup (style[spanStyle]) resolves them.
+    bold: einkTextWeightStyles.bold,
+    semibold: einkTextWeightStyles.semibold,
+    code: einkCodeSpanStyle(theme.colors.text),
     link: {
         ...Typography.default(),
         color: theme.colors.text,
@@ -758,17 +507,6 @@ const style = StyleSheet.create((theme) => ({
         alignSelf: 'flex-start',
         gap: 8,
     },
-    image: {
-        width: '100%',
-        minHeight: 160,
-        height: 240,
-        borderRadius: 12,
-        backgroundColor: theme.colors.surfaceHighest,
-    },
-    imagePlaceholder: {
-        borderWidth: 2,
-        borderColor: theme.colors.textSecondary,
-    },
     imageCaption: {
         ...Typography.default(),
         fontSize: 14,
@@ -811,49 +549,9 @@ const style = StyleSheet.create((theme) => ({
     },
 
     //
-    // Options Block
+    // Options Block — FORK PATCH: [RESTORE-R8d] 8a e-ink option-card styles (invariant HA-8);
+    // relocated to sources/fork/markdown/optionCardStyles.ts.
     //
-
-    optionsContainer: {
-        flexDirection: 'column',
-        gap: 8,
-        marginVertical: 8,
-    },
-    optionItem: {
-        // E-ink visibility: surfaceHighest (#f0f0f0) and divider (#eaeaea) both
-        // quantize to pure white on color e-ink panels, making the options card
-        // disappear into the page background. userMessageBackground (#d4d4d4)
-        // is the proven-visible value documented in packages/happy-app/AGENTS.md;
-        // 2px textSecondary border survives quantization where 1px divider does not.
-        position: 'relative',
-        overflow: 'hidden',
-        backgroundColor: theme.colors.userMessageBackground,
-        borderRadius: 8,
-        paddingHorizontal: 16,
-        paddingVertical: 12,
-        borderWidth: 2,
-        borderColor: theme.colors.textSecondary,
-    },
-    optionItemAccent: {
-        // Hard-edged left bar — strong "tap me" cue on e-ink, where shadow /
-        // elevation / opacity-pressed states all fail to render.
-        position: 'absolute',
-        left: 0,
-        top: 0,
-        bottom: 0,
-        width: 4,
-        backgroundColor: theme.colors.text,
-    },
-    optionItemPressed: {
-        opacity: 0.7,
-        backgroundColor: theme.colors.surfaceHigh,
-    },
-    optionText: {
-        ...Typography.default(),
-        fontSize: 16,
-        lineHeight: 24,
-        color: theme.colors.text,
-    },
 
     //
     // Table
