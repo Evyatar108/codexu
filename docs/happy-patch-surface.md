@@ -144,6 +144,39 @@ they get **no markers** and only a context row here. If upstream ever introduces
 | `tunnel/` | 0 | 13 | Entire dir is fork-only (cloudflare/dev-tunnel providers) — zero-conflict. |
 | **total fork-only** | — | **117** | No markers; import-safe by construction. |
 
+### happy-cli manifest & import divergence is fork-required-only (conflict-irreducible)
+
+The `packages/happy-cli/` files that most often show noisy upstream diffs —
+`package.json`, `configuration.ts`, and `api/apiSession.ts` — were audited
+against a real 3-way merge (base `cli-1.1.7`, theirs `cli-1.1.10`, ours
+`main`) to find any *mechanical* noise whose removal would shrink the conflict
+surface. **There is none**: every remaining delta is fork-required, so no
+behavior-preserving reorder reduces the conflict count. Two non-obvious traps
+were found and are recorded here so future rebasers don't re-introduce them:
+
+- **`package.json` — two irreducible conflict regions, both fork-required:**
+  the `version` string and the fork-simplified `scripts` block. Everything
+  else in the manifest merges cleanly.
+  - **Trap A — do NOT alphabetically re-sort `happy-server`.** The
+    `happy-server` workspace dependency is a pure fork addition. At its
+    current position (immediately after `@stablelib/hex`, bordered by
+    version-*unchanged* lines) it merges with **zero** conflict. Moving it to
+    the "correct" alphabetical slot places it adjacent to
+    `fastify-type-provider-zod` — a line upstream version-bumped
+    (`4.0.2` → `^6.1.0`) — which fuses the insertion into that change region
+    and manufactures a spurious extra conflict hunk. Leave it where it is.
+  - **Trap B — silent version-pin merge.** The fork holds several deps below
+    upstream (`@anthropic-ai/claude-agent-sdk`, `@modelcontextprotocol/sdk`,
+    `fastify-type-provider-zod`, `zod`). Because these pins equal the pre-fork
+    base, a 3-way merge takes upstream's newer version **cleanly (no conflict
+    is raised)** and silently drops the fork's pin. Re-verify these pins by
+    hand after every upstream sync — the merge tool will not flag them.
+- **`configuration.ts` / `api/apiSession.ts` — divergence is feature-driven
+  imports only** (e.g. `chmodSync`, `sessionPayloadCodec`, `daemonClient`),
+  not reorderable noise; reordering them is neutral-to-negative on the
+  conflict count. `configuration.ts` retains the fork
+  `http://127.0.0.1:3005` default (invariant HC-12).
+
 ## 5. happy-app inventory (`HA-*`)
 
 Paths relative to `packages/happy-app/sources/` unless noted. See [`packages/happy-app/AGENTS.md`](../packages/happy-app/AGENTS.md).
