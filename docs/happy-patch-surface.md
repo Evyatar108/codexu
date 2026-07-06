@@ -253,15 +253,28 @@ each R8 stage lands it adds a sibling subdir; empty dirs are **not** scaffolded 
 | **Upstream mirror clone (read-only reference)** | `D:/harness-efforts/happy` — remotes: `origin` = `slopus/happy`, `fork` = `Evyatar108/happy` |
 | **In-repo upstream remote (permanent — PRIMARY reference)** | codexu remote **`upstream-happy`** = `slopus/happy`; fetched refs `upstream-happy/main` (`d2ef88de`) + tag `cli-1.1.10` (`71c417e1`). 3-way diffs + intake run **directly in codexu** — `git show cli-1.1.10:<path>`, `git merge-file` — no external mirror dependency. Refresh per upstream release: `git fetch --no-tags upstream-happy main` + `git fetch --no-tags upstream-happy tag <new-tag>`. |
 
-**Why the baseline is *inferred*, not an exact merge-base.** codexu vendors happy as a
-**history-detached copy**: there is no shared commit history with `slopus/happy`, so no `git merge-base`
-exists. An exact per-file tree-match is also not achievable — an 8-file sample of upstream-canonical
-files (`packages/happy-wire/src/index.ts`, `.../text/translations/pl.ts`,
-`.../components/StyledText.tsx`, `packages/happy-cli/src/index.ts`,
-`.../happy-server/.../v3SessionRoutes.ts`, `docs/README.md`, `README.md`, `.../theme.ts`) matched
-**0/8** byte-for-byte against *either* `cli-1.1.8` or `cli-1.1.10`, confirming the fork has diverged
-across the board (even "stable" files are fork-touched). The pin is therefore a **temporal/release
-anchor**, not a merge-base.
+**A real merge-base DOES exist (corrected 2026-07-06).** An earlier assessment claimed codexu vendors
+happy as a "history-detached copy" with no `git merge-base` — **that was wrong**, an artifact of
+computing `git merge-base` *before* the permanent `upstream-happy` remote/objects were fetched (§6
+in-repo remote row; task `happy-upstream-permanent-remote-and-cadence`). With upstream's objects
+present, `git merge-base HEAD cli-1.1.10` = **`df4cdae8`** (`git describe` = `cli-1.1.8-4-gdf4cdae8e`,
+i.e. 4 commits after `cli-1.1.8`), and it is a genuine ancestor of **both** fork HEAD (2542 fork-side
+commits) and `cli-1.1.10` (213 upstream-side commits). So codexu's `packages/happy-*` **does** share
+git history with `slopus/happy`, and a real `git merge`/`git rebase` of upstream is **topologically
+possible** (git would auto-resolve the clean files and surface only the ~96 catalogued hard-conflicts +
+apply the `.gitattributes merge=ours` drivers). The selective per-file approach is still a *valid*
+option, but it is a **choice**, not a topological necessity.
+
+**Why `cli-1.1.8` is still the classification anchor.** The intake still classifies each file against
+the **release anchor** `cli-1.1.8` (BASE) → `cli-1.1.10` (THEIRS) → fork HEAD (OURS), because
+`cli-1.1.8` is the tightest *release* the vendored tree was imported at (the `df4cdae8` true merge-base
+is only 4 commits later and the classification is base-neutral between them). An exact per-file
+tree-match is not achievable — an 8-file sample of upstream-canonical files
+(`packages/happy-wire/src/index.ts`, `.../text/translations/pl.ts`, `.../components/StyledText.tsx`,
+`packages/happy-cli/src/index.ts`, `.../happy-server/.../v3SessionRoutes.ts`, `docs/README.md`,
+`README.md`, `.../theme.ts`) matched **0/8** byte-for-byte against *either* `cli-1.1.8` or `cli-1.1.10`,
+confirming the fork has diverged across the board (even "stable" files are fork-touched). The pin is a
+**release anchor** used for 3-way classification, distinct from the `df4cdae8` topological merge-base.
 
 **How the anchor was chosen.** The conflict-surface investigation
 ([`.ralph/investigations/happy-upstream-conflict-surface/`](../.ralph/investigations/happy-upstream-conflict-surface/))
