@@ -20,3 +20,18 @@ packages/happy-agent/dist/** merge=ours
 # packages/happy-app/sources/text/** — the translation files are typed nested
 # TS object modules, and a union merge that produces duplicate keys fails the
 # type build (tsc TS1117). See docs/happy-patch-surface.md §7 (open question #4).
+
+# R8 sidebar trio (HA-10/11/12). These three upstream-canonical filenames exist
+# in BOTH the fork and upstream but are ENTIRELY DIFFERENT features: the fork
+# ships a collapsible e-ink sidebar + sidebar-restore control + avatar header,
+# while upstream cli-1.1.10 ships a "new-session right sidebar" (2026-05-20
+# design) + FilesSidebar. Operator decision #1 (2026-07-05) = KEEP the fork's
+# versions as a merge=ours shim (do NOT adopt upstream's new-session sidebar on
+# import). Requires `git config merge.ours.driver true` on the import host (§7);
+# inert without it. `SidebarContext.tsx` is fork-only (no upstream equivalent =
+# already zero-conflict, no rule needed). Upstream's FilesSidebar.tsx +
+# utils/newSessionSidebarLayout.* would arrive as new files on import — adopt or
+# skip deliberately (they are not conflicts).
+packages/happy-app/sources/components/SidebarView.tsx merge=ours
+packages/happy-app/sources/components/SidebarNavigator.tsx merge=ours
+packages/happy-app/sources/components/ChatHeaderView.tsx merge=ours
