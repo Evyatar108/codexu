@@ -10036,6 +10036,41 @@
           }
         ]
       }
+    },
+    {
+      "id": "happy-app-r5-sync-plane-residual",
+      "scope": "happy-app",
+      "lifecycle": "merged",
+      "status": "todo",
+      "lastTouchedAt": "2026-07-06T22:24:46.899Z",
+      "kanbanCards": [
+        {
+          "class": "cmd-warn",
+          "html": "REDUCTION TASK (happy-app SYNC-R5 residual: sync.ts 23 + storage.ts 24). The honest 'overlay can't fully fix' residual flagged in R8 (SessionView/AgentInput send-policy marked R5-residual). Diagnosis-first."
+        },
+        {
+          "className": "cmd-ok",
+          "html": "Brainstorm shipped @ cc598916. HONEST VERDICT: sync.ts(22 hunks)+storage.ts(24) are mostly must-stay-manual-3-way; NO clean seam/file reduction (0 KEEP-seamable, 0 DISABLE — every fork divergence is load-bearing convergent evolution). Win = effort-reduction: formalize KEEP-DELETED multi-account take-ours + document fork-only overlays + per-cluster intake recipe (light US-000-style catalogue impl, HA-* rows). SERIALIZE the catalogue impl after cli+server impls (shared docs/happy-patch-surface.md). Operator refactors 7-A (adopt unread-tracking) + 7-B (rename pagination fields toward upstream) both DEFER (e-ink perf risk); 7-C (fetchMachines resilience) = correctness follow-up."
+        }
+      ],
+      "command": {
+        "name": "happy-app-r5-sync-plane-residual",
+        "descriptionHtml": "The honest residual R8 could NOT fix: happy-app sync plane — sources/sync/sync.ts (23 conflict hunks) + sources/sync/storage.ts (24). These are deeply-rewritten-on-both-sides (fork perf/reducer work + upstream's own rewrites); an overlay can't cleanly extract them. Decide per-hunk KEEP-seam vs DISABLE-revert vs accept-as-manual-3-way, and document the intake recipe. This is diagnosis-first (what's extractable) so it starts with a brainstorm. Part of the post-R8 upstream conflict-surface reduction objective (umbrella task happy-fork-upstream-divergence-reconciliation). Approach = the R8 codex-fork playbook: per-divergence KEEP vs DISABLE-for-now triage; for KEEPs relocate fork logic into fork-owned modules (src/fork/ or sources/fork/) + // FORK PATCH: markers + thin call-site seams (never inline edits); RESTORE upstream toward-upstream where the feature is wanted (with a Settings toggle for experimentation) to reduce conflict. Governed by docs/happy-patch-surface.md; assessment at .ralph/investigations/happy-upstream-rebase-assessment-v2/. Upstream target cli-1.1.10 @ 71c417e1 in mirror D:/harness-efforts/happy (remote origin=slopus/happy).",
+        "warnings": [],
+        "prompts": {
+          "brainstorm": "/brainstorm-with-ralph \"happy-app sync-plane (sources/sync/sync.ts 23 + storage.ts 24) is the honest R5 residual: both fork and upstream heavily rewrote it, so an overlay seam can't cleanly extract the fork logic. Investigate per-hunk what is KEEP-seamable vs DISABLE-revertable vs must-stay-manual-3-way; recommend the minimal reduction + the intake recipe. Reference the R8 seams + docs/happy-patch-surface.md.\""
+        }
+      },
+      "shipManifest": {
+        "shippedAt": "2026-07-06T22:24:46.899Z",
+        "summary": "Shipped the app-r5 sync-plane residual catalogue (task 3 impl phase). The brainstorm verdict was mostly-must-stay-manual (no clean seam/file reduction possible), so this is the light effort-reduction win: formalized the sync.ts (22 hunks) + storage.ts (24 hunks) divergence in docs/happy-patch-surface.md §5. Added HA-1/HA-2 marker parity (flipped to catalogued), new HA-1a/HA-2a (KEEP-DELETED multi-account graph removals), HA-1b (RESTORE-gated unread-tracking, deferred for e-ink), a fork-only-overlay context note, and a §8 R5 per-cluster intake recipe (which clusters take-ours/take-theirs/manual-3-way at the next cli-* import). 4 new FORK PATCH markers (2 files): KEEP-DELETED multi-account markers + manual-3-way cluster-head markers on both files. ZERO logic/value/type change (comment + docs only, verified). Audit zero-drift (47 rows: HS16/HC19/HA12), typecheck clean.\n\nTwo operator refactors deferred (both DEFER per brainstorm): 7-A adopt unread-tracking (e-ink repaint risk), 7-B rename pagination fields toward upstream (touches e-ink prefetch perf). 7-C fetchMachines resilience filed as correctness follow-up (happy-app-fetchmachines-resilience-followup).\r\n",
+        "commits": [
+          {
+            "sha": "1d0211e4c",
+            "oneLine": "docs(happy-app): catalogue R5 sync-plane residual (HA-* rows + FORK PATCH markers + section 8 intake recipe)"
+          }
+        ]
+      }
     }
   ]
 }
