@@ -1734,6 +1734,134 @@
           "brainstorm": "/brainstorm-with-ralph \"Restore the upstream Happy voice/realtime subsystem (@/realtime/RealtimeSession, voiceHooks, VoiceAssistantStatusBar, ElevenLabs agent) removed by the fork, wired into SessionView + the AgentInput mic (restored inert in R8 stage 4). Scope the subsystem's dependencies, the e-ink/tablet placement (voice status bar in sidebar), whether the fork removed it deliberately (cost/privacy/e-ink), and the minimal functional restore. From upstream cli-1.1.10 @ 71c417e1.\""
         }
       }
+    },
+    {
+      "id": "happy-cli-conflict-reduction-hotspots",
+      "scope": "happy-cli",
+      "lifecycle": "tracked",
+      "status": "todo",
+      "lastTouchedAt": "2026-07-06",
+      "kanbanCards": [
+        {
+          "class": "cmd-warn",
+          "html": "REDUCTION TASK (happy-cli, 33 conflict files — 2nd biggest surface). Top hotspots MessageQueue2.ts (12 hunks) + sessionScanner.ts (6), currently NOT catalogued. Continue the R8 keep/disable + overlay-seam approach. This is the operator's chosen next direction (2026-07-06)."
+        }
+      ],
+      "command": {
+        "name": "happy-cli-conflict-reduction-hotspots",
+        "descriptionHtml": "Reduce the happy-cli upstream conflict surface (33 hard-conflict files vs cli-1.1.10; 2nd biggest after happy-app). Top hotspots: src/api/MessageQueue2.ts (12) + src/agents/sessionScanner.ts (6). Catalogue the currently un-catalogued CLI hunks (add HC-* rows), then keep/disable-triage + overlay-seam per the R8 approach. Some hotspots may be fork features to KEEP-via-seam; others may be low-value DISABLE-reverts. Behavior-preserving; re-run happy-cli tests (npm_config_script_shell=bash pnpm --filter happy test) as the gate. Part of the post-R8 upstream conflict-surface reduction objective (umbrella task happy-fork-upstream-divergence-reconciliation). Approach = the R8 codex-fork playbook: per-divergence KEEP vs DISABLE-for-now triage; for KEEPs relocate fork logic into fork-owned modules (src/fork/ or sources/fork/) + // FORK PATCH: markers + thin call-site seams (never inline edits); RESTORE upstream toward-upstream where the feature is wanted (with a Settings toggle for experimentation) to reduce conflict. Governed by docs/happy-patch-surface.md; assessment at .ralph/investigations/happy-upstream-rebase-assessment-v2/. Upstream target cli-1.1.10 @ 71c417e1 in mirror D:/harness-efforts/happy (remote origin=slopus/happy).",
+        "warnings": [],
+        "prompts": {
+          "plan": "/plan-with-ralph \"Reduce happy-cli upstream conflict surface: catalogue + keep/disable-triage + overlay-seam the 33 conflict files vs cli-1.1.10 (top: src/api/MessageQueue2.ts 12, src/agents/sessionScanner.ts 6). Relocate KEEP fork logic into src/fork/ modules + FORK PATCH markers; RESTORE toward upstream where wanted. Update docs/happy-patch-surface.md HC-* rows. Gate: happy-cli tests. See .ralph/investigations/happy-upstream-rebase-assessment-v2/findings.md.\""
+        }
+      }
+    },
+    {
+      "id": "happy-server-conflict-reduction-remaining",
+      "scope": "happy-server",
+      "lifecycle": "tracked",
+      "status": "todo",
+      "lastTouchedAt": "2026-07-06",
+      "kanbanCards": [
+        {
+          "class": "cmd-warn",
+          "html": "REDUCTION TASK (happy-server, 9 conflict files — smallest surface, likely quickest). M1 already seamed the auth plane; this handles the residual."
+        }
+      ],
+      "command": {
+        "name": "happy-server-conflict-reduction-remaining",
+        "descriptionHtml": "Reduce the remaining happy-server upstream conflict surface (9 hard-conflict files vs cli-1.1.10 — the smallest package surface; M1 already seamed the auth plane). Keep/disable-triage + overlay-seam the residual inline edits so the upstream-canonical files return toward upstream. Behavior-preserving; re-run the public-server HARD gates (publicAuthGate/remoteDeviceAuth/deviceEnrollment/socket/index/dualListenerBinding specs) + the full happy-server suite. Likely the quickest reduction win. Part of the post-R8 upstream conflict-surface reduction objective (umbrella task happy-fork-upstream-divergence-reconciliation). Approach = the R8 codex-fork playbook: per-divergence KEEP vs DISABLE-for-now triage; for KEEPs relocate fork logic into fork-owned modules (src/fork/ or sources/fork/) + // FORK PATCH: markers + thin call-site seams (never inline edits); RESTORE upstream toward-upstream where the feature is wanted (with a Settings toggle for experimentation) to reduce conflict. Governed by docs/happy-patch-surface.md; assessment at .ralph/investigations/happy-upstream-rebase-assessment-v2/. Upstream target cli-1.1.10 @ 71c417e1 in mirror D:/harness-efforts/happy (remote origin=slopus/happy).",
+        "warnings": [],
+        "prompts": {
+          "plan": "/plan-with-ralph \"Reduce the remaining happy-server upstream conflict surface (9 files vs cli-1.1.10; M1 already seamed the auth plane). Keep/disable-triage + overlay-seam residual inline edits into sources/fork/. HARD gates: the 5 public-server specs must stay green. Update docs/happy-patch-surface.md HS-* rows.\""
+        }
+      }
+    },
+    {
+      "id": "happy-app-r5-sync-plane-residual",
+      "scope": "happy-app",
+      "lifecycle": "tracked",
+      "status": "todo",
+      "lastTouchedAt": "2026-07-06",
+      "kanbanCards": [
+        {
+          "class": "cmd-warn",
+          "html": "REDUCTION TASK (happy-app SYNC-R5 residual: sync.ts 23 + storage.ts 24). The honest 'overlay can't fully fix' residual flagged in R8 (SessionView/AgentInput send-policy marked R5-residual). Diagnosis-first."
+        }
+      ],
+      "command": {
+        "name": "happy-app-r5-sync-plane-residual",
+        "descriptionHtml": "The honest residual R8 could NOT fix: happy-app sync plane — sources/sync/sync.ts (23 conflict hunks) + sources/sync/storage.ts (24). These are deeply-rewritten-on-both-sides (fork perf/reducer work + upstream's own rewrites); an overlay can't cleanly extract them. Decide per-hunk KEEP-seam vs DISABLE-revert vs accept-as-manual-3-way, and document the intake recipe. This is diagnosis-first (what's extractable) so it starts with a brainstorm. Part of the post-R8 upstream conflict-surface reduction objective (umbrella task happy-fork-upstream-divergence-reconciliation). Approach = the R8 codex-fork playbook: per-divergence KEEP vs DISABLE-for-now triage; for KEEPs relocate fork logic into fork-owned modules (src/fork/ or sources/fork/) + // FORK PATCH: markers + thin call-site seams (never inline edits); RESTORE upstream toward-upstream where the feature is wanted (with a Settings toggle for experimentation) to reduce conflict. Governed by docs/happy-patch-surface.md; assessment at .ralph/investigations/happy-upstream-rebase-assessment-v2/. Upstream target cli-1.1.10 @ 71c417e1 in mirror D:/harness-efforts/happy (remote origin=slopus/happy).",
+        "warnings": [],
+        "prompts": {
+          "brainstorm": "/brainstorm-with-ralph \"happy-app sync-plane (sources/sync/sync.ts 23 + storage.ts 24) is the honest R5 residual: both fork and upstream heavily rewrote it, so an overlay seam can't cleanly extract the fork logic. Investigate per-hunk what is KEEP-seamable vs DISABLE-revertable vs must-stay-manual-3-way; recommend the minimal reduction + the intake recipe. Reference the R8 seams + docs/happy-patch-surface.md.\""
+        }
+      }
+    },
+    {
+      "id": "happy-upstream-permanent-remote-and-cadence",
+      "scope": "codexu|ops",
+      "lifecycle": "tracked",
+      "status": "todo",
+      "lastTouchedAt": "2026-07-06",
+      "kanbanCards": [
+        {
+          "class": "cmd-warn",
+          "html": "ENABLING (small): permanent upstream remote + merge=ours driver setup doc + per-release cadence. Prereq-ish for smooth repeated intakes."
+        }
+      ],
+      "command": {
+        "name": "happy-upstream-permanent-remote-and-cadence",
+        "descriptionHtml": "Enabling step for upstream intake: add slopus/happy as a PERMANENT read-only remote to codexu (so 3-way diffs + intakes don't depend on the ad-hoc D:/harness-efforts/happy mirror), document the one-time `git config merge.ours.driver true` setup (required by the .gitattributes merge=ours shims), and establish a per-release sync cadence (watch slopus/happy releases; run a reduction+intake pass per release). Complements the existing periodic-review task happy-upstream-sync. Small. Part of the post-R8 upstream conflict-surface reduction objective (umbrella task happy-fork-upstream-divergence-reconciliation). Approach = the R8 codex-fork playbook: per-divergence KEEP vs DISABLE-for-now triage; for KEEPs relocate fork logic into fork-owned modules (src/fork/ or sources/fork/) + // FORK PATCH: markers + thin call-site seams (never inline edits); RESTORE upstream toward-upstream where the feature is wanted (with a Settings toggle for experimentation) to reduce conflict. Governed by docs/happy-patch-surface.md; assessment at .ralph/investigations/happy-upstream-rebase-assessment-v2/. Upstream target cli-1.1.10 @ 71c417e1 in mirror D:/harness-efforts/happy (remote origin=slopus/happy).",
+        "warnings": [],
+        "prompts": {
+          "plan": "/plan-with-ralph \"Add slopus/happy as a permanent read-only remote to codexu (packages/happy-* map to upstream paths), document the one-time git config merge.ours.driver true setup, and define a per-release upstream sync/intake cadence. Update docs/fork-notes.md + docs/happy-patch-surface.md §7. Small enabling task; complements happy-upstream-sync.\""
+        }
+      }
+    },
+    {
+      "id": "happy-gitattributes-packagejson-normalization",
+      "scope": "codexu|happy",
+      "lifecycle": "tracked",
+      "status": "todo",
+      "lastTouchedAt": "2026-07-06",
+      "kanbanCards": [
+        {
+          "class": "cmd-warn",
+          "html": "ENABLING (small): .gitattributes completion + package.json/lockfile normalization to kill intake noise."
+        }
+      ],
+      "command": {
+        "name": "happy-gitattributes-packagejson-normalization",
+        "descriptionHtml": "Enabling step: finish the .gitattributes merge-strategy coverage for the happy packages (verify translations union-safety open-question #4, dist/lockfile merge=ours, the R8 sidebar merge=ours shims) and normalize package.json / pnpm-lock churn that adds intake noise (version/field ordering, fork-only deps). Goal: minimize the mechanical noise in every future intake. Small. Part of the post-R8 upstream conflict-surface reduction objective (umbrella task happy-fork-upstream-divergence-reconciliation). Approach = the R8 codex-fork playbook: per-divergence KEEP vs DISABLE-for-now triage; for KEEPs relocate fork logic into fork-owned modules (src/fork/ or sources/fork/) + // FORK PATCH: markers + thin call-site seams (never inline edits); RESTORE upstream toward-upstream where the feature is wanted (with a Settings toggle for experimentation) to reduce conflict. Governed by docs/happy-patch-surface.md; assessment at .ralph/investigations/happy-upstream-rebase-assessment-v2/. Upstream target cli-1.1.10 @ 71c417e1 in mirror D:/harness-efforts/happy (remote origin=slopus/happy).",
+        "warnings": [],
+        "prompts": {
+          "plan": "/plan-with-ralph \"Finish .gitattributes merge-strategy coverage for happy-* (revisit the translations merge=union open-question #4, confirm dist/lockfile/sidebar merge=ours) and normalize package.json/pnpm-lock churn to reduce upstream-intake noise. See docs/happy-patch-surface.md §7.\""
+        }
+      }
+    },
+    {
+      "id": "happy-first-selective-intake-cli-1.1.10",
+      "scope": "happy",
+      "lifecycle": "tracked",
+      "status": "todo",
+      "lastTouchedAt": "2026-07-06",
+      "kanbanCards": [
+        {
+          "class": "cmd-warn",
+          "html": "THE PAYOFF (depends on the 5 reduction+enabling tasks): first selective per-file 3-way intake of cli-1.1.10 (server->cli->app), governed by the catalogue. Pulls ~2 releases of upstream improvements."
+        }
+      ],
+      "command": {
+        "name": "happy-first-selective-intake-cli-1.1.10",
+        "descriptionHtml": "THE PAYOFF: perform the FIRST selective upstream intake of cli-1.1.10 (then advance to origin/main, ~3 commits past the tag) into codexu's packages/happy-*. Mechanism = selective per-file 3-way cherry-pick governed by docs/happy-patch-surface.md (NOT a rebase — history-detached, no merge-base). Order easiest->hardest: happy-server (9) -> happy-cli (33) -> happy-app; carry fork-only additive trees (codex/, agentComms/, tunnel/, daemon/, sources/fork/) forward UNTOUCHED; apply the catalogue's KEEP/KEEP-DELETED/RESTORE/merge=ours rules per file; re-run all package gates. Pulls ~2 releases of upstream improvements. Part of the post-R8 upstream conflict-surface reduction objective (umbrella task happy-fork-upstream-divergence-reconciliation). Approach = the R8 codex-fork playbook: per-divergence KEEP vs DISABLE-for-now triage; for KEEPs relocate fork logic into fork-owned modules (src/fork/ or sources/fork/) + // FORK PATCH: markers + thin call-site seams (never inline edits); RESTORE upstream toward-upstream where the feature is wanted (with a Settings toggle for experimentation) to reduce conflict. Governed by docs/happy-patch-surface.md; assessment at .ralph/investigations/happy-upstream-rebase-assessment-v2/. Upstream target cli-1.1.10 @ 71c417e1 in mirror D:/harness-efforts/happy (remote origin=slopus/happy).",
+        "warnings": [
+          "DEPENDS ON the reduction tasks (happy-cli-conflict-reduction-hotspots, happy-server-conflict-reduction-remaining, happy-app-r5-sync-plane-residual) + the enabling tasks (permanent-remote, gitattributes-normalization). Best run AFTER those to minimize conflicts, though a partial server-first intake could start earlier on the reduced surface. NOT a git rebase/merge (history-detached) — it is a selective per-file 3-way cherry-pick governed by the catalogue."
+        ],
+        "prompts": {
+          "plan": "/plan-with-ralph \"Perform the first selective upstream intake of cli-1.1.10 into codexu packages/happy-* via per-file 3-way cherry-pick governed by docs/happy-patch-surface.md (history-detached, NOT a rebase). Order server(9)->cli(33)->app; carry fork-only trees untouched; apply catalogue KEEP/KEEP-DELETED/RESTORE/merge=ours rules; re-run all gates. Depends on the reduction+enabling tasks. See .ralph/investigations/happy-upstream-rebase-assessment-v2/findings.md.\""
+        }
+      }
     }
   ],
   "phaseTree": [
