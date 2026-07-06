@@ -145,7 +145,7 @@ Paths relative to `packages/happy-app/sources/` unless noted. See [`packages/hap
 | HA-1 | `sync/sync.ts` — top-level sync orchestrator | KEEP | Fork's single-user / embedded-server / loopback sync loop diverges broadly from upstream's multi-account sync. Conflicts on nearly every import; a **manual three-way merge** each time. | ❌ (doc-only in M0) | `pnpm typecheck`; `sync/*.spec.ts` (`messageWindow`, `applyPrefetchedRange`) | deferred M2+ (sync plane, ~R5) |
 | HA-2 | `sync/storage.ts` — client session/message store | KEEP | Fork's storage shape tracks the collapsed single-user session model (no account graph). Large fork-owned surface. | ❌ (doc-only in M0) | `pnpm typecheck`; `sync/encryptionDeletion.spec.ts` | deferred M2+ (sync plane, ~R5) |
 | HA-3 | `sync/reducer/reducer.ts` — message→event reducer | KEEP | Fork reducer carries the typed context-boundary handling and e-ink-friendly accumulation. Conflicts with upstream reducer changes. | ❌ (doc-only in M0) | `sync/reducer/reducer.spec.ts`, `messageToEvent.spec.ts` | deferred M2+ (sync plane, ~R5) |
-| HA-4 | `-session/SessionView.tsx` — session screen | KEEP | Fork's chat surface is tuned for the **e-ink tablet** (static UI, no smooth-scroll/continuous repaint). Broadly rewritten vs upstream. | ❌ (doc-only in M0) | `pnpm typecheck`; visual/e-ink review | **RESTORE-R8a** (SessionView) — later R8 stage; see [§8 R8](#r8--happy-app-ui-seams-ha-8-markdownview-stage-1) |
+| HA-4 | `-session/SessionView.tsx` — session screen | KEEP | Fork's chat surface is tuned for the **e-ink tablet** (static UI, no smooth-scroll/continuous repaint). Broadly rewritten vs upstream. | ✅ `RESTORE-R8a` | `pnpm typecheck`; `-session/SessionView.fileRoute.test.tsx`, `-session/SessionView.intercept.test.ts`, `sync/machineFallbacks.test.ts`, `sync/sync.test.ts` (send call-site audit) | **R8 stage 5 DONE** — 4a–4h KEEP-relocated to `sources/fork/session/*` (composer + pre-send intercept, boundary advisory, context drawer, sidebar, header surfaces); 4i DISABLE deferred; 4j/4k/4l (send-policy / permission-model-effort / visibility sync) KEEP-in-place as **SYNC-R5 residual**; voice-runtime + fork-from-message **out-of-scope / inert**. See [§8 R8 stage 5](#stage-5-this-ship--ha-4--sessionsessionviewtsx). |
 | HA-5 | `components/ChatList.tsx` — message list | KEEP + RESTORE-grouping | Fork's inverted-FlatList perf work + `BoundaryDivider` rendering (shipped upstream as PR #1154, but fork carries adjacent e-ink tuning) **plus** upstream's tool-call/agent-work grouping restored behind a default-flat toggle (operator call #2). | ✅ `RESTORE-R8b` | `components/ChatList.{preBoundaryHistory,viewableItemsAdapter,pageTurn,toolGroupingToggle}.test.*`; `hooks/useGroupedMessages.test.ts` | **R8 stage 2 DONE** — flat e-ink body KEEP-relocated to `sources/fork/chat/*` (5a FlatList tuning, pinch-zoom, page-turn); upstream grouping restored (`useGroupedMessages`, `ToolGroupView`) behind `chatToolGrouping` local setting (**default `'flat'`** = behavior-identical). See [§8 R8 stage 2](#stage-2-this-ship--ha-5-componentschatlisttsx). |
 | HA-6 | `components/AgentInput.tsx` — composer | KEEP + RESTORE-voice | Fork input diverges on modes/attachments/keyboard for the e-ink target (fork-introduced keyboard/focus reducer + in-composer text-size/chat-width choosers) **plus** upstream's mic/voice input restored (operator call #4). High-churn conflict surface. | ✅ `RESTORE-R8c` | `components/AgentInput.{mode,attachments,keyboard,activeRegression}.test.tsx`; `fork/agentInput/keyboardStateMachine.test.ts` | **R8 stage 4 DONE** — keyboard state machine + text-size/chat-width overlays KEEP-relocated to `sources/fork/agentInput/*`; upstream mic/voice RESTORED (inert until a parent wires `onMicPress`); attachment rewrite + controlled-mode KEEP-in-place; SYNC-R5 send-policy/reducer KEEP-in-place (R5-residual). See [§8 R8 stage 4](#stage-4-this-ship--ha-6-componentsagentinputtsx). |
 | HA-7 | `text/_default.ts` + `text/translations/*.ts` — i18n | KEEP | Fork-added translation keys must survive import. **`merge=union` is UNSAFE here** (typed nested TS object modules; duplicate keys error `TS1117` and arrow-value splits break syntax — see §7). Merge is manual or via a future fork-namespaced strings file. | ❌ (doc-only in M0) | `text/translations.test.ts` (structural parity) | deferred M2+ (i18n plane, ~R6) |
@@ -550,6 +550,75 @@ the send-policy/switch-mode reducer is explicitly left in place, not seamed, thi
 
 ---
 
+#### Stage 5 (this ship) — HA-4 `-session/SessionView.tsx`
+
+Upstream reference: `cli-1.1.10` (`slopus/happy@71c417e1`). SessionView is the fork's session
+**container** — it composes the header, chat list, composer, context drawer, and (on desktop/web) the
+collapsible files sidebar. Stage 5 reduces its conflict surface by relocating the fork's e-ink / composer
+divergences into per-feature fork-owned modules under `sources/fork/session/*`, leaving `SessionView.tsx`
+with thin seam calls and one representative `RESTORE-R8a … (invariant HA-4)` marker per seam. **This is a
+behavior-preserving refactor** — the rendered tree, composer behavior, and pre-send intercept are
+byte-identical; SessionView.tsx moves *toward* upstream shape.
+
+- **KEEP (seams relocated to `sources/fork/session/*`):**
+  - **4a — collapsible files sidebar → `useSessionSidebar.tsx`:** the desktop/web two-pane layout, the
+    reanimated collapse animation, the `sidebarCollapsed` local-setting toggle, the file-open router push,
+    and the Pierre-diff prefetch. SessionView threads `showSidebar`/`sidebarCollapsed`/`toggleSidebar`
+    into the header and wraps its main content via `sidebar.wrapWithSidebar(...)`. Pairs with the sidebar
+    trio stage (HA-10/11/12).
+  - **4b/4c — header surfaces + web avatar-actions → `SessionHeaderSurfaces.tsx`:** the landscape
+    status-bar shadow, the `<ChatHeaderView>` block (fork sidebar-toggle + web avatar-menu entrypoint +
+    path-surface subtitle), and the web `<SessionActionsPopover>` — including the shared
+    `sessionActionsAnchor` state that couples them.
+  - **4d/4e — controlled-draft composer + pre-send intercept + attachment pipeline → `useForkComposer.ts`
+    (+ pure `forkComposerSend.ts`):** the `message` draft state/refs, the `useDraft` auto-save, the
+    `usePreSendCommand` slash-command **pre-send intercept**, the compose-start tracking, and the full
+    `onSend` handler (attachment dedupe → upload → send, with optimistic draft-clear + rollback).
+    SessionView spreads `{...composer.inputProps}` onto `<AgentInput>`. The `onSend` body lives in the
+    RN-free `forkComposerSend.ts` runner so `useForkComposer.test.ts` can exercise the real intercept +
+    attachment logic under the Vitest node runner. `getCanSendWhenIdle` moved here and is **re-exported**
+    from `SessionView.tsx` for back-compat.
+  - **4f — context drawer + archived-resume → `useSessionContextDrawer.tsx`:** the drawer display
+    model/permission modes, the machine name, the fork-composer entrypoint (`handleForkPress`), the
+    quick-action / resume wiring, the inactive-archived detection, and the `<SessionContextDrawer>` +
+    `<InactiveArchivedHint>` nodes.
+  - **4g — cross-device boundary advisory → `useBoundaryAdvisory.tsx`:** the `shouldShowBoundaryAdvisory`
+    visibility gate (comparing the latest context-boundary against the compose-start timestamp owned by
+    `useForkComposer`) + the advisory pill.
+  - **4h — chat-width helper:** already a hook (`useChatWidth`) consumed by the in-file `CenteredInputWidth`
+    helper; kept as a 1-line seam call with a marker comment (no extraction needed).
+- **KEEP-in-place (SYNC-R5 residual — NOT seamed this stage):** **4j** local-Claude idle-send /
+  pending-switch controls (`PendingSwitchBanner`, `handleAbortPress`, `requestSwitch`/`cancelPendingSwitch`),
+  **4k** active-composer permission/model/effort resolution + `emitActiveAgentConfigurationSelection`
+  callbacks, and **4l** session-visibility sync (`onSessionVisible`/`gitStatusSync`,
+  `onActiveSessionChanged`). These are deeply interwoven with upstream's send rewrite and belong to the
+  SYNC-R5 plane; they carry **plain** `// SYNC-R5 residual` comments (no `FORK PATCH:` token), so the audit
+  ignores them (stage-4 precedent).
+- **4i DISABLE — deferred:** restoring upstream's overlay file-viewer is a feature restore, out of scope
+  for this conflict-reduction stage.
+
+**Out-of-scope / inert (unchanged this stage):** the fork removed upstream's **voice/realtime** subsystem
+(`@/realtime/RealtimeSession`, `voiceHooks`, `VoiceAssistantStatusBar`, ElevenLabs); SessionView does **not**
+import `@/realtime/*` and leaves the AgentInput mic affordance **inert** (no `onMicPress` wired — a full
+voice-runtime restore is a separate follow-up). **fork-from-message** uses the fork's own flow
+(`app/(app)/session/[id]/fork-composer.tsx` via `handleForkPress` in the context-drawer seam), so
+upstream's `DuplicateSheet` / `onForkFromUserMessage` stays **inert/undefined**.
+
+**Stage-5 net:** `SessionView.tsx` returns *toward* upstream shape (fork e-ink/composer divergences
+relocated behind seams under `sources/fork/session/*`) while **rendering + composer behavior are
+behavior-identical**. Seam markers: one representative `RESTORE-R8a … (invariant HA-4)` at the import seam
+in `SessionView.tsx` (plus per-feature seam markers at each call site and the chat-width helper); the six
+fork modules (`useForkComposer.ts`, `forkComposerSend.ts`, `useBoundaryAdvisory.tsx`,
+`useSessionContextDrawer.tsx`, `useSessionSidebar.tsx`, `SessionHeaderSurfaces.tsx`) each carry their own
+`RESTORE-R8a … (invariant HA-4)` marker. **Deviations from plan:** 4f/4g extracted as `.tsx` (they return
+JSX) rather than `.ts` as the plan literally wrote; 4e's attachment pipeline folded into
+`useForkComposer.onSend` (+ the pure `forkComposerSend.ts` runner) instead of a separate
+`sources/fork/composer/useFileAttachment.ts`; compose-start tracking lives with `useForkComposer` (consumed
+by `useBoundaryAdvisory`). The two `sync.sendMessage` / machine-fallback source-audit guards
+(`sync/sync.test.ts`, `sync/machineFallbacks.test.ts`) were repointed to the relocated call sites.
+
+---
+
 ## 9. Ownership & cadence
 
 - **Owner**: the operator / whoever drives the next upstream import.
@@ -563,9 +632,12 @@ the send-policy/switch-mode reducer is explicitly left in place, not seamed, thi
   cross-checks the in-code `// FORK PATCH:` markers against this catalogue (advisory) — it flags orphan
   markers, undermarked rows, and unexpected markers on guard-by-absence rows. Run it from the repo root:
   `node scripts/audit-happy-fork-patches.mjs` (exits 0 + prints a report in M0; pass `--strict` to exit
-  non-zero on drift for CI). As of **R8 stage 1**, `HA-8` (MarkdownView) carries `RESTORE-R8d` markers —
-  one at the MarkdownView import seam plus one per relocated `sources/fork/markdown/*` module — each citing
-  `(invariant HA-8)` on the marker line so the audit resolves the ID; the other six `HA-*` rows remain
-  intentionally marker-free until their R8 stage lands. The `HS-*`/`HC-*` marker set is unchanged (M1
-  relocations R1a/R3/R4 keep the row↔marker correspondence). Re-run the audit after each import to confirm
-  zero drift.
+  non-zero on drift for CI). As of **R8 stage 5**, five happy-app rows carry inline markers — `HA-8`
+  (MarkdownView, `RESTORE-R8d`), `HA-5` (ChatList, `RESTORE-R8b`), `HA-9` (MessageView, `RESTORE-R8e`),
+  `HA-6` (AgentInput, `RESTORE-R8c`), and `HA-4` (SessionView, `RESTORE-R8a`) — each with one marker at
+  the canonical import seam plus one per relocated `sources/fork/<area>/*` module, all citing
+  `(invariant HA-<n>)` on the marker line so the audit resolves the ID. The remaining `HA-*` rows are
+  intentionally marker-free: `HA-1`/`HA-2`/`HA-3` (sync plane) and `HA-7` (i18n) stay doc-only, and the
+  sidebar trio `HA-10`/`HA-11`/`HA-12` remain marker-free until their R8 stage lands. The `HS-*`/`HC-*`
+  marker set is unchanged (M1 relocations R1a/R3/R4 keep the row↔marker correspondence). Re-run the audit
+  after each import to confirm zero drift.

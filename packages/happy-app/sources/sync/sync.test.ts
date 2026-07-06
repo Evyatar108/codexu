@@ -1181,10 +1181,10 @@ describe('sync.sendMessage call-site audit', () => {
             .filter(p => p !== 'packages/happy-app/sources/sync/sync.ts');
 
         expect([...new Set(matchingFiles)].sort()).toEqual([
-            'packages/happy-app/sources/-session/SessionView.tsx',
             'packages/happy-app/sources/app/(app)/new/index.tsx',
             'packages/happy-app/sources/app/(app)/session/[id]/spawn-child.tsx',
             'packages/happy-app/sources/components/MessageView.tsx',
+            'packages/happy-app/sources/fork/session/useForkComposer.ts',
         ].sort());
     }, 30_000);
 });

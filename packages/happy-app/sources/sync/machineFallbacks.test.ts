@@ -20,14 +20,14 @@ describe('Sprint A machine shape fallbacks', () => {
         const settings = source('components/SettingsView.tsx');
         const sessionsList = source('components/SessionsList.tsx');
         const compact = source('components/ActiveSessionsGroupCompact.tsx');
-        const sessionView = source('-session/SessionView.tsx');
+        const sessionDrawer = source('fork/session/useSessionContextDrawer.tsx');
         const forkComposer = source('app/(app)/session/[id]/fork-composer.tsx');
 
         expect(settings).toContain('machine.metadata?.host');
         expect(settings).toContain('machine.metadata?.displayName');
         expect(sessionsList).toContain('item.machine.id');
         expect(compact).toContain('machine?.metadata?.host');
-        expect(sessionView).toContain('sessionMachine?.metadata?.host');
+        expect(sessionDrawer).toContain('sessionMachine?.metadata?.host');
         expect(forkComposer).toContain('machine?.metadata?.homeDir');
     });
 

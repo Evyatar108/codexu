@@ -11,54 +11,43 @@ import {
     EffortLevel,
 } from '@/components/modelModeOptions';
 import { getSuggestions } from '@/components/autocomplete/suggestions';
-import { ChatHeaderView } from '@/components/ChatHeaderView';
+import { useChatWidth } from '@/hooks/useChatWidth';
 import { ChatList } from '@/components/ChatList';
 import { Deferred } from '@/components/Deferred';
 import { EmptyMessages } from '@/components/EmptyMessages';
-import { SessionActionsAnchor, SessionActionsPopover } from '@/components/SessionActionsPopover';
-import { ResumeCommandCopyBlock, SessionContextDrawer } from '@/components/SessionContextDrawer';
-import { useChatWidth } from '@/hooks/useChatWidth';
-import { useDraft } from '@/hooks/useDraft';
-import { usePreSendCommand } from '@/hooks/usePreSendCommand';
-import { Modal } from '@/modal';
-import { shouldShowBoundaryAdvisory, updateComposeStartAt } from './composeBoundaryAdvisory';
-import { getActiveSessionPathSurfaces } from './SessionViewPathSurfaces';
 import { emitActiveAgentConfigurationSelection } from './activeAgentConfiguration';
+import { getActiveSessionPathSurfaces } from './SessionViewPathSurfaces';
+import { Modal } from '@/modal';
 import { gitStatusSync } from '@/sync/gitStatusSync';
-import { cancelPendingSwitch, requestSwitch, sessionAbort, sessionEmitAgentConfiguration, sessionWriteFile } from '@/sync/ops';
-import { storage, useIsDataReady, useLatestBoundary, useLocalSetting, useLocalSettingMutable, useMachine, useSessionMessages, useSessionUsage, useSetting } from '@/sync/storage';
+import { cancelPendingSwitch, requestSwitch, sessionAbort, sessionEmitAgentConfiguration } from '@/sync/ops';
+import { storage, useIsDataReady, useLatestBoundary, useLocalSetting, useSessionMessages, useSessionUsage, useSetting } from '@/sync/storage';
 import { useSession } from '@/sync/storage';
 import { Session } from '@/sync/storageTypes';
-import { generateLocalMessageId, sync } from '@/sync/sync';
+import { sync } from '@/sync/sync';
 import { t } from '@/text';
-import { tracking } from '@/track';
 import { resolveTopicBrutalistAvatar } from '@/utils/avatarTopic';
 import { isRunningOnMac } from '@/utils/platform';
 import { useDeviceType, useHeaderHeight, useIsLandscape, useIsTablet } from '@/utils/responsive';
-import { FilesSidebar } from '@/components/FilesSidebar';
-import { prefetchPierreDiff } from '@/components/diff/PierreDiffView';
-import { GitFileStatus } from '@/sync/gitStatusFiles';
-import { getResumeCommandBlock, getSessionAvatarId, getSessionMode, getSessionName, useSessionStatus } from '@/utils/sessionUtils';
-import { useSessionQuickActions } from '@/hooks/useSessionQuickActions';
+import { getSessionAvatarId, getSessionMode, getSessionName, useSessionStatus } from '@/utils/sessionUtils';
 import { isVersionSupported, MINIMUM_CLI_VERSION } from '@/utils/versionUtils';
-import { encodeBase64Url } from '@/utils/base64url';
-import { dedupeAttachmentNames, sanitizeAttachmentName } from '@/utils/attachmentName';
-import { buildMessageWithAttachmentRefs } from '@/components/composer/AttachmentChip';
+// FORK PATCH: [RESTORE-R8a] SessionView e-ink/composer overlays relocated to sources/fork/session/* (invariant HA-4)
+// Relocated logic lives in sources/fork/session/{useForkComposer,useBoundaryAdvisory,useSessionContextDrawer,useSessionSidebar,SessionHeaderSurfaces}; see docs/happy-patch-surface.md.
+import { getCanSendWhenIdle, useForkComposer } from '@/fork/session/useForkComposer';
+import { useBoundaryAdvisory } from '@/fork/session/useBoundaryAdvisory';
+import { useSessionContextDrawer } from '@/fork/session/useSessionContextDrawer';
+import { useSessionSidebar } from '@/fork/session/useSessionSidebar';
+import { SessionHeaderSurfaces } from '@/fork/session/SessionHeaderSurfaces';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import * as React from 'react';
 import { ActivityIndicator, Platform, Pressable, Text, View, useWindowDimensions } from 'react-native';
-import Animated, { useSharedValue, useAnimatedStyle, withTiming, Easing } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import type { ModelMode, PermissionMode } from '@/components/PermissionModeSelector';
 
-export function getCanSendWhenIdle(session: Session): boolean {
-    return session.metadata?.flavor === 'claude'
-        && getSessionMode(session) === 'local'
-        && session.agentState?.turnActive === true
-        && session.agentState?.pendingSwitch == null;
-}
+// FORK PATCH: [RESTORE-R8a] getCanSendWhenIdle relocated to sources/fork/session/useForkComposer (invariant HA-4)
+// Re-exported so existing `@/-session/SessionView` importers keep resolving the symbol.
+export { getCanSendWhenIdle } from '@/fork/session/useForkComposer';
 
 
 export const SessionView = React.memo((props: { id: string }) => {
@@ -71,48 +60,16 @@ export const SessionView = React.memo((props: { id: string }) => {
     const isLandscape = useIsLandscape();
     const deviceType = useDeviceType();
     const headerHeight = useHeaderHeight();
-    const isTablet = useIsTablet();
     const { width: windowWidth } = useWindowDimensions();
     const unifiedNewSessionComposer = useLocalSetting('unifiedNewSessionComposer');
-    const [sessionActionsAnchor, setSessionActionsAnchor] = React.useState<SessionActionsAnchor | null>(null);
-    const fileDiffsSidebarEnabled = useSetting('fileDiffsSidebar');
 
-    const showSidebar = fileDiffsSidebarEnabled
-        && (isRunningOnMac() || Platform.OS === 'web')
-        && windowWidth >= SIDEBAR_MIN_WINDOW_WIDTH
-        && isDataReady && !!session;
-
-    // Match left sidebar width: 30% of window, clamped to 250–360px
-    const sidebarWidth = Math.min(Math.max(Math.floor(windowWidth * 0.3), 250), 360);
-
-    const [sidebarCollapsed, setSidebarCollapsed] = useLocalSettingMutable('sidebarCollapsed');
-    const sidebarAnim = useSharedValue(sidebarCollapsed ? 0 : 1);
-
-    React.useEffect(() => {
-        sidebarAnim.value = withTiming(sidebarCollapsed ? 0 : 1, {
-            duration: 250,
-            easing: Easing.out(Easing.cubic),
-        });
-    }, [sidebarCollapsed]);
-
-    const animatedSidebarStyle = useAnimatedStyle(() => ({
-        width: sidebarAnim.value * sidebarWidth,
-        opacity: sidebarAnim.value,
-        overflow: 'hidden' as const,
-    }));
-
-    const toggleSidebar = React.useCallback(() => {
-        setSidebarCollapsed(!sidebarCollapsed);
-    }, [sidebarCollapsed, setSidebarCollapsed]);
-
-    const handleSidebarFilePress = React.useCallback((file: GitFileStatus) => {
-        router.push(`/session/${sessionId}/file?path=${encodeBase64Url(file.fullPath)}&refresh=1&view=diff`);
-    }, [router, sessionId]);
-
-    // Warm Pierre's lazy web chunks while the user is still reading chat.
-    React.useEffect(() => {
-        prefetchPierreDiff();
-    }, []);
+    // FORK PATCH: [RESTORE-R8a] collapsible files-sidebar wiring relocated (invariant HA-4)
+    const sidebar = useSessionSidebar({
+        sessionId,
+        isDataReady,
+        hasSession: !!session,
+        windowWidth,
+    });
 
     // Compute header props based on session state
     const pathSurfaces = React.useMemo(() => getActiveSessionPathSurfaces({
@@ -162,55 +119,14 @@ export const SessionView = React.memo((props: { id: string }) => {
 
     const mainContent = (
         <>
-            {/* Status bar shadow for landscape mode */}
-            {isLandscape && deviceType === 'phone' && (
-                <View style={{
-                    position: 'absolute',
-                    top: 0,
-                    left: 0,
-                    right: 0,
-                    height: safeArea.top,
-                    backgroundColor: theme.colors.surface,
-                    zIndex: 1000,
-                    shadowColor: theme.colors.shadow.color,
-                    shadowOffset: {
-                        width: 0,
-                        height: 2,
-                    },
-                    shadowOpacity: theme.colors.shadow.opacity,
-                    shadowRadius: 3,
-                    elevation: 5,
-                }} />
-            )}
-
-            {/* Header - always shown on desktop/Mac, hidden in landscape mode only on actual phones */}
-            {!(isLandscape && deviceType === 'phone' && Platform.OS !== 'web') && (
-                <View style={{
-                    position: 'absolute',
-                    top: 0,
-                    left: 0,
-                    right: 0,
-                    zIndex: 1000
-                }}>
-                    <ChatHeaderView
-                        {...headerProps}
-                        onBackPress={() => router.back()}
-                        avatarMenuExpanded={Platform.OS === 'web' && !!sessionActionsAnchor}
-                        avatarMenuSession={session}
-                        onAfterAvatarArchive={() => {
-                            setSessionActionsAnchor(null);
-                            router.replace('/');
-                        }}
-                        onAfterAvatarDelete={() => {
-                            setSessionActionsAnchor(null);
-                            router.replace('/');
-                        }}
-                        onAvatarMenuRequest={Platform.OS === 'web' && session ? setSessionActionsAnchor : undefined}
-                        onSidebarTogglePress={showSidebar ? toggleSidebar : undefined}
-                        sidebarCollapsed={sidebarCollapsed}
-                    />
-                </View>
-            )}
+            {/* FORK PATCH: [RESTORE-R8a] header surfaces + web avatar-actions relocated (invariant HA-4) */}
+            <SessionHeaderSurfaces
+                session={session}
+                headerProps={headerProps}
+                showSidebar={sidebar.showSidebar}
+                sidebarCollapsed={sidebar.sidebarCollapsed}
+                toggleSidebar={sidebar.toggleSidebar}
+            />
 
             {/* Content based on state */}
             <View style={{ flex: 1, paddingTop: !(isLandscape && deviceType === 'phone' && Platform.OS !== 'web') ? safeArea.top + headerHeight : 0 }}>
@@ -233,48 +149,12 @@ export const SessionView = React.memo((props: { id: string }) => {
                     />
                 )}
             </View>
-            {Platform.OS === 'web' && session && (
-                <SessionActionsPopover
-                    anchor={sessionActionsAnchor}
-                    onAfterArchive={() => {
-                        setSessionActionsAnchor(null);
-                        router.replace('/');
-                    }}
-                    onAfterDelete={() => {
-                        setSessionActionsAnchor(null);
-                        router.replace('/');
-                    }}
-                    onClose={() => setSessionActionsAnchor(null)}
-                    sessionId={session.id}
-                    visible={!!sessionActionsAnchor}
-                />
-            )}
         </>
     );
 
-    if (!showSidebar) {
-        return mainContent;
-    }
-
-    // Desktop layout: chat + sidebar at the same level (full height).
-    return (
-        <View style={{ flex: 1, flexDirection: 'row' }}>
-            <View style={{ flex: 1 }}>
-                {mainContent}
-            </View>
-            <Animated.View style={[{ minWidth: 0, alignSelf: 'stretch' }, animatedSidebarStyle]}>
-                <View style={{ width: sidebarWidth, flex: 1 }}>
-                    <FilesSidebar
-                        sessionId={sessionId}
-                        onFilePress={handleSidebarFilePress}
-                    />
-                </View>
-            </Animated.View>
-        </View>
-    );
+    // FORK PATCH: [RESTORE-R8a] two-pane sidebar layout wrap relocated (invariant HA-4)
+    return sidebar.wrapWithSidebar(mainContent);
 });
-
-const SIDEBAR_MIN_WINDOW_WIDTH = 1100;
 
 function SessionViewLoaded({ sessionId, session, projectPathHeader }: { sessionId: string, session: Session, projectPathHeader?: string }) {
     const { theme } = useUnistyles();
@@ -283,14 +163,14 @@ function SessionViewLoaded({ sessionId, session, projectPathHeader }: { sessionI
     const isLandscape = useIsLandscape();
     const deviceType = useDeviceType();
     const isTablet = useIsTablet();
-    const [message, setMessage] = React.useState('');
-    const messageRef = React.useRef('');
-    const composeStartAtRef = React.useRef<number | null>(null);
+
+    // FORK PATCH: [RESTORE-R8a] controlled-draft composer + pre-send intercept relocated (invariant HA-4)
+    const composer = useForkComposer(sessionId, session);
+
     const { messages, isLoaded } = useSessionMessages(sessionId);
     const latestBoundary = useLatestBoundary(sessionId);
     const acknowledgedCliVersions = useLocalSetting('acknowledgedCliVersions');
     const sessionInputHorizontalPadding = Platform.OS === 'web' || isRunningOnMac() || isTablet ? 12 : 8;
-    const preSendCommand = usePreSendCommand(sessionId);
 
     // Check if CLI version is outdated and not already acknowledged
     const cliVersion = session.metadata?.version;
@@ -298,6 +178,9 @@ function SessionViewLoaded({ sessionId, session, projectPathHeader }: { sessionI
     const isCliOutdated = cliVersion && !isVersionSupported(cliVersion, MINIMUM_CLI_VERSION);
     const isAcknowledged = machineId && acknowledgedCliVersions[machineId] === cliVersion;
     const shouldShowCliWarning = isCliOutdated && !isAcknowledged;
+
+    // SYNC-R5 residual (sync plane): permission / model / effort resolution + agent-config emit (4k).
+    // Deeply interwoven with upstream's send rewrite; KEEP-in-place, not seamed this stage.
     const flavor = session.metadata?.flavor;
     const availableModels = React.useMemo(() => (
         getAvailableModels(flavor, session.metadata, t)
@@ -336,34 +219,22 @@ function SessionViewLoaded({ sessionId, session, projectPathHeader }: { sessionI
         ])
     ), [availableEffortLevels, session.effortLevel, flavor, modelKey]);
 
-    const drawerPermissionMode = React.useMemo<PermissionMode | null>(() => (
-        resolvePermissionModeForPicker(availableModes, {
-            userChosen: false,
-            sessionPermissionMode: null,
-            metadataCurrentPermissionModeCode: session.metadata?.currentPermissionModeCode,
-            metadataDangerouslySkipPermissions: session.metadata?.dangerouslySkipPermissions,
-            flavor,
-        })
-    ), [availableModes, session.metadata?.currentPermissionModeCode, session.metadata?.dangerouslySkipPermissions, flavor]);
-    const drawerModelMode = React.useMemo<ModelMode | null>(() => (
-        resolveCurrentOption(availableModels, [
-            session.metadata?.currentModelCode,
-            getDefaultModelKey(flavor),
-        ])
-    ), [availableModels, session.metadata?.currentModelCode, flavor]);
     const sessionStatus = useSessionStatus(session);
     const sessionUsage = useSessionUsage(sessionId);
     const alwaysShowContextSize = useSetting('alwaysShowContextSize');
     const experiments = useSetting('experiments');
-    const { canResume, resumeAvailability, resumeSession, resumeSessionInline, resumingSession } = useSessionQuickActions(session);
-    const isArchivedSession = session.metadata?.lifecycleState === 'archived';
-    const isDisconnected = !sessionStatus.isConnected;
-    const isInactiveArchivedSession = isArchivedSession && isDisconnected;
-    const resumeCommandBlock = getResumeCommandBlock(session);
 
-    // Use draft hook for auto-saving message drafts
-    const { clearDraft } = useDraft(sessionId, message, setMessage);
-    const canSendWhenIdle = getCanSendWhenIdle(session);
+    // FORK PATCH: [RESTORE-R8a] context drawer + archived-resume wiring relocated (invariant HA-4)
+    const drawer = useSessionContextDrawer({
+        sessionId,
+        session,
+        availableModels,
+        availableModes,
+        isConnected: sessionStatus.isConnected,
+    });
+
+    // SYNC-R5 residual (sync plane): local-Claude idle-send / pending-switch controls (4j).
+    const isDisconnected = !sessionStatus.isConnected;
     const pendingSwitch = session.agentState?.pendingSwitch;
 
     const handleRequestSwitchNow = React.useCallback(async () => {
@@ -431,19 +302,7 @@ function SessionViewLoaded({ sessionId, session, projectPathHeader }: { sessionI
         }
     }, [machineId, cliVersion, acknowledgedCliVersions]);
 
-    const handleChangeMessage = React.useCallback((nextMessage: string) => {
-        messageRef.current = nextMessage;
-        setMessage((previousMessage) => {
-            composeStartAtRef.current = updateComposeStartAt(
-                composeStartAtRef.current,
-                previousMessage,
-                nextMessage,
-                Date.now(),
-            );
-            return nextMessage;
-        });
-    }, []);
-
+    // SYNC-R5 residual (sync plane): active-composer agent-config emit callbacks (4k).
     // Function to update permission mode
     const updatePermissionMode = React.useCallback((mode: PermissionMode) => {
         storage.getState().updateSessionPermissionMode(sessionId, mode.key, true);
@@ -462,9 +321,6 @@ function SessionViewLoaded({ sessionId, session, projectPathHeader }: { sessionI
         void emitActiveAgentConfigurationSelection({ sessionId, emitAgentConfiguration: sessionEmitAgentConfiguration }, { kind: 'effortLevel', option: level })
             .catch(() => Modal.alert(t('common.error'), t('drawer.applyFailed')));
     }, [sessionId]);
-    const handleForkPress = React.useCallback(() => {
-        router.push(`/session/${sessionId}/fork-composer`);
-    }, [router, sessionId]);
     const iconPinned = session.pinnedAvatarImageIndex !== undefined && session.pinnedAvatarColorIndex !== undefined;
     const handleIconPinnedToggle = React.useCallback(() => {
         if (session.pinnedAvatarImageIndex !== undefined && session.pinnedAvatarColorIndex !== undefined) {
@@ -481,14 +337,6 @@ function SessionViewLoaded({ sessionId, session, projectPathHeader }: { sessionI
         storage.getState().sessionSetPinnedAvatar(sessionId, tuple);
     }, [session, sessionId]);
 
-    const sessionMachineId = session.metadata?.machineId ?? '';
-    const sessionMachine = useMachine(sessionMachineId);
-    const machineName = sessionMachine?.metadata?.displayName
-        ?? sessionMachine?.metadata?.host
-        ?? session.metadata?.host
-        ?? session.metadata?.machineId
-        ?? null;
-
     // Memoize header-dependent styles to prevent re-renders
     const headerDependentStyles = React.useMemo(() => ({
         contentContainer: {
@@ -499,6 +347,7 @@ function SessionViewLoaded({ sessionId, session, projectPathHeader }: { sessionI
         },
     }), []);
 
+    // SYNC-R5 residual (sync plane): session-visibility sync hook (4l).
     // Trigger session visibility and initialize git status sync
     React.useLayoutEffect(() => {
 
@@ -533,21 +382,24 @@ function SessionViewLoaded({ sessionId, session, projectPathHeader }: { sessionI
         </>
     ) : null;
 
-    const showBoundaryAdvisory = shouldShowBoundaryAdvisory(latestBoundary, composeStartAtRef.current);
-    const boundaryAdvisory = showBoundaryAdvisory ? (
+    // FORK PATCH: [RESTORE-R8a] cross-device boundary advisory relocated (invariant HA-4)
+    const boundaryAdvisoryContent = useBoundaryAdvisory({
+        latestBoundary,
+        composeStartAtRef: composer.composeStartAtRef,
+    });
+    const boundaryAdvisory = boundaryAdvisoryContent ? (
         <CenteredInputWidth horizontalPadding={sessionInputHorizontalPadding}>
-            <CrossDeviceBoundaryAdvisory />
+            {boundaryAdvisoryContent}
         </CenteredInputWidth>
     ) : null;
 
-    const composer = (
+    const composerNode = (
         <AgentInput
             mode="active"
             projectPathHeader={projectPathHeader}
             placeholder={t('session.inputPlaceholder')}
-            value={message}
-            onChangeText={handleChangeMessage}
             sessionId={sessionId}
+            {...composer.inputProps}
             permissionMode={permissionMode}
             onPermissionModeChange={updatePermissionMode}
             availableModes={availableModes}
@@ -563,81 +415,6 @@ function SessionViewLoaded({ sessionId, session, projectPathHeader }: { sessionI
                 color: sessionStatus.statusColor,
                 dotColor: sessionStatus.statusDotColor,
                 isPulsing: sessionStatus.isPulsing
-            }}
-            blockSend={false}
-            canSendWhenIdle={canSendWhenIdle}
-            onSend={async (switchMode, attachments) => {
-                const trimmedMessage = message.trim();
-                if (trimmedMessage || attachments.length > 0) {
-                    const intercept = preSendCommand(trimmedMessage);
-                    composeStartAtRef.current = null;
-                    if (trimmedMessage && intercept.intercepted) {
-                        setMessage('');
-                        clearDraft();
-                        intercept.execute();
-                        return false;
-                    }
-
-                    const localId = attachments.length > 0 ? generateLocalMessageId() : undefined;
-                    const dedupedNames = dedupeAttachmentNames(attachments.map(file => sanitizeAttachmentName(file.name)));
-                    const attachmentRefs = attachments.map((file, index) => ({
-                        remotePath: `.happy/attachments/${localId}/${dedupedNames[index]}`,
-                        name: dedupedNames[index],
-                        size: file.size,
-                    }));
-
-                    for (const [index, attachment] of attachments.entries()) {
-                        const result = await sessionWriteFile(
-                            sessionId,
-                            attachmentRefs[index].remotePath,
-                            attachment.base64,
-                            { createParents: true }
-                        );
-
-                        if (!result.success) {
-                            Modal.alert(t('common.error'), result.error || t('errors.attachmentUploadFailed'), [{ text: t('common.ok') }]);
-                            return false;
-                        }
-                    }
-
-                    const body = buildMessageWithAttachmentRefs(message, attachmentRefs);
-                    const sendOptions = {
-                        source: 'chat' as const,
-                        switchMode,
-                        ...(localId ? { localId, attachmentRefs, displayText: message } : {}),
-                    };
-
-                    if (switchMode === 'when-idle') {
-                        const snapshot = message;
-                        messageRef.current = '';
-                        setMessage('');
-                        clearDraft();
-                        try {
-                            await sync.sendMessage(sessionId, body, sendOptions);
-                        } catch {
-                            if (messageRef.current === '') {
-                                messageRef.current = snapshot;
-                                setMessage(snapshot);
-                            }
-                            return false;
-                        }
-                    } else {
-                        const snapshot = message;
-                        messageRef.current = '';
-                        setMessage('');
-                        clearDraft();
-                        try {
-                            await sync.sendMessage(sessionId, body, sendOptions);
-                        } catch {
-                            if (messageRef.current === '') {
-                                messageRef.current = snapshot;
-                                setMessage(snapshot);
-                            }
-                            return false;
-                        }
-                    }
-                    return true;
-                }
             }}
             onAbort={isDisconnected ? undefined : handleAbortPress}
             showAbortButton={sessionStatus.state === 'thinking' || sessionStatus.state === 'waiting'}
@@ -661,14 +438,9 @@ function SessionViewLoaded({ sessionId, session, projectPathHeader }: { sessionI
         />
     );
 
-    const archivedHint = isInactiveArchivedSession ? (
+    const archivedHint = drawer.archivedHint ? (
         <CenteredInputWidth horizontalPadding={sessionInputHorizontalPadding}>
-            <InactiveArchivedHint
-                resumeCommandBlock={resumeCommandBlock}
-                canResume={canResume}
-                resuming={resumingSession}
-                onResume={resumeSession}
-            />
+            {drawer.archivedHint}
         </CenteredInputWidth>
     ) : null;
 
@@ -684,36 +456,24 @@ function SessionViewLoaded({ sessionId, session, projectPathHeader }: { sessionI
 
     const contextDrawer = (
         <CenteredInputWidth horizontalPadding={sessionInputHorizontalPadding}>
-            <SessionContextDrawer
-                machineName={machineName}
-                workdirPath={session.metadata?.path}
-                modelMode={drawerModelMode}
-                permissionMode={drawerPermissionMode}
-                canResume={canResume}
-                resumeAvailability={resumeAvailability}
-                resumeCommandBlock={resumeCommandBlock}
-                session={session}
-                machine={sessionMachine}
-                onForkPress={handleForkPress}
-                resumeSessionInline={resumeSessionInline}
-            />
+            {drawer.drawer}
         </CenteredInputWidth>
     );
 
-    const input = isInactiveArchivedSession ? (
+    const input = drawer.isInactiveArchivedSession ? (
         <>
             {archivedHint}
             {boundaryAdvisory}
             {pendingSwitchBanner}
             {contextDrawer}
-            {composer}
+            {composerNode}
         </>
     ) : (
         <>
             {boundaryAdvisory}
             {pendingSwitchBanner}
             {contextDrawer}
-            {composer}
+            {composerNode}
         </>
     );
 
@@ -852,81 +612,11 @@ export function PendingSwitchBanner(props: {
     );
 }
 
-function CrossDeviceBoundaryAdvisory() {
-    const { theme } = useUnistyles();
-
-    return (
-        <View style={styles.boundaryAdvisory}>
-            <Ionicons name="warning-outline" size={16} color={theme.colors.text} />
-            <Text style={styles.boundaryAdvisoryText}>{t('chat.boundaryDivider.crossDeviceAdvisory')}</Text>
-        </View>
-    );
-}
-
-function InactiveArchivedHint(props: {
-    resumeCommandBlock: NonNullable<ReturnType<typeof getResumeCommandBlock>> | null;
-    canResume: boolean;
-    resuming: boolean;
-    onResume: () => void;
-}) {
-    const { theme } = useUnistyles();
-    const hintTextStyle = {
-        color: theme.colors.agentEventText,
-        fontSize: 13,
-        lineHeight: 18,
-        textAlign: 'left' as const,
-    };
-
-    return (
-        <View style={{
-            paddingTop: 12,
-            paddingBottom: 10,
-            gap: 10,
-            alignItems: 'stretch',
-        }}>
-            <View style={{ paddingHorizontal: 8, gap: 4 }}>
-                <Text style={hintTextStyle}>
-                    {t('session.inactiveArchived')}
-                </Text>
-                {props.canResume ? null : props.resumeCommandBlock && (
-                    <Text style={hintTextStyle}>
-                        {t('session.resumeFromTerminal')}
-                    </Text>
-                )}
-            </View>
-            {props.canResume ? (
-                <Pressable
-                    onPress={props.onResume}
-                    disabled={props.resuming}
-                    style={({ pressed }) => ({
-                        height: 40,
-                        borderRadius: 10,
-                        backgroundColor: theme.colors.button.primary.background,
-                        opacity: props.resuming ? 0.6 : pressed ? 0.8 : 1,
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        marginHorizontal: 8,
-                    })}
-                >
-                    {props.resuming ? (
-                        <ActivityIndicator size="small" color={theme.colors.button.primary.tint} />
-                    ) : (
-                        <Text style={{ color: theme.colors.button.primary.tint, fontSize: 15, fontWeight: '600' }}>
-                            {t('sessionInfo.resumeSession')}
-                        </Text>
-                    )}
-                </Pressable>
-            ) : props.resumeCommandBlock && (
-                <ResumeCommandCopyBlock resumeCommandBlock={props.resumeCommandBlock} />
-            )}
-        </View>
-    );
-}
-
 function CenteredInputWidth(props: {
     children: React.ReactNode;
     horizontalPadding: number;
 }) {
+    // FORK PATCH: [RESTORE-R8a] e-ink chat-width helper seam (invariant HA-4)
     const { body: bodyMaxWidth } = useChatWidth();
     const contentWidthStyle = React.useMemo(() => ({ width: '100%' as const, maxWidth: bodyMaxWidth }), [bodyMaxWidth]);
 
@@ -1015,25 +705,5 @@ const styles = StyleSheet.create((theme) => ({
         color: theme.colors.textSecondary,
         fontSize: 11,
         lineHeight: 14,
-    },
-    boundaryAdvisory: {
-        marginHorizontal: 8,
-        marginTop: 8,
-        marginBottom: 4,
-        paddingHorizontal: 12,
-        paddingVertical: 10,
-        borderRadius: 8,
-        borderWidth: 2,
-        borderColor: theme.colors.textSecondary,
-        backgroundColor: theme.colors.surface,
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 8,
-    },
-    boundaryAdvisoryText: {
-        color: theme.colors.text,
-        fontSize: 13,
-        lineHeight: 18,
-        flex: 1,
     },
 }));
