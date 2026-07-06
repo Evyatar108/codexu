@@ -5,17 +5,9 @@ import { Future } from "@/utils/future";
 import { createSessionScanner } from "./utils/sessionScanner";
 import { mergeSDKInitMetadata } from "./utils/sdkMetadata";
 import { queryInitMetadata } from "./utils/queryInitMetadata";
+import { installClaudeDeferredSwitch } from "@/fork/claudeDeferredSwitch";
 
 export type LauncherResult = { type: 'switch' } | { type: 'exit', code: number };
-
-type RequestSwitchParams = {
-    mode: 'now' | 'when-idle';
-    messagePreview?: string;
-};
-
-type RequestSwitchResponse = {
-    deferred: boolean;
-};
 
 // Maps sessionId -> in-flight shadow-query promise.
 // Presence in the map is the dedupe guard: once a sessionId is inserted, no
@@ -85,7 +77,7 @@ export async function claudeLocalLauncher(session: Session): Promise<LauncherRes
             await abort();
         }
 
-        // FORK PATCH: KEEP Claude deferred-switch protocol (`performSwitch` + `pendingSwitch` + `request-switch`/`cancel-pending-switch` RPC + `closeClaudeSessionTurn`) and SDK-summary forwarding (upstream's "Block SDK summary messages" filter is intentionally removed); upstream uses `doSwitch`/`onAbort` (invariant HC-10)
+        // FORK PATCH: KEEP Claude deferred-switch protocol turn-completion state machine (`performSwitch` + `pendingSwitch` + `closeClaudeSessionTurn`, sharing the launcher's `exitReason`/`pendingStopSwitchInFlight` control-flow) and SDK-summary forwarding (upstream's "Block SDK summary messages" filter is intentionally removed); the `request-switch`/`cancel-pending-switch` RPC handlers live in fork/claudeDeferredSwitch.ts; upstream uses `doSwitch`/`onAbort` (invariant HC-10)
         async function performSwitch(reason: 'cancelled' | 'completed') {
             logger.debug(`[local]: performSwitch ${reason}`);
             if (session.switchFired) {
@@ -147,46 +139,11 @@ export async function claudeLocalLauncher(session: Session): Promise<LauncherRes
             await performSwitch('completed');
         };
 
-        async function requestSwitch(params: RequestSwitchParams): Promise<RequestSwitchResponse> {
-            if (params.mode === 'now') {
-                await doSwitch();
-                return { deferred: false };
-            }
-
-            if (session.pendingSwitch) {
-                throw new Error('already-pending');
-            }
-
-            if (!session.turnActive) {
-                await performSwitch('completed');
-                return { deferred: false };
-            }
-
-            session.setPendingSwitch({
-                requestedAt: Date.now(),
-                messagePreview: params.messagePreview,
-            });
-            return { deferred: true };
-        }
-
-        async function cancelPendingSwitch() {
-            if (session.deferredSwitchCompleting) {
-                return;
-            }
-
-            if (!session.pendingSwitch) {
-                return;
-            }
-
-            session.setPendingSwitch(undefined);
-            session.queue.reset();
-        }
-
         // When to abort
         session.client.rpcHandlerManager.registerHandler('abort', doAbort); // Abort current process, clean queue and switch to remote mode
         session.client.rpcHandlerManager.registerHandler('switch', doSwitch); // When user wants to switch to remote mode
-        session.client.rpcHandlerManager.registerHandler<RequestSwitchParams, RequestSwitchResponse>('request-switch', requestSwitch);
-        session.client.rpcHandlerManager.registerHandler('cancel-pending-switch', cancelPendingSwitch);
+        // FORK PATCH: KEEP Claude deferred-switch protocol — `request-switch`/`cancel-pending-switch` RPC handlers relocated to fork/claudeDeferredSwitch.ts behind this seam (invariant HC-10)
+        installClaudeDeferredSwitch(session, { performSwitch, doSwitch });
         session.setNotifyLegacyMessageBeforeQueue(() => {
             void doSwitch();
         });
