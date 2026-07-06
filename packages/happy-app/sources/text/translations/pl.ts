@@ -236,6 +236,8 @@ export const pl: TranslationStructure = {
         paginatedScrollDescription: 'Używaj wąskich górnych i dolnych stref dotyku w czacie, aby poruszać się stronami zamiast przewijać swobodnie.',
         chatToolGroupingTitle: 'Grupuj wywołania narzędzi',
         chatToolGroupingDescription: 'Zwijaj wywołania narzędzi i pracę agenta w rozwijane grupy (styl upstream). Domyślnie wyłączone — płaski układ e-ink pokazuje każdą wiadomość osobno.',
+        messageCommandChipsTitle: 'Etykiety poleceń i celów',
+        messageCommandChipsDescription: 'Przywróć etykiety poleceń slash i celów z upstream oraz długie naciśnięcie, aby rozgałęzić od wiadomości. Domyślnie wyłączone — fork pokazuje wiadomości użytkownika jako płaski pasek e-ink.',
         socketRangeFetchTitle: 'Strumieniuj starsze wiadomości',
         socketRangeFetchDescription: 'Pobieraj starsze wiadomości przez aktywne gniazdo zamiast pojedynczymi żądaniami HTTP, żeby docierały tuż przed dotarciem do nich przewijaniem.',
         inlineToolCalls: 'Wbudowane wywołania narzędzi',
@@ -954,6 +956,7 @@ export const pl: TranslationStructure = {
     message: {
         switchedToMode: ({ mode }: { mode: string }) => `Przełączono na tryb ${mode}`,
         unknownEvent: 'Nieznane zdarzenie',
+        sentAsGoal: 'Wysłano jako cel',
         usageLimitUntil: ({ time }: { time: string }) => `Osiągnięto limit użycia do ${time}`,
         unknownTime: 'nieznany czas',
     },

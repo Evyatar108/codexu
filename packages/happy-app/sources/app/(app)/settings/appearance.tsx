@@ -43,6 +43,7 @@ export default function AppearanceSettingsScreen() {
     const [pinchToZoomEnabled, setPinchToZoomEnabled] = useLocalSettingMutable('pinchToZoomEnabled');
     const [chatPaginatedScroll, setChatPaginatedScroll] = useLocalSettingMutable('chatPaginatedScroll');
     const [chatToolGrouping, setChatToolGrouping] = useLocalSettingMutable('chatToolGrouping');
+    const [messageCommandChips, setMessageCommandChips] = useLocalSettingMutable('messageCommandChips');
     const [enableSocketRangeFetch, setEnableSocketRangeFetch] = useLocalSettingMutable('enableSocketRangeFetch');
     const [themePreference, setThemePreference] = useLocalSettingMutable('themePreference');
     const [preferredLanguage] = useSettingMutable('preferredLanguage');
@@ -218,6 +219,17 @@ export default function AppearanceSettingsScreen() {
                         <Switch
                             value={chatToolGrouping === 'grouped'}
                             onValueChange={(value) => setChatToolGrouping(value ? 'grouped' : 'flat')}
+                        />
+                    }
+                />
+                <Item
+                    title={t('settingsAppearance.messageCommandChipsTitle')}
+                    subtitle={t('settingsAppearance.messageCommandChipsDescription')}
+                    icon={<Ionicons name="pricetag-outline" size={29} color="#5856D6" />}
+                    rightElement={
+                        <Switch
+                            value={messageCommandChips}
+                            onValueChange={setMessageCommandChips}
                         />
                     }
                 />

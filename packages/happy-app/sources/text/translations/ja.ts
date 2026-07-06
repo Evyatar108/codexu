@@ -220,6 +220,8 @@ export const ja: TranslationStructure = {
         paginatedScrollDescription: 'チャットの上端と下端の細いタップゾーンを使って、自由にスクロールする代わりにページ単位で移動します。',
         chatToolGroupingTitle: 'ツール呼び出しをグループ化',
         chatToolGroupingDescription: 'ツール呼び出しとエージェントの作業を展開可能なグループにまとめます（upstream スタイル）。既定ではオフで、フラットな e-ink 表示は各メッセージを個別に表示します。',
+        messageCommandChipsTitle: 'コマンドと目標のチップ',
+        messageCommandChipsDescription: 'upstream のスラッシュコマンドと目標のチップ、およびメッセージからフォークする長押しを復元します。既定ではオフで、フォークはユーザーメッセージをフラットな e-ink 帯として表示します。',
         socketRangeFetchTitle: '過去のメッセージをストリーミング',
         socketRangeFetchDescription: '個別のHTTPリクエストではなくライブソケット経由で過去のメッセージを取得し、スクロールが届く少し前に表示できるようにします。',
         inlineToolCalls: 'ツール呼び出しをインライン表示',
@@ -939,6 +941,7 @@ export const ja: TranslationStructure = {
     message: {
         switchedToMode: ({ mode }: { mode: string }) => `${mode}モードに切り替えました`,
         unknownEvent: '不明なイベント',
+        sentAsGoal: '目標として送信',
         usageLimitUntil: ({ time }: { time: string }) => `${time}まで使用制限中`,
         unknownTime: '不明な時間',
     },

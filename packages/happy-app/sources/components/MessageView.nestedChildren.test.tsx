@@ -29,6 +29,7 @@ const theme = {
         agentEventText: '#8E8E93',
         textSecondary: '#8E8E93',
         userMessageBackground: '#f4f4f4',
+        input: { text: '#000000' },
     },
 };
 

@@ -219,6 +219,8 @@ export const ca: TranslationStructure = {
         paginatedScrollDescription: 'Fes servir zones tàctils estretes a la part superior i inferior del xat per avançar per pàgines en lloc de desplaçar-te lliurement.',
         chatToolGroupingTitle: 'Agrupa les crides d\'eines',
         chatToolGroupingDescription: 'Replega les crides d\'eines i la feina de l\'agent en grups desplegables (estil upstream). Desactivat per defecte: la disposició plana d\'e-ink mostra cada missatge en línia.',
+        messageCommandChipsTitle: 'Etiquetes d\'ordres i objectius',
+        messageCommandChipsDescription: 'Restaura les etiquetes d\'ordres slash i objectius d\'upstream i la pulsació llarga per bifurcar des d\'un missatge. Desactivat per defecte: el fork mostra els missatges de l\'usuari com una banda plana d\'e-ink.',
         socketRangeFetchTitle: 'Transmet els missatges antics',
         socketRangeFetchDescription: 'Obté els missatges antics pel socket en directe en lloc de fer peticions HTTP puntuals, perquè arribin una mica abans que t\'hi desplacis.',
         inlineToolCalls: 'Crides d\'eines en línia',
@@ -938,6 +940,7 @@ export const ca: TranslationStructure = {
     message: {
         switchedToMode: ({ mode }: { mode: string }) => `S'ha canviat al mode ${mode}`,
         unknownEvent: 'Esdeveniment desconegut',
+        sentAsGoal: 'Enviat com a objectiu',
         usageLimitUntil: ({ time }: { time: string }) => `Límit d'ús assolit fins a ${time}`,
         unknownTime: 'temps desconegut',
     },

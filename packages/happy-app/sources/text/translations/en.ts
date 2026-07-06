@@ -233,6 +233,8 @@ export const en: TranslationStructure = {
         paginatedScrollDescription: 'Use narrow top and bottom tap zones in chat to move by page instead of scrolling freely.',
         chatToolGroupingTitle: 'Group Tool Calls',
         chatToolGroupingDescription: 'Collapse tool calls and agent work into expandable groups (upstream style). Off by default — the flat e-ink layout renders every message inline.',
+        messageCommandChipsTitle: 'Command & Goal Chips',
+        messageCommandChipsDescription: 'Restore upstream slash-command and goal chips plus long-press to fork from a message. Off by default — the fork renders user messages as a flat e-ink band.',
         socketRangeFetchTitle: 'Stream Older Messages',
         socketRangeFetchDescription: 'Fetch older messages over the live socket instead of one-off HTTP requests, so they arrive a bit before you scroll there.',
         inlineToolCalls: 'Inline Tool Calls',
@@ -951,6 +953,7 @@ export const en: TranslationStructure = {
     message: {
         switchedToMode: ({ mode }: { mode: string }) => `Switched to ${mode} mode`,
         unknownEvent: 'Unknown event',
+        sentAsGoal: 'Sent as goal',
         usageLimitUntil: ({ time }: { time: string }) => `Usage limit reached until ${time}`,
         unknownTime: 'unknown time',
     },

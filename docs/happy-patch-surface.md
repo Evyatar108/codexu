@@ -150,7 +150,7 @@ Paths relative to `packages/happy-app/sources/` unless noted. See [`packages/hap
 | HA-6 | `components/AgentInput.tsx` — composer | KEEP | Fork input diverges on modes/attachments/keyboard for the e-ink target. High-churn conflict surface. | ❌ (doc-only in M0) | `components/AgentInput.{mode,attachments,keyboard,activeRegression}.test.tsx` | **RESTORE-R8c** (AgentInput) — later R8 stage; see [§8 R8](#r8--happy-app-ui-seams-ha-8-markdownview-stage-1) |
 | HA-7 | `text/_default.ts` + `text/translations/*.ts` — i18n | KEEP | Fork-added translation keys must survive import. **`merge=union` is UNSAFE here** (typed nested TS object modules; duplicate keys error `TS1117` and arrow-value splits break syntax — see §7). Merge is manual or via a future fork-namespaced strings file. | ❌ (doc-only in M0) | `text/translations.test.ts` (structural parity) | deferred M2+ (i18n plane, ~R6) |
 | HA-8 | `components/markdown/MarkdownView.tsx` — markdown renderer | KEEP | Fork's e-ink markdown rendering (option cards, contrast-safe code/text-weight styling, font-scale wrapper) + fork features (Claude meta-tag pills, session-file autolinking, internal file-link nav, session-aware image loading). Conflicts on nearly every import. | ✅ `RESTORE-R8d` | `components/markdown/*.test.ts` (parseMarkdown, parseMarkdownBlock, processClaudeMetaTags, skillBody, linkUtils) | **R8 stage 1 DONE** — 8a–8h KEEP-relocated to `sources/fork/markdown/*`; 8j KEEP-in-place; 8i DISABLE deferred to US-001. See [§8 R8](#r8--happy-app-ui-seams-ha-8-markdownview-stage-1). |
-| HA-9 | `components/MessageView.tsx` — message renderer | KEEP | Fork's **e-ink user-message band** (grey fill, no bubble `paddingVertical`) + skillBody suppression, chatBodyWidth, boundary divider, attachment chips, nested-depth cap; drops upstream goal/command parsing + fork-from-message long-press. | ❌ (planned R8) | `pnpm typecheck`; visual/e-ink review | **RESTORE-R8e** (MessageView) — later R8 stage; 9f KEEP-DELETED. |
+| HA-9 | `components/MessageView.tsx` — message renderer | KEEP + RESTORE-chips | Fork's **e-ink user-message band** (grey fill, no bubble `paddingVertical`) + skillBody suppression, chatBodyWidth, boundary divider, attachment chips, nested-depth cap; **plus** upstream's goal/command chips + fork-from-message long-press restored behind a default-off toggle (operator call #3 "KEEP BOTH"). | ✅ `RESTORE-R8e` | `components/MessageView.{attachments,nestedChildren,commandChips}.test.*`; `components/parseLocalCommandMessage.spec.ts` | **R8 stage 3 DONE** — e-ink features KEEP-relocated to `sources/fork/message/*` (band styles, attachment chips, nested-depth cap); upstream goal/command chips (`parseLocalCommandMessage`) + fork-from-message long-press RESTORED behind `messageCommandChips` local setting (**default `false`** = behavior-identical). Composer-side pre-send intercept untouched. fork-from-message parent wiring deferred to the SessionView stage (HA-4). See [§8 R8 stage 3](#stage-3-this-ship--ha-9-componentsmessageviewtsx). |
 | HA-10 | `components/SidebarView.tsx` — sidebar screen | KEEP | Fork's collapsible sidebar is a near-total rewrite (280 vs 97 upstream) for the tablet. | ❌ (planned R8) | `pnpm typecheck`; visual/e-ink review | **RESTORE-R8** (sidebar trio) — later R8 stage; KEEP-as-shim + `merge=ours` OR DISABLE, operator call #1. |
 | HA-11 | `components/SidebarNavigator.tsx` — sidebar nav | KEEP | Fork simplified the navigator (125 vs 175 upstream); paired with HA-10. | ❌ (planned R8) | `pnpm typecheck` | **RESTORE-R8** (sidebar trio) — later R8 stage; paired with HA-10, operator call #1. |
 | HA-12 | `components/ChatHeaderView.tsx` — chat header | KEEP | Fork's sidebar-restore control + avatar-header redesign (324 vs 176 upstream). | ❌ (planned R8) | `pnpm typecheck`; visual/e-ink review | **RESTORE-R8** — later R8 stage; full-relocation shim OR selective (restore-control seam only, DISABLE avatar redesign), operator call #1. |
@@ -167,7 +167,7 @@ each R8 stage lands it adds a sibling subdir; empty dirs are **not** scaffolded 
 | `markdown/` | `components/markdown/MarkdownView.tsx` | HA-8 | **R8 stage 1 (this ship)** |
 | `session/` | `-session/SessionView.tsx`, `components/ChatHeaderView.tsx` | HA-4, HA-12 | planned (later R8 stage) |
 | `chat/` | `components/ChatList.tsx` | HA-5 | **R8 stage 2 (this ship)** |
-| `message/` | `components/MessageView.tsx` | HA-9 | planned (later R8 stage) |
+| `message/` | `components/MessageView.tsx` | HA-9 | **R8 stage 3 (this ship)** |
 | `composer/` | `components/AgentInput.tsx` | HA-6 | planned (later R8 stage) |
 | `sidebar/` | `components/SidebarView.tsx`, `components/SidebarNavigator.tsx` | HA-10, HA-11 | planned (later R8 stage, operator-gated) |
 
@@ -438,6 +438,52 @@ is relocated behind a seam), while the **default rendering is behavior-identical
 `chatToolGrouping` defaults to `'flat'`. New overlay modules live under `packages/happy-app/sources/fork/chat/`.
 i18n: the deleted `toolGroup` block (9 keys) is restored to `_default.ts` + all 10 locales (reused from
 upstream translations), plus two new `settingsAppearance.chatToolGrouping{Title,Description}` keys.
+
+#### Stage 3 (this ship) — HA-9 `components/MessageView.tsx`
+
+Upstream reference: `cli-1.1.10` (`slopus/happy@71c417e1`). The fork had **deleted** upstream's view-side
+slash-command / goal chips (`parseLocalCommandMessage`, `isUserSlashCommandEcho`) and the fork-from-message
+long-press (`onForkFromUserMessage`), rendering every user message as a flat e-ink band and moving command
+handling to a composer-side pre-send intercept (`usePreSendCommand`/`slashCommandIntercept.ts`). Stage 3
+implements **operator call #3 "KEEP BOTH"** (restore the upstream chips + long-press behind a default-off
+toggle so both mechanisms can be experimented with) and **operator call #5** (keep the e-ink features as
+minimal fork-owned seams).
+
+- **RESTORE (upstream chips + fork-from-message, opt-in):** `sources/components/parseLocalCommandMessage.ts`
+  (+`.spec.ts`) is restored **verbatim** from upstream (pure parser, no RN deps — carries **no** `FORK PATCH`
+  marker; it is upstream-canonical, not a fork divergence). `MessageView.tsx`'s `UserTextBlock` regains the
+  upstream render path: `<local-command-caveat>`/goal-confirmation suppression, the raw-echo hide
+  (`isUserSlashCommandEcho`, Claude-flavor-gated), the goal-run chip (goal bubble + "Sent as goal" caption),
+  the command-run chip (`/name` + optional args bubble), and the plain long-press bubble. Minimal fork
+  adaptation (noted inline): the fork's flattened `UserTextMessage` has no `claudeUuid`/`codexItemId` rewind
+  anchors, so `rewindPointId` is `undefined` and `canFork` reduces to Codex-flavor sessions **and** a
+  parent-provided `onForkFromUserMessage` — which is **not wired this stage** (deferred to the SessionView
+  stage, HA-4), so fork-from-message is inert (no `onLongPress`) by default.
+- **KEEP (e-ink features, relocated to seams):** the flat user-message band styles move to
+  `sources/fork/message/einkMessageStyles.ts`, the paperclip attachment-chip row to
+  `sources/fork/message/MessageAttachmentChips.tsx`, and the nested tool-call depth cap
+  (`MAX_NESTED_CHILD_DEPTH` + `countNestedSteps`) to `sources/fork/message/nestedStepsCap.ts`. Each carries a
+  `RESTORE-R8e … (invariant HA-9)` marker, and `MessageView.tsx` carries one representative marker at the
+  import seam. KEEP-in-place (already thin, not relocated): skillBody suppression (`isSkillBodyMessage`, 9b),
+  `chatBodyWidth` threading + `messageContentWidthStyle` (9c), the `context-boundary` → `BoundaryDivider`
+  branch (9d), and the `AgentEventText`/`NestedStepsSummary` font-scale wrappers (9g). The `NestedStepsSummary`
+  component + `ToolCallBlock` nested-children delegation stay inline (upstream `ToolCallBlock` has no nesting
+  at all — the whole feature is fork divergence).
+- **Toggle:** `messageCommandChips: boolean` in `LocalSettingsSchema` (**default `false`**), surfaced in
+  Settings → Appearance next to "Group Tool Calls". `UserTextBlock` reads it (hook called unconditionally
+  before the skillBody guard) and branches: OFF → the fork e-ink band (`einkMessageStyles` +
+  `MessageAttachmentChips`); ON → the upstream chip path. The fork's composer-side pre-send intercept is a
+  **separate** mechanism and is untouched — the two coexist by design.
+
+**Stage-3 net:** `MessageView.tsx` returns *toward* upstream shape (it regains the chip/long-press render
+body; the e-ink body is relocated behind seams), while the **default rendering is behavior-identical** (flat
+band) because `messageCommandChips` defaults to `false`. New overlay modules live under
+`packages/happy-app/sources/fork/message/`. i18n: one restored `message.sentAsGoal` key + two new
+`settingsAppearance.messageCommandChips{Title,Description}` keys added to `_default.ts` + all 10 locales.
+**Deviation from plan (operator call #3 overrides plan's 9f KEEP-DELETED):** the plan listed 9f
+(goal/command chips + fork-from-message) as KEEP-DELETED; operator call #3 supersedes it with KEEP-BOTH
+(restore behind a default-off toggle). **Deferred:** fork-from-message parent wiring (ChatList/SessionView)
+is out of scope this stage and lands with HA-4.
 
 ---
 

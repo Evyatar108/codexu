@@ -207,6 +207,8 @@ export const ru: TranslationStructure = {
         paginatedScrollDescription: 'Используйте узкие верхнюю и нижнюю зоны касания в чате, чтобы перемещаться по страницам вместо свободной прокрутки.',
         chatToolGroupingTitle: 'Группировать вызовы инструментов',
         chatToolGroupingDescription: 'Сворачивать вызовы инструментов и работу агента в разворачиваемые группы (стиль upstream). По умолчанию выключено — плоский режим e-ink показывает каждое сообщение отдельно.',
+        messageCommandChipsTitle: 'Чипы команд и целей',
+        messageCommandChipsDescription: 'Восстановить чипы слэш-команд и целей upstream, а также длительное нажатие для ветвления от сообщения. По умолчанию выключено — форк показывает сообщения пользователя плоской e-ink полосой.',
         socketRangeFetchTitle: 'Потоковая загрузка старых сообщений',
         socketRangeFetchDescription: 'Получайте старые сообщения по активному сокету вместо разовых HTTP-запросов, чтобы они приходили чуть раньше, чем вы до них долистаете.',
         inlineToolCalls: 'Встроенные вызовы инструментов',
@@ -942,6 +944,7 @@ export const ru: TranslationStructure = {
     message: {
         switchedToMode: ({ mode }: { mode: string }) => `Переключено в режим ${mode}`,
         unknownEvent: 'Неизвестное событие',
+        sentAsGoal: 'Отправлено как цель',
         usageLimitUntil: ({ time }: { time: string }) => `Лимит использования достигнут до ${time}`,
         unknownTime: 'неизвестное время',
     },

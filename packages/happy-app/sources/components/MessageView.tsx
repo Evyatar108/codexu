@@ -1,7 +1,7 @@
 import * as React from "react";
-import { View, Text } from "react-native";
-import { StyleSheet, useUnistyles } from 'react-native-unistyles';
-import { Octicons } from '@expo/vector-icons';
+import { View, Text, Pressable } from "react-native";
+import { StyleSheet } from 'react-native-unistyles';
+import { Ionicons } from '@expo/vector-icons';
 import { MarkdownView } from "./markdown/MarkdownView";
 import { t } from '@/text';
 import { Message, UserTextMessage, AgentTextMessage, ToolCallMessage } from "@/sync/typesMessage";
@@ -14,10 +14,18 @@ import { isSkillBodyMessage } from './markdown/skillBody';
 import { AnimatedText } from './StyledText';
 import { useChatScaleAnimatedTextStyle } from '@/hooks/useChatFontScale';
 import { BoundaryDivider } from './BoundaryDivider';
-import { Typography } from '@/constants/Typography';
-import { formatAttachmentSize } from '@/components/composer/AttachmentChip';
-
-const MAX_NESTED_CHILD_DEPTH = 3;
+import { useLocalSetting } from '@/sync/storage';
+import { parseLocalCommandMessage, isUserSlashCommandEcho } from './parseLocalCommandMessage';
+// FORK PATCH: [RESTORE-R8e] happy-app fork overlay seams for MessageView (invariant HA-9).
+// This file is kept close to upstream shape: the e-ink user-message band,
+// attachment chips, and nested tool-call depth cap live under sources/fork/message/*,
+// and the upstream goal/command chips + fork-from-message long-press are restored
+// inline but gated behind the `messageCommandChips` local setting (default OFF ==
+// the fork's flat e-ink behavior). See sources/fork/README.md and
+// docs/happy-patch-surface.md HA-9.
+import { einkMessageStyles } from '../fork/message/einkMessageStyles';
+import { MessageAttachmentChips } from '../fork/message/MessageAttachmentChips';
+import { MAX_NESTED_CHILD_DEPTH, countNestedSteps } from '../fork/message/nestedStepsCap';
 
 export const MessageView = React.memo((props: {
   message: Message;
@@ -25,6 +33,13 @@ export const MessageView = React.memo((props: {
   sessionId: string;
   chatBodyWidth: number | undefined;
   getMessageById?: (id: string) => Message | null;
+  /**
+   * Long-press handler for user-text bubbles, wired by the session screen for
+   * the fork-from-message flow. Only consulted when the `messageCommandChips`
+   * setting is ON; until a parent provides it, fork-from-message is inert.
+   * Parent wiring (ChatList/SessionView) is deferred to R8 stage 5.
+   */
+  onForkFromUserMessage?: (messageId: string, rewindPointId: string | undefined, messageText: string) => void;
 }) => {
   const messageContentWidthStyle = React.useMemo(() => ({ maxWidth: props.chatBodyWidth }), [props.chatBodyWidth]);
 
@@ -35,6 +50,7 @@ export const MessageView = React.memo((props: {
         metadata={props.metadata}
         sessionId={props.sessionId}
         getMessageById={props.getMessageById}
+        onForkFromUserMessage={props.onForkFromUserMessage}
       />
     </View>
   );
@@ -53,6 +69,7 @@ function RenderBlock(props: {
   metadata: Metadata | null;
   sessionId: string;
   getMessageById?: (id: string) => Message | null;
+  onForkFromUserMessage?: (messageId: string, rewindPointId: string | undefined, messageText: string) => void;
   depth?: number;
 }): React.ReactElement {
   const depth = props.depth ?? 0;
@@ -63,7 +80,12 @@ function RenderBlock(props: {
 
   switch (props.message.kind) {
     case 'user-text':
-      return <UserTextBlock message={props.message} sessionId={props.sessionId} />;
+      return <UserTextBlock
+        message={props.message}
+        metadata={props.metadata}
+        sessionId={props.sessionId}
+        onForkFromUserMessage={props.onForkFromUserMessage}
+      />;
 
     case 'agent-text':
       return <AgentTextBlock message={props.message} sessionId={props.sessionId} />;
@@ -88,36 +110,33 @@ function RenderBlock(props: {
   }
 }
 
-
-function MessageAttachmentChips(props: {
-  attachmentRefs: NonNullable<UserTextMessage['meta']>['attachmentRefs'];
-}) {
-  const { theme } = useUnistyles();
-
-  if (!props.attachmentRefs || props.attachmentRefs.length === 0) {
-    return null;
-  }
-
-  return (
-    <View style={styles.messageAttachmentChips}>
-      {props.attachmentRefs.map((ref, index) => (
-        <View key={index} style={styles.messageAttachmentChip} testID="message-attachment-chip">
-          <Octicons name="paperclip" size={13} color={theme.colors.textSecondary} />
-          <Text style={styles.messageAttachmentChipText} numberOfLines={1}>{ref.name}</Text>
-          <Text style={styles.messageAttachmentChipSize}>{formatAttachmentSize(ref.size)}</Text>
-        </View>
-      ))}
-    </View>
-  );
-}
-
 function UserTextBlock(props: {
   message: UserTextMessage;
+  metadata: Metadata | null;
   sessionId: string;
+  onForkFromUserMessage?: (messageId: string, rewindPointId: string | undefined, messageText: string) => void;
 }) {
+  // Hooks must run unconditionally and BEFORE any early return (skillBody guard
+  // below), so keep every hook at the top of the component.
+  const messageCommandChips = useLocalSetting('messageCommandChips');
+
   const handleOptionPress = React.useCallback((option: Option) => {
     sync.sendMessage(props.sessionId, option.title, { source: 'option' });
   }, [props.sessionId]);
+
+  // Fork type adaptation: upstream's UserTextMessage carries `claudeUuid` /
+  // `codexItemId` rewind anchors that the fork's flattened type does not have
+  // yet. Until those land, fork-from-message has no per-message rewind id, so
+  // it can only fork Codex sessions (which rewind by session position). The
+  // handler + parent wiring are deferred to R8 stage 5.
+  const rewindPointId: string | undefined = undefined;
+  const canFork = Boolean(props.onForkFromUserMessage)
+    && (Boolean(rewindPointId) || props.metadata?.flavor === 'codex');
+  const handleLongPress = React.useCallback(() => {
+    if (props.onForkFromUserMessage) {
+      props.onForkFromUserMessage(props.message.id, rewindPointId, props.message.text);
+    }
+  }, [props.message.id, props.message.text, props.onForkFromUserMessage, rewindPointId]);
 
   const text = props.message.displayText || props.message.text;
 
@@ -131,15 +150,89 @@ function UserTextBlock(props: {
     return null;
   }
 
-  return (
-    <View style={styles.userMessageContainer}>
-      <View style={styles.userMessageBubble}>
-        <MarkdownView markdown={text} onOptionPress={handleOptionPress} sessionId={props.sessionId} />
-        {/* {__DEV__ && (
-          <Text style={styles.debugText}>{JSON.stringify(props.message.meta)}</Text>
-        )} */}
+  // DEFAULT (fork e-ink behavior): render a flat full-width band + attachment
+  // chips. No goal/command chips, no fork-from-message long-press.
+  if (!messageCommandChips) {
+    return (
+      <View style={einkMessageStyles.userMessageContainer}>
+        <View style={einkMessageStyles.userMessageBubble}>
+          <MarkdownView markdown={text} onOptionPress={handleOptionPress} sessionId={props.sessionId} />
+        </View>
+        <MessageAttachmentChips attachmentRefs={props.message.meta?.attachmentRefs} />
       </View>
-      <MessageAttachmentChips attachmentRefs={props.message.meta?.attachmentRefs} />
+    );
+  }
+
+  // TOGGLE ON: restore upstream's slash-command/goal chip rendering +
+  // fork-from-message long-press (from cli-1.1.10). This intentionally mirrors
+  // upstream MessageView so the file drifts toward upstream shape. The fork's
+  // composer-side pre-send intercept (usePreSendCommand/slashCommandIntercept)
+  // is a separate mechanism and is untouched by this branch.
+
+  // Claude Agent SDK emits synthetic user messages wrapped in tags like
+  // <local-command-caveat>…</local-command-caveat> and
+  // <command-message>…</command-message><command-name>/foo</command-name>
+  // whenever a slash command runs. The user's own slash-command input is shown
+  // optimistically (carries a localId); the SDK then injects the canonical
+  // wrapper chip. Hide the raw echo so we don't render the command twice.
+  // Gated to Claude flavor only (absent flavor == Claude).
+  const isClaudeFlavor = !props.metadata?.flavor || props.metadata.flavor === 'claude';
+  if (isClaudeFlavor && isUserSlashCommandEcho(props.message.text, props.message.localId != null)) {
+    return null;
+  }
+
+  const parsed = parseLocalCommandMessage(props.message.displayText || props.message.text);
+  if (parsed.kind === 'caveat') {
+    return null;
+  }
+  if (parsed.kind === 'goal-confirmation') {
+    return null;
+  }
+  if (parsed.kind === 'goal-run') {
+    return (
+      <View style={styles.upstreamUserMessageContainer}>
+        <Pressable
+          onLongPress={canFork ? handleLongPress : undefined}
+          delayLongPress={400}
+          style={[styles.upstreamUserMessageBubble, styles.goalMessageBubble]}
+        >
+          <MarkdownView markdown={parsed.goal} onOptionPress={handleOptionPress} sessionId={props.sessionId} />
+        </Pressable>
+        <View style={styles.goalSentRow}>
+          <Ionicons name="locate-outline" size={16} color={styles.goalSentText.color} />
+          <Text style={styles.goalSentText}>{t('message.sentAsGoal')}</Text>
+        </View>
+      </View>
+    );
+  }
+  if (parsed.kind === 'command-run') {
+    return (
+      <View style={styles.upstreamUserMessageContainer}>
+        {parsed.args ? (
+          <Pressable
+            onLongPress={canFork ? handleLongPress : undefined}
+            delayLongPress={400}
+            style={[styles.upstreamUserMessageBubble, styles.commandMessageBubble]}
+          >
+            <MarkdownView markdown={parsed.args} onOptionPress={handleOptionPress} sessionId={props.sessionId} />
+          </Pressable>
+        ) : null}
+        <View style={styles.commandChip}>
+          <Text style={styles.commandChipText}>/{parsed.commandName}</Text>
+        </View>
+      </View>
+    );
+  }
+
+  return (
+    <View style={styles.upstreamUserMessageContainer}>
+      <Pressable
+        onLongPress={canFork ? handleLongPress : undefined}
+        delayLongPress={400}
+        style={styles.upstreamUserMessageBubble}
+      >
+        <MarkdownView markdown={parsed.text} onOptionPress={handleOptionPress} sessionId={props.sessionId} />
+      </Pressable>
     </View>
   );
 }
@@ -283,16 +376,6 @@ function NestedStepsSummary(props: { count: number }) {
   );
 }
 
-function countNestedSteps(messages: Message[]): number {
-  return messages.reduce((count, message) => {
-    if (message.kind === 'tool-call') {
-      return count + 1 + countNestedSteps(message.children);
-    }
-
-    return count;
-  }, 0);
-}
-
 const styles = StyleSheet.create((theme) => ({
   messageContainer: {
     flexDirection: 'row',
@@ -305,44 +388,53 @@ const styles = StyleSheet.create((theme) => ({
     minWidth: 0,
     overflow: 'hidden',
   },
-  userMessageContainer: {
+  // Upstream right-aligned bubble + goal/command chip styles (messageCommandChips ON).
+  upstreamUserMessageContainer: {
+    maxWidth: '100%',
     flexDirection: 'column',
+    alignItems: 'flex-end',
+    justifyContent: 'flex-end',
+    paddingHorizontal: 16,
+  },
+  upstreamUserMessageBubble: {
     backgroundColor: theme.colors.userMessageBackground,
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 12,
     marginBottom: 12,
+    maxWidth: '100%',
   },
-  userMessageBubble: {
-    paddingHorizontal: 16,
+  goalMessageBubble: {
+    marginBottom: 6,
   },
-  messageAttachmentChips: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 6,
-    paddingHorizontal: 16,
-    paddingBottom: 8,
+  commandMessageBubble: {
+    marginBottom: 6,
   },
-  messageAttachmentChip: {
+  goalSentRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 8,
+    marginBottom: 12,
     maxWidth: '100%',
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: theme.colors.divider,
-    backgroundColor: theme.colors.surfacePressed,
-    paddingLeft: 8,
-    paddingRight: 8,
-    height: 30,
-    gap: 6,
+    opacity: 0.72,
   },
-  messageAttachmentChipText: {
-    flexShrink: 1,
-    fontSize: 12,
-    color: theme.colors.text,
-    ...Typography.default('semiBold'),
+  goalSentText: {
+    color: theme.colors.agentEventText,
+    fontSize: 14,
   },
-  messageAttachmentChipSize: {
-    fontSize: 11,
-    color: theme.colors.textSecondary,
-    ...Typography.default(),
+  commandChip: {
+    backgroundColor: theme.colors.userMessageBackground,
+    paddingHorizontal: 10,
+    paddingVertical: 2,
+    borderRadius: 10,
+    marginBottom: 12,
+    maxWidth: '100%',
+    opacity: 0.65,
+  },
+  commandChipText: {
+    color: theme.colors.input.text,
+    fontSize: 13,
+    fontFamily: 'monospace',
   },
   agentMessageContainer: {
     marginHorizontal: 16,

@@ -62,6 +62,11 @@ vi.mock('@/sync/sync', () => ({
     sync: { sendMessage: vi.fn() },
 }));
 
+vi.mock('@/sync/storage', () => ({
+    // Default (messageCommandChips OFF) — the flat e-ink band + attachment chips path.
+    useLocalSetting: () => false,
+}));
+
 const { MessageView } = await import('./MessageView');
 
 function makeUserMessage(overrides: Record<string, unknown> = {}) {

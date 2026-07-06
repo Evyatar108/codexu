@@ -220,6 +220,8 @@ export const zhHans: TranslationStructure = {
         paginatedScrollDescription: '在聊天顶部和底部使用狭窄的点击区域按页移动，而不是自由滚动。',
         chatToolGroupingTitle: '分组工具调用',
         chatToolGroupingDescription: '将工具调用和智能体工作折叠为可展开的分组（上游样式）。默认关闭——扁平的电子墨水布局会逐条显示每条消息。',
+        messageCommandChipsTitle: '命令与目标标签',
+        messageCommandChipsDescription: '恢复上游的斜杠命令和目标标签，以及长按以从消息分叉。默认关闭——该分支将用户消息显示为扁平的电子墨水条带。',
         socketRangeFetchTitle: '流式加载旧消息',
         socketRangeFetchDescription: '通过实时套接字而不是单独的 HTTP 请求获取较早的消息，让它们在你滚动到之前就先到达。',
         inlineToolCalls: '内联工具调用',
@@ -939,6 +941,7 @@ export const zhHans: TranslationStructure = {
     message: {
         switchedToMode: ({ mode }: { mode: string }) => `已切换到 ${mode} 模式`,
         unknownEvent: '未知事件',
+        sentAsGoal: '已作为目标发送',
         usageLimitUntil: ({ time }: { time: string }) => `使用限制到 ${time}`,
         unknownTime: '未知时间',
     },

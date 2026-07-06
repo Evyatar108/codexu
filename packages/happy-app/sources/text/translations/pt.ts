@@ -218,6 +218,8 @@ export const pt: TranslationStructure = {
         paginatedScrollDescription: 'Use zonas de toque estreitas no topo e na parte inferior do chat para avançar por páginas em vez de rolar livremente.',
         chatToolGroupingTitle: 'Agrupar chamadas de ferramentas',
         chatToolGroupingDescription: 'Recolher chamadas de ferramentas e o trabalho do agente em grupos expansíveis (estilo upstream). Desativado por padrão — o layout plano de e-ink mostra cada mensagem em linha.',
+        messageCommandChipsTitle: 'Etiquetas de comandos e objetivos',
+        messageCommandChipsDescription: 'Restaura as etiquetas de comandos slash e objetivos do upstream e o toque longo para bifurcar a partir de uma mensagem. Desativado por padrão — o fork mostra as mensagens do utilizador como uma faixa plana de e-ink.',
         socketRangeFetchTitle: 'Transmitir mensagens antigas',
         socketRangeFetchDescription: 'Receba as mensagens mais antigas pelo socket ao vivo em vez de requisições HTTP avulsas, para que cheguem um pouco antes de você rolar até elas.',
         inlineToolCalls: 'Chamadas de ferramentas inline',
@@ -937,6 +939,7 @@ export const pt: TranslationStructure = {
     message: {
         switchedToMode: ({ mode }: { mode: string }) => `Mudou para o modo ${mode}`,
         unknownEvent: 'Evento desconhecido',
+        sentAsGoal: 'Enviado como objetivo',
         usageLimitUntil: ({ time }: { time: string }) => `Limite de uso atingido até ${time}`,
         unknownTime: 'horário desconhecido',
     },

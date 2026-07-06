@@ -219,6 +219,8 @@ export const zhHant: TranslationStructure = {
         paginatedScrollDescription: '在聊天頂部與底部使用狹窄的點按區域逐頁移動，而不是自由捲動。',
         chatToolGroupingTitle: '分組工具呼叫',
         chatToolGroupingDescription: '將工具呼叫與代理工作摺疊為可展開的群組（上游樣式）。預設關閉——平面的電子墨水版面會逐則顯示每則訊息。',
+        messageCommandChipsTitle: '命令與目標標籤',
+        messageCommandChipsDescription: '還原上游的斜線命令與目標標籤，以及長按以從訊息分叉。預設關閉——此分支會將使用者訊息顯示為平面的電子墨水條帶。',
         socketRangeFetchTitle: '串流載入較舊訊息',
         socketRangeFetchDescription: '透過即時連線而不是單次 HTTP 請求取得較舊的訊息，讓它們在你捲到之前就先送達。',
         inlineToolCalls: '內嵌工具呼叫',
@@ -938,6 +940,7 @@ export const zhHant: TranslationStructure = {
     message: {
         switchedToMode: ({ mode }: { mode: string }) => `已切換到 ${mode} 模式`,
         unknownEvent: '未知事件',
+        sentAsGoal: '已作為目標傳送',
         usageLimitUntil: ({ time }: { time: string }) => `使用限制到 ${time}`,
         unknownTime: '未知時間',
     },
