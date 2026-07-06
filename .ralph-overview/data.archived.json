@@ -9926,6 +9926,69 @@
           }
         ]
       }
+    },
+    {
+      "id": "happy-server-conflict-reduction-remaining",
+      "scope": "happy-server",
+      "lifecycle": "merged",
+      "status": "todo",
+      "lastTouchedAt": "2026-07-06T21:45:39.521Z",
+      "kanbanCards": [
+        {
+          "class": "cmd-warn",
+          "html": "REDUCTION TASK (happy-server, 9 conflict files — smallest surface, likely quickest). M1 already seamed the auth plane; this handles the residual."
+        },
+        {
+          "className": "cmd-ok",
+          "html": "Plan shipped @ 415c5638. 8 stories (US-001..US-008), serial safest→riskiest; HS-9..HS-16 assigned. RESTORE processImage.spec (elim 1 file), relocate log.ts→forkLogger + api.ts route-reg/CORS→sources/fork/, KEEP-DELETED single-user userId removals. No blocking operator calls. Impl driving."
+        }
+      ],
+      "command": {
+        "name": "happy-server-conflict-reduction-remaining",
+        "descriptionHtml": "Reduce the remaining happy-server upstream conflict surface (9 hard-conflict files vs cli-1.1.10 — the smallest package surface; M1 already seamed the auth plane). Keep/disable-triage + overlay-seam the residual inline edits so the upstream-canonical files return toward upstream. Behavior-preserving; re-run the public-server HARD gates (publicAuthGate/remoteDeviceAuth/deviceEnrollment/socket/index/dualListenerBinding specs) + the full happy-server suite. Likely the quickest reduction win. Part of the post-R8 upstream conflict-surface reduction objective (umbrella task happy-fork-upstream-divergence-reconciliation). Approach = the R8 codex-fork playbook: per-divergence KEEP vs DISABLE-for-now triage; for KEEPs relocate fork logic into fork-owned modules (src/fork/ or sources/fork/) + // FORK PATCH: markers + thin call-site seams (never inline edits); RESTORE upstream toward-upstream where the feature is wanted (with a Settings toggle for experimentation) to reduce conflict. Governed by docs/happy-patch-surface.md; assessment at .ralph/investigations/happy-upstream-rebase-assessment-v2/. Upstream target cli-1.1.10 @ 71c417e1 in mirror D:/harness-efforts/happy (remote origin=slopus/happy).",
+        "warnings": [],
+        "prompts": {
+          "plan": "/plan-with-ralph \"Reduce the remaining happy-server upstream conflict surface (9 files vs cli-1.1.10; M1 already seamed the auth plane). Keep/disable-triage + overlay-seam residual inline edits into sources/fork/. HARD gates: the 5 public-server specs must stay green. Update docs/happy-patch-surface.md HS-* rows.\""
+        }
+      },
+      "shipManifest": {
+        "shippedAt": "2026-07-06T21:45:39.521Z",
+        "summary": "Shipped the remaining happy-server upstream conflict-surface reduction: all 8 stories (US-001..US-008) on main, zero audit drift (35 catalogue rows), 102 auth-plane tests green, typecheck clean. RESTORE processImage.spec (eliminated 1 hard-conflict file, 9->8); relocated quiet-logger + shutdownLogger to sources/fork/forkLogger.ts and route-registration + CORS to sources/fork/registerForkRoutes.ts/forkCors.ts (M1-style seams); adopted upstream happyClient? additively while keeping single-user userId removed (forward-auto-resolve); catalogued index.ts take-ours + package.json + metrics2 Account removal.\n\nJudgment calls (all sound): declined upstream getEstimatedRecordCount (PGlite-unsafe), declined hasActiveNonMachineSocket (zero callers + keyed on removed userId room), declined static-webapp self-host (preserved installForkAuthPlane-before-routes order), no package.json bumps (breaking majors). Honest posture: localization + full cataloguing, not file-count elimination; socket/eventRouter benefit is forward-looking (next intake after 1.1.10 auto-resolves the additive field).\r\n",
+        "commits": [
+          {
+            "sha": "bb357148c",
+            "oneLine": "US-001 RESTORE processImage.spec toward upstream (HS-16)"
+          },
+          {
+            "sha": "e6bf248aa",
+            "oneLine": "US-002 catalogue metrics2 Account-count removal (HS-13)"
+          },
+          {
+            "sha": "627f7577c",
+            "oneLine": "US-003 relocate quiet-logger + shutdownLogger to fork seam (HS-11)"
+          },
+          {
+            "sha": "13c69a3ea",
+            "oneLine": "US-004 mark single-user eventRouter + per-machine pushRoutes (HS-10/HS-12)"
+          },
+          {
+            "sha": "cae150f2c",
+            "oneLine": "US-005 catalogue index.ts fork-owned take-ours (HS-14)"
+          },
+          {
+            "sha": "027ae9620",
+            "oneLine": "US-006 converge socket connection data onto happyClient (HS-9)"
+          },
+          {
+            "sha": "8cdb15022",
+            "oneLine": "US-007 relocate route-reg + CORS into fork seams (HS-7)"
+          },
+          {
+            "sha": "b54b6b2d4",
+            "oneLine": "US-008 catalogue package.json (HS-15) + AGENTS note"
+          }
+        ]
+      }
     }
   ]
 }
