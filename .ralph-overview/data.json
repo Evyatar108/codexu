@@ -1736,31 +1736,6 @@
       }
     },
     {
-      "id": "happy-gitattributes-packagejson-normalization",
-      "scope": "codexu|happy",
-      "lifecycle": "tracked",
-      "status": "todo",
-      "lastTouchedAt": "2026-07-06",
-      "kanbanCards": [
-        {
-          "class": "cmd-warn",
-          "html": "ENABLING (small): .gitattributes completion + package.json/lockfile normalization to kill intake noise."
-        },
-        {
-          "className": "cmd-warn",
-          "html": "RE-SCOPED (2026-06-13): package.json field/dep REORDERING is OUT — happy-cli US-001 (430968089) proved it manufactures MORE conflicts and was reverted. Focus this task on .gitattributes merge drivers (translations union-safety open-q #4, dist/lockfile/sidebar merge=ours, a merge driver for package.json/lockfile churn). Serialize after app-r5 catalogue impl (shared docs/happy-patch-surface.md)."
-        }
-      ],
-      "command": {
-        "name": "happy-gitattributes-packagejson-normalization",
-        "descriptionHtml": "Enabling step: finish the .gitattributes merge-strategy coverage for the happy packages (verify translations union-safety open-question #4, dist/lockfile merge=ours, the R8 sidebar merge=ours shims) and normalize package.json / pnpm-lock churn that adds intake noise (version/field ordering, fork-only deps). Goal: minimize the mechanical noise in every future intake. Small. Part of the post-R8 upstream conflict-surface reduction objective (umbrella task happy-fork-upstream-divergence-reconciliation). Approach = the R8 codex-fork playbook: per-divergence KEEP vs DISABLE-for-now triage; for KEEPs relocate fork logic into fork-owned modules (src/fork/ or sources/fork/) + // FORK PATCH: markers + thin call-site seams (never inline edits); RESTORE upstream toward-upstream where the feature is wanted (with a Settings toggle for experimentation) to reduce conflict. Governed by docs/happy-patch-surface.md; assessment at .ralph/investigations/happy-upstream-rebase-assessment-v2/. Upstream target cli-1.1.10 @ 71c417e1 in mirror D:/harness-efforts/happy (remote origin=slopus/happy).",
-        "warnings": [],
-        "prompts": {
-          "plan": "/plan-with-ralph \"Finish .gitattributes merge-strategy coverage for the happy-* packages to reduce upstream-intake noise. IN SCOPE: (1) revisit the translations merge=union open-question #4 (docs/happy-patch-surface.md §7) — decide whether locale JSON files are union-safe; (2) confirm/complete dist + pnpm-lock merge=ours; (3) confirm the R8 sidebar merge=ours shims (SidebarView/SidebarNavigator/ChatHeaderView) are correct; (4) evaluate a merge=union or merge=ours driver for package.json / pnpm-lock churn as the conflict-reducer. EXPLICITLY OUT OF SCOPE / DO NOT DO: alphabetical or field/dep REORDERING of package.json toward upstream — happy-cli US-001 (commit 430968089) PROVED this manufactures MORE conflicts (reordered dep names land adjacent to version-bumped lines, growing the hunk) and it was reverted. The correct lever for package.json churn is a .gitattributes merge driver, NOT reordering. Reference docs/happy-patch-surface.md §7 (merge policy) + the US-001 finding recorded there. Note: merge=ours/merge=union drivers require a one-time `git config merge.<driver>.driver` on the import host (documented in §7) — the plan must call this out so intake hosts set it.\"\r\n"
-        }
-      }
-    },
-    {
       "id": "happy-first-selective-intake-cli-1.1.10",
       "scope": "happy",
       "lifecycle": "tracked",
