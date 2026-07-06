@@ -217,6 +217,8 @@ export const es: TranslationStructure = {
         pinchToZoomDescription: 'Usa un pellizco con dos dedos en el chat para una vista previa en vivo del tamaño del texto que se guarda al soltar.',
         paginatedScrollTitle: 'Navegación del chat por páginas',
         paginatedScrollDescription: 'Usa zonas táctiles estrechas en la parte superior e inferior del chat para avanzar por páginas en lugar de desplazarte libremente.',
+        chatToolGroupingTitle: 'Agrupar llamadas de herramientas',
+        chatToolGroupingDescription: 'Contrae las llamadas de herramientas y el trabajo del agente en grupos expandibles (estilo upstream). Desactivado por defecto: el diseño plano de e-ink muestra cada mensaje en línea.',
         socketRangeFetchTitle: 'Transmitir mensajes antiguos',
         socketRangeFetchDescription: 'Recibe los mensajes antiguos por el socket en vivo en lugar de peticiones HTTP puntuales, para que lleguen un poco antes de que te desplaces hasta ellos.',
         inlineToolCalls: 'Llamadas a herramientas en línea',
@@ -640,6 +642,17 @@ export const es: TranslationStructure = {
         output: 'Salida',
     },
 
+    toolGroup: {
+        editedFile: 'Edited file',
+        editedFiles: ({ count }: { count: number }) => count === 1 ? 'Se editó 1 archivo' : `Se editaron ${count} archivos`,
+        readFiles: ({ count }: { count: number }) => count === 1 ? 'Se leyó 1 archivo' : `Se leyeron ${count} archivos`,
+        ranCommands: ({ count }: { count: number }) => count === 1 ? 'Se ejecutó 1 comando' : `Se ejecutaron ${count} comandos`,
+        searched: ({ count }: { count: number }) => count === 1 ? 'Se buscó 1 vez' : `Se buscó ${count} veces`,
+        fetchedUrls: ({ count }: { count: number }) => count === 1 ? 'Se obtuvo 1 URL' : `Se obtuvieron ${count} URLs`,
+        ranTasks: ({ count }: { count: number }) => count === 1 ? 'Se ejecutó 1 tarea' : `Se ejecutaron ${count} tareas`,
+        usedTools: ({ count }: { count: number }) => count === 1 ? 'Se usó 1 herramienta' : `Se usaron ${count} herramientas`,
+        workedFor: ({ duration }: { duration: string }) => `Worked ${duration}`,
+    },
     tools: {
         fullView: {
             description: 'Descripción',

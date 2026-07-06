@@ -1,38 +1,43 @@
 import * as React from 'react';
-import { storage, useLatestBoundary, useLocalSetting, useSession, useSessionMessages } from "@/sync/storage";
+import { storage, useLocalSetting, useSession, useSessionMessages } from "@/sync/storage";
 import { sync } from '@/sync/sync';
-import { FlatList, LayoutChangeEvent, NativeScrollEvent, NativeSyntheticEvent, Platform, Pressable, View, ViewToken } from 'react-native';
+import { AppState, FlatList, NativeScrollEvent, NativeSyntheticEvent, Platform, Pressable, View } from 'react-native';
 import { useCallback } from 'react';
 import { useHeaderHeight } from '@/utils/responsive';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MessageView } from './MessageView';
+import { AgentWorkGroupView, ToolGroupView } from './ToolGroupView';
 import { Metadata, Session } from '@/sync/storageTypes';
 import { ChatFooter } from './ChatFooter';
 import { Message } from '@/sync/typesMessage';
-import { useChatWidth } from '@/hooks/useChatWidth';
+import { DisplayItem, ToolGroupItem, useGroupedMessages } from '@/hooks/useGroupedMessages';
 import { Octicons } from '@expo/vector-icons';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
-import { runOnJS, useSharedValue } from 'react-native-reanimated';
-import { Gesture, GestureDetector, GestureStateChangeEvent, GestureUpdateEvent, PinchGestureHandlerEventPayload, PinchGesture } from 'react-native-gesture-handler';
-import { ChatScaleLiveContext } from './ChatScaleLiveContext';
-import { CHAT_FONT_SCALE_MIN, CHAT_FONT_SCALE_MAX } from '@/hooks/useChatFontScale';
-import { BoundaryDivider } from './BoundaryDivider';
-import { Text } from './StyledText';
-import { t } from '@/text';
-import { buildChatListBoundaryItems, getLatestBoundaryKey, type ChatListBoundaryItem } from './ChatList.boundaryItems';
-import type { LatestBoundary } from '@/sync/reducer/reducer';
+import { useChatWidth } from '@/hooks/useChatWidth';
+import { ForkFlatChatList } from '@/fork/chat/ForkFlatChatList';
 
 const SCROLL_THRESHOLD = 300;
 
 export const ChatList = React.memo((props: { session: Session }) => {
+    // FORK PATCH: [RESTORE-R8b] ChatList tool-grouping render path (invariant HA-5).
+    // ChatList regains upstream's tool-grouping path; the fork's flat e-ink
+    // rendering is quarantined in the fork overlay (sources/fork/chat/*) and
+    // stays the DEFAULT via the `chatToolGrouping` local setting. Only 'grouped'
+    // selects the restored path below; see docs/happy-patch-surface.md HA-5.
+    const chatToolGrouping = useLocalSetting('chatToolGrouping');
+    if (chatToolGrouping === 'grouped') {
+        return <ChatListGrouped session={props.session} />;
+    }
+    return <ForkFlatChatList session={props.session} />;
+});
+
+const ChatListGrouped = React.memo((props: { session: Session }) => {
     const { messages } = useSessionMessages(props.session.id);
-    const latestBoundary = useLatestBoundary(props.session.id);
     return (
         <ChatListInternal
             metadata={props.session.metadata}
             sessionId={props.session.id}
             messages={messages}
-            latestBoundary={latestBoundary}
         />
     )
 });
@@ -40,7 +45,15 @@ export const ChatList = React.memo((props: { session: Session }) => {
 const ListHeader = React.memo(() => {
     const headerHeight = useHeaderHeight();
     const safeArea = useSafeAreaInsets();
-    return <View style={{ flexDirection: 'row', alignItems: 'center', height: headerHeight + safeArea.top + 32 }} />;
+    // ListFooterComponent on an inverted FlatList renders at the visual top.
+    // Fork adaptation: the fork loads older messages from storage (no reactive
+    // isLoadingOlder flag on useSessionMessages), so — unlike upstream — this
+    // header is a spacer only; the "loading older" spinner was dropped in the
+    // grouped-mode restore. The spacer keeps the header bar from clipping the
+    // oldest message.
+    return (
+        <View style={{ flexDirection: 'row', alignItems: 'center', height: headerHeight + safeArea.top + 32 }} />
+    );
 });
 
 const ListFooter = React.memo((props: { sessionId: string }) => {
@@ -54,132 +67,193 @@ const ChatListInternal = React.memo((props: {
     metadata: Metadata | null,
     sessionId: string,
     messages: Message[],
-    latestBoundary: LatestBoundary | null,
 }) => {
     const { theme } = useUnistyles();
     const flatListRef = React.useRef<FlatList>(null);
-    const currentOffsetRef = React.useRef<number>(0);
-    const contentHeightRef = React.useRef(0);
-    const previousFirstMessageIdRef = React.useRef(props.messages[0]?.id);
-    const liveMultiplier = useSharedValue(1.0);
-    const isActive = useSharedValue(false);
     const [showScrollButton, setShowScrollButton] = React.useState(false);
-    const [viewportHeight, setViewportHeight] = React.useState<number>(0);
-    const pinchToZoomEnabled = useLocalSetting('pinchToZoomEnabled');
-    const chatPaginatedScroll = useLocalSetting('chatPaginatedScroll');
-    const chatFontScale = useLocalSetting('chatFontScale');
+    // Tracks whether the scroll-button is currently shown, so we only call
+    // setShowScrollButton when the threshold is actually crossed instead of
+    // on every scroll frame (60Hz). Without this guard, the entire list
+    // parent re-renders on every wheel tick.
+    const showScrollButtonRef = React.useRef(false);
+    const session = useSession(props.sessionId);
     const { body: chatBodyWidth } = useChatWidth();
-    const isNearBottom = React.useRef(true);
-    const [preBoundaryExpanded, setPreBoundaryExpanded] = React.useState(false);
-    const latestBoundaryKey = getLatestBoundaryKey(props.latestBoundary);
 
-    // When `latestBoundary` first becomes available — typically because an
-    // older-page prefetch dragged the typed context-boundary event into the
-    // loaded message range — DO NOT silently re-collapse the user's view.
-    // The previous `setPreBoundaryExpanded(false)` was the eviction trigger
-    // diagnosed in `.ralph/brainstorms/streaming-pagination-scroll-jump/`:
-    // the user was scrolled into pre-boundary history, the boundary arrived,
-    // and the `seq >= latestBoundary.seq` filter at `ChatList.boundaryItems.ts`
-    // hid every message they were just looking at — including the row
-    // currently under their viewport. Combined with the synthetic-key flip
-    // in boundary-item ids it produced a contentSize shrink, an MVCP anchor
-    // miss, and a visible snap-back.
-    //
-    // Fix: when the boundary key transitions from null/undefined to a
-    // concrete value AND the user already has pre-boundary messages loaded,
-    // auto-expand. When the user actively switches to a new session (via
-    // session-id change) we still want a fresh collapse for that session,
-    // so we key the reset on session id, not on `latestBoundaryKey`.
+    // Collapse agent work between a user prompt and the final answer.
+    // Nested tool groups remain expandable inside the work block. In grouped
+    // mode the toggle has already selected grouping, so grouping is always on.
+    const hasPendingPermission = Boolean(
+        session?.agentState?.requests && Object.keys(session.agentState.requests).length > 0,
+    );
+    const collapseCurrentTurn = session?.thinking !== true && !hasPendingPermission;
+    const groupingOptions = React.useMemo(
+        () => ({ collapseCurrentTurn }),
+        [collapseCurrentTurn],
+    );
+    const displayItems = useGroupedMessages(props.messages, true, groupingOptions);
+
+    // Tracks which groups are explicitly collapsed. Groups start collapsed;
+    // pending approval groups are the only ones we auto-expand.
+    const [collapsedGroups, setCollapsedGroups] = React.useState<Set<string>>(() => {
+        const initial = new Set<string>();
+        for (const item of displayItems) {
+            if (isCollapsibleDisplayItem(item) && !item.hasPendingPermission) {
+                initial.add(item.id);
+            }
+        }
+        return initial;
+    });
+
+    // Auto-expand groups that need user approval — but only if the user
+    // hasn't manually collapsed them.
+    // We track manually-collapsed IDs so we never force-reopen them.
+    const manuallyCollapsedRef = React.useRef<Set<string>>(new Set());
+    const initialSeenCollapsibleGroups = React.useMemo(() => {
+        const initial = new Set<string>();
+        for (const item of displayItems) {
+            if (isCollapsibleDisplayItem(item)) {
+                initial.add(item.id);
+            }
+        }
+        return initial;
+    }, []);
+    const seenCollapsibleGroupsRef = React.useRef<Set<string>>(initialSeenCollapsibleGroups);
+
     React.useEffect(() => {
-        setPreBoundaryExpanded(false);
-    }, [props.sessionId]);
-    const prevLatestBoundaryKeyRef = React.useRef<string | null>(latestBoundaryKey);
+        setCollapsedGroups((prev) => {
+            let changed = false;
+            const next = new Set(prev);
+            const seen = seenCollapsibleGroupsRef.current;
+            for (const item of displayItems) {
+                if (!isCollapsibleDisplayItem(item)) {
+                    continue;
+                }
+                const isNewGroup = !seen.has(item.id);
+                if (isNewGroup) {
+                    seen.add(item.id);
+                }
+                if (item.hasPendingPermission && prev.has(item.id) && !manuallyCollapsedRef.current.has(item.id)) {
+                    next.delete(item.id);
+                    changed = true;
+                    continue;
+                }
+                if (isNewGroup && !item.hasPendingPermission) {
+                    next.add(item.id);
+                    changed = true;
+                }
+            }
+            return changed ? next : prev;
+        });
+    }, [displayItems]);
+
+    // Ref so AppState handler reads fresh items without re-subscribing
+    const displayItemsRef = React.useRef(displayItems);
+    displayItemsRef.current = displayItems;
+
+    // Auto-collapse completed groups when app goes to background / tab hidden
     React.useEffect(() => {
-        const prev = prevLatestBoundaryKeyRef.current;
-        if (prev === null && latestBoundaryKey !== null) {
-            // Boundary just arrived. If the user has any pre-boundary
-            // messages loaded, keep them visible — collapsing them now would
-            // evict messages the user was already viewing.
-            const hasPreBoundary = props.messages.some(message =>
-                message.seq !== Number.MAX_SAFE_INTEGER &&
-                props.latestBoundary !== null &&
-                message.seq < props.latestBoundary.seq,
-            );
-            if (hasPreBoundary) {
-                setPreBoundaryExpanded(true);
+        const sub = AppState.addEventListener('change', (state) => {
+            if (state !== 'active') {
+                setCollapsedGroups((prev) => {
+                    const next = new Set(prev);
+                    for (const item of displayItemsRef.current) {
+                        if (isCollapsibleDisplayItem(item) && !item.hasRunning) {
+                            next.add(item.id);
+                        }
+                    }
+                    return next;
+                });
             }
-        }
-        prevLatestBoundaryKeyRef.current = latestBoundaryKey;
-    }, [latestBoundaryKey, props.messages, props.latestBoundary]);
+        });
+        return () => sub.remove();
+    }, []);
 
-    const boundaryItems = React.useMemo(() => buildChatListBoundaryItems(
-        props.messages,
-        props.latestBoundary,
-        preBoundaryExpanded,
-    ), [props.messages, props.latestBoundary, preBoundaryExpanded]);
+    // Auto-collapse all previous groups when user sends a new message
+    const latestUserMsgId = React.useMemo(() => {
+        for (const msg of props.messages) {
+            if (msg.kind === 'user-text') return msg.id;
+        }
+        return null;
+    }, [props.messages]);
 
-    const handleShowPreBoundaryHistory = React.useCallback(async () => {
-        if (boundaryItems.hasLoadedBoundary) {
-            setPreBoundaryExpanded(true);
-            return;
+    const prevUserMsgIdRef = React.useRef(latestUserMsgId);
+    React.useEffect(() => {
+        if (latestUserMsgId && latestUserMsgId !== prevUserMsgIdRef.current) {
+            prevUserMsgIdRef.current = latestUserMsgId;
+            manuallyCollapsedRef.current.clear();
+            setCollapsedGroups((prev) => {
+                const next = new Set(prev);
+                for (const item of displayItemsRef.current) {
+                    if (isCollapsibleDisplayItem(item)) {
+                        next.add(item.id);
+                    }
+                }
+                return next;
+            });
         }
-        const latestBoundary = props.latestBoundary;
-        if (!latestBoundary) {
-            setPreBoundaryExpanded(true);
-            return;
-        }
-        let prevOldestSeq: number | undefined;
-        while (true) {
-            const sessionMsgs = storage.getState().sessionMessages[props.sessionId];
-            if (!sessionMsgs?.hasOlder || sessionMsgs.oldestLoadedSeq <= latestBoundary.seq) {
-                break;
+    }, [latestUserMsgId]);
+
+    const handleToggleGroup = useCallback((groupId: string) => {
+        setCollapsedGroups((prev) => {
+            const next = new Set(prev);
+            if (next.has(groupId)) {
+                next.delete(groupId);
+                manuallyCollapsedRef.current.delete(groupId);
+            } else {
+                next.add(groupId);
+                manuallyCollapsedRef.current.add(groupId);
             }
-            prevOldestSeq = sessionMsgs.oldestLoadedSeq;
-            await sync.loadOlder(props.sessionId);
-            const after = storage.getState().sessionMessages[props.sessionId];
-            if (!after || after.oldestLoadedSeq === prevOldestSeq) {
-                break;
-            }
-        }
-        setPreBoundaryExpanded(true);
-    }, [boundaryItems.hasLoadedBoundary, props.latestBoundary, props.sessionId]);
+            return next;
+        });
+    }, []);
 
-    const keyExtractor = useCallback((item: ChatListBoundaryItem) => item.id, []);
-    const renderItem = useCallback(({ item }: { item: ChatListBoundaryItem }) => {
-        if (item.kind === 'sticky-boundary') {
-            return <BoundaryDivider kind={item.latestBoundary.kind} />;
-        }
-        if (item.kind === 'show-pre-boundary-history') {
+    const keyExtractor = useCallback((item: DisplayItem) => item.id, []);
+
+    const renderItem = useCallback(({ item }: { item: DisplayItem }) => {
+        if (item.type === 'tool-group') {
             return (
-                <Pressable
-                    accessibilityRole="button"
-                    style={({ pressed }) => [
-                        styles.showHistoryButton,
-                        pressed ? styles.showHistoryButtonPressed : null,
-                    ]}
-                    onPress={() => { void handleShowPreBoundaryHistory(); }}
-                >
-                    <Octicons name="history" size={16} color={theme.colors.text} />
-                    <Text style={styles.showHistoryText}>{t('chat.boundaryDivider.showPreClearHistory')}</Text>
-                </Pressable>
+                <ToolGroupView
+                    group={item}
+                    metadata={props.metadata}
+                    sessionId={props.sessionId}
+                    expanded={!collapsedGroups.has(item.id)}
+                    onToggle={() => handleToggleGroup(item.id)}
+                />
             );
         }
-        return <MessageView message={item.message} metadata={props.metadata} sessionId={props.sessionId} chatBodyWidth={chatBodyWidth} />;
-    }, [props.metadata, props.sessionId, chatBodyWidth, theme.colors.text, handleShowPreBoundaryHistory]);
+        if (item.type === 'agent-work-group') {
+            return (
+                <AgentWorkGroupView
+                    group={item}
+                    metadata={props.metadata}
+                    sessionId={props.sessionId}
+                    expanded={!collapsedGroups.has(item.id)}
+                    onToggle={() => handleToggleGroup(item.id)}
+                />
+            );
+        }
+        return (
+            <MessageView
+                message={item.message}
+                metadata={props.metadata}
+                sessionId={props.sessionId}
+                chatBodyWidth={chatBodyWidth}
+            />
+        );
+    }, [props.metadata, props.sessionId, chatBodyWidth, collapsedGroups, handleToggleGroup]);
 
     // In inverted FlatList, offset 0 = latest messages (visual bottom).
     // Offset increases as user scrolls up to see older messages.
+    // Auto-stick-to-bottom on new messages is handled natively by FlatList's
+    // maintainVisibleContentPosition.autoscrollToBottomThreshold — no JS-side
+    // scrollToOffset is needed (and running both produces a fight that drags
+    // the user's viewport when reading older messages mid-stream).
     const handleScroll = useCallback((e: NativeSyntheticEvent<NativeScrollEvent>) => {
         const offsetY = e.nativeEvent.contentOffset.y;
-        currentOffsetRef.current = offsetY;
-        setShowScrollButton(offsetY > SCROLL_THRESHOLD);
-        // Track near-bottom state for auto-scroll on new content
-        isNearBottom.current = offsetY < 100;
-    }, []);
-
-    const onContentSizeChange = useCallback(() => {
-        if (isNearBottom.current) {
-            flatListRef.current?.scrollToOffset({ offset: 0, animated: true });
+        const next = offsetY > SCROLL_THRESHOLD;
+        if (next !== showScrollButtonRef.current) {
+            showScrollButtonRef.current = next;
+            setShowScrollButton(next);
         }
     }, []);
 
@@ -187,9 +261,20 @@ const ChatListInternal = React.memo((props: {
         flatListRef.current?.scrollToOffset({ offset: 0, animated: true });
     }, []);
 
-    const handleLayout = React.useCallback((event: LayoutChangeEvent) => {
-        setViewportHeight(event.nativeEvent.layout.height);
-    }, []);
+    // In an inverted FlatList, `onEndReached` fires when the user scrolls
+    // past the visual top — i.e. when they want to see older history.
+    // Initial fetch only loads the latest page, so we lazy-load earlier pages
+    // here. Fork adaptation: older-page loading is storage-based (upstream's
+    // hasMoreOlder / loadOlderMessages hook fields do not exist on the fork's
+    // useSessionMessages), matching the fork's flat-path handleEndReached.
+    const sessionId = props.sessionId;
+    const handleLoadOlder = useCallback(() => {
+        const sessionMessages = storage.getState().sessionMessages[sessionId];
+        if (!sessionMessages?.hasOlder || sessionMessages.loadingOlder) {
+            return;
+        }
+        void sync.loadOlder(sessionId);
+    }, [sessionId]);
 
     // On macOS/web, Shift+wheel swaps deltaX/deltaY — restore vertical scrolling
     React.useEffect(() => {
@@ -206,194 +291,38 @@ const ChatListInternal = React.memo((props: {
         return () => node.removeEventListener('wheel', handler);
     }, []);
 
-    const handleContentSizeChange = React.useCallback((_: number, height: number) => {
-        contentHeightRef.current = height;
-    }, []);
-
-    // US-006: viewport-tick adapter. The contract is intentionally narrow —
-    // ChatList does NOT call storage.setRenderWindow directly, does NOT
-    // import messageWindow.ts, and does NOT import prefetchManager.ts.
-    // It only filters the ViewToken[] payload to confirmed message seqs and
-    // forwards them to `sync.reportRenderWindow`. The flag-off short-circuit
-    // and the null-window short-circuit live inside `reportRenderWindow`.
-    const handleViewableItemsChanged = React.useCallback((info: { viewableItems: ViewToken[] }) => {
-        const visibleSeqs: number[] = [];
-        for (const token of info.viewableItems) {
-            const item = token.item as ChatListBoundaryItem | undefined;
-            if (item && item.kind === 'message') {
-                visibleSeqs.push(item.message.seq);
-            }
-        }
-        sync.reportRenderWindow(props.sessionId, visibleSeqs);
-    }, [props.sessionId]);
-
-    const handleEndReached = React.useCallback(() => {
-        const sessionMessages = storage.getState().sessionMessages[props.sessionId];
-        if (!sessionMessages?.hasOlder || sessionMessages.loadingOlder) {
-            return;
-        }
-
-        void sync.loadOlder(props.sessionId);
-    }, [props.sessionId]);
-
-    const pageToOlderMessages = React.useCallback(() => {
-        const maxOffset = Math.max(0, contentHeightRef.current - viewportHeight);
-        const pageSize = viewportHeight;
-        const nextOffset = Math.max(
-            0,
-            Math.min(maxOffset, currentOffsetRef.current + pageSize),
-        );
-        if (maxOffset > 0 && nextOffset >= maxOffset - viewportHeight * 0.1) {
-            const sessionMessages = storage.getState().sessionMessages[props.sessionId];
-            if (sessionMessages?.hasOlder && !sessionMessages.loadingOlder) {
-                void sync.loadOlder(props.sessionId);
-            }
-        }
-        currentOffsetRef.current = nextOffset;
-        setShowScrollButton(nextOffset > SCROLL_THRESHOLD);
-        flatListRef.current?.scrollToOffset({ offset: nextOffset, animated: false });
-    }, [props.sessionId, viewportHeight]);
-
-    const pageToNewerMessages = React.useCallback(() => {
-        const maxOffset = Math.max(0, contentHeightRef.current - viewportHeight);
-        const pageSize = viewportHeight;
-        const nextOffset = Math.max(
-            0,
-            Math.min(maxOffset, currentOffsetRef.current - pageSize),
-        );
-        currentOffsetRef.current = nextOffset;
-        setShowScrollButton(nextOffset > SCROLL_THRESHOLD);
-        flatListRef.current?.scrollToOffset({ offset: nextOffset, animated: false });
-    }, [viewportHeight]);
-
-    const setChatFontScale = React.useCallback((nextScale: number) => {
-        storage.getState().applyLocalSettings({ chatFontScale: nextScale });
-    }, []);
-
-    const pinchGesture = React.useMemo(() => {
-        // Pinch gesture inherently requires 2 pointers in RNGH — the previous
-        // `.minPointers(2).maxPointers(2)` cast-and-call pattern crashed at
-        // runtime on RNGH 2.30.0 ("minPointers is not a function") because
-        // those helpers do NOT exist on PinchGesture (they live on BaseGesture
-        // for tap/longPress, not pinch). Default behavior is correct.
-        return Gesture.Pinch()
-            .onBegin(() => {
-                isActive.value = true;
-            })
-            .onUpdate((event: GestureUpdateEvent<PinchGestureHandlerEventPayload>) => {
-                const nextScale = Math.max(CHAT_FONT_SCALE_MIN, Math.min(CHAT_FONT_SCALE_MAX, chatFontScale * event.scale));
-                liveMultiplier.value = nextScale / chatFontScale;
-            })
-            .onEnd((event: GestureStateChangeEvent<PinchGestureHandlerEventPayload>) => {
-                const nextScale = Math.max(CHAT_FONT_SCALE_MIN, Math.min(CHAT_FONT_SCALE_MAX, chatFontScale * event.scale));
-                runOnJS(setChatFontScale)(nextScale);
-            })
-            // This onFinalize reset IS the cancelled-pinch fallback (formerly tracked as `pendingScale` in plans). Do not remove without on-device re-verification on BOOX.
-            .onFinalize(() => {
-                liveMultiplier.value = 1;
-                isActive.value = false;
-            });
-    }, [chatFontScale, isActive, liveMultiplier, setChatFontScale]);
-
-    const olderMessagesTapGesture = React.useMemo(() => (
-        Gesture.Tap().requireExternalGestureToFail(pinchGesture).onEnd((_, success) => {
-            if (success) {
-                runOnJS(pageToOlderMessages)();
-            }
-        })
-    ), [pinchGesture, pageToOlderMessages]);
-
-    const newerMessagesTapGesture = React.useMemo(() => (
-        Gesture.Tap().requireExternalGestureToFail(pinchGesture).onEnd((_, success) => {
-            if (success) {
-                runOnJS(pageToNewerMessages)();
-            }
-        })
-    ), [pinchGesture, pageToNewerMessages]);
-
-    React.useEffect(() => {
-        const currentFirstId = props.messages[0]?.id;
-        const firstMessageChanged = currentFirstId !== previousFirstMessageIdRef.current;
-        previousFirstMessageIdRef.current = currentFirstId;
-        if (!chatPaginatedScroll || !firstMessageChanged) {
-            return;
-        }
-        if (currentOffsetRef.current < SCROLL_THRESHOLD) {
-            currentOffsetRef.current = 0;
-            setShowScrollButton(false);
-            flatListRef.current?.scrollToOffset({ offset: 0, animated: false });
-        }
-    }, [chatPaginatedScroll, props.messages[0]?.id]);
-
-    const list = (
-        <FlatList
-            ref={flatListRef}
-            data={boundaryItems.items}
-            inverted={true}
-            keyExtractor={keyExtractor}
-            initialNumToRender={8}
-            maxToRenderPerBatch={4}
-            // Keep anchor rows mounted on slow-CPU/no-GPU e-ink panels:
-            // when older messages arrive on `onEndReached`, MVCP needs the
-            // data-index-0 row to be mounted to compute the offset delta.
-            // windowSize=5 + removeClippedSubviews=true unmounted that
-            // anchor whenever the user was scrolled high (~2.5 viewports up),
-            // and contentSize changes against a null anchor caused RN to
-            // fall back to absolute-offset clamping → visible snap-back when
-            // a load-older batch arrived. Diagnosed 2026-04-29; see the
-            // contentSize-shrink trace in
-            // `.ralph/brainstorms/streaming-pagination-scroll-jump/`.
-            windowSize={21}
-            removeClippedSubviews={false}
-            maintainVisibleContentPosition={{
-                minIndexForVisible: 0,
-                autoscrollToTopThreshold: 10,
-            }}
-            keyboardShouldPersistTaps="handled"
-            keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'none'}
-            renderItem={renderItem}
-            onScroll={handleScroll}
-            onEndReached={handleEndReached}
-            onEndReachedThreshold={0.1}
-            onViewableItemsChanged={handleViewableItemsChanged}
-            onContentSizeChange={handleContentSizeChange}
-            scrollEventThrottle={32}
-            scrollEnabled={!chatPaginatedScroll}
-            ListHeaderComponent={<ListFooter sessionId={props.sessionId} />}
-            ListFooterComponent={<ListHeader />}
-        />
-    );
-
-    const inner = (
-        <View style={{ flex: 1 }} onLayout={handleLayout}>
-            {pinchToZoomEnabled ? (
-                <GestureDetector gesture={pinchGesture}>
-                    {list}
-                </GestureDetector>
-            ) : list}
-            {chatPaginatedScroll && (
-                <>
-                    <GestureDetector gesture={olderMessagesTapGesture}>
-                        <View
-                            style={[
-                                styles.pageTurnZone,
-                                styles.pageTurnZoneTop,
-                                { height: viewportHeight * 0.15 },
-                            ]}
-                        />
-                    </GestureDetector>
-                    <GestureDetector gesture={newerMessagesTapGesture}>
-                        <View
-                            style={[
-                                styles.pageTurnZone,
-                                styles.pageTurnZoneBottom,
-                                { height: viewportHeight * 0.15 },
-                            ]}
-                        />
-                    </GestureDetector>
-                </>
-            )}
-            {showScrollButton && !chatPaginatedScroll && (
+    return (
+        <View style={{ flex: 1 }}>
+            <FlatList
+                ref={flatListRef}
+                data={displayItems}
+                inverted={true}
+                keyExtractor={keyExtractor}
+                maintainVisibleContentPosition={{
+                    // Anchor on the second-newest message (index 1), not the
+                    // newest. The newest slot (index 0) gets a brand-new item
+                    // each agent token, which would otherwise destabilise the
+                    // anchor and drag the viewport up.
+                    //
+                    // autoscrollToTopThreshold: for INVERTED lists this is
+                    // actually the auto-stick-to-visual-bottom threshold —
+                    // contentOffset 0 is at the visual bottom in an inverted
+                    // list, and this prop sticks the viewport to offset 0
+                    // when the user is within N units of it.
+                    minIndexForVisible: 1,
+                    autoscrollToTopThreshold: 50,
+                }}
+                keyboardShouldPersistTaps="handled"
+                keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'none'}
+                renderItem={renderItem}
+                onScroll={handleScroll}
+                scrollEventThrottle={16}
+                ListHeaderComponent={<ListFooter sessionId={props.sessionId} />}
+                ListFooterComponent={<ListHeader />}
+                onEndReached={handleLoadOlder}
+                onEndReachedThreshold={0.5}
+            />
+            {showScrollButton && (
                 <View style={styles.scrollButtonContainer}>
                     <Pressable
                         style={({ pressed }) => [
@@ -407,28 +336,14 @@ const ChatListInternal = React.memo((props: {
                 </View>
             )}
         </View>
-    );
-
-    return pinchToZoomEnabled ? (
-        <ChatScaleLiveContext.Provider value={{ liveMultiplier, isActive }}>
-            {inner}
-        </ChatScaleLiveContext.Provider>
-    ) : inner;
+    )
 });
 
+function isCollapsibleDisplayItem(item: DisplayItem): item is ToolGroupItem | Extract<DisplayItem, { type: 'agent-work-group' }> {
+    return item.type === 'tool-group' || item.type === 'agent-work-group';
+}
+
 const styles = StyleSheet.create((theme) => ({
-    pageTurnZone: {
-        position: 'absolute',
-        left: 0,
-        right: 0,
-        backgroundColor: 'transparent',
-    },
-    pageTurnZoneTop: {
-        top: 0,
-    },
-    pageTurnZoneBottom: {
-        bottom: 0,
-    },
     scrollButtonContainer: {
         position: 'absolute',
         left: 0,
@@ -459,28 +374,5 @@ const styles = StyleSheet.create((theme) => ({
     scrollButtonPressed: {
         backgroundColor: theme.colors.surface,
         opacity: 0.7,
-    },
-    showHistoryButton: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        alignSelf: 'center',
-        gap: 8,
-        marginHorizontal: 8,
-        marginVertical: 8,
-        paddingHorizontal: 14,
-        paddingVertical: 10,
-        borderRadius: 8,
-        borderWidth: 2,
-        borderColor: theme.colors.textSecondary,
-        backgroundColor: theme.colors.surface,
-    },
-    showHistoryButtonPressed: {
-        backgroundColor: theme.colors.surface,
-        opacity: 0.7,
-    },
-    showHistoryText: {
-        color: theme.colors.text,
-        fontSize: 14,
-        lineHeight: 20,
     },
 }));

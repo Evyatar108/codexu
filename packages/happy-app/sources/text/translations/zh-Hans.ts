@@ -218,6 +218,8 @@ export const zhHans: TranslationStructure = {
         pinchToZoomDescription: '在聊天中使用双指捏合可实时预览文字大小，并在松手时保存。',
         paginatedScrollTitle: '分页式聊天导航',
         paginatedScrollDescription: '在聊天顶部和底部使用狭窄的点击区域按页移动，而不是自由滚动。',
+        chatToolGroupingTitle: '分组工具调用',
+        chatToolGroupingDescription: '将工具调用和智能体工作折叠为可展开的分组（上游样式）。默认关闭——扁平的电子墨水布局会逐条显示每条消息。',
         socketRangeFetchTitle: '流式加载旧消息',
         socketRangeFetchDescription: '通过实时套接字而不是单独的 HTTP 请求获取较早的消息，让它们在你滚动到之前就先到达。',
         inlineToolCalls: '内联工具调用',
@@ -641,6 +643,17 @@ export const zhHans: TranslationStructure = {
         output: '输出',
     },
 
+    toolGroup: {
+        editedFile: 'Edited file',
+        editedFiles: ({ count }: { count: number }) => `编辑了 ${count} 个文件`,
+        readFiles: ({ count }: { count: number }) => `读取了 ${count} 个文件`,
+        ranCommands: ({ count }: { count: number }) => `执行了 ${count} 个命令`,
+        searched: ({ count }: { count: number }) => `搜索了 ${count} 次`,
+        fetchedUrls: ({ count }: { count: number }) => `获取了 ${count} 个 URL`,
+        ranTasks: ({ count }: { count: number }) => `执行了 ${count} 个任务`,
+        usedTools: ({ count }: { count: number }) => `使用了 ${count} 个工具`,
+        workedFor: ({ duration }: { duration: string }) => `Worked ${duration}`,
+    },
     tools: {
         fullView: {
             description: '描述',

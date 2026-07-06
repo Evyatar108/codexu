@@ -46,11 +46,13 @@ cross-check resolves the invariant ID from the marker line itself.
 
 ## Layout
 
-R8 stage 1 introduces the `markdown/` overlay (MarkdownView, catalogue HA-8):
+R8 stage 1 introduces the `markdown/` overlay (MarkdownView, catalogue HA-8);
+R8 stage 2 adds the `chat/` overlay (ChatList, catalogue HA-5):
 
 | Subdir | Overlay for | Catalogue rows |
 |---|---|---|
 | `markdown/` | `components/markdown/MarkdownView.tsx` | HA-8 |
+| `chat/` | `components/ChatList.tsx` | HA-5 |
 
 Later R8 stages add sibling overlays as they land (e.g. `chat/` for ChatList,
 `message/` for MessageView, `composer/` for AgentInput, `session/` for
@@ -62,4 +64,4 @@ stage that needs it lands — do not scaffold empty directories ahead of use.
 The full KEEP / DISABLE / KEEP-DELETED catalogue for every fork divergence
 (happy-app HA-*, happy-server HS-*, happy-cli HC-*) lives in
 [`docs/happy-patch-surface.md`](../../../../docs/happy-patch-surface.md). Every
-module in this directory is cross-referenced from an HA-8 row there.
+module in this directory is cross-referenced from an HA-5 / HA-8 row there.

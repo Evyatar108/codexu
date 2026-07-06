@@ -146,7 +146,7 @@ Paths relative to `packages/happy-app/sources/` unless noted. See [`packages/hap
 | HA-2 | `sync/storage.ts` — client session/message store | KEEP | Fork's storage shape tracks the collapsed single-user session model (no account graph). Large fork-owned surface. | ❌ (doc-only in M0) | `pnpm typecheck`; `sync/encryptionDeletion.spec.ts` | deferred M2+ (sync plane, ~R5) |
 | HA-3 | `sync/reducer/reducer.ts` — message→event reducer | KEEP | Fork reducer carries the typed context-boundary handling and e-ink-friendly accumulation. Conflicts with upstream reducer changes. | ❌ (doc-only in M0) | `sync/reducer/reducer.spec.ts`, `messageToEvent.spec.ts` | deferred M2+ (sync plane, ~R5) |
 | HA-4 | `-session/SessionView.tsx` — session screen | KEEP | Fork's chat surface is tuned for the **e-ink tablet** (static UI, no smooth-scroll/continuous repaint). Broadly rewritten vs upstream. | ❌ (doc-only in M0) | `pnpm typecheck`; visual/e-ink review | **RESTORE-R8a** (SessionView) — later R8 stage; see [§8 R8](#r8--happy-app-ui-seams-ha-8-markdownview-stage-1) |
-| HA-5 | `components/ChatList.tsx` — message list | KEEP | Fork's inverted-FlatList perf work + `BoundaryDivider` rendering (shipped upstream as PR #1154, but fork carries adjacent e-ink tuning). | ❌ (doc-only in M0) | `components/ChatList.preBoundaryHistory.test.tsx` | **RESTORE-R8b** (ChatList) — later R8 stage; see [§8 R8](#r8--happy-app-ui-seams-ha-8-markdownview-stage-1) |
+| HA-5 | `components/ChatList.tsx` — message list | KEEP + RESTORE-grouping | Fork's inverted-FlatList perf work + `BoundaryDivider` rendering (shipped upstream as PR #1154, but fork carries adjacent e-ink tuning) **plus** upstream's tool-call/agent-work grouping restored behind a default-flat toggle (operator call #2). | ✅ `RESTORE-R8b` | `components/ChatList.{preBoundaryHistory,viewableItemsAdapter,pageTurn,toolGroupingToggle}.test.*`; `hooks/useGroupedMessages.test.ts` | **R8 stage 2 DONE** — flat e-ink body KEEP-relocated to `sources/fork/chat/*` (5a FlatList tuning, pinch-zoom, page-turn); upstream grouping restored (`useGroupedMessages`, `ToolGroupView`) behind `chatToolGrouping` local setting (**default `'flat'`** = behavior-identical). See [§8 R8 stage 2](#stage-2-this-ship--ha-5-componentschatlisttsx). |
 | HA-6 | `components/AgentInput.tsx` — composer | KEEP | Fork input diverges on modes/attachments/keyboard for the e-ink target. High-churn conflict surface. | ❌ (doc-only in M0) | `components/AgentInput.{mode,attachments,keyboard,activeRegression}.test.tsx` | **RESTORE-R8c** (AgentInput) — later R8 stage; see [§8 R8](#r8--happy-app-ui-seams-ha-8-markdownview-stage-1) |
 | HA-7 | `text/_default.ts` + `text/translations/*.ts` — i18n | KEEP | Fork-added translation keys must survive import. **`merge=union` is UNSAFE here** (typed nested TS object modules; duplicate keys error `TS1117` and arrow-value splits break syntax — see §7). Merge is manual or via a future fork-namespaced strings file. | ❌ (doc-only in M0) | `text/translations.test.ts` (structural parity) | deferred M2+ (i18n plane, ~R6) |
 | HA-8 | `components/markdown/MarkdownView.tsx` — markdown renderer | KEEP | Fork's e-ink markdown rendering (option cards, contrast-safe code/text-weight styling, font-scale wrapper) + fork features (Claude meta-tag pills, session-file autolinking, internal file-link nav, session-aware image loading). Conflicts on nearly every import. | ✅ `RESTORE-R8d` | `components/markdown/*.test.ts` (parseMarkdown, parseMarkdownBlock, processClaudeMetaTags, skillBody, linkUtils) | **R8 stage 1 DONE** — 8a–8h KEEP-relocated to `sources/fork/markdown/*`; 8j KEEP-in-place; 8i DISABLE deferred to US-001. See [§8 R8](#r8--happy-app-ui-seams-ha-8-markdownview-stage-1). |
@@ -166,7 +166,7 @@ each R8 stage lands it adds a sibling subdir; empty dirs are **not** scaffolded 
 |---|---|---|---|
 | `markdown/` | `components/markdown/MarkdownView.tsx` | HA-8 | **R8 stage 1 (this ship)** |
 | `session/` | `-session/SessionView.tsx`, `components/ChatHeaderView.tsx` | HA-4, HA-12 | planned (later R8 stage) |
-| `chat/` | `components/ChatList.tsx` | HA-5 | planned (later R8 stage) |
+| `chat/` | `components/ChatList.tsx` | HA-5 | **R8 stage 2 (this ship)** |
 | `message/` | `components/MessageView.tsx` | HA-9 | planned (later R8 stage) |
 | `composer/` | `components/AgentInput.tsx` | HA-6 | planned (later R8 stage) |
 | `sidebar/` | `components/SidebarView.tsx`, `components/SidebarNavigator.tsx` | HA-10, HA-11 | planned (later R8 stage, operator-gated) |
@@ -402,6 +402,42 @@ DISABLE-reverts story, gated on operator calls #6/#7 per `stories-outline.md`) o
 simplification back after US-001): re-inline the simplified list renderers that map `MarkdownSpan[][]`
 directly to bulleted `<Text>` rows (dropping `item.depth`), keeping the fork `parseMarkdown.ts` list-item
 shape.
+
+#### Stage 2 (this ship) — HA-5 `components/ChatList.tsx`
+
+Upstream reference: `cli-1.1.10` (`slopus/happy@71c417e1`). The fork had **deleted** upstream's tool-call
+grouping (`useGroupedMessages`, `ToolGroupView`/`AgentWorkGroupView`, collapse-state) in favor of a flat
+e-ink render where every message is its own inverted-`FlatList` row. Stage 2 implements **operator call #2**
+(restore grouping as a toggle, default preserves flat) and **operator call #5** (keep the e-ink features as
+minimal fork-owned seams).
+
+- **RESTORE (upstream grouping, opt-in):** `sources/hooks/useGroupedMessages.ts` (+`.test.ts`),
+  `sources/components/ToolGroupView.tsx`, and `sources/utils/toolDisplay.ts` are restored verbatim from
+  upstream (they carry **no** `FORK PATCH` marker — they are upstream-canonical, not fork divergences).
+  `ChatList.tsx` regains the upstream grouped render path (`ChatListGrouped` → `ChatListInternal`:
+  collapse-state, AppState/latest-user auto-collapse, `ToolGroupView`/`AgentWorkGroupView`/`MessageView`
+  `renderItem`). Minimal fork adaptations (noted inline): fork storage-based older-loading
+  (`sync.loadOlder`, `useSessionMessages` → `{messages, isLoaded}`), `chatBodyWidth` threaded to
+  `MessageView` (a required fork prop). **Not restored** (out of scope for call #2, stays KEEP-DELETED):
+  fork-from-message quick-actions; grouped mode has **no** `BoundaryDivider` support (upstream grouping
+  never had it — dividers remain a flat-path-only fork feature) and does **no** render-window / prefetch
+  reporting.
+- **KEEP (e-ink flat body, relocated to seams):** the entire current flat `ChatList` body moves to
+  `sources/fork/chat/ForkFlatChatList.tsx`, consuming three new seam modules — `chatListEinkProps.ts`
+  (5a FlatList tuning: `windowSize=21`, `removeClippedSubviews=false`, `maxToRenderPerBatch=4`, MVCP),
+  `usePinchFontScale.ts` (pinch-zoom font preview), and `usePageTurnScroll.ts` (paginated page-turn
+  scroll). Each fork/chat module + the `ChatList.tsx` toggle seam carries a `RESTORE-R8b … (invariant HA-5)`
+  marker.
+- **Toggle:** `chatToolGrouping: 'flat' | 'grouped'` in `LocalSettingsSchema` (**default `'flat'`**),
+  surfaced in Settings → Appearance next to the other chat toggles. `ChatList` reads the setting and
+  conditionally renders `<ChatListGrouped>` (grouped) or `<ForkFlatChatList>` (flat) — each a standalone
+  component with unconditional hooks, so the wrapper never violates Rules-of-Hooks.
+
+**Stage-2 net:** `ChatList.tsx` returns *toward* upstream shape (it regains the grouped path; the flat body
+is relocated behind a seam), while the **default rendering is behavior-identical** (flat) because
+`chatToolGrouping` defaults to `'flat'`. New overlay modules live under `packages/happy-app/sources/fork/chat/`.
+i18n: the deleted `toolGroup` block (9 keys) is restored to `_default.ts` + all 10 locales (reused from
+upstream translations), plus two new `settingsAppearance.chatToolGrouping{Title,Description}` keys.
 
 ---
 

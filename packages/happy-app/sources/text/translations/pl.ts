@@ -234,6 +234,8 @@ export const pl: TranslationStructure = {
         pinchToZoomDescription: 'Użyj gestu szczypania dwoma palcami w czacie, aby zobaczyć podgląd rozmiaru tekstu na żywo i zapisać go po puszczeniu.',
         paginatedScrollTitle: 'Nawigacja po czacie stronami',
         paginatedScrollDescription: 'Używaj wąskich górnych i dolnych stref dotyku w czacie, aby poruszać się stronami zamiast przewijać swobodnie.',
+        chatToolGroupingTitle: 'Grupuj wywołania narzędzi',
+        chatToolGroupingDescription: 'Zwijaj wywołania narzędzi i pracę agenta w rozwijane grupy (styl upstream). Domyślnie wyłączone — płaski układ e-ink pokazuje każdą wiadomość osobno.',
         socketRangeFetchTitle: 'Strumieniuj starsze wiadomości',
         socketRangeFetchDescription: 'Pobieraj starsze wiadomości przez aktywne gniazdo zamiast pojedynczymi żądaniami HTTP, żeby docierały tuż przed dotarciem do nich przewijaniem.',
         inlineToolCalls: 'Wbudowane wywołania narzędzi',
@@ -656,6 +658,17 @@ export const pl: TranslationStructure = {
         output: 'Wyjście',
     },
 
+    toolGroup: {
+        editedFile: 'Edited file',
+        editedFiles: ({ count }: { count: number }) => `${plural({ count, one: 'Edytowano 1 plik', few: `Edytowano ${count} pliki`, many: `Edytowano ${count} plików` })}`,
+        readFiles: ({ count }: { count: number }) => `${plural({ count, one: 'Odczytano 1 plik', few: `Odczytano ${count} pliki`, many: `Odczytano ${count} plików` })}`,
+        ranCommands: ({ count }: { count: number }) => `${plural({ count, one: 'Wykonano 1 polecenie', few: `Wykonano ${count} polecenia`, many: `Wykonano ${count} poleceń` })}`,
+        searched: ({ count }: { count: number }) => `${plural({ count, one: 'Wyszukano 1 raz', few: `Wyszukano ${count} razy`, many: `Wyszukano ${count} razy` })}`,
+        fetchedUrls: ({ count }: { count: number }) => `${plural({ count, one: 'Pobrano 1 URL', few: `Pobrano ${count} URLe`, many: `Pobrano ${count} URLi` })}`,
+        ranTasks: ({ count }: { count: number }) => `${plural({ count, one: 'Wykonano 1 zadanie', few: `Wykonano ${count} zadania`, many: `Wykonano ${count} zadań` })}`,
+        usedTools: ({ count }: { count: number }) => `${plural({ count, one: 'Użyto 1 narzędzie', few: `Użyto ${count} narzędzia`, many: `Użyto ${count} narzędzi` })}`,
+        workedFor: ({ duration }: { duration: string }) => `Worked ${duration}`,
+    },
     tools: {
         fullView: {
             description: 'Opis',

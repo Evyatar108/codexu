@@ -217,6 +217,8 @@ export const ca: TranslationStructure = {
         pinchToZoomDescription: 'Fes un gest de pessigar amb dos dits al xat per veure una previsualització en viu de la mida del text que es desa en deixar-lo anar.',
         paginatedScrollTitle: 'Navegació del xat per pàgines',
         paginatedScrollDescription: 'Fes servir zones tàctils estretes a la part superior i inferior del xat per avançar per pàgines en lloc de desplaçar-te lliurement.',
+        chatToolGroupingTitle: 'Agrupa les crides d\'eines',
+        chatToolGroupingDescription: 'Replega les crides d\'eines i la feina de l\'agent en grups desplegables (estil upstream). Desactivat per defecte: la disposició plana d\'e-ink mostra cada missatge en línia.',
         socketRangeFetchTitle: 'Transmet els missatges antics',
         socketRangeFetchDescription: 'Obté els missatges antics pel socket en directe en lloc de fer peticions HTTP puntuals, perquè arribin una mica abans que t\'hi desplacis.',
         inlineToolCalls: 'Crides d\'eines en línia',
@@ -640,6 +642,17 @@ export const ca: TranslationStructure = {
         output: 'Sortida',
     },
 
+    toolGroup: {
+        editedFile: 'Edited file',
+        editedFiles: ({ count }: { count: number }) => count === 1 ? 'S\'ha editat 1 fitxer' : `S'han editat ${count} fitxers`,
+        readFiles: ({ count }: { count: number }) => count === 1 ? 'S\'ha llegit 1 fitxer' : `S'han llegit ${count} fitxers`,
+        ranCommands: ({ count }: { count: number }) => count === 1 ? 'S\'ha executat 1 comanda' : `S'han executat ${count} comandes`,
+        searched: ({ count }: { count: number }) => count === 1 ? 'S\'ha cercat 1 vegada' : `S'ha cercat ${count} vegades`,
+        fetchedUrls: ({ count }: { count: number }) => count === 1 ? 'S\'ha obtingut 1 URL' : `S'han obtingut ${count} URLs`,
+        ranTasks: ({ count }: { count: number }) => count === 1 ? 'S\'ha executat 1 tasca' : `S'han executat ${count} tasques`,
+        usedTools: ({ count }: { count: number }) => count === 1 ? 'S\'ha usat 1 eina' : `S'han usat ${count} eines`,
+        workedFor: ({ duration }: { duration: string }) => `Worked ${duration}`,
+    },
     tools: {
         fullView: {
             description: 'Descripció',

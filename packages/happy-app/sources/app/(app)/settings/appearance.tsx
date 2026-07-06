@@ -42,6 +42,7 @@ export default function AppearanceSettingsScreen() {
     const [chatFontScale, setChatFontScale] = useLocalSettingMutable('chatFontScale');
     const [pinchToZoomEnabled, setPinchToZoomEnabled] = useLocalSettingMutable('pinchToZoomEnabled');
     const [chatPaginatedScroll, setChatPaginatedScroll] = useLocalSettingMutable('chatPaginatedScroll');
+    const [chatToolGrouping, setChatToolGrouping] = useLocalSettingMutable('chatToolGrouping');
     const [enableSocketRangeFetch, setEnableSocketRangeFetch] = useLocalSettingMutable('enableSocketRangeFetch');
     const [themePreference, setThemePreference] = useLocalSettingMutable('themePreference');
     const [preferredLanguage] = useSettingMutable('preferredLanguage');
@@ -206,6 +207,17 @@ export default function AppearanceSettingsScreen() {
                         <Switch
                             value={chatPaginatedScroll}
                             onValueChange={setChatPaginatedScroll}
+                        />
+                    }
+                />
+                <Item
+                    title={t('settingsAppearance.chatToolGroupingTitle')}
+                    subtitle={t('settingsAppearance.chatToolGroupingDescription')}
+                    icon={<Ionicons name="albums-outline" size={29} color="#5856D6" />}
+                    rightElement={
+                        <Switch
+                            value={chatToolGrouping === 'grouped'}
+                            onValueChange={(value) => setChatToolGrouping(value ? 'grouped' : 'flat')}
                         />
                     }
                 />

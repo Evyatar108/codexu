@@ -205,6 +205,8 @@ export const ru: TranslationStructure = {
         pinchToZoomDescription: 'Используйте щипок двумя пальцами в чате для живого предпросмотра размера текста с сохранением после отпускания.',
         paginatedScrollTitle: 'Постраничная навигация по чату',
         paginatedScrollDescription: 'Используйте узкие верхнюю и нижнюю зоны касания в чате, чтобы перемещаться по страницам вместо свободной прокрутки.',
+        chatToolGroupingTitle: 'Группировать вызовы инструментов',
+        chatToolGroupingDescription: 'Сворачивать вызовы инструментов и работу агента в разворачиваемые группы (стиль upstream). По умолчанию выключено — плоский режим e-ink показывает каждое сообщение отдельно.',
         socketRangeFetchTitle: 'Потоковая загрузка старых сообщений',
         socketRangeFetchDescription: 'Получайте старые сообщения по активному сокету вместо разовых HTTP-запросов, чтобы они приходили чуть раньше, чем вы до них долистаете.',
         inlineToolCalls: 'Встроенные вызовы инструментов',
@@ -656,6 +658,17 @@ export const ru: TranslationStructure = {
         output: 'Результат',
     },
 
+    toolGroup: {
+        editedFile: 'Отредактированный файл',
+        editedFiles: ({ count }: { count: number }) => `${plural({ count, one: 'Отредактирован', few: 'Отредактировано', many: 'Отредактировано' })} ${count} ${plural({ count, one: 'файл', few: 'файла', many: 'файлов' })}`,
+        readFiles: ({ count }: { count: number }) => `${plural({ count, one: 'Прочитан', few: 'Прочитано', many: 'Прочитано' })} ${count} ${plural({ count, one: 'файл', few: 'файла', many: 'файлов' })}`,
+        ranCommands: ({ count }: { count: number }) => `${plural({ count, one: 'Выполнена', few: 'Выполнено', many: 'Выполнено' })} ${count} ${plural({ count, one: 'команда', few: 'команды', many: 'команд' })}`,
+        searched: ({ count }: { count: number }) => `${plural({ count, one: 'Выполнен', few: 'Выполнено', many: 'Выполнено' })} ${count} ${plural({ count, one: 'поиск', few: 'поиска', many: 'поисков' })}`,
+        fetchedUrls: ({ count }: { count: number }) => `${plural({ count, one: 'Загружен', few: 'Загружено', many: 'Загружено' })} ${count} URL`,
+        ranTasks: ({ count }: { count: number }) => `${plural({ count, one: 'Выполнена', few: 'Выполнено', many: 'Выполнено' })} ${count} ${plural({ count, one: 'задача', few: 'задачи', many: 'задач' })}`,
+        usedTools: ({ count }: { count: number }) => `${plural({ count, one: 'Использован', few: 'Использовано', many: 'Использовано' })} ${count} ${plural({ count, one: 'инструмент', few: 'инструмента', many: 'инструментов' })}`,
+        workedFor: ({ duration }: { duration: string }) => `Работало ${duration}`,
+    },
     tools: {
         fullView: {
             description: 'Описание',

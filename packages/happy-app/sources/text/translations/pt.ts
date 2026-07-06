@@ -216,6 +216,8 @@ export const pt: TranslationStructure = {
         pinchToZoomDescription: 'Use um gesto de pinça com dois dedos no chat para uma prévia ao vivo do tamanho do texto que é salva ao soltar.',
         paginatedScrollTitle: 'Navegação do chat por páginas',
         paginatedScrollDescription: 'Use zonas de toque estreitas no topo e na parte inferior do chat para avançar por páginas em vez de rolar livremente.',
+        chatToolGroupingTitle: 'Agrupar chamadas de ferramentas',
+        chatToolGroupingDescription: 'Recolher chamadas de ferramentas e o trabalho do agente em grupos expansíveis (estilo upstream). Desativado por padrão — o layout plano de e-ink mostra cada mensagem em linha.',
         socketRangeFetchTitle: 'Transmitir mensagens antigas',
         socketRangeFetchDescription: 'Receba as mensagens mais antigas pelo socket ao vivo em vez de requisições HTTP avulsas, para que cheguem um pouco antes de você rolar até elas.',
         inlineToolCalls: 'Chamadas de ferramentas inline',
@@ -639,6 +641,17 @@ export const pt: TranslationStructure = {
         output: 'Saída',
     },
 
+    toolGroup: {
+        editedFile: 'Edited file',
+        editedFiles: ({ count }: { count: number }) => count === 1 ? 'Editou 1 arquivo' : `Editou ${count} arquivos`,
+        readFiles: ({ count }: { count: number }) => count === 1 ? 'Leu 1 arquivo' : `Leu ${count} arquivos`,
+        ranCommands: ({ count }: { count: number }) => count === 1 ? 'Executou 1 comando' : `Executou ${count} comandos`,
+        searched: ({ count }: { count: number }) => count === 1 ? 'Pesquisou 1 vez' : `Pesquisou ${count} vezes`,
+        fetchedUrls: ({ count }: { count: number }) => count === 1 ? 'Obteve 1 URL' : `Obteve ${count} URLs`,
+        ranTasks: ({ count }: { count: number }) => count === 1 ? 'Executou 1 tarefa' : `Executou ${count} tarefas`,
+        usedTools: ({ count }: { count: number }) => count === 1 ? 'Usou 1 ferramenta' : `Usou ${count} ferramentas`,
+        workedFor: ({ duration }: { duration: string }) => `Worked ${duration}`,
+    },
     tools: {
         fullView: {
             description: 'Descrição',

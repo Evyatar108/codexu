@@ -215,6 +215,8 @@ export const en = {
         pinchToZoomDescription: 'Use a two-finger pinch in chat for a live text-size preview that saves on release.',
         paginatedScrollTitle: 'Page-Turn Chat Navigation',
         paginatedScrollDescription: 'Use narrow top and bottom tap zones in chat to move by page instead of scrolling freely.',
+        chatToolGroupingTitle: 'Group Tool Calls',
+        chatToolGroupingDescription: 'Collapse tool calls and agent work into expandable groups (upstream style). Off by default — the flat e-ink layout renders every message inline.',
         socketRangeFetchTitle: 'Stream Older Messages',
         socketRangeFetchDescription: 'Fetch older messages over the live socket instead of one-off HTTP requests, so they arrive a bit before you scroll there.',
         inlineToolCalls: 'Inline Tool Calls',
@@ -637,6 +639,17 @@ export const en = {
         output: 'Output',
     },
 
+    toolGroup: {
+        editedFile: 'Edited file',
+        editedFiles: ({ count }: { count: number }) => count === 1 ? 'Edited 1 file' : `Edited ${count} files`,
+        readFiles: ({ count }: { count: number }) => count === 1 ? 'Read 1 file' : `Read ${count} files`,
+        ranCommands: ({ count }: { count: number }) => count === 1 ? 'Ran 1 command' : `Ran ${count} commands`,
+        searched: ({ count }: { count: number }) => count === 1 ? 'Searched 1 time' : `Searched ${count} times`,
+        fetchedUrls: ({ count }: { count: number }) => count === 1 ? 'Fetched 1 URL' : `Fetched ${count} URLs`,
+        ranTasks: ({ count }: { count: number }) => count === 1 ? 'Ran 1 task' : `Ran ${count} tasks`,
+        usedTools: ({ count }: { count: number }) => count === 1 ? 'Used 1 tool' : `Used ${count} tools`,
+        workedFor: ({ duration }: { duration: string }) => `Worked ${duration}`,
+    },
     tools: {
         fullView: {
             description: 'Description',

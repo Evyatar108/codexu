@@ -218,6 +218,8 @@ export const ja: TranslationStructure = {
         pinchToZoomDescription: 'チャット内で2本指のピンチ操作を使うと、文字サイズをライブプレビューし、指を離した時に保存できます。',
         paginatedScrollTitle: 'ページ送りチャット操作',
         paginatedScrollDescription: 'チャットの上端と下端の細いタップゾーンを使って、自由にスクロールする代わりにページ単位で移動します。',
+        chatToolGroupingTitle: 'ツール呼び出しをグループ化',
+        chatToolGroupingDescription: 'ツール呼び出しとエージェントの作業を展開可能なグループにまとめます（upstream スタイル）。既定ではオフで、フラットな e-ink 表示は各メッセージを個別に表示します。',
         socketRangeFetchTitle: '過去のメッセージをストリーミング',
         socketRangeFetchDescription: '個別のHTTPリクエストではなくライブソケット経由で過去のメッセージを取得し、スクロールが届く少し前に表示できるようにします。',
         inlineToolCalls: 'ツール呼び出しをインライン表示',
@@ -641,6 +643,17 @@ export const ja: TranslationStructure = {
         output: '出力',
     },
 
+    toolGroup: {
+        editedFile: 'Edited file',
+        editedFiles: ({ count }: { count: number }) => `${count}個のファイルを編集`,
+        readFiles: ({ count }: { count: number }) => `${count}個のファイルを読み取り`,
+        ranCommands: ({ count }: { count: number }) => `${count}個のコマンドを実行`,
+        searched: ({ count }: { count: number }) => `${count}回検索`,
+        fetchedUrls: ({ count }: { count: number }) => `${count}個のURLを取得`,
+        ranTasks: ({ count }: { count: number }) => `${count}個のタスクを実行`,
+        usedTools: ({ count }: { count: number }) => `${count}個のツールを使用`,
+        workedFor: ({ duration }: { duration: string }) => `Worked ${duration}`,
+    },
     tools: {
         fullView: {
             description: '説明',
